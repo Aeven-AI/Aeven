@@ -33,12 +33,24 @@ import 'katex/dist/katex.min.css'
 import '@aeven-ai/hypermarkdown/styles.css'
 import css from './MarkdownText.module.css'
 
+/**
+ * Every localized string this renderer needs. Required, not optional: the
+ * package cannot read the application locale, so a caller that omits copy
+ * fails typechecking rather than falling back to a built-in language.
+ */
+export interface MarkdownLabels {
+  /** Fence toolbar copy control. */
+  code: MarkdownCodeLabels
+  /** Heading of the footnote section. */
+  footnotes: string
+}
+
 /** Copy-button labels forwarded to fence toolbars (this package is cordis-free, so copy arrives via props). */
 export interface MarkdownCodeLabels {
   /** Copy-button idle label. */
-  copyLabel?: string | undefined
+  copyLabel: string
   /** Copy-button label during the post-copy confirmation window. */
-  copiedLabel?: string | undefined
+  copiedLabel: string
 }
 
 /**
@@ -167,19 +179,21 @@ function codeComponents(
  * Render untrusted assistant-authored Markdown as semantic React elements.
  * @param props - Markdown source text preserved by the session projection;
  * `streaming` feeds appends into the engine's streaming path and clearing it
- * swaps to the settled parse; `codeLabels` forwards localized copy-button
- * labels to fence toolbars, and `fileMentions` links inline-code tokens its
+ * swaps to the settled parse; `labels` carries the localized copy this package
+ * cannot look up itself, and `fileMentions` links inline-code tokens its
  * resolver recognizes as real files. Both must be reference-stable (memoized
  * per locale revision or per turn) — a new identity rebuilds the engine's
- * component table and remounts cached blocks.
+ * component table and remounts cached blocks. `labels.footnotes` is accepted
+ * but not yet applied: the engine names that section itself, and overriding it
+ * needs a setting it does not expose.
  * @returns A GFM document with TeX math rendered through KaTeX; raw HTML never
  * enters the DOM, link and image destinations are restricted to safe schemes,
  * and diagram fences stay code blocks.
  */
-export const MarkdownText = memo(function MarkdownText({ text, streaming = false, codeLabels, fileMentions }: {
+export const MarkdownText = memo(function MarkdownText({ text, streaming = false, labels, fileMentions }: {
   text: string
   streaming?: boolean
-  codeLabels?: MarkdownCodeLabels | undefined
+  labels: MarkdownLabels
   fileMentions?: MarkdownFileMentions | undefined
 }) {
   const handleRef = useRef<HyperMarkdownHandle>(null)
@@ -188,14 +202,12 @@ export const MarkdownText = memo(function MarkdownText({ text, streaming = false
   const applied = useRef<AppliedState | null>(null)
 
   const translations = useMemo<Partial<Translations>>(() => {
-    const labels: Partial<Translations> = {}
-    if (codeLabels?.copyLabel !== undefined) {
-      labels.copy = codeLabels.copyLabel
-      labels.copyCode = codeLabels.copyLabel
+    return {
+      copy: labels.code.copyLabel,
+      copyCode: labels.code.copyLabel,
+      codeCopied: labels.code.copiedLabel,
     }
-    if (codeLabels?.copiedLabel !== undefined) labels.codeCopied = codeLabels.copiedLabel
-    return labels
-  }, [codeLabels])
+  }, [labels])
 
   const components = useMemo(
     () => codeComponents(fileMentions, streaming),
