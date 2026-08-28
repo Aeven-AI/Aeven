@@ -1,16 +1,20 @@
-<div class="_markdown_404681">
+<div class="hypermarkdown _markdown_404681">
   <p>
     #text "A "
-    <a href="https://example.com/ref" rel="noopener noreferrer" target="_blank">
+    <a href="https://example.com/ref" rel="noreferrer" target="_blank" title="ref title">
       #text "full"
     #text " reference, a "
-    <a href="https://example.com/collapsed" rel="noopener noreferrer" target="_blank">
+    <a href="https://example.com/collapsed" rel="noreferrer" target="_blank">
       #text "collapsed"
     #text " one, and a "
-    <a href="https://example.com/shortcut" rel="noopener noreferrer" target="_blank">
+    <a href="https://example.com/shortcut" rel="noreferrer" target="_blank">
       #text "shortcut"
     #text " one."
   <p>
     #text "[missing full][nope], [missing collapsed][], ![missing image][gone]."
   <p>
-    <img alt="ref image" class="_image_404681" decoding="async" loading="lazy" referrerpolicy="no-referrer" src="https://example.com/ref.png">
+    <span class="markdown-image-container">
+      <span class="markdown-image">
+        <span class="image-error">
+        <span class="image-loader">
+        <img alt="ref image" class="image" src="https://example.com/ref.png">

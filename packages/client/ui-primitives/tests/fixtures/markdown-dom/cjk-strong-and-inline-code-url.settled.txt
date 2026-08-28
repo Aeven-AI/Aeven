@@ -1,4 +1,4 @@
-<div class="_markdown_404681">
+<div class="hypermarkdown _markdown_404681">
   <p>
     <strong>
       #text "注意："
@@ -6,10 +6,12 @@
   <p>
     #text "**Notice:**text keeps upstream parsing."
   <p>
-    #text "*提醒！*单星号也保持上游行为。"
+    <em>
+      #text "提醒！"
+    #text "单星号也保持上游行为。"
   <p>
-    <code>
-      <a href="https://example.com/preview?q=one%20two#result" rel="noopener noreferrer" target="_blank">
+    <a href="https://example.com/preview?q=one%20two#result" rel="noreferrer noopener" target="_blank">
+      <code>
         #text "https://example.com/preview?q=one%20two#result"
     #text " 与 "
     <code>

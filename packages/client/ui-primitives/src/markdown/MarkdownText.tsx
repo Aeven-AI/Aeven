@@ -1,157 +1,180 @@
 /**
- * Untrusted assistant-Markdown renderer over the direct mdast pipeline:
- * `parse.ts` grammars, the incremental streaming parser, and `render.tsx`.
- * While a message streams, all but the trailing two blocks freeze as cached
- * React elements and only the source tail behind them re-parses per chunk,
- * so per-chunk work tracks the tail size instead of the whole reply. Frozen
- * blocks keep their source-offset keys when they cross the freeze boundary,
- * so React reconciles instead of remounting. Known deviation while
- * streaming: a reference-style link or footnote whose definition sits on the
- * other side of the freeze boundary renders literally until the settled
- * full parse self-heals it.
+ * Untrusted assistant-Markdown rendered through the HyperMarkdown engine.
+ *
+ * The engine owns a mutable per-instance store fed by deltas through an
+ * imperative handle, while this component's contract is a pure function of the
+ * accumulated source text: React re-renders it freely, and a transcript may
+ * mount it partway through a reply. The effect below reconciles the two by
+ * tracking what the store has already been told and writing only the append,
+ * reseeding when the text is not an extension of what it applied last.
+ *
+ * The finalize swap goes through `setMarkdown`, not a `write(…, true)`
+ * finalize, because streamed output is chunk-dependent for fences and tables
+ * (the per-line and per-row caches are what make streaming cheap) while
+ * `setMarkdown` runs the one-shot settled parse. Routing the swap through it
+ * makes the settled DOM identical however the reply was chunked.
+ *
+ * Untrusted-output policy: `html: 'literal'` keeps raw HTML out of the DOM
+ * entirely — it is never parsed, so it reads as the characters written rather
+ * than relying on a sanitizer schema having no gaps. Diagrams render through
+ * Mermaid pinned to its strict security level, which is what makes it safe to
+ * point a rendering engine at assistant-authored source.
  */
 
-import { memo, useMemo, useRef } from 'react'
+import { memo, useEffect, useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
-import { IncrementalMarkdownParser } from './incremental.ts'
-import { parseGfm, parseGfmWithMath } from './parse.ts'
-import {
-  collectReferenceTargets, createReferenceTargets, renderBlocks, renderFootnoteSection,
-  wrapBlockChildren,
-} from './render.tsx'
-import type { MarkdownCodeLabels, MarkdownFileMentions, MarkdownRenderContext, ReferenceTargets } from './render.tsx'
+import HyperMarkdown from '@aeven-ai/hypermarkdown'
+import type { HyperMarkdownHandle, RendererComponents, Translations } from '@aeven-ai/hypermarkdown'
+import katexPlugin from '@aeven-ai/hypermarkdown/plugins/math'
+import cjkPlugin from '@aeven-ai/hypermarkdown/plugins/cjk'
+import highlightPlugin from '@aeven-ai/hypermarkdown/plugins/code'
+import mermaidPlugin from '@aeven-ai/hypermarkdown/plugins/mermaid'
 import 'katex/dist/katex.min.css'
+import '@aeven-ai/hypermarkdown/styles.css'
 import css from './MarkdownText.module.css'
 
-export type { MarkdownCodeLabels, MarkdownFileMentions } from './render.tsx'
-
-/** One settled full render: parse with math, resolve references, append the footnote section. */
-function renderSettled(
-  text: string,
-  codeLabels: MarkdownCodeLabels | undefined,
-  fileMentions: MarkdownFileMentions | undefined,
-): ReactNode[] {
-  const root = parseGfmWithMath(text)
-  const targets = createReferenceTargets()
-  collectReferenceTargets(root.children, targets)
-  const context: MarkdownRenderContext = {
-    streaming: false,
-    codeLabels,
-    fileMentions,
-    targets,
-    footnoteOrder: [],
-    footnoteCounts: new Map(),
-  }
-  const blocks = wrapBlockChildren(
-    renderBlocks(root.children.map((node, index) => ({ node, key: index })), context),
-    false,
-  )
-  const section = renderFootnoteSection(context)
-  return section === null ? blocks : [...blocks, '\n', section]
+/** Copy-button labels forwarded to fence toolbars (this package is cordis-free, so copy arrives via props). */
+export interface MarkdownCodeLabels {
+  /** Copy-button idle label. */
+  copyLabel?: string | undefined
+  /** Copy-button label during the post-copy confirmation window. */
+  copiedLabel?: string | undefined
 }
 
 /**
- * Streaming render state for one growing message: the incremental parser,
- * the frozen blocks' cached elements, and the reference/footnote state their
- * rendering consumed (footnote numbering assigned to frozen references is
- * final, so the tail continues from a copy of it each frame).
+ * File-mention affordance for inline code: the owner resolves an authored
+ * token to the file it names, using its own vocabulary of real files — the
+ * renderer never guesses at what looks like a path.
  */
-class StreamingRenderer {
-  private readonly parser = new IncrementalMarkdownParser(parseGfm)
-  private generation = -1
-  private frozenCount = 0
-  private frozenElements: ReactNode[] = []
-  private frozenTargets: ReferenceTargets = createReferenceTargets()
-  private frozenFootnoteOrder: string[] = []
-  private frozenFootnoteCounts = new Map<string, number>()
-  private lastText: string | null = null
-  private lastRendered: ReactNode[] = []
-
-  /** @param codeLabels - Fence copy labels baked into cached elements; the owner replaces the renderer when they change. */
-  constructor(private readonly codeLabels: MarkdownCodeLabels | undefined) {}
-
+export interface MarkdownFileMentions {
   /**
-   * Render the current accumulated text. Idempotent per text value, so React
-   * may re-execute the calling render freely.
-   * @param text - The full accumulated markdown source.
-   * @returns Frozen elements, re-rendered tail, and the footnote section.
+   * Resolve one inline-code token.
+   * @param value - The authored token, exactly as written.
+   * @returns The opener with its accessible label and full-path title, or
+   * undefined when the token names no known file — it then stays inert code.
    */
-  render(text: string): ReactNode[] {
-    if (text === this.lastText) return this.lastRendered
-    const { frozen, tail, generation } = this.parser.update(text)
-    if (generation !== this.generation) {
-      this.generation = generation
-      this.frozenCount = 0
-      this.frozenElements = []
-      this.frozenTargets = createReferenceTargets()
-      this.frozenFootnoteOrder = []
-      this.frozenFootnoteCounts = new Map()
-    }
-    const newlyFrozen = frozen.slice(this.frozenCount)
-    collectReferenceTargets(newlyFrozen.map(block => block.node), this.frozenTargets)
-    // Targets visible this frame: everything frozen so far plus the current
-    // tail parse — a newly frozen block's references resolved against the
-    // same parse tree its definitions came from.
-    const frameTargets: ReferenceTargets = {
-      definitions: new Map(this.frozenTargets.definitions),
-      footnotes: new Map(this.frozenTargets.footnotes),
-    }
-    collectReferenceTargets(tail.map(block => block.node), frameTargets)
-    if (newlyFrozen.length > 0) {
-      const frozenContext: MarkdownRenderContext = {
-        streaming: true,
-        codeLabels: this.codeLabels,
-        fileMentions: undefined,
-        targets: frameTargets,
-        footnoteOrder: this.frozenFootnoteOrder,
-        footnoteCounts: this.frozenFootnoteCounts,
+  resolve(value: string): { open: () => void; label: string; title: string } | undefined
+}
+
+/**
+ * Engine plugins, built once at module scope: the renderer keys cached blocks
+ * by component identity, so a per-render plugin object would remount them.
+ * Math runs through KaTeX (the engine normalizes the `\(…\)` and `\[…\]`
+ * notations models emit onto remark-math's `$` delimiters), emphasis follows
+ * CJK flanking rules, and fences are highlighted by highlight.js. Mermaid is
+ * imported on the first diagram rather than at module load, so a session that
+ * never renders one does not pay for it. `preload` on the component then
+ * starts that fetch on mount instead of waiting for the first diagram, so a
+ * diagram that arrives mid-reply does not stall on a cold download — the
+ * engine stays a separate chunk either way, off the initial load.
+ * `securityLevel` is passed explicitly rather than relying on the plugin's
+ * default, because the source it renders is model-authored.
+ */
+const PLUGINS = {
+  math: katexPlugin(),
+  cjk: cjkPlugin(),
+  code: highlightPlugin(),
+  diagram: mermaidPlugin({ securityLevel: 'strict' }),
+}
+
+/**
+ * Destination policy for untrusted output. The scheme allowlist is the part
+ * that matters: `javascript:`, `data:` and every other scheme are refused for
+ * both links and images. Relative destinations are allowed — they resolve
+ * against this app's origin, which is a same-origin GET the renderer cannot
+ * fully vouch for, but blocking them would also make it impossible to ever
+ * show a relative asset, and this is a local single-user tool.
+ */
+const LINK_SAFETY = {
+  allowedProtocols: ['http', 'https', 'mailto'],
+  allowedLinkPrefixes: ['*'],
+  allowedImagePrefixes: ['*'],
+  allowDataImages: false,
+}
+
+/** What the store was last told, so an unchanged render writes nothing. */
+interface AppliedState {
+  /** The accumulated source already written to the store. */
+  text: string
+  /** Whether that text was written through the streaming path. */
+  streaming: boolean
+}
+
+/**
+ * The absolute HTTP(S) URL an inline-code token spells, if it spells one.
+ * Anything else — a shell command, a relative path, a `javascript:` scheme —
+ * stays inert code.
+ * @param value - The authored token.
+ * @returns The URL to link, or undefined.
+ */
+function inlineCodeUrl(value: string): string | undefined {
+  try {
+    const { protocol } = new URL(value)
+    return protocol === 'http:' || protocol === 'https:' ? value : undefined
+  } catch {
+    // Relative and otherwise unparsable tokens are not links; new URL() has no
+    // other failure mode for strings.
+    return undefined
+  }
+}
+
+/**
+ * Build the inline-code component carrying this package's two affordances: a
+ * token that spells an absolute HTTP(S) URL becomes a link, and a token the
+ * owner recognizes as a real file becomes an opener. Fence bodies carry a
+ * `language-*` class and are left alone.
+ * @param mentions - The owner's resolver, when the turn supplies one.
+ * @param streaming - Whether the reply is still arriving; mentions are withheld
+ * until it settles, because a streaming message's vocabulary is not final and
+ * a cached block must not bake in a handler that could go stale.
+ * @returns A component map claiming inline `code`.
+ */
+function codeComponents(
+  mentions: MarkdownFileMentions | undefined,
+  streaming: boolean,
+): RendererComponents {
+  return {
+    code: function InlineCode(props: { children?: ReactNode; className?: string }) {
+      const value = typeof props.children === 'string' ? props.children : undefined
+      if (value === undefined || props.className !== undefined) {
+        return <code className={props.className}>{props.children}</code>
       }
-      // Separator newlines are cached alongside the elements so the
-      // assembled children match the settled pipeline's block wrapping.
-      const batch = [...this.frozenElements]
-      for (const element of renderBlocks(newlyFrozen, frozenContext)) {
-        if (batch.length > 0) batch.push('\n')
-        batch.push(element)
+      const url = inlineCodeUrl(value)
+      if (url !== undefined) {
+        return (
+          <a href={url} target="_blank" rel="noreferrer noopener">
+            <code>{value}</code>
+          </a>
+        )
       }
-      this.frozenElements = batch
-      this.frozenCount = frozen.length
-    }
-    const tailContext: MarkdownRenderContext = {
-      streaming: true,
-      codeLabels: this.codeLabels,
-      fileMentions: undefined,
-      targets: frameTargets,
-      footnoteOrder: [...this.frozenFootnoteOrder],
-      footnoteCounts: new Map(this.frozenFootnoteCounts),
-    }
-    const children = [...this.frozenElements]
-    for (const element of renderBlocks(tail, tailContext)) {
-      if (children.length > 0) children.push('\n')
-      children.push(element)
-    }
-    const section = renderFootnoteSection(tailContext)
-    if (section !== null) children.push('\n', section)
-    this.lastText = text
-    this.lastRendered = children
-    return this.lastRendered
+      const target = streaming || mentions === undefined ? undefined : mentions.resolve(value)
+      if (target === undefined) return <code>{value}</code>
+      return (
+        <button
+          type="button"
+          className={css.mention}
+          title={target.title}
+          onClick={target.open}
+        >
+          {target.label}
+        </button>
+      )
+    },
   }
 }
 
 /**
  * Render untrusted assistant-authored Markdown as semantic React elements.
  * @param props - Markdown source text preserved by the session projection;
- * `streaming` renders fences and TeX plain (highlighting and KaTeX land on
- * the finalize swap) and parses incrementally across chunks; `codeLabels`
- * forwards localized copy-button labels to fence CodeBlocks — pass a
- * reference-stable object (memoized per locale revision), because a new
- * identity discards the streaming render cache mid-message. `fileMentions`
- * links inline-code tokens its resolver recognizes as real files; this is
- * the single streaming gate — it applies to settled renders only, because a
- * streaming message's vocabulary is not final and frozen cached elements
- * must not bake in handlers that could go stale.
- * @returns A GFM document with TeX math rendered through KaTeX; raw HTML,
- * relative links, and unsafe protocols are disabled, while absolute HTTP(S)
- * images render directly.
+ * `streaming` feeds appends into the engine's streaming path and clearing it
+ * swaps to the settled parse; `codeLabels` forwards localized copy-button
+ * labels to fence toolbars, and `fileMentions` links inline-code tokens its
+ * resolver recognizes as real files. Both must be reference-stable (memoized
+ * per locale revision or per turn) — a new identity rebuilds the engine's
+ * component table and remounts cached blocks.
+ * @returns A GFM document with TeX math rendered through KaTeX; raw HTML never
+ * enters the DOM, link and image destinations are restricted to safe schemes,
+ * and diagram fences stay code blocks.
  */
 export const MarkdownText = memo(function MarkdownText({ text, streaming = false, codeLabels, fileMentions }: {
   text: string
@@ -159,18 +182,62 @@ export const MarkdownText = memo(function MarkdownText({ text, streaming = false
   codeLabels?: MarkdownCodeLabels | undefined
   fileMentions?: MarkdownFileMentions | undefined
 }) {
-  const streamRef = useRef<StreamingRenderer | null>(null)
-  const streamLabelsRef = useRef<MarkdownCodeLabels | undefined>(codeLabels)
-  const children = useMemo(() => {
+  const handleRef = useRef<HyperMarkdownHandle>(null)
+  // A ref, not state: the write must survive StrictMode's double effect
+  // invocation without scheduling a render of its own.
+  const applied = useRef<AppliedState | null>(null)
+
+  const translations = useMemo<Partial<Translations>>(() => {
+    const labels: Partial<Translations> = {}
+    if (codeLabels?.copyLabel !== undefined) {
+      labels.copy = codeLabels.copyLabel
+      labels.copyCode = codeLabels.copyLabel
+    }
+    if (codeLabels?.copiedLabel !== undefined) labels.codeCopied = codeLabels.copiedLabel
+    return labels
+  }, [codeLabels])
+
+  const components = useMemo(
+    () => codeComponents(fileMentions, streaming),
+    [fileMentions, streaming],
+  )
+
+  // Writes belong in an effect, never in the render body: the store mutates in
+  // place, so a render React discards would corrupt it.
+  useEffect(() => {
+    const handle = handleRef.current
+    /* v8 ignore next -- the ref is attached by the child's commit, which
+       always precedes this parent effect. */
+    if (handle === null) return
+    const last = applied.current
     if (!streaming) {
-      streamRef.current = null
-      return renderSettled(text, codeLabels, fileMentions)
+      if (last === null || last.text !== text || last.streaming) handle.store.setMarkdown(text)
+      applied.current = { text, streaming }
+      return
     }
-    if (streamRef.current === null || streamLabelsRef.current !== codeLabels) {
-      streamRef.current = new StreamingRenderer(codeLabels)
-      streamLabelsRef.current = codeLabels
+    if (last !== null && last.streaming && text === last.text) return
+    if (last === null || !last.streaming || !text.startsWith(last.text)) {
+      // Mounted partway through a reply, or the source was rewritten rather
+      // than appended to: drop the stream and reseed from the whole text.
+      handle.reset()
+      if (text !== '') handle.write(text)
+    } else {
+      handle.write(text.slice(last.text.length))
     }
-    return streamRef.current.render(text)
-  }, [text, streaming, codeLabels, fileMentions])
-  return <div className={css.markdown}>{children}</div>
+    applied.current = { text, streaming }
+  }, [text, streaming])
+
+  return (
+    <HyperMarkdown
+      ref={handleRef}
+      streaming
+      html="literal"
+      preload
+      linkSafety={LINK_SAFETY}
+      plugins={PLUGINS}
+      translations={translations}
+      components={components}
+      className={css.markdown}
+    />
+  )
 })

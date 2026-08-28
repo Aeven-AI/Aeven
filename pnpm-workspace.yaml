@@ -67,6 +67,10 @@ minimumReleaseAgeExclude:
   - node-addon-require-builtin-win32-ia32-msvc@0.1.4
   - node-addon-require-builtin-win32-x64-msvc@0.1.4
   - node-addon-require-builtin@0.1.4
+  # The markdown renderer the web client is built on. It is developed
+  # alongside this repo, so a release is consumed as soon as it is cut
+  # rather than after the release-age window.
+  - '@aeven-ai/hypermarkdown@0.1.1'
 
 patchedDependencies:
   node-pty@1.2.0-beta.15: patches/node-pty@1.2.0-beta.15.patch

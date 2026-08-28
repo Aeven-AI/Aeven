@@ -1,14 +1,20 @@
-<div class="_markdown_404681">
+<div class="hypermarkdown _markdown_404681">
   <p>
-    <img alt="https image" class="_image_404681" decoding="async" loading="lazy" referrerpolicy="no-referrer" src="https://example.com/secure.png">
+    <span class="markdown-image-container">
+      <span class="markdown-image">
+        <span class="image-error">
+        <span class="image-loader">
+        <img alt="https image" class="image" src="https://example.com/secure.png" title="img title">
   <p>
-    <img alt="http image" class="_image_404681" decoding="async" loading="lazy" referrerpolicy="no-referrer" src="http://example.com/plain.png">
+    <span class="markdown-image-container">
+      <span class="markdown-image">
+        <span class="image-error">
+        <span class="image-loader">
+        <img alt="http image" class="image" src="http://example.com/plain.png">
   <p>
-    <span class="_imageAlt_404681">
-      #text "relative dropped"
-    #text " and inline "
-    <span class="_imageAlt_404681">
-      #text "bad scheme"
-    #text " end."
-  <p>
-    <img alt="" class="_image_404681" decoding="async" loading="lazy" referrerpolicy="no-referrer" src="https://example.com/empty-alt.png">
+    <span class="markdown-image-container">
+      <span class="markdown-image">
+        <span class="image-error">
+        <span class="image-loader">
+        <img alt="relative dropped" class="image" src="private.png">
+    #text " and inline bad scheme end."

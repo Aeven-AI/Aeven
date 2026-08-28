@@ -1,35 +1,63 @@
-<div class="_markdown_404681">
-  <div class="_tableScroll_404681 md-table-wide" tabindex="0">
-    <table>
-      <thead>
-        <tr>
-          <th style="text-align: left;">
-            #text "Left"
-          <th style="text-align: center;">
-            #text "Center"
-          <th style="text-align: right;">
-            #text "Right"
-          <th>
-            #text "None"
-      <tbody>
-        <tr>
-          <td style="text-align: left;">
-            #text "a"
-          <td style="text-align: center;">
-            #text "b"
-          <td style="text-align: right;">
-            #text "c"
-          <td>
-            <code>
-              #text "code"
-        <tr>
-          <td style="text-align: left;">
-            <a href="https://example.com" rel="noopener noreferrer" target="_blank">
-              #text "link"
-          <td style="text-align: center;">
-            <em>
-              #text "em"
-          <td style="text-align: right;">
-            #text "1"
-          <td>
-            #text "2"
+<div class="hypermarkdown _markdown_404681">
+  <div class="table-wrapper stream-active">
+    <div class="table-container">
+      <div class="table-header">
+        <div class="table-header-content">
+          <span class="table-title-container">
+            <span class="table-title">
+              #text "Table"
+          <span class="table-spacer">
+          <span class="table-button-container">
+            <button aria-label="Full screen" class="table-icon-button first" type="button">
+              <span class="button-content">
+                <span class="button-icon">
+                  <svg class="maximize2-icon maximize-2" fill="none" height="24" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" stroke="currentColor" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M15 3h6v6">
+                    <path d="m21 3-7 7">
+                    <path d="m3 21 7-7">
+                    <path d="M9 21H3v-6">
+            <span class="tippy-button">
+              <button aria-label="Copy" class="table-icon-button last" type="button">
+                <span class="button-content">
+                  <span class="button-icon">
+                    <svg class="copy-icon copy" fill="none" height="24" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" stroke="currentColor" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
+                      <rect height="14" rx="2" ry="2" width="14" x="8" y="8">
+                      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2">
+        <div class="table-header-background">
+          <div class="table-header-fade">
+          <div class="table-header-blur">
+      <div class="table-content">
+        <div class="table-scroll no-scrollbar">
+          <table data-header-columns="4" data-headless="false">
+            <thead>
+              <tr>
+                <th style="text-align: left;">
+                  #text "Left"
+                <th style="text-align: center;">
+                  #text "Center"
+                <th style="text-align: right;">
+                  #text "Right"
+                <th>
+                  #text "None"
+            <tbody>
+              <tr>
+                <td style="text-align: left;">
+                  #text "a"
+                <td style="text-align: center;">
+                  #text "b"
+                <td style="text-align: right;">
+                  #text "c"
+                <td>
+                  <code>
+                    #text "code"
+              <tr>
+                <td style="text-align: left;">
+                  <a href="https://example.com" rel="noreferrer" target="_blank">
+                    #text "link"
+                <td style="text-align: center;">
+                  <em>
+                    #text "em"
+                <td style="text-align: right;">
+                  #text "1"
+                <td>
+                  #text "2"
