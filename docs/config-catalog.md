@@ -922,6 +922,22 @@ export interface Config {
 
 Source: [`packages/host/webserver/src/index.ts:59`](../packages/host/webserver/src/index.ts)
 
+<a id="deepseek-aidsh-host-workspace-files"></a>
+
+## `@deepseek-ai/dsh-host-workspace-files`
+
+Requires: `webServer` · `connection` · `workspaceRegistry`
+
+```ts config-catalog
+/** Plugin config: where the read-only workspace tree is mounted. */
+export interface Config {
+  /** Absolute route prefix, no trailing slash. */
+  mount: string
+}
+```
+
+Source: [`packages/host/workspace-files/src/index.ts:36`](../packages/host/workspace-files/src/index.ts)
+
 <a id="deepseek-aidsh-invariants"></a>
 
 ## `@deepseek-ai/dsh-invariants`

@@ -146,9 +146,19 @@ function webSurfacePrompt(webUrl: string): string {
   const updateContract = 'The client-plugin HMR receiver is active, but client-plugin changes reload without a refresh only while '
     + '`pnpm run dev:web` is also running from this same checkout to rebuild their bundles; verify that watcher before promising automatic updates. '
     + 'Every other change — the apps/web shell and plain packages — requires rebuilding the affected Web artifacts and verifying this existing URL after a page refresh. '
+  // What the GUI renders is a fact about this surface, not a preference, and it
+  // is stated here because a model that cannot see the renderer otherwise
+  // assumes a plain-text transcript and refuses requests this surface serves.
+  const renderContract = 'Your replies render as GitHub-Flavored Markdown in this GUI, not as plain text. '
+    + 'A ```mermaid fence renders as a diagram, TeX math renders through KaTeX, and `![alt](url)` displays the image inline. '
+    + 'The renderer accepts absolute http and https image URLs only; local filesystem paths and `data:` URIs are refused, and raw HTML is shown as characters. '
+    + 'To show an image, write that markdown. Never tell the user you are unable to display an image or a diagram inline — this surface does both. '
+    + `A file inside a registered workspace is served, authenticated and read-only, at ${webUrl}/workspace/<workspaceId>/<path relative to the workspace directory>, `
+    + 'which is how a file you produced becomes an image URL the reply can reference. '
   return `You are interacting with the user through the DeepSeek Harness Web GUI at ${webUrl}. `
     + 'When the user refers to "this page", "this GUI", or "this app" without naming another target, they mean this GUI. '
     + 'The browser provides no implicit DOM, route, or screenshot context. '
+    + renderContract
     + updateContract
     + 'Starting another server does not update this GUI. '
     + 'The apps/web Vite entry builds the shell but is not a standalone application because only dsh web injects window.__DSH_BOOT__. '

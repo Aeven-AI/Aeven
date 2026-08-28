@@ -61,6 +61,17 @@
     - id: workspace
       name: '@deepseek-ai/dsh-workspace'
 
+    # Read-only HTTP view of a registered workspace's files, so a file the
+    # agent produced can be referenced from a rendered reply (a markdown image
+    # or a link). Authenticated by Connection on every request; the whole
+    # workspace directory is readable to a holder of a browser session, so a
+    # deployment that must not expose workspace contents over HTTP removes
+    # this row and the surface prompt's workspace-URL sentence with it.
+    - id: workspace-files
+      name: '@deepseek-ai/dsh-host-workspace-files'
+      config:
+        mount: /workspace
+
     - id: session-reference
       name: '@deepseek-ai/dsh-session-reference'
 

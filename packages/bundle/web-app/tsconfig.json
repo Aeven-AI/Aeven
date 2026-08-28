@@ -30,6 +30,9 @@
       "path": "../../host/frontend-static"
     },
     {
+      "path": "../../host/workspace-files"
+    },
+    {
       "path": "../../host/webserver"
     },
     {
