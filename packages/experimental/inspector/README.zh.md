@@ -36,7 +36,7 @@ Host 插件启动 Worker 并连接专用 `MessagePort`。Client 插件读取注�
 
 Host 与 Client producer 发送内部观测记录，不发送 CDP 消息。记录包含 source generation、sequence、source 时钟时间、topic 和 JSON payload。Worker 验证每个进程或网络帧，独占 source 状态与保留历史，并把已识别 topic 转换成标准 CDP domain。
 
-Client source 声明类型化 Runtime、Console 和只读 Sources 能力。`Runtime.enable` 发布真实 Host execution context，并为每个已连接的 Client source 发布一个 synthetic context。选择 Client context 后，求值、属性读取、函数调用、Promise await 和对象释放都会路由到该浏览器 realm。Client Console argument 使用同一份 session-local object table；`Debugger.enable` 发布构建后的 `lib/client.js` catalog，`Debugger.getScriptSource` 读取有界 content chunk。Client script 断点、step 和 call frame 仍不支持；target-wide pause 与 resume 只控制 Host debugger。
+Client source 声明类型化 Runtime、Console 和只读 Sources 能力。`Runtime.enable` 发布真实 Host execution context，并为每个已连接的 Client source 发布一个 synthetic context。选择 Client context 后，求值、属性读取、函数调用、Promise await 和对象释放都会路由到该浏览器 realm。Client Console argument 使用同一份 session-local object table。Client 自其 transport generation 启动起即观察自身 console 并保留最近的事件，因此在 Client 已经输出日志之后才启用 Console 的 session 仍能收到这些事件：Worker 的 enable 帧经由 ingest socket 传送，在它到达之前输出的事件否则会被丢弃且不留任何痕迹。`Debugger.enable` 发布构建后的 `lib/client.js` catalog，`Debugger.getScriptSource` 读取有界 content chunk。Client script 断点、step 和 call frame 仍不支持；target-wide pause 与 resume 只控制 Host debugger。
 
 两个插件面运行同一份浏览器安全 Cordis collector。它把可达 Context 与 Fiber 对象转换成有版本的 `CordisTreeSnapshot`；Worker 存储这份与 CDP 无关的表示，并把每个 Host 或 Client source 投影到 Elements 面板。
 
