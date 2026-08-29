@@ -17,4 +17,4 @@
       <span class="markdown-image">
         <span class="image-error">
         <span class="image-loader">
-        <img alt="ref image" class="image" src="https://example.com/ref.png">
+        <img alt="ref image" class="image" decoding="async" loading="lazy" referrerpolicy="no-referrer" src="https://example.com/ref.png">

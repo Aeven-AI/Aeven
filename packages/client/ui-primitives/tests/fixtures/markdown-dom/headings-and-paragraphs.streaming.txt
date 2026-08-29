@@ -29,3 +29,5 @@
     #text "."
   <h1>
     #text "Setext title"
+  <p>
+    #text "Second setext"

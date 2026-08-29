@@ -27,7 +27,7 @@
           <div class="table-header-fade">
           <div class="table-header-blur">
       <div class="table-content">
-        <div class="table-scroll no-scrollbar">
+        <div class="table-scroll no-scrollbar md-table-wide">
           <table data-header-columns="4" data-headless="false">
             <thead>
               <tr>

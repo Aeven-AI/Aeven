@@ -35,3 +35,5 @@
                   #text "a"
                 <th>
                   #text "b"
+  <p>
+    #text "after"

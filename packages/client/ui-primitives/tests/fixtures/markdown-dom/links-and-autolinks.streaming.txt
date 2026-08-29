@@ -23,3 +23,8 @@
     <a href="https://autolink.example.com" rel="noreferrer" target="_blank">
       #text "https://autolink.example.com"
     #text " literal."
+  <p>
+    #text "[spaces encoded]("
+    <a href="https://example.com/a" rel="noreferrer" target="_blank">
+      #text "https://example.com/a"
+    #text " b)"
