@@ -853,6 +853,34 @@ describe('official spawn projection', () => {
 })
 
 describe('query options and result mapping', () => {
+  it('drops the launching Claude Code session identity, and keeps an explicit one', () => {
+    // The SDK assigns both only when absent, so a Host started from inside
+    // Claude Code would otherwise name its own launcher and SDK version as the
+    // identity of the run it is starting.
+    vi.stubEnv('CLAUDE_CODE_ENTRYPOINT', 'claude-vscode')
+    vi.stubEnv('CLAUDE_AGENT_SDK_VERSION', '0.3.251')
+    const child = fakeChild()
+    const base: ClaudeCodeRunSpec = {
+      cwd: '/workspace',
+      permissionMode: 'dontAsk',
+      env: {},
+      disposeGraceMs: 17,
+      spawn: vi.fn(() => child.handle),
+    }
+
+    const inherited = claudeQueryOptions(base, new AbortController(), () => {}, () => {})
+    expect(inherited.env).not.toHaveProperty('CLAUDE_CODE_ENTRYPOINT')
+    expect(inherited.env).not.toHaveProperty('CLAUDE_AGENT_SDK_VERSION')
+
+    const explicit = claudeQueryOptions(
+      { ...base, env: { CLAUDE_CODE_ENTRYPOINT: 'dsh-deployment' } },
+      new AbortController(),
+      () => {},
+      () => {},
+    )
+    expect(explicit.env).toMatchObject({ CLAUDE_CODE_ENTRYPOINT: 'dsh-deployment' })
+  })
+
   it('builds the fixed unattended options over the scrubbed environment', async () => {
     vi.stubEnv('HOST_VISIBLE', 'visible')
     vi.stubEnv('HOST_SECRET_TOKEN', 'must-not-leak')
