@@ -37,7 +37,7 @@ An e2e assertion re-runs the command or re-reads the file externally; a keyword 
 
 ## Test resolution: source plane only
 
-- Every vitest config points vite-tsconfig-paths at `tsconfig.base.json`; bare workspace imports resolve to `src` ([layout](development.md#typescript-project-layout)), never through package `exports` to built `lib/` — stale artifacts there load a second copy of module singletons. Built artifacts are consumed only explicitly: `lib`-mode subprocesses and the built smokes below.
+- Every Vitest config aliases the `tsconfig.base.json` `paths` map through `workspaceAliases()`; bare workspace imports resolve to `src` ([layout](development.md#typescript-project-layout)), never through package `exports` to built `lib/` — stale artifacts there load a second copy of module singletons. Built artifacts are consumed only explicitly: `lib`-mode subprocesses and the built smokes below.
 
 ## Test subprocess launch modes
 
