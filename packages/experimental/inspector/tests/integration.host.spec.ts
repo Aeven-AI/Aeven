@@ -15,6 +15,11 @@ interface CdpMessage {
   readonly error?: { message: string }
 }
 
+// A real Worker answering a CDP request, with v8 coverage instrumenting both
+// sides: the budget is what that costs under the coverage lane, not what the
+// call takes (single-digit milliseconds) when the suite runs on its own.
+const CDP_CALL_TIMEOUT_MS = 30_000
+
 class TestCdpClient {
   private nextId = 0
   private readonly pending = new Map<number, (message: CdpMessage) => void>()
@@ -43,7 +48,7 @@ class TestCdpClient {
       const timer = setTimeout(() => {
         this.pending.delete(id)
         reject(new Error(`CDP call timed out: ${method}`))
-      }, 5_000)
+      }, CDP_CALL_TIMEOUT_MS)
       this.pending.set(id, (message) => {
         clearTimeout(timer)
         this.pending.delete(id)
@@ -61,7 +66,12 @@ class TestCdpClient {
   }
 }
 
-describe('experimental Inspector real Worker', () => {
+// Each case boots a real Worker (TypeScript compiled through tsx) and drives it
+// over a loopback WebSocket, so the work before the first assertion is process
+// startup rather than the behavior under test. The default 5s is startup budget
+// on an idle machine only; a full suite run exceeds it while the behavior itself
+// stays sub-second.
+describe('experimental Inspector real Worker', { timeout: 60_000 }, () => {
   let inspector: InspectorHandle | undefined
   let cdp: TestCdpClient | undefined
   let secondCdp: TestCdpClient | undefined

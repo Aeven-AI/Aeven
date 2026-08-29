@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-29-host-console-is-the-hosts.md
+2026-08-29-host-console-is-the-hosts.md: f93e3f7838d193f865e64dee1920eccc79426a9c
+2026-08-29-host-console-is-the-hosts.zh.md: 059c2c31b0e10065fbad09969b9e733db533e84b

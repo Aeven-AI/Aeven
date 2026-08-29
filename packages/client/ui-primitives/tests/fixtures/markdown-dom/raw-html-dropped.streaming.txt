@@ -3,3 +3,5 @@
   <p>
     #text "Paragraph with inline <img src=\"x\" onerror=\"boom\"> html and <b>bold tag</b> kept literal?"
   #text "\n<div class=\"x\">\nhtml block content\n</div>"
+  <p>
+    #text "after"

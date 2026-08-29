@@ -150,6 +150,25 @@ describe('createSnapshotStore', () => {
     expect(revived.getSnapshot().a.n).toBe(42)
   })
 
+  it('persists through window.localStorage in a browser runtime', () => {
+    // A browser reads Web Storage off `window`. A Host has no `window`, and its
+    // Node runtime answers the bare global with a warning, so the two runtimes
+    // are told apart before the global is read at all.
+    const backing = new Map<string, string>()
+    vi.stubGlobal('window', {
+      localStorage: {
+        getItem: (k: string) => backing.get(k) ?? null,
+        setItem: (k: string, v: string) => { backing.set(k, v) },
+        removeItem: (k: string) => { backing.delete(k) },
+      },
+    })
+    const store = createSnapshotStore(init(), { persist: { name: 'browser-store' } })
+    store.update((d) => { d.a.n = 7 })
+
+    expect(backing.get('browser-store')).toContain('7')
+    expect(createSnapshotStore(init(), { persist: { name: 'browser-store' } }).getSnapshot().a.n).toBe(7)
+  })
+
   it('reports rehydration failures without preventing store creation', () => {
     const failure = new Error('storage read failed')
     vi.stubGlobal('localStorage', {

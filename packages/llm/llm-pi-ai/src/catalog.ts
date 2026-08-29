@@ -13,6 +13,7 @@
  */
 
 import { builtinProviders, getBuiltinModels, getBuiltinProviders } from '@earendil-works/pi-ai/providers/all'
+import type { LiveCatalogFormat } from './live-catalog.ts'
 import type { BuiltinProvider } from '@earendil-works/pi-ai/providers/all'
 import type {
   AnthropicMessagesCompat,
@@ -593,6 +594,25 @@ export interface PiAiModelProfile {
  */
 export type PiAiModelOverride = Omit<PiAiModelProfile, 'id'>
 
+/**
+ * Live model-list refresh for one route: where to fetch the provider's
+ * published model document, and how long to wait for it.
+ */
+export interface PiAiCatalogRefresh {
+  /** Absolute URL of the provider's model document. */
+  url?: string
+  /** Published layout of that document; resolution defaults it to `openrouter`. */
+  format?: LiveCatalogFormat
+  /**
+   * Capability tags an entry must carry to be added. Absent or empty accepts
+   * every entry; `[chat]` is what keeps a provider's image, audio, and
+   * embedding models out of a text route.
+   */
+  requireTags?: string[]
+  /** Abort the request after this many milliseconds; resolution defaults it. */
+  timeoutMs?: number
+}
+
 /** The route-level facts model materialization reads. */
 export interface RouteCatalogRequest {
   /** Provider route key, stamped onto every materialized model. */
@@ -605,6 +625,23 @@ export interface RouteCatalogRequest {
   models?: readonly PiAiModelProfile[]
   /** Installed-catalog customizations by model id; only meaningful while `models` is absent. */
   modelOverrides?: Readonly<Record<string, PiAiModelOverride>>
+  /**
+   * Whether a live refresh is configured and has not answered yet.
+   *
+   * Resolution is synchronous and runs at mount; a refresh answers after it.
+   * A route whose models come only from that document therefore resolves empty
+   * exactly once, and refusing it there would mean the route never registers
+   * and the refresh never gets to fill it. An empty route serves no request
+   * and is left out of the browser catalog until its models arrive.
+   */
+  awaitingRefresh?: boolean
+  /**
+   * Models a live refresh added beyond the installed snapshot, in published
+   * order. They join the installed defaults and are customizable by the same
+   * `models` and `modelOverrides` keys; an id the snapshot already carries is
+   * dropped before it reaches here, so the snapshot's tuned entry always wins.
+   */
+  liveModels?: readonly Model<Api>[]
   /** Route-level wire-compatibility switches, landing on each model whose protocol declares them; entries override per field. */
   compat?: PiAiCompatProfile
   /** Context capacity for a model neither the entry nor the catalog sizes. */
@@ -797,6 +834,12 @@ export interface RouteCatalog {
 export function resolveRouteModels(request: RouteCatalogRequest): RouteCatalog {
   const { provider } = request
   const defaults = catalogModels(provider)
+  // Live additions extend the installed catalog before anything reads it, so
+  // overrides, narrowing, and their diagnostics treat a refreshed model
+  // exactly as they treat a shipped one.
+  for (const model of request.liveModels ?? []) {
+    if (!defaults.has(model.id)) defaults.set(model.id, model)
+  }
   const providerBaseUrl = catalogProvider(provider)?.baseUrl
   // An absent `models` key and an empty one are the same request: the config
   // schema materializes `[]` for the absent case, and an empty catalog could
@@ -831,7 +874,7 @@ export function resolveRouteModels(request: RouteCatalogRequest): RouteCatalog {
   const entries: readonly PiAiModelProfile[] = configured.length > 0
     ? configured
     : [...defaults.values()].map(model => ({ id: model.id, ...overrides[model.id] }))
-  if (entries.length === 0) {
+  if (entries.length === 0 && !request.awaitingRefresh) {
     invalid(provider, 'resolves no models; the installed catalog does not describe this route, so its models'
       + ' must be listed in configuration')
   }

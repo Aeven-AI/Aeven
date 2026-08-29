@@ -20,14 +20,14 @@ GUI 拆分引入了第二个聚合 program（`tsconfig.client.json`，见[已归
 | 文件 | 角色 | 是否构成 program？ |
 |---|---|---|
 | `tsconfig.json` | solution 根文件：`extends` base、`files: []`、两条 references；同时是全仓 `tsc -b tsconfig.json` 图、tsserver 入口，以及 get-tsconfig 消费方（tsx 运行 `scripts/` 与文档围栏代码块）就近命中的配置，其裸 workspace 导入经继承来的 `paths` 解析 | 否 |
-| `tsconfig.base.json` | 共享 compilerOptions 与源码 `paths` 映射；兼任 vite-tsconfig-paths 的解析门面（不含 `include`，因此对每个导入方都生效） | 否 |
+| `tsconfig.base.json` | 共享 compilerOptions 与源码 `paths` 映射；兼任每个 Vitest 配置构建 `resolve.alias` 映射的唯一来源 | 否 |
 | `tsconfig.base.client.json` | 浏览器侧编译形态（`jsx: react-jsx`、DOM lib、`types: []`），由客户端聚合与每个 `packages/client/*` 包共享 | 否 |
 | `tsconfig.host.json` | 原根聚合原样迁入：宿主各包、examples、测试、scripts、website；排除 `packages/client` | 是 |
 | `tsconfig.client.json` | 客户端各包及其测试；通过 `extends` 继承 `tsconfig.base.client.json` | 是 |
 
-整个方案立足的原则：**cordis `Context` 的声明合并冲突只存在于同一个 `ts.Program` 内部，从不发生在模块解析中。** solution 文件不构成 program，因此从一个根文件同时引用两个聚合不会让两侧的声明合并相撞；vite-tsconfig-paths 只读取 `paths` 与 `include`、丢弃全部类型信息，因此一个门面可以横跨两侧。唯一会爆炸的做法是把两侧压平进同一个 program，由此推出两条派生纪律：`tsconfig.base.json` 永远不得添加 `include`/`files`（否则会泄漏进每个继承它的包，并收窄门面范围）；每个全仓级 `ts.Program` 消费方（`scripts/ts-project.ts`、doc-typecheck 独立模式）都显式以 `tsconfig.host.json` 或 `tsconfig.client.json` 为种子，绝不使用根 solution。基于 program 的生成器与语义门禁有意只留在宿主侧；客户端侧只有在真实需求出现时才引入基于 program 的门禁。
+整个方案立足的原则：**cordis `Context` 的声明合并冲突只存在于同一个 `ts.Program` 内部，从不发生在模块解析中。** solution 文件不构成 program，因此从一个根文件同时引用两个聚合不会让两侧的声明合并相撞；Vitest 的别名映射只读取 `paths`、丢弃全部类型信息，因此一份映射可以横跨两侧。唯一会爆炸的做法是把两侧压平进同一个 program，由此推出两条派生纪律：`tsconfig.base.json` 永远不得添加 `include`/`files`（否则会泄漏进每个继承它的包 project）；每个全仓级 `ts.Program` 消费方（`scripts/ts-project.ts`、doc-typecheck 独立模式）都显式以 `tsconfig.host.json` 或 `tsconfig.client.json` 为种子，绝不使用根 solution。基于 program 的生成器与语义门禁有意只留在宿主侧；客户端侧只有在真实需求出现时才引入基于 program 的门禁。
 
-根 `tsconfig.json` 仍是显式执行完整 Project Reference 图的 solution 入口，lefthook pre-push 通过 `tsc -b tsconfig.json --pretty false` 增量覆盖两侧。仓库的 `build` 与 `typecheck` 命令因 Client 依赖 Host tsdown 生成的 Remote 约定而按 Host、Client 顺序运行，具体编排由 [API Remotes 构建 Note](2026-08-08-api-remotes-generated-contract-build.zh.md)负责。`tsconfig.build.json` 与 `tsconfig.vitest.json` 已删除；所有 vitest 配置都把 vite-tsconfig-paths 指向 `tsconfig.base.json`。
+根 `tsconfig.json` 仍是显式执行完整 Project Reference 图的 solution 入口，lefthook pre-push 通过 `tsc -b tsconfig.json --pretty false` 增量覆盖两侧。仓库的 `build` 与 `typecheck` 命令因 Client 依赖 Host tsdown 生成的 Remote 约定而按 Host、Client 顺序运行，具体编排由 [API Remotes 构建 Note](2026-08-08-api-remotes-generated-contract-build.zh.md)负责。`tsconfig.build.json` 与 `tsconfig.vitest.json` 已删除；所有 vitest 配置都据 `tsconfig.base.json` 构建各自的别名映射。
 
 solution 根文件刻意 `extends` base：`scripts/` 没有更近的 tsconfig，tsx（get-tsconfig）通过根文件解析其 workspace 导入。`extends` 把 `paths` 映射带回根文件，`files: []` 则让它始终不构成 program。scripts 与 website 的类型检查仍由 Host aggregate 纳入。
 

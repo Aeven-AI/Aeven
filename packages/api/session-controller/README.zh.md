@@ -41,6 +41,8 @@ Session 对象还承载本地提交回显：`session.beginSubmission` 在调用�
 | `coldBlankProbeMaxBytes` | `1,024` | 可进行空白状态验证的冷 Session 工件最大物理大小；`0` 禁用探测 |
 | `nativeOpen` | 平台探测 | 是否能把 Session 工作区路径交给原生桌面打开器 |
 
+`modelCatalog()` 在每次调用时都从实时 LLM 注册表构建，因此某条路由自启动以来增长的模型列表——例如挂载之后才完成的 `catalogRefresh`——无需重启即可体现。提供方，以及每个提供方内部的模型，都按浏览器显示的标签排序，并以模型 id 作为并列时的次序依据，使同名条目在多次调用之间保持稳定顺序。比较是数字感知的，因此 `GLM 5.2` 先于 `GLM 5.3`，`GLM 5.3` 先于 `GLM 5.10`。提供方失败保持注册表顺序：该列表是诊断通道，而非供人扫视查找模型的列表。排序位于此处而非路由自身的目录中，后者对一切参与派发的用途保持配置顺序。
+
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-api-session-controller)是所有受支持字段及其 JSDoc 的完整来源。
 
 -----

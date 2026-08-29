@@ -269,7 +269,11 @@ export function startConnection(ctx: Context, config: Config, policy: ResolvedRe
       },
     )
     try {
-      await generation.connect(createTransport(config))
+      await generation.connect(createTransport(config, (line) => {
+        // The server's own words, under its label: informational for a banner,
+        // and the first thing to read when a server fails to start.
+        ctx.logger.debug(`${label}: ${line}`)
+      }))
       if (hasClosed()) {
         attemptSettled = true
         generationDown(generation)

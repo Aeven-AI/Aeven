@@ -23,11 +23,39 @@ async function bootHmr(dir: string, root: string[] = [], usePolling?: boolean): 
   return ctx
 }
 
+/**
+ * Await one filesystem notification. The deadline is the latency the watcher is
+ * allowed, not the latency it normally has: under the coverage lane both sides
+ * are instrumented, and a notification that arrives in under a second on its
+ * own has taken more than ten there.
+ */
 async function eventually(test: () => boolean, message: string): Promise<void> {
-  const deadline = Date.now() + 10_000
+  const deadline = Date.now() + 30_000
   while (!test()) {
     if (Date.now() >= deadline) throw new Error(message)
     await new Promise(resolve => setTimeout(resolve, 10))
+  }
+}
+
+/**
+ * Await the first observation from a freshly registered watcher, re-applying the
+ * stimulus while it does not arrive. Chokidar reports ready after its initial
+ * scan, which does not say the OS has begun delivering events for the path, and
+ * a write landing in that window is lost with no later trace. Re-applying keeps
+ * these cases about HMR reporting a path rather than about when its watcher
+ * started listening; once one notification lands the watcher is proven live, and
+ * the cases that follow wait plainly.
+ */
+async function eventuallyObserved(
+  test: () => boolean,
+  stimulus: () => void,
+  message: string,
+): Promise<void> {
+  const deadline = Date.now() + 30_000
+  while (!test()) {
+    if (Date.now() >= deadline) throw new Error(message)
+    await new Promise(resolve => setTimeout(resolve, 250))
+    if (!test()) stimulus()
   }
 }
 
@@ -83,7 +111,7 @@ describe('HMR exact config paths', () => {
     }
   })
 
-  it('observes add, change, and unlink outside its module roots', { timeout: 20_000 }, async () => {
+  it('observes add, change, and unlink outside its module roots', { timeout: 120_000 }, async () => {
     const dir = mkdtempSync(join(tmpdir(), 'dsh-hmr-config-'))
     const filename = join(dir, 'plugins.yml')
     const ctx = await bootHmr(dir)
@@ -99,7 +127,11 @@ describe('HMR exact config paths', () => {
       })
 
       writeFileSync(filename, 'one', { flag: 'wx' })
-      await eventually(() => observed.includes('one'), 'HMR did not observe config creation')
+      await eventuallyObserved(
+        () => observed.includes('one'),
+        () => { writeFileSync(filename, 'one') },
+        'HMR did not observe config creation',
+      )
       writeFileSync(filename, 'two')
       await eventually(() => observed.includes('two'), 'HMR did not observe config change')
       unlinkSync(filename)
@@ -109,7 +141,7 @@ describe('HMR exact config paths', () => {
     }
   })
 
-  it('observes creation when the config parent did not exist at registration', { timeout: 20_000 }, async () => {
+  it('observes creation when the config parent did not exist at registration', { timeout: 120_000 }, async () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-hmr-config-'))
     const dir = join(root, 'later')
     const filename = join(dir, 'plugins.yml')
@@ -120,14 +152,20 @@ describe('HMR exact config paths', () => {
         observed.push(readFileSync(filename, 'utf8'))
       })
       mkdirSync(dir)
+      // The parent appears and the file lands in the same tick, and the watcher
+      // has to add the new directory before it can report anything inside it.
       writeFileSync(filename, 'created')
-      await eventually(() => observed.includes('created'), 'HMR did not observe config creation under a new parent')
+      await eventuallyObserved(
+        () => observed.includes('created'),
+        () => { writeFileSync(filename, 'created') },
+        'HMR did not observe config creation under a new parent',
+      )
     } finally {
       await ctx.fiber.dispose()
     }
   })
 
-  it('serializes refreshes and waits for them during disposal', { timeout: 20_000 }, async () => {
+  it('serializes refreshes and waits for them during disposal', { timeout: 120_000 }, async () => {
     const dir = mkdtempSync(join(tmpdir(), 'dsh-hmr-config-'))
     const filename = join(dir, 'plugins.yml')
     writeFileSync(filename, 'one')
@@ -168,7 +206,7 @@ describe('HMR exact config paths', () => {
     }
   })
 
-  it('normalizes refresh failures and broadcasts them without escaping the watcher', { timeout: 20_000 }, async () => {
+  it('normalizes refresh failures and broadcasts them without escaping the watcher', { timeout: 120_000 }, async () => {
     const dir = mkdtempSync(join(tmpdir(), 'dsh-hmr-config-'))
     const filename = join(dir, 'plugins.yml')
     const ctx = await bootHmr(dir)

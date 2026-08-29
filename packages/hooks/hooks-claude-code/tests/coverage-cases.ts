@@ -663,7 +663,9 @@ export function defineCoverageCases(group: CoverageGroup): void {
       const sessionDir = dir()
       const marker = join(sessionDir, 'where')
       // The hook is invoked with cwd = session dir, so a relative marker path lands there.
-      hooks(serverDir, { PreToolUse: [{ hooks: [{ type: 'command', command: 'pwd > where' }] }] })
+      // Published by rename: `>` creates the marker before `pwd` has written to
+      // it, so a reader that waits for the path can otherwise read it empty.
+      hooks(serverDir, { PreToolUse: [{ hooks: [{ type: 'command', command: 'pwd > where.tmp; mv where.tmp where' }] }] })
       const adapter = new MockAdapter([toolCallResponse('c1', 'echo', {}), textResponse('done')])
       const ctx = new Context()
       await mountAgentLoopTestDependencies(ctx)
@@ -693,7 +695,7 @@ export function defineCoverageCases(group: CoverageGroup): void {
       const childDir = dir()
       const marker = join(childDir, 'stopwhere')
       const payload = join(childDir, 'stoppayload')
-      hooks(serverDir, { SubagentStop: [{ hooks: [{ type: 'command', command: 'cat > stoppayload.tmp; mv stoppayload.tmp stoppayload; pwd > stopwhere' }] }] })
+      hooks(serverDir, { SubagentStop: [{ hooks: [{ type: 'command', command: 'cat > stoppayload.tmp; mv stoppayload.tmp stoppayload; pwd > stopwhere.tmp; mv stopwhere.tmp stopwhere' }] }] })
       const ctx = new Context()
       await mountAgentLoopTestDependencies(ctx)
       await ctx.plugin(AgentLoop, { agents: [] })

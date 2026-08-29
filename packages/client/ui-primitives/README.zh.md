@@ -33,7 +33,7 @@ kind: "package-library"
 
 ### 渲染 agent 输出
 
-`MarkdownText` 渲染不可信的 GFM 与 TeX 公式、阻止不安全的链接与图片，并可把已解析的文件提及转换为显式控件。回复流式输出时，它冻结已完成的块，并从保存的 Shiki grammar state 为不断增长的 fence 增量高亮；最终渲染使用相同的 span 树（[增量渲染器](../../../.agents/notes/implemented/architecture/2026-08-06-web-markdown-incremental-ast-renderer.zh.md)、[流式 fence 高亮](../../../.agents/notes/implemented/feature/2026-08-20-web-streaming-fence-highlight.zh.md)）。`TerminalBlock`、`ReadBlock`、`DiffBlock`、`SearchBlock` 与 `WebBlock` 把对应的工具结果意图渲染为带复制控件、溢出处理及适用时 ANSI 处理的卡片。`JsonTree` 与 `JsonBlock` 以只读方式检查 JSON 值；`MessageText` 仍是用户创作内容的字面文本原语。
+`MarkdownText` 通过 [HyperMarkdown](https://www.npmjs.com/package/@aeven-ai/hypermarkdown) 引擎渲染不可信的 GFM 与 TeX 公式，阻止不安全的链接与图片协议，并可把已解析的文件提及转换为显式控件。原始 HTML 从不被解析，因此作者写下的标记以字符而非元素抵达读者，而 ```` ```mermaid ```` fence 渲染为固定在 Mermaid strict 安全级别的图表。回复流式输出时，组件只把新追加的文本写入引擎的 store，该 store 按代码行、表格行与列表项缓存；定稿切换执行一次性的 settled 解析，因此无论回复被如何分片，定稿 DOM 都完全相同。`TerminalBlock`、`ReadBlock`、`DiffBlock`、`SearchBlock` 与 `WebBlock` 把对应的工具结果意图渲染为带复制控件、溢出处理及适用时 ANSI 处理的卡片。`JsonTree` 与 `JsonBlock` 以只读方式检查 JSON 值；`MessageText` 仍是用户创作内容的字面文本原语。
 
 ### 本地化文案
 
@@ -63,7 +63,7 @@ kind: "package-library"
 
 ### 流式 markdown
 
-回复流式输出期间，`MarkdownText` 增量解析：除末尾两个块外全部冻结为缓存的 React 元素，每个分片只重新解析其后的源文本尾部，因此每分片的工作量跟随尾部而非整个回复。不断增长的 fenced block 会从已保存的 Shiki grammar state 加上尚未完成的最后一行继续分词；已完成行保留其 DOM，定稿渲染则使用相同的 span 树。定稿时的全量解析还会解析跨过冻结边界的引用（[增量渲染器](../../../.agents/notes/implemented/architecture/2026-08-06-web-markdown-incremental-ast-renderer.zh.md)、[流式 fence 高亮](../../../.agents/notes/implemented/feature/2026-08-20-web-streaming-fence-highlight.zh.md)）。
+回复流式输出期间，`MarkdownText` 只把新追加的文本写入引擎的 store；当源文本不是上次已应用内容的延伸时则重新播种，正是这一点让转录可以在回复中途挂载。引擎按代码行、表格行与列表项缓存，因此每分片的工作量跟随当前正在增长的那个块，而非整个回复——已闭合的块不产生开销。定稿切换执行一次性的 settled 解析，而不是把流冲刷出去，因为流式输出对 fence 与表格而言依赖分片方式，settled 解析则不然：因此无论回复以何种方式到达，定稿 DOM 都完全相同。
 
 ### 几何与溢出
 
@@ -102,7 +102,7 @@ kind: "package-library"
 
 这些限制说明原子组件在边缘情况下的行为；它们是当前包约束，不是组件路线图。
 
-- **流式期间跨边界引用解析被推迟**：定义落在增量冻结边界另一侧的引用式链接或脚注，在回复流式输出期间渲染为字面文本；定稿时的全量解析会将其解析。
+- **渲染器自身的 chrome 既未本地化也未接入主题**：markdown 引擎的表格、图表与代码工具栏取自它自己的英文字符串与 `--hm-*` 变量，因此这些控件既不跟随应用 locale，也不跟随 `--dsw-*` 主题。`MarkdownLabels.footnotes` 被接受但未被应用，原因相同：该小节的名称由引擎自己指定。
 - **字形级图标是重新绘制的近似版本**：鱼形标志与闪光标记来自字体字形，而本地设计数据无法导出其矢量几何；在获得精确导出路径前，使用手工重建版本代替。
 - **`Pill` 与 `Input` 没有设计来源**：两个原子组件均自行定义；与其相似的侧边栏搜索字段和视图标签条由消费方组合，不是这些原子组件。
 - **`StateDot` 没有 `Active` 变体**：支持的状态为 done、warning、ongoing 和 error。

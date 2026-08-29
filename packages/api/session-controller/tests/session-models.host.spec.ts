@@ -338,6 +338,43 @@ describe('Web session model selection', () => {
     await ctx.fiber.dispose()
   })
 
+  it('orders providers and their models by the label the browser shows', async () => {
+    const { ctx } = await harness()
+    // Registration order is deliberately not alphabetical, and the models
+    // arrive in the order a live catalog refresh would append them.
+    ctx.llm.registerAdapter(['zeta'], new CatalogAdapter('Zeta Provider', [
+      { provider: 'zeta', id: 'z-2', name: 'Zeta Two' },
+    ]))
+    ctx.llm.registerAdapter(['alpha'], new CatalogAdapter('Alpha Provider', [
+      { provider: 'alpha', id: 'glm-5.10', name: 'GLM 5.10' },
+      { provider: 'alpha', id: 'glm-5.3', name: 'GLM 5.3' },
+      { provider: 'alpha', id: 'glm-5.2', name: 'GLM 5.2' },
+      { provider: 'alpha', id: 'aardvark', name: 'Aardvark' },
+      // Two entries sharing a display name fall back to the id, so the order
+      // is stable rather than dependent on however the registry listed them.
+      { provider: 'alpha', id: 'twin-b', name: 'Twin' },
+      { provider: 'alpha', id: 'twin-a', name: 'Twin' },
+    ]))
+    createSessionTestRemote(ctx, {
+      defaultModelSelection: () => ({ provider: 'deepseek-official', model: 'deepseek-chat' }),
+      cwd: '/tmp',
+    })
+
+    const catalog = await buildModelCatalog(ctx)
+
+    // The whole group list is ordered, not just the two registered here (the
+    // harness contributes its own default provider).
+    const names = catalog.groups.map(group => group.name)
+    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })))
+    expect(names.indexOf('Alpha Provider')).toBeLessThan(names.indexOf('Zeta Provider'))
+    // Version-bearing names read naturally: 5.2 before 5.3 before 5.10, which
+    // a plain code-unit sort would order 5.10, 5.2, 5.3.
+    expect(catalog.groups.find(group => group.id === 'alpha')?.models.map(model => model.name))
+      .toEqual(['Aardvark', 'GLM 5.2', 'GLM 5.3', 'GLM 5.10', 'Twin', 'Twin'])
+    expect(catalog.groups.find(group => group.id === 'alpha')?.models.map(model => model.id))
+      .toEqual(['aardvark', 'glm-5.2', 'glm-5.3', 'glm-5.10', 'twin-a', 'twin-b'])
+  })
+
   it('preserves optional catalog metadata and string provider failures', async () => {
     const { ctx } = await harness()
     ctx.llm.registerAdapter(['plain'], new CatalogAdapter('Plain', [
