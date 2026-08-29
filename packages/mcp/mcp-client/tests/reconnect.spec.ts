@@ -48,9 +48,15 @@ vi.mock('@modelcontextprotocol/sdk/client/index.js', () => ({
   Client: MockClient,
 }))
 
-vi.mock('@modelcontextprotocol/sdk/client/stdio.js', () => ({
-  StdioClientTransport: vi.fn(),
-}))
+vi.mock('@modelcontextprotocol/sdk/client/stdio.js', async () => {
+  // The real transport exposes a readable `stderr` under `stderr: 'pipe'`, which
+  // the module under test attaches its line reader to; a stand-in with no such
+  // stream would fail construction rather than the behavior these cases assert.
+  const { PassThrough } = await import('node:stream')
+  return {
+    StdioClientTransport: vi.fn(function () { return { stderr: new PassThrough() } }),
+  }
+})
 
 vi.mock('@modelcontextprotocol/sdk/client/streamableHttp.js', () => ({
   StreamableHTTPClientTransport: vi.fn(),

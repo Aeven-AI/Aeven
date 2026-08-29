@@ -132,6 +132,8 @@ A tool call sends an uncached `tools/call` request carrying the raw MCP name, th
 
 The child environment starts from the subprocess seam's `scrubbedParentEnv()` — ambient names matching `/KEY|PASSWORD|SECRET|TOKEN/i` and ambient `DSH_*` names are dropped — and the configured `env` merges on top, so explicit overrides survive. The MCP SDK owns the actual spawn; this package shares the scrub definition, not the spawn path.
 
+The child's stderr is piped rather than inherited, and each complete line is logged at debug level under the server's label. A server that greets on stderr — or the `npx` that warns before it execs one — would otherwise write those lines straight over the Host's own startup output.
+
 </details>
 
 -----

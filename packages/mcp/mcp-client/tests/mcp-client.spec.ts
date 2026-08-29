@@ -1135,6 +1135,35 @@ describe('createTransport', () => {
     expect(transport).toHaveProperty('close')
   })
 
+  it('forwards a stdio server\'s stderr as whole lines instead of the Host console', async () => {
+    // A server greeting on stderr (or the `npx` that warns before execing one)
+    // must not land on the Host's own startup output.
+    const lines: string[] = []
+    const config: Config = {
+      transport: 'stdio',
+      serverName: 'srv',
+      command: process.execPath,
+      args: ['-e', 'process.stderr.write("banner one\\n\\nbanner two\\ntrailing")'],
+      env: {},
+      cwd: process.cwd(),
+      toolCallTimeoutMs: 60_000,
+      failOnStartupError: false,
+    }
+    const transport = createTransport(config, line => lines.push(line))
+
+    await transport.start()
+    await new Promise<void>((resolve) => {
+      const done = (): void => { resolve() }
+      // The trailing line without a newline arrives only when the stream ends.
+      const stderr = (transport as unknown as { stderr: NodeJS.ReadableStream | null }).stderr
+      if (stderr === null) done()
+      else stderr.on('end', done)
+    })
+    await transport.close()
+
+    expect(lines).toEqual(['banner one', 'banner two', 'trailing'])
+  })
+
   it('creates StreamableHTTPClientTransport for http config without headers', () => {
     const config: Config = {
       transport: 'streamable-http',
