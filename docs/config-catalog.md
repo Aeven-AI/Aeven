@@ -1101,6 +1101,18 @@ export interface PiAiProviderProfile {
    */
   modelOverrides?: Record<string, PiAiModelOverride>
   /**
+   * Live model-list refresh for a route whose provider publishes an
+   * OpenRouter-style `GET /models` document. Absent, the route serves the
+   * installed pi-ai snapshot alone, which lags whatever the provider
+   * currently lists.
+   *
+   * The refresh is additive: it adds the published models the snapshot does
+   * not describe and never rewrites one it does, because the snapshot carries
+   * tuned reasoning and compatibility values the document does not express.
+   * A failed or slow refresh leaves the route serving the snapshot.
+   */
+  catalogRefresh?: PiAiCatalogRefresh
+  /**
    * pi-ai wire-compatibility switches defaulting every model on this route
    * whose protocol declares them; each model's own `compat` overrides per
    * field. What neither sets keeps the installed catalog entry's value, then
@@ -1214,6 +1226,25 @@ export interface PiAiModelProfile {
 export type PiAiModelOverride = Omit<PiAiModelProfile, 'id'>
 
 /**
+ * Live model-list refresh for one route: where to fetch the provider's
+ * published model document, and how long to wait for it.
+ */
+export interface PiAiCatalogRefresh {
+  /** Absolute URL of the provider's model document. */
+  url?: string
+  /** Published layout of that document; resolution defaults it to `openrouter`. */
+  format?: LiveCatalogFormat
+  /**
+   * Capability tags an entry must carry to be added. Absent or empty accepts
+   * every entry; `[chat]` is what keeps a provider's image, audio, and
+   * embedding models out of a text route.
+   */
+  requireTags?: string[]
+  /** Abort the request after this many milliseconds; resolution defaults it. */
+  timeoutMs?: number
+}
+
+/**
  * pi-ai wire-compatibility switches, set on the route (its models' default) or
  * per model (winning over the route, field by field).
  *
@@ -1312,13 +1343,23 @@ export type PiAiModality = Model<Api>['input'][number]
  */
 export type PiAiReasoningEfforts = Partial<Record<ModelThinkingLevel, string | null>>
 
+/**
+ * Which published layout a provider's document uses.
+ *
+ * `openrouter` states capacities, modalities, and accepted parameters at the
+ * top of each entry. `openai-models` is the plain OpenAI `GET /models` listing
+ * — an id and little else — which providers extend under `metadata`; DeepInfra
+ * puts capacities, per-token prices, and capability tags there.
+ */
+export type LiveCatalogFormat = 'openrouter' | 'openai-models'
+
 /** One reasoning-dispatch wire format a profile may name. */
 export type PiAiThinkingFormat = NonNullable<OpenAICompletionsCompat['thinkingFormat']>
 ```
 
 Depends on: `Api` (`@earendil-works/pi-ai`) · `CacheRetention` (`@earendil-works/pi-ai`) · `Model` (`@earendil-works/pi-ai`) · `ModelThinkingLevel` (`@earendil-works/pi-ai`) · `OpenAICompletionsCompat` (`@earendil-works/pi-ai`) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · `ThinkingBudgets` (`@earendil-works/pi-ai`) · `Transport` (`@earendil-works/pi-ai`)
 
-Source: [`packages/llm/llm-pi-ai/src/config.ts:216`](../packages/llm/llm-pi-ai/src/config.ts)
+Source: [`packages/llm/llm-pi-ai/src/config.ts:258`](../packages/llm/llm-pi-ai/src/config.ts)
 
 <a id="deepseek-aidsh-llm-replay"></a>
 

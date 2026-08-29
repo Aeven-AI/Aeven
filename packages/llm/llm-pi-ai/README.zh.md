@@ -78,6 +78,7 @@ kind: "package-reference"
 | `baseURL` | 目录端点 | 路由上所有模型的端点 |
 | `models` | 已安装目录 | 整体替换路由目录；每个条目从已安装模型取默认值 |
 | `modelOverrides` | 无 | 重塑个别已安装目录模型，而不替换其余模型 |
+| `catalogRefresh` | 无 | 补入提供方当前发布、而已安装快照未描述的模型 |
 | `compat` | 目录检测 | 无法识别端点的协议兼容开关 |
 | `defaultContextWindow` | `262,144` | 未描述模型的容量回退 |
 | `defaultMaxTokens` | `32,768` | 未描述模型的输出上限回退 |
@@ -97,6 +98,31 @@ pi-ai 提供登录的提供方可以通过 harness 授权 seam 登录：流程�
 profile 的 `models` 列表会替换而非扩展路由的已安装目录；每个条目从同 id 已安装模型取未设置字段的默认值，因此把路由收窄到两个模型、修正一个容量或添加比已安装目录更新的模型都是一行编辑。`modelOverrides` 无需该代价即可重塑个别已安装目录模型——修正一个模型，保留其余三十七个——当它与 `models` 列表并存、位于手工声明路由上、或点名目录未描述的模型时会被拒绝，因为静默不变的模型会成为别人日后寻找的拼写错误。
 
 ### 带推理与协议兼容运行
+
+已安装目录是一份按 pi-ai 自身节奏重新生成的快照，因此提供该目录的路由会滞后于提供方当前列出的内容。对于发布 OpenRouter 风格 `GET /models` 文档的提供方，`catalogRefresh` 弥合了这一差距：写明其 `url`（以及可选的 `timeoutMs`，默认十秒），路由便会在挂载时抓取该文档一次，补入快照未描述的每个已发布模型，并重新解析，使新增模型进入选择器。对照 OpenRouter 的线上端点，这会把该路由从快照附带的 346 个模型带到 433 个。
+
+该刷新**按契约只做增补**：已发布条目从不替换已安装条目。快照携带了该文档并不表达的手工调校值 `compat` 与 `thinkingLevelMap`——推理方言、developer 角色支持、逐等级的过线拼写——因此依据文档改写已安装条目，会静默降级今天可用的模型。修正已安装模型仍然是 `modelOverrides` 的职责。新增模型只声明该文档所蕴含的内容：其容量、其接受的模态，以及在它公布推理参数时的 OpenRouter 推理方言与 low/medium/high 等级。其余一切留给 `models` 条目去陈述，而非猜测。
+
+`format` 指明已发布的布局。`openrouter`（默认）在每个条目顶层陈述容量、模态与所接受的参数。`openai-models` 是朴素的 OpenAI `GET /models` 列表，提供方在 `metadata` 下对其扩展——DeepInfra 把容量、逐 token 价格与能力标签放在那里。当提供方在同一份文档中列出图像、音频与嵌入模型时，`requireTags` 可让文本路由保持干净：`[chat]` 只接纳带该标签的条目。
+
+### 已知路由
+
+有些提供方发布了可用的模型文档，却完全不在 pi-ai 的目录中。`dsh-llm-pi-ai` 维护了一张这类提供方的小表——目前是 **DeepInfra**——提供 profile 本来必须自行陈述的协议、端点、凭据引用与刷新配置。它们与 pi-ai 自身的路由并列出现在可配置提供方目录中，因此添加凭据就是全部步骤：
+
+```yaml
+llm-pi-ai:
+  providers:
+    deepinfra:
+      apiKeyEnv: DEEPINFRA_API_KEY
+```
+
+这会解析为对 `https://api.deepinfra.com/v1/openai` 使用 `openai-completions`，并以 `format: openai-models` 与 `requireTags: [chat]` 从 `/models` 刷新——在该文档发布的 190 个条目中取得 106 个 chat 模型。每一项默认值都只是默认值：自行陈述了 `baseURL`、`displayName`、`models` 或 `catalogRefresh` 的 profile 会覆盖该表。
+
+已知路由的模型只来自其文档，而解析发生在首次抓取应答之前，因此这类路由会恰好一次地以空目录解析，而不是被拒绝。空路由无法服务任何请求，并在其模型到达之前不出现在浏览器目录中。既非目录路由、也非已知路由且未列出模型的路由仍会被拒绝——没有任何东西会去填充它。
+
+只有当某条路由的模型无需任何人编辑配置即可维持时，它才配进入该表。模型必须手工列出的提供方属于部署自身的设置，那里的列表归属清晰，而不属于随发行的表——否则它会像 pi-ai 快照一样陈旧。
+
+该刷新尽力而为。无法访问、超过 `timeoutMs` 或格式错误的文档会记录一条警告，并让路由继续提供快照，因为提供方的列表短暂不可用不得连带让该路由下线。相反，未写明 `url` 的 `catalogRefresh` 块会在解析时被拒绝，因为 profile 中没有别的东西能提供该文档的位置。已安装模型在协议上不一致、或解析不出端点的路由会被跳过并给出警告：新增模型没有唯一的 `api` 与 `baseURL` 可继承，必须在路由上写明。
 
 `reasoningEfforts` 声明模型可选择的 thinking 等级：每个键都是选择器提供的等级，其值是该等级过线的拼写，因此 `max: ultra` 可以为拥有自有词汇的网关重命名等级。省略该字段时保留已安装目录条目的能力；`false` 声明非推理模型。对于 pi-ai 无法识别的端点，`compat` 开关重塑请求——哪个角色携带系统提示词、哪个字段限制输出、thinking 等级如何传递——可逐路由、逐模型配置。条目与已安装目录都没有尺寸的模型，会采用路由的 `defaultContextWindow` 与 `defaultMaxTokens` 回退值。
 
@@ -139,6 +165,8 @@ pi-ai 不提供的路由需要 `api`、`baseURL` 与非空 `models` 列表；无
 | [`src/context.ts`](src/context.ts) | Harness 到 pi-ai 的上下文转换、图片处理、回放恢复 |
 | [`src/stream.ts`](src/stream.ts) | 把 pi-ai 事件转换为 harness `StreamChunk` 值 |
 | [`src/replay.ts`](src/replay.ts) | 带版本的 `ReplayEnvelope` 存储与校验 |
+| [`src/live-catalog.ts`](src/live-catalog.ts) | 抓取提供方发布的模型文档，并材料化快照缺失的条目 |
+| [`src/known-routes.ts`](src/known-routes.ts) | pi-ai 未提供目录、但本包可配置的提供方 |
 | [`src/discovery.ts`](src/discovery.ts) | 面向配置界面的端点询问 |
 
 ### 注册与目录

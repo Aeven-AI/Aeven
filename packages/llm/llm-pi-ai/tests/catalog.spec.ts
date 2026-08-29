@@ -152,6 +152,17 @@ describe('hand-declared providers', () => {
     expect(directory.filter(entry => entry.declared).map(entry => entry.provider))
       .toEqual(['acme-gateway'])
     expect(directory.find(entry => entry.provider === 'deepseek')?.declared).toBe(false)
+    // Ordered for reading: the assembly order put catalog routes first, then
+    // known routes, then declared ones, which buried every non-catalog entry.
+    const names = directory.map(entry => entry.displayName)
+    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })))
+    // A known route sits among the catalog's own rather than after them, and
+    // carries a route-key name like theirs.
+    expect(directory.find(entry => entry.provider === 'deepinfra')).toMatchObject({
+      displayName: 'deepinfra',
+      declared: false,
+    })
+    expect(names.indexOf('deepinfra')).toBeLessThan(names.indexOf('deepseek'))
   })
 
   it('sizes a model the catalog cannot describe from the route\u2019s own fallbacks', () => {

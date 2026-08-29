@@ -55,6 +55,7 @@
  * @module @deepseek-ai/dsh-llm-pi-ai
  */
 
+import type { Api, Model } from '@earendil-works/pi-ai'
 import type { Context } from '@deepseek-ai/cordis'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import { assertUsableApiKey, LlmError, resolveImageAttachmentAccess } from '@deepseek-ai/dsh-llm'
@@ -63,10 +64,12 @@ import type {} from '@deepseek-ai/dsh-fs'
 import { deepEqualJson, installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings'
 import { PiAiAdapter } from './adapter.ts'
 import { authContextFrom, credentialStoreFrom } from './auth.ts'
-import { catalogProviderIds } from './catalog.ts'
+import { catalogModels, catalogProvider, catalogProviderIds } from './catalog.ts'
+import { KNOWN_ROUTES, knownRoute } from './known-routes.ts'
 import { assertServiceable, Config, resolveProfiles } from './config.ts'
 import type { ResolvedPiAiProviderProfile } from './config.ts'
 import { discoverModels } from './discovery.ts'
+import { fetchLiveAdditions } from './live-catalog.ts'
 import { registerPiAiFlows } from './login.ts'
 
 export { PiAiAdapter } from './adapter.ts'
@@ -114,7 +117,7 @@ function registrationFacts(profiles: ReadonlyMap<string, ResolvedPiAiProviderPro
  * catalog entry, so without this union it would have no settings address and
  * configuration surfaces could neither show nor edit it.
  * @param profiles - the currently resolved provider profiles.
- * @returns the directory entries in catalog order, declared routes last.
+ * @returns the directory entries ordered by display name.
  */
 function directoryEntries(
   profiles: ReadonlyMap<string, ResolvedPiAiProviderProfile>,
@@ -127,15 +130,26 @@ function directoryEntries(
       displayName,
       settingsNs: NS,
       settingsPath: ['providers', provider],
-      // Membership of the installed catalog, not of the settings document:
+      // First-party knowledge, not membership of the settings document:
       // narrowing a shipped provider's models stores a profile too, and that
-      // route is still one pi-ai knows.
-      declared: !catalog.has(provider),
+      // route is still one pi-ai knows. A known route counts as first-party
+      // for the same reason — this package supplies its protocol, endpoint,
+      // and model document, so a stored profile there is a credential, not a
+      // route someone had to describe.
+      declared: !catalog.has(provider) && knownRoute(provider) === undefined,
     })
   }
   for (const provider of catalog) declare(provider, provider)
+  // Known routes join the directory beside the catalog's own: pi-ai ships
+  // nothing about them, but this package supplies the protocol, endpoint, and
+  // model document, so adding a credential is the whole step here too.
+  for (const [provider, route] of Object.entries(KNOWN_ROUTES)) declare(provider, route.displayName)
   for (const [provider, profile] of profiles) declare(provider, profile.displayName)
-  return [...entries.values()]
+  // Ordered for reading rather than by how the entries were gathered: catalog
+  // first, then known routes, then configured profiles is an assembly order,
+  // and it put every route this package adds at the end of the list.
+  return [...entries.values()].sort((left, right) =>
+    left.displayName.localeCompare(right.displayName, undefined, { numeric: true, sensitivity: 'base' }))
 }
 
 /** Register one generic pi-ai adapter for all configured provider routes. */
@@ -154,10 +168,16 @@ export function apply(ctx: Context, config: Config): void {
    * last good value for a stored section that fails. Anything reaching this
    * point has already resolved once.
    */
+  // Models a completed live refresh added, by route. Empty until a refresh
+  // resolves, so the first resolution — and every resolution on a deployment
+  // that configures no refresh — serves the installed snapshot alone.
+  const liveModels = new Map<string, readonly Model<Api>[]>()
+  /** Routes a refresh has already been attempted for, so an edit does not re-fetch them. */
+  const attempted = new Set<string>()
   const profiles = (): ReadonlyMap<string, ResolvedPiAiProviderProfile> => {
     const raw = current()
     if (raw === lastRaw && memoized !== undefined) return memoized
-    const next = resolveProfiles(raw.providers)
+    const next = resolveProfiles(raw.providers, liveModels)
     lastRaw = raw
     memoized = next
     return next
@@ -292,6 +312,113 @@ export function apply(ctx: Context, config: Config): void {
   }
   ensureRegistrationFacts()
 
+  /**
+   * Re-register the routes and the directory from the current profiles.
+   *
+   * Both callers — a settings change and a completed catalog refresh — keep
+   * the previously registered routes when the swap is refused, so a
+   * configuration that cannot serve never takes the working one down with it.
+   */
+  const rebuildRoutes = (): void => {
+    // Named here rather than left to the settings watcher: `assertServiceable`
+    // cannot see the llm registry, so a profile claiming a route another
+    // adapter family owns is stored successfully and only fails at this swap.
+    // Without its own diagnostic that refusal reaches the operator as a
+    // generic "settings: watcher failed", naming neither the route nor why it
+    // is not serving.
+    try {
+      ensureRegistrationFacts()
+    } catch (error) {
+      ctx.logger.error('llm-pi-ai: keeping the previously registered routes after a refused update')
+      ctx.logger.error(error)
+    }
+    // The directory follows the profiles the registry accepted, so a route
+    // that failed to register is not advertised as configurable. A refused
+    // directory swap is contained for the same reason the registry's is: the
+    // previous entries keep serving, and `directoryFacts` stays put so
+    // returning to a working configuration re-applies.
+    try {
+      ensureDirectory()
+    } catch (error) {
+      ctx.logger.error('llm-pi-ai: keeping the previously advertised configurable routes after a refused update')
+      ctx.logger.error(error)
+    }
+  }
+
+  /**
+   * Fetch every configured route's live model document once, then re-resolve
+   * so the added models reach the catalog. Refresh is best-effort by design:
+   * a route whose document is unreachable, slow, or malformed keeps serving
+   * the installed snapshot, because a provider's list being briefly
+   * unavailable must not take the route down with it.
+   */
+  const refreshCatalogs = async (signal: AbortSignal): Promise<void> => {
+    let added = false
+    for (const [provider, profile] of profiles()) {
+      const refresh = profile.catalogRefresh
+      // One attempt per route per configuration: routes arrive from settings
+      // after mount, so this runs again on every change, and a route already
+      // tried must not re-fetch on an unrelated edit.
+      if (refresh === undefined || attempted.has(provider)) continue
+      attempted.add(provider)
+      const catalog = catalogModels(provider)
+      const installed = new Set(catalog.keys())
+      const baseUrl = profile.baseURL ?? catalogProvider(provider)?.baseUrl
+      // Added models must declare a protocol and an endpoint. The route's own
+      // configuration answers first; otherwise the installed catalog answers,
+      // but only when its models agree — a route spanning two protocols has no
+      // single answer to give a model it has never described.
+      const apis = new Set([...catalog.values()].map(model => model.api))
+      const api = profile.api ?? (apis.size === 1 ? [...apis][0] : undefined)
+      if (baseUrl === undefined || api === undefined) {
+        ctx.logger.warn(
+          `llm-pi-ai: provider route "${provider}" configures catalogRefresh but resolves no single`
+          + ' baseURL and api for models the installed catalog does not describe; name both on the route',
+        )
+        continue
+      }
+      try {
+        const models = await fetchLiveAdditions(refresh.url, refresh.timeoutMs, installed, {
+          provider,
+          api,
+          baseUrl,
+          defaultContextWindow: refresh.defaultContextWindow,
+          defaultMaxTokens: refresh.defaultMaxTokens,
+          format: refresh.format,
+          requireTags: refresh.requireTags,
+        }, signal)
+        if (models.length === 0) continue
+        liveModels.set(provider, models)
+        added = true
+        ctx.logger.info(
+          `llm-pi-ai: provider route "${provider}" added ${String(models.length)} model(s)`
+          + ` from ${refresh.url} beyond the ${String(installed.size)} the installed catalog ships`,
+        )
+      } catch (error) {
+        if (signal.aborted) return
+        ctx.logger.warn(
+          `llm-pi-ai: provider route "${provider}" could not refresh its model list from ${refresh.url};`
+          + ' serving the installed catalog instead',
+        )
+        ctx.logger.warn(error)
+      }
+    }
+    // One invalidation for the whole pass: the memo keys on the raw snapshot's
+    // identity, which a refresh does not change, so it is cleared explicitly.
+    if (added) {
+      lastRaw = undefined
+      memoized = undefined
+      // A widened catalog only reaches selectors once the routes and the
+      // directory are rebuilt from the re-resolved profiles.
+      rebuildRoutes()
+    }
+  }
+
+  // One controller for every pass: the routes present once settings have been
+  // installed, and the ones that arrive from later edits, share the plugin's
+  // cancellation.
+  const refreshes = new AbortController()
+
   installSettingsSection(ctx, NS, Config, config, {
     // Refuse an unserviceable section where it is written: without this a
     // schema-valid profile the adapter cannot serve would be stored and then
@@ -301,29 +428,20 @@ export function apply(ctx: Context, config: Config): void {
       current = source
     },
     onChange: () => {
-      // Named here rather than left to the settings watcher: `assertServiceable`
-      // cannot see the llm registry, so a profile claiming a route another
-      // adapter family owns is stored successfully and only fails at this swap.
-      // Without its own diagnostic that refusal reaches the operator as a
-      // generic "settings: watcher failed", naming neither the route nor why it
-      // is not serving. The previous routes keep serving either way.
-      try {
-        ensureRegistrationFacts()
-      } catch (error) {
-        ctx.logger.error('llm-pi-ai: keeping the previously registered routes after a refused update')
-        ctx.logger.error(error)
-      }
-      // The directory follows the profiles the registry accepted, so a route
-      // that failed to register is not advertised as configurable. A refused
-      // directory swap is contained here for the same reason the registry's
-      // is: the previous entries keep serving, and `directoryFacts` stays put
-      // so returning to a working configuration re-applies.
-      try {
-        ensureDirectory()
-      } catch (error) {
-        ctx.logger.error('llm-pi-ai: keeping the previous configurable-provider directory after a refused update')
-        ctx.logger.error(error)
-      }
+      // A route configuring a refresh usually arrives here rather than at
+      // mount: the shipped posture is dormant, and settings supply the
+      // profiles. Routes already attempted are skipped inside, and a pass
+      // after disposal finds its signal already aborted.
+      void refreshCatalogs(refreshes.signal)
+      rebuildRoutes()
     },
   })
+
+  // Registered after the settings section: a profile stored on disk reaches
+  // `current` during that install, and a pass before it would see the dormant
+  // route set and never revisit a route the file already configured.
+  ctx.effect(() => {
+    void refreshCatalogs(refreshes.signal)
+    return () => { refreshes.abort() }
+  }, 'llm-pi-ai: live catalog refresh')
 }
