@@ -15,6 +15,20 @@ import { getStaticModules } from './seed.ts'
 import { STATE_LABELS } from './loader-status.ts'
 import './base.css'
 
+/**
+ * Preloader controller published by the index rows ui-theme's host half
+ * contributes (`boot-preloader.ts`). Absent whenever no host composition owns
+ * the document, so every call site treats it as optional.
+ */
+interface PreloaderControl {
+  hide: (animation?: boolean) => void
+}
+
+/** Read the index-injected preloader controller, if the document carries one. */
+function preloader(): PreloaderControl | undefined {
+  return (globalThis as { __DSH_PRELOADER__?: PreloaderControl }).__DSH_PRELOADER__
+}
+
 /** Module transport hook replaced by jsdom tests. */
 export type BootSeams = Pick<ClientModuleCreateOptions, 'loadBundle'>
 
@@ -78,8 +92,12 @@ export class AppWebEntry {
       this.ctx = ctx
       await this.runPluginBoot(ctx, prefetching)
       await this.mountApp(ctx)
+      preloader()?.hide()
     } catch (reason) {
       console.error(reason)
+      // Cut the fade: the preloader is opaque and would otherwise cover the
+      // failure report for its whole duration.
+      preloader()?.hide(false)
       this.page.fail(reason instanceof Error ? reason.message : String(reason))
     }
   }

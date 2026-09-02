@@ -3,11 +3,16 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-settings'
+import { bootPreloaderInjections } from './boot-preloader.ts'
 import { bootThemeInjection } from './boot-theme.ts'
 import {
   DEFAULT_FONT_SIZE, DEFAULT_PREFERENCE, THEME_SETTINGS_NAMESPACE, ThemeSettingsSchema,
   type ThemePreference, type ThemeSettings,
 } from './theme-settings.ts'
+
+export {
+  PRELOADER_ELEMENT_ID, PRELOADER_GLOBAL, bootPreloaderInjections,
+} from './boot-preloader.ts'
 
 export {
   DEFAULT_FONT_SIZE, DEFAULT_PREFERENCE, FONT_SIZE_FIELD, FONT_SIZE_MAX, FONT_SIZE_MIN,
@@ -30,7 +35,9 @@ function readSection(ctx: Context): { preference: ThemePreference; fontSize: num
 /**
  * Register the durable theme section when the optional settings service is
  * composed, and answer every index injection collection with the current
- * theme bootstrap row.
+ * theme bootstrap row followed by the preloader rows. The theme row stays
+ * first so its script has applied `body[data-ds-dark-theme]` by the time the
+ * preloader markup parses.
  * @param ctx - Host context that may acquire the settings service.
  */
 export function apply(ctx: Context): void {
@@ -39,6 +46,6 @@ export function apply(ctx: Context): void {
   })
   ctx.on('webserver/index-inject', (table) => {
     const section = readSection(ctx)
-    table.push(bootThemeInjection(section.preference, section.fontSize))
+    table.push(bootThemeInjection(section.preference, section.fontSize), ...bootPreloaderInjections())
   })
 }

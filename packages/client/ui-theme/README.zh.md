@@ -39,6 +39,12 @@ kind: "package-reference"
 
 当主机组合包含 HTTP 服务器时，宿主侧会把已注册的 `ui-theme` 设置或 schema 默认值嵌入每份 index 响应。浏览器在加载页面渲染前设置 `color-scheme`、`body[data-ds-dark-theme]` 与 `--dsh-content-font-size`，因此首帧绘制就采用所选调色板与字号。
 
+### 预加载页
+
+同一份 index 响应也承载加载页本身：head 中一行样式表，body 中一段标记与一段控制器脚本，紧跟在它们所读取调色板的主题引导之后。因此品牌标识与转轮在入口包、模块加载器或 React 存在之前就已绘制，并在整个插件启动过程中占据屏幕，而不是交接给一个中间的空壳。
+
+关闭经由 `globalThis.__DSH_PRELOADER__` 进行。Web 启动内核在应用接管挂载点后调用 `hide()`，页面以 400ms 淡出并随后移出布局；启动失败会先调用 `hide(false)`，使失败报告不被遮挡。这些行存在时，内核自身的无框架卡片不进入文档，从而只保留一个加载指示而非两个。失败报告仍会渲染，因为它必须在客户端树从未加载 React 时依然可用。
+
 -----
 
 <a id="understand-the-implementation"></a>

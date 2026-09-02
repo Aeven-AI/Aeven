@@ -14,6 +14,16 @@ function div(className: string | undefined, text?: string): HTMLDivElement {
   return el
 }
 
+/**
+ * True when the index response carried the preloader rows (ui-theme's host
+ * half). That page owns the loading visuals from first paint, so the card
+ * below stays out of the document; the failure report still renders, and the
+ * boot kernel cuts the preloader away before showing it.
+ */
+function preloaderOwnsLoading(): boolean {
+  return document.getElementById('dsh-preloader') !== null
+}
+
 /** Kernel-owned page mounted below the application's root element. */
 export class BootPage {
   private readonly root: HTMLDivElement
@@ -23,6 +33,7 @@ export class BootPage {
   private readonly hint: HTMLDivElement
   private readonly states = new Map<string, LoaderEntryState>()
   private readonly active = new Set<string>()
+  private readonly silent = preloaderOwnsLoading()
   private total = 0
   private failure: string | undefined
 
@@ -38,7 +49,7 @@ export class BootPage {
     this.spinner = div(css.spinner)
     this.spinner.dataset.dshBootSpinner = ''
     this.hint = div(css.hint, 'Loading plugins…')
-    this.card.append(this.wordmark, this.spinner, this.hint)
+    if (!this.silent) this.card.append(this.wordmark, this.spinner, this.hint)
     this.root.append(this.card)
     container.append(this.root)
     this.updateProgress()
@@ -83,6 +94,7 @@ export class BootPage {
   private render(): void {
     const failed = [...this.states].filter(([, state]) => state === 'failed').map(([id]) => id)
     if (this.failure === undefined && failed.length === 0) {
+      if (this.silent) return
       if (this.spinner.parentElement !== this.card) {
         this.card.replaceChildren(this.wordmark, this.spinner, this.hint)
       }

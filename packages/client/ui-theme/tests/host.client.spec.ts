@@ -50,7 +50,9 @@ describe('ui-theme host', () => {
     const fiber = ctx.plugin({ apply })
     await fiber.await()
     const rows = collect(ctx)
-    expect(rows).toHaveLength(1)
+    // The theme row leads so its script applies the dark attribute before the
+    // preloader markup that follows it parses.
+    expect(rows.map(row => row.kind)).toEqual(['script', 'style', 'html', 'script'])
     expect(rows[0]).toMatchObject({ kind: 'script', placement: 'body' })
     expect(scriptText(rows[0])).toContain('const preference = "system"')
     expect(scriptText(rows[0])).toContain('"14px"')

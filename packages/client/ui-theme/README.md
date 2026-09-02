@@ -39,6 +39,12 @@ A composition can register a third-party theme id with alias-token overrides thr
 
 When the host composition includes an HTTP server, the host half embeds the registered `ui-theme` settings, or schema defaults, into each index response. Before the loading page renders, the browser sets `color-scheme`, `body[data-ds-dark-theme]`, and `--dsh-content-font-size`, so the first paint uses the selected palette and text size.
 
+### Preloader
+
+The same index response carries the loading page itself: a stylesheet row in the head, and markup plus a controller script in the body, immediately after the theme bootstrap whose palette they read. The brand mark and spinner therefore paint before the entry bundle, the module loader, or React exist, and they hold the screen through the whole plugin boot rather than handing off to an intermediate empty shell.
+
+Dismissal runs through `globalThis.__DSH_PRELOADER__`. The web boot kernel calls `hide()` once the application owns the mount point, which fades the page out over 400ms and then takes it out of the layout; a boot failure calls `hide(false)` first, so the failure report is not covered. While these rows are present the kernel's own framework-free card stays out of the document, leaving one loading indicator instead of two. The failure report still renders, because it must survive a client tree that never loaded React.
+
 -----
 
 <a id="understand-the-implementation"></a>
