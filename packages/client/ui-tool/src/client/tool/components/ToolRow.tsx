@@ -65,6 +65,12 @@ export interface ToolRowProps {
    * over the expanded body. Absent = no affordance.
    */
   inspect?: (() => void) | undefined
+  /**
+   * Images the settled result produced, rendered below the row and outside the
+   * disclosure: a generated image is the result, so it shows without the
+   * reader expanding anything. Absent/null = no gallery.
+   */
+  images?: ReactNode | null | undefined
 }
 
 function leadingFor(state: ToolRowState, icon: ReactNode): ReactNode {
@@ -109,6 +115,7 @@ export function ToolRow({
   filePath,
   onOpenFile,
   inspect,
+  images,
 }: ToolRowProps) {
   const [expanded, setExpanded] = useState(false)
   const terminalLabels = useMemo(() => terminalBlockLabels(t), [t])
@@ -281,6 +288,7 @@ export function ToolRow({
           )}
         </div>
       </DisclosureRow>
+      {images !== null && images !== undefined && <div className={css.images}>{images}</div>}
     </div>
   )
 }

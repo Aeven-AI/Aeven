@@ -8,6 +8,7 @@ import { diffCardModel } from '../models/diff-card-model.ts'
 import { searchCardModel } from '../models/search-card-model.ts'
 import { terminalCardModel, terminalFailed } from '../models/terminal-card-model.ts'
 import { webCardModel } from '../models/web-card-model.ts'
+import { imageCardModel } from '../models/image-card-model.ts'
 import { toolRowModel, type ToolRowVariant } from '../models/tool-call-model.ts'
 import { ToolRow } from '../components/ToolRow.tsx'
 
@@ -27,8 +28,16 @@ export interface GenericToolCardProps extends ToolCallOwnerProps {
   t: ToolTreeProps['t']
 }
 
-export function GenericToolCard({ toolName, block, cwd, home, openFile, inspect, t }: GenericToolCardProps) {
+export function GenericToolCard({
+  toolName, block, cwd, home, openFile, inspect, renderImages, t,
+}: GenericToolCardProps) {
   const model = toolRowModel(toolName, block, cwd, home)
+  const resultImages = imageCardModel(block)
+  // A composition without an attachment presentation leaves the row text-only
+  // rather than rendering an empty gallery frame.
+  const images = renderImages === undefined || resultImages.length === 0
+    ? null
+    : renderImages({ images: resultImages.map(attachment => ({ attachment })), align: 'start' })
   const terminal = terminalCardModel(block, cwd)
   const read = readCardModel(block, cwd, home)
   const diff = diffCardModel(block)
@@ -63,6 +72,7 @@ export function GenericToolCard({ toolName, block, cwd, home, openFile, inspect,
       filePath={model.filePath}
       onOpenFile={singleFile ? openFile : undefined}
       inspect={inspect}
+      images={images}
     />
   )
 }

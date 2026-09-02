@@ -39,11 +39,15 @@ ctx.slots.inject('tool.call.toolview', () =>
   }, BusinessToolRow))
 ```
 
-The owner payload is `ToolCallOwnerProps`: `callId`, `toolName`, the frozen `block`, optional `cwd` and `home`, and plain `openFile`/`inspect` callbacks. A Code Dispatch block retains its event's `parentCallId`; a root Session call has no such field, so descendants keep the generic flattened form without another placement flag. Path summaries relativize to the Session cwd first, then replace a leftover POSIX Host home with `~`; `filePath` and Host open keep the authored filesystem path. The registration receives the normal Session slot runtime share but no React node or Runtime service.
+The owner payload is `ToolCallOwnerProps`: `callId`, `toolName`, the frozen `block`, optional `cwd` and `home`, plain `openFile`/`inspect` callbacks, and `renderImages` when the composition mounts an attachment presentation. A Code Dispatch block retains its event's `parentCallId`; a root Session call has no such field, so descendants keep the generic flattened form without another placement flag. Path summaries relativize to the Session cwd first, then replace a leftover POSIX Host home with `~`; `filePath` and Host open keep the authored filesystem path. The registration receives the normal Session slot runtime share but no React node or Runtime service.
 
 ### Built-in views
 
 This package owns the generic fallback and the built-in shell/pwsh, read, write/edit, running `str_replace_editor` `create`/`str_replace`, grep/glob, web, todo, question, and Code Dispatch presentations. Structured cards derive directly from first-party raw event fields; Host `presentCall` and `presentResult` values never enter the Client. Foreground one-shot shell results use terminal cards. Settled persistent-shell results use the expandable generic input/output card because reset and partial-output diagnostics do not always describe one process exit status; background acknowledgements remain collapsed. A successful question row pairs call questions with result answers by their stable ids and shows readable question/answer lines when expanded. A cancelled or interrupted row shows its verdict and original questions without inventing answers. Unsupported, malformed, or ambiguous inputs fall back to flattened Tool input/result text. `ui-skill` demonstrates a business-owned registration for `skill`.
+
+### Generated images
+
+A settled result's `image` content blocks render as a gallery below the row, outside the disclosure: a generated image is the tool's result rather than a detail of it, so it appears without the reader expanding anything. Running calls, failed results, and results whose content is text alone show no gallery, and a composition without an attachment presentation leaves the row text-only instead of an empty frame. Every tool that returns image blocks gets this, with no per-tool registration.
 
 -----
 

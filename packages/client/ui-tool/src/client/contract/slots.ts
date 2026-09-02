@@ -4,7 +4,7 @@ import type {
 } from '@deepseek-ai/dsh-client-ui-slots'
 import type { RemoteHostFacts } from '@deepseek-ai/dsh-api-remotes/client'
 import type { ToolCallBlock } from '@deepseek-ai/dsh-client-ui-chat/client'
-import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { RenderMessageImages } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -43,6 +43,12 @@ export interface ToolCallOwnerProps {
   openFile: (path: string) => void
   /** Inspect this call in the trajectory view when available. */
   inspect?: (() => void) | undefined
+  /**
+   * Render image content blocks a settled result carries. Absent when the
+   * composition mounts no attachment presentation, which leaves an
+   * image-producing tool with its text summary alone.
+   */
+  renderImages?: RenderMessageImages | undefined
 }
 
 /** Full props of a registered atomic Tool view. */

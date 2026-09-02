@@ -332,3 +332,9 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* Generated images sit below the row, outside the disclosure: the artifact is
+   the result, so it stays visible whether or not the row is expanded. */
+.images {
+  margin-top: 6px;
+}
