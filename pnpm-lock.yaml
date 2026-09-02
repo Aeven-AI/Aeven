@@ -2815,8 +2815,8 @@ importers:
   packages/client/ui-primitives:
     dependencies:
       '@aeven-ai/hypermarkdown':
-        specifier: ^0.1.4
-        version: 0.1.4(katex@0.16.47)(mermaid@11.16.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rehype-highlight@7.0.2)(rehype-katex@7.0.1)(remark-cjk-friendly@2.3.1(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(unified@11.0.5))(remark-math@6.0.0)
+        specifier: ^0.4.1
+        version: 0.4.1(katex@0.16.47)(mermaid@11.16.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rehype-highlight@7.0.2)(rehype-katex@7.0.1)(remark-cjk-friendly@2.3.1(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(unified@11.0.5))(remark-math@6.0.0)
       '@shikijs/langs':
         specifier: ^4.3.1
         version: 4.3.1
@@ -10482,8 +10482,8 @@ importers:
 
 packages:
 
-  '@aeven-ai/hypermarkdown@0.1.4':
-    resolution: {integrity: sha512-Om5L+mAL8jKLds+bSdhLH2500hvWlwYNtH0AxyC1Cs9J715gffIq3nZuu59FriY1StIa8WSQ5dac7ueKCn3GKg==}
+  '@aeven-ai/hypermarkdown@0.4.1':
+    resolution: {integrity: sha512-J4sG+VewCdms4CoLA3HUND8wlDD8mtWXclWEEkRgPrifOddlQCazt+VrLO/7fX2ShszeS2s/5a79imiLet2OWg==}
     peerDependencies:
       katex: ^0.16.25
       mermaid: ^11.12.0
@@ -16541,7 +16541,7 @@ packages:
 
 snapshots:
 
-  '@aeven-ai/hypermarkdown@0.1.4(katex@0.16.47)(mermaid@11.16.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rehype-highlight@7.0.2)(rehype-katex@7.0.1)(remark-cjk-friendly@2.3.1(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(unified@11.0.5))(remark-math@6.0.0)':
+  '@aeven-ai/hypermarkdown@0.4.1(katex@0.16.47)(mermaid@11.16.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rehype-highlight@7.0.2)(rehype-katex@7.0.1)(remark-cjk-friendly@2.3.1(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(unified@11.0.5))(remark-math@6.0.0)':
     dependencies:
       hast-util-to-jsx-runtime: 2.3.6
       react: 18.3.1
