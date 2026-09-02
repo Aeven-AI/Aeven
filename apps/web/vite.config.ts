@@ -114,58 +114,81 @@ function emitPreviewPage(): Plugin {
 }
 
 /**
- * Vendor-chunk membership, by exact npm package name — the heavy render
- * families (math, highlight, markdown) that change only on dependency bumps.
+ * Named render-family chunks, by exact npm package name. Math, highlight, and
+ * the markdown parse pipeline change on different dependency bumps, so each
+ * family is its own file: a KaTeX upgrade must not bust the shiki cache.
+ * The parse pipeline is named `mdast` so it cannot collide with the lazy
+ * `@shikijs/langs/markdown` grammar, whose rollup name is `markdown`.
  * Only packages workspace code imports DIRECTLY need listing: their private
- * transitive dependencies (oniguruma machinery, character tables, …) are
- * imported solely by these and rollup's chunk coloring pulls them into
- * vendor automatically. A dependency shared with index-side code falls back
- * to index — a few kB of dilution, never a correctness problem. Anything not
- * listed (react family, the vendored cordis workspace, tiny helpers like
- * anser/clsx, all workspace code) stays in the default `index` chunk, so
- * editing shell code re-hashes only index and returning clients keep the
- * cached vendor chunk.
+ * transitive dependencies are imported solely by these and rollup's chunk
+ * coloring pulls them in automatically. A dependency shared with index-side
+ * code falls back to index — a few kB of dilution, never a correctness
+ * problem. Anything not listed (react family, the vendored cordis workspace,
+ * tiny helpers like anser/clsx, all workspace code, mermaid) stays out of
+ * these chunks. Mermaid is a dynamic `import()` from the diagram plugin, so
+ * rollup already emits it as on-demand chunks; listing it here would fold
+ * those back onto the boot graph.
  *
  * Every member must be React-free. A package that
  * imports react/jsx-runtime must never be listed — rollup folds a module
  * shared between the entry and a manual chunk into the manual chunk, so one
- * react-importing member would drag the single shared react copy into
- * vendor. The React side of markdown/math rendering is workspace code and
+ * react-importing member would drag the single shared react copy out of
+ * index. The React side of markdown/math rendering is workspace code and
  * rides index.
  */
-const VENDOR_PACKAGES: ReadonlySet<string> = new Set([
-  // math
-  'katex',
-  // syntax highlight (@shikijs/langs is handled separately below —
-  // lazy grammars must not land here)
-  'shiki',
-  // markdown parse pipeline (micromark/mdast; the incremental React renderer
-  // over it is workspace code)
-  'mdast-util-from-markdown',
-  'mdast-util-gfm',
-  'mdast-util-math',
-  'micromark-core-commonmark',
-  'micromark-extension-gfm',
-  'micromark-extension-math',
-  'micromark-factory-space',
-  'micromark-util-character',
-  'micromark-util-classify-character',
-  'micromark-util-sanitize-uri',
-  'micromark-util-symbol',
-  'micromark-util-types',
-])
+const RENDER_CHUNKS: Readonly<Record<string, 'katex' | 'shiki' | 'mdast'>> = {
+  katex: 'katex',
+  shiki: 'shiki',
+  'mdast-util-from-markdown': 'mdast',
+  'mdast-util-gfm': 'mdast',
+  'mdast-util-math': 'mdast',
+  'micromark-core-commonmark': 'mdast',
+  'micromark-extension-gfm': 'mdast',
+  'micromark-extension-math': 'mdast',
+  'micromark-factory-space': 'mdast',
+  'micromark-util-character': 'mdast',
+  'micromark-util-classify-character': 'mdast',
+  'micromark-util-sanitize-uri': 'mdast',
+  'micromark-util-symbol': 'mdast',
+  'micromark-util-types': 'mdast',
+}
+
+const NAMED_RENDER_CHUNKS: ReadonlySet<string> = new Set(['index', 'katex', 'shiki', 'mdast'])
 
 /**
  * Boot grammars statically imported by ui-primitives' highlight.ts
  * (`@shikijs/langs/typescript` → `dist/typescript.mjs`, etc.). They live in
  * the same package as the lazy read-card grammars, but unlike those they are
- * part of the initial load and belong in the vendor chunk; the lazy ones must
+ * part of the initial load and belong in the shiki chunk; the lazy ones must
  * stay unassigned so each keeps its own on-demand chunk.
  */
 const BOOT_GRAMMAR_FILES: readonly string[] = [
   'dist/typescript.mjs',
   'dist/shellscript.mjs',
   'dist/json.mjs',
+]
+
+/**
+ * Path fragments that identify mermaid and the diagram engines it lazy-loads.
+ * Used only to name already-split async chunks; they must not enter
+ * {@link RENDER_CHUNKS}.
+ */
+const MERMAID_PATHS: readonly string[] = [
+  'node_modules/mermaid',
+  'node_modules/cytoscape',
+  'node_modules/cytoscape-cose-bilkent',
+  'node_modules/cytoscape-fcose',
+  'node_modules/cose-bilkent',
+  'node_modules/dagre',
+  'node_modules/d3',
+  'node_modules/dompurify',
+  'node_modules/roughjs',
+  'node_modules/khroma',
+  'node_modules/@braintree/sanitize-url',
+  'node_modules/@iconify',
+  'node_modules/@mermaid-js/parser',
+  'node_modules/ts-dedent',
+  'node_modules/dayjs',
 ]
 
 /** Font asset extensions routed to assets/fonts/ (KaTeX's woff2/woff/ttf faces). */
@@ -211,20 +234,31 @@ export default defineConfig({
         entryFileNames(chunk): string {
           return chunk.name === 'bootstrap' ? 'preview/[name]-[hash].js' : 'assets/[name]-[hash].js'
         },
-        // Output layout: the two main chunks stay at assets/ root; lazy
-        // @shikijs/langs grammar chunks group under assets/langs/; fonts
-        // (all KaTeX faces referenced by vendor.css) group under
-        // assets/fonts/. Sourcemaps need no arrangement: rollup writes each
-        // .map next to its js and references it by bare relative filename.
+        // Output layout: named boot chunks stay at assets/ root; lazy
+        // @shikijs/langs grammar chunks group under assets/langs/; mermaid's
+        // async diagram engines group as m-core / m-asset; fonts (KaTeX
+        // faces) group under assets/fonts/. Sourcemaps need no arrangement:
+        // rollup writes each .map next to its js and references it by bare
+        // relative filename.
         chunkFileNames(chunk): string {
           // Grammar chunks are recognized by their member modules, not the
           // facade: shared embedded-grammar chunks (e.g. html+javascript,
           // split out because php/ruby/mdx embed them) have no facade at all.
-          // index and vendor are excluded by name — vendor legitimately
-          // carries the three boot grammars.
-          if (chunk.name === 'index' || chunk.name === 'vendor') return 'assets/[name]-[hash].js'
-          const isLangChunk = chunk.moduleIds.some(id => id.includes('/node_modules/@shikijs/langs/'))
-          return isLangChunk ? 'assets/langs/[name]-[hash].js' : 'assets/[name]-[hash].js'
+          // The shiki boot chunk contains the three boot grammars, so langs
+          // membership is ignored when the chunk already has a render-family
+          // name. Lazy grammars keep rollup names like `markdown` / `cpp`.
+          if (!NAMED_RENDER_CHUNKS.has(chunk.name)
+            && chunk.moduleIds.some(id => id.includes('/node_modules/@shikijs/langs/'))) {
+            return 'assets/langs/[name]-[hash].js'
+          }
+          if (NAMED_RENDER_CHUNKS.has(chunk.name)) return 'assets/[name]-[hash].js'
+          const isMermaidChunk = chunk.moduleIds.some(id => MERMAID_PATHS.some(part => id.includes(part)))
+          if (isMermaidChunk) {
+            return chunk.name.startsWith('mermaid.core')
+              ? 'assets/m-core-[hash].js'
+              : 'assets/m-asset-[hash].js'
+          }
+          return 'assets/[name]-[hash].js'
         },
         assetFileNames(asset): string {
           const fileName = asset.names[0] ?? ''
@@ -235,9 +269,9 @@ export default defineConfig({
           const pkg = npmPackageOf(id)
           if (pkg === undefined) return undefined // workspace + vendored cordis: index
           if (pkg === '@shikijs/langs') {
-            return BOOT_GRAMMAR_FILES.some(file => id.endsWith(`/${file}`)) ? 'vendor' : undefined
+            return BOOT_GRAMMAR_FILES.some(file => id.endsWith(`/${file}`)) ? 'shiki' : undefined
           }
-          return VENDOR_PACKAGES.has(pkg) ? 'vendor' : undefined
+          return RENDER_CHUNKS[pkg]
         },
       },
     },

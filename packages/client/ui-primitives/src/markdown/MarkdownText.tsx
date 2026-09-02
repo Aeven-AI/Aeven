@@ -76,10 +76,9 @@ export interface MarkdownFileMentions {
  * notations models emit onto remark-math's `$` delimiters), emphasis follows
  * CJK flanking rules, and fences are highlighted by highlight.js. Mermaid is
  * imported on the first diagram rather than at module load, so a session that
- * never renders one does not pay for it. `preload` on the component then
- * starts that fetch on mount instead of waiting for the first diagram, so a
- * diagram that arrives mid-reply does not stall on a cold download — the
- * engine stays a separate chunk either way, off the initial load.
+ * never renders one does not pay for it. The plugin's `load()` is what starts
+ * that fetch — this component does not set `preload`, which would download
+ * the engine on every markdown mount.
  * `securityLevel` is passed explicitly rather than relying on the plugin's
  * default, because the source it renders is model-authored.
  */
@@ -269,7 +268,6 @@ export const MarkdownText = memo(function MarkdownText({ text, streaming = false
       ref={handleRef}
       streaming
       html="literal"
-      preload
       linkSafety={LINK_SAFETY}
       plugins={PLUGINS}
       translations={translations}
