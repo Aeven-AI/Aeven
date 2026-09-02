@@ -126,7 +126,7 @@
 .markdown hr {
   display: block;
   border: none;
-  height: 1px;
+  height: 0.5px;
   margin: 32px 0;
   background: var(--dsw-alias-border-l2);
 }

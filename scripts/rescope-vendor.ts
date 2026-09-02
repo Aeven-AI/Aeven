@@ -124,6 +124,11 @@ const GENERIC_SKIPS: readonly GenericSkip[] = [
   { file: 'packages/extensions/tool-cordis/src/providers.ts', upstream: ['cordis'] },
   { file: 'packages/extensions/ui-cordis/src/client/index.ts', upstream: ['cordis'] },
   { file: 'packages/extensions/ui-cordis/src/client/inventory.ts', upstream: ['cordis'] },
+  // `cordis/tree` is an Inspector observation topic, not a package subpath.
+  { file: 'packages/experimental/inspector/src/shared/bridge/messages/cordis.ts', upstream: ['cordis'] },
+  { file: 'packages/experimental/inspector/tests/cordis-query.host.spec.ts', upstream: ['cordis'] },
+  { file: 'packages/experimental/inspector/tests/cordis-tree.host.spec.ts', upstream: ['cordis'] },
+  { file: 'packages/experimental/inspector/tests/plugin.client.spec.ts', upstream: ['cordis'] },
   { file: 'scripts/gen-cordis-catalog.ts', upstream: ['cordis'] },
   // The UI locale namespace and input-trigger source id are product keys.
   { file: 'packages/client/ui-settings-plugin-inventory/src/client/PluginInventorySettingsTab.tsx', upstream: ['cordis'] },
@@ -159,7 +164,6 @@ const POSTCONDITIONS: readonly PostCondition[] = [
   { file: 'tsconfig.base.json', text: '"@deepseek-ai/cordis-plugin-loader": ["./vendor/loader/src"]', count: 1 },
   // The vendored README owns this required entry; reject its deletion or duplication.
   { file: 'vendor/README.md', text: '17. **`@deepseek-ai` rescope**', count: 1 },
-  { file: 'knip.json', text: '@cordisjs', count: 0 },
   { file: 'pnpm-workspace.yaml', text: 'cordis@4.0.0-rc.7', count: 0 },
   // The preset ids in this table are product data, not package names.
   { file: 'packages/client/ui-agent-preset/tests/locales.client.spec.ts', text: '[\'cordis\', \'presetCordisName\'', count: 1 },
@@ -198,20 +202,6 @@ const EXACT_EDITS: readonly ExactEdit[] = [
     if (!dev) errors.push(\`\${label}: @deepseek-ai/cordis must also be a devDependency\`)
     if (peer && dev && peer !== dev) {
       errors.push(\`\${label}: @deepseek-ai/cordis peer (\${peer}) and dev (\${dev}) ranges must match\`)`,
-    expect: 1,
-  },
-  {
-    id: 'knip-bundle-base',
-    file: 'knip.json',
-    find: `    "packages/bundle/base": {
-      "ignoreDependencies": [
-        "@deepseek-ai/.+",
-        "@cordisjs/.+"
-      ]`,
-    replace: `    "packages/bundle/base": {
-      "ignoreDependencies": [
-        "@deepseek-ai/.+"
-      ]`,
     expect: 1,
   },
   {
@@ -258,21 +248,6 @@ const EXACT_EDITS: readonly ExactEdit[] = [
     expect: 1,
   },
   {
-    // A plain fence listing the bundle's mounted tree: a bare token, no quotes.
-    id: 'agent-spine-demo-mounted-tree',
-    file: 'packages/examples/agent-spine-demo/README.md',
-    find: '@cordisjs/plugin-timer                timer service',
-    replace: '@deepseek-ai/cordis-plugin-timer      timer service',
-    expect: 1,
-  },
-  {
-    id: 'agent-spine-demo-mounted-tree-zh',
-    file: 'packages/examples/agent-spine-demo/README.zh.md',
-    find: '@cordisjs/plugin-timer                timer service',
-    replace: '@deepseek-ai/cordis-plugin-timer      timer service',
-    expect: 1,
-  },
-  {
     // The root contract claimed vendored packages keep their upstream names.
     id: 'root-agents-vendored-name-contract',
     file: 'AGENTS.md',
@@ -312,15 +287,15 @@ const VENDORED_LIBRARY = /^@deepseek-ai\\/(cosmokit|schemastery)(\\/|$)/
     // paragraph above the invariant that says to rescope it.
     id: 'vendoring-cookbook-tree-comment',
     file: 'docs/cookbook/adding-a-vendored-package.md',
-    find: '  package.json     # from upstream; keep name/exports/type',
-    replace: '  package.json     # from upstream; rescope the name, keep exports/type',
+    find: '  package.json     # from upstream; set "private": true, keep name/exports/type',
+    replace: '  package.json     # from upstream; rescope the name, keep exports/type (publishable release member, no private flag)',
     expect: 1,
   },
   {
     id: 'vendoring-cookbook-tree-comment-zh',
     file: 'docs/cookbook/adding-a-vendored-package.zh.md',
-    find: '  package.json     # from upstream; keep name/exports/type',
-    replace: '  package.json     # from upstream; rescope the name, keep exports/type',
+    find: '  package.json     # from upstream; set "private": true, keep name/exports/type',
+    replace: '  package.json     # from upstream; rescope the name, keep exports/type (publishable release member, no private flag)',
     expect: 1,
   },
   {
