@@ -27,6 +27,7 @@ function buildChildEnv(extra: Record<string, string>): Record<string, string> {
  * Create an MCP transport from the resolved plugin config.
  *
  * @param config - Resolved plugin config discriminated on `transport`.
+ * @param onDiagnostic - Optional receiver for complete non-empty stdio diagnostic lines.
  * @returns A connected-ready MCP Transport (stdio or Streamable HTTP).
  */
 export function createTransport(config: Config, onDiagnostic?: (line: string) => void): Transport {

@@ -1,6 +1,7 @@
 # Agent Note: Streaming fences highlight incrementally
 
 Status: implemented
+Archived: 2026-09-02
 
 English | [中文](2026-08-20-web-streaming-fence-highlight.zh.md)
 

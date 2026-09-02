@@ -6,7 +6,7 @@ Status: implemented
 
 ## 问题
 
-长对话会挂载远在可见视口之外的代码围栏和读取卡片。预先高亮会在挂载时 tokenize 每个受支持的块并创建全部 token span，使主线程工作量和 DOM 大小随完整渲染历史增长，而不是随读者能看到的代码增长。[Shiki 选型](../process/2026-07-26-web-syntax-highlighting-shiki.zh.md)与[流式增量高亮](../feature/2026-08-20-web-streaming-fence-highlight.zh.md)分别约束初始化成本和重复处理前缀的成本，但都无法避免不可见历史首次发生的逐块 tokenize。
+长对话会挂载远在可见视口之外的代码围栏和读取卡片。预先高亮会在挂载时 tokenize 每个受支持的块并创建全部 token span，使主线程工作量和 DOM 大小随完整渲染历史增长，而不是随读者能看到的代码增长。[Shiki 选型](../process/2026-07-26-web-syntax-highlighting-shiki.zh.md)与[流式增量高亮](../../../../packages/client/ui-primitives/src/markdown/highlight.ts)分别约束初始化成本和重复处理前缀的成本，但都无法避免不可见历史首次发生的逐块 tokenize。
 
 ## 决策
 

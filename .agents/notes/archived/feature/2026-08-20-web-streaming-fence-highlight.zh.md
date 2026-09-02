@@ -1,6 +1,7 @@
 # Agent Note: 流式围栏代码增量高亮
 
 Status: implemented
+Archived: 2026-09-02
 
 [English](2026-08-20-web-streaming-fence-highlight.md) | 中文
 

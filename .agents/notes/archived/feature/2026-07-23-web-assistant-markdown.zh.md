@@ -1,6 +1,7 @@
 # Agent Note: Web 对话中安全的 assistant Markdown
 
 Status: implemented
+Archived: 2026-09-02
 
 [English](2026-07-23-web-assistant-markdown.md) | 中文
 
