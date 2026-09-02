@@ -33,3 +33,40 @@ it('ships a favicon that switches to a light mark under dark color scheme', asyn
   expect(favicon).toMatch(/@media \(prefers-color-scheme: dark\)\s*{\s*path\s*{[^}]*fill:\s*#fff/i)
   expect(favicon).toContain('fill="#000"')
 })
+
+it('inlines first-paint preloader CSS and destages remaining stylesheets', async () => {
+  const index = await readFile(join(DIST_ROOT, 'index.html'), 'utf8')
+  const styleOpen = index.indexOf('<style>')
+  const styleClose = index.indexOf('</style>')
+  const preloader = index.indexOf('id="dsh-preloader"')
+  const root = index.indexOf('id="root"')
+  const moduleEntry = index.indexOf('<script type="module"')
+  expect(styleOpen).toBeGreaterThan(-1)
+  expect(styleOpen).toBeLessThan(preloader)
+  expect(preloader).toBeGreaterThan(-1)
+  expect(preloader).toBeLessThan(root)
+  expect(moduleEntry).toBeLessThan(preloader)
+
+  const inline = index.slice(styleOpen, styleClose)
+  expect(inline).toContain('#dsh-preloader')
+  expect(inline).toContain('dsh-preloader-spin')
+
+  const promoted = [...index.matchAll(/<link rel="preload" as="style"([^>]+) onload="this.onload=null;this.rel='stylesheet'">/g)]
+  expect(promoted.length).toBeGreaterThan(0)
+  for (const tag of promoted) {
+    const attributes = tag[1]
+    if (attributes === undefined) throw new Error('destaged stylesheet has no attributes')
+    expect(index).toContain(`<noscript><link rel="stylesheet"${attributes}></noscript>`)
+  }
+
+  const stylesheets = [...index.matchAll(/<link rel="stylesheet"[^>]+>/g)]
+  expect(stylesheets.length).toBe(promoted.length)
+  for (const tag of stylesheets) {
+    const at = tag.index ?? -1
+    const noscriptOpen = index.lastIndexOf('<noscript>', at)
+    const noscriptClose = index.indexOf('</noscript>', noscriptOpen)
+    expect(noscriptOpen).toBeGreaterThan(-1)
+    expect(at).toBeGreaterThan(noscriptOpen)
+    expect(at).toBeLessThan(noscriptClose)
+  }
+})

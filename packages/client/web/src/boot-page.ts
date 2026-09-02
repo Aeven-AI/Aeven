@@ -15,10 +15,9 @@ function div(className: string | undefined, text?: string): HTMLDivElement {
 }
 
 /**
- * True when the index response carried the preloader rows (ui-theme's host
- * half). That page owns the loading visuals from first paint, so the card
- * below stays out of the document; the failure report still renders, and the
- * boot kernel cuts the preloader away before showing it.
+ * True when the static Web shell carries its first-paint preloader. That page
+ * owns the loading visuals, so the card below stays out of the document; the
+ * failure report still renders after the boot kernel cuts the preloader away.
  */
 function preloaderOwnsLoading(): boolean {
   return document.getElementById('dsh-preloader') !== null

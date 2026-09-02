@@ -516,19 +516,20 @@ export function orderByModuleGraph(entries: readonly WebBootEntry[]): WebBootEnt
 /** Bootstrap package whose ordinary client bundle supplies the module-system implementation. */
 const CLIENT_MODULES_ID = '@deepseek-ai/dsh-client-modules'
 
-/** Dynamic bundles grouped into the parser bootstrap batch before the Vite shell. */
+/** Dynamic bundles grouped into the deferred bootstrap batch before the Vite shell. */
 const PARSER_PRELOAD_IDS = [CLIENT_MODULES_ID] as const
 
 /**
  * The boot protocol as index injection rows. The inline registration queue
- * precedes the application-batch preload and the blocking bootstrap batch. Its
+ * precedes the application-batch preload and the deferred bootstrap batch. Its
  * `create()` method materializes the modules
  * bundle, delegates construction to that bundle, and leaves the same facade
  * in live-registration mode. The graph global follows before the shell reads
- * it.
+ * it. Head `script-src` rows render with `defer` so document order still
+ * runs bootstrap before the Vite module entry without delaying body parse.
  * @param graph - the composed entry graph.
  * @returns head rows in execution order: queue script, application preloads,
- * blocking bootstrap scripts, graph global.
+ * deferred bootstrap scripts, graph global.
  */
 export function bootInjections(graph: WebBootGraph): IndexInjection[] {
   const bootstrapId = JSON.stringify(CLIENT_MODULES_ID)

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
@@ -33,6 +34,52 @@ function rejectStandaloneServe(): Plugin {
     name: 'dsh-reject-standalone-web-serve',
     config(_config, env) {
       if (env.command === 'serve') throw new Error(STANDALONE_ERROR)
+    },
+  }
+}
+
+/**
+ * Inline the first-paint preloader stylesheet so the browser can paint it from
+ * the document bytes. Vite would otherwise fold that file into the combined
+ * application CSS and hold first paint on the full payload.
+ */
+function inlinePreloaderCss(): Plugin {
+  const cssPath = src('./src/preloader.css')
+  const sourceTag = '<link rel="stylesheet" href="/src/preloader.css" />'
+  return {
+    name: 'dsh-inline-preloader-css',
+    transformIndexHtml: {
+      order: 'pre',
+      handler(html) {
+        if (!html.includes(sourceTag)) {
+          throw new Error('vite: index.html lost its preloader stylesheet link')
+        }
+        const css = readFileSync(cssPath, 'utf8')
+        if (css.includes('</style')) throw new Error('vite: preloader.css cannot contain </style')
+        return html.replace(sourceTag, `<style>${css}</style>`)
+      },
+    },
+  }
+}
+
+/**
+ * Load Vite's remaining stylesheets without render-blocking first paint. The
+ * inlined preloader CSS already covers the loading page; application CSS is
+ * promoted from preload once it arrives.
+ */
+function destageBuiltStylesheets(): Plugin {
+  return {
+    name: 'dsh-destage-built-stylesheets',
+    apply: 'build',
+    enforce: 'post',
+    generateBundle(_options, bundle) {
+      for (const item of Object.values(bundle)) {
+        if (item.type !== 'asset' || !item.fileName.endsWith('.html') || typeof item.source !== 'string') continue
+        item.source = item.source.replace(
+          /<link rel="stylesheet"([^>]+)>/g,
+          '<link rel="preload" as="style"$1 onload="this.onload=null;this.rel=\'stylesheet\'">\n    <noscript><link rel="stylesheet"$1></noscript>',
+        )
+      }
     },
   }
 }
@@ -141,7 +188,9 @@ export default defineConfig({
   // Relative asset URLs: preview.html mounts the same output under any base
   // directory, and the served index resolves identically from the site root.
   base: './',
-  plugins: [rejectStandaloneServe(), clientDocumentTitle(), react(), emitPreviewPage()],
+  plugins: [
+    rejectStandaloneServe(), clientDocumentTitle(), inlinePreloaderCss(), react(), destageBuiltStylesheets(), emitPreviewPage(),
+  ],
   build: {
     // The worker bootstrap holds its page at top-level await; Vite's default
     // `modules` target (es2020-era) rejects that syntax.

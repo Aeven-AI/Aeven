@@ -202,39 +202,49 @@ describe('web e2e: settings modal and General preferences', () => {
       .toMatch(/ui-theme:\n\s+preference: dark/)
     await page.keyboard.press('Escape')
 
-    // Hold the real application batch so the shell-owned loading page remains observable.
+    // Hold extracted stylesheets and the application plugin batch so the
+    // inlined preloader remains observable without those payloads.
     const pluginPattern = /\/plugins\/\?\?.+\/client\.js,.+\/client\.js&rev=[a-f\d]{12}$/
+    const cssPattern = /\/assets\/.+\.css(?:\?|$)/
     let releaseBundles = (): void => {}
     const bundlesReleased = new Promise<void>((resolve) => { releaseBundles = resolve })
-    await page.route(pluginPattern, async (route) => {
+    const hold = async (route: { continue: () => Promise<void> }): Promise<void> => {
       await bundlesReleased
       await route.continue()
-    })
+    }
+    await page.route(pluginPattern, hold)
+    await page.route(cssPattern, hold)
 
     const warningStart = tripwire.warnings.length
     let reload: ReturnType<Page['reload']> | undefined
     try {
       reload = page.reload({ waitUntil: 'domcontentloaded' })
-      const loading = page.getByText('Loading plugins…', { exact: true })
+      const loading = page.locator('#dsh-preloader:not(.screen-hidden)')
       await loading.waitFor({ timeout: 10_000 })
       const state = await loading.evaluate((element) => {
-        const boot = element.parentElement?.parentElement
-        if (boot === undefined || boot === null) throw new Error('loading hint is detached from the boot page')
+        const background = element.querySelector('.background')
+        if (background === null) throw new Error('static preloader has no background')
+        const overlay = getComputedStyle(element)
         return {
           attr: document.body.hasAttribute('data-ds-dark-theme'),
-          background: getComputedStyle(boot).backgroundColor,
+          background: getComputedStyle(background).backgroundColor,
           colorScheme: document.documentElement.style.colorScheme,
+          position: overlay.position,
+          zIndex: overlay.zIndex,
         }
       })
       expect(state).toEqual({
         attr: true,
         background: 'rgb(21, 21, 23)',
         colorScheme: 'dark',
+        position: 'fixed',
+        zIndex: '100',
       })
     } finally {
       releaseBundles()
       await reload
       await page.unroute(pluginPattern)
+      await page.unroute(cssPattern)
     }
 
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })

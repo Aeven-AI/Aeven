@@ -8,7 +8,10 @@ import DshWorker from '@deepseek-ai/dsh-experimental-webworker-runtime/worker?wo
 import {
   chooseWorkerHostSource, connectWorkerHost, IMAGE_FILE_NAME,
 } from '@deepseek-ai/dsh-experimental-webworker-runtime/client'
+import { hidePreloader, showPreloader } from '@deepseek-ai/dsh-client-web/src/preloader.ts'
 
 const image = `preview/${IMAGE_FILE_NAME}`
+hidePreloader(false)
 const source = await chooseWorkerHostSource({ image })
+showPreloader(false)
 await connectWorkerHost(new DshWorker({ name: 'dsh-host' }), { image, overlays: source.overlays })

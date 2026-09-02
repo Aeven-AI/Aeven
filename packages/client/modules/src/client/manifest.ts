@@ -67,7 +67,7 @@ export type WebBootBatchPhase = 'bootstrap' | 'application'
 
 /** One initial combo script; a scheduling phase may span several descriptors. */
 export interface WebBootBatch {
-  /** Parser-blocking bootstrap or preloaded application scheduling. */
+  /** Deferred bootstrap or preloaded application scheduling. */
   phase: WebBootBatchPhase
   /** Content-addressed combo script endpoint. */
   url: string

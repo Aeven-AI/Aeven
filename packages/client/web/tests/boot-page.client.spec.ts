@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest'
 import { BootPage } from '../src/boot-page.ts'
+import { PRELOADER_ELEMENT_ID } from '../src/preloader.ts'
 
 afterEach(() => { document.body.innerHTML = '' })
 
@@ -51,6 +52,16 @@ describe('BootPage', () => {
     page.setState('a', 'active')
     expect(el.textContent).toContain(report)
     expect(el.textContent).not.toContain('Loading plugins…')
+  })
+
+  it('leaves loading visuals to the static shell while retaining failure output', () => {
+    const preloader = document.createElement('div')
+    preloader.id = PRELOADER_ELEMENT_ID
+    document.body.append(preloader)
+    const { el, page } = mount()
+    expect(el.textContent).toBe('')
+    page.fail('web boot: plugin activation failed')
+    expect(el.textContent).toContain('web boot: plugin activation failed')
   })
 
   it('detaches on disposal', () => {

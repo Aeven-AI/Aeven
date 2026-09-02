@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-client-ui-theme` lets Web GUI users choose `light`, `dark`, or `system` and set conversation content text from 12 to 17 px in Settings. A loopback client stores both values in the `ui-theme` settings namespace, which the local provider persists in `$DSH_HOME/settings.yaml` by default. The plugin resolves `system` through `prefers-color-scheme` and publishes immutable `ThemeSnapshot`s; ui-layout applies each snapshot to the document. The package also ships the `--dsw-*` token stylesheets and injects a synchronous bootstrap so the selected palette and font size apply before the shell loads. Third-party themes can register alias-token overrides through `ctx.theme`.
+`dsh-client-ui-theme` lets Web GUI users choose `light`, `dark`, or `system` and set conversation content text from 12 to 17 px in Settings. A loopback client stores both values in the `ui-theme` settings namespace, which the local provider persists in `$DSH_HOME/settings.yaml` by default. The plugin resolves `system` through `prefers-color-scheme` and publishes immutable `ThemeSnapshot`s; ui-layout applies each snapshot to the document. The package also ships the `--dsw-*` token stylesheets and injects a synchronous bootstrap so the selected palette and font size apply before the static shell preloader paints. Third-party themes can register alias-token overrides through `ctx.theme`.
 
 ## Table of Contents
 
@@ -39,11 +39,11 @@ A composition can register a third-party theme id with alias-token overrides thr
 
 When the host composition includes an HTTP server, the host half embeds the registered `ui-theme` settings, or schema defaults, into each index response. Before the loading page renders, the browser sets `color-scheme`, `body[data-ds-dark-theme]`, and `--dsh-content-font-size`, so the first paint uses the selected palette and text size.
 
-### Preloader
+### Static shell preloader
 
-The same index response carries the loading page itself: a stylesheet row in the head, and markup plus a controller script in the body, immediately after the theme bootstrap whose palette they read. The brand mark and spinner therefore paint before the entry bundle, the module loader, or React exist, and they hold the screen through the whole plugin boot rather than handing off to an intermediate empty shell.
+`apps/web/index.html`, rather than ui-theme's Host plugin, owns the brand mark and spinner markup. The production build inlines that stylesheet in the document head, so the visual is styled before the entry module, module loader, or React runs. The Host-injected theme bootstrap remains immediately after the opening body tag and selects the static visual's light or dark fallback before it paints.
 
-Dismissal runs through `globalThis.__DSH_PRELOADER__`. The web boot kernel calls `hide()` once the application owns the mount point, which fades the page out over 400ms and then takes it out of the layout; a boot failure calls `hide(false)` first, so the failure report is not covered. While these rows are present the kernel's own framework-free card stays out of the document, leaving one loading indicator instead of two. The failure report still renders, because it must survive a client tree that never loaded React.
+The Web boot kernel owns dismissal and failure presentation; see [dsh-client-web](../web/README.md). ui-theme owns only the palette state applied to the static visual.
 
 -----
 

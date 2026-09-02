@@ -316,6 +316,7 @@ describe('real Loader composition', () => {
         { kind: 'style', text: 'body{margin:0}' },
         { kind: 'html', placement: 'head', html: '<meta name="probe">' },
         { kind: 'script', placement: 'body', text: `window.__P__=${JSON.stringify(flag)}` },
+        { kind: 'script-src', placement: 'body', src: '/plugins/c.js' },
       )
     })
 
@@ -325,13 +326,14 @@ describe('real Loader composition', () => {
     const order = [
       '<head>',
       '<script>window.__Q__=1</script>',
-      '<script src="/plugins/a.js?rev=&quot;1&quot;&amp;x=&lt;y&gt;"></script>',
+      '<script defer src="/plugins/a.js?rev=&quot;1&quot;&amp;x=&lt;y&gt;"></script>',
       '<link rel="preload" as="script" href="/plugins/b.js?rev=&quot;2&quot;&amp;x=&lt;z&gt;">',
       'globalThis["__DSH_BOOT__"] = {"rev":"\\u003c/script>\\u003cb>"}',
       '<style>body{margin:0}</style>',
       '<meta name="probe">',
       '<body>',
       '<script>window.__P__="dark"</script>',
+      '<script src="/plugins/c.js"></script>',
       'shell',
     ].map(part => html.indexOf(part))
     expect(order).toEqual([...order].sort((a, b) => a - b))

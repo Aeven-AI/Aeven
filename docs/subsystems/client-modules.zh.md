@@ -43,7 +43,7 @@ type WebBootBatchPhase = 'bootstrap' | 'application'
 ```ts type-equiv
 /** One initial combo script; a scheduling phase may span several descriptors. */
 interface WebBootBatch {
-  /** Parser-blocking bootstrap or preloaded application scheduling. */
+  /** Deferred bootstrap or preloaded application scheduling. */
   phase: WebBootBatchPhase
   /** Content-addressed combo script endpoint. */
   url: string
