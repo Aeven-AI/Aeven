@@ -102,6 +102,7 @@ None; this package neither assembles nor sends a provider request.
 
 These limits define when the served surface is not yet enough. They are current package constraints, not a task backlog.
 
+- **No invariant companion** — No runtime invariant companion is published because the only owned relation is this package's single named route, and the webserver already rejects a duplicate `(kind, path)` registration at `register()`. A teardown-stream probe would additionally false-positive on correct disposal, because `internal/plugin` fires before the disposing fiber's effects run and the legitimate owner still holds the route at notification time. Register/release symmetry is covered by the package's HMR-safety test instead.
 - **Whole-directory exposure is the only granularity** — the route serves everything under a workspace directory to an authenticated reader. A deployment needing a narrower published subtree, or per-file rules, has no configuration for it and must omit the row.
 - **No range requests or streaming** — every response reads the complete file into memory before writing it, so a large media file is served whole and a browser cannot seek within it.
 - **The MIME table covers produced artifacts** — images, PDF, and common text types. Other extensions download as `application/octet-stream` until an asset class ships.
