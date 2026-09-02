@@ -6,6 +6,13 @@ body,
 #root {
   height: 100%;
   margin: 0;
+  /* The app frame owns every scroller, so the document itself never scrolls.
+     Stated rather than left to `visible`: while the roster activates, a
+     subtree can momentarily exceed the viewport height, and the page-level
+     scrollbar that appears for those frames takes its width off the whole
+     app — the transcript column, which is sized from its container and
+     centred in it, both narrows and shifts sideways before settling back. */
+  overflow: hidden;
 }
 
 body {
