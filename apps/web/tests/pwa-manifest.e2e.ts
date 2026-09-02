@@ -71,16 +71,15 @@ it('inlines first-paint preloader CSS and destages remaining stylesheets', async
   }
 })
 
-it('splits katex, shiki, and mdast off boot and keeps mermaid on demand', async () => {
+it('splits katex, hljs, and mdast off boot and keeps mermaid on demand', async () => {
   const index = await readFile(join(DIST_ROOT, 'index.html'), 'utf8')
   const assets = await readdir(join(DIST_ROOT, 'assets'))
-  const langs = await readdir(join(DIST_ROOT, 'assets/langs'))
   expect(assets.some(name => /^katex-[^.]+\.js$/.test(name))).toBe(true)
-  expect(assets.some(name => /^shiki-[^.]+\.js$/.test(name))).toBe(true)
+  expect(assets.some(name => /^hljs-[^.]+\.js$/.test(name))).toBe(true)
   expect(assets.some(name => /^mdast-[^.]+\.js$/.test(name))).toBe(true)
+  expect(assets.some(name => /^shiki-[^.]+\.js$/.test(name))).toBe(false)
   expect(assets.some(name => /^m-core-[^.]+\.js$/.test(name))).toBe(true)
   expect(assets.some(name => /^m-asset-[^.]+\.js$/.test(name))).toBe(true)
-  expect(langs.some(name => name.startsWith('markdown-'))).toBe(true)
   expect(index).not.toMatch(/modulepreload[^>]+(?:m-core|m-asset|langs\/)/)
   expect(index).not.toContain('vendor-')
 })

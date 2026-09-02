@@ -75,28 +75,19 @@ class StreamingFenceAdapter extends LlmAdapter {
 
 interface FenceTree {
   language: string
-  pre: { className: string; style: string | null; tabIndex: string | null }
-  lines: { text: string; style: string | null }[][]
+  text: string
+  classes: string[]
 }
 
 /** Read the stable, user-visible subset of one rendered code fence. */
 async function fenceTree(block: ReturnType<Page['locator']>): Promise<FenceTree> {
   return await block.evaluate((element) => {
-    const pre = element.querySelector<HTMLPreElement>('pre.shiki')
-    if (pre === null) throw new Error('streaming fence did not render through the shiki arm')
+    const code = element.querySelector<HTMLElement>('code.hljs')
+    if (code === null) throw new Error('streaming fence did not render through highlight.js')
     return {
-      language: element.querySelector('[class*="infostring"]')?.textContent ?? '',
-      pre: {
-        className: pre.className,
-        style: pre.style.cssText,
-        tabIndex: pre.getAttribute('tabindex'),
-      },
-      lines: [...pre.querySelectorAll('.line')].map(line =>
-        [...line.querySelectorAll('span')].map(span => ({
-          text: span.textContent ?? '',
-          style: span.style.cssText,
-        })),
-      ),
+      language: element.querySelector('.codeblock-title')?.textContent?.trim() ?? '',
+      text: code.textContent ?? '',
+      classes: [...code.querySelectorAll('span[class]')].map(span => span.className),
     }
   })
 }
@@ -129,7 +120,7 @@ describe.skipIf(MODE === 'record')('web e2e: streaming code-fence highlighting',
     await scaffold?.close()
   })
 
-  it('renders the growing fence through shiki and preserves its token tree when the turn settles', async () => {
+  it('renders the growing fence through highlight.js and keeps highlighting when the turn settles', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-streaming-fence-highlight'))
     const input = page.locator('[data-composer-input]').first()
     const settled = scaffold.whenTurnSettled(30_000)
@@ -139,26 +130,21 @@ describe.skipIf(MODE === 'record')('web e2e: streaming code-fence highlighting',
 
     const streaming = page.locator('[data-streaming="true"]')
     await streaming.waitFor({ timeout: 10_000 })
-    const block = streaming.locator('.md-code-block').filter({ hasText: 'const first' })
-    await block.locator('pre.shiki span[style]').first().waitFor({ timeout: 10_000 })
+    const block = streaming.locator('.codeblock-wrapper').filter({ hasText: 'const first' })
+    await block.locator('code.hljs').first().waitFor({ timeout: 10_000 })
     await block.evaluate((element) => {
       element.setAttribute('data-stream-block-retained', 'true')
-      element.querySelector('pre.shiki')?.setAttribute('data-stream-pre-retained', 'true')
-      element.querySelector('pre.shiki .line')?.setAttribute('data-stream-line-retained', 'true')
     })
 
     adapter.grow()
     await adapter.secondPaused
-    await expect.poll(() => block.locator('pre.shiki .line').count()).toBe(3)
-    expect(await block.evaluate(element => ({
-      block: element.getAttribute('data-stream-block-retained'),
-      pre: element.querySelector('pre.shiki')?.getAttribute('data-stream-pre-retained'),
-      line: element.querySelector('pre.shiki .line')?.getAttribute('data-stream-line-retained'),
-    }))).toEqual({ block: 'true', pre: 'true', line: 'true' })
+    await expect.poll(() => block.locator('code.hljs').textContent()).toContain('const second')
+    expect(await block.evaluate(element => element.getAttribute('data-stream-block-retained'))).toBe('true')
     const midTree = await fenceTree(block)
     expect(midTree.language).toBe('ts')
-    expect(midTree.lines).toHaveLength(3)
-    expect(midTree.lines.flat().map(span => span.style)).toContain('color: var(--shiki-token-keyword);')
+    expect(midTree.text).toContain('const first')
+    expect(midTree.text).toContain('const second')
+    expect(midTree.classes.some(name => name.includes('hljs-'))).toBe(true)
 
     const aria = await captureStableAria(page, '[class*="centerCol"]', scaffold.workspaceCwd)
     await compareOrRefreshGolden(
@@ -170,14 +156,12 @@ describe.skipIf(MODE === 'record')('web e2e: streaming code-fence highlighting',
     adapter.finish()
     await settled
     await expect.poll(() => page.locator('[data-streaming="true"]').count(), { timeout: 10_000 }).toBe(0)
-    const settledBlock = page.locator('.md-code-block').filter({ hasText: 'const first' })
-    await settledBlock.locator('pre.shiki').waitFor({ timeout: 10_000 })
-    expect(await fenceTree(settledBlock)).toEqual(midTree)
-    expect(await settledBlock.evaluate(element => ({
-      block: element.getAttribute('data-stream-block-retained'),
-      pre: element.querySelector('pre.shiki')?.getAttribute('data-stream-pre-retained'),
-      line: element.querySelector('pre.shiki .line')?.getAttribute('data-stream-line-retained'),
-    }))).toEqual({ block: 'true', pre: 'true', line: 'true' })
+    const settledBlock = page.locator('.codeblock-wrapper').filter({ hasText: 'const first' })
+    await settledBlock.locator('code.hljs').waitFor({ timeout: 10_000 })
+    const settledTree = await fenceTree(settledBlock)
+    expect(settledTree.text).toContain('const first')
+    expect(settledTree.text).toContain('const second')
+    expect(settledTree.classes.some(name => name.includes('hljs-'))).toBe(true)
     expect(tripwire.pageErrors).toEqual([])
     expect(tripwire.warnings).toEqual([])
     await assertFixtureInventory(SNAPSHOT_DIR, ['mid-stream.expected.md'])

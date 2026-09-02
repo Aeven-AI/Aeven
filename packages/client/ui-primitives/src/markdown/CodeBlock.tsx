@@ -15,12 +15,10 @@ export interface CodeBlockProps {
   /** Grammar hint (markdown fence info string or a fixed caller id); unknown = plain. */
   lang?: string | undefined
   /**
-   * The code is still growing (a streaming markdown fence): highlight through
-   * a per-instance {@link StreamingHighlightSession}, which re-tokenizes only
-   * appended text and keeps completed line groups (and DOM) untouched. The
-   * caller must keep the component instance stable across growth (a
-   * stream-stable React key); an unchanged streamed fence also retains that
-   * tree when it settles. Cold settled callers get shiki's HTML.
+   * The code is still growing: highlight through a per-instance
+   * {@link StreamingHighlightSession}, which keeps completed line groups
+   * mounted. The caller must keep the component instance stable across growth.
+   * Cold settled callers get highlight.js HTML.
    */
   streaming?: boolean | undefined
   /** Extra class merged onto the wrapper (callers position; this component draws). */
@@ -31,15 +29,9 @@ export interface CodeBlockProps {
   copiedLabel: string
 }
 
-/**
- * The `pre` attributes shiki's HTML arm emits for the css-variables theme,
- * mirrored so the streaming arm's tree is interchangeable with the settled
- * swap (`tests/streaming-code-block.client.spec.tsx` pins the two arms'
- * parity).
- */
-const SHIKI_PRE_PROPS = {
-  className: 'shiki css-variables',
-  style: { backgroundColor: 'var(--shiki-background)', color: 'var(--shiki-foreground)' },
+/** Shared `pre` attributes so the streaming span tree and settled HTML swap match. */
+const HLJS_PRE_PROPS = {
+  className: 'hljs',
   tabIndex: 0,
 } as const
 
@@ -51,7 +43,7 @@ function renderLine(line: readonly HighlightSpan[], index: number): ReactNode {
     <Fragment key={index}>
       {index > 0 && '\n'}
       <span className="line">
-        {line.map((span, spanIndex) => <span key={spanIndex} style={span.style}>{span.text}</span>)}
+        {line.map((span, spanIndex) => <span key={spanIndex} className={span.className}>{span.text}</span>)}
       </span>
     </Fragment>
   )
@@ -127,7 +119,7 @@ export function CodeBlock({ code, lang, streaming, className, copyLabel, copiedL
     }
     const tail = frame.tail.map((line, index) => renderLine(line, nextLine + index))
     const tailGroup = <Fragment key={nextLine - pending.length}>{[...pending, ...tail]}</Fragment>
-    const body = <pre {...SHIKI_PRE_PROPS}><code>{groups}{tailGroup}</code></pre>
+    const body = <pre {...HLJS_PRE_PROPS}><code className="hljs">{groups}{tailGroup}</code></pre>
     lineCacheRef.current = {
       code: trimmed, lang, generation: frame.generation, frame, groups, pending, nextLine, body,
     }
@@ -153,9 +145,8 @@ export function CodeBlock({ code, lang, streaming, className, copyLabel, copiedL
     })
   }, [copied, trimmed])
 
-  // shiki's HTML output is a static span tree it generated from `code` (no
-  // user HTML passes through), the sanctioned innerHTML consumption path per
-  // shiki's own docs.
+  // highlight.js HTML is a static span tree generated from `code` (no user
+  // HTML passes through).
   const body = streamedBody !== undefined
     ? streamedBody
     : html === undefined

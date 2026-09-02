@@ -4,7 +4,7 @@
 // One intentional divergence from the original react-markdown recording:
 // streaming fences highlight (with their banner language visible) since the
 // incremental fence-highlight decision, so `*.streaming.txt` fixtures with
-// fenced code pin shiki span trees where react-markdown had the plain arm.
+// fenced code pin highlight.js span trees where react-markdown had the plain arm.
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { MarkdownText } from './markdown-test-components.tsx'

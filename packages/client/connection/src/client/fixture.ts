@@ -859,7 +859,7 @@ function buildAlphaLog(): SessionEvent[] {
 
   // Turn 69: the read sample — a WINDOW past an offset so the card draws file
   // line numbers starting above 1 and a "showing N of M" note (the window is
-  // shorter than READ_SAMPLE_TOTAL), with a `ts` language hint the shiki path
+  // shorter than READ_SAMPLE_TOTAL), with a `ts` language hint the highlight.js path
   // highlights. Named `read`, so it exercises the keyed ReadRow registration.
   // The run_code sub-dispatches above cover nested read calls without result
   // metadata; this top-level result carries the structured window.

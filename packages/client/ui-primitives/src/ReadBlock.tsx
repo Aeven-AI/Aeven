@@ -55,7 +55,7 @@ export interface ReadBlockLabels {
 }
 
 function renderSpans(spans: readonly HighlightSpan[]) {
-  return spans.map((span, index) => <span key={index} style={span.style}>{span.text}</span>)
+  return spans.map((span, index) => <span key={index} className={span.className}>{span.text}</span>)
 }
 
 /**

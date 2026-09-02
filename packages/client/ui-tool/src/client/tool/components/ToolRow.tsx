@@ -160,7 +160,7 @@ export function ToolRow({
   const fileLinkKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (event.key === 'Enter' || event.key === ' ') event.stopPropagation()
   }
-  // The code variant's program renders through CodeBlock (shiki), so only its
+  // The code variant's program renders through CodeBlock (highlight.js), so only its
   // output joins the IN/OUT card; every other variant's input does too.
   const cardBody = variant === 'code' ? null : bodyText
   return (

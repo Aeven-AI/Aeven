@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/simplification/2026-09-02-web-client-render-chunks.md
-2026-09-02-web-client-render-chunks.md: 45b6aabd9d2f2cc29ceea5fa5c5f693224766575
-2026-09-02-web-client-render-chunks.zh.md: c889a27f3f20aa413e8ecda2af7c48fd3fb91533
+2026-09-02-web-client-render-chunks.md: c5691ede8f6d5428b142f41e3ea758b43b8adeaa
+2026-09-02-web-client-render-chunks.zh.md: 128c034fedec623b4645879468590854b4946b7e

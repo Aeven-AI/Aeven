@@ -116,9 +116,9 @@ function emitPreviewPage(): Plugin {
 /**
  * Named render-family chunks, by exact npm package name. Math, highlight, and
  * the markdown parse pipeline change on different dependency bumps, so each
- * family is its own file: a KaTeX upgrade must not bust the shiki cache.
- * The parse pipeline is named `mdast` so it cannot collide with the lazy
- * `@shikijs/langs/markdown` grammar, whose rollup name is `markdown`.
+ * family is its own file: a KaTeX upgrade must not bust the highlighter cache.
+ * The parse pipeline is named `mdast` so it cannot collide with a lazy
+ * highlight.js language whose rollup name is `markdown`.
  * Only packages workspace code imports DIRECTLY need listing: their private
  * transitive dependencies are imported solely by these and rollup's chunk
  * coloring pulls them in automatically. A dependency shared with index-side
@@ -136,9 +136,10 @@ function emitPreviewPage(): Plugin {
  * index. The React side of markdown/math rendering is workspace code and
  * rides index.
  */
-const RENDER_CHUNKS: Readonly<Record<string, 'katex' | 'shiki' | 'mdast'>> = {
+const RENDER_CHUNKS: Readonly<Record<string, 'katex' | 'hljs' | 'mdast'>> = {
   katex: 'katex',
-  shiki: 'shiki',
+  'highlight.js': 'hljs',
+  lowlight: 'hljs',
   'mdast-util-from-markdown': 'mdast',
   'mdast-util-gfm': 'mdast',
   'mdast-util-math': 'mdast',
@@ -153,20 +154,7 @@ const RENDER_CHUNKS: Readonly<Record<string, 'katex' | 'shiki' | 'mdast'>> = {
   'micromark-util-types': 'mdast',
 }
 
-const NAMED_RENDER_CHUNKS: ReadonlySet<string> = new Set(['index', 'katex', 'shiki', 'mdast'])
-
-/**
- * Boot grammars statically imported by ui-primitives' highlight.ts
- * (`@shikijs/langs/typescript` → `dist/typescript.mjs`, etc.). They live in
- * the same package as the lazy read-card grammars, but unlike those they are
- * part of the initial load and belong in the shiki chunk; the lazy ones must
- * stay unassigned so each keeps its own on-demand chunk.
- */
-const BOOT_GRAMMAR_FILES: readonly string[] = [
-  'dist/typescript.mjs',
-  'dist/shellscript.mjs',
-  'dist/json.mjs',
-]
+const NAMED_RENDER_CHUNKS: ReadonlySet<string> = new Set(['index', 'katex', 'hljs', 'mdast'])
 
 /**
  * Path fragments that identify mermaid and the diagram engines it lazy-loads.
@@ -234,21 +222,15 @@ export default defineConfig({
         entryFileNames(chunk): string {
           return chunk.name === 'bootstrap' ? 'preview/[name]-[hash].js' : 'assets/[name]-[hash].js'
         },
-        // Output layout: named boot chunks stay at assets/ root; lazy
-        // @shikijs/langs grammar chunks group under assets/langs/; mermaid's
-        // async diagram engines group as m-core / m-asset; fonts (KaTeX
-        // faces) group under assets/fonts/. Sourcemaps need no arrangement:
-        // rollup writes each .map next to its js and references it by bare
-        // relative filename.
+        // Output layout: named boot chunks stay at assets/ root; a language
+        // grammar that is only dynamically imported groups under
+        // assets/langs/; mermaid's async diagram engines group as m-core /
+        // m-asset; fonts (KaTeX faces) group under assets/fonts/. Sourcemaps
+        // need no arrangement: rollup writes each .map next to its js and
+        // references it by bare relative filename.
         chunkFileNames(chunk): string {
-          // Grammar chunks are recognized by their member modules, not the
-          // facade: shared embedded-grammar chunks (e.g. html+javascript,
-          // split out because php/ruby/mdx embed them) have no facade at all.
-          // The shiki boot chunk contains the three boot grammars, so langs
-          // membership is ignored when the chunk already has a render-family
-          // name. Lazy grammars keep rollup names like `markdown` / `cpp`.
           if (!NAMED_RENDER_CHUNKS.has(chunk.name)
-            && chunk.moduleIds.some(id => id.includes('/node_modules/@shikijs/langs/'))) {
+            && chunk.moduleIds.some(id => id.includes('/highlight.js/lib/languages/'))) {
             return 'assets/langs/[name]-[hash].js'
           }
           if (NAMED_RENDER_CHUNKS.has(chunk.name)) return 'assets/[name]-[hash].js'
@@ -268,9 +250,10 @@ export default defineConfig({
         manualChunks(id: string): string | undefined {
           const pkg = npmPackageOf(id)
           if (pkg === undefined) return undefined // workspace + vendored cordis: index
-          if (pkg === '@shikijs/langs') {
-            return BOOT_GRAMMAR_FILES.some(file => id.endsWith(`/${file}`)) ? 'shiki' : undefined
-          }
+          // Language grammars stay unassigned so a dynamic `import()` keeps its
+          // own on-demand chunk. Grammars HyperMarkdown already static-imports
+          // through lowlight/common still land in `hljs` with their importer.
+          if (pkg === 'highlight.js' && id.includes('/languages/')) return undefined
           return RENDER_CHUNKS[pkg]
         },
       },

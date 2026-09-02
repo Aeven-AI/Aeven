@@ -21,7 +21,11 @@
   - img
   - text: Context injection @deepseek-ai/dsh-system-prompt
 - text: ts
-- button "Copy"
+- button "Copy":
+  - img
+- button "Full screen":
+  - img
+- text: 1 2 3
 - code: "const first: number = 1 const second = \"two\" let tail"
 - status: Deep diving...
 - textbox "Message or run a task... / commands, @ files or sessions"
@@ -37,65 +41,14 @@
 
 {
   "language": "ts",
-  "pre": {
-    "className": "shiki css-variables",
-    "style": "background-color: var(--shiki-background); color: var(--shiki-foreground);",
-    "tabIndex": "0"
-  },
-  "lines": [
-    [
-      {
-        "text": "const",
-        "style": "color: var(--shiki-token-keyword);"
-      },
-      {
-        "text": " first",
-        "style": "color: var(--shiki-token-constant);"
-      },
-      {
-        "text": ":",
-        "style": "color: var(--shiki-token-keyword);"
-      },
-      {
-        "text": " number",
-        "style": "color: var(--shiki-token-constant);"
-      },
-      {
-        "text": " =",
-        "style": "color: var(--shiki-token-keyword);"
-      },
-      {
-        "text": " 1",
-        "style": "color: var(--shiki-token-constant);"
-      }
-    ],
-    [
-      {
-        "text": "const",
-        "style": "color: var(--shiki-token-keyword);"
-      },
-      {
-        "text": " second",
-        "style": "color: var(--shiki-token-constant);"
-      },
-      {
-        "text": " =",
-        "style": "color: var(--shiki-token-keyword);"
-      },
-      {
-        "text": " \"two\"",
-        "style": "color: var(--shiki-token-string-expression);"
-      }
-    ],
-    [
-      {
-        "text": "let",
-        "style": "color: var(--shiki-token-keyword);"
-      },
-      {
-        "text": " tail",
-        "style": "color: var(--shiki-foreground);"
-      }
-    ]
+  "text": "const first: number = 1\nconst second = \"two\"\nlet tail",
+  "classes": [
+    "hljs-keyword",
+    "hljs-attr",
+    "hljs-built_in",
+    "hljs-number",
+    "hljs-keyword",
+    "hljs-string",
+    "hljs-keyword"
   ]
 }

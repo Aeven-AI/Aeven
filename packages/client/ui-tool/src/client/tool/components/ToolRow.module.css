@@ -278,7 +278,7 @@
 }
 
 /* The block-shaped expanded bodies: the code variant's run_code program
-   through CodeBlock (shiki-highlighted TypeScript), a terminal card's command
+   through CodeBlock (highlight.js TypeScript), a terminal card's command
    output through TerminalBlock, a diff card through DiffBlock, a read card's
    line-numbered window through ReadBlock, a search card's grouped matches or
    path list through SearchBlock, and a web card's citation/source list through

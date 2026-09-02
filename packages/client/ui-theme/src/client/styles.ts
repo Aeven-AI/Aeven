@@ -4,7 +4,7 @@ import cornerShape from '../styles/corner-shape.css?inline'
 import designPlatform from '../styles/design-platform.css?inline'
 import scrollbar from '../styles/scrollbar.css?inline'
 import gradientShadowText from '../styles/gradient-shadow-text.css?inline'
-import shiki from '../styles/shiki.css?inline'
+import highlight from '../styles/highlight.css?inline'
 
 const PLUGIN_ID = '@deepseek-ai/dsh-client-ui-theme'
 
@@ -14,7 +14,7 @@ const STYLES = [
   ['design-platform.css', designPlatform],
   ['scrollbar.css', scrollbar],
   ['gradient-shadow-text.css', gradientShadowText],
-  ['shiki.css', shiki],
+  ['highlight.css', highlight],
 ] as const
 
 /**

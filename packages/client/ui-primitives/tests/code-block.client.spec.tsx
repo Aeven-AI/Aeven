@@ -18,14 +18,14 @@ beforeEach(() => {
 })
 
 describe('highlightToHtml', () => {
-  it('highlights a registered grammar into css-variables token spans', () => {
+  it('highlights a registered language into hljs token spans', () => {
     const html = highlightToHtml('const x: number = 1', 'typescript')
-    expect(html).toContain('pre class="shiki css-variables"')
-    expect(html).toContain('var(--shiki-')
+    expect(html).toContain('pre class="hljs"')
+    expect(html).toContain('hljs-')
   })
 
   it.each([['ts'], ['js'], ['bash'], ['sh'], ['jsonc']])('resolves the %s alias', (alias) => {
-    expect(highlightToHtml('x', alias)).toContain('shiki')
+    expect(highlightToHtml('x', alias)).toContain('hljs')
   })
 
   it('returns undefined for unknown or absent languages', () => {
@@ -47,7 +47,7 @@ describe('highlightToHtml', () => {
     for (const alias of LAZY_ALIASES) expect(highlightToHtml('x', alias)).toBeUndefined()
     // Once every grammar has registered, the same call highlights.
     await vi.waitFor(() => {
-      for (const alias of LAZY_ALIASES) expect(highlightToHtml('x', alias)).toContain('shiki')
+      for (const alias of LAZY_ALIASES) expect(highlightToHtml('x', alias)).toContain('hljs')
     }, { timeout: 5_000 })
   })
 })
@@ -55,21 +55,21 @@ describe('highlightToHtml', () => {
 describe('CodeBlock', () => {
   it('renders the highlighted tree for TypeScript', () => {
     const view = render(<CodeBlock code={'const a = 1\n'} lang="ts" />)
-    const pre = view.container.querySelector('pre.shiki')
+    const pre = view.container.querySelector('pre.hljs')
     expect(pre).not.toBeNull()
     expect(pre!.textContent).toBe('const a = 1')
-    expect(pre!.querySelectorAll('span[style]').length).toBeGreaterThan(1)
+    expect(pre!.querySelectorAll('span[class]').length).toBeGreaterThan(0)
   })
 
   it('renders the plain arm for an unknown language with the text verbatim', () => {
     const view = render(<CodeBlock code={'IDENTIFICATION DIVISION.'} lang="cobol" />)
-    expect(view.container.querySelector('pre.shiki')).toBeNull()
+    expect(view.container.querySelector('pre.hljs')).toBeNull()
     expect(view.getByText('IDENTIFICATION DIVISION.')).toBeTruthy()
   })
 
   it('renders the plain arm when no language is given', () => {
     const view = render(<CodeBlock code="plain text" />)
-    expect(view.container.querySelector('pre.shiki')).toBeNull()
+    expect(view.container.querySelector('pre.hljs')).toBeNull()
     expect(view.getByText('plain text')).toBeTruthy()
   })
 

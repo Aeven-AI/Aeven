@@ -74,7 +74,8 @@ export interface MarkdownFileMentions {
  * by component identity, so a per-render plugin object would remount them.
  * Math runs through KaTeX (the engine normalizes the `\(…\)` and `\[…\]`
  * notations models emit onto remark-math's `$` delimiters), emphasis follows
- * CJK flanking rules, and fences are highlighted by highlight.js. Mermaid is
+ * CJK flanking rules, and fences are highlighted by highlight.js (the same
+ * engine `CodeBlock` and `ReadBlock` use). Mermaid is
  * imported on the first diagram rather than at module load, so a session that
  * never renders one does not pay for it. The plugin's `load()` is what starts
  * that fetch — this component does not set `preload`, which would download
