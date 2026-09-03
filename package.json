@@ -166,7 +166,7 @@
     "@types/node": "^22.20.0",
     "@types/spdx-expression-parse": "^4.0.0",
     "@vitest/coverage-v8": "^4.1.8",
-    "@yarnpkg/cli-dist": "4.18.0",
+    "@yarnpkg/cli-dist": "4.17.1",
     "eslint-plugin-sonarjs": "^4.1.0",
     "execa": "^10.0.0",
     "fast-check": "^4.8.0",
@@ -174,7 +174,7 @@
     "js-yaml": "^4.2.0",
     "jscpd": "^5.0.12",
     "jsdom": "29.1.1",
-    "knip": "^6.16.1",
+    "knip": "^6.29.0",
     "lefthook": "^2.1.9",
     "lightningcss": "^1.32.0",
     "mdast-util-from-markdown": "^2.0.3",
@@ -189,7 +189,6 @@
     "tsdown": "^0.22.2",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",
-    "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^4.1.8"
   }
 }
