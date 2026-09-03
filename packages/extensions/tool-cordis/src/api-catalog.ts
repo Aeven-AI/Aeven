@@ -1206,6 +1206,49 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'media',
+    summary: 'The generated-media service, registered as `ctx.media`.',
+    description: 'The generated-media service, registered as `ctx.media`.\n\nSelection precedence, resolved at execution time: the request\'s own `provider`, then the configured id, then the single usable provider. Every other case is a MediaError rather than a silent pick, so adding a second provider never quietly redirects existing calls.',
+    methods: [
+      {
+        signature: 'registerImageProvider(provider: MediaImageProvider): () => void',
+        description: 'Register an image provider.',
+        parameters: [{ name: 'provider', description: 'the provider; its `id` is the registry key.' }],
+        returns: 'the disposer that unregisters it, disposed with the calling fiber.',
+      },
+      {
+        signature: 'registerVideoProvider(provider: MediaVideoProvider): () => void',
+        description: 'Register a video provider.',
+        parameters: [{ name: 'provider', description: 'the provider; its `id` is the registry key.' }],
+        returns: 'the disposer that unregisters it, disposed with the calling fiber.',
+      },
+      {
+        signature: 'async generateImage(request: MediaImageRequest, signal?: AbortSignal): Promise<MediaImageResult>',
+        description: 'Generate images through the selected provider.',
+        parameters: [{ name: 'request', description: 'the prompt, model, and generation controls.' }, { name: 'signal', description: 'cancellation forwarded to the provider.' }],
+        returns: 'the generated images and the provider that made them.',
+      },
+      {
+        signature: 'async startVideo(request: MediaVideoRequest, signal?: AbortSignal): Promise<MediaVideoJob>',
+        description: 'Start one video job through the selected provider.',
+        parameters: [{ name: 'request', description: 'the prompt, model, and generation controls.' }, { name: 'signal', description: 'cancellation forwarded to the provider.' }],
+        returns: 'the accepted job.',
+      },
+      {
+        signature: 'async videoStatus(job: MediaVideoJob, signal?: AbortSignal): Promise<MediaVideoJob>',
+        description: 'Read one video job\'s state. The job\'s own provider is named by the job, so polling never re-runs selection and cannot drift to another provider.',
+        parameters: [{ name: 'job', description: 'the job to poll, as returned by {@link startVideo}.' }, { name: 'signal', description: 'cancellation forwarded to the provider.' }],
+        returns: 'the job\'s state now.',
+      },
+      {
+        signature: 'async fetchVideo(job: MediaVideoJob, signal?: AbortSignal): Promise<GeneratedMedia>',
+        description: 'Retrieve a succeeded job\'s bytes.',
+        parameters: [{ name: 'job', description: 'the succeeded job.' }, { name: 'signal', description: 'cancellation forwarded to the provider.' }],
+        returns: 'the finished clip.',
+      },
+    ],
+  },
+  {
     key: 'messageFeedback',
     summary: 'Storage-domain sidecar service.',
     description: 'Storage-domain sidecar service. It inspects persisted Session history and never creates or resumes an Agent or Session.',
@@ -4067,6 +4110,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface FsWriteOutcome {\n    operation: \'create\' | \'update\';\n    version: FsVersion;\n    before: string | null;\n    after: string;\n}',
   },
   {
+    name: 'GeneratedMedia',
+    declaration: 'export interface GeneratedMedia {\n    readonly mediaType: string;\n    readonly data: Uint8Array;\n}',
+  },
+  {
     name: 'GenerateOptions',
     declaration: 'export interface GenerateOptions {\n    provider: string;\n    model: string;\n    reasoningEffort?: ReasoningEffortId;\n    messages: Message[];\n    system?: string;\n    tools?: ToolSchema[];\n    temperature?: number;\n    maxTokens?: number;\n    stop?: string[];\n    signal?: AbortSignal;\n    sessionId?: Branded<\'SessionId\'>;\n    purpose?: \'compaction\' | \'session-title\';\n}',
   },
@@ -4377,6 +4424,42 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ManualCompactAgentContext',
     declaration: 'export interface ManualCompactAgentContext extends CompactionAgentContext {\n    runMaintenance<T>(task: (signal: AbortSignal) => Promise<T>): Promise<T>;\n}',
+  },
+  {
+    name: 'MediaImageProvider',
+    declaration: 'export interface MediaImageProvider extends MediaProvider {\n    generateImage(request: MediaImageRequest, signal?: AbortSignal): Promise<MediaImageResult>;\n}',
+  },
+  {
+    name: 'MediaImageReference',
+    declaration: 'export interface MediaImageReference {\n    readonly mediaType: string;\n    readonly data: Uint8Array;\n}',
+  },
+  {
+    name: 'MediaImageRequest',
+    declaration: 'export interface MediaImageRequest {\n    readonly provider?: string;\n    readonly model: string;\n    readonly prompt: string;\n    readonly n?: number;\n    readonly aspectRatio?: string;\n    readonly resolution?: string;\n    readonly size?: string;\n    readonly seed?: number;\n    readonly references?: readonly MediaImageReference[];\n}',
+  },
+  {
+    name: 'MediaImageResult',
+    declaration: 'export interface MediaImageResult {\n    readonly provider: string;\n    readonly model: string;\n    readonly images: readonly GeneratedMedia[];\n}',
+  },
+  {
+    name: 'MediaProvider',
+    declaration: 'export interface MediaProvider {\n    readonly id: string;\n    available(): boolean;\n}',
+  },
+  {
+    name: 'MediaVideoJob',
+    declaration: 'export interface MediaVideoJob {\n    readonly provider: string;\n    readonly id: string;\n    readonly status: MediaVideoStatus;\n    readonly error?: string;\n}',
+  },
+  {
+    name: 'MediaVideoProvider',
+    declaration: 'export interface MediaVideoProvider extends MediaProvider {\n    startVideo(request: MediaVideoRequest, signal?: AbortSignal): Promise<MediaVideoJob>;\n    videoStatus(jobId: string, signal?: AbortSignal): Promise<MediaVideoJob>;\n    fetchVideo(jobId: string, signal?: AbortSignal): Promise<GeneratedMedia>;\n}',
+  },
+  {
+    name: 'MediaVideoRequest',
+    declaration: 'export interface MediaVideoRequest {\n    readonly provider?: string;\n    readonly model: string;\n    readonly prompt: string;\n    readonly duration?: number;\n    readonly aspectRatio?: string;\n    readonly resolution?: string;\n    readonly size?: string;\n    readonly seed?: number;\n    readonly generateAudio?: boolean;\n    readonly references?: readonly MediaImageReference[];\n}',
+  },
+  {
+    name: 'MediaVideoStatus',
+    declaration: 'export type MediaVideoStatus = \'running\' | \'succeeded\' | \'failed\';',
   },
   {
     name: 'Message',
