@@ -70,13 +70,12 @@ describe('sidebar shell snapshots', () => {
     await runtime.dispose()
   })
 
-  it('renders the collapsed rail after the crossfade settles, in place', async () => {
+  it('renders only the reopen control after the sidebar settles closed, in place', async () => {
     const { runtime } = await bench({ locale: 'en' })
     const slot = runtime.renderSlot('sidebar', { collapsed: false, width: 300 })
     const shell = slot.container.firstElementChild
-    slot.update({ collapsed: true, width: 56 })
-    // The wide content (wordmark shortcut) unmounts at the 150ms settle;
-    // only the rail's capsule remains a New-session button.
+    slot.update({ collapsed: true, width: 0 })
+    // The wide content unmounts after the 400ms Aeven transition.
     await waitFor(() => {
       expect(slot.view.getAllByRole('button', { name: 'New session' })).toHaveLength(1)
     })

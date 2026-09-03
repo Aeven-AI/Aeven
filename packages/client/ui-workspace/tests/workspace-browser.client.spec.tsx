@@ -841,12 +841,12 @@ describe('WorkspaceBrowser', () => {
     }
   })
 
-  it('rail state renders icon controls that request expansion', () => {
+  it('compact state renders icon controls that request expansion', () => {
     vi.useFakeTimers()
     try {
       const expandSidebar = vi.fn()
       const b = mount({ wide: false, expandSidebar })
-      // No wide chrome in rail state.
+      // No wide chrome in compact state.
       expect(screen.queryByText('工作区')).toBeNull()
       expect(screen.queryByPlaceholderText('搜索会话…')).toBeNull()
       fireEvent.click(screen.getByRole('button', { name: '搜索会话' }))
@@ -854,7 +854,7 @@ describe('WorkspaceBrowser', () => {
       // The wide flip mounts the input and focuses it after the slide.
       rerender(b, { wide: true })
       const input = screen.getByPlaceholderText('搜索会话…')
-      act(() => { vi.advanceTimersByTime(300) })
+      act(() => { vi.advanceTimersByTime(400) })
       expect(document.activeElement).toBe(input)
       // Wide search button is decorative (tabIndex -1, no expand call).
       fireEvent.click(screen.getByRole('button', { name: '搜索会话' }))
@@ -876,7 +876,7 @@ describe('WorkspaceBrowser', () => {
       // search it just opened.
       fireEvent.click(document.body)
       expect(screen.getByRole('button', { name: '搜索会话' }).getAttribute('aria-expanded')).toBe('true')
-      act(() => { vi.advanceTimersByTime(300) })
+      act(() => { vi.advanceTimersByTime(400) })
       expect(document.activeElement).toBe(screen.getByPlaceholderText('搜索会话…'))
       // The gesture has settled: outside clicks dismiss the search again.
       fireEvent.click(document.body)

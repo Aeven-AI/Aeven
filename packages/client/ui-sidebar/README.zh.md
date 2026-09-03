@@ -9,7 +9,9 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-client-ui-sidebar` 是 dsh Web 客户端的侧边栏外壳：用户看到品牌行、启动新会话、折叠进布局拥有的 56px 轨道，并从底部固定的席位进入 Settings；可感知滚动的区域席位承载 Workspace 与 Session 浏览器。渲染到 `sidebar.workspaces` 的 Workspace 与 Session 浏览器归 ui-workspace 所有；本包既不派生其中的行，也不持有其视图偏好。部署包可以单独替换品牌标记或名称，而无须替换 New Session 控件或轨道几何；New Session 会针对显式指定、当前或最近活跃的 Workspace 启动运行时的页面局部前端 Session Intent。折叠到布局拥有的 56px 轨道仍属于本地呈现行为。
+`dsh-client-ui-sidebar` 为 dsh Web 客户端提供 Aeven 风格的导航菜单：整行 hamburger、New Session 操作、Workspace 与 Session 浏览器，以及底部固定的 Settings 席位。收起菜单会让其布局栏回到零宽度，只在左上角保留 hamburger。渲染到 `sidebar.workspaces` 的 Workspace 与 Session 浏览器归 ui-workspace 所有；本包既不派生其中的行，也不持有其视图偏好。New Session 会针对显式指定、当前或最近活跃的 Workspace 启动运行时的页面局部前端 Session Intent。
+
+展开面板使用 Aeven 的 280px 宽度、半透明白色表面、20px 外侧圆角、40px 行高、响应式行内边距、底部内边距和 400ms easing 变量。菜单开关使用参考 hamburger 与双左箭头字形；功能操作与状态图标保持不变。
 
 ## 目录
 
@@ -25,19 +27,19 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-侧边栏是导航外壳：用户看到品牌、启动新会话、折叠轨道并到达 Settings。功能插件填充它的席位——ui-workspace 填充 `sidebar.workspaces`，ui-settings 在 `sidebar.settings` 注册触发行与设置面板。
+侧边栏是导航外壳：用户从 hamburger 打开它、启动新会话、浏览工作并到达 Settings。功能插件填充它的席位——ui-workspace 填充 `sidebar.workspaces`，ui-settings 在 `sidebar.settings` 注册触发行与设置面板。
 
-### 品牌与 New Session
+### 菜单与 New Session
 
-展开的品牌行把 `sidebar.brand.mark` 与 `sidebar.brand.name` 渲染为两个独立的 single slot；收起轨道则渲染同一个 mark slot。没有占位者时，外壳使用鱼形标记和本地化的本地构建标签。完整构建会在标签下方显示代码徽标；该徽标使用 `DSH_CLIENT_VERSION`、可选的 7 位 `DSH_CLIENT_COMMIT_HASH` 与 `DSH_CLIENT_GIT_DIRTY=true` 组装成 `version[-commit][-dirty]`；缺少版本元数据时不显示徽标。New Session 优先使用作用域操作明确指定的 Workspace，否则使用当前 Session 所属 Workspace，再否则使用最近活跃 Workspace；一个 Workspace 都没有时则清空选择，进入空白 New Session 页面。
+hamburger 行横跨整个面板，其前导字形在桌面端距离边缘 24px，在小屏端距离边缘 16px。内建 Aeven 呈现会隐藏可替换的 `sidebar.brand.mark` 与 `sidebar.brand.name` 席位。New Session 优先使用作用域操作明确指定的 Workspace，否则使用当前 Session 所属 Workspace，再否则使用最近活跃 Workspace；一个 Workspace 都没有时则清空选择，进入空白 New Session 页面。
 
 ### 折叠行为
 
-实时收起时，展开内容在当前宽度淡出，上方控件共用一次淡入并左移进入 56px 轨道，由布局的栏滑动结束整段动画。页面初始即为收起状态时会静态渲染轨道；减少动态效果模式会禁用两段过渡。固定在底部的 `sidebar.settings` 控件只共用淡入时序，不发生横向位移。
+实时收起时，面板宽度与内容透明度使用 Aeven 的 `cubic-bezier(0.23, 1, 0.32, 1)` 曲线在 400ms 内完成变化。布局栏最终为零宽度；New Session、workspace 控件与行、页脚操作和 Settings 全部隐藏，只有 68×40px hamburger 按钮固定保留在左上角。减少动态效果模式会禁用这些过渡。
 
 ### 滚动条
 
-栏内的滚动条是一种指针可供性：只要指针不在栏内，外壳就把滚动条间接层重新绑定为 `transparent`；指针离开后滑块再保留 2 秒，因此没人指向的列表不会带着滚动条。避免行位移的空间预留属于滚动区域本身（ui-workspace），所以显示滑块不会引起重排。
+栏内的滚动条是一种指针可供性：只要指针不在栏内，外壳就把滚动条间接层重新绑定为 `transparent`；指针离开后滑块再保留 2 秒，因此没人指向的列表不会显示滑块。滚动区域不预留 gutter；没有溢出时，行会保留参考菜单的完整 280px 宽度。
 
 -----
 
@@ -64,7 +66,7 @@ kind: "package-reference"
 
 - [ui-workspace](../ui-workspace/README.zh.md)——渲染到 `sidebar.workspaces` 的 Workspace 与 Session 浏览器。
 - [ui-settings](../ui-settings/README.zh.md)——在 `sidebar.settings` 注册触发行与设置面板的设置领域底座。
-- [ui-layout](../ui-layout/README.zh.md)——折叠所使用轨道与栏状态的布局 owner。
+- [ui-layout](../ui-layout/README.zh.md)——折叠所使用零宽度栏状态的布局 owner。
 - [ui-theme](../ui-theme/README.zh.md)——外壳所重新绑定的滚动条 token 间接层。
 - [slot 系统标准](../../../.agents/notes/implemented/architecture/2026-07-22-slot-type-chain-implementation.zh.md)——席位背后的组合模型。
 

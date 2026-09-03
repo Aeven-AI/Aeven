@@ -16,7 +16,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
     /**
-     * Brand mark rendered in the expanded brand row and collapsed rail.
+     * Brand mark available to an expanded sidebar presentation.
      * Declared by this package's `sidebar` entry; deployments may replace
      * the shell's fish fallback without replacing the surrounding controls.
      */
@@ -64,24 +64,24 @@ export interface SidebarBrandNameOwnerProps {
  * boundary. Business data and actions arrive through the region's own inject.
  */
 export interface SidebarSectionOwnerProps {
-  /** Shell fold-state output: wide renders the full browser, rail the icon column. */
+  /** Shell fold-state output: wide renders the full browser. */
   wide: boolean
-  /** Rail icons request expansion; the browser rides the wide flip for focus. */
+  /** Compact controls request expansion; the browser rides the wide flip for focus. */
   expandSidebar: () => void
 }
 
 /**
  * Owner share of the sidebar settings seat: the column display state the
- * occupant's trigger row must render against (wide row vs rail icon).
+ * occupant's trigger row must render against.
  */
 export interface SidebarSettingsOwnerProps {
-  /** Whether the sidebar renders wide content (false = 56px rail). */
+  /** Whether the sidebar renders its expanded content. */
   wide: boolean
 }
 
 /** Owner share of an action rendered beside Settings at the sidebar foot. */
 export interface SidebarFooterActionOwnerProps {
-  /** Whether the sidebar renders wide content (false = 56px rail). */
+  /** Whether the sidebar renders its expanded content. */
   wide: boolean
 }
 

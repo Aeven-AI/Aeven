@@ -10,14 +10,14 @@
   display: flex;
   flex-direction: column;
   font-size: var(--dsh-content-font-size, 14px);
-  line-height: calc(24px + var(--dsh-content-font-delta, 0px));
+  line-height: calc(var(--dsw-aeven-reading-line-height) + var(--dsh-content-font-delta, 0px));
   color: var(--dsw-alias-label-primary);
 }
 
 .body {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--dsw-aeven-space-content);
 }
 
 /* No rule for the renderer's many-column `md-table-wide` hook, deliberately.

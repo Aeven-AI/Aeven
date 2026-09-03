@@ -5,9 +5,7 @@
   height: 100%;
   overflow: hidden;
   background: var(--dsw-alias-bg-base);
-  /* Collapse/expand animates the tracks on the deepsuite sider curve
-     (--ds-ease-in-out / --ds-transition-duration-slow, ui-theme base.css). */
-  transition: grid-template-columns var(--ds-transition-duration-slow) var(--ds-ease-in-out);
+  transition: grid-template-columns var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
 }
 
 /* Dragging writes widths at pointer cadence; easing them would detach the
@@ -23,10 +21,12 @@
 }
 
 .sidebarCol {
+  position: relative;
+  z-index: 3;
   min-width: 0;
   overflow: hidden;
-  background: var(--dsw-specific-sidebar-fill);
-  border-right: 0.5px solid var(--dsw-alias-border-l3);
+  background: var(--dsw-alias-bg-base);
+  border-right: none;
 }
 
 .centerCol {
@@ -36,14 +36,18 @@
   overflow: hidden;
 }
 
+.frame[data-sidebar-collapsed] .centerCol {
+  --dsh-sidebar-overlay-clearance: var(--dsw-aeven-sidebar-toggle-width);
+}
+
 .detailsCol {
   min-width: 0;
   overflow: hidden;
-  border-left: 0.5px solid var(--dsw-alias-border-l3);
+  border-left: none;
 }
 
 /* The details subtree stays mounted at zero width, so its border must not paint
-   a 1px seam. The collapsed sidebar instead retains a bordered compact rail. */
+   a 1px seam. */
 .frame[data-details-collapsed] .detailsCol {
   border-left: none;
 }

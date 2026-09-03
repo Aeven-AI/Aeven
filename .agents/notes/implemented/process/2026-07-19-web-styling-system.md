@@ -6,6 +6,8 @@ Status: implemented
 
 English | [中文](2026-07-19-web-styling-system.zh.md)
 
+> The [Aeven visual-language decision](2026-09-03-aeven-web-visual-language.md) replaces this note's visual-baseline values and adds shared geometry variables. The CSS Modules, semantic-token, theme-selector, and presentation constraints here remain active.
+
 > Division of labor: this RFC fixes the framework and constraints (rarely changes); [docs/web-styling.md](../../../../docs/web-styling.md) is the living spec (authoritative token values, the coding-rule checklist, the deviation record — it evolves with the implementation). Token changes and new rules go there; only changes to the framework itself come back here (overturning it requires a new RFC).
 
 ## Problem

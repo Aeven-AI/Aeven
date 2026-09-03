@@ -7,6 +7,49 @@ import type { IconProps } from './props.ts'
 
 export type { IconProps } from './props.ts'
 
+/** Three-line menu glyph used by the Aeven sidebar toggle. */
+export const IconMenuOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg aria-hidden="true" width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M21 5H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M15 12H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M17 19H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+/** Plus glyph on the Aeven composer's attach control (`.plus-icon`). */
+export const IconPlusOutline20 = ({ size = 20, className }: IconProps) => (
+  <svg aria-hidden="true" width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+    <path d="M5 12h14" />
+    <path d="M12 5v14" />
+  </svg>
+)
+
+/** Upward arrow on the Aeven composer's send control (`.arrow-up-icon`). */
+export const IconArrowUpOutline20 = ({ size = 20, className }: IconProps) => (
+  <svg aria-hidden="true" width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+    <path d="m5 12 7-7 7 7" />
+    <path d="M12 19V5" />
+  </svg>
+)
+
+/** Rounded stop square the Aeven composer shows in place of the send arrow while a turn runs. */
+export const IconStopFill20 = ({ size = 20, className }: IconProps) => (
+  <svg aria-hidden="true" width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M4 9.2v5.6c0 1.116 0 1.673.11 2.134a4 4 0 0 0 2.956 2.956c.46.11 1.018.11 2.134.11h5.6c1.116 0 1.673 0 2.134-.11a4 4 0 0 0 2.956-2.956c.11-.46.11-1.018.11-2.134V9.2c0-1.116 0-1.673-.11-2.134a4 4 0 0 0-2.956-2.955C16.474 4 15.916 4 14.8 4H9.2c-1.116 0-1.673 0-2.134.11a4 4 0 0 0-2.955 2.956C4 7.526 4 8.084 4 9.2Z"
+      fill="currentColor"
+    />
+  </svg>
+)
+
+/** Double-left chevron used by the expanded Aeven sidebar toggle. */
+export const IconChevronsLeftOutline14 = ({ size = 14, className }: IconProps) => (
+  <svg aria-hidden="true" width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M11 17 6 12l5-5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M18 17 13 12l5-5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
 /** ic_ds_new_chat_outline_16 */
 export const IconNewChatOutline16 = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">

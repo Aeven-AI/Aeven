@@ -3,8 +3,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  width: calc(100% + 4px);
-  margin: 4px -2px;
+  width: 100%;
+  margin: 0 0 var(--dsw-aeven-sidebar-bottom-inset);
 }
 
 .triggerRow.railRow {
@@ -19,23 +19,23 @@
   align-items: center;
   gap: 8px;
   width: auto;
-  height: 42px;
+  height: var(--dsw-aeven-control-size);
   margin: 0;
-  padding: 0 10px 0 8px;
+  padding: 0 var(--dsh-sidebar-inline-padding);
   box-sizing: border-box;
   border: none;
-  border-radius: 12px;
+  border-radius: 0;
   background: transparent;
   cursor: pointer;
   overflow: hidden;
   color: var(--dsw-alias-label-primary);
   font-family: inherit;
   font-size: 14px;
-  line-height: 22px;
+  line-height: var(--dsw-aeven-control-size);
 }
 
 .trigger:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
 }
 
 /* Rail trigger: the same 36x36 circle box as the other rail controls. */
@@ -74,8 +74,8 @@
   backdrop-filter: var(--dsw-mask-blur);
 }
 
-/* Panel (figma Settings 501:29947): r24, white; the figma lv3 effects are
-   superseded by the shared elevation treatment; figma's 1080x700 is shrunk to 800 wide.
+/* Panel: Aeven primary radius and white surface; B's 800px information
+   architecture and shared elevation remain.
    One height for every section, taken from the viewport rather than the
    content: sections differ by hundreds of pixels (a settings list against the
    composition editor), and a content-sized panel would resize under the
@@ -87,7 +87,7 @@
   width: 800px;
   height: min(800px, calc(100vh - 48px));
   max-width: calc(100vw - 48px);
-  border-radius: 32px;
+  border-radius: var(--dsw-aeven-radius-surface);
   overflow: hidden;
   background: var(--dsw-alias-bg-layer-2);
   box-shadow: var(--dsw-elevation-prominent);
@@ -117,7 +117,7 @@
   padding: 0 12px;
   font-size: 16px;
   line-height: 24px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -138,7 +138,7 @@
   padding: 9px 16px 9px 12px;
   box-sizing: border-box;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--dsw-aeven-radius-control);
   background: transparent;
   cursor: pointer;
   font-family: inherit;

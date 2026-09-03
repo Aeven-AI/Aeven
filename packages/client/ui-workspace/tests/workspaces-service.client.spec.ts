@@ -11,6 +11,7 @@ import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import type { RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
 import { DirectoryBrowseError, UiWorkspaceService } from '../src/client/navigation.ts'
+import type { SessionUrlNavigation } from '../src/client/session-url.ts'
 
 const sid = (id: string): SessionId => SessionId(id)
 const wid = (id: string): WorkspaceId => id as WorkspaceId
@@ -122,6 +123,38 @@ class FakeSessions {
   }
 }
 
+class FakeSessionUrl implements SessionUrlNavigation {
+  readonly pushes: Array<SessionId | undefined> = []
+  readonly replacements: Array<SessionId | undefined> = []
+  private readonly listeners = new Set<() => void>()
+
+  constructor(private current: SessionId | undefined = undefined) {}
+
+  read(): SessionId | undefined {
+    return this.current
+  }
+
+  push(sessionId: SessionId | undefined): void {
+    this.current = sessionId
+    this.pushes.push(sessionId)
+  }
+
+  replace(sessionId: SessionId | undefined): void {
+    this.current = sessionId
+    this.replacements.push(sessionId)
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener)
+    return () => { this.listeners.delete(listener) }
+  }
+
+  navigate(sessionId: SessionId | undefined): void {
+    this.current = sessionId
+    for (const listener of [...this.listeners]) listener()
+  }
+}
+
 class FakeWorkspaces implements IWorkspaces {
   readonly list: MutableSource<WorkspaceSnapshot>
   readonly archiveCalls: SessionId[] = []
@@ -185,6 +218,7 @@ class FakeDirectoryPicker {
 interface BenchOptions {
   readonly workspaces?: WorkspaceSnapshot
   readonly sessions?: SessionListState
+  readonly sessionUrl?: FakeSessionUrl
 }
 
 function bench(options: BenchOptions = {}) {
@@ -192,13 +226,15 @@ function bench(options: BenchOptions = {}) {
   const directoryPicker = new FakeDirectoryPicker()
   const workspaces = new FakeWorkspaces(options.workspaces ?? workspaceState([], [], 'pending'))
   const sessions = new FakeSessions(options.sessions ?? sessionState([], undefined, 'pending'))
+  const sessionUrl = options.sessionUrl ?? new FakeSessionUrl()
   const uiWorkspace = new UiWorkspaceService(
     ctx,
     directoryPicker.remote,
     workspaces,
     sessions as unknown as ISessions,
+    sessionUrl,
   )
-  return { ctx, directoryPicker, sessions, uiWorkspace, workspaces }
+  return { ctx, directoryPicker, sessions, sessionUrl, uiWorkspace, workspaces }
 }
 
 async function flush(): Promise<void> {
@@ -207,6 +243,48 @@ async function flush(): Promise<void> {
 }
 
 describe('UiWorkspaceService', () => {
+  it('projects Session selection into history and follows browser navigation', async () => {
+    const first = summary('first')
+    const second = summary('second')
+    const requested = new FakeSessionUrl(second.id)
+    const routed = bench({
+      sessions: sessionState([first, second], first.id),
+      workspaces: workspaceState([workspace('one', [first.id, second.id])]),
+      sessionUrl: requested,
+    })
+    expect(routed.sessions.open).toHaveBeenCalledWith(second.id)
+    expect(routed.sessionUrl.pushes).toEqual([])
+
+    routed.sessions.open(first.id)
+    expect(routed.sessionUrl.pushes).toEqual([first.id])
+    routed.sessionUrl.navigate(second.id)
+    expect(routed.sessions.open).toHaveBeenLastCalledWith(second.id)
+    expect(routed.sessionUrl.pushes).toEqual([first.id])
+    routed.sessionUrl.navigate(undefined)
+    expect(routed.sessions.clear).toHaveBeenCalledOnce()
+
+    routed.sessionUrl.navigate(sid('missing'))
+    expect(routed.sessionUrl.replacements).toEqual([undefined])
+    expect(routed.sessions.open).toHaveBeenCalledTimes(3)
+
+    await routed.ctx.fiber.dispose()
+    routed.sessionUrl.navigate(first.id)
+    expect(routed.sessions.open).toHaveBeenCalledTimes(3)
+  })
+
+  it('replaces the initial entry before pushing later Session changes', () => {
+    const first = summary('first')
+    const second = summary('second')
+    const b = bench({
+      sessions: sessionState([first, second], first.id),
+      workspaces: workspaceState([workspace('one', [first.id, second.id])]),
+    })
+    expect(b.sessionUrl.replacements).toEqual([first.id])
+    b.sessions.open(second.id)
+    b.sessions.clear()
+    expect(b.sessionUrl.pushes).toEqual([second.id, undefined])
+  })
+
   it('reuses only an unarchived member blank and coalesces concurrent creation', async () => {
     const b = bench()
     const memberBlank = sid('member-blank')

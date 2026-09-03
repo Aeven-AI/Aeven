@@ -11,6 +11,8 @@ kind: "package-reference"
 
 `dsh-client-ui-workspace` 是 dsh Web 客户端的共享 Workspace 浏览器与选择器：用户在侧边栏浏览分组或扁平的 Session 行，在 Session Intent 主视觉区为新会话选择 Workspace，并可用添加、重命名、重排序、搜索、fork 与归档操作管理 Workspace 与 Session；两个界面共用同一套 Workspace 菜单与添加流程。待处理的用户交互以琥珀色警告点呈现，活动 Schedule projection 会在普通行与搜索结果中显示不可交互的闹钟，共享侧边栏投影还会隐藏 subagent 来源的会话。不同的规范化路径仍作为由 id 区分的独立 Workspace；添加文件夹走目录流子 slot，由组合的选择器包 client half 填充。
 
+Workspace 与 Session 行遵循 Aeven 菜单的整行 40px 几何、响应式 24px/16px 内边距、直角、连续节奏，以及透明 hover 与选中状态，同时保留所有原有状态与操作图标。选择 Session 会导航到其 `/sessions/:id` SPA 路径；地址栏、浏览器历史与 Session Controller 始终保持同步。
+
 ## 目录
 
 - [使用本包](#use-this-package)
@@ -26,6 +28,10 @@ kind: "package-reference"
 ## 使用本包
 
 用侧边栏浏览 Workspace 及其 Session、重排它们并新建会话；在 Session Intent 主视觉区用选择器为新会话选择 Workspace。打开的 Workspace 默认显示五条非空白 Session，并在首条提示词落地前把当前选中的空白**新会话**作为一条临时额外行。**展开其余**会显示隐藏条目；关闭再打开 Workspace 会恢复该折叠投影。
+
+### Session 导航
+
+每个选中的 Session 都有一个 URL 安全的 `/sessions/:id` 路径。普通选择会压入一条浏览器历史记录，初始 baseline 协调会替换启动记录，后退或前进则重新打开恢复路径所指的 Session。直接加载有效 Session 路径时，会在 Session 与 Workspace baseline 就绪后选中它。若 Session id 未知，现有最近 Workspace 回退运行前会先从地址栏移除它。
 
 ### 重排序与视图选项
 

@@ -6,38 +6,27 @@
   min-width: 0;
   background: var(--dsw-alias-bg-base);
 
-  /* Shared width axis for the whole column: one content width W
-     (--dsh-chat-content-width) for the transcript, the dock cards
-     (todo/goal/queue: card minus four insets, 4 x 8 = 32), and business-owned
-     takeover cards; the input card alone is W + 32px.
-     The relation also holds when a narrow viewport shrinks everything: the
-     chat scroller and the takeover frames pad clearance + 16px per side while
-     the input card clears the bare clearance, so the input card stays exactly
-     content + 32px at every width. Declared on the root because the
-     transcript and the composer seat are sibling subtrees.
-
-     W adapts to the column, not the viewport (a collapsed sidebar widens the
-     column without resizing the window): the component publishes the column's
-     live width as --dsh-conversation-column-width (px, via ResizeObserver —
-     container-type would re-anchor the subtree's portal-free position:fixed
-     descendants) and the clamp keeps a 680px floor (a step under the figma
-     748px — the full-width reading felt wide on every screen), takes 64% of
-     wider columns, and caps at 920px for line-length
-     readability. A dragged user preference (--dsh-chat-user-width, published
-     by the width handles) replaces the adaptive term wholesale. */
+  /* Shared Aeven width axis for transcript, dock cards, takeover cards, and
+     composer. The component publishes the column width because the sidebar can
+     resize without a viewport change; the baseline caps at the theme-owned
+     reading width and leaves one page inset on each side. A dragged user
+     preference replaces the baseline term. */
   --dsh-chat-content-width: var(
     --dsh-chat-user-width,
-    clamp(680px, calc(var(--dsh-conversation-column-width, 0px) * 0.64), 920px)
+    min(var(--dsw-aeven-chat-width), calc(var(--dsh-conversation-column-width, 0px) - var(--dsw-aeven-page-inset) - var(--dsw-aeven-page-inset)))
   );
-  --dsh-composer-card-max-width: calc(var(--dsh-chat-content-width) + 32px);
-  --dsh-composer-side-clearance: 16px;
+  --dsh-composer-card-max-width: var(--dsh-chat-content-width);
+  --dsh-composer-side-clearance: var(--dsw-aeven-page-inset);
   --dsh-composer-dock-inset: 8px;
 }
 
 .header {
   position: relative;
   flex: none;
-  padding: 12px 28px 0 20px;
+  padding: 8px var(--dsw-aeven-page-inset) 0 max(
+    var(--dsw-aeven-page-inset),
+    var(--dsh-sidebar-overlay-clearance, 0px)
+  );
   border-bottom: 1px solid transparent;
 }
 
@@ -281,7 +270,7 @@
 .composerStack {
   /* Horizontal geometry (card width, clearance, dock inset) rides the shared
      .root variables above so takeover siblings match the stack. */
-  --dsh-composer-stack-gap: 6px;
+  --dsh-composer-stack-gap: var(--dsw-aeven-space-compact);
 
   display: flex;
   flex-direction: column;
@@ -349,17 +338,45 @@
   /* Above markdown CodeBlock sticky banners (z-index 6) so the footer never
      paints under a sticking code header while scrolling. */
   z-index: 7;
-  /* Input mask (figma 1205:27463): transcript fades out under a FIXED 36px
-     band at the seat's top (the figma 24% of the resting ~150px composer),
-     solid below — px stops, not %, so a growing draft only widens the solid
-     region and the fade band never stretches. The 0px stop is bg-base at
-     zero alpha (not white, which the figma export hardcodes) so both themes
-     fade from their own base. */
+  /* Aeven `.chat-input-container`: the seat itself is opaque canvas. The
+     transcript's hand-off rides the 50px band ABOVE the seat instead, so a
+     growing draft never stretches the fade. */
+  background: var(--dsw-alias-bg-base);
+}
+
+/* Aeven `.chat-fade-content` / `.chat-blur-content`: two 55px bands starting
+   50px above the seat, so the transcript both dims and softens as it slides
+   under the composer. Aeven orders them before `.chat-content`, so the input
+   card paints over the 5px both bands overhang into the seat; here they are
+   pseudo-elements, and only a negative z-index puts BOTH under the card
+   (`::after` would otherwise paint above it). Negative children still paint
+   over the seat's own opaque background, so the band stays visible where it
+   overlaps. */
+.root[data-phase='active'] .composerSeat::before,
+.root[data-phase='active'] .composerSeat::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: -50px;
+  right: 0;
+  left: 0;
+  height: 55px;
+  pointer-events: none;
+}
+
+/* The 0px stop is bg-base at zero alpha, not Aeven's hardcoded
+   rgb(242, 242, 242), so both themes fade from their own base. */
+.root[data-phase='active'] .composerSeat::before {
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--dsw-alias-bg-base) 0%, transparent) 0px,
-    var(--dsw-alias-bg-base) 36px
+    var(--dsw-alias-bg-base) 50px
   );
+}
+
+.root[data-phase='active'] .composerSeat::after {
+  backdrop-filter: blur(2px);
+  mask-image: linear-gradient(to bottom, transparent 20px, #000 50px);
 }
 
 /* An open @/slash menu (data-trigger-menu, ui-input-trigger) renders inside

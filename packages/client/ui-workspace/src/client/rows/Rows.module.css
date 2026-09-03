@@ -3,8 +3,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  border-radius: 8px;
-  padding: 0 8px;
+  border-radius: 0;
+  padding: 0 var(--dsh-sidebar-inline-padding);
   cursor: pointer;
   user-select: none;
   color: var(--dsw-alias-label-primary);
@@ -12,11 +12,11 @@
 
 .projectRow:hover,
 .sessionRow:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
 }
 
 .sessionRow.selected {
-  background: var(--dsw-alias-interactive-bg-hover);
+  background: transparent;
 }
 
 .searchResultRow {
@@ -91,7 +91,7 @@
 
 /* Compact one-line Workspace row after removing the session-count subtitle. */
 .projectRow {
-  height: 34px;
+  height: var(--dsw-aeven-control-size);
   align-items: center;
   box-sizing: border-box;
 }
@@ -102,7 +102,7 @@
 
 /* Session cell (figma): pad 8, a 16px status slot, then a 4px title gap. */
 .sessionRow {
-  height: 32px;
+  height: var(--dsw-aeven-control-size);
   gap: 0;
   /* Mount fade: session rows appear by unfolding a group (or the tree
      mounting). Stable row keys keep already-visible rows from replaying it. */
@@ -182,7 +182,7 @@
   line-height: 20px;
   padding: 0 2px;
   border: 0.5px solid var(--dsw-alias-border-l4);
-  border-radius: 4px;
+  border-radius: var(--dsw-aeven-radius-tight);
   background: var(--dsw-alias-button-elevated-fill);
   color: inherit;
   outline: none;
@@ -253,7 +253,7 @@
    hover fill while its dropdown is up). */
 .projectRow.menuOpen,
 .sessionRow.menuOpen {
-  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
 }
 
 /* Session drag insert marker: a leading chevron and 2px rule between rows,

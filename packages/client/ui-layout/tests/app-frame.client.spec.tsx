@@ -289,7 +289,7 @@ describe('AppFrame', () => {
     expect(frame.hasAttribute('data-details-collapsed')).toBe(true)
   })
 
-  it('closed sidebar keeps its compact rail with mounted slot content and collapsed owner props', () => {
+  it('closed sidebar keeps mounted slot content at zero width with collapsed owner props', () => {
     const { frame, instance, slotCalls, getByTestId } = mountFrame()
     act(() => { instance.actions.toggleSidebar() })
     expect(tracks(frame)).toEqual([SIDEBAR_COLLAPSED, 0])

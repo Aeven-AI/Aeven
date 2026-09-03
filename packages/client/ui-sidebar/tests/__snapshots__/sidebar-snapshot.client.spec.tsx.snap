@@ -6,7 +6,7 @@ exports[`sidebar shell snapshots > renders the collapsed rail after the crossfad
   style="display: contents;"
 >
   <div
-    class="root collapsed railIn quietBars"
+    class="root collapsed quietBars"
     style=""
   >
     <div
@@ -17,30 +17,12 @@ exports[`sidebar shell snapshots > renders the collapsed rail after the crossfad
         class="iconButton toggle"
         type="button"
       >
-        <span
-          aria-hidden="true"
-          class="railMark"
-        >
-          <div
-            data-slot="sidebar.brand.mark"
-            style="display: contents;"
-          >
-            <svg
-              aria-hidden="true"
-              data-content="965fe321"
-              fill="none"
-              height="17.6580310880829"
-              viewBox="0 0 23.16 17.04"
-              width="24"
-            />
-          </div>
-        </span>
         <svg
-          class="panelIcon"
-          data-content="35f95b0c"
+          aria-hidden="true"
+          data-content="4c0322ad"
           fill="none"
           height="18"
-          viewBox="0 0 16 16"
+          viewBox="0 0 24 24"
           width="18"
           xmlns="http://www.w3.org/2000/svg"
         />
@@ -146,12 +128,22 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
         type="button"
       >
         <svg
-          class="panelIcon"
-          data-content="35f95b0c"
+          aria-hidden="true"
+          data-content="4c0322ad"
           fill="none"
-          height="16"
-          viewBox="0 0 16 16"
-          width="16"
+          height="18"
+          viewBox="0 0 24 24"
+          width="18"
+          xmlns="http://www.w3.org/2000/svg"
+        />
+        <svg
+          aria-hidden="true"
+          class="toggleEnd"
+          data-content="8e094c0c"
+          fill="none"
+          height="14"
+          viewBox="0 0 24 24"
+          width="14"
           xmlns="http://www.w3.org/2000/svg"
         />
       </button>
@@ -261,12 +253,22 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
         type="button"
       >
         <svg
-          class="panelIcon"
-          data-content="35f95b0c"
+          aria-hidden="true"
+          data-content="4c0322ad"
           fill="none"
-          height="16"
-          viewBox="0 0 16 16"
-          width="16"
+          height="18"
+          viewBox="0 0 24 24"
+          width="18"
+          xmlns="http://www.w3.org/2000/svg"
+        />
+        <svg
+          aria-hidden="true"
+          class="toggleEnd"
+          data-content="8e094c0c"
+          fill="none"
+          height="14"
+          viewBox="0 0 24 24"
+          width="14"
           xmlns="http://www.w3.org/2000/svg"
         />
       </button>

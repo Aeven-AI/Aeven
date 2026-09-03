@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 `dsh-client-ui-workspace` is the shared Workspace browser and picker of the dsh web client: users browse grouped or flat Session rows in the sidebar, pick a Workspace for a new session from the Session Intent hero, and manage Workspaces and Sessions with add, rename, reorder, search, fork, and archive actions; the same Workspace menu and add flow serve both surfaces. Pending user interactions surface as amber warning dots, active Schedule projections surface as non-interactive alarm markers in ordinary and search rows, and the shared sidebar projection hides subagent-origin sessions. Distinct canonical paths remain separate id-keyed Workspaces, and adding a folder goes through a directory-flow child hole that a composed picker package's client half fills.
 
+Workspace and Session rows follow the Aeven menu's full-width 40px geometry, responsive 24px/16px insets, square corners, contiguous rhythm, and transparent hover and selected states while preserving every existing status and action icon. Selecting a Session navigates to its `/sessions/:id` SPA path; the address bar, browser history, and Session Controller stay synchronized.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)
@@ -26,6 +28,10 @@ English | [中文](README.zh.md)
 ## Use this package
 
 Use the sidebar to browse Workspaces and their Sessions, reorder them, and start new ones; use the picker in the Session Intent hero to choose a Workspace for a new session. An open Workspace shows five non-blank Sessions by default and keeps the selected blank **New Session** as one provisional extra row until its first prompt. **Show more** reveals the hidden remainder; closing and reopening the Workspace restores this folded projection.
+
+### Session navigation
+
+Every selected Session has a URL-safe `/sessions/:id` path. An ordinary selection pushes one browser-history entry, initial baseline reconciliation replaces the launch entry, and Back or Forward reopens the Session named by the restored path. Loading a valid Session path directly selects it after the Session and Workspace baselines are ready. An unknown Session id is removed from the address bar before the existing recent-Workspace fallback runs.
 
 ### Reordering and view options
 

@@ -12,56 +12,53 @@ const css = readFileSync(fileURLToPath(new URL('../src/client/SidebarRoot.module
  */
 function declarations(selector: string): Map<string, string> | undefined {
   const withoutComments = css.replace(/\/\*[\s\S]*?\*\//g, ' ')
+  const found = new Map<string, string>()
   for (const [, selectorList = '', body = ''] of withoutComments.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     if (!selectorList.split(',').map(value => value.trim()).includes(selector)) continue
-    const found = new Map<string, string>()
     for (const part of body.split(';')) {
       const colon = part.indexOf(':')
       if (colon === -1) continue
       found.set(part.slice(0, colon).trim(), part.slice(colon + 1).trim().replace(/\s+/g, ' '))
     }
-    return found
   }
-  return undefined
+  return found.size === 0 ? undefined : found
 }
 
 describe('SidebarRoot.module.css', () => {
-  it('shares and cancels the wide shell trailing padding structurally', () => {
+  it('uses the Aeven panel and row geometry', () => {
     const root = declarations('.root')
-    expect(root?.get('--dsh-sidebar-inline-padding')).toBe('12px')
-    expect(root?.get('padding')).toBe('6px var(--dsh-sidebar-inline-padding)')
-    expect(declarations('.regionArea')?.get('margin-left')).toBe('-4px')
-    expect(declarations('.regionArea')?.get('padding-left')).toBe('4px')
-    expect(declarations('.regionArea')?.get('margin-right')).toBe(
-      'calc(-1 * var(--dsh-sidebar-inline-padding))',
-    )
+    expect(root?.get('--dsh-sidebar-inline-padding')).toBe('var(--dsw-aeven-sidebar-row-inset)')
+    expect(root?.get('padding')).toBe('8px 0 0')
+    expect(root?.get('border-radius')).toBe('0 var(--dsw-aeven-sidebar-panel-radius) 0 0')
+    expect(root?.get('backdrop-filter')).toBe('blur(4px)')
+    expect(declarations('.logoRow')?.get('height')).toBe('var(--dsw-aeven-control-size)')
+    expect(declarations('.toggle')?.get('padding')).toBe('0 var(--dsh-sidebar-inline-padding)')
+    expect(declarations('.regionArea')?.get('margin')).toBe('0')
+    expect(declarations('.regionArea')?.get('padding')).toBe('0')
     expect(declarations('.collapsed .regionArea')?.get('margin-left')).toBe('0')
     expect(declarations('.collapsed .regionArea')?.get('padding-left')).toBe('0')
     expect(declarations('.collapsed .regionArea')?.get('margin-right')).toBe('0')
   })
 
-  it('moves the four upper controls while the settings seat only fades', () => {
-    const animation = 'rail-in 150ms var(--ds-ease-in-out) backwards'
+  it('keeps only the Aeven hamburger available after a complete collapse', () => {
+    const collapsed = declarations('.root.collapsed')
+    expect(collapsed?.get('width')).toBe('0')
+    expect(declarations('.collapsed .logoRow')?.get('position')).toBe('fixed')
+    expect(declarations('.collapsed .logoRow')?.get('width')).toBe('var(--dsw-aeven-sidebar-toggle-width)')
+    expect(declarations('.collapsed .iconButton')?.get('padding')).toBe('0 0 0 24px')
     for (const selector of [
-      '.railIn .iconButton',
-      '.railIn .newSession',
-      '.railIn .regionArea',
+      '.collapsed .newSession',
+      '.collapsed .regionArea',
+      '.collapsed .footArea',
     ]) {
-      expect(declarations(selector)?.get('animation')).toBe(animation)
+      expect(declarations(selector)?.get('display')).toBe('none')
     }
-    expect(declarations('.railIn .footArea')?.get('animation')).toBe(
-      'rail-fade-in 150ms var(--ds-ease-in-out) backwards',
-    )
-    expect(css).toMatch(
-      /@keyframes rail-in\s*\{\s*from\s*\{\s*opacity: 0;\s*transform: translateX\(49px\);\s*}\s*}/,
-    )
-    expect(css).toMatch(/@keyframes rail-fade-in\s*\{\s*from\s*\{\s*opacity: 0;\s*}\s*}/)
   })
 
-  it('gives shell rail controls the same base anchor for their shared translation', () => {
+  it('anchors the collapsed toggle at Aeven x=24', () => {
     expect(declarations('.collapsed .logoRow')?.get('justify-content')).toBe('flex-start')
-    expect(declarations('.collapsed .newSession')?.get('align-self')).toBe('flex-start')
-    expect(declarations('.collapsed .newSession')?.get('width')).toBe('36px')
+    expect(declarations('.collapsed .iconButton')?.get('width')).toBe('var(--dsw-aeven-sidebar-toggle-width)')
+    expect(declarations('.collapsed .iconButton')?.get('height')).toBe('var(--dsw-aeven-control-size)')
   })
 
   it('keeps the slotted brand row at the full artwork height', () => {

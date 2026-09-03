@@ -121,6 +121,10 @@ function mount(
     composerBlock?: { reason: string }
     /** Mutable view ledger used by registration-order regressions. */
     viewTabs?: ViewTab[]
+    /** Boot posture: the list has not completed its first pull yet. */
+    sessionListPending?: boolean
+    /** No session selected — cold start, or the list has yet to restore one. */
+    noSelection?: boolean
   } = {},
 ) {
   const root = sid('root')
@@ -145,8 +149,9 @@ function mount(
       ...listed && options.nestedSubagent === true && { [parent]: parentRow },
       ...listed && { [SID]: childRow },
     },
-    current: SID,
-    phase: 'ready', subagentsByParent: {}, jobsBySession: {}, currentAddress: undefined,
+    current: options.noSelection === true ? undefined : SID,
+    phase: options.sessionListPending === true ? 'pending' : 'ready',
+    subagentsByParent: {}, jobsBySession: {}, currentAddress: undefined,
   })
   const workspaces = createSnapshotStore<WorkspaceSnapshot>(workspaceState(workspaceRows))
   const session = createSnapshotStore<SessionSnapshot>(snapshot)
@@ -285,7 +290,7 @@ function mount(
       : (opts?.fallback ?? null)
   )) as ConversationRootProps['renderSlotChain']
   const props: ConversationRootProps = {
-    sessionId: SID,
+    sessionId: options.noSelection === true ? undefined : SID,
     SessionProvider: ({ children }) => children,
     useSession,
     useConversation,
@@ -514,6 +519,32 @@ describe('ConversationRoot resident composer', () => {
     expect(root?.getAttribute('data-phase')).toBe('settling')
   })
 
+  it('settling phase: a pending session list hides the composer instead of flashing the cold-start hero', () => {
+    // A restored session with history has not been selected yet at this point;
+    // rendering the hero here shows an empty-session composer that the docked
+    // bar then replaces.
+    const b = mount(
+      sessionSnapshotOf({ blank: true, openState: 'cold' }),
+      undefined,
+      undefined,
+      { noSelection: true, sessionListPending: true },
+    )
+    const root = b.view.container.querySelector('[data-phase]')
+    expect(root?.getAttribute('data-phase')).toBe('settling')
+    expect(b.view.queryByTestId('hero-headline')).toBeNull()
+  })
+
+  it('hero phase: a ready list with nothing selected is the genuine cold start', () => {
+    const b = mount(
+      sessionSnapshotOf({ blank: true, openState: 'cold' }),
+      undefined,
+      undefined,
+      { noSelection: true },
+    )
+    const root = b.view.container.querySelector('[data-phase]')
+    expect(root?.getAttribute('data-phase')).toBe('hero')
+  })
+
   it('startup auto-selection: a summary-proven blank session opens straight into the hero', () => {
     const b = mount(
       sessionSnapshotOf({ blank: true, openState: 'loading' }),
@@ -607,7 +638,7 @@ describe('ConversationRoot resident composer', () => {
     const b = mount(sessionSnapshotOf())
     const root = b.view.container.querySelector('[data-phase]') as HTMLElement
     // jsdom offsetWidth is 0 until faked: the observer publishes whatever the
-    // layout reports, and the CSS clamp() floors the axis at 680px either way.
+    // layout reports, and the CSS expression caps the Aeven reading axis at 1024px.
     Object.defineProperty(root, 'offsetWidth', { value: 1200, configurable: true })
     act(() => { fireResize(root) })
     expect(root.style.getPropertyValue('--dsh-conversation-column-width')).toBe('1200px')
@@ -634,29 +665,29 @@ describe('ConversationRoot resident composer', () => {
     Element.prototype.releasePointerCapture = function () { captured.delete(this) }
     Element.prototype.hasPointerCapture = function () { return captured.has(this) }
     try {
-      // Base resolves from the adaptive clamp: min(1600*0.64, 920) = 920.
-      // Dragging the right handle outward by 25px widens by 2×25 = 50 → 970,
+      // Base resolves from the Aeven reading cap: min(1600 − 48, 1024) = 1024.
+      // Dragging the right handle outward by 25px widens by 2×25 = 50 → 1074,
       // inside both bounds (max = 1600 − 176 = 1424 keeps the handles on-column).
       fireEvent.pointerDown(handle, { pointerId: 1, clientX: 800, clientY: 300 })
       fireEvent.pointerUp(handle, { pointerId: 1, clientX: 825, clientY: 300 })
-      expect(root.style.getPropertyValue('--dsh-chat-user-width')).toBe('970px')
-      expect(localStorage.getItem('dsh.conversation.contentWidth')).toBe('970')
+      expect(root.style.getPropertyValue('--dsh-chat-user-width')).toBe('1074px')
+      expect(localStorage.getItem('dsh.conversation.contentWidth')).toBe('1074')
       // Window shrinks: the displayed width re-clamps (900 − 176 = 724) but the
       // preference stays.
       Object.defineProperty(root, 'offsetWidth', { value: 900, configurable: true })
       act(() => { fireResize(root) })
       expect(root.style.getPropertyValue('--dsh-chat-user-width')).toBe('724px')
-      expect(localStorage.getItem('dsh.conversation.contentWidth')).toBe('970')
+      expect(localStorage.getItem('dsh.conversation.contentWidth')).toBe('1074')
       // A press without travel (a real double-click delivers two such
       // press/release rounds) must not commit the clamped display value over
       // the stored preference.
       fireEvent.pointerDown(handle, { pointerId: 1, clientX: 800, clientY: 300 })
       fireEvent.pointerUp(handle, { pointerId: 1, clientX: 800, clientY: 300 })
-      expect(localStorage.getItem('dsh.conversation.contentWidth')).toBe('970')
+      expect(localStorage.getItem('dsh.conversation.contentWidth')).toBe('1074')
       expect(root.style.getPropertyValue('--dsh-chat-user-width')).toBe('724px')
       // No reset affordance on the handle: double-click leaves the preference alone.
       fireEvent.doubleClick(handle)
-      expect(localStorage.getItem('dsh.conversation.contentWidth')).toBe('970')
+      expect(localStorage.getItem('dsh.conversation.contentWidth')).toBe('1074')
     } finally {
       for (const [name, descriptor] of originals) {
         if (descriptor === undefined) Reflect.deleteProperty(Element.prototype, name)

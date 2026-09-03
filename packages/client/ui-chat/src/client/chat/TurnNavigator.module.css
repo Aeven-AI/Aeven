@@ -23,8 +23,11 @@
   position: absolute;
   top: calc(var(--turn-rail-band) / 2);
   /* Flush with the scrollport edge: the slot sits inside the transcript's side
-     padding, so the rail gives that inset back and keeps 12px of its own. */
-  right: calc(12px - (var(--dsh-composer-side-clearance) + 16px));
+     padding, so the rail gives that inset back and keeps 12px of its own. That
+     padding is the side clearance alone (ChatView `.scroll`) — the composer's
+     extra 16px card inset does not apply to this containing block, and adding
+     it pushed the rail 4px past the scrollport into a horizontal scrollbar. */
+  right: calc(12px - var(--dsh-composer-side-clearance));
   width: 28px;
   /* Fixed-pitch marks never compress: a ladder taller than the band scrolls
      inside this frame instead of pushing marks under the composer or above

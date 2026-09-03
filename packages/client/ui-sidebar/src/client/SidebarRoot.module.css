@@ -1,19 +1,23 @@
-/* Sidebar column (figma 133:7629): vertical stack, padding 12/6, sidebar
-   fill + 1px right border painted by the layout column. Collapse is a
+/* Sidebar column: Aeven's 280px translucent panel uses an 8px top inset,
+   full-width 40px rows, and a single 20px outer corner. Collapse is a
    slide + crossfade, not a morph: the content holds its frozen expanded
    layout (inline width set by the component) and fades in place (.fading)
-   while the sliding column (AppFrame grid tracks) clips it; the rail layout
-   (.collapsed) only applies after the fade settles, so nothing reflows
+   while the sliding column (AppFrame grid tracks) clips it; the collapsed
+   trigger layout only applies after the fade settles, so nothing reflows
    mid-slide. */
 
 .root {
-  --dsh-sidebar-inline-padding: 12px;
+  --dsh-sidebar-inline-padding: var(--dsw-aeven-sidebar-row-inset);
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 6px var(--dsh-sidebar-inline-padding);
+  padding: 8px 0 0;
   box-sizing: border-box;
   background: var(--dsw-specific-sidebar-fill);
+  border-radius: 0 var(--dsw-aeven-sidebar-panel-radius) 0 0;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  box-shadow: inset -1px 1px 0 0 rgb(255, 255, 255);
   color: var(--dsw-alias-label-primary);
   font-size: 14px;
   /* The sidebar is elevated above the conversation surface, so a revealed
@@ -22,31 +26,32 @@
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 
-/* Rail geometry (figma rail spec): 36x36 control boxes centered in the 56px
-   rail (10px side padding), 12px vertical rhythm, 18px from the rail top to
-   the whale's box (24px to the 24-wide whale glyph itself). */
+/* A collapsed sidebar contributes no layout width. Its Aeven-sized hamburger
+   is fixed at the upper-left so the hidden panel can always be reopened. */
 .root.collapsed {
-  padding: 18px 10px 6px;
+  width: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
 }
 
 /* Scrollbars in the column are a pointer affordance: the shell adds this
    class whenever the pointer is not inside (SidebarRoot.tsx owns the linger),
    and rebinding ui-theme's indirection pair to `transparent` takes the thumb
-   out of every scroll region nested under it — the workspace browser's
-   session list. `transparent` rather than `display: none` on the bar:
-   the reservation (`scrollbar-gutter: stable` on the list) stays in force, so
-   revealing the thumb never reflows a row. Rebinding contract and the two
-   rendering paths it reaches: ui-theme's README. */
+   out of the workspace browser's session list. Rebinding details live in
+   ui-theme's README. */
 .root.quietBars {
   --dsh-scrollbar-thumb: transparent;
   --dsh-scrollbar-thumb-hover: transparent;
 }
 
-/* Collapse phase 1: the whole frozen-width content fades out in place over
-   150ms; at settle the children unmount/snap to the rail layout. */
-.fading > * {
+/* Collapse phase 1: panel content fades while the hamburger stays available. */
+.fading > :not(.logoRow) {
   opacity: 0;
-  transition: opacity 150ms var(--ds-ease-in-out);
+  transition: opacity var(--dsw-aeven-sidebar-transition-duration) linear;
 }
 
 /* Wide-only content fades back in on expand remount. */
@@ -58,52 +63,29 @@
   from { opacity: 0; }
 }
 
-/* At the 150ms rail settle, the four upper controls enter from the former
-   rail right edge over the remaining 150ms of the AppFrame track transition.
-   The bottom-pinned settings seat shares their opacity timeline but stays
-   horizontally fixed. Only a live collapse gets .railIn; a cold collapsed
-   render stays static. */
-.railIn .iconButton,
-.railIn .newSession,
-.railIn .regionArea {
-  animation: rail-in 150ms var(--ds-ease-in-out) backwards;
-}
-
-.railIn .footArea {
-  animation: rail-fade-in 150ms var(--ds-ease-in-out) backwards;
-}
-
-@keyframes rail-in {
-  from {
-    opacity: 0;
-    transform: translateX(49px);
-  }
-}
-
-@keyframes rail-fade-in {
-  from { opacity: 0; }
-}
-
-/* Logo row (figma pad (4,8,4,8)): expanded keeps the panel toggle at the
-   right edge; the rail gives every control the same base left anchor before
-   the shared entry translation is applied. */
+/* Aeven's menu button spans the row, with its 18px glyph starting at x=24. */
 .logoRow {
   flex: none;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  height: 60px;
-  padding: 8px 0 8px 4px;
-  margin-bottom: 8px;
+  justify-content: flex-start;
+  gap: 0;
+  height: var(--dsw-aeven-control-size);
+  padding: 0;
+  margin-bottom: 0;
   box-sizing: border-box;
   overflow: hidden;
 }
 
 .collapsed .logoRow {
-  height: 36px;
+  position: fixed;
+  z-index: 51;
+  top: 8px;
+  left: 0;
+  width: var(--dsw-aeven-sidebar-toggle-width);
+  height: var(--dsw-aeven-control-size);
   padding: 0;
-  margin-bottom: 12px;
+  margin: 0;
   justify-content: flex-start;
 }
 
@@ -112,9 +94,9 @@
    emphasis only). A button only in behavior (New Session shortcut): the
    pointer cursor is the sole affordance — no hover chrome on the mark. */
 .brand {
+  display: none;
   flex: 1;
   min-width: 0;
-  display: inline-flex;
   align-items: center;
   overflow: hidden;
   padding: 0;
@@ -161,8 +143,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: var(--dsw-aeven-control-size);
+  height: var(--dsw-aeven-control-size);
   border: none;
   border-radius: 50%;
   corner-shape: round;
@@ -172,34 +154,29 @@
   color: var(--dsw-alias-label-secondary);
 }
 
+.toggle {
+  width: 100%;
+  border-radius: 0;
+  padding: 0 var(--dsh-sidebar-inline-padding);
+  justify-content: flex-start;
+}
+
+.toggleEnd {
+  flex: none;
+  margin-left: auto;
+  color: rgb(150, 150, 150);
+}
+
 .iconButton:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
 }
 
 .collapsed .iconButton {
-  width: 36px;
-  height: 36px;
-}
-
-/* Rail logo swap: collapsed, the toggle rests as the whale mark (brand ink,
-   no hover circle) and hovering reveals the panel icon — the expand
-   affordance (figma sidebar-hover flow). Expanded it is a plain panel icon. */
-.collapsed .toggle .panelIcon {
-  display: none;
-}
-
-.collapsed .toggle:hover .panelIcon {
-  display: inline;
-}
-
-.collapsed .toggle:hover .railMark {
-  display: none;
-}
-
-.railMark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  width: var(--dsw-aeven-sidebar-toggle-width);
+  height: var(--dsw-aeven-control-size);
+  padding: 0 0 0 24px;
+  justify-content: flex-start;
+  pointer-events: auto;
 }
 
 /* Rail icons ride the primary ink (figma rail spec); expanded keeps the
@@ -209,39 +186,39 @@
 }
 
 
-/* New Session: 38px bar, 12px radius (figma 133:7634 geometry, squared-off
-   corners); collapsed it renders as the rail's plain icon control. */
+/* New Session uses Aeven's full-width sidebar row and is absent when closed. */
 .newSession {
   flex: none;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 38px;
-  padding: 8px 16px;
-  margin: 0 2px 8px;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  height: var(--dsw-aeven-control-size);
+  padding: 0 var(--dsh-sidebar-inline-padding);
+  margin: 0 0 16px;
   box-sizing: border-box;
-  border: 0.5px solid var(--dsw-alias-border-l3);
-  border-radius: 12px;
-  background: var(--dsw-alias-button-elevated-fill);
+  border: none;
+  border-radius: 0;
+  background: transparent;
   color: var(--dsw-alias-label-primary);
   font-size: 14px;
-  font-weight: 500;
-  line-height: 22px;
+  font-weight: 450;
+  line-height: var(--dsw-aeven-control-size);
   cursor: pointer;
   overflow: hidden;
 }
 
 .newSession:hover {
-  background: var(--dsw-alias-button-floating-hover);
+  color: var(--dsw-alias-label-primary);
 }
 
 .collapsed .newSession {
   align-self: flex-start;
-  width: 36px;
-  height: 36px;
+  width: var(--dsw-aeven-control-size);
+  height: var(--dsw-aeven-control-size);
   padding: 0;
-  margin: 0 0 12px;
+  margin: 0 0 16px;
   gap: 0;
   border-color: transparent;
   background: transparent;
@@ -249,6 +226,12 @@
 
 .collapsed .newSession:hover {
   background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.collapsed .newSession,
+.collapsed .regionArea,
+.collapsed .footArea {
+  display: none;
 }
 
 .newSessionLabel {
@@ -261,17 +244,14 @@
   max-width: 0;
 }
 
-/* Region seat: always mounted so the foot never moves. Its trailing margin
-   cancels the wide shell inset so the nested scrollbar can sit at the sidebar
-   edge; the browser restores that inset inside its own rows. */
+/* Region seat stays full-width so every browser row owns the same inset. */
 .regionArea {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  margin-left: -4px;
-  margin-right: calc(-1 * var(--dsh-sidebar-inline-padding));
-  padding-left: 4px;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
 }
 
@@ -313,11 +293,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .wide,
-  .fading > *,
-  .railIn .iconButton,
-  .railIn .newSession,
-  .railIn .footArea,
-  .railIn .regionArea {
+  .fading > :not(.logoRow) {
     transition: none;
     animation: none;
   }

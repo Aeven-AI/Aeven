@@ -4,6 +4,8 @@ Status: implemented
 
 [English](2026-08-04-web-composer-shared-width-axis.md) | 中文
 
+> [Aeven 视觉语言决策](../process/2026-09-03-aeven-web-visual-language.zh.md)以统一的 1024px 上限取代 748px 自适应基线及 composer 加 32px 的关系。本文关于共享轴归属、宽度手柄、container query 与浮层菜单的决策仍然有效。
+
 ## 问题
 
 Web 会话列的各个区域各自独立设定尺寸：transcript（文本记录）列、输入卡片、todo/goal/queue 停靠卡片、ask-question/approval/plan-review 接管卡片各自硬编码 max-width（736/752/776/800px 等变体）与各自的侧边内边距。这些区域在全宽下彼此漂移几个像素，在窄视口下偏差更大——有的面板保留了到屏幕边缘的间隙，有的却贴边。另外，输入卡片的控制行没有自适应行为——窄卡片下权限触发器的文字标签会挤压整行；锚定在卡片上的浮层菜单也可能渲染得比卡片更宽，越过其右边缘。

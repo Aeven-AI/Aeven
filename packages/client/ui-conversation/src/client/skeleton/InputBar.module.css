@@ -3,11 +3,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* Side pads ride the shared clearance (figma Input_Bottom drew L32/R32/B8;
-     the sides narrow with the shared width axis); the bottom gradient mask
-     is owned by the chat scroller. No top pad: the composer stack's gap owns
-     the space above; the status strip still carries its own margin. */
-  padding: 0 var(--dsh-composer-side-clearance) 8px;
+  /* Side pads ride the theme-owned page inset. The composer stack owns the
+     space above; the bottom gradient mask belongs to the chat scroller. */
+  padding: 0 var(--dsh-composer-side-clearance) 16px;
 }
 
 .hero {
@@ -34,26 +32,27 @@
   position: relative; /* overlay anchor positioning context */
   display: flex;
   flex-direction: column;
-  /* figma Input 75:8208: 12px between the text area and the button row; 10px
-     top pad on the card before .InputText. */
+  /* Aeven composer spacing between the draft and B's control row. */
   gap: 12px;
   width: 100%;
   max-width: var(--dsh-composer-card-max-width);
-  padding-top: 10px;
-  /* Input stroke: the light neutral (l2, one step above the menus' l1),
-     drawn as the elevation hairline so it costs no layout; the shadow is the
-     soft elevation tier. Fill: the input surface token (elevated in dark). */
+  min-height: 124px;
+  padding-top: 14px;
+  /* The Aeven composer is a flat surface; contrast comes from the canvas. */
   border: 0;
-  --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);
-  border-radius: 22px;
+  --dsw-elevation-stroke-color: transparent;
+  border-radius: var(--dsw-aeven-radius-surface);
+  /* Aeven draws the composer with a plain 30px arc; opt the card out of the
+     theme's global superellipse so the silhouette matches. */
+  corner-shape: round;
   background: var(--dsw-specific-input-major);
-  box-shadow: var(--dsw-elevation-soft);
+  box-shadow: none;
   /* The draft text follows the Settings font-size preference (the textarea,
      mirror, and backdrop all inherit from here, so the three layers stay in
      step); the line height keeps the default 10px leading via the shared px
      delta. */
   font-size: var(--dsh-content-font-size, 14px);
-  line-height: calc(24px + var(--dsh-content-font-delta, 0px));
+  line-height: calc(var(--dsw-aeven-reading-line-height) + var(--dsh-content-font-delta, 0px));
   /* Elevated surface in dark, same as the menus: the draft scrollport inside
      scrolls once the composer hits its height cap, so the thumb takes the l2
      pair. Declared on the card because the elevation belongs to the surface,
@@ -78,7 +77,7 @@
   content: '';
   position: absolute;
   inset: -1px;
-  border-radius: 22px;
+  border-radius: var(--dsw-aeven-radius-surface);
   background: var(--dsw-alias-border-l4);
   transition: background-color 100ms ease;
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='none' rx='22' ry='22' stroke='black' stroke-width='2' stroke-dasharray='4 4'/%3E%3C/svg%3E");
@@ -116,6 +115,8 @@
    contenteditable grows with its content inside; the 14-line cap lives here
    because this is the box the cap describes. */
 .scroll {
+  flex: 1 1 auto;
+  min-height: 30px;
   max-height: var(--dsh-composer-text-max-height);
   overflow-y: auto;
   /* Keeps the bar off the card's right border; .input's right pad gives the
@@ -123,10 +124,9 @@
   margin-right: 4px;
 }
 
-/* The card's 22px corner arc still overlaps the scrollport's top (10px top
-   pad reaches only y=10): start the thumb's travel below the arc so it never
-   pokes outside the capsule. WebKit-path only; Firefox's thin bar has no
-   track margin, an accepted remainder. */
+/* The card's corner arc still overlaps the scrollport's top: start the thumb's
+   travel below the arc so it never pokes outside the capsule. WebKit-path
+   only; Firefox's thin bar has no track margin, an accepted remainder. */
 .scroll::-webkit-scrollbar-track {
   margin-top: 8px;
 }
@@ -220,7 +220,7 @@
   /* 2px moved from the bottom pad to the top: the whole control row sits 2px
      lower in the card (it read too high against the textarea) while the card
      height and the controls' own centering stay untouched. */
-  padding: 2px 8px 6px;
+  padding: 0 16px 16px;
   min-width: 0;
   /* Size container so the chips inside can collapse to icon-only when the
      card runs out of row width (PermissionSelect @container rule). Anonymous
@@ -259,17 +259,19 @@
   gap: 12px;
 }
 
-/* Attach circle (figma + control): 28px, selector fill, primary glyph. */
+/* Attach circle, Aeven `.loader-icon-button.outline`: a transparent 40px disc
+   in a 1.5px ink ring, so it reads as the same control as the send circle at
+   the row's other end rather than as a filled chip. */
 .add {
   display: grid;
   place-items: center;
   flex: none;
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: 999px;
+  width: var(--dsw-aeven-control-size);
+  height: var(--dsw-aeven-control-size);
+  border: 1.5px solid var(--dsw-alias-label-primary);
+  border-radius: var(--dsw-aeven-radius-control);
   corner-shape: round;
-  background: var(--dsw-specific-selector);
+  background: transparent;
   color: var(--dsw-alias-label-primary);
   cursor: pointer;
 }
@@ -287,10 +289,10 @@
    (figma ToggleButton: 13/20 medium secondary, 12px chevron). */
 .select {
   max-width: 220px;
-  height: 28px;
-  padding: 0 20px 0 8px;
+  height: var(--dsw-aeven-control-size);
+  padding: 0 28px 0 14px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--dsw-aeven-radius-control);
   outline: none;
   background-color: transparent;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2381858C' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
@@ -300,7 +302,7 @@
   color: var(--dsw-alias-label-secondary);
   font-size: 13px;
   line-height: 20px;
-  font-weight: 500;
+  font-weight: 450;
   white-space: nowrap;
   cursor: pointer;
   appearance: none;
@@ -315,36 +317,47 @@
   cursor: default;
 }
 
-/* Primary send (figma IconButton 34:10465): 34px circle, #3964FE light /
-   #679EFE dark — the info-fill pair (500→400), NOT button-primary (ink);
-   white glyph; empty text = 0.4 opacity. */
+/* Send: Aeven's resting state is `.chat-input-button.outline` — the same
+   transparent 40px circle in a 1.5px ink ring the attach control wears — and
+   it fills in below once the draft can actually be sent. */
 .primary {
   display: grid;
   place-items: center;
   flex: none;
-  width: 34px;
-  height: 34px;
-  border: none;
-  border-radius: 999px;
+  width: var(--dsw-aeven-control-size);
+  height: var(--dsw-aeven-control-size);
+  border: 1.5px solid var(--dsw-alias-label-primary);
+  border-radius: var(--dsw-aeven-radius-control);
   corner-shape: round;
-  background: var(--dsw-alias-button-info-fill);
-  /* Static white, not the foreground token: the arrow stays white on the blue
-     fill in both themes (design 34:10465). */
-  color: #fff;
+  background: transparent;
+  /* Semantic label color keeps the arrow legible in both themes. */
+  color: var(--dsw-alias-label-primary);
   cursor: pointer;
   transition: background-color 100ms ease;
   /* Opts out of the row's 2px downward shift (.row top pad): the send circle
      keeps its original seat while the smaller chips sit lower. Transform, not
      margin, so flex centering math is untouched. */
-  transform: translateY(-2px);
+  transform: none;
 }
 
-.primary:hover:not(:disabled) {
-  background: var(--dsw-alias-button-info-hover);
+/* Aeven drops the `outline` class the moment the draft carries content: solid
+   ink disc, contrast glyph, no ring. The button is disabled exactly while the
+   draft cannot be sent, so `:enabled` is that same signal. The ring turns
+   transparent rather than going to `none` (Aeven's literal value) to keep the
+   40px box identical across the swap. */
+.primary:enabled {
+  border-color: transparent;
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
 }
 
+.primary:hover:enabled {
+  background: var(--dsw-alias-button-primary-hover);
+}
+
+/* No opacity here: Aeven's empty-draft send is a full-strength outline, the
+   same weight as the attach circle beside it, not a dimmed control. */
 .primary:disabled {
-  opacity: 0.4;
   cursor: default;
 }
 

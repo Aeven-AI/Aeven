@@ -40,7 +40,7 @@ function readWidthPreference(): number | null {
 function resolveContentWidth(columnWidth: number, preference: number | null): number {
   const max = Math.max(CONTENT_MIN, columnWidth - CONTENT_EDGE_BUDGET)
   if (preference !== null) return Math.min(Math.max(preference, CONTENT_MIN), max)
-  return Math.max(680, Math.min(columnWidth * 0.64, 920))
+  return Math.max(CONTENT_MIN, Math.min(columnWidth - 48, 1024))
 }
 
 /** One transcript width handle: pointer capture + rAF-throttled symmetric
@@ -144,6 +144,7 @@ export function ConversationRoot({
   const inputState = useInput(s => s)
   const cwd = useSessions(s => sessionId === undefined ? undefined : s.byId[sessionId]?.cwd)
   const summaryBlank = useSessions(s => sessionId === undefined ? undefined : s.byId[sessionId]?.blank)
+  const sessionsPending = useSessions(s => s.phase) === 'pending'
   const workspaces = useWorkspaces(s => s)
   // A plugin this package cannot import (ui-model-selection) says this session cannot
   // send; its reason is already localized by whoever raised it.
@@ -213,7 +214,7 @@ export function ConversationRoot({
   const onHandleStart = useCallback((): number => {
     const root = rootEl.current
     /* v8 ignore next -- handles render inside the root, so the ref is always attached. */
-    if (root === null) return 680
+    if (root === null) return CONTENT_MIN
     return resolveContentWidth(root.offsetWidth, readWidthPreference())
   }, [])
   const onHandleDrag = useCallback((width: number): void => {
@@ -265,10 +266,16 @@ export function ConversationRoot({
   // hidden instead of briefly rendering the parent-offline takeover.
   const parentAvailabilityPending = session?.subagent?.address.mode === 'continuable'
     && session.subagent.parentAvailable === undefined
-  const settling = sessionId !== undefined && (
+  // The same unknowable choice one step earlier: before the list's first pull
+  // lands, no session is selected YET, and `sessionId === undefined` reads as
+  // the cold-start hero. Restoring a session with history then replaces that
+  // centered empty composer with the docked bar. A pending list carries no
+  // evidence either way, so settle until it is ready; an empty ready list is
+  // the genuine cold start and falls through to the hero below.
+  const settling = (sessionId === undefined && sessionsPending) || (sessionId !== undefined && (
     (shellPhase === 'blank' && openState === 'loading' && summaryBlank !== true)
     || parentAvailabilityPending
-  )
+  ))
   const hero = sessionId === undefined
     || (shellPhase === 'blank' && (openState === 'open' || summaryBlank === true))
   const zone: InputZone | undefined =

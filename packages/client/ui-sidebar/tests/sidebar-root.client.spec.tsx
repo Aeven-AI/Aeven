@@ -133,9 +133,9 @@ describe('SidebarRoot shell', () => {
     vi.useFakeTimers()
     const b = mountShell()
     b.rerender({ collapsed: true })
-    // Wide content survives the crossfade window, then settles into the rail.
+    // Wide content survives Aeven's 400ms transition, then settles closed.
     expect(b.regionOwner().wide).toBe(true)
-    vi.advanceTimersByTime(200)
+    vi.advanceTimersByTime(450)
     b.rerender({})
     expect(b.regionOwner().wide).toBe(false)
     expect(b.footerActionOwner().wide).toBe(false)

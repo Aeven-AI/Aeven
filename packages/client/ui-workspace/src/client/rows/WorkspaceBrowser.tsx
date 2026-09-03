@@ -2,9 +2,9 @@
  * The workspace/session browsing region filling the sidebar shell's
  * `sidebar.workspaces` hole: section header (title + view options + add
  * workspace), search, the grouped tree or flat list, and the workspace
- * dialogs. Wide state renders the full browser; rail state renders the two
+ * dialogs. Wide state renders the full browser; closed state prepares the two
  * region icons (search / add workspace) as 36px controls on the shell's shared
- * rail entry path, each requesting expansion through the owner share. Adding
+ * compact controls, each requesting expansion through the owner share. Adding
  * is the header button's one action, so it raises the directory flow with no
  * menu in between; the flow and its error dialog live in WorkspacePicker
  * (same package — direct composition, no slot between them).
@@ -29,10 +29,10 @@ import { WorkspacePickFlow } from '../WorkspacePicker.tsx'
 import css from './WorkspaceBrowser.module.css'
 
 /**
- * Column slide length (--ds-transition-duration-slow): rail-search focus waits it out —
+ * Sidebar slide length: closed-state search focus waits it out —
  * focus() forces a synchronous layout and would jank the slide.
  */
-const EXPAND_SLIDE_MS = 300
+const EXPAND_SLIDE_MS = 400
 /** Pause between the latest keystroke and a Host content-search request. */
 const SEARCH_DEBOUNCE_MS = 250
 /** `session.search` wire bound, measured in JavaScript UTF-16 code units. */
@@ -1180,7 +1180,7 @@ export function WorkspaceBrowser({
         />
       </div>
 
-      {/* The collapsed rail keeps search as its own 36px control. */}
+      {/* Closed-state search remains available to alternate sidebar shells. */}
       {!wide && <div className={css.search}>
         <Tooltip label={t('search')}>
           <button

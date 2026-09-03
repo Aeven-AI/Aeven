@@ -3,18 +3,17 @@
   display: inline-flex;
 }
 
-/* Dropdown card (figma MenuDropdown 122:9481 / 419:16920): menu surface,
- * r12, elevation-prominent (hairline stroke in shadow), 4px inset padding. */
+/* Dropdown card: Aeven primary surface with prominent elevation. */
 .list,
 .submenu {
   /* min-widths below are the design's outer card widths — include the pad. */
   box-sizing: border-box;
-  padding: 4px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 0;
   border: 0;
-  border-radius: 20px;
+  border-radius: var(--dsw-aeven-radius-surface);
   background: var(--dsw-specific-menu);
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
   box-shadow: var(--dsw-elevation-prominent);
@@ -100,10 +99,10 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  min-height: 40px;
+  min-height: var(--dsw-aeven-control-size);
   padding: 8px 10px;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--dsw-aeven-radius-control);
   background: transparent;
   cursor: pointer;
   font-size: 14px;
