@@ -69,8 +69,9 @@ kind: "package-reference"
 
 | 文件 | 职责 |
 |---|---|
-| [`src/index.ts`](src/index.ts) | 插件入口：`PythonCodeRuntime`——spawn、帧 pump、预算、隔离、拆卸；重新导出协议词汇 |
+| [`src/index.ts`](src/index.ts) | 插件入口：`PythonCodeRuntime`——spawn、帧 pump、预算、隔离、拆卸；重新导出协议词汇与启动时间探针 |
 | [`src/protocol.ts`](src/protocol.ts) | 宿主侧：帧 codec、敌意帧校验器、无损 JSON 计量器、共享标记文本 |
+| [`src/process-start.ts`](src/process-start.ts) | Linux `/proc` 启动时间探针，为拆除流程提供 (pid, started) 身份 |
 | [`py/bootstrap.py`](py/bootstrap.py) | 子进程侧：fd-3 通道、程序执行、binding 分发、账本与结算 |
 | [`py/protocol.py`](py/protocol.py) | Python 侧：`PROTOCOL_FD`、`TypedDict` 帧镜像、`log_truncation_marker` |
 | [`tests/runtime.spec.ts`](tests/runtime.spec.ts) | 真实子进程套件：预算、隔离、敌意帧、名称重绑 |

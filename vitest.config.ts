@@ -89,6 +89,14 @@ const windowsRunnerCoverageExclusions = process.platform === 'win32'
   ? ['packages/sandbox/sandbox-windows-acl/src/runner.ts']
   : []
 
+// Linux-only sources: their bodies read `/proc`, which no other platform has,
+// so a macOS host can never reach the per-file 100% bar on them. The Linux
+// coverage lane enforces it; Windows already excludes the whole package
+// (windowsUnsupportedCoveragePackages), and there is no macOS lane in CI.
+const linuxOnlyCoverageExclusions = process.platform !== 'linux'
+  ? ['packages/experimental/code-runtime-python/src/process-start.ts']
+  : []
+
 // pwsh-local's run/start/lifecycle suites self-skip without a real pwsh
 // (executor.spec.ts hasPwsh), leaving this file
 // far below per-file 100% on pwsh-less hosts; the exemption keeps those hosts
@@ -353,6 +361,7 @@ export default defineConfig({
         ...windowsUnsupportedCoveragePackages.map(path => `${path}/src/**/*.ts`),
         ...windowsOnlyCoverageExclusions,
         ...windowsRunnerCoverageExclusions,
+        ...linuxOnlyCoverageExclusions,
         ...pwshCoverageExclusions,
       ],
       // 100% or it doesn't merge (docs/testing.md: excessive tests are welcome).

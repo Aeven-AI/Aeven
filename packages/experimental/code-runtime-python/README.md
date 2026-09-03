@@ -69,8 +69,9 @@ Completion values and binding arguments cross as exact JSON: values serialize wi
 
 | File | Role |
 |---|---|
-| [`src/index.ts`](src/index.ts) | Plugin entry: `PythonCodeRuntime` — spawn, frame pump, budgets, containment, teardown; re-exports the protocol vocabulary |
+| [`src/index.ts`](src/index.ts) | Plugin entry: `PythonCodeRuntime` — spawn, frame pump, budgets, containment, teardown; re-exports the protocol vocabulary and the start-time probe |
 | [`src/protocol.ts`](src/protocol.ts) | Host side: frame codec, hostile-frame validators, lossless-JSON meters, shared marker text |
+| [`src/process-start.ts`](src/process-start.ts) | The Linux `/proc` start-time probe that gives teardown its (pid, started) identity |
 | [`py/bootstrap.py`](py/bootstrap.py) | Child side: fd-3 channel, program execution, binding dispatch, ledger and settlement |
 | [`py/protocol.py`](py/protocol.py) | Python side: `PROTOCOL_FD`, `TypedDict` frame mirrors, `log_truncation_marker` |
 | [`tests/runtime.spec.ts`](tests/runtime.spec.ts) | Real-subprocess suite: budgets, containment, hostile frames, name rebinding |

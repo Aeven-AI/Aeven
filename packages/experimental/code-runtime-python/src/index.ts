@@ -11,7 +11,7 @@
  */
 
 import { execFileSync, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { accessSync, copyFileSync, constants as fsConstants, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { accessSync, copyFileSync, constants as fsConstants, mkdtempSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -23,6 +23,7 @@ import { CodeRuntime, DUNDER_MEMBER, PORTABLE_RESERVED_WORDS, RESERVED_BINDING_G
 import type { CodeBindingErrorClass, CodeBindingFunction, CodeJsonValue, CodeRunFailure, CodeRunRequest, CodeRunResult } from '@deepseek-ai/dsh-code-runtime'
 import { snapshotJsonValue } from '@deepseek-ai/dsh-util-values'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
+import { readProcessStart } from './process-start.ts'
 import type { BootMessage, ChildToHost, ReplyMessage } from './protocol.ts'
 import { checkDoneValue, encodeJsonPlain, hasUnsafeIntegerToken, logTruncationMarker, validateChildFrame } from './protocol.ts'
 
@@ -37,6 +38,10 @@ export {
   logTruncationMarker,
   validateChildFrame,
 } from './protocol.ts'
+
+// The teardown identity probe keeps this entry's public surface while living
+// in its own module; see process-start.ts for why it is split out.
+export { readProcessStart } from './process-start.ts'
 
 /** Plugin config: every cap, changeable from `cordis.yml` (no hardcoded tunables). */
 export interface Config {
@@ -414,38 +419,6 @@ function messageOf(error: unknown): string {
     // conversion. Nothing else runs inside the try, and the placeholder is a
     // literal, so this cannot throw again.
     return '<unrenderable rejection value>'
-  }
-}
-
-/**
- * A process's start time, as the identity half of (pid, started).
- *
- * A pid is reusable the moment the kernel reaps it, so signalling one that a
- * later process inherited would terminate an unrelated process group. Start
- * time is what distinguishes the original from its replacement: `kill(pid, 0)`
- * answers "does this number exist", which is true for both.
- *
- * Linux reads field 22 of `/proc/<pid>/stat` (starttime in clock ticks); the
- * field is positional after the comm field's closing parenthesis, which is
- * parsed from the LAST such character because a process name may contain one.
- * Darwin has no `/proc`, so the caller gets `undefined` there and `killGroup`
- * signals the pgid without the identity re-check rather than paying a `ps`
- * fork on a teardown path. Any read failure is `undefined` for the same
- * reason: this
- * hardens a narrow race and must never be the thing that breaks teardown.
- * @param pid - the process to read.
- * @returns its start time, or undefined when unavailable.
- */
-export function readProcessStart(pid: number): string | undefined {
-  /* v8 ignore next -- one arm per platform: the Linux coverage lane always takes the read path, and Darwin always this one. */
-  if (process.platform !== 'linux') return undefined
-  try {
-    const stat = readFileSync(`/proc/${String(pid)}/stat`, 'utf8')
-    const fields = stat.slice(stat.lastIndexOf(')') + 2).split(' ')
-    // Field 22 overall; the slice above dropped pid and comm, so it is index 19.
-    return fields[19]
-  } catch {
-    return undefined
   }
 }
 
