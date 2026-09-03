@@ -39,11 +39,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
         with:
           dest: ${{ runner.temp }}/setup-pnpm
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.PRIMARY_NODE_VERSION }}
 
@@ -57,7 +57,7 @@ jobs:
 
       # Read-only: the preview lane consumes the default-branch cache without
       # putting cache upload on its own path.
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           path: ${{ steps.pnpm-store.outputs.path }}
           key: ${{ runner.os }}-node-${{ env.PRIMARY_NODE_VERSION }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}

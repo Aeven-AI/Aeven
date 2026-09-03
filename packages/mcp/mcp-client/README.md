@@ -116,7 +116,7 @@ This section explains the design decisions behind the bridge and points at the c
 | [`src/connection.ts`](src/connection.ts) | Connection supervisor: client generations, reconnect policy, attempt budget, disposal |
 | [`src/tools.ts`](src/tools.ts) | Tool bridge: discovery, naming, registration swap, execution, image projection |
 | [`src/transport.ts`](src/transport.ts) | Transport factory: stdio spawn with scrubbed env, Streamable HTTP |
-| [`src/invariant.ts`](src/invariant.ts) | Invariant companion (no runtime invariant; generations are observable only through the tool registry) |
+| — | No runtime invariant companion is published; MCP generations contribute through the tool registry, but the bridge exposes no independent server-to-tool snapshot after an asynchronous resync. |
 
 ### Lifecycle and sync
 
@@ -131,6 +131,8 @@ A tool call sends an uncached `tools/call` request carrying the raw MCP name, th
 ### Environment scrubbing (stdio)
 
 The child environment starts from the subprocess seam's `scrubbedParentEnv()` — ambient names matching `/KEY|PASSWORD|SECRET|TOKEN/i` and ambient `DSH_*` names are dropped — and the configured `env` merges on top, so explicit overrides survive. The MCP SDK owns the actual spawn; this package shares the scrub definition, not the spawn path.
+
+The child's stderr is piped rather than inherited, and each complete line is logged at debug level under the server's label. A server that greets on stderr — or the `npx` that warns before it execs one — would otherwise write those lines straight over the Host's own startup output.
 
 </details>
 

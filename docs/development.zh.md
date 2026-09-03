@@ -54,12 +54,12 @@ pnpm run typecheck
 | `tsconfig.json` | solution 根：`extends` base、`files: []`、引用两个 aggregate。它是 tsserver 发现入口，也是显式执行整张 Project Reference 图时的入口；经继承的 `paths` 充当 tsx 运行 `scripts/` 时的解析配置。 | 否 |
 | `tsconfig.host.json` | Host aggregate：Host 包、示例、测试、脚本和 website，以及 `api/remotes` 的 Host 特例 project。 | 是 |
 | `tsconfig.client.json` | Client aggregate：`packages/client/*` 包及其测试、`apps/web`，以及 `api/remotes` 的 Client 特例 project。 | 是 |
-| `tsconfig.base.json` | 共享 compilerOptions 与源码 `paths` 映射。同时是各 vitest 配置让 vite-tsconfig-paths 指向的解析门面：它没有 `include`，因此其 `paths` 适用于任何 importer。 | 否 |
+| `tsconfig.base.json` | 共享 compilerOptions 与源码 `paths` 映射：由每个编译器项目继承，并由每个 Vitest 配置读取一次，用以构建所有测试文件所经的别名映射。 | 否 |
 | `tsconfig.base.client.json` | 浏览器编译设置（`jsx`、DOM lib、`types: []`），由 Client aggregate 和每个 `packages/client/*` 包 extends。 | 否 |
 
-Host 与 Client 保持两个 aggregate program，是因为两侧在相同键下以不同服务对 cordis `Context` 接口做声明合并；单一 program 同时看到两份合并会报冲突。这种冲突只存在于 `ts.Program` 内部——模块解析永远不会触发它——所以 solution 可以同时引用两个 aggregate，一个 paths 门面也可以横跨两侧。由此推出三条纪律：
+Host 与 Client 保持两个 aggregate program，是因为两侧在相同键下以不同服务对 cordis `Context` 接口做声明合并；单一 program 同时看到两份合并会报冲突。这种冲突只存在于 `ts.Program` 内部——模块解析永远不会触发它——所以 solution 可以同时引用两个 aggregate，一份 `paths` 映射也可以横跨两侧。由此推出三条纪律：
 
-- `tsconfig.base.json` 永不添加 `include` 或 `files`：它们会泄漏进每个 extends 它的包项目，并收窄门面的全匹配范围。
+- `tsconfig.base.json` 永不添加 `include` 或 `files`：它们会泄漏进每个 extends 它的包项目。
 - 构造全仓 `ts.Program` 的脚本显式以 `tsconfig.host.json` 或 `tsconfig.client.json` 为种子——根 solution 永不作为种子，因为把两个 aggregate 展平进一个 program 会撞上 `Context` 合并冲突。
 - 新包只登记进一个 aggregate；只有上述拆分包同时携带两个 leaf 配置，共享 leaf 因两侧需要对同一份源码做类型检查而登记进两个 aggregate。包同时具有 Node loader 入口和 browser 入口并不构成拆分理由；普通 Client 插件的两份运行时产物都在 Client 构建阶段生成。
 

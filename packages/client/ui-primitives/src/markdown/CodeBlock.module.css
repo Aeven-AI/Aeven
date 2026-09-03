@@ -1,5 +1,5 @@
 /* Visual baseline: deepsuite `@deepseek/md` code-block.css. Highlight colors
-   stay on the existing shiki `--shiki-*` sheet (not Prism highlight.css). */
+   stay on the theme highlight.js sheet. */
 
 .block {
   --dsl-code-block-banner-background-color: var(--dsw-alias-markdown-code-block-banner);
@@ -82,8 +82,7 @@
   border-bottom-right-radius: var(--dsl-code-block-border-radius);
 }
 
-/* Shiki inlines its theme background var; route it to the repo token. */
-.block :where(pre.shiki) {
+.block :where(pre.hljs) {
   background: var(--dsw-alias-markdown-code-block) !important;
 }
 

@@ -13,12 +13,14 @@ Status: implemented
 `MarkdownText` 直接渲染 mdast,并在流式期间增量解析:
 
 - **语法**([parse.ts](../../../../packages/client/ui-primitives/src/markdown/parse.ts)):`parseGfm`(流式臂与 `extractMarkdownPlainText`)和 `parseGfmWithMath`(定稿臂)以被替换的 remark 插件所包装的同一组 micromark 扩展调用 `mdast-util-from-markdown`,因此各处块边界完全一致。`mathCompatibility`(原 `remarkMathCompatibility`)现在直接导出其 micromark 扩展。
-- **增量解析**([incremental.ts](../../../../packages/client/ui-primitives/src/markdown/incremental.ts)):CommonMark 块解析按行推进,追加文本只会重塑解析前沿。`IncrementalMarkdownParser` 保留末尾两个块不稳定(最后一块是前沿;倒数第二块是安全裕量),冻结其前的所有块,只从最后一个冻结块的 `position.end.offset` 起重新解析源尾部——用的是解析器自己的偏移量,没有任何自制源扫描。每个源区间在整个流中解析 O(1) 次而非每 chunk 一次;单个巨型块(未闭合围栏)退化为旧的全量重解析成本,不会更差。非追加输入在递增的 generation 下重置状态。
-- **渲染**([render.tsx](../../../../packages/client/ui-primitives/src/markdown/render.tsx)、[katex.tsx](../../../../packages/client/ui-primitives/src/markdown/katex.tsx)):一个对 mdast 节点类型的 switch 取代 remark-rehype + react-markdown,逐字节复刻被替换管线的 DOM——表格对齐渲染为 `text-align` 样式、紧凑列表段落解包、任务列表类名与复选框空格、脚注区(其页内锚点本就被协议白名单降为纯文本)、字面 raw HTML、会与字面 HTML 文本相邻显形的分隔换行,以及 rehype-katex 的三臂容错链,KaTeX HTML 经浏览器自带的 `DOMParser` 映射为 React(无包裹元素,首/末子元素的 margin 规则仍能作用于 `.katex-display`;React 18 会把 `.katex-mathml` 子树放进 HTML 命名空间,与被替换管线完全一致——既有限制,不在本对等性约定范围内,对承担视觉渲染的 `.katex-html` 臂不可见)。冻结块缓存其 React 元素并保持源偏移 key,跨过冻结边界时走 reconcile 而非重挂载;`MarkdownText` 已 memo 化。
+- **增量解析**(`incremental.ts`,现已删除):CommonMark 块解析按行推进,追加文本只会重塑解析前沿。`IncrementalMarkdownParser` 保留末尾两个块不稳定(最后一块是前沿;倒数第二块是安全裕量),冻结其前的所有块,只从最后一个冻结块的 `position.end.offset` 起重新解析源尾部——用的是解析器自己的偏移量,没有任何自制源扫描。每个源区间在整个流中解析 O(1) 次而非每 chunk 一次;单个巨型块(未闭合围栏)退化为旧的全量重解析成本,不会更差。非追加输入在递增的 generation 下重置状态。
+- **渲染**(`render.tsx` 与 `katex.tsx`,现已删除):一个对 mdast 节点类型的 switch 取代 remark-rehype + react-markdown,逐字节复刻被替换管线的 DOM——表格对齐渲染为 `text-align` 样式、紧凑列表段落解包、任务列表类名与复选框空格、脚注区(其页内锚点本就被协议白名单降为纯文本)、字面 raw HTML、会与字面 HTML 文本相邻显形的分隔换行,以及 rehype-katex 的三臂容错链,KaTeX HTML 经浏览器自带的 `DOMParser` 映射为 React(无包裹元素,首/末子元素的 margin 规则仍能作用于 `.katex-display`;React 18 会把 `.katex-mathml` 子树放进 HTML 命名空间,与被替换管线完全一致——既有限制,不在本对等性约定范围内,对承担视觉渲染的 `.katex-html` 臂不可见)。冻结块缓存其 React 元素并保持源偏移 key,跨过冻结边界时走 reconcile 而非重挂载;`MarkdownText` 已 memo 化。
 
 DOM 由 `tests/fixtures/markdown-dom` 钉死:fixture 录制自替换前的 react-markdown 实现,新渲染器必须在空白规整序列化器下复现。fixture 差异即用户可见的 markdown 样式变更,必须按此评审,绝不能为重构而重录。`tests/markdown-incremental.spec.tsx` 承载等价性性质——以 1/3/7/16 字节分块,在每个追加前缀处,常驻组件的 DOM 都等于全新挂载——外加冻结边界的 DOM 节点同一性与重置行为。
 
-这推翻了[助手 Markdown Note](../feature/2026-07-23-web-assistant-markdown.zh.md) 中被否决的备选("维护一个自定义 React walker"):增量需求是当时不存在的新证据,walker 的安全敏感分支(URL 白名单、图片策略、惰性 HTML)本就是产品自有函数,而该依赖不再删减自有代码——它阻塞了架构。该 Note 的不可信输出策略与渲染器选型不变。
+这推翻了[已归档的助手 Markdown Note](../../archived/feature/2026-07-23-web-assistant-markdown.md) 中被否决的备选("维护一个自定义 React walker"):增量需求是当时不存在的新证据,walker 的安全敏感分支(URL 白名单、图片策略、惰性 HTML)本就是产品自有函数,而该依赖不再删减自有代码——它阻塞了架构。该 Note 的不可信输出策略与渲染器选型不变。
+
+该渲染器已不再随发行:[HyperMarkdown 引擎](2026-08-28-web-markdown-hypermarkdown-engine.zh.md)取代了它的增量解析器、mdast walker 与 KaTeX 桥接,那篇 Note 记录了为何按块冻结对本产品所渲染的回复而言是错误的约束。`parse.ts` 及其 micromark 扩展在那里存续,仍服务于 `extractMarkdownPlainText`。
 
 ## Alternatives considered
 

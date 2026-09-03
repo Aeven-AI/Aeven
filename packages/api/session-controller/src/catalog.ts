@@ -8,6 +8,23 @@ import type {
 } from './types.ts'
 
 /**
+ * Order two catalog entries by the label the browser actually shows, falling
+ * back to the id so entries sharing a name keep a stable order between calls.
+ * `numeric` makes version-bearing names read naturally — `GLM 5.2` before
+ * `GLM 5.3` before `GLM 5.10` — which a plain code-unit sort would not.
+ * @param left - first entry.
+ * @param right - second entry.
+ * @returns negative, zero, or positive in the usual comparator sense.
+ */
+function byDisplayName(
+  left: { id: string; name: string },
+  right: { id: string; name: string },
+): number {
+  return left.name.localeCompare(right.name, undefined, { numeric: true, sensitivity: 'base' })
+    || left.id.localeCompare(right.id, undefined, { numeric: true, sensitivity: 'base' })
+}
+
+/**
  * Build the browser model catalog without requiring a Session.
  * @param ctx - Host context carrying the live LLM registry.
  * @param defaultSelection - deployment default used before a Session selects a model.
@@ -44,7 +61,11 @@ export async function buildModelCatalog(
       }))
       return {
         kind: 'group' as const,
-        group: { id: provider.id, name: provider.name, models: entries },
+        // Registry order is the installed catalog followed by whatever a live
+        // refresh appended, which is not an order anyone can scan. The
+        // selector sorts for reading; `RouteCatalog` keeps configuration
+        // order for everything that dispatches.
+        group: { id: provider.id, name: provider.name, models: [...entries].sort(byDisplayName) },
       }
     } catch (error) {
       return {
@@ -61,7 +82,10 @@ export async function buildModelCatalog(
     default: { ...defaultSelection },
     routableProviders: providers.map(provider => provider.id),
     groups: catalog.flatMap(item => item.kind === 'group' ? [item.group] : [])
-      .filter(group => group.models.length > 0),
+      .filter(group => group.models.length > 0)
+      .sort(byDisplayName),
+    // Failures keep provider order: this is the diagnostic channel, not the
+    // list a person scans for a model.
     failures: catalog.flatMap(item => item.kind === 'failure' ? [item.failure] : []),
   }
 }

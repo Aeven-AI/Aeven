@@ -41,7 +41,17 @@ application combo 脚本在启动时注册插件 factory；模块主体仍保持
 
 ### 构建要求
 
-宿主提供的是已构建的客户端 bundle，因此启动前 `pnpm run build` 必须已产出每个 `lib/client.js`；缺失 bundle 会以一条构建说明加包／路径列表的方式让激活大声失败。源码启动会把宿主侧导入映射到 TypeScript 源码，但仍消费这一构建后的客户端导出。本包自身不接受任何插件配置。
+宿主提供的是已构建的客户端 bundle，因此启动前 `pnpm run build` 必须已产出每个 `lib/client.js`；缺失 bundle 会以一条构建说明加包／路径列表的方式让激活大声失败。源码启动会把宿主侧导入映射到 TypeScript 源码，但仍消费这一构建后的客户端导出。
+
+### 启动分批
+
+只要单个插件 bundle 能装入限制，宿主就会让每个生成的启动脚本不超过 `maxInitialBatchBytes`，同时让较长的 sourcemap URL 不超过 3 KiB。默认的 786432 字节限制让各 application 批次独立预加载并到达，避免把任意扩张的名册集中进一个请求。大于所配置字节限制的单个插件 bundle 会独占一个批次。
+
+| 字段 | 默认值 | 含义 |
+|---|---:|---|
+| `maxInitialBatchBytes` | `786432` | 单个 bundle 能装入限制时，初始 combo 中生成 JavaScript 的最大字节数。 |
+
+生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-client-modules)是所有可接受字段的完整来源。
 
 -----
 
@@ -65,11 +75,11 @@ application combo 脚本在启动时注册插件 factory；模块主体仍保持
 
 node 半侧逐包增量扫描——没有全量重扫路径。每次 `internal/plugin` 发出都会把该 fiber 的 entry 名标脏；一个微任务 flush 会把每个脏名与当前 loader 条目对账，激活 pass 播种同一脏集合并同步 flush，因此首次扫描与稳态共用同一实现。包元数据按 Loader specifier 与所属 tree base URL 缓存至重启，解析出的 manifest 包名作为浏览器模块身份。若不同的 active Loader source 解析到同一包名，组合会失败；移除冲突来源后，剩余来源无需重启 fiber 即可接替。bundle 内容变更只能通过 `rebuilt()`（HMR 钩子）进入图。
 
-node 半侧会在发布前快照每个客户端 bundle 及其现有 source map。它把资源分组到 `/plugins/??...&rev=...` combo URL：modules row 使用一个 bootstrap combo，其余 row 使用一个或多个 application combo；每个阶段都会在 URL 超过 3 KiB 之前分区。每个 combo map 都是 Indexed Source Map v3，并在可用时使用作者提供的 section，否则为已打包 bundle 生成 identity section。初始逐插件 revision 使用进程 nonce，所以启动时不哈希每个插件；HMR 只哈希被报告为已变化的产物。已公告响应不可变；未知组合或 revision 返回 404。
+node 半侧会在发布前快照每个客户端 bundle 及其现有 source map。它把资源分组到 `/plugins/??...&rev=...` combo URL：modules row 使用一个 bootstrap combo，其余 row 使用一个或多个 application combo；每个阶段都会按生成脚本字节分区，并在 URL 超过 3 KiB 之前切分。每个 combo map 都是 Indexed Source Map v3，并在可用时使用作者提供的 section，否则为已打包 bundle 生成 identity section。初始逐插件 revision 使用进程 nonce，所以启动时不哈希每个插件；HMR 只哈希被报告为已变化的产物。已公告响应不可变；未知组合或 revision 返回 404。
 
 ### 启动清单注入
 
-宿主 tap 索引渲染，并向 `<head>` 注入：`window.__ModuleLoader__` queue facade、每个 application combo 的提示性 preload、阻塞 parser 的 bootstrap combo 脚本，然后才是外壳读取前的启动图。facade 的 `create()` 物化 modules bundle、把构造委托给其 `createClientModuleSystem` 导出，并让同一 facade 进入 live registration 模式。
+宿主 tap 索引渲染，并向 `<head>` 注入：`window.__ModuleLoader__` queue facade、每个 application combo 的提示性 preload、带 `defer` 的 bootstrap combo 脚本，然后才是外壳读取前的启动图。facade 的 `create()` 物化 modules bundle、把构造委托给其 `createClientModuleSystem` 导出，并让同一 facade 进入 live registration 模式。
 
 ### 源码地图
 

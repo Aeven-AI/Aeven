@@ -25,8 +25,14 @@ const NAME = 'dsh-test-bin'
 
 const tmp = (): string => mkdtempSync(join(tmpdir(), 'dsh-user-patches-'))
 
+/**
+ * Await one filesystem notification reaching HMR. The deadline is the latency
+ * the watcher is allowed, not the latency it normally has: under the coverage
+ * lane both sides are instrumented, and a notification that arrives in under a
+ * second on its own has taken more than ten there.
+ */
 async function eventually(test: () => boolean, message: string): Promise<void> {
-  const deadline = Date.now() + 10_000
+  const deadline = Date.now() + 30_000
   while (!test()) {
     if (Date.now() >= deadline) throw new Error(message)
     await new Promise(resolve => setTimeout(resolve, 10))
@@ -343,7 +349,7 @@ describe('boot with user patches', () => {
     }
   })
 
-  it('watches add, failure, recovery, and removal through transactional HMR', { timeout: 20_000 }, async () => {
+  it('watches add, failure, recovery, and removal through transactional HMR', { timeout: 120_000 }, async () => {
     const dir = tmp()
     const userDir = tmp()
     const filename = join(userDir, PROFILE_PATCH_FILENAME)

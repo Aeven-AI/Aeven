@@ -1,8 +1,10 @@
 /** Tool UI slot declarations and their composed component props. */
-import type { ConnectionGenerationState } from '@deepseek-ai/dsh-client-connection/client'
-import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type {
+  HostObservable, InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime,
+} from '@deepseek-ai/dsh-client-ui-slots'
+import type { RemoteHostFacts } from '@deepseek-ai/dsh-api-remotes/client'
 import type { ToolCallBlock } from '@deepseek-ai/dsh-client-ui-chat/client'
-import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { RenderMessageImages } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -41,16 +43,27 @@ export interface ToolCallOwnerProps {
   openFile: (path: string) => void
   /** Inspect this call in the trajectory view when available. */
   inspect?: (() => void) | undefined
+  /**
+   * Render image content blocks a settled result carries. Absent when the
+   * composition mounts no attachment presentation, which leaves an
+   * image-producing tool with its text summary alone.
+   */
+  renderImages?: RenderMessageImages | undefined
 }
 
 /** Full props of a registered atomic Tool view. */
 export type ToolCallViewProps = PropsRuntime<'tool.call.toolview'>
 
 /** Injected Host description for POSIX home-path display. */
-export type ToolConnectionGenerationInjected = {
+export type ToolHostInfoInjected = {
   hooks: {
-    /** Current Connection generation, bound by the slot renderer. */
-    connectionGeneration: ConnectionGenerationState
+    /**
+     * Fixed Host facts, reached through a hook rather than injected as values:
+     * the renderer memoizes an entry's inject result for the registration's
+     * lifetime, so facts read there would freeze at whatever the first render
+     * saw. Select the field the view needs (`info => info.home`).
+     */
+    hostInfo: HostObservable<RemoteHostFacts>
   }
 }
 
@@ -58,9 +71,9 @@ export type ToolConnectionGenerationInjected = {
 export type ToolTreeProps = PropsRuntime<'conversation.chat.node', 'tool-call'>
   & PropsRenderSlots<'tool.call.toolview'>
   & PropsLocale<'conversation'>
-  & InjectFace<ToolConnectionGenerationInjected>
+  & InjectFace<ToolHostInfoInjected>
 
 /** Full props of the selected Tool output renderer in the details panel. */
 export type ToolDetailsProps = PropsRuntime<'conversation.details.tool'>
   & PropsLocale<'conversation'>
-  & InjectFace<ToolConnectionGenerationInjected>
+  & InjectFace<ToolHostInfoInjected>

@@ -2,6 +2,8 @@
  * Tests for the mcp-client plugin's `apply` lifecycle entry point.
  * Isolated file so vi.mock of the MCP SDK doesn't pollute other test suites.
  */
+import type { PassThrough as PassThroughType } from 'node:stream'
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
@@ -45,9 +47,15 @@ vi.mock('@modelcontextprotocol/sdk/client/index.js', () => ({
   Client: MockClient,
 }))
 
-vi.mock('@modelcontextprotocol/sdk/client/stdio.js', () => ({
-  StdioClientTransport: vi.fn(),
-}))
+vi.mock('@modelcontextprotocol/sdk/client/stdio.js', async () => {
+  // The real transport exposes a readable `stderr` under `stderr: 'pipe'`, which
+  // the module under test attaches its line reader to; a stand-in with no such
+  // stream would fail construction rather than the behavior these cases assert.
+  const { PassThrough } = await import('node:stream')
+  return {
+    StdioClientTransport: vi.fn(function () { return { stderr: new PassThrough() } }),
+  }
+})
 
 vi.mock('@modelcontextprotocol/sdk/client/streamableHttp.js', () => ({
   StreamableHTTPClientTransport: vi.fn(),
@@ -180,6 +188,27 @@ describe('apply (plugin lifecycle)', () => {
     expect(mockSetNotificationHandler).toHaveBeenCalled()
     expect(ctx.tools.get('mcp__srv__remote')).toBeDefined()
     expect(ctx.tools.get('remote')).toBeUndefined()
+  })
+
+  it('logs a stdio server\'s stderr under its label instead of the Host console', async () => {
+    const debug = vi.spyOn(ctx.logger, 'debug').mockImplementation(() => {})
+    await apply(ctx, stdioConfig)
+
+    const constructed = vi.mocked(StdioClientTransport).mock.results[0]?.value as { stderr: PassThroughType }
+    const settle = (): Promise<void> => new Promise(resolve => setImmediate(resolve))
+    constructed.stderr.write('server banner\n')
+    await settle()
+    // A chunk that ends mid-line is held until the newline that completes it,
+    // so one line never arrives as two log entries.
+    constructed.stderr.write('half a')
+    await settle()
+    expect(debug.mock.calls.flat().join('')).not.toContain('half a')
+    constructed.stderr.write(' line\n')
+    await settle()
+
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining('server banner'))
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining('half a line'))
+    expect(debug.mock.calls.flat().join('')).toContain('srv')
   })
 
   it('keeps the Cordis plugin loading until initial discovery publishes its tools', async () => {

@@ -13,6 +13,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { BootPage } from './boot-page.ts'
 import { getStaticModules } from './seed.ts'
 import { STATE_LABELS } from './loader-status.ts'
+import { hidePreloader } from './preloader.ts'
 import './base.css'
 
 /** Module transport hook replaced by jsdom tests. */
@@ -78,8 +79,12 @@ export class AppWebEntry {
       this.ctx = ctx
       await this.runPluginBoot(ctx, prefetching)
       await this.mountApp(ctx)
+      hidePreloader()
     } catch (reason) {
       console.error(reason)
+      // Cut the fade: the preloader is opaque and would otherwise cover the
+      // failure report for its whole duration.
+      hidePreloader(false)
       this.page.fail(reason instanceof Error ? reason.message : String(reason))
     }
   }

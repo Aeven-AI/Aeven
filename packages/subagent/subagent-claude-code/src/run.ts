@@ -16,7 +16,8 @@ import {
   type SpawnOptions,
 } from '@anthropic-ai/claude-agent-sdk'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
-import { SessionId } from '@deepseek-ai/dsh-session'
+import { brandString } from '@deepseek-ai/dsh-brand'
+import type { SessionId } from '@deepseek-ai/dsh-session'
 import {
   settleRunResult,
   subprocessRunHandle,
@@ -53,6 +54,30 @@ export type ClaudeCodePermissionMode = typeof CLAUDE_CODE_PERMISSION_MODES[numbe
 
 /** Safe default for unattended Claude Code runs. */
 export const DEFAULT_CLAUDE_CODE_PERMISSION_MODE: ClaudeCodePermissionMode = 'dontAsk'
+
+/**
+ * Parent environment entries naming the Claude Code session that launched this
+ * Host, dropped before the SDK composes the child environment.
+ *
+ * The SDK assigns both only when they are absent — it sets `sdk-ts` and its own
+ * package version — so an inherited value silently stands in for the identity of
+ * the run the SDK is starting. A Host launched from inside Claude Code otherwise
+ * hands its own entrypoint (`claude-vscode`) and a different SDK version to the
+ * CLI it spawns, which then answers as that host and exits non-zero. Naming the
+ * child's own launcher stays available through the `env` config field.
+ */
+const PARENT_SESSION_ENV = new Set(['CLAUDE_CODE_ENTRYPOINT', 'CLAUDE_AGENT_SDK_VERSION'])
+
+/**
+ * Drop the launching Claude Code session's identity from an inherited environment.
+ * @param env - credential-scrubbed parent environment.
+ * @returns the same entries without {@link PARENT_SESSION_ENV}.
+ */
+function withoutParentSession(env: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(env).filter(([name]) => !PARENT_SESSION_ENV.has(name)),
+  )
+}
 
 const SUPPORTED_UNATTENDED_DIALOG_KINDS = [
   'refusal_fallback_prompt',
@@ -320,7 +345,7 @@ export function claudeQueryOptions(
     abortController: controller,
     cwd: spec.cwd,
     ...spec.model === undefined ? {} : { model: spec.model },
-    env: { ...scrubbedParentEnv(), ...spec.env },
+    env: { ...withoutParentSession(scrubbedParentEnv()), ...spec.env },
     persistSession: false,
     disallowedTools: spec.permissionMode === 'plan'
       ? ['AskUserQuestion', 'ExitPlanMode']
@@ -578,7 +603,7 @@ export async function startClaudeCodeRun(
   })
 
   return subprocessRunHandle({
-    id: SessionId(randomUUID()),
+    id: brandString<SessionId>(randomUUID()),
     result,
     signal: request.signal,
     onAbort,

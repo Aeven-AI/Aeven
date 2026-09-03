@@ -68,4 +68,12 @@ describe('extractMarkdownPlainText', () => {
       'alpha\t1',
     ].join('\n'))
   })
+
+  it('keeps an asterisk that opens no emphasis literal, and strips one that closes', () => {
+    // The CJK-friendly closer only relaxes CommonMark where CJK prose follows
+    // the punctuation; an ASCII tail leaves the run as ordinary text.
+    expect(extractMarkdownPlainText('a*.')).toBe('a*.')
+    expect(extractMarkdownPlainText('x**.**y')).toBe('x**.**y')
+    expect(extractMarkdownPlainText('**a**.')).toBe('a.')
+  })
 })

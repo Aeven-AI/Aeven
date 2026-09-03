@@ -32,6 +32,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { Service } from '@deepseek-ai/cordis'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Entry } from '@deepseek-ai/cordis-plugin-loader'
+import z from '@deepseek-ai/schemastery'
 import type { IndexInjection } from '@deepseek-ai/dsh-host-webserver'
 import { optionalStringArray, stripClientSuffix } from './client/manifest.ts'
 import type { WebBootBatch, WebBootBatchPhase, WebBootEntry, WebBootGraph } from './client/manifest.ts'
@@ -180,6 +181,7 @@ type BatchArtifact = ComboArtifact & { descriptor: WebBootBatch }
 const IMMUTABLE_CACHE = 'public, max-age=31536000, immutable'
 /** Generated request URLs stay below conservative browser and intermediary request-target limits. */
 const MAX_COMBO_URL_BYTES = 3 * 1024
+const DEFAULT_MAX_INITIAL_BATCH_BYTES = 768 * 1024
 const HASH_REVISION_LENGTH = 12
 const COMBO_REVISION_PLACEHOLDER = '0'.repeat(HASH_REVISION_LENGTH)
 
@@ -265,14 +267,35 @@ function projectedComboUrlBytes(records: readonly WebPluginRecord[]): number {
   ))
 }
 
-/** Partition one phase in graph order without allowing a generated URL above the protocol limit. */
-function partitionComboRecords(records: readonly WebPluginRecord[]): WebPluginRecord[][] {
+/** Executable bytes contributed by one record before the combo source-map trailer. */
+function comboRecordScriptBytes(record: WebPluginRecord): number {
+  return Buffer.byteLength(`${comboSource(record).source};\n`)
+}
+
+/** Source-map trailer bytes for one projected combo response. */
+function projectedComboTrailerBytes(records: readonly WebPluginRecord[]): number {
+  const mapUrl = comboUrl(records.map(record => record.entry.id), COMBO_REVISION_PLACEHOLDER, true)
+  return Buffer.byteLength(`//# sourceMappingURL=${mapUrl}\n`)
+}
+
+/** Partition one phase in graph order under the request-URL and generated-script limits. */
+function partitionComboRecords(
+  records: readonly WebPluginRecord[],
+  maxInitialBatchBytes: number,
+): WebPluginRecord[][] {
   const chunks: WebPluginRecord[][] = []
   let current: WebPluginRecord[] = []
+  let currentScriptBytes = 0
   for (const record of records) {
     const candidate = [...current, record]
-    if (projectedComboUrlBytes(candidate) <= MAX_COMBO_URL_BYTES) {
+    const recordScriptBytes = comboRecordScriptBytes(record)
+    const candidateScriptBytes = currentScriptBytes + recordScriptBytes + projectedComboTrailerBytes(candidate)
+    if (
+      projectedComboUrlBytes(candidate) <= MAX_COMBO_URL_BYTES
+      && (candidateScriptBytes <= maxInitialBatchBytes || current.length === 0)
+    ) {
       current = candidate
+      currentScriptBytes += recordScriptBytes
       continue
     }
     if (current.length === 0) {
@@ -282,6 +305,7 @@ function partitionComboRecords(records: readonly WebPluginRecord[]): WebPluginRe
     }
     chunks.push(current)
     current = [record]
+    currentScriptBytes = recordScriptBytes
     if (projectedComboUrlBytes(current) > MAX_COMBO_URL_BYTES) {
       throw new Error(
         `client-modules: ${record.entry.id} exceeds the ${String(MAX_COMBO_URL_BYTES)}-byte combo URL limit`,
@@ -290,6 +314,26 @@ function partitionComboRecords(records: readonly WebPluginRecord[]): WebPluginRe
   }
   if (current.length > 0) chunks.push(current)
   return chunks
+}
+
+/** Startup combo partitioning policy. */
+export interface Config {
+  /**
+   * Maximum generated JavaScript bytes per initial combo when one bundle fits;
+   * oversized bundles stand alone. @default 786432
+   */
+  readonly maxInitialBatchBytes?: number
+}
+
+interface ResolvedConfig {
+  readonly maxInitialBatchBytes: number
+}
+
+/** Resolve defaults for direct construction outside the Loader validation path. */
+function resolveConfig(config: Config): ResolvedConfig {
+  return {
+    maxInitialBatchBytes: config.maxInitialBatchBytes ?? DEFAULT_MAX_INITIAL_BATCH_BYTES,
+  }
 }
 
 /** Executable source plus the generated-file name used when no authored map exists. */
@@ -472,19 +516,20 @@ export function orderByModuleGraph(entries: readonly WebBootEntry[]): WebBootEnt
 /** Bootstrap package whose ordinary client bundle supplies the module-system implementation. */
 const CLIENT_MODULES_ID = '@deepseek-ai/dsh-client-modules'
 
-/** Dynamic bundles grouped into the parser bootstrap batch before the Vite shell. */
+/** Dynamic bundles grouped into the deferred bootstrap batch before the Vite shell. */
 const PARSER_PRELOAD_IDS = [CLIENT_MODULES_ID] as const
 
 /**
  * The boot protocol as index injection rows. The inline registration queue
- * precedes the application-batch preload and the blocking bootstrap batch. Its
+ * precedes the application-batch preload and the deferred bootstrap batch. Its
  * `create()` method materializes the modules
  * bundle, delegates construction to that bundle, and leaves the same facade
  * in live-registration mode. The graph global follows before the shell reads
- * it.
+ * it. Head `script-src` rows render with `defer` so document order still
+ * runs bootstrap before the Vite module entry without delaying body parse.
  * @param graph - the composed entry graph.
  * @returns head rows in execution order: queue script, application preloads,
- * blocking bootstrap scripts, graph global.
+ * deferred bootstrap scripts, graph global.
  */
 export function bootInjections(graph: WebBootGraph): IndexInjection[] {
   const bootstrapId = JSON.stringify(CLIENT_MODULES_ID)
@@ -533,6 +578,10 @@ window.__ModuleLoader__={
 export class ClientModuleRegistry extends Service {
   static inject = ['webServer', 'loader']
 
+  static Config: z<Config> = z.object({
+    maxInitialBatchBytes: z.number().step(1).min(1).default(DEFAULT_MAX_INITIAL_BATCH_BYTES),
+  })
+
   private readonly table = new Map<string, WebPluginRecord>()
   private readonly sources = new Map<string, ClientPackageSource>()
   // Resolution is entry-local: the same specifier can resolve differently in
@@ -549,13 +598,16 @@ export class ClientModuleRegistry extends Service {
   private previousBatchResponses = new Map<string, { body: Buffer; contentType: string }>()
   private flushQueued = false
   private composed: WebBootGraph
+  private readonly maxInitialBatchBytes: number
 
   /**
    * Build the service: subscribe, seed, and run the activation flush.
    * @param ctx - plugin context carrying webServer and loader.
+   * @param config - validated startup combo partitioning policy.
    */
-  constructor(ctx: Context) {
+  constructor(ctx: Context, config: Config = {}) {
     super(ctx, 'clientModules')
+    this.maxInitialBatchBytes = resolveConfig(config).maxInitialBatchBytes
     // Subscribe before seeding so a fiber arriving mid-activation lands in the
     // same dirty set (Set idempotence makes the overlap harmless). An entry-less
     // fiber is a child plugin or a manual mount — never a loader row; O(1) drop.
@@ -686,10 +738,10 @@ export class ClientModuleRegistry extends Service {
       .map(entry => this.table.get(entry.id))
       .filter((record): record is WebPluginRecord => record !== undefined)
     const artifacts: BatchArtifact[] = []
-    for (const records of partitionComboRecords(bootstrap)) {
+    for (const records of partitionComboRecords(bootstrap, this.maxInitialBatchBytes)) {
       artifacts.push(buildBatch('bootstrap', records))
     }
-    for (const records of partitionComboRecords(application)) {
+    for (const records of partitionComboRecords(application, this.maxInitialBatchBytes)) {
       artifacts.push(buildBatch('application', records))
     }
 

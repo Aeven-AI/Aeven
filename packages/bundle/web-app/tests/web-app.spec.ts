@@ -7,16 +7,22 @@
 
 import { EventEmitter } from 'node:events'
 import { spawn, type ChildProcess } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
+import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { createLaunchEnvironmentSnapshot, DSH_LAUNCH_ENVIRONMENT_KEY } from '@deepseek-ai/dsh-launch-environment'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import type { WebServer } from '@deepseek-ai/dsh-host-webserver'
 import { apply, Config, internals } from '../src/index.ts'
+
+/** Shared model-visible fixture, also pinned by the Web e2e smoke. */
+const WEB_SURFACE_PROMPT = fileURLToPath(
+  new URL('../../../../apps/web/tests/expected/web-runtime-context/web-surface-prompt.expected.md', import.meta.url),
+)
 
 vi.mock('node:child_process', async importOriginal => ({
   ...await importOriginal<typeof import('node:child_process')>(),
@@ -158,6 +164,12 @@ describe('web-app runtime glue', () => {
     // The single update contract: the receiver is always on; no-refresh
     // reloads additionally need the rebuild watcher.
     expect(section?.text).toContain('pnpm run dev:web')
+    // The whole section is model-visible text the Web e2e also pins, so the
+    // shared fixture is verified here without an API key: a wording change
+    // that skips the fixture fails in `pnpm run test`, not only in e2e.
+    expect(section?.text).toBe(
+      readFileSync(WEB_SURFACE_PROMPT, 'utf8').trimEnd().replaceAll('{{webUrl}}', 'http://127.0.0.1:4567'),
+    )
     const webRuntime = contributions.find(contribution => contribution.name === 'web-runtime')
     expect(webRuntime?.resolve()).toEqual({ DSH_WEB_URL: 'http://127.0.0.1:4567' })
     await ctx.fiber.dispose()

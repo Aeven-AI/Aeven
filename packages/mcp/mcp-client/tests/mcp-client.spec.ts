@@ -8,7 +8,8 @@ import { ToolCallId, LlmAdapter, LlmRuntime } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type { GenerateOptions, LlmResolvedModelInfo, StreamChunk } from '@deepseek-ai/dsh-llm'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime, { type JsonValue } from '@deepseek-ai/dsh-tools'
+import ToolRuntime from '@deepseek-ai/dsh-tools'
+import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import type { PostToolDecision } from '@deepseek-ai/dsh-tools'
 import { publicToolName, syncTools, type ToolBridgeOptions } from '@deepseek-ai/dsh-mcp-client/src/tools.ts'
 import { createTransport } from '@deepseek-ai/dsh-mcp-client/src/transport.ts'
@@ -1133,6 +1134,35 @@ describe('createTransport', () => {
     expect(transport).toBeDefined()
     expect(transport).toHaveProperty('start')
     expect(transport).toHaveProperty('close')
+  })
+
+  it('forwards a stdio server\'s stderr as whole lines instead of the Host console', async () => {
+    // A server greeting on stderr (or the `npx` that warns before execing one)
+    // must not land on the Host's own startup output.
+    const lines: string[] = []
+    const config: Config = {
+      transport: 'stdio',
+      serverName: 'srv',
+      command: process.execPath,
+      args: ['-e', 'process.stderr.write("banner one\\n\\nbanner two\\ntrailing")'],
+      env: {},
+      cwd: process.cwd(),
+      toolCallTimeoutMs: 60_000,
+      failOnStartupError: false,
+    }
+    const transport = createTransport(config, line => lines.push(line))
+
+    await transport.start()
+    await new Promise<void>((resolve) => {
+      const done = (): void => { resolve() }
+      // The trailing line without a newline arrives only when the stream ends.
+      const stderr = (transport as unknown as { stderr: NodeJS.ReadableStream | null }).stderr
+      if (stderr === null) done()
+      else stderr.on('end', done)
+    })
+    await transport.close()
+
+    expect(lines).toEqual(['banner one', 'banner two', 'trailing'])
   })
 
   it('creates StreamableHTTPClientTransport for http config without headers', () => {

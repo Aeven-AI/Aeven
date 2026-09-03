@@ -14,7 +14,9 @@
  * @module dsh-llm-pi-ai/config
  */
 
-import type { CacheRetention, ChatTemplateKwargValue, ModelThinkingLevel, Provider, ThinkingBudgets, Transport } from '@earendil-works/pi-ai'
+import type {
+  Api, CacheRetention, ChatTemplateKwargValue, Model, ModelThinkingLevel, Provider, ThinkingBudgets, Transport,
+} from '@earendil-works/pi-ai'
 import z from '@deepseek-ai/schemastery'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
@@ -30,17 +32,27 @@ import {
   SUPPORTED_THINKING_FORMATS,
   THINKING_LEVELS,
 } from './catalog.ts'
+import { LIVE_CATALOG_FORMATS } from './live-catalog.ts'
+import type { LiveCatalogFormat } from './live-catalog.ts'
 import type {
+  PiAiCatalogRefresh,
   PiAiCompatProfile,
   PiAiModality,
   PiAiModelOverride,
   PiAiModelProfile,
   PiAiReasoningEfforts,
 } from './catalog.ts'
+import { knownRoute } from './known-routes.ts'
 import { buildProvider, supportedProtocols } from './provider.ts'
 
 /** Default maximum idle interval while an adapter stream read is outstanding. */
 export const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 300_000
+
+/** Default wait for a route's live model-document request. */
+export const DEFAULT_CATALOG_REFRESH_TIMEOUT_MS = 10_000
+
+/** Published layout assumed by a refresh that names no format. */
+export const DEFAULT_CATALOG_REFRESH_FORMAT: LiveCatalogFormat = 'openrouter'
 
 /**
  * Default request-level bound on base64-encoded image payload. Every image in
@@ -114,6 +126,18 @@ export interface PiAiProviderProfile {
    */
   modelOverrides?: Record<string, PiAiModelOverride>
   /**
+   * Live model-list refresh for a route whose provider publishes an
+   * OpenRouter-style `GET /models` document. Absent, the route serves the
+   * installed pi-ai snapshot alone, which lags whatever the provider
+   * currently lists.
+   *
+   * The refresh is additive: it adds the published models the snapshot does
+   * not describe and never rewrites one it does, because the snapshot carries
+   * tuned reasoning and compatibility values the document does not express.
+   * A failed or slow refresh leaves the route serving the snapshot.
+   */
+  catalogRefresh?: PiAiCatalogRefresh
+  /**
    * pi-ai wire-compatibility switches defaulting every model on this route
    * whose protocol declares them; each model's own `compat` overrides per
    * field. What neither sets keeps the installed catalog entry's value, then
@@ -144,7 +168,7 @@ export interface PiAiProviderProfile {
    * to answer instead.
    */
   defaultInput?: PiAiModality[]
-  /** Provider request headers; Harness attribution wins reserved names. */
+  /** Provider request headers, validated against Fetch when the profile resolves; Harness attribution wins reserved names. */
   headers?: Record<string, string>
   /** Provider-neutral pi-ai reasoning level. */
   reasoning?: ModelThinkingLevel
@@ -178,9 +202,27 @@ export interface PiAiProviderProfile {
   retryPolicy?: RetryPolicyConfig
 }
 
+/** One route's live refresh after resolution: the endpoint it names and the wait it gets. */
+export interface ResolvedPiAiCatalogRefresh {
+  /** Absolute URL of the provider's model document. */
+  url: string
+  /** Published layout of that document. */
+  format: LiveCatalogFormat
+  /** Capability tags an entry must carry to be added; empty accepts every entry. */
+  requireTags: readonly string[]
+  /** Abort the request after this many milliseconds. */
+  timeoutMs: number
+  /** Context window for an added model the document does not size. */
+  defaultContextWindow: number
+  /** Output cap for an added model the document does not size. */
+  defaultMaxTokens: number
+}
+
 /** Validated profile with its route stamped and every adapter-owned default resolved. */
 export interface ResolvedPiAiProviderProfile
-  extends Omit<PiAiProviderProfile, 'apiKeyEnv' | 'retryPolicy' | 'models' | 'displayName'> {
+  extends Omit<PiAiProviderProfile, 'apiKeyEnv' | 'retryPolicy' | 'models' | 'displayName' | 'catalogRefresh'> {
+  /** Live model-list refresh this route configured, with its timeout defaulted; absent when it configured none. */
+  catalogRefresh?: ResolvedPiAiCatalogRefresh
   /** Harness route key and the `Models` collection key (the configuration dict key). */
   provider: string
   /** Resolved display name for selectors and configuration surfaces. */
@@ -311,6 +353,20 @@ const modelProfile: z<PiAiModelProfile> = z.object({
 /** A {@link modelProfile} whose id lives in the `modelOverrides` dict key. */
 const modelOverride: z<PiAiModelOverride> = z.object(modelFields)
 
+/**
+ * Runtime schema for {@link PiAiCatalogRefresh}. Neither member is `required()`
+ * or defaulted here: either one makes the schema materialize the parent for
+ * every route, so an absent `catalogRefresh` would stop being distinguishable
+ * from a configured one. Presence and the timeout default are resolved below,
+ * where a diagnostic can name the route.
+ */
+const catalogRefresh: z<PiAiCatalogRefresh> = z.object({
+  url: z.string(),
+  format: z.union(LIVE_CATALOG_FORMATS),
+  requireTags: z.array(z.string()),
+  timeoutMs: z.number().step(1).min(1).max(MAX_TIMER_DELAY_MS),
+})
+
 const profile = z.object({
   apiKeyEnv: z.string().role('credential-ref'),
   displayName: z.string(),
@@ -318,6 +374,7 @@ const profile = z.object({
   baseURL: z.string(),
   models: z.array(modelProfile),
   modelOverrides: z.dict(modelOverride),
+  catalogRefresh,
   compat: compatProfile,
   defaultContextWindow: z.number().step(1).min(1).default(DEFAULT_CONTEXT_WINDOW),
   defaultMaxTokens: z.number().step(1).min(1).default(DEFAULT_MAX_TOKENS),
@@ -351,7 +408,7 @@ export const Config: z<Config> = z.object({
  * renders and the value an absent section resolves to; wrapping it would break
  * both.
  * @param config - the resolved section to check.
- * @throws Error naming the route and model that cannot be served.
+ * @throws Error naming the route and configuration entry that cannot be served.
  */
 export function assertServiceable(config: Config): void {
   resolveProfiles(config.providers)
@@ -375,16 +432,33 @@ function rejectRemovedFields(provider: string, source: PiAiProviderProfile): voi
   }
 }
 
+/** Reject a profile header that Fetch cannot put on a provider request. */
+function assertValidHeaders(provider: string, headers: Readonly<Record<string, string>> | undefined): void {
+  for (const [name, value] of Object.entries(headers ?? {})) {
+    try {
+      new Headers([[name, value]])
+    } catch {
+      throw new Error(
+        `llm-pi-ai: provider "${provider}" header "${name}" is not valid for Fetch;`
+        + ' use a valid HTTP field name and a single-line value representable as bytes',
+      )
+    }
+  }
+}
+
 /**
  * Validate profiles and return a detached route-keyed map suitable for
  * per-request reads. This is the one explicit resolve step, so an omitted dict
  * resolves to the empty (dormant) route set here rather than through a hidden
  * fallback, and each route's models and pi-ai provider are materialized once.
  * @param providers - configured provider profiles keyed by route.
+ * @param liveModels - models a completed refresh added, by route; a route
+ * absent here serves the installed snapshot alone.
  * @returns validated profiles in configuration order.
  */
 export function resolveProfiles(
   providers: Readonly<Record<string, PiAiProviderProfile>> | undefined,
+  liveModels?: ReadonlyMap<string, readonly Model<Api>[]>,
 ): Map<string, ResolvedPiAiProviderProfile> {
   if (Array.isArray(providers)) {
     throw new Error('llm-pi-ai: providers is now a dict keyed by provider route, not an array of profiles')
@@ -400,6 +474,7 @@ export function resolveProfiles(
     if (source.displayName !== undefined && source.displayName.length === 0) {
       throw new Error(`llm-pi-ai: provider "${provider}" has an empty displayName`)
     }
+    assertValidHeaders(provider, source.headers)
     const streamIdleTimeoutMs = source.streamIdleTimeoutMs ?? DEFAULT_STREAM_IDLE_TIMEOUT_MS
     if (!Number.isFinite(streamIdleTimeoutMs)
       || streamIdleTimeoutMs <= 0
@@ -432,24 +507,71 @@ export function resolveProfiles(
     // The route key, not the installed provider's own name: the directory has
     // always shown route keys, and a catalog route must not silently rename
     // itself on every configuration surface just because it gained a profile.
-    const displayName = source.displayName ?? provider
+    // The schema materializes an absent all-optional object as `{}`, so an
+    // untouched route is the empty block, not `undefined`. A block someone did
+    // write still has to name an endpoint: nothing else in the profile can
+    // supply the document's location, so a missing url is a typo rather than a
+    // disabled refresh.
+    const refresh = source.catalogRefresh
+    // Only the optional scalars signal a written block: the schema
+    // materializes `requireTags` as `[]` and may materialize `format`, so
+    // neither can distinguish an authored block from an absent one.
+    const wrote = refresh !== undefined && (refresh.url !== undefined || refresh.timeoutMs !== undefined)
+    if (wrote && (refresh.url ?? '').length === 0) {
+      throw new Error(`llm-pi-ai: provider "${provider}" catalogRefresh must name the url of its model document`)
+    }
+    // A known route supplies the refresh a profile did not write, which is what
+    // lets a person add one of these providers with a credential alone.
+    const known = knownRoute(provider)
+    const refreshSource = wrote && refresh.url !== undefined ? refresh : known?.catalogRefresh
+    const resolvedRefresh = refreshSource?.url === undefined
+      ? undefined
+      : {
+        url: refreshSource.url,
+        format: refreshSource.format ?? DEFAULT_CATALOG_REFRESH_FORMAT,
+        requireTags: [...refreshSource.requireTags ?? []],
+        timeoutMs: (wrote ? refresh.timeoutMs : undefined) ?? DEFAULT_CATALOG_REFRESH_TIMEOUT_MS,
+        // The same fallbacks the route's own catalog uses, resolved here so
+        // the refresh never re-derives a default this layer already chose.
+        defaultContextWindow: source.defaultContextWindow ?? DEFAULT_CONTEXT_WINDOW,
+        defaultMaxTokens: source.defaultMaxTokens ?? DEFAULT_MAX_TOKENS,
+      }
+    // A known route's protocol, endpoint, and credential reference stand in
+    // for whatever the profile left out, so a stored `{ apiKeyEnv }` — which is
+    // all the Models page writes — is a complete route.
+    const api = source.api ?? known?.api
+    const baseURL = source.baseURL ?? known?.baseURL
+    const displayName = source.displayName ?? known?.displayName ?? provider
+    const added = liveModels?.get(provider)
     const catalog = resolveRouteModels({
       provider,
-      ...source.api === undefined ? {} : { api: source.api },
-      ...source.baseURL === undefined ? {} : { baseURL: source.baseURL },
+      ...api === undefined ? {} : { api },
+      ...baseURL === undefined ? {} : { baseURL },
       ...source.models === undefined ? {} : { models: source.models },
       ...source.modelOverrides === undefined ? {} : { modelOverrides: source.modelOverrides },
+      ...added === undefined ? {} : { liveModels: added },
+      // Only before the first answer: once a refresh has replied, an empty
+      // route is a real misconfiguration again.
+      ...resolvedRefresh !== undefined && added === undefined ? { awaitingRefresh: true } : {},
       ...source.compat === undefined ? {} : { compat: source.compat },
       defaultInput,
       defaultContextWindow: source.defaultContextWindow ?? DEFAULT_CONTEXT_WINDOW,
       defaultMaxTokens: source.defaultMaxTokens ?? DEFAULT_MAX_TOKENS,
     })
-    const { apiKeyEnv, retryPolicy, models: _models, displayName: _displayName, ...rest } = source
+    const {
+      apiKeyEnv, retryPolicy, models: _models, displayName: _displayName,
+      catalogRefresh: _catalogRefresh, api: _api, baseURL: _baseURL, ...rest
+    } = source
+    // A known route names the credential a profile omits; every other route
+    // that omits one still defers to pi-ai's own environment discovery.
+    const effectiveApiKeyEnv = apiKeyEnv ?? known?.apiKeyEnv
     resolved.set(provider, {
       ...rest,
       provider,
       displayName,
-      ...apiKeyEnv === undefined ? {} : { apiKeyEnv: credentialRef(apiKeyEnv) },
+      ...api === undefined ? {} : { api },
+      ...baseURL === undefined ? {} : { baseURL },
+      ...effectiveApiKeyEnv === undefined ? {} : { apiKeyEnv: credentialRef(effectiveApiKeyEnv) },
       streamIdleTimeoutMs,
       maxRequestImageBytes,
       requestImagePixelBudget,
@@ -458,11 +580,12 @@ export function resolveProfiles(
       ...rest.headers === undefined ? {} : { headers: { ...rest.headers } },
       ...rest.thinkingBudgets === undefined ? {} : { thinkingBudgets: { ...rest.thinkingBudgets } },
       configuredMaxTokens: catalog.configuredMaxTokens,
+      ...resolvedRefresh === undefined ? {} : { catalogRefresh: resolvedRefresh },
       piProvider: buildProvider({
         provider,
         displayName,
-        ...source.api === undefined ? {} : { api: source.api },
-        ...source.baseURL === undefined ? {} : { baseURL: source.baseURL },
+        ...api === undefined ? {} : { api },
+        ...baseURL === undefined ? {} : { baseURL },
         models: catalog.models,
         namesCredential: apiKeyEnv !== undefined,
       }),

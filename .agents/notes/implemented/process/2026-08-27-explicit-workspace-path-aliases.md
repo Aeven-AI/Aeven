@@ -6,7 +6,7 @@ English | [中文](2026-08-27-explicit-workspace-path-aliases.zh.md)
 
 ## Problem
 
-`tsconfig.base.json` is the resolution facade for the whole repository: every package project extends it, both aggregates read it, and every Vitest config points `vite-tsconfig-paths` at it. Two of its aliases carried one candidate per package *group* rather than one per package — `@deepseek-ai/dsh-*` listed 49 candidate globs and `@deepseek-ai/dsh-*/invariant` listed 45.
+`tsconfig.base.json` is the resolution facade for the whole repository: every package project extends it, both aggregates read it, and every Vitest config builds its `resolve.alias` map from it. Two of its aliases carried one candidate per package *group* rather than one per package — `@deepseek-ai/dsh-*` listed 49 candidate globs and `@deepseek-ai/dsh-*/invariant` listed 45.
 
 TypeScript and tsx try those candidates in order and take the first that exists, so a specifier whose package sits late in the list pays for every earlier miss. Under the `dsh` source launch each miss is an `ERR_MODULE_NOT_FOUND` that Node decorates with `decorateErrorWithCommonJSHints`, which runs a full CommonJS resolution walk per failure. A profile of a source-launch boot attributed 934.6 ms — 35% of the boot — to that decoration path alone, from 60,942 failed resolutions.
 
@@ -56,6 +56,6 @@ The CLI entry guard uses the repository's established comparison, `import.meta.f
 
 A source-launch boot of the `headless` profile drops from a 2,157/2,182/2,153 ms baseline to 1,069/1,052/1,055 ms — about 1.1 seconds, or 51%, with the two ranges nowhere near overlapping and `--help` output byte-identical.
 
-The win is confined to the tsx source launch. Vitest resolves through `vite-tsconfig-paths`, which matches in-process and checks file existence without ever constructing a Node module error, so it never paid the decoration cost: an A/B over one package's suite measured 5,934/5,829/5,908 ms against 5,878/5,851/5,905 ms, which is noise. Repository gate scripts import few `@deepseek-ai/dsh-*` packages and likewise show no separable difference. Shipped users run built `lib/` under plain Node and were never affected.
+The win is confined to the tsx source launch. Vitest resolves through the alias map built from this file, which matches in-process without ever constructing a Node module error, so it never paid the decoration cost: an A/B over one package's suite measured 5,934/5,829/5,908 ms against 5,878/5,851/5,905 ms, which is noise. Repository gate scripts import few `@deepseek-ai/dsh-*` packages and likewise show no separable difference. Shipped users run built `lib/` under plain Node and were never affected.
 
 `paths` grows from 188 keys to 523, and adding a package now requires running the generator. The `--check` gate makes that a named failure rather than a silent one, and the generated region keeps the diff of such a change to a single line.

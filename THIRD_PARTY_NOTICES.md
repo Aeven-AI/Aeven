@@ -31,6 +31,7 @@ External packages that a workspace package resolves at runtime. The tier covers 
 
 | Package | License |
 | --- | --- |
+| [`@aeven-ai/hypermarkdown`](https://github.com/Aeven-AI/HyperMarkdown) | MIT |
 | [`@agentclientprotocol/sdk`](https://github.com/agentclientprotocol/typescript-sdk) | Apache-2.0 |
 | [`@anthropic-ai/claude-agent-sdk`](https://github.com/anthropics/claude-agent-sdk-typescript) | SEE LICENSE IN README.md |
 | [`@anthropic-ai/sdk`](https://github.com/anthropics/anthropic-sdk-typescript) | MIT |
@@ -52,7 +53,6 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`@opentelemetry/otlp-exporter-base`](https://github.com/open-telemetry/opentelemetry-js) | Apache-2.0 |
 | [`@opentelemetry/resources`](https://github.com/open-telemetry/opentelemetry-js) | Apache-2.0 |
 | [`@opentelemetry/sdk-logs`](https://github.com/open-telemetry/opentelemetry-js) | Apache-2.0 |
-| [`@shikijs/langs`](https://github.com/shikijs/shiki) | MIT |
 | [`@standard-schema/spec`](https://github.com/standard-schema/standard-schema) | MIT |
 | [`@tanstack/react-virtual`](https://github.com/TanStack/virtual) | MIT |
 | [`@types/mdast`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
@@ -70,6 +70,7 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`e2b`](https://github.com/e2b-dev/e2b) | MIT |
 | [`eventsource-parser`](https://github.com/rexxars/eventsource-parser) | MIT |
 | [`fflate`](https://github.com/101arrowz/fflate) | MIT |
+| [`highlight.js`](https://github.com/highlightjs/highlight.js) | BSD-3-Clause |
 | [`immer`](https://github.com/immerjs/immer) | MIT |
 | [`ipaddr.js`](https://github.com/whitequark/ipaddr.js) | MIT |
 | [`js-yaml`](https://github.com/nodeca/js-yaml) | MIT |
@@ -78,14 +79,11 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`lexical`](https://github.com/facebook/lexical) | MIT |
 | [`mdast-util-from-markdown`](https://github.com/syntax-tree/mdast-util-from-markdown) | MIT |
 | [`mdast-util-gfm`](https://github.com/syntax-tree/mdast-util-gfm) | MIT |
-| [`mdast-util-math`](https://github.com/syntax-tree/mdast-util-math) | MIT |
+| [`mermaid`](https://github.com/mermaid-js/mermaid) | MIT |
 | [`micromark-core-commonmark`](https://github.com/micromark/micromark/tree/main/packages/micromark-core-commonmark) | MIT |
 | [`micromark-extension-gfm`](https://github.com/micromark/micromark-extension-gfm) | MIT |
-| [`micromark-extension-math`](https://github.com/micromark/micromark-extension-math) | MIT |
-| [`micromark-factory-space`](https://github.com/micromark/micromark/tree/main/packages/micromark-factory-space) | MIT |
 | [`micromark-util-character`](https://github.com/micromark/micromark/tree/main/packages/micromark-util-character) | MIT |
 | [`micromark-util-classify-character`](https://github.com/micromark/micromark/tree/main/packages/micromark-util-classify-character) | MIT |
-| [`micromark-util-sanitize-uri`](https://github.com/micromark/micromark/tree/main/packages/micromark-util-sanitize-uri) | MIT |
 | [`micromark-util-symbol`](https://github.com/micromark/micromark/tree/main/packages/micromark-util-symbol) | MIT |
 | [`micromark-util-types`](https://github.com/micromark/micromark/tree/main/packages/micromark-util-types) | MIT |
 | [`negotiator`](https://github.com/jshttp/negotiator) | MIT |
@@ -96,9 +94,12 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`react`](https://github.com/facebook/react) | MIT |
 | [`react-dom`](https://github.com/facebook/react) | MIT |
 | [`readable-stream`](https://github.com/nodejs/readable-stream) | MIT |
+| [`rehype-highlight`](https://github.com/rehypejs/rehype-highlight) | MIT |
+| [`rehype-katex`](https://github.com/remarkjs/remark-math/tree/main/packages/rehype-katex) | MIT |
+| [`remark-cjk-friendly`](https://github.com/tats-u/markdown-cjk-friendly) | MIT |
+| [`remark-math`](https://github.com/remarkjs/remark-math/tree/main/packages/remark-math) | MIT |
 | [`resolve.exports`](https://github.com/lukeed/resolve.exports) | MIT |
 | [`sharp`](https://github.com/lovell/sharp) | Apache-2.0 |
-| [`shiki`](https://github.com/shikijs/shiki) | MIT |
 | [`supports-color`](https://github.com/chalk/supports-color) | MIT |
 | [`tsx`](https://github.com/privatenumber/tsx) | MIT |
 | [`turndown`](https://github.com/mixmark-io/turndown) | MIT |
@@ -174,10 +175,8 @@ External packages **directly declared** only by repository tooling, test infrast
 | [`istanbul-lib-report`](https://github.com/istanbuljs/istanbuljs) | BSD-3-Clause |
 | [`jscpd`](https://github.com/kucherenko/jscpd) | MIT |
 | [`jsdom`](https://github.com/jsdom/jsdom) | MIT |
-| [`knip`](https://github.com/webpro-nl/knip) | ISC |
 | [`lefthook`](https://github.com/evilmartians/lefthook) | MIT |
 | [`lightningcss`](https://github.com/parcel-bundler/lightningcss) | MPL-2.0 |
-| [`mermaid`](https://github.com/mermaid-js/mermaid) | MIT |
 | [`oxlint`](https://github.com/oxc-project/oxc) | MIT |
 | [`oxlint-tsgolint`](https://github.com/oxc-project/tsgolint) | MIT |
 | [`playwright`](https://github.com/microsoft/playwright) | Apache-2.0 |
@@ -187,7 +186,6 @@ External packages **directly declared** only by repository tooling, test infrast
 | [`tsdown`](https://github.com/rolldown/tsdown) | MIT |
 | [`typescript-language-server`](https://github.com/typescript-language-server/typescript-language-server) | Apache-2.0 |
 | [`vite`](https://github.com/vitejs/vite) | MIT |
-| [`vite-tsconfig-paths`](https://github.com/aleclarson/vite-tsconfig-paths) | MIT |
 | [`vitepress`](https://github.com/vuejs/vitepress) | MIT |
 | [`vitepress-plugin-mermaid`](https://github.com/emersonbottero/vitepress-plugin-mermaid) | MIT |
 | [`vitest`](https://github.com/vitest-dev/vitest) | MIT |

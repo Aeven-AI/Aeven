@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
@@ -32,4 +32,54 @@ it('ships a favicon that switches to a light mark under dark color scheme', asyn
   // stays black in light mode and only turns white under a dark scheme.
   expect(favicon).toMatch(/@media \(prefers-color-scheme: dark\)\s*{\s*path\s*{[^}]*fill:\s*#fff/i)
   expect(favicon).toContain('fill="#000"')
+})
+
+it('inlines first-paint preloader CSS and destages remaining stylesheets', async () => {
+  const index = await readFile(join(DIST_ROOT, 'index.html'), 'utf8')
+  const styleOpen = index.indexOf('<style>')
+  const styleClose = index.indexOf('</style>')
+  const preloader = index.indexOf('id="dsh-preloader"')
+  const root = index.indexOf('id="root"')
+  const moduleEntry = index.indexOf('<script type="module"')
+  expect(styleOpen).toBeGreaterThan(-1)
+  expect(styleOpen).toBeLessThan(preloader)
+  expect(preloader).toBeGreaterThan(-1)
+  expect(preloader).toBeLessThan(root)
+  expect(moduleEntry).toBeLessThan(preloader)
+
+  const inline = index.slice(styleOpen, styleClose)
+  expect(inline).toContain('#dsh-preloader')
+  expect(inline).toContain('dsh-preloader-spin')
+
+  const promoted = [...index.matchAll(/<link rel="preload" as="style"([^>]+) onload="this.onload=null;this.rel='stylesheet'">/g)]
+  expect(promoted.length).toBeGreaterThan(0)
+  for (const tag of promoted) {
+    const attributes = tag[1]
+    if (attributes === undefined) throw new Error('destaged stylesheet has no attributes')
+    expect(index).toContain(`<noscript><link rel="stylesheet"${attributes}></noscript>`)
+  }
+
+  const stylesheets = [...index.matchAll(/<link rel="stylesheet"[^>]+>/g)]
+  expect(stylesheets.length).toBe(promoted.length)
+  for (const tag of stylesheets) {
+    const at = tag.index ?? -1
+    const noscriptOpen = index.lastIndexOf('<noscript>', at)
+    const noscriptClose = index.indexOf('</noscript>', noscriptOpen)
+    expect(noscriptOpen).toBeGreaterThan(-1)
+    expect(at).toBeGreaterThan(noscriptOpen)
+    expect(at).toBeLessThan(noscriptClose)
+  }
+})
+
+it('splits katex, hljs, and mdast off boot and keeps mermaid on demand', async () => {
+  const index = await readFile(join(DIST_ROOT, 'index.html'), 'utf8')
+  const assets = await readdir(join(DIST_ROOT, 'assets'))
+  expect(assets.some(name => /^katex-[^.]+\.js$/.test(name))).toBe(true)
+  expect(assets.some(name => /^hljs-[^.]+\.js$/.test(name))).toBe(true)
+  expect(assets.some(name => /^mdast-[^.]+\.js$/.test(name))).toBe(true)
+  expect(assets.some(name => /^shiki-[^.]+\.js$/.test(name))).toBe(false)
+  expect(assets.some(name => /^m-core-[^.]+\.js$/.test(name))).toBe(true)
+  expect(assets.some(name => /^m-asset-[^.]+\.js$/.test(name))).toBe(true)
+  expect(index).not.toMatch(/modulepreload[^>]+(?:m-core|m-asset|langs\/)/)
+  expect(index).not.toContain('vendor-')
 })

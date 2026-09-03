@@ -11,7 +11,7 @@ import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderIndexInjections, type WebServer, type WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import * as modulesClient from '../src/client/index.ts'
-import { ClientModuleRegistry, bootInjections, orderByModuleGraph } from '../src/index.ts'
+import { ClientModuleRegistry, bootInjections, orderByModuleGraph, type Config } from '../src/index.ts'
 import type { ClientModuleLoaderTarget, WebBootEntry, WebBootGraph } from '../src/client/index.ts'
 
 const MODULES_ID = '@deepseek-ai/dsh-client-modules'
@@ -61,6 +61,7 @@ function writeBuiltPackage(packageName: string, client: Record<string, unknown>)
 function constructWithRoute(
   packageNames: string[],
   options: {
+    config?: Config
     contextBaseUrl?: string
     entryBaseUrl?: string
     internal?: NonNullable<Context['loader']['internal']>
@@ -91,7 +92,7 @@ function constructWithRoute(
     tapIndex: () => () => {},
   }
   ctx.provide('webServer', webServer as WebServer)
-  const service = new ClientModuleRegistry(ctx)
+  const service = new ClientModuleRegistry(ctx, options.config)
   if (route === undefined) throw new Error('client bundle route was not registered')
   return { context: ctx, service, route }
 }
@@ -169,7 +170,7 @@ describe('HTML bootstrap facade', () => {
     const applicationAt = html.indexOf(
       `<link rel="preload" as="script" href="${APPLICATION_URL.replaceAll('&', '&amp;')}">`,
     )
-    const bootstrapAt = html.indexOf(`<script src="${BOOTSTRAP_URL.replaceAll('&', '&amp;')}"></script>`)
+    const bootstrapAt = html.indexOf(`<script defer src="${BOOTSTRAP_URL.replaceAll('&', '&amp;')}"></script>`)
     const graphAt = html.indexOf('globalThis["__DSH_BOOT__"] = ')
     const entryAt = html.indexOf('<script type="module" src="/index.js"></script>')
     expect([facadeAt, applicationAt, bootstrapAt, graphAt, entryAt]).toEqual([...new Set([
@@ -590,6 +591,33 @@ describe('client bundle activation', () => {
     for (let index = 0; index < batches.length - 1; index += 1) {
       const entries = [...batches[index]!.entries, batches[index + 1]!.entries[0]!]
       expect(Buffer.byteLength(mapUrl(comboUrl(entries, '0'.repeat(12))))).toBeGreaterThan(3 * 1024)
+    }
+  })
+
+  it('splits startup combos by generated script bytes and keeps oversized bundles intact', async () => {
+    const packageNames = ['@fixture/payload-first', '@fixture/payload-second', '@fixture/payload-third']
+    for (const [index, packageName] of packageNames.entries()) {
+      const clientPath = writePackage(packageName)
+      mkdirSync(dirname(clientPath), { recursive: true })
+      writeFileSync(clientPath, `window.payload${String(index)} = "${'x'.repeat(96)}"\n`)
+    }
+
+    const singleton = constructWithRoute(packageNames, { config: { maxInitialBatchBytes: 1 } })
+    const singletonBatches = singleton.service.graph().batches.filter(batch => batch.phase === 'application')
+    expect(singletonBatches.map(batch => batch.entries)).toEqual(packageNames.map(name => [name]))
+    const singletonSizes = await Promise.all(singletonBatches.map(async batch => (
+      await routeRequest(singleton.route, batch.url)
+    ).body.byteLength))
+    expect(singletonSizes.every(size => size > 1)).toBe(true)
+
+    const maxInitialBatchBytes = Math.max(...singletonSizes)
+    const partitioned = constructWithRoute(packageNames, { config: { maxInitialBatchBytes } })
+    const batches = partitioned.service.graph().batches.filter(batch => batch.phase === 'application')
+    expect(batches.length).toBeGreaterThan(1)
+    expect(batches.flatMap(batch => batch.entries)).toEqual(packageNames)
+    for (const batch of batches) {
+      const response = await routeRequest(partitioned.route, batch.url)
+      expect(response.body.byteLength).toBeLessThanOrEqual(maxInitialBatchBytes)
     }
   })
 

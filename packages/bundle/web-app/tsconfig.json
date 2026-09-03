@@ -30,6 +30,9 @@
       "path": "../../host/frontend-static"
     },
     {
+      "path": "../../host/workspace-files"
+    },
+    {
       "path": "../../host/webserver"
     },
     {
@@ -43,9 +46,6 @@
     },
     {
       "path": "../../subprocess/subprocess"
-    },
-    {
-      "path": "../../runtime-diagnostics/invariants"
     }
   ]
 }

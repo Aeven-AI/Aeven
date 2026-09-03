@@ -22,9 +22,10 @@
  */
 
 import { memo, useEffect, useMemo, useRef } from 'react'
-import type { ReactNode } from 'react'
 import HyperMarkdown from '@aeven-ai/hypermarkdown'
-import type { HyperMarkdownHandle, RendererComponents, Translations } from '@aeven-ai/hypermarkdown'
+import type {
+  CodeComponentProps, HyperMarkdownHandle, RendererComponents, Translations,
+} from '@aeven-ai/hypermarkdown'
 import katexPlugin from '@aeven-ai/hypermarkdown/plugins/math'
 import cjkPlugin from '@aeven-ai/hypermarkdown/plugins/cjk'
 import highlightPlugin from '@aeven-ai/hypermarkdown/plugins/code'
@@ -73,12 +74,12 @@ export interface MarkdownFileMentions {
  * by component identity, so a per-render plugin object would remount them.
  * Math runs through KaTeX (the engine normalizes the `\(…\)` and `\[…\]`
  * notations models emit onto remark-math's `$` delimiters), emphasis follows
- * CJK flanking rules, and fences are highlighted by highlight.js. Mermaid is
+ * CJK flanking rules, and fences are highlighted by highlight.js (the same
+ * engine `CodeBlock` and `ReadBlock` use). Mermaid is
  * imported on the first diagram rather than at module load, so a session that
- * never renders one does not pay for it. `preload` on the component then
- * starts that fetch on mount instead of waiting for the first diagram, so a
- * diagram that arrives mid-reply does not stall on a cold download — the
- * engine stays a separate chunk either way, off the initial load.
+ * never renders one does not pay for it. The plugin's `load()` is what starts
+ * that fetch — this component does not set `preload`, which would download
+ * the engine on every markdown mount.
  * `securityLevel` is passed explicitly rather than relying on the plugin's
  * default, because the source it renders is model-authored.
  */
@@ -120,6 +121,11 @@ interface AppliedState {
  * @returns The URL to link, or undefined.
  */
 function inlineCodeUrl(value: string): string | undefined {
+  // The token must be the URL and nothing else. `new URL()` ignores surrounding
+  // whitespace, so ` https://example.com ` parses — but a token written with
+  // padding is prose about a URL, and promoting it would link text the author
+  // did not write as a link.
+  if (value.trim() !== value) return undefined
   try {
     const { protocol } = new URL(value)
     return protocol === 'http:' || protocol === 'https:' ? value : undefined
@@ -146,30 +152,49 @@ function codeComponents(
   streaming: boolean,
 ): RendererComponents {
   return {
-    code: function InlineCode(props: { children?: ReactNode; className?: string }) {
-      const value = typeof props.children === 'string' ? props.children : undefined
-      if (value === undefined || props.className !== undefined) {
+    code: function InlineCode(props: CodeComponentProps) {
+      // `inline` is the engine's answer from the element's ancestry. Reading a
+      // `language-*` class instead would call a fence that named no language
+      // inline code, and linkify a URL sitting in a plain fence.
+      if (!props.inline) {
         return <code className={props.className}>{props.children}</code>
       }
+      /* v8 ignore next 2 -- The engine builds inline code from one text node, so a
+         non-string child never reaches this arm; the guard narrows the declared
+         ReactNode for the URL read below. */
+      if (typeof props.children !== 'string') return <code>{props.children}</code>
+      const value = props.children
+      // Inside a link the affordances are refused outright: an anchor may not
+      // contain a button, and a second destination on the same text is a
+      // choice the reader never asked to make.
+      if (props.insideLink) return <code>{value}</code>
       const url = inlineCodeUrl(value)
       if (url !== undefined) {
+        // The anchor sits inside the code element, as the mention opener does:
+        // the token is still code, and only its destination is added.
         return (
-          <a href={url} target="_blank" rel="noreferrer noopener">
-            <code>{value}</code>
-          </a>
+          <code>
+            <a href={url} target="_blank" rel="noopener noreferrer">
+              {value}
+            </a>
+          </code>
         )
       }
       const target = streaming || mentions === undefined ? undefined : mentions.resolve(value)
       if (target === undefined) return <code>{value}</code>
+      // The opener sits inside the code element rather than replacing it: the
+      // token is still code, and a reader copying it should get the token.
       return (
-        <button
-          type="button"
-          className={css.mention}
-          title={target.title}
-          onClick={target.open}
-        >
-          {target.label}
-        </button>
+        <code>
+          <button
+            type="button"
+            className={css.mention}
+            title={target.title}
+            onClick={target.open}
+          >
+            {target.label}
+          </button>
+        </code>
       )
     },
   }
@@ -244,7 +269,6 @@ export const MarkdownText = memo(function MarkdownText({ text, streaming = false
       ref={handleRef}
       streaming
       html="literal"
-      preload
       linkSafety={LINK_SAFETY}
       plugins={PLUGINS}
       translations={translations}

@@ -34,16 +34,6 @@ const COLLAPSE_SETTLE_MS = 150
  */
 const SCROLLBAR_LINGER_MS = 2000
 
-/** Format complete-build metadata for the local brand badge. */
-function localBuildVersion(): string | undefined {
-  const version = process.env.DSH_CLIENT_VERSION
-  if (version === undefined) return undefined
-  const commit = process.env.DSH_CLIENT_COMMIT_HASH
-  return version
-    + (commit === undefined ? '' : `-${commit}`)
-    + (process.env.DSH_CLIENT_GIT_DIRTY === 'true' ? '-dirty' : '')
-}
-
 /**
  * Render the sidebar column shell.
  * @param props - composed slot props (runtime share + injected callbacks, contract/slots.ts).
@@ -121,7 +111,6 @@ export function SidebarRoot({
     }
   }, [pointerInside])
 
-  const buildVersion = localBuildVersion()
 
   return (
     <div
@@ -151,17 +140,10 @@ export function SidebarRoot({
               <span className={css.brandMark}>
                 {renderSlot('sidebar.brand.mark', { size: 24 }, { fallback: <FishLogo size={24} /> })}
               </span>
+              {/* No fallback: unoccupied, the brand is the mark alone. A
+                  deployment that wants wording here registers an occupant. */}
               <span className={css.brandName}>
-                {renderSlot('sidebar.brand.name', {}, {
-                  fallback: buildVersion === undefined
-                    ? <span className={css.fallbackBrandName}>{t('brand.localBuild')}</span>
-                    : (
-                      <span className={css.localBuildBrand}>
-                        <span className={css.localBuildTitle}>{t('brand.localBuild')}</span>
-                        <span className={css.buildVersion}>{buildVersion}</span>
-                      </span>
-                    ),
-                })}
+                {renderSlot('sidebar.brand.name', {})}
               </span>
             </span>
           </button>

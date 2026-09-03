@@ -2,7 +2,7 @@
 
 import type { ClientRemoteObjectHandle, ClientRuntimeSessionId } from '../../shared/bridge/ids.ts'
 import type { ClientConsoleCapability } from '../../shared/bridge/messages/runtime/index.ts'
-import type { RuntimeConsoleBackendEvent, RuntimeConsoleType } from '../../shared/cdp/index.ts'
+import type { RuntimeConsoleBackendEvent, RuntimeConsoleType, RuntimeStackTrace } from '../../shared/cdp/index.ts'
 import type { ClientRuntimeExecutor } from './runtime.ts'
 import { captureClientConsoleStack, clientErrorStack, type ClientScriptKeyResolver } from './stack.ts'
 
@@ -43,6 +43,37 @@ const METHODS = [
 
 type ConsoleMethodName = typeof METHODS[number][0]
 
+/**
+ * Console events retained for each source generation while no DevTools session
+ * is enabled yet. The Worker enables Console observation over the ingest socket,
+ * so a Client that logs before that frame arrives would otherwise drop the event
+ * with no later trace of it. Replaying the buffer on enable is what Chrome's own
+ * Runtime domain does for console history.
+ *
+ * The bound is fixed rather than configured: it caps the memory one generation's
+ * pre-enable window can retain, and its size does not vary by deployment.
+ */
+const MAX_BUFFERED_CONSOLE_EVENTS = 100
+
+/** One captured Console call awaiting a session to materialize it against. */
+interface BufferedConsoleCall {
+  readonly kind: 'console'
+  readonly type: RuntimeConsoleType
+  readonly values: readonly unknown[]
+  readonly timestamp: number
+  readonly stackTrace: RuntimeStackTrace | undefined
+}
+
+/** One captured Client exception awaiting a session to materialize it against. */
+interface BufferedException {
+  readonly kind: 'exception'
+  readonly error: unknown
+  readonly timestamp: number
+  readonly stackTrace: RuntimeStackTrace | undefined
+}
+
+type BufferedEvent = BufferedConsoleCall | BufferedException
+
 interface InstalledMethod {
   readonly name: ConsoleMethodName
   readonly original: (...args: unknown[]) => unknown
@@ -53,6 +84,7 @@ interface InstalledMethod {
 export class ClientConsoleObserver {
   private readonly sessions = new Set<ClientRuntimeSessionId>()
   private readonly installed: InstalledMethod[] = []
+  private readonly buffered: BufferedEvent[] = []
   private active = false
   private closed = false
 
@@ -67,9 +99,10 @@ export class ClientConsoleObserver {
    * @param sessionId - Session whose object table retains event arguments.
    */
   enable(sessionId: ClientRuntimeSessionId): void {
-    if (this.closed) return
+    if (this.closed || this.sessions.has(sessionId)) return
     this.sessions.add(sessionId)
     if (!this.active) this.install()
+    for (const entry of [...this.buffered]) this.deliver(sessionId, entry)
   }
 
   /**
@@ -79,20 +112,26 @@ export class ClientConsoleObserver {
   disable(sessionId: ClientRuntimeSessionId): void {
     this.sessions.delete(sessionId)
     this.runtime.releaseObjectGroup(sessionId, 'console')
-    if (this.sessions.size === 0) this.uninstall()
   }
 
   /** Restore original browser hooks and clear every active session. */
   close(): void {
     if (this.closed) return
     this.closed = true
-    this.reset()
+    this.sessions.clear()
+    this.buffered.length = 0
+    this.uninstall()
   }
 
-  /** Stop observing the current source generation while allowing a later reconnect. */
+  /**
+   * Start a source generation: drop the previous generation's retained events and
+   * observe from here, so events logged before the Worker's enable frame arrives
+   * are still replayed to the session that enables.
+   */
   reset(): void {
     this.sessions.clear()
-    this.uninstall()
+    this.buffered.length = 0
+    if (!this.closed && !this.active) this.install()
   }
 
   private install(): void {
@@ -135,33 +174,43 @@ export class ClientConsoleObserver {
   }
 
   private captureConsole(type: RuntimeConsoleType, values: readonly unknown[]): void {
-    const timestamp = Date.now()
-    const stackTrace = captureClientConsoleStack(this.resolveScript)
-    queueMicrotask(() => {
-      for (const sessionId of [...this.sessions]) {
-        try {
-          const event = this.runtime.consoleEvent(sessionId, type, values, timestamp, stackTrace)
-          if (event !== undefined) this.sink(sessionId, event)
-        } catch {
-          // Console observation must not affect the page's original console call.
-        }
-      }
+    this.record({
+      kind: 'console',
+      type,
+      values,
+      timestamp: Date.now(),
+      stackTrace: captureClientConsoleStack(this.resolveScript),
     })
   }
 
   private captureException(error: unknown): void {
-    const timestamp = Date.now()
-    const stackTrace = clientErrorStack(error, this.resolveScript)
-    queueMicrotask(() => {
-      for (const sessionId of [...this.sessions]) {
-        try {
-          const event = this.runtime.exceptionEvent(sessionId, error, timestamp, stackTrace)
-          if (event !== undefined) this.sink(sessionId, event)
-        } catch {
-          // Exception observation must not affect browser error dispatch.
-        }
-      }
+    this.record({
+      kind: 'exception',
+      error,
+      timestamp: Date.now(),
+      stackTrace: clientErrorStack(error, this.resolveScript),
     })
+  }
+
+  /** Retain one capture for later sessions and fan it out to the enabled ones. */
+  private record(entry: BufferedEvent): void {
+    this.buffered.push(entry)
+    if (this.buffered.length > MAX_BUFFERED_CONSOLE_EVENTS) this.buffered.shift()
+    queueMicrotask(() => {
+      for (const sessionId of [...this.sessions]) this.deliver(sessionId, entry)
+    })
+  }
+
+  /** Materialize one capture against a session's object table and emit it. */
+  private deliver(sessionId: ClientRuntimeSessionId, entry: BufferedEvent): void {
+    try {
+      const event = entry.kind === 'console'
+        ? this.runtime.consoleEvent(sessionId, entry.type, entry.values, entry.timestamp, entry.stackTrace)
+        : this.runtime.exceptionEvent(sessionId, entry.error, entry.timestamp, entry.stackTrace)
+      if (event !== undefined) this.sink(sessionId, event)
+    } catch {
+      // Console observation must not affect the page's original console call.
+    }
   }
 }
 

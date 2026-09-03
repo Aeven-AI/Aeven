@@ -33,6 +33,11 @@ interface CdpNode {
   readonly children?: CdpNode[]
 }
 
+// A real Worker answering a CDP request, with v8 coverage instrumenting both
+// sides: the budget is what that costs under the coverage lane, not what the
+// call takes (single-digit milliseconds) when the suite runs on its own.
+const CDP_CALL_TIMEOUT_MS = 30_000
+
 class CdpClient {
   private nextId = 0
   private readonly pending = new Map<number, (message: CdpMessage) => void>()
@@ -58,7 +63,7 @@ class CdpClient {
   call(method: string, params: Record<string, unknown> = {}): Promise<CdpMessage> {
     const id = ++this.nextId
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => { reject(new Error(`CDP call timed out: ${method}`)) }, 5_000)
+      const timer = setTimeout(() => { reject(new Error(`CDP call timed out: ${method}`)) }, CDP_CALL_TIMEOUT_MS)
       this.pending.set(id, (message) => {
         clearTimeout(timer)
         this.pending.delete(id)
@@ -76,7 +81,12 @@ class CdpClient {
   }
 }
 
-describe('Cordis tree inspection', () => {
+// Each case boots a real Worker (TypeScript compiled through tsx) and drives it
+// over a loopback WebSocket, so the work before the first assertion is process
+// startup rather than the behavior under test. The default 5s is startup budget
+// on an idle machine only; a full suite run exceeds it while the behavior itself
+// stays sub-second.
+describe('Cordis tree inspection', { timeout: 60_000 }, () => {
   let inspector: InspectorHandle | undefined
   let cdp: CdpClient | undefined
   let secondCdp: CdpClient | undefined
@@ -182,6 +192,21 @@ describe('Cordis tree inspection', () => {
     expect(byteBound.snapshot()).toMatchObject({ truncated: true, root: { children: [] } })
     byteBound.close()
 
+    const nestedRoot = new Context()
+    const outerFiber = nestedRoot.plugin({ name: 'outer', apply() {} })
+    await outerFiber.await()
+    const innerFiber = outerFiber.ctx.isolate('nested').plugin({ name: 'inner', apply() {} })
+    await innerFiber.await()
+    const nestedComplete = new CordisTreeCollector(nestedRoot, { maxNodes: 100, maxBytes: 64 * 1_024 })
+    const nestedBytes = jsonByteLength(nestedComplete.snapshot() as unknown as InspectorJsonValue)
+    nestedComplete.close()
+    const nestedBound = new CordisTreeCollector(nestedRoot, { maxNodes: 100, maxBytes: nestedBytes - 1 })
+    const nestedSnapshot = nestedBound.snapshot()
+    expect(nestedSnapshot.truncated).toBe(true)
+    expect(treeNodes(nestedSnapshot.root)
+      .some(node => node.kind === 'fiber' && node.uid === innerFiber.uid)).toBe(false)
+    nestedBound.close()
+
     const impossible = new CordisTreeCollector(root, { maxNodes: 0, maxBytes: 1 })
     expect(() => impossible.snapshot()).toThrow('maxNodes cannot retain the root Context')
     impossible.close()
@@ -189,6 +214,8 @@ describe('Cordis tree inspection', () => {
     const rootTooLarge = new CordisTreeCollector(new Context(), { maxNodes: 2, maxBytes: 1 })
     expect(() => rootTooLarge.snapshot()).toThrow('Cordis root exceeds the source-frame byte limit')
     rootTooLarge.close()
+    await innerFiber.dispose()
+    await outerFiber.dispose()
     await directFiber.dispose()
     await fiber.dispose()
   })

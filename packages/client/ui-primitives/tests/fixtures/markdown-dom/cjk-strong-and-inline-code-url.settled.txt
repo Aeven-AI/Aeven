@@ -10,8 +10,8 @@
       #text "提醒！"
     #text "单星号也保持上游行为。"
   <p>
-    <a href="https://example.com/preview?q=one%20two#result" rel="noreferrer noopener" target="_blank">
-      <code>
+    <code>
+      <a href="https://example.com/preview?q=one%20two#result" rel="noopener noreferrer" target="_blank">
         #text "https://example.com/preview?q=one%20two#result"
     #text " 与 "
     <code>

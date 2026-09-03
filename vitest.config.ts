@@ -1,9 +1,8 @@
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import tsconfigPaths from 'vite-tsconfig-paths'
 import { resolvePwshPath } from './packages/shell/pwsh-local/src/resolve.ts'
 import { defineConfig } from 'vitest/config'
-import { standardDecoratorPlugin, vitestExecArgv } from './vitest.shared.ts'
+import { standardDecoratorPlugin, vitestExecArgv, workspaceAliases } from './vitest.shared.ts'
 import { COVERAGE_EXEMPT_ENV, coverageExemptHeavySuites } from './scripts/coverage-exempt.ts'
 import { COVERAGE_PARTITION_MODE_ENV } from './scripts/coverage-partitions.ts'
 
@@ -12,12 +11,6 @@ import { COVERAGE_PARTITION_MODE_ENV } from './scripts/coverage-partitions.ts'
 // threshold ERRORs name only the file. Absolute path because istanbul-reports
 // require()s custom reporters (which is also why the reporter is CJS).
 const uncoveredLocationsReporter = fileURLToPath(new URL('./scripts/coverage-uncovered-locations.cjs', import.meta.url))
-
-// Resolution facade shared by every plugin instance below: tsconfig.base.json
-// has no include, which vite-tsconfig-paths treats as match-all, so its paths
-// map applies to every test file. paths must win over package exports so built
-// lib/ never loads a second module-singleton copy.
-const pathsPlugin = (): ReturnType<typeof tsconfigPaths> => tsconfigPaths({ projects: ['./tsconfig.base.json'] })
 
 const windowsUnsupportedPackages = process.platform === 'win32'
   ? [
@@ -31,6 +24,7 @@ const windowsUnsupportedPackages = process.platform === 'win32'
       'packages/shell/tool-bash',
       'packages/hooks/*',
       'packages/terminal/terminal-bash',
+      'packages/experimental/code-runtime-python',
       'packages/sandbox/sandbox-local',
     ]
   : []
@@ -147,7 +141,12 @@ const processBoundTests = [
 ]
 
 export default defineConfig({
-  plugins: [pathsPlugin(), standardDecoratorPlugin()],
+  // Aliases, not native tsconfig resolution: a path mapping must win over the
+  // package's own exports so built lib/ never loads a second module-singleton
+  // copy (see workspaceAliases). Every project below repeats it — a project's
+  // resolve does not inherit the root's.
+  resolve: { alias: workspaceAliases() },
+  plugins: [standardDecoratorPlugin()],
   test: {
     setupFiles: ['./scripts/test-invariants.ts'],
     // .tsx: client component specs (jsdom via per-file @vitest-environment pragma).
@@ -157,7 +156,8 @@ export default defineConfig({
     // Node stability; process-bound suites stay separate for inventory control.
     projects: [
       {
-        plugins: [pathsPlugin(), standardDecoratorPlugin()],
+        resolve: { alias: workspaceAliases() },
+        plugins: [standardDecoratorPlugin()],
         test: {
           name: 'thread-safe',
           // The markdown renderer default-imports tippy.js, which publishes no
@@ -182,7 +182,8 @@ export default defineConfig({
         },
       },
       {
-        plugins: [pathsPlugin(), standardDecoratorPlugin()],
+        resolve: { alias: workspaceAliases() },
+        plugins: [standardDecoratorPlugin()],
         test: {
           name: 'process-bound',
           // The markdown renderer default-imports tippy.js, which publishes no
@@ -241,7 +242,6 @@ export default defineConfig({
         // Keep the browser conversation tree under its existing GUI debt
         // exemption while gating the newly stateful Host half and vocabulary.
         'packages/client/ui-conversation/src/client/*',
-        'packages/client/ui-conversation/src/invariant.ts',
         // Chat presentation and assembly retain the same GUI debt exemption;
         // package wiring and the new approval-detail adapter remain gated.
         'packages/client/ui-chat/src/client/chat/!(ApprovalCommand).{ts,tsx}',

@@ -116,7 +116,7 @@ kind: "package-reference"
 | [`src/connection.ts`](src/connection.ts) | 连接监督器：客户端世代、重连策略、尝试预算、dispose |
 | [`src/tools.ts`](src/tools.ts) | 工具桥接：发现、命名、注册交换、执行、图片投影 |
 | [`src/transport.ts`](src/transport.ts) | 传输工厂：带清洗环境的 stdio spawn、Streamable HTTP |
-| [`src/invariant.ts`](src/invariant.ts) | 不变式伴生插件（无运行时不变式；世代只能通过工具注册表观察） |
+| — | 不发布运行时不变式伴生入口；世代只能通过工具注册表观察。 |
 
 ### 生命周期与同步
 
@@ -131,6 +131,8 @@ kind: "package-reference"
 ### 环境清洗（stdio）
 
 子进程环境以子进程 seam 的 `scrubbedParentEnv()` 为基座——删除匹配 `/KEY|PASSWORD|SECRET|TOKEN/i` 的环境名称与所有 `DSH_*` 名称——再在其上合并配置的 `env`，因此显式覆盖得以保留。实际 spawn 由 MCP SDK 负责；本包共享清洗定义，而非 spawn 路径。
+
+子进程的 stderr 采用管道而非继承，每一条完整行都以该服务器的标签在 debug 级别记录。否则，一个在 stderr 上打招呼的服务器——或在 exec 它之前发出警告的 `npx`——会把这些行直接写到 Host 自己的启动输出之上。
 
 </details>
 

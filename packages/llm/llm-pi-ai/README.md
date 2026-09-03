@@ -78,6 +78,7 @@ Each profile may set a `retryPolicy`; omission uses normal mode with five retrie
 | `baseURL` | catalog endpoint | Endpoint of every model on the route |
 | `models` | installed catalog | Replaces the route's catalog wholesale; each entry defaults from the installed model |
 | `modelOverrides` | none | Reshapes individual installed-catalog models without replacing the rest |
+| `catalogRefresh` | none | Adds models the provider currently publishes but the installed snapshot does not describe |
 | `compat` | catalog detection | Wire-compatibility switches for unrecognized endpoints |
 | `defaultContextWindow` | `262,144` | Capacity fallback for undescribed models |
 | `defaultMaxTokens` | `32,768` | Output-cap fallback for undescribed models |
@@ -98,6 +99,31 @@ A profile's `models` list replaces the route's installed catalog rather than ext
 
 ### Run with reasoning and wire compatibility
 
+The installed catalog is a snapshot regenerated on pi-ai's own cadence, so a route serving it lags whatever the provider currently lists. `catalogRefresh` closes that gap for a provider publishing an OpenRouter-style `GET /models` document: name its `url` (and optionally a `timeoutMs`, default ten seconds) and the route fetches that document once at mount, adds every published model the snapshot does not describe, and re-resolves so the additions reach selectors. Against OpenRouter's live endpoint this takes the route from the 346 models the snapshot ships to 433.
+
+The refresh is **additive by contract**: a published entry never replaces an installed one. The snapshot carries hand-tuned `compat` and `thinkingLevelMap` values the document does not express — reasoning dialects, developer-role support, per-level wire spellings — so rewriting an installed entry from the document would silently downgrade models that work today. Correcting an installed model stays `modelOverrides`. An added model declares only what the document implies: its capacities, its accepted modalities, and, when it advertises a reasoning parameter, the OpenRouter reasoning dialect with low/medium/high levels. Everything else is left for a `models` entry to state rather than guessed.
+
+`format` names the published layout. `openrouter` (the default) states capacities, modalities, and accepted parameters at the top of each entry. `openai-models` is the plain OpenAI `GET /models` listing, which providers extend under `metadata` — DeepInfra puts capacities, per-token prices, and capability tags there. `requireTags` keeps a text route clean when a provider lists image, audio, and embedding models in the same document: `[chat]` admits only entries carrying that tag.
+
+### Known routes
+
+Some providers publish a usable model document but are absent from pi-ai's catalog entirely. `dsh-llm-pi-ai` carries a small table of these — currently **DeepInfra** — supplying the protocol, endpoint, credential reference, and refresh a profile would otherwise have to state. They appear in the configurable-provider directory beside pi-ai's own, so adding a credential is the whole step:
+
+```yaml
+llm-pi-ai:
+  providers:
+    deepinfra:
+      apiKeyEnv: DEEPINFRA_API_KEY
+```
+
+That resolves to `openai-completions` against `https://api.deepinfra.com/v1/openai`, refreshing from `/models` with `format: openai-models` and `requireTags: [chat]` — 106 chat models out of the 190 entries the document publishes. Every default is a default: a profile that states its own `baseURL`, `displayName`, `models`, or `catalogRefresh` overrides the table.
+
+A known route's models come only from its document, and resolution runs before the first fetch answers, so such a route resolves with an empty catalog exactly once instead of being refused. An empty route serves no request and stays out of the browser catalog until its models arrive. A route that is neither a catalog route nor a known one, and lists no models, is still refused — nothing would ever fill it.
+
+A route earns a place in that table only when its models can be maintained without anyone editing configuration. A provider whose models would have to be hand-listed belongs in a deployment's own settings, where the list is visibly owned, rather than in a shipped table that would rot exactly as the pi-ai snapshot does.
+
+The refresh is best-effort. A document that is unreachable, slow past `timeoutMs`, or malformed logs a warning and leaves the route serving the snapshot, because a provider's list being briefly unavailable must not take the route down with it. A `catalogRefresh` block that names no `url` is refused at resolution instead, since nothing else in the profile can supply the document's location. A route whose installed models disagree on a protocol, or that resolves no endpoint, is skipped with a warning: an added model has no single `api` and `baseURL` to inherit, and must be named on the route.
+
 `reasoningEfforts` declares a model's selectable thinking levels: each key is a level selectors offer, its value the spelling dispatch sends on the wire, so `max: ultra` renames a level for a gateway with its own vocabulary. Omitting the field keeps the installed catalog entry's capability; `false` declares a non-reasoning model. `compat` switches reshape the request for endpoints pi-ai cannot recognize — which role carries the system prompt, which field caps output, how a thinking level travels — configurable per route and per model. A model neither the entry nor the installed catalog sizes takes the route's `defaultContextWindow` and `defaultMaxTokens` fallbacks.
 
 ### Change configuration at runtime
@@ -106,7 +132,7 @@ Profiles are re-read once per operation through the optional settings seam: the 
 
 ### Discover models from endpoints
 
-The plugin answers "which models can this provider serve?" for a route a configuration surface is editing or drafting. A route the installed catalog ships is answered from that catalog with no network call; only a route the catalog does not describe is interrogated over the wire (`openai-completions` and `openai-responses` shapes). The reply is candidate metadata a surface may offer for adoption — nothing is stored, and `settings.yaml` remains the only thing that decides what a route serves.
+The plugin answers "which models can this provider serve?" for a route a configuration surface is editing or drafting. A route the installed catalog ships is answered from that catalog with no network call; only a route the catalog does not describe is interrogated over the wire (`openai-completions` and `openai-responses` shapes). A named configured route supplies its stored credential and profile `headers` inside the Host, so deployment headers configured through `settings.yaml` or Cordis config reach `GET /models` without becoming discovery-request or Models-page fields; a key typed into the form still wins over the stored credential. The reply is candidate metadata a surface may offer for adoption — nothing is stored, and `settings.yaml` remains the only thing that decides what a route serves.
 
 ### Failures and recovery
 
@@ -139,6 +165,8 @@ The adapter is built on immutable snapshots and per-operation resolution. Each o
 | [`src/context.ts`](src/context.ts) | Harness-to-pi-ai context conversion, image handling, replay restore |
 | [`src/stream.ts`](src/stream.ts) | pi-ai event conversion into harness `StreamChunk` values |
 | [`src/replay.ts`](src/replay.ts) | Versioned `ReplayEnvelope` storage and validation |
+| [`src/live-catalog.ts`](src/live-catalog.ts) | Fetches a provider's published model document and materializes the entries the snapshot lacks |
+| [`src/known-routes.ts`](src/known-routes.ts) | Providers this package can configure although pi-ai ships no catalog for them |
 | [`src/discovery.ts`](src/discovery.ts) | Endpoint interrogation for configuration surfaces |
 
 ### Registration and directory
@@ -210,7 +238,7 @@ These limits define where the adapter stops and future work begins. They are cur
 - **Provider-native discovery answers through this plugin's ambient context** — a route naming no credential defers to the catalog provider's own resolution, which asks for environment values (`AZURE_OPENAI_API_KEY`, `AWS_PROFILE`, and each provider's own set) and for local credential files. Both questions are answered here: the credential seam is consulted before the process environment, and file existence is checked against the host process's filesystem with `~` expanded. What it cannot do is *read* a credential file's contents — a provider that parses `~/.aws/credentials` itself does so directly, outside the seam.
 - **Settings can add or override routes, not remove composition routes** — the user layer merges over the composition base, so deleting a `cordis.yml`-provided provider is a composition change.
 - **The layered merge has no delete for dict keys** — a `reasoningEfforts` level, `modelOverrides` entry, or `compat` field the base declares can be overridden but not removed by the user layer.
-- **`headers` can carry a credential the redactor never sees** — the profile's `headers` dict is plain strings; store credentials as `apiKeyEnv` references.
+- **`headers` can carry a credential the redactor never sees** — profile resolution rejects names and values Fetch cannot represent, but the dict remains plain strings; store credentials as `apiKeyEnv` references.
 - **A route's catalog never refreshes itself** — the catalog is whatever `settings.yaml` says; nothing here queries a provider for the models it serves.
 - **One wire protocol per route** — a mixed-protocol catalog route cannot host a model of the other protocol; splitting the provider across two route keys is the workaround.
 - **A modality declaration is not verified** — a model declaring `image` its gateway does not serve is refused by the provider after prompt admission. The durable image remains in history and the same misdeclared model can fail again; switching to a text-only model remains possible because the shared LLM runtime projects image references into stable text for that request.
@@ -232,3 +260,5 @@ This Dev Note is non-authoritative working context: undecided directions and not
 - The `compat` switch set is pinned to pi-ai's compat types by drift gates; an upstream upgrade that adds a field, gives a further protocol a compat type, or widens a value union fails the build until someone classifies it.
 
 </details>
+
+**Runtime invariant:** No companion is published. This package exposes no independent event sequence or mutable data relation beyond contracts enforced at its owning seam.

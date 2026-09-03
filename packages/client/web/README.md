@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-client-web` boots the web GUI: it loads the client module system from the Host-provided boot graph, then activates every client plugin before the application mounts, so the full UI appears only when every plugin is up. A framework-free boot page reports per-entry status, so a failing bundle or plugin stays visible instead of a blank screen. It also defines the shared module table (`PLATFORM_MODULES`) that every dynamic bundle resolves its externals against. The model never sees this package.
+`dsh-client-web` boots the web GUI: it loads the client module system from the Host-provided boot graph, then activates every client plugin before the application mounts, so the full UI appears only when every plugin is up. `apps/web` hardcodes a styled preloader in its HTML shell so the spinner paints before JavaScript, while a framework-free failure page reports a bundle or plugin that cannot activate. The package also defines the shared module table (`PLATFORM_MODULES`) that every dynamic bundle resolves its externals against. The model never sees this package.
 
 ## Table of Contents
 
@@ -35,7 +35,9 @@ Boot runs in two stages: the module stage adopts the parser-loaded bootstrap bat
 
 ### The boot page
 
-The boot page uses plain DOM and local CSS, so bundle and plugin-activation failures remain visible: it shows one spinner node whose CSS arc grows as entries activate, and reports per-entry status. The spinner and its animation phase persist until the full UI replaces the boot page. A plugin that fails import or activation is reported by name with the reason (missing service, import error, or state) instead of a blank page.
+The normal Web shell carries `#dsh-preloader` before the application root. The production build inlines its stylesheet in the document head so the full-screen background, brand mark, and spinner paint from the document bytes; remaining stylesheets load without blocking that paint. `AppWebEntry` fades that visual only after the plugin tree has activated and the application owns the mount point.
+
+`BootPage` uses plain DOM and local CSS as the failure fallback. It stays visually silent while the static preloader owns loading, then reports an import or activation failure by name and reason after the kernel immediately uncovers it. Documents without the static shell retain BootPage's progress spinner.
 
 ### The shared module table
 
@@ -65,7 +67,7 @@ The kernel owns exactly three things: the module system, the Cordis Loader, and 
 
 ### Boot page mechanics
 
-The boot page is plain DOM with local CSS whose fallback fonts and colors match the theme tokens that arrive during loading. `internal/status` events drive one spinner node and per-entry labels; hydration preserves the node and animation phase through the application commit, and `fail()` renders the thrown reason. React mounting, slot rendering, and assembly live in `ui-renderer`; `ui-layout` owns the assembled browser-title projection.
+`src/preloader.ts` controls the static HTML visual without creating it: successful boot fades it over 400ms before removing it from layout, while failure hides it immediately so it cannot cover the report. The worker preview hides it for the source chooser and restores it while the selected image boots. `BootPage` remains plain DOM with local CSS; `internal/status` events update its fallback progress state, and `fail()` renders the thrown reason. React mounting, slot rendering, and assembly live in `ui-renderer`; `ui-layout` owns the assembled browser-title projection.
 
 ### Source map
 
@@ -74,6 +76,7 @@ The boot page is plain DOM with local CSS whose fallback fonts and colors match 
 | [`src/index.ts`](src/index.ts) | Library entry: `AppWebEntry`, `getStaticModules`, platform tables |
 | [`src/boot.ts`](src/boot.ts) | `AppWebEntry`: two-stage boot, activation audit, renderer handoff |
 | [`src/boot-page.ts`](src/boot-page.ts) | Framework-free boot page: spinner, per-entry status, failure rendering |
+| [`src/preloader.ts`](src/preloader.ts) | Lifecycle control for the static preloader in `apps/web/index.html` |
 | [`src/platform.ts`](src/platform.ts) | `PLATFORM_MODULES` / `PRELOADED_CLIENT_EXTERNALS`: the implicit external baseline |
 | [`src/seed.ts`](src/seed.ts) | Static module table handed to the loader at boot |
 
@@ -121,3 +124,5 @@ These limits define what the boot kernel does not support. They are current pack
 None.
 
 </details>
+
+**Runtime invariant:** No companion is published. The vite entry shell — boot glue and module-table seeding with no cordis events and no cross-plugin mutable state; the boot chain (loading page → settled → one-flip UI) is asserted by the web smoke e2e against the real carrier.

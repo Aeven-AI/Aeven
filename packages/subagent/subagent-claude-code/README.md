@@ -57,7 +57,7 @@ Removing the package withdraws the provider and its private runtime closure on t
 | `plan` | Run in native planning mode, deny execution approval, and return the completed plan as the final answer |
 | `bypassPermissions` | Explicitly set the SDK's dangerous confirmation and bypass permission checks |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-subagent-claude-code) is the exhaustive source for every accepted field and its JSDoc. A configured `model` passes unchanged to every query from that provider instance; omission leaves native model selection in force. Credential-shaped ambient variables are removed before the explicit `env` overlay, so an API key intended for the child must be supplied there. The provider omits the SDK `settingSources` option, so Claude Code reads the host's normal user, project, and local settings relative to the parent Session cwd. It does not copy or filter those files, create or modify login state, inspect `PATH`, or fall back to a host `claude` executable.
+The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-subagent-claude-code) is the exhaustive source for every accepted field and its JSDoc. A configured `model` passes unchanged to every query from that provider instance; omission leaves native model selection in force. Credential-shaped ambient variables are removed before the explicit `env` overlay, so an API key intended for the child must be supplied there. `CLAUDE_CODE_ENTRYPOINT` and `CLAUDE_AGENT_SDK_VERSION` are dropped with them: the SDK assigns each only when it is absent, so a Host started from inside Claude Code would otherwise name its own launcher and SDK version as the identity of the run it is starting, and the CLI answers as that host instead. Naming the child's own launcher stays available through `env`. The provider omits the SDK `settingSources` option, so Claude Code reads the host's normal user, project, and local settings relative to the parent Session cwd. It does not copy or filter those files, create or modify login state, inspect `PATH`, or fall back to a host `claude` executable.
 
 ### Exposing the tool
 
@@ -193,3 +193,5 @@ This Dev Note is working context for maintainers: open questions and undecided d
 - **Version-pinned protocol** — the runtime dependency is pinned to Agent SDK 0.3.241; upgrading pins a new SDK version and requires re-running the keyless real-product and loader-composition evidence.
 
 </details>
+
+**Runtime invariant:** No companion is published. Lifecycle pairing belongs to the shared subagent service and process-tree ownership belongs to the subprocess service.
