@@ -34,24 +34,21 @@ describe('highlightLines', () => {
     const result = highlightLines('const x = 1\n// c', 'ts')
     expect(result).not.toBeUndefined()
     expect(result).toHaveLength(2)
-    // The keyword run carries a color style through a --shiki-* custom property.
+    // The keyword run carries an hljs token class.
     const keyword = result![0]!.find(span => span.text === 'const')
-    expect(keyword?.style?.color).toContain('var(--shiki-')
+    expect(keyword?.className).toContain('hljs-')
     // Whitespace between tokens is a run of its own; the comment is line two.
     expect(result![0]!.map(span => span.text).join('')).toBe('const x = 1')
     expect(result![1]!.map(span => span.text).join('')).toBe('// c')
   })
 
-  it('colors every run through a --shiki-* custom property', () => {
-    // The css-variables theme colors even the whitespace run (as the foreground
-    // token), so every run is a styled span; the plain fallback is the whole
-    // unknown-language path, not a per-run one.
+  it('assigns hljs token classes to keyword runs', () => {
     const result = highlightLines('const x = 1', 'ts')
-    for (const span of result!) for (const run of span) expect(run.style.color).toContain('var(--shiki-')
+    expect(result!.flat().some(run => run.className?.includes('hljs-'))).toBe(true)
   })
 
   it('drops the trailing terminator line so the run count matches the source lines', () => {
-    // `a\n` tokenizes to two lines in shiki (the second empty); the caller's own
+    // `a\n` tokenizes to two lines (the second empty); the caller's own
     // line array has one entry, so the terminator line is dropped.
     const result = highlightLines('const a = 1\n', 'ts')
     expect(result).toHaveLength(1)
@@ -81,9 +78,9 @@ describe('highlightLines', () => {
     expect(grammarLoadCount()).toBeGreaterThan(0)
     const result = highlightLines('def f(): pass', 'py')
     expect(result).not.toBeUndefined()
-    // `def` is a python keyword and carries a --shiki-* color once highlighted.
+    // `def` is a python keyword and carries an hljs class once highlighted.
     const keyword = result!.flat().find(span => span.text === 'def')
-    expect(keyword?.style?.color).toContain('var(--shiki-')
+    expect(keyword?.className).toContain('hljs-')
     stop()
   })
 })
@@ -100,7 +97,7 @@ describe('ReadBlock rows', () => {
       <ReadBlock label="a.ts" lang="ts" lines={[{ number: 1, text: 'const a = 1' }]} totalLines={1} />,
     )
     const content = view.container.querySelector('[class^="_content_"]')
-    expect(content?.querySelectorAll('span[style]').length).toBeGreaterThan(1)
+    expect(content?.querySelectorAll('span[class]').length).toBeGreaterThan(0)
     expect(content?.textContent).toBe('const a = 1')
   })
 

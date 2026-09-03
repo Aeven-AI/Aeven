@@ -41,7 +41,17 @@ The shell seeds a frozen module table (`PLATFORM_MODULES`: React, Cordis, and st
 
 ### Build requirements
 
-The host serves built client bundles, so `pnpm run build` must have produced each `lib/client.js` before launch; a missing bundle fails activation loudly with one build instruction and a package/path list. Source launch maps host imports to TypeScript source but still consumes the built client export. The package accepts no plugin config of its own.
+The host serves built client bundles, so `pnpm run build` must have produced each `lib/client.js` before launch; a missing bundle fails activation loudly with one build instruction and a package/path list. Source launch maps host imports to TypeScript source but still consumes the built client export.
+
+### Startup batching
+
+The host keeps each generated startup script at or below `maxInitialBatchBytes` when one plugin bundle fits, and it also keeps the longer source-map URL at or below 3 KiB. The default 786432-byte limit lets application batches preload and arrive independently instead of concentrating an arbitrarily large roster in one request. A plugin bundle larger than the configured byte limit travels alone.
+
+| Field | Default | Meaning |
+|---|---:|---|
+| `maxInitialBatchBytes` | `786432` | Maximum generated JavaScript bytes in an initial combo when one bundle fits. |
+
+The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-client-modules) is the exhaustive source for accepted fields.
 
 -----
 
@@ -65,11 +75,11 @@ Executing a plugin bundle only registers its factory; every module-body side eff
 
 The node half scans incrementally per package — no full-rescan path. Every `internal/plugin` emission marks the fiber's entry name dirty; a microtask flush reconciles each dirty name against the live loader entries, and the activation pass seeds the same dirty set and flushes synchronously, so first scan and steady state share one implementation. Package metadata is cached per Loader specifier and owning-tree base URL until restart, while the resolved manifest package name identifies the browser module. Distinct active Loader sources resolving to one package name are rejected; removing the conflict promotes the remaining source without requiring its fiber to restart. Bundle content changes reach the graph only through `rebuilt()` (the HMR hook).
 
-The node half snapshots each client bundle and available source map before publication. It groups resources into `/plugins/??...&rev=...` combo URLs, with one bootstrap combo for the modules row and one or more application combos for the other rows; each phase is partitioned before a URL exceeds 3 KiB. Every combo map is Indexed Source Map v3 and uses an authored section when available or an identity section for the packaged bundle. Initial per-plugin revisions use process nonces, so startup does not hash every plugin; HMR hashes only an artifact reported as changed. Advertised responses are immutable, and an unknown combination or revision returns 404.
+The node half snapshots each client bundle and available source map before publication. It groups resources into `/plugins/??...&rev=...` combo URLs, with one bootstrap combo for the modules row and one or more application combos for the other rows; each phase is partitioned by generated script bytes and before a URL exceeds 3 KiB. Every combo map is Indexed Source Map v3 and uses an authored section when available or an identity section for the packaged bundle. Initial per-plugin revisions use process nonces, so startup does not hash every plugin; HMR hashes only an artifact reported as changed. Advertised responses are immutable, and an unknown combination or revision returns 404.
 
 ### Boot manifest injection
 
-The host taps the index render and injects, into `<head>`: the `window.__ModuleLoader__` queue facade, advisory preloads for every application combo, the parser-blocking bootstrap combo scripts, then the boot graph before the shell reads it. The facade's `create()` materializes the modules bundle, delegates construction to its `createClientModuleSystem` export, and leaves the same facade in live-registration mode.
+The host taps the index render and injects, into `<head>`: the `window.__ModuleLoader__` queue facade, advisory preloads for every application combo, the deferred bootstrap combo scripts, then the boot graph before the shell reads it. The facade's `create()` materializes the modules bundle, delegates construction to its `createClientModuleSystem` export, and leaves the same facade in live-registration mode.
 
 ### Source map
 

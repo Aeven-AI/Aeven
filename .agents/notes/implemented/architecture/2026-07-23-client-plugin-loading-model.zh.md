@@ -40,7 +40,7 @@ vendored Loader 经其 `internal` 约定消费模块系统——唯一调用点�
 
 ### Combo 外部脚本到达与源码映射
 
-Host 会快照每个已构建插件产物，并把每个调度阶段的有序 row 划入一个或多个同源 classic script。它在更长的 map 形式请求 URL 保持在 3 KiB 以内时贪心填充每组，既保留 graph 顺序，也以增加请求代替超长 URL。每个脚本都由其中的 package 资源寻址，例如 `/plugins/??<package-a>/client.js,<package-b>/client.js&rev=<rev>`。`bootstrap` 与 `application` 是图中的调度阶段，不是 URL 组成部分：HTML 先预加载所有 application URL，再执行所有阻塞 parser 的 bootstrap URL。模块系统按 combo URL 复用进行中的传输，因此同组 row 的并发到达只执行一个脚本。成功结算仍要求模块表中已经存在被请求 row 的 factory id；登记不会运行 factory，所以副作用边界依然是首次物化。
+Host 会快照每个已构建插件产物，并把每个调度阶段的有序 row 划入一个或多个同源 classic script。它会在较长的 map 形式请求 URL 保持在 3 KiB 以内且生成脚本保持在所配置的 `maxInitialBatchBytes`（默认 768 KiB）以内时贪心填充每组，既保留 graph 顺序，又以并行请求避免把任意扩张的名册集中进一个响应。大于该字节限制的单个插件 bundle 会独占一个批次，因为启动过程无法切分一份 factory 产物。每个脚本都由其中的 package 资源寻址，例如 `/plugins/??<package-a>/client.js,<package-b>/client.js&rev=<rev>`。`bootstrap` 与 `application` 是图中的调度阶段，不是 URL 组成部分：HTML 先预加载所有 application URL，再执行所有阻塞 parser 的 bootstrap URL。模块系统按 combo URL 复用进行中的传输，因此同组 row 的并发到达只执行一个脚本。成功结算仍要求模块表中已经存在被请求 row 的 factory id；登记不会运行 factory，所以副作用边界依然是首次物化。
 
 共享 tsdown 预设为每个插件产出 `client.js.map`，并把第一方源码路径重写成浏览器可识别的仓库形式 `/packages/<group>/<package>/src/...`。生产 Client 构建会消费 `lib/types`；预设把每份 tsc map 交给 Rolldown，并从原文件补齐 `sourcesContent`，使最终 map 回到 TypeScript/TSX，而不是停在编译后的 JavaScript。内联进 bundle 的其他 workspace 源码同样回到其 `packages/` 归属，依赖包路径保持原样。Combo 生成会移除每个局部调试指令、记录其生成行偏移、以原插件 map URL 解析每个自带 source，再产出 Indexed Source Map v3。插件有自带 map 时直接用于对应 section；没有时则生成 identity section，内嵌构建后 bundle，并在存在时把 packer 写入的 `sourceURL` 用作 source 名。绝对 map URL 会平行改写脚本资源列表中的每个 `client.js` 后缀，因此 `/plugins/??<package-a>/client.js,<package-b>/client.js&rev=<rev>` 指向 `/plugins/??<package-a>/client.js.map,<package-b>/client.js.map&rev=<rev>`。单资源也采用相同规则，仍产出只有一个 section 的 indexed map。Vite 壳同样产出 sourcemap，使壳代码与经 combo 加载的插件都能从 stack 和性能 profile 回到 TypeScript/TSX。
 
@@ -96,7 +96,7 @@ Host 会快照每个已构建插件产物，并把每个调度阶段的有序 ro
 
 Wire 两侧运行同一份治理实现；浏览器特有层只包含一套模块系统和一个重载插件。动态包只有一种产物形态，因此纯度检查覆盖全部动态包。Cordis 依赖、模块请求与启动档位都与其所有者——manifest——同住，负责组合的 app 只握名册。Host graph 校验与递归请求到达使同步 factory 依赖保持显式。浏览器原生 script 装载保留插件网络资源、生成 bundle 与 TypeScript/TSX 源码之间的标准映射，模块系统也只保留一个可替换的 `loadBundle` 钩子。
 
-接受的代价：vendored Loader 在浏览器里背着闲置机件（EntryTree 持久化是 no-op，分组／隔离未用）；开发期每次修改插件都要付一次 bundle 重建加 fiber 重挂；graph `inject` row 指导 factory 到达，但服务可用性仍是激活权威，因此不匹配会在 settled 扫描时浮出；静态 UI 库保留直接实体导出；每个 bundle 多出一份 sourcemap 产物，外部 script 失败也只能给出粗粒度 URL 诊断，不能像显式 fetch 那样报告 HTTP 状态。Host 会保留逐插件 bundle/map 快照、生成的单资源响应、当前启动 combo 响应及上一代启动响应，因此内存会随组合出的客户端产物增长为数份副本。这组保留状态使 URL 保持不可变，并让进行中的请求跨越一次 HMR 重组后仍能完成。
+接受的代价：vendored Loader 在浏览器里背着闲置机件（EntryTree 持久化是 no-op，分组／隔离未用）；开发期每次修改插件都要付一次 bundle 重建加 fiber 重挂；graph `inject` row 指导 factory 到达，但服务可用性仍是激活权威，因此不匹配会在 settled 扫描时浮出；静态 UI 库保留直接实体导出；每个 bundle 多出一份 sourcemap 产物；多个启动批次会花费额外的请求元数据，压缩效率也低于一个不设限的响应；外部 script 失败也只能给出粗粒度 URL 诊断，不能像显式 fetch 那样报告 HTTP 状态。Host 会保留逐插件 bundle/map 快照、生成的单资源响应、当前启动 combo 响应及上一代启动响应，因此内存会随组合出的客户端产物增长为数份副本。这组保留状态使 URL 保持不可变，并让进行中的请求跨越一次 HMR 重组后仍能完成。
 
 名册位于 web 组合包的配置树（`packages/bundle/web-app/cordis.patch.yml`）；`mountWebPlugins` 与 `CLIENT_PACKAGES` 常量已消失，重组一次部署等于替换 yml/overlay。Graph 组合器位于 `dsh-client-modules` node 半，由 parser 预载的 Client face 则自举浏览器模块表。Webserver 继续作为朴素路由注册插件；`/api/*` 绑定、浏览器认证、RPC envelope 与精确 Fetch 路由属于 Connection node 半，Remote 分发属于 API Gateway，开发期 bundle 监视与 SSE 通道属于 HMR node 半。
 
@@ -112,4 +112,5 @@ Wire 两侧运行同一份治理实现；浏览器特有层只包含一套模块
 | 现在就彻底 ctx 化（React 与库全走服务，不设模块表） | 静态 UI 库仍暴露同步实体，因此删除模块表会让这些 import 失去共享身份 |
 | 冻结表 + 到达即实例化 | 会在 script 到达时执行 bundle 副作用；惰性登记把执行推迟到 Cordis import，并由递归 `require` 物化已登记请求 |
 | fetch 响应文本后注入内联 `<script>` | 模块系统必须缓冲整份源码并维护 fetch/execute 两条路径；动态源码执行也切断浏览器网络资源、sourcemap 与 profile 的原生关联 |
+| 每个插件使用一个启动请求 | 放弃跨插件压缩，并为每个小型 factory 花费一份请求；可配置的字节限制能形成有界的并行批次，同时让超限的单个产物保持完整 |
 | 构建器推送重建通道（编排器在 `onSuccess` 里 POST `/plugins/rebuilt`） | 把重载耦合到一个钦定的构建器进程和第二套 wire 协议；webserver 本就握有每个 bundle 路径，stat 轮询（每次 stat 变化即重哈希）已兜住当年为推送辩护的撕裂写竞态 |

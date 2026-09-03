@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-`dsh-client-web` 启动 web GUI：它先从 Host 提供的启动图加载客户端模块系统，再在应用挂载前激活每一个客户端插件，因此只有当所有插件都就绪时完整 UI 才会出现。无框架启动页会逐 entry 报告状态，因此失败的 bundle 或插件保持可见，而不是白屏。它还定义共享模块表（`PLATFORM_MODULES`），每个动态 bundle 都依据它解析 external。模型永远看不到本包。
+`dsh-client-web` 启动 web GUI：它先从 Host 提供的启动图加载客户端模块系统，再在应用挂载前激活每一个客户端插件，因此只有当所有插件都就绪时完整 UI 才会出现。`apps/web` 在 HTML 外壳中固定写入带样式的预加载页，使转轮在 JavaScript 前绘制；无框架失败页则报告无法激活的 bundle 或插件。本包还定义共享模块表（`PLATFORM_MODULES`），每个动态 bundle 都依据它解析 external。模型永远看不到本包。
 
 ## 目录
 
@@ -35,7 +35,9 @@ kind: "package-library"
 
 ### 启动页
 
-启动页只使用原生 DOM 与本地 CSS，因此 bundle 与插件激活失败保持可见：它显示一个 spinner 节点，其 CSS 圆弧随 entry 激活而增长，并逐 entry 报告状态。spinner 及其动画相位会一直保留，直到完整 UI 替换启动页。导入或激活失败的插件会按名称报告并给出原因（缺失服务、导入错误或状态），而不是白屏。
+常规 Web 外壳在应用 root 前承载 `#dsh-preloader`。生产构建会在 document head 中内联其样式表，使全屏背景、品牌标识与转轮从 document 字节绘制；其余样式表不再阻塞该绘制。`AppWebEntry` 仅在插件树激活且应用接管挂载点后淡出该视觉。
+
+`BootPage` 使用原生 DOM 与本地 CSS 作为失败回退。静态预加载页拥有加载呈现时它保持视觉静默；导入或激活失败后，内核会立即揭开它，并由 BootPage 按名称和原因报告错误。不含静态外壳的 document 仍使用 BootPage 的进度转轮。
 
 ### 共享模块表
 
@@ -65,7 +67,7 @@ kind: "package-library"
 
 ### 启动页机制
 
-启动页是原生 DOM 加本地 CSS，其回退字体与颜色匹配加载期间到达的主题 token。`internal/status` 事件驱动一个 spinner 节点与逐 entry 标签；hydrate 会保留该节点与动画相位直到应用提交，`fail()` 渲染抛出的原因。React 挂载、slot 渲染与应用组装位于 `ui-renderer`；`ui-layout` 拥有组装后的浏览器标题投影。
+`src/preloader.ts` 控制静态 HTML 视觉但不创建它：成功启动会用 400ms 淡出后将其移出布局，失败则立即隐藏，使它不会覆盖报告。Worker preview 在 source chooser 期间隐藏它，并在所选 image 启动时恢复。`BootPage` 仍是原生 DOM 加本地 CSS；`internal/status` 事件更新其回退进度状态，`fail()` 渲染抛出的原因。React 挂载、slot 渲染与应用组装位于 `ui-renderer`；`ui-layout` 拥有组装后的浏览器标题投影。
 
 ### 源码地图
 
@@ -74,6 +76,7 @@ kind: "package-library"
 | [`src/index.ts`](src/index.ts) | 库入口：`AppWebEntry`、`getStaticModules`、平台表 |
 | [`src/boot.ts`](src/boot.ts) | `AppWebEntry`：两阶段启动、激活审计、渲染器交接 |
 | [`src/boot-page.ts`](src/boot-page.ts) | 无框架启动页：spinner、逐 entry 状态、失败渲染 |
+| [`src/preloader.ts`](src/preloader.ts) | `apps/web/index.html` 中静态预加载页的生命周期控制 |
 | [`src/platform.ts`](src/platform.ts) | `PLATFORM_MODULES` / `PRELOADED_CLIENT_EXTERNALS`：隐式 external 基座 |
 | [`src/seed.ts`](src/seed.ts) | 启动时交给 loader 的静态模块表 |
 
@@ -121,3 +124,5 @@ kind: "package-library"
 无。
 
 </details>
+
+**运行时不变式：** 不发布伴生入口。这是 Vite entry shell，只负责 boot glue 与 module-table seeding，不发出 Cordis 事件或持有跨插件可变状态；boot chain 由真实 carrier 的 web smoke e2e 覆盖。

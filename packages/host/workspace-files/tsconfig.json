@@ -13,7 +13,6 @@
     { "path": "../../../vendor/schemastery" },
     { "path": "../../client/connection/tsconfig.host.json" },
     { "path": "../webserver" },
-    { "path": "../../workspace/workspace" },
-    { "path": "../../runtime-diagnostics/invariants" }
+    { "path": "../../workspace/workspace" }
   ]
 }
