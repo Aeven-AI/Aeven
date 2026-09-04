@@ -16,11 +16,13 @@ export { AUTH_ROUTES, AUTH_ROUTE_PREFIXES, isAuthRoute, navigateRoute } from './
 export { session, storage, type AevenProfile, type UserConfig } from './services/session.ts'
 export { currentBearer } from './services/tokens.ts'
 export { signOut, getProfile, AevenApiError } from './services/api.ts'
-export { aevenConfig, type AevenClientConfig } from './services/config.ts'
+export { publishReader, publishedReader, type AevenReader } from './services/reader.ts'
+export { aevenConfig, mediaUrl, webUrl, type AevenClientConfig } from './services/config.ts'
 
 import { getProfile } from './services/api.ts'
 import { aevenConfig } from './services/config.ts'
 import { AUTH_ROUTES, isAuthRoute, navigateRoute } from './services/routes.ts'
+import { publishReader } from './services/reader.ts'
 import { session, storage } from './services/session.ts'
 import { currentBearer } from './services/tokens.ts'
 
@@ -48,11 +50,13 @@ export async function restoreSession(): Promise<AuthGateResult> {
   if (aevenConfig().apiUrl === undefined) return { state: 'disabled' }
   try {
     const profile = await getProfile()
+    publishReader()
     return { state: 'authenticated', userId: profile.userId }
   } catch {
     // Every failure is the same to the reader: no session. The reason lives in
     // the API's answer, which the sign-in screen surfaces when they try.
     session.reset()
+    publishReader()
     return { state: 'unauthenticated' }
   }
 }

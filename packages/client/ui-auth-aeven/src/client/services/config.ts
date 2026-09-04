@@ -13,6 +13,8 @@ export interface AevenClientConfig {
   readonly xOAuthUrl?: string
   readonly appleOAuthUrl?: string
   readonly googleOAuthUrl?: string
+  readonly webUrl?: string
+  readonly mediaUrl?: string
   readonly confettiColors?: readonly string[]
 }
 
@@ -28,6 +30,27 @@ export function aevenConfig(): AevenClientConfig {
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1'])
 
 /**
+ * Follow the page's own loopback host, as {@link apiUrl} explains.
+ * @param configured - the configured origin, or undefined.
+ * @returns the origin to address, or undefined when none was configured.
+ */
+function sameSiteOrigin(configured: string | undefined): string | undefined {
+  if (configured === undefined) return undefined
+  try {
+    const url = new URL(configured)
+    if (LOOPBACK.has(url.hostname) && LOOPBACK.has(window.location.hostname)) {
+      url.hostname = window.location.hostname
+      return url.origin
+    }
+    return configured
+  } catch {
+    // Not a URL: the deployment stated something this cannot reason about, so
+    // it is addressed as configured and the request reports the failure.
+    return configured
+  }
+}
+
+/**
  * The Aeven API origin every request below is sent to.
  *
  * A configured loopback host follows the page's own. `localhost` and
@@ -40,20 +63,23 @@ const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1'])
  * @returns the origin to send Aeven requests to.
  */
 export function apiUrl(): string {
-  const configured = aevenConfig().apiUrl
-  if (configured === undefined) return ''
-  try {
-    const url = new URL(configured)
-    if (LOOPBACK.has(url.hostname) && LOOPBACK.has(window.location.hostname)) {
-      url.hostname = window.location.hostname
-      return url.origin
-    }
-    return configured
-  } catch {
-    // Not a URL: the deployment stated something this cannot reason about, so
-    // it is sent as configured and the request reports the failure.
-    return configured
-  }
+  return sameSiteOrigin(aevenConfig().apiUrl) ?? ''
+}
+
+/**
+ * The Aeven web client's origin, which the account menu links to.
+ * @returns the origin, or undefined when this deployment names no web client.
+ */
+export function webUrl(): string | undefined {
+  return sameSiteOrigin(aevenConfig().webUrl)
+}
+
+/**
+ * The origin serving uploaded media, which profile-image paths are relative to.
+ * @returns the origin, or undefined when this deployment names no media host.
+ */
+export function mediaUrl(): string | undefined {
+  return sameSiteOrigin(aevenConfig().mediaUrl)
 }
 
 /**

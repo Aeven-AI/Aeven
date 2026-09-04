@@ -49,6 +49,18 @@ export interface Config {
   appleOAuthUrl?: string
   /** Provider sign-in URL; absent hides that provider's button. */
   googleOAuthUrl?: string
+  /**
+   * Origin of the Aeven web client, such as `http://localhost:3030`. The
+   * account menu links there; absent leaves the menu with no account rows,
+   * because a harness that cannot name the account page must not invent one.
+   */
+  webUrl?: string
+  /**
+   * Origin serving Aeven's uploaded media, such as `http://localhost:9020`.
+   * Profile-image paths are relative to it; absent leaves every reader on the
+   * generated gradient.
+   */
+  mediaUrl?: string
 }
 
 export const Config: z<Config> = z.object({
@@ -60,6 +72,8 @@ export const Config: z<Config> = z.object({
   xOAuthUrl: z.string(),
   appleOAuthUrl: z.string(),
   googleOAuthUrl: z.string(),
+  webUrl: z.string(),
+  mediaUrl: z.string(),
 })
 
 /** Config after schemastery has filled every defaulted field. */
@@ -150,6 +164,8 @@ export function apply(ctx: Context, config: Config): void {
         ...config.xOAuthUrl === undefined ? {} : { xOAuthUrl: config.xOAuthUrl },
         ...config.appleOAuthUrl === undefined ? {} : { appleOAuthUrl: config.appleOAuthUrl },
         ...config.googleOAuthUrl === undefined ? {} : { googleOAuthUrl: config.googleOAuthUrl },
+        ...config.webUrl === undefined ? {} : { webUrl: config.webUrl },
+        ...config.mediaUrl === undefined ? {} : { mediaUrl: config.mediaUrl },
       },
     })
   })

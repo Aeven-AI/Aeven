@@ -8,12 +8,17 @@
  * @module
  */
 
+/** The uploaded profile image, absent until a reader sets one. */
+export interface AevenProfileMedia {
+  readonly avatar?: { readonly url?: string }
+}
+
 /** What `/get-profile` answers with; unread fields pass through untouched. */
 export interface AevenProfile {
   readonly userId: string
   readonly email?: string
   readonly displayName?: string
-  readonly profile?: string
+  readonly profile?: AevenProfileMedia
   readonly roles?: readonly string[]
 }
 
@@ -22,7 +27,7 @@ export interface UserConfig {
   readonly userId: string | null
   readonly email: string | undefined
   readonly displayName: string | undefined
-  readonly profile: string | undefined
+  readonly profile: AevenProfileMedia | undefined
   readonly userSignedIn: boolean
 }
 
@@ -68,7 +73,7 @@ class Session {
   userSignedIn = false
   email: string | undefined
   displayName: string | undefined
-  profile: string | undefined
+  profile: AevenProfileMedia | undefined
 
   /** The bundle the OAuth-result screen passes down. */
   get userConfig(): UserConfig {

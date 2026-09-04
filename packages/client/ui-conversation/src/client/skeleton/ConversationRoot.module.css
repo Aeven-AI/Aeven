@@ -52,7 +52,9 @@
 .header {
   position: relative;
   flex: none;
-  padding: 8px var(--dsw-aeven-page-inset) 0 max(
+  padding: 8px calc(
+    var(--dsw-aeven-page-inset) + var(--dsh-header-overlay-clearance, 0px)
+  ) 0 max(
     var(--dsw-aeven-page-inset),
     var(--dsh-sidebar-overlay-clearance, 0px)
   );

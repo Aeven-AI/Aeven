@@ -274,6 +274,13 @@
       name: '@deepseek-ai/dsh-client-ui-schedule'
       disabled: true
 
+    # The signed-in Aeven reader's avatar and account menu. The shipped Web
+    # graph resolves the client package but leaves it disabled; the Aeven
+    # authentication overlay enables this row together with the host authority.
+    - id: ui-account-aeven
+      name: '@deepseek-ai/dsh-client-ui-account-aeven'
+      disabled: true
+
     # Background jobs: the session-header list over the jobsBySession mirror.
     - id: ui-jobs
       name: '@deepseek-ai/dsh-client-ui-jobs'

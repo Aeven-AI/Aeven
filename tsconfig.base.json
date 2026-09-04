@@ -243,6 +243,8 @@
       "@deepseek-ai/dsh-identity-user": ["./packages/identity/user/src"],
       "@deepseek-ai/dsh-identity-user-aeven": ["./packages/identity/user-aeven/src"],
       "@deepseek-ai/dsh-client-ui-auth-aeven": ["./packages/client/ui-auth-aeven/src"],
+      "@deepseek-ai/dsh-client-ui-account-aeven": ["./packages/client/ui-account-aeven/src"],
+      "@deepseek-ai/dsh-client-ui-account-aeven/client": ["./packages/client/ui-account-aeven/src/client/index.ts"],
       "@deepseek-ai/dsh-app-boot": ["./packages/boot/app-boot/src"],
       "@deepseek-ai/dsh-atomic-write": ["./packages/util/atomic-write/src"],
       "@deepseek-ai/dsh-attachment": ["./packages/attachment/attachment/src"],

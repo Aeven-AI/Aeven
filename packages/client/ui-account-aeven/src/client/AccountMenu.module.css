@@ -1,0 +1,28 @@
+/* Where DSH puts the menu. Aeven positions it with tippy inside its own
+   header; DSH has neither, so the shell overlay carries it at the top-right of
+   every view and the panel hangs from the trigger. */
+
+.mount {
+  position: absolute;
+  top: 13px;
+  right: var(--dsw-aeven-page-inset);
+  display: flex;
+  align-items: center;
+}
+
+/* The trigger is a button so it keeps native activation and focus; Aeven's is
+   a focusable span, and its stylesheet leaves both bare. */
+.trigger {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+.popover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+}
