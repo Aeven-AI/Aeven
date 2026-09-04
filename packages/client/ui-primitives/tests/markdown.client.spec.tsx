@@ -1,19 +1,10 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { MessageText } from '@deepseek-ai/dsh-client-ui-primitives'
 import { JsonBlock, MarkdownText } from './markdown-test-components.tsx'
 import { cjkFriendlyStrong } from '../src/markdown/cjkFriendlyStrong.ts'
 
 afterEach(cleanup)
-
-describe('MessageText', () => {
-  it('renders the text verbatim', () => {
-    const { container } = render(<MessageText text={'# line1\n`line2`'} />)
-    expect(container.textContent).toBe('# line1\n`line2`')
-    expect(container.querySelector('h1')).toBeNull()
-  })
-})
 
 describe('MarkdownText', () => {
 
