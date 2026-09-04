@@ -65,6 +65,8 @@ export function verifiedUserId(token: string, secret: string, nowSeconds: number
   if (!timingSafeEqual(actual, expected)) return undefined
 
   const payloadBytes = decodeSegment(encodedPayload)
+  /* v8 ignore next -- the signature covers this segment, so a payload that is
+     not base64url cannot have verified a moment ago. */
   if (payloadBytes === undefined) return undefined
   let claims: Claims
   try {

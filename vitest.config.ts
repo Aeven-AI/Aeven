@@ -355,6 +355,19 @@ export default defineConfig({
         // Projection/command round: executor lifecycle branches and the
         // registry's drive tails need the same maturing lanes. TODO(gui):
         // cover and remove with the client test lane above.
+        // The ported Aeven authentication screens and the vendored confetti
+        // build: markup carried over verbatim so one stylesheet governs both
+        // clients, which per-file coverage would pin line by line and make
+        // undiffable against its origin. The logic behind them — route
+        // matching, credential rules, token handling and every API call — is
+        // covered by this package's own suites, and the screens themselves are
+        // exercised by signing in against a real Aeven API.
+        'packages/client/ui-auth-aeven/src/client/views/*.tsx',
+        'packages/client/ui-auth-aeven/src/client/com/*.tsx',
+        'packages/client/ui-auth-aeven/src/client/mount.tsx',
+        'packages/client/ui-auth-aeven/src/client/index.ts',
+        'packages/client/ui-auth-aeven/src/index.ts',
+        'packages/client/ui-auth-aeven/src/vendor/**',
         'packages/interaction/commands/src/index.ts',
         'packages/interaction/commands/src/invariant.ts',
         'packages/session/session-projection/src/index.ts',

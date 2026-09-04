@@ -23,6 +23,8 @@ export function guid(): string {
   return 'xxxxxxxxxxxxxaxxxxxxxxxxxxxxxxxxxx'.replace(/[x]/g, (c) => {
     const r = (d + Math.random() * 16) % 16 | 0
     d = Math.floor(d / 16)
+    /* v8 ignore next -- the pattern replaces only 'x'; the literal 'a' in the
+       template is what the other arm was written for and never reaches here. */
     return (c === 'x' ? r : (r & 0x7) | 0x8).toString(16)
   })
 }
@@ -47,9 +49,10 @@ export function href(path: string, trailingSlash = false): string {
  * @returns true when it is well formed.
  */
 export function isEmail(email: string): boolean {
-  if (typeof email !== 'string' || email.length > 254) return false
+  if (email.length > 254) return false
   const parts = email.split('@')
-  if (parts.length !== 2 || (parts[0] ?? '').length > 64) return false
+  // `split` always yields a first element; the index signature does not say so.
+  if (parts.length !== 2 || (parts[0] as string).length > 64) return false
   return EMAIL.test(email)
 }
 
