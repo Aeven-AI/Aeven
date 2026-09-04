@@ -108,9 +108,10 @@ export class AppWebEntry {
    * application must not boot over it.
    */
   private async gateOnAuthentication(): Promise<boolean> {
-    // Imported for its side-effect-free exports only when a page needs them:
-    // the boot kernel is otherwise framework-free, and this is the one place
-    // that brings React forward.
+    // Imported dynamically so a harness without an authentication surface
+    // never loads one. The kernel is otherwise framework-free; this is the one
+    // place that brings React forward, because the screens are React and they
+    // have to be on screen before the renderer that normally carries it.
     const auth = await import('@deepseek-ai/dsh-client-ui-auth-aeven/client')
     const result = await auth.restoreSession()
     if (result.state === 'disabled') return false
@@ -121,7 +122,7 @@ export class AppWebEntry {
       return false
     }
 
-    const { mountAuthScreen } = await import('@deepseek-ai/dsh-client-ui-auth-aeven/client/mount')
+    const { mountAuthScreen } = auth
     const pathname = window.location.pathname
     // An address that is not itself an authentication screen is remembered, so
     // signing in returns the reader to what they asked for.

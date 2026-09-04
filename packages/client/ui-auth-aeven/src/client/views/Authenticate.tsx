@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type React from 'react'
 
-import JSConfetti from '../../vendor/confetti/js-confetti'
+import JSConfetti from '../../vendor/confetti/index.ts'
 
 import Input, { type InputHandle } from '../com/Input.tsx'
 import Button, { type ButtonHandle } from '../com/Button.tsx'

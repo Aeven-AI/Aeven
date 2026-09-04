@@ -13,8 +13,5 @@
     {
       "path": "../../../vendor/cordis"
     }
-  ],
-  "exclude": [
-    "src/vendor/**/*.jsx"
   ]
 }

@@ -23,16 +23,11 @@
       "default": "./lib/client.js"
     },
     "./src/*": "./src/*",
-    "./package.json": "./package.json",
-    "./client/mount": {
-      "types": "./lib/types/client/mount.d.ts",
-      "default": "./lib/client-mount.js"
-    }
+    "./package.json": "./package.json"
   },
   "files": [
     "lib/index.js",
     "lib/client.js",
-    "lib/client-mount.js",
     "lib/types/**/*.d.ts"
   ],
   "license": "MIT",

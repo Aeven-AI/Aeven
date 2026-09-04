@@ -562,4 +562,11 @@ var JSConfetti = /*#__PURE__*/ (function () {
 	return JSConfetti;
 })();
 
-export default JSConfetti;
+/**
+ * The transpiled build's constructor. Annotated because declaration emit
+ * cannot name a class expression; the shape callers use is in ./index.ts.
+ * @type {new () => { addConfetti(options?: object): Promise<void> }}
+ */
+const JSConfettiExport = JSConfetti;
+
+export default JSConfettiExport;

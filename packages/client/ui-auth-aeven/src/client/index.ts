@@ -11,6 +11,7 @@
 export { Authenticate, type AuthenticateProps } from './views/Authenticate.tsx'
 export { OauthResult, type OauthResultProps } from './views/OauthResult.tsx'
 export { matchAuthRoute, type AuthRouteMatch } from './route-match.ts'
+export { mountAuthScreen, type MountedAuthScreen } from './mount.tsx'
 export { AUTH_ROUTES, AUTH_ROUTE_PREFIXES, isAuthRoute, navigateRoute } from './services/routes.ts'
 export { session, storage, type AevenProfile, type UserConfig } from './services/session.ts'
 export { currentBearer } from './services/tokens.ts'

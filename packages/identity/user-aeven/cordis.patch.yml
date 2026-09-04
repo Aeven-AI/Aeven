@@ -1,0 +1,25 @@
+# Aeven authentication overlay for `dsh web`.
+#
+# Not part of any shipped profile: mounting an authority makes the request
+# fence demand a session, which is a deployment's decision rather than the
+# harness's default. Applied with `--patch`, or merged into a deployment's own
+# profile.
+#
+# The two secrets are the Aeven API's own JWT_SECRET and REFRESH_SECRET. DSH
+# verifies locally with them, so identifying a caller costs no request; that
+# is only sound where DSH and the API are operated together.
+
+- insert:
+    - id: identity-user
+      name: '@deepseek-ai/dsh-identity-user'
+
+    - id: identity-user-aeven
+      name: '@deepseek-ai/dsh-identity-user-aeven'
+      inject: [identityUsers]
+      config:
+        apiUrl: !!js process.env.AEVEN_API_URL ?? 'http://localhost:9000'
+        accessSecretEnv: AEVEN_JWT_SECRET
+        refreshSecretEnv: AEVEN_REFRESH_SECRET
+        xOAuthUrl: !!js process.env.AEVEN_OAUTH_X_URL
+        appleOAuthUrl: !!js process.env.AEVEN_OAUTH_APPLE_URL
+        googleOAuthUrl: !!js process.env.AEVEN_OAUTH_GOOGLE_URL

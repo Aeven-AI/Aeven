@@ -73,13 +73,4 @@ export class IdentityUsers extends Service {
   }
 }
 
-/** Cordis plugin name. */
-export const name = 'identity-user'
-
-/**
- * Provide the seam.
- * @param ctx - the mounting context.
- */
-export function apply(ctx: Context): void {
-  ctx.provide('identityUsers', new IdentityUsers(ctx))
-}
+export default IdentityUsers
