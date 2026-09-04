@@ -74,6 +74,15 @@ export class AppWebEntry {
       })
       this.manifest = this.modules.manifest
 
+      // Authentication decides whether there is an application to boot at all.
+      // It runs here, before the plugin graph, so no client entry ever sees an
+      // unauthenticated context — a plugin cannot be asked to check, because
+      // by the time it could, it would already be running.
+      if (await this.gateOnAuthentication()) {
+        hidePreloader()
+        return
+      }
+
       const prefetching = this.prefetchImmediateTier()
       const ctx = new Context()
       this.ctx = ctx
@@ -87,6 +96,41 @@ export class AppWebEntry {
       hidePreloader(false)
       this.page.fail(reason instanceof Error ? reason.message : String(reason))
     }
+  }
+
+  /**
+   * Present the authentication surface when nobody is signed in.
+   *
+   * The screens and the session they restore belong to whichever authority the
+   * deployment configured; a harness with none configured reports `disabled`
+   * and boots as it always has.
+   * @returns true when an authentication screen owns the page, so the
+   * application must not boot over it.
+   */
+  private async gateOnAuthentication(): Promise<boolean> {
+    // Imported for its side-effect-free exports only when a page needs them:
+    // the boot kernel is otherwise framework-free, and this is the one place
+    // that brings React forward.
+    const auth = await import('@deepseek-ai/dsh-client-ui-auth-aeven/client')
+    const result = await auth.restoreSession()
+    if (result.state === 'disabled') return false
+    if (result.state === 'authenticated') {
+      // Before the graph boots: the connection builds its caller once, from
+      // whatever the transport hook holds at that moment.
+      auth.installAuthenticatedTransport()
+      return false
+    }
+
+    const { mountAuthScreen } = await import('@deepseek-ai/dsh-client-ui-auth-aeven/client/mount')
+    const pathname = window.location.pathname
+    // An address that is not itself an authentication screen is remembered, so
+    // signing in returns the reader to what they asked for.
+    if (mountAuthScreen(this.container, pathname) === undefined) {
+      auth.requireSignIn(pathname)
+      mountAuthScreen(this.container, window.location.pathname)
+    }
+    this.page.dispose()
+    return true
   }
 
   /** Dispose the client plugin tree and whichever page owns the mount point. */

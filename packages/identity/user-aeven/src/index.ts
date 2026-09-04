@@ -19,6 +19,7 @@ import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { IdentityRequest, User, UserResolver } from '@deepseek-ai/dsh-identity-user'
 import type {} from '@deepseek-ai/dsh-identity-user'
+import type {} from '@deepseek-ai/dsh-host-webserver'
 import { verifiedUserId } from './jwt.ts'
 
 /** Cordis plugin name. */
@@ -36,6 +37,18 @@ export interface Config {
   refreshSecretEnv?: string
   /** Cookie carrying the refresh token on a WebSocket upgrade. */
   refreshCookieName?: string
+  /**
+   * Origin of the Aeven API the browser signs in against, such as
+   * `http://localhost:9000`. Absent leaves the web client with no
+   * authentication surface, which is how a harness without Aeven behaves.
+   */
+  apiUrl?: string
+  /** Provider sign-in URL; absent hides that provider's button. */
+  xOAuthUrl?: string
+  /** Provider sign-in URL; absent hides that provider's button. */
+  appleOAuthUrl?: string
+  /** Provider sign-in URL; absent hides that provider's button. */
+  googleOAuthUrl?: string
 }
 
 export const Config: z<Config> = z.object({
@@ -43,6 +56,10 @@ export const Config: z<Config> = z.object({
   accessSecretEnv: z.string().default('AEVEN_JWT_SECRET'),
   refreshSecretEnv: z.string().default('AEVEN_REFRESH_SECRET'),
   refreshCookieName: z.string().default('refreshToken'),
+  apiUrl: z.string(),
+  xOAuthUrl: z.string(),
+  appleOAuthUrl: z.string(),
+  googleOAuthUrl: z.string(),
 })
 
 /** Config after schemastery has filled every defaulted field. */
@@ -121,4 +138,19 @@ export function apply(ctx: Context, config: Config): void {
   }
 
   ctx.effect(() => ctx.identityUsers.registerResolver(resolver), 'identity-user-aeven: resolver')
+
+  // The endpoints are deployment facts, not build facts, so the Host states
+  // them in the page rather than the browser bundle carrying them.
+  ctx.on('webserver/index-inject', (table) => {
+    table.push({
+      kind: 'global',
+      name: '__DSH_AEVEN__',
+      value: {
+        ...config.apiUrl === undefined ? {} : { apiUrl: config.apiUrl },
+        ...config.xOAuthUrl === undefined ? {} : { xOAuthUrl: config.xOAuthUrl },
+        ...config.appleOAuthUrl === undefined ? {} : { appleOAuthUrl: config.appleOAuthUrl },
+        ...config.googleOAuthUrl === undefined ? {} : { googleOAuthUrl: config.googleOAuthUrl },
+      },
+    })
+  })
 }

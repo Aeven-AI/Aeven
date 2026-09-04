@@ -21,6 +21,7 @@ import { getProfile } from './services/api.ts'
 import { aevenConfig } from './services/config.ts'
 import { AUTH_ROUTES, isAuthRoute, navigateRoute } from './services/routes.ts'
 import { session, storage } from './services/session.ts'
+import { currentBearer } from './services/tokens.ts'
 
 /** How the gate resolved for this page load. */
 export type AuthGateResult =
@@ -67,4 +68,42 @@ export function requireSignIn(pathname: string): void {
     storage.setItem('authReferrer', pathname)
   }
   navigateRoute(AUTH_ROUTES.signIn)
+}
+
+/** The transport seam the connection plugin reads before it builds its caller. */
+interface TransportHooks {
+  fetch?: (input: URL, init: RequestInit) => Promise<Response>
+}
+
+/**
+ * Attach the Aeven bearer to every DSH RPC call.
+ *
+ * DSH's own API is fenced by the same authority as Aeven's, and a browser
+ * cannot set a header on a WebSocket upgrade — so the socket presents the
+ * refresh cookie and HTTP presents this. Installed through the transport hook
+ * the connection plugin already reads, rather than teaching that plugin about
+ * Aeven.
+ *
+ * Must be called before the plugin graph boots: the connection builds its
+ * caller once, from whatever the hook holds at that moment.
+ */
+export function installAuthenticatedTransport(): void {
+  const scope = globalThis as { __DSH_TRANSPORT__?: TransportHooks }
+  const existing = scope.__DSH_TRANSPORT__?.fetch
+  const send = existing ?? ((input: URL, init: RequestInit) => globalThis.fetch(input, init))
+
+  scope.__DSH_TRANSPORT__ = {
+    ...scope.__DSH_TRANSPORT__,
+    fetch: async (input: URL, init: RequestInit): Promise<Response> => {
+      const headers = new Headers(init.headers)
+      try {
+        headers.set('Authorization', `Bearer ${await currentBearer()}`)
+      } catch {
+        // No session to present. The request still goes out and the Host
+        // answers 401, which is the same answer it would give to a bearer it
+        // rejected — the caller handles one case, not two.
+      }
+      return send(input, { ...init, headers })
+    },
+  }
 }
