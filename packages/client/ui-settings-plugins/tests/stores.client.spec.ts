@@ -918,6 +918,31 @@ describe('WebSearchCardController', () => {
     })
   })
 
+  it('asks once per reference, however many scope notifications arrive', async () => {
+    const host = stubSettingsScope<WebSearchSettings>()
+    const credentials = credentialsApi(true)
+    const controller = new WebSearchCardController(host.scope, credentials.ctx)
+    const state = () => controller.inject().hooks.webSearchCard.getSnapshot()
+    host.publish({ status: 'ready', writable: true, value: { baseURL: 'https://search.test/v1' }, user: {} })
+    await vi.waitFor(() => { expect(state().apiKeyConfigured).toBe(true) })
+    const asked = credentials.describe.mock.calls.length
+
+    // One settings-describe run publishes `loading` and then `ready`, and each
+    // publication reaches this subscriber. Neither changes the reference, so
+    // the held answer already covers them.
+    host.publish({ status: 'loading', writable: true, value: { baseURL: 'https://search.test/v1' }, user: {} })
+    host.publish({ status: 'ready', writable: true, value: { baseURL: 'https://search.test/v1' }, user: {} })
+    await Promise.resolve()
+    expect(credentials.describe.mock.calls.length).toBe(asked)
+    expect(state().apiKeyConfigured).toBe(true)
+
+    // A reference the card has not asked about is a different question.
+    host.publish({
+      status: 'ready', writable: true, value: { apiKeyEnv: 'OTHER_KEY' }, user: {},
+    })
+    await vi.waitFor(() => { expect(credentials.describe.mock.calls.length).toBe(asked + 1) })
+  })
+
   it('writes the staged key through the credentials domain, never the settings section', async () => {
     const host = stubSettingsScope<WebSearchSettings>()
     const credentials = credentialsApi(false)
