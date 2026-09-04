@@ -39,7 +39,7 @@ View options combine grouping with one browser-persisted Session order per accou
 
 ### Search
 
-Collapsed search is one header action beside the view and add actions: activating it expands the field across the header. A non-blank query replaces either browsing mode with one flat result list — case-insensitive title and Workspace substring matches appear immediately, while a 250 ms debounced Host request adds ranked current-conversation content matches and snippets. Each new query aborts the preceding request; a disabled content search directs the user to Settings, while another failure reports that the search could not be completed, and both leave metadata matches visible. The list is capped at 20 and opens the selected Session without clearing the query.
+Collapsed search is one header action beside the view and add actions: activating it expands the field across the header. A non-blank query replaces either browsing mode with one flat result list — case-insensitive title and Workspace substring matches appear immediately, while a 250 ms debounced Host request adds ranked current-conversation content matches and snippets. Each new query aborts the preceding request; a disabled content search directs the user to Settings, while another failure reports that the search could not be completed, and both leave metadata matches visible. The list is capped at 20. Choosing a result clears and collapses search, opens the Session at its matched event, and scrolls its row into view in the configured browsing mode; grouped browsing also expands its Workspace and the full Session list when required.
 
 ### Managing sessions
 
