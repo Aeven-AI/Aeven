@@ -27,10 +27,22 @@ export interface SessionUrlWindow {
   removeEventListener(type: 'popstate', listener: () => void): void
 }
 
-/** Browser implementation using `/sessions/:id` SPA paths. */
+/**
+ * Browser implementation using `/sessions/:id` SPA paths.
+ *
+ * The window arrives as a thunk, not a value: applying this plugin then costs
+ * no browser access, and only an actual navigation needs one. Reading the
+ * ambient global at construction instead made `apply` browser-only, which is a
+ * requirement the plugin does not otherwise have.
+ */
 export class BrowserSessionUrlNavigation implements SessionUrlNavigation {
-  /** @param browser - current browser window's URL, History, and event faces. */
-  constructor(private readonly browser: SessionUrlWindow) {}
+  /** @param window - resolves the current browser window's URL, History, and event faces. */
+  constructor(private readonly window: () => SessionUrlWindow) {}
+
+  /** The browser face for this operation. */
+  private get browser(): SessionUrlWindow {
+    return this.window()
+  }
 
   read(): SessionId | undefined {
     const { pathname } = new URL(this.browser.location.href)

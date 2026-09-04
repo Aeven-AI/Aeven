@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-session-query-sqlite` 用 SQLite FTS5 索引搜索会话历史，返回按会话分组或会话内排序、游标分页的结果。与 `dsh-session-query` 一起挂载，即可同时获得全文搜索与完整查询表面——精确读取、过滤与追踪。实时会话从内存索引，持久化会话从专用派生索引数据库索引，因此结果始终反映最新状态，且不触碰会话持久化存储。搜索是可选能力，已发布组合默认关闭：`openAt` 决定索引在启动时、首次搜索时打开，还是永不打开。设置与用法在前；实现内部细节放在下方可折叠的开发者章节中。
+`dsh-session-query-sqlite` 用 SQLite FTS5 索引搜索会话历史，返回按会话分组或会话内排序、游标分页的结果。与 `dsh-session-query` 一起挂载，即可同时获得全文搜索与完整查询表面——精确读取、过滤与追踪。实时会话从内存索引，持久化会话从专用派生索引数据库索引，因此结果始终反映最新状态，且不触碰会话持久化存储。已发布组合以 `openAt: first-search` 启用搜索，使 SQLite 在首次使用内容搜索前保持未打开；`openAt` 也可以改为启动时打开或关闭全文搜索。设置与用法在前；实现内部细节放在下方可折叠的开发者章节中。
 
 ## 目录
 
@@ -63,7 +63,7 @@ kind: "package-reference"
 
 ### 何时推迟或关闭搜索
 
-使用 `openAt: first-search` 时，服务在不导入 `node:sqlite`、不打开索引的情况下激活，把 SQLite 的实验性警告推迟到首次实际搜索；无效数据库让首次搜索失败，而不是服务激活失败。使用 `openAt: never` 时，全文搜索对该部署关闭：`searchSessions` 与 `searchEvents` 在任何请求规范化之前就以 `SESSION_QUERY_SEARCH_DISABLED` 失败，而继承的全部精确读取、过滤与追踪保持可用。请求超过编译谓词预算（跨会话 14 个组合谓词、会话内 13 个）或 SQLite 可移植的 32,766 绑定上限时，会在准备语句前以 `SESSION_QUERY_INVALID_FILTER` 失败。
+使用 `openAt: first-search` 时，服务在不导入 `node:sqlite`、不打开索引的情况下激活，把 SQLite 的实验性警告推迟到首次实际搜索；无效数据库让首次搜索失败，而不是服务激活失败。使用 `openAt: never` 时，全文搜索对该部署关闭：`searchSessions` 与 `searchEvents` 在任何请求规范化之前就以 `SESSION_QUERY_SEARCH_DISABLED` 失败，而继承的全部精确读取、过滤与追踪保持可用。设置服务存在时，提供方注册 `session-query-sqlite` 并实时应用 `openAt` 变化：`never` 会阻止新的搜索，但不会关闭已经打开的索引；`first-search` 会启用下一次搜索。请求超过编译谓词预算（跨会话 14 个组合谓词、会话内 13 个）或 SQLite 可移植的 32,766 绑定上限时，会在准备语句前以 `SESSION_QUERY_INVALID_FILTER` 失败。
 
 ### 失败与恢复
 

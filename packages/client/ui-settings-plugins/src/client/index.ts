@@ -25,11 +25,13 @@ import { BashCard } from './BashCard.tsx'
 import { ConfigurablePluginsTab } from './ConfigurablePluginsTab.tsx'
 import { PluginsSettingsSection } from './PluginsSettingsSection.tsx'
 import type { PluginsSettingsSectionInjected, PluginsSettingsTabEntry } from './PluginsSettingsSection.tsx'
+import { SessionSearchCard } from './SessionSearchCard.tsx'
 import { SubagentModelSelectionCard } from './SubagentModelSelectionCard.tsx'
 import { WebSearchCard } from './WebSearchCard.tsx'
 import { AGENT_LOOP_NS, AgentLoopCardController } from './agent-loop-card-controller.ts'
 import { SHELL_NS, BashCardController } from './bash-card-controller.ts'
 import { ConfigurablePluginsTabController } from './tab-store.ts'
+import { SESSION_SEARCH_NS, SessionSearchCardController } from './session-search-card-controller.ts'
 import {
   SUBAGENT_MODEL_SELECTION_NS, SubagentModelSelectionCardController,
 } from './subagent-model-selection-card-controller.ts'
@@ -67,6 +69,8 @@ export function apply(ctx: ClientContext): void {
 
   const bash = new BashCardController(ctx.settingsScope.bind({ namespace: SHELL_NS }))
   const agentLoop = new AgentLoopCardController(ctx.settingsScope.bind({ namespace: AGENT_LOOP_NS }))
+  const sessionSearch = new SessionSearchCardController(
+    ctx.settingsScope.bind({ namespace: SESSION_SEARCH_NS }))
   const webSearch = new WebSearchCardController(
     ctx.settingsScope.bind({ namespace: WEB_SEARCH_NS }), ctx)
   const subagentModelSelection = new SubagentModelSelectionCardController(
@@ -183,6 +187,12 @@ export function apply(ctx: ClientContext): void {
       locale: NS,
       inject: () => subagentModelSelection.inject(),
     }, SubagentModelSelectionCard)
+    yield ctx.slots.register({
+      name: 'settings.plugin.item',
+      key: SESSION_SEARCH_NS,
+      locale: NS,
+      inject: () => sessionSearch.inject(),
+    }, SessionSearchCard)
     yield ctx.slots.register({
       name: 'settings.plugin.item',
       key: WEB_SEARCH_NS,

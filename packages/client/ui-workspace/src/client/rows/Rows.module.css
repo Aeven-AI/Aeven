@@ -8,6 +8,11 @@
   cursor: pointer;
   user-select: none;
   color: var(--dsw-alias-label-primary);
+  /* Aeven `.side-content-button` / `.foldout-button`. The sidebar body animates
+     its width to zero, and without this the rows reflow and their contents wrap
+     on the way. Nowrap floors each row at its min-content width instead, and
+     the narrowing body clips the overhang. */
+  white-space: nowrap;
 }
 
 .projectRow:hover,
@@ -150,9 +155,10 @@
 .projectRow:hover .chevron { display: inline-flex; }
 .projectRow:hover .folder { display: none; }
 
-/* Expand arrow (filled triangle): points right closed, rotates to point down open. */
+/* Expand arrow (filled triangle): points right closed, rotates to point down
+   open, on Aeven's foldout-chevron timing (`.icon-drop-down`, 0.1s easeOutQuint). */
 .arrow {
-  transition: transform 150ms var(--ds-ease-in-out);
+  transition: transform 100ms var(--dsw-aeven-sidebar-transition-timing);
 }
 
 .arrowOpen {

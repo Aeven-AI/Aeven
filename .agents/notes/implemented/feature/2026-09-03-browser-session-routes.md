@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-09-03-browser-session-routes.zh.md)
+
 ## Problem
 
 The Web client selected Sessions only inside the Session Controller. The address bar stayed at `/`, so a selected Session could not be copied as a direct link, a reload carried no explicit navigation intent, and browser Back and Forward did not traverse Session selections.

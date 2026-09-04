@@ -320,6 +320,9 @@ export class ApiSessionList {
       if (error instanceof SessionQueryError && error.code === 'SESSION_QUERY_ABORTED') {
         throw new RemoteError('gateway/cancelled', 'session search was aborted', {})
       }
+      if (error instanceof SessionQueryError && error.code === 'SESSION_QUERY_SEARCH_DISABLED') {
+        throw new RemoteError('session/search-disabled', 'session content search is disabled', {})
+      }
       throw new RemoteError('gateway/internal', `session search failed: ${String(error)}`, {})
     }
   }

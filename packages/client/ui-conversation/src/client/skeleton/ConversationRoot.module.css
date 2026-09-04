@@ -1,3 +1,14 @@
+/* Registered so the value computes at the element that declares it. Without
+   this, `100cqi` would re-resolve at each use site, and ChatView's scrollport
+   is itself an inline-size container — descendants there would measure against
+   the wrong box. A registered <length> computes once on .root and inherits the
+   resulting absolute length. */
+@property --dsh-chat-content-width {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+
 .root {
   position: relative; /* positioning context for slot-owned absolute chrome */
   display: flex;
@@ -7,17 +18,35 @@
   background: var(--dsw-alias-bg-base);
 
   /* Shared Aeven width axis for transcript, dock cards, takeover cards, and
-     composer. The component publishes the column width because the sidebar can
-     resize without a viewport change; the baseline caps at the theme-owned
-     reading width and leaves one page inset on each side. A dragged user
-     preference replaces the baseline term. */
-  --dsh-chat-content-width: var(
-    --dsh-chat-user-width,
-    min(var(--dsw-aeven-chat-width), calc(var(--dsh-conversation-column-width, 0px) - var(--dsw-aeven-page-inset) - var(--dsw-aeven-page-inset)))
+     composer. The column width comes from the AppFrame center column's
+     inline-size container (100cqi) rather than a JS-published variable: the
+     sidebar can resize without a viewport change, and answering that from JS
+     wrote an inherited custom property on an ancestor of the entire transcript
+     once per animation frame — a full style invalidation of every element
+     below it, which is what made the slide stutter on long sessions. The
+     baseline caps at the theme-owned reading width and leaves one page inset
+     per side. */
+  --dsh-chat-content-width: min(
+    var(--dsw-aeven-chat-width),
+    calc(100cqi - var(--dsw-aeven-page-inset) - var(--dsw-aeven-page-inset))
   );
   --dsh-composer-card-max-width: var(--dsh-chat-content-width);
   --dsh-composer-side-clearance: var(--dsw-aeven-page-inset);
   --dsh-composer-dock-inset: 8px;
+}
+
+/* A dragged preference replaces the baseline term, clamped in CSS against the
+   live column so a stored width narrower than the column survives a resize
+   without JS rewriting it. CONTENT_EDGE_BUDGET (176px) keeps both width
+   handles placeable; the 640px floor matches the layout centre-column minimum.
+   The attribute, not the variable's presence, selects this branch: it changes
+   only when the reader commits a drag. */
+.root[data-chat-user-width] {
+  --dsh-chat-content-width: clamp(
+    640px,
+    var(--dsh-chat-user-width),
+    max(640px, calc(100cqi - 176px))
+  );
 }
 
 .header {

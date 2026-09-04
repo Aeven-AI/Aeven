@@ -14,6 +14,10 @@ import {
 } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-mirror.ts'
 import { ConfigurablePluginsTabController } from '../src/client/tab-store.ts'
 import {
+  SessionSearchCardController,
+  type SessionSearchSettings,
+} from '../src/client/session-search-card-controller.ts'
+import {
   SubagentModelSelectionCardController,
   subagentModelCandidates,
   type SubagentModelSelectionSettings,
@@ -430,6 +434,50 @@ describe('AgentLoopCardController', () => {
     host.publish({ status: 'ready', writable: false, value: { maxParallelToolCalls: 10 } })
 
     expect(controller.inject().hooks.agentLoopCard.getSnapshot().writable).toBe(false)
+  })
+})
+
+describe('SessionSearchCardController', () => {
+  it('stages, saves, and resets the lazy-on search policy', async () => {
+    const host = stubSettingsScope<SessionSearchSettings>()
+    acceptWrites(host)
+    const controller = new SessionSearchCardController(host.scope)
+    host.publish({
+      status: 'ready',
+      writable: true,
+      value: { openAt: 'first-search' },
+      base: { openAt: 'first-search' },
+      user: {},
+    })
+    const face = controller.inject()
+
+    expect(face.hooks.sessionSearchCard.getSnapshot()).toMatchObject({
+      enabled: true,
+      dirty: false,
+      openAt: { text: 'first-search', overridden: false },
+    })
+    face.toggleEnabled()
+    expect(face.hooks.sessionSearchCard.getSnapshot()).toMatchObject({
+      enabled: false,
+      dirty: true,
+      openAt: { text: 'never', overridden: true },
+    })
+
+    face.save()
+    await vi.waitFor(() => {
+      expect(host.set).toHaveBeenCalledWith('openAt', 'never')
+      expect(face.hooks.sessionSearchCard.getSnapshot().saving).toBe(false)
+    })
+    expect(face.hooks.sessionSearchCard.getSnapshot()).toMatchObject({ enabled: false, dirty: false })
+
+    face.resetOpenAt()
+    face.save()
+    await vi.waitFor(() => { expect(host.unset).toHaveBeenCalledWith('openAt') })
+    expect(face.hooks.sessionSearchCard.getSnapshot()).toMatchObject({
+      enabled: true,
+      dirty: false,
+      openAt: { text: 'first-search', overridden: false },
+    })
   })
 })
 

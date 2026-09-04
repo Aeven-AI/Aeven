@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/web-styling.md
-web-styling.md: 34dfccab62e3432c9b5de21dddcbc7febd680649
-web-styling.zh.md: 0d8cdb680d346810a65ccb0b7cd5d3f973516b34
+web-styling.md: 6f62597b9959b09fdcb898640fdc2fa655aa970f
+web-styling.zh.md: b876c7feff082bac935b7cc91a564c01aed5505c

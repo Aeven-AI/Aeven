@@ -20,20 +20,31 @@
   }
 }
 
+/* The sidebar clips itself, box by box, the way Aeven's does: the content
+   column, panel and body all animate their own width to zero. Clipping here
+   instead would take the menu button with the track as it closes — the button
+   deliberately overhangs the zero-width column so it keeps its seat. The
+   frame's own `overflow: hidden` still bounds the overhang. */
 .sidebarCol {
   position: relative;
   z-index: 3;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   background: var(--dsw-alias-bg-base);
   border-right: none;
 }
 
+/* Inline-size query container for the conversation's width axis. The column
+   width is the one input that axis needs, and reading it in CSS is what keeps
+   the sidebar's slide off the main thread: publishing it from JS meant writing
+   an inherited custom property on an ancestor of the whole transcript on every
+   animation frame, which invalidates style for every element under it. */
 .centerCol {
   min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  container-type: inline-size;
 }
 
 .frame[data-sidebar-collapsed] .centerCol {

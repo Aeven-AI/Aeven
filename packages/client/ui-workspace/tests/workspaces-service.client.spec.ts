@@ -128,7 +128,7 @@ class FakeSessionUrl implements SessionUrlNavigation {
   readonly replacements: Array<SessionId | undefined> = []
   private readonly listeners = new Set<() => void>()
 
-  constructor(private current: SessionId | undefined = undefined) {}
+  constructor(private current?: SessionId) {}
 
   read(): SessionId | undefined {
     return this.current

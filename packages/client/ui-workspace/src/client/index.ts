@@ -75,13 +75,13 @@ export function apply(ctx: Context): void {
   const workspaces = ctx.get('workspaces') as IWorkspaces
   const uiWorkspace = new UiWorkspaceService(
     ctx, ctx.remote.directoryPicker, workspaces, sessions,
-    new BrowserSessionUrlNavigation(window))
+    new BrowserSessionUrlNavigation(() => window))
   ctx.slots.provideRoot({ hooks: { workspaces: workspaces.list } })
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-workspace: dictionaries')
 
   const searchSessions: WorkspaceBrowserInjected['searchSessions'] = async (query, signal) => {
     const result = await sessions.search(query, signal)
-    if (!result.ok) throw new Error(result.error.message)
+    if (!result.ok) throw result.error
     return result.value
   }
 

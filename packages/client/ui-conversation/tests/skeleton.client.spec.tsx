@@ -634,16 +634,19 @@ describe('ConversationRoot resident composer', () => {
     expect(b.view.queryByRole('button', { name: 'Retry' })).toBeNull()
   })
 
-  it('publishes the column width as a px variable for the shared width axis', () => {
+  it('leaves the width axis to CSS: no column width is published from script', () => {
     const b = mount(sessionSnapshotOf())
     const root = b.view.container.querySelector('[data-phase]') as HTMLElement
-    // jsdom offsetWidth is 0 until faked: the observer publishes whatever the
-    // layout reports, and the CSS expression caps the Aeven reading axis at 1024px.
     Object.defineProperty(root, 'offsetWidth', { value: 1200, configurable: true })
     act(() => { fireResize(root) })
-    expect(root.style.getPropertyValue('--dsh-conversation-column-width')).toBe('1200px')
-    // No dragged preference: the user-width override stays absent so the
-    // adaptive clamp term applies.
+    // The column width reaches CSS as the centre column's 100cqi. Publishing it
+    // from a resize observer wrote an inherited custom property on an ancestor
+    // of the whole transcript once per animation frame, which invalidated style
+    // for every element below it and stalled the sidebar's slide.
+    expect(root.style.getPropertyValue('--dsh-conversation-column-width')).toBe('')
+    // No dragged preference: the attribute-selected clamp stays off, so the
+    // baseline term applies.
+    expect(root.getAttribute('data-chat-user-width')).toBeNull()
     expect(root.style.getPropertyValue('--dsh-chat-user-width')).toBe('')
   })
 
@@ -672,11 +675,14 @@ describe('ConversationRoot resident composer', () => {
       fireEvent.pointerUp(handle, { pointerId: 1, clientX: 825, clientY: 300 })
       expect(root.style.getPropertyValue('--dsh-chat-user-width')).toBe('1074px')
       expect(localStorage.getItem('dsh.conversation.contentWidth')).toBe('1074')
-      // Window shrinks: the displayed width re-clamps (900 − 176 = 724) but the
-      // preference stays.
+      expect(root.getAttribute('data-chat-user-width')).toBe('')
+      // Window shrinks: script publishes nothing. The preference rides the DOM
+      // unchanged and CSS clamps what is displayed against the live column
+      // (clamp(640px, pref, max(640px, 100cqi - 176px))), so a narrower window
+      // never rewrites the stored width.
       Object.defineProperty(root, 'offsetWidth', { value: 900, configurable: true })
       act(() => { fireResize(root) })
-      expect(root.style.getPropertyValue('--dsh-chat-user-width')).toBe('724px')
+      expect(root.style.getPropertyValue('--dsh-chat-user-width')).toBe('1074px')
       expect(localStorage.getItem('dsh.conversation.contentWidth')).toBe('1074')
       // A press without travel (a real double-click delivers two such
       // press/release rounds) must not commit the clamped display value over
@@ -684,7 +690,7 @@ describe('ConversationRoot resident composer', () => {
       fireEvent.pointerDown(handle, { pointerId: 1, clientX: 800, clientY: 300 })
       fireEvent.pointerUp(handle, { pointerId: 1, clientX: 800, clientY: 300 })
       expect(localStorage.getItem('dsh.conversation.contentWidth')).toBe('1074')
-      expect(root.style.getPropertyValue('--dsh-chat-user-width')).toBe('724px')
+      expect(root.style.getPropertyValue('--dsh-chat-user-width')).toBe('1074px')
       // No reset affordance on the handle: double-click leaves the preference alone.
       fireEvent.doubleClick(handle)
       expect(localStorage.getItem('dsh.conversation.contentWidth')).toBe('1074')

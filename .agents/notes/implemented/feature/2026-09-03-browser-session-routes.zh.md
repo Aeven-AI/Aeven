@@ -2,6 +2,8 @@
 
 Status: implemented
 
+[English](2026-09-03-browser-session-routes.md) | 中文
+
 ## 问题
 
 Web 客户端过去只在 Session Controller 内部选择 Session。地址栏始终停留在 `/`，因此无法复制当前 Session 的直接链接，重新加载不会携带显式导航意图，浏览器的后退与前进也不会遍历 Session 选择记录。

@@ -43,7 +43,7 @@ class FakeWindow implements SessionUrlWindow {
 describe('BrowserSessionUrlNavigation', () => {
   it('reads, pushes, and replaces encoded SPA Session paths', () => {
     const browser = new FakeWindow()
-    const navigation = new BrowserSessionUrlNavigation(browser)
+    const navigation = new BrowserSessionUrlNavigation(() => browser)
     const sessionId = SessionId('session / one')
 
     expect(navigation.read()).toBeUndefined()
@@ -62,7 +62,7 @@ describe('BrowserSessionUrlNavigation', () => {
 
   it('follows Popstate and ignores malformed or nested Session paths', () => {
     const browser = new FakeWindow()
-    const navigation = new BrowserSessionUrlNavigation(browser)
+    const navigation = new BrowserSessionUrlNavigation(() => browser)
     let changes = 0
     const dispose = navigation.subscribe(() => { changes++ })
 

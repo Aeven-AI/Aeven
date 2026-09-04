@@ -852,7 +852,7 @@ describe('session.search', () => {
     expect(searchSessions).toHaveBeenCalledOnce()
   })
 
-  it('maps preflight cancellation, query cancellation, and provider failure', async () => {
+  it('maps preflight cancellation, query cancellation, disabled search, and provider failure', async () => {
     const missingCtx = await baseContext()
     missingCtx.sessions.create(sid('visible'), { meta: header('visible') })
     const missingApi = createSessionTestRemote(missingCtx, defaults)
@@ -870,8 +870,10 @@ describe('session.search', () => {
     const ctx = await baseContext()
     ctx.sessions.create(sid('visible'), { meta: header('visible') })
     const aborted = new SessionQueryError('provider stopped', 'SESSION_QUERY_ABORTED')
+    const disabled = new SessionQueryError('provider disabled', 'SESSION_QUERY_SEARCH_DISABLED')
     const searchSessions = vi.fn()
       .mockRejectedValueOnce(aborted)
+      .mockRejectedValueOnce(disabled)
       .mockRejectedValueOnce(new Error('database unavailable'))
     installSearchQuery(ctx, searchSessions)
     const remote = createSessionTestRemote(ctx, defaults)
@@ -885,8 +887,17 @@ describe('session.search', () => {
       error: { code: 'gateway/cancelled' },
     })
 
-    const failed = await remote.search(
+    const turnedOff = await remote.search(
       request('second'),
+      new AbortController().signal,
+    )
+    expect(turnedOff).toMatchObject({
+      ok: false,
+      error: { code: 'session/search-disabled', message: 'session content search is disabled' },
+    })
+
+    const failed = await remote.search(
+      request('third'),
       new AbortController().signal,
     )
     expect(failed.ok).toBe(false)

@@ -744,8 +744,32 @@ describe('WorkspaceBrowser', () => {
       expect(screen.getByText('Needle title')).toBeTruthy()
       await act(async () => { await vi.advanceTimersByTimeAsync(250) })
       expect(screen.getByText('Needle title')).toBeTruthy()
-      expect(screen.getByText('内容搜索暂不可用，仅显示名称匹配。')).toBeTruthy()
+      expect(screen.getByText('无法完成内容搜索，仅显示名称匹配。')).toBeTruthy()
       expect(screen.queryByText('无匹配会话')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('directs a deliberately disabled content search back to Settings', async () => {
+    vi.useFakeTimers()
+    try {
+      const error = Object.assign(new Error('disabled'), { code: 'session/search-disabled' })
+      const searchSessions = vi.fn(async () => { throw error })
+      mount({
+        useSessions: hook(sessionState([
+          summary('local-hit', 1, { displayTitle: 'Needle title' }),
+        ])),
+        searchSessions,
+      })
+      fireEvent.change(screen.getByPlaceholderText('搜索会话…'), {
+        target: { value: 'needle' },
+      })
+
+      await act(async () => { await vi.advanceTimersByTimeAsync(250) })
+
+      expect(screen.getByText('已在设置中关闭内容搜索，仅显示名称匹配。')).toBeTruthy()
+      expect(screen.getByText('Needle title')).toBeTruthy()
     } finally {
       vi.useRealTimers()
     }
@@ -818,7 +842,7 @@ describe('WorkspaceBrowser', () => {
         rejectFirst(new Error('stale failure'))
         await Promise.resolve()
       })
-      expect(screen.queryByText('内容搜索暂不可用，仅显示名称匹配。')).toBeNull()
+      expect(screen.queryByText('无法完成内容搜索，仅显示名称匹配。')).toBeNull()
     } finally {
       vi.useRealTimers()
     }

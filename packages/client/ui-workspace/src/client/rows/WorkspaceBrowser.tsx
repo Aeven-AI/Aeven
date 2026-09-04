@@ -715,7 +715,7 @@ function FlatList({
 
 interface RemoteSearchState {
   query: string
-  status: 'idle' | 'loading' | 'ready' | 'error'
+  status: 'idle' | 'loading' | 'ready' | 'disabled' | 'error'
   items: readonly SessionSearchResultItem[]
   hasMore: boolean
 }
@@ -756,7 +756,7 @@ function SearchResults({
     [list, workspaces, query, archivedSessionIds, pendingInteractions, currentRemote, resultLimit],
   )
   const pending = currentRemote.status === 'loading'
-  const failed = currentRemote.status === 'error'
+  const unavailable = currentRemote.status === 'disabled' || currentRemote.status === 'error'
 
   return (
     <div className={clsx(css.treeBody, css.wide)}>
@@ -775,9 +775,9 @@ function SearchResults({
         {pending && (
           <div className={css.searchStatus} role="status">{t('search.pending')}</div>
         )}
-        {failed && (
+        {unavailable && (
           <div className={css.searchWarning} role="status">
-            {t('search.unavailable')}
+            {t(currentRemote.status === 'disabled' ? 'search.disabled' : 'search.unavailable')}
           </div>
         )}
         {!pending && results.items.length === 0 && (
@@ -945,11 +945,14 @@ export function WorkspaceBrowser({
           items: result.items,
           hasMore: result.hasMore,
         })
-      }).catch(() => {
+      }).catch((error: unknown) => {
         if (controller.signal.aborted) return
         setRemoteSearch({
           query: normalizedQuery,
-          status: 'error',
+          status: typeof error === 'object' && error !== null
+            && Reflect.get(error, 'code') === 'session/search-disabled'
+            ? 'disabled'
+            : 'error',
           items: [],
           hasMore: false,
         })

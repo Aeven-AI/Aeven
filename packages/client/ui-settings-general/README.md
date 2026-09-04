@@ -11,7 +11,7 @@ English | [中文](README.zh.md)
 
 `dsh-client-ui-settings-general` is the settings shell of the dsh web client: the Settings panel opens from the sidebar's bottom control, a connection-failure indicator beside that control offers immediate recovery, the navigation is built from the sections features contribute, and first-run users are walked through one onboarding step at a time. It also registers everything on the Settings pages that belongs to no single feature: the trigger/header/close chrome content, the local configuration-file action, the General section and its `settings.general.item` slot, and the `settings` dictionaries. Feature-owned rows (Permission, Language, Appearance), sections (Models), and conditional onboarding steps stay with their feature packages; the shell itself ships no onboarding copy of its own.
 
-The panel and navigation consume the Aeven 30px surface radius, 20px control radius, neutral surfaces, and Geist typography while retaining the settings information architecture.
+The panel and navigation consume the Aeven 30px surface radius, 20px control radius, neutral surfaces, and Google Sans Flex typography while retaining the settings information architecture.
 
 ## Table of Contents
 

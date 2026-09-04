@@ -195,6 +195,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'session/queue-item-not-found': { readonly itemId: MessageId }
     'session/steer-unavailable': { readonly itemId: MessageId }
     'session/title-invalid': { readonly sessionId: SessionId }
+    'session/search-disabled': Record<string, never>
     'session/fork-unavailable': { readonly sessionId: SessionId }
     'subagent/not-found': {
       readonly parentSessionId: SessionId

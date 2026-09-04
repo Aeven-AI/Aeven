@@ -540,6 +540,24 @@ describe('Chat node rendering', () => {
 
 })
 
+/**
+ * One ResizeObserver entry standing for a content-height change.
+ *
+ * A real observer always delivers entries, and ChatView reads the height from
+ * them so that width-only resizes — every frame of the sidebar's slide — cost
+ * no scroll geometry. A stub that fired with an empty list would describe a
+ * callback shape the browser never produces, so each notify carries a height
+ * the observer has not seen before.
+ */
+let resizeEntryHeight = 0
+function resizeEntry(): ResizeObserverEntry {
+  resizeEntryHeight += 1
+  return {
+    target: document.createElement('div'),
+    contentRect: { height: resizeEntryHeight } as DOMRectReadOnly,
+  } as unknown as ResizeObserverEntry
+}
+
 describe('ChatView', () => {
   it('leaves the turn rail unrendered when an unrelated Chat update commits', () => {
     const snapshot = chatSnapshotFixture({
@@ -2348,7 +2366,7 @@ describe('ChatView', () => {
     const observe = vi.fn()
     class ResizeObserverStub {
       constructor(callback: ResizeObserverCallback) {
-        notify = () => { callback([], this as unknown as ResizeObserver) }
+        notify = () => { callback([resizeEntry()], this as unknown as ResizeObserver) }
       }
 
       observe = observe
@@ -2385,7 +2403,7 @@ describe('ChatView', () => {
     vi.stubGlobal('cancelAnimationFrame', (id: number) => { frames.delete(id) })
     class ResizeObserverStub {
       constructor(callback: ResizeObserverCallback) {
-        notify = () => { callback([], this as unknown as ResizeObserver) }
+        notify = () => { callback([resizeEntry()], this as unknown as ResizeObserver) }
       }
 
       observe = vi.fn()

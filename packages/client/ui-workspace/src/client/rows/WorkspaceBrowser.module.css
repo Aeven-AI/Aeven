@@ -422,6 +422,11 @@
   text-align: left;
   font-size: 12px;
   color: var(--dsw-alias-label-tertiary);
+  /* Aeven `.side-content-button`. Its label is the one string in the body long
+     enough to reflow while the sidebar narrows, and the fixed 28px box does not
+     grow with it — the wrapped lines spilled out and pushed the group taller. */
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .groupSection > .sessionOverflowButton {

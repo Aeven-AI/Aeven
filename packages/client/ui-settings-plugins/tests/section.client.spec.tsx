@@ -12,6 +12,8 @@ import { ConfigurablePluginsTab } from '../src/client/ConfigurablePluginsTab.tsx
 import type { ConfigurablePluginsTabProps } from '../src/client/ConfigurablePluginsTab.tsx'
 import { PluginsSettingsSection } from '../src/client/PluginsSettingsSection.tsx'
 import type { PluginsSettingsSectionProps, PluginsSettingsTabEntry } from '../src/client/PluginsSettingsSection.tsx'
+import { SessionSearchCard } from '../src/client/SessionSearchCard.tsx'
+import type { SessionSearchCardProps } from '../src/client/SessionSearchCard.tsx'
 import { SubagentModelSelectionCard } from '../src/client/SubagentModelSelectionCard.tsx'
 import type { SubagentModelSelectionCardProps } from '../src/client/SubagentModelSelectionCard.tsx'
 import { WebSearchCard } from '../src/client/WebSearchCard.tsx'
@@ -20,6 +22,7 @@ import type { AgentLoopCardState } from '../src/client/agent-loop-card-controlle
 import type { BashCardState } from '../src/client/bash-card-controller.ts'
 import type { CardFieldState, CardShell } from '../src/client/card-form.ts'
 import type { ConfigurablePluginsTabState } from '../src/client/tab-store.ts'
+import type { SessionSearchCardState } from '../src/client/session-search-card-controller.ts'
 import type { WebSearchCardState } from '../src/client/web-search-card-controller.ts'
 import type { SubagentModelSelectionCardState } from '../src/client/subagent-model-selection-card-controller.ts'
 import { en } from '../src/client/locales.ts'
@@ -84,6 +87,28 @@ function renderBashCard(state: Partial<BashCardState> = {}) {
 
 function renderBash(state: Partial<BashCardState> = {}) {
   return renderBashCard(state).actions
+}
+
+function renderSessionSearch(state: Partial<SessionSearchCardState> = {}) {
+  const store = createSnapshotStore<SessionSearchCardState>({
+    ...settled,
+    enabled: true,
+    openAt: field('first-search'),
+    ...state,
+  })
+  const actions = {
+    toggleEnabled: vi.fn(),
+    resetOpenAt: vi.fn(),
+    save: vi.fn(),
+    discard: vi.fn(),
+  }
+  const props = {
+    ...actions,
+    t,
+    useSessionSearchCard: bindSnapshotSelector(store),
+  } as unknown as SessionSearchCardProps
+  render(<SessionSearchCard {...props} />)
+  return actions
 }
 
 function renderSubagentModelSelection(state: Partial<SubagentModelSelectionCardState> = {}) {
@@ -348,6 +373,33 @@ describe('BashCard', () => {
 
     expect(screen.getByLabelText(en.bashTimeoutMs)).toBeTruthy()
     expect(screen.getByText(en.saveFailed)).toBeTruthy()
+  })
+})
+
+describe('SessionSearchCard', () => {
+  it('renders content search on and stages the switch', () => {
+    const actions = renderSessionSearch()
+    fireEvent.click(screen.getByText(en.sessionSearchTitle))
+
+    const control = screen.getByRole('switch', { name: en.sessionSearchToggle })
+    expect(control.getAttribute('aria-checked')).toBe('true')
+    expect(screen.getByText(en.sessionSearchEnabledHint)).toBeTruthy()
+    fireEvent.click(control)
+
+    expect(actions.toggleEnabled).toHaveBeenCalledOnce()
+  })
+
+  it('offers the composed default for an overridden policy', () => {
+    const actions = renderSessionSearch({
+      enabled: false,
+      openAt: field('never', { overridden: true }),
+    })
+    fireEvent.click(screen.getByText(en.sessionSearchTitle))
+
+    expect(screen.getByText(en.sessionSearchDisabledHint)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: en.reset }))
+
+    expect(actions.resetOpenAt).toHaveBeenCalledOnce()
   })
 })
 

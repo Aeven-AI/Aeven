@@ -3,6 +3,7 @@
 // no-session/session transitions — the bar renders inert via owner props.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import clsx from 'clsx'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { ConversationSlotProps, InputZone } from '../contract/slots.ts'
@@ -167,7 +168,25 @@ export function ConversationRoot({
     seatObserver.current = null
     const scroller = seat?.parentElement ?? null
     if (seat === null || scroller === null) return
-    seatObserver.current = new ResizeObserver(() => {
+    // HEIGHT ONLY. Both published values are heights, and reading one here
+    // forces a synchronous layout of the whole transcript before the write
+    // invalidates it again. Width changes on both observed boxes for every
+    // frame the sidebar track animates, so answering them pays that read-write
+    // cycle ~25 times per collapse — on a session holding thousand-line code
+    // blocks that is a full layout of tens of thousands of elements per frame,
+    // and the slide drops to roughly 17fps. A width change that does move the
+    // composer's height (a rewrapped draft) still reports the new height, so
+    // nothing is missed by ignoring width.
+    const publishedHeights = new Map<Element, number>()
+    seatObserver.current = new ResizeObserver((entries) => {
+      let heightChanged = false
+      for (const entry of entries) {
+        const previous = publishedHeights.get(entry.target)
+        const height = entry.contentRect.height
+        if (previous === undefined || Math.abs(previous - height) > 0.5) heightChanged = true
+        publishedHeights.set(entry.target, height)
+      }
+      if (!heightChanged) return
       scroller.style.setProperty('--dsh-composer-height', `${seat.offsetHeight}px`)
       scroller.style.setProperty(
         '--dsh-conversation-viewport-height',
@@ -178,32 +197,14 @@ export function ConversationRoot({
     seatObserver.current.observe(scroller)
   }, [])
 
-  // Publishes the column's live width as --dsh-conversation-column-width so
-  // the shared width axis can adapt (see the .root CSS), and re-clamps a
-  // dragged preference against the shrunken column WITHOUT rewriting the
-  // stored preference — widening the window restores it (the AppFrame
-  // sidebar-drag rule). Same callback-ref pattern as the seat observer.
+  // The column width is CSS's business now (the .root width axis reads the
+  // AppFrame centre column's 100cqi), so nothing here observes resizes. The
+  // element ref remains for the drag handles, which read geometry once per
+  // gesture rather than once per frame.
   const rootEl = useRef<HTMLDivElement | null>(null)
-  const rootObserver = useRef<ResizeObserver | null>(null)
-  const publishWidths = useCallback((root: HTMLDivElement): void => {
-    const column = root.offsetWidth
-    root.style.setProperty('--dsh-conversation-column-width', `${column}px`)
-    const preference = readWidthPreference()
-    if (preference === null) {
-      root.style.removeProperty('--dsh-chat-user-width')
-    } else {
-      root.style.setProperty('--dsh-chat-user-width', `${resolveContentWidth(column, preference)}px`)
-    }
-  }, [])
-  const rootResizeRef = useCallback((root: HTMLDivElement | null): void => {
-    rootObserver.current?.disconnect()
-    rootObserver.current = null
-    rootEl.current = root
-    if (root === null) return
-    rootObserver.current = new ResizeObserver(() => { publishWidths(root) })
-    rootObserver.current.observe(root)
-    publishWidths(root)
-  }, [publishWidths])
+  // The stored preference, mirrored into the DOM so CSS can clamp it against
+  // the live column. Written on mount and on a committed drag only.
+  const [userWidth, setUserWidth] = useState<number | null>(() => readWidthPreference())
 
   // Drag plumbing for the two width handles: onStart snapshots the resolved
   // width (grabbing a clamped column must not jump back to the raw stored
@@ -228,12 +229,18 @@ export function ConversationRoot({
     const root = rootEl.current
     /* v8 ignore next -- handles render inside the root, so the ref is always attached. */
     if (root === null) return
-    localStorage.setItem(WIDTH_PREF_KEY, `${resolveContentWidth(root.offsetWidth, width)}`)
+    const committed = resolveContentWidth(root.offsetWidth, width)
+    localStorage.setItem(WIDTH_PREF_KEY, `${committed}`)
+    setUserWidth(committed)
   }, [])
   const onHandleEnd = useCallback((): void => {
     const root = rootEl.current
-    if (root !== null) publishWidths(root)
-  }, [publishWidths])
+    const stored = readWidthPreference()
+    setUserWidth(stored)
+    // An uncommitted press leaves the stored preference untouched: drop the
+    // live style so the attribute-selected rule reads the stored value again.
+    if (root !== null && stored === null) root.style.removeProperty('--dsh-chat-user-width')
+  }, [])
 
   const sessionWorkspace = sessionId === undefined
     ? undefined
@@ -377,7 +384,13 @@ export function ConversationRoot({
   )
 
   return (
-    <div ref={rootResizeRef} className={css.root} data-phase={phase}>
+    <div
+      ref={rootEl}
+      className={css.root}
+      data-phase={phase}
+      data-chat-user-width={userWidth === null ? undefined : ''}
+      style={userWidth === null ? undefined : { '--dsh-chat-user-width': `${String(userWidth)}px` } as CSSProperties}
+    >
       {sessionId === undefined ? null : renderSlot('conversation.session.header', {})}
       <div className={css.body}>
         <div className={css.scrollBody} data-conversation-scroll="">

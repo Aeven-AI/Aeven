@@ -633,7 +633,27 @@ export function ChatView({
     const composer = scrollport.querySelector<HTMLElement>('[data-composer-seat]')
     // Flow-height changes (image loads, tool disclosures) move rows across the
     // reading line without a scroll event, so the active mark resyncs here too.
-    const observer = new ResizeObserver(() => {
+    //
+    // HEIGHT ONLY. Both callbacks read scroll geometry — `scrollHeight` and a
+    // binary search over row rects — which forces a synchronous layout of the
+    // whole transcript. Width also changes on both observed boxes for every
+    // frame the sidebar track animates, and answering those would pay that
+    // layout ~25 times per collapse; on a session carrying thousand-line code
+    // blocks that is tens of thousands of elements per frame and the slide
+    // drops to roughly 17fps. Width carries nothing either callback needs: the
+    // reading column is a fixed measure, so a wider or narrower scrollport
+    // moves no row relative to the reading line. Anything that does move rows
+    // — rewrapping included — changes the observed height and still arrives.
+    const observedHeights = new Map<Element, number>()
+    const observer = new ResizeObserver((entries) => {
+      let heightChanged = false
+      for (const entry of entries) {
+        const previous = observedHeights.get(entry.target)
+        const height = entry.contentRect.height
+        if (previous === undefined || Math.abs(previous - height) > 0.5) heightChanged = true
+        observedHeights.set(entry.target, height)
+      }
+      if (!heightChanged) return
       followRef.current?.()
       activeTurnRef.current?.()
     })

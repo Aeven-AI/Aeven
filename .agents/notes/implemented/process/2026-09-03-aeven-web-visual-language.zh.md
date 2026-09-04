@@ -6,11 +6,11 @@ Status: implemented
 
 ## Problem
 
-Web 客户端原先使用蓝色调的导航与消息表面、紧凑的 14px 会话文本、多套互不关联的圆角、920px 自适应阅读上限和带层级投影的 composer。Aeven 客户端采用更温暖、安静的体系：Geist 排版、`rgb(242, 242, 242)` 画布、白色内容表面、30px 主圆角、40px 控件、桌面 24px 边距、移动端 16px 边距、1024px 阅读栏和扁平 composer。把这些值复制进每个 CSS Module，会使后续调整再次依赖跨 package 扫描。
+Web 客户端原先使用蓝色调的导航与消息表面、紧凑的 14px 会话文本、多套互不关联的圆角、920px 自适应阅读上限和带层级投影的 composer。Aeven 客户端采用更温暖、安静的体系：可变字重排版、`rgb(242, 242, 242)` 画布、白色内容表面、30px 主圆角、40px 控件、桌面 24px 边距、移动端 16px 边距、1024px 阅读栏和扁平 composer。把这些值复制进每个 CSS Module，会使后续调整再次依赖跨 package 扫描。
 
 ## Decision
 
-`packages/client/ui-theme/src/styles/aeven-language.css` 是生成的平台与排版样式表之后的最终产品语言层。它持有 `--dsw-aeven-*` 几何与间距变量，并把现有语义颜色和排版别名映射到 Aeven 值。组件 CSS 使用这些共享变量定义对话宽度、页面边距、间距、控件尺寸、表面圆角、内容/控件圆角与阅读行高。应用 entry 加载与参考客户端相同的 Geist 和 Geist Mono 可变字体文件；现有系统字体栈继续作为回退。
+`packages/client/ui-theme/src/styles/aeven-language.css` 是生成的平台与排版样式表之后的最终产品语言层。它持有 `--dsw-aeven-*` 几何与间距变量，并把现有语义颜色和排版别名映射到 Aeven 值。组件 CSS 使用这些共享变量定义对话宽度、页面边距、间距、控件尺寸、表面圆角、内容/控件圆角与阅读行高。应用 entry 自托管 Google Sans Flex 和 Google Sans Code 可变字体文件（SIL OFL，latin 子集）；现有系统字体栈继续作为回退。字体是 Web 客户端唯一偏离参考客户端之处，后者使用 Geist。
 
 Conversation、sidebar、workspace 行、settings 和共享 primitive 采用集中变量。对话栏与 composer 均以 1024px 为上限，用户气泡与 composer 使用 30px 白色表面，composer 没有边框或层级投影，控件使用共享的 40px/20px 几何，Markdown 使用参考中的标题、段落、列表、分隔线、行内代码与代码块节奏。侧栏使用参考中的 280px 半透明面板、20px 右上圆角、整行 40px 高度、桌面 24px 与移动端 16px 行内边距、桌面 40px 底部内边距、扁平 hover 与选中状态，以及 400ms easing。12–17px 用户字号设置仍是权威，并通过现有增量变量移动 Aeven 排版阶梯。
 
