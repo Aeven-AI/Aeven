@@ -61,7 +61,7 @@ const NS = 'workspace'
  * declaration through `slots.inject()` instead of assuming order.
  */
 export const inject = [
-  'slots', 'sessions', 'workspaces', 'uiConversation', 'locale', 'remote', 'remote.directoryPicker',
+  'slots', 'sessions', 'workspaces', 'locale', 'remote', 'remote.directoryPicker',
 ]
 
 /**
@@ -102,7 +102,12 @@ export function apply(ctx: Context): void {
     // the current Session Workspace before the recent-Workspace fallback.
     startSession: (workspaceId) => { uiWorkspace.startSession(workspaceId) },
     open: (sessionId, matchSeq) => {
-      if (matchSeq !== undefined) ctx.uiConversation.navigateToEvent(sessionId, matchSeq)
+      // `ctx.get`, not a declared injection: ui-conversation injects
+      // uiWorkspace, so waiting on uiConversation here would deadlock both —
+      // each plugin would hold the service the other waits for and neither
+      // would ever activate. Resolved per call instead, by which point the
+      // conversation surface that owns the transcript is running.
+      if (matchSeq !== undefined) ctx.get('uiConversation')?.navigateToEvent(sessionId, matchSeq)
       sessions.open(sessionId)
     },
     searchSessions,
