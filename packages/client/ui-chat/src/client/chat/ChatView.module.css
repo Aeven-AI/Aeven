@@ -54,6 +54,24 @@
   min-width: 0;
 }
 
+/* Search navigation briefly marks the exact durable message after landing. */
+.flowItem[data-search-match] {
+  border-radius: var(--dsw-aeven-radius-content);
+  animation: search-match-highlight 2.4s ease-out both;
+}
+
+@keyframes search-match-highlight {
+  0%, 35% {
+    background: color-mix(in srgb, var(--dsw-alias-state-business-tertiary) 84%, transparent);
+    box-shadow: 0 0 0 2px var(--dsw-alias-state-business-primary);
+  }
+
+  100% {
+    background: transparent;
+    box-shadow: 0 0 0 2px transparent;
+  }
+}
+
 /* A closed process reads as one summary immediately followed by its answer.
    Expanded process rows return to the ordinary 16px rhythm. */
 .flowItem[data-turn-process-answer] {

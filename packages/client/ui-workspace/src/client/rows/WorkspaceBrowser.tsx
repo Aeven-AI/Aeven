@@ -964,6 +964,12 @@ export function WorkspaceBrowser({
     }
   }, [normalizedQuery, searchSessions])
 
+  const openSearchResult: typeof open = (sessionId, matchSeq) => {
+    setQuery('')
+    setSearchExpanded(false)
+    open(sessionId, matchSeq)
+  }
+
   // Rename dialog (browser-owned so it outlives row unmounts during collapse).
   const [renameTarget, setRenameTarget] = useState<{ workspaceId: WorkspaceId; currentTitle: string } | null>(null)
   const [renameDraft, setRenameDraft] = useState('')
@@ -1209,7 +1215,7 @@ export function WorkspaceBrowser({
             <SearchResults
               useSessions={useSessions}
               useSessionPendingInteraction={useSessionPendingInteraction}
-              open={open}
+              open={openSearchResult}
               workspaces={workspaces}
               archivedSessionIds={archivedSessionIds}
               query={normalizedQuery}

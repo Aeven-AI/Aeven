@@ -7,7 +7,7 @@ import type { Branded } from '@deepseek-ai/dsh-brand'
 import type { MessageId } from '@deepseek-ai/dsh-llm/brand'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm/types'
 import type { ChunkRow } from '@deepseek-ai/dsh-session/chunk-rows'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { SessionId, SessionSeq } from '@deepseek-ai/dsh-session/types'
 import type { SessionProjectionMap } from '@deepseek-ai/dsh-session-projection/types'
 import type { JobId } from '@deepseek-ai/dsh-jobs/brand'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
@@ -166,6 +166,8 @@ export interface SessionSummary {
 /** One session-content search result. */
 export interface SessionSearchItem {
   readonly sessionId: SessionId
+  /** Exact current-surface event containing the ranked match. */
+  readonly seq: SessionSeq
   readonly snippet: string
 }
 

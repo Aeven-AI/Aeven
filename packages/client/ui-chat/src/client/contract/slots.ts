@@ -2,14 +2,14 @@
 import type { MessageId } from '@deepseek-ai/dsh-llm/brand'
 import type { SessionSeq } from '@deepseek-ai/dsh-session/types'
 import type {
-  ConversationLocationDataStore, ConversationTurnDataMap,
+  ConversationEventNavigation, ConversationLocationDataStore, ConversationTurnDataMap,
   MessageImageLoader, MessageImagesOwnerProps, RenderMessageImages, TurnLocation,
 } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {
   InjectFace, KeyedSnapshotSelectorHook, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
   SlotHookFactory, SnapshotSelectorHook,
 } from '@deepseek-ai/dsh-client-ui-slots'
-import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
+import type { ObservableSnapshot, SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { MarkdownFileMentions } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { createChatStore } from '../stores.ts'
@@ -125,6 +125,8 @@ export interface ChatViewInjected {
   hooks: {
     /** Persisted completed-Turn transcript presentation. */
     transcriptView: SnapshotStore<TranscriptViewMode>
+    /** Pending exact-event destination selected outside the Conversation view. */
+    eventNavigation: ObservableSnapshot<ConversationEventNavigation | null>
   }
   keyedHooks: {
     /** Resolve the stable source for one Chat Node key. */
@@ -137,6 +139,8 @@ export interface ChatViewInjected {
   loadOlder: () => void
   /** Jump loader: page history back through seq; resolves when the window covers it. */
   loadThrough: (seq: SessionSeq) => Promise<void>
+  /** Acknowledge the current exact-event navigation after landing or fallback. */
+  completeEventNavigation: (requestId: number) => void
   loadImage: MessageImageLoader
   chatScroll: {
     save: (position: ChatScrollPosition | null) => void

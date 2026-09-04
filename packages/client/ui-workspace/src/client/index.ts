@@ -61,7 +61,7 @@ const NS = 'workspace'
  * declaration through `slots.inject()` instead of assuming order.
  */
 export const inject = [
-  'slots', 'sessions', 'workspaces', 'locale', 'remote', 'remote.directoryPicker',
+  'slots', 'sessions', 'workspaces', 'uiConversation', 'locale', 'remote', 'remote.directoryPicker',
 ]
 
 /**
@@ -101,7 +101,10 @@ export function apply(ctx: Context): void {
     // Explicit group actions keep their target; unscoped New Session inherits
     // the current Session Workspace before the recent-Workspace fallback.
     startSession: (workspaceId) => { uiWorkspace.startSession(workspaceId) },
-    open: (sessionId) => { sessions.open(sessionId) },
+    open: (sessionId, matchSeq) => {
+      if (matchSeq !== undefined) ctx.uiConversation.navigateToEvent(sessionId, matchSeq)
+      sessions.open(sessionId)
+    },
     searchSessions,
     searchResultLimit: sessions.searchResultLimit,
     renameSession: async (sessionId, title) => {

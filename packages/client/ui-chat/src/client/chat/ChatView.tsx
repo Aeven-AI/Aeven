@@ -216,8 +216,8 @@ const ChatNodeList = memo(function ChatNodeList({ order, ...seatProps }: ChatNod
  */
 export function ChatView({
   useSession, useChat, useChatNode, useChatNodeProcess, useSessions, useStore, actions, renderSlot,
-  sessionId, openFile, loadOlder, loadThrough, loadImage, openView, chatScroll, forkAt, fileMentions,
-  useTranscriptView, useProjection, t,
+  sessionId, openFile, loadOlder, loadThrough, completeEventNavigation, loadImage, openView,
+  chatScroll, forkAt, fileMentions, useTranscriptView, useEventNavigation, useProjection, t,
 }: ChatViewSlotProps) {
   const order = useChat(s => s.order)
   const nodeStore = useChat(s => s.nodes)
@@ -243,6 +243,7 @@ export function ChatView({
   const loadingOlder = useSession(s => s.loadingOlder)
   const selectedCallId = useStore(s => s.selection?.callId)
   const compactTranscript = useTranscriptView(mode => mode === 'compact')
+  const eventNavigation = useEventNavigation(request => request)
   const inspectCall = useCallback((callId: string) => {
     openView('trajectory', callId)
   }, [openView])
@@ -318,6 +319,8 @@ export function ChatView({
   /** Paging anchor: semantic row/position at click, updated by reader scrolls
    * while the request is pending and restored after the prepend lands. */
   const anchorRef = useRef<PagingAnchor | null>(null)
+  /** Reader landmark held at a stable viewport offset through asynchronous reflow. */
+  const reflowAnchorRef = useRef<PagingAnchor | null>(null)
   /** Unloaded-turn jump in flight: target turn plus its load-through seq. */
   const pendingJumpRef = useRef<{ turn: number; seq: SessionSeq } | null>(null)
   /** Whether the in-flight jump already landed mid-paging (settle then only corrects an untouched landing). */
@@ -325,6 +328,10 @@ export function ChatView({
   const [busyJumpTurn, setBusyJumpTurn] = useState<number | null>(null)
   /** Bumped when a loadThrough completion settles, after its last page's commit. */
   const [jumpSettleTick, setJumpSettleTick] = useState(0)
+  const [eventNavigationSettleTick, setEventNavigationSettleTick] = useState(0)
+  const eventNavigationLoadRef = useRef<{ requestId: number; settled: boolean } | null>(null)
+  const completedEventNavigationRef = useRef(0)
+  const [highlightedNodeKey, setHighlightedNodeKey] = useState<string | null>(null)
   /** Window head at the last settle-time repage; an unmoved head falls back instead of repaging forever. */
   const jumpRepageHeadRef = useRef<number | null>(null)
   const firstSeqRef = useRef<number | null>(null)
@@ -402,6 +409,7 @@ export function ChatView({
 
   const toBottom = (el: HTMLElement): void => {
     anchorRef.current = null
+    reflowAnchorRef.current = null
     // Returning to the live tail supersedes a jump still landing.
     pendingJumpRef.current = null
     setBusyJumpTurn(current => current === null ? current : null)
@@ -426,8 +434,13 @@ export function ChatView({
     setAtBottom(isAtBottom)
     setActiveTurn(turn)
     const position = isAtBottom ? null : scrollPosition(local, el)
-    if (isAtBottom) chatScroll.save(null)
-    else if (position !== null) chatScroll.save(position)
+    if (isAtBottom) {
+      reflowAnchorRef.current = null
+      chatScroll.save(null)
+    } else if (position !== null) {
+      reflowAnchorRef.current = { key: position.anchorKey, top: position.anchorTop }
+      chatScroll.save(position)
+    }
   }
 
   /**
@@ -487,8 +500,13 @@ export function ChatView({
         atBottomRef.current = isAtBottom
         setAtBottom(isAtBottom)
         const normalized = isAtBottom ? null : scrollPosition(local, el)
-        if (isAtBottom) chatScroll.save(null)
-        else if (normalized !== null) chatScroll.save(normalized)
+        if (isAtBottom) {
+          reflowAnchorRef.current = null
+          chatScroll.save(null)
+        } else if (normalized !== null) {
+          reflowAnchorRef.current = { key: normalized.anchorKey, top: normalized.anchorTop }
+          chatScroll.save(normalized)
+        }
       }
       firstSeqRef.current = firstSeq
       lastKeyRef.current = lastKey
@@ -506,6 +524,11 @@ export function ChatView({
       const row = anchorElement(local, anchor.key)
       if (row !== null) el.scrollTop += flowTop(row, el) - anchor.top
       observedTopRef.current = el.scrollTop
+      const normalized = scrollPosition(local, el)
+      if (normalized !== null) {
+        reflowAnchorRef.current = { key: normalized.anchorKey, top: normalized.anchorTop }
+        chatScroll.save(normalized)
+      }
       // A jump chunk lands here: scroll to the target once its rows exist;
       // until then keep holding the reader's row for the next chunk.
       if (!realizePendingJump(local, el, false) && row !== null) {
@@ -568,8 +591,12 @@ export function ChatView({
     const position = isAtBottom ? null : scrollPosition(local, el)
     if (isAtBottom) {
       anchorRef.current = null
+      reflowAnchorRef.current = null
     } else if (anchorRef.current !== null && position !== null) {
       anchorRef.current = { key: position.anchorKey, top: position.anchorTop }
+    }
+    if (!isAtBottom && position !== null) {
+      reflowAnchorRef.current = { key: position.anchorKey, top: position.anchorTop }
     }
     // Continuous save (unmount happens after ref detach, so saving there is
     // too late); pinned-to-bottom clears so a remount keeps following.
@@ -654,6 +681,19 @@ export function ChatView({
         observedHeights.set(entry.target, height)
       }
       if (!heightChanged) return
+      const anchor = reflowAnchorRef.current
+      if (!atBottomRef.current && anchor !== null) {
+        const row = anchorElement(local, anchor.key)
+        if (row !== null) {
+          scrollport.scrollTop += flowTop(row, scrollport) - anchor.top
+          observedTopRef.current = scrollport.scrollTop
+          const normalized = scrollPosition(local, scrollport)
+          if (normalized !== null) {
+            reflowAnchorRef.current = { key: normalized.anchorKey, top: normalized.anchorTop }
+            chatScroll.save(normalized)
+          }
+        }
+      }
       followRef.current?.()
       activeTurnRef.current?.()
     })
@@ -714,6 +754,79 @@ export function ChatView({
   useEffect(() => {
     if (!loadingOlder && pendingJumpRef.current !== null) setJumpSettleTick(tick => tick + 1)
   }, [loadingOlder])
+
+  // Sidebar content-search results address durable message events rather than
+  // whole Turns. Page to the event when necessary, land its exact Chat row,
+  // and acknowledge only after the row has committed.
+  useLayoutEffect(() => {
+    if (eventNavigation === null
+      || eventNavigation.requestId <= completedEventNavigationRef.current
+      || openState !== 'open') return
+    const local = listRef.current
+    if (local === null) return
+    const el = scrollerOf(local)
+    const exactKey = order.find(key => nodeStore.get(key)?.anchorSeq === eventNavigation.seq)
+    const exactRow = exactKey === undefined ? null : anchorElement(local, exactKey)
+    if (exactKey !== undefined && exactRow !== null) {
+      const turn = Number(exactRow.dataset.chatTurn)
+      if (Number.isSafeInteger(turn)) {
+        pendingJumpRef.current = null
+        anchorRef.current = null
+        setBusyJumpTurn(null)
+        landOnRowRef.current(local, el, exactRow, turn)
+        setHighlightedNodeKey(exactKey)
+        completedEventNavigationRef.current = eventNavigation.requestId
+        eventNavigationLoadRef.current = null
+        completeEventNavigation(eventNavigation.requestId)
+        return
+      }
+    }
+
+    const uncovered = firstSeq === null || firstSeq > eventNavigation.seq
+    const loading = eventNavigationLoadRef.current
+    if (uncovered && hasMore && loading?.requestId !== eventNavigation.requestId) {
+      atBottomRef.current = false
+      setAtBottom(false)
+      const held = pagingAnchor(local, el)
+      if (held !== null && held.dataset.chatAnchorKey !== undefined) {
+        anchorRef.current = { key: held.dataset.chatAnchorKey, top: flowTop(held, el) }
+      }
+      const request = { requestId: eventNavigation.requestId, settled: false }
+      eventNavigationLoadRef.current = request
+      void loadThrough(eventNavigation.seq).finally(() => {
+        request.settled = true
+        setEventNavigationSettleTick(tick => tick + 1)
+      })
+      return
+    }
+    if (loading?.requestId === eventNavigation.requestId && loading.settled === false) return
+
+    // The indexed event should map one-to-one to a user or assistant row. If
+    // a changed projection omits it, land the closest visible durable row so
+    // navigation still leaves the reader near the indexed match.
+    let fallback: { key: string; distance: number } | null = null
+    for (const key of order) {
+      const seq = nodeStore.get(key)?.anchorSeq
+      const row = anchorElement(local, key)
+      if (seq === undefined || row === null) continue
+      const distance = Math.abs(seq - eventNavigation.seq)
+      if (fallback === null || distance < fallback.distance) fallback = { key, distance }
+    }
+    if (fallback !== null) {
+      const row = anchorElement(local, fallback.key)
+      const turn = Number(row?.dataset.chatTurn)
+      if (row !== null && Number.isSafeInteger(turn)) {
+        landOnRowRef.current(local, el, row, turn)
+        setHighlightedNodeKey(fallback.key)
+      }
+    }
+    completedEventNavigationRef.current = eventNavigation.requestId
+    eventNavigationLoadRef.current = null
+    completeEventNavigation(eventNavigation.requestId)
+  }, [
+    completeEventNavigation, eventNavigation, eventNavigationSettleTick, firstSeq,
+    hasMore, loadThrough, nodeStore, openState, order,
+  ])
 
   const loadOlderAnchored = (): void => {
     const local = listRef.current
@@ -796,6 +909,7 @@ export function ChatView({
           )}
           <ChatNodeList
             order={order}
+            highlightedNodeKey={highlightedNodeKey}
             useChatNode={useChatNode}
             useChatNodeProcess={useChatNodeProcess}
             historyIncomplete={hasMore}

@@ -299,6 +299,7 @@ export class ApiSessionList {
           acceptedIds.add(hit.header.id)
           authorized.push({
             sessionId: hit.header.id,
+            seq: hit.bestMatch.seq,
             snippet: truncateUnicodeCodePoints(hit.bestMatch.snippet, SESSION_SEARCH_SNIPPET_MAX_CODE_POINTS),
           })
         }
