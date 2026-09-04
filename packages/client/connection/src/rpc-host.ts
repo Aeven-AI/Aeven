@@ -159,6 +159,11 @@ export class HostConnectionService extends Service implements HostConnectionHand
 
   /** Add this process's launch token to the clean application URL. */
   authenticatedUrl(baseUrl: string): string {
+    // With an authority mounted the token grants nothing the sign-in screen
+    // does not, and printing one invites a reader to treat a URL as a
+    // credential — pasting it somewhere, or wondering why an ordinary address
+    // does not work.
+    if (this.enforcingIdentity() !== undefined) return baseUrl
     return this.browserAuth.authenticatedUrl(baseUrl)
   }
 

@@ -59,7 +59,16 @@ export function mountAuthScreen(container: Element, pathname: string): MountedAu
   // the gate remounting a root per transition.
   const followRoute = (): void => {
     const next = matchAuthRoute(window.location.pathname)
-    if (next !== undefined) render(next)
+    if (next !== undefined) {
+      render(next)
+      return
+    }
+    // Leaving the authentication surface is how these screens report success:
+    // they navigate to wherever the reader was headed. The boot decided there
+    // was no session and returned, so nothing here can start the application —
+    // a document load runs the gate again, which now restores the session it
+    // just established.
+    window.location.assign(window.location.pathname + window.location.search)
   }
   window.addEventListener('popstate', followRoute)
 

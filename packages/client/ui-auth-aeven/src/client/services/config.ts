@@ -24,9 +24,36 @@ export function aevenConfig(): AevenClientConfig {
   return (globalThis as { __DSH_AEVEN__?: AevenClientConfig }).__DSH_AEVEN__ ?? {}
 }
 
-/** The Aeven API origin every request below is sent to. */
+/** Loopback names that address this machine but are different sites to a browser. */
+const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1'])
+
+/**
+ * The Aeven API origin every request below is sent to.
+ *
+ * A configured loopback host follows the page's own. `localhost` and
+ * `127.0.0.1` reach the same machine but are different sites to a browser, so
+ * a cookie the API sets under one is never returned under the other — the
+ * reader signs in over HTTP and their socket, which has only the cookie to
+ * present, is refused. Following the page keeps both on one site whichever
+ * address was typed. A configured non-loopback host is a deployment's
+ * deliberate choice and is left alone.
+ * @returns the origin to send Aeven requests to.
+ */
 export function apiUrl(): string {
-  return aevenConfig().apiUrl ?? ''
+  const configured = aevenConfig().apiUrl
+  if (configured === undefined) return ''
+  try {
+    const url = new URL(configured)
+    if (LOOPBACK.has(url.hostname) && LOOPBACK.has(window.location.hostname)) {
+      url.hostname = window.location.hostname
+      return url.origin
+    }
+    return configured
+  } catch {
+    // Not a URL: the deployment stated something this cannot reason about, so
+    // it is sent as configured and the request reports the failure.
+    return configured
+  }
 }
 
 /**
