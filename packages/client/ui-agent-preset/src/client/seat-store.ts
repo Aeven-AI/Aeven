@@ -16,7 +16,7 @@ import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type { SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type {} from '@deepseek-ai/dsh-agent-presets/types'
-import { presetOptions, readRoster } from './settings-store.ts'
+import { type AgentPresetRosterHolder, presetOptions } from './settings-store.ts'
 import type { AgentPresetOption } from './settings-store.ts'
 
 /** Hero-chip snapshot. */
@@ -56,6 +56,8 @@ export class AgentPresetSeatController {
 
   constructor(
     private readonly ctx: ClientContext,
+    /** The shared roster; the chip only displays it. */
+    private readonly roster: AgentPresetRosterHolder,
     /** The session the hero is about to hand over to, when there is one. */
     private readonly currentSession: () => Pick<
       SessionSummary,
@@ -72,7 +74,10 @@ export class AgentPresetSeatController {
   * @returns once the snapshot reflects the host.
   */
   async load(): Promise<void> {
-    const roster = await readRoster(this.ctx)
+    // Held, not fresh: the chip is rebuilt on every navigation and the roster
+    // it shows is deployment-wide, so re-reading per session asked the Host the
+    // same question each hop.
+    const roster = await this.roster.held()
     if (!roster.ok) {
       this.set({ error: roster.error })
       return

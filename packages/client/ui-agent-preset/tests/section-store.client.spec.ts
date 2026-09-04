@@ -9,6 +9,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
+import { AgentPresetRosterHolder } from '../src/client/settings-store.ts'
 import { AgentPresetSectionController, draftBlocker } from '../src/client/section-store.ts'
 import type { CopyDraft, PresetRow } from '../src/client/section-store.ts'
 
@@ -152,8 +153,10 @@ function harness(options: FakeOptions = {}) {
   const calls: Recorded[] = []
   let rosterChanges = 0
   const wired = { ...options, calls: options.calls ?? calls }
+  const sectionCtx = fakeCtx(presets, defaultId, wired)
   const controller = new AgentPresetSectionController(
-    fakeCtx(presets, defaultId, wired),
+    sectionCtx,
+    new AgentPresetRosterHolder(sectionCtx),
     () => { rosterChanges += 1 },
   )
   return { controller, presets, defaultId, calls, rosterChanges: () => rosterChanges }
@@ -516,8 +519,9 @@ describe('a controller with no roster listener', () => {
     // page composed without sibling surfaces still deletes cleanly.
     const presets = seed()
     const defaultId = { id: 'standard' }
+    const aloneCtx = fakeCtx(presets, defaultId)
     const alone = new AgentPresetSectionController(
-      fakeCtx(presets, defaultId))
+      aloneCtx, new AgentPresetRosterHolder(aloneCtx))
     await alone.load()
     alone.confirmDelete('mine')
 

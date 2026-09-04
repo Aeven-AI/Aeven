@@ -13,12 +13,13 @@ import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import type { SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import {
-  AGENT_PRESET_SETTINGS_NS, AgentPresetSettingsController, writeDefaultPreset,
+  AGENT_PRESET_SETTINGS_NS, AgentPresetRosterHolder, AgentPresetSettingsController,
+  writeDefaultPreset,
 } from '../src/client/settings-store.ts'
 
 /** The roster store over a scripted context. */
 function derivedController(ctx: ClientContext) {
-  return new AgentPresetSettingsController(ctx)
+  return new AgentPresetSettingsController(new AgentPresetRosterHolder(ctx))
 }
 import { AgentPresetSeatController } from '../src/client/seat-store.ts'
 
@@ -75,6 +76,116 @@ function fakeApi(
     ...options.failList === undefined ? {} : { failList: options.failList },
   })
 }
+
+describe('AgentPresetRosterHolder', () => {
+  /** A holder whose reads settle only when the test releases them. */
+  function deferred() {
+    const releases: ((value: unknown) => void)[] = []
+    let calls = 0
+    const ctx = {
+      remote: {
+        agentPresets: {
+          list: () => {
+            calls += 1
+            return new Promise((resolve) => { releases.push(resolve) })
+          },
+        },
+      },
+    } as unknown as ClientContext
+    const roster = (id: string) => ({
+      ok: true, value: { presets: [{ id, trust: 'user', isDefault: false }], authorable: true },
+    })
+    return {
+      holder: new AgentPresetRosterHolder(ctx),
+      get calls() { return calls },
+      release: (id = 'standard') => { for (const r of releases.splice(0)) r(roster(id)) },
+      releaseOne: (index: number, id: string) => { releases[index]?.(roster(id)) },
+    }
+  }
+
+  it('answers later readers from the held roster', async () => {
+    const b = deferred()
+    const first = b.holder.held()
+    b.release()
+    await first
+    // Each navigation rebuilds the chip and the label, which ask again.
+    await b.holder.held()
+    await b.holder.held()
+    expect(b.calls).toBe(1)
+  })
+
+  it('joins a read already in flight', async () => {
+    const b = deferred()
+    const both = Promise.all([b.holder.held(), b.holder.held()])
+    expect(b.calls).toBe(1)
+    b.release()
+    await both
+  })
+
+  it('reaches the Host again after an invalidation', async () => {
+    const b = deferred()
+    const first = b.holder.held()
+    b.release()
+    await first
+    b.holder.invalidate()
+    void b.holder.held()
+    expect(b.calls).toBe(2)
+    b.release()
+  })
+
+  it('keeps a fresh read fresh, and holds what it answers', async () => {
+    const b = deferred()
+    const first = b.holder.held()
+    b.release('one')
+    await first
+    // The surface that changes the roster must not be served a held answer.
+    const second = b.holder.fresh()
+    expect(b.calls).toBe(2)
+    b.release('two')
+    await second
+    // That newer answer is what the display surfaces now get.
+    const held = await b.holder.held()
+    expect(b.calls).toBe(2)
+    expect(held.ok && held.value.presets[0]?.id).toBe('two')
+  })
+
+  it('discards an answer invalidated out from under it, and keeps the replacement', async () => {
+    const b = deferred()
+    const stale = b.holder.held()
+    // A preset is deleted while that read is on the wire.
+    b.holder.invalidate()
+    const current = b.holder.held()
+    expect(b.calls).toBe(2)
+    b.releaseOne(0, 'stale')
+    b.releaseOne(1, 'current')
+    await Promise.all([stale, current])
+    const held = await b.holder.held()
+    expect(b.calls).toBe(2)
+    expect(held.ok && held.value.presets[0]?.id).toBe('current')
+  })
+
+  it('does not hold a refusal', async () => {
+    let calls = 0
+    const ctx = {
+      remote: {
+        agentPresets: {
+          list: () => {
+            calls += 1
+            return Promise.resolve({
+              ok: false as const,
+              error: new RemoteError('gateway/internal', 'roster unavailable', {}),
+            })
+          },
+        },
+      },
+    } as unknown as ClientContext
+    const holder = new AgentPresetRosterHolder(ctx)
+    expect(await holder.held()).toEqual({ ok: false, error: 'roster unavailable' })
+    // A failure nobody can clear must not become every later answer.
+    await holder.held()
+    expect(calls).toBe(2)
+  })
+})
 
 describe('the agent-preset roster store', () => {
   it('derives the display options from one roster call', async () => {
@@ -227,6 +338,7 @@ describe('the new-session chip controller', () => {
     } as unknown as ClientContext
     return new AgentPresetSeatController(
       ctx,
+      new AgentPresetRosterHolder(ctx),
       typeof current === 'function' ? current : () => current,
     )
   }

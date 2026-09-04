@@ -18,7 +18,9 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the ctx.remote merge into this program.
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
-import { beginRosterRead, writeDefaultPreset } from './settings-store.ts'
+import {
+  type AgentPresetRosterHolder, beginRosterRead, writeDefaultPreset,
+} from './settings-store.ts'
 
 /** Ids a preset directory may be named, mirroring the host's own rule. */
 const PRESET_ID = /^[a-z0-9][a-z0-9-]*$/
@@ -136,6 +138,8 @@ export class AgentPresetSectionController {
 
   constructor(
     private readonly ctx: ClientContext,
+    /** The shared roster; this surface changes it, so it reads fresh. */
+    private readonly roster: AgentPresetRosterHolder,
     /**
      * Called after this page changes the roster DIRECTORY, so the other
      * surfaces reading the same roster re-read it. A settings field moving is
@@ -170,7 +174,7 @@ export class AgentPresetSectionController {
     // for them in turn would hold the section in `loading` twice as long,
     // where a concurrent reload silently returns instead of refreshing.
     const opener = this.ctx.remote.settings.canOpenAgentPresetDirectory()
-    const roster = await beginRosterRead(this.ctx, this.store)
+    const roster = await beginRosterRead(this.store, () => this.roster.fresh())
     // A refused describe leaves the reveal-the-path path, which needs no opener.
     const described = await opener
     if (roster === undefined) return
@@ -273,6 +277,7 @@ export class AgentPresetSectionController {
       return
     }
     this.set({ copy: null })
+    this.roster.invalidate()
     await this.load()
     this.rosterChanged()
     // A preset is its files from here on (the dialog collected nothing
@@ -323,6 +328,7 @@ export class AgentPresetSectionController {
       return
     }
     this.set({ deleting: false, pendingDelete: null })
+    this.roster.invalidate()
     await this.load()
     this.rosterChanged()
   }
@@ -339,6 +345,7 @@ export class AgentPresetSectionController {
       this.set({ error: failure })
       return
     }
+    this.roster.invalidate()
     await this.load()
   }
 }
