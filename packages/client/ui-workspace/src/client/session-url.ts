@@ -2,7 +2,15 @@
 
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 
-const SESSION_PATH_PREFIX = '/sessions/'
+const SESSION_PATH_PREFIX = '/c/'
+
+/**
+ * The Host mints every Session id as `session-<uuid>`, and repeating that word
+ * in a path already meaning "conversation" makes the address twice as long as
+ * it reads. The prefix is dropped on the way out and restored on the way in,
+ * so the id the rest of the client handles is unchanged.
+ */
+const SESSION_ID_PREFIX = 'session-'
 
 /** Address-bar operations consumed by Workspace navigation policy. */
 export interface SessionUrlNavigation {
@@ -28,7 +36,7 @@ export interface SessionUrlWindow {
 }
 
 /**
- * Browser implementation using `/sessions/:id` SPA paths.
+ * Browser implementation using `/c/:id` SPA paths.
  *
  * The window arrives as a thunk, not a value: applying this plugin then costs
  * no browser access, and only an actual navigation needs one. Reading the
@@ -51,7 +59,10 @@ export class BrowserSessionUrlNavigation implements SessionUrlNavigation {
     if (encoded.length === 0 || encoded.includes('/')) return undefined
     try {
       const value = decodeURIComponent(encoded)
-      return value.length === 0 ? undefined : value as SessionId
+      if (value.length === 0) return undefined
+      // An address written before the prefix was dropped still names its
+      // session, so it is accepted as it stands rather than prefixed twice.
+      return (value.startsWith(SESSION_ID_PREFIX) ? value : `${SESSION_ID_PREFIX}${value}`) as SessionId
     } catch {
       return undefined
     }
@@ -78,7 +89,9 @@ export class BrowserSessionUrlNavigation implements SessionUrlNavigation {
     const next = new URL(this.browser.location.href)
     next.pathname = sessionId === undefined
       ? '/'
-      : `${SESSION_PATH_PREFIX}${encodeURIComponent(sessionId)}`
+      : `${SESSION_PATH_PREFIX}${encodeURIComponent(
+        sessionId.startsWith(SESSION_ID_PREFIX) ? sessionId.slice(SESSION_ID_PREFIX.length) : sessionId,
+      )}`
     this.browser.history[method](null, '', `${next.pathname}${next.search}${next.hash}`)
   }
 }

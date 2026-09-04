@@ -60,7 +60,7 @@ const STATIC_MISS_CODES: ReadonlySet<string | undefined> = new Set([
 ])
 
 /** Client-owned path prefixes that resolve to the SPA index. */
-const SPA_ROUTE_PREFIXES = ['/sessions/'] as const
+const SPA_ROUTE_PREFIXES = ['/c/'] as const
 
 /**
  * Serve one GET/HEAD static request from the dist root.

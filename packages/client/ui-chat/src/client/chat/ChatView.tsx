@@ -799,7 +799,7 @@ export function ChatView({
       })
       return
     }
-    if (loading?.requestId === eventNavigation.requestId && loading.settled === false) return
+    if (loading?.requestId === eventNavigation.requestId && !loading.settled) return
 
     // The indexed event should map one-to-one to a user or assistant row. If
     // a changed projection omits it, land the closest visible durable row so

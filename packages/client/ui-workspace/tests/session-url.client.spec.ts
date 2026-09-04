@@ -44,13 +44,15 @@ describe('BrowserSessionUrlNavigation', () => {
   it('reads, pushes, and replaces encoded SPA Session paths', () => {
     const browser = new FakeWindow()
     const navigation = new BrowserSessionUrlNavigation(() => browser)
-    const sessionId = SessionId('session / one')
+    const sessionId = SessionId('session-one / two')
 
     expect(navigation.read()).toBeUndefined()
     navigation.push(sessionId)
+    // The `session-` the Host mints is dropped from the address; everything
+    // after it is still encoded, separators included.
     expect(browser.calls).toEqual([{
       method: 'push',
-      url: '/sessions/session%20%2F%20one?fixture#turn',
+      url: '/c/one%20%2F%20two?fixture#turn',
     }])
     expect(navigation.read()).toBe(sessionId)
 
@@ -66,16 +68,20 @@ describe('BrowserSessionUrlNavigation', () => {
     let changes = 0
     const dispose = navigation.subscribe(() => { changes++ })
 
-    browser.navigate('/sessions/selected')
-    expect(navigation.read()).toBe(SessionId('selected'))
+    browser.navigate('/c/selected')
+    // The address carries the id without its prefix, so reading restores it.
+    expect(navigation.read()).toBe(SessionId('session-selected'))
     expect(changes).toBe(1)
-    browser.navigate('/sessions/nested/path')
+    // An address written before the prefix was dropped still names its session.
+    browser.navigate('/c/session-selected')
+    expect(navigation.read()).toBe(SessionId('session-selected'))
+    browser.navigate('/c/nested/path')
     expect(navigation.read()).toBeUndefined()
-    browser.navigate('/sessions/%E0%A4%A')
+    browser.navigate('/c/%E0%A4%A')
     expect(navigation.read()).toBeUndefined()
 
     dispose()
     browser.navigate('/')
-    expect(changes).toBe(3)
+    expect(changes).toBe(4)
   })
 })

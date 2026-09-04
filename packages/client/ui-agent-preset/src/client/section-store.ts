@@ -18,7 +18,7 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the ctx.remote merge into this program.
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
-import { beginRosterRead, writeDefaultPreset } from './settings-store.ts'
+import { beginRosterRead, invalidateRoster, writeDefaultPreset } from './settings-store.ts'
 
 /** Ids a preset directory may be named, mirroring the host's own rule. */
 const PRESET_ID = /^[a-z0-9][a-z0-9-]*$/
@@ -273,6 +273,7 @@ export class AgentPresetSectionController {
       return
     }
     this.set({ copy: null })
+    invalidateRoster(this.ctx)
     await this.load()
     this.rosterChanged()
     // A preset is its files from here on (the dialog collected nothing
@@ -323,6 +324,7 @@ export class AgentPresetSectionController {
       return
     }
     this.set({ deleting: false, pendingDelete: null })
+    invalidateRoster(this.ctx)
     await this.load()
     this.rosterChanged()
   }
@@ -339,6 +341,7 @@ export class AgentPresetSectionController {
       this.set({ error: failure })
       return
     }
+    invalidateRoster(this.ctx)
     await this.load()
   }
 }
