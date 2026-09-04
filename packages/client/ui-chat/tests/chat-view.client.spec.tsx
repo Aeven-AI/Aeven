@@ -14,7 +14,7 @@ import type {
   SessionListState, SessionSnapshot,
 } from '@deepseek-ai/dsh-api-session-controller/client'
 import type {
-  ConversationLocationDataStore, ConversationTurnDataMap,
+  ConversationEventNavigation, ConversationLocationDataStore, ConversationTurnDataMap,
 } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -249,6 +249,7 @@ function makeHarness(
   const openFile = vi.fn<(path: string) => Promise<void>>().mockResolvedValue(undefined)
   const loadOlder = vi.fn()
   const loadThrough = vi.fn<(seq: number) => Promise<void>>().mockResolvedValue(undefined)
+  const completeEventNavigation = vi.fn<(requestId: number) => void>()
   // Mutable outline holder: tests swap the value and drive a re-render via set().
   let outlineValue: unknown
   const openView = vi.fn<(view: string, focus: string) => void>()
@@ -262,6 +263,7 @@ function makeHarness(
   // Rows and the harness must observe the same chat-store instance.
   const chat = createChatStore().create()
   const transcriptView = createSnapshotStore<TranscriptViewMode>('compact')
+  const eventNavigation = createSnapshotStore<ConversationEventNavigation | null>(null)
   const t = makeTranslate(zh, commonZh)
   const toolOwners: Array<{
     callId: string
@@ -387,6 +389,7 @@ function makeHarness(
     useStore: bindSnapshotSelector(chat),
     actions: chat.actions,
     useTranscriptView: bindSnapshotSelector(transcriptView),
+    useEventNavigation: bindSnapshotSelector(eventNavigation),
     renderSlot,
     SessionProvider: SessionProviderStub,
     viewRequest: null,
@@ -396,6 +399,7 @@ function makeHarness(
     openFile,
     loadOlder,
     loadThrough,
+    completeEventNavigation,
     loadImage: vi.fn(() => Promise.reject(new Error('not used'))),
     chatScroll,
     forkAt,
@@ -424,10 +428,11 @@ function makeHarness(
   const setSelection = (next: SelectionTarget | null): void => { chat.actions.select(next) }
   return {
     set, setSession: session.set, setChat: chatSource.set, ChatView, props,
-    openDetails, openFile, loadOlder, loadThrough, openView,
+    openDetails, openFile, loadOlder, loadThrough, completeEventNavigation, openView,
     setOutline: (value: unknown) => { outlineValue = value },
     chatScroll, forkAt, setSelection, toolOwners,
     setTranscriptView: (mode: TranscriptViewMode) => { transcriptView.set(mode) },
+    setEventNavigation: (value: ConversationEventNavigation | null) => { eventNavigation.set(value) },
     setNodeRenderer: (renderer: React.ComponentProps<typeof ChatNodeSeat>['renderSlot']) => {
       nodeSlotOverride = renderer
     },

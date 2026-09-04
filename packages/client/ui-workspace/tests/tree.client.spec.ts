@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import type { SessionListState, SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
+import type {
+  SessionListState, SessionSearchResultItem, SessionSummary,
+} from '@deepseek-ai/dsh-api-session-controller/client'
 import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionPendingInteractionBase } from '@deepseek-ai/dsh-client-ui-session/client'
 import type { ScheduleId, ScheduleRecord } from '@deepseek-ai/dsh-schedule/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { SessionId, SessionSeq } from '@deepseek-ai/dsh-session/types'
 import {
   deriveFlat, deriveGroups, deriveSearchResults, workspaceLabel,
   UNGROUPED_KEY,
@@ -12,6 +14,8 @@ import { createWorkspaceViewStore } from '../src/client/stores.ts'
 
 const sid = (id: string) => id as SessionId
 const wid = (id: string) => id as WorkspaceId
+const searchHit = (sessionId: SessionId, snippet: string, at = 1): SessionSearchResultItem =>
+  ({ sessionId, seq: at as SessionSeq, snippet })
 const summary = (id: string, updatedAt: number, cwd?: string): SessionSummary => ({
   id: sid(id), displayTitle: id, running: false, blank: false,
   updatedAt, ...(cwd === undefined ? {} : { cwd }),
@@ -344,7 +348,7 @@ describe('deriveSearchResults archive filtering', () => {
       'needle',
       archived('gone'),
       noAttention,
-      { items: [{ sessionId: gone.id, snippet: 'needle body' }], hasMore: false },
+      { items: [searchHit(gone.id, 'needle body')], hasMore: false },
       10,
     )
     expect(result.items.map(item => item.id)).toEqual([hit.id])
@@ -373,10 +377,10 @@ describe('deriveSearchResults', () => {
       }]]),
       {
         items: [
-          { sessionId: contentHit.id, snippet: 'body needle excerpt' },
-          { sessionId: contentHit.id, snippet: 'ignored duplicate excerpt' },
-          { sessionId: titleHit.id, snippet: 'title session body excerpt' },
-          { sessionId: sid('unknown'), snippet: 'not in session.list' },
+          searchHit(contentHit.id, 'body needle excerpt', 5),
+          searchHit(contentHit.id, 'ignored duplicate excerpt', 9),
+          searchHit(titleHit.id, 'title session body excerpt', 2),
+          searchHit(sid('unknown'), 'not in session.list'),
         ],
         hasMore: false,
       },
@@ -394,6 +398,7 @@ describe('deriveSearchResults', () => {
           pendingInteraction: 'plan-review',
           completed: false,
           hasActiveSchedule: false,
+          matchSeq: 2,
           snippet: 'title session body excerpt',
         },
         {
@@ -413,6 +418,7 @@ describe('deriveSearchResults', () => {
           runningSubagentCount: 0,
           completed: false,
           hasActiveSchedule: false,
+          matchSeq: 5,
           snippet: 'body needle excerpt',
         },
       ],
@@ -437,8 +443,8 @@ describe('deriveSearchResults', () => {
       noAttention,
       {
         items: [
-          { sessionId: staleBlank.id, snippet: 'stale body' },
-          { sessionId: currentBlank.id, snippet: 'current body' },
+          searchHit(staleBlank.id, 'stale body', 3),
+          searchHit(currentBlank.id, 'current body', 4),
         ],
         hasMore: false,
       },
@@ -471,7 +477,7 @@ describe('deriveSearchResults', () => {
       'needle',
       noArchive,
       noAttention,
-      { items: [{ sessionId: sid('body'), snippet: 'needle' }], hasMore: true },
+      { items: [searchHit(sid('body'), 'needle')], hasMore: true },
       3,
     )
     expect(backendMore.items).toHaveLength(1)

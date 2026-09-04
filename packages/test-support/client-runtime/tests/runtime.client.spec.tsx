@@ -11,7 +11,7 @@ import { stubSettingsScope } from '../src/settings-scope.ts'
 import { cleanup } from '@testing-library/react'
 import { defineStore } from '@deepseek-ai/dsh-client-store'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import { type SessionId, SessionSeq } from '@deepseek-ai/dsh-session/types'
 import type { PropsRenderSlots, SessionStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
 import { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 
@@ -199,12 +199,12 @@ describe('sessions', () => {
     await expect(runtime.sessions.search('marker', signal))
       .resolves.toEqual({ ok: true, value: { items: [], hasMore: false } })
     runtime.sessions.stubSearch(query => ({
-      items: [{ sessionId: 's1' as SessionId, snippet: `hit: ${query}` }],
+      items: [{ sessionId: 's1' as SessionId, seq: SessionSeq(3), snippet: `hit: ${query}` }],
       hasMore: true,
     }))
     await expect(runtime.sessions.search('marker', signal)).resolves.toEqual({
       ok: true,
-      value: { items: [{ sessionId: 's1', snippet: 'hit: marker' }], hasMore: true },
+      value: { items: [{ sessionId: 's1', seq: 3, snippet: 'hit: marker' }], hasMore: true },
     })
     expect(runtime.sessions.calls).toEqual([
       { method: 'search', args: ['marker', signal] },

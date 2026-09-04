@@ -2,12 +2,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, createEvent, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
-import type { SessionListState, SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
+import type {
+  SessionListState, SessionSearchResultItem, SessionSummary,
+} from '@deepseek-ai/dsh-api-session-controller/client'
 import type {
   WorkspaceId, WorkspaceSnapshot, WorkspaceView,
 } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionPendingInteractionSnapshot } from '@deepseek-ai/dsh-client-ui-session/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { SessionId, SessionSeq } from '@deepseek-ai/dsh-session/types'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
 import type { WorkspaceBrowserProps } from '../src/client/contract/slots.ts'
 import { createWorkspaceViewStore, FLAT_SESSION_ORDER_KEY } from '../src/client/stores.ts'
@@ -23,6 +25,8 @@ beforeEach(() => { localStorage.clear(); createWorkspaceViewStore().create().act
 const t: WorkspaceBrowserProps['t'] = makeTranslate(zh, commonZh)
 
 const sid = (id: string) => id as SessionId
+const hit = (sessionId: SessionId, snippet: string, at = 1): SessionSearchResultItem =>
+  ({ sessionId, seq: at as SessionSeq, snippet })
 const wid = (id: string) => id as WorkspaceId
 const summary = (id: string, updatedAt: number, overrides: Partial<SessionSummary> = {}): SessionSummary => ({
   id: sid(id), displayTitle: id, running: false, blank: false, updatedAt, ...overrides,
@@ -664,12 +668,12 @@ describe('WorkspaceBrowser', () => {
     expect(input.value).toBe('kept')
   })
 
-  it('adds Host content hits with context, shows the result bound, and opens without clearing the query', async () => {
+  it('adds Host content hits with context, shows the result bound, and opens the match with its seq', async () => {
     vi.useFakeTimers()
     try {
       const open = vi.fn()
       const searchSessions = vi.fn(async () => ({
-        items: [{ sessionId: sid('body-hit'), snippet: '…the waterfall token appears here…' }],
+        items: [hit(sid('body-hit'), '…the waterfall token appears here…', 7)],
         hasMore: true,
       }))
       mount({
@@ -695,8 +699,9 @@ describe('WorkspaceBrowser', () => {
       expect(screen.getByText('…the waterfall token appears here…')).toBeTruthy()
       expect(screen.getByText('仅显示前 20 条结果，请缩小搜索范围。')).toBeTruthy()
       fireEvent.click(screen.getByRole('treeitem'))
-      expect(open).toHaveBeenCalledWith(sid('body-hit'))
-      expect(input.value).toBe('waterfall token')
+      expect(open).toHaveBeenCalledWith(sid('body-hit'), 7)
+      // Opening a hit leaves search: openSearchResult clears the query and collapses the panel.
+      expect(input.value).toBe('')
     } finally {
       vi.useRealTimers()
     }
@@ -779,17 +784,17 @@ describe('WorkspaceBrowser', () => {
     vi.useFakeTimers()
     try {
       let resolveFirst!: (value: {
-        items: { sessionId: SessionId; snippet: string }[]
+        items: SessionSearchResultItem[]
         hasMore: boolean
       }) => void
       const first = new Promise<{
-        items: { sessionId: SessionId; snippet: string }[]
+        items: SessionSearchResultItem[]
         hasMore: boolean
       }>((resolve) => { resolveFirst = resolve })
       const searchSessions = vi.fn((query: string, _signal: AbortSignal) => query === 'first'
         ? first
         : Promise.resolve({
-          items: [{ sessionId: sid('second-hit'), snippet: 'second excerpt' }],
+          items: [hit(sid('second-hit'), 'second excerpt', 2)],
           hasMore: false,
         }))
       mount({
@@ -812,7 +817,7 @@ describe('WorkspaceBrowser', () => {
 
       await act(async () => {
         resolveFirst({
-          items: [{ sessionId: sid('first-hit'), snippet: 'stale excerpt' }],
+          items: [hit(sid('first-hit'), 'stale excerpt', 1)],
           hasMore: false,
         })
         await Promise.resolve()

@@ -9,6 +9,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SessionId } from '@deepseek-ai/dsh-api-remotes/client'
+import { SessionSeq } from '@deepseek-ai/dsh-session/types'
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import { ClientSessions, SessionCreateError } from '../src/client/sessions/service.ts'
 import { scopeOf } from '../src/client/scope.ts'
@@ -114,7 +115,7 @@ describe('search', () => {
     await feedList(b, [{ id: 's1' }])
     const before = b.svc.list.getSnapshot()
     b.api.onSearch = () => Promise.resolve(ok({
-      items: [{ sessionId: sid('s1'), snippet: 'matching excerpt' }],
+      items: [{ sessionId: sid('s1'), seq: SessionSeq(4), snippet: 'matching excerpt' }],
       hasMore: false,
     }))
     const signal = new AbortController().signal
@@ -122,7 +123,7 @@ describe('search', () => {
     await expect(b.svc.search('needle', signal)).resolves.toEqual({
       ok: true,
       value: {
-        items: [{ sessionId: 's1', snippet: 'matching excerpt' }],
+        items: [{ sessionId: 's1', seq: 4, snippet: 'matching excerpt' }],
         hasMore: false,
       },
     })
