@@ -49,6 +49,13 @@ interface CredentialState {
   configured: boolean
   /** Whether `credentials/set` can affect it; false disables the control. */
   writable: boolean
+  /**
+   * Whether the Host answered for {@link ref}, as opposed to the placeholder a
+   * new reference starts from. The placeholder is indistinguishable from an
+   * answered "absent but writable", so without this the card cannot tell a
+   * held answer from one it never asked for.
+   */
+  answered: boolean
 }
 
 /** What the web-search card renders. */
@@ -77,7 +84,7 @@ export interface WebSearchCardFace extends CardActions {
 export class WebSearchCardController {
   private readonly form: CardForm<WebSearchSettings>
   private readonly store: SnapshotStore<WebSearchCardState>
-  private credential: CredentialState = { ref: '', configured: false, writable: true }
+  private credential: CredentialState = { ref: '', configured: false, writable: true, answered: false }
 
   /**
    * @param scope - the bound settings scope for the `web-search-deepseek` namespace.
@@ -117,13 +124,20 @@ export class WebSearchCardController {
    * of order, so a response is published only while it still answers for the
    * reference in force.
    */
-  private async readCredential(): Promise<void> {
+  private async readCredential(force = false): Promise<void> {
     const ref = refOf(this.scope.getSnapshot())
     if (ref !== this.credential.ref) {
       // A new reference knows nothing yet; keeping the old answer would claim
       // the key is configured under a name nobody has checked.
-      this.credential = { ref, configured: false, writable: true }
+      this.credential = { ref, configured: false, writable: true, answered: false }
       this.store.set(this.projection())
+    } else if (!force && this.credential.answered) {
+      // Every scope notification lands here, including the ones that carry no
+      // change to this reference: one settings-describe run publishes `loading`
+      // and then `ready`, and each publication reaches this subscriber. The
+      // held answer already describes `ref`, so asking again would put the same
+      // question on the wire for the same answer.
+      return
     }
     const response = await this.ctx.remote.credentials.describe([ref])
     if (!response.ok || ref !== refOf(this.scope.getSnapshot())) return
@@ -134,9 +148,11 @@ export class WebSearchCardController {
       // An unknown reference is treated as writable: the control stays usable
       // and the Host is what refuses, rather than the card guessing a refusal.
       writable: view?.writable ?? true,
+      answered: true,
     }
-    if (next.configured === this.credential.configured && next.writable === this.credential.writable) return
+    const held = this.credential
     this.credential = next
+    if (held.answered && next.configured === held.configured && next.writable === held.writable) return
     this.store.set(this.projection())
   }
 
@@ -150,7 +166,7 @@ export class WebSearchCardController {
    */
   refreshCredential(ref: string): void {
     if (ref !== this.credential.ref) return
-    void this.readCredential()
+    void this.readCredential(true)
   }
 
   /**
@@ -170,7 +186,7 @@ export class WebSearchCardController {
     // Refusals surface through the re-read below: the Host is the only
     // authority on whether the key now exists.
     await this.ctx.remote.credentials.set(refOf(this.scope.getSnapshot()), value)
-    await this.readCredential()
+    await this.readCredential(true)
     return this.credential.configured
   }
 }
