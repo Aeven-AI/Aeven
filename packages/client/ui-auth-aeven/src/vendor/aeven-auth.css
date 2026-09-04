@@ -1,0 +1,537 @@
+/*
+ * Google Sans Flex and Google Sans Code (both SIL OFL 1.1). Both are the
+ * variable cuts: one file per family carries the weight axis, so the 450 book
+ * weight the app sets as its regular is a real instance rather than a
+ * synthesised one.
+ */
+@font-face {
+  font-family: "Google Sans Flex";
+  src: url("./assets/fonts/google-sans-flex-latin-wght-normal.woff2") format("woff2");
+  font-weight: 1 1000;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Google Sans Code";
+  src: url("./assets/fonts/google-sans-code-latin-wght-normal.woff2") format("woff2");
+  font-weight: 300 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Libre-Bodoni-Web";
+  src: url("./assets/fonts/libre-bodoni-v8-latin-400.woff2") format("woff2"), url("./assets/fonts/libre-bodoni-v8-latin-400.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Libre-Bodoni-Web";
+  src: url("./assets/fonts/libre-bodoni-v8-latin-500.woff2") format("woff2"), url("./assets/fonts/libre-bodoni-v8-latin-500.woff") format("woff");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Libre-Bodoni-Web";
+  src: url("./assets/fonts/libre-bodoni-v8-latin-600.woff2") format("woff2"), url("./assets/fonts/libre-bodoni-v8-latin-600.woff") format("woff");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Libre-Bodoni-Header";
+  src: url("./assets/fonts/libre-bodoni-v8-latin-600.woff2") format("woff2"), url("./assets/fonts/libre-bodoni-v8-latin-600.woff") format("woff");
+  line-gap-override: 0%;
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Libre-Bodoni-Web";
+  src: url("./assets/fonts/libre-bodoni-v8-latin-700.woff2") format("woff2"), url("./assets/fonts/libre-bodoni-v8-latin-700.woff") format("woff");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+/* responsive sizes */
+/* main vars */
+/* Book: the variable cut renders 450 as a real instance, not a synthesised one. */
+/* Type scale. The ~2.7:1 top-to-bottom margin ratio ties a heading to the
+   section it introduces instead of letting it float between two blocks. */
+/* Cells wrap now, so this is real leading inside a cell, not just row height:
+   30px at 14px left wrapped lines drifting apart. The row keeps its air
+   through cell padding instead. */
+/* Table cells. A per-column cap in characters, so it holds at any font size.
+   Columns narrower than this keep their natural width and never wrap, which is
+   what stops short values (dates, names, ids) breaking mid-value; columns wider
+   than it wrap at exactly this measure, so it doubles as the floor for a text
+   column. Measured on the text, not the border box, or the 36px cell padding
+   would eat into it. */
+/* Block rhythm. Airiness reads better as space between blocks than as space
+   between lines, so these carry it rather than $lineHeight. */
+/* main vars */
+/* easing equations */
+#preloader {
+  display: flex;
+  position: fixed;
+  opacity: 1;
+  z-index: 100;
+  width: 100vw;
+  height: 100%;
+  max-width: 100%;
+  align-items: center;
+  justify-content: center;
+}
+#preloader .container {
+  display: flex;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+#preloader .container .logo {
+  display: flex;
+  position: relative;
+  width: 50px;
+  height: 50px;
+  color: rgb(10, 10, 10);
+  margin-bottom: 4px;
+  filter: blur(0px);
+}
+#preloader .container .logo svg {
+  display: flex;
+  width: 50px;
+  height: 50px;
+}
+#preloader .container .spinner {
+  display: block;
+  position: relative;
+  width: 16px;
+  height: 16px;
+}
+#preloader .container .spinner svg {
+  color: rgb(10, 10, 10);
+  display: block;
+  position: relative;
+  width: 16px;
+  height: 16px;
+}
+#preloader .container .spinner.active {
+  animation: 900ms linear 0s infinite normal none running loader-spin;
+}
+#preloader .background {
+  display: block;
+  position: fixed;
+  top: 0px;
+  left: 0px;
+  width: 100vw;
+  height: 120%;
+  max-width: 100%;
+  background-color: rgb(242, 242, 242);
+}
+
+#preloader.hide {
+  opacity: 0;
+}
+#preloader.hide .container .logo {
+  filter: blur(1px);
+}
+
+#preloader.animate {
+  transition: opacity 0.4s linear;
+}
+#preloader.animate .container .logo {
+  transition: filter 0.4s ease-out;
+}
+
+#app-root .view-container .oauth-result.view {
+  background: rgb(242, 242, 242);
+}
+#app-root .view-container .oauth-result.view .main-content {
+  display: flex;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  flex-direction: column;
+}
+#app-root .view-container .oauth-result.view .main-content .content-container {
+  display: flex;
+  position: absolute;
+  overflow-y: scroll;
+  top: 0px;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+}
+#app-root .view-container .oauth-result.view .main-content .content-container .message-container {
+  display: flex;
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+  flex-grow: 1;
+  flex-shrink: 0;
+  padding-left: 24px;
+  padding-right: 24px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+#app-root .view-container .oauth-result.view .main-content .content-container .message-container .message {
+  display: flex;
+  position: relative;
+  width: 100%;
+  max-width: 1024px;
+  align-items: center;
+  flex-direction: column;
+}
+#app-root .view-container .oauth-result.view .main-content .content-container .message-container .message .txt-header {
+  display: flex;
+  position: relative;
+  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-size: 120px;
+  line-height: normal;
+  letter-spacing: 0px;
+  color: rgb(10, 10, 10);
+}
+#app-root .view-container .oauth-result.view .main-content .content-container .message-container .message .txt-content {
+  display: flex;
+  position: relative;
+  text-align: center;
+  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-size: 16px;
+  line-height: 16px;
+  color: rgb(10, 10, 10);
+  padding-top: 16px;
+  padding-bottom: 24px;
+  justify-content: center;
+}
+
+#app-root .view-container .authenticate.view {
+  background: rgb(242, 242, 242);
+}
+#app-root .view-container .authenticate.view .main-content {
+  display: flex;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  flex-direction: column;
+}
+#app-root .view-container .authenticate.view .main-content .content-container {
+  display: flex;
+  position: absolute;
+  top: 0px;
+  width: 100%;
+  height: 100%;
+  flex-direction: row;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container {
+  display: flex;
+  position: relative;
+  overflow-y: auto;
+  width: 50%;
+  height: 100%;
+  padding-left: 24px;
+  padding-right: 24px;
+  padding-top: 56px;
+  padding-bottom: 56px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+@media screen and (max-width: 1024px) {
+  #app-root .view-container .authenticate.view .main-content .content-container .form-container {
+    width: 100%;
+  }
+}
+@media screen and (max-width: 640px) {
+  #app-root .view-container .authenticate.view .main-content .content-container .form-container {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form {
+  display: flex;
+  position: relative;
+  width: 100%;
+  min-height: 500px;
+  align-items: center;
+  flex-direction: column;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .form-title {
+  display: flex;
+  position: relative;
+  z-index: 10;
+  padding-bottom: 24px;
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 30px;
+  letter-spacing: normal;
+  color: rgb(10, 10, 10);
+  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .action-container {
+  display: flex;
+  position: relative;
+  width: 100%;
+  align-items: center;
+  flex-direction: column;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .action-container .button-container {
+  display: flex;
+  position: relative;
+  gap: 16px;
+  width: 100%;
+  max-width: 400px;
+  padding-top: 16px;
+  padding-bottom: 16px;
+  flex-direction: column;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .action-container .separator {
+  display: flex;
+  position: relative;
+  height: 32px;
+  width: 100%;
+  max-width: 380px;
+  align-items: center;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .action-container .separator .txt {
+  display: flex;
+  position: relative;
+  padding-left: 12px;
+  padding-right: 12px;
+  font-size: 0.875rem;
+  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-weight: 600;
+  color: rgb(10, 10, 10);
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .action-container .separator .line {
+  display: flex;
+  position: relative;
+  height: 1px;
+  flex-grow: 1;
+  background-color: rgb(205, 205, 205);
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .signin-container {
+  display: flex;
+  position: relative;
+  width: 100%;
+  min-height: 328px;
+  padding-top: 16px;
+  align-items: center;
+  flex-direction: column;
+  background-color: rgb(242, 242, 242);
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .signin-container .input-items {
+  display: flex;
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  gap: 36px;
+  flex-direction: column;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .signin-container .input-items .input-item {
+  display: flex;
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  flex-direction: column;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .signin-container .input-items .input-item .title-container {
+  display: flex;
+  position: absolute;
+  top: -22px;
+  opacity: 1;
+  width: 100%;
+  letter-spacing: normal;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .signin-container .input-items .input-item .title-container .title {
+  display: flex;
+  position: relative;
+  width: 100%;
+  line-height: normal;
+  font-size: 12px;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .signin-container .form-spacer {
+  display: flex;
+  position: relative;
+  flex-grow: 1;
+  width: 100%;
+  max-width: 400px;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .signin-container .button-container {
+  display: flex;
+  position: relative;
+  gap: 16px;
+  width: 100%;
+  max-width: 400px;
+  flex-direction: column;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .register-container {
+  display: flex;
+  position: relative;
+  width: 100%;
+  min-height: 328px;
+  padding-top: 16px;
+  align-items: center;
+  flex-direction: column;
+  background-color: rgb(242, 242, 242);
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .register-container .input-items {
+  display: flex;
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  gap: 36px;
+  flex-direction: column;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .register-container .input-items .input-item {
+  display: flex;
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  flex-direction: column;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .register-container .input-items .input-item .title-container {
+  display: flex;
+  position: absolute;
+  top: -22px;
+  opacity: 1;
+  width: 100%;
+  letter-spacing: normal;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .register-container .input-items .input-item .title-container .title {
+  display: flex;
+  position: relative;
+  width: 100%;
+  line-height: normal;
+  font-size: 12px;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .register-container .form-spacer {
+  display: flex;
+  position: relative;
+  flex-grow: 1;
+  width: 100%;
+  max-width: 400px;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .register-container .button-container {
+  display: flex;
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .verification-container {
+  display: flex;
+  position: relative;
+  width: 100%;
+  min-height: 330px;
+  padding-top: 16px;
+  align-items: center;
+  flex-direction: column;
+  background-color: rgb(242, 242, 242);
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .verification-container .input-items {
+  display: flex;
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  gap: 36px;
+  flex-direction: column;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .verification-container .input-items .input-item {
+  display: flex;
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  flex-direction: column;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .verification-container .input-items .input-item .title-container {
+  display: flex;
+  position: absolute;
+  top: -22px;
+  opacity: 1;
+  width: 100%;
+  letter-spacing: normal;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .verification-container .input-items .input-item .title-container .title {
+  display: flex;
+  position: relative;
+  width: 100%;
+  line-height: normal;
+  font-size: 12px;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .verification-container .info-txt {
+  display: flex;
+  position: relative;
+  padding-top: 16px;
+  width: 100%;
+  max-width: 400px;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .verification-container .info-txt .txt {
+  font-size: 15px;
+  text-align: center;
+  line-height: 20px;
+  letter-spacing: normal;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .verification-container .form-spacer {
+  display: flex;
+  position: relative;
+  flex-grow: 1;
+  width: 100%;
+  max-width: 400px;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .verification-container .button-container {
+  display: flex;
+  position: relative;
+  gap: 16px;
+  width: 100%;
+  max-width: 400px;
+  flex-direction: column;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .subtext {
+  display: flex;
+  position: relative;
+  padding-top: 16px;
+  width: 100%;
+  flex-grow: 1;
+  max-width: 400px;
+  font-size: 16px;
+  justify-content: center;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form-footer {
+  display: block;
+  position: absolute;
+  width: 100%;
+  bottom: 0px;
+  padding-left: 24px;
+  padding-right: 24px;
+  padding-top: 24px;
+  padding-bottom: 24px;
+  text-align: center;
+  line-height: 24px;
+  font-size: 0.875rem;
+  background-color: rgb(242, 242, 242);
+}
+@media screen and (max-width: 640px) {
+  #app-root .view-container .authenticate.view .main-content .content-container .form-container .form-footer {
+    padding-left: 16px;
+    padding-right: 16px;
+    font-size: 0.875rem;
+  }
+}
+#app-root .view-container .authenticate.view .main-content .content-container .graphics-container {
+  display: flex;
+  position: relative;
+  width: 50%;
+  height: 100%;
+  background-color: rgb(10, 10, 10);
+}
+@media screen and (max-width: 1024px) {
+  #app-root .view-container .authenticate.view .main-content .content-container .graphics-container {
+    display: none;
+  }
+}
