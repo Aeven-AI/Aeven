@@ -160,7 +160,7 @@ describe('session.search', () => {
     expect(response).toEqual({
       ok: true,
       value: {
-        items: [{ sessionId: 'cold', snippet: 'the matching answer' }],
+        items: [{ sessionId: 'cold', seq: 4, snippet: 'the matching answer' }],
         hasMore: false,
       },
     })
@@ -244,7 +244,7 @@ describe('session.search', () => {
     expect(response).toEqual({
       ok: true,
       value: {
-        items: [{ sessionId: 'visible', snippet: 'allowed snippet' }],
+        items: [{ sessionId: 'visible', seq: 3, snippet: 'allowed snippet' }],
         hasMore: false,
       },
     })
@@ -421,9 +421,9 @@ describe('session.search', () => {
       ok: true,
       value: {
         items: [
-          { sessionId: 'fresh-first', snippet: 'match 2' },
-          { sessionId: 'shared', snippet: 'match 1' },
-          { sessionId: 'fresh-last', snippet: 'match 3' },
+          { sessionId: 'fresh-first', seq: 2, snippet: 'match 2' },
+          { sessionId: 'shared', seq: 1, snippet: 'match 1' },
+          { sessionId: 'fresh-last', seq: 3, snippet: 'match 3' },
         ],
         hasMore: false,
       },
@@ -657,7 +657,7 @@ describe('session.search', () => {
     expect(response).toEqual({
       ok: true,
       value: {
-        items: [{ sessionId: 'visible', snippet: expected }],
+        items: [{ sessionId: 'visible', seq: 0, snippet: expected }],
         hasMore: false,
       },
     })
@@ -787,7 +787,7 @@ describe('session.search', () => {
     expect(response).toEqual({
       ok: true,
       value: {
-        items: [{ sessionId: 'cold-32750', snippet: 'match 0' }],
+        items: [{ sessionId: 'cold-32750', seq: 0, snippet: 'match 0' }],
         hasMore: false,
       },
     })
