@@ -108,11 +108,12 @@ export class AppWebEntry {
    * application must not boot over it.
    */
   private async gateOnAuthentication(): Promise<boolean> {
-    // Imported dynamically so a harness without an authentication surface
-    // never loads one. The kernel is otherwise framework-free; this is the one
-    // place that brings React forward, because the screens are React and they
-    // have to be on screen before the renderer that normally carries it.
-    const auth = await import('@deepseek-ai/dsh-client-ui-auth-aeven/client')
+    // Statically linked, not delivered by the module system: that system
+    // exists to give the Loader plugin entries, and this has to run before any
+    // plugin does. It is also the one place the kernel carries React, because
+    // the screens are React and must be on screen before the renderer that
+    // normally brings it.
+    const auth = await import('@deepseek-ai/dsh-client-ui-auth-aeven')
     const result = await auth.restoreSession()
     if (result.state === 'disabled') return false
     if (result.state === 'authenticated') {

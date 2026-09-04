@@ -35,14 +35,22 @@ export function mountAuthScreen(container: Element, pathname: string): MountedAu
 
   const root: Root = createRoot(container)
   const render = (current: typeof match): void => {
-    root.render(current.screen === 'oauthResult'
+    const screen = current.screen === 'oauthResult'
       ? createElement(OauthResult, { match: { params: current.params } })
       : createElement(Authenticate, {
         match: {
           path: current.path,
           params: current.params.authType === undefined ? {} : { authType: current.params.authType },
         },
-      }))
+      })
+    // The stylesheet is rooted at `#app-root > .view-container > .view`, so the
+    // screen is given the ancestors its rules select on. Without them the
+    // components still style themselves and the layout does not, which reads
+    // as a page that almost works.
+    root.render(
+      createElement('div', { id: 'app-root', style: { height: '100%', width: '100%' } },
+        createElement('div', { className: 'view-container' }, screen)),
+    )
   }
   render(match)
 

@@ -8,6 +8,12 @@
 # The two secrets are the Aeven API's own JWT_SECRET and REFRESH_SECRET. DSH
 # verifies locally with them, so identifying a caller costs no request; that
 # is only sound where DSH and the API are operated together.
+#
+# DSH must be served from the same site as the Aeven API. A WebSocket upgrade
+# can carry no header, so it authenticates by cookie alone, and a cookie the
+# API set is only sent back to its own site. `localhost` and `127.0.0.1` are
+# different sites: serving DSH on one while the API answers on the other signs
+# a reader in over HTTP and then refuses their socket.
 
 - insert:
     - id: identity-user

@@ -95,24 +95,36 @@ export class HostConnectionService extends Service implements HostConnectionHand
   }
 
   /**
-   * Apply the configured Host/Origin fence, browser authentication, then the
-   * authenticated-user authority when a composition mounts one.
+   * Apply the configured Host/Origin fence, then whichever authority decides
+   * who may act.
    *
-   * The order is the point: the fence and the browser session decide whether
-   * this process will speak to the caller at all, and identity only decides
-   * WHICH person is speaking. An authority never widens what the earlier two
-   * admit.
+   * The Host/Origin fence always runs: it answers whether this process will
+   * speak to the caller's page at all, which no authentication replaces.
+   *
+   * Beyond it there is exactly one authority. The launch token exists because
+   * a local harness has no other way to tell its own browser from anything
+   * else on the machine; a composition that mounts a real one has that way,
+   * and requiring both would mean a reader could not reach the sign-in screen
+   * without first being handed a URL — which is the thing signing in is meant
+   * to replace.
    * @param request - the incoming HTTP request or WebSocket upgrade.
    * @returns the status to answer with, or undefined to proceed.
    */
   requestRejection(request: ConnectionTrustRequest): ConnectionRequestRejection {
     if (!isTrustedApiRequest(request, this.trustedHosts)) return 403
-    if (!this.browserAuth.isAuthenticated(request)) return 401
+    if (this.enforcingIdentity() !== undefined) {
+      return this.ctx.get('identityUsers')?.resolve(request) === undefined ? 401 : undefined
+    }
+    return this.browserAuth.isAuthenticated(request) ? undefined : 401
+  }
+
+  /**
+   * The authority deciding who may act, when one is mounted and registered.
+   * @returns the seam while it is enforcing, else undefined.
+   */
+  private enforcingIdentity(): { resolve: (request: ConnectionTrustRequest) => unknown } | undefined {
     const identity = this.ctx.get('identityUsers')
-    // No seam, or a seam with no authority: this harness does not authenticate
-    // users, and the request stands on the checks above alone.
-    if (identity === undefined || !identity.enforcing) return undefined
-    return identity.resolve(request) === undefined ? 401 : undefined
+    return identity !== undefined && identity.enforcing ? identity : undefined
   }
 
   /**
@@ -129,8 +141,19 @@ export class HostConnectionService extends Service implements HostConnectionHand
     return this.ctx.get('identityUsers')?.resolve(request)
   }
 
-  /** Authenticate an index request through the process-token exchange or cookie. */
+  /**
+   * Decide whether the application index may be served.
+   *
+   * With an authority mounted the index is served to anyone: it carries no
+   * data, and it is what presents the sign-in screen — refusing it would leave
+   * a reader with nothing to sign in through. Every API route behind it stays
+   * fenced by {@link requestRejection}.
+   * @param request - root or configured-index HTTP request.
+   * @param response - response owned when the result is false.
+   * @returns true only when the frontend may serve index.html.
+   */
   authorizeIndex(request: ConnectionIndexRequest, response: ConnectionIndexResponse): boolean {
+    if (this.enforcingIdentity() !== undefined) return true
     return this.browserAuth.authorizeIndex(request, response)
   }
 

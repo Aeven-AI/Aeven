@@ -1,11 +1,10 @@
 /**
- * Aeven authentication surface, node half.
+ * The Aeven authentication surface for the DSH web client.
  *
- * The empty apply exists so the plugin appears in a host cordis.yml; the
- * authentication screens ship through `exports["./client"]`, and the Host-side
- * authority that verifies credentials is `dsh-identity-user-aeven`.
+ * A library rather than a plugin: the gate runs before the plugin graph, so
+ * its code cannot arrive through the module system that delivers plugins. The
+ * Host-side authority that verifies credentials is `dsh-identity-user-aeven`.
  * @module @deepseek-ai/dsh-client-ui-auth-aeven
  */
 
-/** Host plugin body — this surface has no host-side behavior. */
-export function apply(): void {}
+export * from './client/index.ts'
