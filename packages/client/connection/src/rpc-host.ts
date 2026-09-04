@@ -12,6 +12,8 @@ import { bridge, type FetchHandler } from './http-bridge.ts'
 import { isTrustedApiRequest } from './api-request-trust.ts'
 import { API_PATH } from './api-path.ts'
 import type { BrowserAuth } from './browser-auth.ts'
+import type {} from '@deepseek-ai/dsh-identity-user'
+import type { User } from '@deepseek-ai/dsh-identity-user'
 import type {
   ConnectionIndexRequest,
   ConnectionIndexResponse,
@@ -92,10 +94,39 @@ export class HostConnectionService extends Service implements HostConnectionHand
     }
   }
 
-  /** Apply the configured Host/Origin fence, then browser authentication. */
+  /**
+   * Apply the configured Host/Origin fence, browser authentication, then the
+   * authenticated-user authority when a composition mounts one.
+   *
+   * The order is the point: the fence and the browser session decide whether
+   * this process will speak to the caller at all, and identity only decides
+   * WHICH person is speaking. An authority never widens what the earlier two
+   * admit.
+   * @param request - the incoming HTTP request or WebSocket upgrade.
+   * @returns the status to answer with, or undefined to proceed.
+   */
   requestRejection(request: ConnectionTrustRequest): ConnectionRequestRejection {
     if (!isTrustedApiRequest(request, this.trustedHosts)) return 403
-    return this.browserAuth.isAuthenticated(request) ? undefined : 401
+    if (!this.browserAuth.isAuthenticated(request)) return 401
+    const identity = this.ctx.get('identityUsers')
+    // No seam, or a seam with no authority: this harness does not authenticate
+    // users, and the request stands on the checks above alone.
+    if (identity === undefined || !identity.enforcing) return undefined
+    return identity.resolve(request) === undefined ? 401 : undefined
+  }
+
+  /**
+   * Identify the caller behind a request that {@link requestRejection} admitted.
+   *
+   * Separate from the rejection because the two answer different questions and
+   * have different callers: every request is fenced, while only a connection
+   * that outlives its upgrade needs to remember whose it is.
+   * @param request - the incoming HTTP request or WebSocket upgrade.
+   * @returns the authenticated user, or undefined when this harness
+   * authenticates nobody.
+   */
+  identify(request: ConnectionTrustRequest): User | undefined {
+    return this.ctx.get('identityUsers')?.resolve(request)
   }
 
   /** Authenticate an index request through the process-token exchange or cookie. */
