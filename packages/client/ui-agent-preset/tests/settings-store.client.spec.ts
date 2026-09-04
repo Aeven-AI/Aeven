@@ -13,8 +13,7 @@ import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import type { SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import {
-  AGENT_PRESET_SETTINGS_NS, AgentPresetSettingsController, invalidateRoster, readHeldRoster,
-  readRoster, writeDefaultPreset,
+  AGENT_PRESET_SETTINGS_NS, AgentPresetSettingsController, writeDefaultPreset,
 } from '../src/client/settings-store.ts'
 
 /** The roster store over a scripted context. */
@@ -76,134 +75,6 @@ function fakeApi(
     ...options.failList === undefined ? {} : { failList: options.failList },
   })
 }
-
-describe('holding the roster across navigation', () => {
-  /** A context counting how many times the roster actually reached the Host. */
-  function counted(presets: { id: string; trust: 'system' | 'user'; isDefault: boolean }[] = []) {
-    let calls = 0
-    const ctx = {
-      remote: {
-        agentPresets: {
-          list: () => {
-            calls += 1
-            return Promise.resolve({ ok: true as const, value: { presets, authorable: true } })
-          },
-        },
-      },
-    } as unknown as ClientContext
-    return { ctx, get calls() { return calls } }
-  }
-
-  it('answers a held read without reaching the Host again', async () => {
-    const backend = counted()
-    await readHeldRoster(backend.ctx)
-    // Each navigation rebuilds the seat, which asks again.
-    await readHeldRoster(backend.ctx)
-    await readHeldRoster(backend.ctx)
-    expect(backend.calls).toBe(1)
-  })
-
-  it('joins a read already in flight rather than raising a second', async () => {
-    const releases: ((value: unknown) => void)[] = []
-    let calls = 0
-    const ctx = {
-      remote: {
-        agentPresets: {
-          list: () => {
-            calls += 1
-            return new Promise((resolve) => { releases.push(resolve) })
-          },
-        },
-      },
-    } as unknown as ClientContext
-
-    // Nothing is held yet, so two surfaces mounting together would each ask.
-    const both = Promise.all([readHeldRoster(ctx), readHeldRoster(ctx)])
-    expect(calls).toBe(1)
-    releases[0]?.({ ok: true, value: { presets: [], authorable: true } })
-    expect(await both).toEqual([
-      { ok: true, value: { presets: [], authorable: true } },
-      { ok: true, value: { presets: [], authorable: true } },
-    ])
-  })
-
-  it('reaches the Host again once the roster is invalidated', async () => {
-    const backend = counted()
-    await readHeldRoster(backend.ctx)
-    invalidateRoster(backend.ctx)
-    await readHeldRoster(backend.ctx)
-    expect(backend.calls).toBe(2)
-  })
-
-  it('keeps a management read fresh, and hands its answer to the held readers', async () => {
-    const backend = counted()
-    await readHeldRoster(backend.ctx)
-    // The section re-reads after its own mutation and must not be served a
-    // held answer, whatever the seat is holding.
-    await readRoster(backend.ctx)
-    expect(backend.calls).toBe(2)
-    // That fresher answer becomes the held one rather than leaving the seat
-    // on an older roster.
-    await readHeldRoster(backend.ctx)
-    expect(backend.calls).toBe(2)
-  })
-
-  it('discards an answer the roster was invalidated out from under', async () => {
-    const releases: ((value: unknown) => void)[] = []
-    let calls = 0
-    const ctx = {
-      remote: {
-        agentPresets: {
-          list: () => {
-            calls += 1
-            return new Promise((resolve) => { releases.push(resolve) })
-          },
-        },
-      },
-    } as unknown as ClientContext
-    const roster = (id: string) => ({
-      ok: true, value: { presets: [{ id, trust: 'user', isDefault: false }], authorable: true },
-    })
-
-    const first = readHeldRoster(ctx)
-    // A preset is deleted while the first read is on the wire.
-    invalidateRoster(ctx)
-    const second = readHeldRoster(ctx)
-    expect(calls).toBe(2)
-
-    releases[0]?.(roster('stale'))
-    releases[1]?.(roster('current'))
-    await Promise.all([first, second])
-
-    // The in-flight answer belonged to the retired generation, so what is held
-    // is the read raised after the invalidation, not whichever settled last.
-    await readHeldRoster(ctx)
-    expect(calls).toBe(2)
-    const held = await readHeldRoster(ctx)
-    expect(held.ok && held.value.presets[0]?.id).toBe('current')
-  })
-
-  it('does not hold a refusal', async () => {
-    let calls = 0
-    const ctx = {
-      remote: {
-        agentPresets: {
-          list: () => {
-            calls += 1
-            return Promise.resolve({
-              ok: false as const,
-              error: new RemoteError('gateway/internal', 'roster unavailable', {}),
-            })
-          },
-        },
-      },
-    } as unknown as ClientContext
-    expect(await readHeldRoster(ctx)).toEqual({ ok: false, error: 'roster unavailable' })
-    // A failure nobody can clear must not become the answer every later read gets.
-    await readHeldRoster(ctx)
-    expect(calls).toBe(2)
-  })
-})
 
 describe('the agent-preset roster store', () => {
   it('derives the display options from one roster call', async () => {

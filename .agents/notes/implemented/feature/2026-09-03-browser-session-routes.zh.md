@@ -10,9 +10,9 @@ Web 客户端过去只在 Session Controller 内部选择 Session。地址栏始
 
 ## 决策
 
-Workspace UI 导航服务把选中的 Session 投影到 `/sessions/:id`。初始 baseline 协调会替换启动历史记录，后续 Session 变化会压入新记录，`popstate` 则重新打开恢复路径所指的 Session。Session 与 Workspace baseline 就绪后，有效路由优先于持久化的当前选择。若 id 未知，则先移除该 id，再由现有最近 Workspace 回退选择 Session。
+Workspace UI 导航服务把选中的 Session 投影到 `/c/:id`，其中 id 是 Host 自身的 id 去掉它铸造的 `session-` 前缀：在客户端唯一路由的这条路径上，集合段与 id 前缀都在说“session”。前缀在写出时去掉、读入时补回，因此客户端其余部分处理的每个 id 都未改变；仍带该前缀的地址按原样读取，而不会被重复添加前缀。初始 baseline 协调会替换启动历史记录，后续 Session 变化会压入新记录，`popstate` 则重新打开恢复路径所指的 Session。Session 与 Workspace baseline 就绪后，有效路由优先于持久化的当前选择。若 id 未知，则先移除该 id，再由现有最近 Workspace 回退选择 Session。
 
-frontend-static 回退会为 `/sessions/` 下缺失且无扩展名的路径提供经过认证的应用 index。静态文件保持直接文件语义，已有目录继续返回 404，显式前缀之外的未知路径也继续返回 404。这样 Session 重新加载会留在 SPA 内，同时不会把每个拼写错误或缺失资产都变成 index 响应。
+frontend-static 回退会为 `/c/` 下缺失且无扩展名的路径提供经过认证的应用 index。静态文件保持直接文件语义，已有目录继续返回 404，显式前缀之外的未知路径也继续返回 404。这样 Session 重新加载会留在 SPA 内，同时不会把每个拼写错误或缺失资产都变成 index 响应。
 
 ## 考虑过的替代方案
 

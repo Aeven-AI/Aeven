@@ -10,9 +10,9 @@ The Web client selected Sessions only inside the Session Controller. The address
 
 ## Decision
 
-The Workspace UI navigation service projects the selected Session to `/sessions/:id`. Initial baseline reconciliation replaces the launch history entry, subsequent Session changes push entries, and `popstate` reopens the Session named by the restored path. A valid route takes precedence over the persisted current selection after the Session and Workspace baselines become ready. An unknown id is removed before the existing recent-Workspace fallback chooses a Session.
+The Workspace UI navigation service projects the selected Session to `/c/:id`, where the id is the Host's own minus the `session-` it mints: the collection segment and the id prefix both said "session", on the one path the client routes. The prefix comes off on the way out and is restored on the way in, so every id the rest of the client handles is unchanged, and an address still carrying it is read as it stands rather than prefixed twice. Initial baseline reconciliation replaces the launch history entry, subsequent Session changes push entries, and `popstate` reopens the Session named by the restored path. A valid route takes precedence over the persisted current selection after the Session and Workspace baselines become ready. An unknown id is removed before the existing recent-Workspace fallback chooses a Session.
 
-The frontend-static fallback serves the authenticated app index for missing extensionless paths under `/sessions/`. Static files keep direct-file semantics, existing directories remain 404, and unknown paths outside that explicit prefix remain 404. This keeps Session reloads inside the SPA without turning every typo or missing asset into an index response.
+The frontend-static fallback serves the authenticated app index for missing extensionless paths under `/c/`. Static files keep direct-file semantics, existing directories remain 404, and unknown paths outside that explicit prefix remain 404. This keeps Session reloads inside the SPA without turning every typo or missing asset into an index response.
 
 ## Alternatives considered
 
