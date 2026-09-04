@@ -1,0 +1,126 @@
+/* Aeven product language. Semantic colors continue to flow through the
+   existing --dsw aliases so dark mode and third-party theme overrides retain
+   one ownership path. */
+body {
+  --dsw-aeven-chat-width: 1024px;
+  --dsw-aeven-page-inset: 24px;
+  --dsw-aeven-sidebar-width: 280px;
+  --dsw-aeven-sidebar-row-inset: 24px;
+  --dsw-aeven-sidebar-bottom-inset: 40px;
+  --dsw-aeven-sidebar-toggle-width: 68px;
+  --dsw-aeven-sidebar-panel-radius: 20px;
+  --dsw-aeven-sidebar-transition-duration: 400ms;
+  --dsw-aeven-sidebar-transition-timing: cubic-bezier(0.23, 1, 0.32, 1);
+  --dsw-aeven-control-size: 40px;
+  --dsw-aeven-radius-surface: 30px;
+  --dsw-aeven-radius-content: 20px;
+  --dsw-aeven-radius-control: 20px;
+  --dsw-aeven-radius-compact: 16px;
+  --dsw-aeven-radius-tight: 10px;
+  --dsw-aeven-space-content: 24px;
+  --dsw-aeven-space-compact: 12px;
+  --dsw-aeven-space-message: 32px;
+  --dsw-aeven-reading-line-height: 28px;
+
+  --dsw-alias-bg-base: rgb(242, 242, 242);
+  --dsw-alias-bg-layer-1: rgb(255, 255, 255);
+  --dsw-alias-bg-layer-2: rgb(255, 255, 255);
+  --dsw-alias-bg-layer-3: rgb(255, 255, 255);
+  --dsw-alias-bg-module-platform: rgb(242, 242, 242);
+  --dsw-alias-bg-multi-select: rgb(242, 242, 242);
+  --dsw-alias-bg-overlay: rgb(235, 235, 235);
+  --dsw-alias-border-l1: rgba(10, 10, 10, 0.04);
+  --dsw-alias-border-l2: rgba(10, 10, 10, 0.1);
+  --dsw-alias-border-l3: rgba(10, 10, 10, 0.14);
+  --dsw-alias-border-l4: rgba(10, 10, 10, 0.2);
+  --dsw-alias-brand-primary: rgb(10, 10, 10);
+  --dsw-alias-brand-primary-invert: rgb(10, 10, 10);
+  --dsw-alias-brand-text: rgb(90, 90, 90);
+  --dsw-alias-button-elevated-fill: rgb(255, 255, 255);
+  --dsw-alias-button-floating-fill: rgb(255, 255, 255);
+  --dsw-alias-button-floating-hover: rgb(235, 235, 235);
+  --dsw-alias-button-primary-dimmed: rgb(205, 205, 205);
+  --dsw-alias-button-primary-fill: rgb(10, 10, 10);
+  --dsw-alias-button-primary-hover: rgb(50, 50, 50);
+  --dsw-alias-interactive-bg-active: rgba(10, 10, 10, 0.1);
+  --dsw-alias-interactive-bg-hover-accent: rgba(10, 10, 10, 0.12);
+  --dsw-alias-interactive-bg-hover-solid: rgb(235, 235, 235);
+  --dsw-alias-interactive-bg-hover: rgba(10, 10, 10, 0.05);
+  --dsw-alias-label-caption: rgb(150, 150, 150);
+  --dsw-alias-label-dimmed: rgb(205, 205, 205);
+  --dsw-alias-label-primary-bluish: rgb(10, 10, 10);
+  --dsw-alias-label-primary-dimmed: rgb(80, 80, 80);
+  --dsw-alias-label-primary-foreground: rgb(255, 255, 255);
+  --dsw-alias-label-primary: rgb(10, 10, 10);
+  --dsw-alias-label-secondary: rgb(80, 80, 80);
+  --dsw-alias-label-tertiary: rgb(90, 90, 90);
+  --dsw-alias-markdown-code-block-banner: rgb(255, 255, 255);
+  --dsw-alias-markdown-code-block: rgb(255, 255, 255);
+  --dsw-alias-markdown-inline-code: rgb(235, 235, 235);
+  --dsw-alias-markdown-placeholder: rgb(242, 242, 242);
+  --dsw-alias-markdown-tag: rgb(235, 235, 235);
+  --dsw-alias-state-business-primary: rgb(10, 10, 10);
+  --dsw-alias-state-business-tertiary: rgb(235, 235, 235);
+  --dsw-specific-bubble-highlight: rgb(235, 235, 235);
+  --dsw-specific-bubble: rgb(255, 255, 255);
+  --dsw-specific-input-major: rgb(255, 255, 255);
+  --dsw-specific-login-input: rgb(242, 242, 242);
+  --dsw-specific-menu: rgb(255, 255, 255);
+  --dsw-specific-selector: rgb(242, 242, 242);
+  --dsw-specific-sidebar-fill: rgba(255, 255, 255, 0.95);
+  --dsw-specific-sidebar-nav-item-active-accent: transparent;
+  --dsw-specific-sidebar-nav-item-active: transparent;
+  --dsw-specific-sidebar-nav-item-hover: transparent;
+  --dsw-specific-tip: rgb(235, 235, 235);
+
+  --dsw-font-markdown-h1: 600 calc(34px + var(--dsh-content-font-delta)) / calc(40px + var(--dsh-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-h2: 600 calc(26px + var(--dsh-content-font-delta)) / calc(32px + var(--dsh-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-h3: 600 calc(20px + var(--dsh-content-font-delta)) / calc(26px + var(--dsh-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-h4: 600 var(--dsh-content-font-size, 14px) / calc(28px + var(--dsh-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-base: 450 var(--dsh-content-font-size, 14px) / calc(28px + var(--dsh-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-base-strong: 600 var(--dsh-content-font-size, 14px) / calc(28px + var(--dsh-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-base-italic: italic 450 var(--dsh-content-font-size, 14px) / calc(28px + var(--dsh-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-base-strong-italic: italic 600 var(--dsh-content-font-size, 14px) / calc(28px + var(--dsh-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-base-16: 450 16px/30px var(--dsw-font-family);
+  --dsw-font-base-strong-16: 600 16px/30px var(--dsw-font-family);
+  --dsw-font-s-14: 450 14px/22px var(--dsw-font-family);
+  --dsw-font-s-strong-14: 600 14px/22px var(--dsw-font-family);
+}
+
+@media (max-width: 640px) {
+  body {
+    --dsw-aeven-page-inset: 16px;
+    --dsw-aeven-sidebar-row-inset: 16px;
+    --dsw-aeven-sidebar-bottom-inset: 16px;
+  }
+}
+
+body[data-ds-dark-theme] {
+  --dsw-alias-bg-base: rgb(10, 10, 10);
+  --dsw-alias-bg-layer-1: rgb(24, 24, 24);
+  --dsw-alias-bg-layer-2: rgb(30, 30, 30);
+  --dsw-alias-bg-layer-3: rgb(36, 36, 36);
+  --dsw-alias-bg-module-platform: rgb(18, 18, 18);
+  --dsw-alias-bg-multi-select: rgb(24, 24, 24);
+  --dsw-alias-label-primary: rgb(245, 245, 245);
+  --dsw-alias-label-primary-dimmed: rgb(205, 205, 205);
+  --dsw-alias-label-secondary: rgb(190, 190, 190);
+  --dsw-alias-label-tertiary: rgb(165, 165, 165);
+  --dsw-alias-brand-primary: rgb(245, 245, 245);
+  --dsw-alias-brand-primary-invert: rgb(245, 245, 245);
+  --dsw-alias-button-primary-fill: rgb(245, 245, 245);
+  --dsw-alias-button-primary-hover: rgb(220, 220, 220);
+  --dsw-alias-label-primary-foreground: rgb(10, 10, 10);
+  --dsw-alias-state-business-primary: rgb(245, 245, 245);
+  --dsw-alias-state-business-tertiary: rgb(44, 44, 44);
+  --dsw-specific-bubble: rgb(30, 30, 30);
+  --dsw-specific-input-major: rgb(24, 24, 24);
+  --dsw-specific-menu: rgb(36, 36, 36);
+  --dsw-specific-selector: rgb(36, 36, 36);
+  --dsw-specific-sidebar-fill: rgba(18, 18, 18, 0.95);
+  --dsw-specific-sidebar-nav-item-active-accent: transparent;
+  --dsw-specific-sidebar-nav-item-active: transparent;
+  --dsw-alias-markdown-code-block-banner: rgb(36, 36, 36);
+  --dsw-alias-markdown-code-block: rgb(24, 24, 24);
+  --dsw-alias-markdown-inline-code: rgb(44, 44, 44);
+}

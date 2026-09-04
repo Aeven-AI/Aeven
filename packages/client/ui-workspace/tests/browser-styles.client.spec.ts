@@ -1,7 +1,7 @@
 /**
  * WorkspaceBrowser spacing contract, asserted against the CSS text on disk:
- * row fills share the shell's trailing inset, the stable scrollbar counts
- * inside it, and flat, grouped, and search views keep their intended rhythm.
+ * row fills use the shell's Aeven inset, the scrollbar stays stable, and flat,
+ * grouped, and search views share the source menu's continuous row rhythm.
  */
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -43,37 +43,28 @@ describe('WorkspaceBrowser.module.css list', () => {
     expect(list!.get('overflow-y')).toBe('auto')
   })
 
-  it('counts the themed scrollbar inside the shell trailing inset', () => {
-    expect(root?.get('--dsh-session-list-edge-inset')).toBe('var(--dsh-sidebar-inline-padding)')
-    expect(root?.get('--dsh-session-list-scrollbar-width')).toBe('8px')
-    expect(root?.get('--dsh-session-list-scrollbar-offset')).toBe('2px')
-    expect(root?.get('padding-right')).toBe('var(--dsh-session-list-edge-inset)')
-    expect(listArea?.get('margin-left')).toBe('-4px')
-    expect(listArea?.get('padding-left')).toBe('4px')
-    expect(listArea?.get('margin-right')).toBe('calc(-1 * var(--dsh-session-list-edge-inset))')
-    expect(declarations('.fade')?.get('right')).toBe('var(--dsh-session-list-edge-inset)')
-    expect(list?.get('margin-right')).toBe('var(--dsh-session-list-scrollbar-offset)')
-    expect(list?.get('margin-left')).toBe('-4px')
-    expect(list?.get('padding-left')).toBe('4px')
-    expect(list?.get('padding-right')).toBe([
-      'calc(',
-      'var(--dsh-session-list-edge-inset)',
-      '- var(--dsh-session-list-scrollbar-width)',
-      '- var(--dsh-session-list-scrollbar-offset)',
-      ')',
-    ].join(' '))
+  it('keeps the list full-width while rows own the Aeven inset', () => {
+    expect(root?.get('padding')).toBe('0')
+    expect(listArea?.get('margin')).toBe('0')
+    expect(listArea?.get('padding')).toBe('0')
+    expect(declarations('.fade')?.get('right')).toBe('0')
+    expect(list?.get('margin')).toBe('0')
+    expect(list?.get('padding-left')).toBe('0')
+    expect(list?.get('padding-right')).toBe('0')
+    expect(rowDeclarations('.projectRow')?.get('padding')).toBe('0 var(--dsh-sidebar-inline-padding)')
+    expect(rowDeclarations('.sessionRow')?.get('padding')).toBe('0 var(--dsh-sidebar-inline-padding)')
     expect(declarations('.list::-webkit-scrollbar')).toBeUndefined()
   })
 
-  it('reserves the scrollbar whether or not the list overflows', () => {
-    expect(list!.get('scrollbar-gutter')).toBe('stable')
+  it('lets non-overflowing rows retain the full Aeven panel width', () => {
+    expect(list!.get('scrollbar-gutter')).toBeUndefined()
   })
 
-  it('keeps 2px between rows and 4px between workspace groups', () => {
-    expect(declarations('.flatList > * + *')?.get('margin-top')).toBe('2px')
-    expect(declarations(".searchTree > [role='treeitem'] + [role='treeitem']")?.get('margin-top')).toBe('2px')
-    expect(declarations('.groupSection > * + *')?.get('margin-top')).toBe('2px')
-    expect(declarations('.groupSection + .groupSection')?.get('margin-top')).toBe('4px')
+  it('keeps Aeven rows and workspace groups contiguous', () => {
+    expect(declarations('.flatList > * + *')?.get('margin-top')).toBe('0')
+    expect(declarations(".searchTree > [role='treeitem'] + [role='treeitem']")?.get('margin-top')).toBe('0')
+    expect(declarations('.groupSection > * + *')?.get('margin-top')).toBe('0')
+    expect(declarations('.groupSection + .groupSection')?.get('margin-top')).toBe('0')
   })
 
   it('draws drag targets as a leading chevron joined to the insertion line', () => {
@@ -100,12 +91,12 @@ describe('WorkspaceBrowser.module.css list', () => {
     expect(declarations('.fade')?.get('height')).toBe('24px')
     expect(declarations('.sessionOverflowButton')?.get('height')).toBe('28px')
     expect(declarations('.searchExpanded')?.get('height')).toBe('30px')
-    expect(rowDeclarations('.projectRow')?.get('height')).toBe('34px')
-    expect(rowDeclarations('.sessionRow')?.get('height')).toBe('32px')
+    expect(rowDeclarations('.projectRow')?.get('height')).toBe('var(--dsw-aeven-control-size)')
+    expect(rowDeclarations('.sessionRow')?.get('height')).toBe('var(--dsw-aeven-control-size)')
     expect(rowDeclarations('.flatSessionRowWithoutStatus .title')?.get('margin-left')).toBe('0')
     expect(rowDeclarations('.searchResultRow')?.get('min-height')).toBe('48px')
     expect(rowDeclarations('.sessionRow.selected')?.get('background'))
-      .toBe('var(--dsw-alias-interactive-bg-hover)')
+      .toBe('transparent')
   })
 
   it('pins both rail controls to the shared left anchor during the column slide', () => {

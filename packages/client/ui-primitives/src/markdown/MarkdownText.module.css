@@ -1,6 +1,5 @@
-/* Visual baseline: deepsuite `@deepseek/md` markdown.css, adapted to CSS
-   Modules. Cite pills, header anchors, and thinking-small variants are
-   intentionally absent (no matching DOM). Token names match that sheet. */
+/* Aeven reading rhythm applied to the existing safe Markdown renderer. Cite
+   pills, header anchors, and thinking-small variants have no matching DOM. */
 
 .markdown {
   min-width: 0;
@@ -15,27 +14,27 @@
 
 .markdown h1 {
   font: var(--dsw-font-markdown-h1);
-  margin: 32px 0 16px;
+  margin: 56px 0 24px;
 }
 
 .markdown h2 {
   font: var(--dsw-font-markdown-h2);
-  margin: 32px 0 16px;
+  margin: 48px 0 24px;
 }
 
 .markdown h3 {
   font: var(--dsw-font-markdown-h3);
-  margin: 32px 0 16px;
+  margin: 40px 0 20px;
 }
 
 .markdown h4 {
   font: var(--dsw-font-markdown-h4);
-  margin: 16px 0;
+  margin: 32px 0 16px;
 }
 
 .markdown :where(h5, h6) {
   font: var(--dsw-font-markdown-base-strong);
-  margin: 16px 0;
+  margin: 24px 0 12px;
 }
 
 .markdown :where(h1, h2, h3, h4, h5, h6) strong {
@@ -43,7 +42,7 @@
 }
 
 .markdown p {
-  margin: 16px 0;
+  margin: 24px 0;
 }
 
 /* Tighten h4–h6 against a following list (design: 8px gap). */
@@ -59,7 +58,7 @@
   /* deepsuite markdown.css uses brand-text (blue in newDesign); this sheet
      keeps design-platform brand-text as near-black, so links use the blue
      business-primary alias instead. */
-  color: var(--dsw-alias-state-business-primary);
+  color: var(--dsw-alias-label-tertiary);
   transition: box-shadow var(--ds-transition-duration) var(--ds-ease-in-out);
   position: relative;
   text-decoration: none;
@@ -75,7 +74,8 @@
 .markdown a:hover,
 .markdown a:focus {
   outline: none;
-  text-decoration: underline var(--dsw-alias-state-business-primary);
+  color: var(--dsw-alias-label-primary);
+  text-decoration: underline currentColor;
 }
 
 .markdown a:focus-visible {
@@ -83,12 +83,12 @@
 }
 
 .markdown :where(ul, ol) {
-  margin: 16px 0;
+  margin: 24px 0;
   padding-left: 18px;
 }
 
 .markdown li:not(:first-child) {
-  margin-top: 6px;
+  margin-top: 12px;
 }
 
 .markdown li > :where(ul, ol) {
@@ -127,7 +127,7 @@
   display: block;
   border: none;
   height: 0.5px;
-  margin: 32px 0;
+  margin: 56px 0;
   background: var(--dsw-alias-border-l2);
 }
 
@@ -138,7 +138,7 @@
 }
 
 .markdown pre {
-  margin: 16px 0;
+  margin: 24px 0;
   font-family: var(--ds-font-family-code);
   overflow: auto;
 }
@@ -151,8 +151,8 @@
   font-family: var(--ds-font-family-code);
   font-size: 0.875em !important;
   background-color: var(--dsw-alias-markdown-inline-code);
-  border-radius: 6px;
-  padding: 0 5px;
+  border-radius: 8px;
+  padding: 2px 6px;
 }
 
 .markdown :where(h1, h2, h3, h4, h5, h6) code {
@@ -164,6 +164,27 @@
   max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
+}
+
+/* HyperMarkdown ships `--hm-math-size: 20.5px`, which its own `.katex` rule
+   uses in place of KaTeX's 1.21em. 20px is the size this app renders math at.
+   The engine puts its `.hypermarkdown` class on the SAME element this class
+   lands on (`rootClassName()` concatenates the two), so the package default
+   and this override are a specificity contest rather than an inheritance one:
+   the doubled class outranks the single `.hypermarkdown` whatever order the
+   two sheets end up in. */
+.markdown.markdown {
+  --hm-math-size: 20px;
+}
+
+/* Diagrams follow the product typeface. Mermaid bakes its stock Trebuchet
+   stack into the generated SVG — both a `<style>` element inside the document
+   and inline `style` attributes on the nodes — and a style attribute outranks
+   ordinary author rules, so only an important declaration reaches the text.
+   `svg *` covers `text`/`tspan` and the `foreignObject` HTML labels together. */
+.markdown :global(.mermaid-container svg),
+.markdown :global(.mermaid-container svg *) {
+  font-family: var(--dsw-font-family) !important;
 }
 
 .markdown input[type='checkbox'] {

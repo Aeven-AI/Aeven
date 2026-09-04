@@ -1,11 +1,10 @@
-/* User bubble: right-aligned column (bubble + IconActions). Figma
-   User_Bubble/message_container 659:38813 — r22 fill, actions gap 6 below. */
+/* User bubble: right-aligned Aeven white surface plus B's IconActions. */
 
 .userRow {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 6px;
+  gap: 8px;
 }
 
 .userStack {
@@ -14,25 +13,23 @@
   align-items: flex-end;
   gap: 8px;
   min-width: 0;
-  /* The figma 525px cap held as a share of the width axis (525/748 ≈ 0.702):
-     resolves to the original 525px on the default column and widens with a
-     dragged or adaptive column. The 748px fallback covers mounts outside the
-     conversation column, where the axis variable is absent. */
-  max-width: min(calc(var(--dsh-chat-content-width, 748px) * 0.702), 82%);
+  /* Keep short prompts compact while allowing long prompts to use most of the
+     Aeven reading column or a user-dragged width. */
+  max-width: min(calc(var(--dsh-chat-content-width, var(--dsw-aeven-chat-width)) * 0.72), 86%);
 }
 .bubble {
-  /* Figma's 525px cap held as a share of the width axis (525/748 ≈ 0.702) so
-     the bubble widens with a user-dragged or adaptive column; percentage
-     keeps narrow windows sane. */
+  /* The stack owns the cap; percentage keeps narrow windows sane. */
   max-width: 100%;
   background: var(--dsw-specific-bubble);
-  border-radius: 22px;
+  border-radius: var(--dsw-aeven-radius-surface);
   /* 42px single-line bubble at the default size: 22 line + 10 vertical
      padding each side; the Settings font-size preference moves size and line
      height together through the body-published axis. */
-  padding: 10px 16px;
+  min-height: 50px;
+  box-sizing: border-box;
+  padding: 10px 18px;
   font-size: var(--dsh-content-font-size, 14px);
-  line-height: calc(22px + var(--dsh-content-font-delta, 0px));
+  line-height: calc(var(--dsw-aeven-reading-line-height) + var(--dsh-content-font-delta, 0px));
   color: var(--dsw-alias-label-primary);
   /* The projected user text is inline runs; the bubble owns wrapping so a
      decorated single-line message stays one line. */

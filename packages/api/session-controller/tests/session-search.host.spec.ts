@@ -160,7 +160,7 @@ describe('session.search', () => {
     expect(response).toEqual({
       ok: true,
       value: {
-        items: [{ sessionId: 'cold', snippet: 'the matching answer' }],
+        items: [{ sessionId: 'cold', seq: 4, snippet: 'the matching answer' }],
         hasMore: false,
       },
     })
@@ -244,7 +244,7 @@ describe('session.search', () => {
     expect(response).toEqual({
       ok: true,
       value: {
-        items: [{ sessionId: 'visible', snippet: 'allowed snippet' }],
+        items: [{ sessionId: 'visible', seq: 3, snippet: 'allowed snippet' }],
         hasMore: false,
       },
     })
@@ -421,9 +421,9 @@ describe('session.search', () => {
       ok: true,
       value: {
         items: [
-          { sessionId: 'fresh-first', snippet: 'match 2' },
-          { sessionId: 'shared', snippet: 'match 1' },
-          { sessionId: 'fresh-last', snippet: 'match 3' },
+          { sessionId: 'fresh-first', seq: 2, snippet: 'match 2' },
+          { sessionId: 'shared', seq: 1, snippet: 'match 1' },
+          { sessionId: 'fresh-last', seq: 3, snippet: 'match 3' },
         ],
         hasMore: false,
       },
@@ -657,7 +657,7 @@ describe('session.search', () => {
     expect(response).toEqual({
       ok: true,
       value: {
-        items: [{ sessionId: 'visible', snippet: expected }],
+        items: [{ sessionId: 'visible', seq: 0, snippet: expected }],
         hasMore: false,
       },
     })
@@ -787,7 +787,7 @@ describe('session.search', () => {
     expect(response).toEqual({
       ok: true,
       value: {
-        items: [{ sessionId: 'cold-32750', snippet: 'match 0' }],
+        items: [{ sessionId: 'cold-32750', seq: 0, snippet: 'match 0' }],
         hasMore: false,
       },
     })
@@ -852,7 +852,7 @@ describe('session.search', () => {
     expect(searchSessions).toHaveBeenCalledOnce()
   })
 
-  it('maps preflight cancellation, query cancellation, and provider failure', async () => {
+  it('maps preflight cancellation, query cancellation, disabled search, and provider failure', async () => {
     const missingCtx = await baseContext()
     missingCtx.sessions.create(sid('visible'), { meta: header('visible') })
     const missingApi = createSessionTestRemote(missingCtx, defaults)
@@ -870,8 +870,10 @@ describe('session.search', () => {
     const ctx = await baseContext()
     ctx.sessions.create(sid('visible'), { meta: header('visible') })
     const aborted = new SessionQueryError('provider stopped', 'SESSION_QUERY_ABORTED')
+    const disabled = new SessionQueryError('provider disabled', 'SESSION_QUERY_SEARCH_DISABLED')
     const searchSessions = vi.fn()
       .mockRejectedValueOnce(aborted)
+      .mockRejectedValueOnce(disabled)
       .mockRejectedValueOnce(new Error('database unavailable'))
     installSearchQuery(ctx, searchSessions)
     const remote = createSessionTestRemote(ctx, defaults)
@@ -885,8 +887,17 @@ describe('session.search', () => {
       error: { code: 'gateway/cancelled' },
     })
 
-    const failed = await remote.search(
+    const turnedOff = await remote.search(
       request('second'),
+      new AbortController().signal,
+    )
+    expect(turnedOff).toMatchObject({
+      ok: false,
+      error: { code: 'session/search-disabled', message: 'session content search is disabled' },
+    })
+
+    const failed = await remote.search(
+      request('third'),
       new AbortController().signal,
     )
     expect(failed.ok).toBe(false)

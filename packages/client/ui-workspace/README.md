@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 `dsh-client-ui-workspace` is the shared Workspace browser and picker of the dsh web client: users browse grouped or flat Session rows in the sidebar, pick a Workspace for a new session from the Session Intent hero, and manage Workspaces and Sessions with add, rename, reorder, search, fork, and archive actions; the same Workspace menu and add flow serve both surfaces. Pending user interactions surface as amber warning dots, active Schedule projections surface as non-interactive alarm markers in ordinary and search rows, and the shared sidebar projection hides subagent-origin sessions. Distinct canonical paths remain separate id-keyed Workspaces, and adding a folder goes through a directory-flow child hole that a composed picker package's client half fills.
 
+Workspace and Session rows follow the Aeven menu's full-width 40px geometry, responsive 24px/16px insets, square corners, contiguous rhythm, and transparent hover and selected states while preserving every existing status and action icon. Selecting a Session navigates to its `/sessions/:id` SPA path; the address bar, browser history, and Session Controller stay synchronized.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)
@@ -27,13 +29,17 @@ English | [中文](README.zh.md)
 
 Use the sidebar to browse Workspaces and their Sessions, reorder them, and start new ones; use the picker in the Session Intent hero to choose a Workspace for a new session. An open Workspace shows five non-blank Sessions by default and keeps the selected blank **New Session** as one provisional extra row until its first prompt. **Show more** reveals the hidden remainder; closing and reopening the Workspace restores this folded projection.
 
+### Session navigation
+
+Every selected Session has a URL-safe `/sessions/:id` path. An ordinary selection pushes one browser-history entry, initial baseline reconciliation replaces the launch entry, and Back or Forward reopens the Session named by the restored path. Loading a valid Session path directly selects it after the Session and Workspace baselines are ready. An unknown Session id is removed from the address bar before the existing recent-Workspace fallback runs.
+
 ### Reordering and view options
 
 View options combine grouping with one browser-persisted Session order per account: **Manual** and **Last updated** apply in either presentation. Entering Last updated performs a complete recency sort and later user prompts or steers promote their Session once; entering Manual preserves every current position and disables later promotion. Dragging edits the current order in either mode; Manual-mode drags for real Workspaces also update the Host Session account, while Ungrouped and flat-list orders remain browser-local. In a collapsed group, drag boundaries follow rendered rows and place the source before intervening hidden rows, so a drag cannot hide its source. Workspace drag order is Host-durable in either Session order mode.
 
 ### Search
 
-Collapsed search is one header action beside the view and add actions: activating it expands the field across the header. A non-blank query replaces either browsing mode with one flat result list — case-insensitive title and Workspace substring matches appear immediately, while a 250 ms debounced Host request adds ranked current-conversation content matches and snippets. Each new query aborts the preceding request; a failed content search leaves metadata matches visible with a warning. The list is capped at 20 and opens the selected Session without clearing the query.
+Collapsed search is one header action beside the view and add actions: activating it expands the field across the header. A non-blank query replaces either browsing mode with one flat result list — case-insensitive title and Workspace substring matches appear immediately, while a 250 ms debounced Host request adds ranked current-conversation content matches and snippets. Each new query aborts the preceding request; a disabled content search directs the user to Settings, while another failure reports that the search could not be completed, and both leave metadata matches visible. The list is capped at 20 and opens the selected Session without clearing the query.
 
 ### Managing sessions
 

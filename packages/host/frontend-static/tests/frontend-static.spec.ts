@@ -1,7 +1,7 @@
 /**
  * REAL-composition coverage: a test-only cordis.yml booted through the
  * vendored Loader mounts the webserver and frontend-static rows, and every
- * assertion observes the served HTTP surface — asset serving, explicit index
+ * assertion observes the served HTTP surface — asset serving, index and SPA
  * entry points with index taps, 404 misses, traversal rejection, 405 on non-
  * GET/HEAD, and seat release on fiber disposal (HMR safety).
  */
@@ -141,9 +141,10 @@ describe('real Loader composition', () => {
     // Unknown extension ships as octet-stream.
     expect(await request(port, '/blob.bin')).toMatchObject({ status: 200, type: 'application/octet-stream', body: 'BLOB' })
 
-    // Only the root and index path render index.html through registered taps.
+    // Root, index, and extensionless client routes render the authenticated
+    // app shell through registered taps.
     const untap = server.tapIndex(html => html.replace('<head>', '<head><script>window.__T__=1</script>'))
-    for (const path of ['/', '/index.html', '/?fixture']) {
+    for (const path of ['/', '/index.html', '/?fixture', '/c/session-1']) {
       const got = await request(port, path, authenticated())
       expect(got.status).toBe(200)
       expect(got.type).toBe('text/html; charset=utf-8')
@@ -168,8 +169,8 @@ describe('real Loader composition', () => {
       expect(head).toEqual(get)
     }
 
-    // Ordinary unknown paths and static-resource misses are empty 404s for
-    // both GET and HEAD; neither class can be mistaken for the HTML shell.
+    // Existing directories, paths below files, and static-resource misses are
+    // empty 404s for both GET and HEAD; none can be mistaken for the HTML shell.
     const ordinaryMisses = ['/no/such/route', '/empty', '/app.js/child']
     const assetMisses = [
       '/missing.js',

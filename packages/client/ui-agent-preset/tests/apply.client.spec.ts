@@ -21,6 +21,7 @@ import type { AgentPresetSectionInjected } from '../src/client/AgentPresetSectio
 import { AgentPresetSeat } from '../src/client/AgentPresetSeat.tsx'
 import type { AgentPresetSeatInjected } from '../src/client/AgentPresetSeat.tsx'
 import { AgentPresetSeatController } from '../src/client/seat-store.ts'
+import { AgentPresetRosterHolder } from '../src/client/settings-store.ts'
 import { apply as hostApply } from '../src/index.ts'
 
 // These specs assert the shipped Chinese copy. The lane has no jsdom `window`,
@@ -170,6 +171,20 @@ function sessionsDouble(state: {
     /** Push a list change the way the runtime's store does. */
     notify: () => { for (const fn of listeners) fn() },
   }
+}
+
+/**
+ * A seat over a scripted remote, sharing one roster holder as `apply` does.
+ * @param remote - the scripted context for this case.
+ * @param session - the session the hero hands over to.
+ * @returns the controller under test.
+ */
+function seatOver(
+  remote: unknown,
+  session: () => { id: SessionId; blank: boolean } | undefined,
+): AgentPresetSeatController {
+  const ctx = remote as never
+  return new AgentPresetSeatController(ctx, new AgentPresetRosterHolder(ctx), session)
 }
 
 describe('ui-agent-preset apply', () => {
@@ -570,13 +585,13 @@ describe('ui-agent-preset apply', () => {
 describe('AgentPresetSeatController reconciliation', () => {
   it('uses the deployment default without a Session and clears it for an uncomposed Session', async () => {
     const state: { current?: { id: SessionId; blank: boolean } } = {}
-    const controller = new AgentPresetSeatController({
+    const controller = seatOver({
       remote: {
         agentPresets: {
           list: () => Promise.resolve(ROSTER_ONE),
         },
       },
-    } as never, () => state.current)
+    }, () => state.current)
 
     await controller.load()
     await controller.apply()
@@ -591,9 +606,9 @@ describe('AgentPresetSeatController reconciliation', () => {
     const select = () => Promise.resolve({
       ok: false as const, error: new RemoteError('gateway/internal', 'selection rejected', {}),
     })
-    const controller = new AgentPresetSeatController({
+    const controller = seatOver({
       remote: { agentPresets: { select } },
-    } as never, () => ({ id: SessionId('uncomposed'), blank: true }))
+    }, () => ({ id: SessionId('uncomposed'), blank: true }))
 
     await controller.select('minimal')
 
@@ -604,7 +619,7 @@ describe('AgentPresetSeatController reconciliation', () => {
 
   it('keeps the bare cause of a mount failure, not the frame that names the preset again', async () => {
     const reason = 'failed to import loader entry ctx (@deepseek-ai/dsh-gone): Cannot find package'
-    const controller = new AgentPresetSeatController({
+    const controller = seatOver({
       remote: {
         agentPresets: {
           select: () => Promise.resolve({
@@ -617,7 +632,7 @@ describe('AgentPresetSeatController reconciliation', () => {
           }),
         },
       },
-    } as never, () => ({ id: SessionId('uncomposed'), blank: true }))
+    }, () => ({ id: SessionId('uncomposed'), blank: true }))
 
     // The surface reporting this names the preset itself, so carrying the
     // roster's own "preset X failed to mount" frame would say it twice.

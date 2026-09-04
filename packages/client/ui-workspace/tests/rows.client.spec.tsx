@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, createEvent, fireEvent, render, screen } from '@testing-library/react'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { SessionId, SessionSeq } from '@deepseek-ai/dsh-session/types'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
 import type { RowDragProps } from '../src/client/rows/Rows.tsx'
@@ -82,6 +82,7 @@ describe('workspace browser rows', () => {
       runningSubagentCount: 0,
       completed: false,
       hasActiveSchedule: false,
+      matchSeq: 12 as SessionSeq,
       snippet: 'matching message excerpt',
     }
     render(<SearchResultItem result={result} currentId={result.id} onOpen={onOpen} t={t} />)
@@ -93,7 +94,9 @@ describe('workspace browser rows', () => {
     expect(screen.getByText('进行中')).toBeTruthy()
     expect(row.hasAttribute('draggable')).toBe(false)
     fireEvent.click(row)
-    expect(onOpen).toHaveBeenCalledWith(result.id)
+    // The matched event travels with the open: the transcript needs it to land
+    // on the message the snippet came from.
+    expect(onOpen).toHaveBeenCalledWith(result.id, 12)
   })
 
   it('keeps the active-Schedule marker after a search title and inside the row action', () => {
@@ -113,7 +116,7 @@ describe('workspace browser rows', () => {
     expect(row.querySelectorAll('button')).toHaveLength(0)
 
     fireEvent.click(indicator)
-    expect(onOpen).toHaveBeenCalledWith(result.id)
+    expect(onOpen).toHaveBeenCalledWith(result.id, undefined)
   })
 
   it.each([

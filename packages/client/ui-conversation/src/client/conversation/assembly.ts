@@ -4,7 +4,7 @@ import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type {
   ISessions, SessionBinding, SessionEventSource, SessionEventWindow,
 } from '@deepseek-ai/dsh-api-session-controller/client'
-import type { SessionEvent, SessionId } from '@deepseek-ai/dsh-session/types'
+import type { SessionEvent, SessionId, SessionSeq } from '@deepseek-ai/dsh-session/types'
 import {
   createSnapshotStore, type ObservableSnapshot, type SnapshotStore,
 } from '@deepseek-ai/dsh-client-store'
@@ -38,6 +38,14 @@ export interface ConversationBinding {
   target<Target extends Extract<keyof ConversationViewSnapshotMap, string>>(
     target: Target,
   ): ObservableSnapshot<ConversationViewSnapshotMap[Target] | undefined>
+}
+
+/** One pending request to reveal an exact durable event in a Conversation view. */
+export interface ConversationEventNavigation {
+  /** Monotonic identity used to acknowledge only the current request. */
+  readonly requestId: number
+  /** Durable event sequence selected by the caller. */
+  readonly seq: SessionSeq
 }
 
 class BoundConversation implements ConversationBinding {
@@ -168,6 +176,8 @@ export class UiConversation extends Service {
   /** Registry of target View definitions. */
   readonly views: ConversationViewRegistry
   private readonly bindings = new Map<SessionId, BindingRecord>()
+  private readonly eventNavigations = new Map<SessionId, SnapshotStore<ConversationEventNavigation | null>>()
+  private nextNavigationRequestId = 0
   private readonly images: HistoricalImageCache
 
   /**
@@ -229,6 +239,37 @@ export class UiConversation extends Service {
   }
 
   /**
+   * Resolve the identity-stable event-navigation source for one Session.
+   * @param sessionId - target Session identity.
+   * @returns pending navigation request, or null after completion.
+   */
+  eventNavigation(sessionId: SessionId): ObservableSnapshot<ConversationEventNavigation | null> {
+    return this.eventNavigationStore(sessionId)
+  }
+
+  /**
+   * Request that the active Conversation view reveal one durable event.
+   * @param sessionId - target Session identity.
+   * @param seq - exact durable event sequence to reveal.
+   */
+  navigateToEvent(sessionId: SessionId, seq: SessionSeq): void {
+    this.eventNavigationStore(sessionId).set({
+      requestId: ++this.nextNavigationRequestId,
+      seq,
+    })
+  }
+
+  /**
+   * Acknowledge a completed event-navigation request without clearing a newer request.
+   * @param sessionId - target Session identity.
+   * @param requestId - completed request identity.
+   */
+  completeEventNavigation(sessionId: SessionId, requestId: number): void {
+    const store = this.eventNavigationStore(sessionId)
+    if (store.getSnapshot()?.requestId === requestId) store.set(null)
+  }
+
+  /**
    * Resolve one session-authorized durable image URL, cached per Session so
    * every Conversation target shares one read and one browser URL.
    * @param sessionId - Session authorization and lifetime scope.
@@ -277,6 +318,15 @@ export class UiConversation extends Service {
     event: SessionEvent<'request/header'>,
   ): RequestPromptInspection {
     return inspectRequestPrompt(previous, event)
+  }
+
+  private eventNavigationStore(sessionId: SessionId): SnapshotStore<ConversationEventNavigation | null> {
+    let store = this.eventNavigations.get(sessionId)
+    if (store === undefined) {
+      store = createSnapshotStore<ConversationEventNavigation | null>(null)
+      this.eventNavigations.set(sessionId, store)
+    }
+    return store
   }
 
   private drop(record: BindingRecord, releaseScope: boolean): void {

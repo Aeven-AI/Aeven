@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Browsers get the built Web shell from `dsh-host-frontend-static`: it claims the [webserver](../webserver/README.md) fallback seat and serves the built frontend directory with locked semantics — only the dist root and the configured index path render `index.html` (HTTP 200), other existing files are served directly, an absent or non-file target inside the dist root — including a missing configured index — returns an empty 404, traversal outside the dist root is 403, unknown extensions ship as `application/octet-stream`, and non-GET/HEAD without a matching named route is 405. Every successful index response is rendered through the webserver's `renderIndex`, which is how the boot manifest reaches the page. The fallback seat is single-owner: a second claim throws, and unloading the plugin releases the seat.
+Browsers get the built Web shell from `dsh-host-frontend-static`: it claims the [webserver](../webserver/README.md) fallback seat and serves the built frontend directory with locked semantics — the dist root, configured index path, and `/sessions/:id` client routes render `index.html` (HTTP 200), other existing files are served directly, any other absent or non-file target inside the dist root — including a missing configured index — returns an empty 404, traversal outside the dist root is 403, unknown extensions ship as `application/octet-stream`, and non-GET/HEAD without a matching named route is 405. Every successful index response is rendered through the webserver's `renderIndex`, which is how the boot manifest reaches the page. The fallback seat is single-owner: a second claim throws, and unloading the plugin releases the seat.
 
 ## Table of Contents
 
@@ -39,13 +39,13 @@ Compose this plugin in a browser-facing host that serves the built Web shell: it
 
 ### What the server enforces
 
-Requests are served from the dist root (the directory containing `distIndex`). The dist root and the configured index path render `index.html` with HTTP 200; any other existing file is served directly with its MIME type, and unknown extensions ship as `application/octet-stream`. A path that resolves outside the root is rejected with 403, so a crafted path cannot read files above the dist. An absent or non-file target inside the dist root — a missing file, a directory, or a missing configured index — returns an empty 404. Non-GET/HEAD requests without a matching named route are answered 405. Every successful index response is rendered through the webserver's `renderIndex`, so the boot manifest reaches the page on `/` and on the configured index path.
+Requests are served from the dist root (the directory containing `distIndex`). The dist root, configured index path, and a missing extensionless path under `/sessions/` render `index.html` with HTTP 200; any other existing file is served directly with its MIME type, and unknown extensions ship as `application/octet-stream`. A path that resolves outside the root is rejected with 403, so a crafted path cannot read files above the dist. Any other absent or non-file target inside the dist root — a missing asset, an existing directory, an unknown route, or a missing configured index — returns an empty 404. Non-GET/HEAD requests without a matching named route are answered 405. Every successful index response is rendered through the webserver's `renderIndex`, so the boot manifest reaches both entry paths and Session deep links.
 
-Root and configured-index responses call `ctx.connection.authorizeIndex` before reading HTML. A valid process token receives a 303 redirect plus the persistent browser cookie; an existing valid cookie serves the index; every other index request receives the Connection-owned 401 response. Non-index files remain public static assets. Connection owns the token, cookie, expiry, and signing-record semantics.
+Root, configured-index, and Session-route responses call `ctx.connection.authorizeIndex` before reading HTML. A valid process token receives a 303 redirect plus the persistent browser cookie; an existing valid cookie serves the index; every other index request receives the Connection-owned 401 response. Non-index files remain public static assets. Connection owns the token, cookie, expiry, and signing-record semantics.
 
 ### Observable failures
 
-Traversal returns 403 rather than an error page. An absent or non-file target inside the dist root returns an empty 404, so a stale link or a mistyped pathname is an explicit failure rather than a silent SPA fallback. Claiming the seat twice throws, and while the seat is unclaimed the webserver answers 404 — which is what a browser sees if this plugin's fiber is disposed.
+Traversal returns 403 rather than an error page. An absent or non-file target outside the explicit Session route prefix returns an empty 404, so a stale asset or unknown pathname is an explicit failure rather than a broad silent fallback. Claiming the seat twice throws, and while the seat is unclaimed the webserver answers 404 — which is what a browser sees if this plugin's fiber is disposed.
 
 -----
 
@@ -102,7 +102,7 @@ None; this package neither assembles nor sends a provider request.
 These limits define when a served asset class is not yet covered. They are current package constraints, not a task backlog.
 
 - **The starter MIME table is minimal** — it covers the Vite-emitted asset set plus the shipped PWA manifest; other extensions fall back to `application/octet-stream` until an asset class ships.
-- **Pathname routing is explicit** — the current client enters through the root or configured index path and has no History API pathname routes. Adding one requires an explicit server rule and real-composition coverage rather than a broad fallback for every miss.
+- **SPA path routing is explicit** — `/sessions/:id` is the current client route. Another top-level route requires a matching server rule and real-composition coverage rather than a broad fallback for every miss.
 
 <a id="dev-note"></a>
 ### Dev Note

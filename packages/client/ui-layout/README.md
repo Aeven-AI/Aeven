@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 This package provides the shell layout of the Web GUI: a three-column AppFrame with resizable sidebar and details panels, a concession chain that shrinks the details column and then auto-closes it when space runs out, and the `ctx.layout` panel-geometry service other plugins call to open or close the details column. It also seats the theme presenter, which projects the resolved color scheme, alias tokens, content font size, and `theme-color` metadata onto the document. Choose it for the standard window chrome; panel geometry is transient and resets on reload.
 
+The frame uses the Aeven neutral canvas without divider strokes while preserving the three columns, drag handles, and concession behavior.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)
@@ -25,7 +27,7 @@ This package provides the shell layout of the Web GUI: a three-column AppFrame w
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin at the root slot; it then renders the app frame around whatever occupies the sidebar, conversation, and details columns. Users resize the sidebar by dragging its invisible hit strip and the details panel by dragging its floating pill; when the window narrows, only details shrinks, then auto-closes. A closed sidebar retains a 56px control rail; details closes to zero width.
+Mount this plugin at the root slot; it then renders the app frame around whatever occupies the sidebar, conversation, and details columns. Users resize the sidebar by dragging its invisible hit strip and the details panel by dragging its floating pill; when the window narrows, only details shrinks, then auto-closes. The sidebar and details panel both close to zero-width columns; ui-sidebar overlays its reopen button without shifting the conversation.
 
 ### Theme presentation
 

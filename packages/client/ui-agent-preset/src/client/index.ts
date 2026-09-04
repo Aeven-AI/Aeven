@@ -34,7 +34,9 @@ import type { AgentPresetSectionInjected } from './AgentPresetSection.tsx'
 import { AgentPresetSeatController } from './seat-store.ts'
 import { AgentPresetSectionController } from './section-store.ts'
 import { en, zh, type AgentPresetSettingsKey } from './locales.ts'
-import { AGENT_PRESET_SETTINGS_NS, AgentPresetSettingsController } from './settings-store.ts'
+import {
+  AGENT_PRESET_SETTINGS_NS, AgentPresetRosterHolder, AgentPresetSettingsController,
+} from './settings-store.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -63,11 +65,15 @@ export const inject = [
  * @param ctx - the browser plugin context.
  */
 export function apply(ctx: ClientContext): void {
-  const controller = new AgentPresetSettingsController(ctx)
+  // One roster for every surface: created here, passed to each, never looked
+  // up from the context.
+  const roster = new AgentPresetRosterHolder(ctx)
+  const controller = new AgentPresetSettingsController(roster)
   // One roster, three surfaces. The chip is registered in a later scope, so it
   // subscribes here rather than being reached from this one.
   const rosterReaders = new Set<() => void>()
-  const section = new AgentPresetSectionController(ctx, () => {
+  const section = new AgentPresetSectionController(ctx, roster, () => {
+    roster.invalidate()
     void controller.load()
     for (const read of rosterReaders) read()
   })
@@ -78,6 +84,7 @@ export function apply(ctx: ClientContext): void {
     // The roster is a live directory and the default is a settings field, so
     // both an external settings edit and a reconnect can move this row.
     const refresh = (): void => {
+      roster.invalidate()
       void controller.load()
       // The section reads the same roster and marks the same default, so a
       // change made from either surface converges both.
@@ -103,7 +110,7 @@ export function apply(ctx: ClientContext): void {
   // The new-session chip and the header label: one controller, because the
   // staged choice belongs to the flow rather than to any one session.
   ctx.inject(['slots', 'conversation', 'sessions', 'uiWorkspace'], (scope: ClientContext) => {
-    const seat = new AgentPresetSeatController(scope, () => {
+    const seat = new AgentPresetSeatController(scope, roster, () => {
       const state = scope.sessions.list.getSnapshot()
       return state.current === undefined ? undefined : state.byId[state.current]
     })

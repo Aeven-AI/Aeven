@@ -1,9 +1,10 @@
 /**
  * @deepseek-ai/dsh-host-frontend-static — SPA dist server over the webserver
- * fallback seat: serves the built frontend directory with explicit index
- * entry points. A readable index renders at the dist root and configured index
- * path; missing paths return 404, traversal outside the dist root is 403,
- * unknown extensions ship as octet-stream, and non-GET/HEAD is 405. Every
+ * fallback seat: serves the built frontend directory plus extensionless SPA
+ * routes. A readable index renders at the dist root, configured index path,
+ * and missing extensionless paths; missing asset paths return 404, traversal
+ * outside the dist root is 403, unknown extensions ship as octet-stream, and
+ * non-GET/HEAD is 405. Every
  * index response first passes Connection's browser authentication, then the
  * webserver's index render (structured injection rows, then raw taps).
  * Non-index assets stay public. The dist location is workspace knowledge of
@@ -58,6 +59,9 @@ const STATIC_MISS_CODES: ReadonlySet<string | undefined> = new Set([
   'ENOTDIR',
 ])
 
+/** Client-owned path prefixes that resolve to the SPA index. */
+const SPA_ROUTE_PREFIXES = ['/c/'] as const
+
 /**
  * Serve one GET/HEAD static request from the dist root.
  * @param pathname - decoded URL pathname of the request.
@@ -94,9 +98,21 @@ export async function serveStatic(
       type = MIME[extname(target)] ?? 'application/octet-stream'
     }
   } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    // A missing extensionless path is a client-side route. Existing
+    // directories and asset-like misses remain real 404s.
+    const spaRoute = SPA_ROUTE_PREFIXES.some(prefix => pathname.startsWith(prefix))
+    if (code === 'ENOENT' && spaRoute && extname(target) === '') {
+      if (!authorizeIndex()) return
+      body = await renderIndex()
+      type = HTML_MIME
+      res.writeHead(200, { 'content-type': type })
+      res.end(body)
+      return
+    }
     // Only absent or non-file targets are 404; other filesystem failures reach
     // the webserver's request-failure handling.
-    if (!STATIC_MISS_CODES.has((error as NodeJS.ErrnoException).code)) throw error
+    if (!STATIC_MISS_CODES.has(code)) throw error
     res.writeHead(404)
     res.end()
     return

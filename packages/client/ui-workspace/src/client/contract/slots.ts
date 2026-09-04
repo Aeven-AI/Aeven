@@ -30,7 +30,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SessionSearchResultItem } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { RemoteHostFacts } from '@deepseek-ai/dsh-api-remotes/client'
 import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { SessionId, SessionSeq } from '@deepseek-ai/dsh-session/types'
 import type { createWorkspaceViewStore } from '../stores.ts'
 
 /**
@@ -103,8 +103,8 @@ export type WorkspaceBrowserInjected = {
    * Workspace, then the recent Workspace, or clear into the New Session view.
    */
   startSession: (workspaceId?: WorkspaceId) => void
-  /** Open a real Session. */
-  open: (sessionId: SessionId) => void
+  /** Open a real Session, optionally revealing an exact matched event. */
+  open: (sessionId: SessionId, matchSeq?: SessionSeq) => void
   /**
    * Search current visible conversation messages. The Host fixes the result
    * bound; `hasMore` means the query needs narrowing.

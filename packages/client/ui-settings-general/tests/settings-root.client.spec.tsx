@@ -132,7 +132,7 @@ describe('SettingsRoot trigger', () => {
     expect(screen.getByRole('button', { name: 'Settings', expanded: true })).toBeTruthy()
   })
 
-  it('hands the rail state to the trigger seat', () => {
+  it('hands the closed state to the trigger seat', () => {
     const { renderSlot } = mount({ wide: false })
     expect(renderSlot).toHaveBeenCalledWith('settings.trigger', { wide: false })
   })
@@ -162,7 +162,7 @@ describe('SettingsRoot trigger', () => {
     expect(screen.queryByRole('status')).toBeNull()
   })
 
-  it('keeps the reconnect indicator out of the collapsed rail', () => {
+  it('keeps the reconnect indicator out of the closed sidebar', () => {
     mount({ wide: false, connectionState: 'disconnected' })
     expect(screen.queryByRole('button', { name: 'Disconnected, reconnect now' })).toBeNull()
   })

@@ -6,6 +6,8 @@ Status: implemented
 
 [English](2026-07-19-web-styling-system.md) | 中文
 
+> [Aeven 视觉语言决策](2026-09-03-aeven-web-visual-language.zh.md)取代本文的视觉基线值，并增加共享几何变量。本文关于 CSS Modules、语义 token、主题选择器与呈现的约束仍然有效。
+
 > 分工：本 RFC 定框架与约束（少变）；[docs/web-styling.md](../../../../docs/web-styling.zh.md) 是活规范（token 权威值、编码规范打勾清单、偏离记录，随实现演进）。改 token/加规则去那边；动框架本身才回这里（推翻须新 RFC）。
 
 ## Problem

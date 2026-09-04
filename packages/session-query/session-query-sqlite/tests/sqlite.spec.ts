@@ -27,8 +27,27 @@ import {
   type SessionQueryErrorCode,
   type SessionSearchRequest,
 } from '@deepseek-ai/dsh-session-query'
+import { SettingsProvider, type SettingsNamespace } from '@deepseek-ai/dsh-settings'
 
 const temporaryDirectories: string[] = []
+
+/** Minimal writable settings provider for the session-query integration tests. */
+class MemorySettings extends SettingsProvider {
+  private doc: Record<string, unknown> = {}
+
+  get writable(): boolean {
+    return true
+  }
+
+  protected load(): Promise<Record<string, unknown>> {
+    return Promise.resolve(structuredClone(this.doc))
+  }
+
+  protected persist(ns: SettingsNamespace, section: Record<string, unknown>): Promise<void> {
+    this.doc = { ...this.doc, [ns]: structuredClone(section) }
+    return Promise.resolve()
+  }
+}
 
 afterEach(async () => {
   for (const directory of temporaryDirectories.splice(0)) {
@@ -252,6 +271,30 @@ describe('SQLite session search', () => {
       path: ':memory:',
       openAt: 'later' as never,
     })).toThrow()
+  })
+
+  it('applies the user-owned opening policy live through settings', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SessionStore)
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(MemorySettings)
+    await ctx.plugin(SqliteSessionQueryEngine, { path: ':memory:', openAt: 'first-search' })
+    const service = ctx.sessionQuery as SqliteSessionQueryEngine
+
+    expect(ctx.settings.describe().find(row => String(row.ns) === 'session-query-sqlite'))
+      .toMatchObject({ value: { openAt: 'first-search' }, base: { openAt: 'first-search' } })
+
+    await ctx.settings.update('session-query-sqlite', { openAt: 'never' })
+    expect(service.config.openAt).toBe('never')
+    await expect(service.searchSessions({ query: 'disabled' }))
+      .rejects.toThrow(expectCode('SESSION_QUERY_SEARCH_DISABLED'))
+
+    await ctx.settings.update('session-query-sqlite', { openAt: 'first-search' })
+    expect(service.config.openAt).toBe('first-search')
+    await expect(service.searchSessions({ query: 'enabled' }))
+      .resolves.toMatchObject({ items: [] })
+
+    await ctx.fiber.dispose()
   })
 
   it('mounts and disposes first-search mode without opening its database', async () => {

@@ -4,6 +4,8 @@ Status: implemented
 
 [English](2026-09-01-web-elevation-stroke-shadows.md) | 中文
 
+> [Aeven 视觉语言决策](../process/2026-09-03-aeven-web-visual-language.zh.md)把 composer 改为没有描边或投影的平面表面。本文的层级系统及其他消费方仍然有效。
+
 ## Problem
 
 Web 客户端的高层级表面——菜单、浮层、对话框、面板、悬浮按钮、输入框——原先都把真 `border: 1px solid <中性 token>` 与 `--dsw-shadow-lv2`/`lv3` 投影配对。border 占布局（每侧 1px，且在 `<button>` 上是对 UA 默认边框的替换）；浅色主题下多数浮层实际没有描边（`--dsw-alias-border-inverted` 在浅色下是透明的），靠 `lv3` 里模糊的 1px 环冒充；输入框则披着一大片柔和的 `lv2` 投影，读起来更像污渍而非悬浮表面。当前桌面聊天 UI 改用单个 `box-shadow` 列表绘制 elevation：0.5px 发丝描边加两层极淡柔光，表面本身 `border: 0`。

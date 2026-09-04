@@ -4,6 +4,8 @@ Status: implemented
 
 [English](2026-09-01-web-superellipse-corner-smoothing.md) | 中文
 
+> [Aeven 视觉语言决策](../process/2026-09-03-aeven-web-visual-language.zh.md)为产品基线增加共享圆角变量。本文的超级椭圆应用与正圆退出规则仍然有效。
+
 ## Problem
 
 Web 客户端里每个圆角表面——卡片、输入框、按钮、浮层——都以普通圆弧绘制圆角，观感明显硬于当前桌面聊天 UI 普遍采用的平滑（类 squircle）圆角。这种平滑感来自在 `@supports` 守卫内应用 CSS `corner-shape: superellipse(1.5)`，而非更大的半径或遮罩技巧；工具类体系的实现把它挂到除正圆之外的所有圆角工具类上。本客户端没有工具类：`border-radius` 以 px 字面量散布在各客户端包的 CSS Modules 中，没有可以统一挂载该属性的类列表；而正圆形状（`border-radius: 50%` 的圆、999px 胶囊）必须保持圆弧——超级椭圆会把圆变形为 squircle，用 border 绘制的加载圈旋转时会明显晃动，胶囊两端也会变方。

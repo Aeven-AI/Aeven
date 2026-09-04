@@ -11,7 +11,7 @@ import type {
   SessionPendingInteractionBase,
 } from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-schedule/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { SessionId, SessionSeq } from '@deepseek-ai/dsh-session/types'
 import { workspaceTitleOf } from '@deepseek-ai/dsh-util-workspace-path'
 import {
   indexSubagentDescendants, type SubagentDescendantSummary,
@@ -68,6 +68,8 @@ export interface GroupNode {
 /** One flat search row combining list metadata with an optional content match. */
 export interface SearchResultNode {
   id: SessionId
+  /** Exact matched message event, when this row came from content search. */
+  matchSeq?: SessionSeq
   title: string
   workspace: string
   /** A Session-scoped UI consumer is awaiting this user. */
@@ -419,7 +421,7 @@ export function deriveSearchResults(
           : { pendingInteraction }),
         completed: summary.completed === true,
         hasActiveSchedule: hasActiveSchedule(summary),
-        ...match === undefined ? {} : { snippet: match.snippet },
+        ...match === undefined ? {} : { matchSeq: match.seq, snippet: match.snippet },
       }
     }),
     hasMore: content.hasMore || ordered.length > limit,

@@ -29,6 +29,7 @@ import SessionQueryEngine, {
   assertSessionHeadersCompatible,
   buildSessionEventSearchDocuments,
 } from '@deepseek-ai/dsh-session-query'
+import type {} from '@deepseek-ai/dsh-settings'
 import type {
   Config as SessionQueryConfig,
   SessionEventSearchDocument,
@@ -91,6 +92,20 @@ const STABLE_OBSERVATION_ATTEMPTS = 2
 
 /** SQLite module/handle opening phase; `never` disables full-text search entirely. */
 export type OpenAt = 'startup' | 'first-search' | 'never'
+
+/** Settings namespace for the user-owned content-search availability policy. */
+const SETTINGS_NAMESPACE = 'session-query-sqlite'
+
+/** User-owned settings that can change without replacing the derived index. */
+interface SearchSettings {
+  /** Whether SQLite opens at activation, on first search, or remains disabled. */
+  openAt: OpenAt
+}
+
+/** Schema for the user-owned content-search availability policy. */
+const SearchSettingsSchema: z<SearchSettings> = z.object({
+  openAt: z.union(['startup', 'first-search', 'never'] as const).default('startup'),
+})
 
 /** Combined session-query configuration backed by SQLite full-text search. */
 export interface Config extends SessionQueryConfig {
@@ -236,10 +251,27 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
   private readonly _optionalPersistenceFiber: Fiber
 
   constructor(ctx: Context, config: Config) {
-    // The assignment expression resolves before the base constructor can
-    // register `ctx.sessionQuery`; keep that same validated value afterward.
-    super(ctx, config = resolveConfig(config))
-    this.config = config as ResolvedConfig
+    const entry = resolveConfig(config)
+    super(ctx, entry)
+    let settingsSource: () => SearchSettings = () => ({ openAt: entry.openAt })
+    this.config = {
+      ...entry,
+      get openAt() {
+        return settingsSource().openAt
+      },
+    }
+    ctx.inject(['settings'], (settingsCtx) => {
+      settingsCtx.settings.installSection(ctx, SETTINGS_NAMESPACE, SearchSettingsSchema, {
+        openAt: entry.openAt,
+      }, {
+        setSource: (source) => {
+          settingsSource = source
+        },
+        // Search methods read the policy through the getter above; no index
+        // registration changes when the setting changes.
+        onChange: () => {},
+      })
+    })
     this._optionalPersistenceFiber = ctx.inject(['sessionPersistence'], (childCtx: Context) => {
       const service = childCtx.sessionPersistence
       const binding = { identity: Symbol(), service }

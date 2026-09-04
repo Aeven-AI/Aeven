@@ -14,6 +14,10 @@ import {
 } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-mirror.ts'
 import { ConfigurablePluginsTabController } from '../src/client/tab-store.ts'
 import {
+  SessionSearchCardController,
+  type SessionSearchSettings,
+} from '../src/client/session-search-card-controller.ts'
+import {
   SubagentModelSelectionCardController,
   subagentModelCandidates,
   type SubagentModelSelectionSettings,
@@ -430,6 +434,50 @@ describe('AgentLoopCardController', () => {
     host.publish({ status: 'ready', writable: false, value: { maxParallelToolCalls: 10 } })
 
     expect(controller.inject().hooks.agentLoopCard.getSnapshot().writable).toBe(false)
+  })
+})
+
+describe('SessionSearchCardController', () => {
+  it('stages, saves, and resets the lazy-on search policy', async () => {
+    const host = stubSettingsScope<SessionSearchSettings>()
+    acceptWrites(host)
+    const controller = new SessionSearchCardController(host.scope)
+    host.publish({
+      status: 'ready',
+      writable: true,
+      value: { openAt: 'first-search' },
+      base: { openAt: 'first-search' },
+      user: {},
+    })
+    const face = controller.inject()
+
+    expect(face.hooks.sessionSearchCard.getSnapshot()).toMatchObject({
+      enabled: true,
+      dirty: false,
+      openAt: { text: 'first-search', overridden: false },
+    })
+    face.toggleEnabled()
+    expect(face.hooks.sessionSearchCard.getSnapshot()).toMatchObject({
+      enabled: false,
+      dirty: true,
+      openAt: { text: 'never', overridden: true },
+    })
+
+    face.save()
+    await vi.waitFor(() => {
+      expect(host.set).toHaveBeenCalledWith('openAt', 'never')
+      expect(face.hooks.sessionSearchCard.getSnapshot().saving).toBe(false)
+    })
+    expect(face.hooks.sessionSearchCard.getSnapshot()).toMatchObject({ enabled: false, dirty: false })
+
+    face.resetOpenAt()
+    face.save()
+    await vi.waitFor(() => { expect(host.unset).toHaveBeenCalledWith('openAt') })
+    expect(face.hooks.sessionSearchCard.getSnapshot()).toMatchObject({
+      enabled: true,
+      dirty: false,
+      openAt: { text: 'first-search', overridden: false },
+    })
   })
 })
 
@@ -868,6 +916,31 @@ describe('WebSearchCardController', () => {
       baseURL: { text: 'https://search.test/v1', overridden: false },
       apiKey: { text: '', overridden: false },
     })
+  })
+
+  it('asks once per reference, however many scope notifications arrive', async () => {
+    const host = stubSettingsScope<WebSearchSettings>()
+    const credentials = credentialsApi(true)
+    const controller = new WebSearchCardController(host.scope, credentials.ctx)
+    const state = () => controller.inject().hooks.webSearchCard.getSnapshot()
+    host.publish({ status: 'ready', writable: true, value: { baseURL: 'https://search.test/v1' }, user: {} })
+    await vi.waitFor(() => { expect(state().apiKeyConfigured).toBe(true) })
+    const asked = credentials.describe.mock.calls.length
+
+    // One settings-describe run publishes `loading` and then `ready`, and each
+    // publication reaches this subscriber. Neither changes the reference, so
+    // the held answer already covers them.
+    host.publish({ status: 'loading', writable: true, value: { baseURL: 'https://search.test/v1' }, user: {} })
+    host.publish({ status: 'ready', writable: true, value: { baseURL: 'https://search.test/v1' }, user: {} })
+    await Promise.resolve()
+    expect(credentials.describe.mock.calls.length).toBe(asked)
+    expect(state().apiKeyConfigured).toBe(true)
+
+    // A reference the card has not asked about is a different question.
+    host.publish({
+      status: 'ready', writable: true, value: { apiKeyEnv: 'OTHER_KEY' }, user: {},
+    })
+    await vi.waitFor(() => { expect(credentials.describe.mock.calls.length).toBe(asked + 1) })
   })
 
   it('writes the staged key through the credentials domain, never the settings section', async () => {

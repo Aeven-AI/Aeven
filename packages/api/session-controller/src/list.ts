@@ -299,6 +299,7 @@ export class ApiSessionList {
           acceptedIds.add(hit.header.id)
           authorized.push({
             sessionId: hit.header.id,
+            seq: hit.bestMatch.seq,
             snippet: truncateUnicodeCodePoints(hit.bestMatch.snippet, SESSION_SEARCH_SNIPPET_MAX_CODE_POINTS),
           })
         }
@@ -319,6 +320,9 @@ export class ApiSessionList {
       signal.throwIfAborted()
       if (error instanceof SessionQueryError && error.code === 'SESSION_QUERY_ABORTED') {
         throw new RemoteError('gateway/cancelled', 'session search was aborted', {})
+      }
+      if (error instanceof SessionQueryError && error.code === 'SESSION_QUERY_SEARCH_DISABLED') {
+        throw new RemoteError('session/search-disabled', 'session content search is disabled', {})
       }
       throw new RemoteError('gateway/internal', `session search failed: ${String(error)}`, {})
     }

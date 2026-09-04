@@ -11,6 +11,8 @@ export type PluginsSettingsLocaleKey =
   | 'webSearchTitle' | 'webSearchDescription'
   | 'webSearchApiKey' | 'webSearchApiKeyHint' | 'webSearchApiKeySet' | 'webSearchApiKeyUnset'
   | 'webSearchBaseUrl' | 'webSearchBaseUrlHint' | 'webSearchMaxUses' | 'webSearchMaxUsesHint'
+  | 'sessionSearchTitle' | 'sessionSearchDescription' | 'sessionSearchToggle'
+  | 'sessionSearchEnabledHint' | 'sessionSearchDisabledHint'
   | 'subagentModelSelectionTitle' | 'subagentModelSelectionDescription'
   | 'subagentModelSelectionToggle' | 'subagentModelSelectionChoose' | 'subagentModelSelectionAllowed'
   | 'subagentModelSelectionLoading' | 'subagentModelSelectionLoadFailed' | 'subagentModelSelectionRetry'
@@ -57,6 +59,11 @@ export const en: Record<PluginsSettingsLocaleKey, string> = {
   webSearchBaseUrlHint: 'Leave blank to use the provider default.',
   webSearchMaxUses: 'Max searches per request',
   webSearchMaxUsesHint: 'How many times one request may search before it must answer.',
+  sessionSearchTitle: 'Session search',
+  sessionSearchDescription: 'Search message content from the session sidebar.',
+  sessionSearchToggle: 'Search session contents',
+  sessionSearchEnabledHint: 'The SQLite index opens when content search is first used.',
+  sessionSearchDisabledHint: 'Only session and workspace names are matched.',
   subagentModelSelectionTitle: 'Subagent',
   subagentModelSelectionDescription: 'Control which models agents may choose for subagents.',
   subagentModelSelectionToggle: 'Allow agents to choose models for subagents',
@@ -113,6 +120,11 @@ export const zh: Record<PluginsSettingsLocaleKey, string> = {
   webSearchBaseUrlHint: '留空则使用提供方默认地址。',
   webSearchMaxUses: '单次请求最多搜索次数',
   webSearchMaxUsesHint: '一次请求在必须作答前最多可以搜索多少次。',
+  sessionSearchTitle: '会话搜索',
+  sessionSearchDescription: '从会话侧边栏搜索消息内容。',
+  sessionSearchToggle: '搜索会话内容',
+  sessionSearchEnabledHint: '首次搜索内容时打开 SQLite 索引。',
+  sessionSearchDisabledHint: '仅匹配会话名称和工作区名称。',
   subagentModelSelectionTitle: 'Subagent',
   subagentModelSelectionDescription: '控制 Agent 为 Subagent 选择模型的权限。',
   subagentModelSelectionToggle: '允许 Agent 为 Subagent 选择模型',

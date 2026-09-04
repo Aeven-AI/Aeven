@@ -5,9 +5,7 @@
   height: 100%;
   overflow: hidden;
   background: var(--dsw-alias-bg-base);
-  /* Collapse/expand animates the tracks on the deepsuite sider curve
-     (--ds-ease-in-out / --ds-transition-duration-slow, ui-theme base.css). */
-  transition: grid-template-columns var(--ds-transition-duration-slow) var(--ds-ease-in-out);
+  transition: grid-template-columns var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
 }
 
 /* Dragging writes widths at pointer cadence; easing them would detach the
@@ -22,28 +20,45 @@
   }
 }
 
+/* The sidebar clips itself, box by box, the way Aeven's does: the content
+   column, panel and body all animate their own width to zero. Clipping here
+   instead would take the menu button with the track as it closes — the button
+   deliberately overhangs the zero-width column so it keeps its seat. The
+   frame's own `overflow: hidden` still bounds the overhang. */
 .sidebarCol {
+  position: relative;
+  z-index: 3;
   min-width: 0;
-  overflow: hidden;
-  background: var(--dsw-specific-sidebar-fill);
-  border-right: 0.5px solid var(--dsw-alias-border-l3);
+  overflow: visible;
+  background: var(--dsw-alias-bg-base);
+  border-right: none;
 }
 
+/* Inline-size query container for the conversation's width axis. The column
+   width is the one input that axis needs, and reading it in CSS is what keeps
+   the sidebar's slide off the main thread: publishing it from JS meant writing
+   an inherited custom property on an ancestor of the whole transcript on every
+   animation frame, which invalidates style for every element under it. */
 .centerCol {
   min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  container-type: inline-size;
+}
+
+.frame[data-sidebar-collapsed] .centerCol {
+  --dsh-sidebar-overlay-clearance: var(--dsw-aeven-sidebar-toggle-width);
 }
 
 .detailsCol {
   min-width: 0;
   overflow: hidden;
-  border-left: 0.5px solid var(--dsw-alias-border-l3);
+  border-left: none;
 }
 
 /* The details subtree stays mounted at zero width, so its border must not paint
-   a 1px seam. The collapsed sidebar instead retains a bordered compact rail. */
+   a 1px seam. */
 .frame[data-details-collapsed] .detailsCol {
   border-left: none;
 }

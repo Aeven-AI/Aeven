@@ -104,10 +104,15 @@ async function bench(snapshot: ChatSnapshot) {
   const events = new ConversationEventRegistry(ctx)
   const views = new ConversationViewRegistry(ctx)
   ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
+  // One store per bench, not per call: ui-chat reads this on every render and
+  // a fresh observable each time would defeat the renderer's hook cache.
+  const eventNavigation = createSnapshotStore<null>(null)
   ctx.provide('uiConversation', {
     events,
     views,
     binding: () => ({ target: () => chat }),
+    eventNavigation: () => eventNavigation,
+    completeEventNavigation: vi.fn(),
   } as never)
 
   await runtime.sessions.add({

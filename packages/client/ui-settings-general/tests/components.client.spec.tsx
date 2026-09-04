@@ -37,7 +37,7 @@ describe('chrome content', () => {
     expect(screen.getByText('Settings')).toBeTruthy()
   })
 
-  it('TriggerContent drops the label in the rail state', () => {
+  it('TriggerContent drops the label in the closed state', () => {
     const { container } = render(<TriggerContent {...kit} wide={false} t={t} />)
     expect(container.querySelector('svg')).toBeTruthy()
     expect(screen.queryByText('Settings')).toBeNull()

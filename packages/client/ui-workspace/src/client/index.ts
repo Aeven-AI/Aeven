@@ -24,6 +24,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type { WorkspaceBrowserInjected, WorkspacePickerInjected } from './contract/slots.ts'
 import { UiWorkspaceService } from './navigation.ts'
+import { BrowserSessionUrlNavigation } from './session-url.ts'
 import { createWorkspaceViewStore } from './stores.ts'
 import { WorkspaceBrowser } from './rows/WorkspaceBrowser.tsx'
 import { WorkspacePicker } from './WorkspacePicker.tsx'
@@ -73,13 +74,14 @@ export function apply(ctx: Context): void {
   const sessions = ctx.get('sessions') as ISessions
   const workspaces = ctx.get('workspaces') as IWorkspaces
   const uiWorkspace = new UiWorkspaceService(
-    ctx, ctx.remote.directoryPicker, workspaces, sessions)
+    ctx, ctx.remote.directoryPicker, workspaces, sessions,
+    new BrowserSessionUrlNavigation(() => window))
   ctx.slots.provideRoot({ hooks: { workspaces: workspaces.list } })
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-workspace: dictionaries')
 
   const searchSessions: WorkspaceBrowserInjected['searchSessions'] = async (query, signal) => {
     const result = await sessions.search(query, signal)
-    if (!result.ok) throw new Error(result.error.message)
+    if (!result.ok) throw result.error
     return result.value
   }
 
@@ -99,7 +101,15 @@ export function apply(ctx: Context): void {
     // Explicit group actions keep their target; unscoped New Session inherits
     // the current Session Workspace before the recent-Workspace fallback.
     startSession: (workspaceId) => { uiWorkspace.startSession(workspaceId) },
-    open: (sessionId) => { sessions.open(sessionId) },
+    open: (sessionId, matchSeq) => {
+      // `ctx.get`, not a declared injection: ui-conversation injects
+      // uiWorkspace, so waiting on uiConversation here would deadlock both —
+      // each plugin would hold the service the other waits for and neither
+      // would ever activate. Resolved per call instead, by which point the
+      // conversation surface that owns the transcript is running.
+      if (matchSeq !== undefined) ctx.get('uiConversation')?.navigateToEvent(sessionId, matchSeq)
+      sessions.open(sessionId)
+    },
     searchSessions,
     searchResultLimit: sessions.searchResultLimit,
     renameSession: async (sessionId, title) => {

@@ -43,6 +43,8 @@ export type SessionListPhase = 'pending' | 'ready'
 /** Request-local content hit returned to sidebar search consumers. */
 export interface SessionSearchResultItem {
   sessionId: SessionId
+  /** Exact current-surface event containing the ranked match. */
+  seq: SessionSeq
   snippet: string
 }
 

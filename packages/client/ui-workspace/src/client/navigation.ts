@@ -10,6 +10,7 @@ import type {
   IWorkspaces, WorkspaceId, WorkspaceView,
 } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { SessionUrlNavigation } from './session-url.ts'
 
 /** Workspace archive and directory operations consumed by Client UI domains. */
 export interface UiWorkspace {
@@ -76,12 +77,14 @@ class UiWorkspaceService extends Service implements UiWorkspace {
    * @param directoryPicker - the directory-picking Remote namespace.
    * @param workspaces - pure Workspace Controller.
    * @param sessions - pure Session Controller.
+   * @param sessionUrl - address-bar projection for Session selection.
    */
   constructor(
     ctx: Context,
     private readonly directoryPicker: ClientRemote['directoryPicker'],
     private readonly workspaces: IWorkspaces,
     private readonly sessions: ISessions,
+    private readonly sessionUrl: SessionUrlNavigation,
   ) {
     super(ctx, 'uiWorkspace')
     ctx.effect(() => this.watchNavigation(), 'ui-workspace: Workspace navigation policy')
@@ -156,14 +159,35 @@ class UiWorkspaceService extends Service implements UiWorkspace {
 
   private watchNavigation(): () => void {
     let initial: 'waiting' | 'connecting' | 'done' = 'waiting'
+    let urlInitialized = false
     let disposed = false
     const reconcile = (): void => {
       if (disposed) return
       if (this.clearArchivedCurrent()) return
-      if (initial !== 'waiting') return
       const workspace = this.workspaces.list.getSnapshot()
       const sessions = this.sessions.list.getSnapshot()
       if (workspace.phase !== 'ready' || sessions.phase !== 'ready') return
+
+      if (!urlInitialized) {
+        const requested = this.sessionUrl.read()
+        if (requested !== undefined && sessions.byId[requested] !== undefined) {
+          urlInitialized = true
+          initial = 'done'
+          if (sessions.current !== requested) this.sessions.open(requested)
+          return
+        }
+        if (requested !== undefined) this.sessionUrl.replace(undefined)
+        if (sessions.current !== undefined) {
+          urlInitialized = true
+          initial = 'done'
+          this.sessionUrl.replace(sessions.current)
+          return
+        }
+      } else if (this.sessionUrl.read() !== sessions.current) {
+        this.sessionUrl.push(sessions.current)
+      }
+
+      if (initial !== 'waiting') return
       if (sessions.current !== undefined) {
         initial = 'done'
         return
@@ -171,6 +195,8 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       const target = recentWorkspace(workspace.items, sessions.byId)
       if (target === undefined) {
         initial = 'done'
+        urlInitialized = true
+        this.sessionUrl.replace(undefined)
         return
       }
       initial = 'connecting'
@@ -189,11 +215,29 @@ class UiWorkspaceService extends Service implements UiWorkspace {
         },
       )
     }
+    const navigateFromUrl = (): void => {
+      if (disposed || !urlInitialized) return
+      const sessions = this.sessions.list.getSnapshot()
+      if (sessions.phase !== 'ready') return
+      const requested = this.sessionUrl.read()
+      if (requested === sessions.current) return
+      if (requested === undefined) {
+        this.sessions.clear()
+        return
+      }
+      if (sessions.byId[requested] !== undefined) {
+        this.sessions.open(requested)
+        return
+      }
+      this.sessionUrl.replace(sessions.current)
+    }
     const disposeWorkspaces = this.workspaces.list.subscribe(reconcile)
     const disposeSessions = this.sessions.list.subscribe(reconcile)
+    const disposeUrl = this.sessionUrl.subscribe(navigateFromUrl)
     reconcile()
     return () => {
       disposed = true
+      disposeUrl()
       disposeSessions()
       disposeWorkspaces()
     }

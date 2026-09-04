@@ -1,0 +1,22 @@
+/* Latin variable cuts, self-hosted so first paint does not wait on a third-
+ * party origin. Both carry a continuous weight axis, so the numeric weights
+ * the theme asks for render as real instances rather than synthesised ones.
+ * Licences sit beside the files under assets/fonts (SIL OFL 1.1). */
+@font-face {
+  font-family: 'Google Sans Flex';
+  src: url('./assets/fonts/google-sans-flex-latin-wght-normal.woff2') format('woff2');
+  /* The family's full published range; it also carries an optical-size axis
+     that `font-optical-sizing: auto` drives from the rendered size. */
+  font-weight: 1 1000;
+  font-stretch: 100%;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Google Sans Code';
+  src: url('./assets/fonts/google-sans-code-latin-wght-normal.woff2') format('woff2');
+  font-weight: 300 800;
+  font-style: normal;
+  font-display: swap;
+}

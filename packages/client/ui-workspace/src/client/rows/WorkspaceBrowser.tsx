@@ -2,9 +2,9 @@
  * The workspace/session browsing region filling the sidebar shell's
  * `sidebar.workspaces` hole: section header (title + view options + add
  * workspace), search, the grouped tree or flat list, and the workspace
- * dialogs. Wide state renders the full browser; rail state renders the two
+ * dialogs. Wide state renders the full browser; closed state prepares the two
  * region icons (search / add workspace) as 36px controls on the shell's shared
- * rail entry path, each requesting expansion through the owner share. Adding
+ * compact controls, each requesting expansion through the owner share. Adding
  * is the header button's one action, so it raises the directory flow with no
  * menu in between; the flow and its error dialog live in WorkspacePicker
  * (same package — direct composition, no slot between them).
@@ -29,10 +29,10 @@ import { WorkspacePickFlow } from '../WorkspacePicker.tsx'
 import css from './WorkspaceBrowser.module.css'
 
 /**
- * Column slide length (--ds-transition-duration-slow): rail-search focus waits it out —
+ * Sidebar slide length: closed-state search focus waits it out —
  * focus() forces a synchronous layout and would jank the slide.
  */
-const EXPAND_SLIDE_MS = 300
+const EXPAND_SLIDE_MS = 400
 /** Pause between the latest keystroke and a Host content-search request. */
 const SEARCH_DEBOUNCE_MS = 250
 /** `session.search` wire bound, measured in JavaScript UTF-16 code units. */
@@ -715,7 +715,7 @@ function FlatList({
 
 interface RemoteSearchState {
   query: string
-  status: 'idle' | 'loading' | 'ready' | 'error'
+  status: 'idle' | 'loading' | 'ready' | 'disabled' | 'error'
   items: readonly SessionSearchResultItem[]
   hasMore: boolean
 }
@@ -756,7 +756,7 @@ function SearchResults({
     [list, workspaces, query, archivedSessionIds, pendingInteractions, currentRemote, resultLimit],
   )
   const pending = currentRemote.status === 'loading'
-  const failed = currentRemote.status === 'error'
+  const unavailable = currentRemote.status === 'disabled' || currentRemote.status === 'error'
 
   return (
     <div className={clsx(css.treeBody, css.wide)}>
@@ -775,9 +775,9 @@ function SearchResults({
         {pending && (
           <div className={css.searchStatus} role="status">{t('search.pending')}</div>
         )}
-        {failed && (
+        {unavailable && (
           <div className={css.searchWarning} role="status">
-            {t('search.unavailable')}
+            {t(currentRemote.status === 'disabled' ? 'search.disabled' : 'search.unavailable')}
           </div>
         )}
         {!pending && results.items.length === 0 && (
@@ -945,11 +945,14 @@ export function WorkspaceBrowser({
           items: result.items,
           hasMore: result.hasMore,
         })
-      }).catch(() => {
+      }).catch((error: unknown) => {
         if (controller.signal.aborted) return
         setRemoteSearch({
           query: normalizedQuery,
-          status: 'error',
+          status: typeof error === 'object' && error !== null
+            && Reflect.get(error, 'code') === 'session/search-disabled'
+            ? 'disabled'
+            : 'error',
           items: [],
           hasMore: false,
         })
@@ -960,6 +963,12 @@ export function WorkspaceBrowser({
       controller.abort()
     }
   }, [normalizedQuery, searchSessions])
+
+  const openSearchResult: typeof open = (sessionId, matchSeq) => {
+    setQuery('')
+    setSearchExpanded(false)
+    open(sessionId, matchSeq)
+  }
 
   // Rename dialog (browser-owned so it outlives row unmounts during collapse).
   const [renameTarget, setRenameTarget] = useState<{ workspaceId: WorkspaceId; currentTitle: string } | null>(null)
@@ -1180,7 +1189,7 @@ export function WorkspaceBrowser({
         />
       </div>
 
-      {/* The collapsed rail keeps search as its own 36px control. */}
+      {/* Closed-state search remains available to alternate sidebar shells. */}
       {!wide && <div className={css.search}>
         <Tooltip label={t('search')}>
           <button
@@ -1206,7 +1215,7 @@ export function WorkspaceBrowser({
             <SearchResults
               useSessions={useSessions}
               useSessionPendingInteraction={useSessionPendingInteraction}
-              open={open}
+              open={openSearchResult}
               workspaces={workspaces}
               archivedSessionIds={archivedSessionIds}
               query={normalizedQuery}

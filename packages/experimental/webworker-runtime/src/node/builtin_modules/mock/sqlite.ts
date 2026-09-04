@@ -1,7 +1,8 @@
 /**
  * `node:sqlite` stub. The web profile configures session-query-sqlite with
- * `:memory:` and `openAt: never`, so no database is opened during the acceptance
- * chain; reaching the constructor means that configuration changed.
+ * `:memory:` and `openAt: first-search`, so no database is opened during an
+ * acceptance chain without content search; reaching the constructor means a
+ * search unexpectedly crossed this runtime.
  */
 import { notAvailableError, notImplementedFail } from '../../notImplementedFail.ts'
 

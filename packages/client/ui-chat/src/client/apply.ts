@@ -109,7 +109,10 @@ export function apply(ctx: Context): void {
         const session = binding.session
         const chat = chatSource(binding)
         return {
-          hooks: { transcriptView: transcriptView.mode },
+          hooks: {
+            transcriptView: transcriptView.mode,
+            eventNavigation: ctx.uiConversation.eventNavigation(sessionId),
+          },
           keyedHooks: {
             chatNode: key => chat.getSnapshot().nodes.source(key),
             chatNodeProcess: key => chat.getSnapshot().nodes.processSource(key),
@@ -128,6 +131,9 @@ export function apply(ctx: Context): void {
           },
           loadOlder: () => { void session.loadOlder() },
           loadThrough: seq => session.loadThrough(seq),
+          completeEventNavigation: (requestId) => {
+            ctx.uiConversation.completeEventNavigation(sessionId, requestId)
+          },
           loadImage: Object.assign(
             (attachment: ImageAttachmentRef) => ctx.uiConversation.imageUrl(sessionId, attachment),
             { peek: (attachment: ImageAttachmentRef) => ctx.uiConversation.peekImageUrl(sessionId, attachment) },

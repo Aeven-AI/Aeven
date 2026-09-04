@@ -22,7 +22,7 @@ describe('computeColumns', () => {
     expect(cols).toEqual({ sidebar: 280, center: 1920 - 280 - 360, details: 360 })
   })
 
-  it('closed sidebar keeps its compact rail while closed details contribute zero width', () => {
+  it('closed sidebar and details both contribute zero width', () => {
     expect(computeColumns(1920, closed(300), closed(360)))
       .toEqual({ sidebar: SIDEBAR_COLLAPSED, center: 1920 - SIDEBAR_COLLAPSED, details: 0 })
   })
@@ -88,7 +88,7 @@ describe('computeColumns', () => {
 
 describe('computeColumns — degenerate viewports', () => {
   it('sidebar closed and viewport below CENTER_MIN: details auto-closes, center takes the rest', () => {
-    // Reaches step 3's auto-close with the compact rail sidebar.
+    // Reaches step 3's auto-close with the sidebar closed.
     expect(computeColumns(500, closed(300), open(DETAILS_DEFAULT)))
       .toEqual({ sidebar: SIDEBAR_COLLAPSED, center: 500 - SIDEBAR_COLLAPSED, details: 0 })
   })

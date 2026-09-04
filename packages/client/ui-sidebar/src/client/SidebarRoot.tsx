@@ -1,14 +1,16 @@
 /**
- * Sidebar shell: column geometry only. Collapse is a slide plus crossfade:
- * content freezes at its expanded width (inline style) and fades out in place
- * while the sliding column (AppFrame grid tracks) clips it — nothing reflows
- * mid-slide. At settle the wide-only content unmounts and the four upper
- * controls enter the 56px rail from the same horizontal offset (one icon each,
- * same top-down order) on one fade that ends with the slide. The bottom-pinned
- * settings control only fades. The workspace/session browsing region between
- * the New Session button and the foot is the `sidebar.workspaces` registrant's,
- * and the foot holds `sidebar.settings` plus `sidebar.footer.action`; the shell
- * hands them the wide flag (plus an expand request callback for the browser).
+ * Sidebar shell: column geometry only, ported from the Aeven client's sidebar.
+ * Collapse is one CSS state (`.visible`) driving four simultaneous 400ms
+ * transitions — content width, panel width and opacity, menu-button width, and
+ * chevron opacity. The shell repositions and remounts nothing while that runs,
+ * so the motion stays continuous; the AppFrame grid track slides the layout on
+ * the same duration and curve.
+ *
+ * The workspace/session browsing region between the New Session button and the
+ * foot is the `sidebar.workspaces` registrant's, and the foot holds
+ * `sidebar.settings` plus `sidebar.footer.action`; the shell hands them the
+ * wide flag (plus an expand request callback for the browser). That flag stays
+ * true for the whole collapse so occupants never re-lay-out mid-slide.
  *
  * The column also owns whether the scroll regions nested in it draw a
  * scrollbar at all: the shell tracks the pointer and rebinds ui-theme's
@@ -16,15 +18,16 @@
  * pointing at carries no bar.
  */
 import { useEffect, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import clsx from 'clsx'
 import {
-  FishLogo, IconNewChatOutline16, IconPanelLeftOutline16, Tooltip,
+  FishLogo, IconChevronsLeftOutline14, IconMenuOutline16, IconNewChatOutline16, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SidebarRootComponentProps } from './contract/slots.ts'
 import css from './SidebarRoot.module.css'
 
-/** Wide-content unmount delay; matches the 150ms wide-content fade-out. */
-const COLLAPSE_SETTLE_MS = 150
+/** Wide-layout hold; spans the 400ms collapse so occupants never reflow mid-slide. */
+const COLLAPSE_SETTLE_MS = 400
 
 /**
  * How long the column's scrollbars stay drawn after the pointer leaves it.
@@ -47,8 +50,8 @@ export function SidebarRoot({
   t,
   renderSlot,
 }: SidebarRootComponentProps) {
-  // Wide content stays mounted while the collapse animates (fading via
-  // .collapsed .wide), unmounts at settle, and remounts right away on expand.
+  // Occupants keep their expanded layout for the whole collapse and switch
+  // only once it has settled behind the faded-out panel.
   const [settled, setSettled] = useState(collapsed)
   useEffect(() => {
     if (!collapsed) { setSettled(false); return }
@@ -57,16 +60,11 @@ export function SidebarRoot({
   }, [collapsed])
   const wide = !collapsed || !settled
 
-  // Freeze the content at its expanded width while it fades out (collapsed
-  // && wide): the sliding column then clips it instead of reflowing it. The
-  // rail layout (.collapsed styles) only applies once the fade settles.
+  // The panel holds its expanded width while it slides shut, so the content
+  // inside narrows from the last real column width rather than snapping to a
+  // stale one. CSS reads it as --dsh-sidebar-width.
   const lastWideWidth = useRef(width)
   if (!collapsed) lastWideWidth.current = width
-
-  // Rail-in only crossfades a live collapse: a refresh straight into the
-  // collapsed state renders the rail statically (no delay-hidden icons).
-  const everWide = useRef(!collapsed)
-  if (!collapsed) everWide.current = true
 
   // Scrollbars in the column follow the pointer (.quietBars rebinds them
   // away): drawn while it is inside, and for SCROLLBAR_LINGER_MS after it
@@ -115,24 +113,21 @@ export function SidebarRoot({
   return (
     <div
       ref={column}
-      className={clsx(
-        css.root, !wide && css.collapsed, !wide && everWide.current && css.railIn,
-        collapsed && wide && css.fading, !pointerInside && css.quietBars,
-      )}
-      style={wide ? { width: collapsed ? lastWideWidth.current : width } : undefined}
+      className={clsx(css.root, !collapsed && css.visible, !pointerInside && css.quietBars)}
+      style={{ '--dsh-sidebar-width': `${String(collapsed ? lastWideWidth.current : width)}px` } as CSSProperties}
       onPointerEnter={() => {
         cancelLinger()
         setPointerInside(true)
       }}
       onPointerLeave={() => { armLinger() }}
     >
-      <div className={css.logoRow}>
-        {/* Expanded, the brand doubles as a New Session shortcut; the
-            collapsed rail's logo is the expand toggle below instead. */}
+      <div className={css.content}>
+        {/* The replaceable brand remains available to deployments; Aeven's
+            presentation hides it behind the full-width menu row. */}
         {wide && (
           <button
             type="button"
-            className={clsx(css.brand, css.wide)}
+            className={css.brand}
             aria-label={t('session.new.label')}
             onClick={() => { startSession() }}
           >
@@ -148,56 +143,60 @@ export function SidebarRoot({
             </span>
           </button>
         )}
-        {/* Rail resting state is the whale mark; hovering swaps in the panel
-            icon (the expand affordance, figma sidebar-hover flow). */}
+
         <Tooltip label={collapsed ? t('toggle.open') : t('toggle.collapse')} delayMs={500}>
           <button
             type="button"
-            className={clsx(css.iconButton, css.toggle)}
+            className={css.toggle}
             aria-label={collapsed ? t('toggle.open') : t('toggle.collapse')}
             onClick={() => { toggleSidebar() }}
           >
-            {!wide && (
-              <span className={css.railMark} aria-hidden="true">
-                {renderSlot('sidebar.brand.mark', { size: 24 }, { fallback: <FishLogo size={24} /> })}
-              </span>
-            )}
-            {/* Rail icons render at 18 (figma rail spec); expanded keeps the glyph-native sizes. */}
-            <IconPanelLeftOutline16 className={css.panelIcon} size={wide ? 16 : 18} />
+            <IconMenuOutline16 size={18} />
+            <IconChevronsLeftOutline14 className={css.toggleEnd} size={14} />
           </button>
         </Tooltip>
-      </div>
 
-      {/* Expanded, the button carries its own label — tooltip only on the rail. */}
-      <Tooltip label={t('session.new.label')} delayMs={500} disabled={wide}>
-        <button
-          type="button"
-          className={css.newSession}
-          aria-label={t('session.new.label')}
-          onClick={() => { startSession() }}
-        >
-          <IconNewChatOutline16 size={wide ? 14 : 18} />
-          {wide && <span className={clsx(css.newSessionLabel, css.wide)}>{t('session.new')}</span>}
-        </button>
-      </Tooltip>
+        {/* Aeven `.side-content`: everything below the menu button narrows and
+            fades as one body. */}
+        <div className={css.sideContent}>
+          {/* Fixed at the open width so nothing inside re-lays-out mid-slide. */}
+          <div className={css.sideContentInner}>
+            <Tooltip label={t('session.new.label')} delayMs={500} disabled={wide}>
+              <button
+                type="button"
+                className={css.newSession}
+                aria-label={t('session.new.label')}
+                onClick={() => { startSession() }}
+              >
+                <IconNewChatOutline16 size={14} />
+                <span className={css.newSessionLabel}>{t('session.new')}</span>
+              </button>
+            </Tooltip>
 
-      {/* The browsing region fills the column between the controls and the
-          foot in both states; its rail icon column rides the same slot. */}
-      <div className={css.regionArea}>
-        {renderSlot('sidebar.workspaces', {
-          wide,
-          expandSidebar: () => { if (collapsed) toggleSidebar() },
-        })}
-      </div>
+            {/* The browsing region fills the column between the controls and
+                the foot; its occupant rides the same slot. */}
+            <div className={css.regionArea}>
+              {renderSlot('sidebar.workspaces', {
+                wide,
+                expandSidebar: () => { if (collapsed) toggleSidebar() },
+              })}
+            </div>
 
-      {/* Footer actions stack above Settings in both sidebar widths. */}
-      <div className={css.footArea}>
-        <div className={css.footerActions}>
-          {renderSlot('sidebar.footer.action', { wide })}
+            {/* Footer actions stack above Settings. */}
+            <div className={css.footArea}>
+              <div className={css.footerActions}>
+                {renderSlot('sidebar.footer.action', { wide })}
+              </div>
+              <div className={css.settingsArea}>
+                {renderSlot('sidebar.settings', { wide })}
+              </div>
+            </div>
+          </div>
         </div>
-        <div className={css.settingsArea}>
-          {renderSlot('sidebar.settings', { wide })}
-        </div>
+
+        {/* Aeven keeps the translucent panel last inside the content column so
+            it paints under the z-indexed button and body above it. */}
+        <div className={css.panel} aria-hidden="true" />
       </div>
     </div>
   )
