@@ -935,6 +935,17 @@ export function WorkspaceBrowser({
   useEffect(() => {
     if (normalizedQuery !== '') setRevealSessionId(undefined)
   }, [normalizedQuery])
+  // Search is not the only way to select a Session the tree never scrolled to:
+  // a pasted `/c/<id>` address, Back, and Forward all arrive the same way, and
+  // the reader asks the same question about where the conversation sits. Every
+  // selection reveals rather than only the addressed ones, because a row the
+  // reader can already see costs nothing: an expanded group stays expanded, and
+  // `block: 'nearest'` scrolls only a row that is actually out of view.
+  const currentSessionId = useSessions(state => state.current)
+  useEffect(() => {
+    if (currentSessionId === undefined) return
+    setRevealSessionId(currentSessionId)
+  }, [currentSessionId])
 
   // Rail search = expand + land in the search box: the flag arms before the
   // expand request; once the shell flips wide the input mounts and takes focus.

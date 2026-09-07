@@ -859,6 +859,36 @@ describe('WorkspaceBrowser', () => {
     expect(b.store.getSnapshot().groupExpansion).toEqual({})
   })
 
+  it('reveals a Session selected by address rather than through search', async () => {
+    const sessions = sessionState([
+      summary('newest-1', 6),
+      summary('newest-2', 5),
+      summary('newest-3', 4),
+      summary('newest-4', 3),
+      summary('newest-5', 2),
+      summary('target', 1, { displayTitle: 'Needle session' }),
+    ])
+    const b = mount({
+      useSessions: hook(sessions),
+      useWorkspaces: hook(workspaceState([workspace('research', [...sessions.ids])])),
+    })
+
+    expect(screen.queryByText('Needle session')).toBeNull()
+    expect(scrollIntoView).not.toHaveBeenCalled()
+
+    // Back, Forward, and a pasted /c/<id> address all reach the browser this
+    // way: the selection changes while search was never used.
+    rerender(b, { useSessions: hook({ ...sessions, current: sid('target') }) })
+
+    await waitFor(() => {
+      expect(screen.getByText('Needle session')).toBeTruthy()
+    })
+    const targetRow = screen.getByText('Needle session').closest('[role="treeitem"]')
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' })
+    expect(scrollIntoView.mock.instances.at(-1)).toBe(targetRow)
+    expect(b.store.getSnapshot().groupExpansion).toEqual({ research: true })
+  })
+
   it('bounds programmatic search input to a schema-valid request without splitting an astral character', async () => {
     vi.useFakeTimers()
     try {

@@ -28,7 +28,11 @@ usePinnedBrowserLanguages('zh-CN')
 const SID = 's1' as SessionId
 
 afterEach(cleanup)
-beforeEach(() => { localStorage.clear() })
+// Selecting a Session reveals its row, and jsdom implements no scrollIntoView.
+beforeEach(() => {
+  localStorage.clear()
+  Element.prototype.scrollIntoView = vi.fn()
+})
 
 /** Runtime with the locale face installed (the browser entry declares `locale:` — zh default backs the t seat). */
 async function createRuntime(): Promise<SlotTestRuntime> {
