@@ -1,37 +1,9 @@
 .frame {
   position: relative; /* anchors the drag handles, which straddle column borders */
-  display: grid;
-  grid-template-rows: 100%;
+  display: flex;
   height: 100%;
   overflow: hidden;
   background: var(--dsw-alias-bg-base);
-  transition: grid-template-columns var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
-}
-
-/* Dragging writes widths at pointer cadence; easing them would detach the
-   column from the handle. */
-.frame[data-dragging] {
-  transition: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .frame {
-    transition: none;
-  }
-}
-
-/* The sidebar clips itself, box by box, the way Aeven's does: the content
-   column, panel and body all animate their own width to zero. Clipping here
-   instead would take the menu button with the track as it closes — the button
-   deliberately overhangs the zero-width column so it keeps its seat. The
-   frame's own `overflow: hidden` still bounds the overhang. */
-.sidebarCol {
-  position: relative;
-  z-index: 3;
-  min-width: 0;
-  overflow: visible;
-  background: var(--dsw-alias-bg-base);
-  border-right: none;
 }
 
 /* Inline-size query container for the conversation's width axis. The column
@@ -40,6 +12,7 @@
    an inherited custom property on an ancestor of the whole transcript on every
    animation frame, which invalidates style for every element under it. */
 .centerCol {
+  flex: 1 1 0;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -52,15 +25,28 @@
 }
 
 .detailsCol {
+  flex: none;
   min-width: 0;
   overflow: hidden;
   border-left: none;
+  transition: width var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
+}
+
+/* Dragging writes a panel width at pointer cadence. */
+.frame[data-dragging] .detailsCol {
+  transition: none;
 }
 
 /* The details subtree stays mounted at zero width, so its border must not paint
    a 1px seam. */
 .frame[data-details-collapsed] .detailsCol {
   border-left: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .detailsCol {
+    transition: none;
+  }
 }
 
 /* Drag handles are frame children (columns clip overflow): an 8px hit strip

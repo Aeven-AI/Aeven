@@ -9,7 +9,7 @@
  * the snapshots pin the shell chrome itself.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, waitFor } from '@testing-library/react'
+import { act, cleanup } from '@testing-library/react'
 import { SlotTestRuntime, usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts'
@@ -70,15 +70,12 @@ describe('sidebar shell snapshots', () => {
     await runtime.dispose()
   })
 
-  it('renders only the reopen control after the sidebar settles closed, in place', async () => {
+  it('keeps the expanded contents mounted behind the closed sidebar, in place', async () => {
     const { runtime } = await bench({ locale: 'en' })
     const slot = runtime.renderSlot('sidebar', { collapsed: false, width: 300 })
     const shell = slot.container.firstElementChild
     slot.update({ collapsed: true, width: 0 })
-    // The wide content unmounts after the 400ms Aeven transition.
-    await waitFor(() => {
-      expect(slot.view.getAllByRole('button', { name: 'New session' })).toHaveLength(1)
-    })
+    expect(slot.view.getAllByRole('button', { name: 'New session' })).toHaveLength(2)
     expect(slot.container).toMatchSnapshot()
     // Same tree position: the owner flip re-rendered the shell in place.
     expect(slot.container.firstElementChild).toBe(shell)

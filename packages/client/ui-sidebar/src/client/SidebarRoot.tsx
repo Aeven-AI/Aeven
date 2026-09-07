@@ -26,9 +26,6 @@ import {
 import type { SidebarRootComponentProps } from './contract/slots.ts'
 import css from './SidebarRoot.module.css'
 
-/** Wide-layout hold; spans the 400ms collapse so occupants never reflow mid-slide. */
-const COLLAPSE_SETTLE_MS = 400
-
 /**
  * How long the column's scrollbars stay drawn after the pointer leaves it.
  * The bar is a pointer affordance here, and hiding it on the leave event
@@ -50,16 +47,6 @@ export function SidebarRoot({
   t,
   renderSlot,
 }: SidebarRootComponentProps) {
-  // Occupants keep their expanded layout for the whole collapse and switch
-  // only once it has settled behind the faded-out panel.
-  const [settled, setSettled] = useState(collapsed)
-  useEffect(() => {
-    if (!collapsed) { setSettled(false); return }
-    const timer = window.setTimeout(() => { setSettled(true) }, COLLAPSE_SETTLE_MS)
-    return () => { window.clearTimeout(timer) }
-  }, [collapsed])
-  const wide = !collapsed || !settled
-
   // The panel holds its expanded width while it slides shut, so the content
   // inside narrows from the last real column width rather than snapping to a
   // stale one. CSS reads it as --dsh-sidebar-width.
@@ -124,25 +111,23 @@ export function SidebarRoot({
       <div className={css.content}>
         {/* The replaceable brand remains available to deployments; Aeven's
             presentation hides it behind the full-width menu row. */}
-        {wide && (
-          <button
-            type="button"
-            className={css.brand}
-            aria-label={t('session.new.label')}
-            onClick={() => { startSession() }}
-          >
-            <span className={css.brandIdentity} aria-hidden="true">
-              <span className={css.brandMark}>
-                {renderSlot('sidebar.brand.mark', { size: 24 }, { fallback: <FishLogo size={24} /> })}
-              </span>
-              {/* No fallback: unoccupied, the brand is the mark alone. A
-                  deployment that wants wording here registers an occupant. */}
-              <span className={css.brandName}>
-                {renderSlot('sidebar.brand.name', {})}
-              </span>
+        <button
+          type="button"
+          className={css.brand}
+          aria-label={t('session.new.label')}
+          onClick={() => { startSession() }}
+        >
+          <span className={css.brandIdentity} aria-hidden="true">
+            <span className={css.brandMark}>
+              {renderSlot('sidebar.brand.mark', { size: 24 }, { fallback: <FishLogo size={24} /> })}
             </span>
-          </button>
-        )}
+            {/* No fallback: unoccupied, the brand is the mark alone. A
+                deployment that wants wording here registers an occupant. */}
+            <span className={css.brandName}>
+              {renderSlot('sidebar.brand.name', {})}
+            </span>
+          </span>
+        </button>
 
         <Tooltip label={collapsed ? t('toggle.open') : t('toggle.collapse')} delayMs={500}>
           <button
@@ -161,7 +146,7 @@ export function SidebarRoot({
         <div className={css.sideContent}>
           {/* Fixed at the open width so nothing inside re-lays-out mid-slide. */}
           <div className={css.sideContentInner}>
-            <Tooltip label={t('session.new.label')} delayMs={500} disabled={wide}>
+            <Tooltip label={t('session.new.label')} delayMs={500} disabled>
               <button
                 type="button"
                 className={css.newSession}
@@ -177,7 +162,7 @@ export function SidebarRoot({
                 the foot; its occupant rides the same slot. */}
             <div className={css.regionArea}>
               {renderSlot('sidebar.workspaces', {
-                wide,
+                wide: true,
                 expandSidebar: () => { if (collapsed) toggleSidebar() },
               })}
             </div>
@@ -185,10 +170,10 @@ export function SidebarRoot({
             {/* Footer actions stack above Settings. */}
             <div className={css.footArea}>
               <div className={css.footerActions}>
-                {renderSlot('sidebar.footer.action', { wide })}
+                {renderSlot('sidebar.footer.action', { wide: true })}
               </div>
               <div className={css.settingsArea}>
-                {renderSlot('sidebar.settings', { wide })}
+                {renderSlot('sidebar.settings', { wide: true })}
               </div>
             </div>
           </div>

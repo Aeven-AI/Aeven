@@ -130,15 +130,10 @@ describe('SidebarRoot shell', () => {
   })
 
   it('keeps the region mounted through collapse and expands on its request', () => {
-    vi.useFakeTimers()
     const b = mountShell()
     b.rerender({ collapsed: true })
-    // Wide content survives Aeven's 400ms transition, then settles closed.
     expect(b.regionOwner().wide).toBe(true)
-    vi.advanceTimersByTime(450)
-    b.rerender({})
-    expect(b.regionOwner().wide).toBe(false)
-    expect(b.footerActionOwner().wide).toBe(false)
+    expect(b.footerActionOwner().wide).toBe(true)
     expect(screen.getByTestId('region')).toBeTruthy()
     b.regionOwner().expandSidebar()
     expect(b.toggleSidebar).toHaveBeenCalledOnce()
@@ -146,7 +141,7 @@ describe('SidebarRoot shell', () => {
 
   it('renders statically collapsed on a cold start (no crossfade classes)', () => {
     const b = mountShell({ collapsed: true })
-    expect(b.regionOwner().wide).toBe(false)
+    expect(b.regionOwner().wide).toBe(true)
     expect(screen.getByRole('button', { name: 'Open sidebar' })).toBeTruthy()
   })
 })

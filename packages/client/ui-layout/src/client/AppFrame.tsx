@@ -1,7 +1,7 @@
 /**
  * Three-column shell frame, registered into the built-in 'root' slot (the web
- * shell renders only 'root'). Owns the grid tracks (sidebar | center |
- * details), the drag handles (pointer capture + rAF throttle), the concession
+ * shell renders only 'root'). Owns the flex row (sidebar | center | details),
+ * the drag handles (pointer capture + rAF throttle), the concession
  * chain (columns.ts), and the child-slot render decisions: the sidebar slot
  * renders HERE with live parameters from the concession solve, and the
  * session-aware occupants render in fixed column positions; strict entries
@@ -32,9 +32,9 @@ function CenterColumn(props: { children?: ReactNode }) {
   return <div className={css.centerCol}>{props.children}</div>
 }
 
-/** Details column grid item; width 0 keeps the subtree mounted (never unmount on close). */
-function DetailsColumn(props: { children?: ReactNode }) {
-  return <div className={css.detailsCol}>{props.children}</div>
+/** Details column flex item; width 0 keeps the subtree mounted (never unmount on close). */
+function DetailsColumn(props: { children?: ReactNode; width: number }) {
+  return <div className={css.detailsCol} style={{ width: props.width }}>{props.children}</div>
 }
 
 /**
@@ -176,7 +176,6 @@ export function AppFrame({
     <div
       ref={frameRef}
       className={css.frame}
-      style={{ gridTemplateColumns: `${cols.sidebar}px minmax(0, 1fr) ${cols.details}px` }}
       data-sidebar-collapsed={sidebarCollapsed || undefined}
       data-details-collapsed={cols.details === 0 || undefined}
       data-dragging={dragging || undefined}
@@ -185,17 +184,12 @@ export function AppFrame({
         productTitle={productTitle}
         {...documentTitle === undefined ? {} : { title: documentTitle }}
       />
-      <div className={css.sidebarCol}>
-        {/* Render-site slot call with live concession output: a closed
-            sidebar keeps the mounted slot at zero width, and the
-            component sees its rendered state as owner params decided here
-            (collapsed follows the resolved column, so a derived auto-collapse
-            renders the reopen control too). */}
-        {renderSlot('sidebar', {
-          collapsed: sidebarCollapsed,
-          width: cols.sidebar,
-        })}
-      </div>
+      {/* The sidebar root is the flex item, matching the Aeven client. Its own
+          CSS width transition moves the center without an animated grid. */}
+      {renderSlot('sidebar', {
+        collapsed: sidebarCollapsed,
+        width: cols.sidebar,
+      })}
       <>
         {/* Both column occupants stay at fixed tree positions from first
             paint — no loading gate: a bare status line reads worse than
@@ -203,7 +197,7 @@ export function AppFrame({
             is session-maybe; SessionProvider withholds the strict details
             entry while no session is current. */}
         <CenterColumn>{renderSlot('conversation', {})}</CenterColumn>
-        <DetailsColumn>
+        <DetailsColumn width={cols.details}>
           <SessionProvider>{renderSlot('details', {})}</SessionProvider>
         </DetailsColumn>
       </>
