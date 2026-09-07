@@ -99,9 +99,9 @@ const APPLICATION_FONT_STEMS: readonly string[] = [
  *
  * Every stylesheet here is destaged, so a browser discovers the `@font-face`
  * rules only once the application CSS has arrived and starts the font later
- * still. These hints move both files to the head of the queue, ahead of the
- * render-family chunks, so the faces are in hand by the time anything paints
- * text — which is what the boot's font gate then waits on.
+ * still. These hints issue both requests with the document, at low priority so
+ * they do not take an HTTP connection from the sign-in shell. The full
+ * application waits for the faces before mounting.
  */
 function preloadApplicationFonts(): Plugin {
   return {
@@ -115,7 +115,7 @@ function preloadApplicationFonts(): Plugin {
         throw new Error(`vite: expected ${String(APPLICATION_FONT_STEMS.length)} application font assets, found ${String(fonts.length)}`)
       }
       const links = fonts
-        .map(fileName => `<link rel="preload" as="font" type="font/woff2" crossorigin href="./${fileName}">`)
+        .map(fileName => `<link rel="preload" as="font" type="font/woff2" crossorigin fetchpriority="low" href="./${fileName}">`)
         .join('\n    ')
       for (const item of Object.values(bundle)) {
         if (item.type !== 'asset' || !item.fileName.endsWith('.html') || typeof item.source !== 'string') continue

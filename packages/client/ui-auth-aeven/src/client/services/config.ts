@@ -87,6 +87,7 @@ export function mediaUrl(): string | undefined {
  *
  * A provider with no URL configured is one this deployment does not offer, and
  * its button does nothing rather than navigating to `undefined`.
+ * @returns the URL per provider, each absent when unconfigured.
  */
 export function oauthUrls(): { x?: string; apple?: string; google?: string } {
   const config = aevenConfig()
@@ -97,7 +98,10 @@ export function oauthUrls(): { x?: string; apple?: string; google?: string } {
   }
 }
 
-/** Palette for the sign-up celebration, defaulted to the Aeven client's. */
+/**
+ * Palette for the sign-up celebration, defaulted to the Aeven client's.
+ * @returns the confetti colours to draw.
+ */
 export function confettiColors(): readonly string[] {
   return aevenConfig().confettiColors ?? ['#fcf403', '#62fc03', '#03e7fc', '#a503fc', '#fc03ad']
 }

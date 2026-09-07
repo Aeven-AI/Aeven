@@ -23,6 +23,8 @@ identity 组为每个 harness home 提供一个匿名 id，该安装的遥测、
 | 包 | 职责 |
 |---|---|
 | [`anonymous-user-id`](anonymous-user-id/README.zh.md) | 让每个 harness home 拥有一个匿名 id，遥测、反馈与 DeepSeek 请求把它附加到记录上，使来自同一安装的记录无需识别用户即可被辨认 |
+| [`user`](user/README.zh.md) | 持有 `ctx.identityUsers`——子系统据以了解当前是谁在操作的唯一服务，以及 authority 注册进入的 resolver 契约 |
+| [`user-aeven`](user-aeven/README.zh.md) | 让 Aeven 账号成为凭据，用 API 自身的签名密钥在本地校验 access bearer 与 refresh cookie |
 
 <a id="related-documentation"></a>
 ## 相关文档

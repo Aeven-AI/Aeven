@@ -340,7 +340,7 @@ export interface ConnectionConfig {
 }
 ```
 
-来源：[`packages/client/connection/src/index.ts:55`](../packages/client/connection/src/index.ts)
+来源：[`packages/client/connection/src/index.ts:70`](../packages/client/connection/src/index.ts)
 
 <a id="deepseek-aidsh-client-hmr"></a>
 
@@ -556,7 +556,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/experimental/agent-team/src/types.ts:125`](../packages/experimental/agent-team/src/types.ts)
+来源：[`packages/experimental/agent-team/src/types.ts:131`](../packages/experimental/agent-team/src/types.ts)
 
 <a id="deepseek-aidsh-experimental-code-runtime-python"></a>
 
@@ -623,7 +623,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/experimental/code-runtime-python/src/index.ts:42`](../packages/experimental/code-runtime-python/src/index.ts)
+来源：[`packages/experimental/code-runtime-python/src/index.ts:47`](../packages/experimental/code-runtime-python/src/index.ts)
 
 <a id="deepseek-aidsh-experimental-inspector"></a>
 
@@ -800,7 +800,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/bundle/headless/src/index.ts:33`](../packages/bundle/headless/src/index.ts)
+来源：[`packages/bundle/headless/src/index.ts:34`](../packages/bundle/headless/src/index.ts)
 
 <a id="deepseek-aidsh-hooks-claude-code"></a>
 
@@ -895,7 +895,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/host/frontend-static/src/index.ts:30`](../packages/host/frontend-static/src/index.ts)
+来源：[`packages/host/frontend-static/src/index.ts:31`](../packages/host/frontend-static/src/index.ts)
 
 <a id="deepseek-aidsh-host-webserver"></a>
 
@@ -934,6 +934,52 @@ export interface Config {
 ```
 
 来源：[`packages/host/workspace-files/src/index.ts:36`](../packages/host/workspace-files/src/index.ts)
+
+<a id="deepseek-aidsh-identity-user-aeven"></a>
+
+## `@deepseek-ai/dsh-identity-user-aeven`
+
+需要：`identityUsers`
+
+```ts config-catalog
+/** Config for the Aeven authority. */
+export interface Config {
+  /** Registry key under the seam. Defaults to `aeven`. */
+  id?: string
+  /** Environment variable holding the access-token secret; the API's `JWT_SECRET`. */
+  accessSecretEnv?: string
+  /** Environment variable holding the refresh-token secret; the API's `REFRESH_SECRET`. */
+  refreshSecretEnv?: string
+  /** Cookie carrying the refresh token on a WebSocket upgrade. */
+  refreshCookieName?: string
+  /**
+   * Origin of the Aeven API the browser signs in against, such as
+   * `http://localhost:9000`. Absent leaves the web client with no
+   * authentication surface, which is how a harness without Aeven behaves.
+   */
+  apiUrl?: string
+  /** Provider sign-in URL; absent hides that provider's button. */
+  xOAuthUrl?: string
+  /** Provider sign-in URL; absent hides that provider's button. */
+  appleOAuthUrl?: string
+  /** Provider sign-in URL; absent hides that provider's button. */
+  googleOAuthUrl?: string
+  /**
+   * Origin of the Aeven web client, such as `http://localhost:3030`. The
+   * account menu links there; absent leaves the menu with no account rows,
+   * because a harness that cannot name the account page must not invent one.
+   */
+  webUrl?: string
+  /**
+   * Origin serving Aeven's uploaded media, such as `http://localhost:9020`.
+   * Profile-image paths are relative to it; absent leaves every reader on the
+   * generated gradient.
+   */
+  mediaUrl?: string
+}
+```
+
+来源：[`packages/identity/user-aeven/src/index.ts:31`](../packages/identity/user-aeven/src/index.ts)
 
 <a id="deepseek-aidsh-invariants"></a>
 
@@ -1356,7 +1402,7 @@ export type PiAiThinkingFormat = NonNullable<OpenAICompletionsCompat['thinkingFo
 
 依赖：`Api`（`@earendil-works/pi-ai`）· `CacheRetention`（`@earendil-works/pi-ai`）· `Model`（`@earendil-works/pi-ai`）· `ModelThinkingLevel`（`@earendil-works/pi-ai`）· `OpenAICompletionsCompat`（`@earendil-works/pi-ai`）· [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · `ThinkingBudgets`（`@earendil-works/pi-ai`）· `Transport`（`@earendil-works/pi-ai`)
 
-来源：[`packages/llm/llm-pi-ai/src/config.ts:213`](../packages/llm/llm-pi-ai/src/config.ts)
+来源：[`packages/llm/llm-pi-ai/src/config.ts:258`](../packages/llm/llm-pi-ai/src/config.ts)
 
 <a id="deepseek-aidsh-llm-replay"></a>
 
@@ -1562,6 +1608,88 @@ export interface ReconnectConfig {
 ```
 
 来源：[`packages/mcp/mcp-client/src/index.ts:98`](../packages/mcp/mcp-client/src/index.ts)
+
+<a id="deepseek-aidsh-media"></a>
+
+## `@deepseek-ai/dsh-media`
+
+```ts config-catalog
+/**
+ * Config for the media seam. Each field pins which provider wins for one kind;
+ * both are optional, and a single registered usable provider auto-selects. A
+ * request may also name its provider, which outranks both.
+ */
+export interface MediaRuntimeConfig {
+  /** Explicit image provider id. Omitted = auto-select when exactly one usable. */
+  readonly imageProvider?: string
+  /** Explicit video provider id. Omitted = auto-select when exactly one usable. */
+  readonly videoProvider?: string
+}
+```
+
+来源：[`packages/media/media/src/index.ts:49`](../packages/media/media/src/index.ts)
+
+<a id="deepseek-aidsh-media-deepinfra"></a>
+
+## `@deepseek-ai/dsh-media-deepinfra`
+
+需要：`media`
+
+```ts config-catalog
+/** Config for the DeepInfra media provider. */
+export interface Config {
+  /** Registry key under `ctx.media`. Defaults to `deepinfra`. */
+  id?: string
+  /** Credential reference resolved through `ctx.credentials`. */
+  apiKeyEnv?: string
+  /** Ceiling on one retrieved clip, in bytes. */
+  maxVideoBytes?: number
+}
+```
+
+来源：[`packages/media/media-deepinfra/src/index.ts:55`](../packages/media/media-deepinfra/src/index.ts)
+
+<a id="deepseek-aidsh-media-openrouter"></a>
+
+## `@deepseek-ai/dsh-media-openrouter`
+
+需要：`media`
+
+```ts config-catalog
+/** Config for the OpenRouter media provider. */
+export interface Config {
+  /** Registry key under `ctx.media`. Defaults to `openrouter`. */
+  id?: string
+  /** Credential reference resolved through `ctx.credentials`. */
+  apiKeyEnv?: string
+  /** Ceiling on one retrieved clip, in bytes. */
+  maxVideoBytes?: number
+}
+```
+
+来源：[`packages/media/media-openrouter/src/index.ts:46`](../packages/media/media-openrouter/src/index.ts)
+
+<a id="deepseek-aidsh-media-pi-ai"></a>
+
+## `@deepseek-ai/dsh-media-pi-ai`
+
+需要：`media`
+
+```ts config-catalog
+/**
+ * Config for the pi-ai images provider. `id` is the registry key a request or
+ * the seam's config names; it defaults to the upstream provider's own id so a
+ * single-provider deployment needs no configuration at all.
+ */
+export interface Config {
+  /** Registry key under `ctx.media`. Defaults to `openrouter`. */
+  id?: string
+  /** Credential reference resolved through `ctx.credentials`. */
+  apiKeyEnv?: string
+}
+```
+
+来源：[`packages/media/media-pi-ai/src/index.ts:33`](../packages/media/media-pi-ai/src/index.ts)
 
 <a id="deepseek-aidsh-message-feedback"></a>
 
@@ -2006,7 +2134,7 @@ export type JournalMode = 'wal' | 'delete' | 'truncate' | 'persist'
 
 依赖：[`SessionQueryConfig`](../packages/session-query/session-query/src/index.ts)
 
-来源：[`packages/session-query/session-query-sqlite/src/index.ts:96`](../packages/session-query/session-query-sqlite/src/index.ts)
+来源：[`packages/session-query/session-query-sqlite/src/index.ts:111`](../packages/session-query/session-query-sqlite/src/index.ts)
 
 <a id="deepseek-aidsh-session-reference"></a>
 
@@ -2661,7 +2789,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/context/time-context/src/index.ts:48`](../packages/context/time-context/src/index.ts)
+来源：[`packages/context/time-context/src/index.ts:49`](../packages/context/time-context/src/index.ts)
 
 <a id="deepseek-aidsh-tmux-context"></a>
 
@@ -3037,7 +3165,7 @@ export interface Config {
 
 依赖：[`AgentOptions`](subsystems/core.zh.md)
 
-来源：[`packages/subagent/tool-subagent/src/index.ts:48`](../packages/subagent/tool-subagent/src/index.ts)
+来源：[`packages/subagent/tool-subagent/src/index.ts:47`](../packages/subagent/tool-subagent/src/index.ts)
 
 <a id="deepseek-aidsh-tool-terminal"></a>
 
@@ -3206,7 +3334,7 @@ export interface Config {
 export type ApprovalPolicy = 'ask' | 'never'
 ```
 
-来源：[`packages/interaction/user-approval/src/index.ts:126`](../packages/interaction/user-approval/src/index.ts)
+来源：[`packages/interaction/user-approval/src/index.ts:127`](../packages/interaction/user-approval/src/index.ts)
 
 <a id="deepseek-aidsh-web"></a>
 
@@ -3418,6 +3546,7 @@ export interface Config {
 - `@deepseek-ai/dsh-api-workspace-controller` — 需要 `typert` · `workspaceRegistry`（[`packages/api/workspace-controller/src/index.ts`](../packages/api/workspace-controller/src/index.ts)）
 - `@deepseek-ai/dsh-authorization` — 需要 `credentials`（[`packages/credentials/authorization/src/index.ts`](../packages/credentials/authorization/src/index.ts)）
 - `@deepseek-ai/dsh-client-locale`（[`packages/client/locale/src/index.ts`](../packages/client/locale/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-account-aeven` ([`packages/client/ui-account-aeven/src/index.ts`](../packages/client/ui-account-aeven/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-agent-preset`（[`packages/client/ui-agent-preset/src/index.ts`](../packages/client/ui-agent-preset/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-approval`（[`packages/client/ui-approval/src/index.ts`](../packages/client/ui-approval/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-attachment`（[`packages/client/ui-attachment/src/index.ts`](../packages/client/ui-attachment/src/index.ts)）
@@ -3468,6 +3597,7 @@ export interface Config {
 - `@deepseek-ai/dsh-host-directory-picker-auto` — 需要 `webServer` · `loader`（[`packages/host/directory-picker-auto/src/index.ts`](../packages/host/directory-picker-auto/src/index.ts)）
 - `@deepseek-ai/dsh-host-directory-picker-native`（[`packages/host/directory-picker-native/src/index.ts`](../packages/host/directory-picker-native/src/index.ts)）
 - `@deepseek-ai/dsh-host-plugin-inventory` — 需要 `loader`（[`packages/host/plugin-inventory/src/index.ts`](../packages/host/plugin-inventory/src/index.ts)）
+- `@deepseek-ai/dsh-identity-user` ([`packages/identity/user/src/index.ts`](../packages/identity/user/src/index.ts))
 - `@deepseek-ai/dsh-llm`（[`packages/llm/llm/src/index.ts`](../packages/llm/llm/src/index.ts)）
 - `@deepseek-ai/dsh-lsp`（[`packages/lsp/lsp/src/index.ts`](../packages/lsp/lsp/src/index.ts)）
 - `@deepseek-ai/dsh-schedule` — 需要 `agents` · `sessions` · `tools` · `sessionPersistence`（[`packages/schedule/schedule/src/index.ts`](../packages/schedule/schedule/src/index.ts)）
@@ -3521,6 +3651,7 @@ export interface Config {
 - `@deepseek-ai/dsh-brand`（[`packages/util/brand/src/index.ts`](../packages/util/brand/src/index.ts)）
 - `@deepseek-ai/dsh-client-store`（[`packages/client/store/src/index.ts`](../packages/client/store/src/index.ts)）
 - `@deepseek-ai/dsh-client-test-runtime`（[`packages/test-support/client-runtime/src/index.ts`](../packages/test-support/client-runtime/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-auth-aeven` ([`packages/client/ui-auth-aeven/src/index.ts`](../packages/client/ui-auth-aeven/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-primitives`（[`packages/client/ui-primitives/src/index.ts`](../packages/client/ui-primitives/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-slots`（[`packages/client/ui-slots/src/index.ts`](../packages/client/ui-slots/src/index.ts)）
 - `@deepseek-ai/dsh-client-web`（[`packages/client/web/src/index.ts`](../packages/client/web/src/index.ts)）

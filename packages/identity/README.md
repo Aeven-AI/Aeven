@@ -23,6 +23,8 @@ The identity group provides one anonymous id per harness home that the installat
 | Package | Role |
 |---|---|
 | [`anonymous-user-id`](anonymous-user-id/README.md) | Gives every harness home one anonymous id that telemetry, feedback, and DeepSeek requests attach to their records, so records from one installation can be recognized without identifying the user |
+| [`user`](user/README.md) | Owns `ctx.identityUsers`, the one service a subsystem reads to learn who is acting, and the resolver contract an authority registers into |
+| [`user-aeven`](user-aeven/README.md) | Makes an Aeven account the credential, verifying the access bearer and refresh cookie locally against the API's own signing secrets |
 
 <a id="related-documentation"></a>
 ## Related documentation

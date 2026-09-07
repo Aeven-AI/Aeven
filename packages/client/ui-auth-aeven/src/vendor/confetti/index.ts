@@ -23,6 +23,7 @@ export interface ConfettiRunner {
   addConfetti(options?: AddConfettiOptions): Promise<void>
 }
 
+/** The vendored confetti constructor, typed to the slice these screens use. */
 const JSConfetti: new () => ConfettiRunner = JSConfettiImpl
 
 export default JSConfetti

@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from 'react'
 import type React from 'react'
 
 import * as api from '../services/api.ts'
+import { t } from '../locales.ts'
 import * as events from '../services/events.ts'
 import { navigateRoute, AUTH_ROUTES } from '../services/routes.ts'
 import { href } from '../services/utility.ts'
@@ -86,11 +87,9 @@ export function OauthResult(props: OauthResultProps): React.JSX.Element | null {
         <div className="content-container">
           <div className="message-container">
             <div className="message">
-              <span className="txt-header">Oops!</span>
+              <span className="txt-header">{t('oauth.failedHeading')}</span>
               <span className="txt-content">
-                <span>
-                  Hi, It seems i have an issue. Please try again
-                </span>
+                <span>{t('oauth.failedBody')}</span>
               </span>
             </div>
           </div>

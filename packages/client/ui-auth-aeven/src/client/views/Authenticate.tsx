@@ -12,6 +12,7 @@ import * as routes from '../services/routes.ts'
 import * as config from '../services/config.ts'
 import * as utility from '../services/utility.ts'
 import { storage } from '../services/session.ts'
+import { t } from '../locales.ts'
 
 // The screen is carried over as it stands, so the service objects it reaches
 // for are assembled here from the ported modules rather than edited out of a
@@ -150,9 +151,9 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
     if (!email || email === '') {
       eventService.dispatchObjectEvent('show:modal', {
         type: 'alertModal',
-        header: 'Email',
-        content: 'Please fill in your email address',
-        buttonText: 'Ok',
+        header: t('field.email'),
+        content: t('modal.emailMissing'),
+        buttonText: t('action.ok'),
       })
 
       return
@@ -161,9 +162,9 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
     if (!utilityService.isEmail(email)) {
       eventService.dispatchObjectEvent('show:modal', {
         type: 'alertModal',
-        header: 'Email',
-        content: 'Please enter a valid email address',
-        buttonText: 'Ok',
+        header: t('field.email'),
+        content: t('modal.emailInvalid'),
+        buttonText: t('action.ok'),
       })
 
       return
@@ -172,17 +173,10 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
     if (!password || password === '') {
       eventService.dispatchObjectEvent('show:modal', {
         type: 'alertModal',
-        header: 'Password',
-        content: `Please fill in a valid password. Your password needs to have the following:<br /><br />
-              <ul>
-                <li>At least 8 characters</li>
-                <li>At least one number</li>
-                <li>At least one special character</li>
-                <li>At least one lowercase character</li>
-                <li>At least one uppercase character</li>
-              </ul>`,
+        header: t('field.password'),
+        content: t('modal.passwordRules'),
 
-        buttonText: 'Ok',
+        buttonText: t('action.ok'),
       })
 
       return
@@ -191,9 +185,9 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
     if (password !== passwordConfirm) {
       eventService.dispatchObjectEvent('show:modal', {
         type: 'alertModal',
-        header: 'Password',
-        content: 'The passwords do not match. Please try again',
-        buttonText: 'Ok',
+        header: t('field.password'),
+        content: t('modal.passwordMismatch'),
+        buttonText: t('action.ok'),
       })
 
       return
@@ -202,17 +196,10 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
     if (!utilityService.isValidPassword(password)) {
       eventService.dispatchObjectEvent('show:modal', {
         type: 'alertModal',
-        header: 'Password',
-        content: `Please fill in a valid password. Your password needs to have the following:<br /><br />
-              <ul>
-                <li>At least 8 characters</li>
-                <li>At least one number</li>
-                <li>At least one special character</li>
-                <li>At least one lowercase character</li>
-                <li>At least one uppercase character</li>
-              </ul>`,
+        header: t('field.password'),
+        content: t('modal.passwordRules'),
 
-        buttonText: 'Ok',
+        buttonText: t('action.ok'),
       })
 
       return
@@ -238,27 +225,24 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
         if (code !== 'user-exists' && code !== 'social-id-exists') {
           eventService.dispatchObjectEvent('show:modal', {
             type: 'alertModal',
-            header: 'Oops',
-            content:
-              'Unfortunatly something is not working the way it is supposed to. Please try again later',
-            buttonText: 'Ok',
+            header: t('modal.oops'),
+            content: t('modal.genericFailure'),
+            buttonText: t('action.ok'),
           })
         } else {
           if (code === 'user-exists') {
             eventService.dispatchObjectEvent('show:modal', {
               type: 'alertModal',
-              header: 'Account exists',
-              content:
-                'I see than an account with this email address already exists. You can sign in with this account using your password',
-              buttonText: 'Ok',
+              header: t('modal.accountExists'),
+              content: t('modal.accountExistsPassword'),
+              buttonText: t('action.ok'),
             })
           } else {
             eventService.dispatchObjectEvent('show:modal', {
               type: 'alertModal',
-              header: 'Account exists',
-              content:
-                'I see that an account with this email address already exists. It is an account linked to one of your social media accounts.<br /><br />You can sign in by using this social media account',
-              buttonText: 'Ok',
+              header: t('modal.accountExists'),
+              content: t('modal.accountExistsSocial'),
+              buttonText: t('action.ok'),
             })
           }
         }
@@ -275,9 +259,9 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
     if (!email || email === '') {
       eventService.dispatchObjectEvent('show:modal', {
         type: 'alertModal',
-        header: 'Email',
-        content: 'Please fill in your email address',
-        buttonText: 'Ok',
+        header: t('field.email'),
+        content: t('modal.emailMissing'),
+        buttonText: t('action.ok'),
       })
 
       return
@@ -286,9 +270,9 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
     if (!utilityService.isEmail(email)) {
       eventService.dispatchObjectEvent('show:modal', {
         type: 'alertModal',
-        header: 'Email',
-        content: 'Please enter a valid email address',
-        buttonText: 'Ok',
+        header: t('field.email'),
+        content: t('modal.emailInvalid'),
+        buttonText: t('action.ok'),
       })
 
       return
@@ -297,10 +281,10 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
     if (!password || password === '') {
       eventService.dispatchObjectEvent('show:modal', {
         type: 'alertModal',
-        header: 'Password',
-        content: 'Please fill in a your password.',
+        header: t('field.password'),
+        content: t('modal.passwordMissing'),
 
-        buttonText: 'Ok',
+        buttonText: t('action.ok'),
       })
 
       return
@@ -321,18 +305,16 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
         if (code === 'too-many-attempts') {
           eventService.dispatchObjectEvent('show:modal', {
             type: 'alertModal',
-            header: 'Blocked',
-            content:
-              'You tried too many times to sign in. Your have been blocked for 15 mins ',
-            buttonText: 'Ok',
+            header: t('modal.blocked'),
+            content: t('modal.tooManyAttempts'),
+            buttonText: t('action.ok'),
           })
         } else {
           eventService.dispatchObjectEvent('show:modal', {
             type: 'alertModal',
-            header: 'Oops!',
-            content:
-              'It seems you have entered an invalid emailaddress or password',
-            buttonText: 'Ok',
+            header: t('modal.oopsExclaim'),
+            content: t('modal.invalidCredentials'),
+            buttonText: t('action.ok'),
           })
         }
       })
@@ -401,10 +383,9 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
     if (codeValue.length !== 6) {
       eventService.dispatchObjectEvent('show:modal', {
         type: 'alertModal',
-        header: 'Verification code',
-        content:
-          'Please enter the verification code from the email you have just received',
-        buttonText: 'Ok',
+        header: t('field.verificationCode'),
+        content: t('modal.codeMissing'),
+        buttonText: t('action.ok'),
       })
 
       return
@@ -422,10 +403,9 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
 
           eventService.dispatchObjectEvent('show:modal', {
             type: 'alertModal',
-            header: 'Account created',
-            content:
-              'Your account has been successfully created. You can now sign in with your email and password',
-            buttonText: 'Ok',
+            header: t('modal.accountCreated'),
+            content: t('modal.accountCreatedBody'),
+            buttonText: t('action.ok'),
           })
 
           eventService.dispatchObjectEvent('confetti:show', true)
@@ -453,7 +433,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
 
   const authComponent = () => {
     let headerTxt
-    let buttonStartTxt
+    let mode: 'signIn' | 'signUp' = 'signIn'
 
     let emailButtonHref = ''
 
@@ -464,24 +444,24 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
     const pathName = window.location.pathname
 
     if (pathName.startsWith(routeService.routeConfig.signUp.path)) {
-      headerTxt = 'Create your account'
-      buttonStartTxt = 'Sign up'
+      headerTxt = t('signUp.title')
+      mode = 'signUp'
 
       emailButtonHref = '/sign-up/email'
 
-      subContentTxt = 'Already have an account?'
-      subContentButtonTxt = 'Sign in'
+      subContentTxt = t('signUp.altPrompt')
+      subContentButtonTxt = t('action.signIn')
       subContentButtonHref = '/sign-in'
     }
 
     if (pathName.startsWith(routeService.routeConfig.signIn.path)) {
-      headerTxt = 'Sign in to your account'
-      buttonStartTxt = 'Sign in'
+      headerTxt = t('signIn.title')
+      mode = 'signIn'
 
       emailButtonHref = '/sign-in/email'
 
-      subContentTxt = "Don't have an account?"
-      subContentButtonTxt = 'Sign up'
+      subContentTxt = t('signIn.altPrompt')
+      subContentButtonTxt = t('action.signUp')
       subContentButtonHref = '/sign-up'
     }
 
@@ -495,7 +475,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
                 ref={signInEmailButton}
                 type={'loaderButtonIcon'}
                 cssClass={'loader-button-icon large'}
-                label={`${buttonStartTxt} with Email`}
+                label={t(`${mode}.withEmail`)}
                 loading={false}
                 icon={
                   '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mail-icon mail"><path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>'
@@ -513,7 +493,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
             </div>
             <div className="separator">
               <div className="line" />
-              <span className="txt">or</span>
+              <span className="txt">{t('separator.or')}</span>
               <div className="line" />
             </div>
             <div className="button-container">
@@ -521,7 +501,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
                 ref={loginX}
                 type={'loaderButtonIcon'}
                 cssClass={'loader-button-icon large light'}
-                label={`${buttonStartTxt} with X`}
+                label={t(`${mode}.withX`)}
                 loading={false}
                 icon={
                   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M10.4883 14.651L15.25 21H22.25L14.3917 10.5223L20.9308 3H18.2808L13.1643 8.88578L8.75 3H1.75L9.26086 13.0145L2.31915 21H4.96917L10.4883 14.651ZM16.25 19L5.75 5H7.75L18.25 19H16.25Z"></path></svg>'
@@ -538,7 +518,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
                 ref={loginApple}
                 type={'loaderButtonIcon'}
                 cssClass={'loader-button-icon large light'}
-                label={`${buttonStartTxt} with Apple`}
+                label={t(`${mode}.withApple`)}
                 loading={false}
                 icon={
                   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M11.6734 7.22198C10.7974 7.22198 9.44138 6.22598 8.01338 6.26198C6.12938 6.28598 4.40138 7.35397 3.42938 9.04597C1.47338 12.442 2.92538 17.458 4.83338 20.218C5.76938 21.562 6.87338 23.074 8.33738 23.026C9.74138 22.966 10.2694 22.114 11.9734 22.114C13.6654 22.114 14.1454 23.026 15.6334 22.99C17.1454 22.966 18.1054 21.622 19.0294 20.266C20.0974 18.706 20.5414 17.194 20.5654 17.11C20.5294 17.098 17.6254 15.982 17.5894 12.622C17.5654 9.81397 19.8814 8.46998 19.9894 8.40998C18.6694 6.47798 16.6414 6.26198 15.9334 6.21398C14.0854 6.06998 12.5374 7.22198 11.6734 7.22198ZM14.7934 4.38998C15.5734 3.45398 16.0894 2.14598 15.9454 0.849976C14.8294 0.897976 13.4854 1.59398 12.6814 2.52998C11.9614 3.35798 11.3374 4.68998 11.5054 5.96198C12.7414 6.05798 14.0134 5.32598 14.7934 4.38998Z"></path></svg>'
@@ -555,7 +535,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
                 ref={loginGoogle}
                 type={'loaderButtonIcon'}
                 cssClass={'loader-button-icon large light'}
-                label={`${buttonStartTxt} with Google`}
+                label={t(`${mode}.withGoogle`)}
                 loading={false}
                 icon={
                   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3.06364 7.50914C4.70909 4.24092 8.09084 2 12 2C14.6954 2 16.959 2.99095 18.6909 4.60455L15.8227 7.47274C14.7864 6.48185 13.4681 5.97727 12 5.97727C9.39542 5.97727 7.19084 7.73637 6.40455 10.1C6.2045 10.7 6.09086 11.3409 6.09086 12C6.09086 12.6591 6.2045 13.3 6.40455 13.9C7.19084 16.2636 9.39542 18.0227 12 18.0227C13.3454 18.0227 14.4909 17.6682 15.3864 17.0682C16.4454 16.3591 17.15 15.3 17.3818 14.05H12V10.1818H21.4181C21.5364 10.8363 21.6 11.5182 21.6 12.2273C21.6 15.2727 20.5091 17.8363 18.6181 19.5773C16.9636 21.1046 14.7 22 12 22C8.09084 22 4.70909 19.7591 3.06364 16.4909C2.38638 15.1409 2 13.6136 2 12C2 10.3864 2.38638 8.85911 3.06364 7.50914Z"></path></svg>'
@@ -589,13 +569,13 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
           </div>
         </form>
         <div className="form-footer">
-          <span>By continuing, you agree to Æven's </span>
+          <span>{t('legal.prefix')} </span>
           <a target="_blank" href="#">
-            Terms of Service
+            {t('legal.terms')}
           </a>{' '}
-          <span>and</span>{' '}
+          <span>{t('legal.and')}</span>{' '}
           <a target="_blank" href="#">
-            Privacy Policy
+            {t('legal.privacy')}
           </a>
         </div>
       </div>
@@ -617,7 +597,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
             <div className="input-items">
               <div className="input-item">
                 <span className="title-container">
-                  <span className="title">Email</span>
+                  <span className="title">{t('field.email')}</span>
                 </span>
                 <div className="input-container">
                   <Input
@@ -633,7 +613,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
               </div>
               <div className="input-item">
                 <span className="title-container">
-                  <span className="title">Password</span>
+                  <span className="title">{t('field.password')}</span>
                 </span>
                 <div className="input-container">
                   <Input
@@ -654,7 +634,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
                 ref={signInButton}
                 type={'loaderButton'}
                 cssClass={'loader-button large center'}
-                label={'Sign in'}
+                label={t('action.signIn')}
                 loading={false}
                 icon={
                   '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mail-icon mail"><path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>'
@@ -671,7 +651,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
                 ref={signInPasswordButton}
                 type={'loaderButton'}
                 cssClass={'loader-button large center light'}
-                label={'Forgot your password?'}
+                label={t('action.forgotPassword')}
                 loading={false}
                 icon={
                   '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mail-icon mail"><path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>'
@@ -705,13 +685,13 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
           </div>
         </form>
         <div className="form-footer">
-          <span>By continuing, you agree to Æven's </span>
+          <span>{t('legal.prefix')} </span>
           <a target="_blank" href="#">
-            Terms of Service
+            {t('legal.terms')}
           </a>{' '}
-          <span>and</span>{' '}
+          <span>{t('legal.and')}</span>{' '}
           <a target="_blank" href="#">
-            Privacy Policy
+            {t('legal.privacy')}
           </a>
         </div>
       </div>
@@ -736,7 +716,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
             <div className="input-items">
               <div className="input-item">
                 <span className="title-container">
-                  <span className="title">Email</span>
+                  <span className="title">{t('field.email')}</span>
                 </span>
                 <div className="input-container">
                   <Input
@@ -752,7 +732,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
               </div>
               <div className="input-item">
                 <span className="title-container">
-                  <span className="title">Password</span>
+                  <span className="title">{t('field.password')}</span>
                 </span>
                 <div className="input-container">
                   <Input
@@ -768,7 +748,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
               </div>
               <div className="input-item">
                 <span className="title-container">
-                  <span className="title">Confirm password</span>
+                  <span className="title">{t('field.confirmPassword')}</span>
                 </span>
                 <div className="input-container">
                   <Input
@@ -789,7 +769,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
                 ref={signUpEmailButton}
                 type={'loaderButton'}
                 cssClass={'loader-button large center'}
-                label={'Sign up'}
+                label={t('action.signUp')}
                 loading={false}
                 icon={
                   '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mail-icon mail"><path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>'
@@ -823,13 +803,13 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
           </div>
         </form>
         <div className="form-footer">
-          <span>By continuing, you agree to Æven's </span>
+          <span>{t('legal.prefix')} </span>
           <a target="_blank" href="#">
-            Terms of Service
+            {t('legal.terms')}
           </a>{' '}
-          <span>and</span>{' '}
+          <span>{t('legal.and')}</span>{' '}
           <a target="_blank" href="#">
-            Privacy Policy
+            {t('legal.privacy')}
           </a>
         </div>
       </div>
@@ -848,7 +828,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
             <div className="input-items">
               <div className="input-item">
                 <span className="title-container">
-                  <span className="title">Verification code</span>
+                  <span className="title">{t('field.verificationCode')}</span>
                 </span>
                 <div className="input-container">
                   <Input
@@ -878,7 +858,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
                 ref={signUpVerifyButton}
                 type={'loaderButton'}
                 cssClass={'loader-button large center'}
-                label={'Verify'}
+                label={t('action.verify')}
                 loading={false}
                 icon={
                   '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mail-icon mail"><path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>'
@@ -895,7 +875,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
                 ref={signUpResendCodeButton}
                 type={'loaderButton'}
                 cssClass={'loader-button large center light'}
-                label={'Resend code'}
+                label={t('action.resendCode')}
                 loading={false}
                 icon={
                   '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mail-icon mail"><path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>'
@@ -912,13 +892,13 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
           <div className="subtext"></div>
         </form>
         <div className="form-footer">
-          <span>By continuing, you agree to Æven's </span>
+          <span>{t('legal.prefix')} </span>
           <a target="_blank" href="#">
-            Terms of Service
+            {t('legal.terms')}
           </a>{' '}
-          <span>and</span>{' '}
+          <span>{t('legal.and')}</span>{' '}
           <a target="_blank" href="#">
-            Privacy Policy
+            {t('legal.privacy')}
           </a>
         </div>
       </div>

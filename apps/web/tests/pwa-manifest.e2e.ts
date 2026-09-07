@@ -51,6 +51,10 @@ it('inlines first-paint preloader CSS and destages remaining stylesheets', async
   expect(inline).toContain('#dsh-preloader')
   expect(inline).toContain('dsh-preloader-spin')
 
+  const fonts = [...index.matchAll(/<link rel="preload" as="font"[^>]+>/g)]
+  expect(fonts).toHaveLength(2)
+  for (const tag of fonts) expect(tag[0]).toContain('fetchpriority="low"')
+
   const promoted = [...index.matchAll(/<link rel="preload" as="style"([^>]+) onload="this.onload=null;this.rel='stylesheet'">/g)]
   expect(promoted.length).toBeGreaterThan(0)
   for (const tag of promoted) {

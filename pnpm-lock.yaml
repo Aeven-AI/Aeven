@@ -1638,6 +1638,12 @@ importers:
       '@deepseek-ai/dsh-host-workspace-files':
         specifier: workspace:^
         version: link:../../host/workspace-files
+      '@deepseek-ai/dsh-identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
+      '@deepseek-ai/dsh-identity-user-aeven':
+        specifier: workspace:^
+        version: link:../../identity/user-aeven
       '@deepseek-ai/dsh-launch-environment':
         specifier: workspace:^
         version: link:../../util/launch-environment

@@ -119,7 +119,11 @@ export async function checkOauthToken(oAuthSession: string, oAuthChallenge: stri
   }))
 }
 
-/** The signed-in user's profile; the bearer is this route's credential. */
+/**
+ * The signed-in user's profile; the bearer is this route's credential.
+ * @returns the profile, which is also adopted into the page session.
+ * @throws {AevenApiError} when the API refuses the bearer.
+ */
 export async function getProfile(): Promise<AevenProfile> {
   const bearer = await currentBearer()
   const response = await fetch(`${apiUrl()}/get-profile`, {

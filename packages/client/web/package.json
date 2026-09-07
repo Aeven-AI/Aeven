@@ -38,8 +38,7 @@
     "typescript": "^6.0.3"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-auth-aeven": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^"
   },
   "files": [
     "lib/index.js",

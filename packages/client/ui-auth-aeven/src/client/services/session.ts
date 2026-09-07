@@ -108,4 +108,5 @@ class Session {
   }
 }
 
+/** The page's single signed-in user, shared by every ported screen. */
 export const session = new Session()

@@ -228,6 +228,13 @@
       // util/ folders are role-named without the util- prefix their npm names carry,
       // so these aliases stay hand-written like dsh-util-crypto above.
       "@deepseek-ai/dsh-util-time": ["./packages/util/time/src"],
+      // identity/ and the Aeven client folders drop the identity- and
+      // ui- prefixes their npm names carry, so these stay hand-written.
+      "@deepseek-ai/dsh-identity-user": ["./packages/identity/user/src"],
+      "@deepseek-ai/dsh-identity-user-aeven": ["./packages/identity/user-aeven/src"],
+      "@deepseek-ai/dsh-client-ui-auth-aeven": ["./packages/client/ui-auth-aeven/src"],
+      "@deepseek-ai/dsh-client-ui-account-aeven": ["./packages/client/ui-account-aeven/src"],
+      "@deepseek-ai/dsh-client-ui-account-aeven/client": ["./packages/client/ui-account-aeven/src/client/index.ts"],
       // BEGIN generated package aliases — pnpm run gen-tsconfig-paths
       "@deepseek-ai/dsh-acp": ["./packages/acp/acp/src"],
       "@deepseek-ai/dsh-acp-app": ["./packages/bundle/acp-app/src"],
@@ -240,11 +247,6 @@
       "@deepseek-ai/dsh-agent-presets/invariant": ["./packages/preset/agent-presets/src/invariant.ts"],
       "@deepseek-ai/dsh-agent-tool-presentation": ["./packages/core/agent-tool-presentation/src"],
       "@deepseek-ai/dsh-anonymous-user-id": ["./packages/identity/anonymous-user-id/src"],
-      "@deepseek-ai/dsh-identity-user": ["./packages/identity/user/src"],
-      "@deepseek-ai/dsh-identity-user-aeven": ["./packages/identity/user-aeven/src"],
-      "@deepseek-ai/dsh-client-ui-auth-aeven": ["./packages/client/ui-auth-aeven/src"],
-      "@deepseek-ai/dsh-client-ui-account-aeven": ["./packages/client/ui-account-aeven/src"],
-      "@deepseek-ai/dsh-client-ui-account-aeven/client": ["./packages/client/ui-account-aeven/src/client/index.ts"],
       "@deepseek-ai/dsh-app-boot": ["./packages/boot/app-boot/src"],
       "@deepseek-ai/dsh-atomic-write": ["./packages/util/atomic-write/src"],
       "@deepseek-ai/dsh-attachment": ["./packages/attachment/attachment/src"],
