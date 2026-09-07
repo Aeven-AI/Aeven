@@ -79,7 +79,7 @@ node 半侧会在发布前快照每个客户端 bundle 及其现有 source map�
 
 ### 启动清单注入
 
-宿主 tap 索引渲染，并向 `<head>` 注入：`window.__ModuleLoader__` queue facade、每个 application combo 的提示性 preload、带 `defer` 的 bootstrap combo 脚本，然后才是外壳读取前的启动图。facade 的 `create()` 物化 modules bundle、把构造委托给其 `createClientModuleSystem` 导出，并让同一 facade 进入 live registration 模式。
+宿主在外壳之前注入 `window.__ModuleLoader__` queue facade、带 `defer` 的 bootstrap combo 脚本和启动图。每个 application combo 都会在外壳 head 资源之后获得立即加载的低优先级 preload；插件激活仍遵循组合图。facade 的 `create()` 物化 modules bundle、把构造委托给其 `createClientModuleSystem` 导出，并让同一 facade 进入 live registration 模式。
 
 ### 源码地图
 

@@ -6,13 +6,15 @@
  */
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
+import * as auth from '@deepseek-ai/dsh-client-ui-auth-aeven'
 import type {
   BootManifest, ClientModuleCreateOptions, ClientModuleSystem, DshWindow,
 } from '@deepseek-ai/dsh-client-modules/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { BootPage } from './boot-page.ts'
-import { getStaticModules } from './seed.ts'
+import { startStaticModules } from './seed.ts'
 import { STATE_LABELS } from './loader-status.ts'
+import { fontsReady } from './fonts.ts'
 import { hidePreloader } from './preloader.ts'
 import './base.css'
 
@@ -45,6 +47,8 @@ export class AppWebEntry {
    * @returns Resolves after application mount or failure rendering.
    */
   async run(): Promise<void> {
+    const { table: staticModules, rendering: renderingReady } = startStaticModules()
+    const facesReady = fontsReady()
     try {
       // Boot-readiness gate: whichever bootstrap applies the injection table
       // settles this deferred once every row has taken effect — the served
@@ -66,14 +70,6 @@ export class AppWebEntry {
       const transport = (globalThis as {
         __DSH_TRANSPORT__?: { loadBundle?: ClientModuleCreateOptions['loadBundle'] }
       }).__DSH_TRANSPORT__
-      this.modules = moduleLoader.create({
-        boot: win.__DSH_BOOT__,
-        staticModules: getStaticModules(),
-        ...transport?.loadBundle === undefined ? {} : { loadBundle: transport.loadBundle },
-        ...this.seams,
-      })
-      this.manifest = this.modules.manifest
-
       // Authentication decides whether there is an application to boot at all.
       // It runs here, before the plugin graph, so no client entry ever sees an
       // unauthenticated context — a plugin cannot be asked to check, because
@@ -83,10 +79,24 @@ export class AppWebEntry {
         return
       }
 
+      const rendering = await renderingReady
+      if ('error' in rendering) throw rendering.error
+      staticModules['@deepseek-ai/dsh-client-ui-primitives'] = rendering.module
+      // ClientModuleSystem snapshots staticModules into its seed Map. Create it
+      // only after the eager rendering request has completed so every plugin
+      // bundle sees the complete platform table during evaluation.
+      this.modules = moduleLoader.create({
+        boot: win.__DSH_BOOT__,
+        staticModules,
+        ...transport?.loadBundle === undefined ? {} : { loadBundle: transport.loadBundle },
+        ...this.seams,
+      })
+      this.manifest = this.modules.manifest
       const prefetching = this.prefetchImmediateTier()
       const ctx = new Context()
       this.ctx = ctx
       await this.runPluginBoot(ctx, prefetching)
+      await facesReady
       await this.mountApp(ctx)
       hidePreloader()
     } catch (reason) {
@@ -108,12 +118,6 @@ export class AppWebEntry {
    * application must not boot over it.
    */
   private async gateOnAuthentication(): Promise<boolean> {
-    // Statically linked, not delivered by the module system: that system
-    // exists to give the Loader plugin entries, and this has to run before any
-    // plugin does. It is also the one place the kernel carries React, because
-    // the screens are React and must be on screen before the renderer that
-    // normally brings it.
-    const auth = await import('@deepseek-ai/dsh-client-ui-auth-aeven')
     const result = await auth.restoreSession()
     if (result.state === 'disabled') return false
     if (result.state === 'authenticated') {

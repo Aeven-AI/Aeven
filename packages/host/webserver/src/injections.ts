@@ -25,7 +25,7 @@ export type IndexInjection =
    * `/plugins/...`).
    */
   | { kind: 'script-src'; placement: IndexInjectionPlacement; src: string }
-  /** Advisory preload for an external classic script; static workers may ignore it. */
+  /** Eager low-priority classic-script preload after the shell head assets; static workers may ignore it. */
   | { kind: 'script-preload'; src: string }
   /** A `<style>` element in the head. `text` must not contain `</style`, which would close the element early. */
   | { kind: 'style'; text: string }
@@ -46,7 +46,7 @@ function assertNever(row: never): never {
 }
 
 /** Render one row to markup with its placement. */
-function renderRow(row: IndexInjection): { placement: IndexInjectionPlacement; markup: string } {
+function renderRow(row: IndexInjection): { placement: IndexInjectionPlacement | 'head-end'; markup: string } {
   switch (row.kind) {
     case 'global': {
       // `<` is escaped in JSON so a row-controlled string cannot break out of
@@ -67,7 +67,7 @@ function renderRow(row: IndexInjection): { placement: IndexInjectionPlacement; m
       return { placement: row.placement, markup }
     }
     case 'script-preload':
-      return { placement: 'head', markup: `<link rel="preload" as="script" href="${escapeHtmlAttribute(row.src)}">` }
+      return { placement: 'head-end', markup: `<link rel="preload" as="script" fetchpriority="low" href="${escapeHtmlAttribute(row.src)}">` }
     case 'style':
       return { placement: 'head', markup: `<style>${row.text}</style>` }
     case 'html':
@@ -96,16 +96,19 @@ const READY_MARKUP = '<script>(globalThis.__DSH_BOOT_READY__ ??= Promise.withRes
  * Render rows into an index.html body: head rows immediately after the
  * opening head tag, body rows immediately after the opening body tag, each
  * group in table order, and the boot-readiness tail after the last body row.
+ * Advisory script preloads follow the shell assets at the end of the head.
  * @param html - the raw index.html body.
  * @param rows - the collected injection table.
  * @returns the html with every row rendered.
  */
 export function renderIndexInjections(html: string, rows: readonly IndexInjection[]): string {
   let head = ''
+  let preloads = ''
   let body = ''
   for (const row of rows) {
     const rendered = renderRow(row)
-    if (rendered.placement === 'head') head += rendered.markup
+    if (rendered.placement === 'head-end') preloads += rendered.markup
+    else if (rendered.placement === 'head') head += rendered.markup
     else body += rendered.markup
   }
   body += READY_MARKUP
@@ -115,6 +118,10 @@ export function renderIndexInjections(html: string, rows: readonly IndexInjectio
     // Headless fixture pages may lack <head>; prepending keeps the rows ahead
     // of every document script.
     out = open === null ? `${head}${out}` : splice(out, open.index + open[0].length, head)
+  }
+  if (preloads !== '') {
+    const close = /<\/head\s*>/i.exec(out)
+    out = close === null ? `${out}${preloads}` : splice(out, close.index, preloads)
   }
   if (body !== '') {
     const open = /<body(?:\s[^>]*)?>/i.exec(out)

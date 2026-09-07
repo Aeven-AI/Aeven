@@ -31,6 +31,8 @@ The shell base styles apply automatic CJK/Latin spacing to ordinary content in s
 
 ### What boot looks like
 
+Authentication code and styles belong to the initial shell dependency graph, so downloading the entry also discovers the sign-in resources. The rendering family starts eagerly from a top-level dynamic import when the shell evaluates, while authentication proceeds without waiting for it. An authenticated boot materializes UI primitives into the platform table before constructing the module system and evaluating any plugin bundle.
+
 Boot runs in two stages: the module stage adopts the parser-loaded bootstrap batch, builds the module system from the Host-provided boot graph, and prefetches the `immediately` tier through the shared application-batch URL, which executes once. The plugin stage then activates every graph entry and waits for all of them before handing the marked boot DOM to the UI renderer, which hydrates it and switches to the complete UI.
 
 ### The boot page
@@ -41,7 +43,7 @@ The normal Web shell carries `#dsh-preloader` before the application root. The p
 
 ### The shared module table
 
-`PLATFORM_MODULES` (in `src/platform.ts`) names the shell-seeded shared modules — React, Cordis, and static UI libraries — and together with `PRELOADED_CLIENT_EXTERNALS` (the parser-preloaded runtime row) defines the implicit external baseline every dynamic bundle resolves against. `dsh.client.external` adds only exact non-baseline requests; see [shared modules and the module graph](../AGENTS.md#shared-modules-and-the-module-graph).
+`PLATFORM_MODULES` (in `src/platform.ts`) names the shell-seeded shared modules — React, Cordis, and UI libraries — and together with `PRELOADED_CLIENT_EXTERNALS` (the parser-preloaded runtime row) defines the implicit external baseline every dynamic bundle resolves against. The shell seeds its immediate modules synchronously and adds eagerly requested UI primitives before module-system construction. `dsh.client.external` adds only exact non-baseline requests; see [shared modules and the module graph](../AGENTS.md#shared-modules-and-the-module-graph).
 
 ### Configuration
 
@@ -63,7 +65,7 @@ The kernel owns exactly three things: the module system, the Cordis Loader, and 
 
 ### Two-stage boot
 
-`run()` calls the Host-installed `window.__ModuleLoader__.create({ boot, staticModules, ...seams })`; the facade returns the constructed module system and parsed manifest after adopting the parser-loaded bootstrap batch. The module stage prefetches the `immediately` tier through the one shared application-batch URL. The plugin stage mounts the Loader, assigns `loader.internal = modules`, creates every graph entry uniformly, awaits quiescence, then audits activation: any entry that failed import, stayed pending on a missing service, or landed in another non-active state throws one aggregated error naming every failing entry.
+`run()` starts the rendering-family request, restores authentication, and returns after mounting the sign-in screen when authentication owns the page. An authenticated boot waits for UI primitives, completes the platform module table, then calls the Host-installed `window.__ModuleLoader__.create({ boot, staticModules, ...seams })`; the facade returns the constructed module system and parsed manifest after adopting the parser-loaded bootstrap batch. The module stage prefetches the `immediately` tier through the one shared application-batch URL. The plugin stage mounts the Loader, assigns `loader.internal = modules`, creates every graph entry uniformly, awaits quiescence, then audits activation: any entry that failed import, stayed pending on a missing service, or landed in another non-active state throws one aggregated error naming every failing entry.
 
 ### Boot page mechanics
 
@@ -73,12 +75,12 @@ The kernel owns exactly three things: the module system, the Cordis Loader, and 
 
 | File | Role |
 |---|---|
-| [`src/index.ts`](src/index.ts) | Library entry: `AppWebEntry`, `getStaticModules`, platform tables |
+| [`src/index.ts`](src/index.ts) | Library entry: `AppWebEntry` and platform tables |
 | [`src/boot.ts`](src/boot.ts) | `AppWebEntry`: two-stage boot, activation audit, renderer handoff |
 | [`src/boot-page.ts`](src/boot-page.ts) | Framework-free boot page: spinner, per-entry status, failure rendering |
 | [`src/preloader.ts`](src/preloader.ts) | Lifecycle control for the static preloader in `apps/web/index.html` |
 | [`src/platform.ts`](src/platform.ts) | `PLATFORM_MODULES` / `PRELOADED_CLIENT_EXTERNALS`: the implicit external baseline |
-| [`src/seed.ts`](src/seed.ts) | Static module table handed to the loader at boot |
+| [`src/seed.ts`](src/seed.ts) | Immediate module table and eager UI-primitives request handed to boot |
 
 </details>
 

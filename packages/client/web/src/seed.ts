@@ -1,10 +1,10 @@
 /**
- * Platform-singleton module-table. These are the ONLY entities the shell
- * shares into the frozen module table — fetch bundles resolve their externals
- * against exactly this set through the loader's require. Keys come from the
- * platform constant module ({@link ./platform.ts}, the single source
- * of truth with the tsdown client externals); values stay shell-static
- * imports so every bundle sees the same instance.
+ * Platform-singleton module seed. These are the ONLY entities the shell
+ * shares into the module table — fetch bundles resolve their externals against
+ * exactly this set through the loader's require. Keys come from the platform
+ * constant module ({@link ./platform.ts}, the single source of truth with the
+ * tsdown client externals). Immediate values are static imports; UI primitives
+ * resolves once before the module system snapshots the completed table.
  */
 import * as React from 'react'
 import * as ReactJsxRuntime from 'react/jsx-runtime'
@@ -13,18 +13,35 @@ import * as ReactDomClient from 'react-dom/client'
 import * as Cordis from '@deepseek-ai/cordis'
 import * as ClientStore from '@deepseek-ai/dsh-client-store'
 import * as UiSlots from '@deepseek-ai/dsh-client-ui-slots'
-import * as UiPrimitives from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PlatformModule } from './platform.ts'
 
+type UiPrimitivesModule = typeof import('@deepseek-ai/dsh-client-ui-primitives')
+type ImmediatePlatformModule = Exclude<PlatformModule, '@deepseek-ai/dsh-client-ui-primitives'>
+
 /**
- * Build the static table handed to the module loader at boot.
- * @returns module specifier → exported entity (one entry per platform word).
+ * Start the rendering family with the shell without placing it on the shell's
+ * execution path. The rejection is captured immediately so an unauthenticated
+ * page can keep presenting sign-in even when an application-only chunk fails.
  */
-export function getStaticModules(): Record<string, unknown> {
+const uiPrimitivesLoad: Promise<{ module: UiPrimitivesModule } | { error: unknown }> = import(
+  '@deepseek-ai/dsh-client-ui-primitives',
+).then(
+  module => ({ module }),
+  (error: unknown) => ({ error }),
+)
+
+/**
+ * Build the immediate module table and return the rendering-family request.
+ * @returns The mutable table and the captured result of the eager request.
+ */
+export function startStaticModules(): {
+  table: Record<string, unknown>
+  rendering: Promise<{ module: UiPrimitivesModule } | { error: unknown }>
+} {
   // The satisfies pin is the projection contract: a word added to
   // PLATFORM_MODULES without a static import here (or vice versa) fails to
   // compile instead of drifting into a runtime require miss.
-  return {
+  const table: Record<string, unknown> = {
     'react': React,
     'react/jsx-runtime': ReactJsxRuntime,
     'react-dom': ReactDom,
@@ -32,6 +49,6 @@ export function getStaticModules(): Record<string, unknown> {
     '@deepseek-ai/cordis': Cordis,
     '@deepseek-ai/dsh-client-store': ClientStore,
     '@deepseek-ai/dsh-client-ui-slots': UiSlots,
-    '@deepseek-ai/dsh-client-ui-primitives': UiPrimitives,
-  } satisfies Record<PlatformModule, unknown>
+  } satisfies Record<ImmediatePlatformModule, unknown>
+  return { table, rendering: uiPrimitivesLoad }
 }

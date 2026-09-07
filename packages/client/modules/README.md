@@ -79,7 +79,7 @@ The node half snapshots each client bundle and available source map before publi
 
 ### Boot manifest injection
 
-The host taps the index render and injects, into `<head>`: the `window.__ModuleLoader__` queue facade, advisory preloads for every application combo, the deferred bootstrap combo scripts, then the boot graph before the shell reads it. The facade's `create()` materializes the modules bundle, delegates construction to its `createClientModuleSystem` export, and leaves the same facade in live-registration mode.
+The host injects the `window.__ModuleLoader__` queue facade, deferred bootstrap combo scripts, and boot graph ahead of the shell. Every application combo gets an eager low-priority preload after the shell head assets; plugin activation still follows the composed graph. The facade's `create()` materializes the modules bundle, delegates construction to its `createClientModuleSystem` export, and leaves the same facade in live-registration mode.
 
 ### Source map
 

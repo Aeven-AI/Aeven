@@ -48,7 +48,7 @@ kind: "package-reference"
 
 `registerFallback(handler)` 认领所有未被具名 route 命中的请求的唯一个 handler。第二次注册会抛错；没有注册回退时服务器回答 404。在随附的 Web 组合中，[SPA dist 服务器](../frontend-static/README.zh.md)拥有该席位，并对其渲染的每个 index 响应调用 `renderIndex`。
 
-index 启动输入分两层。`collectIndexInjections()` 收集一张全新的注入表——每次调用发一次 `webserver/index-inject` 事件，每个订阅方推入其当前行——`renderIndex(html)` 先把这些行渲染进 index.html 正文，再按注册顺序应用原始 `tapIndex(transform)` 转换。`script-preload` 行会渲染为 classic script 的提示性 preload 链接。静态部署会在启动 payload 中携带同一批行。`applyIndexTaps(html)` 只应用原始转换；它是任何行都无法表达的标记的逃生口。
+index 启动输入分两层。`collectIndexInjections()` 收集一张全新的注入表——每次调用发一次 `webserver/index-inject` 事件，每个订阅方推入其当前行——`renderIndex(html)` 先把这些行渲染进 index.html 正文，再按注册顺序应用原始 `tapIndex(transform)` 转换。`script-preload` 行会在 `<head>` 末尾、外壳资源之后渲染为带 `fetchpriority="low"` 的立即加载 classic script preload。这样可避免提示性下载先于入口脚本占用最初的 HTTP 连接。没有 head 结束标签的文档会在末尾接收这些链接。静态部署会在启动 payload 中携带同一批行。`applyIndexTaps(html)` 只应用原始转换；它是任何行都无法表达的标记的逃生口。
 
 ### 失败时的行为
 

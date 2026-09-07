@@ -31,6 +31,8 @@ kind: "package-library"
 
 ### 启动过程是怎样的
 
+认证代码和样式属于外壳的初始依赖图，因此下载入口时也会发现登录资源。外壳求值时，渲染家族通过顶层动态导入立即开始加载，而认证流程不等待它。认证成功的启动会先把 UI primitives 实体化到平台表，再构造模块系统并求值任何插件 bundle。
+
 启动分两个阶段：模块阶段接纳 parser 已加载的 bootstrap 批次，从 Host 提供的启动图构建模块系统，并通过只执行一次的共享 application 批次 URL 预取 `immediately` 层级。插件阶段随后激活每个图 entry 并等待全部就绪，之后才把带标记的启动 DOM 交给 UI 渲染器，由它 hydrate 并切换到完整 UI。
 
 ### 启动页
@@ -41,7 +43,7 @@ kind: "package-library"
 
 ### 共享模块表
 
-`PLATFORM_MODULES`（位于 `src/platform.ts`）列出外壳播种的共享模块——React、Cordis 与静态 UI 库——并与 `PRELOADED_CLIENT_EXTERNALS`（parser 预载的 runtime 行）一起定义每个动态 bundle 解析所依据的隐式 external 基座。`dsh.client.external` 只添加基座之外的精确请求；参见[共享模块与模块图](../AGENTS.md#shared-modules-and-the-module-graph)。
+`PLATFORM_MODULES`（位于 `src/platform.ts`）列出外壳播种的共享模块——React、Cordis 与 UI 库——并与 `PRELOADED_CLIENT_EXTERNALS`（parser 预载的 runtime 行）一起定义每个动态 bundle 解析所依据的隐式 external 基座。外壳同步播种即时模块，并在构造模块系统前加入已立即请求的 UI primitives。`dsh.client.external` 只添加基座之外的精确请求；参见[共享模块与模块图](../AGENTS.md#shared-modules-and-the-module-graph)。
 
 ### 配置
 
@@ -63,7 +65,7 @@ kind: "package-library"
 
 ### 两阶段启动
 
-`run()` 调用 Host 安装的 `window.__ModuleLoader__.create({ boot, staticModules, ...seams })`；facade 接纳 parser 已加载的 bootstrap 批次后返回构造好的模块系统与已解析 manifest。模块阶段通过一个共享的 application 批次 URL 预取 `immediately` 层级。插件阶段挂载 Loader、把 `loader.internal` 赋为 `modules`、统一创建全部图 entry、等待完全停稳，然后审计激活：任何导入失败、因缺失服务而 pending，或落入其他非 active 状态的 entry，都会抛出一个聚合错误，点名每个失败 entry。
+`run()` 启动渲染家族请求并恢复认证；当认证页面拥有当前页面时，它会在挂载登录界面后返回。认证成功的启动会等待 UI primitives、补全平台模块表，再调用 Host 安装的 `window.__ModuleLoader__.create({ boot, staticModules, ...seams })`；facade 接纳 parser 已加载的 bootstrap 批次后返回构造好的模块系统与已解析 manifest。模块阶段通过一个共享的 application 批次 URL 预取 `immediately` 层级。插件阶段挂载 Loader、把 `loader.internal` 赋为 `modules`、统一创建全部图 entry、等待完全停稳，然后审计激活：任何导入失败、因缺失服务而 pending，或落入其他非 active 状态的 entry，都会抛出一个聚合错误，点名每个失败 entry。
 
 ### 启动页机制
 
@@ -73,12 +75,12 @@ kind: "package-library"
 
 | 文件 | 职责 |
 |---|---|
-| [`src/index.ts`](src/index.ts) | 库入口：`AppWebEntry`、`getStaticModules`、平台表 |
+| [`src/index.ts`](src/index.ts) | 库入口：`AppWebEntry` 与平台表 |
 | [`src/boot.ts`](src/boot.ts) | `AppWebEntry`：两阶段启动、激活审计、渲染器交接 |
 | [`src/boot-page.ts`](src/boot-page.ts) | 无框架启动页：spinner、逐 entry 状态、失败渲染 |
 | [`src/preloader.ts`](src/preloader.ts) | `apps/web/index.html` 中静态预加载页的生命周期控制 |
 | [`src/platform.ts`](src/platform.ts) | `PLATFORM_MODULES` / `PRELOADED_CLIENT_EXTERNALS`：隐式 external 基座 |
-| [`src/seed.ts`](src/seed.ts) | 启动时交给 loader 的静态模块表 |
+| [`src/seed.ts`](src/seed.ts) | 交给启动流程的即时模块表与 eager UI-primitives 请求 |
 
 </details>
 
