@@ -32,9 +32,7 @@ interface BrowserOpenRecord {
 }
 
 function normalizeLocalUrl(url: string): string {
-  return url
-    .replace(/:\d+/u, ':{{port}}')
-    .replace(/token=[^&]+/u, 'token={{token}}')
+  return url.replace(/:\d+/u, ':{{port}}')
 }
 
 describe.skipIf(!builtArtifactsExist)('dsh web browser-open assembled snapshot', () => {
@@ -87,9 +85,9 @@ describe.skipIf(!builtArtifactsExist)('dsh web browser-open assembled snapshot',
         "bootManifest": true,
         "dshHomePresent": false,
         "exitCode": 0,
-        "openedUrl": "http://127.0.0.1:{{port}}/?token={{token}}",
+        "openedUrl": "http://127.0.0.1:{{port}}",
         "opening": true,
-        "readyUrl": "http://127.0.0.1:{{port}}/?token={{token}}",
+        "readyUrl": "http://127.0.0.1:{{port}}",
         "status": 200,
         "stderr": "",
       }
@@ -139,7 +137,7 @@ describe.skipIf(!builtArtifactsExist)('dsh web browser-open assembled snapshot',
         "exitCode": 0,
         "opened": false,
         "opening": true,
-        "readyUrl": "http://127.0.0.1:{{port}}/?token={{token}}",
+        "readyUrl": "http://127.0.0.1:{{port}}",
       }
     `)
   })
@@ -184,7 +182,7 @@ describe.skipIf(!builtArtifactsExist)('dsh web browser-open assembled snapshot',
         "exitCode": 0,
         "opened": false,
         "opening": false,
-        "readyUrl": "http://127.0.0.1:{{port}}/?token={{token}}",
+        "readyUrl": "http://127.0.0.1:{{port}}",
         "stderr": "",
       }
     `)
