@@ -1,6 +1,7 @@
 # Agent Note: Web superellipse corner smoothing
 
 Status: implemented
+Archived: 2026-09-07
 
 [English](2026-09-01-web-superellipse-corner-smoothing.md) | 中文
 

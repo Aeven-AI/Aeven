@@ -16,7 +16,7 @@ Conversation、sidebar、workspace 行、settings 和共享 primitive 采用集�
 
 客户端保留插件布局、sidebar 席位、视图 tab、details 面板、settings 信息架构、深色偏好，以及功能操作与状态图标。侧栏遵循参考交互：其布局栏收起到零宽度，所有菜单内容消失，左上角保留 68×40px hamburger 按钮；展开开关增加参考中的双左箭头。深色模式通过同一别名表把 Aeven 中性层级适配到深色表面；功能组件仍不包含主题选择器。第三方主题继续在注册后覆盖语义别名。
 
-本决策只取代[Web 样式系统笔记](2026-07-19-web-styling-system.zh.md)中的视觉基线值、[共享 composer 宽度笔记](../feature/2026-08-04-web-composer-shared-width-axis.zh.md)中的默认宽度关系、[层级投影笔记](../feature/2026-09-01-web-elevation-stroke-shadows.zh.md)中的 composer 投影，以及[圆角平滑笔记](../feature/2026-09-01-web-superellipse-corner-smoothing.zh.md)中不存在共享圆角变量的事实。这些笔记关于框架、交互与浏览器渲染的依据仍然有效。
+本决策只取代[Web 样式系统笔记](2026-07-19-web-styling-system.zh.md)中的视觉基线值、[共享 composer 宽度笔记](../feature/2026-08-04-web-composer-shared-width-axis.zh.md)中的默认宽度关系、[层级投影笔记](../feature/2026-09-01-web-elevation-stroke-shadows.zh.md)中的 composer 投影。这些笔记关于框架、交互与浏览器渲染的依据仍然有效。
 
 ## Alternatives considered
 

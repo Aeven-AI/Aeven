@@ -20,7 +20,6 @@
   height: 28px;
   border: none;
   border-radius: 50%;
-  corner-shape: round;
   padding: 0;
   background: transparent;
   cursor: pointer;
@@ -136,7 +135,6 @@
   box-sizing: border-box;
   border: none;
   border-radius: 50%;
-  corner-shape: round;
   background: transparent;
   cursor: text;
   color: var(--dsw-alias-label-secondary);
@@ -168,7 +166,6 @@
   height: 28px;
   border: none;
   border-radius: 50%;
-  corner-shape: round;
   padding: 0;
   background: transparent;
   cursor: pointer;
@@ -222,7 +219,6 @@
   height: 24px;
   border: none;
   border-radius: 50%;
-  corner-shape: round;
   padding: 0;
   background: transparent;
   cursor: pointer;

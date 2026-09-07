@@ -89,7 +89,6 @@
 .pending {
   flex: none;
   border-radius: 999px;
-  corner-shape: round;
   padding: 1px 8px;
   font-size: 11px;
   line-height: 17px;

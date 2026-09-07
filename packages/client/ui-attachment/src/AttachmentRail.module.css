@@ -58,7 +58,6 @@
   padding: 0;
   border: none;
   border-radius: 50%;
-  corner-shape: round;
   background: var(--dsw-alias-button-contrast-fill);
   color: var(--dsw-alias-label-primary-inverted);
   cursor: pointer;
@@ -96,7 +95,6 @@
   border: 0;
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l2-darkmode-thin);
   border-radius: 999px;
-  corner-shape: round;
   background: var(--dsw-specific-input-major);
   color: var(--dsw-alias-label-secondary);
   box-shadow: var(--dsw-elevation-panel);
