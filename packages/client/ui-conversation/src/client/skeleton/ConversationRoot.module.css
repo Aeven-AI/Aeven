@@ -59,6 +59,15 @@
     var(--dsh-sidebar-overlay-clearance, 0px)
   );
   border-bottom: 1px solid transparent;
+  /* Same duration and curve as the sidebar column, so hamburger clearance
+     eases with the slide instead of snapping when collapsed flips. */
+  transition: padding var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header {
+    transition: none;
+  }
 }
 
 .header::after {

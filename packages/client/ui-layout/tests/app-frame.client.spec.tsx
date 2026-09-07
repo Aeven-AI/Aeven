@@ -134,6 +134,13 @@ beforeEach(() => {
   selectedSessionTitle.current = undefined
   workspacesReady.current = true
   vi.useFakeTimers()
+  // jsdom implements no matchMedia; the frame reads the narrow breakpoint from it.
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: frameWidth < 1024,
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
   vi.stubGlobal('ResizeObserver', ResizeObserverStub)
   vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => setTimeout(() => { cb(0) }, 16) as unknown as number)
   vi.stubGlobal('cancelAnimationFrame', (h: number) => { clearTimeout(h) })

@@ -1,15 +1,14 @@
 /* Sidebar column, ported from the Aeven client's `.sidebar` (_Sidebar.scss).
    Collapse is one pure-CSS state change on `.visible`: four boxes animate
-   together over 400ms on the shared easeOutQuint curve — the content column's
-   width, the translucent panel's width and opacity, the menu button's width,
-   and the chevron's opacity. Nothing repositions, remounts, or reflows, which
-   is what keeps the motion continuous.
+   together over 400ms on the shared easeOutQuint curve — the flex column's
+   width, the inner content width, the translucent panel's width and opacity,
+   the menu button's width, and the chevron's opacity.
 
-   `.content` is absolutely positioned inside a column that collapses to zero
-   width, so the menu button keeps its seat at the top-left through the whole
-   transition without ever switching to fixed positioning. The AppFrame grid
-   track animates the layout push on the same duration and curve, so the panel
-   and the conversation beside it travel together. */
+   Above 1024px the column is in flow (`position: relative`, `flex-shrink: 0`)
+   so its width transition is what resizes the conversation beside it. Below
+   1024px it overlays, matching Aeven. `.content` is absolutely positioned
+   inside the collapsing column so the hamburger keeps its seat at the
+   top-left without switching to fixed positioning. */
 
 .root {
   display: flex;
@@ -27,15 +26,13 @@
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
   --dsh-sidebar-inline-padding: var(--dsw-aeven-sidebar-row-inset);
-  /* Collapsed width for every box below; .visible swaps in the live column
-     width the component publishes. */
   --dsh-sidebar-open-width: 0px;
   transition: width var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
 }
 
 .root.visible {
-  width: var(--dsh-sidebar-width);
-  --dsh-sidebar-open-width: var(--dsh-sidebar-width);
+  width: var(--dsw-aeven-sidebar-width);
+  --dsh-sidebar-open-width: var(--dsw-aeven-sidebar-width);
 }
 
 /* Scrollbars in the column are a pointer affordance: the shell adds this
@@ -73,7 +70,7 @@
   bottom: -2px;
   left: 0;
   width: var(--dsh-sidebar-open-width);
-  opacity: 1;
+  opacity: 0;
   border-top-right-radius: var(--dsw-aeven-sidebar-panel-radius);
   background: var(--dsw-specific-sidebar-fill);
   /* Unprefixed only: the CSS pipeline adds the -webkit- form per its targets,
@@ -81,7 +78,13 @@
   backdrop-filter: blur(4px);
   box-shadow: inset -1px 1px 0 0 rgb(255, 255, 255);
   pointer-events: none;
-  transition: width var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
+  transition:
+    width var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing),
+    opacity var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
+}
+
+.visible .panel {
+  opacity: 1;
 }
 
 
@@ -176,7 +179,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  width: var(--dsh-sidebar-width);
+  width: var(--dsw-aeven-sidebar-width);
   box-sizing: border-box;
 }
 
@@ -303,5 +306,50 @@
   .toggleEnd,
   .sideContent {
     transition: none;
+  }
+}
+
+/* Aeven `.content-blocker`: present at every width so the breakpoint alone
+   decides whether it shows, dimming and blurring the conversation it covers.
+   Sits below `.content` (z-index 5) so the panel stays sharp above it. */
+.contentBlocker {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  background-color: rgb(0 0 0 / 20%);
+  /* Unprefixed only: the CSS pipeline adds the -webkit- form per its targets. */
+  backdrop-filter: blur(0);
+  transition:
+    opacity var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing),
+    backdrop-filter var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
+}
+
+/* Aeven's `responsiveMed` rules (`@media screen and (max-width: 1024px)`).
+   Below the breakpoint the column leaves flow and overlays the conversation.
+   `.visible` widens the box to the whole frame so the blocker covers
+   everything. The column's own width stops easing here exactly as Aeven has
+   it — the box is a cover, not a travelling edge, so the motion is `.content`
+   sliding in and the blocker fading, both still on the shared curve. */
+@media screen and (max-width: 1024px) {
+  .root {
+    position: absolute;
+    transition: none;
+  }
+
+  .root.visible {
+    width: 100%;
+  }
+
+  .contentBlocker {
+    display: block;
+  }
+
+  .visible .contentBlocker {
+    opacity: 1;
+    backdrop-filter: blur(2px);
   }
 }

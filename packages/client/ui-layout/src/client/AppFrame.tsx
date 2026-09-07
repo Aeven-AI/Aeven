@@ -1,9 +1,8 @@
 /**
  * Three-column shell frame, registered into the built-in 'root' slot (the web
  * shell renders only 'root'). Owns the flex row (sidebar | center | details),
- * the drag handles (pointer capture + rAF throttle), the concession
- * chain (columns.ts), and the child-slot render decisions: the sidebar slot
- * renders HERE with live parameters from the concession solve, and the
+ * the drag handles (pointer capture + rAF throttle), and the child-slot render
+ * decisions: the sidebar slot renders HERE with its stored width, and the
  * session-aware occupants render in fixed column positions; strict entries
  * gate themselves on current-session availability while session-maybe
  * entries retain identity. Pure component: everything arrives
@@ -11,14 +10,22 @@
  * zero self-made hooks.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import type {
   PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
 } from '@deepseek-ai/dsh-client-ui-slots'
-import { computeColumns, SIDEBAR_AUTO_COLLAPSE, SIDEBAR_DEFAULT } from './columns.ts'
+import {
+  clampWidth, DETAILS_MAX, DETAILS_MIN, SIDEBAR_AUTO_COLLAPSE, SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN,
+} from './columns.ts'
 import { DocumentTitle } from './DocumentTitle.tsx'
 import type { createLayoutStore } from './stores.ts'
 import css from './AppFrame.module.css'
+
+/**
+ * The Aeven client's `responsiveMed` rule verbatim. Its `responsiveMax` mixin
+ * is an inclusive `max-width`, so the breakpoint width itself is narrow.
+ */
+const NARROW_QUERY = `screen and (max-width: ${String(SIDEBAR_AUTO_COLLAPSE)}px)`
 
 /** Full composed props: runtime share + child-slot render share + store share. */
 export type AppFrameProps =
@@ -32,16 +39,16 @@ function CenterColumn(props: { children?: ReactNode }) {
   return <div className={css.centerCol}>{props.children}</div>
 }
 
-/** Details column flex item; width 0 keeps the subtree mounted (never unmount on close). */
-function DetailsColumn(props: { children?: ReactNode; width: number }) {
-  return <div className={css.detailsCol} style={{ width: props.width }}>{props.children}</div>
+/** Details column flex item; the CSS width reaches 0 on close, keeping the subtree mounted. */
+function DetailsColumn(props: { children?: ReactNode }) {
+  return <div className={css.detailsCol}>{props.children}</div>
 }
 
 /**
  * One drag handle: pointer capture, rAF-throttled dx reports against the drag-start origin.
  * `side` keys the hover-reveal CSS to the owning column.
  */
-function DragHandle(props: { side: 'sidebar' | 'details'; left: number; onStart: () => void; onDrag: (dx: number) => void; onEnd: () => void }) {
+function DragHandle(props: { side: 'sidebar' | 'details'; onStart: () => void; onDrag: (dx: number) => void; onEnd: () => void }) {
   const [dragging, setDragging] = useState(false)
   const origin = useRef(0)
   const latest = useRef(0)
@@ -77,7 +84,6 @@ function DragHandle(props: { side: 'sidebar' | 'details'; left: number; onStart:
   return (
     <div
       className={css.handle}
-      style={{ left: props.left }}
       data-side={props.side}
       data-dragging={dragging || undefined}
       onPointerDown={onPointerDown}
@@ -105,8 +111,7 @@ export function AppFrame({
     const current = s.current
     return current === undefined ? undefined : s.byId[current]?.title
   })
-  const frameRef = useRef<HTMLDivElement | null>(null)
-  const [viewport, setViewport] = useState(() => window.innerWidth)
+  const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW_QUERY).matches)
 
   const lastSession = useRef(detailsSession)
   useLayoutEffect(() => {
@@ -117,56 +122,41 @@ export function AppFrame({
     lastSession.current = detailsSession
   }, [actions, detailsSession])
 
-  // Track the frame's own box (not the window): rAF-throttled ResizeObserver.
+  // The breakpoint is the only viewport fact the shell needs, and it changes
+  // when it is crossed rather than while a column animates. A media query says
+  // that directly; measuring the frame instead reported every intermediate
+  // width of every slide, which is what the Aeven client avoids by keeping the
+  // whole responsive rule set in CSS.
   useEffect(() => {
-    const el = frameRef.current
-    /* v8 ignore next -- the ref is always attached by effect time: the frame div renders unconditionally. */
-    if (el === null) return
-    let raf: number | null = null
-    const observer = new ResizeObserver(() => {
-      raf ??= requestAnimationFrame(() => {
-        raf = null
-        const width = el.getBoundingClientRect().width
-        if (width > 0) setViewport(width)
-      })
-    })
-    observer.observe(el)
-    return () => {
-      observer.disconnect()
-      if (raf !== null) cancelAnimationFrame(raf)
-    }
+    const query = window.matchMedia(NARROW_QUERY)
+    const read = (): void => { setNarrow(query.matches) }
+    read()
+    query.addEventListener('change', read)
+    return () => { query.removeEventListener('change', read) }
   }, [])
 
   // Narrow viewports auto-collapse the sidebar; the store mirror keeps
   // toggleSidebar's semantics right (narrow toggles flip the manual
-  // re-expand override, stores.ts). Collapsed is decided here, so the
-  // solver stays breakpoint-free: a narrow re-expand passes the preference
-  // (or the default when the wide preference is closed) and the center
-  // absorbs the squeeze.
-  const narrow = viewport < SIDEBAR_AUTO_COLLAPSE
+  // re-expand override, stores.ts).
   useEffect(() => { actions.setNarrow(narrow) }, [actions, narrow])
   const sidebarCollapsed = narrow ? !panels.narrowExpanded : panels.sidebar === 0
-  const sidebarPreference = sidebarCollapsed
+  const sidebarWidth = sidebarCollapsed
     ? 0
-    : panels.sidebar === 0 ? SIDEBAR_DEFAULT : panels.sidebar
-  const cols = computeColumns(viewport, sidebarPreference, detailsSession === undefined ? 0 : panels.details)
-  const colsRef = useRef(cols)
-  colsRef.current = cols
+    : panels.sidebar === 0 ? SIDEBAR_DEFAULT : clampWidth(panels.sidebar, SIDEBAR_MIN, SIDEBAR_MAX)
+  const detailsWidth = detailsSession === undefined || panels.details === 0
+    ? 0
+    : clampWidth(panels.details, DETAILS_MIN, DETAILS_MAX)
+  const detailsRef = useRef(detailsWidth)
+  detailsRef.current = detailsWidth
 
-  // The drag base is the rendered width captured at drag start (grabbing a
-  // concession-clamped panel must not jump back to the stored preference);
-  // it stays frozen for the whole gesture so dx deltas do not compound.
-  const sidebarBase = useRef(0)
+  // The drag base is the width in force at drag start, frozen for the whole
+  // gesture so dx deltas do not compound.
   const detailsBase = useRef(0)
   // Track-level transitions pause for the whole gesture: eased tracks would
   // detach the column edge from the pointer (AppFrame.module.css).
   const [dragging, setDragging] = useState(false)
   const onDragEnd = useCallback(() => { setDragging(false) }, [])
-  const onSidebarStart = useCallback(() => { sidebarBase.current = colsRef.current.sidebar; setDragging(true) }, [])
-  const onDetailsStart = useCallback(() => { detailsBase.current = colsRef.current.details; setDragging(true) }, [])
-  const onSidebarDrag = useCallback((dx: number) => {
-    actions.setSidebar(sidebarBase.current + dx)
-  }, [actions])
+  const onDetailsStart = useCallback(() => { detailsBase.current = detailsRef.current; setDragging(true) }, [])
   const onDetailsDrag = useCallback((dx: number) => {
     actions.setDetails(detailsBase.current - dx)
   }, [actions])
@@ -174,10 +164,12 @@ export function AppFrame({
 
   return (
     <div
-      ref={frameRef}
       className={css.frame}
+      style={{
+        '--dsh-frame-details-width': `${String(detailsWidth)}px`,
+      } as CSSProperties}
       data-sidebar-collapsed={sidebarCollapsed || undefined}
-      data-details-collapsed={cols.details === 0 || undefined}
+      data-details-collapsed={detailsWidth === 0 || undefined}
       data-dragging={dragging || undefined}
     >
       <DocumentTitle
@@ -188,7 +180,7 @@ export function AppFrame({
           CSS width transition moves the center without an animated grid. */}
       {renderSlot('sidebar', {
         collapsed: sidebarCollapsed,
-        width: cols.sidebar,
+        width: sidebarWidth,
       })}
       <>
         {/* Both column occupants stay at fixed tree positions from first
@@ -197,7 +189,7 @@ export function AppFrame({
             is session-maybe; SessionProvider withholds the strict details
             entry while no session is current. */}
         <CenterColumn>{renderSlot('conversation', {})}</CenterColumn>
-        <DetailsColumn width={cols.details}>
+        <DetailsColumn>
           <SessionProvider>{renderSlot('details', {})}</SessionProvider>
         </DetailsColumn>
       </>
@@ -205,8 +197,7 @@ export function AppFrame({
         {renderSlot('shell.overlay', {})}
       </div>
       {/* A closed sidebar has no resize handle. */}
-      {!sidebarCollapsed && <DragHandle side="sidebar" left={cols.sidebar} onStart={onSidebarStart} onDrag={onSidebarDrag} onEnd={onDragEnd} />}
-      {cols.details > 0 && <DragHandle side="details" left={viewport - cols.details} onStart={onDetailsStart} onDrag={onDetailsDrag} onEnd={onDragEnd} />}
+      {detailsWidth > 0 && <DragHandle side="details" onStart={onDetailsStart} onDrag={onDetailsDrag} onEnd={onDragEnd} />}
     </div>
   )
 }
