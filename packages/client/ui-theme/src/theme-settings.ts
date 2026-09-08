@@ -26,8 +26,9 @@ export const FONT_SIZE_MIN = 12
 /** Largest accepted content font size (px). */
 export const FONT_SIZE_MAX = 17
 
-/** Content font size when the user-settings document has no override (px). */
-export const DEFAULT_FONT_SIZE = 14
+/** Content font size when the user-settings document has no override (px).
+ *  16px matches the Aeven design-system body scale (16px/30px, 450). */
+export const DEFAULT_FONT_SIZE = 16
 
 /** Durable theme section shared by the Host schema and the browser scope. */
 export interface ThemeSettings {

@@ -75,7 +75,7 @@ describe('ThemePresenter', () => {
   it('publishes the content font size and follows changes', () => {
     const presenter = new ThemePresenter()
     presenter.apply(snapshot('light'))
-    expect(document.body.style.getPropertyValue('--dsh-content-font-size')).toBe('14px')
+    expect(document.body.style.getPropertyValue('--dsh-content-font-size')).toBe('16px')
     presenter.apply(snapshot('light', {}, 17))
     expect(document.body.style.getPropertyValue('--dsh-content-font-size')).toBe('17px')
   })

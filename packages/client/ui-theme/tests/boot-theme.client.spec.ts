@@ -60,11 +60,11 @@ describe('theme bootstrap row', () => {
     expect(document.body.hasAttribute(DARK_ATTRIBUTE)).toBe(false)
   })
 
-  it('writes the durable content font size and defaults it to 14px', () => {
+  it('writes the durable content font size and defaults it to 16px', () => {
     mockSystemDark(false)
     executeBootstrap('light', 17)
     expect(document.body.style.getPropertyValue('--dsh-content-font-size')).toBe('17px')
     executeBootstrap('light')
-    expect(document.body.style.getPropertyValue('--dsh-content-font-size')).toBe('14px')
+    expect(document.body.style.getPropertyValue('--dsh-content-font-size')).toBe('16px')
   })
 })

@@ -14,27 +14,32 @@
 
 .markdown h1 {
   font: var(--dsw-font-markdown-h1);
-  margin: 56px 0 24px;
+  margin: 64px 0 24px;
 }
 
 .markdown h2 {
   font: var(--dsw-font-markdown-h2);
-  margin: 48px 0 24px;
+  margin: 56px 0 20px;
 }
 
 .markdown h3 {
   font: var(--dsw-font-markdown-h3);
-  margin: 40px 0 20px;
+  margin: 40px 0 16px;
 }
 
 .markdown h4 {
   font: var(--dsw-font-markdown-h4);
-  margin: 32px 0 16px;
+  margin: 32px 0 12px;
 }
 
-.markdown :where(h5, h6) {
-  font: var(--dsw-font-markdown-base-strong);
-  margin: 24px 0 12px;
+.markdown h5 {
+  font: var(--dsw-font-markdown-h5);
+  margin: 28px 0 12px;
+}
+
+.markdown h6 {
+  font: var(--dsw-font-markdown-h6);
+  margin: 28px 0 12px;
 }
 
 .markdown :where(h1, h2, h3, h4, h5, h6) strong {

@@ -21,6 +21,7 @@ import { createChatStore } from '../src/client/stores.ts'
 usePinnedBrowserLanguages('zh-CN')
 
 const ROOT = 'root-1' as SessionId
+const OTHER = 'other-1' as SessionId
 const ATTACHMENT = {
   attachmentId: AttachmentId('image-1'),
   mediaType: 'image/png',
@@ -183,6 +184,32 @@ describe('Chat inject API', () => {
     expect(loaded).toEqual(expect.any(String))
     expect(b.session.readAttachment).toHaveBeenCalledWith(ATTACHMENT.attachmentId)
     expect(injected.loadImage.peek?.(ATTACHMENT)).toBe(loaded)
+    await b.runtime.dispose()
+  })
+
+  it('forgets a revisited Session position except for content-search navigation', async () => {
+    const b = await bench()
+    await b.runtime.sessions.add({
+      id: OTHER,
+      summary: { title: 'Other', displayTitle: 'Other', cwd: '/other' },
+      session: sessionFakeFor(),
+    }, { current: false })
+    await b.runtime.sessions.setCurrent(ROOT)
+    const rootScroll = b.chatViewApi(ROOT).injected.chatScroll
+    const otherScroll = b.chatViewApi(OTHER).injected.chatScroll
+    const position = { anchorKey: 'node-1', anchorTop: 4, scrollTop: 12 }
+    rootScroll.save(position)
+    otherScroll.save(position)
+
+    await b.runtime.sessions.setCurrent(OTHER)
+    expect(otherScroll.read()).toBeNull()
+    expect(rootScroll.read()).toEqual(position)
+
+    otherScroll.save(position)
+    await b.runtime.sessions.setCurrent(ROOT)
+    b.runtime.ctx.uiConversation.navigateToEvent(OTHER, SessionSeq(8))
+    await b.runtime.sessions.setCurrent(OTHER)
+    expect(otherScroll.read()).toEqual(position)
     await b.runtime.dispose()
   })
 })

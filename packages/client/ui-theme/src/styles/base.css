@@ -8,8 +8,10 @@
     'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   --ds-font-family-code: 'Google Sans Code', 'SF Mono', 'JetBrains Mono', 'Fira Code', Consolas,
     'Liberation Mono', Menlo, Courier, 'PingFang SC', 'Microsoft YaHei';
-  --ds-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
-  --ds-transition-duration: 0.2s;
+  /* Motion per the Aeven design system: chrome geometry and overlays ride the
+     easeOutQuint curve at 0.4s; only pure micro-feedback stays at 0.1s. */
+  --ds-ease-in-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ds-transition-duration: 0.4s;
   --ds-transition-duration-fast: 0.1s;
-  --ds-transition-duration-slow: 0.3s;
+  --ds-transition-duration-slow: 0.4s;
 }

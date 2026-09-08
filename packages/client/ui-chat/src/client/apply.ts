@@ -76,6 +76,21 @@ export function apply(ctx: Context): void {
   const t = ctx.locale.bind(NS)
   const chatStore = createChatStore()
   const chatScrollPositions = new Map<SessionId, ChatScrollPosition>()
+  ctx.effect(() => {
+    let currentSessionId = ctx.sessions.list.getSnapshot().current
+    return ctx.sessions.list.subscribe(() => {
+      const nextSessionId = ctx.sessions.list.getSnapshot().current
+      if (nextSessionId === currentSessionId) return
+      currentSessionId = nextSessionId
+      if (nextSessionId === undefined) return
+      // A content-search result owns an exact event destination. Every other
+      // Session activation starts at the live tail instead of restoring a
+      // reading position saved during an earlier visit.
+      if (ctx.uiConversation.eventNavigation(nextSessionId).getSnapshot() === null) {
+        chatScrollPositions.delete(nextSessionId)
+      }
+    })
+  }, 'ui-chat: Session activation scroll policy')
   const transcriptView = new TranscriptViewPolicy(
     ctx.settingsScope.bind<ChatSettings>({ namespace: CHAT_SETTINGS_NAMESPACE }),
   )

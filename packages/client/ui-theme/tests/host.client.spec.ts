@@ -53,7 +53,7 @@ describe('ui-theme host', () => {
     expect(rows.map(row => row.kind)).toEqual(['script'])
     expect(rows[0]).toMatchObject({ kind: 'script', placement: 'body' })
     expect(scriptText(rows[0])).toContain('const preference = "system"')
-    expect(scriptText(rows[0])).toContain('"14px"')
+    expect(scriptText(rows[0])).toContain('"16px"')
     await ctx.settings.update(THEME_SETTINGS_NAMESPACE, { preference: 'dark', fontSize: 17 })
     expect(scriptText(collect(ctx)[0])).toContain('const preference = "dark"')
     expect(scriptText(collect(ctx)[0])).toContain('"17px"')

@@ -137,7 +137,6 @@
 }
 .tippy-box[data-animation=tippy-show][data-state=hidden] .tippy-content {
   backdrop-filter: blur(0px);
-  -webkit-backdrop-filter: blur(0px);
 }
 
 .tippy-box[data-animation=tippy-show][data-state=visible] {
@@ -220,10 +219,9 @@
   padding-bottom: 10px;
   border-radius: 20px;
   backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
   background-color: rgba(255, 255, 255, 0.7);
   box-shadow: inset 1px 1px 0px 0px rgba(255, 255, 255, 0.8), inset 0px 0px 1px 1px rgba(255, 255, 255, 0.8), 0px 2px 20px rgba(0, 0, 0, 0.1);
-  transition: backdrop-filter 0.4s ease-out, -webkit-backdrop-filter 0.4s ease-out;
+  transition: backdrop-filter 0.4s ease-out;
 }
 .tippy-box[data-theme~=menu] .tippy-content .menuContainer {
   display: flex;
@@ -269,7 +267,6 @@
   padding-bottom: 10px;
   border-radius: 20px;
   backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
   background-color: rgba(255, 255, 255, 0.7);
   box-shadow: inset 1px 1px 0px 0px rgba(255, 255, 255, 0.8), inset 0px 0px 1px 1px rgba(255, 255, 255, 0.8), 0px 2px 20px rgba(0, 0, 0, 0.1);
 }
