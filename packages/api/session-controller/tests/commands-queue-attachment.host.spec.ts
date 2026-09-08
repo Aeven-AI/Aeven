@@ -80,6 +80,14 @@ describe('Session queue commands', () => {
         }],
       },
     })), 'session/attachment-invalid')
+    for (const content of [[], [{ type: 'text' as const, text: ' \t\n' }]]) {
+      await expectFailure(Promise.resolve().then(() => controller.updateQueue({
+        sessionId: agent.id,
+        itemId: queued.id,
+        action: { kind: 'edit', content },
+      })), 'gateway/bad-request')
+    }
+    expect(inbox.nextTurn[0]?.content).toEqual([{ type: 'text', text: 'queued' }])
     await expectFailure(Promise.resolve().then(() => controller.updateQueue({
       sessionId: SessionId('missing'), itemId: queued.id, action: { kind: 'remove' },
     })), 'session/queue-item-not-found')
