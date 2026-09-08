@@ -52,9 +52,9 @@
   }
 }
 
-/* Drag handles are frame children (columns clip overflow): an 8px hit strip
-   centered on the column border via inline left, above column content. Details
-   adds a visible 12x32 pill at vertical center; sidebar keeps only the hit strip. */
+/* The details drag handle is a frame child (columns clip overflow): an 8px hit
+   strip centered on the column border, above column content, carrying a visible
+   12x32 pill at vertical center. */
 .handle {
   position: absolute;
   top: 0;
@@ -70,13 +70,8 @@
     right var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
 }
 
-/* Each handle sits on its own column's edge by reading that column's width,
-   so neither needs the frame's measured size. */
-.handle[data-side='sidebar'] {
-  left: var(--dsh-frame-sidebar-width, 0px);
-  margin-left: -4px;
-}
-
+/* The handle sits on its column's edge by reading that column's width, so it
+   never needs the frame's measured size. */
 .handle[data-side='details'] {
   right: var(--dsh-frame-details-width, 0px);
   margin-right: -4px;

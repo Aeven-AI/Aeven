@@ -4,18 +4,18 @@
  * store instance (createLayoutStore().create() — the test-sanctioned engine
  * path), a recording renderSlot stub, and a SessionProvider component stub
  * (the real one is framework-wired to the renderer host; its own behavior is
- * ui-renderer's spec territory). Drag sequences (pointer capture + rAF flush),
- * concession response to viewport change, and details staying mounted at
- * zero width are the preserved behavior assertions. jsdom has no layout
- * engine, so the frame width comes from a mocked getBoundingClientRect and
- * resizes are driven through the ResizeObserver stub.
+ * ui-renderer's spec territory). Details drag sequences (pointer capture + rAF
+ * flush), narrow-breakpoint collapse, and details staying mounted at zero width
+ * are the preserved behavior assertions. The frame observes no element: it
+ * reads the breakpoint from matchMedia, which jsdom does not implement, so
+ * `resizeTo` moves the viewport and notifies the stubbed listeners.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, render } from '@testing-library/react'
 import { useSyncExternalStore } from 'react'
 import { AppFrame } from '@deepseek-ai/dsh-client-ui-layout/src/client/AppFrame.tsx'
 import type { AppFrameProps } from '@deepseek-ai/dsh-client-ui-layout/src/client/AppFrame.tsx'
-import { SIDEBAR_COLLAPSED } from '@deepseek-ai/dsh-client-ui-layout/src/client/columns.ts'
+import { SIDEBAR_AUTO_COLLAPSE, SIDEBAR_COLLAPSED } from '@deepseek-ai/dsh-client-ui-layout/src/client/columns.ts'
 import { createLayoutStore } from '@deepseek-ai/dsh-client-ui-layout/src/client/stores.ts'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
@@ -37,17 +37,22 @@ const SessionProviderStub: AppFrameProps['SessionProvider'] = ({ children, empty
   selectedSession.current === undefined ? <>{empty?.() ?? null}</> : <>{children}</>
 
 
-/** Observer stub: captures the callback so tests can fire resizes manually. */
-let fireResize: (() => void) | null = null
-class ResizeObserverStub {
-  #cb: ResizeObserverCallback
-  constructor(cb: ResizeObserverCallback) { this.#cb = cb }
-  observe(): void { fireResize = () => { this.#cb([], this) } }
-  unobserve(): void {}
-  disconnect(): void { fireResize = null }
-}
+/** Breakpoint listeners handed to the matchMedia stub, newest last. */
+let mediaListeners: (() => void)[] = []
 
 let frameWidth = 1920
+
+/**
+ * Move the viewport and notify the frame's breakpoint listeners. The frame
+ * observes no element — it reads the narrow breakpoint from matchMedia alone —
+ * so a media-query change is the only resize signal it can see.
+ * @param width - the new viewport width in pixels.
+ */
+function resizeTo(width: number): void {
+  frameWidth = width
+  window.innerWidth = width
+  for (const listener of [...mediaListeners]) listener()
+}
 
 /** Test-local selector hook over a framework-neutral store instance. */
 function hookOf<T>(inst: { subscribe: (fn: () => void) => () => void; getSnapshot: () => T }) {
@@ -115,7 +120,9 @@ function tracks(frame: HTMLElement): number[] {
   const sidebar = frame.querySelector<HTMLElement>('[data-testid="sidebar-content"]')
   const details = frame.querySelector<HTMLElement>('[class*="detailsCol"]')
   if (sidebar === null || details === null) throw new Error('missing flex column')
-  return [Number(sidebar.dataset.width), Number.parseFloat(details.style.width)]
+  // The details column takes its width from the frame's custom property, not
+  // an inline width on the column itself.
+  return [Number(sidebar.dataset.width), Number.parseFloat(frame.style.getPropertyValue('--dsh-frame-details-width'))]
 }
 
 function drag(handle: Element, fromX: number, toX: number): void {
@@ -134,14 +141,18 @@ beforeEach(() => {
   selectedSessionTitle.current = undefined
   workspacesReady.current = true
   vi.useFakeTimers()
-  // jsdom implements no matchMedia; the frame reads the narrow breakpoint from it.
+  // jsdom implements no matchMedia; the frame reads the narrow breakpoint from
+  // it. `matches` is a getter so a frameWidth change is visible to the next
+  // listener run, and NARROW_QUERY's max-width is inclusive.
+  mediaListeners = []
   vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: frameWidth < 1024,
+    get matches() { return frameWidth <= SIDEBAR_AUTO_COLLAPSE },
     media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
+    addEventListener: (_: string, fn: () => void) => { mediaListeners.push(fn) },
+    removeEventListener: (_: string, fn: () => void) => {
+      mediaListeners = mediaListeners.filter(listener => listener !== fn)
+    },
   }))
-  vi.stubGlobal('ResizeObserver', ResizeObserverStub)
   vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => setTimeout(() => { cb(0) }, 16) as unknown as number)
   vi.stubGlobal('cancelAnimationFrame', (h: number) => { clearTimeout(h) })
   window.innerWidth = frameWidth
@@ -268,29 +279,22 @@ describe('AppFrame', () => {
     expect(slotCalls.find(c => c.key === 'sidebar')!.props).toEqual({ collapsed: false, width: 280 })
   })
 
-  it('sidebar drag widens through rAF-batched pointer moves', () => {
-    const { frame } = mountFrame()
-    const handles = frame.querySelectorAll('[class*="handle"]')
-    drag(handles[0]!, 280, 350)
-    expect(tracks(frame)[0]).toBe(350)
-  })
-
   it('details drag widens leftward (negative dx grows the panel)', () => {
     const { frame, instance } = mountFrame()
     act(() => { instance.actions.openDetails() })
     const handles = frame.querySelectorAll('[class*="handle"]')
-    drag(handles[1]!, 1560, 1500)
+    drag(handles[0]!, 1560, 1500)
     expect(tracks(frame)[1]).toBe(420)
   })
 
-  it('drag base is the rendered (concession-clamped) width, not the preference', () => {
-    frameWidth = 1250 // step-2 squeeze: details renders 330 while preference is 360
+  it('drag base is the rendered width', () => {
+    frameWidth = 1250
     const { frame, instance } = mountFrame()
     act(() => { instance.actions.openDetails() })
-    expect(tracks(frame)).toEqual([280, 330])
+    expect(tracks(frame)).toEqual([280, 360])
     const handles = frame.querySelectorAll('[class*="handle"]')
-    drag(handles[1]!, 920, 930) // shrink by 10 from the rendered width
-    expect(instance.getSnapshot().details).toBe(320)
+    drag(handles[0]!, 890, 900) // shrink by 10 from the rendered width
+    expect(instance.getSnapshot().details).toBe(350)
   })
 
   it('details column stays mounted at zero width', () => {
@@ -310,25 +314,23 @@ describe('AppFrame', () => {
     expect(lastSidebarCall.props).toEqual({ collapsed: true, width: SIDEBAR_COLLAPSED })
   })
 
-  it('viewport shrink triggers the concession chain via ResizeObserver', () => {
+  it('keeps the details width across a viewport change above the breakpoint', () => {
+    // The centre column is `flex: 1` with `min-width: 0`, so it absorbs the
+    // squeeze in CSS; the frame runs no column solver of its own.
     const { frame, instance } = mountFrame()
     act(() => { instance.actions.openDetails() })
-    frameWidth = 1250
-    act(() => { fireResize?.(); vi.advanceTimersByTime(20) })
-    expect(tracks(frame)).toEqual([280, 330])
-    frameWidth = 1920
-    act(() => { fireResize?.(); vi.advanceTimersByTime(20) })
+    act(() => { resizeTo(1250) })
+    expect(tracks(frame)).toEqual([280, 360])
+    act(() => { resizeTo(1920) })
     expect(tracks(frame)).toEqual([280, 360])
   })
 
-  it('drag handles disappear for collapsed columns', () => {
+  it('the details handle appears only while that column is open', () => {
     const { frame, instance } = mountFrame()
-    expect(frame.querySelectorAll('[class*="handle"]')).toHaveLength(1)
+    expect(frame.querySelectorAll('[class*="handle"]')).toHaveLength(0)
     act(() => { instance.actions.openDetails() })
-    expect(frame.querySelectorAll('[class*="handle"]')).toHaveLength(2)
-    act(() => { instance.actions.closeDetails() })
     expect(frame.querySelectorAll('[class*="handle"]')).toHaveLength(1)
-    act(() => { instance.actions.toggleSidebar() })
+    act(() => { instance.actions.closeDetails() })
     expect(frame.querySelectorAll('[class*="handle"]')).toHaveLength(0)
   })
 })
@@ -343,13 +345,22 @@ describe('AppFrame — narrow-viewport auto-collapse', () => {
     expect(frame.querySelectorAll('[class*="handle"]')).toHaveLength(0)
   })
 
+  it('mounts wide where the runtime implements no matchMedia', () => {
+    // The assembled web lane boots this tree in jsdom, which has no
+    // matchMedia; reading the breakpoint unguarded crashed the 'root' slot.
+    vi.stubGlobal('matchMedia', undefined)
+    const { frame } = mountFrame()
+    expect(tracks(frame)).toEqual([280, 0])
+    expect(frame.hasAttribute('data-sidebar-collapsed')).toBe(false)
+  })
+
   it('narrow toggle re-expands over the squeezed center and back', () => {
     frameWidth = 980
     const { frame, instance } = mountFrame()
     act(() => { instance.actions.toggleSidebar() })
     expect(tracks(frame)).toEqual([280, 0])
     expect(frame.hasAttribute('data-sidebar-collapsed')).toBe(false)
-    expect(frame.querySelectorAll('[class*="handle"]')).toHaveLength(1)
+    expect(frame.querySelectorAll('[class*="handle"]')).toHaveLength(0)
     act(() => { instance.actions.toggleSidebar() })
     expect(tracks(frame)).toEqual([SIDEBAR_COLLAPSED, 0])
   })
@@ -358,8 +369,7 @@ describe('AppFrame — narrow-viewport auto-collapse', () => {
     frameWidth = 1920
     const { frame, instance } = mountFrame()
     act(() => { instance.actions.toggleSidebar() }) // close while wide: preference 0
-    frameWidth = 980
-    act(() => { fireResize?.(); vi.advanceTimersByTime(20) })
+    act(() => { resizeTo(980) })
     act(() => { instance.actions.toggleSidebar() })
     expect(tracks(frame)).toEqual([280, 0])
     expect(instance.getSnapshot().sidebar).toBe(0) // preference untouched
@@ -368,11 +378,9 @@ describe('AppFrame — narrow-viewport auto-collapse', () => {
   it('shrinking across the breakpoint auto-collapses; re-widening restores the drag width', () => {
     const { frame, instance } = mountFrame()
     act(() => { instance.actions.setSidebar(400) })
-    frameWidth = 980
-    act(() => { fireResize?.(); vi.advanceTimersByTime(20) })
+    act(() => { resizeTo(980) })
     expect(tracks(frame)).toEqual([SIDEBAR_COLLAPSED, 0])
-    frameWidth = 1920
-    act(() => { fireResize?.(); vi.advanceTimersByTime(20) })
+    act(() => { resizeTo(1920) })
     expect(tracks(frame)).toEqual([400, 0])
   })
 })
@@ -380,68 +388,57 @@ describe('AppFrame — narrow-viewport auto-collapse', () => {
 describe('AppFrame — guard branches', () => {
   it('pointer moves without capture are ignored (no width write)', () => {
     const { frame, instance } = mountFrame()
+    act(() => { instance.actions.openDetails() })
     const handle = frame.querySelectorAll('[class*="handle"]')[0]!
-    const before = instance.getSnapshot().sidebar
+    const before = instance.getSnapshot().details
     // Move + up without a preceding pointerdown: hasPointerCapture is false.
     act(() => {
       handle.dispatchEvent(new PointerEvent('pointermove', { pointerId: 9, clientX: 500, bubbles: true }))
       vi.advanceTimersByTime(20)
       handle.dispatchEvent(new PointerEvent('pointerup', { pointerId: 9, clientX: 500, bubbles: true }))
     })
-    expect(instance.getSnapshot().sidebar).toBe(before)
+    expect(instance.getSnapshot().details).toBe(before)
   })
 
   it('two moves inside one frame coalesce through the pending rAF', () => {
     const { frame, instance } = mountFrame()
+    act(() => { instance.actions.openDetails() })
     const handle = frame.querySelectorAll('[class*="handle"]')[0]!
-    act(() => { handle.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1, clientX: 280, bubbles: true })) })
+    act(() => { handle.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1, clientX: 1560, bubbles: true })) })
     act(() => {
       // Two moves before the frame flushes: the second must ride the pending
       // rAF (frame.current ??= guard), and the flush sees the latest x.
-      handle.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: 320, bubbles: true }))
-      handle.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: 340, bubbles: true }))
+      handle.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: 1520, bubbles: true }))
+      handle.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: 1500, bubbles: true }))
       vi.advanceTimersByTime(20)
     })
-    act(() => { handle.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, clientX: 340, bubbles: true })) })
-    expect(instance.getSnapshot().sidebar).toBe(340)
+    act(() => { handle.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, clientX: 1500, bubbles: true })) })
+    expect(instance.getSnapshot().details).toBe(420)
   })
 
   it('pointerup with a pending rAF cancels it and commits the final position', () => {
     const { frame, instance } = mountFrame()
+    act(() => { instance.actions.openDetails() })
     const handle = frame.querySelectorAll('[class*="handle"]')[0]!
-    act(() => { handle.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1, clientX: 280, bubbles: true })) })
+    act(() => { handle.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1, clientX: 1560, bubbles: true })) })
     act(() => {
-      handle.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: 360, bubbles: true }))
+      handle.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: 1500, bubbles: true }))
       // No timer advance: the rAF is still pending when pointerup arrives.
-      handle.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, clientX: 360, bubbles: true }))
+      handle.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, clientX: 1500, bubbles: true }))
     })
-    expect(instance.getSnapshot().sidebar).toBe(360)
-  })
-
-  it('zero-width resize reports are ignored (display:none window)', () => {
-    const { frame } = mountFrame()
-    frameWidth = 0
-    act(() => { fireResize?.(); vi.advanceTimersByTime(20) })
-    // Flex column targets still reflect the last non-zero viewport.
-    expect(tracks(frame)).toEqual([280, 0])
+    expect(instance.getSnapshot().details).toBe(420)
   })
 })
 
-describe('AppFrame — unmount with an in-flight resize frame', () => {
+describe('AppFrame — unmount with an in-flight drag frame', () => {
   it('cancels the pending rAF on unmount (no post-unmount setState)', () => {
-    const { unmount } = mountFrame()
-    frameWidth = 800
-    act(() => { fireResize?.() }) // rAF scheduled, NOT flushed
-    unmount()
+    const { frame, instance, unmount } = mountFrame()
+    act(() => { instance.actions.openDetails() })
+    const handle = frame.querySelectorAll('[class*="handle"]')[0]!
+    act(() => { handle.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1, clientX: 1560, bubbles: true })) })
+    act(() => { handle.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: 1500, bubbles: true })) })
+    unmount() // rAF scheduled, NOT flushed
     // Flushing after unmount must be a no-op (the frame was cancelled).
     expect(() => { vi.advanceTimersByTime(20) }).not.toThrow()
-  })
-
-  it('double resize inside one frame rides the pending rAF (??= guard)', () => {
-    const { frame, instance } = mountFrame()
-    act(() => { instance.actions.openDetails() })
-    frameWidth = 1250
-    act(() => { fireResize?.(); fireResize?.(); vi.advanceTimersByTime(20) })
-    expect(tracks(frame)).toEqual([280, 330])
   })
 })
