@@ -1,6 +1,4 @@
-- button "New session"
-- button "Collapse sidebar":
-  - img
+- button "Collapse sidebar"
 - button "New session":
   - img
   - text: New Session
@@ -31,8 +29,7 @@
   - img
 - textbox "Describe what you want to build... / commands, @ files or sessions":
   - paragraph
-- button "Commands":
-  - img
+- button "Commands"
 - 'button "Access mode, current: Workspace Write"': Workspace Write
 - button "Select model, current DeepSeek-V4-Flash":
   - text: DeepSeek-V4-Flash

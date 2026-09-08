@@ -1,14 +1,14 @@
 - banner:
   - navigation "Session hierarchy":
     - button "Use the bash tool to" [disabled]
+  - tablist:
+    - tab "Chat" [selected]
+    - tab "Trajectory"
   - img
   - text: Minimal mode
   - button "Session log":
     - text: Session log
     - img
-  - tablist:
-    - tab "Chat" [selected]
-    - tab "Trajectory"
 - button "System prompt":
   - img
   - img
@@ -38,8 +38,7 @@
   - text: Ran for {{duration}}
 - text: {{clock}}
 - textbox "Message or run a task... / commands, @ files or sessions"
-- button "Commands":
-  - img
+- button "Commands"
 - 'button "Access mode, current: Workspace Write"': Workspace Write
 - button "Select model, current DeepSeek-V4-Flash":
   - text: DeepSeek-V4-Flash

@@ -1,14 +1,14 @@
 - banner:
   - navigation "Session hierarchy":
     - button "workspace" [disabled]
+  - tablist:
+    - tab "Chat" [selected]
+    - tab "Trajectory"
   - img
   - text: Standard mode
   - button "Session log":
     - text: Session log
     - img
-  - tablist:
-    - tab "Chat" [selected]
-    - tab "Trajectory"
 - navigation "Turn navigation":
   - button "Jump to turn 1"
   - button "Jump to turn 2"
@@ -84,9 +84,19 @@
   - text: — 随机选中的包：
   - code: packages/context/session-reference
   - text: 📦
-- button "Copy"
+- text: Code
+- button "Copy":
+  - img
+- button "Full screen":
+  - img
+- text: 1 2 3 4 5 6 7 8
 - code: session-reference ├── README.md ├── package.json ├── src │ ├── index.ts │ └── uri.ts └── tests └── session-reference.spec.ts
-- button "Copy"
+- text: Code
+- button "Copy":
+  - img
+- button "Full screen":
+  - img
+- text: 1 2 3 4 5 6 7 8
 - code: "session-reference/ ├── README.md # 包说明文档 ├── package.json # 包元数据与依赖声明 ├── src/ │ ├── index.ts # 入口，导出公共 API │ └── uri.ts # 会话引用 URI 相关实现 └── tests/ └── session-reference.spec.ts # 单元测试"
 - paragraph: 这是一个很典型的轻量 TypeScript 包结构：入口 + 实现 + 测试。这一轮到此结束，等系统开启下一个 turn。
 - button "Copy":
@@ -141,9 +151,19 @@
   - text: — 随机选中的包：
   - code: packages/llm/token-meter
   - text: 📦
-- button "Copy"
+- text: Code
+- button "Copy":
+  - img
+- button "Full screen":
+  - img
+- text: 1 2 3 4 5 6 7
 - code: token-meter ├── README.md ├── package.json ├── src │ └── index.ts └── tests └── token-meter.spec.ts
-- button "Copy"
+- text: Code
+- button "Copy":
+  - img
+- button "Full screen":
+  - img
+- text: 1 2 3 4 5 6 7
 - code: "token-meter/ ├── README.md # 包说明文档 ├── package.json # 包元数据与依赖声明 ├── src/ │ └── index.ts # 入口，导出公共 API（token 计量逻辑） └── tests/ └── token-meter.spec.ts # 单元测试"
 - paragraph:
   - text: 两个 turn 都完成了（turn 1：
@@ -169,18 +189,28 @@
   - strong: 总结：
 - list:
   - listitem:
+    - text: •
     - strong: Turn 1
     - text: — 随机选中
     - code: packages/context/session-reference
-    - text: ，输出了文件结构：
-    - button "Copy"
+    - text: ，输出了文件结构： Code
+    - button "Copy":
+      - img
+    - button "Full screen":
+      - img
+    - text: 1 2 3 4 5 6 7 8
     - code: session-reference/ ├── README.md ├── package.json ├── src/ │ ├── index.ts │ └── uri.ts └── tests/ └── session-reference.spec.ts
   - listitem:
+    - text: •
     - strong: Turn 2
     - text: — 随机选中
     - code: packages/llm/token-meter
-    - text: ，输出了文件结构：
-    - button "Copy"
+    - text: ，输出了文件结构： Code
+    - button "Copy":
+      - img
+    - button "Full screen":
+      - img
+    - text: 1 2 3 4 5 6 7
     - code: token-meter/ ├── README.md ├── package.json ├── src/ │ └── index.ts └── tests/ └── token-meter.spec.ts
 - paragraph:
   - strong: 验证方式：
@@ -227,8 +257,7 @@
 - button "Back to bottom":
   - img
 - textbox "Message or run a task... / commands, @ files or sessions"
-- button "Commands":
-  - img
+- button "Commands"
 - 'button "Access mode, current: Workspace Write"': Workspace Write
 - button "Select model, current DeepSeek-V4-Flash":
   - text: DeepSeek-V4-Flash
