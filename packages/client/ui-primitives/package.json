@@ -23,7 +23,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@aeven-ai/hypermarkdown": "^0.4.1",
+    "@aeven-ai/hypermarkdown": "^0.4.2",
     "@types/mdast": "^4.0.4",
     "anser": "^2.3.5",
     "clsx": "^2.0.0",
@@ -43,7 +43,8 @@
     "rehype-highlight": "^7.0.2",
     "rehype-katex": "^7.0.1",
     "remark-cjk-friendly": "^2.3.1",
-    "remark-math": "^6.0.0"
+    "remark-math": "^6.0.0",
+    "tippy.js": "^6.3.7"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",

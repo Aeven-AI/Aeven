@@ -101,6 +101,7 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`resolve.exports`](https://github.com/lukeed/resolve.exports) | MIT |
 | [`sharp`](https://github.com/lovell/sharp) | Apache-2.0 |
 | [`supports-color`](https://github.com/chalk/supports-color) | MIT |
+| [`tippy.js`](https://github.com/atomiks/tippyjs) | MIT |
 | [`tsx`](https://github.com/privatenumber/tsx) | MIT |
 | [`turndown`](https://github.com/mixmark-io/turndown) | MIT |
 | [`typescript`](https://github.com/microsoft/TypeScript) | Apache-2.0 |
