@@ -7,7 +7,6 @@ exports[`sidebar shell snapshots > keeps the expanded contents mounted behind th
 >
   <div
     class="root quietBars"
-    style="--dsh-sidebar-width: 300px;"
   >
     <div
       class="content"
@@ -133,6 +132,10 @@ exports[`sidebar shell snapshots > keeps the expanded contents mounted behind th
         class="panel"
       />
     </div>
+    <div
+      class="contentBlocker"
+      role="presentation"
+    />
   </div>
 </div>
 `;
@@ -144,7 +147,6 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
 >
   <div
     class="root visible quietBars"
-    style="--dsh-sidebar-width: 300px;"
   >
     <div
       class="content"
@@ -270,6 +272,10 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
         class="panel"
       />
     </div>
+    <div
+      class="contentBlocker"
+      role="presentation"
+    />
   </div>
 </div>
 `;
@@ -281,7 +287,6 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
 >
   <div
     class="root visible quietBars"
-    style="--dsh-sidebar-width: 300px;"
   >
     <div
       class="content"
@@ -407,6 +412,10 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
         class="panel"
       />
     </div>
+    <div
+      class="contentBlocker"
+      role="presentation"
+    />
   </div>
 </div>
 `;
