@@ -227,7 +227,7 @@ describe('real Loader composition', () => {
       // here, probing the webserver's per-request error containment.
       decodeURIComponent(new URL(req.url ?? '/', 'http://x').pathname)
       res.writeHead(200, { 'content-type': 'text/html' })
-      res.end(server.applyIndexTaps('<head></head><body>shell</body>'))
+      res.end(server.applyIndexTaps('<head></head><body>shell body</body>'))
     })
     expect(() => server.registerFallback(() => {})).toThrow(/fallback already registered/)
     expect((await request(port, '/no/such/route')).body).toContain('__T__')
@@ -320,21 +320,22 @@ describe('real Loader composition', () => {
       )
     })
 
-    const html = server.renderIndex('<html><head></head><body>shell</body></html>')
-    // Head rows land right after the opening head tag in table order; the body
-    // row lands right after the opening body tag.
+    const html = server.renderIndex('<html><head><script type="module" src="/shell.js"></script></head><body>shell body</body></html>')
+    // Startup scripts precede the shell; advisory downloads follow its assets.
     const order = [
       '<head>',
       '<script>window.__Q__=1</script>',
       '<script defer src="/plugins/a.js?rev=&quot;1&quot;&amp;x=&lt;y&gt;"></script>',
-      '<link rel="preload" as="script" href="/plugins/b.js?rev=&quot;2&quot;&amp;x=&lt;z&gt;">',
       'globalThis["__DSH_BOOT__"] = {"rev":"\\u003c/script>\\u003cb>"}',
       '<style>body{margin:0}</style>',
       '<meta name="probe">',
+      '<script type="module" src="/shell.js"></script>',
+      '<link rel="preload" as="script" fetchpriority="low" href="/plugins/b.js?rev=&quot;2&quot;&amp;x=&lt;z&gt;">',
+      '</head>',
       '<body>',
       '<script>window.__P__="dark"</script>',
       '<script src="/plugins/c.js"></script>',
-      'shell',
+      'shell body',
     ].map(part => html.indexOf(part))
     expect(order).toEqual([...order].sort((a, b) => a - b))
     expect(order.every(at => at !== -1)).toBe(true)

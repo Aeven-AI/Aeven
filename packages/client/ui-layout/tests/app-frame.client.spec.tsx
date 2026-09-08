@@ -60,7 +60,10 @@ function mountFrame() {
   const slotCalls: { key: string; props: unknown }[] = []
   const renderSlot = ((key: string, owner: object) => {
     slotCalls.push({ key, props: owner })
-    if (key === 'sidebar') return <div data-testid="sidebar-content" />
+    if (key === 'sidebar') {
+      const sidebar = owner as { width: number }
+      return <div data-testid="sidebar-content" data-width={sidebar.width} />
+    }
     if (key === 'conversation') return <div data-testid="center-content" />
     if (key === 'details') return <div data-testid="details-content" />
     if (key === 'conversation.empty') return <div data-testid="empty-content" />
@@ -109,9 +112,10 @@ function mountFrame() {
 }
 
 function tracks(frame: HTMLElement): number[] {
-  const m = /^(\d+)px minmax\(0, 1fr\) (\d+)px$/.exec(frame.style.gridTemplateColumns)
-  if (m === null) throw new Error(`unexpected template: ${frame.style.gridTemplateColumns}`)
-  return [Number(m[1]), Number(m[2])]
+  const sidebar = frame.querySelector<HTMLElement>('[data-testid="sidebar-content"]')
+  const details = frame.querySelector<HTMLElement>('[class*="detailsCol"]')
+  if (sidebar === null || details === null) throw new Error('missing flex column')
+  return [Number(sidebar.dataset.width), Number.parseFloat(details.style.width)]
 }
 
 function drag(handle: Element, fromX: number, toX: number): void {
@@ -130,6 +134,13 @@ beforeEach(() => {
   selectedSessionTitle.current = undefined
   workspacesReady.current = true
   vi.useFakeTimers()
+  // jsdom implements no matchMedia; the frame reads the narrow breakpoint from it.
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: frameWidth < 1024,
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
   vi.stubGlobal('ResizeObserver', ResizeObserverStub)
   vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => setTimeout(() => { cb(0) }, 16) as unknown as number)
   vi.stubGlobal('cancelAnimationFrame', (h: number) => { clearTimeout(h) })
@@ -173,7 +184,7 @@ describe('AppFrame', () => {
     expect(document.title).toBe('Product')
   })
 
-  it('renders three tracks from store state', () => {
+  it('renders three flex columns from store state', () => {
     const { frame } = mountFrame()
     expect(tracks(frame)).toEqual([280, 0])
   })
@@ -411,7 +422,7 @@ describe('AppFrame — guard branches', () => {
     const { frame } = mountFrame()
     frameWidth = 0
     act(() => { fireResize?.(); vi.advanceTimersByTime(20) })
-    // Track template still reflects the last non-zero viewport.
+    // Flex column targets still reflect the last non-zero viewport.
     expect(tracks(frame)).toEqual([280, 0])
   })
 })

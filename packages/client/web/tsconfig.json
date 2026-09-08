@@ -9,6 +9,9 @@
   ],
   "references": [
     {
+      "path": "../ui-auth-aeven"
+    },
+    {
       "path": "../store"
     },
     {

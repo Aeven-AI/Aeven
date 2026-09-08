@@ -1004,6 +1004,25 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'identityUsers',
+    summary: 'Registry of authorities, and the resolution every consumer goes through.',
+    description: 'Registry of authorities, and the resolution every consumer goes through.',
+    methods: [
+      {
+        signature: 'registerResolver(resolver: UserResolver): () => void',
+        description: 'Register one authority.',
+        parameters: [{ name: 'resolver', description: 'the authority to add.' }],
+        returns: 'the disposer removing it.',
+      },
+      {
+        signature: 'resolve(request: IdentityRequest): User | undefined',
+        description: 'Identify the caller through the registered authorities.\n\nThe first authority that recognizes the credential answers. Order is registration order, which a composition controls by the order it mounts them; nothing here ranks authorities, because a deployment with two that disagree about one credential has a composition problem, not a resolution problem.',
+        parameters: [{ name: 'request', description: 'the credential-bearing headers.' }],
+        returns: 'the authenticated user, or undefined when none recognized it.',
+      },
+    ],
+  },
+  {
     key: 'inspector',
     summary: 'Shared Host/Client service façade over the realm\'s source publisher.',
     description: 'Shared Host/Client service façade over the realm\'s source publisher.',
@@ -2871,8 +2890,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     methods: [
       {
         signature: 'async create(path: string, title?: string): Promise<Workspace>',
-        description: 'Create or reuse a workspace for an existing directory. The path is canonicalized through `fs.realpath`; a nonexistent path rejects with the original error and a non-directory rejects. Repeated calls for the same canonical path return the existing entity without changing its title. A newly created workspace is prepended to the durable registry order. Different canonical paths may share a display title.',
-        parameters: [{ name: 'path', description: 'Existing directory to own, in any path spelling.' }, { name: 'title', description: 'Display title used only when a new record is created.' }],
+        description: 'Create or reuse a workspace for an existing directory. The fully qualified path is canonicalized through `fs.realpath`; a relative, nonexistent, or non-directory path rejects. Repeated calls for the same canonical path return the existing entity without changing its title. A newly created workspace is prepended to the durable registry order. Different canonical paths may share a display title.',
+        parameters: [{ name: 'path', description: 'Existing directory to own, in a fully qualified path spelling.' }, { name: 'title', description: 'Display title used only when a new record is created.' }],
         returns: 'the existing or newly durable workspace.',
       },
       {
@@ -2908,7 +2927,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: 'async resolveByPath(path: string): Promise<Workspace | undefined>',
         description: 'Resolve by canonical directory path without creating or mutating a workspace. A missing path rejects during `realpath`; an existing unowned directory returns `undefined`.',
-        parameters: [{ name: 'path', description: 'Existing directory path in any spelling.' }],
+        parameters: [{ name: 'path', description: 'Existing directory path in a fully qualified spelling.' }],
         returns: 'the workspace owning the canonical path, when one exists.',
       },
     ],
@@ -4164,6 +4183,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'GrantRecord',
     declaration: 'export interface GrantRecord {\n    readonly kind: \'grant\';\n    readonly payload: unknown;\n}',
+  },
+  {
+    name: 'IdentityRequest',
+    declaration: 'export interface IdentityRequest {\n    readonly headers: Headers | Readonly<Record<string, string | readonly string[] | undefined>>;\n}',
   },
   {
     name: 'ImageAttachmentLimits',
@@ -6034,8 +6057,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface UpdateTeamTaskRequest {\n    readonly taskId: TeamTaskId;\n    readonly expectedRevision: number;\n    readonly action: TeamTaskAction;\n    readonly subject?: string;\n    readonly description?: string;\n    readonly blockedBy?: readonly TeamTaskId[];\n    readonly writeScopes?: readonly string[];\n    readonly owner?: string;\n}',
   },
   {
+    name: 'User',
+    declaration: 'export interface User {\n    readonly id: string;\n    readonly email?: string;\n    readonly displayName?: string;\n    readonly avatarUrl?: string;\n}',
+  },
+  {
     name: 'UserMessage',
     declaration: 'export interface UserMessage extends Message {\n    readonly role: \'user\';\n}',
+  },
+  {
+    name: 'UserResolver',
+    declaration: 'export interface UserResolver {\n    readonly id: string;\n    resolve(request: IdentityRequest): User | undefined;\n}',
   },
   {
     name: 'VerifiedWebhookDelivery',

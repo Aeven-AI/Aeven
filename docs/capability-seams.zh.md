@@ -9,6 +9,15 @@
 
 ```mermaid
 flowchart LR
+  pkg_identity_user["identity-user"]
+  svc_identityUsers["ctx.identityUsers<br/>Authenticated user identity"]
+  pkg_identity_user_aeven["identity-user-aeven"]
+  pkg_client_connection["client-connection"]
+  pkg_media["media"]
+  svc_media["ctx.media<br/>Generated image and video"]
+  pkg_media_deepinfra["media-deepinfra"]
+  pkg_media_openrouter["media-openrouter"]
+  pkg_media_pi_ai["media-pi-ai"]
   pkg_attachment["attachment"]
   svc_attachments["ctx.attachments<br/>Durable binary attachment storage"]
   pkg_attachment_local["attachment-local"]
@@ -203,7 +212,6 @@ flowchart LR
   pkg_host_directory_picker_browse["host-directory-picker-browse"]
   pkg_host_webserver["host-webserver"]
   svc_webServer["ctx.webServer<br/>HTTP route registration"]
-  pkg_client_connection["client-connection"]
   pkg_client_modules["client-modules"]
   pkg_client_hmr["client-hmr"]
   svc_clientModules["ctx.clientModules<br/>Client plugin graph host"]
@@ -263,6 +271,8 @@ flowchart LR
   pkg_host_directory_picker_browse --> svc_directoryPicker
   pkg_host_directory_picker_native --> svc_directoryPicker
   pkg_host_webserver --> svc_webServer
+  pkg_identity_user --> svc_identityUsers
+  pkg_identity_user_aeven --> svc_identityUsers
   pkg_inspector --> svc_inspector
   pkg_invariants --> svc_invariants
   pkg_jobs --> svc_jobs
@@ -273,6 +283,10 @@ flowchart LR
   pkg_llm_replay --> svc_llm
   pkg_lsp --> svc_lsp
   pkg_lsp_stdio --> svc_lsp
+  pkg_media --> svc_media
+  pkg_media_deepinfra --> svc_media
+  pkg_media_openrouter --> svc_media
+  pkg_media_pi_ai --> svc_media
   pkg_message_feedback --> svc_messageFeedback
   pkg_permission_presets --> svc_permissionPresets
   pkg_plan_mode --> svc_planMode
@@ -367,6 +381,7 @@ flowchart LR
   svc_e2b --> pkg_subprocess_e2b
   svc_fileReferences --> pkg_api_session_controller
   svc_fs --> pkg_tool_fs
+  svc_identityUsers --> pkg_client_connection
   svc_invariants --> pkg_agent
   svc_invariants --> pkg_agent_loop
   svc_invariants --> pkg_scope
@@ -467,6 +482,8 @@ flowchart LR
 
 | ctx 键 | 角色 | 所属包 | 实现 | 直接消费方 | 配套插件 | 说明 |
 | --- | --- | --- | --- | --- | --- | --- |
+| `ctx.identityUsers` | `seam` | [`identity-user`](../packages/identity/user) | [`identity-user-aeven`](../packages/identity/user-aeven) | [`client-connection`](../packages/client/connection) | - | authority 会同步地把请求的凭据 header 解析为用户；请求围栏在派发之前调用该 seam，无人被认得时回答 401。 |
+| `ctx.media` | `seam` | [`media`](../packages/media/media) | [`media-deepinfra`](../packages/media/media-deepinfra), [`media-openrouter`](../packages/media/media-openrouter), [`media-pi-ai`](../packages/media/media-pi-ai) | - | - | 一个服务横跨两种媒体：图像直接返回字节，而视频是调用方启动、轮询并取回的任务。模型看到的每个名称与 schema 都由 Consumer 负责。 |
 | `ctx.attachments` | `seam` | [`attachment`](../packages/attachment/attachment) | [`attachment-local`](../packages/attachment/attachment-local) | [`api-session-controller`](../packages/api/session-controller), [`tool-fs`](../packages/fs/tool-fs), [`llm-pi-ai`](../packages/llm/llm-pi-ai), [`llm-deepseek`](../packages/llm/llm-deepseek) | - | 宿主会在会话事件之前提交已接受的图片；提供方适配器将已授权的持久引用解析为提供方原生内容。 |
 | `ctx.llm` | `seam` | [`llm`](../packages/llm/llm) | [`llm-deepseek`](../packages/llm/llm-deepseek), [`llm-pi-ai`](../packages/llm/llm-pi-ai), [`llm-replay`](../packages/test-support/llm-replay) | [`agent-loop`](../packages/core/agent-loop), [`compaction-basic`](../packages/compaction/compaction-basic) | - | 适配器注册提供方实现；agent loop（智能体循环）与压缩功能调用提供方无关的流服务。 |
 | `ctx.deepseekLlmApiExtensions` | `seam` | [`deepseek-llm-api-extensions`](../packages/llm/deepseek-llm-api-extensions) | [`session-log-deepseek`](../packages/session/session-log-deepseek), [`plugin-package-inventory-deepseek`](../packages/llm/plugin-package-inventory-deepseek) | [`llm-deepseek`](../packages/llm/llm-deepseek) | - | 插件准备彼此独立的顶层字段；官方适配器会合并这些字段，并在 HTTP 接受后提交其交付状态。 |

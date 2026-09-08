@@ -12,18 +12,20 @@ The web shell's boot HTML needs three kinds of injection: client-modules' boot p
 
 Make the injection surface an event over pure data: the webserver declares the `webserver/index-inject` event and the `IndexInjection` row union (`global`/`script`/`script-src`/`script-preload`/`style`/`html`, with placement where applicable). A plugin that wants to inject subscribes and pushes rows; every collection (`collectIndexInjections()`) is a fresh emit, so subscribers read live state at emit time (module graph, theme preference — no re-registration staleness), and a subscription dies with its fiber.
 
-One table, two renderers: the served form's `webServer.renderIndex(html)` renders rows into index.html deterministically (head rows after the opening head tag, body rows after the opening body tag; `<` JSON-escaped in global values, attribute-escaped `src`); the worker form's `/__boot__` payload is `{ injections }`, executed row by row by a small page-side interpreter (set global / create script element / load external through the tunnel's `loadBundle` / mount style and markup). A `script-preload` row renders a browser preload hint in served HTML and is ignored by the worker interpreter, whose `/plugins` resources exist only behind the tunnel and load on demand. Rows are pure JSON data — that is the both-ends-equivalent discipline.
+One table, two renderers: the served form's `webServer.renderIndex(html)` renders rows into index.html deterministically (head rows after the opening head tag, body rows after the opening body tag; `<` JSON-escaped in global values, attribute-escaped `src`); the worker form's `/__boot__` payload is `{ injections }`, executed row by row by a small page-side interpreter (set global / create script element / load external through the tunnel's `loadBundle` / mount style and markup). A `script-preload` row renders an eager `fetchpriority="low"` hint after the shell assets at the end of the served head and is ignored by the worker interpreter, whose `/plugins` resources exist only behind the tunnel and load on demand. Rows are pure JSON data — that is the both-ends-equivalent discipline.
 
 `tapIndex`/`applyIndexTaps` survive as the raw-HTML escape hatch, applied after row rendering; every internal consumer moved to the event.
 
 ## Consequences
 
 - client-modules and ui-theme no longer regex-edit HTML; the worker's `readBootPayload` service-poking (`clientModules`, `settings`, theme constants through `loader.load`) is deleted; the page-side `installModuleLoaderFacade`, `applyBootTheme`, and `PARSER_PRELOAD_IDS` re-implementations retire.
-- Ordering: across subscribers, subscription order (same as the old tap order); within one subscriber, push order — modules itself guarantees queue → application preload → bootstrap script → global.
+- Ordering: across subscribers, subscription order (same as the old tap order); within one subscriber, push order — modules declares queue → application preload → bootstrap script → global; the HTML renderer places advisory preloads after the shell assets without reordering executable scripts.
 - The served rendering of the manifest global changed from `window.__DSH_BOOT__ =` to `globalThis["__DSH_BOOT__"] =`; no committed snapshot expectation carries that text, so none needed re-recording.
 - New model-visible or page-visible boot inputs extend the row union; no new tap consumers.
 
 ## Alternatives considered
+
+**High-priority advisory preloads before the shell.** Six application batches can occupy every HTTP/1.1 connection before the entry request starts. Preload hints remain eager, but follow critical shell assets at low priority. Authentication is an initial shell dependency so sign-in resources are discovered with that entry.
 
 - **Keep tap functions, add a worker-side renderer that re-runs them over a fake document** — rejected: taps are opaque `html => html` closures, so the worker cannot serialize or replay them without shipping a DOM emulation into the boot path.
 - **A registration-style table (`registerInjection(row): dispose`)** — rejected for the two problems the event dissolves: rows staled against live state (theme preference, module graph) unless every producer re-registered on change, and every producer owned one more disposer. The per-emit pull reads fresh state with fiber-scoped cleanup for free.

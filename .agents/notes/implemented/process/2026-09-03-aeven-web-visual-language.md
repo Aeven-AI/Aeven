@@ -16,7 +16,7 @@ Conversation, sidebar, workspace rows, settings, and shared primitives adopt the
 
 The client retains its plugin layout, sidebar seats, view tabs, details panel, settings information architecture, dark preference, and feature action and status icons. The sidebar follows the reference interaction: its layout column collapses to zero width, all menu content disappears, and a 68×40px hamburger button remains at the upper-left; the expanded toggle adds the reference double-left chevron. Dark mode adapts the Aeven neutral hierarchy to dark surfaces through the same alias table; feature components still contain no theme selectors. Third-party themes continue to override semantic aliases after registration.
 
-This decision supersedes only the visual-baseline values in the [web styling system note](2026-07-19-web-styling-system.md), the default width relationship in the [shared composer width note](../feature/2026-08-04-web-composer-shared-width-axis.md), the composer's elevation in the [elevation note](../feature/2026-09-01-web-elevation-stroke-shadows.md), and the absence of shared radius variables in the [corner smoothing note](../feature/2026-09-01-web-superellipse-corner-smoothing.md). Their framework, interaction, and browser-rendering rationale remains active.
+This decision supersedes only the visual-baseline values in the [web styling system note](2026-07-19-web-styling-system.md), the default width relationship in the [shared composer width note](../feature/2026-08-04-web-composer-shared-width-axis.md), the composer's elevation in the [elevation note](../feature/2026-09-01-web-elevation-stroke-shadows.md). Their framework, interaction, and browser-rendering rationale remains active.
 
 ## Alternatives considered
 

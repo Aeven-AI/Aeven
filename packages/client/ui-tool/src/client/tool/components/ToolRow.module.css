@@ -174,7 +174,6 @@
   padding: 2px 8px;
   border: 0.5px solid var(--dsw-alias-border-l3);
   border-radius: 999px;
-  corner-shape: round;
   /* Base background, not bg-overlay: the overlay token is a raised dark
      surface and reads too heavy for a quiet in-flow affordance. */
   background: var(--dsw-alias-bg-base);

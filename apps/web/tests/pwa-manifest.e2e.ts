@@ -51,6 +51,10 @@ it('inlines first-paint preloader CSS and destages remaining stylesheets', async
   expect(inline).toContain('#dsh-preloader')
   expect(inline).toContain('dsh-preloader-spin')
 
+  const fonts = [...index.matchAll(/<link rel="preload" as="font"[^>]+>/g)]
+  expect(fonts).toHaveLength(2)
+  for (const tag of fonts) expect(tag[0]).toContain('fetchpriority="low"')
+
   const promoted = [...index.matchAll(/<link rel="preload" as="style"([^>]+) onload="this.onload=null;this.rel='stylesheet'">/g)]
   expect(promoted.length).toBeGreaterThan(0)
   for (const tag of promoted) {
@@ -71,12 +75,18 @@ it('inlines first-paint preloader CSS and destages remaining stylesheets', async
   }
 })
 
-it('splits katex, hljs, and mdast off boot and keeps mermaid on demand', async () => {
+it('starts render families off the shell execution path and keeps mermaid on demand', async () => {
   const index = await readFile(join(DIST_ROOT, 'index.html'), 'utf8')
   const assets = await readdir(join(DIST_ROOT, 'assets'))
+  const entryName = /<script type="module"[^>]+src="\.\/assets\/([^"/]+\.js)"/.exec(index)?.[1]
+  if (entryName === undefined) throw new Error('built index has no module entry')
+  const entry = await readFile(join(DIST_ROOT, 'assets', entryName), 'utf8')
   expect(assets.some(name => /^katex-[^.]+\.js$/.test(name))).toBe(true)
   expect(assets.some(name => /^hljs-[^.]+\.js$/.test(name))).toBe(true)
   expect(assets.some(name => /^mdast-[^.]+\.js$/.test(name))).toBe(true)
+  expect(assets.some(name => /^primitives-[^.]+\.js$/.test(name))).toBe(true)
+  expect(index).not.toMatch(/modulepreload[^>]+(?:katex|hljs|mdast|primitives)-/)
+  expect(entry).toMatch(/import\("\.\/primitives-[^.]+\.js"\)/)
   expect(assets.some(name => /^shiki-[^.]+\.js$/.test(name))).toBe(false)
   expect(assets.some(name => /^m-core-[^.]+\.js$/.test(name))).toBe(true)
   expect(assets.some(name => /^m-asset-[^.]+\.js$/.test(name))).toBe(true)

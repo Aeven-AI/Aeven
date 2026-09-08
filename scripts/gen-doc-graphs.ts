@@ -99,6 +99,23 @@ const GROUP_ORDER = [
 
 const SERVICE_ROLES: ServiceRole[] = [
   {
+    key: 'identityUsers',
+    pkg: 'identity-user',
+    title: 'Authenticated user identity',
+    mode: 'seam',
+    implementations: ['identity-user-aeven'],
+    consumers: ['client-connection'],
+    note: 'Authorities resolve a request\'s credential headers to a user synchronously; the request fence consults the seam before dispatch and answers 401 when nobody is recognized.',
+  },
+  {
+    key: 'media',
+    pkg: 'media',
+    title: 'Generated image and video',
+    mode: 'seam',
+    implementations: ['media-deepinfra', 'media-openrouter', 'media-pi-ai'],
+    note: 'One service spans both media: images return bytes directly, while video is a job a caller starts, polls, and fetches. Consumers own every model-facing name and schema.',
+  },
+  {
     key: 'attachments',
     pkg: 'attachment',
     title: 'Durable binary attachment storage',

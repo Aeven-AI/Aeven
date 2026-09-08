@@ -42,9 +42,6 @@
   border: 0;
   --dsw-elevation-stroke-color: transparent;
   border-radius: var(--dsw-aeven-radius-surface);
-  /* Aeven draws the composer with a plain 30px arc; opt the card out of the
-     theme's global superellipse so the silhouette matches. */
-  corner-shape: round;
   background: var(--dsw-specific-input-major);
   box-shadow: none;
   /* The draft text follows the Settings font-size preference (the textarea,
@@ -142,7 +139,6 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  corner-shape: round;
   background: var(--dsw-alias-state-business-primary);
   animation: input-pending 1s ease-in-out infinite alternate;
 }
@@ -270,7 +266,6 @@
   height: var(--dsw-aeven-control-size);
   border: 1.5px solid var(--dsw-alias-label-primary);
   border-radius: var(--dsw-aeven-radius-control);
-  corner-shape: round;
   background: transparent;
   color: var(--dsw-alias-label-primary);
   cursor: pointer;
@@ -328,7 +323,6 @@
   height: var(--dsw-aeven-control-size);
   border: 1.5px solid var(--dsw-alias-label-primary);
   border-radius: var(--dsw-aeven-radius-control);
-  corner-shape: round;
   background: transparent;
   /* Semantic label color keeps the arrow legible in both themes. */
   color: var(--dsw-alias-label-primary);

@@ -1,10 +1,10 @@
 /**
  * Sidebar shell: column geometry only, ported from the Aeven client's sidebar.
- * Collapse is one CSS state (`.visible`) driving four simultaneous 400ms
- * transitions — content width, panel width and opacity, menu-button width, and
- * chevron opacity. The shell repositions and remounts nothing while that runs,
- * so the motion stays continuous; the AppFrame grid track slides the layout on
- * the same duration and curve.
+ * Collapse is one CSS state (`.visible`) driving simultaneous 400ms
+ * transitions — column width, content width, panel width and opacity,
+ * menu-button width, and chevron opacity. Above 1024px the column is in flow,
+ * so that width transition is what resizes the conversation; below it the
+ * column overlays. The shell repositions and remounts nothing while that runs.
  *
  * The workspace/session browsing region between the New Session button and the
  * foot is the `sidebar.workspaces` registrant's, and the foot holds
@@ -18,16 +18,12 @@
  * pointing at carries no bar.
  */
 import { useEffect, useRef, useState } from 'react'
-import type { CSSProperties } from 'react'
 import clsx from 'clsx'
 import {
   FishLogo, IconChevronsLeftOutline14, IconMenuOutline16, IconNewChatOutline16, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SidebarRootComponentProps } from './contract/slots.ts'
 import css from './SidebarRoot.module.css'
-
-/** Wide-layout hold; spans the 400ms collapse so occupants never reflow mid-slide. */
-const COLLAPSE_SETTLE_MS = 400
 
 /**
  * How long the column's scrollbars stay drawn after the pointer leaves it.
@@ -44,27 +40,14 @@ const SCROLLBAR_LINGER_MS = 2000
  */
 export function SidebarRoot({
   collapsed,
-  width,
   startSession,
   toggleSidebar,
   t,
   renderSlot,
 }: SidebarRootComponentProps) {
-  // Occupants keep their expanded layout for the whole collapse and switch
-  // only once it has settled behind the faded-out panel.
-  const [settled, setSettled] = useState(collapsed)
-  useEffect(() => {
-    if (!collapsed) { setSettled(false); return }
-    const timer = window.setTimeout(() => { setSettled(true) }, COLLAPSE_SETTLE_MS)
-    return () => { window.clearTimeout(timer) }
-  }, [collapsed])
-  const wide = !collapsed || !settled
-
-  // The panel holds its expanded width while it slides shut, so the content
-  // inside narrows from the last real column width rather than snapping to a
-  // stale one. CSS reads it as --dsh-sidebar-width.
-  const lastWideWidth = useRef(width)
-  if (!collapsed) lastWideWidth.current = width
+  // The open width is the theme's Aeven token, exactly as the client's
+  // `$widthSidebar` is. Nothing measures or publishes it: collapsing is the
+  // `.visible` class alone, so no render writes a width mid-slide.
 
   // Scrollbars in the column follow the pointer (.quietBars rebinds them
   // away): drawn while it is inside, and for SCROLLBAR_LINGER_MS after it
@@ -114,7 +97,6 @@ export function SidebarRoot({
     <div
       ref={column}
       className={clsx(css.root, !collapsed && css.visible, !pointerInside && css.quietBars)}
-      style={{ '--dsh-sidebar-width': `${String(collapsed ? lastWideWidth.current : width)}px` } as CSSProperties}
       onPointerEnter={() => {
         cancelLinger()
         setPointerInside(true)
@@ -124,25 +106,23 @@ export function SidebarRoot({
       <div className={css.content}>
         {/* The replaceable brand remains available to deployments; Aeven's
             presentation hides it behind the full-width menu row. */}
-        {wide && (
-          <button
-            type="button"
-            className={css.brand}
-            aria-label={t('session.new.label')}
-            onClick={() => { startSession() }}
-          >
-            <span className={css.brandIdentity} aria-hidden="true">
-              <span className={css.brandMark}>
-                {renderSlot('sidebar.brand.mark', { size: 24 }, { fallback: <FishLogo size={24} /> })}
-              </span>
-              {/* No fallback: unoccupied, the brand is the mark alone. A
-                  deployment that wants wording here registers an occupant. */}
-              <span className={css.brandName}>
-                {renderSlot('sidebar.brand.name', {})}
-              </span>
+        <button
+          type="button"
+          className={css.brand}
+          aria-label={t('session.new.label')}
+          onClick={() => { startSession() }}
+        >
+          <span className={css.brandIdentity} aria-hidden="true">
+            <span className={css.brandMark}>
+              {renderSlot('sidebar.brand.mark', { size: 24 }, { fallback: <FishLogo size={24} /> })}
             </span>
-          </button>
-        )}
+            {/* No fallback: unoccupied, the brand is the mark alone. A
+                deployment that wants wording here registers an occupant. */}
+            <span className={css.brandName}>
+              {renderSlot('sidebar.brand.name', {})}
+            </span>
+          </span>
+        </button>
 
         <Tooltip label={collapsed ? t('toggle.open') : t('toggle.collapse')} delayMs={500}>
           <button
@@ -161,7 +141,7 @@ export function SidebarRoot({
         <div className={css.sideContent}>
           {/* Fixed at the open width so nothing inside re-lays-out mid-slide. */}
           <div className={css.sideContentInner}>
-            <Tooltip label={t('session.new.label')} delayMs={500} disabled={wide}>
+            <Tooltip label={t('session.new.label')} delayMs={500} disabled>
               <button
                 type="button"
                 className={css.newSession}
@@ -177,7 +157,7 @@ export function SidebarRoot({
                 the foot; its occupant rides the same slot. */}
             <div className={css.regionArea}>
               {renderSlot('sidebar.workspaces', {
-                wide,
+                wide: true,
                 expandSidebar: () => { if (collapsed) toggleSidebar() },
               })}
             </div>
@@ -185,10 +165,10 @@ export function SidebarRoot({
             {/* Footer actions stack above Settings. */}
             <div className={css.footArea}>
               <div className={css.footerActions}>
-                {renderSlot('sidebar.footer.action', { wide })}
+                {renderSlot('sidebar.footer.action', { wide: true })}
               </div>
               <div className={css.settingsArea}>
-                {renderSlot('sidebar.settings', { wide })}
+                {renderSlot('sidebar.settings', { wide: true })}
               </div>
             </div>
           </div>
@@ -198,6 +178,16 @@ export function SidebarRoot({
             it paints under the z-indexed button and body above it. */}
         <div className={css.panel} aria-hidden="true" />
       </div>
+
+      {/* Aeven `.content-blocker`: below the med breakpoint the column overlays
+          the conversation instead of pushing it, and this dims and blurs what
+          it covers. Display is a CSS decision, so the node is always mounted;
+          above the breakpoint it is `display: none` and reachable by nothing. */}
+      <div
+        className={css.contentBlocker}
+        role="presentation"
+        onClick={() => { toggleSidebar() }}
+      />
     </div>
   )
 }

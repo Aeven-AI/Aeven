@@ -38,7 +38,6 @@
   height: 36px;
   border: 0.5px solid var(--dsw-alias-border-l2-darkmode-thin);
   border-radius: 999px;
-  corner-shape: round;
   background: var(--dsw-specific-input-major);
   color: var(--dsw-alias-label-primary);
   cursor: pointer;

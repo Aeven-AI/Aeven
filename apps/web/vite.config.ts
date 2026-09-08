@@ -85,6 +85,49 @@ function destageBuiltStylesheets(): Plugin {
 }
 
 /**
+ * Font files the application paints its own text in, by asset stem. KaTeX
+ * ships faces too; those are wanted only where math renders and are left to
+ * the stylesheet that asks for them.
+ */
+const APPLICATION_FONT_STEMS: readonly string[] = [
+  'google-sans-flex-latin-wght-normal',
+  'google-sans-code-latin-wght-normal',
+]
+
+/**
+ * Start the application's own faces with the document.
+ *
+ * Every stylesheet here is destaged, so a browser discovers the `@font-face`
+ * rules only once the application CSS has arrived and starts the font later
+ * still. These hints issue both requests with the document, at low priority so
+ * they do not take an HTTP connection from the sign-in shell. The full
+ * application waits for the faces before mounting.
+ */
+function preloadApplicationFonts(): Plugin {
+  return {
+    name: 'dsh-preload-application-fonts',
+    apply: 'build',
+    enforce: 'post',
+    generateBundle(_options, bundle) {
+      const fonts = Object.keys(bundle).filter(fileName =>
+        APPLICATION_FONT_STEMS.some(stem => fileName.includes(`/fonts/${stem}-`)))
+      if (fonts.length !== APPLICATION_FONT_STEMS.length) {
+        throw new Error(`vite: expected ${String(APPLICATION_FONT_STEMS.length)} application font assets, found ${String(fonts.length)}`)
+      }
+      const links = fonts
+        .map(fileName => `<link rel="preload" as="font" type="font/woff2" crossorigin fetchpriority="low" href="./${fileName}">`)
+        .join('\n    ')
+      for (const item of Object.values(bundle)) {
+        if (item.type !== 'asset' || !item.fileName.endsWith('.html') || typeof item.source !== 'string') continue
+        const anchor = '<meta name="viewport" content="width=device-width, initial-scale=1" />'
+        if (!item.source.includes(anchor)) throw new Error('vite: index.html lost its viewport meta')
+        item.source = item.source.replace(anchor, `${anchor}\n    ${links}`)
+      }
+    },
+  }
+}
+
+/**
  * Emit preview.html beside index.html: the built index page with one module
  * script — the worker bootstrap entry — spliced ahead of its entry tag. Both
  * pages share every chunk; the extra tag is the only difference, so the
@@ -119,15 +162,12 @@ function emitPreviewPage(): Plugin {
  * family is its own file: a KaTeX upgrade must not bust the highlighter cache.
  * The parse pipeline is named `mdast` so it cannot collide with a lazy
  * highlight.js language whose rollup name is `markdown`.
- * Only packages workspace code imports DIRECTLY need listing: their private
- * transitive dependencies are imported solely by these and rollup's chunk
- * coloring pulls them in automatically. A dependency shared with index-side
- * code falls back to index — a few kB of dilution, never a correctness
- * problem. Anything not listed (react family, the vendored cordis workspace,
- * tiny helpers like anser/clsx, all workspace code, mermaid) stays out of
- * these chunks. Mermaid is a dynamic `import()` from the diagram plugin, so
- * rollup already emits it as on-demand chunks; listing it here would fold
- * those back onto the boot graph.
+ * Only directly imported family packages need listing. Explicit manual-chunk
+ * membership leaves unlisted dependencies in Rollup-owned shared chunks, so
+ * naming a rendering family cannot pull its full closure onto the sign-in
+ * path. Mermaid is a dynamic `import()` from the diagram plugin, so Rollup
+ * already emits it as on-demand chunks; listing it here would fold those back
+ * onto the application graph.
  *
  * Every member must be React-free. A package that
  * imports react/jsx-runtime must never be listed — rollup folds a module
@@ -154,7 +194,9 @@ const RENDER_CHUNKS: Readonly<Record<string, 'katex' | 'hljs' | 'mdast'>> = {
   'micromark-util-types': 'mdast',
 }
 
-const NAMED_RENDER_CHUNKS: ReadonlySet<string> = new Set(['index', 'katex', 'hljs', 'mdast'])
+const NAMED_RENDER_CHUNKS: ReadonlySet<string> = new Set([
+  'index', 'auth', 'react', 'primitives', 'katex', 'hljs', 'mdast',
+])
 
 /**
  * Path fragments that identify mermaid and the diagram engines it lazy-loads.
@@ -200,7 +242,8 @@ export default defineConfig({
   // directory, and the served index resolves identically from the site root.
   base: './',
   plugins: [
-    rejectStandaloneServe(), clientDocumentTitle(), inlinePreloaderCss(), react(), destageBuiltStylesheets(), emitPreviewPage(),
+    rejectStandaloneServe(), clientDocumentTitle(), inlinePreloaderCss(), react(), destageBuiltStylesheets(),
+    preloadApplicationFonts(), emitPreviewPage(),
   ],
   build: {
     // The worker bootstrap holds its page at top-level await; Vite's default
@@ -216,13 +259,17 @@ export default defineConfig({
         bootstrap: src('./src/preview.ts'),
       },
       output: {
+        // A manually named async family contains only the modules selected
+        // below. Pulling its dependency closure into that chunk can create a
+        // static edge back from the sign-in entry and defeat the async split.
+        onlyExplicitManualChunks: true,
         // The worker-preview surface groups under dist/preview/ (the page
         // itself stays at dist/preview.html), so the published payload can
         // exclude it as one directory.
         entryFileNames(chunk): string {
           return chunk.name === 'bootstrap' ? 'preview/[name]-[hash].js' : 'assets/[name]-[hash].js'
         },
-        // Output layout: named boot chunks stay at assets/ root; a language
+        // Output layout: named shell and rendering chunks stay at assets/ root; a language
         // grammar that is only dynamically imported groups under
         // assets/langs/; mermaid's async diagram engines group as m-core /
         // m-asset; fonts (KaTeX faces) group under assets/fonts/. Sourcemaps
@@ -249,6 +296,9 @@ export default defineConfig({
         },
         manualChunks(id: string): string | undefined {
           const pkg = npmPackageOf(id)
+          if (id.includes('/packages/client/ui-auth-aeven/')) return 'auth'
+          if (id.includes('/packages/client/ui-primitives/')) return 'primitives'
+          if (pkg === 'react' || pkg === 'react-dom' || pkg === 'scheduler') return 'react'
           if (pkg === undefined) return undefined // workspace + vendored cordis: index
           // Language grammars stay unassigned so a dynamic `import()` keeps its
           // own on-demand chunk. Grammars HyperMarkdown already static-imports

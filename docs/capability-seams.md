@@ -7,6 +7,15 @@ A service can be a core spine service, a swappable capability seam, or a bundle/
 
 ```mermaid
 flowchart LR
+  pkg_identity_user["identity-user"]
+  svc_identityUsers["ctx.identityUsers<br/>Authenticated user identity"]
+  pkg_identity_user_aeven["identity-user-aeven"]
+  pkg_client_connection["client-connection"]
+  pkg_media["media"]
+  svc_media["ctx.media<br/>Generated image and video"]
+  pkg_media_deepinfra["media-deepinfra"]
+  pkg_media_openrouter["media-openrouter"]
+  pkg_media_pi_ai["media-pi-ai"]
   pkg_attachment["attachment"]
   svc_attachments["ctx.attachments<br/>Durable binary attachment storage"]
   pkg_attachment_local["attachment-local"]
@@ -201,7 +210,6 @@ flowchart LR
   pkg_host_directory_picker_browse["host-directory-picker-browse"]
   pkg_host_webserver["host-webserver"]
   svc_webServer["ctx.webServer<br/>HTTP route registration"]
-  pkg_client_connection["client-connection"]
   pkg_client_modules["client-modules"]
   pkg_client_hmr["client-hmr"]
   svc_clientModules["ctx.clientModules<br/>Client plugin graph host"]
@@ -261,6 +269,8 @@ flowchart LR
   pkg_host_directory_picker_browse --> svc_directoryPicker
   pkg_host_directory_picker_native --> svc_directoryPicker
   pkg_host_webserver --> svc_webServer
+  pkg_identity_user --> svc_identityUsers
+  pkg_identity_user_aeven --> svc_identityUsers
   pkg_inspector --> svc_inspector
   pkg_invariants --> svc_invariants
   pkg_jobs --> svc_jobs
@@ -271,6 +281,10 @@ flowchart LR
   pkg_llm_replay --> svc_llm
   pkg_lsp --> svc_lsp
   pkg_lsp_stdio --> svc_lsp
+  pkg_media --> svc_media
+  pkg_media_deepinfra --> svc_media
+  pkg_media_openrouter --> svc_media
+  pkg_media_pi_ai --> svc_media
   pkg_message_feedback --> svc_messageFeedback
   pkg_permission_presets --> svc_permissionPresets
   pkg_plan_mode --> svc_planMode
@@ -365,6 +379,7 @@ flowchart LR
   svc_e2b --> pkg_subprocess_e2b
   svc_fileReferences --> pkg_api_session_controller
   svc_fs --> pkg_tool_fs
+  svc_identityUsers --> pkg_client_connection
   svc_invariants --> pkg_agent
   svc_invariants --> pkg_agent_loop
   svc_invariants --> pkg_scope
@@ -465,6 +480,8 @@ flowchart LR
 
 | ctx key | Role | Owner | Implementations | Direct consumers | Companion plugins | Note |
 | --- | --- | --- | --- | --- | --- | --- |
+| `ctx.identityUsers` | `seam` | [`identity-user`](../packages/identity/user) | [`identity-user-aeven`](../packages/identity/user-aeven) | [`client-connection`](../packages/client/connection) | - | Authorities resolve a request's credential headers to a user synchronously; the request fence consults the seam before dispatch and answers 401 when nobody is recognized. |
+| `ctx.media` | `seam` | [`media`](../packages/media/media) | [`media-deepinfra`](../packages/media/media-deepinfra), [`media-openrouter`](../packages/media/media-openrouter), [`media-pi-ai`](../packages/media/media-pi-ai) | - | - | One service spans both media: images return bytes directly, while video is a job a caller starts, polls, and fetches. Consumers own every model-facing name and schema. |
 | `ctx.attachments` | `seam` | [`attachment`](../packages/attachment/attachment) | [`attachment-local`](../packages/attachment/attachment-local) | [`api-session-controller`](../packages/api/session-controller), [`tool-fs`](../packages/fs/tool-fs), [`llm-pi-ai`](../packages/llm/llm-pi-ai), [`llm-deepseek`](../packages/llm/llm-deepseek) | - | The host commits accepted images before session events; provider adapters resolve authorized durable references into provider-native content. |
 | `ctx.llm` | `seam` | [`llm`](../packages/llm/llm) | [`llm-deepseek`](../packages/llm/llm-deepseek), [`llm-pi-ai`](../packages/llm/llm-pi-ai), [`llm-replay`](../packages/test-support/llm-replay) | [`agent-loop`](../packages/core/agent-loop), [`compaction-basic`](../packages/compaction/compaction-basic) | - | Adapters register provider implementations; the loop and compaction call the provider-neutral stream service. |
 | `ctx.deepseekLlmApiExtensions` | `seam` | [`deepseek-llm-api-extensions`](../packages/llm/deepseek-llm-api-extensions) | [`session-log-deepseek`](../packages/session/session-log-deepseek), [`plugin-package-inventory-deepseek`](../packages/llm/plugin-package-inventory-deepseek) | [`llm-deepseek`](../packages/llm/llm-deepseek) | - | Plugins prepare independent top-level fields; the official adapter merges them and commits their delivery state after HTTP acceptance. |

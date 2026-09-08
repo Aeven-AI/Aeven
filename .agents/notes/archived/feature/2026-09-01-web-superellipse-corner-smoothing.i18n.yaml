@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-01-web-superellipse-corner-smoothing.md
+2026-09-01-web-superellipse-corner-smoothing.md: b8da8295cafb21e71b99a5798a72acef4fbe9f0b
+2026-09-01-web-superellipse-corner-smoothing.zh.md: 9252966e10670319de698720be67ab1e8dfa2345

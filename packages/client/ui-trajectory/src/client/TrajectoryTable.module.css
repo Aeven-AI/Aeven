@@ -52,7 +52,6 @@
   border: 1.5px solid var(--dsw-alias-border-l2);
   border-top-color: var(--dsw-alias-state-business-primary);
   border-radius: 50%;
-  corner-shape: round;
   animation: history-loading-spin 700ms linear infinite;
 }
 
@@ -252,7 +251,6 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  corner-shape: round;
   background: var(--dsw-alias-label-caption);
   box-shadow:
     0 0 0 2px var(--dsw-alias-bg-layer-1),
@@ -919,7 +917,6 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  corner-shape: round;
   background: var(--dsw-alias-label-secondary);
 }
 

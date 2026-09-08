@@ -11,7 +11,7 @@ English | [中文](README.zh.md)
 
 `dsh-client-ui-workspace` is the shared Workspace browser and picker of the dsh web client: users browse grouped or flat Session rows in the sidebar, pick a Workspace for a new session from the Session Intent hero, and manage Workspaces and Sessions with add, rename, reorder, search, fork, and archive actions; the same Workspace menu and add flow serve both surfaces. Pending user interactions surface as amber warning dots, active Schedule projections surface as non-interactive alarm markers in ordinary and search rows, and the shared sidebar projection hides subagent-origin sessions. Distinct canonical paths remain separate id-keyed Workspaces, and adding a folder goes through a directory-flow child hole that a composed picker package's client half fills.
 
-Workspace and Session rows follow the Aeven menu's full-width 40px geometry, responsive 24px/16px insets, square corners, contiguous rhythm, and transparent hover and selected states while preserving every existing status and action icon. Selecting a Session navigates to its `/sessions/:id` SPA path; the address bar, browser history, and Session Controller stay synchronized.
+Workspace and Session rows follow the Aeven menu's full-width 40px geometry, responsive 24px/16px insets, square corners, contiguous rhythm, and transparent hover and selected states while preserving every existing status and action icon. Selecting a Session navigates to its `/c/<id>` SPA path; the address bar, browser history, and Session Controller stay synchronized.
 
 ## Table of Contents
 
@@ -31,7 +31,7 @@ Use the sidebar to browse Workspaces and their Sessions, reorder them, and start
 
 ### Session navigation
 
-Every selected Session has a URL-safe `/sessions/:id` path. An ordinary selection pushes one browser-history entry, initial baseline reconciliation replaces the launch entry, and Back or Forward reopens the Session named by the restored path. Loading a valid Session path directly selects it after the Session and Workspace baselines are ready. An unknown Session id is removed from the address bar before the existing recent-Workspace fallback runs.
+Every selected Session has a URL-safe `/c/<id>` path, the Host's `session-` id prefix dropped on the way out and restored on the way in. An ordinary selection pushes one browser-history entry, initial baseline reconciliation replaces the launch entry, and Back or Forward reopens the Session named by the restored path. Loading a valid Session path directly selects it after the Session and Workspace baselines are ready. An unknown Session id is removed from the address bar before the existing recent-Workspace fallback runs. Every selection reveals its row, so a Session reached by address is exposed and scrolled into view exactly as a search result is.
 
 ### Reordering and view options
 
@@ -39,7 +39,7 @@ View options combine grouping with one browser-persisted Session order per accou
 
 ### Search
 
-Collapsed search is one header action beside the view and add actions: activating it expands the field across the header. A non-blank query replaces either browsing mode with one flat result list — case-insensitive title and Workspace substring matches appear immediately, while a 250 ms debounced Host request adds ranked current-conversation content matches and snippets. Each new query aborts the preceding request; a disabled content search directs the user to Settings, while another failure reports that the search could not be completed, and both leave metadata matches visible. The list is capped at 20 and opens the selected Session without clearing the query.
+Collapsed search is one header action beside the view and add actions: activating it expands the field across the header. A non-blank query replaces either browsing mode with one flat result list — case-insensitive title and Workspace substring matches appear immediately, while a 250 ms debounced Host request adds ranked current-conversation content matches and snippets. Each new query aborts the preceding request; a disabled content search directs the user to Settings, while another failure reports that the search could not be completed, and both leave metadata matches visible. The list is capped at 20. Choosing a result clears and collapses search, opens the Session at its matched event, and scrolls its row into view in the configured browsing mode; grouped browsing also expands its Workspace and the full Session list when required.
 
 ### Managing sessions
 

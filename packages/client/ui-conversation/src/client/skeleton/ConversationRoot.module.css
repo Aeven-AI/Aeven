@@ -49,26 +49,74 @@
   );
 }
 
+/* Aeven `.navigation`: 56px overlay on the transcript, not a flex sibling.
+   Sticky/absolute at the top of the conversation column so chat content
+   (ChatView padding-top 56px) scrolls underneath. z-index 30 sits below the
+   sidebar (50), which is how the hamburger paints on top of this bar. */
 .header {
-  position: relative;
-  flex: none;
-  padding: 8px var(--dsw-aeven-page-inset) 0 max(
+  display: flex;
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 30;
+  height: 56px;
+  align-items: center;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  padding: 0 var(--dsw-aeven-page-inset) 0 max(
     var(--dsw-aeven-page-inset),
     var(--dsh-sidebar-overlay-clearance, 0px)
   );
-  border-bottom: 1px solid transparent;
+  background: transparent;
+  border: none;
+  /* Same duration and curve as the sidebar column, so hamburger clearance
+     eases with the slide instead of snapping when collapsed flips. */
+  transition: padding var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
 }
 
-.header::after {
-  content: '';
+@media (prefers-reduced-motion: reduce) {
+  .header {
+    transition: none;
+  }
+}
+
+/* Aeven `.navigation-background` / `.navigation-fade` / `.navigation-blur`. */
+.navBackground {
+  display: block;
   position: absolute;
+  top: 0;
   right: 0;
-  bottom: 1px;
   left: 0;
   z-index: 0;
-  height: 0.5px;
-  background: var(--dsw-alias-border-l3);
+  height: 56px;
   pointer-events: none;
+}
+
+.navFade {
+  display: block;
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 56px;
+  background: linear-gradient(
+    180deg,
+    var(--dsw-alias-bg-base) 0px,
+    rgb(from var(--dsw-alias-bg-base) r g b / 0) 56px
+  );
+}
+
+.navBlur {
+  display: block;
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 56px;
+  /* Unprefixed only: the CSS pipeline adds the -webkit- form per its targets. */
+  backdrop-filter: blur(1px);
+  mask-image: linear-gradient(to bottom, #000 10px, transparent 56px);
 }
 
 /* Blank hero/settling: keep the strict Session header mounted without taking
@@ -78,10 +126,14 @@
 }
 
 .titleRow {
+  position: relative;
+  z-index: 11;
   display: flex;
+  flex: 1;
   align-items: center;
   gap: 0;
-  min-height: 32px;
+  height: 56px;
+  min-width: 0;
 }
 
 .titleCluster {
@@ -164,20 +216,25 @@
   display: none;
 }
 
-/* figma Tab_Group 34:11441: 35px strip, gap 36, pad-left 8, tabs bottom-aligned. */
+/* Tabs sit in the 56px overlay row with the title, matching Aeven's single
+   navigation strip rather than a second header band. */
 .tabs {
   position: relative;
   z-index: 1;
   display: flex;
+  align-items: center;
   gap: 36px;
-  margin-top: 4px;
-  padding-left: 8px;
+  height: 56px;
+  margin: 0;
+  padding: 0 0 0 16px;
 }
 
-/* figma .Tab 34:11442: 13/16 text (figma wt510, rendered 500), gap 8 to the 2px bar. */
 .tab {
   position: relative;
-  padding: 0 0 11px;
+  display: flex;
+  align-items: center;
+  height: 56px;
+  padding: 0;
   border: none;
   background: transparent;
   font-size: 13px;
@@ -230,7 +287,7 @@
    gutter-reserved content box is accepted: it stays well inside the strip. */
 .widthHandle {
   position: absolute;
-  top: 0;
+  top: 56px;
   bottom: 0;
   z-index: 8;
   width: min(
@@ -321,20 +378,15 @@
   --dsh-composer-text-max-height: 336px;
 }
 
-/* Active phase: header is ordinary column chrome above the scrollport (not
-   sticky). The scroll body holds the transcript and the sticky composer seat
-   so wheel over the footer moves the flow. */
+/* Active phase: the header overlays the scrollport (Aeven `.navigation`).
+   The scroll body holds the transcript and the sticky composer seat so wheel
+   over the footer moves the flow. */
 .root[data-phase='active'] {
   overflow: hidden;
 }
 
-.root[data-phase='active'] .header {
-  flex: none;
-}
-
-/* Band below the header: the scrollport plus the width handles. Anchoring the
-   handles here keeps their full-height strips and glow under the header's
-   bottom edge at every header height. */
+/* Band below the overlay header: the scrollport plus the width handles.
+   Handles start under the 56px bar so their glow does not paint through it. */
 .body {
   position: relative;
   display: flex;

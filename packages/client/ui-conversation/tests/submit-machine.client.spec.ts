@@ -347,6 +347,14 @@ describe('decorations: scanTextRefs', () => {
     expect(scanTextRefs('/research @goal', lexicon)).toEqual([])
   })
 
+  it('a "/" token continued by a path never matches, even when the name is on the lexicon', () => {
+    expect(scanTextRefs('/goal/x /goal/ /goal.md', lexicon)).toEqual([])
+  })
+
+  it('a "/" token glued to punctuation is not a reference: the host gesture is whitespace-bounded', () => {
+    expect(scanTextRefs('/goal。 then /goal, now', lexicon)).toEqual([])
+  })
+
   it('word boundary: a trigger glued to text never matches', () => {
     expect(scanTextRefs('x/goal y@research', lexicon)).toEqual([])
   })

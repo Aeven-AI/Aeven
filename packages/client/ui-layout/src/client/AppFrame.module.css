@@ -1,37 +1,9 @@
 .frame {
   position: relative; /* anchors the drag handles, which straddle column borders */
-  display: grid;
-  grid-template-rows: 100%;
+  display: flex;
   height: 100%;
   overflow: hidden;
   background: var(--dsw-alias-bg-base);
-  transition: grid-template-columns var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
-}
-
-/* Dragging writes widths at pointer cadence; easing them would detach the
-   column from the handle. */
-.frame[data-dragging] {
-  transition: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .frame {
-    transition: none;
-  }
-}
-
-/* The sidebar clips itself, box by box, the way Aeven's does: the content
-   column, panel and body all animate their own width to zero. Clipping here
-   instead would take the menu button with the track as it closes — the button
-   deliberately overhangs the zero-width column so it keeps its seat. The
-   frame's own `overflow: hidden` still bounds the overhang. */
-.sidebarCol {
-  position: relative;
-  z-index: 3;
-  min-width: 0;
-  overflow: visible;
-  background: var(--dsw-alias-bg-base);
-  border-right: none;
 }
 
 /* Inline-size query container for the conversation's width axis. The column
@@ -40,6 +12,7 @@
    an inherited custom property on an ancestor of the whole transcript on every
    animation frame, which invalidates style for every element under it. */
 .centerCol {
+  flex: 1 1 0;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -51,16 +24,32 @@
   --dsh-sidebar-overlay-clearance: var(--dsw-aeven-sidebar-toggle-width);
 }
 
+/* The centre column is `flex: 1`, so the sidebar's CSS width transition is
+   what resizes it — no JS column solver. */
 .detailsCol {
+  flex: none;
+  width: var(--dsh-frame-details-width, 0px);
   min-width: 0;
   overflow: hidden;
   border-left: none;
+  transition: width var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
+}
+
+/* Dragging writes a panel width at pointer cadence. */
+.frame[data-dragging] .detailsCol {
+  transition: none;
 }
 
 /* The details subtree stays mounted at zero width, so its border must not paint
    a 1px seam. */
 .frame[data-details-collapsed] .detailsCol {
   border-left: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .detailsCol {
+    transition: none;
+  }
 }
 
 /* Drag handles are frame children (columns clip overflow): an 8px hit strip
@@ -71,13 +60,26 @@
   top: 0;
   bottom: 0;
   width: 8px;
-  margin-left: -4px;
   cursor: col-resize;
   z-index: 2;
   touch-action: none;
-  /* Rides the same curve as the tracks so the pill stays on the moving
+  /* Rides the same curve as the columns so the pill stays on the moving
      border during collapse/expand; paused while dragging (frame rule). */
-  transition: left var(--ds-transition-duration-slow) var(--ds-ease-in-out);
+  transition:
+    left var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing),
+    right var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
+}
+
+/* Each handle sits on its own column's edge by reading that column's width,
+   so neither needs the frame's measured size. */
+.handle[data-side='sidebar'] {
+  left: var(--dsh-frame-sidebar-width, 0px);
+  margin-left: -4px;
+}
+
+.handle[data-side='details'] {
+  right: var(--dsh-frame-details-width, 0px);
+  margin-right: -4px;
 }
 
 .frame[data-dragging] .handle {
@@ -131,4 +133,13 @@
 
 .overlayLayer > * {
   pointer-events: auto;
+}
+
+/* Below Aeven's med breakpoint the sidebar overlays rather than sizes a
+   column, so there is no column edge to grab; Aeven offers no resize there
+   either. The details handle goes with it: the panel owns the whole width. */
+@media screen and (max-width: 1024px) {
+  .handle {
+    display: none;
+  }
 }

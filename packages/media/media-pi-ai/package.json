@@ -38,6 +38,7 @@
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-credentials": "workspace:^",
-    "@deepseek-ai/dsh-media": "workspace:^"
+    "@deepseek-ai/dsh-media": "workspace:^",
+    "@deepseek-ai/dsh-http-proxy": "workspace:^"
   }
 }

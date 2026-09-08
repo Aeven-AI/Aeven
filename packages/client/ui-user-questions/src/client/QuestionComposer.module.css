@@ -129,7 +129,6 @@
   padding: 0;
   border: none;
   border-radius: 999px;
-  corner-shape: round;
   background: transparent;
   color: var(--dsw-alias-label-tertiary);
   cursor: pointer;

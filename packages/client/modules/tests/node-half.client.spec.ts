@@ -129,7 +129,7 @@ async function routeRequest(route: WebRoute, url: string, method = 'GET'): Promi
 /** Execute the exact first inline script emitted by the Host boot rows. */
 function injectedFacade(graph: WebBootGraph): { html: string; target: ClientModuleLoaderTarget } {
   const html = renderIndexInjections(
-    '<html><head></head><body><script type="module" src="/index.js"></script></body></html>',
+    '<html><head><script type="module" src="/index.js"></script></head><body></body></html>',
     bootInjections(graph),
   )
   const source = /<head><script>([\s\S]*?)<\/script>/.exec(html)?.[1]
@@ -163,18 +163,18 @@ const bootGraph = (): WebBootGraph => ({
 })
 
 describe('HTML bootstrap facade', () => {
-  it('precedes blocking preloads and the boot graph, then becomes the live registration target', async () => {
+  it('boots before the shell and schedules advisory downloads after it', async () => {
     const graph = bootGraph()
     const { html, target } = injectedFacade(graph)
     const facadeAt = html.indexOf('window.__ModuleLoader__=')
     const applicationAt = html.indexOf(
-      `<link rel="preload" as="script" href="${APPLICATION_URL.replaceAll('&', '&amp;')}">`,
+      `<link rel="preload" as="script" fetchpriority="low" href="${APPLICATION_URL.replaceAll('&', '&amp;')}">`,
     )
     const bootstrapAt = html.indexOf(`<script defer src="${BOOTSTRAP_URL.replaceAll('&', '&amp;')}"></script>`)
     const graphAt = html.indexOf('globalThis["__DSH_BOOT__"] = ')
     const entryAt = html.indexOf('<script type="module" src="/index.js"></script>')
-    expect([facadeAt, applicationAt, bootstrapAt, graphAt, entryAt]).toEqual([...new Set([
-      facadeAt, applicationAt, bootstrapAt, graphAt, entryAt,
+    expect([facadeAt, bootstrapAt, graphAt, entryAt, applicationAt]).toEqual([...new Set([
+      facadeAt, bootstrapAt, graphAt, entryAt, applicationAt,
     ])].sort((a, b) => a - b))
 
     target.load({ id: MODULES_ID, factory: () => modulesClient })

@@ -93,7 +93,13 @@ describe('plugin activation', () => {
   it('prefetches a parser-loaded immediate row through the injected bundle transport', async () => {
     const container = document.createElement('div')
     document.body.append(container)
-    const target = installFacade()
+    const target = installFacade((options) => {
+      expect(options.staticModules['@deepseek-ai/dsh-client-ui-primitives']).toBeDefined()
+      return modulesClient.createClientModuleSystem(target, {
+        id: MODULES_ID,
+        exports: moduleFace,
+      }, options)
+    })
     const entries: WebBootEntry[] = [
       { id: 'consumer', url: '/consumer.js', rev: '1' },
       {

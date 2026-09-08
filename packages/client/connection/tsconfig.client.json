@@ -18,6 +18,9 @@
   ],
   "references": [
     {
+      "path": "../../identity/user"
+    },
+    {
       "path": "../../../vendor/cordis"
     },
     {

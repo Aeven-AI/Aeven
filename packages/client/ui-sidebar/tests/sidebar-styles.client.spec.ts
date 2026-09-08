@@ -36,6 +36,7 @@ describe('SidebarRoot.module.css', () => {
     const panel = declarations('.panel')
     expect(panel?.get('border-top-right-radius')).toBe('var(--dsw-aeven-sidebar-panel-radius)')
     expect(panel?.get('background')).toBe('var(--dsw-specific-sidebar-fill)')
+    expect(panel?.get('opacity')).toBe('1')
     expect(panel?.get('backdrop-filter')).toBe('blur(4px)')
     expect(panel?.get('box-shadow')).toBe('inset -1px 1px 0 0 rgb(255, 255, 255)')
     expect(panel?.get('bottom')).toBe('-2px')
@@ -51,7 +52,9 @@ describe('SidebarRoot.module.css', () => {
     expect(declarations('.content')?.get('position')).toBe('absolute')
     expect(declarations('.content')?.get('width')).toBe('var(--dsh-sidebar-open-width)')
     expect(declarations('.root')?.get('--dsh-sidebar-open-width')).toBe('0px')
+    expect(declarations('.root')?.get('width')).toBe('0')
     expect(declarations('.root.visible')?.get('--dsh-sidebar-open-width')).toBe('var(--dsh-sidebar-width)')
+    expect(declarations('.root.visible')?.get('width')).toBe('var(--dsh-sidebar-width)')
     expect(declarations('.toggle')?.get('position')).toBe('relative')
     expect(declarations('.toggle')?.get('width')).toBe('var(--dsw-aeven-sidebar-toggle-width)')
     expect(declarations('.visible .toggle')?.get('width')).toBe('var(--dsh-sidebar-open-width)')
@@ -64,11 +67,10 @@ describe('SidebarRoot.module.css', () => {
 
   it('animates every collapsing box on Aeven\'s single duration and curve', () => {
     const eased = 'width var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing)'
+    expect(declarations('.root')?.get('transition')).toBe(eased)
     expect(declarations('.content')?.get('transition')).toBe(eased)
     expect(declarations('.toggle')?.get('transition')).toBe(eased)
-    expect(declarations('.panel')?.get('transition')).toBe(
-      `${eased}, opacity var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing)`,
-    )
+    expect(declarations('.panel')?.get('transition')).toBe(eased)
     // Aeven fades the body linearly against the eased slide.
     expect(declarations('.sideContent')?.get('transition')).toBe(
       `${eased}, opacity var(--dsw-aeven-sidebar-transition-duration) linear`,

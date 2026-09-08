@@ -9,11 +9,15 @@ import { contextForm, contextProvenance } from './event-projection.ts'
 interface ReferencedUserMessageNode extends UserMessageNode {
   /** Labels cited by the immediately following session-reference context. */
   readonly referenceLabels?: readonly string[]
+  /** Skill names the same step's `skill-invocation` injections loaded. */
+  readonly skillNames?: readonly string[]
 }
 
 interface ReferencedSteeringMessageNode extends SteeringMessageNode {
   /** Labels cited by the immediately following session-reference context. */
   readonly referenceLabels?: readonly string[]
+  /** Skill names the same step's `skill-invocation` injections loaded. */
+  readonly skillNames?: readonly string[]
 }
 
 type MessageNode = ReferencedUserMessageNode | ReferencedSteeringMessageNode | ContextMessageNode

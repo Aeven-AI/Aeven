@@ -228,6 +228,13 @@
       // util/ folders are role-named without the util- prefix their npm names carry,
       // so these aliases stay hand-written like dsh-util-crypto above.
       "@deepseek-ai/dsh-util-time": ["./packages/util/time/src"],
+      // identity/ and the Aeven client folders drop the identity- and
+      // ui- prefixes their npm names carry, so these stay hand-written.
+      "@deepseek-ai/dsh-identity-user": ["./packages/identity/user/src"],
+      "@deepseek-ai/dsh-identity-user-aeven": ["./packages/identity/user-aeven/src"],
+      "@deepseek-ai/dsh-client-ui-auth-aeven": ["./packages/client/ui-auth-aeven/src"],
+      "@deepseek-ai/dsh-client-ui-account-aeven": ["./packages/client/ui-account-aeven/src"],
+      "@deepseek-ai/dsh-client-ui-account-aeven/client": ["./packages/client/ui-account-aeven/src/client/index.ts"],
       // BEGIN generated package aliases — pnpm run gen-tsconfig-paths
       "@deepseek-ai/dsh-acp": ["./packages/acp/acp/src"],
       "@deepseek-ai/dsh-acp-app": ["./packages/bundle/acp-app/src"],
@@ -286,6 +293,7 @@
       "@deepseek-ai/dsh-hook-protocol/invariant": ["./packages/hooks/hook-protocol/src/invariant.ts"],
       "@deepseek-ai/dsh-hooks-claude-code": ["./packages/hooks/hooks-claude-code/src"],
       "@deepseek-ai/dsh-hooks-codex": ["./packages/hooks/hooks-codex/src"],
+      "@deepseek-ai/dsh-http-proxy": ["./packages/util/http-proxy/src"],
       "@deepseek-ai/dsh-jobs": ["./packages/jobs/jobs/src"],
       "@deepseek-ai/dsh-jobs/invariant": ["./packages/jobs/jobs/src/invariant.ts"],
       "@deepseek-ai/dsh-jobs-local": ["./packages/jobs/jobs-local/src"],

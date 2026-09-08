@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`sidebar shell snapshots > renders only the reopen control after the sidebar settles closed, in place 1`] = `
+exports[`sidebar shell snapshots > keeps the expanded contents mounted behind the closed sidebar, in place 1`] = `
 <div
   data-slot="sidebar"
   style="display: contents;"
@@ -12,6 +12,42 @@ exports[`sidebar shell snapshots > renders only the reopen control after the sid
     <div
       class="content"
     >
+      <button
+        aria-label="New session"
+        class="brand"
+        type="button"
+      >
+        <span
+          aria-hidden="true"
+          class="brandIdentity"
+        >
+          <span
+            class="brandMark"
+          >
+            <div
+              data-slot="sidebar.brand.mark"
+              style="display: contents;"
+            >
+              <svg
+                aria-hidden="true"
+                data-content="965fe321"
+                fill="none"
+                height="17.6580310880829"
+                viewBox="0 0 23.16 17.04"
+                width="24"
+              />
+            </div>
+          </span>
+          <span
+            class="brandName"
+          >
+            <div
+              data-slot="sidebar.brand.name"
+              style="display: contents;"
+            />
+          </span>
+        </span>
+      </button>
       <button
         aria-label="Open sidebar"
         class="toggle"

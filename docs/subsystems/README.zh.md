@@ -18,6 +18,7 @@
 | [session.md](session.zh.md) | 完整的 `SessionEventMap` 变体目录、`TurnEndReason`、`deriveMessages()`、执行封闭与独立事件 |
 | [persistence.md](persistence.zh.md) | 持久性 seam：`SessionPersistence`、JSONL provider、`session/flush`、崩溃恢复、`SessionHeader` |
 | [settings.md](settings.zh.md) | 用户设置 seam：`SettingsNamespace` 注册、分层解析（默认值 → 组合 `base` → 用户文档）、owner scope、热提交 |
+| [identity.md](identity.zh.md) | 已认证用户 seam：`User`、`IdentityRequest`、`UserResolver`、同步的首个命中解析，以及挂载 authority 会改变什么 |
 | [credentials.md](credentials.zh.md) | 凭据 seam：配置中的 `CredentialRef` 引用（绝不含值）、按操作解析、对 UI 安全的 `CredentialInfo`、提供方来源层 |
 | [session-query.md](session-query.zh.md) | 逻辑记录、有界精确事件读取、关系追踪、语义筛选器/文档与全文检索结果页 |
 | [feedback.md](feedback.zh.md) | 绑定生命周期的逐消息反馈记录、乐观版本、伴随记录持久化与 Host Remote 契约 |

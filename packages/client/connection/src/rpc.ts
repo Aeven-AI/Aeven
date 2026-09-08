@@ -1,5 +1,6 @@
 /** Generic unary RPC contracts shared by the Host and Client Connection halves. */
 
+import type { User } from '@deepseek-ai/dsh-identity-user'
 import type { Branded } from '@deepseek-ai/dsh-brand'
 
 /** Correlation id minted by a caller and echoed by the Connection response. */
@@ -177,6 +178,17 @@ export interface HostConnectionHandle {
    * @returns rejection status, or undefined when the route may accept the request.
    */
   requestRejection(request: ConnectionTrustRequest): ConnectionRequestRejection
+
+  /**
+   * Identify the caller behind a request the fence already admitted.
+   *
+   * For a route that must remember whose connection it is holding. A route that
+   * only has to decide whether to answer uses {@link requestRejection}.
+   * @param request - request headers from the HTTP or upgrade request.
+   * @returns the authenticated user, or undefined when this harness
+   * authenticates nobody.
+   */
+  identify(request: ConnectionTrustRequest): User | undefined
 
   /**
    * Authenticate one frontend index request, owning a token redirect or 401.

@@ -530,7 +530,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/e2b/e2b/src/index.ts:43`](../packages/e2b/e2b/src/index.ts)
+Source: [`packages/e2b/e2b/src/index.ts:45`](../packages/e2b/e2b/src/index.ts)
 
 <a id="deepseek-aidsh-experimental-agent-team"></a>
 
@@ -621,7 +621,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/experimental/code-runtime-python/src/index.ts:42`](../packages/experimental/code-runtime-python/src/index.ts)
+Source: [`packages/experimental/code-runtime-python/src/index.ts:47`](../packages/experimental/code-runtime-python/src/index.ts)
 
 <a id="deepseek-aidsh-experimental-inspector"></a>
 
@@ -893,7 +893,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/host/frontend-static/src/index.ts:30`](../packages/host/frontend-static/src/index.ts)
+Source: [`packages/host/frontend-static/src/index.ts:31`](../packages/host/frontend-static/src/index.ts)
 
 <a id="deepseek-aidsh-host-webserver"></a>
 
@@ -932,6 +932,52 @@ export interface Config {
 ```
 
 Source: [`packages/host/workspace-files/src/index.ts:36`](../packages/host/workspace-files/src/index.ts)
+
+<a id="deepseek-aidsh-identity-user-aeven"></a>
+
+## `@deepseek-ai/dsh-identity-user-aeven`
+
+Requires: `identityUsers`
+
+```ts config-catalog
+/** Config for the Aeven authority. */
+export interface Config {
+  /** Registry key under the seam. Defaults to `aeven`. */
+  id?: string
+  /** Environment variable holding the access-token secret; the API's `JWT_SECRET`. */
+  accessSecretEnv?: string
+  /** Environment variable holding the refresh-token secret; the API's `REFRESH_SECRET`. */
+  refreshSecretEnv?: string
+  /** Cookie carrying the refresh token on a WebSocket upgrade. */
+  refreshCookieName?: string
+  /**
+   * Origin of the Aeven API the browser signs in against, such as
+   * `http://localhost:9000`. Absent leaves the web client with no
+   * authentication surface, which is how a harness without Aeven behaves.
+   */
+  apiUrl?: string
+  /** Provider sign-in URL; absent hides that provider's button. */
+  xOAuthUrl?: string
+  /** Provider sign-in URL; absent hides that provider's button. */
+  appleOAuthUrl?: string
+  /** Provider sign-in URL; absent hides that provider's button. */
+  googleOAuthUrl?: string
+  /**
+   * Origin of the Aeven web client, such as `http://localhost:3030`. The
+   * account menu links there; absent leaves the menu with no account rows,
+   * because a harness that cannot name the account page must not invent one.
+   */
+  webUrl?: string
+  /**
+   * Origin serving Aeven's uploaded media, such as `http://localhost:9020`.
+   * Profile-image paths are relative to it; absent leaves every reader on the
+   * generated gradient.
+   */
+  mediaUrl?: string
+}
+```
+
+Source: [`packages/identity/user-aeven/src/index.ts:31`](../packages/identity/user-aeven/src/index.ts)
 
 <a id="deepseek-aidsh-invariants"></a>
 
@@ -1561,6 +1607,88 @@ export interface ReconnectConfig {
 
 Source: [`packages/mcp/mcp-client/src/index.ts:98`](../packages/mcp/mcp-client/src/index.ts)
 
+<a id="deepseek-aidsh-media"></a>
+
+## `@deepseek-ai/dsh-media`
+
+```ts config-catalog
+/**
+ * Config for the media seam. Each field pins which provider wins for one kind;
+ * both are optional, and a single registered usable provider auto-selects. A
+ * request may also name its provider, which outranks both.
+ */
+export interface MediaRuntimeConfig {
+  /** Explicit image provider id. Omitted = auto-select when exactly one usable. */
+  readonly imageProvider?: string
+  /** Explicit video provider id. Omitted = auto-select when exactly one usable. */
+  readonly videoProvider?: string
+}
+```
+
+Source: [`packages/media/media/src/index.ts:49`](../packages/media/media/src/index.ts)
+
+<a id="deepseek-aidsh-media-deepinfra"></a>
+
+## `@deepseek-ai/dsh-media-deepinfra`
+
+Requires: `media`
+
+```ts config-catalog
+/** Config for the DeepInfra media provider. */
+export interface Config {
+  /** Registry key under `ctx.media`. Defaults to `deepinfra`. */
+  id?: string
+  /** Credential reference resolved through `ctx.credentials`. */
+  apiKeyEnv?: string
+  /** Ceiling on one retrieved clip, in bytes. */
+  maxVideoBytes?: number
+}
+```
+
+Source: [`packages/media/media-deepinfra/src/index.ts:55`](../packages/media/media-deepinfra/src/index.ts)
+
+<a id="deepseek-aidsh-media-openrouter"></a>
+
+## `@deepseek-ai/dsh-media-openrouter`
+
+Requires: `media`
+
+```ts config-catalog
+/** Config for the OpenRouter media provider. */
+export interface Config {
+  /** Registry key under `ctx.media`. Defaults to `openrouter`. */
+  id?: string
+  /** Credential reference resolved through `ctx.credentials`. */
+  apiKeyEnv?: string
+  /** Ceiling on one retrieved clip, in bytes. */
+  maxVideoBytes?: number
+}
+```
+
+Source: [`packages/media/media-openrouter/src/index.ts:46`](../packages/media/media-openrouter/src/index.ts)
+
+<a id="deepseek-aidsh-media-pi-ai"></a>
+
+## `@deepseek-ai/dsh-media-pi-ai`
+
+Requires: `media`
+
+```ts config-catalog
+/**
+ * Config for the pi-ai images provider. `id` is the registry key a request or
+ * the seam's config names; it defaults to the upstream provider's own id so a
+ * single-provider deployment needs no configuration at all.
+ */
+export interface Config {
+  /** Registry key under `ctx.media`. Defaults to `openrouter`. */
+  id?: string
+  /** Credential reference resolved through `ctx.credentials`. */
+  apiKeyEnv?: string
+}
+```
+
+Source: [`packages/media/media-pi-ai/src/index.ts:33`](../packages/media/media-pi-ai/src/index.ts)
+
 <a id="deepseek-aidsh-message-feedback"></a>
 
 ## `@deepseek-ai/dsh-message-feedback`
@@ -2004,7 +2132,7 @@ export type JournalMode = 'wal' | 'delete' | 'truncate' | 'persist'
 
 Depends on: [`SessionQueryConfig`](../packages/session-query/session-query/src/index.ts)
 
-Source: [`packages/session-query/session-query-sqlite/src/index.ts:96`](../packages/session-query/session-query-sqlite/src/index.ts)
+Source: [`packages/session-query/session-query-sqlite/src/index.ts:111`](../packages/session-query/session-query-sqlite/src/index.ts)
 
 <a id="deepseek-aidsh-session-reference"></a>
 
@@ -3416,6 +3544,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@deepseek-ai/dsh-api-workspace-controller` — requires `typert` · `workspaceRegistry` ([`packages/api/workspace-controller/src/index.ts`](../packages/api/workspace-controller/src/index.ts))
 - `@deepseek-ai/dsh-authorization` — requires `credentials` ([`packages/credentials/authorization/src/index.ts`](../packages/credentials/authorization/src/index.ts))
 - `@deepseek-ai/dsh-client-locale` ([`packages/client/locale/src/index.ts`](../packages/client/locale/src/index.ts))
+- `@deepseek-ai/dsh-client-ui-account-aeven` ([`packages/client/ui-account-aeven/src/index.ts`](../packages/client/ui-account-aeven/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-agent-preset` ([`packages/client/ui-agent-preset/src/index.ts`](../packages/client/ui-agent-preset/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-approval` ([`packages/client/ui-approval/src/index.ts`](../packages/client/ui-approval/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-attachment` ([`packages/client/ui-attachment/src/index.ts`](../packages/client/ui-attachment/src/index.ts))
@@ -3466,6 +3595,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@deepseek-ai/dsh-host-directory-picker-auto` — requires `webServer` · `loader` ([`packages/host/directory-picker-auto/src/index.ts`](../packages/host/directory-picker-auto/src/index.ts))
 - `@deepseek-ai/dsh-host-directory-picker-native` ([`packages/host/directory-picker-native/src/index.ts`](../packages/host/directory-picker-native/src/index.ts))
 - `@deepseek-ai/dsh-host-plugin-inventory` — requires `loader` ([`packages/host/plugin-inventory/src/index.ts`](../packages/host/plugin-inventory/src/index.ts))
+- `@deepseek-ai/dsh-identity-user` ([`packages/identity/user/src/index.ts`](../packages/identity/user/src/index.ts))
 - `@deepseek-ai/dsh-llm` ([`packages/llm/llm/src/index.ts`](../packages/llm/llm/src/index.ts))
 - `@deepseek-ai/dsh-lsp` ([`packages/lsp/lsp/src/index.ts`](../packages/lsp/lsp/src/index.ts))
 - `@deepseek-ai/dsh-schedule` — requires `agents` · `sessions` · `tools` · `sessionPersistence` ([`packages/schedule/schedule/src/index.ts`](../packages/schedule/schedule/src/index.ts))
@@ -3520,6 +3650,7 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 - `@deepseek-ai/dsh-brand` ([`packages/util/brand/src/index.ts`](../packages/util/brand/src/index.ts))
 - `@deepseek-ai/dsh-client-store` ([`packages/client/store/src/index.ts`](../packages/client/store/src/index.ts))
 - `@deepseek-ai/dsh-client-test-runtime` ([`packages/test-support/client-runtime/src/index.ts`](../packages/test-support/client-runtime/src/index.ts))
+- `@deepseek-ai/dsh-client-ui-auth-aeven` ([`packages/client/ui-auth-aeven/src/index.ts`](../packages/client/ui-auth-aeven/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-primitives` ([`packages/client/ui-primitives/src/index.ts`](../packages/client/ui-primitives/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-slots` ([`packages/client/ui-slots/src/index.ts`](../packages/client/ui-slots/src/index.ts))
 - `@deepseek-ai/dsh-client-web` ([`packages/client/web/src/index.ts`](../packages/client/web/src/index.ts))
@@ -3531,6 +3662,7 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 - `@deepseek-ai/dsh-experimental-webworker-runtime` ([`packages/experimental/webworker-runtime/src/index.ts`](../packages/experimental/webworker-runtime/src/index.ts))
 - `@deepseek-ai/dsh-home-paths` ([`packages/util/home-paths/src/index.ts`](../packages/util/home-paths/src/index.ts))
 - `@deepseek-ai/dsh-hook-protocol` ([`packages/hooks/hook-protocol/src/index.ts`](../packages/hooks/hook-protocol/src/index.ts))
+- `@deepseek-ai/dsh-http-proxy` ([`packages/util/http-proxy/src/index.ts`](../packages/util/http-proxy/src/index.ts))
 - `@deepseek-ai/dsh-launch-environment` ([`packages/util/launch-environment/src/index.ts`](../packages/util/launch-environment/src/index.ts))
 - `@deepseek-ai/dsh-llm-mock-server` ([`packages/test-support/llm-mock-server/src/index.ts`](../packages/test-support/llm-mock-server/src/index.ts))
 - `@deepseek-ai/dsh-loader-smoke` ([`packages/test-support/loader-smoke/src/index.ts`](../packages/test-support/loader-smoke/src/index.ts))

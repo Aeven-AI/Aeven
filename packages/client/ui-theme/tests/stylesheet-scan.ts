@@ -82,7 +82,9 @@ export function packageStylesheets(): string[] {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const path = join(dir, entry.name)
       if (entry.isDirectory()) {
-        if (entry.name !== 'node_modules' && entry.name !== 'lib' && entry.name !== 'dist') walk(path)
+        const skipped = entry.name === 'node_modules' || entry.name === 'lib'
+          || entry.name === 'dist' || entry.name === 'vendor'
+        if (!skipped) walk(path)
       } else if (entry.name.endsWith('.css')) found.push(path)
     }
   }

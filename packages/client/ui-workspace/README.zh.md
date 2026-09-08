@@ -11,7 +11,7 @@ kind: "package-reference"
 
 `dsh-client-ui-workspace` 是 dsh Web 客户端的共享 Workspace 浏览器与选择器：用户在侧边栏浏览分组或扁平的 Session 行，在 Session Intent 主视觉区为新会话选择 Workspace，并可用添加、重命名、重排序、搜索、fork 与归档操作管理 Workspace 与 Session；两个界面共用同一套 Workspace 菜单与添加流程。待处理的用户交互以琥珀色警告点呈现，活动 Schedule projection 会在普通行与搜索结果中显示不可交互的闹钟，共享侧边栏投影还会隐藏 subagent 来源的会话。不同的规范化路径仍作为由 id 区分的独立 Workspace；添加文件夹走目录流子 slot，由组合的选择器包 client half 填充。
 
-Workspace 与 Session 行遵循 Aeven 菜单的整行 40px 几何、响应式 24px/16px 内边距、直角、连续节奏，以及透明 hover 与选中状态，同时保留所有原有状态与操作图标。选择 Session 会导航到其 `/sessions/:id` SPA 路径；地址栏、浏览器历史与 Session Controller 始终保持同步。
+Workspace 与 Session 行遵循 Aeven 菜单的整行 40px 几何、响应式 24px/16px 内边距、直角、连续节奏，以及透明 hover 与选中状态，同时保留所有原有状态与操作图标。选择 Session 会导航到其 `/c/<id>` SPA 路径；地址栏、浏览器历史与 Session Controller 始终保持同步。
 
 ## 目录
 
@@ -31,7 +31,7 @@ Workspace 与 Session 行遵循 Aeven 菜单的整行 40px 几何、响应式 24
 
 ### Session 导航
 
-每个选中的 Session 都有一个 URL 安全的 `/sessions/:id` 路径。普通选择会压入一条浏览器历史记录，初始 baseline 协调会替换启动记录，后退或前进则重新打开恢复路径所指的 Session。直接加载有效 Session 路径时，会在 Session 与 Workspace baseline 就绪后选中它。若 Session id 未知，现有最近 Workspace 回退运行前会先从地址栏移除它。
+每个选中的 Session 都有一个 URL 安全的 `/c/<id>` 路径，Host 的 `session-` id 前缀在生成时去掉、解析时补回。普通选择会压入一条浏览器历史记录，初始 baseline 协调会替换启动记录，后退或前进则重新打开恢复路径所指的 Session。直接加载有效 Session 路径时，会在 Session 与 Workspace baseline 就绪后选中它。若 Session id 未知，现有最近 Workspace 回退运行前会先从地址栏移除它。每次选择都会展现其行，因此通过地址到达的 Session 会像搜索结果一样被展开并滚动到可见区域。
 
 ### 重排序与视图选项
 
@@ -39,7 +39,7 @@ Workspace 与 Session 行遵循 Aeven 菜单的整行 40px 几何、响应式 24
 
 ### 搜索
 
-折叠搜索是视图和添加操作旁的一枚区头按钮：激活后输入框会扩展并占据区头。非空白查询会以单一扁平结果列表替代任一浏览模式——不区分大小写的标题和 Workspace 子串匹配项会立即显示，经 250 ms 防抖的 Host 请求则会加入经过排序的当前对话内容匹配项及其摘要片段。每次新查询都会中止前一个请求；内容搜索被关闭时会引导用户前往设置，其他失败则报告搜索无法完成，两种情况都会保留元数据匹配项。列表最多显示 20 条结果，打开所选 Session 时不会清除查询。
+折叠搜索是视图和添加操作旁的一枚区头按钮：激活后输入框会扩展并占据区头。非空白查询会以单一扁平结果列表替代任一浏览模式——不区分大小写的标题和 Workspace 子串匹配项会立即显示，经 250 ms 防抖的 Host 请求则会加入经过排序的当前对话内容匹配项及其摘要片段。每次新查询都会中止前一个请求；内容搜索被关闭时会引导用户前往设置，其他失败则报告搜索无法完成，两种情况都会保留元数据匹配项。列表最多显示 20 条结果。选择结果会清空并收起搜索、在匹配事件处打开 Session，并在当前浏览模式中将其行滚动到可见区域；分组浏览还会按需展开所属 Workspace 和完整 Session 列表。
 
 ### 管理会话
 

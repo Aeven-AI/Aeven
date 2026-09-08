@@ -3,6 +3,7 @@
 import type { IncomingMessage } from 'node:http'
 import type { Duplex } from 'node:stream'
 import WebSocket, { WebSocketServer, type RawData } from 'ws'
+import type { User } from '@deepseek-ai/dsh-identity-user'
 import {
   parseRemoteStreamClientMessage,
   type RemoteStreamFailure,
@@ -23,6 +24,21 @@ const MAX_MISSED_HEARTBEATS = 2
 
 /** Own the no-server WebSocket acceptor and every active logical stream. */
 export class RemoteStreamMuxServer {
+  /**
+   * Who opened each live connection. Weak so a closed socket takes its entry
+   * with it rather than pinning the user for the process's lifetime.
+   */
+  private readonly users = new WeakMap<object, User>()
+
+  /**
+   * The caller a live connection belongs to.
+   * @param websocket - the connection to identify.
+   * @returns the authenticated user, or undefined when unauthenticated.
+   */
+  userOf(websocket: object): User | undefined {
+    return this.users.get(websocket)
+  }
+
   private readonly server = new WebSocketServer({ noServer: true })
   private readonly connections = new Set<Promise<void>>()
   private readonly missedHeartbeats = new WeakMap<WebSocket, number>()
@@ -44,9 +60,14 @@ export class RemoteStreamMuxServer {
    * @param req - authenticated HTTP upgrade request.
    * @param socket - carrier socket transferred to the WebSocket server.
    * @param head - bytes already read after the HTTP upgrade headers.
+   * @param user - the caller the upgrade authenticated, when this harness
+   * authenticates users. Resolved once here rather than per frame: the
+   * credential is only presented at the upgrade, and a socket that outlives its
+   * access token is still the connection that person opened.
    */
-  handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer): void {
+  handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer, user?: User): void {
     this.server.handleUpgrade(req, socket, head, (websocket) => {
+      if (user !== undefined) this.users.set(websocket, user)
       this.missedHeartbeats.set(websocket, 0)
       websocket.on('pong', () => { this.missedHeartbeats.set(websocket, 0) })
       this.startHeartbeat()

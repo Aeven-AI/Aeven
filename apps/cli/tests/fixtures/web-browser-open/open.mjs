@@ -22,15 +22,14 @@ export default async function open(url) {
   if (process.env.BROWSER_OPEN_TEST_FAILURE !== undefined) {
     throw new Error(process.env.BROWSER_OPEN_TEST_FAILURE)
   }
-  const exchange = await fetch(url, { redirect: 'manual' })
-  const setCookie = exchange.headers.get('set-cookie')
-  const location = exchange.headers.get('location')
-  if (exchange.status !== 303 || setCookie === null || location === null) {
-    throw new Error(`browser authentication exchange returned HTTP ${exchange.status}`)
+  // The shipped Web graph mounts an enforcing identity authority, so the root
+  // URL carries no launch token and Connection authorizes the index outright.
+  // The served page is the sign-in screen; whoever may act is decided there,
+  // not by the address the launcher was handed.
+  const response = await fetch(url, { redirect: 'manual' })
+  if (response.status !== 200) {
+    throw new Error(`browser index request returned HTTP ${response.status}`)
   }
-  const response = await fetch(new URL(location, url), {
-    headers: { cookie: setCookie.split(';', 1)[0] },
-  })
   const html = await response.text()
   console.log(`dsh browser-open: ${JSON.stringify({
     url,

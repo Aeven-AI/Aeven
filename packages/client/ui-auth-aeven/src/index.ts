@@ -1,0 +1,10 @@
+/**
+ * The Aeven authentication surface for the DSH web client.
+ *
+ * A library rather than a plugin: the gate runs before the plugin graph, so
+ * its code cannot arrive through the module system that delivers plugins. The
+ * Host-side authority that verifies credentials is `dsh-identity-user-aeven`.
+ * @module @deepseek-ai/dsh-client-ui-auth-aeven
+ */
+
+export * from './client/index.ts'
