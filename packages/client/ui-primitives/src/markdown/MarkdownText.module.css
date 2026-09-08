@@ -176,6 +176,7 @@
 .markdown.markdown {
   --hm-max-width: 100%;
   --hm-math-size: 20px;
+  --hm-tracking: normal;
 }
 
 /* Diagrams follow the product typeface. Mermaid bakes its stock Trebuchet

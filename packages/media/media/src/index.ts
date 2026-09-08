@@ -11,6 +11,7 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {
   GeneratedMedia,
+  MediaImageModel,
   MediaImageProvider,
   MediaImageRequest,
   MediaImageResult,
@@ -20,9 +21,12 @@ import type {
 } from './types.ts'
 import { MediaError } from './types.ts'
 
+export { imageMediaType } from './bytes.ts'
 export { MediaError } from './types.ts'
 export type {
+  GeneratedImage,
   GeneratedMedia,
+  MediaImageModel,
   MediaErrorCode,
   MediaImageProvider,
   MediaImageReference,
@@ -129,6 +133,30 @@ export class MediaRuntime extends Service {
    * @param signal - cancellation forwarded to the provider.
    * @returns the generated images and the provider that made them.
    */
+  /**
+   * Every image model the registered providers serve, in registration order.
+   *
+   * A provider that publishes no catalog contributes nothing, and one whose
+   * catalog call fails is skipped rather than failing the whole listing: a
+   * menu built from three providers is more useful than an error because one
+   * route was unreachable.
+   * @param signal - cancellation forwarded to every provider.
+   * @returns the models, grouped by provider in registration order.
+   */
+  async listImageModels(signal?: AbortSignal): Promise<readonly MediaImageModel[]> {
+    const listed: MediaImageModel[] = []
+    for (const provider of this.imageProviders.values()) {
+      if (provider.listImageModels === undefined) continue
+      try {
+        listed.push(...await provider.listImageModels(signal))
+      } catch {
+        // An unreachable or unauthorized route contributes no models; the
+        // caller's menu keeps every provider that did answer.
+      }
+    }
+    return listed
+  }
+
   async generateImage(request: MediaImageRequest, signal?: AbortSignal): Promise<MediaImageResult> {
     const provider = resolveProvider({
       providers: this.imageProviders,

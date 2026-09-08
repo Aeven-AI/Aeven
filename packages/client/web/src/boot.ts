@@ -98,6 +98,7 @@ export class AppWebEntry {
       await this.runPluginBoot(ctx, prefetching)
       await facesReady
       await this.mountApp(ctx)
+      await this.awaitInitialShellData(ctx)
       hidePreloader()
     } catch (reason) {
       console.error(reason)
@@ -145,6 +146,20 @@ export class AppWebEntry {
     this.ctx = undefined
     if (ctx !== undefined) await ctx.fiber.dispose()
     this.page.dispose()
+  }
+
+  /**
+   * Hold the static preloader until the first sidebar lists and selected
+   * conversation history have arrived. Compositions without `uiWorkspace`
+   * reveal immediately after mount.
+   * @param ctx - Boot context after plugin activation.
+   */
+  private async awaitInitialShellData(ctx: Context): Promise<void> {
+    const workspace = ctx.get('uiWorkspace' as never) as {
+      whenInitialDataReady?: () => Promise<void>
+    } | undefined
+    await workspace?.whenInitialDataReady?.()
+    await afterPaint()
   }
 
   /** Mount through a dependency fiber so replacing uiRenderer remounts the application. */
@@ -211,4 +226,9 @@ export class AppWebEntry {
       throw new Error(`web boot: ${String(failures.length)} entr${failures.length === 1 ? 'y' : 'ies'} did not activate\n${failures.join('\n')}`)
     }
   }
+}
+
+/** Yield one macrotask so the mounted shell can commit the arrived data. */
+function afterPaint(): Promise<void> {
+  return new Promise((resolve) => { setTimeout(resolve, 0) })
 }

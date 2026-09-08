@@ -29,13 +29,24 @@
       <div class="codeblock-pre-code-content">
         <pre>
           <span class="line-numbers">
-            <span class="line-number">
+            <span class="line-number" data-animate-word="true">
               #text "1"
-            <span class="line-number">
+            <span class="line-number" data-animate-word="true">
               #text "2"
           <div class="code-content no-scrollbar">
-            <code>
-              #text "kept blank line follows\n\n"
+            <code class="">
+              <span data-animate-word="true">
+                #text "kept"
+              #text " "
+              <span data-animate-word="true">
+                #text "blank"
+              #text " "
+              <span data-animate-word="true">
+                #text "line"
+              #text " "
+              <span data-animate-word="true">
+                #text "follows"
+              #text "\n\n"
   <div class="codeblock-wrapper">
     <div class="code-container">
       <div class="codeblock-header">
@@ -66,19 +77,26 @@
       <div class="codeblock-pre-code-content">
         <pre>
           <span class="line-numbers">
-            <span class="line-number">
+            <span class="line-number" data-animate-word="true">
               #text "1"
-            <span class="line-number">
+            <span class="line-number" data-animate-word="true">
               #text "2"
-            <span class="line-number">
+            <span class="line-number" data-animate-word="true">
               #text "3"
           <div class="code-content no-scrollbar">
-            <code class="hljs language-ts">
-              <span class="hljs-keyword">
+            <code class="language-ts">
+              <span data-animate-word="true">
                 #text "const"
-              #text " doubled = "
-              <span class="hljs-literal">
+              #text " "
+              <span data-animate-word="true">
+                #text "doubled"
+              #text " "
+              <span data-animate-word="true">
+                #text "="
+              #text " "
+              <span data-animate-word="true">
                 #text "true"
               #text "\n\n\n"
   <p>
-    #text "after"
+    <span data-animate-key="word-0-0" data-animate-word="true">
+      #text "after"

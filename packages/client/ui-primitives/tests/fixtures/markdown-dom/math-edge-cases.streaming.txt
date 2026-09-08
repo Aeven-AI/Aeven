@@ -36,8 +36,15 @@
             <tbody>
               <tr>
                 <td style="text-align: left;">
-                  #text "Trusted commands stay off: "
-                  <span class="katex">
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "Trusted"
+                  <span data-animate-key="word-0-2" data-animate-word="true">
+                    #text "commands"
+                  <span data-animate-key="word-0-4" data-animate-word="true">
+                    #text "stay"
+                  <span data-animate-key="word-0-6" data-animate-word="true">
+                    #text "off:"
+                  <span class="katex" data-animate-key="math-9" data-animate-word="true">
                     <span class="katex-mathml">
                       <math xmlns="http://www.w3.org/1998/Math/MathML">
                         <semantics>
@@ -53,27 +60,43 @@
                         <span class="mord text" style="color: rgb(204, 0, 0);">
                           <span class="mord" style="color: rgb(204, 0, 0);">
                             #text "\\href"
-                  #text "."
+                  <span data-animate-key="word-10-0" data-animate-word="true">
+                    #text "."
                 <td style="text-align: left;">
               <tr>
                 <td style="text-align: left;">
-                  #text "Unbalanced errors render the error arm: "
-                  <span class="katex-error" style="color: rgb(204, 0, 0);" title="ParseError: KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \\frac{">
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "Unbalanced"
+                  <span data-animate-key="word-0-2" data-animate-word="true">
+                    #text "errors"
+                  <span data-animate-key="word-0-4" data-animate-word="true">
+                    #text "render"
+                  <span data-animate-key="word-0-6" data-animate-word="true">
+                    #text "the"
+                  <span data-animate-key="word-0-8" data-animate-word="true">
+                    #text "error"
+                  <span data-animate-key="word-0-10" data-animate-word="true">
+                    #text "arm:"
+                  <span class="katex-error" data-animate-key="math-13" data-animate-word="true" style="color: rgb(204, 0, 0);" title="ParseError: KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \\frac{">
                     #text "\\frac{"
                 <td style="text-align: left;">
               <tr>
                 <td style="text-align: left;">
-                  #text "Symbol"
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "Symbol"
                 <td style="text-align: left;">
-                  #text "Value"
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "Value"
               <tr>
                 <td style="text-align: left;">
-                  #text "---"
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "---"
                 <td style="text-align: left;">
-                  #text "---"
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "---"
               <tr>
                 <td style="text-align: left;">
-                  <span class="katex">
+                  <span class="katex" data-animate-key="math-0" data-animate-word="true">
                     <span class="katex-mathml">
                       <math xmlns="http://www.w3.org/1998/Math/MathML">
                         <semantics>
@@ -88,7 +111,7 @@
                         <span class="mord mathnormal" style="margin-right: 0.0278em;">
                           #text "θ"
                 <td style="text-align: left;">
-                  <span class="katex">
+                  <span class="katex" data-animate-key="math-0" data-animate-word="true">
                     <span class="katex-mathml">
                       <math xmlns="http://www.w3.org/1998/Math/MathML">
                         <semantics>
@@ -160,8 +183,10 @@
       <div class="codeblock-pre-code-content">
         <pre>
           <span class="line-numbers">
-            <span class="line-number">
+            <span class="line-number" data-animate-word="true">
               #text "1"
           <div class="code-content no-scrollbar">
             <code class="language-math">
-              #text "\\sqrt{2}\n"
+              <span data-animate-word="true">
+                #text "\\sqrt{2}"
+              #text "\n"

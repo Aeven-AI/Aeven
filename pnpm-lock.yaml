@@ -15,6 +15,12 @@ importers:
 
   .:
     devDependencies:
+      '@deepseek-ai/dsh-media':
+        specifier: workspace:^
+        version: link:packages/media/media
+      '@deepseek-ai/dsh-tool-media':
+        specifier: workspace:^
+        version: link:packages/media/tool-media
       '@deepseek-ai/dsh-tool-session-query':
         specifier: workspace:^
         version: link:packages/session-query/tool-session-query
@@ -1650,6 +1656,15 @@ importers:
       '@deepseek-ai/dsh-launch-environment':
         specifier: workspace:^
         version: link:../../util/launch-environment
+      '@deepseek-ai/dsh-media':
+        specifier: workspace:^
+        version: link:../../media/media
+      '@deepseek-ai/dsh-media-deepinfra':
+        specifier: workspace:^
+        version: link:../../media/media-deepinfra
+      '@deepseek-ai/dsh-media-openrouter':
+        specifier: workspace:^
+        version: link:../../media/media-openrouter
       '@deepseek-ai/dsh-message-feedback':
         specifier: workspace:^
         version: link:../../feedback/message-feedback
@@ -1668,6 +1683,9 @@ importers:
       '@deepseek-ai/dsh-subprocess':
         specifier: workspace:^
         version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-tool-media':
+        specifier: workspace:^
+        version: link:../../media/tool-media
       '@deepseek-ai/dsh-tool-subagent':
         specifier: workspace:^
         version: link:../../subagent/tool-subagent
@@ -6657,6 +6675,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-attachment':
+        specifier: workspace:^
+        version: link:../../attachment/attachment
       '@deepseek-ai/dsh-llm':
         specifier: workspace:^
         version: link:../../llm/llm
@@ -6720,6 +6741,40 @@ importers:
       '@deepseek-ai/dsh-media':
         specifier: workspace:^
         version: link:../media
+
+  packages/media/tool-media:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-attachment':
+        specifier: workspace:^
+        version: link:../../attachment/attachment
+      '@deepseek-ai/dsh-commands':
+        specifier: workspace:^
+        version: link:../../interaction/commands
+      '@deepseek-ai/dsh-llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@deepseek-ai/dsh-media':
+        specifier: workspace:^
+        version: link:../media
+      '@deepseek-ai/dsh-settings':
+        specifier: workspace:^
+        version: link:../../settings/settings
+      '@deepseek-ai/dsh-system-prompt':
+        specifier: workspace:^
+        version: link:../../core/system-prompt
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+      '@deepseek-ai/dsh-user-questions':
+        specifier: workspace:^
+        version: link:../../interaction/user-questions
 
   packages/plan/plan-mode:
     dependencies:
@@ -10116,6 +10171,15 @@ importers:
       '@deepseek-ai/dsh-mcp-client':
         specifier: workspace:^
         version: link:../../packages/mcp/mcp-client
+      '@deepseek-ai/dsh-media':
+        specifier: workspace:^
+        version: link:../../packages/media/media
+      '@deepseek-ai/dsh-media-deepinfra':
+        specifier: workspace:^
+        version: link:../../packages/media/media-deepinfra
+      '@deepseek-ai/dsh-media-openrouter':
+        specifier: workspace:^
+        version: link:../../packages/media/media-openrouter
       '@deepseek-ai/dsh-output-retention':
         specifier: workspace:^
         version: link:../../packages/util/output-retention
@@ -10269,6 +10333,9 @@ importers:
       '@deepseek-ai/dsh-tool-jobs':
         specifier: workspace:^
         version: link:../../packages/jobs/tool-jobs
+      '@deepseek-ai/dsh-tool-media':
+        specifier: workspace:^
+        version: link:../../packages/media/tool-media
       '@deepseek-ai/dsh-tool-pwsh':
         specifier: workspace:^
         version: link:../../packages/shell/tool-pwsh

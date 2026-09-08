@@ -66,14 +66,43 @@ function fireResize(el: Element): void {
   }
 }
 
+/** ConversationRoot confirms paint on animation frames; jsdom must not fire them unless a case flushes. */
+let rafSeq = 0
+const rafPending = new Map<number, FrameRequestCallback>()
+
+function stubAnimationFrames(): void {
+  rafSeq = 0
+  rafPending.clear()
+  vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+    const id = ++rafSeq
+    rafPending.set(id, cb)
+    return id
+  })
+  vi.stubGlobal('cancelAnimationFrame', (id: number) => {
+    rafPending.delete(id)
+  })
+}
+
+function flushAnimationFrames(rounds = 1): void {
+  act(() => {
+    for (let round = 0; round < rounds; round++) {
+      const batch = [...rafPending.values()]
+      rafPending.clear()
+      for (const cb of batch) cb(0)
+    }
+  })
+}
+
 afterEach(() => {
   cleanup()
+  document.getElementById('dsh-preloader')?.remove()
   vi.unstubAllGlobals()
   resizeObservers.length = 0
 })
 beforeEach(() => {
   localStorage.clear()
   vi.stubGlobal('ResizeObserver', ResizeObserverStub)
+  stubAnimationFrames()
 })
 
 const t: ConversationRootProps['t'] = makeTranslate(zh, commonZh)
@@ -125,6 +154,8 @@ function mount(
     sessionListPending?: boolean
     /** No session selected — cold start, or the list has yet to restore one. */
     noSelection?: boolean
+    /** Override the selected Session identity. */
+    sessionId?: SessionId
   } = {},
 ) {
   const root = sid('root')
@@ -290,7 +321,7 @@ function mount(
       : (opts?.fallback ?? null)
   )) as ConversationRootProps['renderSlotChain']
   const props: ConversationRootProps = {
-    sessionId: options.noSelection === true ? undefined : SID,
+    sessionId: options.noSelection === true ? undefined : (options.sessionId ?? SID),
     SessionProvider: ({ children }) => children,
     useSession,
     useConversation,
@@ -307,10 +338,14 @@ function mount(
     t,
   }
   const view = render(<ConversationRoot {...props} />)
+  flushAnimationFrames(2)
   return {
     view, store, wiring, sink, retargetWorkspace, session, conversation, slotCalls, lineageOwners, seatOwners, open,
     pickerOwner: () => pickerOwner,
-    rerender: () => { view.rerender(<ConversationRoot {...props} />) },
+    rerender: (patch?: Partial<Pick<ConversationRootProps, 'sessionId'>>) => {
+      Object.assign(props, patch)
+      view.rerender(<ConversationRoot {...props} />)
+    },
   }
 }
 
@@ -451,22 +486,28 @@ describe('ConversationRoot resident composer', () => {
     expect(seat?.contains(fallback)).toBe(true)
   })
 
-  it('hero phase: same textarea, hero chrome, no header, picker switches the workspace', () => {
+  it('hero phase: same textarea, hero chrome, visible Session header, picker switches the workspace', () => {
     const b = mount(
       sessionSnapshotOf({ blank: true }),
       [
         { ...workspace('one'), sessionIds: [SID] },
         { ...workspace('second'), title: 'Selected Folder' },
       ],
+      undefined,
+      { summaryBlank: true },
     )
     // Hero chrome is present and the selected View slot remains absent.
     const host = b.view.container.querySelector('[data-conversation-scroll]')
     const header = b.view.container.querySelector('header')
     expect(host).not.toBeNull()
-    expect(header?.getAttribute('aria-hidden')).toBe('true')
+    expect(header?.getAttribute('aria-hidden')).toBeNull()
+    expect(b.view.getByRole('button', { name: 'Child' })).toBeTruthy()
+    expect(b.slotCalls).toContain('conversation.session.header.actions')
+    expect(b.slotCalls).toContain('conversation.session.header.utilities')
     expect(b.view.getByText('探索未至之境')).toBeTruthy()
     expect(b.view.getByText('预览版')).toBeTruthy()
     expect(b.view.queryByTestId('view-chat')).toBeNull()
+    expect(b.view.container.querySelector('[data-transcript-hold]')).toBeNull()
     // The same machine-backed textarea is live in the hero, and the
     // persistence mirror stays bound (ConversationSession mounts chrome-hidden
     // for blank sessions): hero typing reaches the Conversation store.
@@ -501,14 +542,22 @@ describe('ConversationRoot resident composer', () => {
     expect(b.view.queryByText('探索未至之境')).toBeNull()
   })
 
-  it('settling phase: a summary that does not prove the session blank hides the composer while it opens', () => {
-    const b = mount(sessionSnapshotOf({ blank: true, openState: 'loading' }))
+  it('active phase: a list-proven non-blank session keeps the docked composer while history opens', () => {
+    const b = mount(sessionSnapshotOf({ openState: 'loading' }))
     const root = b.view.container.querySelector('[data-phase]')
-    expect(root?.getAttribute('data-phase')).toBe('settling')
-    expect(b.view.queryByTestId('hero-headline')).toBeNull()
+    expect(root?.getAttribute('data-phase')).toBe('active')
+    expect(b.view.getByRole('textbox')).toBeTruthy()
   })
 
-  it('settling phase: a session the list has no row for settles conservatively', () => {
+  it('keeps the docked composer when the list proves history even if the Session snapshot is still blank', () => {
+    const b = mount(sessionSnapshotOf({ blank: true, openState: 'open' }))
+    const root = b.view.container.querySelector('[data-phase]')
+    expect(root?.getAttribute('data-phase')).toBe('active')
+    expect(b.view.queryByTestId('hero-headline')).toBeNull()
+    expect(b.view.getByRole('textbox')).toBeTruthy()
+  })
+
+  it('keeps the docked composer when the list has no row yet', () => {
     const b = mount(
       sessionSnapshotOf({ blank: true, openState: 'loading' }),
       undefined,
@@ -516,7 +565,8 @@ describe('ConversationRoot resident composer', () => {
       { omitSummaryRow: true },
     )
     const root = b.view.container.querySelector('[data-phase]')
-    expect(root?.getAttribute('data-phase')).toBe('settling')
+    expect(root?.getAttribute('data-phase')).toBe('active')
+    expect(b.view.getByRole('textbox')).toBeTruthy()
   })
 
   it('settling phase: a pending session list hides the composer instead of flashing the cold-start hero', () => {
@@ -545,6 +595,124 @@ describe('ConversationRoot resident composer', () => {
     expect(root?.getAttribute('data-phase')).toBe('hero')
   })
 
+  it('covers the content column with a loader while history is opening', () => {
+    const b = mount(sessionSnapshotOf({ openState: 'loading' }))
+    const loader = b.view.container.querySelector('[data-content-loader]')
+    expect(loader).not.toBeNull()
+    expect(loader?.getAttribute('aria-label')).toBe('正在载入内容')
+    expect(loader?.getAttribute('data-hiding')).toBeNull()
+  })
+
+  it('shows the content loader immediately when a selected Session is still cold', () => {
+    const b = mount(sessionSnapshotOf({ openState: 'cold' }))
+    expect(b.view.container.querySelector('[data-content-loader]')).not.toBeNull()
+  })
+
+  it('does not cover a summary-proven blank hero with the content loader', () => {
+    const b = mount(
+      sessionSnapshotOf({ blank: true, openState: 'loading' }),
+      undefined,
+      undefined,
+      { summaryBlank: true },
+    )
+    expect(b.view.container.querySelector('[data-content-loader]')).toBeNull()
+  })
+
+  it('fades the content loader away once history is open and painted', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      const b = mount(sessionSnapshotOf({ openState: 'loading' }))
+      expect(b.view.container.querySelector('[data-content-loader]')).not.toBeNull()
+      act(() => { b.session.set(sessionSnapshotOf({ openState: 'open' })) })
+      expect(b.view.container.querySelector('[data-content-loader]')?.getAttribute('data-hiding')).toBeNull()
+      flushAnimationFrames(2)
+      const hiding = b.view.container.querySelector('[data-content-loader]')
+      expect(hiding?.getAttribute('data-hiding')).toBe('true')
+      act(() => { vi.advanceTimersByTime(400) })
+      expect(b.view.container.querySelector('[data-content-loader]')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('keeps the header and composer DOM across a Session switch', () => {
+    const b = mount(sessionSnapshotOf())
+    const header = b.view.container.querySelector('header')
+    const box = b.view.getByRole('textbox')
+    const seat = b.view.container.querySelector('[data-composer-seat]')
+    expect(header).not.toBeNull()
+    expect(b.view.container.querySelector('[data-phase]')?.getAttribute('data-phase')).toBe('active')
+    b.rerender({ sessionId: sid('s2') })
+    expect(b.view.container.querySelector('header')).toBe(header)
+    expect(b.view.getByRole('textbox')).toBe(box)
+    expect(b.view.container.querySelector('[data-composer-seat]')).toBe(seat)
+    expect(b.view.container.querySelector('[data-phase]')?.getAttribute('data-phase')).toBe('active')
+  })
+
+  it('covers an already-open Session switch and remounts the body after the overlay is presented', () => {
+    const b = mount(sessionSnapshotOf())
+    flushAnimationFrames(2)
+    expect(b.view.container.querySelector('[data-content-loader]')?.getAttribute('data-hiding')).toBe('true')
+    expect(b.view.getByTestId('view-chat')).toBeTruthy()
+    b.rerender({ sessionId: sid('s2') })
+    expect(b.view.container.querySelector('[data-content-loader]')?.getAttribute('data-hiding')).toBeNull()
+    expect(b.view.queryByTestId('view-chat')).toBeNull()
+    const host = b.view.container.querySelector('[data-conversation-scroll]')
+    const hold = host?.querySelector('[data-transcript-hold]')
+    const seat = host?.querySelector('[data-composer-seat]')
+    expect(hold).not.toBeNull()
+    expect(hold?.nextElementSibling).toBe(seat)
+    flushAnimationFrames(1)
+    expect(b.view.queryByTestId('view-chat')).toBeNull()
+    expect(host?.querySelector('[data-transcript-hold]')).not.toBeNull()
+    flushAnimationFrames(1)
+    expect(b.view.getByTestId('view-chat')).toBeTruthy()
+    expect(host?.querySelector('[data-transcript-hold]')).toBeNull()
+    expect(b.view.container.querySelector('[data-content-loader]')?.getAttribute('data-hiding')).toBeNull()
+    flushAnimationFrames(2)
+    expect(b.view.container.querySelector('[data-content-loader]')?.getAttribute('data-hiding')).toBe('true')
+  })
+
+  it('keeps the content loader out of the session header and composer', () => {
+    const b = mount(sessionSnapshotOf({ openState: 'loading' }))
+    const loader = b.view.container.querySelector('[data-content-loader]')
+    const header = b.view.container.querySelector('header')
+    const seat = b.view.container.querySelector('[data-composer-seat]')
+    const host = b.view.container.querySelector('[data-conversation-scroll]')
+    expect(loader).not.toBeNull()
+    expect(header).not.toBeNull()
+    expect(seat).not.toBeNull()
+    expect(header?.contains(loader)).toBe(false)
+    expect(seat?.contains(loader)).toBe(false)
+    expect(loader?.contains(header)).toBe(false)
+    expect(loader?.contains(seat)).toBe(false)
+    expect(host?.contains(loader)).toBe(false)
+  })
+
+  it('does not show the content loader while the page preloader is still on screen', () => {
+    const el = document.createElement('div')
+    el.id = 'dsh-preloader'
+    el.className = 'hide animate'
+    document.body.append(el)
+    const b = mount(sessionSnapshotOf({ openState: 'loading' }))
+    expect(b.view.container.querySelector('[data-content-loader]')).toBeNull()
+    expect(b.view.getByTestId('view-chat')).toBeTruthy()
+  })
+
+  it('shows the content loader once the page preloader is screen-hidden', async () => {
+    const el = document.createElement('div')
+    el.id = 'dsh-preloader'
+    document.body.append(el)
+    const b = mount(sessionSnapshotOf({ openState: 'loading' }))
+    expect(b.view.container.querySelector('[data-content-loader]')).toBeNull()
+    await act(async () => {
+      el.classList.add('screen-hidden')
+      await Promise.resolve()
+    })
+    expect(b.view.container.querySelector('[data-content-loader]')).not.toBeNull()
+    expect(b.view.container.querySelector('[data-content-loader]')?.getAttribute('data-hiding')).toBeNull()
+  })
+
   it('startup auto-selection: a summary-proven blank session opens straight into the hero', () => {
     const b = mount(
       sessionSnapshotOf({ blank: true, openState: 'loading' }),
@@ -561,7 +729,7 @@ describe('ConversationRoot resident composer', () => {
   })
 
   it('same textarea DOM node survives the hero → active flip into the sticky scrollport', () => {
-    const b = mount(sessionSnapshotOf({ blank: true }))
+    const b = mount(sessionSnapshotOf({ blank: true }), undefined, undefined, { summaryBlank: true })
     const before = b.view.getByRole('textbox')
     act(() => { b.wiring.setDraft('kept across flip') })
     // First message landed: content exists, phase leaves blank. Composer
@@ -607,6 +775,7 @@ describe('ConversationRoot resident composer', () => {
         { ...workspace('second'), title: 'Selected Folder' },
       ],
       selectWorkspace,
+      { summaryBlank: true },
     )
     fireEvent.click(b.view.getByRole('button', { name: '选择工作区' }))
     const owner = b.pickerOwner() as { onPick(id: WorkspaceId): void }
@@ -617,7 +786,7 @@ describe('ConversationRoot resident composer', () => {
   })
 
   it('blank session keeps the interactive picker chip (workspace switchable until the first message)', () => {
-    const b = mount(sessionSnapshotOf({ blank: true }))
+    const b = mount(sessionSnapshotOf({ blank: true }), undefined, undefined, { summaryBlank: true })
     const chip = b.view.getByRole('button', { name: '选择工作区' })
     expect((chip as HTMLButtonElement).disabled).toBe(false)
     expect(b.slotCalls).toContain('conversation.hero.workspace')
@@ -703,7 +872,7 @@ describe('ConversationRoot resident composer', () => {
   })
 
   it('hero phase renders no width handles (no transcript to size)', () => {
-    const b = mount(sessionSnapshotOf({ blank: true }))
+    const b = mount(sessionSnapshotOf({ blank: true }), undefined, undefined, { summaryBlank: true })
     expect(b.view.container.querySelector('[data-width-handle]')).toBeNull()
   })
 })

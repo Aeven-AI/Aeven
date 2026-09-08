@@ -7,6 +7,7 @@ import type {
 } from '@deepseek-ai/dsh-client-modules/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AppWebEntry } from '../src/boot.ts'
+import { PRELOADER_ELEMENT_ID } from '../src/preloader.ts'
 
 const MODULES_ID = '@deepseek-ai/dsh-client-modules'
 const PROVIDER_CLIENT_ID = 'provider/client'
@@ -221,6 +222,74 @@ describe('plugin activation', () => {
     expect(target.mode).toBe('live')
     expect(events).toEqual(['consumer', 'mount'])
     expect(container.textContent).toBe('mounted')
+    await entry.dispose()
+  })
+})
+
+describe('preloader reveal after mount', () => {
+  async function bootWithWorkspace(
+    workspace?: { whenInitialDataReady?: () => Promise<void> },
+  ): Promise<{ entry: AppWebEntry; preloader: HTMLElement; mounted: Promise<void> }> {
+    const container = document.createElement('div')
+    const preloader = document.createElement('div')
+    preloader.id = PRELOADER_ELEMENT_ID
+    document.body.append(preloader, container)
+    const target = installFacade()
+    win.__DSH_BOOT__ = {
+      rev: 'graph',
+      entries: [{ id: 'renderer', url: '/renderer.js', rev: '1' }],
+      batches: [{
+        phase: 'application',
+        url: '/application.js',
+        rev: 'batch',
+        entries: ['renderer'],
+      }],
+    }
+    const registrations = new Map<string, ClientBundleRegistration>([
+      ['/renderer.js', {
+        id: 'renderer',
+        factory: () => ({
+          apply: (ctx: Context) => {
+            if (workspace !== undefined) ctx.reflect.provide('uiWorkspace', workspace)
+            ctx.reflect.provide('uiRenderer', {
+              mount: (element: HTMLElement) => {
+                element.textContent = 'mounted'
+                return () => {}
+              },
+            })
+          },
+        }),
+      }],
+    ])
+    const entry = new AppWebEntry(container, {
+      loadBundle: async (url) => {
+        if (url !== '/application.js') throw new Error(`missing fixture batch ${url}`)
+        for (const registration of registrations.values()) target.load(registration)
+      },
+    })
+    return { entry, preloader, mounted: entry.run() }
+  }
+
+  it('holds the static preloader until initial shell data is ready', async () => {
+    const gate = Promise.withResolvers<undefined>()
+    const { entry, preloader, mounted } = await bootWithWorkspace({
+      whenInitialDataReady: () => gate.promise,
+    })
+    await vi.waitFor(() => {
+      expect(document.body.textContent).toContain('mounted')
+    })
+    expect(preloader.classList.contains('hide')).toBe(false)
+    expect(preloader.classList.contains('screen-hidden')).toBe(false)
+    gate.resolve(undefined)
+    await mounted
+    expect(preloader.classList.contains('animate') || preloader.classList.contains('hide')).toBe(true)
+    await entry.dispose()
+  })
+
+  it('reveals immediately when uiWorkspace does not wait', async () => {
+    const { entry, preloader, mounted } = await bootWithWorkspace({})
+    await mounted
+    expect(preloader.classList.contains('animate') || preloader.classList.contains('hide')).toBe(true)
     await entry.dispose()
   })
 })

@@ -77,6 +77,10 @@ Once the Workspace list baseline is ready, browser-persisted expansion and Sessi
 
 Workspace and Session hover cards copy the value their row clips: activating a Workspace card writes its full directory path, while activating a non-blank Session card writes its full display title. A provisional blank New Session card remains read-only because its localized label is a placeholder rather than session content.
 
+### Initial shell data
+
+`uiWorkspace.whenInitialDataReady()` resolves once the first Workspace and Session lists have arrived and the selected Session's first history page has settled. The Web boot kernel uses that wait to keep the static preloader up through the first sidebar and conversation payloads. Later navigation does not repeat it.
+
 </details>
 
 -----

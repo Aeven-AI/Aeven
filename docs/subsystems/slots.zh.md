@@ -52,7 +52,7 @@ Slot 声明固定两个相互独立的维度。
 | cardinality | `keyed` | owner 传入 `entryKey`；匹配 cell 以该 key 对应的 props 渲染。 |
 | cardinality | `chain` | 每个 entry 提供纯 `select(owner)` 函数；按 priority 顺序遇到的第一个非 null 结果获选，并以 `matched` 传给组件；全部拒绝时渲染 owner fallback。 |
 | scope | `root` | 一个 root 作用域组件和 store 实例。 |
-| scope | `session-maybe` | 跟随当前选择，但没有 Session 时仍可渲染；Session 值是可选的。 |
+| scope | `session-maybe` | 跟随当前选择，但没有 Session 时仍可渲染；Session 值是可选的。已挂载实例在 Session 切换时保持；取消选择会重挂一份空白实例。 |
 | scope | `session` | 要求可解析的 Session binding，并收到确定存在的 Session 值。 |
 
 对于 `single`、`list` 和 `keyed` cell，`priority` 是遮蔽优先级；对于 `chain`，它是选举顺序。数值越小越先运行或渲染。普通增量贡献应选用新的 list `id` 或 keyed `key`；复用已有 cell 表示有意替换其展示。

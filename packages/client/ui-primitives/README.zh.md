@@ -35,7 +35,7 @@ kind: "package-library"
 
 ### 渲染 agent 输出
 
-`MarkdownText` 通过 [HyperMarkdown](https://www.npmjs.com/package/@aeven-ai/hypermarkdown) 引擎渲染不可信的 GFM 与 TeX 公式，阻止不安全的链接与图片协议，并可把已解析的文件提及转换为显式控件。原始 HTML 从不被解析，因此作者写下的标记以字符而非元素抵达读者，而 ```` ```mermaid ```` fence 渲染为固定在 Mermaid strict 安全级别的图表。回复流式输出时，组件只把新追加的文本写入引擎的 store，该 store 按代码行、表格行与列表项缓存；定稿切换执行一次性的 settled 解析，因此无论回复被如何分片，定稿 DOM 都完全相同。`TerminalBlock`、`ReadBlock`、`DiffBlock`、`SearchBlock` 与 `WebBlock` 把对应的工具结果意图渲染为带复制控件、溢出处理及适用时 ANSI 处理的卡片。`JsonTree` 与 `JsonBlock` 以只读方式检查 JSON 值；`projectUserText` 把已发送的用户文本投影为行内普通文本段与引用 chip，供消息气泡和排队行使用。
+`MarkdownText` 通过 [HyperMarkdown](https://www.npmjs.com/package/@aeven-ai/hypermarkdown) 引擎渲染不可信的 GFM 与 TeX 公式，阻止不安全的链接与图片协议，并可把已解析的文件提及转换为显式控件。原始 HTML 从不被解析，因此作者写下的标记以字符而非元素抵达读者，而 ```` ```mermaid ```` fence 渲染为固定在 Mermaid strict 安全级别的图表。回复流式输出时，组件只把新追加的文本写入引擎的 store，该 store 按代码行、表格行与列表项缓存；定稿调用引擎的流式定稿操作，其外部 store hook 会发布并保留最终带动画的渲染。`TerminalBlock`、`ReadBlock`、`DiffBlock`、`SearchBlock` 与 `WebBlock` 把对应的工具结果意图渲染为带复制控件、溢出处理及适用时 ANSI 处理的卡片。`JsonTree` 与 `JsonBlock` 以只读方式检查 JSON 值；`projectUserText` 把已发送的用户文本投影为行内普通文本段与引用 chip，供消息气泡和排队行使用。
 
 ### 本地化文案
 
@@ -65,7 +65,7 @@ kind: "package-library"
 
 ### 流式 markdown
 
-回复流式输出期间，`MarkdownText` 只把新追加的文本写入引擎的 store；当源文本不是上次已应用内容的延伸时则重新播种，正是这一点让转录可以在回复中途挂载。引擎按代码行、表格行与列表项缓存，因此每分片的工作量跟随当前正在增长的那个块，而非整个回复——已闭合的块不产生开销。定稿切换执行一次性的 settled 解析，而不是把流冲刷出去，因为流式输出对 fence 与表格而言依赖分片方式，settled 解析则不然：因此无论回复以何种方式到达，定稿 DOM 都完全相同。
+回复流式输出期间，`MarkdownText` 只把新追加的文本写入引擎的 store；当源文本不是上次已应用内容的延伸时则重新播种，正是这一点让转录可以在回复中途挂载。引擎按代码行、表格行与列表项缓存，因此每分片的工作量跟随当前正在增长的那个块，而非整个回复——已闭合的块不产生开销。回复结束时，适配器调用 `write(finalDelta, true)`。HyperMarkdown 的外部 store hook 会发布该定稿渲染并让其中的动画 span 保持挂载，因此最后一个词的淡入可以完成，而无需由适配器拥有计时器或用第二次解析替换 DOM。
 
 ### 几何与溢出
 

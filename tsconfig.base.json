@@ -314,6 +314,7 @@
       "@deepseek-ai/dsh-media-deepinfra": ["./packages/media/media-deepinfra/src"],
       "@deepseek-ai/dsh-media-openrouter": ["./packages/media/media-openrouter/src"],
       "@deepseek-ai/dsh-media-pi-ai": ["./packages/media/media-pi-ai/src"],
+      "@deepseek-ai/dsh-tool-media": ["./packages/media/tool-media/src"],
       "@deepseek-ai/dsh-message-feedback": ["./packages/feedback/message-feedback/src"],
       "@deepseek-ai/dsh-native-command": ["./packages/util/native-command/src"],
       "@deepseek-ai/dsh-output-retention": ["./packages/util/output-retention/src"],

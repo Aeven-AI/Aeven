@@ -1,8 +1,10 @@
 /**
- * OpenRouter video provider for `ctx.media`. Video is a job everywhere, and
- * OpenRouter is the one surveyed provider that enumerates its own job states,
- * so its vocabulary is what the seam's union follows and this adapter maps
- * onto directly.
+ * OpenRouter image and video provider for `ctx.media`. Images use the dedicated
+ * `/api/v1/images` route, which is where OpenRouter adds new image models and
+ * which accepts every control the seam's image request carries. Video is a job
+ * everywhere, and OpenRouter is the one surveyed provider that enumerates its
+ * own job states, so its vocabulary is what the seam's union follows and this
+ * adapter maps onto directly.
  * @module @deepseek-ai/dsh-media-openrouter
  */
 
@@ -10,9 +12,14 @@ import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-credentials'
-import { MediaError } from '@deepseek-ai/dsh-media'
+import { imageMediaType, MediaError } from '@deepseek-ai/dsh-media'
 import type {
+  GeneratedImage,
+  MediaImageModel,
   GeneratedMedia,
+  MediaImageProvider,
+  MediaImageRequest,
+  MediaImageResult,
   MediaVideoJob,
   MediaVideoProvider,
   MediaVideoRequest,
@@ -130,7 +137,7 @@ export function apply(ctx: Context, config: Config): void {
   }
 
   /** One JSON call against the pinned origin. */
-  const call = async (path: string, init: RequestInit, signal?: AbortSignal): Promise<JobBody> => {
+  const call = async (path: string, init: RequestInit, signal?: AbortSignal): Promise<Record<string, unknown>> => {
     const apiKey = await resolveApiKey()
     const response = await fetch(new URL(path, OPENROUTER_ORIGIN), {
       ...init,
@@ -141,15 +148,91 @@ export function apply(ctx: Context, config: Config): void {
     const text = await response.text()
     if (!response.ok) {
       throw new MediaError(
-        `OpenRouter video request failed with HTTP ${String(response.status)}${text === '' ? '' : `: ${text}`}`,
+        `OpenRouter request failed with HTTP ${String(response.status)}${text === '' ? '' : `: ${text}`}`,
         'MEDIA_UPSTREAM',
       )
     }
     try {
-      return JSON.parse(text) as JobBody
+      return JSON.parse(text) as Record<string, unknown>
     } catch (cause) {
-      throw new MediaError('OpenRouter returned a non-JSON video job body', 'MEDIA_UPSTREAM', { cause })
+      throw new MediaError('OpenRouter returned a non-JSON body', 'MEDIA_UPSTREAM', { cause })
     }
+  }
+
+  const images: MediaImageProvider = {
+    id,
+    available: () => process.env[apiKeyEnv] !== undefined || ctx.get('credentials') !== undefined,
+
+    async listImageModels(signal?: AbortSignal): Promise<readonly MediaImageModel[]> {
+      // `output_modalities` is what separates an image model from the chat
+      // models in the same document; the chat route refuses these and the
+      // image route serves only these.
+      const payload = await call('/api/v1/models', { method: 'GET' }, signal)
+      const rows = Array.isArray(payload['data']) ? payload['data'] : []
+      const models: MediaImageModel[] = []
+      for (const row of rows) {
+        if (typeof row !== 'object' || row === null) continue
+        const entry = row as {
+          id?: unknown
+          name?: unknown
+          description?: unknown
+          architecture?: { output_modalities?: unknown } | undefined
+        }
+        if (typeof entry.id !== 'string' || entry.id === '') continue
+        const outputs = entry.architecture?.output_modalities
+        if (!Array.isArray(outputs) || !outputs.includes('image')) continue
+        models.push({
+          provider: id,
+          id: entry.id,
+          ...typeof entry.name === 'string' && entry.name !== '' ? { label: entry.name } : {},
+        })
+      }
+      return models
+    },
+
+    async generateImage(request: MediaImageRequest, signal?: AbortSignal): Promise<MediaImageResult> {
+      const body: Record<string, unknown> = { model: request.model, prompt: request.prompt }
+      if (request.n !== undefined) body['n'] = request.n
+      if (request.aspectRatio !== undefined) body['aspect_ratio'] = request.aspectRatio
+      if (request.resolution !== undefined) body['resolution'] = request.resolution
+      if (request.size !== undefined) body['size'] = request.size
+      if (request.seed !== undefined) body['seed'] = request.seed
+      if (request.references !== undefined && request.references.length > 0) {
+        body['input_references'] = request.references.map(reference => ({
+          type: 'image_url',
+          image_url: {
+            url: `data:${reference.mediaType};base64,${Buffer.from(reference.data).toString('base64')}`,
+          },
+        }))
+      }
+      // The dedicated image route, not chat completions: OpenRouter adds new
+      // image models exclusively here, and the chat route refuses these models
+      // at its tool-compatibility step.
+      const payload = await call('/api/v1/images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }, signal)
+      const rows = Array.isArray(payload['data']) ? payload['data'] : undefined
+      if (rows === undefined) {
+        throw new MediaError('OpenRouter image response carried no data array', 'MEDIA_UPSTREAM')
+      }
+      const generated: GeneratedImage[] = []
+      for (const row of rows) {
+        if (typeof row !== 'object' || row === null) continue
+        const { b64_json: encoded, media_type: declared } = row as { b64_json?: unknown; media_type?: unknown }
+        if (typeof encoded !== 'string') continue
+        const data = Uint8Array.from(Buffer.from(encoded, 'base64'))
+        // `media_type` is present only when the route could identify the
+        // format, so the signature is what labels the rest.
+        const mediaType = typeof declared === 'string' && declared.length > 0 ? declared : imageMediaType(data)
+        generated.push({ kind: 'bytes', mediaType, data })
+      }
+      if (generated.length === 0) {
+        throw new MediaError('OpenRouter image response carried no image data', 'MEDIA_UPSTREAM')
+      }
+      return { provider: id, model: request.model, images: generated }
+    },
   }
 
   const provider: MediaVideoProvider = {
@@ -212,5 +295,6 @@ export function apply(ctx: Context, config: Config): void {
     },
   }
 
+  ctx.effect(() => ctx.media.registerImageProvider(images), 'media-openrouter: image provider')
   ctx.effect(() => ctx.media.registerVideoProvider(provider), 'media-openrouter: video provider')
 }

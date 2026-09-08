@@ -1,37 +1,78 @@
 <div class="hypermarkdown _markdown_404681">
   <ul>
-    <li>
-      #text "tight one"
-    <li>
-      #text "tight two\n"
+    <li data-animate-marker="true">
+      <span data-animate-key="word-0-0" data-animate-word="true">
+        #text "tight"
+      <span data-animate-key="word-0-2" data-animate-word="true">
+        #text "one"
+    <li data-animate-marker="true">
+      <span data-animate-key="word-0-0" data-animate-word="true">
+        #text "tight"
+      <span data-animate-key="word-0-2" data-animate-word="true">
+        #text "two"
       <ul>
-        <li>
-          #text "child"
+        <li data-animate-marker="true">
+          <span data-animate-key="word-0-0" data-animate-word="true">
+            #text "child"
   <ol>
-    <li>
+    <li data-animate-marker="true">
       <p>
-        #text "first"
-    <li>
+        <span data-animate-key="word-0-0" data-animate-word="true">
+          #text "first"
+    <li data-animate-marker="true">
       <p>
-        #text "second"
-    <li>
+        <span data-animate-key="word-0-0" data-animate-word="true">
+          #text "second"
+    <li data-animate-marker="true">
       <p>
-        #text "ordered with start"
-    <li>
+        <span data-animate-key="word-0-0" data-animate-word="true">
+          #text "ordered"
+        <span data-animate-key="word-0-2" data-animate-word="true">
+          #text "with"
+        <span data-animate-key="word-0-4" data-animate-word="true">
+          #text "start"
+    <li data-animate-marker="true">
       <p>
-        #text "next"
+        <span data-animate-key="word-0-0" data-animate-word="true">
+          #text "next"
   <ul>
-    <li>
+    <li data-animate-marker="true">
       <p>
-        #text "loose item one"
-    <li>
+        <span data-animate-key="word-0-0" data-animate-word="true">
+          #text "loose"
+        <span data-animate-key="word-0-2" data-animate-word="true">
+          #text "item"
+        <span data-animate-key="word-0-4" data-animate-word="true">
+          #text "one"
+    <li data-animate-marker="true">
       <p>
-        #text "loose item two"
+        <span data-animate-key="word-0-0" data-animate-word="true">
+          #text "loose"
+        <span data-animate-key="word-0-2" data-animate-word="true">
+          #text "item"
+        <span data-animate-key="word-0-4" data-animate-word="true">
+          #text "two"
       <p>
-        #text "second paragraph of loose item"
-    <li>
+        <span data-animate-key="word-0-0" data-animate-word="true">
+          #text "second"
+        <span data-animate-key="word-0-2" data-animate-word="true">
+          #text "paragraph"
+        <span data-animate-key="word-0-4" data-animate-word="true">
+          #text "of"
+        <span data-animate-key="word-0-6" data-animate-word="true">
+          #text "loose"
+        <span data-animate-key="word-0-8" data-animate-word="true">
+          #text "item"
+    <li data-animate-marker="true">
       <p>
-        #text "item with nested blocks"
+        <span data-animate-key="word-0-0" data-animate-word="true">
+          #text "item"
+        <span data-animate-key="word-0-2" data-animate-word="true">
+          #text "with"
+        <span data-animate-key="word-0-4" data-animate-word="true">
+          #text "nested"
+        <span data-animate-key="word-0-6" data-animate-word="true">
+          #text "blocks"
   <div class="codeblock-wrapper stream-active">
     <div class="code-container">
       <div class="codeblock-header">
@@ -62,8 +103,17 @@
       <div class="codeblock-pre-code-content">
         <pre>
           <span class="line-numbers">
-            <span class="line-number">
+            <span class="line-number" data-animate-word="true">
               #text "1"
           <div class="code-content no-scrollbar">
             <code class="">
-              #text "  fenced inside list\n"
+              #text "  "
+              <span data-animate-word="true">
+                #text "fenced"
+              #text " "
+              <span data-animate-word="true">
+                #text "inside"
+              #text " "
+              <span data-animate-word="true">
+                #text "list"
+              #text "\n"

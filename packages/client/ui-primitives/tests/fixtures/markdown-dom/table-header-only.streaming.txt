@@ -32,8 +32,11 @@
             <thead>
               <tr>
                 <th>
-                  #text "a"
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "a"
                 <th>
-                  #text "b"
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "b"
   <p>
-    #text "after"
+    <span data-animate-key="word-0-0" data-animate-word="true">
+      #text "after"

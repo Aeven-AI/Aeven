@@ -353,7 +353,6 @@ export function ChatView({
   const followSig = `${openState}:${firstSeq}:${lastKey}:${order.length}:${running ? 1 : 0}:${lastSteeringId ?? ''}:${lastSubmissionId ?? ''}`
 
   const syncActiveTurn = useCallback((): void => {
-    if (scrollSamplePendingRef.current) return
     const local = listRef.current
     const first = turnNavigationItems[0]
     if (local === null || first === undefined) {
@@ -603,11 +602,12 @@ export function ChatView({
     if (isAtBottom) chatScroll.save(null)
     else if (position !== null) chatScroll.save(position)
     observedTopRef.current = el.scrollTop
-    scheduleActiveTurn()
   }
 
-  // Raw scroll events only schedule work. Geometry is sampled at most once
-  // per interval, with scrollend providing the final sample for a short burst.
+  // Raw scroll events schedule the reading-line hit test for the next frame,
+  // so the rail tracks compositor scrolling without waiting for persistence.
+  // Follow ownership, restoration anchors, and storage remain sampled at most
+  // once per interval, with scrollend providing the final sample for a burst.
   useEffect(() => {
     const local = listRef.current
     /* v8 ignore next -- ref-null guard: effect runs after the list node commits. */
@@ -624,6 +624,7 @@ export function ChatView({
     }
     const onScroll = (): void => {
       scrollSamplePendingRef.current = true
+      activeTurnRef.current?.()
       sampleTimer ??= window.setTimeout(sample, SCROLL_SAMPLE_INTERVAL_MS)
     }
     el.addEventListener('scroll', onScroll, { passive: true })
@@ -894,7 +895,6 @@ export function ChatView({
           t={t}
         />
         <div ref={columnRef} className={css.column} data-chat-flow="">
-          {openState === 'loading' && <div className={css.hint}>{t('chat.loadingHistory')}</div>}
           {openState === 'error' && openError !== null && (
             <div className={css.openError}>
               {t('chat.loadError', { message: openError.message, code: openError.code })}

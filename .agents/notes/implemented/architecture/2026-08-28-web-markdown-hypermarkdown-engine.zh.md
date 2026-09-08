@@ -4,6 +4,8 @@ Status: implemented
 
 [English](2026-08-28-web-markdown-hypermarkdown-engine.md) | 中文
 
+本记录中的定稿决定已由 [HyperMarkdown 负责流式定稿](../bug-fix/2026-09-08-hypermarkdown-streaming-finalization.zh.md)取代。引擎与累积字符串适配器的决定仍然有效。
+
 ## 问题
 
 [直接 mdast 渲染器](2026-08-06-web-markdown-incremental-ast-renderer.zh.md)把流式开销约束在块这一层：它冻结已定稿的块，只重新解析源文本尾部。对由许多小块构成的回复，这是正确的约束；而对由少数大块构成的回复则不然——而后者正是助手输出的常态。一张 120 行的表格、一个 150 项的列表、一段 500 行的 fence，各自都是**单个**块，因此每到来一个分片就要把整块重新解析并重新渲染，且前沿块的开销仍随回复增长。

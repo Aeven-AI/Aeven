@@ -1,5 +1,5 @@
 import {
-  memo, useEffect, useId, useRef, useState,
+  memo, useEffect, useId, useLayoutEffect, useRef, useState,
   type CSSProperties, type MouseEvent, type PointerEvent,
 } from 'react'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
@@ -108,7 +108,7 @@ function TurnNavigatorRail({ items, activeTurn, busyTurn, onNavigate, t }: TurnN
 
   // Keep the active mark visible: centre it whenever it leaves the scrollport,
   // unless the reader's pointer is working the rail.
-  useEffect(() => {
+  useLayoutEffect(() => {
     const scroller = scrollerRef.current
     const index = items.findIndex(item => item.turn === activeTurn)
     if (scroller === null || index < 0 || pointerInsideRef.current) return
@@ -117,9 +117,8 @@ function TurnNavigatorRail({ items, activeTurn, busyTurn, onNavigate, t }: TurnN
     const viewHeight = scroller.clientHeight
     if (viewHeight <= 0 || (markTop >= viewTop + FADE_PX && markTop <= viewTop + viewHeight - FADE_PX)) return
     const target = Math.max(0, markTop - viewHeight / 2)
-    const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
     if (typeof scroller.scrollTo === 'function') {
-      scroller.scrollTo({ top: target, behavior: reduced ? 'auto' : 'smooth' })
+      scroller.scrollTo({ top: target, behavior: 'auto' })
     } else {
       scroller.scrollTop = target
     }

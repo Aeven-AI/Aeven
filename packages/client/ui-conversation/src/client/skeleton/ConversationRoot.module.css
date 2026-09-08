@@ -119,12 +119,6 @@
   mask-image: linear-gradient(to bottom, #000 10px, transparent 56px);
 }
 
-/* Blank hero/settling: keep the strict Session header mounted without taking
-   column space; the root-owned scrollport and composer remain below it. */
-.headerHidden {
-  display: none;
-}
-
 .titleRow {
   position: relative;
   z-index: 11;
@@ -395,6 +389,68 @@
   min-height: 0;
 }
 
+/* Aeven `#loader` over the transcript only. The 56px header is a transparent
+   overlay on `.root` (z-index 30); `top` clears that band so the spinner does
+   not show through it. `bottom` clears the composer seat (published on `.body`
+   as `--dsh-composer-height`; 152px matches ChatView's fallback). */
+.contentLoader {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: var(--dsh-composer-height, 152px);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+}
+
+.root[data-phase='active'] .contentLoader {
+  top: 56px;
+}
+
+.contentLoaderHide {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 400ms linear;
+}
+
+.contentLoaderSpinner,
+.contentLoaderSpinner svg {
+  display: block;
+  position: relative;
+  z-index: 1;
+  width: 20px;
+  height: 20px;
+}
+
+.contentLoaderSpinner {
+  color: var(--dsw-alias-label-primary);
+  animation: 900ms linear 0s infinite normal none running dsh-content-loader-spin;
+}
+
+.contentLoaderBackground {
+  position: absolute;
+  inset: 0;
+  background-color: var(--dsw-alias-bg-base);
+}
+
+@keyframes dsh-content-loader-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contentLoaderSpinner {
+    animation: none;
+  }
+
+  .contentLoaderHide {
+    transition: none;
+  }
+}
+
 .scrollBody {
   display: flex;
   flex: 1;
@@ -408,9 +464,18 @@
   scrollbar-gutter: stable;
 }
 
-.root[data-phase='active'] .viewArea {
+/* Growing flex sibling that docks the sticky composer. `.viewArea` is the
+   Session body; `.transcriptHold` is the empty replacement while that slot is
+   dropped so the overlay can present — without it the seat is the only child
+   and sits at the top of the column. */
+.root[data-phase='active'] .viewArea,
+.root[data-phase='active'] .transcriptHold {
   flex: 1 0 auto;
   min-height: auto;
+}
+
+.transcriptHold {
+  pointer-events: none;
 }
 
 .root[data-phase='active'] .composerSeat {

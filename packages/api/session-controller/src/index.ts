@@ -19,6 +19,7 @@ import { SessionHistoryController } from './history.ts'
 import { SessionFileReferences } from './file-references.ts'
 import { ApiSessionList, DEFAULT_COLD_BLANK_PROBE_MAX_BYTES } from './list.ts'
 import { buildModelCatalog } from './catalog.ts'
+import { buildImageModelCatalog, type ImageModelCatalog } from './image-catalog.ts'
 import { installModelSelectionProjection } from './model-selection-projection.ts'
 import { SessionSkillCatalog } from './skill-catalog.ts'
 import type {
@@ -253,6 +254,15 @@ export class SessionController extends TypertRemoteService {
   @Remote('modelCatalog')
   modelCatalog(): Promise<ModelCatalog> {
     return buildModelCatalog(this.ctx)
+  }
+
+  /**
+   * Describe every image model this deployment can generate with.
+   * @returns the models in provider registration order; empty where no media seam is composed.
+   */
+  @Remote('imageModelCatalog')
+  imageModelCatalog(): Promise<ImageModelCatalog> {
+    return buildImageModelCatalog(this.ctx)
   }
 
   /**

@@ -9,8 +9,10 @@ import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-credentials'
-import { MediaError } from '@deepseek-ai/dsh-media'
+import { imageMediaType, MediaError } from '@deepseek-ai/dsh-media'
 import type {
+  GeneratedImage,
+  MediaImageModel,
   GeneratedMedia,
   MediaImageProvider,
   MediaImageRequest,
@@ -111,27 +113,6 @@ function toJob(providerId: string, body: JobBody): MediaVideoJob {
 }
 
 /**
- * The media type of one decoded image, read from its leading bytes.
- *
- * The route's `response_format` names the encoding as base64 but not the image
- * format, and it answers a PNG-defaulted request with JPEG, so trusting a fixed
- * type would mislabel every artifact. An unrecognized signature stays
- * `application/octet-stream` rather than guessing.
- * @param data - the decoded image bytes.
- * @returns the sniffed IANA media type.
- */
-function imageMediaType(data: Uint8Array): string {
-  if (data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4e && data[3] === 0x47) return 'image/png'
-  if (data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) return 'image/jpeg'
-  if (data[0] === 0x47 && data[1] === 0x49 && data[2] === 0x46 && data[3] === 0x38) return 'image/gif'
-  if (
-    data[0] === 0x52 && data[1] === 0x49 && data[2] === 0x46 && data[3] === 0x46
-    && data[8] === 0x57 && data[9] === 0x45 && data[10] === 0x42 && data[11] === 0x50
-  ) return 'image/webp'
-  return 'application/octet-stream'
-}
-
-/**
  * Register the DeepInfra image and video provider on `ctx.media`.
  * @param ctx - context carrying the media seam and, optionally, credentials.
  * @param config - registry key, credential reference, and the size ceiling.
@@ -177,6 +158,28 @@ export function apply(ctx: Context, config: Config): void {
   const images: MediaImageProvider = {
     id,
     available: () => process.env[apiKeyEnv] !== undefined || ctx.get('credentials') !== undefined,
+    async listImageModels(signal?: AbortSignal): Promise<readonly MediaImageModel[]> {
+      // The same document lists chat, video, speech and embedding models; the
+      // `text-to-image` tag is what marks the ones this route can generate.
+      const payload = await call('/v1/openai/models', { method: 'GET' }, signal)
+      const rows = Array.isArray(payload['data']) ? payload['data'] : []
+      const models: MediaImageModel[] = []
+      for (const row of rows) {
+        if (typeof row !== 'object' || row === null) continue
+        const entry = row as { id?: unknown; metadata?: { tags?: unknown; description?: unknown } | undefined }
+        if (typeof entry.id !== 'string' || entry.id === '') continue
+        const tags = Array.isArray(entry.metadata?.tags) ? entry.metadata.tags : []
+        if (!tags.some(tag => tag === 'text-to-image' || tag === 'image')) continue
+        const description = entry.metadata?.description
+        models.push({
+          provider: id,
+          id: entry.id,
+          ...typeof description === 'string' && description !== '' ? { description } : {},
+        })
+      }
+      return models
+    },
+
     async generateImage(request: MediaImageRequest, signal?: AbortSignal): Promise<MediaImageResult> {
       const body: Record<string, unknown> = {
         model: request.model,
@@ -195,12 +198,12 @@ export function apply(ctx: Context, config: Config): void {
       if (rows === undefined) {
         throw new MediaError('DeepInfra image response carried no data array', 'MEDIA_UPSTREAM')
       }
-      const generated: GeneratedMedia[] = []
+      const generated: GeneratedImage[] = []
       for (const row of rows) {
         const encoded = typeof row === 'object' && row !== null ? (row as { b64_json?: unknown }).b64_json : undefined
         if (typeof encoded !== 'string') continue
         const data = Uint8Array.from(Buffer.from(encoded, 'base64'))
-        generated.push({ mediaType: imageMediaType(data), data })
+        generated.push({ kind: 'bytes', mediaType: imageMediaType(data), data })
       }
       if (generated.length === 0) {
         throw new MediaError('DeepInfra image response carried no image data', 'MEDIA_UPSTREAM')

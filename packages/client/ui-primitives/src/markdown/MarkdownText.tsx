@@ -8,11 +8,10 @@
  * tracking what the store has already been told and writing only the append,
  * reseeding when the text is not an extension of what it applied last.
  *
- * The finalize swap goes through `setMarkdown`, not a `write(…, true)`
- * finalize, because streamed output is chunk-dependent for fences and tables
- * (the per-line and per-row caches are what make streaming cheap) while
- * `setMarkdown` runs the one-shot settled parse. Routing the swap through it
- * makes the settled DOM identical however the reply was chunked.
+ * Finalize flushes the stream through `write(…, true)` and leaves the engine's
+ * result mounted. HyperMarkdown publishes that final render through its own
+ * external-store hook, so the word-fade spans finish without an adapter-owned
+ * timer or a second parse replacing them.
  *
  * Untrusted-output policy: `html: 'literal'` keeps raw HTML out of the DOM
  * entirely — it is never parsed, so it reads as the characters written rather
@@ -204,13 +203,14 @@ function codeComponents(
  * Render untrusted assistant-authored Markdown as semantic React elements.
  * @param props - Markdown source text preserved by the session projection;
  * `streaming` feeds appends into the engine's streaming path and clearing it
- * swaps to the settled parse; `labels` carries the localized copy this package
- * cannot look up itself, and `fileMentions` links inline-code tokens its
- * resolver recognizes as real files. Both must be reference-stable (memoized
- * per locale revision or per turn) — a new identity rebuilds the engine's
- * component table and remounts cached blocks. `labels.footnotes` is accepted
- * but not yet applied: the engine names that section itself, and overriding it
- * needs a setting it does not expose.
+ * finalizes that path through the engine's external-store update; `labels`
+ * carries the localized copy this package cannot look up itself, and
+ * `fileMentions` links inline-code tokens its resolver recognizes as real
+ * files. Both must be reference-stable (memoized per locale revision or per
+ * turn) — a new identity rebuilds the engine's component table and remounts
+ * cached blocks. `labels.footnotes` is accepted but not yet applied: the engine
+ * names that section itself, and overriding it needs a setting it does not
+ * expose.
  * @returns A GFM document with TeX math rendered through KaTeX; raw HTML never
  * enters the DOM, link and image destinations are restricted to safe schemes,
  * and diagram fences stay code blocks.
@@ -248,7 +248,19 @@ export const MarkdownText = memo(function MarkdownText({ text, streaming = false
     if (handle === null) return
     const last = applied.current
     if (!streaming) {
-      if (last === null || last.text !== text || last.streaming) handle.store.setMarkdown(text)
+      if (last?.streaming) {
+        if (text.startsWith(last.text)) {
+          handle.write(text.slice(last.text.length), true)
+        } else {
+          // The terminal projection replaced the last streaming snapshot.
+          // Rebuild and finalize it so its final words receive the same fade.
+          handle.reset()
+          handle.write(text, true)
+        }
+        applied.current = { text, streaming }
+        return
+      }
+      if (last === null || last.text !== text) handle.store.setMarkdown(text)
       applied.current = { text, streaming }
       return
     }
@@ -268,6 +280,7 @@ export const MarkdownText = memo(function MarkdownText({ text, streaming = false
     <HyperMarkdown
       ref={handleRef}
       streaming
+      animation
       html="literal"
       linkSafety={LINK_SAFETY}
       plugins={PLUGINS}

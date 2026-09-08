@@ -19,7 +19,7 @@ import type {
 // so store consumers get one import path.
 export type {
   ActionsDecl, BakedActions, BoundActions, DefineStore, HandleOf, MaybeSnapshotSelectorHook,
-  ObservableSnapshot, PropsStore, SnapshotSelectorHook, StoreDecl, StoreFactory,
+  ObservableSnapshot, PersistFields, PropsStore, SnapshotSelectorHook, StoreDecl, StoreFactory,
   StoreHandle, StoreInstance, StoreSpec,
 } from './contract.ts'
 
@@ -97,16 +97,19 @@ function rafBatch(notify: () => void): () => void {
  * frame-level skew, same nature as the object layer's microtask batching.
  *
  * @param init - initial state.
- * @param opts - flush mode and opt-in persistence (localStorage, keyed by name).
+ * @param opts - flush mode and opt-in persistence (localStorage, keyed by
+ * name; `fields` narrows it to those state fields, leaving the rest per-page).
  * @returns the store.
  */
 export function createSnapshotStore<T>(
-  init: T, opts?: { flush?: 'raf' | 'sync'; persist?: { name: string } }): SnapshotStore<T> {
+  init: T,
+  opts?: { flush?: 'raf' | 'sync'; persist?: { name: string; fields?: readonly string[] } },
+): SnapshotStore<T> {
   // Immer enters through produce() in update() below (identical semantics to
   // the immer middleware without its setState-signature mutator generics).
   const withSelector = subscribeWithSelector(() => init)
   const api: StoreApi<T> = createStore<T>()(withSelector)
-  if (opts?.persist) attachPersistence(api, opts.persist.name)
+  if (opts?.persist) attachPersistence(api, opts.persist.name, opts.persist.fields)
 
   let subscribe = (fn: () => void) => api.subscribe(() => {
     notifySubscribers([fn], '[client-store]')
@@ -155,14 +158,18 @@ function webStorage(): Storage | undefined {
 }
 
 /**
- * Whole-value JSON persistence to localStorage. Hand-rolled instead of the
+ * JSON persistence to localStorage: the whole value by default, or only the
+ * named `fields` when the declaration lists them. Hand-rolled instead of the
  * zustand persist middleware: its write path spreads state into an object
  * (`partialize({ ...get() })`), exploding primitive state (a persisted string
  * draft becomes {0:'h',1:'e',...}) — not fixable via merge/deserialize options
  * because the corruption happens before serialization. Storage failures
  * (quota, private mode) only disable persistence, never break the store.
+ * @param api - the engine store to hydrate and follow.
+ * @param name - localStorage key.
+ * @param fields - durable state fields; absent persists the whole value.
  */
-function attachPersistence<T>(api: StoreApi<T>, name: string): void {
+function attachPersistence<T>(api: StoreApi<T>, name: string, fields?: readonly string[]): void {
   // A runtime without Web Storage persists nothing: this disables silently, on
   // the same contract as a storage failure.
   const storage = webStorage()
@@ -170,18 +177,55 @@ function attachPersistence<T>(api: StoreApi<T>, name: string): void {
   try {
     const raw = storage.getItem(name)
     if (raw !== null) {
-      api.setState(devFreeze(JSON.parse(raw) as T), true)
+      const stored: unknown = JSON.parse(raw)
+      api.setState(
+        devFreeze(fields === undefined ? stored as T : adoptFields(api.getState(), stored, fields)),
+        true)
     }
   } catch (error) {
     console.error(`snapshot store '${name}' rehydration failed:`, error)
   }
   api.subscribe((state) => {
     try {
-      storage.setItem(name, JSON.stringify(state))
+      storage.setItem(name, JSON.stringify(fields === undefined ? state : pickFields(state, fields)))
     } catch (error) {
       console.error(`snapshot store '${name}' persistence failed:`, error)
     }
   })
+}
+
+/**
+ * Seed the initial state with the durable fields of a stored value. This is
+ * the durable boundary: a field is adopted only when the revived value is
+ * non-null and carries the initial value's `typeof`, so a truncated, stale, or
+ * hand-edited entry loses that field rather than the store.
+ * @param init - the state the store was constructed with.
+ * @param stored - the revived localStorage value.
+ * @param fields - the durable field names.
+ * @returns the state to hydrate with.
+ */
+function adoptFields<T>(init: T, stored: unknown, fields: readonly string[]): T {
+  if (typeof stored !== 'object' || stored === null) return init
+  const source = stored as Record<string, unknown>
+  const next = { ...init as unknown as Record<string, unknown> }
+  for (const field of fields) {
+    const value = source[field]
+    if (value !== null && typeof value === typeof next[field]) next[field] = value
+  }
+  return next as unknown as T
+}
+
+/**
+ * Project the durable fields out of a state value for writing.
+ * @param state - current state.
+ * @param fields - the durable field names.
+ * @returns the object written to storage.
+ */
+function pickFields(state: unknown, fields: readonly string[]): Record<string, unknown> {
+  const source = state as Record<string, unknown>
+  const picked: Record<string, unknown> = {}
+  for (const field of fields) picked[field] = source[field]
+  return picked
 }
 
 /** Deep-freeze draftable wholesale-set state outside production: set() bypasses immer's freeze. */
@@ -230,7 +274,8 @@ export interface EngineStoreHandle<T, A extends ActionsDecl<T>> extends StoreHan
  * so call sites write `(d, x: X) => { ... }` with no draft annotation. If a
  * future TS version breaks this single-literal inference, the design's
  * documented fallback is currying (`defineStore(init).actions({...})`).
- * @param decl - init lambda (fresh state per instance), optional persist key, actions table.
+ * @param decl - init lambda (fresh state per instance), optional persistence
+ * (whole-state key, or key plus durable field list), actions table.
  * @returns the store handle.
  */
 export function defineStore<T, A extends ActionsDecl<T>>(
@@ -238,12 +283,15 @@ export function defineStore<T, A extends ActionsDecl<T>>(
   return {
     spec: decl,
     create(scopeKey?: string): EngineStoreInstance<T, A> {
-      const persistKey = decl.persist === undefined
-        ? undefined
-        : scopeKey === undefined ? decl.persist : `${decl.persist}.${scopeKey}`
+      const slice: { key: string; fields?: readonly string[] } | undefined =
+        typeof decl.persist === 'string' ? { key: decl.persist } : decl.persist
+      const persist = slice === undefined ? undefined : {
+        name: scopeKey === undefined ? slice.key : `${slice.key}.${scopeKey}`,
+        ...slice.fields === undefined ? {} : { fields: slice.fields },
+      }
+      const persistKey = persist?.name
       const store = createSnapshotStore<T>(
-        decl.init(),
-        persistKey !== undefined ? { persist: { name: persistKey } } : undefined)
+        decl.init(), persist === undefined ? undefined : { persist })
       const actions = {} as Record<string, (...params: unknown[]) => void>
       for (const key of Object.keys(decl.actions)) {
         const mutate = decl.actions[key] as (draft: T, ...params: unknown[]) => void

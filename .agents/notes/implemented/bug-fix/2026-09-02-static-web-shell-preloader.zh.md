@@ -14,7 +14,7 @@ Web 应用在入口 module 与客户端插件 bundle 加载期间必须用带样
 
 预加载页样式表只拥有首帧布局、明色与暗色回退，以及淡出和转轮动画。ui-theme 的 Host 侧继续在 opening body tag 后立即注入持久偏好引导。该脚本会在 parser 到达静态预加载页前应用 `body[data-ds-dark-theme]`，而浏览器侧 ThemeRuntime 在插件激活后仍是权威。
 
-`dsh-client-web/src/preloader.ts` 控制已有元素。应用成功挂载后，它会用 400ms 淡出并随后将元素移出布局；启动失败时，它会在 `BootPage` 渲染诊断前立即隐藏元素。静态元素拥有加载呈现时 `BootPage` 保持视觉静默，而不含 Web 外壳的 document 仍使用其自有进度视觉。Worker preview 会为 source chooser 隐藏静态元素，再在所选 image 与插件树启动期间恢复它。
+`dsh-client-web/src/preloader.ts` 控制已有元素。成功的 Web 启动会在第一份侧边栏列表与所选会话历史到达后用 400ms 淡出，再将元素移出布局；启动失败时，它会在 `BootPage` 渲染诊断前立即隐藏元素。静态元素拥有加载呈现时 `BootPage` 保持视觉静默，而不含 Web 外壳的 document 仍使用其自有进度视觉。Worker preview 会为 source chooser 隐藏静态元素，再在所选 image 与插件树启动期间恢复它。[外壳数据等待](2026-09-08-web-preloader-waits-for-shell-data.zh.md)拥有该成功启动时机。
 
 ## 验证
 

@@ -275,6 +275,47 @@ describe('defineStore', () => {
     expect(backing.has('spec.chat')).toBe(true)
   })
 
+  it('a field list persists those fields alone and leaves the rest at init on reload', () => {
+    const backing = new Map<string, string>()
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => backing.get(k) ?? null,
+      setItem: (k: string, v: string) => { backing.set(k, v) },
+      removeItem: (k: string) => { backing.delete(k) },
+    })
+    const handle = defineStore({
+      init: () => ({ width: 280, open: false }),
+      persist: { key: 'spec.panels', fields: ['width'] },
+      actions: {
+        setWidth: (d, px: number) => { d.width = px },
+        setOpen: (d, open: boolean) => { d.open = open },
+      },
+    })
+    const first = handle.create()
+    first.actions.setWidth(400)
+    first.actions.setOpen(true)
+
+    expect(JSON.parse(backing.get('spec.panels')!)).toEqual({ width: 400 })
+    expect(handle.create().store.getSnapshot()).toEqual({ width: 400, open: false })
+  })
+
+  it('a field list rejects a stored value of the wrong type or a non-object entry', () => {
+    const backing = new Map<string, string>()
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => backing.get(k) ?? null,
+      setItem: (k: string, v: string) => { backing.set(k, v) },
+      removeItem: (k: string) => { backing.delete(k) },
+    })
+    const handle = defineStore({
+      init: () => ({ width: 280 }),
+      persist: { key: 'spec.panels', fields: ['width'] },
+      actions: { setWidth: (d, px: number) => { d.width = px } },
+    })
+    for (const stored of ['{"width":"wide"}', '{"width":null}', '{}', '7']) {
+      backing.set('spec.panels', stored)
+      expect(handle.create().store.getSnapshot()).toEqual({ width: 280 })
+    }
+  })
+
   it('clearPersisted is a no-op without a persist declaration or without storage', () => {
     const inst = declare().create('s1')   // no persist key declared
     expect(() => { inst.clearPersisted() }).not.toThrow()

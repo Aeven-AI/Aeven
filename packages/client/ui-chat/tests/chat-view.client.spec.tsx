@@ -621,6 +621,68 @@ describe('ChatView', () => {
     expect(preview.textContent).toContain('first response')
   })
 
+  it('updates the active Turn on the next frame while scroll bookkeeping stays sampled', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    let nextFrame = 0
+    const frames = new Map<number, FrameRequestCallback>()
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      nextFrame += 1
+      frames.set(nextFrame, callback)
+      return nextFrame
+    })
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => { frames.delete(id) })
+    const originalHitTest = Object.getOwnPropertyDescriptor(document, 'elementsFromPoint')
+    const flushFrames = (): void => {
+      act(() => {
+        const pending = [...frames.values()]
+        frames.clear()
+        for (const callback of pending) callback(0)
+      })
+    }
+    let view: ReturnType<typeof render> | undefined
+    try {
+      const snapshot = chatSnapshotFixture({
+        nodes: [
+          userInTurn(1, 'first prompt', 1), assistant(2, 'first response', 1),
+          userInTurn(4, 'second prompt', 2), assistant(5, 'second response', 2),
+        ],
+        turnEnds: new Map([[1, 3], [2, 6]]),
+      })
+      const h = makeHarness({}, {}, snapshot)
+      view = render(<h.ChatView {...h.props} />)
+      const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement
+      const firstRow = view.container.querySelector('[data-chat-turn="1"]') as HTMLElement
+      const metrics = installScrollMetrics(scroller, 2_000, 300)
+      metrics.setLayout(2_000, 1_700)
+      vi.spyOn(scroller, 'getBoundingClientRect').mockReturnValue({
+        top: 0, bottom: 300, left: 0, right: 600, width: 600, height: 300,
+      } as DOMRect)
+      Object.defineProperty(document, 'elementsFromPoint', {
+        configurable: true,
+        value: () => [firstRow],
+      })
+      flushFrames()
+
+      scroller.scrollTop = 100
+      fireEvent.scroll(scroller)
+      expect(view.getByRole('button', { name: '跳转到第 2 轮' }).getAttribute('aria-current')).toBe('true')
+
+      flushFrames()
+      expect(view.getByRole('button', { name: '跳转到第 1 轮' }).getAttribute('aria-current')).toBe('true')
+      // The slow path has not run: restoration persistence waits for its
+      // existing interval or scrollend instead of joining the scroll frame.
+      expect(h.chatScroll.read()).toBeNull()
+    } finally {
+      view?.unmount()
+      vi.useRealTimers()
+      if (originalHitTest !== undefined) {
+        Object.defineProperty(document, 'elementsFromPoint', originalHitTest)
+      } else {
+        Reflect.deleteProperty(document, 'elementsFromPoint')
+      }
+    }
+  })
+
   it('jumps to a turn anchor and reflows stable marks after an older page arrives', () => {
     const later = [
       userInTurn(4, 'second prompt', 2), assistant(5, 'second response', 2),
@@ -2015,7 +2077,7 @@ describe('ChatView', () => {
     act(() => {
       h.setChat({ partial: { turn: 2, step: 1, blocks: [{ kind: 'text', text: 'streaming… more' }] } })
     })
-    expect(view.getByText('streaming… more')).toBeTruthy()
+    expect(view.container.querySelector('[data-streaming="true"]')?.textContent).toContain('streaming… more')
     expect(view.getByTestId('tool-seat-a')).toBe(tool)
     expect(tool.innerHTML).toBe(beforeHtml)
   })
@@ -2592,7 +2654,7 @@ describe('ChatView', () => {
     expect(view.getByText(/历史加载失败：boom/)).toBeTruthy()
     const loading = makeHarness({}, { openState: 'loading' })
     const lv = render(<loading.ChatView {...loading.props} />)
-    expect(lv.getByText('载入历史…')).toBeTruthy()
+    expect(lv.queryByText('载入历史…')).toBeNull()
   })
 
   it('renders command nodes as durable rows: settled text, error state, executing spinner, run-less soft-fall', () => {

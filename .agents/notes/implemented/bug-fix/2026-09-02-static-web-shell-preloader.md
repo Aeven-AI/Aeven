@@ -14,7 +14,7 @@ The Web application must cover its page with a styled loading visual while the e
 
 The preloader stylesheet owns only first-paint layout, its light and dark fallback colors, and its fade and spinner animations. ui-theme's Host half continues to inject the durable preference bootstrap immediately after the opening body tag. That script applies `body[data-ds-dark-theme]` before the parser reaches the static preloader, while browser-side ThemeRuntime remains authoritative after plugin activation.
 
-`dsh-client-web/src/preloader.ts` controls the existing element. Successful application mount fades it for 400ms and then removes it from layout; a boot failure hides it immediately before `BootPage` renders the diagnostic. `BootPage` stays visually silent while the static element owns loading and retains its own progress visual for documents without the Web shell. The worker preview hides the static element for its source chooser, then restores it while the selected image and plugin tree boot.
+`dsh-client-web/src/preloader.ts` controls the existing element. A successful Web boot fades it for 400ms after the first sidebar lists and selected conversation history have arrived, then removes it from layout; a boot failure hides it immediately before `BootPage` renders the diagnostic. `BootPage` stays visually silent while the static element owns loading and retains its own progress visual for documents without the Web shell. The worker preview hides the static element for its source chooser, then restores it while the selected image and plugin tree boot. The [shell-data wait](2026-09-08-web-preloader-waits-for-shell-data.md) owns that successful-boot timing.
 
 ## Verification
 

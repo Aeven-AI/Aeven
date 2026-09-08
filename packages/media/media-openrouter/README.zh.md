@@ -30,6 +30,12 @@ kind: "package-reference"
 
 `id` 是注册键，`apiKeyEnv` 是凭据引用，`maxVideoBytes` 限制单个取回片段的大小；三者都有默认值。挂载了 `ctx.credentials` 服务时凭据经由它解析，否则回退到同名环境变量。
 
+### 图像
+
+`generateImage` 提交到专用的 `/api/v1/images` 路由，而不是 chat completions。这个选择很关键：OpenRouter 的新图像模型只加在该专用路由上，而其 chat 路由会在工具兼容性路由步骤上拒绝这些模型，因此经 chat completions 触达它们的 harness 会收到一个指明工具支持的 HTTP 404。`n`、`aspectRatio`、`resolution`、`size` 与 `seed` 按该路由自己的字段名转发，参考图以 `input_references` data URI 形式随行。
+
+返回的图像是 `data[].b64_json` 中的 base64。该路由仅在能够识别格式时才报告 `media_type`，因此没有该字段的条目按其自身签名标注；不含编码图像的行会被跳过，而完全没有产出图像的响应是错误，而不是空的成功。
+
 ### 请求
 
 `duration`、`aspectRatio`、`resolution`、`size`、`seed` 与 `generateAudio` 转发到该路由自身的字段名，参考图以 `input_references` 的 data URI 形式随行——因此图生视频与参考引导生成都通过同一次调用完成。只发送调用方设置过的字段，其余一律采用模型自身的默认值。
@@ -67,7 +73,9 @@ kind: "package-reference"
 这些限制界定了本 provider 不适用的场景，均为当前包约束。
 
 - **无 invariant 伴随模块**——不发布运行时 invariant 伴随模块，因为本包不拥有任何两个独立观察者可能产生分歧的关系；它唯一的注册随调用方 fiber 释放，并由本包测试覆盖。
-- **仅视频**——OpenRouter 图片由 `dsh-media-pi-ai` 提供，它经由 pi-ai 的传输层触达同一个账号。希望获得专用图片端点额外控制项的部署目前两者都没有。
+- **两个包都能提供 OpenRouter 图像**——`dsh-media-pi-ai` 经 pi-ai 的 chat-modality 传输触达同一个账号，且以相同的默认 id 注册，因此同时挂载两者的组合必须给其中之一换一个 `id`。本包的专用路由才是接收新图像模型的那个。
+- **不支持流式**——图像路由接受 `stream` 以增量投递，本 Provider 不请求它；一次调用在所有图像就绪时一次性返回。
+- **不转发 `quality`、`output_format`、`background` 与 `output_compression`**——Seam 没有承载它们的字段，因此沿用模型自身的默认值。何况请求 SVG 会产生第一版附件路径无法存储的字节。
 - **无模型目录**——模型 id 原样传递，由 OpenRouter 而非本包校验，因此无效 id 会在上游失败而不是在调用之前。
 - **不支持 webhook**——该路由接受用于完成通知的 `callback_url`，本 provider 不转发它；轮询是唯一的完成路径。
 - **无成本报告**——提交响应携带用量估算，seam 没有位置承载它，因此被丢弃。
@@ -81,8 +89,8 @@ kind: "package-reference"
 
 本开发备注是面向维护者的工作上下文：尚未决定的方向与开放问题。它明确不具权威性——已交付的行为、限制与理由位于上文各节。
 
-#### 未来：图片放这里还是放在 pi-ai
+#### 退役 pi-ai 图像路径
 
-OpenRouter 提供了带有 pi-ai chat-modality 路径未暴露之控制项的专用图片 API。把它加到这里可以让单个包覆盖整个 OpenRouter 媒体面，代价是两个包都能提供 OpenRouter 图片；留在 pi-ai 则维持按传输层而非按厂商的切分。尚未决定。
+专用路由已在本包实现后，`dsh-media-pi-ai` 就成了以同一种类触达同一账号的第二条路，走的是 OpenRouter 视为遗留的传输层，且面对的是冻结在已安装 pi-ai 中的模型列表。该包是否还有存在理由尚待决定；将其退役会消除上文限制中提到的 id 冲突。
 
 </details>

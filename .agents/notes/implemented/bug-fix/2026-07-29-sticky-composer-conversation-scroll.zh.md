@@ -10,7 +10,7 @@ Status: implemented
 
 ## 决策
 
-`ConversationRoot` 始终拥有同一个 `data-conversation-scroll` 主体，其中严格 `conversation.session` view outlet 位于 `data-composer-seat` 之前；该 seat 包住整条 `'conversation.composer'` chain 输出（`overlay: true` 下的 fallback 与选举出的 overlay 兄弟节点）。独立的严格 `conversation.session.header` outlet 作为 `flex: none` 列 chrome 位于滚动容器上方，并在 Session 仍为 blank 时隐藏。固定的父级树让滚动主体与 composer seat 从无会话、blank Hero 到活跃对话始终保持挂载。活跃阶段 CSS 以 `position: sticky; bottom: 0` 钉住该 seat，使用户未贴底时 Question／Approval 接管仍可见；Hero CSS 在滚动主体内居中 fallback 栈。ChatView 与 Trajectory/Waterfall 仅在宿主之外挂载时（单元测试）保留本地 scroller；位于宿主下时设为 `overflow: visible`，并通过 `closest('[data-conversation-scroll]')` 解析贴底跟随与前置锚定。
+`ConversationRoot` 始终拥有同一个 `data-conversation-scroll` 主体，其中严格 `conversation.session` view outlet 位于 `data-composer-seat` 之前；该 seat 包住整条 `'conversation.composer'` chain 输出（`overlay: true` 下的 fallback 与选举出的 overlay 兄弟节点）。独立的严格 `conversation.session.header` outlet 作为列 chrome 位于滚动容器上方，并依据[空白 Session 标题栏决定](2026-09-08-blank-session-header.zh.md)对每个已选 Session 保持可见。固定的父级树让滚动主体与 composer seat 从无会话、blank Hero 到活跃对话始终保持挂载。活跃阶段 CSS 以 `position: sticky; bottom: 0` 钉住该 seat，使用户未贴底时 Question／Approval 接管仍可见；Hero CSS 在滚动主体内居中 fallback 栈。ChatView 与 Trajectory/Waterfall 仅在宿主之外挂载时（单元测试）保留本地 scroller；位于宿主下时设为 `overflow: visible`，并通过 `closest('[data-conversation-scroll]')` 解析贴底跟随与前置锚定。
 
 会话统计挂在 `'conversation.composer.dock'`（位于 `'conversation.input.dock'` 之上）。InputBar 的 textarea 在宿主内以 `{ passive: false }` 链式处理 `wheel`：在限高 textarea 仍能沿该方向滚动时保留原生手势；仅在自身边缘才 `preventDefault` 并将 `deltaY` 施加到宿主。
 
