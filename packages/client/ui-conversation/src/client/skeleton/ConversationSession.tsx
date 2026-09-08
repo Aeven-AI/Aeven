@@ -52,7 +52,7 @@ function equalBreadcrumbs(left: readonly Breadcrumb[], right: readonly Breadcrum
 }
 
 /**
- * Renders Session header chrome above the resident conversation scrollport.
+ * Renders Session header chrome as an overlay on the resident conversation.
  * @param props - Strict Session store, view ledger, navigation, render, and locale shares.
  * @returns the hidden blank-session header or visible title and tabs.
  */
@@ -75,6 +75,12 @@ export function ConversationSessionHeader({
     >
       {!hideChrome && (
         <>
+          {/* Aeven `.navigation-background`: fade + 1px blur over the transcript
+              as it scrolls under this 56px overlay. The bar itself is transparent. */}
+          <div className={css.navBackground} aria-hidden="true">
+            <div className={css.navFade} />
+            <div className={css.navBlur} />
+          </div>
           <div className={css.titleRow}>
             <div className={css.titleCluster}>
               <nav className={css.crumbs} aria-label={t('session.hierarchy')}>
@@ -126,6 +132,22 @@ export function ConversationSessionHeader({
                 })}
                 {ancestry.length === 0 && <span className={css.crumbCurrent}>{sessionId}</span>}
               </nav>
+              {tabs.length > 1 && (
+                <div className={css.tabs} role="tablist">
+                  {tabs.map(viewTab => (
+                    <button
+                      key={viewTab.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={viewTab.id === active?.id}
+                      className={clsx(css.tab, viewTab.id === active?.id && css.tabActive)}
+                      onClick={() => { selectView(viewTab.id) }}
+                    >
+                      {viewTab.label}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className={css.headerActions}>
                 {renderSlot('conversation.session.header.actions', {})}
               </div>
@@ -134,22 +156,6 @@ export function ConversationSessionHeader({
               {renderSlot('conversation.session.header.utilities', {})}
             </div>
           </div>
-          {tabs.length > 1 && (
-            <div className={css.tabs} role="tablist">
-              {tabs.map(viewTab => (
-                <button
-                  key={viewTab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={viewTab.id === active?.id}
-                  className={clsx(css.tab, viewTab.id === active?.id && css.tabActive)}
-                  onClick={() => { selectView(viewTab.id) }}
-                >
-                  {viewTab.label}
-                </button>
-              ))}
-            </div>
-          )}
         </>
       )}
     </header>

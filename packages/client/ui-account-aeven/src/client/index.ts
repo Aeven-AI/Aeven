@@ -9,7 +9,7 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { AevenReader } from '@deepseek-ai/dsh-client-ui-auth-aeven'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
-import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
@@ -85,13 +85,10 @@ export function apply(ctx: ClientContext): void {
   })
 
   ctx.slots.inject(
-    'shell.overlay',
+    'conversation.session.header.utilities',
     () => ctx.slots.register({
-      name: 'shell.overlay',
+      name: 'conversation.session.header.utilities',
       id: 'aeven-account',
-      // Aeven carries the reader's menu in its app shell, above every screen,
-      // so the shell overlay is where it belongs here too: the Session header
-      // exists only inside a Session, and the reader is signed in throughout.
       order: 100,
       locale: NS,
       inject: injected,

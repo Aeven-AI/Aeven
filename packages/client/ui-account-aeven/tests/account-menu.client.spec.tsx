@@ -3,8 +3,6 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AccountMenu, type AccountMenuProps } from '../src/client/AccountMenu.tsx'
 
-const CLEARANCE = '--dsh-header-overlay-clearance'
-
 function props(overrides: Partial<AccountMenuProps> = {}): AccountMenuProps {
   return {
     reader: () => ({ userId: 'u-1', displayName: 'Ollie' }),
@@ -19,21 +17,12 @@ function props(overrides: Partial<AccountMenuProps> = {}): AccountMenuProps {
 
 afterEach(() => {
   cleanup()
-  document.documentElement.style.removeProperty(CLEARANCE)
 })
 
 describe('Aeven account menu', () => {
   it('renders nothing when nobody is signed in', () => {
     const { container } = render(<AccountMenu {...props({ reader: () => undefined })} />)
     expect(container.firstChild).toBeNull()
-    expect(document.documentElement.style.getPropertyValue(CLEARANCE)).toBe('')
-  })
-
-  it('reserves header room while it is mounted and gives it back', () => {
-    const { unmount } = render(<AccountMenu {...props()} />)
-    expect(document.documentElement.style.getPropertyValue(CLEARANCE)).toBe('42px')
-    unmount()
-    expect(document.documentElement.style.getPropertyValue(CLEARANCE)).toBe('')
   })
 
   it('opens and closes the menu from the avatar', () => {

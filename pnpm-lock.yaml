@@ -1857,9 +1857,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-auth-aeven':
         specifier: workspace:^
         version: link:../ui-auth-aeven
-      '@deepseek-ai/dsh-client-ui-layout':
+      '@deepseek-ai/dsh-client-ui-conversation':
         specifier: workspace:^
-        version: link:../ui-layout
+        version: link:../ui-conversation
       '@deepseek-ai/dsh-client-ui-primitives':
         specifier: workspace:^
         version: link:../ui-primitives

@@ -6,11 +6,11 @@
  * in CSS, which is all a menu anchored to one corner needs.
  */
 
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useCallback, useRef, useState, type KeyboardEvent } from 'react'
 import { useDismissOnOutsidePointer } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-// Type-only: pulls the ui-layout SlotMap merge (the shell overlay layer).
-import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+// Type-only: pulls the ui-conversation SlotMap merge (the header utilities seat).
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { Avatar } from './Avatar.tsx'
 import { ACCOUNT_ICON, LOGOUT_ICON, MOON_ICON, SETTINGS_ICON } from './icons.ts'
 import { NS } from './locales.ts'
@@ -41,16 +41,9 @@ export interface AccountMenuInjected {
   signOut: () => void
 }
 
-/**
- * Room the Session header leaves beyond its own page inset: the avatar and a
- * gap. A plain length, because the property is declared on the document root
- * where the layout's own inset token does not resolve.
- */
-const HEADER_CLEARANCE = '42px'
-
 /** Full component props. */
 export type AccountMenuProps =
-  PropsRuntime<'shell.overlay'>
+  PropsRuntime<'conversation.session.header.utilities'>
   & PropsLocale<typeof NS>
   & InjectFace<AccountMenuInjected>
 
@@ -68,15 +61,6 @@ export function AccountMenu({
   const root = useRef<HTMLDivElement | null>(null)
   const trigger = useRef<HTMLButtonElement | null>(null)
   useDismissOnOutsidePointer(root, open, setOpen)
-
-  // The overlay layer floats above the Session header, which would otherwise
-  // run its own right-hand controls underneath the avatar.
-  useEffect(() => {
-    if (person === undefined) return
-    const style = document.documentElement.style
-    style.setProperty('--dsh-header-overlay-clearance', HEADER_CLEARANCE)
-    return () => { style.removeProperty('--dsh-header-overlay-clearance') }
-  }, [person])
 
   const close = useCallback(() => {
     setOpen(false)

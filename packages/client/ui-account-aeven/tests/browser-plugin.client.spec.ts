@@ -17,12 +17,13 @@ interface Scope {
 
 const scope = globalThis as Scope
 
-function overlayIds(ctx: Context): (string | undefined)[] {
-  return ctx.slots.entries('shell.overlay').map(entry => entry.options.id)
+function utilityIds(ctx: Context): (string | undefined)[] {
+  return ctx.slots.entries('conversation.session.header.utilities').map(entry => entry.options.id)
 }
 
 function injectedFace(ctx: Context): AccountMenuInjected {
-  const entry = ctx.slots.entries('shell.overlay').find(e => e.options.id === 'aeven-account')
+  const entry = ctx.slots.entries('conversation.session.header.utilities')
+    .find(e => e.options.id === 'aeven-account')
   return entry?.inject?.() as unknown as AccountMenuInjected
 }
 
@@ -43,10 +44,10 @@ async function baseContext(theme: {
   return ctx
 }
 
-function declareOverlay(ctx: Context): () => void {
+function declareHeaderUtilities(ctx: Context): () => void {
   return ctx.slots.register({
     name: 'root',
-    children: { 'shell.overlay': { kind: 'list', scope: 'root' } },
+    children: { 'conversation.session.header.utilities': { kind: 'list', scope: 'session' } },
   } as never, Empty)
 }
 
@@ -68,24 +69,24 @@ describe('ui-account-aeven browser half', () => {
     expect(NS).toBe('account.aeven')
   })
 
-  it('waits for the overlay declaration and tears its entry down', async () => {
+  it('waits for the header utility declaration and tears its entry down', async () => {
     const ctx = await baseContext({ scheme: 'light', setTheme: () => {} })
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
-    expect(overlayIds(ctx)).toEqual([])
+    expect(utilityIds(ctx)).toEqual([])
 
-    const overlay = declareOverlay(ctx)
-    expect(overlayIds(ctx)).toEqual(['aeven-account'])
+    const utilities = declareHeaderUtilities(ctx)
+    expect(utilityIds(ctx)).toEqual(['aeven-account'])
 
     await fiber.dispose()
-    expect(overlayIds(ctx)).toEqual([])
-    overlay()
+    expect(utilityIds(ctx)).toEqual([])
+    utilities()
   })
 
   it('reports no reader until the gate states one', async () => {
     const ctx = await baseContext({ scheme: 'light', setTheme: () => {} })
     await ctx.plugin({ inject: [...inject], apply }).await()
-    declareOverlay(ctx)
+    declareHeaderUtilities(ctx)
     const face = injectedFace(ctx)
     expect(face.reader()).toBeUndefined()
     expect(face.accountUrl()).toBeUndefined()
@@ -108,7 +109,7 @@ describe('ui-account-aeven browser half', () => {
   it('carries only the facts the deployment stated', async () => {
     const ctx = await baseContext({ scheme: 'light', setTheme: () => {} })
     await ctx.plugin({ inject: [...inject], apply }).await()
-    declareOverlay(ctx)
+    declareHeaderUtilities(ctx)
     scope.__DSH_AEVEN_READER__ = { userId: 'u-2', signOut: () => Promise.resolve() }
     expect(injectedFace(ctx).reader()).toEqual({ userId: 'u-2' })
   })
@@ -117,7 +118,7 @@ describe('ui-account-aeven browser half', () => {
     const setTheme = vi.fn()
     const ctx = await baseContext({ scheme: 'dark', setTheme })
     await ctx.plugin({ inject: [...inject], apply }).await()
-    declareOverlay(ctx)
+    declareHeaderUtilities(ctx)
     const face = injectedFace(ctx)
     expect(face.nightMode()).toBe(true)
     face.setNightMode(false)
@@ -132,7 +133,7 @@ describe('ui-account-aeven browser half', () => {
     const signOut = vi.fn(() => Promise.resolve())
     const ctx = await baseContext({ scheme: 'light', setTheme: () => {} })
     await ctx.plugin({ inject: [...inject], apply }).await()
-    declareOverlay(ctx)
+    declareHeaderUtilities(ctx)
 
     injectedFace(ctx).signOut()
     expect(signOut).not.toHaveBeenCalled()
