@@ -1,14 +1,14 @@
 - banner:
   - navigation "Session hierarchy":
     - button "Reply with a one-sentence description" [disabled]
+  - tablist:
+    - tab "Chat" [selected]
+    - tab "Trajectory"
   - img
   - text: Standard mode
   - button "Session log":
     - text: Session log
     - img
-  - tablist:
-    - tab "Chat" [selected]
-    - tab "Trajectory"
 - button "System prompt":
   - img
   - img
@@ -40,8 +40,7 @@
     - button "Cancel editing":
       - img
 - textbox "Cmd/Ctrl+Enter steers all queued messages"
-- button "Commands":
-  - img
+- button "Commands"
 - 'button "Access mode, current: Workspace Write"': Workspace Write
 - button "Select model, current DeepSeek-V4-Flash":
   - text: DeepSeek-V4-Flash

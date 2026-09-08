@@ -1,12 +1,12 @@
 - banner:
   - navigation "Session hierarchy":
     - button "Math rendering" [disabled]
-  - button "Session log":
-    - text: Session log
-    - img
   - tablist:
     - tab "Chat" [selected]
     - tab "Trajectory"
+  - button "Session log":
+    - text: Session log
+    - img
 - text: Render this mathematical proof. {{clock}}
 - button "Copy":
   - img
@@ -19,6 +19,11 @@
   - text: .
 - math: π 4 < θ < π 2
 - math: θ ∈ ( π 4 , π 2 ) . (1)
+- text: Table
+- button "Copy":
+  - img
+- button "Full screen":
+  - img
 - table:
   - rowgroup:
     - row "Symbol Value":
@@ -44,8 +49,7 @@
   - text: Ran for {{duration}}
 - text: {{clock}}
 - textbox "Message or run a task... / commands, @ files or sessions"
-- button "Commands":
-  - img
+- button "Commands"
 - 'button "Access mode, current: Workspace Write"': Workspace Write
 - button "Select model, current DeepSeek-V4-Flash":
   - text: DeepSeek-V4-Flash

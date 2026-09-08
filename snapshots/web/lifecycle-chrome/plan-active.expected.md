@@ -1,6 +1,4 @@
-- button "New session"
-- button "Collapse sidebar":
-  - img
+- button "Collapse sidebar"
 - button "New session":
   - img
   - text: New Session
@@ -30,8 +28,7 @@
   - text: Standard mode
   - img
 - textbox "Describe what you want to build... / commands, @ files or sessions"
-- button "Commands":
-  - img
+- button "Commands"
 - 'button "Access mode, current: Workspace Write"': Workspace Write
 - button "Plan mode on, press to turn off": Plan
 - button "Select model, current DeepSeek-V4-Flash":

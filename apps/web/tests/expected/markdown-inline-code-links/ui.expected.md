@@ -1,12 +1,12 @@
 - banner:
   - navigation "Session hierarchy":
     - button "Inline code links" [disabled]
-  - button "Session log":
-    - text: Session log
-    - img
   - tablist:
     - tab "Chat" [selected]
     - tab "Trajectory"
+  - button "Session log":
+    - text: Session log
+    - img
 - text: Show the local preview URL. {{clock}}
 - button "Copy":
   - img
@@ -40,8 +40,7 @@
   - text: Ran for {{duration}}
 - text: {{clock}}
 - textbox "Message or run a task... / commands, @ files or sessions"
-- button "Commands":
-  - img
+- button "Commands"
 - 'button "Access mode, current: Workspace Write"': Workspace Write
 - button "Select model, current DeepSeek-V4-Flash":
   - text: DeepSeek-V4-Flash

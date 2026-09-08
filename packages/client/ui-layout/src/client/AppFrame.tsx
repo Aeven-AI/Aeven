@@ -27,6 +27,17 @@ import css from './AppFrame.module.css'
  */
 const NARROW_QUERY = `screen and (max-width: ${String(SIDEBAR_AUTO_COLLAPSE)}px)`
 
+/**
+ * The breakpoint list, or `undefined` where the runtime has no `matchMedia`.
+ * jsdom implements none, and the assembled web lane boots this tree there, so
+ * an unguarded call crashes the 'root' slot before the shell renders. Absent
+ * the API the frame stays wide, which is the three-column layout it defaults to.
+ * @returns the live `MediaQueryList`, or `undefined` without `matchMedia`.
+ */
+function matchNarrow(): MediaQueryList | undefined {
+  return typeof window.matchMedia === 'function' ? window.matchMedia(NARROW_QUERY) : undefined
+}
+
 /** Full composed props: runtime share + child-slot render share + store share. */
 export type AppFrameProps =
   & PropsRuntime<'root'>
@@ -111,7 +122,7 @@ export function AppFrame({
     const current = s.current
     return current === undefined ? undefined : s.byId[current]?.title
   })
-  const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW_QUERY).matches)
+  const [narrow, setNarrow] = useState(() => matchNarrow()?.matches ?? false)
 
   const lastSession = useRef(detailsSession)
   useLayoutEffect(() => {
@@ -128,7 +139,8 @@ export function AppFrame({
   // width of every slide, which is what the Aeven client avoids by keeping the
   // whole responsive rule set in CSS.
   useEffect(() => {
-    const query = window.matchMedia(NARROW_QUERY)
+    const query = matchNarrow()
+    if (query === undefined) return
     const read = (): void => { setNarrow(query.matches) }
     read()
     query.addEventListener('change', read)
@@ -196,7 +208,8 @@ export function AppFrame({
       <div className={css.overlayLayer} data-shell-overlay>
         {renderSlot('shell.overlay', {})}
       </div>
-      {/* A closed sidebar has no resize handle. */}
+      {/* Details is the only draggable column; the sidebar's width is a store
+          preference the column animates in CSS. */}
       {detailsWidth > 0 && <DragHandle side="details" onStart={onDetailsStart} onDrag={onDetailsDrag} onEnd={onDragEnd} />}
     </div>
   )

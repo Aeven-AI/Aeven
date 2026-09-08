@@ -3,7 +3,7 @@
 ## At the start of the draft
 
 - draft overflows the capped box: true
-- visible lines: 14
+- visible lines: 12
 - the surface holds no scroll offset of its own: true
 - scroll offset: 0px
 - first draft line is on screen: true

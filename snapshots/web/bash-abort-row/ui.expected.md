@@ -1,12 +1,12 @@
 - banner:
   - navigation "Session hierarchy":
     - 'button "Run two shell commands: wait" [disabled]'
-  - button "Session log":
-    - text: Session log
-    - img
   - tablist:
     - tab "Chat" [selected]
     - tab "Trajectory"
+  - button "Session log":
+    - text: Session log
+    - img
 - button "System prompt":
   - img
   - img
@@ -27,8 +27,7 @@
   - img
   - text: "Failed Bash Error: tool call aborted before dispatch"
 - textbox "Message or run a task... / commands, @ files or sessions"
-- button "Commands":
-  - img
+- button "Commands"
 - 'button "Access mode, current: Full access"': Full access
 - button "Select model, current DeepSeek-V4-Flash":
   - text: DeepSeek-V4-Flash

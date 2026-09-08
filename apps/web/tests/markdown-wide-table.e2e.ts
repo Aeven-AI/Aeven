@@ -1,13 +1,13 @@
-// Web e2e scenario: markdown tables in the message column. Tables under four
-// columns (and long-cell tables) fill the 748px message column and wrap;
-// four-or-more-column tables keep their natural width and scroll horizontally
-// inside their wrapper. Either way the scroll viewport is the message column
-// — same width and same left edge as an ordinary table's, at every viewport
-// — so a wide table reaches its full width behind the scroll and never
+// Web e2e scenario: markdown tables in the message column. HyperMarkdown keeps
+// every cell on one line, so a table wider than the 748px message column
+// reaches its natural width by scrolling horizontally inside its wrapper
+// rather than wrapping into the column. The scroll viewport is the message
+// column — same width and same left edge as any other table's, at every
+// viewport — so a table reaches its full width behind the scroll and never
 // paints a cell outside the column the rest of the transcript occupies.
 //
-// Only a real engine lays out CSS tables, so the fill/scroll relations, the
-// containment and alignment relations, arrow-key scrolling, and the zoom/DPR
+// Only a real engine lays out CSS tables, so the scroll and containment
+// relations, the alignment relations, arrow-key scrolling, and the zoom/DPR
 // arms are all measured in Chromium across viewport stops. The golden records
 // relations and booleans, never pixels: absolute widths document the
 // platform, not the behavior.
@@ -75,9 +75,19 @@ const CJK_SENTENCE = '这个单元格包含一段较长的中文说明，用来�
 
 /** The assistant markdown: one 3-column fill, one 12-column wide, one long-cell table. */
 function tablesMarkdown(): string {
-  const wideHeader = [WIDE_MARKER, ...Array.from({ length: 11 }, (_, i) => `C${String(i + 2).padStart(2, '0')}`)]
+  // Twelve columns of a length that cannot sit inside the 748px column on one
+  // line. Cells never wrap (HyperMarkdown pins `white-space: nowrap`), so the
+  // scroll this table is here to exercise only exists if its natural width
+  // exceeds the column — short cell values would simply fit.
+  const wideHeader = [
+    WIDE_MARKER,
+    ...Array.from({ length: 11 }, (_, i) => `column-${String(i + 2).padStart(2, '0')}-header`),
+  ]
   const wideRow = (row: number): string[] =>
-    Array.from({ length: 12 }, (_, i) => `v${String(row)}${String(i + 1).padStart(2, '0')}`)
+    Array.from(
+      { length: 12 },
+      (_, i) => `r${String(row)}-c${String(i + 1).padStart(2, '0')}-datum`,
+    )
   return [
     'Three markdown tables exercise the wide-table layout rules.',
     '',
@@ -152,7 +162,7 @@ interface TableReading {
   overflow: number
   /** Wrapper content width. */
   clientWidth: number
-  /** Rendered wrapper height; wrapping shows up as growth when the column narrows. */
+  /** Rendered wrapper height; scrolling absorbs width, so it holds across the sweep. */
   height: number
   /** Renderer marked the table with the `md-table-wide` breakout hook. */
   wideHook: boolean
@@ -211,16 +221,14 @@ async function closeDetailsPane(target: Page): Promise<void> {
 }
 
 /**
- * Render the golden body: relations only. `fills` is the wrap-first claim
- * (the wrapper has no residual horizontal scroll), `scrolls` the many-column
- * fallback, and `stays in the column` whether the wrapper's viewport matches
- * the fill table's, which by construction is exactly the message column.
+ * Render the golden body: relations only. `fills the column` is a wrapper with
+ * no residual horizontal scroll, `scrolls` its complement, and `stays in the
+ * column` whether the wrapper's viewport matches the first table's, which by
+ * construction is exactly the message column.
  * @param stops - the measured stops, in sweep order.
- * @param wrapTighter - per table name, whether the block grew taller at the
- * narrowest stop than at the widest (the proof wrapping engaged).
  * @returns the golden body, without a trailing newline.
  */
-function renderGeometry(stops: TableStop[], wrapTighter: Map<string, boolean>): string {
+function renderGeometry(stops: TableStop[]): string {
   return [
     '# Markdown wide-table relations',
     '',
@@ -235,14 +243,10 @@ function renderGeometry(stops: TableStop[], wrapTighter: Map<string, boolean>): 
           && Math.abs(table.scrollerLeft - column.scrollerLeft) < 1.5)} |`,
       )
     }),
-    '',
-    'Wrap-first engagement (taller at the narrowest stop than at the widest):',
-    '',
-    ...[...wrapTighter.entries()].map(([name, tighter]) => `- ${name}: ${String(tighter)}`),
   ].join('\n')
 }
 
-describe('web e2e: markdown tables fill the column, wide ones scroll inside it', () => {
+describe('web e2e: markdown tables scroll inside the message column', () => {
   let scaffold: WebScaffold
   let browser: Browser
   let page: Page
@@ -317,17 +321,21 @@ describe('web e2e: markdown tables fill the column, wide ones scroll inside it',
     return swept
   }
 
-  it('fills narrow tables and scrolls wide ones inside the column', async () => {
+  it('scrolls every table inside the message column', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-markdown-wide-table'))
     const stops = await sweep()
     for (const stop of stops) {
       const [fill, wide, longCell] = stop.tables
       const columnWidth = fill!.clientWidth
-      // #520: an ordinary wide table fills the message column and wraps…
-      expect(fill!.overflow, `fill viewport ${String(stop.width)}`).toBeLessThanOrEqual(1)
-      // …a long unbroken token and long CJK prose wrap instead of forcing a scroll…
-      expect(longCell!.overflow, `long-cell viewport ${String(stop.width)}`).toBeLessThanOrEqual(1)
-      // …and a many-column table keeps its natural width behind the scroll fallback.
+      // HyperMarkdown keeps every cell on one line (`table td { white-space:
+      // nowrap }`), so a table reaches its natural width behind the scroll
+      // rather than wrapping into the column. Each of these three carries
+      // content past the 748px column, so each scrolls: an ordinary
+      // three-column table of full sentences…
+      expect(fill!.overflow, `fill viewport ${String(stop.width)}`).toBeGreaterThan(1)
+      // …a long unbroken token beside long CJK prose…
+      expect(longCell!.overflow, `long-cell viewport ${String(stop.width)}`).toBeGreaterThan(1)
+      // …and a twelve-column matrix.
       expect(wide!.overflow, `wide viewport ${String(stop.width)}`).toBeGreaterThan(1)
       // The hook is column-count static, present at every stop.
       expect(wide!.wideHook).toBe(true)
@@ -344,12 +352,16 @@ describe('web e2e: markdown tables fill the column, wide ones scroll inside it',
       ).toBeLessThan(1.5)
       expect(Math.abs(wide!.tableLeft - fill!.tableLeft), `alignment at ${String(stop.width)}`).toBeLessThan(1.5)
     }
-    // Wrap-first engaged for real: the filling tables grow taller as the
-    // column narrows (the wide table only scrolls, so it is exempt).
+    // Scrolling absorbs the whole width change, so a narrower column costs no
+    // extra rows: every table keeps its height across the sweep.
     const widest = stops[0]!
     const narrowest = stops[stops.length - 1]!
-    expect(narrowest.tables[0]!.height).toBeGreaterThan(widest.tables[0]!.height)
-    expect(narrowest.tables[2]!.height).toBeGreaterThan(widest.tables[2]!.height)
+    for (const [index, name] of TABLE_NAMES.entries()) {
+      expect(
+        Math.abs(narrowest.tables[index]!.height - widest.tables[index]!.height),
+        `${name} height across the sweep`,
+      ).toBeLessThan(1.5)
+    }
     expect(tripwire.pageErrors).toEqual([])
   }, 120_000)
 
@@ -398,7 +410,7 @@ describe('web e2e: markdown tables fill the column, wide ones scroll inside it',
       await page.evaluate(() => { document.documentElement.style.zoom = '1.25' })
       await expect.poll(async () => {
         const [fill, wide, longCell] = await readTables(page)
-        return fill!.overflow <= 1 && longCell!.overflow <= 1 && wide!.overflow > 1
+        return fill!.overflow > 1 && longCell!.overflow > 1 && wide!.overflow > 1
       }, { timeout: 10_000 }).toBe(true)
     } finally {
       await page.evaluate(() => { document.documentElement.style.zoom = '' })
@@ -452,13 +464,7 @@ describe('web e2e: markdown tables fill the column, wide ones scroll inside it',
   it('matches the committed geometry golden', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-markdown-wide-table-golden'))
     const stops = await sweep()
-    const widest = stops[0]!
-    const narrowest = stops[stops.length - 1]!
-    const wrapTighter = new Map<string, boolean>([
-      ['fill', narrowest.tables[0]!.height > widest.tables[0]!.height],
-      ['long-cell', narrowest.tables[2]!.height > widest.tables[2]!.height],
-    ])
-    await compareOrRefreshGolden(GEOMETRY_EXPECTED, renderGeometry(stops, wrapTighter), MODE)
+    await compareOrRefreshGolden(GEOMETRY_EXPECTED, renderGeometry(stops), MODE)
     expect(tripwire.pageErrors).toEqual([])
   }, 120_000)
 

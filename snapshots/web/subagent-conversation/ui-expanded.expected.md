@@ -6,14 +6,14 @@
     - button "1 subagent":
       - text: 1 subagent
       - img
+  - tablist:
+    - tab "Chat" [selected]
+    - tab "Trajectory"
   - img
   - text: Standard mode
   - button "Session log":
     - text: Session log
     - img
-  - tablist:
-    - tab "Chat" [selected]
-    - tab "Trajectory"
 - navigation "Turn navigation":
   - button "Jump to turn 1"
   - button "Jump to turn 2"
@@ -76,8 +76,7 @@
   - text: Ran for {{duration}}
 - text: {{clock}}
 - textbox "Message or run a task... / commands, @ files or sessions"
-- button "Commands":
-  - img
+- button "Commands"
 - 'button "Access mode, current: Custom"': Custom
 - button "6% of context used"
 - button "Send message" [disabled]

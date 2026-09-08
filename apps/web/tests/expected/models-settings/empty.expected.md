@@ -30,6 +30,7 @@
     - option "cerebras"
     - option "cloudflare-ai-gateway"
     - option "cloudflare-workers-ai"
+    - option "deepinfra"
     - option "deepseek"
     - option "fireworks"
     - option "github-copilot"
