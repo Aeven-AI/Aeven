@@ -1,8 +1,12 @@
-/* Zero-height sticky slot, like the back-to-bottom control: the rail floats
-   over the transcript's right gutter without extending scrollHeight. */
+/* Zero-height slot in the host's non-scrolling chrome layer, like the
+   back-to-bottom control: the rail floats over the transcript's right gutter
+   without extending scrollHeight, and no scroll gesture — an elastic
+   overscroll included — can move it. */
 .slot {
-  position: sticky;
+  position: absolute;
   top: 0;
+  right: 0;
+  left: 0;
   /* Above transcript CodeBlock banners (z-index 6). The rail band excludes
      the composer, so its preview never needs to cross the footer. */
   z-index: 7;
@@ -20,14 +24,19 @@
   );
   --turn-preview-height: 100px;
 
-  position: absolute;
+  /* Fixed, not absolute: every scrolled ancestor is translated by an elastic
+     overscroll, so anything positioned inside one rides the rubber-band. The
+     viewport is the only box that never moves — the same reason the Session
+     header holds still. */
+  position: fixed;
   top: calc(var(--turn-rail-band) / 2);
-  /* Flush with the scrollport edge: the slot sits inside the transcript's side
-     padding, so the rail gives that inset back and keeps 12px of its own. That
-     padding is the side clearance alone (ChatView `.scroll`) — the composer's
-     extra 16px card inset does not apply to this containing block, and adding
-     it pushed the rail 4px past the scrollport into a horizontal scrollbar. */
-  right: calc(12px - var(--dsh-composer-side-clearance));
+  /* Measured from the viewport's right edge, so it gives back whatever sits
+     right of the conversation column: the details column (AppFrame publishes
+     its live width) and the scrollport's reserved scrollbar gutter, then keeps
+     12px of its own. */
+  right: calc(
+    12px + var(--dsh-frame-details-width, 0px) + var(--dsh-scrollbar-width, 0px)
+  );
   width: 28px;
   /* Fixed-pitch marks never compress: a ladder taller than the band scrolls
      inside this frame instead of pushing marks under the composer or above
@@ -120,9 +129,10 @@
   transition: width 140ms ease, background-color 140ms ease;
 }
 
-/* Ordered before hover/active so those states keep their stronger tick. */
+/* Ordered before hover/active so those states keep their stronger tick.
+   Same width as a loaded tick: the ladder reads as one scale of the whole
+   session, and dimming alone carries "not resident yet". */
 .markUnloaded::before {
-  width: 8px;
   opacity: 0.6;
 }
 

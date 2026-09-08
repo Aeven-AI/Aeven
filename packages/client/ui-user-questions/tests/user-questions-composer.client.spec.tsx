@@ -19,8 +19,6 @@ const seatOver = (dict: Record<string, string>, common: Record<string, string>):
 
 type SessionState = Parameters<Parameters<QuestionComposerProps['useSession']>[0]>[0]
 type ConversationState = Parameters<Parameters<QuestionComposerProps['useConversation']>[0]>[0]
-type ChatState = Parameters<Parameters<QuestionComposerProps['useChat']>[0]>[0]
-type TrajectoryState = Parameters<Parameters<QuestionComposerProps['useTrajectory']>[0]>[0]
 type InputState = Parameters<Parameters<QuestionComposerProps['useInput']>[0]>[0]
 type AttentionState = Parameters<Parameters<QuestionComposerProps['useSessionPendingInteraction']>[0]>[0]
 
@@ -62,35 +60,6 @@ const conversationState: ConversationState = {
   views: { get: () => undefined },
   activeTargets: new Set(),
 }
-const emptyKeys: readonly string[] = []
-const emptyNodeSource = { getSnapshot: () => undefined, subscribe: () => () => {} }
-const chatState: ChatState = {
-  order: emptyKeys,
-  nodes: {
-    get: () => undefined,
-    source: () => emptyNodeSource,
-    processSource: () => emptyNodeSource,
-    values: () => [],
-  },
-  locations: { getTurn: () => emptyKeys, getStep: () => emptyKeys },
-  navigation: { items: () => [] },
-  timeline: { turnOrder: [], turns: new Map() },
-  legacy: {
-    nodes: [],
-    turnTimings: new Map(),
-    turnEnds: new Map(),
-    partial: null,
-    runningCalls: [],
-  },
-}
-const trajectoryState: TrajectoryState = {
-  eventNodes: [],
-  eventLocations: new Map(),
-  requests: [],
-  callSchemas: new Map(),
-  partial: null,
-  runningCalls: [],
-}
 const inputState: InputState = {
   draft: '',
   imageIds: [],
@@ -112,8 +81,6 @@ const kitBase: Omit<QuestionComposerProps, 'matched' | 'useStore' | 'actions'> =
   useSessionPendingInteraction: selector => selector(attentionState),
   useWorkspaces: selector => selector(workspaceState),
   useConversation: selector => selector(conversationState),
-  useChat: selector => selector(chatState),
-  useTrajectory: selector => selector(trajectoryState),
   useProjection: (() => undefined),
   useInput: selector => selector(inputState),
   inputActions: {

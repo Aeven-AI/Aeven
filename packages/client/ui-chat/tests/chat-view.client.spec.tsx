@@ -895,10 +895,11 @@ describe('ChatView', () => {
     )
     Object.defineProperty(scroller, 'scrollHeight', { value: 800, writable: true })
     Object.defineProperty(scroller, 'clientHeight', { value: 200, writable: true })
+    // Scrolling within the prefetch margin starts the pull; no gesture on a
+    // control is involved.
     readerScroll(scroller, 50)
-    fireEvent.click(view.getByText('加载更早'))
-    // The reader moves after the request starts; this, not the click-time
-    // row, is the intent the arriving page must preserve.
+    // The reader moves after the request starts; this, not the row under the
+    // head when it started, is the intent the arriving page must preserve.
     firstTop = -200
     nextTop = 60
     readerScroll(scroller, 90)
@@ -977,11 +978,16 @@ describe('ChatView', () => {
     })
     try {
       rowRectCalls = 0
-      fireEvent.click(view.getByText('加载更早'))
+      // One raw scroll event = one automatic paging test, so this measures a
+      // single anchor capture with the viewport hit test missing.
+      fireEvent.scroll(scroller)
       expect(hitTest).toHaveBeenCalledTimes(1)
       expect(hitTest.mock.calls[0]?.[1]).toBe(1)
       expect(rowRectCalls).toBeLessThanOrEqual(6)
 
+      // Settle the scroll burst: commit-time compensation is suppressed while
+      // a sample is still pending.
+      fireEvent(scroller, new Event('scrollend'))
       Object.defineProperty(scroller, 'scrollHeight', { value: 1_300, writable: true })
       prepended = true
       act(() => {
@@ -2335,9 +2341,9 @@ describe('ChatView', () => {
     vi.spyOn(anchored, 'getBoundingClientRect').mockImplementation(
       () => ({ top: anchoredTop, bottom: anchoredTop + 40 } as DOMRect),
     )
+    // Scrolling into the prefetch margin arms the paging anchor; an older
+    // page (head seq decreases) then arrives against it.
     readerScroll(scroller, 80)
-    // Arm the paging anchor, then deliver an older page (head seq decreases).
-    fireEvent.click(view.getByText('加载更早'))
     Object.defineProperty(scroller, 'scrollHeight', { value: 1600, writable: true })
     anchoredTop = 700
     act(() => {
@@ -2360,7 +2366,6 @@ describe('ChatView', () => {
     Object.defineProperty(scroller, 'scrollHeight', { value: 800, writable: true })
     Object.defineProperty(scroller, 'clientHeight', { value: 200, writable: true })
     readerScroll(scroller, 50)
-    fireEvent.click(view.getByText('加载更早'))
     fireEvent.click(view.getByLabelText('回到底部'))
     Object.defineProperty(scroller, 'scrollHeight', { value: 1_300, writable: true })
     act(() => { h.setChat({ nodes: [assistant(2, 'older'), user(9, 'late')] }) })
@@ -2455,6 +2460,10 @@ describe('ChatView', () => {
     Object.defineProperty(scroller, 'scrollHeight', { value: 1_400, writable: true })
     act(() => { notify?.() })
     expect(scroller.scrollTop).toBe(200)
+    // The flow column only: this harness mounts no composer seat beside the
+    // scrollport. The scrollport itself is never observed — this callback
+    // writes scrollTop, and doing that on the scroller's own resize would
+    // flatten the elastic overscroll at either end.
     expect(observe).toHaveBeenCalledTimes(1)
   })
 
@@ -2636,13 +2645,116 @@ describe('ChatView', () => {
     }
   })
 
-  it('paging button loads older and shows its busy label', () => {
+  it('keeps scroll bookkeeping off the Node Seats', () => {
+    // Automatic paging makes scroll-driven re-renders of ChatView constant, so
+    // the memoized list is what keeps a long transcript affordable: active
+    // Turn, follow ownership and persistence must reach no Seat. Per-key
+    // publication itself is pinned on the builder (chat-node-source spec).
+    const h = makeHarness({ nodes: [user(5, 'first'), assistant(6, 'reply')] }, { hasMore: true })
+    const renders = new Map<string, number>()
+    h.setNodeRenderer(((key: string, owner: { node: { key: string } }) => {
+      if (key === 'conversation.chat.node') {
+        renders.set(owner.node.key, (renders.get(owner.node.key) ?? 0) + 1)
+      }
+      return null
+    }) as never)
+    const view = render(<h.ChatView {...h.props} />)
+    expect(renders.size).toBeGreaterThan(0)
+    const mounted = new Map(renders)
+
+    const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement
+    Object.defineProperty(scroller, 'scrollHeight', { value: 4_000, writable: true })
+    Object.defineProperty(scroller, 'clientHeight', { value: 400, writable: true })
+    readerScroll(scroller, 2_000)
+    readerScroll(scroller, 1_200)
+    expect(renders).toEqual(mounted)
+  })
+
+  it('fills a window too short to scroll, then reports progress at the head', () => {
     const h = makeHarness({ nodes: [user(5, 'later')] }, { hasMore: true })
     const view = render(<h.ChatView {...h.props} />)
-    fireEvent.click(view.getByText('加载更早'))
+    // Nothing to scroll and history remains: the reader has no gesture
+    // available, so the open itself pulls.
     expect(h.loadOlder).toHaveBeenCalledTimes(1)
+    expect(view.getByText('正在加载更早的消息…')).toBeTruthy()
+    expect(view.queryByText('加载更早')).toBeNull()
+  })
+
+  it('pulls once the reader reaches the prefetch margin and not before', () => {
+    const h = makeHarness({ nodes: [user(5, 'later')] }, { hasMore: true })
+    const view = render(<h.ChatView {...h.props} />)
+    const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement
+    Object.defineProperty(scroller, 'scrollHeight', { value: 4_000, writable: true })
+    Object.defineProperty(scroller, 'clientHeight', { value: 400, writable: true })
+    h.loadOlder.mockClear()
+
+    // Beyond the margin the head is nowhere near: no pull.
+    readerScroll(scroller, 1_400)
+    expect(h.loadOlder).not.toHaveBeenCalled()
+
+    // Inside it, the scroll gesture itself is the request.
+    readerScroll(scroller, 400)
+    expect(h.loadOlder).toHaveBeenCalledTimes(1)
+
+    // A pull already in flight owns the pager; scrolling does not stack more.
     act(() => { h.setSession({ loadingOlder: true }) })
-    expect(view.getByText('加载中…')).toBeTruthy()
+    readerScroll(scroller, 200)
+    expect(h.loadOlder).toHaveBeenCalledTimes(1)
+  })
+
+  it('latches off and offers the manual control when a pull moves no history', () => {
+    const h = makeHarness({ nodes: [user(5, 'later')] }, { hasMore: true })
+    const view = render(<h.ChatView {...h.props} />)
+    expect(h.loadOlder).toHaveBeenCalledTimes(1)
+
+    // The pull settles with the window head unmoved and history still
+    // claimed: `loadOlder` swallowed a failure, so automatic paging stops.
+    act(() => { h.setSession({ loadingOlder: true }) })
+    act(() => { h.setSession({ loadingOlder: false }) })
+    expect(view.getByText('加载更早')).toBeTruthy()
+    expect(view.queryByText('正在加载更早的消息…')).toBeNull()
+
+    // Scrolling no longer retries; only the reader's click does, and it
+    // re-arms automatic paging for the pages after it.
+    const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement
+    Object.defineProperty(scroller, 'scrollHeight', { value: 4_000, writable: true })
+    Object.defineProperty(scroller, 'clientHeight', { value: 400, writable: true })
+    readerScroll(scroller, 100)
+    expect(h.loadOlder).toHaveBeenCalledTimes(1)
+    fireEvent.click(view.getByText('加载更早'))
+    expect(h.loadOlder).toHaveBeenCalledTimes(2)
+    expect(view.getByText('正在加载更早的消息…')).toBeTruthy()
+  })
+
+  it('chains to the next page while the reader stays inside the margin', () => {
+    const h = makeHarness({ nodes: [user(5, 'later')] }, { hasMore: true })
+    render(<h.ChatView {...h.props} />)
+    expect(h.loadOlder).toHaveBeenCalledTimes(1)
+    // The page lands (head seq decreases) and the pull settles: the reader is
+    // still at the head, so the next page follows without a gesture.
+    act(() => { h.setSession({ loadingOlder: true }) })
+    act(() => {
+      h.setChat({ nodes: [user(1, 'older'), user(5, 'later')] })
+      h.setSession({ loadingOlder: false })
+    })
+    expect(h.loadOlder).toHaveBeenCalledTimes(2)
+  })
+
+  it('leaves the pager to a rail jump already paging toward its target', () => {
+    const h = makeHarness({ nodes: [userInTurn(5, 'later', 2)] }, { hasMore: true })
+    h.setOutline([
+      { turn: 1, seq: 0, prompt: 'first prompt', response: 'first answer' },
+      { turn: 2, seq: 5, prompt: 'later', response: '' },
+    ])
+    const view = render(<h.ChatView {...h.props} />)
+    h.loadOlder.mockClear()
+    h.loadThrough.mockImplementation(() => new Promise<void>(() => {}))
+    fireEvent.click(view.getByRole('button', { name: '加载并跳转到第 1 轮' }))
+    const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement
+    Object.defineProperty(scroller, 'scrollHeight', { value: 4_000, writable: true })
+    Object.defineProperty(scroller, 'clientHeight', { value: 400, writable: true })
+    readerScroll(scroller, 100)
+    expect(h.loadOlder).not.toHaveBeenCalled()
   })
 
   it('shows open error and loading states', () => {

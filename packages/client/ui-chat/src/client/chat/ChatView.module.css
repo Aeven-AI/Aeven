@@ -157,12 +157,51 @@
   line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
 }
 
-.older {
+/* Head boundary: a zero-height sticky slot, like the back-to-bottom control,
+   so paging progress overlays the topmost rows instead of occupying flow.
+   Nothing here changes scrollHeight, so appearing and disappearing cannot
+   move the rows a pending prepend is compensating. */
+.olderSlot {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  /* Above transcript CodeBlock banners (z-index 6), below back-to-bottom. */
+  z-index: 7;
+  height: 0;
   display: flex;
   justify-content: center;
+  pointer-events: none;
 }
 
-.older button {
+/* Floating pill so the ring stays legible over whatever it covers; same
+   surface tokens as the back-to-bottom control. */
+.olderProgress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--dsw-aeven-control-size);
+  height: var(--dsw-aeven-control-size);
+  margin-top: 8px;
+  border-radius: 100px;
+  background: var(--dsw-alias-button-floating-fill);
+  box-shadow: var(--dsw-elevation-panel);
+}
+
+/* The Trajectory history loader's ring (TrajectoryTable .historyLoadingSpinner):
+   paging history reads the same in both views. */
+.olderSpinner {
+  width: 10px;
+  height: 10px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--dsw-alias-border-l2);
+  border-top-color: var(--dsw-alias-state-business-primary);
+  border-radius: 50%;
+  animation: dsh-chat-older-spin 700ms linear infinite;
+}
+
+.olderRetry {
+  margin-top: 8px;
   border: none;
   min-height: var(--dsw-aeven-control-size);
   border-radius: var(--dsw-aeven-radius-control);
@@ -171,19 +210,28 @@
   color: var(--dsw-alias-label-secondary);
   background: var(--dsw-alias-interactive-bg-hover-solid);
   cursor: pointer;
+  pointer-events: auto;
 }
 
-.older button:disabled {
-  cursor: default;
-  opacity: 0.6;
+@keyframes dsh-chat-older-spin {
+  to { transform: rotate(360deg); }
 }
 
-/* Back-to-bottom: zero-height sticky slot so the control does not extend
-   scrollHeight; the button translates up into the viewport. Under the
-   conversation host, clearance sits above the sticky composer stack. */
+@media (prefers-reduced-motion: reduce) {
+  .olderSpinner {
+    animation: none;
+  }
+}
+
+/* Back-to-bottom: zero-height slot in the host's non-scrolling chrome layer,
+   so the control neither extends scrollHeight nor rides the scrollport's
+   elastic overscroll. Under the conversation host, clearance sits above the
+   composer stack. */
 .toBottomSlot {
-  position: sticky;
+  position: absolute;
+  right: 0;
   bottom: 16px;
+  left: 0;
   /* Above the sticky composer (z-index 7) so the control stays clickable and
      visible over the input card. Exception: while an @/slash menu is open the
      seat lifts to 9 (ui-conversation ConversationRoot) so the menu is never
@@ -196,11 +244,14 @@
   pointer-events: none;
 }
 
-:global([data-conversation-scroll]) .toBottomSlot {
-  /* Clears the sticky composer stack (docks + input card + stats): the live
-     height rides --dsh-composer-height (ConversationRoot's seat observer) so
-     the control follows a growing textarea; the fallback covers the first
-     paint before the observer fires. */
+/* Scoped to the host chrome layer, which is where the control now lives: the
+   old selector matched it inside the scrollport and stopped applying when it
+   moved out, dropping the button behind the input card. */
+:global([data-conversation-chrome]) .toBottomSlot {
+  /* Clears the composer stack (docks + input card + stats): the live height
+     rides --dsh-composer-height (ConversationRoot's seat observer) so the
+     control follows a growing textarea; the fallback covers the first paint
+     before the observer fires. */
   bottom: calc(var(--dsh-composer-height, 152px) + 16px);
 }
 

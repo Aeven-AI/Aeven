@@ -27,35 +27,35 @@ describe('chat flow font-size axis', () => {
     ]))
   })
 
-  it('think text reads the secondary tier (one step under the body size)', () => {
+  it('think text reads the conversation content size', () => {
     const css = read('ReasoningRow.module.css')
     for (const selector of ['.summary', '.thinkBody']) {
       expect(declarationsFrom(css, selector)).toEqual(expect.arrayContaining([
-        'font-size: var(--dsh-content-font-size-secondary, 13px)',
-        'line-height: calc(20px + var(--dsh-content-font-delta-secondary, 0px))',
+        'font-size: var(--dsh-content-font-size, 16px)',
+        'line-height: calc(28px + var(--dsh-content-font-delta, 0px))',
       ]))
     }
   })
 
-  it('command and context summaries read the secondary tier on the shared row line', () => {
+  it('command and context summaries read the conversation content size', () => {
     expect(declarationsFrom(read('GenericCommandCard.module.css'), '.summary')).toEqual(expect.arrayContaining([
-      'font-size: var(--dsh-content-font-size-secondary, 13px)',
-      'line-height: calc(24px + var(--dsh-content-font-delta, 0px))',
+      'font-size: var(--dsh-content-font-size, 16px)',
+      'line-height: calc(28px + var(--dsh-content-font-delta, 0px))',
     ]))
     const context = read('ContextInjectionRow.module.css')
     for (const selector of ['.source', '.summary']) {
       expect(declarationsFrom(context, selector)).toEqual(expect.arrayContaining([
-        'font-size: var(--dsh-content-font-size-secondary, 13px)',
-        'line-height: calc(24px + var(--dsh-content-font-delta, 0px))',
+        'font-size: var(--dsh-content-font-size, 16px)',
+        'line-height: calc(28px + var(--dsh-content-font-delta, 0px))',
       ]))
     }
   })
 
   it('the message clock and action glyphs scale with the text they serve', () => {
     const actions = read('MessageIconActions.module.css')
-    // Both clocks read the secondary tier: the assistant tail's meta line
-    // (the whole-line usage trigger) and the user row's clock stay one step
-    // under the body size so the two rows match.
+    // Both clocks read the secondary tier: the assistant tail's clock and the
+    // user row's clock stay one step under the body size so the two rows
+    // match. The usage trigger beside them reads the body size instead.
     expect(declarationsFrom(actions, '.timeStart')).toEqual(expect.arrayContaining([
       'font-size: var(--dsh-content-font-size-secondary, 13px)',
     ]))
@@ -94,11 +94,11 @@ describe('chat flow font-size axis', () => {
       .toEqual(expect.arrayContaining([`margin: 4px 0 0 ${indent}`]))
   })
 
-  it('the usage-details trigger reads the secondary tier like its clock label', () => {
+  it('the usage-details trigger reads the conversation content size', () => {
     const css = read('TurnUsagePanel.module.css')
     expect(declarationsFrom(css, '.trigger')).toEqual(expect.arrayContaining([
-      'font-size: var(--dsh-content-font-size-secondary, 13px)',
-      'line-height: calc(24px + var(--dsh-content-font-delta, 0px))',
+      'font-size: var(--dsh-content-font-size, 16px)',
+      'line-height: calc(28px + var(--dsh-content-font-delta, 0px))',
     ]))
   })
 

@@ -407,16 +407,26 @@ export function ConversationRoot({
           label={t('content.loading')}
         />
         <div className={css.scrollBody} data-conversation-scroll="">
-          {/* Active `.viewArea` is the growing sibling that docks the sticky
-              composer; this hold is that item while conversation.session is
-              dropped so the overlay can present. */}
+          {/* This hold keeps the scrollport's growing item present while
+              conversation.session is dropped so the overlay can present. */}
           {mountedSessionId === undefined
             ? (phase === 'active'
               ? <div className={css.transcriptHold} data-transcript-hold="" aria-hidden="true" />
               : null)
             : renderSlot('conversation.session', {})}
-          {composerSeat}
         </div>
+        {/* Outside the scrollport, like the header: a seat inside it is
+            carried by elastic overscroll, so the input card visibly rides the
+            rubber-band at either end. As a flex sibling of the scrollport it
+            docks at the body's floor and no scroll gesture can move it. */}
+        {composerSeat}
+        {/* Overlay chrome for the mounted view (transcript rails, paging
+            progress, back-to-bottom). A control that floats over the
+            transcript must be positioned against this non-scrolling box:
+            sticky inside the scrollport rides the elastic overscroll exactly
+            as the composer seat used to. Views reach it by
+            `[data-conversation-chrome]` and portal into it. */}
+        <div className={css.viewChrome} data-conversation-chrome="" />
         {/* Width handles only while a transcript is on screen; the hero has no
             content column to size. */}
         {phase === 'active' && (['left', 'right'] as const).map(side => (

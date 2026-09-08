@@ -48,4 +48,24 @@ describe('Chat Node keyed sources', () => {
     expect(next.nodes.source(changed.key)).toBe(sources[target])
     expect(next.nodes.get(changed.key)).toBe(changed)
   })
+
+  it('leaves every resident key untouched when an older page arrives', () => {
+    // Automatic paging turns history prepends into an ordinary, frequent
+    // event, so an arriving page must cost renders only for the rows it adds.
+    const builder = new ChatSnapshotBuilder()
+    const resident = Array.from({ length: 20 }, (_, index) => userNode(index + 100))
+    const initial = builder.replace({ nodes: resident, timeline })
+    const listeners = resident.map(() => vi.fn())
+    resident.forEach((node, index) => {
+      initial.nodes.source(node.key).subscribe(listeners[index]!)
+    })
+
+    const older = Array.from({ length: 5 }, (_, index) => userNode(index + 1))
+    const next = builder.apply({ upserts: older, timeline })
+
+    expect(listeners.reduce((count, listener) => count + listener.mock.calls.length, 0)).toBe(0)
+    // The page really did land, and the resident Nodes kept their identities.
+    expect(next.order.slice(0, 5)).toEqual(older.map(node => node.key))
+    for (const node of resident) expect(next.nodes.get(node.key)).toBe(node)
+  })
 })

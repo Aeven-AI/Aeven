@@ -12,24 +12,12 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
+import type { ImageModelCatalog, ImageModelEntry } from './types.ts'
 
-/** One image model a provider serves. */
-export interface ImageModelEntry {
-  /** Provider route id that serves this model; what a request names. */
-  provider: string
-  /** The provider's model id, verbatim. */
-  id: string
-  /** Human-readable name where the provider's catalog states one. */
-  label?: string
-  /** One-line note a selector can show beside the label. */
-  description?: string
-}
-
-/** Every image model this deployment can reach, grouped by nothing: order is registration order. */
-export interface ImageModelCatalog {
-  /** The models, in provider registration order; empty where no media seam is composed. */
-  models: ImageModelEntry[]
-}
+// The catalog types live on the `./types` subpath: they cross the remote
+// boundary, and typert requires such types to be reachable from a public
+// non-root type entry rather than only from this module.
+export type { ImageModelCatalog, ImageModelEntry } from './types.ts'
 
 /** The part of `ctx.media` this catalog reads. */
 interface ImageModelSource {
