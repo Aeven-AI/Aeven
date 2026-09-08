@@ -462,6 +462,13 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
         includeUserRoot: false,
       },
     },
+    // This scaffold operates no Aeven API, which the shipped rows require: an
+    // authority registered here would fence every route behind a credential no
+    // test can obtain, and replace the launch token the browser handshake below
+    // exchanges. Disabling the authority also disables the account menu that
+    // shows its reader, exactly as the web-app patch pairs them.
+    { id: 'identity-user-aeven', disabled: true },
+    { id: 'ui-account-aeven', disabled: true },
     { id: 'session-persistence-jsonl', config: { root: persistenceRoot } },
     // Restate the shipped lazy-on policy while pinning the index to this
     // test-owned process; seeded-session scenarios navigate by content search.

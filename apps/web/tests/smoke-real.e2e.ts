@@ -301,7 +301,8 @@ describe('dsh web keyless CLI smoke', () => {
     const tsxLoader = pathToFileURL(createRequire(join(REPO_ROOT, 'package.json')).resolve('tsx')).href
     const child = spawn(
       process.execPath,
-      ['--import', tsxLoader, join(REPO_ROOT, 'apps/cli/src/bin.ts'), 'web', '--no-open', '--port', '0'],
+      ['--import', tsxLoader, join(REPO_ROOT, 'apps/cli/src/bin.ts'), 'web', '--no-open', '--port', '0',
+        '--patch', fileURLToPath(new URL('./no-aeven-identity.overlay.yml', import.meta.url))],
       {
         cwd: sessionsDir,
         env: {
@@ -424,7 +425,8 @@ describe('dsh web keyless CLI smoke', () => {
     const tsxLoader = pathToFileURL(createRequire(join(REPO_ROOT, 'package.json')).resolve('tsx')).href
     const child = spawn(
       process.execPath,
-      ['--import', tsxLoader, join(REPO_ROOT, 'apps/cli/src/bin.ts'), 'web', '--no-open', '--port', '0'],
+      ['--import', tsxLoader, join(REPO_ROOT, 'apps/cli/src/bin.ts'), 'web', '--no-open', '--port', '0',
+        '--patch', fileURLToPath(new URL('./no-aeven-identity.overlay.yml', import.meta.url))],
       {
         cwd: workspace,
         env: {
@@ -539,7 +541,8 @@ describe('dsh web keyless CLI smoke', () => {
     const tsxLoader = pathToFileURL(createRequire(join(REPO_ROOT, 'package.json')).resolve('tsx')).href
     const child = spawn(
       process.execPath,
-      ['--import', tsxLoader, join(REPO_ROOT, 'apps/cli/src/bin.ts'), 'web', '--no-open', '--port', '0'],
+      ['--import', tsxLoader, join(REPO_ROOT, 'apps/cli/src/bin.ts'), 'web', '--no-open', '--port', '0',
+        '--patch', fileURLToPath(new URL('./no-aeven-identity.overlay.yml', import.meta.url))],
       {
         cwd: workspace,
         env: {
@@ -624,7 +627,8 @@ describe('dsh web keyless CLI smoke', () => {
     const tsxLoader = pathToFileURL(createRequire(join(REPO_ROOT, 'package.json')).resolve('tsx')).href
     const child = spawn(
       process.execPath,
-      ['--import', tsxLoader, join(REPO_ROOT, 'apps/cli/src/bin.ts'), 'web', '--no-open', '--port', '0'],
+      ['--import', tsxLoader, join(REPO_ROOT, 'apps/cli/src/bin.ts'), 'web', '--no-open', '--port', '0',
+        '--patch', fileURLToPath(new URL('./no-aeven-identity.overlay.yml', import.meta.url))],
       {
         cwd: workspace,
         env: {
@@ -695,6 +699,9 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY || notReady.length > 0)('web smoke
         // Pin the in-browser picker: the shipped `-auto` row would resolve to
         // the native OS chooser on this bind, and no page can drive that.
         '--patch', fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url)),
+        // No Aeven API runs here, so the shipped authority would fence this
+        // scenario's routes behind a credential it cannot obtain.
+        '--patch', fileURLToPath(new URL('./no-aeven-identity.overlay.yml', import.meta.url)),
         '--no-open',
         '--port', String(port),
       ],
