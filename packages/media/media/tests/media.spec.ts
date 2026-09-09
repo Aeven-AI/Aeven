@@ -20,7 +20,7 @@ function imageProvider(id: string, usable = true): MediaImageProvider {
       async (request): Promise<MediaImageResult> => ({
         provider: id,
         model: request.model,
-        images: [{ mediaType: 'image/png', data: Uint8Array.of(137, 80, 78, 71) }],
+        images: [{ kind: 'bytes' as const, mediaType: 'image/png', data: Uint8Array.of(137, 80, 78, 71) }],
       }),
     ),
   }
@@ -44,6 +44,48 @@ async function runtime(config?: ConstructorParameters<typeof MediaRuntime>[1]): 
   await ctx.plugin(MediaRuntime, config)
   return ctx.media
 }
+
+describe('the aggregated image catalog', () => {
+  it('lists every provider that publishes one, in registration order', async () => {
+    const ctx = new Context()
+    await ctx.plugin(MediaRuntime, {})
+    ctx.media.registerImageProvider({
+      id: 'a', available: () => true,
+      generateImage: async () => ({ provider: 'a', model: 'm', images: [] }),
+      listImageModels: async () => [{ provider: 'a', id: 'a1' }],
+    })
+    ctx.media.registerImageProvider({
+      id: 'b', available: () => true,
+      generateImage: async () => ({ provider: 'b', model: 'm', images: [] }),
+      listImageModels: async () => [{ provider: 'b', id: 'b1' }],
+    })
+    expect(await ctx.media.listImageModels()).toEqual([
+      { provider: 'a', id: 'a1' },
+      { provider: 'b', id: 'b1' },
+    ])
+  })
+
+  it('skips a provider that publishes no catalog and one whose route failed', async () => {
+    const ctx = new Context()
+    await ctx.plugin(MediaRuntime, {})
+    ctx.media.registerImageProvider({
+      id: 'silent', available: () => true,
+      generateImage: async () => ({ provider: 'silent', model: 'm', images: [] }),
+    })
+    ctx.media.registerImageProvider({
+      id: 'broken', available: () => true,
+      generateImage: async () => ({ provider: 'broken', model: 'm', images: [] }),
+      listImageModels: async () => { throw new Error('unreachable') },
+    })
+    ctx.media.registerImageProvider({
+      id: 'ok', available: () => true,
+      generateImage: async () => ({ provider: 'ok', model: 'm', images: [] }),
+      listImageModels: async () => [{ provider: 'ok', id: 'ok1' }],
+    })
+    expect(await ctx.media.listImageModels()).toEqual([{ provider: 'ok', id: 'ok1' }])
+  })
+})
+
 
 describe('provider registration', () => {
   it('rejects a duplicate id per kind and disposes registrations with the fiber', async () => {

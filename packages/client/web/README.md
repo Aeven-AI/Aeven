@@ -37,7 +37,7 @@ Boot runs in two stages: the module stage adopts the parser-loaded bootstrap bat
 
 ### The boot page
 
-The normal Web shell carries `#dsh-preloader` before the application root. The production build inlines its stylesheet in the document head so the full-screen background, brand mark, and spinner paint from the document bytes; remaining stylesheets load without blocking that paint. `AppWebEntry` fades that visual only after the plugin tree has activated and the application owns the mount point.
+The normal Web shell carries `#dsh-preloader` before the application root. The production build inlines its stylesheet in the document head so the full-screen background, brand mark, and spinner paint from the document bytes; remaining stylesheets load without blocking that paint. `AppWebEntry` fades that visual after the plugin tree has activated, the application owns the mount point, and — when `uiWorkspace` is present — the first sidebar lists and selected conversation history have arrived.
 
 `BootPage` uses plain DOM and local CSS as the failure fallback. It stays visually silent while the static preloader owns loading, then reports an import or activation failure by name and reason after the kernel immediately uncovers it. Documents without the static shell retain BootPage's progress spinner.
 
@@ -69,7 +69,7 @@ The kernel owns exactly three things: the module system, the Cordis Loader, and 
 
 ### Boot page mechanics
 
-`src/preloader.ts` controls the static HTML visual without creating it: successful boot fades it over 400ms before removing it from layout, while failure hides it immediately so it cannot cover the report. The worker preview hides it for the source chooser and restores it while the selected image boots. `BootPage` remains plain DOM with local CSS; `internal/status` events update its fallback progress state, and `fail()` renders the thrown reason. React mounting, slot rendering, and assembly live in `ui-renderer`; `ui-layout` owns the assembled browser-title projection.
+`src/preloader.ts` controls the static HTML visual without creating it: successful boot fades it over 400ms after the first shell payloads arrive, then removes it from layout, while failure hides it immediately so it cannot cover the report. The worker preview hides it for the source chooser and restores it while the selected image boots. `BootPage` remains plain DOM with local CSS; `internal/status` events update its fallback progress state, and `fail()` renders the thrown reason. React mounting, slot rendering, and assembly live in `ui-renderer`; `ui-layout` owns the assembled browser-title projection.
 
 ### Source map
 

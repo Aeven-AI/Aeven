@@ -29,20 +29,23 @@
       <div class="codeblock-pre-code-content">
         <pre>
           <span class="line-numbers">
-            <span class="line-number">
+            <span class="line-number" data-animate-word="true">
               #text "1"
           <div class="code-content no-scrollbar">
-            <code class="hljs language-ts">
-              <span class="hljs-keyword">
+            <code class="language-ts">
+              <span data-animate-word="true">
                 #text "const"
               #text " "
-              <span class="hljs-attr">
-                #text "answer"
-              #text ": "
-              <span class="hljs-built_in">
+              <span data-animate-word="true">
+                #text "answer:"
+              #text " "
+              <span data-animate-word="true">
                 #text "number"
-              #text " = "
-              <span class="hljs-number">
+              #text " "
+              <span data-animate-word="true">
+                #text "="
+              #text " "
+              <span data-animate-word="true">
                 #text "42"
               #text "\n"
   <div class="codeblock-wrapper">
@@ -75,11 +78,16 @@
       <div class="codeblock-pre-code-content">
         <pre>
           <span class="line-numbers">
-            <span class="line-number">
+            <span class="line-number" data-animate-word="true">
               #text "1"
           <div class="code-content no-scrollbar">
-            <code>
-              #text "no language\n"
+            <code class="">
+              <span data-animate-word="true">
+                #text "no"
+              #text " "
+              <span data-animate-word="true">
+                #text "language"
+              #text "\n"
   <div class="codeblock-wrapper">
     <div class="code-container">
       <div class="codeblock-header">
@@ -110,11 +118,16 @@
       <div class="codeblock-pre-code-content">
         <pre>
           <span class="line-numbers">
-            <span class="line-number">
+            <span class="line-number" data-animate-word="true">
               #text "1"
           <div class="code-content no-scrollbar">
-            <code class="hljs language-unknown-lang">
-              #text "plain fallback\n"
+            <code class="language-unknown">
+              <span data-animate-word="true">
+                #text "plain"
+              #text " "
+              <span data-animate-word="true">
+                #text "fallback"
+              #text "\n"
   <div class="codeblock-wrapper">
     <div class="code-container">
       <div class="codeblock-header">
@@ -145,14 +158,20 @@
       <div class="codeblock-pre-code-content">
         <pre>
           <span class="line-numbers">
-            <span class="line-number">
+            <span class="line-number" data-animate-word="true">
               #text "1"
           <div class="code-content no-scrollbar">
-            <code class="hljs language-ts">
-              <span class="hljs-keyword">
+            <code class="language-ts">
+              <span data-animate-word="true">
                 #text "const"
-              #text " withMeta = "
-              <span class="hljs-literal">
+              #text " "
+              <span data-animate-word="true">
+                #text "withMeta"
+              #text " "
+              <span data-animate-word="true">
+                #text "="
+              #text " "
+              <span data-animate-word="true">
                 #text "true"
               #text "\n"
   <div class="codeblock-wrapper">
@@ -188,7 +207,7 @@
             <span class="line-number">
               #text "1"
           <div class="code-content no-scrollbar">
-            <code>
+            <code class="">
   <div class="codeblock-wrapper stream-active">
     <div class="code-container">
       <div class="codeblock-header">
@@ -219,10 +238,23 @@
       <div class="codeblock-pre-code-content">
         <pre>
           <span class="line-numbers">
-            <span class="line-number">
+            <span class="line-number" data-animate-word="true">
               #text "1"
-            <span class="line-number">
+            <span class="line-number" data-animate-word="true">
               #text "2"
           <div class="code-content no-scrollbar">
             <code class="">
-              #text "indented code block\n    second line"
+              <span data-animate-word="true">
+                #text "indented"
+              #text " "
+              <span data-animate-word="true">
+                #text "code"
+              #text " "
+              <span data-animate-word="true">
+                #text "block"
+              #text "\n    "
+              <span data-animate-word="true">
+                #text "second"
+              #text " "
+              <span data-animate-word="true">
+                #text "line"

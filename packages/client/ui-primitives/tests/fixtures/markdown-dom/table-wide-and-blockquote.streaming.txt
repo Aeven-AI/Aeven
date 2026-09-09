@@ -32,23 +32,31 @@
             <thead>
               <tr>
                 <th>
-                  #text "C1"
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "C1"
                 <th>
-                  #text "C2"
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "C2"
                 <th>
-                  #text "C3"
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "C3"
                 <th>
-                  #text "C4"
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "C4"
             <tbody>
               <tr>
                 <td>
-                  #text "a"
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "a"
                 <td>
-                  #text "b"
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "b"
                 <td>
-                  #text "c"
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "c"
                 <td>
-                  #text "d"
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "d"
   <div class="table-wrapper stream-active">
     <div class="table-container">
       <div class="table-header">
@@ -82,20 +90,28 @@
             <thead>
               <tr>
                 <th>
-                  #text "Q1"
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "Q1"
                 <th>
-                  #text "Q2"
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "Q2"
                 <th>
-                  #text "Q3"
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "Q3"
                 <th>
-                  #text "Q4"
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "Q4"
             <tbody>
               <tr>
                 <td>
-                  #text "a"
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "a"
                 <td>
-                  #text "b"
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "b"
                 <td>
-                  #text "c"
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "c"
                 <td>
-                  #text "d"
+                  <span data-animate-key="word-0-0" data-animate-word="true">
+                    #text "d"

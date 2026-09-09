@@ -73,7 +73,10 @@ describe('StreamingHighlightSession', () => {
     expect(session.updateFrame('const a = 1\nlet b = 2\n// tail', 'ts')).toBe(second)
   })
 
-  it('emits one completed line per frame across an 800-line stream', () => {
+  // 800 real highlight passes: the assertions are frame cardinality, not
+  // wall clock, but the run itself is long enough that the default budget
+  // expires under coverage instrumentation beside the other forked suites.
+  it('emits one completed line per frame across an 800-line stream', { timeout: 30_000 }, () => {
     const session = new StreamingHighlightSession()
     let code = ''
     let generation: number | undefined

@@ -77,6 +77,10 @@ Workspace 列表基线就绪后，浏览器持久化的展开状态与 Session �
 
 Workspace 与 Session 悬浮卡片会复制对应行被截断的值：激活 Workspace 卡片会写入其完整目录路径，激活非空白 Session 卡片则会写入其完整显示标题。临时的空白「新会话」卡片保持只读，因为其本地化标签是占位文案，并非会话内容。
 
+### 初始外壳数据
+
+`uiWorkspace.whenInitialDataReady()` 会在第一份 Workspace 与 Session 列表到达且所选 Session 的第一页历史稳定后结束。Web boot kernel 用这次等待让静态预加载页挡住第一份侧边栏与会话载荷。后续导航不会重复该等待。
+
 </details>
 
 -----

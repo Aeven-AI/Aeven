@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { IndexInjection } from '@deepseek-ai/dsh-host-webserver'
 import { SettingsProvider, type SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import {
-  DEFAULT_PREFERENCE, THEME_SETTINGS_NAMESPACE, apply,
+  DEFAULT_FONT_SIZE, DEFAULT_PREFERENCE, THEME_SETTINGS_NAMESPACE, apply,
 } from '@deepseek-ai/dsh-client-ui-theme'
 
 class MemorySettings extends SettingsProvider {
@@ -34,9 +34,10 @@ describe('ui-theme host', () => {
     const fiber = ctx.plugin({ apply })
     await fiber.await()
     const ns = THEME_SETTINGS_NAMESPACE
-    expect(ctx.settings.get(ns)).toEqual({ preference: DEFAULT_PREFERENCE, fontSize: 14 })
-    await ctx.settings.update(ns, { preference: 'dark', fontSize: 16 })
-    expect(ctx.settings.get(ns)).toEqual({ preference: 'dark', fontSize: 16 })
+    expect(ctx.settings.get(ns)).toEqual({ preference: DEFAULT_PREFERENCE, fontSize: DEFAULT_FONT_SIZE })
+    // Writes a size the default is not, so the update is observable.
+    await ctx.settings.update(ns, { preference: 'dark', fontSize: 15 })
+    expect(ctx.settings.get(ns)).toEqual({ preference: 'dark', fontSize: 15 })
     await expect(ctx.settings.update(ns, { preference: 'sepia' })).rejects.toThrow()
     await expect(ctx.settings.update(ns, { fontSize: 11 })).rejects.toThrow()
     await expect(ctx.settings.update(ns, { fontSize: 18 })).rejects.toThrow()
@@ -53,7 +54,7 @@ describe('ui-theme host', () => {
     expect(rows.map(row => row.kind)).toEqual(['script'])
     expect(rows[0]).toMatchObject({ kind: 'script', placement: 'body' })
     expect(scriptText(rows[0])).toContain('const preference = "system"')
-    expect(scriptText(rows[0])).toContain('"14px"')
+    expect(scriptText(rows[0])).toContain('"16px"')
     await ctx.settings.update(THEME_SETTINGS_NAMESPACE, { preference: 'dark', fontSize: 17 })
     expect(scriptText(collect(ctx)[0])).toContain('const preference = "dark"')
     expect(scriptText(collect(ctx)[0])).toContain('"17px"')

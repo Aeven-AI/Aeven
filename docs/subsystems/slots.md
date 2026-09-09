@@ -52,7 +52,7 @@ The slot declaration fixes two independent axes.
 | cardinality | `keyed` | The owner dispatches an `entryKey`; the matching cell renders with any key-specific props. |
 | cardinality | `chain` | Each entry supplies a pure `select(owner)` function. The first non-null result in priority order renders and receives that result as `matched`; otherwise the owner fallback renders. |
 | scope | `root` | One root-scoped component and store instance. |
-| scope | `session-maybe` | Follows current selection but stays renderable without a Session; Session values are optional. |
+| scope | `session-maybe` | Follows current selection but stays renderable without a Session; Session values are optional. The mounted instance survives Session switches; dropping the selection remounts a blank instance. |
 | scope | `session` | Requires a resolved Session binding and receives definite Session values. |
 
 `priority` is a shadowing rank for `single`, `list`, and `keyed` cells and an election order for `chain`. Lower values run or render first. Ordinary additive contributions should choose a fresh list `id` or keyed `key`; intentionally reusing a shipped cell replaces its presentation.

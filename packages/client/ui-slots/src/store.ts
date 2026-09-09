@@ -7,6 +7,7 @@ export type {
   DefineStore,
   HandleOf,
   MaybeSnapshotSelectorHook,
+  PersistFields,
   PropsStore,
   SnapshotSelectorHook,
   StoreDecl,

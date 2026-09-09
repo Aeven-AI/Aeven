@@ -79,7 +79,7 @@ describe('generation', () => {
   it('decodes base64 output into bytes', async () => {
     const runtime = await media()
     const result = await runtime.generateImage({ model: MODEL, prompt: 'a fox' })
-    expect(result.images).toEqual([{ mediaType: 'image/png', data: PNG }])
+    expect(result.images).toEqual([{ kind: 'bytes', mediaType: 'image/png', data: PNG }])
   })
 
   it('sends the prompt first and reference images after it, as inline base64', async () => {

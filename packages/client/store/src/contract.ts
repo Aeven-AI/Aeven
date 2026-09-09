@@ -49,13 +49,28 @@ export type BakedActions<T, A extends ActionsDecl<T>> = {
 }
 
 /**
+ * Durable-field persistence: the declared fields survive a reload and every
+ * other field starts from `init` again. A stored field is adopted only when
+ * its revived JSON type matches the initial value's, so a stale or
+ * hand-edited entry degrades to the initial state instead of seeding the
+ * store with a value its actions never produce.
+ */
+export interface PersistFields<T> {
+  /** localStorage key (session-scope instances suffix it with the scope key). */
+  key: string
+  /** The state fields that survive a reload; the rest stay per-page. */
+  fields: readonly (keyof T & string)[]
+}
+
+/**
  * Store declaration spec: initial-state factory (a lambda so every instance
- * gets a fresh state), optional persistence key (mechanical, framework-run),
- * and the actions write set.
+ * gets a fresh state), optional persistence (mechanical, framework-run) as a
+ * key persisting the whole state or a key plus the durable field list, and
+ * the actions write set.
  */
 export interface StoreSpec<T, A extends ActionsDecl<T>> {
   init: () => T
-  persist?: string
+  persist?: string | PersistFields<T>
   actions: A
 }
 

@@ -1,13 +1,14 @@
 // Resident conversation skeleton. Hero chrome, composer positioning, the
-// chain, AND the composer bar (session-maybe slot) stay mounted across
-// no-session/session transitions — the bar renders inert via owner props.
+// chain, AND the composer bar stay mounted across no-session/session
+// transitions and Session switches — the bar renders inert via owner props.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import clsx from 'clsx'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { ConversationSlotProps, InputZone } from '../contract/slots.ts'
-import { conversationPhase } from '../contract/snapshot.ts'
+import { useContentCover } from './content-cover.ts'
+import { ContentLoader } from './ContentLoader.tsx'
 import { HeroShell, WorkspaceChip, workspaceLabel } from './EmptyHero.tsx'
 import css from './ConversationRoot.module.css'
 
@@ -131,16 +132,12 @@ function WidthHandle(props: {
 
 export function ConversationRoot({
   sessionId, useSession, useSessions, useSessionPendingInteraction,
-  useWorkspaces, useConversation, useInput, useComposerBlock,
+  useWorkspaces, useInput, useComposerBlock,
   renderSlot, renderSlotChain, selectWorkspace, t,
 }: ConversationRootProps) {
   const session = useSession(s => s)
   const pendingInteraction = useSessionPendingInteraction(snapshot =>
     sessionId === undefined ? undefined : snapshot.get(sessionId))
-  const conversation = useConversation(s => s)
-  const shellPhase = session === undefined || conversation === undefined
-    ? 'blank'
-    : conversationPhase(session, conversation)
   const openState = session?.openState
   const inputState = useInput(s => s)
   const cwd = useSessions(s => sessionId === undefined ? undefined : s.byId[sessionId]?.cwd)
@@ -155,19 +152,20 @@ export function ConversationRoot({
   const [pendingWorkspaceId, setPendingWorkspaceId] = useState<WorkspaceId | undefined>()
   const pickerAnchor = useRef<HTMLButtonElement>(null)
 
-  // Publishes the two live measurements floating View chrome reads off the
-  // scroll body: the seat's height as --dsh-composer-height, so controls clear
-  // the composer as it grows, and the scrollport's own height as
-  // --dsh-conversation-viewport-height, so a control can sit in the band the
-  // seat leaves visible. Callback ref, not an effect; stable identity prevents
-  // observer churn while the first blank session fills the resident body
-  // outlet.
+  // Publishes the seat's height as --dsh-composer-height for the one consumer
+  // layout cannot serve: a View that elects a composer overlay keeps the card
+  // floating over its own ledger, so its content needs bottom clearance equal
+  // to a sibling's height. Chat needs nothing published — its floating chrome
+  // lives in a layer bounded to the scrollport, so clearing the composer is
+  // where that layer ends. Callback ref, not an effect; stable identity
+  // prevents observer churn while the first blank session fills the resident
+  // body outlet.
   const seatObserver = useRef<ResizeObserver | null>(null)
   const seatResizeRef = useCallback((seat: HTMLDivElement | null): void => {
     seatObserver.current?.disconnect()
     seatObserver.current = null
-    const scroller = seat?.parentElement ?? null
-    if (seat === null || scroller === null) return
+    const body = seat?.parentElement ?? null
+    if (seat === null || body === null) return
     // HEIGHT ONLY. Both published values are heights, and reading one here
     // forces a synchronous layout of the whole transcript before the write
     // invalidates it again. Width changes on both observed boxes for every
@@ -178,6 +176,10 @@ export function ConversationRoot({
     // composer's height (a rewrapped draft) still reports the new height, so
     // nothing is missed by ignoring width.
     const publishedHeights = new Map<Element, number>()
+    // One write on the seat's own parent, which every View inherits from.
+    const publish = (): void => {
+      body.style.setProperty('--dsh-composer-height', `${seat.offsetHeight}px`)
+    }
     seatObserver.current = new ResizeObserver((entries) => {
       let heightChanged = false
       for (const entry of entries) {
@@ -187,14 +189,12 @@ export function ConversationRoot({
         publishedHeights.set(entry.target, height)
       }
       if (!heightChanged) return
-      scroller.style.setProperty('--dsh-composer-height', `${seat.offsetHeight}px`)
-      scroller.style.setProperty(
-        '--dsh-conversation-viewport-height',
-        `${scroller.clientHeight}px`,
-      )
+      publish()
     })
+    // The seat alone: the scrollport was observed to publish its height, and
+    // nothing reads that any more.
     seatObserver.current.observe(seat)
-    seatObserver.current.observe(scroller)
+    publish()
   }, [])
 
   // The column width is CSS's business now (the .root width axis reads the
@@ -249,6 +249,18 @@ export function ConversationRoot({
     workspace => workspace.workspaceId === pendingWorkspaceId,
   )
 
+  // Close the picker when the reader moves to a different Session. Adoption —
+  // the first Session arriving under a shell that had none — is not such a
+  // move: the boot-time Workspace connect lands while the Hero is on screen,
+  // and closing on it would snap shut a menu the reader had just opened.
+  const previousSessionId = useRef(sessionId)
+  useEffect(() => {
+    const previous = previousSessionId.current
+    previousSessionId.current = sessionId
+    if (previous === undefined) return
+    setPickerOpen(false)
+  }, [sessionId])
+
   // Clear the pending pick once the session lands in it, or when the picked
   // workspace disappears from a ready list (deleted from the sidebar).
   useEffect(() => {
@@ -259,32 +271,22 @@ export function ConversationRoot({
     }
   }, [pendingWorkspaceId, sessionWorkspace?.workspaceId, workspaces.phase, pendingWorkspace])
 
-  // While a session is still replaying (loading + blank) the hero/docked
-  // choice is unknowable — render the composer hidden instead of flashing
-  // the centered hero and snapping to the docked bar (or vice versa).
-  // Exemption: a session the list summary already proves blank can only
-  // land on the hero, so hiding would blank the column for the whole
-  // history round-trip (the startup auto-selection flash) for nothing.
-  // The exemption is deliberately open-state-wide, not loading-only: a
-  // summary-blank session is the hero before its open starts (`cold`) and
-  // after one fails (`error`) for the same reason — there is no history.
-  // A restored continuable subagent also stays settled until its eagerly
-  // loaded parent catalog establishes availability. This keeps the composer
-  // hidden instead of briefly rendering the parent-offline takeover.
+  // A restored continuable subagent stays settled until its eagerly loaded
+  // parent catalog establishes availability, so the composer does not flash
+  // the parent-offline takeover.
   const parentAvailabilityPending = session?.subagent?.address.mode === 'continuable'
     && session.subagent.parentAvailable === undefined
-  // The same unknowable choice one step earlier: before the list's first pull
-  // lands, no session is selected YET, and `sessionId === undefined` reads as
-  // the cold-start hero. Restoring a session with history then replaces that
-  // centered empty composer with the docked bar. A pending list carries no
-  // evidence either way, so settle until it is ready; an empty ready list is
-  // the genuine cold start and falls through to the hero below.
-  const settling = (sessionId === undefined && sessionsPending) || (sessionId !== undefined && (
-    (shellPhase === 'blank' && openState === 'loading' && summaryBlank !== true)
-    || parentAvailabilityPending
-  ))
+  // Hero vs docked is a list fact, not a Session/Conversation read. The list
+  // already knows whether the selected Session is blank; waiting on those
+  // snapshots flashes the centered empty composer over the docked bar on
+  // every switch. A pending list with nothing selected still settles so a
+  // restored Session is not painted as the cold-start hero. An empty ready
+  // list is the genuine cold start.
+  const settling = (sessionId === undefined && sessionsPending) || parentAvailabilityPending
   const hero = sessionId === undefined
-    || (shellPhase === 'blank' && (openState === 'open' || summaryBlank === true))
+    || (summaryBlank === true && session?.promptAttempted !== true)
+    || (summaryBlank === undefined && session?.blank === true && !session.promptAttempted
+      && (openState === 'open' || openState === 'error' || openState === 'cold'))
   const zone: InputZone | undefined =
     session === undefined || inputState === undefined ? undefined : { session, input: inputState }
 
@@ -383,6 +385,8 @@ export function ConversationRoot({
     </div>
   )
 
+  const { loaderActive, mountedSessionId } = useContentCover({ sessionId, hero, openState })
+
   return (
     <div
       ref={rootEl}
@@ -391,12 +395,40 @@ export function ConversationRoot({
       data-chat-user-width={userWidth === null ? undefined : ''}
       style={userWidth === null ? undefined : { '--dsh-chat-user-width': `${String(userWidth)}px` } as CSSProperties}
     >
-      {sessionId === undefined ? null : renderSlot('conversation.session.header', {})}
+      {sessionId === undefined ? null : (
+        <header className={css.header}>
+          <div className={css.navBackground} aria-hidden="true">
+            <div className={css.navFade} />
+            <div className={css.navBlur} />
+          </div>
+          {renderSlot('conversation.session.header', {})}
+        </header>
+      )}
       <div className={css.body}>
-        <div className={css.scrollBody} data-conversation-scroll="">
-          {sessionId === undefined ? null : renderSlot('conversation.session', {})}
-          {composerSeat}
+        <ContentLoader
+          active={loaderActive}
+          label={t('content.loading')}
+        />
+        <div className={css.scrollArea}>
+          <div className={css.scrollBody} data-conversation-scroll="">
+            {/* This hold keeps the scrollport's growing item present while
+                conversation.session is dropped so the overlay can present. */}
+            {mountedSessionId === undefined
+              ? (phase === 'active'
+                ? <div className={css.transcriptHold} data-transcript-hold="" aria-hidden="true" />
+                : null)
+              : renderSlot('conversation.session', {})}
+          </div>
+          {/* Bounded to the scrollport by its wrapper, so a control that clears
+              the composer only has to sit at this layer's floor: the layer ends
+              where the composer begins, and follows a growing draft for free. */}
+          <div className={css.viewChrome} data-conversation-chrome="" />
         </div>
+        {/* Outside the scrollport, like the header: a seat inside it is
+            carried by elastic overscroll, so the input card visibly rides the
+            rubber-band at either end. As a flex sibling of the scrollport it
+            docks at the body's floor and no scroll gesture can move it. */}
+        {composerSeat}
         {/* Width handles only while a transcript is on screen; the hero has no
             content column to size. */}
         {phase === 'active' && (['left', 'right'] as const).map(side => (

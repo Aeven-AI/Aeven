@@ -479,6 +479,38 @@ describe('SessionSearchCardController', () => {
       openAt: { text: 'first-search', overridden: false },
     })
   })
+
+  it('turns the policy back on and refuses a value the policy does not name', () => {
+    const host = stubSettingsScope<SessionSearchSettings>()
+    acceptWrites(host)
+    const controller = new SessionSearchCardController(host.scope)
+    host.publish({
+      status: 'ready',
+      writable: true,
+      value: { openAt: 'never' },
+      base: { openAt: 'never' },
+      user: {},
+    })
+    const face = controller.inject()
+    expect(face.hooks.sessionSearchCard.getSnapshot()).toMatchObject({ enabled: false })
+
+    // Toggling off `never` returns the lazy policy, not the eager one.
+    face.toggleEnabled()
+    expect(face.hooks.sessionSearchCard.getSnapshot()).toMatchObject({
+      enabled: true,
+      openAt: { text: 'first-search' },
+    })
+
+    // Text naming no policy stages but never persists: saving it would put a
+    // value in the settings document that the provider cannot act on.
+    const actions = (controller as unknown as {
+      form: { actions: () => { edit: (field: string, text: string) => void } }
+    }).form.actions()
+    host.set.mockClear()
+    actions.edit('openAt', 'whenever')
+    face.save()
+    expect(host.set).not.toHaveBeenCalled()
+  })
 })
 
 describe('SubagentModelSelectionCardController', () => {

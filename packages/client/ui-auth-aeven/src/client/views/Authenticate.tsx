@@ -56,6 +56,17 @@ export interface AuthenticateProps {
   }
 }
 
+/* jscpd:ignore-start */
+/*
+ * The repeated handler preludes and form markup below are not an extraction
+ * waiting to happen: this screen is carried over verbatim from the Aeven web
+ * client so one stylesheet governs both, and it stays diffable against that
+ * origin. Factoring the shared field rows, button rows and modal dispatches
+ * into local helpers would break that diff for no behavior gain, which is the
+ * same reason these files are excluded from per-file coverage (see the
+ * rationale in vitest.config.ts). Clone detection is suppressed for the same
+ * decision rather than answered by restructuring the port.
+ */
 export function Authenticate(props: AuthenticateProps): React.JSX.Element {
   // Identifies this screen's event listeners so unmount removes its own.
   const guidRef = useRef<string | null>(null)
@@ -943,5 +954,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
     </>
   )
 }
+
+/* jscpd:ignore-end */
 
 export default Authenticate

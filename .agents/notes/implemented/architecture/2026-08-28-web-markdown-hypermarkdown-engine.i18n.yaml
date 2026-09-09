@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-28-web-markdown-hypermarkdown-engine.md
-2026-08-28-web-markdown-hypermarkdown-engine.md: b2cda69af4cf71fbc54e32271b3fffd1b5bec9fa
-2026-08-28-web-markdown-hypermarkdown-engine.zh.md: 4039777441ce150c0a32a9889842b2d615f3148a
+2026-08-28-web-markdown-hypermarkdown-engine.md: 5af74c47271e1e76c1515e7fb6419c4cc2eb909a
+2026-08-28-web-markdown-hypermarkdown-engine.zh.md: 9c42928c6e45222aa0eba2028489ebf9c7d84c33

@@ -1,6 +1,7 @@
 /** Appearance and font-size row stores: snapshot-mirror actions and the revision guards. */
 import { describe, expect, it } from 'vitest'
 import { createAppearanceRowStore, createFontSizeRowStore } from '../src/client/settings-store.ts'
+import { DEFAULT_FONT_SIZE } from '../src/theme-settings.ts'
 
 describe('createAppearanceRowStore', () => {
   it('init shape: system preference with revision at -1', () => {
@@ -30,7 +31,7 @@ describe('createAppearanceRowStore', () => {
 describe('createFontSizeRowStore', () => {
   it('init shape: default size with revision at -1', () => {
     const store = createFontSizeRowStore().create()
-    expect(store.getSnapshot()).toEqual({ fontSize: 14, revision: -1 })
+    expect(store.getSnapshot()).toEqual({ fontSize: DEFAULT_FONT_SIZE, revision: -1 })
   })
 
   it('sync mirrors the size; the revision guard drops stale and duplicate writes', () => {

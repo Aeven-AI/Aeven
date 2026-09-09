@@ -135,6 +135,9 @@ function drag(handle: Element, fromX: number, toX: number): void {
 }
 
 beforeEach(() => {
+  // Each case is its own page load: the layout store persists the sidebar
+  // width, so a previous case's collapse must not seed the next mount.
+  localStorage.clear()
   frameWidth = 1920
   selectedSession.current = 's-test' as SessionId
   selectedSessionBlank.current = false

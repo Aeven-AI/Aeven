@@ -1,34 +1,67 @@
 <div class="hypermarkdown _markdown_404681">
   <p>
-    #text "First use"
+    <span data-animate-key="word-0-0" data-animate-word="true">
+      #text "First"
+    <span data-animate-key="word-0-2" data-animate-word="true">
+      #text "use"
     <sup>
-      <a aria-describedby="footnote-label" data-footnote-ref="true" href="#user-content-fn-a" id="user-content-fnref-a" rel="noreferrer" target="_blank">
+      <a aria-describedby="footnote-label" data-animate-key="link-0" data-animate-word="true" data-footnote-ref="true" href="#user-content-fn-a" id="user-content-fnref-a" rel="noreferrer" target="_blank">
         #text "1"
-    #text " and reuse"
+    <span data-animate-key="word-4-2" data-animate-word="true">
+      #text "and"
+    <span data-animate-key="word-4-4" data-animate-word="true">
+      #text "reuse"
     <sup>
-      <a aria-describedby="footnote-label" data-footnote-ref="true" href="#user-content-fn-a" id="user-content-fnref-a-2" rel="noreferrer" target="_blank">
+      <a aria-describedby="footnote-label" data-animate-key="link-0" data-animate-word="true" data-footnote-ref="true" href="#user-content-fn-a" id="user-content-fnref-a-2" rel="noreferrer" target="_blank">
         #text "1"
-    #text " and another"
+    <span data-animate-key="word-10-2" data-animate-word="true">
+      #text "and"
+    <span data-animate-key="word-10-4" data-animate-word="true">
+      #text "another"
     <sup>
-      <a aria-describedby="footnote-label" data-footnote-ref="true" href="#user-content-fn-b" id="user-content-fnref-b" rel="noreferrer" target="_blank">
+      <a aria-describedby="footnote-label" data-animate-key="link-0" data-animate-word="true" data-footnote-ref="true" href="#user-content-fn-b" id="user-content-fnref-b" rel="noreferrer" target="_blank">
         #text "2"
-    #text "."
+    <span data-animate-key="word-16-0" data-animate-word="true">
+      #text "."
   <section class="footnotes" data-footnotes="true">
     <h2 class="sr-only" id="footnote-label">
-      #text "References"
+      <span data-animate-key="word-0-0" data-animate-word="true">
+        #text "References"
     <ol>
-      <li id="user-content-fn-a">
+      <li data-animate-marker="true" id="user-content-fn-a">
         <p>
-          #text "Footnote a body with "
-          <a href="https://example.com" rel="noreferrer" target="_blank">
+          <span data-animate-key="word-0-0" data-animate-word="true">
+            #text "Footnote"
+          <span data-animate-key="word-0-2" data-animate-word="true">
+            #text "a"
+          <span data-animate-key="word-0-4" data-animate-word="true">
+            #text "body"
+          <span data-animate-key="word-0-6" data-animate-word="true">
+            #text "with"
+          <a data-animate-key="link-0" data-animate-word="true" href="https://example.com" rel="noreferrer" target="_blank">
             #text "link"
-          #text ". "
-          <a aria-label="Back to reference 1" class="data-footnote-backref" data-footnote-backref="" href="//#user-content-fnref-a">
+          <span data-animate-key="word-10-0" data-animate-word="true">
+            #text "."
+          <a aria-label="Back to reference 1" class="data-footnote-backref" data-animate-key="link-0" data-animate-word="true" data-footnote-backref="" href="//#user-content-fnref-a">
             #text "↩"
-      <li id="user-content-fn-b">
+      <li data-animate-marker="true" id="user-content-fn-b">
         <p>
-          #text "Footnote b first paragraph."
+          <span data-animate-key="word-0-0" data-animate-word="true">
+            #text "Footnote"
+          <span data-animate-key="word-0-2" data-animate-word="true">
+            #text "b"
+          <span data-animate-key="word-0-4" data-animate-word="true">
+            #text "first"
+          <span data-animate-key="word-0-6" data-animate-word="true">
+            #text "paragraph."
         <p>
-          #text "Second paragraph of b. "
-          <a aria-label="Back to reference 2" class="data-footnote-backref" data-footnote-backref="" href="//#user-content-fnref-b">
+          <span data-animate-key="word-0-0" data-animate-word="true">
+            #text "Second"
+          <span data-animate-key="word-0-2" data-animate-word="true">
+            #text "paragraph"
+          <span data-animate-key="word-0-4" data-animate-word="true">
+            #text "of"
+          <span data-animate-key="word-0-6" data-animate-word="true">
+            #text "b."
+          <a aria-label="Back to reference 2" class="data-footnote-backref" data-animate-key="link-0" data-animate-word="true" data-footnote-backref="" href="//#user-content-fnref-b">
             #text "↩"

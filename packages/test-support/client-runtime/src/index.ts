@@ -53,6 +53,9 @@ export type {
   FixtureSnapshot, SessionBehaviorOverrides, SessionFixture, SessionFixtureSnapshot, Stabilizer,
 } from './fixtures.ts'
 export { makeTranslate } from './translate.ts'
+export {
+  flushAnimationFrames, flushContentCover, stubAnimationFrames,
+} from './animation-frames.ts'
 export { usePinnedBrowserLanguages } from './locale-env.ts'
 
 /**

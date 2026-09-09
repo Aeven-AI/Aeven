@@ -37,7 +37,7 @@ kind: "package-library"
 
 ### 启动页
 
-常规 Web 外壳在应用 root 前承载 `#dsh-preloader`。生产构建会在 document head 中内联其样式表，使全屏背景、品牌标识与转轮从 document 字节绘制；其余样式表不再阻塞该绘制。`AppWebEntry` 仅在插件树激活且应用接管挂载点后淡出该视觉。
+常规 Web 外壳在应用 root 前承载 `#dsh-preloader`。生产构建会在 document head 中内联其样式表，使全屏背景、品牌标识与转轮从 document 字节绘制；其余样式表不再阻塞该绘制。`AppWebEntry` 在插件树激活、应用接管挂载点，以及——当存在 `uiWorkspace` 时——第一份侧边栏列表与所选会话历史到达之后，才淡出该视觉。
 
 `BootPage` 使用原生 DOM 与本地 CSS 作为失败回退。静态预加载页拥有加载呈现时它保持视觉静默；导入或激活失败后，内核会立即揭开它，并由 BootPage 按名称和原因报告错误。不含静态外壳的 document 仍使用 BootPage 的进度转轮。
 
@@ -69,7 +69,7 @@ kind: "package-library"
 
 ### 启动页机制
 
-`src/preloader.ts` 控制静态 HTML 视觉但不创建它：成功启动会用 400ms 淡出后将其移出布局，失败则立即隐藏，使它不会覆盖报告。Worker preview 在 source chooser 期间隐藏它，并在所选 image 启动时恢复。`BootPage` 仍是原生 DOM 加本地 CSS；`internal/status` 事件更新其回退进度状态，`fail()` 渲染抛出的原因。React 挂载、slot 渲染与应用组装位于 `ui-renderer`；`ui-layout` 拥有组装后的浏览器标题投影。
+`src/preloader.ts` 控制静态 HTML 视觉但不创建它：成功启动会在第一份外壳载荷到达后用 400ms 淡出再移出布局，失败则立即隐藏，使它不会覆盖报告。Worker preview 在 source chooser 期间隐藏它，并在所选 image 启动时恢复。`BootPage` 仍是原生 DOM 加本地 CSS；`internal/status` 事件更新其回退进度状态，`fail()` 渲染抛出的原因。React 挂载、slot 渲染与应用组装位于 `ui-renderer`；`ui-layout` 拥有组装后的浏览器标题投影。
 
 ### 源码地图
 

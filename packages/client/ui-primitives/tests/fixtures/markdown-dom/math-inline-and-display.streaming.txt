@@ -1,7 +1,10 @@
 <div class="hypermarkdown _markdown_404681">
   <p>
-    #text "Einstein wrote "
-    <span class="katex">
+    <span data-animate-key="word-0-0" data-animate-word="true">
+      #text "Einstein"
+    <span data-animate-key="word-0-2" data-animate-word="true">
+      #text "wrote"
+    <span class="katex" data-animate-key="math-5" data-animate-word="true">
       <span class="katex-mathml">
         <math xmlns="http://www.w3.org/1998/Math/MathML">
           <semantics>
@@ -44,8 +47,9 @@
                       <span class="sizing reset-size6 size3 mtight">
                         <span class="mord mtight">
                           #text "2"
-    #text " inline."
-  <span class="katex-display">
+    <span data-animate-key="word-6-2" data-animate-word="true">
+      #text "inline."
+  <span class="katex-display" data-animate-key="math-4" data-animate-word="true">
     <span class="katex">
       <span class="katex-mathml">
         <math display="block" xmlns="http://www.w3.org/1998/Math/MathML">
@@ -183,8 +187,11 @@
           <span class="mord mathnormal">
             #text "p"
   <p>
-    #text "Backslash inline "
-    <span class="katex">
+    <span data-animate-key="word-0-0" data-animate-word="true">
+      #text "Backslash"
+    <span data-animate-key="word-0-2" data-animate-word="true">
+      #text "inline"
+    <span class="katex" data-animate-key="math-5" data-animate-word="true">
       <span class="katex-mathml">
         <math xmlns="http://www.w3.org/1998/Math/MathML">
           <semantics>
@@ -226,8 +233,11 @@
                   <span class="vlist" style="height: 0.345em;">
                     <span>
             <span class="mclose nulldelimiter">
-    #text " and display:"
-  <span class="katex-display">
+    <span data-animate-key="word-6-2" data-animate-word="true">
+      #text "and"
+    <span data-animate-key="word-6-4" data-animate-word="true">
+      #text "display:"
+  <span class="katex-display" data-animate-key="math-0" data-animate-word="true">
     <span class="katex">
       <span class="katex-mathml">
         <math display="block" xmlns="http://www.w3.org/1998/Math/MathML">

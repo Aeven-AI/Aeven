@@ -8,6 +8,7 @@ import type {
   ThemeTokenOverrides,
 } from '@deepseek-ai/dsh-client-ui-theme/client'
 import { ThemeRuntime } from '@deepseek-ai/dsh-client-ui-theme/client'
+import { DEFAULT_FONT_SIZE } from '../src/theme-settings.ts'
 
 const make = (host = stubSettingsScope<ThemeSettings>()): {
   ctx: Context
@@ -26,7 +27,7 @@ describe('ThemeRuntime', () => {
     const { theme } = make()
     const snapshot = theme.getTheme()
     expect(snapshot.preference).toBe('system')
-    expect(snapshot.fontSize).toBe(14)
+    expect(snapshot.fontSize).toBe(DEFAULT_FONT_SIZE)
     // jsdom matchMedia is absent; system resolves to light.
     expect(snapshot.active.id).toBe('light')
     expect(snapshot.active.colorScheme).toBe('light')
@@ -35,12 +36,14 @@ describe('ThemeRuntime', () => {
 
   it('seeds the initial font size from the boot-script body variable, ignoring junk', () => {
     // The Host boot script writes the durable size on body before any plugin
-    // runs; the first snapshot must match it so activation never flashes 14.
-    document.body.style.setProperty('--dsh-content-font-size', '16px')
+    // runs; the first snapshot must match it so activation never flashes the
+    // default. The seeded size is deliberately not the default, or reading the
+    // variable and ignoring it would look the same.
+    document.body.style.setProperty('--dsh-content-font-size', '14px')
     try {
-      expect(make().theme.getTheme().fontSize).toBe(16)
-      document.body.style.setProperty('--dsh-content-font-size', '99px')
       expect(make().theme.getTheme().fontSize).toBe(14)
+      document.body.style.setProperty('--dsh-content-font-size', '99px')
+      expect(make().theme.getTheme().fontSize).toBe(DEFAULT_FONT_SIZE)
     } finally {
       document.body.style.removeProperty('--dsh-content-font-size')
     }

@@ -284,6 +284,20 @@ async function openSeed(page: Page, fixture: ChatScrollFixture, tailMarker?: str
   await nextPaint(page)
 }
 
+async function openOtherSeedFromSidebar(page: Page, tailMarker?: string): Promise<void> {
+  const clearSearch = page.getByRole('button', { name: 'Clear search' })
+  if (await clearSearch.count() !== 0) await clearSearch.click()
+  const sessions = page.getByRole('tree', { name: 'Sessions' })
+  const row = sessions.locator('[role="treeitem"][aria-selected="false"]')
+  await expect.poll(() => row.count(), { timeout: 30_000 }).toBe(1)
+  await row.click()
+  await page.getByRole('tab', { name: 'Chat', exact: true }).waitFor({ timeout: 30_000 })
+  if (tailMarker !== undefined) {
+    await page.getByText(tailMarker, { exact: false }).last().waitFor({ timeout: 30_000 })
+  }
+  await nextPaint(page)
+}
+
 async function wheelTranscript(page: Page, deltaY: number): Promise<void> {
   const box = await page.locator('[data-conversation-scroll]').boundingBox()
   if (box === null) throw new Error('conversation scrollport has no layout box')
@@ -429,19 +443,21 @@ async function expectMarkerAboveComposer(page: Page, marker: string): Promise<vo
   expect(geometry.rowBottom).toBeLessThanOrEqual(geometry.composerTop + GEOMETRY_TOLERANCE)
 }
 
+/** The head boundary while history remains: progress overlay, or its stalled retry. */
+const HISTORY_BOUNDARY = '[data-earlier-history]'
+
+/**
+ * Page one step of history the way a reader does — by arriving at the head —
+ * and assert the reader's row does not move under the arriving page.
+ */
 async function loadEarlierWithAnchor(page: Page): Promise<void> {
-  await wheelToHistoryStart(page)
-  const older = page.getByRole('button', { name: 'Load earlier', exact: true })
-  const loading = page.getByRole('button', { name: 'Loading…', exact: true })
-  await older.waitFor({ timeout: 10_000 })
   const anchor = await visibleFlowAnchor(page)
   const before = await loadedFlowRows(page)
-  await older.click()
-  await expect.poll(async () => (
-    await loadedFlowRows(page) > before && await loading.count() === 0
-  ), { timeout: 30_000 }).toBe(true)
+  // Reaching the head is the whole gesture: no control is clicked.
+  await wheelToHistoryStart(page)
+  await expect.poll(async () => await loadedFlowRows(page) > before, { timeout: 30_000 }).toBe(true)
   await nextPaint(page)
-  if (await page.getByRole('button', { name: 'Load earlier', exact: true }).count() === 0) {
+  if (await page.locator(HISTORY_BOUNDARY).count() === 0) {
     expect(await page.locator('[data-turn-process][aria-expanded="false"]').count()).toBeGreaterThan(0)
     return
   }
@@ -514,9 +530,8 @@ describe('web e2e: long Chat scroll contract', () => {
         await composer.fill(LIVE_TEXT_PROMPT)
         await world.page.getByRole('button', { name: 'Send message', exact: true }).click()
         await world.page.getByText(LIVE_TEXT_FIRST, { exact: false }).last().waitFor({ timeout: 15_000 })
-        await wheelToHistoryStart(world.page)
         const beforeRows = await loadedFlowRows(world.page)
-        await world.page.getByRole('button', { name: 'Load earlier', exact: true }).click()
+        await wheelToHistoryStart(world.page)
         await expect.poll(() => held, { timeout: 10_000 }).toBe(true)
 
         await wheelTranscript(world.page, 420)
@@ -543,7 +558,7 @@ describe('web e2e: long Chat scroll contract', () => {
       let additionalPages = 0
       while (additionalPages < 8) {
         await wheelToHistoryStart(world.page)
-        if (await world.page.getByRole('button', { name: 'Load earlier', exact: true }).count() === 0) break
+        if (await world.page.locator(HISTORY_BOUNDARY).count() === 0) break
         await loadEarlierWithAnchor(world.page)
         additionalPages += 1
       }
@@ -553,7 +568,7 @@ describe('web e2e: long Chat scroll contract', () => {
       // page remains.
       expect(await world.page.locator('[data-conversation-scroll]')
         .getByText(HISTORY_FIXTURE.markers.user(1), { exact: false }).count()).toBe(1)
-      expect(await world.page.getByRole('button', { name: 'Load earlier', exact: true }).count()).toBe(0)
+      expect(await world.page.locator(HISTORY_BOUNDARY).count()).toBe(0)
       assertClean(world)
     })
   }, 180_000)
@@ -720,6 +735,35 @@ describe('web e2e: long Chat scroll contract', () => {
       await restoredRow.waitFor({ timeout: 10_000 })
       expect(await restoredRow.getAttribute('aria-expanded')).toBe('true')
       expect(await world.page.getByText(LIVE_TOOL_RESULT, { exact: false }).count()).toBeGreaterThan(0)
+      assertClean(world)
+    })
+  }, 180_000)
+
+  it.skipIf(MODE === 'record')('starts ordinary Session switches at the live tail', async () => {
+    await withScrollWorld({
+      failureShot: 'web-e2e-chat-scroll-session-tail',
+      seeds: [
+        { fixture: RESTORE_FIXTURE_A, id: RESTORE_SESSION_A_ID },
+        { fixture: RESTORE_FIXTURE_B, id: RESTORE_SESSION_B_ID },
+      ],
+    }, async (world) => {
+      await openSeed(
+        world.page,
+        RESTORE_FIXTURE_A,
+        RESTORE_FIXTURE_A.markers.assistant(RESTORE_FIXTURE_A.turns),
+      )
+      await world.page.getByRole('button', { name: 'Back to bottom', exact: true }).click()
+      await expectBottom(world.page)
+      await openOtherSeedFromSidebar(
+        world.page,
+        RESTORE_FIXTURE_B.markers.assistant(RESTORE_FIXTURE_B.turns),
+      )
+      await expectBottom(world.page)
+      await openOtherSeedFromSidebar(
+        world.page,
+        RESTORE_FIXTURE_A.markers.assistant(RESTORE_FIXTURE_A.turns),
+      )
+      await expectBottom(world.page)
       assertClean(world)
     })
   }, 180_000)

@@ -1,0 +1,23 @@
+/* The Aeven loading mark: one glyph rotating at a steady rate. Sized by the
+   caller through `--dsh-spinner-size` so every surface can share one drawing. */
+.spinner,
+.spinner svg {
+  display: block;
+  width: var(--dsh-spinner-size, 20px);
+  height: var(--dsh-spinner-size, 20px);
+}
+
+.spinner {
+  color: currentcolor;
+  animation: 900ms linear 0s infinite normal none running dsh-spinner-spin;
+}
+
+@keyframes dsh-spinner-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

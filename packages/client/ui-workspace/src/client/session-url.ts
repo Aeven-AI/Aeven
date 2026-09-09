@@ -59,6 +59,8 @@ export class BrowserSessionUrlNavigation implements SessionUrlNavigation {
     if (encoded.length === 0 || encoded.includes('/')) return undefined
     try {
       const value = decodeURIComponent(encoded)
+      /* v8 ignore next -- kept as a parser guard: no non-empty percent-encoding
+       * decodes to the empty string, and the empty path was rejected above. */
       if (value.length === 0) return undefined
       // An address written before the prefix was dropped still names its
       // session, so it is accepted as it stands rather than prefixed twice.

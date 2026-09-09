@@ -96,6 +96,13 @@ describe('SidebarRoot shell', () => {
     expect(b.startSession).toHaveBeenCalledTimes(2)
     fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }))
     expect(b.toggleSidebar).toHaveBeenCalledOnce()
+
+    // Below the med breakpoint the column overlays the conversation, and the
+    // dimmed area it covers closes it — the same gesture as tapping outside.
+    const blocker = document.querySelector('[role="presentation"]')
+    expect(blocker).not.toBeNull()
+    fireEvent.click(blocker!)
+    expect(b.toggleSidebar).toHaveBeenCalledTimes(2)
   })
 
   it('renders the brand mark alone when no package fills the brand slots', () => {

@@ -569,17 +569,16 @@ function SessionMaybeEntryBody({ entry, ownerProps, binding, slotKey, slotInject
 }
 
 /**
- * Session-maybe identity: adoption — the ONLY behavior (there is no
- * hold-identity-forever mode). An incarnation born session-less ADOPTS the
- * first session that arrives: identity holds across that one transition
- * (undefined → first id), so a blank shell's DOM survives the moment a
- * session appears. From then on the entry behaves exactly like a strict
- * session entry: switching to a DIFFERENT session remounts (component-local
- * state must not leak between sessions), and dropping back to no-session
- * remounts into a fresh blank incarnation, which will adopt again.
- * Component-local per-session state therefore clears by construction; state
- * that must SURVIVE a switch belongs in session-bound sources (machine,
- * store, hooks) — the existing layering rule, now load-bearing.
+ * Session-maybe identity: adoption, then stay mounted across Session
+ * switches. An incarnation born session-less ADOPTS the first session that
+ * arrives (undefined → first id) so a blank shell's DOM survives that
+ * transition. Later switches to a different Session keep the same
+ * incarnation: the resident conversation header, composer, and attachments
+ * follow `binding.key` through session-bound sources instead of remounting.
+ * Dropping back to no-session remounts into a fresh blank incarnation, which
+ * will adopt again. Per-session React state that must not leak belongs in
+ * those session-bound sources (machine, store, hooks), not in remounting the
+ * shell.
  */
 function SessionMaybeEntry({ entry, ownerProps, slotKey, slotInjected, hookContext, hasHookContext }: {
   entry: StoredEntry
@@ -598,14 +597,12 @@ function SessionMaybeEntry({ entry, ownerProps, slotKey, slotInjected, hookConte
   // guard conditions make it convergent — StrictMode-safe).
   const [state, setState] = useState<MaybeIncarnation>(FIRST_INCARNATION)
   let { adopted, epoch } = state
-  if (binding.key !== undefined && adopted === undefined) {
-    // Adoption: same epoch — no remount.
+  if (binding.key !== undefined && binding.key !== adopted) {
+    // Adoption and post-adoption Session switch both keep the incarnation, so
+    // neither remounts. Header title and composer already know the Session
+    // from the list; remounting them is the delay a switch would otherwise
+    // show.
     adopted = binding.key
-    setState({ adopted, epoch })
-  } else if (adopted !== undefined && binding.key !== undefined && binding.key !== adopted) {
-    // Post-adoption session switch: next incarnation, born already adopted.
-    adopted = binding.key
-    epoch += 1
     setState({ adopted, epoch })
   } else if (adopted !== undefined && binding.key === undefined) {
     // Back to no-session: next incarnation, born blank (adopts anew later).

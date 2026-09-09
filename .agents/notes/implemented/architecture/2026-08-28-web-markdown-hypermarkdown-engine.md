@@ -4,6 +4,8 @@ Status: implemented
 
 English | [中文](2026-08-28-web-markdown-hypermarkdown-engine.zh.md)
 
+The finalization decision in this note is superseded by [HyperMarkdown owns streaming finalization](../bug-fix/2026-09-08-hypermarkdown-streaming-finalization.md). The engine and accumulated-string adapter decisions remain current.
+
 ## Problem
 
 The [direct mdast renderer](2026-08-06-web-markdown-incremental-ast-renderer.md) bounded streaming cost at the block: it froze settled blocks and re-parsed only the source tail. That is the right bound for a reply made of many small blocks and the wrong one for a reply made of few large ones, which is what assistant output usually is. A 120-row table, a 150-item list, and a 500-line fence are each a *single* block, so each arriving chunk re-parsed and re-rendered the whole thing, and the frontier block's cost still grew with the reply.

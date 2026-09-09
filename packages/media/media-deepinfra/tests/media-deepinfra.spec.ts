@@ -47,6 +47,30 @@ afterEach(() => {
   delete process.env.DEEPINFRA_API_KEY
 })
 
+describe('the image catalog', () => {
+  it('keeps only the image-tagged models and stamps the provider', async () => {
+    respond = () => json({ data: [
+      { id: 'black-forest-labs/FLUX-1.1-pro', metadata: { tags: ['text-to-image'], description: 'fast' } },
+      { id: 'meta/llama', metadata: { tags: ['chat'] } },
+      { id: 'x/img', metadata: { tags: ['image'] } },
+    ] })
+    const runtime = await media()
+    expect(await runtime.listImageModels()).toEqual([
+      { provider: 'deepinfra', id: 'black-forest-labs/FLUX-1.1-pro', description: 'fast' },
+      { provider: 'deepinfra', id: 'x/img' },
+    ])
+    expect(calls[0]?.url).toBe('https://api.deepinfra.com/v1/openai/models')
+  })
+
+  it('skips rows with no usable id and a document with no data array', async () => {
+    respond = () => json({ data: [null, 'nope', { id: '' }, { id: 'untagged' }, { id: 'b', metadata: { tags: 'nope' } }, { id: 'a', metadata: { tags: ['image'] } }] })
+    const runtime = await media()
+    expect(await runtime.listImageModels()).toEqual([{ provider: 'deepinfra', id: 'a' }])
+    respond = () => json({})
+    expect(await (await media({ id: 'other' })).listImageModels()).toEqual([])
+  })
+})
+
 describe('images', () => {
   it('asks the OpenAI-compatible route for base64 and decodes it', async () => {
     respond = () => json({ data: [{ b64_json: Buffer.from(PNG).toString('base64') }] })
@@ -60,7 +84,7 @@ describe('images', () => {
       n: 2,
     })
     expect(calls[0]?.headers['authorization']).toBe('Bearer sk-test')
-    expect(result.images).toEqual([{ mediaType: 'image/png', data: PNG }])
+    expect(result.images).toEqual([{ kind: 'bytes', mediaType: 'image/png', data: PNG }])
   })
 
   it('labels each image by its actual bytes, not by a fixed type', async () => {
@@ -75,7 +99,7 @@ describe('images', () => {
     })
     const runtime = await media()
     const result = await runtime.generateImage({ model: 'm', prompt: 'x' })
-    expect(result.images.map(image => image.mediaType)).toEqual([
+    expect(result.images.map(image => image.kind === 'bytes' ? image.mediaType : image.kind)).toEqual([
       'image/png',
       'image/jpeg',
       'image/gif',
@@ -217,7 +241,7 @@ describe('optional request fields and edge shapes', () => {
     const runtime = await media()
     await expect(runtime.videoStatus({ provider: 'deepinfra', id: 'j', status: 'running' })).resolves.toMatchObject({
       status: 'failed',
-      error: 'status "cancelled"',
+      error: 'DeepInfra reported video status "cancelled"',
     })
   })
 

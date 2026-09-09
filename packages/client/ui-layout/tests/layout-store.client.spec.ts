@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 /**
  * createLayoutStore unit account: init shape, the action write set (clamp
- * inside actions), and the absence of browser persistence. Uses the
- * test-sanctioned path: factory self-call + .create() gives the
- * real engine instance (same create path as production).
+ * inside actions), and the durable sidebar field (details and the narrow pair
+ * stay per-page). Uses the test-sanctioned path: factory self-call +
+ * .create() gives the real engine instance (same create path as production).
  */
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createLayoutStore } from '@deepseek-ai/dsh-client-ui-layout/src/client/stores.ts'
@@ -85,19 +85,31 @@ describe('createLayoutStore', () => {
     expect(store.getSnapshot().details).toBe(0)
   })
 
-  it('does not persist panel geometry', () => {
+  it('persists the sidebar width alone; a reload restores it and nothing else', () => {
     const first = createLayoutStore().create()
     first.actions.setSidebar(400)
     first.actions.openDetails()
     first.actions.setDetails(500)
-    expect(localStorage.getItem(PERSIST_KEY)).toBeNull()
+    first.actions.setNarrow(true)
+    first.actions.toggleSidebar()
+    expect(JSON.parse(localStorage.getItem(PERSIST_KEY) ?? 'null')).toEqual({ sidebar: 400 })
 
     const second = createLayoutStore().create()
     expect(second.store.getSnapshot()).toEqual({
-      sidebar: SIDEBAR_DEFAULT,
+      sidebar: 400,
       details: 0,
       narrow: false,
       narrowExpanded: false,
     })
+  })
+
+  it('a closed sidebar survives the reload as closed', () => {
+    createLayoutStore().create().actions.toggleSidebar()
+    expect(createLayoutStore().create().store.getSnapshot().sidebar).toBe(0)
+  })
+
+  it('ignores a stored width that is not a number', () => {
+    localStorage.setItem(PERSIST_KEY, JSON.stringify({ sidebar: 'wide' }))
+    expect(createLayoutStore().create().store.getSnapshot().sidebar).toBe(SIDEBAR_DEFAULT)
   })
 })

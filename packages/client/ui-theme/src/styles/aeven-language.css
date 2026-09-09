@@ -76,15 +76,21 @@ body {
   --dsw-font-markdown-h1: 600 calc(34px + var(--dsh-content-font-delta)) / calc(40px + var(--dsh-content-font-delta)) var(--dsw-font-family);
   --dsw-font-markdown-h2: 600 calc(26px + var(--dsh-content-font-delta)) / calc(32px + var(--dsh-content-font-delta)) var(--dsw-font-family);
   --dsw-font-markdown-h3: 600 calc(20px + var(--dsh-content-font-delta)) / calc(26px + var(--dsh-content-font-delta)) var(--dsw-font-family);
-  --dsw-font-markdown-h4: 600 var(--dsh-content-font-size, 14px) / calc(28px + var(--dsh-content-font-delta)) var(--dsw-font-family);
-  --dsw-font-markdown-base: 450 var(--dsh-content-font-size, 14px) / calc(28px + var(--dsh-content-font-delta)) var(--dsw-font-family);
-  --dsw-font-markdown-base-strong: 600 var(--dsh-content-font-size, 14px) / calc(28px + var(--dsh-content-font-delta)) var(--dsw-font-family);
-  --dsw-font-markdown-base-italic: italic 450 var(--dsh-content-font-size, 14px) / calc(28px + var(--dsh-content-font-delta)) var(--dsw-font-family);
-  --dsw-font-markdown-base-strong-italic: italic 600 var(--dsh-content-font-size, 14px) / calc(28px + var(--dsh-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-h4: 600 var(--dsh-content-font-size, 16px) / calc(22px + var(--dsh-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-h5: 600 calc(12px + var(--dsh-content-font-delta)) / calc(20px + var(--dsh-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-h6: 600 calc(11px + var(--dsh-content-font-delta)) / calc(18px + var(--dsh-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-base: 450 var(--dsh-content-font-size, 16px) / calc(28px + var(--dsh-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-base-strong: 600 var(--dsh-content-font-size, 16px) / calc(28px + var(--dsh-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-base-italic: italic 450 var(--dsh-content-font-size, 16px) / calc(28px + var(--dsh-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-base-strong-italic: italic 600 var(--dsh-content-font-size, 16px) / calc(28px + var(--dsh-content-font-delta)) var(--dsw-font-family);
   --dsw-font-base-16: 450 16px/30px var(--dsw-font-family);
   --dsw-font-base-strong-16: 600 16px/30px var(--dsw-font-family);
   --dsw-font-s-14: 450 14px/22px var(--dsw-font-family);
   --dsw-font-s-strong-14: 600 14px/22px var(--dsw-font-family);
+  /* Code/tool output reads at the secondary content size (14px at the default
+     16px setting), one step below conversation prose — mono, not 11px. */
+  --dsw-font-markdown-code-block: var(--dsh-content-font-size-secondary, 14px) / calc(22px + var(--dsh-content-font-delta-secondary, 0px)) var(--ds-font-family-code);
+  --dsw-font-markdown-code-block-small: var(--dsh-content-font-size-secondary, 14px) / calc(22px + var(--dsh-content-font-delta-secondary, 0px)) var(--ds-font-family-code);
 }
 
 @media (max-width: 640px) {
@@ -92,6 +98,8 @@ body {
     --dsw-aeven-page-inset: 16px;
     --dsw-aeven-sidebar-row-inset: 16px;
     --dsw-aeven-sidebar-bottom-inset: 16px;
+    /* Aeven rail button: 16px inset + 20px glyph + 16px inset at ≤640. */
+    --dsw-aeven-sidebar-toggle-width: 52px;
   }
 }
 

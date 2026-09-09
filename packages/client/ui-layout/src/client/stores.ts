@@ -1,11 +1,14 @@
 /**
- * The root entry's transient layout store: panel geometry as plain widths in
- * px (0 = closed). Module level exports the factory only — a module-level
- * handle would pin the store's identity in the module
- * cache (a de-facto singleton surviving plugin reloads). register() receives
- * the factory (exclusive use: the framework instantiates per entry), AppFrame
- * derives its PropsStore share from the return type, and the service face
- * receives the bound actions through the registration's inject hook.
+ * The root entry's layout store: panel geometry as plain widths in px
+ * (0 = closed). The sidebar width is the one durable field — a column the
+ * user closed or dragged stays that way across a reload — while details and
+ * the narrow pair start fresh each page (details defaults closed, and the
+ * narrow pair is a reading of the current viewport). Module level exports the
+ * factory only — a module-level handle would pin the store's identity in the
+ * module cache (a de-facto singleton surviving plugin reloads). register()
+ * receives the factory (exclusive use: the framework instantiates per entry),
+ * AppFrame derives its PropsStore share from the return type, and the service
+ * face receives the bound actions through the registration's inject hook.
  */
 import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-store'
 import {
@@ -35,6 +38,9 @@ type LayoutActions = {
   closeDetails: (draft: LayoutState) => void
 }
 
+/** localStorage key holding this store's durable fields. */
+const LAYOUT_STORE_KEY = 'dsh.layout.panels'
+
 /**
  * Create the layout panel store handle. The preference IS the width, so
  * closing a panel forgets its drag width — reopening restores the contract
@@ -48,6 +54,10 @@ type LayoutActions = {
 export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutActions>  {
   const handle = defineStore({
     init: (): LayoutState => ({ sidebar: SIDEBAR_DEFAULT, details: 0, narrow: false, narrowExpanded: false }),
+    // Reload restores the sidebar column the user left, including a closed
+    // one (0). Details stays out: its archived default is closed, and it
+    // reopens from an explicit selection, not from the last page's geometry.
+    persist: { key: LAYOUT_STORE_KEY, fields: ['sidebar'] },
     actions: {
       setSidebar: (d, px: number) => { d.sidebar = clampWidth(px, SIDEBAR_MIN, SIDEBAR_MAX) },
       setDetails: (d, px: number) => { d.details = clampWidth(px, DETAILS_MIN, DETAILS_MAX) },

@@ -12,7 +12,7 @@ import type {} from '@deepseek-ai/dsh-credentials'
 import { MediaError } from '@deepseek-ai/dsh-media'
 import type {} from '@deepseek-ai/dsh-media'
 import type {
-  GeneratedMedia,
+  GeneratedImage,
   MediaImageProvider,
   MediaImageRequest,
   MediaImageResult,
@@ -51,8 +51,8 @@ type ResolvedConfig = Required<Config>
  * @param base64 - the encoded payload.
  * @returns the decoded artifact.
  */
-function decodeImage(mimeType: string, base64: string): GeneratedMedia {
-  return { mediaType: mimeType, data: Uint8Array.from(Buffer.from(base64, 'base64')) }
+function decodeImage(mimeType: string, base64: string): GeneratedImage {
+  return { kind: 'bytes', mediaType: mimeType, data: Uint8Array.from(Buffer.from(base64, 'base64')) }
 }
 
 /**

@@ -104,11 +104,32 @@ class MutableSource<T> {
   }
 }
 
+class FakeSessionSnapshot {
+  private readonly listeners = new Set<() => void>()
+
+  constructor(private openState: 'cold' | 'loading' | 'open' | 'error' = 'cold') {}
+
+  getSnapshot(): { openState: 'cold' | 'loading' | 'open' | 'error' } {
+    return { openState: this.openState }
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener)
+    return () => { this.listeners.delete(listener) }
+  }
+
+  setOpenState(openState: 'cold' | 'loading' | 'open' | 'error'): void {
+    this.openState = openState
+    for (const listener of [...this.listeners]) listener()
+  }
+}
+
 class FakeSessions {
   readonly list: MutableSource<SessionListState>
   readonly create: ReturnType<typeof vi.fn<ISessions['create']>>
   readonly open: ReturnType<typeof vi.fn<(id: SessionId) => void>>
   readonly clear: ReturnType<typeof vi.fn<() => void>>
+  readonly faces = new Map<SessionId, FakeSessionSnapshot>()
 
   constructor(initial: SessionListState) {
     this.list = new MutableSource(initial)
@@ -120,6 +141,22 @@ class FakeSessions {
     this.clear = vi.fn(() => {
       this.list.update(state => ({ ...state, current: undefined }))
     })
+  }
+
+  binding(id: SessionId): { session: FakeSessionSnapshot } | undefined {
+    const session = this.faces.get(id)
+    return session === undefined ? undefined : { session }
+  }
+
+  face(
+    id: SessionId,
+    openState: 'cold' | 'loading' | 'open' | 'error' = 'cold',
+  ): FakeSessionSnapshot {
+    const existing = this.faces.get(id)
+    if (existing !== undefined) return existing
+    const created = new FakeSessionSnapshot(openState)
+    this.faces.set(id, created)
+    return created
   }
 }
 
@@ -270,6 +307,51 @@ describe('UiWorkspaceService', () => {
     await routed.ctx.fiber.dispose()
     routed.sessionUrl.navigate(first.id)
     expect(routed.sessions.open).toHaveBeenCalledTimes(3)
+  })
+
+  it('leaves the selection alone when the opening address already names it', () => {
+    // Reconciling the first address must not re-open the Session the shell
+    // already restored: that would push a second history entry for it.
+    const first = summary('first')
+    const b = bench({
+      sessions: sessionState([first], first.id),
+      workspaces: workspaceState([workspace('one', [first.id])]),
+      sessionUrl: new FakeSessionUrl(first.id),
+    })
+    expect(b.sessions.open).not.toHaveBeenCalled()
+    expect(b.sessionUrl.pushes).toEqual([])
+  })
+
+  it('ignores Back and Forward before the shell settles, while the list reloads, and on the current Session', () => {
+    const first = summary('first')
+    const url = new FakeSessionUrl(first.id)
+    const b = bench({
+      sessions: sessionState([first], first.id, 'pending'),
+      workspaces: workspaceState([workspace('one', [first.id])], [], 'pending'),
+      sessionUrl: url,
+    })
+
+    // Before the first lists arrive there is no selection to reconcile a
+    // history entry against; the address is answered once they do.
+    url.navigate(sid('early'))
+    expect(b.sessions.open).not.toHaveBeenCalled()
+    expect(b.sessions.clear).not.toHaveBeenCalled()
+
+    b.workspaces.list.set(workspaceState([workspace('one', [first.id])]))
+    b.sessions.list.set(sessionState([first], first.id))
+    b.sessions.open.mockClear()
+
+    // A history entry naming the Session already selected asks for no move.
+    url.navigate(first.id)
+    expect(b.sessions.open).not.toHaveBeenCalled()
+    expect(b.sessions.clear).not.toHaveBeenCalled()
+
+    // A reloading list cannot say whether the requested Session exists, so the
+    // address is left alone until it settles again.
+    b.sessions.list.set(sessionState([first], first.id, 'pending'))
+    url.navigate(sid('while-pending'))
+    expect(b.sessions.open).not.toHaveBeenCalled()
+    expect(b.sessions.clear).not.toHaveBeenCalled()
   })
 
   it('replaces the initial entry before pushing later Session changes', () => {
@@ -434,6 +516,26 @@ describe('UiWorkspaceService', () => {
     expect(changed.sessions.open).toHaveBeenCalledWith(sid('manual'))
   })
 
+  it('abandons the retry once a Session is selected by other means', async () => {
+    // A failed connect returns initial navigation to waiting. If a Session is
+    // selected before the next reconcile, that selection is the shell's
+    // starting point and nothing may connect a Workspace over it.
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const b = bench()
+    b.sessions.create.mockRejectedValue(new Error('attach exploded'))
+    b.workspaces.list.set(workspaceState([workspace('recent')]))
+    b.sessions.list.set(sessionState())
+    await vi.waitFor(() => {
+      expect(warning).toHaveBeenCalledWith('initial workspace selection failed:', expect.any(Error))
+    })
+    expect(b.sessions.create).toHaveBeenCalledOnce()
+
+    const selected = summary('selected')
+    b.sessions.list.set(sessionState([selected], selected.id))
+    await flush()
+    expect(b.sessions.create).toHaveBeenCalledOnce()
+  })
+
   it('stops initial navigation when its Cordis lifetime is disposed', async () => {
     const success = bench()
     const resolved = Promise.withResolvers<SessionId>()
@@ -529,5 +631,133 @@ describe('UiWorkspaceService', () => {
     await expect(b.uiWorkspace.createDirectory('/home/u', 'new')).rejects.toMatchObject({
       rpcError: { code: 'directory-picker/exists' },
     })
+  })
+})
+
+describe('UiWorkspaceService.whenInitialDataReady', () => {
+  async function pendingFlag(ready: Promise<void>): Promise<{ settled: boolean; ready: Promise<void> }> {
+    let settled = false
+    const tracked = ready.then(() => { settled = true })
+    await flush()
+    return {
+      get settled() { return settled },
+      ready: tracked,
+    }
+  }
+
+  it('resolves immediately for a ready empty shell', async () => {
+    const b = bench({
+      sessions: sessionState(),
+      workspaces: workspaceState(),
+    })
+    await expect(b.uiWorkspace.whenInitialDataReady()).resolves.toBeUndefined()
+    await expect(b.uiWorkspace.whenInitialDataReady()).resolves.toBeUndefined()
+  })
+
+  it('holds until the selected Session history opens', async () => {
+    const first = summary('first')
+    const b = bench({
+      sessions: sessionState([first], first.id, 'pending'),
+      workspaces: workspaceState([workspace('one', [first.id])], [], 'pending'),
+    })
+    b.sessions.face(first.id, 'loading')
+    const wait = await pendingFlag(b.uiWorkspace.whenInitialDataReady())
+    expect(wait.settled).toBe(false)
+
+    b.workspaces.list.set(workspaceState([workspace('one', [first.id])]))
+    b.sessions.list.set(sessionState([first], first.id))
+    await flush()
+    expect(wait.settled).toBe(false)
+
+    b.sessions.face(first.id).setOpenState('open')
+    await wait.ready
+    expect(wait.settled).toBe(true)
+  })
+
+  it('attaches a Session face that appears after selection', async () => {
+    const first = summary('first')
+    const b = bench({
+      sessions: sessionState([first], first.id),
+      workspaces: workspaceState([workspace('one', [first.id])]),
+    })
+    const wait = await pendingFlag(b.uiWorkspace.whenInitialDataReady())
+    expect(wait.settled).toBe(false)
+    b.sessions.face(first.id, 'loading')
+    b.sessions.list.update(state => ({ ...state }))
+    await flush()
+    expect(wait.settled).toBe(false)
+    b.sessions.face(first.id).setOpenState('open')
+    await wait.ready
+  })
+
+  it('resolves when the selected Session history fails', async () => {
+    const first = summary('first')
+    const b = bench({
+      sessions: sessionState([first], first.id),
+      workspaces: workspaceState([workspace('one', [first.id])]),
+    })
+    b.sessions.face(first.id, 'loading')
+    const wait = await pendingFlag(b.uiWorkspace.whenInitialDataReady())
+    expect(wait.settled).toBe(false)
+    b.sessions.face(first.id).setOpenState('error')
+    await wait.ready
+  })
+
+  it('resolves on a Workspace stream failure without waiting for navigation', async () => {
+    const b = bench({
+      sessions: sessionState(),
+      workspaces: {
+        ...workspaceState([], [], 'pending'),
+        state: 'error',
+      },
+    })
+    await expect(b.uiWorkspace.whenInitialDataReady()).resolves.toBeUndefined()
+  })
+
+  it('holds through initial Workspace connect until that Session history opens', async () => {
+    const b = bench()
+    const created = sid('initial')
+    b.sessions.create.mockResolvedValue(created)
+    b.sessions.face(created, 'loading')
+    const wait = await pendingFlag(b.uiWorkspace.whenInitialDataReady())
+    expect(wait.settled).toBe(false)
+
+    b.workspaces.list.set(workspaceState([workspace('recent')]))
+    b.sessions.list.set(sessionState())
+    await vi.waitFor(() => {
+      expect(b.sessions.open).toHaveBeenCalledWith(created)
+    })
+    await flush()
+    expect(wait.settled).toBe(false)
+
+    b.sessions.face(created).setOpenState('open')
+    await wait.ready
+  })
+
+  it('settles once, so a later disposal neither re-resolves nor unsubscribes twice', async () => {
+    // Readiness and Cordis disposal both run the same settle. The second one
+    // has to be inert: it would otherwise call disposers already run.
+    const first = summary('first')
+    const b = bench({
+      sessions: sessionState([first], first.id, 'pending'),
+      workspaces: workspaceState([workspace('one', [first.id])], [], 'pending'),
+    })
+    b.sessions.face(first.id, 'loading')
+    const wait = await pendingFlag(b.uiWorkspace.whenInitialDataReady())
+    b.workspaces.list.set(workspaceState([workspace('one', [first.id])]))
+    b.sessions.list.set(sessionState([first], first.id))
+    b.sessions.face(first.id).setOpenState('open')
+    await wait.ready
+
+    await b.ctx.fiber.dispose()
+    await expect(b.uiWorkspace.whenInitialDataReady()).resolves.toBeUndefined()
+  })
+
+  it('resolves when its Cordis lifetime is disposed', async () => {
+    const b = bench()
+    const wait = await pendingFlag(b.uiWorkspace.whenInitialDataReady())
+    expect(wait.settled).toBe(false)
+    await b.ctx.fiber.dispose()
+    await wait.ready
   })
 })

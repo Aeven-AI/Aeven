@@ -151,24 +151,43 @@
   }
 }
 
-.hint {
-  color: var(--dsw-alias-label-tertiary);
-  font-size: var(--dsh-content-font-size-secondary, 13px);
-  line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
-}
-
 .openError {
   color: var(--dsw-alias-state-error-primary);
   font-size: var(--dsh-content-font-size-secondary, 13px);
   line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
 }
 
-.older {
+/* Head boundary: a zero-height sticky slot, like the back-to-bottom control,
+   so paging progress overlays the topmost rows instead of occupying flow.
+   Nothing here changes scrollHeight, so appearing and disappearing cannot
+   move the rows a pending prepend is compensating. */
+.olderSlot {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  /* Above transcript CodeBlock banners (z-index 6), below back-to-bottom. */
+  z-index: 7;
+  height: 0;
   display: flex;
   justify-content: center;
+  pointer-events: none;
 }
 
-.older button {
+/* The content loader's own mark, unadorned: paging history is the same kind of
+   wait, so it reads the same. No plate behind it — it sits over the transcript
+   head, where a filled pill would be a second object competing with the rows
+   underneath it. */
+.olderProgress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 12px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.olderRetry {
+  margin-top: 8px;
   border: none;
   min-height: var(--dsw-aeven-control-size);
   border-radius: var(--dsw-aeven-radius-control);
@@ -177,19 +196,19 @@
   color: var(--dsw-alias-label-secondary);
   background: var(--dsw-alias-interactive-bg-hover-solid);
   cursor: pointer;
+  pointer-events: auto;
 }
 
-.older button:disabled {
-  cursor: default;
-  opacity: 0.6;
-}
 
-/* Back-to-bottom: zero-height sticky slot so the control does not extend
-   scrollHeight; the button translates up into the viewport. Under the
-   conversation host, clearance sits above the sticky composer stack. */
+/* Back-to-bottom: zero-height slot in the host's non-scrolling chrome layer,
+   so the control neither extends scrollHeight nor rides the scrollport's
+   elastic overscroll. Under the conversation host, clearance sits above the
+   composer stack. */
 .toBottomSlot {
-  position: sticky;
+  position: absolute;
+  right: 0;
   bottom: 16px;
+  left: 0;
   /* Above the sticky composer (z-index 7) so the control stays clickable and
      visible over the input card. Exception: while an @/slash menu is open the
      seat lifts to 9 (ui-conversation ConversationRoot) so the menu is never
@@ -202,13 +221,9 @@
   pointer-events: none;
 }
 
-:global([data-conversation-scroll]) .toBottomSlot {
-  /* Clears the sticky composer stack (docks + input card + stats): the live
-     height rides --dsh-composer-height (ConversationRoot's seat observer) so
-     the control follows a growing textarea; the fallback covers the first
-     paint before the observer fires. */
-  bottom: calc(var(--dsh-composer-height, 152px) + 16px);
-}
+/* No composer clearance rule: the host chrome layer ends where the composer
+   begins, so this control's own 16px is already clear of it, and a growing
+   draft moves that floor without anything measuring it. */
 
 .toBottom {
   display: flex;

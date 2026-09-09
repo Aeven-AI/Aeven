@@ -119,12 +119,6 @@
   mask-image: linear-gradient(to bottom, #000 10px, transparent 56px);
 }
 
-/* Blank hero/settling: keep the strict Session header mounted without taking
-   column space; the root-owned scrollport and composer remain below it. */
-.headerHidden {
-  display: none;
-}
-
 .titleRow {
   position: relative;
   z-index: 11;
@@ -395,6 +389,93 @@
   min-height: 0;
 }
 
+/* Wraps the scrollport so the chrome layer can be bounded to exactly the band
+   the reader sees. That boundary replaces a published composer height: a
+   control clearing the composer just sits at this box's floor.
+
+   The z-index makes this one stacking context over everything the content
+   cover hides — transcript rows, CodeBlock sticky banners (6), and the view's
+   own floating chrome — so the cover clears all of them with a single level
+   instead of having to out-rank each. Capping the group at 5 is what leaves
+   room for the cover at 6 and still keeps the whole group under the composer
+   seat (7). Nothing in here needs to paint over the seat: the layer ends where
+   the composer begins. */
+.scrollArea {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Positioning context for view-owned floating controls, spanning the
+   scrollport and nothing else. Inert itself; each portaled control opts back
+   into pointer input. The scrollport's reserved gutter is given back here for
+   the same reason the composer seat gives it back: both must centre on the
+   transcript's axis. */
+.viewChrome {
+  position: absolute;
+  inset: 0;
+  /* Carries the transcript's own side inset (plus the scrollport's reserved
+     gutter on the end edge) so a control keeps the horizontal math it used
+     while it lived inside the scrollport. */
+  padding-left: var(--dsh-composer-side-clearance);
+  padding-right: calc(var(--dsh-composer-side-clearance) + var(--dsh-scrollbar-width));
+  /* Above the composer seat (7) so a control may float over the input card. */
+  z-index: 8;
+  pointer-events: none;
+}
+
+/* Aeven `#loader` fills the center column from the viewport's first vertical
+   pixel. `100cqi` follows that column's CSS layout while the sidebar slides;
+   the inherited details width anchors the fixed layer at the column's right
+   edge. No measured geometry or JS resize loop is involved.
+
+   Stacked BELOW the composer seat (7) and above `.scrollArea` (5), the one
+   stacking context holding everything this covers: the seat stays mounted
+   across a Session switch, so a cover painted over it made the resident input
+   card blink out and back and read as a remount. The cover still spans the
+   full column height — it just passes behind the input. */
+.contentLoader {
+  position: fixed;
+  top: 0;
+  right: var(--dsh-frame-details-width, 0px);
+  bottom: 0;
+  width: 100cqi;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+}
+
+.contentLoaderHide {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 400ms linear;
+}
+
+/* Size, rotation and reduced-motion come from the shared Spinner primitive;
+   this only lifts it above the overlay's background plate. */
+.contentLoaderSpinner {
+  position: relative;
+  z-index: 1;
+  color: var(--dsw-alias-label-primary);
+}
+
+.contentLoaderBackground {
+  position: absolute;
+  inset: 0;
+  background-color: var(--dsw-alias-bg-base);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contentLoaderHide {
+    transition: none;
+  }
+}
+
 .scrollBody {
   display: flex;
   flex: 1;
@@ -408,17 +489,35 @@
   scrollbar-gutter: stable;
 }
 
-.root[data-phase='active'] .viewArea {
+/* Growing flex sibling that docks the sticky composer. `.viewArea` is the
+   Session body; `.transcriptHold` is the empty replacement while that slot is
+   dropped so the overlay can present — without it the seat is the only child
+   and sits at the top of the column. */
+.root[data-phase='active'] .viewArea,
+.root[data-phase='active'] .transcriptHold {
   flex: 1 0 auto;
   min-height: auto;
 }
 
+.transcriptHold {
+  pointer-events: none;
+}
+
 .root[data-phase='active'] .composerSeat {
-  position: sticky;
-  bottom: 0;
+  /* Docked by flex order below the scrollport, not stuck inside it: elastic
+     overscroll moves the scrollport's contents, and a seat among them rides
+     the rubber-band. The header stays put for the same reason — it is not
+     inside the scroller either. */
+  flex: none;
   /* Above markdown CodeBlock sticky banners (z-index 6) so the footer never
      paints under a sticking code header while scrolling. */
+  position: relative;
   z-index: 7;
+  /* The scrollport reserves a stable scrollbar gutter, so its content column
+     centers inside a box narrower by that width. The seat is outside that box
+     now and must reserve the same width, or the input card would centre half
+     a bar-width right of the transcript. */
+  padding-right: var(--dsh-scrollbar-width);
   /* Aeven `.chat-input-container`: the seat itself is opaque canvas. The
      transcript's hand-off rides the 50px band ABOVE the seat instead, so a
      growing draft never stretches the fade. */
@@ -493,17 +592,15 @@
   overflow: hidden;
 }
 
-.scrollBody:has([data-conversation-composer-overlay]) > .composerSeat {
+/* Overlay views own a full-bleed scroller and want the card floating over its
+   floor rather than shortening it. The seat now sits outside the scrollport,
+   so it takes that position against `.body` instead of against the scroller.
+   Both seats are measured against the same box here, which is why neither
+   gives back a scrollbar width any more (superseded:
+   [decision](../../../../../../.agents/notes/implemented/bug-fix/2026-08-12-composer-overlay-seat-width-compensation.md)). */
+.body:has([data-conversation-composer-overlay]) .composerSeat {
   position: absolute;
-  /* Chat's seat rides this box's content box, which its own scrolling shortens
-     by the bar's width; the overlay seat is against the padding box, so it
-     must give back the same width to keep the input card in place across
-     tabs. Reads ui-theme's --dsh-scrollbar-width, which mirrors the WebKit
-     bar's layout width. Chat reserves the engine-resolved width, so on an
-     engine where the resolved width differs from this fixed 8px the card
-     drifts by half the difference — accepted residual risk, recorded in
-     ([decision](../../../../../../.agents/notes/implemented/bug-fix/2026-08-12-composer-overlay-seat-width-compensation.md)). */
-  right: var(--dsh-scrollbar-width);
+  right: 0;
   bottom: 0;
   left: 0;
 }

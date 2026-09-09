@@ -141,6 +141,14 @@ describe('real Loader composition', () => {
     // Unknown extension ships as octet-stream.
     expect(await request(port, '/blob.bin')).toMatchObject({ status: 200, type: 'application/octet-stream', body: 'BLOB' })
 
+    // A client route is the shell too, so it answers the authentication
+    // challenge rather than the shell's bytes: the miss that routes it there
+    // must not become a way to read the app unauthenticated.
+    expect(await request(port, '/c/session-1')).toMatchObject({
+      status: 401,
+      type: 'text/plain; charset=utf-8',
+    })
+
     // Root, index, and extensionless client routes render the authenticated
     // app shell through registered taps.
     const untap = server.tapIndex(html => html.replace('<head>', '<head><script>window.__T__=1</script>'))

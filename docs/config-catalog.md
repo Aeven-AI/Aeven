@@ -215,7 +215,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/api/session-controller/src/index.ts:68`](../packages/api/session-controller/src/index.ts)
+Source: [`packages/api/session-controller/src/index.ts:69`](../packages/api/session-controller/src/index.ts)
 
 <a id="deepseek-aidsh-api-settings-controller"></a>
 
@@ -1625,7 +1625,7 @@ export interface MediaRuntimeConfig {
 }
 ```
 
-Source: [`packages/media/media/src/index.ts:49`](../packages/media/media/src/index.ts)
+Source: [`packages/media/media/src/index.ts:57`](../packages/media/media/src/index.ts)
 
 <a id="deepseek-aidsh-media-deepinfra"></a>
 
@@ -1645,7 +1645,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/media/media-deepinfra/src/index.ts:55`](../packages/media/media-deepinfra/src/index.ts)
+Source: [`packages/media/media-deepinfra/src/index.ts:51`](../packages/media/media-deepinfra/src/index.ts)
 
 <a id="deepseek-aidsh-media-openrouter"></a>
 
@@ -1665,7 +1665,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/media/media-openrouter/src/index.ts:46`](../packages/media/media-openrouter/src/index.ts)
+Source: [`packages/media/media-openrouter/src/index.ts:47`](../packages/media/media-openrouter/src/index.ts)
 
 <a id="deepseek-aidsh-media-pi-ai"></a>
 
@@ -2982,6 +2982,56 @@ export interface Config {
 ```
 
 Source: [`packages/lsp/tool-lsp/src/index.ts:57`](../packages/lsp/tool-lsp/src/index.ts)
+
+<a id="deepseek-aidsh-tool-media"></a>
+
+## `@deepseek-ai/dsh-tool-media`
+
+Requires: `tools` · `media` · `attachments`
+
+```ts config-catalog
+/** Config for the image tool. */
+export interface Config {
+  /**
+   * Model id used when a call names none and no choice is made. Provider-specific
+   * and verbatim, e.g. `black-forest-labs/flux.2-pro`. Omitted means every call
+   * must name a model or answer the picker.
+   */
+  model?: string
+  /** Media provider id used when a call names none. Omitted defers to the seam's own selection. */
+  provider?: string
+  /**
+   * Models offered before each generation. An empty list disables the picker
+   * and generates with the resolved model directly.
+   */
+  choices?: ImageModelChoice[]
+  /**
+   * Ask which model to use until one has been chosen. The picker is skipped
+   * regardless where no `userQuestions` UI can answer, or `choices` is empty.
+   */
+  confirmModel?: boolean
+  /**
+   * Whether a person has chosen a model through the picker. Written by the
+   * tool when they answer, never authored by hand: it is what distinguishes a
+   * deployment default from a choice, so the picker asks exactly once.
+   */
+  modelChosen?: boolean
+}
+
+/** One selectable image model offered before a generation runs. */
+export interface ImageModelChoice {
+  /** Media provider id that serves this model. */
+  provider: string
+  /** The provider's model id, verbatim. */
+  model: string
+  /** Menu label; the `provider/model` pair when omitted. */
+  label?: string
+  /** Optional one-line note the menu shows beside the label. */
+  description?: string
+}
+```
+
+Source: [`packages/media/tool-media/src/index.ts:62`](../packages/media/tool-media/src/index.ts)
 
 <a id="deepseek-aidsh-tool-pwsh"></a>
 

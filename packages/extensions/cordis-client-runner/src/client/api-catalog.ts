@@ -642,6 +642,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type PendingSubmissionRetirement = {\n    readonly reason: \'observed\';\n    readonly attachments: readonly ImageAttachmentRef[];\n} | {\n    readonly reason: \'failed\';\n};',
   },
   {
+    name: 'PersistFields',
+    declaration: 'export interface PersistFields<T> {\n    key: string;\n    fields: readonly (keyof T & string)[];\n}',
+  },
+  {
     name: 'ProjectionsFace',
     declaration: 'export interface ProjectionsFace {\n    faceOf(key: string): ObservableSnapshot<unknown>;\n}',
   },
@@ -831,7 +835,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'StoreSpec',
-    declaration: 'export interface StoreSpec<T, A extends ActionsDecl<T>> {\n    init: () => T;\n    persist?: string;\n    actions: A;\n}',
+    declaration: 'export interface StoreSpec<T, A extends ActionsDecl<T>> {\n    init: () => T;\n    persist?: string | PersistFields<T>;\n    actions: A;\n}',
   },
   {
     name: 'SubmissionHandle',

@@ -10,7 +10,10 @@ import {
   apply as applyChat, inject as injectChat, type ToolResultNode,
 } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
-import { SlotTestRuntime, TestRemote, usePinnedBrowserLanguages, stubSettingsScope } from '@deepseek-ai/dsh-client-test-runtime'
+import {
+  SlotTestRuntime, TestRemote, flushContentCover, stubAnimationFrames,
+  stubSettingsScope, usePinnedBrowserLanguages,
+} from '@deepseek-ai/dsh-client-test-runtime'
 import { apply as applyConversation, inject as injectConversation } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { apply as applyTool, inject as injectTool } from '../src/client/apply.ts'
 import { toolSessionEvents } from './tool-details-render.client.tsx'
@@ -35,6 +38,7 @@ afterEach(() => {
 beforeEach(() => {
   localStorage.clear()
   vi.stubGlobal('ResizeObserver', ResizeObserverStub)
+  stubAnimationFrames()
 })
 const TODOS: TodoItem[] = [
   { content: '梳理需求', status: 'completed' },
@@ -106,6 +110,7 @@ describe('todo_write assembly (product registrations, no outlet twins)', () => {
     // The dock strip reads the host-computed 'todos' projection.
     runtime.sessions.behavior(SID).projections.set('todos', TODOS)
     const view = runtime.renderRoot()
+    flushContentCover()
 
     // Keyed toolview registration took the row (summary derived from args).
     const row = view.container.querySelector('[data-tool="todo_write"]')
@@ -143,6 +148,7 @@ describe('terminal card assembly', () => {
       }),
     ])
     const view = runtime.renderRoot()
+    flushContentCover()
 
     // Keyed BashRow: collapsed by default, the whole summary row is the toggle.
     const keyedRow = view.container.querySelector('[data-sample="bash"]')

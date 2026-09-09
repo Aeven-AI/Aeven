@@ -154,6 +154,8 @@ function activeLocale(): string {
   for (const tag of [...languages ?? [], navigator.language]) {
     const requested = tag.toLowerCase()
     if (Object.hasOwn(DICTIONARIES, requested)) return requested
+    /* v8 ignore next -- `split` always yields a first element; the coalesce
+     * only satisfies noUncheckedIndexedAccess. */
     const primary = requested.split('-')[0] ?? ''
     if (Object.hasOwn(DICTIONARIES, primary)) return primary
   }
@@ -166,5 +168,7 @@ function activeLocale(): string {
  * @returns the translated string.
  */
 export function t(key: AuthAevenKey): string {
+  /* v8 ignore next -- activeLocale answers only ids DICTIONARIES holds; the
+   * coalesce only satisfies noUncheckedIndexedAccess. */
   return (DICTIONARIES[activeLocale()] ?? en)[key]
 }

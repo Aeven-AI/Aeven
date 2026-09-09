@@ -23,7 +23,7 @@ Web Client 是由独立加载插件组装而成的浏览器侧 Cordis 应用。�
 
 Host 把组合后的 `WebBootGraph` 写入 `window.__DSH_BOOT__`，并在 parser-preloaded script 执行前安装浏览器 module-loader facade。模块系统是一张 lazy CommonJS 表：加载 bundle 只注册 factory；materialize entry 时才以同步 `require` 运行 factory，并解析 platform module 和已声明的动态依赖。
 
-Web boot kernel 创建模块系统、预取 `immediately` entry、挂载 vendored Cordis Loader，再创建图中的每个 entry。Cordis service injection 决定激活顺序；module graph 顺序只决定同步 import 能否被 materialize。完整 roster 到达 settled 状态后，`ui-renderer` 挂载应用，kernel 随后淡出静态预加载页。[Client Modules](client-modules.zh.md)负责 graph、bundle route、cache revision 与 loader 细节。
+Web boot kernel 创建模块系统、预取 `immediately` entry、挂载 vendored Cordis Loader，再创建图中的每个 entry。Cordis service injection 决定激活顺序；module graph 顺序只决定同步 import 能否被 materialize。完整 roster 到达 settled 状态后，`ui-renderer` 挂载应用，kernel 在第一份侧边栏列表与所选会话历史到达后淡出静态预加载页。[Client Modules](client-modules.zh.md)负责 graph、bundle route、cache revision 与 loader 细节。
 
 ## Remote 通信
 

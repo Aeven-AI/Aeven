@@ -17,7 +17,7 @@ Status: implemented
 - `terminalFailed` 读取已结算 terminal 卡片的退出状态，让 BashRow 和 GenericToolCard 把失败命令显示为行的红色状态点——这是折叠行唯一的失败信号，因为调用本身结算为 `isError:false`。
 - TerminalBlock 的横幅并入同一阅读模型：与卡片共用同一表面（不再用 banner token），与正文之间是 l2 细线，命令列上限 150px 内部滚动，复制/状态控件 sticky 且顶对齐第一行提示符。
 - Inspect：`ToolCallOwnerProps.inspect`（无调用身份的行不提供）在展开体左下角的正常布局流中渲染胶囊，hover 到工具调用的任意位置时显示。点击将 `{ callId }` 写入 chat store 的一次性 `inspect` 字段并切换到 trajectory 视图；TrajectoryTable 找到记录、打开其摘要，并通过清空字段确认。
-- 滚动保留：每次非贴底滚动时，聊天视图把 `{ anchorKey, anchorTop, scrollTop }` 保存到 apply 作用域的按会话 Map，并以 `chatScroll` 暴露；重挂载时先用 `scrollTop` 到达近似窗口，再按稳定 node／call 锚点的矩形差值校正，因此宽度重排后仍把同一阅读行保持在原位。包括「回到底部」在内的每条贴底路径都会在切换 tab 或会话前同步清除该项。Map 仍刻意不持久化——新页面加载保持打开即贴底的默认行为。
+- 滚动保留：每次非贴底滚动时，聊天视图把 `{ anchorKey, anchorTop, scrollTop }` 保存到 apply 作用域的按会话 Map，并以 `chatScroll` 暴露；同一 Session 内的视图重挂载会先用 `scrollTop` 到达近似窗口，再按稳定 node／call 锚点的矩形差值校正，因此宽度重排后仍把同一阅读行保持在原位。包括「回到底部」在内的每条贴底路径都会在切换 tab 前同步清除该项。普通的跨 Session 激活会依据 [Session 激活策略](../bug-fix/2026-09-08-session-activation-chat-tail.zh.md)丢弃目标项。Map 仍刻意不持久化——新页面加载保持打开即贴底的默认行为。
 
 ## 曾考虑的替代方案
 

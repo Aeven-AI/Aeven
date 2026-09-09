@@ -11,6 +11,7 @@
     "src/remote-events.ts",
     "src/agent.ts",
     "src/catalog.ts",
+    "src/image-catalog.ts",
     "src/commands.ts",
     "src/control.ts",
     "src/file-references.ts",

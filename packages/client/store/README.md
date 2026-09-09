@@ -8,7 +8,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-React-free observable and snapshot-store primitives shared by Client controllers and renderer adapters. The package owns synchronous and animation-frame publication, Immer-backed updates, shallow equality, and optional browser persistence; React hook construction remains in `@deepseek-ai/dsh-client-ui-renderer`. Use it when Client state must publish stable snapshots without depending on React.
+React-free observable and snapshot-store primitives shared by Client controllers and renderer adapters. The package owns synchronous and animation-frame publication, Immer-backed updates, shallow equality, and optional browser persistence of a whole state or of declared durable fields; React hook construction remains in `@deepseek-ai/dsh-client-ui-renderer`. Use it when Client state must publish stable snapshots without depending on React.
 
 ## Table of Contents
 
@@ -32,6 +32,7 @@ None; the stores neither assemble nor send model requests.
 <a id="known-limitations-and-deferred-work"></a>
 
 - **Persistence is browser-local** — persisted stores use JSON in `localStorage`; non-browser runtimes disable persistence, and the package provides no cross-device synchronization.
+- **Durable fields are validated one level deep** — a field declared in `persist.fields` is rehydrated only when the stored value is non-null and carries the initial value's `typeof`; nested contents are trusted as stored.
 
 
 <a id="dev-note"></a>

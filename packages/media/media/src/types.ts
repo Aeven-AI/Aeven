@@ -6,6 +6,8 @@
  * @module @deepseek-ai/dsh-media/types
  */
 
+import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
+
 import { HarnessError } from '@deepseek-ai/dsh-llm'
 
 /** Failure codes callers may branch on. */
@@ -79,6 +81,23 @@ export interface MediaImageRequest {
   readonly references?: readonly MediaImageReference[]
 }
 
+/**
+ * One image a generation produced.
+ *
+ * The two forms exist because providers differ in where the bytes land, not in
+ * what they produce. A provider speaking a plain HTTP route holds bytes and
+ * nothing else, so it yields `bytes` and lets the caller store them. A provider
+ * that already writes through `ctx.attachments` — because it downloads under
+ * its own size and host controls, or serves the result on its own route —
+ * yields `attachment`, and re-reading and re-storing those bytes would gain the
+ * caller nothing.
+ */
+export type GeneratedImage =
+  /** Bytes the caller must store. */
+  | { readonly kind: 'bytes'; readonly mediaType: string; readonly data: Uint8Array }
+  /** An image the provider already stored durably. */
+  | { readonly kind: 'attachment'; readonly attachment: ImageAttachmentRef }
+
 /** One completed image generation. */
 export interface MediaImageResult {
   /** The provider that served the call. */
@@ -86,7 +105,7 @@ export interface MediaImageResult {
   /** The model that produced the images, as the provider reported it. */
   readonly model: string
   /** The generated images, in provider order. */
-  readonly images: readonly GeneratedMedia[]
+  readonly images: readonly GeneratedImage[]
 }
 
 /**
@@ -148,6 +167,18 @@ export interface MediaProvider {
   available(): boolean
 }
 
+/** One image model a provider can serve, as its own catalog reports it. */
+export interface MediaImageModel {
+  /** Provider route id that serves this model. */
+  readonly provider: string
+  /** The provider's model id, verbatim — what a request must name. */
+  readonly id: string
+  /** Human-readable name where the catalog states one; otherwise the id stands alone. */
+  readonly label?: string
+  /** One-line note a menu can show beside the label. */
+  readonly description?: string
+}
+
 /** A provider that generates images. */
 export interface MediaImageProvider extends MediaProvider {
   /**
@@ -157,6 +188,16 @@ export interface MediaImageProvider extends MediaProvider {
    * @returns the generated images.
    */
   generateImage(request: MediaImageRequest, signal?: AbortSignal): Promise<MediaImageResult>
+  /**
+   * Every image model this provider serves.
+   *
+   * Optional: a provider whose route publishes no model document omits it, and
+   * a caller building a menu simply lists nothing for that provider rather than
+   * failing. A provider serving a fixed model returns that one entry.
+   * @param signal - cancellation forwarded from the caller.
+   * @returns the provider's image models.
+   */
+  listImageModels?(signal?: AbortSignal): Promise<readonly MediaImageModel[]>
 }
 
 /**

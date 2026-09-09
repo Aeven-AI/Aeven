@@ -47,6 +47,120 @@ afterEach(() => {
   delete process.env.OPENROUTER_API_KEY
 })
 
+describe('the image catalog', () => {
+  it('keeps only models whose output modalities include image', async () => {
+    respond = () => json({ data: [
+      { id: 'black-forest-labs/flux.2-pro', name: 'FLUX.2 Pro', architecture: { output_modalities: ['image'] } },
+      { id: 'deepseek/chat', architecture: { output_modalities: ['text'] } },
+      { id: 'bare/img', architecture: { output_modalities: ['text', 'image'] } },
+    ] })
+    const runtime = await media()
+    expect(await runtime.listImageModels()).toEqual([
+      { provider: 'openrouter', id: 'black-forest-labs/flux.2-pro', label: 'FLUX.2 Pro' },
+      { provider: 'openrouter', id: 'bare/img' },
+    ])
+    expect(calls[0]?.url).toBe('https://openrouter.ai/api/v1/models')
+  })
+
+  it('skips unusable rows and a document with no data array', async () => {
+    respond = () => json({ data: [null, { id: 'x' }, { id: '', architecture: { output_modalities: ['image'] } }] })
+    expect(await (await media()).listImageModels()).toEqual([])
+    respond = () => json({ created: 1 })
+    expect(await (await media({ id: 'other' })).listImageModels()).toEqual([])
+  })
+})
+
+describe('image generation', () => {
+  it('posts every seam control to the dedicated image route under the route field names', async () => {
+    respond = () => json({ data: [{ b64_json: Buffer.from(PNG).toString('base64'), media_type: 'image/png' }] })
+    const runtime = await media()
+    const result = await runtime.generateImage({
+      model: 'black-forest-labs/flux.2-pro',
+      prompt: 'a red panda astronaut',
+      n: 2,
+      aspectRatio: '16:9',
+      resolution: '2K',
+      size: '2048x2048',
+      seed: 11,
+      references: [{ mediaType: 'image/png', data: PNG }],
+    })
+    expect(calls[0]?.url).toBe('https://openrouter.ai/api/v1/images')
+    expect(calls[0]?.method).toBe('POST')
+    expect(calls[0]?.body).toMatchObject({
+      model: 'black-forest-labs/flux.2-pro',
+      prompt: 'a red panda astronaut',
+      n: 2,
+      aspect_ratio: '16:9',
+      resolution: '2K',
+      size: '2048x2048',
+      seed: 11,
+      input_references: [{
+        type: 'image_url',
+        image_url: { url: `data:image/png;base64,${Buffer.from(PNG).toString('base64')}` },
+      }],
+    })
+    expect(result).toEqual({
+      provider: 'openrouter',
+      model: 'black-forest-labs/flux.2-pro',
+      images: [{ kind: 'bytes', mediaType: 'image/png', data: PNG }],
+    })
+  })
+
+  it('omits every control the request leaves out', async () => {
+    respond = () => json({ data: [{ b64_json: Buffer.from(PNG).toString('base64') }] })
+    const runtime = await media()
+    await runtime.generateImage({ model: 'm', prompt: 'x' })
+    expect(calls[0]?.body).toEqual({ model: 'm', prompt: 'x' })
+  })
+
+  it('sends no references key for an empty reference list', async () => {
+    respond = () => json({ data: [{ b64_json: Buffer.from(PNG).toString('base64') }] })
+    const runtime = await media()
+    await runtime.generateImage({ model: 'm', prompt: 'x', references: [] })
+    expect(calls[0]?.body).not.toHaveProperty('input_references')
+  })
+
+  it('falls back to the signature when the route identifies no media type', async () => {
+    respond = () => json({ data: [{ b64_json: Buffer.from(PNG).toString('base64') }, { b64_json: Buffer.from(PNG).toString('base64'), media_type: '' }] })
+    const runtime = await media()
+    const result = await runtime.generateImage({ model: 'm', prompt: 'x' })
+    expect(result.images.map(image => image.kind === 'bytes' ? image.mediaType : image.kind)).toEqual(['image/png', 'image/png'])
+  })
+
+  it('skips rows carrying no encoded image and keeps the rest', async () => {
+    respond = () => json({ data: [null, 'nope', { b64_json: 7 }, { b64_json: Buffer.from(PNG).toString('base64') }] })
+    const runtime = await media()
+    const result = await runtime.generateImage({ model: 'm', prompt: 'x' })
+    expect(result.images).toHaveLength(1)
+  })
+
+  it('rejects a response carrying no data array', async () => {
+    respond = () => json({ created: 1 })
+    const runtime = await media()
+    await expect(runtime.generateImage({ model: 'm', prompt: 'x' })).rejects.toMatchObject({
+      message: 'OpenRouter image response carried no data array',
+      code: 'MEDIA_UPSTREAM',
+    })
+  })
+
+  it('rejects a data array carrying no usable image', async () => {
+    respond = () => json({ data: [{ url: 'https://cdn.example/x.png' }] })
+    const runtime = await media()
+    await expect(runtime.generateImage({ model: 'm', prompt: 'x' })).rejects.toMatchObject({
+      message: 'OpenRouter image response carried no image data',
+      code: 'MEDIA_UPSTREAM',
+    })
+  })
+
+  it('forwards cancellation to the route', async () => {
+    const controller = new AbortController()
+    respond = () => json({ data: [{ b64_json: Buffer.from(PNG).toString('base64') }] })
+    const runtime = await media()
+    await runtime.generateImage({ model: 'm', prompt: 'x' }, controller.signal)
+    expect(calls).toHaveLength(1)
+  })
+})
+
 describe('video jobs', () => {
   it('submits with the route field names and reports queued as running', async () => {
     respond = () => json({ id: 'job-abc', status: 'pending' })
@@ -121,7 +235,7 @@ describe('video jobs', () => {
     })
     respond = () => new Response('not json', { status: 200 })
     await expect(runtime.startVideo({ model: 'm', prompt: 'x' })).rejects.toMatchObject({
-      message: 'OpenRouter returned a non-JSON video job body',
+      message: 'OpenRouter returned a non-JSON body',
     })
   })
 
@@ -182,7 +296,7 @@ describe('optional request fields and edge shapes', () => {
     respond = () => new Response('', { status: 500 })
     const runtime = await media()
     await expect(runtime.startVideo({ model: 'm', prompt: 'x' })).rejects.toMatchObject({
-      message: 'OpenRouter video request failed with HTTP 500',
+      message: 'OpenRouter request failed with HTTP 500',
     })
   })
 
@@ -208,6 +322,18 @@ describe('credentials', () => {
       code: 'MEDIA_PROVIDER_CONFIGURED_UNAVAILABLE',
     })
     expect(calls).toHaveLength(0)
+  })
+
+  it('stays usable for images on a credentials service alone, with no environment variable', async () => {
+    delete process.env.OPENROUTER_API_KEY
+    const ctx = new Context()
+    await ctx.plugin(MediaRuntime)
+    ctx.provide('credentials', { resolve: async () => ({ value: 'sk-service' }) })
+    await ctx.plugin(provider, {})
+    respond = () => json({ data: [{ b64_json: Buffer.from(PNG).toString('base64') }] })
+    const result = await ctx.media.generateImage({ model: 'm', prompt: 'x' })
+    expect(calls[0]?.headers['authorization']).toBe('Bearer sk-service')
+    expect(result.images).toHaveLength(1)
   })
 
   it('prefers a credentials-service value over the environment variable', async () => {
