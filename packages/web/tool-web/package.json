@@ -52,6 +52,7 @@
     "@deepseek-ai/dsh-web": "workspace:^",
     "@deepseek-ai/dsh-web-fetch-http": "workspace:^",
     "@deepseek-ai/dsh-web-search-exa": "workspace:^",
-    "@types/turndown": "^5.0.6"
+    "@types/turndown": "^5.0.6",
+    "@deepseek-ai/dsh-scope": "workspace:^"
   }
 }
