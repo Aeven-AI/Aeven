@@ -1242,10 +1242,16 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the disposer that unregisters it, disposed with the calling fiber.',
       },
       {
+        signature: 'async listImageModels(signal?: AbortSignal): Promise<readonly MediaImageModel[]>',
+        description: 'Every image model the registered providers serve, in registration order.\n\nA provider that publishes no catalog contributes nothing, and one whose catalog call fails is skipped rather than failing the whole listing: a menu built from three providers is more useful than an error because one route was unreachable.',
+        parameters: [{ name: 'signal', description: 'cancellation forwarded to every provider.' }],
+        returns: 'the models, grouped by provider in registration order.',
+      },
+      {
         signature: 'async generateImage(request: MediaImageRequest, signal?: AbortSignal): Promise<MediaImageResult>',
-        description: 'Generate images through the selected provider.',
-        parameters: [{ name: 'request', description: 'the prompt, model, and generation controls.' }, { name: 'signal', description: 'cancellation forwarded to the provider.' }],
-        returns: 'the generated images and the provider that made them.',
+        description: 'Generate one image through the selected image provider.',
+        parameters: [{ name: 'request', description: 'the prompt, model, and generation controls; its `provider` names the route to use instead of the configured default.' }, { name: 'signal', description: 'cancellation forwarded to the provider.' }],
+        returns: 'the generated image.',
       },
       {
         signature: 'async startVideo(request: MediaVideoRequest, signal?: AbortSignal): Promise<MediaVideoJob>',
@@ -1437,6 +1443,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Describe every currently routable model for Host-generation selectors.',
         parameters: [],
         returns: 'provider-grouped models, the deployment default, and isolated provider failures.',
+      },
+      {
+        signature: '@Remote(\'imageModelCatalog\') imageModelCatalog(): Promise<ImageModelCatalog>',
+        description: 'Describe every image model this deployment can generate with.',
+        parameters: [],
+        returns: 'the models in provider registration order; empty where no media seam is composed.',
       },
       {
         signature: '@Remote canOpenWorkspacePath(): boolean',
@@ -4129,6 +4141,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface FsWriteOutcome {\n    operation: \'create\' | \'update\';\n    version: FsVersion;\n    before: string | null;\n    after: string;\n}',
   },
   {
+    name: 'GeneratedImage',
+    declaration: 'export type GeneratedImage = {\n    readonly kind: \'bytes\';\n    readonly mediaType: string;\n    readonly data: Uint8Array;\n} | {\n    readonly kind: \'attachment\';\n    readonly attachment: ImageAttachmentRef;\n};',
+  },
+  {
     name: 'GeneratedMedia',
     declaration: 'export interface GeneratedMedia {\n    readonly mediaType: string;\n    readonly data: Uint8Array;\n}',
   },
@@ -4203,6 +4219,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ImageMediaType',
     declaration: 'export type ImageMediaType = \'image/png\' | \'image/jpeg\' | \'image/webp\' | \'image/gif\';',
+  },
+  {
+    name: 'ImageModelCatalog',
+    declaration: 'export interface ImageModelCatalog {\n    models: ImageModelEntry[];\n}',
+  },
+  {
+    name: 'ImageModelEntry',
+    declaration: 'export interface ImageModelEntry {\n    provider: string;\n    id: string;\n    label?: string;\n    description?: string;\n}',
   },
   {
     name: 'ImageRequestPolicy',
@@ -4449,8 +4473,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ManualCompactAgentContext extends CompactionAgentContext {\n    runMaintenance<T>(task: (signal: AbortSignal) => Promise<T>): Promise<T>;\n}',
   },
   {
+    name: 'MediaImageModel',
+    declaration: 'export interface MediaImageModel {\n    readonly provider: string;\n    readonly id: string;\n    readonly label?: string;\n    readonly description?: string;\n}',
+  },
+  {
     name: 'MediaImageProvider',
-    declaration: 'export interface MediaImageProvider extends MediaProvider {\n    generateImage(request: MediaImageRequest, signal?: AbortSignal): Promise<MediaImageResult>;\n}',
+    declaration: 'export interface MediaImageProvider extends MediaProvider {\n    generateImage(request: MediaImageRequest, signal?: AbortSignal): Promise<MediaImageResult>;\n    listImageModels?(signal?: AbortSignal): Promise<readonly MediaImageModel[]>;\n}',
   },
   {
     name: 'MediaImageReference',
@@ -4462,7 +4490,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MediaImageResult',
-    declaration: 'export interface MediaImageResult {\n    readonly provider: string;\n    readonly model: string;\n    readonly images: readonly GeneratedMedia[];\n}',
+    declaration: 'export interface MediaImageResult {\n    readonly provider: string;\n    readonly model: string;\n    readonly images: readonly GeneratedImage[];\n}',
   },
   {
     name: 'MediaProvider',

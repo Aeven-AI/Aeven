@@ -174,30 +174,16 @@
   pointer-events: none;
 }
 
-/* Floating pill so the ring stays legible over whatever it covers; same
-   surface tokens as the back-to-bottom control. */
+/* The content loader's own mark, unadorned: paging history is the same kind of
+   wait, so it reads the same. No plate behind it — it sits over the transcript
+   head, where a filled pill would be a second object competing with the rows
+   underneath it. */
 .olderProgress {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: var(--dsw-aeven-control-size);
-  height: var(--dsw-aeven-control-size);
-  margin-top: 8px;
-  border-radius: 100px;
-  background: var(--dsw-alias-button-floating-fill);
-  box-shadow: var(--dsw-elevation-panel);
-}
-
-/* The Trajectory history loader's ring (TrajectoryTable .historyLoadingSpinner):
-   paging history reads the same in both views. */
-.olderSpinner {
-  width: 10px;
-  height: 10px;
-  box-sizing: border-box;
-  border: 1.5px solid var(--dsw-alias-border-l2);
-  border-top-color: var(--dsw-alias-state-business-primary);
-  border-radius: 50%;
-  animation: dsh-chat-older-spin 700ms linear infinite;
+  margin-top: 12px;
+  color: var(--dsw-alias-label-primary);
 }
 
 .olderRetry {
@@ -213,15 +199,6 @@
   pointer-events: auto;
 }
 
-@keyframes dsh-chat-older-spin {
-  to { transform: rotate(360deg); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .olderSpinner {
-    animation: none;
-  }
-}
 
 /* Back-to-bottom: zero-height slot in the host's non-scrolling chrome layer,
    so the control neither extends scrollHeight nor rides the scrollport's
@@ -244,16 +221,9 @@
   pointer-events: none;
 }
 
-/* Scoped to the host chrome layer, which is where the control now lives: the
-   old selector matched it inside the scrollport and stopped applying when it
-   moved out, dropping the button behind the input card. */
-:global([data-conversation-chrome]) .toBottomSlot {
-  /* Clears the composer stack (docks + input card + stats): the live height
-     rides --dsh-composer-height (ConversationRoot's seat observer) so the
-     control follows a growing textarea; the fallback covers the first paint
-     before the observer fires. */
-  bottom: calc(var(--dsh-composer-height, 152px) + 16px);
-}
+/* No composer clearance rule: the host chrome layer ends where the composer
+   begins, so this control's own 16px is already clear of it, and a growing
+   draft moves that floor without anything measuring it. */
 
 .toBottom {
   display: flex;

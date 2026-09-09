@@ -7,6 +7,7 @@
  */
 
 import clsx from 'clsx'
+import type { ReactNode } from 'react'
 import css from './fields.module.css'
 
 /** What every field control needs regardless of its value type. */
@@ -37,6 +38,46 @@ export interface FieldProps {
   onReset: () => void
 }
 
+/** The label row of a staged field: its properties minus the value itself. */
+type FieldHeadProps = Pick<
+  FieldProps,
+  'id' | 'label' | 'overridden' | 'overriddenLabel' | 'resetLabel' | 'disabled' | 'onReset'
+>
+
+/**
+ * The label row every staged field shares: the label, and — while the staged
+ * value would leave a user-layer entry — the override badge beside the reset
+ * that stages a clear back to the composition layer.
+ * @param props - the field's identity, copy, override state, and reset action.
+ * @returns the label row, followed by any control the field places in it.
+ */
+function FieldHead(props: FieldHeadProps & {
+  /** A control the field renders inside the row, after the badges. */
+  children?: ReactNode
+}) {
+  return (
+    <div className={css.head}>
+      <label className={css.label} htmlFor={props.id}>{props.label}</label>
+      {props.overridden
+        ? (
+          <span className={css.badges}>
+            <span className={css.badge}>{props.overriddenLabel}</span>
+            <button
+              type="button"
+              className={css.reset}
+              disabled={props.disabled}
+              onClick={props.onReset}
+            >
+              {props.resetLabel}
+            </button>
+          </span>
+        )
+        : null}
+      {props.children}
+    </div>
+  )
+}
+
 /**
  * A staged value field. `numeric` only hints the keypad: which drafts a field
  * accepts is decided by its spec, so the control never silently rewrites what
@@ -52,24 +93,7 @@ export function ValueField(props: FieldProps & {
 }) {
   return (
     <div className={css.field}>
-      <div className={css.head}>
-        <label className={css.label} htmlFor={props.id}>{props.label}</label>
-        {props.overridden
-          ? (
-            <span className={css.badges}>
-              <span className={css.badge}>{props.overriddenLabel}</span>
-              <button
-                type="button"
-                className={css.reset}
-                disabled={props.disabled}
-                onClick={props.onReset}
-              >
-                {props.resetLabel}
-              </button>
-            </span>
-          )
-          : null}
-      </div>
+      <FieldHead {...props} />
       <input
         id={props.id}
         className={props.invalid ? css.inputInvalid : css.input}
@@ -140,23 +164,7 @@ export function ToggleField(props: Pick<
 }) {
   return (
     <div className={css.field}>
-      <div className={css.head}>
-        <label className={css.label} htmlFor={props.id}>{props.label}</label>
-        {props.overridden
-          ? (
-            <span className={css.badges}>
-              <span className={css.badge}>{props.overriddenLabel}</span>
-              <button
-                type="button"
-                className={css.reset}
-                disabled={props.disabled}
-                onClick={props.onReset}
-              >
-                {props.resetLabel}
-              </button>
-            </span>
-          )
-          : null}
+      <FieldHead {...props}>
         <button
           id={props.id}
           type="button"
@@ -168,7 +176,7 @@ export function ToggleField(props: Pick<
         >
           <span className={css.thumb} />
         </button>
-      </div>
+      </FieldHead>
       <p className={css.hint}>{props.hint}</p>
     </div>
   )

@@ -22,6 +22,9 @@
     },
     {
       "path": "../../attachment/attachment"
+    },
+    {
+      "path": "../../credentials/credentials"
     }
   ]
 }

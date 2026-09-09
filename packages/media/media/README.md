@@ -59,6 +59,8 @@ The seam owns selection, vocabulary, and the job contract; providers own protoco
 
 - `src/types.ts` — request, result, job, and provider vocabulary, plus `MediaError`.
 - `src/index.ts` — the `MediaRuntime` service: registries, selection, and job routing.
+- `src/bytes.ts` — the signature sniffing that labels generated image bytes.
+- `src/vendor-route.ts` — the plumbing vendor adapters share: credential resolution, the JSON call and byte retrieval against one pinned origin, job-body translation, and the video provider assembled from a vendor's paths and request body.
 
 <a id="model-experience"></a>
 ## Model Experience

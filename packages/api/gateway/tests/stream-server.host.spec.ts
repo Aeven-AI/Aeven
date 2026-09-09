@@ -226,6 +226,25 @@ describe('Remote stream mux server carrier lifecycle', () => {
     await expect(entry.mux.close()).rejects.toThrow()
     await closeHttp(entry.http)
   })
+
+  it('remembers whose connection a socket is, for the life of the socket', async () => {
+    // The credential is presented once, at the upgrade. A socket that outlives
+    // its access token is still the connection that person opened, so the
+    // caller is resolved there and read back per frame.
+    const user = { id: 'u1' }
+    const entry = await startMux(async (_endpoint, _payload, signal) => waitForAbort(signal), 2_000, user)
+    const client = await connect(entry.url)
+    const socket = acceptedSocket(entry.mux)
+    expect(entry.mux.userOf(socket)).toEqual(user)
+    client.close()
+  })
+
+  it('reports no caller for a connection no authority identified', async () => {
+    const entry = await startMux(async (_endpoint, _payload, signal) => waitForAbort(signal))
+    const client = await connect(entry.url)
+    expect(entry.mux.userOf(acceptedSocket(entry.mux))).toBeUndefined()
+    client.close()
+  })
 })
 
 const mapFailure: RemoteStreamFailureMapper = error => ({
@@ -234,10 +253,16 @@ const mapFailure: RemoteStreamFailureMapper = error => ({
   details: {},
 })
 
-async function startMux(open: RemoteStreamOpener, heartbeatIntervalMs = 2_000): Promise<RunningMux> {
+async function startMux(
+  open: RemoteStreamOpener,
+  heartbeatIntervalMs = 2_000,
+  user?: { id: string },
+): Promise<RunningMux> {
   const mux = new RemoteStreamMuxServer(open, mapFailure, heartbeatIntervalMs)
   const http = createServer()
-  http.on('upgrade', (request, socket, head) => { mux.handleUpgrade(request, socket, head) })
+  http.on('upgrade', (request, socket, head) => {
+    mux.handleUpgrade(request, socket, head, user)
+  })
   await new Promise<void>((resolve, reject) => {
     http.once('error', reject)
     http.listen(0, '127.0.0.1', () => {

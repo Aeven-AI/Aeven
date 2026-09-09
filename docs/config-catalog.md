@@ -215,7 +215,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/api/session-controller/src/index.ts:68`](../packages/api/session-controller/src/index.ts)
+Source: [`packages/api/session-controller/src/index.ts:69`](../packages/api/session-controller/src/index.ts)
 
 <a id="deepseek-aidsh-api-settings-controller"></a>
 
@@ -1625,7 +1625,7 @@ export interface MediaRuntimeConfig {
 }
 ```
 
-Source: [`packages/media/media/src/index.ts:53`](../packages/media/media/src/index.ts)
+Source: [`packages/media/media/src/index.ts:57`](../packages/media/media/src/index.ts)
 
 <a id="deepseek-aidsh-media-deepinfra"></a>
 
@@ -1645,7 +1645,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/media/media-deepinfra/src/index.ts:57`](../packages/media/media-deepinfra/src/index.ts)
+Source: [`packages/media/media-deepinfra/src/index.ts:51`](../packages/media/media-deepinfra/src/index.ts)
 
 <a id="deepseek-aidsh-media-openrouter"></a>
 
@@ -1665,7 +1665,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/media/media-openrouter/src/index.ts:53`](../packages/media/media-openrouter/src/index.ts)
+Source: [`packages/media/media-openrouter/src/index.ts:47`](../packages/media/media-openrouter/src/index.ts)
 
 <a id="deepseek-aidsh-media-pi-ai"></a>
 

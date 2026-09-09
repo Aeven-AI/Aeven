@@ -39,3 +39,37 @@ describe('conversation composer seat styles', () => {
       .toContain('padding-right: var(--dsh-scrollbar-width)')
   })
 })
+
+describe('conversation content cover styles', () => {
+  /** The numeric `z-index` of a rule, as an integer. */
+  function stackLevel(selector: string): number {
+    const declaration = declarationsFrom(selector).find(part => part.startsWith('z-index:'))
+    if (declaration === undefined) throw new Error(`no \`z-index\` on \`${selector}\``)
+    return Number(declaration.slice('z-index:'.length).trim())
+  }
+
+  it('keeps the cover behind the composer seat', () => {
+    // The seat stays mounted across a Session switch, so a cover that outranks
+    // it paints the resident input card out and back in and the switch reads
+    // as a remount.
+    expect(stackLevel('.contentLoader'))
+      .toBeLessThan(stackLevel(".root[data-phase='active'] .composerSeat"))
+  })
+
+  it('covers the whole scrollport group with one level', () => {
+    // `.scrollArea` is a stacking context, so outranking it clears the
+    // transcript, the CodeBlock sticky banners inside it, and the view chrome
+    // at once — no per-element z-index race, and nothing in the group can tie.
+    expect(stackLevel('.contentLoader')).toBeGreaterThan(stackLevel('.scrollArea'))
+    expect(stackLevel('.viewChrome')).toBeGreaterThan(stackLevel('.scrollArea'))
+  })
+
+  it('spans the full column instead of stopping at the composer', () => {
+    // Bounding the cover to the scrollport would shrink it to the band above
+    // the input; it stays full-height and passes behind the seat instead.
+    const declarations = declarationsFrom('.contentLoader')
+    expect(declarations).toContain('position: fixed')
+    expect(declarations).toContain('top: 0')
+    expect(declarations).toContain('bottom: 0')
+  })
+})

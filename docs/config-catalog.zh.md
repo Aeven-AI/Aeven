@@ -217,7 +217,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/api/session-controller/src/index.ts:68`](../packages/api/session-controller/src/index.ts)
+来源：[`packages/api/session-controller/src/index.ts:69`](../packages/api/session-controller/src/index.ts)
 
 <a id="deepseek-aidsh-api-settings-controller"></a>
 
@@ -1627,7 +1627,7 @@ export interface MediaRuntimeConfig {
 }
 ```
 
-来源：[`packages/media/media/src/index.ts:49`](../packages/media/media/src/index.ts)
+来源：[`packages/media/media/src/index.ts:57`](../packages/media/media/src/index.ts)
 
 <a id="deepseek-aidsh-media-deepinfra"></a>
 
@@ -1647,7 +1647,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/media/media-deepinfra/src/index.ts:55`](../packages/media/media-deepinfra/src/index.ts)
+来源：[`packages/media/media-deepinfra/src/index.ts:51`](../packages/media/media-deepinfra/src/index.ts)
 
 <a id="deepseek-aidsh-media-openrouter"></a>
 
@@ -1667,7 +1667,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/media/media-openrouter/src/index.ts:46`](../packages/media/media-openrouter/src/index.ts)
+来源：[`packages/media/media-openrouter/src/index.ts:47`](../packages/media/media-openrouter/src/index.ts)
 
 <a id="deepseek-aidsh-media-pi-ai"></a>
 

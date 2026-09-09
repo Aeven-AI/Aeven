@@ -210,6 +210,20 @@ describe('Chat inject API', () => {
     b.runtime.ctx.uiConversation.navigateToEvent(OTHER, SessionSeq(8))
     await b.runtime.sessions.setCurrent(OTHER)
     expect(otherScroll.read()).toEqual(position)
+
+    // Clearing the selection is not a Session activation, so it forgets no
+    // reading position: what was saved survives for the return visit.
+    rootScroll.save(position)
+    await b.runtime.sessions.setCurrent(undefined)
+    expect(rootScroll.read()).toEqual(position)
+    await b.runtime.dispose()
+  })
+
+  it('reports a finished event navigation back to the Conversation', async () => {
+    const b = await bench()
+    const complete = vi.spyOn(b.runtime.ctx.uiConversation, 'completeEventNavigation')
+    b.chatViewApi(ROOT).injected.completeEventNavigation(3)
+    expect(complete).toHaveBeenCalledWith(ROOT, 3)
     await b.runtime.dispose()
   })
 })

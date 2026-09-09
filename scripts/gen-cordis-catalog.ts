@@ -576,6 +576,8 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   AskUserQuestionRequest: 'user-questions.md',
   UserQuestionProvider: 'user-questions.md',
   GeneratedMedia: 'media.md',
+  ImageModelCatalog: 'media.md',
+  MediaImageModel: 'media.md',
   MediaImageProvider: 'media.md',
   MediaImageReference: 'media.md',
   MediaImageRequest: 'media.md',

@@ -25,7 +25,10 @@ export interface ContentCover {
   mountedSessionId: SessionId | undefined
 }
 
-/** True while `#dsh-preloader` is in the document and not `.screen-hidden`. */
+/**
+ * Whether the static page preloader still occupies the screen.
+ * @returns true while `#dsh-preloader` is in the document and not `.screen-hidden`.
+ */
 export function isPagePreloaderVisible(): boolean {
   const el = document.getElementById(PAGE_PRELOADER_ELEMENT_ID)
   return el !== null && !el.classList.contains('screen-hidden')

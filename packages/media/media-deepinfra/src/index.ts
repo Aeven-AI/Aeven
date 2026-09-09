@@ -7,19 +7,13 @@
 
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { credentialRef } from '@deepseek-ai/dsh-credentials'
-import type {} from '@deepseek-ai/dsh-credentials'
-import { imageMediaType, MediaError } from '@deepseek-ai/dsh-media'
+import { imageMediaType, MediaError, vendorRoute, vendorVideoProvider } from '@deepseek-ai/dsh-media'
 import type {
   GeneratedImage,
   MediaImageModel,
-  GeneratedMedia,
   MediaImageProvider,
   MediaImageRequest,
   MediaImageResult,
-  MediaVideoJob,
-  MediaVideoProvider,
-  MediaVideoRequest,
   MediaVideoStatus,
 } from '@deepseek-ai/dsh-media'
 
@@ -72,45 +66,8 @@ export const Config: z<Config> = z.object({
 /** Config after schemastery has filled every defaulted field. */
 type ResolvedConfig = Required<Config>
 
-/**
- * Request headers for one JSON call. `HeadersInit` may be an array or a
- * `Headers`, so it is normalized rather than spread.
- * @param base - the caller's own headers, if any.
- * @param apiKey - the resolved bearer token.
- * @returns the merged header record.
- */
-function jsonHeaders(base: HeadersInit | undefined, apiKey: string): Record<string, string> {
-  const headers = new Headers(base)
-  headers.set('Authorization', `Bearer ${apiKey}`)
-  headers.set('Accept', 'application/json')
-  return Object.fromEntries(headers.entries())
-}
-
-/** One job body as DeepInfra returns it; unknown fields are ignored. */
-interface JobBody {
-  id?: unknown
-  status?: unknown
-  error?: unknown
-}
-
-/**
- * Translate one job body into the seam's job. An explicit `error` is the
- * trustworthy failure signal here, because the status vocabulary is
- * undocumented and could grow a value this table does not know.
- * @param providerId - the seam registry key that owns this job.
- * @param body - the decoded job body.
- * @returns the seam's job record.
- */
-function toJob(providerId: string, body: JobBody): MediaVideoJob {
-  const id = typeof body.id === 'string' ? body.id : undefined
-  if (id === undefined) {
-    throw new MediaError('DeepInfra video job carried no id', 'MEDIA_UPSTREAM')
-  }
-  const error = typeof body.error === 'string' && body.error.length > 0 ? body.error : undefined
-  const raw = typeof body.status === 'string' ? body.status : ''
-  const status: MediaVideoStatus = error !== undefined ? 'failed' : STATUS[raw] ?? 'running'
-  return { provider: providerId, id, status, ...status === 'failed' ? { error: error ?? `status "${raw}"` } : {} }
-}
+/** Vendor name as it reads in this provider's failure text. */
+const VENDOR = 'DeepInfra'
 
 /**
  * Register the DeepInfra image and video provider on `ctx.media`.
@@ -121,43 +78,12 @@ export function apply(ctx: Context, config: Config): void {
   // schemastery (Config) has already filled every defaulted field.
   const { id, apiKeyEnv, maxVideoBytes } = config as ResolvedConfig
 
-  const resolveApiKey = async (): Promise<string> => {
-    const resolved = await ctx.get('credentials')?.resolve(credentialRef(apiKeyEnv))
-    const apiKey = resolved?.value ?? process.env[apiKeyEnv]
-    if (apiKey === undefined || apiKey === '') {
-      throw new MediaError(
-        `no credential resolved from ${apiKeyEnv} for media provider "${id}"`,
-        'MEDIA_PROVIDER_CONFIGURED_UNAVAILABLE',
-      )
-    }
-    return apiKey
-  }
-
-  const call = async (path: string, init: RequestInit, signal?: AbortSignal): Promise<Record<string, unknown>> => {
-    const apiKey = await resolveApiKey()
-    const response = await fetch(new URL(path, DEEPINFRA_ORIGIN), {
-      ...init,
-      headers: jsonHeaders(init.headers, apiKey),
-      redirect: 'error',
-      ...signal === undefined ? {} : { signal },
-    })
-    const text = await response.text()
-    if (!response.ok) {
-      throw new MediaError(
-        `DeepInfra request failed with HTTP ${String(response.status)}${text === '' ? '' : `: ${text}`}`,
-        'MEDIA_UPSTREAM',
-      )
-    }
-    try {
-      return JSON.parse(text) as Record<string, unknown>
-    } catch (cause) {
-      throw new MediaError('DeepInfra returned a non-JSON body', 'MEDIA_UPSTREAM', { cause })
-    }
-  }
+  const route = vendorRoute(ctx, { id, apiKeyEnv, origin: DEEPINFRA_ORIGIN, vendor: VENDOR })
+  const call = route.json
 
   const images: MediaImageProvider = {
     id,
-    available: () => process.env[apiKeyEnv] !== undefined || ctx.get('credentials') !== undefined,
+    available: route.available,
     async listImageModels(signal?: AbortSignal): Promise<readonly MediaImageModel[]> {
       // The same document lists chat, video, speech and embedding models; the
       // `text-to-image` tag is what marks the ones this route can generate.
@@ -212,11 +138,20 @@ export function apply(ctx: Context, config: Config): void {
     },
   }
 
-  const video: MediaVideoProvider = {
+  // The job body's own `data[].url` names whichever upstream vendor served the
+  // model, so every retrieval goes through DeepInfra's own content route.
+  const video = vendorVideoProvider({
     id,
-    available: () => process.env[apiKeyEnv] !== undefined || ctx.get('credentials') !== undefined,
-
-    async startVideo(request: MediaVideoRequest, signal?: AbortSignal): Promise<MediaVideoJob> {
+    vendor: VENDOR,
+    route,
+    routes: {
+      start: '/v1/videos',
+      status: jobId => `/v1/videos/${encodeURIComponent(jobId)}`,
+      content: jobId => `/v1/videos/${encodeURIComponent(jobId)}/content`,
+    },
+    maxBytes: maxVideoBytes,
+    statuses: STATUS,
+    requestBody: (request) => {
       const body: Record<string, unknown> = { model: request.model, prompt: request.prompt }
       if (request.duration !== undefined) body['seconds'] = request.duration
       if (request.aspectRatio !== undefined) body['aspect_ratio'] = request.aspectRatio
@@ -227,48 +162,9 @@ export function apply(ctx: Context, config: Config): void {
         // The route takes one first-frame image for image-to-video, as a data URI.
         body['image_url'] = `data:${first.mediaType};base64,${Buffer.from(first.data).toString('base64')}`
       }
-      return toJob(id, await call('/v1/videos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      }, signal))
+      return body
     },
-
-    async videoStatus(jobId: string, signal?: AbortSignal): Promise<MediaVideoJob> {
-      return toJob(id, await call(`/v1/videos/${encodeURIComponent(jobId)}`, { method: 'GET' }, signal))
-    },
-
-    async fetchVideo(jobId: string, signal?: AbortSignal): Promise<GeneratedMedia> {
-      const apiKey = await resolveApiKey()
-      // The content route proxies the bytes. The job body's own `data[].url`
-      // names whichever upstream vendor served the model, so retrieving through
-      // DeepInfra keeps egress on one pinnable origin.
-      const response = await fetch(
-        new URL(`/v1/videos/${encodeURIComponent(jobId)}/content`, DEEPINFRA_ORIGIN),
-        {
-          headers: { Authorization: `Bearer ${apiKey}` },
-          redirect: 'error',
-          ...signal === undefined ? {} : { signal },
-        },
-      )
-      if (!response.ok) {
-        throw new MediaError(
-          `DeepInfra video content failed with HTTP ${String(response.status)}`,
-          'MEDIA_UPSTREAM',
-        )
-      }
-      const declared = Number(response.headers.get('content-length'))
-      if (Number.isFinite(declared) && declared > maxVideoBytes) {
-        throw new MediaError(`video exceeds the ${String(maxVideoBytes)} byte ceiling`, 'MEDIA_UPSTREAM')
-      }
-      const data = new Uint8Array(await response.arrayBuffer())
-      if (data.byteLength > maxVideoBytes) {
-        throw new MediaError(`video exceeds the ${String(maxVideoBytes)} byte ceiling`, 'MEDIA_UPSTREAM')
-      }
-      const mediaType = response.headers.get('content-type')?.split(';', 1)[0]?.trim() ?? 'video/mp4'
-      return { mediaType, data }
-    },
-  }
+  })
 
   ctx.effect(() => ctx.media.registerImageProvider(images), 'media-deepinfra: image provider')
   ctx.effect(() => ctx.media.registerVideoProvider(video), 'media-deepinfra: video provider')

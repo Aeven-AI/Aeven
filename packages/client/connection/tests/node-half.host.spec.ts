@@ -85,6 +85,7 @@ async function mounted(config?: { trustedHosts?: string[] }): Promise<{
   routes: WebRoute[]
   upgrades: WebUpgradeRoute[]
   connection: HostConnectionHandle
+  ctx: Context
   dispose: () => Promise<void>
 }> {
   const ctx = new Context()
@@ -98,6 +99,7 @@ async function mounted(config?: { trustedHosts?: string[] }): Promise<{
     routes,
     upgrades,
     connection: ctx.get('connection') as HostConnectionHandle,
+    ctx,
     dispose: () => fiber.dispose(),
   }
 }
@@ -235,6 +237,46 @@ describe('connection node half', () => {
       host: 'harness.example',
       cookie: browserCookie(connection, 'harness.example'),
     }))).toBeUndefined()
+    await dispose()
+  })
+
+  it('defers to a mounted identity authority instead of the launch-token policy', async () => {
+    // With an authority enforcing, the reader signs in: the launch token grants
+    // nothing more, so it leaves the printed URL and stops gating the shell.
+    const { connection, ctx, dispose } = await mounted()
+    const authority: { user: unknown } = { user: undefined }
+    ctx.provide('identityUsers', {
+      enforcing: true,
+      resolve: () => authority.user,
+    } as never)
+
+    const loopback = fakeRequest({ host: '127.0.0.1:3080' })
+    // The authority answers no user, so the request is unauthenticated.
+    expect(connection.requestRejection(loopback)).toBe(401)
+    authority.user = { id: 'u1' }
+    expect(connection.requestRejection(loopback)).toBeUndefined()
+    // A rebound Host is refused before the authority is ever consulted.
+    expect(connection.requestRejection(fakeRequest({ host: 'evil.example' }))).toBe(403)
+
+    // A connection outliving its upgrade remembers whose it is, which is a
+    // different question from whether the request was fenced.
+    expect(connection.identify(loopback)).toEqual({ id: 'u1' })
+
+    // The shell is served to anyone: the sign-in screen is what gates it.
+    const index = fakeResponse()
+    expect(connection.authorizeIndex(fakeRequest({ host: '127.0.0.1:3080' }), index.response)).toBe(true)
+    expect(connection.authenticatedUrl('http://127.0.0.1:3080')).toBe('http://127.0.0.1:3080')
+    await dispose()
+  })
+
+  it('keeps the launch-token policy while the authority is mounted but not enforcing', async () => {
+    const { connection, ctx, dispose } = await mounted()
+    ctx.provide('identityUsers', { enforcing: false, resolve: () => ({ id: 'u1' }) } as never)
+
+    expect(connection.requestRejection(fakeRequest({ host: '127.0.0.1:3080' }))).toBe(401)
+    expect(connection.authenticatedUrl('http://127.0.0.1:3080')).not.toBe('http://127.0.0.1:3080')
+    // Identity is reported wherever the seam answers, enforcing or not.
+    expect(connection.identify(fakeRequest({ host: '127.0.0.1:3080' }))).toEqual({ id: 'u1' })
     await dispose()
   })
 

@@ -241,7 +241,7 @@ describe('optional request fields and edge shapes', () => {
     const runtime = await media()
     await expect(runtime.videoStatus({ provider: 'deepinfra', id: 'j', status: 'running' })).resolves.toMatchObject({
       status: 'failed',
-      error: 'status "cancelled"',
+      error: 'DeepInfra reported video status "cancelled"',
     })
   })
 

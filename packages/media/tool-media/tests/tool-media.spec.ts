@@ -93,6 +93,7 @@ async function mount(opts: {
           get: () => value,
           update: async (patch: object) => {
             entry.patches.push(patch)
+            // oxlint-disable-next-line typescript/no-misused-spread -- a settings document
             value = { ...value, ...patch }
           },
         }

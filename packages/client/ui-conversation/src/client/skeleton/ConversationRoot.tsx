@@ -152,19 +152,20 @@ export function ConversationRoot({
   const [pendingWorkspaceId, setPendingWorkspaceId] = useState<WorkspaceId | undefined>()
   const pickerAnchor = useRef<HTMLButtonElement>(null)
 
-  // Publishes the two live measurements floating View chrome reads off the
-  // scroll body: the seat's height as --dsh-composer-height, so controls clear
-  // the composer as it grows, and the scrollport's own height as
-  // --dsh-conversation-viewport-height, so a control can sit in the band the
-  // seat leaves visible. Callback ref, not an effect; stable identity prevents
-  // observer churn while the first blank session fills the resident body
-  // outlet.
+  // Publishes the seat's height as --dsh-composer-height for the one consumer
+  // layout cannot serve: a View that elects a composer overlay keeps the card
+  // floating over its own ledger, so its content needs bottom clearance equal
+  // to a sibling's height. Chat needs nothing published — its floating chrome
+  // lives in a layer bounded to the scrollport, so clearing the composer is
+  // where that layer ends. Callback ref, not an effect; stable identity
+  // prevents observer churn while the first blank session fills the resident
+  // body outlet.
   const seatObserver = useRef<ResizeObserver | null>(null)
   const seatResizeRef = useCallback((seat: HTMLDivElement | null): void => {
     seatObserver.current?.disconnect()
     seatObserver.current = null
-    const scroller = seat?.parentElement ?? null
-    if (seat === null || scroller === null) return
+    const body = seat?.parentElement ?? null
+    if (seat === null || body === null) return
     // HEIGHT ONLY. Both published values are heights, and reading one here
     // forces a synchronous layout of the whole transcript before the write
     // invalidates it again. Width changes on both observed boxes for every
@@ -175,16 +176,9 @@ export function ConversationRoot({
     // composer's height (a rewrapped draft) still reports the new height, so
     // nothing is missed by ignoring width.
     const publishedHeights = new Map<Element, number>()
+    // One write on the seat's own parent, which every View inherits from.
     const publish = (): void => {
-      const height = `${seat.offsetHeight}px`
-      scroller.style.setProperty('--dsh-composer-height', height)
-      // Overlay is a sibling of the scroll body; it cannot inherit a property
-      // set only on the scroller.
-      scroller.parentElement?.style.setProperty('--dsh-composer-height', height)
-      scroller.style.setProperty(
-        '--dsh-conversation-viewport-height',
-        `${scroller.clientHeight}px`,
-      )
+      body.style.setProperty('--dsh-composer-height', `${seat.offsetHeight}px`)
     }
     seatObserver.current = new ResizeObserver((entries) => {
       let heightChanged = false
@@ -197,8 +191,9 @@ export function ConversationRoot({
       if (!heightChanged) return
       publish()
     })
+    // The seat alone: the scrollport was observed to publish its height, and
+    // nothing reads that any more.
     seatObserver.current.observe(seat)
-    seatObserver.current.observe(scroller)
     publish()
   }, [])
 
@@ -254,12 +249,20 @@ export function ConversationRoot({
     workspace => workspace.workspaceId === pendingWorkspaceId,
   )
 
-  // Clear the pending pick once the session lands in it, or when the picked
-  // workspace disappears from a ready list (deleted from the sidebar).
+  // Close the picker when the reader moves to a different Session. Adoption —
+  // the first Session arriving under a shell that had none — is not such a
+  // move: the boot-time Workspace connect lands while the Hero is on screen,
+  // and closing on it would snap shut a menu the reader had just opened.
+  const previousSessionId = useRef(sessionId)
   useEffect(() => {
+    const previous = previousSessionId.current
+    previousSessionId.current = sessionId
+    if (previous === undefined) return
     setPickerOpen(false)
   }, [sessionId])
 
+  // Clear the pending pick once the session lands in it, or when the picked
+  // workspace disappears from a ready list (deleted from the sidebar).
   useEffect(() => {
     if (pendingWorkspaceId === undefined) return
     if (sessionWorkspace?.workspaceId === pendingWorkspaceId
@@ -282,7 +285,7 @@ export function ConversationRoot({
   const settling = (sessionId === undefined && sessionsPending) || parentAvailabilityPending
   const hero = sessionId === undefined
     || (summaryBlank === true && session?.promptAttempted !== true)
-    || (summaryBlank === undefined && session?.blank === true && session.promptAttempted !== true
+    || (summaryBlank === undefined && session?.blank === true && !session.promptAttempted
       && (openState === 'open' || openState === 'error' || openState === 'cold'))
   const zone: InputZone | undefined =
     session === undefined || inputState === undefined ? undefined : { session, input: inputState }
@@ -406,27 +409,26 @@ export function ConversationRoot({
           active={loaderActive}
           label={t('content.loading')}
         />
-        <div className={css.scrollBody} data-conversation-scroll="">
-          {/* This hold keeps the scrollport's growing item present while
-              conversation.session is dropped so the overlay can present. */}
-          {mountedSessionId === undefined
-            ? (phase === 'active'
-              ? <div className={css.transcriptHold} data-transcript-hold="" aria-hidden="true" />
-              : null)
-            : renderSlot('conversation.session', {})}
+        <div className={css.scrollArea}>
+          <div className={css.scrollBody} data-conversation-scroll="">
+            {/* This hold keeps the scrollport's growing item present while
+                conversation.session is dropped so the overlay can present. */}
+            {mountedSessionId === undefined
+              ? (phase === 'active'
+                ? <div className={css.transcriptHold} data-transcript-hold="" aria-hidden="true" />
+                : null)
+              : renderSlot('conversation.session', {})}
+          </div>
+          {/* Bounded to the scrollport by its wrapper, so a control that clears
+              the composer only has to sit at this layer's floor: the layer ends
+              where the composer begins, and follows a growing draft for free. */}
+          <div className={css.viewChrome} data-conversation-chrome="" />
         </div>
         {/* Outside the scrollport, like the header: a seat inside it is
             carried by elastic overscroll, so the input card visibly rides the
             rubber-band at either end. As a flex sibling of the scrollport it
             docks at the body's floor and no scroll gesture can move it. */}
         {composerSeat}
-        {/* Overlay chrome for the mounted view (transcript rails, paging
-            progress, back-to-bottom). A control that floats over the
-            transcript must be positioned against this non-scrolling box:
-            sticky inside the scrollport rides the elastic overscroll exactly
-            as the composer seat used to. Views reach it by
-            `[data-conversation-chrome]` and portal into it. */}
-        <div className={css.viewChrome} data-conversation-chrome="" />
         {/* Width handles only while a transcript is on screen; the hero has no
             content column to size. */}
         {phase === 'active' && (['left', 'right'] as const).map(side => (

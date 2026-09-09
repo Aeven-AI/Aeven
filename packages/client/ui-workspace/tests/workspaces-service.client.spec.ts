@@ -309,6 +309,51 @@ describe('UiWorkspaceService', () => {
     expect(routed.sessions.open).toHaveBeenCalledTimes(3)
   })
 
+  it('leaves the selection alone when the opening address already names it', () => {
+    // Reconciling the first address must not re-open the Session the shell
+    // already restored: that would push a second history entry for it.
+    const first = summary('first')
+    const b = bench({
+      sessions: sessionState([first], first.id),
+      workspaces: workspaceState([workspace('one', [first.id])]),
+      sessionUrl: new FakeSessionUrl(first.id),
+    })
+    expect(b.sessions.open).not.toHaveBeenCalled()
+    expect(b.sessionUrl.pushes).toEqual([])
+  })
+
+  it('ignores Back and Forward before the shell settles, while the list reloads, and on the current Session', () => {
+    const first = summary('first')
+    const url = new FakeSessionUrl(first.id)
+    const b = bench({
+      sessions: sessionState([first], first.id, 'pending'),
+      workspaces: workspaceState([workspace('one', [first.id])], [], 'pending'),
+      sessionUrl: url,
+    })
+
+    // Before the first lists arrive there is no selection to reconcile a
+    // history entry against; the address is answered once they do.
+    url.navigate(sid('early'))
+    expect(b.sessions.open).not.toHaveBeenCalled()
+    expect(b.sessions.clear).not.toHaveBeenCalled()
+
+    b.workspaces.list.set(workspaceState([workspace('one', [first.id])]))
+    b.sessions.list.set(sessionState([first], first.id))
+    b.sessions.open.mockClear()
+
+    // A history entry naming the Session already selected asks for no move.
+    url.navigate(first.id)
+    expect(b.sessions.open).not.toHaveBeenCalled()
+    expect(b.sessions.clear).not.toHaveBeenCalled()
+
+    // A reloading list cannot say whether the requested Session exists, so the
+    // address is left alone until it settles again.
+    b.sessions.list.set(sessionState([first], first.id, 'pending'))
+    url.navigate(sid('while-pending'))
+    expect(b.sessions.open).not.toHaveBeenCalled()
+    expect(b.sessions.clear).not.toHaveBeenCalled()
+  })
+
   it('replaces the initial entry before pushing later Session changes', () => {
     const first = summary('first')
     const second = summary('second')
@@ -469,6 +514,26 @@ describe('UiWorkspaceService', () => {
     await flush()
     expect(changed.sessions.open).toHaveBeenCalledTimes(1)
     expect(changed.sessions.open).toHaveBeenCalledWith(sid('manual'))
+  })
+
+  it('abandons the retry once a Session is selected by other means', async () => {
+    // A failed connect returns initial navigation to waiting. If a Session is
+    // selected before the next reconcile, that selection is the shell's
+    // starting point and nothing may connect a Workspace over it.
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const b = bench()
+    b.sessions.create.mockRejectedValue(new Error('attach exploded'))
+    b.workspaces.list.set(workspaceState([workspace('recent')]))
+    b.sessions.list.set(sessionState())
+    await vi.waitFor(() => {
+      expect(warning).toHaveBeenCalledWith('initial workspace selection failed:', expect.any(Error))
+    })
+    expect(b.sessions.create).toHaveBeenCalledOnce()
+
+    const selected = summary('selected')
+    b.sessions.list.set(sessionState([selected], selected.id))
+    await flush()
+    expect(b.sessions.create).toHaveBeenCalledOnce()
   })
 
   it('stops initial navigation when its Cordis lifetime is disposed', async () => {
@@ -667,6 +732,25 @@ describe('UiWorkspaceService.whenInitialDataReady', () => {
 
     b.sessions.face(created).setOpenState('open')
     await wait.ready
+  })
+
+  it('settles once, so a later disposal neither re-resolves nor unsubscribes twice', async () => {
+    // Readiness and Cordis disposal both run the same settle. The second one
+    // has to be inert: it would otherwise call disposers already run.
+    const first = summary('first')
+    const b = bench({
+      sessions: sessionState([first], first.id, 'pending'),
+      workspaces: workspaceState([workspace('one', [first.id])], [], 'pending'),
+    })
+    b.sessions.face(first.id, 'loading')
+    const wait = await pendingFlag(b.uiWorkspace.whenInitialDataReady())
+    b.workspaces.list.set(workspaceState([workspace('one', [first.id])]))
+    b.sessions.list.set(sessionState([first], first.id))
+    b.sessions.face(first.id).setOpenState('open')
+    await wait.ready
+
+    await b.ctx.fiber.dispose()
+    await expect(b.uiWorkspace.whenInitialDataReady()).resolves.toBeUndefined()
   })
 
   it('resolves when its Cordis lifetime is disposed', async () => {

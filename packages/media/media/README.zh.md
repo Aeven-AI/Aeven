@@ -59,6 +59,8 @@ seam 拥有选择、词汇与任务约定；provider 拥有协议与凭据。图
 
 - `src/types.ts`——请求、结果、任务与 provider 词汇，以及 `MediaError`。
 - `src/index.ts`——`MediaRuntime` 服务：注册表、选择与任务路由。
+- `src/bytes.ts`——为生成的图像字节打上媒体类型标签的签名嗅探。
+- `src/vendor-route.ts`——厂商适配器共享的管道：凭据解析、对同一固定 origin 的 JSON 调用与字节取回、作业体翻译，以及由厂商的路径与请求体组装出的视频 provider。
 
 <a id="model-experience"></a>
 ## 模型体验

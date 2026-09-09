@@ -1,15 +1,11 @@
 /** Content-column history overlay: appear immediately, fade out. */
 import { useEffect, useState } from 'react'
 import clsx from 'clsx'
+import { Spinner } from '@deepseek-ai/dsh-client-ui-primitives'
 import css from './ConversationRoot.module.css'
 
 /** Fade duration shared with `.contentLoaderHide`. */
 const FADE_MS = 400
-
-/** Aeven content-loader spinner. */
-const SPINNER_SVG = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">'
-  + '<path d="M16 16L19 19M18 12H22M8 8L5 5M16 8L19 5M8 16L5 19M2 12H6M12 2V6M12 18V22"'
-  + ' stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>'
 
 /**
  * Overlay the transcript until its Session view has painted. Header and
@@ -54,11 +50,7 @@ export function ContentLoader({ active, label }: { active: boolean; label: strin
       aria-live="polite"
       aria-label={label}
     >
-      <div
-        className={css.contentLoaderSpinner}
-        aria-hidden="true"
-        dangerouslySetInnerHTML={{ __html: SPINNER_SVG }}
-      />
+      <Spinner className={css.contentLoaderSpinner} />
       <div className={css.contentLoaderBackground} aria-hidden="true" />
     </div>
   )

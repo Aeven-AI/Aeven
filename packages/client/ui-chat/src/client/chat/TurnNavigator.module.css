@@ -3,40 +3,31 @@
    without extending scrollHeight, and no scroll gesture — an elastic
    overscroll included — can move it. */
 .slot {
+  /* Spans the chrome layer rather than collapsing to zero height: the rail's
+     band is a percentage of this box, and a zero-height slot made it zero.
+     Nothing here is in the transcript's flow, so height costs no scrollHeight. */
   position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
+  inset: 0;
   /* Above transcript CodeBlock banners (z-index 6). The rail band excludes
      the composer, so its preview never needs to cross the footer. */
   z-index: 7;
-  height: 0;
   pointer-events: none;
 }
 
 .frame {
-  /* The band a reader actually sees: the scrollport minus the sticky composer
-     stack covering its floor. ConversationRoot publishes both measurements on
-     the scrollport; the fallbacks carry the first paint before its observer
-     fires. */
-  --turn-rail-band: calc(
-    var(--dsh-conversation-viewport-height, 100dvh) - var(--dsh-composer-height, 152px)
-  );
+  /* The band a reader actually sees IS the host chrome layer: it is bounded to
+     the scrollport and ends where the composer begins, so the band needs no
+     measurement and no first-paint fallback. */
+  --turn-rail-band: 100%;
   --turn-preview-height: 100px;
 
-  /* Fixed, not absolute: every scrolled ancestor is translated by an elastic
-     overscroll, so anything positioned inside one rides the rubber-band. The
-     viewport is the only box that never moves — the same reason the Session
-     header holds still. */
-  position: fixed;
+  /* Absolute inside the host chrome layer, which is a sibling of the
+     scrollport rather than content inside it: an elastic overscroll translates
+     the scroller's contents, never this box. The layer already carries the
+     transcript's side inset, so the rail keeps 12px of its own. */
+  position: absolute;
   top: calc(var(--turn-rail-band) / 2);
-  /* Measured from the viewport's right edge, so it gives back whatever sits
-     right of the conversation column: the details column (AppFrame publishes
-     its live width) and the scrollport's reserved scrollbar gutter, then keeps
-     12px of its own. */
-  right: calc(
-    12px + var(--dsh-frame-details-width, 0px) + var(--dsh-scrollbar-width, 0px)
-  );
+  right: 12px;
   width: 28px;
   /* Fixed-pitch marks never compress: a ladder taller than the band scrolls
      inside this frame instead of pushing marks under the composer or above

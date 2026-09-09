@@ -22,6 +22,10 @@ import type {
 import { MediaError } from './types.ts'
 
 export { imageMediaType } from './bytes.ts'
+export { vendorJob, vendorRoute, vendorVideoProvider } from './vendor-route.ts'
+export type {
+  VendorJobBody, VendorRoute, VendorRouteConfig, VendorVideoRoutes,
+} from './vendor-route.ts'
 export { MediaError } from './types.ts'
 export type {
   GeneratedImage,
@@ -157,6 +161,12 @@ export class MediaRuntime extends Service {
     return listed
   }
 
+  /**
+   * Generate one image through the selected image provider.
+   * @param request - the prompt, model, and generation controls; its `provider` names the route to use instead of the configured default.
+   * @param signal - cancellation forwarded to the provider.
+   * @returns the generated image.
+   */
   async generateImage(request: MediaImageRequest, signal?: AbortSignal): Promise<MediaImageResult> {
     const provider = resolveProvider({
       providers: this.imageProviders,

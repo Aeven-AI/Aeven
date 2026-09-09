@@ -7,7 +7,7 @@ import type {
   ConversationTimelineSnapshot, RenderMessageImages,
 } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SessionSeq } from '@deepseek-ai/dsh-session/types'
-import { Button, IconChevronDownOutline14, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconChevronDownOutline14, Modal, Spinner } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
 import type { ChatSnapshot } from '../contract/snapshot.ts'
 import { PendingSteeringBubble, PendingSubmissionBubble } from './MessageItem.tsx'
@@ -1045,19 +1045,29 @@ export function ChatView({
           latched stall puts the manual control back. Overlaying keeps every
           appearance and disappearance off the transcript's geometry. */}
       {hasMore && (
-        <div className={css.olderSlot} data-earlier-history={autoPageStalled ? 'stalled' : 'loading'}>
+        <div
+          className={css.olderSlot}
+          data-earlier-history={autoPageStalled ? 'stalled' : loadingOlder ? 'loading' : 'idle'}
+        >
+          {/* Empty while idle. The slot marks that history remains — it is the
+              boundary the browser contract reads — but a spinner belongs to a
+              request in flight, not to the mere existence of older pages: this
+              floats over the scrollport now, so anything drawn here is on
+              screen the whole time rather than only at the head. */}
           {autoPageStalled
             ? (
               <button type="button" className={css.olderRetry} onClick={loadOlderAnchored}>
                 {t('chat.loadOlder')}
               </button>
             )
-            : (
-              <span className={css.olderProgress} role="status" aria-live="polite">
-                <span className={css.olderSpinner} aria-hidden="true" />
-                <span className={a11yCss.visuallyHidden}>{t('chat.loadingOlder')}</span>
-              </span>
-            )}
+            : loadingOlder
+              ? (
+                <span className={css.olderProgress} role="status" aria-live="polite">
+                  <Spinner />
+                  <span className={a11yCss.visuallyHidden}>{t('chat.loadingOlder')}</span>
+                </span>
+              )
+              : null}
         </div>
       )}
       {!atBottom && (

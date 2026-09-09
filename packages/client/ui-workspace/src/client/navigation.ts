@@ -182,7 +182,11 @@ class UiWorkspaceService extends Service implements UiWorkspace {
         return
       }
       let settled = false
+      // Placeholders: both are replaced with the real disposers before anything
+      // can settle this wait, so neither empty body is ever the one that runs.
+      /* v8 ignore next -- replaced before this wait can settle */
       let unsubWorkspaces = (): void => {}
+      /* v8 ignore next -- replaced before this wait can settle */
       let unsubSessions = (): void => {}
       const finish = (): void => {
         if (settled) return
@@ -272,6 +276,9 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       }
 
       if (this.initialNav !== 'waiting') return
+      /* v8 ignore next 4 -- guard only: every branch above that sets
+       * `urlInitialized` also marks navigation done, and a done navigation
+       * returns on the line before, so a selection is already settled here. */
       if (sessions.current !== undefined) {
         this.markInitialNav('done')
         return

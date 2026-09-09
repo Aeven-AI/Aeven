@@ -19,10 +19,13 @@ function declarations(selector: string): string[] {
 }
 
 describe('DisclosureRow.module.css font-size axis', () => {
-  it('sizes the title from the secondary content tier on the shared row line', () => {
+  it('sizes the title from the primary content tier on the shared row line', () => {
+    // Flow-row titles read at the same size as the conversation body: a tool
+    // call or think step is content the reader follows, not chrome, so the
+    // secondary tier left it a step smaller than the prose around it.
     expect(declarations('.title')).toEqual(expect.arrayContaining([
-      'font-size: var(--dsh-content-font-size-secondary, 13px)',
-      'line-height: calc(24px + var(--dsh-content-font-delta, 0px))',
+      'font-size: var(--dsh-content-font-size, 16px)',
+      'line-height: calc(28px + var(--dsh-content-font-delta, 0px))',
     ]))
   })
 

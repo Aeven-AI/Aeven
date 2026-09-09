@@ -155,10 +155,13 @@ export class AppWebEntry {
    * @param ctx - Boot context after plugin activation.
    */
   private async awaitInitialShellData(ctx: Context): Promise<void> {
-    const workspace = ctx.get('uiWorkspace' as never) as {
-      whenInitialDataReady?: () => Promise<void>
-    } | undefined
-    await workspace?.whenInitialDataReady?.()
+    // Read structurally through a locally typed view of `get`: this package
+    // declares no dependencies, so the providing plugin's Context declaration
+    // is not in scope to key the lookup by name.
+    const source = ctx as unknown as {
+      get(name: 'uiWorkspace'): { whenInitialDataReady?: () => Promise<void> } | undefined
+    }
+    await source.get('uiWorkspace')?.whenInitialDataReady?.()
     await afterPaint()
   }
 

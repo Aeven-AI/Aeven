@@ -99,7 +99,11 @@ export const Config: z<Config> = z.object({
   modelChosen: z.boolean().default(false),
 })
 
-/** The menu label for one choice. */
+/**
+ * The menu label for one choice.
+ * @param choice - the configured provider/model pair.
+ * @returns its label, or the `provider/model` pair when it states none.
+ */
 export function choiceLabel(choice: ImageModelChoice): string {
   return choice.label ?? `${choice.provider}/${choice.model}`
 }
@@ -324,7 +328,7 @@ export function apply(ctx: Context, config: Config): void {
    * @returns the config request resolution should use for this call.
    */
   const pickFromCatalog = async (
-    questions: NonNullable<ReturnType<Context['get']>> & { ask: (request: AskUserQuestionRequest) => Promise<{ answers: readonly { selected: readonly string[] }[] }> },
+    questions: Context['userQuestions'],
     settings: Config,
     prompt: string,
     exec: Pick<ToolRunContext, 'agent' | 'signal'>,
@@ -335,6 +339,10 @@ export function apply(ctx: Context, config: Config): void {
     const picked = choiceFor(catalog, answer.answers[0]?.selected[0])
     if (picked === undefined) return settings
     await remember({ provider: picked.provider, model: picked.model })
+    // `Config` names both the settings interface and the plugin schema, a
+    // Schemastery instance. What is spread is the resolved settings document,
+    // which is a plain object.
+    // oxlint-disable-next-line typescript/no-misused-spread -- a settings document, not the schema
     return { ...settings, provider: picked.provider, model: picked.model }
   }
 
@@ -380,6 +388,10 @@ export function apply(ctx: Context, config: Config): void {
     // the next generation asks again.
     if (picked === undefined) return settings
     await remember({ provider: picked.provider, model: picked.model })
+    // `Config` names both the settings interface and the plugin schema, a
+    // Schemastery instance. What is spread is the resolved settings document,
+    // which is a plain object.
+    // oxlint-disable-next-line typescript/no-misused-spread -- a settings document, not the schema
     return { ...settings, provider: picked.provider, model: picked.model }
   }
 

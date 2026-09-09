@@ -389,11 +389,31 @@
   min-height: 0;
 }
 
-/* Positioning context for view-owned floating controls, spanning the body so a
-   control can sit against the transcript's edges or over the composer. Inert
-   itself; each portaled control opts back into pointer input. The scrollport's
-   reserved gutter is given back here for the same reason the composer seat
-   gives it back: both must centre on the transcript's axis. */
+/* Wraps the scrollport so the chrome layer can be bounded to exactly the band
+   the reader sees. That boundary replaces a published composer height: a
+   control clearing the composer just sits at this box's floor.
+
+   The z-index makes this one stacking context over everything the content
+   cover hides — transcript rows, CodeBlock sticky banners (6), and the view's
+   own floating chrome — so the cover clears all of them with a single level
+   instead of having to out-rank each. Capping the group at 5 is what leaves
+   room for the cover at 6 and still keeps the whole group under the composer
+   seat (7). Nothing in here needs to paint over the seat: the layer ends where
+   the composer begins. */
+.scrollArea {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Positioning context for view-owned floating controls, spanning the
+   scrollport and nothing else. Inert itself; each portaled control opts back
+   into pointer input. The scrollport's reserved gutter is given back here for
+   the same reason the composer seat gives it back: both must centre on the
+   transcript's axis. */
 .viewChrome {
   position: absolute;
   inset: 0;
@@ -410,14 +430,20 @@
 /* Aeven `#loader` fills the center column from the viewport's first vertical
    pixel. `100cqi` follows that column's CSS layout while the sidebar slides;
    the inherited details width anchors the fixed layer at the column's right
-   edge. No measured geometry or JS resize loop is involved. */
+   edge. No measured geometry or JS resize loop is involved.
+
+   Stacked BELOW the composer seat (7) and above `.scrollArea` (5), the one
+   stacking context holding everything this covers: the seat stays mounted
+   across a Session switch, so a cover painted over it made the resident input
+   card blink out and back and read as a remount. The cover still spans the
+   full column height — it just passes behind the input. */
 .contentLoader {
   position: fixed;
   top: 0;
   right: var(--dsh-frame-details-width, 0px);
   bottom: 0;
   width: 100cqi;
-  z-index: 20;
+  z-index: 6;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -430,18 +456,12 @@
   transition: opacity 400ms linear;
 }
 
-.contentLoaderSpinner,
-.contentLoaderSpinner svg {
-  display: block;
+/* Size, rotation and reduced-motion come from the shared Spinner primitive;
+   this only lifts it above the overlay's background plate. */
+.contentLoaderSpinner {
   position: relative;
   z-index: 1;
-  width: 20px;
-  height: 20px;
-}
-
-.contentLoaderSpinner {
   color: var(--dsw-alias-label-primary);
-  animation: 900ms linear 0s infinite normal none running dsh-content-loader-spin;
 }
 
 .contentLoaderBackground {
@@ -450,16 +470,7 @@
   background-color: var(--dsw-alias-bg-base);
 }
 
-@keyframes dsh-content-loader-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .contentLoaderSpinner {
-    animation: none;
-  }
-
   .contentLoaderHide {
     transition: none;
   }

@@ -129,6 +129,8 @@ describe('the endpoints the Host states in the page', () => {
       xOAuthUrl: 'https://x.test/o',
       appleOAuthUrl: 'https://apple.test/o',
       googleOAuthUrl: 'https://google.test/o',
+      webUrl: 'https://web.test',
+      mediaUrl: 'https://media.test',
     }))
 
     const table: IndexInjection[] = []
@@ -141,6 +143,8 @@ describe('the endpoints the Host states in the page', () => {
         xOAuthUrl: 'https://x.test/o',
         appleOAuthUrl: 'https://apple.test/o',
         googleOAuthUrl: 'https://google.test/o',
+        webUrl: 'https://web.test',
+        mediaUrl: 'https://media.test',
       },
     }])
   })

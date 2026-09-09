@@ -70,10 +70,22 @@ registerImageProvider(provider: MediaImageProvider): () => void
 registerVideoProvider(provider: MediaVideoProvider): () => void
 
 /**
- * Generate images through the selected provider.
- * @param request - the prompt, model, and generation controls.
+ * Every image model the registered providers serve, in registration order.
+ *
+ * A provider that publishes no catalog contributes nothing, and one whose
+ * catalog call fails is skipped rather than failing the whole listing: a
+ * menu built from three providers is more useful than an error because one
+ * route was unreachable.
+ * @param signal - cancellation forwarded to every provider.
+ * @returns the models, grouped by provider in registration order.
+ */
+async listImageModels(signal?: AbortSignal): Promise<readonly MediaImageModel[]>
+
+/**
+ * Generate one image through the selected image provider.
+ * @param request - the prompt, model, and generation controls; its `provider` names the route to use instead of the configured default.
  * @param signal - cancellation forwarded to the provider.
- * @returns the generated images and the provider that made them.
+ * @returns the generated image.
  */
 async generateImage(request: MediaImageRequest, signal?: AbortSignal): Promise<MediaImageResult>
 

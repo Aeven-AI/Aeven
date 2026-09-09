@@ -1,13 +1,18 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { DEFAULT_FONT_SIZE } from '@deepseek-ai/dsh-client-ui-theme/src/theme-settings.ts'
 import type { ThemeSnapshot } from '@deepseek-ai/dsh-client-ui-theme/client'
 import { DARK_ATTRIBUTE, ThemePresenter } from '@deepseek-ai/dsh-client-ui-layout/src/client/theme-presenter.ts'
 
 const LIGHT_THEME_COLOR = 'rgb(255, 255, 255)'
 const DARK_THEME_COLOR = 'rgb(21, 21, 23)'
 
-function snapshot(colorScheme: 'light' | 'dark', tokens: Record<string, string> = {}, fontSize = 14): ThemeSnapshot {
+function snapshot(
+  colorScheme: 'light' | 'dark',
+  tokens: Record<string, string> = {},
+  fontSize = DEFAULT_FONT_SIZE,
+): ThemeSnapshot {
   // The presenter must key off colorScheme, not the id — keep them distinct.
   const active = { id: `${colorScheme}-test`, colorScheme, tokens }
   return { preference: colorScheme, fontSize, active, themes: [active], revision: 1 }
@@ -75,7 +80,8 @@ describe('ThemePresenter', () => {
   it('publishes the content font size and follows changes', () => {
     const presenter = new ThemePresenter()
     presenter.apply(snapshot('light'))
-    expect(document.body.style.getPropertyValue('--dsh-content-font-size')).toBe('16px')
+    expect(document.body.style.getPropertyValue('--dsh-content-font-size'))
+      .toBe(`${String(DEFAULT_FONT_SIZE)}px`)
     presenter.apply(snapshot('light', {}, 17))
     expect(document.body.style.getPropertyValue('--dsh-content-font-size')).toBe('17px')
   })

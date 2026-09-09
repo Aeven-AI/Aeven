@@ -2676,8 +2676,18 @@ describe('ChatView', () => {
     // Nothing to scroll and history remains: the reader has no gesture
     // available, so the open itself pulls.
     expect(h.loadOlder).toHaveBeenCalledTimes(1)
-    expect(view.getByText('正在加载更早的消息…')).toBeTruthy()
+    // The boundary marks that history remains, but draws nothing until a pull
+    // is actually in flight: it floats over the scrollport, so a spinner tied
+    // to `hasMore` alone would be on screen for the whole session.
+    const boundary = view.container.querySelector('[data-earlier-history]')
+    expect(boundary?.getAttribute('data-earlier-history')).toBe('idle')
+    expect(view.queryByText('正在加载更早的消息…')).toBeNull()
     expect(view.queryByText('加载更早')).toBeNull()
+
+    act(() => { h.setSession({ loadingOlder: true }) })
+    expect(view.container.querySelector('[data-earlier-history]')?.getAttribute('data-earlier-history'))
+      .toBe('loading')
+    expect(view.getByText('正在加载更早的消息…')).toBeTruthy()
   })
 
   it('pulls once the reader reaches the prefetch margin and not before', () => {
@@ -2712,6 +2722,8 @@ describe('ChatView', () => {
     act(() => { h.setSession({ loadingOlder: true }) })
     act(() => { h.setSession({ loadingOlder: false }) })
     expect(view.getByText('加载更早')).toBeTruthy()
+    expect(view.container.querySelector('[data-earlier-history]')?.getAttribute('data-earlier-history'))
+      .toBe('stalled')
     expect(view.queryByText('正在加载更早的消息…')).toBeNull()
 
     // Scrolling no longer retries; only the reader's click does, and it
@@ -2723,7 +2735,7 @@ describe('ChatView', () => {
     expect(h.loadOlder).toHaveBeenCalledTimes(1)
     fireEvent.click(view.getByText('加载更早'))
     expect(h.loadOlder).toHaveBeenCalledTimes(2)
-    expect(view.getByText('正在加载更早的消息…')).toBeTruthy()
+    expect(view.queryByText('加载更早')).toBeNull()
   })
 
   it('chains to the next page while the reader stays inside the margin', () => {

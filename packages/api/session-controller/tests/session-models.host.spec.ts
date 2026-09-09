@@ -347,6 +347,25 @@ describe('Web session model selection', () => {
     expect(readImage).toHaveBeenCalledOnce()
     await ctx.fiber.dispose()
   })
+  it('serves the image-model catalog a generation selector reads', async () => {
+    // The media seam is optional, so the controller reports an empty catalog
+    // for a profile without it rather than failing the selector's request.
+    const { ctx } = await harness()
+    const remote = createSessionTestRemote(ctx, {
+      defaultModelSelection: () => ({ provider: 'deepseek-official', model: 'deepseek-chat' }),
+      cwd: '/tmp',
+    })
+    expect(expectValue(await remote.imageModelCatalog())).toEqual({ models: [] })
+
+    ctx.provide('media', {
+      listImageModels: async () => [{ provider: 'alpha', id: 'a-1', label: 'Alpha One' }],
+    } as never)
+    expect(expectValue(await remote.imageModelCatalog()).models).toEqual([
+      { provider: 'alpha', id: 'a-1', label: 'Alpha One' },
+    ])
+    await ctx.fiber.dispose()
+  })
+
   it('groups successful providers and leaves an unlisted current selection out of the catalog', async () => {
     const { ctx, sessionId } = await harness({
       provider: 'deepseek-official',
