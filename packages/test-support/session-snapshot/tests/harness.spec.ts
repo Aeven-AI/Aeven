@@ -66,8 +66,10 @@ async function scenario(behavior: object): Promise<{ dir: string; fixtureFile: s
 }
 
 const boot: InputStep[] = [{ op: 'initialize' }, { op: 'newSession' }]
-// A Windows coverage shard can spend more than 20ms harvesting logs before vi.waitFor records the diagnostic error.
-const titleDiagnosticTimeoutMs = process.platform === 'win32' ? 5_000 : 20
+// The wait below can never observe a title after the boundary, and the harness
+// reports its own diagnostic whenever a wait expires, so a 20ms budget is enough
+// on every platform: no poll needs to land inside it to produce the message.
+const titleDiagnosticTimeoutMs = 20
 
 it('keeps scenario-owned snapshot spill root length stable across platforms', () => {
   const fixtureFile = '/fixtures/scenario/session.jsonl'

@@ -9,6 +9,7 @@
   - button "Session log":
     - text: Session log
     - img
+- status "Loading content"
 - button "System prompt":
   - img
   - img
