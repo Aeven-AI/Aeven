@@ -32,7 +32,13 @@ Media generation is not a deployment choice. Image generation, image edits, and 
 
 Tool advertisement is gated on credential readiness rather than on a setting. A tool whose backend holds no usable credential is withdrawn, not offered and failed — a refusal the model can only discover by spending a turn. Readiness is a cached view refreshed on sign-in, sign-out, and credential change, published through the existing `CapabilityRuntimeState.refresh()`.
 
-Quota reporting is one projection over three unrelated vendor payloads: remaining percent per window and epoch-second resets, whatever each vendor reports. A refusal is cached far longer than a reading, because only a sign-in change can alter it.
+Quota reporting is one projection over three unrelated vendor payloads: remaining percent per window and epoch-second resets, whatever each vendor reports. A refusal is cached far longer than a reading, because only a sign-in change can alter it. A signed-in provider card discloses that reading from its header, as a Plugins card discloses its settings.
+
+The OAuth adapter registers the route list this package owns — `grok-build`, `codex-oauth`, `claude-code-oauth` — rather than core's `CODING_OAUTH_ROUTES`, which also names `kimi-code-oauth`. `llm.registerAdapter` validates the whole set before committing any route, so one route the adapter cannot describe leaves every subscription route unregistered; `tests/llm-registration.spec.ts` boots the plugin against the real LLM registry to hold this.
+
+A Claude plan that serves a model only against usage credits answers HTTP 429 `rate_limit_error` with `error.details.error_code: "credits_required"`. The alias adapter maps that refusal to `QUOTA`, which the route retry policy excludes, and replaces the JSON body with a message naming the model: buying credits is an account action that no retry can perform.
+
+Claude has no device flow, so a pending Claude browser sign-in also accepts the pasted address of the provider's final page, for a browser that cannot reach the Host's loopback callback. Codex and Grok cover that case with their device flows and show no paste field.
 
 ## Consequences
 
