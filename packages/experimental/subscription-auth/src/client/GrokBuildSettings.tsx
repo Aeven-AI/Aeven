@@ -5,6 +5,7 @@ import { jsonRequest } from './api.ts'
 import { AccountsTab } from './components/AccountsTab.tsx'
 import {
   LOGIN_CANCEL_PATH,
+  LOGIN_CODE_PATH,
   LOGIN_PATH,
   LOGOUT_PATH,
   POLL_INTERVAL_MS,
@@ -194,6 +195,24 @@ export function GrokBuildSettings({ t }: GrokBuildSettingsProps) {
   }
 
 
+  /**
+   * Finish a pending browser sign-in with the redirect URL or code the user
+   * pasted. The Host exchanges it in the background, so the status poll
+   * reports the signed-in state once the exchange lands.
+   */
+  const submitRedirect = async (provider: ProviderSlug, code: string): Promise<void> => {
+    setBusyProvider(provider)
+    setRequestError(undefined)
+    try {
+      await jsonRequest<{ ok: true }>(LOGIN_CODE_PATH, 'POST', { provider, code })
+      await refresh()
+    } catch (error: unknown) {
+      setRequestError(error instanceof Error ? error.message : t('requestFailed'))
+    } finally {
+      setBusyProvider(undefined)
+    }
+  }
+
   const cancelLogin = async (provider: ProviderSlug): Promise<void> => {
     setBusyProvider(provider)
     try {
@@ -307,6 +326,9 @@ export function GrokBuildSettings({ t }: GrokBuildSettingsProps) {
                 ...current,
                 [slug]: !(current[slug] === true),
               }))
+            }}
+            onSubmitRedirect={(slug, value) => {
+              void submitRedirect(slug, value)
             }}
           />
         )}

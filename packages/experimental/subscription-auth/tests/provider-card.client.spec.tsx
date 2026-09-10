@@ -11,7 +11,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ProviderCard } from '../src/client/components/ProviderCard.tsx'
 import { PROVIDERS } from '../src/client/constants.ts'
 import { en, type GrokBuildSettingsKey } from '../src/client/locales.ts'
-import type { ProviderStatus } from '../src/client/types.ts'
+import type { ProviderCardDefinition, ProviderStatus } from '../src/client/types.ts'
 
 afterEach(cleanup)
 
@@ -26,6 +26,7 @@ function t(key: GrokBuildSettingsKey, params?: Record<string, unknown>): string 
 }
 
 const CODEX = PROVIDERS.find(definition => definition.slug === 'codex')!
+const CLAUDE = PROVIDERS.find(definition => definition.slug === 'claude')!
 
 const BASE = {
   provider: 'codex',
@@ -40,14 +41,24 @@ const BASE = {
 
 const SIGNED_IN: ProviderStatus = { ...BASE, status: 'signed-in', accounts: [], activeAccountId: 'a1' }
 
-function Card({ providerStatus }: { providerStatus: ProviderStatus }) {
+function Card({
+  providerStatus,
+  definition = CODEX,
+  busy = false,
+  onSubmitRedirect = vi.fn(),
+}: {
+  providerStatus: ProviderStatus
+  definition?: ProviderCardDefinition
+  busy?: boolean
+  onSubmitRedirect?: (value: string) => void
+}) {
   const [expanded, setExpanded] = useState(false)
   return (
     <ProviderCard
       t={t}
-      definition={CODEX}
+      definition={definition}
       providerStatus={providerStatus}
-      busy={false}
+      busy={busy}
       remote={false}
       popupBlocked={false}
       expanded={expanded}
@@ -61,6 +72,7 @@ function Card({ providerStatus }: { providerStatus: ProviderStatus }) {
       onToggleExpanded={() => {
         setExpanded(open => !open)
       }}
+      onSubmitRedirect={onSubmitRedirect}
     />
   )
 }
@@ -94,5 +106,51 @@ describe('ProviderCard usage disclosure', () => {
     render(<Card providerStatus={{ ...BASE, status: 'signed-out' }} />)
     expect(screen.getByRole('heading', { name: en.codexTitle })).toBeTruthy()
     expect(screen.queryByRole('button', { expanded: false })).toBeNull()
+  })
+})
+
+describe('ProviderCard pasted redirect', () => {
+  const CLAUDE_SIGNING_IN: ProviderStatus = {
+    ...BASE,
+    provider: 'claude',
+    route: 'claude-code-oauth',
+    displayName: 'Claude Code',
+    loginMethods: ['browser'],
+    status: 'signing-in',
+    method: 'browser',
+  }
+
+  it('finishes a pending Claude sign-in with the pasted redirect URL', () => {
+    const onSubmitRedirect = vi.fn()
+    render(<Card definition={CLAUDE} providerStatus={CLAUDE_SIGNING_IN} onSubmitRedirect={onSubmitRedirect} />)
+    const field = screen.getByRole('textbox', { name: en.pasteRedirectLabel })
+    const submit = screen.getByRole('button', { name: en.submitRedirect })
+    expect(field.getAttribute('aria-describedby')).toBe('coding-oauth-redirect-claude-hint')
+    expect(submit.hasAttribute('disabled')).toBe(true)
+
+    fireEvent.change(field, { target: { value: '  ' } })
+    expect(submit.hasAttribute('disabled')).toBe(true)
+
+    fireEvent.change(field, { target: { value: '  http://localhost:53692/callback?code=abc&state=xyz \n' } })
+    fireEvent.click(submit)
+    expect(onSubmitRedirect).toHaveBeenCalledOnce()
+    expect(onSubmitRedirect).toHaveBeenCalledWith('http://localhost:53692/callback?code=abc&state=xyz')
+  })
+
+  it('does not submit while the card is busy', () => {
+    const onSubmitRedirect = vi.fn()
+    render(<Card definition={CLAUDE} providerStatus={CLAUDE_SIGNING_IN} busy onSubmitRedirect={onSubmitRedirect} />)
+    const field = screen.getByRole('textbox', { name: en.pasteRedirectLabel })
+    expect(field.hasAttribute('disabled')).toBe(true)
+    fireEvent.submit(field.closest('form')!)
+    expect(onSubmitRedirect).not.toHaveBeenCalled()
+  })
+
+  it('is absent for providers with a device flow and outside a pending sign-in', () => {
+    render(<Card providerStatus={{ ...BASE, status: 'signing-in', method: 'browser' }} />)
+    expect(screen.queryByRole('textbox', { name: en.pasteRedirectLabel })).toBeNull()
+    cleanup()
+    render(<Card definition={CLAUDE} providerStatus={{ ...CLAUDE_SIGNING_IN, status: 'signed-out' }} />)
+    expect(screen.queryByRole('textbox', { name: en.pasteRedirectLabel })).toBeNull()
   })
 })

@@ -29,6 +29,7 @@ export interface AccountsTabProps {
   onSignOut: (slug: ProviderSlug) => void
   onCancelLogin: (slug: ProviderSlug) => void
   onToggleExpanded: (slug: ProviderSlug) => void
+  onSubmitRedirect: (slug: ProviderSlug, value: string) => void
 }
 
 export function AccountsTab({
@@ -46,6 +47,7 @@ export function AccountsTab({
   onSignOut,
   onCancelLogin,
   onToggleExpanded,
+  onSubmitRedirect,
 }: AccountsTabProps) {
   if (status === undefined) {
     return (
@@ -97,6 +99,9 @@ export function AccountsTab({
                 }}
                 onToggleExpanded={() => {
                   onToggleExpanded(definition.slug)
+                }}
+                onSubmitRedirect={(value) => {
+                  onSubmitRedirect(definition.slug, value)
                 }}
               />
             </Fragment>

@@ -13,6 +13,8 @@ import {
   disclosureHeaderStyle,
   dotStyle,
   footerStyle,
+  hintStyle,
+  inputStyle,
   nestedStyle,
   primaryButtonStyle,
   rowStyle,
@@ -53,6 +55,65 @@ export interface ProviderCardProps {
   onSignOut: () => void
   onCancelLogin: () => void
   onToggleExpanded: () => void
+  /** Finish the pending sign-in with a pasted redirect URL or code; only called for `acceptsPastedRedirect` providers. */
+  onSubmitRedirect: (value: string) => void
+}
+
+/**
+ * Fallback for a browser sign-in whose provider redirect cannot reach the
+ * Host's loopback callback, as when this page is opened over an SSH tunnel:
+ * the provider's final page then fails to load, and its address carries the
+ * authorization code.
+ */
+function PasteRedirectForm({
+  t,
+  slug,
+  busy,
+  onSubmit,
+}: {
+  t: GrokBuildSettingsInjected['t']
+  slug: ProviderCardDefinition['slug']
+  busy: boolean
+  onSubmit: (value: string) => void
+}) {
+  const [value, setValue] = useState('')
+  const inputId = `coding-oauth-redirect-${slug}`
+  const hintId = `${inputId}-hint`
+  const trimmed = value.trim()
+  return (
+    <form
+      style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+      onSubmit={(event) => {
+        event.preventDefault()
+        if (trimmed.length > 0 && !busy) onSubmit(trimmed)
+      }}
+    >
+      <label htmlFor={inputId} style={{ ...bodyStyle, color: 'var(--dsw-alias-label-secondary)' }}>
+        {t('pasteRedirectLabel')}
+      </label>
+      <p id={hintId} style={hintStyle}>
+        {t('pasteRedirectHint')}
+      </p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        <input
+          id={inputId}
+          type="text"
+          autoComplete="off"
+          spellCheck={false}
+          aria-describedby={hintId}
+          style={{ ...inputStyle, flex: '1 1 240px', minWidth: 0 }}
+          value={value}
+          disabled={busy}
+          onChange={(event) => {
+            setValue(event.target.value)
+          }}
+        />
+        <button type="submit" style={primaryButtonStyle} disabled={busy || trimmed.length === 0}>
+          {busy ? t('working') : t('submitRedirect')}
+        </button>
+      </div>
+    </form>
+  )
 }
 
 /** The 14px chevron the Plugins card header draws, inlined because this client imports no UI package at runtime. */
@@ -135,6 +196,7 @@ export function ProviderCard({
   onSignOut,
   onCancelLogin,
   onToggleExpanded,
+  onSubmitRedirect,
 }: ProviderCardProps) {
   const [logoutConfirm, setLogoutConfirm] = useState(false)
   const logoutTrigger = useRef<HTMLButtonElement>(null)
@@ -211,6 +273,9 @@ export function ProviderCard({
           userCode={providerStatus.userCode}
           url={providerStatus.url}
         />
+      ) : null}
+      {providerStatus.status === 'signing-in' && definition.acceptsPastedRedirect === true ? (
+        <PasteRedirectForm t={t} slug={definition.slug} busy={busy} onSubmit={onSubmitRedirect} />
       ) : null}
       {usageOpen ? (
         <div id={`coding-oauth-usage-${definition.slug}`} style={disclosureBodyStyle}>
