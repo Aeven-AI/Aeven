@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-10-rail-jump-lands-turn-head.md
+2026-09-10-rail-jump-lands-turn-head.md: e49ce1dddbb36e42a5c1cb205d62bb11073ab27c
+2026-09-10-rail-jump-lands-turn-head.zh.md: 02b673126e81ad8f0bf2d73fb586795fa84d5662

@@ -76,6 +76,23 @@ function flowTop(row: HTMLElement, scrollport: HTMLElement): number {
   return row.getBoundingClientRect().top - scrollport.getBoundingClientRect().top
 }
 
+/**
+ * Earliest rendered row of the Turn that owns `row`. Seats are direct flow
+ * siblings and a Turn's seats are contiguous; hidden and empty seats render
+ * no box and are skipped.
+ * @param row - a rendered seat carrying `data-chat-turn`.
+ * @returns the Turn's first rendered row, and whether no rendered row precedes it in the flow.
+ */
+function turnHead(row: HTMLElement): { readonly row: HTMLElement; readonly first: boolean } {
+  let head = row
+  for (let sibling = row.previousElementSibling; sibling !== null; sibling = sibling.previousElementSibling) {
+    if (!(sibling instanceof HTMLElement) || sibling.hasAttribute('hidden') || sibling.firstChild === null) continue
+    if (sibling.dataset.chatTurn !== row.dataset.chatTurn) return { row: head, first: false }
+    head = sibling
+  }
+  return { row: head, first: true }
+}
+
 /** Select a visible stable node/call identity, falling back only when layout
  * has not exposed a visible box yet. */
 function pagingAnchor(list: HTMLElement, scrollport: HTMLElement): HTMLElement | null {
@@ -471,13 +488,14 @@ export function ChatView({
     setActiveTurn(turnNavigationItems.at(-1)?.turn ?? null)
   }
 
-  // Land a row at the reading line and republish scroll-derived state. A
-  // latest-ref, so navigateToTurn's identity stays stable for the memoized rail.
-  const landOnRowRef = useRef<(local: HTMLElement, el: HTMLElement, row: HTMLElement, turn: number) => void>(
-    () => {},
-  )
-  landOnRowRef.current = (local, el, row, turn) => {
-    el.scrollTop += flowTop(row, el) - 24
+  // Land a row at the reading line, or the view at the scroll origin, and
+  // republish scroll-derived state. A latest-ref, so navigateToTurn's identity
+  // stays stable for the memoized rail.
+  const landOnRowRef = useRef<
+    (local: HTMLElement, el: HTMLElement, row: HTMLElement, turn: number, origin: boolean) => void
+  >(() => {})
+  landOnRowRef.current = (local, el, row, turn, origin) => {
+    el.scrollTop = origin ? 0 : el.scrollTop + flowTop(row, el) - 24
     observedTopRef.current = el.scrollTop
     const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_THRESHOLD + 1
     atBottomRef.current = isAtBottom
@@ -491,6 +509,18 @@ export function ChatView({
       reflowAnchorRef.current = { key: position.anchorKey, top: position.anchorTop }
       chatScroll.save(position)
     }
+  }
+
+  // Rail jumps land a Turn's earliest rendered row, not its anchor, so rows
+  // placed before the anchor (a request's system prompt) stay in view. The
+  // conversation's first row lands at the scroll origin once history is
+  // complete, showing the flow's leading space above it.
+  const landOnTurnRef = useRef<(local: HTMLElement, el: HTMLElement, row: HTMLElement, turn: number) => void>(
+    () => {},
+  )
+  landOnTurnRef.current = (local, el, row, turn) => {
+    const head = turnHead(row)
+    landOnRowRef.current(local, el, head.row, turn, head.first && !hasMore)
   }
 
   /**
@@ -517,11 +547,11 @@ export function ChatView({
       // A reader who moved off an already-landed target mid-jump keeps their
       // place; a first landing, or an untouched one, takes the correction.
       if (!landedEarlier || held?.key === item.anchor.key) {
-        landOnRowRef.current(local, el, row, pending.turn)
+        landOnTurnRef.current(local, el, row, pending.turn)
       }
       return true
     }
-    landOnRowRef.current(local, el, row, pending.turn)
+    landOnTurnRef.current(local, el, row, pending.turn)
     jumpLandedRef.current = true
     anchorRef.current = { key: item.anchor.key, top: flowTop(row, el) }
     return true
@@ -830,7 +860,7 @@ export function ChatView({
     for (const row of local.querySelectorAll<HTMLElement>('[data-chat-turn]:not([hidden])')) {
       const turn = Number(row.dataset.chatTurn)
       if (!Number.isSafeInteger(turn) || turn < pending.turn) continue
-      landOnRowRef.current(local, el, row, turn)
+      landOnTurnRef.current(local, el, row, turn)
       break
     }
     pendingJumpRef.current = null
@@ -862,7 +892,7 @@ export function ChatView({
         pendingJumpRef.current = null
         anchorRef.current = null
         setBusyJumpTurn(null)
-        landOnRowRef.current(local, el, exactRow, turn)
+        landOnRowRef.current(local, el, exactRow, turn, false)
         setHighlightedNodeKey(exactKey)
         completedEventNavigationRef.current = eventNavigation.requestId
         eventNavigationLoadRef.current = null
@@ -903,7 +933,7 @@ export function ChatView({
       const row = anchorElement(local, fallback.key)
       const turn = Number(row?.dataset.chatTurn)
       if (row !== null && Number.isSafeInteger(turn)) {
-        landOnRowRef.current(local, el, row, turn)
+        landOnRowRef.current(local, el, row, turn, false)
         setHighlightedNodeKey(fallback.key)
       }
     }
@@ -1027,7 +1057,7 @@ export function ChatView({
     // A loaded-mark click supersedes any jump still landing.
     pendingJumpRef.current = null
     setBusyJumpTurn(current => current === null ? current : null)
-    landOnRowRef.current(local, el, row, item.turn)
+    landOnTurnRef.current(local, el, row, item.turn)
     // A pending older page still has to compensate the prepended height, so
     // navigation moves that anchor to the new position instead of dropping it.
     const landed = loadingOlder ? pagingAnchor(local, el) : null
