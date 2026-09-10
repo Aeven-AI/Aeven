@@ -454,19 +454,19 @@ function turnProcessControl(container: HTMLElement): HTMLButtonElement | null {
 function withSystemPrompt(
   snapshot: ChatSnapshot,
   builder = new ChatSnapshotBuilder(),
-  text = '# System',
+  at: { readonly turn: number; readonly anchorSeq: number } = { turn: 1, anchorSeq: 1 },
 ): ChatSnapshot {
-  const turn = snapshot.timeline.turns.get(1)
-  if (turn === undefined) throw new Error('fixture lacks Turn 1')
+  const turn = snapshot.timeline.turns.get(at.turn)
+  if (turn === undefined) throw new Error(`fixture lacks Turn ${String(at.turn)}`)
   const prompt: ChatNode<'system-prompt'> = {
-    key: 'fixture:system-prompt:1',
-    id: '1',
+    key: `fixture:system-prompt:${String(at.anchorSeq)}`,
+    id: String(at.anchorSeq),
     target: 'chat',
     kind: 'system-prompt',
-    anchorSeq: 1,
+    anchorSeq: at.anchorSeq,
     location: { kind: 'turn', turn },
     visibility: 'visible',
-    data: { text },
+    data: { text: '# System' },
   }
   return builder.replace({
     nodes: [prompt, ...snapshot.nodes.values()],
@@ -714,6 +714,51 @@ describe('ChatView', () => {
     expect(movedSecond.parentElement).toBe(secondPosition)
     // Fixed pitch: the mark moves one slot down and never compresses.
     expect(secondPosition.style.getPropertyValue('--turn-natural-position')).toBe('10px')
+  })
+
+  it('lands a jump to the first Turn at the conversation start, above its System prompt row', () => {
+    const h = makeHarness({}, {}, withSystemPrompt(chatSnapshotFixture({
+      nodes: [
+        userInTurn(2, 'first prompt', 1), assistant(3, 'first response', 1),
+        userInTurn(5, 'second prompt', 2), assistant(6, 'second response', 2),
+      ],
+      turnEnds: new Map([[1, 4], [2, 7]]),
+    })))
+    const view = render(<h.ChatView {...h.props} />)
+    const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement
+    const metrics = installScrollMetrics(scroller, 1_000, 300)
+    metrics.setLayout(1_000, 700)
+    vi.spyOn(scroller, 'getBoundingClientRect').mockReturnValue({ top: 0, bottom: 300 } as DOMRect)
+    const first = view.getByRole('button', { name: '跳转到第 1 轮' })
+    fireEvent.click(first)
+    // History is complete, so the first Turn's earliest row is the start of
+    // the conversation: the view reaches the scroll origin.
+    expect(scroller.scrollTop).toBe(0)
+    expect(first.getAttribute('aria-current')).toBe('true')
+  })
+
+  it('lands a jump on the earliest row of its Turn when rows precede the prompt anchor', () => {
+    const snapshot = withSystemPrompt(chatSnapshotFixture({
+      nodes: [
+        userInTurn(1, 'first prompt', 1), assistant(2, 'first response', 1),
+        userInTurn(5, 'second prompt', 2), assistant(6, 'second response', 2),
+      ],
+      turnEnds: new Map([[1, 3], [2, 7]]),
+    }), undefined, { turn: 2, anchorSeq: 4 })
+    expect(snapshot.navigation.items()[1]?.anchorKey).toBe('fixture:user:5')
+    const h = makeHarness({}, {}, snapshot)
+    const view = render(<h.ChatView {...h.props} />)
+    const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement
+    const metrics = installScrollMetrics(scroller, 1_000, 300)
+    metrics.setLayout(1_000, 700)
+    vi.spyOn(scroller, 'getBoundingClientRect').mockReturnValue({ top: 0, bottom: 300 } as DOMRect)
+    const promptRow = view.container.querySelector('[data-chat-flow-key="fixture:system-prompt:4"]') as HTMLElement
+    const anchorRow = view.container.querySelector('[data-chat-flow-key="fixture:user:5"]') as HTMLElement
+    vi.spyOn(promptRow, 'getBoundingClientRect').mockReturnValue({ top: -500, bottom: -474 } as DOMRect)
+    vi.spyOn(anchorRow, 'getBoundingClientRect').mockReturnValue({ top: -440, bottom: -380 } as DOMRect)
+    fireEvent.click(view.getByRole('button', { name: '跳转到第 2 轮' }))
+    // The Turn's System prompt row, not its User anchor, reaches the 24px reading line.
+    expect(scroller.scrollTop).toBe(176)
   })
 
   it('extends the rail with unloaded outline turns, pages on click, and falls back when nothing lands', async () => {
