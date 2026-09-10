@@ -157,7 +157,14 @@ describe('HMR exact config paths', () => {
       writeFileSync(filename, 'created')
       await eventuallyObserved(
         () => observed.includes('created'),
-        () => { writeFileSync(filename, 'created') },
+        () => {
+          writeFileSync(filename, 'created')
+          // The watch sits on `root`, so a lost event for the parent's creation
+          // leaves `later` unwatched and rewrites inside it unseen. An entry
+          // written directly under `root` makes the watcher rescan it and add
+          // the parent.
+          writeFileSync(join(root, 'sibling'), 'rescan')
+        },
         'HMR did not observe config creation under a new parent',
       )
     } finally {
