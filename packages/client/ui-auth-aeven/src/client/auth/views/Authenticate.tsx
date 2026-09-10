@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type React from 'react'
 
-import JSConfetti from '../../vendor/confetti/index.ts'
+import JSConfetti from '../../../vendor/confetti/index.ts'
 
 import Input, { type InputHandle } from '../com/Input.tsx'
 import Button, { type ButtonHandle } from '../com/Button.tsx'
@@ -12,7 +12,7 @@ import * as routes from '../services/routes.ts'
 import * as config from '../services/config.ts'
 import * as utility from '../services/utility.ts'
 import { storage } from '../services/session.ts'
-import { t } from '../locales.ts'
+import { t } from '../../locales.ts'
 
 // The screen is carried over as it stands, so the service objects it reaches
 // for are assembled here from the ported modules rather than edited out of a

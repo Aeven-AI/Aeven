@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { publishReader, publishedReader } from '../src/client/services/reader.ts'
-import { session } from '../src/client/services/session.ts'
+import { publishReader, publishedReader } from '../src/client/auth/services/reader.ts'
+import { session } from '../src/client/auth/services/session.ts'
 
 interface Scope {
   __DSH_AEVEN__?: Record<string, string>

@@ -95,6 +95,13 @@ export interface ProviderCardDefinition {
   recommended: LoginMethod
   /** Preferred method when the Settings UI is opened on a remote / non-loopback host. */
   remoteRecommended?: LoginMethod
+  /**
+   * A pending browser sign-in also finishes from the redirect URL the user
+   * pastes. Set for a provider with no device flow, whose browser sign-in
+   * otherwise completes only when the browser can reach the Host's loopback
+   * callback.
+   */
+  acceptsPastedRedirect?: boolean
 }
 
 export interface SourceStatus {

@@ -2,8 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   AevenApiError, checkOauthToken, getProfile, signIn, signOut, signUp, verifyEmail,
-} from '../src/client/services/api.ts'
-import { session } from '../src/client/services/session.ts'
+} from '../src/client/auth/services/api.ts'
+import { session } from '../src/client/auth/services/session.ts'
 
 /** One recorded call against the Aeven API. */
 interface Call { url: string; method: string; credentials?: string; authorization: string | null; body?: string }

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { apiUrl, confettiColors, mediaUrl, oauthUrls, webUrl } from '../src/client/services/config.ts'
+import { apiUrl, confettiColors, mediaUrl, oauthUrls, webUrl } from '../src/client/auth/services/config.ts'
 
 interface Scope {
   __DSH_AEVEN__?: Record<string, unknown>

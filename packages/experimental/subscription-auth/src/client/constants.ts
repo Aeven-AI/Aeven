@@ -148,6 +148,7 @@ export const PROVIDERS: readonly ProviderCardDefinition[] = [
     methods: ['browser'],
     recommended: 'browser',
     remoteRecommended: 'browser',
+    acceptsPastedRedirect: true,
   },
   {
     slug: 'codex',

@@ -74,11 +74,11 @@ refresh token 是此处无法读取的 httpOnly cookie；由 API 把它换成新
 | 文件 | 职责 |
 |---|---|
 | [`src/client/index.ts`](src/client/index.ts) | gate：`restoreSession`、`requireSignIn` 与 `installAuthenticatedTransport` |
-| [`src/client/mount.tsx`](src/client/mount.tsx) | 挂载界面、跟随界面内导航，以及成功后的交接 |
-| [`src/client/services/tokens.ts`](src/client/services/tokens.ts) | 持有的 bearer、可用性检查与刷新交换 |
-| [`src/client/services/api.ts`](src/client/services/api.ts) | 界面调用的 Aeven 认证路由 |
-| [`src/client/services/config.ts`](src/client/services/config.ts) | 读取注入的端点以及跟随 loopback 的规则 |
-| [`src/client/services/reader.ts`](src/client/services/reader.ts) | 把恢复的读者声明在页面上供插件 bundle 使用 |
+| [`src/client/auth/mount.tsx`](src/client/auth/mount.tsx) | 挂载界面、跟随界面内导航，以及成功后的交接 |
+| [`src/client/auth/services/tokens.ts`](src/client/auth/services/tokens.ts) | 持有的 bearer、可用性检查与刷新交换 |
+| [`src/client/auth/services/api.ts`](src/client/auth/services/api.ts) | 界面调用的 Aeven 认证路由 |
+| [`src/client/auth/services/config.ts`](src/client/auth/services/config.ts) | 读取注入的端点以及跟随 loopback 的规则 |
+| [`src/client/auth/services/reader.ts`](src/client/auth/services/reader.ts) | 把恢复的读者声明在页面上供插件 bundle 使用 |
 | [`src/client/locales.ts`](src/client/locales.ts) | `auth.aeven` 字典，以及界面据以读取文案的浏览器语言查找 |
 
 </details>

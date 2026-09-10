@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from 'react'
 import type React from 'react'
 
 import * as api from '../services/api.ts'
-import { t } from '../locales.ts'
+import { t } from '../../locales.ts'
 import * as events from '../services/events.ts'
 import { navigateRoute, AUTH_ROUTES } from '../services/routes.ts'
 import { href } from '../services/utility.ts'

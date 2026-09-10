@@ -1,10 +1,10 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { apiUrl, confettiColors, oauthUrls } from '../src/client/services/config.ts'
-import { usableToken } from '../src/client/services/tokens.ts'
-import { session, storage } from '../src/client/services/session.ts'
-import { bearerToken, deleteBearerToken, setBearerToken } from '../src/client/services/tokens.ts'
-import { cloneObject, guid, href } from '../src/client/services/utility.ts'
+import { apiUrl, confettiColors, oauthUrls } from '../src/client/auth/services/config.ts'
+import { usableToken } from '../src/client/auth/services/tokens.ts'
+import { session, storage } from '../src/client/auth/services/session.ts'
+import { bearerToken, deleteBearerToken, setBearerToken } from '../src/client/auth/services/tokens.ts'
+import { cloneObject, guid, href } from '../src/client/auth/services/utility.ts'
 
 /** A token as the Aeven API signs it; only the payload is read here. */
 function token(claims: object): string {

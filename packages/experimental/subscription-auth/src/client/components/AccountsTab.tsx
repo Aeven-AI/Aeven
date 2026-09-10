@@ -29,6 +29,7 @@ export interface AccountsTabProps {
   onSignOut: (slug: ProviderSlug) => void
   onCancelLogin: (slug: ProviderSlug) => void
   onToggleExpanded: (slug: ProviderSlug) => void
+  onSubmitRedirect: (slug: ProviderSlug, value: string) => void
 }
 
 export function AccountsTab({
@@ -46,6 +47,7 @@ export function AccountsTab({
   onSignOut,
   onCancelLogin,
   onToggleExpanded,
+  onSubmitRedirect,
 }: AccountsTabProps) {
   if (status === undefined) {
     return (
@@ -70,7 +72,6 @@ export function AccountsTab({
       <div style={accountGridStyle}>
         {PROVIDERS.map((definition) => {
           const providerStatus = status.providers[definition.slug]
-          const expanded = providerStatus.status === 'signing-in' || expandedProviders[definition.slug] === true
           return (
             <Fragment key={definition.slug}>
               <ProviderCard
@@ -80,8 +81,7 @@ export function AccountsTab({
                 busy={busyProvider === definition.slug}
                 remote={remote}
                 popupBlocked={popupBlocked[definition.slug] === true}
-                expanded={expanded}
-                showUsage={providerStatus.status === 'signed-in'}
+                expanded={expandedProviders[definition.slug] === true}
                 usage={usageBySlug[definition.slug]?.usage}
                 usageError={usageBySlug[definition.slug]?.error}
                 usageLoading={usageBySlug[definition.slug]?.loading === true}
@@ -99,6 +99,9 @@ export function AccountsTab({
                 }}
                 onToggleExpanded={() => {
                   onToggleExpanded(definition.slug)
+                }}
+                onSubmitRedirect={(value) => {
+                  onSubmitRedirect(definition.slug, value)
                 }}
               />
             </Fragment>

@@ -1,8 +1,8 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { matchAuthRoute } from '../src/client/route-match.ts'
-import { isAuthRoute, navigateRoute, AUTH_ROUTES } from '../src/client/services/routes.ts'
-import { isEmail, isValidPassword } from '../src/client/services/utility.ts'
+import { matchAuthRoute } from '../src/client/auth/route-match.ts'
+import { isAuthRoute, navigateRoute, AUTH_ROUTES } from '../src/client/auth/services/routes.ts'
+import { isEmail, isValidPassword } from '../src/client/auth/services/utility.ts'
 
 describe('matchAuthRoute', () => {
   it('matches the sign-in and sign-up screens, with and without a step', () => {

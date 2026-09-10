@@ -7,8 +7,8 @@ import {
   CLAUDE_CODE_OAUTH_ROUTE,
   CODEX_OAUTH_FAST_ROUTE,
   CODEX_OAUTH_ROUTE,
+  CODING_OAUTH_ROUTES,
   GROK_BUILD_ROUTE,
-  KIMI_CODE_OAUTH_ROUTE,
   OAUTH_IMPORT_SOURCES_PATH,
   SUBSCRIPTION_USAGE_PATH_PREFIX,
 } from '../src/ids.ts'
@@ -25,12 +25,12 @@ describe('bundle composition', () => {
   })
 
   it('exposes collision-free OAuth route aliases', async () => {
-    expect([GROK_BUILD_ROUTE, CODEX_OAUTH_ROUTE, KIMI_CODE_OAUTH_ROUTE, CLAUDE_CODE_OAUTH_ROUTE]).toEqual([
+    expect([GROK_BUILD_ROUTE, CODEX_OAUTH_ROUTE, CLAUDE_CODE_OAUTH_ROUTE]).toEqual([
       'grok-build',
       'codex-oauth',
-      'kimi-code-oauth',
       'claude-code-oauth',
     ])
+    expect(CODING_OAUTH_ROUTES).toEqual([GROK_BUILD_ROUTE, CODEX_OAUTH_ROUTE, CLAUDE_CODE_OAUTH_ROUTE])
     const source = await readFile(join(root, 'src/index.ts'), 'utf8')
     expect(source).toContain('[...CODING_OAUTH_ROUTES]')
     expect(source).toContain('registerCodingOAuthRoutes')

@@ -32,7 +32,13 @@ Status: implemented
 
 工具的对外暴露以凭据就绪状态为准，而不是以某个设置为准。后端没有可用凭据的工具会被撤下，而不是先提供再失败 —— 后者这种拒绝，模型只有花掉一轮才能发现。就绪状态是一个缓存视图，在登录、登出与凭据变更时刷新，并通过既有的 `CapabilityRuntimeState.refresh()` 发布。
 
-额度上报是覆盖三份互不相同的供应商载荷的同一个投影：无论各家怎么报，都化为每个窗口的剩余百分比与以秒为单位的重置时刻。一次拒绝的缓存时间远长于一次读数，因为只有登录状态变化才能改变它。
+额度上报是覆盖三份互不相同的供应商载荷的同一个投影：无论各家怎么报，都化为每个窗口的剩余百分比与以秒为单位的重置时刻。一次拒绝的缓存时间远长于一次读数，因为只有登录状态变化才能改变它。已登录的供应商卡片从卡片标题展开这份读数，与插件卡片展开其设置的方式相同。
+
+OAuth adapter 注册的是本包自己拥有的路由列表 —— `grok-build`、`codex-oauth`、`claude-code-oauth` —— 而不是 core 的 `CODING_OAUTH_ROUTES`，后者还列出了 `kimi-code-oauth`。`llm.registerAdapter` 会在提交任何路由之前校验整组路由，因此只要有一条路由是 adapter 无法描述的，所有订阅路由都不会被注册；`tests/llm-registration.spec.ts` 让插件对着真实的 LLM 注册表启动，以守住这一点。
+
+对于只在使用额度（usage credits）下才提供某个模型的 Claude 套餐，服务端返回 HTTP 429 `rate_limit_error`，并带有 `error.details.error_code: "credits_required"`。alias adapter 把这种拒绝映射为 `QUOTA`（该路由的重试策略不包含它），并把 JSON 响应体替换为点出模型名的提示：购买额度是账户层面的操作，任何重试都无法代劳。
+
+Claude 没有设备码流程，因此一次进行中的 Claude 浏览器登录也接受用户粘贴的供应商最终页面地址，用于浏览器无法到达 Host 本机回环回调的情况。Codex 与 Grok 用各自的设备码流程覆盖这种情况，不显示粘贴输入框。
 
 ## Consequences
 
