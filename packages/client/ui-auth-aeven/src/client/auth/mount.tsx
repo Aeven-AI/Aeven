@@ -15,7 +15,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { Authenticate } from './views/Authenticate.tsx'
 import { OauthResult } from './views/OauthResult.tsx'
 import { matchAuthRoute } from './route-match.ts'
-import '../vendor/aeven-auth.css'
+import '../../vendor/aeven-auth.css'
 
 /** A mounted authentication screen, and how to take it down. */
 export interface MountedAuthScreen {

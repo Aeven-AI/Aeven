@@ -74,11 +74,11 @@ A configured `localhost` origin is rewritten to the page's own hostname when bot
 | File | Role |
 |---|---|
 | [`src/client/index.ts`](src/client/index.ts) | The gate: `restoreSession`, `requireSignIn`, and `installAuthenticatedTransport` |
-| [`src/client/mount.tsx`](src/client/mount.tsx) | Mounting a screen, following in-surface navigation, and handing over on success |
-| [`src/client/services/tokens.ts`](src/client/services/tokens.ts) | Held bearers, usability check, and the refresh exchange |
-| [`src/client/services/api.ts`](src/client/services/api.ts) | The Aeven authentication routes the screens call |
-| [`src/client/services/config.ts`](src/client/services/config.ts) | Reading the injected endpoints and the loopback-following rule |
-| [`src/client/services/reader.ts`](src/client/services/reader.ts) | Stating the restored reader on the page for plugin bundles |
+| [`src/client/auth/mount.tsx`](src/client/auth/mount.tsx) | Mounting a screen, following in-surface navigation, and handing over on success |
+| [`src/client/auth/services/tokens.ts`](src/client/auth/services/tokens.ts) | Held bearers, usability check, and the refresh exchange |
+| [`src/client/auth/services/api.ts`](src/client/auth/services/api.ts) | The Aeven authentication routes the screens call |
+| [`src/client/auth/services/config.ts`](src/client/auth/services/config.ts) | Reading the injected endpoints and the loopback-following rule |
+| [`src/client/auth/services/reader.ts`](src/client/auth/services/reader.ts) | Stating the restored reader on the page for plugin bundles |
 | [`src/client/locales.ts`](src/client/locales.ts) | The `auth.aeven` dictionaries and the browser-language lookup the screens read copy through |
 
 </details>

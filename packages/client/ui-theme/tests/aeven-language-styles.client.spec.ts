@@ -20,7 +20,7 @@ const conversationCss = readFileSync(
 
 const inputBarCss = readFileSync(
   fileURLToPath(
-    new URL('../../ui-conversation/src/client/skeleton/InputBar.module.css', import.meta.url),
+    new URL('../../ui-conversation/src/client/input/InputBar.module.css', import.meta.url),
   ),
   'utf8',
 )

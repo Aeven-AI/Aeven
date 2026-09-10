@@ -8,23 +8,23 @@
  * @module @deepseek-ai/dsh-client-ui-auth-aeven/client
  */
 
-export { Authenticate, type AuthenticateProps } from './views/Authenticate.tsx'
-export { OauthResult, type OauthResultProps } from './views/OauthResult.tsx'
-export { matchAuthRoute, type AuthRouteMatch } from './route-match.ts'
-export { mountAuthScreen, type MountedAuthScreen } from './mount.tsx'
-export { AUTH_ROUTES, AUTH_ROUTE_PREFIXES, isAuthRoute, navigateRoute } from './services/routes.ts'
-export { session, storage, type AevenProfile, type UserConfig } from './services/session.ts'
-export { currentBearer } from './services/tokens.ts'
-export { signOut, getProfile, AevenApiError } from './services/api.ts'
-export { publishReader, publishedReader, type AevenReader } from './services/reader.ts'
-export { aevenConfig, mediaUrl, webUrl, type AevenClientConfig } from './services/config.ts'
+export { Authenticate, type AuthenticateProps } from './auth/views/Authenticate.tsx'
+export { OauthResult, type OauthResultProps } from './auth/views/OauthResult.tsx'
+export { matchAuthRoute, type AuthRouteMatch } from './auth/route-match.ts'
+export { mountAuthScreen, type MountedAuthScreen } from './auth/mount.tsx'
+export { AUTH_ROUTES, AUTH_ROUTE_PREFIXES, isAuthRoute, navigateRoute } from './auth/services/routes.ts'
+export { session, storage, type AevenProfile, type UserConfig } from './auth/services/session.ts'
+export { currentBearer } from './auth/services/tokens.ts'
+export { signOut, getProfile, AevenApiError } from './auth/services/api.ts'
+export { publishReader, publishedReader, type AevenReader } from './auth/services/reader.ts'
+export { aevenConfig, mediaUrl, webUrl, type AevenClientConfig } from './auth/services/config.ts'
 
-import { getProfile } from './services/api.ts'
-import { aevenConfig } from './services/config.ts'
-import { AUTH_ROUTES, isAuthRoute, navigateRoute } from './services/routes.ts'
-import { publishReader } from './services/reader.ts'
-import { session, storage } from './services/session.ts'
-import { currentBearer } from './services/tokens.ts'
+import { getProfile } from './auth/services/api.ts'
+import { aevenConfig } from './auth/services/config.ts'
+import { AUTH_ROUTES, isAuthRoute, navigateRoute } from './auth/services/routes.ts'
+import { publishReader } from './auth/services/reader.ts'
+import { session, storage } from './auth/services/session.ts'
+import { currentBearer } from './auth/services/tokens.ts'
 
 /** How the gate resolved for this page load. */
 export type AuthGateResult =

@@ -362,9 +362,9 @@ export default defineConfig({
         // matching, credential rules, token handling and every API call — is
         // covered by this package's own suites, and the screens themselves are
         // exercised by signing in against a real Aeven API.
-        'packages/client/ui-auth-aeven/src/client/views/*.tsx',
-        'packages/client/ui-auth-aeven/src/client/com/*.tsx',
-        'packages/client/ui-auth-aeven/src/client/mount.tsx',
+        'packages/client/ui-auth-aeven/src/client/auth/views/*.tsx',
+        'packages/client/ui-auth-aeven/src/client/auth/com/*.tsx',
+        'packages/client/ui-auth-aeven/src/client/auth/mount.tsx',
         'packages/client/ui-auth-aeven/src/client/index.ts',
         'packages/client/ui-auth-aeven/src/index.ts',
         'packages/client/ui-auth-aeven/src/vendor/**',

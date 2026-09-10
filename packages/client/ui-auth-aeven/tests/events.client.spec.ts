@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { describe, expect, it, vi } from 'vitest'
-import { dispatchObjectEvent, off, on } from '../src/client/services/events.ts'
+import { dispatchObjectEvent, off, on } from '../src/client/auth/services/events.ts'
 
 describe('the named-event bus the screens use', () => {
   it('delivers to every listener of one event', () => {
