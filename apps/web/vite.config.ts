@@ -157,17 +157,18 @@ function emitPreviewPage(): Plugin {
 }
 
 /**
- * Named render-family chunks, by exact npm package name. Math, highlight, and
+ * Named render-family chunks, by npm package identity. Math, highlight, and
  * the markdown parse pipeline change on different dependency bumps, so each
  * family is its own file: a KaTeX upgrade must not bust the highlighter cache.
  * The parse pipeline is named `mdast` so it cannot collide with a lazy
  * highlight.js language whose rollup name is `markdown`.
- * Only directly imported family packages need listing. Explicit manual-chunk
- * membership leaves unlisted dependencies in Rollup-owned shared chunks, so
- * naming a rendering family cannot pull its full closure onto the sign-in
- * path. Mermaid is a dynamic `import()` from the diagram plugin, so Rollup
- * already emits it as on-demand chunks; listing it here would fold those back
- * onto the application graph.
+ * Explicit manual-chunk membership leaves unrelated dependencies in
+ * Rollup-owned shared chunks, so naming a rendering family cannot pull its
+ * full closure onto the sign-in path. The mdast and micromark package families
+ * stay together because their extension packages import each other in both
+ * directions. Mermaid is a dynamic `import()` from the diagram plugin, so
+ * Rollup already emits it as on-demand chunks; listing it here would fold
+ * those back onto the application graph.
  *
  * Every member must be React-free. A package that
  * imports react/jsx-runtime must never be listed — rollup folds a module
@@ -176,22 +177,16 @@ function emitPreviewPage(): Plugin {
  * index. The React side of markdown/math rendering is workspace code and
  * rides index.
  */
-const RENDER_CHUNKS: Readonly<Record<string, 'katex' | 'hljs' | 'mdast'>> = {
+const RENDER_CHUNKS: Readonly<Record<string, 'katex' | 'hljs'>> = {
   katex: 'katex',
   'highlight.js': 'hljs',
   lowlight: 'hljs',
-  'mdast-util-from-markdown': 'mdast',
-  'mdast-util-gfm': 'mdast',
-  'mdast-util-math': 'mdast',
-  'micromark-core-commonmark': 'mdast',
-  'micromark-extension-gfm': 'mdast',
-  'micromark-extension-math': 'mdast',
-  'micromark-factory-space': 'mdast',
-  'micromark-util-character': 'mdast',
-  'micromark-util-classify-character': 'mdast',
-  'micromark-util-sanitize-uri': 'mdast',
-  'micromark-util-symbol': 'mdast',
-  'micromark-util-types': 'mdast',
+}
+
+/** Render-family chunk for one npm package, when it has an explicit owner. */
+function renderChunkForPackage(pkg: string): 'katex' | 'hljs' | 'mdast' | undefined {
+  if (pkg === 'micromark' || pkg.startsWith('micromark-') || pkg.startsWith('mdast-util-')) return 'mdast'
+  return RENDER_CHUNKS[pkg]
 }
 
 const NAMED_RENDER_CHUNKS: ReadonlySet<string> = new Set([
@@ -249,6 +244,10 @@ export default defineConfig({
     // The worker bootstrap holds its page at top-level await; Vite's default
     // `modules` target (es2020-era) rejects that syntax.
     target: 'es2022',
+    // Mermaid's two largest diagram-engine chunks are lazy and stay off every
+    // session that does not render a diagram. Keep size warnings above their
+    // current sub-700 kB range for unexpected eager or dependency growth.
+    chunkSizeWarningLimit: 700,
     sourcemap: true,
     rollupOptions: {
       input: {
@@ -304,7 +303,7 @@ export default defineConfig({
           // own on-demand chunk. Grammars HyperMarkdown already static-imports
           // through lowlight/common still land in `hljs` with their importer.
           if (pkg === 'highlight.js' && id.includes('/languages/')) return undefined
-          return RENDER_CHUNKS[pkg]
+          return renderChunkForPackage(pkg)
         },
       },
     },

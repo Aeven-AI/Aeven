@@ -84,6 +84,7 @@ it('starts render families off the shell execution path and keeps mermaid on dem
   expect(assets.some(name => /^katex-[^.]+\.js$/.test(name))).toBe(true)
   expect(assets.some(name => /^hljs-[^.]+\.js$/.test(name))).toBe(true)
   expect(assets.some(name => /^mdast-[^.]+\.js$/.test(name))).toBe(true)
+  expect(assets.some(name => /^syntax-[^.]+\.js$/.test(name))).toBe(false)
   expect(assets.some(name => /^primitives-[^.]+\.js$/.test(name))).toBe(true)
   expect(index).not.toMatch(/modulepreload[^>]+(?:katex|hljs|mdast|primitives)-/)
   expect(entry).toMatch(/import\("\.\/primitives-[^.]+\.js"\)/)

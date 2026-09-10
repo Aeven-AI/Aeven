@@ -11,7 +11,7 @@ kind: "package-reference"
 
 `ui-conversation` 拥有与 target 无关的 Conversation 组装和共享浏览器 shell。它消费 Session Controller 的 `SessionEventLikeEntry` feed，通过 `ctx.uiConversation` 暴露不依赖 React 的 registry 与逐 Session binding，并通过 `ctx.uiSession` 提供 `useConversation`、`useInput` 和 `inputActions` 标准 props。它还拥有按会话的持久化图片 URL 缓存：`ctx.uiConversation.imageUrl(sessionId, attachment)` 为每个附件解析一个经会话授权的浏览器 URL，并随 Session binding 释放而撤销，因此所有 Conversation target 共享一次 `session.attachment` 读取。Chat 等具体 target 位于独立 package，由各自 package 注册 Definition、snapshot builder、View 和 renderer。
 
-浏览器 shell 使用集中定义的 Aeven 1024px 阅读轴、响应式内边距和 30px 平面 composer 表面，同时保留原有 sticky composer 与视图 tab 行为。
+浏览器 shell 使用集中定义的 Aeven 1024px 阅读轴、响应式内边距和 30px 平面 composer 表面。blank Session 会让 Hero composer 组在对话栏中居中；active Session 则把同一个 composer 停靠在底部且不重新挂载，View tab 会保留选择。
 
 ## 目录
 

@@ -24,6 +24,19 @@ import { verifiedUserId } from './jwt.ts'
 
 /** Cordis plugin name. */
 export const name = 'identity-user-aeven'
+
+/** Page global carrying {@link AevenClientConfig}; `dsh-client-ui-auth-aeven` reads it. */
+export const AEVEN_CLIENT_CONFIG_GLOBAL = '__DSH_AEVEN__'
+
+/** Deployment endpoints the Host states in the served page; each is absent when unconfigured. */
+export interface AevenClientConfig {
+  readonly apiUrl?: string
+  readonly xOAuthUrl?: string
+  readonly appleOAuthUrl?: string
+  readonly googleOAuthUrl?: string
+  readonly webUrl?: string
+  readonly mediaUrl?: string
+}
 /** The seam must exist before this authority can register into it. */
 export const inject = ['identityUsers']
 
@@ -156,17 +169,14 @@ export function apply(ctx: Context, config: Config): void {
   // The endpoints are deployment facts, not build facts, so the Host states
   // them in the page rather than the browser bundle carrying them.
   ctx.on('webserver/index-inject', (table) => {
-    table.push({
-      kind: 'global',
-      name: '__DSH_AEVEN__',
-      value: {
-        ...config.apiUrl === undefined ? {} : { apiUrl: config.apiUrl },
-        ...config.xOAuthUrl === undefined ? {} : { xOAuthUrl: config.xOAuthUrl },
-        ...config.appleOAuthUrl === undefined ? {} : { appleOAuthUrl: config.appleOAuthUrl },
-        ...config.googleOAuthUrl === undefined ? {} : { googleOAuthUrl: config.googleOAuthUrl },
-        ...config.webUrl === undefined ? {} : { webUrl: config.webUrl },
-        ...config.mediaUrl === undefined ? {} : { mediaUrl: config.mediaUrl },
-      },
-    })
+    const value: AevenClientConfig = {
+      ...config.apiUrl === undefined ? {} : { apiUrl: config.apiUrl },
+      ...config.xOAuthUrl === undefined ? {} : { xOAuthUrl: config.xOAuthUrl },
+      ...config.appleOAuthUrl === undefined ? {} : { appleOAuthUrl: config.appleOAuthUrl },
+      ...config.googleOAuthUrl === undefined ? {} : { googleOAuthUrl: config.googleOAuthUrl },
+      ...config.webUrl === undefined ? {} : { webUrl: config.webUrl },
+      ...config.mediaUrl === undefined ? {} : { mediaUrl: config.mediaUrl },
+    }
+    table.push({ kind: 'global', name: AEVEN_CLIENT_CONFIG_GLOBAL, value })
   })
 }

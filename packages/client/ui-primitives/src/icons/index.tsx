@@ -128,6 +128,15 @@ export const IconSettingsOutline16 = ({ size = 16, className }: IconProps) => (
   </svg>
 )
 
+/** Subscription and billing credit-card outline. */
+export const IconCreditCardOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="1.25" y="3" width="13.5" height="10" rx="1.75" stroke="currentColor" strokeWidth="1.25" />
+    <path d="M1.75 6.25H14.25" stroke="currentColor" strokeWidth="1.25" />
+    <path d="M3.75 10.25H7" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
+  </svg>
+)
+
 /** ic_ds_panel_left_outline_16 */
 export const IconPanelLeftOutline16 = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">

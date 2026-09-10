@@ -37,6 +37,8 @@ kind: "package-library"
 
 `MarkdownText` 通过 [HyperMarkdown](https://www.npmjs.com/package/@aeven-ai/hypermarkdown) 引擎渲染不可信的 GFM 与 TeX 公式，阻止不安全的链接与图片协议，并可把已解析的文件提及转换为显式控件。原始 HTML 从不被解析，因此作者写下的标记以字符而非元素抵达读者，而 ```` ```mermaid ```` fence 渲染为固定在 Mermaid strict 安全级别的图表。回复流式输出时，组件只把新追加的文本写入引擎的 store，该 store 按代码行、表格行与列表项缓存；定稿调用引擎的流式定稿操作，其外部 store hook 会发布并保留最终带动画的渲染。`TerminalBlock`、`ReadBlock`、`DiffBlock`、`SearchBlock` 与 `WebBlock` 把对应的工具结果意图渲染为带复制控件、溢出处理及适用时 ANSI 处理的卡片。`JsonTree` 与 `JsonBlock` 以只读方式检查 JSON 值；`projectUserText` 把已发送的用户文本投影为行内普通文本段与引用 chip，供消息气泡和排队行使用。
 
+KaTeX 接受模型所写数学公式中的字面 en dash，且不发出兼容性警告；其他严格 LaTeX 诊断仍保持启用。
+
 ### 本地化文案
 
 这些原子组件无法读取应用 locale，因此每段面向用户的文案都必须通过 label prop 提供。`HoverCard`、`TerminalBlock`、`JsonTree`、`CodeBlock`、`MarkdownText`、`JsonBlock`、`ConnectionIndicator`、`Modal`、`DiffBlock`、`ReadBlock`、`SearchBlock` 与 `WebBlock` 接收完整的本地化 label。本包不拥有语言回退；遗漏会导致类型检查失败，各功能会把带类型的 `t` 席位映射到 primitive 的 label 接口。
