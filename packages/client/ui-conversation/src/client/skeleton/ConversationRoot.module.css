@@ -605,10 +605,26 @@
   left: 0;
 }
 
-/* Hero phase: the composer stack (hero chrome + workspace row + card) is
-   flex-centered in the column; composer phase docks it at the bottom. Flex,
-   NOT absolute+transform: a transform would make this box the containing
-   block for position:fixed descendants (pickers/modals), shrinking them. */
+/* Hero phase: the resident Session area and composer seat overlap in one grid
+   cell, so the stack can center in the whole column without remounting either
+   tree. Grid alignment avoids a transform, which would make this box the
+   containing block for position:fixed descendants (pickers/modals). */
+.root[data-phase='hero'] .body {
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+}
+
+.root[data-phase='hero'] .scrollArea,
+.root[data-phase='hero'] .composerSeat {
+  grid-area: 1 / 1;
+}
+
+.root[data-phase='hero'] .composerSeat {
+  position: relative;
+  z-index: 7;
+  align-self: center;
+}
+
 .composerHero {
   align-self: center;
   /* figma 75:8208 drew 12 between all three rows; the workspace row now sits
@@ -633,10 +649,8 @@
   padding-left: 20px;
 }
 
-/* Hero: the composer sits inside the session scroll body; center there so
-   the tree seat matches active (sticky footer) without a Root remount. */
+/* The resident blank Session remains scrollable beneath the centered seat. */
 .root[data-phase='hero'] .scrollBody {
-  justify-content: center;
   overflow-y: auto;
 }
 

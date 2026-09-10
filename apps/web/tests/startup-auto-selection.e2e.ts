@@ -44,6 +44,20 @@ describe('web e2e: startup auto-selection', () => {
     const headline = page.getByText('Into the Unknown', { exact: true })
     const fishHitbox = headline.locator('xpath=preceding-sibling::span[1]')
     const fish = fishHitbox.locator('svg')
+    const alignment = await page.locator(`${ROOT_PHASE}[data-phase="hero"]`).evaluate((root) => {
+      const seat = root.querySelector<HTMLElement>('[data-composer-seat]')
+      const card = root.querySelector<HTMLElement>('[data-composer-card]')
+      if (seat === null || card === null) throw new Error('incomplete Hero composer tree')
+      const rootRect = root.getBoundingClientRect()
+      const seatRect = seat.getBoundingClientRect()
+      const cardRect = card.getBoundingClientRect()
+      return {
+        horizontal: Math.abs(cardRect.left + cardRect.width / 2 - (rootRect.left + rootRect.width / 2)),
+        vertical: Math.abs(seatRect.top + seatRect.height / 2 - (rootRect.top + rootRect.height / 2)),
+      }
+    })
+    expect(alignment.horizontal).toBeLessThanOrEqual(0.5)
+    expect(alignment.vertical).toBeLessThanOrEqual(0.5)
     expect(await fish.evaluate(node => getComputedStyle(node).color))
       .toBe(await headline.evaluate(node => getComputedStyle(node).color))
     await fishHitbox.hover()

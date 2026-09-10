@@ -11,7 +11,7 @@ English | [中文](README.zh.md)
 
 `ui-conversation` owns target-neutral Conversation assembly and the shared browser shell. It consumes Session Controller `SessionEventLikeEntry` feeds, exposes React-free registries and per-Session bindings through `ctx.uiConversation`, and contributes the `useConversation`, `useInput`, and `inputActions` standard props through `ctx.uiSession`. It also owns the per-session durable image URL cache: `ctx.uiConversation.imageUrl(sessionId, attachment)` resolves one session-authorized browser URL per attachment and revokes it with the Session binding, so every Conversation target shares one `session.attachment` read. Concrete targets such as Chat are separate packages that register their own Definitions, snapshot builders, Views, and renderers.
 
-Its browser shell consumes the centralized Aeven 1024px reading axis, responsive insets, and 30px flat composer surface while retaining the existing sticky-composer and view-tab behavior.
+Its browser shell consumes the centralized Aeven 1024px reading axis, responsive insets, and 30px flat composer surface. A blank Session centers the Hero composer group in the conversation column; an active Session docks that same composer at the bottom without remounting it, and View tabs retain their selections.
 
 ## Table of Contents
 
