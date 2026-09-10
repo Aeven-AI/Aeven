@@ -68,6 +68,44 @@ export const cardStyle: CSSProperties = {
   background: 'var(--dsw-alias-bg-layer-3)',
   transition: 'border-color .16s, background .16s',
 }
+/** An open card reads as the one being worked on, matching the open Plugins card. */
+export const cardOpenStyle: CSSProperties = {
+  ...cardStyle,
+  background: 'var(--dsw-alias-bg-layer-2)',
+  borderColor: 'var(--dsw-alias-label-dimmed)',
+}
+/** A signed-in card's header: the whole row is the disclosure control, like the Plugins card header. */
+export const disclosureHeaderStyle: CSSProperties = {
+  width: '100%',
+  appearance: 'none',
+  border: 0,
+  padding: 0,
+  background: 'none',
+  font: 'inherit',
+  color: 'inherit',
+  textAlign: 'left',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 12,
+}
+/** Disclosed content, ruled off from the header like the Plugins card body. */
+export const disclosureBodyStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 8,
+  paddingTop: 12,
+  borderTop: '0.5px solid var(--dsw-alias-border-l2)',
+}
+/** Disclosure chevron; it turns half a revolution while its card is open. */
+export function chevronStyle(open: boolean): CSSProperties {
+  return {
+    flex: 'none',
+    color: 'var(--dsw-alias-label-tertiary)',
+    transition: 'transform .16s',
+    transform: open ? 'rotate(180deg)' : 'none',
+  }
+}
 export const rowStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
