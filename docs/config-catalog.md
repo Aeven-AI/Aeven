@@ -317,7 +317,7 @@ Source: [`packages/shell/bash-sandbox/src/index.ts:35`](../packages/shell/bash-s
 
 ## `@deepseek-ai/dsh-client-connection`
 
-Requires: `webServer` · `credentials`
+Requires: `credentials`
 
 ```ts config-catalog
 /** Plugin config: the deployment's non-loopback serving authorities. */
@@ -360,7 +360,7 @@ Source: [`packages/client/hmr/src/index.ts:31`](../packages/client/hmr/src/index
 
 ## `@deepseek-ai/dsh-client-modules`
 
-Requires: `webServer` · `loader`
+Requires: `loader`
 
 ```ts config-catalog
 /** Startup combo partitioning policy. */
@@ -1063,7 +1063,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/identity/user-aeven/src/index.ts:31`](../packages/identity/user-aeven/src/index.ts)
+Source: [`packages/identity/user-aeven/src/index.ts:44`](../packages/identity/user-aeven/src/index.ts)
 
 <a id="deepseek-aidsh-invariants"></a>
 
