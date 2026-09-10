@@ -816,7 +816,27 @@ export function loadProfile(
     }
     initProfile(dir, template.bundles, template.patchReload)
   }
-  const manifest = normalizeShippedProfile(name, dir, readProfileManifest(binName, dir))
+  normalizeShippedProfile(name, dir, readProfileManifest(binName, dir))
+  return loadProfileDirectory(binName, dir, installAnchor, options)
+}
+
+/**
+ * Load an already initialized profile directory without resolving it through
+ * the shared Harness home. Application-owned profiles, such as the Electron
+ * desktop profile, own their package project and lifecycle.
+ * @param binName - the diagnostic prefix on thrown errors.
+ * @param dir - absolute profile package directory.
+ * @param installAnchor - absolute path of the owning dsh app's package.json.
+ * @param options - `userLayer: false` skips reading `cordis.patch.yml`.
+ * @returns the resolved bundle layers and optional user patch layer.
+ */
+export function loadProfileDirectory(
+  binName: string,
+  dir: string,
+  installAnchor: string,
+  options: { userLayer?: boolean } = {},
+): Profile {
+  const manifest = readProfileManifest(binName, dir)
   // A hand-written profile manifest may omit the dsh section entirely.
   const bundles = manifest.dsh?.profile?.bundles ?? []
   const rawPatchReload: unknown = manifest.dsh?.profile?.patchReload
@@ -840,7 +860,7 @@ export function loadProfile(
   const patches = options.userLayer !== false && existsSync(patchPath)
     ? loadOverlayPatches(binName, patchPath)
     : []
-  return { name, dir, layers, patchPath, patches, patchReload }
+  return { name: basename(dir), dir, layers, patchPath, patches, patchReload }
 }
 
 /**

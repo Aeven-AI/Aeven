@@ -621,6 +621,25 @@ describe('client bundle activation', () => {
     }
   })
 
+  it('serves bundles without a Web server and registers the route when one appears', async () => {
+    const ctx = new Context()
+    ctx.baseUrl = 'file:///'
+    ctx.provide('loader', { internal: undefined, *entries() {} })
+    const service = new ClientModuleRegistry(ctx)
+    expect(service.fetchBundle(new Request('dsh-app://app/plugins/unknown.js')).status).toBe(404)
+    const paths: string[] = []
+    const webServer: Pick<WebServer, 'port' | 'register' | 'tapIndex'> = {
+      port: 0,
+      register: (candidate) => {
+        paths.push(candidate.path)
+        return () => {}
+      },
+      tapIndex: () => () => {},
+    }
+    ctx.provide('webServer', webServer as WebServer)
+    await vi.waitFor(() => { expect(paths).toEqual(['/plugins']) })
+  })
+
   it('serves the source map beside a registered client bundle', async () => {
     const packageName = '@fixture/source-map'
     const clientPath = writePackage(packageName)
@@ -656,6 +675,13 @@ describe('client bundle activation', () => {
     expect(batchScript.status).toBe(200)
     expect(batchScript.headers?.['cache-control']).toBe('public, max-age=31536000, immutable')
     expect(batchScript.body.toString('utf8')).toContain(`//# sourceMappingURL=${mapUrl(batch.url)}`)
+    const shellResponse = service.fetchBundle(new Request(`dsh-app://app${batch.url}`))
+    expect(shellResponse.status).toBe(200)
+    expect(shellResponse.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
+    expect(await shellResponse.text()).toBe(batchScript.body.toString('utf8'))
+    expect((await service.fetchBundle(new Request(`dsh-app://app${batch.url}`, { method: 'HEAD' })).arrayBuffer()).byteLength).toBe(0)
+    expect(service.fetchBundle(new Request(`dsh-app://app${batch.url}`, { method: 'POST' })).status).toBe(405)
+    expect(service.fetchBundle(new Request('dsh-app://app/plugins/unknown.js')).status).toBe(404)
     expect((await routeRequest(route, batch.url, 'HEAD')).body).toHaveLength(0)
     expect((await routeRequest(route, batch.url, 'POST')).status).toBe(405)
     const batchMap = await routeRequest(route, mapUrl(batch.url))

@@ -319,7 +319,7 @@ export type Config = LocalConfig
 
 ## `@deepseek-ai/dsh-client-connection`
 
-需要：`webServer` · `credentials`
+需要：`credentials`
 
 ```ts config-catalog
 /** Plugin config: the deployment's non-loopback serving authorities. */
@@ -362,7 +362,7 @@ export interface Config {
 
 ## `@deepseek-ai/dsh-client-modules`
 
-需要：`webServer` · `loader`
+需要：`loader`
 
 ```ts config-catalog
 /** Startup combo partitioning policy. */
@@ -1065,7 +1065,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/identity/user-aeven/src/index.ts:31`](../packages/identity/user-aeven/src/index.ts)
+来源：[`packages/identity/user-aeven/src/index.ts:44`](../packages/identity/user-aeven/src/index.ts)
 
 <a id="deepseek-aidsh-invariants"></a>
 
