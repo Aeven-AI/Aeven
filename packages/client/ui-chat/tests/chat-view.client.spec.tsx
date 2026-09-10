@@ -2532,6 +2532,55 @@ describe('ChatView', () => {
     expect(scroller.scrollTop).toBe(690)
   })
 
+  it('the resident-shell activation correction follows layout growth but yields to immediate reader input', () => {
+    let nextFrame = 0
+    const frames = new Map<number, FrameRequestCallback>()
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      nextFrame += 1
+      frames.set(nextFrame, callback)
+      return nextFrame
+    })
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => { frames.delete(id) })
+    const flushFrames = (): void => {
+      const pending = [...frames.values()]
+      frames.clear()
+      for (const callback of pending) callback(0)
+    }
+    const mount = () => {
+      const host = document.createElement('div')
+      host.setAttribute('data-conversation-scroll', '')
+      const metrics = installScrollMetrics(host, 2_000, 500)
+      document.body.appendChild(host)
+      const h = makeHarness({ nodes: [user(1, 'q'), assistant(2, 'a')] })
+      const view = render(<h.ChatView {...h.props} />, { container: host })
+      expect(host.scrollTop).toBe(1_500)
+      return { host, metrics, view }
+    }
+
+    let following: ReturnType<typeof mount> | undefined
+    let reading: ReturnType<typeof mount> | undefined
+    try {
+      following = mount()
+      following.metrics.setHeight(2_400)
+      act(flushFrames)
+      expect(following.host.scrollTop).toBe(1_900)
+      following.view.unmount()
+      following.host.remove()
+      following = undefined
+
+      reading = mount()
+      reading.host.scrollTop = 100
+      fireEvent.scroll(reading.host)
+      act(flushFrames)
+      expect(reading.host.scrollTop).toBe(100)
+    } finally {
+      following?.view.unmount()
+      following?.host.remove()
+      reading?.view.unmount()
+      reading?.host.remove()
+    }
+  })
+
   it('under data-conversation-scroll, bottom-follow targets the host scrollport', () => {
     const host = document.createElement('div')
     host.setAttribute('data-conversation-scroll', '')

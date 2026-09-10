@@ -971,7 +971,15 @@ export function ChatView({
     activationTailFrameRef.current = requestAnimationFrame(() => {
       activationTailFrameRef.current = null
       const mounted = listRef.current
-      if (mounted !== null) toBottom(scrollerOf(mounted))
+      if (mounted === null) return
+      const scrollport = scrollerOf(mounted)
+      const floor = Math.max(0, scrollport.scrollHeight - scrollport.clientHeight)
+      const readerMoved = Math.abs(
+        scrollport.scrollTop - Math.min(observedTopRef.current, floor),
+      ) > 0.5
+      // Reader input supersedes the activation correction both before and
+      // after the sampled ownership update catches up.
+      if (atBottomRef.current && !readerMoved) toBottom(scrollport)
     })
     return () => {
       if (activationTailFrameRef.current !== null && typeof cancelAnimationFrame !== 'undefined') {
