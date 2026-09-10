@@ -18,9 +18,12 @@ import {
   type CodingOAuthProviderSlug,
 } from './ids.ts'
 
+/** Subscription provider slug. */
 export type SubscriptionProviderSlug = Exclude<CodingOAuthProviderSlug, 'grok'>
+/** Subscription login method. */
 export type SubscriptionLoginMethod = 'browser' | 'device'
 
+/** Oauth provider definition. */
 export interface OAuthProviderDefinition {
   slug: SubscriptionProviderSlug
   route: string
@@ -34,15 +37,13 @@ export interface OAuthProviderDefinition {
   requestProvider(selectedIds?: readonly string[]): Provider
 }
 
-function requestTokenAuth(name: string, bearerHeader: boolean): ApiKeyAuth {
+function requestTokenAuth(name: string): ApiKeyAuth {
   return {
     name,
-    resolve: async ({ credential }) => {
+    resolve: ({ credential }) => {
       const token = credential?.key?.trim()
-      if (token === undefined || token.length === 0) return undefined
-      return bearerHeader
-        ? { auth: { headers: { Authorization: `Bearer ${token}` } }, source: 'OAuth bridge' }
-        : { auth: { apiKey: token }, source: 'OAuth bridge' }
+      if (token === undefined || token.length === 0) return Promise.resolve(undefined)
+      return Promise.resolve({ auth: { apiKey: token }, source: 'OAuth bridge' })
     },
   }
 }
@@ -70,6 +71,7 @@ function asProvider(factory: () => Provider): () => Provider {
 const createCodexProvider = asProvider(openaiCodexProvider)
 const createClaudeProvider = asProvider(anthropicProvider)
 
+/** Provider definition for codex oauth. */
 export const CODEX_OAUTH_PROVIDER: OAuthProviderDefinition = {
   slug: 'codex',
   route: CODEX_OAUTH_ROUTE,
@@ -81,9 +83,10 @@ export const CODEX_OAUTH_PROVIDER: OAuthProviderDefinition = {
   recommendedLoginMethod: 'device',
   providerFactory: createCodexProvider,
   requestProvider: selectedIds =>
-    selectedProvider(createCodexProvider(), selectedIds, requestTokenAuth('OpenAI Codex OAuth token', false)),
+    selectedProvider(createCodexProvider(), selectedIds, requestTokenAuth('OpenAI Codex OAuth token')),
 }
 
+/** Provider definition for claude code oauth. */
 export const CLAUDE_CODE_OAUTH_PROVIDER: OAuthProviderDefinition = {
   slug: 'claude',
   route: CLAUDE_CODE_OAUTH_ROUTE,
@@ -97,11 +100,17 @@ export const CLAUDE_CODE_OAUTH_PROVIDER: OAuthProviderDefinition = {
   requestProvider: selectedIds => selectedProvider(createClaudeProvider(), selectedIds, undefined),
 }
 
+/** Oauth provider definitions. */
 export const OAUTH_PROVIDER_DEFINITIONS = [
   CODEX_OAUTH_PROVIDER,
   CLAUDE_CODE_OAUTH_PROVIDER,
 ] as const
 
+/**
+ * Oauth provider definition.
+ * @param slug - Slug value.
+ * @returns The resulting oauth provider definition.
+ */
 export function oauthProviderDefinition(slug: string): OAuthProviderDefinition | undefined {
   return OAUTH_PROVIDER_DEFINITIONS.find(provider => provider.slug === slug)
 }

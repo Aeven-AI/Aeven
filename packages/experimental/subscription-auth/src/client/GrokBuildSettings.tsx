@@ -33,6 +33,7 @@ const REMOTE_TIP_STORAGE_KEY = 'dsh-coding-oauth-remote-tip-dismissed'
 
 function readRemoteTipDismissed(): boolean {
   try {
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- some runtimes omit sessionStorage
     return globalThis.sessionStorage?.getItem(REMOTE_TIP_STORAGE_KEY) === '1'
   } catch {
     return false
@@ -94,13 +95,11 @@ export function GrokBuildSettings({ t }: GrokBuildSettingsProps) {
   useEffect(() => {
     ensureMicroStyles()
     let active = true
-    let timer: number | undefined
     void refresh().then((next) => {
       if (!active || next?.uiOwner === 'hub') return
     })
     return () => {
       active = false
-      if (timer !== undefined) window.clearTimeout(timer)
     }
   }, [refresh])
 
@@ -139,6 +138,7 @@ export function GrokBuildSettings({ t }: GrokBuildSettingsProps) {
   useEffect(() => {
     if (status === undefined) return
     for (const [slug, tab] of providerTabs.current) {
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- a tracked tab can outlive its provider in the status snapshot
       const providerStatus = status.providers[slug]?.status
       if (providerStatus === 'signing-in') continue
       if (providerStatus === 'signed-in') tab.close()
@@ -156,6 +156,7 @@ export function GrokBuildSettings({ t }: GrokBuildSettingsProps) {
     for (const slug of slugs) void refreshUsage(slug)
     setUsageBySlug((current) => {
       const kept: Partial<Record<ProviderSlug, UsageSlotView>> = {}
+      /* v8 ignore next -- refreshUsage seeds every slug synchronously into the same state queue, so the entry is always present */
       for (const slug of slugs) if (current[slug] !== undefined) kept[slug] = current[slug]
       return kept
     })
@@ -257,6 +258,7 @@ export function GrokBuildSettings({ t }: GrokBuildSettingsProps) {
   const dismissRemoteTip = (): void => {
     setRemoteTipDismissed(true)
     try {
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- some runtimes omit sessionStorage
       globalThis.sessionStorage?.setItem(REMOTE_TIP_STORAGE_KEY, '1')
     } catch {
       // ignore storage failures

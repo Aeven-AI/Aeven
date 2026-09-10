@@ -104,8 +104,10 @@ export const en = {
   coinstallOpenHub: 'Open Usage Center',
 }
 
+/** Grok build settings key. */
 export type GrokBuildSettingsKey = keyof typeof en
 
+/** Zh. */
 export const zh: { [Key in GrokBuildSettingsKey]: string } = {
   nav: '订阅',
   title: '订阅',

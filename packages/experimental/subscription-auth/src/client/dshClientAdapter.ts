@@ -5,6 +5,7 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 
+/** Dsh client compatibility diagnostic. */
 export interface DshClientCompatibilityDiagnostic {
   readonly id: string
   readonly level: 'warning' | 'error'
@@ -41,6 +42,7 @@ function slotsOf(context: unknown): SlotsApi | undefined {
   return undefined
 }
 
+/** Dsh client adapter. */
 export interface DshClientAdapter {
   readonly context: ClientContext
   readonly locale: ClientContext['locale']
@@ -55,6 +57,11 @@ export interface DshClientAdapter {
 
 type InstallSlotsOptions = Parameters<DshClientAdapter['installSlots']>[0]
 
+/**
+ * Create dsh client adapter.
+ * @param context - Context value.
+ * @returns The created dsh client adapter.
+ */
 export function createDshClientAdapter(context: ClientContext): DshClientAdapter {
   const candidate = context as unknown as Record<string, unknown>
   const locale = candidate['locale'] as Record<string, unknown> | undefined
@@ -63,7 +70,7 @@ export function createDshClientAdapter(context: ClientContext): DshClientAdapter
     ['client.effect', candidate['effect'], 'error'],
     ['client.locale.register', locale?.['register'], 'error'],
     ['client.locale.bind', locale?.['bind'], 'error'],
-    ['client.slots.inject', slots?.inject, 'warning'],
+    ['client.slots.inject', slots?.['inject'], 'warning'],
   ]
   const diagnostics = checks.flatMap(([id, value, level]): DshClientCompatibilityDiagnostic[] =>
     typeof value === 'function'

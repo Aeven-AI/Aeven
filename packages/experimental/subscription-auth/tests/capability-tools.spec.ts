@@ -26,6 +26,7 @@ import {
   type CodexImageSessionContext,
 } from '../src/codex-images.ts'
 import {
+  type GenerateImagineImageInput,
   GROK_IMAGINE_IMAGE_MODEL,
   GROK_IMAGINE_IMAGE_TOOL,
   GROK_IMAGINE_VIDEO_MODEL,
@@ -38,6 +39,7 @@ import {
   type ImagineImageResult,
   type ImagineVideoStartResult,
   type ImagineVideoStatusResult,
+  type StartImagineVideoInput,
 } from '../src/grok-imagine.ts'
 import { imagineMediaPath } from '../src/media-store.ts'
 
@@ -274,20 +276,20 @@ describe('createCapabilityTools', () => {
       }),
     })
     await expect(toolByName(tools, CODEX_IMAGE_GENERATE_TOOL).execute({ prompt: 'cube' }, exec)).rejects.toMatchObject({
-      message: expect.stringContaining('disabled'),
+      message: expect.stringContaining('disabled') as string,
     })
     await expect(
       toolByName(tools, CODEX_IMAGE_EDIT_TOOL).execute({ prompt: 'blue', imageIds: ['owned'] }, exec),
-    ).rejects.toMatchObject({ message: expect.stringContaining('disabled') })
+    ).rejects.toMatchObject({ message: expect.stringContaining('disabled') as string })
     await expect(toolByName(tools, GROK_IMAGINE_IMAGE_TOOL).execute({ prompt: 'orbit' }, exec)).rejects.toMatchObject({
-      message: expect.stringContaining('disabled'),
+      message: expect.stringContaining('disabled') as string,
     })
     await expect(toolByName(tools, GROK_IMAGINE_VIDEO_TOOL).execute({ prompt: 'orbit' }, exec)).rejects.toMatchObject({
-      message: expect.stringContaining('disabled'),
+      message: expect.stringContaining('disabled') as string,
     })
     await expect(
       toolByName(tools, GROK_IMAGINE_VIDEO_STATUS_TOOL).execute({ requestId: 'req_video_1' }, exec),
-    ).rejects.toMatchObject({ message: expect.stringContaining('disabled') })
+    ).rejects.toMatchObject({ message: expect.stringContaining('disabled') as string })
     expect(generate).not.toHaveBeenCalled()
     expect(edit).not.toHaveBeenCalled()
     expect(resolveCodexImageRoute).not.toHaveBeenCalled()
@@ -314,10 +316,10 @@ describe('createCapabilityTools', () => {
     })
     await expect(
       toolByName(tools, CODEX_IMAGE_GENERATE_TOOL).execute({ prompt: 'cube' }, fakeExec()),
-    ).rejects.toMatchObject({ message: expect.stringContaining('disabled') })
+    ).rejects.toMatchObject({ message: expect.stringContaining('disabled') as string })
     await expect(
       toolByName(tools, GROK_IMAGINE_VIDEO_STATUS_TOOL).execute({ requestId: 'req_video_1' }, fakeExec()),
-    ).rejects.toMatchObject({ message: expect.stringContaining('disabled') })
+    ).rejects.toMatchObject({ message: expect.stringContaining('disabled') as string })
     expect(generate).not.toHaveBeenCalled()
   })
 
@@ -341,10 +343,10 @@ describe('createCapabilityTools', () => {
     expect(generate).toHaveBeenCalledWith(expect.objectContaining({ prompt: 'cube', n: 2 }), expect.any(AbortSignal))
     await expect(
       toolByName(tools, CODEX_IMAGE_GENERATE_TOOL).execute({ prompt: 'cube', n: 3 }, fakeExec()),
-    ).rejects.toMatchObject({ message: expect.stringContaining('imageCount') })
+    ).rejects.toMatchObject({ message: expect.stringContaining('imageCount') as string })
     await expect(
       toolByName(tools, GROK_IMAGINE_IMAGE_TOOL).execute({ prompt: 'orbit', n: 3 }, fakeExec()),
-    ).rejects.toMatchObject({ message: expect.stringContaining('imageCount') })
+    ).rejects.toMatchObject({ message: expect.stringContaining('imageCount') as string })
     expect(imagineGenerate).not.toHaveBeenCalled()
   })
 
@@ -414,7 +416,7 @@ describe('createCapabilityTools', () => {
     })
     const editTool = toolByName(tools, CODEX_IMAGE_EDIT_TOOL)
     await expect(editTool.execute({ prompt: 'blue', imageIds: ['owned'] }, fakeExec())).rejects.toMatchObject({
-      message: expect.stringContaining('agent session'),
+      message: expect.stringContaining('agent session') as string,
     })
     expect(createCodexController).not.toHaveBeenCalled()
 
@@ -536,13 +538,359 @@ describe('createCapabilityTools', () => {
           }),
         }),
       ),
-    ).rejects.toMatchObject({ message: expect.stringContaining('disabled') })
+    ).rejects.toMatchObject({ message: expect.stringContaining('disabled') as string })
     await expect(
       toolByName(tools, GROK_IMAGINE_VIDEO_STATUS_TOOL).execute({ requestId: 'req_video_1' }, fakeExec()),
-    ).rejects.toMatchObject({ message: expect.stringContaining('disabled') })
+    ).rejects.toMatchObject({ message: expect.stringContaining('disabled') as string })
     expect(edit).not.toHaveBeenCalled()
     expect(resolveCodexImageRoute).not.toHaveBeenCalled()
     expect(imagine.videoStatus).not.toHaveBeenCalled()
+  })
+
+  it('clamps an imageCount outside the schema bounds to the schema default', async () => {
+    const generate = vi.fn<CodexImageController['generate']>(async () => ({
+      operation: 'generate',
+      model: CODEX_IMAGE_MODEL,
+      images: [imageRef('generated')],
+      references: [],
+      warnings: [],
+    }))
+    const tools = await createCapabilityTools({
+      current: () => enabledSettings({ imageCount: 0 }),
+      auth: fakeAuth(),
+      attachments: fakeAttachments(),
+      imagine: fakeImagine(),
+      createCodexController: () => fakeCodexController({ generate }),
+    })
+    await toolByName(tools, CODEX_IMAGE_GENERATE_TOOL).execute({ prompt: 'cube' }, fakeExec())
+    expect(generate).toHaveBeenCalledWith(
+      expect.objectContaining({ n: CAPABILITY_SETTINGS_BOUNDS.imageCount.default }),
+      expect.any(AbortSignal),
+    )
+  })
+
+  it('forwards every optional Codex generate parameter and renders the saved paths', async () => {
+    const generate = vi.fn<CodexImageController['generate']>(async () => ({
+      operation: 'generate',
+      model: CODEX_IMAGE_MODEL,
+      images: [imageRef('generated')],
+      references: [],
+      warnings: [],
+    }))
+    const tools = await createCapabilityTools({
+      current: () => enabledSettings(),
+      auth: fakeAuth(),
+      attachments: fakeAttachments(),
+      imagine: fakeImagine(),
+      createCodexController: () => fakeCodexController({ generate }),
+      saveToWorkspace: async () => 'images/generated.png',
+    })
+    const tool = toolByName(tools, CODEX_IMAGE_GENERATE_TOOL)
+    const args = { prompt: 'cube', size: '1024x1024', quality: 'high', background: 'opaque' } as const
+    const value = (await tool.execute({ ...args }, fakeExec())) as {
+      workspacePaths?: string[]
+      images: ImageAttachmentRef[]
+    }
+    expect(generate).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: 'cube', size: '1024x1024', quality: 'high', background: 'opaque' }),
+      expect.any(AbortSignal),
+    )
+    expect(value.workspacePaths).toEqual(['images/generated.png'])
+    expect(tool.output.render({ ...args }, value as never)).toEqual([
+      {
+        type: 'text',
+        text: `Generated 1 Codex image(s) with ${CODEX_IMAGE_MODEL}, saved to images/generated.png.`,
+      },
+      { type: 'image', attachment: expect.objectContaining({ attachmentId: 'generated' }) as ImageAttachmentRef },
+    ])
+  })
+
+  it('forwards every optional Codex edit parameter and renders saved and unsaved results', async () => {
+    const edit = vi.fn<CodexImageController['edit']>(async () => ({
+      operation: 'edit',
+      model: CODEX_IMAGE_MODEL,
+      images: [imageRef('edited')],
+      references: [imageRef('owned')],
+      warnings: [],
+    }))
+    const saveToWorkspace = vi.fn<SaveArtifactToWorkspace>(async () => 'images/edited.png')
+    const tools = await createCapabilityTools({
+      current: () => enabledSettings(),
+      auth: fakeAuth(),
+      attachments: fakeAttachments(),
+      imagine: fakeImagine(),
+      createCodexController: () => fakeCodexController({ edit }),
+      saveToWorkspace,
+    })
+    const tool = toolByName(tools, CODEX_IMAGE_EDIT_TOOL)
+    const exec = fakeExec({
+      agent: fakeAgent({
+        options: { provider: 'codex-oauth', model: 'gpt-5.4' },
+        deriveMessages: () => [],
+      }),
+    })
+    const args = {
+      prompt: 'brighter',
+      imageIds: ['owned'],
+      size: '1024x1536',
+      quality: 'medium',
+      background: 'transparent',
+    } as const
+    const saved = (await tool.execute({ ...args }, exec)) as { workspacePaths?: string[] }
+    expect(edit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        imageIds: ['owned'],
+        size: '1024x1536',
+        quality: 'medium',
+        background: 'transparent',
+      }),
+      expect.any(AbortSignal),
+    )
+    expect(tool.output.render({ ...args }, saved as never)[0]).toEqual({
+      type: 'text',
+      text: `Edited 1 Codex image(s) with ${CODEX_IMAGE_MODEL}, saved to images/edited.png.`,
+    })
+
+    saveToWorkspace.mockResolvedValue(undefined)
+    const unsaved = (await tool.execute({ prompt: 'brighter', imageIds: ['owned'] }, exec)) as {
+      workspacePaths?: string[]
+    }
+    expect(unsaved.workspacePaths).toBeUndefined()
+    expect(tool.output.render({ prompt: 'brighter', imageIds: ['owned'] }, unsaved as never)).toEqual([
+      { type: 'text', text: `Edited 1 Codex image(s) with ${CODEX_IMAGE_MODEL}.` },
+      { type: 'image', attachment: expect.objectContaining({ attachmentId: 'edited' }) as ImageAttachmentRef },
+    ])
+  })
+
+  it('forwards the Imagine image options and renders the saved paths', async () => {
+    const generateImage = vi.fn(async () => leakyImagineImage())
+    const tools = await createCapabilityTools({
+      current: () => enabledSettings(),
+      auth: fakeAuth(),
+      attachments: fakeAttachments(),
+      imagine: fakeImagine({ generateImage }),
+      saveToWorkspace: async () => 'images/img_local.png',
+    })
+    const tool = toolByName(tools, GROK_IMAGINE_IMAGE_TOOL)
+    const args = { prompt: 'orbit', aspectRatio: '16:9', resolution: '2k' } as const
+    const value = (await tool.execute({ ...args }, fakeExec())) as { workspacePaths?: string[] }
+    expect(generateImage).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: 'orbit', aspectRatio: '16:9', resolution: '2k' }),
+      expect.any(AbortSignal),
+    )
+    expect(value.workspacePaths).toEqual(['images/img_local.png'])
+    expect(tool.output.render({ ...args }, value as never)[0]).toEqual({
+      type: 'text',
+      text: 'Generated 1 Imagine image(s), saved to images/img_local.png.',
+    })
+  })
+
+  it('forwards the Imagine video options and renders the started job', async () => {
+    const startVideo = vi.fn(async () => leakyVideoStart())
+    const tools = await createCapabilityTools({
+      current: () => enabledSettings(),
+      auth: fakeAuth(),
+      attachments: fakeAttachments(),
+      imagine: fakeImagine({ startVideo }),
+    })
+    const tool = toolByName(tools, GROK_IMAGINE_VIDEO_TOOL)
+    const args = { prompt: 'orbit', duration: 5, aspectRatio: '16:9', resolution: '720p' } as const
+    const value = await tool.execute({ ...args }, fakeExec())
+    expect(startVideo).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: 'orbit', duration: 5, aspectRatio: '16:9', resolution: '720p' }),
+      expect.any(AbortSignal),
+    )
+    expect(tool.output.render({ ...args }, value as never)).toEqual([
+      { type: 'text', text: 'Imagine video job req_video_1 is pending.' },
+    ])
+  })
+
+  it('returns a job with no artifact yet without touching the workspace', async () => {
+    const saveToWorkspace = vi.fn(async () => 'videos/never.mp4')
+    const tools = await createCapabilityTools({
+      current: () => enabledSettings(),
+      auth: fakeAuth(),
+      attachments: fakeAttachments(),
+      imagine: fakeImagine({
+        videoStatus: vi.fn(async () => ({ requestId: 'req_video_2', status: 'pending' as const })),
+      }),
+      saveToWorkspace,
+    })
+    const tool = toolByName(tools, GROK_IMAGINE_VIDEO_STATUS_TOOL)
+    const status = (await tool.execute({ requestId: 'req_video_2' }, fakeExec())) as {
+      requestId: string
+      status: string
+      artifact?: unknown
+      path?: string
+    }
+    expect(status).toEqual({ requestId: 'req_video_2', status: 'pending' })
+    expect(saveToWorkspace).not.toHaveBeenCalled()
+    expect(tool.output.render({ requestId: 'req_video_2' }, status as never)).toEqual([
+      { type: 'text', text: 'Imagine video req_video_2 is pending.' },
+    ])
+  })
+
+  it('reports a failed job error without inventing an artifact', async () => {
+    const tools = await createCapabilityTools({
+      current: () => enabledSettings(),
+      auth: fakeAuth(),
+      attachments: fakeAttachments(),
+      imagine: fakeImagine({
+        videoStatus: vi.fn(async () => ({
+          requestId: 'req_video_3',
+          status: 'failed' as const,
+          error: 'video did not respect moderation rules',
+        })),
+      }),
+    })
+    const status = (await toolByName(tools, GROK_IMAGINE_VIDEO_STATUS_TOOL).execute(
+      { requestId: 'req_video_3' },
+      fakeExec(),
+    )) as { requestId: string; status: string; error?: string; artifact?: unknown }
+    expect(status).toEqual({
+      requestId: 'req_video_3',
+      status: 'failed',
+      error: 'video did not respect moderation rules',
+    })
+  })
+
+  it('keeps the artifact name a completed job reported', async () => {
+    const tools = await createCapabilityTools({
+      current: () => enabledSettings(),
+      auth: fakeAuth(),
+      attachments: fakeAttachments(),
+      imagine: fakeImagine({
+        videoStatus: vi.fn(async () => ({
+          requestId: 'req_video_1',
+          status: 'completed' as const,
+          artifact: {
+            artifactId: ARTIFACT_ID,
+            mediaType: 'video/mp4' as const,
+            bytes: 64,
+            createdAt: 1,
+            expiresAt: 2,
+            name: 'clip.mp4',
+          },
+          path: imagineMediaPath(ARTIFACT_ID),
+        })),
+      }),
+    })
+    const status = (await toolByName(tools, GROK_IMAGINE_VIDEO_STATUS_TOOL).execute(
+      { requestId: 'req_video_1' },
+      fakeExec(),
+    )) as { artifact?: { name?: string } }
+    expect(status.artifact?.name).toBe('clip.mp4')
+  })
+
+  it('passes Codex warnings through with their index, code, and message', async () => {
+    const tools = await createCapabilityTools({
+      current: () => enabledSettings(),
+      auth: fakeAuth(),
+      attachments: fakeAttachments(),
+      imagine: fakeImagine(),
+      createCodexController: () =>
+        fakeCodexController({
+          generate: vi.fn<CodexImageController['generate']>(async () => ({
+            operation: 'generate',
+            model: CODEX_IMAGE_MODEL,
+            images: [imageRef('generated')],
+            references: [],
+            warnings: [{ index: 1, code: 'IMAGE_DATA_MISSING', message: 'Only b64_json image items are accepted.' }],
+          })),
+        }),
+    })
+    const value = (await toolByName(tools, CODEX_IMAGE_GENERATE_TOOL).execute(
+      { prompt: 'cube' },
+      fakeExec(),
+    )) as { warnings: Array<{ index: number; code: string; message: string }> }
+    expect(value.warnings).toEqual([
+      { index: 1, code: 'IMAGE_DATA_MISSING', message: 'Only b64_json image items are accepted.' },
+    ])
+  })
+
+  it('falls back to the result attachment when Imagine returns no images', async () => {
+    const single = imagineRef('img_single')
+    const tools = await createCapabilityTools({
+      current: () => enabledSettings(),
+      auth: fakeAuth(),
+      attachments: fakeAttachments(),
+      imagine: fakeImagine({
+        generateImage: vi.fn(async () => ({
+          model: GROK_IMAGINE_IMAGE_MODEL,
+          images: [],
+          attachment: single,
+          path: `/plugins/dsh-grok-build/imagine/images/${single.attachmentId}`,
+        })),
+      }),
+    })
+    const tool = toolByName(tools, GROK_IMAGINE_IMAGE_TOOL)
+    const value = (await tool.execute({ prompt: 'orbit' }, fakeExec())) as {
+      images: ImageAttachmentRef[]
+      attachment: ImageAttachmentRef
+      path: string
+    }
+    expect(value.images).toEqual([])
+    expect(value.attachment.attachmentId).toBe(single.attachmentId)
+    expect(value.path).toBe(`/plugins/dsh-grok-build/imagine/images/${single.attachmentId}`)
+    expect(tool.output.render({ prompt: 'orbit' }, value as never)).toEqual([
+      { type: 'text', text: 'Generated 0 Imagine image(s).' },
+    ])
+  })
+
+  it('omits the name of an attachment that has none', async () => {
+    const nameless: ImagineImageAttachmentRef = {
+      attachmentId: 'img_nameless',
+      mediaType: 'image/png',
+      bytes: 32,
+      width: 1,
+      height: 1,
+    }
+    const tools = await createCapabilityTools({
+      current: () => enabledSettings(),
+      auth: fakeAuth(),
+      attachments: fakeAttachments(),
+      imagine: fakeImagine({
+        generateImage: vi.fn(async () => ({
+          model: GROK_IMAGINE_IMAGE_MODEL,
+          images: [{ attachment: nameless, path: `/plugins/dsh-grok-build/imagine/images/${nameless.attachmentId}` }],
+          attachment: nameless,
+          path: `/plugins/dsh-grok-build/imagine/images/${nameless.attachmentId}`,
+        })),
+      }),
+    })
+    const value = (await toolByName(tools, GROK_IMAGINE_IMAGE_TOOL).execute({ prompt: 'orbit' }, fakeExec())) as {
+      images: Array<{ attachment: ImageAttachmentRef }>
+      attachment: ImageAttachmentRef
+    }
+    expect(value.images[0]?.attachment).toEqual({ ...nameless })
+    expect(Object.hasOwn(value.images[0]?.attachment ?? {}, 'name')).toBe(false)
+    expect(Object.hasOwn(value.attachment, 'name')).toBe(false)
+  })
+
+  it('recomputes a plugin path that does not sit under the Imagine prefix', async () => {
+    const escaped = imagineRef('img_escaped')
+    const expected = `/plugins/dsh-grok-build/imagine/images/${escaped.attachmentId}`
+    const tools = await createCapabilityTools({
+      current: () => enabledSettings(),
+      auth: fakeAuth(),
+      attachments: fakeAttachments(),
+      imagine: fakeImagine({
+        generateImage: vi.fn(async () => ({
+          model: GROK_IMAGINE_IMAGE_MODEL,
+          images: [{ attachment: escaped, path: '/etc/passwd' }],
+          attachment: escaped,
+          path: 'https://imgen.x.ai/signed?token=abc',
+        })),
+      }),
+    })
+    const value = (await toolByName(tools, GROK_IMAGINE_IMAGE_TOOL).execute(
+      { prompt: 'orbit' },
+      fakeExec(),
+    )) as { images: Array<{ path: string }>; path: string }
+    expect(value.images[0]?.path).toBe(expected)
+    expect(value.path).toBe(expected)
+    expect(JSON.stringify(value)).not.toContain('passwd')
+    expect(JSON.stringify(value)).not.toContain('imgen.x.ai')
   })
 })
 
@@ -757,21 +1105,65 @@ describe('Codex image route resolution', () => {
     })
     expect(edit).toHaveBeenCalledWith(expect.objectContaining({ imageIds: ['owned'] }), expect.any(AbortSignal))
   })
+
+  it('omits a route identity the resolver could not name', async () => {
+    const sessions: CodexImageSessionContext[] = []
+    const tools = await createCapabilityTools({
+      current: () => enabledSettings(),
+      auth: fakeAuth(),
+      attachments: fakeAttachments(),
+      imagine: fakeImagine(),
+      createCodexController: (session) => {
+        sessions.push(session)
+        return fakeCodexController()
+      },
+      resolveCodexImageRoute: async () => ({ provider: '', model: '', inputModalities: ['text'] }),
+    })
+    await toolByName(tools, CODEX_IMAGE_GENERATE_TOOL).execute({ prompt: 'cube' }, fakeExec())
+    expect(sessions[0]?.route).toEqual({ inputModalities: ['text'] })
+  })
+
+  it('runs a Codex image call without a route when the resolver declines or fails', async () => {
+    const sessions: CodexImageSessionContext[] = []
+    let mode: 'decline' | 'throw' = 'decline'
+    const tools = await createCapabilityTools({
+      current: () => enabledSettings(),
+      auth: fakeAuth(),
+      attachments: fakeAttachments(),
+      imagine: fakeImagine(),
+      createCodexController: (session) => {
+        sessions.push(session)
+        return fakeCodexController()
+      },
+      resolveCodexImageRoute: async () => {
+        if (mode === 'throw') throw new Error('route lookup failed')
+        return undefined
+      },
+    })
+    const tool = toolByName(tools, CODEX_IMAGE_GENERATE_TOOL)
+    await tool.execute({ prompt: 'cube' }, fakeExec())
+    expect(sessions[0]?.route).toBeUndefined()
+
+    mode = 'throw'
+    await tool.execute({ prompt: 'cube' }, fakeExec())
+    expect(sessions[1]?.route).toBeUndefined()
+    expect(sessions).toHaveLength(2)
+  })
 })
 
 describe('Imagine tool signal threading', () => {
   it('forwards exec.signal into every Imagine client method', async () => {
     const captured: Array<AbortSignal | undefined> = []
     const fakeImagineClient: CapabilityImagineClient = {
-      generateImage: vi.fn(async (_input, signal) => {
+      generateImage: vi.fn(async (_input: GenerateImagineImageInput, signal?: AbortSignal) => {
         captured.push(signal)
         return leakyImagineImage()
       }),
-      startVideo: vi.fn(async (_input, signal) => {
+      startVideo: vi.fn(async (_input: StartImagineVideoInput, signal?: AbortSignal) => {
         captured.push(signal)
         return leakyVideoStart()
       }),
-      videoStatus: vi.fn(async (_requestId, options) => {
+      videoStatus: vi.fn(async (_requestId: string, options?: { name?: string; signal?: AbortSignal }) => {
         captured.push(options?.signal)
         return leakyVideoStatus()
       }),
@@ -803,7 +1195,7 @@ describe('Imagine tool signal threading', () => {
     })
     await expect(
       toolByName(tools, 'grok_imagine_video_status').execute({ requestId: '../escape' }, fakeExec()),
-    ).rejects.toMatchObject({ message: expect.stringMatching(/safe ASCII identifier/) })
+    ).rejects.toMatchObject({ message: expect.stringMatching(/safe ASCII identifier/) as string })
     expect(imagineVideoStatus).not.toHaveBeenCalled()
   })
 })
@@ -824,7 +1216,7 @@ describe('workspace copies', () => {
     expect(result.workspacePaths).toEqual(['images/img_local.png'])
     expect(saveToWorkspace).toHaveBeenCalledWith(expect.anything(), {
       kind: 'image',
-      attachment: expect.objectContaining({ attachmentId: 'img_local' }),
+      attachment: expect.objectContaining({ attachmentId: 'img_local' }) as ImageAttachmentRef,
     })
   })
 
@@ -903,6 +1295,22 @@ describe('workspace copies', () => {
       fakeExec(),
     )) as { workspacePaths?: string[] }
     expect(withoutWorkspace.workspacePaths).toBeUndefined()
+  })
+
+  it('records no workspace path when the deployment skips the copy', async () => {
+    const saveToWorkspace = vi.fn(async () => undefined)
+    const tools = await createCapabilityTools({
+      current: () => enabledSettings(),
+      auth: fakeAuth(),
+      attachments: fakeAttachments(),
+      imagine: fakeImagine(),
+      saveToWorkspace,
+    })
+    const result = (await toolByName(tools, GROK_IMAGINE_IMAGE_TOOL).execute({ prompt: 'orbit' }, fakeExec())) as {
+      workspacePaths?: string[]
+    }
+    expect(saveToWorkspace).toHaveBeenCalledTimes(1)
+    expect(result.workspacePaths).toBeUndefined()
   })
 })
 

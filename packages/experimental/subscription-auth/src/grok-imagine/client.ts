@@ -61,6 +61,8 @@ import {
   type ImagineImageDownloadView,
   type ImagineImageMediaType,
   type ImagineImageResult,
+  type ImagineMediaHop,
+  type ImagineMediaHopRequest,
   type ImagineMediaTransport,
   type ImagineOperation,
   type ImaginePersistedImage,
@@ -81,11 +83,23 @@ function parseContentType(value: string | null | undefined): string | undefined 
   return value.split(';', 1)[0]?.trim().toLowerCase()
 }
 
+/**
+ * Default imagine lookup.
+ * @param hostname - Hostname value.
+ * @returns The resulting default imagine lookup.
+ */
 export async function defaultImagineLookup(hostname: string): Promise<readonly string[]> {
-  const records = await dnsLookup(hostname, { all: true, verbatim: true })
+  /* The `verbatim` option is deprecated: Node 17+ returns records in resolver order by default. */
+  const records = await dnsLookup(hostname, { all: true })
   return records.map(record => record.address)
 }
 
+/**
+ * Assert safe remote media url.
+ * @param raw - Raw value.
+ * @param lookup - Lookup value.
+ * @returns The resulting assert safe remote media url.
+ */
 export async function assertSafeRemoteMediaUrl(raw: string, lookup: ImagineDnsLookup): Promise<URL> {
   let url: URL
   try {
@@ -138,6 +152,7 @@ function createPinnedAgent(hostname: string, addresses: readonly string[]): Agen
   const expected = normalizeHostname(hostname)
   const records = addresses.map((address) => {
     const family = isIP(address)
+    /* v8 ignore next -- lookup results already passed isBlockedIp, which rejects non-IP addresses */
     if (family !== 4 && family !== 6) {
       throw new GrokImagineError('SSRF', 'pinned address is not a valid IP')
     }
@@ -160,6 +175,7 @@ function createPinnedAgent(hostname: string, addresses: readonly string[]): Agen
       return
     }
     const first = records[0]
+    /* v8 ignore next -- resolvePublicAddresses already refused an empty address list */
     if (first === undefined) {
       callback(new GrokImagineError('SSRF', 'no pinned addresses'))
       return
@@ -186,7 +202,7 @@ interface LimitedBodyReader {
 interface LimitedBodyResponse {
   readonly status: number
   readonly headers: { get(name: string): string | null }
-  readonly body: unknown | null
+  readonly body: unknown
   arrayBuffer(): Promise<ArrayBuffer>
 }
 
@@ -215,13 +231,15 @@ async function readLimitedBody(
   }
   if (
     typeof response.body !== 'object' ||
+		// oxlint-disable-next-line typescript/no-unnecessary-condition -- typeof null === 'object'
 		response.body === null ||
 		!('getReader' in response.body) ||
 		typeof response.body.getReader !== 'function'
   ) {
     throw new GrokImagineError('MEDIA', 'remote body is not a readable byte stream')
   }
-  const reader = response.body.getReader() as LimitedBodyReader
+  const body = response.body as { getReader(): LimitedBodyReader }
+  const reader = body.getReader()
   const chunks: Uint8Array[] = []
   let size = 0
   const onAbort = (): void => {
@@ -279,6 +297,88 @@ function mapUpstreamStatus(status: number, bodyText: string): GrokImagineError {
   return new GrokImagineError('UPSTREAM', message, { status })
 }
 
+/** A hop response's shape: enough to read a bounded body and classify its status. */
+interface MediaHopResponse extends LimitedBodyResponse {
+  readonly ok: boolean
+}
+
+/**
+ * Classify one media hop's response: a redirect target, a mapped upstream
+ * failure, or the bounded body with the content type it declared.
+ * @param response - Upstream response of the hop.
+ * @param request - Hop limits and `Accept`.
+ * @param signal - Hop signal that bounds the body read.
+ * @returns The resolved hop.
+ */
+async function readMediaHop(
+  response: MediaHopResponse,
+  request: ImagineMediaHopRequest,
+  signal: AbortSignal,
+): Promise<ImagineMediaHop> {
+  if (response.status >= 300 && response.status < 400) {
+    const location = response.headers.get('location')
+    return location === null || location.trim() === ''
+      ? { status: response.status }
+      : { status: response.status, location }
+  }
+  if (!response.ok) {
+    const text = new TextDecoder().decode(await readLimitedBody(response, 4096, signal))
+    throw mapUpstreamStatus(response.status, text)
+  }
+  const data = await readLimitedBody(response, request.maxBytes, signal)
+  const contentType = parseContentType(response.headers.get('content-type'))
+  if (contentType === undefined) return { status: response.status, data }
+  return { status: response.status, contentType, data }
+}
+
+/**
+ * Classify a failed media hop. A `GrokImagineError` this module raised passes
+ * through unchanged; every other failure is wrapped as `TIMEOUT` or `MEDIA`.
+ * @param error - Thrown value from the hop.
+ * @returns The error the transport must throw.
+ */
+function mediaDownloadError(error: unknown): GrokImagineError {
+  if (error instanceof GrokImagineError) return error
+  const name = error instanceof Error ? error.name : ''
+  if (name === 'TimeoutError' || name === 'AbortError') {
+    return new GrokImagineError('TIMEOUT', 'Imagine media download timed out', { cause: error })
+  }
+  return new GrokImagineError('MEDIA', `Imagine media download failed (${redactImagineMessage(error)})`, {
+    cause: error,
+  })
+}
+
+/**
+ * Build a downloader over one media transport: every hop carries the same
+ * lookup, limits, and redirect ceiling.
+ * @param transport - Single-hop transport.
+ * @param lookup - Resolver each hop revalidates with.
+ * @param maxRedirects - Maximum redirect hops.
+ * @returns The composed downloader.
+ */
+function mediaDownloader(
+  transport: ImagineMediaTransport,
+  lookup: ImagineDnsLookup,
+  maxRedirects: number,
+): ImagineDownloader {
+  return {
+    download: request =>
+      downloadRemoteImagineMedia(request.url, transport, {
+        lookup,
+        timeoutMs: request.timeoutMs,
+        maxBytes: request.maxBytes,
+        accept: request.accept,
+        maxRedirects,
+        ...(request.signal === undefined ? {} : { signal: request.signal }),
+      }),
+  }
+}
+
+/**
+ * Create pinned media transport.
+ * @param lookup - Lookup value.
+ * @returns The created pinned media transport.
+ */
 export function createPinnedMediaTransport(lookup: ImagineDnsLookup = defaultImagineLookup): ImagineMediaTransport {
   return {
     async get(url, request) {
@@ -287,38 +387,21 @@ export function createPinnedMediaTransport(lookup: ImagineDnsLookup = defaultIma
       const agent = createPinnedAgent(validated.hostname, addresses)
       const signal = requestSignal(request.signal, request.timeoutMs)
       try {
-        const response = await undiciFetch(validated, {
-          method: 'GET',
-          redirect: 'manual',
-          // This agent pins the address resolved for this request, which is the SSRF guard.
-          // proxy-exempt: a shared dispatcher would re-resolve DNS and lose that pin.
-          dispatcher: agent,
+        return await readMediaHop(
+          await undiciFetch(validated, {
+            method: 'GET',
+            redirect: 'manual',
+            // This agent pins the address resolved for this request, which is the SSRF guard.
+            // proxy-exempt: a shared dispatcher would re-resolve DNS and lose that pin.
+            dispatcher: agent,
+            signal,
+            headers: { accept: request.accept },
+          }),
+          request,
           signal,
-          headers: { accept: request.accept },
-        })
-        if (response.status >= 300 && response.status < 400) {
-          const location = response.headers.get('location')
-          return location === null || location.trim() === ''
-            ? { status: response.status }
-            : { status: response.status, location }
-        }
-        if (!response.ok) {
-          const text = new TextDecoder().decode(await readLimitedBody(response, 4096, signal))
-          throw mapUpstreamStatus(response.status, text)
-        }
-        const data = await readLimitedBody(response, request.maxBytes, signal)
-        const contentType = parseContentType(response.headers.get('content-type'))
-        if (contentType === undefined) return { status: response.status, data }
-        return { status: response.status, contentType, data }
+        )
       } catch (error) {
-        if (error instanceof GrokImagineError) throw error
-        const name = error instanceof Error ? error.name : ''
-        if (name === 'TimeoutError' || name === 'AbortError') {
-          throw new GrokImagineError('TIMEOUT', 'Imagine media download timed out', { cause: error })
-        }
-        throw new GrokImagineError('MEDIA', `Imagine media download failed (${redactImagineMessage(error)})`, {
-          cause: error,
-        })
+        throw mediaDownloadError(error)
       } finally {
         await agent.close().catch(() => undefined)
       }
@@ -326,6 +409,12 @@ export function createPinnedMediaTransport(lookup: ImagineDnsLookup = defaultIma
   }
 }
 
+/**
+ * Create pinned api fetch.
+ * @param lookup - Lookup value.
+ * @param maxBytes - Max bytes value.
+ * @returns The created pinned api fetch.
+ */
 export function createPinnedApiFetch(
   lookup: ImagineDnsLookup = defaultImagineLookup,
   maxBytes = DEFAULT_API_JSON_MAX_BYTES,
@@ -381,6 +470,13 @@ export function createPinnedApiFetch(
   }
 }
 
+/**
+ * Download remote imagine media.
+ * @param initialUrl - Initial url value.
+ * @param transport - Transport value.
+ * @param options - Operation options.
+ * @returns The resulting download remote imagine media.
+ */
 export async function downloadRemoteImagineMedia(
   initialUrl: string,
   transport: ImagineMediaTransport,
@@ -422,33 +518,32 @@ export async function downloadRemoteImagineMedia(
   throw new GrokImagineError('SSRF', 'Imagine media download exceeded the redirect limit')
 }
 
+/**
+ * Create pinned imagine downloader.
+ * @param options - Operation options.
+ * @returns The created pinned imagine downloader.
+ */
 export function createPinnedImagineDownloader(
   options: { lookup?: ImagineDnsLookup; maxRedirects?: number } = {},
 ): ImagineDownloader {
   const lookup = options.lookup ?? defaultImagineLookup
   const transport = createPinnedMediaTransport(lookup)
   const maxRedirects = options.maxRedirects ?? DEFAULT_MAX_REDIRECTS
-  return {
-    download: request =>
-      downloadRemoteImagineMedia(request.url, transport, {
-        lookup,
-        timeoutMs: request.timeoutMs,
-        maxBytes: request.maxBytes,
-        accept: request.accept,
-        maxRedirects,
-        ...(request.signal === undefined ? {} : { signal: request.signal }),
-      }),
-  }
+  return mediaDownloader(transport, lookup, maxRedirects)
 }
 
 /**
  * Test-only adapter around an injected fetch. Ordinary mock fetch is not
  * production-safe: it cannot pin DNS at connect time.
+ * @param fetchImpl - Fetch impl value.
+ * @param options - Operation options.
+ * @returns The created imagine downloader from fetch.
  */
 export function createImagineDownloaderFromFetch(
   fetchImpl: ImagineFetch,
   options: { trustedTestTransport: true; lookup?: ImagineDnsLookup; maxRedirects?: number },
 ): ImagineDownloader {
+  // oxlint-disable-next-line typescript/no-unnecessary-condition -- SSRF guard against an untrusted caller
   if (!options.trustedTestTransport) {
     throw new GrokImagineError('SSRF', 'fetch-based media transport is not production-safe')
   }
@@ -458,49 +553,22 @@ export function createImagineDownloaderFromFetch(
     async get(url, request) {
       const signal = requestSignal(request.signal, request.timeoutMs)
       try {
-        const response = await fetchImpl(url, {
-          method: 'GET',
-          redirect: 'manual',
+        return await readMediaHop(
+          await fetchImpl(url, {
+            method: 'GET',
+            redirect: 'manual',
+            signal,
+            headers: { accept: request.accept },
+          }),
+          request,
           signal,
-          headers: { accept: request.accept },
-        })
-        if (response.status >= 300 && response.status < 400) {
-          const location = response.headers.get('location')
-          return location === null || location.trim() === ''
-            ? { status: response.status }
-            : { status: response.status, location }
-        }
-        if (!response.ok) {
-          const text = new TextDecoder().decode(await readLimitedBody(response, 4096, signal))
-          throw mapUpstreamStatus(response.status, text)
-        }
-        const data = await readLimitedBody(response, request.maxBytes, signal)
-        const contentType = parseContentType(response.headers.get('content-type'))
-        if (contentType === undefined) return { status: response.status, data }
-        return { status: response.status, contentType, data }
+        )
       } catch (error) {
-        if (error instanceof GrokImagineError) throw error
-        const name = error instanceof Error ? error.name : ''
-        if (name === 'TimeoutError' || name === 'AbortError') {
-          throw new GrokImagineError('TIMEOUT', 'Imagine media download timed out', { cause: error })
-        }
-        throw new GrokImagineError('MEDIA', `Imagine media download failed (${redactImagineMessage(error)})`, {
-          cause: error,
-        })
+        throw mediaDownloadError(error)
       }
     },
   }
-  return {
-    download: request =>
-      downloadRemoteImagineMedia(request.url, transport, {
-        lookup,
-        timeoutMs: request.timeoutMs,
-        maxBytes: request.maxBytes,
-        accept: request.accept,
-        maxRedirects,
-        ...(request.signal === undefined ? {} : { signal: request.signal }),
-      }),
-  }
+  return mediaDownloader(transport, lookup, maxRedirects)
 }
 
 function requirePrompt(prompt: string | undefined): string {
@@ -661,6 +729,7 @@ function decodeBase64(value: string, maxBytes: number): Uint8Array {
     throw new GrokImagineError('MEDIA', `Imagine image b64_json exceeds the ${maxBytes} byte ceiling`)
   }
   const decoded = Buffer.from(value, 'base64')
+  /* v8 ignore next -- the padding and length checks already refused an empty decode */
   if (decoded.byteLength === 0) {
     throw new GrokImagineError('UPSTREAM', 'Imagine image b64_json decoded to an empty buffer')
   }
@@ -707,6 +776,7 @@ function resolveVideoMediaType(data: Uint8Array, declared: string | undefined): 
   return detected
 }
 
+/** Grok imagine client implementation. */
 export class GrokImagineClient {
   private readonly resolveApiKey: ImagineApiKeyResolver
   private readonly attachments: ImagineAttachmentStore
@@ -760,7 +830,8 @@ export class GrokImagineClient {
     this.videoInflight.clear()
   }
 
-  /** @returns true once {@link dispose} has been called. */
+  /**
+   * Is disposed implementation. @returns true once {@link dispose} has been called. */
   get isDisposed(): boolean {
     return this.disposed
   }
@@ -774,6 +845,12 @@ export class GrokImagineClient {
     }
   }
 
+  /**
+   * Generate image.
+   * @param input - Input value to process.
+   * @param signal - Cancellation signal for the operation.
+   * @returns The resulting generate image.
+   */
   async generateImage(input: GenerateImagineImageInput, signal?: AbortSignal): Promise<ImagineImageResult> {
     this.assertWritable('image.generate')
     const { signal: external, observe } = composeSignals(signal, this.disposeController.signal)
@@ -826,6 +903,12 @@ export class GrokImagineClient {
     }
   }
 
+  /**
+   * Start video.
+   * @param input - Input value to process.
+   * @param signal - Cancellation signal for the operation.
+   * @returns The resulting start video.
+   */
   async startVideo(input: StartImagineVideoInput, signal?: AbortSignal): Promise<ImagineVideoStartResult> {
     this.assertWritable('video.start')
     const { signal: external, observe } = composeSignals(signal, this.disposeController.signal)
@@ -852,6 +935,12 @@ export class GrokImagineClient {
     }
   }
 
+  /**
+   * Video status.
+   * @param requestId - Request id value.
+   * @param options - Operation options.
+   * @returns The resulting video status.
+   */
   async videoStatus(
     requestId: string,
     options: { name?: string; signal?: AbortSignal } = {},
@@ -872,9 +961,11 @@ export class GrokImagineClient {
     }
     const poll = (): Promise<ImagineVideoStatusResult> =>
       this.pollVideo(validated, { ...options, signal: external }).catch((error: unknown) => {
+        /* v8 ignore start -- ImagineAbortError is only ever installed as an AbortSignal reason, never thrown */
         if (isImagineAbortError(error)) {
           throw new GrokImagineError('TIMEOUT', `video polling for ${validated} was aborted`, { cause: error })
         }
+        /* v8 ignore stop */
         throw error
       })
     if (options.signal !== undefined) return poll().finally(observe)
@@ -936,8 +1027,10 @@ export class GrokImagineClient {
       timeoutMs: this.videoDownloadTimeoutMs,
       maxBytes: this.media.maxBytes,
       accept: 'video/mp4,video/webm',
+      /* v8 ignore next -- pollVideo's only call site always resolves a signal via composeSignals */
       ...(options.signal === undefined ? {} : { signal: options.signal }),
     })
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- set from another task
     if (this.disposed) {
       throw new GrokImagineError('INVALID_INPUT', 'Imagine client was disposed after video download')
     }
@@ -973,6 +1066,7 @@ export class GrokImagineClient {
     this.videoResults.set(requestId, result)
     if (this.videoResults.size <= MAX_CACHED_VIDEO_JOBS) return
     const oldest = this.videoResults.keys().next().value
+    /* v8 ignore next -- reached only past MAX_CACHED_VIDEO_JOBS entries, so the map cannot be empty */
     if (oldest !== undefined) this.videoResults.delete(oldest)
   }
 
@@ -1016,14 +1110,17 @@ export class GrokImagineClient {
     if (allowed !== undefined && !allowed.includes(mediaType)) {
       throw new GrokImagineError('MEDIA', `Imagine image type ${mediaType} is not accepted by the attachment store`)
     }
+    /* v8 ignore start -- dispose() aborts disposeController synchronously, so the signal.aborted guard above always throws first */
     if (this.disposed) {
       throw new GrokImagineError('INVALID_INPUT', 'Imagine client was disposed before attachment persist')
     }
+    /* v8 ignore stop */
     const attachment = await this.attachments.saveImage({
       data,
       mediaType,
       ...(name === undefined ? {} : { name }),
     })
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- set from another task
     if (signal.aborted || this.disposed) {
       // AttachmentStore exposes no delete/cancellation seam; fail closed and do
       // not publish the now-orphaned immutable reference.
@@ -1063,6 +1160,7 @@ export class GrokImagineClient {
   ): Promise<Record<string, unknown>> {
     const origin = imagineTransportOrigin(credential.transport)
     const url = new URL(path, origin)
+    /* v8 ignore next -- Imagine API paths are origin-relative constants */
     if (url.origin !== origin) {
       throw new GrokImagineError('SSRF', `Imagine API URL escaped ${origin}`)
     }
@@ -1071,11 +1169,9 @@ export class GrokImagineClient {
       Authorization: `Bearer ${credential.token}`,
       Accept: 'application/json',
     }
-    const composed = AbortSignal.any(
-      signal === undefined
-        ? [AbortSignal.timeout(this.apiTimeoutMs), this.disposeController.signal]
-        : [signal, AbortSignal.timeout(this.apiTimeoutMs), this.disposeController.signal],
-    )
+    const timeoutSignals = [AbortSignal.timeout(this.apiTimeoutMs), this.disposeController.signal]
+    /* v8 ignore next -- all three apiJson call sites supply a signal */
+    const composed = AbortSignal.any(signal === undefined ? timeoutSignals : [signal, ...timeoutSignals])
     const init: RequestInit = {
       method,
       headers,
@@ -1128,11 +1224,22 @@ function cloneVideoStatus(result: ImagineVideoStatusResult): ImagineVideoStatusR
   return clone
 }
 
+/**
+ * Create grok imagine client.
+ * @param options - Operation options.
+ * @returns The created grok imagine client.
+ */
 export function createGrokImagineClient(options: GrokImagineClientOptions): GrokImagineClient {
   return new GrokImagineClient(options)
 }
 
-/** Gate a same-origin image download. Requires an explicit trusted/authz token. */
+/**
+ * Gate a same-origin image download. Requires an explicit trusted/authz token.
+ * @param attachments - Attachments value.
+ * @param ref - Ref value.
+ * @param authz - Authz value.
+ * @returns The resulting open trusted imagine image download.
+ */
 export async function openTrustedImagineImageDownload(
   attachments: ImagineAttachmentStore,
   ref: ImagineImageAttachmentRef,

@@ -44,7 +44,7 @@ describe('DSH compatibility contracts', () => {
           if (unInjected.has(property)) {
             throw new Error(`cannot get property "${String(property)}" without inject`)
           }
-          return Reflect.get(target, property, receiver)
+          return Reflect.get(target, property, receiver) as unknown
         },
       }),
     )
@@ -84,5 +84,141 @@ describe('DSH compatibility contracts', () => {
       state: 'available',
       contract: 'owner-request-policy-v1',
     })
+  })
+
+  it('reports a service that exists but does not implement its contract as an error', () => {
+    const context = {
+      effect() {},
+      inject() {},
+      get() {},
+      logger() {},
+      llm: { registerAdapter() {} },
+      // Present, but with none of the methods `exact-route-v1` verifies.
+      webServer: {},
+    } as unknown as Context
+    const adapter = createDshHostAdapter(context)
+
+    expect(adapter.compatibility().capabilities.webServer).toEqual({
+      state: 'incompatible',
+      contract: 'exact-route-v1',
+      reason: 'service shape does not match the verified contract',
+    })
+    const diagnostics = adapter.compatibility().diagnostics
+    expect(diagnostics).toContain('host.capability.webServer: webServer is incompatible')
+    expect(adapter.compatibility().status).toBe('incompatible')
+    // Capability drift is reported through `compatibility()`; activation is
+    // gated only on the host API surface itself, which is intact here.
+    expect(() =>{  adapter.assertCompatible() }).not.toThrow()
+  })
+
+  it('reports a healthy host once every verified contract is present', () => {
+    const context = {
+      effect() {},
+      inject() {},
+      get() {},
+      logger() {},
+      webServer: { register() {} },
+      settings: { register() {} },
+      credentials: { resolve() {} },
+      llm: { registerAdapter() {} },
+      ownerRequestPolicy: { authorize() {}, diagnostics() {} },
+    } as unknown as Context
+    const adapter = createDshHostAdapter(context)
+    const compatibility = adapter.compatibility()
+
+    expect(adapter.diagnostics()).toEqual([])
+    expect(compatibility.status).toBe('healthy')
+    expect(compatibility.diagnostics).toEqual([])
+    expect(compatibility.dshVersion).toMatch(/^\d+\.\d+\.\d+/u)
+    expect(compatibility.uiOwner).toBe('standalone')
+    expect(compatibility.accessMode).toBe('loopback')
+    expect(() =>{  adapter.assertCompatible() }).not.toThrow()
+  })
+
+  it('resolves the participant scope from the root context it was handed', () => {
+    const root = {
+      effect() {},
+      inject() {},
+      get() {},
+      logger() {},
+      llm: { registerAdapter() {} },
+    }
+    const adapter = createDshHostAdapter({ ...root, root } as unknown as Context)
+
+    expect(adapter.scope()).toBe(root)
+  })
+
+  it('reports no owner request policy when the host service is absent or partial', () => {
+    const bare = createDshHostAdapter({
+      effect() {},
+      inject() {},
+      get() {},
+      logger() {},
+      llm: { registerAdapter() {} },
+    } as unknown as Context)
+    expect(bare.ownerRequestPolicy()).toBeUndefined()
+
+    const partial = createDshHostAdapter({
+      effect() {},
+      inject() {},
+      get() {},
+      logger() {},
+      llm: { registerAdapter() {} },
+      // Declares an authorizer but no diagnostics surface, so it is not the
+      // `owner-request-policy-v1` contract this participant verifies.
+      ownerRequestPolicy: { authorize() {} },
+    } as unknown as Context)
+    expect(partial.ownerRequestPolicy()).toBeUndefined()
+  })
+
+  it('reports an unavailable DSH manifest as an unknown version', async () => {
+    vi.resetModules()
+    vi.doMock('node:module', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('node:module')>()
+      return Object.assign({}, actual, {
+        createRequire: () => () => {
+          throw new Error('the installed DSH manifest is unreadable')
+        },
+      })
+    })
+    try {
+      const { createDshHostAdapter: create } = await import('../src/dsh-host-adapter.ts')
+      const adapter = create({
+        effect() {},
+        inject() {},
+        get() {},
+        logger() {},
+        llm: { registerAdapter() {} },
+      } as unknown as Context)
+
+      expect(adapter.compatibility().dshVersion).toBeNull()
+      expect(adapter.compatibility().status).toBe('degraded')
+    } finally {
+      vi.doUnmock('node:module')
+      vi.resetModules()
+    }
+  })
+
+  it('reports a manifest without a version string as an unknown version', async () => {
+    vi.resetModules()
+    vi.doMock('node:module', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('node:module')>()
+      return Object.assign({}, actual, { createRequire: () => () => ({ version: 4 }) })
+    })
+    try {
+      const { createDshHostAdapter: create } = await import('../src/dsh-host-adapter.ts')
+      const adapter = create({
+        effect() {},
+        inject() {},
+        get() {},
+        logger() {},
+        llm: { registerAdapter() {} },
+      } as unknown as Context)
+
+      expect(adapter.compatibility().dshVersion).toBeNull()
+    } finally {
+      vi.doUnmock('node:module')
+      vi.resetModules()
+    }
   })
 })

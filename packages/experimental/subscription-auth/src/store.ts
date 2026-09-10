@@ -10,7 +10,7 @@ import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import type { Credential, CredentialInfo, CredentialStore, OAuthCredential } from '@earendil-works/pi-ai'
 import { GROK_BUILD_AUTH_FILENAME, XAI_PI_PROVIDER } from './ids.ts'
-import { OAuthSourceError, readHardenedOAuthSourceFile } from './oauth-sources.ts'
+import { CredentialFileError, readCredentialFile } from './credential-file.ts'
 
 /** On-disk multi-account format. Readers still accept v1 and migrate under lock. */
 const AUTH_FORMAT_VERSION = 2 as const
@@ -25,6 +25,7 @@ const UNCHANGED = Symbol('unchanged')
 /** How a login or import writes into the multi-account document. */
 export type LoginPersistMode = 'add' | 'overwrite-active'
 
+/** Options for login persist. */
 export interface LoginPersistOptions {
   mode: LoginPersistMode
   confirmOverwrite?: boolean
@@ -33,6 +34,7 @@ export interface LoginPersistOptions {
 /** Non-empty account id; max 128; restricted charset for path-safe operator labels. */
 export type AccountId = string
 
+/** Account record. */
 export interface AccountRecord {
   id: AccountId
   label?: string
@@ -40,6 +42,7 @@ export interface AccountRecord {
   createdAt: number
 }
 
+/** Auth document v2. */
 export interface AuthDocumentV2 {
   version: typeof AUTH_FORMAT_VERSION
   activeAccountId: AccountId
@@ -54,6 +57,11 @@ export interface AccountSummary {
   accountId?: string
 }
 
+/**
+ * Return whether is valid account id.
+ * @param value - Value to process.
+ * @returns The resulting is valid account id.
+ */
 export function isValidAccountId(value: unknown): value is AccountId {
   return typeof value === 'string' && value.length > 0 && value.length <= 128 && ACCOUNT_ID_PATTERN.test(value)
 }
@@ -201,6 +209,7 @@ function cloneDocument(document: AuthDocumentV2): AuthDocumentV2 {
 
 function activeCredential(document: AuthDocumentV2): OAuthCredential {
   const active = document.accounts.find(account => account.id === document.activeAccountId)
+  /* v8 ignore next -- parseDocument already requires activeAccountId to name a stored account */
   if (active === undefined) {
     throw new Error('active account missing from document')
   }
@@ -210,6 +219,8 @@ function activeCredential(document: AuthDocumentV2): OAuthCredential {
 /**
  * Prefer provider `credential.accountId` when path-safe; otherwise mint a unique
  * operator id so multiple anonymous logins do not collide on `legacy`.
+ * @param credential - Credential value.
+ * @returns The resolved account id for credential.
  */
 export function resolveAccountIdForCredential(credential: OAuthCredential): AccountId {
   const accountIdField = (credential as { accountId?: unknown }).accountId
@@ -268,7 +279,12 @@ function validatedDocument(document: AuthDocumentV2, filename: string, label: st
   return parseDocument(JSON.stringify(document), filename, label).document
 }
 
-/** Resolve one private OAuth document path beneath DSH_HOME. */
+/**
+ * Resolve one private OAuth document path beneath DSH_HOME.
+ * @param basename - Basename value.
+ * @param dshHome - Dsh home value.
+ * @returns The resulting oauth credential path.
+ */
 export function oauthCredentialPath(basename: string, dshHome?: string): string {
   if (
     basename.length === 0 ||
@@ -282,7 +298,11 @@ export function oauthCredentialPath(basename: string, dshHome?: string): string 
   return resolve(join(resolveDshHome(dshHome), basename))
 }
 
-/** Resolve the legacy Grok Build OAuth document path. */
+/**
+ * Resolve the legacy Grok Build OAuth document path.
+ * @param dshHome - Dsh home value.
+ * @returns The resulting grok build auth path.
+ */
 export function grokBuildAuthPath(dshHome?: string): string {
   return oauthCredentialPath(GROK_BUILD_AUTH_FILENAME, dshHome)
 }
@@ -294,6 +314,7 @@ export function grokBuildAuthPath(dshHome?: string): string {
  * methods always project the active account only.
  */
 export class OAuthCredentialFileStore implements CredentialStore {
+  /** Filename implementation. */
   readonly filename: string
   private loginPersist: LoginPersistOptions | undefined
 
@@ -315,30 +336,25 @@ export class OAuthCredentialFileStore implements CredentialStore {
 	 * Unsafe/symlink/wrong-owner/too-large files still throw.
 	 */
   private async loadCurrent(options: { allowUnreadable: boolean }): Promise<OAuthCredential | undefined> {
-    const loaded = await this.loadDocument({ allowUnreadable: options.allowUnreadable, persistMigration: false })
+    const loaded = await this.loadDocument({ allowUnreadable: options.allowUnreadable })
     return loaded === undefined ? undefined : activeCredential(loaded.document)
   }
 
   private async loadDocument(options: {
     allowUnreadable: boolean
-    persistMigration: boolean
   }): Promise<{ document: AuthDocumentV2; migratedFromV1: boolean } | undefined> {
     let text: string
     try {
-      text = (await readHardenedOAuthSourceFile(this.filename)).text
+      text = await readCredentialFile(this.filename)
     } catch (error) {
-      if (error instanceof OAuthSourceError && error.code === 'not_found') return undefined
-      if (error instanceof OAuthSourceError && error.code === 'unsafe_source') {
+      if (error instanceof CredentialFileError && error.code === 'not_found') return undefined
+      if (error instanceof CredentialFileError && error.code === 'unsafe_file') {
         throw new Error(`${this.label}: credential file failed owner-only no-follow validation`)
       }
       throw error
     }
     try {
-      const parsed = parseDocument(text, this.filename, this.label)
-      if (options.persistMigration && parsed.migratedFromV1) {
-        await this.writeDocument(parsed.document)
-      }
-      return parsed
+      return parseDocument(text, this.filename, this.label)
     } catch (error) {
       if (options.allowUnreadable) return undefined
       throw error
@@ -348,12 +364,14 @@ export class OAuthCredentialFileStore implements CredentialStore {
   /** Refuse a dest that became unsafe after the lock was taken and before rename. */
   private async assertDestinationReplaceable(): Promise<void> {
     try {
-      await readHardenedOAuthSourceFile(this.filename)
+      await readCredentialFile(this.filename)
     } catch (error) {
-      if (error instanceof OAuthSourceError && error.code === 'not_found') return
-      if (error instanceof OAuthSourceError && (error.code === 'unsafe_source' || error.code === 'too_large')) {
+      if (error instanceof CredentialFileError && error.code === 'not_found') return
+      /* v8 ignore next -- readCredentialFile rejects only with not_found/unsafe_file/too_large, all handled above */
+      if (error instanceof CredentialFileError && (error.code === 'unsafe_file' || error.code === 'too_large')) {
         throw new Error(`${this.label}: credential file failed owner-only no-follow validation`)
       }
+      /* v8 ignore next -- readCredentialFile only rejects with its own codes */
       throw error
     }
   }
@@ -366,6 +384,36 @@ export class OAuthCredentialFileStore implements CredentialStore {
       dirMode: 0o700,
     })
     return cloneDocument(validated)
+  }
+
+  /**
+   * Clone the account list with `id` upserted, refusing an upsert that would
+   * exceed the account ceiling. `replace` receives the stored account when `id`
+   * exists and returns the record to store in that slot.
+   * @param current - Document being mutated.
+   * @param id - Account id to upsert.
+   * @param replace - Builds the record to store in the account's slot.
+   * @returns The cloned account list carrying the upserted record.
+   */
+  private upsertStoredAccount(
+    current: AuthDocumentV2,
+    id: AccountId,
+    replace: (existing: AccountRecord | undefined) => AccountRecord,
+  ): AccountRecord[] {
+    const existingIndex = current.accounts.findIndex(account => account.id === id)
+    if (existingIndex < 0 && current.accounts.length >= MAX_ACCOUNTS) {
+      throw new Error(`${this.label}: at most ${String(MAX_ACCOUNTS)} accounts may be stored`)
+    }
+    const accounts = current.accounts.map(cloneAccount)
+    const existing = existingIndex < 0 ? undefined : accounts[existingIndex]
+    /* v8 ignore next -- findIndex is in-range for the dense accounts array */
+    if (existingIndex >= 0 && existing === undefined) {
+      throw new Error(`${this.label}: account "${id}" is not stored`)
+    }
+    const next = replace(existing)
+    if (existingIndex < 0) accounts.push(next)
+    else accounts[existingIndex] = next
+    return accounts
   }
 
   private nextDocumentAfterLogin(
@@ -395,29 +443,12 @@ export class OAuthCredentialFileStore implements CredentialStore {
         ],
       }
     }
-    const existingIndex = current.accounts.findIndex(account => account.id === id)
-    if (existingIndex < 0 && current.accounts.length >= MAX_ACCOUNTS) {
-      throw new Error(`${this.label}: at most ${String(MAX_ACCOUNTS)} accounts may be stored`)
-    }
-    const accounts = current.accounts.map(cloneAccount)
-    if (existingIndex >= 0) {
-      const existing = accounts[existingIndex]
-      if (existing === undefined) {
-        throw new Error(`${this.label}: account "${id}" is not stored`)
-      }
-      accounts[existingIndex] = {
-        id,
-        ...(existing.label === undefined ? {} : { label: existing.label }),
-        credential: cloneCredential(parsed),
-        createdAt: existing.createdAt,
-      }
-    } else {
-      accounts.push({
-        id,
-        credential: cloneCredential(parsed),
-        createdAt: Date.now(),
-      })
-    }
+    const accounts = this.upsertStoredAccount(current, id, existing => ({
+      id,
+      ...(existing?.label === undefined ? {} : { label: existing.label }),
+      credential: cloneCredential(parsed),
+      createdAt: existing?.createdAt ?? Date.now(),
+    }))
     return {
       version: AUTH_FORMAT_VERSION,
       activeAccountId: id,
@@ -427,13 +458,14 @@ export class OAuthCredentialFileStore implements CredentialStore {
 
   private async mutateDocument(
     options: { allowUnreadable: boolean },
-    fn: (current: AuthDocumentV2 | undefined) => Promise<AuthDocumentV2 | undefined | typeof UNCHANGED>,
+    fn: (
+      current: AuthDocumentV2 | undefined,
+    ) => AuthDocumentV2 | undefined | typeof UNCHANGED | Promise<AuthDocumentV2 | undefined | typeof UNCHANGED>,
   ): Promise<AuthDocumentV2 | undefined> {
     await mkdir(dirname(this.filename), { recursive: true, mode: 0o700 })
     return withFileLock(this.filename, async () => {
       const loaded = await this.loadDocument({
         allowUnreadable: options.allowUnreadable,
-        persistMigration: false,
       })
       const current = loaded === undefined ? undefined : loaded.document
       const migratedFromV1 = loaded?.migratedFromV1 === true
@@ -462,7 +494,7 @@ export class OAuthCredentialFileStore implements CredentialStore {
 
   async modify(
     providerId: string,
-    fn: (current: Credential | undefined) => Promise<Credential | undefined>,
+    fn: (current: Credential | undefined) => Credential | undefined | Promise<Credential | undefined>,
   ): Promise<Credential | undefined> {
     if (providerId !== this.providerId) {
       throw new Error(`${this.label}: credential store does not own provider "${providerId}"`)
@@ -484,9 +516,12 @@ export class OAuthCredentialFileStore implements CredentialStore {
   }
 
   /**
-	 * Redirect `modify` writes (pi-ai `models.login`) through multi-account upsert
+   * Redirect `modify` writes (pi-ai `models.login`) through multi-account upsert
 	 * semantics for the duration of `fn`.
-	 */
+   * @param options - Operation options.
+   * @param fn - Operation to run.
+   * @returns The resulting run login persist.
+   */
   async runLoginPersist<T>(options: LoginPersistOptions, fn: () => Promise<T>): Promise<T> {
     if (this.loginPersist !== undefined) {
       throw new Error(`${this.label}: login persist already in progress`)
@@ -499,25 +534,31 @@ export class OAuthCredentialFileStore implements CredentialStore {
     }
   }
 
-  /** Persist a login/import credential without going through pi-ai `modify`. */
+  /**
+   * Persist a login/import credential without going through pi-ai `modify`.
+   * @param credential - Credential value.
+   * @param options - Operation options.
+   */
   async persistLoginCredential(credential: OAuthCredential, options: LoginPersistOptions): Promise<void> {
-    await this.mutateDocument({ allowUnreadable: true }, async current =>
+    await this.mutateDocument({ allowUnreadable: true }, current =>
       this.nextDocumentAfterLogin(current, credential, options),
     )
   }
 
   /**
-	 * Force the next `getAuth()` to refresh by backdating `expires` into the past.
+   * Force the next `getAuth()` to refresh by backdating `expires` into the past.
 	 * Used after an upstream 401: the stored access token was rejected even though
 	 * the local expiry had not yet passed (server-side revocation or skew). The
 	 * access/refresh pair is preserved — only the freshness marker moves — so the
 	 * refresh token can still mint a replacement. Returns true when a credential
 	 * was actually backdated; false when nothing is stored.
-	 */
+   * @param providerId - Provider id value.
+   * @returns The resulting invalidate.
+   */
   async invalidate(providerId: string): Promise<boolean> {
     if (providerId !== this.providerId) return false
     let invalidated = false
-    await this.modify(providerId, async (current) => {
+    await this.modify(providerId, (current) => {
       if (current?.type !== 'oauth') return undefined
       invalidated = true
       return { ...current, expires: Date.now() - 1000 }
@@ -531,9 +572,12 @@ export class OAuthCredentialFileStore implements CredentialStore {
     await withFileLock(this.filename, () => rm(this.filename, { force: true }))
   }
 
-  /** Read-only account list for Settings / API. Never includes tokens. */
+  /**
+   * Read-only account list for Settings / API. Never includes tokens.
+   * @returns The accounts.
+   */
   async listAccounts(): Promise<readonly AccountSummary[]> {
-    const document = await this.mutateDocument({ allowUnreadable: false }, async (current) => {
+    const document = await this.mutateDocument({ allowUnreadable: false }, (current) => {
       if (current === undefined) return UNCHANGED
       return UNCHANGED
     })
@@ -541,8 +585,12 @@ export class OAuthCredentialFileStore implements CredentialStore {
     return document.accounts.map(summarizeAccount)
   }
 
+  /**
+   * Return the active account id.
+   * @returns The active account id.
+   */
   async getActiveAccountId(): Promise<string | undefined> {
-    const document = await this.mutateDocument({ allowUnreadable: false }, async (current) => {
+    const document = await this.mutateDocument({ allowUnreadable: false }, (current) => {
       if (current === undefined) return UNCHANGED
       return UNCHANGED
     })
@@ -550,12 +598,14 @@ export class OAuthCredentialFileStore implements CredentialStore {
   }
 
   /**
-	 * Read one account's credential without changing activeAccountId.
+   * Read one account's credential without changing activeAccountId.
 	 * Used by the optional quota-aware pool proxy for sticky per-request routing.
-	 */
+   * @param id - Identifier of the target value.
+   * @returns The account.
+   */
   async readAccount(id: string): Promise<OAuthCredential | undefined> {
     if (!isValidAccountId(id)) return undefined
-    const document = await this.mutateDocument({ allowUnreadable: false }, async (current) => {
+    const document = await this.mutateDocument({ allowUnreadable: false }, (current) => {
       if (current === undefined) return UNCHANGED
       return UNCHANGED
     })
@@ -564,12 +614,15 @@ export class OAuthCredentialFileStore implements CredentialStore {
   }
 
   /**
-	 * Serialized refresh/write for one account id. Does not move activeAccountId.
+   * Serialized refresh/write for one account id. Does not move activeAccountId.
 	 * Returns undefined when the account is absent (caller treats as missing credential).
-	 */
+   * @param id - Identifier of the target value.
+   * @param fn - Operation to run.
+   * @returns The resulting modify account.
+   */
   async modifyAccount(
     id: string,
-    fn: (current: Credential | undefined) => Promise<Credential | undefined>,
+    fn: (current: Credential | undefined) => Credential | undefined | Promise<Credential | undefined>,
   ): Promise<Credential | undefined> {
     if (!isValidAccountId(id)) {
       throw new TypeError(`${this.label}: account id is invalid`)
@@ -579,6 +632,7 @@ export class OAuthCredentialFileStore implements CredentialStore {
       const index = current.accounts.findIndex(account => account.id === id)
       if (index < 0) return UNCHANGED
       const existing = current.accounts[index]
+      /* v8 ignore next -- findIndex is in-range for the dense accounts array */
       if (existing === undefined) return UNCHANGED
       const candidate = await fn(cloneCredential(existing.credential))
       if (candidate === undefined) return UNCHANGED
@@ -587,6 +641,7 @@ export class OAuthCredentialFileStore implements CredentialStore {
       }
       const accounts = current.accounts.map(cloneAccount)
       const target = accounts[index]
+      /* v8 ignore next -- map preserves the in-range index */
       if (target === undefined) return UNCHANGED
       accounts[index] = {
         ...target,
@@ -603,11 +658,15 @@ export class OAuthCredentialFileStore implements CredentialStore {
     return account === undefined ? undefined : cloneCredential(account.credential)
   }
 
+  /**
+   * Update active account.
+   * @param id - Identifier of the target value.
+   */
   async setActiveAccount(id: string): Promise<void> {
     if (!isValidAccountId(id)) {
       throw new TypeError(`${this.label}: account id is invalid`)
     }
-    await this.mutateDocument({ allowUnreadable: false }, async (current) => {
+    await this.mutateDocument({ allowUnreadable: false }, (current) => {
       if (current === undefined) {
         throw new Error(`${this.label}: no credential accounts are stored`)
       }
@@ -623,6 +682,10 @@ export class OAuthCredentialFileStore implements CredentialStore {
     })
   }
 
+  /**
+   * Upsert account.
+   * @param input - Input value to process.
+   */
   async upsertAccount(input: {
     id: string
     label?: string
@@ -636,7 +699,7 @@ export class OAuthCredentialFileStore implements CredentialStore {
       throw new TypeError(`${this.label}: account label must be a non-empty string when present`)
     }
     const credential = parseOAuthCredential(input.credential, this.filename, this.label)
-    await this.mutateDocument({ allowUnreadable: false }, async (current) => {
+    await this.mutateDocument({ allowUnreadable: false }, (current) => {
       if (current === undefined) {
         return {
           version: AUTH_FORMAT_VERSION,
@@ -651,34 +714,16 @@ export class OAuthCredentialFileStore implements CredentialStore {
           ],
         }
       }
-      const existingIndex = current.accounts.findIndex(account => account.id === input.id)
-      if (existingIndex < 0 && current.accounts.length >= MAX_ACCOUNTS) {
-        throw new Error(`${this.label}: at most ${String(MAX_ACCOUNTS)} accounts may be stored`)
-      }
-      const accounts = current.accounts.map(cloneAccount)
-      if (existingIndex >= 0) {
-        const existing = accounts[existingIndex]
-        if (existing === undefined) {
-          throw new Error(`${this.label}: account "${input.id}" is not stored`)
-        }
-        accounts[existingIndex] = {
-          id: input.id,
-          ...(input.label !== undefined
-            ? { label: input.label }
-            : existing.label === undefined
-              ? {}
-              : { label: existing.label }),
-          credential: cloneCredential(credential),
-          createdAt: existing.createdAt,
-        }
-      } else {
-        accounts.push({
-          id: input.id,
-          ...(input.label === undefined ? {} : { label: input.label }),
-          credential: cloneCredential(credential),
-          createdAt: Date.now(),
-        })
-      }
+      const accounts = this.upsertStoredAccount(current, input.id, existing => ({
+        id: input.id,
+        ...(input.label !== undefined
+          ? { label: input.label }
+          : existing?.label === undefined
+            ? {}
+            : { label: existing.label }),
+        credential: cloneCredential(credential),
+        createdAt: existing?.createdAt ?? Date.now(),
+      }))
       return {
         version: AUTH_FORMAT_VERSION,
         activeAccountId: input.makeActive === true ? input.id : current.activeAccountId,
@@ -687,16 +732,21 @@ export class OAuthCredentialFileStore implements CredentialStore {
     })
   }
 
+  /**
+   * Remove account.
+   * @param id - Identifier of the target value.
+   */
   async removeAccount(id: string): Promise<void> {
     if (!isValidAccountId(id)) {
       throw new TypeError(`${this.label}: account id is invalid`)
     }
-    await this.mutateDocument({ allowUnreadable: false }, async (current) => {
+    await this.mutateDocument({ allowUnreadable: false }, (current) => {
       if (current === undefined) return UNCHANGED
       const accounts = current.accounts.filter(account => account.id !== id).map(cloneAccount)
       if (accounts.length === current.accounts.length) return UNCHANGED
       if (accounts.length === 0) return undefined
       const fallback = accounts[0]
+      /* v8 ignore next -- accounts[0] exists after a non-empty filter */
       if (fallback === undefined) return undefined
       const activeAccountId = current.activeAccountId === id ? fallback.id : current.activeAccountId
       return {

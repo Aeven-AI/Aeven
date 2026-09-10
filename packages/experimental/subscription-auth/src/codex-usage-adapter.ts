@@ -17,7 +17,7 @@
 import { LlmError } from '@deepseek-ai/dsh-llm'
 import { chatgptPlanTypeFromAccessToken } from './codex-http.ts'
 import type { CodexUsage, CodexUsageReader } from './codex-usage.ts'
-import { createUsageReader, type UsageReader, type UsageReaderOptions } from './usage-reader.ts'
+import { createUsageReader, usageCacheOptions, type UsageReader, type UsageReaderOptions } from './usage-reader.ts'
 import type { ProviderUsage, UsageCredits, UsageWindow, UsageWindowLabel } from './usage-view.ts'
 
 /** Upper bound for treating a window as the short rolling session limit. */
@@ -89,6 +89,7 @@ export function codexUsageToProviderUsage(usage: CodexUsage, tier?: string): Pro
   }
 }
 
+/** Options for codex provider usage. */
 export interface CodexProviderUsageOptions {
   /** The existing Codex reading source. */
   readonly usage: CodexUsageReader
@@ -109,7 +110,6 @@ export function createCodexProviderUsageReader(options: CodexProviderUsageOption
     const token = await options.resolveToken().catch(() => undefined)
     const claim = token === undefined ? undefined : chatgptPlanTypeFromAccessToken(token)
     const tier = claim === undefined ? undefined : displayPlan(claim)
-    const free = claim !== undefined && FREE_PLAN_CLAIMS.has(claim.trim().toLowerCase())
     try {
       const reading = await options.usage.read({ force: true, ...(signal === undefined ? {} : { signal }) })
       return codexUsageToProviderUsage(reading, tier)
@@ -125,16 +125,12 @@ export function createCodexProviderUsageReader(options: CodexProviderUsageOption
           ...(error.code === 'QUOTA' ? { gate: { message: error.message } } : {}),
         }
       }
-      if (free)
-        return { entitlement: 'not-entitled', windows: [], fetchedAt: now, ...(tier === undefined ? {} : { tier }) }
+      if (claim !== undefined && FREE_PLAN_CLAIMS.has(claim.trim().toLowerCase())) {
+        return { entitlement: 'not-entitled', windows: [], fetchedAt: now, tier: displayPlan(claim) }
+      }
       throw error
     }
   }
 
-  return createUsageReader({
-    load,
-    ...(options.now === undefined ? {} : { now: options.now }),
-    ...(options.ttlMs === undefined ? {} : { ttlMs: options.ttlMs }),
-    ...(options.negativeTtlMs === undefined ? {} : { negativeTtlMs: options.negativeTtlMs }),
-  })
+  return createUsageReader({ load, ...usageCacheOptions(options) })
 }

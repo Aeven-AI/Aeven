@@ -12,11 +12,14 @@ import type {
 } from 'dsh-coding-oauth-core'
 import type { DshCompatibilityDiagnostic } from './compatibility.ts'
 
+/** HTTP header name for owner proof. */
 export const OWNER_PROOF_HEADER = 'x-dsh-owner-proof'
+/** HTTP header name for owner csrf. */
 export const OWNER_CSRF_HEADER = 'x-dsh-csrf-token'
 
 export type { OwnerAccessMode } from 'dsh-coding-oauth-core'
 
+/** Configuration for trusted reverse proxy policy. */
 export interface TrustedReverseProxyPolicyConfig {
   /** Exact TCP peers allowed to inject owner-only headers. Forwarded peers never count. */
   readonly peers?: readonly string[]
@@ -28,12 +31,14 @@ export interface TrustedReverseProxyPolicyConfig {
   readonly csrfToken?: string
 }
 
+/** Configuration for owner request policy. */
 export interface OwnerRequestPolicyConfig {
   /** Use when loopback is intentionally reached through an SSH port forward. */
   readonly loopbackAccessMode?: 'loopback' | 'ssh-tunnel'
   readonly trustedProxy?: TrustedReverseProxyPolicyConfig
 }
 
+/** Owner request policy. */
 export type OwnerRequestPolicy = CoreOwnerRequestPolicy<IncomingMessage, DshCompatibilityDiagnostic>
 
 interface TrustedProxyPolicy {
@@ -45,17 +50,22 @@ interface TrustedProxyPolicy {
 
 const OWNER_ACCESS_MODES = new Set<OwnerAccessMode>(['loopback', 'ssh-tunnel', 'trusted-https-proxy'])
 
-/** Adapt a host-owned policy so service churn cannot escape through Web routes. */
+/**
+ * Adapt a host-owned policy so service churn cannot escape through Web routes.
+ * @param policy - Policy value.
+ * @returns The resulting safeguard owner request policy.
+ */
 export function safeguardOwnerRequestPolicy(policy: OwnerRequestPolicy): OwnerRequestPolicy {
   return Object.freeze({
     authorize(req: IncomingMessage): OwnerRequestDecision {
       try {
         const decision = policy.authorize(req)
+        // oxlint-disable-next-line typescript/no-unnecessary-condition -- contains a foreign implementation's answer
         if (!decision?.authorized) {
           return { authorized: false, reason: typeof decision.reason === 'string' ? decision.reason : 'denied' }
         }
         if (
-
+          // oxlint-disable-next-line typescript/no-unnecessary-condition -- contains a foreign implementation's answer
           decision?.authorized &&
 					typeof decision.accessMode === 'string' &&
 					OWNER_ACCESS_MODES.has(decision.accessMode)
@@ -95,7 +105,11 @@ function ownerPolicyDiagnosticError(message: string): DshCompatibilityDiagnostic
   return { id: 'owner-request.dsh-policy-invalid', component: 'owner-request', level: 'error', message }
 }
 
-/** Build an immutable owner-request policy. Partial proxy configuration is deliberately unusable. */
+/**
+ * Build an immutable owner-request policy. Partial proxy configuration is deliberately unusable.
+ * @param config - Validated configuration.
+ * @returns The created owner request policy.
+ */
 export function createOwnerRequestPolicy(config: OwnerRequestPolicyConfig = {}): OwnerRequestPolicy {
   const loopbackAccessMode = config.loopbackAccessMode ?? 'loopback'
   const configured = config.trustedProxy !== undefined
@@ -146,9 +160,14 @@ export function createOwnerRequestPolicy(config: OwnerRequestPolicyConfig = {}):
   })
 }
 
+/** Loopback owner request policy. */
 export const LOOPBACK_OWNER_REQUEST_POLICY = createOwnerRequestPolicy()
 
-/** Backward-compatible loopback predicate for external callers. */
+/**
+ * Backward-compatible loopback predicate for external callers.
+ * @param req - Incoming HTTP request.
+ * @returns Whether is trusted loopback web request.
+ */
 export function isTrustedLoopbackWebRequest(req: IncomingMessage): boolean {
   return authorizeLoopback(req, 'loopback').authorized
 }

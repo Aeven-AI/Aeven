@@ -28,9 +28,27 @@ function usageRequest(slug: string, query = ''): IncomingMessage {
   return stream
 }
 
+/** A request with an explicit `url`, for the routes that parse it themselves. */
+function urlRequest(
+  url: string | undefined,
+  method = 'GET',
+  headers: IncomingMessage['headers'] = {},
+): IncomingMessage {
+  const stream = request(method, '', headers)
+  Object.defineProperty(stream, 'url', { value: url, configurable: true })
+  return stream
+}
+
+/** A request that carries no HTTP method at all. */
+function methodlessRequest(): IncomingMessage {
+  const stream = request('GET')
+  Object.defineProperty(stream, 'method', { value: undefined, configurable: true })
+  return stream
+}
+
 interface RegisteredRoute {
   path: string
-  handler(request: IncomingMessage, response: ServerResponse): void | Promise<void>
+  handler: (request: IncomingMessage, response: ServerResponse) => void | Promise<void>
 }
 
 class TestResponse {
@@ -66,10 +84,6 @@ class FakeController implements CapabilityRouteController {
       secrets: [],
       ...(Object.keys(this.user).length > 0 ? { user: this.user } : {}),
     }
-  }
-
-  current(): CapabilitySettings {
-    return this.snapshot().value
   }
 
   async patch(patch: CapabilitySettingsPatch, expectedRevision: number): Promise<CapabilitySettingsSnapshot> {
@@ -118,8 +132,8 @@ function request(
 
 function createHarness(options?: {
   controller?: FakeController
-  usage?: (readOptions?: { force?: boolean }) => unknown | Promise<unknown>
-  credentialInfo?: () => unknown | Promise<unknown>
+  usage?: (readOptions?: { force?: boolean }) => unknown
+  credentialInfo?: () => unknown
   failOnPath?: string
   routes?: Map<string, RegisteredRoute['handler']>
 }): {
@@ -279,7 +293,7 @@ describe('PATCH/PUT compare-and-swap', () => {
     )
     expect(stale.status).toBe(409)
     expect(stale.body).toEqual({
-      error: expect.stringContaining('expected revision 1'),
+      error: expect.stringContaining('expected revision 1') as string,
       code: 'SETTINGS_CONFLICT',
       expected: 1,
       actual: 2,
@@ -497,5 +511,223 @@ describe('optional capability read surfaces', () => {
     })
     const status = await invoke(routes.get(IMAGINE_CREDENTIAL_STATUS_PATH), request('GET'))
     expect(status.body).toEqual({ configured: true, source: 'unknown', writable: true })
+  })
+})
+
+describe('capability route registrar ownership', () => {
+  it('returns a safe no-op disposer until the owning effect runs', () => {
+    const routes = new Map<string, RegisteredRoute['handler']>()
+    const setups: Array<() => () => void | Promise<void>> = []
+    const dispose = registerCapabilityRoutes(
+      {
+        webServer: {
+          register(route: RegisteredRoute) {
+            routes.set(route.path, route.handler)
+            return () => {
+              routes.delete(route.path)
+            }
+          },
+        },
+        effect(setup) {
+          setups.push(setup)
+          return undefined
+        },
+      },
+      { controller: new FakeController() },
+    )
+
+    expect(setups).toHaveLength(1)
+    expect(routes.size).toBe(0)
+    expect(() => {
+      dispose()
+    }).not.toThrow()
+    expect(routes.size).toBe(0)
+  })
+})
+
+describe('capability settings method guards', () => {
+  it('answers 405 for a method the capabilities route does not serve', async () => {
+    const { routes } = createHarness()
+    const handler = routes.get(CAPABILITY_SETTINGS_PATH)
+
+    const methodless = await invoke(handler, methodlessRequest())
+    expect(methodless.status).toBe(405)
+    expect(methodless.body).toEqual({ error: 'method not allowed' })
+
+    const deleted = await invoke(handler, request('DELETE'))
+    expect(deleted.status).toBe(405)
+    expect(deleted.body).toEqual({ error: 'method not allowed' })
+  })
+})
+
+describe('capability settings write envelope validation', () => {
+  it('refuses a non-object envelope and a non-object payload', async () => {
+    const { controller, routes } = createHarness()
+    const handler = routes.get(CAPABILITY_SETTINGS_PATH)
+
+    const notAnObject = await invoke(handler, request('PATCH', JSON.stringify([{ expectedRevision: 0 }])))
+    expect(notAnObject.status).toBe(400)
+    expect(notAnObject.body).toEqual({ error: 'request body must be a JSON object' })
+
+    const arrayPayload = await invoke(handler, request('PATCH', JSON.stringify({ expectedRevision: 0, patch: [] })))
+    expect(arrayPayload.status).toBe(400)
+    expect(arrayPayload.body).toEqual({ error: 'patch must be a JSON object' })
+
+    const scalarValue = await invoke(handler, request('PUT', JSON.stringify({ expectedRevision: 0, value: 'yes' })))
+    expect(scalarValue.status).toBe(400)
+    expect(scalarValue.body).toEqual({ error: 'value must be a JSON object' })
+
+    expect(controller.writes).toEqual([])
+  })
+})
+
+describe('capability route error mapping', () => {
+  /** Drive a write route through a controller whose write fails with `thrown`. */
+  async function writeWith(thrown: unknown): Promise<{ status: number; body: unknown }> {
+    const controller = new FakeController()
+    controller.patch = async () => {
+      throw thrown
+    }
+    const { routes } = createHarness({ controller })
+    return invoke(
+      routes.get(CAPABILITY_SETTINGS_PATH),
+      request('PATCH', JSON.stringify({ expectedRevision: 0, patch: { codexSearch: true } })),
+    )
+  }
+
+  it('answers 403 when a foreign error claims the provider is read-only', async () => {
+    const foreign = Object.assign(new Error('provider is read-only'), { code: 'SETTINGS_READ_ONLY' })
+    const response = await writeWith(foreign)
+    expect(response.status).toBe(403)
+    expect(response.body).toEqual({ error: 'provider is read-only' })
+  })
+
+  it('answers 503 when a foreign error claims the provider is absent or disposed', async () => {
+    for (const code of ['SETTINGS_PROVIDER_ABSENT', 'SETTINGS_DISPOSED'] as const) {
+      const response = await writeWith(Object.assign(new Error(`provider is ${code}`), { code }))
+      expect(response.status).toBe(503)
+      expect(response.body).toEqual({ error: 'request failed' })
+    }
+  })
+
+  it('answers 400 for a TypeError from the controller and 500 for anything else', async () => {
+    const typed = await writeWith(new TypeError('searchResults must be an integer'))
+    expect(typed.status).toBe(400)
+    expect(typed.body).toEqual({ error: 'searchResults must be an integer' })
+
+    const opaque = await writeWith('provider offline')
+    expect(opaque.status).toBe(500)
+    expect(opaque.body).toEqual({ error: 'request failed' })
+  })
+
+  it('maps a conflict-shaped error and refuses a half-formed one', async () => {
+    const conflict = await writeWith(
+      Object.assign(new Error('namespace moved'), { code: 'SETTINGS_CONFLICT', expected: 3, actual: 7 }),
+    )
+    expect(conflict.status).toBe(409)
+    expect(conflict.body).toEqual({
+      error: 'namespace moved',
+      code: 'SETTINGS_CONFLICT',
+      expected: 3,
+      actual: 7,
+    })
+
+    for (const half of [{ code: 'SETTINGS_CONFLICT' }, { code: 'SETTINGS_CONFLICT', expected: 3 }]) {
+      const response = await writeWith(half)
+      expect(response.status).toBe(500)
+      expect(response.body).toEqual({ error: 'request failed' })
+    }
+  })
+})
+
+describe('usage route path guards', () => {
+  it('answers 404 for a usage request with no usable provider path', async () => {
+    const { routes } = createHarness({ usage: () => ({ remaining: 1 }) })
+    const handler = routes.get(SUBSCRIPTION_USAGE_ROUTE)
+
+    const noUrl = await invoke(handler, urlRequest(undefined))
+    expect(noUrl.status).toBe(404)
+    expect(noUrl.body).toEqual({ error: 'unknown usage provider' })
+
+    const notUsage = await invoke(handler, urlRequest('/plugins/other/usage/codex'))
+    expect(notUsage.status).toBe(404)
+    expect(notUsage.body).toEqual({ error: 'unknown usage provider' })
+
+    const badSlug = await invoke(handler, usageRequest('Codex!'))
+    expect(badSlug.status).toBe(404)
+    expect(badSlug.body).toEqual({ error: 'unknown usage provider' })
+  })
+})
+
+describe('optional read surface guards', () => {
+  it('answers 405 for a non-GET usage or credential-status request', async () => {
+    const { routes } = createHarness({ usage: () => ({ remaining: 1 }), credentialInfo: () => ({}) })
+
+    const prefixed = await invoke(
+      routes.get(SUBSCRIPTION_USAGE_ROUTE),
+      urlRequest(`${SUBSCRIPTION_USAGE_PATH_PREFIX}codex`, 'POST'),
+    )
+    expect(prefixed.status).toBe(405)
+    expect(prefixed.body).toEqual({ error: 'method not allowed' })
+
+    const legacy = await invoke(routes.get(CODEX_USAGE_PATH), request('POST'))
+    expect(legacy.status).toBe(405)
+    expect(legacy.body).toEqual({ error: 'method not allowed' })
+
+    const credential = await invoke(routes.get(IMAGINE_CREDENTIAL_STATUS_PATH), request('POST'))
+    expect(credential.status).toBe(405)
+    expect(credential.body).toEqual({ error: 'method not allowed' })
+  })
+
+  it('refuses a cross-site usage or credential-status read', async () => {
+    const { routes } = createHarness({ usage: () => ({ remaining: 1 }), credentialInfo: () => ({}) })
+    const crossSite = { 'sec-fetch-site': 'cross-site' }
+
+    const prefixed = await invoke(
+      routes.get(SUBSCRIPTION_USAGE_ROUTE),
+      urlRequest(`${SUBSCRIPTION_USAGE_PATH_PREFIX}codex`, 'GET', crossSite),
+    )
+    expect(prefixed.status).toBe(403)
+    expect(prefixed.body).toEqual({ error: 'forbidden' })
+
+    const legacy = await invoke(routes.get(CODEX_USAGE_PATH), request('GET', '', crossSite))
+    expect(legacy.status).toBe(403)
+    expect(legacy.body).toEqual({ error: 'forbidden' })
+
+    const credential = await invoke(routes.get(IMAGINE_CREDENTIAL_STATUS_PATH), request('GET', '', crossSite))
+    expect(credential.status).toBe(403)
+    expect(credential.body).toEqual({ error: 'forbidden' })
+  })
+
+  it('redacts a failing credential probe instead of leaking its detail', async () => {
+    const { routes } = createHarness({
+      credentialInfo: () => {
+        throw new Error('probe failed reading /home/private/xai.json')
+      },
+    })
+    const response = await invoke(routes.get(IMAGINE_CREDENTIAL_STATUS_PATH), request('GET'))
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({ error: 'request failed' })
+  })
+})
+
+describe('Imagine credential status projection', () => {
+  it('falls back to an unknown projection when the probe returns a non-object', async () => {
+    const { routes } = createHarness({ credentialInfo: () => 42 })
+    const response = await invoke(routes.get(IMAGINE_CREDENTIAL_STATUS_PATH), request('GET'))
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ configured: false, source: 'unknown', writable: false })
+  })
+
+  it('projects a prototype-less probe result instead of discarding it', async () => {
+    const info = Object.assign(Object.create(null) as Record<string, unknown>, {
+      configured: true,
+      source: 'file',
+      writable: true,
+    })
+    const { routes } = createHarness({ credentialInfo: () => info })
+    const response = await invoke(routes.get(IMAGINE_CREDENTIAL_STATUS_PATH), request('GET'))
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ configured: true, source: 'file', writable: true })
   })
 })

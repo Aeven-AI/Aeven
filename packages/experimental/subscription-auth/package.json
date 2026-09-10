@@ -3,13 +3,15 @@
   "version": "0.1.2-alpha.5",
   "private": true,
   "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
   "exports": {
     ".": {
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
     },
     "./client": {
-      "types": "./lib/types/client.d.ts",
+      "types": "./lib/types/client/index.d.ts",
       "default": "./lib/client.js"
     },
     "./cordis.patch.yml": "./cordis.patch.yml",
@@ -59,6 +61,7 @@
     "bundle": "tsdown",
     "watch": "tsdown --watch"
   },
+  "license": "MIT",
   "dependencies": {
     "dsh-coding-oauth-core": "0.1.2",
     "undici": "7.29.0"
@@ -105,5 +108,11 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "undici": "7.29.0"
-  }
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "cordis.patch.yml",
+    "lib/types/**/*.d.ts"
+  ]
 }

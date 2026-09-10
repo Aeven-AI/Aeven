@@ -8,11 +8,11 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import {
   assertCapabilitySettingsPatch,
-  type CapabilitySettings,
   type CapabilitySettingsPatch,
   type CapabilitySettingsSnapshot,
   isCapabilitySettingsConflictError,
   isCapabilitySettingsReadOnlyError,
+  isPlainObject,
   normalizeCapabilitySettingsPatch,
 } from './capability-settings.ts'
 import { readJsonRequest, requestErrorStatus } from './http-json.ts'
@@ -63,7 +63,6 @@ export interface CapabilityRouteContext {
 /** Owner-facing subset of {@link import("./capability-settings.ts").CapabilitySettingsController}. */
 export interface CapabilityRouteController {
   snapshot(): CapabilitySettingsSnapshot
-  current(): CapabilitySettings
   patch(patch: CapabilitySettingsPatch, expectedRevision: number): Promise<CapabilitySettingsSnapshot>
   replace(section: CapabilitySettingsPatch, expectedRevision: number): Promise<CapabilitySettingsSnapshot>
 }
@@ -75,6 +74,7 @@ export interface ImagineCredentialStatus {
   readonly writable: boolean
 }
 
+/** Options for capability route. */
 export interface CapabilityRouteOptions {
   readonly controller: CapabilityRouteController
   /**
@@ -83,7 +83,7 @@ export interface CapabilityRouteOptions {
 	 * exactly what the reader answers.
 	 */
   readonly usageReaders?: Readonly<Record<string, UsageRouteReader>>
-  readonly credentialInfo?: () => unknown | Promise<unknown>
+  readonly credentialInfo?: () => unknown
   readonly ownerRequestPolicy?: OwnerRequestPolicy
 }
 
@@ -97,7 +97,12 @@ class CapabilityRouteRequestError extends Error {
   }
 }
 
-/** Register the plugin-owned capability routes. Owns and returns the route disposer. */
+/**
+ * Register the plugin-owned capability routes. Owns and returns the route disposer.
+ * @param ctx - Cordis context that owns the registration.
+ * @param options - Operation options.
+ * @returns A disposer that removes the registration.
+ */
 export function registerCapabilityRoutes(ctx: CapabilityRouteContext, options: CapabilityRouteOptions): () => void {
   const { controller, usageReaders, credentialInfo } = options
   const ownerRequestPolicy = options.ownerRequestPolicy ?? LOOPBACK_OWNER_REQUEST_POLICY
@@ -172,6 +177,7 @@ async function handleCapabilities(
 
 /** Read the provider slug out of a prefix-routed usage request. */
 function usageSlugOf(req: IncomingMessage): string | undefined {
+  /* v8 ignore next -- split() always yields at least one element, so index 0 is never nullish */
   const path = (req.url ?? '').split('?')[0] ?? ''
   if (!path.startsWith(SUBSCRIPTION_USAGE_PATH_PREFIX)) return undefined
   const slug = decodeURIComponent(path.slice(SUBSCRIPTION_USAGE_PATH_PREFIX.length))
@@ -216,7 +222,7 @@ async function handleUsage(
 async function handleCredentialStatus(
   req: IncomingMessage,
   res: ServerResponse,
-  credentialInfo: () => unknown | Promise<unknown>,
+  credentialInfo: () => unknown,
   ownerRequestPolicy: OwnerRequestPolicy,
 ): Promise<void> {
   if (req.method !== 'GET') {
@@ -314,12 +320,6 @@ function conflictInfo(error: unknown): { expected: number; actual: number } | un
   if (candidate.code !== 'SETTINGS_CONFLICT') return undefined
   if (typeof candidate.expected !== 'number' || typeof candidate.actual !== 'number') return undefined
   return { expected: candidate.expected, actual: candidate.actual }
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  const proto = Object.getPrototypeOf(value)
-  return proto === Object.prototype || proto === null
 }
 
 function json(res: ServerResponse, status: number, value: unknown): void {

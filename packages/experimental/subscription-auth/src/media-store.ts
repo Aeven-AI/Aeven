@@ -17,21 +17,29 @@ export const MEDIA_STORE_MAX_BYTES = 256 * 1024 * 1024
 /** Hard ceiling for artifact retention. Callers cannot raise this. */
 export const MEDIA_STORE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000
 
+/** Permission bits of every store directory: owner-only. */
 export const MEDIA_STORE_DIR_MODE = 0o700
+/** Permission bits of every stored object and index document: owner read-write. */
 export const MEDIA_STORE_FILE_MODE = 0o600
+/** Index document format version; a document with another version is not read. */
 export const MEDIA_STORE_INDEX_VERSION = 1
+/** Ceiling for one index document, in bytes. */
 export const MEDIA_STORE_INDEX_MAX_BYTES = 16 * 1024
 
 /** Opaque public id: 32 lowercase hex characters. */
 export const MEDIA_ARTIFACT_ID_PATTERN = /^[a-f0-9]{32}$/
 
+/** Same-origin route prefix that serves a stored video by artifact id. */
 export const IMAGINE_MEDIA_ROUTE_PREFIX = '/plugins/dsh-grok-build/imagine/media/'
 
+// oxlint-disable-next-line typescript/no-unnecessary-condition -- Windows omits O_NOFOLLOW; a spec pins the mocked-fs fallback
 const NOFOLLOW = process.platform === 'win32' ? 0 : (fsConstants.O_NOFOLLOW ?? 0)
 const TRUSTED_IMAGINE = Symbol.for('dsh-subscription-auth.trusted-imagine')
 
+/** Video media types the store accepts. */
 export type MediaStoreVideoType = 'video/mp4' | 'video/webm'
 
+/** Stable, secret-free failure class of a store operation. */
 export type MediaStoreErrorCode =
 	| 'INVALID_ID'
 	| 'INVALID_INPUT'
@@ -42,7 +50,9 @@ export type MediaStoreErrorCode =
 	| 'UNSUPPORTED_TYPE'
 	| 'FORBIDDEN'
 
+/** Secret-free store failure; the message never names a filesystem path or digest. */
 export class MediaStoreError extends Error {
+  /** Failure class callers branch on. */
   readonly code: MediaStoreErrorCode
 
   constructor(code: MediaStoreErrorCode, message: string, options?: { cause?: unknown }) {
@@ -52,6 +62,7 @@ export class MediaStoreError extends Error {
   }
 }
 
+/** Public metadata of one stored artifact; `createdAt` and `expiresAt` are epoch milliseconds. */
 export interface MediaArtifactMeta {
   /** Opaque public identifier. Never a path, hash, or bearer URL. */
   artifactId: string
@@ -62,22 +73,26 @@ export interface MediaArtifactMeta {
   name?: string
 }
 
+/** One artifact to store: its bytes, media type, and optional display name. */
 export interface SaveMediaInput {
   data: Uint8Array
   mediaType: MediaStoreVideoType
   name?: string
 }
 
+/** A stored artifact read back after integrity verification. */
 export interface StoredMedia {
   meta: MediaArtifactMeta
   data: Uint8Array
 }
 
+/** What one cleanup pass removed: expired index entries and orphaned objects. */
 export interface MediaCleanupReport {
   expiredArtifacts: number
   removedObjects: number
 }
 
+/** Limits and seams for {@link MediaStore}; each limit is clamped to its hard ceiling. */
 export interface MediaStoreOptions {
   now?: () => number
   /** Per-artifact ceiling, capped at {@link MEDIA_STORE_MAX_BYTES}. */
@@ -88,6 +103,7 @@ export interface MediaStoreOptions {
   randomId?: () => string
 }
 
+/** Response headers that serve a stored video as a non-cacheable, non-sniffable attachment. */
 export interface MediaDownloadHeaders {
   'Content-Type': string
   'Content-Length': string
@@ -96,6 +112,7 @@ export interface MediaDownloadHeaders {
   'X-Content-Type-Options': 'nosniff'
 }
 
+/** A stored video ready to serve: its metadata, bytes, and headers. */
 export interface MediaDownloadView {
   meta: MediaArtifactMeta
   body: Uint8Array
@@ -107,6 +124,7 @@ export interface TrustedImagineAuthz {
   readonly [TRUSTED_IMAGINE]: true
 }
 
+/** What a route knows about a download request when minting its authorization token. */
 export interface CreateTrustedImagineAuthzInput {
   readonly remoteAddress?: string
   readonly authorized?: boolean
@@ -147,11 +165,20 @@ function clampPositive(value: number | undefined, ceiling: number, label: string
   return Math.min(Math.floor(raw), ceiling)
 }
 
-/** Reject anything that is not a 32-char lowercase hex artifact id. */
+/**
+ * Reject anything that is not a 32-char lowercase hex artifact id.
+ * @param value - the candidate id.
+ * @returns the id when it is 32 lowercase hex characters, otherwise undefined.
+ */
 export function parseMediaArtifactId(value: string): string | undefined {
   return MEDIA_ARTIFACT_ID_PATTERN.test(value) ? value : undefined
 }
 
+/**
+ * Whether a string is a well-formed opaque artifact id.
+ * @param value - the candidate id.
+ * @returns true for 32 lowercase hex characters.
+ */
 export function isSafeMediaArtifactId(value: string): boolean {
   return parseMediaArtifactId(value) !== undefined
 }
@@ -159,8 +186,9 @@ export function isSafeMediaArtifactId(value: string): boolean {
 function sanitizeDisplayName(value: string | undefined): string | undefined {
   if (value === undefined) return undefined
   const basename = value.slice(Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\')) + 1)
-  const clean = [...basename]
+  const clean = Array.from(basename)
     .filter((character) => {
+      /* v8 ignore next -- a string-iterator element is never empty, so codePointAt(0) is always a number */
       const codePoint = character.codePointAt(0) ?? 0
       return codePoint >= 0x20 && codePoint !== 0x7f
     })
@@ -187,6 +215,7 @@ const ASCII_BANNED_CODE_POINTS = new Set<number>([
 function sanitizeFilenameToken(value: string): string {
   const safe: string[] = []
   for (const character of value) {
+    /* v8 ignore next -- a string-iterator element is never empty, so codePointAt(0) is always a number */
     const codePoint = character.codePointAt(0) ?? 0
     if (codePoint < 0x20 || codePoint > 0x7e) continue
     if (ASCII_BANNED_CODE_POINTS.has(codePoint)) continue
@@ -228,9 +257,13 @@ function assertInsideRoot(root: string, candidate: string): string {
   const base = resolve(root)
   const resolved = resolve(candidate)
   const rel = relative(base, resolved)
+  // v8 ignore start -- every call site derives candidate from join()/dirname()
+  // of the same resolve(root), so relative() cannot yield '', '..' or an
+  // absolute path here; the guard is unreachable by construction.
   if (rel === '' || rel.startsWith(`..${sep}`) || rel === '..' || isAbsolute(rel)) {
     throw new MediaStoreError('INVALID_ID', 'media path escaped the store root')
   }
+  /* v8 ignore stop */
   return resolved
 }
 
@@ -285,7 +318,9 @@ async function ensurePrivateDir(root: string, path: string): Promise<void> {
   const relativePath = relative(resolve(root), resolved)
   let current = resolve(root)
   for (const part of relativePath.split(sep)) {
+    /* v8 ignore next -- the loop only runs strictly under resolve(root), and resolve() normalises '.' and '' away */
     if (part === '' || part === '.') continue
+    /* v8 ignore next -- a '..' segment cannot survive resolve() for a path already proven inside root */
     if (part === '..') throw new MediaStoreError('INVALID_ID', 'media path escaped the store root')
     current = join(current, part)
     const existing = await lstatOrUndefined(current)
@@ -307,6 +342,9 @@ async function ensurePrivateDir(root: string, path: string): Promise<void> {
  * own directory only appears after the `@deepseek-ai/dsh-experimental-subscription-auth` rename.
  * Refuses to follow a symlink and never overwrites an existing current directory;
  * returns whether artifacts were moved.
+ * @param currentRoot - the plugin's current artifact directory.
+ * @param legacyRoot - the pre-rename artifact directory.
+ * @returns true when the legacy directory was moved into place.
  */
 export async function migrateLegacyMediaStoreDir(currentRoot: string, legacyRoot: string): Promise<boolean> {
   const current = resolve(currentRoot)
@@ -428,14 +466,18 @@ async function writeExclusiveFile(root: string, path: string, data: Uint8Array |
 }
 
 function objectPath(root: string, sha256: string): string {
+  // v8 ignore start -- callers pass either sha256Hex() output or a digest that
+  // parseIndexDocument already matched against this same pattern.
   if (!/^[a-f0-9]{64}$/u.test(sha256)) {
     throw new MediaStoreError('CORRUPT', 'stored digest is not a sha256 hex string')
   }
+  /* v8 ignore stop */
   return assertInsideRoot(root, join(root, 'objects', sha256.slice(0, 2), sha256))
 }
 
 function indexPath(root: string, artifactId: string): string {
   const id = parseMediaArtifactId(artifactId)
+  /* v8 ignore next -- every caller validated the id with this same parser one statement earlier */
   if (id === undefined) throw new MediaStoreError('INVALID_ID', 'artifact id is not a safe opaque identifier')
   return assertInsideRoot(root, join(root, 'index', id.slice(0, 2), `${id}.json`))
 }
@@ -574,14 +616,23 @@ async function listRegularFiles(root: string, kind: 'index' | 'objects'): Promis
   return files
 }
 
-/** Trusted same-origin path for one stored video artifact. */
+/**
+ * Trusted same-origin path for one stored video artifact.
+ * @param artifactId - a stored artifact's opaque id.
+ * @returns the route path that serves it.
+ * @throws MediaStoreError when the id is not a safe opaque identifier.
+ */
 export function imagineMediaPath(artifactId: string): string {
   const id = parseMediaArtifactId(artifactId)
   if (id === undefined) throw new MediaStoreError('INVALID_ID', 'artifact id is not a safe opaque identifier')
   return `${IMAGINE_MEDIA_ROUTE_PREFIX}${id}`
 }
 
-/** Extract a safe artifact id from a same-origin media route. */
+/**
+ * Extract a safe artifact id from a same-origin media route.
+ * @param pathname - a request path.
+ * @returns the artifact id it names, or undefined for any other or unsafe path.
+ */
 export function parseImagineMediaPath(pathname: string): string | undefined {
   if (!pathname.startsWith(IMAGINE_MEDIA_ROUTE_PREFIX)) return undefined
   const rest = pathname.slice(IMAGINE_MEDIA_ROUTE_PREFIX.length)
@@ -589,6 +640,11 @@ export function parseImagineMediaPath(pathname: string): string | undefined {
   return parseMediaArtifactId(rest)
 }
 
+/**
+ * Build the headers that serve one stored video as a download.
+ * @param meta - the artifact's metadata.
+ * @returns the headers; the filename falls back to `imagine-<id>.<ext>`.
+ */
 export function mediaDownloadHeaders(meta: MediaArtifactMeta): MediaDownloadHeaders {
   const fallback = `imagine-${meta.artifactId}.${extensionFor(meta.mediaType)}`
   const filename = meta.name ?? fallback
@@ -601,12 +657,21 @@ export function mediaDownloadHeaders(meta: MediaArtifactMeta): MediaDownloadHead
   }
 }
 
-/** Loopback-only peer check for the parent route gate. */
+/**
+ * Loopback-only peer check for the parent route gate.
+ * @param remoteAddress - the socket's remote address.
+ * @returns true for an IPv4 or IPv6 loopback peer.
+ */
 export function isTrustedImaginePeer(remoteAddress: string | undefined): boolean {
   return remoteAddress === '127.0.0.1' || remoteAddress === '::1' || remoteAddress === '::ffff:127.0.0.1'
 }
 
-/** Build a runtime authz token. Raw objects are not accepted by openTrusted helpers. */
+/**
+ * Build a runtime authz token. Raw objects are not accepted by openTrusted helpers.
+ * @param input - the route's authorization decision and peer address.
+ * @returns a token accepted by the download helpers.
+ * @throws MediaStoreError when the request is neither authorized nor from a loopback peer.
+ */
 export function createTrustedImagineAuthz(input: CreateTrustedImagineAuthzInput): TrustedImagineAuthz {
   if (input.authorized === true || isTrustedImaginePeer(input.remoteAddress)) {
     return { [TRUSTED_IMAGINE]: true }
@@ -614,7 +679,13 @@ export function createTrustedImagineAuthz(input: CreateTrustedImagineAuthzInput)
   throw new MediaStoreError('FORBIDDEN', 'imagine download is not authorized')
 }
 
+/**
+ * Refuse a download that carries no token minted by {@link createTrustedImagineAuthz}.
+ * @param authz - the token the caller holds.
+ * @throws MediaStoreError when the token is absent or forged.
+ */
 export function assertTrustedImagineAuthz(authz: TrustedImagineAuthz): void {
+  // oxlint-disable-next-line typescript/no-unnecessary-condition -- caller-supplied runtime token
   if (!authz?.[TRUSTED_IMAGINE]) {
     throw new MediaStoreError('FORBIDDEN', 'imagine download requires an explicit trusted context')
   }
@@ -625,9 +696,13 @@ export function assertTrustedImagineAuthz(authz: TrustedImagineAuthz): void {
  * documents are 0600. Public lookup uses an opaque id, never the digest.
  */
 export class MediaStore {
+  /** Absolute store directory. */
   readonly root: string
+  /** Per-artifact ceiling, in bytes. */
   readonly maxBytes: number
+  /** Aggregate ceiling for unique stored objects, in bytes. */
   readonly maxTotalBytes: number
+  /** How long a newly saved artifact lives, in milliseconds; {@link MediaStore.applyRetentionMs} changes it. */
   retentionMs: number
   private readonly now: () => number
   private readonly randomId: () => string
@@ -650,6 +725,8 @@ export class MediaStore {
 	 * Apply a live retention ceiling under the store lock. Lowering it rewrites
 	 * existing index expiries and deletes newly expired objects before resolving;
 	 * raising it affects only artifacts saved after this call.
+   * @param retentionMs - the new ceiling, clamped to {@link MEDIA_STORE_RETENTION_MS}.
+   * @returns what the reconciling cleanup removed.
 	 */
   async applyRetentionMs(retentionMs: number): Promise<MediaCleanupReport> {
     const next = clampPositive(retentionMs, MEDIA_STORE_RETENTION_MS, 'retentionMs')
@@ -675,10 +752,20 @@ export class MediaStore {
     })
   }
 
+  /**
+   * Store one artifact under the store lock, deduplicating identical bytes.
+   * @param input - the artifact to store.
+   * @returns its public metadata.
+   */
   async save(input: SaveMediaInput): Promise<MediaArtifactMeta> {
     return this.runExclusive(() => this.saveUnlocked(input))
   }
 
+  /**
+   * Read an artifact's metadata without its bytes.
+   * @param artifactId - the opaque id.
+   * @returns the metadata, or undefined for an unknown, malformed, or expired id.
+   */
   async lookup(artifactId: string): Promise<MediaArtifactMeta | undefined> {
     if (parseMediaArtifactId(artifactId) === undefined) return undefined
     const document = await this.readIndex(artifactId)
@@ -687,6 +774,12 @@ export class MediaStore {
     return this.effectiveMeta(document)
   }
 
+  /**
+   * Read an artifact and verify its digest and size.
+   * @param artifactId - the opaque id.
+   * @returns the metadata and bytes.
+   * @throws MediaStoreError for a malformed, missing, expired, or corrupt artifact.
+   */
   async read(artifactId: string): Promise<StoredMedia> {
     const id = parseMediaArtifactId(artifactId)
     if (id === undefined) throw new MediaStoreError('INVALID_ID', 'artifact id is not a safe opaque identifier')
@@ -712,10 +805,19 @@ export class MediaStore {
     return { meta: this.effectiveMeta(document), data }
   }
 
+  /**
+   * Delete one artifact under the store lock; its object goes when no other artifact shares it.
+   * @param artifactId - the opaque id.
+   * @returns whether an artifact was deleted.
+   */
   async delete(artifactId: string): Promise<boolean> {
     return this.runExclusive(() => this.deleteUnlocked(artifactId))
   }
 
+  /**
+   * Remove expired artifacts and orphaned objects under the store lock.
+   * @returns what was removed.
+   */
   async cleanup(): Promise<MediaCleanupReport> {
     return this.runExclusive(async () => {
       try {
@@ -729,7 +831,12 @@ export class MediaStore {
     })
   }
 
-  /** Trusted same-origin download primitive. Never returns an upstream URL. */
+  /**
+   * Trusted same-origin download primitive. Never returns an upstream URL.
+   * @param artifactId - the opaque id.
+   * @param authz - a token from {@link createTrustedImagineAuthz}.
+   * @returns the verified artifact with its download headers.
+   */
   async openDownload(artifactId: string, authz: TrustedImagineAuthz): Promise<MediaDownloadView> {
     assertTrustedImagineAuthz(authz)
     const stored = await this.read(artifactId)
@@ -758,6 +865,7 @@ export class MediaStore {
   }
 
   private async saveUnlocked(input: SaveMediaInput): Promise<MediaArtifactMeta> {
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- union is narrower than runtime values
     if (input.mediaType !== 'video/mp4' && input.mediaType !== 'video/webm') {
       throw new MediaStoreError('UNSUPPORTED_TYPE', 'media store only accepts video/mp4 or video/webm')
     }
@@ -937,7 +1045,13 @@ export class MediaStore {
   }
 }
 
-/** Open a trusted same-origin download. Requires an explicit authz token. */
+/**
+ * Open a trusted same-origin download. Requires an explicit authz token.
+ * @param store - the store holding the artifact.
+ * @param artifactId - the opaque id.
+ * @param authz - a token from {@link createTrustedImagineAuthz}.
+ * @returns the verified artifact with its download headers.
+ */
 export async function openTrustedMediaDownload(
   store: MediaStore,
   artifactId: string,

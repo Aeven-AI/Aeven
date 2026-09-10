@@ -20,30 +20,46 @@ import {
   type CodexAuthSession,
   type CodexFetch,
   type CodexHttpClient,
-  createCodexHttpClient,
   isRecord,
+  resolveCodexHttpClient,
 } from './codex-http.ts'
 
+/** Codex image generation url. */
 export const CODEX_IMAGE_GENERATION_URL = 'https://chatgpt.com/backend-api/codex/images/generations'
+/** Codex image edit url. */
 export const CODEX_IMAGE_EDIT_URL = 'https://chatgpt.com/backend-api/codex/images/edits'
+/** Codex image model. */
 export const CODEX_IMAGE_MODEL = 'gpt-image-2'
+/** Codex image auto. */
 export const CODEX_IMAGE_AUTO = 'auto'
+/** Codex image response format. */
 export const CODEX_IMAGE_RESPONSE_FORMAT = 'b64_json'
+/** Codex image max references. */
 export const CODEX_IMAGE_MAX_REFERENCES = 5
+/** Codex image prompt max length. */
 export const CODEX_IMAGE_PROMPT_MAX_LENGTH = 4000
 
+/** Codex image capable providers. */
 export const CODEX_IMAGE_CAPABLE_PROVIDERS = ['codex-oauth', 'openai-codex', 'codex-oauth-fast'] as const
+/** Codex image capable provider. */
 export type CodexImageCapableProvider = (typeof CODEX_IMAGE_CAPABLE_PROVIDERS)[number]
 
+/** Codex image sizes. */
 export const CODEX_IMAGE_SIZES = ['auto', '1024x1024', '1536x1024', '1024x1536'] as const
+/** Codex image size. */
 export type CodexImageSize = (typeof CODEX_IMAGE_SIZES)[number]
 
+/** Codex image qualities. */
 export const CODEX_IMAGE_QUALITIES = ['auto', 'low', 'medium', 'high'] as const
+/** Codex image quality. */
 export type CodexImageQuality = (typeof CODEX_IMAGE_QUALITIES)[number]
 
+/** Codex image backgrounds. */
 export const CODEX_IMAGE_BACKGROUNDS = ['auto', 'opaque', 'transparent'] as const
+/** Codex image background. */
 export type CodexImageBackground = (typeof CODEX_IMAGE_BACKGROUNDS)[number]
 
+/** Codex image attachment store. */
 export interface CodexImageAttachmentStore {
   readonly imageLimits: {
     readonly maxImageBytes: number
@@ -56,16 +72,19 @@ export interface CodexImageAttachmentStore {
   readImage(ref: ImageAttachmentRef, signal?: AbortSignal): Promise<StoredImageAttachment>
 }
 
+/** Codex derived message. */
 export interface CodexDerivedMessage {
   readonly content?: readonly unknown[]
 }
 
+/** Codex image route. */
 export interface CodexImageRoute {
   readonly provider?: string
   readonly model?: string
   readonly inputModalities?: readonly string[]
 }
 
+/** Codex image session context. */
 export interface CodexImageSessionContext {
   deriveMessages(): readonly CodexDerivedMessage[]
   route?: CodexImageRoute
@@ -78,6 +97,7 @@ export interface CodexImageSessionContext {
  */
 export type CodexImageRoutePolicy = 'codex-capable' | 'any'
 
+/** Codex image generate input. */
 export interface CodexImageGenerateInput {
   readonly prompt: string
   readonly n?: number
@@ -86,16 +106,19 @@ export interface CodexImageGenerateInput {
   readonly background?: CodexImageBackground
 }
 
+/** Codex image edit input. */
 export interface CodexImageEditInput extends CodexImageGenerateInput {
   readonly imageIds: readonly string[]
 }
 
+/** Codex image warning. */
 export interface CodexImageWarning {
   readonly index: number
   readonly code: string
   readonly message: string
 }
 
+/** Codex image result. */
 export interface CodexImageResult {
   readonly operation: 'generate' | 'edit'
   readonly model: typeof CODEX_IMAGE_MODEL
@@ -104,6 +127,7 @@ export interface CodexImageResult {
   readonly warnings: readonly CodexImageWarning[]
 }
 
+/** Options for codex image controller. */
 export interface CodexImageControllerOptions {
   readonly auth: CodexAuthSession
   readonly attachments: CodexImageAttachmentStore
@@ -118,6 +142,7 @@ export interface CodexImageControllerOptions {
   readonly now?: () => number
 }
 
+/** Codex image controller. */
 export interface CodexImageController {
   generate(input: CodexImageGenerateInput, signal?: AbortSignal): Promise<CodexImageResult>
   edit(input: CodexImageEditInput, signal?: AbortSignal): Promise<CodexImageResult>
@@ -125,7 +150,11 @@ export interface CodexImageController {
 
 const MAX_GENERATED = 4
 
-/** True only for a Codex OAuth route that explicitly declares image input. */
+/**
+ * True only for a Codex OAuth route that explicitly declares image input.
+ * @param route - Route value.
+ * @returns Whether is codex image capable route.
+ */
 export function isCodexImageCapableRoute(route: CodexImageRoute | undefined): boolean {
   if (route === undefined) return false
   const provider = route.provider
@@ -135,6 +164,10 @@ export function isCodexImageCapableRoute(route: CodexImageRoute | undefined): bo
   return route.inputModalities?.includes('image') === true
 }
 
+/**
+ * Assert codex image capable route.
+ * @param route - Route value.
+ */
 export function assertCodexImageCapableRoute(route: CodexImageRoute | undefined): void {
   if (!isCodexImageCapableRoute(route)) {
     throw new LlmError('Codex image tools require an image-capable Codex OAuth route', 'UNSUPPORTED_CONTENT')
@@ -155,6 +188,8 @@ function isImageAttachmentRef(value: unknown): value is ImageAttachmentRef {
 /**
  * Collect canonical image attachment refs visibly present in current session
  * message content. Nested tool-results and arbitrary objects are ignored.
+ * @param messages - Messages value.
+ * @returns The resulting collect canonical image refs.
  */
 export function collectCanonicalImageRefs(messages: readonly CodexDerivedMessage[]): Map<string, ImageAttachmentRef> {
   const refs = new Map<string, ImageAttachmentRef>()
@@ -179,6 +214,9 @@ function normalizeImageId(value: string): string {
  * Resolve edit IDs only against canonical refs visibly present in `deriveMessages()`.
  * Unknown IDs, HTTP URLs, nested-only objects, and more than
  * {@link CODEX_IMAGE_MAX_REFERENCES} are rejected (fail closed).
+ * @param deriveMessages - Derive messages value.
+ * @param imageIds - Image ids value.
+ * @returns The resolved session image refs.
  */
 export function resolveSessionImageRefs(
   deriveMessages: () => readonly CodexDerivedMessage[],
@@ -222,6 +260,11 @@ function ascii(data: Uint8Array, start: number, end: number): string {
   return String.fromCharCode(...data.slice(start, end))
 }
 
+/**
+ * Detect image media type.
+ * @param data - Data value.
+ * @returns The resulting image media type.
+ */
 export function detectImageMediaType(data: Uint8Array): ImageMediaType | undefined {
   if (
     data.length >= 8 &&
@@ -250,7 +293,11 @@ function normalizeBase64Payload(value: string): string | undefined {
   return payload
 }
 
-/** Encoded-size precheck. `undefined` means the payload is not valid base64/base64url. */
+/**
+ * Encoded-size precheck. `undefined` means the payload is not valid base64/base64url.
+ * @param value - Value to process.
+ * @returns The resulting estimate decoded base64 bytes.
+ */
 export function estimateDecodedBase64Bytes(value: string): number | undefined {
   const payload = normalizeBase64Payload(value)
   if (payload === undefined) return undefined
@@ -259,7 +306,11 @@ export function estimateDecodedBase64Bytes(value: string): number | undefined {
   return Math.floor((unpadded.length * 3) / 4)
 }
 
-/** Decode standard base64 or base64url. Rejects invalid alphabets and length mismatches. */
+/**
+ * Decode standard base64 or base64url. Rejects invalid alphabets and length mismatches.
+ * @param value - Value to process.
+ * @returns The resulting decode image base64.
+ */
 export function decodeImageBase64(value: string): Uint8Array | undefined {
   const payload = normalizeBase64Payload(value)
   if (payload === undefined) return undefined
@@ -267,6 +318,7 @@ export function decodeImageBase64(value: string): Uint8Array | undefined {
   if (estimated === undefined || estimated === 0) return undefined
   const normalized = payload.replace(/-/gu, '+').replace(/_/gu, '/')
   const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4)
+  /* v8 ignore start -- Buffer.from(base64) matches the estimate and does not throw for an admitted alphabet */
   try {
     const decoded = Buffer.from(padded, 'base64')
     if (decoded.byteLength !== estimated) return undefined
@@ -274,6 +326,7 @@ export function decodeImageBase64(value: string): Uint8Array | undefined {
   } catch {
     return undefined
   }
+  /* v8 ignore stop */
 }
 
 function dataUrl(stored: StoredImageAttachment): string {
@@ -411,6 +464,7 @@ async function persistEnvelope(
       continue
     }
     const data = decodeImageBase64(encoded)
+    /* v8 ignore start -- the estimate already refused invalid or over-limit payloads */
     if (data === undefined || data.byteLength > limits.maxImageBytes) {
       warnings.push({
         index,
@@ -419,6 +473,7 @@ async function persistEnvelope(
       })
       continue
     }
+    /* v8 ignore stop */
     if (acceptedBytes + data.byteLength > limits.maxMessageImageBytes) {
       warnings.push({
         index,
@@ -465,18 +520,13 @@ async function persistEnvelope(
   }
 }
 
-/** Factory for generate/edit controllers. Parent registers tools only when the feature is enabled. */
+/**
+ * Factory for generate/edit controllers. Parent registers tools only when the feature is enabled.
+ * @param options - Operation options.
+ * @returns The created codex image controller.
+ */
 export function createCodexImageController(options: CodexImageControllerOptions): CodexImageController {
-  const http =
-    options.http ??
-		createCodexHttpClient({
-		  auth: options.auth,
-		  ...(options.fetchImpl === undefined ? {} : { fetchImpl: options.fetchImpl }),
-		  ...(options.originator === undefined ? {} : { originator: options.originator }),
-		  ...(options.userAgent === undefined ? {} : { userAgent: options.userAgent }),
-		  ...(options.sleep === undefined ? {} : { sleep: options.sleep }),
-		  ...(options.now === undefined ? {} : { now: options.now }),
-		})
+  const http = resolveCodexHttpClient(options)
   const now = options.now ?? Date.now
 
   const dispatch = async (

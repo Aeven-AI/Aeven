@@ -69,14 +69,14 @@ function parseCache(text: string): ParsedCache | undefined {
 }
 
 function asHarnessModels(models: readonly Model<Api>[]): Model<Api>[] {
-  return models.map(model =>
-    model.provider === GROK_BUILD_ROUTE ? model : { ...model, provider: GROK_BUILD_ROUTE },
-  )
+  return models.map(model => ({ ...model, provider: GROK_BUILD_ROUTE }))
 }
 
 /** One process-local owner of the credential and the account model list. */
 export class GrokBuildSession {
+  /** Store implementation. */
   readonly store: GrokBuildCredentialStore
+  /** Models implementation. */
   readonly models: MutableModels
   private readonly baselineCatalog: readonly Model<Api>[]
   private liveIds: string[] | undefined
@@ -103,18 +103,31 @@ export class GrokBuildSession {
     return this.listingError
   }
 
+  /** Catalog source implementation. */
   get catalogSource(): CatalogSource {
     return this.source
   }
 
+  /**
+   * Return the available models.
+   * @returns The available models.
+   */
   availableModels(): Model<Api>[] {
     return mergeLiveCatalog(this.baselineCatalog, this.liveIds, this.liveModels)
   }
 
+  /**
+   * Return the selected model ids.
+   * @returns The resulting selected model ids.
+   */
   selectedModelIds(): string[] | undefined {
     return this.selectedIds
   }
 
+  /**
+   * Return the visible models.
+   * @returns The visible models.
+   */
   visibleModels(): Model<Api>[] {
     const available = this.availableModels()
     if (this.selectedIds === undefined || this.selectedIds.length === 0) return available
@@ -122,7 +135,10 @@ export class GrokBuildSession {
     return this.selectedIds.map(id => byId.get(id) ?? materializeLiveModel(id, this.baselineCatalog))
   }
 
-  /** Provider whose id matches the harness route so PiAiAdapter can list models. */
+  /**
+   * Provider whose id matches the harness route so PiAiAdapter can list models.
+   * @returns The resulting provider.
+   */
   provider(): Provider {
     const visible = this.visibleModels()
     const base = grokBuildProvider(visible)
@@ -132,6 +148,7 @@ export class GrokBuildSession {
     }
   }
 
+  /** Load cached catalog. */
   async loadCachedCatalog(): Promise<void> {
     try {
       const cache = parseCache(await readFile(this.cacheFile, 'utf8'))
@@ -147,6 +164,10 @@ export class GrokBuildSession {
     }
   }
 
+  /**
+   * Refresh live catalog.
+   * @param signal - Cancellation signal for the operation.
+   */
   async refreshLiveCatalog(signal?: AbortSignal): Promise<void> {
     try {
       const auth = await this.models.getAuth(XAI_PI_PROVIDER)
@@ -170,6 +191,10 @@ export class GrokBuildSession {
     }
   }
 
+  /**
+   * Update selected models.
+   * @param ids - Ids value.
+   */
   async setSelectedModels(ids: readonly string[]): Promise<void> {
     const unique = [...new Set(ids.filter(id => id.length > 0))]
     this.selectedIds = unique.length === 0 ? undefined : unique
@@ -203,6 +228,7 @@ export class GrokBuildSession {
     this.onCatalogChange?.()
   }
 
+  /** End the provider session and remove its stored credential. */
   async logout(): Promise<void> {
     try {
       await this.store.delete(XAI_PI_PROVIDER)

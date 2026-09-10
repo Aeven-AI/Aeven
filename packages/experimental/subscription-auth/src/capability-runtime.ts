@@ -19,6 +19,7 @@ import type { CodexSearchProvider, CodexSearchRequest, CodexSearchResult } from 
 import { GROK_IMAGINE_IMAGE_TOOL, GROK_IMAGINE_VIDEO_STATUS_TOOL, GROK_IMAGINE_VIDEO_TOOL } from './grok-imagine.ts'
 import { CODEX_OAUTH_FAST_ROUTE, CODING_OAUTH_ROUTES } from './ids.ts'
 
+/** Listener notified when capability runtime changes. */
 export type CapabilityRuntimeListener = (settings: CapabilitySettings) => void | Promise<void>
 
 /** Process-local live projection shared by optional service fibers. */
@@ -35,10 +36,19 @@ export class CapabilityRuntimeState {
     this.onListenerError = onListenerError
   }
 
+  /**
+   * Return the current state.
+   * @returns The current.
+   */
   current(): CapabilitySettings {
     return this.value
   }
 
+  /**
+   * Set.
+   * @param next - Next value.
+   * @returns The resulting set.
+   */
   set(next: unknown): CapabilitySettings {
     const normalized = normalizeCapabilitySettings(next)
     if (sameSettings(this.value, normalized)) return this.value
@@ -59,10 +69,20 @@ export class CapabilityRuntimeState {
     }
   }
 
+  /**
+   * Reset.
+   * @returns The resulting reset.
+   */
   reset(): CapabilitySettings {
     return this.set(DEFAULT_CAPABILITY_SETTINGS)
   }
 
+  /**
+   * Subscribe.
+   * @param listener - Listener value.
+   * @param emitCurrent - Emit current value.
+   * @returns A disposer that removes the registration.
+   */
   subscribe(listener: CapabilityRuntimeListener, emitCurrent = true): () => void {
     this.listeners.add(listener)
     if (emitCurrent) {
@@ -85,11 +105,18 @@ export class CapabilityRuntimeState {
   }
 }
 
+/** Registry used by capability search. */
 export interface CapabilitySearchRegistry {
   registerSearchProvider(provider: CodexSearchProvider): () => void
 }
 
-/** Dynamically expose search and clamp every request to the live result limit. */
+/**
+ * Dynamically expose search and clamp every request to the live result limit.
+ * @param state - State value.
+ * @param registry - Registry that owns the contribution.
+ * @param provider - Provider used by the operation.
+ * @returns A disposer that removes the registration.
+ */
 export function bindCapabilitySearch(
   state: CapabilityRuntimeState,
   registry: CapabilitySearchRegistry,
@@ -131,6 +158,7 @@ export function bindCapabilitySearch(
   }
 }
 
+/** Registry used by capability tool. */
 export interface CapabilityToolRegistry {
   register(definition: ToolDefinition): () => void
 }
@@ -153,7 +181,13 @@ export interface MediaCredentialReadiness {
 /** Every backend ready. Used where a caller has no credential view to offer. */
 const ALL_READY: MediaCredentialReadiness = { imagine: true, codex: true }
 
-/** Return whether one optional tool should currently be advertised. */
+/**
+ * Return whether one optional tool should currently be advertised.
+ * @param name - Name value.
+ * @param settings - Settings value.
+ * @param readiness - Readiness value.
+ * @returns Whether capability tool enabled.
+ */
 export function capabilityToolEnabled(
   name: string,
   settings: CapabilitySettings,
@@ -174,7 +208,14 @@ export function capabilityToolEnabled(
   }
 }
 
-/** Dynamically advertise only enabled tools; execute-time guards remain in each definition. */
+/**
+ * Dynamically advertise only enabled tools; execute-time guards remain in each definition.
+ * @param state - State value.
+ * @param registry - Registry that owns the contribution.
+ * @param definitions - Definitions value.
+ * @param readiness - Readiness value.
+ * @returns A disposer that removes the registration.
+ */
 export function bindCapabilityTools(
   state: CapabilityRuntimeState,
   registry: CapabilityToolRegistry,
@@ -212,15 +253,18 @@ export function bindCapabilityTools(
   }
 }
 
+/** Replaceable adapter registration. */
 export interface ReplaceableAdapterRegistration {
   replace(routes: string[]): void
 }
 
+/** Capability timer. */
 export interface CapabilityTimer {
   setInterval(callback: () => void, ms: number): unknown
   clearInterval(handle: unknown): void
 }
 
+/** Options for codex fast binding. */
 export interface CodexFastBindingOptions {
   readonly refreshIntervalMs?: number
   readonly timer?: CapabilityTimer
@@ -233,6 +277,11 @@ const DEFAULT_FAST_REFRESH_INTERVAL_MS = 60_000
  * Publish the Fast route only after a fresh live catalog explicitly lists at
  * least one priority-eligible model. Disabling is synchronous; stale or failed
  * refreshes atomically withdraw the optional route.
+ * @param state - State value.
+ * @param capabilities - Capabilities value.
+ * @param registration - Registration value.
+ * @param options - Operation options.
+ * @returns A disposer that removes the registration.
  */
 export function bindCodexFastRoute(
   state: CapabilityRuntimeState,
@@ -294,9 +343,11 @@ export function bindCodexFastRoute(
     }
     try {
       const models = await capabilities.refresh()
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- disposed/generation mutate across the await boundary above
       if (disposed || run !== generation || !state.current().codexFast) return
       replace(models.some(model => capabilities.isPriorityEligible(model.id)))
     } catch (error: unknown) {
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- disposed/generation mutate across the await boundary above
       if (!disposed && run === generation) withdraw()
       reportError(error)
     }

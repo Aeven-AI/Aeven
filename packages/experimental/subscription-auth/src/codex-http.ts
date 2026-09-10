@@ -21,11 +21,13 @@ export const CODEX_BACKEND_API_PREFIX = '/backend-api/'
 const OPENAI_AUTH_CLAIM = 'https://api.openai.com/auth'
 const DEFAULT_MAX_SERVER_RETRIES = 2
 const DEFAULT_JSON_MAX_BYTES = 1_048_576
+/** Default codex request timeout ms. */
 export const DEFAULT_CODEX_REQUEST_TIMEOUT_MS = 60_000
 const DEFAULT_ORIGINATOR = '@deepseek-ai/dsh-experimental-subscription-auth'
 const DEFAULT_USER_AGENT = '@deepseek-ai/dsh-experimental-subscription-auth'
 const FORBIDDEN_CALLER_HEADERS = new Set(['authorization', 'chatgpt-account-id', 'accept'])
 
+/** Codex http method. */
 export type CodexHttpMethod = 'GET' | 'POST'
 
 /** One resolved Codex access token plus the full ChatGPT account id. */
@@ -44,6 +46,7 @@ export interface CodexAuthSession {
   invalidate(): Promise<void>
 }
 
+/** Codex http request. */
 export interface CodexHttpRequest {
   readonly url: string
   readonly method?: CodexHttpMethod
@@ -58,6 +61,7 @@ export interface CodexHttpRequest {
 /** Injected fetch. Tests must pass a mock; production defaults to global fetch. */
 export type CodexFetch = (input: string, init?: RequestInit) => Promise<Response>
 
+/** Options for codex http client. */
 export interface CodexHttpClientOptions {
   readonly auth: CodexAuthSession
   readonly fetchImpl?: CodexFetch
@@ -70,12 +74,17 @@ export interface CodexHttpClientOptions {
   readonly requestTimeoutMs?: number
 }
 
+/** Codex http client. */
 export interface CodexHttpClient {
   requestJson(request: CodexHttpRequest): Promise<unknown>
   resolveAccess(): Promise<CodexAccess>
 }
 
-/** Adapt an `OAuthProviderSession`-shaped object without importing that class. */
+/**
+ * Adapt an `OAuthProviderSession`-shaped object without importing that class.
+ * @param session - Provider session used by the operation.
+ * @returns The resulting codex auth from session.
+ */
 export function codexAuthFromSession(session: {
   resolveAccessToken(): Promise<string | undefined>
   invalidateAccessToken(): Promise<void>
@@ -89,10 +98,43 @@ export function codexAuthFromSession(session: {
   }
 }
 
+/**
+ * Injection seams shared by every Codex optional capability: either an already
+ * built `http`, or the pieces needed to build one.
+ */
+export interface CodexHttpClientInjection {
+  readonly auth: CodexAuthSession
+  readonly http?: CodexHttpClient
+  readonly fetchImpl?: CodexFetch
+  readonly originator?: string
+  readonly userAgent?: string
+  readonly sleep?: (ms: number, signal?: AbortSignal) => Promise<void>
+  readonly now?: () => number
+}
+
+/**
+ * Reuse the caller's client, or build one from the capability's HTTP seams.
+ * @param options - Capability options carrying `auth` plus the optional seams.
+ * @returns The injected client, or a client built from those same options.
+ */
+export function resolveCodexHttpClient(options: CodexHttpClientInjection): CodexHttpClient {
+  return options.http ?? createCodexHttpClient(options)
+}
+
+/**
+ * Return whether is record.
+ * @param value - Value to process.
+ * @returns The resulting is record.
+ */
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+/**
+ * Optional non empty string.
+ * @param value - Value to process.
+ * @returns The resulting optional non empty string.
+ */
 export function optionalNonEmptyString(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined
 }
@@ -112,7 +154,11 @@ function openaiAuthClaim(accessToken: string, field: string): string | undefined
   }
 }
 
-/** Decode the full ChatGPT account id from a Codex access JWT. Never truncates. */
+/**
+ * Decode the full ChatGPT account id from a Codex access JWT. Never truncates.
+ * @param accessToken - Access token value.
+ * @returns The resulting chatgpt account id from access token.
+ */
 export function chatgptAccountIdFromAccessToken(accessToken: string): string | undefined {
   return openaiAuthClaim(accessToken, 'chatgpt_account_id')
 }
@@ -131,7 +177,11 @@ export function chatgptPlanTypeFromAccessToken(accessToken: string): string | un
   return openaiAuthClaim(accessToken, 'chatgpt_plan_type')
 }
 
-/** Reject anything that is not a first-party ChatGPT backend-api URL. */
+/**
+ * Reject anything that is not a first-party ChatGPT backend-api URL.
+ * @param url - URL to process.
+ * @returns The resulting assert codex backend url.
+ */
 export function assertCodexBackendUrl(url: string): URL {
   let parsed: URL
   try {
@@ -155,6 +205,12 @@ export function assertCodexBackendUrl(url: string): URL {
   return parsed
 }
 
+/**
+ * Parse retry after ms.
+ * @param value - Value to process.
+ * @param now - Now value.
+ * @returns The parsed retry after ms.
+ */
 export function parseRetryAfterMs(value: string | null, now: () => number): number | undefined {
   if (value === null || value.length === 0) return undefined
   if (/^\d+$/u.test(value)) {
@@ -167,7 +223,11 @@ export function parseRetryAfterMs(value: string | null, now: () => number): numb
   return delta > 0 ? delta : undefined
 }
 
-/** Redact every provider error body through {@link safeMessage}. */
+/**
+ * Redact every provider error body through {@link safeMessage}.
+ * @param value - Value to process.
+ * @returns The resulting provider detail.
+ */
 export function providerDetail(value: unknown): string | undefined {
   if (typeof value === 'string') {
     const trimmed = value.trim()
@@ -197,7 +257,6 @@ function callerHeaders(headers: Readonly<Record<string, string>> | undefined): R
 }
 
 function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
-  if (ms <= 0) return Promise.resolve()
   if (signal?.aborted === true) return Promise.reject(abortError(signal))
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -295,6 +354,7 @@ async function readLimitedResponseBody(
       const { done, value } = await reader.read()
       throwIfAborted(signal)
       if (done) break
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- chunk-less read; a spec pins it
       if (value === undefined) continue
       size += value.byteLength
       if (size > maxBytes) {
@@ -368,7 +428,11 @@ function statusError(status: number, payload: unknown, retryAfterMs?: number): L
   return new LlmError(`Codex backend request failed (HTTP ${String(status)})${suffix}`, 'SERVER', { status })
 }
 
-/** Create a ChatGPT-backend-only client with injected OAuth resolve/invalidate. */
+/**
+ * Create a ChatGPT-backend-only client with injected OAuth resolve/invalidate.
+ * @param options - Operation options.
+ * @returns The created codex http client.
+ */
 export function createCodexHttpClient(options: CodexHttpClientOptions): CodexHttpClient {
   const fetchImpl = options.fetchImpl ?? fetch
   const originator = options.originator ?? DEFAULT_ORIGINATOR

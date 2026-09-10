@@ -140,4 +140,14 @@ describe('the Codex media provider', () => {
     })
     await expect(provider.generateImage({ model: 'gpt-image-2', prompt: 'p' })).rejects.toThrow(/no image/)
   })
+
+  it('reports itself usable without probing the subscription credential', () => {
+    const createController = vi.fn(() => ({ generate: vi.fn(), edit: vi.fn() }) as never)
+    const imageCount = vi.fn(() => 1)
+    const provider = createCodexImageProvider({ createController, imageCount })
+    expect(provider.available()).toBe(true)
+    expect(createController).not.toHaveBeenCalled()
+    expect(imageCount).not.toHaveBeenCalled()
+    expect(provider.id).toBe('codex')
+  })
 })

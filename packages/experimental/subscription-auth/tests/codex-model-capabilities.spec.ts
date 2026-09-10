@@ -62,6 +62,20 @@ describe('parseCodexModelCapabilities', () => {
     expect(parseCodexModelCapabilities(undefined)).toEqual([])
     expect(parseCodexModelCapabilities({ models: {} })).toEqual([])
   })
+
+  it('keeps a model without tiers and ignores unusable tier entries', () => {
+    expect(
+      parseCodexModelCapabilities({
+        models: [
+          { slug: 'no-tiers' },
+          { slug: 'mixed', service_tiers: ['priority', 'priority', 42, null, '', { id: '' }] },
+        ],
+      }),
+    ).toEqual([
+      { id: 'no-tiers', serviceTiers: [] },
+      { id: 'mixed', serviceTiers: ['priority'] },
+    ])
+  })
 })
 
 describe('createCodexModelCapabilities', () => {
@@ -155,6 +169,120 @@ describe('createCodexModelCapabilities', () => {
     expect(caps.isTierEligible('gpt-5.4', 'priority')).toBe(false)
     expect(caps.serviceTiers('gpt-5.4')).toEqual([])
   })
+
+  it('shares one in-flight catalog load between concurrent refreshes', async () => {
+    let resolveFirst: ((response: Response) => void) | undefined
+    const fetchImpl = mockFetch(async () => {
+      if (resolveFirst === undefined) {
+        return await new Promise<Response>((resolve) => {
+          resolveFirst = resolve
+        })
+      }
+      return jsonResponse(200, { models: [{ slug: 'gpt-5.4', service_tiers: [{ id: 'priority' }] }] })
+    })
+    const caps = createCodexModelCapabilities({
+      auth: {
+        resolve: async () => ({ accessToken: jwtWithAccount('acct-models') }),
+        invalidate: async () => {},
+      },
+      fetchImpl,
+      sleep: async () => {},
+      now: () => 1,
+      ttlMs: 60_000,
+    })
+    const first = caps.refresh()
+    await vi.waitFor(() => {
+      expect(resolveFirst).toBeDefined()
+    })
+    const second = caps.refresh()
+    resolveFirst?.(jsonResponse(200, { models: [{ slug: 'gpt-5.4', service_tiers: [{ id: 'priority' }] }] }))
+    const [a, b] = await Promise.all([first, second])
+    expect(a).toEqual([{ id: 'gpt-5.4', serviceTiers: ['priority'] }])
+    expect(b).toEqual(a)
+    expect(fetchImpl).toHaveBeenCalledOnce()
+  })
+
+  it('keeps a superseded in-flight load from repopulating a cleared cache', async () => {
+    let resolveFirst: ((response: Response) => void) | undefined
+    let resolveSecond: ((response: Response) => void) | undefined
+    const fetchImpl = mockFetch(async () => {
+      if (resolveFirst === undefined) {
+        return await new Promise<Response>((resolve) => {
+          resolveFirst = resolve
+        })
+      }
+      return await new Promise<Response>((resolve) => {
+        resolveSecond = resolve
+      })
+    })
+    const caps = createCodexModelCapabilities({
+      auth: {
+        resolve: async () => ({ accessToken: jwtWithAccount('acct-models') }),
+        invalidate: async () => {},
+      },
+      fetchImpl,
+      sleep: async () => {},
+      now: () => 1,
+      ttlMs: 60_000,
+    })
+    const first = caps.refresh()
+    await vi.waitFor(() => {
+      expect(resolveFirst).toBeDefined()
+    })
+    caps.clear()
+    const second = caps.refresh()
+    await vi.waitFor(() => {
+      expect(resolveSecond).toBeDefined()
+    })
+    resolveFirst?.(jsonResponse(200, { models: [{ slug: 'stale', service_tiers: [{ id: 'priority' }] }] }))
+    await expect(first).resolves.toEqual([{ id: 'stale', serviceTiers: ['priority'] }])
+    expect(caps.getCached()).toBeUndefined()
+    expect(caps.isPriorityEligible('stale')).toBe(false)
+    resolveSecond?.(jsonResponse(200, { models: [{ slug: 'fresh', service_tiers: [{ id: 'priority' }] }] }))
+    await expect(second).resolves.toEqual([{ id: 'fresh', serviceTiers: ['priority'] }])
+    expect(caps.isPriorityEligible('fresh')).toBe(true)
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+  })
+
+  it('defaults to the global fetch and the built-in retry wait when unset', async () => {
+    const fetchImpl = mockFetch(async () =>
+      jsonResponse(200, { models: [{ slug: 'gpt-5.4', service_tiers: [{ id: 'priority' }] }] }),
+    )
+    vi.stubGlobal('fetch', fetchImpl)
+    const caps = createCodexModelCapabilities({
+      auth: {
+        resolve: async () => ({ accessToken: jwtWithAccount('acct-models') }),
+        invalidate: async () => {},
+      },
+      clientVersion: '9.9.9',
+      now: () => 1,
+      ttlMs: 60_000,
+    })
+    await expect(caps.refresh()).resolves.toEqual([{ id: 'gpt-5.4', serviceTiers: ['priority'] }])
+    expect(fetchImpl).toHaveBeenCalledOnce()
+    expect(fetchImpl.mock.calls[0]?.[0]).toBe(codexModelsUrl('9.9.9'))
+    expect(caps.isPriorityEligible('gpt-5.4')).toBe(true)
+  })
+
+  it('forwards the configured originator, user agent and abort signal', async () => {
+    const fetchImpl = mockFetch(async () => jsonResponse(200, { models: [] }))
+    const caps = createCodexModelCapabilities({
+      auth: {
+        resolve: async () => ({ accessToken: jwtWithAccount('acct-models') }),
+        invalidate: async () => {},
+      },
+      fetchImpl,
+      originator: 'dsh-models-test',
+      userAgent: 'dsh-models-test',
+      sleep: async () => {},
+    })
+    const controller = new AbortController()
+    await caps.refresh(controller.signal)
+    const headers = new Headers(fetchImpl.mock.calls[0]?.[1]?.headers)
+    expect(headers.get('originator')).toBe('dsh-models-test')
+    expect(headers.get('user-agent')).toBe('dsh-models-test')
+    expect(fetchImpl.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal)
+  })
 })
 
 describe('composeCodexFastOnPayload', () => {
@@ -183,6 +311,29 @@ describe('composeCodexFastOnPayload', () => {
   it('is fail-closed when isEligible returns false', async () => {
     const composed = composeCodexFastOnPayload(payload => payload, { isEligible: () => false })
     await expect(composed({ model: 'gpt-5.4' }, { id: 'gpt-5.4' })).resolves.toEqual({ model: 'gpt-5.4' })
+  })
+
+  it('falls back to the payload model when the stream model carries no usable id', async () => {
+    const composed = composeCodexFastOnPayload(undefined, { isEligible: id => id === 'gpt-5.4' })
+    await expect(composed({ model: 'gpt-5.4' }, 'not-a-model')).resolves.toEqual({
+      model: 'gpt-5.4',
+      service_tier: 'priority',
+    })
+    await expect(composed({ model: 'gpt-5.4' }, { id: '' })).resolves.toEqual({
+      model: 'gpt-5.4',
+      service_tier: 'priority',
+    })
+    await expect(composed({ model: 'gpt-5.3-codex' }, { id: '' })).resolves.toEqual({ model: 'gpt-5.3-codex' })
+  })
+
+  it('passes a non-record inner payload through untouched', async () => {
+    const replaced = composeCodexFastOnPayload(() => 'plain text', { isEligible: () => true })
+    await expect(replaced({ model: 'gpt-5.4' }, { id: 'gpt-5.4' })).resolves.toBe('plain text')
+    const passthrough = composeCodexFastOnPayload(() => undefined, { isEligible: () => true })
+    await expect(passthrough({ model: 'gpt-5.4' }, { id: 'gpt-5.4' })).resolves.toEqual({
+      model: 'gpt-5.4',
+      service_tier: 'priority',
+    })
   })
 })
 

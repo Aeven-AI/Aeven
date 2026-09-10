@@ -86,6 +86,60 @@ describe('normalizeCodexUsage', () => {
   it('returns empty rate limits for an object without usable windows', () => {
     expect(normalizeCodexUsage({ rate_limit: { primary_window: { used_percent: 'nope' } } }).rateLimits).toEqual([])
   })
+
+  it('drops unparseable optional values instead of inventing them', () => {
+    const usage = normalizeCodexUsage({
+      rate_limit: {
+        primary_window: { used_percent: 25, limit_window_seconds: 18_000, reset_at: 'whenever' },
+      },
+      additional_rate_limits: [
+        {
+          metered_feature: 'spark',
+          rate_limit: { primary_window: { used_percent: 10, limit_window_seconds: 604_800 } },
+        },
+      ],
+      credits: { has_credits: true, unlimited: false, balance: 'not-a-number' },
+      spend_control: {
+        reached: false,
+        individual_limit: {
+          limit: '100',
+          used: '20',
+          remaining_percent: 80,
+          reset_at: 1_700_000_500,
+        },
+      },
+    })
+    expect(usage.rateLimits).toEqual([
+      {
+        id: 'codex',
+        name: 'Codex',
+        windows: [{ usedPercent: 25, remainingPercent: 75, windowSeconds: 18_000 }],
+      },
+      { id: 'spark', windows: [{ usedPercent: 10, remainingPercent: 90, windowSeconds: 604_800 }] },
+    ])
+    expect(usage.credits).toEqual({ unlimited: false })
+    expect(usage.individualLimit).toEqual({
+      limit: '100',
+      used: '20',
+      remainingPercent: 80,
+      resetsAt: 1_700_000_500,
+    })
+  })
+
+  it('skips a spend control without a usable individual limit', () => {
+    expect(normalizeCodexUsage({ spend_control: { reached: true, individual_limit: 'nope' } })).toMatchObject({
+      rateLimits: [],
+      spendControlReached: true,
+    })
+    expect(
+      normalizeCodexUsage({ spend_control: { individual_limit: { limit: '100', remaining_percent: 50 } } }),
+    ).toEqual({ rateLimits: [], fetchedAt: expect.any(Number) as number })
+  })
+
+  it('throws on a payload that is not an object', () => {
+    expect(() => normalizeCodexUsage(42)).toThrow(/malformed usage response/)
+    expect(() => normalizeCodexUsage(null)).toThrow(/malformed usage response/)
+  })
 })
 
 describe('createCodexUsageReader', () => {
@@ -184,5 +238,91 @@ describe('createCodexUsageReader', () => {
     const afterClear = await reader.read()
     expect(afterClear.rateLimits[0]?.windows[0]?.usedPercent).toBe(55)
     expect(fetchImpl).toHaveBeenCalledTimes(2)
+  })
+
+  it('shares one in-flight GET between concurrent non-force readers', async () => {
+    let resolveFirst: ((response: Response) => void) | undefined
+    const fetchImpl = mockFetch(async () => {
+      if (resolveFirst === undefined) {
+        return await new Promise<Response>((resolve) => {
+          resolveFirst = resolve
+        })
+      }
+      return jsonResponse(200, usageBody(70))
+    })
+    const reader = createCodexUsageReader({
+      auth: {
+        resolve: async () => ({ accessToken: jwtWithAccount('acct-usage') }),
+        invalidate: async () => {},
+      },
+      fetchImpl,
+      sleep: async () => {},
+      now: () => 1_000,
+      ttlMs: 60_000,
+    })
+    const first = reader.read()
+    await vi.waitFor(() => {
+      expect(resolveFirst).toBeDefined()
+    })
+    const second = reader.read()
+    resolveFirst?.(jsonResponse(200, usageBody(70)))
+    const [a, b] = await Promise.all([first, second])
+    expect(a.rateLimits[0]?.windows[0]?.usedPercent).toBe(70)
+    expect(b.rateLimits[0]?.windows[0]?.usedPercent).toBe(70)
+    expect(fetchImpl).toHaveBeenCalledOnce()
+  })
+
+  it('forwards the caller abort signal into the usage GET', async () => {
+    const fetchImpl = mockFetch(
+      async (_input, init) =>
+        await new Promise<Response>((_resolve, reject) => {
+          const signal = init?.signal
+          if (!(signal instanceof AbortSignal)) throw new Error('missing request signal')
+          const onAbort = (): void => {
+            reject(new DOMException('aborted', 'AbortError'))
+          }
+          if (signal.aborted) onAbort()
+          else signal.addEventListener('abort', onAbort, { once: true })
+        }),
+    )
+    const reader = createCodexUsageReader({
+      auth: {
+        resolve: async () => ({ accessToken: jwtWithAccount('acct-usage') }),
+        invalidate: async () => {},
+      },
+      fetchImpl,
+      sleep: async () => {},
+      now: () => 1_000,
+      ttlMs: 60_000,
+    })
+    const controller = new AbortController()
+    const pending = reader.read({ signal: controller.signal })
+    await vi.waitFor(() => {
+      expect(fetchImpl).toHaveBeenCalledOnce()
+    })
+    controller.abort(new Error('stop'))
+    await expect(pending).rejects.toMatchObject({ code: 'TIMEOUT' })
+  })
+
+  it('defaults to global fetch, the system clock and the default TTL', async () => {
+    const fetchImpl = mockFetch(async () => jsonResponse(200, usageBody(30)))
+    vi.stubGlobal('fetch', fetchImpl)
+    const reader = createCodexUsageReader({
+      auth: {
+        resolve: async () => ({ accessToken: jwtWithAccount('acct-usage') }),
+        invalidate: async () => {},
+      },
+      originator: 'dsh-usage-test',
+      userAgent: 'dsh-usage-test',
+    })
+    const first = await reader.read()
+    const second = await reader.read()
+    expect(first.rateLimits[0]?.windows[0]?.usedPercent).toBe(30)
+    expect(second.fetchedAt).toBe(first.fetchedAt)
+    expect(fetchImpl).toHaveBeenCalledOnce()
+    const headers = new Headers(fetchImpl.mock.calls[0]?.[1]?.headers)
+    expect(headers.get('originator')).toBe('dsh-usage-test')
+    expect(headers.get('user-agent')).toBe('dsh-usage-test')
+    expect(fetchImpl.mock.calls[0]?.[0]).toBe(CODEX_USAGE_URL)
   })
 })

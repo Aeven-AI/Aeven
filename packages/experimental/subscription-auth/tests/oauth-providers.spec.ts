@@ -16,7 +16,11 @@ import {
   CODING_OAUTH_OPTIONAL_ROUTES,
   CODING_OAUTH_ROUTES,
 } from '../src/ids.ts'
-import { CLAUDE_CODE_OAUTH_PROVIDER, CODEX_OAUTH_PROVIDER } from '../src/oauth-providers.ts'
+import {
+  CLAUDE_CODE_OAUTH_PROVIDER,
+  CODEX_OAUTH_PROVIDER,
+  oauthProviderDefinition,
+} from '../src/oauth-providers.ts'
 
 const ctx: AuthContext = {
   env: async () => undefined,
@@ -97,5 +101,18 @@ describe('OAuth request providers', () => {
       model: 'gpt-5.4',
       service_tier: 'priority',
     })
+  })
+
+  it('bridges nothing when the stored key is blank or absent', async () => {
+    const auth = CODEX_OAUTH_PROVIDER.requestProvider().auth.apiKey!
+    const signal = new AbortController().signal
+    await expect(auth.resolve({ ctx, credential: { type: 'api_key', key: '   ' }, signal })).resolves.toBeUndefined()
+    await expect(auth.resolve({ ctx, signal })).resolves.toBeUndefined()
+  })
+
+  it('resolves a definition by slug and reports an unknown slug as absent', () => {
+    expect(oauthProviderDefinition(CODEX_OAUTH_PROVIDER.slug)).toBe(CODEX_OAUTH_PROVIDER)
+    expect(oauthProviderDefinition(CLAUDE_CODE_OAUTH_PROVIDER.slug)).toBe(CLAUDE_CODE_OAUTH_PROVIDER)
+    expect(oauthProviderDefinition('antigravity')).toBeUndefined()
   })
 })

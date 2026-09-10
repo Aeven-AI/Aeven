@@ -57,6 +57,8 @@ kind: "package-bundle"
 
 媒体生成通过两条路到达模型：harness 的 media seam，由 `image.generate` 工具带供应商选择器驱动；以及这个包自己的 Imagine 与 Codex 图像工具。工具的对外暴露以凭据就绪状态为准，而不是以某个设置为准——后端没有可用凭据的工具会被撤下，而不是先提供再失败。
 
+**运行时不变量：** 不发布 companion。OAuth 会话与凭据文件没有可供比较的、由本包独立持有的观察值；能力、路由和工具贡献则由各自的 registry 持有，并由生命周期测试覆盖。
+
 -----
 
 <a id="further-exploration"></a>

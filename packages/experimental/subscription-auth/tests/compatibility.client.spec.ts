@@ -101,7 +101,7 @@ describe('DSH client compatibility contracts', () => {
     const context = new Proxy(target, {
       get(object, property, receiver) {
         if (property === 'slots') throw new Error('cannot get property "slots" without inject')
-        return Reflect.get(object, property, receiver)
+        return Reflect.get(object, property, receiver) as unknown
       },
     }) as unknown as ClientContext
     const mountFallback = vi.fn(() => vi.fn())
@@ -114,5 +114,24 @@ describe('DSH client compatibility contracts', () => {
     expect(register).toHaveBeenCalledOnce()
     expect(mountFallback).not.toHaveBeenCalled()
     expect(target.inject).not.toHaveBeenCalled()
+  })
+
+  it('refuses a context that is not an object at all instead of pretending it is compatible', () => {
+    // Nothing on a non-object context can carry a capability, so every check fails.
+    const adapter = createDshClientAdapter('not-a-context' as unknown as ClientContext)
+
+    expect(adapter.diagnostics().map(item => item.id)).toEqual([
+      'client.effect',
+      'client.locale.register',
+      'client.locale.bind',
+      'client.slots.inject',
+    ])
+    expect(adapter.diagnostics()[0]?.message).toBe('client.effect is unavailable in the DSH client runtime')
+    expect(adapter.diagnostics()[3]?.message).toBe(
+      'client.slots.inject is unavailable; the independent settings entry remains active',
+    )
+    expect(() => {
+      adapter.assertCompatible()
+    }).toThrow('incompatible DSH client API: client.effect, client.locale.register, client.locale.bind')
   })
 })

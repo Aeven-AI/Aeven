@@ -20,17 +20,27 @@ import type { OAuthProviderDefinition } from './oauth-providers.ts'
 import { OAuthCredentialFileStore, oauthCredentialPath } from './store.ts'
 
 
+/**
+ * Oauth models cache path.
+ * @param basename - Basename value.
+ * @param dshHome - Dsh home value.
+ * @returns The resulting oauth models cache path.
+ */
 export function oauthModelsCachePath(basename: string, dshHome?: string): string {
   return resolve(join(resolveDshHome(dshHome), basename))
 }
 
+/** Reported oauth provider status. */
 export interface OAuthProviderStatus {
   authenticated: boolean
   expiresAt?: number
 }
 
+/** Oauth provider session implementation. */
 export class OAuthProviderSession {
+  /** Store implementation. */
   readonly store: OAuthCredentialFileStore
+  /** Models implementation. */
   readonly models: MutableModels
   private readonly catalog: readonly Model<Api>[]
   private readonly cacheFile: string
@@ -56,6 +66,10 @@ export class OAuthProviderSession {
 
   private onCatalogChange: (() => void) | undefined
 
+  /**
+   * Return the available models.
+   * @returns The available models.
+   */
   availableModels(): Model<Api>[] {
     return [...this.catalog]
   }
@@ -63,11 +77,16 @@ export class OAuthProviderSession {
   /**
    * Every model the subscription grants. There is no per-provider selection:
    * a subscription's whole catalogue is offered, so this is the catalogue.
+   * @returns The visible models.
    */
   visibleModels(): Model<Api>[] {
     return this.availableModels()
   }
 
+  /**
+   * Provider.
+   * @returns The resulting provider.
+   */
   provider(): Provider {
     return this.definition.requestProvider(this.visibleModels().map(model => model.id))
   }
@@ -80,18 +99,31 @@ export class OAuthProviderSession {
     await Promise.resolve()
   }
 
+  /**
+   * Return the current state.
+   * @returns The status.
+   */
   async status(): Promise<OAuthProviderStatus> {
     const credential = await this.store.read(this.definition.nativeProviderId)
     if (credential?.type !== 'oauth') return { authenticated: false }
     return { authenticated: true, expiresAt: credential.expires }
   }
 
+  /**
+   * Start the provider sign-in flow.
+   * @param interaction - Interaction handler for the sign-in flow.
+   * @returns The resulting login.
+   */
   async login(interaction: AuthInteraction): Promise<Credential> {
     const credential = await this.models.login(this.definition.nativeProviderId, 'oauth', interaction)
     this.onCatalogChange?.()
     return credential
   }
 
+  /**
+   * Resolve access token.
+   * @returns The resolved access token.
+   */
   async resolveAccessToken(): Promise<string | undefined> {
     const resolved = await this.models.getAuth(this.definition.nativeProviderId)
     if (resolved === undefined) return undefined
@@ -112,11 +144,16 @@ export class OAuthProviderSession {
     this.onCatalogChange?.()
   }
 
+  /**
+   * Return the stored credential.
+   * @returns The resulting stored credential.
+   */
   async storedCredential(): Promise<OAuthCredential | undefined> {
     const credential = await this.store.read(this.definition.nativeProviderId)
     return credential?.type === 'oauth' ? credential : undefined
   }
 
+  /** End the provider session and remove its stored credential. */
   async logout(): Promise<void> {
     try {
       await this.models.logout(this.definition.nativeProviderId)

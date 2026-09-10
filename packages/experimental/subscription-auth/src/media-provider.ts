@@ -113,7 +113,7 @@ export function createImagineImageProvider(options: ImagineMediaProviderOptions)
     available: () => true,
     // A fixed pair rather than a fetched document: Imagine publishes no model
     // list, and these are the two ids the client accepts.
-    listImageModels: async () => [
+    listImageModels: () => Promise.resolve([
       { provider: id, id: GROK_IMAGINE_IMAGE_MODEL, label: 'Grok Imagine', description: 'Your Grok subscription' },
       {
         provider: id,
@@ -121,7 +121,7 @@ export function createImagineImageProvider(options: ImagineMediaProviderOptions)
         label: 'Grok Imagine Quality',
         description: 'Your Grok subscription — higher quality',
       },
-    ],
+    ]),
     async generateImage(request: SeamImageRequest, signal?: AbortSignal): Promise<SeamImageResult> {
       const result = await options.imagine.generateImage(toImagineInput(request), signal)
       const images = result.images.map(image => ({
@@ -166,9 +166,9 @@ export function createCodexImageProvider(options: CodexMediaProviderOptions): Se
     id,
     available: () => true,
     // The subscription serves one image model, which the controller pins.
-    listImageModels: async () => [
+    listImageModels: () => Promise.resolve([
       { provider: id, id: CODEX_IMAGE_MODEL, label: 'GPT Image', description: 'Your Codex subscription' },
-    ],
+    ]),
     async generateImage(request: SeamImageRequest, signal?: AbortSignal): Promise<SeamImageResult> {
       const result = await options
         .createController()

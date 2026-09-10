@@ -14,6 +14,7 @@ const BODY_LIMIT_BYTES = 4 * 1024 * 1024
 const BODY_LIMIT_ERROR = 'Grok Build model listing exceeded the 4 MiB read ceiling'
 const PI_THINKING_LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
 
+/** Catalog source. */
 export type CatalogSource = 'live' | 'cache' | 'fallback'
 
 /** Vendor listing fields we keep after a live `/models-v2` fetch. */
@@ -48,6 +49,8 @@ function isPiThinkingLevel(value: string): value is (typeof PI_THINKING_LEVELS)[
  * extended levels (especially `xhigh`) must be pinned to null — pi-ai treats
  * an absent xhigh/max key as unsupported, and an absent low/medium/high key
  * as supported.
+ * @param efforts - Efforts value.
+ * @returns The resulting thinking level map from live efforts.
  */
 export function thinkingLevelMapFromLiveEfforts(efforts: unknown): ThinkingLevelMap | undefined {
   if (!Array.isArray(efforts)) return undefined
@@ -93,7 +96,11 @@ function parseLiveRow(row: unknown): LiveModelDescriptor | undefined {
   return descriptor
 }
 
-/** Pull the live listing, including per-model reasoning levels when present. */
+/**
+ * Pull the live listing, including per-model reasoning levels when present.
+ * @param body - Body value.
+ * @returns The resulting live models.
+ */
 export function extractLiveModels(body: unknown): LiveModelDescriptor[] {
   const seen = new Set<string>()
   const models: LiveModelDescriptor[] = []
@@ -111,16 +118,20 @@ export function extractLiveModels(body: unknown): LiveModelDescriptor[] {
  * not a published contract, so accept the common envelopes: a bare array, an
  * OpenAI-style `{ data: [...] }`, or `{ models: [...] }`; rows may be plain
  * ids or objects with an `id` field.
+ * @param body - Body value.
+ * @returns The resulting model ids.
  */
 export function extractModelIds(body: unknown): string[] {
   return extractLiveModels(body).map(model => model.id)
 }
 
 function titleCaseId(id: string): string {
+  /* v8 ignore start -- a non-empty part always has an index 0 */
   return id
     .split(/[-_]/g)
     .map(part => (part.length === 0 ? part : (part[0] ?? '').toUpperCase() + part.slice(1)))
     .join(' ')
+  /* v8 ignore stop */
 }
 
 function catalogModels(baseline: readonly Model<Api>[] = grokBuildBaselineModels()): readonly Model<Api>[] {
@@ -155,7 +166,13 @@ function applyLiveOverlay(model: Model<Api>, overlay: LiveModelDescriptor | unde
   }
 }
 
-/** Turn a live id into a pi-ai model, inheriting baseline metadata when possible. */
+/**
+ * Turn a live id into a pi-ai model, inheriting baseline metadata when possible.
+ * @param id - Identifier of the target value.
+ * @param catalog - Catalog value.
+ * @param overlay - Overlay value.
+ * @returns The resulting materialize live model.
+ */
 export function materializeLiveModel(
   id: string,
   catalog: readonly Model<Api>[] = catalogModels(),
@@ -170,6 +187,10 @@ export function materializeLiveModel(
  * If `liveIds` is missing or empty, serve the baseline catalog.
  * Otherwise serve only the live ids, each materialized against the baseline
  * and optionally overlaid with live `/models-v2` reasoning metadata.
+ * @param catalog - Catalog value.
+ * @param liveIds - Live ids value.
+ * @param liveModels - Live models value.
+ * @returns The resulting merge live catalog.
  */
 export function mergeLiveCatalog(
   catalog: readonly Model<Api>[],
@@ -181,6 +202,11 @@ export function mergeLiveCatalog(
   return liveIds.map(id => materializeLiveModel(id, catalog, overlays.get(id)))
 }
 
+/**
+ * Preferred grok build model from.
+ * @param models - Models available to the provider.
+ * @returns The resulting preferred grok build model from.
+ */
 export function preferredGrokBuildModelFrom(models: readonly { id: string }[]): string {
   const ids = new Set(models.map(model => model.id))
   if (ids.has(DEFAULT_GROK_BUILD_MODEL)) return DEFAULT_GROK_BUILD_MODEL
@@ -217,6 +243,9 @@ async function readBoundedResponse(response: Response): Promise<Buffer> {
 /**
  * Fetch the account-visible models from `/v1/models-v2` with the CLI
  * fingerprint headers. Throws a secret-free error on failure.
+ * @param accessToken - Access token value.
+ * @param signal - Cancellation signal for the operation.
+ * @returns The live models.
  */
 export async function fetchLiveModels(accessToken: string, signal?: AbortSignal): Promise<LiveModelDescriptor[]> {
   let response: Response
@@ -260,12 +289,21 @@ export async function fetchLiveModels(accessToken: string, signal?: AbortSignal)
   return models
 }
 
-/** Fetch only the account-visible model ids from `/v1/models-v2`. */
+/**
+ * Fetch only the account-visible model ids from `/v1/models-v2`.
+ * @param accessToken - Access token value.
+ * @param signal - Cancellation signal for the operation.
+ * @returns The live model ids.
+ */
 export async function fetchLiveModelIds(accessToken: string, signal?: AbortSignal): Promise<string[]> {
   return (await fetchLiveModels(accessToken, signal)).map(model => model.id)
 }
 
-/** Re-exported so callers can normalise cached descriptors onto the route. */
+/**
+ * Re-exported so callers can normalise cached descriptors onto the route.
+ * @param model - Model value.
+ * @returns The resulting as route model.
+ */
 export function asRouteModel(model: Model<Api>): Model<Api> {
   return model.provider === GROK_BUILD_ROUTE ? model : { ...model, provider: GROK_BUILD_ROUTE }
 }

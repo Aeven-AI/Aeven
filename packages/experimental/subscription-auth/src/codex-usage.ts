@@ -2,7 +2,7 @@
  * Optional ChatGPT Codex quota reader (`GET /backend-api/wham/usage`).
  * Normalizes unknown/malformed optional fields instead of failing the card.
  *
- * Cache semantics:
+ * Cache semantics, kept by the shared cache core in `usage-reader.ts`:
  * - A successful `read()` stores the projection until `ttlMs` elapses.
  * - Concurrent non-force `read()` calls share one in-flight GET.
  * - `read({ force: true })` always issues a new GET and never joins an
@@ -19,14 +19,16 @@ import {
   type CodexAuthSession,
   type CodexFetch,
   type CodexHttpClient,
-  createCodexHttpClient,
   isRecord,
   optionalNonEmptyString,
+  resolveCodexHttpClient,
 } from './codex-http.ts'
+import { createCachedReader, type CachedReaderOptions } from './usage-reader.ts'
 
 /** Official ChatGPT rate-limit usage endpoint used by the Codex client. */
 export const CODEX_USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage'
 
+/** Codex rate limit window. */
 export interface CodexRateLimitWindow {
   readonly usedPercent: number
   readonly remainingPercent: number
@@ -34,17 +36,20 @@ export interface CodexRateLimitWindow {
   readonly resetsAt?: number
 }
 
+/** Codex rate limit. */
 export interface CodexRateLimit {
   readonly id: string
   readonly name?: string
   readonly windows: readonly CodexRateLimitWindow[]
 }
 
+/** Codex credits. */
 export interface CodexCredits {
   readonly unlimited: boolean
   readonly balance?: string
 }
 
+/** Codex individual limit. */
 export interface CodexIndividualLimit {
   readonly limit: string
   readonly used: string
@@ -53,6 +58,7 @@ export interface CodexIndividualLimit {
   readonly resetsAt?: number
 }
 
+/** Codex usage. */
 export interface CodexUsage {
   readonly rateLimits: readonly CodexRateLimit[]
   readonly credits?: CodexCredits
@@ -62,6 +68,7 @@ export interface CodexUsage {
   readonly fetchedAt: number
 }
 
+/** Options for codex usage reader. */
 export interface CodexUsageReaderOptions {
   readonly auth: CodexAuthSession
   readonly http?: CodexHttpClient
@@ -73,6 +80,7 @@ export interface CodexUsageReaderOptions {
   readonly ttlMs?: number
 }
 
+/** Codex usage reader. */
 export interface CodexUsageReader {
   read(options?: { force?: boolean; signal?: AbortSignal }): Promise<CodexUsage>
   clear(): void
@@ -163,6 +171,9 @@ function copyUsage(usage: CodexUsage): CodexUsage {
 /**
  * Reduce an opaque `wham/usage` payload to a secret-free quota projection.
  * Unknown extra fields are ignored; malformed optional buckets are skipped.
+ * @param value - Value to process.
+ * @param fetchedAt - Fetched at value.
+ * @returns The resulting normalize codex usage.
  */
 export function normalizeCodexUsage(value: unknown, fetchedAt = Date.now()): CodexUsage {
   if (!isRecord(value)) {
@@ -213,25 +224,15 @@ export function normalizeCodexUsage(value: unknown, fetchedAt = Date.now()): Cod
  * Cached, injectable usage reader. Failures do not invent quota numbers.
  *
  * See the module doc for `force` / `clear` cache semantics.
+ * @param options - Operation options.
+ * @returns The created codex usage reader.
  */
 export function createCodexUsageReader(options: CodexUsageReaderOptions): CodexUsageReader {
-  const http =
-    options.http ??
-		createCodexHttpClient({
-		  auth: options.auth,
-		  ...(options.fetchImpl === undefined ? {} : { fetchImpl: options.fetchImpl }),
-		  ...(options.originator === undefined ? {} : { originator: options.originator }),
-		  ...(options.userAgent === undefined ? {} : { userAgent: options.userAgent }),
-		  ...(options.sleep === undefined ? {} : { sleep: options.sleep }),
-		  ...(options.now === undefined ? {} : { now: options.now }),
-		})
+  const http = resolveCodexHttpClient(options)
   const now = options.now ?? Date.now
   const ttlMs = options.ttlMs ?? DEFAULT_TTL_MS
-  let cached: CodexUsage | undefined
-  let inFlight: Promise<CodexUsage> | undefined
-  let epoch = 0
 
-  const load = async (signal?: AbortSignal): Promise<CodexUsage> => {
+  const load: CachedReaderOptions<CodexUsage>['load'] = async (signal) => {
     const payload = await http.requestJson({
       url: CODEX_USAGE_URL,
       method: 'GET',
@@ -241,29 +242,10 @@ export function createCodexUsageReader(options: CodexUsageReaderOptions): CodexU
     return normalizeCodexUsage(payload, now())
   }
 
-  return {
-    read({ force = false, signal } = {}) {
-      if (!force && cached !== undefined && now() - cached.fetchedAt < ttlMs) {
-        return Promise.resolve(copyUsage(cached))
-      }
-      if (!force && inFlight !== undefined) return inFlight
-      if (force) epoch += 1
-      const started = epoch
-      const current = load(signal)
-        .then((value) => {
-          if (started === epoch) cached = value
-          return value
-        })
-        .finally(() => {
-          if (inFlight === current) inFlight = undefined
-        })
-      inFlight = current
-      return current
-    },
-    clear() {
-      epoch += 1
-      cached = undefined
-      inFlight = undefined
-    },
-  }
+  return createCachedReader<CodexUsage>({
+    load,
+    now,
+    lifetimeOf: () => ttlMs,
+    copy: copyUsage,
+  })
 }

@@ -18,6 +18,7 @@ import type { OwnerRequestPolicy } from './web-origin.ts'
 
 const require = createRequire(import.meta.url)
 
+/** Dsh host adapter. */
 export interface DshHostAdapter extends CodingOAuthParticipantDiagnosticSource {
   readonly context: Context
   scope(): object
@@ -44,7 +45,7 @@ function record(value: unknown): Record<string, unknown> | undefined {
 
 function service(context: Context, name: string): unknown {
   try {
-    const value = context.get(name)
+    const value: unknown = context.get(name)
     if (value !== undefined && value !== null) return value
   } catch {}
   try {
@@ -81,6 +82,11 @@ function dshVersion(): string | null {
   }
 }
 
+/**
+ * Create dsh host adapter.
+ * @param context - Context value.
+ * @returns The created dsh host adapter.
+ */
 export function createDshHostAdapter(context: Context): DshHostAdapter {
   const candidate = context as unknown as Record<string, unknown>
   const diagnostics: DshCompatibilityDiagnostic[] = []
@@ -131,6 +137,7 @@ export function createDshHostAdapter(context: Context): DshHostAdapter {
         ]),
       }
       const capabilityDiagnostics: DshCompatibilityDiagnostic[] = Object.entries(capabilities).flatMap(([id, value]) =>
+        // oxlint-disable-next-line typescript/no-unnecessary-condition -- typeof null === 'object'
         typeof value === 'object' && value !== null && 'state' in value && value.state !== 'available'
           ? [
             {

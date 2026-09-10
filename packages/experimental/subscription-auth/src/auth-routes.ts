@@ -1,6 +1,6 @@
 /** Same-origin Web settings routes for Grok Build OAuth. */
 
-import type { ServerResponse } from 'node:http'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-llm'
@@ -48,8 +48,10 @@ export {
   GROK_BUILD_AUTH_LOGOUT_PATH,
   GROK_BUILD_AUTH_STATUS_PATH,
 } from './ids.ts'
+/** Grok build login method. */
 export type GrokBuildLoginMethod = 'pkce' | 'device'
 
+/** Reported grok build web auth status. */
 export type GrokBuildWebAuthStatus =
 	| { status: 'signed-out'; grokImportAvailable: boolean }
 	| {
@@ -72,20 +74,43 @@ export type GrokBuildWebAuthStatus =
 	}
 	| { status: 'error'; message: string; grokImportAvailable: boolean }
 
+/** Login challenge. */
 export interface LoginChallenge {
   method: GrokBuildLoginMethod
   url: string
   userCode?: string
 }
 
+/**
+ * Map a device-code prompt event onto the challenge both web-auth classes
+ * accept. Shared so the two classes cannot drift on how a device prompt is
+ * advertised; `userCode` is omitted rather than passed empty, which is what
+ * every consumer reads as "no code shown yet".
+ * @param event - the device-code prompt event.
+ * @returns the challenge to accept.
+ */
+function deviceCodeChallenge(event: Extract<AuthEvent, { type: 'device_code' }>): {
+  method: 'device'
+  url: string
+  userCode?: string
+} {
+  return {
+    method: 'device',
+    url: event.verificationUri,
+    ...(event.userCode.length > 0 ? { userCode: event.userCode } : {}),
+  }
+}
+
 function waitForPromptAbort(prompt: AuthPrompt): Promise<string> {
   const signal = prompt.signal
   if (signal === undefined) return new Promise<string>(() => {})
+  // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- every abort in this module passes an Error as the reason
   if (signal.aborted) return Promise.reject(signal.reason)
   return new Promise<string>((_resolve, reject) => {
     signal.addEventListener(
       'abort',
       () => {
+        // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- every abort in this module passes an Error as the reason
         reject(signal.reason)
       },
       { once: true },
@@ -124,6 +149,10 @@ export class GrokBuildWebAuth {
 
   constructor(private readonly session: GrokBuildSession) {}
 
+  /**
+   * Return the current state.
+   * @returns The status.
+   */
   async status(): Promise<GrokBuildWebAuthStatus> {
     if (this.operation !== undefined) return this.state
     if (this.state.status === 'error') {
@@ -132,7 +161,11 @@ export class GrokBuildWebAuth {
     return this.readStoredStatus()
   }
 
-  /** Start (or join) a login. A different method aborts and restarts the flow. */
+  /**
+   * Start (or join) a login. A different method aborts and restarts the flow.
+   * @param method - Method value.
+   * @returns The resulting sign in.
+   */
   async signIn(method: GrokBuildLoginMethod): Promise<LoginChallenge> {
     if (this.operation !== undefined && this.method !== method) {
       await this.cancel()
@@ -144,7 +177,11 @@ export class GrokBuildWebAuth {
     })
   }
 
-  /** Hand a pasted authorization code (or redirect URL) to a pending PKCE login. */
+  /**
+   * Hand a pasted authorization code (or redirect URL) to a pending PKCE login.
+   * @param code - Code value.
+   */
+  // oxlint-disable-next-line typescript/require-await -- the method throws, so async keeps the failure a rejection
   async submitCode(code: string): Promise<void> {
     const resolver = this.codeResolver
     if (resolver === undefined) {
@@ -163,6 +200,7 @@ export class GrokBuildWebAuth {
     this.state = await this.readStoredStatus()
   }
 
+  /** Import grok. */
   async importGrok(): Promise<void> {
     this.cancellation?.abort(new Error('grok-build: sign-in cancelled'))
     await this.operation?.catch(() => undefined)
@@ -172,6 +210,7 @@ export class GrokBuildWebAuth {
     this.state = await this.readStoredStatus()
   }
 
+  /** End the provider session and remove its stored credential. */
   async signOut(): Promise<void> {
     this.cancellation?.abort(new Error('grok-build: sign-in cancelled'))
     await this.operation?.catch(() => undefined)
@@ -181,6 +220,7 @@ export class GrokBuildWebAuth {
     this.challenge = undefined
   }
 
+  /** Release resources owned by this instance. */
   async dispose(): Promise<void> {
     const failure = new Error('grok-build: plugin disposed')
     this.cancellation?.abort(failure)
@@ -232,7 +272,7 @@ export class GrokBuildWebAuth {
           signal.addEventListener('abort', onAbort, { once: true })
         }),
     })
-    const written = await this.session.store.modify(XAI_PI_PROVIDER, async () => credential)
+    const written = await this.session.store.modify(XAI_PI_PROVIDER, () => credential)
     if (written === undefined || written.type !== 'oauth') {
       throw new Error('grok-build: failed to persist the login credential')
     }
@@ -259,11 +299,7 @@ export class GrokBuildWebAuth {
 
   private onEvent(event: AuthEvent): void {
     if (event.type === 'device_code') {
-      this.acceptChallenge({
-        method: 'device',
-        url: event.verificationUri,
-        ...(event.userCode.length > 0 ? { userCode: event.userCode } : {}),
-      })
+      this.acceptChallenge(deviceCodeChallenge(event))
       return
     }
     if (event.type === 'auth_url') {
@@ -320,6 +356,7 @@ export class GrokBuildWebAuth {
   }
 }
 
+/** Reported subscription web auth status. */
 export type SubscriptionWebAuthStatus = {
   provider: Exclude<CodingOAuthProviderSlug, 'grok'>
   route: string
@@ -336,6 +373,7 @@ export type SubscriptionWebAuthStatus = {
 	| { status: 'error'; message: string }
 )
 
+/** Subscription login challenge. */
 export interface SubscriptionLoginChallenge {
   method: SubscriptionLoginMethod
   url: string
@@ -373,11 +411,20 @@ export class SubscriptionWebAuth {
     this.method = session.definition.recommendedLoginMethod
   }
 
+  /**
+   * Return the current state.
+   * @returns The status.
+   */
   async status(): Promise<SubscriptionWebAuthStatus> {
     if (this.operation !== undefined && this.state !== undefined) return this.state
     return this.readStoredStatus()
   }
 
+  /**
+   * Start the provider sign-in flow.
+   * @param method - Method value.
+   * @returns The resulting sign in.
+   */
   async signIn(method: SubscriptionLoginMethod): Promise<SubscriptionLoginChallenge> {
     if (!this.session.definition.loginMethods.includes(method)) {
       throw new Error(`${this.session.definition.route}: login method "${method}" is not supported`)
@@ -401,6 +448,7 @@ export class SubscriptionWebAuth {
         },
         reject: (error: unknown): void => {
           clearTimeout(timer)
+          // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- callers pass through an Error from the abort reason
           reject(error)
         },
       }
@@ -408,6 +456,11 @@ export class SubscriptionWebAuth {
     })
   }
 
+  /**
+   * Submit code.
+   * @param code - Code value.
+   */
+  // oxlint-disable-next-line typescript/require-await -- the method throws, so async keeps the failure a rejection
   async submitCode(code: string): Promise<void> {
     const resolver = this.codeResolver
     if (resolver === undefined) {
@@ -417,6 +470,7 @@ export class SubscriptionWebAuth {
     resolver(code)
   }
 
+  /** Cancel the active operation. */
   async cancel(): Promise<void> {
     this.cancellation?.abort(new Error(`${this.session.definition.route}: sign-in cancelled`))
     await this.operation?.catch(() => undefined)
@@ -425,6 +479,7 @@ export class SubscriptionWebAuth {
     this.state = await this.readStoredStatus()
   }
 
+  /** End the provider session and remove its stored credential. */
   async signOut(): Promise<void> {
     this.cancellation?.abort(new Error(`${this.session.definition.route}: sign-in cancelled`))
     await this.operation?.catch(() => undefined)
@@ -434,6 +489,7 @@ export class SubscriptionWebAuth {
     this.state = await this.readStoredStatus()
   }
 
+  /** Release resources owned by this instance. */
   async dispose(): Promise<void> {
     this.cancellation?.abort(new Error(`${this.session.definition.route}: plugin disposed`))
     await this.operation?.catch(() => undefined)
@@ -525,6 +581,7 @@ export class SubscriptionWebAuth {
       }
       const onAbort = (): void => {
         if (this.codeResolver === resolver) this.codeResolver = undefined
+        // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- every abort in this module passes an Error as the reason
         reject(signal.reason)
       }
       this.codeResolver = resolver
@@ -538,11 +595,7 @@ export class SubscriptionWebAuth {
 
   private onEvent(event: AuthEvent): void {
     if (event.type === 'device_code') {
-      this.acceptChallenge({
-        method: 'device',
-        url: event.verificationUri,
-        ...(event.userCode.length > 0 ? { userCode: event.userCode } : {}),
-      })
+      this.acceptChallenge(deviceCodeChallenge(event))
       return
     }
     if (event.type === 'auth_url') this.acceptChallenge({ method: this.method, url: event.url })
@@ -588,7 +641,13 @@ function readLoginMethod(body: unknown): GrokBuildLoginMethod {
   return 'pkce'
 }
 
-/** Register the plugin-owned OAuth routes when the Web server is composed. */
+/**
+ * Register the plugin-owned OAuth routes when the Web server is composed.
+ * @param ctx - Cordis context that owns the registration.
+ * @param session - Provider session used by the operation.
+ * @param existingAuth - Existing auth value.
+ * @param ownerRequestPolicy - Owner request policy value.
+ */
 export function registerGrokBuildAuthRoutes(
   ctx: Context,
   session: GrokBuildSession,
@@ -630,17 +689,13 @@ export function registerGrokBuildAuthRoutes(
         handler: async (req, res) => {
           if (req.method !== 'POST') {  json(res, 405, { error: 'method not allowed' }); return }
           if (!ownerRequestPolicy.authorize(req).authorized) {  json(res, 403, { error: 'forbidden' }); return }
-          try {
+          await answerSubmittedCode(res, async () => {
             const body = await readJsonRequest(req)
-            const code = typeof body === 'object' && body !== null && 'code' in body ? body.code : undefined
-            if (typeof code !== 'string' || code.trim().length === 0) {
-              json(res, 400, { error: 'code must be a non-empty string' }); return
-            }
+            const code = readSubmittedCode(res, body)
+            if (code === undefined) return false
             await auth.submitCode(code)
-            json(res, 200, { ok: true })
-          } catch (error: unknown) {
-            json(res, requestErrorStatus(error, 409), { error: safeMessage(error) })
-          }
+            return true
+          })
         },
       }),
       webServer.register({
@@ -677,6 +732,7 @@ export function registerGrokBuildAuthRoutes(
   }, 'dsh-subscription-auth: Web OAuth routes')
 }
 
+/** Reported coding oauth web status. */
 export interface CodingOAuthWebStatus {
   accessMode: OwnerAccessMode
   uiOwner: 'standalone' | 'hub'
@@ -701,7 +757,74 @@ function providerSlug(body: unknown): CodingOAuthProviderSlug {
   throw new Error('provider must be one of grok, codex, kimi, or claude')
 }
 
-/** Register the unified Coding OAuth API plus the compatibility Grok routes. */
+/**
+ * Read the pasted authorization code from a parsed request body, answering 400
+ * itself when it is missing or not a non-empty string. Shared so both login-code
+ * routes cannot drift on what they accept.
+ * @param res - the response to answer on refusal.
+ * @param body - the parsed request body.
+ * @returns the code, or `undefined` when the response is already sent.
+ */
+function readSubmittedCode(res: ServerResponse, body: unknown): string | undefined {
+  const code = typeof body === 'object' && body !== null ? (body as Record<string, unknown>)['code'] : undefined
+  if (typeof code !== 'string' || code.trim().length === 0) {
+    json(res, 400, { error: 'code must be a non-empty string' })
+    return undefined
+  }
+  return code
+}
+
+/**
+ * Answer a pasted-code submit route. The body runs inside the try, so a refusal
+ * either request read raises is still mapped onto the same status these routes
+ * already returned. `submit` returns `false` when `readSubmittedCode` already
+ * answered with 400, in which case no success body is sent.
+ * @param res - the response to answer on.
+ * @param submit - the route body; `false` when it already answered.
+ * @returns nothing; the response is settled.
+ */
+async function answerSubmittedCode(res: ServerResponse, submit: () => Promise<boolean>): Promise<void> {
+  try {
+    if (!(await submit())) return
+    json(res, 200, { ok: true })
+  } catch (error: unknown) {
+    json(res, requestErrorStatus(error, 409), { error: safeMessage(error) })
+  }
+}
+
+/**
+ * Run the shared POST + owner-origin guard for a management route, answering
+ * 405/403 itself. Shared so every management route refuses the same way.
+ * @param req - the incoming request.
+ * @param res - the response to answer on refusal.
+ * @param policy - the owner-request policy guarding the route.
+ * @returns the authorized access mode, or `undefined` when already answered.
+ */
+function authorizeManagementPost(
+  req: IncomingMessage,
+  res: ServerResponse,
+  policy: OwnerRequestPolicy,
+): OwnerAccessMode | undefined {
+  if (req.method !== 'POST') {
+    json(res, 405, { error: 'method not allowed' })
+    return undefined
+  }
+  const decision = policy.authorize(req)
+  if (!decision.authorized || decision.accessMode === undefined) {
+    json(res, 403, { error: 'forbidden' })
+    return undefined
+  }
+  return decision.accessMode
+}
+
+/**
+ * Register the unified Coding OAuth API plus the compatibility Grok routes.
+ * @param ctx - Cordis context that owns the registration.
+ * @param grokSession - Grok session value.
+ * @param subscriptionSessions - Subscription sessions value.
+ * @param ownerRequestPolicy - Owner request policy value.
+ * @param compatibility - Compatibility value.
+ */
 export function registerCodingOAuthRoutes(
   ctx: Context,
   grokSession: GrokBuildSession,
@@ -745,6 +868,29 @@ export function registerCodingOAuthRoutes(
       providers: { grok: grokStatus, codex, claude },
     }
   }
+
+  /**
+   * Handler shared by the cancel and logout routes. Both address one provider
+   * and differ only in the operation they apply before answering with status,
+   * so the guard, body parsing, and error mapping live here once.
+   * @param apply - the lifecycle operation to apply to the addressed slug.
+   * @returns the route handler.
+   */
+  const lifecycleHandler = (
+    apply: (slug: CodingOAuthProviderSlug) => Promise<unknown>,
+  ): (req: IncomingMessage, res: ServerResponse) => Promise<void> =>
+    async (req, res) => {
+      const accessMode = authorizeManagementPost(req, res, ownerRequestPolicy)
+      if (accessMode === undefined) return
+      try {
+        const body = await readJsonRequest(req)
+        const slug = providerSlug(body)
+        await apply(slug)
+        json(res, 200, await allStatus(accessMode))
+      } catch (error: unknown) {
+        json(res, requestErrorStatus(error, 500), { error: safeMessage(error) })
+      }
+    }
 
   ctx.effect(() => {
     const releaseRoutes = registerWebRouteSetupAtomically(ctx.webServer, webServer => [
@@ -794,56 +940,26 @@ export function registerCodingOAuthRoutes(
         handler: async (req, res) => {
           if (req.method !== 'POST') {  json(res, 405, { error: 'method not allowed' }); return }
           if (!ownerRequestPolicy.authorize(req).authorized) {  json(res, 403, { error: 'forbidden' }); return }
-          try {
+          await answerSubmittedCode(res, async () => {
             const body = await readJsonRequest(req)
             const slug = providerSlug(body)
-            const code = recordBody(body)['code']
-            if (typeof code !== 'string' || code.trim().length === 0) {
-              json(res, 400, { error: 'code must be a non-empty string' }); return
-            }
+            const code = readSubmittedCode(res, body)
+            if (code === undefined) return false
             if (slug === 'grok') await grok.submitCode(code)
             else await subscription(slug).submitCode(code)
-            json(res, 200, { ok: true })
-          } catch (error: unknown) {
-            json(res, requestErrorStatus(error, 409), { error: safeMessage(error) })
-          }
+            return true
+          })
         },
       }),
       webServer.register({
         kind: 'exact',
         path: CODING_OAUTH_LOGIN_CANCEL_PATH,
-        handler: async (req, res) => {
-          if (req.method !== 'POST') {  json(res, 405, { error: 'method not allowed' }); return }
-          const decision = ownerRequestPolicy.authorize(req)
-          if (!decision.authorized || decision.accessMode === undefined) {  json(res, 403, { error: 'forbidden' }); return }
-          try {
-            const body = await readJsonRequest(req)
-            const slug = providerSlug(body)
-            if (slug === 'grok') await grok.cancel()
-            else await subscription(slug).cancel()
-            json(res, 200, await allStatus(decision.accessMode))
-          } catch (error: unknown) {
-            json(res, requestErrorStatus(error, 500), { error: safeMessage(error) })
-          }
-        },
+        handler: lifecycleHandler(slug => (slug === 'grok' ? grok.cancel() : subscription(slug).cancel())),
       }),
       webServer.register({
         kind: 'exact',
         path: CODING_OAUTH_LOGOUT_PATH,
-        handler: async (req, res) => {
-          if (req.method !== 'POST') {  json(res, 405, { error: 'method not allowed' }); return }
-          const decision = ownerRequestPolicy.authorize(req)
-          if (!decision.authorized || decision.accessMode === undefined) {  json(res, 403, { error: 'forbidden' }); return }
-          try {
-            const body = await readJsonRequest(req)
-            const slug = providerSlug(body)
-            if (slug === 'grok') await grok.signOut()
-            else await subscription(slug).signOut()
-            json(res, 200, await allStatus(decision.accessMode))
-          } catch (error: unknown) {
-            json(res, requestErrorStatus(error, 500), { error: safeMessage(error) })
-          }
-        },
+        handler: lifecycleHandler(slug => (slug === 'grok' ? grok.signOut() : subscription(slug).signOut())),
       }),
     ])
     return releaseRoutes

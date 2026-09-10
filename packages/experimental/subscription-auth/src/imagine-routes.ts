@@ -65,6 +65,7 @@ export interface ImagineMediaDownloadStore {
   readForDownload(artifactId: string, authz: TrustedImagineAuthz): Promise<MediaDownloadView>
 }
 
+/** Options for imagine route. */
 export interface ImagineRouteOptions {
   readonly attachments: ImagineRouteAttachmentStore
   readonly media: ImagineMediaDownloadStore
@@ -76,6 +77,7 @@ export interface ImagineRouteOptions {
   readonly ownerRequestPolicy?: OwnerRequestPolicy
 }
 
+/** Registry used by imagine route. */
 export interface ImagineRouteRegistry {
   rememberImages(refs: readonly ImageAttachmentRef[] | readonly ImagineImageAttachmentRef[]): void
   rememberArtifact(meta: MediaArtifactMeta): void
@@ -108,7 +110,12 @@ type RouteEntry = ImageRouteEntry | MediaRouteEntry
 
 type RouteHandler = (req: IncomingMessage, res: ServerResponse) => void | Promise<void>
 
-/** Register the bounded exact-path Imagine download registry. */
+/**
+ * Register the bounded exact-path Imagine download registry.
+ * @param ctx - Cordis context that owns the registration.
+ * @param options - Operation options.
+ * @returns A disposer that removes the registration.
+ */
 export function registerImagineRoutes(ctx: ImagineRouteContext, options: ImagineRouteOptions): ImagineRouteRegistry {
   const now = options.now ?? Date.now
   const maxEntries = clampPositive(options.maxEntries, IMAGINE_ROUTE_MAX_ENTRIES)
@@ -120,6 +127,7 @@ export function registerImagineRoutes(ctx: ImagineRouteContext, options: Imagine
   const wrapDisposer = (release: () => void): (() => void) => {
     let released = false
     return () => {
+      /* v8 ignore next -- each route disposer is wrapped once and evict deletes the entry */
       if (released) return
       released = true
       try {
@@ -145,6 +153,7 @@ export function registerImagineRoutes(ctx: ImagineRouteContext, options: Imagine
 
   const evictOldest = (): void => {
     const oldest = entries.keys().next().value
+    /* v8 ignore next -- evictOldest runs only when the table is at capacity */
     if (oldest !== undefined) evict(oldest)
   }
 

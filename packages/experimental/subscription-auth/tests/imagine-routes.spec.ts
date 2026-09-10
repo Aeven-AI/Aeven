@@ -17,9 +17,11 @@ import {
 import {
   IMAGINE_MEDIA_ROUTE_PREFIX,
   imagineMediaPath,
+  MEDIA_STORE_MAX_BYTES,
   type MediaArtifactMeta,
   type MediaDownloadView,
   MediaStoreError,
+  type MediaStoreErrorCode,
   parseImagineMediaPath,
   type TrustedImagineAuthz,
 } from '../src/media-store.ts'
@@ -67,6 +69,21 @@ class TestResponse {
   }
 }
 
+/** A response whose head was already flushed before the handler ran. */
+class PreSentResponse extends TestResponse {
+  constructor() {
+    super()
+    this.headersSent = true
+  }
+}
+
+/** A response that fails while writing the body, after the status was already sent. */
+class ThrowingEndResponse extends TestResponse {
+  override end(_value?: string | Buffer | Uint8Array): this {
+    throw new Error('socket write failed')
+  }
+}
+
 /** A fake store whose reads can be parked with `hold()` until `release()`. */
 class HoldableFake {
   pending: Promise<void> | undefined
@@ -89,6 +106,7 @@ class FakeAttachments extends HoldableFake implements ImagineRouteAttachmentStor
   readonly imageLimits: { maxImageBytes: number }
   readonly stored = new Map<string, { ref: ImagineImageAttachmentRef; data: Uint8Array }>()
   reads: ImagineImageAttachmentRef[] = []
+  signals: Array<AbortSignal | undefined> = []
   error: unknown
   mismatchId: string | undefined
   oversized = false
@@ -99,8 +117,12 @@ class FakeAttachments extends HoldableFake implements ImagineRouteAttachmentStor
   }
 
 
-  async readImage(ref: ImagineImageAttachmentRef): Promise<{ ref: ImagineImageAttachmentRef; data: Uint8Array }> {
+  async readImage(
+    ref: ImagineImageAttachmentRef,
+    signal?: AbortSignal,
+  ): Promise<{ ref: ImagineImageAttachmentRef; data: Uint8Array }> {
     this.reads.push({ ...ref })
+    this.signals.push(signal)
     if (this.pending !== undefined) await this.pending
     if (this.error !== undefined) throw this.error
     const stored = this.stored.get(ref.attachmentId)
@@ -164,10 +186,11 @@ function hexId(value: number): string {
 }
 
 function request(
-  method: string,
+  method: string | undefined,
   headers: IncomingMessage['headers'] = {},
   remoteAddress = '127.0.0.1',
   url = '/',
+  signal?: AbortSignal,
 ): IncomingMessage {
   const stream = Readable.from([]) as unknown as IncomingMessage
   Object.defineProperties(stream, {
@@ -178,11 +201,20 @@ function request(
       configurable: true,
     },
     socket: { value: { remoteAddress }, configurable: true },
+    signal: { value: signal, configurable: true },
   })
   return stream
 }
 
-function createHarness(options: { now?: () => number; effect?: boolean; maxEntries?: number; failAt?: number } = {}): {
+function createHarness(
+  options: {
+    now?: () => number
+    effect?: boolean
+    maxEntries?: number
+    failAt?: number
+    releaseHook?: (path: string) => void
+  } = {},
+): {
   routes: Map<string, RegisteredRoute>
   attachments: FakeAttachments
   media: FakeMedia
@@ -210,6 +242,7 @@ function createHarness(options: { now?: () => number; effect?: boolean; maxEntri
           routes.set(route.path, recorded)
           return () => {
             routes.delete(route.path)
+            options.releaseHook?.(route.path)
           }
         },
       },
@@ -231,13 +264,21 @@ function createHarness(options: { now?: () => number; effect?: boolean; maxEntri
   return { routes, attachments, media, registry, effects }
 }
 
+async function deliver(
+  route: RegisteredRoute | undefined,
+  req: IncomingMessage,
+  response: TestResponse,
+): Promise<void> {
+  if (route === undefined) throw new Error('route was not registered')
+  await route.handler(req, response as unknown as ServerResponse)
+}
+
 async function invoke(
   route: RegisteredRoute | undefined,
   req: IncomingMessage,
 ): Promise<{ status: number; headers: Record<string, string>; body: Buffer; text: string; json: unknown }> {
-  if (route === undefined) throw new Error('route was not registered')
   const response = new TestResponse()
-  await route.handler(req, response as unknown as ServerResponse)
+  await deliver(route, req, response)
   let parsed: unknown
   try {
     parsed = JSON.parse(response.text)
@@ -245,6 +286,50 @@ async function invoke(
     parsed = undefined
   }
   return { status: response.status, headers: response.headers, body: response.body, text: response.text, json: parsed }
+}
+
+/** A stored-video view the fake media store hands back, with its own download headers. */
+function mediaView(meta: MediaArtifactMeta, body: Uint8Array = VIDEO): MediaDownloadView {
+  return {
+    meta,
+    body,
+    headers: {
+      'Content-Type': meta.mediaType,
+      'Content-Length': String(body.byteLength),
+      'Content-Disposition': `attachment; filename="imagine-${meta.artifactId}.mp4"`,
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
+    },
+  }
+}
+
+/**
+ * An input whose property reads change on every access, exactly as a caller-supplied
+ * getter can, so a value validated on one read can differ from the value copied later.
+ */
+function shiftingReads<T extends object>(base: T, script: Partial<Record<keyof T, readonly unknown[]>>): T {
+  const reads = new Map<PropertyKey, number>()
+  return new Proxy(base, {
+    get(target, property, receiver) {
+      const queue = (script as Record<string, readonly unknown[] | undefined>)[String(property)]
+      const index = reads.get(property) ?? 0
+      reads.set(property, index + 1)
+      if (queue === undefined) return Reflect.get(target, property, receiver)
+      return queue[Math.min(index, queue.length - 1)]
+    },
+  })
+}
+
+/**
+ * A value that is not a string yet stringifies to a safe opaque id, so every
+ * coercion-based check passes while the value itself never equals that id.
+ */
+function stringifiableId(id: string): object {
+  return {
+    length: id.length,
+    includes: (): boolean => false,
+    toString: (): string => id,
+  }
 }
 
 describe('imagine exact download routes', () => {
@@ -477,12 +562,12 @@ describe('imagine exact download routes', () => {
     expect((await invoke(handler, request('GET'))).status).toBe(404)
   })
 
-  it('lets ctx.effect own the combined disposer', () => {
+  it('lets ctx.effect own the combined disposer', async () => {
     const { routes, registry, effects } = createHarness({ effect: true })
     registry.rememberImages([imageRef('img_effect')])
     expect(routes.size).toBe(1)
     expect(effects).toHaveLength(1)
-    effects[0]?.()
+    await effects[0]?.()
     expect(routes.size).toBe(0)
   })
 
@@ -567,5 +652,449 @@ describe('imagine exact download routes', () => {
     const response = await pending
     expect(response.status).toBe(404)
     expect(response.json).toEqual({ error: 'not found' })
+  })
+})
+
+describe('imagine route table maintenance', () => {
+  it('sweeps an expired image route when a later image is remembered', () => {
+    let clock = 1_000
+    const { routes, registry } = createHarness({ now: () => clock })
+    registry.rememberImages([imageRef('img_sweep_old')])
+    clock += IMAGINE_IMAGE_ROUTE_TTL_MS + 1
+    registry.rememberImages([imageRef('img_sweep_new')])
+    expect(routes.has(imagineImagePath('img_sweep_old'))).toBe(false)
+    expect(routes.has(imagineImagePath('img_sweep_new'))).toBe(true)
+  })
+
+  it('sweeps an expired artifact route when a later artifact is remembered', () => {
+    let clock = 10_000
+    const { routes, registry } = createHarness({ now: () => clock })
+    const expired = artifact(hexId(44), { createdAt: 1_000, expiresAt: 15_000 })
+    const fresh = artifact(hexId(45), { createdAt: 1_000, expiresAt: 90_000 })
+    registry.rememberArtifact(expired)
+    clock = 20_000
+    registry.rememberArtifact(fresh)
+    expect(routes.has(imagineMediaPath(expired.artifactId))).toBe(false)
+    expect(routes.has(imagineMediaPath(fresh.artifactId))).toBe(true)
+  })
+
+  it('refreshes a remembered artifact in place instead of adding a route', async () => {
+    let clock = 1_000
+    const { routes, media, registry } = createHarness({ now: () => clock })
+    const meta = artifact(hexId(46), { createdAt: 500, expiresAt: 2_000 })
+    media.stored.set(meta.artifactId, mediaView(meta))
+    registry.rememberArtifact(meta)
+    const path = imagineMediaPath(meta.artifactId)
+    const handler = routes.get(path)
+
+    registry.rememberArtifact({ ...meta, name: 'renamed.mp4', expiresAt: 31_000 })
+
+    expect(routes.size).toBe(1)
+    expect(routes.get(path)).toBe(handler)
+    clock = 6_000
+    const response = await invoke(handler, request('GET'))
+    expect(response.status).toBe(200)
+    expect(response.headers['content-disposition']).toContain('renamed.mp4')
+  })
+
+  it('evicts the oldest artifact route once capacity is reached', async () => {
+    const { routes, media, registry } = createHarness({ maxEntries: 1 })
+    const first = artifact(hexId(47))
+    const second = artifact(hexId(48))
+    media.stored.set(first.artifactId, mediaView(first))
+    media.stored.set(second.artifactId, mediaView(second))
+    registry.rememberArtifact(first)
+    registry.rememberArtifact(second)
+    expect(routes.size).toBe(1)
+    expect(routes.has(imagineMediaPath(first.artifactId))).toBe(false)
+    expect((await invoke(routes.get(imagineMediaPath(second.artifactId)), request('GET'))).status).toBe(200)
+  })
+
+  it('ignores an artifact remembered after disposal', () => {
+    const { routes, registry } = createHarness()
+    registry.dispose()
+    registry.rememberArtifact(artifact(hexId(49)))
+    expect(routes.size).toBe(0)
+  })
+
+  it('revokes image routes without touching artifact routes', async () => {
+    const { routes, media, registry } = createHarness()
+    const image = imageRef('img_revoke_images')
+    const meta = artifact(hexId(50))
+    media.stored.set(meta.artifactId, mediaView(meta))
+    registry.rememberImages([image])
+    registry.rememberArtifact(meta)
+    const imagePath = imagineImagePath(image.attachmentId)
+    const mediaPath = imagineMediaPath(meta.artifactId)
+    const staleImageHandler = routes.get(imagePath)
+    expect(routes.size).toBe(2)
+
+    registry.revokeImages()
+
+    expect(routes.has(imagePath)).toBe(false)
+    expect(routes.has(mediaPath)).toBe(true)
+    expect((await invoke(staleImageHandler, request('GET'))).status).toBe(404)
+    expect((await invoke(routes.get(mediaPath), request('GET'))).status).toBe(200)
+  })
+
+  it('revokes artifact routes without touching image routes', async () => {
+    const { routes, attachments, media, registry } = createHarness()
+    const image = imageRef('img_kept_after_revoke')
+    const meta = artifact(hexId(51))
+    attachments.stored.set(image.attachmentId, { ref: image, data: PNG })
+    media.stored.set(meta.artifactId, mediaView(meta))
+    registry.rememberImages([image])
+    registry.rememberArtifact(meta)
+    const imagePath = imagineImagePath(image.attachmentId)
+    const mediaPath = imagineMediaPath(meta.artifactId)
+    const staleMediaHandler = routes.get(mediaPath)
+
+    registry.revokeArtifacts()
+
+    expect(routes.has(mediaPath)).toBe(false)
+    expect(routes.has(imagePath)).toBe(true)
+    expect((await invoke(staleMediaHandler, request('GET'))).status).toBe(404)
+    expect((await invoke(routes.get(imagePath), request('GET'))).status).toBe(200)
+  })
+
+  it('keeps sweeping when a route disposer revokes the rest of the table', async () => {
+    let revokeOnRelease = false
+    const harness = createHarness({
+      releaseHook: () => {
+        if (revokeOnRelease) harness.registry.revokeImages()
+      },
+    })
+    const first = imageRef('img_reentrant_a')
+    const second = imageRef('img_reentrant_b')
+    harness.registry.rememberImages([first, second])
+    const firstHandler = harness.routes.get(imagineImagePath(first.attachmentId))
+    expect(harness.routes.size).toBe(2)
+
+    revokeOnRelease = true
+    harness.registry.revokeImages()
+
+    expect(harness.routes.size).toBe(0)
+    expect((await invoke(firstHandler, request('GET'))).status).toBe(404)
+    harness.registry.rememberImages([imageRef('img_reentrant_c')])
+    expect(harness.routes.size).toBe(1)
+  })
+
+  it('answers 404 when the staleness check loses the entry before the lookup', async () => {
+    const clock = 1_000
+    let revokeOnClockRead = false
+    const harness = createHarness({
+      now: () => {
+        if (revokeOnClockRead) {
+          revokeOnClockRead = false
+          harness.registry.revokeImages()
+        }
+        return clock
+      },
+    })
+    const ref = imageRef('img_vanished')
+    harness.registry.rememberImages([ref])
+    const path = imagineImagePath(ref.attachmentId)
+    const handler = harness.routes.get(path)
+
+    revokeOnClockRead = true
+    const response = await invoke(handler, request('GET'))
+
+    expect(response.status).toBe(404)
+    expect(response.json).toEqual({ error: 'not found' })
+    expect(harness.routes.has(path)).toBe(false)
+  })
+})
+
+describe('imagine download response guards', () => {
+  it('treats a request without a method as non-GET', async () => {
+    const { routes, attachments, registry } = createHarness()
+    const ref = imageRef('img_no_method')
+    attachments.stored.set(ref.attachmentId, { ref, data: PNG })
+    registry.rememberImages([ref])
+    const response = await invoke(routes.get(imagineImagePath(ref.attachmentId)), request(undefined))
+    expect(response.status).toBe(405)
+    expect(response.json).toEqual({ error: 'method not allowed' })
+    expect(attachments.reads).toHaveLength(0)
+  })
+
+  it('does not write a JSON error onto a response whose head was already sent', async () => {
+    const { routes, registry } = createHarness()
+    registry.rememberImages([imageRef('img_presend_error')])
+    const response = new PreSentResponse()
+
+    await deliver(routes.get(imagineImagePath('img_presend_error')), request('POST'), response)
+
+    expect(response.status).toBe(0)
+    expect(response.body.byteLength).toBe(0)
+  })
+
+  it('refuses an image whose remembered size exceeds the current download limit', async () => {
+    const { routes, attachments, registry } = createHarness()
+    const ref = imageRef('img_limit_shrunk', { bytes: 16 })
+    attachments.stored.set(ref.attachmentId, { ref, data: PNG })
+    registry.rememberImages([ref])
+    attachments.imageLimits.maxImageBytes = 8
+
+    const response = await invoke(routes.get(imagineImagePath(ref.attachmentId)), request('GET'))
+
+    expect(response.status).toBe(404)
+    expect(response.json).toEqual({ error: 'not found' })
+    expect(attachments.reads).toHaveLength(0)
+  })
+
+  it('does not write an image body onto a response whose head was already sent', async () => {
+    const { routes, attachments, registry } = createHarness()
+    const ref = imageRef('img_presend_body')
+    attachments.stored.set(ref.attachmentId, { ref, data: PNG })
+    registry.rememberImages([ref])
+    const response = new PreSentResponse()
+
+    await deliver(routes.get(imagineImagePath(ref.attachmentId)), request('GET'), response)
+
+    expect(attachments.reads).toHaveLength(1)
+    expect(response.status).toBe(0)
+    expect(response.body.byteLength).toBe(0)
+  })
+
+  it('does not answer a JSON error after the body write already failed', async () => {
+    const { routes, attachments, registry } = createHarness()
+    const ref = imageRef('img_write_failed')
+    attachments.stored.set(ref.attachmentId, { ref, data: PNG })
+    registry.rememberImages([ref])
+    const response = new ThrowingEndResponse()
+
+    await deliver(routes.get(imagineImagePath(ref.attachmentId)), request('GET'), response)
+
+    expect(response.status).toBe(200)
+    expect(response.body.byteLength).toBe(0)
+  })
+
+  it('answers 404 when the attachment read fails after the route was revoked', async () => {
+    const { routes, attachments, registry } = createHarness()
+    const ref = imageRef('img_failed_after_revoke')
+    attachments.stored.set(ref.attachmentId, { ref, data: PNG })
+    attachments.hold()
+    registry.rememberImages([ref])
+    const pending = invoke(routes.get(imagineImagePath(ref.attachmentId)), request('GET'))
+    attachments.error = new Error(`ENOENT ${SECRET_PATH}`)
+    registry.dispose()
+    attachments.release()
+
+    const response = await pending
+
+    expect(response.status).toBe(404)
+    expect(response.json).toEqual({ error: 'not found' })
+    expect(response.text).not.toContain(SECRET_PATH)
+  })
+
+  it('does not finish a 200 when disposal races an in-flight artifact read', async () => {
+    const { routes, media, registry } = createHarness()
+    const meta = artifact(hexId(52))
+    media.stored.set(meta.artifactId, mediaView(meta))
+    media.hold()
+    registry.rememberArtifact(meta)
+    const pending = invoke(routes.get(imagineMediaPath(meta.artifactId)), request('GET'))
+    registry.dispose()
+    media.release()
+
+    const response = await pending
+
+    expect(response.status).toBe(404)
+    expect(response.json).toEqual({ error: 'not found' })
+  })
+
+  it('does not write a video body onto a response whose head was already sent', async () => {
+    const { routes, media, registry } = createHarness()
+    const meta = artifact(hexId(53))
+    media.stored.set(meta.artifactId, mediaView(meta))
+    registry.rememberArtifact(meta)
+    const response = new PreSentResponse()
+
+    await deliver(routes.get(imagineMediaPath(meta.artifactId)), request('GET'), response)
+
+    expect(media.reads).toHaveLength(1)
+    expect(response.status).toBe(0)
+    expect(response.body.byteLength).toBe(0)
+  })
+
+  it('refuses a stored video whose view disagrees with the registered artifact', async () => {
+    const { routes, media, registry } = createHarness()
+    const meta = artifact(hexId(54))
+    registry.rememberArtifact(meta)
+    const handler = routes.get(imagineMediaPath(meta.artifactId))
+    const oversizedBody = { byteLength: MEDIA_STORE_MAX_BYTES + 1 } as unknown as Uint8Array
+    const disagreeing: Array<[string, MediaDownloadView]> = [
+      ['names another artifact', mediaView({ ...meta, artifactId: hexId(55) })],
+      ['changes the media type', mediaView({ ...meta, mediaType: 'video/webm' })],
+      ['disagrees on the byte count', mediaView({ ...meta, bytes: meta.bytes + 1 })],
+      ['exceeds the store ceiling', mediaView({ ...meta, bytes: MEDIA_STORE_MAX_BYTES + 1 }, oversizedBody)],
+    ]
+
+    for (const [label, view] of disagreeing) {
+      media.stored.set(meta.artifactId, view)
+      const response = await invoke(handler, request('GET'))
+      expect(response.status, label).toBe(404)
+      expect(response.json, label).toEqual({ error: 'not found' })
+    }
+  })
+})
+
+describe('imagine route input validation', () => {
+  it('rejects image refs the download route cannot describe', () => {
+    const { routes, registry } = createHarness()
+    const tiff = 'image/tiff' as ImagineImageAttachmentRef['mediaType']
+    const unusable: Array<[string, ImagineImageAttachmentRef]> = [
+      ['unsupported media type', imageRef('img_tiff', { mediaType: tiff })],
+      ['non-numeric byte count', imageRef('img_nan_bytes', { bytes: Number.NaN })],
+      ['negative byte count', imageRef('img_negative_bytes', { bytes: -1 })],
+      ['non-numeric width', imageRef('img_nan_width', { width: Number.NaN })],
+      ['non-numeric height', imageRef('img_nan_height', { height: Number.NaN })],
+    ]
+
+    for (const [label, ref] of unusable) {
+      registry.rememberImages([ref])
+      expect(routes.size, label).toBe(0)
+    }
+
+    registry.rememberImages([imageRef('img_usable')])
+    expect(routes.size).toBe(1)
+  })
+
+  it('rejects artifacts the download route cannot describe', () => {
+    const { routes, registry } = createHarness()
+    const unusable: Array<[string, MediaArtifactMeta]> = [
+      ['unsupported media type', artifact(hexId(56), { mediaType: 'video/avi' as MediaArtifactMeta['mediaType'] })],
+      ['zero byte count', artifact(hexId(57), { bytes: 0 })],
+      ['non-numeric byte count', artifact(hexId(58), { bytes: Number.NaN })],
+      ['missing creation time', artifact(hexId(59), { createdAt: 0 })],
+      ['non-numeric creation time', artifact(hexId(60), { createdAt: Number.NaN })],
+      ['non-numeric expiry', artifact(hexId(61), { expiresAt: Number.NaN })],
+      ['expiry at creation time', artifact(hexId(62), { createdAt: 5_000, expiresAt: 5_000 })],
+    ]
+
+    for (const [label, meta] of unusable) {
+      registry.rememberArtifact(meta)
+      expect(routes.size, label).toBe(0)
+    }
+
+    registry.rememberArtifact(artifact(hexId(63)))
+    expect(routes.size).toBe(1)
+  })
+
+  it('falls back to the built-in image ceiling when the store limit is unusable', () => {
+    const { routes, attachments, registry } = createHarness()
+    const limits = attachments.imageLimits as { maxImageBytes: unknown }
+    const ref = imageRef('img_limit_fallback', { bytes: 4_096 })
+
+    for (const configured of [undefined, Number.NaN, 0, -1, '4096']) {
+      limits.maxImageBytes = configured
+      registry.rememberImages([ref])
+      expect(routes.size, String(configured)).toBe(1)
+      registry.revokeImages()
+    }
+
+    limits.maxImageBytes = 8
+    registry.rememberImages([ref])
+    expect(routes.size).toBe(0)
+  })
+
+  it('serves a remembered artifact under the name its source supplied', async () => {
+    const { routes, media, registry } = createHarness()
+    const meta = artifact(hexId(64), { name: 'clip.mp4' })
+    media.stored.set(meta.artifactId, mediaView(meta))
+    registry.rememberArtifact(meta)
+
+    const response = await invoke(routes.get(imagineMediaPath(meta.artifactId)), request('GET'))
+
+    expect(response.status).toBe(200)
+    expect(response.headers['content-disposition']).toContain('clip.mp4')
+  })
+
+  it('forwards the request abort signal to the attachment store', async () => {
+    const { routes, attachments, registry } = createHarness()
+    const ref = imageRef('img_signal')
+    attachments.stored.set(ref.attachmentId, { ref, data: PNG })
+    registry.rememberImages([ref])
+    const handler = routes.get(imagineImagePath(ref.attachmentId))
+    const controller = new AbortController()
+
+    expect((await invoke(handler, request('GET', {}, '127.0.0.1', '/', controller.signal))).status).toBe(200)
+    await invoke(handler, request('GET'))
+
+    expect(attachments.signals[0]).toBe(controller.signal)
+    expect(attachments.signals[1]).toBeUndefined()
+  })
+
+  it('maps a store failure to a status and a public message', async () => {
+    const cases: Array<[MediaStoreErrorCode, number, string]> = [
+      ['NOT_FOUND', 404, 'not found'],
+      ['EXPIRED', 404, 'not found'],
+      ['INVALID_ID', 404, 'not found'],
+      ['FORBIDDEN', 403, 'forbidden'],
+      ['CORRUPT', 500, 'download failed'],
+    ]
+
+    for (const [code, status, message] of cases) {
+      const { routes, media, registry } = createHarness()
+      const meta = artifact(hexId(65))
+      media.stored.set(meta.artifactId, mediaView(meta))
+      media.error = new MediaStoreError(code, `internal ${SECRET_PATH}`)
+      registry.rememberArtifact(meta)
+
+      const response = await invoke(routes.get(imagineMediaPath(meta.artifactId)), request('GET'))
+
+      expect(response.status, code).toBe(status)
+      expect(response.json, code).toEqual({ error: message })
+      expect(response.text, code).not.toContain(SECRET_PATH)
+    }
+  })
+
+  it('never registers a route for an id that changes between validation and use', () => {
+    const { routes, registry } = createHarness()
+    const shiftingImage = shiftingReads(imageRef('img_shifting'), {
+      attachmentId: ['img_shifting', 'img_shifting', '../escaped'],
+    })
+    registry.rememberImages([shiftingImage])
+    expect(routes.size).toBe(0)
+
+    const shiftingArtifact = shiftingReads(artifact(hexId(66)), {
+      artifactId: [hexId(66), hexId(66), 'not-hex'],
+    })
+    registry.rememberArtifact(shiftingArtifact)
+    expect(routes.size).toBe(0)
+  })
+
+  it('never registers a route for an id that only stringifies to a safe id', () => {
+    const { routes, attachments, registry } = createHarness()
+    const confusedImage = shiftingReads(imageRef('img_confused'), {
+      attachmentId: ['img_confused', 'img_confused', stringifiableId('img_confused')],
+    })
+    registry.rememberImages([confusedImage])
+    expect(routes.size).toBe(0)
+
+    const confusedArtifact = shiftingReads(artifact(hexId(67)), {
+      artifactId: [hexId(67), hexId(67), stringifiableId(hexId(67))],
+    })
+    registry.rememberArtifact(confusedArtifact)
+    expect(routes.size).toBe(0)
+
+    const ref = imageRef('img_confused')
+    attachments.stored.set(ref.attachmentId, { ref, data: PNG })
+    registry.rememberImages([ref])
+    expect(routes.has(imagineImagePath(ref.attachmentId))).toBe(true)
+  })
+
+  it('never serves an image whose stored media type the store cannot re-validate', async () => {
+    const { routes, attachments, registry } = createHarness()
+    const ref = shiftingReads(imageRef('img_degraded'), { mediaType: ['image/png', 'image/tiff'] })
+    registry.rememberImages([ref])
+    const path = imagineImagePath('img_degraded')
+    expect(routes.has(path)).toBe(true)
+
+    const response = await invoke(routes.get(path), request('GET'))
+
+    expect(response.status).toBe(404)
+    expect(response.json).toEqual({ error: 'not found' })
+    expect(attachments.reads).toHaveLength(1)
   })
 })

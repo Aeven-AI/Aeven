@@ -1,9 +1,16 @@
-import { mkdtemp } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { AttachmentId } from '@deepseek-ai/dsh-attachment'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createCodingOAuthAdapter, createGrokBuildAdapter, preferredGrokBuildModel } from '../src/adapter.ts'
+import type { RetryPolicyConfig } from '@deepseek-ai/dsh-llm'
+import type { AuthContext } from '@earendil-works/pi-ai'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  type CodingOAuthAdapterOptions,
+  createCodingOAuthAdapter,
+  createGrokBuildAdapter,
+  preferredGrokBuildModel,
+} from '../src/adapter.ts'
 import {
   CODEX_ROUTING_HINT_HEADER,
   type CodexFastStreamOptions,
@@ -18,23 +25,108 @@ import {
   CODING_OAUTH_OPTIONAL_ROUTES,
   CODING_OAUTH_ROUTES,
   DEFAULT_GROK_BUILD_MODEL,
+  GROK_BUILD_MODELS_CACHE_FILENAME,
   GROK_BUILD_ROUTE,
   XAI_PI_PROVIDER,
 } from '../src/ids.ts'
 import { OAUTH_PROVIDER_DEFINITIONS } from '../src/oauth-providers.ts'
 import { OAuthProviderSession } from '../src/oauth-session.ts'
-import { GROK_BUILD_BASE_URL, grokBuildBaselineModels, grokBuildFingerprintHeaders } from '../src/provider.ts'
+import {
+  GROK_BUILD_BASE_URL,
+  grokBuildBaselineModels,
+  grokBuildFingerprintHeaders,
+  grokBuildProvider,
+  grokBuildReasoningMap,
+} from '../src/provider.ts'
 import { GrokBuildSession } from '../src/session.ts'
 import { GrokBuildCredentialStore, OAuthCredentialFileStore } from '../src/store.ts'
 
+const authCtx: AuthContext = {
+  env: async () => undefined,
+  fileExists: async () => false,
+}
+
+let sessionHome: string
+let previousDshHome: string | undefined
+
+beforeEach(async () => {
+  sessionHome = await mkdtemp(join(tmpdir(), 'dsh-grok-build-catalog-'))
+  previousDshHome = process.env['DSH_HOME']
+  // Every session's credential and model-cache file resolves below DSH_HOME.
+  process.env['DSH_HOME'] = sessionHome
+})
+
+afterEach(async () => {
+  if (previousDshHome === undefined) delete process.env['DSH_HOME']
+  else process.env['DSH_HOME'] = previousDshHome
+  await rm(sessionHome, { recursive: true, force: true })
+})
+
+function modelsCacheFile(): string {
+  return join(sessionHome, GROK_BUILD_MODELS_CACHE_FILENAME)
+}
+
+function cachedSession(notify?: () => void): GrokBuildSession {
+  return new GrokBuildSession(new GrokBuildCredentialStore(join(sessionHome, 'auth.json')), notify)
+}
+
+async function signIn(session: GrokBuildSession, access = 'grok-access'): Promise<void> {
+  await session.store.modify(XAI_PI_PROVIDER, async () => ({
+    type: 'oauth',
+    access,
+    refresh: 'grok-refresh',
+    expires: Date.now() + 3_600_000,
+  }))
+}
+
 afterEach(() => {
   vi.unstubAllGlobals()
+})
+
+describe('grokBuildReasoningMap', () => {
+  it('nulls every reasoning level the model does not offer', () => {
+    expect(grokBuildReasoningMap([])).toEqual({
+      off: null,
+      minimal: null,
+      low: null,
+      medium: null,
+      high: null,
+      xhigh: null,
+      max: null,
+    })
+    // grok-4.5 offers low/medium/high only; xhigh must stay explicitly unsupported.
+    expect(grokBuildReasoningMap(['low', 'medium', 'high'])).toMatchObject({
+      low: 'low',
+      medium: 'medium',
+      high: 'high',
+      xhigh: null,
+    })
+    expect(grokBuildReasoningMap(['xhigh'])).toMatchObject({ low: null, medium: null, high: null, xhigh: 'xhigh' })
+  })
+})
+
+describe('grokBuildProvider auth', () => {
+  it('hands the OAuth access token to the apiKey slot and refuses a blank one', async () => {
+    const auth = grokBuildProvider([]).auth.apiKey!
+    const signal = new AbortController().signal
+    await expect(
+      auth.resolve({ ctx: authCtx, credential: { type: 'api_key', key: 'grok-access' }, signal }),
+    ).resolves.toEqual({ auth: { apiKey: 'grok-access' }, source: 'OAuth' })
+    await expect(
+      auth.resolve({ ctx: authCtx, credential: { type: 'api_key', key: '' }, signal }),
+    ).resolves.toBeUndefined()
+    await expect(auth.resolve({ ctx: authCtx, signal })).resolves.toBeUndefined()
+  })
 })
 
 describe('preferredGrokBuildModel', () => {
   it('prefers grok-4.6 from the baseline catalog', () => {
     expect(preferredGrokBuildModel()).toBe(DEFAULT_GROK_BUILD_MODEL)
     expect(preferredGrokBuildModel([{ id: 'grok-4.6' }, { id: 'grok-4.5' }])).toBe('grok-4.6')
+  })
+
+  it('falls back to the default model for an empty catalog', () => {
+    expect(preferredGrokBuildModel([])).toBe(DEFAULT_GROK_BUILD_MODEL)
   })
 })
 
@@ -112,6 +204,190 @@ describe('GrokBuildSession.provider', () => {
     expect(session.catalogError).toContain('[redacted]')
     expect(session.catalogError).not.toContain('EXAMPLE_ACCESS_TOKEN')
     expect(notify).toHaveBeenCalledOnce()
+  })
+})
+
+describe('GrokBuildSession cached catalog', () => {
+  it('restores the cached live ids and the selected models', async () => {
+    await writeFile(
+      modelsCacheFile(),
+      `${JSON.stringify({ version: 2, ids: ['grok-4.6'], selected: ['grok-custom', 'grok-4.6'], fetchedAt: 1 })}\n`,
+      { mode: 0o600 },
+    )
+    const session = cachedSession()
+    await session.loadCachedCatalog()
+    expect(session.catalogSource).toBe('cache')
+    expect(session.catalogError).toBeUndefined()
+    expect(session.selectedModelIds()).toEqual(['grok-custom', 'grok-4.6'])
+    expect(session.availableModels().map(model => model.id)).toEqual(['grok-4.6'])
+    // A selected id the live list no longer offers is still materialized.
+    expect(session.visibleModels().map(model => model.id)).toEqual(['grok-custom', 'grok-4.6'])
+  })
+
+  it('accepts a legacy v1 cache and normalises its id list', async () => {
+    await writeFile(
+      modelsCacheFile(),
+      `${JSON.stringify({ version: 1, ids: ['grok-4.6', 'grok-4.6', 7, '', 'grok-4.5'], selected: [] })}\n`,
+      { mode: 0o600 },
+    )
+    const session = cachedSession()
+    await session.loadCachedCatalog()
+    expect(session.catalogSource).toBe('cache')
+    expect(session.selectedModelIds()).toBeUndefined()
+    expect(session.availableModels().map(model => model.id)).toEqual(['grok-4.6', 'grok-4.5'])
+  })
+
+  it('ignores a cache document it cannot understand', async () => {
+    const bodies = [
+      '{not-json',
+      '5',
+      'null',
+      '[]',
+      '{"version":9}',
+      '{"version":2,"ids":[],"selected":[]}',
+      '{"version":2,"ids":"nope"}',
+    ]
+    for (const body of bodies) {
+      await writeFile(modelsCacheFile(), body, { mode: 0o600 })
+      const session = cachedSession()
+      await session.loadCachedCatalog()
+      expect(session.catalogSource).toBe('fallback')
+      expect(session.selectedModelIds()).toBeUndefined()
+      expect(session.availableModels().length).toBeGreaterThan(0)
+    }
+  })
+
+  it('treats an absent cache as empty and surfaces an unreadable one', async () => {
+    const session = cachedSession()
+    await session.loadCachedCatalog()
+    expect(session.catalogSource).toBe('fallback')
+
+    await mkdir(modelsCacheFile())
+    await expect(session.loadCachedCatalog()).rejects.toThrow()
+  })
+
+  it('persists the live ids and the selected models after a refresh', async () => {
+    const session = cachedSession()
+    await signIn(session)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ data: [{ id: 'grok-4.7' }] }), { status: 200 })),
+    )
+    await session.refreshLiveCatalog()
+    expect(session.catalogSource).toBe('live')
+    expect(session.catalogError).toBeUndefined()
+    expect(session.availableModels().map(model => model.id)).toEqual(['grok-4.7'])
+
+    await session.setSelectedModels(['grok-4.7', 'grok-4.7', ''])
+    expect(session.selectedModelIds()).toEqual(['grok-4.7'])
+    const onDisk = JSON.parse(await readFile(modelsCacheFile(), 'utf8')) as Record<string, unknown>
+    expect(onDisk).toMatchObject({ version: 2, ids: ['grok-4.7'], selected: ['grok-4.7'] })
+  })
+
+  it('skips the live listing when the stored credential yields no token', async () => {
+    const session = cachedSession()
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+    await session.refreshLiveCatalog()
+    expect(fetchSpy).not.toHaveBeenCalled()
+    expect(session.catalogSource).toBe('fallback')
+
+    vi.spyOn(session.models, 'getAuth').mockResolvedValue({ auth: { apiKey: '' } })
+    await session.refreshLiveCatalog()
+    expect(fetchSpy).not.toHaveBeenCalled()
+    expect(session.catalogError).toBeUndefined()
+  })
+
+  it('keeps the cached catalog when a later live listing fails', async () => {
+    await writeFile(
+      modelsCacheFile(),
+      `${JSON.stringify({ version: 2, ids: ['grok-4.6'], fetchedAt: 1 })}\n`,
+      { mode: 0o600 },
+    )
+    const session = cachedSession()
+    await session.loadCachedCatalog()
+    expect(session.catalogSource).toBe('cache')
+
+    await signIn(session)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('down', { status: 503 })),
+    )
+    await session.refreshLiveCatalog()
+    expect(session.catalogSource).toBe('cache')
+    expect(session.catalogError).toMatch(/503/u)
+    expect(session.availableModels().map(model => model.id)).toEqual(['grok-4.6'])
+  })
+
+  it('writes an empty id list when no live catalog was ever listed', async () => {
+    const session = cachedSession()
+    await session.setSelectedModels([])
+    expect(session.selectedModelIds()).toBeUndefined()
+    const onDisk = JSON.parse(await readFile(modelsCacheFile(), 'utf8')) as Record<string, unknown>
+    expect(onDisk).toMatchObject({ version: 2, ids: [] })
+    expect(onDisk).not.toHaveProperty('selected')
+  })
+
+  it('resolves and invalidates the stored access token', async () => {
+    const session = cachedSession()
+    await expect(session.resolveAccessToken()).resolves.toBeUndefined()
+    await expect(session.invalidateAccessToken()).resolves.toBeUndefined()
+
+    await signIn(session)
+    await expect(session.resolveAccessToken()).resolves.toBe('grok-access')
+    const before = Date.now()
+    await session.invalidateAccessToken()
+    const credential = await session.store.read(XAI_PI_PROVIDER)
+    expect(credential?.type === 'oauth' && credential.expires).toBeLessThanOrEqual(before)
+    expect(credential?.type === 'oauth' && credential.access).toBe('grok-access')
+  })
+
+  it('ignores a stored credential that is not an OAuth one', async () => {
+    const session = cachedSession()
+    await signIn(session)
+    vi.spyOn(session.models, 'getAuth').mockResolvedValue({ auth: { apiKey: 'access' } })
+    vi.spyOn(session.store, 'read').mockResolvedValue({ type: 'api_key', key: 'access' })
+    await expect(session.resolveAccessToken()).resolves.toBeUndefined()
+  })
+
+  it('restores a selection even when the cache carries no live list', async () => {
+    await writeFile(
+      modelsCacheFile(),
+      `${JSON.stringify({ version: 2, ids: [], selected: ['grok-4.6'], fetchedAt: 1 })}\n`,
+      { mode: 0o600 },
+    )
+    const session = cachedSession()
+    await session.loadCachedCatalog()
+    expect(session.catalogSource).toBe('fallback')
+    expect(session.selectedModelIds()).toEqual(['grok-4.6'])
+    expect(session.visibleModels().map(model => model.id)).toEqual(['grok-4.6'])
+  })
+
+  it('notifies discovery on a credential change without a logout', () => {
+    const notify = vi.fn()
+    cachedSession(notify).notifyCredentialChange()
+    expect(notify).toHaveBeenCalledOnce()
+  })
+
+  it('logout clears the credential, the cache, the selection and notifies discovery', async () => {
+    await writeFile(
+      modelsCacheFile(),
+      `${JSON.stringify({ version: 2, ids: ['grok-4.6'], selected: ['grok-4.6'], fetchedAt: 1 })}\n`,
+      { mode: 0o600 },
+    )
+    const notify = vi.fn()
+    const session = cachedSession(notify)
+    await signIn(session)
+    await session.loadCachedCatalog()
+    expect(session.availableModels().map(model => model.id)).toEqual(['grok-4.6'])
+
+    await session.logout()
+    expect(notify).toHaveBeenCalledOnce()
+    await expect(session.store.read(XAI_PI_PROVIDER)).resolves.toBeUndefined()
+    expect(session.catalogSource).toBe('fallback')
+    expect(session.selectedModelIds()).toBeUndefined()
+    expect(session.availableModels().map(model => model.id)).toContain(DEFAULT_GROK_BUILD_MODEL)
+    await expect(readFile(modelsCacheFile(), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
   })
 })
 
@@ -581,5 +857,206 @@ describe('createCodingOAuthAdapter model discovery', () => {
         expect((error as { cause?: unknown }).cause).toBeUndefined()
       },
     )
+  })
+})
+
+interface AdapterConfigProbe {
+  /** The profile argument is not part of what these tests pin; the implementation ignores it. */
+  resolveApiKey(provider: string, profile: unknown): Promise<string | undefined>
+  profiles(): ReadonlyMap<string, { piProvider: { getModels(): Array<{ id: string; provider?: string }> } }>
+  auth: {
+    credentials: {
+      list(options?: unknown): Promise<readonly { providerId: string; type: string }[]>
+      delete(providerId: string, options?: unknown): Promise<void>
+    }
+  }
+}
+
+function configOf(adapter: unknown): AdapterConfigProbe {
+  return (adapter as { inner: { config: AdapterConfigProbe } }).inner.config
+}
+
+function policiesOf(adapter: unknown): ReadonlyMap<string, { onAuthFailure?: () => Promise<void> }> {
+  return (adapter as { policies: ReadonlyMap<string, { onAuthFailure?: () => Promise<void> }> }).policies
+}
+
+const SIGNED_IN_CREDENTIAL = {
+  type: 'oauth' as const,
+  access: 'access',
+  refresh: 'refresh',
+  expires: Date.now() + 3_600_000,
+}
+
+describe('createCodingOAuthAdapter credential routing', () => {
+  /**
+   * Two real call forms: a positional `RetryPolicyConfig` (optionally beside an
+   * options object) and the four-argument options-only form.
+   */
+  interface FixtureArgs {
+    retryPolicy?: RetryPolicyConfig
+    adapterOptions?: CodingOAuthAdapterOptions
+  }
+
+  async function build(args: FixtureArgs = {}): Promise<{
+    adapter: ReturnType<typeof createCodingOAuthAdapter>
+    grok: GrokBuildSession
+    subscriptions: OAuthProviderSession[]
+  }> {
+    const dir = await mkdtemp(join(tmpdir(), 'dsh-coding-oauth-credentials-'))
+    const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
+    const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
+      definition =>
+        new OAuthProviderSession(
+          definition,
+          undefined,
+          new OAuthCredentialFileStore(
+            definition.nativeProviderId,
+            join(dir, `${definition.slug}.json`),
+            definition.route,
+          ),
+          join(dir, `${definition.slug}-models.json`),
+        ),
+    )
+    const resolveAttachments = (): undefined => undefined
+    const { retryPolicy, adapterOptions } = args
+    const adapter =
+      retryPolicy !== undefined && adapterOptions !== undefined
+        ? createCodingOAuthAdapter(grok, subscriptions, resolveAttachments, retryPolicy, adapterOptions)
+        : retryPolicy !== undefined
+          ? createCodingOAuthAdapter(grok, subscriptions, resolveAttachments, retryPolicy)
+          : adapterOptions !== undefined
+            ? createCodingOAuthAdapter(grok, subscriptions, resolveAttachments, adapterOptions)
+            : createCodingOAuthAdapter(grok, subscriptions, resolveAttachments)
+    return { adapter, grok, subscriptions }
+  }
+
+  it('resolves each route access token and reports a missing sign-in per route', async () => {
+    const { adapter, grok, subscriptions } = await build()
+    const config = configOf(adapter)
+    const codex = subscriptions.find(session => session.definition.route === CODEX_OAUTH_ROUTE)!
+
+    await expect(config.resolveApiKey(GROK_BUILD_ROUTE, undefined)).rejects.toMatchObject({
+      code: 'MISSING_CREDENTIAL',
+    })
+    await expect(config.resolveApiKey(CODEX_PI_PROVIDER, undefined)).rejects.toMatchObject({
+      code: 'MISSING_CREDENTIAL',
+    })
+    await expect(config.resolveApiKey('kimi-coding', undefined)).rejects.toMatchObject({ code: 'NO_ADAPTER' })
+
+    await grok.store.modify(XAI_PI_PROVIDER, async () => SIGNED_IN_CREDENTIAL)
+    await codex.store.modify(CODEX_PI_PROVIDER, async () => SIGNED_IN_CREDENTIAL)
+    await expect(config.resolveApiKey(GROK_BUILD_ROUTE, undefined)).resolves.toBe('access')
+    await expect(config.resolveApiKey(CODEX_PI_PROVIDER, undefined)).resolves.toBe('access')
+    // Fast shares the Codex session's credential.
+    await expect(config.resolveApiKey(CODEX_OAUTH_FAST_ROUTE, undefined)).resolves.toBe('access')
+  })
+
+  it('treats an empty resolved token as a missing sign-in', async () => {
+    const { adapter, subscriptions } = await build()
+    const codex = subscriptions.find(session => session.definition.route === CODEX_OAUTH_ROUTE)!
+    vi.spyOn(codex, 'resolveAccessToken').mockResolvedValue('')
+    await expect(configOf(adapter).resolveApiKey(CODEX_PI_PROVIDER, undefined)).rejects.toMatchObject({
+      code: 'MISSING_CREDENTIAL',
+    })
+  })
+
+  it('keeps the Grok-only adapter resolving its own route token', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'dsh-grok-build-adapter-token-'))
+    const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
+    const adapter = createGrokBuildAdapter(grok, () => undefined)
+    const config = (adapter as unknown as { config: AdapterConfigProbe }).config
+
+    await expect(config.resolveApiKey(GROK_BUILD_ROUTE, undefined)).rejects.toMatchObject({
+      code: 'MISSING_CREDENTIAL',
+    })
+    await grok.store.modify(XAI_PI_PROVIDER, async () => SIGNED_IN_CREDENTIAL)
+    await expect(config.resolveApiKey(GROK_BUILD_ROUTE, undefined)).resolves.toBe('access')
+  })
+
+  it('lists and deletes the credentials of every owned store only', async () => {
+    const { adapter, subscriptions } = await build()
+    const codex = subscriptions.find(session => session.definition.route === CODEX_OAUTH_ROUTE)!
+    await codex.store.modify(CODEX_PI_PROVIDER, async () => SIGNED_IN_CREDENTIAL)
+
+    await expect(configOf(adapter).auth.credentials.list()).resolves.toEqual([
+      { providerId: CODEX_PI_PROVIDER, type: 'oauth' },
+    ])
+    await expect(configOf(adapter).auth.credentials.delete('kimi-code-oauth')).rejects.toThrow(
+      /refusing credential deletion for unknown OAuth provider/u,
+    )
+    await configOf(adapter).auth.credentials.delete(CODEX_PI_PROVIDER)
+    await expect(codex.store.read(CODEX_PI_PROVIDER)).resolves.toBeUndefined()
+  })
+
+  it('invalidates the stored token of every route on an upstream AUTH failure', async () => {
+    const { adapter, grok, subscriptions } = await build({ adapterOptions: { codexFast: { isEligible: () => true } } })
+    const codex = subscriptions.find(session => session.definition.route === CODEX_OAUTH_ROUTE)!
+    await grok.store.modify(XAI_PI_PROVIDER, async () => SIGNED_IN_CREDENTIAL)
+    await codex.store.modify(CODEX_PI_PROVIDER, async () => SIGNED_IN_CREDENTIAL)
+
+    const policies = policiesOf(adapter)
+    const before = Date.now()
+    await policies.get(GROK_BUILD_ROUTE)?.onAuthFailure?.()
+    await policies.get(CODEX_OAUTH_ROUTE)?.onAuthFailure?.()
+    await policies.get(CODEX_OAUTH_FAST_ROUTE)?.onAuthFailure?.()
+
+    const grokCredential = await grok.store.read(XAI_PI_PROVIDER)
+    expect(grokCredential?.type === 'oauth' && grokCredential.expires).toBeLessThanOrEqual(before)
+    const codexCredential = await codex.store.read(CODEX_PI_PROVIDER)
+    expect(codexCredential?.type === 'oauth' && codexCredential.expires).toBeLessThanOrEqual(before)
+  })
+
+  it('accepts a retry policy beside the options argument', async () => {
+    const { adapter } = await build({
+      retryPolicy: {
+        mode: 'normal',
+        maxRetries: 1,
+        retryableCodes: ['SERVER'],
+        backoff: { initialDelayMs: 250, maxDelayMs: 1_000, jitterRatio: 0 },
+      },
+      adapterOptions: { codexFast: { isEligible: () => true } },
+    })
+    expect(adapter.providerRetryPolicy(CODEX_OAUTH_ROUTE)).toMatchObject({ mode: 'normal', maxRetries: 1 })
+    expect(adapter.providerInfo(CODEX_OAUTH_FAST_ROUTE).name).toBe('OpenAI Codex Fast requested (OAuth)')
+  })
+
+  it('accepts a retry policy or a Fast option packed into one options argument', async () => {
+    const retryOnly = await build({
+      adapterOptions: {
+        retryPolicy: {
+          mode: 'normal',
+          maxRetries: 2,
+          retryableCodes: ['SERVER'],
+          backoff: { initialDelayMs: 250, maxDelayMs: 1_000, jitterRatio: 0 },
+        },
+      },
+    })
+    expect(retryOnly.adapter.providerRetryPolicy(CLAUDE_CODE_OAUTH_ROUTE)).toMatchObject({ maxRetries: 2 })
+
+    const fastOnly = await build({ adapterOptions: { codexFast: { isEligible: () => true } } })
+    expect(fastOnly.adapter.providerInfo(CODEX_OAUTH_FAST_ROUTE).name).toBe('OpenAI Codex Fast requested (OAuth)')
+  })
+
+  it('advertises the Fast profile id across the whole wrapped catalog', async () => {
+    const { adapter, subscriptions } = await build({ adapterOptions: { codexFast: { isEligible: () => true } } })
+    const codex = subscriptions.find(session => session.definition.route === CODEX_OAUTH_ROUTE)!
+    const template = codex.availableModels()[0]!
+    const real = codex.provider()
+    vi.spyOn(codex, 'provider').mockImplementation(
+      () =>
+        ({
+          ...real,
+          id: CODEX_PI_PROVIDER,
+          getModels: () => [
+            { ...template, id: 'already-fast', provider: CODEX_OAUTH_FAST_ROUTE },
+            { ...template, id: 'still-native', provider: CODEX_PI_PROVIDER },
+          ],
+        }),
+    )
+    const fastProfile = configOf(adapter).profiles().get(CODEX_OAUTH_FAST_ROUTE)
+    expect(fastProfile?.piProvider.getModels().map(model => model.provider)).toEqual([
+      CODEX_OAUTH_FAST_ROUTE,
+      CODEX_OAUTH_FAST_ROUTE,
+    ])
   })
 })

@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import type { CodexFetch } from '../src/codex-http.ts'
-import { createCodexSearchProvider, externalWebAccess, mapCodexSearchResponse } from '../src/codex-search.ts'
+import {
+  citeableHttpUrl,
+  createCodexSearchProvider,
+  externalWebAccess,
+  mapCodexSearchResponse,
+} from '../src/codex-search.ts'
 
 function jwtWithAccount(accountId: string): string {
   const header = Buffer.from(JSON.stringify({ alg: 'none' })).toString('base64url')
@@ -33,6 +38,18 @@ describe('externalWebAccess', () => {
     expect(externalWebAccess('live')).toBe(true)
     expect(externalWebAccess('cached')).toBe(false)
     expect(externalWebAccess('indexed')).toBe('indexed')
+  })
+})
+
+describe('citeableHttpUrl', () => {
+  it('accepts only http(s) URLs without credentials', () => {
+    expect(citeableHttpUrl('https://example.com/a')).toBe('https://example.com/a')
+    expect(citeableHttpUrl('http://example.com/a')).toBe('http://example.com/a')
+    expect(citeableHttpUrl('')).toBeUndefined()
+    expect(citeableHttpUrl(42)).toBeUndefined()
+    expect(citeableHttpUrl('mailto:someone@example.com')).toBeUndefined()
+    expect(citeableHttpUrl('https://user:secret@example.com/a')).toBeUndefined()
+    expect(citeableHttpUrl('not-a-url')).toBeUndefined()
   })
 })
 
@@ -86,6 +103,13 @@ describe('mapCodexSearchResponse', () => {
     expect(() => mapCodexSearchResponse(payload, Number.POSITIVE_INFINITY)).toThrow(/maxResults/)
     expect(() => mapCodexSearchResponse(payload, Number.NaN)).toThrow(/maxResults/)
   })
+
+  it('keeps an absent results list and rejects a malformed envelope', () => {
+    expect(mapCodexSearchResponse({ output: 'x' })).toEqual({ content: 'x', sources: [], truncated: false })
+    expect(() => mapCodexSearchResponse(null)).toThrow(/without string output/)
+    expect(() => mapCodexSearchResponse({ output: 42 })).toThrow(/without string output/)
+    expect(() => mapCodexSearchResponse({ output: 'x', results: 'nope' })).toThrow(/non-array results/)
+  })
 })
 
 describe('createCodexSearchProvider', () => {
@@ -116,7 +140,7 @@ describe('createCodexSearchProvider', () => {
     const [url, init = {}] = fetchImpl.mock.calls[0] ?? []
     expect(url).toBe('https://chatgpt.com/backend-api/codex/alpha/search')
     expect(init.method).toBe('POST')
-    expect(JSON.parse(String(init.body))).toEqual({
+    expect(JSON.parse(init.body as string)).toEqual({
       id: 'req-1',
       model: 'gpt-5.4',
       input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'dsh plugin' }] }],
@@ -148,7 +172,7 @@ describe('createCodexSearchProvider', () => {
     expect(provider.available()).toBe(true)
     await provider.search({ query: 'dsh' })
     const [, init = {}] = fetchImpl.mock.calls[0] ?? []
-    expect(JSON.parse(String(init.body))).toMatchObject({ model: 'gpt-5.4-live' })
+    expect(JSON.parse(init.body as string)).toMatchObject({ model: 'gpt-5.4-live' })
   })
 
   it('rejects an empty query without calling the network', async () => {
@@ -179,6 +203,90 @@ describe('createCodexSearchProvider', () => {
     await expect(provider.search({ query: 'dsh', maxResults: Number.NaN })).rejects.toMatchObject({
       code: 'INVALID_ARGS',
     })
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('generates a request id and defaults to live/medium settings', async () => {
+    const fetchImpl = mockFetch(async () => jsonResponse(200, { output: 'ok', results: [] }))
+    const provider = createCodexSearchProvider({
+      auth: {
+        resolve: async () => ({ accessToken: jwtWithAccount('acct-search') }),
+        invalidate: async () => {},
+      },
+      fetchImpl,
+      model: 'gpt-5.4',
+      originator: 'dsh-search-test',
+      userAgent: 'dsh-search-test',
+      sleep: async () => {},
+    })
+    await expect(provider.search({ query: 'dsh' })).resolves.toEqual({ content: 'ok', sources: [], truncated: false })
+    const [, init = {}] = fetchImpl.mock.calls[0] ?? []
+    const body = JSON.parse(init.body as string) as {
+      id: string
+      settings: Record<string, unknown>
+      max_output_tokens: number
+    }
+    expect(body.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u)
+    expect(body.settings).toEqual({
+      search_context_size: 'medium',
+      allowed_callers: ['direct'],
+      external_web_access: true,
+    })
+    expect(body.max_output_tokens).toBe(1024)
+    const headers = new Headers(init.headers)
+    expect(headers.get('originator')).toBe('dsh-search-test')
+    expect(headers.get('user-agent')).toBe('dsh-search-test')
+
+    const aborted = new AbortController()
+    aborted.abort()
+    await expect(provider.search({ query: 'dsh' }, aborted.signal)).rejects.toMatchObject({ code: 'TIMEOUT' })
+    expect(fetchImpl).toHaveBeenCalledOnce()
+  })
+
+  it('defaults to the global fetch when none is injected', async () => {
+    const fetchImpl = mockFetch(async () => jsonResponse(200, { output: 'ok', results: [] }))
+    vi.stubGlobal('fetch', fetchImpl)
+    const provider = createCodexSearchProvider({
+      auth: {
+        resolve: async () => ({ accessToken: jwtWithAccount('acct-search') }),
+        invalidate: async () => {},
+      },
+      model: 'gpt-5.4',
+    })
+    await expect(provider.search({ query: 'dsh' })).resolves.toEqual({ content: 'ok', sources: [], truncated: false })
+    expect(fetchImpl).toHaveBeenCalledOnce()
+  })
+
+  it('refuses to search while the visible model is unset', async () => {
+    const fetchImpl = mockFetch()
+    const provider = createCodexSearchProvider({
+      auth: {
+        resolve: async () => ({ accessToken: jwtWithAccount('acct-search') }),
+        invalidate: async () => {},
+      },
+      fetchImpl,
+      model: '   ',
+    })
+    expect(provider.available()).toBe(false)
+    await expect(provider.search({ query: 'dsh' })).rejects.toThrow(/not configured/)
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('refuses to search without a positive integer output-token budget', async () => {
+    const fetchImpl = mockFetch()
+    for (const maxOutputTokens of [0, 1.5]) {
+      const provider = createCodexSearchProvider({
+        auth: {
+          resolve: async () => ({ accessToken: jwtWithAccount('acct-search') }),
+          invalidate: async () => {},
+        },
+        fetchImpl,
+        model: 'gpt-5.4',
+        maxOutputTokens,
+      })
+      expect(provider.available()).toBe(false)
+      await expect(provider.search({ query: 'dsh' })).rejects.toMatchObject({ code: 'INVALID_ARGS' })
+    }
     expect(fetchImpl).not.toHaveBeenCalled()
   })
 })
