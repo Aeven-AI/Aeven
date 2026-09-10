@@ -11,7 +11,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LOGIN_CODE_PATH, STATUS_PATH } from '../src/client/constants.ts'
 import { GrokBuildSettings } from '../src/client/GrokBuildSettings.tsx'
 import { en, type GrokBuildSettingsKey } from '../src/client/locales.ts'
-import type { CodingOAuthStatus, SubscriptionStatus } from '../src/client/types.ts'
+import type { AccountSummary, CodingOAuthStatus, SubscriptionStatus } from '../src/client/types.ts'
 
 afterEach(() => {
   cleanup()
@@ -28,7 +28,13 @@ function t(key: GrokBuildSettingsKey, params?: Record<string, unknown>): string 
   )
 }
 
-function subscription(provider: 'codex' | 'claude', state: Record<string, unknown>): SubscriptionStatus {
+/** The sign-in states these tests put a subscription card in. */
+type SubscriptionState =
+  | { status: 'signed-out' }
+  | { status: 'signing-in'; method: 'browser' }
+  | { status: 'signed-in'; accounts: AccountSummary[]; activeAccountId: string }
+
+function subscription(provider: 'codex' | 'claude', state: SubscriptionState): SubscriptionStatus {
   return {
     provider,
     route: provider === 'codex' ? 'codex-oauth' : 'claude-code-oauth',
@@ -39,10 +45,10 @@ function subscription(provider: 'codex' | 'claude', state: Record<string, unknow
     available: [],
     selected: [],
     ...state,
-  } as SubscriptionStatus
+  }
 }
 
-function status(claude: Record<string, unknown>): CodingOAuthStatus {
+function status(claude: SubscriptionState): CodingOAuthStatus {
   return {
     accessMode: 'ssh-tunnel',
     uiOwner: 'standalone',

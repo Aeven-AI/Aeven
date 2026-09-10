@@ -11,7 +11,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ProviderCard } from '../src/client/components/ProviderCard.tsx'
 import { PROVIDERS } from '../src/client/constants.ts'
 import { en, type GrokBuildSettingsKey } from '../src/client/locales.ts'
-import type { ProviderCardDefinition, ProviderStatus } from '../src/client/types.ts'
+import type { ProviderCardDefinition, ProviderStatus, SubscriptionStatus } from '../src/client/types.ts'
 
 afterEach(cleanup)
 
@@ -28,7 +28,11 @@ function t(key: GrokBuildSettingsKey, params?: Record<string, unknown>): string 
 const CODEX = PROVIDERS.find(definition => definition.slug === 'codex')!
 const CLAUDE = PROVIDERS.find(definition => definition.slug === 'claude')!
 
-const BASE = {
+/** Status fields every Codex state carries, whatever its sign-in state. */
+const BASE: Pick<
+  SubscriptionStatus,
+  'provider' | 'route' | 'displayName' | 'loginMethods' | 'recommendedLoginMethod' | 'models' | 'available' | 'selected'
+> = {
   provider: 'codex',
   route: 'codex-oauth',
   displayName: 'OpenAI Codex',
@@ -37,7 +41,7 @@ const BASE = {
   models: [],
   available: [],
   selected: [],
-} as const
+}
 
 const SIGNED_IN: ProviderStatus = { ...BASE, status: 'signed-in', accounts: [], activeAccountId: 'a1' }
 
