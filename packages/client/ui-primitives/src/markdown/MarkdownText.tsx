@@ -29,6 +29,7 @@ import katexPlugin from '@aeven-ai/hypermarkdown/plugins/math'
 import cjkPlugin from '@aeven-ai/hypermarkdown/plugins/cjk'
 import highlightPlugin from '@aeven-ai/hypermarkdown/plugins/code'
 import mermaidPlugin from '@aeven-ai/hypermarkdown/plugins/mermaid'
+import type { StrictFunction } from 'katex'
 import 'katex/dist/katex.min.css'
 import '@aeven-ai/hypermarkdown/styles.css'
 import css from './MarkdownText.module.css'
@@ -72,18 +73,24 @@ export interface MarkdownFileMentions {
  * Engine plugins, built once at module scope: the renderer keys cached blocks
  * by component identity, so a per-render plugin object would remount them.
  * Math runs through KaTeX (the engine normalizes the `\(…\)` and `\[…\]`
- * notations models emit onto remark-math's `$` delimiters), emphasis follows
- * CJK flanking rules, and fences are highlighted by highlight.js (the same
- * engine `CodeBlock` and `ReadBlock` use). Mermaid is
- * imported on the first diagram rather than at module load, so a session that
- * never renders one does not pay for it. The plugin's `load()` is what starts
- * that fetch — this component does not set `preload`, which would download
- * the engine on every markdown mount.
+ * notations models emit onto remark-math's `$` delimiters). Its strict callback
+ * accepts the en dash that KaTeX can render while retaining every other
+ * LaTeX-compatibility warning. Emphasis follows CJK flanking rules, and fences
+ * are highlighted by highlight.js (the same engine `CodeBlock` and `ReadBlock`
+ * use). Mermaid is imported on the first diagram rather than at module load,
+ * so a session that never renders one does not pay for it. The plugin's
+ * `load()` is what starts that fetch — this component does not set `preload`,
+ * which would download the engine on every markdown mount.
  * `securityLevel` is passed explicitly rather than relying on the plugin's
  * default, because the source it renders is model-authored.
  */
+const katexStrict: StrictFunction = (errorCode, _errorMessage, token) => {
+  if (errorCode === 'unknownSymbol' && token.text === '–') return 'ignore'
+  return 'warn'
+}
+
 const PLUGINS = {
-  math: katexPlugin(),
+  math: katexPlugin({ strict: katexStrict }),
   cjk: cjkPlugin(),
   code: highlightPlugin(),
   diagram: mermaidPlugin({ securityLevel: 'strict' }),
@@ -100,7 +107,12 @@ const PLUGINS = {
 const LINK_SAFETY = {
   allowedProtocols: ['http', 'https', 'mailto'],
   allowedLinkPrefixes: ['*'],
-  allowedImagePrefixes: ['*'],
+  // Remote `https:` images only. A file this app serves — a workspace path or a
+  // plugin media route — is already on the page in the result card of whatever
+  // tool produced it, so rendering model-authored markdown for it shows the
+  // user the same picture twice. Excluding `http:` excludes this app's own
+  // loopback origin, which is the only thing those duplicates point at.
+  allowedImagePrefixes: ['https://'],
   allowDataImages: false,
 }
 

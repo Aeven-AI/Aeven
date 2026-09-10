@@ -275,17 +275,14 @@ describe('MarkdownText', () => {
     expect(screen.getByRole('button', { name: 'Copy code' })).toBeTruthy()
   })
 
-  it('renders absolute HTTP(S) images with bounded presentation', () => {
+  it('renders remote https images and refuses http, which this app serves its own files over', () => {
     const markdown = [
       '![secure diagram](https://example.com/secure.png)',
       '![plain diagram](http://example.com/plain.png)',
     ].join('\n\n')
     const { container } = render(<MarkdownText text={markdown} />)
     const images = [...container.querySelectorAll('img')]
-    expect(images.map(image => image.getAttribute('src'))).toEqual([
-      'https://example.com/secure.png',
-      'http://example.com/plain.png',
-    ])
+    expect(images.map(image => image.getAttribute('src'))).toEqual(['https://example.com/secure.png'])
     for (const image of images) {
       expect(image.getAttribute('loading')).toBe('lazy')
       expect(image.getAttribute('decoding')).toBe('async')
@@ -308,19 +305,19 @@ describe('MarkdownText', () => {
     const { container } = render(<MarkdownText text={markdown} />)
 
     expect(container.querySelector('script')).toBeNull()
-    // Relative destinations are deliberately allowed (see LINK_SAFETY): they
-    // resolve against this app's own origin, and refusing them would make a
-    // relative asset unshowable. What must not survive is a destination that
-    // is not a fetch at all.
+    // Relative LINK destinations stay allowed (see LINK_SAFETY); relative and
+    // http IMAGE destinations no longer are, because they resolve against this
+    // app's own origin, where a tool result has already displayed the file.
     const imageSources = [...container.querySelectorAll('img')].map(image => image.getAttribute('src'))
-    expect(imageSources).toContain('private.png')
-    expect(imageSources).toContain('/workspace/private.png')
+    // A file this app serves is already shown by the tool that produced it.
+    expect(imageSources).not.toContain('private.png')
+    expect(imageSources).not.toContain('/workspace/private.png')
     expect(imageSources).not.toContain('file:///workspace/private.png')
     expect(imageSources.some(source => source?.startsWith('javascript:'))).toBe(false)
-    // KNOWN GAP: `mailto:` is allowed because the protocol list is shared with
-    // links, where it belongs; upstream has no separate image protocol list, so
-    // `![x](mailto:…)` still becomes a broken <img> rather than being dropped.
-    expect(imageSources).toContain('mailto:dev@example.com')
+    // The https-only image prefix also closes the old `mailto:` gap, which the
+    // shared protocol list used to let through as a broken <img>.
+    expect(imageSources).not.toContain('mailto:dev@example.com')
+    expect(imageSources).toEqual([])
     const neutralized = [...container.querySelectorAll('p')]
       .find(paragraph => paragraph.textContent === 'script relative')
     // The unsafe destination is dropped rather than the element: an anchor
@@ -341,11 +338,11 @@ describe('MarkdownText', () => {
     // sanitizes before it canonicalizes, and hast-util-sanitize compares the
     // scheme byte for byte — so a valid `HTTPS://` destination is dropped.
     expect(screen.getByText('upper').getAttribute('href')).toBeNull()
-    // A refused image becomes its alt text rather than a broken placeholder,
-    // and an admitted one keeps that text as its alt: either way the words the
-    // author wrote still reach the reader.
-    const altText = [...container.querySelectorAll('img')].map(image => image.getAttribute('alt'))
-    expect(altText).toEqual(['relative diagram', 'absolute diagram', 'mail diagram'])
+    // A refused image becomes its alt text rather than a broken placeholder, so
+    // the words the author wrote still reach the reader.
+    expect(screen.getByText('relative diagram')).toBeTruthy()
+    expect(screen.getByText('absolute diagram')).toBeTruthy()
+    expect(screen.getByText('mail diagram')).toBeTruthy()
     expect(screen.getByText('file diagram')).toBeTruthy()
     expect(screen.getByText('script diagram')).toBeTruthy()
   })

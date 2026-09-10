@@ -7,10 +7,13 @@
 // Companion coverage of parse/render internals lives in markdown.client.spec.tsx.
 
 import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MarkdownText } from './markdown-test-components.tsx'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
 
 describe('MarkdownText heading hierarchy', () => {
   it('maps markdown heading levels 1–6 to semantic h1–h6 elements in order', () => {
@@ -116,6 +119,25 @@ describe('MarkdownText tables', () => {
 
     const narrowView = render(<MarkdownText text={narrow} />)
     expect(narrowView.container.querySelector('.md-table-wide')).toBeNull()
+  })
+})
+
+describe('MarkdownText math diagnostics', () => {
+  it('accepts an en dash without silencing other KaTeX strict warnings', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const view = render(<MarkdownText text={'Range: $1–4$.'} />)
+
+      expect(view.container.querySelector('.katex')).not.toBeNull()
+      expect(warn).not.toHaveBeenCalled()
+
+      view.rerender(<MarkdownText text={'Range: $1—4$.'} />)
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining(
+        'Unrecognized Unicode character "—"',
+      ))
+    } finally {
+      warn.mockRestore()
+    }
   })
 })
 
