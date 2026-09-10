@@ -691,6 +691,92 @@ export interface InspectorOptions {
 
 Source: [`packages/experimental/inspector/src/index.ts:66`](../packages/experimental/inspector/src/index.ts)
 
+<a id="deepseek-aidsh-experimental-subscription-auth"></a>
+
+## `@deepseek-ai/dsh-experimental-subscription-auth`
+
+Requires: `webServer`
+
+```ts config-catalog
+/** Plugin configuration; every field is optional. */
+export interface Config {
+  /** HTTP(S) proxy URL for the audited coding-subscription host allowlist. */
+  proxy?: string
+  /**
+	 * Optional provider retry policy override for the four OAuth routes. When
+	 * omitted, the plugin retries transient failures (rate limit, server,
+	 * timeout, transport, empty response) plus AUTH — the latter is safe because
+	 * the stored credential is invalidated on every AUTH finish, so the retried
+	 * step refreshes before reuse. Quota exhaustion is never retried.
+	 */
+  retryPolicy?: RetryPolicyConfig
+  /** Secret-free composition/YAML defaults below live user settings. */
+  capabilities?: CapabilitySettingsPatch
+  /**
+	 * Which upstream Imagine calls authorize against. `auto` (the default) uses
+	 * `XAI_API_KEY` against the developer API when that credential is configured
+	 * and otherwise takes the Grok Build chat proxy with the subscription's OAuth
+	 * access token, which is the route the official Grok CLI takes and requires a
+	 * SuperGrok tier. `xai-api` and `grok-build` pin one route and fail loudly
+	 * when its credential is missing.
+	 */
+  imagineTransport?: 'auto' | 'xai-api' | 'grok-build'
+  /**
+   * Imagine API request timeout. The subscription route proxies generation
+   * through the Grok Build chat proxy, which is slower than the direct xAI API,
+   * so the ceiling is deployment-varying rather than fixed.
+   */
+  imagineApiTimeoutMs?: number
+  /** Owner-only request authorization for loopback, SSH tunnels, and trusted HTTPS proxies. */
+  ownerRequest?: {
+    /** Whether a loopback caller is the operator directly, or arrives over an SSH tunnel. */
+    loopbackAccessMode?: 'loopback' | 'ssh-tunnel'
+    /** Accept owner requests forwarded by a proxy that proves itself with the fields below. */
+    trustedProxy?: {
+      /** Peer addresses whose forwarded requests may be considered at all. */
+      peers?: string[]
+      /** Origins the forwarded request may declare. */
+      origins?: string[]
+      /** Shared secret the proxy sends to prove it speaks for the operator. */
+      ownerProof?: string
+      /** Token the proxy echoes on state-changing requests, defeating cross-site forgery. */
+      csrfToken?: string
+    }
+  }
+}
+
+/** Sparse overlay used for YAML/composition `base` and the user section. */
+export type CapabilitySettingsPatch = Partial<CapabilitySettings>
+
+/** Resolved, secret-free capability section. */
+export interface CapabilitySettings {
+  /** Publish Codex-backed web search, which spends the Codex subscription's quota. */
+  readonly codexSearch: boolean
+  /** Publish the Codex image generation tool. Fixed on; see {@link FIXED_CAPABILITIES}. */
+  readonly codexImages: boolean
+  /** Publish the Codex image edit tool. Fixed on; see {@link FIXED_CAPABILITIES}. */
+  readonly codexImageEdits: boolean
+  /** Allow non-Codex-route models to use the Codex image generate/edit tools. Fixed on. */
+  readonly codexImagesAnyModel: boolean
+  /** Publish the Codex Fast route when the live catalogue confirms priority eligibility. */
+  readonly codexFast: boolean
+  /** Publish the Grok Imagine image tool. Fixed on; see {@link FIXED_CAPABILITIES}. */
+  readonly grokImagineImage: boolean
+  /** Publish the Grok Imagine video tools. Fixed on; see {@link FIXED_CAPABILITIES}. */
+  readonly grokImagineVideo: boolean
+  /** Upper bound on results returned by Codex-backed search. */
+  readonly searchResults: number
+  /** Images one generate call may return. Pinned to the provider maximum. */
+  readonly imageCount: number
+  /** How long a generated video artifact is retained. Pinned to the provider maximum. */
+  readonly videoArtifactTtlMs: number
+}
+```
+
+Depends on: [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
+
+Source: [`packages/experimental/subscription-auth/src/index.ts:251`](../packages/experimental/subscription-auth/src/index.ts)
+
 <a id="deepseek-aidsh-experimental-tool-agent-team"></a>
 
 ## `@deepseek-ai/dsh-experimental-tool-agent-team`

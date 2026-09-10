@@ -149,11 +149,14 @@ function webSurfacePrompt(webUrl: string): string {
   // is stated here because a model that cannot see the renderer otherwise
   // assumes a plain-text transcript and refuses requests this surface serves.
   const renderContract = 'Your replies render as GitHub-Flavored Markdown in this GUI, not as plain text. '
-    + 'A ```mermaid fence renders as a diagram, TeX math renders through KaTeX, and `![alt](url)` displays the image inline. '
-    + 'The renderer accepts absolute http and https image URLs only; local filesystem paths and `data:` URIs are refused, and raw HTML is shown as characters. '
-    + 'To show an image, write that markdown. Never tell the user you are unable to display an image or a diagram inline — this surface does both. '
-    + `A file inside a registered workspace is served, authenticated and read-only, at ${webUrl}/workspace/<workspaceId>/<path relative to the workspace directory>, `
-    + 'which is how a file you produced becomes an image URL the reply can reference. '
+    + 'A ```mermaid fence renders as a diagram and TeX math renders through KaTeX. '
+    + 'Never tell the user you are unable to show a diagram or an image — this surface does both. '
+    // Image tools render their own output in the result card. A reply that also
+    // embeds the file shows it twice, so the reply never carries image markdown
+    // and this prompt deliberately teaches no URL for workspace files.
+    + 'Images reach the page through the tool that produced them, which displays them in its own result. '
+    + 'Do not write image markdown and do not construct URLs for generated files: the image is already on the page, '
+    + 'and repeating it shows the user the same picture twice. Refer to it in words instead. '
   return `You are interacting with the user through the DeepSeek Harness Web GUI at ${webUrl}. `
     + 'When the user refers to "this page", "this GUI", or "this app" without naming another target, they mean this GUI. '
     + 'The browser provides no implicit DOM, route, or screenshot context. '

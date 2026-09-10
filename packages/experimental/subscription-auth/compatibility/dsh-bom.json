@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "coreAbi": "dsh-coding-oauth-core/v1",
+  "verified": {
+    "id": "dsh-0.1.2-alpha.5",
+    "dshVersion": "0.1.2-alpha.5",
+    "packages": {
+      "@deepseek-ai/cordis": "4.0.2",
+      "@deepseek-ai/dsh-atomic-write": "0.1.2-alpha.5",
+      "@deepseek-ai/dsh-attachment": "0.1.2-alpha.5",
+      "@deepseek-ai/dsh-client-locale": "0.1.2-alpha.5",
+      "@deepseek-ai/dsh-client-ui-renderer": "0.1.2-alpha.5",
+      "@deepseek-ai/dsh-client-ui-settings": "0.1.2-alpha.5",
+      "@deepseek-ai/dsh-client-ui-slots": "0.1.2-alpha.5",
+      "@deepseek-ai/dsh-client-web": "0.1.2-alpha.5",
+      "@deepseek-ai/dsh-credentials": "0.1.2-alpha.5",
+      "@deepseek-ai/dsh-home-paths": "0.1.2-alpha.5",
+      "@deepseek-ai/dsh-host-webserver": "0.1.2-alpha.5",
+      "@deepseek-ai/dsh-invariants": "0.1.2-alpha.5",
+      "@deepseek-ai/dsh-llm": "0.1.2-alpha.5",
+      "@deepseek-ai/dsh-llm-pi-ai": "0.1.2-alpha.5",
+      "@deepseek-ai/dsh-tools": "0.1.2-alpha.5",
+      "@deepseek-ai/schemastery": "3.18.2",
+      "@earendil-works/pi-ai": "0.84.2",
+      "react": "18.3.1",
+      "react-dom": "18.3.1"
+    }
+  },
+  "candidates": []
+}

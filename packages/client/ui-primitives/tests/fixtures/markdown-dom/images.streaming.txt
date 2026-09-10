@@ -6,26 +6,24 @@
         <span class="image-loader">
         <img alt="https image" class="image" decoding="async" loading="lazy" referrerpolicy="no-referrer" src="https://example.com/secure.png" title="img title">
   <p>
-    <span class="markdown-image-container">
-      <span class="markdown-image">
-        <span class="image-error">
-        <span class="image-loader">
-        <img alt="http image" class="image" decoding="async" loading="lazy" referrerpolicy="no-referrer" src="http://example.com/plain.png">
+    <span data-animate-key="word-0-0" data-animate-word="true">
+      #text "http"
+    <span data-animate-key="word-0-2" data-animate-word="true">
+      #text "image"
   <p>
-    <span class="markdown-image-container">
-      <span class="markdown-image">
-        <span class="image-error">
-        <span class="image-loader">
-        <img alt="relative dropped" class="image" decoding="async" loading="lazy" referrerpolicy="no-referrer" src="private.png">
-    <span data-animate-key="word-1-2" data-animate-word="true">
+    <span data-animate-key="word-0-0" data-animate-word="true">
+      #text "relative"
+    <span data-animate-key="word-0-2" data-animate-word="true">
+      #text "dropped"
+    <span data-animate-key="word-3-2" data-animate-word="true">
       #text "and"
-    <span data-animate-key="word-1-4" data-animate-word="true">
+    <span data-animate-key="word-3-4" data-animate-word="true">
       #text "inline"
-    <span data-animate-key="word-8-0" data-animate-word="true">
+    <span data-animate-key="word-10-0" data-animate-word="true">
       #text "bad"
-    <span data-animate-key="word-8-2" data-animate-word="true">
+    <span data-animate-key="word-10-2" data-animate-word="true">
       #text "scheme"
-    <span data-animate-key="word-11-2" data-animate-word="true">
+    <span data-animate-key="word-13-2" data-animate-word="true">
       #text "end."
   <p>
     <span class="markdown-image-container">

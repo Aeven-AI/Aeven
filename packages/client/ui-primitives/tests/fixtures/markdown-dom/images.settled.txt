@@ -6,18 +6,9 @@
         <span class="image-loader">
         <img alt="https image" class="image" decoding="async" loading="lazy" referrerpolicy="no-referrer" src="https://example.com/secure.png" title="img title">
   <p>
-    <span class="markdown-image-container">
-      <span class="markdown-image">
-        <span class="image-error">
-        <span class="image-loader">
-        <img alt="http image" class="image" decoding="async" loading="lazy" referrerpolicy="no-referrer" src="http://example.com/plain.png">
+    #text "http image"
   <p>
-    <span class="markdown-image-container">
-      <span class="markdown-image">
-        <span class="image-error">
-        <span class="image-loader">
-        <img alt="relative dropped" class="image" decoding="async" loading="lazy" referrerpolicy="no-referrer" src="private.png">
-    #text " and inline bad scheme end."
+    #text "relative dropped and inline bad scheme end."
   <p>
     <span class="markdown-image-container">
       <span class="markdown-image">

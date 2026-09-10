@@ -1,6 +1,5 @@
 /* Shared message IconActions row (user + assistant). Parent modules own
-   layout offsets via the composed className. Row containers gate visibility
-   by recency through data-actions-reveal. */
+   layout offsets via the composed className. */
 
 .actions {
   display: flex;
@@ -30,30 +29,6 @@
   white-space: nowrap;
 }
 
-/* Earlier user-authored flow rows and opted-in turn tails reveal the complete
-   actions row on hover or focus-within. Opacity keeps layout stable, and
-   devices without hover keep every row visible. */
-@media (hover: hover) {
-  [data-actions-reveal='hover'] .actions,
-  :is([data-chat-flow-kind='user'], [data-chat-flow-kind='steering']):has(
-    ~ :is([data-chat-flow-kind='user'], [data-chat-flow-kind='steering'])
-  ) .actions {
-    opacity: 0;
-    transition: opacity 80ms ease;
-  }
-
-  [data-actions-reveal='hover']:hover .actions,
-  [data-actions-reveal='hover']:focus-within .actions,
-  :is([data-chat-flow-kind='user'], [data-chat-flow-kind='steering']):has(
-    ~ :is([data-chat-flow-kind='user'], [data-chat-flow-kind='steering'])
-  ):hover .actions,
-  :is([data-chat-flow-kind='user'], [data-chat-flow-kind='steering']):has(
-    ~ :is([data-chat-flow-kind='user'], [data-chat-flow-kind='steering'])
-  ):focus-within .actions {
-    opacity: 1;
-  }
-}
-
 .action {
   display: inline-flex;
   align-items: center;
@@ -75,20 +50,10 @@
   height: calc(15px + var(--dsh-content-font-delta, 0px));
 }
 
-.action:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-secondary);
-}
-
 /* Unavailable stays focusable and hoverable so Tooltip can explain why. */
 .action[data-unavailable] {
   cursor: default;
   opacity: 0.4;
-}
-
-.action[data-unavailable]:hover {
-  background: transparent;
-  color: var(--dsw-alias-label-tertiary);
 }
 
 .visuallyHidden {
