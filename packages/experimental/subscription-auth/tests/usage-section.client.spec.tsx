@@ -185,4 +185,96 @@ describe('usage panel', () => {
     const parsed = parseUsage({ entitlement: 'entitled', windows: [{ id: 'a' }, { id: 'b', remainingPercent: 20 }] })
     expect(parsed.windows.map(window => window.id)).toEqual(['b'])
   })
+
+  it('reports an unlimited allowance as unlimited rather than as a number', () => {
+    show({
+      entitlement: 'entitled',
+      windows: [],
+      credits: { kind: 'money', currency: 'USD', remaining: 0, unlimited: true },
+    })
+
+    expect(screen.getByText(en.usageCreditsUnlimited)).toBeTruthy()
+    expect(screen.queryByText('$0')).toBeNull()
+  })
+
+  it('assumes cents when the locale reports no fraction preference to read', () => {
+    // Pin the locale boundary: whatever a currency's own digit count is, a
+    // balance the viewer's format cannot place is still read as cents.
+    const resolvedOptions = vi
+      .spyOn(Intl.NumberFormat.prototype, 'resolvedOptions')
+      .mockReturnValue({} as Intl.ResolvedNumberFormatOptions)
+    try {
+      show({ entitlement: 'entitled', windows: [], credits: { kind: 'money', currency: 'USD', remaining: 1234 } })
+
+      expect(screen.getByText('$12.34')).toBeTruthy()
+    } finally {
+      resolvedOptions.mockRestore()
+    }
+  })
+
+  it('names a window by the label the provider wrote when it calls the window custom', () => {
+    show({
+      entitlement: 'entitled',
+      windows: [{ id: 'w', label: 'custom', labelText: 'This sprint', remainingPercent: 40 }],
+    })
+    expect(screen.getByText('This sprint')).toBeTruthy()
+    cleanup()
+
+    // A custom window the provider left unnamed still reads as a window.
+    show({ entitlement: 'entitled', windows: [{ id: 'w', label: 'custom', remainingPercent: 40 }] })
+    expect(screen.getByText(en.usageWindowGeneric)).toBeTruthy()
+  })
+
+  it('names a product by the label the provider wrote when it calls the product custom', () => {
+    const windows = [{ id: 'weekly', label: 'weekly' as const, remainingPercent: 50 }]
+    show({
+      entitlement: 'entitled',
+      windows,
+      breakdown: [{ id: 'p', label: 'custom', labelText: 'Code review', usedPercent: 5 }],
+    })
+    expect(screen.getByText('Code review')).toBeTruthy()
+    cleanup()
+
+    show({ entitlement: 'entitled', windows, breakdown: [{ id: 'p', label: 'custom', usedPercent: 5 }] })
+    expect(screen.getByText(en.usageProductGrokBuild)).toBeTruthy()
+  })
+
+  it('restates the pooled window only when the provider reported exactly one', () => {
+    const breakdown = [{ id: 'GrokBuild', label: 'grokBuild' as const, usedPercent: 68 }]
+    show({
+      entitlement: 'entitled',
+      windows: [
+        { id: 'w1', label: 'weekly', remainingPercent: 11 },
+        { id: 'w2', label: 'monthly', remainingPercent: 22 },
+      ],
+      breakdown,
+    })
+
+    // With two windows the split belongs to no single one of them, so neither is restated.
+    expect(screen.getByText(en.usageBreakdownTitle)).toBeTruthy()
+    expect(screen.getAllByText('11%')).toHaveLength(1)
+    expect(screen.getAllByText('22%')).toHaveLength(1)
+    cleanup()
+
+    show({ entitlement: 'entitled', windows: [{ id: 'w1', label: 'weekly', remainingPercent: 11 }], breakdown })
+    expect(screen.getAllByText('11%')).toHaveLength(2)
+  })
+
+  it('still explains the redirect when the provider gave no place to go', () => {
+    show({ entitlement: 'redirected', windows: [] })
+
+    expect(screen.getByText(en.usageRedirect)).toBeTruthy()
+    expect(screen.queryByRole('link')).toBeNull()
+  })
+
+  it("uses the provider's own link label only when it wrote one", () => {
+    show({ entitlement: 'not-entitled', windows: [], gate: { url: 'https://grok.com/upgrade' } })
+
+    expect(screen.getByText(en.usageNotEntitled)).toBeTruthy()
+    expect(screen.getByRole('link').textContent).toBe(en.usageOpenProvider)
+    cleanup()
+
+    show({ entitlement: 'not-entitled', windows: [], gate: { url: 'https://grok.com/upgrade', label: 'Upgrade' } })
+    expect(screen.getByRole('link').textContent).toBe('Upgrade')
+  })
 })

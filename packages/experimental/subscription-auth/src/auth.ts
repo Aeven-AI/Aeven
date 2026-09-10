@@ -22,6 +22,8 @@ export interface GrokBuildAuthStatus {
  * The Grok Build backend accepts the same auth.x.ai tokens (scope
  * `grok-cli:access`); the PKCE authorization-code flow lands in a later
  * milestone as the primary path.
+ * @param interaction - Interaction handler for the sign-in flow.
+ * @param store - Credential store used by the operation.
  */
 export async function loginGrokBuild(
   interaction: AuthInteraction,
@@ -32,7 +34,11 @@ export async function loginGrokBuild(
   await models.login(XAI_PI_PROVIDER, 'oauth', interaction)
 }
 
-/** Copy ~/.grok/auth.json into the dsh store. Does not modify the Grok file. */
+/**
+ * Copy ~/.grok/auth.json into the dsh store. Does not modify the Grok file.
+ * @param store - Credential store used by the operation.
+ * @param filename - Source filename used in diagnostics.
+ */
 export async function importGrokBuildFromGrok(
   store: GrokBuildCredentialStore = new GrokBuildCredentialStore(),
   filename?: string,
@@ -40,12 +46,19 @@ export async function importGrokBuildFromGrok(
   await importGrokAuth(store, filename)
 }
 
-/** Remove the stored Grok Build credential. */
+/**
+ * Remove the stored Grok Build credential.
+ * @param store - Credential store used by the operation.
+ */
 export async function logoutGrokBuild(store: GrokBuildCredentialStore = new GrokBuildCredentialStore()): Promise<void> {
   await store.delete(XAI_PI_PROVIDER)
 }
 
-/** Read non-secret login state without refreshing the token. */
+/**
+ * Read non-secret login state without refreshing the token.
+ * @param store - Credential store used by the operation.
+ * @returns The resulting grok build auth status.
+ */
 export async function grokBuildAuthStatus(
   store: GrokBuildCredentialStore = new GrokBuildCredentialStore(),
 ): Promise<GrokBuildAuthStatus> {
@@ -55,12 +68,21 @@ export async function grokBuildAuthStatus(
     : { authenticated: false }
 }
 
-/** Login then refresh the account model list when a session is available. */
+/**
+ * Login then refresh the account model list when a session is available.
+ * @param interaction - Interaction handler for the sign-in flow.
+ * @param session - Provider session used by the operation.
+ */
 export async function loginGrokBuildSession(interaction: AuthInteraction, session: GrokBuildSession): Promise<void> {
   await loginGrokBuild(interaction, session.store)
   await session.refreshLiveCatalog()
 }
 
+/**
+ * Import import grok build session.
+ * @param session - Provider session used by the operation.
+ * @param filename - Source filename used in diagnostics.
+ */
 export async function importGrokBuildSession(session: GrokBuildSession, filename?: string): Promise<void> {
   await importGrokBuildFromGrok(session.store, filename)
   await session.refreshLiveCatalog()

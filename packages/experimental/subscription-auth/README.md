@@ -57,6 +57,8 @@ Usage reporting normalizes three unrelated vendor payloads into one projection (
 
 Media generation reaches the model two ways: the harness media seam, which the `image.generate` tool drives with a provider picker, and this package's own Imagine and Codex image tools. Tool advertisement is gated on credential readiness rather than on a setting — a tool whose backend holds no usable credential is withdrawn rather than offered and failed.
 
+**Runtime invariant:** No companion is published. OAuth sessions and credential files have no independent package-owned observation to compare, while capability, route, and tool contributions are owned by their registries and covered by lifecycle tests.
+
 -----
 
 <a id="further-exploration"></a>

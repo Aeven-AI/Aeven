@@ -1,54 +1,45 @@
-/** Pure display helpers for remote UX and CLI pull noise control. */
+/** Pure display helpers for the provider cards' sign-in buttons. */
 
-import type { GrokBuildSettingsInjected, LoginMethod, ProviderCardDefinition, SourceStatus } from './types.ts'
+import type { GrokBuildSettingsInjected, LoginMethod, ProviderCardDefinition } from './types.ts'
 
-const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1'])
-
-/** True when the Settings page is served from a non-loopback host (typical remote DSH). */
-export function isLikelyRemoteHost(hostname: string): boolean {
-  const normalized = hostname.trim().toLowerCase()
-  if (normalized.length === 0) return false
-  if (LOOPBACK_HOSTS.has(normalized)) return false
-  if (normalized.endsWith('.localhost')) return false
-  return true
-}
-
+/**
+ * The sign-in method a card leads with. On a remote page the local callback
+ * would reach the wrong machine, so the card's remote recommendation wins.
+ * @param definition - the provider card.
+ * @param remote - whether the browser is not on the harness host.
+ * @returns the method for the primary button.
+ */
 export function preferredLoginMethod(definition: ProviderCardDefinition, remote: boolean): LoginMethod {
   if (
-    remote &&
-		definition.remoteRecommended !== undefined &&
-		definition.methods.includes(definition.remoteRecommended)
+    remote
+    && definition.remoteRecommended !== undefined
+    && definition.methods.includes(definition.remoteRecommended)
   ) {
     return definition.remoteRecommended
   }
   return definition.recommended
 }
 
-/** Put the recommended method first so the primary CTA is unambiguous. */
+/**
+ * The card's methods with the preferred one first, so the primary button is unambiguous.
+ * @param definition - the provider card.
+ * @param remote - whether the browser is not on the harness host.
+ * @returns every method the card offers, preferred first.
+ */
 export function orderedLoginMethods(definition: ProviderCardDefinition, remote: boolean): LoginMethod[] {
   const preferred = preferredLoginMethod(definition, remote)
   const rest = definition.methods.filter(method => method !== preferred)
   return definition.methods.includes(preferred) ? [preferred, ...rest] : [...definition.methods]
 }
 
-/** Per-card CLI “missing” copy is noisy on remote hosts; keep only actionable reasons. */
-export function shouldShowPerCardSourceReason(source: SourceStatus | undefined): boolean {
-  if (source === undefined || source.available) return false
-  if (source.reason === undefined) return false
-  return source.reason !== 'missing'
-}
-
-export function allOfficialCliMissing(sources: readonly SourceStatus[] | undefined): boolean {
-  if (sources === undefined || sources.length === 0) return false
-  return sources.every(source => !source.available && (source.reason === undefined || source.reason === 'missing'))
-}
-
-export function anyOfficialCliAvailable(sources: readonly SourceStatus[] | undefined): boolean {
-  return sources?.some(source => source.available) === true
-}
-
+/**
+ * Name a sign-in button by what it asks of the user. A browser flow completes
+ * on its own through the local callback, so it is the plain Sign in; the
+ * device flow hands the user a code to enter.
+ * @param method - the button's sign-in method.
+ * @param t - the settings translator.
+ * @returns the button label.
+ */
 export function methodLabel(method: LoginMethod, t: GrokBuildSettingsInjected['t']): string {
-  // A browser flow completes on its own through the local callback, so it is the
-  // plain Sign in. The device flow is the one that hands you a code to enter.
   return method === 'device' ? t('codeLogin') : t('signIn')
 }

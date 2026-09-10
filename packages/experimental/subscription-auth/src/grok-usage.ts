@@ -21,7 +21,13 @@
 
 import { GROK_BUILD_BASE_URL, grokBuildFingerprintHeaders } from './provider.ts'
 import { type UsageFetch, type UsageHttpOptions, usageGetJson } from './usage-http.ts'
-import { createUsageReader, type UsageReader, type UsageReaderOptions } from './usage-reader.ts'
+import {
+  createUsageReader,
+  usageCacheOptions,
+  usageFromResult,
+  type UsageReader,
+  type UsageReaderOptions,
+} from './usage-reader.ts'
 import {
   epochSecondsFromRfc3339,
   type ProviderUsage,
@@ -181,6 +187,7 @@ export function normalizeGrokUsage(value: unknown, fetchedAt: number, tier?: str
   }
 }
 
+/** Options for grok usage reader. */
 export interface GrokUsageReaderOptions {
   /** Resolve the Grok Build OAuth access token, refreshing under the store lock. */
   resolveToken(): Promise<string | undefined>
@@ -216,8 +223,8 @@ function parseIdentity(value: unknown): GrokIdentity {
 export function createGrokUsageReader(options: GrokUsageReaderOptions): UsageReader {
   const http: UsageHttpOptions = {
     origin: GROK_PROXY_ORIGIN,
-    resolveToken: options.resolveToken,
-    invalidateToken: options.invalidateToken,
+    resolveToken: () => options.resolveToken(),
+    invalidateToken: () => options.invalidateToken(),
     ...(options.fetchImpl === undefined ? {} : { fetchImpl: options.fetchImpl }),
   }
 
@@ -237,25 +244,8 @@ export function createGrokUsageReader(options: GrokUsageReaderOptions): UsageRea
       ...(identity.userId === undefined ? {} : { 'x-userid': identity.userId }),
     }
     const result = await usageGetJson(GROK_BILLING_URL, headers, http, signal)
-    if (result.kind === 'forbidden') {
-      return {
-        entitlement: 'not-entitled',
-        windows: [],
-        fetchedAt: now,
-        ...(tier === undefined ? {} : { tier }),
-        ...(result.detail === undefined ? {} : { gate: { message: result.detail } }),
-      }
-    }
-    if (result.kind === 'unauthorized') {
-      return { entitlement: 'unknown', windows: [], fetchedAt: now, ...(tier === undefined ? {} : { tier }) }
-    }
-    return normalizeGrokUsage(result.body, now, tier)
+    return usageFromResult(result, now, tier, normalizeGrokUsage)
   }
 
-  return createUsageReader({
-    load,
-    ...(options.now === undefined ? {} : { now: options.now }),
-    ...(options.ttlMs === undefined ? {} : { ttlMs: options.ttlMs }),
-    ...(options.negativeTtlMs === undefined ? {} : { negativeTtlMs: options.negativeTtlMs }),
-  })
+  return createUsageReader({ load, ...usageCacheOptions(options) })
 }

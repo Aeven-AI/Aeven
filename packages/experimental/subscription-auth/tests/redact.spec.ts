@@ -59,6 +59,13 @@ describe('safeMessage', () => {
     expect(redactProxyUrl('not a url')).toBe('not a url')
   })
 
+  it('keeps the path and an explicit trailing slash when stripping proxy userinfo', () => {
+    // The bare-origin slash trim above must not eat a real path, and an input
+    // that spelled its trailing slash keeps it.
+    expect(redactProxyUrl('http://user:secret@example.test/v1')).toBe('http://example.test/v1')
+    expect(redactProxyUrl('http://user:secret@example.test/')).toBe('http://example.test/')
+  })
+
   it('redacts the sk- and xai- opaque token prefixes', () => {
     const opaqueSk = 'sk-' + 'abcdefghijklmnop' // 16+ chars after prefix
     const opaqueXai = 'xai-' + 'abcdefghijklmnopqrstuv'

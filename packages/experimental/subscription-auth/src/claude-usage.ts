@@ -15,7 +15,13 @@
  */
 
 import { type UsageFetch, type UsageHttpOptions, usageGetJson } from './usage-http.ts'
-import { createUsageReader, type UsageReader, type UsageReaderOptions } from './usage-reader.ts'
+import {
+  createUsageReader,
+  usageCacheOptions,
+  usageFromResult,
+  type UsageReader,
+  type UsageReaderOptions,
+} from './usage-reader.ts'
 import {
   epochSecondsFromRfc3339,
   noSubscriptionUsage,
@@ -146,6 +152,7 @@ export function claudeTierFromProfile(value: unknown): string | undefined {
   return undefined
 }
 
+/** Options for claude usage reader. */
 export interface ClaudeUsageReaderOptions {
   /** Resolve the Claude OAuth access token, refreshing under the store lock. */
   resolveToken(): Promise<string | undefined>
@@ -168,8 +175,8 @@ const DEFAULT_USER_AGENT = '@deepseek-ai/dsh-experimental-subscription-auth'
 export function createClaudeUsageReader(options: ClaudeUsageReaderOptions): UsageReader {
   const http: UsageHttpOptions = {
     origin: CLAUDE_API_ORIGIN,
-    resolveToken: options.resolveToken,
-    invalidateToken: options.invalidateToken,
+    resolveToken: () => options.resolveToken(),
+    invalidateToken: () => options.invalidateToken(),
     ...(options.fetchImpl === undefined ? {} : { fetchImpl: options.fetchImpl }),
   }
   const headers = {
@@ -184,25 +191,8 @@ export function createClaudeUsageReader(options: ClaudeUsageReaderOptions): Usag
     const tier = profile?.kind === 'ok' ? claudeTierFromProfile(profile.body) : undefined
 
     const result = await usageGetJson(CLAUDE_USAGE_URL, headers, http, signal)
-    if (result.kind === 'forbidden') {
-      return {
-        entitlement: 'not-entitled',
-        windows: [],
-        fetchedAt: now,
-        ...(tier === undefined ? {} : { tier }),
-        ...(result.detail === undefined ? {} : { gate: { message: result.detail } }),
-      }
-    }
-    if (result.kind === 'unauthorized') {
-      return { entitlement: 'unknown', windows: [], fetchedAt: now, ...(tier === undefined ? {} : { tier }) }
-    }
-    return normalizeClaudeUsage(result.body, now, tier)
+    return usageFromResult(result, now, tier, normalizeClaudeUsage)
   }
 
-  return createUsageReader({
-    load,
-    ...(options.now === undefined ? {} : { now: options.now }),
-    ...(options.ttlMs === undefined ? {} : { ttlMs: options.ttlMs }),
-    ...(options.negativeTtlMs === undefined ? {} : { negativeTtlMs: options.negativeTtlMs }),
-  })
+  return createUsageReader({ load, ...usageCacheOptions(options) })
 }

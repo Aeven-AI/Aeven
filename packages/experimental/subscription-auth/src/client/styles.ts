@@ -3,6 +3,7 @@
 import type { CSSProperties } from 'react'
 import type { ProviderStatus } from './types.ts'
 
+/** Transition. */
 export const TRANSITION = 'all 0.15s ease'
 
 /**
@@ -11,7 +12,7 @@ export const TRANSITION = 'all 0.15s ease'
  * token renders darker than this hairline, so any other width reads as a
  * different colour beside the card.
  */
-export const HAIRLINE_BORDER = '0.5px solid var(--dsw-alias-border-l4)'
+const HAIRLINE_BORDER = '0.5px solid var(--dsw-alias-border-l4)'
 /** Usage meter fills by how much of a window is spent. Info fill stands in for brand-primary, which dark theme inverts to near-white. */
 export const METER_FILL = {
   critical: 'var(--dsw-alias-state-error-primary, #d92d20)',
@@ -27,6 +28,7 @@ export const PRODUCT_FILLS: readonly string[] = [
   `color-mix(in srgb, ${METER_FILL.normal} 30%, transparent)`,
 ]
 
+/** Page style. */
 export const pageStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
@@ -35,6 +37,7 @@ export const pageStyle: CSSProperties = {
   maxWidth: 760,
   minWidth: 0,
 }
+/** Title style. */
 export const titleStyle: CSSProperties = {
   margin: 0,
   fontSize: 18,
@@ -42,6 +45,7 @@ export const titleStyle: CSSProperties = {
   fontWeight: 600,
   color: 'var(--dsw-alias-label-primary)',
 }
+/** Body style. */
 export const bodyStyle: CSSProperties = {
   margin: 0,
   fontSize: 13,
@@ -58,12 +62,20 @@ export const introStyle: CSSProperties = {
   fontSize: 13,
   color: 'var(--dsw-alias-label-tertiary)',
 }
+/** Card style. */
 export const cardStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: 12,
   padding: '14px 16px',
-  border: HAIRLINE_BORDER,
+  // Longhands rather than the `border` shorthand. cardOpenStyle overrides only
+  // borderColor, and React cannot diff a shorthand against a longhand: going
+  // back to cardStyle drops the shorthand and leaves the expanded empty
+  // border-*-style/width stubs behind, so border-color falls through to
+  // currentColor (fully opaque text) instead of the 20%-alpha hairline token.
+  borderWidth: 0.5,
+  borderStyle: 'solid',
+  borderColor: 'var(--dsw-alias-border-l4)',
   borderRadius: 16,
   background: 'var(--dsw-alias-bg-layer-3)',
   transition: 'border-color .16s, background .16s',
@@ -110,6 +122,7 @@ export function chevronStyle(open: boolean): CSSProperties {
     transform: open ? 'rotate(180deg)' : 'none',
   }
 }
+/** Row style. */
 export const rowStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -117,6 +130,7 @@ export const rowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: 12,
 }
+/** Status style. */
 export const statusStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -125,6 +139,7 @@ export const statusStyle: CSSProperties = {
   fontWeight: 500,
   color: 'var(--dsw-alias-label-primary)',
 }
+/** Button style. */
 export const buttonStyle: CSSProperties = {
   boxSizing: 'border-box',
   appearance: 'none',
@@ -139,12 +154,14 @@ export const buttonStyle: CSSProperties = {
   cursor: 'pointer',
   transition: TRANSITION,
 }
+/** Primary button style. */
 export const primaryButtonStyle: CSSProperties = {
   ...buttonStyle,
   border: '1px solid transparent',
   background: 'var(--dsw-alias-label-primary)',
   color: 'var(--dsw-alias-bg-layer-3)',
 }
+/** Compact button style. */
 export const compactButtonStyle: CSSProperties = {
   ...buttonStyle,
   padding: '3px 10px',
@@ -158,17 +175,9 @@ export const footerStyle: CSSProperties = {
   justifyContent: 'flex-end',
   gap: 8,
 }
+/** Error style. */
 export const errorStyle: CSSProperties = { ...bodyStyle, color: 'var(--dsw-alias-state-error-primary)' }
-export const successStyle: CSSProperties = { ...bodyStyle, color: 'var(--dsw-alias-state-success-primary, #22a06b)' }
-export const warningStyle: CSSProperties = {
-  ...bodyStyle,
-  padding: '10px 12px',
-  borderRadius: 8,
-  border: '1px solid color-mix(in srgb, var(--dsw-alias-state-warn-primary, #e06c00) 35%, transparent)',
-  background: 'color-mix(in srgb, var(--dsw-alias-state-warn-primary, #e06c00) 10%, transparent)',
-  color: 'var(--dsw-alias-label-primary)',
-}
-export const tipStyle: CSSProperties = {
+const tipStyle: CSSProperties = {
   ...bodyStyle,
   padding: '10px 12px',
   borderRadius: 8,
@@ -176,10 +185,12 @@ export const tipStyle: CSSProperties = {
   background: 'var(--dsw-alias-bg-layer-1)',
   color: 'var(--dsw-alias-label-primary)',
 }
+/** Notice style. */
 export const noticeStyle: CSSProperties = {
   ...tipStyle,
   animation: 'dsh-coding-oauth-fade-in 0.2s ease',
 }
+/** Code style. */
 export const codeStyle: CSSProperties = {
   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
   fontSize: 20,
@@ -187,36 +198,9 @@ export const codeStyle: CSSProperties = {
   fontWeight: 600,
   color: 'var(--dsw-alias-label-primary)',
 }
-export const monoStyle: CSSProperties = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }
-export const snippetStyle: CSSProperties = {
-  ...monoStyle,
-  display: 'block',
-  fontSize: 12,
-  lineHeight: '18px',
-  padding: '10px 12px',
-  borderRadius: 8,
-  border: '1px solid var(--dsw-alias-border-l2)',
-  background: 'var(--dsw-alias-bg-layer-1)',
-  color: 'var(--dsw-alias-label-primary)',
-  overflowWrap: 'anywhere',
-  whiteSpace: 'pre-wrap',
-}
+/** Link style. */
 export const linkStyle: CSSProperties = { color: 'var(--dsw-alias-brand-primary)', wordBreak: 'break-all' }
-export const listStyle: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 8,
-  margin: 0,
-  padding: 0,
-  listStyle: 'none',
-}
-export const checkRowStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'flex-start',
-  gap: 8,
-  fontSize: 14,
-  color: 'var(--dsw-alias-label-primary)',
-}
+/** Input style. */
 export const inputStyle: CSSProperties = {
   boxSizing: 'border-box',
   width: '100%',
@@ -239,7 +223,9 @@ export const nestedStyle: CSSProperties = {
   border: HAIRLINE_BORDER,
   borderRadius: 12,
 }
+/** Hint style. */
 export const hintStyle: CSSProperties = { ...bodyStyle, fontSize: 12, lineHeight: 1.5 }
+/** Visually hidden style. */
 export const visuallyHiddenStyle: CSSProperties = {
   position: 'absolute',
   width: 1,
@@ -247,54 +233,25 @@ export const visuallyHiddenStyle: CSSProperties = {
   padding: 0,
   margin: -1,
   overflow: 'hidden',
-  clip: 'rect(0, 0, 0, 0)',
+  // `clip-path` is the modern equivalent of the deprecated `clip: rect(0, 0, 0, 0)`.
+  clipPath: 'inset(50%)',
   whiteSpace: 'nowrap',
   border: 0,
 }
-export const segmentedNavStyle: CSSProperties = {
-  display: 'inline-flex',
-  flexWrap: 'wrap',
-  gap: 2,
-  padding: 3,
-  borderRadius: 10,
-  border: '1px solid var(--dsw-alias-border-l2)',
-  background: 'var(--dsw-alias-bg-layer-1)',
-}
-export const segmentedTabStyle: CSSProperties = {
-  ...buttonStyle,
-  border: 'none',
-  borderRadius: 8,
-  boxShadow: 'none',
-  background: 'transparent',
-  minHeight: 32,
-  padding: '5px 12px',
-  fontSize: 13,
-}
-export const segmentedTabActiveStyle: CSSProperties = {
-  ...segmentedTabStyle,
-  background: 'var(--dsw-alias-bg-module-platform)',
-  color: 'var(--dsw-alias-label-primary)',
-  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.12)',
-  fontWeight: 600,
-}
+/** Panel style. */
 export const panelStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: 14,
   minWidth: 0,
 }
+/** Account grid style. */
 export const accountGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))',
   gap: 14,
 }
-export const copyRowStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  flexWrap: 'wrap',
-  gap: 8,
-}
+/** Skeleton style. */
 export const skeletonStyle: CSSProperties = {
   ...cardStyle,
   minHeight: 88,
@@ -303,6 +260,7 @@ export const skeletonStyle: CSSProperties = {
   backgroundSize: '200% 100%',
   animation: 'dsh-coding-oauth-skeleton-pulse 1.4s ease-in-out infinite',
 }
+/** Step row style. */
 export const stepRowStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'flex-start',
@@ -310,11 +268,13 @@ export const stepRowStyle: CSSProperties = {
   fontSize: 14,
   color: 'var(--dsw-alias-label-secondary)',
 }
+/** Step active style. */
 export const stepActiveStyle: CSSProperties = {
   ...stepRowStyle,
   color: 'var(--dsw-alias-label-primary)',
   fontWeight: 500,
 }
+/** Step number style. */
 export const stepNumberStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -326,9 +286,14 @@ export const stepNumberStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 600,
   background: 'var(--dsw-alias-bg-layer-1)',
-  border: '1px solid var(--dsw-alias-border-l2)',
+  // Longhands, for the same reason as cardStyle: stepNumberActiveStyle
+  // overrides borderColor, and a shorthand/longhand pair cannot be diffed.
+  borderWidth: 1,
+  borderStyle: 'solid',
+  borderColor: 'var(--dsw-alias-border-l2)',
   color: 'var(--dsw-alias-label-secondary)',
 }
+/** Step number active style. */
 export const stepNumberActiveStyle: CSSProperties = {
   ...stepNumberStyle,
   background: 'var(--dsw-alias-button-primary-fill)',
@@ -336,8 +301,14 @@ export const stepNumberActiveStyle: CSSProperties = {
   color: 'var(--dsw-alias-label-primary-foreground)',
 }
 
+/** Status tone. */
 export type StatusTone = 'success' | 'error' | 'warning' | 'info' | 'neutral'
 
+/**
+ * Status tone color.
+ * @param tone - Tone value.
+ * @returns The status tone color.
+ */
 export function statusToneColor(tone: StatusTone): string {
   switch (tone) {
     case 'success':
@@ -357,6 +328,11 @@ export function statusToneColor(tone: StatusTone): string {
   }
 }
 
+/**
+ * Badge style.
+ * @param tone - Tone value.
+ * @returns The resulting badge style.
+ */
 export function badgeStyle(tone: StatusTone): CSSProperties {
   const color = statusToneColor(tone)
   return {
@@ -375,6 +351,12 @@ export function badgeStyle(tone: StatusTone): CSSProperties {
   }
 }
 
+/**
+ * Dot style.
+ * @param status - Status value.
+ * @param installed - Installed value.
+ * @returns The resulting dot style.
+ */
 export function dotStyle(
   status: ProviderStatus['status'] | 'loading' | 'available' | 'unavailable',
   installed = true,
@@ -391,6 +373,12 @@ export function dotStyle(
   return { width: 9, height: 9, borderRadius: '50%', flex: '0 0 auto', background: color }
 }
 
+/**
+ * Provider status tone.
+ * @param status - Status value.
+ * @param installed - Installed value.
+ * @returns The resulting provider status tone.
+ */
 export function providerStatusTone(status: ProviderStatus['status'], installed = true): StatusTone {
   if (!installed) return 'neutral'
   if (status === 'signed-in') return 'success'

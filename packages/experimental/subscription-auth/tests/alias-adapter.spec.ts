@@ -8,6 +8,11 @@ import type {
 import { LlmAdapter } from '@deepseek-ai/dsh-llm'
 import { describe, expect, it } from 'vitest'
 import { AliasLlmAdapter, normalizeReplayForRoute } from '../src/alias-adapter.ts'
+import {
+  SUBSCRIPTION_USAGE_PATH_PREFIX,
+  SUBSCRIPTION_USAGE_ROUTE,
+  subscriptionUsagePath,
+} from '../src/ids.ts'
 
 class FakeAdapter extends LlmAdapter {
   seenProvider: string | undefined
@@ -463,5 +468,71 @@ describe('AliasLlmAdapter', () => {
       type: 'finish',
       reason: { kind: 'error', failure: { code: 'AUTH' } },
     })
+  })
+
+  it('leaves a foreign message that carries no replay state untouched', () => {
+    const message = {
+      id: 'assistant-plain',
+      role: 'assistant',
+      content: [{ type: 'text', text: 'reply from another route' }],
+      source: { kind: 'model', provider: 'kimi-code-oauth', model: 'k3' },
+    } as never as GenerateOptions['messages'][number]
+    expect(normalizeReplayForRoute(message, 'codex-oauth', 'openai-codex')).toBe(message)
+  })
+
+  it('restores the alias target when the route registers no replay provider', async () => {
+    const inner = new FakeAdapter()
+    const adapter = new AliasLlmAdapter(
+      inner,
+      new Map([['codex-oauth', 'openai-codex']]),
+      new Map(),
+      new Map(),
+    )
+    const replayState = { response: { provider: 'openai-codex', model: 'gpt' } }
+    for await (const _chunk of adapter.stream({
+      provider: 'codex-oauth',
+      model: 'gpt',
+      messages: [
+        {
+          id: 'assistant-replay',
+          role: 'assistant',
+          content: [{ type: 'text', text: 'done' }],
+          source: { kind: 'model', provider: 'codex-oauth', model: 'gpt', replayState },
+        },
+      ],
+    } as never)) {
+      // Drain the empty fake stream.
+    }
+    expect(inner.seenProvider).toBe('openai-codex')
+    expect(inner.seenOptions?.messages[0]?.source).toMatchObject({ provider: 'openai-codex', replayState })
+  })
+
+  it('passes an AUTH finish through when the route registers no auth-failure hook', async () => {
+    const authFailure: StreamChunk = {
+      type: 'finish',
+      reason: { kind: 'error', failure: { message: '401 authentication_error', code: 'AUTH' } },
+    }
+    const adapter = new AliasLlmAdapter(
+      new FakeAdapter([authFailure]),
+      new Map([['codex-oauth', 'openai-codex']]),
+      new Map([['codex-oauth', { displayName: 'OpenAI Codex' }]]),
+    )
+    const seen: StreamChunk[] = []
+    for await (const chunk of adapter.stream({ provider: 'codex-oauth', model: 'gpt', messages: [] })) {
+      seen.push(chunk)
+    }
+    expect(seen).toEqual([authFailure])
+  })
+})
+
+describe('subscriptionUsagePath', () => {
+  it('builds the same-origin usage path the Settings client requests', () => {
+    expect(SUBSCRIPTION_USAGE_PATH_PREFIX).toBe('/plugins/dsh-grok-build/usage/')
+    expect(subscriptionUsagePath('codex')).toBe(`${SUBSCRIPTION_USAGE_PATH_PREFIX}codex`)
+    expect(subscriptionUsagePath('claude')).toBe('/plugins/dsh-grok-build/usage/claude')
+    // The registered route deliberately has no trailing slash, so the built path
+    // extends the route instead of doubling the separator.
+    expect(SUBSCRIPTION_USAGE_ROUTE.endsWith('/')).toBe(false)
+    expect(subscriptionUsagePath('grok')).toBe(`${SUBSCRIPTION_USAGE_ROUTE}/grok`)
   })
 })

@@ -3,15 +3,27 @@ import { createHash } from 'node:crypto'
 import type { Server } from 'node:http'
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { describe, expect, it } from 'vitest'
+import type { OAuthCredential } from '@earendil-works/pi-ai'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  buildAuthorizeUrl,
   discoverOAuthEndpoints,
   extractCode,
+  GROK_BUILD_OAUTH_CLIENT_ID,
+  GROK_BUILD_OAUTH_DEFAULT_PORT,
+  GROK_BUILD_OAUTH_ISSUER,
+  GROK_BUILD_OAUTH_SCOPE,
   GrokBuildOAuthError,
   generatePkce,
   loginGrokBuildPkce,
+  type PkceLoginCallbacks,
   refreshGrokBuildToken,
+  resolveOAuthParams,
 } from '../src/oauth.ts'
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 interface MockIdP {
   issuer: string
@@ -266,6 +278,58 @@ describe('loginGrokBuildPkce', () => {
       await idp.close()
     }
   })
+
+  it('rejects with the authorization error when the redirect carries one', async () => {
+    const idp = await startMockIdP()
+    try {
+      const url = urlSignal()
+      const login = loginGrokBuildPkce(
+        { onAuthorizeUrl: (value) =>{  url.deliver(value) } },
+        { issuer: idp.issuer, clientId: 'test-client', port: 0, allowInsecureLoopbackIssuer: true },
+      )
+      const outcome = login.then(
+        () => ({ ok: true as const }),
+        (error: unknown) => ({ ok: false as const, error }),
+      )
+      const authorizeUrl = new URL(await url.promise)
+      const callback = new URL(authorizeUrl.searchParams.get('redirect_uri')!)
+      const page = await fetch(`${callback.href}?error=access_denied`)
+      expect(page.status).toBe(400)
+      const result = await outcome
+      expect(result.ok).toBe(false)
+      expect(!result.ok && result.error).toMatchObject({ code: 'token_exchange' })
+      expect(!result.ok && (result.error as Error).message).toContain('access_denied')
+    } finally {
+      await idp.close()
+    }
+  })
+
+  it('reports a cancelled login when the caller aborts', async () => {
+    const idp = await startMockIdP()
+    try {
+      const controller = new AbortController()
+      const url = urlSignal()
+      const login = loginGrokBuildPkce(
+        { onAuthorizeUrl: (value) =>{  url.deliver(value) }, signal: controller.signal },
+        { issuer: idp.issuer, clientId: 'test-client', port: 0, allowInsecureLoopbackIssuer: true },
+      )
+      // The loopback listener is bound once the authorize URL reaches the caller.
+      await url.promise
+      controller.abort()
+      await expect(login).rejects.toThrow(/login was cancelled/u)
+    } finally {
+      await idp.close()
+    }
+  })
+
+  it('requires HTTPS when the loopback override is not requested', async () => {
+    await expect(
+      loginGrokBuildPkce(
+        { onAuthorizeUrl: () => {} },
+        { issuer: 'http://127.0.0.1:56121', clientId: 'test-client', port: 0 },
+      ),
+    ).rejects.toMatchObject({ code: 'discovery' })
+  })
 })
 
 describe('refreshGrokBuildToken', () => {
@@ -494,5 +558,491 @@ describe('extractCode hardening', () => {
   it('extracts a code up to the ceiling', () => {
     const ok = 'a'.repeat(1024)
     expect(extractCode(`http://127.0.0.1:56121/callback?code=${ok}`)).toBe(ok)
+  })
+
+  it('returns an empty paste unchanged and keeps a code-less URL intact', () => {
+    expect(extractCode('   ')).toBe('')
+    expect(extractCode('http://127.0.0.1:56121/callback?state=s')).toBe('http://127.0.0.1:56121/callback?state=s')
+  })
+})
+
+describe('resolveOAuthParams', () => {
+  const ENV_KEYS = [
+    'GROK_OAUTH2_ISSUER',
+    'GROK_OAUTH2_CLIENT_ID',
+    'GROK_OAUTH2_SCOPES',
+    'GROK_OAUTH2_PORT',
+    'GROK_OAUTH2_REFERRER',
+  ]
+  const saved = new Map<string, string | undefined>()
+
+  function clearEnvironment(): void {
+    delete process.env.GROK_OAUTH2_ISSUER
+    delete process.env.GROK_OAUTH2_CLIENT_ID
+    delete process.env.GROK_OAUTH2_SCOPES
+    delete process.env.GROK_OAUTH2_PORT
+    delete process.env.GROK_OAUTH2_REFERRER
+  }
+
+  beforeEach(() => {
+    for (const key of ENV_KEYS) saved.set(key, process.env[key])
+  })
+
+  afterEach(() => {
+    clearEnvironment()
+    for (const key of ENV_KEYS) {
+      const value = saved.get(key)
+      if (value !== undefined) process.env[key] = value
+    }
+  })
+
+  it('falls back to the documented Grok Build defaults', () => {
+    clearEnvironment()
+    expect(resolveOAuthParams()).toEqual({
+      issuer: GROK_BUILD_OAUTH_ISSUER,
+      clientId: GROK_BUILD_OAUTH_CLIENT_ID,
+      scope: GROK_BUILD_OAUTH_SCOPE,
+      port: GROK_BUILD_OAUTH_DEFAULT_PORT,
+    })
+  })
+
+  it('reads every override from the GROK_OAUTH2_* environment', () => {
+    process.env['GROK_OAUTH2_ISSUER'] = 'https://issuer.example'
+    process.env['GROK_OAUTH2_CLIENT_ID'] = 'env-client'
+    process.env['GROK_OAUTH2_SCOPES'] = 'openid'
+    process.env['GROK_OAUTH2_PORT'] = '12345'
+    process.env['GROK_OAUTH2_REFERRER'] = 'env-referrer'
+    expect(resolveOAuthParams()).toEqual({
+      issuer: 'https://issuer.example',
+      clientId: 'env-client',
+      scope: 'openid',
+      port: 12345,
+      referrer: 'env-referrer',
+    })
+  })
+
+  it('prefers an explicit override over the environment, referrer included', () => {
+    process.env['GROK_OAUTH2_ISSUER'] = 'https://issuer.example'
+    process.env['GROK_OAUTH2_REFERRER'] = 'env-referrer'
+    expect(resolveOAuthParams({ issuer: 'https://other.example', referrer: 'explicit-referrer' })).toMatchObject({
+      issuer: 'https://other.example',
+      referrer: 'explicit-referrer',
+    })
+    expect(resolveOAuthParams({ port: 0, scope: 'openid profile' })).toMatchObject({
+      scope: 'openid profile',
+      port: 0,
+      referrer: 'env-referrer',
+    })
+  })
+})
+
+describe('buildAuthorizeUrl', () => {
+  const params = {
+    issuer: GROK_BUILD_OAUTH_ISSUER,
+    clientId: 'test-client',
+    scope: 'openid grok-cli:access',
+    port: GROK_BUILD_OAUTH_DEFAULT_PORT,
+  }
+  const endpoints = {
+    issuer: GROK_BUILD_OAUTH_ISSUER,
+    authorization_endpoint: `${GROK_BUILD_OAUTH_ISSUER}/oauth2/authorize`,
+    token_endpoint: `${GROK_BUILD_OAUTH_ISSUER}/oauth2/token`,
+  }
+
+  it('carries the PKCE, state and nonce parameters plus the optional referrer', () => {
+    const url = new URL(
+      buildAuthorizeUrl(
+        endpoints,
+        { ...params, referrer: 'xai-cli' },
+        'http://127.0.0.1:56121/callback',
+        'challenge-value',
+        'state-value',
+        'nonce-value',
+      ),
+    )
+    expect(url.origin).toBe(GROK_BUILD_OAUTH_ISSUER)
+    expect(url.pathname).toBe('/oauth2/authorize')
+    for (const [key, value] of [
+      ['response_type', 'code'],
+      ['client_id', 'test-client'],
+      ['redirect_uri', 'http://127.0.0.1:56121/callback'],
+      ['scope', 'openid grok-cli:access'],
+      ['code_challenge', 'challenge-value'],
+      ['code_challenge_method', 'S256'],
+      ['state', 'state-value'],
+      ['nonce', 'nonce-value'],
+      ['referrer', 'xai-cli'],
+    ]) {
+      expect(url.searchParams.get(key!)).toBe(value)
+    }
+  })
+
+  it('omits the referrer when the parameters do not carry one', () => {
+    const url = new URL(buildAuthorizeUrl(endpoints, params, 'http://127.0.0.1:56121/callback', 'c', 's', 'n'))
+    expect(url.searchParams.has('referrer')).toBe(false)
+  })
+})
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
+}
+
+let stubbedIssuerPort = 43_000
+
+/**
+ * Serve OIDC discovery and the token endpoint from a stubbed fetch, so every
+ * hostile-document and hostile-response case is reachable without a listening
+ * IdP. Loopback traffic still uses the real network.
+ */
+function stubIdp(
+  options: {
+    document?: (issuer: string) => Record<string, unknown>
+    rawDiscovery?: { body: string; status?: number }
+    discoveryResponse?: () => unknown
+    token?: () => unknown
+  } = {},
+): { issuer: string; calls: () => number } {
+  stubbedIssuerPort += 1
+  const issuer = `http://127.0.0.1:${String(stubbedIssuerPort)}`
+  const realFetch = globalThis.fetch
+  let calls = 0
+  vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+    if (url.endsWith('/.well-known/openid-configuration')) {
+      calls += 1
+      if (options.discoveryResponse !== undefined) return options.discoveryResponse()
+      if (options.rawDiscovery !== undefined) {
+        return new Response(options.rawDiscovery.body, { status: options.rawDiscovery.status ?? 200 })
+      }
+      return jsonResponse({
+        issuer,
+        authorization_endpoint: `${issuer}/oauth2/authorize`,
+        token_endpoint: `${issuer}/oauth2/token`,
+        ...options.document?.(issuer),
+      })
+    }
+    if (url.endsWith('/oauth2/token')) return await options.token?.()
+    return await realFetch(input, init)
+  })
+  return { issuer, calls: () => calls }
+}
+
+function discoverFrom(idp: { issuer: string }): Promise<{ token_endpoint: string }> {
+  return discoverOAuthEndpoints(idp.issuer, undefined, { allowInsecureLoopbackIssuer: true })
+}
+
+describe('discovery document validation', () => {
+  it('rejects a configured issuer that is not a URL', async () => {
+    await expect(discoverOAuthEndpoints('not a url')).rejects.toMatchObject({ code: 'discovery' })
+  })
+
+  it('reports the loopback override as ignored for a non-loopback host', async () => {
+    await expect(
+      discoverOAuthEndpoints('http://auth.evil.example', undefined, { allowInsecureLoopbackIssuer: true }),
+    ).rejects.toThrow(/loopback test override ignored/u)
+  })
+
+  it('rejects the approved origin when it carries a path', async () => {
+    await expect(discoverOAuthEndpoints(`${GROK_BUILD_OAUTH_ISSUER}/oauth`)).rejects.toThrow(
+      /origin URL without userinfo or path/u,
+    )
+  })
+
+  it('serves a repeated discovery read from the process cache', async () => {
+    const idp = stubIdp()
+    const first = await discoverFrom(idp)
+    expect(idp.calls()).toBe(1)
+    const second = await discoverFrom(idp)
+    expect(second).toEqual(first)
+    expect(idp.calls()).toBe(1)
+  })
+
+  it('rejects a discovery document that is not JSON', async () => {
+    const idp = stubIdp({ rawDiscovery: { body: 'not json' } })
+    await expect(discoverFrom(idp)).rejects.toThrow(/invalid JSON/u)
+  })
+
+  it('rejects a discovery document served with an error status', async () => {
+    const idp = stubIdp({ rawDiscovery: { body: '{"issuer":"x"}', status: 503 } })
+    await expect(discoverFrom(idp)).rejects.toThrow(/discovery failed \(HTTP 503\)/u)
+  })
+
+  it('reports an unreachable discovery endpoint', async () => {
+    const idp = stubIdp({
+      discoveryResponse: () => {
+        throw new Error('ECONNREFUSED')
+      },
+    })
+    await expect(discoverFrom(idp)).rejects.toThrow(/is unreachable/u)
+  })
+
+  it('rejects a discovery document without OAuth endpoints', async () => {
+    const idp = stubIdp({ document: () => ({ authorization_endpoint: undefined, token_endpoint: undefined }) })
+    await expect(discoverFrom(idp)).rejects.toThrow(/lacks OAuth endpoints/u)
+  })
+
+  it('rejects a discovery endpoint that is not a URL', async () => {
+    const idp = stubIdp({ document: () => ({ authorization_endpoint: 'nope' }) })
+    await expect(discoverFrom(idp)).rejects.toThrow(/authorization_endpoint is not a valid URL/u)
+  })
+
+  it('requires HTTPS for a discovery endpoint, and never trusts a foreign host', async () => {
+    const idp = stubIdp({ document: () => ({ authorization_endpoint: 'http://other.example/authorize' }) })
+    await expect(discoverFrom(idp)).rejects.toThrow(/authorization_endpoint must use HTTPS/u)
+  })
+
+  it('rejects a discovery endpoint carrying userinfo on the issuer origin', async () => {
+    const idp = stubIdp({
+      document: issuer => ({
+        authorization_endpoint: `${issuer.replace('http://', 'http://consent:secret@')}/authorize`,
+      }),
+    })
+    await expect(discoverFrom(idp)).rejects.toThrow(/authorization_endpoint must not carry userinfo/u)
+  })
+
+  it('rejects a discovery endpoint that escaped the approved issuer origin', async () => {
+    const idp = stubIdp({ document: () => ({ token_endpoint: 'https://other.example/token' }) })
+    await expect(discoverFrom(idp)).rejects.toThrow(/token_endpoint escaped the approved issuer origin/u)
+  })
+
+  it('rejects a discovery body that declares more than 64 KiB even when cancel() fails', async () => {
+    const idp = stubIdp({
+      discoveryResponse: () => ({
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-length': String(70 * 1024) }),
+        body: {
+          cancel: async () => {
+            throw new Error('cancel failed')
+          },
+        },
+      }),
+    })
+    await expect(discoverFrom(idp)).rejects.toThrow(/exceeds 65536 bytes/u)
+  })
+
+  it('rejects a discovery response without a body', async () => {
+    const idp = stubIdp({
+      discoveryResponse: () => ({ ok: true, status: 200, headers: new Headers(), body: null }),
+    })
+    await expect(discoverFrom(idp)).rejects.toThrow(/returned no body/u)
+  })
+
+  it('skips an empty chunk and refuses a discovery body that streams past 64 KiB', async () => {
+    let reads = 0
+    const idp = stubIdp({
+      discoveryResponse: () => ({
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        body: {
+          getReader: () => ({
+            read: async () => {
+              reads += 1
+              if (reads === 1) return { value: undefined, done: false }
+              return { value: new Uint8Array(70 * 1024), done: false }
+            },
+            cancel: async () => {
+              throw new Error('cancel failed')
+            },
+            releaseLock: () => undefined,
+          }),
+        },
+      }),
+    })
+    await expect(discoverFrom(idp)).rejects.toThrow(/exceeds 65536 bytes/u)
+  })
+})
+
+describe('token endpoint failures', () => {
+  function refresh(idp: { issuer: string }, signal?: AbortSignal): Promise<OAuthCredential> {
+    return refreshGrokBuildToken('old-refresh', { issuer: idp.issuer, clientId: 'test-client' }, signal, {
+      allowInsecureLoopbackIssuer: true,
+    })
+  }
+
+  it('rejects a token response without an access token', async () => {
+    const idp = stubIdp({ token: () => jsonResponse({ refresh_token: 'rotated' }) })
+    await expect(refresh(idp)).rejects.toThrow(/missing access_token/u)
+  })
+
+  it('rejects a token endpoint body that is not JSON', async () => {
+    const idp = stubIdp({ token: () => new Response('not json', { status: 200 }) })
+    await expect(refresh(idp)).rejects.toThrow(/invalid JSON \(HTTP 200\)/u)
+  })
+
+  it('reports the issuer error and description from a rejected token request', async () => {
+    const idp = stubIdp({
+      token: () => jsonResponse({ error: 'invalid_grant', error_description: 'refresh token revoked' }, 400),
+    })
+    await expect(refresh(idp)).rejects.toThrow(/invalid_grant\): refresh token revoked/u)
+  })
+
+  it('falls back to the HTTP status when the rejection carries no error field', async () => {
+    const idp = stubIdp({ token: () => jsonResponse({}, 500) })
+    await expect(refresh(idp)).rejects.toThrow(/HTTP 500/u)
+  })
+
+  it('reports an unreachable token endpoint', async () => {
+    const idp = stubIdp({
+      token: () => {
+        throw new Error('ECONNREFUSED')
+      },
+    })
+    await expect(refresh(idp)).rejects.toThrow(/token endpoint is unreachable/u)
+  })
+
+  it('reports a cancelled token request', async () => {
+    const idp = stubIdp({
+      token: () => {
+        throw new Error('aborted')
+      },
+    })
+    const controller = new AbortController()
+    controller.abort()
+    await expect(refresh(idp, controller.signal)).rejects.toMatchObject({ code: 'cancelled' })
+  })
+
+  it('rejects an oversized token response even when cancel() fails', async () => {
+    const idp = stubIdp({
+      token: () => ({
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-length': String(70 * 1024) }),
+        body: {
+          cancel: async () => {
+            throw new Error('cancel failed')
+          },
+        },
+      }),
+    })
+    await expect(refresh(idp)).rejects.toThrow(/size limit/u)
+  })
+
+  it('rejects a token response without a body', async () => {
+    const idp = stubIdp({ token: () => ({ ok: true, status: 200, headers: new Headers(), body: null }) })
+    await expect(refresh(idp)).rejects.toThrow(/returned no body/u)
+  })
+
+  it('reads a bounded discovery and token response that advertise their own length', async () => {
+    let issuer = ''
+    const server: Server = createServer((req, res) => {
+      const url = new URL(req.url ?? '/', 'http://127.0.0.1')
+      const body =
+        url.pathname === '/.well-known/openid-configuration'
+          ? JSON.stringify({
+            issuer,
+            authorization_endpoint: `${issuer}/oauth2/authorize`,
+            token_endpoint: `${issuer}/oauth2/token`,
+          })
+          : JSON.stringify({ access_token: 'sized-access', refresh_token: 'sized-refresh', expires_in: 60 })
+      res
+        .writeHead(200, {
+          'content-type': 'application/json',
+          // A declared length the reader accepts, unlike the chunked mock IdP.
+          'content-length': String(Buffer.byteLength(body, 'utf8')),
+        })
+        .end(body)
+    })
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+    issuer = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`
+    try {
+      await expect(
+        refreshGrokBuildToken('old-refresh', { issuer, clientId: 'test-client' }, undefined, {
+          allowInsecureLoopbackIssuer: true,
+        }),
+      ).resolves.toMatchObject({ type: 'oauth', access: 'sized-access', refresh: 'sized-refresh' })
+    } finally {
+      await new Promise<void>(resolve => server.close(() =>{  resolve() }))
+    }
+  })
+
+  it('skips an empty chunk and refuses a token body that streams past 64 KiB', async () => {
+    let reads = 0
+    const idp = stubIdp({
+      token: () => ({
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        body: {
+          getReader: () => ({
+            read: async () => {
+              reads += 1
+              if (reads === 1) return { value: undefined, done: false }
+              return { value: new Uint8Array(70 * 1024), done: false }
+            },
+            cancel: async () => {
+              throw new Error('cancel failed')
+            },
+            releaseLock: () => undefined,
+          }),
+        },
+      }),
+    })
+    await expect(refresh(idp)).rejects.toThrow(/size limit/u)
+  })
+})
+
+/** Run a full PKCE login against a stubbed IdP, delivering the code to the loopback. */
+async function loginViaStub(
+  idp: { issuer: string },
+  callbacks: Partial<PkceLoginCallbacks> = {},
+): Promise<{ ok: true; value: OAuthCredential } | { ok: false; error: unknown }> {
+  const url = urlSignal()
+  const pending = loginGrokBuildPkce(
+    { onAuthorizeUrl: (value) =>{  url.deliver(value) }, ...callbacks },
+    { issuer: idp.issuer, clientId: 'test-client', port: 0, allowInsecureLoopbackIssuer: true },
+  )
+  // Attach the handler up front so a mid-test rejection is never unhandled.
+  const outcome = pending.then(
+    (value: OAuthCredential) => ({ ok: true as const, value }),
+    (error: unknown) => ({ ok: false as const, error }),
+  )
+  const authorizeUrl = new URL(await url.promise)
+  const callback = new URL(authorizeUrl.searchParams.get('redirect_uri')!)
+  const state = authorizeUrl.searchParams.get('state')!
+  const page = await fetch(`${callback.href}?code=auth-code&state=${state}`)
+  expect(page.status).toBe(200)
+  return await outcome
+}
+
+describe('loopback listener binding', () => {
+  it('reports a bind failure that never reaches the listening state', async () => {
+    const idp = stubIdp()
+    await expect(
+      loginGrokBuildPkce(
+        { onAuthorizeUrl: () => {} },
+        { issuer: idp.issuer, clientId: 'test-client', port: 70_000, allowInsecureLoopbackIssuer: true },
+      ),
+    ).rejects.toThrow(/could not bind a loopback listener near port 70000/u)
+  })
+})
+
+describe('code grant on the login path', () => {
+  it('defaults the lifetime when the issuer omits expires_in', async () => {
+    const idp = stubIdp({ token: () => jsonResponse({ access_token: 'fresh', refresh_token: 'rotated' }) })
+    const before = Date.now()
+    const outcome = await loginViaStub(idp)
+    expect(outcome.ok).toBe(true)
+    if (!outcome.ok) throw outcome.error
+    expect(outcome.value).toMatchObject({ type: 'oauth', access: 'fresh', refresh: 'rotated' })
+    expect(outcome.value.expires).toBeGreaterThanOrEqual(before + 3_600_000)
+    expect(outcome.value.expires).toBeLessThan(before + 3_601_000)
+  })
+
+  it('rejects a fresh login whose token response carries no refresh token', async () => {
+    const idp = stubIdp({ token: () => jsonResponse({ access_token: 'fresh' }) })
+    const outcome = await loginViaStub(idp)
+    expect(outcome.ok).toBe(false)
+    expect(!outcome.ok && (outcome.error as Error).message).toMatch(/missing refresh_token/u)
+  })
+
+  it('keeps waiting for the loopback when the paste channel yields nothing', async () => {
+    const idp = stubIdp({
+      token: () => jsonResponse({ access_token: 'fresh', refresh_token: 'rotated', expires_in: 60 }),
+    })
+    const outcome = await loginViaStub(idp, { awaitCode: async () => undefined })
+    expect(outcome.ok).toBe(true)
+    expect(outcome.ok && outcome.value).toMatchObject({ access: 'fresh', refresh: 'rotated' })
   })
 })

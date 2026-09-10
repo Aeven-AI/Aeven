@@ -40,7 +40,11 @@ function redactOpaqueTokens(input: string): string {
   return output
 }
 
-/** Strip userinfo from a proxy URL so CLI/logs never print `user:pass@`. */
+/**
+ * Strip userinfo from a proxy URL so CLI/logs never print `user:pass@`.
+ * @param value - Value to process.
+ * @returns The resulting redact proxy url.
+ */
 export function redactProxyUrl(value: string): string {
   try {
     const parsed = new URL(value)
@@ -55,6 +59,11 @@ export function redactProxyUrl(value: string): string {
   }
 }
 
+/**
+ * Return a safe safe message.
+ * @param error - Error value.
+ * @returns The resulting safe message.
+ */
 export function safeMessage(error: unknown): string {
   let text = (error instanceof Error ? error.message : String(error))
     .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/gu, '[redacted token]')

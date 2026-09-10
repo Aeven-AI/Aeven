@@ -1,41 +1,24 @@
 /** Same-origin JSON helpers for the Coding OAuth plugin HTTP API. */
 
-import { CONSUMED_PREVIEW_CODES, SOURCES_CANCEL_PATH } from './constants.ts'
 import type { PluginRequestError } from './types.ts'
 
+/**
+ * Narrow to a plain object record.
+ * @param value - any parsed JSON value.
+ * @returns true for a non-null, non-array object.
+ */
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-export function isPluginRequestError(error: unknown): error is PluginRequestError {
-  return error instanceof Error && error.name === 'PluginRequestError' && 'status' in error
-}
-
-export function isConflictError(error: unknown): boolean {
-  if (!isPluginRequestError(error)) {
-    return (
-      error instanceof Error && /SETTINGS_CONFLICT|settings-conflict|changed since it was read/iu.test(error.message)
-    )
-  }
-  return error.status === 409 || error.code === 'SETTINGS_CONFLICT' || /conflict/iu.test(error.message)
-}
-
-export function isConsumedPreviewError(error: unknown): boolean {
-  if (!isPluginRequestError(error)) return false
-  if (error.code !== undefined && CONSUMED_PREVIEW_CODES.has(error.code)) return true
-  return error.status === 404 || error.status === 410
-}
-
-export function cancelPreviewTicket(previewId: string, keepalive = false): void {
-  void fetch(SOURCES_CANCEL_PATH, {
-    method: 'POST',
-    headers: { accept: 'application/json', 'content-type': 'application/json' },
-    credentials: 'same-origin',
-    body: JSON.stringify({ previewId }),
-    ...(keepalive ? { keepalive: true } : {}),
-  }).catch(() => undefined)
-}
-
+/**
+ * Send one same-origin JSON request to the plugin API.
+ * @param path - the plugin route to call.
+ * @param method - the HTTP method.
+ * @param body - JSON body to send; omitted for a bodiless request.
+ * @returns the parsed response body, typed by the caller.
+ * @throws PluginRequestError carrying the Host's `error` or `message` text, the status, and any `code`.
+ */
 export async function jsonRequest<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
   const response = await fetch(path, {
     method,
@@ -62,8 +45,14 @@ export async function jsonRequest<T>(path: string, method = 'GET', body?: unknow
   return value as T
 }
 
+/**
+ * Copy text to the clipboard, falling back to `execCommand` where the async clipboard is unavailable.
+ * @param text - the text to copy.
+ * @returns whether the copy succeeded.
+ */
 export async function copyText(text: string): Promise<boolean> {
   try {
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- some runtimes omit clipboard
     if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText !== undefined) {
       await navigator.clipboard.writeText(text)
       return true
@@ -79,6 +68,7 @@ export async function copyText(text: string): Promise<boolean> {
     area.style.left = '-9999px'
     document.body.appendChild(area)
     area.select()
+    // oxlint-disable-next-line typescript/no-deprecated -- deliberate legacy fallback for browsers without the async clipboard API
     const ok = document.execCommand('copy')
     document.body.removeChild(area)
     return ok

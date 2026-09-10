@@ -141,6 +141,7 @@ function UsageBreakdown({
   pool: UsageWindowView | undefined
   t: UsageSectionProps['t']
 }) {
+  /* v8 ignore next -- the clamp caps the index at the last element, so the lookup is never nullish */
   const fill = (index: number): string => PRODUCT_FILLS[Math.min(index, PRODUCT_FILLS.length - 1)] ?? METER_TRACK
   return (
     <div style={blockStyle}>

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   assertCapabilitySettingsPatch,
   CAPABILITY_SETTINGS_BOUNDS,
@@ -14,6 +14,7 @@ import {
   type CapabilitySettingsSchemaType,
   type CapabilitySettingsScope,
   type CapabilitySettingsService,
+  type CapabilitySettingsSnapshot,
   capabilityFlags,
   capabilityLimits,
   createCapabilitySettingsController,
@@ -431,5 +432,342 @@ describe('capability settings schema', () => {
       code: 'SETTINGS_DISPOSED',
       reason: 'disposed',
     })
+  })
+})
+
+describe('capability settings serviceability guard', () => {
+  /** Reach the validator the controller hands to `settings.register()`. */
+  function captureValidator(): (value: CapabilitySettings) => void {
+    const captured: Array<(value: CapabilitySettings) => void> = []
+    const settings: CapabilitySettingsService = {
+      register: (_ns, _schema, options) => {
+        if (options?.validate !== undefined) captured.push(options.validate)
+        return {
+          get: () => undefined,
+          watch: () => () => undefined,
+          update: async () => undefined,
+          replace: async () => undefined,
+        }
+      },
+    }
+    createCapabilitySettingsController({ settings })
+    expect(captured).toHaveLength(1)
+    const [validate] = captured
+    if (validate === undefined) throw new Error('the controller did not hand a validator to register()')
+    return validate
+  }
+
+  it('rejects a resolved section whose flags could not be acted on', () => {
+    const validate = captureValidator()
+    expect(() => {
+      validate({ ...DEFAULT_CAPABILITY_SETTINGS, codexSearch: 'yes' } as unknown as CapabilitySettings)
+    }).toThrow('capability settings: codexSearch must be a boolean')
+    expect(() => {
+      validate({ ...DEFAULT_CAPABILITY_SETTINGS, codexFast: 1 } as unknown as CapabilitySettings)
+    }).toThrow('capability settings: codexFast must be a boolean')
+    expect(() => {
+      validate({ ...DEFAULT_CAPABILITY_SETTINGS })
+    }).not.toThrow()
+  })
+
+  it('rejects a resolved section whose limit is not an in-range integer', () => {
+    const validate = captureValidator()
+    for (const searchResults of [Number.NaN, 1.5, 0, 21]) {
+      expect(() => {
+        validate({ ...DEFAULT_CAPABILITY_SETTINGS, searchResults })
+      }).toThrow('capability settings: searchResults must be an integer in [1, 20]')
+    }
+    expect(() => {
+      validate({ ...DEFAULT_CAPABILITY_SETTINGS, searchResults: 20 })
+    }).not.toThrow()
+  })
+})
+
+describe('capability settings write surface', () => {
+  it('routes writes through the registered scope when the provider exposes no namespaced method', async () => {
+    const written: Array<{ mode: 'update' | 'replace'; patch: object }> = []
+    let stored: Record<string, unknown> = {}
+    const scope: CapabilitySettingsScope = {
+      get: () => ({ ...DEFAULT_CAPABILITY_SETTINGS, ...stored }),
+      watch: () => () => undefined,
+      update: async (patch) => {
+        written.push({ mode: 'update', patch })
+        stored = { ...stored, ...(patch as Record<string, unknown>) }
+      },
+      replace: async (section) => {
+        written.push({ mode: 'replace', patch: section })
+        stored = { ...(section as Record<string, unknown>) }
+      },
+    }
+    const controller = createCapabilitySettingsController({ settings: { register: () => scope } })
+    const initial = controller.snapshot()
+    expect(initial.writable).toBe(true)
+    expect(initial.value).toEqual(DEFAULT_CAPABILITY_SETTINGS)
+
+    const patched = await controller.patch({ codexSearch: true }, initial.revision)
+    expect(written).toEqual([{ mode: 'update', patch: { codexSearch: true } }])
+    expect(patched.value.codexSearch).toBe(true)
+    expect(patched.revision).toBe(initial.revision + 1)
+
+    const replaced = await controller.replace({ codexFast: true }, patched.revision)
+    expect(written[1]).toEqual({ mode: 'replace', patch: { codexFast: true } })
+    expect(replaced.value).toEqual({ ...DEFAULT_CAPABILITY_SETTINGS, codexFast: true })
+  })
+
+  it('reports read-only for the write mode a provider does not offer', async () => {
+    const replace = vi.fn(async () => undefined)
+    const controller = createCapabilitySettingsController({ settings: { writable: true, replace } })
+    const initial = controller.snapshot()
+    expect(initial.writable).toBe(true)
+
+    await expect(controller.patch({ codexSearch: true }, initial.revision)).rejects.toMatchObject({
+      name: 'CapabilitySettingsReadOnlyError',
+      code: 'SETTINGS_READ_ONLY',
+      reason: 'read-only',
+    })
+    expect(replace).not.toHaveBeenCalled()
+
+    const replaced = await controller.replace({ codexFast: true }, initial.revision)
+    expect(replace).toHaveBeenCalledWith(CAPABILITY_SETTINGS_NAMESPACE, { codexFast: true }, initial.revision)
+    expect(replaced.revision).toBe(initial.revision + 1)
+  })
+
+  it('reports read-only when the provider exposes no write surface at all', async () => {
+    const controller = createCapabilitySettingsController({ settings: { get: () => DEFAULT_CAPABILITY_SETTINGS } })
+    const initial = controller.snapshot()
+    expect(initial.writable).toBe(false)
+    await expect(controller.patch({ codexSearch: true }, initial.revision)).rejects.toMatchObject({
+      code: 'SETTINGS_READ_ONLY',
+      reason: 'read-only',
+    })
+  })
+
+  it('reports an absent provider rather than a read-only one', async () => {
+    const controller = createCapabilitySettingsController()
+    const initial = controller.snapshot()
+    expect(initial.writable).toBe(false)
+    expect(initial.value).toEqual(DEFAULT_CAPABILITY_SETTINGS)
+    await expect(controller.replace({ codexSearch: true }, initial.revision)).rejects.toMatchObject({
+      name: 'CapabilitySettingsReadOnlyError',
+      code: 'SETTINGS_PROVIDER_ABSENT',
+      reason: 'absent',
+      ns: CAPABILITY_SETTINGS_NAMESPACE,
+      message: expect.stringContaining('settings provider is absent') as string,
+    })
+  })
+})
+
+describe('capability settings conflict translation', () => {
+  async function rejectionFromWriter(thrown: unknown): Promise<unknown> {
+    const settings: CapabilitySettingsService = {
+      writable: true,
+      update: async () => {
+        throw thrown
+      },
+    }
+    const controller = createCapabilitySettingsController({ settings })
+    try {
+      await controller.patch({ codexSearch: true }, 0)
+    } catch (error: unknown) {
+      return error
+    }
+    throw new Error('the write was expected to fail')
+  }
+
+  it('rethrows a provider failure it cannot translate into a conflict', async () => {
+    const native = new CapabilitySettingsConflictError(3, 4)
+    expect(await rejectionFromWriter(native)).toBe(native)
+    expect(await rejectionFromWriter('provider offline')).toBe('provider offline')
+    expect(await rejectionFromWriter(null)).toBeNull()
+
+    const opaque = new Error('provider offline')
+    expect(await rejectionFromWriter(opaque)).toBe(opaque)
+
+    const codeOnly = { code: 'SETTINGS_CONFLICT' }
+    expect(await rejectionFromWriter(codeOnly)).toBe(codeOnly)
+
+    const halfRevisions = { code: 'SETTINGS_CONFLICT', expected: 1 }
+    expect(await rejectionFromWriter(halfRevisions)).toBe(halfRevisions)
+  })
+
+  it('translates a foreign SETTINGS_CONFLICT-shaped rejection into its own error', async () => {
+    const translated = await rejectionFromWriter({ code: 'SETTINGS_CONFLICT', expected: 2, actual: 5 })
+    expect(isCapabilitySettingsConflictError(translated)).toBe(true)
+    expect(translated).toMatchObject({ ns: CAPABILITY_SETTINGS_NAMESPACE, expected: 2, actual: 5 })
+  })
+})
+
+describe('capability settings provider describe pitfalls', () => {
+  it('ignores a describe() result that is not a list of descriptors', () => {
+    const controller = createCapabilitySettingsController({
+      settings: { describe: () => 'not-a-list' as unknown as readonly CapabilitySettingsDescriptor[] },
+      base: { searchResults: 3 },
+    })
+    expect(controller.snapshot()).toMatchObject({
+      revision: 0,
+      base: { searchResults: 3 },
+      value: { searchResults: 3 },
+    })
+  })
+
+  it('ignores a describe() call that throws', () => {
+    const controller = createCapabilitySettingsController({
+      settings: {
+        describe: () => {
+          throw new Error('settings churn')
+        },
+      },
+      base: { codexSearch: true },
+    })
+    expect(controller.snapshot()).toMatchObject({ revision: 0, value: { codexSearch: true } })
+  })
+
+  it('re-publishes when only the composition base layer changed shape', () => {
+    let base: CapabilitySettingsPatch = { codexSearch: true }
+    const settings: CapabilitySettingsService = {
+      describe: () => [
+        {
+          ns: CAPABILITY_SETTINGS_NAMESPACE,
+          value: { ...DEFAULT_CAPABILITY_SETTINGS, codexSearch: true },
+          base,
+          revision: 0,
+        },
+      ],
+    }
+    const controller = createCapabilitySettingsController({ settings })
+    const seen: number[] = []
+    controller.subscribe((snapshot) => {
+      seen.push(snapshot.revision)
+    })
+
+    base = { codexSearch: true, codexFast: true }
+    const reconciled = controller.reconcile()
+    expect(reconciled.base).toEqual({ codexSearch: true, codexFast: true })
+    expect(seen).toHaveLength(1)
+  })
+
+  it('re-publishes when the composition base layer disappears', () => {
+    let base: CapabilitySettingsPatch | undefined = { codexSearch: true }
+    const settings: CapabilitySettingsService = {
+      describe: () => [
+        {
+          ns: CAPABILITY_SETTINGS_NAMESPACE,
+          value: { ...DEFAULT_CAPABILITY_SETTINGS, codexSearch: true },
+          ...(base === undefined ? {} : { base }),
+          revision: 0,
+        },
+      ],
+    }
+    const controller = createCapabilitySettingsController({ settings })
+    expect(controller.snapshot().base).toEqual({ codexSearch: true })
+    const seen: CapabilitySettingsSnapshot[] = []
+    controller.subscribe((snapshot) => {
+      seen.push(snapshot)
+    })
+
+    base = undefined
+    const reconciled = controller.reconcile()
+    expect(reconciled.base).toBeUndefined()
+    expect(seen).toHaveLength(1)
+  })
+})
+
+describe('capability settings dispose', () => {
+  it('ignores a subscription made after dispose', () => {
+    const settings = new FakeSettingsService()
+    const controller = createCapabilitySettingsController({ settings })
+    controller.dispose()
+
+    const revisions: number[] = []
+    const unsubscribe = controller.subscribe((snapshot) => {
+      revisions.push(snapshot.revision)
+    })
+    settings.publish(CAPABILITY_SETTINGS_NAMESPACE, { codexSearch: true })
+    expect(controller.reconcile().value.codexSearch).toBe(true)
+    expect(revisions).toEqual([])
+    expect(() => {
+      unsubscribe()
+    }).not.toThrow()
+  })
+
+  it('stops re-reading the provider from a retained scope watcher once disposed', () => {
+    let notifyWatcher: (() => void) | undefined
+    const describe = vi.fn((): readonly CapabilitySettingsDescriptor[] => [])
+    const settings: CapabilitySettingsService = {
+      register: () => ({
+        get: () => undefined,
+        watch: (callback) => {
+          notifyWatcher = (): void => {
+            void callback(undefined, undefined)
+          }
+          return () => undefined
+        },
+        update: async () => undefined,
+        replace: async () => undefined,
+      }),
+      describe,
+    }
+
+    const live = createCapabilitySettingsController({ settings })
+    expect(describe).toHaveBeenCalledTimes(1)
+    notifyWatcher?.()
+    expect(describe).toHaveBeenCalledTimes(2)
+
+    const disposed = createCapabilitySettingsController({ settings })
+    expect(describe).toHaveBeenCalledTimes(3)
+    disposed.dispose()
+    notifyWatcher?.()
+    expect(describe).toHaveBeenCalledTimes(3)
+    expect(live.snapshot().value).toEqual(DEFAULT_CAPABILITY_SETTINGS)
+  })
+
+  it('survives a scope that notifies synchronously while it is being registered', () => {
+    const settings: CapabilitySettingsService = {
+      register: () => ({
+        get: () => undefined,
+        watch: (callback) => {
+          void callback(undefined, undefined)
+          return () => undefined
+        },
+        update: async () => undefined,
+        replace: async () => undefined,
+      }),
+    }
+    const controller = createCapabilitySettingsController({ settings, base: { codexSearch: true } })
+    expect(controller.snapshot()).toMatchObject({ revision: 0, base: { codexSearch: true } })
+    expect(controller.current().codexSearch).toBe(true)
+  })
+
+  it('contains a synchronous listener failure when no error sink is configured', async () => {
+    const settings = new FakeSettingsService()
+    const controller = createCapabilitySettingsController({ settings })
+    const survivor = vi.fn()
+    controller.subscribe(() => {
+      throw new Error('sync observer failed')
+    })
+    controller.subscribe(survivor)
+
+    const next = await controller.patch({ codexSearch: true }, 0)
+    expect(next.value.codexSearch).toBe(true)
+    expect(survivor).toHaveBeenCalledWith(next)
+  })
+})
+
+describe('capability settings layer admission', () => {
+  it('admits a prototype-less object as a plain settings layer', () => {
+    const layer = Object.assign(Object.create(null) as Record<string, unknown>, {
+      codexSearch: true,
+      searchResults: 3,
+    })
+    expect(resolveCapabilitySettings(layer)).toMatchObject({ codexSearch: true, searchResults: 3 })
+  })
+
+  it('refuses a non-object patch before inspecting its keys', () => {
+    expect(() => {
+      assertCapabilitySettingsPatch(null)
+    }).toThrow('capability settings must be a plain object')
+    expect(() => {
+      assertCapabilitySettingsPatch([])
+    }).toThrow('capability settings must be a plain object')
   })
 })

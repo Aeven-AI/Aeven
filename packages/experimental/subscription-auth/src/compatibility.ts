@@ -2,6 +2,7 @@
 
 import type { DshHostCapability, OwnerAccessMode } from 'dsh-coding-oauth-core'
 
+/** Dsh compatibility diagnostic. */
 export interface DshCompatibilityDiagnostic {
   readonly id: string
   readonly component: 'host' | 'client' | 'owner-request' | 'runtime'
@@ -11,11 +12,13 @@ export interface DshCompatibilityDiagnostic {
   readonly actual?: string
 }
 
+/** Coding oauth participant diagnostic source. */
 export interface CodingOAuthParticipantDiagnosticSource {
   readonly participantId: 'coding-subscription-oauth'
   diagnostics(): readonly DshCompatibilityDiagnostic[]
 }
 
+/** Dsh compatibility. */
 export interface DshCompatibility {
   readonly coreAbi: string
   readonly dshVersion: string | null
@@ -26,6 +29,7 @@ export interface DshCompatibility {
   readonly diagnostics: readonly string[]
 }
 
+/** Dsh exact bom. */
 export const DSH_EXACT_BOM = Object.freeze({
   '@deepseek-ai/cordis': '4.0.2',
   '@deepseek-ai/dsh-atomic-write': '0.1.2-alpha.5',
@@ -48,6 +52,11 @@ export const DSH_EXACT_BOM = Object.freeze({
   'react-dom': '18.3.1',
 } as const)
 
+/**
+ * Incompatible diagnostics.
+ * @param diagnostics - Diagnostics value.
+ * @returns The resulting incompatible diagnostics.
+ */
 export function incompatibleDiagnostics(
   diagnostics: readonly DshCompatibilityDiagnostic[],
 ): DshCompatibilityDiagnostic[] {

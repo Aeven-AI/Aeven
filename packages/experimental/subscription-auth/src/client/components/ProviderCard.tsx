@@ -180,6 +180,37 @@ function SignInSteps({
   )
 }
 
+/** The extra login methods a card offers beside its primary one, in every sign-in state. */
+function AltMethodButtons({
+  methods,
+  t,
+  busy,
+  onSignIn,
+}: {
+  methods: readonly LoginMethod[]
+  t: GrokBuildSettingsInjected['t']
+  busy: boolean
+  onSignIn: (method: LoginMethod) => void
+}) {
+  return (
+    <>
+      {methods.map(method => (
+        <button
+          key={method}
+          type="button"
+          style={buttonStyle}
+          disabled={busy}
+          onClick={() => {
+            onSignIn(method)
+          }}
+        >
+          {methodLabel(method, t)}
+        </button>
+      ))}
+    </>
+  )
+}
+
 export function ProviderCard({
   t,
   definition,
@@ -331,7 +362,7 @@ export function ProviderCard({
                 type="button"
                 style={buttonStyle}
                 disabled={busy}
-                onClick={() => setLogoutConfirm(true)}
+                onClick={() => { setLogoutConfirm(true) }}
               >
                 {t('logout')}
               </button>
@@ -342,19 +373,7 @@ export function ProviderCard({
             <button type="button" style={buttonStyle} disabled={busy} onClick={onCancelLogin}>
               {t('cancelLogin')}
             </button>
-            {altMethods.map(method => (
-              <button
-                key={method}
-                type="button"
-                style={buttonStyle}
-                disabled={busy}
-                onClick={() => {
-                  onSignIn(method)
-                }}
-              >
-                {methodLabel(method, t)}
-              </button>
-            ))}
+            <AltMethodButtons methods={altMethods} t={t} busy={busy} onSignIn={onSignIn} />
           </>
         ) : (
           <>
@@ -369,19 +388,7 @@ export function ProviderCard({
             >
               {busy ? t('working') : methodLabel(primaryMethod, t)}
             </button>
-            {altMethods.map(method => (
-              <button
-                key={method}
-                type="button"
-                style={buttonStyle}
-                disabled={busy}
-                onClick={() => {
-                  onSignIn(method)
-                }}
-              >
-                {methodLabel(method, t)}
-              </button>
-            ))}
+            <AltMethodButtons methods={altMethods} t={t} busy={busy} onSignIn={onSignIn} />
           </>
         )}
       </div>

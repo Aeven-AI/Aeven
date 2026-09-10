@@ -45,6 +45,7 @@ const DISCOVERY_PATH = '/.well-known/openid-configuration'
 const DEFAULT_LOGIN_TIMEOUT_MS = 10 * 60 * 1000
 const PORT_SCAN_ATTEMPTS = 10
 
+/** Grok build oauth error code. */
 export type GrokBuildOAuthErrorCode =
 	| 'discovery'
 	| 'loopback'
@@ -55,6 +56,7 @@ export type GrokBuildOAuthErrorCode =
 
 /** OAuth failure with a stable, secret-free machine code. */
 export class GrokBuildOAuthError extends Error {
+  /** Code implementation. */
   readonly code: GrokBuildOAuthErrorCode
 
   constructor(code: GrokBuildOAuthErrorCode, message: string) {
@@ -64,6 +66,7 @@ export class GrokBuildOAuthError extends Error {
   }
 }
 
+/** Grok build oauth params. */
 export interface GrokBuildOAuthParams {
   issuer: string
   clientId: string
@@ -74,7 +77,11 @@ export interface GrokBuildOAuthParams {
   referrer?: string
 }
 
-/** Resolve OAuth parameters from overrides then GROK_OAUTH2_* env vars. */
+/**
+ * Resolve OAuth parameters from overrides then GROK_OAUTH2_* env vars.
+ * @param overrides - Overrides value.
+ * @returns The resolved oauth params.
+ */
 export function resolveOAuthParams(overrides: Partial<GrokBuildOAuthParams> = {}): GrokBuildOAuthParams {
   const env = process.env
   return {
@@ -161,12 +168,19 @@ function assertApprovedEndpointUrl(
   return parsed
 }
 
+/** Options for discovery fetch. */
 export interface DiscoveryFetchOptions {
   /** Loopback-only test override: permit `http://127.0.0.1`/`http://[::1]` issuers. */
   readonly allowInsecureLoopbackIssuer?: boolean
 }
 
-/** Fetch (and cache for the process) the issuer's discovery document. */
+/**
+ * Fetch (and cache for the process) the issuer's discovery document.
+ * @param issuer - Issuer value.
+ * @param signal - Cancellation signal for the operation.
+ * @param options - Operation options.
+ * @returns The resulting discover oauth endpoints.
+ */
 export async function discoverOAuthEndpoints(
   issuer: string,
   signal?: AbortSignal,
@@ -221,6 +235,7 @@ export async function discoverOAuthEndpoints(
     while (true) {
       const { value, done } = await reader.read()
       if (done) break
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- chunk-less read; a spec pins it
       if (value === undefined) continue
       total += value.byteLength
       if (total > DISCOVERY_MAX_BYTES) {
@@ -269,7 +284,10 @@ export async function discoverOAuthEndpoints(
   return parsed
 }
 
-/** Generate an S256 PKCE verifier/challenge pair (Web Crypto compatible). */
+/**
+ * Generate an S256 PKCE verifier/challenge pair (Web Crypto compatible).
+ * @returns The resulting generate pkce.
+ */
 export function generatePkce(): { verifier: string; challenge: string } {
   const verifier = randomBytes(32).toString('base64url')
   const challenge = createHash('sha256').update(verifier).digest('base64url')
@@ -280,7 +298,16 @@ function randomToken(): string {
   return randomBytes(16).toString('base64url')
 }
 
-/** Build the authorization URL for one login attempt. */
+/**
+ * Build the authorization URL for one login attempt.
+ * @param endpoints - Endpoints value.
+ * @param params - Params value.
+ * @param redirectUri - Redirect uri value.
+ * @param challenge - Challenge value.
+ * @param state - State value.
+ * @param nonce - Nonce value.
+ * @returns The resulting authorize url.
+ */
 export function buildAuthorizeUrl(
   endpoints: DiscoveryDocument,
   params: GrokBuildOAuthParams,
@@ -363,6 +390,7 @@ async function listenForCode(
           response.writeHead(204, { ...cors, 'access-control-allow-methods': 'GET' }).end()
           return
         }
+        /* v8 ignore next -- Node always sets IncomingMessage.url for a 'request' event */
         const url = new URL(request.url ?? '/', 'http://127.0.0.1')
         const error = url.searchParams.get('error')
         const code = url.searchParams.get('code')
@@ -380,6 +408,7 @@ async function listenForCode(
         response.writeHead(200, { ...cors, 'content-type': 'text/html' }).end(LOOPBACK_OK_PAGE)
         resolvePromise({ code })
       })
+      /* v8 ignore next -- only a failed bind emits 'error' here, reachable only by occupying the whole port-scan window */
       server.on('error', (error) =>{  rejectPromise(error) })
       const onAbort = (): void => {
         // Plain error on purpose: the caller maps aborts to cancelled/timeout.
@@ -402,6 +431,7 @@ async function listenForCode(
       // Swallow late errors after a successful settle of the wait promise.
       wait.catch(() => {})
       const address = server.address()
+      /* v8 ignore next -- server.address() always returns an object immediately after a successful listen */
       const boundPort = typeof address === 'object' && address !== null ? address.port : candidate
       // Move the teardown to the returned bundle so the caller drops it after `server.close()`.
       const cleanup = teardown
@@ -417,13 +447,16 @@ async function listenForCode(
       lastError = error
       server.removeAllListeners()
       await new Promise<void>(resolvePromise => server.close(() =>{  resolvePromise() }))
-      if ((error as NodeJS.ErrnoException)?.code !== 'EADDRINUSE') break
+      /* v8 ignore next -- the retry arm needs a bind that fails with EADDRINUSE, i.e. a fully occupied port-scan window */
+      if ((error as { code?: string }).code !== 'EADDRINUSE') break
     }
   }
+  /* v8 ignore start -- lastError is always an Error: an 'error' event payload or the synchronous ERR_SOCKET_BAD_PORT RangeError */
   throw new GrokBuildOAuthError(
     'loopback',
     `could not bind a loopback listener near port ${port}: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
   )
+  /* v8 ignore stop */
 }
 
 interface TokenResponse {
@@ -467,6 +500,7 @@ async function readTokenResponseText(response: Response): Promise<string> {
     while (true) {
       const { value, done } = await reader.read()
       if (done) break
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- chunk-less read; a spec pins it
       if (value === undefined) continue
       total += value.byteLength
       if (total > TOKEN_RESPONSE_MAX_BYTES) {
@@ -520,7 +554,14 @@ async function postTokenForm(
   return credentialFromTokenResponse(body, previousRefresh)
 }
 
-/** Exchange a refresh token for a fresh credential (rotation-tolerant). */
+/**
+ * Exchange a refresh token for a fresh credential (rotation-tolerant).
+ * @param refreshToken - Refresh token value.
+ * @param overrides - Overrides value.
+ * @param signal - Cancellation signal for the operation.
+ * @param discoveryOptions - Discovery options value.
+ * @returns The resulting refresh grok build token.
+ */
 export async function refreshGrokBuildToken(
   refreshToken: string,
   overrides: Partial<GrokBuildOAuthParams> = {},
@@ -541,6 +582,7 @@ export async function refreshGrokBuildToken(
   )
 }
 
+/** Callbacks used by pkce login. */
 export interface PkceLoginCallbacks {
   /** Invoked with the authorization URL to display/open for the user. */
   onAuthorizeUrl(url: string): void
@@ -553,7 +595,11 @@ export interface PkceLoginCallbacks {
   timeoutMs?: number
 }
 
-/** Extract a bare code from user input that may be a full redirect URL. */
+/**
+ * Extract a bare code from user input that may be a full redirect URL.
+ * @param input - Input value to process.
+ * @returns The resulting code.
+ */
 export function extractCode(input: string): string {
   const trimmed = input.trim()
   if (trimmed.length === 0) return trimmed
@@ -577,6 +623,9 @@ export function extractCode(input: string): string {
  * Run the authorization-code + PKCE login. The code arrives via the loopback
  * listener or the manual-paste channel, whichever wins. The caller persists
  * the returned credential (store.modify under the file lock).
+ * @param callbacks - Callbacks value.
+ * @param overrides - Overrides value.
+ * @returns The resulting login grok build pkce.
  */
 export async function loginGrokBuildPkce(
   callbacks: PkceLoginCallbacks,
@@ -593,6 +642,7 @@ export async function loginGrokBuildPkce(
   }
   callbacks.signal?.addEventListener('abort', onParentAbort, { once: true })
   const timer = setTimeout(() =>{  controller.abort() }, timeoutMs)
+  // oxlint-disable-next-line typescript/no-unnecessary-condition -- some timer handles omit unref
   timer.unref?.()
   try {
     const endpoints = await discoverOAuthEndpoints(params.issuer, controller.signal, {

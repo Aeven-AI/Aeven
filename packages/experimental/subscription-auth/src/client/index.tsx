@@ -31,7 +31,7 @@ function IndependentSettingsEntry({ t }: { readonly t: GrokBuildSettingsInjected
     closeButton.current?.focus()
     const host = dialog.current?.closest('[data-dsh-coding-oauth]')?.parentElement
     const inertSiblings =
-      host === undefined || host === null
+      host == null
         ? []
         : [...document.body.children]
           .filter(element => element !== host)
@@ -41,12 +41,16 @@ function IndependentSettingsEntry({ t }: { readonly t: GrokBuildSettingsInjected
             value: element.getAttribute('inert'),
           }))
     for (const { element } of inertSiblings) element.setAttribute('inert', '')
-    const focusable = (): HTMLElement[] =>
-      [
-        ...(dialog.current?.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ) ?? []),
-      ].filter(element => element.getClientRects().length > 0)
+    const dialogControls = (): HTMLElement[] => {
+      /* v8 ignore next -- the dialog renders exactly while open, and this effect body only runs once open */
+      if (dialog.current === null) {
+        return []
+      }
+      return [...dialog.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      )]
+    }
+    const focusable = (): HTMLElement[] => dialogControls().filter(element => element.getClientRects().length > 0)
     const closeOnEscape = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') setOpen(false)
       if (event.key !== 'Tab') return
@@ -70,6 +74,7 @@ function IndependentSettingsEntry({ t }: { readonly t: GrokBuildSettingsInjected
     return () => {
       document.removeEventListener('keydown', closeOnEscape)
       for (const { element, hadInert, value } of inertSiblings) {
+        /* v8 ignore next -- a conformant DOM cannot report inert present yet return a null value */
         if (hadInert) element.setAttribute('inert', value ?? '')
         else element.removeAttribute('inert')
       }
@@ -82,7 +87,7 @@ function IndependentSettingsEntry({ t }: { readonly t: GrokBuildSettingsInjected
         ref={trigger}
         type="button"
         style={{ position: 'fixed', right: 16, bottom: 16, zIndex: 30, padding: '10px 14px' }}
-        onClick={() => setOpen(true)}
+        onClick={() => { setOpen(true) }}
       >
         {t('nav')}
       </button>
@@ -107,7 +112,7 @@ function IndependentSettingsEntry({ t }: { readonly t: GrokBuildSettingsInjected
               <h2 id="coding-oauth-independent-title" style={{ margin: 0 }}>
                 {t('title')}
               </h2>
-              <button ref={closeButton} type="button" onClick={() => setOpen(false)} aria-label={t('cancel')}>
+              <button ref={closeButton} type="button" onClick={() => { setOpen(false) }} aria-label={t('cancel')}>
                 ×
               </button>
             </div>

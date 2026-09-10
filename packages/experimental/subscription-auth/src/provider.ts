@@ -14,6 +14,8 @@ import { GROK_BUILD_ROUTE } from './ids.ts'
  * Grok Build cannot disable reasoning (`reasoning_effort: "none"` is 400).
  * pi-ai treats an absent `xhigh`/`max` key as unsupported, so those levels
  * must be declared explicitly when the model offers them.
+ * @param levels - Levels value.
+ * @returns The resulting grok build reasoning map.
  */
 export function grokBuildReasoningMap(levels: readonly ('low' | 'medium' | 'high' | 'xhigh')[]): ThinkingLevelMap {
   const offered = new Set(levels)
@@ -44,6 +46,7 @@ export const GROK_CLIENT_VERSION: string = process.env['GROK_BUILD_CLIENT_VERSIO
 /**
  * Fingerprint headers required by the Grok Build middleware. Missing headers
  * are a known 403 trigger (codex-app-transfer field notes, 2026-07).
+ * @returns The resulting grok build fingerprint headers.
  */
 export function grokBuildFingerprintHeaders(): Record<string, string> {
   return {
@@ -54,7 +57,10 @@ export function grokBuildFingerprintHeaders(): Record<string, string> {
   }
 }
 
-/** Static baseline catalog, used until a live `/models-v2` listing succeeds. */
+/**
+ * Static baseline catalog, used until a live `/models-v2` listing succeeds.
+ * @returns The resulting grok build baseline models.
+ */
 export function grokBuildBaselineModels(): Model<'openai-responses'>[] {
   return [
     {
@@ -106,6 +112,8 @@ export function grokBuildBaselineModels(): Model<'openai-responses'>[] {
  * access token is injected as the bearer key by the surrounding adapter
  * (`Models.getAuth` on the login provider performs refresh under the store
  * lock before the key ever reaches here).
+ * @param models - Models available to the provider.
+ * @returns The resulting grok build provider.
  */
 export function grokBuildProvider(models: readonly Model<Api>[]): Provider {
   return createProvider({
@@ -116,9 +124,11 @@ export function grokBuildProvider(models: readonly Model<Api>[]): Provider {
     auth: {
       apiKey: {
         name: 'Grok Build OAuth access token',
-        async resolve({ credential }) {
+        resolve: ({ credential }) => {
           const apiKey = credential?.key
-          return apiKey === undefined || apiKey.length === 0 ? undefined : { auth: { apiKey }, source: 'OAuth' }
+          return Promise.resolve(
+            apiKey === undefined || apiKey.length === 0 ? undefined : { auth: { apiKey }, source: 'OAuth' },
+          )
         },
       },
     },

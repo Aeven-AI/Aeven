@@ -72,13 +72,17 @@ function oauthAuthInjection(grok: GrokBuildSession, subscriptions: readonly OAut
       // Subscription adapters obtain request credentials only from their
       // owner-scoped stores. Do not let a foreign environment/file credential
       // silently change a selected OAuth route.
-      env: async () => undefined,
-      fileExists: async () => false,
+      env: () => Promise.resolve(undefined),
+      fileExists: () => Promise.resolve(false),
     },
   }
 }
 
-/** Prefer grok-4.6 when the current (live or baseline) list has it. */
+/**
+ * Prefer grok-4.6 when the current (live or baseline) list has it.
+ * @param models - Models available to the provider.
+ * @returns The resulting preferred grok build model.
+ */
 export function preferredGrokBuildModel(models: readonly { id: string }[] = grokBuildBaselineModels()): string {
   return preferredGrokBuildModelFrom(models.length === 0 ? [{ id: DEFAULT_GROK_BUILD_MODEL }] : models)
 }
@@ -141,7 +145,12 @@ function profile(
   }
 }
 
-/** Existing Grok-only constructor retained for public API compatibility. */
+/**
+ * Existing Grok-only constructor retained for public API compatibility.
+ * @param session - Provider session used by the operation.
+ * @param resolveAttachments - Resolve attachments value.
+ * @returns The created grok build adapter.
+ */
 export function createGrokBuildAdapter(
   session: GrokBuildSession,
   resolveAttachments: () => AttachmentStore | undefined,
@@ -192,7 +201,15 @@ function splitCodingOAuthAdapterArgs(
   }
 }
 
-/** Create the four-route OAuth adapter while preserving each pi-ai native id. */
+/**
+ * Create the four-route OAuth adapter while preserving each pi-ai native id.
+ * @param grok - Grok value.
+ * @param subscriptions - Subscriptions value.
+ * @param resolveAttachments - Resolve attachments value.
+ * @param retryPolicy - Retry policy value.
+ * @param options - Operation options.
+ * @returns The created coding oauth adapter.
+ */
 export function createCodingOAuthAdapter(
   grok: GrokBuildSession,
   subscriptions: readonly OAuthProviderSession[],
@@ -200,6 +217,14 @@ export function createCodingOAuthAdapter(
   retryPolicy?: RetryPolicyConfig,
   options?: CodingOAuthAdapterOptions,
 ): LlmAdapter
+/**
+ * Create coding oauth adapter.
+ * @param grok - Grok value.
+ * @param subscriptions - Subscriptions value.
+ * @param resolveAttachments - Resolve attachments value.
+ * @param options - Operation options.
+ * @returns The created coding oauth adapter.
+ */
 export function createCodingOAuthAdapter(
   grok: GrokBuildSession,
   subscriptions: readonly OAuthProviderSession[],

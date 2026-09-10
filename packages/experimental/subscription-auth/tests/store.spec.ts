@@ -3,12 +3,13 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import type { OAuthCredential } from '@earendil-works/pi-ai'
 import { afterEach, describe, expect, it } from 'vitest'
-import { CODEX_PI_PROVIDER, XAI_PI_PROVIDER } from '../src/ids.ts'
-import { OAUTH_SOURCE_MAX_BYTES } from '../src/oauth-sources.ts'
+import { CODEX_PI_PROVIDER, GROK_BUILD_AUTH_FILENAME, XAI_PI_PROVIDER } from '../src/ids.ts'
+import { CREDENTIAL_FILE_MAX_BYTES } from '../src/credential-file.ts'
 import {
   GrokBuildCredentialStore,
   OAUTH_MAX_ACCOUNTS,
   OAuthCredentialFileStore,
+  grokBuildAuthPath,
   oauthCredentialPath,
 } from '../src/store.ts'
 
@@ -33,6 +34,12 @@ describe('oauthCredentialPath', () => {
     for (const basename of ['../outside.json', 'nested/auth.json', 'nested\\auth.json', '.', '..', '']) {
       expect(() => oauthCredentialPath(basename, '/tmp/example-dsh-home')).toThrow(/safe local filename/)
     }
+  })
+
+  it('resolves the legacy Grok Build auth document below DSH_HOME', () => {
+    expect(grokBuildAuthPath('/tmp/example-dsh-home')).toBe(
+      resolve('/tmp/example-dsh-home', GROK_BUILD_AUTH_FILENAME),
+    )
   })
 })
 
@@ -156,7 +163,11 @@ describe('GrokBuildCredentialStore', () => {
     const text = await readFile(store.filename, 'utf8')
     expect(JSON.parse(text)).toMatchObject({
       version: 2,
-      accounts: [expect.objectContaining({ credential: expect.objectContaining({ access: 'new-access' }) })],
+      accounts: [
+        expect.objectContaining({
+          credential: expect.objectContaining({ access: 'new-access' }) as { access: string },
+        }) as { credential: { access: string } },
+      ],
     })
     expect(text).not.toContain('{not-json')
   })
@@ -217,11 +228,11 @@ describe('GrokBuildCredentialStore', () => {
     }
 
     const huge = await tempStore()
-    await writeFile(huge.filename, 'x'.repeat(OAUTH_SOURCE_MAX_BYTES + 1), { mode: 0o600 })
+    await writeFile(huge.filename, 'x'.repeat(CREDENTIAL_FILE_MAX_BYTES + 1), { mode: 0o600 })
     await expect(
       huge.modify(XAI_PI_PROVIDER, async () => ({ type: 'oauth', access: 'a', refresh: 'r', expires: 1 })),
     ).rejects.toMatchObject({ code: 'too_large' })
-    expect((await readFile(huge.filename)).byteLength).toBe(OAUTH_SOURCE_MAX_BYTES + 1)
+    expect((await readFile(huge.filename)).byteLength).toBe(CREDENTIAL_FILE_MAX_BYTES + 1)
   })
 
   it('revalidates the destination immediately before replace', async () => {
@@ -358,6 +369,24 @@ describe('OAuthCredentialFileStore AuthDocument v2', () => {
     return { store, path }
   }
 
+  /** An on-disk account record that passes every field check on its own. */
+  function accountRecord(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      id: 'acct-a',
+      credential: { type: 'oauth', access: 'access-a', refresh: 'refresh-a', expires: 1 },
+      createdAt: 1,
+      ...overrides,
+    }
+  }
+
+  function v2Document(accounts: unknown, activeAccountId: unknown = 'acct-a'): string {
+    return `${JSON.stringify({ version: 2, activeAccountId, accounts })}\n`
+  }
+
+  async function writeDocument(path: string, body: string): Promise<void> {
+    await writeFile(path, body, { mode: 0o600 })
+  }
+
   it('exports the Hub-aligned account cap', () => {
     expect(OAUTH_MAX_ACCOUNTS).toBe(8)
   })
@@ -473,8 +502,8 @@ describe('OAuthCredentialFileStore AuthDocument v2', () => {
     expect(await store.getActiveAccountId()).toBe('acct-a')
     expect(await store.read('test-provider')).toMatchObject({ access: 'access-a', refresh: 'refresh-a' })
     expect(await store.listAccounts()).toEqual([
-      { id: 'acct-a', label: 'Alpha', expires: expect.any(Number), accountId: 'provider-a' },
-      { id: 'acct-b', label: 'Beta', expires: expect.any(Number), accountId: 'provider-b' },
+      { id: 'acct-a', label: 'Alpha', expires: expect.any(Number) as number, accountId: 'provider-a' },
+      { id: 'acct-b', label: 'Beta', expires: expect.any(Number) as number, accountId: 'provider-b' },
     ])
     expect(JSON.stringify(await store.listAccounts())).not.toMatch(/access-|refresh-/u)
 
@@ -626,5 +655,440 @@ describe('OAuthCredentialFileStore AuthDocument v2', () => {
     await store.delete('test-provider')
     expect(await store.listAccounts()).toEqual([])
     await expect(readFile(path, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('rejects a document that is not a JSON object', async () => {
+    const { store, path } = await createStore()
+    for (const body of ['[]', 'null', '"token"', '7']) {
+      await writeDocument(path, body)
+      await expect(store.read('test-provider')).rejects.toThrow(/must contain an object/u)
+    }
+  })
+
+  it('rejects a v1 credential that is not an oauth object', async () => {
+    const { store, path } = await createStore()
+    await writeDocument(path, `${JSON.stringify({ version: 1, credential: 'nope' })}\n`)
+    await expect(store.read('test-provider')).rejects.toThrow(/credential must be an object/u)
+
+    await writeDocument(
+      path,
+      `${JSON.stringify({
+        version: 1,
+        credential: { type: 'api_key', access: 'a', refresh: 'r', expires: 1 },
+      })}\n`,
+    )
+    await expect(store.read('test-provider')).rejects.toThrow(/credential type must be oauth/u)
+  })
+
+  it('rejects a credential with blank tokens, a blank accountId or a bad expiry', async () => {
+    const { store, path } = await createStore()
+    await writeDocument(
+      path,
+      `${JSON.stringify({ version: 1, credential: { type: 'oauth', access: 'a', refresh: '', expires: 1 } })}\n`,
+    )
+    await expect(store.read('test-provider')).rejects.toThrow(/credential refresh must be a non-empty string/u)
+
+    await writeDocument(
+      path,
+      `${JSON.stringify({
+        version: 1,
+        credential: { type: 'oauth', access: 'a', refresh: 'r', expires: 1, accountId: '' },
+      })}\n`,
+    )
+    await expect(store.read('test-provider')).rejects.toThrow(/accountId must be a non-empty string when present/u)
+
+    await writeDocument(
+      path,
+      `${JSON.stringify({ version: 1, credential: { type: 'oauth', access: 'a', refresh: 'r', expires: 0 } })}\n`,
+    )
+    await expect(store.read('test-provider')).rejects.toThrow(/expires must be a positive finite number/u)
+  })
+
+  it('rejects an unknown top-level field in a v1 or v2 document', async () => {
+    const { store, path } = await createStore()
+    await writeDocument(
+      path,
+      `${JSON.stringify({
+        version: 1,
+        credential: { type: 'oauth', access: 'a', refresh: 'r', expires: 1 },
+        extra: true,
+      })}\n`,
+    )
+    await expect(store.read('test-provider')).rejects.toThrow(/unknown top-level field/u)
+
+    await writeDocument(path, `${JSON.stringify({ ...JSON.parse(v2Document([accountRecord()])), extra: true })}\n`)
+    await expect(store.read('test-provider')).rejects.toThrow(/unknown top-level field/u)
+  })
+
+  it('rejects a v2 account list that is not a bounded array of accounts', async () => {
+    const { store, path } = await createStore()
+    await writeDocument(path, v2Document('nope'))
+    await expect(store.read('test-provider')).rejects.toThrow(/accounts must be an array/u)
+
+    await writeDocument(path, v2Document([]))
+    await expect(store.read('test-provider')).rejects.toThrow(/accounts must contain between 1 and 8 entries/u)
+
+    const nine = Array.from({ length: 9 }, (_, index) => accountRecord({ id: `acct-${String(index)}` }))
+    await writeDocument(path, v2Document(nine))
+    await expect(store.read('test-provider')).rejects.toThrow(/accounts must contain between 1 and 8 entries/u)
+  })
+
+  it('rejects a v2 document whose active account is invalid, duplicated or absent', async () => {
+    const { store, path } = await createStore()
+    await writeDocument(path, v2Document([accountRecord()], ''))
+    await expect(store.read('test-provider')).rejects.toThrow(/activeAccountId is not a valid account id/u)
+
+    await writeDocument(path, v2Document([accountRecord(), accountRecord()], 'acct-a'))
+    await expect(store.read('test-provider')).rejects.toThrow(/accounts contains a duplicate id/u)
+
+    await writeDocument(path, v2Document([accountRecord()], 'acct-other'))
+    await expect(store.read('test-provider')).rejects.toThrow(/activeAccountId does not match any account/u)
+  })
+
+  it('rejects a v2 account record with a non-object, unknown field or bad id', async () => {
+    const { store, path } = await createStore()
+    await writeDocument(path, v2Document([null]))
+    await expect(store.read('test-provider')).rejects.toThrow(/accounts\[0\] must be an object/u)
+
+    await writeDocument(path, v2Document([accountRecord({ extra: true })]))
+    await expect(store.read('test-provider')).rejects.toThrow(/accounts\[0\] contains an unknown field/u)
+
+    await writeDocument(path, v2Document([accountRecord({ id: 'has spaces' })]))
+    await expect(store.read('test-provider')).rejects.toThrow(/accounts\[0\]\.id is not a valid account id/u)
+  })
+
+  it('rejects a v2 account record with a blank label or a bad creation time', async () => {
+    const { store, path } = await createStore()
+    await writeDocument(path, v2Document([accountRecord({ label: '' })]))
+    await expect(store.read('test-provider')).rejects.toThrow(/label must be a non-empty string when present/u)
+
+    await writeDocument(path, v2Document([accountRecord({ createdAt: 0 })]))
+    await expect(store.read('test-provider')).rejects.toThrow(/createdAt must be a positive finite number/u)
+  })
+
+  it('upserts an existing labelled account during login without dropping the label', async () => {
+    const { store } = await createStore()
+    await store.upsertAccount({
+      id: 'acct-a',
+      label: 'Alpha',
+      credential: oauthCredential({ access: 'access-a', refresh: 'refresh-a' }),
+    })
+    await store.persistLoginCredential(
+      oauthCredential({ access: 'access-a2', refresh: 'refresh-a2', accountId: 'acct-a' }),
+      { mode: 'add' },
+    )
+    expect(await store.listAccounts()).toEqual([
+      { id: 'acct-a', label: 'Alpha', expires: expect.any(Number) as number, accountId: 'acct-a' },
+    ])
+    expect(await store.read('test-provider')).toMatchObject({ access: 'access-a2', refresh: 'refresh-a2' })
+  })
+
+  it('upserts an existing unlabelled account during login without inventing a label', async () => {
+    const { store } = await createStore()
+    await store.persistLoginCredential(
+      oauthCredential({ access: 'access-a', refresh: 'refresh-a', accountId: 'acct-a' }),
+      { mode: 'add' },
+    )
+    await store.persistLoginCredential(
+      oauthCredential({ access: 'access-a2', refresh: 'refresh-a2', accountId: 'acct-a' }),
+      { mode: 'add' },
+    )
+    expect(await store.listAccounts()).toEqual([{ id: 'acct-a', expires: expect.any(Number) as number, accountId: 'acct-a' }])
+    expect(await store.read('test-provider')).toMatchObject({ access: 'access-a2' })
+  })
+
+  it('refuses a ninth distinct account during login', async () => {
+    const { store } = await createStore()
+    for (let index = 1; index <= 8; index += 1) {
+      await store.persistLoginCredential(
+        oauthCredential({
+          access: `access-${String(index)}`,
+          refresh: `refresh-${String(index)}`,
+          accountId: `acct-${String(index)}`,
+        }),
+        { mode: 'add' },
+      )
+    }
+    await expect(
+      store.persistLoginCredential(
+        oauthCredential({ access: 'access-9', refresh: 'refresh-9', accountId: 'acct-9' }),
+        { mode: 'add' },
+      ),
+    ).rejects.toThrow(/at most 8 accounts may be stored/u)
+    expect(await store.listAccounts()).toHaveLength(8)
+  })
+
+  it('overwrite-active on an empty document stores exactly that account', async () => {
+    const { store } = await createStore()
+    await store.persistLoginCredential(
+      oauthCredential({ access: 'access-a', refresh: 'refresh-a', accountId: 'acct-a' }),
+      { mode: 'overwrite-active', confirmOverwrite: true },
+    )
+    expect(await store.getActiveAccountId()).toBe('acct-a')
+    expect(await store.read('test-provider')).toMatchObject({ access: 'access-a' })
+  })
+
+  it('overwrite-active with confirmation replaces the active token in place', async () => {
+    const { store } = await createStore()
+    await store.upsertAccount({
+      id: 'acct-a',
+      label: 'Alpha',
+      credential: oauthCredential({ access: 'access-old', refresh: 'refresh-old' }),
+      makeActive: true,
+    })
+    await store.upsertAccount({
+      id: 'acct-b',
+      credential: oauthCredential({ access: 'access-b', refresh: 'refresh-b' }),
+    })
+    await store.persistLoginCredential(oauthCredential({ access: 'access-new', refresh: 'refresh-new' }), {
+      mode: 'overwrite-active',
+      confirmOverwrite: true,
+    })
+    expect(await store.getActiveAccountId()).toBe('acct-a')
+    expect(await store.listAccounts()).toEqual([
+      { id: 'acct-a', label: 'Alpha', expires: expect.any(Number) as number },
+      { id: 'acct-b', expires: expect.any(Number) as number },
+    ])
+    expect(await store.read('test-provider')).toMatchObject({ access: 'access-new', refresh: 'refresh-new' })
+  })
+
+  it('routes pi-ai login writes through multi-account upsert inside runLoginPersist', async () => {
+    const { store } = await createStore()
+    await store.runLoginPersist({ mode: 'add' }, async () => {
+      await store.modify('test-provider', async () =>
+        oauthCredential({ access: 'access-a', refresh: 'refresh-a', accountId: 'acct-a' }),
+      )
+      await store.modify('test-provider', async () =>
+        oauthCredential({ access: 'access-b', refresh: 'refresh-b', accountId: 'acct-b' }),
+      )
+    })
+    expect(await store.listAccounts()).toEqual([
+      { id: 'acct-a', expires: expect.any(Number) as number, accountId: 'acct-a' },
+      { id: 'acct-b', expires: expect.any(Number) as number, accountId: 'acct-b' },
+    ])
+    expect(await store.getActiveAccountId()).toBe('acct-b')
+
+    // Outside the window the same call edits only the active account.
+    await store.modify('test-provider', async current =>
+      current?.type === 'oauth' ? { ...current, access: 'access-b2' } : undefined,
+    )
+    expect(await store.listAccounts()).toHaveLength(2)
+    expect(await store.read('test-provider')).toMatchObject({ access: 'access-b2' })
+  })
+
+  it('refuses a login persist nested inside another one', async () => {
+    const { store } = await createStore()
+    await expect(
+      store.runLoginPersist({ mode: 'add' }, async () =>
+        store.runLoginPersist({ mode: 'add' }, async () => undefined),
+      ),
+    ).rejects.toThrow(/login persist already in progress/u)
+    // The failed nesting still releases the window for the next login.
+    await expect(store.runLoginPersist({ mode: 'add' }, async () => 'ok')).resolves.toBe('ok')
+  })
+
+  it('refuses to store a credential that is not an oauth one', async () => {
+    const { store } = await createStore()
+    await expect(store.modify('test-provider', async () => ({ type: 'api_key', key: 'k' }))).rejects.toThrow(
+      /credential type must be oauth/u,
+    )
+    expect(await store.listAccounts()).toEqual([])
+  })
+
+  it('ignores a delete aimed at a provider it does not own', async () => {
+    const { store, path } = await createStore()
+    await store.upsertAccount({
+      id: 'acct-a',
+      credential: oauthCredential({ access: 'access-a', refresh: 'refresh-a' }),
+      makeActive: true,
+    })
+    await store.delete('openai-codex')
+    expect(await readFile(path, 'utf8')).toContain('access-a')
+  })
+
+  it('reads one account by id without moving the active account', async () => {
+    const { store } = await createStore()
+    await store.upsertAccount({
+      id: 'acct-a',
+      credential: oauthCredential({ access: 'access-a', refresh: 'refresh-a' }),
+      makeActive: true,
+    })
+    await store.upsertAccount({
+      id: 'acct-b',
+      credential: oauthCredential({ access: 'access-b', refresh: 'refresh-b' }),
+    })
+    await expect(store.readAccount('acct-b')).resolves.toMatchObject({ access: 'access-b' })
+    expect(await store.getActiveAccountId()).toBe('acct-a')
+    await expect(store.readAccount('acct-missing')).resolves.toBeUndefined()
+    await expect(store.readAccount('bad id')).resolves.toBeUndefined()
+  })
+
+  it('reports accounts of an absent document as empty', async () => {
+    const { store } = await createStore()
+    await expect(store.readAccount('acct-a')).resolves.toBeUndefined()
+    await expect(store.listAccounts()).resolves.toEqual([])
+    await expect(store.getActiveAccountId()).resolves.toBeUndefined()
+  })
+
+  it('modifyAccount updates one account in place and keeps the active one', async () => {
+    const { store } = await createStore()
+    await store.upsertAccount({
+      id: 'acct-a',
+      credential: oauthCredential({ access: 'access-a', refresh: 'refresh-a' }),
+      makeActive: true,
+    })
+    await store.upsertAccount({
+      id: 'acct-b',
+      credential: oauthCredential({ access: 'access-b', refresh: 'refresh-b' }),
+    })
+    await expect(
+      store.modifyAccount('acct-b', async current =>
+        current?.type === 'oauth' ? { ...current, access: 'access-b2' } : undefined,
+      ),
+    ).resolves.toMatchObject({ access: 'access-b2' })
+    expect(await store.getActiveAccountId()).toBe('acct-a')
+    await expect(store.readAccount('acct-a')).resolves.toMatchObject({ access: 'access-a' })
+    await expect(store.readAccount('acct-b')).resolves.toMatchObject({ access: 'access-b2' })
+  })
+
+  it('modifyAccount reports an unknown account, an absent document and a declined update as absent', async () => {
+    const { store } = await createStore()
+    await store.upsertAccount({
+      id: 'acct-a',
+      credential: oauthCredential({ access: 'access-a', refresh: 'refresh-a' }),
+      makeActive: true,
+    })
+    await expect(store.modifyAccount('acct-missing', async () => undefined)).resolves.toBeUndefined()
+    await expect(store.modifyAccount('acct-a', async () => undefined)).resolves.toMatchObject({ access: 'access-a' })
+
+    const empty = await createStore()
+    await expect(empty.store.modifyAccount('acct-a', async () => undefined)).resolves.toBeUndefined()
+  })
+
+  it('modifyAccount rejects an invalid id and a non-oauth replacement', async () => {
+    const { store } = await createStore()
+    await store.upsertAccount({
+      id: 'acct-a',
+      credential: oauthCredential({ access: 'access-a', refresh: 'refresh-a' }),
+      makeActive: true,
+    })
+    await expect(store.modifyAccount('bad id', async () => undefined)).rejects.toThrow(/account id is invalid/u)
+    await expect(store.modifyAccount('acct-a', async () => ({ type: 'api_key', key: 'k' }))).rejects.toThrow(
+      /credential type must be oauth/u,
+    )
+    await expect(store.readAccount('acct-a')).resolves.toMatchObject({ access: 'access-a' })
+  })
+
+  it('rejects an invalid id, an absent document and an unknown target on setActiveAccount', async () => {
+    const { store } = await createStore()
+    await expect(store.setActiveAccount('bad id')).rejects.toThrow(/account id is invalid/u)
+
+    const empty = await createStore()
+    await expect(empty.store.setActiveAccount('acct-a')).rejects.toThrow(/no credential accounts are stored/u)
+
+    await store.upsertAccount({
+      id: 'acct-a',
+      credential: oauthCredential({ access: 'access-a', refresh: 'refresh-a' }),
+      makeActive: true,
+    })
+    await expect(store.setActiveAccount('acct-zzz')).rejects.toThrow(/is not stored/u)
+    expect(await store.getActiveAccountId()).toBe('acct-a')
+  })
+
+  it('rejects an invalid id and a blank label on upsertAccount', async () => {
+    const { store } = await createStore()
+    const credential = oauthCredential({ access: 'access-a', refresh: 'refresh-a' })
+    await expect(store.upsertAccount({ id: 'bad id', credential })).rejects.toThrow(/account id is invalid/u)
+    await expect(store.upsertAccount({ id: 'acct-a', label: '', credential })).rejects.toThrow(
+      /label must be a non-empty string when present/u,
+    )
+    await expect(store.listAccounts()).resolves.toEqual([])
+  })
+
+  it('keeps the stored label and active account unless an upsert overrides them', async () => {
+    const { store } = await createStore()
+    await store.upsertAccount({
+      id: 'acct-a',
+      label: 'Alpha',
+      credential: oauthCredential({ access: 'access-a', refresh: 'refresh-a' }),
+      makeActive: true,
+    })
+    await store.upsertAccount({
+      id: 'acct-b',
+      label: 'Beta',
+      credential: oauthCredential({ access: 'access-b', refresh: 'refresh-b' }),
+    })
+    expect(await store.getActiveAccountId()).toBe('acct-a')
+
+    // Re-upserting without a label keeps Beta and leaves the active account alone.
+    await store.upsertAccount({
+      id: 'acct-b',
+      credential: oauthCredential({ access: 'access-b2', refresh: 'refresh-b2' }),
+    })
+    expect(await store.listAccounts()).toEqual([
+      { id: 'acct-a', label: 'Alpha', expires: expect.any(Number) as number },
+      { id: 'acct-b', label: 'Beta', expires: expect.any(Number) as number },
+    ])
+    expect(await store.getActiveAccountId()).toBe('acct-a')
+
+    await store.upsertAccount({
+      id: 'acct-b',
+      label: 'Beta 2',
+      credential: oauthCredential({ access: 'access-b3', refresh: 'refresh-b3' }),
+      makeActive: true,
+    })
+    expect(await store.listAccounts()).toEqual([
+      { id: 'acct-a', label: 'Alpha', expires: expect.any(Number) as number },
+      { id: 'acct-b', label: 'Beta 2', expires: expect.any(Number) as number },
+    ])
+    expect(await store.getActiveAccountId()).toBe('acct-b')
+  })
+
+  it('removeAccount ignores an invalid id, an absent document and an unknown account', async () => {
+    const { store } = await createStore()
+    await expect(store.removeAccount('bad id')).rejects.toThrow(/account id is invalid/u)
+
+    const empty = await createStore()
+    await expect(empty.store.removeAccount('acct-a')).resolves.toBeUndefined()
+
+    await store.upsertAccount({
+      id: 'acct-a',
+      credential: oauthCredential({ access: 'access-a', refresh: 'refresh-a' }),
+      makeActive: true,
+    })
+    await expect(store.removeAccount('acct-zzz')).resolves.toBeUndefined()
+    expect(await store.listAccounts()).toHaveLength(1)
+  })
+
+  it('refuses to replace a destination that became oversized while the update ran', async () => {
+    const { store, path } = await createStore()
+    await store.upsertAccount({
+      id: 'acct-a',
+      credential: oauthCredential({ access: 'access-a', refresh: 'refresh-a' }),
+      makeActive: true,
+    })
+    await expect(
+      store.modify('test-provider', async (current) => {
+        await writeFile(path, 'x'.repeat(CREDENTIAL_FILE_MAX_BYTES + 1), { mode: 0o600 })
+        return current?.type === 'oauth' ? { ...current, access: 'access-next' } : undefined
+      }),
+    ).rejects.toThrow(/owner-only no-follow validation/u)
+    expect((await readFile(path)).byteLength).toBe(CREDENTIAL_FILE_MAX_BYTES + 1)
+  })
+
+  it('keeps the active account when a different one is removed', async () => {
+    const { store } = await createStore()
+    await store.upsertAccount({
+      id: 'acct-a',
+      credential: oauthCredential({ access: 'access-a', refresh: 'refresh-a' }),
+      makeActive: true,
+    })
+    await store.upsertAccount({
+      id: 'acct-b',
+      credential: oauthCredential({ access: 'access-b', refresh: 'refresh-b' }),
+    })
+    await store.removeAccount('acct-b')
+    expect(await store.getActiveAccountId()).toBe('acct-a')
+    expect(await store.read('test-provider')).toMatchObject({ access: 'access-a' })
   })
 })

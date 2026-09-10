@@ -16,12 +16,22 @@ import {
   VIDEO_REQUEST_ID_PATTERN,
 } from './types.ts'
 
+/**
+ * Return whether is record.
+ * @param value - Value to process.
+ * @returns The resulting is record.
+ */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 export { isRecord }
 
+/**
+ * Redact redact imagine message.
+ * @param error - Error value.
+ * @returns The resulting redact imagine message.
+ */
 export function redactImagineMessage(error: unknown): string {
   const withoutRemoteUrls = (error instanceof Error ? error.message : String(error)).replace(
     /https?:\/\/[^\s"'<>\\]+/giu,
@@ -30,6 +40,11 @@ export function redactImagineMessage(error: unknown): string {
   return safeMessage(withoutRemoteUrls)
 }
 
+/**
+ * Grok imagine video status path.
+ * @param requestId - Request id value.
+ * @returns The resulting grok imagine video status path.
+ */
 export function grokImagineVideoStatusPath(requestId: string): string {
   if (!VIDEO_REQUEST_ID_PATTERN.test(requestId)) {
     throw new GrokImagineError('INVALID_INPUT', 'video request id is not a safe identifier')
@@ -37,6 +52,11 @@ export function grokImagineVideoStatusPath(requestId: string): string {
   return `/v1/videos/${encodeURIComponent(requestId)}`
 }
 
+/**
+ * Return whether is safe imagine attachment id.
+ * @param attachmentId - Attachment id value.
+ * @returns Whether is safe imagine attachment id.
+ */
 export function isSafeImagineAttachmentId(attachmentId: string): boolean {
   if (attachmentId.length === 0 || attachmentId.length > 128) return false
   if (
@@ -52,6 +72,11 @@ export function isSafeImagineAttachmentId(attachmentId: string): boolean {
   return /^[A-Za-z0-9:._-]+$/u.test(attachmentId)
 }
 
+/**
+ * Imagine image path.
+ * @param attachmentId - Attachment id value.
+ * @returns The resulting imagine image path.
+ */
 export function imagineImagePath(attachmentId: string): string {
   if (!isSafeImagineAttachmentId(attachmentId)) {
     throw new GrokImagineError('INVALID_INPUT', 'attachment id is not safe for a same-origin image route')
@@ -59,6 +84,11 @@ export function imagineImagePath(attachmentId: string): string {
   return `${IMAGINE_IMAGE_ROUTE_PREFIX}${encodeURIComponent(attachmentId)}`
 }
 
+/**
+ * Parse imagine image path.
+ * @param pathname - Pathname value.
+ * @returns The parsed imagine image path.
+ */
 export function parseImagineImagePath(pathname: string): string | undefined {
   if (!pathname.startsWith(IMAGINE_IMAGE_ROUTE_PREFIX)) return undefined
   const rest = pathname.slice(IMAGINE_IMAGE_ROUTE_PREFIX.length)
@@ -87,6 +117,7 @@ function imageContentDisposition(filename: string): string {
   let safe = ''
   let needsEncoding = false
   for (const character of filename) {
+    /* v8 ignore next -- a string-iterator element is never empty, so codePointAt(0) is always a number */
     const codePoint = character.codePointAt(0) ?? 0
     if (
       character === '"' ||
@@ -111,6 +142,11 @@ function imageContentDisposition(filename: string): string {
   return `inline; filename="${safe}"; filename*=UTF-8''${encoded}`
 }
 
+/**
+ * Imagine image download headers.
+ * @param ref - Ref value.
+ * @returns The resulting imagine image download headers.
+ */
 export function imagineImageDownloadHeaders(ref: ImagineImageAttachmentRef): ImagineImageDownloadHeaders {
   const subtype = ref.mediaType.slice('image/'.length)
   if (!IMAGE_SUFFIX.has(subtype)) {
@@ -129,6 +165,11 @@ export function imagineImageDownloadHeaders(ref: ImagineImageAttachmentRef): Ima
   }
 }
 
+/**
+ * Detect image media type.
+ * @param data - Data value.
+ * @returns The resulting image media type.
+ */
 export function detectImageMediaType(data: Uint8Array): ImagineImageMediaType | undefined {
   if (data.byteLength >= 8 && data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4e && data[3] === 0x47) {
     return 'image/png'
@@ -161,6 +202,11 @@ export function detectImageMediaType(data: Uint8Array): ImagineImageMediaType | 
   return undefined
 }
 
+/**
+ * Detect video media type.
+ * @param data - Data value.
+ * @returns The resulting video media type.
+ */
 export function detectVideoMediaType(data: Uint8Array): MediaStoreVideoType | undefined {
   if (data.byteLength >= 12 && data[4] === 0x66 && data[5] === 0x74 && data[6] === 0x79 && data[7] === 0x70) {
     return 'video/mp4'
@@ -171,6 +217,11 @@ export function detectVideoMediaType(data: Uint8Array): MediaStoreVideoType | un
   return undefined
 }
 
+/**
+ * Parse video request id.
+ * @param value - Value to process.
+ * @returns The parsed video request id.
+ */
 export function parseVideoRequestId(value: unknown): string {
   if (typeof value !== 'string') {
     throw new GrokImagineError('INVALID_INPUT', 'video request id must be a string')
@@ -184,7 +235,11 @@ export function parseVideoRequestId(value: unknown): string {
   return value
 }
 
-/** Enforce min/max bounds on a candidate image-id array. */
+/**
+ * Enforce min/max bounds on a candidate image-id array.
+ * @param ids - Ids value.
+ * @returns The resulting clamp imagine image ids.
+ */
 export function clampImagineImageIds(ids: readonly unknown[]): readonly string[] {
   if (!Array.isArray(ids)) {
     throw new GrokImagineError('INVALID_INPUT', 'imageIds must be an array')

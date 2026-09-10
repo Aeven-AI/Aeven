@@ -36,9 +36,10 @@ export const CAPABILITY_LIMIT_KEYS = ['searchResults'] as const
 /** Every key the controller admits into secret-free state. */
 export const CAPABILITY_SETTINGS_KEYS = [...CAPABILITY_FLAG_KEYS, ...CAPABILITY_LIMIT_KEYS] as const
 
+/** A default-off boolean capability key. */
 export type CapabilityFlagKey = (typeof CAPABILITY_FLAG_KEYS)[number]
+/** A bounded numeric capability key. */
 export type CapabilityLimitKey = (typeof CAPABILITY_LIMIT_KEYS)[number]
-export type CapabilitySettingsKey = (typeof CAPABILITY_SETTINGS_KEYS)[number]
 
 /** Resolved, secret-free capability section. */
 export interface CapabilitySettings {
@@ -105,6 +106,7 @@ export const CapabilitySettingsSchema = Schema.object({
 /** Serialized schema metadata consumed by Settings UI tests and diagnostics. */
 export const CAPABILITY_SETTINGS_SCHEMA_JSON = CapabilitySettingsSchema.toJSON()
 
+/** Static type of the capability settings schema. */
 export type CapabilitySettingsSchemaType = typeof CapabilitySettingsSchema
 
 /** Revision-bearing, secret-free snapshot used for CAS writes and UI. */
@@ -179,9 +181,13 @@ const KNOWN_KEYS = new Set<string>(CAPABILITY_SETTINGS_KEYS)
  * `code` matches the Host settings seam so a later wire layer can map it.
  */
 export class CapabilitySettingsConflictError extends Error {
+  /** Matches the Host settings seam's conflict code. */
   readonly code = 'SETTINGS_CONFLICT'
+  /** The settings namespace the write targeted. */
   readonly ns = CAPABILITY_SETTINGS_NAMESPACE
+  /** Revision the caller read before writing. */
   readonly expected: number
+  /** Revision the namespace holds now. */
   readonly actual: number
 
   constructor(expected: number, actual: number) {
@@ -197,8 +203,11 @@ export class CapabilitySettingsConflictError extends Error {
 
 /** A write refused because no writable settings provider is attached. */
 export class CapabilitySettingsReadOnlyError extends Error {
+  /** Host settings seam code for `reason`. */
   readonly code: 'SETTINGS_PROVIDER_ABSENT' | 'SETTINGS_READ_ONLY' | 'SETTINGS_DISPOSED'
+  /** The settings namespace the write targeted. */
   readonly ns = CAPABILITY_SETTINGS_NAMESPACE
+  /** Why no write is possible: no provider, a read-only provider, or a disposed controller. */
   readonly reason: 'absent' | 'read-only' | 'disposed'
 
   constructor(reason: 'absent' | 'read-only' | 'disposed') {
@@ -221,25 +230,48 @@ export class CapabilitySettingsReadOnlyError extends Error {
   }
 }
 
+/**
+ * Narrow to a compare-and-swap conflict.
+ * @param error - any thrown value.
+ * @returns true for a {@link CapabilitySettingsConflictError}.
+ */
 export function isCapabilitySettingsConflictError(error: unknown): error is CapabilitySettingsConflictError {
   return error instanceof CapabilitySettingsConflictError
 }
 
+/**
+ * Narrow to a refused write.
+ * @param error - any thrown value.
+ * @returns true for a {@link CapabilitySettingsReadOnlyError}.
+ */
 export function isCapabilitySettingsReadOnlyError(error: unknown): error is CapabilitySettingsReadOnlyError {
   return error instanceof CapabilitySettingsReadOnlyError
 }
 
-/** Pick every independently default-off flag from a resolved section. */
+/**
+ * Pick every independently default-off flag from a resolved section.
+ * @param settings - a resolved section.
+ * @returns its boolean flags.
+ */
 export function capabilityFlags(settings: CapabilitySettings): Pick<CapabilitySettings, CapabilityFlagKey> {
   return { codexSearch: settings.codexSearch, codexFast: settings.codexFast }
 }
 
-/** Pick the conservative numeric limits from a resolved section. */
+/**
+ * Pick the conservative numeric limits from a resolved section.
+ * @param settings - a resolved section.
+ * @returns its numeric limits.
+ */
 export function capabilityLimits(settings: CapabilitySettings): Pick<CapabilitySettings, CapabilityLimitKey> {
   return { searchResults: settings.searchResults }
 }
 
-/** Layer schema defaults, then YAML/composition `base`, then the user section. */
+/**
+ * Layer schema defaults, then YAML/composition `base`, then the user section.
+ * @param base - the composition's `cordis.yml` layer.
+ * @param user - the user's settings layer.
+ * @returns the resolved, frozen section.
+ */
 export function resolveCapabilitySettings(
   base?: CapabilitySettingsPatch  ,
   user?: CapabilitySettingsPatch  ,
@@ -254,6 +286,8 @@ export function resolveCapabilitySettings(
 /**
  * Admit a candidate section: known keys only, flags default off, limits clamped,
  * secret-shaped keys dropped. Used for both reads and the structural schema.
+ * @param input - a candidate section of any shape.
+ * @returns the admitted, frozen section with fixed capabilities spread in last.
  */
 export function normalizeCapabilitySettings(input?: unknown): CapabilitySettings {
   const patch = normalizeCapabilitySettingsPatch(input)
@@ -277,6 +311,8 @@ export function normalizeCapabilitySettings(input?: unknown): CapabilitySettings
  * unconditional still loads, and the stale key simply stops meaning anything.
  * Writes stay strict — {@link assertCapabilitySettingsPatch} rejects it — so a
  * caller cannot keep setting a flag that no longer gates anything.
+ * @param input - a candidate overlay of any shape.
+ * @returns the admitted keys only, frozen.
  */
 export function normalizeCapabilitySettingsPatch(input?: unknown): CapabilitySettingsPatch {
   if (!isPlainObject(input)) return {}
@@ -296,6 +332,10 @@ export function normalizeCapabilitySettingsPatch(input?: unknown): CapabilitySet
  * Strictly admit a caller-authored sparse section before normalizing it. Reads
  * remain compatibility-tolerant, but writes must never silently drop unknown
  * fields, coerce types, truncate decimals, or clamp out-of-range limits.
+ * @param input - the caller-authored section.
+ * @param label - prefix for the thrown messages.
+ * @returns nothing; narrows `input` when it does not throw.
+ * @throws TypeError naming the first unknown key, wrong type, or out-of-range limit.
  */
 export function assertCapabilitySettingsPatch(
   input: unknown,
@@ -320,7 +360,7 @@ export function assertCapabilitySettingsPatch(
 }
 
 /** Reject a resolved section the owner could not act on. Schema-valid by construction after normalize. */
-export function assertServiceableCapabilitySettings(value: CapabilitySettings): void {
+function assertServiceableCapabilitySettings(value: CapabilitySettings): void {
   for (const key of CAPABILITY_FLAG_KEYS) {
     if (typeof value[key] !== 'boolean') {
       throw new TypeError(`capability settings: ${key} must be a boolean`)
@@ -342,6 +382,7 @@ export function assertServiceableCapabilitySettings(value: CapabilitySettings): 
  * resolved state is the YAML/default layer and every write fails explicitly.
  */
 export class CapabilitySettingsController {
+  /** The settings namespace this controller owns. */
   readonly ns = CAPABILITY_SETTINGS_NAMESPACE
   private readonly settings: CapabilitySettingsService | undefined
   private readonly base: CapabilitySettingsPatch
@@ -361,14 +402,20 @@ export class CapabilitySettingsController {
     this.lastSnapshot = this.readSnapshot()
   }
 
-  /** Current revision-bearing snapshot. Re-reads the injected provider when present. */
+  /**
+   * Current revision-bearing snapshot. Re-reads the injected provider when present.
+   * @returns the current snapshot, which also becomes the last published one.
+   */
   snapshot(): CapabilitySettingsSnapshot {
     const next = this.readSnapshot()
     this.lastSnapshot = next
     return next
   }
 
-  /** Resolved capability section (schema defaults ← YAML base ← user). */
+  /**
+   * Resolved capability section (schema defaults ← YAML base ← user).
+   * @returns the resolved section of a fresh snapshot.
+   */
   current(): CapabilitySettings {
     return this.snapshot().value
   }
@@ -376,6 +423,10 @@ export class CapabilitySettingsController {
   /**
 	 * Merge a secret-free patch into the user layer using compare-and-swap on
 	 * `expectedRevision` from a previously read {@link snapshot}.
+   * @param patch - the keys to change.
+   * @param expectedRevision - revision from the snapshot the caller read.
+   * @returns the snapshot after the write.
+   * @throws CapabilitySettingsConflictError when the revision moved; CapabilitySettingsReadOnlyError when no write is possible.
 	 */
   async patch(patch: CapabilitySettingsPatch, expectedRevision: number): Promise<CapabilitySettingsSnapshot> {
     return this.write('update', patch, expectedRevision)
@@ -384,6 +435,10 @@ export class CapabilitySettingsController {
   /**
 	 * Replace the user section wholesale (`{}` re-inherits YAML base and defaults).
 	 * Compare-and-swap uses the same revision token as {@link patch}.
+   * @param section - the whole user section.
+   * @param expectedRevision - revision from the snapshot the caller read.
+   * @returns the snapshot after the write.
+   * @throws CapabilitySettingsConflictError when the revision moved; CapabilitySettingsReadOnlyError when no write is possible.
 	 */
   async replace(section: CapabilitySettingsPatch, expectedRevision: number): Promise<CapabilitySettingsSnapshot> {
     return this.write('replace', section, expectedRevision)
@@ -392,6 +447,8 @@ export class CapabilitySettingsController {
   /**
 	 * Observe committed snapshot changes. The disposer removes this listener;
 	 * an invocation already running still settles.
+   * @param listener - called with each committed snapshot.
+   * @returns the disposer; a no-op once the controller is disposed.
 	 */
   subscribe(listener: CapabilitySettingsListener): () => void {
     if (this.disposed) return () => undefined
@@ -404,6 +461,7 @@ export class CapabilitySettingsController {
   /**
 	 * Re-read the injected provider (or the local YAML/default layer) and notify
 	 * listeners when the secret-free snapshot moved.
+   * @returns the last published snapshot.
 	 */
   reconcile(): CapabilitySettingsSnapshot {
     const next = this.readSnapshot()
@@ -427,6 +485,7 @@ export class CapabilitySettingsController {
   }
 
   private attachScope(): void {
+    // oxlint-disable-next-line typescript/unbound-method -- invoked immediately with .call(receiver) below, so `this` is preserved
     const register = this.settings?.register
     if (register === undefined) return
     this.scope = register.call(this.settings, CAPABILITY_SETTINGS_NAMESPACE, CapabilitySettingsSchema, {
@@ -458,6 +517,7 @@ export class CapabilitySettingsController {
    */
   private writerFor(mode: 'update' | 'replace'): ((patch: object, expectedRevision: number) => Promise<void>) | undefined {
     const settings = this.settings
+    // oxlint-disable-next-line typescript/unbound-method -- invoked immediately with .call(settings) below, so `this` is preserved
     const direct = mode === 'update' ? settings?.update : settings?.replace
     if (settings !== undefined && direct !== undefined) {
       return (patch, expectedRevision) => direct.call(settings, CAPABILITY_SETTINGS_NAMESPACE, patch, expectedRevision)
@@ -534,12 +594,14 @@ export class CapabilitySettingsController {
   }
 
   private readDescribed(): CapabilitySettingsDescriptor | undefined {
+    // oxlint-disable-next-line typescript/unbound-method -- invoked immediately with .call(this.settings) below, so `this` is preserved
     const describe = this.settings?.describe
     if (describe === undefined) return undefined
     try {
-      const descriptors = describe.call(this.settings, { redactSecrets: true })
+      const descriptors: unknown = describe.call(this.settings, { redactSecrets: true })
       if (!Array.isArray(descriptors)) return undefined
-      return descriptors.find(entry => entry?.ns === CAPABILITY_SETTINGS_NAMESPACE)
+      const listed = descriptors as CapabilitySettingsDescriptor[]
+      return listed.find(entry => entry.ns === CAPABILITY_SETTINGS_NAMESPACE)
     } catch {
       return undefined
     }
@@ -563,7 +625,11 @@ export class CapabilitySettingsController {
   }
 }
 
-/** Construct a {@link CapabilitySettingsController}. */
+/**
+ * Construct a {@link CapabilitySettingsController}.
+ * @param options - the settings provider, YAML base, and listener error sink.
+ * @returns a new controller.
+ */
 export function createCapabilitySettingsController(
   options: CapabilitySettingsControllerOptions = {},
 ): CapabilitySettingsController {
@@ -581,9 +647,16 @@ function assignLimit<K extends CapabilityLimitKey>(target: { [P in K]?: number }
   target[key] = Math.min(bounds.max, Math.max(bounds.min, integer))
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
+/**
+ * Whether a value is a plain data object: not null, not an array, and either an
+ * object literal or a null-prototype record. Exported because the route layer
+ * admits wire bodies and credential probes by the same rule.
+ * @param value - any candidate value.
+ * @returns true for a plain object, narrowing it to a string-keyed record.
+ */
+export function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  const proto = Object.getPrototypeOf(value)
+  const proto: unknown = Object.getPrototypeOf(value)
   return proto === Object.prototype || proto === null
 }
 
@@ -609,24 +682,26 @@ function sameSnapshot(left: CapabilitySettingsSnapshot | undefined, right: Capab
   return (
     left.revision === right.revision &&
 		left.writable === right.writable &&
-		deepEqualJson(left.value, right.value) &&
-		deepEqualJson(left.base, right.base) &&
-		deepEqualJson(left.user, right.user)
+		sameSection(left.value, right.value) &&
+		sameSection(left.base, right.base) &&
+		sameSection(left.user, right.user)
   )
 }
 
-function deepEqualJson(a: unknown, b: unknown): boolean {
-  if (a === b) return true
-  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false
-  if (Array.isArray(a) || Array.isArray(b)) {
-    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
-    return a.every((entry, index) => deepEqualJson(entry, b[index]))
-  }
-  const left = a as Record<string, unknown>
-  const right = b as Record<string, unknown>
-  const keys = Object.keys(left)
-  if (keys.length !== Object.keys(right).length) return false
-  return keys.every(key => key in right && deepEqualJson(left[key], right[key]))
+/**
+ * Compare two snapshot sections. Every section this module publishes comes from
+ * {@link normalizeCapabilitySettings} or {@link normalizeCapabilitySettingsPatch},
+ * so both sides hold only flat boolean and number keys: one strict comparison
+ * per key already decides every published section exactly.
+ * @param left - the previously published section, absent when it carried no keys.
+ * @param right - the freshly read section, absent when it carried no keys.
+ * @returns whether both sections hold the same keys with the same values.
+ */
+function sameSection(left: object | undefined, right: object | undefined): boolean {
+  const current = { ...left } as Record<string, unknown>
+  const next = { ...right } as Record<string, unknown>
+  const keys = Object.keys(current)
+  return keys.length === Object.keys(next).length && keys.every(key => current[key] === next[key])
 }
 
 function toConflictError(error: unknown): CapabilitySettingsConflictError | undefined {

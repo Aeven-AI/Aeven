@@ -241,6 +241,75 @@ describe('CapabilityRuntimeState', () => {
     expect(state.reset()).toEqual(DEFAULT_CAPABILITY_SETTINGS)
     expect(seen).toHaveLength(after)
   })
+
+  it('swallows a listener failure when no error reporter was supplied', () => {
+    const state = new CapabilityRuntimeState(DEFAULT_CAPABILITY_SETTINGS)
+    state.subscribe(() => {
+      throw new Error('listener exploded')
+    }, false)
+    expect(() => {
+      state.refresh()
+    }).not.toThrow()
+    expect(state.current()).toEqual(DEFAULT_CAPABILITY_SETTINGS)
+  })
+
+  it('reports a throwing listener without aborting the rest of the notification', () => {
+    const errors: unknown[] = []
+    const state = new CapabilityRuntimeState(DEFAULT_CAPABILITY_SETTINGS, error => errors.push(error))
+    const seen: boolean[] = []
+    const unsubscribe = state.subscribe(() => {
+      throw new Error('listener exploded')
+    }, false)
+    state.subscribe((next) => {
+      seen.push(next.codexFast)
+    }, false)
+    expect(state.set(settings({ codexFast: true })).codexFast).toBe(true)
+    expect(seen).toEqual([true])
+    expect(errors).toHaveLength(1)
+    expect((errors[0] as Error).message).toBe('listener exploded')
+    unsubscribe()
+  })
+
+  it('waits for an asynchronous listener and reports its rejection instead of failing the update', async () => {
+    const errors: unknown[] = []
+    const state = new CapabilityRuntimeState(DEFAULT_CAPABILITY_SETTINGS, error => errors.push(error))
+    state.subscribe(async () => {
+      throw new Error('async listener exploded')
+    }, false)
+    expect(state.set(settings({ codexFast: true })).codexFast).toBe(true)
+    expect(errors).toEqual([])
+    await flush()
+    expect((errors[0] as Error).message).toBe('async listener exploded')
+  })
+
+  it('drops a subscriber whose initial emit rejects', async () => {
+    const errors: unknown[] = []
+    const state = new CapabilityRuntimeState(DEFAULT_CAPABILITY_SETTINGS, error => errors.push(error))
+    const seen: boolean[] = []
+    state.subscribe((next) => {
+      seen.push(next.codexFast)
+    }, false)
+    const listener = vi.fn(async () => {
+      throw new Error('initial emit failed')
+    })
+    const unsubscribe = state.subscribe(listener)
+    await flush()
+    expect(errors).toHaveLength(1)
+    state.set(settings({ codexFast: true }))
+    expect(seen).toEqual([true])
+    expect(listener).toHaveBeenCalledTimes(1)
+    unsubscribe()
+  })
+
+  it('rethrows an initial emit failure and leaves that subscriber unregistered', () => {
+    const state = new CapabilityRuntimeState(DEFAULT_CAPABILITY_SETTINGS)
+    const listener = vi.fn(() => {
+      throw new Error('initial emit failed')
+    })
+    expect(() => state.subscribe(listener)).toThrow('initial emit failed')
+    state.set(settings({ codexFast: true }))
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('bindCapabilitySearch', () => {
@@ -311,6 +380,22 @@ describe('bindCapabilitySearch', () => {
     state.set(settings({ codexSearch: false }))
     state.set(settings({ codexSearch: true }))
     expect(registry.registerCount).toBe(1)
+  })
+
+  it('ignores a reconcile that a listener already disposed earlier in the same notification', () => {
+    const state = new CapabilityRuntimeState()
+    const registry = new FakeSearchRegistry()
+    let dispose: () => void = () => undefined
+    // `refresh()` walks a snapshot, so an earlier listener can still tear the
+    // binding down before the binding's own listener is reached.
+    state.subscribe(() => {
+      dispose()
+    }, false)
+    dispose = bindCapabilitySearch(state, registry, fakeSearchProvider())
+    expect(registry.registerCount).toBe(0)
+    state.set(settings({ codexSearch: true }))
+    expect(registry.registerCount).toBe(0)
+    expect(registry.providers).toEqual([])
   })
 })
 
@@ -390,6 +475,33 @@ describe('bindCapabilityTools', () => {
 
     dispose()
     dispose()
+    expect(registry.names).toEqual([])
+  })
+
+  it('treats every backend as ready when the caller offers no credential view', () => {
+    const state = new CapabilityRuntimeState()
+    const registry = new FakeToolRegistry()
+    const dispose = bindCapabilityTools(state, registry, definitions)
+    expect(registry.names).toEqual([
+      CODEX_IMAGE_GENERATE_TOOL,
+      CODEX_IMAGE_EDIT_TOOL,
+      GROK_IMAGINE_IMAGE_TOOL,
+      GROK_IMAGINE_VIDEO_TOOL,
+      GROK_IMAGINE_VIDEO_STATUS_TOOL,
+    ])
+    dispose()
+  })
+
+  it('ignores a reconcile that a listener already disposed earlier in the same notification', () => {
+    const state = new CapabilityRuntimeState()
+    const registry = new FakeToolRegistry()
+    let dispose: () => void = () => undefined
+    state.subscribe(() => {
+      dispose()
+    }, false)
+    dispose = bindCapabilityTools(state, registry, definitions)
+    expect(registry.names).toHaveLength(5)
+    state.refresh()
     expect(registry.names).toEqual([])
   })
 })
@@ -626,6 +738,132 @@ describe('bindCodexFastRoute', () => {
     await flush()
     expect(registration.last).toEqual(DEFAULT_ROUTES)
     expect(registration.history.filter(routes => routes.includes(CODEX_OAUTH_FAST_ROUTE))).toHaveLength(1)
+  })
+
+  it('schedules the catalog refresh on the host timer when no timer or interval is injected', async () => {
+    vi.useFakeTimers()
+    const state = new CapabilityRuntimeState()
+    const capabilities = new FakeCapabilities()
+    const registration = new FakeRegistration()
+    capabilities.eligible.add(ELIGIBLE_MODEL.id)
+    capabilities.refreshImpl = async () => [ELIGIBLE_MODEL]
+    const dispose = bindCodexFastRoute(state, capabilities, registration)
+    state.set(settings({ codexFast: true }))
+    await flush()
+    expect(registration.last).toEqual(FAST_ROUTES)
+
+    capabilities.eligible.clear()
+    capabilities.refreshImpl = async () => [INELIGIBLE_MODEL]
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(registration.last).toEqual(DEFAULT_ROUTES)
+
+    dispose()
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(registration.history.filter(routes => routes.includes(CODEX_OAUTH_FAST_ROUTE))).toHaveLength(1)
+  })
+
+  it('ignores a failed refresh when the caller supplies no error reporter', async () => {
+    const state = new CapabilityRuntimeState()
+    const capabilities = new FakeCapabilities()
+    const registration = new FakeRegistration()
+    capabilities.eligible.add(ELIGIBLE_MODEL.id)
+    capabilities.refreshImpl = async () => {
+      throw new Error('catalog down')
+    }
+    const dispose = bindCodexFastRoute(state, capabilities, registration, { refreshIntervalMs: 0 })
+    state.set(settings({ codexFast: true }))
+    await flush()
+    expect(registration.publishedFast()).toBe(false)
+    expect(registration.last ?? DEFAULT_ROUTES).toEqual(DEFAULT_ROUTES)
+    dispose()
+  })
+
+  it('keeps a failed withdraw retrying through the timer\'s own reconcile', async () => {
+    const state = new CapabilityRuntimeState()
+    const capabilities = new FakeCapabilities()
+    const registration = new FakeRegistration()
+    const timer = new FakeTimer()
+    const errors: unknown[] = []
+    capabilities.eligible.add(ELIGIBLE_MODEL.id)
+    capabilities.refreshImpl = async () => [ELIGIBLE_MODEL]
+    const dispose = bindCodexFastRoute(state, capabilities, registration, {
+      refreshIntervalMs: 1_000,
+      timer,
+      onError: error => errors.push(error),
+    })
+    state.set(settings({ codexFast: true }))
+    await flush()
+    expect(registration.last).toEqual(FAST_ROUTES)
+
+    registration.failures.push(new Error('first withdraw failure'))
+    state.set(settings({ codexFast: false }))
+    expect(errors).toHaveLength(1)
+    expect(registration.last).toEqual(FAST_ROUTES)
+
+    registration.failures.push(new Error('second withdraw failure'))
+    timer.tick()
+    await flush()
+    expect(errors).toHaveLength(2)
+    expect(registration.last).toEqual(FAST_ROUTES)
+
+    timer.tick()
+    await flush()
+    expect(registration.last).toEqual(DEFAULT_ROUTES)
+    expect(timer.callbacks.size).toBe(0)
+    dispose()
+  })
+
+  it('ignores a failed refresh that a newer generation already superseded', async () => {
+    const state = new CapabilityRuntimeState()
+    const capabilities = new FakeCapabilities()
+    const registration = new FakeRegistration()
+    const errors: unknown[] = []
+    capabilities.eligible.add(ELIGIBLE_MODEL.id)
+    const first = deferred<readonly CodexModelCapability[]>()
+    capabilities.refreshImpl = () => first.promise
+    const dispose = bindCodexFastRoute(state, capabilities, registration, {
+      refreshIntervalMs: 0,
+      onError: error => errors.push(error),
+    })
+    state.set(settings({ codexFast: true }))
+    first.resolve([ELIGIBLE_MODEL])
+    await flush()
+    expect(registration.last).toEqual(FAST_ROUTES)
+
+    const second = deferred<readonly CodexModelCapability[]>()
+    capabilities.refreshImpl = () => second.promise
+    state.refresh()
+    await flush()
+    state.set(settings({ codexFast: false }))
+    expect(registration.last).toEqual(DEFAULT_ROUTES)
+
+    second.reject(new Error('late catalog failure'))
+    await flush()
+    expect(errors).toHaveLength(1)
+    expect(registration.last).toEqual(DEFAULT_ROUTES)
+    dispose()
+  })
+
+  it('reports a failed final withdraw during dispose', async () => {
+    const state = new CapabilityRuntimeState()
+    const capabilities = new FakeCapabilities()
+    const registration = new FakeRegistration()
+    const errors: unknown[] = []
+    capabilities.eligible.add(ELIGIBLE_MODEL.id)
+    capabilities.refreshImpl = async () => [ELIGIBLE_MODEL]
+    const dispose = bindCodexFastRoute(state, capabilities, registration, {
+      refreshIntervalMs: 0,
+      onError: error => errors.push(error),
+    })
+    state.set(settings({ codexFast: true }))
+    await flush()
+    expect(registration.last).toEqual(FAST_ROUTES)
+
+    const failure = new Error('adapter teardown failed')
+    registration.failures.push(failure)
+    dispose()
+    expect(errors).toEqual([failure])
+    expect(registration.last).toEqual(FAST_ROUTES)
   })
 })
 

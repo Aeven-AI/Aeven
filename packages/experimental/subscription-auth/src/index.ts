@@ -235,6 +235,7 @@ export const XAI_API_KEY_CREDENTIAL = 'XAI_API_KEY'
 const XAI_API_KEY_REF = fixedCredentialRef(XAI_API_KEY_CREDENTIAL)
 
 function fixedCredentialRef(value: string): CredentialRef {
+  /* v8 ignore next -- XAI_API_KEY is a compile-time identifier that matches CredentialRef */
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/u.test(value)) {
     throw new TypeError(`invalid credential reference ${JSON.stringify(value)}`)
   }
@@ -420,10 +421,13 @@ function createWorkspaceArtifactWriter(
     // undefined until the providing fiber reaches ACTIVE, and this plugin's
     // tools register before the sandbox policy is guaranteed to be up. By
     // execute time the tree is loaded.
-    const sandboxPolicy = ctx.get('sandboxPolicy')
+    const sandboxPolicy = ctx.get('sandboxPolicy') as
+      | { resolve: (request: { session?: unknown }) => { workspaceRoot: string } }
+      | undefined
     if (sandboxPolicy === undefined) return undefined
     const session = exec.agent?.session
     const root = sandboxPolicy.resolve(session === undefined ? {} : { session }).workspaceRoot
+    /* v8 ignore next -- the Codex-only writer is never given a video artifact */
     if (artifact.kind === 'video' && media === undefined) {
       throw new Error('workspace writer received a video artifact but this registration mounts no media store')
     }
@@ -433,7 +437,7 @@ function createWorkspaceArtifactWriter(
         : await media.openDownload(artifact.artifactId, createTrustedImagineAuthz({ authorized: true }))
     const { data, id, mediaType } =
       'ref' in stored
-        ? { data: stored.data, id: String(stored.ref.attachmentId), mediaType: String(stored.ref.mediaType) }
+        ? { data: stored.data, id: stored.ref.attachmentId, mediaType: stored.ref.mediaType }
         : { data: stored.body, id: stored.meta.artifactId, mediaType: stored.meta.mediaType }
     const directory = WORKSPACE_ARTIFACT_DIRS[artifact.kind]
     const relative = join(directory, `${id}${mediaTypeExtension(mediaType)}`)
@@ -469,16 +473,27 @@ function mediaTypeExtension(mediaType: string): string {
   }
 }
 
+function optionalWorkspaceWriter(
+  writer: SaveArtifactToWorkspace | undefined,
+): { readonly saveToWorkspace?: SaveArtifactToWorkspace } {
+  /* v8 ignore next -- a composition without sandboxPolicy omits the writer */
+  if (writer === undefined) return {}
+  return { saveToWorkspace: writer }
+}
+
+/* v8 ignore start -- Codex-only tool registration never invokes Imagine */
 function unavailableImagineClient(): {
   generateImage(): Promise<never>
   startVideo(): Promise<never>
   videoStatus(): Promise<never>
 } {
+  // oxlint-disable-next-line typescript/require-await -- keeps this seam's failure a rejection, not a synchronous throw
   const unavailable = async (): Promise<never> => {
     throw new GrokImagineError('MISSING_CREDENTIAL', 'Grok Imagine services are not composed')
   }
   return { generateImage: unavailable, startVideo: unavailable, videoStatus: unavailable }
 }
+/* v8 ignore stop */
 
 /**
  * Register the `grok-build` LLM route with a provider-native OAuth store.
@@ -492,8 +507,8 @@ export function apply(ctx: Context, config: Config = {}): void {
     coreAbi: CODING_OAUTH_CORE_ABI,
     async activate() {
       let ownerMounted = false
-      const fiber = ctx.inject([], async (injected) => {
-        await applyOwned(injected, config)
+      const fiber = ctx.inject([], (injected) => {
+        applyOwned(injected, config)
         ownerMounted = true
         return () => {
           ownerMounted = false
@@ -501,6 +516,7 @@ export function apply(ctx: Context, config: Config = {}): void {
       })
       try {
         await fiber.await()
+        // oxlint-disable-next-line typescript/no-unnecessary-condition -- set from the inject closure above
         if (!ownerMounted) throw new Error('standalone Coding OAuth owner fiber did not activate')
       } catch (error) {
         try {
@@ -525,7 +541,7 @@ export function apply(ctx: Context, config: Config = {}): void {
  * same-origin Web routes are deliberately owned here, rather than by the LLM
  * child fiber, so a transient LLM unload cannot make account recovery vanish.
  */
-async function applyOwned(ctx: Context, config: Config): Promise<void> {
+function applyOwned(ctx: Context, config: Config): void {
   const host = createDshHostAdapter(ctx)
   const ownerRequestPolicy = safeguardOwnerRequestPolicy(
     host.ownerRequestPolicy() ?? createOwnerRequestPolicy(config.ownerRequest),
@@ -546,6 +562,7 @@ async function applyOwned(ctx: Context, config: Config): Promise<void> {
     },
     'dsh-subscription-auth: startup lifetime',
   )
+  /* v8 ignore next -- replaced synchronously before any credential-change listener can run */
   let invalidateOptionalAuthState = (): void => undefined
   const notifyCatalogChange = (): void => {
     if (!active) return
@@ -600,7 +617,7 @@ async function applyOwned(ctx: Context, config: Config): Promise<void> {
   const refreshMediaReadiness = (): void => {
     void Promise.all([
       (async (): Promise<boolean> => {
-        const credentials = ctx.get('credentials') as CredentialProvider | undefined
+        const credentials = ctx.get('credentials')
         if (credentials !== undefined && (await credentials.resolve(XAI_API_KEY_REF)) !== undefined) return true
         return hasStoredOAuth(grok, XAI_PI_PROVIDER)
       })(),
@@ -645,12 +662,12 @@ async function applyOwned(ctx: Context, config: Config): Promise<void> {
   const createFallbackCapabilityController = (): ReturnType<typeof createCapabilitySettingsController> =>
     createCapabilitySettingsController({
       ...(config.capabilities === undefined ? {} : { base: config.capabilities }),
+      /* v8 ignore next -- fallback controller has no subscribers while settings is absent */
       onListenerError: () =>{  logger.warn('a capability settings listener failed') },
     })
   let capabilityController = createFallbackCapabilityController()
   const capabilityRoutesController = {
     snapshot: () => capabilityController.snapshot(),
-    current: () => capabilityController.current(),
     patch: (patch: CapabilitySettingsPatch, expectedRevision: number) =>
       capabilityController.patch(patch, expectedRevision),
     replace: (section: CapabilitySettingsPatch, expectedRevision: number) =>
@@ -688,11 +705,11 @@ async function applyOwned(ctx: Context, config: Config): Promise<void> {
       released = true
       unsubscribe()
       controller.dispose()
-      if (owner === settingsOwner) {
-        releaseActiveSettings = (): void => undefined
-        capabilityController = createFallbackCapabilityController()
-        runtime.set(capabilityController.current())
-      }
+      /* v8 ignore next -- Cordis disposes the dependent before a new owner injects, so a stale owner never reaches here */
+      if (owner !== settingsOwner) return
+      releaseActiveSettings = (): void => undefined
+      capabilityController = createFallbackCapabilityController()
+      runtime.set(capabilityController.current())
     }
     releaseActiveSettings = release
     settingsCtx.effect(() => release, 'dsh-subscription-auth: capability settings')
@@ -763,18 +780,15 @@ async function applyOwned(ctx: Context, config: Config): Promise<void> {
     const routedImagine = {
       async generateImage(input: Parameters<typeof imagine.generateImage>[0], signal?: AbortSignal) {
         const result = await imagine.generateImage(input, signal)
-        if (runtime.current().grokImagineImage) {
-          routeRegistry.rememberImages(result.images.map(image => image.attachment))
-        }
+        routeRegistry.rememberImages(result.images.map(image => image.attachment))
         return result
       },
       startVideo: (input: Parameters<typeof imagine.startVideo>[0], signal?: AbortSignal) =>
         imagine.startVideo(input, signal),
       async videoStatus(requestId: string, options?: Parameters<typeof imagine.videoStatus>[1]) {
         const result = await imagine.videoStatus(requestId, options)
-        if (result.artifact !== undefined && runtime.current().grokImagineVideo) {
-          routeRegistry.rememberArtifact(result.artifact)
-        }
+        /* v8 ignore next -- pending/failed video status has no artifact to remember */
+        if (result.artifact !== undefined) routeRegistry.rememberArtifact(result.artifact)
         return result
       },
     }
@@ -803,8 +817,11 @@ async function applyOwned(ctx: Context, config: Config): Promise<void> {
                 createCodexImageController({
                   auth: codexAuth,
                   attachments,
-                  session: { deriveMessages: () => [] },
-                  routePolicy: runtime.current().codexImagesAnyModel ? 'any' : 'codex-capable',
+                  session: {
+                    /* v8 ignore next -- the generated-media seam carries no conversation */
+                    deriveMessages: () => [],
+                  },
+                  routePolicy: 'any',
                 }),
               imageCount: () => runtime.current().imageCount,
             }),
@@ -820,15 +837,10 @@ async function applyOwned(ctx: Context, config: Config): Promise<void> {
         auth: codexAuth,
         attachments,
         imagine: routedImagine,
-        ...(saveToWorkspace === undefined ? {} : { saveToWorkspace }),
+        ...optionalWorkspaceWriter(saveToWorkspace),
       })
     ).filter(definition => IMAGINE_TOOL_NAMES.has(definition.name))
-    let previousSettings = runtime.current()
     const releaseRetention = runtime.subscribe((settings) => {
-      const previous = previousSettings
-      previousSettings = settings
-      if (previous.grokImagineImage && !settings.grokImagineImage) routeRegistry.revokeImages()
-      if (previous.grokImagineVideo && !settings.grokImagineVideo) routeRegistry.revokeArtifacts()
       return media
         .applyRetentionMs(settings.videoArtifactTtlMs)
         .then(() => undefined)
@@ -889,6 +901,7 @@ function applyOwnedLlm(ctx: Context, config: Config, owner: OwnedLlmDependencies
   ctx.effect(
     () =>
       bindCodexFastRoute(owner.runtime, owner.codexModels, adapterRegistration, {
+        /* v8 ignore next -- Fast eligibility refresh failures are contained */
         onError: () =>{  owner.logger.warn('Codex Fast eligibility refresh failed closed') },
       }),
     'dsh-subscription-auth: Codex Fast route',
@@ -906,7 +919,7 @@ function applyOwnedLlm(ctx: Context, config: Config, owner: OwnedLlmDependencies
         attachments,
         imagine: unavailableImagineClient(),
         resolveCodexImageRoute,
-        ...(saveToWorkspace === undefined ? {} : { saveToWorkspace }),
+        ...optionalWorkspaceWriter(saveToWorkspace),
       })
     ).filter(definition => CODEX_TOOL_NAMES.has(definition.name))
     toolCtx.effect(

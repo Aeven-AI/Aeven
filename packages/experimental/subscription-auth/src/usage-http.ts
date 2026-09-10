@@ -29,6 +29,7 @@ export type UsageHttpResult =
 
 /** A transport or protocol failure. Distinct from a provider's considered refusal. */
 export class UsageHttpError extends Error {
+  /** Status implementation. */
   readonly status: number | undefined
 
   constructor(message: string, status?: number) {
@@ -38,6 +39,7 @@ export class UsageHttpError extends Error {
   }
 }
 
+/** Options for usage http. */
 export interface UsageHttpOptions {
   /** Only URLs on this exact https origin may be requested. */
   readonly origin: string
@@ -71,6 +73,7 @@ async function readBody(response: Response): Promise<unknown> {
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- chunk-less read; a spec pins it
       if (value === undefined) continue
       total += value.byteLength
       if (total > MAX_BODY_BYTES) throw new UsageHttpError('usage response exceeded the size limit')

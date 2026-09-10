@@ -1,27 +1,15 @@
-/** Shared client types for the Coding OAuth settings UI. */
+/** Shared client types for the Coding OAuth settings UI; wire types mirror the Host status and usage routes. */
 
 import type { GrokBuildSettingsKey } from './locales.ts'
 
+/** A provider the settings page shows a card for. */
 export type ProviderSlug = 'grok' | 'codex' | 'claude'
+/** How a sign-in completes: a browser redirect to the local callback (`pkce`, `browser`) or a device code. */
 export type LoginMethod = 'pkce' | 'device' | 'browser'
+/** Where Grok's model catalogue came from: fetched live, a cached copy, or the built-in fallback. */
 export type CatalogSource = 'live' | 'cache' | 'fallback'
-export type SourceKind = ProviderSlug
-export type SourceReason = 'missing' | 'unsafe' | 'invalid' | 'too_large'
-export type SourceConflict =
-	| 'none'
-	| 'same_credential'
-	| 'same_account'
-	| 'different_account'
-	| 'unknown_account'
-	| 'unreadable_destination'
-	| 'unsafe_destination'
-export type SourcePreviewAction = 'import' | 'reuse' | 'overwrite' | 'blocked'
-export type SourceCommitAction = 'imported' | 'unchanged' | 'overwritten'
-export type CapabilityFlagKey = 'codexSearch' | 'codexFast'
-export type CapabilityLimitKey = 'searchResults'
-export type CapabilitySettingKey = CapabilityFlagKey | CapabilityLimitKey
-export type CopyField = 'openai' | 'anthropic' | 'key'
 
+/** Grok's sign-in state from the status route. */
 export type GrokStatus =
 	| { status: 'signed-out'; grokImportAvailable: boolean }
 	| { status: 'signing-in'; method: 'pkce' | 'device'; url?: string; userCode?: string; grokImportAvailable: boolean }
@@ -38,6 +26,7 @@ export type GrokStatus =
 	}
 	| { status: 'error'; message: string; grokImportAvailable: boolean }
 
+/** Codex's or Claude's sign-in state from the status route. */
 export type SubscriptionStatus = {
   provider: Exclude<ProviderSlug, 'grok'>
   route: string
@@ -62,8 +51,10 @@ export interface AccountSummary {
   accountId?: string
 }
 
+/** Any provider's sign-in state. */
 export type ProviderStatus = GrokStatus | SubscriptionStatus
 
+/** The status route's answer: how the page is being accessed, plugin compatibility, and every provider's state. */
 export interface CodingOAuthStatus {
   accessMode: 'loopback' | 'ssh-tunnel' | 'trusted-https-proxy' | 'denied'
   uiOwner: 'standalone' | 'hub'
@@ -80,12 +71,14 @@ export interface CodingOAuthStatus {
   }
 }
 
+/** The login route's answer: the provider page to open and, for a device flow, the code to enter there. */
 export interface LoginChallenge {
   method: LoginMethod
   url: string
   userCode?: string
 }
 
+/** One provider card: its copy keys and the sign-in methods it offers. */
 export interface ProviderCardDefinition {
   slug: ProviderSlug
   route: string
@@ -104,41 +97,6 @@ export interface ProviderCardDefinition {
   acceptsPastedRedirect?: boolean
 }
 
-export interface SourceStatus {
-  kind: SourceKind
-  displayPath: string
-  available: boolean
-  expiresAt?: number
-  reason?: SourceReason
-}
-
-export interface SourcePreview {
-  previewId: string
-  kind: SourceKind
-  displayPath: string
-  expiresAt?: number
-  ticketExpiresAt?: number
-  conflict?: SourceConflict
-  action?: SourcePreviewAction
-  warnings: string[]
-  confirmOverwriteRequired: boolean
-}
-
-export interface CapabilityFlags {
-  codexSearch: boolean
-  codexFast: boolean
-}
-
-export interface CapabilitySettingsView extends CapabilityFlags {
-  searchResults: number
-}
-
-export interface CapabilitySnapshot {
-  value: CapabilitySettingsView
-  revision: number
-  writable: boolean
-}
-
 /** Mirrors the Host `UsageEntitlement`; see `src/usage-view.ts` for what each means. */
 export type UsageEntitlementView = 'entitled' | 'no-subscription' | 'not-entitled' | 'redirected' | 'unknown'
 
@@ -153,6 +111,7 @@ export type UsageWindowLabelView =
 	| 'usage'
 	| 'custom'
 
+/** Mirrors the Host `UsageWindow`: what is left of one quota window and when it resets (epoch seconds). */
 export interface UsageWindowView {
   id: string
   label: UsageWindowLabelView
@@ -169,6 +128,7 @@ export type UsageCreditsView =
 /** Mirrors the Host `UsageProductLabel`. `custom` defers to `labelText`. */
 export type UsageProductLabelView = 'grokBuild' | 'chat' | 'imagine' | 'custom'
 
+/** Mirrors the Host `UsageBreakdownEntry`: one product's share of a pooled allowance. */
 export interface UsageBreakdownView {
   id: string
   label: UsageProductLabelView
@@ -176,12 +136,14 @@ export interface UsageBreakdownView {
   usedPercent: number
 }
 
+/** Mirrors the Host `UsageGate`: the provider's own refusal wording and link. */
 export interface UsageGateView {
   message?: string
   url?: string
   label?: string
 }
 
+/** Mirrors the Host `ProviderUsage`: one provider's complete usage answer. */
 export interface UsageView {
   entitlement: UsageEntitlementView
   windows: UsageWindowView[]
@@ -200,32 +162,16 @@ export interface UsageSlotView {
   loading: boolean
 }
 
-export interface ImagineCredentialView {
-  configured: boolean
-  source?: string
-  writable?: boolean
-}
-
+/** A failed plugin request: the Host's message plus its HTTP status and optional machine code. */
 export interface PluginRequestError extends Error {
   status: number
   code?: string
 }
 
-export interface GatewayView {
-  enabled: boolean
-  running: boolean
-  bind: string
-  port: number
-  model: string | null
-  keyConfigured: boolean
-  keyAvailable: boolean
-  keyHint: string
-  models: string[]
-  warning: string
-}
-
+/** What the settings shell injects into the section. */
 export interface GrokBuildSettingsInjected {
   t: (key: GrokBuildSettingsKey, params?: Record<string, unknown>) => string
 }
 
+/** Props of the settings section; the shell may omit the injected translator. */
 export type GrokBuildSettingsProps = Partial<GrokBuildSettingsInjected>

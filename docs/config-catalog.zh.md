@@ -777,7 +777,7 @@ export interface CapabilitySettings {
 
 Depends on: [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
 
-Source: [`packages/experimental/subscription-auth/src/index.ts:251`](../packages/experimental/subscription-auth/src/index.ts)
+Source: [`packages/experimental/subscription-auth/src/index.ts:252`](../packages/experimental/subscription-auth/src/index.ts)
 
 <a id="deepseek-aidsh-experimental-tool-agent-team"></a>
 

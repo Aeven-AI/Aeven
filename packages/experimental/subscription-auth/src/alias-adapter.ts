@@ -15,6 +15,7 @@ import { LlmAdapter, LlmError } from '@deepseek-ai/dsh-llm'
 import { remapClaudeCreditsFailure } from './claude-errors.ts'
 import { remapXaiCapacityFailure } from './grok-errors.ts'
 
+/** Alias llm route policy. */
 export interface AliasLlmRoutePolicy {
   /** User-facing provider name shown above models in the model selector. */
   displayName?: string
@@ -36,6 +37,13 @@ export interface AliasLlmRoutePolicy {
   onAuthFailure?: () => Promise<void>
 }
 
+/**
+ * Normalize replay for route.
+ * @param message - Message value.
+ * @param route - Route value.
+ * @param nativeReplayProvider - Native replay provider value.
+ * @returns The resulting normalize replay for route.
+ */
 export function normalizeReplayForRoute(
   message: GenerateOptions['messages'][number],
   route: string,

@@ -11,9 +11,9 @@ import {
   type CodexAuthSession,
   type CodexFetch,
   type CodexHttpClient,
-  createCodexHttpClient,
   isRecord,
   optionalNonEmptyString,
+  resolveCodexHttpClient,
 } from './codex-http.ts'
 
 /** Stable search-provider id. Parent must not write this into `web.searchProvider` by default. */
@@ -22,31 +22,40 @@ export const CODEX_SEARCH_PROVIDER_ID = 'codex-oauth-search'
 /** Official Codex standalone search endpoint. */
 export const CODEX_SEARCH_URL = 'https://chatgpt.com/backend-api/codex/alpha/search'
 
+/** Codex search context sizes. */
 export const CODEX_SEARCH_CONTEXT_SIZES = ['low', 'medium', 'high'] as const
+/** Codex search context size. */
 export type CodexSearchContextSize = (typeof CODEX_SEARCH_CONTEXT_SIZES)[number]
 
+/** Codex search modes. */
 export const CODEX_SEARCH_MODES = ['live', 'cached', 'indexed'] as const
+/** Codex search mode. */
 export type CodexSearchMode = (typeof CODEX_SEARCH_MODES)[number]
 
+/** Codex external web access. */
 export type CodexExternalWebAccess = true | false | 'indexed'
 
+/** Codex search source. */
 export interface CodexSearchSource {
   readonly url: string
   readonly title?: string
   readonly snippet?: string
 }
 
+/** Codex search request. */
 export interface CodexSearchRequest {
   readonly query: string
   readonly maxResults?: number
 }
 
+/** Codex search result. */
 export interface CodexSearchResult {
   readonly content?: string
   readonly sources: readonly CodexSearchSource[]
   readonly truncated: boolean
 }
 
+/** Codex search request body. */
 export interface CodexSearchRequestBody {
   readonly id: string
   readonly model: string
@@ -68,6 +77,7 @@ export interface CodexSearchRequestBody {
   readonly max_output_tokens: number
 }
 
+/** Options for codex search provider. */
 export interface CodexSearchProviderOptions {
   readonly auth: CodexAuthSession
   readonly http?: CodexHttpClient
@@ -94,7 +104,11 @@ const DEFAULT_CONTEXT_SIZE: CodexSearchContextSize = 'medium'
 const DEFAULT_MODE: CodexSearchMode = 'live'
 const DEFAULT_MAX_OUTPUT_TOKENS = 1024
 
-/** Map configured search mode onto the verified `external_web_access` field. */
+/**
+ * Map configured search mode onto the verified `external_web_access` field.
+ * @param mode - Mode value.
+ * @returns The resulting external web access.
+ */
 export function externalWebAccess(mode: CodexSearchMode): CodexExternalWebAccess {
   switch (mode) {
     case 'cached':
@@ -106,7 +120,11 @@ export function externalWebAccess(mode: CodexSearchMode): CodexExternalWebAccess
   }
 }
 
-/** Accept only citeable http(s) URLs. */
+/**
+ * Accept only citeable http(s) URLs.
+ * @param value - Value to process.
+ * @returns The resulting citeable http url.
+ */
 export function citeableHttpUrl(value: unknown): string | undefined {
   if (typeof value !== 'string' || value.length === 0) return undefined
   try {
@@ -119,7 +137,10 @@ export function citeableHttpUrl(value: unknown): string | undefined {
   }
 }
 
-/** Reject `<1` / non-finite `maxResults` rather than treating them as unlimited. */
+/**
+ * Reject `<1` / non-finite `maxResults` rather than treating them as unlimited.
+ * @param maxResults - Max results value.
+ */
 export function assertCodexSearchMaxResults(maxResults: number | undefined): void {
   if (maxResults === undefined) return
   if (!Number.isFinite(maxResults) || maxResults < 1) {
@@ -130,6 +151,9 @@ export function assertCodexSearchMaxResults(maxResults: number | undefined): voi
 /**
  * Map the standalone endpoint's forward-compatible result DTOs.
  * Only `type === "text_result"` items with valid http(s) URLs are kept; URLs are de-duplicated.
+ * @param value - Value to process.
+ * @param maxResults - Max results value.
+ * @returns The resulting map codex search response.
  */
 export function mapCodexSearchResponse(value: unknown, maxResults?: number): CodexSearchResult {
   assertCodexSearchMaxResults(maxResults)
@@ -164,6 +188,12 @@ export function mapCodexSearchResponse(value: unknown, maxResults?: number): Cod
   }
 }
 
+/**
+ * Build codex search request body.
+ * @param query - Query value.
+ * @param options - Operation options.
+ * @returns The resulting codex search request body.
+ */
 export function buildCodexSearchRequestBody(
   query: string,
   options: {
@@ -194,17 +224,13 @@ export function buildCodexSearchRequestBody(
   }
 }
 
-/** Factory for an injectable, default-off Codex search provider. */
+/**
+ * Factory for an injectable, default-off Codex search provider.
+ * @param options - Operation options.
+ * @returns The created codex search provider.
+ */
 export function createCodexSearchProvider(options: CodexSearchProviderOptions): CodexSearchProvider {
-  const http =
-    options.http ??
-		createCodexHttpClient({
-		  auth: options.auth,
-		  ...(options.fetchImpl === undefined ? {} : { fetchImpl: options.fetchImpl }),
-		  ...(options.originator === undefined ? {} : { originator: options.originator }),
-		  ...(options.userAgent === undefined ? {} : { userAgent: options.userAgent }),
-		  ...(options.sleep === undefined ? {} : { sleep: options.sleep }),
-		})
+  const http = resolveCodexHttpClient(options)
   const mode = options.mode ?? DEFAULT_MODE
   const contextSize = options.contextSize ?? DEFAULT_CONTEXT_SIZE
   const maxOutputTokens = options.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS

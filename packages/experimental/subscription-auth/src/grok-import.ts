@@ -14,6 +14,7 @@ import type { GrokBuildCredentialStore } from './store.ts'
 
 const DEFAULT_TOKEN_LIFETIME_MS = 60 * 60 * 1000
 
+/** Grok import probe. */
 export interface GrokImportProbe {
   available: boolean
   path: string
@@ -93,12 +94,21 @@ function walk(value: unknown, key: string): Candidate[] {
   return Object.entries(value).flatMap(([child, nested]) => walk(nested, child))
 }
 
-/** Resolve the Grok CLI auth document. */
+/**
+ * Resolve the Grok CLI auth document.
+ * @param home - Home value.
+ * @returns The resulting grok auth path.
+ */
 export function grokAuthPath(home: string = homedir()): string {
   return resolve(join(home, '.grok', 'auth.json'))
 }
 
-/** Parse a Grok CLI / generic OAuth document into a pi-ai credential. */
+/**
+ * Parse a Grok CLI / generic OAuth document into a pi-ai credential.
+ * @param text - Text value.
+ * @param filename - Source filename used in diagnostics.
+ * @returns The parsed grok auth document.
+ */
 export function parseGrokAuthDocument(text: string, filename: string): OAuthCredential {
   let value: unknown
   try {
@@ -111,13 +121,18 @@ export function parseGrokAuthDocument(text: string, filename: string): OAuthCred
     throw new Error(`grok-build: ${filename} does not contain a Grok OAuth refresh token`)
   }
   const chosen = candidates.find(candidate => candidate.preferred) ?? candidates[0]
+  /* v8 ignore next -- candidates is non-empty here, so the fallback always yields a candidate */
   if (chosen === undefined) {
     throw new Error(`grok-build: ${filename} does not contain a Grok OAuth refresh token`)
   }
   return chosen.credential
 }
 
-/** Whether ~/.grok/auth.json exists and looks importable. Never returns secrets. */
+/**
+ * Whether ~/.grok/auth.json exists and looks importable. Never returns secrets.
+ * @param filename - Source filename used in diagnostics.
+ * @returns The resulting probe grok auth.
+ */
 export async function probeGrokAuth(filename: string = grokAuthPath()): Promise<GrokImportProbe> {
   try {
     await stat(filename)
@@ -130,7 +145,12 @@ export async function probeGrokAuth(filename: string = grokAuthPath()): Promise<
   }
 }
 
-/** Copy Grok CLI tokens into the dsh store. Does not write the Grok file. */
+/**
+ * Copy Grok CLI tokens into the dsh store. Does not write the Grok file.
+ * @param store - Credential store used by the operation.
+ * @param filename - Source filename used in diagnostics.
+ * @returns The resulting import grok auth.
+ */
 export async function importGrokAuth(
   store: GrokBuildCredentialStore,
   filename: string = grokAuthPath(),
@@ -143,7 +163,7 @@ export async function importGrokAuth(
     throw error
   }
   const credential = parseGrokAuthDocument(text, filename)
-  const written = await store.modify(XAI_PI_PROVIDER, async () => credential)
+  const written = await store.modify(XAI_PI_PROVIDER, () => credential)
   if (written === undefined || written.type !== 'oauth') {
     throw new Error('grok-build: failed to persist the imported Grok credential')
   }

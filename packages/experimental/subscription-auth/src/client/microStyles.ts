@@ -38,6 +38,7 @@ const CSS = `
 
 let injected = false
 
+/** Ensure micro styles. */
 export function ensureMicroStyles(): void {
   if (injected || typeof document === 'undefined') return
   if (document.getElementById(STYLE_ID) !== null) {
