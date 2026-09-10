@@ -97,7 +97,11 @@ export const disclosureBodyStyle: CSSProperties = {
   paddingTop: 12,
   borderTop: '0.5px solid var(--dsw-alias-border-l2)',
 }
-/** Disclosure chevron; it turns half a revolution while its card is open. */
+/**
+ * Disclosure chevron; it turns half a revolution while its card is open.
+ * @param open - whether the card it belongs to is open.
+ * @returns the chevron's inline style.
+ */
 export function chevronStyle(open: boolean): CSSProperties {
   return {
     flex: 'none',
