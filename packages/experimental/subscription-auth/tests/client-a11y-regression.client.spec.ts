@@ -10,15 +10,15 @@ describe('client accessibility regressions', () => {
     const providerCard = await readFile(join(root, 'src/client/components/ProviderCard.tsx'), 'utf8')
 
     expect(providerCard).toContain(
-      'aria-controls={expanded ? `coding-oauth-models-${definition.slug}` : undefined}',
+      'aria-controls={expanded ? `coding-oauth-usage-${definition.slug}` : undefined}',
     )
   })
 
-  it('keeps the account connection target separate from the model disclosure', async () => {
+  it('keeps the account connection target separate from the usage disclosure', async () => {
     const providerCard = await readFile(join(root, 'src/client/components/ProviderCard.tsx'), 'utf8')
 
     const slugExpression = '$' + '{definition.slug}'
-    expect(providerCard).toContain(`id={\`coding-oauth-models-toggle-${slugExpression}\`}`)
+    expect(providerCard).toContain(`id={\`coding-oauth-usage-toggle-${slugExpression}\`}`)
     expect(providerCard).toContain(`id={\`coding-oauth-login-${slugExpression}\`}`)
     expect(providerCard).toMatch(
       /if \(providerStatus\.status === 'signed-in'\) \{\s+logoutTrigger\.current\?\.focus\(\)/u,

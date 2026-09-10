@@ -1,9 +1,10 @@
 /** Compatibility facade for stable identifiers owned by dsh-coding-oauth-core. */
 
+import { CLAUDE_CODE_OAUTH_ROUTE, CODEX_OAUTH_ROUTE, GROK_BUILD_ROUTE } from 'dsh-coding-oauth-core'
+
 export type {
   CodingOAuthOptionalRoute,
   CodingOAuthProviderSlug,
-  CodingOAuthRoute,
 } from 'dsh-coding-oauth-core'
 export {
   ANTIGRAVITY_ROUTE,
@@ -26,7 +27,6 @@ export {
   CODING_OAUTH_MANAGEMENT_PATHS,
   CODING_OAUTH_MODELS_PATH,
   CODING_OAUTH_OPTIONAL_ROUTES,
-  CODING_OAUTH_ROUTES,
   CODING_OAUTH_STATE_SCHEMA_VERSION,
   CODING_OAUTH_STATUS_PATH,
   DEFAULT_GROK_BUILD_MODEL,
@@ -56,6 +56,17 @@ export {
   OAUTH_IMPORT_SOURCES_PATH,
   XAI_PI_PROVIDER,
 } from 'dsh-coding-oauth-core'
+
+/**
+ * LLM routes the OAuth adapter serves, registered as one set. Owned here
+ * because core's list also names `kimi-code-oauth`, which this package does
+ * not serve: `llm.registerAdapter` rejects the whole set when the adapter
+ * cannot describe any one route, leaving no subscription route registered.
+ */
+export const CODING_OAUTH_ROUTES = [GROK_BUILD_ROUTE, CODEX_OAUTH_ROUTE, CLAUDE_CODE_OAUTH_ROUTE] as const
+
+/** One LLM route the OAuth adapter serves. */
+export type CodingOAuthRoute = (typeof CODING_OAUTH_ROUTES)[number]
 
 /**
  * Owned here since the `@deepseek-ai/dsh-experimental-subscription-auth` rename. Core still exports

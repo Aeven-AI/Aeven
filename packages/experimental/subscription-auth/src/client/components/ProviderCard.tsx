@@ -5,10 +5,16 @@ import { methodLabel, orderedLoginMethods } from '../display.ts'
 import {
   bodyStyle,
   buttonStyle,
+  cardOpenStyle,
   cardStyle,
+  chevronStyle,
   codeStyle,
+  disclosureBodyStyle,
+  disclosureHeaderStyle,
   dotStyle,
   footerStyle,
+  hintStyle,
+  inputStyle,
   nestedStyle,
   primaryButtonStyle,
   rowStyle,
@@ -39,8 +45,8 @@ export interface ProviderCardProps {
   remote: boolean
   /** A browser flow's tab was blocked, so its link is shown instead. */
   popupBlocked: boolean
+  /** A signed-in card discloses its usage below the header. */
   expanded: boolean
-  showUsage: boolean
   usage: UsageView | undefined
   usageError: string | undefined
   usageLoading: boolean
@@ -49,6 +55,77 @@ export interface ProviderCardProps {
   onSignOut: () => void
   onCancelLogin: () => void
   onToggleExpanded: () => void
+  /** Finish the pending sign-in with a pasted redirect URL or code; only called for `acceptsPastedRedirect` providers. */
+  onSubmitRedirect: (value: string) => void
+}
+
+/**
+ * Fallback for a browser sign-in whose provider redirect cannot reach the
+ * Host's loopback callback, as when this page is opened over an SSH tunnel:
+ * the provider's final page then fails to load, and its address carries the
+ * authorization code.
+ */
+function PasteRedirectForm({
+  t,
+  slug,
+  busy,
+  onSubmit,
+}: {
+  t: GrokBuildSettingsInjected['t']
+  slug: ProviderCardDefinition['slug']
+  busy: boolean
+  onSubmit: (value: string) => void
+}) {
+  const [value, setValue] = useState('')
+  const inputId = `coding-oauth-redirect-${slug}`
+  const hintId = `${inputId}-hint`
+  const trimmed = value.trim()
+  return (
+    <form
+      style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+      onSubmit={(event) => {
+        event.preventDefault()
+        if (trimmed.length > 0 && !busy) onSubmit(trimmed)
+      }}
+    >
+      <label htmlFor={inputId} style={{ ...bodyStyle, color: 'var(--dsw-alias-label-secondary)' }}>
+        {t('pasteRedirectLabel')}
+      </label>
+      <p id={hintId} style={hintStyle}>
+        {t('pasteRedirectHint')}
+      </p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        <input
+          id={inputId}
+          type="text"
+          autoComplete="off"
+          spellCheck={false}
+          aria-describedby={hintId}
+          style={{ ...inputStyle, flex: '1 1 240px', minWidth: 0 }}
+          value={value}
+          disabled={busy}
+          onChange={(event) => {
+            setValue(event.target.value)
+          }}
+        />
+        <button type="submit" style={primaryButtonStyle} disabled={busy || trimmed.length === 0}>
+          {busy ? t('working') : t('submitRedirect')}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+/** The 14px chevron the Plugins card header draws, inlined because this client imports no UI package at runtime. */
+function ChevronDownIcon({ open }: { open: boolean }) {
+  return (
+    <svg width={14} height={14} viewBox="0 0 14 14" fill="none" aria-hidden="true" style={chevronStyle(open)}>
+      <path
+        d="M11.8486 5.5L11.4238 5.92383L8.69727 8.65137C8.44157 8.90706 8.21562 9.13382 8.01172 9.29785C7.79912 9.46883 7.55595 9.61756 7.25 9.66602C7.08435 9.69222 6.91565 9.69222 6.75 9.66602C6.44405 9.61756 6.20088 9.46883 5.98828 9.29785C5.78438 9.13382 5.55843 8.90706 5.30273 8.65137L2.57617 5.92383L2.15137 5.5L3 4.65137L3.42383 5.07617L6.15137 7.80273C6.42595 8.07732 6.59876 8.24849 6.74023 8.3623C6.87291 8.46904 6.92272 8.47813 6.9375 8.48047C6.97895 8.48703 7.02105 8.48703 7.0625 8.48047C7.07728 8.47813 7.12709 8.46904 7.25977 8.3623C7.40124 8.24849 7.57405 8.07732 7.84863 7.80273L10.5762 5.07617L11 4.65137L11.8486 5.5Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
 }
 
 function SignInSteps({
@@ -111,7 +188,6 @@ export function ProviderCard({
   remote,
   popupBlocked,
   expanded,
-  showUsage,
   usage,
   usageError,
   usageLoading,
@@ -120,6 +196,7 @@ export function ProviderCard({
   onSignOut,
   onCancelLogin,
   onToggleExpanded,
+  onSubmitRedirect,
 }: ProviderCardProps) {
   const [logoutConfirm, setLogoutConfirm] = useState(false)
   const logoutTrigger = useRef<HTMLButtonElement>(null)
@@ -156,22 +233,37 @@ export function ProviderCard({
     document.getElementById(`coding-oauth-login-${definition.slug}`)?.focus()
   }, [definition.slug, logoutConfirm, providerStatus.status])
   const grokProviderStatus = definition.slug === 'grok' ? (providerStatus as GrokStatus) : undefined
-
-
+  const title = t(definition.titleKey)
+  const headingStyle = { ...titleStyle, fontSize: 15, lineHeight: 1.4 }
+  const usageOpen = providerStatus.status === 'signed-in' && expanded
 
   return (
-    <div style={cardStyle}>
-      <div style={rowStyle}>
-        <div>
-          <h3 style={{ ...titleStyle, fontSize: 15, lineHeight: 1.4 }}>{t(definition.titleKey)}</h3>
+    <div style={usageOpen ? cardOpenStyle : cardStyle}>
+      {providerStatus.status === 'signed-in' ? (
+        <h3 style={headingStyle}>
+          <button
+            id={`coding-oauth-usage-toggle-${definition.slug}`}
+            type="button"
+            style={disclosureHeaderStyle}
+            aria-expanded={expanded}
+            aria-controls={expanded ? `coding-oauth-usage-${definition.slug}` : undefined}
+            aria-label={`${t(expanded ? 'collapseUsage' : 'expandUsage')}: ${title}`}
+            onClick={onToggleExpanded}
+          >
+            <span style={{ flex: 1, minWidth: 0 }}>{title}</span>
+            {/* Signed in reads as a bare dot: the Sign out control already states it in words. */}
+            <span title={statusLabel} style={dotStyle('signed-in')} />
+            <ChevronDownIcon open={expanded} />
+          </button>
+        </h3>
+      ) : (
+        <div style={rowStyle}>
+          <h3 style={headingStyle}>{title}</h3>
+          {providerStatus.status === 'error' ? (
+            <Badge label={statusLabel} providerStatus={providerStatus.status} />
+          ) : null}
         </div>
-        {/* Signed in reads as a bare dot: the Sign out control already states it in words. */}
-        {providerStatus.status === 'signed-in' ? (
-          <span role="img" aria-label={statusLabel} title={statusLabel} style={dotStyle('signed-in')} />
-        ) : providerStatus.status === 'error' ? (
-          <Badge label={statusLabel} providerStatus={providerStatus.status} />
-        ) : null}
-      </div>
+      )}
       {providerStatus.status === 'error' ? (
         <p style={{ ...bodyStyle, color: 'var(--dsw-alias-state-error-primary)' }}>{providerStatus.message}</p>
       ) : null}
@@ -182,21 +274,22 @@ export function ProviderCard({
           url={providerStatus.url}
         />
       ) : null}
-      {providerStatus.status === 'signed-in' && expanded ? (
-        <div id={`coding-oauth-models-${definition.slug}`} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {providerStatus.status === 'signing-in' && definition.acceptsPastedRedirect === true ? (
+        <PasteRedirectForm t={t} slug={definition.slug} busy={busy} onSubmit={onSubmitRedirect} />
+      ) : null}
+      {usageOpen ? (
+        <div id={`coding-oauth-usage-${definition.slug}`} style={disclosureBodyStyle}>
           {grokProviderStatus?.status === 'signed-in' && grokProviderStatus.catalogError !== undefined ? (
             <p style={{ ...bodyStyle, color: 'var(--dsw-alias-state-error-primary)' }}>{t('catalogError')}</p>
           ) : null}
-          {showUsage ? (
-            <UsageSection
-              usage={usage}
-              error={usageError}
-              loading={usageLoading}
-              t={t}
-              style={nestedStyle}
-              onRefresh={onRefreshUsage}
-            />
-          ) : null}
+          <UsageSection
+            usage={usage}
+            error={usageError}
+            loading={usageLoading}
+            t={t}
+            style={{ display: 'flex', flexDirection: 'column' }}
+            onRefresh={onRefreshUsage}
+          />
         </div>
       ) : null}
       <div style={footerStyle}>
@@ -243,16 +336,6 @@ export function ProviderCard({
                 {t('logout')}
               </button>
             )}
-            <button
-              id={`coding-oauth-models-toggle-${definition.slug}`}
-              type="button"
-              style={buttonStyle}
-              aria-expanded={expanded}
-              aria-controls={expanded ? `coding-oauth-models-${definition.slug}` : undefined}
-              onClick={onToggleExpanded}
-            >
-              {expanded ? t('collapseModels') : t('expandModels')}
-            </button>
           </>
         ) : providerStatus.status === 'signing-in' ? (
           <>

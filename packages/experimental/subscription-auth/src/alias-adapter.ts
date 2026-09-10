@@ -12,6 +12,7 @@ import type {
   StreamChunk,
 } from '@deepseek-ai/dsh-llm'
 import { LlmAdapter, LlmError } from '@deepseek-ai/dsh-llm'
+import { remapClaudeCreditsFailure } from './claude-errors.ts'
 import { remapXaiCapacityFailure } from './grok-errors.ts'
 
 export interface AliasLlmRoutePolicy {
@@ -119,7 +120,7 @@ export class AliasLlmAdapter extends LlmAdapter {
             ...raw,
             reason: {
               ...raw.reason,
-              failure: remapXaiCapacityFailure(raw.reason.failure),
+              failure: remapClaudeCreditsFailure(remapXaiCapacityFailure(raw.reason.failure)),
             },
           }
           : raw
