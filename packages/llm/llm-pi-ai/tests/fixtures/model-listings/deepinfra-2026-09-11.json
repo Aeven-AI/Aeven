@@ -1,0 +1,151 @@
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "google/gemma-4-26B-A4B-it",
+      "object": "model",
+      "created": 0,
+      "owned_by": "deepinfra",
+      "root": "google/gemma-4-26B-A4B-it",
+      "parent": null,
+      "metadata": {
+        "description": "Efficient, MoE variant of Gemma 4. Gemma is a family of open models built by Google DeepMind. Gemma 4 models are multimodal, handling text and image input and generating text output.",
+        "context_length": 262144,
+        "max_tokens": 262144,
+        "pricing": {
+          "input_tokens": 0.07,
+          "output_tokens": 0.33999999999999997
+        },
+        "discount": null,
+        "tags": [
+          "chat",
+          "vlm",
+          "vision",
+          "reasoning"
+        ],
+        "default_width": null,
+        "default_height": null,
+        "default_iterations": null
+      }
+    },
+    {
+      "id": "XiaomiMiMo/MiMo-V2.5-Pro",
+      "object": "model",
+      "created": 0,
+      "owned_by": "deepinfra",
+      "root": "XiaomiMiMo/MiMo-V2.5-Pro",
+      "parent": null,
+      "metadata": {
+        "description": "MiMo-V2.5-Pro is an open-source Mixture-of-Experts (MoE) language model with 1.02T total parameters and 42B active parameters. It utilizes the hybrid attention architecture and 3-layers Multi-Token Prediction (MTP) introduced in [MiMo-V2-Flash](https://github.com/XiaomiMiMo/MiMo-V2-Flash).",
+        "context_length": 1048576,
+        "max_tokens": 1048576,
+        "pricing": {
+          "input_tokens": 1,
+          "output_tokens": 2.9999999999999996,
+          "cache_read_tokens": 0.2
+        },
+        "discount": 0.61,
+        "tags": [
+          "chat",
+          "prompt_cache",
+          "reasoning"
+        ],
+        "default_width": null,
+        "default_height": null,
+        "default_iterations": null
+      }
+    },
+    {
+      "id": "XiaomiMiMo/MiMo-V2.5-tts-voicedesign",
+      "object": "model",
+      "created": 0,
+      "owned_by": "deepinfra",
+      "root": "XiaomiMiMo/MiMo-V2.5-tts-voicedesign",
+      "parent": null,
+      "metadata": {
+        "description": "Automatically convert input text into natural and fluent speech output. You can generate natural and vivid speech content by configuring parameters such as speech style and voice. Automatically generate voices from text descriptions, without requiring presets or audio samples.",
+        "context_length": null,
+        "max_tokens": null,
+        "pricing": {
+          "input_characters": 0
+        },
+        "discount": null,
+        "tags": [
+          "tts"
+        ],
+        "default_width": null,
+        "default_height": null,
+        "default_iterations": null
+      }
+    },
+    {
+      "id": "Qwen/Qwen3-Embedding-8B",
+      "object": "model",
+      "created": 0,
+      "owned_by": "deepinfra",
+      "root": "Qwen/Qwen3-Embedding-8B",
+      "parent": null,
+      "metadata": {
+        "description": "The Qwen3 Embedding model series is the latest proprietary model of the Qwen family, specifically designed for text embedding and ranking tasks. Building upon the dense foundational models of the Qwen3 series, it provides a comprehensive range of text embeddings and reranking models in various sizes (0.6B, 4B, and 8B).",
+        "context_length": 32768,
+        "max_tokens": 32768,
+        "pricing": {
+          "input_tokens": 0.01
+        },
+        "discount": null,
+        "tags": [
+          "embed"
+        ],
+        "default_width": null,
+        "default_height": null,
+        "default_iterations": null
+      }
+    },
+    {
+      "id": "black-forest-labs/FLUX-1.1-pro",
+      "object": "model",
+      "created": 0,
+      "owned_by": "deepinfra",
+      "root": "black-forest-labs/FLUX-1.1-pro",
+      "parent": null,
+      "metadata": {
+        "description": "Black Forest Labs' latest state-of-the art proprietary model sporting top of the line prompt following, visual quality, details and output diversity.",
+        "context_length": null,
+        "max_tokens": null,
+        "pricing": {
+          "per_image_unit": 0.04
+        },
+        "discount": null,
+        "tags": [
+          "image-gen"
+        ],
+        "default_width": 0,
+        "default_height": 0,
+        "default_iterations": 0
+      }
+    },
+    {
+      "id": "openai/whisper-large-v3-turbo",
+      "object": "model",
+      "created": 0,
+      "owned_by": "deepinfra",
+      "root": "openai/whisper-large-v3-turbo",
+      "parent": null,
+      "metadata": {
+        "description": "Whisper is a state-of-the-art model for automatic speech recognition (ASR) and speech translation, proposed in the paper \"Robust Speech Recognition via Large-Scale Weak Supervision\" by Alec Radford et al. from OpenAI. Trained on >5M hours of labeled data, Whisper demonstrates a strong ability to generalise to many datasets and domains in a zero-shot setting. Whisper large-v3-turbo is a finetuned version of a pruned Whisper large-v3. In other words, it's the exact same model, except that the number of decoding layers have reduced from 32 to 4. As a result, the model is way faster, at the expense of a minor quality degradation.",
+        "context_length": null,
+        "max_tokens": null,
+        "pricing": {
+          "input_seconds": 0.0000033300000000000003
+        },
+        "discount": null,
+        "tags": [
+          "stt"
+        ],
+        "default_width": null,
+        "default_height": null,
+        "default_iterations": null
+      }
+    }
+  ]
+}

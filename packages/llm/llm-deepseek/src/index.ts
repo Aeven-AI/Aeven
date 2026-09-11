@@ -37,6 +37,7 @@ import {
   DeepSeekAdapter,
 } from './adapter.ts'
 import type { DeepSeekCatalogModel, DeepSeekConnectionOptions } from './adapter.ts'
+import { DEFAULT_MODEL_SYNC_TIMEOUT_MS, fetchModelIds, withSyncedModels } from './model-sync.ts'
 import {
   DEFAULT_LOW_DETAIL_IMAGE_PIXEL_BUDGET,
   DEFAULT_MAX_IMAGES_PER_REQUEST,
@@ -91,24 +92,23 @@ const PROVIDER = 'deepseek-official'
 
 const DEFAULT_MODELS: DeepSeekCatalogModel[] = [
   {
-    id: 'deepseek-v4-flash',
-    name: 'DeepSeek-V4-Flash',
-    description: 'Fast, efficient, and economical; suited to focused, routine, or parallel tasks.',
+    // The platform's canonical id for DeepSeek-V4.1-Flash. Its legacy aliases
+    // (`deepseek-v4-flash`, `deepseek-v4-flash-vision-exp`) are still accepted
+    // but name retired models and resolve to this one, so the catalog lists the
+    // id the platform publishes.
+    id: 'deepseek-flash',
+    name: 'DeepSeek-V4.1-Flash',
+    description: 'Fast, efficient, and economical; suited to focused, routine, or parallel tasks. Reads images.',
     contextWindow: DEFAULT_CONTEXT_WINDOW,
+    inputModalities: ['text', 'image'],
+    imagePixelBudget: DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET,
+    imageMaxBytes: DEFAULT_REQUEST_IMAGE_MAX_BYTES,
   },
   {
     id: 'deepseek-v4-pro',
     name: 'DeepSeek-V4-Pro',
     description: 'Stronger agentic coding, knowledge, and difficult reasoning; suited to complex or quality-critical tasks at higher cost.',
     contextWindow: DEFAULT_CONTEXT_WINDOW,
-  },
-  {
-    id: 'deepseek-v4-flash-vision-exp',
-    name: 'DeepSeek-V4-Flash-Vision-Exp',
-    contextWindow: DEFAULT_CONTEXT_WINDOW,
-    inputModalities: ['text', 'image'],
-    imagePixelBudget: DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET,
-    imageMaxBytes: DEFAULT_REQUEST_IMAGE_MAX_BYTES,
   },
 ]
 
@@ -406,14 +406,18 @@ export function apply(ctx: Context, config: Config): void {
   let current: () => Config = () => config
   let lastRaw: Config | undefined
   let lastGood: ResolvedDeepSeekOptions | undefined
+  // Published model ids the platform answered with, or `undefined` while its
+  // list is unanswered. Held outside the options memo so a sync that lands
+  // after mount widens the catalog without re-registering the route.
+  let syncedIds: readonly string[] | undefined
   const options = (): ResolvedDeepSeekOptions => {
     const raw = current()
     if (raw === lastRaw && lastGood !== undefined) return lastGood
     try {
       const next = resolveAdapterOptions(raw, launchEnvironmentOf(ctx))
       lastRaw = raw
-      lastGood = next
-      return next
+      lastGood = { ...next, models: withSyncedModels(next.models, syncedIds) }
+      return lastGood
     } catch (error) {
       // Static composition resolves before anything registers, so this branch
       // only sees a live settings snapshot failing a beyond-schema bound:
@@ -471,6 +475,17 @@ export function apply(ctx: Context, config: Config): void {
   ctx.llm.registerConfigurableProviders([
     { provider: PROVIDER, displayName: 'DeepSeek', settingsNs: NS, settingsPath: [] },
   ])
+  // The Models page's "fetch available models" action answers from the catalog
+  // this plugin already advertises — the platform publishes ids only, so a
+  // listing call would disclose strictly less than the entries here carry.
+  ctx.llm.registerModelDiscovery(NS, () => Promise.resolve(
+    options().models.map(model => ({
+      id: model.id,
+      ...model.name === undefined ? {} : { name: model.name },
+      ...model.contextWindow === undefined ? {} : { contextWindow: model.contextWindow },
+      ...model.maxTokens === undefined ? {} : { maxTokens: model.maxTokens },
+    })),
+  ))
   // Route effects bind to this apply fiber via the stable `ctx` reference,
   // even when a swap runs inside the scoped settings callback below.
   const registration = ctx.llm.registerAdapter([PROVIDER], adapter)
@@ -487,12 +502,61 @@ export function apply(ctx: Context, config: Config): void {
     registeredPolicy = policy
   }
 
+  // One controller for every attempt: the cancellation covers an in-flight
+  // listing request when the plugin unloads.
+  const syncs = new AbortController()
+
+  /**
+   * Read the platform's model list once and widen the catalog with what it
+   * publishes. Best-effort by contract: an unreachable, slow, or malformed
+   * document keeps the shipped catalog, because a listing being briefly
+   * unavailable must not take the provider's own models away. A route whose
+   * credential is not configured yet is skipped for the same reason, and the
+   * next settings change retries.
+   */
+  const syncModels = async (signal: AbortSignal): Promise<void> => {
+    const connection = options()
+    let ids: readonly string[] | undefined
+    try {
+      ids = await fetchModelIds(
+        `${connection.baseURL.replace(/\/+$/, '')}/models`,
+        DEFAULT_MODEL_SYNC_TIMEOUT_MS,
+        await resolveApiKey(connection),
+        signal,
+      )
+    } catch (error) {
+      if (signal.aborted) return
+      ctx.logger.warn('llm-deepseek: keeping the shipped model catalog; the platform model list was unavailable')
+      ctx.logger.warn(error)
+      return
+    }
+    // An answer that adds nothing changes nothing: the catalog, the memo, and
+    // the registry all stay where they are.
+    if (ids === undefined || ids.every(id => connection.models.some(model => model.id === id))) return
+    syncedIds = ids
+    // The memo keys on the raw snapshot, which a sync does not change, so it is
+    // invalidated explicitly; `replace` then republishes the routes so the
+    // widened catalog reaches selectors and the Models page.
+    lastRaw = undefined
+    ensureRegistrationFacts()
+    registration.replace([PROVIDER])
+    ctx.logger.info(`llm-deepseek: platform model list synced; ${String(options().models.length)} model(s) advertised`)
+  }
+
   ctx.inject(['settings'], (settingsCtx) => {
     settingsCtx.settings.installSection(ctx, NS, Config, config, {
       setSource: (source) => {
         current = source
       },
-      onChange: ensureRegistrationFacts,
+      onChange: () => {
+        ensureRegistrationFacts()
+        void syncModels(syncs.signal)
+      },
     })
   })
+
+  ctx.effect(() => {
+    void syncModels(syncs.signal)
+    return () => { syncs.abort() }
+  }, 'llm-deepseek: platform model list sync')
 }

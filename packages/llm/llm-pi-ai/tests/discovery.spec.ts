@@ -106,6 +106,102 @@ describe('catalog-route model discovery', () => {
   })
 })
 
+describe('known-route model discovery', () => {
+  /**
+   * Answer every request with one document, recording where each was sent.
+   * DeepInfra's endpoint is owned by the known-route table, so a case that
+   * names no endpoint can only be exercised by intercepting the request.
+   */
+  async function recordingFetch(body: string): Promise<{ url: string; headers: Headers }[]> {
+    const sent: { url: string; headers: Headers }[] = []
+    vi.stubGlobal('fetch', async (url: string | URL, init?: RequestInit) => {
+      sent.push({ url: String(url), headers: new Headers(init?.headers) })
+      return new Response(body, { status: 200, headers: { 'content-type': 'application/json' } })
+    })
+    return sent
+  }
+
+  it('answers at the endpoint the table owns, keeping only the models the route can serve', async () => {
+    const document = await readFile(
+      new URL('./fixtures/model-listings/deepinfra-2026-09-11.json', import.meta.url),
+      'utf8',
+    )
+    const sent = await recordingFetch(document)
+    const ctx = await harness()
+
+    // What the Models page sends for a route whose profile states only
+    // `apiKeyEnv`: the route id and nothing else, because the endpoint and
+    // protocol come from the table.
+    const models = await ctx.llm.discoverModels('llm-pi-ai', { provider: 'deepinfra' })
+
+    expect(sent.map(request => request.url)).toEqual(['https://api.deepinfra.com/v1/openai/models'])
+    // The document lists image, speech, and embedding models beside the chat
+    // ones, and this route speaks a text protocol: offering them would propose
+    // requests that cannot work.
+    expect(models.map(model => model.id))
+      .toEqual(['google/gemma-4-26B-A4B-it', 'XiaomiMiMo/MiMo-V2.5-Pro'])
+  })
+
+  it('interrogates a route configured with a credential alone', async () => {
+    const sent = await recordingFetch(JSON.stringify({ data: [{ id: 'chat-model', metadata: { tags: ['chat'] } }] }))
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    process.env['DEEPINFRA_API_KEY'] = 'stored-deepinfra-key'
+    touchedEnv.push('DEEPINFRA_API_KEY')
+    await ctx.plugin(LlmPiAi, { providers: { deepinfra: { apiKeyEnv: 'DEEPINFRA_API_KEY' } } })
+    // The route's own refresh asks the same document at mount, unauthenticated.
+    // This case is about the interrogation that follows it.
+    sent.length = 0
+
+    await expect(ctx.llm.discoverModels('llm-pi-ai', { provider: 'deepinfra' }))
+      .resolves.toEqual([{ id: 'chat-model', name: 'chat-model' }])
+
+    expect(sent.map(request => request.url)).toEqual(['https://api.deepinfra.com/v1/openai/models'])
+    expect(sent.map(request => request.headers.get('authorization'))).toEqual(['Bearer stored-deepinfra-key'])
+  })
+
+  it('asks where a draft says when it names an endpoint of its own', async () => {
+    // A known route pointed at a proxy: the draft's endpoint and protocol win,
+    // because only the fields the draft leaves out are the table's to answer.
+    const sent = await recordingFetch(JSON.stringify({
+      data: [
+        { id: 'proxy-chat', metadata: { tags: ['chat'] } },
+        { id: 'proxy-tts', metadata: { tags: ['tts'] } },
+      ],
+    }))
+    const ctx = await harness()
+
+    const models = await ctx.llm.discoverModels('llm-pi-ai', {
+      provider: 'deepinfra',
+      baseURL: 'https://proxy.example',
+      api: 'anthropic-messages',
+    })
+
+    expect(sent.map(request => request.url)).toEqual(['https://proxy.example/v1/models?limit=1000'])
+    // The route is still the same route, so its own requirement still decides
+    // which of the proxy's entries it can serve.
+    expect(models.map(model => model.id)).toEqual(['proxy-chat'])
+  })
+
+  it('offers every published entry for a route the table does not describe', async () => {
+    const sent = await recordingFetch(JSON.stringify({
+      data: [
+        { id: 'untagged' },
+        { id: 'tagged-elsewhere', metadata: { tags: ['tts'] } },
+      ],
+    }))
+    const ctx = await harness()
+
+    const models = await ctx.llm.discoverModels('llm-pi-ai', {
+      provider: 'acme-gateway',
+      baseURL: 'https://gateway.example/v1',
+    })
+
+    expect(sent.map(request => request.url)).toEqual(['https://gateway.example/v1/models'])
+    expect(models.map(model => model.id)).toEqual(['untagged', 'tagged-elsewhere'])
+  })
+})
+
 describe('draft-provider model discovery', () => {
   it('reads an OpenAI-compatible listing and keeps the capacities it discloses', async () => {
     const server = await listingServer({

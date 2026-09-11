@@ -6,7 +6,10 @@
  * with no network call at all: pi-ai's registry is the authoritative list for
  * its own providers, and it carries the capacities a listing endpoint would
  * not disclose. Only a route the catalog does not describe — a gateway, a
- * self-hosted server — is interrogated over the wire.
+ * self-hosted server — is interrogated over the wire, and a route this package
+ * ships a known-route entry for is interrogated where that entry says: it owns
+ * the endpoint, the protocol, and the capability tags its models must carry, so
+ * a route configured with a credential alone is still answerable.
  *
  * Neither path is a catalog refresh. Nothing here is stored: the request
  * carries a draft the user is still editing, and the reply is candidate
@@ -26,6 +29,8 @@ import { INVALID_CREDENTIAL_CODE, LlmError, normalizeApiKey } from '@deepseek-ai
 import type { LlmDiscoveredModel, LlmModelDiscoveryOperation } from '@deepseek-ai/dsh-llm'
 import { attributionHeaders } from '@deepseek-ai/dsh-llm'
 import { catalogModels } from './catalog.ts'
+import { carriesTags } from './live-catalog.ts'
+import { knownRoute } from './known-routes.ts'
 
 /**
  * Protocols whose model listing this module can read. OpenAI protocols use
@@ -85,6 +90,8 @@ interface ListingEntry {
   maxTokens?: unknown
   limit?: ListingLimit | null
   top_provider?: ListingTopProvider | null
+  /** Where the `openai-models` layout publishes an entry's capability tags. */
+  metadata?: { tags?: unknown } | null
 }
 
 /** A positive integer field of a listing entry, or `undefined` when absent or unusable. */
@@ -177,8 +184,14 @@ async function readBounded(response: Response, url: string): Promise<string> {
  * interrogation: a single malformed row should not deny the user the rest of
  * a working endpoint's catalog. Missing names fall back to the adopted id so
  * the Web form receives a complete human-readable row.
+ * @param body - the parsed listing reply.
+ * @param requireTags - capability tags a candidate must carry, or empty to
+ *   offer every entry. This is the requesting route's own requirement, read off
+ *   the same `metadata.tags` field the refresh filters its entries by, so a
+ *   candidate list offers exactly what the route could serve.
+ * @returns the offered candidates in listing order.
  */
-function readListing(body: unknown): LlmDiscoveredModel[] {
+function readListing(body: unknown, requireTags: readonly string[]): LlmDiscoveredModel[] {
   const listing = body as { data?: unknown; models?: unknown } | null
   const data = listing?.data
   let listed: { readonly key?: string; readonly raw: unknown }[]
@@ -203,6 +216,10 @@ function readListing(body: unknown): LlmDiscoveredModel[] {
     const entry = raw as ListingEntry | null
     const id = label(key, entry?.id)
     if (id === undefined) continue
+    // A route's own requirement decides which entries it can serve: a text
+    // route offering the speech, embedding, and image models its provider
+    // lists beside the chat ones would propose requests that cannot work.
+    if (!carriesTags(entry, requireTags)) continue
     const name = label(entry?.name, entry?.display_name, entry?.displayName) ?? id
     const contextWindow = capacity(
       entry?.contextWindow,
@@ -283,27 +300,39 @@ export async function discoverModels(
       }))
     }
   }
-  if (request.baseURL === undefined || request.baseURL.length === 0) {
+  // A known route owns the fields its table states, which is what lets a route
+  // configured with a credential alone be interrogated at all: `resolveProfiles`
+  // reads the same `api` and `baseURL` off the same entry to complete a stored
+  // profile, and discovery asks the same question of the same table. It belongs
+  // here rather than in the plugin's registration because the answer depends
+  // only on which route the request names, while what the registration adds is
+  // Host-owned data this request must not carry — the stored credential and the
+  // deployment headers. A value the draft supplied still wins, so a known route
+  // pointed at a proxy is asked where the draft says.
+  const known = request.provider === undefined ? undefined : knownRoute(request.provider)
+  const baseURL = request.baseURL ?? known?.baseURL
+  if (baseURL === undefined || baseURL.length === 0) {
     throw new LlmError(
       `pi-ai ships no catalog for provider "${request.provider ?? ''}", so its models can only come from its`
       + " endpoint; set a baseURL, or enter this provider's models by hand",
       'DISCOVERY_FAILED',
     )
   }
-  // A draft that has not chosen a protocol yet is asked as OpenAI Chat
-  // Completions: it is the shape a gateway is overwhelmingly likely to speak,
-  // and the alternative — refusing until the field is filled — would withhold
-  // the action from the case it exists for. The cost is a misdirected message
-  // when the endpoint speaks something else (an Anthropic gateway answers 401,
-  // which reads as a credential problem), and hand-entry remains the way out.
-  const api = request.api ?? 'openai-completions'
+  // A draft that has not chosen a protocol yet, on a route no known-route entry
+  // describes, is asked as OpenAI Chat Completions: it is the shape a gateway is
+  // overwhelmingly likely to speak, and the alternative — refusing until the
+  // field is filled — would withhold the action from the case it exists for. The
+  // cost is a misdirected message when the endpoint speaks something else (an
+  // Anthropic gateway answers 401, which reads as a credential problem), and
+  // hand-entry remains the way out.
+  const api = request.api ?? known?.api ?? 'openai-completions'
   if (!LISTABLE_PROTOCOLS.has(api)) {
     throw new LlmError(
       `pi-ai protocol "${api}" has no model listing this build can read; enter this provider's models by hand`,
       'DISCOVERY_UNSUPPORTED',
     )
   }
-  const url = listingUrl(request.baseURL, api)
+  const url = listingUrl(baseURL, api)
   // A key typed into the form wins: it may replace the stored key that is
   // failing. The stored profile is asked past the catalog and protocol checks,
   // and its credential resolver remains lazy so a typed key cannot fail over a
@@ -358,5 +387,8 @@ export async function discoverModels(
   } catch (error: unknown) {
     throw new LlmError(`${url} did not answer with JSON`, 'DISCOVERY_FAILED', { cause: error })
   }
-  return readListing(body)
+  // The route's own tag requirement, and only that one: a draft names no tags
+  // of its own, and a route this package knows nothing about requires none, so
+  // it keeps every entry its endpoint publishes.
+  return readListing(body, known?.catalogRefresh.requireTags ?? [])
 }

@@ -12,6 +12,7 @@ import { getBuiltinModels } from '@earendil-works/pi-ai/providers/all'
 import { createModels, getSupportedThinkingLevels } from '@earendil-works/pi-ai'
 import type { Api, Model, OpenAICompletionsCompat, Provider } from '@earendil-works/pi-ai'
 import { resolveProfiles } from '../src/config.ts'
+import { vendorOutputCap } from '../src/catalog.ts'
 import { buildProvider, supportedProtocols } from '../src/provider.ts'
 import { assemble } from './assemble.ts'
 import { memoryAuth } from './auth-double.ts'
@@ -195,6 +196,48 @@ describe('hand-declared providers', () => {
     // the model's capability and stops there.
     expect(resolved.get('acme-gateway')?.configuredMaxTokens.get('bare')).toBeUndefined()
     expect(resolved.get('acme-gateway')?.configuredMaxTokens.get('sized')).toBe(512)
+  })
+
+  it('takes an output cap from the model vendor, never from a same-named stranger', () => {
+    // The vendor prefix names the serving vendor, and the remainder is that
+    // provider's own model id.
+    expect(vendorOutputCap('anthropic/claude-opus-5')).toBe(128_000)
+    expect(vendorOutputCap('anthropic/claude-haiku-4-5')).toBe(64_000)
+    // Case aside, the id still has to match one the vendor ships.
+    expect(vendorOutputCap('ANTHROPIC/Claude-Opus-5')).toBe(128_000)
+    expect(vendorOutputCap('anthropic/claude-opus-5-preview')).toBeUndefined()
+    // A vendor whose name is not the provider key, an unprefixed id, and a
+    // provider that ships no such model all answer nothing: a gateway's cap is
+    // the vendor's only where the vendor is the one serving the model.
+    expect(vendorOutputCap('zai-org/GLM-5.3-Flash')).toBeUndefined()
+    expect(vendorOutputCap('claude-opus-5')).toBeUndefined()
+    expect(vendorOutputCap('google/gemini-2.5-flash-9999')).toBeUndefined()
+  })
+
+  it('answers with the route cap for a declared cap no model could emit', () => {
+    const resolved = resolveProfiles({
+      'acme-gateway': {
+        api: 'openai-completions',
+        baseURL: 'https://acme.test',
+        models: [
+          // A cap one token above the window, the shape a context length
+          // copied into this field takes.
+          { id: 'over', contextWindow: 4095, maxTokens: 4096 },
+          // Equality stays legal: a model with no distinct output limit is
+          // stated this way, by the catalog and by hand alike.
+          { id: 'whole-window', contextWindow: 32_768, maxTokens: 32_768 },
+        ],
+      },
+    })
+    const models = resolved.get('acme-gateway')?.piProvider.getModels() ?? []
+    const of = (id: string): unknown => models.find(model => model.id === id)
+
+    expect(of('over')).toMatchObject({ contextWindow: 4095, maxTokens: 32_768 })
+    expect(of('whole-window')).toMatchObject({ contextWindow: 32_768, maxTokens: 32_768 })
+    // The request default is corrected with the capability, so the value that
+    // cannot be emitted is never the one a request asks for.
+    expect(resolved.get('acme-gateway')?.configuredMaxTokens.get('over')).toBe(32_768)
+    expect(resolved.get('acme-gateway')?.configuredMaxTokens.get('whole-window')).toBe(32_768)
   })
 
   it('takes a model’s declared modalities, then the catalog’s, then the route’s', () => {

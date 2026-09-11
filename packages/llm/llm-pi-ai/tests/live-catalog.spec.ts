@@ -110,6 +110,12 @@ describe('liveModel', () => {
     expect(model?.input).toEqual(['text'])
   })
 
+  it('reads a whole-window completion cap as no cap in the openrouter layout too', () => {
+    const wholeWindow = liveModel(entry({ top_provider: { context_length: 262_144, max_completion_tokens: 262_144 } }), ROUTE)
+
+    expect(wholeWindow).toMatchObject({ contextWindow: 262_144, maxTokens: 32_768 })
+  })
+
   it('always declares text, even for an entry that publishes only other modalities', () => {
     const model = liveModel(entry({ architecture: { input_modalities: ['image'] } }), ROUTE)
     expect(model?.input).toEqual(['text', 'image'])
@@ -360,11 +366,49 @@ describe('the openai-models layout', () => {
       // No name field in this layout, so the id is the label.
       name: 'Qwen/Qwen3.5-27B',
       contextWindow: 262_144,
-      maxTokens: 262_144,
+      // This layout publishes max_tokens as a copy of context_length, which is
+      // no output ceiling, so the route's own fallback answers for the model.
+      maxTokens: 32_768,
       reasoning: true,
       input: ['text', 'image'],
     })
     expect(model?.thinkingLevelMap).toMatchObject({ low: 'low', medium: 'medium', high: 'high' })
+  })
+
+  it('keeps a published cap that fits inside the entry window', () => {
+    const model = liveModel(
+      openAiEntry({ metadata: { context_length: 262_144, max_tokens: 131_072, tags: ['chat'] } }),
+      OPENAI_ROUTE,
+    )
+
+    expect(model).toMatchObject({ contextWindow: 262_144, maxTokens: 131_072 })
+  })
+
+  it('judges a published cap against the route window when the entry states none', () => {
+    const model = liveModel(openAiEntry({ metadata: { max_tokens: 262_144, tags: ['chat'] } }), OPENAI_ROUTE)
+
+    expect(model).toMatchObject({ contextWindow: 262_144, maxTokens: 32_768 })
+  })
+
+  it('takes the vendor catalog cap when the document states none that can be one', () => {
+    // DeepInfra serves `anthropic/claude-opus-5` with a 1,000,000-token window
+    // and no output cap of its own; the vendor's entry states 128,000, and the
+    // host refuses 128,001.
+    const route = { ...OPENAI_ROUTE, vendorOutputCap: (id: string) => (id === 'Qwen/Qwen3.5-27B' ? 128_000 : undefined) }
+    const entryWithWindow = openAiEntry({
+      id: 'Qwen/Qwen3.5-27B',
+      metadata: { context_length: 1_000_000, max_tokens: 1_000_000, tags: ['chat'] },
+    })
+
+    expect(liveModel(entryWithWindow, route)).toMatchObject({ contextWindow: 1_000_000, maxTokens: 128_000 })
+    // A vendored cap the route cannot use leaves the route default answering.
+    expect(liveModel(entryWithWindow, { ...route, vendorOutputCap: () => 1_000_000 }))
+      .toMatchObject({ maxTokens: 32_768 })
+    // The document's own usable cap still outranks the vendor's.
+    expect(liveModel(
+      openAiEntry({ metadata: { context_length: 262_144, max_tokens: 131_072, tags: ['chat'] } }),
+      { ...route, vendorOutputCap: () => 128_000 },
+    )).toMatchObject({ maxTokens: 131_072 })
   })
 
   it('reads text-only, non-reasoning entries without inventing capability', () => {

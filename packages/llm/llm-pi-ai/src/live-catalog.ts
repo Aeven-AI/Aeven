@@ -96,6 +96,19 @@ export interface LiveCatalogRoute {
    * selector listing them offers the user a request that will fail.
    */
   requireTags: readonly string[]
+  /**
+   * Output cap the model's own vendor states for one published id, which
+   * answers when the document states no usable one.
+   *
+   * A gateway serving another vendor's models publishes ids naming that
+   * vendor's provider and model but cannot state their output caps — DeepInfra
+   * publishes its context window in the cap field and `max_output_tokens: null`
+   * on the per-model document for every proxied model. The vendor's own catalog
+   * entry carries the real cap, and the caller owns that lookup because it is
+   * the seam between the two catalogs. Absent leaves the route default to
+   * answer, as a document that sizes nothing already does.
+   */
+  vendorOutputCap?: (id: string) => number | undefined
 }
 
 /**
@@ -121,13 +134,59 @@ function positiveInteger(value: unknown): number | undefined {
 }
 
 /**
- * The entry's capability tags, which only the `openai-models` layout carries.
- * @param entry - one published entry.
+ * The one published field the capability-tag signal lives in. Only the
+ * `openai-models` layout carries it, so an entry of the other layout, or no
+ * entry at all, reads as untagged.
+ */
+interface PublishedTags {
+  metadata?: { tags?: unknown } | null | undefined
+}
+
+/**
+ * Read the entry's capability tags, which only the `openai-models` layout carries.
+ * @param entry - one published entry, or nothing.
  * @returns the published tags, or an empty list.
  */
-function tags(entry: LiveModelEntry): readonly string[] {
-  const published = entry.metadata?.tags
+function tags(entry: PublishedTags | null | undefined): readonly string[] {
+  const published = entry?.metadata?.tags
   return Array.isArray(published) ? published.filter(tag => typeof tag === 'string') : []
+}
+
+/**
+ * Whether one published entry carries every capability tag a route requires.
+ *
+ * The one home for the tag signal: the refresh filters the entries it
+ * materializes through this, and draft interrogation filters the candidates it
+ * offers through it, so `requireTags` selects the same models on both paths. A
+ * route requiring nothing accepts every entry, including an untagged one.
+ * @param entry - one published entry, or nothing.
+ * @param required - tags the route requires; empty accepts every entry.
+ * @returns true when the entry carries every required tag.
+ */
+export function carriesTags(entry: PublishedTags | null | undefined, required: readonly string[]): boolean {
+  if (required.length === 0) return true
+  const published = tags(entry)
+  return required.every(tag => published.includes(tag))
+}
+
+/**
+ * Keep an output cap that can be one, from either source.
+ *
+ * A cap states how much the model may emit, so a value that is not smaller than
+ * the window the materialized model declares states no usable capability: no
+ * model emits its entire window. DeepInfra publishes `metadata.max_tokens` as a
+ * copy of `metadata.context_length` — all 131 entries carrying both fields
+ * agree — and reading that copy as a capability gives the model a whole-window
+ * ceiling, which pi-ai then sends as the request's `max_tokens` whenever the
+ * profile configures none, and which any provider enforcing its own output
+ * limit refuses outright.
+ * @param candidate - a cap the document published or the vendor's catalog states, or anything else.
+ * @param contextWindow - the window the materialized model will declare.
+ * @returns the cap when it is smaller than that window, otherwise undefined.
+ */
+function publishedOutputCap(candidate: unknown, contextWindow: number): number | undefined {
+  const cap = positiveInteger(candidate)
+  return cap !== undefined && cap < contextWindow ? cap : undefined
 }
 
 /**
@@ -190,8 +249,7 @@ export function liveModel(entry: LiveModelEntry, route: LiveCatalogRoute): Model
   // A route that names required tags accepts only entries carrying them all,
   // which is how a chat route skips the image, audio, and embedding models a
   // provider lists in the same document.
-  const published = tags(entry)
-  if (!route.requireTags.every(required => published.includes(required))) return undefined
+  if (!carriesTags(entry, route.requireTags)) return undefined
   const reasoning = reasons(entry, route.format)
   const openAiLayout = route.format === 'openai-models'
   const modelCost: ModelCost = openAiLayout
@@ -207,12 +265,17 @@ export function liveModel(entry: LiveModelEntry, route: LiveCatalogRoute): Model
       cacheRead: cost(entry.pricing?.input_cache_read),
       cacheWrite: 0,
     }
-  const contextWindow = openAiLayout
+  // The window the model will declare, which is what a published cap must fit
+  // inside. An entry that publishes none leaves the cap judged against the
+  // route's own assumption, since that is the window this model will serve.
+  const publishedContextWindow = openAiLayout
     ? positiveInteger(entry.metadata?.context_length)
     : positiveInteger(entry.top_provider?.context_length) ?? positiveInteger(entry.context_length)
-  const maxTokens = openAiLayout
-    ? positiveInteger(entry.metadata?.max_tokens)
-    : positiveInteger(entry.top_provider?.max_completion_tokens)
+  const contextWindow = publishedContextWindow ?? route.defaultContextWindow
+  const maxTokens = publishedOutputCap(
+    openAiLayout ? entry.metadata?.max_tokens : entry.top_provider?.max_completion_tokens,
+    contextWindow,
+  ) ?? publishedOutputCap(route.vendorOutputCap?.(id), contextWindow)
   return {
     id,
     name: typeof entry.name === 'string' && entry.name.length > 0 ? entry.name : id,
@@ -222,7 +285,7 @@ export function liveModel(entry: LiveModelEntry, route: LiveCatalogRoute): Model
     reasoning,
     input: modalities(entry, route.format),
     cost: modelCost,
-    contextWindow: contextWindow ?? route.defaultContextWindow,
+    contextWindow,
     maxTokens: maxTokens ?? route.defaultMaxTokens,
     // Only what the published document actually implies. Everything a tuned
     // snapshot entry would hand-state stays absent rather than guessed; a
