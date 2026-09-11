@@ -302,6 +302,33 @@ describe('FileMutationRow diff card', () => {
     expect(run.container.querySelector('[class*="_errorSummary_"]')).toBeNull()
   })
 
+  it('presents the unread-target refusal as a muted notice, not an alarm', () => {
+    // The refusal states its own remedy, so the row keeps the failed state and
+    // the whole message while dropping the error styling that made a routine
+    // read-first step read like an incident.
+    const view = render(<FileMutationRow {...rowProps(settled({
+      isError: true,
+      content: [{ type: 'text', text: 'cannot modify "notes/demo.txt": file has not been read — read the file, then retry' }],
+      error: { name: 'FsError', code: 'FS_NOT_OBSERVED' },
+    }))} />)
+    expect(view.container.querySelector('[data-state="error"][data-notice]')).not.toBeNull()
+    expect(view.container.querySelector('[class*="_noticeSummary_"]')).not.toBeNull()
+    expect(view.container.querySelector('[class*="_errorSummary_"]')).toBeNull()
+    // De-emphasized is not hidden: the remedy stays readable without expanding.
+    expect(view.getByText(/file has not been read — read the file, then retry/)).toBeTruthy()
+  })
+
+  it('keeps the error presentation for a failure whose recovery nothing states', () => {
+    const view = render(<FileMutationRow {...rowProps(settled({
+      isError: true,
+      content: [{ type: 'text', text: 'old_string not found in notes/demo.txt' }],
+      error: { name: 'ToolError', code: 'INVALID_REQUEST' },
+    }))} />)
+    expect(view.container.querySelector('[data-notice]')).toBeNull()
+    expect(view.container.querySelector('[class*="_errorSummary_"]')).not.toBeNull()
+    expect(view.container.querySelector('[class*="_noticeSummary_"]')).toBeNull()
+  })
+
   it('shows the stopped state when the call was interrupted', () => {
     const view = render(<FileMutationRow {...rowProps(settled({
       isError: true,
