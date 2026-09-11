@@ -20,6 +20,17 @@ export type ToolRowVariant = 'search' | 'read' | 'bash' | 'write' | 'edit' | 'co
 /** Row state semantic; colors self-supplied via StateDot (design gives none). */
 export type ToolRowState = 'running' | 'ok' | 'error' | 'stopped'
 
+/**
+ * Failure codes whose remedy is a documented next step the calling session
+ * performs itself: the filesystem gate refuses an `edit` of a target this
+ * session has not read, and naming the read is the whole fix. Such a row keeps
+ * its failed state, its text, and its expanded output — only the alarm styling
+ * softens, because a refusal the session clears on its own is information, not
+ * an incident. Every other code keeps the error presentation: a failure whose
+ * recovery nothing states is one the reader has to weigh.
+ */
+const NOTICE_ERROR_CODES: ReadonlySet<string> = new Set(['FS_NOT_OBSERVED'])
+
 type ToolTitleKey = Extract<LocaleKeysOf<'conversation'>, `tool.title.${string}`>
 
 /** Locale key per generic row variant. */
@@ -98,6 +109,12 @@ export interface ToolRowModel {
   output: string | null
   /** First line of the result text on an error row; null for every other state. */
   errorSummary: string | null
+  /**
+   * A settled failure whose remedy is a documented next step (see
+   * {@link NOTICE_ERROR_CODES}): the row keeps the error state and text but
+   * presents as a muted notice rather than the error alarm.
+   */
+  notice: boolean
   state: ToolRowState
 }
 
@@ -244,6 +261,10 @@ export function toolRowModel(toolName: string, block: ToolCallBlock, cwd?: strin
   // would erase the collapsed error row's summary slot.
   const output = done ? (resultText(block) || null) : null
   const errorSummary = state === 'error' && output !== null ? firstLine(output) : null
+  // The structured code is the discriminator, never the message text: the tools
+  // normalize every unread source to one sentence, so a text match would also
+  // catch failures this classification does not claim.
+  const notice = done && block.error !== undefined && NOTICE_ERROR_CODES.has(block.error.code)
   const bodyRaw = argsRaw === '' ? null : argsRaw
   return {
     variant,
@@ -253,6 +274,7 @@ export function toolRowModel(toolName: string, block: ToolCallBlock, cwd?: strin
     bodyRaw,
     output,
     errorSummary,
+    notice,
     state,
   }
 }

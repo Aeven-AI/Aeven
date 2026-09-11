@@ -63,6 +63,7 @@ export function GenericToolCard({
       bodyRaw={singleFile ? null : model.bodyRaw}
       output={model.output}
       errorSummary={model.errorSummary}
+      notice={model.notice}
       terminal={terminal}
       diff={diff}
       read={read}

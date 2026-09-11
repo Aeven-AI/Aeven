@@ -93,6 +93,25 @@ describe('tool-call-model', () => {
     expect(toolRowModel('bash', result({ isError: true, error: { name: 'E', code: 'interrupted' } })).state).toBe('stopped')
   })
 
+  it('classifies a documented-remedy refusal as a notice, by code and not by text', () => {
+    // The unread-target refusal names its own fix, so its row softens rather
+    // than alarms. The discriminator is the structured code, because the tools
+    // normalize every unread source to one sentence: matching that text would
+    // also claim failures this classification does not.
+    const refusal = result({
+      call: { name: 'edit', argsRaw: '{"file_path":"src/x.ts"}' },
+      isError: true,
+      content: [{ type: 'text', text: 'cannot modify "src/x.ts": file has not been read — read the file, then retry' }],
+      error: { name: 'FsError', code: 'FS_NOT_OBSERVED' },
+    })
+    expect(toolRowModel('edit', refusal).notice).toBe(true)
+    // A failure whose recovery nothing states keeps the ordinary error row.
+    expect(toolRowModel('edit', result({ isError: true, error: { name: 'E', code: 'SANDBOX_DENIED' } })).notice).toBe(false)
+    // Running and successful calls are never notices, whatever their content.
+    expect(toolRowModel('edit', running({ name: 'edit' })).notice).toBe(false)
+    expect(toolRowModel('edit', result({ call: { name: 'edit', argsRaw: '{}' } })).notice).toBe(false)
+  })
+
   it('derives the bash summary from description over command', () => {
     const m = toolRowModel('bash', running())
     expect(t(m.titleKey)).toBe('Bash')

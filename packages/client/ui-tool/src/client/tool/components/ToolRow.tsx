@@ -46,6 +46,14 @@ export interface ToolRowProps {
   askQuestion?: AskQuestionCardModel | null | undefined
   /** Error first line shown as the collapsed summary on an error row; null/absent = keep `summary`. */
   errorSummary?: string | null | undefined
+  /**
+   * Present the failure as a muted notice instead of the error alarm: a
+   * refusal whose remedy is a documented next step the session performs
+   * itself. The row keeps its `error` state, its summary text, and its
+   * expanded output; only the leading dot and the collapsed line soften.
+   * Absent/false = the ordinary error row.
+   */
+  notice?: boolean | undefined
   /** Terminal card; card fields are mutually exclusive and replace text sections. */
   terminal?: TerminalCardModel | null | undefined
   diff?: DiffCardModel | null | undefined
@@ -73,9 +81,9 @@ export interface ToolRowProps {
   images?: ReactNode | null | undefined
 }
 
-function leadingFor(state: ToolRowState, icon: ReactNode): ReactNode {
+function leadingFor(state: ToolRowState, icon: ReactNode, notice: boolean): ReactNode {
   switch (state) {
-    case 'error': return <StateDot state="error" />
+    case 'error': return <StateDot state={notice ? 'warning' : 'error'} />
     case 'stopped': return <StateDot state="warning" />
     default: return icon
   }
@@ -106,6 +114,7 @@ export function ToolRow({
   output,
   askQuestion,
   errorSummary,
+  notice = false,
   terminal,
   diff,
   read,
@@ -171,14 +180,20 @@ export function ToolRow({
   // output joins the IN/OUT card; every other variant's input does too.
   const cardBody = variant === 'code' ? null : bodyText
   return (
-    <div className={css.root} data-variant={variant} data-tool={toolName} data-state={state}>
+    <div
+      className={css.root}
+      data-variant={variant}
+      data-tool={toolName}
+      data-state={state}
+      data-notice={notice || undefined}
+    >
       {status !== null && <span className={css.visuallyHidden}>{status}</span>}
       <DisclosureRow
         rowClassName={css.row}
         leadingClassName={css.leading}
         titleClassName={css.title}
         chevronClassName={css.chevron}
-        icon={leadingFor(state, icon)}
+        icon={leadingFor(state, icon, notice)}
         title={title}
         open={open}
         expandable={expandable}
@@ -201,7 +216,7 @@ export function ToolRow({
               </button>
             ) : (
               <span
-                className={clsx(css.summary, failureLine !== null && css.errorSummary)}
+                className={clsx(css.summary, failureLine !== null && (notice ? css.noticeSummary : css.errorSummary))}
               >
                 {summaryText}
               </span>

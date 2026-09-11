@@ -155,6 +155,14 @@
   color: var(--dsw-alias-state-error-primary);
 }
 
+/* Notice row's collapsed summary: the same failure line in secondary label
+   color. The failure stays readable and expandable; it just stops shouting,
+   because the remedy is a step the session takes itself. The expanded output
+   keeps its error styling, so the detail still reads as a failure. */
+.noticeSummary {
+  color: var(--dsw-alias-label-secondary);
+}
+
 /* Expanded body + Inspect pill wrapper (sibling of .row: clicks never toggle). */
 .bodyWrap {
   display: flex;

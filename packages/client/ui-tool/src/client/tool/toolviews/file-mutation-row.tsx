@@ -25,6 +25,9 @@ export function FileMutationRow({ toolName, block, cwd, home, openFile, inspect,
       summary={model.summary}
       output={model.output}
       errorSummary={model.errorSummary}
+      // Only a guarded mutation reports the unread-target refusal, so this row
+      // and the generic fallback are where that failure is ever a notice.
+      notice={model.notice}
       diff={diff}
       state={model.state}
       filePath={model.filePath}
