@@ -1,0 +1,180 @@
+import { patterns } from '../patterns.ts'
+
+import type { BlockType } from '../types.ts'
+
+/**
+ * Decide what kind of block the streaming buffer currently holds.
+ *
+ * The answer drives which repair and render path the block takes. Checks run in
+ * the order that keeps a half-written block from rendering as prose: reasoning
+ * tags are recognised first so their contents never stream out beside the
+ * answer, and a block whose shape is still ambiguous ("pending") is held back
+ * until more text arrives or the stream is finalized.
+ * @param mdBuffer - the uncommitted markdown text received so far.
+ * @param finalize - true when the stream has ended and no further text will
+ *   arrive, so a pending block must resolve to a concrete type.
+ * @returns the detected block type, or `pending` while the block is still
+ *   undecided and not being finalized.
+ */
+export function detectBlockType(
+  mdBuffer: string,
+  finalize: boolean,
+): BlockType {
+  let blockType: BlockType | undefined
+  let trimmed
+  let hrPending
+  let lineBreakStart
+  let lineBreakPending
+  let codeBlockPending
+  let tableBlockPending
+
+  if (!mdBuffer || mdBuffer === '') {
+    return 'text'
+  }
+
+  // Checked first: the tag would otherwise read as an ordinary HTML block, and
+  // its contents would stream out as prose beside the answer.
+  if (patterns.reasoningOpenRegex.test(mdBuffer)) {
+    return 'reasoning'
+  }
+
+  // Still arriving. "pending" holds the whole block back rather than letting
+  // a half-written tag render as text.
+  if (!finalize && patterns.reasoningPartialRegex.test(mdBuffer)) {
+    return 'pending'
+  }
+
+  hrPending = hrPendingCheck(mdBuffer)
+  if (hrPending) {
+    blockType = hrPending
+  }
+
+  if (!blockType) {
+    lineBreakStart = lineBreakStartCheck(mdBuffer)
+    if (lineBreakStart) {
+      blockType = lineBreakStart
+    }
+  }
+
+  if (!blockType) {
+    lineBreakPending = lineBreakPendingCheck(mdBuffer)
+    if (lineBreakPending) {
+      blockType = lineBreakPending
+    }
+  }
+
+  if (!blockType) {
+    codeBlockPending = codeBlockPendingCheck(mdBuffer)
+    if (codeBlockPending) {
+      blockType = codeBlockPending
+    }
+  }
+
+  if (!blockType) {
+    tableBlockPending = tableBlockPendingCheck(mdBuffer)
+    if (tableBlockPending) {
+      blockType = tableBlockPending
+    }
+  }
+
+  if (!blockType) {
+    blockType = 'text'
+  }
+
+  if (blockType !== 'pending') {
+    return blockType
+  }
+
+  trimmed = mdBuffer.trimEnd()
+
+  if (
+    patterns.inlineLinkCloseRegex &&
+    patterns.inlineLinkCloseRegex.test(trimmed)
+  ) {
+    return 'text'
+  }
+
+  // A table row need not end in a pipe, so a buffer held pending only by its
+  // trailing newline still has to resolve to a table rather than a paragraph.
+  if (tableBlockPendingCheck(trimmed) === 'table') {
+    return 'table'
+  }
+
+  if (finalize) {
+    return 'text'
+  }
+
+  return blockType
+
+  function hrPendingCheck(mdBuffer: string): BlockType | undefined {
+    const hrRegex = patterns.hrRegex
+
+    if (hrRegex.test(mdBuffer)) {
+      return 'pending'
+    }
+
+    return undefined
+  }
+
+  function lineBreakStartCheck(mdBuffer: string): BlockType | undefined {
+    if (mdBuffer.startsWith('\n')) {
+      return 'text'
+    }
+
+    return undefined
+  }
+
+  function lineBreakPendingCheck(mdBuffer: string): BlockType | undefined {
+    if (mdBuffer.endsWith('\n')) {
+      if (
+        mdBuffer.trimStart().startsWith('```') ||
+        mdBuffer.trimStart().startsWith('~~~')
+      ) {
+        return 'code'
+      }
+
+      if (
+        !
+        mdBuffer.endsWith('|\n') &&
+        !
+        mdBuffer.endsWith('|\n\n')
+      ) {
+        return 'pending'
+      }
+    }
+
+    return undefined
+  }
+
+  function codeBlockPendingCheck(mdBuffer: string): BlockType | undefined {
+    const incompleteFenceRegex = patterns.incompleteFenceRegex
+    if (incompleteFenceRegex.test(mdBuffer)) {
+      return 'pending'
+    }
+
+    const fencedCodeRegex = patterns.fencedCodeRegex
+    if (fencedCodeRegex.test(mdBuffer)) {
+      return 'code'
+    }
+
+    const indentedCodeRegex = patterns.indentedCodeRegex
+    if (indentedCodeRegex.test(mdBuffer)) {
+      return 'code'
+    }
+
+    return undefined
+  }
+
+  function tableBlockPendingCheck(mdBuffer: string): BlockType | undefined {
+    const pipeMatches = mdBuffer.match(patterns.pipeRegex)
+    const pipeCount = pipeMatches ? pipeMatches.length : 0
+
+    if (pipeCount >= 2) {
+      return 'table'
+    } else if (pipeCount === 1) {
+      return 'pending'
+    }
+
+    return undefined
+  }
+}

@@ -339,6 +339,56 @@
       "plugins": [
         "typescript"
       ]
+    },
+    {
+      // The Markdown engine and its suite are imported verbatim from the
+      // standalone @aeven-ai/hypermarkdown repository, exactly as vendor/**
+      // imports upstream Cordis source: the port keeps its idiom so it stays
+      // diffable against its origin instead of drifting into a fork. The rules
+      // below are the ones the port cannot satisfy without rewriting that
+      // source — its type-aware family reads `any`-carrying JS-authored logic
+      // as unsafe, and its defensive branches are deliberate for a renderer fed
+      // untrusted, half-written model output. Style, correctness, unused-code,
+      // and promise rules stay enforced; `pnpm run lint` covers the package.
+      "files": [
+        "packages/client/hypermarkdown/**/*.{ts,tsx}"
+      ],
+      "plugins": [
+        "typescript"
+      ],
+      "rules": {
+        "eslint/prefer-const": "off",
+        "typescript/no-explicit-any": "off",
+        "typescript/no-this-alias": "off",
+        "typescript/no-non-null-assertion": "off",
+        "typescript/no-unnecessary-condition": "off",
+        "typescript/no-unnecessary-type-assertion": "off",
+        "typescript/no-unnecessary-type-conversion": "off",
+        "typescript/no-unnecessary-type-parameters": "off",
+        "typescript/restrict-plus-operands": "off",
+        "typescript/unbound-method": "off",
+        "typescript/no-base-to-string": "off",
+        "typescript/no-unsafe-argument": "off",
+        "typescript/no-unsafe-assignment": "off",
+        "typescript/no-unsafe-call": "off",
+        "typescript/no-unsafe-member-access": "off",
+        "typescript/no-unsafe-return": "off",
+        "typescript/use-unknown-in-catch-callback-variable": "off",
+        // The suite's jsdom stubs stand in for real DOM types, `matchMedia`
+        // included, so they keep the members those types declare even where the
+        // member is deprecated.
+        "typescript/no-deprecated": "off",
+        // The engine keeps two upstream idioms a port must not "fix": a
+        // deliberate duplicated branch in the settle path, and one regex
+        // literal that cannot be wrapped to the column limit.
+        "sonarjs/no-duplicated-branches": "off",
+        "sonarjs/no-all-duplicated-branches": "off",
+        "@stylistic/max-len": "off"
+      },
+      "jsPlugins": [
+        "@stylistic/eslint-plugin",
+        "eslint-plugin-sonarjs"
+      ]
     }
   ]
 }

@@ -29,9 +29,9 @@
       <div class="codeblock-pre-code-content">
         <pre>
           <span class="line-numbers">
-            <span class="line-number" data-animate-word="true">
+            <span class="line-number">
               #text "1"
-            <span class="line-number" data-animate-word="true">
+            <span class="line-number">
               #text "2"
           <div class="code-content no-scrollbar">
             <code>
@@ -66,11 +66,11 @@
       <div class="codeblock-pre-code-content">
         <pre>
           <span class="line-numbers">
-            <span class="line-number" data-animate-word="true">
+            <span class="line-number">
               #text "1"
-            <span class="line-number" data-animate-word="true">
+            <span class="line-number">
               #text "2"
-            <span class="line-number" data-animate-word="true">
+            <span class="line-number">
               #text "3"
           <div class="code-content no-scrollbar">
             <code class="hljs language-ts">

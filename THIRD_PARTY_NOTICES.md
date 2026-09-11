@@ -31,7 +31,6 @@ External packages that a workspace package resolves at runtime. The tier covers 
 
 | Package | License |
 | --- | --- |
-| [`@aeven-ai/hypermarkdown`](https://github.com/Aeven-AI/HyperMarkdown) | MIT |
 | [`@agentclientprotocol/sdk`](https://github.com/agentclientprotocol/typescript-sdk) | Apache-2.0 |
 | [`@anthropic-ai/claude-agent-sdk`](https://github.com/anthropics/claude-agent-sdk-typescript) | SEE LICENSE IN README.md |
 | [`@anthropic-ai/sdk`](https://github.com/anthropics/anthropic-sdk-typescript) | MIT |
@@ -55,7 +54,9 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`@opentelemetry/sdk-logs`](https://github.com/open-telemetry/opentelemetry-js) | Apache-2.0 |
 | [`@standard-schema/spec`](https://github.com/standard-schema/standard-schema) | MIT |
 | [`@tanstack/react-virtual`](https://github.com/TanStack/virtual) | MIT |
+| [`@types/hast`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/mdast`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
+| [`@types/unist`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@vscode/ripgrep`](https://github.com/microsoft/vscode-ripgrep) | MIT |
 | [`@xterm/headless`](https://github.com/xtermjs/xterm.js) | MIT |
 | [`@yarnpkg/parsers`](https://github.com/yarnpkg/berry) | BSD-2-Clause |
@@ -72,6 +73,7 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`electron-updater`](https://github.com/electron-userland/electron-builder) | MIT |
 | [`eventsource-parser`](https://github.com/rexxars/eventsource-parser) | MIT |
 | [`fflate`](https://github.com/101arrowz/fflate) | MIT |
+| [`hast-util-to-jsx-runtime`](https://github.com/syntax-tree/hast-util-to-jsx-runtime) | MIT |
 | [`highlight.js`](https://github.com/highlightjs/highlight.js) | BSD-3-Clause |
 | [`immer`](https://github.com/immerjs/immer) | MIT |
 | [`ipaddr.js`](https://github.com/whitequark/ipaddr.js) | MIT |
@@ -84,6 +86,8 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`mermaid`](https://github.com/mermaid-js/mermaid) | MIT |
 | [`micromark-core-commonmark`](https://github.com/micromark/micromark/tree/main/packages/micromark-core-commonmark) | MIT |
 | [`micromark-extension-gfm`](https://github.com/micromark/micromark-extension-gfm) | MIT |
+| [`micromark-extension-math`](https://github.com/micromark/micromark-extension-math) | MIT |
+| [`micromark-factory-space`](https://github.com/micromark/micromark/tree/main/packages/micromark-factory-space) | MIT |
 | [`micromark-util-character`](https://github.com/micromark/micromark/tree/main/packages/micromark-util-character) | MIT |
 | [`micromark-util-classify-character`](https://github.com/micromark/micromark/tree/main/packages/micromark-util-classify-character) | MIT |
 | [`micromark-util-symbol`](https://github.com/micromark/micromark/tree/main/packages/micromark-util-symbol) | MIT |
@@ -98,8 +102,14 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`readable-stream`](https://github.com/nodejs/readable-stream) | MIT |
 | [`rehype-highlight`](https://github.com/rehypejs/rehype-highlight) | MIT |
 | [`rehype-katex`](https://github.com/remarkjs/remark-math/tree/main/packages/rehype-katex) | MIT |
+| [`rehype-raw`](https://github.com/rehypejs/rehype-raw) | MIT |
+| [`rehype-react`](https://github.com/rehypejs/rehype-react) | MIT |
+| [`rehype-sanitize`](https://github.com/rehypejs/rehype-sanitize) | MIT |
 | [`remark-cjk-friendly`](https://github.com/tats-u/markdown-cjk-friendly) | MIT |
+| [`remark-gfm`](https://github.com/remarkjs/remark-gfm) | MIT |
 | [`remark-math`](https://github.com/remarkjs/remark-math/tree/main/packages/remark-math) | MIT |
+| [`remark-parse`](https://github.com/remarkjs/remark/tree/main/packages/remark-parse) | MIT |
+| [`remark-rehype`](https://github.com/remarkjs/remark-rehype) | MIT |
 | [`resolve.exports`](https://github.com/lukeed/resolve.exports) | MIT |
 | [`semver`](https://github.com/npm/node-semver) | ISC |
 | [`sharp`](https://github.com/lovell/sharp) | Apache-2.0 |
@@ -109,7 +119,11 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`turndown`](https://github.com/mixmark-io/turndown) | MIT |
 | [`typescript`](https://github.com/microsoft/TypeScript) | Apache-2.0 |
 | [`undici`](https://github.com/nodejs/undici) | MIT |
+| [`unified`](https://github.com/unifiedjs/unified) | MIT |
+| [`unist-util-visit`](https://github.com/syntax-tree/unist-util-visit) | MIT |
+| [`unist-util-visit-parents`](https://github.com/syntax-tree/unist-util-visit-parents) | MIT |
 | [`use-sync-external-store`](https://github.com/facebook/react) | MIT |
+| [`vfile`](https://github.com/vfile/vfile) | MIT |
 | [`ws`](https://github.com/websockets/ws) | MIT |
 | [`yaml`](https://github.com/eemeli/yaml) | ISC |
 | [`zod`](https://github.com/colinhacks/zod) | MIT |

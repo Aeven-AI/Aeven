@@ -168,13 +168,6 @@ export default defineConfig({
         plugins: [standardDecoratorPlugin()],
         test: {
           name: 'thread-safe',
-          // The markdown renderer default-imports tippy.js, which publishes no
-          // `exports` map — only `main` (CJS) and `module` (ESM). Vite resolves
-          // `module` for the browser build, but Vitest externalizes real
-          // node_modules packages, so Node takes the CJS entry and the default
-          // import is not callable. Inlining puts the renderer back through
-          // Vite's resolver, matching what the shipped bundle does.
-          server: { deps: { inline: [/@aeven-ai[\\/]hypermarkdown/] } },
           execArgv: vitestExecArgv,
           // Node 24 has aborted in its CJS lexer (v8::ToLocalChecked Empty
           // MaybeLocal in cjs_lexer::Parse) from worker threads on macOS,
@@ -194,13 +187,6 @@ export default defineConfig({
         plugins: [standardDecoratorPlugin()],
         test: {
           name: 'process-bound',
-          // The markdown renderer default-imports tippy.js, which publishes no
-          // `exports` map — only `main` (CJS) and `module` (ESM). Vite resolves
-          // `module` for the browser build, but Vitest externalizes real
-          // node_modules packages, so Node takes the CJS entry and the default
-          // import is not callable. Inlining puts the renderer back through
-          // Vite's resolver, matching what the shipped bundle does.
-          server: { deps: { inline: [/@aeven-ai[\\/]hypermarkdown/] } },
           execArgv: vitestExecArgv,
           pool: 'forks',
           setupFiles: ['./scripts/test-proxy-environment.ts', './scripts/test-invariants.ts'],

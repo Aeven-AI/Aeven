@@ -9,5 +9,8 @@
   ],
   "exclude": [
     "**/*.legacy.*"
+  ],
+  "references": [
+    { "path": "../hypermarkdown" }
   ]
 }
