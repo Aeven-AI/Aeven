@@ -21,17 +21,14 @@
  */
 
 import { memo, useEffect, useMemo, useRef } from 'react'
-import HyperMarkdown from '@aeven-ai/hypermarkdown'
+import HyperMarkdown, {
+  cjkPlugin, highlightPlugin, katexPlugin, mermaidPlugin,
+} from '@deepseek-ai/dsh-client-hypermarkdown'
 import type {
   CodeComponentProps, HyperMarkdownHandle, RendererComponents, Translations,
-} from '@aeven-ai/hypermarkdown'
-import katexPlugin from '@aeven-ai/hypermarkdown/plugins/math'
-import cjkPlugin from '@aeven-ai/hypermarkdown/plugins/cjk'
-import highlightPlugin from '@aeven-ai/hypermarkdown/plugins/code'
-import mermaidPlugin from '@aeven-ai/hypermarkdown/plugins/mermaid'
+} from '@deepseek-ai/dsh-client-hypermarkdown'
 import type { StrictFunction } from 'katex'
 import 'katex/dist/katex.min.css'
-import '@aeven-ai/hypermarkdown/styles.css'
 import css from './MarkdownText.module.css'
 
 /**

@@ -29,7 +29,7 @@
       <div class="codeblock-pre-code-content">
         <pre>
           <span class="line-numbers">
-            <span class="line-number" data-animate-word="true">
+            <span class="line-number">
               #text "1"
           <div class="code-content no-scrollbar">
             <code class="hljs language-ts">
@@ -75,7 +75,7 @@
       <div class="codeblock-pre-code-content">
         <pre>
           <span class="line-numbers">
-            <span class="line-number" data-animate-word="true">
+            <span class="line-number">
               #text "1"
           <div class="code-content no-scrollbar">
             <code>
@@ -110,7 +110,7 @@
       <div class="codeblock-pre-code-content">
         <pre>
           <span class="line-numbers">
-            <span class="line-number" data-animate-word="true">
+            <span class="line-number">
               #text "1"
           <div class="code-content no-scrollbar">
             <code class="hljs language-unknown-lang">
@@ -145,7 +145,7 @@
       <div class="codeblock-pre-code-content">
         <pre>
           <span class="line-numbers">
-            <span class="line-number" data-animate-word="true">
+            <span class="line-number">
               #text "1"
           <div class="code-content no-scrollbar">
             <code class="hljs language-ts">
@@ -219,9 +219,9 @@
       <div class="codeblock-pre-code-content">
         <pre>
           <span class="line-numbers">
-            <span class="line-number" data-animate-word="true">
+            <span class="line-number">
               #text "1"
-            <span class="line-number" data-animate-word="true">
+            <span class="line-number">
               #text "2"
           <div class="code-content no-scrollbar">
             <code>

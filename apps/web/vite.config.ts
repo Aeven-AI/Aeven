@@ -190,7 +190,7 @@ function renderChunkForPackage(pkg: string): 'katex' | 'hljs' | 'mdast' | undefi
 }
 
 const NAMED_RENDER_CHUNKS: ReadonlySet<string> = new Set([
-  'index', 'auth', 'react', 'primitives', 'katex', 'hljs', 'mdast',
+  'index', 'auth', 'react', 'primitives', 'hypermarkdown', 'katex', 'hljs', 'mdast',
 ])
 
 /**
@@ -297,6 +297,10 @@ export default defineConfig({
           const pkg = npmPackageOf(id)
           if (id.includes('/packages/client/ui-auth-aeven/')) return 'auth'
           if (id.includes('/packages/client/ui-primitives/')) return 'primitives'
+          // The Markdown engine is a workspace library like the two above, so
+          // the npm-package attribution below cannot name it: without this its
+          // bytes fall into the index chunk and stop being cached apart.
+          if (id.includes('/packages/client/hypermarkdown/')) return 'hypermarkdown'
           if (pkg === 'react' || pkg === 'react-dom' || pkg === 'scheduler') return 'react'
           if (pkg === undefined) return undefined // workspace + vendored cordis: index
           // Language grammars stay unassigned so a dynamic `import()` keeps its

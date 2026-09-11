@@ -47,6 +47,10 @@
     // rules make that path depend on this project reference.
     { "path": "./packages/compaction/compaction" },
     { "path": "./packages/client/store" },
+    // The Markdown engine ui-primitives renders assistant output through. A
+    // leaf: no workspace dependency, so it cannot drag a host-side Context
+    // merge into this program.
+    { "path": "./packages/client/hypermarkdown" },
     { "path": "./packages/client/ui-slots" },
     { "path": "./packages/client/ui-attachment" },
     { "path": "./packages/client/ui-primitives" },

@@ -85,7 +85,11 @@ describe('Oxlint repository rule fingerprint', () => {
   const overrides: readonly unknown[] = parsed.overrides
 
   it('pins every override field', () => {
-    expect(overrides).toHaveLength(9)
+    // Ten blocks: the shared strict set, its two jsPlugin companions, the two
+    // project-free Typert fixture relaxations, the webworker-runtime block, and
+    // the ported Markdown engine's path-scoped block — which none of the
+    // profiles below merges, so only this count moves.
+    expect(overrides).toHaveLength(10)
   })
 
   it.each(Object.entries(profiles))('pins the %s rule profile', (_name, profile) => {

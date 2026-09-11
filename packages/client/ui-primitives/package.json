@@ -23,7 +23,6 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@aeven-ai/hypermarkdown": "^0.4.2",
     "@types/mdast": "^4.0.4",
     "anser": "^2.3.5",
     "clsx": "^2.0.0",
@@ -48,6 +47,7 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-client-hypermarkdown": "workspace:^",
     "@types/react": "~18.3.1",
     "@types/react-dom": "~18.3.0"
   },

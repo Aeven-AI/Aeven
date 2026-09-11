@@ -62,7 +62,7 @@
           <div class="codeblock-pre-code-content">
             <pre>
               <span class="line-numbers">
-                <span class="line-number" data-animate-word="true">
+                <span class="line-number">
                   #text "1"
               <div class="code-content no-scrollbar">
                 <code>

@@ -1889,6 +1889,106 @@ importers:
         specifier: workspace:^
         version: link:../../runtime-diagnostics/invariants
 
+  packages/client/hypermarkdown:
+    dependencies:
+      '@types/hast':
+        specifier: ^3.0.4
+        version: 3.0.5
+      '@types/mdast':
+        specifier: ^4.0.4
+        version: 4.0.4
+      '@types/unist':
+        specifier: ^3.0.3
+        version: 3.0.3
+      hast-util-to-jsx-runtime:
+        specifier: ^2.3.6
+        version: 2.3.6
+      katex:
+        specifier: ^0.16.47
+        version: 0.16.47
+      mermaid:
+        specifier: ^11.12.0
+        version: 11.16.0
+      micromark-extension-math:
+        specifier: ^3.1.0
+        version: 3.1.0
+      micromark-factory-space:
+        specifier: ^2.0.1
+        version: 2.0.1
+      micromark-util-character:
+        specifier: ^2.1.1
+        version: 2.1.1
+      micromark-util-symbol:
+        specifier: ^2.0.1
+        version: 2.0.1
+      micromark-util-types:
+        specifier: ^2.0.2
+        version: 2.0.2
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
+      rehype-highlight:
+        specifier: ^7.0.2
+        version: 7.0.2
+      rehype-katex:
+        specifier: ^7.0.1
+        version: 7.0.1
+      rehype-raw:
+        specifier: ^7.0.0
+        version: 7.0.0
+      rehype-react:
+        specifier: ^8.0.0
+        version: 8.0.0
+      rehype-sanitize:
+        specifier: ^6.0.0
+        version: 6.0.0
+      remark-cjk-friendly:
+        specifier: ^2.3.1
+        version: 2.3.1(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(unified@11.0.5)
+      remark-gfm:
+        specifier: ^4.0.1
+        version: 4.0.1
+      remark-math:
+        specifier: ^6.0.0
+        version: 6.0.0
+      remark-parse:
+        specifier: ^11.0.0
+        version: 11.0.0
+      remark-rehype:
+        specifier: ^11.1.2
+        version: 11.1.2
+      tippy.js:
+        specifier: ^6.3.7
+        version: 6.3.7
+      unified:
+        specifier: ^11.0.5
+        version: 11.0.5
+      unist-util-visit:
+        specifier: ^5.0.0
+        version: 5.1.0
+      unist-util-visit-parents:
+        specifier: ^6.0.2
+        version: 6.0.2
+      vfile:
+        specifier: ^6.0.3
+        version: 6.0.3
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      '@types/react-dom':
+        specifier: ~18.3.0
+        version: 18.3.7(@types/react@18.3.31)
+      jsdom:
+        specifier: ^29.1.1
+        version: 29.1.1(@noble/hashes@2.3.0)
+
   packages/client/locale:
     dependencies:
       '@deepseek-ai/schemastery':
@@ -2993,9 +3093,6 @@ importers:
 
   packages/client/ui-primitives:
     dependencies:
-      '@aeven-ai/hypermarkdown':
-        specifier: ^0.4.2
-        version: 0.4.2(katex@0.16.47)(mermaid@11.16.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rehype-highlight@7.0.2)(rehype-katex@7.0.1)(remark-cjk-friendly@2.3.1(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(unified@11.0.5))(remark-math@6.0.0)(tippy.js@6.3.7)
       '@types/mdast':
         specifier: ^4.0.4
         version: 4.0.4
@@ -3063,6 +3160,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-client-hypermarkdown':
+        specifier: workspace:^
+        version: link:../hypermarkdown
       '@types/react':
         specifier: ~18.3.1
         version: 18.3.31
@@ -10734,34 +10834,6 @@ importers:
 
 packages:
 
-  '@aeven-ai/hypermarkdown@0.4.2':
-    resolution: {integrity: sha512-zMFCpHidT1Sy2jE2gRMmHchPcOlcowfJQPzzOC7IA/nZTciSnqMchdUARbRv5a3mLi8ZG6PZpaD/8LeUrxw6PA==}
-    peerDependencies:
-      katex: ^0.16.25
-      mermaid: ^11.12.0
-      react: '>=18'
-      react-dom: '>=18'
-      rehype-highlight: ^7.0.2
-      rehype-katex: ^7.0.1
-      remark-cjk-friendly: ^2.3.1
-      remark-math: ^6.0.0
-      tippy.js: ^6.3.1
-    peerDependenciesMeta:
-      katex:
-        optional: true
-      mermaid:
-        optional: true
-      rehype-highlight:
-        optional: true
-      rehype-katex:
-        optional: true
-      remark-cjk-friendly:
-        optional: true
-      remark-math:
-        optional: true
-      tippy.js:
-        optional: true
-
   '@agentclientprotocol/sdk@1.4.0':
     resolution: {integrity: sha512-/eufudw+aFY1LKLolT6yFE6UMmYRl7fMJ/DEONSIyR6wI3slHWITBsANRGqXEY8FRzqUxwh7QEaGiZHcJPVThg==}
     peerDependencies:
@@ -17567,31 +17639,6 @@ packages:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
 snapshots:
-
-  '@aeven-ai/hypermarkdown@0.4.2(katex@0.16.47)(mermaid@11.16.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rehype-highlight@7.0.2)(rehype-katex@7.0.1)(remark-cjk-friendly@2.3.1(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(unified@11.0.5))(remark-math@6.0.0)(tippy.js@6.3.7)':
-    dependencies:
-      hast-util-to-jsx-runtime: 2.3.6
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-      rehype-raw: 7.0.0
-      rehype-react: 8.0.0
-      rehype-sanitize: 6.0.0
-      remark-gfm: 4.0.1
-      remark-parse: 11.0.0
-      remark-rehype: 11.1.2
-      unified: 11.0.5
-      unist-util-visit: 5.1.0
-      unist-util-visit-parents: 6.0.2
-    optionalDependencies:
-      katex: 0.16.47
-      mermaid: 11.16.0
-      rehype-highlight: 7.0.2
-      rehype-katex: 7.0.1
-      remark-cjk-friendly: 2.3.1(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(unified@11.0.5)
-      remark-math: 6.0.0
-      tippy.js: 6.3.7
-    transitivePeerDependencies:
-      - supports-color
 
   '@agentclientprotocol/sdk@1.4.0(zod@4.4.3)':
     dependencies:
