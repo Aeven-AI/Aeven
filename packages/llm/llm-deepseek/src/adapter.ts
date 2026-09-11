@@ -138,8 +138,8 @@ export interface DeepSeekAdapterOptions {
 export const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 300_000
 /** Default combined request/response context capacity. */
 export const DEFAULT_CONTEXT_WINDOW = 1_000_000
-/** Default per-request output-token cap. */
-export const DEFAULT_MAX_TOKENS = 256_000
+/** Default per-request output-token cap: the platform's documented MAX OUTPUT (384K). */
+export const DEFAULT_MAX_TOKENS = 384_000
 /** Default bound on accumulated base64 image payload after Files API fallback. */
 export const DEFAULT_MAX_INLINE_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024
 /** Deterministic raw-byte removal step. */

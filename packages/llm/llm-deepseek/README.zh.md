@@ -46,7 +46,7 @@ kind: "package-reference"
     filesApiTimeoutMs: 60000
 ```
 
-请求用 `provider: deepseek-official` 选择路由；模型 id 原样传到协议，因此新增 DeepSeek 模型无需重新注册。省略 `models` 时会公布适合专注任务、快速且经济的 `deepseek-v4-flash`，适合复杂或质量关键任务、能力更强且成本更高的 `deepseek-v4-pro`，以及支持图像的 `deepseek-v4-flash-vision-exp`；每个模型都有 1,000,000 token 上下文窗口。显式列表会替换这些默认值，未列出的模型 id 仍作为纯文本路由原样通过。包括模型发现工具在内的客户端可通过 `ctx.llm.listModels('deepseek-official')` 读取这些建议性条目。支持图片的条目可把 `imagePixelBudget` 设置为正整数或 `low`，也可以设置 `imageMaxBytes`。
+请求用 `provider: deepseek-official` 选择路由；模型 id 原样传到协议，因此新增 DeepSeek 模型无需重新注册。省略 `models` 时会公布 `deepseek-flash`——平台为 DeepSeek-V4.1-Flash 使用的 id，适合专注任务、快速且经济，并能读取图像——以及适合复杂或质量关键任务、能力更强且成本更高的 `deepseek-v4-pro`；每个模型都有 1,000,000 token 上下文窗口，单次请求最多可要求 384,000 个输出 token。平台自身的 `GET /models` 会在每次挂载时读取一次，其中目录未描述的 id 会以自身为名补入，因此平台新增的模型无需改配置即可出现；列表不可达或格式错误时保留随版本附带的目录。显式列表会替换这些默认值，未列出的模型 id 仍作为纯文本路由原样通过。包括模型发现工具在内的客户端可通过 `ctx.llm.listModels('deepseek-official')` 读取这些建议性条目。支持图片的条目可把 `imagePixelBudget` 设置为正整数或 `low`，也可以设置 `imageMaxBytes`。
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|

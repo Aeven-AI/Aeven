@@ -151,6 +151,26 @@ export const CHAT_TEMPLATE_VARS = Object.keys(CHAT_TEMPLATE_VAR_GATE) as readonl
 
 let providerIndex: Map<string, Provider> | undefined
 
+let vendorModelIndexCache: Map<string, Map<string, Model<Api>>> | undefined
+
+/**
+ * Installed catalog models by provider, then by lowercased id, for
+ * {@link vendorOutputCap}. Built once on first use rather than per lookup: the
+ * lookup compares ids that differ only in case, and one gateway refresh asks it
+ * about every model it serves.
+ * @returns the lowercased model index.
+ */
+function vendorModelIndex(): Map<string, Map<string, Model<Api>>> {
+  if (vendorModelIndexCache === undefined) {
+    vendorModelIndexCache = new Map([...catalogProviders().keys()].map(provider => [
+      provider,
+      new Map((getBuiltinModels(provider as BuiltinProvider) as Model<Api>[])
+        .map(model => [model.id.toLowerCase(), model])),
+    ]))
+  }
+  return vendorModelIndexCache
+}
+
 /**
  * Installed catalog providers by id, constructed once. Each entry owns the API
  * implementations for its own models, which is why a catalog route reuses this
@@ -188,6 +208,35 @@ export function catalogModels(provider: string): Map<string, Model<Api>> {
   if (!catalogProviders().has(provider)) return new Map()
   const models = getBuiltinModels(provider as BuiltinProvider) as Model<Api>[]
   return new Map(models.map(model => [model.id, model]))
+}
+
+/**
+ * The output cap a model's own vendor states for one vendor-prefixed id.
+ *
+ * A gateway route serving another vendor's models publishes ids that name that
+ * vendor's provider and model — `anthropic/claude-opus-5` beside pi-ai's
+ * `anthropic` entries. Where the document states no output cap of its own, the
+ * vendor's own entry answers, because the cap belongs to the model rather than
+ * to the gateway serving it: DeepInfra publishes `max_output_tokens: null` for
+ * every proxied model, and refuses 128,001 output tokens for `claude-opus-5`
+ * exactly as the `anthropic` entry states.
+ *
+ * The match is deliberately narrow, because a gateway's cap is only the
+ * vendor's cap when the vendor is the one serving it: the prefix must name an
+ * installed provider, and the remainder must equal that provider's model id
+ * exactly, case aside. Looking any model id up across the whole catalog instead
+ * would answer with whatever provider happens to serve a same-named model, and
+ * those disagree — the catalog states 384,000 output tokens for a DeepSeek id
+ * that DeepInfra itself caps at 65,536.
+ * @param id - one published model id, vendor-prefixed.
+ * @returns the vendor's own output cap, or `undefined` without that exact match.
+ */
+export function vendorOutputCap(id: string): number | undefined {
+  const separator = id.indexOf('/')
+  if (separator === -1) return undefined
+  const provider = id.slice(0, separator).toLowerCase()
+  if (!catalogProviders().has(provider)) return undefined
+  return vendorModelIndex().get(provider)?.get(id.slice(separator + 1).toLowerCase())?.maxTokens
 }
 
 /**
@@ -914,9 +963,20 @@ export function resolveRouteModels(request: RouteCatalogRequest): RouteCatalog {
     if (!Number.isInteger(maxTokens) || maxTokens <= 0) {
       invalid(provider, `model "${entry.id}" maxTokens must be a positive integer`)
     }
+    // An output capability above the window is not one: no model emits more
+    // than its whole window. pi-ai promotes this field into the request's
+    // `max_tokens` whenever the profile configures no cap, so a value nothing
+    // could emit would reach the wire and be refused by any provider that
+    // checks it. Equality stays legal because that is how a model without a
+    // distinct output limit is stated — the installed catalog does it for 197
+    // entries and hand-written ones do too — and pi-ai clamps the sent cap
+    // below the window regardless, so this substitution never widens a request.
+    const outputCap = maxTokens > contextWindow ? request.defaultMaxTokens : maxTokens
     // Only a value the profile named is a deployment choice; the catalog's is
-    // the model's capability and stays out of request defaults.
-    if (entry.maxTokens !== undefined) configuredMaxTokens.set(entry.id, entry.maxTokens)
+    // the model's capability and stays out of request defaults. A corrected
+    // value replaces the request default too: a cap nothing could emit cannot
+    // be the cap a request asks for, and sending it is what fails.
+    if (entry.maxTokens !== undefined) configuredMaxTokens.set(entry.id, outputCap)
     return {
       // The installed entry lays the floor, and the fields below override it.
       // Enumerating instead would silently drop every `Model` field this
@@ -932,7 +992,7 @@ export function resolveRouteModels(request: RouteCatalogRequest): RouteCatalog {
       input: declaredInput(entry.input) ?? base?.input ?? [...request.defaultInput],
       cost: base?.cost ?? NO_COST,
       contextWindow,
-      maxTokens,
+      maxTokens: outputCap,
       ...resolveModelReasoning(provider, entry, base),
       ...resolveModelCompat(provider, entry, request.compat, base, api),
     }

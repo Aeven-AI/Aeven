@@ -65,7 +65,7 @@ import type {} from '@deepseek-ai/dsh-settings'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
 import { PiAiAdapter } from './adapter.ts'
 import { authContextFrom, credentialStoreFrom } from './auth.ts'
-import { catalogModels, catalogProvider, catalogProviderIds } from './catalog.ts'
+import { catalogModels, catalogProvider, catalogProviderIds, vendorOutputCap } from './catalog.ts'
 import { KNOWN_ROUTES, knownRoute } from './known-routes.ts'
 import { assertServiceable, Config, resolveProfiles } from './config.ts'
 import type { ResolvedPiAiProviderProfile } from './config.ts'
@@ -387,6 +387,7 @@ export function apply(ctx: Context, config: Config): void {
           defaultMaxTokens: refresh.defaultMaxTokens,
           format: refresh.format,
           requireTags: refresh.requireTags,
+          vendorOutputCap,
         }, signal)
         if (models.length === 0) continue
         liveModels.set(provider, models)
