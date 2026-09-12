@@ -137,8 +137,14 @@ export interface ChatViewInjected {
   openDetails: (target: SelectionTarget) => void
   openFile: (path: string) => Promise<void>
   loadOlder: () => void
-  /** Jump loader: page history back through seq; resolves when the window covers it. */
-  loadThrough: (seq: SessionSeq) => Promise<void>
+  /**
+   * Jump loader: page history back through seq; resolves when the window
+   * covers it. `beforeSeq` optionally bounds the FIRST page's lower edge —
+   * page counting makes one page span far more events than its message count,
+   * so a jump that knows where its target's lead-in begins (the turn outline
+   * does) names it instead of paying for the whole intervening log.
+   */
+  loadThrough: (seq: SessionSeq, beforeSeq?: SessionSeq) => Promise<void>
   /** Acknowledge the current exact-event navigation after landing or fallback. */
   completeEventNavigation: (requestId: number) => void
   loadImage: MessageImageLoader

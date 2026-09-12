@@ -249,7 +249,7 @@ function makeHarness(
   const openDetails = vi.fn<(t: SelectionTarget) => void>()
   const openFile = vi.fn<(path: string) => Promise<void>>().mockResolvedValue(undefined)
   const loadOlder = vi.fn()
-  const loadThrough = vi.fn<(seq: number) => Promise<void>>().mockResolvedValue(undefined)
+  const loadThrough = vi.fn<(seq: number, beforeSeq?: number) => Promise<void>>().mockResolvedValue(undefined)
   const completeEventNavigation = vi.fn<(requestId: number) => void>()
   // Mutable outline holder: tests swap the value and drive a re-render via set().
   let outlineValue: unknown
@@ -497,6 +497,12 @@ function installScrollMetrics(element: HTMLElement, initialHeight: number, clien
       scrollTop = Math.max(0, Math.min(top, scrollHeight - clientHeight))
     },
   }
+}
+
+/** Run the fake clock inside `act`, so the state a timer flips is committed
+ *  before the assertions that read it (the turn-jump cover delay and fade). */
+function advanceTimers(ms: number): void {
+  act(() => { vi.advanceTimersByTime(ms) })
 }
 
 describe('Chat node rendering', () => {
@@ -791,13 +797,15 @@ describe('ChatView', () => {
     expect(view.getByRole('tooltip').textContent).toContain('first answer from outline')
 
     fireEvent.click(first)
-    expect(h.loadThrough).toHaveBeenCalledWith(0)
+    // Turn 1 is the rail's first mark, so the click names no lead-in bound;
+    // the settle-time repage carries none either.
+    expect(h.loadThrough).toHaveBeenCalledWith(0, undefined)
     expect(first.getAttribute('aria-busy')).toBe('true')
 
     // The fake loader never delivers rows: settlement repages once for the
     // unmoved head, then lands on the nearest rendered turn and un-busies.
     await act(async () => {})
-    expect(h.loadThrough.mock.calls).toEqual([[0], [0]])
+    expect(h.loadThrough.mock.calls).toEqual([[0, undefined], [0]])
     expect(first.getAttribute('aria-busy')).toBeNull()
     expect(view.getByRole('button', { name: '跳转到第 3 轮' }).getAttribute('aria-current')).toBe('true')
   })
@@ -840,13 +848,13 @@ describe('ChatView', () => {
     // The session-side guard refuses the busy-pager jump instantly, yet the
     // mark stays busy instead of degrading to the nearest loaded turn.
     await act(async () => {})
-    expect(h.loadThrough.mock.calls).toEqual([[0]])
+    expect(h.loadThrough.mock.calls).toEqual([[0, undefined]])
     expect(first.getAttribute('aria-busy')).toBe('true')
 
     // The plain pull settles: the flip re-settles the jump, which repages.
     act(() => { h.setSession({ loadingOlder: false }) })
     await act(async () => {})
-    expect(h.loadThrough.mock.calls).toEqual([[0], [0]])
+    expect(h.loadThrough.mock.calls).toEqual([[0, undefined], [0]])
     expect(first.getAttribute('aria-busy')).toBeNull()
   })
 
@@ -898,7 +906,7 @@ describe('ChatView', () => {
     const view = render(<h.ChatView {...h.props} />)
 
     fireEvent.click(view.getByRole('button', { name: '加载并跳转到第 1 轮' }))
-    expect(h.loadThrough).toHaveBeenCalledWith(0)
+    expect(h.loadThrough).toHaveBeenCalledWith(0, undefined)
 
     // The paged window commits: turn 1's rows and rail item enter the snapshot.
     act(() => {
@@ -918,6 +926,93 @@ describe('ChatView', () => {
     // mark to the last turn, so aria-current here is timing-dependent under
     // instrumentation; the landing position contract lives in the browser e2e.
     expect(first.getAttribute('aria-busy')).toBeNull()
+  })
+
+  it('covers the transcript only after a jump has paged past the cover delay, and fades it out on landing', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    let view: ReturnType<typeof render> | undefined
+    try {
+      const later = [userInTurn(8, 'third prompt', 3), assistant(9, 'third response', 3)]
+      const h = makeHarness({ nodes: later }, { hasMore: true })
+      h.setOutline([
+        { turn: 1, seq: 0, prompt: 'first prompt', response: '' },
+        { turn: 3, seq: 8, prompt: 'third prompt', response: '' },
+      ])
+      // One resolver per page: the jump pages more than once before the window
+      // covers its target, and each page must settle for the next to start.
+      const pages: (() => void)[] = []
+      h.loadThrough.mockImplementation(() => new Promise<void>((resolve) => { pages.push(resolve) }))
+      const releasePage = async (): Promise<void> => {
+        const page = pages.shift()
+        await act(async () => { page?.() })
+      }
+      view = render(<h.ChatView {...h.props} />)
+
+      fireEvent.click(view.getByRole('button', { name: '加载并跳转到第 1 轮' }))
+      // The click arms the delay; the plate must not flash on for a jump that
+      // may land inside it.
+      expect(view.container.querySelector('[data-turn-jump-cover]')).toBeNull()
+      advanceTimers(200)
+      const cover = view.container.querySelector('[data-turn-jump-cover]')
+      expect(cover).toBeTruthy()
+      expect(cover?.getAttribute('aria-label')).toBe('正在加载更早的消息…')
+      expect(cover?.hasAttribute('data-hiding')).toBe(false)
+
+      // A page that does not yet cover the target keeps one continuous cover:
+      // the reader is owed a single wait, not a plate per page.
+      await releasePage()
+      expect(h.loadThrough.mock.calls).toEqual([[0, undefined], [0]])
+      expect(view.container.querySelector('[data-turn-jump-cover]')?.hasAttribute('data-hiding')).toBe(false)
+
+      // The paged window commits and the second page settles: the jump lands,
+      // the busy mark clears, and the cover starts its fade.
+      act(() => {
+        h.setChat({
+          nodes: [userInTurn(0, 'first prompt', 1), assistant(1, 'first response', 1), ...later],
+          turnTimings: new Map([[1, { startTime: 1_000 }], [3, { startTime: 8_000 }]]),
+        })
+      })
+      await releasePage()
+      expect(view.getByRole('button', { name: '跳转到第 1 轮' }).getAttribute('aria-busy')).toBeNull()
+      expect(view.container.querySelector('[data-turn-jump-cover]')?.getAttribute('data-hiding')).toBe('true')
+
+      // The fade completes: the plate leaves the DOM.
+      advanceTimers(500)
+      expect(view.container.querySelector('[data-turn-jump-cover]')).toBeNull()
+    } finally {
+      view?.unmount()
+      vi.useRealTimers()
+    }
+  })
+
+  it('never covers the transcript for a jump that lands inside the cover delay', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    let view: ReturnType<typeof render> | undefined
+    try {
+      const later = [userInTurn(8, 'third prompt', 3), assistant(9, 'third response', 3)]
+      const h = makeHarness({ nodes: later }, { hasMore: true })
+      h.setOutline([
+        { turn: 1, seq: 0, prompt: 'first prompt', response: '' },
+        { turn: 3, seq: 8, prompt: 'third prompt', response: '' },
+      ])
+      const view0 = view = render(<h.ChatView {...h.props} />)
+      fireEvent.click(view0.getByRole('button', { name: '加载并跳转到第 1 轮' }))
+      // The window already holds this target: it lands on the settle pass
+      // without a page in flight, so the armed delay is spent on nothing.
+      act(() => {
+        h.setChat({
+          nodes: [userInTurn(0, 'first prompt', 1), assistant(1, 'first response', 1), ...later],
+          turnTimings: new Map([[1, { startTime: 1_000 }], [3, { startTime: 8_000 }]]),
+        })
+      })
+      await act(async () => {})
+      expect(view0.getByRole('button', { name: '跳转到第 1 轮' }).getAttribute('aria-busy')).toBeNull()
+      advanceTimers(1_000)
+      expect(view0.container.querySelector('[data-turn-jump-cover]')).toBeNull()
+    } finally {
+      view?.unmount()
+      vi.useRealTimers()
+    }
   })
 
   it('hands a windowless tool result to the Tool seat with an empty tool name', () => {
@@ -1440,7 +1535,10 @@ describe('ChatView', () => {
     expect(members).toHaveLength(3)
     expect(members.map(member => member.getAttribute('hidden')))
       .toEqual(['until-found', 'until-found', 'until-found'])
-    expect(members[0]?.textContent).toContain('inspect the repository')
+    // The reasoning fold is sealed while the reader has not opened it, so the
+    // trace itself is not in the DOM until they do.
+    expect(members[0]?.querySelector('.reasoning-wrapper')).not.toBeNull()
+    expect(members[0]?.querySelector('.reasoning-content')).toBeNull()
     expect(members[1]?.textContent).toContain('bash:a')
     expect(members[2]?.textContent).toContain('subagent:b')
     expect(view.getByText('final answer')).toBeTruthy()
@@ -1666,8 +1764,13 @@ describe('ChatView', () => {
     expect(toggle.getAttribute('aria-expanded')).toBe('false')
     expect(reasoning?.getAttribute('hidden')).toBe('until-found')
     expect(view.getByText('final answer')).toBeTruthy()
+    // The fold is what keeps the trace off screen; opening it and then the
+    // block draws the trace, which the engine renders collapsed.
+    expect(reasoning?.textContent).not.toContain('private analysis')
     fireEvent.click(toggle)
-    expect(view.getByText('private analysis')).toBeTruthy()
+    expect(view.getByText('思考了 0 秒')).toBeTruthy()
+    fireEvent.click(view.getByText('思考了 0 秒'))
+    expect(view.container.textContent).toContain('private analysis')
   })
 
   it('folds a completed Turn even while the reader is away from the tail', () => {

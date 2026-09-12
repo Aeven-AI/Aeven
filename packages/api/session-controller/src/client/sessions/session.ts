@@ -91,6 +91,8 @@ export class Session implements SessionFace {
   private loadingOlder = false
   /** Shared low-water target of the running jump loop; null when no jump is paging. */
   private jumpTargetSeq: SessionSeq | null = null
+  /** Lower edge for the jump loop's next page, or null to page from the window head. */
+  private jumpBeforeSeq: SessionSeq | null = null
   /** The running jump loop's completion, shared by retargeting callers. */
   private jumpPromise: Promise<void> | null = null
   /** Authoritative stream-only inbox snapshot; pending work never hits history. */
@@ -387,11 +389,14 @@ export class Session implements SessionFace {
   }
 
   /** Jump loader: page backwards until the window covers seq (see ISession.loadThrough). */
-  loadThrough(seq: SessionSeq): Promise<void> {
+  loadThrough(seq: SessionSeq, beforeSeq?: SessionSeq): Promise<void> {
     if (this.openState !== 'open' || !this.hasMore || this.baseSeq <= seq) return Promise.resolve()
     if (this.jumpPromise !== null) {
-      // Retarget the running loop to the lowest requested seq.
+      // Retarget the running loop to the lowest requested seq. The incoming
+      // bound belongs to a target the loop no longer holds, so it is dropped:
+      // an unbounded page is slower, never wrong.
       this.jumpTargetSeq = SessionSeq(Math.min(this.jumpTargetSeq ?? seq, seq))
+      this.jumpBeforeSeq = null
       return this.jumpPromise
     }
     // A plain single-page pull owns the busy flag; the jump does not queue
@@ -400,6 +405,13 @@ export class Session implements SessionFace {
     // loop starts here.
     if (this.loadingOlder) return Promise.resolve()
     this.jumpTargetSeq = seq
+    // A page is measured in messages and grouped rows, so one of them spans
+    // many times its own count of events: the live tail's page for a far
+    // target is the whole intervening log. A caller that knows where the
+    // target's lead-in begins (the turn outline does) names that seq here and
+    // the first page stops there instead. It is spent after one page: the
+    // remaining pages walk up to it from the window head with the bound gone.
+    this.jumpBeforeSeq = beforeSeq === undefined || beforeSeq >= this.baseSeq ? null : beforeSeq
     this.loadingOlder = true
     this.notifier.markDirty()
     // Stale-pass guard (the doOpen pattern): a resync mid-loop replaces the
@@ -413,7 +425,17 @@ export class Session implements SessionFace {
           const events = this.events
           if (events === undefined) return
           const before = this.baseSeq
-          await events.prepend({ beforeSeq: this.baseSeq, maxMessages: JUMP_PAGE_MESSAGES })
+          const bound = this.jumpBeforeSeq
+          this.jumpBeforeSeq = null
+          // The bound reaching the page request is the lower edge of the first
+          // page: the transport spreads this request into `session/page`'s
+          // payload, and the host clamps its cut to it — so the page stops
+          // where the target's own lead-in begins instead of reaching back
+          // through the whole intervening log.
+          await events.prepend({
+            beforeSeq: bound === null ? this.baseSeq : bound,
+            maxMessages: JUMP_PAGE_MESSAGES,
+          })
           // No-progress guard: an empty or dropped page that still claims more
           // history must end the loop, not spin it.
           if (this.baseSeq >= before) return
@@ -424,6 +446,7 @@ export class Session implements SessionFace {
         }
       } finally {
         this.jumpTargetSeq = null
+        this.jumpBeforeSeq = null
         this.jumpPromise = null
         this.loadingOlder = false
         this.notifier.markDirty()

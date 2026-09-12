@@ -13,6 +13,7 @@ import type { ChatSnapshot } from '../contract/snapshot.ts'
 import { PendingSteeringBubble, PendingSubmissionBubble } from './MessageItem.tsx'
 import { ChatNodeSeat } from './ChatNodeSeat.tsx'
 import { TurnNavigator } from './TurnNavigator.tsx'
+import { TurnJumpCover, JUMP_COVER_DELAY_MS, JUMP_COVER_FADE_MS } from './TurnJumpCover.tsx'
 import { mergeTurnRailItems, type TurnRailItem } from './turn-rail-items.ts'
 import { formatRunDuration } from './message-chrome.ts'
 import a11yCss from './accessibility.module.css'
@@ -400,6 +401,14 @@ export function ChatView({
   const [busyJumpTurn, setBusyJumpTurn] = useState<number | null>(null)
   /** Bumped when a loadThrough completion settles, after its last page's commit. */
   const [jumpSettleTick, setJumpSettleTick] = useState(0)
+  /** Rail jump whose paging has outlived the cover delay: transcript covered. */
+  const [jumpCoverShown, setJumpCoverShown] = useState(false)
+  /** The cover is fading out; the gate keeps a fast re-click from flashing it. */
+  const [jumpCoverHiding, setJumpCoverHiding] = useState(false)
+  /** Pending cover-delay timer for the jump in flight; null when none is armed. */
+  const jumpCoverTimerRef = useRef<number | null>(null)
+  /** Previous busy mark: only a busy-to-idle edge fades the cover out. */
+  const jumpBusyRef = useRef<number | null>(null)
   const [eventNavigationSettleTick, setEventNavigationSettleTick] = useState(0)
   const eventNavigationLoadRef = useRef<{ requestId: number; settled: boolean } | null>(null)
   const completedEventNavigationRef = useRef(0)
@@ -510,6 +519,70 @@ export function ChatView({
     setChromeLayer(scrollport.parentElement?.querySelector<HTMLElement>('[data-conversation-chrome]') ?? null)
   }, [])
 
+  /** Write both cover flags in one commit: shown and hiding never disagree. */
+  const publishJumpCoverRef = useRef<(active: boolean, hiding: boolean) => void>(() => {})
+  publishJumpCoverRef.current = (active, hiding) => {
+    setJumpCoverShown(active)
+    setJumpCoverHiding(hiding)
+  }
+
+  /**
+   * Arm the cover for a jump that is about to page. It appears only if the jump
+   * outlives {@link JUMP_COVER_DELAY_MS}: a target one round trip away lands
+   * while the busy mark's own pulse still reads as progress, and a plate that
+   * flashed on and off for that would be worse than no cover at all.
+   */
+  const beginJumpCover = (): void => {
+    if (jumpCoverTimerRef.current !== null) return
+    jumpCoverTimerRef.current = window.setTimeout(() => {
+      jumpCoverTimerRef.current = null
+      // A jump that landed inside the delay leaves nothing to cover: the
+      // settle path already cleared the pending jump and the busy mark.
+      if (pendingJumpRef.current === null && !jumpBusyRef.current) return
+      publishJumpCoverRef.current(true, false)
+    }, JUMP_COVER_DELAY_MS)
+  }
+
+  /** Drop the cover at once: the wait is over, or another state owns the view. */
+  const dismissJumpCover = (): void => {
+    if (jumpCoverTimerRef.current !== null) {
+      window.clearTimeout(jumpCoverTimerRef.current)
+      jumpCoverTimerRef.current = null
+    }
+    publishJumpCoverRef.current(false, false)
+  }
+
+  // Latest-refs, so `navigateToTurn` keeps its identity for the memoized rail
+  // without capturing a stale closure over either control.
+  const beginJumpCoverRef = useRef(beginJumpCover)
+  beginJumpCoverRef.current = beginJumpCover
+  const dismissJumpCoverRef = useRef(dismissJumpCover)
+  dismissJumpCoverRef.current = dismissJumpCover
+
+  // A timer for a component that is gone must not fire, and the delay is only
+  // ever armed for a jump this view still holds.
+  useEffect(() => () => {
+    if (jumpCoverTimerRef.current !== null) {
+      window.clearTimeout(jumpCoverTimerRef.current)
+      jumpCoverTimerRef.current = null
+    }
+  }, [])
+
+  // The busy mark falling is the landed edge — the jump settles after its last
+  // page commits — so the cover fades there and only there. A jump whose delay
+  // was still running lands with no cover to fade: nothing is written here,
+  // because the armed timer's own guard drops it.
+  useEffect(() => {
+    const previous = jumpBusyRef.current
+    jumpBusyRef.current = busyJumpTurn
+    if (busyJumpTurn !== null || previous === null || !jumpCoverShown) return
+    publishJumpCoverRef.current(true, true)
+    const timer = window.setTimeout(() => {
+      publishJumpCoverRef.current(false, false)
+    }, JUMP_COVER_FADE_MS)
+    return () => { window.clearTimeout(timer) }
+  }, [busyJumpTurn, jumpCoverShown])
+
   const toBottom = (el: HTMLElement): void => {
     anchorRef.current = null
     reflowAnchorRef.current = null
@@ -517,6 +590,7 @@ export function ChatView({
     // Returning to the live tail supersedes a jump still landing.
     pendingJumpRef.current = null
     setBusyJumpTurn(current => current === null ? current : null)
+    dismissJumpCoverRef.current()
     el.scrollTop = el.scrollHeight
     observedTopRef.current = el.scrollTop
     atBottomRef.current = true
@@ -534,6 +608,23 @@ export function ChatView({
   landOnRowRef.current = (local, el, row, turn, origin) => {
     el.scrollTop = origin ? 0 : el.scrollTop + flowTop(row, el) - 24
     observedTopRef.current = el.scrollTop
+    // A landing SUPERSEDES the compensation anchors. They hold a row through an
+    // asynchronous page, and the one the ResizeObserver prefers — the prepend
+    // hold — is calibrated against the window as it was before this write.
+    // Leaving it armed makes every later reflow re-apply its offset to the
+    // landed position: on a rail jump to the top of a long Session the reader is
+    // walked back to the floor one correction at a time, which reads as the jump
+    // arriving and then sliding away.
+    prependHoldRef.current = null
+    // A landing SUPERSEDES both compensation anchors. They exist to hold a row
+    // through an asynchronous page, and the one the ResizeObserver prefers — the
+    // prepend hold — is calibrated against the window as it was before this
+    // write. Leaving it armed makes every later reflow re-apply its offset to
+    // the landed position: on a rail jump to the top of a long Session the
+    // reader is walked back to the floor one correction at a time, which reads
+    // as the jump arriving and then sliding away. Nothing re-arms them for the
+    // landed position either, because a landing is not a prepend.
+    prependHoldRef.current = null
     const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_THRESHOLD + 1
     atBottomRef.current = isAtBottom
     setAtBottom(isAtBottom)
@@ -944,6 +1035,7 @@ export function ChatView({
         pendingJumpRef.current = null
         anchorRef.current = null
         setBusyJumpTurn(null)
+        dismissJumpCoverRef.current()
         landOnRowRef.current(local, el, exactRow, turn, false)
         setHighlightedNodeKey(exactKey)
         completedEventNavigationRef.current = eventNavigation.requestId
@@ -1101,7 +1193,22 @@ export function ChatView({
       jumpRepageHeadRef.current = null
       jumpLandedRef.current = false
       setBusyJumpTurn(item.turn)
-      void loadThrough(item.anchor.seq).finally(() => { setJumpSettleTick(tick => tick + 1) })
+      // A previous jump's cover is this jump's stale state: drop it, then arm
+      // the delay afresh so only a jump that actually waits shows a plate.
+      dismissJumpCoverRef.current()
+      beginJumpCoverRef.current()
+      // The outline names the turn before the target, and this Turn starts at
+      // the target seq, so that boundary is exactly where its lead-in rows
+      // begin: bounding the first page there keeps the page down to the target
+      // instead of every turn between the live tail and it. Failing that (a
+      // target with no earlier outline entry) the page stays unbounded, which
+      // is only ever slower — `loadThrough` repages until the window is covered.
+      const previousTurn = railItems[railItems.findIndex(candidate => candidate.turn === item.turn) - 1]
+      const bound = previousTurn === undefined ? undefined : previousTurn.anchor
+      void loadThrough(
+        item.anchor.seq,
+        bound !== undefined && bound.kind === 'unloaded' ? bound.seq : undefined,
+      ).finally(() => { setJumpSettleTick(tick => tick + 1) })
       return
     }
     const row = anchorElement(local, item.anchor.key)
@@ -1109,6 +1216,7 @@ export function ChatView({
     // A loaded-mark click supersedes any jump still landing.
     pendingJumpRef.current = null
     setBusyJumpTurn(current => current === null ? current : null)
+    dismissJumpCoverRef.current()
     landOnTurnRef.current(local, el, row, item.turn)
     // A pending older page still has to compensate the prepended height, so
     // navigation moves that anchor to the new position instead of dropping it.
@@ -1130,6 +1238,13 @@ export function ChatView({
         onNavigate={navigateToTurn}
         t={t}
       />
+      {/* Cover for a jump still paging history in. Rendered after the rail so a
+          reader scrolling the marks sees the plate arrive over their own
+          gesture, and bounded to the same layer, so it spans exactly the band
+          the transcript occupies. It covers the rail (both are level 7 here and
+          this one comes later in the paint order); the back-to-bottom control is
+          level 8 and stays above as the escape from a slow jump. */}
+      <TurnJumpCover active={jumpCoverShown} hiding={jumpCoverHiding} label={t('chat.loadingOlder')} />
       {/* Head boundary, overlaid rather than in flow: automatic paging owns
           it, so it reports progress instead of asking for a click, and only a
           latched stall puts the manual control back. Overlaying keeps every
