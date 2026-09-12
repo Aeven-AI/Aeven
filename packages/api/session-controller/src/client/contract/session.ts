@@ -125,15 +125,9 @@ export interface ISession {
    * target and return the in-flight completion; `snapshot.loadingOlder` is
    * the busy signal for the whole jump.
    * @param seq - durable event seq the window must reach (a turn's `turn/start` seq).
-   * @param beforeSeq - optional lower edge for the FIRST page: page counting
-   *   and grouped rows make one page span far more events than its message
-   *   count, so a caller that knows where the target's lead-in begins (the
-   *   turn outline does) bounds the first read there instead of paying for
-   *   every turn between the live tail and the target. Later pages of the same
-   *   jump are unbounded again, and `seq` is covered regardless.
    * @returns completion once covered, exhausted, superseded, or failed soft.
    */
-  loadThrough(seq: SessionSeq, beforeSeq?: SessionSeq): Promise<void>
+  loadThrough(seq: SessionSeq): Promise<void>
   /**
    * Execute one slash-command line against this session's agent — pure
    * admission semantics (the host executor durably logs the lifecycle).

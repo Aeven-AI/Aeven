@@ -1197,10 +1197,10 @@ export function ChatView({
       // the delay afresh so only a jump that actually waits shows a plate.
       dismissJumpCoverRef.current()
       beginJumpCoverRef.current()
-      // Paged unbounded: a lower bound on the first page starved it (the window
-      // came back without the target, and the jump then had nothing to land on),
-      // so the outline's previous-turn seq is deliberately not used here. The
-      // jump is slower for a far target and always correct.
+      // Paged unbounded, from the window head back to the target. A lower bound
+      // on the first page was tried and starved the page — the window came back
+      // without the target and the jump had nothing to land on — so a jump is
+      // slower for a far target and always correct.
       void loadThrough(item.anchor.seq).finally(() => { setJumpSettleTick(tick => tick + 1) })
       return
     }

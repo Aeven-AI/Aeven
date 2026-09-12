@@ -43,6 +43,7 @@ const TOOL_READY_FILE = '.chat-scroll-tool-ready'
 const TOOL_RELEASE_FILE = '.chat-scroll-tool-release'
 const INPUTS_SESSION_ID = 'chat-scroll-inputs-e2e'
 const RAIL_SESSION_ID = 'chat-scroll-rail-e2e'
+const DEEP_SESSION_ID = 'chat-scroll-deep-jump-e2e'
 const FLING_SESSION_ID = 'chat-scroll-fling-e2e'
 const LIVE_FLING_PROMPT = 'CHAT_SCROLL_FLING_USER Keep streaming while I fling back through older output.'
 const LIVE_FLING_FIRST = 'CHAT_SCROLL_FLING_STREAM_FIRST'
@@ -51,6 +52,17 @@ const LIVE_FLING_DONE = 'CHAT_SCROLL_FLING_STREAM_DONE'
 const HISTORY_FIXTURE = createChatScrollFixture({
   markerPrefix: 'HISTORY',
   title: 'CHAT_SCROLL_HISTORY long paging session',
+})
+/**
+ * Deep enough that a jump to an early turn spans more than one history page:
+ * the default fixture fits inside a single page, so its jumps never exercise
+ * paging at all — which is how a paging defect shipped with the rail scenarios
+ * green.
+ */
+const DEEP_FIXTURE = createChatScrollFixture({
+  markerPrefix: 'DEEP',
+  title: 'CHAT_SCROLL_DEEP multi-page jump session',
+  turns: 320,
 })
 const TOOL_FIXTURE = createChatScrollFixture({
   markerPrefix: 'TOOL',
@@ -679,10 +691,64 @@ describe('web e2e: long Chat scroll contract', () => {
       const row = await marker.boundingBox()
       if (scrollport === null || row === null) throw new Error('turn-1 row or scrollport has no layout box')
       expect(row.y - scrollport.y).toBeGreaterThanOrEqual(0)
-      expect(row.y - scrollport.y).toBeLessThanOrEqual(160)
-      // The rail followed the landing to the ladder top, so the fade now
+      expect(row.y - scrollport.y).toBeLessThanOrEqual(160)      // The rail followed the landing to the ladder top, so the fade now
       // marks the other (downward) end.
       await expect.poll(() => rail.locator('[class*="fadeBottom"]').count(), { timeout: 15_000 }).toBe(1)
+      assertClean(world)
+    })
+  }, 180_000)
+
+  it.skipIf(MODE === 'record')('lands a mid-rail jump on its own turn instead of the window top', async () => {
+    await withScrollWorld({
+      failureShot: 'web-e2e-mid-rail-jump',
+      seeds: [{ fixture: DEEP_FIXTURE, id: DEEP_SESSION_ID }],
+    }, async (world) => {
+      await openSeed(world.page, DEEP_FIXTURE, DEEP_FIXTURE.markers.assistant(DEEP_FIXTURE.turns))
+      await expectBottom(world.page)
+      const rail = world.page.getByRole('navigation', { name: 'Turn navigation' })
+
+      // A Session deep enough that reaching turn 1 costs more than one page, so
+      // the jump pages rather than scrolling to a row already in the window.
+      const target = 60
+      const mark = rail.getByRole('button', { name: `Load and jump to turn ${String(target)}`, exact: true })
+      await mark.waitFor({ timeout: 30_000 })
+      const beforeRows = await loadedFlowRows(world.page)
+      // A mark is the keyboard/AT destination; the rail frame owns pointer
+      // input, so activate it the way the rail contract documents.
+      await mark.focus()
+      await world.page.keyboard.press('Enter')
+      // Settled when the mark reports its turn as loaded and stops being busy.
+      const loaded = rail.getByRole('button', { name: `Jump to turn ${String(target)}`, exact: true })
+      await expect.poll(() => loaded.count(), { timeout: 60_000 }).toBe(1)
+      await expect.poll(() => loaded.getAttribute('aria-busy'), { timeout: 30_000 }).toBeNull()
+      await nextPaint(world.page)
+
+      await loaded.evaluate((el) => { (el as HTMLElement).blur() })
+      // The jump pulled history: the target's rows were not resident before it.
+      expect(await loadedFlowRows(world.page)).toBeGreaterThan(beforeRows)
+
+      // The target Turn's OWN row sits at the reading line. Landing anywhere
+      // else — the top of the window the page happened to leave — is the defect
+      // this scenario exists for: the mark reads loaded either way.
+      // The rail lands a Turn's EARLIEST rendered row, so the contract reads the
+      // first one: rows placed before the anchor (a request's system prompt)
+      // stay in view above it.
+      const row = world.page.locator(`[data-chat-turn="${String(target)}"]`).first()
+      await expect.poll(() => row.count(), { timeout: 15_000 }).toBe(1)
+      const scrollport = await world.page.locator('[data-conversation-scroll]').boundingBox()
+      const rowBox = await row.boundingBox()
+      if (scrollport === null || rowBox === null) throw new Error('jump target row or scrollport has no layout box')
+      const offset = rowBox.y - scrollport.y
+      expect(offset).toBeGreaterThanOrEqual(0)
+      expect(offset).toBeLessThanOrEqual(160)
+
+      // ...and it stays there: a compensation anchor left armed from the paging
+      // that preceded the landing re-applies its offset on every later reflow.
+      const settledTop = await world.page.locator('[data-conversation-scroll]')
+        .evaluate(el => Math.round(el.scrollTop))
+      await world.page.waitForTimeout(1_200)
+      expect(await world.page.locator('[data-conversation-scroll]').evaluate(el => Math.round(el.scrollTop)))
+        .toBe(settledTop)
       assertClean(world)
     })
   }, 180_000)
