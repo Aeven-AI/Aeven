@@ -20,14 +20,20 @@
      measurement and no first-paint fallback. */
   --turn-rail-band: 100%;
   --turn-preview-height: 100px;
+  /* The rail's own margin from the scrollport's end edge — the same 24px the
+     transcript keeps on its start edge. The enclosing `.slot` spans that
+     layer's padding box, whose end edge is the scrollport's end edge, so this
+     is simply the rail's `right`; the page inset and the reserved scrollbar
+     gutter the layer carries there are the layer's own business, and reading
+     them back here is what made the rail a 32px margin beside a 24px one. */
+  --turn-rail-end-inset: 24px;
 
   /* Absolute inside the host chrome layer, which is a sibling of the
      scrollport rather than content inside it: an elastic overscroll translates
-     the scroller's contents, never this box. The layer already carries the
-     transcript's side inset, so the rail keeps 12px of its own. */
+     the scroller's contents, never this box. */
   position: absolute;
   top: calc(var(--turn-rail-band) / 2);
-  right: 12px;
+  right: var(--turn-rail-end-inset);
   width: 28px;
   /* Fixed-pitch marks never compress: a ladder taller than the band scrolls
      inside this frame instead of pushing marks under the composer or above
@@ -221,6 +227,14 @@
 @container (max-width: 900px) {
   .slot {
     display: none;
+  }
+}
+
+/* The narrow page inset (theme-owned), so the rail keeps the transcript's own
+   margin on both edges instead of the desktop 24px. */
+@media (max-width: 640px) {
+  .frame {
+    --turn-rail-end-inset: 16px;
   }
 }
 
