@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-tool-todo` 为 agent 提供一份可用于规划的结构化任务列表：把多步工作拆成具体任务、标记正在进行的任务、完成后逐项勾掉。列表跨轮次、跨重新打开的会话持续存在，agent 与 UI 始终看到最新计划。一个配置开关决定是否允许多个任务同时处于进行中，适用于并行开展工作的 agent。凡是希望 agent 维护可见任务列表的场景都可以使用它；每次更新整体替换列表，只有拥有该列表的 agent 会话才能修改。
+`dsh-tool-todo` 为 agent 提供一份可用于规划的结构化任务列表：把多步工作拆成具体任务、标记正在进行的任务、完成后逐项勾掉。agent 在每一步都把这份列表作为运行时上下文读回，因此无论轮次很长还是跨轮次续做，计划都保持同步，而不必凭记忆重建。一个配置开关决定是否允许多个任务同时处于进行中，适用于并行开展工作的 agent。凡是希望 agent 维护可见任务列表的场景都可以使用它；每次更新整体替换列表，只有拥有该列表的 agent 会话才能修改。
 
 ## 目录
 
@@ -80,8 +80,8 @@ agent 每次更新都发送完整列表；新列表替换旧列表，因此没�
 
 | 文件 | 职责 |
 |---|---|
-| [`src/index.ts`](src/index.ts) | 插件入口：`Config` schema、工具注册、`todos` 投影单元 |
-| [`src/types.ts`](src/types.ts) | `todos` 投影键声明及其载荷类型的唯一归属地 |
+| [`src/index.ts`](src/index.ts) | 插件入口：`Config` schema、工具注册、`todos` 与 `todoPlan` 投影单元，以及 `todo:plan` 运行时上下文贡献 |
+| [`src/types.ts`](src/types.ts) | `todos` 与 `todoPlan` 投影键声明及其载荷类型的唯一归属地 |
 | [`src/client.ts`](src/client.ts) | 客户端命名空间对类型出口的再导出 |
 | [`src/invariant.ts`](src/invariant.ts) | 不变式伴生插件：校验持久整表快照与开放轮次归属 |
 
@@ -91,7 +91,7 @@ agent 每次更新都发送完整列表；新列表替换旧列表，因此没�
 
 ### 会话投影
 
-当组合挂载 `ctx.sessionProjections`（[`@deepseek-ai/dsh-session-projection`](../../session/session-projection/README.zh.md)）时，本包在注入的子插件中注册 `todos` 单元：投影即有效计划——最新的整份 `todo/write` 列表，首次写入前为 `null`，下一轮次开始时清空，而 `turn/end` 保留刚完成的清单。该键在此处合并进 `SessionProjectionMap`；载体通过历史尾页与 `session/projection` 推送帧提供该值。未挂载注册表的组合不受影响；单元注册见 [src/index.ts](src/index.ts)。生命周期理由见 [todo 计划在下一轮次清空 Agent Note](../../../.agents/notes/implemented/feature/2026-07-28-todo-plan-clears-on-next-turn.zh.md)。
+当组合挂载 `ctx.sessionProjections`（[`@deepseek-ai/dsh-session-projection`](../../session/session-projection/README.zh.md)）时，本包在注入的子插件中注册两个单元。`todos` 是 UI 的有效计划：最新的整份 `todo/write` 列表，首次写入前为 `null`，下一轮次开始时清空，而 `turn/end` 保留刚完成的清单。该键在此处合并进 `SessionProjectionMap`；载体通过历史尾页与 `session/projection` 推送帧提供该值。生命周期理由见 [todo 计划在下一轮次清空 Agent Note](../../../.agents/notes/implemented/feature/2026-07-28-todo-plan-clears-on-next-turn.zh.md)。`todoPlan` 是模型对同一份列表的回读，声明时不带 `wire`，因此永不发往客户端：它跨轮次边界保留会话最近一次 `todo/write`，因为即使 dock 的按轮次生命周期有意让已完成的清单退场，agent 的工作记忆仍必须跨轮次存续。未挂载注册表的组合不受影响；两个单元的注册见 [src/index.ts](src/index.ts)。
 
 ### 持久日志不变式
 
@@ -141,7 +141,7 @@ agent 每次更新都发送完整列表；新列表替换旧列表，因此没�
 
 #### 模型看到什么
 
-每次 assistant 工具调用都会在参数中保留整个替换列表。成功时原样返回 `Updated todo list: <pending> pending, <inProgress> in progress, <completed> completed.`。稳定失败文本为 ``Error: invalid todo: `content` must be a non-empty string``、`Error: invalid todos: duplicate content "<content>"`、`Error: todo_write requires an owning agent session`，以及——仅在部署设置 `allowParallelInProgress: false` 时——`Error: invalid todos: at most one task may be in_progress (got <n>)`。完整的 `todo/write` 会话事件是 UI 与回放状态，而非第二条模型消息。
+每次 assistant 工具调用都会在参数中保留整个替换列表。成功时原样返回 `Updated todo list: <pending> pending, <inProgress> in progress, <completed> completed.`。稳定失败文本为 ``Error: invalid todo: `content` must be a non-empty string``、`Error: invalid todos: duplicate content "<content>"`、`Error: todo_write requires an owning agent session`，以及——仅在部署设置 `allowParallelInProgress: false` 时——`Error: invalid todos: at most one task may be in_progress (got <n>)`。完整的 `todo/write` 会话事件是 UI 与回放状态，而非第二条工具结果；模型通过下文的运行时上下文读回当前计划，而不必从这些参数中重建。
 
 #### Token 影响
 
@@ -150,6 +150,20 @@ token 用量随模型每次提交的完整列表增长，这些调用参数会�
 #### KV Cache 影响
 
 仅追加；新可见内容位于可复用请求前缀之后，不会使既有 KV-cache 条目失效。
+
+### 计划回读
+
+#### 模型看到什么
+
+只要存在有效计划，该步骤的运行时上下文就携带一条贡献：`Your current todo list (<completed>/<total> completed) — keep it in sync with todo_write as this work progresses, marking each task completed the moment it is done:`，其后按写入顺序每项一行 `- [<status>] <content>`。它由仅宿主的 `todoPlan` 投影渲染，因此即使轮次边界清空了 dock 的 `todos` 值，它依然存在，并在历史压缩后恢复该计划。首次写入之前以及列表为空时，该贡献渲染为空，完全不产生快照。
+
+#### Token 影响
+
+运行时上下文载体仅在渲染文本变化时才生成持久快照，因此计划未变时后续步骤不产生任何 token 开销；每次重写会把整份列表重发一次，用量以模型自己写入的列表为界。
+
+#### KV Cache 影响
+
+每份快照都是替换型表面消息而非累积，因此该贡献位于可复用请求前缀之后，不会使其失效。
 
 ## 已知限制与延期工作
 
@@ -160,7 +174,7 @@ token 用量随模型每次提交的完整列表增长，这些调用参数会�
 
 - **仅单一所有者作用域**——列表属于唯一调用 agent 会话；subagent、共享与 swarm 作用域是有意砍掉的部分，非 agent 调用方会被拒绝。
 - **条目形状刻意保持最小**——`content` 加三态 `status`；整表替换不需要稳定 id、优先级或 active-form 字段。
-- **整表替换是唯一操作**——没有部分更新、没有回读工具、没有逐项编辑；模型每次调用都必须重新发送完整列表。
+- **整表替换是唯一操作**——没有部分更新、没有回读*工具*、没有逐项编辑；模型从运行时上下文读取当前计划，且每次调用都必须重新发送完整列表。
 
 <a id="dev-note"></a>
 ### 开发备注

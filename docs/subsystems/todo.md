@@ -2,7 +2,7 @@
 
 English | [中文](todo.zh.md)
 
-The durable todo vocabulary owned by [`@deepseek-ai/dsh-tool-todo`](../../packages/todo/tool-todo/README.md). The model-facing tool replaces one agent session's whole list; the package also owns the event declaration, replay projection, and invariant companion. Tool behavior and configuration are on the [package README](../../packages/todo/tool-todo/README.md).
+The durable todo vocabulary owned by [`@deepseek-ai/dsh-tool-todo`](../../packages/todo/tool-todo/README.md). The model-facing tool replaces one agent session's whole list; the package also owns the event declaration, the two replay projections over it, the model's read-back of that plan, and the invariant companion. Tool behavior and configuration are on the [package README](../../packages/todo/tool-todo/README.md).
 
 Source: [`packages/todo/tool-todo/src/types.ts`](../../packages/todo/tool-todo/src/types.ts)
 
@@ -30,3 +30,7 @@ interface TodoItem {
 ## Durable event and invariant
 
 The package declaration-merges `todo/write: { todos: TodoItem[] }` into `SessionEventMap`. The event is log-only and carries the complete replacement list; the generated [persistence catalog](../persistence-catalog.md#todowrite--log-only) records its declaration site. The package's invariant companion validates existing and newly announced sessions in one pass, then tracks committed turn boundaries incrementally so every live `todo/write` is checked before append without rescanning the log.
+
+## Two projection lifetimes
+
+Both units fold the same input and diverge only on the turn boundary. `todos` is the client-wired standing plan the dock renders: the latest whole list, cleared by the next `turn/start` so a finished checklist never reads as the current turn's work, and `null` before the first write. `todoPlan` is host-only — declared without `wire`, so it never reaches a client — and retains the session's latest `todo/write` across turn boundaries, because the agent's own working memory has to survive a turn the way its transcript does. The package contributes that retained value to every step as runtime context, so the model reads its plan back instead of reconstructing it from the `todo_write` arguments left in its history, which compaction replaces with a lossy summary.
