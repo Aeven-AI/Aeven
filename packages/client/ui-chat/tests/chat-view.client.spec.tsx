@@ -797,15 +797,13 @@ describe('ChatView', () => {
     expect(view.getByRole('tooltip').textContent).toContain('first answer from outline')
 
     fireEvent.click(first)
-    // Turn 1 is the rail's first mark, so the click names no lead-in bound;
-    // the settle-time repage carries none either.
-    expect(h.loadThrough).toHaveBeenCalledWith(0, undefined)
+    expect(h.loadThrough).toHaveBeenCalledWith(0)
     expect(first.getAttribute('aria-busy')).toBe('true')
 
     // The fake loader never delivers rows: settlement repages once for the
     // unmoved head, then lands on the nearest rendered turn and un-busies.
     await act(async () => {})
-    expect(h.loadThrough.mock.calls).toEqual([[0, undefined], [0]])
+    expect(h.loadThrough.mock.calls).toEqual([[0], [0]])
     expect(first.getAttribute('aria-busy')).toBeNull()
     expect(view.getByRole('button', { name: '跳转到第 3 轮' }).getAttribute('aria-current')).toBe('true')
   })
@@ -848,13 +846,13 @@ describe('ChatView', () => {
     // The session-side guard refuses the busy-pager jump instantly, yet the
     // mark stays busy instead of degrading to the nearest loaded turn.
     await act(async () => {})
-    expect(h.loadThrough.mock.calls).toEqual([[0, undefined]])
+    expect(h.loadThrough.mock.calls).toEqual([[0]])
     expect(first.getAttribute('aria-busy')).toBe('true')
 
     // The plain pull settles: the flip re-settles the jump, which repages.
     act(() => { h.setSession({ loadingOlder: false }) })
     await act(async () => {})
-    expect(h.loadThrough.mock.calls).toEqual([[0, undefined], [0]])
+    expect(h.loadThrough.mock.calls).toEqual([[0], [0]])
     expect(first.getAttribute('aria-busy')).toBeNull()
   })
 
@@ -906,7 +904,7 @@ describe('ChatView', () => {
     const view = render(<h.ChatView {...h.props} />)
 
     fireEvent.click(view.getByRole('button', { name: '加载并跳转到第 1 轮' }))
-    expect(h.loadThrough).toHaveBeenCalledWith(0, undefined)
+    expect(h.loadThrough).toHaveBeenCalledWith(0)
 
     // The paged window commits: turn 1's rows and rail item enter the snapshot.
     act(() => {
@@ -961,7 +959,7 @@ describe('ChatView', () => {
       // A page that does not yet cover the target keeps one continuous cover:
       // the reader is owed a single wait, not a plate per page.
       await releasePage()
-      expect(h.loadThrough.mock.calls).toEqual([[0, undefined], [0]])
+      expect(h.loadThrough.mock.calls).toEqual([[0], [0]])
       expect(view.container.querySelector('[data-turn-jump-cover]')?.hasAttribute('data-hiding')).toBe(false)
 
       // The paged window commits and the second page settles: the jump lands,
