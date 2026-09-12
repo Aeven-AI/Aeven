@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-tool-todo` gives the agent a structured task list to plan with: break multi-step work into concrete tasks, mark the task you are working on, and check tasks off as they finish. The list survives across turns and reopened sessions, so the agent and the UI always see the latest plan. One configuration flag decides whether several tasks may be in progress at once, for agents that run work in parallel. Use it wherever an agent should keep a visible task list; each update replaces the whole list, and only the owning agent session can change it.
+`dsh-tool-todo` gives the agent a structured task list to plan with: break multi-step work into concrete tasks, mark the task you are working on, and check tasks off as they finish. The agent reads that list back as runtime context on every step, so it keeps its plan in sync through a long or resumed turn instead of reconstructing it from memory. One configuration flag decides whether several tasks may be in progress at once, for agents that run work in parallel. Use it wherever an agent should keep a visible task list; each update replaces the whole list, and only the owning agent session can change it.
 
 ## Table of Contents
 
@@ -80,7 +80,7 @@ The [todo_write tool Agent Note](../../../.agents/notes/implemented/feature/2026
 
 | File | Role |
 |---|---|
-| [`src/index.ts`](src/index.ts) | Plugin entry: `Config` schema, tool registration, `todos` projection unit |
+| [`src/index.ts`](src/index.ts) | Plugin entry: `Config` schema, tool registration, the `todos` and `todoPlan` projection units, and the `todo:plan` runtime-context contribution |
 | [`src/types.ts`](src/types.ts) | The one home of the `todos` projection-key declaration and its payload types |
 | [`src/client.ts`](src/client.ts) | Client-namespace re-export of the types outlet |
 | [`src/invariant.ts`](src/invariant.ts) | Invariant companion: validates durable whole-list snapshots and open-turn ownership |
@@ -91,7 +91,7 @@ The plugin is a function/namespace plugin: it exports `name` / `inject` / `apply
 
 ### Session projection
 
-When the composition mounts `ctx.sessionProjections` ([`@deepseek-ai/dsh-session-projection`](../../session/session-projection/README.md)), this package registers the `todos` unit on an injected child: the projection is the standing plan — the latest whole `todo/write` list, `null` before the first write, cleared when the next turn starts while `turn/end` keeps the finished checklist visible. The key merges into `SessionProjectionMap` here; carriers serve the value on the history tail page and the `session/projection` push frame. Compositions without the registry are unaffected; see [src/index.ts](src/index.ts) for the unit registration. The lifetime rationale lives in the [todo plan clears on next turn Agent Note](../../../.agents/notes/implemented/feature/2026-07-28-todo-plan-clears-on-next-turn.md).
+When the composition mounts `ctx.sessionProjections` ([`@deepseek-ai/dsh-session-projection`](../../session/session-projection/README.md)), this package registers two units on an injected child. `todos` is the UI's standing plan: the latest whole `todo/write` list, `null` before the first write, cleared when the next turn starts while `turn/end` keeps the finished checklist visible. That key merges into `SessionProjectionMap` here, carriers serve the value on the history tail page and the `session/projection` push frame, and the lifetime rationale lives in the [todo plan clears on next turn Agent Note](../../../.agents/notes/implemented/feature/2026-07-28-todo-plan-clears-on-next-turn.md). `todoPlan` is the model's read-back of the same list, declared with no `wire` so it never reaches a client: it retains the session's latest `todo/write` across turn boundaries, because an agent's working memory has to survive a turn even where the dock's turn-scoped lifetime deliberately retires a finished checklist. Compositions without the registry are unaffected; see [src/index.ts](src/index.ts) for both unit registrations.
 
 ### Durable-log invariant
 
@@ -141,7 +141,7 @@ Prefix-stable while the definition and visibility are unchanged. Plugin lifecycl
 
 #### What the model sees
 
-Each assistant tool call retains the entire replacement list in its arguments. Success returns exactly `Updated todo list: <pending> pending, <inProgress> in progress, <completed> completed.` Stable failures are ``Error: invalid todo: `content` must be a non-empty string``, `Error: invalid todos: duplicate content "<content>"`, `Error: todo_write requires an owning agent session`, and — only where the deployment set `allowParallelInProgress: false` — `Error: invalid todos: at most one task may be in_progress (got <n>)`. The full `todo/write` session event is UI and replay state, not a second model message.
+Each assistant tool call retains the entire replacement list in its arguments. Success returns exactly `Updated todo list: <pending> pending, <inProgress> in progress, <completed> completed.` Stable failures are ``Error: invalid todo: `content` must be a non-empty string``, `Error: invalid todos: duplicate content "<content>"`, `Error: todo_write requires an owning agent session`, and — only where the deployment set `allowParallelInProgress: false` — `Error: invalid todos: at most one task may be in_progress (got <n>)`. The full `todo/write` session event is UI and replay state, not a second tool result; the model reads the current plan back through the runtime context below instead of reconstructing it from these arguments.
 
 #### Token effect
 
@@ -150,6 +150,20 @@ Token growth scales with every full list the model submits, and those call argum
 #### KV Cache effect
 
 Append-only; newly visible content follows the reusable request prefix and does not invalidate existing KV-cache entries.
+
+### Plan read-back
+
+#### What the model sees
+
+While a standing plan exists, that step's runtime context carries one contribution: `Your current todo list (<completed>/<total> completed) — keep it in sync with todo_write as this work progresses, marking each task completed the moment it is done:` followed by one `- [<status>] <content>` line per item in the order written. It renders from the host-only `todoPlan` projection, so it survives a turn boundary that clears the dock's `todos` value and restores the plan after history compaction. Before the first write, and for an empty list, the contribution renders empty and contributes no snapshot at all.
+
+#### Token effect
+
+The runtime-context carrier materializes a durable snapshot only when the rendered text changes, so an unchanged plan costs nothing on later steps; each rewrite re-sends the whole list once, bounded by the list the model itself chose to write.
+
+#### KV Cache effect
+
+Each snapshot is a replacement surface message rather than an accumulation, so this contribution follows the reusable request prefix instead of invalidating it.
 
 ## Known Limitations and Deferred Work
 
@@ -160,7 +174,7 @@ These limits define when the tool is a poor fit. They are current package constr
 
 - **Single-owner scope only** — the list belongs to the one calling agent session; subagent, shared, and swarm scopes are a deliberate cut, and a non-agent caller is rejected.
 - **The item shape is deliberately minimal** — `content` plus three-state `status`; whole-list replacement needs no stable id, priority, or active-form fields.
-- **Whole-list replacement is the only operation** — no partial updates, no read-back tool, and no per-item edits; the model must resend the entire list each call.
+- **Whole-list replacement is the only operation** — no partial updates, no read-back *tool*, and no per-item edits; the model reads the current plan from its runtime context and must resend the entire list each call.
 
 <a id="dev-note"></a>
 ### Dev Note

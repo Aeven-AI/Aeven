@@ -1,7 +1,9 @@
 /**
  * Model-facing whole-list replacement. Each call appends a `todo/write` snapshot to the calling
- * agent's session; replay is last-write-wins, and UIs render from session events. A non-agent
- * caller has no owning list and is rejected. Named exports preserve loader injection metadata.
+ * agent's session; replay is last-write-wins, and UIs render from session events. The same folded
+ * list is contributed to the model as runtime context, so an agent reads its own standing plan
+ * back instead of reconstructing it from its own tool-call arguments. A non-agent caller has no
+ * owning list and is rejected. Named exports preserve loader injection metadata.
  * @module @deepseek-ai/dsh-tool-todo
  */
 
@@ -13,6 +15,11 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { TodoItem } from './types.ts'
 // Type-only: resolves the required ctx.sessionProjections service declaration.
 import type {} from '@deepseek-ai/dsh-session-projection'
+// Type-only: brings the scoped `ctx.systemPrompt` service declaration and the
+// `AssembleContext.agent` augmentation (the runtime-context read below) into
+// this program.
+import type {} from '@deepseek-ai/dsh-system-prompt'
+import type {} from '@deepseek-ai/dsh-agent'
 // The `todos` projection-key declaration lives in src/types.ts (its one home);
 // this re-export projects the type face onto the package root AND keeps the
 // module edge in the emitted index.d.ts, so aggregate programs consuming the
@@ -120,17 +127,36 @@ const todosProjectionSchema: ZodType<TodoItem[] | null> = zod.union([
 ])
 
 /**
- * Register the `todo_write` tool on `ctx.tools` and the `todos` unit on
- * `ctx.sessionProjections`.
+ * Render one standing plan as model-visible runtime context. Empty text contributes nothing, so an
+ * absent or empty list costs no tokens and reveals no state.
+ * @param todos - the folded `todoPlan` projection, or null before the first write.
+ * @returns the rendered plan, or `''` when there is nothing to show.
+ */
+function renderTodosContext(todos: TodoItem[] | null): string {
+  if (todos === null || todos.length === 0) return ''
+  const completed = todos.filter(todo => todo.status === 'completed').length
+  const lines = todos.map(todo => `- [${todo.status}] ${todo.content}`)
+  return `Your current todo list (${completed}/${todos.length} completed) — keep it in sync `
+    + 'with todo_write as this work progresses, marking each task `completed` the moment it is '
+    + 'done:\n'
+    + lines.join('\n')
+}
+
+/**
+ * Register the `todo_write` tool on `ctx.tools`, the `todos` (client-wired) and
+ * `todoPlan` (host-only) units on `ctx.sessionProjections`, and the `todo:plan`
+ * runtime-context contribution on `ctx.systemPrompt`.
  * @param ctx - registrant context carrying the tool and session-projection registries.
  * @param config - deployment's explicit todo policy.
  */
 export function apply(ctx: Context, config: Config): void {
   const allowParallel = config.allowParallelInProgress
-  // Standing-plan fold: latest whole todo/write list, cleared by the next
-  // turn/start (turn/end keeps the finished checklist visible); null before the
-  // first write or after a later turn begins; every other event returns the
-  // same state reference.
+  // Standing-plan fold for the UI: latest whole todo/write list, cleared by the
+  // next turn/start (turn/end keeps the finished checklist visible); null before
+  // the first write or after a later turn begins; every other event returns the
+  // same state reference. That turn-scoped lifetime is a deliberate product
+  // decision — readers take the strip as "what this turn is doing" — so it is
+  // deliberately NOT the source the model reads back below.
   ctx.sessionProjections.register<'todos', TodoItem[] | null>({
     key: 'todos',
     stateSchema: todosProjectionSchema,
@@ -142,6 +168,39 @@ export function apply(ctx: Context, config: Config): void {
     },
     wire: { viewSchema: todosProjectionSchema, view: state => state },
     stateVersion: 2,
+  })
+  // Host-only read-back fold: the session's latest todo/write, retained across
+  // turn boundaries. An agent's working memory has to survive a turn the way its
+  // transcript does, and the turn-scoped UI lifetime above makes `todos` the
+  // wrong source for that. Declared without `wire`, so it never reaches a client
+  // and cannot perturb the dock.
+  ctx.sessionProjections.register<'todoPlan', TodoItem[] | null>({
+    key: 'todoPlan',
+    stateSchema: todosProjectionSchema,
+    init: () => null,
+    apply: (state, event) => (event.type === 'todo/write' ? event.data.todos : state),
+    stateVersion: 1,
+  })
+  // Read-back for the model. Without this contribution the only record an agent
+  // has of its own list is the `todo_write` arguments in its transcript, which
+  // compaction replaces with a lossy summary, and there is no read-back tool —
+  // so a long turn, or any compacted session, silently drifts from the list the
+  // UI renders. The runtime-context carrier re-emits a snapshot only when the
+  // rendered text changes, so an unchanged list costs nothing on any later step.
+  ctx.inject(['systemPrompt'], (scope: Context) => {
+    scope.systemPrompt.context({
+      name: 'todo:plan',
+      order: scope.systemPrompt.getContextOrder('TODO_PLAN'),
+      text: (context) => {
+        const session = context.agent?.session
+        if (session === undefined) return ''
+        // This plugin registered the `todoPlan` unit in the same `apply`, so the
+        // key is always registered wherever this provider runs; the cast records
+        // that guarantee instead of inventing an unreachable `undefined` branch.
+        const todos = ctx.sessionProjections.stateOf(session, 'todoPlan') as TodoItem[] | null
+        return renderTodosContext(todos)
+      },
+    })
   })
   ctx.tools.register(defineTool({
     name: 'todo_write',
