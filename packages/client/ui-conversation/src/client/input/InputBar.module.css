@@ -59,27 +59,14 @@
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 
-/* No-workspace trigger state: dashed l4 stroke marks the card as a pick-a-
-   workspace affordance rather than a live composer; hover answers in the
-   business blue to invite the click. Native `dashed` has a fixed browser
-   pattern, so the stroke is an ::after overlay: theme-token background masked
-   by an SVG dash ring (stroke-width 2 centered on the box edge = 1px visible
-   inside), which keeps the 22px radius and both themes. */
+/* No-workspace trigger state: the card is a pick-a-workspace target, but it
+   wears no stroke of its own. A dashed ring here read as an input artifact
+   around what is otherwise an empty composer (the archive → no-session state),
+   so the surface stays flat like any other resting composer. The full-capsule
+   click, its cursor, and the chip above remain the whole affordance. */
 .cardWorkspaceTrigger {
   --dsw-elevation-stroke-color: transparent;
   cursor: pointer;
-}
-
-.cardWorkspaceTrigger::after {
-  content: '';
-  position: absolute;
-  inset: -1px;
-  border-radius: var(--dsw-aeven-radius-surface);
-  background: var(--dsw-alias-border-l4);
-  transition: background-color 100ms ease;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='none' rx='22' ry='22' stroke='black' stroke-width='2' stroke-dasharray='4 4'/%3E%3C/svg%3E");
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='none' rx='22' ry='22' stroke='black' stroke-width='2' stroke-dasharray='4 4'/%3E%3C/svg%3E");
-  pointer-events: none;
 }
 
 /* Disabled toolbar controls neither receive nor swallow clicks in the trigger
@@ -87,10 +74,6 @@
    the full capsule one pick target. */
 .cardWorkspaceTrigger :disabled {
   pointer-events: none;
-}
-
-.cardWorkspaceTrigger:hover::after {
-  background: var(--dsw-alias-state-business-primary);
 }
 
 .accessory {
