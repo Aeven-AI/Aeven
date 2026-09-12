@@ -19,7 +19,11 @@
      the scrollport and ends where the composer begins, so the band needs no
      measurement and no first-paint fallback. */
   --turn-rail-band: 100%;
-  --turn-preview-height: 100px;
+  /* The balloon's height budget: 16px of padding at each end plus one 20px
+     prompt line, a 4px gap, and the three 18px response lines its clamp allows.
+     100px was the same budget at the old 10/12px padding and clipped the third
+     line once the padding grew. */
+  --turn-preview-height: 112px;
   /* The rail's own margin from the scrollport's end edge — the same 24px the
      transcript keeps on its start edge. The enclosing `.slot` spans that
      layer's padding box, whose end edge is the scrollport's end edge, so this
@@ -187,7 +191,7 @@
   width: min(300px, calc(100cqw - 120px));
   max-height: var(--turn-preview-height);
   overflow: hidden;
-  padding: 10px 12px;
+  padding: 16px;
   border: 0;
   /* The Aeven menu surface, the same rules the account menu's tippy panel
      uses (`ui-account-aeven/src/vendor/aeven-account.css`,
