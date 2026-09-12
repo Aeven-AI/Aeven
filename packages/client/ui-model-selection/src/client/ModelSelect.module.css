@@ -5,7 +5,8 @@
 
 /* Figma 313:14108 ToggleButton: 13/20 medium secondary label, 4px gap,
    12px caption chevron; 28px chip height matches the sibling Plan /
-   Read-only selects in the same tool row. */
+   Read-only selects in the same tool row. The trigger opens the shared
+   popupSelect shell, so it carries no dropdown chrome of its own. */
 .trigger {
   display: flex;
   align-items: center;
@@ -65,6 +66,11 @@
   transform: rotate(180deg);
 }
 
+/* The chooser card. Each row is a cell (label + current value + a right
+ * chevron) whose list opens in the shared popupSelect shell, so this card
+ * carries none of the row/search chrome the shell owns. Surface tokens match
+ * the Menu primitive card (ui-primitives Menu.module.css) so every dropdown
+ * reads as the same material. */
 .menu {
   position: absolute;
   right: 0;
@@ -72,146 +78,15 @@
   z-index: 20;
   display: flex;
   flex-direction: column;
-  /* Let the visible pane's rows set the card width, but keep pathological ids
-     and narrow screens inside a bounded card where ellipsis remains. */
   width: max-content;
   min-width: min(240px, calc(100vw - 32px));
   max-width: min(420px, calc(100vw - 32px));
-  max-height: min(360px, calc(100vh - 96px));
-  overflow: hidden;
   padding: 4px;
-  /* Surface tokens match the Menu primitive card (ui-primitives
-   * Menu.module.css) so every dropdown reads as the same material. */
   border: 0;
   border-radius: 20px;
   background: var(--dsw-specific-menu);
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
   box-shadow: var(--dsw-elevation-prominent);
-  color: var(--dsw-alias-label-primary);
-  /* Elevated surface: the scrollbar thumb takes the l2 elevation tokens.
-     Declared here rather than on the scrolling `.groups` child so the
-     elevation choice sits with the surface; the custom properties inherit
-     down to whichever descendant actually scrolls (see ui-theme
-     styles/scrollbar.css for the rebinding contract). */
-  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
-  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
-}
-
-.status,
-.empty {
-  padding: 10px;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 13px;
-  line-height: 20px;
-}
-
-.error,
-.warning {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 4px;
-  padding: 7px 8px;
-  border-radius: 8px;
-  background: var(--dsw-alias-interactive-bg-hover-danger);
-  color: var(--dsw-alias-state-error-primary);
-  font-size: 12px;
-  line-height: 18px;
-}
-
-.warning {
-  background: var(--dsw-alias-bg-module-platform);
-  color: var(--dsw-alias-state-warn-label);
-}
-
-.retry {
-  flex: 0 0 auto;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.groups {
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.group + .group {
-  margin-top: 4px;
-}
-
-.groupTitle {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  padding: 5px 8px 3px;
-  background: var(--dsw-specific-menu);
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
-  line-height: 18px;
-  font-weight: 500;
-}
-
-.option {
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: auto;
-  min-width: 100%;
-  min-height: 38px;
-  padding: 6px 8px;
-  border: none;
-  border-radius: 10px;
-  outline: none;
-  background: transparent;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.option:hover:not(:disabled),
-.option:focus-visible {
-  background: var(--dsw-alias-interactive-bg-hover);
-}
-
-/* Selection marker is the trailing check, not a fill — matches the Menu
- * primitive's selected treatment. */
-.selected {
-  background: transparent;
-}
-
-.option:disabled {
-  color: var(--dsw-alias-label-dimmed);
-  cursor: default;
-}
-
-.optionCopy {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.modelName {
-  overflow: hidden;
-  color: inherit;
-  font-size: 14px;
-  line-height: 20px;
-  font-weight: 500;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.check {
-  display: grid;
-  place-items: center;
-  flex: 0 0 18px;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -237,7 +112,8 @@
   text-align: left;
 }
 
-.cell:hover {
+.cell:hover,
+.cell:focus-visible {
   background: var(--dsw-alias-interactive-bg-hover);
 }
 

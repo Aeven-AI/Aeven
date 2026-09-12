@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package provides model selection in the Web GUI: the `/model` popup command and the composer's model seat, both over one per-session directory of provider-grouped models. Choosing a model submits the complete selection — provider, model, and reasoning effort — which the Host snapshots at the next prompt-assembly boundary, so the following request uses it while a running step keeps its assembled selection. The composer seat shows a two-level Model/Effort menu: models stay provider-grouped, and the selected exact model supplies its adapter-owned effort names and default. When the Host reports that no adapter serves the session's route, the composer input goes inert until a route becomes available.
+This package provides model selection in the Web GUI: the `/model` popup command and the composer's model seat, both over one per-session directory of provider-grouped models and both rendering their lists through ONE picker — the shared popupSelect shell, search included. Choosing a model submits the complete selection — provider, model, and reasoning effort — which the Host snapshots at the next prompt-assembly boundary, so the following request uses it while a running step keeps its assembled selection. The seat keeps a two-level entry: its trigger opens a small Model/Effort chooser, the Model row opens the very list `/model` opens, and the Effort row opens the current model's levels in that same shell — so no entry owns a lookalike list of its own. When the Host reports that no adapter serves the session's route, the composer input goes inert until a route becomes available.
 
 ## Table of Contents
 
@@ -25,11 +25,11 @@ This package provides model selection in the Web GUI: the `/model` popup command
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin alongside `ui-conversation` and the commands package; the composer then shows the model seat next to the pending indicator, and `/model` opens the same directory as a popup. Both surfaces show the host-reported current selection when the exact provider/model pair remains in the advertised groups; a missing catalog row leaves the routable selection intact while the trigger prompts `Select model`.
+Mount this plugin alongside `ui-conversation` and the commands package; the composer then shows the model seat next to the pending indicator, and pressing it opens the seat's Model/Effort chooser. The Model row opens the same searchable list `/model` opens. Both surfaces show the host-reported current selection when the exact provider/model pair remains in the advertised groups; a missing catalog row leaves the routable selection intact while the trigger prompts `Select model`.
 
 ### Model and effort
 
-Models stay grouped by provider. The menu shows model and effort names only; catalog descriptions remain available to other consumers. The `/model` popup applies the selected model's default effort; the composer can then choose any advertised effort. An adapter without reasoning metadata leaves the Effort row absent; there is no arbitrary effort input.
+Models stay grouped by provider, and each row carries the provider name plus the catalog description as its detail line — the text the shell's search also matches. The Effort row offers the current model's adapter-advertised levels in the same shell, each labelled with its own name and the model those levels belong to as its detail, so an effort is found by typing either; picking one keeps the route and swaps only the effort. A model row applies that model's default effort. An adapter without reasoning metadata leaves the Effort row out of the chooser entirely; there is no arbitrary effort input.
 
 ### Unroutable sessions
 
@@ -43,7 +43,7 @@ When the Host reports that no adapter serves the session's route, this plugin ra
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-Two entries over ONE per-session directory owned by `ModelDirectoryResolver` (`ctx.modelDirectories`): the `/model` popupSelect contribution (registered through `ctx.commandUi`) and the composer's named `conversation.input.model` seat both load the session's advisory directory through `session.models` and submit through `session.selectModel` via the same `ModelDirectory` instance, so a switch made in either entry is what the other shows next. Directory loads and selections share a generation counter so an older response never overwrites a newer one; a connection reset drops every resident projection and repulls the Host-restored selection. Directories are per-session, resolved lazily, and disposed with the session scope; addressed subagent sessions expose neither entry. Every resident directory refetches directly on forwarded `llm/adapters-updated` and `settings/document-updated` owner events.
+Two entries over ONE per-session directory owned by `ModelDirectoryResolver` (`ctx.modelDirectories`) and TWO shared `CommandUiSpec`s over the shared popupSelect shell: the `/model` popupSelect contribution (registered through `ctx.commandUi`) and the composer's named `conversation.input.model` seat both load the session's advisory directory through `session.models` and submit through `session.selectModel` via the same `ModelDirectory` instance, so a switch made in any entry is what the others show next. The seat owns only its Model/Effort chooser: the Model row opens the spec `/model` registered (the same object, not a copy) and the Effort row opens the levels spec, both through `commandUi.openSelect` — the tokenless sibling of the slash paths — so every list is the same controller, shell component, row builder, and search; a settled selection closes the shell and consumes nothing from the draft. Directory loads and selections share a generation counter so an older response never overwrites a newer one; a connection reset drops every resident projection and repulls the Host-restored selection. Directories are per-session, resolved lazily, and disposed with the session scope; addressed subagent sessions expose neither entry. Every resident directory refetches directly on forwarded `llm/adapters-updated` and `settings/document-updated` owner events.
 
 </details>
 
@@ -54,7 +54,7 @@ Two entries over ONE per-session directory owned by `ModelDirectoryResolver` (`c
 
 Read these pages when the model surface is not enough. They move from the browser surfaces to the command popup shell and the selection contract.
 
-- [ui-commands](../ui-commands/README.md) — the popupSelect shell the `/model` contribution registers into.
+- [ui-commands](../ui-commands/README.md) — the popupSelect shell both model entries open, and the `openSelect` button entry into it.
 - [ui-conversation](../ui-conversation/README.md) — declares the composer's `conversation.input.model` seat and the composer block.
 - [dsh-agent-default-model](../../core/agent-default-model/README.md) — the default-model service for sessions that never choose.
 - [Client package map](../README.md) — adjacent browser UI packages.
@@ -79,7 +79,7 @@ These limits define the current model surface. They are current package constrai
 
 - **No create-time or addressed-subagent selection** — both entries require an existing ordinary session's Agent; there is no draft-phase model choice to fold into session creation, and subagent continuation deliberately exposes no independent model-selection contract.
 - **Directory names are presentation-only** — selection and persistence use provider/model/effort ids; a provider whose catalog or exact-model metadata lookup fails lists as an unselectable failure row until reload.
-- **No arbitrary effort input** — the composer offers only the exact model's adapter-advertised levels; an adapter without reasoning metadata leaves the Effort row absent.
+- **No arbitrary effort input** — the chooser offers only the exact model's adapter-advertised levels; an adapter without reasoning metadata leaves the Effort row out.
 
 <a id="dev-note"></a>
 ### Dev Note

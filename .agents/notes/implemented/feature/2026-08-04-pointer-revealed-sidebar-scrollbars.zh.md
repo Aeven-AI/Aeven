@@ -18,7 +18,7 @@ Status: implemented
 
 承载指针的是整列，而不是列表。奔向滚动条的指针会先经过 logo 行、New Session 胶囊和搜索框，所以只在列表上显示，会让滚动条等到指针已经落在行中间时才出现。
 
-`transparent` 正是让这次显示不触发任何布局的原因。列表上的 `scrollbar-gutter: stable` 存在的意义就是让行永不移动（见[空槽 Agent Note](../bug-fix/2026-07-28-themed-scrollbars-and-reserved-gutter.zh.md)）；重新绑定的只是颜色，那份预留始终有效，所以滑块出现在列表本就为它留出的空间里。
+`transparent` 正是让这次显示不触发任何布局的原因。该行为发布时的预留来自会话列表本身是一条 8px 的经典滚动区域，所以滑块出现时行不会移动（见[空槽 Agent Note](../bug-fix/2026-07-28-themed-scrollbars-and-reserved-gutter.zh.md)）；重新绑定的只是颜色，那条带始终有效，所以滑块出现在列表本就为它留出的空间里。该列表自身并不声明 `scrollbar-gutter`——那条带是滚动条自己的——这也正是移除滚动条会连带移除预留的原因。
 
 选择这组间接变量而不是给列表加规则，是因为这组变量正是 ui-theme 写明的重新绑定约定：一次声明同时作用于两条渲染路径（WebKit 伪元素与 Firefox 的 `scrollbar-color`），而自定义属性会继承——这正是让整列、而不是列内每个滚动区域，成为该状态所有者的原因。
 
@@ -61,3 +61,7 @@ Status: implemented
 拓宽后的门禁也有自己的对照，每个都是对真实样式表的一处声明改动：把 `transparent` 与 l2 的 hover 混用，以及把 l2 token 包进 `color-mix(…)`，都会让这条成对断言变红。
 
 演示这一行为的录制必须用有头浏览器。无头 Chromium 会预留那条带（`offsetWidth - clientWidth` 为 8），却不会把滑块画进捕获帧——通过统计带内滑块色像素在显示前后的变化实测：无头一直停在噪声水平，有头则从 46 跳到 1466。
+
+## Related
+
+这次显示在效果上已被[模型列表与侧栏会话列表不再显示滚动条](../simplification/2026-09-12-no-scrollbars-on-the-model-list-and-sidebar.zh.md)取代：该改动让会话列表彻底退出滚动条，因此这个外壳仍会跟踪指针、仍会切换 `quietBars`，但没有任何绘制内容依赖该状态，也不再预留条带。`sidebar-scrollbar` 端到端测试如今关注的是滚动条的缺席，而非它的显示。

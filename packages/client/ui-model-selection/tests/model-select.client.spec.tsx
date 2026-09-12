@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
+/**
+ * The composer model seat is a two-level entry: a trigger that opens a
+ * Model/Effort chooser whose rows hand over to the shared popupSelect shell.
+ * These cases pin the part the seat owns — the labels, the chooser's rows and
+ * what each one opens, the aria contract, and the locked/unavailable states.
+ * Row building, search, and submission belong to the shared specs and are
+ * covered in browser-plugin.client.spec.ts.
+ */
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { ModelSelection } from '@deepseek-ai/dsh-api-remotes/client'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { ComponentProps } from 'react'
 import type { ModelDirectoryState } from '../src/client/directory.ts'
@@ -50,46 +57,107 @@ function state(overrides: Partial<ModelDirectoryState> = {}): ModelDirectoryStat
   }
 }
 
+/** Render the seat over one directory snapshot and return its injected spies. */
+function seat(
+  directory: ModelDirectoryState,
+  opts: { available?: boolean; locked?: boolean } = {},
+) {
+  const store = createSnapshotStore<ModelDirectoryState>(directory)
+  const load = vi.fn()
+  const openModel = vi.fn()
+  const openEffort = vi.fn()
+  render(<ModelSelect
+    locked={opts.locked ?? false}
+    available={opts.available ?? true}
+    directory={store}
+    load={load}
+    openModel={openModel}
+    openEffort={openEffort}
+    t={t}
+  />)
+  return { store, load, openModel, openEffort }
+}
+
+/** Open the chooser and return its rows. */
+function openChooser(): HTMLElement[] {
+  fireEvent.click(screen.getByRole('button', { name: /选择模型|正在加载模型/ }))
+  return screen.getAllByRole('menuitem')
+}
+
 afterEach(cleanup)
 
-describe('ModelSelect reasoning effort', () => {
-  it('renders effort names without descriptions and submits the effort as part of the session selection', async () => {
-    const directory = createSnapshotStore<ModelDirectoryState>(state())
-    const select = vi.fn(async (selection: ModelSelection) => {
-      directory.set(state({ current: selection }))
-      return true
-    })
-    render(<ModelSelect
-      locked={false}
-      available
-      directory={directory}
-      load={vi.fn()}
-      select={select}
-      t={t}
-    />)
-
+describe('ModelSelect chooser', () => {
+  it('shows the model name with the adapter-effective effort and opens the chooser on press', () => {
+    const { load, openModel, openEffort } = seat(state())
     const trigger = screen.getByRole('button', {
       name: '选择模型，当前 DeepSeek-V4-Flash，推理等级 High',
     })
-    fireEvent.click(trigger)
-    fireEvent.click(screen.getByRole('menuitem', { name: /推理等级/ }))
-    expect(screen.getAllByRole('menuitemradio').map(item => item.textContent))
-      .toEqual(['Off', 'High', 'Max'])
-    expect(screen.queryByText('Largest budget')).toBeNull()
+    expect(trigger.textContent).toBe('DeepSeek-V4-FlashHigh')
 
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /Max/ }))
-    await waitFor(() => {
-      expect(select).toHaveBeenCalledWith({
-        provider: 'deepseek-official',
-        model: 'deepseek-v4-flash',
-        reasoningEffort: 'max',
-      })
-      expect(trigger.getAttribute('aria-label')).toBe('选择模型，当前 DeepSeek-V4-Flash，推理等级 Max')
-    })
+    const rows = openChooser()
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+    expect(trigger.getAttribute('aria-haspopup')).toBe('menu')
+    // The chooser is a step of its own: opening it resolves nothing yet.
+    expect(load).toHaveBeenCalledTimes(1)
+    expect(openModel).not.toHaveBeenCalled()
+    expect(openEffort).not.toHaveBeenCalled()
+    expect(rows.map(row => row.textContent)).toEqual([
+      '模型DeepSeek-V4-Flash',
+      '推理等级High',
+    ])
   })
 
-  it('offers provider default only when the adapter does not configure a model default', () => {
-    const directory = createSnapshotStore(state({
+  it('opens the model list from the Model row and the effort list from the Effort row', () => {
+    const { openModel, openEffort } = seat(state())
+    const [modelRow] = openChooser()
+
+    fireEvent.click(modelRow!)
+    expect(openModel).toHaveBeenCalledTimes(1)
+    expect(openEffort).not.toHaveBeenCalled()
+    // Handing over closes the chooser; the list is the shared shell's.
+    expect(screen.queryByRole('menu')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: /当前 DeepSeek-V4-Flash/ }))
+    fireEvent.click(screen.getAllByRole('menuitem')[1]!)
+    expect(openEffort).toHaveBeenCalledTimes(1)
+    expect(openModel).toHaveBeenCalledTimes(1)
+  })
+
+  it('presents the trigger as a menu button reflecting its own expanded state', () => {
+    seat(state())
+    const trigger = screen.getByRole('button', { name: /当前 DeepSeek-V4-Flash/ })
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    expect(trigger.getAttribute('title')).toBe('DeepSeek-V4-Flash · High')
+    fireEvent.click(trigger)
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+  })
+
+  it('closes the chooser on Escape without opening either list', () => {
+    const { openModel, openEffort } = seat(state())
+    const trigger = screen.getByRole('button', { name: /当前 DeepSeek-V4-Flash/ })
+    fireEvent.click(trigger)
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(openModel).not.toHaveBeenCalled()
+    expect(openEffort).not.toHaveBeenCalled()
+  })
+
+  it('offers no Effort row for a model whose adapter advertises no levels', () => {
+    seat(state({
+      groups: [{
+        id: 'deepseek-official',
+        name: 'DeepSeek',
+        models: [{ id: 'deepseek-v4-flash', name: 'DeepSeek-V4-Flash' }],
+      }],
+    }))
+
+    const rows = openChooser()
+    expect(rows.map(row => row.textContent)).toEqual(['模型DeepSeek-V4-Flash'])
+  })
+
+  it('offers the provider default when the adapter configures no model default', () => {
+    seat(state({
       groups: [{
         id: 'provider',
         name: 'Provider',
@@ -101,66 +169,30 @@ describe('ModelSelect reasoning effort', () => {
       }],
       current: { provider: 'provider', model: 'model' },
     }))
-    render(<ModelSelect
-      locked={false}
-      available
-      directory={directory}
-      load={vi.fn()}
-      select={vi.fn().mockResolvedValue(true)}
-      t={t}
-    />)
 
-    fireEvent.click(screen.getByRole('button', {
-      name: '选择模型，当前 Model，推理等级 Default',
-    }))
-    fireEvent.click(screen.getByRole('menuitem', { name: /推理等级/ }))
-    expect(screen.getAllByRole('menuitemradio').map(item => item.textContent))
-      .toEqual(['Default', 'Standard'])
+    expect(screen.getByRole('button', { name: '选择模型，当前 Model，推理等级 Default' })).toBeTruthy()
   })
 
-  it('shows the durable model id when the catalog has no matching display name', () => {
-    const directory = createSnapshotStore(state({
-      current: { provider: 'deepseek-official', model: 'removed-model' },
-    }))
-    const select = vi.fn().mockResolvedValue(true)
-    render(<ModelSelect
-      locked={false}
-      available
-      directory={directory}
-      load={vi.fn()}
-      select={select}
-      t={t}
-    />)
+  it('shows the durable model id and drops the effort row when the catalog has no matching row', () => {
+    seat(state({ current: { provider: 'deepseek-official', model: 'removed-model' } }))
 
     const trigger = screen.getByRole('button', { name: '选择模型，当前 deepseek-official/removed-model' })
     expect(trigger.textContent).toContain('deepseek-official/removed-model')
-    fireEvent.click(trigger)
-    expect(screen.queryByRole('menuitem', { name: /推理等级/ })).toBeNull()
-    fireEvent.click(screen.getByRole('menuitem', { name: /模型/ }))
-    expect(screen.queryByRole('menuitemradio', { name: 'removed-model' })).toBeNull()
-    expect(screen.getByRole('menuitemradio', { name: 'DeepSeek-V4-Flash' })).toBeTruthy()
-    expect(screen.queryByText('Fast catalog description')).toBeNull()
+    // No reasoning metadata for an unadvertised route: no effort vocabulary.
+    expect(openChooser().map(row => row.textContent)).toEqual(['模型deepseek-official/removed-model'])
   })
 
   it('shows loading until the catalog and Session projection are both ready', async () => {
-    const directory = createSnapshotStore<ModelDirectoryState>(state({
+    const { store } = seat(state({
       current: null,
       routable: null,
       groups: [],
       status: 'loading',
     }))
-    render(<ModelSelect
-      locked={false}
-      available
-      directory={directory}
-      load={vi.fn()}
-      select={vi.fn().mockResolvedValue(true)}
-      t={t}
-    />)
 
     expect(screen.getByRole('button', { name: '正在加载模型…' }).textContent)
       .toContain('正在加载模型…')
-    directory.set(state())
+    store.set(state())
     await waitFor(() => {
       expect(screen.getByRole('button', {
         name: '选择模型，当前 DeepSeek-V4-Flash，推理等级 High',
@@ -168,50 +200,32 @@ describe('ModelSelect reasoning effort', () => {
     })
   })
 
-  it('announces a rejected selection as a transient toast and keeps the in-menu strip for loads', async () => {
-    const groups = [{
-      id: 'deepseek-official',
-      name: 'DeepSeek',
-      models: [
-        { id: 'deepseek-v4-flash', name: 'DeepSeek-V4-Flash', reasoning },
-        { id: 'deepseek-v4-pro', name: 'DeepSeek-V4-Pro' },
-      ],
-    }]
-    const directory = createSnapshotStore<ModelDirectoryState>(state({ groups }))
-    const select = vi.fn(async () => {
-      directory.set(state({ groups, status: 'error', error: 'session/model-unavailable: session already contains images' }))
-      return false
-    })
-    render(<ModelSelect
-      locked={false}
-      available
-      directory={directory}
-      load={vi.fn()}
-      select={select}
-      t={t}
-    />)
+  it('follows a selection made anywhere — the labels are the shared directory store', async () => {
+    const { store } = seat(state())
+    store.set(state({ current: { provider: 'deepseek-official', model: 'deepseek-v4-flash', reasoningEffort: 'max' } }))
 
-    fireEvent.click(screen.getByRole('button', { name: /选择模型|当前/ }))
-    fireEvent.click(screen.getByRole('menuitem', { name: /模型/ }))
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /DeepSeek-V4-Pro/ }))
-    const toast = await screen.findByRole('alert')
-    expect(toast.textContent).toContain('模型操作失败：session/model-unavailable: session already contains images')
-    // The selection failure does not render the in-menu load strip (no Retry).
-    expect(screen.queryByRole('button', { name: '重试' })).toBeNull()
+    await waitFor(() => {
+      expect(screen.getByRole('button', {
+        name: '选择模型，当前 DeepSeek-V4-Flash，推理等级 Max',
+      })).toBeTruthy()
+    })
+  })
+
+  it('is inert while the composer locks the seat', () => {
+    const { openModel } = seat(state(), { locked: true })
+    const trigger = screen.getByRole<HTMLButtonElement>('button', { name: /当前 DeepSeek-V4-Flash/ })
+    expect(trigger.disabled).toBe(true)
+
+    fireEvent.click(trigger)
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(openModel).not.toHaveBeenCalled()
   })
 
   it('renders no Agent-bound control for an addressed subagent session', () => {
-    const load = vi.fn()
-    render(<ModelSelect
-      locked={false}
-      available={false}
-      directory={createSnapshotStore(state())}
-      load={load}
-      select={vi.fn().mockResolvedValue(false)}
-      t={t}
-    />)
+    const { load, openModel } = seat(state(), { available: false })
 
     expect(screen.queryByRole('button')).toBeNull()
     expect(load).not.toHaveBeenCalled()
+    expect(openModel).not.toHaveBeenCalled()
   })
 })

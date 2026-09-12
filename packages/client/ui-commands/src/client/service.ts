@@ -23,11 +23,11 @@ import type {
   CandidateRequest, ClientSessionContext, CommandClaim, PickOutcome, InputTriggerCandidate, InputTriggerPick,
   SubmitEnvelope, SubmitImageAttachment, SubmitOutcome,
 } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
-import type { CommandContribution, CommandDecoration, CommandUiContract } from './contract.ts'
+import type { CommandContribution, CommandDecoration, CommandUiContract, CommandUiSpec } from './contract.ts'
 import type { CommandDescriptor } from './directory.ts'
 import { CommandDirectory } from './directory.ts'
 import { PopupSelectController } from './popup.ts'
-import type { TokenSegment } from './popup.ts'
+import type { TokenPathSegment, TokenSegment } from './popup.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Events {
@@ -153,11 +153,16 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
     const existing = popups.get(id)
     if (existing !== undefined) return existing
     const controller = new PopupSelectController<ClientSessionContext>({
-      consume: segment => actx.bail(actx, 'slash/input-consume-token', {
-        guard: segment.via === 'menu'
-          ? { kind: 'span', span: segment.span }
-          : { kind: 'bare-token', token: segment.token },
-      }) === true,
+      consume: (segment) => {
+        // A button-opened shell never came from the draft, so there is no
+        // token to consume: report success without dispatching the event.
+        if (segment.via === 'button') return true
+        return actx.bail(actx, 'slash/input-consume-token', {
+          guard: segment.via === 'menu'
+            ? { kind: 'span', span: segment.span }
+            : { kind: 'bare-token', token: segment.token },
+        }) === true
+      },
       focusComposer: () => { this.focusHooks.get(id)?.() },
     })
     popups.set(id, controller)
@@ -183,6 +188,24 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
     return () => {
       if (this.focusHooks.get(id) === focus) this.focusHooks.delete(id)
     }
+  }
+
+  /**
+   * Open one session's popupSelect shell from a composer control instead of a
+   * draft token. It drives the SAME per-session controller, shell component,
+   * and business spec a slash entry opens, so a button and a `/name` line can
+   * never drift into two pickers. The shell carries no token to consume, so a
+   * settled selection closes it without touching the draft.
+   * @param sessionId - the session whose shell opens.
+   * @param command - command name the shell serves (its log/error label).
+   * @param spec - the popupSelect spec the control opens.
+   * @returns whether the session resolved a scope and the shell opened.
+   */
+  openSelect(sessionId: SessionId, command: string, spec: CommandUiSpec): boolean {
+    const actx = this.scopeFor(sessionId)
+    if (actx === undefined) return false
+    this.popupFor(actx).open(command, spec, { sessionId }, { via: 'button' })
+    return true
   }
 
   /** Menu candidates: host catalog + contribution availability, then position filtering and the shared name ranking. */
@@ -397,7 +420,7 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
   }
 
   /** Dispatch a consume-token event to one session (menu-pick / bare-enter execute paths). */
-  private consumeVia(id: SessionId, segment: TokenSegment): void {
+  private consumeVia(id: SessionId, segment: TokenPathSegment): void {
     const actx = this.scopeFor(id)
     if (actx === undefined) return
     actx.bail(actx, 'slash/input-consume-token', {

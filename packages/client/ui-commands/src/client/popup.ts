@@ -15,15 +15,25 @@ import type { TokenSpan } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import type { SelectOption } from './contract.ts'
 
 /**
- * The command token segment snapshotted at shell-open time, replayed to the
- * injected {@link PopupSelectDeps.consume} callback after a successful
- * selection. The Input side guards it: a menu-path span consumes iff draftRev
- * is unchanged, an enter-path line iff the trimmed draft still equals the
- * bare token.
+ * What opened the shell, snapshotted at open time and replayed to the injected
+ * {@link PopupSelectDeps.consume} callback after a successful selection. The
+ * Input side guards the two token paths: a menu-path span consumes iff draftRev
+ * is unchanged, an enter-path line iff the trimmed draft still equals the bare
+ * token. `button` is the tokenless path — a composer control opened the shell
+ * directly, so there is no draft text to consume and consumption is a no-op.
  */
 export type TokenSegment =
   | { readonly via: 'menu'; readonly span: TokenSpan }
   | { readonly via: 'enter'; readonly token: string }
+  | { readonly via: 'button' }
+
+/**
+ * The token-bearing subset of {@link TokenSegment}: the opens whose draft text
+ * is consumed after a successful selection. Internal execute paths that fire
+ * without a settle (menu pick / bare enter) take this narrower type so a
+ * tokenless open can never reach a consume-token dispatch.
+ */
+export type TokenPathSegment = Exclude<TokenSegment, { readonly via: 'button' }>
 
 /**
  * Structural business spec the shell settles against — the popupSelect half
@@ -42,7 +52,8 @@ export interface PopupSpec<TCtx> {
 export interface PopupSelectDeps {
   /**
    * Consume the open-time token segment after a successful onSelect (the
-   * wiring dispatches the consume-token event to the opening session).
+   * wiring dispatches the consume-token event to the opening session; a
+   * `button` segment has no token and reports plain success).
    * @param segment - the open-time token segment snapshot.
    * @returns whether the token was consumed; false (CAS miss) is benign and
    * never retried.
@@ -63,7 +74,7 @@ export interface PopupState {
   readonly options: readonly SelectOption[]
   /** Local filter text over the loaded options. */
   readonly search: string
-  /** Highlight index into the filtered row list (0 when empty/pending). */
+  /** Highlight index into the filtered row list: the first row marked `active` once options load, else 0. */
   readonly active: number
   /** A select() settlement is in flight: further select/search/highlight no-op until it settles. */
   readonly submitting: boolean
@@ -145,7 +156,21 @@ export class PopupSelectController<TCtx = unknown> {
     binding.spec.options(binding.context, binding.abort.signal).then(
       (options) => {
         if (this.binding !== binding) return
-        this.state.set({ ...this.state.getSnapshot(), status: 'ready', options, active: 0, error: null })
+        // Open on the caller's current selection when the rows mark one: the
+        // row carries `active: true`, and starting the highlight there is what
+        // scrolls it into view and paints it with the hover treatment, instead
+        // of leaving a long list parked on its first row. Indexed against the
+        // filtered rows because that is the space `active` lives in (a retry
+        // keeps the search text).
+        const rows = filterOptions(options, this.state.getSnapshot().search)
+        const marked = rows.findIndex(option => option.active === true)
+        this.state.set({
+          ...this.state.getSnapshot(),
+          status: 'ready',
+          options,
+          active: marked === -1 ? 0 : marked,
+          error: null,
+        })
       },
       (error: unknown) => {
         if (this.binding !== binding) return

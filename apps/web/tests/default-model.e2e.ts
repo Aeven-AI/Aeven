@@ -105,8 +105,41 @@ describe('web e2e: the composer model switch is the default for later sessions',
     const trigger = page.getByRole('button', { name: /^选择模型/ })
     await trigger.waitFor({ timeout: 15_000 })
     await trigger.click()
+
+    // The button opens the seat's Model/Effort chooser; the Model row opens the
+    // same searchable popup `/model` opens, so the model rows are options there.
     await page.getByRole('menuitem', { name: /模型/ }).click()
-    await page.getByRole('menuitemradio', { name: 'Acme Large' }).click()
+
+    // Opening the list lands the highlight on the row the directory marks
+    // current, NOT on the list's first row: this session starts on Origin Large
+    // while another provider's model leads the catalog.
+    const startRow = page.getByRole('option', { name: /Origin Large/ })
+    await expect.poll(async () => startRow.getAttribute('aria-selected'), { timeout: 10_000 }).toBe('true')
+    await expect.poll(async () => page.getByRole('option').first().textContent())
+      .not.toContain('Origin Large')
+
+    // The list hides its scrollbar (the shell's viewport): the rows still
+    // scroll, the bar does not render.
+    expect(await page.getByRole('listbox').evaluate(
+      node => window.getComputedStyle(node).scrollbarWidth,
+    )).toBe('none')
+
+    await page.getByRole('option', { name: /Acme Large/ }).click()
+
+    // After the switch the opening highlight follows the new current model and
+    // the row is scrolled into view, which is what makes a long catalog usable.
+    await expect.poll(async () => trigger.getAttribute('aria-label'), { timeout: 10_000 })
+      .toContain('Acme Large')
+    await trigger.click()
+    await page.getByRole('menuitem', { name: /模型/ }).click()
+    const currentRow = page.getByRole('option', { name: /Acme Large/ })
+    await expect.poll(async () => currentRow.getAttribute('aria-selected'), { timeout: 10_000 }).toBe('true')
+    await expect.poll(async () => startRow.getAttribute('aria-selected')).toBe('false')
+    await expect.poll(async () => currentRow.evaluate((node) => {
+      const box = node.getBoundingClientRect()
+      return box.top >= 0 && box.bottom <= window.innerHeight
+    }), { timeout: 10_000 }).toBe(true)
+    await page.keyboard.press('Escape')
 
     // The switch is what sets the default: the shared Agent-route settings section
     // now names it, beside the provider profiles the Models page writes.
@@ -155,7 +188,7 @@ describe('web e2e: the composer model switch is the default for later sessions',
     expect(await seat.isEnabled()).toBe(true)
     await seat.click()
     await page.getByRole('menuitem', { name: /模型/ }).click()
-    await page.getByRole('menuitemradio').first().click()
+    await page.getByRole('option').first().click()
     await expect.poll(async () => box.isEnabled(), { timeout: 15_000 }).toBe(true)
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)

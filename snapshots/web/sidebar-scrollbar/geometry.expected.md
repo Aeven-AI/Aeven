@@ -2,38 +2,18 @@
 
 ## Light palette
 
-- --dsh-scrollbar-thumb, pointer outside the sidebar: rgba(0, 0, 0, 0)
-- scrollbar-gutter: auto
-- ::-webkit-scrollbar width: 8px
-- ::-webkit-scrollbar-track background: rgba(0, 0, 0, 0)
-- scrollbar-width: auto
+- scrollbar-width: none
 - scrollbar-color: auto
-- ::-webkit-scrollbar-thumb:hover declarations: var(--dsh-scrollbar-thumb-hover)
-- --dsh-scrollbar-thumb, pointer over the list: rgb(229, 229, 229)
-- --dsh-scrollbar-thumb-hover, pointer over the list: rgb(212, 212, 212)
 - list overflows: true
 - reserved band: 0px
-- scrollbar inset from the sidebar edge: 0px
 - row background inset from the sidebar edge: 0px
-- relative time covered by the bar: 0px
-- relative time ends inside the content area: true
-- content area ends before the border box: false
+- content area ends at the border box: true
 
 ## Dark palette
 
-- --dsh-scrollbar-thumb, pointer outside the sidebar: rgba(0, 0, 0, 0)
-- scrollbar-gutter: auto
-- ::-webkit-scrollbar width: 8px
-- ::-webkit-scrollbar-track background: rgba(0, 0, 0, 0)
-- scrollbar-width: auto
+- scrollbar-width: none
 - scrollbar-color: auto
-- ::-webkit-scrollbar-thumb:hover declarations: var(--dsh-scrollbar-thumb-hover)
-- --dsh-scrollbar-thumb, pointer over the list: rgb(84, 85, 87)
-- --dsh-scrollbar-thumb-hover, pointer over the list: rgb(101, 103, 107)
 - list overflows: true
 - reserved band: 0px
-- scrollbar inset from the sidebar edge: 0px
 - row background inset from the sidebar edge: 0px
-- relative time covered by the bar: 0px
-- relative time ends inside the content area: true
-- content area ends before the border box: false
+- content area ends at the border box: true

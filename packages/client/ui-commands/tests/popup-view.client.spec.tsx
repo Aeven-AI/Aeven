@@ -102,14 +102,24 @@ describe('PopupSelectView', () => {
     expect(screen.queryByText('无选项')).not.toBeNull()
   })
 
+  it('opens on the row marked current, highlighted and scrolled into view', async () => {
+    scrollIntoView.mockClear()
+    await mountOpen()
+    const options = screen.getAllByRole('option')
+    // OPTIONS[1] carries `active: true`: the highlight starts there, which is
+    // both the hover treatment and what pulls the row into view.
+    expect(options[1]!.getAttribute('aria-selected')).toBe('true')
+    expect(scrollIntoView.mock.instances.at(-1)).toBe(options[1])
+  })
+
   it('ArrowUp/Down move the filtered highlight; ArrowLeft/Right are left to the native caret', async () => {
     const { search } = await mountOpen()
     act(() => { fireEvent.keyDown(search, { key: 'ArrowDown' }) })
     let options = screen.getAllByRole('option')
-    expect(options[1]!.getAttribute('aria-selected')).toBe('true')
+    expect(options[2]!.getAttribute('aria-selected')).toBe('true')
     act(() => { fireEvent.keyDown(search, { key: 'ArrowUp' }) })
     options = screen.getAllByRole('option')
-    expect(options[0]!.getAttribute('aria-selected')).toBe('true')
+    expect(options[1]!.getAttribute('aria-selected')).toBe('true')
     // fireEvent returns false when preventDefault was called: arrow left/right must NOT be intercepted.
     expect(fireEvent.keyDown(search, { key: 'ArrowLeft' })).toBe(true)
     expect(fireEvent.keyDown(search, { key: 'ArrowRight' })).toBe(true)
@@ -121,7 +131,7 @@ describe('PopupSelectView', () => {
     act(() => { fireEvent.keyDown(search, { key: 'ArrowDown' }) })
     const options = screen.getAllByRole('option')
     expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' })
-    expect(scrollIntoView.mock.instances.at(-1)).toBe(options[1])
+    expect(scrollIntoView.mock.instances.at(-1)).toBe(options[2])
   })
 
   it('caps the card height at the design maximum when the composer sits low enough', async () => {
@@ -143,7 +153,7 @@ describe('PopupSelectView', () => {
     })
     act(() => { fireEvent.keyDown(search, { key: 'ArrowDown' }) })
     await act(async () => { fireEvent.keyDown(search, { key: 'Enter' }) })
-    expect(seen).toEqual([{ option: OPTIONS[1], context: 'ctx-A' }])
+    expect(seen).toEqual([{ option: OPTIONS[2], context: 'ctx-A' }])
     expect(consume).toHaveBeenCalledExactlyOnceWith(SEGMENT)
     expect(focusComposer).toHaveBeenCalledTimes(1)
     expect(view.container.childElementCount).toBe(0)

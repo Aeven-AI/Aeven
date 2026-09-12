@@ -2,10 +2,12 @@
  * ui-model-selection browser half on a real cordis Context with fake command/slots/
  * connection faces and real session scopes: the plugin mounts ModelDirectoryResolver
  * as `models`, the /model contribution and the conversation.input.model
- * seat both register, and BOTH entries resolve the SAME per-session
- * directory through the service — a selection submitted through the seat's
- * inject face is the current the popup's next options pass marks active
- * (and the reverse), the one-shared-state contract of the dual entry.
+ * seat both register, and every entry resolves the SAME per-session directory
+ * through the service. The seat's Model row opens the SAME popupSelect spec the
+ * /model command registered (spec identity, not a lookalike), and its Effort row
+ * opens the second spec over that same shell — so a selection submitted through
+ * any of them is the current the seat's labels and the lists' next options pass
+ * all show, the one-shared-state contract of the entries.
  * Scope disposal drops the directory (HMR safety).
  */
 import { Context } from '@deepseek-ai/cordis'
@@ -15,8 +17,10 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
-import type { ModelSelection, ModelSelectionProjection } from '@deepseek-ai/dsh-api-session-controller/types'
-import type { CommandContribution, SelectOption } from '@deepseek-ai/dsh-client-ui-commands/client'
+import type {
+  ModelCatalogFailure, ModelProviderGroup, ModelSelection, ModelSelectionProjection,
+} from '@deepseek-ai/dsh-api-session-controller/types'
+import type { CommandContribution, CommandUiSpec, SelectOption } from '@deepseek-ai/dsh-client-ui-commands/client'
 import type { ModelSelectInjected } from '../src/client/slots.ts'
 import { apply, inject } from '../src/client/index.ts'
 import { zh } from '../src/client/locales.ts'
@@ -55,7 +59,10 @@ const GROUPS = [{
 }]
 
 /** Boot the plugin over fake faces + a stateful fake host (current moves on selectModel). */
-async function bench() {
+async function bench(
+  groups: readonly ModelProviderGroup[] = GROUPS,
+  failures: readonly ModelCatalogFailure[] = [],
+) {
   const ctx = new Context()
   let defaultSelection: ModelSelection = { provider: 'deepseek-official', model: 'deepseek-v4-flash' }
   let selected = defaultSelection
@@ -72,8 +79,8 @@ async function bench() {
         value: {
           default: defaultSelection,
           routableProviders: routable ? ['deepseek-official'] : [],
-          groups: GROUPS,
-          failures: [],
+          groups,
+          failures,
         },
       })
     },
@@ -99,10 +106,17 @@ async function bench() {
     },
   })
   let contribution: CommandContribution | undefined
+  // The seat's tokenless open paths: recorded so a case can prove each row opens
+  // a shared spec rather than a private picker.
+  const opened: { sessionId: SessionId; command: string; spec: CommandUiSpec }[] = []
   ctx.provide('commandUi', {
     register(c: CommandContribution) {
       contribution = c
       return () => { contribution = undefined }
+    },
+    openSelect(sessionId: SessionId, command: string, spec: CommandUiSpec) {
+      opened.push({ sessionId, command, spec })
+      return true
     },
   })
   const seats = new Map<string, {
@@ -154,8 +168,32 @@ async function bench() {
     }))
     return handle
   }
+  /** Ensure one session's shared catalog is loaded (errors land on the store). */
+  const load = (key: string): void => {
+    void ctx.modelDirectories.directoryFor(sid(key)).load().catch(() => { /* surfaced on the store */ })
+  }
+  /** The rows the shared shell would render for one list. */
+  const optionsOf = async (key: string, spec: CommandUiSpec): Promise<readonly SelectOption[]> =>
+    spec.options(projection(key), new AbortController().signal)
+  /** Settle one row by its label, exactly as a click in the shell does. */
+  const pick = async (key: string, spec: CommandUiSpec, label: string): Promise<void> => {
+    const rows = await optionsOf(key, spec)
+    const option = rows.find(o => o.label === label)
+    if (option === undefined) throw new Error(`no row labelled "${label}" in ${rows.map(o => o.label).join(', ')}`)
+    await spec.onSelect(option, projection(key))
+  }
+  /** Drive one of the seat's two rows and return the spec it opened. */
+  const seatSpec = (key: string, row: 'model' | 'effort'): CommandUiSpec => {
+    const face = seats.get('conversation.input.model')!.inject!(sid(key))
+    if (row === 'model') face.openModel()
+    else face.openEffort()
+    return opened.at(-1)!.spec
+  }
   return {
-    ctx, fiber, mint, calls, remote,
+    ctx, fiber, mint, calls, remote, load, opened, seatSpec,
+    optionsOf,
+    pickModel: (key: string, label: string) => pick(key, contribution!.ui, label),
+    pickEffort: (key: string, label: string) => pick(key, seatSpec(key, 'effort'), label),
     contribution: () => contribution!,
     seat: () => seats.get('conversation.input.model')!,
     hostCurrent: () => selected,
@@ -169,7 +207,7 @@ async function bench() {
 
 const projection = (id: string) => ({ sessionId: sid(id) })
 
-describe('ui-model-selection dual entry', () => {
+describe('ui-model-selection entries', () => {
   it('registers the /model contribution and the composer model seat', async () => {
     const b = await bench()
     expect(b.contribution().name).toBe('model')
@@ -179,48 +217,118 @@ describe('ui-model-selection dual entry', () => {
     expect(b.seat().locale).toBe('model')
   })
 
-  it('popup options mark the host current active with the provider group in the detail', async () => {
+  it('opens the SAME model spec from the seat\'s Model row and the /model command', async () => {
     const b = await bench()
     b.mint('s1')
-    const options = await b.contribution().ui.options(projection('s1'), new AbortController().signal)
-    expect(options.map((o: SelectOption) => o.label)).toEqual(['DeepSeek-V4-Flash', 'DeepSeek-V4-Pro'])
+
+    const spec = b.seatSpec('s1', 'model')
+
+    expect(b.opened).toHaveLength(1)
+    expect(b.opened[0]?.sessionId).toBe(sid('s1'))
+    expect(b.opened[0]?.command).toBe('model')
+    // Identity, not equality: one spec object backs both entries, so the two
+    // surfaces cannot drift into different rows or search behavior.
+    expect(spec).toBe(b.contribution().ui)
+  })
+
+  it('opens a second spec for the Effort row — the same shell, its own list', async () => {
+    const b = await bench()
+    b.mint('s1')
+
+    const effort = b.seatSpec('s1', 'effort')
+
+    expect(effort).not.toBe(b.contribution().ui)
+    expect(effort.kind).toBe('popupSelect')
+    // Identity and kind are what this case pins; the effort spec's rows are
+    // pinned by the cases below.
+  })
+
+  it('the model list marks the host current active and carries the provider group in the detail', async () => {
+    const b = await bench()
+    b.mint('s1')
+    const options = await b.optionsOf('s1', b.contribution().ui)
+    expect(options.map(o => o.label)).toEqual(['DeepSeek-V4-Flash', 'DeepSeek-V4-Pro'])
     expect(options[0]).toMatchObject({ active: true, detail: 'DeepSeek' })
     expect(options[1]?.active).toBeUndefined()
   })
 
-  it('a seat selection is the current the popup marks active next — one shared state', async () => {
+  it('the effort list is the current model\'s levels alone, under the model it belongs to', async () => {
     const b = await bench()
     b.mint('s1')
-    const seatFace = b.seat().inject!(sid('s1'))
-    // Switch through the SEAT entry.
-    expect(await seatFace.select({
-      provider: 'deepseek-official',
-      model: 'deepseek-v4-pro',
-      reasoningEffort: 'max',
-    })).toBe(true)
+    const options = await b.optionsOf('s1', b.seatSpec('s1', 'effort'))
+
+    // The adapter configures a default, so no provider-default row appears and
+    // the effective effort (the model default) is the marked one.
+    expect(options.map(o => o.label)).toEqual(['Off', 'High', 'Max'])
+    expect(options.find(o => o.label === 'High')).toMatchObject({ detail: 'DeepSeek-V4-Flash', active: true })
+    expect(options.find(o => o.label === 'Off')?.active).toBeUndefined()
+  })
+
+  it('an effort row keeps the current route and swaps only the effort', async () => {
+    const b = await bench()
+    b.mint('s1')
+    const face = b.seat().inject!(sid('s1'))
+    await b.pickModel('s1', 'DeepSeek-V4-Pro')
+    expect(face.directory.getSnapshot().current?.model).toBe('deepseek-v4-pro')
+
+    await b.pickEffort('s1', 'Max')
+
     expect(b.hostCurrent()).toEqual({
       provider: 'deepseek-official',
       model: 'deepseek-v4-pro',
       reasoningEffort: 'max',
     })
-    expect(seatFace.directory.getSnapshot().current).toEqual({
-      provider: 'deepseek-official',
-      model: 'deepseek-v4-pro',
-      reasoningEffort: 'max',
-    })
-    // The POPUP's next options pass reflects it without a seat-side reload.
-    const options = await b.contribution().ui.options(projection('s1'), new AbortController().signal)
-    expect(options.find((o: SelectOption) => o.label === 'DeepSeek-V4-Pro')).toMatchObject({ active: true })
+    // The next pass reflects both the route and the effort without any reload.
+    const models = await b.optionsOf('s1', b.contribution().ui)
+    expect(models.find(o => o.label === 'DeepSeek-V4-Pro')).toMatchObject({ active: true })
+    const efforts = await b.optionsOf('s1', b.seatSpec('s1', 'effort'))
+    expect(efforts.find(o => o.label === 'Max')).toMatchObject({ active: true })
   })
 
-  it('a popup selection lands on the seat store — the reverse direction of the same state', async () => {
+  it('adds a provider-default effort row only when the adapter configures no model default', async () => {
+    // A dedicated bench: the shared catalog is fetched once, so the groups must
+    // be the ones this case asserts from the first load.
+    const b = await bench([{
+      id: 'deepseek-official',
+      name: 'DeepSeek',
+      models: [{
+        id: 'deepseek-v4-flash',
+        name: 'DeepSeek-V4-Flash',
+        reasoning: { efforts: [{ id: 'standard', name: 'Standard' }] },
+      }],
+    }])
+    b.mint('s1')
+
+    const labels = (await b.optionsOf('s1', b.seatSpec('s1', 'effort'))).map(o => o.label)
+    expect(labels).toEqual(['Default', 'Standard'])
+  })
+
+  it('rejects a failure row: an unselectable provider never submits a half selection', async () => {
+    // A provider whose catalog failed lists as a row for visibility, but the
+    // row must not resolve to a selection.
+    const b = await bench(GROUPS, [{ id: 'broken', name: 'Broken', message: '401 unauthorized' }])
+    b.mint('s1')
+
+    const options = await b.optionsOf('s1', b.contribution().ui)
+    expect(options.find(o => o.label === 'Broken')).toMatchObject({ detail: '目录加载失败：401 unauthorized' })
+    await expect(b.pickModel('s1', 'Broken')).rejects.toThrow(/catalog failed to load/)
+    expect(b.calls.select).toBe(0)
+  })
+
+  it('a selection made from the seat-opened list is the current every entry shows next', async () => {
     const b = await bench()
     b.mint('s1')
-    const seatFace = b.seat().inject!(sid('s1'))
-    const options = await b.contribution().ui.options(projection('s1'), new AbortController().signal)
-    const pro = options.find((o: SelectOption) => o.label === 'DeepSeek-V4-Pro')!
-    await b.contribution().ui.onSelect(pro, projection('s1'))
-    expect(seatFace.directory.getSnapshot().current).toEqual({
+    const face = b.seat().inject!(sid('s1'))
+    b.seatSpec('s1', 'model')
+    // Switch through the SHARED spec the seat's Model row opened.
+    await b.pickModel('s1', 'DeepSeek-V4-Pro')
+
+    expect(b.hostCurrent()).toEqual({
+      provider: 'deepseek-official',
+      model: 'deepseek-v4-pro',
+      reasoningEffort: 'high',
+    })
+    expect(face.directory.getSnapshot().current).toEqual({
       provider: 'deepseek-official',
       model: 'deepseek-v4-pro',
       reasoningEffort: 'high',
@@ -239,8 +347,8 @@ describe('ui-model-selection dual entry', () => {
     // The service face resolves the same instance the seat inject handed out.
     expect(b.ctx.modelDirectories.directoryFor(sid('a')).store).toBe(faceA.directory)
     await Promise.all([
-      b.contribution().ui.options(projection('a'), new AbortController().signal),
-      b.contribution().ui.options(projection('b'), new AbortController().signal),
+      b.optionsOf('a', b.contribution().ui),
+      b.optionsOf('b', b.contribution().ui),
     ])
     expect(b.calls.models).toBe(1)
   })
@@ -249,7 +357,7 @@ describe('ui-model-selection dual entry', () => {
     const b = await bench()
     b.mint('s1')
     const face = b.seat().inject!(sid('s1'))
-    await face.select({ provider: 'deepseek-official', model: 'deepseek-v4-pro' })
+    await b.pickModel('s1', 'DeepSeek-V4-Pro')
     b.setHostCurrent({ provider: 'deepseek-official', model: 'deepseek-v4-flash' })
 
     b.ctx.emit('connection/reset')
@@ -363,21 +471,29 @@ describe('ui-model-selection dual entry', () => {
     expect(() => b.seat().inject!(sid('ghost'))).toThrow(/resolved no scope/)
   })
 
-  it('withholds both model entries from addressed subagent sessions without Agent-bound RPCs', async () => {
+  it('withholds every model entry from addressed subagent sessions without Agent-bound RPCs', async () => {
     const b = await bench()
+    // The specs are shared across sessions, so capture the effort list from an
+    // ordinary session and address it at the subagent below.
+    b.mint('probe')
+    const effortSpec = b.seatSpec('probe', 'effort')
     b.mint('child')
     b.address(sid('child'))
 
     expect(b.contribution().available(projection('child'))).toBe(false)
-    await expect(b.contribution().ui.options(
-      projection('child'),
-      new AbortController().signal,
-    )).rejects.toThrow(/unavailable for addressed subagent/)
+    await expect(b.optionsOf('child', b.contribution().ui))
+      .rejects.toThrow(/unavailable for addressed subagent/)
+    await expect(b.optionsOf('child', effortSpec))
+      .rejects.toThrow(/unavailable for addressed subagent/)
 
     const face = b.seat().inject!(sid('child'))
     expect(face.available).toBe(false)
+    // Neither row opens its list for such a session, and the label refresh is a no-op.
+    const before = b.opened.length
+    face.openModel()
+    face.openEffort()
+    expect(b.opened).toHaveLength(before)
     face.load()
-    await expect(face.select({ provider: 'deepseek', model: 'deepseek-v4-pro' })).resolves.toBe(false)
     await expect(b.ctx.modelDirectories.directoryFor(sid('child')).load())
       .rejects.toThrow(/unavailable for addressed subagent/)
     await expect(b.ctx.modelDirectories.directoryFor(sid('child')).select({
@@ -386,6 +502,6 @@ describe('ui-model-selection dual entry', () => {
     })).rejects.toThrow(/unavailable for addressed subagent/)
     b.ctx.emit('connection/reset')
     await Promise.resolve()
-    expect(b.calls).toEqual({ models: 2, select: 0 })
+    expect(b.calls.select).toBe(0)
   })
 })

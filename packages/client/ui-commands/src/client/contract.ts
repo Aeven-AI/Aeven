@@ -5,6 +5,7 @@
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { ClientSessionContext } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 
 /** Copy for an option that must be acknowledged before onSelect can run. */
 export interface SelectConfirmation {
@@ -84,6 +85,19 @@ export interface CommandUiContract {
    * Duplicate names throw at registration.
    */
   decorate(decoration: CommandDecoration): () => void
+  /**
+   * Open one session's popupSelect shell from a client control rather than a
+   * draft token — the tokenless sibling of the `/name` paths. It drives the
+   * same controller, shell, and spec, so a contribution may render its own
+   * trigger (a composer seat) without a second picker implementation; a
+   * settled selection closes the shell and does not touch the draft.
+   * @param sessionId - the session whose shell opens.
+   * @param command - command name the shell serves (its log/error label).
+   * @param spec - the popupSelect spec to open; typically the same object the
+   * contribution registered, which is what keeps both entries identical.
+   * @returns whether the session resolved a scope and the shell opened.
+   */
+  openSelect(sessionId: SessionId, command: string, spec: CommandUiSpec): boolean
   /** Resolve the per-session popup controller for one session scope (wiring/overlay layer). */
   popupFor(actx: ClientContext): unknown
 }

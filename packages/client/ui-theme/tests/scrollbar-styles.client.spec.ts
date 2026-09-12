@@ -400,6 +400,17 @@ describe('scrollbar.css rendering paths', () => {
     }
   })
 
+  it('declares the no-scrollbar opt-out on both rendering paths', () => {
+    // Surfaces opt out by class name, so a rule that goes missing — or lands on
+    // the wrong side of the gate — leaves the bar rendering with nothing to
+    // report it: the class in the markup has no other contract.
+    const rules = parseRules(scrollbarCss)
+    expect(rules.find(rule => rule.selectors.includes('.no-scrollbar'))?.declarations)
+      .toContainEqual(['scrollbar-width', 'none'])
+    expect(rules.find(rule => rule.selectors.includes('.no-scrollbar::-webkit-scrollbar'))?.declarations)
+      .toContainEqual(['display', 'none'])
+  })
+
   it('renders the hover token only through the pseudo-element path', () => {
     // The standard path has no hover counterpart — scrollbar-color states one
     // thumb colour and the engine derives its own hover treatment — so the
