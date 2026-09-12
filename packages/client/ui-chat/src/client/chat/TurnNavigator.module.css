@@ -19,11 +19,18 @@
      the scrollport and ends where the composer begins, so the band needs no
      measurement and no first-paint fallback. */
   --turn-rail-band: 100%;
-  /* The balloon's height budget: 16px of padding at each end plus one 20px
-     prompt line, a 4px gap, and the three 18px response lines its clamp allows.
-     100px was the same budget at the old 10/12px padding and clipped the third
-     line once the padding grew. */
-  --turn-preview-height: 112px;
+  /* The balloon's height budget, stated as the sum it must hold rather than a
+     magic number: 16px of padding at each end, the prompt line, its 4px gap, and
+     THREE response lines — the count its clamp allows. Every line grows by one
+     font-axis delta, so the budget carries FIVE deltas (prompt + three
+     responses), not four: a reader who raises the content size gets a taller
+     balloon instead of a silently clipped third line. */
+  --turn-preview-height: calc(
+    16px + 16px
+    + 22px + var(--dsh-content-font-delta, 0px)
+    + 4px
+    + 3 * (21px + var(--dsh-content-font-delta, 0px))
+  );
   /* The rail's own margin from the scrollport's end edge — the same 24px the
      transcript keeps on its start edge. The enclosing `.slot` spans that
      layer's padding box, whose end edge is the scrollport's end edge, so this
@@ -223,14 +230,26 @@
 }
 
 .previewPrompt {
-  font: var(--dsw-font-xs-strong-13);
+  /* The balloon reads at the content axis, not at its own fixed sizes: the
+     prompt takes the theme's 450/14px body and steps up to 500 for its "you
+     asked" role, with the line height following the size axis so the leading
+     holds at every reader setting. */
+  font: var(--dsw-font-s-14);
+  font-size: var(--dsh-content-font-size, 14px);
+  font-weight: 500;
+  line-height: calc(22px + var(--dsh-content-font-delta, 0px));
   -webkit-line-clamp: 1;
 }
 
 .previewResponse {
   margin-top: 4px;
   color: var(--dsw-alias-label-caption);
-  font: var(--dsw-font-xxs-12);
+  /* Body weight (450), one step under the prompt's 500: the answer is the
+     same size as the prompt and told apart by weight and colour. */
+  font: var(--dsw-font-s-14);
+  font-size: var(--dsh-content-font-size, 14px);
+  font-weight: 450;
+  line-height: calc(21px + var(--dsh-content-font-delta, 0px));
   -webkit-line-clamp: 3;
 }
 
