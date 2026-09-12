@@ -191,11 +191,14 @@
   border: 0;
   /* The Aeven menu surface, the same rules the account menu's tippy panel
      uses (`ui-account-aeven/src/vendor/aeven-account.css`,
-     `.tippy-box[data-theme~="menu"] .tippy-content`): a 30px radius over a
-     translucent white plate with a 4px backdrop blur and the two inset
-     highlights. Copied rather than tokenised because the menu is a vendor
-     stylesheet with literal values and no token indirection to share. */
-  border-radius: 30px;
+     `.tippy-box[data-theme~="menu"] .tippy-content`): a translucent white
+     plate with a 4px backdrop blur and the two inset highlights. Copied rather
+     than tokenised because the menu is a vendor stylesheet with literal values
+     and no token indirection to share.
+     The radius is the balloon's own: 30px (the menu's) rounds a 98px balloon
+     into a lozenge, which reads as a pill rather than the small card the
+     two-line preview is. */
+  border-radius: 20px;
   backdrop-filter: blur(4px);
   background-color: rgba(255, 255, 255, 0.7);
   box-shadow:
