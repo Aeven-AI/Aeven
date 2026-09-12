@@ -8,7 +8,7 @@ Status: implemented
 
 `ChatView` 的 `turnAtLine` 通过 `document.elementsFromPoint` 命中测试阅读行来解析该行所属的 Turn，命中失败时回退为对每个带 `[data-chat-turn]` 的行做线性扫描：
 
-```ts
+```ts ignore-check
 for (const row of list.querySelectorAll<HTMLElement>('[data-chat-turn]')) {
   if (row.getBoundingClientRect().top > line) break
   ...

@@ -6,7 +6,7 @@ Status: implemented
 
 ## 问题
 
-Web 聊天的回合耗时标签分钟数无界增长。[message-chrome.ts](../../../../packages/client/ui-chat/src/client/chat/message-chrome.ts) 里的 `formatRunDuration` 只把毫秒拆成秒和分两级，于是一个跑了 90 分钟的回合在共用一个格式化器的三处都读作 `90分05秒` / `90m 05s`：`Deep diving...` 后的实时计时、收尾的 `Ran for {duration}` 页脚，以及耗时详情弹窗里的总用时。已归档的[回合运行时长决策](../../archived/feature/2026-08-03-web-turn-run-time.md)确定了计时锚点和共用的整秒向下取整；它把格式化器留在两级单位，一旦回合跨过一小时就不再正确。
+Web 聊天的回合耗时标签分钟数无界增长。[message-chrome.ts](../../../../packages/client/ui-chat/src/client/chat/message-chrome.ts) 里的 `formatRunDuration` 只把毫秒拆成秒和分两级，于是一个跑了 90 分钟的回合在共用一个格式化器的三处都读作 `90分05秒` / `90m 05s`：`Deep diving...` 后的实时计时、收尾的 `Ran for {duration}` 页脚，以及耗时详情弹窗里的总用时。此前的[回合运行时长决策](../../implemented/feature/2026-08-03-web-turn-run-time.zh.md)确定了计时锚点和共用的整秒向下取整；它把格式化器留在两级单位，一旦回合跨过一小时就不再正确。
 
 ## 决定
 
