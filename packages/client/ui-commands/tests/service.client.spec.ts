@@ -734,6 +734,40 @@ describe('popupFor', () => {
   })
 })
 
+describe('openSelect (button entry)', () => {
+  it('drives the session\'s own controller over the given spec, and settles without consuming a token', async () => {
+    const { command, mint } = await bench()
+    const onSelect = vi.fn()
+    const ui = themeUi({ onSelect })
+    const scope = mint('s1')
+    const consumes: ConsumeTokenRequest[] = []
+    scope.ctx.on('slash/input-consume-token', (r) => {
+      consumes.push(r)
+      return true
+    })
+    const focus = vi.fn()
+    command.bindComposerFocus(sid('s1'), focus)
+
+    expect(command.openSelect(sid('s1'), 'theme', ui)).toBe(true)
+    // The SAME controller the slash paths use, with the spec the caller handed in.
+    const popup = command.popupFor(scope.ctx)
+    expect(popup.state.getSnapshot()).toMatchObject({ open: true, command: 'theme' })
+
+    await Promise.resolve() // options land
+    await popup.select(0)
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith({ id: 'dark', label: 'Dark' } satisfies SelectOption, proj('s1'))
+    expect(focus).toHaveBeenCalledTimes(1)
+    // Tokenless open: nothing in the draft was consumed, so no event was dispatched.
+    expect(consumes).toEqual([])
+    expect(popup.state.getSnapshot().open).toBe(false)
+  })
+
+  it('reports false and opens nothing for a session with no scope', async () => {
+    const { command } = await bench()
+    expect(command.openSelect(sid('ghost'), 'theme', themeUi())).toBe(false)
+  })
+})
+
 describe('directory invalidation events', () => {
   it('commands/change repulls in the background while the old snapshot serves', async () => {
     let round = 0

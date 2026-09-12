@@ -57,6 +57,13 @@ body {
     scrollbar-width: thin;
     scrollbar-color: var(--dsh-scrollbar-thumb) transparent;
   }
+
+  /* The standard half of the `.no-scrollbar` opt-out (its pseudo-element half
+     is documented at the foot of this sheet). It outranks the `body *` rule
+     above by specificity, which is what makes the opt-out win on this path. */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
 }
 
 /* Not gated in turn: an engine that does not implement these pseudo-elements
@@ -87,4 +94,26 @@ body {
    matches the transparent track rather than the UA's opaque default. */
 ::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* Opt-out utility for a scrolling element that must draw no bar and reserve no
+   gutter: `.no-scrollbar` goes on the scrolling element itself. A global class
+   rather than a module one, so a surface opts out by name instead of restating
+   the two rendering paths. It is NOT the rebind route
+   (`--dsh-scrollbar-thumb: transparent`, which ui-sidebar's pointer affordance
+   uses to hide the thumb while the pointer is away): that rebind keeps the
+   bar's layout width reserved, and the empty strip is exactly what this utility
+   removes.
+
+   The vendored Aeven sheet (ui-auth-aeven/src/vendor/aeven-auth.css) states the
+   same class for its own consumers and happens to load app-wide; this sheet
+   states it too so the behavior is owned here and survives that import graph,
+   and the two spellings must stay equal.
+
+   The standard half lives inside the gate above — one gate carries every
+   `scrollbar-width` in this sheet, which is what the gate is for — and the
+   pseudo-element half below stays outside it, so each engine hides the bar
+   through the one path it still honours instead of silencing the other. */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

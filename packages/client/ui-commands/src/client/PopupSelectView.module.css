@@ -9,7 +9,7 @@
   bottom: calc(100% + 4px);
   left: 0;
   z-index: 100;
-  padding: 4px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
   min-width: min(220px, 100%);
@@ -20,8 +20,9 @@
    * above the composer (inline max-height set in PopupSelectView.tsx). */
   max-height: 320px;
   overflow: hidden;
-  /* Elevated surface: the scrollbar thumb takes the l2 elevation tokens
-     (see ui-theme styles/scrollbar.css for the rebinding contract). */
+  /* Elevated surface: the l2 elevation thumb is the surface's declaration
+     (see ui-theme styles/scrollbar.css for the rebinding contract). The viewport
+     hides its bar, so this only takes effect if that hiding is ever reverted. */
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
   border: 0;
@@ -32,6 +33,12 @@
   outline: none;
 }
 
+/* The list runs to hundreds of rows (the model catalog routinely does) and the
+ * card is a transient surface over the composer, so its bar is decoration this
+ * shell does not want: the `no-scrollbar` class it carries in the markup drops
+ * the bar and the gutter it would reserve (ui-theme styles/scrollbar.css owns
+ * that utility). Scrolling itself is untouched — the wheel, trackpad, and the
+ * shell's Arrow keys all still move the list. */
 .viewport {
   display: flex;
   flex-direction: column;

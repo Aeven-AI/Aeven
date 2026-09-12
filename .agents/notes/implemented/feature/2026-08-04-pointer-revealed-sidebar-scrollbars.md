@@ -18,7 +18,7 @@ Entering is the column's own `pointerenter`; leaving is decided against the colu
 
 The pointer surface is the column, not the list. A pointer heading for the bar crosses the logo row, the New Session capsule, and the search field first, so revealing on the list alone would surface the bar only once the pointer was already among the rows.
 
-`transparent` is what makes the reveal free of layout. `scrollbar-gutter: stable` on the list exists so rows never move ([the gutter note](../bug-fix/2026-07-28-themed-scrollbars-and-reserved-gutter.md)); rebinding a colour leaves that reservation in force, so the thumb appears in space the list was already holding for it.
+`transparent` is what makes the reveal free of layout. The reservation in force when this shipped came from the session list being a classic 8px scroll region, so rows never moved when a thumb appeared ([the gutter note](../bug-fix/2026-07-28-themed-scrollbars-and-reserved-gutter.md)); rebinding a colour left that band in place, and the thumb appeared in space the list was already holding for it. The list declares no `scrollbar-gutter` of its own — the band is the bar's — which is what makes removing the bar remove the reservation with it.
 
 The indirection pair rather than a rule on the list, because that pair is ui-theme's documented rebinding contract: one declaration reaches both rendering paths (the WebKit pseudo-elements and Firefox's `scrollbar-color`), and custom properties inherit, which is what makes the column — rather than each scroll region in it — the thing that owns the state.
 
@@ -61,3 +61,7 @@ The e2e's control is a mutation, and it needs the plugin's own bundle: dropping 
 The widened gate has its own controls, each a one-declaration mutation of a real sheet: crossing `transparent` with an l2 hover, and wrapping an l2 token in `color-mix(…)`, each turn the pair assertion red.
 
 The recording that demonstrates this behavior has to be headed. Headless Chromium reserves the band (`offsetWidth - clientWidth` is 8) but paints no thumb into a captured frame — measured by counting thumb-coloured pixels in the band across the reveal, which stays at noise level in headless and jumps from 46 to 1466 in a headed run.
+
+## Related
+
+The reveal was superseded in effect by [no scrollbars on the model list or the sidebar session list](../simplification/2026-09-12-no-scrollbars-on-the-model-list-and-sidebar.md): that change opts the session list out of the bar entirely, so this shell still tracks the pointer and still toggles `quietBars`, but nothing drawn depends on the state and no band is reserved. The `sidebar-scrollbar` e2e is now about the bar's absence rather than its reveal.

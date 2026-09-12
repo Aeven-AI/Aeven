@@ -14,9 +14,9 @@ Web Host 为每个新建或恢复的 Agent 安装 `ModelSelection`。如果会�
 
 会话 RPC 领域公开 `session.models` 模型目录与 `session.selectModel`。该目录从 LLM（大语言模型）注册表动态构建，并按提供方分组；每个已列出模型的精确元数据还会加入由适配器持有的推理强度 ID、名称、说明和可选默认值。各提供方的目录与精确元数据会按提供方并发加载，且彼此独立失败，因此成功加载的分组仍可与可重试的失败记录一同使用。模型是否位于目录仅供参考：`session.models.current` 独立返回，即使不在任何分组中也仍然可以路由，但提供方停止公布该模型后，Host 不会合成未列出行。两个前端对这一状态给出不同回答：TUI 把未列出的当前模型渲染为独立一行，Web 则显示未设置状态的触发器标签并要求选择替代模型。Web 是编辑目录所在的前端，因此缺席的目录行代表一项待作出的选择；TUI 只从现有行中选择。显示未设置标签的 Web composer 仍可以使用当前可路由选择发送消息。精确解析决定提供方／模型组合与显式推理强度是否可用。选择操作通过 `resolveCallConfig` 拒绝不支持的推理强度 ID，并在赋值该选择前具体化适配器配置的默认值。
 
-浏览器中的 `ModelDirectoryResolver` 为每个实时会话持有一个 `ModelDirectory`。其快照包含当前完整的 `ModelSelection`、分组目录、提供方失败记录、操作错误，以及 `idle`、`loading`、`ready`、`selecting`、`error` 状态。挂载时会预先填充触发器标签，此后每次打开菜单都会刷新目录。目录与选择调用共用操作代次，防止较早响应覆盖较新结果；连接重置会先丢弃当前进程中的投影，再恢复 Host 选择。失败时保留先前的选择和可用分组。
+浏览器中的 `ModelDirectoryResolver` 为每个实时会话持有一个 `ModelDirectory`。其快照包含当前完整的 `ModelSelection`、分组目录、提供方失败记录、操作错误，以及 `idle`、`loading`、`ready`、`selecting`、`error` 状态。挂载时会预先填充触发器标签，此后每次打开选择器都会刷新目录。目录与选择调用共用操作代次，防止较早响应覆盖较新结果；连接重置会先丢弃当前进程中的投影，再恢复 Host 选择。失败时保留先前的选择和可用分组。
 
-`@deepseek-ai/dsh-client-ui-conversation` 将会话作用域的单实例 slot `conversation.input.model` 声明为其输入栏 entry 的子 slot。InputBar 在尾部控件区将该 seat 渲染于 pending 指示器与主按钮之前；该 seat 接收输入栏的 `locked` owner prop 与会话作用域。`@deepseek-ai/dsh-client-ui-model-selection` 占用该 seat，并在同一目录上提供 `/model`。其紧凑型触发器显示目录中的确切模型名称与生效的推理强度标签。当前选择不在分组中时，触发器显示 `Select model`，模型列表不标记任何活动行，Effort 行也保持隐藏；选择一个已列出的模型，会通过共享的选择路径赋值完整选择。除此情形外，向上展开的菜单会首先提供 Model 与 Effort；Model 可深入提供方分组，Effort 可深入适配器排序的级别。仅当适配器没有配置模型默认值时，才显示提供方默认值行。
+`@deepseek-ai/dsh-client-ui-conversation` 将会话作用域的单实例 slot `conversation.input.model` 声明为其输入栏 entry 的子 slot。InputBar 在尾部控件区将该 seat 渲染于 pending 指示器与主按钮之前；该 seat 接收输入栏的 `locked` owner prop 与会话作用域。`@deepseek-ai/dsh-client-ui-model-selection` 占用该 seat，并在同一目录上提供 `/model`。其紧凑型触发器显示目录中的确切模型名称与生效的推理强度标签。当前选择不在分组中时，触发器显示原始 `provider/model`，模型列表不标记任何活动行，选择器也不显示推理强度行；选择一个已列出的模型，会通过共享的选择路径赋值完整选择。除此情形外，向上展开的菜单以两行提供 Model 与 Effort，并分别显示各自的当前取值；两行都经 `CommandUiContract.openSelect` 在共享的 `popupSelect` 外壳中打开各自的列表——Model 行打开 `/model` 注册的那个 spec，Effort 行打开当前模型由适配器排序的推理强度等级——而不是自带菜单（[单一模型选择器](../architecture/2026-09-12-one-model-picker-for-both-entries.zh.md)）。仅当适配器没有配置模型默认值时，才显示提供方默认值推理强度行。
 
 生产环境的浏览器名册由 `apps/cli/config/base.cordis.yml` 与 `apps/cli/config/web.cordis.yml` 共同组装；模型功能对应其中一行 `dsh.client` 配置项，而不是 Web boot 代码中硬编码的包。其包 manifest（元数据清单）将加载顺序置于运行时与命令功能之后；Cordis 服务注入则等待 conversation slot 可用，再注册 composer 占用方。
 
@@ -36,8 +36,8 @@ Web Host 为每个新建或恢复的 Agent 安装 `ModelSelection`。如果会�
 
 ## 影响
 
-任何由 Host 支撑的 Web 对话（包括空白会话）都可以在动态发现的提供方分组和适配器持有的推理级别之间切换，而无需显示重复的 `provider/model` 标签。实际采用的选择会在恢复和重连后保留；目录名称仅用于呈现，而选择和持久化使用提供方／模型／推理强度 ID。某个提供方的目录或精确元数据不可用时，只有相应分组会降级。提供方／模型变更可能降低提供方侧的缓存复用率，但选择器不会添加任何提示词内容，也不会干扰正在执行的步骤。没有推理元数据的模型不显示 Effort 行。
+任何由 Host 支撑的 Web 对话（包括空白会话）都可以在动态发现的提供方分组和适配器持有的推理级别之间切换，而无需显示重复的 `provider/model` 标签。实际采用的选择会在恢复和重连后保留；目录名称仅用于呈现，而选择和持久化使用提供方／模型／推理强度 ID。某个提供方的目录或精确元数据不可用时，只有相应分组会降级。提供方／模型变更可能降低提供方侧的缓存复用率，但选择器不会添加任何提示词内容，也不会干扰正在执行的步骤。没有推理元数据的模型不贡献推理强度行。
 
 ## 测试
 
-Host 测试固定分组发现、目录与精确元数据失败隔离、已记录推理强度恢复且不注入陈旧行、不受目录约束的未列出模型选择、不支持的推理强度拒绝、默认值具体化，以及切换仅影响下一次组装。客户端测试固定共享目录、重连恢复与完整选择提交。组件测试固定动态推理强度标签、说明、提供方默认值展示、推理强度提交，以及缺席模型行的 `Select model` 回退。无密钥 built-app fixture（测试前置数据）加载生产模型插件，选择 OpenAI 的 GPT-5 及其 Max 推理强度，发起一个轮次，并验证下一条生成的响应会报告两个 ID；DeepSeek 配置 fixture 会省略活动目录行，在选择替代模型之前固定该回退。
+Host 测试固定分组发现、目录与精确元数据失败隔离、已记录推理强度恢复且不注入陈旧行、不受目录约束的未列出模型选择、不支持的推理强度拒绝、默认值具体化，以及切换仅影响下一次组装。客户端测试固定共享目录、重连恢复与完整选择提交。组件测试固定触发器的模型与推理强度标签、其原始 ID 回退、其锁定与不可用状态、选择器的 Model 与 Effort 两行及其各自打开的内容（Model 行打开的是 `/model` 贡献项注册的那同一个 spec），并通过共享 spec 固定：被标记为当前的模型行、以所属模型为详情的已公布推理强度等级、推理强度提交、失败行拒绝，以及缺席模型行的 `Select model` 回退。无密钥 built-app fixture（测试前置数据）加载生产模型插件，选择 OpenAI 的 GPT-5 及其 Max 推理强度，发起一个轮次，并验证下一条生成的响应会报告两个 ID；DeepSeek 配置 fixture 会省略活动目录行，在选择替代模型之前固定该回退。

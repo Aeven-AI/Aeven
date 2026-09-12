@@ -319,7 +319,9 @@
 }
 
 /* List: the only scrolling region. Rows own Aeven's 24px/16px insets; without
-   overflow they retain the reference panel's full width. */
+   overflow they retain the reference panel's full width. Its bar never renders:
+   the markup carries ui-theme's `no-scrollbar` opt-out (styles/scrollbar.css),
+   so the region scrolls without a bar and without the band one would reserve. */
 .list {
   flex: 1;
   min-height: 0;

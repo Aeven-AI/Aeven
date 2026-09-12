@@ -1,8 +1,10 @@
-// Browser geometry for the sidebar scrollbar reservation and theme. Headless
-// Chromium uses overlay scrollbars, so the reserved band and `timeCoveredBy`
-// together distinguish reserved space from a bar painted over content. Its
-// computed pseudo-element style also folds in `:hover`, so the test reads that
-// declaration from the cascade.
+// Browser geometry for the sidebar session list. The list overflows once a few
+// sessions are loaded, and it must do so without drawing a bar and without
+// reserving the band one would otherwise take. The bar is hidden by the
+// `no-scrollbar` opt-out the markup carries (ui-theme styles/scrollbar.css), so
+// what this scenario measures is what an engine does with that declaration —
+// a reserved band is invisible in an ARIA snapshot and a stray UA bar is
+// invisible in headless chromium's paint.
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
@@ -23,97 +25,47 @@ const MODE = webSnapshotMode()
 /** Enough rows that the list overflows the 800px-tall viewport's sidebar; the scenario asserts the overflow rather than trusting it. */
 const SEED_COUNT = 24
 
-/** Geometry and resolved scrollbar style of one scroll container, measured in the page. */
+/** Resolved scrollbar style and geometry of the sidebar session list. */
 interface ListMetrics {
-  gutter: string
-  width: string
-  track: string
+  /** `scrollbar-width` as the engine resolved it for the list. */
   standardWidth: string
+  /** `scrollbar-color` as the engine resolved it for the list. */
   standardColor: string
-  hoverRules: string[]
-  token: string
-  hoverToken: string
+  /** Whether the list actually overflows, so no reading below is vacuous. */
   overflows: boolean
+  /** Border-box width minus client width: the space a bar reserved, 0 when none does. */
   band: number
-  scrollbarEdgeOffset: number
+  /** How far the first row's background stops short of the sidebar's own edge. */
   rowEdgeInset: number
+  /** Left edge of the content area plus its width: where content may reach. */
   clientRight: number
+  /** Right edge of the border box, which content reaches only with no band. */
   borderRight: number
-  timeRight: number
-  /**
-   * Pixels of relative time under the scrollbar, measured against the bar's
-   * width because an overlay scrollbar does not move the client edge.
-   */
-  timeCoveredBy: number
 }
 
 /**
- * Measure the sidebar list in the page.
+ * Measure the sidebar session list in the page.
  * @param page - the page under test.
- * @returns the list's resolved scrollbar style and the geometry the
- * scrollbar-gutter/thin-scrollbar declarations shape.
+ * @returns the list's resolved scrollbar style and the geometry a band would shape.
  */
 function measureList(page: Page): Promise<ListMetrics> {
   return page.evaluate(() => {
     const list = document.querySelector<HTMLElement>('[role="tree"][aria-label="Sessions"]')
     if (list === null) throw new Error('sidebar session list not in the DOM')
-    const time = list.querySelector<HTMLElement>('[class*="time"]')
-    if (time === null) throw new Error('no row relative-time element in the sidebar list')
     const row = list.querySelector<HTMLElement>('[role="treeitem"]')
     if (row === null) throw new Error('no row in the sidebar list')
-    // Use one probe per variable because computed style declarations are live;
-    // the color property also normalizes palette syntax.
-    const resolve = (name: string): string => {
-      const probe = document.createElement('span')
-      probe.style.color = `var(${name})`
-      list.append(probe)
-      const value = getComputedStyle(probe).color
-      probe.remove()
-      return value
-    }
-    // Computed pseudo style folds in hover even at rest, so inspect the cascade.
-    // Cross-origin sheets may throw and cannot contain the app-owned rule.
-    const hoverRules = [...document.styleSheets]
-      .flatMap((sheet) => {
-        try {
-          return [...sheet.cssRules]
-        } catch {
-          return []
-        }
-      })
-      .filter((rule): rule is CSSStyleRule => rule instanceof CSSStyleRule)
-      .filter(rule => rule.selectorText === '::-webkit-scrollbar-thumb:hover')
-      .map(rule => rule.style.getPropertyValue('background'))
-    const style = getComputedStyle(list)
-    const pseudoWidth = getComputedStyle(list, '::-webkit-scrollbar').width
-    const barWidth = pseudoWidth === 'auto' ? 15 : Number.parseFloat(pseudoWidth)
-    const listRect = list.getBoundingClientRect()
     const sidebarEdge = list.parentElement?.getBoundingClientRect().right
     if (sidebarEdge === undefined) throw new Error('sidebar session list has no layout parent')
+    const style = getComputedStyle(list)
+    const rect = list.getBoundingClientRect()
     return {
-      gutter: style.scrollbarGutter,
-      width: pseudoWidth,
-      track: getComputedStyle(list, '::-webkit-scrollbar-track').backgroundColor,
       standardWidth: style.scrollbarWidth,
       standardColor: style.scrollbarColor,
-      hoverRules,
-      token: resolve('--dsh-scrollbar-thumb'),
-      hoverToken: resolve('--dsh-scrollbar-thumb-hover'),
       overflows: list.scrollHeight > list.clientHeight,
-      band: listRect.width - list.clientWidth,
-      scrollbarEdgeOffset: sidebarEdge - listRect.right,
+      band: rect.width - list.clientWidth,
       rowEdgeInset: sidebarEdge - row.getBoundingClientRect().right,
-      clientRight: listRect.left + list.clientWidth,
-      borderRight: listRect.right,
-      timeRight: time.getBoundingClientRect().right,
-      // The bar is drawn in the rightmost `barWidth` of the border box, whether
-      // or not that space was reserved. Its width comes from the sheet where the
-      // sheet applies, and from the UA's own overlay bar otherwise — 15px is
-      // what this chromium paints, measured with the rule absent. Taking the
-      // UA width as the fallback is what keeps the assertion
-      // honest: assuming 0 there would report no occlusion precisely in the
-      // state that has it.
-      timeCoveredBy: Math.max(0, time.getBoundingClientRect().right - (listRect.right - barWidth)),
+      clientRight: rect.left + list.clientWidth,
+      borderRight: rect.right,
     }
   })
 }
@@ -139,96 +91,10 @@ function measureRowInset(page: Page): Promise<Pick<ListMetrics, 'overflows' | 'r
   })
 }
 
-/** One palette's readings, taken at both pointer positions. */
-interface PaletteMetrics {
-  hovered: ListMetrics
-  quietThumb: string
-}
-
-/**
- * Read one palette at both pointer positions, ending with the pointer back
- * over the list so a caller measuring further leaves it revealed.
- * @param page - the page under test.
- * @returns the palette's quiet thumb and its hovered metrics.
- */
-async function measurePalette(page: Page): Promise<PaletteMetrics> {
-  await pointAt(page, 'away')
-  // Poll rather than sleep the linger out: the wait is the column's, and a
-  // fixed sleep would either race it or pad every palette.
-  await expect.poll(async () => resolveThumb(page), { timeout: 10_000 }).toBe(NO_THUMB)
-  const quietThumb = await resolveThumb(page)
-  await pointAt(page, 'list')
-  // Poll the reveal too: the reading below is a colour, and taking it in the
-  // same tick as the pointer move would race React's flush and land a
-  // transparent thumb in the golden.
-  await expect.poll(async () => resolveThumb(page), { timeout: 10_000 }).not.toBe(NO_THUMB)
-  return { hovered: await measureList(page), quietThumb }
-}
-
-/**
- * Render platform-neutral differences and comparisons instead of absolute
- * coordinates that depend on sidebar width and font metrics.
- * @param light - metrics measured under the light palette.
- * @param dark - metrics measured under the dark palette.
- * @returns the golden body, without a trailing newline.
- */
-function renderGeometry(light: PaletteMetrics, dark: PaletteMetrics): string {
-  const palette = (name: string, { hovered: metrics, quietThumb }: PaletteMetrics): string[] => [
-    `## ${name}`,
-    '',
-    `- --dsh-scrollbar-thumb, pointer outside the sidebar: ${quietThumb}`,
-    `- scrollbar-gutter: ${metrics.gutter}`,
-    `- ::-webkit-scrollbar width: ${metrics.width}`,
-    `- ::-webkit-scrollbar-track background: ${metrics.track}`,
-    `- scrollbar-width: ${metrics.standardWidth}`,
-    `- scrollbar-color: ${metrics.standardColor}`,
-    `- ::-webkit-scrollbar-thumb:hover declarations: ${metrics.hoverRules.join(' | ')}`,
-    `- --dsh-scrollbar-thumb, pointer over the list: ${metrics.token}`,
-    `- --dsh-scrollbar-thumb-hover, pointer over the list: ${metrics.hoverToken}`,
-    `- list overflows: ${String(metrics.overflows)}`,
-    `- reserved band: ${String(metrics.band)}px`,
-    `- scrollbar inset from the sidebar edge: ${String(metrics.scrollbarEdgeOffset)}px`,
-    `- row background inset from the sidebar edge: ${String(metrics.rowEdgeInset)}px`,
-    `- relative time covered by the bar: ${String(metrics.timeCoveredBy)}px`,
-    `- relative time ends inside the content area: ${String(metrics.timeRight <= metrics.clientRight)}`,
-    `- content area ends before the border box: ${String(metrics.clientRight < metrics.borderRight)}`,
-    '',
-  ]
-  return [
-    '# Sidebar session list scrollbar',
-    '',
-    ...palette('Light palette', light),
-    ...palette('Dark palette', dark),
-  ].join('\n').trimEnd()
-}
-
-/**
- * Resolve `--dsh-scrollbar-thumb` as the list sees it, without the rest of the
- * geometry. Own probe element for the same reason {@link measureList} uses
- * one: `getComputedStyle` returns a live declaration.
- * @param page - the page under test.
- * @returns the resolved thumb colour, serialized as `rgb`/`rgba`.
- */
-function resolveThumb(page: Page): Promise<string> {
-  return page.evaluate(() => {
-    const list = document.querySelector<HTMLElement>('[role="tree"][aria-label="Sessions"]')
-    if (list === null) throw new Error('sidebar session list not in the DOM')
-    const probe = document.createElement('span')
-    probe.style.color = 'var(--dsh-scrollbar-thumb)'
-    list.append(probe)
-    const value = getComputedStyle(probe).color
-    probe.remove()
-    return value
-  })
-}
-
-/** Fully transparent, which is how the quiet column spells "no thumb". */
-const NO_THUMB = 'rgba(0, 0, 0, 0)'
-
 /**
  * Park the pointer over the session list or outside the sidebar entirely. The
- * column reveals its scrollbars from real pointer movement, so a scenario that
- * never moves the mouse measures the quiet state whatever it intended to.
+ * column's pointer state used to decide whether a bar was drawn, so a scenario
+ * that never moves the mouse can only ever measure one of them.
  * @param page - the page under test.
  * @param where - `list` to point at the session list, `away` for the far side
  * of the viewport (the conversation column).
@@ -242,6 +108,23 @@ async function pointAt(page: Page, where: 'list' | 'away'): Promise<void> {
     ? { x: box.x + box.width / 2, y: box.y + box.height / 2 }
     : { x: viewport.width - 5, y: box.y + box.height / 2 }
   await page.mouse.move(target.x, target.y)
+}
+
+/**
+ * Scroll the list the way a wheel or a trackpad does, and report how far it
+ * moved.
+ * @param page - the page under test.
+ * @param by - pixels to add to the list's scroll offset.
+ * @returns the offset the list moved by.
+ */
+function scrollListBy(page: Page, by: number): Promise<number> {
+  return page.evaluate((delta) => {
+    const list = document.querySelector<HTMLElement>('[role="tree"][aria-label="Sessions"]')
+    if (list === null) throw new Error('sidebar session list not in the DOM')
+    const before = list.scrollTop
+    list.scrollTop += delta
+    return list.scrollTop - before
+  }, by)
 }
 
 /**
@@ -275,7 +158,34 @@ async function expandSeededSessions(page: Page): Promise<void> {
   }
 }
 
-describe('web e2e: sidebar session list scrollbar (reserved gutter / themed thumb)', () => {
+/**
+ * Render platform-neutral differences and comparisons instead of absolute
+ * coordinates that depend on sidebar width and font metrics.
+ * @param light - metrics measured under the light palette.
+ * @param dark - metrics measured under the dark palette.
+ * @returns the golden body, without a trailing newline.
+ */
+function renderGeometry(light: ListMetrics, dark: ListMetrics): string {
+  const palette = (name: string, metrics: ListMetrics): string[] => [
+    `## ${name}`,
+    '',
+    `- scrollbar-width: ${metrics.standardWidth}`,
+    `- scrollbar-color: ${metrics.standardColor}`,
+    `- list overflows: ${String(metrics.overflows)}`,
+    `- reserved band: ${String(metrics.band)}px`,
+    `- row background inset from the sidebar edge: ${String(metrics.rowEdgeInset)}px`,
+    `- content area ends at the border box: ${String(metrics.clientRight === metrics.borderRight)}`,
+    '',
+  ]
+  return [
+    '# Sidebar session list scrollbar',
+    '',
+    ...palette('Light palette', light),
+    ...palette('Dark palette', dark),
+  ].join('\n').trimEnd()
+}
+
+describe('web e2e: sidebar session list shows no scrollbar', () => {
   let scaffold: WebScaffold
   let browser: Browser
   let page: Page
@@ -295,10 +205,6 @@ describe('web e2e: sidebar session list scrollbar (reserved gutter / themed thum
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
     await expandSeededSessions(page)
-    // Every assertion about a thumb colour needs a drawn thumb, and the column
-    // only draws one under the pointer; the quiet state is asserted where it is
-    // the subject rather than left as an ambient condition of the whole file.
-    await pointAt(page, 'list')
   }, 180_000)
 
   afterAll(async () => {
@@ -306,106 +212,69 @@ describe('web e2e: sidebar session list scrollbar (reserved gutter / themed thum
     await scaffold?.close()
   })
 
-  it('reserves a scrollbar gutter on the overflowing session list', async () => {
-    onTestFailed(() => saveFailureShot(page, 'web-e2e-sidebar-scrollbar-gutter'))
-    // Vacuity guard: with a non-overflowing list `stable` still reserves, but
-    // the scenario would no longer be reproducing the reported situation.
+  it('overflows without drawing a bar or reserving the band one would take', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-sidebar-no-scrollbar-band'))
+    // Vacuity guard: a list that does not overflow would satisfy every reading
+    // below for the wrong reason.
     await expect.poll(async () => (await measureList(page)).overflows, { timeout: 10_000 }).toBe(true)
     const metrics = await measureList(page)
-    expect(metrics.gutter).toBe('stable')
-    // Pin presence, not width, because the width is platform-dependent.
-    expect(metrics.band).toBeGreaterThan(0)
-    expect(metrics.scrollbarEdgeOffset).toBe(2)
-    expect(metrics.rowEdgeInset).toBe(12)
-    // Measure against the bar because overlay scrollbars do not move the client edge.
-    expect(metrics.timeCoveredBy).toBe(0)
-    expect(metrics.timeRight).toBeLessThanOrEqual(metrics.clientRight)
-    expect(metrics.clientRight).toBeLessThan(metrics.borderRight)
+    expect(metrics.standardWidth).toBe('none')
+    // The band the bar would have taken is the whole point of the opt-out: a
+    // reserved strip is what the previous reveal could not give up.
+    expect(metrics.band).toBe(0)
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
 
-  it('draws no thumb until the pointer is over the column, and lingers on the way out', async () => {
-    onTestFailed(() => saveFailureShot(page, 'web-e2e-sidebar-scrollbar-pointer'))
-    const revealed = await resolveThumb(page)
-    expect(revealed).not.toBe(NO_THUMB)
-    await pointAt(page, 'away')
-    // The linger, measured as a state rather than a duration: the thumb is
-    // still drawn on the leave itself, and gone once the window has passed. A
-    // tighter timing assertion would pin the wall clock of a CI machine.
-    expect(await resolveThumb(page)).toBe(revealed)
-    await expect.poll(async () => resolveThumb(page), { timeout: 10_000 }).toBe(NO_THUMB)
-    // The reservation is unconditional, so nothing moved while the bar was
-    // hidden — this is what buys `transparent` over hiding the bar itself.
-    const quiet = await measureList(page)
-    expect(quiet.gutter).toBe('stable')
-    expect(quiet.band).toBeGreaterThan(0)
-    expect(quiet.timeCoveredBy).toBe(0)
-    // Scrolling without a pointer — what a keyboard or a touch drag does —
-    // leaves the column quiet. This is the one deliberate loss, and
-    // it is pinned here rather than only described, so making a scroll
-    // re-reveal the bar has to be a decision rather than a side effect.
-    await page.locator('[role="tree"][aria-label="Sessions"]').evaluate((el) => { el.scrollTop += 200 })
-    await page.waitForTimeout(500)
-    expect(await resolveThumb(page)).toBe(NO_THUMB)
-    await pointAt(page, 'list')
-    await expect.poll(async () => resolveThumb(page), { timeout: 10_000 }).toBe(revealed)
+  it('gives the reserved band back to the rows and still scrolls', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-sidebar-no-scrollbar-rows'))
+    const metrics = await measureList(page)
+    // Rows now reach the sidebar's own edge: the space the bar held is content.
+    expect(metrics.rowEdgeInset).toBe(0)
+    expect(metrics.clientRight).toBe(metrics.borderRight)
+    // Hiding the bar must not disable the scrolling it was an affordance for.
+    const moved = await scrollListBy(page, 200)
+    expect(moved).toBeGreaterThan(0)
+    await scrollListBy(page, -moved)
+    expect((await measureList(page)).band).toBe(0)
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
 
-  it('keeps the row background inset when overflow disappears', async () => {
-    onTestFailed(() => saveFailureShot(page, 'web-e2e-sidebar-scrollbar-stable-inset'))
-    expect(await measureRowInset(page)).toEqual({ overflows: true, rowEdgeInset: 12 })
+  it('keeps the rows full width whether or not the list overflows', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-sidebar-no-scrollbar-stable-inset'))
+    expect(await measureRowInset(page)).toEqual({ overflows: true, rowEdgeInset: 0 })
     const bucket = page.getByText('Ungrouped', { exact: true }).locator('..').locator('..')
     await bucket.click()
     try {
       await expect.poll(async () => (await measureRowInset(page)).overflows, { timeout: 10_000 }).toBe(false)
-      expect(await measureRowInset(page)).toEqual({ overflows: false, rowEdgeInset: 12 })
+      // No band means no reservation to gain or lose, so the row geometry is
+      // the same in both states rather than shifting when overflow arrives.
+      expect(await measureRowInset(page)).toEqual({ overflows: false, rowEdgeInset: 0 })
     } finally {
       await expandSeededSessions(page)
     }
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
 
-  it('renders the themed thumb through the WebKit path in both palettes', async () => {
-    onTestFailed(() => saveFailureShot(page, 'web-e2e-sidebar-scrollbar-theme'))
-    const light = await measureList(page)
-    // The gate's signature on this engine, and the reason it exists: chromium
-    // implements `::-webkit-scrollbar`, so the standard properties stay at
-    // their initial `auto`. A concrete value here would mean the gate leaked,
-    // which is exactly what makes chromium discard the pseudo-element rules —
-    // the hover token included.
-    expect(light.standardWidth).toBe('auto')
-    expect(light.standardColor).toBe('auto')
-    // The pseudo-element path is the one in force: the sheet's own 8px sizing
-    // and transparent track reached a container it never names.
-    expect(light.width).toBe('8px')
-    expect(light.track).toBe('rgba(0, 0, 0, 0)')
-    // The resting and the hover rule each read the rebindable indirection, and
-    // the two resolve to DIFFERENT colours on this list: the l1 pair arrived
-    // here intact rather than collapsing to one value or falling back.
-    expect(light.hoverRules).toEqual(['var(--dsh-scrollbar-thumb-hover)'])
-    expect(light.token).toMatch(/^rgba?\(/)
-    expect(light.hoverToken).not.toBe(light.token)
-    // The dark palette declares different scrollbar tokens; driving the body
-    // attribute pins the cascade the way lifecycle-chrome does (the Settings
-    // gesture that sets it is owned there).
-    await page.evaluate(() => { document.body.setAttribute('data-ds-dark-theme', '') })
-    const dark = await measureList(page)
-    expect(dark.token).not.toBe(light.token)
-    expect(dark.hoverToken).not.toBe(dark.token)
-    expect(dark.hoverToken).not.toBe(light.hoverToken)
-    await page.evaluate(() => { document.body.removeAttribute('data-ds-dark-theme') })
-    const restored = await measureList(page)
-    expect(restored.token).toBe(light.token)
-    expect(restored.hoverToken).toBe(light.hoverToken)
+  it('draws no bar under the pointer either — no state brings it back', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-sidebar-no-scrollbar-pointer'))
+    // The pointer used to decide this: the column drew its bars while it was
+    // inside and hid them after it left. Both positions now read the same.
+    await pointAt(page, 'list')
+    const hovered = await measureList(page)
+    await pointAt(page, 'away')
+    await page.waitForTimeout(2500) // past the old linger window
+    const away = await measureList(page)
+    expect(hovered).toMatchObject({ standardWidth: 'none', band: 0 })
+    expect(away).toMatchObject({ standardWidth: 'none', band: 0 })
+    expect(away.band).toBe(hovered.band)
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
 
-  it('matches the committed scrollbar geometry golden in both palettes', async () => {
-    onTestFailed(() => saveFailureShot(page, 'web-e2e-sidebar-scrollbar-golden'))
-    const light = await measurePalette(page)
+  it('matches the committed geometry golden in both palettes', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-sidebar-no-scrollbar-golden'))
+    const light = await measureList(page)
     await page.evaluate(() => { document.body.setAttribute('data-ds-dark-theme', '') })
-    const dark = await measurePalette(page)
+    const dark = await measureList(page)
     await page.evaluate(() => { document.body.removeAttribute('data-ds-dark-theme') })
     await compareOrRefreshGolden(GEOMETRY_EXPECTED, renderGeometry(light, dark), MODE)
     expect(tripwire.pageErrors).toEqual([])

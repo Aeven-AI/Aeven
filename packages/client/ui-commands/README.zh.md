@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-与 `ui-input-trigger` 及 `ui-conversation` 一起挂载本插件；`/` source 随即出现在触发菜单中，业务包经 `ctx.commandUi` 注册自己的命令表面。键入 `/model` 打开已注册的弹窗；带参数声明的宿主命令打开其输入或直接执行。
+与 `ui-input-trigger` 及 `ui-conversation` 一起挂载本插件；`/` source 随即出现在触发菜单中，业务包经 `ctx.commandUi` 注册自己的命令表面。键入 `/model` 打开已注册的弹窗；带参数声明的宿主命令打开其输入或直接执行。拥有 composer 控件的包也可以经 `CommandUiContract.openSelect` 打开自己注册的 spec——它是斜杠路径的无 token 兄弟入口，因此按钮与 `/name` 命令行驱动同一个选择器，而不是两个相似却不同的选择器。
 
 ### 种类与装饰
 
@@ -43,7 +43,7 @@ composer 携带图片附件提交时，只有声明了 `input.images` 的宿主�
 <details>
 <summary>实现细节——点击展开</summary>
 
-`src/client/contract.ts` 是固定的业务约定：`CommandUiContract.register(name, spec)` 与 `decorate(name, spec)` 是业务包消费的全部内容。`CommandDirectory` 是唯一的 wire 派生缓存，以会话为 key：普通会话经 `command.list({sessionId})` 拉取；条目由转发的 `commands/change` owner 事件软失效、由 `connection/reset` 硬失效，并以 epoch 把关，被取代的旧拉取永远无法覆盖更新的结果。`matchSpace` 只凭该缓存同步应答；`matchEnter` 在 SubmitAttempt 信号上强等缓存，预热失败即拒绝。`command.execute` 返回匹配结果后，浏览器发布本地 `command/executed` 确认；其他客户端经宿主事件流收到持久命令节点，但收不到这条确认。`PopupSelectController` 是不含界面的外壳状态；`PopupSelectView` 自注册进 `conversation.input.overlay`，按会话解析。决策记录：[Web 命令表面笔记](../../../.agents/notes/implemented/architecture/2026-07-25-web-command-surfaces-and-assembly.zh.md)；[模糊发现笔记](../../../.agents/notes/implemented/feature/2026-08-04-web-slash-command-fuzzy-discovery.zh.md) 说明菜单排名。
+`src/client/contract.ts` 是固定的业务约定：`CommandUiContract.register(name, spec)`、`decorate(name, spec)` 与 `openSelect(sessionId, name, spec)` 是业务包消费的全部内容——最后一个是业务包自己的 composer 控件用来打开它所注册的那个 spec 的无 token 入口。`CommandDirectory` 是唯一的 wire 派生缓存，以会话为 key：普通会话经 `command.list({sessionId})` 拉取；条目由转发的 `commands/change` owner 事件软失效、由 `connection/reset` 硬失效，并以 epoch 把关，被取代的旧拉取永远无法覆盖更新的结果。`matchSpace` 只凭该缓存同步应答；`matchEnter` 在 SubmitAttempt 信号上强等缓存，预热失败即拒绝。`command.execute` 返回匹配结果后，浏览器发布本地 `command/executed` 确认；其他客户端经宿主事件流收到持久命令节点，但收不到这条确认。`PopupSelectController` 是不含界面的外壳状态；`PopupSelectView` 自注册进 `conversation.input.overlay`，按会话解析。外壳会记录自己被打开的方式——菜单区间、裸回车 token 或按钮——并只为两条 token 路径消费草稿文本，因此由控件发起的选择在关闭外壳时不触碰已输入的内容。其高亮在打开时落在调用方标记为 `active` 的第一行上（视图同时把该行滚入视野），因此带当前值的选择器从该行开始，而不是停在列表首行。决策记录：[Web 命令表面笔记](../../../.agents/notes/implemented/architecture/2026-07-25-web-command-surfaces-and-assembly.zh.md)；[模糊发现笔记](../../../.agents/notes/implemented/feature/2026-08-04-web-slash-command-fuzzy-discovery.zh.md) 说明菜单排名。
 
 </details>
 

@@ -24,7 +24,7 @@ export { CommandUiRuntime } from './service.ts'
 export { CommandDirectory } from './directory.ts'
 export type { CommandDescriptor, DirectoryStatus } from './directory.ts'
 export { filterOptions, PopupSelectController } from './popup.ts'
-export type { PopupSelectDeps, PopupSpec, PopupState, TokenSegment } from './popup.ts'
+export type { PopupSelectDeps, PopupSpec, PopupState, TokenPathSegment, TokenSegment } from './popup.ts'
 export type { PopupSelectInjected, PopupSelectViewProps } from './PopupSelectView.tsx'
 export type {
   CommandContribution, CommandDecoration, CommandUiContract, CommandUiSpec, SelectConfirmation, SelectOption,

@@ -65,7 +65,35 @@ describe('open and options load', () => {
     expect(popup.state.getSnapshot()).toMatchObject({ open: true, command: 'theme', status: 'pending', search: '', submitting: false, error: null })
     release(OPTIONS)
     await Promise.resolve()
-    expect(popup.state.getSnapshot()).toMatchObject({ status: 'ready', options: OPTIONS, active: 0 })
+    // OPTIONS[1] carries `active: true`, so the highlight opens on it.
+    expect(popup.state.getSnapshot()).toMatchObject({ status: 'ready', options: OPTIONS, active: 1 })
+  })
+
+  it('opens on the row the caller marks current, and on the first row when none is marked', async () => {
+    const { popup } = await readyPopup()
+    // Opening on the marked row is what scrolls the current selection into
+    // view and paints it with the hover treatment.
+    expect(popup.state.getSnapshot().active).toBe(1)
+
+    const unmarked = [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }]
+    const { popup: plain } = await readyPopup({ options: () => Promise.resolve(unmarked) })
+    expect(plain.state.getSnapshot().active).toBe(0)
+  })
+
+  it('indexes the opening highlight inside the filtered rows when a retry kept the search text', async () => {
+    let attempt = 0
+    const { popup } = await readyPopup({
+      options: () => {
+        attempt += 1
+        return attempt === 1 ? Promise.reject(new Error('offline')) : Promise.resolve(OPTIONS)
+      },
+    })
+    popup.setSearch('sepia')
+    popup.retry()
+    await Promise.resolve()
+    // 'Light' (the marked row) is filtered out, so the single surviving row is
+    // the highlight — never a stale index into the unfiltered list.
+    expect(popup.state.getSnapshot()).toMatchObject({ status: 'ready', active: 0 })
   })
 
   it('loads options exactly once: search filters locally without re-querying the provider', async () => {
@@ -149,8 +177,9 @@ describe('open and options load', () => {
 describe('search / move / highlight over the filtered list', () => {
   it('setSearch rebases the highlight to 0 and ignores closed shells and identical text', async () => {
     const { popup } = await readyPopup()
+    expect(popup.state.getSnapshot().active).toBe(1) // opened on the marked row
     popup.move(1)
-    expect(popup.state.getSnapshot().active).toBe(1)
+    expect(popup.state.getSnapshot().active).toBe(2)
     popup.setSearch('s')
     expect(popup.state.getSnapshot()).toMatchObject({ search: 's', active: 0 })
     const before = popup.state.getSnapshot()
@@ -261,7 +290,7 @@ describe('select', () => {
     popup.setSearch('x') // locked while submitting
     popup.move(1)
     popup.highlight(1)
-    expect(popup.state.getSnapshot()).toMatchObject({ search: '', active: 0 })
+    expect(popup.state.getSnapshot()).toMatchObject({ search: '', active: 1 })
     release()
     await first
     expect(onSelect).toHaveBeenCalledTimes(1)
