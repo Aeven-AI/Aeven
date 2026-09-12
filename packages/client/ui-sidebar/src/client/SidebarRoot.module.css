@@ -21,8 +21,9 @@
   box-sizing: border-box;
   color: var(--dsw-alias-label-primary);
   font-size: 14px;
-  /* The sidebar is elevated above the conversation surface, so a revealed
-     scrollbar uses the l2 pair. .quietBars hides it without changing layout. */
+  /* The sidebar is elevated above the conversation surface, so any scroll
+     region nested in it that does draw a bar takes the l2 pair. The session
+     list holds no bar at all (ui-theme's `no-scrollbar`). */
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
   --dsh-sidebar-inline-padding: var(--dsw-aeven-sidebar-row-inset);
@@ -33,18 +34,6 @@
 .root.visible {
   width: var(--dsw-aeven-sidebar-width);
   --dsh-sidebar-open-width: var(--dsw-aeven-sidebar-width);
-}
-
-/* Scrollbars in the column were a pointer affordance: the shell adds this class
-   whenever the pointer is not inside (SidebarRoot.tsx owns the linger), and
-   rebinding ui-theme's indirection pair to `transparent` took the thumb out of
-   the workspace browser's session list. That list now opts out of the bar
-   entirely (`no-scrollbar`, ui-theme styles/scrollbar.css), so this state no
-   longer changes what is drawn; it is kept until the linger is retired with it.
-   Rebinding details live in ui-theme's README. */
-.root.quietBars {
-  --dsh-scrollbar-thumb: transparent;
-  --dsh-scrollbar-thumb-hover: transparent;
 }
 
 /* Aeven `.content`: absolute so it survives the column reaching zero width. */

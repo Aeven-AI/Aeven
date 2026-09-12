@@ -1,6 +1,7 @@
 # Agent Note: 侧边栏的滚动条跟随指针
 
 Status: implemented
+Archived: 2026-09-12
 
 [English](2026-08-04-pointer-revealed-sidebar-scrollbars.md) | 中文
 

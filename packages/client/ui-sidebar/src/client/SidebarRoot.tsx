@@ -12,26 +12,16 @@
  * wide flag (plus an expand request callback for the browser). That flag stays
  * true for the whole collapse so occupants never re-lay-out mid-slide.
  *
- * The column also owns whether the scroll regions nested in it draw a
- * scrollbar at all: the shell tracks the pointer and rebinds ui-theme's
- * scrollbar indirection away while it is elsewhere, so a list the user is not
- * pointing at carries no bar.
+ * The column no longer decides whether scroll regions nested in it draw a bar:
+ * each region owns its own treatment, and the session list opts out of the bar
+ * entirely (ui-theme's `no-scrollbar`), so nothing here tracks the pointer.
  */
-import { useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
   FishLogo, IconChevronsLeftOutline14, IconMenuOutline16, IconNewChatOutline16, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SidebarRootComponentProps } from './contract/slots.ts'
 import css from './SidebarRoot.module.css'
-
-/**
- * How long the column's scrollbars stay drawn after the pointer leaves it.
- * The bar is a pointer affordance here, and hiding it on the leave event
- * itself makes it blink out while the pointer is only crossing the column's
- * edge — on the way to the conversation, or around a portalled menu.
- */
-const SCROLLBAR_LINGER_MS = 2000
 
 /**
  * Render the sidebar column shell.
@@ -49,60 +39,8 @@ export function SidebarRoot({
   // `$widthSidebar` is. Nothing measures or publishes it: collapsing is the
   // `.visible` class alone, so no render writes a width mid-slide.
 
-  // Scrollbars in the column follow the pointer (.quietBars rebinds them
-  // away): drawn while it is inside, and for SCROLLBAR_LINGER_MS after it
-  // leaves. A pointer that returns within that window cancels the pending
-  // hide rather than restarting from a hidden bar.
-  const column = useRef<HTMLDivElement>(null)
-  const [pointerInside, setPointerInside] = useState(false)
-  const lingerTimer = useRef<number | undefined>(undefined)
-  const armLinger = (): void => {
-    if (lingerTimer.current !== undefined) return
-    lingerTimer.current = window.setTimeout(() => {
-      lingerTimer.current = undefined
-      setPointerInside(false)
-    }, SCROLLBAR_LINGER_MS)
-  }
-  const cancelLinger = (): void => {
-    window.clearTimeout(lingerTimer.current)
-    lingerTimer.current = undefined
-  }
-  // Leaving is decided by the column's BOX, not by DOM containment, and only
-  // while the bars are drawn. ui-settings renders its full-viewport panel as a
-  // fixed-position DESCENDANT of this column, so a pointer moved onto that
-  // panel — or onto the conversation once it closes — fires no `pointerleave`
-  // here, and the bars would stay drawn over a column nobody is pointing at.
-  // The element's own leave stays as the one signal geometry cannot give: a
-  // pointer that leaves the window emits no further moves.
-  useEffect(() => {
-    if (!pointerInside) return
-    const onMove = (event: PointerEvent): void => {
-      const rect = column.current?.getBoundingClientRect()
-      /* v8 ignore next -- the listener only exists while the column is mounted and revealed. */
-      if (rect === undefined) return
-      const inside = event.clientX >= rect.left && event.clientX < rect.right
-        && event.clientY >= rect.top && event.clientY < rect.bottom
-      if (inside) cancelLinger()
-      else armLinger()
-    }
-    document.addEventListener('pointermove', onMove)
-    return () => {
-      document.removeEventListener('pointermove', onMove)
-      cancelLinger()
-    }
-  }, [pointerInside])
-
-
   return (
-    <div
-      ref={column}
-      className={clsx(css.root, !collapsed && css.visible, !pointerInside && css.quietBars)}
-      onPointerEnter={() => {
-        cancelLinger()
-        setPointerInside(true)
-      }}
-      onPointerLeave={() => { armLinger() }}
-    >
+    <div className={clsx(css.root, !collapsed && css.visible)}>
       <div className={css.content}>
         {/* The replaceable brand remains available to deployments; Aeven's
             presentation hides it behind the full-width menu row. */}
