@@ -120,7 +120,13 @@
   width: 12px;
   height: 2px;
   border-radius: 2px;
-  background: var(--dsw-alias-border-l4);
+  /* Tick colours are variables so a state rebinds one name rather than
+     restating the whole background declaration. */
+  --turn-tick-rest: var(--dsw-alias-border-l4);
+  /* The selected Turn's line is white, and opaque: the resting ladder stays a
+     translucent grey hairline so the selected line is what reads. */
+  --turn-tick-active: #fff;
+  background: var(--turn-tick-rest);
   content: '';
   transform: translateY(-50%);
   transition: width 140ms ease, background-color 140ms ease;
@@ -133,18 +139,18 @@
   opacity: 0.6;
 }
 
-.markPreview::before {
-  width: 18px;
-  background: var(--dsw-alias-label-tertiary);
-}
-
 .markBusy::before {
   animation: dsh-turn-mark-busy 1s ease-in-out infinite;
 }
 
-.markActive::before {
+/* The selected Turn and the mark the pointer (or focus) is on paint the same
+   tick: same colour, same length. A previewed mark is not a second selection —
+   it carries no `aria-current` — so the two states differ by which mark claims
+   selection, not by how loud the tick is. */
+.markActive::before,
+.markPreview::before {
   width: 20px;
-  background: var(--dsw-alias-label-primary);
+  background: var(--turn-tick-active);
 }
 
 /* Keyboard focus outranks both resting states: the tick takes the brand color
