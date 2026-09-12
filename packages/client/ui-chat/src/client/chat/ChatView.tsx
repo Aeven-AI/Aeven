@@ -587,7 +587,6 @@ export function ChatView({
     anchorRef.current = null
     reflowAnchorRef.current = null
     prependHoldRef.current = null
-    prependHoldRef.current = null
     // Returning to the live tail supersedes a jump still landing.
     pendingJumpRef.current = null
     setBusyJumpTurn(current => current === null ? current : null)
