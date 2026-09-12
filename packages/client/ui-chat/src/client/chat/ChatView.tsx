@@ -1197,18 +1197,11 @@ export function ChatView({
       // the delay afresh so only a jump that actually waits shows a plate.
       dismissJumpCoverRef.current()
       beginJumpCoverRef.current()
-      // The outline names the turn before the target, and this Turn starts at
-      // the target seq, so that boundary is exactly where its lead-in rows
-      // begin: bounding the first page there keeps the page down to the target
-      // instead of every turn between the live tail and it. Failing that (a
-      // target with no earlier outline entry) the page stays unbounded, which
-      // is only ever slower — `loadThrough` repages until the window is covered.
-      const previousTurn = railItems[railItems.findIndex(candidate => candidate.turn === item.turn) - 1]
-      const bound = previousTurn === undefined ? undefined : previousTurn.anchor
-      void loadThrough(
-        item.anchor.seq,
-        bound !== undefined && bound.kind === 'unloaded' ? bound.seq : undefined,
-      ).finally(() => { setJumpSettleTick(tick => tick + 1) })
+      // Paged unbounded: a lower bound on the first page starved it (the window
+      // came back without the target, and the jump then had nothing to land on),
+      // so the outline's previous-turn seq is deliberately not used here. The
+      // jump is slower for a far target and always correct.
+      void loadThrough(item.anchor.seq).finally(() => { setJumpSettleTick(tick => tick + 1) })
       return
     }
     const row = anchorElement(local, item.anchor.key)

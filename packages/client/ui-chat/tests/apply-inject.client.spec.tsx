@@ -95,8 +95,6 @@ describe('Chat inject API', () => {
     expect(b.session.loadOlder).toHaveBeenCalledOnce()
 
     void injected.loadThrough(SessionSeq(42))
-    // The optional second argument is the first page's lower edge; forwarding
-    // an explicit undefined keeps the bound absent rather than a stray value.
     expect(b.session.loadThrough).toHaveBeenCalledWith(42, undefined)
 
     injected.forkAt(17)
