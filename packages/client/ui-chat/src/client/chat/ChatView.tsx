@@ -391,6 +391,8 @@ export function ChatView({
   const anchorRef = useRef<PagingAnchor | null>(null)
   /** Reader landmark held at a stable viewport offset through asynchronous reflow. */
   const reflowAnchorRef = useRef<PagingAnchor | null>(null)
+  /** Reader row a settling prepend owns; outranks the derived reflow anchor until the reader scrolls. */
+  const prependHoldRef = useRef<PagingAnchor | null>(null)
   /** Unloaded-turn jump in flight: target turn plus its load-through seq. */
   const pendingJumpRef = useRef<{ turn: number; seq: SessionSeq } | null>(null)
   /** Whether the in-flight jump already landed mid-paging (settle then only corrects an untouched landing). */
@@ -511,6 +513,7 @@ export function ChatView({
   const toBottom = (el: HTMLElement): void => {
     anchorRef.current = null
     reflowAnchorRef.current = null
+    prependHoldRef.current = null
     // Returning to the live tail supersedes a jump still landing.
     pendingJumpRef.current = null
     setBusyJumpTurn(current => current === null ? current : null)
@@ -640,7 +643,17 @@ export function ChatView({
       const anchor = anchorRef.current
       anchorRef.current = null
       const row = anchorElement(local, anchor.key)
-      if (row !== null) el.scrollTop += flowTop(row, el) - anchor.top
+      // The arriving page can still be laying out, so this compensation reads a
+      // flow shorter than the page will be. The row it aimed at holds the reflow
+      // anchor, with its target offset, until the reader scrolls: the height that
+      // lands afterwards is then corrected against the reader's row. Without the
+      // hold the next sample re-anchors on whatever row the partial compensation
+      // left at the top edge, and the still-unlanded height stays a permanent
+      // offset.
+      if (row !== null) {
+        el.scrollTop += flowTop(row, el) - anchor.top
+        prependHoldRef.current = anchor
+      }
       observedTopRef.current = el.scrollTop
       const normalized = scrollPosition(local, el)
       if (normalized !== null) {
@@ -697,6 +710,9 @@ export function ChatView({
     // the current ownership state.
     const floor = Math.max(0, el.scrollHeight - el.clientHeight)
     const movedByReader = Math.abs(el.scrollTop - Math.min(observedTopRef.current, floor)) > 0.5
+    // The reader's own gesture takes the anchor back; the hold only covers the
+    // frames the app compensates for a page that has not finished laying out.
+    if (movedByReader) prependHoldRef.current = null
     const isAtBottom = movedByReader
       ? floor - el.scrollTop <= FOLLOW_THRESHOLD + 1
       : atBottomRef.current
@@ -714,7 +730,9 @@ export function ChatView({
       anchorRef.current = { key: position.anchorKey, top: position.anchorTop }
     }
     if (!isAtBottom && position !== null) {
-      reflowAnchorRef.current = { key: position.anchorKey, top: position.anchorTop }
+      if (prependHoldRef.current === null) {
+        reflowAnchorRef.current = { key: position.anchorKey, top: position.anchorTop }
+      }
     }
     // Continuous save (unmount happens after ref detach, so saving there is
     // too late); pinned-to-bottom clears so a remount keeps following.
@@ -806,7 +824,7 @@ export function ChatView({
         observedHeights.set(entry.target, height)
       }
       if (!heightChanged) return
-      const anchor = reflowAnchorRef.current
+      const anchor = prependHoldRef.current ?? reflowAnchorRef.current
       if (!atBottomRef.current && anchor !== null) {
         const row = anchorElement(local, anchor.key)
         if (row !== null) {
