@@ -21,16 +21,10 @@
   --turn-rail-band: 100%;
   /* The balloon's height budget, stated as the sum it must hold rather than a
      magic number: 16px of padding at each end, the prompt line, its 4px gap, and
-     THREE response lines — the count its clamp allows. Every line grows by one
-     font-axis delta, so the budget carries FIVE deltas (prompt + three
-     responses), not four: a reader who raises the content size gets a taller
-     balloon instead of a silently clipped third line. */
-  --turn-preview-height: calc(
-    16px + 16px
-    + 22px + var(--dsh-content-font-delta, 0px)
-    + 4px
-    + 3 * (21px + var(--dsh-content-font-delta, 0px))
-  );
+     THREE response lines — the count its clamp allows. All five lines are 20px,
+     and both text sizes are fixed, so the sum is a literal: no axis makes the
+     card taller than this cap. */
+  --turn-preview-height: calc(16px + 16px + 20px + 4px + 3 * 20px);
   /* The rail's own margin from the scrollport's end edge — the same 24px the
      transcript keeps on its start edge. The enclosing `.slot` spans that
      layer's padding box, whose end edge is the scrollport's end edge, so this
@@ -230,26 +224,26 @@
 }
 
 .previewPrompt {
-  /* The balloon reads at the content axis, not at its own fixed sizes: the
-     prompt takes the theme's 450/14px body and steps up to 500 for its "you
-     asked" role, with the line height following the size axis so the leading
-     holds at every reader setting. */
+  /* A fixed 14px over a fixed 20px line, NOT the content axis: the balloon is a
+     fixed-size card, so following the reader's content size made it disagree
+     with its own geometry — and its height budget would have to chase the axis
+     too. Both lines take the same 20px line so the card keeps one rhythm. */
   font: var(--dsw-font-s-14);
-  font-size: var(--dsh-content-font-size, 14px);
+  font-size: 14px;
   font-weight: 500;
-  line-height: calc(22px + var(--dsh-content-font-delta, 0px));
+  line-height: 20px;
   -webkit-line-clamp: 1;
 }
 
 .previewResponse {
   margin-top: 4px;
   color: var(--dsw-alias-label-caption);
-  /* Body weight (450), one step under the prompt's 500: the answer is the
-     same size as the prompt and told apart by weight and colour. */
+  /* Body weight (450), one step under the prompt's 500: the answer is the same
+     size as the prompt and told apart by weight and colour. */
   font: var(--dsw-font-s-14);
-  font-size: var(--dsh-content-font-size, 14px);
+  font-size: 14px;
   font-weight: 450;
-  line-height: calc(21px + var(--dsh-content-font-delta, 0px));
+  line-height: 20px;
   -webkit-line-clamp: 3;
 }
 
