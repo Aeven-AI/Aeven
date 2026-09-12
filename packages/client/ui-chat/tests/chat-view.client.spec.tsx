@@ -499,12 +499,6 @@ function installScrollMetrics(element: HTMLElement, initialHeight: number, clien
   }
 }
 
-/** Run the fake clock inside `act`, so the state a timer flips is committed
- *  before the assertions that read it (the turn-jump cover delay and fade). */
-function advanceTimers(ms: number): void {
-  act(() => { vi.advanceTimersByTime(ms) })
-}
-
 describe('Chat node rendering', () => {
 
   it('threads the injected file-mention vocabulary into the closing prose only', () => {
@@ -926,91 +920,46 @@ describe('ChatView', () => {
     expect(first.getAttribute('aria-busy')).toBeNull()
   })
 
-  it('covers the transcript only after a jump has paged past the cover delay, and fades it out on landing', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    let view: ReturnType<typeof render> | undefined
-    try {
-      const later = [userInTurn(8, 'third prompt', 3), assistant(9, 'third response', 3)]
-      const h = makeHarness({ nodes: later }, { hasMore: true })
-      h.setOutline([
-        { turn: 1, seq: 0, prompt: 'first prompt', response: '' },
-        { turn: 3, seq: 8, prompt: 'third prompt', response: '' },
-      ])
-      // One resolver per page: the jump pages more than once before the window
-      // covers its target, and each page must settle for the next to start.
-      const pages: (() => void)[] = []
-      h.loadThrough.mockImplementation(() => new Promise<void>((resolve) => { pages.push(resolve) }))
-      const releasePage = async (): Promise<void> => {
-        const page = pages.shift()
-        await act(async () => { page?.() })
-      }
-      view = render(<h.ChatView {...h.props} />)
+  it('reports a jump in flight through the head spinner it already shows for paging', async () => {
+    const later = [userInTurn(8, 'third prompt', 3), assistant(9, 'third response', 3)]
+    const h = makeHarness({ nodes: later }, { hasMore: true })
+    h.setOutline([
+      { turn: 1, seq: 0, prompt: 'first prompt', response: '' },
+      { turn: 3, seq: 8, prompt: 'third prompt', response: '' },
+    ])
+    let releaseJump: (() => void) | undefined
+    h.loadThrough.mockImplementation(() => new Promise<void>((resolve) => { releaseJump = resolve }))
+    const view = render(<h.ChatView {...h.props} />)
+    const head = (): string | null =>
+      view.container.querySelector('[data-earlier-history]')?.getAttribute('data-earlier-history') ?? null
 
-      fireEvent.click(view.getByRole('button', { name: '加载并跳转到第 1 轮' }))
-      // The click arms the delay; the plate must not flash on for a jump that
-      // may land inside it.
-      expect(view.container.querySelector('[data-turn-jump-cover]')).toBeNull()
-      advanceTimers(200)
-      const cover = view.container.querySelector('[data-turn-jump-cover]')
-      expect(cover).toBeTruthy()
-      expect(cover?.getAttribute('aria-label')).toBe('正在加载更早的消息…')
-      expect(cover?.hasAttribute('data-hiding')).toBe(false)
+    expect(head()).toBe('idle')
+    fireEvent.click(view.getByRole('button', { name: '加载并跳转到第 1 轮' }))
+    // A jump pages history, and paging history is what the head spinner already
+    // reports: the jump reads the same as a mouse gesture at the head, never as
+    // the Session-switch cover. `loadingOlder` is the session-side bit every
+    // page pull shares, so the jump carries it too.
+    act(() => { h.setSession({ loadingOlder: true }) })
+    expect(head()).toBe('loading')
+    const spinner = view.container.querySelector('[data-earlier-history] [role="status"]')
+    expect(spinner).not.toBeNull()
 
-      // A page that does not yet cover the target keeps one continuous cover:
-      // the reader is owed a single wait, not a plate per page.
-      await releasePage()
-      expect(h.loadThrough.mock.calls).toEqual([[0], [0]])
-      expect(view.container.querySelector('[data-turn-jump-cover]')?.hasAttribute('data-hiding')).toBe(false)
-
-      // The paged window commits and the second page settles: the jump lands,
-      // the busy mark clears, and the cover starts its fade.
-      act(() => {
-        h.setChat({
-          nodes: [userInTurn(0, 'first prompt', 1), assistant(1, 'first response', 1), ...later],
-          turnTimings: new Map([[1, { startTime: 1_000 }], [3, { startTime: 8_000 }]]),
-        })
+    // The paged window commits; the jump stays busy until its completion lands.
+    act(() => {
+      h.setChat({
+        nodes: [userInTurn(0, 'first prompt', 1), assistant(1, 'first response', 1), ...later],
+        turnTimings: new Map([[1, { startTime: 1_000 }], [3, { startTime: 8_000 }]]),
       })
-      await releasePage()
-      expect(view.getByRole('button', { name: '跳转到第 1 轮' }).getAttribute('aria-busy')).toBeNull()
-      expect(view.container.querySelector('[data-turn-jump-cover]')?.getAttribute('data-hiding')).toBe('true')
-
-      // The fade completes: the plate leaves the DOM.
-      advanceTimers(500)
-      expect(view.container.querySelector('[data-turn-jump-cover]')).toBeNull()
-    } finally {
-      view?.unmount()
-      vi.useRealTimers()
-    }
-  })
-
-  it('never covers the transcript for a jump that lands inside the cover delay', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    let view: ReturnType<typeof render> | undefined
-    try {
-      const later = [userInTurn(8, 'third prompt', 3), assistant(9, 'third response', 3)]
-      const h = makeHarness({ nodes: later }, { hasMore: true })
-      h.setOutline([
-        { turn: 1, seq: 0, prompt: 'first prompt', response: '' },
-        { turn: 3, seq: 8, prompt: 'third prompt', response: '' },
-      ])
-      const view0 = view = render(<h.ChatView {...h.props} />)
-      fireEvent.click(view0.getByRole('button', { name: '加载并跳转到第 1 轮' }))
-      // The window already holds this target: it lands on the settle pass
-      // without a page in flight, so the armed delay is spent on nothing.
-      act(() => {
-        h.setChat({
-          nodes: [userInTurn(0, 'first prompt', 1), assistant(1, 'first response', 1), ...later],
-          turnTimings: new Map([[1, { startTime: 1_000 }], [3, { startTime: 8_000 }]]),
-        })
-      })
-      await act(async () => {})
-      expect(view0.getByRole('button', { name: '跳转到第 1 轮' }).getAttribute('aria-busy')).toBeNull()
-      advanceTimers(1_000)
-      expect(view0.container.querySelector('[data-turn-jump-cover]')).toBeNull()
-    } finally {
-      view?.unmount()
-      vi.useRealTimers()
-    }
+    })
+    await act(async () => { releaseJump?.() })
+    act(() => { h.setSession({ loadingOlder: false }) })
+    await act(async () => {})
+    expect(view.getByRole('button', { name: '跳转到第 1 轮' }).getAttribute('aria-busy')).toBeNull()
+    // The pull settled, so the boundary drops its spinner. (The boundary itself
+    // can remain: it is present whenever older pages exist, which is why the
+    // spinner is keyed to the request rather than to the boundary.)
+    expect(head()).toBe('idle')
+    expect(view.container.querySelector('[data-earlier-history] [role="status"]')).toBeNull()
   })
 
   it('hands a windowless tool result to the Tool seat with an empty tool name', () => {

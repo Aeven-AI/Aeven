@@ -95,7 +95,7 @@ describe('Chat inject API', () => {
     expect(b.session.loadOlder).toHaveBeenCalledOnce()
 
     void injected.loadThrough(SessionSeq(42))
-    expect(b.session.loadThrough).toHaveBeenCalledWith(42, undefined)
+    expect(b.session.loadThrough).toHaveBeenCalledWith(42)
 
     injected.forkAt(17)
     await vi.waitFor(() => {
