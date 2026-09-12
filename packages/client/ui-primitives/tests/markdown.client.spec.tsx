@@ -2,6 +2,14 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { JsonBlock, MarkdownText } from './markdown-test-components.tsx'
+import { defuseClosingTag, reasoningSource } from '../src/markdown/MarkdownText.tsx'
+import { markdownLabels as baseMarkdownLabels } from './labels.client.ts'
+
+/** The label fixture plus the reasoning chrome the engine reads. */
+const reasoningLabels = {
+  ...baseMarkdownLabels,
+  reasoning: { thinking: '思考', thoughtFor: '思考了 {seconds} 秒' },
+}
 import { cjkFriendlyStrong } from '../src/markdown/cjkFriendlyStrong.ts'
 
 afterEach(cleanup)
@@ -578,5 +586,60 @@ describe('JsonBlock', () => {
     const body = container.querySelector('pre')!.textContent
     expect(body.length).toBeLessThan(30_000)
     expect(body).toContain('截断')
+  })
+})
+
+describe('reasoning blocks in the markdown source', () => {
+  it('renders a wrapped reasoning body inside the engine, not beside it', () => {
+    const view = render(<MarkdownText text={`${reasoningSource('Let me look at the file.', false)}The answer is 42.`} />)
+    const wrapper = view.container.querySelector('.reasoning-wrapper')
+
+    expect(wrapper).not.toBeNull()
+    expect(wrapper?.textContent).not.toContain('The answer is 42.')
+    expect(view.container.textContent).toContain('The answer is 42.')
+  })
+
+  it('leaves a still-open block running', () => {
+    const view = render(
+      <MarkdownText text={reasoningSource('Half a thought', true)} streaming labels={reasoningLabels} />,
+    )
+
+    expect(view.container.querySelector('.reasoning-wrapper')?.className).toContain('stream-active')
+    expect(view.container.textContent).toContain('思考')
+    expect(view.container.textContent).toContain('Half a thought')
+  })
+
+  it('closes a settled block', () => {
+    const view = render(
+      <MarkdownText text={reasoningSource('Done thinking.', false)} labels={reasoningLabels} />,
+    )
+
+    expect(view.container.querySelector('.reasoning-wrapper')?.className).not.toContain('stream-active')
+    expect(view.container.textContent).toContain('思考了')
+  })
+
+  it('keeps a reasoning body from closing its own block', () => {
+    const view = render(
+      <MarkdownText
+        text={`${reasoningSource('Read the tag </think> in the file.', false)}The answer.`}
+        labels={reasoningLabels}
+      />,
+    )
+    const wrapper = view.container.querySelector('.reasoning-wrapper') as HTMLElement
+
+    // One block, and the answer is outside it.
+    expect(view.container.querySelectorAll('.reasoning-wrapper')).toHaveLength(1)
+    fireEvent.click(within(wrapper).getByRole('button'))
+    expect(wrapper.textContent).toContain('Read the tag')
+    expect(wrapper.textContent).not.toContain('The answer.')
+    expect(view.container.textContent).toContain('The answer.')
+  })
+
+  it('leaves a body without the closing tag exactly as it arrived', () => {
+    expect(defuseClosingTag('No delimiter here.')).toBe('No delimiter here.')
+  })
+
+  it('defuses only the tag that would end the block', () => {
+    expect(defuseClosingTag('a </think b </THINK c')).toBe('a ＜/think b </THINK c')
   })
 })

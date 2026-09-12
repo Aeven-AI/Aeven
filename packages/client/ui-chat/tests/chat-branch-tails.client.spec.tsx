@@ -1030,7 +1030,7 @@ describe('useCalendarDay boundary refresh', () => {
 })
 
 describe('small branch tails', () => {
-  it('AssistantMarkdown single-line reasoning summary skips the newline cut', () => {
+  it('AssistantMarkdown renders a single-line reasoning block the engine can open', () => {
     const view = render(
       <AssistantMarkdown
         t={t}
@@ -1039,6 +1039,11 @@ describe('small branch tails', () => {
         renderMessageImages={renderMessageImages}
       />,
     )
+    // A settled block starts closed, so its one line is one click away.
+    const header = view.getByRole('button')
+    expect(header.getAttribute('aria-expanded')).toBe('false')
+
+    fireEvent.click(header)
     expect(view.getByText('one-liner')).toBeTruthy()
   })
 

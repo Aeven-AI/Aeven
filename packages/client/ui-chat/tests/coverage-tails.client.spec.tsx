@@ -13,7 +13,7 @@ const renderMessageImages: AssistantMarkdownProps['renderMessageImages'] = () =>
 afterEach(cleanup)
 
 describe('tails', () => {
-  it('AssistantMarkdown renders reasoning as a Think row and unknown blocks as JSON fallback', () => {
+  it('AssistantMarkdown renders reasoning as an engine block and unknown blocks as JSON fallback', () => {
     const view = render(
       <AssistantMarkdown
         t={t}
@@ -26,8 +26,14 @@ describe('tails', () => {
         renderMessageImages={renderMessageImages}
       />,
     )
-    expect(view.getByText('思考')).toBeTruthy()
-    expect(view.getByText('thinking hard')).toBeTruthy()
+    // The reasoning block is drawn by the engine, and the step still has a run
+    // after it for the block the engine does not render.
+    expect(view.container.querySelector('.reasoning-wrapper')).not.toBeNull()
+    // A tool head follows the trace, so its thinking is over: the block is
+    // closed rather than left running with nothing in the source to close it.
+    expect(view.container.querySelector('.reasoning-wrapper')?.className)
+      .not.toContain('stream-active')
+    expect(view.container.textContent).toContain('思考了')
     expect(view.getByText(/未知内容块/)).toBeTruthy()
     const stopped = render(
       <AssistantMarkdown

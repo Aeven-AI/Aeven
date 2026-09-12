@@ -184,6 +184,31 @@
   --hm-tracking: normal;
 }
 
+/* A reasoning block is part of a reply, not a toolbar, so it reads at the
+   conversation's own type size and colour rather than the engine's small
+   default. Everything here is scoped to the engine's reasoning subtree: the
+   rest of the engine's chrome keeps its own tokens, and only the block the
+   reader is meant to read as prose is brought onto the app's scale. */
+.markdown.markdown :global(.reasoning-wrapper) {
+  margin: 4px 0;
+}
+
+.markdown.markdown :global(.reasoning-container) {
+  border-color: var(--dsw-alias-border-l2);
+}
+
+.markdown.markdown :global(.reasoning-header) {
+  font-family: var(--dsw-font-family);
+  font-size: var(--dsh-content-font-size, 16px);
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.markdown.markdown :global(.reasoning-content) {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--dsh-content-font-size, 16px);
+  line-height: calc(28px + var(--dsh-content-font-delta, 0px));
+}
+
 /* Diagrams follow the product typeface. Mermaid bakes its stock Trebuchet
    stack into the generated SVG — both a `<style>` element inside the document
    and inline `style` attributes on the nodes — and a style attribute outranks

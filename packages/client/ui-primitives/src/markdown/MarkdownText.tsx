@@ -41,6 +41,20 @@ export interface MarkdownLabels {
   code: MarkdownCodeLabels
   /** Heading of the footnote section. */
   footnotes: string
+  /** Reasoning block chrome, for a caller that renders reasoning at all. */
+  reasoning?: MarkdownReasoningLabels | undefined
+}
+
+/**
+ * Copy for a reasoning block, whose header the engine swaps between the two
+ * states: what it says while the model is still thinking, and what it says once
+ * the block has settled, with `{seconds}` replaced by the time it took.
+ */
+export interface MarkdownReasoningLabels {
+  /** Header while the reasoning is still arriving. */
+  thinking: string
+  /** Header once it has finished, containing `{seconds}`. */
+  thoughtFor: string
 }
 
 /** Copy-button labels forwarded to fence toolbars (this package is cordis-free, so copy arrives via props). */
@@ -208,38 +222,103 @@ function codeComponents(
   }
 }
 
+/** What every caller supplies, whichever way it hands the source over. */
+interface MarkdownTextCommonProps {
+  /** Whether the reply is still arriving; feeds the engine's streaming path. */
+  streaming?: boolean
+  labels: MarkdownLabels
+  fileMentions?: MarkdownFileMentions | undefined
+}
+
+/**
+ * The source this component renders: one accumulated markdown string.
+ *
+ * Reasoning travels inside it as the engine's own `<think>` block, which is the
+ * protocol the engine already implements for a model that emits its thinking
+ * inline. A caller that holds reasoning separately wraps it — see
+ * {@link reasoningSource} — so this component stays a pure function of text.
+ */
+export type MarkdownTextProps = MarkdownTextCommonProps & { text: string }
+
+/**
+ * The engine's reasoning block, wrapped around one block of thinking.
+ *
+ * The engine recognises a model's thinking by these tags, so a caller holding
+ * reasoning separately from the answer says so by wrapping it here rather than
+ * asking the engine for a second way to be told the same thing. The tags are
+ * the engine's protocol, not the model's: an assistant that emitted them itself
+ * is already rendered this way, and the settled and streaming paths both read
+ * them.
+ *
+ * A body that happens to contain the closing tag would end the block early, so
+ * the body is defused first — see {@link defuseClosingTag}. What is left is
+ * the one input the engine cannot be handed safely, and it is handled here
+ * rather than left for a reader to hit.
+ *
+ * A block that has not finished is left open, with no closing tag: an open
+ * block is what the engine draws as still thinking, and it is closed when the
+ * reply settles rather than when the reasoning stops arriving — a step's
+ * thinking is over when its answer is.
+ * @param text - The reasoning body, as markdown.
+ * @param open - Whether the block is still being written.
+ * @returns The source to append to a reply's accumulated markdown.
+ */
+export function reasoningSource(text: string, open: boolean): string {
+  const body = defuseClosingTag(text)
+
+  return open ? `<think>${body}` : `<think>${body}</think>\n\n`
+}
+
+/**
+ * Keep a reasoning body from closing its own block.
+ *
+ * A reply's reasoning is markdown and cannot escape the delimiter: there is no
+ * backslash that turns `</think>` back into the characters it spells, because
+ * the engine matches the tag after parsing. So the one `<` that could end the
+ * block is swapped for its full-width twin, which is the same glyph to a reader
+ * and not a tag to the parser. A body without the token comes back untouched.
+ * @param text - The reasoning body, as markdown.
+ * @returns The body with any literal closing tag made inert.
+ */
+export function defuseClosingTag(text: string): string {
+  return text.replaceAll('</think', '＜/think')
+}
+
 /**
  * Render untrusted assistant-authored Markdown as semantic React elements.
- * @param props - Markdown source text preserved by the session projection;
- * `streaming` feeds appends into the engine's streaming path and clearing it
- * finalizes that path through the engine's external-store update; `labels`
- * carries the localized copy this package cannot look up itself, and
- * `fileMentions` links inline-code tokens its resolver recognizes as real
- * files. Both must be reference-stable (memoized per locale revision or per
- * turn) — a new identity rebuilds the engine's component table and remounts
- * cached blocks. `labels.footnotes` is accepted but not yet applied: the engine
- * names that section itself, and overriding it needs a setting it does not
- * expose.
+ * @param props - `text` carrying the accumulated source preserved by the
+ * session projection; `streaming` feeds appends into the engine's streaming
+ * path and clearing it finalizes that path through the engine's external-store
+ * update; `labels` carries the localized copy this package cannot look up
+ * itself, including the reasoning block's two headers when the source contains
+ * reasoning, and `fileMentions` links inline-code tokens its resolver
+ * recognizes as real files. `labels` must be reference-stable (memoized per
+ * locale revision) — a new identity rebuilds the engine's component table and
+ * remounts cached blocks. `labels.footnotes` is accepted but not yet applied:
+ * the engine names that section itself, and overriding it needs a setting it
+ * does not expose.
  * @returns A GFM document with TeX math rendered through KaTeX; raw HTML never
  * enters the DOM, link and image destinations are restricted to safe schemes,
  * and diagram fences stay code blocks.
  */
-export const MarkdownText = memo(function MarkdownText({ text, streaming = false, labels, fileMentions }: {
-  text: string
-  streaming?: boolean
-  labels: MarkdownLabels
-  fileMentions?: MarkdownFileMentions | undefined
-}) {
+export const MarkdownText = memo(function MarkdownText({
+  text, streaming = false, labels, fileMentions,
+}: MarkdownTextProps) {
   const handleRef = useRef<HyperMarkdownHandle>(null)
   // A ref, not state: the write must survive StrictMode's double effect
   // invocation without scheduling a render of its own.
   const applied = useRef<AppliedState | null>(null)
 
   const translations = useMemo<Partial<Translations>>(() => {
+    const reasoning = labels.reasoning
+
     return {
       copy: labels.code.copyLabel,
       copyCode: labels.code.copyLabel,
       codeCopied: labels.code.copiedLabel,
+      ...reasoning === undefined
+        ? {}
+        : { thinking: reasoning.thinking, thoughtFor: reasoning.thoughtFor },
     }
   }, [labels])
 
@@ -266,6 +345,16 @@ export const MarkdownText = memo(function MarkdownText({ text, streaming = false
           handle.reset()
           handle.write(text, true)
         }
+        applied.current = { text, streaming }
+        return
+      }
+      if (last !== null && last.text === text) {
+        // The source did not change, but this render says the reply stopped
+        // arriving. The engine has to hear that: streaming is what its
+        // reasoning block reports on, so a block that was streamed and never
+        // finalized stays open however settled the reply is. An empty write
+        // carries the ending without repeating a character.
+        if (last.streaming) handle.write('', true)
         applied.current = { text, streaming }
         return
       }

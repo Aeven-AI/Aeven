@@ -79,7 +79,7 @@ function emptyWorkspaces() {
 }
 
 describe('render branch tails', () => {
-  it('AssistantMarkdown reasoning row is ok-state when not the streaming tail', () => {
+  it('AssistantMarkdown closes reasoning that a later block already answered', () => {
     const view = render(
       <AssistantMarkdown
         t={t}
@@ -88,8 +88,11 @@ describe('render branch tails', () => {
         renderMessageImages={renderMessageImages}
       />,
     )
-    // reasoning at index 0 with a later block: running is false → ok state.
-    expect(view.container.querySelector('[data-state="ok"]')).not.toBeNull()
+    // Reasoning at index 0 with a later block is not the tail: its thinking is
+    // over even though the step is still running, so its block is closed.
+    const wrapper = view.container.querySelector('.reasoning-wrapper')
+    expect(wrapper?.className).not.toContain('stream-active')
+    expect(view.container.textContent).toContain('answer')
   })
 
   it('StatsLine falls back to window-node counts and drops every token group without projections', () => {
@@ -114,7 +117,7 @@ describe('render branch tails', () => {
     expect(view.container.textContent).toBe('2 轮 · 3 步')
   })
 
-  it('AssistantMarkdown reasoning as the streaming tail renders the running ring', () => {
+  it('AssistantMarkdown reasoning as the streaming tail renders an open block', () => {
     const view = render(
       <AssistantMarkdown
         t={t}
@@ -123,7 +126,11 @@ describe('render branch tails', () => {
         renderMessageImages={renderMessageImages}
       />,
     )
-    expect(view.container.querySelector('[data-state="running"]')).not.toBeNull()
+    // The engine draws a running block open, with its running header.
+    const wrapper = view.container.querySelector('.reasoning-wrapper')
+    expect(wrapper?.className).toContain('stream-active')
+    expect(view.getByText('思考')).toBeTruthy()
+    expect(view.container.textContent).toContain('still thinking')
   })
 
   it('DetailsPanel title falls to 详情 when the selection has no toolName and no material', () => {

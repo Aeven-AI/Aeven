@@ -4,6 +4,8 @@ Status: implemented
 
 English | [中文](2026-08-02-web-thinking-tail-scroll.zh.md)
 
+The `ReasoningRow` implementation decision was superseded by [Reasoning through the Markdown engine](../../implemented/architecture/2026-09-11-reasoning-through-the-markdown-engine.md); the streaming-cadence finding it records still holds.
+
 ## Problem
 
 The Web Think row rendered the first reasoning line as its collapsed summary for both settled and streaming blocks. Once that first line existed, every later reasoning delta changed hidden body text only. A fast model therefore looked stationary while it was thinking, and the user had to expand the full chain of thought to verify that output was still moving. The product backlog already called for “thinking: scrolling chain-of-thought updates, expandable”; the current row satisfied only the second half.
@@ -28,4 +30,4 @@ The collapsed row now communicates provider cadence through content motion as we
 
 ## Testing
 
-`packages/client/ui-chat/tests/reasoning-row.client.spec.tsx` pins the latest-line selection, the calculated right-edge scroll position, and the settlement reset to the first line and `scrollLeft = 0`. The keyless assembled Chromium scenario in `apps/web/tests/lifecycle-chrome.e2e.ts` replays real recorded reasoning chunks at observable pacing, narrows the viewport until the summary overflows, and asserts that the live collapsed Think row reaches its actual browser scroll extent. Its settled replay golden remains unchanged, proving the historical summary contract stays stable.
+The `ReasoningRow` component this note describes, and the `reasoning-row.client.spec.tsx` that pinned its latest-line selection, its calculated right-edge scroll position, and its settlement reset to the first line and `scrollLeft = 0`, are gone: reasoning renders through the Markdown engine now, and the engine's reasoning block owns that chrome. The keyless assembled Chromium scenario remains the current evidence for live collapsed reasoning reaching its real browser scroll extent. The keyless assembled Chromium scenario in `apps/web/tests/lifecycle-chrome.e2e.ts` replays real recorded reasoning chunks at observable pacing, narrows the viewport until the summary overflows, and asserts that the live collapsed Think row reaches its actual browser scroll extent. Its settled replay golden remains unchanged, proving the historical summary contract stays stable.

@@ -4,6 +4,8 @@ Status: implemented
 
 [English](2026-08-02-web-thinking-tail-scroll.md) | 中文
 
+`ReasoningRow` 的实现决策已被[经由 Markdown 引擎渲染 reasoning](../../implemented/architecture/2026-09-11-reasoning-through-the-markdown-engine.zh.md)取代；本说明记录的流式节奏结论仍然成立。
+
 ## 问题
 
 Web Think 行在结算与流式 block 中都把 reasoning 首行渲染成折叠摘要。首行一旦出现，之后每个 reasoning delta 只会改变隐藏的正文。于是快速模型在思考时看起来静止，用户必须展开完整思维链才能确认输出仍在推进。产品事项表已经要求“thinking：滚动展示思维链更新、可展开”；当前行只满足了后半项。
@@ -28,4 +30,4 @@ Web Think 行在结算与流式 block 中都把 reasoning 首行渲染成折叠�
 
 ## 测试
 
-`packages/client/ui-chat/tests/reasoning-row.client.spec.tsx` 固定最新行选择、算出的右端滚动位置，以及结算后恢复首行和 `scrollLeft = 0`。`apps/web/tests/lifecycle-chrome.e2e.ts` 中的无密钥组装态 Chromium 场景以可观察节奏回放真实录制的 reasoning chunks，把视口收窄到摘要溢出，并断言实时折叠 Think 行到达真实浏览器的滚动边界。其结算态 replay golden 保持不变，证明历史摘要约定仍然稳定。
+本说明所述的 `ReasoningRow` 组件，以及固定其最新行选择、算出的右端滚动位置、结算后恢复首行和 `scrollLeft = 0` 的 `reasoning-row.client.spec.tsx`，都已不存在：reasoning 现在经由 Markdown 引擎渲染，那层外观由引擎的 reasoning 块负责。无密钥组装态 Chromium 场景仍是「实时折叠 reasoning 到达其真实浏览器滚动边界」的现行证据。`apps/web/tests/lifecycle-chrome.e2e.ts` 中的无密钥组装态 Chromium 场景以可观察节奏回放真实录制的 reasoning chunks，把视口收窄到摘要溢出，并断言实时折叠 Think 行到达真实浏览器的滚动边界。其结算态 replay golden 保持不变，证明历史摘要约定仍然稳定。

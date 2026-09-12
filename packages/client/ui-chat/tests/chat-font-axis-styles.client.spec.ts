@@ -12,6 +12,13 @@ import { describe, expect, it } from 'vitest'
 const read = (name: string): string =>
   readFileSync(fileURLToPath(new URL(`../src/client/chat/${name}`, import.meta.url)), 'utf8')
 
+/** The Markdown host sheet that styles the engine's reasoning block. */
+const readMarkdown = (): string =>
+  readFileSync(fileURLToPath(new URL(
+    '../../ui-primitives/src/markdown/MarkdownText.module.css',
+    import.meta.url,
+  )), 'utf8')
+
 function declarationsFrom(source: string, selector: string): string[] {
   const declarationText = source.replace(/\/\*[\s\S]*?\*\//g, ' ')
   const rule = new RegExp(`(?:^|[{}])\\s*${selector.replace(/[.[\]():*+^$\\]/g, '\\$&')}\\s*\\{([^{}]*)\\}`).exec(declarationText)
@@ -28,13 +35,18 @@ describe('chat flow font-size axis', () => {
   })
 
   it('think text reads the conversation content size', () => {
-    const css = read('ReasoningRow.module.css')
-    for (const selector of ['.summary', '.thinkBody']) {
+    // Reasoning renders inside the Markdown engine now, so the block's type
+    // scale is an override in the engine's host sheet rather than a rule in
+    // this package's own reasoning component.
+    const css = readMarkdown()
+    for (const selector of ['.markdown.markdown :global(.reasoning-header)', '.markdown.markdown :global(.reasoning-content)']) {
       expect(declarationsFrom(css, selector)).toEqual(expect.arrayContaining([
         'font-size: var(--dsh-content-font-size, 16px)',
-        'line-height: calc(28px + var(--dsh-content-font-delta, 0px))',
       ]))
     }
+    expect(declarationsFrom(css, '.markdown.markdown :global(.reasoning-content)')).toEqual(expect.arrayContaining([
+      'line-height: calc(28px + var(--dsh-content-font-delta, 0px))',
+    ]))
   })
 
   it('command and context summaries read the conversation content size', () => {
@@ -86,8 +98,6 @@ describe('chat flow font-size axis', () => {
     // The DisclosureRow title starts at leading (16 + delta) + gap 6; a fixed
     // 22px indent would misalign at every non-default size.
     const indent = 'calc(22px + var(--dsh-content-font-delta, 0px))'
-    expect(declarationsFrom(read('ReasoningRow.module.css'), '.thinkBody'))
-      .toEqual(expect.arrayContaining([`padding: 4px 0 4px ${indent}`]))
     expect(declarationsFrom(read('MessageItem.module.css'), '.compactionBody'))
       .toEqual(expect.arrayContaining([`padding: 4px 0 4px ${indent}`]))
     expect(declarationsFrom(read('ContextInjectionRow.module.css'), '.body'))
