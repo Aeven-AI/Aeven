@@ -6,7 +6,7 @@ English | [中文](2026-09-09-turn-duration-hour-unit.zh.md)
 
 ## Problem
 
-The Web chat's turn duration labels counted minutes without bound. `formatRunDuration` in [message-chrome.ts](../../../../packages/client/ui-chat/src/client/chat/message-chrome.ts) split elapsed milliseconds into seconds and minutes only, so a turn that ran for 90 minutes read `90分05秒` / `90m 05s` in all three places sharing the formatter: the `Deep diving...` running clock, the settled `Ran for {duration}` footer, and the turn-time dialog's total. The archived [turn run time decision](../../archived/feature/2026-08-03-web-turn-run-time.md) fixed the clock's anchor and the shared whole-second floor; it left the formatter at two units, which stops reading correctly once a turn crosses an hour.
+The Web chat's turn duration labels counted minutes without bound. `formatRunDuration` in [message-chrome.ts](../../../../packages/client/ui-chat/src/client/chat/message-chrome.ts) split elapsed milliseconds into seconds and minutes only, so a turn that ran for 90 minutes read `90分05秒` / `90m 05s` in all three places sharing the formatter: the `Deep diving...` running clock, the settled `Ran for {duration}` footer, and the turn-time dialog's total. The earlier [turn run time decision](../../implemented/feature/2026-08-03-web-turn-run-time.md) fixed the clock's anchor and the shared whole-second floor; it left the formatter at two units, which stops reading correctly once a turn crosses an hour.
 
 ## Decision
 

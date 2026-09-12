@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-11-reading-line-lookup-bisects.md
-2026-09-11-reading-line-lookup-bisects.md: d68d9727876db9629ce31dbf453f008aac00cdb8
-2026-09-11-reading-line-lookup-bisects.zh.md: d8b154c5173a94798330a14ad194102ca5bbdcc1
+2026-09-11-reading-line-lookup-bisects.md: 318355aec030a9f22b5279dc2ff470ddee8dc56e
+2026-09-11-reading-line-lookup-bisects.zh.md: 83dcae1295968940fff3995a8f864089bdbd3e3f

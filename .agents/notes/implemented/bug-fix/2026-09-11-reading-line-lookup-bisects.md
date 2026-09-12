@@ -8,7 +8,7 @@ English | [中文](2026-09-11-reading-line-lookup-bisects.zh.md)
 
 `ChatView`'s `turnAtLine` resolved the Turn owning the reading line by hit-testing that line with `document.elementsFromPoint` and falling back to a linear scan of every row carrying `[data-chat-turn]`:
 
-```ts
+```ts ignore-check
 for (const row of list.querySelectorAll<HTMLElement>('[data-chat-turn]')) {
   if (row.getBoundingClientRect().top > line) break
   ...
