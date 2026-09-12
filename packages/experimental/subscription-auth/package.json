@@ -82,7 +82,7 @@
     "@deepseek-ai/dsh-llm-pi-ai": "workspace:^",
     "@deepseek-ai/dsh-tools": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^",
-    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-ai": "0.84.2",
     "react": "^18.2.0"
   },
   "devDependencies": {
