@@ -47,8 +47,20 @@ function anchorElement(list: HTMLElement, key: string): HTMLElement | null {
 
 /**
  * Turn owning the row at a scrollport line. Scroll frames are hot, so this
- * hit-tests the line first and falls back to one row scan when layout cannot
- * answer (jsdom, pre-paint); neither path queries per navigation item.
+ * hit-tests the line first and falls back to a bisection when layout cannot
+ * answer (jsdom, pre-paint, or the line landing in the gaps between rows).
+ *
+ * The fallback is a bisection rather than a scan because a scan costs one
+ * `getBoundingClientRect` per rendered row, and each of those forces a layout
+ * of the whole transcript: on a long session that is hundreds of reads per
+ * call, several times a frame, and the cost grows with the history the reader
+ * has loaded. Bisection makes it ~10 reads regardless of depth.
+ *
+ * Rows carrying `[data-chat-turn]` are interleaved with hidden ones, and a
+ * hidden row reports a zeroed rect whose `y` is 0 — sorted ahead of every
+ * visible row, which defeats both a plain scan and a plain bisection. Only
+ * visible rows are ordered by document position, so the bisection steps over
+ * zero-height rows to compare the nearest visible row instead.
  * @param list - the ChatView list element.
  * @param line - viewport y of the reading line.
  * @returns the Turn number, or null when no loaded row covers the line.
@@ -62,13 +74,35 @@ function turnAtLine(list: HTMLElement, line: number): number | null {
       if (row !== null && list.contains(row) && Number.isSafeInteger(turn)) return turn
     }
   }
-  let found: number | null = null
-  for (const row of list.querySelectorAll<HTMLElement>('[data-chat-turn]')) {
-    if (row.getBoundingClientRect().top > line) break
-    const turn = Number(row.dataset.chatTurn)
-    if (Number.isSafeInteger(turn)) found = turn
+  const rows = list.querySelectorAll<HTMLElement>('[data-chat-turn]')
+  const count = rows.length
+  /** A hidden or empty row renders no box; only visible rows are ordered. */
+  const visible = (row: HTMLElement | null): boolean =>
+    row !== null && row.getBoundingClientRect().height > 0
+  /** The nearest visible row index at or after `from`, or `count` when none remains. */
+  const visibleAt = (from: number): number => {
+    for (let index = from; index < count; index += 1) {
+      if (visible(rows.item(index))) return index
+    }
+    return count
   }
-  return found
+  // Lower bound of "the nearest visible row at or after this index starts below
+  // the line". Stepping to the nearest visible row keeps the predicate monotone
+  // across the hidden rows interleaved in the list; when the index is past the
+  // last visible row there is nothing left to compare, so it holds.
+  let low = 0
+  let high = count
+  while (low < high) {
+    const middle = (low + high) >>> 1
+    const index = visibleAt(middle)
+    const top = index === count ? undefined : rows.item(index).getBoundingClientRect().top
+    if (top !== undefined && top <= line) low = middle + 1
+    else high = middle
+  }
+  const index = visibleAt(0) === count ? count : low - 1
+  const row = index >= 0 && index < count ? rows.item(index) : null
+  const turn = Number(row?.dataset.chatTurn)
+  return Number.isSafeInteger(turn) ? turn : null
 }
 
 /** Row position in scrollport coordinates (viewport-independent). */

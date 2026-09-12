@@ -55,7 +55,14 @@ export function useAnchoredPosition(options: AnchoredPositionOptions): CSSProper
       if (width > 0) left = Math.min(Math.max(left, margin), window.innerWidth - width - margin)
       if (height > 0) top = Math.min(Math.max(top, margin), window.innerHeight - height - margin)
       /* v8 ignore stop */
-      setPosition({ left, top })
+      // `place` is a capture-phase scroll listener, so it runs on every frame a
+      // scroll produces — including frames that scroll some other element in the
+      // page and leave this anchor exactly where it was. A fresh object each time
+      // re-renders the panel for coordinates identical to the ones on screen.
+      // Keep the identity when the placement has not moved.
+      setPosition(current => (
+        current !== null && current.left === left && current.top === top ? current : { left, top }
+      ))
     }
     // The first run measures the panel in the same commit that opened it, so
     // the clamp uses real dimensions before anything paints.
