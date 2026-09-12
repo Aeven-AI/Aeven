@@ -10,6 +10,11 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  /* Same opt-out as the resident scrollport: this box owns ChatView's scroll
+     ledger whenever no `[data-conversation-scroll]` host wraps the view, and a
+     browser anchoring adjustment there is indistinguishable from reader input
+     ([decision](../../../../../../.agents/notes/implemented/bug-fix/2026-09-12-transcript-scroll-anchoring-opt-out.md)). */
+  overflow-anchor: none;
   /* Transcript and composer share the same Aeven inset and width axis. */
   padding: 56px var(--dsh-composer-side-clearance) 48px;
   /* Inline-size query container: TurnNavigator sizes its rail preview

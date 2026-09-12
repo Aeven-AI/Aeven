@@ -487,6 +487,17 @@
      gutter moves the input card sideways by the bar's width whenever the two
      differ ([decision](../../../../../../.agents/notes/implemented/bug-fix/2026-08-04-composer-tab-gutter-reservation.md)). */
   scrollbar-gutter: stable;
+  /* ChatView owns this box's offset through a ledger of its own writes: an
+     offset that moved on its own is reader input, and input away from the floor
+     releases bottom-follow. Browser scroll anchoring moves the offset without
+     any write — holding a content node still while rows above the viewport
+     finish laying out — so the ledger reads that adjustment as a gesture. A
+     Session switch lands on the tail while its transcript is still laying out,
+     which is exactly when anchoring steps in, so the released follow left the
+     reader short of the floor and nothing corrected it. A reader away from the
+     floor loses nothing: ChatView re-anchors itself on every reflow
+     ([decision](../../../../../../.agents/notes/implemented/bug-fix/2026-09-12-transcript-scroll-anchoring-opt-out.md)). */
+  overflow-anchor: none;
 }
 
 /* Growing flex sibling that docks the sticky composer. `.viewArea` is the
