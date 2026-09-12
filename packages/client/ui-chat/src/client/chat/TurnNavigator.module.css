@@ -123,9 +123,8 @@
   /* Tick colours are variables so a state rebinds one name rather than
      restating the whole background declaration. */
   --turn-tick-rest: var(--dsw-alias-border-l4);
-  /* The selected Turn's line is white, and opaque: the resting ladder stays a
-     translucent grey hairline so the selected line is what reads. */
-  --turn-tick-active: #fff;
+  /* The selected Turn's line: the primary label colour, at full strength. */
+  --turn-tick-active: rgb(10, 10, 10);
   background: var(--turn-tick-rest);
   content: '';
   transform: translateY(-50%);
@@ -135,8 +134,11 @@
 /* Ordered before hover/active so those states keep their stronger tick.
    Same width as a loaded tick: the ladder reads as one scale of the whole
    session, and dimming alone carries "not resident yet". */
+/* Dimming belongs to the RESTING line only. Setting it on the shared
+   pseudo-element also dimmed a selected or previewed Turn that is not resident
+   yet, which is how a selected line could render below full strength. */
 .markUnloaded::before {
-  opacity: 0.6;
+  --turn-tick-rest: color-mix(in srgb, var(--dsw-alias-border-l4) 60%, transparent);
 }
 
 .markBusy::before {
@@ -151,6 +153,7 @@
 .markPreview::before {
   width: 20px;
   background: var(--turn-tick-active);
+  opacity: 1;
 }
 
 /* Keyboard focus outranks both resting states: the tick takes the brand color
