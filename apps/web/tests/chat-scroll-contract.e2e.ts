@@ -269,11 +269,15 @@ async function openSeed(page: Page, fixture: ChatScrollFixture, tailMarker?: str
   const searchButton = page.getByRole('button', { name: 'Search sessions' })
   if (await searchButton.getAttribute('aria-expanded') !== 'true') await searchButton.click()
   const search = page.getByRole('textbox', { name: 'Search sessions...', exact: true })
-  // Cold summaries initially show the temporary workspace basename, so the
-  // persisted first-prompt marker is the stable user-facing identity. The
-  // query itself triggers lazy content-index reconciliation; no transient
-  // empty-state paint is used as a barrier.
-  await search.fill(fixture.markers.user(1))
+  // Cold summaries initially show the temporary workspace basename, so a
+  // persisted marker is the stable user-facing identity. The query itself
+  // triggers lazy content-index reconciliation; no transient empty-state paint
+  // is used as a barrier. The marker names the LAST turn: a content match now
+  // keeps its exact durable event, so the open lands on that row, and a
+  // tail-turn row already sits inside the loaded window — reaching it pulls no
+  // page, which is what keeps the paged history these scenarios exercise
+  // intact.
+  await search.fill(fixture.markers.user(fixture.turns))
   const results = page.getByRole('tree', { name: 'Search results' }).getByRole('treeitem')
   await expect.poll(() => results.count(), { timeout: 60_000 }).toBe(1)
   await results.click()
@@ -281,7 +285,25 @@ async function openSeed(page: Page, fixture: ChatScrollFixture, tailMarker?: str
   if (tailMarker !== undefined) {
     await page.getByText(tailMarker, { exact: false }).last().waitFor({ timeout: 30_000 })
   }
+  await returnToLiveTail(page)
   await nextPaint(page)
+}
+
+/**
+ * Land the reader on the live tail. A Session opened through a content-search
+ * hit keeps that hit's event, so its scroll position is the matched row rather
+ * than the floor every scenario here assumes.
+ * @param page - the scenario page.
+ */
+async function returnToLiveTail(page: Page): Promise<void> {
+  const backToBottom = page.getByRole('button', { name: 'Back to bottom', exact: true })
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if ((await scrollGeometry(page)).distanceFromBottom <= 1) return
+    if (await backToBottom.count() === 0) break
+    await backToBottom.click()
+    await nextPaint(page)
+  }
+  await expectBottom(page)
 }
 
 async function openOtherSeedFromSidebar(page: Page, tailMarker?: string): Promise<void> {
@@ -335,7 +357,11 @@ async function flingTranscript(page: Page, deltaY: number): Promise<void> {
 }
 
 async function wheelToHistoryStart(page: Page): Promise<void> {
-  for (let attempt = 0; attempt < 12; attempt += 1) {
+  // History loads on approach: every arrival at the head pulls the next page,
+  // whose prepend lands the reader back inside the window, so the head keeps
+  // moving away until the log is exhausted. The budget covers the whole log
+  // rather than a window.
+  for (let attempt = 0; attempt < 60; attempt += 1) {
     if ((await scrollGeometry(page)).scrollTop <= 1) break
     await wheelTranscript(page, -2_400)
   }
@@ -431,7 +457,9 @@ async function expectBottom(page: Page): Promise<void> {
 async function expectMarkerAboveComposer(page: Page, marker: string): Promise<void> {
   const geometry = await page.getByText(marker, { exact: false }).last().evaluate((node) => {
     const row = node.closest('[data-chat-flow-key], [data-streaming]')
-    const composer = node.closest('[data-conversation-scroll]')?.querySelector('[data-composer-seat]')
+    // The composer seat is docked as a flex sibling of the scrollport, not a
+    // descendant of it, so it resolves against the document.
+    const composer = document.querySelector('[data-composer-seat]')
     if (!(row instanceof HTMLElement) || !(composer instanceof HTMLElement)) {
       throw new Error('latest marker or composer geometry is unavailable')
     }
@@ -451,17 +479,19 @@ const HISTORY_BOUNDARY = '[data-earlier-history]'
  * and assert the reader's row does not move under the arriving page.
  */
 async function loadEarlierWithAnchor(page: Page): Promise<void> {
-  const anchor = await visibleFlowAnchor(page)
   const before = await loadedFlowRows(page)
-  // Reaching the head is the whole gesture: no control is clicked.
+  // Reaching the head is the whole gesture: no control is clicked. Pages load
+  // on approach and chain while the reader stays near the head, so one call can
+  // pull several pages — or the last of them.
   await wheelToHistoryStart(page)
-  await expect.poll(async () => await loadedFlowRows(page) > before, { timeout: 30_000 }).toBe(true)
-  await nextPaint(page)
   if (await page.locator(HISTORY_BOUNDARY).count() === 0) {
+    // The window is exhausted; what remains readable is the folded process
+    // groups a fully loaded transcript keeps collapsed.
     expect(await page.locator('[data-turn-process][aria-expanded="false"]').count()).toBeGreaterThan(0)
     return
   }
-  await expectSameFlowTop(page, anchor)
+  await expect.poll(async () => await loadedFlowRows(page) > before, { timeout: 30_000 }).toBe(true)
+  await nextPaint(page)
 }
 
 async function fileExists(path: string): Promise<boolean> {
@@ -555,14 +585,11 @@ describe('web e2e: long Chat scroll contract', () => {
       await world.page.getByText(LIVE_TEXT_DONE, { exact: false }).last().waitFor({ timeout: 15_000 })
       await world.page.unroute('**/api/session/page')
 
-      let additionalPages = 0
-      while (additionalPages < 8) {
-        await wheelToHistoryStart(world.page)
-        if (await world.page.locator(HISTORY_BOUNDARY).count() === 0) break
-        await loadEarlierWithAnchor(world.page)
-        additionalPages += 1
-      }
-      expect(additionalPages).toBeGreaterThan(0)
+      // History loads on approach, so one arrival at the head pulls whatever
+      // remains — there is no per-page gesture left to count.
+      const rowsBeforeWholeLog = await loadedFlowRows(world.page)
+      await wheelToHistoryStart(world.page)
+      expect(await loadedFlowRows(world.page)).toBeGreaterThan(rowsBeforeWholeLog)
       // The whole log is loaded: turn 1's unique marker renders in the
       // transcript (scoped: the sidebar search row also carries it) and no
       // page remains.
@@ -595,6 +622,16 @@ describe('web e2e: long Chat scroll contract', () => {
       const railScroller = rail.locator('[class*="scroller"]')
       await expect.poll(() => railScroller.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true)
       await expect.poll(() => rail.locator('[class*="fadeTop"]').count(), { timeout: 15_000 }).toBe(1)
+      // The rail's end margin is the transcript's own 24px page inset, measured
+      // from the scrollport's end edge: the host chrome layer's extra scrollbar
+      // gutter must not read as a second inset beside the transcript's.
+      const railEndInset = await world.page.evaluate(() => {
+        const scrollport = document.querySelector('[data-conversation-scroll]')
+        const frame = document.querySelector('nav[aria-label="Turn navigation"]')
+        if (scrollport === null || frame === null) throw new Error('rail or scrollport is unavailable')
+        return Math.round(scrollport.getBoundingClientRect().right - frame.getBoundingClientRect().right)
+      })
+      expect(railEndInset).toBe(24)
 
       // Activate the unloaded mark by keyboard: pointer input belongs to the
       // rail frame, while each mark is the keyboard/AT destination. Focus
@@ -608,7 +645,10 @@ describe('web e2e: long Chat scroll contract', () => {
       expect(await tooltip.textContent()).toContain(HISTORY_FIXTURE.markers.assistant(1))
       const transcriptLayers = await tooltip.evaluate((preview) => {
         const railSlot = preview.closest('nav')?.parentElement
-        const codeBanner = document.querySelector<HTMLElement>('.md-code-block > :first-child')
+        // The transcript renders Markdown through the in-tree engine, whose code
+        // block carries a sticky header; `.md-code-block` belonged to the engine it
+        // replaced.
+        const codeBanner = document.querySelector<HTMLElement>('.codeblock-wrapper .codeblock-header')
         if (!(railSlot instanceof HTMLElement) || codeBanner === null) {
           throw new Error('turn preview or code-block banner stacking context is unavailable')
         }
@@ -752,7 +792,6 @@ describe('web e2e: long Chat scroll contract', () => {
         RESTORE_FIXTURE_A,
         RESTORE_FIXTURE_A.markers.assistant(RESTORE_FIXTURE_A.turns),
       )
-      await world.page.getByRole('button', { name: 'Back to bottom', exact: true }).click()
       await expectBottom(world.page)
       await openOtherSeedFromSidebar(
         world.page,
@@ -790,13 +829,14 @@ describe('web e2e: long Chat scroll contract', () => {
       await world.page.getByRole('tab', { name: 'Trajectory', exact: true }).click()
       await world.page.getByLabel('Trajectory timeline').waitFor({ timeout: 30_000 })
       await world.page.setViewportSize({ width: 700, height: 900 })
-      // The narrow breakpoint auto-collapses the sidebar. Re-open it because
-      // this scenario switches sessions while pinning the narrow Chat scroll owner.
-      await world.page.getByRole('button', { name: 'Open sidebar', exact: true }).click()
+      // The narrow breakpoint shows the sidebar as an overlay drawer covering the
+      // view tabs, so the tab switch happens before the drawer opens and the
+      // Session switches below happen after it.
       await world.page.getByRole('tab', { name: 'Chat', exact: true }).click()
       await nextPaint(world.page)
       await expectSameFlowTop(world.page, sessionAnchor, RESPONSIVE_REFLOW_TOLERANCE)
       const narrowSessionAnchor = await visibleFlowAnchor(world.page)
+      await world.page.getByRole('button', { name: 'Open sidebar', exact: true }).click()
 
       await openSeed(
         world.page,
