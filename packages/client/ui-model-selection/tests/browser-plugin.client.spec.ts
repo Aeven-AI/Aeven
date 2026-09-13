@@ -284,8 +284,6 @@ describe('ui-model-selection entries', () => {
   it('the effort pane submits the current model\'s own levels, and the effective one is the level in force', async () => {
     const b = await bench()
     b.mint('s1')
-    const face = b.seatFace('s1')
-    await face.directory.getSnapshot().current
 
     // The adapter configures a default, so the levels are its own three — no
     // provider-default level — and the effective effort is the model default

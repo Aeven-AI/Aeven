@@ -97,7 +97,7 @@ describe('PopupSelectView', () => {
     const box = (right: number): DOMRect => ({
       right, left: 0, top: 0, bottom: 0, width: right, height: 0,
       x: 0, y: 0, toJSON: () => ({}),
-    }) as DOMRect
+    })
     const anchor = document.createElement('button')
     document.body.append(anchor)
     anchor.getBoundingClientRect = () => box(220)
