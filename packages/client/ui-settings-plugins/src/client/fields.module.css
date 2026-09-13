@@ -20,7 +20,7 @@
 .label {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 1.5;
   color: var(--dsw-alias-label-primary);
@@ -78,7 +78,7 @@
   border-radius: 8px;
   background: var(--dsw-alias-bg-layer-3);
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.5;
   color: var(--dsw-alias-label-primary);
 }

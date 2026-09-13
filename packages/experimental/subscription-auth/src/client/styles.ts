@@ -48,7 +48,7 @@ export const titleStyle: CSSProperties = {
 /** Body style. */
 export const bodyStyle: CSSProperties = {
   margin: 0,
-  fontSize: 13,
+  fontSize: 14,
   lineHeight: '20px',
   color: 'var(--dsw-alias-label-tertiary)',
 }
@@ -59,7 +59,7 @@ export const bodyStyle: CSSProperties = {
  */
 export const introStyle: CSSProperties = {
   margin: 0,
-  fontSize: 13,
+  fontSize: 14,
   color: 'var(--dsw-alias-label-tertiary)',
 }
 /** Card style. */
@@ -135,7 +135,7 @@ export const statusStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 8,
-  fontSize: 13,
+  fontSize: 14,
   fontWeight: 500,
   color: 'var(--dsw-alias-label-primary)',
 }
@@ -149,7 +149,7 @@ export const buttonStyle: CSSProperties = {
   background: 'none',
   color: 'var(--dsw-alias-label-secondary)',
   font: 'inherit',
-  fontSize: 13,
+  fontSize: 14,
   lineHeight: 1.5,
   cursor: 'pointer',
   transition: TRANSITION,
@@ -211,7 +211,7 @@ export const inputStyle: CSSProperties = {
   background: 'var(--dsw-alias-bg-layer-1)',
   color: 'var(--dsw-alias-label-primary)',
   font: 'inherit',
-  fontSize: 13,
+  fontSize: 14,
   transition: TRANSITION,
 }
 /** A bounded block inside a card, such as the usage panel: boxed rather than ruled. */

@@ -349,16 +349,13 @@ export const MarkdownText = memo(function MarkdownText({
         return
       }
       if (last !== null && last.text === text) {
-        // The source did not change, but this render says the reply stopped
-        // arriving. The engine has to hear that: streaming is what its
-        // reasoning block reports on, so a block that was streamed and never
-        // finalized stays open however settled the reply is. An empty write
-        // carries the ending without repeating a character.
-        if (last.streaming) handle.write('', true)
+        // The same source, already settled: there is nothing left to tell the
+        // engine. The ended-streaming case is the `last.streaming` branch
+        // above, which is the only one that still owes it a finalizing write.
         applied.current = { text, streaming }
         return
       }
-      if (last === null || last.text !== text) handle.store.setMarkdown(text)
+      handle.store.setMarkdown(text)
       applied.current = { text, streaming }
       return
     }

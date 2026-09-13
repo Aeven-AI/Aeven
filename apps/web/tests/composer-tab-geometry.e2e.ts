@@ -1,6 +1,8 @@
-// Browser geometry for the input card across Chat and Trajectory. The browser
-// must expose layout-consuming scrollbars, and an uncompensated control keeps
-// equal rectangles from passing vacuously.
+// Browser geometry for the input card across Chat and Trajectory. The
+// scrollport floats its bar, so each tab's card sits on the transcript's own
+// axis; a control that forces a layout-consuming bar back onto Chat while
+// dropping its reservation keeps those equal-axis readings from passing
+// vacuously.
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import type { Browser, Page } from 'playwright'
@@ -63,18 +65,33 @@ async function setMeasuredViewport(
 }
 
 /**
- * The uncompensated cascade, injected into the page: the overlay seat's `right`
- * compensation dropped to 0, so it measures the full padding box while Chat's
- * seat still rides the reserved content box. `!important` beats the module
- * rules without a rebuild, and the id lets the control be lifted again in the
- * same session.
+ * The control cascade, injected into the page: it takes the standard
+ * scrollbar properties away from the Chat scrollport, which hands the box back
+ * to the `::-webkit-scrollbar` fallback sheet and forces a layout-consuming bar
+ * onto it, and drops the gutter that had reserved the same strip symmetrically.
+ * The reservation is what keeps the transcript on the composer's axis, so
+ * without it the transcript column slides by the bar's width while the card
+ * stays on the box's axis. `!important` beats the module rules without a
+ * rebuild, and the id lets the control be lifted again in the same session.
  */
 const CONTROL_STYLE_ID = 'composer-tab-geometry-control'
 const CONTROL_CSS = `
-[data-conversation-scroll]:has([data-conversation-composer-overlay]) > [data-composer-seat] { right: 0 !important; }
+[data-conversation-scroll] {
+  scrollbar-width: auto !important;
+  scrollbar-color: auto !important;
+  scrollbar-gutter: auto !important;
+}
+[data-conversation-scroll]::-webkit-scrollbar {
+  width: 15px !important;
+  height: 15px !important;
+}
 `
 
-/** The column scroller and the input card as the browser lays them out, in one tab. */
+/**
+ * The column scroller and the input card as the browser lays them out, in one
+ * tab. Readable on either tab: the seat is a flex sibling of the scrollport and
+ * the card is the same resident slot, so both survive a tab switch.
+ */
 interface TabMetrics {
   gutter: string
   overflowX: string
@@ -86,6 +103,17 @@ interface TabMetrics {
   cardWidth: number
 }
 
+/**
+ * The transcript's content column and the card in the tab currently shown.
+ * Readable only while Chat is elected: Chat's rows leave the DOM with the view.
+ */
+interface ColumnMetrics {
+  /** Centre of the transcript's content column: the axis the card has to ride. */
+  columnCentre: number
+  /** Centre of the composer card, whose own box spans the whole column. */
+  cardCentre: number
+}
+
 /** One tab's metrics beside the other's, plus the distances between them. */
 interface TabComparison {
   chat: TabMetrics
@@ -93,10 +121,20 @@ interface TabComparison {
   leftShift: number
   rightShift: number
   widthShift: number
+  /** How far the card's centre sits from the transcript column's centre in Chat. */
+  axisShift: number
 }
+
+/** The flow row whose centre stands in for the transcript column's axis. */
+const ROW_INDEX = 3
 
 /**
  * Measure the column scroller and the input card in the tab currently shown.
+ *
+ * The seat is a flex sibling of the scrollport, not a descendant, so the card
+ * is found from the document. Nothing here waits for a view: the scrollport and
+ * the seat are the same two elements under either tab, and it is the caller that
+ * waits for the elected view.
  * @param page - the page under test.
  * @returns the scroller's resolved overflow style and the card's rectangle.
  */
@@ -104,7 +142,7 @@ function measureTab(page: Page): Promise<TabMetrics> {
   return page.evaluate(() => {
     const host = document.querySelector<HTMLElement>('[data-conversation-scroll]')
     if (host === null) throw new Error('conversation column scroller not in the DOM')
-    const card = host.querySelector<HTMLElement>('[data-composer-seat] [data-composer-card]')
+    const card = document.querySelector<HTMLElement>('[data-composer-seat] [data-composer-card]')
     if (card === null) throw new Error('no input card inside the composer seat')
     const style = getComputedStyle(host)
     const hostRect = host.getBoundingClientRect()
@@ -123,14 +161,62 @@ function measureTab(page: Page): Promise<TabMetrics> {
 }
 
 /**
+ * Measure the transcript's content column against the card, in the tab
+ * currently shown.
+ *
+ * The content column is read as the centre of a mounted flow row, which excludes
+ * the scrollport's own padding and reserved band; a row's own centre is
+ * scroll-invariant, so two reads cannot differ merely because the transcript
+ * moved. Chat's rows are present exactly while Chat is the elected view, so this
+ * is called after that view has been shown.
+ * @param page - the page under test.
+ * @returns the column's centre and the card's centre.
+ */
+async function measureColumn(page: Page): Promise<ColumnMetrics> {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const measured = await page.evaluate((index): ColumnMetrics | null => {
+      const host = document.querySelector<HTMLElement>('[data-conversation-scroll]')
+      const card = document.querySelector<HTMLElement>('[data-composer-seat] [data-composer-card]')
+      if (host === null || card === null) return null
+      const row = [...host.querySelectorAll<HTMLElement>('[data-chat-anchor-key]:not([hidden])')][index]
+      if (row === undefined) return null
+      const rowRect = row.getBoundingClientRect()
+      const cardRect = card.getBoundingClientRect()
+      return {
+        columnCentre: rowRect.left + rowRect.width / 2,
+        cardCentre: cardRect.left + cardRect.width / 2,
+      }
+    }, ROW_INDEX)
+    if (measured !== null) return measured
+    await page.waitForTimeout(50)
+  }
+  throw new Error('the elected view never laid out a transcript row to measure')
+}
+
+/**
  * Show one tab and wait for the view that owns it to be laid out.
+ *
+ * Selecting a tab is asynchronous: the tab strip flips `aria-selected` on the
+ * click, and the elected view mounts on a later commit. The wait is therefore
+ * on the view's own content — and a click that did not land is retried rather
+ * than reported as a layout failure, because a tab switch abandoned mid-flight
+ * is a UI timing artifact, not the geometry this scenario measures.
  * @param page - the page under test.
  * @param tab - the tab to show.
  */
 async function showTab(page: Page, tab: 'Chat' | 'Trajectory'): Promise<void> {
-  await page.getByRole('tab', { name: tab, exact: true }).click()
-  if (tab === 'Trajectory') await page.getByLabel('Trajectory timeline').waitFor({ timeout: 30_000 })
-  else await page.locator('[data-conversation-scroll] [data-chat-anchor-key]:visible').first().waitFor({ timeout: 30_000 })
+  const tabButton = page.getByRole('tab', { name: tab, exact: true })
+  const trace = page.locator('[data-conversation-scroll] [data-chat-anchor-key]:visible')
+  const deadline = Date.now() + 30_000
+  for (;;) {
+    if (await tabButton.getAttribute('aria-selected') !== 'true') await tabButton.click()
+    const mounted = tab === 'Trajectory'
+      ? await page.getByLabel('Trajectory timeline').isVisible().catch(() => false)
+      : await trace.count() > ROW_INDEX
+    if (mounted) break
+    if (Date.now() > deadline) throw new Error(`${tab} view never mounted after selecting its tab`)
+    await page.waitForTimeout(200)
+  }
   // Both measurements are taken after a paint, so a rectangle read mid-transition
   // cannot be reported as a shift the cascade did not cause.
   await page.evaluate(() => new Promise<void>((settle) => {
@@ -139,33 +225,42 @@ async function showTab(page: Page, tab: 'Chat' | 'Trajectory'): Promise<void> {
 }
 
 /**
- * Measure both tabs and the distances between them, leaving Chat shown.
+ * Measure both tabs and the distances between them, leaving Trajectory shown.
+ *
+ * Chat is read first and Trajectory second because only one view is mounted at a
+ * time: Chat's rows leave the DOM once Trajectory is elected, so reading Chat's
+ * axis after the switch would read a tab that is no longer there.
  * @param page - the page under test.
  * @returns each tab's metrics and the card's displacement between them.
  */
 async function compareTabs(page: Page): Promise<TabComparison> {
   await showTab(page, 'Chat')
   const chat = await measureTab(page)
+  const column = await measureColumn(page)
   await showTab(page, 'Trajectory')
   const trajectory = await measureTab(page)
-  await showTab(page, 'Chat')
   return {
     chat,
     trajectory,
     leftShift: Math.abs(trajectory.cardLeft - chat.cardLeft),
     rightShift: Math.abs(trajectory.cardRight - chat.cardRight),
     widthShift: Math.abs(trajectory.cardWidth - chat.cardWidth),
+    axisShift: Math.abs(column.cardCentre - column.columnCentre),
   }
 }
 
+/** Chat's card and transcript axis with the control cascade applied. */
+interface ControlMetrics extends TabMetrics, ColumnMetrics {}
+
 /**
- * Run the uncompensated cascade in the page for one measurement, then lift it:
- * the overlay seat's `right` compensation dropped to 0, so it measures the
- * full padding box while Chat's seat still rides the reserved content box.
+ * Run the control cascade in the page for one Chat reading, then lift it: the
+ * scrollport carries a layout-consuming bar it no longer reserves, so the
+ * transcript column slides off the composer's axis while the card keeps the
+ * seat's width.
  * @param page - the page under test.
- * @returns the comparison as the column lays out without the compensation.
+ * @returns the Chat reading as the column lays out with an unreserved bar.
  */
-async function compareTabsWithoutCompensation(page: Page): Promise<TabComparison> {
+async function measureChatWithReservedBar(page: Page): Promise<ControlMetrics> {
   await page.evaluate(({ id, css }) => {
     const style = document.createElement('style')
     style.id = id
@@ -173,11 +268,12 @@ async function compareTabsWithoutCompensation(page: Page): Promise<TabComparison
     document.head.append(style)
   }, { id: CONTROL_STYLE_ID, css: CONTROL_CSS })
   try {
-    return await compareTabs(page)
+    return { ...await measureTab(page), ...await measureColumn(page) }
   } finally {
     await page.evaluate((id) => { document.getElementById(id)?.remove() }, CONTROL_STYLE_ID)
   }
 }
+
 
 /**
  * Open the seeded session from the sidebar search.
@@ -208,10 +304,10 @@ async function openSeededSession(page: Page): Promise<void> {
  * Render the golden body.
  * @param wide - comparison at the viewport where the card sits at its width cap.
  * @param narrow - comparison at the viewport where the card shrinks with the column.
- * @param control - comparison at the wide viewport with the compensation removed.
+ * @param chat - Chat's reading at the wide viewport with a layout-consuming bar forced onto it and its reservation dropped.
  * @returns the golden body, without a trailing newline.
  */
-function renderGeometry(wide: TabComparison, narrow: TabComparison, control: TabComparison): string {
+function renderGeometry(wide: TabComparison, narrow: TabComparison, control: ControlMetrics): string {
   const section = (name: string, comparison: TabComparison): string[] => [
     `## ${name}`,
     '',
@@ -224,6 +320,7 @@ function renderGeometry(wide: TabComparison, narrow: TabComparison, control: Tab
     `- input card left edge moves between tabs: ${String(comparison.leftShift)}px`,
     `- input card right edge moves between tabs: ${String(comparison.rightShift)}px`,
     `- input card width changes between tabs: ${String(comparison.widthShift)}px`,
+    `- transcript column centre sits off the card centre in Chat: ${String(comparison.axisShift)}px`,
     '',
   ]
   return [
@@ -231,7 +328,17 @@ function renderGeometry(wide: TabComparison, narrow: TabComparison, control: Tab
     '',
     ...section(`Wide viewport (${String(WIDE_VIEWPORT.width)}px, card at its cap)`, wide),
     ...section(`Narrow viewport (${String(NARROW_VIEWPORT.width)}px, card shrinking with the column)`, narrow),
-    ...section('Wide viewport, seat compensation removed in the page (control)', control),
+    '## Wide viewport, layout-consuming bar forced onto Chat without a reservation (control)',
+    '',
+    `- Chat: scrollbar-gutter ${control.gutter}, overflow ${control.overflowX}/${control.overflowY}`,
+    `- Chat scroller scrolls: ${String(control.scrolls)}`,
+    `- Chat reserved band: ${String(control.band)}px`,
+    `- input card left edge: ${String(control.cardLeft)}px`,
+    `- input card right edge: ${String(control.cardRight)}px`,
+    `- input card width: ${String(control.cardWidth)}px`,
+    `- transcript column centre: ${String(control.columnCentre)}px`,
+    `- input card centre: ${String(control.cardCentre)}px`,
+    `- transcript column centre sits off the card centre in Chat: ${String(Math.abs(control.cardCentre - control.columnCentre))}px`,
   ].join('\n').trimEnd()
 }
 
@@ -261,25 +368,31 @@ describe('web e2e: input card position across view tabs', () => {
     await scaffold?.close()
   })
 
-  it('reserves the gutter in Chat and lets Trajectory own its width', async () => {
+  it('floats the bar in Chat and lets Trajectory own its width', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-composer-tab-geometry-band'))
     await setMeasuredViewport(page, WIDE_VIEWPORT, false)
-    // Vacuity guard. The scenario must be able to fail: on an engine that
-    // does not implement `scrollbar-gutter`, Chat reserves nothing and the
-    // overlay seat's fixed compensation stands alone, manufacturing an 8px
-    // deviation the equal-rectangle assertions would catch. `stable` reserves
-    // even without overflow, so a short transcript is not a vacuous case; the
-    // poll still pins the measurement to the overflowing state the product
-    // ships.
+    // Vacuity guard. The scenario must be able to fail: on an engine that does
+    // not implement the standard scrollbar properties the scrollport takes the
+    // `::-webkit-scrollbar` path instead, which is the layout-consuming bar the
+    // control test forces back on. `stable both-edges` reserves even without
+    // overflow, so a short transcript is not a vacuous case; the poll still
+    // pins the measurement to the overflowing state the product ships.
     await expect.poll(async () => (await measureTab(page)).scrolls, { timeout: 10_000 }).toBe(true)
     const comparison = await compareTabs(page)
-    expect(comparison.chat.band).toBeGreaterThan(0)
-    // Chat keeps the unconditional reservation so its seat's content box never
-    // jumps as the transcript starts to scroll.
-    expect(comparison.chat.gutter).toBe('stable')
+    // `scrollbar-width: thin` asks chromium for an overlay bar, which reserves
+    // no strip at all — the whole point of leaving the pseudo-element path. The
+    // reservation below is therefore the gutter's, not a laid-out bar's.
+    expect(comparison.chat.band).toBe(0)
+    // Symmetric, so the transcript's content column rides the scrollport's own
+    // axis. The seat is a flex sibling of that box, and the card's axis is what
+    // both tabs have to agree on, which is what `axisShift` measures. On an
+    // engine that does still reserve for a thin bar, `both-edges` is what keeps
+    // this reading at zero; a one-sided `stable` would move the column by half
+    // the reserved width and the control test measures exactly that shift.
+    expect(comparison.chat.gutter).toBe('stable both-edges')
+    expect(comparison.axisShift).toBe(0)
     // The overlay branch does NOT reserve: the view owns its own scrollers, so
-    // a reserved gutter would only narrow the view's content by the bar's
-    // width. The seat compensates instead, which the next test asserts.
+    // a reserved gutter would only narrow the view's content on both edges.
     expect(comparison.trajectory.gutter).toBe('auto')
     expect(comparison.trajectory.band).toBe(0)
     // Declared as a scroll container on both axes rather than left to compute:
@@ -297,8 +410,9 @@ describe('web e2e: input card position across view tabs', () => {
     await setMeasuredViewport(page, WIDE_VIEWPORT, false)
     const comparison = await compareTabs(page)
     // The reported symptom as a number. At this viewport the card sits at its
-    // width cap, so the uncompensated cascade's shift shows up as a centring
-    // difference — half the band on each edge — rather than as a width change.
+    // width cap, so a scrollport that reserved a one-sided band would show up
+    // as a centring difference — half the band on each edge — rather than as a
+    // width change.
     expect(comparison.leftShift).toBe(0)
     expect(comparison.rightShift).toBe(0)
     expect(comparison.widthShift).toBe(0)
@@ -324,24 +438,37 @@ describe('web e2e: input card position across view tabs', () => {
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
 
-  it('moves the card again once the seat compensation is removed in the page', async () => {
+  it('moves the transcript off the card once a laid-out bar is forced back on in the page', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-composer-tab-geometry-control'))
     await setMeasuredViewport(page, WIDE_VIEWPORT, false)
-    // The control: without it, equal rectangles could also mean the tab switch
-    // never reached the layout. Under the uncompensated cascade the overlay seat
-    // loses its `right` compensation and measures the full padding box, so the
-    // card moves by half the band on each edge. Chat's own reservation is
-    // untouched — that is the side that must not change.
-    const comparison = await compareTabsWithoutCompensation(page)
-    expect(comparison.chat.gutter).toBe('stable')
-    expect(comparison.chat.band).toBeGreaterThan(0)
-    expect(comparison.trajectory.band).toBe(0)
-    expect(comparison.leftShift).toBe(comparison.chat.band / 2)
-    expect(comparison.rightShift).toBe(comparison.chat.band / 2)
-    // Restoring the sheet restores the compensation, so the control cannot leak
+    await showTab(page, 'Chat')
+    const neutralCard = await measureTab(page)
+    const neutralColumn = await measureColumn(page)
+    // The control: without it, an equal transcript/card axis could also mean the
+    // stylesheet moved neither. The injected cascade takes the standard
+    // properties away from Chat's scrollport, which puts the layout-consuming
+    // pseudo-element bar back, and drops the reservation that had held the
+    // transcript on the composer's axis. Measured: band 15, gutter `auto`, and
+    // the content column 7.5px left of the card's centre.
+    const control = await measureChatWithReservedBar(page)
+    expect(control.band).toBeGreaterThan(0)
+    expect(control.gutter).toBe('auto')
+    expect(control.cardCentre - control.columnCentre).toBe(control.band / 2)
+    // The neutral read is the other half of the control: the same two elements
+    // sit on one axis until the reservation goes.
+    expect(neutralCard.band).toBe(0)
+    expect(neutralColumn.cardCentre - neutralColumn.columnCentre).toBe(0)
+    // The card is the side that must not change: the seat spans the box's full
+    // width, so an unreserved bar moves only what scrolls inside it.
+    expect(control.cardLeft).toBe(neutralCard.cardLeft)
+    expect(control.cardRight).toBe(neutralCard.cardRight)
+    expect(control.cardWidth).toBe(neutralCard.cardWidth)
+    // Restoring the sheet restores the reservation, so the control cannot leak
     // into the remaining measurements.
-    const restored = await compareTabs(page)
-    expect(restored.leftShift).toBe(0)
+    const restoredCard = await measureTab(page)
+    const restoredColumn = await measureColumn(page)
+    expect(restoredCard.band).toBe(0)
+    expect(restoredColumn.cardCentre - restoredColumn.columnCentre).toBe(0)
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
 
@@ -352,7 +479,10 @@ describe('web e2e: input card position across view tabs', () => {
     await setMeasuredViewport(page, NARROW_VIEWPORT, true)
     const narrow = await compareTabs(page)
     await setMeasuredViewport(page, WIDE_VIEWPORT, false)
-    const control = await compareTabsWithoutCompensation(page)
+    // `compareTabs` leaves Trajectory elected, and the control reads Chat's own
+    // transcript axis, so Chat has to be back on screen before it runs.
+    await showTab(page, 'Chat')
+    const control = await measureChatWithReservedBar(page)
     await compareOrRefreshGolden(GEOMETRY_EXPECTED, renderGeometry(wide, narrow, control), MODE)
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)

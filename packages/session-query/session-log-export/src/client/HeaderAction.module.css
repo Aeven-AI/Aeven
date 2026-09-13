@@ -11,8 +11,8 @@
   color: var(--dsw-alias-label-primary);
   background: transparent;
   font-family: var(--dsw-font-family);
-  font-size: 13px;
-  font-weight: 400;
+  font-size: 14px;
+  font-weight: 450;
   line-height: 20px;
   cursor: pointer;
 }

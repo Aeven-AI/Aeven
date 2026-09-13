@@ -30,6 +30,22 @@ export const FONT_SIZE_MAX = 17
  *  16px matches the Aeven design-system body scale (16px/30px, 450). */
 export const DEFAULT_FONT_SIZE = 16
 
+/**
+ * The secondary content font size for one body size. The tier is the step
+ * under the body: one step below 14, two steps below 16 and up. Sizes 14 and
+ * 15 would land on 13px, which is not a size this UI has, so the tier holds
+ * the 14px floor there and equals the body size instead. The mapping lives
+ * here rather than in a `min`/`max` chain because no such chain can skip a
+ * single value in the middle of a ladder.
+ * @param fontSize - body content font size in px.
+ * @returns the secondary size in px.
+ */
+export function secondaryFontSize(fontSize: number): number {
+  if (fontSize <= 13) return fontSize - 1
+  if (fontSize >= 16) return fontSize - 2
+  return 14
+}
+
 /** Durable theme section shared by the Host schema and the browser scope. */
 export interface ThemeSettings {
   /** Selected built-in preference. */

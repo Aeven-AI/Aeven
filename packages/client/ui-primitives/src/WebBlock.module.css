@@ -65,7 +65,7 @@
 .snippet {
   margin-top: 2px;
   color: var(--dsw-alias-label-secondary);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 19px;
   word-break: break-word;
 }
@@ -73,18 +73,18 @@
 .published {
   margin-top: 2px;
   color: var(--dsw-alias-label-tertiary);
-  font: var(--dsw-font-xs-13);
+  font: var(--dsw-font-xs-14);
 }
 
 .truncated {
   margin-top: 8px;
   color: var(--dsw-alias-label-tertiary);
-  font: var(--dsw-font-xs-13);
+  font: var(--dsw-font-xs-14);
 }
 
 .empty {
   color: var(--dsw-alias-label-secondary);
-  font: var(--dsw-font-xs-13);
+  font: var(--dsw-font-xs-14);
 }
 
 /* The fetch card is a compact summary: the URL over a status/truncation row. */
@@ -97,7 +97,7 @@
 .fetchUrl {
   color: var(--dsw-alias-state-business-primary);
   font-family: var(--ds-font-family-code);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 19px;
   word-break: break-all;
 }
@@ -114,7 +114,7 @@
 
 .status {
   color: var(--dsw-alias-label-secondary);
-  font: var(--dsw-font-xs-13);
+  font: var(--dsw-font-xs-14);
 }
 
 /* The fetch card's truncation note sits inline beside the status, so it drops

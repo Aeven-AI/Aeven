@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { DEFAULT_FONT_SIZE } from '@deepseek-ai/dsh-client-ui-theme/src/theme-settings.ts'
+import { DEFAULT_FONT_SIZE, secondaryFontSize } from '@deepseek-ai/dsh-client-ui-theme/src/theme-settings.ts'
 import type { ThemeSnapshot } from '@deepseek-ai/dsh-client-ui-theme/client'
 import { DARK_ATTRIBUTE, ThemePresenter } from '@deepseek-ai/dsh-client-ui-layout/src/client/theme-presenter.ts'
 
@@ -15,7 +15,8 @@ function snapshot(
 ): ThemeSnapshot {
   // The presenter must key off colorScheme, not the id — keep them distinct.
   const active = { id: `${colorScheme}-test`, colorScheme, tokens }
-  return { preference: colorScheme, fontSize, active, themes: [active], revision: 1 }
+  // ui-theme resolves the secondary tier before publishing; mirror that here.
+  return { preference: colorScheme, fontSize, secondaryFontSize: secondaryFontSize(fontSize), active, themes: [active], revision: 1 }
 }
 
 function clearThemePresentation(): void {
@@ -86,6 +87,17 @@ describe('ThemePresenter', () => {
     expect(document.body.style.getPropertyValue('--dsh-content-font-size')).toBe('17px')
   })
 
+  it('publishes the secondary size from the same snapshot, never landing on 13px', () => {
+    const presenter = new ThemePresenter()
+    presenter.apply(snapshot('light', {}, 16))
+    expect(document.body.style.getPropertyValue('--dsh-content-font-size-secondary')).toBe('14px')
+    // 14 and 15 hold the floor: the tier's step under them would be 13px.
+    presenter.apply(snapshot('light', {}, 14))
+    expect(document.body.style.getPropertyValue('--dsh-content-font-size-secondary')).toBe('14px')
+    presenter.apply(snapshot('light', {}, 13))
+    expect(document.body.style.getPropertyValue('--dsh-content-font-size-secondary')).toBe('12px')
+  })
+
   it('dispose removes color-scheme, the attribute, the font-size axis, and every applied variable, sparing foreign inline styles', () => {
     document.body.style.setProperty('--foreign', 'kept')
     const presenter = new ThemePresenter()
@@ -96,6 +108,7 @@ describe('ThemePresenter', () => {
     expect(document.body.hasAttribute(DARK_ATTRIBUTE)).toBe(false)
     expect(document.body.style.getPropertyValue('--dsw-alias-bg')).toBe('')
     expect(document.body.style.getPropertyValue('--dsh-content-font-size')).toBe('')
+    expect(document.body.style.getPropertyValue('--dsh-content-font-size-secondary')).toBe('')
     expect(document.body.style.getPropertyValue('--foreign')).toBe('kept')
     expect(meta?.isConnected).toBe(false)
   })
