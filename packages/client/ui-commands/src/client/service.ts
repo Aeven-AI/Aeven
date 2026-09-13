@@ -199,12 +199,18 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
    * @param sessionId - the session whose shell opens.
    * @param command - command name the shell serves (its log/error label).
    * @param spec - the popupSelect spec the control opens.
+   * @param anchor - the control's element, so the card can line up with it.
    * @returns whether the session resolved a scope and the shell opened.
    */
-  openSelect(sessionId: SessionId, command: string, spec: CommandUiSpec): boolean {
+  openSelect(
+    sessionId: SessionId,
+    command: string,
+    spec: CommandUiSpec,
+    anchor: Element | null = null,
+  ): boolean {
     const actx = this.scopeFor(sessionId)
     if (actx === undefined) return false
-    this.popupFor(actx).open(command, spec, { sessionId }, { via: 'button' })
+    this.popupFor(actx).open(command, spec, { sessionId }, { via: 'button' }, anchor)
     return true
   }
 

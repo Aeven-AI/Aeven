@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
 /**
  * The composer model seat is a two-level entry: a trigger that opens a
- * Model/Effort chooser whose rows hand over to the shared popupSelect shell.
+ * Model/Effort chooser, the Model row handing over to the shared popupSelect
+ * shell and the Effort row drilling into the seat's own pane.
  * These cases pin the part the seat owns — the labels, the chooser's rows and
- * what each one opens, the aria contract, and the locked/unavailable states.
- * Row building, search, and submission belong to the shared specs and are
- * covered in browser-plugin.client.spec.ts.
+ * what each one opens, the drilled levels and what picking one submits, the
+ * aria contract, and the locked/unavailable states. The model list's row
+ * building, search, and submission belong to the shared specs and are covered
+ * in browser-plugin.client.spec.ts.
  */
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { ComponentProps } from 'react'
@@ -65,17 +67,17 @@ function seat(
   const store = createSnapshotStore<ModelDirectoryState>(directory)
   const load = vi.fn()
   const openModel = vi.fn()
-  const openEffort = vi.fn()
+  const selectEffort = vi.fn(() => Promise.resolve(true))
   render(<ModelSelect
     locked={opts.locked ?? false}
     available={opts.available ?? true}
     directory={store}
     load={load}
     openModel={openModel}
-    openEffort={openEffort}
+    selectEffort={selectEffort}
     t={t}
   />)
-  return { store, load, openModel, openEffort }
+  return { store, load, openModel, selectEffort }
 }
 
 /** Open the chooser and return its rows. */
@@ -88,7 +90,7 @@ afterEach(cleanup)
 
 describe('ModelSelect chooser', () => {
   it('shows the model name with the adapter-effective effort and opens the chooser on press', () => {
-    const { load, openModel, openEffort } = seat(state())
+    const { load, openModel, selectEffort } = seat(state())
     const trigger = screen.getByRole('button', {
       name: '选择模型，当前 DeepSeek-V4-Flash，推理等级 High',
     })
@@ -100,27 +102,92 @@ describe('ModelSelect chooser', () => {
     // The chooser is a step of its own: opening it resolves nothing yet.
     expect(load).toHaveBeenCalledTimes(1)
     expect(openModel).not.toHaveBeenCalled()
-    expect(openEffort).not.toHaveBeenCalled()
+    expect(selectEffort).not.toHaveBeenCalled()
     expect(rows.map(row => row.textContent)).toEqual([
       '模型DeepSeek-V4-Flash',
       '推理等级High',
     ])
   })
 
-  it('opens the model list from the Model row and the effort list from the Effort row', () => {
-    const { openModel, openEffort } = seat(state())
+  it('opens the model list from the Model row, handing the shell its own trigger as the anchor', () => {
+    const { openModel, selectEffort } = seat(state())
     const [modelRow] = openChooser()
+    const trigger = screen.getByRole('button', { name: /当前 DeepSeek-V4-Flash/ })
 
     fireEvent.click(modelRow!)
     expect(openModel).toHaveBeenCalledTimes(1)
-    expect(openEffort).not.toHaveBeenCalled()
+    // The card is anchored to the control that opened it, not to the composer.
+    expect(openModel.mock.calls[0]![0]).toBe(trigger)
+    expect(selectEffort).not.toHaveBeenCalled()
     // Handing over closes the chooser; the list is the shared shell's.
     expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('opens the effort pane in the seat and submits the picked level', async () => {
+    const { openModel, selectEffort } = seat(state())
 
     fireEvent.click(screen.getByRole('button', { name: /当前 DeepSeek-V4-Flash/ }))
     fireEvent.click(screen.getAllByRole('menuitem')[1]!)
-    expect(openEffort).toHaveBeenCalledTimes(1)
-    expect(openModel).toHaveBeenCalledTimes(1)
+
+    // Same card, drilled one level: the levels are the model's own, the one in
+    // force is checked, and nothing is submitted until one is picked.
+    const levels = screen.getAllByRole('menuitemradio')
+    expect(levels.map(level => level.textContent)).toEqual(['Off', 'High', 'Max'])
+    expect(levels.map(level => level.getAttribute('aria-checked'))).toEqual(['false', 'true', 'false'])
+    expect(openModel).not.toHaveBeenCalled()
+    expect(selectEffort).not.toHaveBeenCalled()
+
+    fireEvent.click(levels[2]!)
+    expect(selectEffort).toHaveBeenCalledWith('max')
+    // The chooser closes on the accepted submit.
+    await act(async () => { await Promise.resolve() })
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('keeps the pane open with a notice when the host refuses the level', async () => {
+    const store = createSnapshotStore<ModelDirectoryState>(state())
+    let settle!: (accepted: boolean) => void
+    const selectEffort = vi.fn(() => new Promise<boolean>((resolve) => { settle = resolve }))
+    // The notice anchors to the composer card, exactly as it does in the app.
+    render(<div data-composer-card>
+      <ModelSelect
+        locked={false}
+        available
+        directory={store}
+        load={() => {}}
+        openModel={() => {}}
+        selectEffort={selectEffort}
+        t={t}
+      />
+    </div>)
+
+    fireEvent.click(screen.getByRole('button', { name: /当前 DeepSeek-V4-Flash/ }))
+    fireEvent.click(screen.getAllByRole('menuitem')[1]!)
+    fireEvent.click(screen.getAllByRole('menuitemradio')[2]!)
+
+    // The refusal lands with its text on the shared store, which is what the
+    // notice reads; the pane stays where it was instead of closing on a
+    // selection that never happened.
+    await act(async () => {
+      store.update((s) => { s.error = '409: refused' })
+      settle(false)
+      await Promise.resolve()
+    })
+    expect(screen.getByRole('menu')).toBeTruthy()
+    await waitFor(() => { expect(screen.getByText(/选择失败/)).toBeTruthy() })
+  })
+
+  it('backs out of the effort pane with Escape before closing the card', () => {
+    seat(state())
+    fireEvent.click(screen.getByRole('button', { name: /当前 DeepSeek-V4-Flash/ }))
+    fireEvent.click(screen.getAllByRole('menuitem')[1]!)
+    expect(screen.getAllByRole('menuitemradio')).toHaveLength(3)
+
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    // Back on the root, not closed.
+    expect(screen.getAllByRole('menuitem')).toHaveLength(2)
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    expect(screen.queryByRole('menu')).toBeNull()
   })
 
   it('presents the trigger as a menu button reflecting its own expanded state', () => {
@@ -132,15 +199,15 @@ describe('ModelSelect chooser', () => {
     expect(trigger.getAttribute('aria-expanded')).toBe('true')
   })
 
-  it('closes the chooser on Escape without opening either list', () => {
-    const { openModel, openEffort } = seat(state())
+  it('closes the chooser on Escape without opening the model list', () => {
+    const { openModel, selectEffort } = seat(state())
     const trigger = screen.getByRole('button', { name: /当前 DeepSeek-V4-Flash/ })
     fireEvent.click(trigger)
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
 
     expect(screen.queryByRole('menu')).toBeNull()
     expect(openModel).not.toHaveBeenCalled()
-    expect(openEffort).not.toHaveBeenCalled()
+    expect(selectEffort).not.toHaveBeenCalled()
   })
 
   it('offers no Effort row for a model whose adapter advertises no levels', () => {

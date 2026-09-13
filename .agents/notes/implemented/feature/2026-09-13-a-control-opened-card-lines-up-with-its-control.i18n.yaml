@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-13-a-control-opened-card-lines-up-with-its-control.md
+2026-09-13-a-control-opened-card-lines-up-with-its-control.md: eeed5d0f160b0e12df011f14b8eed84a7c250e22
+2026-09-13-a-control-opened-card-lines-up-with-its-control.zh.md: aa3c374e9ecea484c15605e9c4d4ea46b72f3b2f

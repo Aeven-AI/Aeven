@@ -90,6 +90,41 @@ describe('PopupSelectView', () => {
     expect(rowLabels()).toEqual(['Dark', 'Light', 'Sepia'])
   })
 
+  it('lines a control-opened card up with its anchor, and leaves a token-opened card on the composer edge', async () => {
+    // The overlay anchor (the card's parent) is a 300px strip, and the control
+    // that opened the card ends 220px into it — so the card's trailing edge
+    // belongs 80px from the strip's own trailing edge.
+    const box = (right: number): DOMRect => ({
+      right, left: 0, top: 0, bottom: 0, width: right, height: 0,
+      x: 0, y: 0, toJSON: () => ({}),
+    }) as DOMRect
+    const anchor = document.createElement('button')
+    document.body.append(anchor)
+    anchor.getBoundingClientRect = () => box(220)
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) { return this === anchor ? box(220) : box(300) })
+
+    const popup = new PopupSelectController<string>({ consume: () => true, focusComposer: () => {} })
+    render(<PopupSelectView popup={popup} t={t} />)
+    const card = (): HTMLElement => screen.getByRole('listbox').parentElement as HTMLElement
+
+    await act(async () => {
+      popup.open('theme', spec(), 'ctx-A', SEGMENT, anchor)
+      await Promise.resolve()
+    })
+    expect(card().style.right).toBe('80px')
+    expect(card().style.left).toBe('auto')
+
+    await act(async () => {
+      popup.open('theme', spec(), 'ctx-A', SEGMENT)
+      await Promise.resolve()
+    })
+    // No anchor: the card keeps the stylesheet's placement on the composer edge.
+    expect(card().style.right).toBe('')
+    expect(card().style.left).toBe('')
+    anchor.remove()
+  })
+
   it('typing filters rows locally and rebases the highlight', async () => {
     const options = vi.fn(() => Promise.resolve(OPTIONS))
     const { search } = await mountOpen({ options })
