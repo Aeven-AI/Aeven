@@ -125,6 +125,30 @@ describe('PopupSelectView', () => {
     anchor.remove()
   })
 
+  it('holds the widest width it has shown instead of narrowing as rows filter away', async () => {
+    // jsdom lays nothing out, so the card is as wide as its row count says: a
+    // stubbed 100px per row makes "the box narrowed" observable.
+    const box = (width: number): DOMRect => ({
+      right: width, left: 0, top: 0, bottom: 0, width, height: 0,
+      x: 0, y: 0, toJSON: () => ({}),
+    })
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      return box(100 + 50 * this.querySelectorAll('[role="option"]').length)
+    })
+
+    const { search } = await mountOpen()
+    const card = (): HTMLElement => screen.getByRole('listbox').parentElement as HTMLElement
+    expect(card().style.minWidth).toBe('250px')
+
+    act(() => { fireEvent.change(search, { target: { value: 'sepia' } }) })
+    // One row left, and the box keeps the width the full list gave it.
+    expect(screen.getAllByRole('option')).toHaveLength(1)
+    expect(card().style.minWidth).toBe('250px')
+
+    act(() => { fireEvent.change(search, { target: { value: '' } }) })
+    expect(card().style.minWidth).toBe('250px')
+  })
+
   it('typing filters rows locally and rebases the highlight', async () => {
     const options = vi.fn(() => Promise.resolve(OPTIONS))
     const { search } = await mountOpen({ options })
