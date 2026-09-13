@@ -33,6 +33,13 @@ describe('reasoning blocks', () => {
     expect(document.querySelectorAll('.reasoning-content li')).toHaveLength(2)
   })
 
+  it('mounts a settled block collapsed with its trace still in the DOM', () => {
+    const reasoning = parseMarkup(renderStatic(source)).querySelector('.reasoning-wrapper')
+
+    expect(reasoning?.className).toContain('collapsed')
+    expect(reasoning?.querySelector('.reasoning-content')?.textContent).toContain('Let me reason.')
+  })
+
   it('leaves the answer outside the block', () => {
     const document = parseMarkup(renderStreamed(source, 4))
     const answer = [...document.querySelectorAll('p')].find(

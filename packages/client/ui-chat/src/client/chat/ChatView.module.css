@@ -168,7 +168,8 @@
    move the rows a pending prepend is compensating. */
 .olderSlot {
   position: absolute;
-  top: 0;
+  /* Below the host's Session header, which overlays the top of the chrome layer. */
+  top: var(--dsh-session-header-height, 0px);
   right: 0;
   left: 0;
   /* Above transcript CodeBlock banners (z-index 6), below back-to-bottom. */

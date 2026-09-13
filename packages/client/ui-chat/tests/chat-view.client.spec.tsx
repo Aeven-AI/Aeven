@@ -971,7 +971,7 @@ describe('ChatView', () => {
     expect(h.toolOwners[0]).toMatchObject({ callId: 'w1', toolName: '' })
   })
 
-  it('prepend keeps the reader\'s latest pending-request scroll position anchored', () => {
+  it('prepend keeps the reader\'s latest scroll position anchored', () => {
     const h = makeHarness(
       { nodes: [user(9, 'first visible'), user(10, 'next visible')] },
       { hasMore: true },
@@ -980,29 +980,30 @@ describe('ChatView', () => {
     const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement
     const first = view.container.querySelector('[data-chat-flow-key="fixture:user:9"]') as HTMLDivElement
     const next = view.container.querySelector('[data-chat-flow-key="fixture:user:10"]') as HTMLDivElement
-    let firstTop = 100
-    let nextTop = 300
+    // Content offsets: scrolling never changes them, only layout above a row does.
+    let firstOffset = 100
+    let nextOffset = 300
     vi.spyOn(scroller, 'getBoundingClientRect').mockImplementation(
       () => ({ top: 0, bottom: 200 } as DOMRect),
     )
-    vi.spyOn(first, 'getBoundingClientRect').mockImplementation(
-      () => ({ top: firstTop, bottom: firstTop + 40 } as DOMRect),
-    )
-    vi.spyOn(next, 'getBoundingClientRect').mockImplementation(
-      () => ({ top: nextTop, bottom: nextTop + 40 } as DOMRect),
-    )
+    vi.spyOn(first, 'getBoundingClientRect').mockImplementation(() => {
+      const top = firstOffset - scroller.scrollTop
+      return { top, bottom: top + 40 } as DOMRect
+    })
+    vi.spyOn(next, 'getBoundingClientRect').mockImplementation(() => {
+      const top = nextOffset - scroller.scrollTop
+      return { top, bottom: top + 40 } as DOMRect
+    })
     Object.defineProperty(scroller, 'scrollHeight', { value: 800, writable: true })
     Object.defineProperty(scroller, 'clientHeight', { value: 200, writable: true })
-    // Scrolling within the prefetch margin starts the pull; no gesture on a
-    // control is involved.
+    // Scrolling within the prefetch margin starts the pull.
     readerScroll(scroller, 50)
-    // The reader moves after the request starts; this, not the row under the
-    // head when it started, is the intent the arriving page must preserve.
-    firstTop = -200
-    nextTop = 60
+    // The reader keeps moving while the request is in flight; the arriving
+    // page must preserve this position, not the one the pull started from.
     readerScroll(scroller, 90)
     Object.defineProperty(scroller, 'scrollHeight', { value: 1300, writable: true })
-    nextTop = 560
+    firstOffset += 500
+    nextOffset += 500
     act(() => {
       h.setChat({ nodes: [assistant(2, 'older'), user(9, 'first visible'), user(10, 'next visible')] })
     })
@@ -1031,7 +1032,8 @@ describe('ChatView', () => {
 
       readerScroll(scroller, 100)
 
-      expect(hitTest).toHaveBeenCalledTimes(1)
+      // One hit test for the saved position, one for the reading anchor.
+      expect(hitTest).toHaveBeenCalledTimes(2)
       expect(h.chatScroll.read()?.anchorKey).toBe('fixture:user:1')
     } finally {
       if (originalHitTest !== undefined) {
@@ -1052,7 +1054,7 @@ describe('ChatView', () => {
     const view = render(<h.ChatView {...h.props} />)
     const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement
     const rows = [...view.container.querySelectorAll<HTMLElement>('[data-chat-flow-key]')]
-    let prepended = false
+    let shift = 0
     let rowRectCalls = 0
     vi.spyOn(scroller, 'getBoundingClientRect').mockImplementation(
       () => ({ top: 0, bottom: 200 } as DOMRect),
@@ -1060,14 +1062,12 @@ describe('ChatView', () => {
     rows.forEach((row, index) => {
       vi.spyOn(row, 'getBoundingClientRect').mockImplementation(() => {
         rowRectCalls += 1
-        const shift = prepended ? (index === 8 ? 400 : 500) : 0
-        const top = 20 + (index - 8) * 60 + shift
+        const top = 70 + (index - 8) * 60 + shift - scroller.scrollTop
         return { top, bottom: top + 40 } as DOMRect
       })
     })
     Object.defineProperty(scroller, 'scrollHeight', { value: 800, writable: true })
     Object.defineProperty(scroller, 'clientHeight', { value: 200, writable: true })
-    readerScroll(scroller, 50)
 
     const hitTest = vi.fn((_x: number, _y: number): Element[] => [])
     Object.defineProperty(document, 'elementsFromPoint', {
@@ -1076,22 +1076,19 @@ describe('ChatView', () => {
     })
     try {
       rowRectCalls = 0
-      // One raw scroll event = one automatic paging test, so this measures a
-      // single anchor capture with the viewport hit test missing.
-      fireEvent.scroll(scroller)
-      expect(hitTest).toHaveBeenCalledTimes(1)
-      expect(hitTest.mock.calls[0]?.[1]).toBe(1)
-      expect(rowRectCalls).toBeLessThanOrEqual(6)
+      readerScroll(scroller, 50)
+      // Every hit test aims one pixel below the scrollport top, and the
+      // bisection fallback stays logarithmic in the mounted rows.
+      expect(hitTest).toHaveBeenCalled()
+      expect(hitTest.mock.calls.every(call => call[1] === 1)).toBe(true)
+      expect(rowRectCalls).toBeLessThanOrEqual(24)
 
-      // Settle the scroll burst: commit-time compensation is suppressed while
-      // a sample is still pending.
-      fireEvent(scroller, new Event('scrollend'))
       Object.defineProperty(scroller, 'scrollHeight', { value: 1_300, writable: true })
-      prepended = true
+      shift = 500
       act(() => {
         h.setChat({ nodes: [assistant(2, 'older'), ...nodes] })
       })
-      expect(scroller.scrollTop).toBe(450) // reader offset 50 + first visible row's 400px shift
+      expect(scroller.scrollTop).toBe(550) // reader offset 50 + the anchored row's 500px shift
     } finally {
       if (originalHitTest !== undefined) {
         Object.defineProperty(document, 'elementsFromPoint', originalHitTest)
@@ -1482,10 +1479,9 @@ describe('ChatView', () => {
     expect(members).toHaveLength(3)
     expect(members.map(member => member.getAttribute('hidden')))
       .toEqual(['until-found', 'until-found', 'until-found'])
-    // The reasoning fold is sealed while the reader has not opened it, so the
-    // trace itself is not in the DOM until they do.
-    expect(members[0]?.querySelector('.reasoning-wrapper')).not.toBeNull()
-    expect(members[0]?.querySelector('.reasoning-content')).toBeNull()
+    // The settled reasoning fold mounts collapsed; the trace stays in the DOM
+    // behind the wrapper class.
+    expect(members[0]?.querySelector('.reasoning-wrapper')?.className).toContain('collapsed')
     expect(members[1]?.textContent).toContain('bash:a')
     expect(members[2]?.textContent).toContain('subagent:b')
     expect(view.getByText('final answer')).toBeTruthy()
@@ -1711,12 +1707,13 @@ describe('ChatView', () => {
     expect(toggle.getAttribute('aria-expanded')).toBe('false')
     expect(reasoning?.getAttribute('hidden')).toBe('until-found')
     expect(view.getByText('final answer')).toBeTruthy()
-    // The fold is what keeps the trace off screen; opening it and then the
-    // block draws the trace, which the engine renders collapsed.
-    expect(reasoning?.textContent).not.toContain('private analysis')
+    // The fold keeps the trace off screen, and the engine mounts the settled
+    // block collapsed; the reader's second click opens the block itself.
+    expect(reasoning?.querySelector('.reasoning-wrapper')?.className).toContain('collapsed')
     fireEvent.click(toggle)
     expect(view.getByText('思考了 0 秒')).toBeTruthy()
     fireEvent.click(view.getByText('思考了 0 秒'))
+    expect(reasoning?.querySelector('.reasoning-wrapper')?.className).toContain('open')
     expect(view.container.textContent).toContain('private analysis')
   })
 
@@ -2876,16 +2873,16 @@ describe('ChatView', () => {
     const h = makeHarness({ nodes: [user(5, 'later')] }, { hasMore: true })
     const view = render(<h.ChatView {...h.props} />)
     const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement
-    Object.defineProperty(scroller, 'scrollHeight', { value: 4_000, writable: true })
+    Object.defineProperty(scroller, 'scrollHeight', { value: 8_000, writable: true })
     Object.defineProperty(scroller, 'clientHeight', { value: 400, writable: true })
     h.loadOlder.mockClear()
 
-    // Beyond the margin the head is nowhere near: no pull.
-    readerScroll(scroller, 1_400)
+    // Beyond the four-screen margin the head is nowhere near: no pull.
+    readerScroll(scroller, 1_700)
     expect(h.loadOlder).not.toHaveBeenCalled()
 
     // Inside it, the scroll gesture itself is the request.
-    readerScroll(scroller, 400)
+    readerScroll(scroller, 1_500)
     expect(h.loadOlder).toHaveBeenCalledTimes(1)
 
     // A pull already in flight owns the pager; scrolling does not stack more.

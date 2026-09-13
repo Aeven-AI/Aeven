@@ -2357,6 +2357,10 @@
   }
 
   .reasoning-wrapper.collapsed {
+    .reasoning-content {
+      display: none;
+    }
+
     .reasoning-chevron svg {
       transform: rotate(-90deg);
     }

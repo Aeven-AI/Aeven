@@ -33,6 +33,8 @@
   --dsh-composer-card-max-width: var(--dsh-chat-content-width);
   --dsh-composer-side-clearance: var(--dsw-aeven-page-inset);
   --dsh-composer-dock-inset: 8px;
+  /* Session header overlay height; slot-owned chrome under it offsets by this. */
+  --dsh-session-header-height: 56px;
 }
 
 /* A dragged preference replaces the baseline term, clamped in CSS against the
@@ -60,7 +62,7 @@
   right: 0;
   left: 0;
   z-index: 30;
-  height: 56px;
+  height: var(--dsh-session-header-height);
   align-items: center;
   justify-content: flex-end;
   box-sizing: border-box;
