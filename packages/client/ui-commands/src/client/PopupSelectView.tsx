@@ -84,10 +84,17 @@ export function PopupSelectView({ popup, t }: PopupSelectViewProps) {
     if (width > minWidth + 1) setMinWidth(width)
   }, [state.open, state.search, state.options, state.status, minWidth])
 
+  // A pointer hover moves the highlight without moving the list. Revealing the
+  // hovered row would scroll a row clipped by the viewport's edge fully into
+  // view, which slides a different row under the cursor, which hovers, which
+  // scrolls — the list would walk away from the pointer. Every other reason the
+  // highlight moves (opening, typing, the arrow keys) still reveals its row.
+  const pointerHighlight = useRef(false)
+  useEffect(() => { pointerHighlight.current = false }, [state.open, state.search])
   // The search input keeps focus while arrows move a virtual highlight, so
   // the browser never scrolls the active row into view — do it here.
   useEffect(() => {
-    if (active === null) return
+    if (active === null || pointerHighlight.current) return
     cardRef.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' })
   }, [active])
 
@@ -122,10 +129,12 @@ export function PopupSelectView({ popup, t }: PopupSelectViewProps) {
     switch (ev.key) {
       case 'ArrowDown':
         ev.preventDefault()
+        pointerHighlight.current = false
         popup.move(1)
         return
       case 'ArrowUp':
         ev.preventDefault()
+        pointerHighlight.current = false
         popup.move(-1)
         return
       case 'Enter':
@@ -194,7 +203,10 @@ export function PopupSelectView({ popup, t }: PopupSelectViewProps) {
                   // owns focus anyway, so a plain click (inside the card → no
                   // dismiss) works.
                   onClick={() => { void popup.select(index) }}
-                  onMouseEnter={() => { popup.highlight(index) }}
+                  onMouseEnter={() => {
+                    pointerHighlight.current = true
+                    popup.highlight(index)
+                  }}
                 >
                   <span className={css.label}>{option.label}</span>
                   {option.detail !== undefined && <span className={css.detail}>{option.detail}</span>}

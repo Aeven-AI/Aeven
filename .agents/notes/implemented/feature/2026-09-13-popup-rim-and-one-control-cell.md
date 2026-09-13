@@ -23,7 +23,7 @@ box-shadow:
   var(--dsw-elevation-prominent);
 ```
 
-Every popup row is the Menu's control cell: `min-height: var(--dsw-aeven-control-size)`, `padding: 8px`, `border-radius: var(--dsw-aeven-radius-control)`, `gap: 8px`, `font-size: 14px`, `line-height: 22px`. That is applied to the `popupSelect` row, the seat's chooser cell (which keeps `height`, now stated as the same token) and the seat's effort row. The search field's radius follows the control radius; its padding, margin, and hairline are unchanged.
+Every popup row is the Menu's control cell: `min-height: var(--dsw-aeven-control-size)`, `padding: 8px`, `border-radius: var(--dsw-aeven-radius-control)`, `gap: 8px`, `font-size: 14px`, `line-height: 22px`. That is applied to the `popupSelect` row, the seat's chooser cell (which keeps `height`, now stated as the same token) and the seat's effort row. Every other inset in the two cards follows the same reference: the seat's card pads 8 like the Menu card rather than 4, and the shell card's search field and its status and error strips take the row's 8px inset — the field at the same 40px control height — so every line of text in a card starts 16px from its edge.
 
 ## Alternatives considered
 

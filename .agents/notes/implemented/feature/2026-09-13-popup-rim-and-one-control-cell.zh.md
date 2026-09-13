@@ -23,7 +23,7 @@ box-shadow:
   var(--dsw-elevation-prominent);
 ```
 
-每个弹窗行都采用 Menu 的控件单元格：`min-height: var(--dsw-aeven-control-size)`、`padding: 8px`、`border-radius: var(--dsw-aeven-radius-control)`、`gap: 8px`、`font-size: 14px`、`line-height: 22px`。这适用于 `popupSelect` 的行、席位的选择器单元格（保留 `height`，只是改为同一个 token）以及席位的推理强度行。搜索框的圆角跟随控件圆角；其内边距、外边距与那条发丝线保持不变。
+每个弹窗行都采用 Menu 的控件单元格：`min-height: var(--dsw-aeven-control-size)`、`padding: 8px`、`border-radius: var(--dsw-aeven-radius-control)`、`gap: 8px`、`font-size: 14px`、`line-height: 22px`。这适用于 `popupSelect` 的行、席位的选择器单元格（保留 `height`，只是改为同一个 token）以及席位的推理强度行。两张卡片中其余的内缩也遵循同一参照：席位卡片内边距为 8（与 Menu 卡片一致，此前是 4），外壳卡片的搜索框及其状态条、错误条都采用行的 8px 内缩——搜索框与行同为 40px 控件高度——因此卡片中每一行文字都从卡片边缘起算 16px。
 
 ## Alternatives considered
 
