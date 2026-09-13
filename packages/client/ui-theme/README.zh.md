@@ -62,11 +62,11 @@ Aeven 基线集中位于 `aeven-language.css`：Google Sans Flex 字体角色、
 `src/styles/` 下有六张样式表，由 ui-theme 的动态客户端 entry 依次导入：`base.css`、`design-platform.css`、`scrollbar.css`、`gradient-shadow-text.css`、`aeven-language.css` 与 `highlight.css`。客户端 bundle 将其编译并注入为插件持有的全局样式，因此卸载与 HMR 会随 ui-theme 一同移除。`scrollbar.css` 是 `--dsw-alias-scrollbar-*` token 的唯一消费方，必须排在声明这些 token 的 `design-platform.css` 之后。`aeven-language.css` 位于生成的排版样式表之后，因此其产品基线可以映射共享变量而无需复制组件规则。`highlight.css` 为 tool card 与 markdown fence 的 highlight.js token class 着色。
 
 
-`gradient-shadow-text.css` 从 `--dsh-content-font-size` 派生 `--dsh-content-font-delta`，并以该增量移动 Markdown 标题与基础文本阶梯。它同时派生低一档变量 `--dsh-content-font-size-secondary`（设置 ≤14 时为设置值 −1，>14 时为设置值 −2；默认设置下为 13px）及配套的 `--dsh-content-font-delta-secondary`，供表格变体与比正文低一档的流内行使用。紧凑的小号文本与代码变体保持固定字号。阶梯之外，用户气泡与 composer 草稿直接读取正文档变量对，流内行的标题及摘要读取低一档变量对。该表还持有阴影阶（`--dsw-shadow-lv*`）与 elevation token：`--dsw-elevation-stroke` 经可重绑的 `--dsw-elevation-stroke-color` 画 0.5px 发丝描边，`--dsw-elevation-panel`/`--dsw-elevation-prominent` 在描边之上叠两层极淡柔光，因此高层级表面设 `border: 0`，不再有占布局的轮廓；派生 token 逐元素重声明，使表面对描边色的重绑真实生效。Aeven composer 明确不使用这些投影（[elevation 笔记](../../../.agents/notes/implemented/feature/2026-09-01-web-elevation-stroke-shadows.zh.md)）。
+`gradient-shadow-text.css` 从 `--dsh-content-font-size` 派生 `--dsh-content-font-delta`，并以该增量移动 Markdown 标题与基础文本阶梯。它同时持有低一档变量 `--dsh-content-font-size-secondary`，供表格变体与比正文低一档的流内行使用，配套的 `--dsh-content-font-delta-secondary` 承载该档的行高位移。该档的映射位于 `src/theme-settings.ts` 的 `secondaryFontSize`——低于 14 时取设置值 −1，14 与 15 时守住 14 下限（再降一级就会落到 13px），16 及以上取设置值 −2——因为任何基于正文字号的 `min`/`max` 组合都无法在阶梯中间跳过单一取值；样式表中声明的只是会被启动脚本与 presenter 覆写的回退值。紧凑的小号文本与代码变体保持固定字号——最小一档为导出的 14px/20px——且每个复合字体 token 都显式写出 450，因为省略字重的 `font` 简写会把它重置为 400。阶梯之外，用户气泡与 composer 草稿直接读取正文档变量对，流内行的标题及摘要读取低一档变量对。该表还持有阴影阶（`--dsw-shadow-lv*`）与 elevation token：`--dsw-elevation-stroke` 经可重绑的 `--dsw-elevation-stroke-color` 画 0.5px 发丝描边，`--dsw-elevation-panel`/`--dsw-elevation-prominent` 在描边之上叠两层极淡柔光，因此高层级表面设 `border: 0`，不再有占布局的轮廓；派生 token 逐元素重声明，使表面对描边色的重绑真实生效。Aeven composer 明确不使用这些投影（[elevation 笔记](../../../.agents/notes/implemented/feature/2026-09-01-web-elevation-stroke-shadows.zh.md)）。
 
 ### 滚动条重新绑定
 
-`scrollbar.css` 在 `body` 上把 `--dsh-scrollbar-thumb` 与 `--dsh-scrollbar-thumb-hover` 绑定到 l1 基础表面 token；高层级表面（菜单、浮层、对话框）在自己的容器上把它们重新绑定为 l2 token；这组变量的另一个合法目标是 `transparent`（ui-sidebar 在指针不在栏内时就这样重新绑定自己的列）。`--dsh-scrollbar-width` 镜像 WebKit 滚动条的布局宽度，供需要与占布局宽度的滚动条对齐的表面使用。两条渲染路径在构造上互斥：Firefox 走 `@supports not selector(::-webkit-scrollbar)` 内的标准属性，WebKit 系引擎走伪元素，因此 hover token 只经由伪元素这条路径渲染（[滚动条笔记](../../../.agents/notes/implemented/bug-fix/2026-07-28-themed-scrollbars-and-reserved-gutter.zh.md)）。
+`scrollbar.css` 在 `body` 上把 `--dsh-scrollbar-thumb` 与 `--dsh-scrollbar-thumb-hover` 绑定到 l1 基础表面 token；高层级表面（菜单、浮层、对话框）在自己的容器上把它们重新绑定为 l2 token；这组变量的另一个合法目标是 `transparent`（ui-trajectory 的摘要区域在既无 hover 也无 focus-within 时就这样重新绑定）。标准属性——`scrollbar-width: thin` 与 `scrollbar-color`——声明在 `body, body *` 上，供每一个实现了它们的引擎使用，因为只有这条路径能给滚动盒子留下完整宽度：正是 `::-webkit-scrollbar` 皮肤把滚动条逼进槽位，并从盒子上切走那条带子。伪元素皮肤则是回退路径，位于 `@supports not (scrollbar-width: thin)` 之内，供无法遵循标准属性的引擎使用（chromium 121 之前、WebKit 在 Safari 26.2 之前），因此 hover token 只在这条路径上渲染。已经没有任何样式表再去补偿滚动条的宽度：会话滚动视口对称地预留自己的槽位，而在滚动条浮动之处则完全不预留（[滚动条笔记](../../../.agents/notes/implemented/bug-fix/2026-09-13-overlay-scrollbars-return-the-gutter.zh.md)）。
 
 ### 偏好持久化
 
@@ -83,7 +83,7 @@ Aeven 基线集中位于 `aeven-language.css`：Google Sans Flex 字体角色、
 
 - [ui-layout](../ui-layout/README.zh.md)——应用解析后主题快照的呈现器。
 - [ui-sidebar](../ui-sidebar/README.zh.md)——滚动条重新绑定约定的消费方。
-- [ui-conversation](../ui-conversation/README.zh.md)——为 composer 席位消费 `--dsh-scrollbar-width` 的消费方。
+- [ui-conversation](../ui-conversation/README.zh.md)——composer 席位与视图 chrome，二者都以滚动视口的对称槽位居中。
 - [Web 样式](../../../docs/web-styling.zh.md)——Web 客户端组件的权威样式规则。
 - [Host 支撑的偏好](../../../.agents/notes/implemented/bug-fix/2026-08-06-host-backed-web-preferences.zh.md)——持久化边界决策。
 

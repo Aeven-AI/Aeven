@@ -1,6 +1,7 @@
 # Agent Note: The sidebar's scrollbars follow the pointer
 
 Status: implemented
+Archived: 2026-09-12
 
 English | [中文](2026-08-04-pointer-revealed-sidebar-scrollbars.zh.md)
 

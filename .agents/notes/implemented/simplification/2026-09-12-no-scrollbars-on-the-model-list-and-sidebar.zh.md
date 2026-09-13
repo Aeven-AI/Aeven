@@ -6,7 +6,7 @@ Status: implemented
 
 ## Problem
 
-有两个表面绘制着内容始终不配拥有的滚动条：模型选择器的列表——它在搜索框之后排布动辄数百行目录——以及侧栏的会话列表——它在加载少量会话后就会溢出。侧栏的滚动条是[指针揭示式侧栏滚动条](../feature/2026-08-04-pointer-revealed-sidebar-scrollbars.zh.md)所确立的交互暗示：指针位于该列之上时绘制，离开后隐藏。即便如此，它读起来仍像固定家具：无论滚动条是否绘制，预留的条带都在；行比它们所在的窄一个条带；并且在列内任何位置移动指针都会把它带回来。
+有两个表面绘制着内容始终不配拥有的滚动条：模型选择器的列表——它在搜索框之后排布动辄数百行目录——以及侧栏的会话列表——它在加载少量会话后就会溢出。侧栏的滚动条是[指针揭示式侧栏滚动条](../../archived/feature/2026-08-04-pointer-revealed-sidebar-scrollbars.md)所确立的交互暗示：指针位于该列之上时绘制，离开后隐藏。即便如此，它读起来仍像固定家具：无论滚动条是否绘制，预留的条带都在；行比它们所在的窄一个条带；并且在列内任何位置移动指针都会把它带回来。
 
 ## Decision
 
@@ -16,7 +16,7 @@ Status: implemented
 
 内嵌的 Aeven 样式表（`ui-auth-aeven/src/vendor/aeven-auth.css`）为它自己的消费方声明了同一个类，并带有 `body` 前缀，且由于认证挂载位于主模块图中而恰好全局加载。主题样式表也声明了它，使该行为由本仓库拥有并受测试，而不是继承自那个导入图；两处写法必须保持一致，而 Markdown 引擎既有的 `no-scrollbar` 调用点如今同样依赖这个类。
 
-这反转了指针揭示式交互暗示。侧栏的会话列表在任何指针状态下都不绘制滚动条，也不预留条带，因此溢出出现时没有可增可减的预留——[预留槽位修复](../bug-fix/2026-07-28-themed-scrollbars-and-reserved-gutter.zh.md)所保护的不变式依然成立，而且如今无需为无人看见的滚动条在每一行上花掉 8px 也能成立。
+这反转了指针揭示式交互暗示，而且这次反转是彻底的：侧栏的会话列表在任何指针状态下都不绘制滚动条，也不预留条带，因此溢出出现时没有可增可减的预留——[预留槽位修复](../bug-fix/2026-07-28-themed-scrollbars-and-reserved-gutter.zh.md)所保护的不变式依然成立，而且如今无需为无人看见的滚动条在每一行上花掉 8px 也能成立。曾经决定该状态的外壳不再跟踪指针：延迟、它的计时器、几何离开监听，以及 `quietBars` 重绑都已移除，留下的是一个自己拥有滚动条处理方式的区域，和一个不再仲裁滚动条的列。
 
 ## Alternatives considered
 
@@ -34,11 +34,11 @@ Status: implemented
 
 两份列表滚动时都没有滚动条、也没有条带。侧栏的行宽增加一个条带并抵达面板边缘；模型列表的行在其卡片内同样如此。滚动不受影响——滚轮、触控板、拖选以及外壳的方向键仍能移动两份列表，端到端测试对此加以固定而非假设。
 
-不再有任何读数取决于指针。侧栏此前会在指针进入或离开该列时改变绘制内容；如今两种状态下的读数一致，且在旧的延迟窗口之后依然如此。外壳的指针延迟逻辑及其 `quietBars` 类仍会运行、仍会切换，但没有任何绘制内容依赖它们。
+不再有任何读数取决于指针，也没有任何东西在跟踪它：侧栏外壳的指针延迟、其 `quietBars` 状态类以及驱动它们的那两个测试，都随它们所服务的交互暗示一并退役，因此没有留下任何监听、计时器或 DOM 状态类。
 
 其他所有表面的滚动条皮肤保持不变：`--dsw-alias-scrollbar-*` 令牌、`--dsh-scrollbar-*` 重绑约定，以及悬浮表面用的成对取值，仍决定谁绘制滑块。只有这两个退出的区域位于其外。
 
-让出的能力是悬停暗示本身：指针位于侧栏之上不再揭示会话列表的终点与可滚动距离。要重新引入它，需从该列表移除退出类——揭示机制仍在原处——并恢复它所预留的条带。
+让出的能力是悬停暗示本身：指针位于侧栏之上不再揭示会话列表的终点与可滚动距离。要重新引入它，需从该列表移除退出类，并重建本次改动删除的指针机制及其 `transparent` 重绑。
 
 ## Testing
 
@@ -48,10 +48,8 @@ Status: implemented
 
 `apps/web/tests/default-model.e2e.ts` 从 composer 的模型按钮出发，在 popupSelect 列表上固定同一退出行为，从打开的 listbox 读取计算后的 `scrollbar-width`。
 
-## Deferred
-
-侧栏外壳的指针延迟、其 `quietBars` 状态类，以及驱动它们的测试（`ui-sidebar` 的 pointer-scrollbars 与 quiet-styles 套件）仍在描述一个屏幕上不改变任何内容的状态。移除它们属于后续工作：那会删除延迟的计时机制与那两个测试，并让该 DOM 状态类退出外壳的快照。
+`ui-sidebar` 的外壳快照固定展开与折叠两态下根元素的类名，退役的状态类正是借此被挡在外面：两处都不出现 `quietBars`。
 
 ## Related
 
-[指针揭示式侧栏滚动条](../feature/2026-08-04-pointer-revealed-sidebar-scrollbars.zh.md) Agent Note 拥有本笔记所反转的交互暗示，并已更新为记录该滚动条不再绘制。[预留槽位修复](../bug-fix/2026-07-28-themed-scrollbars-and-reserved-gutter.zh.md) 拥有当初为何预留条带。[模型选择器](../architecture/2026-09-12-one-model-picker-for-both-entries.zh.md) Agent Note 拥有作为两个退出表面之一的列表。
+[指针揭示式侧栏滚动条](../../archived/feature/2026-08-04-pointer-revealed-sidebar-scrollbars.md) Agent Note 拥有本笔记所反转的交互暗示；它随本次改动一并归档，因为它所描述的机制——指针跟踪、其延迟，以及 `transparent` 重绑——已不复存在。[预留槽位修复](../bug-fix/2026-07-28-themed-scrollbars-and-reserved-gutter.zh.md) 拥有当初为何预留条带。[模型选择器](../architecture/2026-09-12-one-model-picker-for-both-entries.zh.md) Agent Note 拥有作为两个退出表面之一的列表。

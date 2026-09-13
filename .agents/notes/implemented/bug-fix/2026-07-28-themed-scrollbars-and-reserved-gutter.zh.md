@@ -6,6 +6,8 @@ Status: implemented
 
 ## 问题
 
+本 note 所决定的这条渲染分界已被[覆盖式滚动条把槽位还给滚动视口](2026-09-13-overlay-scrollbars-return-the-gutter.zh.md)取代：标准属性如今服务每一个实现了它们的引擎，伪元素皮肤则成为回退路径，因为正是 `::-webkit-scrollbar` 的宽度让 chromium 把滚动条画进槽位、并从每个滚动盒子上扣掉 8px。本 note 就重新绑定约定、token 消费方以及每个抬升表面都要重绑的那组变量所做的决定仍然有效，而仍然读取那组变量 hover 一半的，正是这条回退路径。
+
 `design-platform.css` 在亮色与暗色两套调色板中都声明了四个 `--dsw-alias-scrollbar-*` token（`bg-l1`、`bg-l2`、`hover-l1`、`hover-l2`），而客户端里没有任何一条规则读取它们。定义了却无人消费的 token 构不成主题：所有滚动区域渲染的都是浏览器自带的滚动条，它对调色板一无所知，因此暗色主题下暗色表面上出现的是一条亮色的原生滚动条。
 
 暴露这一缺口的可见症状出在别处。工作区浏览器的会话列表（`WorkspaceBrowser.module.css` 中的 `.list`）是侧边栏里唯一的滚动区域，而每一行的尾部内容都紧贴该行 8px 的右内边距——`rows/Rows.module.css` 中的 `.time` 取 `flex: none`，hover 时取代它的操作按钮也是如此。于是覆盖式滚动条会画在相对时间戳之上。只在这一个列表里预留空间，滚动条本身仍然没有主题，因此两部分合为一次变更。
@@ -20,7 +22,7 @@ Status: implemented
 
 两种渲染互斥，而这种互斥是被强制的，不是假定的。`scrollbar-width` 或 `scrollbar-color` 只要取非 `auto` 值，Chromium 与 Safari 就会丢弃该元素上的全部 `::-webkit-scrollbar*` 规则，`::-webkit-scrollbar-thumb:hover` 也在其中。因此无条件地同时声明会让 hover token 在任何地方都得不到渲染：实现了 hover 伪元素的引擎，恰恰就是被标准属性静音的那些，而 Firefox 没有 hover 伪元素可作退路。于是标准属性写在 `@supports not selector(::-webkit-scrollbar)` 之内，该条件只在伪元素未被实现处为真，因此 Firefox 走标准属性路径，WebKit 系引擎走伪元素路径。WebKit 规则不再反向加门禁：不实现这些伪元素的引擎会把它们当作未知选择器丢弃，因此加门禁只是重述选择器匹配本身已经做的事。对于旧到不支持 `selector()` 函数的引擎，该条件无效，从而求值为假并选中伪元素路径——对于这条判断下现实存在的 16.4 之前的 Safari，这正是正确的一侧。
 
-两条路径都读取同一组间接变量 `--dsh-scrollbar-thumb` 与 `--dsh-scrollbar-thumb-hover`，它们在 `body` 上绑定到 l1（基础表面）token。**这就是重新绑定约定，也是单看 CSS 无法得知的部分**：抬升表面在自己的容器上设置 `--dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2)` 与 `--dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2)`，这一次重新绑定同时作用于标准属性和 WebKit 伪元素。这组变量必须成对重新绑定；只改静止态滑块会让 hover 状态仍留在基础表面的 token 上。这组变量另一个合法的目标是 `transparent`，它随侧边栏滚动条[改为跟随指针](../feature/2026-08-04-pointer-revealed-sidebar-scrollbars.zh.md)一并引入；下文的门禁只接受这两种目标。可由机械检查发现的子集归 `packages/client/ui-theme/tests/scrollbar-styles.client.spec.ts` 所有：任何既滚动又绘制抬升表面的样式表都必须重新绑定，因此本 note 不再维护完整的表面清单。多数把这组变量声明在抬升卡片上而非滚动的后代元素上，因为抬升层级属于这个表面，而自定义属性会继承到真正滚动的那个子元素。
+两条路径都读取同一组间接变量 `--dsh-scrollbar-thumb` 与 `--dsh-scrollbar-thumb-hover`，它们在 `body` 上绑定到 l1（基础表面）token。**这就是重新绑定约定，也是单看 CSS 无法得知的部分**：抬升表面在自己的容器上设置 `--dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2)` 与 `--dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2)`，这一次重新绑定同时作用于标准属性和 WebKit 伪元素。这组变量必须成对重新绑定；只改静止态滑块会让 hover 状态仍留在基础表面的 token 上。这组变量另一个合法的目标是 `transparent`，它随侧边栏滚动条[改为跟随指针](../../archived/feature/2026-08-04-pointer-revealed-sidebar-scrollbars.md)一并引入；下文的门禁只接受这两种目标。可由机械检查发现的子集归 `packages/client/ui-theme/tests/scrollbar-styles.client.spec.ts` 所有：任何既滚动又绘制抬升表面的样式表都必须重新绑定，因此本 note 不再维护完整的表面清单。多数把这组变量声明在抬升卡片上而非滚动的后代元素上，因为抬升层级属于这个表面，而自定义属性会继承到真正滚动的那个子元素。
 
 `Menu`、`InputBar`、`QuestionComposer` 与 `TodoPanel` 这四个表面最初被漏掉，因此逐样式表的重新绑定约定由机械检查而非人工审阅把关。
 

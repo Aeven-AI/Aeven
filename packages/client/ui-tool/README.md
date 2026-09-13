@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Tool calls appear in the conversation as cards: a root call tree with its nested subcalls, each atomic call rendered by its owning view. Users see running, successful, failed, and interrupted states that come only from the frozen call/result slice, and can open files or inspect calls through the Host callbacks. A failure whose remedy is a documented next step — the filesystem gate refusing an `edit` of a target the session has not read — presents as a muted notice instead of an alarm: it keeps the failed state, the message, and the expanded output, and drops only the error styling. The discriminator is the structured error code, never the message text.
+Tool calls appear in the conversation as cards: a root call tree with its nested subcalls, each atomic call rendered by its owning view. Users see running, successful, failed, and interrupted states that come only from the frozen call/result slice, and can open files or inspect calls through the Host callbacks. A failure whose remedy is a documented next step presents as a muted notice instead of an alarm: it keeps the failed state, the message, and the expanded output, and drops only the error styling. Both guarded-mutation refusals qualify — a mutation of a target the session has not read (`FS_NOT_OBSERVED`) and one whose target changed under the session's last read (`FS_STALE_VERSION`) — because each states the read that clears it. The discriminator is the structured error code, never the message text.
 
 ### Registering a business tool view
 

@@ -158,6 +158,7 @@ const CONTEXT_ORDERS = {
   SANDBOX_POLICY: 110,
   APPROVAL_POLICY: 115,
   SUBAGENT_DELEGATION: 120,
+  TODO_PLAN: 125,
 } as const
 
 /** Name of a centrally allocated runtime-context position. */

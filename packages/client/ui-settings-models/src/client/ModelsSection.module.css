@@ -678,14 +678,14 @@ select.input {
 .candidateId {
   flex: 1 1 auto;
   font-family: var(--ds-font-family-code);
-  font-size: 13px;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
 
 .candidateEmpty {
   margin: 24px 0;
   color: var(--dsw-alias-label-secondary);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 20px;
   text-align: center;
 }

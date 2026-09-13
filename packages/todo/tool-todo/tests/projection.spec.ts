@@ -4,7 +4,9 @@
  * tool-todo beside the registry serves the whole current list with a
  * consistent asOfSeq (= last event seq); before any write the value is null; a
  * composition without tool-todo has no `todos` key; unmounting tool-todo
- * removes it (HMR safety). The carrier and framework are exercised unmodified.
+ * removes it (HMR safety). The host-only `todoPlan` read-back is asserted here
+ * too, because it deliberately does NOT share the client-visible lifetime. The
+ * carrier and framework are exercised unmodified.
  */
 
 import { describe, expect, it } from 'vitest'
@@ -95,6 +97,21 @@ describe('todos projection provider', () => {
     const cleared = await bench.tailProjections()
     expect(cleared?.values.todos).toBeNull()
     expect(cleared?.asOfSeq).toBe(session.seq - 1)
+  })
+
+  it('retains the host-only read-back across that same turn/start', async () => {
+    const bench = await harness(true)
+    const session = bench.session
+    seedMessage(session)
+    const list: TodoItem[] = [{ content: 'keep going', status: 'in_progress' }]
+    session.append('turn/start', { turn: 1 })
+    session.append('todo/write', { todos: list })
+    session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
+    session.append('turn/start', { turn: 2 })
+    // The dock retires the finished checklist; the model keeps its working plan,
+    // which is the whole point of a separate host-only fold.
+    expect((await bench.tailProjections())?.values.todos).toBeNull()
+    expect(bench.ctx.sessionProjections.stateOf(session, 'todoPlan')).toEqual(list)
   })
 
   it('has no todos key when tool-todo is not composed', async () => {

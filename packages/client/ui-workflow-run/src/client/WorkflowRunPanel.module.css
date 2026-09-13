@@ -37,7 +37,7 @@
   flex: none;
   max-width: 42%;
   color: var(--dsw-alias-label-secondary);
-  font-size: var(--dsh-content-font-size-secondary, 13px);
+  font-size: var(--dsh-content-font-size-secondary, 14px);
   font-weight: 510;
   line-height: calc(24px + var(--dsh-content-font-delta, 0px));
   text-overflow: ellipsis;
@@ -49,7 +49,7 @@
   flex: 1;
   min-width: 0;
   color: var(--dsw-alias-label-tertiary);
-  font-size: var(--dsh-content-font-size-secondary, 13px);
+  font-size: var(--dsh-content-font-size-secondary, 14px);
   line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -102,7 +102,7 @@
   min-width: 0;
   max-width: 42%;
   color: var(--dsw-alias-label-secondary);
-  font-size: var(--dsh-content-font-size-secondary, 13px);
+  font-size: var(--dsh-content-font-size-secondary, 14px);
   line-height: calc(24px + var(--dsh-content-font-delta, 0px));
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -113,7 +113,7 @@
   flex: 1;
   min-width: 0;
   color: var(--dsw-alias-label-tertiary);
-  font-size: var(--dsh-content-font-size-secondary, 13px);
+  font-size: var(--dsh-content-font-size-secondary, 14px);
   line-height: calc(20px + var(--dsh-content-font-delta-secondary, 0px));
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -126,7 +126,7 @@
      larger sizes keep the same status text visible instead of truncating. */
   width: calc(132px + var(--dsh-content-font-delta-secondary, 0px) * 10);
   color: var(--dsw-alias-label-secondary);
-  font-size: var(--dsh-content-font-size-secondary, 13px);
+  font-size: var(--dsh-content-font-size-secondary, 14px);
   line-height: calc(20px + var(--dsh-content-font-delta-secondary, 0px));
   text-align: right;
   text-overflow: ellipsis;
@@ -237,7 +237,7 @@
   overflow: hidden;
   width: 64px;
   color: var(--dsw-alias-label-secondary);
-  font-size: var(--dsh-content-font-size-secondary, 13px);
+  font-size: var(--dsh-content-font-size-secondary, 14px);
   line-height: calc(20px + var(--dsh-content-font-delta-secondary, 0px));
   text-align: right;
   text-overflow: ellipsis;
@@ -246,7 +246,7 @@
 
 .empty {
   color: var(--dsw-alias-label-tertiary);
-  font-size: var(--dsh-content-font-size-secondary, 13px);
+  font-size: var(--dsh-content-font-size-secondary, 14px);
   line-height: calc(20px + var(--dsh-content-font-delta-secondary, 0px));
   padding: 0;
 }
