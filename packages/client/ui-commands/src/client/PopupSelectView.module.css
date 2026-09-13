@@ -32,7 +32,10 @@
   background: color-mix(in srgb, var(--dsw-specific-menu) 70%, transparent);
   backdrop-filter: blur(4px);
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
-  box-shadow: var(--dsw-elevation-prominent);
+  box-shadow:
+    inset 1px 1px 0 0 var(--dsw-specific-popup-highlight),
+    inset 0 0 1px 1px var(--dsw-specific-popup-highlight),
+    var(--dsw-elevation-prominent);
   outline: none;
 }
 
@@ -49,14 +52,20 @@
   overflow-y: auto;
 }
 
+/* The same control cell as ui-primitives' Menu item, so a row of the model
+   list and a row of the Full access selector are the same button: 40px
+   minimum, 8px padding, the control radius, 14/22. */
 .row {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px;
-  border-radius: 8px;
+  min-height: var(--dsw-aeven-control-size);
+  padding: 8px;
+  border-radius: var(--dsw-aeven-radius-control);
   cursor: pointer;
   font-size: 14px;
+  line-height: 22px;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -93,7 +102,7 @@
   margin: 2px 2px 4px;
   padding: 6px 8px;
   border: 0.5px solid var(--dsw-alias-border-inverted);
-  border-radius: 8px;
+  border-radius: var(--dsw-aeven-radius-control);
   background: transparent;
   font-size: 14px;
   color: var(--dsw-alias-label-primary);
