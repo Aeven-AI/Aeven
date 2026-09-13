@@ -417,11 +417,12 @@
 .viewChrome {
   position: absolute;
   inset: 0;
-  /* Carries the transcript's own side inset (plus the scrollport's reserved
-     gutter on the end edge) so a control keeps the horizontal math it used
-     while it lived inside the scrollport. */
+  /* Carries the transcript's own side inset on both edges: the scrollport's
+     reserved gutter is symmetric, so the content column's axis is the box's own
+     and a control keeps the horizontal math it used while it lived inside the
+     scrollport. */
   padding-left: var(--dsh-composer-side-clearance);
-  padding-right: calc(var(--dsh-composer-side-clearance) + var(--dsh-scrollbar-width));
+  padding-right: var(--dsh-composer-side-clearance);
   /* Above the composer seat (7) so a control may float over the input card. */
   z-index: 8;
   pointer-events: none;
@@ -482,11 +483,19 @@
   flex-direction: column;
   min-height: 0;
   overflow-y: auto;
-  /* Reserved unconditionally: the composer seat rides this box's content box in
-     Chat and its padding box under a view's composer overlay, so an `auto`
-     gutter moves the input card sideways by the bar's width whenever the two
-     differ ([decision](../../../../../../.agents/notes/implemented/bug-fix/2026-08-04-composer-tab-gutter-reservation.md)). */
-  scrollbar-gutter: stable;
+  /* Reserved unconditionally AND symmetrically. Unconditionally, because the
+     composer seat rides this box's content box in Chat and its padding box under
+     a view's composer overlay, so an `auto` gutter moves the input card sideways
+     by the bar's width whenever the two differ
+     ([decision](../../../../../../.agents/notes/implemented/bug-fix/2026-08-04-composer-tab-gutter-reservation.md)).
+     Symmetrically, because the seat sits outside this box and centres on the box
+     itself: a gutter on the end edge alone leaves the transcript's axis half a
+     bar-width off that centre on every engine that still reserves one, whereas
+     `both-edges` puts the content column on the box's own axis — and reserves
+     nothing at all where the bar floats, which is what the standard scrollbar
+     properties now ask for
+     ([decision](../../../../../../.agents/notes/implemented/bug-fix/2026-09-13-overlay-scrollbars-return-the-gutter.md)). */
+  scrollbar-gutter: stable both-edges;
   /* ChatView owns this box's offset through a ledger of its own writes: an
      offset that moved on its own is reader input, and input away from the floor
      releases bottom-follow. Browser scroll anchoring moves the offset without
@@ -524,11 +533,9 @@
      paints under a sticking code header while scrolling. */
   position: relative;
   z-index: 7;
-  /* The scrollport reserves a stable scrollbar gutter, so its content column
-     centers inside a box narrower by that width. The seat is outside that box
-     now and must reserve the same width, or the input card would centre half
-     a bar-width right of the transcript. */
-  padding-right: var(--dsh-scrollbar-width);
+  /* No width is given back for the scrollport's gutter: it is symmetric, so its
+     content column centres on the box this seat already spans
+     ([decision](../../../../../../.agents/notes/implemented/bug-fix/2026-09-13-overlay-scrollbars-return-the-gutter.md)). */
   /* Aeven `.chat-input-container`: the seat itself is opaque canvas. The
      transcript's hand-off rides the 50px band ABOVE the seat instead, so a
      growing draft never stretches the fade. */
@@ -591,8 +598,9 @@
   overflow-y: auto;
   /* The view owns its own scrollers (the trajectory ledger scrolls inside the
      view), so this box never scrolls here; reserving a gutter would only
-     narrow the view's content by the bar's width. Chat keeps the reservation
-     on the same element, so the seat below compensates with the bar's width
+     narrow the view's content by the bar's width, on both edges now that the
+     reservation is symmetric. Chat keeps the reservation on the same element,
+     and the seat below centres on the box rather than on a compensated width
      ([decision](../../../../../../.agents/notes/implemented/bug-fix/2026-08-04-composer-tab-gutter-reservation.md)). */
   scrollbar-gutter: auto;
 }

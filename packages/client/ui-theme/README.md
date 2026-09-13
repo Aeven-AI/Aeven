@@ -66,7 +66,7 @@ The service owns theme and font-size state and publishes snapshots. The ui-layou
 
 ### Scrollbar rebinding
 
-`scrollbar.css` binds `--dsh-scrollbar-thumb` and `--dsh-scrollbar-thumb-hover` on `body` to the l1 base-surface tokens; an elevated surface (menu, popover, dialog) rebinds them to the l2 tokens on its own container, and the pair's other legal target is `transparent` (ui-sidebar rebinds its column that way while the pointer is elsewhere). `--dsh-scrollbar-width` mirrors the WebKit bar's layout width for surfaces that align beside a space-consuming bar. The two rendering paths are mutually exclusive by construction: Firefox takes the standard properties inside `@supports not selector(::-webkit-scrollbar)`, and WebKit-based engines take the pseudo-elements, so the hover token only ever renders through the pseudo-element path ([scrollbar note](../../../.agents/notes/implemented/bug-fix/2026-07-28-themed-scrollbars-and-reserved-gutter.md)).
+`scrollbar.css` binds `--dsh-scrollbar-thumb` and `--dsh-scrollbar-thumb-hover` on `body` to the l1 base-surface tokens; an elevated surface (menu, popover, dialog) rebinds them to the l2 tokens on its own container, and the pair's other legal target is `transparent` (ui-trajectory's summary region rebinds it that way until hover or focus-within). The standard properties — `scrollbar-width: thin` and `scrollbar-color` — are declared on `body, body *` for every engine that implements them, because they are the only path that leaves a scrolling box its full width: a `::-webkit-scrollbar` skin is what forces the bar into a gutter and takes that band off the box. The pseudo-element skin is the fallback, inside `@supports not (scrollbar-width: thin)`, for the engines that cannot honor the standard properties (chromium before 121, WebKit before Safari 26.2), so the hover token renders only on that path. No sheet compensates a bar's width any more: the conversation scrollport reserves its gutter symmetrically, and reserves nothing at all where the bar floats ([scrollbar note](../../../.agents/notes/implemented/bug-fix/2026-09-13-overlay-scrollbars-return-the-gutter.md)).
 
 ### Preference persistence
 
@@ -83,7 +83,7 @@ These pages cover the layout presenter, the token consumers, and the styling rul
 
 - [ui-layout](../ui-layout/README.md) — the presenter that applies the resolved theme snapshot.
 - [ui-sidebar](../ui-sidebar/README.md) — a consumer of the scrollbar rebinding contract.
-- [ui-conversation](../ui-conversation/README.md) — a consumer of `--dsh-scrollbar-width` for the composer seat.
+- [ui-conversation](../ui-conversation/README.md) — the composer seat and the view chrome that centre on the scrollport's symmetric gutter.
 - [Web styling](../../../docs/web-styling.md) — the authoritative styling rules for web client components.
 - [Host-backed preferences](../../../.agents/notes/implemented/bug-fix/2026-08-06-host-backed-web-preferences.md) — the persistence boundary decision.
 

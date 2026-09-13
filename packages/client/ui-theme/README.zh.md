@@ -66,7 +66,7 @@ Aeven 基线集中位于 `aeven-language.css`：Google Sans Flex 字体角色、
 
 ### 滚动条重新绑定
 
-`scrollbar.css` 在 `body` 上把 `--dsh-scrollbar-thumb` 与 `--dsh-scrollbar-thumb-hover` 绑定到 l1 基础表面 token；高层级表面（菜单、浮层、对话框）在自己的容器上把它们重新绑定为 l2 token；这组变量的另一个合法目标是 `transparent`（ui-sidebar 在指针不在栏内时就这样重新绑定自己的列）。`--dsh-scrollbar-width` 镜像 WebKit 滚动条的布局宽度，供需要与占布局宽度的滚动条对齐的表面使用。两条渲染路径在构造上互斥：Firefox 走 `@supports not selector(::-webkit-scrollbar)` 内的标准属性，WebKit 系引擎走伪元素，因此 hover token 只经由伪元素这条路径渲染（[滚动条笔记](../../../.agents/notes/implemented/bug-fix/2026-07-28-themed-scrollbars-and-reserved-gutter.zh.md)）。
+`scrollbar.css` 在 `body` 上把 `--dsh-scrollbar-thumb` 与 `--dsh-scrollbar-thumb-hover` 绑定到 l1 基础表面 token；高层级表面（菜单、浮层、对话框）在自己的容器上把它们重新绑定为 l2 token；这组变量的另一个合法目标是 `transparent`（ui-trajectory 的摘要区域在既无 hover 也无 focus-within 时就这样重新绑定）。标准属性——`scrollbar-width: thin` 与 `scrollbar-color`——声明在 `body, body *` 上，供每一个实现了它们的引擎使用，因为只有这条路径能给滚动盒子留下完整宽度：正是 `::-webkit-scrollbar` 皮肤把滚动条逼进槽位，并从盒子上切走那条带子。伪元素皮肤则是回退路径，位于 `@supports not (scrollbar-width: thin)` 之内，供无法遵循标准属性的引擎使用（chromium 121 之前、WebKit 在 Safari 26.2 之前），因此 hover token 只在这条路径上渲染。已经没有任何样式表再去补偿滚动条的宽度：会话滚动视口对称地预留自己的槽位，而在滚动条浮动之处则完全不预留（[滚动条笔记](../../../.agents/notes/implemented/bug-fix/2026-09-13-overlay-scrollbars-return-the-gutter.zh.md)）。
 
 ### 偏好持久化
 
@@ -83,7 +83,7 @@ Aeven 基线集中位于 `aeven-language.css`：Google Sans Flex 字体角色、
 
 - [ui-layout](../ui-layout/README.zh.md)——应用解析后主题快照的呈现器。
 - [ui-sidebar](../ui-sidebar/README.zh.md)——滚动条重新绑定约定的消费方。
-- [ui-conversation](../ui-conversation/README.zh.md)——为 composer 席位消费 `--dsh-scrollbar-width` 的消费方。
+- [ui-conversation](../ui-conversation/README.zh.md)——composer 席位与视图 chrome，二者都以滚动视口的对称槽位居中。
 - [Web 样式](../../../docs/web-styling.zh.md)——Web 客户端组件的权威样式规则。
 - [Host 支撑的偏好](../../../.agents/notes/implemented/bug-fix/2026-08-06-host-backed-web-preferences.zh.md)——持久化边界决策。
 
