@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-13-popup-rim-and-one-control-cell.md
-2026-09-13-popup-rim-and-one-control-cell.md: 2492ff2f26770c197ce83c30b0c8df003a2a3d6b
-2026-09-13-popup-rim-and-one-control-cell.zh.md: f1936c06e60d7e813dde45786ae2e01424ff0e19
+2026-09-13-popup-rim-and-one-control-cell.md: 719504b3907f8e56c6f57bbf478eaa19566f4958
+2026-09-13-popup-rim-and-one-control-cell.zh.md: 9e54bf1220ff46c8f73ea9717ae557ca68af3ce3

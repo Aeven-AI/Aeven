@@ -81,7 +81,10 @@
   width: max-content;
   min-width: min(240px, calc(100vw - 32px));
   max-width: min(420px, calc(100vw - 32px));
-  padding: 4px;
+  /* The card padding of the popup family (ui-primitives' Menu card): a row's
+     8px cell then sits 16px from the card's edge, as it does there. */
+  padding: 8px;
+  gap: 0;
   border: 0;
   /* The same popup surface as the list this chooser opens (Aeven's avatar
      menu): surface radius, translucent fill, 4px blur. */

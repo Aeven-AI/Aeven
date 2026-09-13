@@ -93,18 +93,24 @@
 }
 
 .status {
-  padding: 8px 10px;
+  padding: 8px;
   font-size: 14px;
   color: var(--dsw-alias-label-tertiary);
 }
 
+/* The field is a row of this card like any other: the same 8px inset and the
+   same 40px control height, so its text lines up with the row labels below it
+   instead of sitting 2px further in. Only the gap under it separates the two. */
 .search {
-  margin: 2px 2px 4px;
-  padding: 6px 8px;
+  box-sizing: border-box;
+  margin: 0 0 4px;
+  min-height: var(--dsw-aeven-control-size);
+  padding: 8px;
   border: 0.5px solid var(--dsw-alias-border-inverted);
   border-radius: var(--dsw-aeven-radius-control);
   background: transparent;
   font-size: 14px;
+  line-height: 22px;
   color: var(--dsw-alias-label-primary);
   outline: none;
 }
@@ -113,7 +119,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px;
+  padding: 8px;
   font-size: 12px;
   color: var(--dsw-alias-state-error-primary);
 }
@@ -127,7 +133,7 @@
 .retry {
   padding: 2px 8px;
   border: 0.5px solid var(--dsw-alias-border-inverted);
-  border-radius: 6px;
+  border-radius: var(--dsw-aeven-radius-control);
   background: transparent;
   font-size: 12px;
   color: var(--dsw-alias-label-primary);

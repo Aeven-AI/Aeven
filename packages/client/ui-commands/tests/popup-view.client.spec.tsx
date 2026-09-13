@@ -244,6 +244,20 @@ describe('PopupSelectView', () => {
     expect(view.container.childElementCount).toBe(0)
   })
 
+  it('a hover moves the highlight without scrolling the list under the pointer', async () => {
+    const { search } = await mountOpen()
+    scrollIntoView.mockClear()
+    const options = screen.getAllByRole('option')
+
+    act(() => { fireEvent.mouseEnter(options[0]!) })
+    expect(options[0]!.getAttribute('aria-selected')).toBe('true')
+    expect(scrollIntoView).not.toHaveBeenCalled()
+
+    // The arrow keys still reveal the row they move to.
+    act(() => { fireEvent.keyDown(search, { key: 'ArrowDown' }) })
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' })
+  })
+
   it('click selects a row; mouseenter moves the highlight', async () => {
     const seen: SelectOption[] = []
     const { view } = await mountOpen({ onSelect: (option) => { seen.push(option) } })
