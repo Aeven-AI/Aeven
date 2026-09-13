@@ -93,7 +93,8 @@ const CLOSED: PopupState = {
 
 /**
  * Filter option rows against the shell's local search text (case-insensitive
- * substring over label and detail; blank search keeps every row).
+ * substring over label, detail, and the search-only keywords; blank search
+ * keeps every row).
  * @param options - the loaded rows.
  * @param search - the shell's search text.
  * @returns the rows the shell shows and highlights over.
@@ -101,7 +102,9 @@ const CLOSED: PopupState = {
 export function filterOptions(options: readonly SelectOption[], search: string): readonly SelectOption[] {
   const query = search.trim().toLowerCase()
   if (query === '') return options
-  return options.filter(o => o.label.toLowerCase().includes(query) || (o.detail?.toLowerCase().includes(query) ?? false))
+  return options.filter(o => o.label.toLowerCase().includes(query)
+    || (o.detail?.toLowerCase().includes(query) ?? false)
+    || (o.keywords?.toLowerCase().includes(query) ?? false))
 }
 
 /** One open shell's bindings (spec + open-time context + segment snapshot + options-fetch abort). */

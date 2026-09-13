@@ -12,7 +12,7 @@
 import { useEffect, useRef } from 'react'
 import { useSyncExternalStore } from 'react'
 import clsx from 'clsx'
-import { IconCheckOutline16, RiskConfirmation, useAnchoredMaxHeight } from '@deepseek-ai/dsh-client-ui-primitives'
+import { RiskConfirmation, useAnchoredMaxHeight } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import { filterOptions } from './popup.ts'
 import type { PopupSelectController } from './popup.ts'
@@ -141,7 +141,14 @@ export function PopupSelectView({ popup, t }: PopupSelectViewProps) {
                   key={option.id}
                   role="option"
                   aria-selected={index === state.active}
-                  className={clsx(css.row, index === state.active && css.rowActive)}
+                  // Two different facts wear the same treatment: `rowSelected`
+                  // is the value the picker is on and stays put, `rowActive` is
+                  // where the pointer or the arrow keys are right now.
+                  className={clsx(
+                    css.row,
+                    option.active === true && css.rowSelected,
+                    index === state.active && css.rowActive,
+                  )}
                   // mousedown would race the document capture listener; the shell
                   // owns focus anyway, so a plain click (inside the card → no
                   // dismiss) works.
@@ -150,7 +157,6 @@ export function PopupSelectView({ popup, t }: PopupSelectViewProps) {
                 >
                   <span className={css.label}>{option.label}</span>
                   {option.detail !== undefined && <span className={css.detail}>{option.detail}</span>}
-                  {option.active === true && <span className={css.check}><IconCheckOutline16 /></span>}
                 </div>
               ))}
             </div>

@@ -29,7 +29,7 @@ Mount this plugin alongside `ui-conversation` and the commands package; the comp
 
 ### Model and effort
 
-Models stay grouped by provider, and each row carries the provider name plus the catalog description as its detail line — the text the shell's search also matches. The Effort row offers the current model's adapter-advertised levels in the same shell, each labelled with its own name and the model those levels belong to as its detail, so an effort is found by typing either; picking one keeps the route and swaps only the effort. A model row applies that model's default effort. An adapter without reasoning metadata leaves the Effort row out of the chooser entirely; there is no arbitrary effort input.
+Models stay grouped by provider, and each row carries the provider name as its detail line — never the model's catalog description, which DeepSeek advertises per model and OpenRouter does not, so a rendered blurb would make the two provider lists read differently and push the provider out of the row. The description stays findable by typing it, because the row hands it to the shell as search-only `keywords`. The Effort row offers the current model's adapter-advertised levels in the same shell, each labelled with its own name and the model those levels belong to as its detail, so an effort is found by typing either; picking one keeps the route and swaps only the effort. A model row applies that model's default effort. An adapter without reasoning metadata leaves the Effort row out of the chooser entirely; there is no arbitrary effort input.
 
 ### Unroutable sessions
 
