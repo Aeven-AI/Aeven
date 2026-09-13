@@ -13,6 +13,7 @@ import SessionStore, { SessionLogOffset, SessionSeq } from '@deepseek-ai/dsh-ses
 import AgentRegistry from '@deepseek-ai/dsh-agent'
 import { SessionHistoryController } from '@deepseek-ai/dsh-api-session-controller/src/history.ts'
 import { subagentIdentityProjectionDefinition } from '@deepseek-ai/dsh-subagent/src/projection.ts'
+import { titleProjectionDefinition } from '@deepseek-ai/dsh-session-title'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import { createUserMessage, MessageId } from '@deepseek-ai/dsh-llm'
 import { snapshotSubagentDescriptor } from '@deepseek-ai/dsh-subagent'
@@ -121,7 +122,12 @@ describe('sessions.list cold merge', () => {
           return { asOfSeq: SessionSeq(0), values: { sessionListMetadata: { blank: true, lastPromptAt: 900 } } }
         }
         if (meta.id === sid('cached-nonblank')) {
-          return { asOfSeq: SessionSeq(1), values: { sessionListMetadata: { blank: false, lastPromptAt: 1000 } } }
+          // Complete hints: metadata AND the title cell, so this row needs no
+          // body read (the case below covers a cache that lost the title).
+          return {
+            asOfSeq: SessionSeq(1),
+            values: { sessionListMetadata: { blank: false, lastPromptAt: 1000 }, title: 'Already titled' },
+          }
         }
         return undefined
       },
@@ -154,6 +160,58 @@ describe('sessions.list cold merge', () => {
       sid('small-conversation'),
       sid('read-failure'),
     ]))
+  })
+
+  it('gives a cold Session its title even when the cached hints omit the cell', async () => {
+    // The reported bug: a cached, non-blank cold row was served from a partial
+    // hint block, so it was listed without a title and the navigation fell back
+    // to the cwd basename until the Session was clicked (or the page reloaded).
+    const ctx = new Context()
+    await ctx.plugin(SessionStore)
+    installSessionReadTestServices(ctx)
+    ctx.sessionProjections.register(titleProjectionDefinition as never)
+    const root = mkdtempSync(join(tmpdir(), 'dsh-cold-title-'))
+    const path = join(root, 'titled.log')
+    writeFileSync(path, 'x'.repeat(512))
+    const meta = header('titled-nonblank', 100)
+    providePersistence(ctx, {
+      list: () => Promise.resolve([meta]),
+      locate: () => ({ kind: 'jsonl', path }),
+      inspect: () => Promise.resolve({
+        meta,
+        events: [
+          { type: 'turn/start', seq: SessionSeq(0), time: 700, data: { turn: 1 } },
+          {
+            type: 'user/message', seq: SessionSeq(1), time: 800,
+            data: createUserMessage({ content: [{ type: 'text', text: 'worked' }], source: { kind: 'user' } }),
+            surfaceOp: 'append',
+          },
+          {
+            type: 'session/title', seq: SessionSeq(2), time: 900,
+            data: { title: 'Fix the sidebar labels', messageSeqs: [SessionSeq(1)], source: { kind: 'fallback' } },
+          },
+        ] satisfies SessionEvent[],
+      }),
+    })
+    ctx.provide('sessionProjectionCache', {
+      // Metadata survived the version gate; the title cell did not.
+      cachedSnapshot: () => ({
+        asOfSeq: SessionSeq(1),
+        values: { sessionListMetadata: { blank: false, lastPromptAt: 800 } },
+      }),
+      hydratePrepared: (session: Session, events: readonly SessionEvent[]) =>
+        ctx.sessionProjections.hydrate(session, {}, events, SessionLogOffset(0)),
+    } as never)
+    const remote = createSessionTestRemote(ctx, {
+      defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
+      cwd: '/tmp',
+    })
+
+    const response = await remote.list(request({}))
+    expect(response.ok).toBe(true)
+    if (!response.ok) throw new Error('unreachable')
+    const row = response.value.items.find(item => item.sessionId === sid('titled-nonblank'))
+    expect(row?.projections?.values.title).toBe('Fix the sidebar labels')
   })
 
   it('can disable bounded cold observations without hiding cold Sessions', async () => {
