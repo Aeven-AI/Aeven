@@ -144,3 +144,36 @@ describe('a step becomes engine source', () => {
       .toEqual(['<think>Read ＜/think> in the file.</think>\n\n'])
   })
 })
+
+describe('a tool head is not a split', () => {
+  it('keeps the prose on either side of a tool head in one source', () => {
+    // The head renders as its own Chat node, so nothing here separates the two
+    // halves: splitting them would cost an engine instance per call and draw
+    // exactly the same thing.
+    expect(sources([
+      { kind: 'text', text: 'Before.' },
+      { kind: 'tool-call', callId: 'c', name: 'bash', argsRaw: '{}' },
+      { kind: 'text', text: ' After.' },
+    ], false)).toEqual(['Before. After.'])
+  })
+
+  it('costs one source however many calls the step made', () => {
+    const calls = Array.from({ length: 8 }, (_, index): AssistantBlock => (
+      { kind: 'tool-call', callId: `c${index}`, name: 'bash', argsRaw: '{}' }
+    ))
+
+    expect(sources([
+      { kind: 'reasoning', text: 'plan' },
+      ...calls,
+      { kind: 'text', text: 'done' },
+    ], false)).toEqual(['<think>plan</think>\n\ndone'])
+  })
+
+  it('leaves a trace closed when a call follows it', () => {
+    expect(sources([
+      { kind: 'reasoning', text: 'plan' },
+      { kind: 'tool-call', callId: 'c', name: 'bash', argsRaw: '{}' },
+      { kind: 'text', text: 'done' },
+    ], true)).toEqual(['<think>plan</think>\n\ndone'])
+  })
+})

@@ -80,8 +80,10 @@ export function runsOf(
     if (block === undefined) continue
 
     if (block.kind === 'tool-call') {
-      // Rendered as its own Chat node row by the grouping pass, never here.
-      open = null
+      // A tool head renders as its own Chat node row, never here — so it is not
+      // a split. It puts nothing between the two halves of the prose, and
+      // treating it as one costs an engine instance for every call in the step
+      // while drawing exactly the same thing.
       continue
     }
 
