@@ -3,7 +3,8 @@
   display: inline-flex;
 }
 
-/* Dropdown card: Aeven primary surface with prominent elevation. */
+/* Dropdown card: Aeven's own popup surface — the translucent, blurred card its
+   avatar menu draws — with prominent elevation. */
 .list,
 .submenu {
   /* min-widths below are the design's outer card widths — include the pad. */
@@ -14,7 +15,11 @@
   gap: 0;
   border: 0;
   border-radius: var(--dsw-aeven-radius-surface);
-  background: var(--dsw-specific-menu);
+  /* Aeven's avatar popup fills at 70% over a 4px blur, so the page stays
+     faintly visible through the card; the menu token keeps that fill
+     theme-aware where Aeven's sheet states white. */
+  background: color-mix(in srgb, var(--dsw-specific-menu) 70%, transparent);
+  backdrop-filter: blur(4px);
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
   box-shadow: var(--dsw-elevation-prominent);
   /* Elevated surface: the scrollbar thumb takes the l2 elevation tokens. The
