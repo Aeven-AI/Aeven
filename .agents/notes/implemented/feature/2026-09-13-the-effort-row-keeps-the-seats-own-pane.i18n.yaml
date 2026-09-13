@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-13-the-effort-row-keeps-the-seats-own-pane.md
+2026-09-13-the-effort-row-keeps-the-seats-own-pane.md: a0fe34e60e07637fbc9832ed25486085bf946b2c
+2026-09-13-the-effort-row-keeps-the-seats-own-pane.zh.md: 89a5a27118e83fe7e9754141f4bc2947c6d91367

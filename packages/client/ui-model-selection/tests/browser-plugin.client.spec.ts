@@ -21,6 +21,7 @@ import type {
   ModelCatalogFailure, ModelProviderGroup, ModelSelection, ModelSelectionProjection,
 } from '@deepseek-ai/dsh-api-session-controller/types'
 import type { CommandContribution, CommandUiSpec, SelectOption } from '@deepseek-ai/dsh-client-ui-commands/client'
+import { effectiveEffortOf, effortLevelsOf, PROVIDER_DEFAULT_EFFORT } from '../src/client/effort.ts'
 import type { ModelSelectInjected } from '../src/client/slots.ts'
 import { apply, inject } from '../src/client/index.ts'
 import { zh } from '../src/client/locales.ts'
@@ -182,18 +183,22 @@ async function bench(
     if (option === undefined) throw new Error(`no row labelled "${label}" in ${rows.map(o => o.label).join(', ')}`)
     await spec.onSelect(option, projection(key))
   }
-  /** Drive one of the seat's two rows and return the spec it opened. */
-  const seatSpec = (key: string, row: 'model' | 'effort'): CommandUiSpec => {
-    const face = seats.get('conversation.input.model')!.inject!(sid(key))
-    if (row === 'model') face.openModel()
-    else face.openEffort()
+  /** The seat's injected face for one session. */
+  const seatFace = (key: string): ModelSelectInjected =>
+    seats.get('conversation.input.model')!.inject!(sid(key))
+  /** Drive the seat's Model row and return the spec it opened. */
+  const seatSpec = (key: string): CommandUiSpec => {
+    seatFace(key).openModel(null)
     return opened.at(-1)!.spec
   }
+  /** Pick one of the seat's effort levels, exactly as a click in its pane does. */
+  const pickEffort = (key: string, levelId: string): Promise<boolean> =>
+    seatFace(key).selectEffort(levelId)
   return {
-    ctx, fiber, mint, calls, remote, load, opened, seatSpec,
+    ctx, fiber, mint, calls, remote, load, opened, seatSpec, seatFace,
     optionsOf,
     pickModel: (key: string, label: string) => pick(key, contribution!.ui, label),
-    pickEffort: (key: string, label: string) => pick(key, seatSpec(key, 'effort'), label),
+    pickEffort,
     contribution: () => contribution!,
     seat: () => seats.get('conversation.input.model')!,
     hostCurrent: () => selected,
@@ -221,7 +226,7 @@ describe('ui-model-selection entries', () => {
     const b = await bench()
     b.mint('s1')
 
-    const spec = b.seatSpec('s1', 'model')
+    const spec = b.seatSpec('s1')
 
     expect(b.opened).toHaveLength(1)
     expect(b.opened[0]?.sessionId).toBe(sid('s1'))
@@ -231,16 +236,20 @@ describe('ui-model-selection entries', () => {
     expect(spec).toBe(b.contribution().ui)
   })
 
-  it('opens a second spec for the Effort row — the same shell, its own list', async () => {
+  it('opens the registered model spec from the Model row, and no shell list from the Effort row', async () => {
     const b = await bench()
     b.mint('s1')
+    const face = b.seatFace('s1')
 
-    const effort = b.seatSpec('s1', 'effort')
+    expect(b.seatSpec('s1')).toBe(b.contribution().ui)
 
-    expect(effort).not.toBe(b.contribution().ui)
-    expect(effort.kind).toBe('popupSelect')
-    // Identity and kind are what this case pins; the effort spec's rows are
-    // pinned by the cases below.
+    // The Effort row opens the seat's own pane, so it drives no shell spec at
+    // all: it submits a level id through the injected verb, and the levels the
+    // pane renders and the selection that verb resolves come from one
+    // derivation (`effort.ts`).
+    const openedBefore = b.opened.length
+    expect(typeof face.selectEffort).toBe('function')
+    expect(b.opened).toHaveLength(openedBefore)
   })
 
   it('the model list marks the host current active and carries the provider group in the detail', async () => {
@@ -272,16 +281,21 @@ describe('ui-model-selection entries', () => {
     })
   })
 
-  it('the effort list is the current model\'s levels alone, under the model it belongs to', async () => {
+  it('the effort pane submits the current model\'s own levels, and the effective one is the level in force', async () => {
     const b = await bench()
     b.mint('s1')
-    const options = await b.optionsOf('s1', b.seatSpec('s1', 'effort'))
+    const face = b.seatFace('s1')
+    await face.directory.getSnapshot().current
 
-    // The adapter configures a default, so no provider-default row appears and
-    // the effective effort (the model default) is the marked one.
-    expect(options.map(o => o.label)).toEqual(['Off', 'High', 'Max'])
-    expect(options.find(o => o.label === 'High')).toMatchObject({ detail: 'DeepSeek-V4-Flash', active: true })
-    expect(options.find(o => o.label === 'Off')?.active).toBeUndefined()
+    // The adapter configures a default, so the levels are its own three — no
+    // provider-default level — and the effective effort is the model default
+    // (`effortLevelsOf`/`effectiveEffortOf`, the pane's own derivation).
+    const levels = effortLevelsOf(b.seatFace('s1').directory.getSnapshot())
+    expect(levels.map(level => level.name)).toEqual(['Off', 'High', 'Max'])
+    expect(effectiveEffortOf(b.seatFace('s1').directory.getSnapshot())).toBe('high')
+
+    expect(await b.pickEffort('s1', 'off')).toBe(true)
+    expect(b.hostCurrent()).toMatchObject({ reasoningEffort: 'off' })
   })
 
   it('an effort row keeps the current route and swaps only the effort', async () => {
@@ -291,7 +305,7 @@ describe('ui-model-selection entries', () => {
     await b.pickModel('s1', 'DeepSeek-V4-Pro')
     expect(face.directory.getSnapshot().current?.model).toBe('deepseek-v4-pro')
 
-    await b.pickEffort('s1', 'Max')
+    expect(await b.pickEffort('s1', 'max')).toBe(true)
 
     expect(b.hostCurrent()).toEqual({
       provider: 'deepseek-official',
@@ -301,11 +315,10 @@ describe('ui-model-selection entries', () => {
     // The next pass reflects both the route and the effort without any reload.
     const models = await b.optionsOf('s1', b.contribution().ui)
     expect(models.find(o => o.label === 'DeepSeek-V4-Pro')).toMatchObject({ active: true })
-    const efforts = await b.optionsOf('s1', b.seatSpec('s1', 'effort'))
-    expect(efforts.find(o => o.label === 'Max')).toMatchObject({ active: true })
+    expect(effectiveEffortOf(b.seatFace('s1').directory.getSnapshot())).toBe('max')
   })
 
-  it('adds a provider-default effort row only when the adapter configures no model default', async () => {
+  it('adds a provider-default effort level only when the adapter configures no model default', async () => {
     // A dedicated bench: the shared catalog is fetched once, so the groups must
     // be the ones this case asserts from the first load.
     const b = await bench([{
@@ -319,8 +332,14 @@ describe('ui-model-selection entries', () => {
     }])
     b.mint('s1')
 
-    const labels = (await b.optionsOf('s1', b.seatSpec('s1', 'effort'))).map(o => o.label)
-    expect(labels).toEqual(['Default', 'Standard'])
+    const levels = effortLevelsOf(b.seatFace('s1').directory.getSnapshot())
+    expect(levels.map(level => level.name)).toEqual([null, 'Standard'])
+
+    // Picking it submits no effort at all, which is what "the adapter decides"
+    // means on the wire; a level the adapter does not serve is refused instead.
+    expect(await b.pickEffort('s1', PROVIDER_DEFAULT_EFFORT)).toBe(true)
+    expect(b.hostCurrent()).toEqual({ provider: 'deepseek-official', model: 'deepseek-v4-flash' })
+    expect(await b.pickEffort('s1', 'nope')).toBe(false)
   })
 
   it('rejects a failure row: an unselectable provider never submits a half selection', async () => {
@@ -339,7 +358,7 @@ describe('ui-model-selection entries', () => {
     const b = await bench()
     b.mint('s1')
     const face = b.seat().inject!(sid('s1'))
-    b.seatSpec('s1', 'model')
+    b.seatSpec('s1')
     // Switch through the SHARED spec the seat's Model row opened.
     await b.pickModel('s1', 'DeepSeek-V4-Pro')
 
@@ -493,25 +512,19 @@ describe('ui-model-selection entries', () => {
 
   it('withholds every model entry from addressed subagent sessions without Agent-bound RPCs', async () => {
     const b = await bench()
-    // The specs are shared across sessions, so capture the effort list from an
-    // ordinary session and address it at the subagent below.
-    b.mint('probe')
-    const effortSpec = b.seatSpec('probe', 'effort')
     b.mint('child')
     b.address(sid('child'))
 
     expect(b.contribution().available(projection('child'))).toBe(false)
     await expect(b.optionsOf('child', b.contribution().ui))
       .rejects.toThrow(/unavailable for addressed subagent/)
-    await expect(b.optionsOf('child', effortSpec))
-      .rejects.toThrow(/unavailable for addressed subagent/)
 
     const face = b.seat().inject!(sid('child'))
     expect(face.available).toBe(false)
-    // Neither row opens its list for such a session, and the label refresh is a no-op.
+    // Neither row does anything for such a session, and the label refresh is a no-op.
     const before = b.opened.length
-    face.openModel()
-    face.openEffort()
+    face.openModel(null)
+    expect(await face.selectEffort('max')).toBe(false)
     expect(b.opened).toHaveLength(before)
     face.load()
     await expect(b.ctx.modelDirectories.directoryFor(sid('child')).load())

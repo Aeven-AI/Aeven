@@ -26,6 +26,7 @@ export const zh = {
   'menu.model': '模型',
   'menu.effort': '推理等级',
   'effort.providerDefault': 'Default',
+  'error.action': '选择失败：{message}',
   'blocked.composer': '当前模型不可用，请先选择模型',
 } satisfies Record<string, string>
 
@@ -45,5 +46,6 @@ export const en = {
   'menu.model': 'Model',
   'menu.effort': 'Effort',
   'effort.providerDefault': 'Default',
+  'error.action': 'Selection failed: {message}',
   'blocked.composer': 'This model is unavailable — select one to continue',
 } satisfies Record<ModelKey, string>

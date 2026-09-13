@@ -9,7 +9,7 @@
  * target takes focus). Closed state renders null; the overlay slot stays
  * mounted. The card height clamps to the space above the composer.
  */
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useSyncExternalStore } from 'react'
 import clsx from 'clsx'
 import { RiskConfirmation, useAnchoredMaxHeight } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -46,6 +46,26 @@ export function PopupSelectView({ popup, t }: PopupSelectViewProps) {
   // the space above it, re-measured on every store update.
   const maxHeight = useAnchoredMaxHeight(cardRef, MAX_HEIGHT, state)
   const active = state.open ? state.active : null
+  // A control-opened shell lines its trailing edge up with that control, so a
+  // seat's picker sits under the seat instead of under the composer card. The
+  // offset is measured against the card's own offset parent (the overlay
+  // anchor) after mount and before paint, so the card never renders at the
+  // composer's edge first and jumps.
+  const [anchorInset, setAnchorInset] = useState<number | null>(null)
+  useLayoutEffect(() => {
+    const anchor = state.anchor
+    const card = cardRef.current
+    // The offset parent is the overlay anchor; `parentElement` is the same
+    // element wherever the browser reports no offset parent at all.
+    const parent = card?.offsetParent ?? card?.parentElement
+    if (anchor === null || card === null || parent === null || parent === undefined || !anchor.isConnected) {
+      setAnchorInset(null)
+      return
+    }
+    const parentRect = parent.getBoundingClientRect()
+    const anchorRect = anchor.getBoundingClientRect()
+    setAnchorInset(Math.max(0, parentRect.right - anchorRect.right))
+  }, [state.anchor, state.open, state.status, state.options])
 
   // The search input keeps focus while arrows move a virtual highlight, so
   // the browser never scrolls the active row into view — do it here.
@@ -109,7 +129,9 @@ export function PopupSelectView({ popup, t }: PopupSelectViewProps) {
         <div
           ref={cardRef}
           className={css.card}
-          style={{ maxHeight }}
+          style={anchorInset === null
+            ? { maxHeight }
+            : { maxHeight, right: anchorInset, left: 'auto' }}
           aria-label={t('overlay.aria', { command: String(state.command) })}
           onKeyDown={onKeyDown}
         >

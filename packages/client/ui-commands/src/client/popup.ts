@@ -74,6 +74,13 @@ export interface PopupState {
   readonly options: readonly SelectOption[]
   /** Local filter text over the loaded options. */
   readonly search: string
+  /**
+   * The composer control that opened the shell, when one did. The card lines
+   * its trailing edge up with that element — a seat's picker belongs under the
+   * seat — and falls back to the composer card's own edge for the token paths,
+   * which pass null.
+   */
+  readonly anchor: Element | null
   /** Highlight index into the filtered row list: the first row marked `active` once options load, else 0. */
   readonly active: number
   /** A select() settlement is in flight: further select/search/highlight no-op until it settles. */
@@ -87,7 +94,7 @@ export interface PopupState {
 }
 
 const CLOSED: PopupState = {
-  open: false, command: null, status: 'pending', options: [], search: '', active: 0,
+  open: false, command: null, status: 'pending', options: [], search: '', anchor: null, active: 0,
   submitting: false, confirming: null, acknowledged: false, error: null,
 }
 
@@ -145,12 +152,19 @@ export class PopupSelectController<TCtx = unknown> {
    * @param spec - the registered popupSelect spec.
    * @param context - open-time context snapshot, handed verbatim to options/onSelect.
    * @param segment - open-time token segment snapshot for post-select consumption.
+   * @param anchor - the control that opened the shell (null for token paths).
    */
-  open(command: string, spec: PopupSpec<TCtx>, context: TCtx, segment: TokenSegment): void {
+  open(
+    command: string,
+    spec: PopupSpec<TCtx>,
+    context: TCtx,
+    segment: TokenSegment,
+    anchor: Element | null = null,
+  ): void {
     this.binding?.abort.abort()
     const binding: OpenBinding<TCtx> = { command, spec, context, segment, abort: new AbortController() }
     this.binding = binding
-    this.state.set({ ...CLOSED, open: true, command })
+    this.state.set({ ...CLOSED, open: true, command, anchor })
     this.load(binding)
   }
 

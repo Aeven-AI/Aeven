@@ -101,9 +101,13 @@ export interface CommandUiContract {
    * @param command - command name the shell serves (its log/error label).
    * @param spec - the popupSelect spec to open; typically the same object the
    * contribution registered, which is what keeps both entries identical.
+   * @param anchor - the control that opened it, when a control did: the card
+   * lines its trailing edge up with that element, so a picker opened from a
+   * composer seat sits under the seat rather than under the composer card. The
+   * token paths pass nothing and keep the card on the composer's own edge.
    * @returns whether the session resolved a scope and the shell opened.
    */
-  openSelect(sessionId: SessionId, command: string, spec: CommandUiSpec): boolean
+  openSelect(sessionId: SessionId, command: string, spec: CommandUiSpec, anchor?: Element | null): boolean
   /** Resolve the per-session popup controller for one session scope (wiring/overlay layer). */
   popupFor(actx: ClientContext): unknown
 }

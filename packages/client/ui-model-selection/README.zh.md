@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包提供 Web GUI 的模型选择：`/model` 弹窗命令与 composer 模型位，两者共用一份按提供方分组的会话级目录，且两者的列表都经同一个选择器渲染——含搜索的 popupSelect 外壳。选择模型会提交完整选择——提供方、模型与推理强度——宿主在下一次提示词组装边界对其快照，因此后续请求采用该选择，而运行中的步骤保留已组装选择。模型位保留两级入口：其触发器打开一个小的 Model/Effort 选择器，Model 行打开 `/model` 打开的同一个列表，Effort 行在同一个外壳中打开当前模型的推理强度等级——因此没有任何入口自带相似却不同的列表。当宿主报告没有适配器服务该会话的路由时，composer 输入停用，直到路由恢复可用。
+本包提供 Web GUI 的模型选择：`/model` 弹窗命令与 composer 模型位，两者共用一份按提供方分组的会话级目录，且两者的列表都经同一个选择器渲染——共享的 popupSelect 外壳，Model 行走带搜索的模型列表，Effort 行则打开席位自带的列表。选择模型会提交完整选择——提供方、模型与推理强度——宿主在下一次提示词组装边界对其快照，因此后续请求采用该选择，而运行中的步骤保留已组装选择。模型位保留两级入口：其触发器打开一个小的 Model/Effort 选择器，Model 行打开 `/model` 打开的同一个列表，Effort 行则钻入席位自带的推理强度列表——因此没有任何入口自带相似却不同的列表，也没有哪个选择器在一屏放得下的列表上顶着搜索框。当宿主报告没有适配器服务该会话的路由时，composer 输入停用，直到路由恢复可用。
 
 ## 目录
 
@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 模型与推理强度
 
-模型按提供方分组，每行的详情只显示提供方名称，从不显示模型的目录说明：DeepSeek 为每个模型都公布一段说明而 OpenRouter 没有，渲染出来会让两个提供方的列表读起来不一致，并把提供方名称挤出该行。输入说明文字仍能搜到对应模型，因为该行把它作为只参与搜索的 `keywords` 交给外壳。Effort 行在同一个外壳中提供当前模型由适配器公布的推理强度等级，每行显示自己的名称，并以这些等级所属的模型作为详情，因此输入其中任一都能找到它；选择某一行保持路由不变，只替换推理强度。选择模型行则应用该模型的默认推理强度。适配器没有推理元数据时，该选择器完全不显示 Effort 行；不存在任意推理强度输入。
+模型按提供方分组，每行的详情只显示提供方名称，从不显示模型的目录说明：DeepSeek 为每个模型都公布一段说明而 OpenRouter 没有，渲染出来会让两个提供方的列表读起来不一致，并把提供方名称挤出该行。输入说明文字仍能搜到对应模型，因为该行把它作为只参与搜索的 `keywords` 交给外壳。Effort 行钻入席位自带的面板，而不是外壳：列出当前模型由适配器公布的推理强度等级，当前生效的一档带对勾，方向键移动焦点，Esc 逐级退回选择器。适配器公布的等级只有三四个、一屏尽收，在它们之上放一个搜索输入只会把读者正看着的行藏起来。`src/client/effort.ts` 这一个模块既派生面板渲染的等级，也解析所选等级提交的选择，因此面板不可能提供适配器不支持的等级。选择某一等级保持路由不变，只替换推理强度。选择模型行则应用该模型的默认推理强度。适配器没有推理元数据时，该选择器完全不显示 Effort 行；不存在任意推理强度输入。
 
 ### 不可路由的会话
 
@@ -43,7 +43,7 @@ kind: "package-reference"
 <details>
 <summary>实现细节——点击展开</summary>
 
-两个入口共用一份由 `ModelDirectoryResolver`（`ctx.modelDirectories`）持有的会话级目录，并在共享的 popupSelect 外壳之上使用两个共享的 `CommandUiSpec`：`/model` popupSelect 贡献项（经 `ctx.commandUi` 注册）与 composer 的具名 `conversation.input.model` 位都经 `session.models` 加载会话的建议目录、经 `session.selectModel` 通过同一个 `ModelDirectory` 实例提交，因此任一入口所做的切换正是其他入口接下来显示的。模型位只持有自己的 Model/Effort 选择器：Model 行打开 `/model` 注册的那个 spec（同一对象，不是副本），Effort 行打开推理强度 spec，两者都经 `commandUi.openSelect`（斜杠路径的无 token 兄弟入口），因此每份列表都出自同一个控制器、同一个外壳组件、同一个行构造器与同一份搜索；选择落定后外壳关闭，且不消费草稿中的任何内容。目录加载与选择共享一个代次计数器，旧响应不会覆盖新结果；连接重置丢弃所有常驻投影，并在显示前重新拉取宿主恢复的选择。目录按会话惰性解析，随会话作用域一并释放；已寻址 subagent 会话不公开任一入口。每份常驻目录都会直接在转发的 `llm/adapters-updated` 与 `settings/document-updated` owner 事件上重拉。
+两个入口共用一份由 `ModelDirectoryResolver`（`ctx.modelDirectories`）持有的会话级目录，模型列表使用共享 popupSelect 外壳上的一个共享 `CommandUiSpec`，推理强度则用席位自带的面板：`/model` popupSelect 贡献项（经 `ctx.commandUi` 注册）与 composer 的具名 `conversation.input.model` 位都经 `session.models` 加载会话的建议目录、经 `session.selectModel` 通过同一个 `ModelDirectory` 实例提交，因此任一入口所做的切换正是其他入口接下来显示的。模型位只持有自己的 Model/Effort 选择器：Model 行打开 `/model` 注册的那个 spec（同一对象，不是副本），Effort 行打开推理强度 spec，两者都经 `commandUi.openSelect`（斜杠路径的无 token 兄弟入口），因此每份列表都出自同一个控制器、同一个外壳组件与同一个行构造器；选择落定后外壳关闭，且不消费草稿中的任何内容。目录加载与选择共享一个代次计数器，旧响应不会覆盖新结果；连接重置丢弃所有常驻投影，并在显示前重新拉取宿主恢复的选择。目录按会话惰性解析，随会话作用域一并释放；已寻址 subagent 会话不公开任一入口。每份常驻目录都会直接在转发的 `llm/adapters-updated` 与 `settings/document-updated` owner 事件上重拉。
 
 </details>
 
