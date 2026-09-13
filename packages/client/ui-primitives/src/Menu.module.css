@@ -97,15 +97,17 @@
   position: relative;
 }
 
-/* Menu cell (figma .Menu_cell): min-h 40, r10, pad 10/8, 14/22 primary,
- * gap 8 between leading icon / label / trailing check. */
+/* Menu cell (figma .Menu_cell): min-h 40, r10, pad 8, 14/22 primary,
+ * gap 8 between leading icon / label / trailing check. The cell pads 8 on
+ * every side (the design's 10 inline inset narrowed to match the block one,
+ * so a row's hit area is even and its text lines up with the card's own pad). */
 .item {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
   min-height: var(--dsw-aeven-control-size);
-  padding: 8px 10px;
+  padding: 8px;
   border: none;
   border-radius: var(--dsw-aeven-radius-control);
   background: transparent;
@@ -209,7 +211,7 @@
 
 /* Heading row: non-interactive small grey text, padding aligned with items. */
 .label {
-  padding: 8px 10px;
+  padding: 8px;
   font-size: 12px;
   line-height: 16px;
   color: var(--dsw-alias-label-tertiary);
