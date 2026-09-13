@@ -57,6 +57,9 @@
   color: var(--dsw-alias-label-primary);
 }
 
+/* The value the picker is on, and the rollover treatment: one look, so moving
+ * the pointer off that row cannot leave the picker looking unset. */
+.rowSelected,
 .rowActive {
   background: var(--dsw-alias-interactive-bg-hover);
 }
@@ -75,12 +78,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.check {
-  display: inline-flex;
-  flex: none;
-  color: var(--dsw-alias-label-primary);
 }
 
 .status {

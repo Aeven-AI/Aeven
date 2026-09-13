@@ -252,6 +252,26 @@ describe('ui-model-selection entries', () => {
     expect(options[1]?.active).toBeUndefined()
   })
 
+  it('a described model keeps its blurb out of the row and findable through keywords', async () => {
+    // DeepSeek advertises a sentence per model and OpenRouter none, so a
+    // rendered blurb would make the two provider lists read differently.
+    const b = await bench([{
+      id: 'deepseek-official',
+      name: 'DeepSeek',
+      models: [{
+        id: 'deepseek-v4-pro',
+        name: 'DeepSeek-V4-Pro',
+        description: 'Prefer for routine or latency-sensitive tasks.',
+      }],
+    }])
+    b.mint('s1')
+    const options = await b.optionsOf('s1', b.contribution().ui)
+    expect(options[0]).toMatchObject({
+      detail: 'DeepSeek',
+      keywords: 'Prefer for routine or latency-sensitive tasks.',
+    })
+  })
+
   it('the effort list is the current model\'s levels alone, under the model it belongs to', async () => {
     const b = await bench()
     b.mint('s1')

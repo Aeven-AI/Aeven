@@ -36,7 +36,7 @@ afterEach(() => {
 const OPTIONS: SelectOption[] = [
   { id: 'dark', label: 'Dark' },
   { id: 'light', label: 'Light', active: true },
-  { id: 'sepia', label: 'Sepia', detail: 'warm' },
+  { id: 'sepia', label: 'Sepia', detail: 'warm', keywords: 'low contrast' },
 ]
 const GATED: SelectOption = {
   id: 'full',
@@ -110,6 +110,32 @@ describe('PopupSelectView', () => {
     // both the hover treatment and what pulls the row into view.
     expect(options[1]!.getAttribute('aria-selected')).toBe('true')
     expect(scrollIntoView.mock.instances.at(-1)).toBe(options[1])
+  })
+
+  it('marks the highlighted row with the hover treatment alone, and never renders keywords', async () => {
+    const { search } = await mountOpen()
+    const options = screen.getAllByRole('option')
+    // The current row carries the hover background and aria-selected; no check
+    // icon competes with the detail line for the row's width.
+    expect(options[1]!.getAttribute('aria-selected')).toBe('true')
+    expect(options[1]!.querySelector('svg')).toBeNull()
+    // `keywords` is search-only: the shell matches it and still renders just
+    // the label and the detail line.
+    act(() => { fireEvent.change(search, { target: { value: 'low contrast' } }) })
+    expect(screen.getAllByRole('option').map(option => option.textContent)).toEqual(['Sepiawarm'])
+  })
+
+  it('keeps the hover treatment on the current value while the highlight moves', async () => {
+    const { search } = await mountOpen()
+    let options = screen.getAllByRole('option')
+    expect(options[1]!.className).toContain('rowSelected')
+    act(() => { fireEvent.keyDown(search, { key: 'ArrowDown' }) })
+    options = screen.getAllByRole('option')
+    // The cursor moved to the next row; the value the picker is on keeps the
+    // same treatment, so it cannot read as unset once the pointer leaves it.
+    expect(options[1]!.className).toContain('rowSelected')
+    expect(options[1]!.className).not.toContain('rowActive')
+    expect(options[2]!.className).toContain('rowActive')
   })
 
   it('ArrowUp/Down move the filtered highlight; ArrowLeft/Right are left to the native caret', async () => {

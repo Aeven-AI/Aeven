@@ -9,7 +9,7 @@ const CTX_A: Ctx = { session: 'A' }
 const OPTIONS: SelectOption[] = [
   { id: 'dark', label: 'Dark' },
   { id: 'light', label: 'Light', active: true },
-  { id: 'sepia', label: 'Sepia', detail: 'warm' },
+  { id: 'sepia', label: 'Sepia', detail: 'warm', keywords: 'low contrast' },
 ]
 const GATED: SelectOption = {
   id: 'full',
@@ -48,11 +48,12 @@ async function readyPopup(overrides: Partial<PopupSpec<Ctx>> = {}, deps = makeDe
 }
 
 describe('filterOptions', () => {
-  it('matches case-insensitively over label and detail; blank keeps all', () => {
+  it('matches case-insensitively over label, detail, and keywords; blank keeps all', () => {
     expect(filterOptions(OPTIONS, '')).toBe(OPTIONS)
     expect(filterOptions(OPTIONS, '  ')).toBe(OPTIONS)
     expect(filterOptions(OPTIONS, 'DARK')).toEqual([OPTIONS[0]])
     expect(filterOptions(OPTIONS, 'warm')).toEqual([OPTIONS[2]])
+    expect(filterOptions(OPTIONS, 'LOW CONTRAST')).toEqual([OPTIONS[2]])
     expect(filterOptions(OPTIONS, 'nope')).toEqual([])
   })
 })

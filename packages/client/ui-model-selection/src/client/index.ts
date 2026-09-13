@@ -140,7 +140,13 @@ function modelOptionsOf(directory: ModelDirectoryState, t: TranslateNS<'model'>)
       rows.push({
         id: rowId(group.id, model.id),
         label: model.name,
-        detail: model.description !== undefined ? `${group.name} · ${model.description}` : group.name,
+        // The detail line names the provider, never the model's catalog blurb:
+        // DeepSeek advertises a sentence per model and OpenRouter none, so a
+        // rendered blurb makes the two lists read differently and pushes the
+        // provider out of the row. The blurb stays findable through `keywords`,
+        // which the shell searches but does not render.
+        detail: group.name,
+        ...(model.description === undefined ? {} : { keywords: model.description }),
         ...(directory.current !== null
           && directory.current.provider === group.id
           && directory.current.model === model.id

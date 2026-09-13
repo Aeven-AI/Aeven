@@ -21,6 +21,12 @@ export interface SelectOption {
   readonly id: string
   readonly label: string
   readonly detail?: string
+  /**
+   * Text the shell's search matches but never renders. A row whose detail line
+   * is already spoken for (the provider name, say) puts its catalog blurb here:
+   * the blurb stays findable without a sentence crowding the row.
+   */
+  readonly keywords?: string
   readonly active?: boolean
   /** Optional in-page risk gate owned by the shared popup shell. */
   readonly confirmation?: SelectConfirmation
