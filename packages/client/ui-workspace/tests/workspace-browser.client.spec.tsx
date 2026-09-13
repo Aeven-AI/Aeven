@@ -35,7 +35,7 @@ const hit = (sessionId: SessionId, snippet: string, at = 1): SessionSearchResult
   ({ sessionId, seq: at as SessionSeq, snippet })
 const wid = (id: string) => id as WorkspaceId
 const summary = (id: string, updatedAt: number, overrides: Partial<SessionSummary> = {}): SessionSummary => ({
-  id: sid(id), displayTitle: id, running: false, blank: false, updatedAt, ...overrides,
+  id: sid(id), displayTitle: id, title: id, running: false, blank: false, updatedAt, ...overrides,
 })
 const sessionState = (items: readonly SessionSummary[], overrides: Partial<SessionListState> = {}): SessionListState => ({
   ids: items.map(item => item.id),
@@ -622,8 +622,8 @@ describe('WorkspaceBrowser', () => {
     vi.useFakeTimers()
     try {
       const sessions = sessionState([
-        summary('needle-row', 2, { displayTitle: 'Needle row' }),
-        summary('other-row', 1, { displayTitle: 'Other row' }),
+        summary('needle-row', 2, { displayTitle: 'Needle row' , title: 'Needle row' }),
+        summary('other-row', 1, { displayTitle: 'Other row' , title: 'Other row' }),
       ])
       mount({
         useSessions: hook(sessions),
@@ -689,7 +689,7 @@ describe('WorkspaceBrowser', () => {
           summary('newest-3', 4),
           summary('newest-4', 3),
           summary('newest-5', 2),
-          summary('body-hit', 1, { displayTitle: 'Research notes' }),
+          summary('body-hit', 1, { displayTitle: 'Research notes' , title: 'Research notes' }),
         ])),
         useWorkspaces: hook(workspaceState([
           workspace('research', [
@@ -735,7 +735,7 @@ describe('WorkspaceBrowser', () => {
       summary('newest-3', 4),
       summary('newest-4', 3),
       summary('newest-5', 2),
-      summary('target', 1, { displayTitle: 'Needle session' }),
+      summary('target', 1, { displayTitle: 'Needle session' , title: 'Needle session' }),
     ])
     const pending = { ...workspaceState([]), phase: 'pending' as const, state: 'loading' as const }
     const b = mount({ useSessions: hook(sessions), useWorkspaces: hook(pending) })
@@ -767,7 +767,7 @@ describe('WorkspaceBrowser', () => {
       summary('newest-3', 4),
       summary('newest-4', 3),
       summary('newest-5', 2),
-      summary('target', 1, { displayTitle: 'Needle session' }),
+      summary('target', 1, { displayTitle: 'Needle session' , title: 'Needle session' }),
     ])
     const reconnecting = {
       ...workspaceState([workspace('stale', [...sessions.ids])]),
@@ -795,7 +795,7 @@ describe('WorkspaceBrowser', () => {
 
   it('keeps the bounded group projection when the revealed result is already within it', () => {
     const sessions = sessionState([
-      summary('target', 6, { displayTitle: 'Needle session' }),
+      summary('target', 6, { displayTitle: 'Needle session' , title: 'Needle session' }),
       summary('second', 5),
       summary('third', 4),
       summary('fourth', 3),
@@ -817,7 +817,7 @@ describe('WorkspaceBrowser', () => {
   })
 
   it('cancels a pending row reveal when a new search begins', () => {
-    const sessions = sessionState([summary('target', 1, { displayTitle: 'Needle session' })])
+    const sessions = sessionState([summary('target', 1, { displayTitle: 'Needle session' , title: 'Needle session' })])
     const pending = { ...workspaceState([]), phase: 'pending' as const, state: 'loading' as const }
     const b = mount({ useSessions: hook(sessions), useWorkspaces: hook(pending) })
     const input = screen.getByPlaceholderText<HTMLInputElement>('搜索会话…')
@@ -836,7 +836,7 @@ describe('WorkspaceBrowser', () => {
     const open = vi.fn()
     const b = mount({
       useSessions: hook(sessionState([
-        summary('target', 2, { displayTitle: 'Needle session' }),
+        summary('target', 2, { displayTitle: 'Needle session' , title: 'Needle session' }),
         summary('other', 1),
       ])),
       useWorkspaces: hook(workspaceState([workspace('alpha', ['target', 'other'])])),
@@ -866,7 +866,7 @@ describe('WorkspaceBrowser', () => {
       summary('newest-3', 4),
       summary('newest-4', 3),
       summary('newest-5', 2),
-      summary('target', 1, { displayTitle: 'Needle session' }),
+      summary('target', 1, { displayTitle: 'Needle session' , title: 'Needle session' }),
     ])
     const b = mount({
       useSessions: hook(sessions),
@@ -920,7 +920,7 @@ describe('WorkspaceBrowser', () => {
       const searchSessions = vi.fn(async () => { throw new Error('index unavailable') })
       mount({
         useSessions: hook(sessionState([
-          summary('local-hit', 1, { displayTitle: 'Needle title' }),
+          summary('local-hit', 1, { displayTitle: 'Needle title' , title: 'Needle title' }),
         ])),
         useWorkspaces: hook(workspaceState([workspace('alpha', ['local-hit'])])),
         searchSessions,
@@ -945,7 +945,7 @@ describe('WorkspaceBrowser', () => {
       const searchSessions = vi.fn(async () => { throw error })
       mount({
         useSessions: hook(sessionState([
-          summary('local-hit', 1, { displayTitle: 'Needle title' }),
+          summary('local-hit', 1, { displayTitle: 'Needle title' , title: 'Needle title' }),
         ])),
         searchSessions,
       })
@@ -981,8 +981,8 @@ describe('WorkspaceBrowser', () => {
         }))
       mount({
         useSessions: hook(sessionState([
-          summary('first-hit', 2, { displayTitle: 'Old result' }),
-          summary('second-hit', 1, { displayTitle: 'Fresh result' }),
+          summary('first-hit', 2, { displayTitle: 'Old result' , title: 'Old result' }),
+          summary('second-hit', 1, { displayTitle: 'Fresh result' , title: 'Fresh result' }),
         ])),
         searchSessions,
       })
@@ -1517,7 +1517,7 @@ describe('WorkspaceBrowser', () => {
   })
 
   it('search hides drag affordances (rows are not draggable during search)', () => {
-    const sessions = sessionState([summary('needle-a', 2, { displayTitle: 'Needle A' })])
+    const sessions = sessionState([summary('needle-a', 2, { displayTitle: 'Needle A' , title: 'Needle A' })])
     mount({
       useSessions: hook(sessions),
       useWorkspaces: hook(workspaceState([workspace('alpha', ['needle-a'])])),

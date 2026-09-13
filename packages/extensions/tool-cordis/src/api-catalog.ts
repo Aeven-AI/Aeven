@@ -1618,6 +1618,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'signal', description: 'optional cancellation for backend snapshot-listing work.' }],
         returns: 'one header and opaque revision per materialized session without loading full logs.',
       },
+      {
+        signature: 'listWithInheritedCuts?(signal?: AbortSignal): Promise<SessionInheritedCut[]>',
+        description: 'List materialized sessions together with a seeded Session\'s inherited cut.\n\nA SessionHeader cannot express the cut (`isSeeded` records only that fork lineage exists), yet a seeded Session\'s projection-cache identity is keyed by it — so a consumer resolving cached projections from a listed Session needs it, and cannot reconstruct it without reading the body. Optional: a backend that cannot expose the cut while listing omits this method, and listings fall back to list without one.',
+        parameters: [{ name: 'signal', description: 'optional cancellation for backend listing work.' }],
+        returns: 'one header per materialized session, with the cut only where seeded.',
+      },
     ],
   },
   {
@@ -5208,7 +5214,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionRecord',
-    declaration: 'export interface SessionRecord {\n    header: SessionHeader;\n    live: boolean;\n    persisted: boolean;\n}',
+    declaration: 'export interface SessionRecord {\n    header: SessionHeader;\n    live: boolean;\n    persisted: boolean;\n    inheritedEventCount?: SessionLogOffset;\n}',
   },
   {
     name: 'SessionReferenceCandidate',

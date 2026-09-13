@@ -38,7 +38,7 @@ function workspace(
 function summary(id: string, overrides: Partial<SessionSummary> = {}): SessionSummary {
   return {
     id: sid(id),
-    displayTitle: id,
+    displayTitle: id, title: id,
     running: false,
     blank: false,
     updatedAt: 0,

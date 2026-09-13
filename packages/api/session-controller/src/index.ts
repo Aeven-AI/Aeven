@@ -17,7 +17,7 @@ import { SessionCommandController } from './commands.ts'
 import { SessionControlController } from './control.ts'
 import { SessionHistoryController } from './history.ts'
 import { SessionFileReferences } from './file-references.ts'
-import { ApiSessionList, DEFAULT_COLD_BLANK_PROBE_MAX_BYTES } from './list.ts'
+import { ApiSessionList } from './list.ts'
 import { buildModelCatalog } from './catalog.ts'
 import { buildImageModelCatalog, type ImageModelCatalog } from './image-catalog.ts'
 import { installModelSelectionProjection } from './model-selection-projection.ts'
@@ -67,8 +67,6 @@ declare module '@deepseek-ai/cordis' {
 
 /** Session Controller deployment policy. */
 export interface Config {
-  /** Maximum cold Session artifact size eligible for one full projection observation. */
-  readonly coldBlankProbeMaxBytes?: number
   /** Override platform desktop-opener detection. */
   readonly nativeOpen?: boolean
 }
@@ -96,7 +94,6 @@ export class SessionController extends TypertRemoteService {
   ]
 
   static Config: z<Config> = z.object({
-    coldBlankProbeMaxBytes: z.natural().default(DEFAULT_COLD_BLANK_PROBE_MAX_BYTES),
     nativeOpen: z.boolean(),
   })
 
@@ -125,10 +122,7 @@ export class SessionController extends TypertRemoteService {
       await Promise.allSettled([...this.promotions])
     }, 'session-controller.promotions')
     this.history = new SessionHistoryController(ctx, (observation) => { this.promote(observation) })
-    this.listState = new ApiSessionList(
-      ctx,
-      config.coldBlankProbeMaxBytes ?? DEFAULT_COLD_BLANK_PROBE_MAX_BYTES,
-    )
+    this.listState = new ApiSessionList(ctx)
     this.openPath = internals.openPath ?? openNativePath
     this.canOpenPath = internals.canOpenPath
       ?? (() => config.nativeOpen ?? (internals.openPath !== undefined || canOpenNativePath()))

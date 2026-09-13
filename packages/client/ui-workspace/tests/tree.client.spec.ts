@@ -17,7 +17,7 @@ const wid = (id: string) => id as WorkspaceId
 const searchHit = (sessionId: SessionId, snippet: string, at = 1): SessionSearchResultItem =>
   ({ sessionId, seq: at as SessionSeq, snippet })
 const summary = (id: string, updatedAt: number, cwd?: string): SessionSummary => ({
-  id: sid(id), displayTitle: id, running: false, blank: false,
+  id: sid(id), displayTitle: id, title: id, running: false, blank: false,
   updatedAt, ...(cwd === undefined ? {} : { cwd }),
 })
 const list = (...items: SessionSummary[]): SessionListState => ({

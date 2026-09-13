@@ -129,6 +129,19 @@ export interface StoredSuffix extends SessionStorageMetadata {
 }
 
 /**
+ * One stored Session's header paired with its inherited cut, when it has one.
+ * Produced by a backend's optional {@link PersistenceBackend.listWithInheritedCuts}.
+ */
+export interface SessionInheritedCut {
+  header: SessionHeader
+  /**
+   * How many leading events this seeded (fork) Session inherits from its source
+   * log; absent for an unseeded Session.
+   */
+  inheritedEventCount?: SessionLogOffsetType
+}
+
+/**
  * The storage contract between {@link PersistenceCoordinator} and a concrete
  * backend: the minimal set of durable primitives the orchestration calls. A
  * backend implements these (over files, rows, an object store, …); the
@@ -224,6 +237,22 @@ export interface PersistenceBackend<TornMarker = unknown> {
    * @param signal - optional cancellation for backend listing work.
    */
   list(signal?: AbortSignal): Promise<SessionHeader[]>
+
+  /**
+   * Optional listing that additionally reports each stored Session's inherited
+   * cut, i.e. how many events a seeded (fork) Session inherits from its source.
+   *
+   * A `SessionHeader` records only `isSeeded` — that lineage exists — never the
+   * cut itself, so a consumer that must address a seeded Session's derived state
+   * (for example its projection-cache row, whose identity includes the cut)
+   * cannot reconstruct it from `list` alone. A backend whose listing already
+   * reads the header, which carries the cut, implements this at no extra I/O;
+   * backends that cannot expose it without a body read omit the method and
+   * callers fall back to {@link list} and an unknown cut.
+   * @param signal - optional cancellation for backend listing work.
+   * @returns one entry per materialized session; the cut is present only for a seeded Session.
+   */
+  listWithInheritedCuts?(signal?: AbortSignal): Promise<SessionInheritedCut[]>
 
   /**
    * Optional side-effect-free artifact locator, used to point refusal
