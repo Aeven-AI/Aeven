@@ -10,13 +10,14 @@
  * close, a size change replays the placement, and the hook still works where
  * `ResizeObserver` does not exist.
  */
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, fireEvent, render } from '@testing-library/react'
 import { useAnchoredPosition } from '../src/useAnchoredPosition.ts'
 
 afterEach(() => {
   cleanup()
+  vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })
 
@@ -49,19 +50,33 @@ function stubResizeObserver(): Recorded[] {
 
 /**
  * Host component that anchors a panel and reports the computed position.
- * @param props - whether the panel is open.
+ * @param props - whether the panel is open, and a counter incremented per render.
  * @returns the anchor and, while open, the panel carrying the position.
  */
-function Host({ open }: { open: boolean }) {
+function Host({ open, renders }: { open: boolean; renders?: { count: number } }) {
   const anchorRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const position = useAnchoredPosition({ open, anchorRef, panelRef, gap: 4, margin: 12 })
+  useEffect(() => { if (renders !== undefined) renders.count += 1 })
   return (
     <>
       <button ref={anchorRef} type="button">anchor</button>
       {open && <div ref={panelRef} data-testid="panel" style={position ?? { visibility: 'hidden' }} />}
     </>
   )
+}
+
+/**
+ * A rect the hook can read: jsdom reports zeros, so a test that cares about the
+ * coordinates has to state them.
+ * @param top - viewport top of the anchor.
+ * @returns the anchor's rect.
+ */
+function rect(top: number): DOMRect {
+  return {
+    left: 20, top, right: 60, bottom: top + 20, width: 40, height: 20, x: 20, y: top,
+    toJSON: () => ({}),
+  }
 }
 
 describe('useAnchoredPosition', () => {
@@ -107,5 +122,33 @@ describe('useAnchoredPosition', () => {
     expect(made).toHaveLength(0)
     expect(add.mock.calls.filter(([type]) => type === 'scroll' || type === 'resize')).toEqual([])
     add.mockRestore()
+  })
+
+  it('re-places the panel when its anchor moves under a scroll', () => {
+    const anchor = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(rect(30))
+    const ui = render(<Host open />)
+    expect(ui.getByTestId('panel').style.top).toBe('54px')
+
+    // `bottom` side plus the 4px gap: the panel hangs below whatever the anchor
+    // reports after the scroll, which is the whole point of tracking it.
+    anchor.mockReturnValue(rect(130))
+    fireEvent.scroll(window)
+    expect(ui.getByTestId('panel').style.top).toBe('154px')
+    expect(ui.getByTestId('panel').style.left).toBe('20px')
+  })
+
+  it('keeps the placement identity when a scroll leaves the anchor where it was', () => {
+    // The listener is capture-phase, so it also runs for scrolls that moved
+    // something else entirely. Re-placing at identical coordinates has to return
+    // the same object, or every such frame re-renders the panel.
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(rect(30))
+    const renders = { count: 0 }
+    render(<Host open renders={renders} />)
+    const placed = renders.count
+
+    fireEvent.scroll(window)
+    fireEvent.scroll(window)
+
+    expect(renders.count).toBe(placed)
   })
 })

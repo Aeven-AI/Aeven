@@ -22,7 +22,7 @@
 .index {
   flex: none;
   width: 24px;
-  font: var(--dsw-font-xs-13);
+  font: var(--dsw-font-xs-14);
   color: var(--dsw-alias-label-tertiary);
 }
 
@@ -42,7 +42,7 @@
   max-width: 100%;
   padding: 0 4px;
   border-radius: 6px;
-  font: var(--dsw-font-xs-strong-13);
+  font: var(--dsw-font-xs-strong-14);
   white-space: nowrap;
 }
 
@@ -112,7 +112,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font: var(--dsw-font-xs-13);
+  font: var(--dsw-font-xs-14);
   color: var(--dsw-alias-label-primary);
 }
 
@@ -132,7 +132,7 @@
   flex: none;
   width: 71px;
   text-align: left;
-  font: var(--dsw-font-xs-13);
+  font: var(--dsw-font-xs-14);
   color: var(--dsw-alias-label-tertiary);
   white-space: nowrap;
 }

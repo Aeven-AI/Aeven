@@ -114,7 +114,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 20px;
   font-weight: 500;
   color: var(--dsw-alias-label-tertiary);
@@ -176,7 +176,7 @@
   border: none;
   outline: none;
   background: transparent;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 20px;
   color: var(--dsw-alias-label-primary);
 }
@@ -207,9 +207,9 @@
   flex: 1 1 0;
   min-width: 256px;
   overflow-y: auto;
-  /* The themed scrollbar occupies the column's edge (styled scrollbars are
-   * classic, gutter-taking ones); the extra clearance keeps the row pills
-   * clear of the thumb. */
+  /* The themed scrollbar paints at the column's edge — over the content where
+   * the engine floats it, in a gutter where it does not; the extra clearance
+   * keeps the row pills clear of the thumb either way. */
   padding-right: 8px;
 }
 
@@ -265,7 +265,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 20px;
   font-weight: 500;
   color: var(--dsw-alias-label-primary);
@@ -337,7 +337,7 @@
   border: none;
   background: transparent;
   padding: 0;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 20px;
   font-weight: 500;
   color: var(--dsw-alias-label-secondary);

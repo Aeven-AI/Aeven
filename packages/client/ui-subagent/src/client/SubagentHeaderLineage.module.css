@@ -40,7 +40,7 @@
 
 .ancestorSwitcherTrigger {
   color: var(--dsw-alias-label-tertiary);
-  font-weight: 400;
+  font-weight: 450;
 }
 
 .switcherTitle {
@@ -132,7 +132,7 @@
   border-radius: 8px;
   background: transparent;
   color: var(--dsw-alias-label-primary);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 18px;
   text-align: left;
   cursor: pointer;
@@ -218,7 +218,7 @@
 
 .label {
   color: inherit;
-  font-weight: 400;
+  font-weight: 450;
 }
 
 .currentLabel {

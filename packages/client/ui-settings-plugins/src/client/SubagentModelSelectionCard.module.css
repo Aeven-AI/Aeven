@@ -9,7 +9,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.5;
   color: var(--dsw-alias-label-primary);
 }
@@ -160,7 +160,7 @@
 }
 
 .modelName {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--dsw-alias-label-primary);
 }
 

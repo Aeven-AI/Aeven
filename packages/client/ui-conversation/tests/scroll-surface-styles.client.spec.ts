@@ -30,13 +30,28 @@ describe('conversation composer seat styles', () => {
     expect(declarations).not.toContain('bottom: 0')
   })
 
-  it('reserves the scrollport gutter on the seat so both centre on one axis', () => {
-    // `.scrollBody` keeps `scrollbar-gutter: stable`, so its content column
-    // centres inside a narrower box; the seat is outside that box now and has
-    // to give back the same width or the card sits half a bar-width right.
-    expect(declarationsFrom('.scrollBody')).toContain('scrollbar-gutter: stable')
-    expect(declarationsFrom(".root[data-phase='active'] .composerSeat"))
-      .toContain('padding-right: var(--dsh-scrollbar-width)')
+  it('reserves the scrollport gutter symmetrically so the seat centres on the box', () => {
+    // The seat sits outside the scrollport and spans the box itself, so the
+    // reservation it has to agree with is the symmetric one: an end-edge-only
+    // gutter leaves the content column half a bar-width off the seat's centre on
+    // every engine that still reserves a gutter — measured in chromium 151
+    // against a classic 15px bar, 7.5px off with `stable` and 0 with
+    // `both-edges` — where `both-edges` also reserves nothing once the bar
+    // floats. The padding that used to give that width back is gone with the
+    // fixed number it needed: the band is 0 on the engines that float the bar
+    // and an engine value no sheet knows on the ones that do not.
+    expect(declarationsFrom('.scrollBody')).toContain('scrollbar-gutter: stable both-edges')
+    const seat = declarationsFrom(".root[data-phase='active'] .composerSeat")
+    expect(seat.some(part => part.startsWith('padding-right:'))).toBe(false)
+  })
+
+  it('carries the transcript inset into the view chrome on both edges', () => {
+    // `.viewChrome` spans the scrollport, and the controls it holds keep the
+    // horizontal math they had inside it. That math is now symmetric: the
+    // reserved gutter cannot pull the end edge in any further than the start
+    // edge.
+    expect(declarationsFrom('.viewChrome')).toContain('padding-left: var(--dsh-composer-side-clearance)')
+    expect(declarationsFrom('.viewChrome')).toContain('padding-right: var(--dsh-composer-side-clearance)')
   })
 })
 

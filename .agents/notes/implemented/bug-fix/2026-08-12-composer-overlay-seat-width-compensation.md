@@ -6,6 +6,8 @@ English | [中文](2026-08-12-composer-overlay-seat-width-compensation.zh.md)
 
 ## Problem
 
+The compensation this note decided is superseded by [Overlay scrollbars return the scrollport's gutter](2026-09-13-overlay-scrollbars-return-the-gutter.md): `--dsh-scrollbar-width` is deleted, Chat's scrollport reserves its gutter symmetrically rather than on the end edge alone, and neither seat gives a bar's width back — the bar floats over the content on every engine that implements the standard scrollbar properties, and on the engines that still reserve one the symmetric gutter puts the transcript's axis on the box's axis. The overlay branch's `scrollbar-gutter: auto` and the cross-tab card invariant below remain current. The geometry control named under Testing measures a forced layout-consuming bar rather than a dropped compensation, for the same reason.
+
 The [composer-tab gutter reservation](2026-08-04-composer-tab-gutter-reservation.md) made the column's scroller reserve a scrollbar gutter unconditionally, so the composer seat measured the same width in Chat and in a view with a composer overlay. The cost was paid by every overlay view: the view's content column ended 8px short of the column's right edge, because the scroller reserved a gutter for a bar it never draws — the trajectory ledger owns its own scrollers and the outer box never scrolls.
 
 The trajectory table made that cost visible: its full-width row divider lines stopped 8px short of the pane edge, leaving a strip of whitespace at the right of every line and of the whole content column.

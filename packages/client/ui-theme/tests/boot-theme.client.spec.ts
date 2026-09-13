@@ -23,6 +23,7 @@ afterEach(() => {
   document.documentElement.style.removeProperty('color-scheme')
   document.body.removeAttribute(DARK_ATTRIBUTE)
   document.body.style.removeProperty('--dsh-content-font-size')
+  document.body.style.removeProperty('--dsh-content-font-size-secondary')
 })
 
 describe('theme bootstrap row', () => {
@@ -66,5 +67,14 @@ describe('theme bootstrap row', () => {
     expect(document.body.style.getPropertyValue('--dsh-content-font-size')).toBe('17px')
     executeBootstrap('light')
     expect(document.body.style.getPropertyValue('--dsh-content-font-size')).toBe('16px')
+  })
+
+  it('writes the secondary size alongside it, so first paint already has both', () => {
+    mockSystemDark(false)
+    // 17 → 15px (two steps under); 14 → 14px, the floor where 13px would be.
+    executeBootstrap('light', 17)
+    expect(document.body.style.getPropertyValue('--dsh-content-font-size-secondary')).toBe('15px')
+    executeBootstrap('light', 14)
+    expect(document.body.style.getPropertyValue('--dsh-content-font-size-secondary')).toBe('14px')
   })
 })

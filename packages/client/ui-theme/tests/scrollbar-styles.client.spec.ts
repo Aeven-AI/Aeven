@@ -2,11 +2,11 @@
  * Scrollbar stylesheet contract, asserted against the CSS text on disk: every
  * --dsw-alias-scrollbar-* token design-platform.css defines has a consumer,
  * scrollbar.css binds the base-surface pair through the rebindable
- * indirection, the width variable mirrors the ::-webkit-scrollbar rule for
- * consumers that align beside the bar, and elevated surfaces rebind that
- * indirection in complete pairs. The expected token set is scanned out of
- * design-platform.css, so adding, renaming, or dropping a scrollbar token
- * moves these assertions with it.
+ * indirection, the standard properties reach every engine as the primary path
+ * while the gutter-consuming pseudo-element skin stays behind the fallback
+ * gate, and elevated surfaces rebind that indirection in complete pairs. The
+ * expected token set is scanned out of design-platform.css, so adding,
+ * renaming, or dropping a scrollbar token moves these assertions with it.
  */
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -260,64 +260,84 @@ describe('scrollbar.css base-surface binding', () => {
   })
 })
 
-describe('scrollbar.css width variable', () => {
-  const WIDTH_VARIABLE = `${INDIRECTION_PREFIX}width`
+describe('scrollbar.css rendering paths', () => {
+  /** The fallback gate, spelled exactly as the sheet must spell it for the split to exist. */
+  const GATE = '@supports not (scrollbar-width: thin)'
+  const withoutComments = scrollbarCss.replace(/\/\*[\s\S]*?\*\//g, ' ')
+  const gate = atRuleBlock(withoutComments, GATE)
+  /** Standard scrollbar properties: the only path that leaves a scrolling box its full width. */
+  const STANDARD_PROPERTIES = ['scrollbar-width', 'scrollbar-color']
+  /** The opt-out's own pseudo-element rule, the one the gate must not swallow. */
+  const OPT_OUT_SELECTOR = '.no-scrollbar'
 
-  it('defines the width variable on body as a static length', () => {
-    // The overlay seat compensation reads a fixed number, not a second
-    // indirection: the mirror check below compares the WebKit rule against
-    // this value, so a var()-to-var() chain would compare one indirection to
-    // another instead of pinning the number.
-    const value = scrollbarRules
-      .filter(rule => rule.selectors.includes('body'))
-      .flatMap(rule => rule.declarations)
-      .findLast(([property]) => property === WIDTH_VARIABLE)?.[1]
-    expect(value, WIDTH_VARIABLE).toBeDefined()
-    expect(value, WIDTH_VARIABLE).toMatch(/^\d+(?:\.\d+)?px$/)
-  })
+  /** Offsets of every rule selector that starts with `::-webkit-scrollbar`. */
+  function webkitRuleOffsets(css: string): number[] {
+    return [...css.matchAll(/::-webkit-scrollbar/g)]
+      .map(match => match.index)
+      .filter(offset => css.slice(offset).search(/^[\w:-]*\s*[,{]/) === 0)
+  }
 
-  it('mirrors the ::-webkit-scrollbar width rule with the variable value', () => {
-    // The compensation stays aligned with the WebKit bar only while both read
-    // the same number. A change to one side without the other puts the overlay
-    // seat a band off from Chat on WebKit engines.
-    const variableValue = scrollbarRules
-      .filter(rule => rule.selectors.includes('body'))
-      .flatMap(rule => rule.declarations)
-      .findLast(([property]) => property === WIDTH_VARIABLE)?.[1]
-    const webkitWidth = scrollbarRules
-      .filter(rule => rule.selectors.includes('::-webkit-scrollbar'))
-      .flatMap(rule => rule.declarations)
-      .findLast(([property]) => property === 'width')?.[1]
-    expect(webkitWidth, '::-webkit-scrollbar width').toBeDefined()
-    expect(webkitWidth).toBe(variableValue)
-  })
-
-  it('every reader of the width variable outside ui-theme references a defined variable', () => {
-    // The consumer is ConversationRoot's overlay composer seat
-    // (`right: var(--dsh-scrollbar-width)`); a rename in scrollbar.css without
-    // the consumer, or a typo in the consumer, leaves the value
-    // guaranteed-invalid and the seat loses the band. The equal-rectangle e2e
-    // would catch it only on an engine that draws the bar, so the sheet
-    // contract states it here.
-    const defined = new Set(
-      scrollbarRules
-        .flatMap(rule => rule.declarations)
-        .filter(([property]) => property.startsWith(INDIRECTION_PREFIX))
-        .map(([property]) => property),
-    )
-    expect(defined).toContain(WIDTH_VARIABLE)
-    const readers: string[] = []
-    for (const file of packageStylesheets()) {
-      if (file === fileURLToPath(new URL('scrollbar.css', STYLES))) continue
-      for (const rule of parseRules(readFileSync(file, 'utf8'))) {
-        for (const [property, value] of rule.declarations) {
-          for (const name of varReferences(value)) {
-            if (name === WIDTH_VARIABLE) readers.push(`${file} ${rule.selectors.join(', ')}: ${property}`)
-          }
-        }
+  it('declares the standard properties outside the fallback gate', () => {
+    // They are the path that gives a scrolling box its width back, so the
+    // engines that parse them must take it: a `::-webkit-scrollbar` width is
+    // what forces the bar into a gutter and takes 8px off every scrolling box
+    // with it. Measured in chromium 151 on the running app, one scroller stated
+    // both ways: `offsetWidth - clientWidth` is 8 with the pseudo-element width
+    // and 0 with these two properties.
+    expect(gate, GATE).toBeDefined()
+    for (const property of STANDARD_PROPERTIES) {
+      const offsets = [...withoutComments.matchAll(new RegExp(String.raw`(^|[;{\s])${property}\s*:`, 'g'))]
+        .map(match => match.index)
+      expect(offsets.length, property).toBeGreaterThan(0)
+      for (const offset of offsets) {
+        expect(offset > gate!.start && offset < gate!.end, `${property} inside ${GATE}`).toBe(false)
       }
     }
-    expect(readers.length, 'compensation consumer').toBeGreaterThan(0)
+  })
+
+  it('keeps the WebKit pseudo-element skin inside the fallback gate', () => {
+    // Reach, stated rather than inherited from the suppression. A non-`auto`
+    // `scrollbar-width` or `scrollbar-color` makes chromium and Safari discard
+    // every `::-webkit-scrollbar*` rule for that element, so an ungated skin
+    // would be dropped by the engines this gate exists to keep it away from and
+    // read as dead CSS; gated, the rule states which engines own it. The one
+    // pseudo-element rule outside is the opt-out below, which the engines that
+    // need it are exactly the ones that cannot suppress it.
+    expect(gate, GATE).toBeDefined()
+    const inside = withoutComments.slice(gate!.start, gate!.end)
+    expect(webkitRuleOffsets(inside).length, 'skin rules inside the gate').toBeGreaterThan(0)
+    const outside = withoutComments.slice(0, gate!.start) + withoutComments.slice(gate!.end)
+    for (const offset of webkitRuleOffsets(outside)) {
+      const selectorStart = Math.max(0, offset - OPT_OUT_SELECTOR.length)
+      expect(outside.slice(selectorStart, offset), 'unscoped skin rule outside the gate')
+        .toBe(OPT_OUT_SELECTOR)
+    }
+  })
+
+  it('declares the no-scrollbar opt-out on both rendering paths', () => {
+    // Surfaces opt out by class name, so a rule that goes missing — or lands on
+    // the wrong side of the gate — leaves the bar rendering with nothing to
+    // report it: the class in the markup has no other contract. Both halves sit
+    // outside the gate: the standard half is what the modern engines read, and
+    // the pseudo-element half is what the engines without it read.
+    const rules = parseRules(scrollbarCss)
+    expect(rules.find(rule => rule.selectors.includes('.no-scrollbar'))?.declarations)
+      .toContainEqual(['scrollbar-width', 'none'])
+    expect(rules.find(rule => rule.selectors.includes('.no-scrollbar::-webkit-scrollbar'))?.declarations)
+      .toContainEqual(['display', 'none'])
+  })
+
+  it('renders the hover token only through the fallback path', () => {
+    // The standard path has no hover counterpart — scrollbar-color states one
+    // thumb colour and the engine derives its own hover treatment — so the hover
+    // indirection renders exactly where the pseudo-element skin does, and
+    // nowhere else.
+    const hoverOffsets = [...withoutComments.matchAll(new RegExp(String.raw`var\(\s*${INDIRECTION_PREFIX}thumb-hover`, 'g'))]
+      .map(match => match.index)
+    expect(hoverOffsets.length).toBeGreaterThan(0)
+    for (const offset of hoverOffsets) {
+      expect(offset > gate!.start && offset < gate!.end, 'hover indirection read outside the fallback gate').toBe(true)
+    }
   })
 })
 
@@ -356,71 +376,6 @@ describe('scrollbar.css selectors', () => {
       .filter(rule => rule.declarations.some(([property]) => property === 'scrollbar-width'))
       .flatMap(rule => rule.selectors)
     expect(widthSelectors).toContain('body *')
-  })
-})
-
-describe('scrollbar.css rendering paths', () => {
-  /** The gate prelude, spelled exactly as the sheet must spell it for the split to exist. */
-  const GATE = '@supports not selector(::-webkit-scrollbar)'
-  const withoutComments = scrollbarCss.replace(/\/\*[\s\S]*?\*\//g, ' ')
-  const gate = atRuleBlock(withoutComments, GATE)
-  /** Standard scrollbar properties, the ones whose non-`auto` values suppress the pseudo-elements. */
-  const STANDARD_PROPERTIES = ['scrollbar-width', 'scrollbar-color']
-
-  it('gates the standard properties behind the absence of the WebKit pseudo-element', () => {
-    // A non-`auto` scrollbar-width or scrollbar-color makes Chromium and
-    // Safari discard every ::-webkit-scrollbar* rule for that element,
-    // ::-webkit-scrollbar-thumb:hover included. Declaring both paths
-    // unconditionally therefore renders the hover token nowhere: the engines
-    // implementing the hover pseudo-element are exactly the ones the standard
-    // properties silence, and Firefox has no hover pseudo-element at all.
-    expect(gate, GATE).toBeDefined()
-    for (const property of STANDARD_PROPERTIES) {
-      const offsets = [...withoutComments.matchAll(new RegExp(String.raw`(^|[;{\s])${property}\s*:`, 'g'))]
-        .map(match => match.index)
-      expect(offsets.length, property).toBeGreaterThan(0)
-      for (const offset of offsets) {
-        expect(offset, `${property} outside ${GATE}`).toBeGreaterThan(gate!.start)
-        expect(offset, `${property} outside ${GATE}`).toBeLessThan(gate!.end)
-      }
-    }
-  })
-
-  it('leaves the WebKit pseudo-element rules outside the gate', () => {
-    // Gating these in turn would only restate selector matching: an engine
-    // without the pseudo-elements drops the rules as unknown selectors. Inside
-    // the gate they would be dropped by the engines that do implement them,
-    // which is every engine that can render them.
-    const offsets = [...withoutComments.matchAll(/::-webkit-scrollbar/g)]
-      .map(match => match.index)
-      .filter(offset => withoutComments.slice(offset).search(/^[\w:-]*\s*[,{]/) === 0)
-    expect(offsets.length).toBeGreaterThan(0)
-    for (const offset of offsets) {
-      expect(offset > gate!.start && offset < gate!.end, `::-webkit-scrollbar rule inside ${GATE}`).toBe(false)
-    }
-  })
-
-  it('declares the no-scrollbar opt-out on both rendering paths', () => {
-    // Surfaces opt out by class name, so a rule that goes missing — or lands on
-    // the wrong side of the gate — leaves the bar rendering with nothing to
-    // report it: the class in the markup has no other contract.
-    const rules = parseRules(scrollbarCss)
-    expect(rules.find(rule => rule.selectors.includes('.no-scrollbar'))?.declarations)
-      .toContainEqual(['scrollbar-width', 'none'])
-    expect(rules.find(rule => rule.selectors.includes('.no-scrollbar::-webkit-scrollbar'))?.declarations)
-      .toContainEqual(['display', 'none'])
-  })
-
-  it('renders the hover token only through the pseudo-element path', () => {
-    // The standard path has no hover counterpart — scrollbar-color states one
-    // thumb colour and the engine derives its own hover treatment — so the
-    // hover indirection has to be read outside the gate or it renders nowhere.
-    const hoverOffsets = [...withoutComments.matchAll(new RegExp(String.raw`var\(\s*${INDIRECTION_PREFIX}thumb-hover`, 'g'))]
-      .map(match => match.index)
-    expect(hoverOffsets.length).toBeGreaterThan(0)
-    for (const offset of hoverOffsets) {
-      expect(offset > gate!.start && offset < gate!.end, 'hover indirection read inside the gate').toBe(false)
-    }
   })
 })
 

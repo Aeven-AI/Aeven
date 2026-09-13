@@ -119,7 +119,10 @@ describe('web e2e: the composer model switch is the default for later sessions',
       .not.toContain('Origin Large')
 
     // The list hides its scrollbar (the shell's viewport): the rows still
-    // scroll, the bar does not render.
+    // scroll, the bar does not render. `no-scrollbar` states the standard
+    // `scrollbar-width: none` on every element rather than under a
+    // Firefox-only gate, so chromium resolves it here too instead of reporting
+    // `auto` and hiding the bar through the pseudo-element alone.
     expect(await page.getByRole('listbox').evaluate(
       node => window.getComputedStyle(node).scrollbarWidth,
     )).toBe('none')

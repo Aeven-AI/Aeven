@@ -22,14 +22,17 @@ export type ToolRowState = 'running' | 'ok' | 'error' | 'stopped'
 
 /**
  * Failure codes whose remedy is a documented next step the calling session
- * performs itself: the filesystem gate refuses an `edit` of a target this
- * session has not read, and naming the read is the whole fix. Such a row keeps
- * its failed state, its text, and its expanded output — only the alarm styling
+ * performs itself: both are guarded-mutation refusals that name the step in
+ * their model-facing text — the gate refuses a mutation of a target this
+ * session has not read (`FS_NOT_OBSERVED`, "read the file, then retry"), and a
+ * mutation whose target changed under the session's last read
+ * (`FS_STALE_VERSION`, "re-read the file, then retry"). Such a row keeps its
+ * failed state, its text, and its expanded output — only the alarm styling
  * softens, because a refusal the session clears on its own is information, not
  * an incident. Every other code keeps the error presentation: a failure whose
  * recovery nothing states is one the reader has to weigh.
  */
-const NOTICE_ERROR_CODES: ReadonlySet<string> = new Set(['FS_NOT_OBSERVED'])
+const NOTICE_ERROR_CODES: ReadonlySet<string> = new Set(['FS_NOT_OBSERVED', 'FS_STALE_VERSION'])
 
 type ToolTitleKey = Extract<LocaleKeysOf<'conversation'>, `tool.title.${string}`>
 

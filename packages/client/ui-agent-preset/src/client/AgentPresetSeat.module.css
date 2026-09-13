@@ -12,7 +12,7 @@
   border-radius: 16px;
   background: transparent;
   color: var(--dsw-alias-label-primary);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 20px;
   font-weight: 500;
   white-space: nowrap;
@@ -106,7 +106,7 @@
 }
 
 .itemName {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 20px;
   color: var(--dsw-alias-label-primary);
 }
