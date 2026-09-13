@@ -21,20 +21,20 @@ import css from './ChatView.module.css'
 const FOLLOW_THRESHOLD = 24
 const SCROLL_SAMPLE_INTERVAL_MS = 500
 /** Prefetch runway floor, for a scrollport too short to give one of its own. */
-const OLDER_PREFETCH_MARGIN = 600
+const OLDER_PREFETCH_MARGIN = 1500
 /** Screens of runway ahead of the head: a fling has to outrun this much to reach it. */
-const OLDER_PREFETCH_SCREENS = 2
+const OLDER_PREFETCH_SCREENS = 4
 
 /** Active column host when present; otherwise the view-local scroller. */
 function scrollerOf(from: HTMLElement): HTMLElement {
   return (from.closest('[data-conversation-scroll]')) ?? from
 }
 
-interface PagingAnchor {
+interface ReadingAnchor {
   /** Stable node/call identity, independent of boundary-spanning group keys. */
   key: string
-  /** Row top relative to the scrollport after the latest user scroll. */
-  top: number
+  /** Row top in scroll-content coordinates: scrolling never changes it, only layout above the row does. */
+  offset: number
 }
 
 /** Find an already-rendered row without interpolating a selector. */
@@ -163,15 +163,15 @@ function pagingAnchor(list: HTMLElement, scrollport: HTMLElement): HTMLElement |
 }
 
 /**
- * Capture the reader's current row as the anchor a pending prepend restores.
+ * Capture the row at the scrollport's top edge in scroll-content coordinates.
  * @param list - the ChatView list element.
  * @param scrollport - the element that owns scrolling.
  * @returns the anchor, or null when no visible row carries a stable key.
  */
-function heldPagingAnchor(list: HTMLElement, scrollport: HTMLElement): PagingAnchor | null {
+function readingAnchor(list: HTMLElement, scrollport: HTMLElement): ReadingAnchor | null {
   const row = pagingAnchor(list, scrollport)
   if (row === null || row.dataset.chatAnchorKey === undefined) return null
-  return { key: row.dataset.chatAnchorKey, top: flowTop(row, scrollport) }
+  return { key: row.dataset.chatAnchorKey, offset: flowTop(row, scrollport) + scrollport.scrollTop }
 }
 
 type ChatScrollPosition = NonNullable<ReturnType<ChatViewSlotProps['chatScroll']['read']>>
@@ -386,17 +386,17 @@ export function ChatView({
   )
   /** Last position delivered or written on the main thread. */
   const observedTopRef = useRef(0)
-  /** Paging anchor: semantic row/position at click, updated by reader scrolls
-   * while the request is pending and restored after the prepend lands. */
-  const anchorRef = useRef<PagingAnchor | null>(null)
-  /** Reader landmark held at a stable viewport offset through asynchronous reflow. */
-  const reflowAnchorRef = useRef<PagingAnchor | null>(null)
-  /** Reader row a settling prepend owns; outranks the derived reflow anchor until the reader scrolls. */
-  const prependHoldRef = useRef<PagingAnchor | null>(null)
+  /**
+   * The row at the top edge, re-captured after every compensation and scroll
+   * frame. Prepends and reflow move it in content coordinates; shifting
+   * `scrollTop` by that movement alone keeps the reader's row still without
+   * ever restoring a position recorded before the reader's latest input.
+   */
+  const anchorRef = useRef<ReadingAnchor | null>(null)
   /** Unloaded-turn jump in flight: target turn plus its load-through seq. */
   const pendingJumpRef = useRef<{ turn: number; seq: SessionSeq } | null>(null)
-  /** Whether the in-flight jump already landed mid-paging (settle then only corrects an untouched landing). */
-  const jumpLandedRef = useRef(false)
+  /** Anchor key captured when the in-flight jump landed mid-paging; settle only corrects an untouched landing. */
+  const jumpLandedKeyRef = useRef<string | null>(null)
   const [busyJumpTurn, setBusyJumpTurn] = useState<number | null>(null)
   /** Bumped when a loadThrough completion settles, after its last page's commit. */
   const [jumpSettleTick, setJumpSettleTick] = useState(0)
@@ -482,6 +482,7 @@ export function ChatView({
     }
     activeFrameRef.current = requestAnimationFrame(() => {
       activeFrameRef.current = null
+      holdAnchorRef.current()
       syncActiveTurn()
     })
   }, [syncActiveTurn])
@@ -510,10 +511,50 @@ export function ChatView({
     setChromeLayer(scrollport.parentElement?.querySelector<HTMLElement>('[data-conversation-chrome]') ?? null)
   }, [])
 
+  /**
+   * Keep the anchored row still through any layout change since the last
+   * capture, then re-capture the row now at the top edge. Scrolling never moves
+   * a row in content coordinates, so a reader's input during a page request or
+   * a reflow is preserved exactly; only layout above the row shifts `scrollTop`.
+   * The ledger moves by the applied shift alone, so reader input since the last
+   * sample still reads as reader input.
+   */
+  const holdAnchorRef = useRef<() => void>(() => {})
+  holdAnchorRef.current = () => {
+    const local = listRef.current
+    if (local === null) return
+    // A pinned reader is followed to the floor instead, so streaming commits
+    // read no layout here; a scroll still being sampled may be leaving the
+    // floor, so it keeps the row.
+    if (atBottomRef.current && !scrollSamplePendingRef.current) {
+      anchorRef.current = null
+      return
+    }
+    const el = scrollerOf(local)
+    const anchor = anchorRef.current
+    const row = anchor === null ? null : anchorElement(local, anchor.key)
+    if (anchor === null || row === null) {
+      anchorRef.current = readingAnchor(local, el)
+      return
+    }
+    const viewportTop = el.getBoundingClientRect().top
+    let rect = row.getBoundingClientRect()
+    const shift = rect.top - viewportTop + el.scrollTop - anchor.offset
+    if (Math.abs(shift) > 0.5) {
+      const before = el.scrollTop
+      el.scrollTop = before + shift
+      observedTopRef.current += el.scrollTop - before
+      rect = row.getBoundingClientRect()
+    }
+    // Re-select only once the row no longer covers the top edge: most frames
+    // cost two rect reads instead of a hit test.
+    anchorRef.current = rect.top <= viewportTop + 1 && rect.bottom > viewportTop + 1
+      ? { key: anchor.key, offset: rect.top - viewportTop + el.scrollTop }
+      : readingAnchor(local, el)
+  }
+
   const toBottom = (el: HTMLElement): void => {
     anchorRef.current = null
-    reflowAnchorRef.current = null
-    prependHoldRef.current = null
     // Returning to the live tail supersedes a jump still landing.
     pendingJumpRef.current = null
     setBusyJumpTurn(current => current === null ? current : null)
@@ -534,35 +575,15 @@ export function ChatView({
   landOnRowRef.current = (local, el, row, turn, origin) => {
     el.scrollTop = origin ? 0 : el.scrollTop + flowTop(row, el) - 24
     observedTopRef.current = el.scrollTop
-    // A landing SUPERSEDES the compensation anchors. They hold a row through an
-    // asynchronous page, and the one the ResizeObserver prefers — the prepend
-    // hold — is calibrated against the window as it was before this write.
-    // Leaving it armed makes every later reflow re-apply its offset to the
-    // landed position: on a rail jump to the top of a long Session the reader is
-    // walked back to the floor one correction at a time, which reads as the jump
-    // arriving and then sliding away.
-    prependHoldRef.current = null
-    // A landing SUPERSEDES both compensation anchors. They exist to hold a row
-    // through an asynchronous page, and the one the ResizeObserver prefers — the
-    // prepend hold — is calibrated against the window as it was before this
-    // write. Leaving it armed makes every later reflow re-apply its offset to
-    // the landed position: on a rail jump to the top of a long Session the
-    // reader is walked back to the floor one correction at a time, which reads
-    // as the jump arriving and then sliding away. Nothing re-arms them for the
-    // landed position either, because a landing is not a prepend.
-    prependHoldRef.current = null
+    // The landing is the new reading position: later pages and reflow hold it.
+    anchorRef.current = readingAnchor(local, el)
     const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_THRESHOLD + 1
     atBottomRef.current = isAtBottom
     setAtBottom(isAtBottom)
     setActiveTurn(turn)
     const position = isAtBottom ? null : scrollPosition(local, el)
-    if (isAtBottom) {
-      reflowAnchorRef.current = null
-      chatScroll.save(null)
-    } else if (position !== null) {
-      reflowAnchorRef.current = { key: position.anchorKey, top: position.anchorTop }
-      chatScroll.save(position)
-    }
+    if (isAtBottom) chatScroll.save(null)
+    else if (position !== null) chatScroll.save(position)
   }
 
   // Rail jumps land a Turn's earliest rendered row, not its anchor, so rows
@@ -594,29 +615,29 @@ export function ChatView({
     if (settle) {
       pendingJumpRef.current = null
       setBusyJumpTurn(null)
-      const held = anchorRef.current
-      const landedEarlier = jumpLandedRef.current
-      jumpLandedRef.current = false
-      anchorRef.current = null
+      const landedKey = jumpLandedKeyRef.current
+      jumpLandedKeyRef.current = null
       // A reader who moved off an already-landed target mid-jump keeps their
       // place; a first landing, or an untouched one, takes the correction.
-      if (!landedEarlier || held?.key === item.anchor.key) {
+      if (landedKey === null || anchorRef.current?.key === landedKey) {
         landOnTurnRef.current(local, el, row, pending.turn)
       }
       return true
     }
     landOnTurnRef.current(local, el, row, pending.turn)
-    jumpLandedRef.current = true
-    anchorRef.current = { key: item.anchor.key, top: flowTop(row, el) }
+    jumpLandedKeyRef.current = anchorRef.current?.key ?? null
     return true
   }
 
   useLayoutEffect(() => {
-    if (scrollSamplePendingRef.current) return
     const local = listRef.current
     /* v8 ignore next -- ref-null guard: React attaches the ref before layout effects run. */
     if (local === null) return
     const el = scrollerOf(local)
+    // Every commit first holds the reader's row against the layout it changed,
+    // including a page that lands while a reader scroll is still being sampled.
+    if (openedRef.current) holdAnchorRef.current()
+    if (scrollSamplePendingRef.current) return
     // Open completed: jump to the bottom once — unless a scroll position
     // survives from a previous mount (view-tab switch away and back), which
     // is restored instead of snapping the reader back to the floor.
@@ -634,14 +655,10 @@ export function ChatView({
         const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_THRESHOLD + 1
         atBottomRef.current = isAtBottom
         setAtBottom(isAtBottom)
+        anchorRef.current = readingAnchor(local, el)
         const normalized = isAtBottom ? null : scrollPosition(local, el)
-        if (isAtBottom) {
-          reflowAnchorRef.current = null
-          chatScroll.save(null)
-        } else if (normalized !== null) {
-          reflowAnchorRef.current = { key: normalized.anchorKey, top: normalized.anchorTop }
-          chatScroll.save(normalized)
-        }
+        if (isAtBottom) chatScroll.save(null)
+        else if (normalized !== null) chatScroll.save(normalized)
       }
       firstSeqRef.current = firstSeq
       lastKeyRef.current = lastKey
@@ -653,37 +670,11 @@ export function ChatView({
       maybeLoadOlderRef.current()
       return
     }
-    // Prepend (head seq decreased): preserve the same settled row at the
-    // position established by the reader's latest scroll. This excludes
-    // unrelated tail/composer growth while the request was in flight.
-    if (anchorRef.current !== null && firstSeq !== null && firstSeqRef.current !== null && firstSeq < firstSeqRef.current) {
-      const anchor = anchorRef.current
-      anchorRef.current = null
-      const row = anchorElement(local, anchor.key)
-      // The arriving page can still be laying out, so this compensation reads a
-      // flow shorter than the page will be. The row it aimed at holds the reflow
-      // anchor, with its target offset, until the reader scrolls: the height that
-      // lands afterwards is then corrected against the reader's row. Without the
-      // hold the next sample re-anchors on whatever row the partial compensation
-      // left at the top edge, and the still-unlanded height stays a permanent
-      // offset.
-      if (row !== null) {
-        el.scrollTop += flowTop(row, el) - anchor.top
-        prependHoldRef.current = anchor
-      }
-      observedTopRef.current = el.scrollTop
-      const normalized = scrollPosition(local, el)
-      if (normalized !== null) {
-        reflowAnchorRef.current = { key: normalized.anchorKey, top: normalized.anchorTop }
-        chatScroll.save(normalized)
-      }
-      // A jump chunk lands here: scroll to the target once its rows exist;
-      // until then keep holding the reader's row for the next chunk.
-      if (!realizePendingJump(local, el, false) && row !== null) {
-        anchorRef.current = { key: anchor.key, top: flowTop(row, el) }
-      }
+    // Prepend (head seq decreased) away from the floor: the hold above kept
+    // the reader's row; a pending jump lands once its target rows exist.
+    if (!atBottomRef.current && firstSeq !== null && firstSeqRef.current !== null && firstSeq < firstSeqRef.current) {
+      realizePendingJump(local, el, false)
       firstSeqRef.current = firstSeq
-      /* v8 ignore next -- ?? arm: a prepend adds nodes, so the flow list here is never empty. */
       lastKeyRef.current = lastKey
       lastSteeringIdRef.current = lastSteeringId
       lastSubmissionIdRef.current = lastSubmissionId
@@ -727,9 +718,6 @@ export function ChatView({
     // the current ownership state.
     const floor = Math.max(0, el.scrollHeight - el.clientHeight)
     const movedByReader = Math.abs(el.scrollTop - Math.min(observedTopRef.current, floor)) > 0.5
-    // The reader's own gesture takes the anchor back; the hold only covers the
-    // frames the app compensates for a page that has not finished laying out.
-    if (movedByReader) prependHoldRef.current = null
     const isAtBottom = movedByReader
       ? floor - el.scrollTop <= FOLLOW_THRESHOLD + 1
       : atBottomRef.current
@@ -740,17 +728,6 @@ export function ChatView({
     atBottomRef.current = isAtBottom
     setAtBottom(isAtBottom)
     const position = isAtBottom ? null : scrollPosition(local, el)
-    if (isAtBottom) {
-      anchorRef.current = null
-      reflowAnchorRef.current = null
-    } else if (anchorRef.current !== null && position !== null) {
-      anchorRef.current = { key: position.anchorKey, top: position.anchorTop }
-    }
-    if (!isAtBottom && position !== null) {
-      if (prependHoldRef.current === null) {
-        reflowAnchorRef.current = { key: position.anchorKey, top: position.anchorTop }
-      }
-    }
     // Continuous save (unmount happens after ref detach, so saving there is
     // too late); pinned-to-bottom clears so a remount keeps following.
     if (isAtBottom) chatScroll.save(null)
@@ -841,19 +818,7 @@ export function ChatView({
         observedHeights.set(entry.target, height)
       }
       if (!heightChanged) return
-      const anchor = prependHoldRef.current ?? reflowAnchorRef.current
-      if (!atBottomRef.current && anchor !== null) {
-        const row = anchorElement(local, anchor.key)
-        if (row !== null) {
-          scrollport.scrollTop += flowTop(row, scrollport) - anchor.top
-          observedTopRef.current = scrollport.scrollTop
-          const normalized = scrollPosition(local, scrollport)
-          if (normalized !== null) {
-            reflowAnchorRef.current = { key: normalized.anchorKey, top: normalized.anchorTop }
-            chatScroll.save(normalized)
-          }
-        }
-      }
+      holdAnchorRef.current()
       followRef.current?.()
       activeTurnRef.current?.()
       maybeLoadOlderRef.current()
@@ -878,7 +843,6 @@ export function ChatView({
     const settled = loadingOlderRef.current && !loadingOlder
     loadingOlderRef.current = loadingOlder
     if (loadingOlder) return
-    anchorRef.current = null
     // Mount runs this effect with no pull behind it: consuming the record
     // here would judge a request that has not come back yet.
     if (!settled) return
@@ -920,8 +884,6 @@ export function ChatView({
       if (loadingOlder) return
       if (jumpRepageHeadRef.current !== firstSeq) {
         jumpRepageHeadRef.current = firstSeq
-        const held = heldPagingAnchor(local, el)
-        if (held !== null) anchorRef.current = held
         void loadThrough(pending.seq).finally(() => { setJumpSettleTick(tick => tick + 1) })
         return
       }
@@ -959,7 +921,6 @@ export function ChatView({
       const turn = Number(exactRow.dataset.chatTurn)
       if (Number.isSafeInteger(turn)) {
         pendingJumpRef.current = null
-        anchorRef.current = null
         setBusyJumpTurn(null)
         landOnRowRef.current(local, el, exactRow, turn, false)
         setHighlightedNodeKey(exactKey)
@@ -975,8 +936,6 @@ export function ChatView({
     if (uncovered && hasMore && loading?.requestId !== eventNavigation.requestId) {
       atBottomRef.current = false
       setAtBottom(false)
-      const held = heldPagingAnchor(local, el)
-      if (held !== null) anchorRef.current = held
       const request = { requestId: eventNavigation.requestId, settled: false }
       eventNavigationLoadRef.current = request
       void loadThrough(eventNavigation.seq).finally(() => {
@@ -1015,14 +974,11 @@ export function ChatView({
   ])
 
   /**
-   * Start one older-page pull holding the reader's current row. The recorded
-   * head is what the settle effect below compares against to decide whether
-   * the pull made progress.
+   * Start one older-page pull. The recorded head is what the settle effect
+   * below compares against to decide whether the pull made progress.
    */
-  const pullOlder = (local: HTMLElement, el: HTMLElement): void => {
+  const pullOlder = (): void => {
     autoPageHeadRef.current = { head: firstSeq }
-    const held = heldPagingAnchor(local, el)
-    if (held !== null) anchorRef.current = held
     loadOlder()
   }
 
@@ -1048,7 +1004,7 @@ export function ChatView({
     // Ordered so a reader far from the head never pays for `scrollHeight`,
     // which forces layout of the whole transcript.
     if (el.scrollTop > margin && el.scrollHeight > el.clientHeight) return
-    pullOlder(local, el)
+    pullOlder()
   }
 
   // ChatView commits inside a resident shell whose sticky composer and cover
@@ -1091,11 +1047,8 @@ export function ChatView({
   // Manual recovery after automatic paging latched off: the reader's click is
   // the retry, and re-arms automatic paging for the pages after it.
   const loadOlderAnchored = (): void => {
-    const local = listRef.current
-    /* v8 ignore next -- ref-null guard: the paging control renders inside the list tree. */
-    if (local === null) return
     setAutoPageStalled(false)
-    pullOlder(local, scrollerOf(local))
+    pullOlder()
   }
 
   // Identity feeds the memoized rail; a fresh closure per render would defeat it.
@@ -1110,13 +1063,10 @@ export function ChatView({
       // would call toBottom and cancel the jump.
       atBottomRef.current = false
       setAtBottom(false)
-      // Hold the reader's place through the paging chunks; the layout effect
-      // lands on the target once its rows commit.
-      const held = heldPagingAnchor(local, el)
-      if (held !== null) anchorRef.current = held
+      // The layout effect lands on the target once its rows commit.
       pendingJumpRef.current = { turn: item.turn, seq: item.anchor.seq }
       jumpRepageHeadRef.current = null
-      jumpLandedRef.current = false
+      jumpLandedKeyRef.current = null
       setBusyJumpTurn(item.turn)
       // Paged unbounded, from the window head back to the target. A lower bound
       // on the first page was tried and starved the page — the window came back
@@ -1131,13 +1081,7 @@ export function ChatView({
     pendingJumpRef.current = null
     setBusyJumpTurn(current => current === null ? current : null)
     landOnTurnRef.current(local, el, row, item.turn)
-    // A pending older page still has to compensate the prepended height, so
-    // navigation moves that anchor to the new position instead of dropping it.
-    const landed = loadingOlder ? pagingAnchor(local, el) : null
-    anchorRef.current = landed === null || landed.dataset.chatAnchorKey === undefined
-      ? null
-      : { key: landed.dataset.chatAnchorKey, top: flowTop(landed, el) }
-  }, [loadingOlder, loadThrough])
+  }, [loadThrough])
 
   // Everything that floats over the transcript: the rail, the head boundary,
   // and back-to-bottom. Rendered into the host's non-scrolling chrome layer

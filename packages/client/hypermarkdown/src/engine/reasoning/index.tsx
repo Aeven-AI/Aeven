@@ -23,9 +23,13 @@ export interface ReasoningProps {
 /**
  * A model's reasoning, kept apart from its answer.
  *
- * Open while it streams, so the reader can watch it think, and collapsed the
- * moment it finishes — the answer is what they came for. Anyone who wants to
- * reread the reasoning can open it again.
+ * Open while it streams, so the reader can watch it think, and collapsed once
+ * it finishes — the answer is what they came for. Anyone who wants to reread
+ * the reasoning can open it again.
+ *
+ * Open state is derived during render, never corrected by an effect, and the
+ * collapse is CSS on the mounted trace: a settled block therefore paints at its
+ * final height on its first frame.
  */
 function ReasoningComponent(props: ReasoningProps) {
   const { children, stream } = props
@@ -33,12 +37,10 @@ function ReasoningComponent(props: ReasoningProps) {
   const ui = props.ui ?? defaultUi
   const { translations, icons } = ui
 
-  const [open, setOpen] = useState(true)
+  // Null until the reader toggles; until then the block follows the stream.
+  const [readerOpen, setReaderOpen] = useState<boolean | null>(null)
+  const open = readerOpen ?? stream === true
   const [seconds, setSeconds] = useState(0)
-
-  // Whether the reader has taken over. Until they do, the block follows the
-  // stream: open while thinking, closed once done.
-  const touched = useRef(false)
   const startedAt = useRef<number | null>(null)
 
   if (startedAt.current === null) {
@@ -46,23 +48,20 @@ function ReasoningComponent(props: ReasoningProps) {
   }
 
   useEffect(() => {
+    const tick = () => {
+      setSeconds(Math.round((Date.now() - startedAt.current!) / 1000))
+    }
+
+    tick()
+
     if (stream !== true) {
       return
     }
 
-    const timer = setInterval(() => {
-      setSeconds(Math.round((Date.now() - startedAt.current!) / 1000))
-    }, 1000)
+    const timer = setInterval(tick, 1000)
 
     return () => {
       clearInterval(timer)
-    }
-  }, [stream])
-
-  useEffect(() => {
-    if (stream !== true && ! touched.current) {
-      setOpen(false)
-      setSeconds(Math.round((Date.now() - startedAt.current!) / 1000))
     }
   }, [stream])
 
@@ -70,9 +69,8 @@ function ReasoningComponent(props: ReasoningProps) {
     event.preventDefault()
     event.stopPropagation()
 
-    touched.current = true
-    setOpen(current => ! current)
-  }, [])
+    setReaderOpen(! open)
+  }, [open])
 
   const label =
     stream === true
@@ -100,7 +98,7 @@ function ReasoningComponent(props: ReasoningProps) {
             dangerouslySetInnerHTML={{ __html: icons.chevron }}
           />
         </button>
-        {open ? <div className="reasoning-content">{children}</div> : null}
+        <div className="reasoning-content">{children}</div>
       </div>
     </div>
   )

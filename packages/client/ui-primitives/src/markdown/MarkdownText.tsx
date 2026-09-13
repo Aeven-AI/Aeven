@@ -20,7 +20,7 @@
  * point a rendering engine at assistant-authored source.
  */
 
-import { memo, useEffect, useMemo, useRef } from 'react'
+import { memo, useLayoutEffect, useMemo, useRef } from 'react'
 import HyperMarkdown, {
   cjkPlugin, highlightPlugin, katexPlugin, mermaidPlugin,
 } from '@deepseek-ai/dsh-client-hypermarkdown'
@@ -329,12 +329,19 @@ export const MarkdownText = memo(function MarkdownText({
 
   // Writes belong in an effect, never in the render body: the store mutates in
   // place, so a render React discards would corrupt it.
-  useEffect(() => {
+  // Layout effect: settled text lands before the first paint, so the row never
+  // paints empty and then grows.
+  useLayoutEffect(() => {
     const handle = handleRef.current
     /* v8 ignore next -- the ref is attached by the child's commit, which
        always precedes this parent effect. */
     if (handle === null) return
     const last = applied.current
+    // A block mounted settled was built by the engine constructor from `md`.
+    if (last === null && !streaming) {
+      applied.current = { text, streaming }
+      return
+    }
     if (!streaming) {
       if (last?.streaming) {
         if (text.startsWith(last.text)) {
@@ -374,6 +381,7 @@ export const MarkdownText = memo(function MarkdownText({
   return (
     <HyperMarkdown
       ref={handleRef}
+      md={applied.current === null && !streaming ? text : undefined}
       streaming
       animation
       html="literal"
