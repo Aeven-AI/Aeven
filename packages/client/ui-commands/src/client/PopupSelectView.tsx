@@ -67,6 +67,23 @@ export function PopupSelectView({ popup, t }: PopupSelectViewProps) {
     setAnchorInset(Math.max(0, parentRect.right - anchorRect.right))
   }, [state.anchor, state.open, state.status, state.options])
 
+  // The card is `max-content`, so filtering rows away would narrow it while the
+  // reader is still typing — the box would jump under the text each keystroke.
+  // It holds the widest width it has shown for this open instead, which keeps
+  // the search input and the rows steady as the list grows and shrinks beneath
+  // them; a fresh open measures again.
+  const [minWidth, setMinWidth] = useState(0)
+  useLayoutEffect(() => {
+    if (!state.open) {
+      setMinWidth(0)
+      return
+    }
+    const card = cardRef.current
+    if (card === null) return
+    const width = card.getBoundingClientRect().width
+    if (width > minWidth + 1) setMinWidth(width)
+  }, [state.open, state.search, state.options, state.status, minWidth])
+
   // The search input keeps focus while arrows move a virtual highlight, so
   // the browser never scrolls the active row into view — do it here.
   useEffect(() => {
@@ -129,9 +146,11 @@ export function PopupSelectView({ popup, t }: PopupSelectViewProps) {
         <div
           ref={cardRef}
           className={css.card}
-          style={anchorInset === null
-            ? { maxHeight }
-            : { maxHeight, right: anchorInset, left: 'auto' }}
+          style={{
+            maxHeight,
+            minWidth: minWidth === 0 ? undefined : minWidth,
+            ...anchorInset === null ? {} : { right: anchorInset, left: 'auto' },
+          }}
           aria-label={t('overlay.aria', { command: String(state.command) })}
           onKeyDown={onKeyDown}
         >
