@@ -26,8 +26,11 @@
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
   border: 0;
-  border-radius: 20px;
-  background: var(--dsw-specific-menu);
+  /* Aeven's popup surface, same as ui-primitives' Menu card and the avatar
+     menu: the 30px surface radius over a translucent, blurred fill. */
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: color-mix(in srgb, var(--dsw-specific-menu) 70%, transparent);
+  backdrop-filter: blur(4px);
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
   box-shadow: var(--dsw-elevation-prominent);
   outline: none;
