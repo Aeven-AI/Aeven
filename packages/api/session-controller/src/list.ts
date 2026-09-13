@@ -166,7 +166,7 @@ export class ApiSessionList {
     signal: AbortSignal | undefined,
   ): Promise<SessionSummary> {
     const cached = this.projectionsFor(header, undefined)
-    const projections = cached?.values.sessionListMetadata?.blank === false
+    const projections = this.coldHintsComplete(cached)
       ? cached
       : await this.probeSmallCold(header, signal) ?? cached
     const raced = this.ctx.sessions.get(header.id)
@@ -181,6 +181,23 @@ export class ApiSessionList {
       ...listFields(header),
       ...(projections === undefined ? {} : { projections }),
     }
+  }
+
+  /**
+   * Whether one cached hint block already answers what a list row displays.
+   * Cached hints are partial by design — only version-matching wire cells
+   * survive — so a row that is not blank but has no `title` cell would be
+   * listed without its name and fall back to the cwd basename until something
+   * attached the Session (a click, or a reload). That row is worth the bounded
+   * observation below. A blank row needs nothing: the renderer labels it with
+   * the localized New Session copy.
+   * @param hints - cached projection hints for the cold Session, if any.
+   * @returns whether the row is complete without a body read.
+   */
+  private coldHintsComplete(hints: SessionProjectionHints | undefined): boolean {
+    if (hints === undefined) return false
+    if (hints.values.sessionListMetadata?.blank !== false) return false
+    return typeof (hints.values as Record<string, unknown>).title === 'string'
   }
 
   private async probeSmallCold(
