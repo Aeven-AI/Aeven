@@ -6,6 +6,8 @@ Status: implemented
 
 ## 问题
 
+本 note 所决定的这条渲染分界已被[覆盖式滚动条把槽位还给滚动视口](2026-09-13-overlay-scrollbars-return-the-gutter.zh.md)取代：标准属性如今服务每一个实现了它们的引擎，伪元素皮肤则成为回退路径，因为正是 `::-webkit-scrollbar` 的宽度让 chromium 把滚动条画进槽位、并从每个滚动盒子上扣掉 8px。本 note 就重新绑定约定、token 消费方以及每个抬升表面都要重绑的那组变量所做的决定仍然有效，而仍然读取那组变量 hover 一半的，正是这条回退路径。
+
 `design-platform.css` 在亮色与暗色两套调色板中都声明了四个 `--dsw-alias-scrollbar-*` token（`bg-l1`、`bg-l2`、`hover-l1`、`hover-l2`），而客户端里没有任何一条规则读取它们。定义了却无人消费的 token 构不成主题：所有滚动区域渲染的都是浏览器自带的滚动条，它对调色板一无所知，因此暗色主题下暗色表面上出现的是一条亮色的原生滚动条。
 
 暴露这一缺口的可见症状出在别处。工作区浏览器的会话列表（`WorkspaceBrowser.module.css` 中的 `.list`）是侧边栏里唯一的滚动区域，而每一行的尾部内容都紧贴该行 8px 的右内边距——`rows/Rows.module.css` 中的 `.time` 取 `flex: none`，hover 时取代它的操作按钮也是如此。于是覆盖式滚动条会画在相对时间戳之上。只在这一个列表里预留空间，滚动条本身仍然没有主题，因此两部分合为一次变更。

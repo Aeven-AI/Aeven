@@ -6,6 +6,8 @@ English | [中文](2026-07-28-themed-scrollbars-and-reserved-gutter.zh.md)
 
 ## Problem
 
+The rendering split this note decided is superseded by [Overlay scrollbars return the scrollport's gutter](2026-09-13-overlay-scrollbars-return-the-gutter.md): the standard properties now serve every engine that implements them and the pseudo-element skin became the fallback, because a `::-webkit-scrollbar` width is what makes chromium put the bar in a gutter and take 8px off every scrolling box. What this note decided about the rebinding contract, the token consumers, and the pair every elevated surface rebinds remains current, and the fallback path is what still reads the hover half of that pair.
+
 `design-platform.css` declares four `--dsw-alias-scrollbar-*` tokens (`bg-l1`, `bg-l2`, `hover-l1`, `hover-l2`) in both palettes, and no rule anywhere in the client read them. A defined token with no consumer is not a theme: every scrolling region rendered the user agent's own scrollbar, which knows nothing about the palette, so the dark theme showed a light native bar against dark surfaces.
 
 The visible symptom that surfaced the gap was elsewhere. The workspace browser's session list (`.list` in `WorkspaceBrowser.module.css`) is the sidebar's only scrolling region, and each row's trailing content sits flush against the row's 8px right padding — `.time` in `rows/Rows.module.css` is `flex: none`, as are the action buttons that replace it on hover. An overlaid scrollbar therefore painted on top of the relative timestamp. Reserving space in that one list would have left the bar itself unthemed, so the two halves are one change.
