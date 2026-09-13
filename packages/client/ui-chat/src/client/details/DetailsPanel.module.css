@@ -58,7 +58,7 @@
 
 .empty {
   padding: 8px 0;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 20px;
   color: var(--dsw-alias-label-tertiary);
 }
@@ -82,7 +82,7 @@
   border-radius: 12px;
   background: var(--dsw-alias-markdown-code-block);
   font-family: var(--ds-font-family-code);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 22px;
   color: var(--dsw-alias-label-primary);
   white-space: pre-wrap;

@@ -14,7 +14,7 @@
 
 .intro {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--dsw-alias-label-tertiary);
 }
 
@@ -113,7 +113,7 @@
   background: var(--dsw-alias-label-primary);
   color: var(--dsw-alias-bg-layer-3);
   font-size: 11px;
-  font-weight: 400;
+  font-weight: 450;
   line-height: 1.5;
   text-align: left;
   white-space: pre-line;
@@ -226,7 +226,7 @@
    flex-stretched box leaves the clamp height and the box height disagreeing,
    so `.cardId` takes the free space with an auto margin instead. */
 .cardDesc {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.55;
   color: var(--dsw-alias-label-secondary);
   min-height: 42px;
@@ -373,7 +373,7 @@
   border: 0.5px solid var(--dsw-alias-border-l4);
   border-radius: 10px;
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-primary);
 }

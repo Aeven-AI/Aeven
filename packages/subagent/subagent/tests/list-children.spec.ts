@@ -36,7 +36,10 @@ const roots: string[] = []
 const projCacheRoots: string[] = []
 
 afterEach(() => {
-  for (const root of projCacheRoots.splice(0)) rmSync(root, { recursive: true, force: true })
+  // Retries on both: a projection-cache write can land between the readdir and
+  // the unlink, and macOS answers that with ENOTEMPTY on a tree that is being
+  // pruned rather than one that is still populated.
+  for (const root of projCacheRoots.splice(0)) rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
 })
 

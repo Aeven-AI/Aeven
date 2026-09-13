@@ -69,10 +69,10 @@ describe('chat flow font-size axis', () => {
     // user row's clock stay one step under the body size so the two rows
     // match. The usage trigger beside them reads the body size instead.
     expect(declarationsFrom(actions, '.timeStart')).toEqual(expect.arrayContaining([
-      'font-size: var(--dsh-content-font-size-secondary, 13px)',
+      'font-size: var(--dsh-content-font-size-secondary, 14px)',
     ]))
     expect(declarationsFrom(actions, '.timeEnd')).toEqual(expect.arrayContaining([
-      'font-size: var(--dsh-content-font-size-secondary, 13px)',
+      'font-size: var(--dsh-content-font-size-secondary, 14px)',
     ]))
     expect(declarationsFrom(actions, '.action svg')).toEqual(expect.arrayContaining([
       'width: calc(15px + var(--dsh-content-font-delta, 0px))',
@@ -84,7 +84,7 @@ describe('chat flow font-size axis', () => {
     const css = read('MessageItem.module.css')
     for (const selector of ['.compactionTitle', '.compactionSummary', '.compactionBody']) {
       expect(declarationsFrom(css, selector)).toEqual(expect.arrayContaining([
-        'font-size: var(--dsh-content-font-size-secondary, 13px)',
+        'font-size: var(--dsh-content-font-size-secondary, 14px)',
         'line-height: calc(24px + var(--dsh-content-font-delta, 0px))',
       ]))
     }

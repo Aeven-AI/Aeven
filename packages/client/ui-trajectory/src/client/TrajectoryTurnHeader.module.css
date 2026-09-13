@@ -25,7 +25,7 @@
 
 .title {
   flex: none;
-  font: var(--dsw-font-xs-strong-13);
+  font: var(--dsw-font-xs-strong-14);
   color: var(--dsw-alias-label-primary);
 }
 
@@ -43,6 +43,6 @@
   flex: none;
   width: 71px;
   text-align: left;
-  font: var(--dsw-font-xs-13);
+  font: var(--dsw-font-xs-14);
   color: var(--dsw-alias-label-secondary);
 }

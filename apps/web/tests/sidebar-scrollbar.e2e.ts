@@ -1,10 +1,11 @@
 // Browser geometry for the sidebar session list. The list overflows once a few
 // sessions are loaded, and it must do so without drawing a bar and without
 // reserving the band one would otherwise take. The bar is hidden by the
-// `no-scrollbar` opt-out the markup carries (ui-theme styles/scrollbar.css), so
-// what this scenario measures is what an engine does with that declaration —
-// a reserved band is invisible in an ARIA snapshot and a stray UA bar is
-// invisible in headless chromium's paint.
+// `no-scrollbar` opt-out the markup carries (ui-theme styles/scrollbar.css),
+// which states `scrollbar-width: none` on every engine rather than only on
+// Firefox, so what this scenario measures is that resolved declaration and the
+// geometry it produces — a reserved band is invisible in an ARIA snapshot and a
+// stray UA bar is invisible in headless chromium's paint.
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
@@ -27,9 +28,18 @@ const SEED_COUNT = 24
 
 /** Resolved scrollbar style and geometry of the sidebar session list. */
 interface ListMetrics {
-  /** `scrollbar-width` as the engine resolved it for the list. */
+  /**
+   * `scrollbar-width` as the engine resolved it for the list: `none`, from the
+   * opt-out, since the theme states the standard properties on every element
+   * rather than only under the Firefox-only gate it used to carry.
+   */
   standardWidth: string
-  /** `scrollbar-color` as the engine resolved it for the list. */
+  /**
+   * `scrollbar-color` as the engine resolved it for the list. Hiding the bar
+   * does not stop the property computing, so this is the palette's own
+   * `--dsw-alias-scrollbar-bg-l1` over a transparent track — the value the
+   * golden pins per palette.
+   */
   standardColor: string
   /** Whether the list actually overflows, so no reading below is vacuous. */
   overflows: boolean
@@ -169,6 +179,10 @@ function renderGeometry(light: ListMetrics, dark: ListMetrics): string {
   const palette = (name: string, metrics: ListMetrics): string[] => [
     `## ${name}`,
     '',
+    // `none` is the opt-out's own declaration, resolved by the engine rather
+    // than reported as `auto`; `scrollbar-color` still computes on the list, so
+    // the palette's thumb over a transparent track is what separates the two
+    // sections.
     `- scrollbar-width: ${metrics.standardWidth}`,
     `- scrollbar-color: ${metrics.standardColor}`,
     `- list overflows: ${String(metrics.overflows)}`,
@@ -218,9 +232,14 @@ describe('web e2e: sidebar session list shows no scrollbar', () => {
     // below for the wrong reason.
     await expect.poll(async () => (await measureList(page)).overflows, { timeout: 10_000 }).toBe(true)
     const metrics = await measureList(page)
+    // The opt-out is a standard-property declaration now, so chromium resolves
+    // it like Firefox does instead of falling back to `auto` and hiding the bar
+    // through the pseudo-element only.
     expect(metrics.standardWidth).toBe('none')
     // The band the bar would have taken is the whole point of the opt-out: a
-    // reserved strip is what the previous reveal could not give up.
+    // reserved strip is what the previous reveal could not give up. Chromium
+    // floats a thin bar rather than reserving one, so this reading holds through
+    // the standard path and not only through `display: none` on the pseudo-element.
     expect(metrics.band).toBe(0)
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)

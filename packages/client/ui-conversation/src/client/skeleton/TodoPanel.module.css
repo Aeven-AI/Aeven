@@ -59,7 +59,7 @@
 
 .title {
   flex: none;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 24px;
   font-weight: 500;
   color: var(--dsw-alias-label-primary);
@@ -69,9 +69,9 @@
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 20px;
-  font-weight: 400;
+  font-weight: 450;
   color: var(--dsw-alias-label-tertiary);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -100,7 +100,7 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 20px;
   color: var(--dsw-alias-label-secondary);
 }

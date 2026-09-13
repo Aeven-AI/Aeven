@@ -9,6 +9,7 @@ import type { SessionEvent, SessionHeader } from '@deepseek-ai/dsh-session'
 import { describe, expect, it, vi } from 'vitest'
 import { ApiSessionAgentController } from '../src/agent.ts'
 import { SessionCommandController } from '../src/commands.ts'
+import type { SessionRequestId } from '../src/types.ts'
 import { installSessionReadTestServices, testSessionPersistence } from './test-remote.ts'
 
 async function commandHarness(): Promise<{
@@ -125,6 +126,28 @@ describe('Session queue commands', () => {
     })), 'session/not-found')
     expect(controller.cancel({ sessionId: agent.id })).toEqual({ accepted: true })
     expect(cancel).toHaveBeenCalledWith({ kind: 'user' }, { keepInbox: true })
+    await ctx.fiber.dispose()
+  })
+})
+
+describe('Session prompt commands', () => {
+  it('rejects a prompt whose content carries no text and no attachment', async () => {
+    const { ctx, controller, agent } = await commandHarness()
+    // The first thing `prompt` reads: content that is empty, or whitespace
+    // only, is a bad request rather than an empty user message. `updateQueue`'s
+    // edit action carries the same guard, so both sides of it stay admitted.
+    const contents: Parameters<typeof controller.prompt>[0]['content'][] = [
+      [],
+      [{ type: 'text', text: ' \t\n' }],
+    ]
+    for (const [index, content] of contents.entries()) {
+      await expectFailure(controller.prompt({
+        requestId: `prompt-${String(index)}` as SessionRequestId,
+        sessionId: agent.id,
+        mode: 'queue',
+        content,
+      }), 'gateway/bad-request')
+    }
     await ctx.fiber.dispose()
   })
 })

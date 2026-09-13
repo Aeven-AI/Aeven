@@ -45,6 +45,12 @@ async function mockCompletionServer(): Promise<{ url: string; requests: unknown[
     let body = ''
     request.on('data', (chunk: Buffer) => { body += chunk.toString('utf8') })
     request.on('end', () => {
+      // The provider probes its catalog with `GET /models`, which carries no
+      // body: only the completion POSTs are recorded, and parsing an absent
+      // body here threw inside a stream callback nothing catches, which vitest
+      // reported as an unhandled error. The probe goes unanswered, exactly as
+      // it did while that throw aborted this handler.
+      if (body.length === 0) return
       requests.push(JSON.parse(body))
       headers.push(request.headers)
       response.writeHead(200, { 'content-type': 'text/event-stream' })

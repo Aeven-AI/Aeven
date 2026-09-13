@@ -6,7 +6,7 @@
  */
 
 import type { IndexInjection } from '@deepseek-ai/dsh-host-webserver'
-import { DEFAULT_FONT_SIZE, DEFAULT_PREFERENCE, type ThemePreference } from './theme-settings.ts'
+import { DEFAULT_FONT_SIZE, DEFAULT_PREFERENCE, secondaryFontSize, type ThemePreference } from './theme-settings.ts'
 
 /** Build the inline script body for one schema-validated durable theme section. */
 function bootThemeScript(preference: ThemePreference, fontSize: number): string {
@@ -19,6 +19,7 @@ function bootThemeScript(preference: ThemePreference, fontSize: number): string 
   document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
   document.body.toggleAttribute('data-ds-dark-theme', dark)
   document.body.style.setProperty('--dsh-content-font-size', ${JSON.stringify(`${fontSize}px`)})
+  document.body.style.setProperty('--dsh-content-font-size-secondary', ${JSON.stringify(`${secondaryFontSize(fontSize)}px`)})
 })()`
 }
 

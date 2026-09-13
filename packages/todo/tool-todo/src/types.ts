@@ -35,6 +35,13 @@ declare module '@deepseek-ai/dsh-session/types' {
 declare module '@deepseek-ai/dsh-session-projection/types' {
   interface SessionProjectionStateMap {
     todos: TodoItem[] | null
+    /**
+     * Host-only read-back of the same list: the session's latest `todo/write`,
+     * retained across turn boundaries so a model can read its own plan back on
+     * every step. Deliberately absent from `SessionProjectionMap`, so it is
+     * never wired to a client and cannot perturb the turn-scoped dock.
+     */
+    todoPlan: TodoItem[] | null
   }
   interface SessionProjectionMap {
     /**

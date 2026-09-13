@@ -36,7 +36,7 @@ describe('WorkflowRunPanel.module.css font-size axis', () => {
   it('member status and the empty placeholder read the secondary tier', () => {
     for (const selector of ['.memberStatus', '.empty']) {
       expect(declarations(selector)).toEqual(expect.arrayContaining([
-        'font-size: var(--dsh-content-font-size-secondary, 13px)',
+        'font-size: var(--dsh-content-font-size-secondary, 14px)',
         'line-height: calc(20px + var(--dsh-content-font-delta-secondary, 0px))',
       ]))
     }

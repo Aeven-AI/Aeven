@@ -6,7 +6,7 @@ exports[`sidebar shell snapshots > keeps the expanded contents mounted behind th
   style="display: contents;"
 >
   <div
-    class="root quietBars"
+    class="root"
   >
     <div
       class="content"
@@ -146,7 +146,7 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
   style="display: contents;"
 >
   <div
-    class="root visible quietBars"
+    class="root visible"
   >
     <div
       class="content"
@@ -286,7 +286,7 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
   style="display: contents;"
 >
   <div
-    class="root visible quietBars"
+    class="root visible"
   >
     <div
       class="content"

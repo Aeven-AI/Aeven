@@ -25,7 +25,7 @@ import { installThemeStyles } from './styles.ts'
 import { en, zh, type ThemeKey } from './locales.ts'
 import {
   DEFAULT_FONT_SIZE, DEFAULT_PREFERENCE, FONT_SIZE_FIELD, FONT_SIZE_MAX, FONT_SIZE_MIN,
-  isThemePreference, THEME_PREFERENCE_FIELD, THEME_SETTINGS_NAMESPACE,
+  isThemePreference, secondaryFontSize, THEME_PREFERENCE_FIELD, THEME_SETTINGS_NAMESPACE,
   type ThemePreference, type ThemeSettings,
 } from '../theme-settings.ts'
 
@@ -82,6 +82,12 @@ export interface ThemeSnapshot {
   preference: ThemePreference
   /** Conversation content font size in px (integer within FONT_SIZE_MIN..FONT_SIZE_MAX). */
   fontSize: number
+  /**
+   * The secondary size that follows {@link fontSize}, already resolved here
+   * because its ladder skips 13px and no CSS `min`/`max` chain can express
+   * that; the presenting plugin publishes it without owning the scale.
+   */
+  secondaryFontSize: number
   /**
    * The resolved active theme (`system` resolved via prefers-color-scheme)
    * with override layers folded into its tokens (seq order, later layers win
@@ -328,6 +334,7 @@ export class ThemeRuntime {
     return Object.freeze({
       preference: this.preference,
       fontSize: this.fontSize,
+      secondaryFontSize: secondaryFontSize(this.fontSize),
       active: this.composeActive(active),
       themes: Object.freeze([...this.themes]),
       revision: this.revision,

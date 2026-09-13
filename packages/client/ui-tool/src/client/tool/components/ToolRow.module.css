@@ -66,7 +66,7 @@
 }
 
 .title {
-  font-weight: 400;
+  font-weight: 450;
 }
 
 .sep {
@@ -113,7 +113,7 @@
 .diffStat {
   margin-left: 10px;
   font-family: var(--ds-font-family-code);
-  font-size: calc(var(--dsh-content-font-size-secondary, 13px) - 2px);
+  font-size: calc(var(--dsh-content-font-size-secondary, 14px) - 2px);
   color: var(--dsw-alias-label-caption);
   transform: translateY(0.5px);
 }
@@ -308,7 +308,7 @@
   margin: 4px 0 4px 4px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font: var(--dsw-font-xs-13);
+  font: var(--dsw-font-xs-14);
   color: var(--dsw-alias-label-tertiary);
 }
 
