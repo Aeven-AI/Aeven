@@ -105,6 +105,17 @@ describe('tool-call-model', () => {
       error: { name: 'FsError', code: 'FS_NOT_OBSERVED' },
     })
     expect(toolRowModel('edit', refusal).notice).toBe(true)
+    // The stale-target refusal is the same class with the same stated remedy:
+    // the session re-reads and retries, so its row softens too. The content
+    // carries the tool registry's model-facing `Error: ` prefix, which is not
+    // the discriminator either.
+    const stale = result({
+      call: { name: 'write', argsRaw: '{"file_path":"src/x.ts"}' },
+      isError: true,
+      content: [{ type: 'text', text: 'Error: cannot write "src/x.ts": file changed since it was read — re-read the file, then retry' }],
+      error: { name: 'FsError', code: 'FS_STALE_VERSION' },
+    })
+    expect(toolRowModel('write', stale).notice).toBe(true)
     // A failure whose recovery nothing states keeps the ordinary error row.
     expect(toolRowModel('edit', result({ isError: true, error: { name: 'E', code: 'SANDBOX_DENIED' } })).notice).toBe(false)
     // Running and successful calls are never notices, whatever their content.

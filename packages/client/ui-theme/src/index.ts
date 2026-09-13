@@ -12,6 +12,7 @@ import {
 export {
   DEFAULT_FONT_SIZE, DEFAULT_PREFERENCE, FONT_SIZE_FIELD, FONT_SIZE_MAX, FONT_SIZE_MIN,
   THEME_PREFERENCE_FIELD, THEME_PREFERENCES, THEME_SETTINGS_NAMESPACE,
+  secondaryFontSize,
   type ThemePreference, type ThemeSettings,
 } from './theme-settings.ts'
 

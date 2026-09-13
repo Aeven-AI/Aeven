@@ -21,14 +21,14 @@
 
 .title {
   font-size: 14px;
-  font-weight: 400;
+  font-weight: 450;
   line-height: 22px;
   color: var(--dsw-alias-label-primary);
 }
 
 .desc {
   font-size: 12px;
-  font-weight: 400;
+  font-weight: 450;
   line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
 }

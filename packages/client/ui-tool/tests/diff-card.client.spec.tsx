@@ -318,6 +318,22 @@ describe('FileMutationRow diff card', () => {
     expect(view.getByText(/file has not been read — read the file, then retry/)).toBeTruthy()
   })
 
+  it('presents the stale-target refusal as a muted notice, not an alarm', () => {
+    // The version guard's refusal names the same self-performed remedy as the
+    // unread-target one — re-read, then retry — so the row rendering above the
+    // text does not report a broken harness for a stale read.
+    const view = render(<FileMutationRow {...rowProps(settled({
+      isError: true,
+      content: [{ type: 'text', text: 'Error: cannot write "notes/demo.txt": file changed since it was read — re-read the file, then retry' }],
+      error: { name: 'FsError', code: 'FS_STALE_VERSION' },
+    }), 'write')} />)
+    expect(view.container.querySelector('[data-state="error"][data-notice]')).not.toBeNull()
+    expect(view.container.querySelector('[class*="_noticeSummary_"]')).not.toBeNull()
+    expect(view.container.querySelector('[class*="_errorSummary_"]')).toBeNull()
+    // De-emphasized is not hidden: the message and its remedy stay readable.
+    expect(view.getByText(/file changed since it was read — re-read the file, then retry/)).toBeTruthy()
+  })
+
   it('keeps the error presentation for a failure whose recovery nothing states', () => {
     const view = render(<FileMutationRow {...rowProps(settled({
       isError: true,

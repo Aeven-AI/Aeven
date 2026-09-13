@@ -64,7 +64,7 @@ const CHOOSER_STYLE = `
     margin: 0 0 8px;
     padding: 0 4px;
     color: #61666b;
-    font-size: 13px;
+    font-size: 14px;
     line-height: 20px;
     font-weight: 500;
   }

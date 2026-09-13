@@ -194,7 +194,7 @@
   background: transparent;
   opacity: 0;
   pointer-events: none;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 18px;
   color: var(--dsw-alias-label-primary);
   transition: opacity 120ms var(--ds-ease-in-out);
@@ -439,7 +439,7 @@
 .empty {
   padding: 16px 12px;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 /* Rename dialog form (same figma dialog family as the create modals). */
@@ -453,7 +453,7 @@
   outline: none;
   background: transparent;
   font-size: 14px;
-  font-weight: 400;
+  font-weight: 450;
   line-height: 22px;
   color: var(--dsw-alias-label-primary);
 }

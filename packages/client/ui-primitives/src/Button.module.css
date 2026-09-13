@@ -31,7 +31,7 @@
  * 28x28 is the icon-only form) — geometry is ours. */
 .sm {
   height: 32px;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 20px;
   padding: 0 12px;
   border-radius: var(--dsw-aeven-radius-compact);

@@ -13,7 +13,7 @@
    tail's meta line. */
 .timeStart {
   padding-right: 12px;
-  font-size: var(--dsh-content-font-size-secondary, 13px);
+  font-size: var(--dsh-content-font-size-secondary, 14px);
   line-height: calc(24px + var(--dsh-content-font-delta, 0px));
   color: var(--dsw-alias-label-tertiary);
   white-space: nowrap;
@@ -23,7 +23,7 @@
    row's 8px flex gap spaces it, and it reads the secondary tier so it matches
    the pill labels beside it. */
 .timeEnd {
-  font-size: var(--dsh-content-font-size-secondary, 13px);
+  font-size: var(--dsh-content-font-size-secondary, 14px);
   line-height: calc(24px + var(--dsh-content-font-delta, 0px));
   color: var(--dsw-alias-label-tertiary);
   white-space: nowrap;
