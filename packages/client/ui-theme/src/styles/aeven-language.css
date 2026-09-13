@@ -89,8 +89,8 @@ body {
   --dsw-font-s-strong-14: 600 14px/22px var(--dsw-font-family);
   /* Code/tool output reads at the secondary content size (14px at the default
      16px setting), one step below conversation prose — mono, not 11px. */
-  --dsw-font-markdown-code-block: var(--dsh-content-font-size-secondary, 14px) / calc(22px + var(--dsh-content-font-delta-secondary, 0px)) var(--ds-font-family-code);
-  --dsw-font-markdown-code-block-small: var(--dsh-content-font-size-secondary, 14px) / calc(22px + var(--dsh-content-font-delta-secondary, 0px)) var(--ds-font-family-code);
+  --dsw-font-markdown-code-block: 450 var(--dsh-content-font-size-secondary, 14px) / calc(22px + var(--dsh-content-font-delta-secondary, 0px)) var(--ds-font-family-code);
+  --dsw-font-markdown-code-block-small: 450 var(--dsh-content-font-size-secondary, 14px) / calc(22px + var(--dsh-content-font-delta-secondary, 0px)) var(--ds-font-family-code);
 }
 
 @media (max-width: 640px) {

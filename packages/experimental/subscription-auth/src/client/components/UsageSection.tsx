@@ -43,7 +43,7 @@ const PRODUCT_LABEL_KEYS: Readonly<Record<UsageBreakdownView['label'], GrokBuild
 
 const titleStyle: React.CSSProperties = {
   margin: 0,
-  fontSize: 13,
+  fontSize: 14,
   lineHeight: '20px',
   fontWeight: 600,
   color: 'var(--dsw-alias-label-primary)',
@@ -53,7 +53,7 @@ const blockStyle: React.CSSProperties = { display: 'flex', flexDirection: 'colum
 
 const blockLabelStyle: React.CSSProperties = {
   margin: 0,
-  fontSize: 13,
+  fontSize: 14,
   lineHeight: '20px',
   color: 'var(--dsw-alias-label-secondary)',
 }
@@ -76,14 +76,14 @@ const figureStyle: React.CSSProperties = {
 
 const figureUnitStyle: React.CSSProperties = {
   marginLeft: 6,
-  fontSize: 13,
-  fontWeight: 400,
+  fontSize: 14,
+  fontWeight: 450,
   color: 'var(--dsw-alias-label-secondary)',
 }
 
 const metaStyle: React.CSSProperties = { ...hintStyle, margin: 0, color: 'var(--dsw-alias-label-tertiary)' }
 
-const legendStyle: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: '4px 16px', fontSize: 13, lineHeight: '20px' }
+const legendStyle: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: '4px 16px', fontSize: 14, lineHeight: '20px' }
 
 const refreshButtonStyle: React.CSSProperties = {
   display: 'inline-flex',

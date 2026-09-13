@@ -55,7 +55,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 24px;
   color: var(--dsw-alias-label-tertiary);
 }
@@ -176,7 +176,7 @@
   background: transparent;
   color: var(--dsw-alias-label-tertiary);
   cursor: pointer;
-  font: var(--dsw-font-xs-13);
+  font: var(--dsw-font-xs-14);
 }
 
 .sourceTab:hover:not(:disabled) {

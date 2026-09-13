@@ -85,7 +85,7 @@
   flex: 1 1 auto;
   min-width: 0;
   font-family: Inter, var(--dsw-font-family);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 24px;
 }
@@ -141,7 +141,7 @@
 .editor {
   flex: 1 1 auto;
   min-width: 0;
-  font: var(--dsw-font-xs-13);
+  font: var(--dsw-font-xs-14);
   font-family: Inter, var(--dsw-font-family);
 }
 

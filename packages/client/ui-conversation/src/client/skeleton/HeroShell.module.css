@@ -144,7 +144,7 @@
   border-radius: 16px;
   background: transparent;
   color: var(--dsw-alias-label-primary);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 20px;
   font-weight: 500;
   cursor: pointer;
@@ -190,7 +190,7 @@
   outline: none;
   background: transparent;
   font-size: 14px;
-  font-weight: 400;
+  font-weight: 450;
   line-height: 22px;
   color: var(--dsw-alias-label-primary);
 }

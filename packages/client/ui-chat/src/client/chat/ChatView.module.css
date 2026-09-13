@@ -133,10 +133,10 @@
 
 .turnStatusClock {
   margin-left: 8px;
-  font: var(--dsw-font-xs-13);
-  font-size: var(--dsh-content-font-size-secondary, 13px);
+  font: var(--dsw-font-xs-14);
+  font-size: var(--dsh-content-font-size-secondary, 14px);
   line-height: calc(20px + var(--dsh-content-font-delta-secondary, 0px));
-  font-weight: 400;
+  font-weight: 450;
   font-variant-numeric: tabular-nums;
   color: var(--dsw-alias-label-caption);
   -webkit-text-fill-color: var(--dsw-alias-label-caption);
@@ -158,7 +158,7 @@
 
 .openError {
   color: var(--dsw-alias-state-error-primary);
-  font-size: var(--dsh-content-font-size-secondary, 13px);
+  font-size: var(--dsh-content-font-size-secondary, 14px);
   line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
 }
 

@@ -161,7 +161,7 @@
 
 .actionIcon {
   color: var(--dsw-alias-label-tertiary);
-  font: 14px/14px var(--ds-font-family-code);
+  font: 450 14px/14px var(--ds-font-family-code);
 }
 
 .search {
