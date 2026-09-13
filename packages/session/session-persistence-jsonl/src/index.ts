@@ -30,10 +30,11 @@ import type {
   SessionId,
   SessionHeader,
   SessionLogOffset,
+  SessionLogOffset as SessionLogOffsetType,
   SessionPreparation,
 } from '@deepseek-ai/dsh-session'
 import {
-  encodeSegment, eventLines, logPath, logSuffix, parseHeader, parseHeaderMeta, projectDir, scanLog, sessionDir,
+  encodeSegment, eventLines, logPath, logSuffix, parseHeader, projectDir, scanLog, sessionDir,
   SessionLogScanner, toHeaderLine,
   type JsonlCompression,
 } from './format.ts'
@@ -483,6 +484,24 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     return (await this.listArtifacts(signal)).map(artifact => artifact.header)
   }
 
+  /**
+   * List stored sessions' metadata together with the exact inherited cut of a
+   * seeded (fork) Session, which the header line already carries.
+   * @param signal - optional cancellation for backend listing work.
+   * @returns one entry per materialized session; the cut is present only for a seeded Session.
+   */
+  override async listWithInheritedCuts(signal?: AbortSignal): Promise<Array<{
+    header: SessionHeader
+    inheritedEventCount?: SessionLogOffsetType
+  }>> {
+    return (await this.listArtifacts(signal)).map(artifact => ({
+      header: artifact.header,
+      ...artifact.inheritedEventCount === undefined
+        ? {}
+        : { inheritedEventCount: artifact.inheritedEventCount },
+    }))
+  }
+
   /** List metadata plus a stat-derived identity for each append-only log. */
   async listSnapshots(signal?: AbortSignal): Promise<SessionPersistenceSnapshot[]> {
     const snapshots: SessionPersistenceSnapshot[] = []
@@ -504,11 +523,19 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     return snapshots
   }
 
-  private async listArtifacts(signal?: AbortSignal): Promise<Array<{ header: SessionHeader; path: string }>> {
+  private async listArtifacts(signal?: AbortSignal): Promise<Array<{
+    header: SessionHeader
+    path: string
+    inheritedEventCount?: SessionLogOffsetType
+  }>> {
     signal?.throwIfAborted()
     await this.ensureRootEncoding()
     signal?.throwIfAborted()
-    const artifacts: Array<{ header: SessionHeader; path: string }> = []
+    const artifacts: Array<{
+      header: SessionHeader
+      path: string
+      inheritedEventCount?: SessionLogOffsetType
+    }> = []
     const ids = new Set<SessionId>()
     for (const project of await this.listProjectDirs(signal)) {
       signal?.throwIfAborted()
@@ -528,15 +555,24 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
           : await this.readFirstLine(path, signal)
         signal?.throwIfAborted()
         if (first === undefined) continue // empty/half-written file
-        const meta = parseHeaderMeta(first)
-        if (meta === undefined) continue // not a session header
+        const parsed = parseHeader(first)
+        if (parsed === undefined) continue // not a session header
+        const meta = parsed.meta
         await this.assertStoredIdentity(path, meta, undefined, signal)
         signal?.throwIfAborted()
         if (ids.has(meta.id)) {
           throw new Error(`duplicate JSONL session id "${meta.id}" appears in multiple project directories`)
         }
         ids.add(meta.id)
-        artifacts.push({ header: meta, path })
+        // The inherited cut rides along: it was parsed from the header line the
+        // listing already read, so carrying it costs nothing, and a consumer
+        // addressing a seeded Session's projection-cache row cannot reconstruct
+        // it from the header alone.
+        artifacts.push({
+          header: meta,
+          path,
+          ...meta.isSeeded ? { inheritedEventCount: parsed.inheritedEventCount } : {},
+        })
       }
     }
     signal?.throwIfAborted()

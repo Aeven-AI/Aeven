@@ -25,7 +25,7 @@ The client was left alone. A client-side heal was written first — re-pull the 
 
 **Fold the title from the log for every cold row on every list.** Rejected: reading a body per row per pull is what the projection cache exists to avoid. The probe stays gated by `coldBlankProbeMaxBytes`, which is exactly the size a body read is acceptable at.
 
-**Show a localized untitled label instead of the cwd basename.** Not needed for this bug — the rows in question do have titles, and they now show them. It remains a separate question for the sessions that genuinely have none, where the basename is at least true.
+**Show a localized untitled label instead of the cwd basename — done, and for both cases.** The basename is not "at least true": it is a plausible-looking name for the wrong thing. The chain now ends at the Session id and the renderer labels those rows as untitled, so a row that has no title says so, and no row can ever be mistaken for one named after a directory.
 
 **Carry the title outside the projection block (a dedicated summary field).** Rejected: the title already is a projection, `titleProjectionDefinition` already declares its wire view, and a second channel would have to be kept in step with it. The block was incomplete, not the wrong shape.
 
@@ -34,7 +34,7 @@ The client was left alone. A client-side heal was written first — re-pull the 
 ## Consequences
 
 - A cold session with a title is listed with it, on the first pull after this change, without a click and without a reload. Rows that were previously basename-named because their cache lost the cell become named as soon as the list is pulled again.
-- Sessions that never received a message still show the cwd basename: they have no title to show. Their label is a separate decision (a localized untitled label would replace it).
+- Sessions that never received a message have no title to show, and the display chain no longer pretends otherwise: `displayTitleOf` is `title ?? id`, with the working-directory basename removed, and the renderer labels a row whose Session has no durable title with the localized untitled copy. A folder name is never a session's name — it reads exactly like a real title, and it cannot be told apart from a session someone actually called "project".
 - Cold listing now performs one bounded observation for non-blank rows whose cache lacks a title cell. That set is small and historical (caches written before the cell existed, or invalidated by a version gate) and the probe is the same one the blank case already ran, under the same byte budget; a row whose probe yields nothing keeps its cached hints.
 - Nothing changes for attached sessions: they already carried titles, through `summaryFor`'s live snapshot.
 

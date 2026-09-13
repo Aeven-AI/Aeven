@@ -24,6 +24,19 @@ interface SessionRecord {
   live: boolean
   /** Whether the active persistence backend currently materializes the id. */
   persisted: boolean
+  /**
+   * Exact fork-inherited prefix length for a seeded Session, when the source
+   * can supply it without a body read.
+   *
+   * A seeded (fork) Session's projection-cache identity is keyed by this cut,
+   * and a {@link SessionHeader} does not carry it (`isSeeded` records only that
+   * lineage exists). Consumers that resolve cached projections from a listed
+   * record therefore need it to address the right cache row; without it a
+   * seeded row is looked up under the unseeded identity, fails the match, and
+   * is silently discarded. Absent for unseeded Sessions, and for backends that
+   * cannot expose the cut without reading the body.
+   */
+  inheritedEventCount?: SessionLogOffset
 }
 ```
 

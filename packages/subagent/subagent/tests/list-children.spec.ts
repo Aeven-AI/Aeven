@@ -743,7 +743,11 @@ describe('SubagentRuntime.listChildren', () => {
   it('fails the whole enumeration when the persisted listing itself fails', async () => {
     const { ctx, parent } = await setup([textResponse('done')])
     await startChild(ctx, parent, 'never listed')
-    ctx.sessionPersistence.list = () => Promise.reject(new Error('backend listing failed'))
+    const listingFailure = (): Promise<never> => Promise.reject(new Error('backend listing failed'))
+    // The corpus prefers a backend's inherited-cut listing when it exposes one;
+    // a failing backend must surface through whichever entry point is taken.
+    ctx.sessionPersistence.list = listingFailure
+    ctx.sessionPersistence.listWithInheritedCuts = listingFailure
     // Without any abort in flight, the original backend failure propagates
     // as the operation failure — no cancellation mapping, no diagnostic rows.
     await expect(ctx.subagents.listChildren(parent.id)).rejects.toThrow('backend listing failed')
@@ -982,7 +986,9 @@ describe('SubagentRuntime.listChildren', () => {
     const { ctx, parent } = await setup([])
     const controller = new AbortController()
     controller.abort()
-    ctx.sessionPersistence.list = () => Promise.reject(new Error('must not be called'))
+    const mustNotCall = (): Promise<never> => Promise.reject(new Error('must not be called'))
+    ctx.sessionPersistence.list = mustNotCall
+    ctx.sessionPersistence.listWithInheritedCuts = mustNotCall
     await expect(ctx.subagents.listChildren(parent.id, controller.signal)).rejects.toThrow(
       expect.objectContaining({ code: 'CANCELLED' }) as Error,
     )
@@ -992,7 +998,7 @@ describe('SubagentRuntime.listChildren', () => {
     const { ctx, parent } = await setup([])
     const controller = new AbortController()
     const entered = Promise.withResolvers<undefined>()
-    ctx.sessionPersistence.list = (signal) => {
+    const pendingListing = (signal?: AbortSignal): Promise<never> => {
       entered.resolve(undefined)
       return new Promise((_resolve, reject) => {
         signal?.addEventListener('abort', () => {
@@ -1000,6 +1006,8 @@ describe('SubagentRuntime.listChildren', () => {
         }, { once: true })
       })
     }
+    ctx.sessionPersistence.list = pendingListing
+    ctx.sessionPersistence.listWithInheritedCuts = pendingListing
     const listing = ctx.subagents.listChildren(parent.id, controller.signal)
     await entered.promise
     controller.abort()

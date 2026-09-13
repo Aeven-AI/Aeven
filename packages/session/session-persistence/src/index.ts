@@ -302,6 +302,28 @@ export abstract class SessionPersistence extends Service {
    * @returns one header and opaque revision per materialized session without loading full logs.
    */
   abstract listSnapshots(signal?: AbortSignal): Promise<SessionPersistenceSnapshot[]>
+
+  /**
+   * List materialized sessions together with a seeded Session's inherited cut.
+   *
+   * A {@link SessionHeader} cannot express the cut (`isSeeded` records only that
+   * fork lineage exists), yet a seeded Session's projection-cache identity is
+   * keyed by it — so a consumer resolving cached projections from a listed
+   * Session needs it, and cannot reconstruct it without reading the body.
+   * Optional: a backend that cannot expose the cut while listing omits this
+   * method, and listings fall back to {@link list} without one.
+   * @param signal - optional cancellation for backend listing work.
+   * @returns one header per materialized session, with the cut only where seeded.
+   */
+  listWithInheritedCuts?(signal?: AbortSignal): Promise<SessionInheritedCut[]>
+}
+
+/** One listed Session with the inherited cut a seeded Session's identity needs. */
+export interface SessionInheritedCut {
+  /** Detached metadata for one materialized session. */
+  header: SessionHeader
+  /** Exact fork-inherited prefix length; absent for an unseeded Session. */
+  inheritedEventCount?: SessionLogOffset
 }
 
 export default SessionPersistence

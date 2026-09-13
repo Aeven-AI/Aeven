@@ -38,6 +38,17 @@ export type LogicalProjectionResult<Value> =
   | { sessionId: SessionId; status: 'fulfilled'; value: Value }
   | { sessionId: SessionId; status: 'rejected'; reason: unknown }
 
+/**
+ * A persisted header paired with the fork-inherited cut the backend already
+ * decoded from the same header line.
+ */
+interface PersistedEntry {
+  /** Listed header. */
+  header: SessionHeader
+  /** Inherited prefix length, present only for a seeded Session. */
+  inheritedEventCount?: SessionLogOffset
+}
+
 /** Resolves a live-preferred corpus against the persistence service mounted now. */
 export class SessionCorpus {
   private _persistence: SessionPersistence | undefined
@@ -71,16 +82,26 @@ export class SessionCorpus {
     const persisted = persistence === undefined ? [] : await listPersisted(persistence, signal)
     signal?.throwIfAborted()
     const records = new Map<SessionId, SessionRecord>()
-    for (const header of persisted) {
-      records.set(header.id, { header: structuredClone(header), live: false, persisted: true })
+    for (const entry of persisted) {
+      const inheritedEventCount = entry.inheritedEventCount
+      records.set(entry.header.id, {
+        header: structuredClone(entry.header),
+        live: false,
+        persisted: true,
+        ...(inheritedEventCount === undefined ? {} : { inheritedEventCount }),
+      })
     }
     for (const session of this._ctx.sessions.list()) {
       const durable = records.get(session.id)
       if (durable !== undefined) assertSessionHeadersCompatible(session.header, durable.header)
+      // A live Session always materializes a cut (0 when unseeded); only a
+      // seeded one has an inherited prefix worth reporting.
+      const inheritedEventCount = session.header.isSeeded ? session.inheritedEventCount : undefined
       records.set(session.id, {
         header: structuredClone(session.header),
         live: true,
         persisted: durable !== undefined,
+        ...(inheritedEventCount === undefined ? {} : { inheritedEventCount }),
       })
     }
     return [...records.values()].sort(compareSessions)
@@ -105,7 +126,7 @@ export class SessionCorpus {
     }
     const persistence = this._persistence
     if (persistence === undefined) throw notFound(sessionId)
-    const listed = (await listPersisted(persistence, signal)).find(header => header.id === sessionId)
+    const listed = (await listPersisted(persistence, signal)).find(entry => entry.header.id === sessionId)
     signal?.throwIfAborted()
     if (listed === undefined) throw notFound(sessionId)
     const loaded = await inspectPersisted(persistence, sessionId, signal)
@@ -116,7 +137,7 @@ export class SessionCorpus {
       signal?.throwIfAborted()
       return snapshot
     }
-    assertSessionHeadersCompatible(loaded.meta, listed)
+    assertSessionHeadersCompatible(loaded.meta, listed.header)
     const snapshot = {
       header: structuredClone(loaded.meta),
       inheritedEventCount: loaded.inheritedEventCount,
@@ -163,7 +184,7 @@ export class SessionCorpus {
       return orderedResults(ids, resolved)
     }
 
-    let persisted: SessionHeader[]
+    let persisted: PersistedEntry[]
     try {
       persisted = await listPersisted(persistence, signal)
       signal?.throwIfAborted()
@@ -174,7 +195,7 @@ export class SessionCorpus {
       }
       return orderedResults(ids, resolved)
     }
-    const persistedById = new Map(persisted.map(header => [header.id, header]))
+    const persistedById = new Map(persisted.map(entry => [entry.header.id, entry.header]))
     const resolvePersisted = async (sessionId: SessionId): Promise<void> => {
       const listed = persistedById.get(sessionId)
       if (listed === undefined) {
@@ -265,12 +286,29 @@ function orderedResults<Value>(
   return ids.map(sessionId => resolved.get(sessionId) as LogicalProjectionResult<Value>)
 }
 
+/**
+ * List the persisted corpus, preferring a backend that also exposes each
+ * seeded session's inherited cut without extra I/O.
+ *
+ * A backend that omits that optional capability still lists successfully; its
+ * rows simply carry no cut rather than paying a body read to recover one.
+ * @param persistence - mounted persistence service.
+ * @param signal - optional cancellation for backend listing work.
+ * @returns one entry per stored session, in the backend's listing order.
+ * @throws SessionQueryError - `SESSION_QUERY_PERSISTENCE_FAILED` on backend failure.
+ */
 async function listPersisted(
   persistence: SessionPersistence,
   signal?: AbortSignal,
-): Promise<SessionHeader[]> {
+): Promise<PersistedEntry[]> {
   try {
-    return await persistence.list(signal)
+    // A backend that can expose the inherited cut while listing does so; one
+    // that cannot falls back to the header-only listing, and a seeded Session's
+    // title simply waits for the client to open it.
+    if (persistence.listWithInheritedCuts !== undefined) {
+      return await persistence.listWithInheritedCuts(signal)
+    }
+    return (await persistence.list(signal)).map(header => ({ header }))
   } catch (error: unknown) {
     if (signal?.aborted) signal.throwIfAborted()
     throw new SessionQueryError(

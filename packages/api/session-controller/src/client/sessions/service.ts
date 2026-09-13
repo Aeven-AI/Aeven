@@ -17,7 +17,6 @@
 import type { Context, Fiber } from '@deepseek-ai/cordis'
 import type { SubagentAddress } from '@deepseek-ai/dsh-subagent/client'
 import { SessionSeq, type SessionId } from '@deepseek-ai/dsh-session/types'
-import { workspaceTitleOf } from '@deepseek-ai/dsh-util-workspace-path'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import { SESSION_SEARCH_RESULT_LIMIT } from '../../types.ts'
 import type { SessionJob as JobView } from '../../types.ts'
@@ -140,16 +139,21 @@ export interface SessionBinding {
 export { scopeOf } from '../scope.ts'
 
 /**
- * Display title projection: durable title, project directory basename, then
- * the raw id.
+ * Display title projection: the durable title, else the Session id.
+ *
+ * A directory name is deliberately NOT in this chain. It used to be: a session
+ * whose title had not reached the list yet was named after its working
+ * directory, so rows read "project" — a plausible-looking name for the wrong
+ * thing, indistinguishable in the navigation from a real title, and impossible
+ * to tell apart from a title that genuinely says "project". The id at least
+ * announces that no title is known; the renderer labels those rows with the
+ * localized untitled copy.
+ * @param title - durable title, when the Session has one.
+ * @param id - Session identity, the last resort.
+ * @returns the row's display title.
  */
-function displayTitleOf(title: string | undefined, cwd: string | undefined, id: SessionId): string {
-  if (title !== undefined) return title
-  if (cwd !== undefined && cwd !== '') {
-    const base = workspaceTitleOf(cwd)
-    if (base !== '') return base
-  }
-  return id
+function displayTitleOf(title: string | undefined, id: SessionId): string {
+  return title ?? id
 }
 
 /**
@@ -584,7 +588,7 @@ export class ClientSessions implements ISessions {
       ids.push(entry.sessionId)
       byId[entry.sessionId] = {
         id: entry.sessionId,
-        displayTitle: displayTitleOf(entry.title, entry.cwd, entry.sessionId),
+        displayTitle: displayTitleOf(entry.title, entry.sessionId),
         running: entry.running,
         ...(entry.completed ? { completed: true } : {}),
         blank: entry.blank,

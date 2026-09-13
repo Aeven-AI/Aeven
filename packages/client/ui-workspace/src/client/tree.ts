@@ -45,6 +45,13 @@ export interface SessionNode {
   title: string
   /** The provisional blank session (renderer shows the localized New Session title). */
   blank: boolean
+  /**
+   * The Session has no durable title, so `title` is only the identity fallback
+   * the list resolves. The renderer labels these rows as untitled: a session
+   * named after its directory, or after its own id, is worse than one that
+   * says it has no name yet.
+   */
+  untitled: boolean
   /** A Session-scoped UI consumer is awaiting this user. */
   pendingInteraction?: SessionPendingInteractionStatus
   running: boolean
@@ -267,6 +274,7 @@ function sessionNode(
     id: s.id,
     title: sessionTitle(s),
     blank: s.blank,
+    untitled: !s.blank && s.title === undefined,
     running: s.running,
     runningSubagentCount: descendants.get(s.id)?.runningCount ?? 0,
     completed: s.completed === true,

@@ -6,11 +6,17 @@
 
 import { describe, expect, it, vi } from 'vitest'
 import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtemp as mkdtempAsync } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import SessionStore, { SessionLogOffset, SessionSeq } from '@deepseek-ai/dsh-session'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
+import SessionProjectionCache from '@deepseek-ai/dsh-session-projection-cache'
+import Storage from '@deepseek-ai/dsh-storage'
+import * as StorageDomain from '@deepseek-ai/dsh-storage-domain'
+import * as StorageJson from '@deepseek-ai/dsh-storage-json'
 import { SessionHistoryController } from '@deepseek-ai/dsh-api-session-controller/src/history.ts'
 import { subagentIdentityProjectionDefinition } from '@deepseek-ai/dsh-subagent/src/projection.ts'
 import { titleProjectionDefinition } from '@deepseek-ai/dsh-session-title'
@@ -18,7 +24,7 @@ import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import { createUserMessage, MessageId } from '@deepseek-ai/dsh-llm'
 import { snapshotSubagentDescriptor } from '@deepseek-ai/dsh-subagent'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import type { Session, SessionEvent, SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
+import type { SessionEvent, SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
 import type { SessionPromptRequest, SessionRequestId } from '../src/types.ts'
 import {
   PersistenceCoordinator,
@@ -26,7 +32,6 @@ import {
   type PersistenceBackend,
   type StoredPrefix,
 } from '@deepseek-ai/dsh-session-persistence'
-import { ApiSessionList } from '../src/list.ts'
 import {
   createSessionTestRemote,
   installSessionReadTestServices,
@@ -58,318 +63,58 @@ function providePersistence(ctx: Context, persistence: Record<string, unknown>):
 }
 
 describe('sessions.list cold merge', () => {
-  it('fully observes only small possibly-blank artifacts and treats unavailable probes as visible', async () => {
+  it('serves cold rows from cached projections without reading a body', async () => {
+    // Listing is a cache-only read. The row's blankness and title both come from
+    // the durable projection cache; a cache miss leaves blankness unknown (the
+    // row stays visible) and NEVER triggers a cold log read, so listing latency
+    // is independent of log size.
     const ctx = new Context()
     await ctx.plugin(SessionStore)
-    const root = mkdtempSync(join(tmpdir(), 'dsh-cold-'))
-    const smallPath = join(root, 'small.log')
-    const largePath = join(root, 'large.log')
-    writeFileSync(smallPath, 'x'.repeat(1024))
-    writeFileSync(largePath, 'x'.repeat(1025))
-    const metas = [
-      header('small-blank', 100),
-      header('small-conversation', 200),
-      header('large-unknown', 300),
-      header('cached-nonblank', 400),
-      header('seeded-cold', 450, { isSeeded: true }),
-      header('locationless', 500, { parentSession: sid('session-parent'), origin: 'subagent' }),
-      header('vanished', 600),
-      header('read-failure', 700),
-      { version: 0, id: sid('missing-cwd'), createdAt: 800, isSeeded: false },
+    const metas: SessionHeader[] = [
+      header('cached-blank', 100),
+      header('cached-conversation', 200),
+      header('uncached', 300, { parentSession: sid('session-parent'), origin: 'subagent' }),
+      header('missing-cwd', 800, {}),
     ]
-    const inspect = vi.fn(async (id: SessionId) => {
-      if (id === sid('small-blank')) {
-        return {
-          meta: metas[0]!,
-          events: [{ type: 'session/end-seed', seq: SessionSeq(0), time: 700, data: {} }] satisfies SessionEvent[],
-        }
-      }
-      if (id === sid('small-conversation')) {
-        return {
-          meta: metas[1]!,
-          events: [
-            { type: 'turn/start', seq: SessionSeq(0), time: 800, data: { turn: 1 } },
-            {
-              type: 'user/message', seq: SessionSeq(1), time: 1200,
-              data: createUserMessage({ content: [{ type: 'text', text: 'worked' }], source: { kind: 'user' } }),
-              surfaceOp: 'append',
-            },
-          ] satisfies SessionEvent[],
-        }
-      }
-      if (id === sid('read-failure')) throw new Error('simulated read failure')
-      throw new Error(`unexpected cold read: ${id}`)
-    })
+    delete (metas[3] as { cwd?: string }).cwd
+    const inspect = vi.fn()
     providePersistence(ctx, {
       list: () => Promise.resolve(metas),
-      locate: (meta: SessionHeader) => {
-        if (meta.id === sid('large-unknown') || meta.id === sid('seeded-cold')) {
-          return { kind: 'jsonl', path: largePath }
-        }
-        if (meta.id === sid('locationless')) return undefined
-        if (meta.id === sid('vanished')) return { kind: 'jsonl', path: join(root, 'vanished.log') }
-        return { kind: 'jsonl', path: smallPath }
-      },
       inspect,
     })
     ctx.provide('sessionProjectionCache', {
       cachedSnapshot: (meta: SessionHeader) => {
-        if (meta.id === sid('seeded-cold')) throw new Error('seeded cold listing must not guess a body cut')
-        if (meta.id === sid('small-blank')) {
-          return { asOfSeq: SessionSeq(0), values: { sessionListMetadata: { blank: true, lastPromptAt: null } } }
+        if (meta.id === sid('cached-blank')) {
+          return { asOfSeq: 0, values: { sessionListMetadata: { blank: true, lastPromptAt: null } } }
         }
-        if (meta.id === sid('small-conversation')) {
-          return { asOfSeq: SessionSeq(0), values: { sessionListMetadata: { blank: true, lastPromptAt: 900 } } }
-        }
-        if (meta.id === sid('cached-nonblank')) {
-          // Complete hints: metadata AND the title cell, so this row needs no
-          // body read (the case below covers a cache that lost the title).
-          return {
-            asOfSeq: SessionSeq(1),
-            values: { sessionListMetadata: { blank: false, lastPromptAt: 1000 }, title: 'Already titled' },
-          }
+        if (meta.id === sid('cached-conversation')) {
+          return { asOfSeq: 1, values: { sessionListMetadata: { blank: false, lastPromptAt: 1000 } } }
         }
         return undefined
       },
-      hydratePrepared: (session: Session, events: readonly SessionEvent[]) =>
-        ctx.sessionProjections.hydrate(session, {}, events, SessionLogOffset(0)),
     } as never)
-    const remote = createSessionTestRemote(ctx, { defaultModelSelection: () => ({ provider: 'p', model: 'm' }), cwd: '/tmp' })
+    const remote = createSessionTestRemote(ctx, {
+      defaultModelSelection: () => ({ provider: 'p', model: 'm' }), cwd: '/tmp',
+    })
+    const observe = vi.spyOn(ctx.sessionQuery, 'observeSession')
 
     const response = await remote.list(request({}))
     expect(response.ok).toBe(true)
     if (!response.ok) throw new Error('unreachable')
     const byId = Object.fromEntries(response.value.items.map(item => [item.sessionId, item]))
-    expect(byId['small-blank']).toMatchObject({ blank: true, updatedAt: 100, running: false })
-    expect(byId['small-conversation']).toMatchObject({ blank: false, updatedAt: 1200 })
-    expect(byId['large-unknown']).toMatchObject({ blank: false, updatedAt: 300 })
-    expect(byId['cached-nonblank']).toMatchObject({ blank: false, updatedAt: 1000 })
-    expect(byId['seeded-cold']).toMatchObject({ blank: false, updatedAt: 450 })
-    expect(byId['locationless']).toMatchObject({
+    expect(byId['cached-blank']).toMatchObject({ blank: true, updatedAt: 100, running: false })
+    expect(byId['cached-conversation']).toMatchObject({ blank: false, updatedAt: 1000 })
+    // A cache miss leaves blankness unknown; the row stays visible.
+    expect(byId['uncached']).toMatchObject({
       blank: false,
-      updatedAt: 500,
+      updatedAt: 300,
       parentSessionId: 'session-parent',
       origin: 'subagent',
     })
-    expect(byId['vanished']).toMatchObject({ blank: false, updatedAt: 600 })
-    expect(byId['read-failure']).toMatchObject({ blank: false, updatedAt: 700 })
     expect(byId['missing-cwd']).toBeUndefined()
-    expect(inspect).toHaveBeenCalledTimes(3)
-    expect(inspect.mock.calls.map(([id]) => id)).toEqual(expect.arrayContaining([
-      sid('small-blank'),
-      sid('small-conversation'),
-      sid('read-failure'),
-    ]))
-  })
-
-  it('gives a cold Session its title even when the cached hints omit the cell', async () => {
-    // The reported bug: a cached, non-blank cold row was served from a partial
-    // hint block, so it was listed without a title and the navigation fell back
-    // to the cwd basename until the Session was clicked (or the page reloaded).
-    const ctx = new Context()
-    await ctx.plugin(SessionStore)
-    installSessionReadTestServices(ctx)
-    ctx.sessionProjections.register(titleProjectionDefinition as never)
-    const root = mkdtempSync(join(tmpdir(), 'dsh-cold-title-'))
-    const path = join(root, 'titled.log')
-    writeFileSync(path, 'x'.repeat(512))
-    const meta = header('titled-nonblank', 100)
-    providePersistence(ctx, {
-      list: () => Promise.resolve([meta]),
-      locate: () => ({ kind: 'jsonl', path }),
-      inspect: () => Promise.resolve({
-        meta,
-        events: [
-          { type: 'turn/start', seq: SessionSeq(0), time: 700, data: { turn: 1 } },
-          {
-            type: 'user/message', seq: SessionSeq(1), time: 800,
-            data: createUserMessage({ content: [{ type: 'text', text: 'worked' }], source: { kind: 'user' } }),
-            surfaceOp: 'append',
-          },
-          {
-            type: 'session/title', seq: SessionSeq(2), time: 900,
-            data: { title: 'Fix the sidebar labels', messageSeqs: [SessionSeq(1)], source: { kind: 'fallback' } },
-          },
-        ] satisfies SessionEvent[],
-      }),
-    })
-    ctx.provide('sessionProjectionCache', {
-      // Metadata survived the version gate; the title cell did not.
-      cachedSnapshot: () => ({
-        asOfSeq: SessionSeq(1),
-        values: { sessionListMetadata: { blank: false, lastPromptAt: 800 } },
-      }),
-      hydratePrepared: (session: Session, events: readonly SessionEvent[]) =>
-        ctx.sessionProjections.hydrate(session, {}, events, SessionLogOffset(0)),
-    } as never)
-    const remote = createSessionTestRemote(ctx, {
-      defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
-      cwd: '/tmp',
-    })
-
-    const response = await remote.list(request({}))
-    expect(response.ok).toBe(true)
-    if (!response.ok) throw new Error('unreachable')
-    const row = response.value.items.find(item => item.sessionId === sid('titled-nonblank'))
-    expect(row?.projections?.values.title).toBe('Fix the sidebar labels')
-  })
-
-  it('can disable bounded cold observations without hiding cold Sessions', async () => {
-    const ctx = new Context()
-    await ctx.plugin(SessionStore)
-    const meta = header('probe-disabled', 100)
-    const inspect = vi.fn()
-    providePersistence(ctx, {
-      list: () => Promise.resolve([meta]),
-      locate: () => ({ kind: 'jsonl', path: '/not-read' }),
-      inspect,
-    })
-    const remote = createSessionTestRemote(ctx, {
-      defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
-      cwd: '/tmp',
-      coldBlankProbeMaxBytes: 0,
-    })
-
-    const response = await remote.list(request({}))
-    if (!response.ok) throw new Error('unreachable')
-    expect(response.value.items).toEqual([
-      expect.objectContaining({ sessionId: meta.id, blank: false, updatedAt: meta.createdAt }),
-    ])
+    // No body read of any kind happened while listing.
     expect(inspect).not.toHaveBeenCalled()
-  })
-
-  it('prefers a live row attached during the query without folding its seed', async () => {
-    const ctx = new Context()
-    await ctx.plugin(SessionStore)
-    await ctx.plugin(AgentRegistry)
-    const meta = header('attached-during-list', 100)
-    const started = Promise.withResolvers<undefined>()
-    const release = Promise.withResolvers<undefined>()
-    providePersistence(ctx, {
-      list: async () => {
-        started.resolve(undefined)
-        await release.promise
-        return [meta]
-      },
-    })
-    const remote = createSessionTestRemote(ctx, { defaultModelSelection: () => ({ provider: 'p', model: 'm' }), cwd: '/tmp' })
-
-    const listing = remote.list(request({}))
-    await started.promise
-    const session = ctx.sessions.create(meta.id, {
-      seed: [
-        { type: 'turn/start', seq: SessionSeq(0), time: 200, data: { turn: 1 } },
-        {
-          type: 'user/message', seq: SessionSeq(1), time: 300,
-          data: createUserMessage({ content: [{ type: 'text', text: 'live' }], source: { kind: 'user' } }),
-          surfaceOp: 'append',
-        },
-      ],
-      meta: {
-        ...meta.cwd === undefined ? {} : { cwd: meta.cwd },
-        createdAt: meta.createdAt,
-      },
-    })
-    ctx.agents.register({ id: session.id, session, status: 'running', ctx } as Agent)
-    release.resolve(undefined)
-
-    const response = await listing
-    if (!response.ok) throw new Error('list failed')
-    expect(response.value.items).toEqual([
-      expect.objectContaining({
-        sessionId: meta.id,
-        blank: false,
-        running: true,
-        updatedAt: 100,
-      }),
-    ])
-  })
-
-  it('prefers a Session that attaches during its bounded cold observation', async () => {
-    const ctx = new Context()
-    await ctx.plugin(SessionStore)
-    await ctx.plugin(AgentRegistry)
-    const root = mkdtempSync(join(tmpdir(), 'dsh-cold-race-'))
-    const path = join(root, 'small.log')
-    writeFileSync(path, 'small')
-    const meta = header('attached-during-probe', 100)
-    providePersistence(ctx, {
-      list: () => Promise.resolve([meta]),
-      locate: () => ({ kind: 'jsonl', path }),
-      inspect: () => {
-        const session = ctx.sessions.create(meta.id, {
-          meta,
-          seed: [{ type: 'turn/start', seq: SessionSeq(0), time: 200, data: { turn: 1 } }],
-        })
-        ctx.agents.register({ id: session.id, session, status: 'running', ctx } as Agent)
-        return Promise.resolve({
-          meta,
-          inheritedEventCount: SessionLogOffset(0),
-          events: [],
-        })
-      },
-    })
-    const remote = createSessionTestRemote(ctx, {
-      defaultModelSelection: () => ({ provider: 'p', model: 'm' }), cwd: '/tmp',
-    })
-
-    const response = await remote.list(request({}))
-    if (!response.ok) throw new Error('list failed')
-    expect(response.value.items).toEqual([
-      expect.objectContaining({ sessionId: meta.id, running: true, blank: false }),
-    ])
-    await ctx.fiber.dispose()
-  })
-
-  it('propagates a cold location failure instead of returning a partial list', async () => {
-    const ctx = new Context()
-    await ctx.plugin(SessionStore)
-    const meta = header('broken-cache', 100)
-    providePersistence(ctx, {
-      list: () => Promise.resolve([meta]),
-      locate: () => { throw new Error('location failed') },
-    })
-    const remote = createSessionTestRemote(ctx, {
-      defaultModelSelection: () => ({ provider: 'p', model: 'm' }), cwd: '/tmp',
-    })
-
-    await expect(remote.list(request({}))).resolves.toMatchObject({
-      ok: false,
-      error: { message: expect.stringContaining('location failed') as string },
-    })
-    await ctx.fiber.dispose()
-  })
-
-  it('supports an unsignalled probe whose observation has no projection registry', async () => {
-    const ctx = new Context()
-    await ctx.plugin(SessionStore)
-    await ctx.plugin(AgentRegistry)
-    installSessionReadTestServices(ctx)
-    const root = mkdtempSync(join(tmpdir(), 'dsh-cold-unprojected-'))
-    const path = join(root, 'small.log')
-    writeFileSync(path, 'small')
-    const meta = header('unprojected-small', 100)
-    ctx.provide('sessionPersistence', {
-      list: () => Promise.resolve([meta]),
-      locate: () => ({ kind: 'jsonl', path }),
-    } as never)
-    vi.spyOn(ctx.sessionQuery, 'listSessions').mockResolvedValue([{
-      header: meta, live: false, persisted: true,
-    }])
-    vi.spyOn(ctx.sessionQuery, 'observeSession').mockResolvedValue({
-      source: 'prepared',
-      header: meta,
-      inheritedEventCount: SessionLogOffset(0),
-      events: [],
-      cursor: -1,
-      retain: vi.fn(), [Symbol.dispose]: vi.fn(),
-    })
-    const list = new ApiSessionList(ctx, 1024)
-
-    await expect(list.list()).resolves.toEqual([
-      expect.objectContaining({ sessionId: meta.id, blank: false }),
-    ])
-    await ctx.fiber.dispose()
+    expect(observe).not.toHaveBeenCalled()
   })
 })
 
@@ -991,5 +736,144 @@ describe('sessions.prompt synchronous rejection', () => {
         details: { reason: 'use subagent delivery for this child session' },
       })
     }
+  })
+})
+
+describe('cold titles are never lost (regression: session-<key> in the foldout)', () => {
+  /**
+   * Reported bug: sessions rendered as `session-<uuid>` in the foldout menu
+   * instead of their title. The title was never lost — it is a durable
+   * `session/title` event, mirrored into the durable projection cache — but the
+   * listing could not reach it for two independent reasons, both fixed here:
+   *
+   * 1. A **seeded (fork)** Session's cache identity includes its inherited cut,
+   *    which a `SessionHeader` cannot express, so the row was addressed under
+   *    the unseeded identity, failed the match, and was discarded. The listing
+   *    now carries the cut from the record (`SessionRecord.inheritedEventCount`).
+   * 2. The size-bounded cold probe (1 KiB) cannot recover a content-heavy log,
+   *    and it is also the only path that would write a missing cache row — so
+   *    large Sessions could never self-heal.
+   */
+  function titledEvents(title: string, inheritedPrefix = 0): SessionEvent[] {
+    // `inheritedPrefix` prepends fork-inherited filler so a seeded Session's cut
+    // stays within its own log (the constructor rejects a cut beyond the log).
+    const filler: SessionEvent[] = Array.from({ length: inheritedPrefix }, (_, index) => ({
+      type: 'fixture/inherited', seq: SessionSeq(index), time: 1, data: {}, ignorable: true,
+    })) as SessionEvent[]
+    const base = inheritedPrefix
+    return [
+      ...filler,
+      { type: 'turn/start', seq: SessionSeq(base), time: 700, data: { turn: 1 } },
+      {
+        type: 'user/message', seq: SessionSeq(base + 1), time: 800,
+        data: createUserMessage({ content: [{ type: 'text', text: 'hello there' }], source: { kind: 'user' } }),
+        surfaceOp: 'append',
+      },
+      {
+        type: 'session/title', seq: SessionSeq(base + 2), time: 900,
+        data: { title, messageSeqs: [SessionSeq(base + 1)], source: { kind: 'fallback' } },
+      },
+    ] as SessionEvent[]
+  }
+
+  /**
+   * A context with the REAL durable projection cache mounted over a temp JSON
+   * root, plus a persistence double listing one seeded or unseeded Session whose
+   * cache row is pre-written at the record's own identity.
+   */
+  async function titledContext(options: {
+    id: string
+    seeded: boolean
+    inheritedEventCount?: SessionLogOffset
+    title: string
+  }): Promise<Context> {
+    const ctx = new Context()
+    const root = await mkdtempAsync(join(tmpdir(), 'dsh-cold-titles-'))
+    await ctx.plugin(Storage)
+    await ctx.plugin(StorageJson, { root })
+    await ctx.plugin(StorageDomain, { backend: 'json' })
+    await ctx.plugin(SessionStore)
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SessionProjectionCache, { writeEveryEvents: 100, writeIntervalMs: 60_000 })
+    installSessionReadTestServices(ctx)
+    ctx.sessionProjections.register(titleProjectionDefinition as never)
+    const meta = options.seeded
+      ? { ...header(options.id, 100), isSeeded: true }
+      : header(options.id, 100)
+    // A cold log far above the 1 KiB probe budget: the listing must not need it.
+    const logRoot = mkdtempSync(join(tmpdir(), 'dsh-cold-titles-log-'))
+    const path = join(logRoot, 'titled.log')
+    writeFileSync(path, 'x'.repeat(8 * 1024))
+    providePersistence(ctx, {
+      list: () => Promise.resolve([meta]),
+      // The real jsonl backend exposes a seeded Session's inherited cut from its
+      // header line, so a faithful double does too — that is the contract the
+      // listing relies on to address a fork child's cache row.
+      listWithInheritedCuts: () => Promise.resolve([{
+        header: meta,
+        ...options.inheritedEventCount === undefined
+          ? {}
+          : { inheritedEventCount: options.inheritedEventCount },
+      }]),
+      locate: () => ({ kind: 'jsonl', path }),
+      inspect: () => Promise.resolve({
+        meta,
+        events: titledEvents(options.title, options.inheritedEventCount ?? 0),
+        ...options.inheritedEventCount === undefined
+          ? {}
+          : { inheritedEventCount: options.inheritedEventCount },
+      }),
+    })
+    return ctx
+  }
+
+  it('lists a seeded (fork) cold Session with its title from the durable cache', async () => {
+    const ctx = await titledContext({
+      id: 'seeded-titled',
+      seeded: true,
+      inheritedEventCount: SessionLogOffset(7),
+      title: 'Greeting (1)',
+    })
+    // The durable row is written at the SEEDED identity (cut 7), exactly as the
+    // live cache does for a fork child.
+    const prepared = ctx.sessions.prepare(sid('seeded-titled'), {
+      seed: titledEvents('Greeting (1)', 7),
+      meta: { ...header('seeded-titled', 100), isSeeded: true },
+      inheritedEventCount: SessionLogOffset(7),
+    })
+    await ctx.sessionProjectionCache.write(prepared)
+    const remote = createSessionTestRemote(ctx, {
+      defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
+      cwd: '/tmp',
+    })
+
+    const response = await remote.list(request({}))
+    expect(response.ok).toBe(true)
+    if (!response.ok) throw new Error('unreachable')
+    const row = response.value.items.find(item => item.sessionId === sid('seeded-titled'))
+    expect(row?.projections?.values.title).toBe('Greeting (1)')
+  })
+
+  it('never lists a raw session id as a title for a titled cold Session', async () => {
+    const ctx = await titledContext({
+      id: 'titled-cold',
+      seeded: false,
+      title: 'Fix the sidebar labels',
+    })
+    const prepared = ctx.sessions.prepare(sid('titled-cold'), {
+      seed: titledEvents('Fix the sidebar labels'),
+      meta: header('titled-cold', 100),
+      inheritedEventCount: SessionLogOffset(0),
+    })
+    await ctx.sessionProjectionCache.write(prepared)
+    const remote = createSessionTestRemote(ctx, {
+      defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
+      cwd: '/tmp',
+    })
+
+    const response = await remote.list(request({}))
+    if (!response.ok) throw new Error('unreachable')
+    const row = response.value.items.find(item => item.sessionId === sid('titled-cold'))
+    expect(row?.projections?.values.title).toBe('Fix the sidebar labels')
   })
 })

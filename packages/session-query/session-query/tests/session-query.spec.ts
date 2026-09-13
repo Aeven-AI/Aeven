@@ -41,8 +41,14 @@ class TestPersistence extends SessionPersistence {
   override readonly supportsRawArtifacts = false
 
   static entries = new Map<SessionIdType, { meta: SessionHeader; events: SessionEvent[] }>()
+  /** Inherited cut reported per seeded entry by {@link listWithInheritedCuts}. */
+  static inheritedCuts = new Map<SessionIdType, SessionLogOffset>()
   static listFailure: unknown
   static listOverride: ((signal?: AbortSignal) => Promise<SessionHeader[]>) | undefined
+  static listWithInheritedCuts:
+    | ((signal?: AbortSignal) => Promise<Array<{ header: SessionHeader; inheritedEventCount?: SessionLogOffset }>>)
+    | undefined
+  static inheritedCutCalls = 0
   static inspectFailure: unknown
   static inspectEffect: (() => void) | undefined
   static inspectOverride: ((
@@ -59,6 +65,9 @@ class TestPersistence extends SessionPersistence {
     this.entries = new Map(entries.map(entry => [entry.meta.id, structuredClone(entry)]))
     this.listFailure = undefined
     this.listOverride = undefined
+    this.listWithInheritedCuts = undefined
+    this.inheritedCuts = new Map()
+    this.inheritedCutCalls = 0
     this.inspectFailure = undefined
     this.inspectEffect = undefined
     this.inspectOverride = undefined
@@ -131,6 +140,28 @@ class TestPersistence extends SessionPersistence {
     const headers = [...TestPersistence.entries.values()].map(entry => structuredClone(entry.meta))
     TestPersistence.afterList?.()
     return Promise.resolve(headers)
+  }
+
+  /**
+   * Optional backend capability: expose a seeded session's inherited cut from
+   * the already-read header line, with no extra I/O. Delegating to
+   * {@link list} keeps every listing knob (`listOverride`, failure, call
+   * counting, `afterList`) behaving identically on both paths.
+   */
+  override async listWithInheritedCuts(signal?: AbortSignal): Promise<Array<{
+    header: SessionHeader
+    inheritedEventCount?: SessionLogOffset
+  }>> {
+    TestPersistence.inheritedCutCalls += 1
+    return (await this.list(signal)).map((entry) => {
+      const inheritedEventCount = entry.isSeeded
+        ? TestPersistence.inheritedCuts.get(entry.id)
+        : undefined
+      return {
+        header: entry,
+        ...(inheritedEventCount === undefined ? {} : { inheritedEventCount }),
+      }
+    })
   }
 
 
@@ -891,6 +922,46 @@ describe('session-query exact reads', () => {
     expect(records.every(record => record.live && !record.persisted)).toBe(true)
     Object.assign(records[2]!.header, { createdAt: 99 })
     expect(older.header.createdAt).toBe(1)
+  })
+
+  it('surfaces a seeded persisted session inherited cut and omits it for an unseeded one', async () => {
+    const seeded = header('seeded-cut', 2, { isSeeded: true })
+    const plain = header('unseeded-cut', 1)
+    TestPersistence.reset([
+      { meta: seeded, events: eventLog('seed') },
+      { meta: plain, events: eventLog('plain') },
+    ])
+    TestPersistence.inheritedCuts.set(seeded.id, SessionLogOffset(7))
+    const ctx = await liveContext()
+    await ctx.plugin(TestPersistence)
+
+    const records = await ctx.sessionQuery.listSessions()
+    expect(records).toEqual([
+      { header: seeded, live: false, persisted: true, inheritedEventCount: SessionLogOffset(7) },
+      { header: plain, live: false, persisted: true },
+    ])
+    // One listing call, and the cut rides the header line already read.
+    expect(TestPersistence.inheritedCutCalls).toBe(1)
+    expect(TestPersistence.inspectCalls).toEqual([])
+  })
+
+  it('omits the inherited cut for persisted rows when the backend lacks the capability', async () => {
+    const seeded = header('seeded-cut-absent', 2, { isSeeded: true })
+    TestPersistence.reset([{ meta: seeded, events: eventLog('seed') }])
+    TestPersistence.inheritedCuts.set(seeded.id, SessionLogOffset(7))
+    const ctx = await liveContext()
+    await ctx.plugin(TestPersistence)
+    // Own undefined shadows the prototype method: this backend has no capability.
+    Object.assign(TestPersistence.prototype, { listWithInheritedCuts: undefined })
+
+    try {
+      await expect(ctx.sessionQuery.listSessions())
+        .resolves.toEqual([{ header: seeded, live: false, persisted: true }])
+      expect(TestPersistence.listCalls).toBe(1)
+      expect(TestPersistence.inspectCalls).toEqual([])
+    } finally {
+      delete (TestPersistence.prototype as { listWithInheritedCuts?: unknown }).listWithInheritedCuts
+    }
   })
 
   it('filters sessions symmetrically and owns mutable filter values immediately', async () => {

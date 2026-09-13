@@ -353,6 +353,35 @@ describe('JsonlSessionPersistence: durability and crash semantics', () => {
     ])
   })
 
+  it('lists the inherited cut for a seeded session and omits it for an unseeded one', async () => {
+    const seededPath = rawLogPath(root, '/work', SessionId('cut-seeded'))
+    await mkdir(dirname(seededPath), { recursive: true })
+    await writeFile(seededPath, `${JSON.stringify({
+      type: 'session',
+      version: 0,
+      id: 'cut-seeded',
+      createdAt: 1000,
+      cwd: '/work',
+      seedLength: 42,
+      delegationDepth: 0,
+    })}\n`)
+
+    const plain = meta('cut-plain')
+    await ctx.sessionPersistence.create(plain)
+    await ctx.sessionPersistence.append(plain.id, oneTurnLog())
+
+    const entries = await (ctx.sessionPersistence as JsonlSessionPersistence).listWithInheritedCuts()
+    const seeded = entries.find(entry => entry.header.id === SessionId('cut-seeded'))
+    const unseeded = entries.find(entry => entry.header.id === plain.id)
+
+    expect(seeded?.inheritedEventCount).toBe(SessionLogOffset(42))
+    expect(seeded?.header.isSeeded).toBe(true)
+    // The cut is absent — not zero — for an unseeded session, so a consumer can
+    // tell "no inherited prefix" from "unknown prefix".
+    expect(unseeded?.header.isSeeded).toBe(false)
+    expect(unseeded).not.toHaveProperty('inheritedEventCount')
+  })
+
   it('materializes an explicitly durable empty live session without an event row', async () => {
     const id = SessionId('durable-empty')
     const session = ctx.sessions.create(id, { meta: { cwd: '/work' } })
