@@ -149,7 +149,7 @@ Windows 发布打包通过 `/f` 向已配置且与 SafeNet 兼容的 SignTool �
 - 共享 `.dsh` 数据在迁移或修改前拒绝不兼容的读取方。
 - 不打开回环监听端口，沙箱渲染进程不能访问任意文件系统或 Electron API。
 - Workspace 开发无需下载发布资源即可运行当前已构建代码，未封装安装器的应用验证仍保留生产安装路径。
-- Windows 发布打包要求已验证的 SignTool、EV Token、匹配的公开叶证书、Token Password 和明确的密钥容器，绝不会回退到未签名产物或可导出的密钥文件。
+- Windows 发布打包要求已验证的 SignTool、EV Token、匹配的公开叶证书、Token Password 和明确的密钥容器，绝不会回退到未签名产物或可导出的密钥文件。显式的 `--unsigned` 打包模式是开发路径，其产物不带完成记录，因此 `upload:*` 会拒绝它们。
 - 目标更新只有在已完成签名的构建及其引用的每个产物通过发布校验后才能暴露新频道元数据；保留的历史产物继续供差分更新使用。
 - 每个发布阻断平台上的签名已安装产物均能从上一个受支持版本成功更新。
 
@@ -161,7 +161,7 @@ Windows 发布打包通过 `/f` 向已配置且与 SafeNet 兼容的 SignTool �
 | Desktop profile | 一个包含精确 dsh 与插件依赖、由 Electron 持有的保留 profile |
 | 插件管理 | Electron-only GUI 与包服务；没有 CLI、后端或浏览器安装路径 |
 | 激活 | 暂存项目、完整健康检查、记录式目录替换和一个回滚副本 |
-| 初始平台 | macOS arm64/x64 与 Windows x64；Linux 尚无受支持的发布目标 |
+| 初始平台 | macOS arm64/x64 与 Windows x64；Linux arm64/x64 不进行代码签名打包并直接分发，没有更新频道（[Linux 软件包与未签名构建](../process/2026-09-14-linux-desktop-packages-and-unsigned-builds.zh.md)） |
 | 更新行为 | 后台检查，差分下载与重启前显式确认，启动时校准 dsh |
 
 ## 风险

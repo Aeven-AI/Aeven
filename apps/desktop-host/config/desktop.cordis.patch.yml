@@ -21,6 +21,10 @@
 - id: directory-picker
   disabled: true
 
+# Workspace file URLs are an HTTP route on the disabled webserver.
+- id: workspace-files
+  disabled: true
+
 - id: connection
   inject:
     - credentials

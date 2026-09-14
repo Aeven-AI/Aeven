@@ -96,9 +96,20 @@ pnpm run package:desktop:mac:x64
 pnpm run package:desktop:win:x64
 ```
 
-The macOS arm64 command requires Apple Silicon. The macOS x64 command runs on Intel macOS or Apple Silicon with Rosetta. The Windows x64 command requires Windows x64. Linux is not a supported Desktop release target.
+The macOS arm64 command requires Apple Silicon. The macOS x64 command runs on Intel macOS or Apple Silicon with Rosetta. The Windows x64 command requires Windows x64. The Linux arm64 and x64 commands require a Linux host with the same architecture.
 
 Each target owns its packed package inputs, prepared runtime, package set, seed, pnpm preparation state, unpacked application, update metadata, and final artifacts under `apps/desktop/.desktop-build/targets/<target>/`. The Node.js archive cache remains shared under `.desktop-build/downloads` because every archive name includes its version, platform, and architecture and is verified before extraction. A target build never consumes another target's mutable preparation state.
+
+### Linux packages
+
+Linux targets produce an AppImage and a `.deb` without code signing. Build on a matching Linux host, or from any Docker host with the `:docker` command:
+
+```sh
+pnpm run package:desktop:linux:arm64:docker
+pnpm run package:desktop:linux:x64:docker
+```
+
+The Docker command builds `linux-builder.Dockerfile` for the target architecture, streams the files git would commit together with `.git` into a container, runs the Linux package command there after a fresh install, and copies the top-level artifacts into `apps/desktop/.desktop-build/targets/<target>/artifacts`. It forwards `DSH_DESKTOP_APP_ID`, `DSH_DESKTOP_AUTO_UPDATE_ENV`, and `DOWNLOAD_TEST_ORIGIN`, and keeps the pnpm store in the `dsh-desktop-linux-pnpm-store` volume. A target whose architecture differs from the Docker host runs under emulation. The `.deb` installs Chromium's sandbox helper; distributions that restrict unprivileged user namespaces, such as Ubuntu 24.04, may refuse to start the AppImage without it. `upload:*` does not accept Linux targets.
 
 ### Upload updates
 
@@ -139,7 +150,7 @@ $env:DSH_DESKTOP_WINDOWS_TOKEN_PIN = '<SafeNet Token Password>'
 pnpm run package:desktop:win:x64
 ```
 
-Insert and unlock the token before packaging. The electron-builder hook passes each artifact to the CRLF `scripts/windows-sign.cmd`, which invokes the configured SignTool once with `/f`, SafeNet `/kc "[{{PIN}}]=container"`, `/csp "eToken Base Cryptographic Provider"`, a SHA-256 file digest, and a DigiCert SHA-256 RFC 3161 timestamp. The hook never substitutes electron-builder's bundled SignTool and never retries a failed signing request. Windows packaging fails instead of emitting unsigned artifacts when the SignTool, certificate, container, PIN, token, or signature is unavailable.
+Insert and unlock the token before packaging. The electron-builder hook passes each artifact to the CRLF `scripts/windows-sign.cmd`, which invokes the configured SignTool once with `/f`, SafeNet `/kc "[{{PIN}}]=container"`, `/csp "eToken Base Cryptographic Provider"`, a SHA-256 file digest, and a DigiCert SHA-256 RFC 3161 timestamp. The hook never substitutes electron-builder's bundled SignTool and never retries a failed signing request. Without `--unsigned`, Windows packaging fails instead of emitting unsigned artifacts when the SignTool, certificate, container, PIN, token, or signature is unavailable.
 
 The PIN cannot contain `]`, a quote, or a line break because those characters delimit the SafeNet `/kc` value or its CMD argument. The CMD disables delayed expansion so a PIN containing `!` reaches SafeNet unchanged. Packaging withholds every `DSH_DESKTOP_WINDOWS_*` field from build and seed-preparation subprocesses, gives electron-builder only the four configured inputs, gives the signing CMD only the validated signing fields in an otherwise scrubbed environment, clears those fields before SignTool starts, and redacts SignTool diagnostics. SafeNet still requires the PIN in the SignTool process command line. Inject it as an ephemeral secret only on a controlled self-hosted Windows runner with the physical token attached; never commit it, put it in `.env`, or persist it as a Windows user or system environment variable.
 
@@ -149,6 +160,15 @@ Create a runnable application directory instead of an installer by using the mat
 pnpm run package:desktop:dir
 pnpm run package:desktop:mac:arm64:dir
 ```
+
+Build artifacts without an Apple Developer ID or a Windows code-signing certificate by using the matching `:unsigned` command:
+
+```sh
+pnpm run package:desktop:mac:arm64:unsigned
+pnpm run package:desktop:win:x64:unsigned
+```
+
+An unsigned build skips seed signing, application and installer signing, macOS notarization, the DMG notarization hook, and the target completion record, so `upload:*` rejects it. On macOS, electron-builder ad-hoc signs the application without hardened runtime because Apple Silicon does not launch code that has no signature; Gatekeeper blocks a downloaded copy until the tester removes its quarantine attribute. Windows SmartScreen warns before an unsigned installer runs. Each target still requires its own host platform, `DSH_DESKTOP_APP_ID`, and the selected update origin.
 
 To inspect or troubleshoot the prepared host-target resources without invoking electron-builder, stop the same pipeline after preparation:
 

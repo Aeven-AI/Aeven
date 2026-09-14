@@ -11,7 +11,11 @@ export interface DesktopElectronBuilderConfig {
   readonly mac: {
     readonly identity: string | undefined
     readonly forceCodeSigning: boolean
+    readonly hardenedRuntime: boolean
     readonly notarize: boolean
+  }
+  readonly win: {
+    readonly forceCodeSigning: boolean
   }
   readonly dmg: {
     readonly sign: boolean

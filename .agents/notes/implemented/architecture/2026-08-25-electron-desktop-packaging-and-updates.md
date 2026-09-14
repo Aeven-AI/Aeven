@@ -149,7 +149,7 @@ The bundled upstream Node.js and pnpm are expected to add about 35–50 MB compr
 - Shared `.dsh` data rejects incompatible readers before migration or mutation.
 - No loopback listener is opened, and the sandboxed renderer cannot access arbitrary filesystem or Electron APIs.
 - Workspace development runs current built code without downloading release resources, while unpacked-package verification retains the production installation path.
-- Windows release packaging requires the validated SignTool, EV token, matching public leaf certificate, Token Password, and explicit key container; it never falls back to an unsigned artifact or an exportable key file.
+- Windows release packaging requires the validated SignTool, EV token, matching public leaf certificate, Token Password, and explicit key container; it never falls back to an unsigned artifact or an exportable key file. The explicit `--unsigned` packaging mode is a development path whose artifacts carry no completion record, so `upload:*` refuses them.
 - A target update cannot expose new channel metadata until the completed signed build and every referenced artifact pass release validation; retained historical artifacts remain available for differential updates.
 - Signed installed artifacts update successfully from the previous supported release on each release-blocking platform.
 
@@ -161,7 +161,7 @@ The bundled upstream Node.js and pnpm are expected to add about 35–50 MB compr
 | Desktop profile | One Electron-owned reserved profile containing exact dsh and plugin dependencies |
 | Plugin management | Electron-only GUI and package service; no CLI, backend, or browser installation path |
 | Activation | Staging project, complete health check, journaled directory replacement, one rollback copy |
-| Initial platforms | macOS arm64/x64 and Windows x64; Linux has no supported release target |
+| Initial platforms | macOS arm64/x64 and Windows x64; Linux arm64/x64 packages without code signing and distributes directly, with no updater channel ([Linux packages and unsigned builds](../process/2026-09-14-linux-desktop-packages-and-unsigned-builds.md)) |
 | Update behavior | Background check, explicit confirmation before differential download and restart, startup dsh reconciliation |
 
 ## Risks

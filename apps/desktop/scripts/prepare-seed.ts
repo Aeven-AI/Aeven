@@ -22,6 +22,7 @@ import {
   removePnpmProjectRegistrations,
 } from '../src/seed-store.ts'
 import {
+  DESKTOP_UNSIGNED_ENV,
   resolveDesktopAppId,
   resolveMacOSSigningEnvironment,
 } from './desktop-release-environment.mjs'
@@ -162,7 +163,7 @@ async function main(): Promise<void> {
     const targetPlatform = process.env.DSH_DESKTOP_TARGET_PLATFORM ?? process.platform
     let signedMachOFiles: number | undefined
     let macOSSigning: ReturnType<typeof resolveMacOSSigningEnvironment> | undefined
-    if (targetPlatform === 'darwin') {
+    if (targetPlatform === 'darwin' && process.env[DESKTOP_UNSIGNED_ENV] !== '1') {
       macOSSigning = resolveMacOSSigningEnvironment(process.env)
       const signing = await signMacOSSeedStore(
         STORE_ROOT,

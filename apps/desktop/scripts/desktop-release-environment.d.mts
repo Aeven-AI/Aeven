@@ -7,6 +7,9 @@ export const MACOS_SIGNING_IDENTITY_ENV: 'DSH_DESKTOP_MACOS_SIGNING_IDENTITY'
 /** Environment variable that supplies the expected Apple Developer Team ID. */
 export const MACOS_TEAM_ID_ENV: 'DSH_DESKTOP_MACOS_TEAM_ID'
 
+/** Environment variable whose value `1` builds a target without code signing or notarization. */
+export const DESKTOP_UNSIGNED_ENV: 'DSH_DESKTOP_UNSIGNED'
+
 /** Public identity expected on a macOS release. */
 export interface MacOSSigningEnvironment {
   readonly signingIdentity: string
