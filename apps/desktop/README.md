@@ -114,7 +114,7 @@ The Docker command builds `linux-builder.Dockerfile` for the target architecture
 
 ### Upload updates
 
-`DSH_DESKTOP_AUTO_UPDATE_ENV` selects `test` or `production` for both the URL embedded during packaging and the later COS upload; an absent value selects `test`. Test packaging requires its HTTPS origin in `DOWNLOAD_TEST_ORIGIN`, while the production origin remains `https://download.deepseek.com`. Upload additionally requires the selected deployment's COS bucket in `DOWNLOAD_TEST_COS_BUCKET` or `DOWNLOAD_PROD_COS_BUCKET`. The target path is `_/harness/desktop/stable/<target>/`, where `target` is `mac-arm64`, `mac-x64`, `win-arm64`, or `win-x64`.
+`DSH_DESKTOP_AUTO_UPDATE_ENV` selects `test` or `production` for both the URL embedded during packaging and the later COS upload; an absent value selects `test`. Test packaging requires its HTTPS origin in `DOWNLOAD_TEST_ORIGIN`, while the production origin remains `https://download.deepseek.com`. Upload additionally requires the selected deployment's COS bucket in `DOWNLOAD_TEST_COS_BUCKET` or `DOWNLOAD_PROD_COS_BUCKET`. Every `package:desktop:*` command reads `DSH_DESKTOP_APP_ID`, `DSH_DESKTOP_AUTO_UPDATE_ENV`, and `DOWNLOAD_TEST_ORIGIN` from the repository root `.env` when the shell does not set them, and imports no other `.env` entry. The target path is `_/harness/desktop/stable/<target>/`, where `target` is `mac-arm64`, `mac-x64`, `win-arm64`, or `win-x64`.
 
 The update destination and upload credentials follow the selected deployment:
 

@@ -9,6 +9,7 @@ import {
   resolveDesktopAutoUpdateConfig,
 } from './desktop-auto-update-environment.mjs'
 import { desktopTargetBuildPaths } from './desktop-build-paths.mjs'
+import { loadDesktopPackagingEnvironment } from './desktop-environment-file.ts'
 import { DESKTOP_UNSIGNED_ENV } from './desktop-release-environment.mjs'
 import { pnpmInvocation } from '../../../scripts/pnpm-invocation.ts'
 
@@ -263,6 +264,7 @@ function runPnpm(
 }
 
 async function main(): Promise<void> {
+  loadDesktopPackagingEnvironment(join(REPOSITORY_ROOT, '.env'))
   const invocation = parseDesktopPackageInvocation(process.argv.slice(2))
   const { target } = invocation
   const buildPaths = desktopTargetBuildPaths(target.name)
