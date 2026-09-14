@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import { desktopTargetBuildPaths } from './desktop-build-paths.mjs'
+import { DESKTOP_PACKAGING_ENV_NAMES, loadDesktopPackagingEnvironment } from './desktop-environment-file.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
@@ -14,7 +15,6 @@ const DOCKER_PLATFORMS = {
   'linux-arm64': 'linux/arm64',
   'linux-x64': 'linux/amd64',
 } as const
-const FORWARDED_ENV_NAMES = ['DSH_DESKTOP_APP_ID', 'DSH_DESKTOP_AUTO_UPDATE_ENV', 'DOWNLOAD_TEST_ORIGIN'] as const
 
 type LinuxTargetName = keyof typeof DOCKER_PLATFORMS
 
@@ -66,6 +66,7 @@ async function buildImage(platform: string, tag: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  loadDesktopPackagingEnvironment(join(REPOSITORY_ROOT, '.env'))
   const { values, positionals } = parseArgs({
     args: process.argv.slice(2),
     allowPositionals: true,
@@ -95,7 +96,7 @@ async function main(): Promise<void> {
     'pnpm install --frozen-lockfile',
     `pnpm --dir apps/desktop run ${packageScript}`,
   ].join(' && ')
-  const forwarded = FORWARDED_ENV_NAMES.flatMap(name => process.env[name] === undefined ? [] : ['--env', name])
+  const forwarded = DESKTOP_PACKAGING_ENV_NAMES.flatMap(name => process.env[name] === undefined ? [] : ['--env', name])
   const docker = spawn('docker', [
     'run', '--rm', '--interactive',
     '--platform', platform,
