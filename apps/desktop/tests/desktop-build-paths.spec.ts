@@ -10,6 +10,7 @@ describe('desktop build paths', () => {
     const arm64 = desktopTargetBuildPaths('mac-arm64')
     const x64 = desktopTargetBuildPaths('mac-x64')
     const windows = desktopTargetBuildPaths('win-x64')
+    const windowsArm64 = desktopTargetBuildPaths('win-arm64')
     const mutableKeys = [
       'root',
       'artifacts',
@@ -24,7 +25,7 @@ describe('desktop build paths', () => {
     ] as const
 
     for (const key of mutableKeys) {
-      expect(new Set([arm64[key], x64[key], windows[key]]).size).toBe(3)
+      expect(new Set([arm64[key], x64[key], windows[key], windowsArm64[key]]).size).toBe(4)
     }
     expect(arm64.artifacts).toContain(join('targets', 'mac-arm64', 'artifacts'))
     expect(x64.seed).toContain(join('targets', 'mac-x64', 'seed'))
@@ -44,6 +45,7 @@ describe('desktop build paths', () => {
       DSH_DESKTOP_TARGET_ARCH: 'x64',
     }, 'darwin', 'arm64')).toBe('mac-x64')
     expect(resolveDesktopBuildTarget({}, 'win32', 'x64')).toBe('win-x64')
+    expect(resolveDesktopBuildTarget({}, 'win32', 'arm64')).toBe('win-arm64')
     expect(resolveDesktopBuildTarget({}, 'linux', 'arm64')).toBe('linux-arm64')
     expect(() => resolveDesktopBuildTarget({}, 'freebsd', 'x64')).toThrow(/unsupported target/u)
     expect(() => desktopTargetBuildPaths('freebsd-x64' as 'mac-x64')).toThrow(/unsupported target/u)

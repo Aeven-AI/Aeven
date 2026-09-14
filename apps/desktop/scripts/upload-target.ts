@@ -11,7 +11,7 @@ import {
   type DesktopUploadTargetName,
 } from './desktop-upload-plan.ts'
 
-const SUPPORTED_TARGETS = new Set<DesktopUploadTargetName>(['mac-arm64', 'mac-x64', 'win-x64'])
+const SUPPORTED_TARGETS = new Set<DesktopUploadTargetName>(['mac-arm64', 'mac-x64', 'win-arm64', 'win-x64'])
 
 function targetName(value: string): DesktopUploadTargetName {
   if (!SUPPORTED_TARGETS.has(value as DesktopUploadTargetName)) {
