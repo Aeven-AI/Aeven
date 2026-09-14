@@ -18,6 +18,9 @@ describe('desktop package target', () => {
     expect(resolveDesktopPackageTarget('win-x64', 'win32', 'x64')).toMatchObject({
       platform: 'win32', arch: 'x64', builderPlatform: '--win', builderArch: '--x64',
     })
+    expect(resolveDesktopPackageTarget('linux-arm64', 'linux', 'arm64')).toMatchObject({
+      platform: 'linux', arch: 'arm64', builderPlatform: '--linux', builderArch: '--arm64',
+    })
   })
 
   it('allows an Apple Silicon host to build the Intel target through Rosetta', () => {
@@ -25,7 +28,9 @@ describe('desktop package target', () => {
   })
 
   it('rejects unsupported targets and hosts before building', () => {
-    expect(() => resolveDesktopPackageTarget('linux-x64', 'linux', 'x64')).toThrow(/unsupported target/u)
+    expect(() => resolveDesktopPackageTarget('freebsd-x64', 'freebsd', 'x64')).toThrow(/unsupported target/u)
+    expect(() => resolveDesktopPackageTarget('linux-arm64', 'darwin', 'arm64')).toThrow(/Linux arm64 build host/u)
+    expect(() => resolveDesktopPackageTarget('linux-x64', 'linux', 'arm64')).toThrow(/Linux x64 build host/u)
     expect(() => resolveDesktopPackageTarget('win-x64', 'darwin', 'arm64')).toThrow(/Windows x64/u)
     expect(() => resolveDesktopPackageTarget('mac-arm64', 'darwin', 'x64')).toThrow(/Apple Silicon/u)
     expect(() => resolveDesktopPackageTarget('mac-arm64', 'linux', 'arm64')).toThrow(/macOS/u)
@@ -39,6 +44,12 @@ describe('desktop package target', () => {
     expect(parseDesktopPackageInvocation(['--prepare-only'], 'darwin', 'arm64').prepareOnly).toBe(true)
     expect(() => parseDesktopPackageInvocation(['mac-arm64', 'mac-x64'], 'darwin', 'arm64'))
       .toThrow(/at most one target/u)
+  })
+
+  it('parses unsigned packaging for macOS and Windows targets', () => {
+    expect(parseDesktopPackageInvocation(['mac-arm64'], 'darwin', 'arm64').unsigned).toBe(false)
+    expect(parseDesktopPackageInvocation(['--unsigned'], 'darwin', 'arm64').unsigned).toBe(true)
+    expect(parseDesktopPackageInvocation(['win-x64', '--unsigned'], 'win32', 'x64').unsigned).toBe(true)
   })
 
   it('keeps electron-builder publishing disabled for the separate validated upload', () => {

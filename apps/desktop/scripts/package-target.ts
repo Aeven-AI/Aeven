@@ -9,6 +9,7 @@ import {
   resolveDesktopAutoUpdateConfig,
 } from './desktop-auto-update-environment.mjs'
 import { desktopTargetBuildPaths } from './desktop-build-paths.mjs'
+import { DESKTOP_UNSIGNED_ENV } from './desktop-release-environment.mjs'
 import { pnpmInvocation } from '../../../scripts/pnpm-invocation.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
@@ -28,14 +29,14 @@ const DESKTOP_UPLOAD_CREDENTIAL_ENV_NAMES = new Set([
 ])
 
 /** Fixed platform and architecture identifiers exposed by package scripts. */
-export type DesktopPackageTargetName = 'mac-arm64' | 'mac-x64' | 'win-x64'
+export type DesktopPackageTargetName = 'mac-arm64' | 'mac-x64' | 'win-x64' | 'linux-arm64' | 'linux-x64'
 
 /** One supported release target and its electron-builder selectors. */
 export interface DesktopPackageTarget {
   readonly name: DesktopPackageTargetName
-  readonly platform: 'darwin' | 'win32'
+  readonly platform: 'darwin' | 'win32' | 'linux'
   readonly arch: 'arm64' | 'x64'
-  readonly builderPlatform: '--mac' | '--win'
+  readonly builderPlatform: '--mac' | '--win' | '--linux'
   readonly builderArch: '--arm64' | '--x64'
 }
 
@@ -59,6 +60,20 @@ const TARGETS: Record<DesktopPackageTargetName, DesktopPackageTarget> = {
     platform: 'win32',
     arch: 'x64',
     builderPlatform: '--win',
+    builderArch: '--x64',
+  },
+  'linux-arm64': {
+    name: 'linux-arm64',
+    platform: 'linux',
+    arch: 'arm64',
+    builderPlatform: '--linux',
+    builderArch: '--arm64',
+  },
+  'linux-x64': {
+    name: 'linux-x64',
+    platform: 'linux',
+    arch: 'x64',
+    builderPlatform: '--linux',
     builderArch: '--x64',
   },
 }
@@ -137,6 +152,9 @@ export function resolveDesktopPackageTarget(
   if (target.platform === 'win32' && (hostPlatform !== 'win32' || hostArch !== 'x64')) {
     throw new Error('desktop package: win-x64 requires a Windows x64 build host')
   }
+  if (target.platform === 'linux' && (hostPlatform !== 'linux' || hostArch !== target.arch)) {
+    throw new Error(`desktop package: ${name} requires a Linux ${target.arch} build host; use the ${name} Docker package command elsewhere`)
+  }
   if (target.platform === 'darwin' && hostPlatform !== 'darwin') {
     throw new Error(`desktop package: ${name} requires a macOS build host`)
   }
@@ -153,6 +171,8 @@ interface DesktopPackageInvocation {
   readonly target: DesktopPackageTarget
   readonly directory: boolean
   readonly prepareOnly: boolean
+  /** Skip code signing, notarization, and the upload completion record. */
+  readonly unsigned: boolean
 }
 
 function hostTargetName(platform: NodeJS.Platform, arch: string): DesktopPackageTargetName {
@@ -179,6 +199,7 @@ export function parseDesktopPackageInvocation(
     options: {
       dir: { type: 'boolean', default: false },
       'prepare-only': { type: 'boolean', default: false },
+      unsigned: { type: 'boolean', default: false },
     },
   })
   if (positionals.length > 1) throw new Error('desktop package: expected at most one target')
@@ -187,6 +208,7 @@ export function parseDesktopPackageInvocation(
     target: resolveDesktopPackageTarget(name, hostPlatform, hostArch),
     directory: values.dir,
     prepareOnly: values['prepare-only'],
+    unsigned: values.unsigned,
   }
 }
 
@@ -248,6 +270,8 @@ async function main(): Promise<void> {
     DSH_DESKTOP_TARGET_PLATFORM: target.platform,
     DSH_DESKTOP_TARGET_ARCH: target.arch,
   }
+  delete targetEnv[DESKTOP_UNSIGNED_ENV]
+  if (invocation.unsigned) targetEnv[DESKTOP_UNSIGNED_ENV] = '1'
   const electronBuilderEnv = { ...targetEnv }
   for (const name of WINDOWS_SIGNING_ENV_NAMES) {
     if (process.env[name] !== undefined) electronBuilderEnv[name] = process.env[name]
@@ -264,10 +288,10 @@ async function main(): Promise<void> {
   await runPnpm(['run', 'release:pack', '--family', 'vendor', '--out', buildPaths.packedVendor], buildEnv, REPOSITORY_ROOT)
   rmSync(buildPaths.packedLandlock, { recursive: true, force: true })
   mkdirSync(buildPaths.packedLandlock, { recursive: true })
-  await runPnpm(['--dir', 'native/system', 'run', 'build:ts'], buildEnv, REPOSITORY_ROOT)
+  await runPnpm(['--dir', 'native/landlock-run', 'run', 'build:ts'], buildEnv, REPOSITORY_ROOT)
   await runPnpm([
     '--dir',
-    'native/system/packages/entry',
+    'native/landlock-run/packages/entry',
     'pack',
     '--pack-destination',
     buildPaths.packedLandlock,
@@ -277,7 +301,7 @@ async function main(): Promise<void> {
   await runPnpm(['run', 'prepare:seed'], targetEnv)
   if (invocation.prepareOnly) return
   await runPnpm(desktopElectronBuilderArguments(target, invocation.directory), electronBuilderEnv)
-  if (!invocation.directory) writeReleaseRecord(target, electronBuilderEnv, buildPaths.artifacts)
+  if (!invocation.directory && !invocation.unsigned) writeReleaseRecord(target, electronBuilderEnv, buildPaths.artifacts)
 }
 
 if (process.argv[1] !== undefined && import.meta.filename === resolve(process.argv[1])) await main()

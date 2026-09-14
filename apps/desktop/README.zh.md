@@ -96,9 +96,20 @@ pnpm run package:desktop:mac:x64
 pnpm run package:desktop:win:x64
 ```
 
-macOS arm64 命令要求 Apple Silicon。macOS x64 命令可以在 Intel macOS 或带 Rosetta 的 Apple Silicon 上运行。Windows x64 命令要求 Windows x64。Linux 不是受支持的 Desktop 发布目标。
+macOS arm64 命令要求 Apple Silicon。macOS x64 命令可以在 Intel macOS 或带 Rosetta 的 Apple Silicon 上运行。Windows x64 命令要求 Windows x64。Linux arm64 与 x64 命令要求架构相同的 Linux 宿主。
 
 每个目标都在 `apps/desktop/.desktop-build/targets/<target>/` 下持有自己的打包输入、已准备运行时、包集合、seed、pnpm 准备状态、未打包应用、更新元数据和最终产物。Node.js 归档缓存继续由 `.desktop-build/downloads` 共享，因为每个归档文件名都包含版本、平台和架构，并且在解包前经过验证。目标构建绝不读取其他目标的可变准备状态。
+
+### Linux 软件包
+
+Linux 目标会生成未经代码签名的 AppImage 与 `.deb`。可以在架构匹配的 Linux 宿主上构建，也可以在任意 Docker 宿主上使用 `:docker` 命令构建：
+
+```sh
+pnpm run package:desktop:linux:arm64:docker
+pnpm run package:desktop:linux:x64:docker
+```
+
+Docker 命令会为目标架构构建 `linux-builder.Dockerfile`，把 git 会提交的文件连同 `.git` 以流的形式送入容器，在容器中全新安装依赖后运行 Linux 打包命令，再把顶层产物复制到 `apps/desktop/.desktop-build/targets/<target>/artifacts`。它会转发 `DSH_DESKTOP_APP_ID`、`DSH_DESKTOP_AUTO_UPDATE_ENV` 与 `DOWNLOAD_TEST_ORIGIN`，并把 pnpm store 保存在 `dsh-desktop-linux-pnpm-store` 卷中。目标架构与 Docker 宿主不同时会在模拟下运行。`.deb` 会安装 Chromium 沙箱辅助程序；Ubuntu 24.04 等限制非特权用户命名空间的发行版在缺少它时可能拒绝启动 AppImage。`upload:*` 不接受 Linux 目标。
 
 ### 上传更新
 
@@ -139,7 +150,7 @@ $env:DSH_DESKTOP_WINDOWS_TOKEN_PIN = '<SafeNet Token Password>'
 pnpm run package:desktop:win:x64
 ```
 
-打包前插入并解锁 Token。electron-builder 钩子把每个产物交给采用 CRLF 的 `scripts/windows-sign.cmd`；该 CMD 只调用一次已配置的 SignTool，并指定 `/f`、SafeNet `/kc "[{{PIN}}]=容器"`、`/csp "eToken Base Cryptographic Provider"`、SHA-256 文件摘要和 DigiCert SHA-256 RFC 3161 时间戳。钩子不会改用 electron-builder 内置的 SignTool，也不会重试失败的签名请求。SignTool、证书、容器、PIN、Token 或签名不可用时，Windows 打包会失败，不会生成未签名产物。
+打包前插入并解锁 Token。electron-builder 钩子把每个产物交给采用 CRLF 的 `scripts/windows-sign.cmd`；该 CMD 只调用一次已配置的 SignTool，并指定 `/f`、SafeNet `/kc "[{{PIN}}]=容器"`、`/csp "eToken Base Cryptographic Provider"`、SHA-256 文件摘要和 DigiCert SHA-256 RFC 3161 时间戳。钩子不会改用 electron-builder 内置的 SignTool，也不会重试失败的签名请求。未使用 `--unsigned` 时，若 SignTool、证书、容器、PIN、Token 或签名不可用，Windows 打包会失败，不会生成未签名产物。
 
 PIN 不能包含 `]`、引号或换行，因为这些字符用于分隔 SafeNet `/kc` 值或对应的 CMD 参数。CMD 会禁用延迟展开，因此包含 `!` 的 PIN 可以原样到达 SafeNet。打包流程不会把任何 `DSH_DESKTOP_WINDOWS_*` 字段传给构建与 seed 准备子进程；它只向 electron-builder 提供四个配置输入，在其他字段已经清理的环境中只向签名 CMD 提供经过校验的签名字段，在 SignTool 启动前清除这些字段，并遮盖 SignTool 诊断。SafeNet 仍要求 PIN 出现在 SignTool 进程命令行中。只能在连接了物理 Token 的受控 self-hosted Windows runner 上把它注入为临时 secret；绝不能提交该值、把它写进 `.env`，或持久保存为 Windows 用户或系统环境变量。
 
@@ -149,6 +160,15 @@ PIN 不能包含 `]`、引号或换行，因为这些字符用于分隔 SafeNet 
 pnpm run package:desktop:dir
 pnpm run package:desktop:mac:arm64:dir
 ```
+
+没有 Apple Developer ID 或 Windows 代码签名证书时，使用对应的 `:unsigned` 命令构建产物：
+
+```sh
+pnpm run package:desktop:mac:arm64:unsigned
+pnpm run package:desktop:win:x64:unsigned
+```
+
+未签名构建会跳过 seed 签名、应用与安装包签名、macOS 公证、DMG 公证钩子与目标完成记录，因此 `upload:*` 会拒绝它。在 macOS 上，由于 Apple Silicon 不会启动没有签名的代码，electron-builder 会以不启用 hardened runtime 的方式对应用进行 ad-hoc 签名；测试者移除下载副本的隔离属性之前，Gatekeeper 会拦截它。Windows SmartScreen 会在未签名安装包运行前发出警告。每个目标仍要求在其对应的宿主平台上构建，并要求 `DSH_DESKTOP_APP_ID` 与所选更新 origin。
 
 需要检查或诊断为宿主目标准备的资源而不调用 electron-builder 时，可以让同一流水线在准备完成后停止：
 

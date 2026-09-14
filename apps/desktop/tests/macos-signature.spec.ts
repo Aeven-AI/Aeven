@@ -64,6 +64,34 @@ describe('desktop macOS release signature', () => {
     expect(typeof config.artifactBuildCompleted).toBe('function')
   })
 
+  it('ad-hoc signs an unsigned macOS build without release identity or notarization', async () => {
+    const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
+    const config = createElectronBuilderConfig({
+      DSH_DESKTOP_APP_ID: RELEASE_ENVIRONMENT.DSH_DESKTOP_APP_ID,
+      DSH_DESKTOP_TARGET_PLATFORM: 'darwin',
+      DSH_DESKTOP_TARGET_ARCH: 'arm64',
+      DSH_DESKTOP_UNSIGNED: '1',
+      DOWNLOAD_TEST_ORIGIN: RELEASE_ENVIRONMENT.DOWNLOAD_TEST_ORIGIN,
+    }, 'darwin', 'arm64')
+    expect(config).toMatchObject({
+      mac: { identity: '-', forceCodeSigning: false, hardenedRuntime: false, notarize: false },
+      dmg: { sign: false },
+    })
+    expect(config.artifactBuildCompleted({ file: 'aeven.dmg' })).toBeUndefined()
+  })
+
+  it('builds an unsigned Windows target without the EV token signer', async () => {
+    const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
+    const config = createElectronBuilderConfig({
+      DSH_DESKTOP_APP_ID: RELEASE_ENVIRONMENT.DSH_DESKTOP_APP_ID,
+      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
+      DSH_DESKTOP_TARGET_ARCH: 'x64',
+      DSH_DESKTOP_UNSIGNED: '1',
+      DOWNLOAD_TEST_ORIGIN: RELEASE_ENVIRONMENT.DOWNLOAD_TEST_ORIGIN,
+    }, 'win32', 'x64')
+    expect(config.win.forceCodeSigning).toBe(false)
+  })
+
   it('validates Windows signing without requiring macOS identifiers for a Windows target', async () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
     expect(() => createElectronBuilderConfig({

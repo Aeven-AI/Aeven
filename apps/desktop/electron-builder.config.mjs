@@ -1,4 +1,5 @@
 import {
+  DESKTOP_UNSIGNED_ENV,
   resolveDesktopAppId,
   resolveMacOSNotarizationEnvironment,
   resolveMacOSSigningEnvironment,
@@ -30,9 +31,11 @@ export function createElectronBuilderConfig(
   const resolvedArch = env.DSH_DESKTOP_TARGET_ARCH ?? hostArch
   const packagesMacOS = targetPlatform === 'darwin' || (targetPlatform === undefined && hostPlatform === 'darwin')
   const packagesWindows = targetPlatform === 'win32'
-  const macOSSigning = packagesMacOS ? resolveMacOSSigningEnvironment(env) : undefined
-  if (packagesMacOS) resolveMacOSNotarizationEnvironment(env)
-  const windowsSigner = packagesWindows
+  const unsigned = env[DESKTOP_UNSIGNED_ENV] === '1'
+  const macOSRelease = packagesMacOS && !unsigned
+  const macOSSigning = macOSRelease ? resolveMacOSSigningEnvironment(env) : undefined
+  if (macOSRelease) resolveMacOSNotarizationEnvironment(env)
+  const windowsSigner = packagesWindows && !unsigned
     ? createWindowsTokenSigner({
         certificateFile: env.DSH_DESKTOP_WINDOWS_CER_FILE,
         signTool: env.DSH_DESKTOP_WINDOWS_SIGNTOOL,
@@ -63,22 +66,24 @@ export function createElectronBuilderConfig(
     ],
     mac: {
       category: 'public.app-category.developer-tools',
-      identity: macOSSigning?.signingIdentity,
-      forceCodeSigning: true,
-      hardenedRuntime: true,
-      notarize: true,
+      // Apple Silicon refuses to launch code without a signature, so an unsigned build is
+      // ad-hoc signed; hardened runtime would then reject the seed's unsigned native addons.
+      identity: unsigned ? '-' : macOSSigning?.signingIdentity,
+      forceCodeSigning: !unsigned,
+      hardenedRuntime: !unsigned,
+      notarize: !unsigned,
       target: ['dmg', 'zip'],
     },
     dmg: {
-      sign: true,
+      sign: !unsigned,
       writeUpdateInfo: false,
     },
     afterSign: context => {
-      if (context.electronPlatformName !== 'darwin') return
+      if (context.electronPlatformName !== 'darwin' || unsigned) return
       verifyMacOSSignatureAfterSign(context, macOSSigning ?? resolveMacOSSigningEnvironment(env))
     },
     artifactBuildCompleted: artifact => {
-      if (!artifact.file.endsWith('.dmg')) return
+      if (!artifact.file.endsWith('.dmg') || unsigned) return
       return notarizeMacOSDiskImageArtifact(
         artifact,
         env,
@@ -86,7 +91,7 @@ export function createElectronBuilderConfig(
       )
     },
     win: {
-      forceCodeSigning: true,
+      forceCodeSigning: !unsigned,
       signtoolOptions: {
         sign: windowsSigner,
         signingHashAlgorithms: ['sha256'],
@@ -95,7 +100,11 @@ export function createElectronBuilderConfig(
     },
     linux: {
       category: 'Development',
-      target: ['AppImage'],
+      executableName: 'aeven',
+      // The deb installs Chromium's setuid sandbox helper, which distributions that restrict
+      // unprivileged user namespaces require before an AppImage can start.
+      target: ['AppImage', 'deb'],
+      maintainer: 'Aeven',
     },
     nsis: {
       oneClick: false,

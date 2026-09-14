@@ -3,9 +3,8 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { createDesktopUploadPlan } from '../scripts/desktop-upload-plan.ts'
+import { createDesktopUploadPlan, type DesktopUploadTargetName } from '../scripts/desktop-upload-plan.ts'
 import { desktopUpdateMetadataFilename } from '../scripts/desktop-auto-update-environment.mjs'
-import type { DesktopPackageTargetName } from '../scripts/package-target.ts'
 
 const temporaryDirectories: string[] = []
 const TEST_ORIGIN = 'https://desktop-updates.example.com'
@@ -24,7 +23,7 @@ function digest(contents: string): string {
 }
 
 async function fixture(
-  target: DesktopPackageTargetName,
+  target: DesktopUploadTargetName,
   version = '1.2.3',
   environment: 'test' | 'production' = 'test',
 ): Promise<Fixture> {
