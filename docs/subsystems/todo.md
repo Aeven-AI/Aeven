@@ -34,3 +34,5 @@ The package declaration-merges `todo/write: { todos: TodoItem[] }` into `Session
 ## Two projection lifetimes
 
 Both units fold the same input and diverge only on the turn boundary. `todos` is the client-wired standing plan the dock renders: the latest whole list, cleared by the next `turn/start` so a finished checklist never reads as the current turn's work, and `null` before the first write. `todoPlan` is host-only — declared without `wire`, so it never reaches a client — and retains the session's latest `todo/write` across turn boundaries, because the agent's own working memory has to survive a turn the way its transcript does. The package contributes that retained value to every step as runtime context, so the model reads its plan back instead of reconstructing it from the `todo_write` arguments left in its history, which compaction replaces with a lossy summary.
+
+A third host-only unit, `todoStale`, counts committed steps since the last write and folds the step count at the last notice this package injected. The package reads it to nudge a plan that has gone stale, so a model that stops updating its list is told so rather than drifting silently.

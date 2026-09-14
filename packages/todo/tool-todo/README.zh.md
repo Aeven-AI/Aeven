@@ -165,6 +165,20 @@ token 用量随模型每次提交的完整列表增长，这些调用参数会�
 
 每份快照都是替换型表面消息而非累积，因此该贡献位于可复用请求前缀之后，不会使其失效。
 
+### 陈旧提醒
+
+#### 模型看到什么
+
+只要有效计划中还存在未 `completed` 的任务，本包就会把它重新推到模型眼前：自上次 `todo_write` 起经过 8 个已提交步骤后——此后每 32 个步骤——该步骤的准备过程中会多出一条由插件发出的提醒：`Your todo list has not changed for <n> steps while <open> of its <total> tasks are still open. Update it now with todo_write: mark every task you have finished \`completed\`, and the one you are working on \`in_progress\`.`，其后是当前列表。该提醒携带 `form: 'notice'`，因此是一条普通追加消息，而非运行时上下文快照，也不会替换快照。当计划已完成、不存在或仍然新鲜时不注入任何内容。
+
+#### Token 影响
+
+一条提醒的开销是提醒行加上当前列表，且仅在计划持续陈旧时每 32 个步骤重复一次——会更新或完成列表的 agent 不会再被提醒。
+
+#### KV Cache 影响
+
+每条提醒追加在可复用请求前缀之后，而不是替换其中任何内容。
+
 ## 已知限制与延期工作
 
 <a id="known-limitations-and-deferred-work"></a>

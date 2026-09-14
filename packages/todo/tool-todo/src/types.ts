@@ -42,6 +42,13 @@ declare module '@deepseek-ai/dsh-session-projection/types' {
      * never wired to a client and cannot perturb the turn-scoped dock.
      */
     todoPlan: TodoItem[] | null
+    /**
+     * Host-only staleness reading: how many steps have committed since the last
+     * `todo/write`, and the step count at the last reminder this package
+     * injected. Folded from events rather than held in memory, so a restart
+     * neither forgets the cadence nor re-nudges.
+     */
+    todoStale: { stepsSinceWrite: number; remindedAt: number | null }
   }
   interface SessionProjectionMap {
     /**

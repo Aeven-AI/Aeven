@@ -12,6 +12,7 @@ import z from '@deepseek-ai/schemastery'
 import { z as zod } from 'zod'
 import type { ZodType } from 'zod'
 import { defineTool } from '@deepseek-ai/dsh-tools'
+import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { TodoItem } from './types.ts'
 // Type-only: resolves the required ctx.sessionProjections service declaration.
 import type {} from '@deepseek-ai/dsh-session-projection'
@@ -19,7 +20,7 @@ import type {} from '@deepseek-ai/dsh-session-projection'
 // `AssembleContext.agent` augmentation (the runtime-context read below) into
 // this program.
 import type {} from '@deepseek-ai/dsh-system-prompt'
-import type {} from '@deepseek-ai/dsh-agent'
+import type { PreStepDecision } from '@deepseek-ai/dsh-agent'
 // The `todos` projection-key declaration lives in src/types.ts (its one home);
 // this re-export projects the type face onto the package root AND keeps the
 // module edge in the emitted index.d.ts, so aggregate programs consuming the
@@ -142,6 +143,39 @@ function renderTodosContext(todos: TodoItem[] | null): string {
     + lines.join('\n')
 }
 
+/** Folded staleness reading for one session: the fold driving the `todoStale` unit below. */
+const todoStaleSchema = zod.object({
+  stepsSinceWrite: zod.number(),
+  remindedAt: zod.number().nullable(),
+})
+
+/** Folded staleness reading: steps since the last write, and the step count at the last reminder. */
+type TodoStale = zod.infer<typeof todoStaleSchema>
+
+/** Committed steps without a `todo_write` before the first staleness reminder. */
+const STALE_FIRST_STEPS = 8
+
+/** Committed steps between further reminders while the plan stays stale. */
+const STALE_REPEAT_STEPS = 32
+
+/**
+ * Render the staleness reminder. The read-back above makes a plan readable; this makes a stale one
+ * salient. Measured on a real session, an agent held its own plan in runtime context for 96
+ * consecutive steps and never wrote again, because a snapshot the model has already read reads as
+ * background — so the nudge restates the plan where a fresh message lands.
+ * @param todos - the folded `todoPlan`, already known non-empty and unfinished.
+ * @param steps - committed steps since the last `todo/write`.
+ * @returns the reminder text.
+ */
+function renderStaleReminder(todos: TodoItem[], steps: number): string {
+  const open = todos.filter(todo => todo.status !== 'completed').length
+  const lines = todos.map(todo => `- [${todo.status}] ${todo.content}`)
+  return `Your todo list has not changed for ${steps} steps while ${open} of its ${todos.length} `
+    + 'tasks are still open. Update it now with todo_write: mark every task you have finished '
+    + '`completed`, and the one you are working on `in_progress`. Current list:\n'
+    + lines.join('\n')
+}
+
 /**
  * Register the `todo_write` tool on `ctx.tools`, the `todos` (client-wired) and
  * `todoPlan` (host-only) units on `ctx.sessionProjections`, and the `todo:plan`
@@ -180,6 +214,56 @@ export function apply(ctx: Context, config: Config): void {
     init: () => null,
     apply: (state, event) => (event.type === 'todo/write' ? event.data.todos : state),
     stateVersion: 1,
+  })
+  // Staleness fold: `stepsSinceWrite` counts committed step boundaries, and
+  // `remindedAt` folds the step count at the last notice this plugin injected —
+  // read back out of the log rather than held in memory, so a restart neither
+  // forgets the cadence nor re-nudges from the first threshold.
+  ctx.sessionProjections.register<'todoStale', TodoStale>({
+    key: 'todoStale',
+    stateSchema: todoStaleSchema,
+    init: () => ({ stepsSinceWrite: 0, remindedAt: null }),
+    apply: (state, event) => {
+      if (event.type === 'todo/write') return { stepsSinceWrite: 0, remindedAt: null }
+      if (event.type === 'step/start') {
+        return { ...state, stepsSinceWrite: state.stepsSinceWrite + 1 }
+      }
+      if (event.type === 'user/message'
+        && event.data.source.kind === 'plugin'
+        && event.data.source.plugin === name) {
+        return { ...state, remindedAt: state.stepsSinceWrite }
+      }
+      return state
+    },
+    stateVersion: 1,
+  })
+  // Staleness nudge. The read-back above is the information half; this is the
+  // salience half, and it is the half a real session showed to be missing. The
+  // listener delegates first and folds the reminder onto whatever comes back, so
+  // a later listener keeps its say and nothing is vetoed.
+  ctx.on('agent/pre-step', async ({ agent, signal }, next): Promise<PreStepDecision> => {
+    const decision = await next()
+    /* v8 ignore next -- an abort racing the waterfall needs a live cancellation, not a scripted run */
+    if (decision.kind === 'reject' || signal.aborted) return decision
+    const plan = ctx.sessionProjections.stateOf(agent.session, 'todoPlan') as TodoItem[] | null
+    if (plan === null || plan.length === 0) return decision
+    if (plan.every(todo => todo.status === 'completed')) return decision
+    const { stepsSinceWrite, remindedAt } = ctx.sessionProjections
+      .stateOf(agent.session, 'todoStale') as TodoStale
+    if (stepsSinceWrite < STALE_FIRST_STEPS) return decision
+    if (remindedAt !== null && stepsSinceWrite - remindedAt < STALE_REPEAT_STEPS) return decision
+    return {
+      ...decision,
+      messages: [...decision.messages, createUserMessage({
+        content: [{ type: 'text', text: renderStaleReminder(plan, stepsSinceWrite) }],
+        source: {
+          kind: 'plugin',
+          plugin: name,
+          form: 'notice',
+          summary: `todo plan unchanged for ${stepsSinceWrite} steps`,
+        },
+      })],
+    }
   })
   // Read-back for the model. Without this contribution the only record an agent
   // has of its own list is the `todo_write` arguments in its transcript, which
