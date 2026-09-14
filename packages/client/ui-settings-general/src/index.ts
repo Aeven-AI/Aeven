@@ -4,11 +4,15 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-settings'
 
-/** Durable settings namespace for product-wide GUI onboarding facts. */
+/**
+ * Durable settings namespace for product-wide GUI onboarding facts. It stays
+ * registered with its one historical field so existing documents keep a valid
+ * home for the value; no shipped surface reads or writes it today.
+ */
 const ONBOARDING_SETTINGS_NAMESPACE = 'ui-onboarding'
 
 interface OnboardingSettings {
-  /** Last version acknowledged by the current product welcome step. */
+  /** Version of the product notice the user last acknowledged. Retained only. */
   welcomeNoticeVersion?: string
 }
 
