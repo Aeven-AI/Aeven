@@ -165,6 +165,20 @@ The runtime-context carrier materializes a durable snapshot only when the render
 
 Each snapshot is a replacement surface message rather than an accumulation, so this contribution follows the reusable request prefix instead of invalidating it.
 
+### Staleness nudge
+
+#### What the model sees
+
+While a standing plan exists with at least one task not `completed`, the package nudges it back into view. Once 8 committed steps have passed since the last `todo_write` — and every 32 steps after that — the step is prepared with one extra plugin-sourced notice: `Your todo list has not changed for <n> steps while <open> of its <total> tasks are still open. Update it now with todo_write: mark every task you have finished \`completed\`, and the one you are working on \`in_progress\`.` followed by the current list. The notice carries `form: 'notice'`, so it is an ordinary appended message rather than a runtime-context snapshot, and it never replaces one. Nothing is injected while the plan is complete, absent, or still fresh.
+
+#### Token effect
+
+One notice costs the reminder line plus the current list, and it repeats only every 32 steps while the plan stays stale — an agent that updates its list, or finishes it, is never nudged again.
+
+#### KV Cache effect
+
+Each notice appends after the reusable request prefix instead of replacing anything in it.
+
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
