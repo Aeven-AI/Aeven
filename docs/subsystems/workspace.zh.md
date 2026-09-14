@@ -246,7 +246,9 @@ Source: [`packages/api/workspace-controller/src/index.ts`](../../packages/api/wo
 
 ### `ctx.workspaceRegistry` — `WorkspaceRegistry`
 
-Durable workspace registry. Startup waits for `sessionPersistence`, builds one canonical-cwd header index, and completes the one-time history bootstrap before the service becomes active. The persistence dependency is mandatory so an unavailable peer can never be mistaken for an empty history and commit the initialized marker.
+Durable workspace registry. Startup waits for `sessionPersistence`, builds one canonical-cwd header index, completes the one-time history bootstrap, and re-derives membership from that index before the service becomes active. The persistence dependency is mandatory so an unavailable peer can never be mistaken for an empty history and commit the initialized marker.
+
+Membership is re-derived rather than trusted because the durable record is not safe to trust alone: its domain is a whole-document store with no cross-process write locking, so another Host sharing this storage root can replace the record with a snapshot that never saw these Sessions. A cwd that canonically equals an existing Workspace's path is the one fact that survives on its own.
 
 ```ts cordis-catalog
 /**

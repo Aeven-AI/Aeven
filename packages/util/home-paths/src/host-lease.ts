@@ -42,7 +42,11 @@ export interface HostLease {
   readonly url?: string
 }
 
-/** Absolute path of the lease inside `home`. */
+/**
+ * Absolute path of the lease inside `home`.
+ * @param home - harness home directory the lease belongs to.
+ * @returns absolute path of that home's Host lease file.
+ */
 export function hostLeasePath(home: string): string {
   return join(home, HOST_LEASE_FILE)
 }

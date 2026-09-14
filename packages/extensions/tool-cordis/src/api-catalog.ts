@@ -2910,7 +2910,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   {
     key: 'workspaceRegistry',
     summary: 'Durable workspace registry.',
-    description: 'Durable workspace registry. Startup waits for `sessionPersistence`, builds one canonical-cwd header index, and completes the one-time history bootstrap before the service becomes active. The persistence dependency is mandatory so an unavailable peer can never be mistaken for an empty history and commit the initialized marker.',
+    description: 'Durable workspace registry. Startup waits for `sessionPersistence`, builds one canonical-cwd header index, completes the one-time history bootstrap, and re-derives membership from that index before the service becomes active. The persistence dependency is mandatory so an unavailable peer can never be mistaken for an empty history and commit the initialized marker.\n\nMembership is re-derived rather than trusted because the durable record is not safe to trust alone: its domain is a whole-document store with no cross-process write locking, so another Host sharing this storage root can replace the record with a snapshot that never saw these Sessions. A cwd that canonically equals an existing Workspace\'s path is the one fact that survives on its own.',
     methods: [
       {
         signature: 'async create(path: string, title?: string): Promise<Workspace>',
