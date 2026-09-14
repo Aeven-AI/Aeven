@@ -416,11 +416,22 @@ export function JsonTree({
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [copyMenuOpen, setCopyMenuOpen] = useState(false)
   const [tabStopId, setTabStopId] = useState<string | null>(initialTabStopId)
+  const detachReposition = useRef<(() => void) | null>(null)
 
   const setActiveRow = (row: HTMLElement | undefined) => {
+    detachReposition.current?.()
+    detachReposition.current = null
     activeRowRef.current?.removeAttribute('data-json-copy-active')
     activeRowRef.current = row
     row?.setAttribute('data-json-copy-active', '')
+    if (row === undefined) return
+    const reposition = (): void => { repositionCopyButton(row) }
+    window.addEventListener('scroll', reposition, true)
+    window.addEventListener('resize', reposition)
+    detachReposition.current = () => {
+      window.removeEventListener('scroll', reposition, true)
+      window.removeEventListener('resize', reposition)
+    }
   }
 
   const clearCopyTarget = () => {
@@ -461,9 +472,12 @@ export function JsonTree({
   useEffect(() => () => {
     if (resetTimer.current !== undefined) clearTimeout(resetTimer.current)
     activeRowRef.current?.removeAttribute('data-json-copy-active')
+    detachReposition.current?.()
   }, [])
 
   useEffect(() => {
+    detachReposition.current?.()
+    detachReposition.current = null
     activeRowRef.current?.removeAttribute('data-json-copy-active')
     activeRowRef.current = undefined
     copyMenuOpenRef.current = false
@@ -472,19 +486,6 @@ export function JsonTree({
     setCopyMenuOpen(false)
     setTabStopId(initialTabStopId)
   }, [data, expandTopLevel, initialTabStopId])
-
-  useEffect(() => {
-    const reposition = () => {
-      const row = activeRowRef.current
-      if (row !== undefined) repositionCopyButton(row)
-    }
-    window.addEventListener('scroll', reposition, true)
-    window.addEventListener('resize', reposition)
-    return () => {
-      window.removeEventListener('scroll', reposition, true)
-      window.removeEventListener('resize', reposition)
-    }
-  }, [])
 
   const handleRowHover = (row: HTMLElement, target: RowTarget) => {
     if (!copyable || copyMenuOpenRef.current) return

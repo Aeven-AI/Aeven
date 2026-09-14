@@ -1,11 +1,7 @@
-/** Draft-attachment thumbnail rail: scrollbar-less horizontal overflow paged
- * by edge arrows, hover-revealed per-item remove, single-click open. */
+/** Draft-attachment thumbnail rail with native horizontal scrolling. */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import clsx from 'clsx'
-import {
-  IconChevronLeftOutline14, IconChevronRightOutline14, IconCloseFill14,
-} from '@deepseek-ai/dsh-client-ui-primitives'
+import { useEffect, useLayoutEffect, useRef } from 'react'
+import { IconCloseFill14 } from '@deepseek-ai/dsh-client-ui-primitives'
 import css from './AttachmentRail.module.css'
 
 /** One rail thumbnail; strings arrive resolved (zero-cordis atom). */
@@ -26,43 +22,25 @@ export interface AttachmentRailLabels {
   group: string
   /** Thumbnail tooltip inviting the original-image preview. */
   open: string
-  /** Accessible label of the left paging arrow. */
-  scrollLeft: string
-  /** Accessible label of the right paging arrow. */
-  scrollRight: string
 }
 
 /** Approximate pixels per wheel step for `deltaMode` LINE deltas (Firefox
  * notch wheels report lines, not pixels). */
 const WHEEL_LINE_PX = 16
 
-/** Smooth paging unless the user asked for reduced motion. */
-function pageBehavior(): ScrollBehavior {
-  // jsdom (the unit lane) implements no matchMedia despite lib.dom's
-  // non-optional typing; the optional call keeps that lane on the default.
-  // oxlint-disable-next-line typescript/no-unnecessary-condition
-  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
-}
-
 /**
  * Horizontal thumbnail rail over the caller's draft attachments.
  *
- * The rail scrolls with its scrollbar hidden; overflow is announced by edge
- * arrows recomputed from scroll geometry on scroll, item-count changes, and
- * rail size changes (a ResizeObserver on the rail element, so sidebar or
- * panel resizes count, not only window resizes). A vertical wheel pans the
- * rail horizontally and is consumed exclusively (non-passive listener), a
- * newly added item is revealed at the rail's end while a rail that mounts
- * over an existing draft keeps its start position, and each thumbnail opens
- * on a single click while its remove control sits inside the card and
- * reveals on hover or focus. The owner decides mounting; it renders the rail
- * only while items exist.
+ * A vertical wheel pans the rail horizontally and is consumed exclusively.
+ * A newly added item is revealed at the rail's end while a rail that mounts
+ * over an existing draft keeps its start position. Each thumbnail opens on a
+ * single click and reveals its remove control on hover or focus.
  *
  * @param props.items - resolved thumbnails in draft order.
- * @param props.labels - rail-level strings (group name, open tooltip, arrows).
+ * @param props.labels - rail-level strings (group name and open tooltip).
  * @param props.onOpen - single-click open of one item's original image.
  * @param props.onRemove - remove one item from the draft.
- * @returns the rail group with its paging arrows.
+ * @returns the horizontally scrolling rail group.
  */
 export function AttachmentRail<T extends AttachmentRailItem>({ items, labels, onOpen, onRemove }: {
   items: readonly T[]
@@ -75,16 +53,6 @@ export function AttachmentRail<T extends AttachmentRailItem>({ items, labels, on
   // draft (session switch back to held images) is initial display, not
   // growth, and must not jump to the end.
   const countRef = useRef<number | null>(null)
-  const [edges, setEdges] = useState({ left: false, right: false })
-  const updateEdges = useCallback(() => {
-    const el = railRef.current
-    /* v8 ignore next -- defensive: every caller runs while the rail element is mounted. */
-    if (el === null) return
-    // 1px slack: engines report fractional scroll positions at the edges.
-    const left = el.scrollLeft > 1
-    const right = el.scrollLeft < el.scrollWidth - el.clientWidth - 1
-    setEdges(prev => prev.left === left && prev.right === right ? prev : { left, right })
-  }, [])
   useLayoutEffect(() => {
     const grew = countRef.current !== null && items.length > countRef.current
     countRef.current = items.length
@@ -93,22 +61,11 @@ export function AttachmentRail<T extends AttachmentRailItem>({ items, labels, on
     if (el === null) return
     // A newly added attachment lands at the rail's end: reveal it.
     if (grew) el.scrollLeft = el.scrollWidth - el.clientWidth
-    updateEdges()
-  }, [items.length, updateEdges])
+  }, [items.length])
   useEffect(() => {
     const el = railRef.current
     /* v8 ignore next -- defensive: the rail div renders unconditionally, so the mount effect always finds it. */
     if (el === null) return
-    // The rail's width follows the composer, which resizes with sidebars and
-    // panels, not only the window — observe the element itself. jsdom (the
-    // unit lane) implements no ResizeObserver; every browser gets the
-    // subscription.
-    let disconnect = (): void => {}
-    if (typeof ResizeObserver !== 'undefined') {
-      const observer = new ResizeObserver(updateEdges)
-      observer.observe(el)
-      disconnect = () => { observer.disconnect() }
-    }
     // The rail scrolls horizontally ONLY: any wheel tick with a vertical
     // component is consumed — without preventDefault it would also scroll the
     // conversation behind the composer, and React's root wheel listener is
@@ -132,37 +89,15 @@ export function AttachmentRail<T extends AttachmentRailItem>({ items, labels, on
       })
     }
     el.addEventListener('wheel', onWheel, { passive: false })
-    return () => {
-      disconnect()
-      el.removeEventListener('wheel', onWheel)
-    }
-  }, [updateEdges])
-  const page = (direction: -1 | 1): void => {
-    const el = railRef.current
-    /* v8 ignore next -- defensive: the arrows render only while the rail is mounted, so a click cannot find a null ref. */
-    if (el === null) return
-    // One viewport minus a card keeps the last visible thumbnail as context;
-    // the floor keeps narrow rails paging a useful distance.
-    el.scrollBy({ left: direction * Math.max(el.clientWidth - 64, 200), behavior: pageBehavior() })
-  }
+    return () => { el.removeEventListener('wheel', onWheel) }
+  }, [])
   return (
     <div className={css.root}>
-      {edges.left && (
-        <button
-          type="button"
-          className={clsx(css.arrow, css.arrowLeft)}
-          aria-label={labels.scrollLeft}
-          onClick={() => { page(-1) }}
-        >
-          <IconChevronLeftOutline14 />
-        </button>
-      )}
       <div
         ref={railRef}
         className={css.rail}
         role="group"
         aria-label={labels.group}
-        onScroll={updateEdges}
       >
         {items.map(item => (
           <div key={item.id} className={css.item}>
@@ -185,16 +120,6 @@ export function AttachmentRail<T extends AttachmentRailItem>({ items, labels, on
           </div>
         ))}
       </div>
-      {edges.right && (
-        <button
-          type="button"
-          className={clsx(css.arrow, css.arrowRight)}
-          aria-label={labels.scrollRight}
-          onClick={() => { page(1) }}
-        >
-          <IconChevronRightOutline14 />
-        </button>
-      )}
     </div>
   )
 }

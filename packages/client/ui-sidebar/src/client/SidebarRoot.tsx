@@ -1,10 +1,8 @@
 /**
  * Sidebar shell: column geometry only, ported from the Aeven client's sidebar.
- * Collapse is one CSS state (`.visible`) driving simultaneous 400ms
- * transitions — column width, content width, panel width and opacity,
- * menu-button width, and chevron opacity. Above 1024px the column is in flow,
- * so that width transition is what resizes the conversation; below it the
- * column overlays. The shell repositions and remounts nothing while that runs.
+ * Collapse is one CSS state (`.visible`). Above 1024px the in-flow column
+ * snaps to its new width while its clipped content transitions; below it the
+ * column overlays. The shell repositions and remounts nothing.
  *
  * The workspace/session browsing region between the New Session button and the
  * foot is the `sidebar.workspaces` registrant's, and the foot holds
@@ -37,7 +35,7 @@ export function SidebarRoot({
 }: SidebarRootComponentProps) {
   // The open width is the theme's Aeven token, exactly as the client's
   // `$widthSidebar` is. Nothing measures or publishes it: collapsing is the
-  // `.visible` class alone, so no render writes a width mid-slide.
+  // `.visible` class alone, so no render writes a width during the transition.
 
   return (
     <div className={clsx(css.root, !collapsed && css.visible)}>

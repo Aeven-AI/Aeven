@@ -8,17 +8,14 @@ import type { ChatConversationViewNode, ChatNode } from '../contract/chat-nodes.
 import { isRunningTool } from '../contract/chat-nodes.ts'
 import type {
   ChatLocationNodeIndex, ChatNodeProcessSource, ChatNodeSource, ChatNodeStore, ChatSnapshot,
-  ChatTurnNavigationIndex, ChatTurnProcessPresentation, ConversationNode, LegacyConversationSlice,
-  PartialAssistant, RunningToolCall, TurnNavigationItem,
+  ChatTurnProcessPresentation, ConversationNode, LegacyConversationSlice, PartialAssistant, RunningToolCall,
 } from '../contract/snapshot.ts'
 import { TURN_PROCESS_INDEPENDENT_KINDS } from '../contract/turn-process.ts'
 import { sessionRecallLabels, skillInvocationName } from './event-projection.ts'
-import { sameTurnNavigationItem, turnNavigationItem } from './turn-navigation.ts'
 import { ChatTurnProcessProjector } from './turn-process-presentation.ts'
 
 const EMPTY_KEYS: readonly string[] = []
 const EMPTY_TURNS: readonly number[] = []
-const EMPTY_ITEMS: readonly TurnNavigationItem[] = []
 const EMPTY_LIST: readonly never[] = []
 
 function sameReferences<T>(left: readonly T[], right: readonly T[]): boolean {
@@ -230,61 +227,6 @@ function updateIndex<Key>(
     if (candidate.length > 0) next.set(key, value)
   }
   return next
-}
-
-/**
- * Loaded-Turn rail projection accumulated alongside the node store: a
- * structural change re-derives the Turn set, a content-only upsert re-derives
- * only the Turns whose nodes moved, and the published array keeps its identity
- * until an item actually changes. Renderers therefore consume final Turn data
- * instead of scanning the loaded window per frame.
- */
-class MutableTurnNavigationIndex implements ChatTurnNavigationIndex {
-  private current: readonly TurnNavigationItem[] = EMPTY_ITEMS
-  private byTurn = new Map<number, TurnNavigationItem>()
-
-  items(): readonly TurnNavigationItem[] {
-    return this.current
-  }
-
-  /** Re-derive the whole Turn set; runs only when the loaded structure moves. */
-  rebuild(
-    timeline: ConversationTimelineSnapshot,
-    locations: ChatLocationNodeIndex,
-    nodes: ChatNodeStore,
-  ): void {
-    const next: TurnNavigationItem[] = []
-    const byTurn = new Map<number, TurnNavigationItem>()
-    for (const turn of timeline.turnOrder) {
-      const derived = turnNavigationItem(turn, locations, nodes)
-      if (derived === undefined) continue
-      const previous = this.byTurn.get(turn)
-      const item = previous !== undefined && sameTurnNavigationItem(previous, derived) ? previous : derived
-      next.push(item)
-      byTurn.set(turn, item)
-    }
-    this.byTurn = byTurn
-    const unchanged = next.length === this.current.length
-      && next.every((item, index) => item === this.current[index])
-    if (!unchanged) this.current = next
-  }
-
-  /** Re-derive only the Turns a content-only upsert touched. */
-  touch(
-    turns: ReadonlySet<number>,
-    locations: ChatLocationNodeIndex,
-    nodes: ChatNodeStore,
-  ): void {
-    if (turns.size === 0) return
-    const next = this.current.map((item) => {
-      if (!turns.has(item.turn)) return item
-      const derived = turnNavigationItem(item.turn, locations, nodes)
-      if (derived === undefined || sameTurnNavigationItem(item, derived)) return item
-      this.byTurn.set(item.turn, derived)
-      return derived
-    })
-    if (next.some((item, index) => item !== this.current[index])) this.current = next
-  }
 }
 
 function stepKey(turn: number, step: number): string {
@@ -961,13 +903,10 @@ function partialContributionChanged(
 export class ChatSnapshotBuilder implements ConversationViewBuilder<ChatConversationViewNode, ChatSnapshot> {
   private readonly store = new MutableChatNodeStore()
   private readonly locations = new MutableChatLocationIndex()
-  private readonly navigation = new MutableTurnNavigationIndex()
   private readonly legacy = new LegacySliceBuilder()
   private readonly referenceLabels = new ReferenceLabelProjector()
   private readonly skillNames = new SkillNameProjector()
   private order: readonly string[] = EMPTY_KEYS
-  /** Last published timeline: a Turn boundary can land without a new node. */
-  private timeline: ConversationTimelineSnapshot | null = null
   readonly empty: ChatSnapshot
 
   constructor() {
@@ -983,8 +922,6 @@ export class ChatSnapshotBuilder implements ConversationViewBuilder<ChatConversa
     this.order = orderedVisibleChatNodes(nodes).map(node => node.key)
     this.locations.rebuild(this.order, this.store)
     this.store.replaceProcesses(this.order, this.locations)
-    this.navigation.rebuild(input.timeline, this.locations, this.store)
-    this.timeline = input.timeline
     const snapshot = this.snapshot(input.timeline, this.legacy.replace(nodes, input.timeline))
     this.store.publish()
     return snapshot
@@ -1022,12 +959,6 @@ export class ChatSnapshotBuilder implements ConversationViewBuilder<ChatConversa
     }
     this.locations.touch(contentOnly)
     this.store.updateProcesses(processTurns, this.locations)
-    if (structural || input.timeline !== this.timeline) {
-      this.navigation.rebuild(input.timeline, this.locations, this.store)
-    } else {
-      this.navigation.touch(turnsOf(contentOnly), this.locations, this.store)
-    }
-    this.timeline = input.timeline
     const snapshot = this.snapshot(input.timeline, this.legacy.apply(upserts, input.timeline))
     this.store.publish()
     return snapshot
@@ -1041,21 +972,10 @@ export class ChatSnapshotBuilder implements ConversationViewBuilder<ChatConversa
       order: this.order,
       nodes: this.store,
       locations: this.locations,
-      navigation: this.navigation,
       timeline,
       legacy,
     }
   }
-}
-
-/** Turns owning the given nodes, for the content-only navigation update. */
-function turnsOf(nodes: readonly ChatConversationViewNode[]): ReadonlySet<number> {
-  const turns = new Set<number>()
-  for (const node of nodes) {
-    const turn = locationCoordinates(node.location).turn
-    if (turn !== undefined) turns.add(turn)
-  }
-  return turns
 }
 
 function locationIdentity(location: ConversationLocation): string {

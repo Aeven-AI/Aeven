@@ -89,7 +89,18 @@ export function requestPromptDefinition(inspect: RequestPromptInspector): Conver
     update: context => context.state,
     buildViewNode: (context) => {
       const state = context.state
-      if (state === undefined || !state.showsPrompt || state.prompt.system === '') return null
+      if (state === undefined) return null
+      // A prepended older page supplies a predecessor this context did not
+      // have, so `showsPrompt` can fall to false for a request whose prompt is
+      // already materialized. Withdrawing the Node there aborts the prepend
+      // mid-commit; carry the same key with hidden visibility instead, which
+      // every Chat consumer drops (orderedVisibleChatNodes).
+      if (!state.showsPrompt || state.prompt.system === '') {
+        if (context.current.get('chat') == null) return null
+        return chatNode(context, 'system-prompt', state.anchorSeq, { text: state.prompt.system }, {
+          visibility: 'hidden',
+        })
+      }
       return chatNode(context, 'system-prompt', state.anchorSeq, { text: state.prompt.system })
     },
   }

@@ -16,11 +16,11 @@ export type {} from './conversation-nodes/turn-tail.ts'
 export type {
   AssistantBlock, AssistantMessageNode, AssistantProvenanceView, AssistantRequestConfig,
   AssistantTiming, ChatLocationNodeIndex, ChatNodeProcessSource, ChatNodeSource, ChatNodeStore,
-  ChatSnapshot, ChatTurnNavigationIndex, ChatTurnProcessPresentation,
+  ChatSnapshot, ChatTurnProcessPresentation,
   CommandNode, CompactionSummaryNode, ContextMessageNode, ConversationNode,
   LegacyConversationSlice, ModelRetryNode, PartialAssistant, RunningToolCall,
   SteeringMessageNode, ToolCallBlock, ToolResultNode, TurnErrorNode, TurnMaxTokensNode,
-  TurnNavigationItem, UnknownSurfaceNode, UserMessageNode,
+  UnknownSurfaceNode, UserMessageNode,
 } from './contract/snapshot.ts'
 export type {
   AssistantChatData, ChatConversationViewNode, ChatNode, ChatNodeKind,

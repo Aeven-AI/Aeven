@@ -29,7 +29,7 @@ Mount this plugin alongside [`ui-conversation`](../ui-conversation/README.md); i
 
 ### Draft images
 
-A draft image shows as a fixed 64px thumbnail in one horizontally scrolling row; edge arrows page the rail when overflow hides items, and the scrollbar stays hidden. A newly added item is revealed at the rail's end, removal keeps the scroll position, and a single click opens the original through the owner's `onOpen`.
+A draft image shows as a fixed 64px thumbnail in one natively scrolling horizontal row. A newly added item is revealed at the rail's end, removal keeps the scroll position, and a single click opens the original through the owner's `onOpen`.
 
 ### Message images and the lightbox
 
@@ -52,7 +52,7 @@ The plugin waits for `conversation.input.attachments`, `conversation.message.ima
 | File | Role |
 |---|---|
 | [`src/client/ComposerAttachments.tsx`](src/client/ComposerAttachments.tsx) | Draft-image rail + drop overlay assembly |
-| [`src/AttachmentRail.tsx`](src/AttachmentRail.tsx) | Scrolling thumbnail rail, wheel translation, edge arrows |
+| [`src/AttachmentRail.tsx`](src/AttachmentRail.tsx) | Native thumbnail rail with vertical-wheel translation |
 | [`src/client/MessageImages.tsx`](src/client/MessageImages.tsx) | Per-message gallery + lightbox assembly |
 | [`src/MessageImage.tsx`](src/MessageImage.tsx) | Single image sizing, load/retry, click-to-open; local submission-echo previews render their object URL directly |
 | [`src/ImageLightbox.tsx`](src/ImageLightbox.tsx) | Document-level modal preview over the shared mask |

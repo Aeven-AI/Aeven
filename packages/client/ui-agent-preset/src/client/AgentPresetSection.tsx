@@ -10,10 +10,10 @@
  * mounted once at session creation and nothing re-reads the file.
  */
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 import {
-  Button, IconBrowseOutline16, IconCopyOutline16, IconFolderOpenOutline16, IconPlusOutline16, IconTrashOutline16, Modal, Tooltip,
+  Button, IconBrowseOutline16, IconCopyOutline16, IconFolderOpenOutline16, IconPlusOutline16, IconTrashOutline16, Modal,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
@@ -138,36 +138,13 @@ function CopyDialog({ state, t, actions }: CopyDialogProps): ReactNode {
 }
 
 /**
- * Render one card's description, clamped by CSS and offered in full on hover.
- * The tooltip is attached only while the text is actually cut off, so a short
- * description does not answer a hover with a bubble repeating the card.
+ * Render one card's description, clamped by CSS and exposed in full through
+ * the native title on hover.
  * @param props.text - the description as rendered, already localized.
- * @returns the description element, tooltip-anchored while it overflows.
+ * @returns the description element.
  */
 function CardDescription({ text }: { text: string }): ReactNode {
-  const ref = useRef<HTMLSpanElement | null>(null)
-  const [truncated, setTruncated] = useState(false)
-  useLayoutEffect(() => {
-    const el = ref.current
-    /* v8 ignore next -- the ref is attached before layout effects run. */
-    if (el === null) return
-    const measure = () => { setTruncated(el.scrollHeight > el.clientHeight) }
-    measure()
-    // Card width follows the settings pane, which resizes with the window.
-    if (typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(measure)
-    observer.observe(el)
-    return () => { observer.disconnect() }
-  }, [text])
-  return (
-    // Capped near the card's own width: the default half-viewport bubble would
-    // spill a description out of the settings dialog and across the app behind it.
-    <Tooltip label={text} side="bottom" delayMs={400} disabled={!truncated} maxWidth={360}>
-      {/* The empty title stops the card body's native tooltip from climbing to
-        this span: a cut-off description answers with one bubble, not two. */}
-      <span ref={ref} className={css.cardDesc} title="">{text}</span>
-    </Tooltip>
-  )
+  return <span className={css.cardDesc} title={text}>{text}</span>
 }
 
 /**

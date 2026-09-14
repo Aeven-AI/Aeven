@@ -1,14 +1,7 @@
-/* Sidebar column, ported from the Aeven client's `.sidebar` (_Sidebar.scss).
-   Collapse is one pure-CSS state change on `.visible`: four boxes animate
-   together over 400ms on the shared easeOutQuint curve — the flex column's
-   width, the inner content width, the translucent panel's width and opacity,
-   the menu button's width, and the chevron's opacity.
-
-   Above 1024px the column is in flow (`position: relative`, `flex-shrink: 0`)
-   so its width transition is what resizes the conversation beside it. Below
-   1024px it overlays, matching Aeven. `.content` is absolutely positioned
-   inside the collapsing column so the hamburger keeps its seat at the
-   top-left without switching to fixed positioning. */
+/* Sidebar column. Above 1024px the in-flow column animates between its open
+   and closed widths on the same curve as its content, so the conversation edge
+   travels with the panel instead of jumping ahead of it. Below 1024px the
+   sidebar overlays the conversation. */
 
 .root {
   display: flex;
@@ -28,6 +21,9 @@
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
   --dsh-sidebar-inline-padding: var(--dsw-aeven-sidebar-row-inset);
   --dsh-sidebar-open-width: 0px;
+  /* The column travels with its own content: Aeven animates `.sidebar` width
+     on the same curve as everything inside it, so the conversation edge stays
+     attached to the panel for the whole slide. */
   transition: width var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
 }
 
@@ -160,8 +156,8 @@
   transition: none;
 }
 
-/* The body's contents keep the open column's width for the whole animation and
-   are clipped by the narrowing scrollport, rather than reflowing with it. The
+/* The body's contents keep the open column's width for the whole transition and
+   are clipped by the narrowing sidebar, rather than reflowing with it. The
    open width is known up front, so labels, chips and rows never re-measure,
    re-ellipsize or re-wrap mid-slide — the panel simply travels out from under
    them. Aeven pins the same width on the spacers inside its `.side-content`. */
@@ -319,16 +315,12 @@
     backdrop-filter var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
 }
 
-/* Aeven's `responsiveMed` rules (`@media screen and (max-width: 1024px)`).
-   Below the breakpoint the column leaves flow and overlays the conversation.
+/* Below the breakpoint the column leaves flow and overlays the conversation.
    `.visible` widens the box to the whole frame so the blocker covers
-   everything. The column's own width stops easing here exactly as Aeven has
-   it — the box is a cover, not a travelling edge, so the motion is `.content`
-   sliding in and the blocker fading, both still on the shared curve. */
+   everything. */
 @media screen and (max-width: 1024px) {
   .root {
     position: absolute;
-    transition: none;
   }
 
   .root.visible {

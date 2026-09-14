@@ -613,10 +613,6 @@ describe('ChatView', () => {
       ],
       turnEnds: new Map([[1, 3], [2, 6]]),
     })
-    expect(snapshot.navigation.items()).toEqual([
-      { turn: 1, anchorKey: 'fixture:user:1', prompt: 'first prompt', response: 'first response' },
-      { turn: 2, anchorKey: 'fixture:user:4', prompt: 'second prompt', response: 'second response' },
-    ])
     const h = makeHarness({}, {}, snapshot)
     const view = render(<h.ChatView {...h.props} />)
     const navigation = view.getByRole('navigation', { name: '轮次导航' })
@@ -756,7 +752,6 @@ describe('ChatView', () => {
       ],
       turnEnds: new Map([[1, 3], [2, 7]]),
     }), undefined, { turn: 2, anchorSeq: 4 })
-    expect(snapshot.navigation.items()[1]?.anchorKey).toBe('fixture:user:5')
     const h = makeHarness({}, {}, snapshot)
     const view = render(<h.ChatView {...h.props} />)
     const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement

@@ -48,7 +48,7 @@ Chat 会为每个非空的初始或恢复请求、显式消息序列起点或真
 <a id="scroll-ownership"></a>
 ## 滚动归属
 
-读者接近窗口头部时历史会自动加载：距窗口头部四个滚动视口高度以内（最少 1,500px）即拉取下一页更早历史；窗口内容不足以滚动时会自行填充，使历史无需任何手势即可抵达。若一次拉取没有取回任何历史而窗口仍声称还有更多，自动分页会停止并给出「加载更早」作为重试入口——因为 `loadOlder` 只吞掉失败而不上报。头部边界是一个零高度的 sticky 覆盖层，承载与 Trajectory 历史加载一致的转圈指示，因此它的出现与消失都不改变 transcript 的几何。Chat 会在历史前插与同一 Session 内的视图重新挂载时恢复语义锚点。选择不同 Session 时，其 Chat 视图从实时末尾开始；内容搜索导航则会落到索引命中的事件（[Session 激活策略](../../../.agents/notes/implemented/bug-fix/2026-09-08-session-activation-chat-tail.zh.md)）。Session 激活后的提交后尾部校正仅在读者尚未离开底部时运行，因此立即向上滚动会被保留。读者跟随底部时，`ResizeObserver` 追随新的底部，并且无需读取行几何就选中最后一个已加载 Turn；读者离开底部后，高度变化会保持顶部位置，再由阅读线几何选择活跃 Turn。原始滚动事件会在下一次绘制前安排该活跃 Turn 查询；溢出居中不使用平滑滚动，而刻度宽度与颜色保留短暂的 CSS transition。底部跟随归属、恢复锚点与持久化仍按较低频率采样，并在最终 `scrollend` 时更新。轮次导航预览位于 Markdown 代码块粘性头栏上方，而导航外框始终处于 composer 上方的 transcript 区域内（[已加载 Turn 导航](../../../.agents/notes/implemented/feature/2026-08-25-loaded-turn-chat-navigation.zh.md)）。
+读者接近窗口头部时历史会自动加载：距窗口头部四个滚动视口高度以内（最少 1,500px）即拉取下一页更早历史；窗口内容不足以滚动时会自行填充，使历史无需任何手势即可抵达。若一次拉取没有取回任何历史而窗口仍声称还有更多，自动分页会停止并给出「加载更早」作为重试入口——因为 `loadOlder` 只吞掉失败而不上报。头部边界是一个零高度的 sticky 覆盖层，承载与 Trajectory 历史加载一致的转圈指示，因此它的出现与消失都不改变 transcript 的几何。Chat 会在历史前插与同一 Session 内的视图重新挂载时恢复语义锚点。选择不同 Session 时，其 Chat 视图从实时末尾开始；内容搜索导航则会落到索引命中的事件（[Session 激活策略](../../../.agents/notes/implemented/bug-fix/2026-09-08-session-activation-chat-tail.zh.md)）。Session 激活后的提交后尾部校正仅在读者尚未离开底部时运行，因此立即向上滚动会被保留。读者跟随底部时，`ResizeObserver` 会追踪新内容与 composer 高度，使实时末尾保持可见；读者离开底部后，高度变化会保持锚定行。底部跟随归属、恢复锚点与持久化按较低频率采样，并在最终 `scrollend` 时更新。
 
 -----
 
@@ -65,8 +65,7 @@ Chat 会为每个非空的初始或恢复请求、显式消息序列起点或真
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **transcript 只反映已加载的 Session 窗口**——只有 Session Controller 加载前一页 event 后，更早的 transcript node 才会出现。轮次导航比窗口更宽：轨道把已加载的 Turn 与宿主 `turnOutline` 投影合并，每个已开始的 Turn 都有固定间距刻度（相隔 10px；阶梯高于外框时在框内滚动并以渐变淡出标示可滚方向），激活未加载刻度会先把历史分页拉到该 Turn 的 `turn/start` seq 再落到它的行上。没有该投影时（未挂载 `dsh-session-turn-outline` 的装配），轨道回退到仅显示已加载 Turn。
-- **导航预览按卡片尺寸截断**——提示词一行（50 字符）、回复至多三行（120 字符），已加载与未加载 Turn 一致；未加载 Turn 的回复要等该轮落定后才随大纲到达，进行中的轮次在此之前只预览提示词（或仅轮次号）。
+- **transcript 只反映已加载的 Session 窗口**——Session Controller 加载前面的 event 页面后，更早的 transcript node 才会出现。Chat 提供连续滚动与内容搜索导航，不提供独立的 Turn 跳转控件。
 
 
 <a id="dev-note"></a>

@@ -628,8 +628,9 @@ function fixtureUsage(turn: number, step: number): TokenUsage {
   }
 }
 
-/** fx-alpha history script: 75 turns (~150+ messages -> 4 pages at PAGE_MESSAGES=50),
- *  mixing reasoning blocks / tool call+result / context. */
+/** fx-alpha history script: 75 turns (~150+ messages), mixing reasoning blocks
+ *  / tool call+result / context. The opening window takes PAGE_MESSAGES; the
+ *  reader's pages back through it take SCROLL_PAGE_MESSAGES. */
 function buildAlphaLog(): SessionEvent[] {
   const events: Record<string, unknown>[] = []
   let time = Date.now() - 3_600_000

@@ -152,50 +152,10 @@ export function ConversationRoot({
   const [pendingWorkspaceId, setPendingWorkspaceId] = useState<WorkspaceId | undefined>()
   const pickerAnchor = useRef<HTMLButtonElement>(null)
 
-  // Publishes the seat's height as --dsh-composer-height for the one consumer
-  // layout cannot serve: a View that elects a composer overlay keeps the card
-  // floating over its own ledger, so its content needs bottom clearance equal
-  // to a sibling's height. Chat needs nothing published — its floating chrome
-  // lives in a layer bounded to the scrollport, so clearing the composer is
-  // where that layer ends. Callback ref, not an effect; stable identity
-  // prevents observer churn while the first blank session fills the resident
-  // body outlet.
-  const seatObserver = useRef<ResizeObserver | null>(null)
-  const seatResizeRef = useCallback((seat: HTMLDivElement | null): void => {
-    seatObserver.current?.disconnect()
-    seatObserver.current = null
-    const body = seat?.parentElement ?? null
-    if (seat === null || body === null) return
-    // HEIGHT ONLY. Both published values are heights, and reading one here
-    // forces a synchronous layout of the whole transcript before the write
-    // invalidates it again. Width changes on both observed boxes for every
-    // frame the sidebar track animates, so answering them pays that read-write
-    // cycle ~25 times per collapse — on a session holding thousand-line code
-    // blocks that is a full layout of tens of thousands of elements per frame,
-    // and the slide drops to roughly 17fps. A width change that does move the
-    // composer's height (a rewrapped draft) still reports the new height, so
-    // nothing is missed by ignoring width.
-    const publishedHeights = new Map<Element, number>()
-    // One write on the seat's own parent, which every View inherits from.
-    const publish = (): void => {
-      body.style.setProperty('--dsh-composer-height', `${seat.offsetHeight}px`)
-    }
-    seatObserver.current = new ResizeObserver((entries) => {
-      let heightChanged = false
-      for (const entry of entries) {
-        const previous = publishedHeights.get(entry.target)
-        const height = entry.contentRect.height
-        if (previous === undefined || Math.abs(previous - height) > 0.5) heightChanged = true
-        publishedHeights.set(entry.target, height)
-      }
-      if (!heightChanged) return
-      publish()
-    })
-    // The seat alone: the scrollport was observed to publish its height, and
-    // nothing reads that any more.
-    seatObserver.current.observe(seat)
-    publish()
-  }, [])
+  // Nothing measures the composer seat. A View that floats a composer over its
+  // own ledger clears it with the static `--dsh-composer-height` fallback in
+  // that View's own stylesheet (ui-trajectory's `.ledger`), so a draft that
+  // grows past the fallback is not cleared exactly.
 
   // The column width is CSS's business now (the .root width axis reads the
   // AppFrame centre column's 100cqi), so nothing here observes resizes. The
@@ -380,7 +340,7 @@ export function ConversationRoot({
   // on the fallback alone would leave a business-owned takeover at the content
   // end off-screen when the user is not pinned to the floor.
   const composerSeat = (
-    <div ref={seatResizeRef} className={css.composerSeat} data-composer-seat="">
+    <div className={css.composerSeat} data-composer-seat="">
       {composer}
     </div>
   )

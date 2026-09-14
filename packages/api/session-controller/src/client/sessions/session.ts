@@ -43,8 +43,20 @@ function projectionsBaseline(value: SessionProjectionBaseline): ProjectionsBasel
   }
 }
 
-/** Messages requested per history page. */
+/** Messages requested for the opening window, which first paint waits on. */
 export const PAGE_MESSAGES = 50
+
+/**
+ * Messages requested per page while the reader scrolls back through history.
+ *
+ * Three times the opening window. What a reader feels is how often the scroll
+ * runs out of content, not how long one commit takes: paging is serialized, so
+ * a 50-message page makes the whole history 13 stops instead of 4. The larger
+ * commit costs more main-thread time per page, but it lands while loaded
+ * content is still on screen, where a stop at an empty head does not.
+ * First paint keeps the smaller {@link PAGE_MESSAGES}.
+ */
+export const SCROLL_PAGE_MESSAGES = 150
 
 /** Messages requested per page while a turn jump loops backwards (fewer, larger round trips). */
 export const JUMP_PAGE_MESSAGES = 200
@@ -375,7 +387,7 @@ export class Session implements SessionFace {
     this.loadingOlder = true
     this.notifier.markDirty()
     try {
-      await events.prepend({ beforeSeq: this.baseSeq, maxMessages: PAGE_MESSAGES })
+      await events.prepend({ beforeSeq: this.baseSeq, maxMessages: SCROLL_PAGE_MESSAGES })
     } catch (error) {
       if (!isRemoteFailure(error)) {
         console.error('[session-controller] loadOlder failed:', error)
@@ -641,11 +653,18 @@ export class Session implements SessionFace {
     this.notifier.markDirty()
   }
 
-  /** Prepend one stream-validated history page. */
+  /**
+   * Prepend one stream-validated history page.
+   *
+   * The window advances only once the page is accepted: a subscriber that
+   * throws mid-publication leaves `baseSeq` and `hasMore` describing the
+   * window that is actually assembled, so the next pull retries this page
+   * instead of reporting history complete at a page that never landed.
+   */
   private prependWindow(entries: readonly SessionEventLikeEntry[], hasMore: boolean): void {
+    this.eventSource.prepend(entries, hasMore)
     this.baseSeq = entries[0] === undefined ? this.baseSeq : SessionLogOffset(entries[0].event.seq)
     this.hasMore = hasMore
-    this.eventSource.prepend(entries, hasMore)
   }
 
   /** Append one stream-validated live event. */

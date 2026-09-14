@@ -6,14 +6,11 @@ import { createPortal } from 'react-dom'
 import type {
   ConversationTimelineSnapshot, RenderMessageImages,
 } from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type { SessionSeq } from '@deepseek-ai/dsh-session/types'
-import { Button, IconChevronDownOutline14, Modal, Spinner } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Modal, Spinner } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
 import type { ChatSnapshot } from '../contract/snapshot.ts'
 import { PendingSteeringBubble, PendingSubmissionBubble } from './MessageItem.tsx'
 import { ChatNodeSeat } from './ChatNodeSeat.tsx'
-import { TurnNavigator } from './TurnNavigator.tsx'
-import { mergeTurnRailItems, type TurnRailItem } from './turn-rail-items.ts'
 import { formatRunDuration } from './message-chrome.ts'
 import a11yCss from './accessibility.module.css'
 import css from './ChatView.module.css'
@@ -22,8 +19,15 @@ const FOLLOW_THRESHOLD = 24
 const SCROLL_SAMPLE_INTERVAL_MS = 500
 /** Prefetch runway floor, for a scrollport too short to give one of its own. */
 const OLDER_PREFETCH_MARGIN = 1500
-/** Screens of runway ahead of the head: a fling has to outrun this much to reach it. */
-const OLDER_PREFETCH_SCREENS = 4
+/**
+ * Screens of runway ahead of the head: a fling has to outrun this much to reach it.
+ *
+ * Paging is serialized — one pull is in flight at a time, and the next is
+ * tested only once that one commits — so the runway, not the page size, is what
+ * keeps a fast scroll fed: it decides how early the request leaves, and the
+ * reader has that many screens left to travel while it is out.
+ */
+const OLDER_PREFETCH_SCREENS = 8
 
 /** Active column host when present; otherwise the view-local scroller. */
 function scrollerOf(from: HTMLElement): HTMLElement {
@@ -45,86 +49,9 @@ function anchorElement(list: HTMLElement, key: string): HTMLElement | null {
   return null
 }
 
-/**
- * Turn owning the row at a scrollport line. Scroll frames are hot, so this
- * hit-tests the line first and falls back to a bisection when layout cannot
- * answer (jsdom, pre-paint, or the line landing in the gaps between rows).
- *
- * The fallback is a bisection rather than a scan because a scan costs one
- * `getBoundingClientRect` per rendered row, and each of those forces a layout
- * of the whole transcript: on a long session that is hundreds of reads per
- * call, several times a frame, and the cost grows with the history the reader
- * has loaded. Bisection makes it ~10 reads regardless of depth.
- *
- * Rows carrying `[data-chat-turn]` are interleaved with hidden ones, and a
- * hidden row reports a zeroed rect whose `y` is 0 — sorted ahead of every
- * visible row, which defeats both a plain scan and a plain bisection. Only
- * visible rows are ordered by document position, so the bisection steps over
- * zero-height rows to compare the nearest visible row instead.
- * @param list - the ChatView list element.
- * @param line - viewport y of the reading line.
- * @returns the Turn number, or null when no loaded row covers the line.
- */
-function turnAtLine(list: HTMLElement, line: number): number | null {
-  const content = list.getBoundingClientRect()
-  if (typeof document.elementsFromPoint === 'function' && content.width > 0) {
-    for (const element of document.elementsFromPoint(content.left + content.width / 2, line)) {
-      const row = element instanceof HTMLElement ? element.closest<HTMLElement>('[data-chat-turn]') : null
-      const turn = Number(row?.dataset.chatTurn)
-      if (row !== null && list.contains(row) && Number.isSafeInteger(turn)) return turn
-    }
-  }
-  const rows = list.querySelectorAll<HTMLElement>('[data-chat-turn]')
-  const count = rows.length
-  /** A hidden or empty row renders no box; only visible rows are ordered. */
-  const visible = (row: HTMLElement | null): boolean =>
-    row !== null && row.getBoundingClientRect().height > 0
-  /** The nearest visible row index at or after `from`, or `count` when none remains. */
-  const visibleAt = (from: number): number => {
-    for (let index = from; index < count; index += 1) {
-      if (visible(rows.item(index))) return index
-    }
-    return count
-  }
-  // Lower bound of "the nearest visible row at or after this index starts below
-  // the line". Stepping to the nearest visible row keeps the predicate monotone
-  // across the hidden rows interleaved in the list; when the index is past the
-  // last visible row there is nothing left to compare, so it holds.
-  let low = 0
-  let high = count
-  while (low < high) {
-    const middle = (low + high) >>> 1
-    const index = visibleAt(middle)
-    const top = index === count ? undefined : rows.item(index).getBoundingClientRect().top
-    if (top !== undefined && top <= line) low = middle + 1
-    else high = middle
-  }
-  const index = visibleAt(0) === count ? count : low - 1
-  const row = index >= 0 && index < count ? rows.item(index) : null
-  const turn = Number(row?.dataset.chatTurn)
-  return Number.isSafeInteger(turn) ? turn : null
-}
-
 /** Row position in scrollport coordinates (viewport-independent). */
 function flowTop(row: HTMLElement, scrollport: HTMLElement): number {
   return row.getBoundingClientRect().top - scrollport.getBoundingClientRect().top
-}
-
-/**
- * Earliest rendered row of the Turn that owns `row`. Seats are direct flow
- * siblings and a Turn's seats are contiguous; hidden and empty seats render
- * no box and are skipped.
- * @param row - a rendered seat carrying `data-chat-turn`.
- * @returns the Turn's first rendered row, and whether no rendered row precedes it in the flow.
- */
-function turnHead(row: HTMLElement): { readonly row: HTMLElement; readonly first: boolean } {
-  let head = row
-  for (let sibling = row.previousElementSibling; sibling !== null; sibling = sibling.previousElementSibling) {
-    if (!(sibling instanceof HTMLElement) || sibling.hasAttribute('hidden') || sibling.firstChild === null) continue
-    if (sibling.dataset.chatTurn !== row.dataset.chatTurn) return { row: head, first: false }
-    head = sibling
-  }
-  return { row: head, first: true }
 }
 
 /** Select a visible stable node/call identity, falling back only when layout
@@ -287,21 +214,10 @@ const ChatNodeList = memo(function ChatNodeList({ order, ...seatProps }: ChatNod
 export function ChatView({
   useSession, useChat, useChatNode, useChatNodeProcess, useSessions, useStore, actions, renderSlot,
   sessionId, openFile, loadOlder, loadThrough, completeEventNavigation, loadImage, openView,
-  chatScroll, forkAt, fileMentions, useTranscriptView, useEventNavigation, useProjection, t,
+  chatScroll, forkAt, fileMentions, useTranscriptView, useEventNavigation, t,
 }: ChatViewSlotProps) {
   const order = useChat(s => s.order)
   const nodeStore = useChat(s => s.nodes)
-  // The rail's items are accumulated in the Chat snapshot, so this selector is
-  // both the data and its change signal: the array identity moves only when a
-  // Turn enters, leaves, or changes its preview.
-  const turnNavigationItems = useChat(s => s.navigation.items())
-  // Host-computed whole-log outline; the merge is view-layer only (the
-  // conversation snapshot never carries projection values).
-  const turnOutline = useProjection('turnOutline')
-  const railItems = useMemo(
-    () => mergeTurnRailItems(turnNavigationItems, turnOutline),
-    [turnNavigationItems, turnOutline],
-  )
   const timeline = useChat(s => s.timeline)
   const inbox = useSession(s => s.queue)
   // Workspace root off the session list row: path summaries display relative to it.
@@ -377,13 +293,9 @@ export function ChatView({
   const columnRef = useRef<HTMLDivElement | null>(null)
   // A saved position starts disarmed; the first layout effect synchronously
   // restores it and normalizes a floor-clamped position back to following.
-  const [atBottom, setAtBottom] = useState(() => chatScroll.read() === null)
-  const atBottomRef = useRef(atBottom)
+  const atBottomRef = useRef(chatScroll.read() === null)
   const scrollSamplePendingRef = useRef(false)
   const [, setScrollSampleTick] = useState(0)
-  const [activeTurn, setActiveTurn] = useState<number | null>(
-    () => turnNavigationItems.at(-1)?.turn ?? null,
-  )
   /** Last position delivered or written on the main thread. */
   const observedTopRef = useRef(0)
   /**
@@ -393,27 +305,12 @@ export function ChatView({
    * ever restoring a position recorded before the reader's latest input.
    */
   const anchorRef = useRef<ReadingAnchor | null>(null)
-  /** Unloaded-turn jump in flight: target turn plus its load-through seq. */
-  const pendingJumpRef = useRef<{ turn: number; seq: SessionSeq } | null>(null)
-  /** Anchor key captured when the in-flight jump landed mid-paging; settle only corrects an untouched landing. */
-  const jumpLandedKeyRef = useRef<string | null>(null)
-  const [busyJumpTurn, setBusyJumpTurn] = useState<number | null>(null)
-  /** Bumped when a loadThrough completion settles, after its last page's commit. */
-  const [jumpSettleTick, setJumpSettleTick] = useState(0)
   const [eventNavigationSettleTick, setEventNavigationSettleTick] = useState(0)
   const eventNavigationLoadRef = useRef<{ requestId: number; settled: boolean } | null>(null)
   const completedEventNavigationRef = useRef(0)
   const [highlightedNodeKey, setHighlightedNodeKey] = useState<string | null>(null)
-  /** Window head at the last settle-time repage; an unmoved head falls back instead of repaging forever. */
-  const jumpRepageHeadRef = useRef<number | null>(null)
-  /** Window head captured when a page pull started; null while no pull is outstanding. */
-  const autoPageHeadRef = useRef<{ readonly head: number | null } | null>(null)
-  /** Previous busy state: only a true-to-false edge is a settled pull, never the first run. */
-  const loadingOlderRef = useRef(loadingOlder)
   /** Latest automatic-paging test; assigned below, called from scroll, commit, and resize paths. */
   const maybeLoadOlderRef = useRef<() => void>(() => {})
-  /** Automatic paging latched off after a pull that moved no history; the manual control is the retry. */
-  const [autoPageStalled, setAutoPageStalled] = useState(false)
   /** Host chrome layer for floating controls; null when this view owns its own scrolling. */
   const [chromeLayer, setChromeLayer] = useState<HTMLElement | null>(null)
   const firstSeqRef = useRef<number | null>(null)
@@ -424,9 +321,7 @@ export function ChatView({
   const lastKeyRef = useRef<string | null>(null)
   const lastSteeringIdRef = useRef<string | null>(null)
   const lastSubmissionIdRef = useRef<string | null>(null)
-  /** Flow tip signature — follow-scroll only when this moves, never on a
-   *  scroll-driven at-bottom chrome re-render (which would snap inertial
-   *  scrolls the rest of the way to the floor). */
+  /** Flow tip signature — follow-scroll only when this moves. */
   const followSigRef = useRef<string | null>(null)
 
   const firstKey = order[0]
@@ -436,68 +331,6 @@ export function ChatView({
   const lastSteeringId = pendingSteering[pendingSteering.length - 1]?.id ?? null
   const lastSubmissionId = visibleSubmissions[visibleSubmissions.length - 1]?.requestId ?? null
   const followSig = `${openState}:${firstSeq}:${lastKey}:${order.length}:${running ? 1 : 0}:${lastSteeringId ?? ''}:${lastSubmissionId ?? ''}`
-
-  const syncActiveTurn = useCallback((): void => {
-    const local = listRef.current
-    const first = turnNavigationItems[0]
-    if (local === null || first === undefined) {
-      setActiveTurn(null)
-      return
-    }
-    const el = scrollerOf(local)
-    const floorReached = el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_THRESHOLD + 1
-    // Back-to-bottom is chrome, not bookkeeping: it follows the geometry this
-    // frame already measured. Leaving it to the throttled sample made it
-    // appear and disappear up to a sample interval after the reader moved.
-    // Follow OWNERSHIP still belongs to that sample (atBottomRef), which
-    // distinguishes a reader's scroll from a delivered one.
-    setAtBottom(current => current === floorReached ? current : floorReached)
-    if (floorReached) {
-      const latest = turnNavigationItems.at(-1)?.turn ?? first.turn
-      setActiveTurn(current => current === latest ? current : latest)
-      return
-    }
-    const readingLine = el.getBoundingClientRect().top + Math.min(96, el.clientHeight * 0.2)
-    const reading = turnAtLine(local, readingLine)
-    // No row reaches the line yet: the flow head still owns the mark. Otherwise
-    // the row's Turn may be one the rail does not offer (all its nodes hidden),
-    // so the newest offered Turn at or above it owns the mark.
-    let next = first.turn
-    if (reading !== null) {
-      for (const item of turnNavigationItems) {
-        if (item.turn > reading) break
-        next = item.turn
-      }
-    }
-    setActiveTurn(current => current === next ? current : next)
-  }, [turnNavigationItems])
-
-  const activeTurnRef = useRef<(() => void) | null>(null)
-  const activeFrameRef = useRef<number | null>(null)
-  const scheduleActiveTurn = useCallback((): void => {
-    if (activeFrameRef.current !== null) return
-    if (typeof requestAnimationFrame === 'undefined') {
-      syncActiveTurn()
-      return
-    }
-    activeFrameRef.current = requestAnimationFrame(() => {
-      activeFrameRef.current = null
-      holdAnchorRef.current()
-      syncActiveTurn()
-    })
-  }, [syncActiveTurn])
-
-  useEffect(() => () => {
-    if (activeFrameRef.current !== null && typeof cancelAnimationFrame !== 'undefined') {
-      cancelAnimationFrame(activeFrameRef.current)
-    }
-  }, [])
-
-  activeTurnRef.current = scheduleActiveTurn
-
-  useLayoutEffect(() => {
-    scheduleActiveTurn()
-  }, [scheduleActiveTurn])
 
   // Floating controls must not live inside the scrollport: elastic overscroll
   // translates its contents, carrying a sticky control with the rubber-band.
@@ -555,78 +388,25 @@ export function ChatView({
 
   const toBottom = (el: HTMLElement): void => {
     anchorRef.current = null
-    // Returning to the live tail supersedes a jump still landing.
-    pendingJumpRef.current = null
-    setBusyJumpTurn(current => current === null ? current : null)
     el.scrollTop = el.scrollHeight
     observedTopRef.current = el.scrollTop
     atBottomRef.current = true
-    setAtBottom(true)
     chatScroll.save(null)
-    setActiveTurn(turnNavigationItems.at(-1)?.turn ?? null)
   }
 
-  // Land a row at the reading line, or the view at the scroll origin, and
-  // republish scroll-derived state. A latest-ref, so navigateToTurn's identity
-  // stays stable for the memoized rail.
+  // Land a row at the reading line and republish scroll-derived state.
   const landOnRowRef = useRef<
-    (local: HTMLElement, el: HTMLElement, row: HTMLElement, turn: number, origin: boolean) => void
+    (local: HTMLElement, el: HTMLElement, row: HTMLElement) => void
   >(() => {})
-  landOnRowRef.current = (local, el, row, turn, origin) => {
-    el.scrollTop = origin ? 0 : el.scrollTop + flowTop(row, el) - 24
+  landOnRowRef.current = (local, el, row) => {
+    el.scrollTop += flowTop(row, el) - 24
     observedTopRef.current = el.scrollTop
-    // The landing is the new reading position: later pages and reflow hold it.
     anchorRef.current = readingAnchor(local, el)
     const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_THRESHOLD + 1
     atBottomRef.current = isAtBottom
-    setAtBottom(isAtBottom)
-    setActiveTurn(turn)
     const position = isAtBottom ? null : scrollPosition(local, el)
     if (isAtBottom) chatScroll.save(null)
     else if (position !== null) chatScroll.save(position)
-  }
-
-  // Rail jumps land a Turn's earliest rendered row, not its anchor, so rows
-  // placed before the anchor (a request's system prompt) stay in view. The
-  // conversation's first row lands at the scroll origin once history is
-  // complete, showing the flow's leading space above it.
-  const landOnTurnRef = useRef<(local: HTMLElement, el: HTMLElement, row: HTMLElement, turn: number) => void>(
-    () => {},
-  )
-  landOnTurnRef.current = (local, el, row, turn) => {
-    const head = turnHead(row)
-    landOnRowRef.current(local, el, head.row, turn, head.first && !hasMore)
-  }
-
-  /**
-   * Land the pending jump once its Turn has a rendered anchor row; false
-   * while it must keep waiting. Mid-jump landings (`settle` false) keep the
-   * jump armed with the target row as the paging anchor, so later chunks and
-   * the load-earlier button's unmount re-land on the same row; the settling
-   * call clears the jump.
-   */
-  const realizePendingJump = (local: HTMLElement, el: HTMLElement, settle: boolean): boolean => {
-    const pending = pendingJumpRef.current
-    if (pending === null) return true
-    const item = railItems.find(candidate => candidate.turn === pending.turn)
-    if (item === undefined || item.anchor.kind !== 'loaded') return false
-    const row = anchorElement(local, item.anchor.key)
-    if (row === null) return false
-    if (settle) {
-      pendingJumpRef.current = null
-      setBusyJumpTurn(null)
-      const landedKey = jumpLandedKeyRef.current
-      jumpLandedKeyRef.current = null
-      // A reader who moved off an already-landed target mid-jump keeps their
-      // place; a first landing, or an untouched one, takes the correction.
-      if (landedKey === null || anchorRef.current?.key === landedKey) {
-        landOnTurnRef.current(local, el, row, pending.turn)
-      }
-      return true
-    }
-    landOnTurnRef.current(local, el, row, pending.turn)
-    jumpLandedKeyRef.current = anchorRef.current?.key ?? null
-    return true
   }
 
   useLayoutEffect(() => {
@@ -654,7 +434,6 @@ export function ChatView({
         observedTopRef.current = el.scrollTop
         const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_THRESHOLD + 1
         atBottomRef.current = isAtBottom
-        setAtBottom(isAtBottom)
         anchorRef.current = readingAnchor(local, el)
         const normalized = isAtBottom ? null : scrollPosition(local, el)
         if (isAtBottom) chatScroll.save(null)
@@ -670,10 +449,9 @@ export function ChatView({
       maybeLoadOlderRef.current()
       return
     }
-    // Prepend (head seq decreased) away from the floor: the hold above kept
-    // the reader's row; a pending jump lands once its target rows exist.
+    // Prepend (head seq decreased) away from the floor: the hold above keeps
+    // the reader's row still.
     if (!atBottomRef.current && firstSeq !== null && firstSeqRef.current !== null && firstSeq < firstSeqRef.current) {
-      realizePendingJump(local, el, false)
       firstSeqRef.current = firstSeq
       lastKeyRef.current = lastKey
       lastSteeringIdRef.current = lastSteeringId
@@ -698,9 +476,6 @@ export function ChatView({
       toBottom(el)
       return
     }
-    // A jump whose target committed outside the anchored-prepend path (for
-    // example after a mid-jump toBottom dropped the held anchor) lands here.
-    if (pendingJumpRef.current !== null) realizePendingJump(local, el, false)
   })
 
   const onScrollRef = useRef(() => {})
@@ -726,7 +501,6 @@ export function ChatView({
       return
     }
     atBottomRef.current = isAtBottom
-    setAtBottom(isAtBottom)
     const position = isAtBottom ? null : scrollPosition(local, el)
     // Continuous save (unmount happens after ref detach, so saving there is
     // too late); pinned-to-bottom clears so a remount keeps following.
@@ -735,9 +509,7 @@ export function ChatView({
     observedTopRef.current = el.scrollTop
   }
 
-  // Raw scroll events schedule the reading-line hit test for the next frame,
-  // so the rail tracks compositor scrolling without waiting for persistence.
-  // Follow ownership, restoration anchors, and storage remain sampled at most
+  // Follow ownership, restoration anchors, and storage are sampled at most
   // once per interval, with scrollend providing the final sample for a burst.
   useEffect(() => {
     const local = listRef.current
@@ -751,12 +523,14 @@ export function ChatView({
       if (sampleTimer !== undefined) window.clearTimeout(sampleTimer)
       sampleTimer = undefined
       onScrollRef.current()
+      maybeLoadOlderRef.current()
       setScrollSampleTick(tick => tick + 1)
     }
+    // Paging rides the same sample as follow ownership: its test reads
+    // `scrollHeight` near the head, which lays out the whole transcript, and a
+    // fling cannot outrun OLDER_PREFETCH_SCREENS of runway within one interval.
     const onScroll = (): void => {
       scrollSamplePendingRef.current = true
-      activeTurnRef.current?.()
-      maybeLoadOlderRef.current()
       sampleTimer ??= window.setTimeout(sample, SCROLL_SAMPLE_INTERVAL_MS)
     }
     el.addEventListener('scroll', onScroll, { passive: true })
@@ -795,19 +569,9 @@ export function ChatView({
     // would let this callback write scrollTop during an elastic overscroll
     // and flatten the bounce.
     const composer = scrollport.parentElement?.querySelector<HTMLElement>('[data-composer-seat]') ?? null
-    // Flow-height changes (image loads, tool disclosures) move rows across the
-    // reading line without a scroll event, so the active mark resyncs here too.
-    //
-    // HEIGHT ONLY. Both callbacks read scroll geometry — `scrollHeight` and a
-    // binary search over row rects — which forces a synchronous layout of the
-    // whole transcript. Width also changes on both observed boxes for every
-    // frame the sidebar track animates, and answering those would pay that
-    // layout ~25 times per collapse; on a session carrying thousand-line code
-    // blocks that is tens of thousands of elements per frame and the slide
-    // drops to roughly 17fps. Width carries nothing either callback needs: the
-    // reading column is a fixed measure, so a wider or narrower scrollport
-    // moves no row relative to the reading line. Anything that does move rows
-    // — rewrapping included — changes the observed height and still arrives.
+    // HEIGHT ONLY. The callbacks read scroll geometry, which forces layout of
+    // the transcript. Width carries nothing either callback needs; any reflow
+    // that moves rows also changes an observed height.
     const observedHeights = new Map<Element, number>()
     const observer = new ResizeObserver((entries) => {
       let heightChanged = false
@@ -820,7 +584,6 @@ export function ChatView({
       if (!heightChanged) return
       holdAnchorRef.current()
       followRef.current?.()
-      activeTurnRef.current?.()
       maybeLoadOlderRef.current()
     })
     observer.observe(column)
@@ -828,82 +591,15 @@ export function ChatView({
     return () => { observer.disconnect() }
   }, [])
 
-  // A failed/empty page leaves the head unchanged. Once the request leaves
-  // its busy state there is no future prepend for the saved anchor to own.
-  //
-  // The same edge settles automatic paging. `loadOlder` reports failure by
-  // swallowing it and leaving `hasMore` set, so a pull that moved no history
-  // is the only failure signal there is; latching off stops a dead pull from
-  // restarting on every scroll frame and surfaces the manual control instead.
-  // A pull that did move the head chains, because the reader can still be
-  // within the prefetch margin of the new one. Values are read at settle time
-  // — the prepend commits before the busy flag clears — so the flag alone is
-  // the trigger.
+  // A committed page is the only success signal paging needs: `order` grows,
+  // this effect runs, and the next pull is tested against the new head. A page
+  // that leaves `hasMore` set but adds nothing simply stops chaining here,
+  // because the reader is no longer within the prefetch margin of a head that
+  // did not move — no latch, and no state to reset per Session.
   useEffect(() => {
-    const settled = loadingOlderRef.current && !loadingOlder
-    loadingOlderRef.current = loadingOlder
     if (loadingOlder) return
-    // Mount runs this effect with no pull behind it: consuming the record
-    // here would judge a request that has not come back yet.
-    if (!settled) return
-    const pulled = autoPageHeadRef.current
-    if (pulled === null) return
-    autoPageHeadRef.current = null
-    const progressed = firstSeq !== null && (pulled.head === null || firstSeq < pulled.head)
-    if (hasMore && !progressed) {
-      setAutoPageStalled(true)
-      return
-    }
     maybeLoadOlderRef.current()
-  }, [loadingOlder])
-
-  // A latched stall belongs to the session that failed, not to the next one.
-  useEffect(() => {
-    setAutoPageStalled(false)
-  }, [sessionId])
-
-  // Jump settlement: every loadThrough completion bumps the tick after its
-  // last page's commit, and a plain pull's loadingOlder flip re-settles a
-  // jump it made wait. A still-pending jump is realized now, held while a
-  // plain load-earlier pull owns the pager (its completion retries below),
-  // repaged once per head movement, or landed on the nearest rendered Turn
-  // at or after the target (failure, exhausted history, or a Turn with no
-  // visible row).
-  useEffect(() => {
-    const pending = pendingJumpRef.current
-    const local = listRef.current
-    if (pending === null || local === null) return
-    const el = scrollerOf(local)
-    // The settling landing runs after the load-earlier button's unmount
-    // commit, so the target row cannot drift once the jump clears.
-    if (realizePendingJump(local, el, true)) return
-    const uncovered = firstSeq === null || firstSeq > pending.seq
-    if (uncovered && hasMore) {
-      // A plain pull owns the pager right now: hold the jump (busy stays)
-      // instead of degrading to a wrong landing.
-      if (loadingOlder) return
-      if (jumpRepageHeadRef.current !== firstSeq) {
-        jumpRepageHeadRef.current = firstSeq
-        void loadThrough(pending.seq).finally(() => { setJumpSettleTick(tick => tick + 1) })
-        return
-      }
-    }
-    for (const row of local.querySelectorAll<HTMLElement>('[data-chat-turn]:not([hidden])')) {
-      const turn = Number(row.dataset.chatTurn)
-      if (!Number.isSafeInteger(turn) || turn < pending.turn) continue
-      landOnTurnRef.current(local, el, row, turn)
-      break
-    }
-    pendingJumpRef.current = null
-    setBusyJumpTurn(null)
-    // Snapshot values are read at settle time; the completion tick is the trigger.
-  }, [jumpSettleTick])
-
-  // A jump held while a plain pull owned the pager waits in the effect
-  // above; the pull's completion is its retry signal.
-  useEffect(() => {
-    if (!loadingOlder && pendingJumpRef.current !== null) setJumpSettleTick(tick => tick + 1)
-  }, [loadingOlder])
+  }, [loadingOlder, order])
 
   // Sidebar content-search results address durable message events rather than
   // whole Turns. Page to the event when necessary, land its exact Chat row,
@@ -920,9 +616,7 @@ export function ChatView({
     if (exactKey !== undefined && exactRow !== null) {
       const turn = Number(exactRow.dataset.chatTurn)
       if (Number.isSafeInteger(turn)) {
-        pendingJumpRef.current = null
-        setBusyJumpTurn(null)
-        landOnRowRef.current(local, el, exactRow, turn, false)
+        landOnRowRef.current(local, el, exactRow)
         setHighlightedNodeKey(exactKey)
         completedEventNavigationRef.current = eventNavigation.requestId
         eventNavigationLoadRef.current = null
@@ -935,7 +629,6 @@ export function ChatView({
     const loading = eventNavigationLoadRef.current
     if (uncovered && hasMore && loading?.requestId !== eventNavigation.requestId) {
       atBottomRef.current = false
-      setAtBottom(false)
       const request = { requestId: eventNavigation.requestId, settled: false }
       eventNavigationLoadRef.current = request
       void loadThrough(eventNavigation.seq).finally(() => {
@@ -961,7 +654,7 @@ export function ChatView({
       const row = anchorElement(local, fallback.key)
       const turn = Number(row?.dataset.chatTurn)
       if (row !== null && Number.isSafeInteger(turn)) {
-        landOnRowRef.current(local, el, row, turn, false)
+        landOnRowRef.current(local, el, row)
         setHighlightedNodeKey(fallback.key)
       }
     }
@@ -974,15 +667,6 @@ export function ChatView({
   ])
 
   /**
-   * Start one older-page pull. The recorded head is what the settle effect
-   * below compares against to decide whether the pull made progress.
-   */
-  const pullOlder = (): void => {
-    autoPageHeadRef.current = { head: firstSeq }
-    loadOlder()
-  }
-
-  /**
    * Automatic history paging: pull the next older page as the reader
    * approaches the window head, and fill a window too short to scroll at all
    * (a short first page otherwise leaves the reader nothing to pull with).
@@ -990,9 +674,9 @@ export function ChatView({
    * shares the pager with this one.
    */
   maybeLoadOlderRef.current = () => {
-    if (openState !== 'open' || !hasMore || loadingOlder || autoPageStalled) return
+    if (openState !== 'open' || !hasMore || loadingOlder) return
     if (eventNavigation !== null) return
-    if (pendingJumpRef.current !== null || eventNavigationLoadRef.current !== null) return
+    if (eventNavigationLoadRef.current !== null) return
     const local = listRef.current
     /* v8 ignore next -- ref-null guard: every caller runs while the list is mounted. */
     if (local === null) return
@@ -1004,7 +688,7 @@ export function ChatView({
     // Ordered so a reader far from the head never pays for `scrollHeight`,
     // which forces layout of the whole transcript.
     if (el.scrollTop > margin && el.scrollHeight > el.clientHeight) return
-    pullOlder()
+    loadOlder()
   }
 
   // ChatView commits inside a resident shell whose sticky composer and cover
@@ -1044,105 +728,30 @@ export function ChatView({
     }
   }, [])
 
-  // Manual recovery after automatic paging latched off: the reader's click is
-  // the retry, and re-arms automatic paging for the pages after it.
-  const loadOlderAnchored = (): void => {
-    setAutoPageStalled(false)
-    pullOlder()
-  }
-
-  // Identity feeds the memoized rail; a fresh closure per render would defeat it.
-  const navigateToTurn = useCallback((item: TurnRailItem): void => {
-    const local = listRef.current
-    if (local === null) return
-    const el = scrollerOf(local)
-    if (item.anchor.kind === 'unloaded') {
-      // Jumping into history is leaving the live tail: release bottom
-      // ownership on the click itself, or the pinned-scroll snap (a
-      // non-reader scroll delivery during the first prepend's compensation)
-      // would call toBottom and cancel the jump.
-      atBottomRef.current = false
-      setAtBottom(false)
-      // The layout effect lands on the target once its rows commit.
-      pendingJumpRef.current = { turn: item.turn, seq: item.anchor.seq }
-      jumpRepageHeadRef.current = null
-      jumpLandedKeyRef.current = null
-      setBusyJumpTurn(item.turn)
-      // Paged unbounded, from the window head back to the target. A lower bound
-      // on the first page was tried and starved the page — the window came back
-      // without the target and the jump had nothing to land on — so a jump is
-      // slower for a far target and always correct.
-      void loadThrough(item.anchor.seq).finally(() => { setJumpSettleTick(tick => tick + 1) })
-      return
-    }
-    const row = anchorElement(local, item.anchor.key)
-    if (row === null) return
-    // A loaded-mark click supersedes any jump still landing.
-    pendingJumpRef.current = null
-    setBusyJumpTurn(current => current === null ? current : null)
-    landOnTurnRef.current(local, el, row, item.turn)
-  }, [loadThrough])
-
-  // Everything that floats over the transcript: the rail, the head boundary,
-  // and back-to-bottom. Rendered into the host's non-scrolling chrome layer
-  // when there is one, so no scroll gesture can move them.
-  const floatingChrome: ReactNode = (
-    <>
-      <TurnNavigator
-        items={railItems}
-        activeTurn={activeTurn}
-        busyTurn={busyJumpTurn}
-        onNavigate={navigateToTurn}
-        t={t}
-      />
-      {/* Head boundary, overlaid rather than in flow: automatic paging owns
-          it, so it reports progress instead of asking for a click, and only a
-          latched stall puts the manual control back. Overlaying keeps every
-          appearance and disappearance off the transcript's geometry. */}
-      {hasMore && (
-        <div
-          className={css.olderSlot}
-          data-earlier-history={autoPageStalled ? 'stalled' : loadingOlder ? 'loading' : 'idle'}
-        >
-          {/* Empty while idle. The slot marks that history remains — it is the
-              boundary the browser contract reads — but a spinner belongs to a
-              request in flight, not to the mere existence of older pages: this
-              floats over the scrollport now, so anything drawn here is on
-              screen the whole time rather than only at the head. */}
-          {autoPageStalled
-            ? (
-              <button type="button" className={css.olderRetry} onClick={loadOlderAnchored}>
-                {t('chat.loadOlder')}
-              </button>
-            )
-            : loadingOlder
-              ? (
-                <span className={css.olderProgress} role="status" aria-live="polite">
-                  <Spinner />
-                  <span className={a11yCss.visuallyHidden}>{t('chat.loadingOlder')}</span>
-                </span>
-              )
-              : null}
-        </div>
-      )}
-      {!atBottom && (
-        <div className={css.toBottomSlot}>
-          <button
-            type="button"
-            className={css.toBottom}
-            aria-label={t('chat.toBottom')}
-            onClick={() => {
-              const local = listRef.current
-              /* v8 ignore next -- ref-null guard: the button only renders alongside the mounted list. */
-              if (local !== null) toBottom(scrollerOf(local))
-            }}
-          >
-            <IconChevronDownOutline14 />
-          </button>
-        </div>
-      )}
-    </>
-  )
+  // Paging status floats in the host's non-scrolling chrome layer when one is
+  // available, so elastic overscroll cannot move it.
+  const floatingChrome: ReactNode = hasMore
+    ? (
+      <div
+        className={css.olderSlot}
+        data-earlier-history={loadingOlder ? 'loading' : 'idle'}
+      >
+        {/* Empty while idle. The slot marks that history remains — it is the
+            boundary the browser contract reads — but a spinner belongs to a
+            request in flight, not to the mere existence of older pages: this
+            floats over the scrollport now, so anything drawn here is on
+            screen the whole time rather than only at the head. */}
+        {loadingOlder
+          ? (
+            <span className={css.olderProgress} role="status" aria-live="polite">
+              <Spinner />
+              <span className={a11yCss.visuallyHidden}>{t('chat.loadingOlder')}</span>
+            </span>
+          )
+          : null}
+      </div>
+    )
+    : null
 
   return (
     <div className={css.root}>

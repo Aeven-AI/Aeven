@@ -57,7 +57,5 @@ export function attachmentRailLabels(t: TranslateNS<'conversation'>): Attachment
   return {
     group: t('image.pending'),
     open: t('image.openOriginal'),
-    scrollLeft: t('image.scrollLeft'),
-    scrollRight: t('image.scrollRight'),
   }
 }

@@ -24,8 +24,8 @@
   --dsh-sidebar-overlay-clearance: var(--dsw-aeven-sidebar-toggle-width);
 }
 
-/* The centre column is `flex: 1`, so the sidebar's CSS width transition is
-   what resizes it — no JS column solver. */
+/* The centre column is `flex: 1`; sidebar width changes resize it once without
+   a JavaScript column solver. */
 .detailsCol {
   flex: none;
   width: var(--dsh-frame-details-width, 0px);

@@ -86,6 +86,7 @@ None; this package neither assembles nor sends a provider request.
 These limits define what the view can show while work is in flight; they are current package constraints.
 
 - **In-flight Time stays blank** — `partial` and `runningCalls` rows show their running state without a fabricated duration, so the Overview renders a start marker rather than inventing a live span. Record and timeline selection are local to Trajectory, with no anchor deep links.
+- **Bottom clearance is static** — `.ledger` sizes `--dsh-trajectory-bottom-clearance` from the `--dsh-composer-height` fallback alone. Nothing measures the live composer, so a draft taller or shorter than the fallback leaves the last ledger rows over- or under-cleared until the fallback is changed.
 
 <a id="dev-note"></a>
 ### Dev Note

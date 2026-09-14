@@ -27,8 +27,6 @@ afterEach(() => { vi.unstubAllGlobals() })
 const labels: AttachmentRailLabels = {
   group: '待发送图片',
   open: '查看原图',
-  scrollLeft: '向左滚动图片',
-  scrollRight: '向右滚动图片',
 }
 
 function item(id: string): AttachmentRailItem {

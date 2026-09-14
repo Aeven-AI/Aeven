@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 草稿图片
 
-草稿图片以固定 64px 缩略图呈现在一行横向滚动条中；溢出隐藏时由边缘箭头翻页，滚动条保持隐藏。新增条目滚动到栏尾展示，删除保持原位，单击经持有方的 `onOpen` 打开原图。
+草稿图片以固定 64px 缩略图呈现在一行使用原生滚动的横向图片栏中。新增条目滚动到栏尾展示，删除保持原位，单击经持有方的 `onOpen` 打开原图。
 
 ### 消息图片与灯箱
 
@@ -52,7 +52,7 @@ kind: "package-reference"
 | 文件 | 职责 |
 |---|---|
 | [`src/client/ComposerAttachments.tsx`](src/client/ComposerAttachments.tsx) | 草稿图片栏＋拖放遮罩的组装 |
-| [`src/AttachmentRail.tsx`](src/AttachmentRail.tsx) | 滚动缩略图栏、滚轮转换、边缘箭头 |
+| [`src/AttachmentRail.tsx`](src/AttachmentRail.tsx) | 使用原生滚动并转换纵向滚轮输入的缩略图栏 |
 | [`src/client/MessageImages.tsx`](src/client/MessageImages.tsx) | 每消息画廊＋灯箱的组装 |
 | [`src/MessageImage.tsx`](src/MessageImage.tsx) | 单图尺寸、加载／重试、点击打开；本地提交回显预览直接显示其 object URL |
 | [`src/ImageLightbox.tsx`](src/ImageLightbox.tsx) | 铺在共享遮罩上的文档级模态预览 |

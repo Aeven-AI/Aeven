@@ -188,8 +188,8 @@ export function AppFrame({
         productTitle={productTitle}
         {...documentTitle === undefined ? {} : { title: documentTitle }}
       />
-      {/* The sidebar root is the flex item, matching the Aeven client. Its own
-          CSS width transition moves the center without an animated grid. */}
+      {/* The sidebar root is the flex item. Its width change lays out the
+          center once; the sidebar owns its visual transition. */}
       {renderSlot('sidebar', {
         collapsed: sidebarCollapsed,
         width: sidebarWidth,
@@ -208,8 +208,8 @@ export function AppFrame({
       <div className={css.overlayLayer} data-shell-overlay>
         {renderSlot('shell.overlay', {})}
       </div>
-      {/* Details is the only draggable column; the sidebar's width is a store
-          preference the column animates in CSS. */}
+      {/* Details is the only draggable column; the sidebar width is a stored
+          preference. */}
       {detailsWidth > 0 && <DragHandle side="details" onStart={onDetailsStart} onDrag={onDetailsDrag} onEnd={onDragEnd} />}
     </div>
   )
