@@ -9,20 +9,11 @@
  */
 
 import { apiUrl } from './config.ts'
+import { AevenApiError } from './errors.ts'
 import { session, storage, type AevenProfile } from './session.ts'
 import { currentBearer, deleteBearerToken, setBearerToken, type SessionGrant } from './tokens.ts'
 
-/** A refusal carrying the API's own status, so callers can tell it from an outage. */
-export class AevenApiError extends Error {
-  /**
-   * @param message - the API's error code, or a transport failure.
-   * @param status - the HTTP status, when there was a response.
-   */
-  constructor(message: string, readonly status?: number) {
-    super(message)
-    this.name = 'AevenApiError'
-  }
-}
+export { AevenApiError } from './errors.ts'
 
 /**
  * One JSON request against the Aeven API.

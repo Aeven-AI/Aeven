@@ -24,7 +24,7 @@ import { aevenConfig } from './auth/services/config.ts'
 import { AUTH_ROUTES, isAuthRoute, navigateRoute } from './auth/services/routes.ts'
 import { publishReader } from './auth/services/reader.ts'
 import { session, storage } from './auth/services/session.ts'
-import { currentBearer } from './auth/services/tokens.ts'
+import { sessionBearer, watchSession } from './auth/services/watch.ts'
 
 /** How the gate resolved for this page load. */
 export type AuthGateResult =
@@ -81,7 +81,7 @@ interface TransportHooks {
 }
 
 /**
- * Attach the Aeven bearer to every DSH RPC call.
+ * Attach the Aeven bearer to every DSH RPC call, and keep the session alive.
  *
  * DSH's own API is fenced by the same authority as Aeven's, and a browser
  * cannot set a header on a WebSocket upgrade — so the socket presents the
@@ -89,26 +89,33 @@ interface TransportHooks {
  * the connection plugin already reads, rather than teaching that plugin about
  * Aeven.
  *
+ * A Host 401 renews the bearer and retries once. When Aeven refuses the renewal
+ * — here or in the background renewal — the session has ended and the page
+ * loads the sign-in screen.
+ *
  * Must be called before the plugin graph boots: the connection builds its
  * caller once, from whatever the hook holds at that moment.
+ * @returns disposer stopping the background renewal; the page keeps the transport hook.
  */
-export function installAuthenticatedTransport(): void {
+export function installAuthenticatedTransport(): () => void {
   const scope = globalThis as { __DSH_TRANSPORT__?: TransportHooks }
   const existing = scope.__DSH_TRANSPORT__?.fetch
   const send = existing ?? ((input: URL, init: RequestInit) => globalThis.fetch(input, init))
+  const sendWith = (input: URL, init: RequestInit, bearer: string | undefined): Promise<Response> => {
+    const headers = new Headers(init.headers)
+    if (bearer !== undefined) headers.set('Authorization', `Bearer ${bearer}`)
+    return send(input, { ...init, headers })
+  }
 
   scope.__DSH_TRANSPORT__ = {
     ...scope.__DSH_TRANSPORT__,
     fetch: async (input: URL, init: RequestInit): Promise<Response> => {
-      const headers = new Headers(init.headers)
-      try {
-        headers.set('Authorization', `Bearer ${await currentBearer()}`)
-      } catch {
-        // No session to present. The request still goes out and the Host
-        // answers 401, which is the same answer it would give to a bearer it
-        // rejected — the caller handles one case, not two.
-      }
-      return send(input, { ...init, headers })
+      const bearer = await sessionBearer()
+      const response = await sendWith(input, init, bearer)
+      if (response.status !== 401 || bearer === undefined) return response
+      const renewed = await sessionBearer(bearer)
+      return renewed === undefined ? response : sendWith(input, init, renewed)
     },
   }
+  return watchSession()
 }

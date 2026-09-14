@@ -83,10 +83,17 @@ const compareHeaders = (left: SessionHeader, right: SessionHeader): number =>
 
 /**
  * Durable workspace registry. Startup waits for `sessionPersistence`, builds
- * one canonical-cwd header index, and completes the one-time history
- * bootstrap before the service becomes active. The persistence dependency is
- * mandatory so an unavailable peer can never be mistaken for an empty
- * history and commit the initialized marker.
+ * one canonical-cwd header index, completes the one-time history bootstrap,
+ * and re-derives membership from that index before the service becomes
+ * active. The persistence dependency is mandatory so an unavailable peer can
+ * never be mistaken for an empty history and commit the initialized marker.
+ *
+ * Membership is re-derived rather than trusted because the durable record is
+ * not safe to trust alone: its domain is a whole-document store with no
+ * cross-process write locking, so another Host sharing this storage root can
+ * replace the record with a snapshot that never saw these Sessions. A cwd that
+ * canonically equals an existing Workspace's path is the one fact that
+ * survives on its own.
  */
 export class WorkspaceRegistry extends Service {
   static inject = ['storageDomain', 'sessionPersistence']
@@ -112,6 +119,9 @@ export class WorkspaceRegistry extends Service {
 
   constructor(ctx: Context) {
     super(ctx, 'workspaceRegistry')
+    // Every birth re-derives membership, so no creation path can strand a
+    // Session outside the Workspace its own cwd names.
+    ctx.on('session/created', (session) => { void this.adoptByCwd(session.header) })
   }
 
   /** Open the domain, finish bootstrap when required, and rebuild the ordered cache. */
@@ -135,6 +145,7 @@ export class WorkspaceRegistry extends Service {
     await this.indexLiveSessions()
     this.validateStoredState(this.requireState())
     this.rebuildEntities()
+    await this.reconcileMembership()
     this.reportFilteredCandidates()
   }
 
@@ -592,6 +603,68 @@ export class WorkspaceRegistry extends Service {
     const sessions = this.ctx.get('sessions')
     if (sessions === undefined) return
     await this.indexHeaders(sessions.list().map(session => session.header))
+  }
+
+  /**
+   * Re-assert membership the durable record may have lost while another Host
+   * held the shared storage root: every indexed Session whose canonical cwd is
+   * an existing Workspace's path is attached again. An already-accounted
+   * Session costs one set lookup and no write, so a healthy start performs no
+   * storage write at all. A registration the user deleted stays deleted: only
+   * Workspaces that still exist admit.
+   */
+  private async reconcileMembership(): Promise<void> {
+    const byPath = new Map<string, Workspace>()
+    const accounted = new Set<SessionId>()
+    for (const workspace of this.list()) {
+      byPath.set(workspace.path, workspace)
+      for (const sessionId of workspace.sessionIds) accounted.add(sessionId)
+    }
+    if (byPath.size === 0) return
+
+    const pending: Array<{ sessionId: SessionId; workspace: Workspace; header: SessionHeader }> = []
+    for (const [sessionId, path] of this.sessionPaths) {
+      const workspace = byPath.get(path)
+      const header = this.headers.get(sessionId)
+      if (workspace === undefined || header === undefined || accounted.has(sessionId)) continue
+      pending.push({ sessionId, workspace, header })
+    }
+    // Attach prepends, so adopting oldest-first leaves the newest Session on top.
+    pending.sort((left, right) => compareHeaders(right.header, left.header))
+    for (const { sessionId, workspace } of pending) {
+      try {
+        await workspace.attachSession(sessionId)
+      } catch (error) {
+        this.ctx.logger.warn(
+          `workspace '${workspace.id}' could not re-admit session '${sessionId}': ${String(error)}`,
+        )
+      }
+    }
+  }
+
+  /**
+   * Attach one just-announced Session to the Workspace that owns its canonical
+   * cwd, if any. The product offers no way to leave such a Session
+   * deliberately ungrouped, so a cwd match means the Session belongs in that
+   * group and the record is simply missing the fact.
+   * @param header - header of the Session that was just entered and announced.
+   */
+  private async adoptByCwd(header: SessionHeader): Promise<void> {
+    try {
+      // A Session may be announced before this registry finished starting; its
+      // own startup pass adopts it from the header index in that case.
+      if (this.state === undefined) return
+      await this.indexHeader(header)
+      const path = this.sessionPaths.get(header.id)
+      if (path === undefined) return
+      const owner = this.list().find(workspace => workspace.path === path)
+      if (owner === undefined || owner.sessionIds.includes(header.id)) return
+      await owner.attachSession(header.id)
+    } catch (error) {
+      this.ctx.logger.warn(
+        `workspace could not admit session '${header.id}' by its cwd: ${String(error)}`,
+      )
+    }
   }
 
   private reportFilteredCandidates(): void {

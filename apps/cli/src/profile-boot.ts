@@ -29,8 +29,16 @@ import {
   watchUserPatches,
   type Profile,
 } from '@deepseek-ai/dsh-app-boot'
-import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
+import {
+  clearHostLease,
+  dshHomeDisplay,
+  HOST_LEASE_VERSION,
+  liveHostLease,
+  resolveDshHome,
+  writeHostLease,
+} from '@deepseek-ai/dsh-home-paths'
 import { installProxyFromEnvironment } from '@deepseek-ai/dsh-http-proxy'
+import type {} from '@deepseek-ai/dsh-host-webserver'
 import { DSH_LAUNCH_ENVIRONMENT_KEY, type LaunchEnvironmentSnapshot } from '@deepseek-ai/dsh-launch-environment'
 import { provideCmdline, type AppReady } from '@deepseek-ai/dsh-cmdline'
 import { createProcessShutdown, type ProcessShutdown } from './process-shutdown.ts'
@@ -207,6 +215,84 @@ function suppressShutdownError(ctx: Context, signal: AbortSignal, error: unknown
  * @param options - environment snapshot, profile name, overlays, and the booted app's own arguments.
  * @returns the settled root context and the shutdown controller.
  */
+/**
+ * The one Connection capability this launcher uses. It is declared
+ * structurally rather than as a service dependency so a custom profile that
+ * mounts a Web server without the browser carrier stays loadable and simply
+ * advertises no attach URL.
+ */
+interface HostUrlSource {
+  authenticatedUrl(baseUrl: string): string
+}
+
+/**
+ * @param value - a resolved `connection` service, or whatever else is mounted there.
+ * @returns the URL source when the value provides it.
+ */
+function hostUrlSourceOf(value: unknown): HostUrlSource | undefined {
+  if (typeof value !== 'object' || value === null) return undefined
+  const candidate = value as Partial<HostUrlSource>
+  return typeof candidate.authenticatedUrl === 'function' ? candidate as HostUrlSource : undefined
+}
+
+/**
+ * Publish this process as its home's serving Host when the booted tree serves
+ * an HTTP surface.
+ *
+ * The home's durable shares are single-writer by construction except the
+ * domain KV documents, whose JSON backend republishes a whole document from
+ * one process's memory. Two Hosts on one home therefore do not merge: the last
+ * writer replaces the other's state, and a Session that one Host attached to a
+ * Workspace silently loses that membership. Advertising the attachable URL
+ * makes the conflict discoverable by a peer that can attach instead of
+ * guessing — and reporting it here turns a silent overwrite into a visible
+ * one.
+ * @param ctx - the booted Host context.
+ */
+async function advertiseServingHost(ctx: Context): Promise<void> {
+  const webServer = ctx.get('webServer')
+  const urlSource = hostUrlSourceOf(ctx.get('connection'))
+  // Only a Host with an HTTP surface is attachable, and only it is a serving
+  // Host worth advertising; a headless invocation must stay free to share the
+  // home with a running GUI.
+  if (webServer === undefined || urlSource === undefined) return
+
+  try {
+    const home = resolveDshHome()
+    const existing = await liveHostLease(home)
+    // The incumbent keeps the advertisement: it is a live serving Host, so its
+    // record is the one a peer should attach to, and it is the only process
+    // whose teardown clears the file. A conflicting Host still reports itself,
+    // then leaves the record alone rather than stealing it and leaving the home
+    // pointing at whichever Host started last.
+    if (existing !== undefined && existing.pid !== process.pid) {
+      console.error(
+        `dsh: another Host (pid ${String(existing.pid)}`
+        + `${existing.url === undefined ? '' : `, ${existing.url}`}) is already serving ${dshHomeDisplay(home)}. `
+        + 'Two Hosts on one home overwrite each other\'s domain state, including which '
+        + 'Workspace a Session belongs to. Quit one of them.',
+      )
+      if (existing.url !== undefined) return
+    }
+    // The loopback spelling must match what the Web surface serves and prints.
+    const url = urlSource.authenticatedUrl(`http://127.0.0.1:${String(webServer.port)}`)
+    await writeHostLease(home, {
+      version: HOST_LEASE_VERSION,
+      pid: process.pid,
+      startedAt: new Date().toISOString(),
+      url,
+    })
+    // Awaiting this disposer is what lets a clean shutdown remove the record;
+    // a `void`ed unlink races process exit and leaves a file behind for the
+    // next start to classify as stale.
+    ctx.effect(() => () => clearHostLease(home, process.pid), 'host-lease: release on teardown')
+  } catch (error) {
+    // Advertising is how a peer discovers this Host; it is never a reason for
+    // this one to fail to serve.
+    console.error(`dsh: could not advertise this Host: ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
 export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Context; shutdown: ProcessShutdown }> {
   // Before the first plugin mounts and before anything can issue a request: Node's fetch ignores the
   // proxy environment on its own, so every profile would otherwise connect directly. Resolving from
@@ -275,6 +361,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     })
   })
   app.current = ctx
+  await advertiseServingHost(ctx)
   // A live-reload profile can dispose the whole tree while post-boot watcher
   // setup is in flight — a signal or appExit. Loader presence and fiber state
   // own liveness; the initial check skips a tree that already exited, and the

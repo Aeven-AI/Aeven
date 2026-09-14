@@ -65,6 +65,14 @@ else if (result.state === 'unauthenticated') { requireSignIn(location.pathname);
 
 refresh token 是此处无法读取的 httpOnly cookie；由 API 把它换成新的 access token。每次已认证调用都经过 `currentBearer`，当持有的 token 未过期且指向正确用户时直接返回它，否则刷新。由于浏览器无法在 WebSocket 升级上设置 header，socket 出示 cookie 而 HTTP 出示 bearer——通过 connection 插件本就读取的传输钩子安装，而不是让该插件了解 Aeven。
 
+### 串行化的刷新
+
+API 每次交换都会轮换 refresh token，拒绝被替换的旧 token，并在拒绝时清除两个 cookie。因此两次出示同一 cookie 的交换会结束会话。同一标签页内的调用方共享一次进行中的续期，同一 origin 各标签页之间的续期在 `aeven-session-refresh` Web Lock 下运行；持锁后会重新读取已存储的 token，从而采用另一个标签页刚完成的续期。纯 HTTP 部署没有 Web Locks，只在每个标签页内部串行化。
+
+### 启动后的会话生命周期
+
+`installAuthenticatedTransport` 还会在 access token 过期前不久续期，并在页面重新可见或网络恢复时再次续期；每次续期都会轮换有效期一年的 refresh token，因此打开的页面保持登录。Host 返回 401 时会续期 bearer 并重试该调用一次。当 API 以 400 或 401 拒绝续期，或另一个标签页的登出移除了已存储的 bearer 时，页面删除持有的 bearer，把当前路径记入 `authReferrer`，并加载登录界面。传输失败或 5xx 不影响会话，稍后重试。
+
 ### 跟随页面自身的 loopback 主机
 
 当配置的 origin 与页面都是 loopback 时，配置的 `localhost` origin 会被改写为页面自身的主机名。对浏览器而言 `localhost` 与 `127.0.0.1` 是不同站点，因此 API 在其中一个下设置的 cookie 绝不会在另一个下被送回。配置为非 loopback 的主机是部署的刻意选择，不作改动。
@@ -75,7 +83,9 @@ refresh token 是此处无法读取的 httpOnly cookie；由 API 把它换成新
 |---|---|
 | [`src/client/index.ts`](src/client/index.ts) | gate：`restoreSession`、`requireSignIn` 与 `installAuthenticatedTransport` |
 | [`src/client/auth/mount.tsx`](src/client/auth/mount.tsx) | 挂载界面、跟随界面内导航，以及成功后的交接 |
-| [`src/client/auth/services/tokens.ts`](src/client/auth/services/tokens.ts) | 持有的 bearer、可用性检查与刷新交换 |
+| [`src/client/auth/services/tokens.ts`](src/client/auth/services/tokens.ts) | 持有的 bearer、可用性检查与串行化的刷新交换 |
+| [`src/client/auth/services/watch.ts`](src/client/auth/services/watch.ts) | 后台续期，以及会话结束时前往登录界面 |
+| [`src/client/auth/services/errors.ts`](src/client/auth/services/errors.ts) | `AevenApiError` 与会话拒绝的判定 |
 | [`src/client/auth/services/api.ts`](src/client/auth/services/api.ts) | 界面调用的 Aeven 认证路由 |
 | [`src/client/auth/services/config.ts`](src/client/auth/services/config.ts) | 读取注入的端点以及跟随 loopback 的规则 |
 | [`src/client/auth/services/reader.ts`](src/client/auth/services/reader.ts) | 把恢复的读者声明在页面上供插件 bundle 使用 |

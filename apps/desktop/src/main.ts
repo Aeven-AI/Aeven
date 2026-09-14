@@ -13,6 +13,7 @@ import {
   type IpcMainInvokeEvent,
 } from 'electron'
 import { forwardAevenApiRequest, openAevenOAuthWindow } from './aeven-sign-in.ts'
+import { planDesktopBackend } from './attached-host.ts'
 import { resolveDesktopPaths } from './paths.ts'
 import { DesktopProjectManager, type DesktopProjectHooks } from './project-manager.ts'
 import { DesktopHostProcess } from './host-process.ts'
@@ -24,6 +25,24 @@ import { DesktopUpdateCoordinator } from './update-coordinator.ts'
 
 const SCHEME = 'dsh-app'
 let focusPrimaryWindow = (): void => {}
+
+/**
+ * Set when a live Host already serves this home, in which case the shell
+ * renders that origin instead of starting a second Host. `origin` scopes the
+ * navigation guard: adopting a Host must not turn the window into a general
+ * browser.
+ */
+let attachedBackend: { readonly url: string; readonly origin: string } | undefined
+
+/** Root URL the main window renders: the adopted Host, or this shell's own app. */
+function appEntryUrl(): string {
+  return attachedBackend?.url ?? `${SCHEME}://app/index.html`
+}
+
+/** Absolute URL inside whichever app the main window is rendering. */
+function appPathUrl(path: string): string {
+  return attachedBackend === undefined ? `${SCHEME}://app${path}` : `${attachedBackend.origin}${path}`
+}
 
 function errorOf(reason: unknown, fallback: string): Error {
   return reason instanceof Error ? reason : new Error(fallback)
@@ -98,7 +117,12 @@ function createWindow(preload: string): BrowserWindow {
   })
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   window.webContents.on('will-navigate', (event, url) => {
-    if (new URL(url).protocol !== `${SCHEME}:`) event.preventDefault()
+    const target = new URL(url)
+    if (target.protocol === `${SCHEME}:`) return
+    // An adopted Host is the same application on this machine, so its own
+    // origin is the one non-shell destination this window may reach.
+    if (attachedBackend !== undefined && target.origin === attachedBackend.origin) return
+    event.preventDefault()
   })
   return window
 }
@@ -213,7 +237,16 @@ async function main(): Promise<void> {
       afterActivate: async () => {},
     })
   }
-  host = await startHost()
+  // Decide the backend before starting one. A live Host that answers on its
+  // advertised URL already owns this home, and two Hosts on one home overwrite
+  // each other's domain state, so adopting it is both correct and cheaper.
+  const plan = await planDesktopBackend()
+  if (plan.kind === 'attach') {
+    attachedBackend = { url: plan.url, origin: new URL(plan.url).origin }
+    console.log(`desktop: adopting the Host already serving this home at ${attachedBackend.origin}`)
+  } else {
+    host = await startHost()
+  }
 
   const updates = new DesktopUpdateCoordinator(
     publishUpdate,
@@ -351,7 +384,7 @@ async function main(): Promise<void> {
     window.webContents.on('will-navigate', (event, url) => {
       if (aevenSignIn?.oauthUrls.includes(url) !== true) return
       event.preventDefault()
-      openAevenOAuthWindow(window, url, (path) => { void window.loadURL(`${SCHEME}://app${path}`) })
+      openAevenOAuthWindow(window, url, (path) => { void window.loadURL(appPathUrl(path)) })
     })
     window.once('ready-to-show', () => { if (!window.isDestroyed()) window.show() })
     window.on('closed', () => { if (mainWindow === window) mainWindow = undefined })
@@ -361,7 +394,7 @@ async function main(): Promise<void> {
     const window = mainWindow
     if (window === undefined || window.isDestroyed()) {
       const replacement = createMainWindow()
-      void replacement.loadURL(`${SCHEME}://app/index.html`)
+      void replacement.loadURL(appEntryUrl())
       return
     }
     if (window.isMinimized()) window.restore()
@@ -370,7 +403,7 @@ async function main(): Promise<void> {
   }
 
   mainWindow = createMainWindow()
-  await mainWindow.loadURL(`${SCHEME}://app/index.html`)
+  await mainWindow.loadURL(appEntryUrl())
   if (development !== undefined && process.env.DSH_DESKTOP_OPEN_DEVTOOLS !== '0') {
     mainWindow.webContents.openDevTools({ mode: 'detach' })
   }

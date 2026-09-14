@@ -110,3 +110,5 @@ export function dshHomePath(...segments: string[]): string {
 export function dshHomeDisplay(resolvedHome: string): string {
   return resolvedHome === resolve(defaultDshHome()) ? DEFAULT_DSH_HOME_DISPLAY : `$${DSH_HOME_ENV}`
 }
+
+export * from './host-lease.ts'

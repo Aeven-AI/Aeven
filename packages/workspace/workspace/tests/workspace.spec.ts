@@ -773,14 +773,17 @@ describe('header-validated membership projection', () => {
       ],
     })
     const workspace = result.registry.list()[0]!
-    expect(workspace.sessionIds).toEqual(['good'])
-    expect(result.registry.list()[0]!.sessionIds).toEqual(['good'])
+    // `mismatch` and `missing` project nothing. `cwd-only` states a cwd this
+    // Workspace owns, so startup admits it instead of leaving it ungrouped.
+    expect(workspace.sessionIds).toEqual(['cwd-only', 'good'])
+    expect(result.registry.list()[0]!.sessionIds).toEqual(['cwd-only', 'good'])
     expect(result.list).toHaveBeenCalledTimes(1)
-    expect(storedRecord(pool, id).sessionIds).toEqual(['good', 'mismatch', 'missing'])
+    // Admitting `cwd-only` is itself a mutation, so the invalid candidates are
+    // pruned durably here rather than waiting for the next write.
+    expect(storedRecord(pool, id).sessionIds).toEqual(['cwd-only', 'good'])
 
     await workspace.setTitle('pruned')
-    expect(storedRecord(pool, id).sessionIds).toEqual(['good'])
-    expect(workspace.sessionIds).not.toContain('cwd-only')
+    expect(storedRecord(pool, id).sessionIds).toEqual(['cwd-only', 'good'])
   })
 
   it('rejects duplicate candidate ownership, duplicate paths, and initialized order drift', async () => {
@@ -968,5 +971,44 @@ describe('registry-global session archive', () => {
     )
     const upgraded = await harness({ pool: legacy })
     expect(upgraded.registry.archivedSessionIds).toEqual([])
+  })
+})
+
+/**
+ * A cwd that canonically equals an existing Workspace's path is the one
+ * membership fact that survives on its own. The durable record is a whole
+ * document a second Host sharing the storage root can replace with a snapshot
+ * that never saw these Sessions, so every start and every birth re-derives what
+ * that record may have lost.
+ */
+describe('membership re-derived from cwd', () => {
+  it('re-admits a Session the durable record lost, durably', async () => {
+    const owned = await makeDir('lost-membership')
+    const id = WorkspaceId('00000000-0000-4000-8000-000000000030')
+    const pool = storedPool([[id, record(owned, [])]], { initialized: true, workspaceIds: [id] })
+    const result = await harness({ pool, sessions: [header('recovered', owned)] })
+    expect(result.registry.list()[0]!.sessionIds).toEqual(['recovered'])
+    expect(storedRecord(pool, id).sessionIds).toEqual(['recovered'])
+  })
+
+  it('adopts a Session announced after startup by its own cwd', async () => {
+    const owned = await makeDir('adopt-announced')
+    const result = await harness({ sessionStore: true })
+    const workspace = await result.registry.create(owned)
+    result.ctx.sessions.create(SessionId('late'), { meta: { cwd: owned } })
+    await vi.waitFor(() => { expect(workspace.sessionIds).toEqual(['late']) })
+    expect(storedRecord(result.pool, workspace.id).sessionIds).toEqual(['late'])
+  })
+
+  it('groups only cwds an existing Workspace already owns', async () => {
+    const owned = await makeDir('owner-kept')
+    const unowned = await makeDir('owner-absent')
+    const id = WorkspaceId('00000000-0000-4000-8000-000000000031')
+    const result = await harness({
+      pool: storedPool([[id, record(owned, [])]], { initialized: true, workspaceIds: [id] }),
+      sessions: [header('loose', unowned)],
+    })
+    expect(result.registry.list()[0]!.sessionIds).toEqual([])
+    expect(result.registry.list().some(workspace => workspace.path === unowned)).toBe(false)
   })
 })

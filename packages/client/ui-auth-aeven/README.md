@@ -65,6 +65,14 @@ The screens are carried over from the Aeven client as they stand, so the service
 
 The refresh token is an httpOnly cookie nothing here can read; the API exchanges it for a fresh access token. Every authenticated call goes through `currentBearer`, which returns the held token when it is unexpired and names the right user, and otherwise refreshes. Because a browser cannot set a header on a WebSocket upgrade, the socket presents the cookie while HTTP presents the bearer — installed through the transport hook the connection plugin already reads, rather than teaching that plugin about Aeven.
 
+### Serialized refresh
+
+The API rotates the refresh token on every exchange, refuses the token it replaced, and clears both cookies when it refuses. Two exchanges presenting the same cookie therefore end the session. Callers in one tab share a single in-flight renewal, and renewals across tabs of one origin run under the `aeven-session-refresh` Web Lock, which re-reads the stored token before exchanging so a renewal another tab just completed is adopted. A plain-HTTP deployment has no Web Locks and serializes within each tab only.
+
+### Session lifetime after boot
+
+`installAuthenticatedTransport` also renews the access token shortly before it expires, and again when the page becomes visible or the network returns; each renewal rotates the year-long refresh token, so an open page stays signed in. A Host 401 renews the bearer and retries the call once. When the API refuses a renewal with 400 or 401, or another tab's sign-out removes the stored bearer, the page deletes the held bearer, remembers its path in `authReferrer`, and loads the sign-in screen. A transport failure or 5xx leaves the session in place and retries.
+
 ### Following the page's own loopback host
 
 A configured `localhost` origin is rewritten to the page's own hostname when both are loopback. `localhost` and `127.0.0.1` are different sites to a browser, so a cookie the API set under one is never returned under the other. A configured non-loopback host is a deployment's deliberate choice and is left alone.
@@ -75,7 +83,9 @@ A configured `localhost` origin is rewritten to the page's own hostname when bot
 |---|---|
 | [`src/client/index.ts`](src/client/index.ts) | The gate: `restoreSession`, `requireSignIn`, and `installAuthenticatedTransport` |
 | [`src/client/auth/mount.tsx`](src/client/auth/mount.tsx) | Mounting a screen, following in-surface navigation, and handing over on success |
-| [`src/client/auth/services/tokens.ts`](src/client/auth/services/tokens.ts) | Held bearers, usability check, and the refresh exchange |
+| [`src/client/auth/services/tokens.ts`](src/client/auth/services/tokens.ts) | Held bearers, usability check, and the serialized refresh exchange |
+| [`src/client/auth/services/watch.ts`](src/client/auth/services/watch.ts) | Background renewal and leaving for the sign-in screen when the session ends |
+| [`src/client/auth/services/errors.ts`](src/client/auth/services/errors.ts) | `AevenApiError` and the session-refusal classification |
 | [`src/client/auth/services/api.ts`](src/client/auth/services/api.ts) | The Aeven authentication routes the screens call |
 | [`src/client/auth/services/config.ts`](src/client/auth/services/config.ts) | Reading the injected endpoints and the loopback-following rule |
 | [`src/client/auth/services/reader.ts`](src/client/auth/services/reader.ts) | Stating the restored reader on the page for plugin bundles |
