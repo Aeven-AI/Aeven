@@ -65,7 +65,7 @@ Models、Agent presets、Plugins 与 Subscriptions（`grok-build`）各有自己
 
 ### 宿主端
 
-宿主端在用户设置 seam 中注册 `ui-onboarding`，使已退役的产品声明写下的文档仍有合法的归属；当前没有任何发布面读写其中那一个历史字段 `welcomeNoticeVersion`。外壳本身仍不持有产品策略。
+宿主端在用户设置 seam 中注册 `ui-onboarding`。`ui-settings-models` 提供的欢迎步骤通过既有公开 settings 边界读写其中的 `welcomeNoticeVersion`；外壳本身仍不持有产品策略。
 
 </details>
 
