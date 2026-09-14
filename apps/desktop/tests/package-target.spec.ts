@@ -18,6 +18,9 @@ describe('desktop package target', () => {
     expect(resolveDesktopPackageTarget('win-x64', 'win32', 'x64')).toMatchObject({
       platform: 'win32', arch: 'x64', builderPlatform: '--win', builderArch: '--x64',
     })
+    expect(resolveDesktopPackageTarget('win-arm64', 'win32', 'arm64')).toMatchObject({
+      platform: 'win32', arch: 'arm64', builderPlatform: '--win', builderArch: '--arm64',
+    })
     expect(resolveDesktopPackageTarget('linux-arm64', 'linux', 'arm64')).toMatchObject({
       platform: 'linux', arch: 'arm64', builderPlatform: '--linux', builderArch: '--arm64',
     })
@@ -32,6 +35,8 @@ describe('desktop package target', () => {
     expect(() => resolveDesktopPackageTarget('linux-arm64', 'darwin', 'arm64')).toThrow(/Linux arm64 build host/u)
     expect(() => resolveDesktopPackageTarget('linux-x64', 'linux', 'arm64')).toThrow(/Linux x64 build host/u)
     expect(() => resolveDesktopPackageTarget('win-x64', 'darwin', 'arm64')).toThrow(/Windows x64/u)
+    expect(() => resolveDesktopPackageTarget('win-x64', 'win32', 'arm64')).toThrow(/Windows x64 build host running x64 Node\.js/u)
+    expect(() => resolveDesktopPackageTarget('win-arm64', 'win32', 'x64')).toThrow(/Windows arm64 build host running arm64 Node\.js/u)
     expect(() => resolveDesktopPackageTarget('mac-arm64', 'darwin', 'x64')).toThrow(/Apple Silicon/u)
     expect(() => resolveDesktopPackageTarget('mac-arm64', 'linux', 'arm64')).toThrow(/macOS/u)
     expect(() => resolveDesktopPackageTarget('mac-x64', 'darwin', 'ppc64')).toThrow(/Rosetta/u)
@@ -50,6 +55,7 @@ describe('desktop package target', () => {
     expect(parseDesktopPackageInvocation(['mac-arm64'], 'darwin', 'arm64').unsigned).toBe(false)
     expect(parseDesktopPackageInvocation(['--unsigned'], 'darwin', 'arm64').unsigned).toBe(true)
     expect(parseDesktopPackageInvocation(['win-x64', '--unsigned'], 'win32', 'x64').unsigned).toBe(true)
+    expect(parseDesktopPackageInvocation(['--unsigned'], 'win32', 'arm64').target.name).toBe('win-arm64')
   })
 
   it('keeps electron-builder publishing disabled for the separate validated upload', () => {

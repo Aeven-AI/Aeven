@@ -142,6 +142,16 @@ describe('desktop upload plan', () => {
     })
   })
 
+  it('publishes the Windows arm64 installer to its own update directory', async () => {
+    const paths = await fixture('win-arm64', '2.0.0', 'production')
+    const plan = await createDesktopUploadPlan('win-arm64', paths)
+    expect(plan.artifacts.map(artifact => artifact.filename)).toEqual([
+      'aeven-2.0.0-win-arm64.exe',
+      'latest.yml',
+    ])
+    expect(plan.publicUrl).toBe('https://download.deepseek.com/_/harness/desktop/stable/win-arm64/')
+  })
+
   it('rejects Windows metadata without an embedded blockmap size', async () => {
     const paths = await fixture('win-x64')
     const executable = 'signed NSIS executable fixture'
