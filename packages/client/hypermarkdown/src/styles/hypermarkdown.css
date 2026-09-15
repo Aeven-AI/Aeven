@@ -1023,6 +1023,11 @@
     display: flex;
     position: fixed;
 
+    /* The base wrapper caps at the reading width; a fixed overlay pinned to
+       all four insets must not inherit that cap, or it paints a 1024px column
+       instead of covering the viewport. */
+    max-width: none;
+
     overflow-y: auto;
 
     z-index: 200;
@@ -1836,6 +1841,11 @@
     display: flex;
     position: fixed;
 
+    /* The base wrapper caps at the reading width; a fixed overlay pinned to
+       all four insets must not inherit that cap, or it paints a 1024px column
+       instead of covering the viewport. */
+    max-width: none;
+
     overflow-y: auto;
 
     z-index: 200;
@@ -2330,6 +2340,11 @@
   .codeblock-wrapper.fullscreen {
     display: flex;
     position: fixed;
+
+    /* The base wrapper caps at the reading width; a fixed overlay pinned to
+       all four insets must not inherit that cap, or it paints a 1024px column
+       instead of covering the viewport. */
+    max-width: none;
 
     z-index: 200;
 

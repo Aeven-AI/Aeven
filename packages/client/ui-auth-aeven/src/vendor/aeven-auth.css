@@ -1285,6 +1285,7 @@ body .content-block .table-wrapper.fullscreen,
 body .hypermarkdown .table-wrapper.fullscreen {
   display: flex;
   position: fixed;
+  max-width: none;
   overflow-y: auto;
   z-index: 200;
   top: 0;
@@ -1747,6 +1748,7 @@ body .content-block .mermaid-wrapper.fullscreen,
 body .hypermarkdown .mermaid-wrapper.fullscreen {
   display: flex;
   position: fixed;
+  max-width: none;
   overflow-y: auto;
   z-index: 200;
   content-visibility: visible;
@@ -2088,6 +2090,7 @@ body .content-block .codeblock-wrapper.fullscreen,
 body .hypermarkdown .codeblock-wrapper.fullscreen {
   display: flex;
   position: fixed;
+  max-width: none;
   z-index: 200;
   flex-direction: column;
   top: 0;
