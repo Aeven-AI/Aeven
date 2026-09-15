@@ -671,3 +671,16 @@
 .root[data-phase='settling'] .composerSeat {
   visibility: hidden;
 }
+
+/* A transcript block holding the viewport covers the column from inside the
+   scrollport, which sits below each chrome layer in the frame's stacking
+   order, so each one drops out of the order while the flag is on the frame.
+
+   Last in the file on purpose: the phase rules above set the seat's z-index at
+   the same specificity, and order is what settles a tie. A chrome layer added
+   later yields here too. */
+:global([data-fullscreen]) .root .header,
+:global([data-fullscreen]) .root .composerSeat,
+:global([data-fullscreen]) .root .viewChrome {
+  z-index: 0;
+}

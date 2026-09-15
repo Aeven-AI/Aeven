@@ -3,6 +3,13 @@
    travels with the panel instead of jumping ahead of it. Below 1024px the
    sidebar overlays the conversation. */
 
+/* Yields while a full-screen surface is up (the frame carries the flag), so
+   the column does not paint over a transcript block that has taken the
+   viewport. */
+:global([data-fullscreen]) .root {
+  z-index: 0;
+}
+
 .root {
   display: flex;
   position: relative;

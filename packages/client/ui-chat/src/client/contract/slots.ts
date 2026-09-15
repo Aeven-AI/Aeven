@@ -79,6 +79,8 @@ export interface ChatNodeOwnerProps {
   forkAt: (seq: number) => void
   renderMessageImages: RenderMessageImages
   fileMentions: (owner: TurnTailOwnerProps) => MarkdownFileMentions | undefined
+  /** A transcript block took the viewport, or gave it back. */
+  onFullscreenChange?: ((fullscreen: boolean) => void) | undefined
   /** Turn-process state when this Node belongs to a projected Turn. */
   turnProcess?: TurnProcessOwnerProps | undefined
 }
@@ -148,6 +150,12 @@ export interface ChatViewInjected {
   }
   forkAt: (seq: number) => void
   fileMentions: (owner: TurnTailOwnerProps) => MarkdownFileMentions | undefined
+  /**
+   * A transcript block took the viewport, or gave it back. The block covers
+   * the viewport on its own; only the shell knows the chrome that has to yield
+   * its stacking order for as long as the block is up.
+   */
+  onFullscreenChange: (fullscreen: boolean) => void
 }
 
 /** Full Chat view props. */

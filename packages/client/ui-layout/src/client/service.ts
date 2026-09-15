@@ -27,6 +27,12 @@ export interface ILayout {
   openDetails(): void
   /** Close the details panel. */
   closeDetails(): void
+  /**
+   * Report that a surface has taken over the viewport, so the shell's chrome
+   * yields its stacking order for as long as it is up.
+   * @param fullscreen - whether a full-screen surface is now showing.
+   */
+  setFullscreen(fullscreen: boolean): void
 }
 
 /** Cross-plugin panel-action face (ctx.layout). */
@@ -57,6 +63,14 @@ export class LayoutController implements ILayout {
   /** Close the details panel. */
   closeDetails(): void {
     this.#require().closeDetails()
+  }
+
+  /**
+   * Report that a surface has taken over the viewport.
+   * @param fullscreen - whether a full-screen surface is now showing.
+   */
+  setFullscreen(fullscreen: boolean): void {
+    this.#require().setFullscreen(fullscreen)
   }
 
   #require(): PanelActions {

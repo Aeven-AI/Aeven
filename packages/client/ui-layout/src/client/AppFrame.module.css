@@ -125,6 +125,15 @@
   pointer-events: none;
 }
 
+/* A full-screen surface covers the viewport from inside the transcript, which
+   is below every chrome layer in the frame's stacking order. Each layer drops
+   out of the order for as long as one is up, rather than the surface trying to
+   out-rank them from inside a nested context it cannot escape. A chrome layer
+   added later must yield here too. */
+.frame[data-fullscreen] .overlayLayer {
+  z-index: 0;
+}
+
 .overlayLayer > * {
   pointer-events: auto;
 }

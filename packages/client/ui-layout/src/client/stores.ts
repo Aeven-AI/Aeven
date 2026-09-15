@@ -23,7 +23,19 @@ import {
  * `narrowExpanded` is the manual override that re-expands the auto-collapsed
  * sidebar over the squeezed center without rewriting the width preference.
  */
-type LayoutState = { sidebar: number; details: number; narrow: boolean; narrowExpanded: boolean }
+type LayoutState = {
+  sidebar: number
+  details: number
+  narrow: boolean
+  narrowExpanded: boolean
+  /**
+   * A surface has taken over the viewport — a transcript block opened full
+   * screen, today. The shell's own chrome yields its stacking order while
+   * this is set, so the surface is not painted over by the sidebar, the
+   * session header or the composer.
+   */
+  fullscreen: boolean
+}
 
 /**
  * Annotation twin of the actions literal below (the export needs a declared
@@ -36,6 +48,7 @@ type LayoutActions = {
   setNarrow: (draft: LayoutState, narrow: boolean) => void
   openDetails: (draft: LayoutState) => void
   closeDetails: (draft: LayoutState) => void
+  setFullscreen: (draft: LayoutState, fullscreen: boolean) => void
 }
 
 /** localStorage key holding this store's durable fields. */
@@ -53,7 +66,9 @@ const LAYOUT_STORE_KEY = 'dsh.layout.panels'
  */
 export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutActions>  {
   const handle = defineStore({
-    init: (): LayoutState => ({ sidebar: SIDEBAR_DEFAULT, details: 0, narrow: false, narrowExpanded: false }),
+    init: (): LayoutState => ({
+      sidebar: SIDEBAR_DEFAULT, details: 0, narrow: false, narrowExpanded: false, fullscreen: false,
+    }),
     // Reload restores the sidebar column the user left, including a closed
     // one (0). Details stays out: its archived default is closed, and it
     // reopens from an explicit selection, not from the last page's geometry.
@@ -76,6 +91,9 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
       },
       openDetails: (d) => { if (d.details === 0) d.details = DETAILS_DEFAULT },
       closeDetails: (d) => { d.details = 0 },
+      // Not persisted: a reload has no full-screen surface to restore, and a
+      // stored `true` would leave the chrome yielded with nothing over it.
+      setFullscreen: (d, fullscreen: boolean) => { d.fullscreen = fullscreen },
     },
   })
   return handle

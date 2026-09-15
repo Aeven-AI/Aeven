@@ -53,19 +53,12 @@
 /* Settled-flow identity boundary. It is neutral until it becomes the natural
    measurement/mount unit for a virtualizer without changing the column gap.
 
-   `contain: layout style` makes each row its own layout root, so a column
-   width change — every frame the sidebar slides — reflows only the rows whose
-   own box changed instead of the whole transcript. Size is deliberately NOT
-   contained: rows must keep their intrinsic height so scrollHeight, the
-   reading anchor, and browser find stay correct.
-
-   The row therefore becomes the containing block for `position: fixed`
-   descendants. Nothing renders one inside a row today (TurnUsagePanel portals
-   its fixed panel out); a future one must portal out too, or it will be
-   trapped in the row. */
+   Nothing here is contained: a contained row becomes the containing block for
+   `position: fixed`, which traps the fullscreen state of the code blocks,
+   tables and diagrams the transcript renders — each covers its own row instead
+   of the viewport. */
 .flowItem {
   min-width: 0;
-  contain: layout style;
 }
 
 /* Search navigation briefly marks the exact durable message after landing. */

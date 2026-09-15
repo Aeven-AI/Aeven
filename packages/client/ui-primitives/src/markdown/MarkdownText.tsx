@@ -228,6 +228,12 @@ interface MarkdownTextCommonProps {
   streaming?: boolean
   labels: MarkdownLabels
   fileMentions?: MarkdownFileMentions | undefined
+  /**
+   * A block inside this markdown entered or left full screen. The block covers
+   * the viewport on its own, but only the host knows the rest of its chrome,
+   * which has to yield its stacking order for as long as the block is up.
+   */
+  onFullscreenChange?: ((fullscreen: boolean) => void) | undefined
 }
 
 /**
@@ -302,7 +308,7 @@ export function defuseClosingTag(text: string): string {
  * and diagram fences stay code blocks.
  */
 export const MarkdownText = memo(function MarkdownText({
-  text, streaming = false, labels, fileMentions,
+  text, streaming = false, labels, fileMentions, onFullscreenChange,
 }: MarkdownTextProps) {
   const handleRef = useRef<HyperMarkdownHandle>(null)
   // A ref, not state: the write must survive StrictMode's double effect
@@ -390,6 +396,7 @@ export const MarkdownText = memo(function MarkdownText({
       translations={translations}
       components={components}
       className={css.markdown}
+      {...onFullscreenChange === undefined ? {} : { onFullscreenChange }}
     />
   )
 })

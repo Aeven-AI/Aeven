@@ -183,6 +183,7 @@ export function AppFrame({
       data-sidebar-collapsed={sidebarCollapsed || undefined}
       data-details-collapsed={detailsWidth === 0 || undefined}
       data-dragging={dragging || undefined}
+      data-fullscreen={panels.fullscreen || undefined}
     >
       <DocumentTitle
         productTitle={productTitle}

@@ -21,6 +21,8 @@ export interface AssistantMarkdownProps {
   revealProcess?: (() => void) | undefined
   /** Resolved prose file mentions for this Assistant's closing turn. */
   mentions?: MarkdownFileMentions | undefined
+  /** A block in this step took the viewport, or gave it back. */
+  onFullscreenChange?: ChatNodeOwnerProps['onFullscreenChange']
   /** The owning view's locale seat, passed down as a plain prop. */
   t: ChatViewSlotProps['t']
 }
@@ -136,7 +138,7 @@ export function runsOf(
  */
 export const AssistantMarkdown = memo(function AssistantMarkdown({
   blocks, streaming, interrupted, renderMessageImages,
-  reasoningHidden = false, revealProcess, mentions, t,
+  reasoningHidden = false, revealProcess, mentions, onFullscreenChange, t,
 }: AssistantMarkdownProps) {
   // Stable per locale revision (t identity changes on switch): a fresh object
   // per render would rebuild MarkdownText's component table every chunk.
@@ -168,6 +170,7 @@ export const AssistantMarkdown = memo(function AssistantMarkdown({
                 streaming={streaming}
                 labels={labels}
                 fileMentions={mentions}
+                onFullscreenChange={onFullscreenChange}
               />
             </div>
           )

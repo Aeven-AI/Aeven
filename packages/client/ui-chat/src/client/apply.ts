@@ -137,6 +137,9 @@ export function apply(ctx: Context): void {
             ctx.layout.openDetails()
           },
           fileMentions: (owner: TurnTailOwnerProps) => ctx.get('chatFileMentions')?.forClosing(owner),
+          // A transcript block covering the viewport is shell state, not chat
+          // state: the shell's own chrome is what has to yield to it.
+          onFullscreenChange: (fullscreen: boolean) => { ctx.layout.setFullscreen(fullscreen) },
           openFile: async (path) => {
             const cwd = ctx.sessions.list.getSnapshot().byId[sessionId]?.cwd
             const result = await ctx.remote.session.openWorkspacePath({
