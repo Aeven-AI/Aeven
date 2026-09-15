@@ -221,7 +221,6 @@
 
 .markdown input[type='checkbox'] {
   margin: 0 8px 0 0;
-  accent-color: var(--dsw-alias-label-secondary);
 }
 
 /* Table presentation — the scroll viewport, cell padding, borders and the

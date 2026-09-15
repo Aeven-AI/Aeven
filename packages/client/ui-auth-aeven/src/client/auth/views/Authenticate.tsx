@@ -618,6 +618,11 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
                     cssClass={'input-text large square'}
                     placeholder={''}
                     defaultValue={''}
+                    autoCapitalize={'none'}
+                    autoCorrect={'off'}
+                    spellCheck={false}
+                    inputMode={'email'}
+                    autoComplete={'email'}
                     onChange={() => {}}
                   />
                 </div>
@@ -634,6 +639,10 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
                     cssClass={'input-text large square'}
                     placeholder={''}
                     defaultValue={''}
+                    autoCapitalize={'none'}
+                    autoCorrect={'off'}
+                    spellCheck={false}
+                    autoComplete={'current-password'}
                     onChange={() => {}}
                   />
                 </div>
@@ -737,6 +746,11 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
                     cssClass={'input-text large square'}
                     placeholder={''}
                     defaultValue={''}
+                    autoCapitalize={'none'}
+                    autoCorrect={'off'}
+                    spellCheck={false}
+                    inputMode={'email'}
+                    autoComplete={'email'}
                     onChange={() => {}}
                   />
                 </div>
@@ -753,6 +767,10 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
                     cssClass={'input-text large square'}
                     placeholder={''}
                     defaultValue={''}
+                    autoCapitalize={'none'}
+                    autoCorrect={'off'}
+                    spellCheck={false}
+                    autoComplete={'new-password'}
                     onChange={() => {}}
                   />
                 </div>
@@ -769,6 +787,10 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
                     cssClass={'input-text large square'}
                     placeholder={''}
                     defaultValue={''}
+                    autoCapitalize={'none'}
+                    autoCorrect={'off'}
+                    spellCheck={false}
+                    autoComplete={'new-password'}
                     onChange={() => {}}
                   />
                 </div>
@@ -849,6 +871,11 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
                     cssClass={'input-numbers large'}
                     placeholder={'•'}
                     defaultValue={''}
+                    autoCapitalize={'none'}
+                    autoCorrect={'off'}
+                    spellCheck={false}
+                    inputMode={'numeric'}
+                    autoComplete={'one-time-code'}
                     onChange={() => {}}
                   />
                 </div>

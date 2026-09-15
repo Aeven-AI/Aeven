@@ -44,7 +44,10 @@ export function ProducedFiles({
   return (
     <div className={css.root}>
       <span className={css.label}>{t('produced.label')}</span>
-      <div className={css.lane}>
+      {/* The lane carries the chip count the stylesheet used to re-derive from
+          its own width: the remainder counter and the folder button both key
+          off how many chips this render shows. */}
+      <div className={css.lane} data-shown={shown.length}>
         <div className={css.row} data-produced-files-row>
           {shown.map(path => (
             <button

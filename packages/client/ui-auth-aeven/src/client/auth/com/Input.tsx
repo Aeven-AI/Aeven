@@ -24,6 +24,16 @@ export interface InputProps {
   placeholder?: string
   defaultValue?: string
   onChange?: (event: ChangeEvent<HTMLInputElement>) => void
+  /** Suppresses iOS Safari's automatic capitalization of the first letter. */
+  autoCapitalize?: string
+  /** Suppresses iOS Safari's autocorrection of what is typed. */
+  autoCorrect?: string
+  /** Suppresses spell-check underlining on fields holding no prose. */
+  spellCheck?: boolean
+  /** Selects the on-screen keyboard, such as `email`. */
+  inputMode?: 'text' | 'email' | 'numeric' | 'tel'
+  /** The browser's autofill category, such as `email` or `current-password`. */
+  autoComplete?: string
 }
 
 /** What a screen holding this field can read and do. */
@@ -37,7 +47,10 @@ export interface InputHandle {
 }
 
 export const Input = forwardRef<InputHandle, InputProps>(function Input(props, ref) {
-  const { inputType, type, cssClass, placeholder, defaultValue, onChange } = props
+  const {
+    inputType, type, cssClass, placeholder, defaultValue, onChange,
+    autoCapitalize, autoCorrect, spellCheck, inputMode, autoComplete,
+  } = props
   const [value, setValue] = useState(defaultValue ?? '')
   const element = useRef<HTMLInputElement>(null)
 
@@ -60,6 +73,11 @@ export const Input = forwardRef<InputHandle, InputProps>(function Input(props, r
         type={type ?? 'text'}
         value={value}
         placeholder={placeholder ?? ''}
+        autoCapitalize={autoCapitalize}
+        autoCorrect={autoCorrect}
+        spellCheck={spellCheck}
+        inputMode={inputMode}
+        autoComplete={autoComplete}
         onChange={(event) => {
           setValue(event.target.value)
           onChange?.(event)

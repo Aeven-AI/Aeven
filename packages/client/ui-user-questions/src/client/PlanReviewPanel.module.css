@@ -99,7 +99,7 @@
   color: var(--dsw-alias-label-primary);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .card {
     border-radius: 16px;
   }

@@ -1,6 +1,19 @@
 /* Aeven product language. Semantic colors continue to flow through the
    existing --dsw aliases so dark mode and third-party theme overrides retain
    one ownership path. */
+/* Responsive scale, mirroring the Aeven client's `_config.scss` steps:
+ *
+ *   1284px  aeven-max
+ *   1024px  aeven-med        sidebar leaves flow and overlays
+ *    768px  aeven-medm
+ *    640px  aeven-small
+ *    480px  aeven-small-mini
+ *
+ * A custom property cannot appear in a `@media` condition in any engine, so a
+ * sheet writes the literal rather than a token. `verify-css-baseline` rejects
+ * any other width, which is what keeps the scale central without a
+ * preprocessor to substitute it. */
+
 body {
   --dsw-aeven-chat-width: 1024px;
   --dsw-aeven-page-inset: 24px;

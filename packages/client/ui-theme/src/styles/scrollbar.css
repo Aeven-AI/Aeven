@@ -50,7 +50,6 @@ body {
 body,
 body * {
   scrollbar-width: thin;
-  scrollbar-color: var(--dsh-scrollbar-thumb) transparent;
 }
 
 /* Opt-out utility for a scrolling element that must draw no bar and reserve no

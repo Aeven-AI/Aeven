@@ -499,7 +499,6 @@
      nothing at all where the bar floats, which is what the standard scrollbar
      properties now ask for
      ([decision](../../../../../../.agents/notes/implemented/bug-fix/2026-09-13-overlay-scrollbars-return-the-gutter.md)). */
-  scrollbar-gutter: stable both-edges;
   /* ChatView owns this box's offset through a ledger of its own writes: an
      offset that moved on its own is reader input, and input away from the floor
      releases bottom-follow. Browser scroll anchoring moves the offset without
@@ -606,7 +605,6 @@
      reservation is symmetric. Chat keeps the reservation on the same element,
      and the seat below centres on the box rather than on a compensated width
      ([decision](../../../../../../.agents/notes/implemented/bug-fix/2026-08-04-composer-tab-gutter-reservation.md)). */
-  scrollbar-gutter: auto;
 }
 
 .scrollBody:has([data-conversation-composer-overlay]) > :global([data-slot='conversation.session']) > .viewArea {

@@ -119,7 +119,7 @@ function preloadApplicationFonts(): Plugin {
         .join('\n    ')
       for (const item of Object.values(bundle)) {
         if (item.type !== 'asset' || !item.fileName.endsWith('.html') || typeof item.source !== 'string') continue
-        const anchor = '<meta name="viewport" content="width=device-width, initial-scale=1" />'
+        const anchor = '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />'
         if (!item.source.includes(anchor)) throw new Error('vite: index.html lost its viewport meta')
         item.source = item.source.replace(anchor, `${anchor}\n    ${links}`)
       }

@@ -25,7 +25,6 @@
   display: grid;
   row-gap: 6px;
   min-width: 0;
-  container-type: inline-size;
 }
 
 .row {
@@ -83,104 +82,15 @@
   display: none;
 }
 
-.lane:has(.more[data-shown='6']) > .showFolder {
+/* The folder button appears once the lane shows any chips. The count comes
+   from the component (`data-shown` on the lane), which is the same fact the
+   width bands used to re-derive from the lane's own box. */
+.lane[data-shown] > .showFolder {
   display: block;
 }
 
-/* Each band budgets 96px per chip, 8px gaps, and 64px for the remainder. */
-@container (max-width: 687px) {
-  .file:nth-of-type(6),
-  .more[data-shown='6'] {
-    display: none;
-  }
-
-  .more[data-shown='5'] {
-    display: inline;
-  }
-
-  .showFolder {
-    display: none;
-  }
-
-  .lane:has(.more[data-shown='5']) > .showFolder {
-    display: block;
-  }
-}
-
-@container (max-width: 583px) {
-  .file:nth-of-type(5),
-  .more[data-shown='5'] {
-    display: none;
-  }
-
-  .more[data-shown='4'] {
-    display: inline;
-  }
-
-  .showFolder {
-    display: none;
-  }
-
-  .lane:has(.more[data-shown='4']) > .showFolder {
-    display: block;
-  }
-}
-
-@container (max-width: 479px) {
-  .file:nth-of-type(4),
-  .more[data-shown='4'] {
-    display: none;
-  }
-
-  .more[data-shown='3'] {
-    display: inline;
-  }
-
-  .showFolder {
-    display: none;
-  }
-
-  .lane:has(.more[data-shown='3']) > .showFolder {
-    display: block;
-  }
-}
-
-@container (max-width: 375px) {
-  .file:nth-of-type(3),
-  .more[data-shown='3'] {
-    display: none;
-  }
-
-  .more[data-shown='2'] {
-    display: inline;
-  }
-
-  .showFolder {
-    display: none;
-  }
-
-  .lane:has(.more[data-shown='2']) > .showFolder {
-    display: block;
-  }
-}
-
-@container (max-width: 271px) {
-  .file:nth-of-type(2),
-  .more[data-shown='2'] {
-    display: none;
-  }
-
-  .more[data-shown='1'] {
-    display: inline;
-  }
-
-  .showFolder {
-    display: none;
-  }
-
-  .lane:has(.more[data-shown='1']) > .showFolder {
-    display: block;
-  }
+.lane[data-shown='0'] > .showFolder {
+  display: none;
 }
 
 .showFolder {

@@ -9,7 +9,7 @@
   margin-top: 24px;
 }
 
-@media (max-width: 560px) {
+@media (max-width: 640px) {
   .editor {
     margin-top: 20px;
   }

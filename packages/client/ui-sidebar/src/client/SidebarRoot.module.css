@@ -319,8 +319,14 @@
    `.visible` widens the box to the whole frame so the blocker covers
    everything. */
 @media screen and (max-width: 1024px) {
+  /* Overlay mode sizes no column, so its width carries nothing worth
+     animating — and the blocker, at `width: 100%` of this box, would ride that
+     animation and wipe in from the left instead of fading. Aeven drops the
+     transition in every one of its narrow blocks for the same reason. Opacity
+     and the blur stay the only things that travel. */
   .root {
     position: absolute;
+    transition: none;
   }
 
   .root.visible {

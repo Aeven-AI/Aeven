@@ -163,10 +163,10 @@
     margin-top: 0;
   }
 
-  & ol ol,
-  & ol ul,
-  & ul ol,
-  & ul ul {
+  ol ol,
+  ol ul,
+  ul ol,
+  ul ul {
     margin-bottom: 0;
   }
 
@@ -456,9 +456,9 @@
     padding-left: 0;
   }
 
-  & ul li,
-  & ol li,
-  & dl li {
+  ul li,
+  ol li,
+  dl li {
     position: relative;
     padding-left: calc(var(--max-digits, 2) * 1ch);
     margin-bottom: 0px;
@@ -468,14 +468,14 @@
     }
   }
 
-  & ul li::before {
+  ul li::before {
     content: "•";
     position: absolute;
     left: 0;
     text-align: left;
   }
 
-  & ol li::before {
+  ol li::before {
     content: counter(item) ".";
     counter-increment: item;
     position: absolute;
@@ -483,7 +483,7 @@
     text-align: left;
   }
 
-  & dl dt::before {
+  dl dt::before {
     content: attr(data-term) ": ";
     position: absolute;
     left: 0;
@@ -496,9 +496,9 @@
    * fading in. The animation pass marks the item; the marker fades on the
    * same curve and duration as the words it belongs to.
    */
-  & ul li[data-animate-marker="true"]::before,
-  & ol li[data-animate-marker="true"]::before,
-  & dl dt[data-animate-marker="true"]::before {
+  ul li[data-animate-marker="true"]::before,
+  ol li[data-animate-marker="true"]::before,
+  dl dt[data-animate-marker="true"]::before {
     /* will-change: opacity; */
     opacity: 0;
 
@@ -980,20 +980,20 @@
             white-space: nowrap;
           }
 
-          & td + td {
+          td + td {
             padding-left: 36px;
           }
 
-          & th + th {
+          th + th {
             padding-left: 36px;
           }
 
-          & tr td {
+          tr td {
             padding-top: 6px;
             padding-bottom: 6px;
           }
 
-          & tr th {
+          tr th {
             padding-top: 6px;
             padding-bottom: 6px;
           }
@@ -1656,20 +1656,20 @@
             white-space: nowrap;
           }
 
-          & td + td {
+          td + td {
             padding-left: 36px;
           }
 
-          & th + th {
+          th + th {
             padding-left: 36px;
           }
 
-          & tr td {
+          tr td {
             padding-top: 6px;
             padding-bottom: 6px;
           }
 
-          & tr th {
+          tr th {
             padding-top: 6px;
             padding-bottom: 6px;
           }

@@ -418,7 +418,7 @@
   text-align: right;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .card {
     border-radius: 16px;
   }

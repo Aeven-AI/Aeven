@@ -12,6 +12,7 @@
 
 @supports (height: 100dvh) {
   .confirmation {
+    max-height: calc(100vh - 48px);
     max-height: calc(100dvh - 48px);
   }
 }
@@ -51,7 +52,6 @@
   width: 16px;
   height: 16px;
   margin: 3px 0 0;
-  accent-color: var(--dsw-alias-button-primary-fill);
   cursor: pointer;
 }
 

@@ -499,7 +499,7 @@
   width: 100%;
 }
 
-@container trajectory-table (max-width: 620px) {
+@container trajectory-table (max-width: 640px) {
   .eventColumn {
     width: 50px;
   }
@@ -1021,7 +1021,6 @@
   overflow-x: hidden;
   overflow-y: auto;
   padding-bottom: var(--dsh-trajectory-bottom-clearance, 0px);
-  scrollbar-gutter: stable;
 }
 
 .detailBodySummary {
@@ -1755,7 +1754,7 @@
   font: var(--dsw-font-xs-14);
 }
 
-@media (max-width: 760px) {
+@media (max-width: 768px) {
   .details {
     position: absolute;
     z-index: 5;
