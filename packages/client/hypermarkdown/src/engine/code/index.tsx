@@ -3,6 +3,7 @@ import React, { PureComponent, type ReactElement, type ReactNode } from 'react'
 import type { Emitter } from '../runtime.ts'
 import { cssLength, defaultUi } from '../config.ts'
 import type { UiConfig } from '../config.ts'
+import { portalFullscreen } from '../fullscreen-portal.tsx'
 
 import Header from './header.tsx'
 import LineNumber from './line-numbers.tsx'
@@ -41,6 +42,7 @@ class MarkdownCode extends PureComponent<CodeBlockProps, CodeBlockState> {
   private currentScrollHeight = 0
   private readonly codeRef = React.createRef<HTMLDivElement>()
   private readonly wrapperRef = React.createRef<HTMLDivElement>()
+  private slotHeight: number | undefined
   /** Whether the settle has been decided; kept apart from what it produced. */
   private settled = false
   private settledChildren: ReactNode | undefined
@@ -121,6 +123,9 @@ class MarkdownCode extends PureComponent<CodeBlockProps, CodeBlockState> {
     let wrapper
 
     const vm = this
+    if (fullscreen && vm.wrapperRef.current) {
+      vm.slotHeight = vm.wrapperRef.current.getBoundingClientRect().height
+    }
     vm.setState({ fullscreen: fullscreen }, () => {
       wrapper = vm.wrapperRef.current
 
@@ -225,7 +230,7 @@ class MarkdownCode extends PureComponent<CodeBlockProps, CodeBlockState> {
       children = vm.settledChildren
     }
 
-    return (
+    const tree = (
       <div
         ref={vm.wrapperRef}
         className={'codeblock-wrapper' + stream + fullscreen}
@@ -265,6 +270,16 @@ class MarkdownCode extends PureComponent<CodeBlockProps, CodeBlockState> {
         </div>
       </div>
     )
+
+    if (state.fullscreen) {
+      return portalFullscreen(
+        tree,
+        'codeblock-wrapper' + stream,
+        vm.slotHeight,
+      )
+    }
+
+    return tree
   }
 
   private scheduleSettledChildren(): void {

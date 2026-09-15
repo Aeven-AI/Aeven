@@ -124,12 +124,19 @@
   margin-bottom: 0;
 }
 
+/* The rule is drawn by a 2px border rather than a 0.5px background block: a
+   filled box would sit on top of the border instead of replacing it. This
+   selector outranks hypermarkdown's `.hypermarkdown hr`, so the mark's
+   geometry has to live here or it has no effect. */
 .markdown hr {
+  box-sizing: content-box;
   display: block;
+  overflow: visible;
   border: none;
-  height: 0.5px;
+  border-top: 2px solid #fff;
+  width: 100%;
+  height: 0;
   margin: 56px 0;
-  background: var(--dsw-alias-border-l2);
 }
 
 .markdown blockquote {

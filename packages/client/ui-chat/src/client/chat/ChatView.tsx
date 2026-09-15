@@ -790,34 +790,37 @@ export function ChatView({
 
   // Portals to the seat-level layer: this control paints over the composer and
   // the fade above it, which the scrollport-bounded layer cannot reach.
-  const seatChrome: ReactNode = showToBottom
-    ? (
-      <div className={css.toBottomSlot}>
-        <button
-          type="button"
-          className={css.toBottom}
-          aria-label={t('chat.toBottom')}
-          onClick={() => {
-            const local = listRef.current
-            /* v8 ignore next -- ref-null guard: the button only renders alongside the mounted list. */
-            if (local === null) return
-            const el = scrollerOf(local)
-            // Ledger takes the destination, so the animation's frames read as
-            // ours. Computed, not written-and-read-back: writing would land
-            // instantly and leave the animation nothing to travel.
-            const floor = Math.max(0, el.scrollHeight - el.clientHeight)
-            anchorRef.current = null
-            observedTopRef.current = floor
-            atBottomRef.current = true
-            chatScroll.save(null)
-            el.scrollTo({ top: floor, behavior: 'smooth' })
-          }}
-        >
-          <IconChevronDownOutline14 />
-        </button>
-      </div>
-    )
-    : null
+  //
+  // Mounted unconditionally so the fade has something to transition: a control
+  // that unmounts vanishes in one frame, and there is no CSS state left to
+  // animate out. Visibility is the class below, and the button is inert while
+  // it is faded so the pointer passes through to the transcript underneath.
+  const seatChrome: ReactNode = (
+    <div className={css.toBottomSlot}>
+      <button
+        type="button"
+        className={showToBottom ? `${css.toBottom} ${css.toBottomVisible}` : css.toBottom}
+        aria-label={t('chat.toBottom')}
+        onClick={() => {
+          const local = listRef.current
+          /* v8 ignore next -- ref-null guard: the button only renders alongside the mounted list. */
+          if (local === null) return
+          const el = scrollerOf(local)
+          // Ledger takes the destination, so the animation's frames read as
+          // ours. Computed, not written-and-read-back: writing would land
+          // instantly and leave the animation nothing to travel.
+          const floor = Math.max(0, el.scrollHeight - el.clientHeight)
+          anchorRef.current = null
+          observedTopRef.current = floor
+          atBottomRef.current = true
+          chatScroll.save(null)
+          el.scrollTo({ top: floor, behavior: 'smooth' })
+        }}
+      >
+        <IconChevronDownOutline14 />
+      </button>
+    </div>
+  )
 
   return (
     <div className={css.root}>

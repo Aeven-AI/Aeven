@@ -64,7 +64,12 @@ describe('Mermaid pan and zoom', () => {
       root.render(<PanZoom enabled fullscreen svg="<svg></svg>" />)
     })
 
-    expect(wheel(panZoom, { deltaY: 100 })).toBe(false)
-    expect(content.style.transform).toBe('translate(0px, 0px) scale(1)')
+    // Fullscreen zooms on a pinch like anywhere else: an unmodified wheel is
+    // left alone, so it scrolls the diagram rather than scaling it.
+    expect(wheel(panZoom, { deltaY: 100 })).toBe(true)
+    expect(content.style.transform).toBe('translate(0px, 0px) scale(1.1)')
+
+    expect(wheel(panZoom, { ctrlKey: true, deltaY: -100 })).toBe(false)
+    expect(content.style.transform).toBe('translate(0px, 0px) scale(1.2)')
   })
 })

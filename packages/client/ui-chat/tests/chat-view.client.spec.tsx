@@ -453,6 +453,21 @@ function turnProcessControl(container: HTMLElement): HTMLButtonElement | null {
   return container.querySelector<HTMLButtonElement>('[data-turn-process]')
 }
 
+/**
+ * Whether the back-to-bottom control is faded out.
+ *
+ * The control stays mounted for the whole session so its opacity can
+ * transition; "hidden" is therefore the absent visible class, not an absent
+ * element. An unmounted control also counts as hidden, so a future decision to
+ * unmount it does not silently break these assertions.
+ * @param view - the rendered ChatView.
+ * @returns true when the control is not showing.
+ */
+function backToBottomHidden(view: { queryByLabelText: (text: string) => HTMLElement | null }): boolean {
+  const button = view.queryByLabelText('回到底部')
+  return button === null || !button.className.includes('toBottomVisible')
+}
+
 function withSystemPrompt(
   snapshot: ChatSnapshot,
   builder = new ChatSnapshotBuilder(),
@@ -808,13 +823,13 @@ describe('ChatView', () => {
     let releaseJump: (() => void) | undefined
     h.loadThrough.mockImplementation(() => new Promise<void>((resolve) => { releaseJump = resolve }))
     const view = render(<h.ChatView {...h.props} />)
-    // Pinned to the tail on open: the back-to-bottom control is absent.
-    expect(view.queryByRole('button', { name: '回到底部' })).toBeNull()
+    // Pinned to the tail on open: the back-to-bottom control is faded out.
+    expect(backToBottomHidden(view)).toBe(true)
 
     const first = view.getByRole('button', { name: '加载并跳转到第 1 轮' })
     fireEvent.click(first)
     // The click itself leaves the tail...
-    expect(view.getByRole('button', { name: '回到底部' })).toBeTruthy()
+    expect(backToBottomHidden(view)).toBe(false)
     // ...so a non-reader scroll delivery at the floor (the first prepend's
     // compensation fires one) no longer snaps to the tail and cancel the jump.
     const scroller = view.container.querySelector('[class*="scroll"]') as HTMLElement
@@ -2515,8 +2530,10 @@ describe('ChatView', () => {
     expect(scroller.scrollTop).toBe(100)
     fireEvent.click(backButton)
     expect(scroller.scrollTop).toBe(1000)
-    // At the bottom again: follow re-arms and the button unmounts.
-    expect(view.queryByLabelText('回到底部')).toBeNull()
+    // At the bottom again: follow re-arms and the button fades out. It stays
+    // mounted so the fade has a state to animate from, so the assertion is the
+    // hidden class rather than the element's absence.
+    expect(view.getByLabelText('回到底部').className).not.toContain('toBottomVisible')
   })
 
   it('keeps following when a stream-finalization shrink clamp delivers its scroll', () => {
@@ -2534,7 +2551,7 @@ describe('ChatView', () => {
     fireEvent.scroll(scroller)
     fireEvent(scroller, new Event('scrollend'))
     expect(scroller.scrollTop).toBe(500)
-    expect(view.queryByLabelText('回到底部')).toBeNull()
+    expect(backToBottomHidden(view)).toBe(true)
     expect(h.chatScroll.read()).toBeNull()
 
     metrics.setHeight(1_200)
@@ -2654,7 +2671,7 @@ describe('ChatView', () => {
     // Inside FOLLOW_THRESHOLD (24) but not flush with the floor — the chrome
     // re-render from setAtBottom must not force scrollTop to scrollHeight.
     readerScroll(scroller, 690) // distance-to-bottom = 10
-    expect(view.queryByLabelText('回到底部')).toBeNull()
+    expect(backToBottomHidden(view)).toBe(true)
     expect(scroller.scrollTop).toBe(690)
   })
 

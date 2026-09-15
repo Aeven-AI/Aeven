@@ -1888,6 +1888,9 @@ importers:
 
   packages/client/hypermarkdown:
     dependencies:
+      '@deepseek-ai/dsh-util-crypto':
+        specifier: workspace:^
+        version: link:../../util/crypto
       '@types/hast':
         specifier: ^3.0.4
         version: 3.0.5

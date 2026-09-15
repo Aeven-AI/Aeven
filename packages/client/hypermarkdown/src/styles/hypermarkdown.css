@@ -403,14 +403,17 @@
   }
 
   hr {
+    box-sizing: content-box;
+    overflow: visible;
+
     border: none;
     border-top: 2px solid #fff;
 
     width: 100%;
     height: 0px;
 
-    margin-top: 40px;
-    margin-bottom: 40px;
+    margin-top: 56px;
+    margin-bottom: 56px;
   }
 
   sup {
@@ -1025,13 +1028,9 @@
     z-index: 200;
 
     top: 0;
+    right: 0;
+    bottom: 0;
     left: 0;
-
-    width: 100%;
-    height: 100%;
-
-    max-width: 100%;
-    max-height: 100%;
 
     margin: 0px;
     padding: 0px;
@@ -1134,6 +1133,14 @@
     max-width: var(--hm-max-width);
 
     flex-direction: column;
+
+    /*
+     * Offscreen diagrams skip paint. The intrinsic size matches the reserved
+     * box (diagram height plus header and padding) so the transcript does not
+     * jump when a wrapper leaves the skipped set.
+     */
+    content-visibility: auto;
+    contain-intrinsic-size: auto calc(var(--hm-diagram-height, 500px) + 80px);
 
     .mermaid-container {
       display: flex;
@@ -1527,42 +1534,6 @@
               min-width: 0;
 
               --hm-diagram-fade: 10px;
-
-              mask-image:
-                linear-gradient(
-                  to right,
-                  transparent,
-                  #000 var(--hm-diagram-fade),
-                  #000 calc(100% - var(--hm-diagram-fade)),
-                  transparent
-                ),
-                linear-gradient(
-                  to bottom,
-                  transparent,
-                  #000 var(--hm-diagram-fade),
-                  #000 calc(100% - var(--hm-diagram-fade)),
-                  transparent
-                );
-              mask-repeat: no-repeat;
-              mask-composite: intersect;
-
-              -webkit-mask-image:
-                linear-gradient(
-                  to right,
-                  transparent,
-                  #000 var(--hm-diagram-fade),
-                  #000 calc(100% - var(--hm-diagram-fade)),
-                  transparent
-                ),
-                linear-gradient(
-                  to bottom,
-                  transparent,
-                  #000 var(--hm-diagram-fade),
-                  #000 calc(100% - var(--hm-diagram-fade)),
-                  transparent
-                );
-              -webkit-mask-repeat: no-repeat;
-              -webkit-mask-composite: source-in;
             }
 
             .mermaid-pan-zoom-content {
@@ -1719,6 +1690,11 @@
    * does not appear in pieces as the engine fills it in, and it fades rather
    * than cutting once the drawing is there.
    *
+   * Shown by default, and hidden once a drawing or a failure replaces it. A
+   * cover that waited for a class would leave the reserved box bare for the
+   * frames between the box being painted and the component committing that
+   * class, which a reader scrolling quickly sees as an empty white square.
+   *
    * The cover is always mounted: an element removed at the moment it stops
    * being needed cannot transition, so the opacity does the hiding and
    * `visibility` takes it out of the layer once the fade has run.
@@ -1743,11 +1719,22 @@
     border-radius: 0;
     background-color: var(--hm-diagram-loader-background, #fff);
 
-    opacity: 0;
-    visibility: hidden;
+    opacity: 1;
+    visibility: visible;
     pointer-events: none;
+  }
 
-    transition: opacity 240ms ease-out, visibility 0s linear 240ms;
+  /*
+   * The drawing has arrived: fade the cover off it. `visibility` follows the
+   * fade so the cover leaves the layer only once it is invisible.
+   */
+  .mermaid-wrapper.drawn {
+    .mermaid-loader {
+      opacity: 0;
+      visibility: hidden;
+
+      transition: opacity 240ms ease-out, visibility 0s linear 240ms;
+    }
   }
 
   .mermaid-loader-mark,
@@ -1763,15 +1750,22 @@
   .mermaid-loader-mark {
     color: var(--hm-diagram-loader-color, var(--dsw-aeven-loading-mark-color, var(--dsw-alias-label-primary)));
 
+    animation: none;
+  }
+
+  .mermaid-wrapper[data-visible]:not(.drawn):not(.failed) .mermaid-loader-mark {
     animation: hm-diagram-spin 900ms linear infinite;
   }
 
-  .mermaid-wrapper.pending {
-    .mermaid-loader {
-      opacity: 1;
-      visibility: visible;
-
-      transition: opacity 0s linear 0s, visibility 0s linear 0s;
+  /*
+   * A mark under a hidden cover has nothing to say. A transcript holds every
+   * diagram it has ever shown, so leaving them all spinning would animate
+   * hundreds of marks no one is looking at.
+   */
+  .mermaid-wrapper.drawn,
+  .mermaid-wrapper.failed {
+    .mermaid-loader-mark {
+      animation: none;
     }
   }
 
@@ -1782,14 +1776,60 @@
    */
   .mermaid-wrapper.failed {
     .mermaid-loader {
+      opacity: 0;
+      visibility: hidden;
+
       transition: none;
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .mermaid-loader-mark {
+    .mermaid-wrapper[data-visible] .mermaid-loader-mark {
       animation: none;
     }
+  }
+
+  /*
+   * Dual-gradient masks are a compositor tax on every diagram box. Hold them
+   * until a drawing is there — a placeholder has nothing to fade — so a long
+   * transcript does not composite a mask per reserved box.
+   */
+  .mermaid-wrapper.drawn .mermaid-pan-zoom-viewport {
+    mask-image:
+      linear-gradient(
+        to right,
+        transparent,
+        #000 var(--hm-diagram-fade),
+        #000 calc(100% - var(--hm-diagram-fade)),
+        transparent
+      ),
+      linear-gradient(
+        to bottom,
+        transparent,
+        #000 var(--hm-diagram-fade),
+        #000 calc(100% - var(--hm-diagram-fade)),
+        transparent
+      );
+    mask-repeat: no-repeat;
+    mask-composite: intersect;
+
+    -webkit-mask-image:
+      linear-gradient(
+        to right,
+        transparent,
+        #000 var(--hm-diagram-fade),
+        #000 calc(100% - var(--hm-diagram-fade)),
+        transparent
+      ),
+      linear-gradient(
+        to bottom,
+        transparent,
+        #000 var(--hm-diagram-fade),
+        #000 calc(100% - var(--hm-diagram-fade)),
+        transparent
+      );
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-composite: source-in;
   }
 
   .mermaid-wrapper.fullscreen {
@@ -1800,14 +1840,13 @@
 
     z-index: 200;
 
+    content-visibility: visible;
+    contain-intrinsic-size: none;
+
     top: 0;
+    right: 0;
+    bottom: 0;
     left: 0;
-
-    width: 100%;
-    height: 100%;
-
-    max-width: 100%;
-    max-height: 100%;
 
     margin: 0px;
     padding: 0px;
@@ -2193,8 +2232,6 @@
             display: flex;
             position: relative;
 
-            contain: layout style paint;
-
             user-select: none;
             pointer-events: none;
 
@@ -2222,16 +2259,12 @@
             .line-number {
               user-select: none;
               pointer-events: none;
-
-              contain: layout style paint;
             }
           }
 
           .code-content {
             display: block;
             overflow-x: scroll;
-
-            contain: layout style paint;
 
             padding-top: 8px;
 
@@ -2303,13 +2336,9 @@
     flex-direction: column;
 
     top: 0;
+    right: 0;
+    bottom: 0;
     left: 0;
-
-    width: 100%;
-    height: 100%;
-
-    max-width: 100%;
-    max-height: 100%;
 
     margin: 0px;
     padding: 0px;
