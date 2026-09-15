@@ -17,7 +17,7 @@
   background: linear-gradient(
     90deg,
     transparent 0%,
-    color-mix(in srgb, var(--dsw-alias-bg-base) 60%, transparent) 55%,
+    var(--dsw-tint-surface-fade) 55%,
     transparent 100%
   );
   animation: dsh-command-row-sweep 2.6s ease-out infinite;

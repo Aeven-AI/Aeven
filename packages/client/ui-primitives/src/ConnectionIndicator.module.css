@@ -24,11 +24,7 @@
 }
 
 .warning:active {
-  background: color-mix(
-    in srgb,
-    var(--dsw-alias-state-warn-tertiary),
-    var(--dsw-alias-state-warn-primary) 10%
-  );
+  background: var(--dsw-blend-warn-surface);
 }
 
 .warning:focus-visible {

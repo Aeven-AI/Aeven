@@ -67,3 +67,17 @@ textarea {
   font-family: inherit;
   font-weight: 450;
 }
+
+/* iOS Safari zooms the page whenever a focused field computes under 16px, and
+   it has ignored `user-scalable=no` since iOS 10 — the only way to stop the
+   zoom is to leave no field under the threshold. A touch pointer selects the
+   rule, so pointer devices keep the smaller sizes the design states, and
+   pinch-zoom stays available everywhere. */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea,
+  [contenteditable] {
+    font-size: max(16px, 1em);
+  }
+}

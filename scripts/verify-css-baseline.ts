@@ -122,7 +122,8 @@ export interface BaselineViolation {
  * @param source - stylesheet text.
  * @returns every occurrence, in source order.
  */
-export function findBaselineViolations(path: string, source: string): BaselineViolation[] {
+export function findBaselineViolations(path: string, rawSource: string): BaselineViolation[] {
+  const source = withoutComments(rawSource)
   const found: BaselineViolation[] = []
   found.push(...findUnpairedDynamicViewportUnits(path, source))
   found.push(...findOffScaleBreakpoints(path, source))
@@ -141,6 +142,20 @@ export function findBaselineViolations(path: string, source: string): BaselineVi
     }
   }
   return found.sort((left, right) => left.line - right.line)
+}
+
+
+/**
+ * Blank out comment bodies, preserving offsets so reported lines stay true.
+ *
+ * A sheet's prose names the very features this gate bans — the rationale for
+ * removing one is written beside the rule that replaced it — so scanning raw
+ * text reports a stylesheet's own explanation as a violation.
+ * @param source - stylesheet text.
+ * @returns the text with every comment replaced by equivalent whitespace.
+ */
+function withoutComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, comment => comment.replace(/[^\n]/g, ' '))
 }
 
 /**

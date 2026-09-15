@@ -205,7 +205,6 @@
      card runs out of row width (PermissionSelect @container rule). Anonymous
      on purpose: CSS modules hash container-name per module, so a name declared
      here can never match a query in another module's sheet. */
-  container-type: inline-size;
 }
 
 .tools,

@@ -76,7 +76,7 @@
 
 .search input:focus-visible {
   border-color: var(--dsw-alias-state-business-primary);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent);
+  box-shadow: 0 0 0 2px var(--dsw-tint-business-18);
 }
 
 .catalogHeading {
@@ -203,22 +203,22 @@
 }
 
 .configTag[data-kind='enabled'] {
-  background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, transparent);
+  background: var(--dsw-tint-success-10);
   color: var(--dsw-alias-state-success-primary);
 }
 
 .configTag[data-kind='preset'] {
-  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 10%, transparent);
+  background: var(--dsw-tint-business-10);
   color: var(--dsw-alias-state-business-primary);
 }
 
 .configTag[data-kind='conditional'] {
-  background: color-mix(in srgb, var(--dsw-alias-state-warning-primary, #b45309) 12%, transparent);
+  background: var(--dsw-tint-warning-12);
   color: var(--dsw-alias-state-warning-primary, #b45309);
 }
 
 .configTag[data-kind='failed'] {
-  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);
+  background: var(--dsw-tint-error-10);
   color: var(--dsw-alias-state-error-primary);
 }
 
@@ -343,7 +343,7 @@
   margin: 0;
   border-radius: 8px;
   padding: 8px 10px;
-  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent);
+  background: var(--dsw-tint-error-08);
   color: var(--dsw-alias-state-error-primary);
   font-size: 12.5px;
   line-height: 18px;
@@ -381,7 +381,7 @@
 }
 
 .card[data-failed='true'] {
-  border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 45%, transparent);
+  border-color: var(--dsw-tint-error-45);
 }
 
 .chevron {

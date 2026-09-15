@@ -76,7 +76,7 @@
 
 @keyframes search-match-highlight {
   0%, 35% {
-    background: color-mix(in srgb, var(--dsw-alias-state-business-tertiary) 84%, transparent);
+    background: rgba(235, 235, 235, 0.84);
     box-shadow: 0 0 0 2px var(--dsw-alias-state-business-primary);
   }
 

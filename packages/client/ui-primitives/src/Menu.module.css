@@ -18,7 +18,7 @@
   /* Aeven's avatar popup fills at 70% over a 4px blur, so the page stays
      faintly visible through the card; the menu token keeps that fill
      theme-aware where Aeven's sheet states white. */
-  background: color-mix(in srgb, var(--dsw-specific-menu) 70%, transparent);
+  background: var(--dsw-tint-menu);
   backdrop-filter: blur(4px);
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
   box-shadow:

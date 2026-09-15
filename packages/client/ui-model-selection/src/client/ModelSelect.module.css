@@ -89,7 +89,7 @@
   /* The same popup surface as the list this chooser opens (Aeven's avatar
      menu): surface radius, translucent fill, 4px blur. */
   border-radius: var(--dsw-aeven-radius-surface);
-  background: color-mix(in srgb, var(--dsw-specific-menu) 70%, transparent);
+  background: var(--dsw-tint-menu);
   backdrop-filter: blur(4px);
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
   box-shadow:

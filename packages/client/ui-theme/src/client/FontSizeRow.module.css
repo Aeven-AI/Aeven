@@ -98,7 +98,7 @@
   padding: 0;
   border: none;
   border-radius: 3px;
-  background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) 75%, transparent);
+  background: var(--dsw-tint-layer-1-75);
   color: var(--dsw-alias-label-primary);
   cursor: pointer;
 }

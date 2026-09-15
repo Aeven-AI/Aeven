@@ -29,7 +29,7 @@
   /* Aeven's popup surface, same as ui-primitives' Menu card and the avatar
      menu: the 30px surface radius over a translucent, blurred fill. */
   border-radius: var(--dsw-aeven-radius-surface);
-  background: color-mix(in srgb, var(--dsw-specific-menu) 70%, transparent);
+  background: var(--dsw-tint-menu);
   backdrop-filter: blur(4px);
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
   box-shadow:

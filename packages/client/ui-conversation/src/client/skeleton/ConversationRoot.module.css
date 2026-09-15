@@ -570,7 +570,7 @@
 .root[data-phase='active'] .composerSeat::before {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--dsw-alias-bg-base) 0%, transparent) 0px,
+    transparent 0px,
     var(--dsw-alias-bg-base) 50px
   );
 }
