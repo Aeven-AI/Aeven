@@ -390,15 +390,17 @@
   min-height: 0;
 }
 
-/* Wraps the scrollport so the chrome layer and the content cover can be
-   bounded to exactly the band the reader sees. That boundary replaces a
-   published composer height: a control clearing the composer just sits at this
-   box's floor, and the cover is `position: absolute; inset: 0` against it.
+/* Wraps the scrollport so the chrome layer can be bounded to exactly the band
+   the reader sees. That boundary replaces a published composer height: a
+   control clearing the composer just sits at this box's floor.
 
-   The z-index makes this one stacking context. Capping the group at 5 keeps
-   the cover (9, inside) and the view chrome (8) under the composer seat (7).
-   Nothing in here paints over the seat: the layer ends where the composer
-   begins. */
+   The z-index makes this one stacking context over everything the content
+   cover hides — transcript rows, CodeBlock sticky banners (6), and the view's
+   own floating chrome — so the cover clears all of them with a single level
+   instead of having to out-rank each. Capping the group at 5 is what leaves
+   room for the cover at 6 and still keeps the whole group under the composer
+   seat (7). Nothing in here needs to paint over the seat: the layer ends where
+   the composer begins. */
 .scrollArea {
   position: relative;
   z-index: 5;
@@ -427,17 +429,19 @@
   pointer-events: none;
 }
 
-/* Covers the conversation scrollport only: this node lives inside `.scrollArea`,
-   whose box is the conversation root's width and the scroll body's height.
-   `inset: 0` against that relative ancestor follows sidebar and details
-   motion through ordinary layout — no viewport-fixed geometry, and no
-   `--dsh-frame-details-width`. Header and composer sit outside `.scrollArea`,
-   so they stay unblocked. z-index 9 is above `.viewChrome` (8) inside this
-   stacking context, and the context itself stays under the composer seat (7). */
+/* Fills ConversationRoot's column: `.body` is the relative ancestor and is
+   the full page height of the center column (the header overlays it). Absolute
+   fill follows sidebar and details motion through ordinary layout, so the
+   plate is the conversation root's width rather than the inner window.
+
+   Stacked BELOW the composer seat (7) and above `.scrollArea` (5): the seat
+   stays mounted across a Session switch, so a cover painted over it made the
+   resident input card blink out and back and read as a remount. The cover
+   spans the full column height and passes behind the input. */
 .contentLoader {
   position: absolute;
   inset: 0;
-  z-index: 9;
+  z-index: 6;
   display: flex;
   align-items: center;
   justify-content: center;

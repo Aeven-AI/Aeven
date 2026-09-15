@@ -51,6 +51,8 @@ const plugins = {
 
 While a reply streams, call `handle.write(chunk, false)` for each frame and `handle.write('', true)` once to finalize; `handle.reset()` starts a new document. `md` renders a complete document in one pass instead. Importing a plugin factory never loads the library behind it — Mermaid and the fence highlighter resolve theirs on first use.
 
+Mermaid diagrams offer zoom controls and pointer panning by default. An ordinary wheel zooms a fullscreen diagram; inline diagrams require Ctrl, Command, or a trackpad pinch so ordinary wheel input continues scrolling the transcript. Set `controls.diagram.panZoom` to `false` to disable these interactions.
+
 The package imports its own stylesheet, so a consumer that renders the component needs no separate import of one. `katex/dist/katex.min.css` and `tippy.js/dist/tippy.css` stay the host's, because KaTeX and Tippy are optional peers the host installs.
 
 ## Understand the implementation

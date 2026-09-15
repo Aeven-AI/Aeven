@@ -126,7 +126,10 @@ export interface BlockControls {
  * offers, plus zoom and pan.
  */
 export interface DiagramControls extends BlockControls {
-  /** Show zoom buttons and allow wheel/touch/mouse panning. */
+  /**
+   * Show zoom controls and allow pointer panning. An unmodified wheel zooms
+   * only in fullscreen; Ctrl, Command, or a trackpad pinch also zooms inline.
+   */
   panZoom?: boolean | undefined
 }
 
@@ -157,7 +160,7 @@ export interface ResolvedControls {
 
 /**
  * A diagram's resolved toolbar: the buttons every block shares, plus whether
- * zoom buttons and wheel, touch or mouse panning are offered.
+ * zoom controls and pointer panning are offered.
  */
 export interface ResolvedDiagramControls extends ResolvedControls {
   panZoom: boolean

@@ -99,12 +99,16 @@ body[data-ds-dark-theme] #dsh-preloader {
   filter: blur(1px);
 }
 
+/* Both fades wait 500ms before they start, which holds the opaque cover over
+   the shell after boot reveals it. `FADE_DELAY_MS` in
+   `packages/client/web/src/preloader.ts` repeats this delay, and
+   `preloader.client.spec.ts` fails if the two drift apart. */
 #dsh-preloader.animate {
-  transition: opacity 400ms linear;
+  transition: opacity 400ms linear 500ms;
 }
 
 #dsh-preloader.animate .logo {
-  transition: filter 400ms ease-out;
+  transition: filter 400ms ease-out 500ms;
 }
 
 #dsh-preloader.screen-hidden {

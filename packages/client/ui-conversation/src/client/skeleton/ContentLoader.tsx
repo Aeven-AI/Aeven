@@ -8,11 +8,11 @@ import css from './ConversationRoot.module.css'
 const FADE_MS = 400
 
 /**
- * Overlay the conversation scrollport until its Session view has painted.
- * Mounted inside `.scrollArea`, so the box is the conversation root's width
- * and the scroll body's height; header and composer stay outside it. Showing
- * is synchronous so a Session switch covers the transcript on the same frame;
- * hiding fades opacity for {@link FADE_MS}.
+ * Overlay the conversation column until its Session view has painted. The
+ * box is ConversationRoot's width and the page height of that column; the
+ * composer seat stacks above it. Showing is synchronous so a Session switch
+ * covers the transcript on the same frame; hiding fades opacity for
+ * {@link FADE_MS}.
  * @param active - True while the transcript should stay covered.
  * @param label - Localized accessible status text.
  */

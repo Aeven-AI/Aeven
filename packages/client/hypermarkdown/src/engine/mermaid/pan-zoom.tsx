@@ -173,14 +173,14 @@ class PanZoom extends Component<PanZoomProps, PanZoomState> {
       return
     }
 
-    // The page has to keep scrolling under the pointer. A diagram that took
-    // every wheel event would trap the reader each time one passed beneath
-    // the cursor, and a document with a dozen diagrams is mostly diagram.
+    // An inline diagram leaves an unmodified wheel to the transcript so it
+    // cannot trap scrolling as it passes beneath the pointer. Fullscreen has
+    // no transcript to preserve, so the same wheel zooms there.
     //
     // Ctrl is what the browser itself zooms on, and a trackpad pinch arrives
     // as a wheel event with ctrlKey already set — so pinching still zooms the
     // diagram, and two fingers still scroll the page.
-    if (!event.ctrlKey && ! event.metaKey) {
+    if (!vm.props.fullscreen && !event.ctrlKey && !event.metaKey) {
       return
     }
 

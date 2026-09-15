@@ -35,7 +35,7 @@ export function isPagePreloaderVisible(): boolean {
 }
 
 /**
- * Follow `#dsh-preloader` visibility, including the 400ms fade before
+ * Follow `#dsh-preloader` visibility, including the fade that precedes
  * `.screen-hidden`.
  * @returns true while the page preloader still occupies the screen.
  */

@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  PRELOADER_ELEMENT_ID, hidePreloader, showPreloader,
+  FADE_DELAY_MS, FADE_MS, PRELOADER_ELEMENT_ID, hidePreloader, showPreloader,
 } from '../src/preloader.ts'
+
+/** The whole time the control waits before it can take the element out of the layout. */
+const FADE_WINDOW_MS = FADE_DELAY_MS + FADE_MS + 100
 
 function mountPreloader(): HTMLElement {
   document.body.innerHTML = `
@@ -33,7 +36,7 @@ describe('static shell preloader control', () => {
     expect(element.classList.contains('animate')).toBe(true)
     vi.advanceTimersByTime(0)
     expect(element.classList.contains('hide')).toBe(true)
-    vi.advanceTimersByTime(500)
+    vi.advanceTimersByTime(FADE_WINDOW_MS)
     expect(element.classList.contains('screen-hidden')).toBe(true)
     expect(element.querySelector('.spinner')?.classList.contains('active')).toBe(false)
   })
@@ -53,7 +56,7 @@ describe('static shell preloader control', () => {
     hidePreloader()
     vi.advanceTimersByTime(0)
     showPreloader(false)
-    vi.advanceTimersByTime(500)
+    vi.advanceTimersByTime(FADE_WINDOW_MS)
     expect(element.classList.contains('screen-hidden')).toBe(false)
   })
 

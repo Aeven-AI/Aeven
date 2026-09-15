@@ -51,6 +51,8 @@ const plugins = {
 
 回复流式到达时，对每一帧调用 `handle.write(chunk, false)`，结束后调用一次 `handle.write('', true)` 完成 finalize；`handle.reset()` 开始一个新文档。`md` 则用于一次性渲染完整文档。导入某个插件工厂本身不会加载它背后的库——Mermaid 与围栏高亮器都在首次使用时才解析各自的重型依赖。
 
+Mermaid 图表默认提供缩放控件与指针平移。普通滚轮输入会缩放全屏图表；行内图表要求按住 Ctrl 或 Command，或者使用触控板双指缩放，以便普通滚轮输入继续滚动对话记录。把 `controls.diagram.panZoom` 设为 `false` 可禁用这些交互。
+
 本包会自行导入自己的样式表，因此渲染该组件的消费者无需另外导入。`katex/dist/katex.min.css` 与 `tippy.js/dist/tippy.css` 仍由宿主负责，因为 KaTeX 与 Tippy 是宿主安装的可选 peer。
 
 <a id="understand-the-implementation"></a>
