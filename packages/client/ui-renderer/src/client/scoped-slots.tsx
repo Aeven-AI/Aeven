@@ -2,7 +2,7 @@
  * React renderer for declarative slots. Per-entry bindings enforce child
  * authorization, and entry boundaries contain registrant failures.
  */
-import { Component, useMemo, useState, useSyncExternalStore, type FC, type ReactNode } from 'react'
+import { Component, useEffect, useMemo, useState, useSyncExternalStore, type FC, type ReactNode } from 'react'
 import {
   SlotOwnershipError, StaleAuthorizationError, standardHookPropName,
   type ChainRenderOpts, type HostObservable, type KeyedStandardSource, type LocaleFace, type RenderOpts,
@@ -709,11 +709,23 @@ function SlotOutlet({ slotKey, ownerProps, opts }: {
   // rides the outlet, not the dispatch outcome: fallback, crash-face, and
   // undeclared-empty states all render inside it, so the anchor's presence
   // never flickers with registration churn.
+  const { node, elected } = renderOutletContent(host, slotKey, ownerProps, opts, scopeBinding)
+  // After the commit, never during it: the owner turns this into state, and a
+  // render-phase call would loop.
+  const report = opts?.onElection
+  useEffect(() => { report?.(elected) }, [report, elected])
   return (
     <div data-slot={slotKey} style={ANCHOR_STYLE}>
-      {renderOutletContent(host, slotKey, ownerProps, opts, scopeBinding)}
+      {node}
     </div>
   )
+}
+
+/** One outlet render: the node, plus whether a chain entry took the slot. */
+interface OutletContent {
+  readonly node: ReactNode
+  /** Always false for non-chain kinds, which hold no election. */
+  readonly elected: boolean
 }
 
 /** Kind dispatch behind the outlet anchor (single/keyed/list/chain, fallbacks, crash faces). */
@@ -723,14 +735,14 @@ function renderOutletContent(
   ownerProps: object,
   opts: (RenderOpts & ChainRenderOpts) | undefined,
   scopeBinding: StandardSourceBinding,
-): ReactNode {
+): OutletContent {
   const spec = host.specOf(slotKey)
   // Undeclared (or no-longer-declared) keys render empty: a declaring entry's
   // unload returns the slot to the undeclared state while retained elements
   // may still be mounted — natural empty, not an ownership failure.
-  if (!spec) return null
+  if (!spec) return { node: null, elected: false }
   if (spec.kind === 'chain' && opts?.fallbackOnly === true) {
-    return renderChainResult(slotKey, null, opts)
+    return { node: renderChainResult(slotKey, null, opts), elected: false }
   }
   if (spec.scope === 'session' && scopeBinding.key === undefined) {
     throw new SlotAssemblyError(`strict session slot '${slotKey}' rendered without a scope binding`)
@@ -797,16 +809,16 @@ function renderOutletContent(
 
   if (spec.kind === 'single') {
     const entry = host.entriesOfSlot(slotKey)[0]
-    if (!entry) return entries.length > 0 ? deadCell() : <>{opts?.fallback ?? null}</>
-    return guarded(entry, entryKeyOf(entry))
+    if (!entry) return { node: entries.length > 0 ? deadCell() : <>{opts?.fallback ?? null}</>, elected: false }
+    return { node: guarded(entry, entryKeyOf(entry)), elected: false }
   }
   if (spec.kind === 'keyed') {
     const entry = host.entriesOfSlot(slotKey).find(e => e.options.key === opts?.entryKey)
     if (!entry) {
       const occupied = entries.some(e => e.options.key === opts?.entryKey)
-      return occupied ? deadCell() : <>{opts?.fallback ?? null}</>
+      return { node: occupied ? deadCell() : <>{opts?.fallback ?? null}</>, elected: false }
     }
-    return guarded(entry, entryKeyOf(entry))
+    return { node: guarded(entry, entryKeyOf(entry)), elected: false }
   }
   if (spec.kind === 'chain') {
     // Entries arrive priority-sorted from the ledger (the core orders at
@@ -836,7 +848,7 @@ function renderOutletContent(
         break
       }
     }
-    return renderChainResult(slotKey, elected, opts)
+    return { node: renderChainResult(slotKey, elected, opts), elected: elected !== null }
   }
   // list: one row per id cell — the cell's shadowing winner, or the crash
   // face once every entry of the cell abdicated (a dry cell must not
@@ -857,16 +869,16 @@ function renderOutletContent(
   }
   let list = [...rows].sort((a, b) => a.order - b.order)
   if (opts?.only !== undefined) list = list.filter(item => item.id === opts.only)
-  if (list.length === 0) return <>{opts?.fallback ?? null}</>
+  if (list.length === 0) return { node: <>{opts?.fallback ?? null}</>, elected: false }
   // Winner rows key by entry identity (see entryKeyOf); dry-cell rows key by
   // id — the disjoint prefixes keep the two namespaces from colliding.
-  return (
+  return { node: (
     <>
       {list.map((item, i) => item.entry !== undefined
         ? guarded(item.entry, `e${entryKeyOf(item.entry)}`)
         : <div data-slot-error={slotKey} key={`x${item.id ?? i}`} />)}
     </>
-  )
+  ), elected: false }
 }
 
 /** Render a chain election while preserving the overlay fallback's tree position. */

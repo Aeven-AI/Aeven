@@ -148,6 +148,11 @@ export function ConversationRoot({
   // send; its reason is already localized by whoever raised it.
   const composerBlock = useComposerBlock(block => block)
 
+  // A view may take the composer chain (ui-trajectory floats its card over its
+  // own ledger). The renderer reports that election; the skeleton marks its
+  // root so the surrounding layout rules are ordinary attribute selectors
+  // rather than a `:has()` reaching into the seat.
+  const [composerOverlay, setComposerOverlay] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pendingWorkspaceId, setPendingWorkspaceId] = useState<WorkspaceId | undefined>()
   const pickerAnchor = useRef<HTMLButtonElement>(null)
@@ -332,7 +337,12 @@ export function ConversationRoot({
   const composer = renderSlotChain(
     'conversation.composer',
     { sessionId, session, pendingInteraction },
-    { fallback: composerBar, fallbackOnly: sessionId === undefined, overlay: true },
+    {
+      fallback: composerBar,
+      fallbackOnly: sessionId === undefined,
+      overlay: true,
+      onElection: setComposerOverlay,
+    },
   )
 
   // Sticky wraps the whole chain output (fallback + elected overlay), not
@@ -352,6 +362,7 @@ export function ConversationRoot({
       ref={rootEl}
       className={css.root}
       data-phase={phase}
+      data-composer-overlay={composerOverlay || undefined}
       data-chat-user-width={userWidth === null ? undefined : ''}
       style={userWidth === null ? undefined : { '--dsh-chat-user-width': `${String(userWidth)}px` } as CSSProperties}
     >

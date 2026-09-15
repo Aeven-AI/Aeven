@@ -246,6 +246,14 @@ export interface ChainRenderOpts {
    * `conversation.composer` chain.
    */
   overlay?: boolean
+  /**
+   * Report whether an entry took the chain, after the render that decided it.
+   *
+   * The election is the renderer's own fact; an owner that must style its
+   * surroundings around a takeover would otherwise rediscover it from the DOM.
+   * Called on mount and on every change, never during render.
+   */
+  onElection?: (elected: boolean) => void
 }
 
 /**
