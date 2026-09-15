@@ -107,6 +107,16 @@ class Renderer {
   /** Pending settled passes, one per closed block; dropped on reset. */
   private settleTimers = new Map<number, ReturnType<typeof setTimeout>>()
   private components!: ReturnType<typeof createComponents> & RendererComponents
+  /**
+   * The cell map handed to every cached table and list append.
+   *
+   * Built once for the same reason {@link createComponents} is: rehype-react
+   * keys elements by component identity, so a map rebuilt per append makes
+   * every cell look like a different component and remounts it — which, for a
+   * cell holding a diagram, re-runs the whole diagram engine over source that
+   * did not change.
+   */
+  private cellMap!: ReturnType<typeof cellComponents> & RendererComponents
   /** Host-supplied component overrides, applied to every component map. */
   private componentOverrides!: RendererComponents
   /**
@@ -178,6 +188,7 @@ class Renderer {
     }
     this.componentOverrides = options.components ?? {}
     this.components = { ...createComponents(this), ...this.componentOverrides }
+    this.cellMap = { ...cellComponents(this), ...this.componentOverrides }
 
     this.cachedData = this.initializeCache(this.state)
   }
@@ -1178,10 +1189,7 @@ class Renderer {
     const vm = this
     const cache = new TableCache()
 
-    cache.append(mdBuffer, vm.processorFor('cached-table'), {
-      ...cellComponents(vm),
-      ...vm.componentOverrides,
-    })
+    cache.append(mdBuffer, vm.processorFor('cached-table'), vm.cellMap)
 
     return vm.tableElement(false, cache)
   }
@@ -1528,18 +1536,12 @@ class Renderer {
         : vm.processorFor('cached-table-animation')
 
     if (type === 'table') {
-      vm.tableCache.append(md, processorCache, {
-        ...cellComponents(vm),
-        ...vm.componentOverrides,
-      })
+      vm.tableCache.append(md, processorCache, vm.cellMap)
       return
     }
 
     if (type === 'list') {
-      vm.listCache.append(md, processorCache, {
-        ...cellComponents(vm),
-        ...vm.componentOverrides,
-      })
+      vm.listCache.append(md, processorCache, vm.cellMap)
     }
   }
 

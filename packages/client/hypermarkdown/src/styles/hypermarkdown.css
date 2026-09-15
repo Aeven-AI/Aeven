@@ -1609,6 +1609,27 @@
             width: 100%;
 
             justify-content: center;
+
+            /*
+             * The engine emits `width="100%"` with a viewBox and a max-width of
+             * the diagram's natural size, so the drawing scales to whatever box
+             * it is given. Holding the box to a fixed height is what keeps the
+             * page still: the space is reserved before the SVG exists, and a
+             * diagram larger than the box scales down inside it rather than
+             * growing the page. Pan-zoom and fullscreen are how a reader gets a
+             * shrunken diagram back to full size.
+             *
+             * 500px fits the majority of diagram kinds at natural scale; the
+             * wide ones (a gantt chart is nearly 10:1) are bounded by the
+             * column width regardless of the height given here. Override
+             * `--hm-diagram-height` to trade reading size against page length.
+             */
+            height: var(--hm-diagram-height, 500px);
+            align-items: center;
+
+            > svg {
+              max-height: 100%;
+            }
           }
         }
 
@@ -1689,6 +1710,83 @@
           }
         }
       }
+    }
+  }
+
+  /*
+   * Covers the reserved box while the engine draws, carrying the same rotating
+   * mark the rest of the product loads with. It is painted opaque so a diagram
+   * does not appear in pieces as the engine fills it in, and it fades rather
+   * than cutting once the drawing is there.
+   *
+   * The cover is always mounted: an element removed at the moment it stops
+   * being needed cannot transition, so the opacity does the hiding and
+   * `visibility` takes it out of the layer once the fade has run.
+   */
+  .mermaid-loader {
+    display: flex;
+    position: absolute;
+
+    /*
+     * The content box reclaims 50px upward so the header floats over the
+     * drawing, which means the scroll box this cover fills starts behind the
+     * header. Covering that band too would paint over the separator; the top
+     * inset keeps the cover under it.
+     */
+    inset: 50px 0 0 0;
+    z-index: 4;
+
+    align-items: center;
+    justify-content: center;
+
+    /* Square, so the fill meets the separator instead of curving away. */
+    border-radius: 0;
+    background-color: var(--hm-diagram-loader-background, #fff);
+
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+
+    transition: opacity 240ms ease-out, visibility 0s linear 240ms;
+  }
+
+  .mermaid-loader-mark,
+  .mermaid-loader-mark svg {
+    display: block;
+
+    width: var(--hm-diagram-loader-size, 22px);
+    height: var(--hm-diagram-loader-size, 22px);
+  }
+
+  .mermaid-loader-mark {
+    color: var(--hm-diagram-loader-color, rgba(0, 0, 0, 0.35));
+
+    animation: hm-diagram-spin 900ms linear infinite;
+  }
+
+  .mermaid-wrapper.pending {
+    .mermaid-loader {
+      opacity: 1;
+      visibility: visible;
+
+      transition: opacity 0s linear 0s, visibility 0s linear 0s;
+    }
+  }
+
+  /*
+   * A failed diagram drops its cover at once. The fade is there to hand over
+   * to a drawing that has arrived; with nothing behind it, fading would only
+   * delay showing the reader that the space is empty.
+   */
+  .mermaid-wrapper.failed {
+    .mermaid-loader {
+      transition: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mermaid-loader-mark {
+      animation: none;
     }
   }
 
@@ -2473,6 +2571,13 @@
   }
   to {
     opacity: 1;
+  }
+}
+
+/** The loading mark shown over a diagram's reserved box while it is drawn. */
+@keyframes hm-diagram-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 

@@ -264,9 +264,12 @@ async function bench(snapshot = historySnapshot(NODES)) {
     chat: createSnapshotStore<ChatSnapshot | undefined>(undefined),
     trajectory: trajectoryStore,
   }
+  const selectedView = createSnapshotStore<ViewTab | undefined>(undefined)
   const binding: ConversationBinding = {
     snapshot: conversationStore,
+    selectedView,
     activate: () => {},
+    select: view => selectedView.set(view),
     target: target => targetSources[target],
   }
   vi.spyOn(uiConversation, 'binding').mockReturnValue(binding)

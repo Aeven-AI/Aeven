@@ -13,6 +13,11 @@ interface HeaderProps {
   stream?: boolean | string | undefined
   chart: string
   fullscreen: boolean
+  /**
+   * The engine could not draw this source. The toolbar drops its controls:
+   * there is no drawing to copy, and nothing to open full screen.
+   */
+  failed?: boolean | undefined
   wrapperRef: RefObject<HTMLDivElement | null>
   toggleFullScreen(fullscreen: boolean): void
 }
@@ -51,10 +56,15 @@ class Header extends Component<HeaderProps> {
     }
 
     function checkProps() {
+      // `chart` is deliberately absent: the toolbar draws nothing from the
+      // diagram source — its title is fixed, and the copy and fullscreen
+      // controls read the current props when clicked. Comparing it would
+      // redraw the toolbar on every delta of a streaming diagram to produce
+      // exactly the same markup.
       if (
         vm.props.stream !== nextProps.stream ||
-        vm.props.chart !== nextProps.chart ||
-        vm.props.fullscreen !== nextProps.fullscreen
+        vm.props.fullscreen !== nextProps.fullscreen ||
+        vm.props.failed !== nextProps.failed
       ) {
         return true
       } else {
@@ -125,7 +135,12 @@ class Header extends Component<HeaderProps> {
 
     const ui = props.ui ?? defaultUi
     const { translations, icons } = ui
-    const controls = ui.controls.diagram
+    // A failed diagram keeps its title and separator, so the block still reads
+    // as a diagram's place, but offers no action against a drawing that is not
+    // there.
+    const controls = vm.props.failed === true
+      ? { ...ui.controls.diagram, copy: false, fullscreen: false }
+      : ui.controls.diagram
 
     title = translations.diagram
 

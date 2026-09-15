@@ -26,6 +26,12 @@ export interface MermaidDiagramProps {
 interface MermaidDiagramState {
   data: DiagramResult | null
   fullscreen: boolean
+  /**
+   * The engine could not load, or could not draw this source. Nothing further
+   * is coming, so the cover is dropped at once rather than fading: a fade
+   * reads as a diagram arriving, and none will.
+   */
+  failed: boolean
 }
 
 class MermaidDiagram extends Component<
@@ -45,6 +51,7 @@ class MermaidDiagram extends Component<
     this.state = {
       data: null,
       fullscreen: false,
+      failed: false,
     }
 
     this.toggleFullScreen = this.toggleFullScreen.bind(this)
@@ -67,6 +74,11 @@ class MermaidDiagram extends Component<
     }
 
     if (prevProps.chart !== vm.props.chart) {
+      // A rewritten source is a fresh attempt: whatever failed before was
+      // about the old text, so the cover waits on this one again.
+      if (vm.state.failed) {
+        vm.setState({ failed: false })
+      }
       vm.renderMermaidDiagram()
     }
   }
@@ -173,6 +185,7 @@ class MermaidDiagram extends Component<
         })
         .catch(() => {
           vm.removeSandbox(sandbox)
+          vm.fail()
         })
     }
 
@@ -201,7 +214,16 @@ class MermaidDiagram extends Component<
         })
         .catch(() => {
           vm.removeSandbox(renderSandboxRef)
+          vm.fail()
         })
+    }
+  }
+
+  /** Record that nothing is coming, so the cover stops waiting for a drawing. */
+  fail() {
+    const vm = this
+    if (vm.mounted && !vm.state.failed) {
+      vm.setState({ failed: true })
     }
   }
 
@@ -285,10 +307,17 @@ class MermaidDiagram extends Component<
       fullscreen = ' fullscreen'
     }
 
+    // The box is sized before the engine has drawn anything, so a diagram
+    // occupies its final height from the first paint and the page never jumps
+    // when the SVG lands. Until then the pending flag shows the placeholder;
+    // a failure ends the wait, since no drawing is coming.
+    const pending = state.data === null && !state.failed ? ' pending' : ''
+    const failed = state.failed ? ' failed' : ''
+
     return (
       <div
         ref={vm.wrapperRef}
-        className={'mermaid-wrapper' + stream + fullscreen}
+        className={'mermaid-wrapper' + stream + fullscreen + pending + failed}
       >
         <div className="mermaid-container">
           <Header
@@ -298,16 +327,36 @@ class MermaidDiagram extends Component<
             chart={props.chart}
             wrapperRef={vm.wrapperRef}
             fullscreen={state.fullscreen}
+            failed={state.failed}
             toggleFullScreen={vm.toggleFullScreen}
           />
           <div className="mermaid-content">
             <div className="mermaid-scroll no-scrollbar">
               <PanZoom
-                enabled={ui.controls.diagram.panZoom}
+                enabled={ui.controls.diagram.panZoom && !state.failed}
                 fullscreen={state.fullscreen}
                 svg={svg}
                 ui={props.ui}
               />
+              {/*
+                Covers the reserved box while the engine draws. It stays
+                mounted once the diagram arrives so the cover can fade out
+                rather than vanish; `pending` on the wrapper drives both its
+                opacity and whether it takes pointer events.
+              */}
+              <div className="mermaid-loader" aria-hidden="true">
+                <span className="mermaid-loader-mark">
+                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                      d="M16 16L19 19M18 12H22M8 8L5 5M16 8L19 5M8 16L5 19M2 12H6M12 2V6M12 18V22"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+              </div>
             </div>
           </div>
         </div>

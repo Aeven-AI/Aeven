@@ -148,6 +148,8 @@ function mount(
     nestedSubagent?: boolean
     /** A composer block another plugin raised for this session. */
     composerBlock?: { reason: string }
+    /** The View the shell has selected, driving composer placement. */
+    selectedView?: ViewTab
     /** Mutable view ledger used by registration-order regressions. */
     viewTabs?: ViewTab[]
     /** Boot posture: the list has not completed its first pull yet. */
@@ -330,6 +332,7 @@ function mount(
     useWorkspaces: bindSnapshotSelector(workspaces),
     useProjection: (() => undefined),
     useComposerBlock: select => select(options.composerBlock),
+    useSelectedView: select => select(options.selectedView),
     useInput,
     inputActions,
     renderSlot,
