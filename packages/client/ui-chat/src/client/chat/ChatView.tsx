@@ -351,22 +351,19 @@ export function ChatView({
   const lastSubmissionId = visibleSubmissions[visibleSubmissions.length - 1]?.requestId ?? null
   const followSig = `${openState}:${firstSeq}:${lastKey}:${order.length}:${running ? 1 : 0}:${lastSteeringId ?? ''}:${lastSubmissionId ?? ''}`
 
-  // Floating controls must not live inside the scrollport: elastic overscroll
-  // translates its contents, carrying a sticky control with the rubber-band.
-  // The host publishes a non-scrolling layer for them; without one (this view
-  // owning its own scrolling) they stay in place.
+  // The host publishes two layers for floating controls; without them (this
+  // view owning its own scrolling) the controls stay in place. Each layer is
+  // found by name from the scrollport outwards rather than at a fixed depth:
+  // the host's box nesting is its own business, and a lookup that counts
+  // `parentElement` hops breaks silently whenever that nesting changes.
   useLayoutEffect(() => {
     const local = listRef.current
     /* v8 ignore next -- ref-null guard: React attaches the ref before layout effects run. */
     if (local === null) return
     const scrollport = scrollerOf(local)
-    setChromeLayer(scrollport.parentElement?.querySelector<HTMLElement>('[data-conversation-chrome]') ?? null)
-    // The seat-level layer is a sibling of the scrollport's own wrapper, one
-    // level further out: it has to escape that wrapper's stacking context to
-    // paint over the composer.
-    setSeatChromeLayer(
-      scrollport.parentElement?.parentElement?.querySelector<HTMLElement>('[data-conversation-chrome-top]') ?? null,
-    )
+    const host = scrollport.closest('[data-conversation-root]') ?? scrollport
+    setChromeLayer(host.querySelector<HTMLElement>('[data-conversation-chrome]'))
+    setSeatChromeLayer(host.querySelector<HTMLElement>('[data-conversation-chrome-top]'))
   }, [])
 
   /**

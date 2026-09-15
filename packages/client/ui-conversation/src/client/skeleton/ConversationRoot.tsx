@@ -355,67 +355,63 @@ export function ConversationRoot({
     <div
       ref={rootEl}
       className={css.root}
+      data-conversation-root=""
       data-phase={phase}
       data-composer-overlay={composerOverlay || undefined}
       data-chat-user-width={userWidth === null ? undefined : ''}
       style={userWidth === null ? undefined : { '--dsh-chat-user-width': `${String(userWidth)}px` } as CSSProperties}
     >
-      {sessionId === undefined ? null : (
-        <header className={css.header}>
-          <div className={css.navBackground} aria-hidden="true">
-            <div className={css.navFade} />
-            <div className={css.navBlur} />
-          </div>
-          {renderSlot('conversation.session.header', {})}
-        </header>
-      )}
-      <div className={css.body}>
-        <ContentLoader
-          active={loaderActive}
-          label={t('content.loading')}
-        />
-        <div className={css.scrollArea}>
-          <div className={css.scrollBody} data-conversation-scroll="">
-            {/* This hold keeps the scrollport's growing item present while
-                conversation.session is dropped so the overlay can present. */}
-            {mountedSessionId === undefined
-              ? (phase === 'active'
-                ? <div className={css.transcriptHold} data-transcript-hold="" aria-hidden="true" />
-                : null)
-              : renderSlot('conversation.session', {})}
-          </div>
-          {/* Bounded to the scrollport by its wrapper, so a control that clears
-              the composer only has to sit at this layer's floor: the layer ends
-              where the composer begins, and follows a growing draft for free. */}
-          <div className={css.viewChrome} data-conversation-chrome="" />
-        </div>
-        {/* Second chrome layer, a zero-height flex line between the scrollport
-            and the seat. A control that must paint OVER the seat — and over
-            the fade the seat draws above itself — cannot do it from the layer
-            above: `.scrollArea` is its own stacking context at a lower level
-            than the seat, so no z-index inside that subtree can escape it.
-            Sitting here, its floor is the seat's top edge, so a control offsets
-            from the input box without measuring it. Controls that belong under
-            the seat stay in `.viewChrome`. */}
-        <div className={css.viewChromeTop} data-conversation-chrome-top="" />
-        {/* Outside the scrollport, like the header: a seat inside it is
-            carried by elastic overscroll, so the input card visibly rides the
-            rubber-band at either end. As a flex sibling of the scrollport it
-            docks at the body's floor and no scroll gesture can move it. */}
+      <ContentLoader
+        active={loaderActive}
+        label={t('content.loading')}
+      />
+      {/* One scroller for the whole column. Header, transcript and composer are
+          all its children, so each is laid out inside the same content box and
+          a scrollbar shortens all three by the same width: the three centre on
+          one axis by construction, with nothing to compensate. The gutter
+          reservation that used to align them needed `scrollbar-gutter`, which
+          the iOS/Safari 14.5 baseline bans ([gate](../../../../../../scripts/verify-css-baseline.ts)). */}
+      <div className={css.scrollBody} data-conversation-scroll="">
+        {sessionId === undefined ? null : (
+          <header className={css.header}>
+            <div className={css.navBackground} aria-hidden="true">
+              <div className={css.navFade} />
+              <div className={css.navBlur} />
+            </div>
+            {renderSlot('conversation.session.header', {})}
+          </header>
+        )}
+        {/* This hold keeps the scrollport's growing item present while
+            conversation.session is dropped so the overlay can present. */}
+        {mountedSessionId === undefined
+          ? (phase === 'active'
+            ? <div className={css.transcriptHold} data-transcript-hold="" aria-hidden="true" />
+            : null)
+          : renderSlot('conversation.session', {})}
         {composerSeat}
-        {/* Width handles only while a transcript is on screen; the hero has no
-            content column to size. */}
-        {phase === 'active' && (['left', 'right'] as const).map(side => (
-          <WidthHandle
-            key={side}
-            side={side}
-            onStart={onHandleStart}
-            onDrag={onHandleDrag}
-            onCommit={onHandleCommit}
-            onEnd={onHandleEnd}
-          />
-        ))}
       </div>
+      {/* Both chrome layers sit OUTSIDE the scroller, positioned against the
+          root: a layer among the scrolled children is placed by its own spot in
+          the flow and travels with it, and it would extend the scrollable
+          range. `.viewChrome` spans the band above the composer; `.viewChromeTop`
+          is a zero-height line on the seat's top edge, so a control offsets from
+          the input card without measuring it. The scroller reserves no gutter,
+          so both keep the transcript's axis. */}
+      <div className={css.viewChrome} data-conversation-chrome="" />
+      <div className={css.viewChromeTop} data-conversation-chrome-top="" />
+      {/* Width handles only while a transcript is on screen; the hero has no
+          content column to size. Outside the scroller: inside it they would
+          extend the scrollable range and ride the rubber-band. */}
+      {phase === 'active' && (['left', 'right'] as const).map(side => (
+        <WidthHandle
+          key={side}
+          side={side}
+          onStart={onHandleStart}
+          onDrag={onHandleDrag}
+          onCommit={onHandleCommit}
+          onEnd={onHandleEnd}
+        />
+      ))}
     </div>
   )
 }
