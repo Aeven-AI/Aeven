@@ -61,12 +61,16 @@ body[data-ds-dark-theme] #dsh-preloader {
   height: 50px;
 }
 
+/* The mark's geometry, restated rather than read from --dsw-aeven-loading-mark-size:
+   this sheet is inlined into the document head ahead of every stylesheet, so a
+   token reference here would resolve to nothing on first paint. Keep it equal
+   to the token, which is what `aeven-language-styles.client.spec.ts` asserts. */
 #dsh-preloader .spinner,
 #dsh-preloader .spinner svg {
   display: block;
   position: relative;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
 }
 
 #dsh-preloader .spinner svg {

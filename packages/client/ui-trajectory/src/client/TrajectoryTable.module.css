@@ -45,11 +45,12 @@
 }
 
 .historyLoadingSpinner {
-  width: 10px;
-  height: 10px;
+  /* Paging is a wait like any other: the shared mark geometry and colour. */
+  width: var(--dsw-aeven-loading-mark-size, 18px);
+  height: var(--dsw-aeven-loading-mark-size, 18px);
   box-sizing: border-box;
-  border: 1.5px solid var(--dsw-alias-border-l2);
-  border-top-color: var(--dsw-alias-state-business-primary);
+  border: 2px solid var(--dsw-alias-border-l2);
+  border-top-color: var(--dsw-aeven-loading-mark-color, var(--dsw-alias-label-primary));
   border-radius: 50%;
   animation: history-loading-spin 700ms linear infinite;
 }

@@ -1754,12 +1754,14 @@
   .mermaid-loader-mark svg {
     display: block;
 
-    width: var(--hm-diagram-loader-size, 22px);
-    height: var(--hm-diagram-loader-size, 22px);
+    /* A diagram placeholder is a wait like any other, so it draws the shared
+       product loading mark instead of a diagram-local size and tint. */
+    width: var(--hm-diagram-loader-size, var(--dsw-aeven-loading-mark-size, 18px));
+    height: var(--hm-diagram-loader-size, var(--dsw-aeven-loading-mark-size, 18px));
   }
 
   .mermaid-loader-mark {
-    color: var(--hm-diagram-loader-color, rgba(0, 0, 0, 0.35));
+    color: var(--hm-diagram-loader-color, var(--dsw-aeven-loading-mark-color, var(--dsw-alias-label-primary)));
 
     animation: hm-diagram-spin 900ms linear infinite;
   }

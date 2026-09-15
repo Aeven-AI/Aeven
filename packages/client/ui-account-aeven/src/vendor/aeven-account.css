@@ -68,8 +68,10 @@
 .avatar .image-container .image-loader .spinner {
   display: block;
   position: relative;
-  width: 14px;
-  height: 14px;
+  /* The shared loading mark; `svg` below keeps its white ink because this one
+     sits on the dark avatar overlay rather than on page chrome. */
+  width: var(--dsw-aeven-loading-mark-size, 18px);
+  height: var(--dsw-aeven-loading-mark-size, 18px);
 }
 .avatar .image-container .image-loader .spinner svg {
   display: block;

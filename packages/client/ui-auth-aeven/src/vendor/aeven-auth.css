@@ -3551,8 +3551,8 @@ body .mermaid-render-sandbox {
 .loader-button .loader {
   display: none;
   position: relative;
-  width: 16px;
-  height: 16px;
+  width: var(--dsw-aeven-loading-mark-size, 18px);
+  height: var(--dsw-aeven-loading-mark-size, 18px);
 }
 .loader-button .loader svg {
   display: block;
@@ -3606,13 +3606,14 @@ body .mermaid-render-sandbox {
   }
 }
 .loader-button.large .loader {
-  width: 18px;
-  height: 18px;
+  width: var(--dsw-aeven-loading-mark-size, 18px);
+  height: var(--dsw-aeven-loading-mark-size, 18px);
 }
 @media screen and (max-width: 640px) {
   .loader-button.large .loader {
-    width: 16px;
-    height: 16px;
+    /* The loading mark keeps one size at every breakpoint. */
+    width: var(--dsw-aeven-loading-mark-size, 18px);
+    height: var(--dsw-aeven-loading-mark-size, 18px);
   }
 }
 .loader-button.large .loader svg {
@@ -3701,8 +3702,8 @@ body .mermaid-render-sandbox {
 .loader-button-icon .loader {
   display: none;
   position: relative;
-  width: 18px;
-  height: 18px;
+  width: var(--dsw-aeven-loading-mark-size, 18px);
+  height: var(--dsw-aeven-loading-mark-size, 18px);
 }
 .loader-button-icon .loader svg {
   display: block;
@@ -3793,8 +3794,8 @@ body .mermaid-render-sandbox {
 .loader-icon-button .loader {
   display: none;
   position: relative;
-  width: 16px;
-  height: 16px;
+  width: var(--dsw-aeven-loading-mark-size, 18px);
+  height: var(--dsw-aeven-loading-mark-size, 18px);
 }
 .loader-icon-button .loader svg {
   display: block;
@@ -3965,15 +3966,15 @@ body .mermaid-render-sandbox {
 .chat-input-button .loader {
   display: none;
   position: relative;
-  width: 20px;
-  height: 20px;
+  width: var(--dsw-aeven-loading-mark-size, 18px);
+  height: var(--dsw-aeven-loading-mark-size, 18px);
   align-items: center;
   justify-content: center;
 }
 .chat-input-button .loader .icon {
   position: relative;
-  width: 20px;
-  height: 20px;
+  width: var(--dsw-aeven-loading-mark-size, 18px);
+  height: var(--dsw-aeven-loading-mark-size, 18px);
 }
 .chat-input-button .loader .icon svg {
   display: block;
@@ -4020,15 +4021,15 @@ body .mermaid-render-sandbox {
   display: block;
   position: relative;
   z-index: 1;
-  width: 20px;
-  height: 20px;
+  width: var(--dsw-aeven-loading-mark-size, 18px);
+  height: var(--dsw-aeven-loading-mark-size, 18px);
 }
 #loader .spinner svg {
-  color: rgb(10, 10, 10);
+  color: var(--dsw-aeven-loading-mark-color, rgb(10, 10, 10));
   display: block;
   position: relative;
-  width: 20px;
-  height: 20px;
+  width: var(--dsw-aeven-loading-mark-size, 18px);
+  height: var(--dsw-aeven-loading-mark-size, 18px);
 }
 #loader .spinner.active {
   animation: 900ms linear 0s infinite normal none running loader-spin;
@@ -4089,15 +4090,15 @@ body .mermaid-render-sandbox {
 #preloader .container .spinner {
   display: block;
   position: relative;
-  width: 16px;
-  height: 16px;
+  width: var(--dsw-aeven-loading-mark-size, 18px);
+  height: var(--dsw-aeven-loading-mark-size, 18px);
 }
 #preloader .container .spinner svg {
-  color: rgb(10, 10, 10);
+  color: var(--dsw-aeven-loading-mark-color, rgb(10, 10, 10));
   display: block;
   position: relative;
-  width: 16px;
-  height: 16px;
+  width: var(--dsw-aeven-loading-mark-size, 18px);
+  height: var(--dsw-aeven-loading-mark-size, 18px);
 }
 #preloader .container .spinner.active {
   animation: 900ms linear 0s infinite normal none running loader-spin;
