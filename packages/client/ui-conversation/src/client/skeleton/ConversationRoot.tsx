@@ -370,10 +370,6 @@ export function ConversationRoot({
         </header>
       )}
       <div className={css.body}>
-        <ContentLoader
-          active={loaderActive}
-          label={t('content.loading')}
-        />
         <div className={css.scrollArea}>
           <div className={css.scrollBody} data-conversation-scroll="">
             {/* This hold keeps the scrollport's growing item present while
@@ -388,6 +384,12 @@ export function ConversationRoot({
               the composer only has to sit at this layer's floor: the layer ends
               where the composer begins, and follows a growing draft for free. */}
           <div className={css.viewChrome} data-conversation-chrome="" />
+          {/* Last in this box so it paints over the scrollport and view chrome
+              without leaving the conversation column or covering the seat. */}
+          <ContentLoader
+            active={loaderActive}
+            label={t('content.loading')}
+          />
         </div>
         {/* Outside the scrollport, like the header: a seat inside it is
             carried by elastic overscroll, so the input card visibly rides the

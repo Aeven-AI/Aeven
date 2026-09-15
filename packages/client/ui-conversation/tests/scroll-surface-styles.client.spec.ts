@@ -63,28 +63,30 @@ describe('conversation content cover styles', () => {
     return Number(declaration.slice('z-index:'.length).trim())
   }
 
-  it('keeps the cover behind the composer seat', () => {
+  it('keeps the cover stacking group behind the composer seat', () => {
     // The seat stays mounted across a Session switch, so a cover that outranks
     // it paints the resident input card out and back in and the switch reads
-    // as a remount.
-    expect(stackLevel('.contentLoader'))
+    // as a remount. The cover lives inside `.scrollArea`; that group's cap is
+    // what keeps both the cover and the view chrome under the seat.
+    expect(stackLevel('.scrollArea'))
       .toBeLessThan(stackLevel(".root[data-phase='active'] .composerSeat"))
   })
 
-  it('covers the whole scrollport group with one level', () => {
-    // `.scrollArea` is a stacking context, so outranking it clears the
-    // transcript, the CodeBlock sticky banners inside it, and the view chrome
-    // at once — no per-element z-index race, and nothing in the group can tie.
-    expect(stackLevel('.contentLoader')).toBeGreaterThan(stackLevel('.scrollArea'))
+  it('covers the scrollport chrome from inside the scrollport group', () => {
+    // The cover is a descendant of `.scrollArea`, so it has to outrank the
+    // view chrome in that context. Outranking the group from outside would
+    // also cover the composer band the cover must not block.
+    expect(stackLevel('.contentLoader')).toBeGreaterThan(stackLevel('.viewChrome'))
     expect(stackLevel('.viewChrome')).toBeGreaterThan(stackLevel('.scrollArea'))
   })
 
-  it('spans the full column instead of stopping at the composer', () => {
-    // Bounding the cover to the scrollport would shrink it to the band above
-    // the input; it stays full-height and passes behind the seat instead.
+  it('covers the conversation scrollport instead of the inner window', () => {
+    // `.scrollArea` is the conversation root's width and the scroll body's
+    // height. Absolute fill against that box follows column layout; a
+    // viewport-fixed layer would be as wide and high as the inner window.
     const declarations = declarationsFrom('.contentLoader')
-    expect(declarations).toContain('position: fixed')
-    expect(declarations).toContain('top: 0')
-    expect(declarations).toContain('bottom: 0')
+    expect(declarations).toContain('position: absolute')
+    expect(declarations).toContain('inset: 0')
+    expect(declarations).not.toContain('position: fixed')
   })
 })

@@ -679,15 +679,19 @@ describe('ConversationRoot resident composer', () => {
     expect(b.view.container.querySelector('[data-content-loader]')?.getAttribute('data-hiding')).toBe('true')
   })
 
-  it('keeps the content loader out of the session header and composer', () => {
+  it('keeps the content loader on the conversation scrollport, not the header or composer', () => {
     const b = mount(sessionSnapshotOf({ openState: 'loading' }))
     const loader = b.view.container.querySelector('[data-content-loader]')
     const header = b.view.container.querySelector('header')
     const seat = b.view.container.querySelector('[data-composer-seat]')
     const host = b.view.container.querySelector('[data-conversation-scroll]')
+    const root = b.view.container.querySelector('[data-phase]')
     expect(loader).not.toBeNull()
     expect(header).not.toBeNull()
     expect(seat).not.toBeNull()
+    expect(host).not.toBeNull()
+    expect(root?.contains(loader)).toBe(true)
+    expect(host?.parentElement).toBe(loader?.parentElement)
     expect(header?.contains(loader)).toBe(false)
     expect(seat?.contains(loader)).toBe(false)
     expect(loader?.contains(header)).toBe(false)

@@ -390,17 +390,15 @@
   min-height: 0;
 }
 
-/* Wraps the scrollport so the chrome layer can be bounded to exactly the band
-   the reader sees. That boundary replaces a published composer height: a
-   control clearing the composer just sits at this box's floor.
+/* Wraps the scrollport so the chrome layer and the content cover can be
+   bounded to exactly the band the reader sees. That boundary replaces a
+   published composer height: a control clearing the composer just sits at this
+   box's floor, and the cover is `position: absolute; inset: 0` against it.
 
-   The z-index makes this one stacking context over everything the content
-   cover hides — transcript rows, CodeBlock sticky banners (6), and the view's
-   own floating chrome — so the cover clears all of them with a single level
-   instead of having to out-rank each. Capping the group at 5 is what leaves
-   room for the cover at 6 and still keeps the whole group under the composer
-   seat (7). Nothing in here needs to paint over the seat: the layer ends where
-   the composer begins. */
+   The z-index makes this one stacking context. Capping the group at 5 keeps
+   the cover (9, inside) and the view chrome (8) under the composer seat (7).
+   Nothing in here paints over the seat: the layer ends where the composer
+   begins. */
 .scrollArea {
   position: relative;
   z-index: 5;
@@ -429,26 +427,17 @@
   pointer-events: none;
 }
 
-/* Aeven `#loader` fills the center column from the viewport's first vertical
-   pixel. `100cqi` follows that column's CSS layout while the sidebar slides;
-   the inherited details width anchors the fixed layer at the column's right
-   edge. No measured geometry or JS resize loop is involved.
-
-   Stacked BELOW the composer seat (7) and above `.scrollArea` (5), the one
-   stacking context holding everything this covers: the seat stays mounted
-   across a Session switch, so a cover painted over it made the resident input
-   card blink out and back and read as a remount. The cover still spans the
-   full column height — it just passes behind the input. */
+/* Covers the conversation scrollport only: this node lives inside `.scrollArea`,
+   whose box is the conversation root's width and the scroll body's height.
+   `inset: 0` against that relative ancestor follows sidebar and details
+   motion through ordinary layout — no viewport-fixed geometry, and no
+   `--dsh-frame-details-width`. Header and composer sit outside `.scrollArea`,
+   so they stay unblocked. z-index 9 is above `.viewChrome` (8) inside this
+   stacking context, and the context itself stays under the composer seat (7). */
 .contentLoader {
-  position: fixed;
-  top: 0;
-  right: var(--dsh-frame-details-width, 0px);
-  bottom: 0;
-  /* Both insets bound the box, so no width — and no container unit — is
-     needed. A percentage cannot serve here: a fixed box resolves one against
-     the viewport, not the center column. */
-  left: 0;
-  z-index: 6;
+  position: absolute;
+  inset: 0;
+  z-index: 9;
   display: flex;
   align-items: center;
   justify-content: center;
