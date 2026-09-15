@@ -504,7 +504,7 @@ export function TrajectoryView({
   }, [hasResidentOlderHistory, loadOlder])
 
   return (
-    <div className={css.root} data-conversation-composer-overlay="">
+    <div className={css.root}>
       <TrajectoryToolbar
         actualDuration={actualDuration}
         onActualDurationChange={(nextActualDuration) => {

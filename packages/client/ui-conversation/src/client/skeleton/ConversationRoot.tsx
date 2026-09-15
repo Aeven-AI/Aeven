@@ -132,7 +132,7 @@ function WidthHandle(props: {
 
 export function ConversationRoot({
   sessionId, useSession, useSessions, useSessionPendingInteraction,
-  useWorkspaces, useInput, useComposerBlock,
+  useWorkspaces, useInput, useComposerBlock, useSelectedView,
   renderSlot, renderSlotChain, selectWorkspace, t,
 }: ConversationRootProps) {
   const session = useSession(s => s)
@@ -147,12 +147,7 @@ export function ConversationRoot({
   // A plugin this package cannot import (ui-model-selection) says this session cannot
   // send; its reason is already localized by whoever raised it.
   const composerBlock = useComposerBlock(block => block)
-
-  // A view may take the composer chain (ui-trajectory floats its card over its
-  // own ledger). The renderer reports that election; the skeleton marks its
-  // root so the surrounding layout rules are ordinary attribute selectors
-  // rather than a `:has()` reaching into the seat.
-  const [composerOverlay, setComposerOverlay] = useState(false)
+  const composerOverlay = useSelectedView(view => view?.composerPlacement === 'overlay')
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pendingWorkspaceId, setPendingWorkspaceId] = useState<WorkspaceId | undefined>()
   const pickerAnchor = useRef<HTMLButtonElement>(null)
@@ -341,7 +336,6 @@ export function ConversationRoot({
       fallback: composerBar,
       fallbackOnly: sessionId === undefined,
       overlay: true,
-      onElection: setComposerOverlay,
     },
   )
 

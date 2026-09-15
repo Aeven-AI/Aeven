@@ -276,6 +276,8 @@ export interface ConversationViewBuilder<Node extends ConversationViewNode = Con
 /** Registry contribution that creates an isolated builder when a Session first uses this target. */
 export interface ConversationViewDefinition<Node extends ConversationViewNode = ConversationViewNode, Snapshot = unknown> {
   readonly target: string
+  /** Composer placement required while this View is selected. */
+  readonly composerPlacement?: 'overlay'
   /** @returns a new Session-owned incremental builder. */
   create(): ConversationViewBuilder<Node, Snapshot>
   /**

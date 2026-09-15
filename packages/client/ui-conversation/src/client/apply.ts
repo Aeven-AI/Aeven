@@ -56,6 +56,10 @@ const ABSENT_BLOCK = {
   getSnapshot: (): ComposerBlock | undefined => undefined,
   subscribe: () => () => {},
 }
+const ABSENT_SELECTED_VIEW = {
+  getSnapshot: (): ViewTab | undefined => undefined,
+  subscribe: () => () => {},
+}
 const EMPTY_LEXICON: ReadonlyMap<'/' | '@', readonly string[]> = new Map()
 const ABSENT_LEXICON = {
   getSnapshot: () => EMPTY_LEXICON,
@@ -119,6 +123,7 @@ export function apply(ctx: Context): void {
   }, EnterBehaviorRow))
 
   const viewTabs = (): ViewTab[] => {
+    const definitions = new Map(uiConversation.views.entries().map(definition => [definition.target, definition]))
     const tabs: ViewTab[] = []
     for (const entry of slots.entries('conversation.view')) {
       /* v8 ignore next -- list registration validates id at load. */
@@ -126,13 +131,14 @@ export function apply(ctx: Context): void {
       tabs.push({
         id: entry.options.id,
         label: resolveSlotLabel(entry.options.label) ?? entry.options.id,
+        composerPlacement: definitions.get(entry.options.id)?.composerPlacement ?? 'docked',
       })
     }
     return tabs
   }
   const activateView = (sessionId: SessionId, preferred: string | null): void => {
     const active = resolveActiveView(viewTabs(), preferred)
-    if (active !== undefined) uiConversation.binding(sessionId).activate(active.id)
+    if (active !== undefined) uiConversation.binding(sessionId).select(active)
   }
   const restoreView = (sessionId: SessionId): void => {
     activateView(sessionId, readConversationViewPreference(sessionId))
@@ -150,7 +156,10 @@ export function apply(ctx: Context): void {
     const unchanged = current.length === next.length
       && current.every((tab, index) => {
         const candidate = next.at(index)
-        return candidate !== undefined && tab.id === candidate.id && tab.label === candidate.label
+        return candidate !== undefined
+          && tab.id === candidate.id
+          && tab.label === candidate.label
+          && tab.composerPlacement === candidate.composerPlacement
       })
     if (!unchanged) conversationViews.set(next)
     restoreCurrentView()
@@ -158,6 +167,7 @@ export function apply(ctx: Context): void {
   ctx.effect(() => {
     let currentSessionId = sessions.list.getSnapshot().current
     const disposeViews = slots.subscribe('conversation.view', refreshViews)
+    const disposeDefinitions = uiConversation.views.subscribe(refreshViews)
     const disposeLocale = ctx.locale.subscribe(refreshViews)
     const disposeCurrent = sessions.list.subscribe(() => {
       const nextSessionId = sessions.list.getSnapshot().current
@@ -168,6 +178,7 @@ export function apply(ctx: Context): void {
     return () => {
       disposeCurrent()
       disposeLocale()
+      disposeDefinitions()
       disposeViews()
     }
   }, 'ui-conversation: View selection')
@@ -210,6 +221,7 @@ export function apply(ctx: Context): void {
     inject: (sessionId: SessionId | undefined): ConversationInjected => ({
       hooks: {
         composerBlock: sessionId === undefined ? ABSENT_BLOCK : composerBlocks.storeFor(sessionId),
+        selectedView: sessionId === undefined ? ABSENT_SELECTED_VIEW : uiConversation.binding(sessionId).selectedView,
       },
       selectWorkspace: async (workspaceId) => {
         const nextId = await workspaceNavigation.connectWorkspace(workspaceId)

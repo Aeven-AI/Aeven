@@ -298,6 +298,7 @@ export const trajectoryViewDefinition: ConversationViewDefinition<
   TrajectorySnapshot
 > = {
   target: 'trajectory',
+  composerPlacement: 'overlay',
   create: () => new TrajectorySnapshotBuilder(),
 }
 

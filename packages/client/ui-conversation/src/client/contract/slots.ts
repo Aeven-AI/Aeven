@@ -216,8 +216,11 @@ export type ConvViewProps = PropsRuntime<'conversation.view'>
 export interface ConversationInjected {
   /** Connect and open a blank Session in the selected Workspace. */
   selectWorkspace: (workspaceId: WorkspaceId) => Promise<void>
-  /** Session-addressed composer block source, or the stable absent source. */
-  hooks: { composerBlock: ObservableSnapshot<ComposerBlock | undefined> }
+  /** Session-addressed shell sources, or stable absent sources without a Session. */
+  hooks: {
+    composerBlock: ObservableSnapshot<ComposerBlock | undefined>
+    selectedView: ObservableSnapshot<ViewTab | undefined>
+  }
 }
 
 /** Business callbacks injected into the strict Session body. */

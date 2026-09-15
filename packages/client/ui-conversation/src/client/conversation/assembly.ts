@@ -13,6 +13,7 @@ import type {
   ConversationViewSnapshotStore,
 } from '../contract/conversation.ts'
 import type { ConversationSnapshot } from '../contract/snapshot.ts'
+import type { ViewTab } from '../contract/views.ts'
 import type { ConversationPromptSnapshot, RequestPromptInspection } from '../contract/request-inspection.ts'
 import { inspectRequestPrompt } from '../contract/request-inspection.ts'
 import { ConversationNodeAssembler } from './assembler.ts'
@@ -23,11 +24,18 @@ import { ConversationViewRegistry } from './view-registry.ts'
 /** Observable faces published for one Session's Conversation assembly. */
 export interface ConversationBinding {
   readonly snapshot: ObservableSnapshot<ConversationSnapshot>
+  /** Currently selected View and its shell presentation. */
+  readonly selectedView: ObservableSnapshot<ViewTab | undefined>
   /**
    * Add one selected target to the Session's monotonic active set.
    * @param target - registered or subsequently registered Conversation target.
    */
   activate(target: string): void
+  /**
+   * Select one View and activate its target for the remaining Session lifetime.
+   * @param view - resolved registered View.
+   */
+  select(view: ViewTab): void
   /**
    * Resolve one target-owned snapshot source.
    * The first subscriber activates the target unless shell selection already
@@ -50,6 +58,7 @@ export interface ConversationEventNavigation {
 
 class BoundConversation implements ConversationBinding {
   readonly snapshot: SnapshotStore<ConversationSnapshot>
+  readonly selectedView = createSnapshotStore<ViewTab | undefined>(undefined)
   private readonly viewStore: ConversationViewSnapshotStore
   private readonly targetSources = new Map<string, ObservableSnapshot<unknown>>()
   private revision = -1
@@ -89,6 +98,11 @@ class BoundConversation implements ConversationBinding {
 
   activate(target: string): void {
     if (this.assembler.activateTarget(target)) this.snapshot.set(this.currentSnapshot())
+  }
+
+  select(view: ViewTab): void {
+    this.activate(view.id)
+    this.selectedView.set(view)
   }
 
   rebuild(): void { this.publish(this.assembler.rebuildRegistry()) }
