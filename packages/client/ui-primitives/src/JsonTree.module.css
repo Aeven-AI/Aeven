@@ -43,11 +43,6 @@
   padding: 6px 8px 8px 14px;
 }
 
-.expandedTopLevel:has(> .topLevelBracket[data-json-root-row]:hover),
-.expandedTopLevel:has(> .topLevelBracket[data-json-root-row][data-json-copy-active]) {
-  background: var(--json-tree-hover);
-}
-
 .expandedTopLevelContainer {
   padding: 0;
 }
@@ -73,9 +68,8 @@
   list-style: none;
 }
 
-.row:not(.topLevelBracket):hover:not(:has(.row:hover))::after,
-.row:not(.topLevelBracket)[data-json-copy-active]::after,
-.row:has(> .expander:focus-visible)::after {
+.row:not(.topLevelBracket):hover::after,
+.row:not(.topLevelBracket)[data-json-copy-active]::after {
   position: absolute;
   z-index: 0;
   top: 0;

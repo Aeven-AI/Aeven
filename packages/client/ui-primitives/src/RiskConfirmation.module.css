@@ -1,6 +1,7 @@
 .confirmation {
   width: min(440px, 100%);
   max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
   overflow: hidden;
 }
 
@@ -8,13 +9,6 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-}
-
-@supports (height: 100dvh) {
-  .confirmation {
-    max-height: calc(100vh - 48px);
-    max-height: calc(100dvh - 48px);
-  }
 }
 
 .warning {

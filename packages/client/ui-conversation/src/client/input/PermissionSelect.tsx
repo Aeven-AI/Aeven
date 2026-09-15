@@ -158,7 +158,7 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
         anchor={
           <button
             type="button"
-            className={css.trigger}
+            className={clsx(css.trigger, permissionGlyph(currentValue) !== undefined && css.triggerWithIcon)}
             aria-label={t('input.accessMode', { name: currentLabel })}
             title={current?.description}
             disabled={locked || busy}

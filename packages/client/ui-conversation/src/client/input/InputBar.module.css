@@ -201,10 +201,9 @@
      height and the controls' own centering stay untouched. */
   padding: 0 16px 16px;
   min-width: 0;
-  /* Size container so the chips inside can collapse to icon-only when the
-     card runs out of row width (PermissionSelect @container rule). Anonymous
-     on purpose: CSS modules hash container-name per module, so a name declared
-     here can never match a query in another module's sheet. */
+  /* The chips inside collapse to icon-only on a narrow viewport
+     (PermissionSelect's width query), which the floor can evaluate without a
+     container. */
 }
 
 .tools,

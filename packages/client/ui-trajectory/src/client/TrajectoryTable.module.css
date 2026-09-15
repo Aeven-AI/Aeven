@@ -9,7 +9,6 @@
   min-height: 0;
   overflow: hidden;
   background: var(--dsw-alias-bg-layer-1);
-  container-type: inline-size;
 }
 
 .tablePane {
@@ -308,10 +307,6 @@
   outline: none;
 }
 
-.table tbody tr:has(.requestBoundaryControl:hover):not([data-selected='true']) {
-  background: transparent;
-}
-
 .event {
   position: relative;
 }
@@ -483,7 +478,7 @@
   width: 100%;
 }
 
-@container trajectory-table (max-width: 640px) {
+@media (max-width: 640px) {
   .eventColumn {
     width: 50px;
   }

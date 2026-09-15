@@ -55,10 +55,6 @@
   margin-top: 8px;
 }
 
-.markdown :where(h4, h5, h6):has(+ :where(ul, ol)) {
-  margin-bottom: 8px;
-}
-
 .markdown a {
   /* deepsuite markdown.css uses brand-text (blue in newDesign); this sheet
      keeps design-platform brand-text as near-black, so links use the blue

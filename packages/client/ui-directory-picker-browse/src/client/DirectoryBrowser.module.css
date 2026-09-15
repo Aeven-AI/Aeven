@@ -61,14 +61,6 @@
   border-radius: 8px;
 }
 
-/* Lit by the affordance the row belongs to, never by a crumb: a crumb's hover
- * offers navigation, not path entry. Editing keeps the outline standing. */
-.crumbBar:has(.crumbEditZone:enabled:hover),
-.crumbBar:has(.crumbEditZone:focus-visible),
-.crumbBar:has(.pathInput) {
-  border-color: var(--dsw-alias-border-l2);
-}
-
 /* Deep chains scroll inside the trail (the effect pins the tail into view)
  * so the edit zone to the right never leaves the bar. */
 /* The Miller columns keep their own row so a status/error line below never
