@@ -429,6 +429,30 @@
   pointer-events: none;
 }
 
+/* Seat-level chrome: a SIBLING of the composer seat rather than a descendant
+   of `.scrollArea`. That position, not its z-index, is what lets a control
+   here paint over the seat (7) and over the fade bands the seat draws above
+   itself: `.scrollArea` is its own stacking context at a lower level, so
+   nothing inside it can rise past the seat however it is numbered.
+
+   A zero-height flex line immediately above the seat, NOT an absolute fill of
+   `.body`: `.body` extends behind the seat, so a floor-anchored control there
+   lands under the input card. As a flex line its own floor already sits at the
+   seat's top edge, which is the offset a control wants — and it needs no
+   published composer height, which nothing sets (ui-trajectory's
+   `--dsh-composer-height` is a static fallback).
+
+   Inert; each portaled control opts back into pointer input. */
+.viewChromeTop {
+  position: relative;
+  flex: none;
+  height: 0;
+  z-index: 8;
+  padding-left: var(--dsh-composer-side-clearance);
+  padding-right: var(--dsh-composer-side-clearance);
+  pointer-events: none;
+}
+
 /* Fills ConversationRoot's column: `.body` is the relative ancestor and is
    the full page height of the center column (the header overlays it). Absolute
    fill follows sidebar and details motion through ordinary layout, so the

@@ -389,6 +389,15 @@ export function ConversationRoot({
               where the composer begins, and follows a growing draft for free. */}
           <div className={css.viewChrome} data-conversation-chrome="" />
         </div>
+        {/* Second chrome layer, a zero-height flex line between the scrollport
+            and the seat. A control that must paint OVER the seat — and over
+            the fade the seat draws above itself — cannot do it from the layer
+            above: `.scrollArea` is its own stacking context at a lower level
+            than the seat, so no z-index inside that subtree can escape it.
+            Sitting here, its floor is the seat's top edge, so a control offsets
+            from the input box without measuring it. Controls that belong under
+            the seat stay in `.viewChrome`. */}
+        <div className={css.viewChromeTop} data-conversation-chrome-top="" />
         {/* Outside the scrollport, like the header: a seat inside it is
             carried by elastic overscroll, so the input card visibly rides the
             rubber-band at either end. As a flex sibling of the scrollport it
