@@ -43,6 +43,8 @@ else if (result.state === 'unauthenticated') { requireSignIn(location.pathname);
 
 `restoreSession` answers `authenticated`, `unauthenticated`, or `disabled`. `disabled` means no Aeven API is configured in the served page, and the shell boots as it does without any authority. Success publishes the reader on the page, which is how a plugin bundle later reads it.
 
+An Aeven that cannot be reached answers `authenticated` from the last profile it kept, rather than signing the reader out. The Host verifies the year-long refresh cookie against its own copy of the signing secret, so it still identifies the reader while Aeven is down and the application keeps reaching the model and OAuth providers the reader configured themselves. Only Aeven refusing the credential, or a sign-out, ends the session.
+
 ### What the screens do on success
 
 The screens report success by navigating away from the authentication surface — to the path the reader originally asked for, remembered in `authReferrer`. Leaving the surface triggers a document load, and the gate runs again and restores the session that was just established. Nothing hands control back in place, because the boot already returned when it decided there was no session.
@@ -72,6 +74,12 @@ The API rotates the refresh token on every exchange, refuses the token it replac
 ### Session lifetime after boot
 
 `installAuthenticatedTransport` also renews the access token shortly before it expires, and again when the page becomes visible or the network returns; each renewal rotates the year-long refresh token, so an open page stays signed in. A Host 401 renews the bearer and retries the call once. When the API refuses a renewal with 400 or 401, or another tab's sign-out removes the stored bearer, the page deletes the held bearer, remembers its path in `authReferrer`, and loads the sign-in screen. A transport failure or 5xx leaves the session in place and retries.
+
+While Aeven is unreachable the access token lapses and no renewal can replace it, so calls go out with no `Authorization` header and the Host authenticates them by the refresh cookie alone. Requests keep succeeding, and the first renewal after Aeven returns restores the bearer.
+
+### The kept profile
+
+Every `/get-profile` answer is kept under `aevenProfile`, and a boot that cannot reach Aeven restores the reader from it, so the account menu shows their name and picture instead of a bare user. A sign-out discards it along with the bearer; an unparsable entry, or one naming nobody, is treated as absent and the reader signs in.
 
 ### Following the page's own loopback host
 

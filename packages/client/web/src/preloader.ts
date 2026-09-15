@@ -7,7 +7,7 @@ export const PRELOADER_ELEMENT_ID = 'dsh-preloader'
 export const FADE_MS = 400
 
 /** Hold before the fade starts, shared with the index stylesheet. */
-export const FADE_DELAY_MS = 500
+export const FADE_DELAY_MS = 300
 
 let settleCleanup: (() => void) | undefined
 let operation = 0

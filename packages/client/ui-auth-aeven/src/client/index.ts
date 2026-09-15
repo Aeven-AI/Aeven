@@ -13,7 +13,10 @@ export { OauthResult, type OauthResultProps } from './auth/views/OauthResult.tsx
 export { matchAuthRoute, type AuthRouteMatch } from './auth/route-match.ts'
 export { mountAuthScreen, type MountedAuthScreen } from './auth/mount.tsx'
 export { AUTH_ROUTES, AUTH_ROUTE_PREFIXES, isAuthRoute, navigateRoute } from './auth/services/routes.ts'
-export { session, storage, type AevenProfile, type UserConfig } from './auth/services/session.ts'
+export {
+  cachedProfile, forgetCachedProfile, session, storage,
+  type AevenProfile, type UserConfig,
+} from './auth/services/session.ts'
 export { currentBearer } from './auth/services/tokens.ts'
 export { signOut, getProfile, AevenApiError } from './auth/services/api.ts'
 export { publishReader, publishedReader, type AevenReader } from './auth/services/reader.ts'
@@ -21,9 +24,10 @@ export { aevenConfig, mediaUrl, webUrl, type AevenClientConfig } from './auth/se
 
 import { getProfile } from './auth/services/api.ts'
 import { aevenConfig } from './auth/services/config.ts'
+import { isSessionRefusal } from './auth/services/errors.ts'
 import { AUTH_ROUTES, isAuthRoute, navigateRoute } from './auth/services/routes.ts'
 import { publishReader } from './auth/services/reader.ts'
-import { session, storage } from './auth/services/session.ts'
+import { cachedProfile, session, storage } from './auth/services/session.ts'
 import { sessionBearer, watchSession } from './auth/services/watch.ts'
 
 /** How the gate resolved for this page load. */
@@ -42,6 +46,11 @@ export type AuthGateResult =
  * the held one has expired — the same sequence the Aeven client performs on
  * load, so a reader signed in there is signed in here without signing in
  * again.
+ *
+ * An Aeven that cannot be reached does not end the session. The Host verifies
+ * the year-long refresh cookie against its own copy of the secret, so it still
+ * identifies the reader with Aeven down and the application runs on local
+ * providers; the kept profile names them until Aeven answers again.
  * @returns how the gate resolved.
  */
 export async function restoreSession(): Promise<AuthGateResult> {
@@ -52,9 +61,17 @@ export async function restoreSession(): Promise<AuthGateResult> {
     const profile = await getProfile()
     publishReader()
     return { state: 'authenticated', userId: profile.userId }
-  } catch {
-    // Every failure is the same to the reader: no session. The reason lives in
-    // the API's answer, which the sign-in screen surfaces when they try.
+  } catch (error) {
+    // Aeven refusing the credential ends the session; Aeven being unreachable
+    // says nothing about it, and signing the reader out over an outage would
+    // put an authentication screen between them and providers that are still
+    // running. The cookie the Host authenticates by outlives the outage.
+    const kept = isSessionRefusal(error) ? undefined : cachedProfile()
+    if (kept !== undefined) {
+      session.adoptProfile(kept)
+      publishReader()
+      return { state: 'authenticated', userId: kept.userId }
+    }
     session.reset()
     publishReader()
     return { state: 'unauthenticated' }

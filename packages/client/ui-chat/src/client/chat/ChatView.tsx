@@ -357,9 +357,8 @@ export function ChatView({
     const local = listRef.current
     if (local === null) return
     // A pinned reader is followed to the floor instead, so streaming commits
-    // read no layout here; a scroll still being sampled may be leaving the
-    // floor, so it keeps the row.
-    if (atBottomRef.current && !scrollSamplePendingRef.current) {
+    // read no row layout here.
+    if (atBottomRef.current) {
       anchorRef.current = null
       return
     }
@@ -417,7 +416,6 @@ export function ChatView({
     // Every commit first holds the reader's row against the layout it changed,
     // including a page that lands while a reader scroll is still being sampled.
     if (openedRef.current) holdAnchorRef.current()
-    if (scrollSamplePendingRef.current) return
     // Open completed: jump to the bottom once — unless a scroll position
     // survives from a previous mount (view-tab switch away and back), which
     // is restored instead of snapping the reader back to the floor.
@@ -478,35 +476,17 @@ export function ChatView({
     }
   })
 
-  const onScrollRef = useRef(() => {})
-  onScrollRef.current = () => {
+  const saveScrollRef = useRef(() => {})
+  saveScrollRef.current = () => {
     const local = listRef.current
     /* v8 ignore next -- ref-null guard: the handler only fires while mounted. */
     if (local === null) return
     const el = scrollerOf(local)
-    // Only reader input may make raw scroll geometry change follow ownership:
-    // a delivered position that deviates from the observed-top ledger (every
-    // programmatic write records itself there synchronously). This covers
-    // wheel, touch, scrollbar, and keyboard alike without naming devices.
-    // Browser shrink-clamps land exactly on the floor min and delayed
-    // programmatic deliveries land on the ledger itself, so both preserve
-    // the current ownership state.
-    const floor = Math.max(0, el.scrollHeight - el.clientHeight)
-    const movedByReader = Math.abs(el.scrollTop - Math.min(observedTopRef.current, floor)) > 0.5
-    const isAtBottom = movedByReader
-      ? floor - el.scrollTop <= FOLLOW_THRESHOLD + 1
-      : atBottomRef.current
-    if (!movedByReader && isAtBottom) {
-      toBottom(el)
-      return
-    }
-    atBottomRef.current = isAtBottom
-    const position = isAtBottom ? null : scrollPosition(local, el)
+    const position = atBottomRef.current ? null : scrollPosition(local, el)
     // Continuous save (unmount happens after ref detach, so saving there is
     // too late); pinned-to-bottom clears so a remount keeps following.
-    if (isAtBottom) chatScroll.save(null)
+    if (atBottomRef.current) chatScroll.save(null)
     else if (position !== null) chatScroll.save(position)
-    observedTopRef.current = el.scrollTop
   }
 
   // Follow ownership, restoration anchors, and storage are sampled at most
@@ -522,7 +502,7 @@ export function ChatView({
       scrollSamplePendingRef.current = false
       if (sampleTimer !== undefined) window.clearTimeout(sampleTimer)
       sampleTimer = undefined
-      onScrollRef.current()
+      saveScrollRef.current()
       maybeLoadOlderRef.current()
       setScrollSampleTick(tick => tick + 1)
     }
@@ -530,6 +510,17 @@ export function ChatView({
     // `scrollHeight` near the head, which lays out the whole transcript, and a
     // fling cannot outrun OLDER_PREFETCH_SCREENS of runway within one interval.
     const onScroll = (): void => {
+      const floor = Math.max(0, el.scrollHeight - el.clientHeight)
+      const deliveredTop = Math.min(observedTopRef.current, floor)
+      const top = el.scrollTop
+      const movedByReader = Math.abs(top - deliveredTop) > 0.5
+      if (movedByReader) {
+        // Any upward reader movement leaves the live tail immediately. Moving
+        // back down re-arms following only once the reader reaches its margin.
+        atBottomRef.current = top > deliveredTop
+          && floor - top <= FOLLOW_THRESHOLD + 1
+      }
+      observedTopRef.current = top
       scrollSamplePendingRef.current = true
       sampleTimer ??= window.setTimeout(sample, SCROLL_SAMPLE_INTERVAL_MS)
     }
@@ -547,7 +538,6 @@ export function ChatView({
   // initializer a function initial value would need never exists.
   const followRef = useRef<(() => void) | null>(null)
   followRef.current = () => {
-    if (scrollSamplePendingRef.current) return
     const local = listRef.current
     if (local !== null && atBottomRef.current) {
       const el = scrollerOf(local)
@@ -556,6 +546,7 @@ export function ChatView({
       chatScroll.save(null)
     }
   }
+  const scrollDown = useCallback(() => { followRef.current?.() }, [])
   // Streaming, tool disclosures, and other flow changes resize the column;
   // the composer resizes beside it. This observer owns ChatView's
   // dynamic-height follow decisions and writes only while the reader is pinned.
@@ -778,6 +769,7 @@ export function ChatView({
             forkAt={forkAt}
             renderMessageImages={renderMessageImages}
             fileMentions={fileMentions}
+            scrollDown={scrollDown}
             onFullscreenChange={onFullscreenChange}
             renderSlot={renderSlot}
             t={t}

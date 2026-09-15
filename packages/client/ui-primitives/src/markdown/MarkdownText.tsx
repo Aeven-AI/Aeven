@@ -228,6 +228,8 @@ interface MarkdownTextCommonProps {
   streaming?: boolean
   labels: MarkdownLabels
   fileMentions?: MarkdownFileMentions | undefined
+  /** Keep an enclosing transcript on its live tail after an engine render. */
+  scrollDown?: (() => void) | undefined
   /**
    * A block inside this markdown entered or left full screen. The block covers
    * the viewport on its own, but only the host knows the rest of its chrome,
@@ -308,7 +310,7 @@ export function defuseClosingTag(text: string): string {
  * and diagram fences stay code blocks.
  */
 export const MarkdownText = memo(function MarkdownText({
-  text, streaming = false, labels, fileMentions, onFullscreenChange,
+  text, streaming = false, labels, fileMentions, scrollDown, onFullscreenChange,
 }: MarkdownTextProps) {
   const handleRef = useRef<HyperMarkdownHandle>(null)
   // A ref, not state: the write must survive StrictMode's double effect
@@ -396,6 +398,7 @@ export const MarkdownText = memo(function MarkdownText({
       translations={translations}
       components={components}
       className={css.markdown}
+      {...scrollDown === undefined ? {} : { scrollDown }}
       {...onFullscreenChange === undefined ? {} : { onFullscreenChange }}
     />
   )

@@ -79,6 +79,8 @@ export interface ChatNodeOwnerProps {
   forkAt: (seq: number) => void
   renderMessageImages: RenderMessageImages
   fileMentions: (owner: TurnTailOwnerProps) => MarkdownFileMentions | undefined
+  /** Keep the transcript on its live tail after streamed Markdown renders. */
+  scrollDown?: (() => void) | undefined
   /** A transcript block took the viewport, or gave it back. */
   onFullscreenChange?: ((fullscreen: boolean) => void) | undefined
   /** Turn-process state when this Node belongs to a projected Turn. */
