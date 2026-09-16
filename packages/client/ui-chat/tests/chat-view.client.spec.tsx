@@ -3079,4 +3079,134 @@ describe('ChatView', () => {
     expect(failedView.getByText('Compaction cancelled.')).toBeTruthy()
     expect(failedView.container.querySelector('[data-state="error"]')).not.toBeNull()
   })
+
+  /**
+   * The active rail mark when the reader sits at the end of a transcript.
+   *
+   * The reading band is a 15%-tall strip near the top of the scrollport, so the
+   * last turn — which occupies the bottom of the viewport at the floor — is the
+   * one turn that can never be inside it. The newest turn the band reports is
+   * therefore an earlier one, and the rail used to mark that instead of the turn
+   * the reader is looking at.
+   */
+  describe('active rail mark at the floor', () => {
+    /**
+     * Two turns, projected into rail marks. A snapshot is what fills the
+     * `turnOutline` projection the rail reads; `turnEnds` alone leaves it empty.
+     */
+    function twoTurns() {
+      const snapshot = chatSnapshotFixture({
+        nodes: [
+          userInTurn(1, 'first prompt', 1), assistant(2, 'first response', 1),
+          userInTurn(4, 'second prompt', 2), assistant(5, 'second response', 2),
+        ],
+        turnEnds: new Map([[1, 3], [2, 6]]),
+      })
+      return makeHarness({}, {}, snapshot)
+    }
+
+    /** The rail button for a turn. It carries `aria-current` while it is the mark. */
+    function tickFor(view: ReturnType<typeof render>, turn: number): HTMLElement {
+      return view.getByRole('button', { name: `跳转到第 ${String(turn)} 轮` })
+    }
+
+    /**
+     * A controllable IntersectionObserver. The spec delivers the crossings
+     * itself, because a real observer reports geometry jsdom never lays out.
+     * @returns the callback of each observer constructed while installed.
+     */
+    function installIntersectionObserver(): Array<IntersectionObserverCallback> {
+      const callbacks: Array<IntersectionObserverCallback> = []
+      class IntersectionObserverStub {
+        constructor(callback: IntersectionObserverCallback) {
+          callbacks.push(callback)
+        }
+
+        observe = vi.fn()
+        unobserve = vi.fn()
+        disconnect = vi.fn()
+      }
+      vi.stubGlobal('IntersectionObserver', IntersectionObserverStub)
+      return callbacks
+    }
+
+    /**
+     * One crossing, in the shape the browser delivers it.
+     * @param target - the row that crossed the band.
+     * @param isIntersecting - whether it is inside the band now.
+     */
+    function crossing(target: HTMLElement, isIntersecting: boolean): IntersectionObserverEntry {
+      return { target, isIntersecting } as unknown as IntersectionObserverEntry
+    }
+
+    afterEach(() => {
+      vi.useRealTimers()
+      vi.unstubAllGlobals()
+    })
+
+    it('marks the last turn, not the newest turn the band can see', () => {
+      // The scroll sample is a timer; freezing it keeps the reader where the
+      // test puts them instead of letting a sample re-decide the floor.
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+      const callbacks = installIntersectionObserver()
+      const h = twoTurns()
+      const view = render(<h.ChatView {...h.props} />)
+      const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement
+      const firstRow = view.container.querySelector<HTMLElement>('[data-chat-turn="1"]')
+      const secondRow = view.container.querySelector<HTMLElement>('[data-chat-turn="2"]')
+      expect(firstRow).not.toBeNull()
+      expect(secondRow).not.toBeNull()
+
+      // The reader reaches the floor: nothing is left below the viewport.
+      const metrics = installScrollMetrics(scroller, 2_000, 300)
+      metrics.setLayout(2_000, 1_700)
+      scroller.scrollTop = 1_700
+      fireEvent.scroll(scroller)
+
+      // The band holds turn 1 while turn 2 sits below it. That is the tail case:
+      // the newest turn in the band is an earlier one than the turn on screen.
+      const observer = callbacks[0]
+      expect(observer).toBeDefined()
+      act(() => {
+        observer?.(
+          [crossing(firstRow as HTMLElement, true), crossing(secondRow as HTMLElement, false)],
+          {} as IntersectionObserver,
+        )
+      })
+
+      expect(tickFor(view, 2).getAttribute('aria-current')).toBe('true')
+      expect(tickFor(view, 1).getAttribute('aria-current')).toBeNull()
+    })
+
+    it('gives the mark back to the band once the reader leaves the floor', () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+      const callbacks = installIntersectionObserver()
+      const h = twoTurns()
+      const view = render(<h.ChatView {...h.props} />)
+      const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement
+      const firstRow = view.container.querySelector<HTMLElement>('[data-chat-turn="1"]') as HTMLElement
+      const secondRow = view.container.querySelector<HTMLElement>('[data-chat-turn="2"]') as HTMLElement
+      const metrics = installScrollMetrics(scroller, 2_000, 300)
+      const observer = callbacks[0]
+
+      // At the floor, the band still holding turn 1, the mark is turn 2.
+      metrics.setLayout(2_000, 1_700)
+      scroller.scrollTop = 1_700
+      fireEvent.scroll(scroller)
+      act(() => {
+        observer?.([crossing(firstRow, true), crossing(secondRow, false)], {} as IntersectionObserver)
+      })
+      expect(tickFor(view, 2).getAttribute('aria-current')).toBe('true')
+
+      // Scrolled up off the floor: the band decides again, and says turn 1.
+      metrics.setLayout(2_000, 900)
+      scroller.scrollTop = 900
+      fireEvent.scroll(scroller)
+      act(() => {
+        observer?.([crossing(firstRow, true), crossing(secondRow, false)], {} as IntersectionObserver)
+      })
+      expect(tickFor(view, 1).getAttribute('aria-current')).toBe('true')
+      expect(tickFor(view, 2).getAttribute('aria-current')).toBeNull()
+    })
+  })
 })

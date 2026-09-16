@@ -753,11 +753,34 @@ export function ChatView({
     if (local === null || typeof IntersectionObserver === 'undefined') return
     const scroller = scrollerOf(local)
     const visible = new Map<HTMLElement, number>()
+    /**
+     * Highest turn number present in the flow. Read from the rows rather than
+     * the outline because the mark must name a row the reader can see.
+     */
+    let lastTurn: number | null = null
+    /**
+     * Publish the mark, resolving the floor case the reading band cannot serve.
+     *
+     * The band sits near the top of the viewport, so at the end of a transcript
+     * it covers older turns while the tail occupies the bottom: the last turn is
+     * the one turn that can never be inside it, and the newest intersecting turn
+     * is therefore always an earlier one. A reader pinned to the floor is reading
+     * the last turn, so that is the turn marked.
+     * @param bandTurn - the newest turn the band reported, or null when nothing crossed.
+     */
+    const publishMark = (bandTurn: number | null): void => {
+      const next = atBottomRef.current ? lastTurn : bandTurn
+      if (next !== null) setActiveTurn(current => current === next ? current : next)
+    }
+    const noteTurn = (turn: number): void => {
+      if (Number.isSafeInteger(turn) && (lastTurn === null || turn > lastTurn)) lastTurn = turn
+    }
     const observer = new IntersectionObserver((entries) => {
       for (const entry of entries) {
         const row = entry.target as HTMLElement
         const turn = Number(row.dataset.chatTurn)
         if (!Number.isSafeInteger(turn)) continue
+        noteTurn(turn)
         if (entry.isIntersecting) visible.set(row, turn)
         else visible.delete(row)
       }
@@ -772,7 +795,7 @@ export function ChatView({
         }
         if (next === null || turn > next) next = turn
       }
-      if (next !== null) setActiveTurn(current => current === next ? current : next)
+      publishMark(next)
     }, {
       root: scroller === local ? null : scroller,
       // Collapse the scrollport to a band near its top: the reading line.
@@ -789,19 +812,35 @@ export function ChatView({
       for (const record of records) {
         for (const node of record.addedNodes) {
           if (!(node instanceof HTMLElement)) continue
-          if (node.dataset.chatTurn !== undefined) observer.observe(node)
-          else observeRows(node)
+          if (node.dataset.chatTurn !== undefined) {
+            noteTurn(Number(node.dataset.chatTurn))
+            observer.observe(node)
+          } else {
+            for (const row of node.querySelectorAll<HTMLElement>('[data-chat-turn]')) {
+              noteTurn(Number(row.dataset.chatTurn))
+            }
+            observeRows(node)
+          }
         }
         if (record.type === 'attributes' && record.target instanceof HTMLElement) {
+          noteTurn(Number(record.target.dataset.chatTurn))
           observer.observe(record.target)
         }
       }
+      // A turn that appeared at the floor is the one being read, and the band
+      // reports nothing for it: the mark is resolved here instead.
+      publishMark(null)
     })
     rows.observe(local, {
       childList: true,
       subtree: true,
       attributeFilter: ['data-chat-turn'],
     })
+    // The band stays silent while nothing crosses it, so a reader who reaches the
+    // floor is still inside the crossing they arrived with and nothing would
+    // correct the mark. Resolving on every commit covers that, a turn appended at
+    // the floor, and a transcript's first rows. State is written only on a change.
+    publishMark(null)
     return () => {
       rows.disconnect()
       observer.disconnect()
