@@ -151,7 +151,7 @@ export interface ChatViewInjected {
    * Reveal one durable event, paging history to it when needed. The rail's
    * jump: the request is superseded by a later one rather than queued.
    */
-  navigateToEvent: (seq: SessionSeq) => void
+  navigateToEvent: (seq: SessionSeq, options?: { readonly highlight?: boolean }) => void
   /** Acknowledge the current exact-event navigation after landing or fallback. */
   completeEventNavigation: (requestId: number) => void
   loadImage: MessageImageLoader

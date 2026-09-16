@@ -1,4 +1,4 @@
-import { memo, useId, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from 'react'
+import { memo, useId, useState, type CSSProperties, type MouseEvent, type PointerEvent } from 'react'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
 import type { TurnRailMark } from './turn-rail-marks.ts'
 import css from './TurnRail.module.css'
@@ -54,14 +54,14 @@ function markAtPointer(
   clientY: number,
 ): TurnRailMark | undefined {
   const rect = rail.getBoundingClientRect()
-  const pitch = rect.height / (marks.length - 1)
-  const index = Math.round((clientY - rect.top) / pitch)
+  // The same pitch the ticks are placed with, so a click resolves to the tick
+  // under the pointer rather than to a neighbour.
+  const index = Math.round((clientY - rect.top) / pitchFor(marks.length))
   return marks[Math.max(0, Math.min(marks.length - 1, index))]
 }
 
 function TurnRailLadder({ marks, activeTurn, onNavigate, t }: TurnRailProps) {
   const [previewTurn, setPreviewTurn] = useState<number | null>(null)
-  const railRef = useRef<HTMLElement | null>(null)
   const previewId = useId()
 
   // One mark is the whole session: there is nothing to navigate between.
@@ -78,7 +78,6 @@ function TurnRailLadder({ marks, activeTurn, onNavigate, t }: TurnRailProps) {
   return (
     <div className={css.slot}>
       <nav
-        ref={railRef}
         className={css.rail}
         style={style}
         aria-label={t('chat.turnNavigation.label')}

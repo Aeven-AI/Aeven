@@ -54,6 +54,12 @@ export interface ConversationEventNavigation {
   readonly requestId: number
   /** Durable event sequence selected by the caller. */
   readonly seq: SessionSeq
+  /**
+   * Mark the landed row. A search result is one match among many, so the row
+   * is highlighted to say which one it was; a whole-Turn destination is not,
+   * because the reader chose the turn rather than a row inside it.
+   */
+  readonly highlight: boolean
 }
 
 class BoundConversation implements ConversationBinding {
@@ -265,11 +271,14 @@ export class UiConversation extends Service {
    * Request that the active Conversation view reveal one durable event.
    * @param sessionId - target Session identity.
    * @param seq - exact durable event sequence to reveal.
+   * @param options - `highlight` marks the landed row; defaults to true for
+   *   the search callers that select one row among many.
    */
-  navigateToEvent(sessionId: SessionId, seq: SessionSeq): void {
+  navigateToEvent(sessionId: SessionId, seq: SessionSeq, options?: { readonly highlight?: boolean }): void {
     this.eventNavigationStore(sessionId).set({
       requestId: ++this.nextNavigationRequestId,
       seq,
+      highlight: options?.highlight ?? true,
     })
   }
 

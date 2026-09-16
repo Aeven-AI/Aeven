@@ -683,7 +683,7 @@ export function ChatView({
         landOnRowRef.current(local, el, exactRow)
         setActiveTurn(turn)
         turnNavigationRef.current = null
-        setHighlightedNodeKey(exactKey)
+        if (eventNavigation.highlight) setHighlightedNodeKey(exactKey)
         completedEventNavigationRef.current = eventNavigation.requestId
         eventNavigationLoadRef.current = null
         completeEventNavigation(eventNavigation.requestId)
@@ -723,7 +723,7 @@ export function ChatView({
       const turn = Number(row?.dataset.chatTurn)
       if (row !== null && Number.isSafeInteger(turn)) {
         landOnRowRef.current(local, el, row)
-        setHighlightedNodeKey(fallback.key)
+        if (eventNavigation.highlight) setHighlightedNodeKey(fallback.key)
       }
     }
     turnNavigationRef.current = null
@@ -827,7 +827,8 @@ export function ChatView({
     // the seq and lands the row, reporting progress through the head spinner.
     turnNavigationRef.current = mark
     atBottomRef.current = false
-    navigateToEvent(mark.seq)
+    // No highlight: the reader chose a Turn, not a row inside it.
+    navigateToEvent(mark.seq, { highlight: false })
   }, [navigateToEvent])
 
   /**
