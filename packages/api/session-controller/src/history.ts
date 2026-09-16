@@ -83,12 +83,19 @@ export class SessionHistoryController {
     if (throughSeq >= 0 && sourceLog[throughSeq]?.seq !== throughSeq) {
       throw new RemoteError('gateway/internal', `session log does not contain through seq ${String(throughSeq)}`, {})
     }
-    const page = paginate(
-      sourceLog,
-      beforeSeq,
-      request.maxMessages ?? DEFAULT_MAX_MESSAGES,
-      throughSeq,
-    )
+    const page = request.afterSeq === undefined
+      ? paginate(
+        sourceLog,
+        beforeSeq,
+        request.maxMessages ?? DEFAULT_MAX_MESSAGES,
+        throughSeq,
+      )
+      : paginateForward(
+        sourceLog,
+        SessionLogOffset(request.afterSeq),
+        request.maxMessages ?? DEFAULT_MAX_MESSAGES,
+        throughSeq,
+      )
     const records = pageRecords(page.events)
     return {
       records,
@@ -247,6 +254,15 @@ function validatePageRequest(request: SessionPageRequest): void {
       || Object.is(request.beforeSeq, -0))) {
     throw new RemoteError('gateway/bad-request', 'beforeSeq must be a non-negative safe integer', {})
   }
+  if (request.afterSeq !== undefined
+    && (!Number.isSafeInteger(request.afterSeq)
+      || request.afterSeq < 0
+      || Object.is(request.afterSeq, -0))) {
+    throw new RemoteError('gateway/bad-request', 'afterSeq must be a non-negative safe integer', {})
+  }
+  if (request.afterSeq !== undefined && request.beforeSeq !== undefined) {
+    throw new RemoteError('gateway/bad-request', 'afterSeq and beforeSeq select opposite read directions', {})
+  }
   if (request.maxMessages !== undefined
     && (!Number.isSafeInteger(request.maxMessages) || request.maxMessages <= 0)) {
     throw new RemoteError('gateway/bad-request', 'maxMessages must be a positive safe integer', {})
@@ -313,6 +329,42 @@ function rejectNotFound(address: SessionAddress): never {
     parentSessionId: address.parentSessionId,
     childSessionId: address.childSessionId,
   })
+}
+
+/**
+ * Read one message-aligned page forward from an exclusive lower bound.
+ *
+ * The mirror of {@link paginate}: that one fixes the page's end and walks back,
+ * which cannot serve a caller holding an old window and asking for what follows
+ * it. This fixes the page's start and walks forward instead.
+ * @param events - the whole log.
+ * @param afterSeq - exclusive lower bound; the page begins at the next event.
+ * @param maxMessages - message budget, counted the same way as backward pages.
+ * @param throughSeq - inclusive cursor the read is fixed against.
+ * @returns the page, and whether newer events remain after it.
+ */
+function paginateForward(
+  events: readonly SessionEvent[],
+  afterSeq: SessionLogOffsetType,
+  maxMessages: number,
+  throughSeq: SessionSeqCursor,
+): { readonly events: SessionEvent[]; readonly hasMore: boolean } {
+  const limit = SessionLogOffset(Math.min(throughSeq + 1, events.length))
+  const start = SessionLogOffset(Math.min(afterSeq + 1, limit))
+  let count = 0
+  let cut = limit
+  for (let index = start; index < limit; index++) {
+    const event = events[index] as SessionEvent
+    if (!MESSAGE_TYPES.has(event.type) || !isAppendSurfaceEvent(event)) continue
+    count++
+    if (count >= maxMessages) {
+      // End the page after this message's own group, so a page never splits a
+      // message from the events it was assembled from.
+      cut = SessionLogOffset(index + 1)
+      break
+    }
+  }
+  return { events: events.slice(start, cut), hasMore: cut < limit }
 }
 
 function paginate(

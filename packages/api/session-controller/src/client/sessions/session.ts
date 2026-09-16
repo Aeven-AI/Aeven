@@ -422,10 +422,12 @@ export class Session implements SessionFace {
     this.loadingOlder = true
     this.notifier.markDirty()
     try {
-      // `beforeSeq` is exclusive, so a bound one page past the window end
-      // selects the events that follow it.
+      // A forward read: `afterSeq` is the exclusive lower bound, so the page
+      // begins at the event following the window's end. A `beforeSeq` bound
+      // cannot serve this — the host reads those backwards from the bound, so
+      // the page would land entirely before the window it must extend.
       await events.appendPage({
-        beforeSeq: SessionLogOffset(end + SCROLL_PAGE_MESSAGES),
+        afterSeq: end,
         maxMessages: SCROLL_PAGE_MESSAGES,
       })
     } catch (error) {

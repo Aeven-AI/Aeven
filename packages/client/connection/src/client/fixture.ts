@@ -132,6 +132,8 @@ interface FixturePageRequest {
   readonly address: FixtureSessionAddress
   readonly throughSeq: number
   readonly beforeSeq?: number
+  /** Exclusive lower bound selecting a forward page (mirrors the host). */
+  readonly afterSeq?: number
   readonly maxMessages?: number
 }
 
@@ -264,6 +266,8 @@ interface FixtureSessionApi {
     readonly sessionId: SessionId
     readonly throughSeq?: number
     readonly beforeSeq?: number
+    /** Exclusive lower bound selecting a forward page (mirrors the host). */
+    readonly afterSeq?: number
     readonly maxMessages?: number
   }): Promise<ConnectionRpcResult<unknown>>
   selectModel(request: {
@@ -1435,6 +1439,24 @@ function projectionFramesOf(
  * Message-boundary paging mirrors the Host contract: count `maxMessages`
  * backwards from the end and cut at a turn/start boundary.
  */
+/** Fixture mirror of the host's forward page: begins after `afterSeq`. */
+function forwardPageOf(
+  log: readonly SessionEvent[],
+  afterSeq: number,
+  maxMessages: number,
+): { records: FixtureHistoryRecord[]; hasMore: boolean } {
+  const start = Math.min(afterSeq + 1, log.length)
+  let messages = 0
+  let cut = log.length
+  for (let i = start; i < log.length; i++) {
+    const event = log[i]
+    if (event === undefined) break
+    if (event.type === 'user/message' || event.type === 'assistant/message') messages++
+    if (messages >= maxMessages) { cut = i + 1; break }
+  }
+  return { records: historyRecordsOf(log.slice(start, cut)), hasMore: cut < log.length }
+}
+
 function pageOf(
   log: readonly SessionEvent[],
   beforeSeq: number | undefined,
@@ -1453,7 +1475,12 @@ function pageOf(
       break
     }
   }
-  const records = packChunkRuns(log.slice(start, end)).map((record): FixtureHistoryRecord => {
+  return { records: historyRecordsOf(log.slice(start, end)), hasMore: start > 0 }
+}
+
+/** Pack one event slice into the fixture's wire records (shared by both directions). */
+function historyRecordsOf(events: readonly SessionEvent[]): FixtureHistoryRecord[] {
+  return packChunkRuns(events).map((record): FixtureHistoryRecord => {
     if (!isChunkRow(record)) return { type: 'event', event: record }
     switch (record.type) {
       case 'text-chunks':
@@ -1473,7 +1500,6 @@ function pageOf(
         }
     }
   })
-  return { records, hasMore: start > 0 }
 }
 
 /** Fixture mirror of host session-scoped attachment authorization. */
@@ -2913,7 +2939,9 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
       const throughSeq = request.throughSeq ?? log.length - 1
       const boundedLog = log.slice(0, throughSeq + 1)
       // Snapshot at request time, then deliver after the transit delay.
-      const page = pageOf(boundedLog, request.beforeSeq, request.maxMessages ?? 50)
+      const page = request.afterSeq === undefined
+        ? pageOf(boundedLog, request.beforeSeq, request.maxMessages ?? 50)
+        : forwardPageOf(boundedLog, request.afterSeq, request.maxMessages ?? 50)
       const doomed = failNextHistory
       failNextHistory = false
       const delay = historyDelayMs
