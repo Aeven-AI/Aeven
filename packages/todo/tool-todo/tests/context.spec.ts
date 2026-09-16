@@ -72,8 +72,8 @@ describe('todo:plan runtime context', () => {
     bench.session.append('todo/write', { todos })
     bench.session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
     bench.session.append('turn/start', { turn: 2 })
-    // The dock's turn-scoped lifetime clears `todos` here; the read-back keeps
-    // the agent's own working plan, so a resumed task never loses it.
+    // A turn boundary moves neither fold: the read-back keeps the agent's own
+    // working plan, exactly as the dock now keeps the same list.
     expect(await snapshot(bench)).toContain('- [in_progress] a')
   })
 

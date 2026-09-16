@@ -15,9 +15,10 @@ import { z } from 'zod'
 import Storage from '@deepseek-ai/dsh-storage'
 import * as StorageJson from '@deepseek-ai/dsh-storage-json'
 import * as StorageDomain from '../src/index.ts'
-import { defineDomain, domainTable } from '../src/index.ts'
+import { defineDomain, domainTable, DomainFacility } from '../src/index.ts'
 import type { Domain } from '../src/domain.ts'
 import type { DomainChanged } from '../src/events.ts'
+import { MemoryMediaPool, MemoryStorageBackend } from './helpers/memory-backend.ts'
 
 const noteSchema = z.object({ title: z.string() })
 
@@ -167,5 +168,197 @@ describe('cross-process domain coherence', () => {
       await alpha.close()
       await rm(root, { recursive: true, force: true })
     }
+  })
+})
+
+/**
+ * `applyExternal` driven directly over the memory double.
+ *
+ * The disk suite above proves convergence end to end; these pin the apply
+ * ladder's own decisions — re-read, validate, mutate memory, then emit — which
+ * a timing-dependent wait cannot isolate: an unchanged value, a location that
+ * moved nothing, a domain that already stopped observing, and a failed re-read
+ * all have to be distinguishable from a converged one.
+ */
+describe('applyExternal over the memory double', () => {
+  const settingsSchema = z.object({ order: z.array(z.string()) })
+
+  const globalSpec = defineDomain({
+    name: 'notesglobal',
+    version: 1,
+    global: { schema: settingsSchema, initial: { order: [] } },
+    tables: { notes: domainTable<string, { title: string }>(noteSchema) },
+  })
+
+  const noGlobalSpec = defineDomain({
+    name: 'notesnoglobal',
+    version: 1,
+    tables: { notes: domainTable<string, { title: string }>(noteSchema) },
+  })
+
+  /** Boot a memory-backed facility whose units report foreign locations on demand. */
+  async function memoryHarness(): Promise<{
+    ctx: Context
+    pool: MemoryMediaPool
+    changes: DomainChanged[]
+    open: (spec: typeof globalSpec | typeof noGlobalSpec) => Promise<Domain<never>>
+  }> {
+    const ctx = new Context()
+    await ctx.plugin(Storage)
+    const pool = new MemoryMediaPool()
+    ctx.storage.backend.register('memory', new MemoryStorageBackend(pool))
+    const facility = new DomainFacility(ctx, { backend: 'memory', routes: {} })
+    ctx.storage.mount('domain', facility)
+    const changes: DomainChanged[] = []
+    ctx.on('domain/changed', (change: DomainChanged) => { changes.push(change) })
+    return {
+      ctx,
+      pool,
+      changes,
+      open: async spec => await facility.open(spec),
+    }
+  }
+
+  it('re-reads the medium for a reported location, mutating memory before it emits', async () => {
+    const { pool, changes, open } = await memoryHarness()
+    const domain = await open(globalSpec) as unknown as Domain<typeof globalSpec>
+    await domain.table('notes').put('n1', { title: 'local' })
+    // The peer's bytes are already on the medium; the report only says where.
+    pool.media.get('notesglobal')?.tables.get('notes')?.set('n1', { title: 'foreign' })
+    pool.media.get('notesglobal')?.tables.get('notes')?.set('n2', { title: 'appeared' })
+    changes.length = 0
+    const report = pool.externalWatchers.at(-1)
+    expect(report).toBeDefined()
+
+    report?.([{ table: 'notes', key: 'n1' }])
+    // The emission rides the write chain, so await the change rather than a tick.
+    await until(() => changes.length === 1)
+    expect(domain.table('notes').get('n1')).toEqual({ title: 'foreign' })
+    expect(changes).toEqual([
+      { domain: 'notesglobal', table: 'notes', key: 'n1', operation: 'put', value: { title: 'foreign' } },
+    ])
+
+    // A location memory never held is a first sight, not a change of value.
+    report?.([{ table: 'notes', key: 'n2' }])
+    await until(() => changes.length === 2)
+    expect(changes[1]).toEqual({
+      domain: 'notesglobal', table: 'notes', key: 'n2', operation: 'put', value: { title: 'appeared' },
+    })
+  })
+
+  it('stays silent when the medium already holds the value memory does', async () => {
+    const { pool, changes, open } = await memoryHarness()
+    const domain = await open(globalSpec) as unknown as Domain<typeof globalSpec>
+    await domain.table('notes').put('same', { title: 'equal' })
+    changes.length = 0
+    pool.externalWatchers.at(-1)?.([{ table: 'notes', key: 'same' }])
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(changes).toEqual([])
+    expect(domain.table('notes').get('same')).toEqual({ title: 'equal' })
+  })
+
+  it('drops a record the peer deleted and reports the deletion once', async () => {
+    const { pool, changes, open } = await memoryHarness()
+    const domain = await open(globalSpec) as unknown as Domain<typeof globalSpec>
+    await domain.table('notes').put('gone', { title: 'doomed' })
+    changes.length = 0
+    pool.media.get('notesglobal')?.tables.get('notes')?.delete('gone')
+    const report = pool.externalWatchers.at(-1)
+    report?.([{ table: 'notes', key: 'gone' }])
+    await until(() => changes.length === 1)
+    expect(changes).toEqual([
+      { domain: 'notesglobal', table: 'notes', key: 'gone', operation: 'deleted' },
+    ])
+    expect(domain.table('notes').get('gone')).toBeUndefined()
+
+    // Reporting the same absence again moves nothing, so it stays silent.
+    report?.([{ table: 'notes', key: 'gone' }])
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(changes).toHaveLength(1)
+  })
+
+  it('ignores a global report on a domain that declares no global slot', async () => {
+    const { pool, changes, open } = await memoryHarness()
+    const domain = await open(noGlobalSpec) as unknown as Domain<typeof noGlobalSpec>
+    await domain.table('notes').put('n1', { title: 'kept' })
+    changes.length = 0
+    // The global singleton exists at the unit root whatever the spec declares,
+    // so a peer's write there reaches applyExternal; a spec without the slot
+    // has nothing to converge and nothing to report.
+    pool.media.get('notesnoglobal')!.global = { order: ['a'] }
+    pool.externalWatchers.at(-1)?.([{ table: '', key: '' }])
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(changes).toEqual([])
+    expect(domain.table('notes').get('n1')).toEqual({ title: 'kept' })
+  })
+
+  it('treats a null stored global and an unchanged global as no change', async () => {
+    const { pool, changes, open } = await memoryHarness()
+    const domain = await open(globalSpec) as unknown as Domain<typeof globalSpec>
+    changes.length = 0
+    const report = pool.externalWatchers.at(-1)
+    // A peer deleting `global.json` reads back as the never-written sentinel.
+    report?.([{ table: '', key: '' }])
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(changes).toEqual([])
+    expect(domain.global.get()).toEqual({ order: [] })
+
+    // A peer writing the value already held is not a change either.
+    await domain.global.set({ order: ['x'] })
+    changes.length = 0
+    report?.([{ table: '', key: '' }])
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(changes).toEqual([])
+  })
+
+  it('converges the global and keeps the current value when a foreign global fails schema', async () => {
+    const { pool, ctx, changes, open } = await memoryHarness()
+    const domain = await open(globalSpec) as unknown as Domain<typeof globalSpec>
+    pool.media.get('notesglobal')!.global = { order: ['peer'] }
+    changes.length = 0
+    pool.externalWatchers.at(-1)?.([{ table: '', key: '' }])
+    await until(() => changes.length === 1)
+    expect(domain.global.get()).toEqual({ order: ['peer'] })
+    expect(changes[0]).toEqual({
+      domain: 'notesglobal', table: '', key: '', operation: 'put', value: { order: ['peer'] },
+    })
+
+    // A global this build cannot read leaves the converged value in place.
+    const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => {})
+    pool.media.get('notesglobal')!.global = { order: [42] }
+    pool.externalWatchers.at(-1)?.([{ table: '', key: '' }])
+    await until(() => warn.mock.calls.length > 0)
+    expect(domain.global.get()).toEqual({ order: ['peer'] })
+    expect(changes).toHaveLength(1)
+    warn.mockRestore()
+  })
+
+  it('keeps memory as it was when a reconcile pass cannot re-read the medium', async () => {
+    const { pool, ctx, changes, open } = await memoryHarness()
+    const domain = await open(globalSpec) as unknown as Domain<typeof globalSpec>
+    await domain.table('notes').put('n1', { title: 'local' })
+    changes.length = 0
+    // Convergence is best-effort: a failed pass must not surface as a rejected
+    // callback (the detector would drop the report) or as a torn value.
+    const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => {})
+    pool.failNextLoads = 1
+    expect(() => pool.externalWatchers.at(-1)?.([{ table: 'notes', key: 'n1' }])).not.toThrow()
+    await until(() => warn.mock.calls.length > 0)
+    expect(warn.mock.calls[0]?.[0]).toMatch(/applying an external change failed; memory stays as it was/)
+    expect(domain.table('notes').get('n1')).toEqual({ title: 'local' })
+    expect(changes).toEqual([])
+    warn.mockRestore()
+  })
+
+  it('drops a report that lands after the domain stopped converging', async () => {
+    const { pool, changes, open } = await memoryHarness()
+    const domain = await open(globalSpec) as unknown as Domain<typeof globalSpec>
+    const report = pool.externalWatchers.at(-1)
+    await domain.close()
+    // The watcher is stopped by the unit's close, but a report already in
+    // flight must not apply onto a closed domain.
+    expect(() => report?.([{ table: 'notes', key: 'late' }])).not.toThrow()
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(changes).toEqual([])
   })
 })

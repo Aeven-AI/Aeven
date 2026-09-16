@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Storage, { storageBackendServiceKey } from '@deepseek-ai/dsh-storage'
+import type { ExternalChange } from '@deepseek-ai/dsh-storage'
 import { runKvBackendContract } from '../../storage/tests/contract.ts'
 import { Config, JsonStorageBackend, apply } from '../src/index.ts'
 
@@ -499,5 +500,70 @@ describe('per-record layout', () => {
     expect(await unit5.loadAll()).toEqual({ tables: { t: {} }, global: null })
     await expect(readFile(join(root5, 'recs.json'), 'utf8')).resolves.toContain('not an object')
     await backend5.close()
+  })
+
+  it('observes foreign writes through one watcher, and releases it exactly once', async () => {
+    const root = await freshRoot()
+    const backend = new JsonStorageBackend(root)
+    const unit = await backend.kv.open(descriptor)
+    const reported: ExternalChange[] = []
+    const release = unit.watchExternal(changes => reported.push(...changes))
+    // One observer per unit: the domain layer is the single consumer, and a
+    // second would need its own independent stamp set.
+    expect(() => unit.watchExternal(() => {})).toThrow(/already observed/)
+
+    // The unit's own durable writes are stamped as observed, so observing the
+    // medium for longer than the detector's own debounce still finds nothing
+    // this unit wrote coming back as foreign.
+    await unit.putRecord('t', 'mine', { v: 1 })
+    await unit.setGlobal({ order: ['a'] })
+    await new Promise(resolve => setTimeout(resolve, 300))
+    expect(reported).toEqual([])
+
+    // Releasing twice is harmless, and the second call must not clear a
+    // watcher it no longer owns; a write afterwards is observed by nothing.
+    release()
+    release()
+    await unit.putRecord('t', 'later', { v: 2 })
+    await new Promise(resolve => setTimeout(resolve, 300))
+    expect(reported).toEqual([])
+    await unit.close()
+    await backend.close()
+  })
+
+  it('degrades to no observation when the baseline scan cannot read the medium', async () => {
+    const root = await freshRoot()
+    const backend = new JsonStorageBackend(root)
+    const notifier = { name: 'notifier', version: 1, layout: 'per-record' as const, tables: ['t'], hasGlobal: true }
+    const unit = await backend.kv.open(notifier)
+    // A file where the table directory belongs: the baseline read fails with
+    // ENOTDIR, which is the shape of any medium the detector cannot read at
+    // open. Failing the caller's boot over a detector whose sweep is the floor
+    // would be the wrong trade, so observation degrades to none instead.
+    await mkdir(join(root, 'notifier'), { recursive: true })
+    await writeFile(join(root, 'notifier', 't'), 'not a directory', 'utf8')
+    const reported: ExternalChange[] = []
+    expect(() => unit.watchExternal(changes => reported.push(...changes))).not.toThrow()
+    // The failed observation stops its own watcher and leaves the unit usable.
+    await unit.setGlobal({ order: ['a'] })
+    expect((await unit.loadAll()).global).toEqual({ order: ['a'] })
+    expect(reported).toEqual([])
+    await unit.close()
+    await backend.close()
+  })
+
+  it('observes a rejected in-flight write once, and its close still settles', async () => {
+    const root = await freshRoot()
+    const backend = new JsonStorageBackend(root)
+    const unit = await backend.kv.open(descriptor)
+    // A directory where the record document belongs: the atomic write fails
+    // with EISDIR, the shape of any write the backend rejects. `close()` then
+    // drains that rejected write instead of letting it surface later.
+    await mkdir(join(root, 'recs', 't', 'boom.json'), { recursive: true })
+    const failed = unit.putRecord('t', 'boom', { v: 1 })
+    const closed = unit.close()
+    await expect(failed).rejects.toMatchObject({ code: 'EISDIR' })
+    await expect(closed).resolves.toBeUndefined()
+    await backend.close()
   })
 })

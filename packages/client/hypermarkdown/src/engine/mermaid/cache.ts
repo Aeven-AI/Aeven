@@ -81,6 +81,12 @@ export function render(
             resolve(entry.data)
           } catch (error: unknown) {
             entries.delete(chart)
+            // The engine's own reason is the diagnosable fact, so it travels
+            // unchanged: wrapping it would hide a `DiagramError` (or whatever
+            // the engine throws) behind a generic message for every consumer
+            // that classifies the failure. Tests that reject with a non-Error
+            // are exercising that contract deliberately.
+            // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- the engine's rejection reason is propagated intact, by contract
             reject(error)
           } finally {
             // An in-flight layout owns its sandbox even if its first consumer unmounts.
@@ -114,7 +120,7 @@ function onScroll(): void {
   scrollIdle = setTimeout(() => {
     scrolling = false
     const waiting = idleWaiters.splice(0)
-    waiting.forEach(resume => resume())
+    waiting.forEach((resume) => { resume() })
   }, 120)
 }
 
@@ -126,7 +132,7 @@ function whenScrollIdle(): Promise<void> {
 function yieldForLayout(): Promise<void> {
   return new Promise((resolve) => {
     if (typeof requestIdleCallback === 'function') {
-      requestIdleCallback(() => resolve(), { timeout: 80 })
+      requestIdleCallback(() => { resolve() }, { timeout: 80 })
       return
     }
     setTimeout(resolve, 0)

@@ -221,7 +221,8 @@
 /* Bounded to four lines. A preset publishes its own description, so one long
    one would otherwise stretch every card in its grid row (`.cards` sizes rows
    1fr). Clamping is CSS alone: the whole text stays in the DOM for assistive
-   tech, and the card offers it on hover when it is actually cut off. The
+   tech, and the element's own `title` offers it on hover whether or not the
+   clamp cut anything off — nothing measures the box to decide. The
    description does not grow to fill the card — `-webkit-line-clamp` on a
    flex-stretched box leaves the clamp height and the box height disagreeing,
    so `.cardId` takes the free space with an auto margin instead. */

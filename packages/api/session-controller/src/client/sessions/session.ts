@@ -109,9 +109,9 @@ export class Session implements SessionFace {
    *  passes drop all writes once the generation moves on. */
   private openGeneration = 0
   private loadingOlder = false
-  /** Shared low-water target of the running jump loop; null when no jump is paging. */
+  /** Shared low-water target of the running jump pass; null when no jump is paging. */
   private jumpTargetSeq: SessionSeq | null = null
-  /** The running jump loop's completion, shared by retargeting callers. */
+  /** The running jump pass's completion, shared by retargeting callers. */
   private jumpPromise: Promise<void> | null = null
   /** Authoritative stream-only inbox snapshot; pending work never hits history. */
   private readonly queueMirror = new SessionQueueMirror()
@@ -455,6 +455,12 @@ export class Session implements SessionFace {
    * The installed window ends at the target's page boundary, so it is detached
    * from the live tail whenever older events remain after it: `hasNewer` then
    * gates live appends and {@link returnToLive} reattaches.
+   *
+   * A request arriving while a read is in flight joins that pass at the lower
+   * of the two targets. The pass serves the deeper target with one more
+   * anchored read rather than by walking to it — the anchored read costs the
+   * same at any distance, so a rail clicked twice in quick succession still
+   * lands the second, deeper destination.
    */
   loadThrough(seq: SessionSeq): Promise<void> {
     if (this.openState !== 'open') return Promise.resolve()
@@ -474,7 +480,18 @@ export class Session implements SessionFace {
     const generation = this.openGeneration
     this.jumpPromise = (async () => {
       try {
-        await this.installAnchoredWindow(seq, generation)
+        let target = seq
+        for (;;) {
+          await this.installAnchoredWindow(target, generation)
+          if (generation !== this.openGeneration) return
+          // A retarget strictly below the served target needs its own read; a
+          // target the installed window's head already covers, or no retarget
+          // at all, ends the pass. Each iteration serves a lower target, so the
+          // loop is bounded by the retargets a reader can issue.
+          const retarget = this.jumpTargetSeq
+          if (retarget === null || retarget >= target || this.baseSeq <= retarget) return
+          target = retarget
+        }
       } catch (error) {
         if (!isRemoteFailure(error)) {
           console.error('[session-controller] loadThrough failed:', error)

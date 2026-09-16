@@ -35,16 +35,37 @@ describe('CSS baseline check', () => {
   })
 
   it('accepts the supported spellings those features are converted to', () => {
+    // The media width is one of the five scale steps: the scale governs every
+    // `@media` width, so the accepted conversion target is on-scale.
     expect(ids(`
       .a { background: rgba(255, 255, 255, 0.7); }
       .b { max-height: calc(100vh - 48px); max-height: calc(100dvh - 48px); }
       .c[data-shown='6'] > .d { display: block; }
-      @media (max-width: 460px) { .e { display: none; } }
+      @media (max-width: 640px) { .e { display: none; } }
       .f { scrollbar-width: none; }
       .g::-webkit-scrollbar-thumb { background: #888; }
       .h { display: flex; gap: 8px; }
       .i { backdrop-filter: blur(4px); }
     `)).toEqual([])
+  })
+
+  it('reads the fallback as the earlier declaration of the same property in the same block', () => {
+    // A vh value for a DIFFERENT property, or inside the dynamic unit's own
+    // declaration, is not a fallback: the floor drops the whole declaration.
+    expect(ids(`
+      .a { height: calc(100vh - 8px); max-height: calc(100dvh - 8px); }
+    `)).toEqual(['viewport-unit-dvh'])
+    expect(ids(`
+      .b { max-height: min(100vh, calc(100dvh - 8px)); }
+    `)).toEqual(['viewport-unit-dvh'])
+  })
+
+  it('holds the viewport scale to @media, not to a container prelude', () => {
+    // A container query measures the element's own box, so its width is not a
+    // breakpoint; the query itself is still rejected.
+    expect(ids(`
+      @container (max-width: 461px) { .a { display: none; } }
+    `)).toEqual(['container-query'])
   })
 
   it('reports each occurrence with the line that carries it', () => {

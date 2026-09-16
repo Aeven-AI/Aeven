@@ -10,7 +10,7 @@ examples/*/*.jsonl
 .storages/
 .sessions/
 examples/*/.sessions/
-coverage/
+/coverage/
 .coverage-times.json
 .doc-typecheck-*/
 .node-next-types-*/

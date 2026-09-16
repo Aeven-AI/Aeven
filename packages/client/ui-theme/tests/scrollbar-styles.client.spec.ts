@@ -2,7 +2,8 @@
  * Scrollbar stylesheet contract, asserted against the CSS text on disk: every
  * --dsw-alias-scrollbar-* token design-platform.css defines has a consumer,
  * scrollbar.css binds the base-surface pair through the rebindable
- * indirection, the standard properties reach every engine as the primary path
+ * indirection and both of its rendering paths read it, the standard property
+ * the iOS/Safari 14.5 baseline carries reaches every engine as the primary path
  * while the gutter-consuming pseudo-element skin stays behind the fallback
  * gate, and elevated surfaces rebind that indirection in complete pairs. The
  * expected token set is scanned out of design-platform.css, so adding,
@@ -25,8 +26,12 @@ const DARK_ATTRIBUTE = '[data-ds-dark-theme]'
 const TOKEN_PREFIX = '--dsw-alias-scrollbar-'
 /** Prefix of the rebindable indirection scrollbar.css owns. */
 const INDIRECTION_PREFIX = '--dsh-scrollbar-'
+/** The indirection both rendering paths read, and every elevated surface rebinds. */
+const THUMB_INDIRECTION = `${INDIRECTION_PREFIX}thumb`
 /** The one non-token rebind value: a surface that draws no thumb at all. */
 const HIDDEN_THUMB = 'transparent'
+/** Selector of the global opt-out class: it goes on the scrolling element itself. */
+const OPT_OUT_SELECTOR = '.no-scrollbar'
 /** The elevation rebind, spelled per property: value-wholeness, not token shape. */
 const ELEVATED_REBIND = new Map([
   ['--dsh-scrollbar-thumb', '--dsw-alias-scrollbar-bg-l2'],
@@ -245,18 +250,23 @@ describe('scrollbar.css base-surface binding', () => {
     expect(rendered).toContain(`${TOKEN_PREFIX}hover-l1`)
   })
 
-  it('routes the standard property and the WebKit thumb through the same indirection', () => {
-    // A rebind on an elevated container has to move the Firefox and the WebKit
-    // rendering together, which only holds while both read the same variable.
-    const declaration = (property: string, selectorPart: string): string | undefined => scrollbarRules
-      .filter(rule => rule.selectors.includes(selectorPart))
+  it('routes both rendering paths through the one thumb indirection', () => {
+    // A rebind on an elevated container has to move the standard and the WebKit
+    // rendering together, which only holds while both read the one variable: the
+    // indirection this sheet declares, and that every rebinding rule outside it
+    // targets.
+    const declared = scrollbarRules
+      .filter(rule => rule.selectors.some(selector => selector.startsWith('body')))
       .flatMap(rule => rule.declarations)
-      .findLast(([name]) => name === property)?.[1]
-    const thumbColor = declaration('scrollbar-color', 'body')
-    expect(thumbColor).toBeDefined()
-    const indirection = varReferences(thumbColor!)[0]
-    expect(indirection).toBe(`${INDIRECTION_PREFIX}thumb`)
-    expect(varReferences(declaration('background', '::-webkit-scrollbar-thumb')!)).toEqual([indirection])
+      .findLast(([property]) => property === THUMB_INDIRECTION)
+    expect(declared?.[1], 'the indirection the elevated surfaces rebind').toBe(`var(${TOKEN_PREFIX}bg-l1)`)
+    // The WebKit thumb, the surviving rendering path: a direct token reference
+    // here would keep the base-surface colour under every rebind.
+    const thumb = scrollbarRules
+      .filter(rule => rule.selectors.includes('::-webkit-scrollbar-thumb'))
+      .flatMap(rule => rule.declarations)
+      .findLast(([property]) => property === 'background')
+    expect(varReferences(thumb?.[1] ?? '')).toEqual([THUMB_INDIRECTION])
   })
 })
 
@@ -265,10 +275,15 @@ describe('scrollbar.css rendering paths', () => {
   const GATE = '@supports not (scrollbar-width: thin)'
   const withoutComments = scrollbarCss.replace(/\/\*[\s\S]*?\*\//g, ' ')
   const gate = atRuleBlock(withoutComments, GATE)
-  /** Standard scrollbar properties: the only path that leaves a scrolling box its full width. */
-  const STANDARD_PROPERTIES = ['scrollbar-width', 'scrollbar-color']
-  /** The opt-out's own pseudo-element rule, the one the gate must not swallow. */
-  const OPT_OUT_SELECTOR = '.no-scrollbar'
+  /** The standard path's property: the one that leaves a scrolling box its full width. */
+  const STANDARD_PROPERTY = 'scrollbar-width'
+  /**
+   * The standard property the iOS/Safari 14.5 baseline does not carry. It is
+   * asserted absent rather than asserted out of the gate: a declaration inside
+   * would never reach Firefox, and one outside it would reach Safari, where the
+   * stylesheet must keep `::-webkit-scrollbar-thumb` as the only themed path.
+   */
+  const BASELINE_UNPARSED = 'scrollbar-color'
 
   /** Offsets of every rule selector that starts with `::-webkit-scrollbar`. */
   function webkitRuleOffsets(css: string): number[] {
@@ -277,22 +292,26 @@ describe('scrollbar.css rendering paths', () => {
       .filter(offset => css.slice(offset).search(/^[\w:-]*\s*[,{]/) === 0)
   }
 
-  it('declares the standard properties outside the fallback gate', () => {
-    // They are the path that gives a scrolling box its width back, so the
-    // engines that parse them must take it: a `::-webkit-scrollbar` width is
-    // what forces the bar into a gutter and takes 8px off every scrolling box
-    // with it. Measured in chromium 151 on the running app, one scroller stated
-    // both ways: `offsetWidth - clientWidth` is 8 with the pseudo-element width
-    // and 0 with these two properties.
+  it('declares the standard property outside the fallback gate, and only the one the floor parses', () => {
+    // It is the path that gives a scrolling box its width back, so the engines
+    // that parse it must take it: a `::-webkit-scrollbar` width is what forces
+    // the bar into a gutter and takes 8px off every scrolling box with it.
+    // Measured in chromium 151 on the running app, one scroller stated both
+    // ways: `offsetWidth - clientWidth` is 8 with the pseudo-element width and 0
+    // with the standard property.
     expect(gate, GATE).toBeDefined()
-    for (const property of STANDARD_PROPERTIES) {
-      const offsets = [...withoutComments.matchAll(new RegExp(String.raw`(^|[;{\s])${property}\s*:`, 'g'))]
-        .map(match => match.index)
-      expect(offsets.length, property).toBeGreaterThan(0)
-      for (const offset of offsets) {
-        expect(offset > gate!.start && offset < gate!.end, `${property} inside ${GATE}`).toBe(false)
-      }
+    const offsets = [...withoutComments.matchAll(new RegExp(String.raw`(^|[;{\s])${STANDARD_PROPERTY}\s*:`, 'g'))]
+      .map(match => match.index)
+    expect(offsets.length, STANDARD_PROPERTY).toBeGreaterThan(0)
+    for (const offset of offsets) {
+      expect(offset > gate!.start && offset < gate!.end, `${STANDARD_PROPERTY} inside ${GATE}`).toBe(false)
     }
+    // The pair's other half is what the floor cannot render: the baseline gate
+    // bans `scrollbar-color` (Safari 18.2), so the sheet states none and the
+    // pseudo-element skin below is the sole themed path on WebKit.
+    expect([...withoutComments.matchAll(new RegExp(String.raw`(^|[;{\s])${BASELINE_UNPARSED}\s*:`, 'g'))]
+      .map(match => match.index), `${BASELINE_UNPARSED} is not part of the iOS/Safari 14.5 baseline`)
+      .toEqual([])
   })
 
   it('keeps the WebKit pseudo-element skin inside the fallback gate', () => {
@@ -342,19 +361,30 @@ describe('scrollbar.css rendering paths', () => {
 })
 
 describe('scrollbar.css selectors', () => {
-  const scrollbarColorSelectors = scrollbarRules
-    .filter(rule => rule.declarations.some(([property]) => property === 'scrollbar-color'))
+  /** Selectors declaring the standard property, which is the sheet's rendering path. */
+  const standardPropertySelectors = scrollbarRules
+    .filter(rule => rule.declarations.some(([property]) => property === 'scrollbar-width'))
     .flatMap(rule => rule.selectors)
 
-  it('declares scrollbar-color only where the body-scoped tokens are visible', () => {
+  it('declares the standard property on descendants, where the body-scoped tokens are visible', () => {
     // design-platform.css defines the alias tokens on `body`, and custom
-    // properties inherit downward only: the same declaration on `html` or
-    // `:root` resolves to the guaranteed-invalid value, which computes
-    // scrollbar-color to `auto` and drops the theming entirely.
-    expect(scrollbarColorSelectors.length).toBeGreaterThan(0)
-    for (const selector of scrollbarColorSelectors) {
+    // properties inherit downward only, so the rendering declarations have to
+    // sit at or below `body`: the same declaration on `html` or `:root`
+    // resolves to the guaranteed-invalid value, which computes the thumb to the
+    // engine default and drops the theming entirely. The root element draws no
+    // scrollbar and nothing inherits the property from it, so a declaration
+    // there would be one no element reads.
+    // The `.no-scrollbar` opt-out is the one exception: it is a global class a
+    // surface puts on its own scrolling element, so where it sits in the tree is
+    // the matching surface's business rather than this sheet's.
+    expect(standardPropertySelectors.length).toBeGreaterThan(0)
+    for (const selector of standardPropertySelectors) {
+      if (selector === OPT_OUT_SELECTOR) continue
       expect(selector, selector).toMatch(/^body\b/)
     }
+    expect(standardPropertySelectors).toContain('body *')
+    expect(standardPropertySelectors).not.toContain('html')
+    expect(standardPropertySelectors).not.toContain(':root')
   })
 
   it('defines the indirection where the alias tokens are visible', () => {
@@ -367,15 +397,15 @@ describe('scrollbar.css selectors', () => {
     for (const selector of hosts) expect(selector, selector).toMatch(/^body\b/)
   })
 
-  it('re-declares the scrollbar properties per element rather than inheriting them', () => {
-    // scrollbar-width is not an inherited property, and an inherited
-    // scrollbar-color carries the colour already substituted at `body`, which
-    // a descendant rebinding the indirection could no longer change.
-    expect(scrollbarColorSelectors).toContain('body *')
-    const widthSelectors = scrollbarRules
-      .filter(rule => rule.declarations.some(([property]) => property === 'scrollbar-width'))
-      .flatMap(rule => rule.selectors)
-    expect(widthSelectors).toContain('body *')
+  it('re-declares the standard property per element rather than leaving it to inherit', () => {
+    // scrollbar-width is not an inherited property at all: stated once on `body`
+    // it reaches no scroller that actually overflows, and the whole sheet falls
+    // back to the engine default. `body *` is what every scrolling element in
+    // the client matches. The `.no-scrollbar` opt-out carries the same property
+    // and outranks it by specificity, on the scrolling element itself.
+    expect(standardPropertySelectors).toContain('body *')
+    expect(scrollbarRules.find(rule => rule.selectors.includes('.no-scrollbar'))?.declarations)
+      .toContainEqual(['scrollbar-width', 'none'])
   })
 })
 

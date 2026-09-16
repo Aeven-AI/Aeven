@@ -136,7 +136,7 @@ export class FakeApiClient {
     }))
   onRename: (payload: unknown) => Promise<RemoteResult<{ title: string; seq: number }>> = () => Promise.resolve(ok({ title: 'fk-renamed', seq: 0 }))
   onFork: (payload: unknown) => Promise<RemoteResult<{ sessionId: SessionId }>> = () => Promise.resolve(ok({ sessionId: 'fk-fork' as SessionId }))
-  onHistory: (payload: { sessionId: SessionId; throughSeq?: number; beforeSeq?: number; maxMessages?: number })
+  onHistory: (payload: { sessionId: SessionId; throughSeq?: number; beforeSeq?: number; afterSeq?: number; maxMessages?: number })
   => Promise<RemoteResult<SessionPage & { readonly projections?: SessionProjectionBaseline }>> =
     () => Promise.resolve(ok({ records: [], hasMore: false }))
 
@@ -336,27 +336,31 @@ export class FakeApiClient {
     response?: Promise<RemoteResult<SessionPage>>,
   ): Promise<RemoteResult<SessionPage>> {
     const sessionId = addressSessionId(request.address)
+    // Both page bounds ride the request: `beforeSeq` addresses the jump's
+    // anchored read, `afterSeq` the forward read that tops a detached window up.
+    const bounds = {
+      ...request.beforeSeq === undefined ? {} : { beforeSeq: request.beforeSeq },
+      ...request.afterSeq === undefined ? {} : { afterSeq: request.afterSeq },
+      ...request.maxMessages === undefined ? {} : { maxMessages: request.maxMessages },
+    }
     const payload = request.address.kind === 'session'
       ? {
         sessionId,
         throughSeq: request.throughSeq,
-        ...request.beforeSeq === undefined ? {} : { beforeSeq: request.beforeSeq },
-        ...request.maxMessages === undefined ? {} : { maxMessages: request.maxMessages },
+        ...bounds,
       }
       : {
         parentSessionId: request.address.parentSessionId,
         childSessionId: request.address.childSessionId,
         mode: request.address.mode,
         throughSeq: request.throughSeq,
-        ...request.beforeSeq === undefined ? {} : { beforeSeq: request.beforeSeq },
-        ...request.maxMessages === undefined ? {} : { maxMessages: request.maxMessages },
+        ...bounds,
       }
     const method = request.address.kind === 'session' ? 'session.history' : 'subagent.history'
     const result = await this.record(method, payload, response ?? this.onHistory({
       sessionId,
       throughSeq: request.throughSeq,
-      ...request.beforeSeq === undefined ? {} : { beforeSeq: request.beforeSeq },
-      ...request.maxMessages === undefined ? {} : { maxMessages: request.maxMessages },
+      ...bounds,
     }))
     if (!result.ok) return result
     return {

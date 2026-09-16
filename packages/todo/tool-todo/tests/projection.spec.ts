@@ -5,8 +5,9 @@
  * consistent asOfSeq (= last event seq); before any write the value is null; a
  * composition without tool-todo has no `todos` key; unmounting tool-todo
  * removes it (HMR safety). The host-only `todoPlan` read-back is asserted here
- * too, because it deliberately does NOT share the client-visible lifetime. The
- * carrier and framework are exercised unmodified.
+ * too: it folds the same input, and the two must agree at every cut so the dock
+ * and the model can never hold different plans. The carrier and framework are
+ * exercised unmodified.
  */
 
 import { describe, expect, it } from 'vitest'
@@ -84,7 +85,7 @@ describe('todos projection provider', () => {
     expect(projections?.asOfSeq).toBe(session.seq - 1)
   })
 
-  it('clears the standing plan on the next turn/start (turn/end keeps it)', async () => {
+  it('carries the standing plan across the next turn/start instead of clearing it', async () => {
     const bench = await harness(true)
     const session = bench.session
     seedMessage(session)
@@ -94,12 +95,14 @@ describe('todos projection provider', () => {
     session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
     expect((await bench.tailProjections())?.values.todos).toEqual(list)
     session.append('turn/start', { turn: 2 })
-    const cleared = await bench.tailProjections()
-    expect(cleared?.values.todos).toBeNull()
-    expect(cleared?.asOfSeq).toBe(session.seq - 1)
+    // The regression this pins: the fold used to clear here, which emptied the
+    // dock for a whole turn once the model stopped re-writing an unchanged plan.
+    const carried = await bench.tailProjections()
+    expect(carried?.values.todos).toEqual(list)
+    expect(carried?.asOfSeq).toBe(session.seq - 1)
   })
 
-  it('retains the host-only read-back across that same turn/start', async () => {
+  it('agrees with the host-only read-back across that same turn/start', async () => {
     const bench = await harness(true)
     const session = bench.session
     seedMessage(session)
@@ -108,9 +111,8 @@ describe('todos projection provider', () => {
     session.append('todo/write', { todos: list })
     session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
     session.append('turn/start', { turn: 2 })
-    // The dock retires the finished checklist; the model keeps its working plan,
-    // which is the whole point of a separate host-only fold.
-    expect((await bench.tailProjections())?.values.todos).toBeNull()
+    // Both folds take the same input, so the dock and the model cannot diverge.
+    expect((await bench.tailProjections())?.values.todos).toEqual(list)
     expect(bench.ctx.sessionProjections.stateOf(session, 'todoPlan')).toEqual(list)
   })
 

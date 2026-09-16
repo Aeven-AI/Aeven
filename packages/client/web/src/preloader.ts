@@ -6,8 +6,14 @@ export const PRELOADER_ELEMENT_ID = 'dsh-preloader'
 /** Fade duration shared with the index stylesheet. */
 export const FADE_MS = 400
 
-/** Hold before the fade starts, shared with the index stylesheet. */
-export const FADE_DELAY_MS = 300
+/**
+ * Hold before the fade starts, shared with the index stylesheet.
+ *
+ * The sheet holds the opaque cover for this long before either fade, and
+ * `settle`'s fallback timer waits it out with the fade; a shorter hold here
+ * would drop `.screen-hidden` in while the cover is still fading.
+ */
+export const FADE_DELAY_MS = 500
 
 let settleCleanup: (() => void) | undefined
 let operation = 0

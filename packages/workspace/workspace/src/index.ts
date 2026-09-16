@@ -653,6 +653,13 @@ export class WorkspaceRegistry extends Service {
     try {
       // A Session may be announced before this registry finished starting; its
       // own startup pass adopts it from the header index in that case.
+      // A Session reaches a store through `enter()`, which publishes only after
+      // its mount settles, and this registry's startup assigns `state` before
+      // its first await; so by the time any announcement reaches this listener
+      // the state is always there. The guard stays as the belt to that braces:
+      // adopting off a half-built registry would read an empty `entities` and
+      // write nothing anyway.
+      /* v8 ignore next */
       if (this.state === undefined) return
       await this.indexHeader(header)
       const path = this.sessionPaths.get(header.id)

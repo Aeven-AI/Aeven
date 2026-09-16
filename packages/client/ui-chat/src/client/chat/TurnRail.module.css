@@ -65,7 +65,11 @@
    loaded tick: the ladder reads as one scale of the whole session, and the
    dimming alone carries "not resident yet". */
 .tickUnloaded::before {
-  --turn-tick-rest: color-mix(in srgb, rgb(10, 10, 10) 35%, transparent);
+  /* 35% of the resting colour, stated as the composite rather than through
+     color-mix(): the client's iOS/Safari 14.5 floor drops a value-level
+     function it cannot parse, which would leave the unloaded tick painting at
+     full strength. */
+  --turn-tick-rest: rgba(10, 10, 10, 0.35);
 }
 
 /* The selected Turn and the mark the pointer (or focus) is on paint the same

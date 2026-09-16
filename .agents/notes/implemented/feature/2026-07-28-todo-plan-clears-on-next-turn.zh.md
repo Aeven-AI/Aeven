@@ -12,9 +12,11 @@ Status: implemented
 
 常驻计划是其后没有更晚 `turn/start` 的最近一次 `todo/write`。`turn/end` 保留列表可见，以便用户阅读回答时仍能看到刚完成的清单；下一次 `turn/start` 将其清空，直至模型再次写入。
 
+该清空行为已于 2026-09-16 反转：[todo 计划跨轮次边界存续](../bug-fix/2026-09-16-todo-plan-survives-the-turn-boundary.zh.md)将常驻计划定义为会话最近一次 `todo/write`，不再有 `turn/start` 分支。本笔记所依赖的前提——读者把该条视为「本轮的进行内容」，且一次新的写入很快会将其重新填充——在 agent 以运行时上下文读回自己的计划、且不再重写未变化的列表之后不再成立；此后清空会让 dock 整轮空白，而模型却以为其计划正在显示。
+
 ### 宿主投影（web）
 
-`dsh-tool-todo` 的 `todos` 投影单元折叠该规则：`apply` 从每个 `todo/write` 取完整列表，并在每个 `turn/start` 返回 `null`（`stateVersion` 2）。Session Controller 在历史记录尾部的 `projections` 块中提供该值，并以 `session/projection` 帧推送；Web dock 经 `useProjection('todos')` 读取。无密钥 fixture（测试前置数据）镜像同一折叠，供组装后的快照使用。
+按本笔记的决策，`dsh-tool-todo` 的 `todos` 投影单元曾折叠该规则：`apply` 从每个 `todo/write` 取完整列表，并在每个 `turn/start` 返回 `null`（`stateVersion` 2，现为 3，已无 `turn/start` 分支）。Session Controller 在历史记录尾部的 `projections` 块中提供该值，并以 `session/projection` 帧推送；Web dock 经 `useProjection('todos')` 读取。无密钥 fixture（测试前置数据）镜像同一折叠，供组装后的快照使用。
 
 ### TUI 实时路径
 
@@ -28,4 +30,4 @@ Status: implemented
 
 ## 后果
 
-宿主投影与 TUI 面板共用同一生命周期规则；重新打开会话仅在其后没有更晚轮次开始时恢复计划。部分取代 [web todo 展示](2026-07-23-web-todo-display.zh.md)与 [`todo_write` 工具](2026-06-29-todo-write-tool.zh.md)中「会话级常驻计划」的表述：事件溯源、last-write-wins 替换与两个渲染面仍归那些 Agent Note；本 Agent Note 拥有轮次边界清空。覆盖：tool-todo 投影对 turn/start 清空与 turn/end 保留的规格测试、供组装 web 快照的 fixture 推送帧清空，以及启动下一轮次并固定计划条已消失这一结果的 TUI 快照。
+宿主投影与 TUI 面板曾共用同一生命周期规则；在该规则有效期间，重新打开会话仅在其后没有更晚轮次开始时恢复计划。部分取代 [web todo 展示](2026-07-23-web-todo-display.zh.md)与 [`todo_write` 工具](2026-06-29-todo-write-tool.zh.md)中「会话级常驻计划」的表述：事件溯源、last-write-wins 替换与两个渲染面仍归那些 Agent Note；本 Agent Note 曾拥有轮次边界清空，直至上文 2026-09-16 的反转。按当时决策的覆盖：tool-todo 投影对 turn/start 清空与 turn/end 保留的规格测试、供组装 web 快照的 fixture 推送帧清空，以及启动下一轮次并固定计划条已消失这一结果的 TUI 快照。

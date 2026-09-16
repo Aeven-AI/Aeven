@@ -2,7 +2,8 @@
 // Mounted on 'conversation.composer.dock' so it sticks with the composer in the
 // active conversation scrollport (see ConversationRoot data-conversation-scroll).
 
-import { Fragment, memo, useMemo } from 'react'
+import { Fragment, memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { UseProjection } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: merges the sessionStats key into SessionProjectionMap for useProjection.
@@ -121,7 +122,7 @@ export interface StatsLineProps {
   t: ChatViewSlotProps['t']
 }
 
-/** Render one non-empty statistics line. */
+/** Render and measure one non-empty statistics line. */
 const StatsLineContent = memo(function StatsLineContent({
   groups,
   line,
@@ -129,15 +130,35 @@ const StatsLineContent = memo(function StatsLineContent({
   readonly groups: readonly string[]
   readonly line: string
 }) {
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const [truncated, setTruncated] = useState(false)
+  const measure = useCallback(() => {
+    const el = rootRef.current
+    if (el === null) return
+    const next = el.scrollWidth > el.clientWidth
+    setTruncated(current => current === next ? current : next)
+  }, [])
+  useLayoutEffect(() => {
+    const el = rootRef.current
+    if (el === null || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => { observer.disconnect() }
+  }, [measure])
+  useLayoutEffect(measure, [line, measure])
   return (
-    <div className={css.root} title={line}>
-      {groups.map((group, i) => (
-        <Fragment key={group}>
-          {i > 0 && <><span className={css.sep} aria-hidden>|</span>{' '}</>}
-          <span>{group}</span>
-        </Fragment>
-      ))}
-    </div>
+    // The tooltip carries the whole line only while the row is clipped: a row
+    // that fits shows nothing on hover, so the copy is never repeated.
+    <Tooltip label={line} side="top" delayMs={500} disabled={!truncated}>
+      <div ref={rootRef} className={css.root}>
+        {groups.map((group, i) => (
+          <Fragment key={group}>
+            {i > 0 && <><span className={css.sep} aria-hidden>|</span>{' '}</>}
+            <span>{group}</span>
+          </Fragment>
+        ))}
+      </div>
+    </Tooltip>
   )
 })
 

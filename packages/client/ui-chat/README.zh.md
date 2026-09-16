@@ -65,7 +65,7 @@ Chat 会为每个非空的初始或恢复请求、显式消息序列起点或真
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **transcript 只反映已加载的 Session 窗口**——Session Controller 加载前面的 event 页面后，更早的 transcript node 才会出现。Chat 提供连续滚动与内容搜索导航，不提供独立的 Turn 跳转控件。
+- **transcript 只反映已加载的 Session 窗口**——Session Controller 加载前面的 event 页面后，更早的 transcript node 才会出现。轮次导航比窗口更宽：轨道把已加载的 Turn 与宿主 `turnOutline` 投影合并，因此每个已开始的 Turn 都有一个刻度——已加载的刻度滚动到它的行，未加载的刻度先把历史分页拉到该 Turn 的 `turn/start` seq 再落到行上——长时间会话按间隔采样，而不是每个 Turn 一个刻度。没有该投影时，轨道不渲染任何刻度。
 
 
 <a id="dev-note"></a>

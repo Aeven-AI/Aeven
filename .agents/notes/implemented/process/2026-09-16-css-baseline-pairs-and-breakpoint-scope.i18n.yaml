@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-09-16-css-baseline-pairs-and-breakpoint-scope.md
+2026-09-16-css-baseline-pairs-and-breakpoint-scope.md: 9fa380ce80cc22f12031f194eed26dbbe217ca52
+2026-09-16-css-baseline-pairs-and-breakpoint-scope.zh.md: badb1c8789db0ed58281356db4ea84ab04b1449c

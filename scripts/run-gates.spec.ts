@@ -171,6 +171,15 @@ describe('gate graph validation', () => {
     expect(ids).toContain('subsystem-pages')
   })
 
+  // The detector is only a gate if an aggregate runs it: without this, a
+  // shipped `color-mix`/`:has()` spelling reaches the client while every spec
+  // still passes (it did).
+  it('runs the client CSS baseline detector from the static aggregate', () => {
+    const ids = withPnpmEntrypoint(() => gatesForMode('ci-static').map(subject => subject.id))
+
+    expect(ids).toContain('css-baseline')
+  })
+
   it('derives the quick documentation aggregate from marked doc-sync leaves', () => {
     const full = withPnpmEntrypoint(() => gatesForMode('doc-sync'))
     const quick = withPnpmEntrypoint(() => gatesForMode('doc-quick'))
@@ -184,8 +193,8 @@ describe('gate graph validation', () => {
     expect(ids).toEqual([
       'rescope-vendor', 'publint', 'constraints', 'package-dependencies', 'application-entrypoints',
       'dsh-package-licenses', 'package-invariants', 'built-package-invariants', 'node-next-types',
-      'optional-dependency-imports', 'client-packages', 'client-ui-i18n', 'no-bare-dispatcher', 'cordis-config',
-      'runtime-closure', 'vendored-links',
+      'optional-dependency-imports', 'client-packages', 'client-ui-i18n', 'css-baseline', 'no-bare-dispatcher',
+      'cordis-config', 'runtime-closure', 'vendored-links',
     ])
     expect(defaultConcurrency('hygiene', ids.length, 8)).toEqual({
       workers: 4,

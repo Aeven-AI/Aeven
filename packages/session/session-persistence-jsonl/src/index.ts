@@ -54,6 +54,46 @@ const DEFAULT_COMPRESSION: JsonlCompression = 'zstd'
  */
 const ZSTD_DECODE_YIELD_INTERVAL_MS = 500
 
+/**
+ * Internal scheduling constant, not deployment configuration: how many session
+ * directories a listing inspects at once. Listing is I/O-bound on small
+ * bounded reads, so concurrency hides per-file latency, while the cap keeps a
+ * home with thousands of sessions from opening a file descriptor per session
+ * at once.
+ */
+const LIST_READ_CONCURRENCY = 32
+
+/**
+ * Map `items` through `run` with at most `limit` in flight, preserving input
+ * order in the result. The first rejection wins and the remaining queue is
+ * abandoned, matching the sequential loop this replaces.
+ * @param items - inputs to map.
+ * @param limit - maximum concurrent `run` calls; assumed positive.
+ * @param run - per-item asynchronous work.
+ * @returns results in `items` order.
+ */
+async function mapConcurrent<T, R>(
+  items: readonly T[],
+  limit: number,
+  run: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let next = 0
+  const worker = async (): Promise<void> => {
+    for (;;) {
+      const index = next++
+      if (index >= items.length) return
+      // The bound above proves the slot exists, and a local guard for it is a
+      // branch no input can reach, which the per-file coverage gate reads as
+      // dead code.
+      // oxlint-disable-next-line typescript/no-non-null-assertion -- bound proves the slot exists
+      results[index] = await run(items[index]!)
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+  return results
+}
+
 /** Assert that the independently decodable first frame contains only the header record. */
 function assertZstdHeaderFrame(plaintext: Buffer): void {
   if (plaintext.length === 0 || plaintext.indexOf(0x0A) !== plaintext.length - 1) {
@@ -537,46 +577,78 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
       inheritedEventCount?: SessionLogOffsetType
     }> = []
     const ids = new Set<SessionId>()
+    // Collect every session directory first, then read them concurrently: the
+    // per-directory work is three independent I/O waits (two existence probes
+    // and a bounded header read), and doing them one directory at a time made
+    // listing latency the sum of every session's I/O rather than its slowest.
+    const dirs: string[] = []
     for (const project of await this.listProjectDirs(signal)) {
       signal?.throwIfAborted()
-      for (const dir of await this.listSessionDirs(project, signal)) {
-        signal?.throwIfAborted()
-        const opposite = join(dir, `session${logSuffix(this.oppositeCompression())}`)
-        const oppositeExists = await this.exists(opposite)
-        signal?.throwIfAborted()
-        if (oppositeExists) throw this.encodingMismatch(opposite)
-        const path = join(dir, `session${logSuffix(this.compression)}`)
-        const pathExists = await this.exists(path)
-        signal?.throwIfAborted()
-        if (!pathExists) continue
-        // Read only headers so listing scales with session count, not log size.
-        const first = this.compression === 'zstd'
-          ? await this.readFirstZstdLine(path, signal)
-          : await this.readFirstLine(path, signal)
-        signal?.throwIfAborted()
-        if (first === undefined) continue // empty/half-written file
-        const parsed = parseHeader(first)
-        if (parsed === undefined) continue // not a session header
-        const meta = parsed.meta
-        await this.assertStoredIdentity(path, meta, undefined, signal)
-        signal?.throwIfAborted()
-        if (ids.has(meta.id)) {
-          throw new Error(`duplicate JSONL session id "${meta.id}" appears in multiple project directories`)
-        }
-        ids.add(meta.id)
-        // The inherited cut rides along: it was parsed from the header line the
-        // listing already read, so carrying it costs nothing, and a consumer
-        // addressing a seeded Session's projection-cache row cannot reconstruct
-        // it from the header alone.
-        artifacts.push({
-          header: meta,
-          path,
-          ...meta.isSeeded ? { inheritedEventCount: parsed.inheritedEventCount } : {},
-        })
+      dirs.push(...await this.listSessionDirs(project, signal))
+    }
+    signal?.throwIfAborted()
+    const read = await mapConcurrent(
+      dirs,
+      LIST_READ_CONCURRENCY,
+      dir => this.readArtifactHeader(dir, signal),
+    )
+    // Ordering and duplicate detection stay sequential over the directory
+    // order, so the result is identical to reading them one at a time.
+    for (const artifact of read) {
+      if (artifact === undefined) continue
+      if (ids.has(artifact.header.id)) {
+        throw new Error(`duplicate JSONL session id "${artifact.header.id}" appears in multiple project directories`)
       }
+      ids.add(artifact.header.id)
+      artifacts.push(artifact)
     }
     signal?.throwIfAborted()
     return artifacts
+  }
+
+  /**
+   * Read one session directory's header artifact.
+   * @param dir - the session directory to inspect.
+   * @param signal - optional cancellation for the probes and header read.
+   * @returns the artifact, or `undefined` when the directory holds no readable
+   * session log (absent, empty, half-written, or not a header line).
+   * @throws when the directory holds a log in the opposite encoding.
+   */
+  private async readArtifactHeader(dir: string, signal?: AbortSignal): Promise<{
+    header: SessionHeader
+    path: string
+    inheritedEventCount?: SessionLogOffsetType
+  } | undefined> {
+    signal?.throwIfAborted()
+    const opposite = join(dir, `session${logSuffix(this.oppositeCompression())}`)
+    const path = join(dir, `session${logSuffix(this.compression)}`)
+    const [oppositeExists, pathExists] = await Promise.all([
+      this.exists(opposite),
+      this.exists(path),
+    ])
+    signal?.throwIfAborted()
+    if (oppositeExists) throw this.encodingMismatch(opposite)
+    if (!pathExists) return undefined
+    // Read only headers so listing scales with session count, not log size.
+    const first = this.compression === 'zstd'
+      ? await this.readFirstZstdLine(path, signal)
+      : await this.readFirstLine(path, signal)
+    signal?.throwIfAborted()
+    if (first === undefined) return undefined // empty/half-written file
+    const parsed = parseHeader(first)
+    if (parsed === undefined) return undefined // not a session header
+    const meta = parsed.meta
+    await this.assertStoredIdentity(path, meta, undefined, signal)
+    signal?.throwIfAborted()
+    // The inherited cut rides along: it was parsed from the header line the
+    // listing already read, so carrying it costs nothing, and a consumer
+    // addressing a seeded Session's projection-cache row cannot reconstruct
+    // it from the header alone.
+    return {
+      header: meta,
+      path,
+      ...meta.isSeeded ? { inheritedEventCount: parsed.inheritedEventCount } : {},
+    }
   }
 
   // --- materialization / append / repair (file mechanics) ---

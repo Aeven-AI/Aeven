@@ -158,10 +158,18 @@ export class ExternalWatcher {
         // delivering) degrades this path to sweep-only rather than failing:
         // the sweep is the floor precisely so detection can lose its
         // accelerator without losing convergence.
+        // FSWatcher reports only a medium or backend failure, which needs a
+        // watch backend (inotify) the coverage lanes do not use; the handler
+        // must stay, because Node's default `error` listener on an
+        // EventEmitter throws and an unhandled one would take the process
+        // down. Convergence without it is pinned by the swept and
+        // removed-directory specs.
+        /* v8 ignore start */
         watcher.on('error', () => {
           watcher.close()
           this.watched.delete(path)
         })
+        /* v8 ignore stop */
         this.watchers.push(watcher)
         this.watched.add(path)
       } catch {
@@ -174,22 +182,43 @@ export class ExternalWatcher {
 
   /** Coalesce reconcile requests: a burst of events runs one pass after the quiet period. */
   private schedule(delayMs: number): void {
+    // This method's only callers are the sweep interval, which `stop()` clears,
+    // and the watch callback, which `stop()` detaches first, so a stopped
+    // watcher never reaches here. The guard keeps a request already in flight
+    // at stop from arming a timer on it.
+    /* v8 ignore next */
     if (this.stopped) return
     if (this.debounceTimer !== undefined) clearTimeout(this.debounceTimer)
-    this.debounceTimer = setTimeout(() => {
+    const timer = setTimeout(() => {
       this.debounceTimer = undefined
       void this.reconcile()
     }, delayMs)
-    this.debounceTimer.unref()
+    this.debounceTimer = timer
+    timer.unref()
   }
 
-  /** Whether another reconcile was requested while this one ran, and is still worth running. */
+  /**
+   * Whether another reconcile was requested while this one ran, and is still worth running.
+   *
+   * `pending` has no live writer — the guard in {@link reconcile} is its only
+   * assignment, and nothing can land in the window that guard covers, so the
+   * pending half reads false on every live path. The stopped half is what the
+   * mid-pass teardown spec exercises.
+   */
   private takePending(): boolean {
+    /* v8 ignore next */
     return this.pending && !this.stopped
   }
 
   /** Run one reconcile pass, serializing concurrent requests into one follow-up run. */
   private async reconcile(): Promise<void> {
+    // A re-entrant pass needs a timer callback to run between
+    // `reconciling = true` and the loop's `takePending()` read. Nothing can:
+    // the push that could arm such a timer happens inside `scan`, and when
+    // `scan` resolves its continuation resumes as a microtask, ahead of any
+    // timer that push armed. A later request is still queued, just always
+    // before the loop's own read of it.
+    /* v8 ignore next 4 */
     if (this.reconciling) {
       this.pending = true
       return

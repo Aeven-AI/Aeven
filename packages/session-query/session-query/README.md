@@ -143,6 +143,7 @@ These limits define when this package is a poor fit or needs special operational
 - **No caller authorization** — this is trusted context-wide infrastructure; a model tool or UI must constrain which sessions its caller may inspect.
 - **No provider coordinator or fallback** — the service is abstract over search, so a composition must mount a concrete backend; there is no search-provider registry or fallback implementation.
 - **Exact reads replay whole logs** — `readSession`, `readSurface`, `filterEvents`, and event traces load and validate the complete logical log, so very large histories pay full inspection per call; `listSessions` stays lightweight.
+- **Listings are shared only while in flight, never cached** — simultaneous `listSessions` callers that pass no `signal` share one backend walk, but no settled result is retained, so sequential callers each pay a full walk. A caller that passes a `signal` always gets its own walk, because its abort must reach the backend.
 - **Literal text scan, not full-text search** — the `text` filter scans extracted documents with a regular expression and does not rank; ranked search requires the mounted backend.
 
 <a id="dev-note"></a>

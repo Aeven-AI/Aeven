@@ -91,7 +91,7 @@ The plugin is a function/namespace plugin: it exports `name` / `inject` / `apply
 
 ### Session projection
 
-When the composition mounts `ctx.sessionProjections` ([`@deepseek-ai/dsh-session-projection`](../../session/session-projection/README.md)), this package registers two units on an injected child. `todos` is the UI's standing plan: the latest whole `todo/write` list, `null` before the first write, cleared when the next turn starts while `turn/end` keeps the finished checklist visible. That key merges into `SessionProjectionMap` here, carriers serve the value on the history tail page and the `session/projection` push frame, and the lifetime rationale lives in the [todo plan clears on next turn Agent Note](../../../.agents/notes/implemented/feature/2026-07-28-todo-plan-clears-on-next-turn.md). `todoPlan` is the model's read-back of the same list, declared with no `wire` so it never reaches a client: it retains the session's latest `todo/write` across turn boundaries, because an agent's working memory has to survive a turn even where the dock's turn-scoped lifetime deliberately retires a finished checklist. Compositions without the registry are unaffected; see [src/index.ts](src/index.ts) for both unit registrations.
+When the composition mounts `ctx.sessionProjections` ([`@deepseek-ai/dsh-session-projection`](../../session/session-projection/README.md)), this package registers two units on an injected child. `todos` is the UI's standing plan: the latest whole `todo/write` list, `null` before the first write, replaced only by the next write. A turn boundary does not move it, so the dock keeps showing the plan the agent is still working to. That key merges into `SessionProjectionMap` here, carriers serve the value on the history tail page and the `session/projection` push frame, and the lifetime rationale lives in the [todo plan survives the turn boundary Agent Note](../../../.agents/notes/implemented/bug-fix/2026-09-16-todo-plan-survives-the-turn-boundary.md), which reverses the earlier [clear-on-next-turn decision](../../../.agents/notes/implemented/feature/2026-07-28-todo-plan-clears-on-next-turn.md). `todoPlan` is the model's read-back of the same list, declared with no `wire` so it never reaches a client: it folds the same input, so the plan the dock shows and the plan the model reads back cannot disagree. Compositions without the registry are unaffected; see [src/index.ts](src/index.ts) for both unit registrations.
 
 ### Durable-log invariant
 
@@ -116,7 +116,7 @@ Read these pages when the package-level contract is not enough. They move from t
 - [Generated configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-tool-todo) — every accepted config field and its source declaration.
 - [todo_write tool Agent Note](../../../.agents/notes/implemented/feature/2026-06-29-todo-write-tool.md) — the original design, alternatives, and dropped fields.
 - [parallel in-progress Agent Note](../../../.agents/notes/implemented/feature/2026-07-26-todo-parallel-in-progress.md) — why the active-count cap is a deployment policy.
-- [todo plan clears on next turn Agent Note](../../../.agents/notes/implemented/feature/2026-07-28-todo-plan-clears-on-next-turn.md) — the projection's standing-plan lifetime.
+- [todo plan survives the turn boundary Agent Note](../../../.agents/notes/implemented/bug-fix/2026-09-16-todo-plan-survives-the-turn-boundary.md) — the projection's standing-plan lifetime, and the reversal of the clear-on-next-turn rule.
 
 -----
 
@@ -155,7 +155,7 @@ Append-only; newly visible content follows the reusable request prefix and does 
 
 #### What the model sees
 
-While a standing plan exists, that step's runtime context carries one contribution: `Your current todo list (<completed>/<total> completed) — keep it in sync with todo_write as this work progresses, marking each task completed the moment it is done:` followed by one `- [<status>] <content>` line per item in the order written. It renders from the host-only `todoPlan` projection, so it survives a turn boundary that clears the dock's `todos` value and restores the plan after history compaction. Before the first write, and for an empty list, the contribution renders empty and contributes no snapshot at all.
+While a standing plan exists, that step's runtime context carries one contribution: `Your current todo list (<completed>/<total> completed) — keep it in sync with todo_write as this work progresses, marking each task completed the moment it is done:` followed by one `- [<status>] <content>` line per item in the order written. It renders from the host-only `todoPlan` projection, which folds the same input as the dock's `todos` value and restores the plan after history compaction. Before the first write, and for an empty list, the contribution renders empty and contributes no snapshot at all.
 
 #### Token effect
 

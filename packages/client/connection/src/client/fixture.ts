@@ -833,9 +833,11 @@ function buildAlphaLog(): SessionEvent[] {
   // includes an `[exit code: N]` marker below; Client
   // derivation consumes it into the status pill before rendering the body.
   //
-  // Ordered BEFORE the todo turn deliberately: the standing plan retires at the
-  // next `turn/start`, so a turn appended after it would leave the dock's plan
-  // strip empty and take the todo surfaces' own coverage with it.
+  // Ordered BEFORE the todo turn: the ordering outlived the rule that required
+  // it — the standing plan used to retire at the next `turn/start`, so a turn
+  // appended after the todo turn emptied the dock's plan strip and took the todo
+  // surfaces' own coverage with it. A turn boundary no longer moves the plan,
+  // so this placement is kept only to hold the recorded snapshots still.
   toolTurn(
     66,
     'bash',
@@ -883,7 +885,8 @@ function buildAlphaLog(): SessionEvent[] {
   )
 
   // Turns 70-71 carry the web tools' result metadata. They stay before the todo
-  // turn because a later turn/start retires the standing plan projection.
+  // turn for the snapshot-stability reason above, not because a later turn would
+  // move the standing plan.
   toolTurn(
     70,
     'web_search',
@@ -1399,8 +1402,10 @@ function projectionFramesOf(
   if (type === 'goal/change') {
     return [{ type: 'projection', sessionId: id, key: 'goal', value: backscanGoal(log), seq: event.seq }]
   }
-  // Standing-plan fold: writes replace the list; turn/start clears it (null).
-  if (type === 'todo/write' || type === 'turn/start') {
+  // Standing-plan fold: writes replace the list and nothing else moves it, so a
+  // `todo/write` is the only event that advances the key — the host feed is
+  // change-only, and a turn boundary leaves the value identical.
+  if (type === 'todo/write') {
     return [{
       type: 'projection',
       sessionId: id,
@@ -1653,14 +1658,13 @@ function compareSearchCandidates(a: FixtureSearchCandidate, b: FixtureSearchCand
 }
 
 /**
- * Current plan projection over the full log (host parallel: latest todo/write
- * with no later turn/start; a new turn retires the previous plan).
+ * Current plan projection over the full log (host parallel: the latest
+ * todo/write, which a turn boundary leaves standing).
  */
 function backscanTodos(log: readonly SessionEvent[]): TodoItem[] | undefined {
   for (let i = log.length - 1; i >= 0; i--) {
     const event = log[i]
     if (event === undefined) continue
-    if (event.type === 'turn/start') return undefined
     if (event.type === 'todo/write') return event.data.todos
   }
   return undefined

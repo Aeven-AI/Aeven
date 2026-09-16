@@ -462,7 +462,7 @@ describe('ConversationRoot resident composer', () => {
     expect(b.lineageOwners.at(-1)?.openTitle).toBeUndefined()
   })
 
-  it('active phase: header and composer seat both sit outside the scrollport', () => {
+  it('active phase: one scroller holds the header, the transcript, and the composer seat', () => {
     const b = mount(sessionSnapshotOf())
     const host = b.view.container.querySelector('[data-conversation-scroll]')
     const seat = b.view.container.querySelector('[data-composer-seat]')
@@ -471,12 +471,16 @@ describe('ConversationRoot resident composer', () => {
     expect(host).not.toBeNull()
     expect(seat).not.toBeNull()
     expect(header).not.toBeNull()
-    // Both are column chrome around the scrollport, never inside it: elastic
-    // overscroll moves the scrollport's contents, so a seat among them would
-    // ride the rubber-band the header never feels.
-    expect(host?.contains(header)).toBe(false)
-    expect(host?.contains(seat)).toBe(false)
+    // The column is one scrollport: the header sticks at its top, the transcript
+    // is in flow, and the seat sticks at its floor, so all three are laid out in
+    // one content box and a scrollbar shortens them identically. The two chrome
+    // layers stay outside it — a layer among the scrolled children is placed by
+    // its own spot in the flow, travels with it, and extends the scroll range.
+    expect(host?.contains(header)).toBe(true)
+    expect(host?.contains(seat)).toBe(true)
     expect(seat?.contains(textarea)).toBe(true)
+    expect(host?.contains(b.view.container.querySelector('[data-conversation-chrome]'))).toBe(false)
+    expect(host?.contains(b.view.container.querySelector('[data-conversation-chrome-top]'))).toBe(false)
     expect(b.slotCalls).toContain('conversation.session.header.lineage')
     expect(b.slotCalls).toContain('conversation.session.header.actions')
     expect(b.slotCalls).toContain('conversation.session.header.utilities')
@@ -515,9 +519,11 @@ describe('ConversationRoot resident composer', () => {
     expect(b.view.container.querySelector('[data-transcript-hold]')).toBeNull()
     // The same machine-backed textarea is live in the hero, and the
     // persistence mirror stays bound (ConversationSession mounts chrome-hidden
-    // for blank sessions): hero typing reaches the Conversation store.
+    // for blank sessions): hero typing reaches the Conversation store. The hero
+    // composer centres inside the column's one scroller, so the box is a
+    // scrollport descendant there too.
     const box = b.view.getByRole('textbox')
-    expect(host?.contains(box)).toBe(false)
+    expect(host?.contains(box)).toBe(true)
     expect(b.view.container.querySelector('[data-composer-seat]')?.contains(box)).toBe(true)
     act(() => { b.wiring.setDraft('draft in hero') })
     expect(b.store.store.getSnapshot().draft).toBe('draft in hero')
@@ -739,17 +745,21 @@ describe('ConversationRoot resident composer', () => {
   it('same textarea DOM node survives the hero → active flip', () => {
     const b = mount(sessionSnapshotOf({ blank: true }), undefined, undefined, { summaryBlank: true })
     const before = b.view.getByRole('textbox')
+    const seat = b.view.container.querySelector('[data-composer-seat]')
     act(() => { b.wiring.setDraft('kept across flip') })
     // First message landed: content exists, phase leaves blank. The composer
-    // seat is resident chrome in both phases, so the textarea node and the
-    // InputHub draft both survive.
+    // seat is resident chrome in both phases, so the seat element, the textarea
+    // node, and the InputHub draft all survive. The seat is a child of the
+    // column's one scroller in both phases, so the flip moves nothing between
+    // boxes either.
     b.session.set(sessionSnapshotOf({ blank: false }))
     b.rerender()
     const after = b.view.getByRole('textbox')
     expect(after).toBe(before)
     expect(b.wiring.snapshot.draft).toBe('kept across flip')
     expect(b.store.store.getSnapshot().draft).toBe('kept across flip')
-    expect(b.view.container.querySelector('[data-conversation-scroll]')?.contains(after)).toBe(false)
+    expect(b.view.container.querySelector('[data-composer-seat]')).toBe(seat)
+    expect(b.view.container.querySelector('[data-conversation-scroll]')?.contains(after)).toBe(true)
     expect(b.view.container.querySelector('[data-composer-seat]')?.contains(after)).toBe(true)
     expect(b.view.queryByTestId('hero-headline')).toBeNull()
     expect(b.view.getByTestId('view-chat')).toBeTruthy()

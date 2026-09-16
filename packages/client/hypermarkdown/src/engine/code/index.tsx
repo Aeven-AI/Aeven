@@ -112,6 +112,7 @@ class MarkdownCode extends PureComponent<CodeBlockProps, CodeBlockState> {
         if (!match) {
           return language
         } else {
+          /* v8 ignore next -- `(\w+)` captures at least one character whenever it matches, so the left side is never null; the fallback answers the `string | undefined` its index type carries. */
           language = match[1] ?? language
           return language
         }
@@ -120,23 +121,17 @@ class MarkdownCode extends PureComponent<CodeBlockProps, CodeBlockState> {
   }
 
   toggleFullScreen(fullscreen: boolean) {
-    let wrapper
-
     const vm = this
     if (fullscreen && vm.wrapperRef.current) {
       vm.slotHeight = vm.wrapperRef.current.getBoundingClientRect().height
     }
     vm.setState({ fullscreen: fullscreen }, () => {
-      wrapper = vm.wrapperRef.current
-
-      if (!wrapper) {
-        return
-      }
+      const wrapper = vm.wrapperRef.current
 
       if (vm.state.fullscreen) {
-        wrapper.addEventListener('scroll', vm.scrollDownListener)
+        wrapper?.addEventListener('scroll', vm.scrollDownListener)
       } else {
-        wrapper.removeEventListener('scroll', vm.scrollDownListener)
+        wrapper?.removeEventListener('scroll', vm.scrollDownListener)
       }
     })
   }
@@ -167,6 +162,7 @@ class MarkdownCode extends PureComponent<CodeBlockProps, CodeBlockState> {
     const vm = this
     const wrapper = vm.wrapperRef.current
 
+    /* v8 ignore next 3 -- the listener is only attached to a mounted wrapper, so the ref it reads is the element the event came from. */
     if (!wrapper) {
       return
     }

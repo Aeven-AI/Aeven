@@ -72,6 +72,8 @@ domain.table('workspaces').update(id, (r) => ({ ...r, path: newPath }))
 
 每次写入只在后端确认持久后 resolve，并按写入顺序各发出一次 `domain/changed` 事件。失败携带稳定的 `DomainError` 代码：`already-open`（名称已打开或仍在关闭）、`facet-unsupported`（已路由后端不提供 `kv` 分面）、`invalid-record`（已存记录或全局不符合其 schema，并指明表与键）、`missing-key`（对不存在的记录执行 `update`）与 `closed`（关闭后的任何使用）。`version-mismatch` 等后端失败会原样透传。
 
+当已路由后端能够上报外部写入时，领域也会收敛到其他进程对同一介质所做的写入：每个被上报的位置都会重新读取、用打开时加载所用的同一 schema 校验、写入内存，然后作为普通 `domain/changed` 事件发出。按设计，外部变更与本地变更无从区分——若有消费方区别对待，它就是在推断某个值由哪个进程写入。校验失败的外部记录会被记录日志，并保留当前值。收敛工作在领域自身的写入链上运行，因此绝不会与本地写入交错。
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -148,7 +150,8 @@ domain.table('workspaces').update(id, (r) => ({ ...r, path: newPath }))
 
 这些限制说明领域层何时不合适，或何时需要特别的运维注意。它们是当前包约束，不是任务积压。
 
-- **变更只在单进程内可见**——`domain/changed` 是进程内事件；在跨进程修订模式落地前，第二个主机进程或重新连接的 GUI 无法观察变更（[Agent Note](../../../.agents/notes/proposed/architecture/2026-07-24-domain-kv-storage-and-workspace.zh.md)）。
+- **收敛是最终一致的，而非事务性的**——后端上报其他进程的写入时，领域会收敛到这些写入；但两个进程写同一条记录时，仍由介质按最后写入者胜出裁决，因此跨进程的读-改-写竞争可能丢失一次更新。需要真正原子性的工作自行加锁（[Agent Note](../../../.agents/notes/implemented/architecture/2026-09-16-cross-process-domain-coherence.zh.md)）。
+- **外部写入检测取决于后端**——没有 `watchExternal` 的后端（包括 `single` 布局与内存后端替身）会保留其打开时的快照，因此第二个进程观察不到任何变更。
 - **没有跨表事务、二级索引或多段键**——每次写入只触碰一条记录；这些扩展列在 Agent Note 的范围外清单中。
 - **没有数据迁移**——已存版本与 spec 不同的领域会在打开时拒绝（`version-mismatch`）；修改 schema 需要手工迁移已存数据。
 

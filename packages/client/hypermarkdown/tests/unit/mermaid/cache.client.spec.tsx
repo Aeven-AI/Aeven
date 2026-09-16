@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import MermaidDiagram from '../../../src/engine/mermaid/index.tsx'
-import { clear } from '../../../src/engine/mermaid/cache.ts'
+import { clear, render, watchScroll } from '../../../src/engine/mermaid/cache.ts'
 import type {
   DiagramEngine,
   DiagramPlugin,
@@ -13,6 +13,7 @@ import type {
 
 let roots: ReturnType<typeof createRoot>[] = []
 let observers: FakeIntersectionObserver[] = []
+let idle: Array<() => void> = []
 
 /**
  * Reports what the test asks it to: jsdom lays nothing out, so a real observer
@@ -39,7 +40,24 @@ class FakeIntersectionObserver {
   }
 }
 
-/** Bring every diagram waiting on the viewport into view. */
+/**
+ * Run every layout the cache queued for an idle moment, until it stops asking.
+ * The cache lays a diagram out in a later browser task, and jsdom never goes
+ * idle on its own, so the drawing is not on screen until these run.
+ */
+async function runLayouts(): Promise<void> {
+  do {
+    const pending = idle.splice(0)
+
+    await act(async () => {
+      pending.forEach((callback) => {
+        callback()
+      })
+    })
+  } while (idle.length > 0)
+}
+
+/** Bring every diagram waiting on the viewport into view, and draw it. */
 async function scrollIntoView(): Promise<void> {
   const waiting = observers.filter((observer) => {
     return observer.targets.some((target) => {
@@ -57,6 +75,8 @@ async function scrollIntoView(): Promise<void> {
       )
     })
   })
+
+  await runLayouts()
 }
 
 /** A plugin whose engine is loaded already, recording what it is asked to draw. */
@@ -100,7 +120,14 @@ beforeAll(() => {
 beforeEach(() => {
   clear()
   observers = []
+  idle = []
   vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver)
+  // jsdom never becomes idle; the cache draws a queued diagram once it does.
+  vi.stubGlobal('requestIdleCallback', (callback: () => void) => {
+    idle.push(callback)
+
+    return idle.length
+  })
 })
 
 afterEach(() => {
@@ -112,6 +139,7 @@ afterEach(() => {
   roots = []
   document.body.replaceChildren()
   vi.unstubAllGlobals()
+  vi.useRealTimers()
   clear()
 })
 
@@ -140,5 +168,50 @@ describe('drawing a diagram', () => {
 
     expect(diagram.drawn).toEqual(['graph TD; A-->B'])
     expect(host.querySelector('.mermaid-wrapper')?.className).toContain('drawn')
+  })
+})
+
+/**
+ * The queue is the module's own work: one layout per source, started in an idle
+ * moment and held back while the reader is moving the port. A component cannot
+ * report either moment, so these drive the queue directly.
+ */
+describe('the layout queue', () => {
+  it('hands a finished drawing to a consumer that arrives later', async () => {
+    const diagram = loadedPlugin()
+    const first = render('graph TD; A-->B', diagram, () => 0)
+
+    await runLayouts()
+    const data = await first
+    expect(data?.svg).toContain('A-->B')
+
+    // The source is already drawn, so the later consumer joins that entry
+    // instead of queueing the engine a second time.
+    const later = render('graph TD; A-->B', diagram, () => 0)
+    await runLayouts()
+    expect(await later).toBe(data)
+    expect(diagram.drawn).toEqual(['graph TD; A-->B'])
+  })
+
+  it('holds a layout back while the port scrolls, and draws once it is still', async () => {
+    vi.useFakeTimers()
+    const port = document.createElement('div')
+    document.body.appendChild(port)
+    watchScroll(port)
+
+    const diagram = loadedPlugin()
+    const queued = render('graph TD; A-->B', diagram, () => 0)
+
+    // A fling through the transcript: layouts wait for the port to settle
+    // rather than starting on the frames the reader is scrolling.
+    await act(() => port.dispatchEvent(new Event('scroll')))
+    await act(() => port.dispatchEvent(new Event('scroll')))
+    await runLayouts()
+    expect(diagram.drawn).toEqual([])
+
+    await act(() => vi.advanceTimersByTime(120))
+    await runLayouts()
+    expect(diagram.drawn).toEqual(['graph TD; A-->B'])
+    await expect(queued).resolves.toEqual({ svg: '<svg><text>graph TD; A-->B</text></svg>' })
   })
 })

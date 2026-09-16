@@ -5,7 +5,7 @@ import { SessionSeq, type SessionEvent } from '@deepseek-ai/dsh-session/types'
 import type { SessionId } from '@deepseek-ai/dsh-api-remotes/client'
 import { RemoteStreamCarrierError } from '@deepseek-ai/dsh-api-gateway/client'
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
-import { JUMP_PAGE_MESSAGES, Session, type SessionOptions } from '../src/client/sessions/session.ts'
+import { JUMP_PAGE_MESSAGES, SCROLL_PAGE_MESSAGES, Session, type SessionOptions } from '../src/client/sessions/session.ts'
 import { FakeApiClient, deferred, err, fakeRemote, ok } from './fake-api.client.ts'
 import { entries, ev, historyValue, plainTurn } from './event-script.client.ts'
 
@@ -43,6 +43,53 @@ function eventSeqs(session: Session): number[] {
 
 function histResponse(events: SessionEvent[], hasMore = false) {
   return Promise.resolve(ok(historyValue(events, hasMore)))
+}
+
+/** Events between one plain turn and the next in {@link longLog}. */
+const TURN_SEQ_STRIDE = 6
+/** Turns in {@link longLog}: dense seqs, long enough that a jump's half-page
+ *  read bound lands inside the log rather than past its end. */
+const LONG_LOG_TURNS = 100
+
+/** One dense session log, `0 … LONG_LOG_TURNS * TURN_SEQ_STRIDE - 1`. */
+function longLog(): SessionEvent[] {
+  return Array.from(
+    { length: LONG_LOG_TURNS },
+    (_, turn) => plainTurn(SessionSeq(turn * TURN_SEQ_STRIDE), turn, `问${String(turn)}`, `答${String(turn)}`),
+  ).flat()
+}
+
+/**
+ * The Host's page semantics over one flat log.
+ *
+ * A request carrying `beforeSeq` is answered with the page ending immediately
+ * before it — the jump's anchored read, which is what makes a far target cost
+ * one round trip — a request carrying `afterSeq` with the page starting after
+ * it (the forward read that tops a detached window up), and a request with
+ * neither with the log's tail page. `hasMore` reports whether the log holds
+ * events before the page, which is the only direction these reads ask about.
+ * @param log - the whole host log, ascending by seq.
+ * @returns a programmable `onHistory` for the case's fake.
+ */
+function hostLog(log: readonly SessionEvent[]) {
+  return (payload: {
+    readonly beforeSeq?: number
+    readonly afterSeq?: number
+    readonly maxMessages?: number
+  }): ReturnType<typeof histResponse> => {
+    const max = payload.maxMessages ?? log.length
+    const after = payload.afterSeq
+    if (after !== undefined) {
+      const found = log.findIndex(event => event.seq > after)
+      const start = found === -1 ? log.length : found
+      return histResponse(log.slice(start, start + max), start > 0)
+    }
+    const bound = payload.beforeSeq
+    const found = bound === undefined ? log.length : log.findIndex(event => event.seq >= bound)
+    const end = found === -1 ? log.length : found
+    const start = Math.max(0, end - max)
+    return histResponse(log.slice(start, end), start > 0)
+  }
 }
 
 describe('Session open', () => {
@@ -254,33 +301,54 @@ describe('paging', () => {
     }
   })
 
-  it('loadThrough pages repeatedly until the window covers the target seq', async () => {
-    const oldest = plainTurn(SessionSeq(0), 0, '最旧问', '最旧答')
-    const middle = plainTurn(SessionSeq(6), 1, '中问', '中答')
-    const newest = plainTurn(SessionSeq(12), 2, '新问', '新答')
+  it('loadThrough reaches a far target with one anchored read instead of walking history', async () => {
+    const log = longLog()
+    const serve = hostLog(log)
     const { api, session } = makeSession()
-    api.onHistory = (payload) => {
-      if (payload.beforeSeq === undefined) return histResponse(newest, true)
-      return payload.beforeSeq === 12 ? histResponse(middle, true) : histResponse(oldest, false)
-    }
+    api.onHistory = serve
     await session.open()
+    // The opening tail page carries the newest turns; the jump target sits far
+    // below its head.
+    const tailHead = eventSeqs(session)[0]
+    expect(tailHead).toBeGreaterThan(SessionSeq(0))
 
     const gate = deferred<Awaited<ReturnType<FakeApiClient['onHistory']>>>()
+    const target = SessionSeq(0)
+    const readBound = SessionSeq(target + Math.floor(JUMP_PAGE_MESSAGES / 2))
+    const reads: unknown[] = []
     api.onHistory = (payload) => {
-      api.onHistory = payload2 => payload2.beforeSeq === 12 ? histResponse(middle, true) : histResponse(oldest, false)
-      void payload
+      api.onHistory = serve
+      reads.push(payload)
       return gate.promise
     }
-    const jump = session.loadThrough(SessionSeq(0))
+    const jump = session.loadThrough(target)
     expect(session.getSnapshot().loadingOlder).toBe(true)
-    gate.resolve(ok(historyValue(middle, true)))
+    // One read, addressed directly at the target's page boundary: half a jump
+    // page below it, so the Turn lands with reading room beneath it rather than
+    // on the window's last row.
+    expect(reads).toEqual([{
+      sessionId: SID,
+      throughSeq: SessionSeq(log.at(-1)?.seq ?? 0),
+      beforeSeq: readBound,
+      maxMessages: JUMP_PAGE_MESSAGES,
+    }])
+    gate.resolve(serve({ beforeSeq: readBound, maxMessages: JUMP_PAGE_MESSAGES }))
     await jump
+
     const snapshot = session.getSnapshot()
     expect(snapshot.loadingOlder).toBe(false)
-    expect(eventSeqs(session)).toEqual([...oldest, ...middle, ...newest].map(event => event.seq))
+    // The window is the anchored page plus the one forward page that tops it
+    // up: the target is at its head, and the window is still short of the live
+    // tail, so it is detached and returnToLive is what reattaches it.
+    expect(eventSeqs(session)).toEqual(log.slice(0, readBound).map(event => event.seq)
+      .concat(log.slice(readBound, readBound + SCROLL_PAGE_MESSAGES).map(event => event.seq)))
+    expect(snapshot.detached).toBe(true)
     expect(api.callsOf('session.history')).toMatchObject([
-      { beforeSeq: 12, maxMessages: JUMP_PAGE_MESSAGES },
-      { beforeSeq: 6, maxMessages: JUMP_PAGE_MESSAGES },
+      { beforeSeq: readBound, maxMessages: JUMP_PAGE_MESSAGES },
+      {
+        afterSeq: log[readBound - 1]?.seq,
+        maxMessages: SCROLL_PAGE_MESSAGES,
+      },
     ])
   })
 
@@ -297,57 +365,68 @@ describe('paging', () => {
   })
 
   it('loadThrough retargets a running jump to the lowest requested seq and shares its completion', async () => {
-    const oldest = plainTurn(SessionSeq(0), 0, 'a', 'b')
-    const middle = plainTurn(SessionSeq(6), 1, 'c', 'd')
+    const log = longLog()
+    const serve = hostLog(log)
     const { api, session } = makeSession()
-    api.onHistory = () => histResponse(plainTurn(SessionSeq(12), 2, 'e', 'f'), true)
+    api.onHistory = serve
     await session.open()
 
     const gate = deferred<Awaited<ReturnType<FakeApiClient['onHistory']>>>()
-    api.onHistory = () => {
-      api.onHistory = () => histResponse(oldest, false)
+    const deep = SessionSeq(0)
+    const near = SessionSeq(300)
+    const nearBound = SessionSeq(near + Math.floor(JUMP_PAGE_MESSAGES / 2))
+    const deepBound = SessionSeq(deep + Math.floor(JUMP_PAGE_MESSAGES / 2))
+    const anchoredReads: unknown[] = []
+    api.onHistory = (payload) => {
+      api.onHistory = (next) => {
+        if (next.maxMessages === JUMP_PAGE_MESSAGES) anchoredReads.push(next.beforeSeq)
+        return serve(next)
+      }
+      if (payload.maxMessages === JUMP_PAGE_MESSAGES) anchoredReads.push(payload.beforeSeq)
       return gate.promise
     }
-    const first = session.loadThrough(SessionSeq(6))
-    const second = session.loadThrough(SessionSeq(0))
-    gate.resolve(ok(historyValue(middle, true)))
+    const first = session.loadThrough(near)
+    const second = session.loadThrough(deep)
+    // The retargeting caller joins the running pass rather than starting one.
+    expect(second).toBe(first)
+    gate.resolve(serve({ beforeSeq: nearBound, maxMessages: JUMP_PAGE_MESSAGES }))
     await Promise.all([first, second])
-    expect(eventSeqs(session)).toEqual([
-      ...[...oldest, ...middle].map(event => event.seq),
-      12, 13, 14, 15, 16, 17,
-    ])
-    expect(api.callsOf('session.history')).toHaveLength(2)
+
+    // Each target costs one anchored read, whatever the distance between them:
+    // a window around the nearer target does not contain the deeper one, so the
+    // pass reads again for it instead of walking the pages in between.
+    expect(anchoredReads).toEqual([nearBound, deepBound])
+    expect(eventSeqs(session)[0]).toBe(deep)
+    expect(session.getSnapshot().loadingOlder).toBe(false)
   })
 
   it('loadThrough refused by a busy pager leaves no target behind for later jumps', async () => {
-    const middle = plainTurn(SessionSeq(6), 1, 'c', 'd')
+    const log = longLog()
+    const serve = hostLog(log)
     const { api, session } = makeSession()
-    api.onHistory = () => histResponse(plainTurn(SessionSeq(12), 2, 'e', 'f'), true)
+    api.onHistory = serve
     await session.open()
+    /** Anchored reads only, by their upper bound. */
+    const anchoredReads = (): unknown[] => api.callsOf('session.history')
+      .filter(call => (call as { maxMessages?: number }).maxMessages === JUMP_PAGE_MESSAGES)
+      .map(call => (call as { beforeSeq?: number }).beforeSeq)
 
     // A plain single-page pull holds the busy flag while the jump is refused.
     const gate = deferred<Awaited<ReturnType<FakeApiClient['onHistory']>>>()
-    api.onHistory = () => gate.promise
+    const head = eventSeqs(session)[0] ?? 0
+    api.onHistory = payload => payload.maxMessages === SCROLL_PAGE_MESSAGES && payload.afterSeq === undefined
+      ? gate.promise
+      : serve(payload)
     const older = session.loadOlder()
     await session.loadThrough(SessionSeq(0)) // refused: must not park seq 0 anywhere
-    gate.resolve(ok(historyValue(middle, true)))
+    expect(anchoredReads()).toEqual([])
+    gate.resolve(serve({ beforeSeq: head, maxMessages: SCROLL_PAGE_MESSAGES }))
     await older
 
-    // A later jump to a nearer seq pages exactly to it — a leaked 0 target
-    // would keep pulling three-event pages all the way to the head.
-    api.onHistory = (payload) => {
-      const start = ((payload as { beforeSeq?: number }).beforeSeq ?? 0) - 3
-      return histResponse(
-        [ev.user(SessionSeq(start), `u${String(start)}`), ev.user(SessionSeq(start + 1), `u${String(start + 1)}`), ev.user(SessionSeq(start + 2), `u${String(start + 2)}`)],
-        start > 0,
-      )
-    }
+    // A later jump to a nearer seq reads once, anchored on that seq: a leaked
+    // 0 target would read a second time for the head it never asked for.
     await session.loadThrough(SessionSeq(4))
-    // Covered at seq 3 (≤ 4) after one page; a leaked 0 target would add a
-    // third call at beforeSeq 3 and pull the head to 0.
-    expect(api.callsOf('session.history').map(call => (call as { beforeSeq?: number }).beforeSeq))
-      .toEqual([12, 6])
-    expect(eventSeqs(session)[0]).toBe(3)
+    expect(anchoredReads()).toEqual([SessionSeq(4 + Math.floor(JUMP_PAGE_MESSAGES / 2))])
   })
 
   it('loadThrough stops paging when the event stream generation moves mid-loop', async () => {
@@ -378,7 +457,10 @@ describe('paging', () => {
     await session.open()
     await session.loadThrough(SessionSeq(0))
     expect(session.getSnapshot().loadingOlder).toBe(false)
-    expect(api.callsOf('session.history')).toHaveLength(1)
+    // The pass is bounded by its targets, not by the pages they return: one
+    // anchored read that installs nothing, then one top-up read against the
+    // unmoved head, and it ends rather than spinning on a page that never moves.
+    expect(api.callsOf('session.history')).toHaveLength(2)
   })
 
   it('loadThrough fails soft on a thrown page and clears its busy state', async () => {

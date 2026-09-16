@@ -16,7 +16,7 @@ import { createScope } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
-import { TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
+import { RemoteError, TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
 import type {
   ModelCatalogFailure, ModelProviderGroup, ModelSelection, ModelSelectionProjection,
 } from '@deepseek-ai/dsh-api-session-controller/types'
@@ -63,6 +63,7 @@ const GROUPS = [{
 async function bench(
   groups: readonly ModelProviderGroup[] = GROUPS,
   failures: readonly ModelCatalogFailure[] = [],
+  options: { readonly catalogFailure?: string } = {},
 ) {
   const ctx = new Context()
   let defaultSelection: ModelSelection = { provider: 'deepseek-official', model: 'deepseek-v4-flash' }
@@ -75,6 +76,12 @@ async function bench(
   const sessionRemote = {
     modelCatalog: () => {
       calls.models += 1
+      if (options.catalogFailure !== undefined) {
+        return Promise.resolve({
+          ok: false as const,
+          error: new RemoteError('gateway/internal', options.catalogFailure, {}),
+        })
+      }
       return Promise.resolve({
         ok: true as const,
         value: {
@@ -338,6 +345,25 @@ describe('ui-model-selection entries', () => {
     expect(await b.pickEffort('s1', PROVIDER_DEFAULT_EFFORT)).toBe(true)
     expect(b.hostCurrent()).toEqual({ provider: 'deepseek-official', model: 'deepseek-v4-flash' })
     expect(await b.pickEffort('s1', 'nope')).toBe(false)
+  })
+
+  it('refuses an effort pick while a failed catalog leaves no current route', async () => {
+    // A failed catalog leaves the directory without a selection and without
+    // groups, so no level resolves and a pick is refused rather than submitted
+    // against a route the seat cannot name. The refusal comes from the same
+    // derivation the pane renders from, so a stale row key cannot outlive the
+    // state that produced it.
+    const b = await bench(GROUPS, [], { catalogFailure: 'catalog offline' })
+    b.mint('s1')
+    const face = b.seatFace('s1')
+    await expect(b.ctx.modelDirectories.directoryFor(sid('s1')).load()).rejects.toThrow('catalog offline')
+
+    const state = face.directory.getSnapshot()
+    expect(state.current).toBeNull()
+    expect(state.status).toBe('error')
+    expect(state.groups).toEqual([])
+    expect(await b.pickEffort('s1', 'off')).toBe(false)
+    expect(b.calls.select).toBe(0)
   })
 
   it('rejects a failure row: an unselectable provider never submits a half selection', async () => {

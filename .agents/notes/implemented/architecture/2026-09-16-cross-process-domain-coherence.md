@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-09-16-cross-process-domain-coherence.zh.md)
+
 ## Problem
 
 The storage-domain layer assumed one process owns `~/.dsh`. Running two harness instances against the same home — the shipped web app and a desktop build, or two dev servers — made session titles vanish from the session list and silently destroyed workspace grouping.

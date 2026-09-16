@@ -254,6 +254,112 @@ describe('Session history raw journal', () => {
     expect(page.map(event => event.seq)).toEqual(page.map((_event, index) => third.seq + index))
   })
 
+  it('pages forward from an exclusive lower bound, counting only append-origin messages', async () => {
+    const { ctx } = await harness()
+    const remote = createSessionTestRemote(ctx, { defaultModelSelection: () => ({ provider: 'p', model: 'm' }), cwd: '/tmp' })
+    const session = ctx.sessions.create(undefined, { meta: { cwd: '/workspace' } })
+    session.append('turn/start', { turn: 1 })
+    appendUserText(session, 'first prompt')
+    appendAssistantText(session, 'first reply', 1)
+    const shadowed = [...session.surface.nodes]
+    const shadowedStart = shadowed[0]
+    const shadowedEnd = shadowed.at(-1)
+    if (shadowedStart === undefined || shadowedEnd === undefined) {
+      throw new Error('expected a non-empty surface')
+    }
+    const summary = appendExtension(session, 'compaction/summary', {
+      summary: [{ type: 'text', text: 'summary' }],
+      shadowedRange: { start: shadowedStart, end: shadowedEnd },
+      shadowedSeqs: shadowed,
+      shadowedTokenCount: 0,
+      provider: 'p',
+      model: 'm',
+    })
+    const checkpoint = session.append('user/message', createUserMessage({
+      content: [{ type: 'text', text: '<context_checkpoint>summary</context_checkpoint>' }],
+      source: { kind: 'plugin', plugin: 'compact' },
+    }), {
+      surfaceOp: { op: 'replace', start: shadowedStart, end: shadowedEnd },
+      sourceEventSeqs: [...shadowed, summary.seq],
+    })
+    const second = appendUserText(session, 'second prompt')
+    const reply = appendAssistantText(session, 'second reply', 2)
+
+    const response = await remote.page({
+      address: { kind: 'session', sessionId: session.id },
+      throughSeq: session.seq - 1,
+      afterSeq: shadowedEnd,
+      maxMessages: 3,
+    })
+    if (!response.ok) throw new Error('unreachable')
+    expect(pageEvents(response.value).map(event => event.seq))
+      .toEqual([summary.seq, checkpoint.seq, second.seq, reply.seq])
+    // The log-only summary and the replacement copy are read but not counted, so
+    // the two append-origin messages fit the budget and the page reaches the cursor.
+    expect(response.value.hasMore).toBe(false)
+  })
+
+  it('cuts a forward page after its message budget and continues from where it ended', async () => {
+    const { ctx } = await harness()
+    const remote = createSessionTestRemote(ctx, { defaultModelSelection: () => ({ provider: 'p', model: 'm' }), cwd: '/tmp' })
+    const session = ctx.sessions.create(undefined, { meta: { cwd: '/workspace' } })
+    session.append('turn/start', { turn: 1 })
+    const first = appendUserText(session, 'first prompt')
+    const reply = appendAssistantText(session, 'first reply', 1)
+    const second = appendUserText(session, 'second prompt')
+    const address = { kind: 'session' as const, sessionId: session.id }
+
+    const cut = await remote.page({
+      address,
+      throughSeq: session.seq - 1,
+      afterSeq: first.seq - 1,
+      maxMessages: 1,
+    })
+    if (!cut.ok) throw new Error('unreachable')
+    // The page begins at the event after the bound and ends after the message it
+    // counted, so the reply that follows stays for the next read.
+    expect(pageEvents(cut.value).map(event => event.seq)).toEqual([first.seq])
+    expect(cut.value.hasMore).toBe(true)
+
+    const continued = await remote.page({
+      address,
+      throughSeq: session.seq - 1,
+      afterSeq: first.seq,
+      maxMessages: 1,
+    })
+    if (!continued.ok) throw new Error('unreachable')
+    expect(pageEvents(continued.value).map(event => event.seq)).toEqual([reply.seq])
+    expect(continued.value.hasMore).toBe(true)
+
+    const rest = await remote.page({
+      address,
+      throughSeq: session.seq - 1,
+      afterSeq: second.seq - 1,
+      maxMessages: 1,
+    })
+    if (!rest.ok) throw new Error('unreachable')
+    expect(pageEvents(rest.value).map(event => event.seq)).toEqual([second.seq])
+    expect(rest.value.hasMore).toBe(false)
+  })
+
+  it('reads an empty forward page when the window already ends at the cursor', async () => {
+    const { ctx } = await harness()
+    const remote = createSessionTestRemote(ctx, { defaultModelSelection: () => ({ provider: 'p', model: 'm' }), cwd: '/tmp' })
+    const session = ctx.sessions.create(undefined, { meta: { cwd: '/workspace' } })
+    session.append('turn/start', { turn: 1 })
+    appendUserText(session, 'first prompt')
+    const reply = appendAssistantText(session, 'first reply', 1)
+
+    const response = await remote.page({
+      address: { kind: 'session', sessionId: session.id },
+      throughSeq: session.seq - 1,
+      afterSeq: reply.seq,
+    })
+    if (!response.ok) throw new Error('unreachable')
+    expect(response.value.records).toEqual([])
+    expect(response.value.hasMore).toBe(false)
+  })
+
   it('paginates a message with many provenance sources without variadic argument expansion', async () => {
     const { ctx } = await harness()
     const remote = createSessionTestRemote(ctx, { defaultModelSelection: () => ({ provider: 'p', model: 'm' }), cwd: '/tmp' })

@@ -54,10 +54,14 @@ describe('Client Session contracts', () => {
     const older = entry(SessionSeq(0))
     const live = entry(SessionSeq(2))
 
+    // The bare boolean stays the `hasOlder` legacy form and reports an
+    // attached window: a tail-anchored replace withholds nothing newer.
     feed.replace([first], true)
     expect(feed.getSnapshot()).toEqual({
       entries: [first],
       hasMore: true,
+      hasOlder: true,
+      hasNewer: false,
       revision: 1,
       change: { kind: 'replace', entries: [first] },
     })
@@ -66,6 +70,8 @@ describe('Client Session contracts', () => {
     expect(feed.getSnapshot()).toEqual({
       entries: [older, first],
       hasMore: false,
+      hasOlder: false,
+      hasNewer: false,
       revision: 2,
       change: { kind: 'prepend', entries: [older] },
     })
@@ -74,6 +80,8 @@ describe('Client Session contracts', () => {
     expect(feed.getSnapshot()).toEqual({
       entries: [older, first, live],
       hasMore: false,
+      hasOlder: false,
+      hasNewer: false,
       revision: 3,
       change: { kind: 'append', entries: [live] },
     })

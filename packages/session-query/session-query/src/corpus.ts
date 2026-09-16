@@ -53,6 +53,8 @@ interface PersistedEntry {
 export class SessionCorpus {
   private _persistence: SessionPersistence | undefined
   private readonly _optionalPersistenceFiber: Fiber
+  /** The in-flight uncancellable listing further callers join; cleared when it settles. */
+  private _sharedListing: { promise: Promise<PersistedEntry[]> } | undefined
 
   constructor(
     private readonly _ctx: Context,
@@ -72,14 +74,77 @@ export class SessionCorpus {
   }
 
   /**
+   * The in-flight persisted listing, started if none is running.
+   *
+   * A sharer must keep the cancellation semantics it would have had alone:
+   * the backend receives a signal, and an aborting caller waits for that
+   * backend's cleanup before rejecting. Sharing therefore only ever joins a
+   * caller to a walk that is already running under another caller's signal,
+   * and only while that caller has not aborted — the first caller owns the
+   * read, and anyone who cannot accept those semantics starts their own.
+   * @param persistence - the backend mounted for this read.
+   * @param signal - the joining caller's cancellation.
+   * @returns the shared listing result.
+   */
+  private _sharedPersistedListing(
+    persistence: SessionPersistence,
+    signal: AbortSignal | undefined,
+  ): Promise<PersistedEntry[]> {
+    // Only an uncancellable caller may join: one that passed a signal expects
+    // its own abort to reach the backend, which a shared read cannot promise.
+    const running = this._sharedListing
+    if (signal === undefined && running !== undefined) return running.promise
+    const promise = listPersisted(persistence, signal)
+    // A signalled read is never offered for sharing: its lifetime belongs to
+    // its caller's signal, so a later sharer could observe someone else's abort.
+    if (signal !== undefined) return promise
+    this._sharedListing = { promise }
+    // The entry is dropped the moment the walk settles, in the same job that
+    // settles it. Nothing is retained afterwards, so a caller arriving after
+    // this read completes always starts a fresh walk and observes any change
+    // that landed in between — sharing an already-finished result would be a
+    // cache, and callers here require an up-to-date corpus.
+    const entry = this._sharedListing
+    const release = (): void => {
+      // Only the installed entry may clear the slot. A backend may re-enter the
+      // corpus while it lists, and that nested read installs its own entry
+      // before this call installs over it, so this release can run against a
+      // slot a still-running read owns; clearing that would drop it, and later
+      // callers would walk again instead of joining.
+      if (this._sharedListing === entry) this._sharedListing = undefined
+    }
+    promise.then(release, release)
+    return promise
+  }
+
+  /**
    * List the complete logical corpus with live precedence and cloned headers.
+   *
+   * An uncancellable listing is shared, not cached: callers arriving while
+   * one is running reuse it instead of each re-walking every session
+   * directory. A client boot issues several independent listings within a few
+   * milliseconds — the session list, and one subagent listing per mounted
+   * surface — and each one used to pay the whole walk.
+   *
+   * Sharing covers only a walk that is still running, and is never a
+   * freshness claim: no completed result is retained, so a caller arriving
+   * after one finishes starts a fresh walk and sees whatever changed in
+   * between — including a session another process materialized. Live sessions
+   * are merged after the shared read, so an in-process change is always
+   * reflected immediately.
+   *
+   * A caller that passes a `signal` neither joins nor offers a shared read,
+   * because cancellation is part of this contract: the backend receives that
+   * caller's signal, and an abort waits for the backend's cleanup.
    * @param signal - optional cancellation for persistence listing.
    * @returns records in deterministic newest-first order.
    */
   async listSessions(signal?: AbortSignal): Promise<SessionRecord[]> {
     signal?.throwIfAborted()
     const persistence = this._persistence
-    const persisted = persistence === undefined ? [] : await listPersisted(persistence, signal)
+    const persisted = persistence === undefined
+      ? []
+      : await this._sharedPersistedListing(persistence, signal)
     signal?.throwIfAborted()
     const records = new Map<SessionId, SessionRecord>()
     for (const entry of persisted) {

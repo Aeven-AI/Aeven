@@ -44,10 +44,14 @@ body {
    `thin` rather than the initial `auto`: it keeps the bar near the 8px band the
    pseudo-element path draws, and where an engine still reserves a gutter for it
    (chromium and Firefox on Windows and Linux) it is the narrower of the two
-   reservations. No hover counterpart exists on this path — `scrollbar-color`
-   states one thumb colour and the engine derives its own hover treatment — so
-   the hover tokens render only through the pseudo-element path below. */
-body,
+   reservations. No hover counterpart exists on this path: the standard pair
+   would state one thumb colour, which the iOS/Safari 14.5 baseline cannot
+   parse, and the engine derives its own hover treatment anyway — so the
+   hover tokens render only through the pseudo-element path below.
+
+   The selector is `body *` rather than `body, body *`: the root element draws
+   no scrollbar, and `scrollbar-width` is not inherited, so a declaration there
+   would be one no element reads. */
 body * {
   scrollbar-width: thin;
 }

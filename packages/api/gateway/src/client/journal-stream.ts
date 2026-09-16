@@ -253,6 +253,7 @@ export abstract class RemoteJournalStream<Page, Entry, Cursor, PageRequest = voi
     const last = this.options.last(tail)
     const hasNewer = this.options.compare(last, cursor) < 0
     const first = entries[0]
+    /* v8 ignore next -- a page with a tail entry always has a first entry. */
     if (first !== undefined) this.firstCursor = this.options.first(first)
     // `lastCursor` is the live stream's applied watermark, not this window's
     // end: it orders resume and live-entry acceptance. An anchored window sits

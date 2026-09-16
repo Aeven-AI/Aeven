@@ -16,7 +16,9 @@
  */
 
 import { StorageError } from '@deepseek-ai/dsh-storage'
-import type { KvFacet, KvUnit, KvUnitDescriptor, StorageBackend } from '@deepseek-ai/dsh-storage'
+import type {
+  ExternalChange, KvFacet, KvUnit, KvUnitDescriptor, StorageBackend,
+} from '@deepseek-ai/dsh-storage'
 
 /** One unit's medium: tables of records plus the global slot (`null` = never written). */
 export interface MemoryMedium {
@@ -43,12 +45,31 @@ export class MemoryMediaPool {
    * untouched after a durability failure.
    */
   failNextWrites = 0
+  /**
+   * When positive, that many subsequent `loadAll` reads reject, decrementing
+   * per rejection. The negative path for reads: a caller asserts that a failed
+   * re-read leaves the in-memory value and the medium alone.
+   */
+  failNextLoads = 0
+  /**
+   * Foreign-write reporters registered through `watchExternal` on this pool's
+   * units. A test calls one to play the part of another process's write.
+   */
+  readonly externalWatchers: ((changed: readonly ExternalChange[]) => void)[] = []
 
   /** Consume one injected failure, throwing in a rejected write's place. */
   consumeInjectedFailure(): void {
     if (this.failNextWrites > 0) {
       this.failNextWrites -= 1
       throw new Error('injected write failure')
+    }
+  }
+
+  /** Consume one injected read failure, throwing in a rejected `loadAll`'s place. */
+  consumeInjectedLoadFailure(): void {
+    if (this.failNextLoads > 0) {
+      this.failNextLoads -= 1
+      throw new Error('injected load failure')
     }
   }
 }
@@ -72,11 +93,26 @@ class MemoryKvUnit implements KvUnit {
 
   async loadAll(): Promise<{ tables: Record<string, Record<string, unknown>>; global: unknown }> {
     this.assertOpen()
+    this.pool.consumeInjectedLoadFailure()
     const tables: Record<string, Record<string, unknown>> = {}
     for (const table of this.descriptor.tables) {
       tables[table] = Object.fromEntries(this.medium.tables.get(table) ?? [])
     }
     return { tables, global: this.medium.global }
+  }
+
+  /**
+   * Register `onExternal` on the pool, so a test can report a foreign location
+   * exactly as the JSON backend's detector would. Memory has no medium to
+   * watch, so the report is the injection point.
+   */
+  watchExternal(onExternal: (changed: readonly ExternalChange[]) => void): () => void {
+    const watchers = this.pool.externalWatchers
+    watchers.push(onExternal)
+    return () => {
+      const index = watchers.indexOf(onExternal)
+      if (index !== -1) watchers.splice(index, 1)
+    }
   }
 
   async putRecord(table: string, key: string, value: unknown): Promise<void> {

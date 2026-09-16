@@ -300,7 +300,14 @@ export class PerRecordJsonUnit implements KvUnit {
     this.watcher = watcher
     // Failure to establish observation degrades to no observation, which is
     // the pre-existing behavior; it must not fail the caller's open.
-    void watcher.start().catch(() => { watcher.stop() })
+    // The rejection arm cannot run: `start` tolerates every read failure and
+    // watcher installation swallows its own, so nothing reaches the stop
+    // below. It stays because a rejected open is the one outcome this path
+    // must not produce.
+    /* v8 ignore next 3 */
+    void watcher.start().catch(() => {
+      watcher.stop()
+    })
     return () => {
       watcher.stop()
       if (this.watcher === watcher) this.watcher = undefined

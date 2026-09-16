@@ -56,6 +56,23 @@ function flowTop(row: HTMLElement, scrollport: HTMLElement): number {
   return row.getBoundingClientRect().top - scrollport.getBoundingClientRect().top
 }
 
+/**
+ * Earliest rendered row of the Turn that owns `row`. Seats are direct flow
+ * siblings and a Turn's seats are contiguous; hidden and empty seats render no
+ * box and are skipped.
+ * @param row - a rendered seat carrying `data-chat-turn`.
+ * @returns the Turn's first rendered row, and whether no rendered row precedes it in the flow.
+ */
+function turnHead(row: HTMLElement): { readonly row: HTMLElement; readonly first: boolean } {
+  let head = row
+  for (let sibling = row.previousElementSibling; sibling !== null; sibling = sibling.previousElementSibling) {
+    if (!(sibling instanceof HTMLElement) || sibling.hasAttribute('hidden') || sibling.firstChild === null) continue
+    if (sibling.dataset.chatTurn !== row.dataset.chatTurn) return { row: head, first: false }
+    head = sibling
+  }
+  return { row: head, first: true }
+}
+
 /** Select a visible stable node/call identity, falling back only when layout
  * has not exposed a visible box yet. */
 function pagingAnchor(list: HTMLElement, scrollport: HTMLElement): HTMLElement | null {
@@ -428,12 +445,13 @@ export function ChatView({
     chatScroll.save(null)
   }
 
-  // Land a row at the reading line and republish scroll-derived state.
+  // Land a row at the reading line — or the view at the scroll origin for a
+  // Turn whose earliest row starts the flow — and republish scroll-derived state.
   const landOnRowRef = useRef<
-    (local: HTMLElement, el: HTMLElement, row: HTMLElement) => void
+    (local: HTMLElement, el: HTMLElement, row: HTMLElement, origin: boolean) => void
   >(() => {})
-  landOnRowRef.current = (local, el, row) => {
-    el.scrollTop += flowTop(row, el) - 24
+  landOnRowRef.current = (local, el, row, origin) => {
+    el.scrollTop = origin ? 0 : el.scrollTop + flowTop(row, el) - 24
     observedTopRef.current = el.scrollTop
     anchorRef.current = readingAnchor(local, el)
     const isAtBottom = !detached && el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_THRESHOLD + 1
@@ -441,6 +459,21 @@ export function ChatView({
     const position = isAtBottom ? null : scrollPosition(local, el)
     if (isAtBottom) chatScroll.save(null)
     else if (position !== null) chatScroll.save(position)
+  }
+
+  /**
+   * Land a Turn destination: its earliest rendered row, so rows placed before
+   * the Turn's anchor (a request's System prompt) stay in view, and the flow's
+   * own first row at the scroll origin once history is complete — the reader
+   * asked for the conversation's start, not for a reading line inside it.
+   *
+   * A latest-ref, so `navigateToTurn`'s identity stays stable for the memoized
+   * rail while this reads the current `hasMore`.
+   */
+  const landOnTurnRef = useRef<(local: HTMLElement, el: HTMLElement, row: HTMLElement) => void>(() => {})
+  landOnTurnRef.current = (local, el, row) => {
+    const head = turnHead(row)
+    landOnRowRef.current(local, el, head.row, head.first && !hasMore)
   }
 
   useLayoutEffect(() => {
@@ -647,12 +680,22 @@ export function ChatView({
     return () => { observer.disconnect() }
   }, [])
 
+  /** The mounting commit's paging test belongs to the opening branch above. */
+  const mountedPagingRef = useRef(false)
   // A committed page is the only success signal paging needs: `order` grows,
   // this effect runs, and the next pull is tested against the new head. A page
   // that leaves `hasMore` set but adds nothing simply stops chaining here,
   // because the reader is no longer within the prefetch margin of a head that
   // did not move — no latch, and no state to reset per Session.
   useEffect(() => {
+    // An attaching view — a first mount, or a tab returning to an open Session
+    // — tests the window it installs once, in the layout effect that installs
+    // it. Testing the same geometry again here would read it twice on the
+    // frame the reader first sees.
+    if (!mountedPagingRef.current) {
+      mountedPagingRef.current = true
+      return
+    }
     if (loadingOlder) return
     maybeLoadOlderRef.current()
   }, [loadingOlder, order])
@@ -680,7 +723,11 @@ export function ChatView({
     if (exactKey !== undefined && exactRow !== null) {
       const turn = Number(exactRow.dataset.chatTurn)
       if (Number.isSafeInteger(turn)) {
-        landOnRowRef.current(local, el, exactRow)
+        // A Turn destination lands like the rail's own click: its earliest row,
+        // or the scroll origin for the flow's first Turn. An exact event
+        // destination lands the row it named.
+        if (targetTurn === null) landOnRowRef.current(local, el, exactRow, false)
+        else landOnTurnRef.current(local, el, exactRow)
         setActiveTurn(turn)
         turnNavigationRef.current = null
         setHighlightedNodeKey(eventNavigation.highlight ? exactKey : null)
@@ -707,11 +754,11 @@ export function ChatView({
     if (loading?.requestId === eventNavigation.requestId && !loading.settled) return
 
     // The indexed event should map one-to-one to a user or assistant row. If
-    // a changed projection omits it, message navigation may land the closest
-    // durable row. Turn navigation never substitutes a different turn.
+    // a changed projection or a page that never arrived omits it, the reader
+    // lands on the closest durable row the window holds: a mark naming a Turn
+    // the flow cannot show would be a mark for nothing.
     let fallback: { key: string; distance: number } | null = null
     for (const key of order) {
-      if (targetTurn !== null) continue
       const seq = nodeStore.get(key)?.anchorSeq
       const row = anchorElement(local, key)
       if (seq === undefined || row === null) continue
@@ -722,7 +769,11 @@ export function ChatView({
       const row = anchorElement(local, fallback.key)
       const turn = Number(row?.dataset.chatTurn)
       if (row !== null && Number.isSafeInteger(turn)) {
-        landOnRowRef.current(local, el, row)
+        landOnRowRef.current(local, el, row, false)
+        // The mark follows what landed: a projection that dropped the requested
+        // event leaves the reader on the nearest row, and the rail says so
+        // rather than naming a Turn the flow cannot show.
+        setActiveTurn(turn)
         setHighlightedNodeKey(eventNavigation.highlight ? fallback.key : null)
       }
     }
@@ -803,9 +854,14 @@ export function ChatView({
     })
     // Seats attach `data-chat-turn` from their own per-node subscriptions, so
     // rows can appear after this effect first runs. A MutationObserver picks
-    // those up instead of re-running the whole effect per commit.
+    // those up instead of re-running the whole effect per commit; the rows
+    // already standing at mount are noted here, because they are what a
+    // first-paint mark resolves against.
     const observeRows = (root: ParentNode): void => {
-      for (const row of root.querySelectorAll<HTMLElement>('[data-chat-turn]')) observer.observe(row)
+      for (const row of root.querySelectorAll<HTMLElement>('[data-chat-turn]')) {
+        noteTurn(Number(row.dataset.chatTurn))
+        observer.observe(row)
+      }
     }
     observeRows(local)
     const rows = new MutationObserver((records) => {
@@ -858,11 +914,8 @@ export function ChatView({
     if (local === null) return
     const row = local.querySelector<HTMLElement>(`[data-chat-turn="${String(mark.turn)}"]:not([hidden])`)
     if (mark.loaded && row !== null) {
-      const el = scrollerOf(local)
       atBottomRef.current = false
-      el.scrollTop = el.scrollTop + flowTop(row, el) - 24
-      observedTopRef.current = el.scrollTop
-      anchorRef.current = readingAnchor(local, el)
+      landOnTurnRef.current(local, scrollerOf(local), row)
       return
     }
     // Not in the window: the existing event-navigation path pages history to

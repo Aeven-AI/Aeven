@@ -487,12 +487,3 @@ export function parseHeader(firstLine: string): SessionStorageMetadata | undefin
   if (!isHeaderLine(parsed)) return undefined
   return fromHeaderLine(parsed)
 }
-
-/**
- * Parse only the logical header fields needed by lightweight listing.
- * @param firstLine - first JSONL line without its trailing newline.
- * @returns the logical Session header, or `undefined` for a malformed line.
- */
-export function parseHeaderMeta(firstLine: string): SessionHeader | undefined {
-  return parseHeader(firstLine)?.meta
-}

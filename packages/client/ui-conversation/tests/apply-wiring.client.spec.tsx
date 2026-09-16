@@ -91,13 +91,16 @@ describe('target-neutral Conversation apply wiring', () => {
       id: 'probe',
       label: () => b.runtime.ctx.locale.getSnapshot().active,
     }, (() => null) as never)
+    // Every entry carries the composer placement the shell resolved for that
+    // View; a registration with no Conversation definition of its own keeps the
+    // docked composer.
     await vi.waitFor(() => {
-      expect(source?.getSnapshot()).toEqual([{ id: 'probe', label: 'zh' }])
+      expect(source?.getSnapshot()).toEqual([{ id: 'probe', label: 'zh', composerPlacement: 'docked' }])
     })
     const chinese = source?.getSnapshot()
 
     b.runtime.ctx.locale.setLocale('en')
-    expect(source?.getSnapshot()).toEqual([{ id: 'probe', label: 'en' }])
+    expect(source?.getSnapshot()).toEqual([{ id: 'probe', label: 'en', composerPlacement: 'docked' }])
     expect(source?.getSnapshot()).not.toBe(chinese)
 
     disposeView()

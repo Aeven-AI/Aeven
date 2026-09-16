@@ -293,8 +293,9 @@
    column edges (sidebar side and scrollbar side stay drag-free). When the
    margin cannot fit inset + strip + safe zone the computed width goes
    negative and the strip resolves to zero — no mispositioned hit area on
-   narrow columns. Known half-scrollbar (~4px) centering offset vs the
-   gutter-reserved content box is accepted: it stays well inside the strip. */
+   narrow columns. Known half-scrollbar (~4px) centering offset against the
+   scroller's content box, where a bar still takes width, is accepted: it stays
+   well inside the strip. */
 .widthHandle {
   position: absolute;
   top: var(--dsh-session-header-height);
@@ -442,8 +443,17 @@
    Stacked BELOW the composer seat (7): the seat stays mounted across a Session
    switch, so a cover painted over it made the resident input card blink out and
    back and read as a remount. The cover spans the full column height and passes
-   behind the input. It outranks the scroller, which takes no z-index of its own,
-   so one level clears the transcript and the CodeBlock banners (6) inside it. */
+   behind the input.
+
+   The scroller holds the transcript AND the seat, so it takes no z-index of its
+   own: a level there would cap the seat and paint this plate over the input
+   card. Nothing else caps the transcript's stack either, so this level decides
+   the cover against the transcript's in-flow rows, which take none, while the
+   header (30), the seat, and the chrome layers (8) stay above it — and any
+   positioned layer inside the transcript, a CodeBlock sticky banner (6) or the
+   usage panel (1100), paints above the plate while the body is mounted under it.
+   `.scrollArea` capped that group at 5 and went with the one-scroller box tree
+   ([decision](../../../../../../.agents/notes/implemented/bug-fix/2026-09-09-content-cover-behind-composer.md)). */
 .contentLoader {
   position: absolute;
   inset: 0;

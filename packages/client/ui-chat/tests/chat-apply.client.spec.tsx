@@ -8,6 +8,7 @@ import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { SessionBinding } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { SessionLiveEventEntry } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import {
   apply as applyConversation, inject as injectConversation,
@@ -20,8 +21,13 @@ import {
 } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type {
   ChatNodeTurnDataInjected, ChatSnapshot, TranscriptViewRowInjected, UseChatNodeTurnData,
+  ChatViewInjected,
 } from '@deepseek-ai/dsh-client-ui-chat/client'
+import { createChatStore } from '../src/client/stores.ts'
 import { CHAT_SETTINGS_NAMESPACE, type ChatSettings } from '../src/chat-settings.ts'
+
+type ChatInstance = ReturnType<ReturnType<typeof createChatStore>['create']>
+type ChatActions = ChatInstance['actions']
 
 declare module '@deepseek-ai/dsh-client-ui-conversation/client' {
   interface ConversationTurnDataMap {
@@ -63,6 +69,7 @@ async function bench() {
   })
   const provide = vi.spyOn(runtime.ctx.uiSession, 'provide')
   const chat = await runtime.mount({ inject: [...injectChat], apply: applyChat })
+  runtime.renderRoot()
   const sourceDescriptor = provide.mock.calls[0]?.[0]
   if (sourceDescriptor === undefined) throw new Error('ui-chat did not provide its standard source')
   return { runtime, conversation, chat, chatSettings, sourceDescriptor }
@@ -70,6 +77,20 @@ async function bench() {
 
 function storeOf(runtime: SlotTestRuntime, key: 'conversation.session' | 'conversation.session.header' | 'conversation.view' | 'details') {
   return (runtime.slots.entries(key)[0] as { store?: unknown } | undefined)?.store
+}
+
+/** The registered Chat View's injected face for one Session, as the renderer builds it. */
+function chatViewApi(runtime: SlotTestRuntime, sessionId: SessionId): {
+  injected: ChatViewInjected
+} {
+  const entry = runtime.slots.entries('conversation.view')[0]
+  if (entry === undefined) throw new Error('ui-chat registered no Conversation View')
+  const instance = runtime.storeOf('conversation.view', sessionId) as ChatInstance
+  const injected = (entry.inject as unknown as (
+    id: SessionId,
+    actions: ChatActions,
+  ) => ChatViewInjected)(sessionId, instance.actions)
+  return { injected }
 }
 
 describe('Chat apply wiring', () => {
@@ -198,6 +219,50 @@ describe('Chat apply wiring', () => {
     expect(useChat).not.toHaveBeenCalled()
 
     view.unmount()
+    await b.runtime.dispose()
+  })
+
+  it('resolves each Node key to the live Chat target source, not a shared one', async () => {
+    const b = await bench()
+    await b.runtime.sessions.add({ id: SID }, { current: false })
+    const { injected } = chatViewApi(b.runtime, SID)
+    const binding = b.runtime.sessions.binding(SID)
+    if (binding === undefined) throw new Error('Chat Node source test Session binding is unavailable')
+    const chatSource = (b.sourceDescriptor.resolve(binding) as {
+      hooks: { chat: ObservableSnapshot<ChatSnapshot> }
+    }).hooks.chat
+
+    await b.runtime.sessions.appendEvent(SID, {
+      type: 'event',
+      event: {
+        seq: 1,
+        time: 1_700_000_000_001,
+        type: 'user/message',
+        data: {
+          id: 'message-1', role: 'user', content: [{ type: 'text', text: 'hello' }], source: { kind: 'user' },
+        },
+        surfaceOp: 'append',
+      },
+    } as SessionLiveEventEntry)
+    const [key] = chatSource.getSnapshot().order
+    if (key === undefined) throw new Error('the appended message projected no Chat Node key')
+
+    // A keyed hook is the Node read of ONE key: the absent key stays absent
+    // while the resident key resolves the projected message.
+    const node = injected.keyedHooks.chatNode(key)
+    expect(injected.keyedHooks.chatNode('never-projected').getSnapshot()).toBeUndefined()
+    expect(node.getSnapshot()).toMatchObject({
+      key,
+      kind: 'user',
+      id: 'message-1',
+      data: { content: [{ type: 'text', text: 'hello' }] },
+    })
+    // Stable identity: a Seat re-reading the same key during a render must not
+    // resubscribe a new observable. Both keyed hooks are per key, and a key
+    // with no projected Turn process resolves no presentation.
+    expect(injected.keyedHooks.chatNode(key)).toBe(node)
+    expect(injected.keyedHooks.chatNodeProcess(key)).toBe(injected.keyedHooks.chatNodeProcess(key))
+    expect(injected.keyedHooks.chatNodeProcess(key).getSnapshot()).toBeUndefined()
     await b.runtime.dispose()
   })
 })

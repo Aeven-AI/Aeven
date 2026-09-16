@@ -124,44 +124,51 @@ describe('HyperMarkdown component', () => {
   })
 
   it('toggles code blocks in and out of fullscreen', () => {
-    let button
-    let wrapper
-
-    const { host } = mount(
+    const { host, root } = mount(
       <HyperMarkdown md={"```javascript\nconsole.log('hello');\n```\n"} />,
     )
 
-    button = host.querySelector('.codeblock-icon-button.last')
-    wrapper = host.querySelector('.codeblock-wrapper')
+    const button = host.querySelector('.codeblock-icon-button.last')
+    const wrapper = host.querySelector('.codeblock-wrapper')
 
     expect(button).toBeTruthy()
     expect(wrapper?.classList.contains('fullscreen')).toBe(false)
 
     void act(() => button?.dispatchEvent(new MouseEvent('click', { bubbles: true })))
-    expect(wrapper?.classList.contains('fullscreen')).toBe(true)
 
-    void act(() => button?.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+    // An expanded block is lifted onto document.body, so the block — and the
+    // button that leaves fullscreen again — are found there, not in the host.
+    expect(document.querySelector('.codeblock-wrapper.fullscreen')).not.toBeNull()
+
+    const exit = document.querySelector('.codeblock-icon-button.last')
+    void act(() => exit?.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+
+    expect(document.querySelector('.codeblock-wrapper.fullscreen')).toBeNull()
     expect(wrapper?.classList.contains('fullscreen')).toBe(false)
+
+    act(() =>{  root.unmount() })
   })
 
   it('toggles tables in and out of fullscreen', () => {
-    let button
-    let wrapper
-
-    const { host } = mount(
+    const { host, root } = mount(
       <HyperMarkdown md={'| A | B |\n| - | - |\n| 1 | 2 |\n'} />,
     )
 
-    button = host.querySelector('.table-icon-button.last')
-    wrapper = host.querySelector('.table-wrapper')
+    const button = host.querySelector('.table-icon-button.last')
+    const wrapper = host.querySelector('.table-wrapper')
 
     expect(button).toBeTruthy()
     expect(wrapper?.classList.contains('fullscreen')).toBe(false)
 
     void act(() => button?.dispatchEvent(new MouseEvent('click', { bubbles: true })))
-    expect(wrapper?.classList.contains('fullscreen')).toBe(true)
+    expect(document.querySelector('.table-wrapper.fullscreen')).not.toBeNull()
 
-    void act(() => button?.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+    const exit = document.querySelector('.table-icon-button.last')
+    void act(() => exit?.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+
+    expect(document.querySelector('.table-wrapper.fullscreen')).toBeNull()
     expect(wrapper?.classList.contains('fullscreen')).toBe(false)
+
+    act(() =>{  root.unmount() })
   })
 })

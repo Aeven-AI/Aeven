@@ -267,12 +267,29 @@ describe('startup cleanup sweep', () => {
   it('keeps a file exactly at the boundary (only strictly-older expires)', async () => {
     const dir = sessionDir(root, 'sess-1')
     mkdirSync(dir, { recursive: true })
-    const cutoffMs = Date.now() - 30 * DAY_MS
     const boundary = join(dir, 'boundary.txt')
     writeFileSync(boundary, 'x')
-    utimesSync(boundary, cutoffMs / 1000, cutoffMs / 1000)
+    const requestedMs = Date.now() - 30 * DAY_MS
+    utimesSync(boundary, requestedMs / 1000, requestedMs / 1000)
+    // `utimesSync` takes seconds as a double, so a millisecond value does not
+    // survive the round trip bit-exactly: the filesystem stores up to 1/1024 ms
+    // BELOW the requested time, which leaves the file genuinely older than
+    // `requestedMs` and deletes it through no fault of the comparison. Read the
+    // mtime the filesystem actually stored and sweep with THAT as the cutoff, so
+    // "exactly at the boundary" is expressible on a sub-millisecond filesystem.
+    const cutoffMs = statSync(boundary).mtimeMs
+    const older = join(dir, 'older.txt')
+    writeFileSync(older, 'x')
+    utimesSync(older, (cutoffMs - 1) / 1000, (cutoffMs - 1) / 1000)
+    const newer = join(dir, 'newer.txt')
+    writeFileSync(newer, 'x')
+    utimesSync(newer, (cutoffMs + 1) / 1000, (cutoffMs + 1) / 1000)
     await sweepSpillRoots({ roots: [active(root)], cutoffMs, warn: () => {} })
     expect(existsSync(boundary)).toBe(true)
+    // Its neighbours pin the comparison on both sides: a millisecond older
+    // expires, a millisecond newer survives.
+    expect(existsSync(older)).toBe(false)
+    expect(existsSync(newer)).toBe(true)
   })
 
   it('disabled (cleanupPeriodDays: 0) sweeps nothing', async () => {

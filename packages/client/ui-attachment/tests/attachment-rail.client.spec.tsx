@@ -1,27 +1,26 @@
 // @vitest-environment jsdom
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render } from '@testing-library/react'
 import { AttachmentRail } from '../src/AttachmentRail.tsx'
 import type { AttachmentRailItem, AttachmentRailLabels } from '../src/AttachmentRail.tsx'
 
 afterEach(cleanup)
 
-// jsdom implements no ResizeObserver; the stub records instances so a test
-// can drive the size-change recompute path.
-const observers: { callback: ResizeObserverCallback; observed: Element[] }[] = []
-beforeEach(() => {
-  observers.length = 0
+// jsdom implements no ResizeObserver; the stub records what the rail observes,
+// and its emptiness is the assertion: a size subscription on this box is a
+// per-frame layout read on a width that follows the composer through a sidebar
+// fold, which is work the rail must not do.
+function stubObservers(): Element[] {
+  const observed: Element[] = []
   vi.stubGlobal('ResizeObserver', class {
-    observed: Element[] = []
-    constructor(callback: ResizeObserverCallback) {
-      observers.push({ callback, observed: this.observed })
-    }
-
-    observe(el: Element) { this.observed.push(el) }
-    disconnect() { this.observed.length = 0 }
+    observe(el: Element) { observed.push(el) }
+    unobserve() {}
+    disconnect() {}
   })
-})
+  return observed
+}
+
 afterEach(() => { vi.unstubAllGlobals() })
 
 const labels: AttachmentRailLabels = {
@@ -64,54 +63,68 @@ describe('AttachmentRail', () => {
     expect(onRemove).toHaveBeenCalledWith(items[1])
   })
 
-  it('shows edge arrows from scroll geometry and pages a viewport at a time', () => {
+  it('pages through native scrolling, with no edge arrow over the thumbnails', () => {
     const view = render(
       <AttachmentRail items={[item('a'), item('b'), item('c')]} labels={labels} onOpen={vi.fn()} onRemove={vi.fn()} />,
     )
     const rail = view.getByRole('group', { name: '待发送图片' })
     const { scrollBy } = stubGeometry(rail, { scrollWidth: 400, clientWidth: 200 })
-    // No arrows until geometry is observed (mount saw jsdom's zero metrics).
+    // The rail IS the scroller: a thumbnail overflows under its own bar rather
+    // than behind a paging control, so the arrows that used to page it are gone
+    // and the only buttons left are the per-item open and remove controls.
+    expect(view.container.querySelectorAll('button')).toHaveLength(6)
     expect(view.queryByLabelText('向右滚动图片')).toBeNull()
-    fireEvent.scroll(rail)
-    // Same-edges scroll takes the memoized-state path.
-    fireEvent.scroll(rail)
     expect(view.queryByLabelText('向左滚动图片')).toBeNull()
-    const right = view.getByLabelText('向右滚动图片')
-    // clientWidth 200 - 64 < the 200 floor: pages by the floor.
-    fireEvent.click(right)
-    expect(scrollBy).toHaveBeenCalledWith({ left: 200, behavior: 'smooth' })
     fireEvent.scroll(rail)
-    // Scrolled to the far edge: only the left arrow remains.
     expect(view.queryByLabelText('向右滚动图片')).toBeNull()
-    fireEvent.click(view.getByLabelText('向左滚动图片'))
-    expect(scrollBy).toHaveBeenCalledWith({ left: -200, behavior: 'smooth' })
-    fireEvent.scroll(rail)
-    expect(view.queryByLabelText('向左滚动图片')).toBeNull()
-    expect(view.getByLabelText('向右滚动图片')).toBeTruthy()
+    // Nothing the rail does on its own calls scrollBy: the position is the
+    // user's, so the wheel path below is the only programmatic page.
+    expect(scrollBy).not.toHaveBeenCalled()
   })
 
-  it('shows both arrows mid-scroll and recomputes when the rail itself resizes', () => {
+  it('keeps native scrolling across a scroll-position change and a geometry change', () => {
     const view = render(
       <AttachmentRail items={[item('a'), item('b'), item('c')]} labels={labels} onOpen={vi.fn()} onRemove={vi.fn()} />,
     )
     const rail = view.getByRole('group', { name: '待发送图片' })
-    const { setScrollLeft } = stubGeometry(rail, { scrollWidth: 400, clientWidth: 200 })
-    setScrollLeft(100)
-    // The component observes the rail element, not the window: a sidebar or
-    // panel resize reaches it through the ResizeObserver callback.
-    expect(observers.at(-1)?.observed).toContain(rail)
-    act(() => { observers.at(-1)!.callback([], undefined as never) })
-    expect(view.getByLabelText('向左滚动图片')).toBeTruthy()
-    expect(view.getByLabelText('向右滚动图片')).toBeTruthy()
+    const { scrollBy, setScrollLeft } = stubGeometry(rail, { scrollWidth: 400, clientWidth: 200 })
+    // A scroll event is the engine's own report that the bar overflowed; the rail
+    // renders nothing from it, so the position it reports stays where it was put.
+    setScrollLeft(120)
+    fireEvent.scroll(rail)
+    expect(rail.scrollLeft).toBe(120)
+    expect(rail.style.position).toBe('')
+    // A resize changes nothing the rail recomputes: the box is the scroller, so
+    // a wider box (here 320 of 400) simply scrolls less. No observer reports it,
+    // and the rail still pages programmatically across the narrower range.
+    Object.defineProperty(rail, 'clientWidth', { value: 320, configurable: true })
+    expect(rail.scrollWidth - rail.clientWidth).toBe(80)
+    rail.scrollBy({ left: 60, behavior: 'auto' })
+    expect(scrollBy).toHaveBeenCalledWith({ left: 60, behavior: 'auto' })
+    expect(rail.scrollLeft).toBe(180)
   })
 
-  it('keeps scrolling available when ResizeObserver is unavailable', () => {
-    vi.stubGlobal('ResizeObserver', undefined)
+  it('pages without observing any box, and survives a runtime with no ResizeObserver', () => {
+    // The rail's width follows the composer card, which is a container-relative
+    // subtraction and resizes on every frame of a sidebar fold; an observer here
+    // would force a layout read per frame to keep paging controls honest. There
+    // are no controls to keep honest, so it observes nothing.
+    const observed = stubObservers()
     const view = render(
       <AttachmentRail items={[item('a')]} labels={labels} onOpen={vi.fn()} onRemove={vi.fn()} />,
     )
     expect(view.getByRole('group', { name: '待发送图片' })).toBeTruthy()
+    expect(observed).toEqual([])
     view.unmount()
+
+    // The same path on a runtime that has no such constructor at all.
+    vi.unstubAllGlobals()
+    vi.stubGlobal('ResizeObserver', undefined)
+    const bare = render(
+      <AttachmentRail items={[item('a')]} labels={labels} onOpen={vi.fn()} onRemove={vi.fn()} />,
+    )
+    expect(bare.getByRole('group', { name: '待发送图片' })).toBeTruthy()
+    bare.unmount()
   })
 
   it('pans horizontally on a vertical wheel, consuming the event, with clamped normalized travel', () => {
@@ -142,8 +155,12 @@ describe('AttachmentRail', () => {
     expect(scrollBy).toHaveBeenCalledTimes(6)
   })
 
-  it('pages instantly under a reduced-motion preference, smoothly otherwise', () => {
-    for (const [matches, behavior] of [[true, 'auto'], [false, 'smooth']] as const) {
+  it('pages instantly under a reduced-motion preference and when the user asked for none', () => {
+    // Wheel translation is a gesture, not an animation: every page it performs
+    // is instant, so the rail keeps up with the pointer and the run no longer
+    // depends on a motion preference. The stub is what both preferences look
+    // like through the rail's own reader.
+    for (const matches of [true, false]) {
       vi.stubGlobal('matchMedia', vi.fn(() => ({ matches }) as MediaQueryList))
       const view = render(
         <AttachmentRail items={[item('a'), item('b'), item('c')]} labels={labels} onOpen={vi.fn()} onRemove={vi.fn()} />,
@@ -151,9 +168,14 @@ describe('AttachmentRail', () => {
       const rail = view.getByRole('group', { name: '待发送图片' })
       const { scrollBy } = stubGeometry(rail, { scrollWidth: 400, clientWidth: 200 })
       fireEvent.scroll(rail)
-      fireEvent.click(view.getByLabelText('向右滚动图片'))
-      expect(scrollBy).toHaveBeenCalledWith({ left: 200, behavior })
+      fireEvent.wheel(rail, { deltaY: 30 })
+      expect(scrollBy).toHaveBeenCalledWith({ left: 30, behavior: 'auto' })
+      // A tick with no travel is not a page at all, whatever the preference.
+      scrollBy.mockClear()
+      fireEvent.wheel(rail, { deltaY: 0 })
+      expect(scrollBy).not.toHaveBeenCalled()
       view.unmount()
+      vi.unstubAllGlobals()
     }
   })
 

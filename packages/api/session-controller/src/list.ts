@@ -238,9 +238,11 @@ export class ApiSessionList {
     // Cache-first: a title is served from the durable projection cache, so a
     // hit keeps listing latency independent of log size. Only a miss reaches
     // `recoverMissingTitles`, which refolds that session from its log.
+    //
+    // No live lookup here: `list` scans the live Session registry and builds
+    // these in one synchronous pass, so a Session attached after the listing
+    // read is already served by `summaryFor` and never reaches this summary.
     const projections = this.projectionsFor(entry)
-    const raced = this.ctx.sessions.get(header.id)
-    if (raced !== undefined) return this.summaryFor(raced)
     const metadata = projections?.values.sessionListMetadata
     return {
       sessionId: header.id,

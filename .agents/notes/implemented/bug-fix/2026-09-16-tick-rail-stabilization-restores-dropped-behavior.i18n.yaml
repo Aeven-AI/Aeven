@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-16-tick-rail-stabilization-restores-dropped-behavior.md
+2026-09-16-tick-rail-stabilization-restores-dropped-behavior.md: 5904ee1cc821bdf5e8f323ecb1f7efff6cc28baf
+2026-09-16-tick-rail-stabilization-restores-dropped-behavior.zh.md: 43e6bc00e6f7629fa57ac91641939b3e1d868f5f

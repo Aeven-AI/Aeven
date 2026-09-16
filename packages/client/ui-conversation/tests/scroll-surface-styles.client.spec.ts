@@ -1,8 +1,9 @@
 /**
  * Scrollport declarations that jsdom cannot exercise: it has no layout and no
- * elastic overscroll, so the rules that keep the input card still under a
- * rubber-band are asserted as CSS text instead. The structural half of that
- * contract — the seat is not inside the scrollport — lives in skeleton specs.
+ * elastic overscroll, so the rules that decide how the column scrolls and which
+ * layer paints over which are asserted as CSS text instead. The structural half
+ * of that contract — one scroller holding the header, the transcript, and the
+ * composer seat — lives in skeleton specs.
  */
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -13,6 +14,9 @@ const source = readFileSync(
   'utf8',
 )
 
+/** The active phase's seat rule; the sheet spells attribute values in double quotes. */
+const ACTIVE_SEAT = '.root[data-phase="active"] .composerSeat'
+
 function declarationsFrom(selector: string): string[] {
   const declarationText = source.replace(/\/\*[\s\S]*?\*\//g, ' ')
   const rule = new RegExp(`(?:^|[{}])\\s*${selector.replace(/[.[\]():*+^$\\]/g, '\\$&')}\\s*\\{([^{}]*)\\}`).exec(declarationText)
@@ -20,36 +24,43 @@ function declarationsFrom(selector: string): string[] {
   return (rule[1] ?? '').split(';').map(part => part.trim()).filter(Boolean)
 }
 
+/** Whether one rule takes a stacking level of its own. */
+function takesLevel(selector: string): boolean {
+  return declarationsFrom(selector).some(part => part.startsWith('z-index:'))
+}
+
 describe('conversation composer seat styles', () => {
-  it('docks the seat by flex order instead of sticking it inside the scrollport', () => {
-    // Sticky positioning is what made the card ride the overscroll: a sticky
-    // box still moves with the contents its scroller translates.
-    const declarations = declarationsFrom(".root[data-phase='active'] .composerSeat")
-    expect(declarations).toContain('flex: none')
-    expect(declarations).not.toContain('position: sticky')
-    expect(declarations).not.toContain('bottom: 0')
+  it('sticks the seat to the floor of the column\'s one scroller', () => {
+    // The seat is a child of the scroller now, laid out in the same content box
+    // as the transcript and the header: a scrollbar shortens all three by the
+    // same width, and the wheel over the footer moves the flow for free because
+    // the footer is part of the scrolling surface. `.composerSeat` keeps
+    // `flex: none` for the two phases that lay the seat out in a flex column —
+    // the hero's centring box and a view's composer overlay.
+    expect(declarationsFrom(ACTIVE_SEAT)).toContain('position: sticky')
+    expect(declarationsFrom(ACTIVE_SEAT)).toContain('bottom: 0')
+    expect(declarationsFrom('.composerSeat')).toContain('flex: none')
   })
 
-  it('reserves the scrollport gutter symmetrically so the seat centres on the box', () => {
-    // The seat sits outside the scrollport and spans the box itself, so the
-    // reservation it has to agree with is the symmetric one: an end-edge-only
-    // gutter leaves the content column half a bar-width off the seat's centre on
-    // every engine that still reserves a gutter — measured in chromium 151
-    // against a classic 15px bar, 7.5px off with `stable` and 0 with
-    // `both-edges` — where `both-edges` also reserves nothing once the bar
-    // floats. The padding that used to give that width back is gone with the
-    // fixed number it needed: the band is 0 on the engines that float the bar
-    // and an engine value no sheet knows on the ones that do not.
-    expect(declarationsFrom('.scrollBody')).toContain('scrollbar-gutter: stable both-edges')
-    const seat = declarationsFrom(".root[data-phase='active'] .composerSeat")
-    expect(seat.some(part => part.startsWith('padding-right:'))).toBe(false)
+  it('reserves no scrollport gutter, because the seat rides the transcript\'s content box', () => {
+    // The reservation this box used to carry needed `scrollbar-gutter`, which no
+    // Safari release implements and the iOS 14.5 baseline bans: the declaration
+    // is dropped whole, so the axis it was holding is left to whatever the bar
+    // does ([gate](../../../../scripts/verify-css-baseline.ts)). One scroller
+    // holding the header, the transcript, and the seat needs no reservation — a
+    // bar that takes width shortens all three identically — and the seat has no
+    // band to give back either.
+    const body = declarationsFrom('.scrollBody')
+    expect(body.some(part => part.startsWith('scrollbar-gutter:'))).toBe(false)
+    expect(body).toContain('overflow-y: scroll')
+    expect(declarationsFrom(ACTIVE_SEAT).some(part => part.startsWith('padding-right:'))).toBe(false)
   })
 
   it('carries the transcript inset into the view chrome on both edges', () => {
-    // `.viewChrome` spans the scrollport, and the controls it holds keep the
-    // horizontal math they had inside it. That math is now symmetric: the
-    // reserved gutter cannot pull the end edge in any further than the start
-    // edge.
+    // `.viewChrome` spans the column against `.root`, outside the scroller, and
+    // the controls it holds keep the horizontal math they had inside it. That
+    // math is symmetric, and so is the scroller's content box: no reserved
+    // gutter can pull one edge in further than the other.
     expect(declarationsFrom('.viewChrome')).toContain('padding-left: var(--dsh-composer-side-clearance)')
     expect(declarationsFrom('.viewChrome')).toContain('padding-right: var(--dsh-composer-side-clearance)')
   })
@@ -67,20 +78,25 @@ describe('conversation content cover styles', () => {
     // The seat stays mounted across a Session switch, so a cover that outranks
     // it paints the resident input card out and back in and the switch reads
     // as a remount.
-    expect(stackLevel('.contentLoader'))
-      .toBeLessThan(stackLevel(".root[data-phase='active'] .composerSeat"))
+    expect(stackLevel('.contentLoader')).toBeLessThan(stackLevel(ACTIVE_SEAT))
   })
 
-  it('covers the whole scrollport group with one level', () => {
-    // `.scrollArea` is a stacking context, so outranking it clears the
-    // transcript, the CodeBlock sticky banners inside it, and the view chrome
-    // at once — no per-element z-index race, and nothing in the group can tie.
-    expect(stackLevel('.contentLoader')).toBeGreaterThan(stackLevel('.scrollArea'))
-    expect(stackLevel('.viewChrome')).toBeGreaterThan(stackLevel('.scrollArea'))
+  it('clears the transcript from one level, with nothing else in the scroller taking one', () => {
+    // The scroller holds the seat as well as the transcript, so it cannot be a
+    // stacking context of its own: a level there caps the resident seat and
+    // paints the cover over the input card, which is the remount the seat's own
+    // rule exists to prevent. Nothing else the scroller holds takes a level
+    // either, so the cover's single number decides it against the transcript's
+    // rows, while the two layers that must stay visible — the header and the
+    // chrome layers — keep higher ones.
+    expect(takesLevel('.scrollBody')).toBe(false)
+    expect(takesLevel('.transcriptHold')).toBe(false)
+    expect(stackLevel('.contentLoader')).toBeLessThan(stackLevel('.header'))
+    expect(stackLevel('.contentLoader')).toBeLessThan(stackLevel('.viewChrome'))
   })
 
   it('fills the conversation column instead of the inner window', () => {
-    // Absolute fill against `.body` is ConversationRoot's width and the full
+    // Absolute fill against `.root` is ConversationRoot's width and the full
     // page height of that column; a viewport-fixed layer would also cover the
     // sidebar. The seat stacks above the cover, so the input stays usable.
     const declarations = declarationsFrom('.contentLoader')

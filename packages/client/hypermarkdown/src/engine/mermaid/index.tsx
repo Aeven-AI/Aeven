@@ -141,23 +141,17 @@ class MermaidDiagram extends Component<
   }
 
   toggleFullScreen(fullscreen: boolean) {
-    let wrapper
-
     const vm = this
     if (fullscreen && vm.wrapperRef.current) {
       vm.slotHeight = vm.wrapperRef.current.getBoundingClientRect().height
     }
     vm.setState({ fullscreen: fullscreen }, () => {
-      wrapper = vm.wrapperRef.current
-
-      if (!wrapper) {
-        return
-      }
+      const wrapper = vm.wrapperRef.current
 
       if (vm.state.fullscreen) {
-        wrapper.addEventListener('scroll', vm.scrollDownListener)
+        wrapper?.addEventListener('scroll', vm.scrollDownListener)
       } else {
-        wrapper.removeEventListener('scroll', vm.scrollDownListener)
+        wrapper?.removeEventListener('scroll', vm.scrollDownListener)
       }
     })
   }
@@ -199,6 +193,7 @@ class MermaidDiagram extends Component<
         return Infinity
       }
       const wrapper = vm.wrapperRef.current
+      /* v8 ignore next -- a mounted diagram always renders its wrapper; the unmount case is answered above, and the ref cannot clear between a commit and this callback. */
       if (!wrapper) return Infinity
       const rect = wrapper.getBoundingClientRect()
       const root = vm.scrollRoot?.getBoundingClientRect()
@@ -252,6 +247,7 @@ class MermaidDiagram extends Component<
     const vm = this
     const wrapper = vm.wrapperRef.current
 
+    /* v8 ignore next 3 -- the listener is only attached to a mounted wrapper, so the ref it reads is the element the event came from. */
     if (!wrapper) {
       return
     }
@@ -271,12 +267,7 @@ class MermaidDiagram extends Component<
     const vm = this
     vm.mounted = false
     vm.unwatchViewport()
-    if (vm.wrapperRef?.current) {
-      vm.wrapperRef.current.removeEventListener(
-        'scroll',
-        vm.scrollDownListener,
-      )
-    }
+    vm.wrapperRef.current?.removeEventListener('scroll', vm.scrollDownListener)
   }
 
   override render() {
