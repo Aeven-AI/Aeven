@@ -252,6 +252,7 @@ function makeHarness(
   const openFile = vi.fn<(path: string) => Promise<void>>().mockResolvedValue(undefined)
   const loadOlder = vi.fn()
   const loadNewer = vi.fn()
+  const navigateToEvent = vi.fn()
   const returnToLive = vi.fn()
   const loadThrough = vi.fn<(seq: number, beforeSeq?: number) => Promise<void>>().mockResolvedValue(undefined)
   const completeEventNavigation = vi.fn<(requestId: number) => void>()
@@ -404,6 +405,7 @@ function makeHarness(
     openFile,
     loadOlder,
     loadNewer,
+    navigateToEvent,
     returnToLive,
     loadThrough,
     completeEventNavigation,
@@ -436,7 +438,7 @@ function makeHarness(
   const setSelection = (next: SelectionTarget | null): void => { chat.actions.select(next) }
   return {
     set, setSession: session.set, setChat: chatSource.set, ChatView, props,
-    openDetails, openFile, loadOlder, loadNewer, returnToLive, loadThrough, completeEventNavigation, openView,
+    openDetails, openFile, loadOlder, loadNewer, returnToLive, loadThrough, navigateToEvent, completeEventNavigation, openView,
     setOutline: (value: unknown) => { outlineValue = value },
     chatScroll, forkAt, setSelection, toolOwners,
     setTranscriptView: (mode: TranscriptViewMode) => { transcriptView.set(mode) },

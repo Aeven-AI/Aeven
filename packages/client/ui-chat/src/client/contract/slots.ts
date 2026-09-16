@@ -147,6 +147,11 @@ export interface ChatViewInjected {
   returnToLive: () => void
   /** Jump loader: page history back through seq; resolves when the window covers it. */
   loadThrough: (seq: SessionSeq) => Promise<void>
+  /**
+   * Reveal one durable event, paging history to it when needed. The rail's
+   * jump: the request is superseded by a later one rather than queued.
+   */
+  navigateToEvent: (seq: SessionSeq) => void
   /** Acknowledge the current exact-event navigation after landing or fallback. */
   completeEventNavigation: (requestId: number) => void
   loadImage: MessageImageLoader

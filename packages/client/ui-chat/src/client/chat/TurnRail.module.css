@@ -1,0 +1,121 @@
+/* The rail rides the conversation scroller rather than a chrome layer beside
+   it: a sticky, zero-height box stays put while the transcript scrolls under
+   it, and contributes no scrollHeight of its own — a control in the flow would
+   otherwise extend the scrollable range by its own height. The header above it
+   in the same scroller uses the same mechanism. */
+.slot {
+  position: sticky;
+  top: 50%;
+  z-index: 7;
+  float: right;
+  height: 0;
+  margin-right: 24px;
+  pointer-events: none;
+}
+
+/* The ladder's own box: as tall as the marks it holds, centred on the sticky
+   line. Width is a pointer column, not the tick width — a 4px tick cannot be
+   hit, so the rail takes the pointer for the whole column and the ticks paint
+   inside it. */
+.rail {
+  position: relative;
+  width: 28px;
+  height: var(--dsh-turn-band);
+  transform: translateY(-50%);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.tick {
+  position: absolute;
+  right: 0;
+  width: 4px;
+  height: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: var(--dsh-fg-muted, #8a8a8a);
+  opacity: 0.45;
+  /* The ticks are paint and keyboard destinations; the rail owns the pointer. */
+  pointer-events: none;
+  transform: translateY(-50%);
+  transition: width 120ms ease, height 120ms ease, opacity 120ms ease, background-color 120ms ease;
+}
+
+/* An unloaded turn is still navigable — activating it anchors a window on the
+   turn — so it is dimmed rather than distinguished by shape: the ladder must
+   read as one scale of the whole session, not two interleaved ones. */
+.tickUnloaded {
+  opacity: 0.2;
+}
+
+.tickPreview {
+  opacity: 0.75;
+}
+
+.tickActive {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--dsh-accent, #4a8cff);
+  opacity: 1;
+}
+
+/* Pointer travel over the rail should feel like one target, so every tick
+   grows while the column is hovered. */
+.rail:hover .tick {
+  width: 6px;
+  opacity: 0.6;
+}
+
+.rail:hover .tickActive {
+  width: 8px;
+  opacity: 1;
+}
+
+.tick:focus-visible {
+  outline: 2px solid var(--dsh-accent, #4a8cff);
+  outline-offset: 2px;
+}
+
+/* Anchored to the hovered tick and opening away from the rail, which sits in
+   the scroller's end gutter. */
+.preview {
+  position: absolute;
+  right: 32px;
+  width: 276px;
+  padding: 16px;
+  border-radius: 10px;
+  background: var(--dsh-surface-raised, #1c1c1e);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 28%);
+  color: var(--dsh-fg, #f2f2f2);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.previewPrompt {
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.previewResponse {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: 4px;
+  color: var(--dsh-fg-muted, #a8a8a8);
+  font-size: 12px;
+  line-height: 20px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+/* The rail is a pointer affordance over a fixed band; a narrow column has no
+   room for it beside the transcript. */
+@media (width <= 1100px) {
+  .slot {
+    display: none;
+  }
+}

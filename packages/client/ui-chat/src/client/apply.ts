@@ -151,6 +151,7 @@ export function apply(ctx: Context): void {
           loadNewer: () => { void session.loadNewer() },
           returnToLive: () => { void session.returnToLive() },
           loadThrough: seq => session.loadThrough(seq),
+          navigateToEvent: (seq) => { ctx.uiConversation.navigateToEvent(sessionId, seq) },
           completeEventNavigation: (requestId) => {
             ctx.uiConversation.completeEventNavigation(sessionId, requestId)
           },

@@ -12,6 +12,8 @@ import type { ChatSnapshot } from '../contract/snapshot.ts'
 import { PendingSteeringBubble, PendingSubmissionBubble } from './MessageItem.tsx'
 import { ChatNodeSeat } from './ChatNodeSeat.tsx'
 import { formatRunDuration } from './message-chrome.ts'
+import { TurnRail } from './TurnRail.tsx'
+import { turnRailMarks, type TurnRailMark } from './turn-rail-marks.ts'
 import a11yCss from './accessibility.module.css'
 import css from './ChatView.module.css'
 
@@ -213,8 +215,8 @@ const ChatNodeList = memo(function ChatNodeList({ order, ...seatProps }: ChatNod
  */
 export function ChatView({
   useSession, useChat, useChatNode, useChatNodeProcess, useSessions, useStore, actions, renderSlot,
-  sessionId, openFile, loadOlder, loadNewer, returnToLive, loadThrough, completeEventNavigation, loadImage, openView,
-  chatScroll, forkAt, fileMentions, onFullscreenChange, useTranscriptView, useEventNavigation, t,
+  sessionId, openFile, loadOlder, loadNewer, returnToLive, loadThrough, navigateToEvent, completeEventNavigation, loadImage, openView,
+  chatScroll, forkAt, fileMentions, onFullscreenChange, useTranscriptView, useEventNavigation, useProjection, t,
 }: ChatViewSlotProps) {
   const order = useChat(s => s.order)
   const nodeStore = useChat(s => s.nodes)
@@ -229,6 +231,11 @@ export function ChatView({
   const detached = useSession(s => s.detached)
   const pendingLive = useSession(s => s.pendingLive)
   const loadingOlder = useSession(s => s.loadingOlder)
+  // Host-computed whole-log outline: every turn of the session, including the
+  // ones outside the loaded window. The merge below is view-layer only — the
+  // conversation snapshot never carries projection values.
+  const turnOutline = useProjection('turnOutline')
+  const [activeTurn, setActiveTurn] = useState<number | null>(null)
   const selectedCallId = useStore(s => s.selection?.callId)
   const compactTranscript = useTranscriptView(mode => mode === 'compact')
   const eventNavigation = useEventNavigation(request => request)
@@ -701,6 +708,91 @@ export function ChatView({
     hasMore, loadThrough, nodeStore, openState, order,
   ])
 
+  // The rail's marks: the host outline joined with the turns the window holds.
+  // `timeline.turnOrder` is reference-stable and moves only when a turn enters
+  // or leaves, so this recomputes on real membership changes rather than on
+  // every streaming delta.
+  const railMarks = useMemo(
+    () => turnRailMarks(turnOutline, new Set(timeline.turnOrder)),
+    [turnOutline, timeline.turnOrder],
+  )
+
+  // Active mark tracking. An IntersectionObserver over the turn rows reports
+  // crossings off the main thread and costs no layout read; the reading-line
+  // hit test it replaces ran a bisection over every row on every scroll frame,
+  // forcing a full-transcript layout each time.
+  useEffect(() => {
+    const local = listRef.current
+    if (local === null || typeof IntersectionObserver === 'undefined') return
+    const scroller = scrollerOf(local)
+    const visible = new Map<number, number>()
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        const row = entry.target as HTMLElement
+        const turn = Number(row.dataset.chatTurn)
+        if (!Number.isSafeInteger(turn)) continue
+        if (entry.isIntersecting) visible.set(turn, entry.boundingClientRect.top)
+        else visible.delete(turn)
+      }
+      // Several turns can cross the band at once; the newest one owns the mark,
+      // matching a reader travelling down the transcript.
+      let next: number | null = null
+      for (const turn of visible.keys()) {
+        if (next === null || turn > next) next = turn
+      }
+      if (next !== null) setActiveTurn(current => current === next ? current : next)
+    }, {
+      root: scroller === local ? null : scroller,
+      // Collapse the scrollport to a band near its top: the reading line.
+      rootMargin: '-10% 0px -85% 0px',
+    })
+    // Seats attach `data-chat-turn` from their own per-node subscriptions, so
+    // rows can appear after this effect first runs. A MutationObserver picks
+    // those up instead of re-running the whole effect per commit.
+    const observeRows = (root: ParentNode): void => {
+      for (const row of root.querySelectorAll<HTMLElement>('[data-chat-turn]')) observer.observe(row)
+    }
+    observeRows(local)
+    const rows = new MutationObserver((records) => {
+      for (const record of records) {
+        for (const node of record.addedNodes) {
+          if (!(node instanceof HTMLElement)) continue
+          if (node.dataset.chatTurn !== undefined) observer.observe(node)
+          else observeRows(node)
+        }
+        if (record.type === 'attributes' && record.target instanceof HTMLElement) {
+          observer.observe(record.target)
+        }
+      }
+    })
+    rows.observe(local, {
+      childList: true,
+      subtree: true,
+      attributeFilter: ['data-chat-turn'],
+    })
+    return () => {
+      rows.disconnect()
+      observer.disconnect()
+    }
+  }, [])
+
+  /** Rail jump: a loaded turn scrolls now, an unloaded one anchors a window first. */
+  const navigateToTurn = useCallback((mark: TurnRailMark): void => {
+    setActiveTurn(mark.turn)
+    const local = listRef.current
+    if (local === null) return
+    const row = local.querySelector<HTMLElement>(`[data-chat-turn="${String(mark.turn)}"]`)
+    if (mark.loaded && row !== null) {
+      const el = scrollerOf(local)
+      atBottomRef.current = false
+      el.scrollTo({ top: el.scrollTop + flowTop(row, el) - 24, behavior: 'smooth' })
+      return
+    }
+    // Not in the window: the existing event-navigation path pages history to
+    // the seq and lands the row, reporting progress through the head spinner.
+    navigateToEvent(mark.seq)
+  }, [navigateToEvent])
+
   /**
    * Automatic history paging: pull the next older page as the reader
    * approaches the window head, and fill a window too short to scroll at all
@@ -844,6 +936,15 @@ export function ChatView({
   return (
     <div className={css.root}>
       <div ref={listRef} className={css.scroll}>
+        {/* Inside the scroller, before the flow: the rail is sticky and
+            zero-height, so it holds its line while the transcript travels
+            under it and adds nothing to the scrollable range. */}
+        <TurnRail
+          marks={railMarks}
+          activeTurn={activeTurn}
+          onNavigate={navigateToTurn}
+          t={t}
+        />
         <div ref={columnRef} className={css.column} data-chat-flow="">
           {openState === 'error' && openError !== null && (
             <div className={css.openError}>
