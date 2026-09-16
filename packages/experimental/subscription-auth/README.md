@@ -3,7 +3,7 @@ description: "Coding-subscription OAuth for Grok Build, ChatGPT Codex, and Claud
 kind: "package-bundle"
 ---
 
-# @deepseek-ai/dsh-experimental-subscription-auth
+# @aeven/experimental-subscription-auth
 
 English | [中文](README.zh.md)
 

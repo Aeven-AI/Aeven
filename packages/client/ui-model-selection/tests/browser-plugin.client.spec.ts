@@ -12,15 +12,15 @@
  */
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
-import { createScope } from '@deepseek-ai/dsh-api-session-controller/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
-import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
-import { RemoteError, TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
+import { createScope } from '@aeven/api-session-controller/client'
+import type { SessionId } from '@aeven/session/types'
+import { LocaleRuntime } from '@aeven/client-locale/client'
+import { createSnapshotStore, type SnapshotStore } from '@aeven/client-store'
+import { RemoteError, TestRemote } from '@aeven/client-test-runtime'
 import type {
   ModelCatalogFailure, ModelProviderGroup, ModelSelection, ModelSelectionProjection,
-} from '@deepseek-ai/dsh-api-session-controller/types'
-import type { CommandContribution, CommandUiSpec, SelectOption } from '@deepseek-ai/dsh-client-ui-commands/client'
+} from '@aeven/api-session-controller/types'
+import type { CommandContribution, CommandUiSpec, SelectOption } from '@aeven/client-ui-commands/client'
 import { effectiveEffortOf, effortLevelsOf, PROVIDER_DEFAULT_EFFORT } from '../src/client/effort.ts'
 import type { ModelSelectInjected } from '../src/client/slots.ts'
 import { apply, inject } from '../src/client/index.ts'

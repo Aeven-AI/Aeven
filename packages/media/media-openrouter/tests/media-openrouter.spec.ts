@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { MediaRuntime } from '@deepseek-ai/dsh-media'
+import { MediaRuntime } from '@aeven/media'
 import * as provider from '../src/index.ts'
 
 const PNG = Uint8Array.of(137, 80, 78, 71)

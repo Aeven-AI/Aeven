@@ -10,7 +10,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
-import type { ExternalChange } from '@deepseek-ai/dsh-storage'
+import type { ExternalChange } from '@aeven/storage'
 import { ExternalWatcher } from '../src/external-watch.ts'
 import { serializeRecord } from '../src/format.ts'
 

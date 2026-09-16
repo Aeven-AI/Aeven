@@ -5,16 +5,16 @@
 
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { CodeRuntime } from '@deepseek-ai/dsh-code-runtime'
-import { createScope, type Scope } from '@deepseek-ai/dsh-scope'
+import { CodeRuntime } from '@aeven/code-runtime'
+import { createScope, type Scope } from '@aeven/scope'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve, sep } from 'node:path'
-import { turnBoundaryProjectionDefinition } from '@deepseek-ai/dsh-agent-loop'
-import { ToolCallId } from '@deepseek-ai/dsh-llm'
-import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime, { type ToolResult } from '@deepseek-ai/dsh-tools'
-import { FileSystem, FsError, FsTargetKey, FsVersion } from '@deepseek-ai/dsh-fs'
+import { turnBoundaryProjectionDefinition } from '@aeven/agent-loop'
+import { ToolCallId } from '@aeven/llm'
+import SystemPrompt, { renderPrompt } from '@aeven/system-prompt'
+import ToolRuntime, { type ToolResult } from '@aeven/tools'
+import { FileSystem, FsError, FsTargetKey, FsVersion } from '@aeven/fs'
 import type {
   FsDirEntry,
   FsEditOutcome,
@@ -24,18 +24,18 @@ import type {
   FsTarget,
   FsWriteIntent,
   FsWriteOutcome,
-} from '@deepseek-ai/dsh-fs'
-import * as FsPolicy from '@deepseek-ai/dsh-fs-observation-policy'
-import * as ToolFs from '@deepseek-ai/dsh-tool-fs'
+} from '@aeven/fs'
+import * as FsPolicy from '@aeven/fs-observation-policy'
+import * as ToolFs from '@aeven/tool-fs'
 import { STREAM_MIN_SIZE } from '../src/read.ts'
 import { formatReadOutput } from '../src/read-render.ts'
 import type { FileReadOutcome } from '../src/read-render.ts'
 import { sessionCwd } from '../src/session-cwd.ts'
-import ApprovalService from '@deepseek-ai/dsh-user-approval'
-import type { SandboxExecutionPolicy, SandboxMode } from '@deepseek-ai/dsh-sandbox'
-import SandboxPolicyService from '@deepseek-ai/dsh-sandbox-policy'
-import { SessionId, SessionLogOffset, SessionSeq } from '@deepseek-ai/dsh-session'
-import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
+import ApprovalService from '@aeven/user-approval'
+import type { SandboxExecutionPolicy, SandboxMode } from '@aeven/sandbox'
+import SandboxPolicyService from '@aeven/sandbox-policy'
+import { SessionId, SessionLogOffset, SessionSeq } from '@aeven/session'
+import SessionProjectionRegistry from '@aeven/session-projection'
 
 const testToolSignal = new AbortController().signal
 

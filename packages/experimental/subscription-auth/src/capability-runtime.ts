@@ -3,11 +3,11 @@
  *
  * This module contains no Cordis service lookup. The parent supplies structural
  * registries, which keeps live flag transitions deterministic and unit-testable.
- * @module @deepseek-ai/dsh-experimental-subscription-auth/capability-runtime
+ * @module @aeven/experimental-subscription-auth/capability-runtime
  */
 
-import { LlmError } from '@deepseek-ai/dsh-llm'
-import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
+import { LlmError } from '@aeven/llm'
+import type { ToolDefinition } from '@aeven/tools'
 import {
   type CapabilitySettings,
   DEFAULT_CAPABILITY_SETTINGS,

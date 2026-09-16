@@ -3,7 +3,7 @@ description: "已认证用户 seam 的 Aeven authority：用 API 自身的签名
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-identity-user-aeven
+# @aeven/identity-user-aeven
 
 [English](README.md) | 中文
 
@@ -37,7 +37,7 @@ kind: "package-reference"
 
 ```yaml
 - id: identity-user-aeven
-  name: '@deepseek-ai/dsh-identity-user-aeven'
+  name: '@aeven/identity-user-aeven'
   inject: [identityUsers]
   config:
     apiUrl: 'http://localhost:9000'

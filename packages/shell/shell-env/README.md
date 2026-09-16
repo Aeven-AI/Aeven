@@ -3,7 +3,7 @@ description: "The managed AVN_* shell environment for users and maintainers choo
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-shell-env
+# @aeven/shell-env
 
 English | [中文](README.zh.md)
 
@@ -37,7 +37,7 @@ Other plugins contribute facts by registering a contributor with a stable name, 
 
 ```ts
 import type { Context } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-shell-env'
+import type {} from '@aeven/shell-env'
 
 export const inject = ['shellEnv']
 

@@ -16,7 +16,7 @@
  * balance is `{}`, not `{ "val": 0 }`. Every cent field defaults to 0 rather
  * than failing the parse, matching the upstream client.
  *
- * @module @deepseek-ai/dsh-experimental-subscription-auth/grok-usage
+ * @module @aeven/experimental-subscription-auth/grok-usage
  */
 
 import { GROK_BUILD_BASE_URL, grokBuildFingerprintHeaders } from './provider.ts'

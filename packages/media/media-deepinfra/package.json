@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-media-deepinfra",
+  "name": "@aeven/media-deepinfra",
   "description": "DeepInfra image and video provider for the DeepSeek Harness media seam — OpenAI-compatible image generation plus submit/poll/content video jobs, pinned to the DeepInfra origin",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
@@ -28,16 +28,16 @@
   "license": "MIT",
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-credentials": "workspace:^",
-    "@deepseek-ai/dsh-media": "workspace:^"
+    "@aeven/credentials": "workspace:^",
+    "@aeven/media": "workspace:^"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:^"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-credentials": "workspace:^",
-    "@deepseek-ai/dsh-media": "workspace:^",
-    "@deepseek-ai/dsh-http-proxy": "workspace:^"
+    "@aeven/credentials": "workspace:^",
+    "@aeven/media": "workspace:^",
+    "@aeven/http-proxy": "workspace:^"
   }
 }

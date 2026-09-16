@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { MediaRuntime } from '@deepseek-ai/dsh-media'
+import { MediaRuntime } from '@aeven/media'
 import type { AssistantImages } from '@earendil-works/pi-ai'
 import * as provider from '../src/index.ts'
 

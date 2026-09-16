@@ -3,7 +3,7 @@ description: "Web 会话头部中已登录 Aeven 读者的头像与账户菜单�
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-client-ui-account-aeven
+# @aeven/client-ui-account-aeven
 
 [English](README.md) | 中文
 
@@ -37,7 +37,7 @@ kind: "package-reference"
 
 ```yaml
 - id: ui-account-aeven
-  name: '@deepseek-ai/dsh-client-ui-account-aeven'
+  name: '@aeven/client-ui-account-aeven'
 ```
 
 浏览器侧注入 `slots`、`locale` 与 `theme`，因此缺少其中任何一个的组合会让该行处于等待而非已挂载状态。

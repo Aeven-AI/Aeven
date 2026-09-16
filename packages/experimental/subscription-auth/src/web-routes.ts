@@ -2,7 +2,7 @@
  * Atomic registration helper for plugin-owned Web routes.
  * `webServer.register()` is not fiber-scoped, so a later registration failure
  * must release every earlier route before the setup error escapes.
- * @module @deepseek-ai/dsh-experimental-subscription-auth/web-routes
+ * @module @aeven/experimental-subscription-auth/web-routes
  */
 
 import type { IncomingMessage, ServerResponse } from 'node:http'

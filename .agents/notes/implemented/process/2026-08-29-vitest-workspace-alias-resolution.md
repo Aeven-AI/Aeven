@@ -12,7 +12,7 @@ Switching the plugin for `resolve.tsconfigPaths: true` reads as the same resolut
 
 Native resolution matches a file against the nearest project rather than one match-all facade, so five test-only imports that no package declared stopped resolving at all — `dsh-system-prompt`, `dsh-jobs-local`, and `dsh-commands` in session-controller, `dsh-storage` in workspace-controller, and `cordis-plugin-include` in session-log-export. The match-all facade had been supplying them; nothing else ever had.
 
-Native tsconfig paths also run *after* package resolution, not before it. A workspace specifier therefore resolves through the pnpm symlink and the package's own `exports` whenever built output exists, and `paths` never gets a turn. `@deepseek-ai/dsh-typert-protocol` loaded from `packages/typert/protocol/lib/index.js` beside the same module's `src`, so two copies of every class and service singleton existed at once: 48 tests failed on `instanceof` across the pair, and typed failures degraded to `'internal'` because the branch that recognizes them missed.
+Native tsconfig paths also run *after* package resolution, not before it. A workspace specifier therefore resolves through the pnpm symlink and the package's own `exports` whenever built output exists, and `paths` never gets a turn. `@aeven/typert-protocol` loaded from `packages/typert/protocol/lib/index.js` beside the same module's `src`, so two copies of every class and service singleton existed at once: 48 tests failed on `instanceof` across the pair, and typed failures degraded to `'internal'` because the branch that recognizes them missed.
 
 ## Decision
 

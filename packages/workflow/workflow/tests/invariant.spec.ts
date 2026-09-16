@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { SessionId } from '@deepseek-ai/dsh-session'
-import { WorkflowRunId } from '@deepseek-ai/dsh-workflow'
+import { SessionId } from '@aeven/session'
+import { WorkflowRunId } from '@aeven/workflow'
 import type {
   WorkflowAgentEndInfo,
   WorkflowAgentInfo,
   WorkflowResultInfo,
   WorkflowRunInfo,
-} from '@deepseek-ai/dsh-workflow'
-import * as WorkflowInvariant from '@deepseek-ai/dsh-workflow/invariant'
-import InvariantRegistry from '@deepseek-ai/dsh-invariants'
+} from '@aeven/workflow'
+import * as WorkflowInvariant from '@aeven/workflow/invariant'
+import InvariantRegistry from '@aeven/invariants'
 
 async function setup(): Promise<Context> {
   const ctx = new Context()

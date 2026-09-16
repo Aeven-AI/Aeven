@@ -2,7 +2,7 @@
  * Plugin-owned same-origin Web routes for the capability-settings namespace.
  * Arbitrary Host settings namespaces are not remotely exposed, so this plugin
  * publishes only the secret-free snapshot and the two optional read surfaces.
- * @module @deepseek-ai/dsh-experimental-subscription-auth/capability-routes
+ * @module @aeven/experimental-subscription-auth/capability-routes
  */
 
 import type { IncomingMessage, ServerResponse } from 'node:http'

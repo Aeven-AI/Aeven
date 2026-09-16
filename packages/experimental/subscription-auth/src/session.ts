@@ -1,12 +1,12 @@
 /**
  * Shared OAuth store + live catalog for the host plugin and CLI.
- * @module @deepseek-ai/dsh-experimental-subscription-auth/session
+ * @module @aeven/experimental-subscription-auth/session
  */
 
 import { mkdir, readFile, rm } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
-import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
-import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
+import { writeFileAtomic } from '@aeven/atomic-write'
+import { resolveDshHome } from '@aeven/home-paths'
 import type { Api, Model, MutableModels, Provider } from '@earendil-works/pi-ai'
 import { createModels } from '@earendil-works/pi-ai'
 import { xaiProvider } from '@earendil-works/pi-ai/providers/xai'

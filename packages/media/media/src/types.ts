@@ -3,12 +3,12 @@
  * video share one seam because they share provider identity, credentials,
  * cancellation, and the error taxonomy; they keep separate request and result
  * types because only video is a job.
- * @module @deepseek-ai/dsh-media/types
+ * @module @aeven/media/types
  */
 
-import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
+import type { ImageAttachmentRef } from '@aeven/attachment'
 
-import { HarnessError } from '@deepseek-ai/dsh-llm'
+import { HarnessError } from '@aeven/llm'
 
 /** Failure codes callers may branch on. */
 export type MediaErrorCode =

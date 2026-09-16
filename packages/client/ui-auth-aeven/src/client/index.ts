@@ -5,7 +5,7 @@
  * presents Aeven's own screens so a reader signs in once, in one place. The
  * gate runs before the plugin graph, so no plugin ever sees an unauthenticated
  * context.
- * @module @deepseek-ai/dsh-client-ui-auth-aeven/client
+ * @module @aeven/client-ui-auth-aeven/client
  */
 
 export { Authenticate, type AuthenticateProps } from './auth/views/Authenticate.tsx'

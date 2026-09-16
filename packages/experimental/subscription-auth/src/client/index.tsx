@@ -1,9 +1,9 @@
 /** Browser half: coding-subscription account management inside dsh Settings. */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-client-locale/client'
-import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
-import type {} from '@deepseek-ai/dsh-client-ui-slots'
+import type {} from '@aeven/client-locale/client'
+import type {} from '@aeven/client-ui-settings/client'
+import type {} from '@aeven/client-ui-slots'
 import { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createDshClientAdapter } from './dshClientAdapter.ts'
@@ -12,7 +12,7 @@ import { GrokBuildSettings } from './GrokBuildSettings.tsx'
 import type { GrokBuildSettingsKey } from './locales.ts'
 import { en, zh } from './locales.ts'
 
-declare module '@deepseek-ai/dsh-client-ui-slots' {
+declare module '@aeven/client-ui-slots' {
   interface LocaleNamespaceMap {
     'settings.grok-build': GrokBuildSettingsKey
   }

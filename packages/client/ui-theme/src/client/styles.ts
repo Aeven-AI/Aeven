@@ -6,7 +6,7 @@ import gradientShadowText from '../styles/gradient-shadow-text.css?inline'
 import aevenLanguage from '../styles/aeven-language.css?inline'
 import highlight from '../styles/highlight.css?inline'
 
-const PLUGIN_ID = '@deepseek-ai/dsh-client-ui-theme'
+const PLUGIN_ID = '@aeven/client-ui-theme'
 
 const STYLES = [
   ['base.css', base],

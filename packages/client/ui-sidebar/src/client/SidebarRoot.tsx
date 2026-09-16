@@ -17,7 +17,7 @@
 import clsx from 'clsx'
 import {
   FishLogo, IconChevronsLeftOutline14, IconMenuOutline16, IconNewChatOutline16, Tooltip,
-} from '@deepseek-ai/dsh-client-ui-primitives'
+} from '@aeven/client-ui-primitives'
 import type { SidebarRootComponentProps } from './contract/slots.ts'
 import css from './SidebarRoot.module.css'
 

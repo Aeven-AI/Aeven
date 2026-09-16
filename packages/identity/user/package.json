@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-identity-user",
+  "name": "@aeven/identity-user",
   "description": "Authenticated user identity seam: the Service Definition every DSH subsystem reads, and the provider contract an authority implements",
   "version": "0.1.2-alpha.5",
   "publishConfig": {

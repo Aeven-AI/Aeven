@@ -8,17 +8,17 @@
  * so both the counting and the injection run the same paths production does.
  */
 
-import { defineTool } from '@deepseek-ai/dsh-tools'
-import { createUserMessage } from '@deepseek-ai/dsh-llm'
+import { defineTool } from '@aeven/tools'
+import { createUserMessage } from '@aeven/llm'
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { SessionId, type Session, type SessionEvent } from '@deepseek-ai/dsh-session'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import AgentLoop from '@deepseek-ai/dsh-agent-loop'
-import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
-import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
-import type { TodoItem } from '@deepseek-ai/dsh-tool-todo'
-import * as ToolTodo from '@deepseek-ai/dsh-tool-todo'
+import { SessionId, type Session, type SessionEvent } from '@aeven/session'
+import type { Agent } from '@aeven/agent'
+import AgentLoop from '@aeven/agent-loop'
+import { mountAgentLoopTestDependencies } from '@aeven/agent-loop-testkit'
+import SessionProjectionRegistry from '@aeven/session-projection'
+import type { TodoItem } from '@aeven/tool-todo'
+import * as ToolTodo from '@aeven/tool-todo'
 import { MockAdapter, textResponse, toolCallResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
 
 /** Keeps one turn alive for a step without touching any todo state. */

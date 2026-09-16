@@ -4,7 +4,7 @@
  * Mirrors the official Grok CLI: OIDC discovery, S256 PKCE, dual-channel code
  * capture (loopback listener + manual paste), form POST token exchange.
  * The device-code flow remains the fallback (see auth.ts).
- * @module @deepseek-ai/dsh-experimental-subscription-auth/oauth
+ * @module @aeven/experimental-subscription-auth/oauth
  */
 
 import { Buffer } from 'node:buffer'

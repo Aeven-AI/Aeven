@@ -14,7 +14,7 @@
  * attach with — at `runtime/host.json` inside the home. Because the lease
  * carries a live launch token, it is written owner-only and must never be
  * logged.
- * @module @deepseek-ai/dsh-home-paths/host-lease
+ * @module @aeven/home-paths/host-lease
  */
 
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'

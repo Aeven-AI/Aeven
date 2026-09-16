@@ -2,8 +2,8 @@
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-host-webserver'
-import type {} from '@deepseek-ai/dsh-llm'
+import type {} from '@aeven/host-webserver'
+import type {} from '@aeven/llm'
 import type { AuthEvent, AuthPrompt } from '@earendil-works/pi-ai'
 import { CODING_OAUTH_CORE_ABI } from 'dsh-coding-oauth-core'
 import { grokBuildAuthStatus, importGrokBuildSession, loginGrokBuildSession } from './auth.ts'

@@ -8,7 +8,7 @@
  * shared popupSelect shell, and the Effort row is the seat's own pane — so this
  * face carries the opener for the first and the submit verb for the second.
  */
-import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
+import type { SnapshotStore } from '@aeven/client-store'
 import type { ModelDirectoryState } from './directory.ts'
 
 /** Injected business face of the composer model seat. */

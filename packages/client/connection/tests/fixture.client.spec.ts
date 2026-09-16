@@ -7,9 +7,9 @@ import type {
   SessionId,
 } from '../src/client/api.ts'
 import { RpcId } from '../src/client/api.ts'
-import { decodeStorageRecord } from '@deepseek-ai/dsh-session/chunk-rows'
-import type { ChunkRow } from '@deepseek-ai/dsh-session/chunk-rows'
-import { SessionSeq } from '@deepseek-ai/dsh-session/types'
+import { decodeStorageRecord } from '@aeven/session/chunk-rows'
+import type { ChunkRow } from '@aeven/session/chunk-rows'
+import { SessionSeq } from '@aeven/session/types'
 import {
   createFixtureConnectionRpc,
   createFixtureFaces,
@@ -18,9 +18,9 @@ import {
 import type {
   ClientConnectionRpc, ConnectionRpcResult,
 } from '../src/rpc.ts'
-import type { DirectoryListing } from '@deepseek-ai/dsh-host-directory-picker/types'
-import type { ModelCatalog } from '@deepseek-ai/dsh-api-session-controller/types'
-import type { ModelSelection } from '@deepseek-ai/dsh-api-session-controller/types'
+import type { DirectoryListing } from '@aeven/host-directory-picker/types'
+import type { ModelCatalog } from '@aeven/api-session-controller/types'
+import type { ModelSelection } from '@aeven/api-session-controller/types'
 
 const sid = (id: string): SessionId => id as SessionId
 type WorkspaceId = string & { readonly __fixtureWorkspaceId: 'WorkspaceId' }

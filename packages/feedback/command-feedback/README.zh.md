@@ -3,7 +3,7 @@ description: "通过 `/feedback` 命令记录自由文本会话反馈，供用�
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-command-feedback
+# @aeven/command-feedback
 
 [English](README.md) | 中文
 
@@ -57,9 +57,9 @@ kind: "package-reference"
 
 ```yaml
 - id: commands
-  name: '@deepseek-ai/dsh-commands'
+  name: '@aeven/commands'
 - id: command-feedback
-  name: '@deepseek-ai/dsh-command-feedback'
+  name: '@aeven/command-feedback'
 ```
 
 Web 客户端随附该命令。无头模式、ACP 自动化和 JSON-RPC 不提供斜杠命令，因此 `/feedback` 在那里不可用。

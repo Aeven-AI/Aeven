@@ -1,22 +1,22 @@
 /**
  * Basic replay-aware compaction backend.
  *
- * @module @deepseek-ai/dsh-compaction-basic
+ * @module @aeven/compaction-basic
  */
 
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { CompactionEngine, ManualCompactionError } from '@deepseek-ai/dsh-compaction'
-import type { CompactionResult, CompactionTrigger } from '@deepseek-ai/dsh-compaction'
-import type { TokenMeter } from '@deepseek-ai/dsh-token-meter'
-import type { Session, SessionSeq } from '@deepseek-ai/dsh-session'
-import { CONTEXT_WINDOW_EXCEEDED_CODE } from '@deepseek-ai/dsh-llm'
-import type { LlmCallConfig } from '@deepseek-ai/dsh-llm'
-import { assertNever } from '@deepseek-ai/dsh-util-values'
-import type { Agent, PreStepDecision } from '@deepseek-ai/dsh-agent'
-import type { CommandId } from '@deepseek-ai/dsh-commands/brand'
+import { CompactionEngine, ManualCompactionError } from '@aeven/compaction'
+import type { CompactionResult, CompactionTrigger } from '@aeven/compaction'
+import type { TokenMeter } from '@aeven/token-meter'
+import type { Session, SessionSeq } from '@aeven/session'
+import { CONTEXT_WINDOW_EXCEEDED_CODE } from '@aeven/llm'
+import type { LlmCallConfig } from '@aeven/llm'
+import { assertNever } from '@aeven/util-values'
+import type { Agent, PreStepDecision } from '@aeven/agent'
+import type { CommandId } from '@aeven/commands/brand'
 // Type-only: makes the optional sibling service available to `ctx.get()`.
-import type {} from '@deepseek-ai/dsh-compaction-tool-result-pruner'
+import type {} from '@aeven/compaction-tool-result-pruner'
 import {
   resolveCompactSpec,
   resolveConfig,

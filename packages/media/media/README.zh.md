@@ -3,7 +3,7 @@ description: "生成式媒体服务（ctx.media）：部署方与插件作者如
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-media
+# @aeven/media
 
 [English](README.md) | 中文
 

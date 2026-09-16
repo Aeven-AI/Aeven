@@ -1,7 +1,7 @@
 /** Draft-attachment thumbnail rail with native horizontal scrolling. */
 
 import { useEffect, useLayoutEffect, useRef } from 'react'
-import { IconCloseFill14 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconCloseFill14 } from '@aeven/client-ui-primitives'
 import css from './AttachmentRail.module.css'
 
 /** One rail thumbnail; strings arrive resolved (zero-cordis atom). */

@@ -1,10 +1,10 @@
 import { createHmac } from 'node:crypto'
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import IdentityUsers from '@deepseek-ai/dsh-identity-user'
-import type { IdentityRequest } from '@deepseek-ai/dsh-identity-user'
+import IdentityUsers from '@aeven/identity-user'
+import type { IdentityRequest } from '@aeven/identity-user'
 import { apply, Config } from '../src/index.ts'
-import type { IndexInjection } from '@deepseek-ai/dsh-host-webserver'
+import type { IndexInjection } from '@aeven/host-webserver'
 
 const ACCESS_SECRET = 'access-secret'
 const REFRESH_SECRET = 'refresh-secret'

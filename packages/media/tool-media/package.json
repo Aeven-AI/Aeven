@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-tool-media",
+  "name": "@aeven/tool-media",
   "description": "Model-facing generate_image tool over the DeepSeek Harness generated-media seam",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
@@ -31,22 +31,22 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-attachment": "workspace:^",
-    "@deepseek-ai/dsh-commands": "workspace:^",
-    "@deepseek-ai/dsh-media": "workspace:^",
-    "@deepseek-ai/dsh-settings": "workspace:^",
-    "@deepseek-ai/dsh-tools": "workspace:^",
-    "@deepseek-ai/dsh-user-questions": "workspace:^"
+    "@aeven/attachment": "workspace:^",
+    "@aeven/commands": "workspace:^",
+    "@aeven/media": "workspace:^",
+    "@aeven/settings": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@aeven/user-questions": "workspace:^"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-attachment": "workspace:^",
-    "@deepseek-ai/dsh-commands": "workspace:^",
-    "@deepseek-ai/dsh-llm": "workspace:^",
-    "@deepseek-ai/dsh-media": "workspace:^",
-    "@deepseek-ai/dsh-settings": "workspace:^",
-    "@deepseek-ai/dsh-system-prompt": "workspace:^",
-    "@deepseek-ai/dsh-tools": "workspace:^",
-    "@deepseek-ai/dsh-user-questions": "workspace:^"
+    "@aeven/attachment": "workspace:^",
+    "@aeven/commands": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/media": "workspace:^",
+    "@aeven/settings": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@aeven/user-questions": "workspace:^"
   }
 }

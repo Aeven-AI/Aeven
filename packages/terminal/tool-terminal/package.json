@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-tool-terminal",
+  "name": "@aeven/tool-terminal",
   "description": "Six model-facing persistent PTY tools with owner isolation and generic background-job integration",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
@@ -30,33 +30,33 @@
     "@deepseek-ai/schemastery": "workspace:^"
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh-agent": "workspace:^",
-    "@deepseek-ai/dsh-llm": "workspace:^",
-    "@deepseek-ai/dsh-terminal": "workspace:^",
-    "@deepseek-ai/dsh-output-retention": "workspace:^",
-    "@deepseek-ai/dsh-system-prompt": "workspace:^",
-    "@deepseek-ai/dsh-jobs": "workspace:^",
-    "@deepseek-ai/dsh-tools": "workspace:^",
+    "@aeven/agent": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/terminal": "workspace:^",
+    "@aeven/output-retention": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/jobs": "workspace:^",
+    "@aeven/tools": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
     "@deepseek-ai/cordis-plugin-include": "workspace:^",
     "@deepseek-ai/cordis-plugin-loader": "workspace:^",
-    "@deepseek-ai/dsh-agent": "workspace:^",
-    "@deepseek-ai/dsh-llm": "workspace:^",
-    "@deepseek-ai/dsh-terminal": "workspace:^",
-    "@deepseek-ai/dsh-terminal-bash": "workspace:^",
-    "@deepseek-ai/dsh-output-retention": "workspace:^",
-    "@deepseek-ai/dsh-sandbox": "workspace:^",
-    "@deepseek-ai/dsh-sandbox-policy": "workspace:^",
-    "@deepseek-ai/dsh-session": "workspace:^",
-    "@deepseek-ai/dsh-subprocess-local": "workspace:^",
-    "@deepseek-ai/dsh-system-prompt": "workspace:^",
-    "@deepseek-ai/dsh-jobs": "workspace:^",
-    "@deepseek-ai/dsh-jobs-local": "workspace:^",
-    "@deepseek-ai/dsh-tool-jobs": "workspace:^",
-    "@deepseek-ai/dsh-tools": "workspace:^",
+    "@aeven/agent": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/terminal": "workspace:^",
+    "@aeven/terminal-bash": "workspace:^",
+    "@aeven/output-retention": "workspace:^",
+    "@aeven/sandbox": "workspace:^",
+    "@aeven/sandbox-policy": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/subprocess-local": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/jobs": "workspace:^",
+    "@aeven/jobs-local": "workspace:^",
+    "@aeven/tool-jobs": "workspace:^",
+    "@aeven/tools": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-session-projection": "workspace:^"
+    "@aeven/session-projection": "workspace:^"
   }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-client-ui-auth-aeven",
+  "name": "@aeven/client-ui-auth-aeven",
   "description": "The Aeven sign-in, sign-up and OAuth-result screens, ported verbatim so DSH presents the same authentication surface",
   "version": "0.1.2-alpha.5",
   "publishConfig": {

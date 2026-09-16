@@ -5,13 +5,13 @@ import SessionStore, {
   SessionId,
   SessionLogOffset,
   SessionSeq,
-} from '@deepseek-ai/dsh-session'
-import { isJsonValue } from '@deepseek-ai/dsh-util-values'
+} from '@aeven/session'
+import { isJsonValue } from '@aeven/util-values'
 import type {
   SessionEvent,
   SessionHeader,
   SessionLogOffset as SessionLogOffsetType,
-} from '@deepseek-ai/dsh-session'
+} from '@aeven/session'
 import {
   DEFAULT_PREPARED_SESSION_CACHE_SIZE, DEFAULT_WRITE_BATCH_MAX_DELAY_MS, MAX_WRITE_BATCH_DELAY_MS,
   SessionPersistence, SessionPersistenceRevision, PersistenceCoordinator,

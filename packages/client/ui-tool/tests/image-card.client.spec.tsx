@@ -2,11 +2,11 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
-import type { RunningToolCall, ToolResultNode } from '@deepseek-ai/dsh-client-ui-chat/client'
-import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
-import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
-import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
-import { zh } from '@deepseek-ai/dsh-client-ui-conversation/src/client/locales.ts'
+import type { RunningToolCall, ToolResultNode } from '@aeven/client-ui-chat/client'
+import type { ImageAttachmentRef } from '@aeven/attachment'
+import { makeTranslate } from '@aeven/client-test-runtime'
+import { zh as commonZh } from '@aeven/client-locale/src/locales/zh.ts'
+import { zh } from '@aeven/client-ui-conversation/src/client/locales.ts'
 import { imageCardModel } from '../src/client/tool/models/image-card-model.ts'
 import { GenericToolCard } from '../src/client/tool/toolviews/GenericToolCard.tsx'
 

@@ -1,6 +1,6 @@
 /**
  * Native pi-ai OAuth providers and their stable Harness route aliases.
- * @module @deepseek-ai/dsh-experimental-subscription-auth/oauth-providers
+ * @module @aeven/experimental-subscription-auth/oauth-providers
  */
 
 import type { ApiKeyAuth, Provider } from '@earendil-works/pi-ai'

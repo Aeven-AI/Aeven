@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import clsx from 'clsx'
-import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
+import type { WorkspaceId } from '@aeven/workspace/types'
 import type { ConversationSlotProps, InputZone } from '../contract/slots.ts'
 import { useContentCover } from './content-cover.ts'
 import { ContentLoader } from './ContentLoader.tsx'

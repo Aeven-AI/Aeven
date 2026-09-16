@@ -2,12 +2,12 @@
  * DeepInfra image and video provider for `ctx.media`. Images use DeepInfra's
  * OpenAI-compatible route and return base64; video is a job with its own status
  * vocabulary, mapped onto the seam's union.
- * @module @deepseek-ai/dsh-media-deepinfra
+ * @module @aeven/media-deepinfra
  */
 
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { imageMediaType, MediaError, vendorRoute, vendorVideoProvider } from '@deepseek-ai/dsh-media'
+import { imageMediaType, MediaError, vendorRoute, vendorVideoProvider } from '@aeven/media'
 import type {
   GeneratedImage,
   MediaImageModel,
@@ -15,7 +15,7 @@ import type {
   MediaImageRequest,
   MediaImageResult,
   MediaVideoStatus,
-} from '@deepseek-ai/dsh-media'
+} from '@aeven/media'
 
 /** Cordis plugin name. */
 export const name = 'media-deepinfra'

@@ -13,10 +13,10 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
-import { createAssistantMessage, createUserMessage } from '@deepseek-ai/dsh-llm'
-import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
-import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
-import * as SessionTurnOutlinePlugin from '@deepseek-ai/dsh-session-turn-outline'
+import { createAssistantMessage, createUserMessage } from '@aeven/llm'
+import SessionStore, { SessionId } from '@aeven/session'
+import SessionProjectionRegistry from '@aeven/session-projection'
+import * as SessionTurnOutlinePlugin from '@aeven/session-turn-outline'
 
 let root: string | undefined
 let context: Context | undefined
@@ -38,9 +38,9 @@ async function loadYaml(lines: readonly string[]): Promise<Context> {
   await context.plugin(Loader)
   context.loader.builtins.include = Include
   const modules = new Map<string, unknown>([
-    ['@deepseek-ai/dsh-session', SessionStore],
-    ['@deepseek-ai/dsh-session-projection', SessionProjectionRegistry],
-    ['@deepseek-ai/dsh-session-turn-outline', SessionTurnOutlinePlugin],
+    ['@aeven/session', SessionStore],
+    ['@aeven/session-projection', SessionProjectionRegistry],
+    ['@aeven/session-turn-outline', SessionTurnOutlinePlugin],
   ])
   context.loader.internal = {
     version: 'v2',
@@ -60,9 +60,9 @@ async function loadYaml(lines: readonly string[]): Promise<Context> {
 describe('real Loader composition', () => {
   it('loads the shipped session-turn-outline YAML shape and serves the outline', async () => {
     const loaded = await loadYaml([
-      "- name: '@deepseek-ai/dsh-session'",
-      "- name: '@deepseek-ai/dsh-session-projection'",
-      "- name: '@deepseek-ai/dsh-session-turn-outline'",
+      "- name: '@aeven/session'",
+      "- name: '@aeven/session-projection'",
+      "- name: '@aeven/session-turn-outline'",
     ])
 
     const unloaded = [...loaded.loader.entries()]

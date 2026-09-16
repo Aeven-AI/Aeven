@@ -11,12 +11,12 @@ import * as ReactJsxRuntime from 'react/jsx-runtime'
 import * as ReactDom from 'react-dom'
 import * as ReactDomClient from 'react-dom/client'
 import * as Cordis from '@deepseek-ai/cordis'
-import * as ClientStore from '@deepseek-ai/dsh-client-store'
-import * as UiSlots from '@deepseek-ai/dsh-client-ui-slots'
+import * as ClientStore from '@aeven/client-store'
+import * as UiSlots from '@aeven/client-ui-slots'
 import type { PlatformModule } from './platform.ts'
 
-type UiPrimitivesModule = typeof import('@deepseek-ai/dsh-client-ui-primitives')
-type ImmediatePlatformModule = Exclude<PlatformModule, '@deepseek-ai/dsh-client-ui-primitives'>
+type UiPrimitivesModule = typeof import('@aeven/client-ui-primitives')
+type ImmediatePlatformModule = Exclude<PlatformModule, '@aeven/client-ui-primitives'>
 
 /**
  * Start the rendering family with the shell without placing it on the shell's
@@ -24,7 +24,7 @@ type ImmediatePlatformModule = Exclude<PlatformModule, '@deepseek-ai/dsh-client-
  * page can keep presenting sign-in even when an application-only chunk fails.
  */
 const uiPrimitivesLoad: Promise<{ module: UiPrimitivesModule } | { error: unknown }> = import(
-  '@deepseek-ai/dsh-client-ui-primitives',
+  '@aeven/client-ui-primitives',
 ).then(
   module => ({ module }),
   (error: unknown) => ({ error }),
@@ -47,8 +47,8 @@ export function startStaticModules(): {
     'react-dom': ReactDom,
     'react-dom/client': ReactDomClient,
     '@deepseek-ai/cordis': Cordis,
-    '@deepseek-ai/dsh-client-store': ClientStore,
-    '@deepseek-ai/dsh-client-ui-slots': UiSlots,
+    '@aeven/client-store': ClientStore,
+    '@aeven/client-ui-slots': UiSlots,
   } satisfies Record<ImmediatePlatformModule, unknown>
   return { table, rendering: uiPrimitivesLoad }
 }

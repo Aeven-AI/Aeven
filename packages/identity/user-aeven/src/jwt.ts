@@ -3,7 +3,7 @@
  *
  * Aeven signs with `jsonwebtoken`'s default algorithm and a shared secret, so
  * verifying needs an HMAC and two comparisons rather than a dependency.
- * @module @deepseek-ai/dsh-identity-user-aeven/jwt
+ * @module @aeven/identity-user-aeven/jwt
  */
 
 import { createHmac, timingSafeEqual } from 'node:crypto'

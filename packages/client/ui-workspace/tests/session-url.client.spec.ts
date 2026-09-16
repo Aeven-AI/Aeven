@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SessionId } from '@deepseek-ai/dsh-session/types'
+import { SessionId } from '@aeven/session/types'
 import {
   BrowserSessionUrlNavigation,
   type SessionUrlWindow,

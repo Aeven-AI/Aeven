@@ -3,7 +3,7 @@
 import type { IncomingMessage } from 'node:http'
 import type { Duplex } from 'node:stream'
 import WebSocket, { WebSocketServer, type RawData } from 'ws'
-import type { User } from '@deepseek-ai/dsh-identity-user'
+import type { User } from '@aeven/identity-user'
 import {
   parseRemoteStreamClientMessage,
   type RemoteStreamFailure,

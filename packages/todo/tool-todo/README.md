@@ -3,7 +3,7 @@ description: "The model-facing todo_write tool over the DeepSeek Harness session
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-tool-todo
+# @aeven/tool-todo
 
 English | [中文](README.zh.md)
 
@@ -36,7 +36,7 @@ Choose it when one agent session should own the task list and whole-list updates
 `allowParallelInProgress` is required with no default: a composition that omits it fails at load, and a non-boolean value is rejected. Set `true` for agents that may run work concurrently (subagents, background commands, workflow fan-out) and `false` for the single-active discipline.
 
 ```yaml
-- name: '@deepseek-ai/dsh-tool-todo'
+- name: '@aeven/tool-todo'
   config:
     allowParallelInProgress: true
 ```
@@ -91,7 +91,7 @@ The plugin is a function/namespace plugin: it exports `name` / `inject` / `apply
 
 ### Session projection
 
-When the composition mounts `ctx.sessionProjections` ([`@deepseek-ai/dsh-session-projection`](../../session/session-projection/README.md)), this package registers two units on an injected child. `todos` is the UI's standing plan: the latest whole `todo/write` list, `null` before the first write, replaced only by the next write. A turn boundary does not move it, so the dock keeps showing the plan the agent is still working to. That key merges into `SessionProjectionMap` here, carriers serve the value on the history tail page and the `session/projection` push frame, and the lifetime rationale lives in the [todo plan survives the turn boundary Agent Note](../../../.agents/notes/implemented/bug-fix/2026-09-16-todo-plan-survives-the-turn-boundary.md), which reverses the earlier [clear-on-next-turn decision](../../../.agents/notes/implemented/feature/2026-07-28-todo-plan-clears-on-next-turn.md). `todoPlan` is the model's read-back of the same list, declared with no `wire` so it never reaches a client: it folds the same input, so the plan the dock shows and the plan the model reads back cannot disagree. Compositions without the registry are unaffected; see [src/index.ts](src/index.ts) for both unit registrations.
+When the composition mounts `ctx.sessionProjections` ([`@aeven/session-projection`](../../session/session-projection/README.md)), this package registers two units on an injected child. `todos` is the UI's standing plan: the latest whole `todo/write` list, `null` before the first write, replaced only by the next write. A turn boundary does not move it, so the dock keeps showing the plan the agent is still working to. That key merges into `SessionProjectionMap` here, carriers serve the value on the history tail page and the `session/projection` push frame, and the lifetime rationale lives in the [todo plan survives the turn boundary Agent Note](../../../.agents/notes/implemented/bug-fix/2026-09-16-todo-plan-survives-the-turn-boundary.md), which reverses the earlier [clear-on-next-turn decision](../../../.agents/notes/implemented/feature/2026-07-28-todo-plan-clears-on-next-turn.md). `todoPlan` is the model's read-back of the same list, declared with no `wire` so it never reaches a client: it folds the same input, so the plan the dock shows and the plan the model reads back cannot disagree. Compositions without the registry are unaffected; see [src/index.ts](src/index.ts) for both unit registrations.
 
 ### Durable-log invariant
 

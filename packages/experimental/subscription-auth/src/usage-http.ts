@@ -6,7 +6,7 @@
  * the same posture per provider — the caller supplies the one origin its
  * tokens may ever reach, and a URL outside it is refused before any request.
  *
- * @module @deepseek-ai/dsh-experimental-subscription-auth/usage-http
+ * @module @aeven/experimental-subscription-auth/usage-http
  */
 
 import { safeMessage } from './redact.ts'

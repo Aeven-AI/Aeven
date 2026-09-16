@@ -2,12 +2,12 @@
  * Optional Codex / Grok Imagine tool definitions. The factory only returns
  * public `ToolDefinition` objects — it never registers on `ctx.tools`.
  * Feature flags and `imageCount` are re-read from `current()` at execute time.
- * @module @deepseek-ai/dsh-experimental-subscription-auth/capability-tools
+ * @module @aeven/experimental-subscription-auth/capability-tools
  */
 
-import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
-import { LlmError } from '@deepseek-ai/dsh-llm'
-import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools'
+import type { ImageAttachmentRef } from '@aeven/attachment'
+import { LlmError } from '@aeven/llm'
+import type { ToolDefinition, ToolRunContext } from '@aeven/tools'
 import { CAPABILITY_SETTINGS_BOUNDS, type CapabilitySettings } from './capability-settings.ts'
 import type { CodexAuthSession } from './codex-http.ts'
 import {
@@ -587,7 +587,7 @@ function codexImageSummary(
  * @returns The created capability tools.
  */
 export async function createCapabilityTools(options: CapabilityToolsOptions): Promise<readonly ToolDefinition[]> {
-  const { defineTool } = await import('@deepseek-ai/dsh-tools')
+  const { defineTool } = await import('@aeven/tools')
   const createController: CreateCodexImageController =
     options.createCodexController ??
 		((session, routePolicy) =>

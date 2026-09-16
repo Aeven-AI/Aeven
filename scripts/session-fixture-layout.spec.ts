@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { SessionSeq, type SessionEvent } from '@deepseek-ai/dsh-session'
-import { parseSessionLog } from '@deepseek-ai/dsh-llm-replay'
+import { SessionSeq, type SessionEvent } from '@aeven/session'
+import { parseSessionLog } from '@aeven/llm-replay'
 import {
   canonicalSessionFixture,
   inspectSessionFixtureLayouts,

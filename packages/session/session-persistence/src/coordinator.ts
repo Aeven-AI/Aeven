@@ -2,7 +2,7 @@
  * Shared buffering, serialization, adoption, repair, and disposal orchestration
  * for first-party backends. Third-party backends may implement the public
  * persistence seam directly.
- * @module @deepseek-ai/dsh-session-persistence/coordinator
+ * @module @aeven/session-persistence/coordinator
  */
 
 import { Context } from '@deepseek-ai/cordis'
@@ -15,7 +15,7 @@ import {
   SessionPreparation,
   SessionSeq,
   snapshotSessionEvent,
-} from '@deepseek-ai/dsh-session'
+} from '@aeven/session'
 import type {
   Session,
   SessionEvent,
@@ -23,9 +23,9 @@ import type {
   SessionHeader,
   SessionLogOffset as SessionLogOffsetType,
   SessionSeq as SessionSeqType,
-} from '@deepseek-ai/dsh-session'
-import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
-import { snapshotJsonValue } from '@deepseek-ai/dsh-util-values'
+} from '@aeven/session'
+import { MAX_TIMER_DELAY_MS } from '@aeven/timeout'
+import { snapshotJsonValue } from '@aeven/util-values'
 import type {
   BorrowedSessionSource,
   SessionEventSuffix,

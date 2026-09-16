@@ -1,10 +1,10 @@
 /** Coding-subscription adapter assembled from public dsh-llm-pi-ai extension points. */
 
-import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
-import type { RetryPolicyConfig } from '@deepseek-ai/dsh-llm'
-import { type LlmAdapter, LlmError, resolveRetryPolicy } from '@deepseek-ai/dsh-llm'
-import type { PiAiAdapterOptions, ResolvedPiAiProviderProfile } from '@deepseek-ai/dsh-llm-pi-ai'
-import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
+import type { AttachmentStore } from '@aeven/attachment'
+import type { RetryPolicyConfig } from '@aeven/llm'
+import { type LlmAdapter, LlmError, resolveRetryPolicy } from '@aeven/llm'
+import type { PiAiAdapterOptions, ResolvedPiAiProviderProfile } from '@aeven/llm-pi-ai'
+import { PiAiAdapter } from '@aeven/llm-pi-ai'
 import type { AliasLlmRoutePolicy } from './alias-adapter.ts'
 import { AliasLlmAdapter } from './alias-adapter.ts'
 import { preferredGrokBuildModelFrom } from './catalog.ts'

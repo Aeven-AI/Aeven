@@ -3,7 +3,7 @@ description: "The file-backed credentials provider for users and maintainers cho
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-credentials-local
+# @aeven/credentials-local
 
 English | [中文](README.zh.md)
 
@@ -34,7 +34,7 @@ Use it as the default local store: the product's base composition loads it, and 
 ### Setting it up
 
 ```yaml
-- name: '@deepseek-ai/dsh-credentials-local'
+- name: '@aeven/credentials-local'
   config:
     path: /absolute/path/to/.credentials.yaml
 ```
@@ -54,7 +54,7 @@ Save a key with `set`, remove it with `unset`, and check whether a key is config
 
 ```ts
 import type { Context } from '@deepseek-ai/cordis'
-import { credentialRef } from '@deepseek-ai/dsh-credentials'
+import { credentialRef } from '@aeven/credentials'
 
 declare const ctx: Context
 

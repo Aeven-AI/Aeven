@@ -1,6 +1,6 @@
 /** Stable failures exposed by the session-persistence service. */
 
-import type { SessionId } from '@deepseek-ai/dsh-session'
+import type { SessionId } from '@aeven/session'
 
 /** The requested Session identity has no materialized durable log. */
 export class SessionPersistenceNotFoundError extends Error {

@@ -1,8 +1,8 @@
 /** Cover the conversation column until its Session view has painted. */
 
 import { useEffect, useState } from 'react'
-import type { OpenState } from '@deepseek-ai/dsh-api-session-controller/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { OpenState } from '@aeven/api-session-controller/client'
+import type { SessionId } from '@aeven/session/types'
 
 /** Static page-preloader id from `apps/web/index.html`. */
 export const PAGE_PRELOADER_ELEMENT_ID = 'dsh-preloader'

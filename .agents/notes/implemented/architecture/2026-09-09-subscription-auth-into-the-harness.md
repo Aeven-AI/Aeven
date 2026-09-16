@@ -8,13 +8,13 @@ English | [中文](2026-09-09-subscription-auth-into-the-harness.zh.md)
 
 Coding-subscription OAuth for Grok Build, ChatGPT Codex, and Claude Code lived in a separate repository and reached the harness only as a profile bundle resolved by a filesystem link. Nothing in this repository named it, so its packaging was verified by its own gates rather than these.
 
-That separation cost more than it bought. The plugin pinned an exact 19-package `@deepseek-ai/dsh-*` bill of materials and re-verified it on every build, because a harness release could move underneath it. Every harness version bump therefore required a lockstep release there, and a drift between the two was only detectable through that hand-maintained manifest. The plugin also filled harness seams — `ctx.media` image and video providers, an LLM adapter, a Settings section — while being unable to use workspace resolution to reach them.
+That separation cost more than it bought. The plugin pinned an exact 19-package `@aeven/*` bill of materials and re-verified it on every build, because a harness release could move underneath it. Every harness version bump therefore required a lockstep release there, and a drift between the two was only detectable through that hand-maintained manifest. The plugin also filled harness seams — `ctx.media` image and video providers, an LLM adapter, a Settings section — while being unable to use workspace resolution to reach them.
 
 Two defects followed directly from the split. The plugin's committed `lib/` is the artifact `dsh web` loads, and it had fallen behind `src/` without any gate noticing. Its release verifier asserted a client-bundle marker for a settings flag the product had already retired, so the build refused the very change that removed it.
 
 ## Decision
 
-The plugin lands as `packages/experimental/subscription-auth`, npm name `@deepseek-ai/dsh-experimental-subscription-auth`, `private: true`. It is a single package for now, and is expected to split along its product roles — OAuth sessions, LLM adapter, media providers, tools, client UI — before promotion out of `experimental/`.
+The plugin lands as `packages/experimental/subscription-auth`, npm name `@aeven/experimental-subscription-auth`, `private: true`. It is a single package for now, and is expected to split along its product roles — OAuth sessions, LLM adapter, media providers, tools, client UI — before promotion out of `experimental/`.
 
 It keeps its `dsh.bundle` and `dsh.client` manifest declarations, because those are how a profile discovers a bundle and its browser half. It keeps `dsh-coding-oauth-core` as an exact external dependency: that package owns the route and path identifiers this one implements, and pinning it is what the ABI gate checks.
 

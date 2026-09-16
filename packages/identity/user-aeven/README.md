@@ -3,7 +3,7 @@ description: "Aeven authority for the authenticated-user seam: verifies the Aeve
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-identity-user-aeven
+# @aeven/identity-user-aeven
 
 English | [中文](README.zh.md)
 
@@ -37,7 +37,7 @@ The row injects the seam and reads its secrets from the environment:
 
 ```yaml
 - id: identity-user-aeven
-  name: '@deepseek-ai/dsh-identity-user-aeven'
+  name: '@aeven/identity-user-aeven'
   inject: [identityUsers]
   config:
     apiUrl: 'http://localhost:9000'

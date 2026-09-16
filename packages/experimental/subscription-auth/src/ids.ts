@@ -69,7 +69,7 @@ export const CODING_OAUTH_ROUTES = [GROK_BUILD_ROUTE, CODEX_OAUTH_ROUTE, CLAUDE_
 export type CodingOAuthRoute = (typeof CODING_OAUTH_ROUTES)[number]
 
 /**
- * Owned here since the `@deepseek-ai/dsh-experimental-subscription-auth` rename. Core still exports
+ * Owned here since the `@aeven/experimental-subscription-auth` rename. Core still exports
  * the pre-rename directory as a shared on-disk contract, so it stays reachable as
  * the legacy name: an existing install's artifacts are moved over on first start.
  */

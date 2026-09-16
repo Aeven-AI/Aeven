@@ -3,7 +3,7 @@ description: "面向 ctx.media 的 pi-ai 图片 provider：部署方如何通过
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-media-pi-ai
+# @aeven/media-pi-ai
 
 [English](README.md) | 中文
 

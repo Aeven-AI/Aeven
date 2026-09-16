@@ -3,7 +3,7 @@ description: "面向 ctx.media 的 DeepInfra 图片与视频 provider：在单�
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-media-deepinfra
+# @aeven/media-deepinfra
 
 [English](README.md) | 中文
 

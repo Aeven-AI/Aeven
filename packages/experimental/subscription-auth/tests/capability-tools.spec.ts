@@ -1,5 +1,5 @@
-import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
-import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools'
+import type { ImageAttachmentRef } from '@aeven/attachment'
+import type { ToolDefinition, ToolRunContext } from '@aeven/tools'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   CAPABILITY_SETTINGS_BOUNDS,

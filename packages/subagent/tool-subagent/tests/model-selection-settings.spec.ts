@@ -2,18 +2,18 @@
 
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { ToolCallId } from '@deepseek-ai/dsh-llm'
-import { Session, SessionId } from '@deepseek-ai/dsh-session'
-import type { SessionEvent } from '@deepseek-ai/dsh-session'
-import { bindScopeParent, createScope, scopeOf, scopeTarget } from '@deepseek-ai/dsh-scope'
-import { SettingsProvider } from '@deepseek-ai/dsh-settings'
-import type { SettingsNamespace } from '@deepseek-ai/dsh-settings'
-import InvariantRegistry from '@deepseek-ai/dsh-invariants'
-import AgentLoop from '@deepseek-ai/dsh-agent-loop'
-import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
-import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
-import SubagentRuntime from '@deepseek-ai/dsh-subagent'
-import * as SubagentSpawn from '@deepseek-ai/dsh-subagent-spawn-in-process'
+import { ToolCallId } from '@aeven/llm'
+import { Session, SessionId } from '@aeven/session'
+import type { SessionEvent } from '@aeven/session'
+import { bindScopeParent, createScope, scopeOf, scopeTarget } from '@aeven/scope'
+import { SettingsProvider } from '@aeven/settings'
+import type { SettingsNamespace } from '@aeven/settings'
+import InvariantRegistry from '@aeven/invariants'
+import AgentLoop from '@aeven/agent-loop'
+import { mountAgentLoopTestDependencies } from '@aeven/agent-loop-testkit'
+import SessionProjectionRegistry from '@aeven/session-projection'
+import SubagentRuntime from '@aeven/subagent'
+import * as SubagentSpawn from '@aeven/subagent-spawn-in-process'
 import * as tool from '../src/index.ts'
 import * as ToolInvariant from '../src/invariant.ts'
 import SubagentModelSelectionConfig, {
@@ -335,7 +335,7 @@ describe('SubagentModelSelectionConfig', () => {
         modelSelectionSettings: true,
         maxDepth: 'provider-managed',
       })
-    }).toThrow('requires @deepseek-ai/dsh-tool-subagent/model-selection-settings')
+    }).toThrow('requires @aeven/tool-subagent/model-selection-settings')
     await withoutSettings.fiber.dispose()
 
     const withoutAgent = await boot()

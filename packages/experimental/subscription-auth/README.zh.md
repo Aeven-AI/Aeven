@@ -3,7 +3,7 @@ description: "面向 Grok Build、ChatGPT Codex 与 Claude Code 的编码订阅 
 kind: "package-bundle"
 ---
 
-# @deepseek-ai/dsh-experimental-subscription-auth
+# @aeven/experimental-subscription-auth
 
 [English](README.md) | 中文
 

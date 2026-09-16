@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { createUserMessage, ToolCallId , createMessage, createToolResultMessage } from '@deepseek-ai/dsh-llm'
-import { toolPairingBalancedAfter, toolPairingBalancedBefore } from '@deepseek-ai/dsh-compaction'
-import { Session, SessionId, SessionSeq } from '@deepseek-ai/dsh-session'
-import type { SessionEvent, SessionSeq as SessionSeqType } from '@deepseek-ai/dsh-session'
+import { createUserMessage, ToolCallId , createMessage, createToolResultMessage } from '@aeven/llm'
+import { toolPairingBalancedAfter, toolPairingBalancedBefore } from '@aeven/compaction'
+import { Session, SessionId, SessionSeq } from '@aeven/session'
+import type { SessionEvent, SessionSeq as SessionSeqType } from '@aeven/session'
 
 const SURFACE = { surfaceOp: 'append' as const }
 

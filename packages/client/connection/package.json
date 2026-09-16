@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-client-connection",
+  "name": "@aeven/client-connection",
   "description": "Authenticated RPC transport, generation lifecycle, and browser fixture",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
@@ -34,7 +34,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@deepseek-ai/dsh-credentials": "workspace:^",
+    "@aeven/credentials": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^",
     "zod": "^4.4.3"
   },
@@ -48,16 +48,16 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-attachment": "workspace:^",
-    "@deepseek-ai/dsh-brand": "workspace:^",
-    "@deepseek-ai/dsh-commands": "workspace:^",
-    "@deepseek-ai/dsh-host-directory-picker": "workspace:^",
-    "@deepseek-ai/dsh-host-webserver": "workspace:^",
-    "@deepseek-ai/dsh-identity-user": "workspace:^",
-    "@deepseek-ai/dsh-llm": "workspace:^",
-    "@deepseek-ai/dsh-session": "workspace:^",
-    "@deepseek-ai/dsh-settings": "workspace:^",
-    "@deepseek-ai/dsh-tool-todo": "workspace:^",
-    "@deepseek-ai/dsh-util-values": "workspace:^"
+    "@aeven/attachment": "workspace:^",
+    "@aeven/brand": "workspace:^",
+    "@aeven/commands": "workspace:^",
+    "@aeven/host-directory-picker": "workspace:^",
+    "@aeven/host-webserver": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/settings": "workspace:^",
+    "@aeven/tool-todo": "workspace:^",
+    "@aeven/util-values": "workspace:^"
   }
 }

@@ -3,7 +3,7 @@ description: "The pi-ai image provider for ctx.media: how a deployment reaches O
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-media-pi-ai
+# @aeven/media-pi-ai
 
 English | [中文](README.zh.md)
 

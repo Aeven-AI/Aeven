@@ -3,7 +3,7 @@ description: "The generated-media service (ctx.media): how deployments and plugi
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-media
+# @aeven/media
 
 English | [中文](README.zh.md)
 

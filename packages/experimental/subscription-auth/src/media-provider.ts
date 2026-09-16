@@ -17,10 +17,10 @@
  * from the registry. The shapes below are the parts of that contract this
  * provider implements, and a host whose seam has moved on fails at
  * registration rather than silently mis-serving a call.
- * @module @deepseek-ai/dsh-experimental-subscription-auth/media-provider
+ * @module @aeven/experimental-subscription-auth/media-provider
  */
 
-import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
+import type { ImageAttachmentRef } from '@aeven/attachment'
 import type { CapabilityImagineClient } from './capability-tools.ts'
 import { CODEX_IMAGE_MODEL, type CodexImageController } from './codex-images.ts'
 import { GROK_BUILD_IMAGINE_IMAGE_MODEL, GROK_IMAGINE_IMAGE_MODEL } from './grok-imagine.ts'

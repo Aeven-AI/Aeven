@@ -92,6 +92,7 @@ function exclusionReason(path) {
   if (path === 'LICENSE') return 'MIT copyright notice is legally fixed'
   if (path === 'THIRD_PARTY_NOTICES.md') return 'third-party attribution is legally fixed'
   if (GENERATED.has(generatedStem(path))) return 'generated output (regenerated in wave 9)'
+  if (path.endsWith('.snap')) return 'vitest snapshot (regenerated with --update)'
   if (path.startsWith('website/.dist/')) return 'build output (gitignored)'
   if (path.startsWith('.dsh-build/')) return 'build record (gitignored)'
   if (path.startsWith('coverage/')) return 'coverage output'
@@ -191,8 +192,24 @@ function isHeldBack(run, wave) {
 /** Text file extensions this script will rewrite. */
 const TEXT_EXTENSIONS = new Set([
   '.ts', '.tsx', '.mts', '.js', '.mjs', '.cjs', '.json', '.jsonl', '.md', '.yml',
-  '.yaml', '.css', '.html', '.txt', '.sh', '.py', '.toml', '.webmanifest', '.i18n',
+  '.yaml', '.css', '.scss', '.html', '.txt', '.sh', '.py', '.toml', '.webmanifest',
+  '.i18n', '.cmd', '.patch', '.svg',
 ])
+
+/**
+ * Whether a path is handled as tracked text.
+ *
+ * `.snap` files are deliberately absent: vitest snapshots are regenerated with
+ * `--update`, never hand-edited. Dotfiles (`.gitignore`, `.gitattributes`) have
+ * no `extname` at all and need the explicit basename check.
+ * @param path - repository-relative path.
+ * @returns whether to treat the file as text.
+ */
+function isTextPath(path) {
+  if (TEXT_EXTENSIONS.has(extname(path))) return true
+  const base = path.slice(path.lastIndexOf('/') + 1)
+  return base.startsWith('.') && !base.slice(1).includes('.')
+}
 
 /**
  * Whole-file literal phrase rules, applied before the run-based rules.
@@ -259,6 +276,23 @@ function rewrite(text, wave) {
   return { text: out, hits }
 }
 
+/**
+ * Read a path as UTF-8 text, or `undefined` when it is not valid UTF-8 and so
+ * is genuinely binary.
+ *
+ * A NUL byte is NOT a reliable binary marker here: three tracked *text* files
+ * embed one (two specs exercising env-separator handling, and one script), and
+ * skipping on NUL silently left `@deepseek-ai/dsh-*` specifiers behind in them.
+ * Strict decoding is the correct discriminator.
+ * @param path - repository-relative path.
+ * @returns decoded text, or `undefined` for binary content.
+ */
+function readText(path) {
+  let bytes
+  try { bytes = readFileSync(path) } catch { return undefined }
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes) } catch { return undefined }
+}
+
 /** List tracked files, honouring the exclusion list. */
 function corpus() {
   const listed = execFileSync('git', ['ls-files', '-z'], { encoding: 'buffer', maxBuffer: 1 << 28 })
@@ -280,9 +314,8 @@ function report(verbose) {
   const positives = new Map()
   const offenders = new Map()
   for (const path of corpus()) {
-    let text
-    try { text = readFileSync(path, 'utf8') } catch { continue }
-    if (text.includes('\0')) continue
+    const text = readText(path)
+    if (text === undefined) continue
     if (path.startsWith('scripts/rename-brand.mjs')) continue
     const matches = text.match(RUN_PATTERN)
     if (matches === null) continue
@@ -330,10 +363,9 @@ function main() {
   const changed = []
   for (const path of corpus()) {
     if (path === 'scripts/rename-brand.mjs') continue
-    if (!TEXT_EXTENSIONS.has(extname(path))) continue
-    let original
-    try { original = readFileSync(path, 'utf8') } catch { continue }
-    if (original.includes('\0')) continue
+    if (!isTextPath(path)) continue
+    let original = readText(path)
+    if (original === undefined) continue
     const { text, hits } = rewrite(original, wave)
     if (text === original) continue
     changed.push(path)

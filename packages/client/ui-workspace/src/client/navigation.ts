@@ -1,16 +1,16 @@
 /** Workspace archive and directory UI capability. */
 
 import { Service, type Context } from '@deepseek-ai/cordis'
-import type { ClientRemote, DirectoryListing, RemoteFailure } from '@deepseek-ai/dsh-api-remotes/client'
+import type { ClientRemote, DirectoryListing, RemoteFailure } from '@aeven/api-remotes/client'
 import type {
   ISessions,
   SessionFace,
   SessionListState,
-} from '@deepseek-ai/dsh-api-session-controller/client'
+} from '@aeven/api-session-controller/client'
 import type {
   IWorkspaces, WorkspaceId, WorkspaceView,
-} from '@deepseek-ai/dsh-api-workspace-controller/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
+} from '@aeven/api-workspace-controller/client'
+import type { SessionId } from '@aeven/session/types'
 import type { SessionUrlNavigation } from './session-url.ts'
 
 type InitialNavigation = 'waiting' | 'connecting' | 'done'

@@ -6,7 +6,7 @@
  * Edit IDs resolve solely from canonical image attachment refs that are
  * visibly present in the current session's top-level message content (max 5).
  *
- * @module @deepseek-ai/dsh-experimental-subscription-auth/codex-images
+ * @module @aeven/experimental-subscription-auth/codex-images
  */
 
 import type {
@@ -14,8 +14,8 @@ import type {
   ImageMediaType,
   SaveImageAttachment,
   StoredImageAttachment,
-} from '@deepseek-ai/dsh-attachment'
-import { LlmError } from '@deepseek-ai/dsh-llm'
+} from '@aeven/attachment'
+import { LlmError } from '@aeven/llm'
 import {
   type CodexAuthSession,
   type CodexFetch,

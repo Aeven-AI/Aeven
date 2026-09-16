@@ -12,7 +12,7 @@ That separation cost two specific things. The engine and its consumer changed to
 
 ## Decision
 
-The engine lands as `packages/client/hypermarkdown`, npm name `@deepseek-ai/dsh-client-hypermarkdown`, a statically linked client library with no Cordis surface — the same package mode as `ui-primitives`, `client/store`, and `client/ui-slots`. `ui-primitives` reaches it through a `workspace:^` devDependency and the `@aeven-ai` npm dependency is gone.
+The engine lands as `packages/client/hypermarkdown`, npm name `@aeven/client-hypermarkdown`, a statically linked client library with no Cordis surface — the same package mode as `ui-primitives`, `client/store`, and `client/ui-slots`. `ui-primitives` reaches it through a `workspace:^` devDependency and the `@aeven-ai` npm dependency is gone.
 
 The move is a copy, not a fork. The source is the v0.4.4 tree verbatim, so the engine keeps its own idiom and stays diffable against its origin; the ported suite (62 spec files, 889 tests, 100% per-file coverage) came with it and is the regression net for every later edit.
 

@@ -1,10 +1,10 @@
 /** Session object lifecycle, event-window transport, commands, and resync behavior. */
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { SessionSeq, type SessionEvent } from '@deepseek-ai/dsh-session/types'
-import type { SessionId } from '@deepseek-ai/dsh-api-remotes/client'
-import { RemoteStreamCarrierError } from '@deepseek-ai/dsh-api-gateway/client'
-import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
+import { SessionSeq, type SessionEvent } from '@aeven/session/types'
+import type { SessionId } from '@aeven/api-remotes/client'
+import { RemoteStreamCarrierError } from '@aeven/api-gateway/client'
+import { RemoteError } from '@aeven/typert-protocol'
 import { JUMP_PAGE_MESSAGES, SCROLL_PAGE_MESSAGES, Session, type SessionOptions } from '../src/client/sessions/session.ts'
 import { FakeApiClient, deferred, err, fakeRemote, ok } from './fake-api.client.ts'
 import { entries, ev, historyValue, plainTurn } from './event-script.client.ts'

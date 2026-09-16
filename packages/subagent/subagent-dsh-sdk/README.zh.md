@@ -3,13 +3,13 @@ description: "面向用户与维护者的进程外 SDK subagent 后端，用于�
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-subagent-dsh-sdk
+# @aeven/subagent-dsh-sdk
 
 [English](README.md) | 中文
 
 ## 概述
 
-`dsh-subagent-dsh-sdk` 在全新的子进程中把每个被委派的子 agent（智能体）作为完整的 DeepSeek Harness 运行时运行，并经由 TypeScript SDK 客户端通过 stdio JSON-RPC 驱动。它是 ACP 提供方之外的第二个进程外后端，差异在协议格式（wire format）与子进程约定：子进程是完整的对等 harness，拥有由 `cordis.yml` 决定的组合、会话持久化、模型路由与工具。每次运行都会 spawn 子运行时（Node 下解析出的 `@deepseek-ai/dsh` CLI，或配置的 `dshBin`），以配置的提供方与模型路由完成 `initialize` 握手、提交任务，并从子进程的会话事件中读取答案。父级只收到子进程最终的 assistant 文本或安全错误——中间消息与工具流量不会跨越边界。当子进程应该是与父 harness 完全隔离的真实 Harness 运行时时，选择它。
+`dsh-subagent-dsh-sdk` 在全新的子进程中把每个被委派的子 agent（智能体）作为完整的 DeepSeek Harness 运行时运行，并经由 TypeScript SDK 客户端通过 stdio JSON-RPC 驱动。它是 ACP 提供方之外的第二个进程外后端，差异在协议格式（wire format）与子进程约定：子进程是完整的对等 harness，拥有由 `cordis.yml` 决定的组合、会话持久化、模型路由与工具。每次运行都会 spawn 子运行时（Node 下解析出的 `@aeven/cli` CLI，或配置的 `dshBin`），以配置的提供方与模型路由完成 `initialize` 握手、提交任务，并从子进程的会话事件中读取答案。父级只收到子进程最终的 assistant 文本或安全错误——中间消息与工具流量不会跨越边界。当子进程应该是与父 harness 完全隔离的真实 Harness 运行时时，选择它。
 
 ## 目录
 
@@ -57,7 +57,7 @@ kind: "package-reference"
 
 ```yaml
 - id: subagent-dsh-sdk
-  name: '@deepseek-ai/dsh-subagent-dsh-sdk'
+  name: '@aeven/subagent-dsh-sdk'
   config:
     providerName: dsh-sdk
     profile: sdk
@@ -67,7 +67,7 @@ kind: "package-reference"
     env:
       DEEPSEEK_API_KEY: !!js process.env.DEEPSEEK_API_KEY
 - id: tool-subagent
-  name: '@deepseek-ai/dsh-tool-subagent'
+  name: '@aeven/tool-subagent'
   config: { provider: dsh-sdk, toolName: subagent, maxDepth: 'provider-managed' }
 ```
 

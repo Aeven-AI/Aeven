@@ -3,7 +3,7 @@ description: "为 dsh Web 客户端渲染 assistant 输出的流式原生 Markdo
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-client-hypermarkdown
+# @aeven/client-hypermarkdown
 
 [English](README.md) | 中文
 
@@ -30,7 +30,7 @@ kind: "package-reference"
 挂载组件、按界面需要挂上插件，并通过命令式 handle 驱动流式输出。重型引擎是可选加入的：某个槽位留空会降级而不是失败，因此 `$x$` 保持字面量、代码围栏不高亮、```` ```mermaid ```` 围栏渲染为代码块。
 
 ```tsx
-import { HyperMarkdown, katexPlugin, highlightPlugin, mermaidPlugin } from '@deepseek-ai/dsh-client-hypermarkdown'
+import { HyperMarkdown, katexPlugin, highlightPlugin, mermaidPlugin } from '@aeven/client-hypermarkdown'
 
 const plugins = {
   math: katexPlugin(),

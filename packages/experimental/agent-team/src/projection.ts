@@ -1,10 +1,10 @@
 /** Host-only Team state projected incrementally from committed Session events. */
 
 import { z } from 'zod'
-import { brandString } from '@deepseek-ai/dsh-brand'
-import type { ContentBlock } from '@deepseek-ai/dsh-llm'
-import type { SessionEvent, SessionEventMap, SessionId } from '@deepseek-ai/dsh-session'
-import type { ProjectionDefinition } from '@deepseek-ai/dsh-session-projection'
+import { brandString } from '@aeven/brand'
+import type { ContentBlock } from '@aeven/llm'
+import type { SessionEvent, SessionEventMap, SessionId } from '@aeven/session'
+import type { ProjectionDefinition } from '@aeven/session-projection'
 import type {
   TeamId,
   TeamMemberSnapshot,
@@ -155,7 +155,7 @@ export interface TeamProjectionState extends TeamState {
   failure?: string
 }
 
-declare module '@deepseek-ai/dsh-session-projection/types' {
+declare module '@aeven/session-projection/types' {
   interface SessionProjectionStateMap {
     agentTeam: TeamProjectionState
   }

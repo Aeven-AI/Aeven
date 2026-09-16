@@ -14,7 +14,7 @@
  * - `resetsAt` is always epoch **seconds**. Codex reports epoch seconds
  *   already; Claude and Grok report RFC 3339 strings.
  *
- * @module @deepseek-ai/dsh-experimental-subscription-auth/usage-view
+ * @module @aeven/experimental-subscription-auth/usage-view
  */
 
 /**

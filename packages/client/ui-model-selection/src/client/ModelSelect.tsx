@@ -24,8 +24,8 @@ import clsx from 'clsx'
 import {
   IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14,
   IconWarningOutline16, Toast,
-} from '@deepseek-ai/dsh-client-ui-primitives'
-import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
+} from '@aeven/client-ui-primitives'
+import type { PropsLocale } from '@aeven/client-ui-slots'
 import { effectiveEffortOf, effortLevelsOf, type EffortLevel } from './effort.ts'
 import type { ModelSelectInjected } from './slots.ts'
 import css from './ModelSelect.module.css'

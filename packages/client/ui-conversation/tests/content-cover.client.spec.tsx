@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, render } from '@testing-library/react'
-import type { OpenState } from '@deepseek-ai/dsh-api-session-controller/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { OpenState } from '@aeven/api-session-controller/client'
+import type { SessionId } from '@aeven/session/types'
 import {
   PAGE_PRELOADER_ELEMENT_ID, useContentCover,
 } from '../src/client/skeleton/content-cover.ts'

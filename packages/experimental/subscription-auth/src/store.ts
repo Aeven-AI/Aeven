@@ -1,13 +1,13 @@
 /**
  * Owner-only persistent OAuth credential storage for coding-subscription routes.
- * @module @deepseek-ai/dsh-experimental-subscription-auth/store
+ * @module @aeven/experimental-subscription-auth/store
  */
 
 import { randomBytes } from 'node:crypto'
 import { mkdir, rm } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
-import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
-import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
+import { withFileLock, writeFileAtomic } from '@aeven/atomic-write'
+import { resolveDshHome } from '@aeven/home-paths'
 import type { Credential, CredentialInfo, CredentialStore, OAuthCredential } from '@earendil-works/pi-ai'
 import { GROK_BUILD_AUTH_FILENAME, XAI_PI_PROVIDER } from './ids.ts'
 import { CredentialFileError, readCredentialFile } from './credential-file.ts'

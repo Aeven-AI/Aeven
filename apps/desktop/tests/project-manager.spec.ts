@@ -56,9 +56,9 @@ function archiveStore(seed: string): void {
 
 function writeCorePackageSet(seed: string, version: string): void {
   const packages = [
-    { name: '@deepseek-ai/dsh', file: `deepseek-ai-dsh-${version}.tgz`, body: Buffer.from(`dsh-${version}`) },
+    { name: '@aeven/cli', file: `deepseek-ai-dsh-${version}.tgz`, body: Buffer.from(`dsh-${version}`) },
     {
-      name: '@deepseek-ai/dsh-desktop-host',
+      name: '@aeven/desktop-host',
       file: `deepseek-ai-dsh-desktop-host-${version}.tgz`,
       body: Buffer.from(`desktop-host-${version}`),
     },
@@ -110,7 +110,7 @@ rmSync(join(project, 'node_modules'), { recursive: true, force: true })
 for (const [name, version] of Object.entries(manifest.dependencies)) {
   const packageRoot = join(project, 'node_modules', ...name.split('/'))
   mkdirSync(packageRoot, { recursive: true })
-  const core = name === '@deepseek-ai/dsh' || name === '@deepseek-ai/dsh-desktop-host'
+  const core = name === '@aeven/cli' || name === '@aeven/desktop-host'
   const plugin = !core
   const installedVersion = plugin
     ? version
@@ -120,7 +120,7 @@ for (const [name, version] of Object.entries(manifest.dependencies)) {
     ...(plugin ? { dsh: { bundle: { patch: './bundle.yml' } } } : {}),
   }))
   if (plugin) writeFileSync(join(packageRoot, 'bundle.yml'), '[]\n')
-  else if (name === '@deepseek-ai/dsh-desktop-host') {
+  else if (name === '@aeven/desktop-host') {
     mkdirSync(join(packageRoot, 'lib'), { recursive: true })
     writeFileSync(join(packageRoot, 'lib', 'index.js'), '')
   }
@@ -214,7 +214,7 @@ describe('desktop project transactions', () => {
       await manager.applyRelease(seed, '1.0.0', hooks())
       writeFileSync(
         join(paths.profile, 'node_modules', '@deepseek-ai', 'dsh-desktop-host', 'package.json'),
-        '{"name":"@deepseek-ai/dsh-desktop-host","version":"0.9.0"}\n',
+        '{"name":"@aeven/desktop-host","version":"0.9.0"}\n',
       )
       await expect(manager.applyRelease(seed, '1.0.0', hooks())).resolves.toBe(true)
     } finally {
@@ -357,10 +357,10 @@ describe('desktop project transactions', () => {
     const manifest = JSON.parse(readFileSync(join(paths.profile, 'package.json'), 'utf8')) as {
       dependencies: Record<string, string>
     }
-    const coreSpec = manifest.dependencies['@deepseek-ai/dsh']
+    const coreSpec = manifest.dependencies['@aeven/cli']
     expect(coreSpec).toMatch(/^file:\.\/desktop-packages\//u)
     expect(readFileSync(join(paths.profile, 'pnpm-workspace.yaml'), 'utf8'))
-      .toContain(`${JSON.stringify('@deepseek-ai/dsh')}: ${JSON.stringify(coreSpec)}`)
+      .toContain(`${JSON.stringify('@aeven/cli')}: ${JSON.stringify(coreSpec)}`)
     expect(manifest.dependencies['@scope/plugin']).toBe('2.0.0')
     const invocation = JSON.parse(readFileSync(log, 'utf8')) as { args: string[]; env: Record<string, string> }
     expect(invocation.args).toContain('add')
@@ -399,8 +399,8 @@ describe('desktop project transactions', () => {
       dsh: { profile: { bundles: string[] } }
     }
     expect(profile.dsh.profile.bundles).toEqual([
-      '@deepseek-ai/dsh-base',
-      '@deepseek-ai/dsh-web-app',
+      '@aeven/base',
+      '@aeven/web-app',
       '@scope/plugin',
     ])
     expect(readFileSync(join(paths.pnpm.store, 'release-1'), 'utf8')).toBe('one')

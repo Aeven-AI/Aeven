@@ -10,7 +10,7 @@ import {
   type RegistryIndex,
 } from './benchmark-npm-resolution.ts'
 
-const AVN_PACKAGE = '@deepseek-ai/dsh'
+const AVN_PACKAGE = '@aeven/cli'
 const CORDIS_PACKAGE = '@deepseek-ai/cordis'
 const NESTED_AVN_ALIAS = 'dsh-previous'
 const NESTED_AVN_PATH = `node_modules/${NESTED_AVN_ALIAS}`

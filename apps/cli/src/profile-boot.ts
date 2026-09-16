@@ -8,7 +8,7 @@
  * App flags are not the launcher's business: the invocation's inner arguments
  * are provided to the tree through `ctx.cmdlineArgs`, where any injected app
  * plugin may read the same immutable snapshot.
- * @module @deepseek-ai/dsh/profile-boot
+ * @module @aeven/cli/profile-boot
  */
 
 import { writeFileSync } from 'node:fs'
@@ -28,7 +28,7 @@ import {
   PROFILE_PATCH_FILENAME,
   watchUserPatches,
   type Profile,
-} from '@deepseek-ai/dsh-app-boot'
+} from '@aeven/app-boot'
 import {
   clearHostLease,
   dshHomeDisplay,
@@ -36,11 +36,11 @@ import {
   liveHostLease,
   resolveDshHome,
   writeHostLease,
-} from '@deepseek-ai/dsh-home-paths'
-import { installProxyFromEnvironment } from '@deepseek-ai/dsh-http-proxy'
-import type {} from '@deepseek-ai/dsh-host-webserver'
-import { AVN_LAUNCH_ENVIRONMENT_KEY, type LaunchEnvironmentSnapshot } from '@deepseek-ai/dsh-launch-environment'
-import { provideCmdline, type AppReady } from '@deepseek-ai/dsh-cmdline'
+} from '@aeven/home-paths'
+import { installProxyFromEnvironment } from '@aeven/http-proxy'
+import type {} from '@aeven/host-webserver'
+import { AVN_LAUNCH_ENVIRONMENT_KEY, type LaunchEnvironmentSnapshot } from '@aeven/launch-environment'
+import { provideCmdline, type AppReady } from '@aeven/cmdline'
 import { createProcessShutdown, type ProcessShutdown } from './process-shutdown.ts'
 
 const NAME = 'dsh'

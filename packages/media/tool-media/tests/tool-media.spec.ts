@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { ToolCallId } from '@deepseek-ai/dsh-llm'
-import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime, { type ToolExecutionResult } from '@deepseek-ai/dsh-tools'
+import { ToolCallId } from '@aeven/llm'
+import SystemPrompt from '@aeven/system-prompt'
+import ToolRuntime, { type ToolExecutionResult } from '@aeven/tools'
 import { MEDIA_SETTINGS_NAMESPACE } from '../src/index.ts'
-import { MediaRuntime } from '@deepseek-ai/dsh-media'
-import type { GeneratedImage, MediaImageProvider, MediaImageRequest } from '@deepseek-ai/dsh-media'
-import * as ToolMedia from '@deepseek-ai/dsh-tool-media'
+import { MediaRuntime } from '@aeven/media'
+import type { GeneratedImage, MediaImageProvider, MediaImageRequest } from '@aeven/media'
+import * as ToolMedia from '@aeven/tool-media'
 import { askRequest, catalogChoices, choiceFor, choiceLabel, imageBlockRef, OTHER_MODEL_LABEL, resolveRequest, storable, storeImage } from '../src/index.ts'
 
 const signal = new AbortController().signal

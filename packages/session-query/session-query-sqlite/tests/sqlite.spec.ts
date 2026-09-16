@@ -1,4 +1,4 @@
-import { createAssistantMessage, createUserMessage } from '@deepseek-ai/dsh-llm'
+import { createAssistantMessage, createUserMessage } from '@aeven/llm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { DatabaseSync } from 'node:sqlite'
@@ -10,15 +10,15 @@ import SessionStore, {
   SessionId,
   SessionLogOffset,
   SessionSeq,
-} from '@deepseek-ai/dsh-session'
-import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
-import type { SessionEvent, SessionHeader, SessionId as SessionIdType } from '@deepseek-ai/dsh-session'
-import SessionPersistence, { SessionPersistenceRevision } from '@deepseek-ai/dsh-session-persistence'
-import type { SessionEventSuffix, SessionInspection, SessionPersistenceSnapshot } from '@deepseek-ai/dsh-session-persistence'
-import JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
+} from '@aeven/session'
+import SessionProjectionRegistry from '@aeven/session-projection'
+import type { SessionEvent, SessionHeader, SessionId as SessionIdType } from '@aeven/session'
+import SessionPersistence, { SessionPersistenceRevision } from '@aeven/session-persistence'
+import type { SessionEventSuffix, SessionInspection, SessionPersistenceSnapshot } from '@aeven/session-persistence'
+import JsonlSessionPersistence from '@aeven/session-persistence-jsonl'
 import SqliteSessionQueryEngine, {
   SESSION_QUERY_SQLITE_SCHEMA_VERSION,
-} from '@deepseek-ai/dsh-session-query-sqlite'
+} from '@aeven/session-query-sqlite'
 import {
   SESSION_QUERY_DEFAULT_PERSISTED_INSPECT_CONCURRENCY,
   SessionQueryError,
@@ -26,8 +26,8 @@ import {
   type SessionAvailability,
   type SessionQueryErrorCode,
   type SessionSearchRequest,
-} from '@deepseek-ai/dsh-session-query'
-import { SettingsProvider, type SettingsNamespace } from '@deepseek-ai/dsh-settings'
+} from '@aeven/session-query'
+import { SettingsProvider, type SettingsNamespace } from '@aeven/settings'
 
 const temporaryDirectories: string[] = []
 

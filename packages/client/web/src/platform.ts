@@ -1,15 +1,15 @@
 /**
  * Shared browser platform modules. Seeding, bundling externals, and Vite
  * aliases consume this list so their module identities cannot drift.
- * @module @deepseek-ai/dsh-client-web/src/platform
+ * @module @aeven/client-web/src/platform
  */
 
 /** The module specifiers the shell shares into the frozen module table. */
 export const PLATFORM_MODULES = [
   'react', 'react/jsx-runtime', 'react-dom', 'react-dom/client', '@deepseek-ai/cordis',
-  '@deepseek-ai/dsh-client-store',
-  '@deepseek-ai/dsh-client-ui-slots',
-  '@deepseek-ai/dsh-client-ui-primitives',
+  '@aeven/client-store',
+  '@aeven/client-ui-slots',
+  '@aeven/client-ui-primitives',
 ] as const
 
 /** Client-bundle specifiers whose factories the parser preloads before the shell starts. */

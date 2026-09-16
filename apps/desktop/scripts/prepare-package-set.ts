@@ -25,7 +25,7 @@ import { capture } from '../../../scripts/release/process.ts'
 import { tarballFiles } from '../../../scripts/release/tarball.ts'
 import { resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 
-const AVN_PACKAGE = '@deepseek-ai/dsh'
+const AVN_PACKAGE = '@aeven/cli'
 const ROOT_PACKAGES = [AVN_PACKAGE, DESKTOP_HOST_PACKAGE] as const
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')

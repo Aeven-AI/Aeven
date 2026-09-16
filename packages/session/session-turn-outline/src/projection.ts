@@ -15,13 +15,13 @@
  * outline. The outline itself is copied once per turn, when the open turn
  * settles.
  *
- * @module @deepseek-ai/dsh-session-turn-outline/projection
+ * @module @aeven/session-turn-outline/projection
  */
 
 import { z } from 'zod'
 import type { ZodType } from 'zod'
-import { SessionSeq, type SessionEvent } from '@deepseek-ai/dsh-session'
-import type { ProjectionDefinition } from '@deepseek-ai/dsh-session-projection'
+import { SessionSeq, type SessionEvent } from '@aeven/session'
+import type { ProjectionDefinition } from '@aeven/session-projection'
 import type { TurnOutlineEntry, TurnOutlineState } from './types.ts'
 
 /** Prompt budget: the rail preview's first line. */

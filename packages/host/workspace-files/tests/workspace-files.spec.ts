@@ -16,10 +16,10 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { Context, Service } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
-import * as Connection from '@deepseek-ai/dsh-client-connection'
-import LocalCredentials from '@deepseek-ai/dsh-credentials-local'
-import * as FrontendStatic from '@deepseek-ai/dsh-host-frontend-static'
-import HttpServer from '@deepseek-ai/dsh-host-webserver'
+import * as Connection from '@aeven/client-connection'
+import LocalCredentials from '@aeven/credentials-local'
+import * as FrontendStatic from '@aeven/host-frontend-static'
+import HttpServer from '@aeven/host-webserver'
 import * as WorkspaceFiles from '../src/index.ts'
 
 let root: string | undefined
@@ -79,22 +79,22 @@ async function loadComposition(): Promise<Context> {
   await writeFile(distIndex, '<head></head><body>shell</body>')
   const configPath = join(root, 'cordis.yml')
   await writeFile(configPath, [
-    "- name: '@deepseek-ai/dsh-credentials-local'",
+    "- name: '@aeven/credentials-local'",
     '  config:',
     `    path: '${join(root, '.credentials.yaml')}'`,
     '    watch: false',
-    "- name: '@deepseek-ai/dsh-host-webserver'",
+    "- name: '@aeven/host-webserver'",
     '  config:',
     "    host: '127.0.0.1'",
     '    port: 0',
-    "- name: '@deepseek-ai/dsh-client-connection'",
+    "- name: '@aeven/client-connection'",
     "- name: 'workspace-registry-stub'",
     '- id: frontend',
-    "  name: '@deepseek-ai/dsh-host-frontend-static'",
+    "  name: '@aeven/host-frontend-static'",
     '  config:',
     `    distIndex: '${distIndex}'`,
     '- id: workspace-files',
-    "  name: '@deepseek-ai/dsh-host-workspace-files'",
+    "  name: '@aeven/host-workspace-files'",
     '  config:',
     "    mount: '/workspace'",
     '',
@@ -105,12 +105,12 @@ async function loadComposition(): Promise<Context> {
   await context.plugin(Loader)
   context.loader.builtins.include = Include
   const modules = new Map<string, unknown>([
-    ['@deepseek-ai/dsh-credentials-local', LocalCredentials],
-    ['@deepseek-ai/dsh-host-webserver', HttpServer],
-    ['@deepseek-ai/dsh-client-connection', Connection],
+    ['@aeven/credentials-local', LocalCredentials],
+    ['@aeven/host-webserver', HttpServer],
+    ['@aeven/client-connection', Connection],
     ['workspace-registry-stub', stubRegistry(dir)],
-    ['@deepseek-ai/dsh-host-frontend-static', FrontendStatic],
-    ['@deepseek-ai/dsh-host-workspace-files', WorkspaceFiles],
+    ['@aeven/host-frontend-static', FrontendStatic],
+    ['@aeven/host-workspace-files', WorkspaceFiles],
   ])
   context.loader.internal = {
     version: 'v2',

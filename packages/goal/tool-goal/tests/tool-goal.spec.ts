@@ -1,24 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
-import AgentRegistry, { agentEvents, Inbox } from '@deepseek-ai/dsh-agent'
-import type { Agent, AgentStatus } from '@deepseek-ai/dsh-agent'
-import { turnBoundaryProjectionDefinition } from '@deepseek-ai/dsh-agent-loop'
-import GoalService, { GoalId } from '@deepseek-ai/dsh-goal'
-import type { GoalRef } from '@deepseek-ai/dsh-goal'
-import { createUserMessage, ToolCallId } from '@deepseek-ai/dsh-llm'
-import type { MessageSource } from '@deepseek-ai/dsh-llm'
+import AgentRegistry, { agentEvents, Inbox } from '@aeven/agent'
+import type { Agent, AgentStatus } from '@aeven/agent'
+import { turnBoundaryProjectionDefinition } from '@aeven/agent-loop'
+import GoalService, { GoalId } from '@aeven/goal'
+import type { GoalRef } from '@aeven/goal'
+import { createUserMessage, ToolCallId } from '@aeven/llm'
+import type { MessageSource } from '@aeven/llm'
 import {
   SESSION_FORMAT_VERSION,
   Session,
   SessionId,
   SessionLogOffset,
-} from '@deepseek-ai/dsh-session'
-import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime from '@deepseek-ai/dsh-tools'
-import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
-import type { ToolExecutionResult } from '@deepseek-ai/dsh-tools'
-import * as toolGoal from '@deepseek-ai/dsh-tool-goal'
+} from '@aeven/session'
+import SystemPrompt from '@aeven/system-prompt'
+import ToolRuntime from '@aeven/tools'
+import SessionProjectionRegistry from '@aeven/session-projection'
+import type { ToolExecutionResult } from '@aeven/tools'
+import * as toolGoal from '@aeven/tool-goal'
 
 const testToolSignal = new AbortController().signal
 

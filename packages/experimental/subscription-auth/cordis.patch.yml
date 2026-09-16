@@ -10,4 +10,4 @@
 - insert:
     # `id` is the stable Cordis plugin identifier; `name` is the bundle/package display name.
     - id: llm-grok-build-oauth
-      name: "@deepseek-ai/dsh-experimental-subscription-auth"
+      name: "@aeven/experimental-subscription-auth"

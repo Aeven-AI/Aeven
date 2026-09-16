@@ -3,7 +3,7 @@ description: "The OpenRouter image and video provider for ctx.media: generate im
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-media-openrouter
+# @aeven/media-openrouter
 
 English | [中文](README.zh.md)
 

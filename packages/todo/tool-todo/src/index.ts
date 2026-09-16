@@ -4,23 +4,23 @@
  * list is contributed to the model as runtime context, so an agent reads its own standing plan
  * back instead of reconstructing it from its own tool-call arguments. A non-agent caller has no
  * owning list and is rejected. Named exports preserve loader injection metadata.
- * @module @deepseek-ai/dsh-tool-todo
+ * @module @aeven/tool-todo
  */
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { z as zod } from 'zod'
 import type { ZodType } from 'zod'
-import { defineTool } from '@deepseek-ai/dsh-tools'
-import { createUserMessage } from '@deepseek-ai/dsh-llm'
+import { defineTool } from '@aeven/tools'
+import { createUserMessage } from '@aeven/llm'
 import type { TodoItem } from './types.ts'
 // Type-only: resolves the required ctx.sessionProjections service declaration.
-import type {} from '@deepseek-ai/dsh-session-projection'
+import type {} from '@aeven/session-projection'
 // Type-only: brings the scoped `ctx.systemPrompt` service declaration and the
 // `AssembleContext.agent` augmentation (the runtime-context read below) into
 // this program.
-import type {} from '@deepseek-ai/dsh-system-prompt'
-import type { PreStepDecision } from '@deepseek-ai/dsh-agent'
+import type {} from '@aeven/system-prompt'
+import type { PreStepDecision } from '@aeven/agent'
 // The `todos` projection-key declaration lives in src/types.ts (its one home);
 // this re-export projects the type face onto the package root AND keeps the
 // module edge in the emitted index.d.ts, so aggregate programs consuming the

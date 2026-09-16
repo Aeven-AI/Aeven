@@ -3,7 +3,7 @@ description: "经过认证的只读 HTTP 路由，提供已注册工作区中的
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-host-workspace-files
+# @aeven/host-workspace-files
 
 [English](README.md) | 中文
 
@@ -30,7 +30,7 @@ kind: "package-reference"
 ### 最小配置
 
 ```yaml
-- name: '@deepseek-ai/dsh-host-workspace-files'
+- name: '@aeven/host-workspace-files'
   config:
     mount: /workspace
 ```

@@ -1,5 +1,5 @@
 /** Pure image-card derivation from a settled Tool result's content. @module */
-import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
+import type { ImageAttachmentRef } from '@aeven/attachment'
 import type { ToolCallBlock } from './tool-call-model.ts'
 
 /**

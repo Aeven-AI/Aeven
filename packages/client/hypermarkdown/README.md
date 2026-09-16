@@ -3,7 +3,7 @@ description: "The streaming-native Markdown engine that renders assistant output
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-client-hypermarkdown
+# @aeven/client-hypermarkdown
 
 English | [中文](README.zh.md)
 
@@ -30,7 +30,7 @@ English | [中文](README.zh.md)
 Mount the component, attach the plugins the surface needs, and drive streaming through the imperative handle. The heavy engines are opt-in: a slot left empty degrades instead of failing, so `$x$` stays literal, a fence renders unhighlighted, and a ```` ```mermaid ```` fence renders as a code block.
 
 ```tsx
-import { HyperMarkdown, katexPlugin, highlightPlugin, mermaidPlugin } from '@deepseek-ai/dsh-client-hypermarkdown'
+import { HyperMarkdown, katexPlugin, highlightPlugin, mermaidPlugin } from '@aeven/client-hypermarkdown'
 
 const plugins = {
   math: katexPlugin(),

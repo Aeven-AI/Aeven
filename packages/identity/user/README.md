@@ -3,7 +3,7 @@ description: "The authenticated-user seam: ctx.identityUsers, which every DSH su
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-identity-user
+# @aeven/identity-user
 
 English | [中文](README.zh.md)
 
@@ -37,10 +37,10 @@ The row takes no configuration; an authority mounts after it and injects the ser
 
 ```yaml
 - id: identity-user
-  name: '@deepseek-ai/dsh-identity-user'
+  name: '@aeven/identity-user'
 
 - id: identity-user-aeven
-  name: '@deepseek-ai/dsh-identity-user-aeven'
+  name: '@aeven/identity-user-aeven'
   inject: [identityUsers]
 ```
 

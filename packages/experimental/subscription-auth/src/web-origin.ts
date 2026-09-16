@@ -1,6 +1,6 @@
 /**
  * Owner-request authorization shared by private plugin Web routes.
- * @module @deepseek-ai/dsh-experimental-subscription-auth/web-origin
+ * @module @aeven/experimental-subscription-auth/web-origin
  */
 
 import { timingSafeEqual } from 'node:crypto'

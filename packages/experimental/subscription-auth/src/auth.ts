@@ -1,6 +1,6 @@
 /**
  * Grok Build OAuth orchestration shared by the plugin and standalone CLI.
- * @module @deepseek-ai/dsh-experimental-subscription-auth/auth
+ * @module @aeven/experimental-subscription-auth/auth
  */
 
 import type { AuthInteraction } from '@earendil-works/pi-ai'

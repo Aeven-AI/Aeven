@@ -7,7 +7,7 @@ import { CAPABILITY_SETTINGS_NAMESPACE } from './ids.ts'
  * composition/YAML `base`, and the user section layers on top. The controller
  * talks to an injected structural settings service while registering a real
  * Schemastery section that the Host settings service can render and validate.
- * @module @deepseek-ai/dsh-experimental-subscription-auth/capability-settings
+ * @module @aeven/experimental-subscription-auth/capability-settings
  */
 
 /** Settings namespace owned by this plugin. */
@@ -142,7 +142,7 @@ export interface CapabilitySettingsDescriptor {
 
 /**
  * Duck-typed settings service. A real `ctx.settings` satisfies this without a
- * compile-time dependency on `@deepseek-ai/dsh-settings`.
+ * compile-time dependency on `@aeven/settings`.
  */
 export interface CapabilitySettingsService {
   readonly writable?: boolean

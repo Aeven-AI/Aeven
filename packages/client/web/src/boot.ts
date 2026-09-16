@@ -2,15 +2,15 @@
  * Web boot kernel. It owns only the module system, Cordis loader, and a
  * framework-free boot page. The dynamic UI renderer receives the mount
  * point after every client entry activates.
- * @module @deepseek-ai/dsh-client-web/src/boot
+ * @module @aeven/client-web/src/boot
  */
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
-import * as auth from '@deepseek-ai/dsh-client-ui-auth-aeven'
+import * as auth from '@aeven/client-ui-auth-aeven'
 import type {
   BootManifest, ClientModuleCreateOptions, ClientModuleSystem, DshWindow,
-} from '@deepseek-ai/dsh-client-modules/client'
-import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
+} from '@aeven/client-modules/client'
+import type {} from '@aeven/client-ui-renderer/client'
 import { BootPage } from './boot-page.ts'
 import { startStaticModules } from './seed.ts'
 import { STATE_LABELS } from './loader-status.ts'
@@ -64,7 +64,7 @@ export class AppWebEntry {
       }
       // A pre-injected transport (the worker preview page) owns bundle bytes;
       // its loadBundle is the default and explicit seams still win. The global
-      // is `ClientTransportHooks`, owned by @deepseek-ai/dsh-client-connection;
+      // is `ClientTransportHooks`, owned by @aeven/client-connection;
       // this structural slice reads one optional member without adding a
       // package edge.
       const transport = (globalThis as {
@@ -81,7 +81,7 @@ export class AppWebEntry {
 
       const rendering = await renderingReady
       if ('error' in rendering) throw rendering.error
-      staticModules['@deepseek-ai/dsh-client-ui-primitives'] = rendering.module
+      staticModules['@aeven/client-ui-primitives'] = rendering.module
       // ClientModuleSystem snapshots staticModules into its seed Map. Create it
       // only after the eager rendering request has completed so every plugin
       // bundle sees the complete platform table during evaluation.

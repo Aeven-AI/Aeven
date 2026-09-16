@@ -5,7 +5,7 @@
  * a PNG-defaulted request with JPEG, and OpenRouter reports `media_type` only
  * when it can identify the format — so the signature is the authority both
  * fall back to.
- * @module @deepseek-ai/dsh-media/bytes
+ * @module @aeven/media/bytes
  */
 
 /**

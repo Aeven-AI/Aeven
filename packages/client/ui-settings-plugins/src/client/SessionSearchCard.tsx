@@ -1,6 +1,6 @@
 /** User control for SQLite-backed search across session message content. */
 
-import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import { PluginCard } from './PluginCard.tsx'
 import type { SessionSearchCardFace } from './session-search-card-controller.ts'
 import { ToggleField } from './fields.tsx'

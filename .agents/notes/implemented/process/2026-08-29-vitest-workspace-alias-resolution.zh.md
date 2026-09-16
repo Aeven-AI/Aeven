@@ -12,7 +12,7 @@ Status: implemented
 
 原生解析是拿文件去匹配最近的 project，而非一个全量匹配门面，因此五个无人声明的仅测试用 import 彻底解析不到了——session-controller 中的 `dsh-system-prompt`、`dsh-jobs-local` 与 `dsh-commands`，workspace-controller 中的 `dsh-storage`，以及 session-log-export 中的 `cordis-plugin-include`。一直是那个全量匹配门面在供给它们；此外从来没有别的东西供给过。
 
-原生 tsconfig paths 还是在包解析**之后**才运行，而不是之前。于是只要构建产物存在，工作区标识符就会经 pnpm 符号链接与包自身的 `exports` 解析，`paths` 根本轮不上。`@deepseek-ai/dsh-typert-protocol` 从 `packages/typert/protocol/lib/index.js` 与同一模块的 `src` 并存地加载，于是每个类与服务单例同时存在两份副本：48 个测试因跨副本的 `instanceof` 而失败，且带类型的失败退化为 `'internal'`，因为识别它们的那条分支没命中。
+原生 tsconfig paths 还是在包解析**之后**才运行，而不是之前。于是只要构建产物存在，工作区标识符就会经 pnpm 符号链接与包自身的 `exports` 解析，`paths` 根本轮不上。`@aeven/typert-protocol` 从 `packages/typert/protocol/lib/index.js` 与同一模块的 `src` 并存地加载，于是每个类与服务单例同时存在两份副本：48 个测试因跨副本的 `instanceof` 而失败，且带类型的失败退化为 `'internal'`，因为识别它们的那条分支没命中。
 
 ## 决策
 

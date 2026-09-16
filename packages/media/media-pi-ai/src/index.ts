@@ -2,21 +2,21 @@
  * Image provider for `ctx.media` backed by pi-ai's images registry. pi-ai owns
  * the transports and the model metadata; this package owns credential
  * resolution, the request and result translation, and the failure mapping.
- * @module @deepseek-ai/dsh-media-pi-ai
+ * @module @aeven/media-pi-ai
  */
 
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { credentialRef } from '@deepseek-ai/dsh-credentials'
-import type {} from '@deepseek-ai/dsh-credentials'
-import { MediaError } from '@deepseek-ai/dsh-media'
-import type {} from '@deepseek-ai/dsh-media'
+import { credentialRef } from '@aeven/credentials'
+import type {} from '@aeven/credentials'
+import { MediaError } from '@aeven/media'
+import type {} from '@aeven/media'
 import type {
   GeneratedImage,
   MediaImageProvider,
   MediaImageRequest,
   MediaImageResult,
-} from '@deepseek-ai/dsh-media'
+} from '@aeven/media'
 import { openrouterImagesProvider } from '@earendil-works/pi-ai/providers/openrouter-images'
 import type { AssistantImages, ImagesInputContent } from '@earendil-works/pi-ai'
 

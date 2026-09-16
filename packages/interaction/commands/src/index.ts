@@ -1,19 +1,19 @@
 /**
  * Plugin-owned human-command registry shared by interactive UI adapters.
- * @module @deepseek-ai/dsh-commands
+ * @module @aeven/commands
  */
 
 import { Context } from '@deepseek-ai/cordis'
-import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import { AttachmentError, admitEncodedImages } from '@deepseek-ai/dsh-attachment'
-import type { EncodedImageAttachment } from '@deepseek-ai/dsh-attachment/types'
-import type { ImageBlock } from '@deepseek-ai/dsh-llm'
-import { NamedEntries, ScopedLayers } from '@deepseek-ai/dsh-scope'
-import type { ScopeKey, ScopeLayer } from '@deepseek-ai/dsh-scope'
-import { SessionSeq } from '@deepseek-ai/dsh-session'
-import type { Session, SessionEvent, SessionEventMap } from '@deepseek-ai/dsh-session'
-import { TypertRemoteService, Remote } from '@deepseek-ai/dsh-typert-protocol'
+import { randomUUID } from '@aeven/util-crypto'
+import type { Agent } from '@aeven/agent'
+import { AttachmentError, admitEncodedImages } from '@aeven/attachment'
+import type { EncodedImageAttachment } from '@aeven/attachment/types'
+import type { ImageBlock } from '@aeven/llm'
+import { NamedEntries, ScopedLayers } from '@aeven/scope'
+import type { ScopeKey, ScopeLayer } from '@aeven/scope'
+import { SessionSeq } from '@aeven/session'
+import type { Session, SessionEvent, SessionEventMap } from '@aeven/session'
+import { TypertRemoteService, Remote } from '@aeven/typert-protocol'
 import { CommandId } from './brand.ts'
 import type {
   CommandDescriptor,

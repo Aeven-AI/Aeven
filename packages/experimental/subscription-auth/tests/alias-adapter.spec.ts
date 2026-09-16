@@ -4,8 +4,8 @@ import type {
   LlmProviderInfo,
   LlmResolvedModelInfo,
   StreamChunk,
-} from '@deepseek-ai/dsh-llm'
-import { LlmAdapter } from '@deepseek-ai/dsh-llm'
+} from '@aeven/llm'
+import { LlmAdapter } from '@aeven/llm'
 import { describe, expect, it } from 'vitest'
 import { AliasLlmAdapter, normalizeReplayForRoute } from '../src/alias-adapter.ts'
 import {

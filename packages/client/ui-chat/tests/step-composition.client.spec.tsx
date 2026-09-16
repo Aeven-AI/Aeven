@@ -5,7 +5,7 @@
 // keeps the mapping reviewable without reading rendered DOM to recover it.
 import { describe, expect, it } from 'vitest'
 import { render } from '@testing-library/react'
-import { AttachmentId } from '@deepseek-ai/dsh-attachment'
+import { AttachmentId } from '@aeven/attachment'
 import type { AssistantBlock } from '../src/client/contract/snapshot.ts'
 import { runsOf } from '../src/client/chat/AssistantMarkdown.tsx'
 

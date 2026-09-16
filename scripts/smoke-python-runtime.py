@@ -243,9 +243,9 @@ def write_advanced_profile_patch(root: Path, name: str, sessions: Path) -> Path:
             },
         },
         {"insert": [
-            {"id": "code-runtime", "name": "@deepseek-ai/dsh-code-runtime-worker-thread"},
-            {"id": "cordis-host-runner", "name": "@deepseek-ai/dsh-cordis-host-runner"},
-            {"id": "cordis-tool", "name": "@deepseek-ai/dsh-tool-cordis"},
+            {"id": "code-runtime", "name": "@aeven/code-runtime-worker-thread"},
+            {"id": "cordis-host-runner", "name": "@aeven/cordis-host-runner"},
+            {"id": "cordis-tool", "name": "@aeven/tool-cordis"},
         ]},
     ])
 
@@ -255,7 +255,7 @@ def write_mcp_patch(root: Path, sessions: Path, server_script: Path) -> Path:
     return write_profile_patch(root, "mcp.patch.yml", sessions, [{
         "insert": [{
             "id": "mcp-fixture",
-            "name": "@deepseek-ai/dsh-mcp-client",
+            "name": "@aeven/mcp-client",
             "config": {
                 "serverName": "fixture",
                 "transport": "stdio",

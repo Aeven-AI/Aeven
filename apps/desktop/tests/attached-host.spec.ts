@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { HOST_LEASE_VERSION, hostLeasePath } from '@deepseek-ai/dsh-home-paths'
+import { HOST_LEASE_VERSION, hostLeasePath } from '@aeven/home-paths'
 import { planDesktopBackend } from '../src/attached-host.ts'
 
 const homes: string[] = []

@@ -10,8 +10,8 @@
  * @module
  */
 
-import { SessionSeq } from '@deepseek-ai/dsh-session/types'
-import type {} from '@deepseek-ai/dsh-session-turn-outline/client'
+import { SessionSeq } from '@aeven/session/types'
+import type {} from '@aeven/session-turn-outline/client'
 
 /** One rail mark: a turn, and how the rail reaches it. */
 export interface TurnRailMark {

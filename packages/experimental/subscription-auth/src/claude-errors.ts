@@ -1,9 +1,9 @@
 /**
  * Claude subscription error remapping.
- * @module @deepseek-ai/dsh-experimental-subscription-auth/claude-errors
+ * @module @aeven/experimental-subscription-auth/claude-errors
  */
 
-import { type LlmFailure, QUOTA_EXCEEDED_CODE } from '@deepseek-ai/dsh-llm'
+import { type LlmFailure, QUOTA_EXCEEDED_CODE } from '@aeven/llm'
 
 /** Anthropic's structured refusal for a model the plan serves only against usage credits. */
 const CREDITS_REQUIRED = 'credits_required'

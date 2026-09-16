@@ -4,9 +4,9 @@ import {
   createAssistantMessage,
   createToolResultMessage,
   createUserMessage,
-} from '@deepseek-ai/dsh-llm/message'
-import { brandString } from '@deepseek-ai/dsh-brand'
-import type { MessageId, ToolCallId } from '@deepseek-ai/dsh-llm/brand'
+} from '@aeven/llm/message'
+import { brandString } from '@aeven/brand'
+import type { MessageId, ToolCallId } from '@aeven/llm/brand'
 import type {
   AssistantMessage,
   ContentBlock,
@@ -15,25 +15,25 @@ import type {
   TokenUsage,
   ToolResultMessage,
   UserMessage,
-} from '@deepseek-ai/dsh-llm'
-import type { AttachmentIdType, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
+} from '@aeven/llm'
+import type { AttachmentIdType, ImageAttachmentRef } from '@aeven/attachment'
 import type {
   SessionEvent,
   SessionId,
-} from '@deepseek-ai/dsh-session/types'
-import { SessionSeq } from '@deepseek-ai/dsh-session/types'
-import type { JsonValue } from '@deepseek-ai/dsh-util-values'
-import { isChunkRow, packChunkRuns } from '@deepseek-ai/dsh-session/chunk-rows'
-import type { ChunkRow } from '@deepseek-ai/dsh-session/chunk-rows'
-import type { TodoItem } from '@deepseek-ai/dsh-tool-todo/client'
+} from '@aeven/session/types'
+import { SessionSeq } from '@aeven/session/types'
+import type { JsonValue } from '@aeven/util-values'
+import { isChunkRow, packChunkRuns } from '@aeven/session/chunk-rows'
+import type { ChunkRow } from '@aeven/session/chunk-rows'
+import type { TodoItem } from '@aeven/tool-todo/client'
 // Type-only: the brand constructor is host-side; the fixture casts at its
 // wire-fabrication boundary (the schema layer's one-cast-point posture).
-import type { CommandId } from '@deepseek-ai/dsh-commands/brand'
-import type { CommandDescriptor, CommandExecution, CommandResult } from '@deepseek-ai/dsh-commands/types'
-import type { CredentialInfo } from '@deepseek-ai/dsh-credentials/types'
-import type { DirectoryListing as FixtureDirectoryListing } from '@deepseek-ai/dsh-host-directory-picker/types'
-import type { SettingsDescribeValue, SettingsNamespaceView } from '@deepseek-ai/dsh-settings/types'
-import { deriveEventMessage, foldSurface } from '@deepseek-ai/dsh-session/surface'
+import type { CommandId } from '@aeven/commands/brand'
+import type { CommandDescriptor, CommandExecution, CommandResult } from '@aeven/commands/types'
+import type { CredentialInfo } from '@aeven/credentials/types'
+import type { DirectoryListing as FixtureDirectoryListing } from '@aeven/host-directory-picker/types'
+import type { SettingsDescribeValue, SettingsNamespaceView } from '@aeven/settings/types'
+import { deriveEventMessage, foldSurface } from '@aeven/session/surface'
 import type { RpcResult } from './api.ts'
 import { randomUuid } from './random-uuid.ts'
 import type {
@@ -1925,9 +1925,9 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
    * roster a GUI journey sees after writing is the text it wrote.
    */
   const fixturePresets = new Map<string, { trust: 'system' | 'user'; content: string }>([
-    ['standard', { trust: 'system', content: "- id: tool-bash\n  name: '@deepseek-ai/dsh-tool-bash'\n" }],
-    ['minimal', { trust: 'system', content: "- id: tool-web-search\n  name: '@deepseek-ai/dsh-tool-web-search'\n" }],
-    ['my-agent', { trust: 'user', content: "- id: tool-read\n  name: '@deepseek-ai/dsh-tool-read'\n" }],
+    ['standard', { trust: 'system', content: "- id: tool-bash\n  name: '@aeven/tool-bash'\n" }],
+    ['minimal', { trust: 'system', content: "- id: tool-web-search\n  name: '@aeven/tool-web-search'\n" }],
+    ['my-agent', { trust: 'user', content: "- id: tool-read\n  name: '@aeven/tool-read'\n" }],
   ])
   let fixtureDefaultPreset = 'standard'
   const nextTurn = new Map<SessionId, number>([[sid('fx-alpha'), 75]])

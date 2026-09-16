@@ -8,13 +8,13 @@ Status: implemented
 
 面向 Grok Build、ChatGPT Codex 与 Claude Code 的编码订阅 OAuth 此前位于一个独立仓库，只能作为由文件系统 link 解析的 profile bundle 到达 harness。本仓库中没有任何东西提到它，因此它的打包由它自己的门禁而非本仓库的门禁来验证。
 
-这种分离的代价大于收益。该插件固定了一份精确的 19 个 `@deepseek-ai/dsh-*` 包的 BOM，并在每次构建时重新校验，因为一次 harness 发布可能在它脚下移动。于是每次 harness 版本提升都要求那边同步发布一次，而两者之间的漂移只能通过那份手工维护的清单发现。该插件同时填充着 harness 的 seam —— `ctx.media` 的图像与视频 provider、一个 LLM adapter、一个设置页分区 —— 却无法用 workspace 解析去够到它们。
+这种分离的代价大于收益。该插件固定了一份精确的 19 个 `@aeven/*` 包的 BOM，并在每次构建时重新校验，因为一次 harness 发布可能在它脚下移动。于是每次 harness 版本提升都要求那边同步发布一次，而两者之间的漂移只能通过那份手工维护的清单发现。该插件同时填充着 harness 的 seam —— `ctx.media` 的图像与视频 provider、一个 LLM adapter、一个设置页分区 —— 却无法用 workspace 解析去够到它们。
 
 有两个缺陷直接源自这次分裂。插件提交进仓库的 `lib/` 才是 `dsh web` 实际加载的产物，而它已经落后于 `src/`，却没有任何门禁察觉。它的发布校验器断言客户端 bundle 中存在某个设置开关的标记，而产品早已把该开关退役，于是构建恰恰拒绝了移除它的那次改动。
 
 ## Decision
 
-该插件落位为 `packages/experimental/subscription-auth`，npm 名为 `@deepseek-ai/dsh-experimental-subscription-auth`，`private: true`。目前它是单个包，预期在从 `experimental/` 提升之前按产品角色拆分 —— OAuth 会话、LLM adapter、媒体 provider、工具、客户端 UI。
+该插件落位为 `packages/experimental/subscription-auth`，npm 名为 `@aeven/experimental-subscription-auth`，`private: true`。目前它是单个包，预期在从 `experimental/` 提升之前按产品角色拆分 —— OAuth 会话、LLM adapter、媒体 provider、工具、客户端 UI。
 
 它保留 `dsh.bundle` 与 `dsh.client` 两处 manifest 声明，因为 profile 正是靠它们发现一个 bundle 及其浏览器半边。它保留 `dsh-coding-oauth-core` 作为精确版本的外部依赖：那个包拥有本包所实现的路由与路径标识符，而固定它正是 ABI 门禁所检查的内容。
 

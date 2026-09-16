@@ -7,12 +7,12 @@
  * differ only in the origin, the paths, the name in failure text, and the
  * status vocabulary — so they live here once and each adapter keeps only what
  * its route actually shapes differently.
- * @module @deepseek-ai/dsh-media/vendor-route
+ * @module @aeven/media/vendor-route
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { credentialRef } from '@deepseek-ai/dsh-credentials'
-import type {} from '@deepseek-ai/dsh-credentials'
+import { credentialRef } from '@aeven/credentials'
+import type {} from '@aeven/credentials'
 import { MediaError } from './types.ts'
 import type {
   GeneratedMedia, MediaVideoJob, MediaVideoProvider, MediaVideoRequest, MediaVideoStatus,

@@ -1,4 +1,4 @@
-import { ProviderRequestId } from '@deepseek-ai/dsh-llm'
+import { ProviderRequestId } from '@aeven/llm'
 import { describe, expect, it } from 'vitest'
 import { remapClaudeCreditsFailure } from '../src/claude-errors.ts'
 

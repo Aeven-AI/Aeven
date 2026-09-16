@@ -3,7 +3,7 @@ description: "DSH web 客户端的 Aeven 登录、注册与 OAuth 结果界面�
 kind: "package-library"
 ---
 
-# @deepseek-ai/dsh-client-ui-auth-aeven
+# @aeven/client-ui-auth-aeven
 
 [English](README.md) | 中文
 
@@ -34,7 +34,7 @@ kind: "package-library"
 boot kernel 以会话恢复为闸门，在无人登录时把容器交给界面：
 
 ```text
-import { restoreSession, mountAuthScreen, requireSignIn, installAuthenticatedTransport } from '@deepseek-ai/dsh-client-ui-auth-aeven'
+import { restoreSession, mountAuthScreen, requireSignIn, installAuthenticatedTransport } from '@aeven/client-ui-auth-aeven'
 
 const result = await restoreSession()
 if (result.state === 'authenticated') installAuthenticatedTransport()

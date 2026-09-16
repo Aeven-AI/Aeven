@@ -1,17 +1,17 @@
 /**
  * Execution types for the bash executor seam. Background job semantics belong
- * to `@deepseek-ai/dsh-jobs`; this seam exposes only process handles. The
+ * to `@aeven/jobs`; this seam exposes only process handles. The
  * managed-environment and captured-output vocabulary is owned by the
  * subprocess seam and re-exported here so bash consumers keep one import
  * root.
  * @module dsh-shell/types
  */
 
-import type { SandboxEnforcement, SandboxExecutionPolicy, SandboxMode } from '@deepseek-ai/dsh-sandbox'
-import type { CollectedOutput, DshEnvironment } from '@deepseek-ai/dsh-subprocess'
+import type { SandboxEnforcement, SandboxExecutionPolicy, SandboxMode } from '@aeven/sandbox'
+import type { CollectedOutput, DshEnvironment } from '@aeven/subprocess'
 
-export { AVN_ENV_PREFIX } from '@deepseek-ai/dsh-subprocess'
-export type { CollectedOutput, DshEnvironment, AvnEnvironmentKey } from '@deepseek-ai/dsh-subprocess'
+export { AVN_ENV_PREFIX } from '@aeven/subprocess'
+export type { CollectedOutput, DshEnvironment, AvnEnvironmentKey } from '@aeven/subprocess'
 
 /**
  * Sandbox facts for one run, present iff a sandboxing executor handled it.

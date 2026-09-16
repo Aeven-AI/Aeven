@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context, Service } from '@deepseek-ai/cordis'
-import LlmRuntime from '@deepseek-ai/dsh-llm'
+import LlmRuntime from '@aeven/llm'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   CLAUDE_CODE_OAUTH_ROUTE,

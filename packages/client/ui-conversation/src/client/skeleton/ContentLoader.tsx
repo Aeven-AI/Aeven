@@ -1,7 +1,7 @@
 /** Content-column history overlay: appear immediately, fade out. */
 import { useEffect, useState } from 'react'
 import clsx from 'clsx'
-import { Spinner } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Spinner } from '@aeven/client-ui-primitives'
 import css from './ConversationRoot.module.css'
 
 /** Fade duration shared with `.contentLoaderHide`. */

@@ -14,7 +14,7 @@ import {
   probeHostUrl,
   readHostLease,
   writeHostLease,
-} from '@deepseek-ai/dsh-home-paths'
+} from '@aeven/home-paths'
 
 const homes: string[] = []
 const servers: Server[] = []

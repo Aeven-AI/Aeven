@@ -20,7 +20,7 @@
 
 - insert:
     - id: replay
-      name: '@deepseek-ai/dsh-llm-replay'
+      name: '@aeven/llm-replay'
       config:
         file: !!js process.env.AVN_SNAPSHOT_FILE
         overrideFile: !!js process.env.AVN_SNAPSHOT_OVERRIDE

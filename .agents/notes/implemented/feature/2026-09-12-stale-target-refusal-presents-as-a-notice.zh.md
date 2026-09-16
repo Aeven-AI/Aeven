@@ -6,7 +6,7 @@ Status: implemented
 
 ## Problem
 
-带防护的变更在其目标于本会话读取与写入之间发生变化时以 `FS_STALE_VERSION` 失败，`@deepseek-ai/dsh-tool-fs` 将其渲染为 `cannot write "<path>": file changed since it was read — re-read the file, then retry`。[拒绝性编辑笔记](2026-09-11-refused-edit-presents-as-a-notice.zh.md)为这类拒绝引入了弱化提示呈现，并有意把这个错误码排除在外，理由是文件在读取者眼皮底下发生变化是「需要权衡的事实，而不是会话自行采取的步骤」。但在旁观者眼里，该行并不是这样读的。陈旧读取是另一个进程、格式化工具、第二个会话或读取者自己的编辑器改动过文件后的寻常结果，也是会话消除得最机械的失败：重新读取、重试、结束。它却穿着完整的错误处理——错误配色的状态圆点、错误配色的失败行，以及工具注册表加在行首的 `Error: ` 前缀——于是被读成 harness 的缺陷，而不是版本守卫在履行职责，而这正是弱化提示呈现本要回应的抱怨。
+带防护的变更在其目标于本会话读取与写入之间发生变化时以 `FS_STALE_VERSION` 失败，`@aeven/tool-fs` 将其渲染为 `cannot write "<path>": file changed since it was read — re-read the file, then retry`。[拒绝性编辑笔记](2026-09-11-refused-edit-presents-as-a-notice.zh.md)为这类拒绝引入了弱化提示呈现，并有意把这个错误码排除在外，理由是文件在读取者眼皮底下发生变化是「需要权衡的事实，而不是会话自行采取的步骤」。但在旁观者眼里，该行并不是这样读的。陈旧读取是另一个进程、格式化工具、第二个会话或读取者自己的编辑器改动过文件后的寻常结果，也是会话消除得最机械的失败：重新读取、重试、结束。它却穿着完整的错误处理——错误配色的状态圆点、错误配色的失败行，以及工具注册表加在行首的 `Error: ` 前缀——于是被读成 harness 的缺陷，而不是版本守卫在履行职责，而这正是弱化提示呈现本要回应的抱怨。
 
 ## Decision
 

@@ -21,7 +21,7 @@ describe('bundle composition', () => {
     expect(patch).toContain('provider: grok-build')
     expect(patch).toMatch(/model: grok-4\./)
     expect(patch).toContain('id: llm-grok-build-oauth')
-    expect(patch).toContain('name: "@deepseek-ai/dsh-experimental-subscription-auth"')
+    expect(patch).toContain('name: "@aeven/experimental-subscription-auth"')
   })
 
   it('exposes collision-free OAuth route aliases', async () => {
@@ -50,7 +50,7 @@ describe('bundle composition', () => {
   it('keeps the model-facing tool registry out of the shipped host bundle', async () => {
     const server = await readFile(join(root, 'lib/index.js'), 'utf8')
     const imports = server.match(/^import .*$/gm) ?? []
-    expect(imports.some(statement => statement.includes('"@deepseek-ai/dsh-tools"'))).toBe(false)
+    expect(imports.some(statement => statement.includes('"@aeven/tools"'))).toBe(false)
   })
 
   it('declares a dsh bundle and web client half', async () => {
@@ -59,7 +59,7 @@ describe('bundle composition', () => {
       dsh: { bundle: { patch: string }; client: { platform: string; inject: string[] } }
       exports: Record<string, unknown>
     }
-    expect(manifest.name).toBe('@deepseek-ai/dsh-experimental-subscription-auth')
+    expect(manifest.name).toBe('@aeven/experimental-subscription-auth')
     expect((manifest as { version?: string }).version).toBe('0.1.2-alpha.5')
     expect((manifest as { dependencies?: Record<string, string> }).dependencies?.['dsh-coding-oauth-core']).toBe(
       '0.1.2',
@@ -67,7 +67,7 @@ describe('bundle composition', () => {
     expect((manifest as { dependencies?: Record<string, string> }).dependencies?.undici).toBe('7.29.0')
     expect(manifest.dsh.bundle.patch).toBe('./cordis.patch.yml')
     expect(manifest.dsh.client.platform).toBe('web')
-    expect(manifest.dsh.client.inject).toContain('@deepseek-ai/dsh-client-ui-settings')
+    expect(manifest.dsh.client.inject).toContain('@aeven/client-ui-settings')
     expect(manifest.exports['./client']).toMatchObject({ default: './lib/client.js' })
   })
 })

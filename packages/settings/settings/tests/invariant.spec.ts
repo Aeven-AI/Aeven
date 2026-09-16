@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import type { SettingsNamespace } from '@deepseek-ai/dsh-settings'
+import type { SettingsNamespace } from '@aeven/settings'
 import z from '@deepseek-ai/schemastery'
-import InvariantRegistry from '@deepseek-ai/dsh-invariants'
+import InvariantRegistry from '@aeven/invariants'
 import * as SettingsInvariant from '../src/invariant.ts'
 import { MemorySettings } from './memory.ts'
 

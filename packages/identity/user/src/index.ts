@@ -9,7 +9,7 @@
  * With no authority registered the service resolves nobody, and the request
  * fence leaves its existing behaviour untouched — a stock harness stays
  * single-user and unauthenticated without carrying an Aeven-shaped hole.
- * @module @deepseek-ai/dsh-identity-user
+ * @module @aeven/identity-user
  */
 
 import { Service, type Context } from '@deepseek-ai/cordis'

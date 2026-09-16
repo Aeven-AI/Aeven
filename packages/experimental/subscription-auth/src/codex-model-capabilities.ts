@@ -11,7 +11,7 @@
  * A wrapper may use a distinct profile provider id (`codex-oauth-fast`) while
  * restoring native `model.provider` for the base wire call and the same catalog.
  *
- * @module @deepseek-ai/dsh-experimental-subscription-auth/codex-model-capabilities
+ * @module @aeven/experimental-subscription-auth/codex-model-capabilities
  */
 
 import {

@@ -6,10 +6,10 @@
  * Status policy: 401 invalidate+refresh once; 403 entitlement; 429 rate;
  * limited 5xx/transport retries. Only private chatgpt.com backend-api URLs.
  *
- * @module @deepseek-ai/dsh-experimental-subscription-auth/codex-http
+ * @module @aeven/experimental-subscription-auth/codex-http
  */
 
-import { LlmError } from '@deepseek-ai/dsh-llm'
+import { LlmError } from '@aeven/llm'
 import { safeMessage } from './redact.ts'
 
 /** First-party ChatGPT host for every Codex optional-capability request. */
@@ -23,8 +23,8 @@ const DEFAULT_MAX_SERVER_RETRIES = 2
 const DEFAULT_JSON_MAX_BYTES = 1_048_576
 /** Default codex request timeout ms. */
 export const DEFAULT_CODEX_REQUEST_TIMEOUT_MS = 60_000
-const DEFAULT_ORIGINATOR = '@deepseek-ai/dsh-experimental-subscription-auth'
-const DEFAULT_USER_AGENT = '@deepseek-ai/dsh-experimental-subscription-auth'
+const DEFAULT_ORIGINATOR = '@aeven/experimental-subscription-auth'
+const DEFAULT_USER_AGENT = '@aeven/experimental-subscription-auth'
 const FORBIDDEN_CALLER_HEADERS = new Set(['authorization', 'chatgpt-account-id', 'accept'])
 
 /** Codex http method. */

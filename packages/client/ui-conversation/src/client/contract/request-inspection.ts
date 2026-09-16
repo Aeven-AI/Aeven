@@ -1,5 +1,5 @@
-import type { ContentBlock, ToolSchema } from '@deepseek-ai/dsh-llm/types'
-import type { SessionEvent } from '@deepseek-ai/dsh-session/types'
+import type { ContentBlock, ToolSchema } from '@aeven/llm/types'
+import type { SessionEvent } from '@aeven/session/types'
 import type {
   AssistantProvenanceView, AssistantRequestConfig,
 } from './records.ts'

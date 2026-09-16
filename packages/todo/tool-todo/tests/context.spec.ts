@@ -10,15 +10,15 @@
 
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import AgentRegistry from '@deepseek-ai/dsh-agent'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import SessionStore from '@deepseek-ai/dsh-session'
-import type { Session } from '@deepseek-ai/dsh-session'
-import SystemPrompt, { renderContextSections, renderContextSnapshot } from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime from '@deepseek-ai/dsh-tools'
-import type { TodoItem } from '@deepseek-ai/dsh-tool-todo'
-import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
-import * as ToolTodo from '@deepseek-ai/dsh-tool-todo'
+import AgentRegistry from '@aeven/agent'
+import type { Agent } from '@aeven/agent'
+import SessionStore from '@aeven/session'
+import type { Session } from '@aeven/session'
+import SystemPrompt, { renderContextSections, renderContextSnapshot } from '@aeven/system-prompt'
+import ToolRuntime from '@aeven/tools'
+import type { TodoItem } from '@aeven/tool-todo'
+import SessionProjectionRegistry from '@aeven/session-projection'
+import * as ToolTodo from '@aeven/tool-todo'
 
 interface Bench {
   ctx: Context

@@ -3,7 +3,7 @@ description: "共享远程沙箱内的 shell 命令与终端：agent 可以在�
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-subprocess-e2b
+# @aeven/subprocess-e2b
 
 [English](README.md) | 中文
 

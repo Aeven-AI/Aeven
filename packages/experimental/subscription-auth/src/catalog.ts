@@ -2,7 +2,7 @@
  * Account-specific Grok Build catalog: live GET /v1/models-v2 merged onto the
  * static baseline descriptors. Failures keep the last good list, then the
  * static baseline.
- * @module @deepseek-ai/dsh-experimental-subscription-auth/catalog
+ * @module @aeven/experimental-subscription-auth/catalog
  */
 
 import type { Api, Model, ThinkingLevelMap } from '@earendil-works/pi-ai'

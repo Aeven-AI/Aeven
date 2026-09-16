@@ -1,4 +1,4 @@
-# `@deepseek-ai/dsh`
+# `@aeven/cli`
 
 English | [中文](README.zh.md)
 
@@ -40,7 +40,7 @@ The tree composes over an empty root:
 - then the profile's `cordis.patch.yml`, then the home-level `$AVN_HOME/cordis.patch.yml`
 - then `--patch` overlays
 
-Bundles named in `dsh.profile.bundles` resolve from the dsh installation first (`@deepseek-ai/dsh-base`, `@deepseek-ai/dsh-web-app`, `@deepseek-ai/dsh-headless`, `@deepseek-ai/dsh-sdk-app`, `@deepseek-ai/dsh-sdk-minimal`, `@deepseek-ai/dsh-acp-app`), then from the profile's own `node_modules`, where pnpm installs out-of-tree plugins.
+Bundles named in `dsh.profile.bundles` resolve from the dsh installation first (`@aeven/base`, `@aeven/web-app`, `@aeven/headless`, `@aeven/sdk-app`, `@aeven/sdk-minimal`, `@aeven/acp-app`), then from the profile's own `node_modules`, where pnpm installs out-of-tree plugins.
 
 Use `--dump-default-config` and `--dump-config` to inspect the composed tree without booting it.
 

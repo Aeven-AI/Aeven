@@ -1,7 +1,7 @@
 /** Host registry and HTTP adapter for generic Connection RPC channels. */
 
 import { Context, Service } from '@deepseek-ai/cordis'
-import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
+import type { WebRoute } from '@aeven/host-webserver'
 import {
   RpcId,
   type ClientRequest,
@@ -12,8 +12,8 @@ import { bridge, type FetchHandler } from './http-bridge.ts'
 import { isTrustedApiRequest } from './api-request-trust.ts'
 import { API_PATH } from './api-path.ts'
 import type { BrowserAuth } from './browser-auth.ts'
-import type {} from '@deepseek-ai/dsh-identity-user'
-import type { User } from '@deepseek-ai/dsh-identity-user'
+import type {} from '@aeven/identity-user'
+import type { User } from '@aeven/identity-user'
 import type {
   ConnectionIndexRequest,
   ConnectionIndexResponse,

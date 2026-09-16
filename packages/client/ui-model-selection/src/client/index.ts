@@ -19,19 +19,19 @@
  * path.
  */
 // Type-only: the carrier types, the forwarded Host-event face and the ctx.remote merge.
-import type { ModelSelection } from '@deepseek-ai/dsh-api-session-controller/types'
-import type {} from '@deepseek-ai/dsh-api-session-controller/client'
-import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { ModelSelection } from '@aeven/api-session-controller/types'
+import type {} from '@aeven/api-session-controller/client'
+import type { ISessions } from '@aeven/api-session-controller/client'
+import type { SessionId } from '@aeven/session/types'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import type { CommandUiContract, CommandUiSpec, SelectOption } from '@deepseek-ai/dsh-client-ui-commands/client'
+import type { CommandUiContract, CommandUiSpec, SelectOption } from '@aeven/client-ui-commands/client'
 // Type-only: pulls the ui-conversation SlotMap merge (the input.model seat).
-import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@aeven/client-ui-conversation/client'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
-import type {} from '@deepseek-ai/dsh-client-locale/client'
-import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
-import type {} from '@deepseek-ai/dsh-client-ui-session/client'
-import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
+import type {} from '@aeven/client-locale/client'
+import type {} from '@aeven/client-ui-renderer/client'
+import type {} from '@aeven/client-ui-session/client'
+import type { TranslateNS } from '@aeven/client-ui-slots'
 import type { ModelDirectoryState } from './directory.ts'
 import { effortSelectionOf } from './effort.ts'
 import { ModelDirectoryResolver } from './service.ts'
@@ -45,7 +45,7 @@ export { ModelDirectoryResolver } from './service.ts'
 export type { ModelSelectInjected } from './slots.ts'
 export type { ModelKey } from './locales.ts'
 
-declare module '@deepseek-ai/dsh-client-ui-slots' {
+declare module '@aeven/client-ui-slots' {
   interface LocaleNamespaceMap {
     /** The model selection surfaces' copy (/model popup + composer seat). */
     model: ModelKey

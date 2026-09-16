@@ -3,7 +3,7 @@
  * events in one append-only file per session, and delegates orchestration to
  * {@link PersistenceCoordinator}. Its side-effect-free locator returns the
  * absolute per-session log target before materialization.
- * @module @deepseek-ai/dsh-session-persistence-jsonl
+ * @module @aeven/session-persistence-jsonl
  */
 
 import { Context } from '@deepseek-ai/cordis'
@@ -23,7 +23,7 @@ import {
   type SessionPersistenceRevision as PersistenceRevision, type SessionRawArtifact,
   type SessionStorageMetadata,
   type StoredPrefix,
-} from '@deepseek-ai/dsh-session-persistence'
+} from '@aeven/session-persistence'
 import type {
   Session,
   SessionEvent,
@@ -32,7 +32,7 @@ import type {
   SessionLogOffset,
   SessionLogOffset as SessionLogOffsetType,
   SessionPreparation,
-} from '@deepseek-ai/dsh-session'
+} from '@aeven/session'
 import {
   encodeSegment, eventLines, logPath, logSuffix, parseHeader, projectDir, scanLog, sessionDir,
   SessionLogScanner, toHeaderLine,

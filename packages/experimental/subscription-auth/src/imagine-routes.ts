@@ -3,11 +3,11 @@
  * The Host webServer only accepts exact paths, so this registrar keeps a
  * bounded table of opaque ids and registers one exact disposer per remembered
  * image ref or media artifact.
- * @module @deepseek-ai/dsh-experimental-subscription-auth/imagine-routes
+ * @module @aeven/experimental-subscription-auth/imagine-routes
  */
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
+import type { ImageAttachmentRef } from '@aeven/attachment'
 import {
   DEFAULT_IMAGE_DOWNLOAD_MAX_BYTES,
   type ImagineImageAttachmentRef,

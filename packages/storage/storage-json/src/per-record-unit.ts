@@ -23,14 +23,14 @@
  * as the empty unit. Any new document path, including one whose contents are
  * unreadable or stale, suppresses the bootstrap for the whole unit. The
  * legacy file is never changed or deleted.
- * @module @deepseek-ai/dsh-storage-json/src/per-record-unit
+ * @module @aeven/storage-json/src/per-record-unit
  */
 
 import { mkdir, readFile, readdir, rename, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { Dirent } from 'node:fs'
-import { StorageError } from '@deepseek-ai/dsh-storage'
-import type { ExternalChange, KvUnit, KvUnitDescriptor } from '@deepseek-ai/dsh-storage'
+import { StorageError } from '@aeven/storage'
+import type { ExternalChange, KvUnit, KvUnitDescriptor } from '@aeven/storage'
 import { writeAtomic } from './atomic.ts'
 import { ExternalWatcher } from './external-watch.ts'
 import type { ExternalWatchOptions } from './external-watch.ts'

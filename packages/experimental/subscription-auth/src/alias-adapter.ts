@@ -1,6 +1,6 @@
 /**
  * Harness route aliases over a native-id PiAiAdapter.
- * @module @deepseek-ai/dsh-experimental-subscription-auth/alias-adapter
+ * @module @aeven/experimental-subscription-auth/alias-adapter
  */
 
 import type {
@@ -10,8 +10,8 @@ import type {
   LlmResolvedModelInfo,
   ResolvedRetryPolicy,
   StreamChunk,
-} from '@deepseek-ai/dsh-llm'
-import { LlmAdapter, LlmError } from '@deepseek-ai/dsh-llm'
+} from '@aeven/llm'
+import { LlmAdapter, LlmError } from '@aeven/llm'
 import { remapClaudeCreditsFailure } from './claude-errors.ts'
 import { remapXaiCapacityFailure } from './grok-errors.ts'
 

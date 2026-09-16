@@ -2,7 +2,7 @@
  * Grok Build provider: a pi-ai provider pointed at the official Grok CLI
  * coding backend (`cli-chat-proxy.grok.com`) carrying the CLI fingerprint
  * headers the risk-control middleware requires.
- * @module @deepseek-ai/dsh-experimental-subscription-auth/provider
+ * @module @aeven/experimental-subscription-auth/provider
  */
 
 import type { Api, Model, Provider, ThinkingLevelMap } from '@earendil-works/pi-ai'

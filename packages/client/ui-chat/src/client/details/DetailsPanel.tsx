@@ -1,6 +1,6 @@
 import { Fragment } from 'react'
-import { CodeBlock } from '@deepseek-ai/dsh-client-ui-primitives'
-import { shallowEqual } from '@deepseek-ai/dsh-client-store'
+import { CodeBlock } from '@aeven/client-ui-primitives'
+import { shallowEqual } from '@aeven/client-store'
 import type { DetailsSlotProps } from '../contract/slots.ts'
 import type { ChatSnapshot, RunningToolCall, ToolCallBlock, ToolResultNode } from '../contract/snapshot.ts'
 import { findToolCall } from './tool-node-reader.ts'

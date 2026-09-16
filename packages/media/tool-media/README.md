@@ -3,7 +3,7 @@ description: "The generate_image tool over ctx.media: one model-facing surface t
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-tool-media
+# @aeven/tool-media
 
 English | [中文](README.zh.md)
 

@@ -10,9 +10,9 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type {
   ISessions, SessionBinding, SessionFace,
-} from '@deepseek-ai/dsh-api-session-controller/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { TranslateNS } from '@deepseek-ai/dsh-client-locale/client'
+} from '@aeven/api-session-controller/client'
+import type { SessionId } from '@aeven/session/types'
+import type { TranslateNS } from '@aeven/client-locale/client'
 import { queueReadFaceOf } from './queue-store.ts'
 import type {
   ComposerKeyboard, DraftAttachmentId, InputTriggerController, SessionInputResolver, SessionInput,

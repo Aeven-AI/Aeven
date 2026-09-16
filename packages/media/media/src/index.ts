@@ -4,7 +4,7 @@
  * selection, and the job vocabulary video providers map onto. Duplicate ids are
  * rejected. Selection resolves at execution time, so a provider mounted later
  * in the same tree cannot change which one an earlier call would have chosen.
- * @module @deepseek-ai/dsh-media
+ * @module @aeven/media
  */
 
 import { Context, Service } from '@deepseek-ai/cordis'

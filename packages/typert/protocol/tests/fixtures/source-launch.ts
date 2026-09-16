@@ -4,7 +4,7 @@ import {
   Remote,
   RemoteScope,
   remoteMethods,
-} from '@deepseek-ai/dsh-typert-protocol'
+} from '@aeven/typert-protocol'
 
 class Goals extends TypertRemoteService {
   constructor(ctx: Context) {

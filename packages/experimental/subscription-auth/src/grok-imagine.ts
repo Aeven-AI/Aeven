@@ -3,7 +3,7 @@
  * per-operation API-key resolver. Generated remote media is fetched under a
  * pinned HTTPS/host/DNS allowlist and persisted locally; results never include
  * a signed upstream URL.
- * @module @deepseek-ai/dsh-experimental-subscription-auth/grok-imagine
+ * @module @aeven/experimental-subscription-auth/grok-imagine
  */
 
 export type {

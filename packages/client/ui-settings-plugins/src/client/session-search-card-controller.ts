@@ -1,7 +1,7 @@
 /** Staged availability control for SQLite-backed session-content search. */
 
-import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { SnapshotStore } from '@aeven/client-store'
+import type { SettingsScope } from '@aeven/client-ui-settings/client'
 import {
   CardForm,
   type CardFieldSpec,

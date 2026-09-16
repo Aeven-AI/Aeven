@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-shell-env",
+  "name": "@aeven/shell-env",
   "description": "Tool-independent managed AVN_* shell environment registry",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
@@ -27,22 +27,22 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/dsh-shell": "workspace:^",
-    "@deepseek-ai/dsh-home-paths": "workspace:^",
-    "@deepseek-ai/dsh-session-persistence": "workspace:^",
-    "@deepseek-ai/dsh-tools": "workspace:^",
+    "@aeven/shell": "workspace:^",
+    "@aeven/home-paths": "workspace:^",
+    "@aeven/session-persistence": "workspace:^",
+    "@aeven/tools": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:^"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-agent": "workspace:^",
-    "@deepseek-ai/dsh-shell": "workspace:^",
-    "@deepseek-ai/dsh-llm": "workspace:^",
-    "@deepseek-ai/dsh-home-paths": "workspace:^",
-    "@deepseek-ai/dsh-session-persistence": "workspace:^",
-    "@deepseek-ai/dsh-tools": "workspace:^",
+    "@aeven/agent": "workspace:^",
+    "@aeven/shell": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/home-paths": "workspace:^",
+    "@aeven/session-persistence": "workspace:^",
+    "@aeven/tools": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   }
 }

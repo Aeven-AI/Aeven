@@ -1,5 +1,5 @@
 /**
- * @deepseek-ai/dsh-host-workspace-files — read-only HTTP access to the files
+ * @aeven/host-workspace-files — read-only HTTP access to the files
  * of a registered workspace, so a file the agent produces can be referenced
  * from a model reply that the browser renders (a markdown image, a link).
  *
@@ -13,7 +13,7 @@
  * holding a valid browser session — source, dotfiles, and credentials
  * included. The route is authenticated, never public, and the server binds
  * loopback unless a deployment widens it.
- * @module @deepseek-ai/dsh-host-workspace-files
+ * @module @aeven/host-workspace-files
  */
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
@@ -21,10 +21,10 @@ import { readFile } from 'node:fs/promises'
 import { extname, join, normalize, resolve, sep } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import type {} from '@deepseek-ai/dsh-client-connection'
-import type {} from '@deepseek-ai/dsh-host-webserver'
-import type { WorkspaceId } from '@deepseek-ai/dsh-workspace'
-import type {} from '@deepseek-ai/dsh-workspace'
+import type {} from '@aeven/client-connection'
+import type {} from '@aeven/host-webserver'
+import type { WorkspaceId } from '@aeven/workspace'
+import type {} from '@aeven/workspace'
 
 /** Stable Cordis plugin name. */
 export const name = 'workspace-files'

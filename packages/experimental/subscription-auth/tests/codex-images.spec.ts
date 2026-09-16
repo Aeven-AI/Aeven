@@ -1,4 +1,4 @@
-import type { ImageAttachmentRef, SaveImageAttachment, StoredImageAttachment } from '@deepseek-ai/dsh-attachment'
+import type { ImageAttachmentRef, SaveImageAttachment, StoredImageAttachment } from '@aeven/attachment'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import type { CodexFetch } from '../src/codex-http.ts'
 import {

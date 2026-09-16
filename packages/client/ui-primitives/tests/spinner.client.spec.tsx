@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { Spinner } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Spinner } from '@aeven/client-ui-primitives'
 
 afterEach(cleanup)
 

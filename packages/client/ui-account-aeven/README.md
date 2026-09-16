@@ -3,7 +3,7 @@ description: "The signed-in Aeven reader's avatar and account menu in the Web Se
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-client-ui-account-aeven
+# @aeven/client-ui-account-aeven
 
 English | [中文](README.zh.md)
 
@@ -37,7 +37,7 @@ The row takes no configuration; it is a browser plugin whose host half is empty:
 
 ```yaml
 - id: ui-account-aeven
-  name: '@deepseek-ai/dsh-client-ui-account-aeven'
+  name: '@aeven/client-ui-account-aeven'
 ```
 
 The browser half injects `slots`, `locale`, and `theme`, so a composition that omits any of them leaves the row waiting rather than mounted.

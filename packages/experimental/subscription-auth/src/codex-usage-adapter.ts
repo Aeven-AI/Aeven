@@ -11,10 +11,10 @@
  * - A 403 is an entitlement answer, not a fault. The Codex HTTP client raises
  *   it as `LlmError` with code `QUOTA`, which becomes `not-entitled` here.
  *
- * @module @deepseek-ai/dsh-experimental-subscription-auth/codex-usage-adapter
+ * @module @aeven/experimental-subscription-auth/codex-usage-adapter
  */
 
-import { LlmError } from '@deepseek-ai/dsh-llm'
+import { LlmError } from '@aeven/llm'
 import { chatgptPlanTypeFromAccessToken } from './codex-http.ts'
 import type { CodexUsage, CodexUsageReader } from './codex-usage.ts'
 import { createUsageReader, usageCacheOptions, type UsageReader, type UsageReaderOptions } from './usage-reader.ts'

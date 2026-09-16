@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-host-workspace-files",
+  "name": "@aeven/host-workspace-files",
   "description": "Authenticated read-only HTTP route serving a registered workspace's files, so agent-produced files can be referenced from rendered model replies",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
@@ -27,9 +27,9 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/dsh-host-webserver": "workspace:^",
-    "@deepseek-ai/dsh-client-connection": "workspace:^",
-    "@deepseek-ai/dsh-workspace": "workspace:^",
+    "@aeven/host-webserver": "workspace:^",
+    "@aeven/client-connection": "workspace:^",
+    "@aeven/workspace": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "dependencies": {
@@ -38,10 +38,10 @@
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/cordis-plugin-loader": "workspace:^",
-    "@deepseek-ai/dsh-client-connection": "workspace:^",
-    "@deepseek-ai/dsh-credentials-local": "workspace:^",
-    "@deepseek-ai/dsh-host-frontend-static": "workspace:^",
-    "@deepseek-ai/dsh-host-webserver": "workspace:^",
-    "@deepseek-ai/dsh-workspace": "workspace:^"
+    "@aeven/client-connection": "workspace:^",
+    "@aeven/credentials-local": "workspace:^",
+    "@aeven/host-frontend-static": "workspace:^",
+    "@aeven/host-webserver": "workspace:^",
+    "@aeven/workspace": "workspace:^"
   }
 }

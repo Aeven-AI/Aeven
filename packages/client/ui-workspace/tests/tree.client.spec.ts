@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type {
   SessionListState, SessionSearchResultItem, SessionSummary,
-} from '@deepseek-ai/dsh-api-session-controller/client'
-import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
-import type { SessionPendingInteractionBase } from '@deepseek-ai/dsh-client-ui-session/client'
-import type { ScheduleId, ScheduleRecord } from '@deepseek-ai/dsh-schedule/client'
-import type { SessionId, SessionSeq } from '@deepseek-ai/dsh-session/types'
+} from '@aeven/api-session-controller/client'
+import type { WorkspaceId, WorkspaceView } from '@aeven/api-workspace-controller/client'
+import type { SessionPendingInteractionBase } from '@aeven/client-ui-session/client'
+import type { ScheduleId, ScheduleRecord } from '@aeven/schedule/client'
+import type { SessionId, SessionSeq } from '@aeven/session/types'
 import {
   deriveFlat, deriveGroups, deriveSearchResults, owningGroupKey, workspaceLabel,
   UNGROUPED_KEY,

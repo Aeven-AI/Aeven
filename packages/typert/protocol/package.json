@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-typert-protocol",
+  "name": "@aeven/typert-protocol",
   "description": "Compiler-independent Remote metadata and Typert provider protocols",
   "version": "0.1.2-alpha.5",
   "publishConfig": {

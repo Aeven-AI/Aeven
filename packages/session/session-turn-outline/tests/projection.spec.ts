@@ -16,14 +16,14 @@
 
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { AttachmentId } from '@deepseek-ai/dsh-attachment'
-import { createAssistantMessage, createUserMessage, ToolCallId } from '@deepseek-ai/dsh-llm'
-import SessionStore, { SessionId, SessionSeq } from '@deepseek-ai/dsh-session'
-import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
-import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
-import * as SessionTurnOutlinePlugin from '@deepseek-ai/dsh-session-turn-outline'
-import { turnOutlineProjectionDefinition } from '@deepseek-ai/dsh-session-turn-outline/src/projection.ts'
-import type { TurnOutlineEntry, TurnOutlineState } from '@deepseek-ai/dsh-session-turn-outline/types'
+import { AttachmentId } from '@aeven/attachment'
+import { createAssistantMessage, createUserMessage, ToolCallId } from '@aeven/llm'
+import SessionStore, { SessionId, SessionSeq } from '@aeven/session'
+import type { Session, SessionEvent } from '@aeven/session'
+import SessionProjectionRegistry from '@aeven/session-projection'
+import * as SessionTurnOutlinePlugin from '@aeven/session-turn-outline'
+import { turnOutlineProjectionDefinition } from '@aeven/session-turn-outline/src/projection.ts'
+import type { TurnOutlineEntry, TurnOutlineState } from '@aeven/session-turn-outline/types'
 
 /** The rail's prompt budget and response budget, from `src/projection.ts`. */
 const PROMPT_LIMIT = 50

@@ -2,11 +2,11 @@
  * Optional Codex subscription search against the private ChatGPT backend.
  * Default-off: parent registers the returned provider only when the user enables it.
  *
- * @module @deepseek-ai/dsh-experimental-subscription-auth/codex-search
+ * @module @aeven/experimental-subscription-auth/codex-search
  */
 
-import { LlmError } from '@deepseek-ai/dsh-llm'
-import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
+import { LlmError } from '@aeven/llm'
+import { randomUUID } from '@aeven/util-crypto'
 import {
   type CodexAuthSession,
   type CodexFetch,

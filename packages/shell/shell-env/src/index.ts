@@ -5,16 +5,16 @@
  * the registry itself while plugins can register additional, enumerable facts
  * with effect-scoped disposal.
  *
- * @module @deepseek-ai/dsh-shell-env
+ * @module @aeven/shell-env
  */
 
 import { Service, type Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { AVN_ENV_PREFIX } from '@deepseek-ai/dsh-shell'
-import type { DshEnvironment, AvnEnvironmentKey } from '@deepseek-ai/dsh-shell'
-import { AVN_HOME_ENV, resolveDshHome } from '@deepseek-ai/dsh-home-paths'
-import type { ToolExecution } from '@deepseek-ai/dsh-tools'
-import type {} from '@deepseek-ai/dsh-session-persistence'
+import { AVN_ENV_PREFIX } from '@aeven/shell'
+import type { DshEnvironment, AvnEnvironmentKey } from '@aeven/shell'
+import { AVN_HOME_ENV, resolveDshHome } from '@aeven/home-paths'
+import type { ToolExecution } from '@aeven/tools'
+import type {} from '@aeven/session-persistence'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {

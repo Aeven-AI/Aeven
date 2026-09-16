@@ -32,7 +32,7 @@
 
 - insert:
     - id: directory-picker-native
-      name: '@deepseek-ai/dsh-host-directory-picker-native'
+      name: '@aeven/host-directory-picker-native'
 
     - id: ui-directory-picker-native
-      name: '@deepseek-ai/dsh-client-ui-directory-picker-native'
+      name: '@aeven/client-ui-directory-picker-native'

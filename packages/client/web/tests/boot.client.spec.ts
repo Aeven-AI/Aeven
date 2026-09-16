@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
 import type { Context } from '@deepseek-ai/cordis'
-import * as modulesClient from '@deepseek-ai/dsh-client-modules/client'
+import * as modulesClient from '@aeven/client-modules/client'
 import type {
   ClientBundleRegistration, ClientModuleCreateOptions, ClientModuleLoaderTarget, DshWindow,
   WebBootEntry,
-} from '@deepseek-ai/dsh-client-modules/client'
+} from '@aeven/client-modules/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AppWebEntry } from '../src/boot.ts'
 import { PRELOADER_ELEMENT_ID } from '../src/preloader.ts'
 
-const MODULES_ID = '@deepseek-ai/dsh-client-modules'
+const MODULES_ID = '@aeven/client-modules'
 const PROVIDER_CLIENT_ID = 'provider/client'
 const RUNTIME_CLIENT_ID = 'runtime/client'
 const win = globalThis as DshWindow
@@ -95,7 +95,7 @@ describe('plugin activation', () => {
     const container = document.createElement('div')
     document.body.append(container)
     const target = installFacade((options) => {
-      expect(options.staticModules['@deepseek-ai/dsh-client-ui-primitives']).toBeDefined()
+      expect(options.staticModules['@aeven/client-ui-primitives']).toBeDefined()
       return modulesClient.createClientModuleSystem(target, {
         id: MODULES_ID,
         exports: moduleFace,

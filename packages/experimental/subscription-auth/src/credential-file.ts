@@ -5,7 +5,7 @@
  * refused. POSIX fails closed when `O_NOFOLLOW` or the process uid is
  * unavailable; Windows skips the uid and mode checks but keeps the symlink,
  * identity, and size checks. The path is never written or chmod()ed.
- * @module @deepseek-ai/dsh-experimental-subscription-auth/credential-file
+ * @module @aeven/experimental-subscription-auth/credential-file
  */
 
 import { constants, type Stats } from 'node:fs'

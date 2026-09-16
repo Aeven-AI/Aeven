@@ -3,7 +3,7 @@ description: "The DeepInfra image and video provider for ctx.media: OpenAI-compa
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-media-deepinfra
+# @aeven/media-deepinfra
 
 English | [中文](README.zh.md)
 

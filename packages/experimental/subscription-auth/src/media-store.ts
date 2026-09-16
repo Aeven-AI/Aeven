@@ -2,14 +2,14 @@
  * Owner-private content-addressed store for Grok Imagine video artifacts.
  * Public identifiers are opaque; callers never receive a filesystem path,
  * content hash, or a signed upstream URL.
- * @module @deepseek-ai/dsh-experimental-subscription-auth/media-store
+ * @module @aeven/experimental-subscription-auth/media-store
  */
 
 import { createHash, randomBytes } from 'node:crypto'
 import { constants as fsConstants } from 'node:fs'
 import { chmod, link, lstat, mkdir, open, readdir, rename, unlink } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
-import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
+import { writeFileAtomic } from '@aeven/atomic-write'
 
 /** Hard ceiling for one artifact and for aggregate stored object bytes. */
 export const MEDIA_STORE_MAX_BYTES = 256 * 1024 * 1024
@@ -339,7 +339,7 @@ async function ensurePrivateDir(root: string, path: string): Promise<void> {
 /**
  * Carry a pre-rename artifact directory over to the current one. The old name is
  * still exported by `dsh-coding-oauth-core` as a shared contract, so this plugin's
- * own directory only appears after the `@deepseek-ai/dsh-experimental-subscription-auth` rename.
+ * own directory only appears after the `@aeven/experimental-subscription-auth` rename.
  * Refuses to follow a symlink and never overwrites an existing current directory;
  * returns whether artifacts were moved.
  * @param currentRoot - the plugin's current artifact directory.

@@ -2,7 +2,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import type {} from '@deepseek-ai/dsh-settings'
+import type {} from '@aeven/settings'
 
 /**
  * Durable settings namespace for product-wide GUI onboarding facts. It stays

@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-client-hypermarkdown",
+  "name": "@aeven/client-hypermarkdown",
   "description": "Streaming-native Markdown renderer for the dsh web client: caches settled code lines, table rows and list items so growing model output never re-parses finished work",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
@@ -65,7 +65,7 @@
     "@types/react": "~18.3.1",
     "@types/react-dom": "~18.3.0",
     "jsdom": "^29.1.1",
-    "@deepseek-ai/dsh-util-crypto": "workspace:^"
+    "@aeven/util-crypto": "workspace:^"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^"

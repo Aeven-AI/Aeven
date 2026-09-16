@@ -7,10 +7,10 @@
  */
 
 import { useCallback, useRef, useState, type KeyboardEvent } from 'react'
-import { useDismissOnOutsidePointer } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import { useDismissOnOutsidePointer } from '@aeven/client-ui-primitives'
+import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 // Type-only: pulls the ui-conversation SlotMap merge (the header utilities seat).
-import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@aeven/client-ui-conversation/client'
 import { Avatar } from './Avatar.tsx'
 import { ACCOUNT_ICON, LOGOUT_ICON, MOON_ICON, SETTINGS_ICON } from './icons.ts'
 import { NS } from './locales.ts'

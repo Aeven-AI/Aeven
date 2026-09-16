@@ -1,9 +1,9 @@
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { installProxyFromEnvironment } from '@deepseek-ai/dsh-http-proxy'
+import { installProxyFromEnvironment } from '@aeven/http-proxy'
 import { Context } from '@deepseek-ai/cordis'
-import { MediaRuntime } from '@deepseek-ai/dsh-media'
+import { MediaRuntime } from '@aeven/media'
 import * as provider from '../src/index.ts'
 
 let seen: string[] = []

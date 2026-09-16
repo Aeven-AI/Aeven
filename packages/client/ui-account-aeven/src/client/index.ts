@@ -7,18 +7,18 @@
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import type { AevenReader } from '@deepseek-ai/dsh-client-ui-auth-aeven'
-import type {} from '@deepseek-ai/dsh-client-locale/client'
-import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
-import type {} from '@deepseek-ai/dsh-client-ui-session/client'
-import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
+import type { AevenReader } from '@aeven/client-ui-auth-aeven'
+import type {} from '@aeven/client-locale/client'
+import type {} from '@aeven/client-ui-conversation/client'
+import type {} from '@aeven/client-ui-renderer/client'
+import type {} from '@aeven/client-ui-session/client'
+import type {} from '@aeven/client-ui-theme/client'
 import { AccountMenu, type AccountMenuInjected, type AccountReader } from './AccountMenu.tsx'
 import { en, NS, zh, type AccountAevenKey } from './locales.ts'
 
 export type { AccountMenuInjected, AccountMenuProps, AccountReader } from './AccountMenu.tsx'
 
-declare module '@deepseek-ai/dsh-client-ui-slots' {
+declare module '@aeven/client-ui-slots' {
   interface LocaleNamespaceMap {
     /** Aeven account-menu copy. */
     'account.aeven': AccountAevenKey

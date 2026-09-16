@@ -3,7 +3,7 @@ description: "ctx.media 之上的 generate_image 工具：解析请求、经选�
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-tool-media
+# @aeven/tool-media
 
 [English](README.md) | 中文
 

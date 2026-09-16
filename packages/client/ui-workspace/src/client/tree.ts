@@ -5,14 +5,14 @@
  */
 import {
   type SessionListState, type SessionSearchResultItem, type SessionSummary,
-} from '@deepseek-ai/dsh-api-session-controller/client'
-import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
+} from '@aeven/api-session-controller/client'
+import type { WorkspaceId, WorkspaceView } from '@aeven/api-workspace-controller/client'
 import type {
   SessionPendingInteractionBase,
-} from '@deepseek-ai/dsh-client-ui-session/client'
-import type {} from '@deepseek-ai/dsh-schedule/client'
-import type { SessionId, SessionSeq } from '@deepseek-ai/dsh-session/types'
-import { workspaceTitleOf } from '@deepseek-ai/dsh-util-workspace-path'
+} from '@aeven/client-ui-session/client'
+import type {} from '@aeven/schedule/client'
+import type { SessionId, SessionSeq } from '@aeven/session/types'
+import { workspaceTitleOf } from '@aeven/util-workspace-path'
 import {
   indexSubagentDescendants, type SubagentDescendantSummary,
 } from './subagent-lineage.ts'

@@ -2,15 +2,15 @@ import {
   useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent,
 } from 'react'
 import { createPortal } from 'react-dom'
-import type { ScheduleRecord } from '@deepseek-ai/dsh-schedule/client'
+import type { ScheduleRecord } from '@aeven/schedule/client'
 import {
   IconAlarmClockOutline16,
   IconChevronDownOutline14,
   useAnchoredPosition,
   useDismissOnOutsidePointer,
-} from '@deepseek-ai/dsh-client-ui-primitives'
-import type { PropsLocale, PropsRuntime, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
-import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+} from '@aeven/client-ui-primitives'
+import type { PropsLocale, PropsRuntime, TranslateNS } from '@aeven/client-ui-slots'
+import type {} from '@aeven/client-ui-conversation/client'
 import { NS } from './locales.ts'
 import css from './ScheduleCatalogAction.module.css'
 

@@ -6,7 +6,7 @@ Status: implemented
 
 ## 问题
 
-`@deepseek-ai/dsh-fs-observation-policy` 会对本会话尚未读取的目标的 `edit` 以 `FS_NOT_OBSERVED` 拒绝，`@deepseek-ai/dsh-tool-fs` 则把该拒绝呈现为 `cannot modify "<path>": file has not been read — read the file, then retry`。按设计，这类拒绝是常态：它正是门禁在起作用，而消息里点名的读取就是全部补救办法。但对话行却穿着整套错误外衣——错误配色的状态点加上错误配色的失败行——于是一个会话自己就能消除的步骤，看起来与一次事故毫无区别。先编辑后读取的会话会连续产生多条这样的行，而每一条读起来都像 harness 的缺陷，而不是某个策略在履行职责。另一种诱惑是把它压掉，那是更糟的选择：渲染出的对话记录就是模型看到的上下文，隐藏一次拒绝，也就抹掉了紧随其后那次读取的唯一解释。
+`@aeven/fs-observation-policy` 会对本会话尚未读取的目标的 `edit` 以 `FS_NOT_OBSERVED` 拒绝，`@aeven/tool-fs` 则把该拒绝呈现为 `cannot modify "<path>": file has not been read — read the file, then retry`。按设计，这类拒绝是常态：它正是门禁在起作用，而消息里点名的读取就是全部补救办法。但对话行却穿着整套错误外衣——错误配色的状态点加上错误配色的失败行——于是一个会话自己就能消除的步骤，看起来与一次事故毫无区别。先编辑后读取的会话会连续产生多条这样的行，而每一条读起来都像 harness 的缺陷，而不是某个策略在履行职责。另一种诱惑是把它压掉，那是更糟的选择：渲染出的对话记录就是模型看到的上下文，隐藏一次拒绝，也就抹掉了紧随其后那次读取的唯一解释。
 
 ## 决定
 

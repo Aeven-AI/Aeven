@@ -122,7 +122,7 @@ export function apply(ctx: Context) {
 
 ```ts
 import type { Context } from '@deepseek-ai/cordis'
-import '@deepseek-ai/dsh-tools'
+import '@aeven/tools'
 
 export const name = 'tool-logger'
 

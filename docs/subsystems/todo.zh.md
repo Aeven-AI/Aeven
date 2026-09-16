@@ -2,7 +2,7 @@
 
 [English](todo.md) | 中文
 
-本页记录 [`@deepseek-ai/dsh-tool-todo`](../../packages/todo/tool-todo/README.zh.md) 拥有的持久 todo 词汇。面向模型的工具会整体替换一个 agent（智能体）会话的列表；该包还拥有事件声明、基于该事件的两个回放投影、模型对该计划的回读，以及不变量配套插件。工具行为与配置见[包 README](../../packages/todo/tool-todo/README.zh.md)。
+本页记录 [`@aeven/tool-todo`](../../packages/todo/tool-todo/README.zh.md) 拥有的持久 todo 词汇。面向模型的工具会整体替换一个 agent（智能体）会话的列表；该包还拥有事件声明、基于该事件的两个回放投影、模型对该计划的回读，以及不变量配套插件。工具行为与配置见[包 README](../../packages/todo/tool-todo/README.zh.md)。
 
 源码：[`packages/todo/tool-todo/src/types.ts`](../../packages/todo/tool-todo/src/types.ts)
 

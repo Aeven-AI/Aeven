@@ -3,7 +3,7 @@ description: "Workspace entity registry (ctx.workspaceRegistry) for hosts choosi
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-workspace
+# @aeven/workspace
 
 English | [中文](README.zh.md)
 
@@ -36,14 +36,14 @@ Use it when the product shows a persistent workspace surface — a sidebar, sess
 The package takes no configuration of its own; it needs a session store, a session persistence backend, and the storage rows that keep its records. A minimal composition:
 
 ```yaml
-- name: '@deepseek-ai/dsh-session'
-- name: '@deepseek-ai/dsh-session-persistence-jsonl'
-- name: '@deepseek-ai/dsh-storage'
-- name: '@deepseek-ai/dsh-storage-json'
-- name: '@deepseek-ai/dsh-storage-domain'
+- name: '@aeven/session'
+- name: '@aeven/session-persistence-jsonl'
+- name: '@aeven/storage'
+- name: '@aeven/storage-json'
+- name: '@aeven/storage-domain'
   config:
     backend: json
-- name: '@deepseek-ai/dsh-workspace'
+- name: '@aeven/workspace'
 ```
 
 With these rows mounted, creating a project shows up in the list immediately and survives a restart; the first start also groups existing sessions by the directory they ran in. If a required peer is missing, the workspace feature stays unavailable until it is mounted.

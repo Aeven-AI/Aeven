@@ -3,7 +3,7 @@ description: "Authenticated read-only HTTP route serving a registered workspace'
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-host-workspace-files
+# @aeven/host-workspace-files
 
 English | [中文](README.zh.md)
 
@@ -30,7 +30,7 @@ Compose this plugin in a browser-facing host whose agent produces files the user
 ### Minimal configuration
 
 ```yaml
-- name: '@deepseek-ai/dsh-host-workspace-files'
+- name: '@aeven/host-workspace-files'
   config:
     mount: /workspace
 ```

@@ -12,7 +12,7 @@ Web 客户端的 Markdown 渲染器原本位于另一个仓库，仅以 `ui-prim
 
 ## Decision
 
-引擎落位为 `packages/client/hypermarkdown`，npm 名 `@deepseek-ai/dsh-client-hypermarkdown`，是一个静态链接的客户端库，没有任何 Cordis 接口——与 `ui-primitives`、`client/store`、`client/ui-slots` 同属一种包模式。`ui-primitives` 通过 `workspace:^` devDependency 引用它，`@aeven-ai` 的 npm 依赖已移除。
+引擎落位为 `packages/client/hypermarkdown`，npm 名 `@aeven/client-hypermarkdown`，是一个静态链接的客户端库，没有任何 Cordis 接口——与 `ui-primitives`、`client/store`、`client/ui-slots` 同属一种包模式。`ui-primitives` 通过 `workspace:^` devDependency 引用它，`@aeven-ai` 的 npm 依赖已移除。
 
 本次移动是复制而非分叉。源码是 v0.4.4 树的原样拷贝，因此引擎保留自己的写法并可与来源保持可 diff；随源码一并迁移的测试套件（62 个 spec 文件、889 个测试、逐文件 100% 覆盖率）成为其后每一次修改的回归网。
 

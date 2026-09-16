@@ -1,6 +1,6 @@
 /** Cached SVGs and a nearest-first queue for Mermaid's DOM-dependent layout. */
 
-import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
+import { randomUUID } from '@aeven/util-crypto'
 import type { DiagramPlugin, DiagramResult } from '../plugin-types.ts'
 
 interface Entry {

@@ -7,7 +7,7 @@
  * the card cannot silently collapse them into "no data".
  */
 
-import { LlmError } from '@deepseek-ai/dsh-llm'
+import { LlmError } from '@aeven/llm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { claudeTierFromProfile, createClaudeUsageReader, normalizeClaudeUsage } from '../src/claude-usage.ts'
 import type { CodexUsage } from '../src/codex-usage.ts'

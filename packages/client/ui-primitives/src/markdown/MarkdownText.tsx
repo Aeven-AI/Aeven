@@ -23,10 +23,10 @@
 import { memo, useLayoutEffect, useMemo, useRef } from 'react'
 import HyperMarkdown, {
   cjkPlugin, highlightPlugin, katexPlugin, mermaidPlugin,
-} from '@deepseek-ai/dsh-client-hypermarkdown'
+} from '@aeven/client-hypermarkdown'
 import type {
   CodeComponentProps, HyperMarkdownHandle, RendererComponents, Translations,
-} from '@deepseek-ai/dsh-client-hypermarkdown'
+} from '@aeven/client-hypermarkdown'
 import type { StrictFunction } from 'katex'
 import 'katex/dist/katex.min.css'
 import css from './MarkdownText.module.css'

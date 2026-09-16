@@ -12,14 +12,14 @@
  * the seam stays synchronous. The price is that a token revoked before it
  * expires still verifies here; a sign-out invalidates the credential at its
  * source, which is what makes that window narrow in practice.
- * @module @deepseek-ai/dsh-identity-user-aeven
+ * @module @aeven/identity-user-aeven
  */
 
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import type { IdentityRequest, User, UserResolver } from '@deepseek-ai/dsh-identity-user'
-import type {} from '@deepseek-ai/dsh-identity-user'
-import type {} from '@deepseek-ai/dsh-host-webserver'
+import type { IdentityRequest, User, UserResolver } from '@aeven/identity-user'
+import type {} from '@aeven/identity-user'
+import type {} from '@aeven/host-webserver'
 import { verifiedUserId } from './jwt.ts'
 
 /** Cordis plugin name. */

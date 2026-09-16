@@ -10,7 +10,7 @@ DeepInfra 与 OpenRouter 两个媒体适配器各自独立写成，却收敛到�
 
 ## 决定
 
-`@deepseek-ai/dsh-media` 发布其 provider 所依托的共享管道。给定注册键、凭据引用、origin 与显示名，`vendorRoute(ctx, config)` 为一个厂商给出 `available`、`apiKey`、`json` 与 `bytes`。`vendorJob` 依据厂商提供的状态表，把作业体映射到该 seam 的状态联合上。`vendorVideoProvider` 由三个路由路径、体积上限、状态表，以及塑造启动请求的那一个函数，组装出完整的 `MediaVideoProvider`。每个适配器只保留其路由确实塑造得不同的部分：它的 origin、它的状态词汇、它的模型列举过滤、它的图像请求与响应处理，以及它的启动请求体。该 seam 包把 `@deepseek-ai/dsh-credentials` 作为 peer dependency，这正是共享凭据解析所需要的。
+`@aeven/media` 发布其 provider 所依托的共享管道。给定注册键、凭据引用、origin 与显示名，`vendorRoute(ctx, config)` 为一个厂商给出 `available`、`apiKey`、`json` 与 `bytes`。`vendorJob` 依据厂商提供的状态表，把作业体映射到该 seam 的状态联合上。`vendorVideoProvider` 由三个路由路径、体积上限、状态表，以及塑造启动请求的那一个函数，组装出完整的 `MediaVideoProvider`。每个适配器只保留其路由确实塑造得不同的部分：它的 origin、它的状态词汇、它的模型列举过滤、它的图像请求与响应处理，以及它的启动请求体。该 seam 包把 `@aeven/credentials` 作为 peer dependency，这正是共享凭据解析所需要的。
 
 该路由的操作以属性函数类型而非方法声明，因为适配器会把它们直接交给 provider 的字段，而脱离对象的方法不会带着接收者。
 

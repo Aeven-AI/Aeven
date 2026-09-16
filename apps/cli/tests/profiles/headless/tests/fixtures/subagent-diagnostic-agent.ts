@@ -5,7 +5,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import type { SessionId } from '@deepseek-ai/dsh-session'
+import type { SessionId } from '@aeven/session'
 
 /** Fixture plugin name. */
 export const name = 'subagent-diagnostic-agent'

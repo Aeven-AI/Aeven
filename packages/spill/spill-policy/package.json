@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-spill-policy",
+  "name": "@aeven/spill-policy",
   "description": "Tool-result spill policy for the DeepSeek Harness — replaces oversized plain-text tool results with a retained preview plus a spill-file path (no service API)",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
@@ -32,24 +32,24 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/dsh-llm": "workspace:^",
-    "@deepseek-ai/dsh-output-retention": "workspace:^",
-    "@deepseek-ai/dsh-session": "workspace:^",
-    "@deepseek-ai/dsh-spill": "workspace:^",
-    "@deepseek-ai/dsh-tools": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/output-retention": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/spill": "workspace:^",
+    "@aeven/tools": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:^"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-agent": "workspace:^",
-    "@deepseek-ai/dsh-code-runtime-worker-thread": "workspace:^",
-    "@deepseek-ai/dsh-llm": "workspace:^",
-    "@deepseek-ai/dsh-output-retention": "workspace:^",
-    "@deepseek-ai/dsh-session": "workspace:^",
-    "@deepseek-ai/dsh-spill": "workspace:^",
-    "@deepseek-ai/dsh-tools": "workspace:^",
+    "@aeven/agent": "workspace:^",
+    "@aeven/code-runtime-worker-thread": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/output-retention": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/spill": "workspace:^",
+    "@aeven/tools": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   }
 }

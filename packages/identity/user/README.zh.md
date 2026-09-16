@@ -3,7 +3,7 @@ description: "已认证用户 seam：ctx.identityUsers，每个 DSH 子系统据
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-identity-user
+# @aeven/identity-user
 
 [English](README.md) | 中文
 
@@ -37,10 +37,10 @@ kind: "package-reference"
 
 ```yaml
 - id: identity-user
-  name: '@deepseek-ai/dsh-identity-user'
+  name: '@aeven/identity-user'
 
 - id: identity-user-aeven
-  name: '@deepseek-ai/dsh-identity-user-aeven'
+  name: '@aeven/identity-user-aeven'
   inject: [identityUsers]
 ```
 

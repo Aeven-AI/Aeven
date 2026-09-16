@@ -2,7 +2,7 @@
 description: "Browser Chat target that renders Session conversation nodes, details, historical images, actions, localization, and scroll state."
 kind: "package-reference"
 ---
-# @deepseek-ai/dsh-client-ui-chat
+# @aeven/client-ui-chat
 
 English | [中文](README.zh.md)
 

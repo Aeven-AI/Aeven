@@ -8,7 +8,7 @@
  *
  * The seam's types are declared structurally rather than imported, so this
  * controller gains no dependency on a capability it only reports.
- * @module @deepseek-ai/dsh-api-session-controller/image-catalog
+ * @module @aeven/api-session-controller/image-catalog
  */
 
 import type { Context } from '@deepseek-ai/cordis'

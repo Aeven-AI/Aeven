@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-media",
+  "name": "@aeven/media",
   "description": "Generated-media capability seam (ctx.media) for the DeepSeek Harness \u2014 image and video provider registries, execution-time provider selection, the video job vocabulary, and the MediaError taxonomy",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
@@ -28,17 +28,17 @@
   "license": "MIT",
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-attachment": "workspace:^",
-    "@deepseek-ai/dsh-credentials": "workspace:^",
-    "@deepseek-ai/dsh-llm": "workspace:^"
+    "@aeven/attachment": "workspace:^",
+    "@aeven/credentials": "workspace:^",
+    "@aeven/llm": "workspace:^"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:^"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-attachment": "workspace:^",
-    "@deepseek-ai/dsh-credentials": "workspace:^",
-    "@deepseek-ai/dsh-llm": "workspace:^"
+    "@aeven/attachment": "workspace:^",
+    "@aeven/credentials": "workspace:^",
+    "@aeven/llm": "workspace:^"
   }
 }

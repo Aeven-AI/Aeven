@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-api-gateway",
+  "name": "@aeven/api-gateway",
   "description": "Typert Remote Host dispatcher and Client API endpoint",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
@@ -32,8 +32,8 @@
   "dsh": {
     "client": {
       "inject": [
-        "@deepseek-ai/dsh-typert-registry",
-        "@deepseek-ai/dsh-client-connection"
+        "@aeven/typert-registry",
+        "@aeven/client-connection"
       ],
       "platform": "web",
       "immediately": true
@@ -51,23 +51,23 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@deepseek-ai/dsh-deque": "workspace:^",
-    "@deepseek-ai/dsh-timeout": "workspace:^",
+    "@aeven/deque": "workspace:^",
+    "@aeven/timeout": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^",
     "ws": "^8.21.2",
-    "@deepseek-ai/dsh-typert-protocol": "workspace:^"
+    "@aeven/typert-protocol": "workspace:^"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-brand": "workspace:^",
-    "@deepseek-ai/dsh-client-connection": "workspace:^",
-    "@deepseek-ai/dsh-host-webserver": "workspace:^",
-    "@deepseek-ai/dsh-identity-user": "workspace:^",
-    "@deepseek-ai/dsh-typert-registry": "workspace:^",
-    "@deepseek-ai/dsh-util-crypto": "workspace:^",
+    "@aeven/brand": "workspace:^",
+    "@aeven/client-connection": "workspace:^",
+    "@aeven/host-webserver": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
+    "@aeven/typert-registry": "workspace:^",
+    "@aeven/util-crypto": "workspace:^",
     "@types/ws": "^8.18.1",
     "zod": "^4.4.3"
   }

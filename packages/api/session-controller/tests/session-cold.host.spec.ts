@@ -10,28 +10,28 @@ import { mkdtemp as mkdtempAsync } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
-import SessionStore, { SessionLogOffset, SessionSeq } from '@deepseek-ai/dsh-session'
-import AgentRegistry from '@deepseek-ai/dsh-agent'
-import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
-import SessionProjectionCache from '@deepseek-ai/dsh-session-projection-cache'
-import Storage from '@deepseek-ai/dsh-storage'
-import * as StorageDomain from '@deepseek-ai/dsh-storage-domain'
-import * as StorageJson from '@deepseek-ai/dsh-storage-json'
-import { SessionHistoryController } from '@deepseek-ai/dsh-api-session-controller/src/history.ts'
-import { subagentIdentityProjectionDefinition } from '@deepseek-ai/dsh-subagent/src/projection.ts'
-import { titleProjectionDefinition } from '@deepseek-ai/dsh-session-title'
-import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
-import { createUserMessage, MessageId } from '@deepseek-ai/dsh-llm'
-import { snapshotSubagentDescriptor } from '@deepseek-ai/dsh-subagent'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import type { SessionEvent, SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
+import SessionStore, { SessionLogOffset, SessionSeq } from '@aeven/session'
+import AgentRegistry from '@aeven/agent'
+import SessionProjectionRegistry from '@aeven/session-projection'
+import SessionProjectionCache from '@aeven/session-projection-cache'
+import Storage from '@aeven/storage'
+import * as StorageDomain from '@aeven/storage-domain'
+import * as StorageJson from '@aeven/storage-json'
+import { SessionHistoryController } from '@aeven/api-session-controller/src/history.ts'
+import { subagentIdentityProjectionDefinition } from '@aeven/subagent/src/projection.ts'
+import { titleProjectionDefinition } from '@aeven/session-title'
+import TypertRegistry from '@aeven/typert-registry'
+import { createUserMessage, MessageId } from '@aeven/llm'
+import { snapshotSubagentDescriptor } from '@aeven/subagent'
+import type { Agent } from '@aeven/agent'
+import type { SessionEvent, SessionHeader, SessionId } from '@aeven/session'
 import type { SessionPromptRequest, SessionRequestId } from '../src/types.ts'
 import {
   PersistenceCoordinator,
   SessionPersistenceRevision,
   type PersistenceBackend,
   type StoredPrefix,
-} from '@deepseek-ai/dsh-session-persistence'
+} from '@aeven/session-persistence'
 import {
   createSessionTestRemote,
   installSessionReadTestServices,
@@ -253,7 +253,7 @@ describe('Remote Agent and Session lookup policy', () => {
       inspect,
       locate: () => undefined,
     })
-    const resumedSession = { id: sessionId, header: meta, events: [] } as unknown as import('@deepseek-ai/dsh-session').Session
+    const resumedSession = { id: sessionId, header: meta, events: [] } as unknown as import('@aeven/session').Session
     const resumedAgent = { id: sessionId, session: resumedSession, status: 'idle', ctx } as Agent
     const release = Promise.withResolvers<undefined>()
     const resume = vi.spyOn(ctx.agents, 'resume').mockImplementation(async () => {

@@ -3,7 +3,7 @@ description: "面向 DeepSeek Harness 会话日志的模型侧 todo_write 工具
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-tool-todo
+# @aeven/tool-todo
 
 [English](README.md) | 中文
 
@@ -36,7 +36,7 @@ kind: "package-reference"
 `allowParallelInProgress` 是必填项、没有默认值：省略它的组合会在加载时失败，非布尔值也会被拒绝。可能并发运行工作的 agent（subagent、后台命令、workflow 扇出）设为 `true`，需要单活跃项纪律的设为 `false`。
 
 ```yaml
-- name: '@deepseek-ai/dsh-tool-todo'
+- name: '@aeven/tool-todo'
   config:
     allowParallelInProgress: true
 ```
@@ -91,7 +91,7 @@ agent 每次更新都发送完整列表；新列表替换旧列表，因此没�
 
 ### 会话投影
 
-当组合挂载 `ctx.sessionProjections`（[`@deepseek-ai/dsh-session-projection`](../../session/session-projection/README.zh.md)）时，本包在注入的子插件中注册两个单元。`todos` 是 UI 的有效计划：最新的整份 `todo/write` 列表，首次写入前为 `null`，仅由下一次写入替换。轮次边界不会移动它，因此 dock 会持续显示 agent 仍在推进的计划。该键在此处合并进 `SessionProjectionMap`；载体通过历史尾页与 `session/projection` 推送帧提供该值。生命周期理由见 [todo 计划跨轮次边界存续 Agent Note](../../../.agents/notes/implemented/bug-fix/2026-09-16-todo-plan-survives-the-turn-boundary.zh.md)，它反转了此前的[下一轮次清空决策](../../../.agents/notes/implemented/feature/2026-07-28-todo-plan-clears-on-next-turn.zh.md)。`todoPlan` 是模型对同一份列表的回读，声明时不带 `wire`，因此永不发往客户端：它折叠同一份输入，所以 dock 显示的计划与模型回读的计划不可能出现分歧。未挂载注册表的组合不受影响；两个单元的注册见 [src/index.ts](src/index.ts)。
+当组合挂载 `ctx.sessionProjections`（[`@aeven/session-projection`](../../session/session-projection/README.zh.md)）时，本包在注入的子插件中注册两个单元。`todos` 是 UI 的有效计划：最新的整份 `todo/write` 列表，首次写入前为 `null`，仅由下一次写入替换。轮次边界不会移动它，因此 dock 会持续显示 agent 仍在推进的计划。该键在此处合并进 `SessionProjectionMap`；载体通过历史尾页与 `session/projection` 推送帧提供该值。生命周期理由见 [todo 计划跨轮次边界存续 Agent Note](../../../.agents/notes/implemented/bug-fix/2026-09-16-todo-plan-survives-the-turn-boundary.zh.md)，它反转了此前的[下一轮次清空决策](../../../.agents/notes/implemented/feature/2026-07-28-todo-plan-clears-on-next-turn.zh.md)。`todoPlan` 是模型对同一份列表的回读，声明时不带 `wire`，因此永不发往客户端：它折叠同一份输入，所以 dock 显示的计划与模型回读的计划不可能出现分歧。未挂载注册表的组合不受影响；两个单元的注册见 [src/index.ts](src/index.ts)。
 
 ### 持久日志不变式
 

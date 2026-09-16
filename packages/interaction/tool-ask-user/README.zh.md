@@ -3,7 +3,7 @@ description: "基于用户交互 seam 的模型侧 ask_user_question 工具；�
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-tool-ask-user
+# @aeven/tool-ask-user
 
 [English](README.md) | 中文
 

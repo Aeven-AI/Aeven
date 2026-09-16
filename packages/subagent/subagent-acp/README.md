@@ -3,7 +3,7 @@ description: "The out-of-process ACP subagent backend for users and maintainers 
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-subagent-acp
+# @aeven/subagent-acp
 
 English | [中文](README.zh.md)
 
@@ -50,7 +50,7 @@ A DeepSeek Harness child uses the product launcher and an explicit absolute `AVN
 
 ```yaml
 - id: subagent-acp
-  name: '@deepseek-ai/dsh-subagent-acp'
+  name: '@aeven/subagent-acp'
   config:
     providerName: acp
     command: dsh

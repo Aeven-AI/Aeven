@@ -1,13 +1,13 @@
 /** Question composer props and one pending Remote waterfall response. */
-import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { PropsLocale, PropsRuntime, PropsStore } from '@aeven/client-ui-slots'
 // The client module declares the conversation.composer SlotMap entry required by PropsRuntime.
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { SessionId } from '@aeven/session/types'
 import type {
   AskUserQuestionAnswer, AskUserQuestionItem,
-} from '@deepseek-ai/dsh-user-questions'
+} from '@aeven/user-questions'
 import type { createQuestionDraftStore } from '../draft-store.ts'
 
-declare module '@deepseek-ai/dsh-client-ui-session/client' {
+declare module '@aeven/client-ui-session/client' {
   interface SessionPendingInteractionMap {
     /** Pending question or plan-review request. */
     question: PendingQuestion

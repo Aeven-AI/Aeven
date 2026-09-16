@@ -1,11 +1,11 @@
 /**
  * Persistent OAuth session and model catalogue for one subscription provider.
- * @module @deepseek-ai/dsh-experimental-subscription-auth/oauth-session
+ * @module @aeven/experimental-subscription-auth/oauth-session
  */
 
 import { mkdir, rm } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
-import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
+import { resolveDshHome } from '@aeven/home-paths'
 import type {
   Api,
   AuthInteraction,

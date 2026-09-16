@@ -5,10 +5,10 @@ import {
   RemoteStreamCarrierError,
   type ClientRemote,
   type RemoteStreamOptions,
-} from '@deepseek-ai/dsh-api-gateway/client'
-import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
-import { SessionId } from '@deepseek-ai/dsh-session/types'
-import { RemoteError, type RemoteFailure, type RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
+} from '@aeven/api-gateway/client'
+import type { ConnectionHandle } from '@aeven/client-connection/client'
+import { SessionId } from '@aeven/session/types'
+import { RemoteError, type RemoteFailure, type RemoteResult } from '@aeven/typert-protocol'
 import * as WorkspaceClientPlugin from '../src/client/index.ts'
 import {
   ClientWorkspaceModel,

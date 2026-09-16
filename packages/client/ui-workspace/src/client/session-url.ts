@@ -1,6 +1,6 @@
 /** Browser address-bar projection for the selected Session. */
 
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { SessionId } from '@aeven/session/types'
 
 const SESSION_PATH_PREFIX = '/c/'
 

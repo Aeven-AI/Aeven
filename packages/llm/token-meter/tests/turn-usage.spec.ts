@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { TokenUsage } from '@deepseek-ai/dsh-llm'
-import type { SessionEvent } from '@deepseek-ai/dsh-session'
+import type { TokenUsage } from '@aeven/llm'
+import type { SessionEvent } from '@aeven/session'
 import { deriveTurnTokenUsage } from '../src/turn-usage.ts'
 
 function event(seq: number, type: string, data: unknown): SessionEvent {

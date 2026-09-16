@@ -2,12 +2,12 @@
 
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { errorChain } from '@deepseek-ai/dsh-llm'
-import { canOpenNativePath, openNativePath } from '@deepseek-ai/dsh-native-command'
-import type { SessionId } from '@deepseek-ai/dsh-session'
-import type { SessionInspection } from '@deepseek-ai/dsh-session-persistence'
-import type { SessionObservation } from '@deepseek-ai/dsh-session-query'
-import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
+import { errorChain } from '@aeven/llm'
+import { canOpenNativePath, openNativePath } from '@aeven/native-command'
+import type { SessionId } from '@aeven/session'
+import type { SessionInspection } from '@aeven/session-persistence'
+import type { SessionObservation } from '@aeven/session-query'
+import { Remote, RemoteError, TypertRemoteService } from '@aeven/typert-protocol'
 import {
   ApiSessionAgentController,
   inspectApiSession,

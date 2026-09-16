@@ -5,7 +5,7 @@
  * back into a selection — and reading it twice from two places is how a row
  * stops matching what it submits.
  */
-import type { ModelSelection, ModelProviderGroup } from '@deepseek-ai/dsh-api-remotes/client'
+import type { ModelSelection, ModelProviderGroup } from '@aeven/api-remotes/client'
 import type { ModelDirectoryState } from './directory.ts'
 
 /** One catalog model as the Host advertises it. */

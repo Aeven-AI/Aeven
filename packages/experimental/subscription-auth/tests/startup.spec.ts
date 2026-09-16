@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events'
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools'
+import type { ToolDefinition, ToolRunContext } from '@aeven/tools'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
@@ -14,8 +14,8 @@ import type {
   CapabilitySettingsScope,
   CapabilitySettingsService,
 } from '../src/capability-settings.ts'
-import { AttachmentId } from '@deepseek-ai/dsh-attachment'
-import { MessageId, type LlmAdapter } from '@deepseek-ai/dsh-llm'
+import { AttachmentId } from '@aeven/attachment'
+import { MessageId, type LlmAdapter } from '@aeven/llm'
 import { GrokImagineClient } from '../src/grok-imagine.ts'
 import { IMAGINE_MEDIA_STORE_DIRNAME, LEGACY_IMAGINE_MEDIA_STORE_DIRNAME } from '../src/ids.ts'
 import {

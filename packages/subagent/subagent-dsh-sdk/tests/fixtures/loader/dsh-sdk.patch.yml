@@ -27,7 +27,7 @@
       name: './mock-delegating-llm.ts'
 
     - id: subagent-model-selection-settings
-      name: '@deepseek-ai/dsh-tool-subagent/model-selection-settings'
+      name: '@aeven/tool-subagent/model-selection-settings'
       config:
         enabled: true
         allowedModels:
@@ -45,7 +45,7 @@
 
     # providerName is omitted to exercise the shipped `dsh-sdk` default.
     - id: subagent-dsh-sdk
-      name: '@deepseek-ai/dsh-subagent-dsh-sdk'
+      name: '@aeven/subagent-dsh-sdk'
       config:
         profile: sdk
         patches: !!js JSON.parse(process.env.AVN_TEST_CHILD_PATCHES ?? '[]')

@@ -5,12 +5,12 @@
  * everywhere, and OpenRouter is the one surveyed provider that enumerates its
  * own job states, so its vocabulary is what the seam's union follows and this
  * adapter maps onto directly.
- * @module @deepseek-ai/dsh-media-openrouter
+ * @module @aeven/media-openrouter
  */
 
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { imageMediaType, MediaError, vendorRoute, vendorVideoProvider } from '@deepseek-ai/dsh-media'
+import { imageMediaType, MediaError, vendorRoute, vendorVideoProvider } from '@aeven/media'
 import type {
   GeneratedImage,
   MediaImageModel,
@@ -18,7 +18,7 @@ import type {
   MediaImageRequest,
   MediaImageResult,
   MediaVideoStatus,
-} from '@deepseek-ai/dsh-media'
+} from '@aeven/media'
 
 /** Cordis plugin name. */
 export const name = 'media-openrouter'

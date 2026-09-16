@@ -20,7 +20,7 @@
  * {@link createCachedReader} with a single lifetime rather than
  * {@link createUsageReader}, which keys the second TTL on entitlement.
  *
- * @module @deepseek-ai/dsh-experimental-subscription-auth/usage-reader
+ * @module @aeven/experimental-subscription-auth/usage-reader
  */
 
 import type { UsageHttpResult } from './usage-http.ts'

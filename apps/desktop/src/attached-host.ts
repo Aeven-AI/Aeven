@@ -13,10 +13,10 @@
  * the shell renders the same Web application either way, so adopting it is
  * both the correct and the cheaper choice. Anything short of a proven live
  * Host falls back to today's behaviour: the shell starts its own.
- * @module @deepseek-ai/dsh-desktop/attached-host
+ * @module @aeven/desktop/attached-host
  */
 
-import { liveHostLease, probeHostUrl, resolveDshHome } from '@deepseek-ai/dsh-home-paths'
+import { liveHostLease, probeHostUrl, resolveDshHome } from '@aeven/home-paths'
 
 /** The backend this shell should render. */
 export type DesktopBackendPlan =

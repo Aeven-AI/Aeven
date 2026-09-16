@@ -11,10 +11,10 @@
  * - `clear()` drops the stored projection and detaches any in-flight GET so
  *   its later completion cannot repopulate the cache.
  *
- * @module @deepseek-ai/dsh-experimental-subscription-auth/codex-usage
+ * @module @aeven/experimental-subscription-auth/codex-usage
  */
 
-import { LlmError } from '@deepseek-ai/dsh-llm'
+import { LlmError } from '@aeven/llm'
 import {
   type CodexAuthSession,
   type CodexFetch,

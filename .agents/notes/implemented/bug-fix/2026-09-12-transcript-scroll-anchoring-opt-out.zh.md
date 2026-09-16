@@ -46,7 +46,7 @@ CSS Scroll Anchoring Level 1 §2.1 把这一点规定为整个滚动盒子的开
 
 - 改动前：距底部依次为 0、0、150.5、1616、150.5、1616 px。
 - 仅在 `[data-conversation-scroll]` 上注入 `overflow-anchor: none`：每一步都是 0 px，确认规范中滚动容器层面的开关已经足够，不需要后代选择器。
-- CSS 落地并重建两个客户端包之后（`pnpm --filter @deepseek-ai/dsh-client-ui-conversation bundle`、`pnpm --filter @deepseek-ai/dsh-client-ui-chat bundle`，刷新后由服务端以新的 revision 提供）：每一步都是 0 px，包括对已经打开过的会话用侧边栏点击进入。
+- CSS 落地并重建两个客户端包之后（`pnpm --filter @aeven/client-ui-conversation bundle`、`pnpm --filter @aeven/client-ui-chat bundle`，刷新后由服务端以新的 revision 提供）：每一步都是 0 px，包括对已经打开过的会话用侧边栏点击进入。
 - 阅读位置在退出锚定后仍然保持：读者位于距底部 4,000 px 处时，在视口上方插入 700 px 内容后，阅读行在滚动容器中的偏移不变（前后均为 −39 px），距底部距离也不变，说明这种情况仍由 ChatView 自己的重排锚点承担。
 - 向上阅读后切换会话，下一次激活仍从尾部开始（0 px），即会话激活滚动策略未变。
 - `AVN_SNAPSHOT=replay vitest run --config vitest.web.config.ts apps/web/tests/chat-scroll-contract.e2e.ts` 在未改动的样式表下报 6 个失败，应用本改动后报 5 个。`starts ordinary Session switches at the live tail` 正是本次回归：在未改动的样式表下它距底部差 228 px（`expected 228 to be less than or equal to 1`），应用本改动后通过。其余五个在改动前后同样失败——`preserves the reader anchor when history and streaming arrive concurrently`、`offers every outline turn on the rail and jumps to an unloaded one`、`keeps streaming ownership and tool disclosure state across a long scroll-away cycle`、`restores tab/session position and keeps composer resizing on the correct scroll owner`、`keyboard paging owns bottom-follow without wheel input`——此处未查明其原因。

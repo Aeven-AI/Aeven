@@ -3,7 +3,7 @@ description: "面向 ctx.media 的 OpenRouter 视频 provider：在单一固定 
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-media-openrouter
+# @aeven/media-openrouter
 
 [English](README.md) | 中文
 

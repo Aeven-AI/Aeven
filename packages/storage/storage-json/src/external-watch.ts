@@ -15,14 +15,14 @@
  * runs anyway. A dropped event therefore costs latency until the next sweep,
  * never a permanently stale value — which is the property that lets the
  * domain treat this as a hint channel and keep the medium as the truth.
- * @module @deepseek-ai/dsh-storage-json/src/external-watch
+ * @module @aeven/storage-json/src/external-watch
  */
 
 import { watch } from 'node:fs'
 import type { FSWatcher } from 'node:fs'
 import { readdir, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import type { ExternalChange, KvUnitDescriptor } from '@deepseek-ai/dsh-storage'
+import type { ExternalChange, KvUnitDescriptor } from '@aeven/storage'
 
 /** The stat identity of one observed document; a change in any field reports the location. */
 interface DocumentStamp {

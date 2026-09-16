@@ -2,7 +2,7 @@
 
 English | [中文](todo.zh.md)
 
-The durable todo vocabulary owned by [`@deepseek-ai/dsh-tool-todo`](../../packages/todo/tool-todo/README.md). The model-facing tool replaces one agent session's whole list; the package also owns the event declaration, the two replay projections over it, the model's read-back of that plan, and the invariant companion. Tool behavior and configuration are on the [package README](../../packages/todo/tool-todo/README.md).
+The durable todo vocabulary owned by [`@aeven/tool-todo`](../../packages/todo/tool-todo/README.md). The model-facing tool replaces one agent session's whole list; the package also owns the event declaration, the two replay projections over it, the model's read-back of that plan, and the invariant companion. Tool behavior and configuration are on the [package README](../../packages/todo/tool-todo/README.md).
 
 Source: [`packages/todo/tool-todo/src/types.ts`](../../packages/todo/tool-todo/src/types.ts)
 

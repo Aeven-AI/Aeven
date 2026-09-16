@@ -1,17 +1,17 @@
 /**
  * Optional xAI Grok Build bundle with OAuth, account model catalog,
  * and an account section inside dsh Settings.
- * @module @deepseek-ai/dsh-experimental-subscription-auth
+ * @module @aeven/experimental-subscription-auth
  */
 
 import { randomUUID } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve, sep } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
-import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
-import type { CredentialInfo, CredentialProvider, CredentialRef } from '@deepseek-ai/dsh-credentials'
-import type {} from '@deepseek-ai/dsh-host-webserver'
-import { assertUsableApiKey, type RetryPolicyConfig, RetryPolicySchema } from '@deepseek-ai/dsh-llm'
+import type { AttachmentStore } from '@aeven/attachment'
+import type { CredentialInfo, CredentialProvider, CredentialRef } from '@aeven/credentials'
+import type {} from '@aeven/host-webserver'
+import { assertUsableApiKey, type RetryPolicyConfig, RetryPolicySchema } from '@aeven/llm'
 import z from '@deepseek-ai/schemastery'
 import { acquireCodingOAuthRuntime, CODING_OAUTH_CORE_ABI, type CodingOAuthRuntime } from 'dsh-coding-oauth-core'
 import { createCodingOAuthAdapter } from './adapter.ts'
@@ -370,7 +370,7 @@ async function resolveImagineCredential(
     const resolved = await credentials.resolve(XAI_API_KEY_REF)
     if (resolved !== undefined) {
       return {
-        token: assertUsableApiKey(resolved.value, '@deepseek-ai/dsh-experimental-subscription-auth', XAI_API_KEY_CREDENTIAL),
+        token: assertUsableApiKey(resolved.value, '@aeven/experimental-subscription-auth', XAI_API_KEY_CREDENTIAL),
         transport: 'xai-api',
       }
     }
@@ -390,7 +390,7 @@ async function resolveImagineCredential(
     )
   }
   return {
-    token: assertUsableApiKey(access, '@deepseek-ai/dsh-experimental-subscription-auth', 'the Grok Build OAuth access token'),
+    token: assertUsableApiKey(access, '@aeven/experimental-subscription-auth', 'the Grok Build OAuth access token'),
     transport: 'grok-build',
     headers: { ...grokBuildFingerprintHeaders(), 'x-grok-session-id': sessionId },
   }
@@ -502,7 +502,7 @@ function unavailableImagineClient(): {
 export function apply(ctx: Context, config: Config = {}): void {
   const host = createDshHostAdapter(ctx)
   const lease: CodingOAuthRuntime = acquireCodingOAuthRuntime(host.scope(), {
-    id: '@deepseek-ai/dsh-experimental-subscription-auth',
+    id: '@aeven/experimental-subscription-auth',
     role: 'standalone',
     coreAbi: CODING_OAUTH_CORE_ABI,
     async activate() {

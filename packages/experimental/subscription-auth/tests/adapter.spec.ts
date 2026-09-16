@@ -1,8 +1,8 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { AttachmentId } from '@deepseek-ai/dsh-attachment'
-import type { RetryPolicyConfig } from '@deepseek-ai/dsh-llm'
+import { AttachmentId } from '@aeven/attachment'
+import type { RetryPolicyConfig } from '@aeven/llm'
 import type { AuthContext } from '@earendil-works/pi-ai'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {

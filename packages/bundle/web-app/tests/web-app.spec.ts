@@ -14,9 +14,9 @@ import { PassThrough } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { createLaunchEnvironmentSnapshot, AVN_LAUNCH_ENVIRONMENT_KEY } from '@deepseek-ai/dsh-launch-environment'
-import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import type { WebServer } from '@deepseek-ai/dsh-host-webserver'
+import { createLaunchEnvironmentSnapshot, AVN_LAUNCH_ENVIRONMENT_KEY } from '@aeven/launch-environment'
+import SystemPrompt from '@aeven/system-prompt'
+import type { WebServer } from '@aeven/host-webserver'
 import { apply, Config, internals } from '../src/index.ts'
 
 /** Shared model-visible fixture, also pinned by the Web e2e smoke. */

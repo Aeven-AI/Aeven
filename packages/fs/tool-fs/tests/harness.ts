@@ -1,12 +1,12 @@
 import { Context } from '@deepseek-ai/cordis'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import AgentLoop from '@deepseek-ai/dsh-agent-loop'
-import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
-import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
-import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
-import * as FsPolicy from '@deepseek-ai/dsh-fs-observation-policy'
-import * as ToolFs from '@deepseek-ai/dsh-tool-fs'
-import * as LlmDeepSeek from '@deepseek-ai/dsh-llm-deepseek'
+import type { Agent } from '@aeven/agent'
+import AgentLoop from '@aeven/agent-loop'
+import SessionProjectionRegistry from '@aeven/session-projection'
+import { mountAgentLoopTestDependencies } from '@aeven/agent-loop-testkit'
+import LocalFileSystem from '@aeven/fs-local'
+import * as FsPolicy from '@aeven/fs-observation-policy'
+import * as ToolFs from '@aeven/tool-fs'
+import * as LlmDeepSeek from '@aeven/llm-deepseek'
 
 /**
  * Build the real fs-tool stack for with-key e2e tests. Agents have no session

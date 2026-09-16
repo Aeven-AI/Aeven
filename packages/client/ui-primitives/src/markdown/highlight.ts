@@ -8,7 +8,7 @@
  * text. A lazy language that has not registered yet also renders plain, then
  * {@link subscribeGrammarLoaded} re-highlights once the language arrives.
  *
- * @module @deepseek-ai/dsh-client-ui-primitives/src/markdown/highlight
+ * @module @aeven/client-ui-primitives/src/markdown/highlight
  */
 
 import hljs from 'highlight.js/lib/core'

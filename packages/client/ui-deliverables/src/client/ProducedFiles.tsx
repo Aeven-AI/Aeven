@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
-import type { HostObservable, InjectFace, PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
-import type { TurnTailOwnerProps } from '@deepseek-ai/dsh-client-ui-chat/client'
+import type { HostObservable, InjectFace, PropsLocale } from '@aeven/client-ui-slots'
+import type { TurnTailOwnerProps } from '@aeven/client-ui-chat/client'
 import { basename } from './turn-deliverables.ts'
 import type { NS } from './locales.ts'
 import css from './ProducedFiles.module.css'

@@ -75,7 +75,7 @@ function asOwnerRequestPolicy(value: unknown): OwnerRequestPolicy | undefined {
 
 function dshVersion(): string | null {
   try {
-    const manifest = require('@deepseek-ai/dsh/package.json') as { version?: unknown }
+    const manifest = require('@aeven/cli/package.json') as { version?: unknown }
     return typeof manifest.version === 'string' ? manifest.version : null
   } catch {
     return null

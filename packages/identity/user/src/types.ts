@@ -1,6 +1,6 @@
 /**
  * Vocabulary for the authenticated-user seam.
- * @module @deepseek-ai/dsh-identity-user/types
+ * @module @aeven/identity-user/types
  */
 
 /**

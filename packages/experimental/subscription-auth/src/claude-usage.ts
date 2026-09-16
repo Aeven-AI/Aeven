@@ -11,7 +11,7 @@
  * `resets_at`; {@link ProviderUsage} carries remaining percent and epoch
  * seconds, so both are converted.
  *
- * @module @deepseek-ai/dsh-experimental-subscription-auth/claude-usage
+ * @module @aeven/experimental-subscription-auth/claude-usage
  */
 
 import { type UsageFetch, type UsageHttpOptions, usageGetJson } from './usage-http.ts'
@@ -165,7 +165,7 @@ export interface ClaudeUsageReaderOptions {
   readonly negativeTtlMs?: number
 }
 
-const DEFAULT_USER_AGENT = '@deepseek-ai/dsh-experimental-subscription-auth'
+const DEFAULT_USER_AGENT = '@aeven/experimental-subscription-auth'
 
 /**
  * Build the cached Claude usage reader.

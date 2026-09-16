@@ -12,9 +12,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import LlmRuntime from '@deepseek-ai/dsh-llm'
-import * as LlmDeepSeek from '@deepseek-ai/dsh-llm-deepseek'
-import type { DeepSeekCatalogModel } from '@deepseek-ai/dsh-llm-deepseek'
+import LlmRuntime from '@aeven/llm'
+import * as LlmDeepSeek from '@aeven/llm-deepseek'
+import type { DeepSeekCatalogModel } from '@aeven/llm-deepseek'
 import { fetchModelIds, parseModelIds, withSyncedModels } from '../src/model-sync.ts'
 
 const servers: Server[] = []

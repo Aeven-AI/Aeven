@@ -3,7 +3,7 @@ description: "The Aeven sign-in, sign-up, and OAuth-result screens for the DSH w
 kind: "package-library"
 ---
 
-# @deepseek-ai/dsh-client-ui-auth-aeven
+# @aeven/client-ui-auth-aeven
 
 English | [中文](README.zh.md)
 
@@ -34,7 +34,7 @@ This is a library, not a plugin: the authentication gate runs before the plugin 
 The boot kernel gates on session restore and hands the container to a screen when nobody is signed in:
 
 ```text
-import { restoreSession, mountAuthScreen, requireSignIn, installAuthenticatedTransport } from '@deepseek-ai/dsh-client-ui-auth-aeven'
+import { restoreSession, mountAuthScreen, requireSignIn, installAuthenticatedTransport } from '@aeven/client-ui-auth-aeven'
 
 const result = await restoreSession()
 if (result.state === 'authenticated') installAuthenticatedTransport()

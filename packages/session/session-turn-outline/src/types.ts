@@ -4,10 +4,10 @@
  * (zod, the projection definition). Host consumers import `./types`; client
  * aggregates import `./client`, which re-exports this module.
  *
- * @module @deepseek-ai/dsh-session-turn-outline/types
+ * @module @aeven/session-turn-outline/types
  */
 
-import type { SessionSeq } from '@deepseek-ai/dsh-session/types'
+import type { SessionSeq } from '@aeven/session/types'
 
 export {}
 
@@ -38,7 +38,7 @@ export interface TurnOutlineState {
   readonly open: TurnOutlineEntry | null
 }
 
-declare module '@deepseek-ai/dsh-session-projection/types' {
+declare module '@aeven/session-projection/types' {
   interface SessionProjectionStateMap {
     /** Whole-log turn outline fold state (settled turns plus the open one). */
     turnOutline: TurnOutlineState

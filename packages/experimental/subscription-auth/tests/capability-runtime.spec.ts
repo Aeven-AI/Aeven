@@ -1,5 +1,5 @@
-import { LlmError } from '@deepseek-ai/dsh-llm'
-import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
+import { LlmError } from '@aeven/llm'
+import type { ToolDefinition } from '@aeven/tools'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   bindCapabilitySearch,
