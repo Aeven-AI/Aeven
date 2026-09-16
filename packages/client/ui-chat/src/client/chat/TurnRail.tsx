@@ -16,8 +16,8 @@ interface TurnRailProps {
 const BAND_PX = 420
 /** Comfortable spacing, used until the ladder would outgrow the band. */
 const MAX_PITCH_PX = 10
-/** Floor: one tick's own width, where neighbouring ticks just touch. */
-const MIN_PITCH_PX = 4
+/** Floor: one tick's own height, where neighbouring ticks just touch. */
+const MIN_PITCH_PX = 2
 
 type RailStyle = CSSProperties & {
   readonly '--dsh-turn-pitch': string
@@ -39,7 +39,7 @@ function pitchFor(count: number): number {
 /**
  * Mark under a pointer position.
  *
- * The rail owns pointer input for its whole column: a 4px tick is not a
+ * The rail owns pointer input for its whole column: a 2px tick is not a
  * pointer target, so the index is computed from the pointer's offset rather
  * than hit-tested against the ticks, which stay `pointer-events: none`. One
  * rect read per gesture, never per frame.
@@ -54,7 +54,7 @@ function markAtPointer(
   clientY: number,
 ): TurnRailMark | undefined {
   const rect = rail.getBoundingClientRect()
-  const pitch = pitchFor(marks.length)
+  const pitch = rect.height / (marks.length - 1)
   const index = Math.round((clientY - rect.top) / pitch)
   return marks[Math.max(0, Math.min(marks.length - 1, index))]
 }

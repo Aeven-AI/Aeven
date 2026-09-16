@@ -236,6 +236,7 @@ export function ChatView({
   // conversation snapshot never carries projection values.
   const turnOutline = useProjection('turnOutline')
   const [activeTurn, setActiveTurn] = useState<number | null>(null)
+  const turnNavigationRef = useRef<TurnRailMark | null>(null)
   const selectedCallId = useStore(s => s.selection?.callId)
   const compactTranscript = useTranscriptView(mode => mode === 'compact')
   const eventNavigation = useEventNavigation(request => request)
@@ -334,6 +335,8 @@ export function ChatView({
   /** Latest automatic-paging test; assigned below, called from scroll, commit, and resize paths.
    *  Runs both directions: forward paging is live only while the window is detached. */
   const maybeLoadOlderRef = useRef<() => void>(() => {})
+  /** Reader input enables forward paging; a jump alone preserves its history window. */
+  const forwardPagingArmedRef = useRef(false)
   /** Host chrome layer for floating controls; null when this view owns its own scrolling. */
   const [chromeLayer, setChromeLayer] = useState<HTMLElement | null>(null)
   /**
@@ -433,7 +436,7 @@ export function ChatView({
     el.scrollTop += flowTop(row, el) - 24
     observedTopRef.current = el.scrollTop
     anchorRef.current = readingAnchor(local, el)
-    const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_THRESHOLD + 1
+    const isAtBottom = !detached && el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_THRESHOLD + 1
     atBottomRef.current = isAtBottom
     const position = isAtBottom ? null : scrollPosition(local, el)
     if (isAtBottom) chatScroll.save(null)
@@ -447,6 +450,7 @@ export function ChatView({
     const el = scrollerOf(local)
     // Every commit first holds the reader's row against the layout it changed,
     // including a page that lands while a reader scroll is still being sampled.
+    if (detached) atBottomRef.current = false
     if (openedRef.current) holdAnchorRef.current()
     // Open completed: jump to the bottom once — unless a scroll position
     // survives from a previous mount (view-tab switch away and back), which
@@ -462,7 +466,7 @@ export function ChatView({
         const row = anchorElement(local, saved.anchorKey)
         if (row !== null) el.scrollTop += flowTop(row, el) - saved.anchorTop
         observedTopRef.current = el.scrollTop
-        const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_THRESHOLD + 1
+        const isAtBottom = !detached && el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_THRESHOLD + 1
         atBottomRef.current = isAtBottom
         anchorRef.current = readingAnchor(local, el)
         const normalized = isAtBottom ? null : scrollPosition(local, el)
@@ -492,7 +496,8 @@ export function ChatView({
     firstSeqRef.current = firstSeq
     // Own words must be visible: a new trailing user node force-scrolls
     // (send lives in the composer, so arrival is detected here, not armed there).
-    const appendedUser = lastKey !== lastKeyRef.current && lastNode?.kind === 'user'
+    const appendedUser = !detached && !loadingOlder
+      && lastKey !== lastKeyRef.current && lastNode?.kind === 'user'
     const appendedSteering = lastSteeringId !== null && lastSteeringId !== lastSteeringIdRef.current
     const appendedSubmission = lastSubmissionId !== null && lastSubmissionId !== lastSubmissionIdRef.current
     const tipMoved = followSigRef.current !== followSig
@@ -549,29 +554,38 @@ export function ChatView({
       if (movedByReader) {
         // Any upward reader movement leaves the live tail immediately. Moving
         // back down re-arms following only once the reader reaches its margin.
-        atBottomRef.current = top > deliveredTop
+        atBottomRef.current = !detached && top > deliveredTop
           && floor - top <= FOLLOW_THRESHOLD + 1
+        if (top > deliveredTop) forwardPagingArmedRef.current = true
       }
       observedTopRef.current = top
       scrollSamplePendingRef.current = true
       sampleTimer ??= window.setTimeout(sample, SCROLL_SAMPLE_INTERVAL_MS)
     }
+    const onWheel = (event: WheelEvent): void => {
+      if (event.deltaY <= 0) return
+      if (detached) atBottomRef.current = false
+      forwardPagingArmedRef.current = true
+      maybeLoadOlderRef.current()
+    }
+    el.addEventListener('wheel', onWheel, { passive: true })
     el.addEventListener('scroll', onScroll, { passive: true })
     el.addEventListener('scrollend', sample, { passive: true })
     return () => {
+      el.removeEventListener('wheel', onWheel)
       el.removeEventListener('scroll', onScroll)
       el.removeEventListener('scrollend', sample)
       if (sampleTimer !== undefined) window.clearTimeout(sampleTimer)
       scrollSamplePendingRef.current = false
     }
-  }, [])
+  }, [detached])
 
   // The ref starts null and is assigned every render, so the placeholder
   // initializer a function initial value would need never exists.
   const followRef = useRef<(() => void) | null>(null)
   followRef.current = () => {
     const local = listRef.current
-    if (local !== null && atBottomRef.current) {
+    if (local !== null && !detached && atBottomRef.current) {
       const el = scrollerOf(local)
       el.scrollTop = el.scrollHeight
       observedTopRef.current = el.scrollTop
@@ -653,12 +667,22 @@ export function ChatView({
     const local = listRef.current
     if (local === null) return
     const el = scrollerOf(local)
-    const exactKey = order.find(key => nodeStore.get(key)?.anchorSeq === eventNavigation.seq)
-    const exactRow = exactKey === undefined ? null : anchorElement(local, exactKey)
+    const targetTurn = turnNavigationRef.current?.seq === eventNavigation.seq
+      ? turnNavigationRef.current.turn : null
+    const turnRow = targetTurn === null ? null
+      : local.querySelector<HTMLElement>(`[data-chat-turn="${String(targetTurn)}"]:not([hidden])`)
+    const exactKey = targetTurn === null
+      ? order.find(key => nodeStore.get(key)?.anchorSeq === eventNavigation.seq)
+      : turnRow?.dataset.chatAnchorKey
+    const exactRow = targetTurn === null
+      ? exactKey === undefined ? null : anchorElement(local, exactKey)
+      : turnRow
     if (exactKey !== undefined && exactRow !== null) {
       const turn = Number(exactRow.dataset.chatTurn)
       if (Number.isSafeInteger(turn)) {
         landOnRowRef.current(local, el, exactRow)
+        setActiveTurn(turn)
+        turnNavigationRef.current = null
         setHighlightedNodeKey(exactKey)
         completedEventNavigationRef.current = eventNavigation.requestId
         eventNavigationLoadRef.current = null
@@ -667,9 +691,10 @@ export function ChatView({
       }
     }
 
-    const uncovered = firstSeq === null || firstSeq > eventNavigation.seq
+    if (loadingOlder && eventNavigationLoadRef.current === null) return
+    const uncovered = firstSeq === null || firstSeq > eventNavigation.seq || detached
     const loading = eventNavigationLoadRef.current
-    if (uncovered && hasMore && loading?.requestId !== eventNavigation.requestId) {
+    if (uncovered && (hasMore || detached) && loading?.requestId !== eventNavigation.requestId) {
       atBottomRef.current = false
       const request = { requestId: eventNavigation.requestId, settled: false }
       eventNavigationLoadRef.current = request
@@ -682,10 +707,11 @@ export function ChatView({
     if (loading?.requestId === eventNavigation.requestId && !loading.settled) return
 
     // The indexed event should map one-to-one to a user or assistant row. If
-    // a changed projection omits it, land the closest visible durable row so
-    // navigation still leaves the reader near the indexed match.
+    // a changed projection omits it, message navigation may land the closest
+    // durable row. Turn navigation never substitutes a different turn.
     let fallback: { key: string; distance: number } | null = null
     for (const key of order) {
+      if (targetTurn !== null) continue
       const seq = nodeStore.get(key)?.anchorSeq
       const row = anchorElement(local, key)
       if (seq === undefined || row === null) continue
@@ -700,12 +726,13 @@ export function ChatView({
         setHighlightedNodeKey(fallback.key)
       }
     }
+    turnNavigationRef.current = null
     completedEventNavigationRef.current = eventNavigation.requestId
     eventNavigationLoadRef.current = null
     completeEventNavigation(eventNavigation.requestId)
   }, [
     completeEventNavigation, eventNavigation, eventNavigationSettleTick, firstSeq,
-    hasMore, loadThrough, nodeStore, openState, order,
+    detached, hasMore, loadingOlder, loadThrough, nodeStore, openState, order,
   ])
 
   // The rail's marks: the host outline joined with the turns the window holds.
@@ -725,19 +752,24 @@ export function ChatView({
     const local = listRef.current
     if (local === null || typeof IntersectionObserver === 'undefined') return
     const scroller = scrollerOf(local)
-    const visible = new Map<number, number>()
+    const visible = new Map<HTMLElement, number>()
     const observer = new IntersectionObserver((entries) => {
       for (const entry of entries) {
         const row = entry.target as HTMLElement
         const turn = Number(row.dataset.chatTurn)
         if (!Number.isSafeInteger(turn)) continue
-        if (entry.isIntersecting) visible.set(turn, entry.boundingClientRect.top)
-        else visible.delete(turn)
+        if (entry.isIntersecting) visible.set(row, turn)
+        else visible.delete(row)
       }
       // Several turns can cross the band at once; the newest one owns the mark,
       // matching a reader travelling down the transcript.
       let next: number | null = null
-      for (const turn of visible.keys()) {
+      for (const [row, turn] of visible) {
+        if (!local.contains(row)) {
+          visible.delete(row)
+          observer.unobserve(row)
+          continue
+        }
         if (next === null || turn > next) next = turn
       }
       if (next !== null) setActiveTurn(current => current === next ? current : next)
@@ -779,17 +811,22 @@ export function ChatView({
   /** Rail jump: a loaded turn scrolls now, an unloaded one anchors a window first. */
   const navigateToTurn = useCallback((mark: TurnRailMark): void => {
     setActiveTurn(mark.turn)
+    forwardPagingArmedRef.current = false
     const local = listRef.current
     if (local === null) return
-    const row = local.querySelector<HTMLElement>(`[data-chat-turn="${String(mark.turn)}"]`)
+    const row = local.querySelector<HTMLElement>(`[data-chat-turn="${String(mark.turn)}"]:not([hidden])`)
     if (mark.loaded && row !== null) {
       const el = scrollerOf(local)
       atBottomRef.current = false
-      el.scrollTo({ top: el.scrollTop + flowTop(row, el) - 24, behavior: 'smooth' })
+      el.scrollTop = el.scrollTop + flowTop(row, el) - 24
+      observedTopRef.current = el.scrollTop
+      anchorRef.current = readingAnchor(local, el)
       return
     }
     // Not in the window: the existing event-navigation path pages history to
     // the seq and lands the row, reporting progress through the head spinner.
+    turnNavigationRef.current = mark
+    atBottomRef.current = false
     navigateToEvent(mark.seq)
   }, [navigateToEvent])
 
@@ -802,8 +839,8 @@ export function ChatView({
    *
    * A window a jump detached also has a foot short of the live tail, so the
    * same test runs mirrored below it. Only one direction can pull at a time —
-   * both read the one `loadingOlder` busy flag — and the head is tried first,
-   * which is the direction a reader who jumped back is usually travelling.
+   * both read the one `loadingOlder` busy flag. Reader-driven forward paging
+   * takes priority when the window is short enough to reach both margins.
    */
   maybeLoadOlderRef.current = () => {
     if (openState !== 'open' || loadingOlder) return
@@ -818,15 +855,12 @@ export function ChatView({
     // before the page it needs has arrived.
     const margin = Math.max(OLDER_PREFETCH_MARGIN, el.clientHeight * OLDER_PREFETCH_SCREENS)
     const scrollable = el.scrollHeight > el.clientHeight
-    // Ordered so a reader far from the head never pays for `scrollHeight`,
-    // which forces layout of the whole transcript.
-    if (hasMore && !(el.scrollTop > margin && scrollable)) {
-      loadOlder()
+    if (detached && forwardPagingArmedRef.current
+      && (!scrollable || el.scrollHeight - el.scrollTop - el.clientHeight <= margin)) {
+      loadNewer()
       return
     }
-    if (!detached) return
-    if (el.scrollHeight - el.scrollTop - el.clientHeight > margin && scrollable) return
-    loadNewer()
+    if (hasMore && !(el.scrollTop > margin && scrollable)) loadOlder()
   }
 
   // ChatView commits inside a resident shell whose sticky composer and cover
@@ -864,7 +898,10 @@ export function ChatView({
         activationTailFrameRef.current = null
       }
     }
-  }, [])
+    // `order` so a window installed after mount — a return-to-live reattach —
+    // takes the same correction an activation does. The latch above is what
+    // limits this to the commits that asked for it.
+  }, [order])
 
   // Paging status floats in the host's non-scrolling chrome layer when one is
   // available, so elastic overscroll cannot move it.
@@ -907,9 +944,15 @@ export function ChatView({
         data-pending-live={detached && pendingLive > 0 ? pendingLive : undefined}
         onClick={() => {
           // A detached window has no live tail to scroll to: its floor is the
-          // jump's page boundary. Reattaching is what reaches the newest
-          // events, and the reinstalled window opens pinned to them.
+          // jump's page boundary, so writing scrollTop would strand the reader
+          // mid-history. Reattaching is what reaches the newest events, and the
+          // reinstalled window has to be pinned to its floor once it commits —
+          // the same correction an activation takes.
           if (detached) {
+            atBottomRef.current = true
+            anchorRef.current = null
+            chatScroll.save(null)
+            activationTailPendingRef.current = true
             returnToLive()
             return
           }

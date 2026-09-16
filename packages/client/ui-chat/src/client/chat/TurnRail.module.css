@@ -30,10 +30,10 @@
   position: absolute;
   right: 0;
   width: 4px;
-  height: 4px;
+  height: 2px;
   padding: 0;
   border: 0;
-  border-radius: 2px;
+  border-radius: 1px;
   background: var(--dsh-fg-muted, #8a8a8a);
   opacity: 0.45;
   /* The ticks are paint and keyboard destinations; the rail owns the pointer. */
@@ -53,18 +53,19 @@
   opacity: 0.75;
 }
 
+/* The current turn is marked by length alone, in the same muted ink as the
+   rest of the ladder: it reads as the tallest rung of one scale rather than as
+   a separate marker sitting on top of it. */
 .tickActive {
   width: 8px;
-  height: 8px;
-  border-radius: 4px;
-  background: var(--dsh-accent, #4a8cff);
+  border-radius: 1px;
   opacity: 1;
 }
 
 /* Pointer travel over the rail should feel like one target, so every tick
    grows while the column is hovered. */
 .rail:hover .tick {
-  width: 6px;
+  height: 3px;
   opacity: 0.6;
 }
 

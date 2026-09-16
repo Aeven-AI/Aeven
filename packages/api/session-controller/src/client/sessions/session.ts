@@ -501,6 +501,14 @@ export class Session implements SessionFace {
       maxMessages: JUMP_PAGE_MESSAGES,
     })
     if (generation !== this.openGeneration) return
+    if (this.hasMore) {
+      await events.prepend({ beforeSeq: this.baseSeq, maxMessages: SCROLL_PAGE_MESSAGES })
+    }
+    if (generation !== this.openGeneration) return
+    const end = events.detachedEnd()
+    if (end !== undefined) {
+      await events.appendPage({ afterSeq: end, maxMessages: SCROLL_PAGE_MESSAGES })
+    }
   }
 
   /**
@@ -530,6 +538,11 @@ export class Session implements SessionFace {
     this.openState = 'cold'
     this.openError = null
     this.baseSeq = SessionLogOffset(0)
+    // The rebuilt window comes from the stream's own opening snapshot, which
+    // is always the live tail: any detachment a jump left behind is gone with
+    // the stream that carried it.
+    this.hasNewer = false
+    this.pendingLiveCount = 0
     this.notifier.markDirty()
     await this.open()
   }
