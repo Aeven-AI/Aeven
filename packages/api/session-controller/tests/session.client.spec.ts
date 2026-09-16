@@ -16,6 +16,15 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+/**
+ * What the fake's history call resolves to.
+ *
+ * A history page may carry the projection baseline beside its records, so a
+ * deferred gate that hands a page back to `onHistory` has to resolve to the
+ * whole shape, not just the records.
+ */
+type HistoryResponse = Awaited<ReturnType<FakeApiClient['onHistory']>>
+
 function makeSession(
   api = new FakeApiClient(),
   options: SessionOptions = {},
@@ -179,7 +188,7 @@ describe('Session open', () => {
 
   it('stitches live frames arriving while history is pending, dropping the page overlap', async () => {
     const { api, session } = makeSession()
-    const gate = deferred<Awaited<ReturnType<FakeApiClient['onHistory']>>>()
+    const gate = deferred<HistoryResponse>()
     api.onHistory = () => gate.promise
     const opening = session.open()
     // Three live frames land while the opening snapshot is pending; seq 15 overlaps its tail.
@@ -312,7 +321,7 @@ describe('paging', () => {
     const tailHead = eventSeqs(session)[0]
     expect(tailHead).toBeGreaterThan(SessionSeq(0))
 
-    const gate = deferred<Awaited<ReturnType<FakeApiClient['onHistory']>>>()
+    const gate = deferred<HistoryResponse>()
     const target = SessionSeq(0)
     const readBound = SessionSeq(target + Math.floor(JUMP_PAGE_MESSAGES / 2))
     const reads: unknown[] = []
@@ -332,7 +341,7 @@ describe('paging', () => {
       beforeSeq: readBound,
       maxMessages: JUMP_PAGE_MESSAGES,
     }])
-    gate.resolve(serve({ beforeSeq: readBound, maxMessages: JUMP_PAGE_MESSAGES }))
+    gate.resolve(await serve({ beforeSeq: readBound, maxMessages: JUMP_PAGE_MESSAGES }))
     await jump
 
     const snapshot = session.getSnapshot()
@@ -371,7 +380,7 @@ describe('paging', () => {
     api.onHistory = serve
     await session.open()
 
-    const gate = deferred<Awaited<ReturnType<FakeApiClient['onHistory']>>>()
+    const gate = deferred<HistoryResponse>()
     const deep = SessionSeq(0)
     const near = SessionSeq(300)
     const nearBound = SessionSeq(near + Math.floor(JUMP_PAGE_MESSAGES / 2))
@@ -389,7 +398,7 @@ describe('paging', () => {
     const second = session.loadThrough(deep)
     // The retargeting caller joins the running pass rather than starting one.
     expect(second).toBe(first)
-    gate.resolve(serve({ beforeSeq: nearBound, maxMessages: JUMP_PAGE_MESSAGES }))
+    gate.resolve(await serve({ beforeSeq: nearBound, maxMessages: JUMP_PAGE_MESSAGES }))
     await Promise.all([first, second])
 
     // Each target costs one anchored read, whatever the distance between them:
@@ -412,7 +421,7 @@ describe('paging', () => {
       .map(call => (call as { beforeSeq?: number }).beforeSeq)
 
     // A plain single-page pull holds the busy flag while the jump is refused.
-    const gate = deferred<Awaited<ReturnType<FakeApiClient['onHistory']>>>()
+    const gate = deferred<HistoryResponse>()
     const head = eventSeqs(session)[0] ?? 0
     api.onHistory = payload => payload.maxMessages === SCROLL_PAGE_MESSAGES && payload.afterSeq === undefined
       ? gate.promise
@@ -420,7 +429,7 @@ describe('paging', () => {
     const older = session.loadOlder()
     await session.loadThrough(SessionSeq(0)) // refused: must not park seq 0 anywhere
     expect(anchoredReads()).toEqual([])
-    gate.resolve(serve({ beforeSeq: head, maxMessages: SCROLL_PAGE_MESSAGES }))
+    gate.resolve(await serve({ beforeSeq: head, maxMessages: SCROLL_PAGE_MESSAGES }))
     await older
 
     // A later jump to a nearer seq reads once, anchored on that seq: a leaked
@@ -434,7 +443,7 @@ describe('paging', () => {
     api.onHistory = () => histResponse(plainTurn(SessionSeq(12), 2, 'x', 'y'), true)
     await session.open()
 
-    const gate = deferred<Awaited<ReturnType<FakeApiClient['onHistory']>>>()
+    const gate = deferred<HistoryResponse>()
     api.onHistory = () => gate.promise
     const jump = session.loadThrough(SessionSeq(0))
     // The address is rebuilt while the first page is in flight.
@@ -482,7 +491,7 @@ describe('paging', () => {
     const { api, session } = makeSession()
     api.onHistory = () => histResponse(plainTurn(SessionSeq(6), 1, 'x', 'y'), true)
     await session.open()
-    const gate = deferred<Awaited<ReturnType<FakeApiClient['onHistory']>>>()
+    const gate = deferred<HistoryResponse>()
     api.onHistory = () => gate.promise
     const first = session.loadOlder()
     const second = session.loadOlder()
@@ -837,7 +846,7 @@ describe('remaining branches', () => {
     const { api, session } = makeSession()
     api.onHistory = () => histResponse(plainTurn(SessionSeq(0), 0, 'a', 'b'))
     await session.open()
-    const gate = deferred<Awaited<ReturnType<FakeApiClient['onHistory']>>>()
+    const gate = deferred<HistoryResponse>()
     let repairs = 0
     api.onHistory = () => {
       repairs++
@@ -857,7 +866,7 @@ describe('remaining branches', () => {
 
   it('doOpen transport throw of a stale generation is swallowed (generation guard in catch)', async () => {
     const { api, session } = makeSession()
-    const stale = deferred<Awaited<ReturnType<FakeApiClient['onHistory']>>>()
+    const stale = deferred<HistoryResponse>()
     api.onHistory = () => stale.promise
     const opening = session.open()
     api.onHistory = () => histResponse(plainTurn(SessionSeq(0), 0, 'a', 'b'))
@@ -869,7 +878,7 @@ describe('remaining branches', () => {
 
   it('drops a stale doOpen whose history resolved successfully after resync superseded it', async () => {
     const { api, session } = makeSession()
-    const stale = deferred<Awaited<ReturnType<FakeApiClient['onHistory']>>>()
+    const stale = deferred<HistoryResponse>()
     api.onHistory = () => stale.promise
     const opening = session.open()
     api.onHistory = () => histResponse(plainTurn(SessionSeq(6), 1, '新', '代'))
@@ -887,7 +896,7 @@ describe('remaining branches', () => {
     const { api, session } = makeSession()
     api.onHistory = () => histResponse(plainTurn(SessionSeq(0), 0, 'a', 'b'))
     await session.open()
-    const repairPull = deferred<Awaited<ReturnType<FakeApiClient['onHistory']>>>()
+    const repairPull = deferred<HistoryResponse>()
     api.onHistory = () => repairPull.promise
     const delivery = follow(api, ev.user(SessionSeq(9), '洞'))
     await vi.waitFor(() => { expect(api.callsOf('session.history')).toHaveLength(1) })
@@ -949,7 +958,7 @@ describe('resync', () => {
     api.onHistory = () => histResponse(plainTurn(SessionSeq(0), 0, '旧', '窗'))
     await session.open()
     const oldWindow = session.eventSource.getSnapshot()
-    const replacement = deferred<Awaited<ReturnType<FakeApiClient['onHistory']>>>()
+    const replacement = deferred<HistoryResponse>()
     api.followCursor = 15
     api.onHistory = () => replacement.promise
     const publications: ReturnType<Session['eventSource']['getSnapshot']>[] = []
@@ -1010,7 +1019,7 @@ describe('resync', () => {
 
   it('drops a stale in-flight open superseded by resync (generation guard)', async () => {
     const { api, session } = makeSession()
-    const stale = deferred<Awaited<ReturnType<FakeApiClient['onHistory']>>>()
+    const stale = deferred<HistoryResponse>()
     api.onHistory = () => stale.promise
     const firstOpen = session.open()
     api.onHistory = () => histResponse(plainTurn(SessionSeq(6), 1, '新', '代'))

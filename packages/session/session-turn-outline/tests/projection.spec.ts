@@ -16,7 +16,8 @@
 
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { createAssistantMessage, createUserMessage } from '@deepseek-ai/dsh-llm'
+import { AttachmentId } from '@deepseek-ai/dsh-attachment'
+import { createAssistantMessage, createUserMessage, ToolCallId } from '@deepseek-ai/dsh-llm'
 import SessionStore, { SessionId, SessionSeq } from '@deepseek-ai/dsh-session'
 import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
@@ -160,7 +161,16 @@ describe('turnOutline projection unit (registry drive)', () => {
     const { ctx, session } = await harness()
     const boundary = session.append('turn/start', { turn: 1 }).seq
     session.append('user/message', createUserMessage({
-      content: [{ type: 'image', mediaType: 'image/png', data: 'AAAA' }],
+      content: [{
+        type: 'image',
+        attachment: {
+          attachmentId: AttachmentId('att-1'),
+          mediaType: 'image/png',
+          bytes: 4,
+          width: 1,
+          height: 1,
+        },
+      }],
       source: { kind: 'user' },
     }), { surfaceOp: 'append' })
     session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
@@ -178,9 +188,9 @@ describe('turnOutline projection unit (registry drive)', () => {
     // A tool result is user-role too, and carries no text block at all.
     session.append('user/message', createUserMessage({
       content: [{
-        type: 'tool-result', toolCallId: 'call-1', content: [{ type: 'text', text: 'tool output' }], isError: false,
+        type: 'tool-result', toolCallId: ToolCallId('call-1'), content: [{ type: 'text', text: 'tool output' }], isError: false,
       }],
-      source: { kind: 'tool', callId: 'call-1' },
+      source: { kind: 'tool', callId: ToolCallId('call-1') },
     }), { surfaceOp: 'append' })
     session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
     expect(ctx.sessionProjections.snapshot(session).values.turnOutline).toEqual([entry(1, boundary)])
@@ -451,7 +461,7 @@ describe('turnOutline fold (definition, synthetic events)', () => {
       at(2, 'assistant/message', { turn: 1, step: 2, message }),
     )).toBe(state)
     const textFree = createAssistantMessage({
-      content: [{ type: 'tool-call', id: 'call-1', name: 'read', arguments: '{}' }],
+      content: [{ type: 'tool-call', id: ToolCallId('call-1'), name: 'read', arguments: '{}' }],
       source: { provider: 'mock', model: 'mock' },
     })
     expect(turnOutlineProjectionDefinition.apply(

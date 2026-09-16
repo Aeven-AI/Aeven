@@ -196,13 +196,16 @@ function findOffScaleBreakpoints(path: string, source: string): BaselineViolatio
   const pattern = /\((?:max|min)-width:\s*(\d+)px\)/g
   let match: RegExpExecArray | null
   while ((match = pattern.exec(source)) !== null) {
-    if (!mediaPreludes.some(([start, end]) => match.index >= start && match.index < end)) continue
+    // The assignment in the condition narrows `match` only for the iteration
+    // itself; a fresh binding is what carries that narrowing into the closure.
+    const at = match.index
     const width = Number(match[1])
+    if (!mediaPreludes.some(([start, end]) => at >= start && at < end)) continue
     if (BREAKPOINT_SCALE.includes(width)) continue
     found.push({
       id: 'breakpoint-off-scale',
       path,
-      line: lineAt(source, match.index),
+      line: lineAt(source, at),
       since: 'n/a',
       remedy: `use one of the ${BREAKPOINT_SCALE.join(' / ')} steps named in aeven-language.css`,
     })

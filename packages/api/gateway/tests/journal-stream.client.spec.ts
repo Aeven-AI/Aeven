@@ -24,6 +24,13 @@ interface Page {
 interface PageRequest {
   readonly before?: number
   readonly limit?: number
+  /**
+   * The two-sided window's direction: `anchor` walks back from `beforeSeq` and
+   * `appendPage` walks forward from `afterSeq`, so a request carries whichever
+   * one the caller is asking for.
+   */
+  readonly beforeSeq?: number
+  readonly afterSeq?: number
 }
 
 type JournalFrame = RemoteJournalFrame<Entry, number, Page>

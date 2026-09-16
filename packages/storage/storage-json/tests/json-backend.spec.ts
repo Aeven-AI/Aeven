@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Storage, { storageBackendServiceKey } from '@deepseek-ai/dsh-storage'
-import type { ExternalChange } from '@deepseek-ai/dsh-storage'
+import type { ExternalChange, KvUnit } from '@deepseek-ai/dsh-storage'
 import { runKvBackendContract } from '../../storage/tests/contract.ts'
 import { Config, JsonStorageBackend, apply } from '../src/index.ts'
 
@@ -27,6 +27,19 @@ runKvBackendContract('json', async () => {
     reopen: async () => new JsonStorageBackend(root),
   }
 })
+
+/**
+ * Assert the unit exposes the external-watch capability this backend installs.
+ *
+ * `KvUnit.watchExternal` is optional on the shared interface, so it is typed as
+ * possibly absent; the JSON backend is one of the providers that implements it,
+ * and the cases below are about that implementation. Call the observation as a
+ * method on the narrowed unit: it touches private state, so detaching it loses
+ * its receiver.
+ */
+function assertObservable(unit: KvUnit): asserts unit is KvUnit & Required<Pick<KvUnit, 'watchExternal'>> {
+  if (unit.watchExternal === undefined) throw new Error('json backend unit exposes no external watch')
+}
 
 describe('json backend specifics', () => {
   const descriptor = { name: 'shape', version: 1, tables: ['t'], hasGlobal: true }
@@ -506,6 +519,7 @@ describe('per-record layout', () => {
     const root = await freshRoot()
     const backend = new JsonStorageBackend(root)
     const unit = await backend.kv.open(descriptor)
+    assertObservable(unit)
     const reported: ExternalChange[] = []
     const release = unit.watchExternal(changes => reported.push(...changes))
     // One observer per unit: the domain layer is the single consumer, and a
@@ -536,6 +550,7 @@ describe('per-record layout', () => {
     const backend = new JsonStorageBackend(root)
     const notifier = { name: 'notifier', version: 1, layout: 'per-record' as const, tables: ['t'], hasGlobal: true }
     const unit = await backend.kv.open(notifier)
+    assertObservable(unit)
     // A file where the table directory belongs: the baseline read fails with
     // ENOTDIR, which is the shape of any medium the detector cannot read at
     // open. Failing the caller's boot over a detector whose sweep is the floor

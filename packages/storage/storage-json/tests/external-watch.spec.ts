@@ -75,8 +75,24 @@ async function until(
  * happens to deliver an event.
  */
 async function drivePass(watcher: ExternalWatcher): Promise<void> {
-  watcher.schedule(0)
+  schedulePass(watcher, 0)
   await new Promise(resolve => setTimeout(resolve, PASS_SETTLE_MS))
+}
+
+/**
+ * Ask the watcher for a reconcile pass the way its own triggers do.
+ *
+ * `schedule` is private because nothing outside the class is meant to request
+ * a pass; both production triggers — `fs.watch` with `options.debounceMs` and
+ * the sweep timer with `0` — go through this same call, so a spec that wants a
+ * deterministic pass makes it too rather than widening the class to expose a
+ * test-only entry point (`AGENTS.md`: a test hook is not configurability).
+ */
+function schedulePass(watcher: ExternalWatcher, delayMs: number): void {
+  const internal: { schedule(delayMs: number): void } = watcher as unknown as {
+    schedule(delayMs: number): void
+  }
+  internal.schedule(delayMs)
 }
 
 describe('ExternalWatcher', () => {
@@ -400,7 +416,7 @@ describe('ExternalWatcher stamping and teardown', () => {
           stoppedDuringFirstPass = true
           // A second request arrives while this pass runs, then the caller
           // stops: the queued follow-up is no longer worth running.
-          watcher.schedule(0)
+          schedulePass(watcher, 0)
           watcher.stop()
         }
       },
