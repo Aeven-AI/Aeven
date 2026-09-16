@@ -301,7 +301,10 @@ export abstract class RemoteJournalStream<Page, Entry, Cursor, PageRequest = voi
     this.options.publish({ type: 'extend', page, entries: accepted, hasNewer })
   }
 
-  /** @returns the detached window's last cursor, or undefined while attached. */
+  /**
+   * Read the detached window's last cursor.
+   * @returns the detached window's last cursor, or undefined while attached.
+   */
   detachedEnd(): Cursor | undefined {
     return this.windowEnd
   }
