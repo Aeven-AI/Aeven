@@ -55,7 +55,9 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 A missing `single` file or `per-record` directory opens as an empty unit and materializes on the first write. In `single`, malformed content rejects with `malformed-medium`, and a different stored version rejects with `version-mismatch`. In `per-record`, each malformed, unreadable, or differently versioned document reads as an absent record, so one bad document does not reject the unit. Record keys must match `[a-zA-Z0-9_-]+`; an unsafe key rejects before any file operation. Every resolved write is durable, and operations after close reject with `closed`.
 
-An empty `per-record` tree can initialize its declared tables from a valid `<root>/<unit>.json` whole-unit document. The backend leaves that source file unchanged. Any document path in a declared table, or a declared `global.json`, suppresses this initialization for the complete unit, even if that document is unreadable or stale.
+A `per-record` unit reports writes another process made under its directory, so a domain opened over it converges instead of serving its open-time snapshot. Detection compares each document's stat identity (`mtimeMs`, `size`, `ino`) against the last observed one and reports only the locations that differ, never the values. `fs.watch` on the backend root, the unit directory, and each table directory supplies low latency, and a periodic sweep runs the same comparison so a dropped or undeliverable event costs latency rather than permanent staleness. A unit's own writes are not reported back.
+
+An empty `per-record` tree can initialize its declared tables, and the global singleton of a unit that declares one, from a valid `<root>/<unit>.json` whole-unit document. Carrying the global across matters for units whose global holds authoritative state such as ordering or set membership, which would otherwise be lost the first time its owner adopts this layout. The backend leaves that source file unchanged. Any document path in a declared table, or a declared `global.json`, suppresses this initialization for the complete unit, even if that document is unreadable or stale.
 
 -----
 
@@ -139,7 +141,9 @@ None — the backend never touches live request prefixes.
 These limits define when this backend is a poor fit or needs special operational care. They are current package constraints, not a task backlog.
 
 - **`single` rewrites the whole unit** — each write republishes the complete unit file; use `per-record` or route the domain to SQLite when this cost is too high.
-- **No cross-process write locking** — two processes writing the same unit can interleave replacements; writes to the same file use last-completion wins.
+- **No cross-process write locking** — two processes writing the same unit can interleave replacements; writes to the same file use last-completion wins. `per-record` units report foreign writes so readers converge on the result, but the writes themselves are not serialized between processes.
+- **Foreign-write detection is `per-record` only** — a `single`-layout unit reports nothing, so a second process keeps its open-time snapshot of that unit.
+- **Watch latency depends on the filesystem** — detection uses `fs.watch` backed by a 5-second sweep, so a filesystem that delivers no events (some network mounts) converges on the sweep rather than within tens of milliseconds.
 - **Windows rename without explicit write-through** — durability relies on libuv's `rename()` (`MoveFileExW` with replacement); the stricter Win32 write-through publish helper from the session-log backend is planned to move down here when the `log` facet lands.
 
 <a id="dev-note"></a>

@@ -30,13 +30,24 @@ import { mkdir, readFile, readdir, rename, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { Dirent } from 'node:fs'
 import { StorageError } from '@deepseek-ai/dsh-storage'
-import type { KvUnit, KvUnitDescriptor } from '@deepseek-ai/dsh-storage'
+import type { ExternalChange, KvUnit, KvUnitDescriptor } from '@deepseek-ai/dsh-storage'
 import { writeAtomic } from './atomic.ts'
+import { ExternalWatcher } from './external-watch.ts'
+import type { ExternalWatchOptions } from './external-watch.ts'
 import { parseRecord, serializeRecord } from './format.ts'
 import type { UnitState } from './format.ts'
 
 /** Keys become path segments in this layout; this set is path-safe on every OS. */
 const SAFE_KEY_RE = /^[a-zA-Z0-9_-]+$/
+
+/**
+ * Foreign-write detection cadence. These are not deployment tunables: the
+ * debounce only coalesces one burst of filesystem events, and the sweep is the
+ * correctness floor that makes a dropped `fs.watch` event cost latency instead
+ * of permanent staleness. A deployment that wants a different convergence
+ * bound changes how often it reads, not how often the medium is stated.
+ */
+const EXTERNAL_WATCH_OPTIONS: ExternalWatchOptions = { debounceMs: 50, sweepIntervalMs: 5_000 }
 
 /**
  * Open one `per-record`-layout unit under `root`: the unit directory is
@@ -109,7 +120,10 @@ function acceptedStamps(descriptor: KvUnitDescriptor): readonly number[] {
 /**
  * Bootstrap an empty per-record tree from a legacy whole-unit file
  * (`<root>/<name>.json`, the pre-per-record layout). Every declared-table
- * record is copied into a current-version document, while the legacy file is
+ * record is copied into a current-version document, and so is the global
+ * singleton when the unit declares one — a unit whose global carries
+ * authoritative state (ordering, set membership) would otherwise silently
+ * lose it the first time its owner adopts this layout. The legacy file is
  * retained unchanged. A missing, foreign (another unit's name), malformed,
  * or non-unit legacy file is left alone, and so is one whose stored unit
  * version is outside the accepted set — migrating records the owner never
@@ -132,9 +146,13 @@ async function bootstrapLegacyUnit(descriptor: KvUnitDescriptor, dir: string, st
   // The legacy document is runtime data: only `unit.name`, `unit.version`,
   // and the tables map shape are checked here — the record values are
   // migrated as-is and the domain layer's schemas judge them.
-  let document: { unit?: { name?: unknown; version?: unknown }; tables?: unknown }
+  let document: { unit?: { name?: unknown; version?: unknown }; tables?: unknown; global?: unknown }
   try {
-    document = JSON.parse(text) as { unit?: { name?: unknown; version?: unknown }; tables?: unknown }
+    document = JSON.parse(text) as {
+      unit?: { name?: unknown; version?: unknown }
+      tables?: unknown
+      global?: unknown
+    }
   } catch {
     return // Malformed legacy file: not ours to interpret or delete.
   }
@@ -154,6 +172,12 @@ async function bootstrapLegacyUnit(descriptor: KvUnitDescriptor, dir: string, st
       target.set(key, value)
     }
   }
+  // A legacy `global` of null is indistinguishable from "never written", which
+  // is exactly the state an absent `global.json` already represents.
+  if (!descriptor.hasGlobal || document.global === undefined || document.global === null) return
+  await mkdir(dir, { recursive: true, mode: 0o700 })
+  await writeAtomic(join(dir, 'global.json'), serializeRecord(descriptor.version, document.global))
+  state.global = document.global
 }
 
 /**
@@ -196,6 +220,8 @@ export class PerRecordJsonUnit implements KvUnit {
   private closed = false
   /** In-flight durable writes; close() drains them before releasing the unit. */
   private readonly inFlight = new Set<Promise<void>>()
+  /** Foreign-write detector; present only while a caller observes this unit. */
+  private watcher: ExternalWatcher | undefined
 
   constructor(
     private readonly descriptor: KvUnitDescriptor,
@@ -225,7 +251,9 @@ export class PerRecordJsonUnit implements KvUnit {
   async deleteRecord(table: string, key: string): Promise<void> {
     this.assertOpen()
     assertSafeKey(this.descriptor.name, key)
-    await this.tracked(rm(join(this.tableDir(table), `${key}.json`), { force: true }))
+    const path = join(this.tableDir(table), `${key}.json`)
+    await this.tracked(rm(path, { force: true }))
+    this.watcher?.forget(path)
   }
 
   /**
@@ -241,6 +269,7 @@ export class PerRecordJsonUnit implements KvUnit {
     const path = join(this.tableDir(table), `${key}.json`)
     const moved = `${path}.bak.${backupStamp(new Date())}`
     await this.tracked(rename(path, moved))
+    this.watcher?.forget(path)
     return moved
   }
 
@@ -253,6 +282,31 @@ export class PerRecordJsonUnit implements KvUnit {
     await this.tracked(this.writeDocument(join(this.dir, 'global.json'), value))
   }
 
+  /**
+   * Observe foreign writes under this unit's directory. The baseline is taken
+   * asynchronously from the current medium state, so a write landing between
+   * the caller's `loadAll` and that baseline is reported rather than missed.
+   * Only one observer is supported — the domain layer is the single consumer,
+   * and a second would need its own independent stamp set.
+   * @param onExternal - Receives the locations whose stored bytes changed.
+   * @returns a disposer that stops observation.
+   */
+  watchExternal(onExternal: (changed: readonly ExternalChange[]) => void): () => void {
+    this.assertOpen()
+    if (this.watcher !== undefined) {
+      throw new Error(`unit '${this.descriptor.name}' is already observed`)
+    }
+    const watcher = new ExternalWatcher(this.descriptor, this.dir, EXTERNAL_WATCH_OPTIONS, onExternal)
+    this.watcher = watcher
+    // Failure to establish observation degrades to no observation, which is
+    // the pre-existing behavior; it must not fail the caller's open.
+    void watcher.start().catch(() => { watcher.stop() })
+    return () => {
+      watcher.stop()
+      if (this.watcher === watcher) this.watcher = undefined
+    }
+  }
+
   /* jscpd:ignore-start -- the two unit classes are standalone; the drain/guard lifecycle mirrors the shared KvUnit contract */
   /** Drain in-flight writes and release the unit. Idempotent. */
   async close(): Promise<void> {
@@ -261,6 +315,8 @@ export class PerRecordJsonUnit implements KvUnit {
       return
     }
     this.closed = true
+    this.watcher?.stop()
+    this.watcher = undefined
     await Promise.allSettled(this.inFlight)
     this.onClose()
   }
@@ -285,6 +341,10 @@ export class PerRecordJsonUnit implements KvUnit {
     return (async () => {
       await mkdir(dirname(path), { recursive: true, mode: 0o700 })
       await writeAtomic(path, serializeRecord(this.descriptor.version, value))
+      // Stamp this write as observed so the watcher does not report it back as
+      // foreign. Ordering is safe either way: an unstamped self-write costs one
+      // redundant report, which the domain diffs away.
+      await this.watcher?.record(path)
     })()
   }
 

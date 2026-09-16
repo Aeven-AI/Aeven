@@ -10,7 +10,8 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import type { KvUnit } from '@deepseek-ai/dsh-storage'
+import type { ExternalChange, KvUnit } from '@deepseek-ai/dsh-storage'
+import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
 import { DomainError } from './error.ts'
 import type { DomainSpec, DomainGlobalSpec, TableKeyOf, TableValueOf } from './spec.ts'
 import type { DomainChanged } from './events.ts'
@@ -152,6 +153,8 @@ export class DomainImpl {
   /** Set when close finishes (chain drained, unit closed): reads reject from here on. */
   private closed = false
   private disposal?: Promise<void>
+  /** Stops foreign-write observation; `undefined` when the backend cannot report it. */
+  private unwatchExternal: (() => void) | undefined
 
   /**
    * @param ctx - Context that carries `domain/changed` emissions.
@@ -167,7 +170,7 @@ export class DomainImpl {
    */
   constructor(
     private readonly ctx: Context,
-    spec: DomainSpec,
+    private readonly spec: DomainSpec,
     private readonly unit: KvUnit,
     records: Map<string, Map<string, unknown>>,
     globalValue: unknown,
@@ -198,6 +201,101 @@ export class DomainImpl {
         }),
       }
     }
+  }
+
+  /**
+   * Begin converging on foreign writes, when the backend can report them.
+   * Called once by the facility after construction; a backend without
+   * {@link KvUnit.watchExternal} leaves this domain on its open-time snapshot.
+   */
+  observeExternal(): void {
+    this.unwatchExternal = this.unit.watchExternal?.((changed) => {
+      void this.applyExternal(changed).catch((error: unknown) => {
+        // Convergence is best-effort: a failed pass leaves memory on the last
+        // good value and the next report (or the backend's sweep) retries.
+        this.ctx.logger.warn(
+          `domain '${this.name}': applying an external change failed; memory stays as it was: ${String(error)}`,
+        )
+      })
+    })
+  }
+
+  /**
+   * Converge this domain's memory on writes another process made to the
+   * medium, and announce each one as an ordinary `domain/changed`.
+   *
+   * Consumers must not distinguish a foreign write from a local one: a
+   * listener that treated them differently would be reasoning about which
+   * process wrote a value, which is exactly the split-brain this convergence
+   * removes. The events therefore carry no origin marker.
+   *
+   * The work runs as one job on the write chain, so it cannot interleave with
+   * a local `put` on the same domain; between processes the medium still
+   * resolves last-write-wins, unchanged. Each location is re-read from the
+   * medium and validated with the table's own schema before it reaches
+   * memory, so a foreign write this build cannot read leaves the current
+   * value in place — the same judgment the open-time load applies.
+   * @param changed - Locations whose stored bytes changed; `table: ''` and
+   * `key: ''` name the global singleton.
+   * @returns resolution after memory converged and every event was emitted.
+   */
+  applyExternal(changed: readonly ExternalChange[]): Promise<void> {
+    if (this.disposing || this.closed) return Promise.resolve()
+    return this.enqueue(async () => {
+      const snapshot = await this.unit.loadAll()
+      for (const { table, key } of changed) {
+        if (table === '') this.applyExternalGlobal(snapshot.global)
+        else this.applyExternalRecord(table, key, snapshot.tables[table]?.[key])
+      }
+    })
+  }
+
+  /**
+   * Converge one record on the medium. Emission follows the mutation because
+   * the package invariant asserts an emitted value is the one memory already
+   * holds.
+   */
+  private applyExternalRecord(table: string, key: string, raw: unknown): void {
+    const tableSpec = this.spec.tables[table]
+    const handle = this.tables.get(table)
+    /* v8 ignore next -- a watcher only reports the declared tables it scans. */
+    if (tableSpec === undefined || handle === undefined) return
+    if (raw === undefined) {
+      if (!handle.deleteExternal(key)) return
+      this.emitChanged({ domain: this.name, table, key, operation: 'deleted' })
+      return
+    }
+    let parsed: unknown
+    try {
+      parsed = tableSpec.valueSchema.parse(raw)
+    } catch (error) {
+      this.ctx.logger.warn(
+        `domain '${this.name}': external write to record '${key}' in table '${table}' `
+        + `does not match its schema; keeping the current value: ${String(error)}`,
+      )
+      return
+    }
+    if (!handle.putExternal(key, parsed)) return
+    this.emitChanged({ domain: this.name, table, key, operation: 'put', value: parsed })
+  }
+
+  /** Converge the global singleton on the medium. A null stored global means "never written". */
+  private applyExternalGlobal(raw: unknown): void {
+    const globalSpec = this.spec.global
+    if (globalSpec === undefined || raw === null) return
+    let parsed: unknown
+    try {
+      parsed = globalSpec.schema.parse(raw)
+    } catch (error) {
+      this.ctx.logger.warn(
+        `domain '${this.name}': external write to the global does not match its schema; `
+        + `keeping the current value: ${String(error)}`,
+      )
+      return
+    }
+    if (deepEqualJson(parsed, this.globalValue)) return
+    this.globalValue = parsed
+    this.emitChanged({ domain: this.name, table: '', key: '', operation: 'put', value: parsed })
   }
 
   /** Global singleton handle; accessing it on a spec that declares no global is a caller bug and throws. */
@@ -235,6 +333,10 @@ export class DomainImpl {
 
   private async runClose(): Promise<void> {
     this.disposing = true
+    // Stop observing before the drain: an external apply queued after this
+    // point would race the unit's own close.
+    this.unwatchExternal?.()
+    this.unwatchExternal = undefined
     // Chain links never reject (each is settled via then(noop, noop)), so
     // this await is a pure drain barrier.
     await this.chain
@@ -343,6 +445,28 @@ class KvTableImpl<K extends string, V> implements KvTable<K, V> {
       this.emitPut(key, next)
       return next
     })
+  }
+
+  /**
+   * Adopt a value the medium already holds, written by another process. No
+   * medium write: this converges memory on bytes that are already durable.
+   * @param key - Record key.
+   * @param value - Validated value read back from the medium.
+   * @returns whether memory changed, so the caller emits only a real change.
+   */
+  putExternal(key: K, value: V): boolean {
+    if (this.records.has(key) && deepEqualJson(this.records.get(key), value)) return false
+    this.records.set(key, value)
+    return true
+  }
+
+  /**
+   * Drop a record another process deleted from the medium.
+   * @param key - Record key.
+   * @returns whether memory changed.
+   */
+  deleteExternal(key: K): boolean {
+    return this.records.delete(key)
   }
 
   private emitPut(key: K, value: V): void {

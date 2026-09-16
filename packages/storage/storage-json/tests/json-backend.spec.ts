@@ -347,6 +347,29 @@ describe('per-record layout', () => {
     await backend.close()
   })
 
+  it('bootstraps the legacy global singleton, not only the table records', async () => {
+    const root = await freshRoot()
+    // A unit whose global carries authoritative state: losing it on adoption
+    // of this layout would silently drop ordering and set membership.
+    const legacy = JSON.stringify({
+      unit: { name: 'recs', version: 2 },
+      global: { order: ['a', 'b'], archived: ['x'] },
+      tables: { t: { a: { v: 1 } } },
+    })
+    await writeFile(join(root, 'recs.json'), legacy, 'utf8')
+    const backend = new JsonStorageBackend(root)
+    const unit = await backend.kv.open(descriptor)
+    expect(await unit.loadAll()).toEqual({
+      tables: { t: { a: { v: 1 } } },
+      global: { order: ['a', 'b'], archived: ['x'] },
+    })
+    // The migrated global is durable: a re-open reads the per-record tree.
+    await unit.close()
+    const reopened = await backend.kv.open(descriptor)
+    expect((await reopened.loadAll()).global).toEqual({ order: ['a', 'b'], archived: ['x'] })
+    await backend.close()
+  })
+
   it('bootstraps from a legacy file only when its stored version is accepted', async () => {
     // Version 3 is neither current (2) nor declared compat: the legacy file
     // is left alone and the unit reads empty — migrating unvouched records

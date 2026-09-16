@@ -64,10 +64,23 @@ export type WorkspaceDomainState = z.infer<typeof workspaceDomainState>
  * {@link WorkspaceId} plus the bootstrap/order singleton. The registry opens
  * this through `ctx.storage.domain`; the spec object is the single source of
  * the domain's identity, version, and schemas.
+ *
+ * The `per-record` layout scopes each write to the record it changes. Under
+ * the whole-unit layout every write republished the writing process's entire
+ * in-memory snapshot, so two harness processes sharing one home overwrote
+ * each other's workspaces and archive set — the one loss here that no log can
+ * rebuild. Per-record narrows a write to the record it touches, and the
+ * domain layer converges each process on the other's writes
+ * (.agents/notes/implemented/architecture/2026-09-16-cross-process-domain-coherence.md).
+ * Convergence is eventual, so simultaneous edits to the order or archive set,
+ * which share `global.json`, still resolve last-writer-wins. An existing
+ * `workspace.json` migrates on first open through the JSON backend's legacy
+ * bootstrap, global included.
  */
 export const workspaceDomainSpec = defineDomain({
   name: 'workspace',
   version: 2,
+  layout: 'per-record',
   global: {
     schema: workspaceDomainState,
     initial: { initialized: false, workspaceIds: [], archivedSessionIds: [] },
