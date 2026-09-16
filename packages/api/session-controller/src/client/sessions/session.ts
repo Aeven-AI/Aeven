@@ -255,6 +255,10 @@ export class Session implements SessionFace {
     // ahead of navigation (first-send flow).
     this.promptAttempted = true
     if (this.blankBit) this.firstPromptPendingTurn = true
+    // Sending is a move to the live end: the reader's own message lands there,
+    // and a window still anchored back in history would withhold it along with
+    // the turn it starts. Reattaching here is what puts the prompt on screen.
+    if (this.hasNewer) void this.returnToLive()
     this.notifier.markDirty()
     let result: RemoteResult<{ accepted: true }>
     if (this.address === undefined) {
