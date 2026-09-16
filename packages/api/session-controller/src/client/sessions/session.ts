@@ -94,6 +94,14 @@ export class Session implements SessionFace {
   // ---- Window and derived state (all private; the snapshot is the only read API) ----
   private baseSeq = SessionLogOffset(0)
   private hasMore = false
+  /**
+   * Newer history remains outside the window's end: the window was installed
+   * around an older seq by a jump and no longer reaches the live tail. Live
+   * events are counted in {@link pendingLiveCount} instead of appended.
+   */
+  private hasNewer = false
+  /** Live events observed while detached, surfaced as the return-to-live count. */
+  private pendingLiveCount = 0
   private openState: OpenState = 'cold'
   private openError: RemoteFailure | null = null
   private openPromise: Promise<void> | null = null
@@ -398,38 +406,37 @@ export class Session implements SessionFace {
     }
   }
 
-  /** Jump loader: page backwards until the window covers seq (see ISession.loadThrough). */
+  /**
+   * Jump loader: install one window anchored on seq (see ISession.loadThrough).
+   *
+   * One round trip regardless of distance. The Host holds the whole log and
+   * `beforeSeq` indexes it directly, so a window around an old seq costs what
+   * a tail page costs; walking backwards page by page would instead scale with
+   * the distance travelled and accumulate the whole intervening history.
+   *
+   * The installed window ends at the target's page boundary, so it is detached
+   * from the live tail whenever older events remain after it: `hasNewer` then
+   * gates live appends and {@link returnToLive} reattaches.
+   */
   loadThrough(seq: SessionSeq): Promise<void> {
-    if (this.openState !== 'open' || !this.hasMore || this.baseSeq <= seq) return Promise.resolve()
+    if (this.openState !== 'open') return Promise.resolve()
+    // Already covered by the standing window, with nothing newer withheld.
+    if (this.baseSeq <= seq && !this.hasNewer) return Promise.resolve()
     if (this.jumpPromise !== null) {
-      // Retarget the running loop to the lowest requested seq.
       this.jumpTargetSeq = SessionSeq(Math.min(this.jumpTargetSeq ?? seq, seq))
       return this.jumpPromise
     }
-    // A plain single-page pull owns the busy flag; the jump does not queue
-    // behind it (the caller retries once it settles) and must leave no
-    // target behind — only the loop's finally clears that field, and no
-    // loop starts here.
     if (this.loadingOlder) return Promise.resolve()
     this.jumpTargetSeq = seq
     this.loadingOlder = true
     this.notifier.markDirty()
-    // Stale-pass guard (the doOpen pattern): a resync mid-loop replaces the
-    // stream generation; this pass then stops instead of paging the new
-    // generation toward its old target.
+    // Stale-pass guard (the doOpen pattern): a resync mid-jump replaces the
+    // stream generation; this pass then drops its result instead of installing
+    // a window built for the previous one.
     const generation = this.openGeneration
     this.jumpPromise = (async () => {
       try {
-        while (this.hasMore && this.jumpTargetSeq !== null && this.baseSeq > this.jumpTargetSeq) {
-          if (generation !== this.openGeneration) return
-          const events = this.events
-          if (events === undefined) return
-          const before = this.baseSeq
-          await events.prepend({ beforeSeq: this.baseSeq, maxMessages: JUMP_PAGE_MESSAGES })
-          // No-progress guard: an empty or dropped page that still claims more
-          // history must end the loop, not spin it.
-          if (this.baseSeq >= before) return
-        }
+        await this.installAnchoredWindow(seq, generation)
       } catch (error) {
         if (!isRemoteFailure(error)) {
           console.error('[session-controller] loadThrough failed:', error)
@@ -442,6 +449,38 @@ export class Session implements SessionFace {
       }
     })()
     return this.jumpPromise
+  }
+
+  /**
+   * Read and install one window anchored on `seq`.
+   *
+   * `beforeSeq` sits half a page past the target so the target lands with
+   * reading room below it rather than on the window's last row. The journal
+   * publishes the result as an `anchor` change, which carries whether newer
+   * history remains outside it.
+   */
+  private async installAnchoredWindow(seq: SessionSeq, generation: number): Promise<void> {
+    const events = this.events
+    if (events === undefined) return
+    await events.anchor({
+      beforeSeq: SessionLogOffset(seq + Math.floor(JUMP_PAGE_MESSAGES / 2)),
+      maxMessages: JUMP_PAGE_MESSAGES,
+    })
+    if (generation !== this.openGeneration) return
+  }
+
+  /**
+   * Reattach the window to the live tail after a jump detached it.
+   *
+   * Reopening the journal is what reattaches: the stream's own opening
+   * snapshot is the authoritative tail window, so this cannot race the live
+   * feed the way a forward page followed by a subscribe would.
+   * @returns completion once the tail window is installed.
+   */
+  async returnToLive(): Promise<void> {
+    if (this.openState !== 'open' || !this.hasNewer) return
+    this.pendingLiveCount = 0
+    await this.resync()
   }
 
   /** Rebuild an opened history source after address replacement.
@@ -637,18 +676,34 @@ export class Session implements SessionFace {
       case 'prepend':
         this.prependWindow(change.entries, change.hasMore)
         return
+      case 'anchor':
+        // A jump's window: projections keep the baseline the opening snapshot
+        // seeded, since an anchored page carries none of its own.
+        this.installWindow(change.entries, change.hasMore, undefined, change.hasNewer)
+        return
       case 'append':
         if (this.appendLive(change.entry)) this.notifier.markDirty()
     }
   }
 
-  /** Replace the complete contiguous window and apply page-owned projection metadata. */
-  private installWindow(entries: readonly SessionEventLikeEntry[], hasMore: boolean, projections?: ProjectionsBaseline): void {
+  /**
+   * Replace the complete contiguous window and apply page-owned projection metadata.
+   * @param hasNewer - newer history remains outside the window's end (an
+   *   anchored jump window); omitted, the window reaches the live tail.
+   */
+  private installWindow(
+    entries: readonly SessionEventLikeEntry[],
+    hasMore: boolean,
+    projections?: ProjectionsBaseline,
+    hasNewer = false,
+  ): void {
     this.baseSeq = SessionLogOffset(entries[0]?.event.seq ?? 0)
     this.hasMore = hasMore
+    this.hasNewer = hasNewer
+    if (!hasNewer) this.pendingLiveCount = 0
     if (entries.some(entry => entry.event.type === 'turn/start')) this.firstPromptPendingTurn = false
     if (projections !== undefined) this.projections.seed(projections)
-    this.eventSource.replace(entries, hasMore)
+    this.eventSource.replace(entries, { hasOlder: hasMore, hasNewer })
     for (const entry of entries) this.observeSubmissionEvent(entry.event)
     this.notifier.markDirty()
   }
@@ -673,6 +728,14 @@ export class Session implements SessionFace {
     const awaitingFirstTurn = this.firstPromptPendingTurn
     if (event.type === 'turn/start') this.firstPromptPendingTurn = false
     const queueChanged = this.queueMirror.acceptDurable(event)
+    // A detached window does not adjoin the live tail, so appending here would
+    // splice this event onto history it does not follow. The queue mirror and
+    // submission bookkeeping above are window-independent and still run; the
+    // event itself reaches the reader when returnToLive() reinstalls the tail.
+    if (this.hasNewer) {
+      this.pendingLiveCount += 1
+      return true
+    }
     this.eventSource.append(entry)
     // After the feed append: the conversation assembly's animation frame is
     // registered by the feed subscribers above, so the echo-retirement frame
@@ -767,6 +830,8 @@ export class Session implements SessionFace {
       openState: this.openState,
       openError: this.openError,
       hasMore: this.hasMore,
+      detached: this.hasNewer,
+      pendingLive: this.pendingLiveCount,
       loadingOlder: this.loadingOlder,
       promptError: this.promptError,
       blank: this.blankBit,

@@ -32,6 +32,18 @@ export type RemoteJournalChange<Page, Entry> =
     readonly entries: readonly Entry[]
     readonly hasMore: boolean
   }
+  | {
+    /**
+     * The window was replaced by one anchored away from the live tail, so
+     * live entries no longer adjoin it until the consumer reattaches.
+     */
+    readonly type: 'anchor'
+    readonly page: Page
+    readonly entries: readonly Entry[]
+    readonly hasMore: boolean
+    /** Newer entries exist after this window's last entry. */
+    readonly hasNewer: boolean
+  }
   | { readonly type: 'append'; readonly entry: Entry }
 
 type JournalStreamItem<Page, Entry, Cursor> = RemoteStreamItem<RemoteJournalFrame<Entry, Cursor, Page>>
@@ -197,6 +209,46 @@ export abstract class RemoteJournalStream<Page, Entry, Cursor, PageRequest = voi
       page,
       entries: accepted,
       hasMore: this.options.hasMore(page),
+    })
+  }
+
+  /**
+   * Read one page anchored away from the live tail and replace the window with it.
+   *
+   * One read regardless of distance: the request carries its own cursor, so
+   * reaching an old entry costs what a tail page costs rather than scaling
+   * with the entries in between. The window that results is detached whenever
+   * the page ends before the stream's cursor — live entries then no longer
+   * adjoin it, which the published `hasNewer` reports.
+   * @param request - domain page request bound to this stream's address.
+   * @returns after the anchored window is published.
+   */
+  async anchor(request: PageRequest): Promise<void> {
+    if (!this.opened || this.disposed) throw new Error(`${this.options.name} is not open`)
+    const cursor = this.currentCursor()
+    const page = await this.readPage(request, cursor, this.stream.signal)
+    this.stream.signal.throwIfAborted()
+    const entries = this.options.entries(page)
+    this.assertPage(entries)
+    const tail = entries.at(-1)
+    // No entries means nothing to anchor on: leave the standing window alone
+    // rather than replacing it with an empty one.
+    if (tail === undefined) return
+    const last = this.options.last(tail)
+    const hasNewer = this.options.compare(last, cursor) < 0
+    const first = entries[0]
+    if (first !== undefined) this.firstCursor = this.options.first(first)
+    // `lastCursor` is the live stream's applied watermark, not this window's
+    // end: it orders resume and live-entry acceptance. An anchored window sits
+    // behind the tail, so moving it back here would make a resume look like it
+    // rewound and would re-admit entries already applied. It stays put, and the
+    // detached window's own end travels in `hasNewer`.
+    this.options.publish({
+      type: 'anchor',
+      page,
+      entries,
+      hasMore: this.options.hasMore(page),
+      hasNewer,
     })
   }
 

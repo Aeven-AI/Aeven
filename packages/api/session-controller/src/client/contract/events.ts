@@ -58,7 +58,7 @@ function materialize(node: EventWindowNode): readonly SessionEventLikeEntry[] {
 
 function windowSnapshot(
   node: EventWindowNode,
-  hasMore: boolean,
+  edges: SessionWindowEdges,
   revision: number,
   change: SessionEventChange,
 ): SessionEventWindow {
@@ -68,7 +68,9 @@ function windowSnapshot(
       entries ??= materialize(node)
       return entries
     },
-    hasMore,
+    hasMore: edges.hasOlder,
+    hasOlder: edges.hasOlder,
+    hasNewer: edges.hasNewer,
     revision,
     change,
   }
@@ -80,12 +82,37 @@ export type SessionEventChange =
   | { readonly kind: 'prepend'; readonly entries: readonly SessionEventLikeEntry[] }
   | { readonly kind: 'append'; readonly entries: readonly SessionLiveEventEntry[] }
 
+/**
+ * Which directions of the log lie outside the window.
+ *
+ * A window anchored at the live tail has `hasNewer: false`; one installed
+ * around an older seq by a jump has `hasNewer: true` until paging forward
+ * reaches the tail again.
+ */
+export interface SessionWindowEdges {
+  readonly hasOlder: boolean
+  readonly hasNewer: boolean
+}
+
 /** Current contiguous event window and its latest synchronous delta. */
 export interface SessionEventWindow {
   readonly entries: readonly SessionEventLikeEntry[]
+  /** Older history remains. Retained name for existing consumers; equals {@link hasOlder}. */
   readonly hasMore: boolean
+  /** Older history remains outside the window's start. */
+  readonly hasOlder: boolean
+  /**
+   * Newer history remains outside the window's end, so the window is detached
+   * from the live tail and live events do not belong to it.
+   */
+  readonly hasNewer: boolean
   readonly revision: number
   readonly change: SessionEventChange
+}
+
+/** Normalize the legacy boolean `hasMore` argument to a full edge pair. */
+function windowEdges(edges: SessionWindowEdges | boolean): SessionWindowEdges {
+  return typeof edges === 'boolean' ? { hasOlder: edges, hasNewer: false } : edges
 }
 
 /** Conversation-facing event source exposed by one Session binding. */
@@ -95,9 +122,10 @@ export type SessionEventSource = ObservableSnapshot<SessionEventWindow>
 export class MutableSessionEventSource implements SessionEventSource {
   private readonly listeners = new Set<() => void>()
   private window: EventWindowNode = leaf([])
+  private edges: SessionWindowEdges = { hasOlder: false, hasNewer: false }
   private snapshot: SessionEventWindow = windowSnapshot(
     this.window,
-    false,
+    this.edges,
     0,
     { kind: 'replace', entries: [] },
   )
@@ -118,41 +146,57 @@ export class MutableSessionEventSource implements SessionEventSource {
   /**
    * Replace the complete contiguous window.
    * @param entries - complete window.
-   * @param hasMore - whether older history remains.
+   * @param edges - which directions still hold history outside it; a bare
+   *   boolean is read as `hasOlder` with the window attached to the live tail.
    */
-  replace(entries: readonly SessionEventLikeEntry[], hasMore: boolean): void {
+  replace(entries: readonly SessionEventLikeEntry[], edges: SessionWindowEdges | boolean): void {
     this.window = leaf(entries)
-    this.publish(hasMore, { kind: 'replace', entries })
+    this.publish(windowEdges(edges), { kind: 'replace', entries })
   }
 
   /**
    * Prepend one older contiguous page.
    * @param entries - newly loaded older entries.
-   * @param hasMore - whether still older history remains.
+   * @param hasOlder - whether still older history remains.
    */
-  prepend(entries: readonly SessionEventLikeEntry[], hasMore: boolean): void {
+  prepend(entries: readonly SessionEventLikeEntry[], hasOlder: boolean): void {
     this.window = concat(leaf(entries), this.window)
-    this.publish(hasMore, { kind: 'prepend', entries })
+    this.publish({ hasOlder, hasNewer: this.edges.hasNewer }, { kind: 'prepend', entries })
+  }
+
+  /**
+   * Append one contiguous newer page loaded by forward paging.
+   * @param entries - newly loaded newer entries.
+   * @param hasNewer - whether still newer history remains outside the window.
+   */
+  appendPage(entries: readonly SessionEventLikeEntry[], hasNewer: boolean): void {
+    this.window = concat(this.window, leaf(entries))
+    this.publish({ hasOlder: this.edges.hasOlder, hasNewer }, { kind: 'append', entries: [] })
   }
 
   /**
    * Append one contiguous live entry.
+   *
+   * Only the Session appends, and only while the window reaches the live tail:
+   * a detached window's caller buffers instead, so this never splices a live
+   * event onto history it does not adjoin.
    * @param entry - live tail entry.
    */
   append(entry: SessionLiveEventEntry): void {
     const entries = [entry]
     this.window = concat(this.window, leaf(entries))
-    this.publish(this.snapshot.hasMore, {
+    this.publish(this.edges, {
       kind: 'append',
       entries,
     })
   }
 
   private publish(
-    hasMore: boolean,
+    edges: SessionWindowEdges,
     change: SessionEventChange,
   ): void {
-    this.snapshot = windowSnapshot(this.window, hasMore, this.snapshot.revision + 1, change)
+    this.edges = edges
+    this.snapshot = windowSnapshot(this.window, edges, this.snapshot.revision + 1, change)
     notifySubscribers(this.listeners, '[session-controller] event feed')
   }
 }

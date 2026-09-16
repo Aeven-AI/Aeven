@@ -67,6 +67,8 @@ function sessionSnapshot(overrides: Partial<SessionSnapshot> = {}): SessionSnaps
     openState: 'open',
     openError: null,
     hasMore: false,
+    detached: false,
+    pendingLive: 0,
     loadingOlder: false,
     promptError: null,
     blank: false,
