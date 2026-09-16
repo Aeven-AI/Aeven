@@ -39,10 +39,11 @@ function pitchFor(count: number): number {
 /**
  * Mark under a pointer position.
  *
- * The rail owns pointer input for its whole column: a 2px tick is not a
+ * The rail owns pointer input for its whole column: a 2px line is not a
  * pointer target, so the index is computed from the pointer's offset rather
- * than hit-tested against the ticks, which stay `pointer-events: none`. One
- * rect read per gesture, never per frame.
+ * than hit-tested against the ticks, which stay `pointer-events: none`. The
+ * column is wider than the longest line for the same reason — the reader aims
+ * at the rail, not at a hairline. One rect read per gesture, never per frame.
  * @param marks - the rendered ladder.
  * @param rail - the element the pointer event landed on.
  * @param clientY - the pointer's viewport y.

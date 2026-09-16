@@ -683,7 +683,7 @@ export function ChatView({
         landOnRowRef.current(local, el, exactRow)
         setActiveTurn(turn)
         turnNavigationRef.current = null
-        if (eventNavigation.highlight) setHighlightedNodeKey(exactKey)
+        setHighlightedNodeKey(eventNavigation.highlight ? exactKey : null)
         completedEventNavigationRef.current = eventNavigation.requestId
         eventNavigationLoadRef.current = null
         completeEventNavigation(eventNavigation.requestId)
@@ -723,7 +723,7 @@ export function ChatView({
       const turn = Number(row?.dataset.chatTurn)
       if (row !== null && Number.isSafeInteger(turn)) {
         landOnRowRef.current(local, el, row)
-        if (eventNavigation.highlight) setHighlightedNodeKey(fallback.key)
+        setHighlightedNodeKey(eventNavigation.highlight ? fallback.key : null)
       }
     }
     turnNavigationRef.current = null
@@ -811,6 +811,9 @@ export function ChatView({
   /** Rail jump: a loaded turn scrolls now, an unloaded one anchors a window first. */
   const navigateToTurn = useCallback((mark: TurnRailMark): void => {
     setActiveTurn(mark.turn)
+    // A Turn destination marks no row, and supersedes a search match that was
+    // still lit from an earlier navigation.
+    setHighlightedNodeKey(null)
     forwardPagingArmedRef.current = false
     const local = listRef.current
     if (local === null) return
