@@ -12,13 +12,13 @@ Status: implemented
 
 ## 决策
 
-普通的 `pnpm run test:coverage` 命令仍只启动一次 Vitest。Linux 覆盖率 CI 将 `DSH_COVERAGE_PARTITIONS` 固定为 4；原生 Windows 现在也固定为 4，以降低自托管高并发下的进程创建压力。运行期间不会由任何耗时触发器改变这两个数量。[覆盖率豁免重型套件](2026-07-31-coverage-exempt-heavy-suites.zh.md)仍作为独立的无插桩门禁与插桩工作并排运行。
+普通的 `pnpm run test:coverage` 命令仍只启动一次 Vitest。Linux 覆盖率 CI 将 `AVN_COVERAGE_PARTITIONS` 固定为 4；原生 Windows 现在也固定为 4，以降低自托管高并发下的进程创建压力。运行期间不会由任何耗时触发器改变这两个数量。[覆盖率豁免重型套件](2026-07-31-coverage-exempt-heavy-suites.zh.md)仍作为独立的无插桩门禁与插桩工作并排运行。
 
 启用分区后，`scripts/run-gates.ts` 为插桩门禁选择 `pnpm run test:coverage:partitioned`。`scripts/coverage-partitions.ts` 按配置数量并发启动 Vitest 子进程，每个进程只用 1 个 worker。协调器通过 `vitest list --filesOnly` 收集插桩清单（调用方过滤器会先收窄清单；exempt 重型套件需在此剔除，因为 list 不应用其排除），从协调器持久化的 gitignore 文件读取逐文件耗时（windows-coverage job 通过 GitHub cache 恢复并保存该文件，因为 checkout 会删除它且 Vitest 自身缓存无法在 CI 存活），并借最小堆按最长处理时间把文件分配到各分区，使重量级子进程密集型套件分散到不同子进程，而不是全部落入路径 hash 恰好命中的那一个分片。每个分区获得一个临时 Vitest 配置，其 include 按 project 拆分（命令行传文件会超过 Windows CreateProcess 上限；互斥的 thread-safe 与 process-bound project 只保留各自的文件，避免任何文件跑两次）；空分区会在任何子进程启动前被拒绝，最重的分区最先启动使其结论最早落地（fail-fast），耗时历史通过 GitHub cache 以每 run 唯一键恢复与保存（cache 条目不可变）。分区模式会在各子进程中关闭阈值与覆盖率报告器，为每个子进程分配独立报告目录，并让每个进程写出 1 份 blob 报告。
 
 协调器等待全部子进程结束，验证 blob 目录只包含预期文件，然后执行一次 `vitest --merge-reports ... --coverage`。只有这条合并命令应用仓库的逐文件语句、分支、函数与行阈值，因此系统不会拿有意不完整的测试清单单独判定任一分区。
 
-`DSH_COVERAGE_MAX_WORKERS` 继续控制无插桩豁免门禁和普通非分区路径的规模，不会调整分区子进程。原生 Windows 为豁免门禁分配 2 个 worker，并允许 4 道外层门禁并发。在完整参考流程中，工作区构建与生产网站验证会立即启动，两道覆盖率门禁都等待完整构建；这次等待也能避免豁免门禁的临时 Oxlint 探针与源码编译竞态。拉取请求覆盖率 job 与 Linux 一样以零构建方式运行：工作区导入通过 tsconfig paths 映射解析到 `src`，而消费构建产物的套件——豁免门禁的打包器镜像断言与全语料导入 sweep，以及插桩语料的 client-bundle 产物校验——在未构建的检出上会自跳。观测性清单只等待两道覆盖率门禁结算，因此在覆盖率失败后仍会运行；各门禁自身的 `needs` 依赖仍要求前置门禁通过。Linux 让 4 个插桩分区进程与 2 个豁免 worker 重叠运行，在保持每个插桩进程只有 1 个 worker 的同时，恢复普通路径原有的 4 路插桩并发。
+`AVN_COVERAGE_MAX_WORKERS` 继续控制无插桩豁免门禁和普通非分区路径的规模，不会调整分区子进程。原生 Windows 为豁免门禁分配 2 个 worker，并允许 4 道外层门禁并发。在完整参考流程中，工作区构建与生产网站验证会立即启动，两道覆盖率门禁都等待完整构建；这次等待也能避免豁免门禁的临时 Oxlint 探针与源码编译竞态。拉取请求覆盖率 job 与 Linux 一样以零构建方式运行：工作区导入通过 tsconfig paths 映射解析到 `src`，而消费构建产物的套件——豁免门禁的打包器镜像断言与全语料导入 sweep，以及插桩语料的 client-bundle 产物校验——在未构建的检出上会自跳。观测性清单只等待两道覆盖率门禁结算，因此在覆盖率失败后仍会运行；各门禁自身的 `needs` 依赖仍要求前置门禁通过。Linux 让 4 个插桩分区进程与 2 个豁免 worker 重叠运行，在保持每个插桩进程只有 1 个 worker 的同时，恢复普通路径原有的 4 路插桩并发。
 
 ## 失败与输出语义
 

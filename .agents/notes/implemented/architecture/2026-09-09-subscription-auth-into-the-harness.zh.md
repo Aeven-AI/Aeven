@@ -42,7 +42,7 @@ Claude 没有设备码流程，因此一次进行中的 Claude 浏览器登录�
 
 ## Consequences
 
-BOM 机制现已冗余 —— workspace 解析使跨仓库漂移不可能发生 —— 仅保留到这个包稳定下来，然后与 `DSH_EXACT_BOM` 一并移除。
+BOM 机制现已冗余 —— workspace 解析使跨仓库漂移不可能发生 —— 仅保留到这个包稳定下来，然后与 `AVN_EXACT_BOM` 一并移除。
 
 既有安装把 profile 指向的是独立包名。把 profile 重新指向 workspace 目录是可行的，`workspace:^` 的 peer 范围会经由 harness 自己的 `node_modules` 解析；未重新指向的 profile 会继续加载已退役的副本，并且收不到任何改动。
 

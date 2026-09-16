@@ -65,7 +65,7 @@ Add one entry per server; nothing else is required. After the harness starts, th
 | `reconnect.maxDelayMs` | `30,000` | Backoff ceiling; also the uptime after which the attempt budget resets |
 | `reconnect.maxAttempts` | `10` | Consecutive failed attempts per outage before giving up |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-mcp-client) is the exhaustive source for every accepted field.
+The generated [configuration catalog](../../../docs/config-catalog.md#aeven-mcp-client) is the exhaustive source for every accepted field.
 
 After startup, the server's tools appear as `mcp__<serverName>__<tool>` — try a prompt that uses one. If the initial connection fails, the harness still starts but no tools from that server appear, and an error is logged; set `failOnStartupError: true` to make a startup failure abort the harness instead.
 
@@ -131,7 +131,7 @@ A tool call sends an uncached `tools/call` request carrying the raw MCP name, th
 
 ### Environment scrubbing (stdio)
 
-The child environment starts from the subprocess seam's `scrubbedParentEnv()` — ambient names matching `/KEY|PASSWORD|SECRET|TOKEN/i` and ambient `DSH_*` names are dropped — and the configured `env` merges on top, so explicit overrides survive. The MCP SDK owns the actual spawn; this package shares the scrub definition, not the spawn path.
+The child environment starts from the subprocess seam's `scrubbedParentEnv()` — ambient names matching `/KEY|PASSWORD|SECRET|TOKEN/i` and ambient `AVN_*` names are dropped — and the configured `env` merges on top, so explicit overrides survive. The MCP SDK owns the actual spawn; this package shares the scrub definition, not the spawn path.
 
 The child's stderr is piped rather than inherited, and each complete line is logged at debug level under the server's label. A server that greets on stderr — or the `npx` that warns before it execs one — would otherwise write those lines straight over the Host's own startup output.
 
@@ -149,7 +149,7 @@ Read these pages when the package-level contract is not enough. They move from t
 - [MCP client auto-reconnect Agent Note](../../../.agents/notes/implemented/feature/2026-08-06-mcp-client-auto-reconnect.md) — the reconnect policy, attempt budget, and opt-out rationale.
 - [Canonical tool output contract Agent Note](../../../.agents/notes/implemented/architecture/2026-07-20-canonical-tool-output-contract.md) — how MCP results map into the canonical tool-output contract.
 - [Third-party memory MCP guide](../../../docs/user/guide/mcp-memory.md) — three memory-server overlays using this package.
-- [Generated configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-mcp-client) — every accepted config field and its source declaration.
+- [Generated configuration catalog](../../../docs/config-catalog.md#aeven-mcp-client) — every accepted config field and its source declaration.
 
 -----
 

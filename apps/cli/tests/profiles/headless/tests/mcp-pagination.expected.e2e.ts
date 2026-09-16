@@ -19,8 +19,8 @@ it('reports a repeated MCP discovery cursor and exits before starting a turn', a
     tsconfigPath: fileURLToPath(new URL('../../../../../../tsconfig.json', import.meta.url)),
     expectedExitCode: 1,
     env: {
-      DSH_MCP_PAGINATION_FIXTURE: fileURLToPath(new URL('repeated-cursor-server.ts', fixtureRoot)),
-      DSH_TELEMETRY_DISABLED: '1',
+      AVN_MCP_PAGINATION_FIXTURE: fileURLToPath(new URL('repeated-cursor-server.ts', fixtureRoot)),
+      AVN_TELEMETRY_DISABLED: '1',
     },
   })
   expect(stdout).toBe('')

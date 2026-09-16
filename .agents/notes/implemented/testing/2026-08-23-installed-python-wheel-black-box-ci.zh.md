@@ -12,7 +12,7 @@ Python SDK 单元测试驱动 fake peer，而打包运行时工作流可以在�
 
 ### 安装产物边界
 
-必需的 Python 运行时工作流先构建纯 SDK wheel 包与各平台运行时 wheel 包，再进行行为测试。每个原生目标都把这两个本地文件安装进新的 Python 3.10 虚拟环境，切换到仓库外的临时目录，清除 `PYTHONPATH` 与 `DSH_RUNTIME_MODE`，并且只调用公开 Python 模块与打包后的可执行文件。
+必需的 Python 运行时工作流先构建纯 SDK wheel 包与各平台运行时 wheel 包，再进行行为测试。每个原生目标都把这两个本地文件安装进新的 Python 3.10 虚拟环境，切换到仓库外的临时目录，清除 `PYTHONPATH` 与 `AVN_RUNTIME_MODE`，并且只调用公开 Python 模块与打包后的可执行文件。
 
 黑盒测试会拒绝非 venv 进程、仓库内工作目录、源码或 editable import、不相等的 distribution 版本、未精确固定运行时版本的 SDK 依赖、位于已安装运行时包之外的可执行文件，以及未出现在运行时 distribution 记录中的可执行文件。该来源校验发生在首个 agent 请求之前，因此行为通过也不能掩盖实际运行了错误代码。
 

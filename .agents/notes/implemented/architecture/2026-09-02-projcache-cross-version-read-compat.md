@@ -6,7 +6,7 @@ English | [中文](2026-09-02-projcache-cross-version-read-compat.zh.md)
 
 ## Problem
 
-The `session_projcache` storage domain evolved through three on-disk generations across published releases. An upgraded DSH_HOME failed in two ways:
+The `session_projcache` storage domain evolved through three on-disk generations across published releases. An upgraded AVN_HOME failed in two ways:
 
 - **A v3 single-file home bricked startup after the upgrade**: the per-record layout's legacy bootstrap migrated the old whole-unit file without checking its `unit.version`, stamping the old records with the current version into the new tree; the domain layer's per-record zod validation at open then hit the missing now-required fields → `invalid-record` → the whole domain refused to open → the plugin tree failed to load. And because the bootstrap writes before validation runs, **the first boot permanently wrote the bad documents into the new tree** ("poisoning") — every later boot saw a non-empty tree, never took the legacy path again, and the home stayed unusable.
 - **A v4 per-record home lost its listing titles after the upgrade**: v4 documents were silently discarded by the version-stamp check (the per-record contract), and SessionList is a zero-I/O cache-only read, so a miss served the row without projections; titles only returned as each session was individually reopened.

@@ -16,7 +16,7 @@ Two runtime carriers coexist under ``runtime/``, both injected by the repo's
 
 Both carriers execute the same dsh command grammar. The Python SDK selects the
 ``sdk`` profile and requires an explicit Harness home; the installed ``dsh``
-console command requires ``DSH_HOME`` for the same reason.
+console command requires ``AVN_HOME`` for the same reason.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ from pathlib import Path
 
 PACKAGE_METADATA_FILENAME = "deepseek-harness-runtime.json"
 
-RUNTIME_MODE_ENV_VAR = "DSH_RUNTIME_MODE"
+RUNTIME_MODE_ENV_VAR = "AVN_RUNTIME_MODE"
 
 _PLATFORM_TAGS = {"linux": "linux", "darwin": "macos", "win32": "win"}
 _ARCH_TAGS = {"x86_64": "x64", "amd64": "x64", "arm64": "arm64", "aarch64": "arm64"}
@@ -94,7 +94,7 @@ def resolve_bundled_launch_args(mode: str | None = None) -> tuple[str, ...]:
     """The argv tuple that launches the bundled runtime.
 
     Mode selection: the explicit ``mode`` argument wins, then the
-    ``DSH_RUNTIME_MODE`` environment variable (``exe`` | ``node``), then
+    ``AVN_RUNTIME_MODE`` environment variable (``exe`` | ``node``), then
     automatic resolution. Automatic resolution finds the production exe ONLY —
     the dev-only node carrier must be selected explicitly so a production
     deployment can never silently ride on a source build. Returns
@@ -158,9 +158,9 @@ def _node_launch_args() -> tuple[str, str]:
 
 def main() -> None:
     """Execute the bundled dsh CLI with an explicitly selected Harness home."""
-    if not os.environ.get("DSH_HOME", "").strip():
+    if not os.environ.get("AVN_HOME", "").strip():
         print(
-            "dsh: the Python runtime command requires an explicit DSH_HOME; "
+            "dsh: the Python runtime command requires an explicit AVN_HOME; "
             "it never uses ~/.dsh implicitly",
             file=sys.stderr,
         )

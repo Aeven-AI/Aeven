@@ -41,7 +41,7 @@ Mount this row inside a preset composition to give that preset's sessions their 
 | `complete` | `false` | Restore this persona after assembly as the only system-prompt section |
 | `includeRuntimeContext` | `true` | Include dynamic runtime-context snapshots for this agent scope; false suppresses every context contribution without disabling its owning services |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-persona) is the exhaustive source for every accepted field and its JSDoc.
+The generated [configuration catalog](../../../docs/config-catalog.md#aeven-persona) is the exhaustive source for every accepted field and its JSDoc.
 
 ### Persona behavior
 
@@ -85,7 +85,7 @@ Read these pages when the package-level contract is not enough; they move from t
 
 - [agent-presets package](../agent-presets/README.md) — the preset composition this row mounts into.
 - [System prompt subsystem](../../../docs/subsystems/system-prompt.md) — sections, assembly, and the persona slot this row shadows.
-- [Generated configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-persona) — every accepted config field and its source declaration.
+- [Generated configuration catalog](../../../docs/config-catalog.md#aeven-persona) — every accepted config field and its source declaration.
 
 -----
 

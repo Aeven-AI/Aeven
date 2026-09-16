@@ -506,7 +506,7 @@ async function readStaticLinkedRoster(root: string): Promise<Set<string>> {
     const loaded = await import(pathToFileURL(resolve(root, configPath)).href) as { default?: unknown }
     if (typeof loaded.default !== 'function') continue
     const configs = (loaded.default as (input: { env: Record<string, string> }) => unknown)({
-      env: { DSH_BUILD_FACE: 'client' },
+      env: { AVN_BUILD_FACE: 'client' },
     })
     if (!Array.isArray(configs) || !predicate(configs)) continue
     const manifest = JSON.parse(

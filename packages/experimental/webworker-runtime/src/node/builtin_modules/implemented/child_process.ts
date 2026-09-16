@@ -25,7 +25,7 @@ import { virtualExecutable } from '../../../shell/process/virtual-executables.ts
 import type { VirtualExecutableExit } from '../../../shell/process/virtual-executables.ts'
 import { standardPrograms } from '../../../shell/programs/index.ts'
 import type { ShellFileSystem } from '../../../shell/types.ts'
-import { DSH_ROOT } from '../../../storage/paths.ts'
+import { AVN_ROOT } from '../../../storage/paths.ts'
 
 const MODULE = 'node:child_process'
 
@@ -265,7 +265,7 @@ export function spawn(
   // exactly that — is never racing the first output.
   queueMicrotask(() => {
     void (async () => {
-      const cwd = options.cwd ?? DSH_ROOT
+      const cwd = options.cwd ?? AVN_ROOT
       let commandArgv: readonly string[] = argv
       let filesystem: ShellFileSystem | undefined
       let missingExecutable: VirtualExecutableExit | undefined

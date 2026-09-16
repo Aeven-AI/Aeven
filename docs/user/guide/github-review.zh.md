@@ -7,25 +7,25 @@
 ## 前置条件
 
 - 一个可由 DSH 注册为 Web Workspace 的本地 checkout。
-- 一个可通过 `DSH_GITHUB_WEBHOOK_SECRET` 凭据引用访问的高熵 GitHub webhook 密钥。
+- 一个可通过 `AVN_GITHUB_WEBHOOK_SECRET` 凭据引用访问的高熵 GitHub webhook 密钥。
 - 一个可以把单个公共 URL 转发到 loopback 监听器的 TLS 反向代理或 tunnel。
 - GitHub webhook 订阅 Pull requests 事件，且 content type 为 `application/json`。
 
-overlay 默认使用启动目录作为 Workspace，并监听 `127.0.0.1:3081`。可通过 `DSH_GITHUB_REVIEW_WORKSPACE` 与 `DSH_GITHUB_WEBHOOK_PORT` 覆盖它们。
+overlay 默认使用启动目录作为 Workspace，并监听 `127.0.0.1:3081`。可通过 `AVN_GITHUB_REVIEW_WORKSPACE` 与 `AVN_GITHUB_WEBHOOK_PORT` 覆盖它们。
 
 ## 启动 DSH
 
 生成密钥，并在重启后继续使用同一值：
 
 ```sh
-export DSH_GITHUB_WEBHOOK_SECRET="$(openssl rand -hex 32)"
-printf '%s\n' "$DSH_GITHUB_WEBHOOK_SECRET"
+export AVN_GITHUB_WEBHOOK_SECRET="$(openssl rand -hex 32)"
+printf '%s\n' "$AVN_GITHUB_WEBHOOK_SECRET"
 ```
 
 在开发 checkout 中运行：
 
 ```sh
-export DSH_GITHUB_REVIEW_WORKSPACE=/path/to/deepseek-harness
+export AVN_GITHUB_REVIEW_WORKSPACE=/path/to/deepseek-harness
 pnpm dsh web --patch apps/cli/config/examples/github-review/cordis.yml
 ```
 
@@ -35,7 +35,7 @@ pnpm dsh web --patch apps/cli/config/examples/github-review/cordis.yml
 dsh web --patch /absolute/path/to/github-review/cordis.yml
 ```
 
-对于永久 profile，把 `github-ready-review-rule.mjs` 放在 `$DSH_HOME/profiles/web/cordis.patch.yml` 旁边，把 `cordis.yml` 中的行追加到该 patch，然后运行 `dsh web`。随附 CLI 已经包含两个 webhook 包；只需 overlay 即可激活它们。
+对于永久 profile，把 `github-ready-review-rule.mjs` 放在 `$AVN_HOME/profiles/web/cordis.patch.yml` 旁边，把 `cordis.yml` 中的行追加到该 patch，然后运行 `dsh web`。随附 CLI 已经包含两个 webhook 包；只需 overlay 即可激活它们。
 
 ## 暴露专用端点
 
@@ -58,7 +58,7 @@ GitHub 配置如下：
 ```text
 Payload URL:  https://hooks.example.com/github
 Content type: application/json
-Secret:       DSH_GITHUB_WEBHOOK_SECRET value
+Secret:       AVN_GITHUB_WEBHOOK_SECRET value
 Events:       Pull requests
 Active:       yes
 ```

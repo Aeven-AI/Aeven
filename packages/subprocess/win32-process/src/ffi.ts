@@ -101,7 +101,7 @@ export interface Win32ProcessBindings {
 }
 
 /** Koffi STARTUPINFOW layout. */
-export const STARTUPINFOW = koffi.struct('DSH_STARTUPINFOW', {
+export const STARTUPINFOW = koffi.struct('AVN_STARTUPINFOW', {
   cb: 'uint32',
   lpReserved: 'str16',
   lpDesktop: 'str16',
@@ -123,7 +123,7 @@ export const STARTUPINFOW = koffi.struct('DSH_STARTUPINFOW', {
 })
 
 /** Koffi PROCESS_INFORMATION layout. */
-export const PROCESS_INFORMATION = koffi.struct('DSH_PROCESS_INFORMATION', {
+export const PROCESS_INFORMATION = koffi.struct('AVN_PROCESS_INFORMATION', {
   hProcess: PVOID,
   hThread: PVOID,
   dwProcessId: 'uint32',

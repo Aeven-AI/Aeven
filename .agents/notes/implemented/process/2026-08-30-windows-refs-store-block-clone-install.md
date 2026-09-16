@@ -33,7 +33,7 @@ if ($fs -eq 'ReFS') {
 - `corepack pnpm` is used because clone mode needs the `@reflink/reflink` native module, which the system corepack pnpm carries but `pnpm/action-setup`'s dest build omits.
 - `.npmrc` and `npm_config_*` environment variables do not drive `package-import-method` in pnpm 11.7.0 on Windows; only the CLI flag is honored, so the flag is explicit in the command.
 
-The self-hosted VM's store lives on `F:\.pnpm-store` (ReFS, machine-level `PNPM_CONFIG_STORE_DIR`), and the workspaces live on `F:\ci\_work-NN`. The F: volume is 200 GB ReFS after rebuild. `DSH_CI_FAILOVER_WINDOWS=selfhosted` routes the four pull-request native jobs to the self-hosted pool.
+The self-hosted VM's store lives on `F:\.pnpm-store` (ReFS, machine-level `PNPM_CONFIG_STORE_DIR`), and the workspaces live on `F:\ci\_work-NN`. The F: volume is 200 GB ReFS after rebuild. `AVN_CI_FAILOVER_WINDOWS=selfhosted` routes the four pull-request native jobs to the self-hosted pool.
 
 ## Alternatives considered
 

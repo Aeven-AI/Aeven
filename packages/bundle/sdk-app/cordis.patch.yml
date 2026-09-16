@@ -18,4 +18,4 @@
       name: '@deepseek-ai/dsh-sdk-jsonrpc-server'
       inject: [sdkAppStartup, loader]
       config:
-        maxTokensAsSuccess: !!js "process.env.DSH_MAX_TOKENS_AS_SUCCESS === undefined ? true : JSON.parse(process.env.DSH_MAX_TOKENS_AS_SUCCESS)"
+        maxTokensAsSuccess: !!js "process.env.AVN_MAX_TOKENS_AS_SUCCESS === undefined ? true : JSON.parse(process.env.AVN_MAX_TOKENS_AS_SUCCESS)"

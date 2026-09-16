@@ -5,7 +5,7 @@
  * `includeShippedRoot: false` is how a deployment supplying purely its own
  * presets — or an embedder using the roster as bare machinery — opts out.
  *
- * `$DSH_HOME` is repointed per test for the same reason as the user-root
+ * `$AVN_HOME` is repointed per test for the same reason as the user-root
  * suite: the derived writable root is resolved in the constructor.
  */
 
@@ -27,13 +27,13 @@ const SYSTEM_ROOT = join(FIXTURES, 'system')
 let previousHome: string | undefined
 
 beforeEach(async () => {
-  previousHome = process.env.DSH_HOME
-  process.env.DSH_HOME = await mkdtemp(join(tmpdir(), 'dsh-shipped-root-'))
+  previousHome = process.env.AVN_HOME
+  process.env.AVN_HOME = await mkdtemp(join(tmpdir(), 'dsh-shipped-root-'))
 })
 
 afterEach(() => {
-  if (previousHome === undefined) delete process.env.DSH_HOME
-  else process.env.DSH_HOME = previousHome
+  if (previousHome === undefined) delete process.env.AVN_HOME
+  else process.env.AVN_HOME = previousHome
 })
 
 /** Boot a roster with the shipped root left to the plugin's default. */

@@ -112,7 +112,7 @@ SDK 会延迟启动内置的 `dsh --profile sdk-minimal` 进程，并复用到�
 ### Linux 与 macOS
 
 ```sh
-export DSH_HOME=/absolute/path/to/example-dsh-home
+export AVN_HOME=/absolute/path/to/example-dsh-home
 dsh --profile sdk-minimal --dump-default-config >/dev/null
 dsh plugin --profile sdk-minimal add file:/absolute/path/to/my-plugin-bundle
 ```
@@ -120,12 +120,12 @@ dsh plugin --profile sdk-minimal add file:/absolute/path/to/my-plugin-bundle
 ### Windows PowerShell
 
 ```powershell
-$env:DSH_HOME = "C:\work\example-dsh-home"
+$env:AVN_HOME = "C:\work\example-dsh-home"
 dsh --profile sdk-minimal --dump-default-config | Out-Null
 dsh plugin --profile sdk-minimal add file:C:/work/my-plugin-bundle
 ```
 
-第一个命令初始化随附的独立 profile。第二个命令把包管理转发给 `pnpm`，然后记录所有导出 `dsh.bundle` 层的已安装包。只有执行此管理命令时才需要安装 `pnpm`；启动已安装 SDK 不需要它。持久配置项变更应编辑 `$DSH_HOME/profiles/sdk-minimal/cordis.patch.yml`；单次启动变更则从 Python 传入 patch 文件。
+第一个命令初始化随附的独立 profile。第二个命令把包管理转发给 `pnpm`，然后记录所有导出 `dsh.bundle` 层的已安装包。只有执行此管理命令时才需要安装 `pnpm`；启动已安装 SDK 不需要它。持久配置项变更应编辑 `$AVN_HOME/profiles/sdk-minimal/cordis.patch.yml`；单次启动变更则从 Python 传入 patch 文件。
 
 另一个 `profile` 只有包含 `@deepseek-ai/dsh-sdk-app` 或另一个 JSON-RPC server 配置项时才有效。缺失 server 配置项、无法解析的插件和非法 patch 会在启动时失败，不会回退到其他组合。
 
@@ -133,8 +133,8 @@ dsh plugin --profile sdk-minimal add file:C:/work/my-plugin-bundle
 
 | 属性 | 值 |
 |---|---|
-| 系统提示词 | `DSH_SYSTEM_PROMPT`，未设置时为 `You are a helpful software engineer assistant.` |
-| `minimal.py` 的模型 | `--model`，然后是 `DSH_MODEL`，最后是 `deepseek-v4-flash` |
+| 系统提示词 | `AVN_SYSTEM_PROMPT`，未设置时为 `You are a helpful software engineer assistant.` |
+| `minimal.py` 的模型 | `--model`，然后是 `AVN_MODEL`，最后是 `deepseek-v4-flash` |
 | 面向模型的工具 | Linux／macOS 上的持久 `bash` 或 Windows 上的 `pwsh`，以及 `str_replace_editor` |
 | Shell 超时 | 300 秒 |
 | Editor 输出上限 | 16,000 字符 |
@@ -143,7 +143,7 @@ dsh plugin --profile sdk-minimal add file:C:/work/my-plugin-bundle
 
 该 profile 的唯一组合包会在空根之上插入完整配置树，且不包含 `dsh-base`，因此基础 profile 以后新增的工具不会隐式出现。它包含 SDK 协议、一个由环境配置的 DeepSeek 适配器、本地执行与持久化；settings、托管凭据、遥测、Web 工具、subagent、本地指令发现和 compaction 均不存在。它固定使用 `danger-full-access`，因此按平台选择的持久 shell 与 editor 可以修改运行时可见的任何路径；应使用一次性 checkout 或容器。
 
-已安装 wheel 仍会打包完整 `web` profile 与前端产物。如果 Python SDK 部署还需要浏览器应用，请针对显式 `DSH_HOME` 运行 `dsh web`；`web` 是独立 CLI 应用，不能为 Python SDK client 提供服务。
+已安装 wheel 仍会打包完整 `web` profile 与前端产物。如果 Python SDK 部署还需要浏览器应用，请针对显式 `AVN_HOME` 运行 `dsh web`；`web` 是独立 CLI 应用，不能为 Python SDK client 提供服务。
 
 需要隔离 profile、插件、凭据、设置与会话时，应使用新的 home。独立工作应使用新的 session id；只有继续同一段持久对话和会话资源时，才同时复用 harness、home 与 id。
 

@@ -18,8 +18,8 @@ export function resolveDesktopBuildTarget(
   hostPlatform = process.platform,
   hostArch = process.arch,
 ) {
-  const platform = env.DSH_DESKTOP_TARGET_PLATFORM ?? env.npm_config_platform ?? hostPlatform
-  const arch = env.DSH_DESKTOP_TARGET_ARCH ?? env.npm_config_arch ?? hostArch
+  const platform = env.AVN_DESKTOP_TARGET_PLATFORM ?? env.npm_config_platform ?? hostPlatform
+  const arch = env.AVN_DESKTOP_TARGET_ARCH ?? env.npm_config_arch ?? hostArch
   const os = platform === 'darwin' ? 'mac' : platform === 'win32' || platform === 'win' ? 'win' : platform
   const target = `${os}-${arch}`
   if (!SUPPORTED_TARGETS.has(target)) {

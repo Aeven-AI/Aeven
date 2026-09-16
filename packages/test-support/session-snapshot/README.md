@@ -47,7 +47,7 @@ function snapshotMode(value: string | undefined): SnapshotSuiteOptions['mode'] {
     case 'replay': return 'replay'
     case 'record': return 'record'
     case 'refresh': return 'refresh'
-    default: throw new Error(`unknown DSH_SNAPSHOT mode: ${value}`)
+    default: throw new Error(`unknown AVN_SNAPSHOT mode: ${value}`)
   }
 }
 
@@ -64,7 +64,7 @@ defineAcpSnapshotSuite({
   },
   snapshotsDir: join(dirname(fileURLToPath(import.meta.url)), 'snapshots'),
   scenarios: SCENARIOS, // exactly one entry per header class sets pinsHeader
-  mode: snapshotMode(process.env.DSH_SNAPSHOT),
+  mode: snapshotMode(process.env.AVN_SNAPSHOT),
 })
 ```
 
@@ -74,7 +74,7 @@ Each recorded-session directory carries a closed `snapshot.yml` manifest plus it
 
 ### Record, replay, and refresh
 
-`pnpm run test:snapshot:record` calls the live LLM and rewrites recorded model fixtures; `pnpm run test:snapshot:refresh` stays keyless, runs the replay overlay, and rewrites stdout, comparable session-log expected outputs, and owned prompt and tool-schema sidecars from committed model scripts. Each composition owner keeps its replay patch beside its live patch; top-level `snapshots/` owns session-driven scenarios, while other expected outputs stay beside their owning package. [`dsh-llm-replay`](../llm-replay/README.md) serves the recorded streams selected through `DSH_SNAPSHOT_*` environment values.
+`pnpm run test:snapshot:record` calls the live LLM and rewrites recorded model fixtures; `pnpm run test:snapshot:refresh` stays keyless, runs the replay overlay, and rewrites stdout, comparable session-log expected outputs, and owned prompt and tool-schema sidecars from committed model scripts. Each composition owner keeps its replay patch beside its live patch; top-level `snapshots/` owns session-driven scenarios, while other expected outputs stay beside their owning package. [`dsh-llm-replay`](../llm-replay/README.md) serves the recorded streams selected through `AVN_SNAPSHOT_*` environment values.
 
 ### Pinning request headers
 
@@ -88,7 +88,7 @@ A scenario requiring a non-Windows host declares `posixOnly`, which skips its ru
 
 - **A fixture guard rejects the committed files** — orphan scenario dirs, missing files, multiple pins for one header class, duplicate sidecar content, unscrubbed JSONL headers, and malformed pinning headers all fail the suite before comparisons run.
 - **The session harvest needs raw JSONL mode** — snapshot configs set the JSONL backend's `compression: 'none'`; compressed JSONL has no snapshot-harvest path.
-- **Built mode needs current artifacts** — run `pnpm run build` before selecting `DSH_EXAMPLE_MODE=lib`; source mode remains the zero-build path.
+- **Built mode needs current artifacts** — run `pnpm run build` before selecting `AVN_EXAMPLE_MODE=lib`; source mode remains the zero-build path.
 
 -----
 
@@ -155,7 +155,7 @@ None; this package neither assembles nor sends a provider request.
 These limits define when the kit needs special care. They are current package constraints, not a task backlog.
 
 - **Session harvest requires raw JSONL mode** — `runScenario` collects persisted `.jsonl` logs, so snapshot configs set the JSONL backend's `compression: 'none'`; compressed JSONL has no snapshot-harvest path.
-- **Built mode requires current artifacts** — run `pnpm run build` before selecting `DSH_EXAMPLE_MODE=lib`; source mode remains the zero-build path.
+- **Built mode requires current artifacts** — run `pnpm run build` before selecting `AVN_EXAMPLE_MODE=lib`; source mode remains the zero-build path.
 - **ACP remains for protocol behavior** — cancellation and permission round trips whose stimulus is the ACP client stay on that adapter; assembled one-shot and persistent-control behavior uses headless and SDK adapters.
 
 <a id="dev-note"></a>

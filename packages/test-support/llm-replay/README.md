@@ -48,20 +48,20 @@ With `providers` configured, the plugin registers a replay-only adapter whose ca
           - id: deepseek-v4-flash
             contextWindow: 128000
           - id: deepseek-v4-pro
-  # file/overrideFile/childFiles default to $DSH_SNAPSHOT_FILE /
-  # $DSH_SNAPSHOT_OVERRIDE / $DSH_SNAPSHOT_CHILD_FILES, set by the snapshot
+  # file/overrideFile/childFiles default to $AVN_SNAPSHOT_FILE /
+  # $AVN_SNAPSHOT_OVERRIDE / $AVN_SNAPSHOT_CHILD_FILES, set by the snapshot
   # harness per scenario.
 ```
 
 | Field | Default | Meaning |
 |---|---|---|
-| `file` | `$DSH_SNAPSHOT_FILE` | Path to the primary (parent) `session.jsonl` fixture; required (config or env) |
-| `overrideFile` | `$DSH_SNAPSHOT_OVERRIDE` | Optional `ReplayOverrideDoc` sidecar for the primary session |
-| `childFiles` | `$DSH_SNAPSHOT_CHILD_FILES` | Recorded subagent child-session logs for a nested scenario |
+| `file` | `$AVN_SNAPSHOT_FILE` | Path to the primary (parent) `session.jsonl` fixture; required (config or env) |
+| `overrideFile` | `$AVN_SNAPSHOT_OVERRIDE` | Optional `ReplayOverrideDoc` sidecar for the primary session |
+| `childFiles` | `$AVN_SNAPSHOT_CHILD_FILES` | Recorded subagent child-session logs for a nested scenario |
 | `providers` | — | Optional replay-only provider and model catalog; a model may declare `contextWindow`, text/image modalities, and positive `imageRequestTokens` when image-capable; invalid values fail at load and routes never perform provider I/O |
 | `paceMs` | — (burst) | Optional per-chunk delay in ms for genuinely incremental delivery |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-llm-replay) is the exhaustive source for every accepted field and its JSDoc.
+The generated [configuration catalog](../../../docs/config-catalog.md#aeven-llm-replay) is the exhaustive source for every accepted field and its JSDoc.
 
 ### How the fixture works
 

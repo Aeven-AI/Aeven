@@ -27,7 +27,7 @@ uv run --project python/sdk pytest
 
 `python/sdk/tests/test_bundled_runtime.py` 会运行可用的内置载体；某个载体的产物尚未构建时，会跳过该载体。仓库级测试政策见 [测试](../docs/testing.zh.md)。
 
-该套件面向的是伪造的运行时对端。`scripts/smoke-python-runtime.py` 面向打包运行时。必需的 `python-runtime` CI 任务会构建每个已发布原生目标，把匹配的 SDK wheel 包与运行时 wheel 包安装进新的 Python 3.10 虚拟环境，在 checkout 外清除 `PYTHONPATH` 与 `DSH_RUNTIME_MODE` 后运行，证明两个模块及可执行文件都来自这些 distribution，然后运行全部 keyless 场景。聚焦的本地源码 SDK 运行可以选择一个已构建可执行文件与场景：
+该套件面向的是伪造的运行时对端。`scripts/smoke-python-runtime.py` 面向打包运行时。必需的 `python-runtime` CI 任务会构建每个已发布原生目标，把匹配的 SDK wheel 包与运行时 wheel 包安装进新的 Python 3.10 虚拟环境，在 checkout 外清除 `PYTHONPATH` 与 `AVN_RUNTIME_MODE` 后运行，证明两个模块及可执行文件都来自这些 distribution，然后运行全部 keyless 场景。聚焦的本地源码 SDK 运行可以选择一个已构建可执行文件与场景：
 
 ```sh
 uv run --project python/sdk python scripts/smoke-python-runtime.py \
@@ -47,13 +47,13 @@ with DeepSeekHarness(dsh_home="/absolute/path/to/test-dsh-home") as harness:
     print(harness.run("say hi").final_response)
 ```
 
-也可以导出非空 `DSH_HOME`。SDK 会拒绝可能静默使用 `~/.dsh` 的启动。
+也可以导出非空 `AVN_HOME`。SDK 会拒绝可能静默使用 `~/.dsh` 的启动。
 
 ## 针对 Node 源码运行
 
 仓库贡献者可以选择以下任一开发路径；两者都执行普通的 `dsh --profile sdk` 启动器：
 
-- 设置 `DSH_RUNTIME_MODE=node`，在系统 Node `>=22.19` 上使用已构建的 Node 载体。构建脚本会刷新该载体，但分发物绝不会包含或自动选择它。
+- 设置 `AVN_RUNTIME_MODE=node`，在系统 Node `>=22.19` 上使用已构建的 Node 载体。构建脚本会刷新该载体，但分发物绝不会包含或自动选择它。
 - 将 `dsh_bin` 设置为已构建 `apps/cli/lib/bin.js` 的绝对路径，直接验证当前 checkout 的 CLI。请显式提供 `dsh_home`，并按需提供 `profile` 与有序 `patches`。
 
 `python/sdk/tests/manual_sdk_agent_smoke.py` 使用内部 `_launch_args` 测试适配器，通过 tsx 验证未构建的 TypeScript CLI。公开 SDK 刻意不提供任意 argv 替换。

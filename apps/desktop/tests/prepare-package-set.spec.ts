@@ -15,8 +15,8 @@ describe('desktop package-set selection', () => {
   })
 
   it('does not select a packaging target when imported as a library', async () => {
-    vi.stubEnv('DSH_DESKTOP_TARGET_PLATFORM', 'linux')
-    vi.stubEnv('DSH_DESKTOP_TARGET_ARCH', 'x64')
+    vi.stubEnv('AVN_DESKTOP_TARGET_PLATFORM', 'linux')
+    vi.stubEnv('AVN_DESKTOP_TARGET_ARCH', 'x64')
     vi.resetModules()
     await expect(import('../scripts/prepare-package-set.ts')).resolves.toHaveProperty('prepareDesktopPackageSet')
   })

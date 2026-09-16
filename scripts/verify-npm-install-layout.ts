@@ -10,15 +10,15 @@ import {
   type RegistryIndex,
 } from './benchmark-npm-resolution.ts'
 
-const DSH_PACKAGE = '@deepseek-ai/dsh'
+const AVN_PACKAGE = '@deepseek-ai/dsh'
 const CORDIS_PACKAGE = '@deepseek-ai/cordis'
-const NESTED_DSH_ALIAS = 'dsh-previous'
-const NESTED_DSH_PATH = `node_modules/${NESTED_DSH_ALIAS}`
+const NESTED_AVN_ALIAS = 'dsh-previous'
+const NESTED_AVN_PATH = `node_modules/${NESTED_AVN_ALIAS}`
 const DEPENDENCY_FIELDS = ['dependencies', 'optionalDependencies', 'peerDependencies'] as const
 const TIMEOUT_MS = 300_000
 
 /** Synthetic incompatible versions used to expose cross-release placement errors. */
-export const SYNTHETIC_DSH_VERSIONS = ['0.1.0', '0.2.0'] as const
+export const SYNTHETIC_AVN_VERSIONS = ['0.1.0', '0.2.0'] as const
 
 interface MutableRegistryManifest {
   name: string
@@ -36,7 +36,7 @@ export interface DshInstallLayoutSummary {
 }
 
 function isDshPackage(name: string): boolean {
-  return name === DSH_PACKAGE || name.startsWith(`${DSH_PACKAGE}-`)
+  return name === AVN_PACKAGE || name.startsWith(`${AVN_PACKAGE}-`)
 }
 
 function cloneForVersion(manifest: object, version: string): MutableRegistryManifest {
@@ -69,7 +69,7 @@ export function buildDualDshRegistry(index: RegistryIndex, sourceVersion: string
     const source = versions.get(sourceVersion)
     if (source === undefined) throw new Error(`${name} has no workspace version ${sourceVersion}`)
     dshPackages++
-    output.set(name, new Map(SYNTHETIC_DSH_VERSIONS.map(version => [
+    output.set(name, new Map(SYNTHETIC_AVN_VERSIONS.map(version => [
       version,
       cloneForVersion(source, version),
     ])))
@@ -115,7 +115,7 @@ function setDifference(left: ReadonlySet<string>, right: ReadonlySet<string>): s
  * @returns Counts for the verified DSH packages and dependency edges.
  */
 export function assertDualDshInstallLayout(packageLock: NpmPackageLock): DshInstallLayoutSummary {
-  const [nestedVersion, rootVersion] = SYNTHETIC_DSH_VERSIONS
+  const [nestedVersion, rootVersion] = SYNTHETIC_AVN_VERSIONS
   const errors: string[] = []
   const namesByVersion = new Map<string, Set<string>>([
     [nestedVersion, new Set()],
@@ -135,9 +135,9 @@ export function assertDualDshInstallLayout(packageLock: NpmPackageLock): DshInst
     namesByVersion.get(version)?.add(name)
     const expectedPath = version === rootVersion
       ? `node_modules/${name}`
-      : name === DSH_PACKAGE
-        ? NESTED_DSH_PATH
-        : `${NESTED_DSH_PATH}/node_modules/${name}`
+      : name === AVN_PACKAGE
+        ? NESTED_AVN_PATH
+        : `${NESTED_AVN_PATH}/node_modules/${name}`
     if (path !== expectedPath) {
       errors.push(`${path}: expected ${name}@${version} at ${expectedPath}`)
     }
@@ -166,8 +166,8 @@ export function assertDualDshInstallLayout(packageLock: NpmPackageLock): DshInst
 
   const nestedNames = namesByVersion.get(nestedVersion) ?? new Set<string>()
   const rootNames = namesByVersion.get(rootVersion) ?? new Set<string>()
-  if (!nestedNames.has(DSH_PACKAGE)) errors.push(`${NESTED_DSH_PATH}: missing ${DSH_PACKAGE}@${nestedVersion}`)
-  if (!rootNames.has(DSH_PACKAGE)) errors.push(`node_modules/${DSH_PACKAGE}: missing ${DSH_PACKAGE}@${rootVersion}`)
+  if (!nestedNames.has(AVN_PACKAGE)) errors.push(`${NESTED_AVN_PATH}: missing ${AVN_PACKAGE}@${nestedVersion}`)
+  if (!rootNames.has(AVN_PACKAGE)) errors.push(`node_modules/${AVN_PACKAGE}: missing ${AVN_PACKAGE}@${rootVersion}`)
   const onlyNested = setDifference(nestedNames, rootNames)
   const onlyRoot = setDifference(rootNames, nestedNames)
   if (onlyNested.length > 0) errors.push(`only ${nestedVersion} contains: ${onlyNested.join(', ')}`)
@@ -192,10 +192,10 @@ function workspaceVersion(root: string): string {
 async function main(): Promise<void> {
   const root = resolve(import.meta.dirname, '..')
   const index = buildDualDshRegistry(buildRegistryIndex(root), workspaceVersion(root))
-  const [nestedVersion, rootVersion] = SYNTHETIC_DSH_VERSIONS
+  const [nestedVersion, rootVersion] = SYNTHETIC_AVN_VERSIONS
   const result = await resolveNpmPackageLock(index, {
-    [DSH_PACKAGE]: rootVersion,
-    [NESTED_DSH_ALIAS]: `npm:${DSH_PACKAGE}@${nestedVersion}`,
+    [AVN_PACKAGE]: rootVersion,
+    [NESTED_AVN_ALIAS]: `npm:${AVN_PACKAGE}@${nestedVersion}`,
   }, TIMEOUT_MS)
   if (result.archiveRequests !== 0) throw new Error(`npm requested ${String(result.archiveRequests)} package archive(s)`)
   const summary = assertDualDshInstallLayout(result.packageLock)

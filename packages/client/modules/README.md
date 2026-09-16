@@ -51,7 +51,7 @@ The host keeps each generated startup script at or below `maxInitialBatchBytes` 
 |---|---:|---|
 | `maxInitialBatchBytes` | `786432` | Maximum generated JavaScript bytes in an initial combo when one bundle fits. |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-client-modules) is the exhaustive source for accepted fields.
+The generated [configuration catalog](../../../docs/config-catalog.md#aeven-client-modules) is the exhaustive source for accepted fields.
 
 -----
 

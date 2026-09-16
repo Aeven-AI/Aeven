@@ -101,10 +101,10 @@ describe('the provider hand-off', () => {
   })
 
   it('hands the provider\'s returned argv directly to ctx.subprocess.spawn', async () => {
-    const returnedArgv = ['env', 'DSH_WRAP=1', 'bash', '-c', 'printf "%s" "$DSH_WRAP"']
+    const returnedArgv = ['env', 'AVN_WRAP=1', 'bash', '-c', 'printf "%s" "$AVN_WRAP"']
     const { ctx, bash } = await setup({}, () => ({ argv: returnedArgv, enforcement: 'full', denialSignatures: UNIX_SIGNATURES, runnerFailureRules: RUNNER_FAILURE }))
     const spawn = vi.spyOn(ctx.subprocess, 'spawn')
-    const result = await bash.run(bash.resolve({ command: 'printf "%s" "$DSH_WRAP"' }))
+    const result = await bash.run(bash.resolve({ command: 'printf "%s" "$AVN_WRAP"' }))
     expect(result.stdout.text).toBe('1')
     expect(spawn).toHaveBeenCalledTimes(1)
     expect(spawn.mock.calls[0]?.[0].argv).toEqual(returnedArgv)
@@ -115,11 +115,11 @@ describe('the provider hand-off', () => {
     const dir = mkdtempSync(join(tmpdir(), 'dsh-bash-env-order-'))
     const hook = join(dir, 'hook.sh')
     const order = join(dir, 'order.txt')
-    writeFileSync(hook, 'printf "hook\\n" >> "$DSH_ORDER_FILE"\n')
+    writeFileSync(hook, 'printf "hook\\n" >> "$AVN_ORDER_FILE"\n')
     const runnerScript = [
       'const { appendFileSync } = require("node:fs");',
       'const { spawnSync } = require("node:child_process");',
-      'appendFileSync(process.env.DSH_ORDER_FILE, "runner\\n");',
+      'appendFileSync(process.env.AVN_ORDER_FILE, "runner\\n");',
       'const child = spawnSync(process.argv[1], process.argv.slice(2), { env: process.env, stdio: "inherit" });',
       'process.exit(child.status ?? 125);',
     ].join('')
@@ -134,7 +134,7 @@ describe('the provider hand-off', () => {
       const result = await bash.run(bash.resolve({
         command: 'true',
         env: { BASH_ENV: hook },
-        dshEnv: { DSH_ORDER_FILE: order },
+        dshEnv: { AVN_ORDER_FILE: order },
       }))
       expect(result.exitCode).toBe(0)
       expect(readFileSync(order, 'utf8')).toBe('runner\nhook\n')

@@ -40,7 +40,7 @@ MCP_PROMPT = "Exercise the packaged MCP client with one external stdio server."
 MCP_TEXT = "MCP client smoke ok"
 PROFILE_PLUGIN_PROMPT = "Verify the Python-installed dsh profile plugin."
 PROFILE_PLUGIN_TEXT = "profile plugin smoke ok"
-PROFILE_PLUGIN_MARKER = "PYTHON_INSTALLED_DSH_PROFILE_PLUGIN"
+PROFILE_PLUGIN_MARKER = "PYTHON_INSTALLED_AVN_PROFILE_PLUGIN"
 IS_WINDOWS = sys.platform == "win32"
 MINIMAL_SHELL_TOOL = "pwsh" if IS_WINDOWS else "bash"
 MINIMAL_SHELL_COMMAND = (
@@ -778,8 +778,8 @@ def assert_installed_wheel_environment() -> Path:
         raise AssertionError("installed-wheel smoke must run inside a virtual environment")
     if os.environ.get("PYTHONPATH"):
         raise AssertionError("installed-wheel smoke requires PYTHONPATH to be unset")
-    if os.environ.get("DSH_RUNTIME_MODE"):
-        raise AssertionError("installed-wheel smoke requires DSH_RUNTIME_MODE to be unset")
+    if os.environ.get("AVN_RUNTIME_MODE"):
+        raise AssertionError("installed-wheel smoke requires AVN_RUNTIME_MODE to be unset")
 
     repo_root = Path(__file__).resolve().parent.parent
     cwd = Path.cwd().resolve()
@@ -856,8 +856,8 @@ def smoke_sdk_live() -> None:
             cwd=str(root),
             dsh_home=str(dsh_home),
             env={
-                "DSH_PERMISSION_MODE": "danger-full-access",
-                "DSH_TELEMETRY_DISABLED": "1",
+                "AVN_PERMISSION_MODE": "danger-full-access",
+                "AVN_TELEMETRY_DISABLED": "1",
             },
             api_key=api_key,
             base_url=base_url,
@@ -929,8 +929,8 @@ def smoke_sdk_default(base_url: str) -> None:
             cwd=str(root),
             dsh_home=str(dsh_home),
             env={
-                "DSH_PERMISSION_MODE": "danger-full-access",
-                "DSH_TELEMETRY_DISABLED": "1",
+                "AVN_PERMISSION_MODE": "danger-full-access",
+                "AVN_TELEMETRY_DISABLED": "1",
             },
             api_key="sk-keyless-smoke",
             base_url=base_url,
@@ -961,8 +961,8 @@ def smoke_sdk_custom(base_url: str, executable: Path) -> None:
             dsh_home=str(dsh_home),
             patches=(str(patch),),
             env={
-                "DSH_PERMISSION_MODE": "danger-full-access",
-                "DSH_TELEMETRY_DISABLED": "1",
+                "AVN_PERMISSION_MODE": "danger-full-access",
+                "AVN_TELEMETRY_DISABLED": "1",
             },
             api_key="sk-keyless-smoke",
             base_url=base_url,
@@ -1036,8 +1036,8 @@ def smoke_sdk_fs_search(base_url: str, executable: Path) -> None:
             dsh_home=str(dsh_home),
             patches=(str(patch),),
             env={
-                "DSH_PERMISSION_MODE": "danger-full-access",
-                "DSH_TELEMETRY_DISABLED": "1",
+                "AVN_PERMISSION_MODE": "danger-full-access",
+                "AVN_TELEMETRY_DISABLED": "1",
             },
             api_key="sk-keyless-smoke",
             base_url=base_url,
@@ -1069,8 +1069,8 @@ def smoke_sdk_mcp(base_url: str, executable: Path | None) -> None:
             dsh_home=str(dsh_home),
             patches=(str(patch),),
             env={
-                "DSH_PERMISSION_MODE": "danger-full-access",
-                "DSH_TELEMETRY_DISABLED": "1",
+                "AVN_PERMISSION_MODE": "danger-full-access",
+                "AVN_TELEMETRY_DISABLED": "1",
             },
             api_key="sk-keyless-smoke",
             base_url=base_url,
@@ -1124,7 +1124,7 @@ def smoke_sdk_profile_plugin(base_url: str) -> None:
         }], indent=2))
 
         dsh = Path(sysconfig.get_path("scripts")) / ("dsh.exe" if IS_WINDOWS else "dsh")
-        environment = {**os.environ, "DSH_HOME": str(dsh_home)}
+        environment = {**os.environ, "AVN_HOME": str(dsh_home)}
         installed = subprocess.run(
             [str(dsh), "plugin", "--profile", "sdk", "add", f"file:{plugin}"],
             cwd=root,
@@ -1150,8 +1150,8 @@ def smoke_sdk_profile_plugin(base_url: str) -> None:
             cwd=str(root),
             dsh_home=str(dsh_home),
             env={
-                "DSH_PERMISSION_MODE": "danger-full-access",
-                "DSH_TELEMETRY_DISABLED": "1",
+                "AVN_PERMISSION_MODE": "danger-full-access",
+                "AVN_TELEMETRY_DISABLED": "1",
             },
             api_key="sk-keyless-smoke",
             base_url=base_url,
@@ -1186,8 +1186,8 @@ def smoke_sdk_snapshot(base_url: str, executable: Path, update_snapshots: bool) 
             dsh_home=str(dsh_home),
             patches=(str(patch),),
             env={
-                "DSH_PERMISSION_MODE": "danger-full-access",
-                "DSH_TELEMETRY_DISABLED": "1",
+                "AVN_PERMISSION_MODE": "danger-full-access",
+                "AVN_TELEMETRY_DISABLED": "1",
             },
             api_key="sk-keyless-smoke",
             base_url=base_url,
@@ -1238,8 +1238,8 @@ def smoke_sdk_restart_snapshot(base_url: str, executable: Path, update_snapshots
                 dsh_home=str(dsh_home),
                 patches=(str(patch),),
                 env={
-                    "DSH_PERMISSION_MODE": "danger-full-access",
-                    "DSH_TELEMETRY_DISABLED": "1",
+                    "AVN_PERMISSION_MODE": "danger-full-access",
+                    "AVN_TELEMETRY_DISABLED": "1",
                 },
                 api_key="sk-keyless-smoke",
                 base_url=base_url,
@@ -1285,9 +1285,9 @@ def smoke_direct(base_url: str, executable: Path) -> None:
         patch = write_profile_patch(root, "direct.patch.yml", sessions, [])
         environment = {
             **os.environ,
-            "DSH_HOME": str(dsh_home),
-            "DSH_PERMISSION_MODE": "danger-full-access",
-            "DSH_TELEMETRY_DISABLED": "1",
+            "AVN_HOME": str(dsh_home),
+            "AVN_PERMISSION_MODE": "danger-full-access",
+            "AVN_TELEMETRY_DISABLED": "1",
             "DEEPSEEK_API_KEY": "sk-keyless-smoke",
             "DEEPSEEK_BASE_URL": base_url,
         }

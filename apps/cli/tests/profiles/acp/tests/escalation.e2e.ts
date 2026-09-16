@@ -85,7 +85,7 @@ function launchExampleAcpAgent(
     // A dummy key lets the adapter boot keylessly; live tests carry the real key.
     env: {
       DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY ?? 'sk-dummy-for-boot',
-      DSH_PERMISSION_MODE: sandboxMode,
+      AVN_PERMISSION_MODE: sandboxMode,
     },
     requestPermission(params) {
       permissionRequests.push(params)

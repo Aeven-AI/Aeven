@@ -100,7 +100,7 @@ interface DesktopSeedIntegrityRecord {
 }
 
 const PROJECT_NAME = '@deepseek-ai/dsh-desktop-runtime'
-const DSH_PACKAGE = '@deepseek-ai/dsh'
+const AVN_PACKAGE = '@deepseek-ai/dsh'
 const CORE_BUILD_PACKAGE = '@deepseek-ai/dsh-subprocess-local'
 const DESKTOP_PROFILE_BUNDLES = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'] as const
 const WORKSPACE_SETTINGS = 'nodeLinker: hoisted\nautoInstallPeers: false\nstrictDepBuilds: true\n'
@@ -263,7 +263,7 @@ function projectManifest(projectDir: string): DesktopProjectManifest {
   const manifest = value as unknown as DesktopProjectManifest
   const packageSet = readDesktopCorePackageSet(projectDir, releaseFile(projectDir).version)
   const expectedOverrides = desktopCorePackageOverrides(packageSet)
-  if (manifest.dependencies[DSH_PACKAGE] !== desktopDshPackageSpec(packageSet)
+  if (manifest.dependencies[AVN_PACKAGE] !== desktopDshPackageSpec(packageSet)
     || Object.entries(expectedOverrides).some(([name, spec]) => manifest.dependencies[name] !== spec)
     || readFileSync(join(projectDir, 'pnpm-workspace.yaml'), 'utf8') !== workspaceFile(expectedOverrides)) {
     throw new Error(`desktop project: core package mapping does not match ${DESKTOP_PACKAGE_SET_FILE}`)
@@ -371,7 +371,7 @@ export class DesktopProjectManager {
   /** Read the exact dsh version installed in the active desktop project. */
   dshVersion(): string {
     if (!existsSync(this.paths.profile)) throw new Error('desktop project: active profile is not installed')
-    return this.installedPackageVersion(DSH_PACKAGE)
+    return this.installedPackageVersion(AVN_PACKAGE)
   }
 
   private installedPackageVersion(packageName: string): string {
@@ -558,7 +558,7 @@ export class DesktopProjectManager {
     const npmrc = join(this.paths.pnpm.config, 'npmrc')
     if (!existsSync(npmrc)) writeFileSync(npmrc, '', { mode: 0o600 })
     const inherited = Object.fromEntries(Object.entries(process.env).filter(([name]) => (
-      !/^DSH_DESKTOP_/u.test(name) && !/^(?:npm|pnpm|corepack)_/iu.test(name)
+      !/^AVN_DESKTOP_/u.test(name) && !/^(?:npm|pnpm|corepack)_/iu.test(name)
     )))
     await new Promise<void>((settle, reject) => {
       const child = spawn(this.runtime.node, [
@@ -714,7 +714,7 @@ export function createDevelopmentProjectMetadata(projectDir: string, release: De
     private: true,
     version: '0.0.0',
     dependencies: {
-      [DSH_PACKAGE]: release.version,
+      [AVN_PACKAGE]: release.version,
       [DESKTOP_HOST_PACKAGE]: release.version,
     },
     dsh: { profile: { bundles: [...DESKTOP_PROFILE_BUNDLES] } },

@@ -39,7 +39,7 @@ agent（智能体）会完成该任务，把提供方的每个非空推理增量
 |---|---|---|
 | `task` | 必填 | 单次运行的任务文本 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-headless)是每个受支持字段及其 JSDoc 的穷尽式真源。
+生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-headless)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
 ### 何时使用
 
@@ -65,7 +65,7 @@ runner 等待整个应用结算（`ctx.get('loader')?.await()`），确保已组
 
 ### 叠加在 base 之上的 patch 表层
 
-patch 叠加在 `dsh-base` 之上：继承投影缓存，在基础 `system-prompt` 行上设置编码 persona，保留与 Web 表层相同的临时进程级 PTC mode 开关（`DSH_TOOLS_MODE`），禁用共享的 HMR 行，把 PTC mode 的 worker 作为核心执行能力插入，并挂载启动提供方与 runner。缓存为每个已持久化的一次性会话写入检查点，供后续消费方使用；其持久性屏障会在发布缓存行前 flush 所覆盖的日志前缀，因此可能拆分原本会合并的 JSONL 行。启动提供方（[`src/startup.ts`](src/startup.ts)）注入 `ctx.cmdlineArgs`（[`dsh-cmdline`](../../boot/cmdline/README.zh.md)），读取位置参数、打印应用自己的 `--help`，并提供 `headlessStartup`；runner 注入该服务，再从惰性配置中读取任务。
+patch 叠加在 `dsh-base` 之上：继承投影缓存，在基础 `system-prompt` 行上设置编码 persona，保留与 Web 表层相同的临时进程级 PTC mode 开关（`AVN_TOOLS_MODE`），禁用共享的 HMR 行，把 PTC mode 的 worker 作为核心执行能力插入，并挂载启动提供方与 runner。缓存为每个已持久化的一次性会话写入检查点，供后续消费方使用；其持久性屏障会在发布缓存行前 flush 所覆盖的日志前缀，因此可能拆分原本会合并的 JSONL 行。启动提供方（[`src/startup.ts`](src/startup.ts)）注入 `ctx.cmdlineArgs`（[`dsh-cmdline`](../../boot/cmdline/README.zh.md)），读取位置参数、打印应用自己的 `--help`，并提供 `headlessStartup`；runner 注入该服务，再从惰性配置中读取任务。
 
 ### 退出映射
 
@@ -99,7 +99,7 @@ patch 叠加在 `dsh-base` 之上：继承投影缓存，在基础 `system-promp
 - [dsh-base](../base/README.zh.md)——headless 运行其上的共享核心。
 - [dsh-web-app](../web-app/README.zh.md)——用于多轮工作的交互式浏览器兄弟表层。
 - [dsh-cmdline](../../boot/cmdline/README.zh.md)——启动器如何把命令行交给应用。
-- [生成配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-headless)——每个受支持配置字段及其源声明。
+- [生成配置目录](../../../docs/config-catalog.zh.md#aeven-headless)——每个受支持配置字段及其源声明。
 
 -----
 

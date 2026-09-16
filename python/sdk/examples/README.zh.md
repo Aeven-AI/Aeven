@@ -17,7 +17,7 @@ python python/sdk/examples/minimal.py \
   "Inspect the repository and fix the failing tests."
 ```
 
-兼容代理使用 `DEEPSEEK_BASE_URL`，脚本默认模型使用 `DSH_MODEL`，deployment persona 使用 `DSH_SYSTEM_PROMPT`。`--model` 是唯一运行时模型选择，不要求匹配的环境变量；`--profile` 可以选择另一个提供 SDK 服务的 profile。所选 home 保存生成的 `sdk-minimal` profile，并在 `sessions/` 下保存未压缩 JSONL 会话日志；脚本绝不会隐式读取 `~/.dsh`。
+兼容代理使用 `DEEPSEEK_BASE_URL`，脚本默认模型使用 `AVN_MODEL`，deployment persona 使用 `AVN_SYSTEM_PROMPT`。`--model` 是唯一运行时模型选择，不要求匹配的环境变量；`--profile` 可以选择另一个提供 SDK 服务的 profile。所选 home 保存生成的 `sdk-minimal` profile，并在 `sessions/` 下保存未压缩 JSONL 会话日志；脚本绝不会隐式读取 `~/.dsh`。
 
 随附的 [`@deepseek-ai/dsh-sdk-minimal` 组合包](../../../packages/bundle/sdk-minimal/README.zh.md)是该模式完整且显式的 Cordis 配置树。它只暴露：
 
@@ -33,7 +33,7 @@ python python/sdk/examples/minimal.py \
 对同一个显式 home 使用运行时 wheel 提供的 `dsh` 命令，以进行持久 profile 变更：
 
 ```sh
-export DSH_HOME=/absolute/path/to/example-dsh-home
+export AVN_HOME=/absolute/path/to/example-dsh-home
 dsh plugin --profile sdk-minimal add file:/absolute/path/to/my-plugin-bundle
 ```
 

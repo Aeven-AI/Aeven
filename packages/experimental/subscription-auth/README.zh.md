@@ -32,7 +32,7 @@ kind: "package-bundle"
 
 ### 登录
 
-每个供应商都在 设置 → 订阅 中登录。**登录** 会在新标签页中打开供应商的登录页，并通过 harness 的本地回调完成，因此无需在设置页中输入任何内容。Grok Build 与 Codex 另外提供 **使用代码登录**，这是一个设备码流程，会显示一个需要在供应商页面输入的代码；当浏览器不在 harness 所在主机上时它排在最前，因为本地回调会到达错误的机器。Claude Code 仅支持浏览器。登录完成后，设置页会关闭它打开的供应商标签页；Grok 的授权页会自行确认 code 已送达，因为本地回调允许 `https://accounts.x.ai` 读取它的应答。凭据按供应商各存一个文件，位于 `${DSH_HOME}` 下，仅操作者可读，且从不在浏览器中呈现。
+每个供应商都在 设置 → 订阅 中登录。**登录** 会在新标签页中打开供应商的登录页，并通过 harness 的本地回调完成，因此无需在设置页中输入任何内容。Grok Build 与 Codex 另外提供 **使用代码登录**，这是一个设备码流程，会显示一个需要在供应商页面输入的代码；当浏览器不在 harness 所在主机上时它排在最前，因为本地回调会到达错误的机器。Claude Code 仅支持浏览器。登录完成后，设置页会关闭它打开的供应商标签页；Grok 的授权页会自行确认 code 已送达，因为本地回调允许 `https://accounts.x.ai` 读取它的应答。凭据按供应商各存一个文件，位于 `${AVN_HOME}` 下，仅操作者可读，且从不在浏览器中呈现。
 
 ### 配置
 
@@ -94,7 +94,7 @@ kind: "package-bundle"
 - **供应商端点是私有且无文档的。** 额度读取与 Grok Build 媒体路由调用的是各供应商自己的客户端端点。供应商可能在没有通知的情况下更改或撤除其中之一，失败表现为工具被拒绝，而不是构建错误。
 - **Grok Imagine 的图像模型有两个名字。** 直连 xAI API 称其为 `grok-imagine-image-2.0`，Grok Build proxy 称其为 `grok-imagine-image-quality`。两种写法都被接受并归一到当前 transport，因此模型选择器提供任一 id 都能在任一凭据下工作。
 - **未观察 Grok 的账单跳转设置。** 官方客户端会对 remote settings 带有 `usage_billing_redirect_url` 的账户隐藏额度。这个包不拉取 remote settings，因此这类账户会看到其供应商客户端本会拒绝展示的数字。
-- **兼容性 BOM 现已冗余。** `compatibility/dsh-bom.json` 与 `DSH_EXACT_BOM` 用于检测跨仓库版本漂移，而 workspace 解析已使之不可能发生。它们保留到这个包在 harness 中稳定下来，然后移除。
+- **兼容性 BOM 现已冗余。** `compatibility/dsh-bom.json` 与 `AVN_EXACT_BOM` 用于检测跨仓库版本漂移，而 workspace 解析已使之不可能发生。它们保留到这个包在 harness 中稳定下来，然后移除。
 - **这个包横跨多个产品角色。** OAuth 会话、一个 LLM adapter、媒体 provider、工具与一个客户端 UI 都在同一个包里。预期它会在从 `experimental/` 提升之前按这些角色拆分。
 - **凭据文件是唯一的持久状态。** 它们保存着 refresh token；移除某个供应商的最后一个账户会删除它的文档——这是一次完整登出，同时丢弃 refresh token，只能通过重新在浏览器中登录来恢复。
 

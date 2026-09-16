@@ -38,8 +38,8 @@ const PACKAGE_NAME_PATTERN = /^(?:@[a-z0-9][a-z0-9._~-]*\/[a-z0-9][a-z0-9._~-]*|
 const VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.+_-]*$/u
 const FILE_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]*\.tgz$/u
 const INTEGRITY_PATTERN = /^sha512-[A-Za-z0-9+/]+={0,2}$/u
-const DSH_PACKAGE = '@deepseek-ai/dsh'
-const RELEASE_PACKAGES = [DSH_PACKAGE, DESKTOP_HOST_PACKAGE] as const
+const AVN_PACKAGE = '@deepseek-ai/dsh'
+const RELEASE_PACKAGES = [AVN_PACKAGE, DESKTOP_HOST_PACKAGE] as const
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -117,8 +117,8 @@ export function desktopCorePackageOverrides(packageSet: DesktopCorePackageSet): 
 
 /** Return the local direct dependency spec for the dsh package. */
 export function desktopDshPackageSpec(packageSet: DesktopCorePackageSet): string {
-  const record = packageSet.packages.find(entry => entry.name === DSH_PACKAGE)
-  if (record === undefined) throw new Error(`desktop package set: missing ${DSH_PACKAGE}`)
+  const record = packageSet.packages.find(entry => entry.name === AVN_PACKAGE)
+  if (record === undefined) throw new Error(`desktop package set: missing ${AVN_PACKAGE}`)
   return desktopCorePackageSpec(record)
 }
 

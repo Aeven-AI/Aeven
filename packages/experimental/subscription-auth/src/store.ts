@@ -280,7 +280,7 @@ function validatedDocument(document: AuthDocumentV2, filename: string, label: st
 }
 
 /**
- * Resolve one private OAuth document path beneath DSH_HOME.
+ * Resolve one private OAuth document path beneath AVN_HOME.
  * @param basename - Basename value.
  * @param dshHome - Dsh home value.
  * @returns The resulting oauth credential path.

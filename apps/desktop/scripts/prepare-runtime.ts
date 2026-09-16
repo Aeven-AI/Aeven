@@ -20,8 +20,8 @@ type RuntimePlatform = 'darwin' | 'linux' | 'win'
 type RuntimeArch = 'arm64' | 'x64'
 
 function target(): { platform: RuntimePlatform; arch: RuntimeArch } {
-  const rawPlatform = process.env.DSH_DESKTOP_TARGET_PLATFORM ?? process.env.npm_config_platform ?? process.platform
-  const rawArch = process.env.DSH_DESKTOP_TARGET_ARCH ?? process.env.npm_config_arch ?? process.arch
+  const rawPlatform = process.env.AVN_DESKTOP_TARGET_PLATFORM ?? process.env.npm_config_platform ?? process.platform
+  const rawArch = process.env.AVN_DESKTOP_TARGET_ARCH ?? process.env.npm_config_arch ?? process.arch
   const platform = rawPlatform === 'win32' ? 'win' : rawPlatform
   if (platform !== 'darwin' && platform !== 'linux' && platform !== 'win') {
     throw new Error(`desktop runtime: unsupported platform ${rawPlatform}`)

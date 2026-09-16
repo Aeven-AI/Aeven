@@ -12,7 +12,7 @@ Status: implemented
 
 `dsh-tool-pwsh` 的 `presentResult` 现在逐调用镜像 `dsh-tool-bash`：完成的前台结果是 `terminal` 卡，输出正文为去 marker 的渲染文本，退出状态 pill 为解析出的 `exitCode`/`signal`；后台 ack 与 `isError` 结果保持通用 `console` 围栏卡片；非单一文本块结果保持不变（`undefined`）。
 
-解析是共享而非复制：`parseExitStatus`/`ParsedExitStatus` 从 `dsh-tool-bash` 的私有 render 模块迁入 `@deepseek-ai/dsh-shell` Service Definition 包（由其 index 导出），`dsh-tool-bash` 的 `render.ts` 再导出它，使源平面消费方保持单一导入根。两个工具的渲染器发出相同的 `[exit code: N]` / `[killed by signal: X]` marker，因此一个由 Service Definition 拥有的逆解析永远不会在孪生之间漂移——与 [shell-env 抽取](../../implemented/feature/2026-08-02-pwsh-tool-bash-parity.zh.md) 处理 `DSH_*` 注册表时相同的「共享而非复制」形态。
+解析是共享而非复制：`parseExitStatus`/`ParsedExitStatus` 从 `dsh-tool-bash` 的私有 render 模块迁入 `@deepseek-ai/dsh-shell` Service Definition 包（由其 index 导出），`dsh-tool-bash` 的 `render.ts` 再导出它，使源平面消费方保持单一导入根。两个工具的渲染器发出相同的 `[exit code: N]` / `[killed by signal: X]` marker，因此一个由 Service Definition 拥有的逆解析永远不会在孪生之间漂移——与 [shell-env 抽取](../../implemented/feature/2026-08-02-pwsh-tool-bash-parity.zh.md) 处理 `AVN_*` 注册表时相同的「共享而非复制」形态。
 
 Web UI 的卡片本身不需要任何按工具编写的代码：客户端的 terminal 卡桥接（`dsh-client-ui-conversation` 的 `terminal-card-model`）映射任意 `card: 'terminal'` 结果视图，因此 pwsh presenter 变更直接流经 bash 已有的同一渲染路径。折叠的工具行有一处客户端分类条目：`classifyTool('pwsh')` 现在归入 shell 家族行（`bash` variant，自有 `Pwsh` 标题），而非通用的 `others`「Tool call」行。一条 keyless 浏览器通道（`apps/web/tests/pwsh-terminal.e2e.ts`）预置一个会话，其 pwsh 调用/结果在回放时由真实工具呈现（api-proxy 从已记录的 args/result 内容重新计算视图），并钉住 terminal 卡 golden，包括退出 pill 与运行状态点。
 

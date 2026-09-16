@@ -1,5 +1,5 @@
 ---
-description: "DSH_HOME 下附加图片的本地存储，供用户与维护者选择或排查图片附件的存放位置。"
+description: "AVN_HOME 下附加图片的本地存储，供用户与维护者选择或排查图片附件的存放位置。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包提供附件的本地存储与图片处理后端：源图经过校验、方向修正、元数据与色彩配置移除，并规范化为 8-bit sRGB/sRGBA 后保存在 `DSH_HOME` 下；路由专用请求版本另行派生并缓存。随附的 `dsh` 组合使用的就是它，因此持久图片附件无需配置即可工作。相同规范化图片只存一份，同一请求变体的并发读取共享工作，即使后来收紧准入限制，已存图片仍然可读。存储仅限本机——其他主机无法读取这些图片——对象也永远不会自动删除。
+本包提供附件的本地存储与图片处理后端：源图经过校验、方向修正、元数据与色彩配置移除，并规范化为 8-bit sRGB/sRGBA 后保存在 `AVN_HOME` 下；路由专用请求版本另行派生并缓存。随附的 `dsh` 组合使用的就是它，因此持久图片附件无需配置即可工作。相同规范化图片只存一份，同一请求变体的并发读取共享工作，即使后来收紧准入限制，已存图片仍然可读。存储仅限本机——其他主机无法读取这些图片——对象也永远不会自动删除。
 
 ## 目录
 
@@ -37,7 +37,7 @@ kind: "package-reference"
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `dshHome` | 自动解析 | 显式 harness home；省略时依次跟随 `$DSH_HOME` 与 `~/.dsh` |
+| `dshHome` | 自动解析 | 显式 harness home；省略时依次跟随 `$AVN_HOME` 与 `~/.dsh` |
 | `maxImageBytes` | `20 MiB` | 单张图片接受的最大编码源字节数 |
 | `maxImagesPerMessage` | `20` | 单条提交消息接受的最大图片数量 |
 | `maxMessageImageBytes` | `200 MiB` | 单条提交消息接受的最大编码源图字节总数 |
@@ -48,11 +48,11 @@ kind: "package-reference"
 | `normalizedImageMaxBytes` | `4 MiB` | 编码字节目标；没有候选满足时保留质量阶梯中的最小输出 |
 | `imageCompressionConcurrency` | `2` | 并发规范化与请求变换的 FIFO 上限 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-attachment-local)是每个受支持字段及其 JSDoc 的穷尽式真源。
+生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-attachment-local)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
 ### 图片存储在哪里、会保留多久
 
-附加的图片保存在本机的 `<DSH_HOME>/attachments/v1` 下。已存储的图片永远不会被自动删除，相同图片只会存储一份，之后收紧限制也绝不会让已保存的图片不可读。如果你的图片需要能从另一台机器读取，本包并不合适。
+附加的图片保存在本机的 `<AVN_HOME>/attachments/v1` 下。已存储的图片永远不会被自动删除，相同图片只会存储一份，之后收紧限制也绝不会让已保存的图片不可读。如果你的图片需要能从另一台机器读取，本包并不合适。
 
 ### 附加图片时会发生什么
 
@@ -81,11 +81,11 @@ kind: "package-reference"
 
 ### 写入与读取路径
 
-对象存放在 `<DSH_HOME>/attachments/v1/objects/<sha256-prefix>/<sha256>`；相同字节会去重为同一个对象和同一个 `sha256:` 标识符。首次写入前，进程会把 home 的每个祖先目录逐级同步到文件系统根目录，因此绝不会把另一个进程已创建但尚未同步的目录误认为安全边界。随后，写入过程把字节暂存到 `v1/tmp`、同步临时文件、以原子且排他的硬链接发布，并同步发布目录——在 Windows 上，文件系统元数据日志负责目录项持久性。保存成功后，已报告的引用即持久。
+对象存放在 `<AVN_HOME>/attachments/v1/objects/<sha256-prefix>/<sha256>`；相同字节会去重为同一个对象和同一个 `sha256:` 标识符。首次写入前，进程会把 home 的每个祖先目录逐级同步到文件系统根目录，因此绝不会把另一个进程已创建但尚未同步的目录误认为安全边界。随后，写入过程把字节暂存到 `v1/tmp`、同步临时文件、以原子且排他的硬链接发布，并同步发布目录——在 Windows 上，文件系统元数据日志负责目录项持久性。保存成功后，已报告的引用即持久。
 
 准入允许每条消息最多 20 张图片与 200 MiB 源字节；单个源图最多 20 MiB、6400 万像素与单边 8192 像素。系统应用方向、移除元数据与色彩配置，并把规范化结果限制在 2048×2048 总像素预算、8192 像素长边和 4 MiB 编码字节目标内，因此极端宽高比会保留短边分辨率。已经满足限制的干净、单帧、8-bit sRGB/sRGBA PNG、JPEG 或 WebP 会逐字节直通；GIF、动画、元数据、方向、16-bit PNG 与不兼容色彩空间会触发转换。
 
-请求版本位于 `<DSH_HOME>/attachments/v1/request-images/`。`readImageRequest` 在不放大的前提下缩放到路由像素预算，再通过相同的 alpha 路由与质量阶梯应用独立编码字节目标。缓存身份包含附件 id、变换版本、预算与固定编码参数；缓存字节会先探测格式、8-bit sRGB/sRGBA、尺寸与 alpha 信息，不匹配时重新生成。并发调用方共享一次变换与缓存写入，且只在没有等待方时由取消停止共享工作。`imageHostPath` 派生规范化对象的宿主路径，挂载的文件系统可以把该路径映射进执行世界，而不会写入持久历史。
+请求版本位于 `<AVN_HOME>/attachments/v1/request-images/`。`readImageRequest` 在不放大的前提下缩放到路由像素预算，再通过相同的 alpha 路由与质量阶梯应用独立编码字节目标。缓存身份包含附件 id、变换版本、预算与固定编码参数；缓存字节会先探测格式、8-bit sRGB/sRGBA、尺寸与 alpha 信息，不匹配时重新生成。并发调用方共享一次变换与缓存写入，且只在没有等待方时由取消停止共享工作。`imageHostPath` 派生规范化对象的宿主路径，挂载的文件系统可以把该路径映射进执行世界，而不会写入持久历史。
 
 ### 源码地图
 
@@ -109,8 +109,8 @@ kind: "package-reference"
 
 - [附件子系统参考](../../../docs/subsystems/attachment.zh.md)——服务约定、载荷类型与 `ctx.attachments` 的 cordis 接口面。
 - [附件 seam 包](../attachment/README.zh.md)——本存储支撑的图片附件能力。
-- [生成配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-attachment-local)——每个受支持配置字段及其源声明。
-- [Home 路径解析](../../util/home-paths/README.zh.md)——`DSH_HOME` 如何从显式配置、环境变量与用户主目录解析。
+- [生成配置目录](../../../docs/config-catalog.zh.md#aeven-attachment-local)——每个受支持配置字段及其源声明。
+- [Home 路径解析](../../util/home-paths/README.zh.md)——`AVN_HOME` 如何从显式配置、环境变量与用户主目录解析。
 
 -----
 
@@ -145,6 +145,6 @@ kind: "package-reference"
 
 #### 未来：保留与远程存储
 
-保留与垃圾回收被推迟，因为恢复和 fork 后的会话可能共享不可变对象；服务于远程运行时或共享存储的后端则需要自己的持久性证明。两个方向都尚未决定；本地存储当前在 `DSH_HOME` 下保留所有对象。
+保留与垃圾回收被推迟，因为恢复和 fork 后的会话可能共享不可变对象；服务于远程运行时或共享存储的后端则需要自己的持久性证明。两个方向都尚未决定；本地存储当前在 `AVN_HOME` 下保留所有对象。
 
 </details>

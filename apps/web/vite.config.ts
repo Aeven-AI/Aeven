@@ -19,7 +19,7 @@ function escapeHtmlText(value: string): string {
 
 /** Project the public build title into the initial HTML document. */
 function clientDocumentTitle(): Plugin {
-  const title = escapeHtmlText(process.env.DSH_CLIENT_TITLE ?? DEFAULT_CLIENT_TITLE)
+  const title = escapeHtmlText(process.env.AVN_CLIENT_TITLE ?? DEFAULT_CLIENT_TITLE)
   return {
     name: 'dsh-client-document-title',
     transformIndexHtml(html) {

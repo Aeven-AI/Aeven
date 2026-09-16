@@ -24,7 +24,7 @@ Precedence is list order, last write winning per row: base, then the surface ove
 
 A patch replaces its target row's whole `config` rather than merging. Therefore, a row whose value differs per surface lives in the overlays, never in the base, so no row is patched by three layers at once. Session identity cannot ride a config key at all — it moved to `dsh-agent-loop`'s `CONFIGURED_AGENT_IDENTITIES_KEY`, as the launcher-owned identity record documented.
 
-The TUI tests live in `apps/cli/tests/`, the Cordis-toolset e2e in `packages/extensions/tool-cordis/tests/`, and the supported PTC mode demo runs `dsh --profile headless` with `DSH_TOOLS_MODE=ptc`.
+The TUI tests live in `apps/cli/tests/`, the Cordis-toolset e2e in `packages/extensions/tool-cordis/tests/`, and the supported PTC mode demo runs `dsh --profile headless` with `AVN_TOOLS_MODE=ptc`.
 
 ## Alternatives considered
 

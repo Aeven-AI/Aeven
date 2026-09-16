@@ -10,7 +10,7 @@
       config:
         source: primary-github
         repository: deepseek-harness/deepseek-harness
-        workspacePath: !!js process.env.DSH_GITHUB_REVIEW_WORKSPACE ?? process.cwd()
+        workspacePath: !!js process.env.AVN_GITHUB_REVIEW_WORKSPACE ?? process.cwd()
         agentPreset: standard
         permissionPreset: read-only
 
@@ -24,12 +24,12 @@
           name: '@deepseek-ai/dsh-host-webserver'
           config:
             host: '127.0.0.1'
-            port: !!js Number(process.env.DSH_GITHUB_WEBHOOK_PORT ?? 3081)
+            port: !!js Number(process.env.AVN_GITHUB_WEBHOOK_PORT ?? 3081)
 
         - id: github-webhook-adapter
           name: '@deepseek-ai/dsh-webhook-github'
           config:
             source: primary-github
             path: /github
-            secretEnv: DSH_GITHUB_WEBHOOK_SECRET
+            secretEnv: AVN_GITHUB_WEBHOOK_SECRET
             maxBodyBytes: 1048576

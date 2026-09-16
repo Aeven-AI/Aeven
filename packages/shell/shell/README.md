@@ -42,7 +42,7 @@ Call `start` with a resolved spec to launch a background process; it returns a h
 
 ### Requests and resolved specs
 
-Every execution starts from a `ShellExecRequest` with optional fields; the executor's `resolve()` turns it into a fully-resolved `ShellExecSpec` with explicit defaults and caps before anything runs. This request/spec split is the repository's template for explicit resolution at package boundaries: callers never rely on hidden defaults inside `run` or `start`. `resolve()` fills the working directory and timeout from the executor's configuration, caps per-call overrides, and carries optional inputs — `stdin`, ordinary `env`, and the trusted `DSH_*` snapshot — through verbatim.
+Every execution starts from a `ShellExecRequest` with optional fields; the executor's `resolve()` turns it into a fully-resolved `ShellExecSpec` with explicit defaults and caps before anything runs. This request/spec split is the repository's template for explicit resolution at package boundaries: callers never rely on hidden defaults inside `run` or `start`. `resolve()` fills the working directory and timeout from the executor's configuration, caps per-call overrides, and carries optional inputs — `stdin`, ordinary `env`, and the trusted `AVN_*` snapshot — through verbatim.
 
 ### Choosing and composing an executor
 

@@ -30,15 +30,15 @@ let previousHome: string | undefined
 
 beforeEach(async () => {
   home = await mkdtemp(join(tmpdir(), 'dsh-llm-registration-'))
-  previousHome = process.env.DSH_HOME
-  // Every session's credential and model-cache files resolve below DSH_HOME.
-  process.env.DSH_HOME = home
+  previousHome = process.env.AVN_HOME
+  // Every session's credential and model-cache files resolve below AVN_HOME.
+  process.env.AVN_HOME = home
 })
 
 afterEach(async () => {
   vi.restoreAllMocks()
-  if (previousHome === undefined) delete process.env.DSH_HOME
-  else process.env.DSH_HOME = previousHome
+  if (previousHome === undefined) delete process.env.AVN_HOME
+  else process.env.AVN_HOME = previousHome
   await rm(home, { recursive: true, force: true })
 })
 

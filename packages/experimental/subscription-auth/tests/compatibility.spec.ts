@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import type { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
-import { DSH_EXACT_BOM } from '../src/compatibility.ts'
+import { AVN_EXACT_BOM } from '../src/compatibility.ts'
 import { createDshHostAdapter } from '../src/dsh-host-adapter.ts'
 
 describe('DSH compatibility contracts', () => {
@@ -9,7 +9,7 @@ describe('DSH compatibility contracts', () => {
     const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')) as {
       dsh: { compatibility: { bom: Record<string, string> } }
     }
-    expect(manifest.dsh.compatibility.bom).toEqual(DSH_EXACT_BOM)
+    expect(manifest.dsh.compatibility.bom).toEqual(AVN_EXACT_BOM)
     for (const version of Object.values(manifest.dsh.compatibility.bom)) {
       expect(version).toMatch(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u)
     }

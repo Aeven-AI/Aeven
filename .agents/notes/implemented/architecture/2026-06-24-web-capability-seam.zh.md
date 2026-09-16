@@ -149,7 +149,7 @@ interface WebRuntime {
   name: '@deepseek-ai/dsh-tool-web'
 ```
 
-运维覆盖走同一条显式选择路径：`DSH_WEB_SEARCH_PROVIDER=perplexity` 等同于配置 `searchProvider: perplexity`，而非 `dsh-tool-web` 内部的隐式优先级链。
+运维覆盖走同一条显式选择路径：`AVN_WEB_SEARCH_PROVIDER=perplexity` 等同于配置 `searchProvider: perplexity`，而非 `dsh-tool-web` 内部的隐式优先级链。
 
 `ctx.web.search()` 和 `ctx.web.fetch()` 在执行时按上述选择规则解析提供方。如果选定的能力不可用，它们抛出带有结构化代码的 `WebError`，如 `WEB_PROVIDER_UNAVAILABLE`、`WEB_PROVIDER_CONFIGURED_MISSING`、`WEB_PROVIDER_CONFIGURED_UNAVAILABLE` 或 `WEB_PROVIDER_AMBIGUOUS`。如果未显式配置提供方且不存在可用提供方，执行错误是通用的 `WEB_PROVIDER_UNAVAILABLE` 情况；刻意不提供对每个不可用提供方的诊断汇总。
 

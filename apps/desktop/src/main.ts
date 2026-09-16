@@ -75,27 +75,27 @@ interface RuntimeResources {
 
 function runtimeResources(): RuntimeResources {
   const development = !app.isPackaged
-  const node = (development ? process.env.DSH_DESKTOP_NODE_BINARY : undefined)
+  const node = (development ? process.env.AVN_DESKTOP_NODE_BINARY : undefined)
     ?? join(process.resourcesPath, 'runtime', 'node', process.platform === 'win32' ? 'node.exe' : 'node')
-  const pnpm = (development ? process.env.DSH_DESKTOP_PNPM_ENTRY : undefined)
+  const pnpm = (development ? process.env.AVN_DESKTOP_PNPM_ENTRY : undefined)
     ?? join(process.resourcesPath, 'runtime', 'pnpm', 'bin', 'pnpm.mjs')
-  const seed = (development ? process.env.DSH_DESKTOP_SEED_DIR : undefined) ?? join(process.resourcesPath, 'seed')
+  const seed = (development ? process.env.AVN_DESKTOP_SEED_DIR : undefined) ?? join(process.resourcesPath, 'seed')
   return { node, pnpm, seed }
 }
 
 function developmentProject(): string | undefined {
-  const configured = process.env.DSH_DESKTOP_DEV_PROJECT_DIR
+  const configured = process.env.AVN_DESKTOP_DEV_PROJECT_DIR
   if (configured === undefined || configured === '') return undefined
   if (app.isPackaged) throw new Error('dsh desktop: development project override is unavailable in packaged applications')
   return resolve(configured)
 }
 
 function developmentHostInspectPort(enabled: boolean): number | undefined {
-  const configured = process.env.DSH_DESKTOP_HOST_INSPECT_PORT
+  const configured = process.env.AVN_DESKTOP_HOST_INSPECT_PORT
   if (!enabled || configured === undefined || configured === '') return undefined
   const port = Number(configured)
   if (!Number.isSafeInteger(port) || port < 1 || port > 65_535) {
-    throw new Error('dsh desktop: DSH_DESKTOP_HOST_INSPECT_PORT must be an integer from 1 through 65535')
+    throw new Error('dsh desktop: AVN_DESKTOP_HOST_INSPECT_PORT must be an integer from 1 through 65535')
   }
   return port
 }
@@ -404,7 +404,7 @@ async function main(): Promise<void> {
 
   mainWindow = createMainWindow()
   await mainWindow.loadURL(appEntryUrl())
-  if (development !== undefined && process.env.DSH_DESKTOP_OPEN_DEVTOOLS !== '0') {
+  if (development !== undefined && process.env.AVN_DESKTOP_OPEN_DEVTOOLS !== '0') {
     mainWindow.webContents.openDevTools({ mode: 'detach' })
   }
   publishUpdate(updateState)
@@ -431,7 +431,7 @@ const ownsDesktopInstance = claimDesktopSingleInstance(app, () => { focusPrimary
 if (ownsDesktopInstance) void app.whenReady().then(main).catch(async (error: unknown) => {
   const message = error instanceof Error ? error.message : String(error)
   console.error(error)
-  const diagnosticFile = process.env.DSH_DESKTOP_DIAGNOSTIC_FILE
+  const diagnosticFile = process.env.AVN_DESKTOP_DIAGNOSTIC_FILE
   if (diagnosticFile !== undefined) {
     await writeFile(diagnosticFile, `${error instanceof Error ? error.stack ?? message : message}\n`).catch(() => undefined)
   }

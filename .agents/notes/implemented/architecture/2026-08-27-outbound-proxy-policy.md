@@ -10,13 +10,13 @@ Node's built-in `fetch` ignores `HTTP_PROXY` and `HTTPS_PROXY`. Every other tool
 
 The repository had briefly had an answer and lost it without noticing. PR #971 set `NODE_USE_ENV_PROXY=1` in `bin/dsh`; eleven days later `bbb1b1cc38 cleanup: remove managed source installer` deleted that launcher wholesale, taking the flag with it. What survived was one sentence in `apps/cli/reference/README.md` telling the reader to set a variable that nothing consumed any more.
 
-That sentence could not have worked anyway, for three measured reasons. `NODE_USE_ENV_PROXY` samples the environment at process start, while `loadLayeredEnv()` merges the `.env` layers afterwards, so a proxy declared in `$DSH_HOME/.env` is invisible to it. It reaches Node 24.0+ and, on the 22 line, only 22.21+ — while `engines` admits `^22.19.0`, where the variable does not exist and setting it warns about nothing. And it does not reach `web-fetch-http` at all: that provider passes its own `dispatcher` to `fetch`, and an explicit dispatcher overrides the global one whatever the flag says.
+That sentence could not have worked anyway, for three measured reasons. `NODE_USE_ENV_PROXY` samples the environment at process start, while `loadLayeredEnv()` merges the `.env` layers afterwards, so a proxy declared in `$AVN_HOME/.env` is invisible to it. It reaches Node 24.0+ and, on the 22 line, only 22.21+ — while `engines` admits `^22.19.0`, where the variable does not exist and setting it warns about nothing. And it does not reach `web-fetch-http` at all: that provider passes its own `dispatcher` to `fetch`, and an explicit dispatcher overrides the global one whatever the flag says.
 
 ## Decision
 
 **One policy, resolved once from the launch environment, installed as the global dispatcher.** `packages/util/http-proxy` resolves a `ProxyPolicy` and installs it in `runProfile` immediately after the environment snapshot is provided and before any entry mounts. Node's `fetch` resolves undici's global dispatcher, so every plain `fetch()` and every SDK that reaches `globalThis.fetch` is covered without touching its code — nine call sites at the time of writing, and every future one for free. `loadLayeredEnv` has exactly one caller and `apps/web` ships no bin, so this single site covers every profile including `sdk-minimal`, which does not layer over `base`.
 
-Resolution reads the launcher's snapshot rather than `process.env`, which is what makes a proxy in `$DSH_HOME/.env` work — the capability the environment-variable approach cannot have. Only that file: `loadLayeredEnv` refuses a proxy name in the project `.env` exactly as it refuses `PATH` or `NODE_OPTIONS` there, because that file arrives with a clone and must not choose the harness's route. The home file is exempt for the four proxy names alone, and `DSH_HOME` is itself bootstrap-only, so no `.env` can point the exemption at a directory a repository controls.
+Resolution reads the launcher's snapshot rather than `process.env`, which is what makes a proxy in `$AVN_HOME/.env` work — the capability the environment-variable approach cannot have. Only that file: `loadLayeredEnv` refuses a proxy name in the project `.env` exactly as it refuses `PATH` or `NODE_OPTIONS` there, because that file arrives with a clone and must not choose the harness's route. The home file is exempt for the four proxy names alone, and `AVN_HOME` is itself bootstrap-only, so no `.env` can point the exemption at a directory a repository controls.
 
 **A library in `util/`, not a plugin.** Transport policy has one answer per process: nothing to swap, and no scope narrower than the process to give one. The package exports functions and mounts nothing — `boot`, `web`, `subprocess`, and `workflow` all consume it, and `util/` is the group every other group may depend on.
 
@@ -60,7 +60,7 @@ Weighed against that, telemetry is the one outbound channel whose loss costs the
 
 ## Alternatives considered
 
-**Document `NODE_USE_ENV_PROXY=1` and stop.** Rejected on three measurements, above: invisible to `$DSH_HOME/.env`, absent on the lowest supported Node, and bypassed by `web-fetch-http` regardless. It is also what the repository already claimed to do.
+**Document `NODE_USE_ENV_PROXY=1` and stop.** Rejected on three measurements, above: invisible to `$AVN_HOME/.env`, absent on the lowest supported Node, and bypassed by `web-fetch-http` regardless. It is also what the repository already claimed to do.
 
 **Thread a policy value to every call site.** DeepSeek-Reasonix does this across 98 sites, buying a per-provider opt-out. Rejected: that opt-out exists for a need this harness does not have, and nine sites changed by hand means the tenth is forgotten — Pi's changelog records OAuth and Bedrock as two separate after-the-fact fixes of exactly that kind. The isolation argument for it is real, and is answered instead by handling worker threads explicitly and by proving disposal restores the previous dispatcher.
 
@@ -76,7 +76,7 @@ Weighed against that, telemetry is the one outbound channel whose loss costs the
 
 ## Consequences
 
-A user who exports `HTTPS_PROXY`, or writes it into `$DSH_HOME/.env`, is proxied everywhere the harness makes a request, with no flag and no configuration. The launcher installs it exactly once, before the first plugin mounts.
+A user who exports `HTTPS_PROXY`, or writes it into `$AVN_HOME/.env`, is proxied everywhere the harness makes a request, with no flag and no configuration. The launcher installs it exactly once, before the first plugin mounts.
 
 Because the operating system's settings are not read, the user-facing documentation is now load-bearing rather than supplementary: a user who only toggled "system proxy" in a proxy application gets nothing and no diagnostic. `docs/user/guide/network-proxy.md` therefore states which variables to export and why a browser is proxied when a terminal is not — the three-mechanism confusion is the single most common report, and it is not specific to this harness.
 

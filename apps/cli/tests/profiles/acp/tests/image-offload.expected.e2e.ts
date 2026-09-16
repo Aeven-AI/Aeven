@@ -114,8 +114,8 @@ it('pins native DeepSeek Files offload and inline fallback in assembled requests
       fixtureFile: join(SNAPSHOTS_DIR, 'image-offload-request', 'session.jsonl'),
       workspaceDir: READ_IMAGE_WORKSPACE,
       env: {
-        DSH_SNAPSHOT_API_KEY: 'snapshot-key',
-        DSH_SNAPSHOT_BASE_URL: `http://127.0.0.1:${address.port}`,
+        AVN_SNAPSHOT_API_KEY: 'snapshot-key',
+        AVN_SNAPSHOT_BASE_URL: `http://127.0.0.1:${address.port}`,
       },
     })
     expect(result.stderr).toBe('')
@@ -210,8 +210,8 @@ it('pins native DeepSeek Files offload and inline fallback in assembled requests
       fixtureFile: join(SNAPSHOTS_DIR, 'image-offload-request', 'session.jsonl'),
       workspaceDir: READ_IMAGE_WORKSPACE,
       env: {
-        DSH_SNAPSHOT_API_KEY: 'snapshot-fallback-key',
-        DSH_SNAPSHOT_BASE_URL: `http://127.0.0.1:${address.port}`,
+        AVN_SNAPSHOT_API_KEY: 'snapshot-fallback-key',
+        AVN_SNAPSHOT_BASE_URL: `http://127.0.0.1:${address.port}`,
       },
     })
     expect(fallback.stderr).toBe('')

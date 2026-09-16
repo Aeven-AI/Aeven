@@ -20,7 +20,7 @@ import type { ShellExecRequest, ShellExecSpec, ShellProcess, ShellRunResult } fr
  */
 export const SHELL_SETTINGS_NAMESPACE = 'shell'
 
-export { DSH_ENV_PREFIX } from './types.ts'
+export { AVN_ENV_PREFIX } from './types.ts'
 export type {
   ShellExecRequest,
   ShellExecSpec,
@@ -31,7 +31,7 @@ export type {
   ShellSandboxInfo,
   CollectedOutput,
   DshEnvironment,
-  DshEnvironmentKey,
+  AvnEnvironmentKey,
 } from './types.ts'
 export { parseExitStatus } from './render.ts'
 export type { ParsedExitStatus } from './render.ts'

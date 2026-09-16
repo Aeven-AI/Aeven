@@ -20,7 +20,7 @@ import {
   loadOverlayPatches,
 } from '@deepseek-ai/dsh-app-boot'
 import { provideCmdline } from '@deepseek-ai/dsh-cmdline'
-import { DSH_LAUNCH_ENVIRONMENT_KEY } from '@deepseek-ai/dsh-launch-environment'
+import { AVN_LAUNCH_ENVIRONMENT_KEY } from '@deepseek-ai/dsh-launch-environment'
 import type {} from '@deepseek-ai/dsh-api-gateway'
 import type { ConnectionFetchHandler } from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-client-modules'
@@ -320,7 +320,7 @@ export async function runDesktopHost(
     options.allowLinkedPackages === true,
   )), (hostCtx) => {
     current = hostCtx
-    hostCtx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, environment)
+    hostCtx.provide(AVN_LAUNCH_ENVIRONMENT_KEY, environment)
     provideCmdline(hostCtx, { args: [], exit: () => {} })
   })
   current = ctx

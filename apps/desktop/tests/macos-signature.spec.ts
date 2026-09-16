@@ -12,11 +12,11 @@ import {
 } from '../scripts/verify-macos-signature.mjs'
 
 const RELEASE_ENVIRONMENT = {
-  DSH_DESKTOP_APP_ID: 'com.example.desktop',
-  DSH_DESKTOP_TARGET_PLATFORM: 'darwin',
-  DSH_DESKTOP_TARGET_ARCH: 'arm64',
-  DSH_DESKTOP_MACOS_SIGNING_IDENTITY: 'Example Company (TEAMID1234)',
-  DSH_DESKTOP_MACOS_TEAM_ID: 'TEAMID1234',
+  AVN_DESKTOP_APP_ID: 'com.example.desktop',
+  AVN_DESKTOP_TARGET_PLATFORM: 'darwin',
+  AVN_DESKTOP_TARGET_ARCH: 'arm64',
+  AVN_DESKTOP_MACOS_SIGNING_IDENTITY: 'Example Company (TEAMID1234)',
+  AVN_DESKTOP_MACOS_TEAM_ID: 'TEAMID1234',
   APPLE_API_KEY: '/private/credentials/AuthKey_TEST123456.p8',
   APPLE_API_KEY_ID: 'TEST123456',
   APPLE_API_ISSUER: '11111111-2222-3333-4444-555555555555',
@@ -46,9 +46,9 @@ describe('desktop macOS release signature', () => {
     expect(portablePath(config.extraResources[0]?.from ?? '')).toContain('/.desktop-build/targets/mac-arm64/runtime')
     expect(portablePath(config.extraResources[1]?.from ?? '')).toContain('/.desktop-build/targets/mac-arm64/seed')
     expect(config).toMatchObject({
-      appId: RELEASE_ENVIRONMENT.DSH_DESKTOP_APP_ID,
+      appId: RELEASE_ENVIRONMENT.AVN_DESKTOP_APP_ID,
       mac: {
-        identity: RELEASE_ENVIRONMENT.DSH_DESKTOP_MACOS_SIGNING_IDENTITY,
+        identity: RELEASE_ENVIRONMENT.AVN_DESKTOP_MACOS_SIGNING_IDENTITY,
         forceCodeSigning: true,
         notarize: true,
       },
@@ -67,10 +67,10 @@ describe('desktop macOS release signature', () => {
   it('ad-hoc signs an unsigned macOS build without release identity or notarization', async () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
     const config = createElectronBuilderConfig({
-      DSH_DESKTOP_APP_ID: RELEASE_ENVIRONMENT.DSH_DESKTOP_APP_ID,
-      DSH_DESKTOP_TARGET_PLATFORM: 'darwin',
-      DSH_DESKTOP_TARGET_ARCH: 'arm64',
-      DSH_DESKTOP_UNSIGNED: '1',
+      AVN_DESKTOP_APP_ID: RELEASE_ENVIRONMENT.AVN_DESKTOP_APP_ID,
+      AVN_DESKTOP_TARGET_PLATFORM: 'darwin',
+      AVN_DESKTOP_TARGET_ARCH: 'arm64',
+      AVN_DESKTOP_UNSIGNED: '1',
       DOWNLOAD_TEST_ORIGIN: RELEASE_ENVIRONMENT.DOWNLOAD_TEST_ORIGIN,
     }, 'darwin', 'arm64')
     expect(config).toMatchObject({
@@ -83,10 +83,10 @@ describe('desktop macOS release signature', () => {
   it('builds an unsigned Windows target without the EV token signer', async () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
     const config = createElectronBuilderConfig({
-      DSH_DESKTOP_APP_ID: RELEASE_ENVIRONMENT.DSH_DESKTOP_APP_ID,
-      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
-      DSH_DESKTOP_TARGET_ARCH: 'x64',
-      DSH_DESKTOP_UNSIGNED: '1',
+      AVN_DESKTOP_APP_ID: RELEASE_ENVIRONMENT.AVN_DESKTOP_APP_ID,
+      AVN_DESKTOP_TARGET_PLATFORM: 'win32',
+      AVN_DESKTOP_TARGET_ARCH: 'x64',
+      AVN_DESKTOP_UNSIGNED: '1',
       DOWNLOAD_TEST_ORIGIN: RELEASE_ENVIRONMENT.DOWNLOAD_TEST_ORIGIN,
     }, 'win32', 'x64')
     expect(config.win.forceCodeSigning).toBe(false)
@@ -95,9 +95,9 @@ describe('desktop macOS release signature', () => {
   it('validates Windows signing without requiring macOS identifiers for a Windows target', async () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
     expect(() => createElectronBuilderConfig({
-      DSH_DESKTOP_APP_ID: RELEASE_ENVIRONMENT.DSH_DESKTOP_APP_ID,
-      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
-    }, 'win32')).toThrow(/DSH_DESKTOP_WINDOWS_CER_FILE/u)
+      AVN_DESKTOP_APP_ID: RELEASE_ENVIRONMENT.AVN_DESKTOP_APP_ID,
+      AVN_DESKTOP_TARGET_PLATFORM: 'win32',
+    }, 'win32')).toThrow(/AVN_DESKTOP_WINDOWS_CER_FILE/u)
   })
 
   it('accepts the configured authority and team', () => {
@@ -148,16 +148,16 @@ describe('desktop macOS release signature', () => {
   })
 
   it('rejects missing and malformed release identifiers', () => {
-    expect(() => resolveDesktopAppId({})).toThrow(/DSH_DESKTOP_APP_ID/u)
-    expect(() => resolveDesktopAppId({ DSH_DESKTOP_APP_ID: 'not-a-bundle-id' })).toThrow(/reverse-DNS/u)
-    expect(() => resolveMacOSSigningEnvironment({})).toThrow(/DSH_DESKTOP_MACOS_SIGNING_IDENTITY/u)
+    expect(() => resolveDesktopAppId({})).toThrow(/AVN_DESKTOP_APP_ID/u)
+    expect(() => resolveDesktopAppId({ AVN_DESKTOP_APP_ID: 'not-a-bundle-id' })).toThrow(/reverse-DNS/u)
+    expect(() => resolveMacOSSigningEnvironment({})).toThrow(/AVN_DESKTOP_MACOS_SIGNING_IDENTITY/u)
     expect(() => resolveMacOSSigningEnvironment({
-      DSH_DESKTOP_MACOS_SIGNING_IDENTITY: 'Developer ID Application: Example Company (TEAMID1234)',
-      DSH_DESKTOP_MACOS_TEAM_ID: 'TEAMID1234',
+      AVN_DESKTOP_MACOS_SIGNING_IDENTITY: 'Developer ID Application: Example Company (TEAMID1234)',
+      AVN_DESKTOP_MACOS_TEAM_ID: 'TEAMID1234',
     })).toThrow(/must omit/u)
     expect(() => resolveMacOSSigningEnvironment({
-      DSH_DESKTOP_MACOS_SIGNING_IDENTITY: 'Example Company (TEAMID1234)',
-      DSH_DESKTOP_MACOS_TEAM_ID: 'short',
+      AVN_DESKTOP_MACOS_SIGNING_IDENTITY: 'Example Company (TEAMID1234)',
+      AVN_DESKTOP_MACOS_TEAM_ID: 'short',
     })).toThrow(/10 uppercase/u)
   })
 

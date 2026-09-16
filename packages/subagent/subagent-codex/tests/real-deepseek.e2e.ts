@@ -62,7 +62,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)(
       const codexHome = join(root, 'codex-home')
       mkdirSync(workspace)
       mkdirSync(codexHome)
-      const nonce = `DSH_CODEX_DEEPSEEK_${randomUUID()}`
+      const nonce = `AVN_CODEX_DEEPSEEK_${randomUUID()}`
       const bridge = await startDeepSeekResponsesBridge(nonce)
       bridges.push(bridge)
       writeFileSync(join(codexHome, 'config.toml'), [

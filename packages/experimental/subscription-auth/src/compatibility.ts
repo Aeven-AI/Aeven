@@ -30,7 +30,7 @@ export interface DshCompatibility {
 }
 
 /** Dsh exact bom. */
-export const DSH_EXACT_BOM = Object.freeze({
+export const AVN_EXACT_BOM = Object.freeze({
   '@deepseek-ai/cordis': '4.0.2',
   '@deepseek-ai/dsh-atomic-write': '0.1.2-alpha.5',
   '@deepseek-ai/dsh-attachment': '0.1.2-alpha.5',

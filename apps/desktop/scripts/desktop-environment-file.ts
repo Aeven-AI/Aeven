@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { parseEnv } from 'node:util'
 
 /** Packaging settings that the repository `.env` may supply and the Linux container forwards. */
-export const DESKTOP_PACKAGING_ENV_NAMES = ['DSH_DESKTOP_APP_ID', 'DSH_DESKTOP_AUTO_UPDATE_ENV', 'DOWNLOAD_TEST_ORIGIN'] as const
+export const DESKTOP_PACKAGING_ENV_NAMES = ['AVN_DESKTOP_APP_ID', 'AVN_DESKTOP_AUTO_UPDATE_ENV', 'DOWNLOAD_TEST_ORIGIN'] as const
 
 /**
  * Copy Desktop packaging settings from an env file into an environment that does not already set them.

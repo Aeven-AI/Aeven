@@ -18,7 +18,7 @@ Status: implemented
 
 [CI](../../../../.github/workflows/ci.yml)（仅 pull request）与 [CI master](../../../../.github/workflows/ci-master.yml)（master 推送 + `workflow_dispatch`）为拉取请求事件与 master 推送事件赋予互补的职责。拉取请求在 GitHub 标准托管容量上运行合并后的 Linux 和由 Wine 承载的 Windows 作业，以及 Node 兼容性与 Python 约定；一个独立的原生 Windows 作业会报告完整的 Windows 清单，但不参与必需聚合流程。向 `master` 推送时，当前启用的参考作业是公司自有 `vm-backup` 池上的 `serial / linux (self-hosted standby)` 和 `dsh-win-ci` 池上的 `serial / windows (self-hosted standby)`——这些热备演练持续验证[故障切换手册](2026-07-26-ci-failover-runbook.zh.md)所描述的切换目标。不存在标准托管的 `serial / linux` 定义；标准托管的 `serial / macos` 仍处于禁用状态，并由 `TODO(hosted-serial-ci)` 标记，直到其可移植容量恢复。当前 `serial / windows` 定义是公司自有 `dsh-win-ci` 池的 standby。各自独立的作业定义有意显式保留简短的代码检出、运行时设置和依赖锁定的安装步骤，而不是用矩阵或可复用工作流隐藏操作系统差异。`workflow_dispatch` 仅用于运行器基准测试。
 
-每个参考作业均在不设置任何分片选择器的情况下运行 `pnpm run check:ci`。`DSH_GATE_CONCURRENCY=1` 使顶层聚合每次只执行一个已经就绪的门禁；覆盖率、快照回放、built-bin 冒烟测试和发布验证的 worker 数量也设为 1。各参考作业可以彼此并行，但每台主机上的仓库门禁都串行运行且完整执行。Linux 在回放快照前安装 bubblewrap，Windows 则在安装采用符号链接的工作区前启用开发人员模式。
+每个参考作业均在不设置任何分片选择器的情况下运行 `pnpm run check:ci`。`AVN_GATE_CONCURRENCY=1` 使顶层聚合每次只执行一个已经就绪的门禁；覆盖率、快照回放、built-bin 冒烟测试和发布验证的 worker 数量也设为 1。各参考作业可以彼此并行，但每台主机上的仓库门禁都串行运行且完整执行。Linux 在回放快照前安装 bubblewrap，Windows 则在安装采用符号链接的工作区前启用开发人员模式。
 
 该完整聚合流程仍明确划分平台归属。`terminal-bash` 支持 Linux 与 macOS，因此其单元测试和逐文件覆盖率约定由 POSIX 平台负责，而不会在 Windows 上加载一个明确拒绝 `win32` 的后端；Windows 仍会执行所有可移植包。可移植 fixture（测试前置数据）通过 `node:path` 派生原生路径，使用与生产代码相同的原生 realpath 实现比较规范化后的路径标识，并采用所有宿主机均允许的文件名。ACP（Agent Client Protocol）快照运行还会把生成的 cwd 分别通过 realpath 的 JavaScript 实现与原生实现得到的两种表示一并传给规范化器；规范化器按长度从长到短替换这些别名，避免 Windows 的短路径与长路径表示差异导致共享 fixture 反复变化。
 

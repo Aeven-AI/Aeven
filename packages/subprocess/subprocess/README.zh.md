@@ -70,7 +70,7 @@ const output = handle.collected.stdout?.readFrom(0)
 
 ### 每个子进程起步时的环境
 
-子进程永远不会隐式继承 harness 的环境秘密：形似凭据的名称与环境中的 `DSH_*` 事实都会被清除，调用方显式的 `env` 在该清除之后合并。有意转发的凭据或当前的 `DSH_*` 部署事实仍会到达子进程；显式的 `undefined` 墓碑值则移除一个普通的环境项。
+子进程永远不会隐式继承 harness 的环境秘密：形似凭据的名称与环境中的 `AVN_*` 事实都会被清除，调用方显式的 `env` 在该清除之后合并。有意转发的凭据或当前的 `AVN_*` 部署事实仍会到达子进程；显式的 `undefined` 墓碑值则移除一个普通的环境项。
 
 ### 可能出错的地方
 
@@ -95,7 +95,7 @@ const output = handle.collected.stdout?.readFrom(0)
 | 文件 | 职责 |
 |---|---|
 | [`src/index.ts`](src/index.ts) | 插件入口：抽象 `SubprocessRuntime`、`ctx.subprocess` 注册、共享的 `scrubbedParentEnv` 清除 |
-| [`src/types.ts`](src/types.ts) | 词汇：spawn spec、stdio 模式、句柄、读取器、结果、`DSH_*` 命名空间 |
+| [`src/types.ts`](src/types.ts) | 词汇：spawn spec、stdio 模式、句柄、读取器、结果、`AVN_*` 命名空间 |
 | — | 不发布运行时不变式伴生入口；观察由提供方负责。 |
 
 ### 数据模型与流程
@@ -115,7 +115,7 @@ spawn 立即返回活动句柄；请求的中止信号驱动与 `terminate()` �
 
 当包级约定不够用时阅读以下页面。它们从穷尽式类型参考逐步进入各提供方，以及 seam 背后的决策证据。
 
-- [子进程子系统](../../../docs/subsystems/subprocess.zh.md)——spawn spec、输出读取器、结果与完整的 `DSH_*` 环境。
+- [子进程子系统](../../../docs/subsystems/subprocess.zh.md)——spawn spec、输出读取器、结果与完整的 `AVN_*` 环境。
 - [dsh-subprocess-local](../subprocess-local/README.zh.md)——实现本约定的本地宿主提供方。
 - [dsh-subprocess-e2b](../../e2b/subprocess-e2b/README.zh.md)——同一 seam 的远程 E2B 提供方。
 - [dsh-bash-local](../../shell/bash-local/README.zh.md)——最大的消费方：经由本服务运行 bash 命令。

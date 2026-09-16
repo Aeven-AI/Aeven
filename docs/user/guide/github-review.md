@@ -7,25 +7,25 @@ This opt-in overlay adds a signed GitHub endpoint to `dsh web`. When a pull requ
 ## Prerequisites
 
 - A local checkout that DSH may register as a Web Workspace.
-- A high-entropy GitHub webhook secret available through the `DSH_GITHUB_WEBHOOK_SECRET` credential reference.
+- A high-entropy GitHub webhook secret available through the `AVN_GITHUB_WEBHOOK_SECRET` credential reference.
 - A TLS reverse proxy or tunnel that can forward one public URL to the loopback listener.
 - GitHub webhook subscription to the Pull requests event with content type `application/json`.
 
-The overlay defaults the Workspace to the launch directory and the listener to `127.0.0.1:3081`. Override them with `DSH_GITHUB_REVIEW_WORKSPACE` and `DSH_GITHUB_WEBHOOK_PORT`.
+The overlay defaults the Workspace to the launch directory and the listener to `127.0.0.1:3081`. Override them with `AVN_GITHUB_REVIEW_WORKSPACE` and `AVN_GITHUB_WEBHOOK_PORT`.
 
 ## Start DSH
 
 Generate a secret and retain the same value across restarts:
 
 ```sh
-export DSH_GITHUB_WEBHOOK_SECRET="$(openssl rand -hex 32)"
-printf '%s\n' "$DSH_GITHUB_WEBHOOK_SECRET"
+export AVN_GITHUB_WEBHOOK_SECRET="$(openssl rand -hex 32)"
+printf '%s\n' "$AVN_GITHUB_WEBHOOK_SECRET"
 ```
 
 From a development checkout:
 
 ```sh
-export DSH_GITHUB_REVIEW_WORKSPACE=/path/to/deepseek-harness
+export AVN_GITHUB_REVIEW_WORKSPACE=/path/to/deepseek-harness
 pnpm dsh web --patch apps/cli/config/examples/github-review/cordis.yml
 ```
 
@@ -35,7 +35,7 @@ An installed DSH uses the same overlay through an absolute path:
 dsh web --patch /absolute/path/to/github-review/cordis.yml
 ```
 
-For a permanent profile, place `github-ready-review-rule.mjs` beside `$DSH_HOME/profiles/web/cordis.patch.yml`, append the rows from `cordis.yml` to that patch, and start with `dsh web`. The shipped CLI already contains both webhook packages; the overlay alone activates them.
+For a permanent profile, place `github-ready-review-rule.mjs` beside `$AVN_HOME/profiles/web/cordis.patch.yml`, append the rows from `cordis.yml` to that patch, and start with `dsh web`. The shipped CLI already contains both webhook packages; the overlay alone activates them.
 
 ## Expose the dedicated endpoint
 
@@ -58,7 +58,7 @@ Configure GitHub with:
 ```text
 Payload URL:  https://hooks.example.com/github
 Content type: application/json
-Secret:       DSH_GITHUB_WEBHOOK_SECRET value
+Secret:       AVN_GITHUB_WEBHOOK_SECRET value
 Events:       Pull requests
 Active:       yes
 ```

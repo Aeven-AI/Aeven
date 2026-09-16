@@ -43,7 +43,7 @@ agent（智能体）和用户可以通过单一查找使用可复用的任务专
 |---|---|---|
 | `collectCacheMaxEntries` | `128` | 内存中保留的已完成 cwd/提供方目录数 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-skill)是每个受支持字段的穷尽式真源。
+生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-skill)是每个受支持字段的穷尽式真源。
 
 ### 注册表提供什么
 
@@ -112,7 +112,7 @@ agent（智能体）和用户可以通过单一查找使用可复用的任务专
 - [skill 子系统参考](../../../docs/subsystems/skills.zh.md)——注册表、提供方约定与本地发现优先级。
 - [skill-filesystem 包](../skill-filesystem/README.zh.md)——从磁盘发现 skill 的随附本地提供方。
 - [tool-skill 包](../tool-skill/README.zh.md)——渲染会话目录与 `skill` 工具的消费方。
-- [生成配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-skill)——每个配置字段及其源声明。
+- [生成配置目录](../../../docs/config-catalog.zh.md#aeven-skill)——每个配置字段及其源声明。
 - [skill 调用策略 Agent Note](../../../.agents/notes/implemented/feature/2026-07-28-skill-invocation-policy.zh.md)——模型与用户调用控制的依据。
 
 -----

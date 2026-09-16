@@ -89,7 +89,7 @@ class FakeTerminalSandbox {
   readonly directories: string[] = []
   readonly writes = new Map<string, string>()
   createOptions: Parameters<Sandbox['pty']['create']>[0] | undefined
-  ambient = 'KEEP=visible\0UNICODE=你好\0NPM_TOKEN=secret\0DSH_STALE=old\0BROKEN\0=bad\0'
+  ambient = 'KEEP=visible\0UNICODE=你好\0NPM_TOKEN=secret\0AVN_STALE=old\0BROKEN\0=bad\0'
   sessionId = '123\n'
   foreground = '456\n'
   groups = [123]
@@ -241,7 +241,7 @@ function spec(overrides: Partial<SubprocessTerminalSpawnSpec> = {}): SubprocessT
     rows: 24,
     cols: 80,
     graceMs: 5,
-    env: { TERM: 'dumb', DSH_SESSION_ID: 'owner', TOKEN_EXPLICIT: 'kept' },
+    env: { TERM: 'dumb', AVN_SESSION_ID: 'owner', TOKEN_EXPLICIT: 'kept' },
     ...overrides,
   }
 }
@@ -286,7 +286,7 @@ describe('E2B terminal allocation', () => {
     expect(controlEnvs).toEqual({
       TERM: 'dumb',
       NPM_TOKEN: '',
-      DSH_STALE: '',
+      AVN_STALE: '',
       HOME: controlEnvs?.HOME,
     })
     expect(fake.inputs[0]?.data.toString()).toContain("exec /bin/bash '/runtime/terminal-one/runner.bash'")
@@ -294,7 +294,7 @@ describe('E2B terminal allocation', () => {
     expect(fake.writes.get('/runtime/terminal-one/environment')).toContain('UNICODE=你好\0')
     expect(fake.writes.get('/runtime/terminal-one/environment')).toContain('TOKEN_EXPLICIT=kept\0')
     expect(fake.writes.get('/runtime/terminal-one/environment')).not.toContain('secret')
-    expect(fake.writes.get('/runtime/terminal-one/environment')).not.toContain('DSH_STALE')
+    expect(fake.writes.get('/runtime/terminal-one/environment')).not.toContain('AVN_STALE')
     expect(fake.writes.get('/runtime/terminal-one/argv')).toBe('/bin/bash\0--noprofile\0--norc\0')
     const marker = fake.writes.get('/runtime/terminal-one/output-marker') ?? ''
     expect(marker).toMatch(/^dsh-e2b-bootstrap:/)
@@ -332,7 +332,7 @@ describe('E2B terminal allocation', () => {
     const environment = fake.writes.get('/runtime/abort-live/environment') ?? ''
     expect(environment).toContain('KEEP=visible\0')
     expect(environment).not.toContain('secret')
-    expect(environment).not.toContain('DSH_STALE')
+    expect(environment).not.toContain('AVN_STALE')
 
     controller.abort(new Error('stop'))
     await terminal.write('still live\r')

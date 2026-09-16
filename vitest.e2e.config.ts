@@ -25,7 +25,7 @@ function positiveIntFromEnv(name: string, fallback: number): number {
   return value
 }
 
-const e2eMaxWorkers = positiveIntFromEnv('DSH_E2E_MAX_WORKERS', DEFAULT_E2E_MAX_WORKERS)
+const e2eMaxWorkers = positiveIntFromEnv('AVN_E2E_MAX_WORKERS', DEFAULT_E2E_MAX_WORKERS)
 
 export default defineConfig({
   // Native tsconfig path resolution keeps bare workspace names on source;
@@ -54,7 +54,7 @@ export default defineConfig({
     retry: 2,
     // Run files in a bounded pool: enough lower-level parallelism to keep CI
     // and local with-key runs moving, while leaving a resource knob for shared
-    // API quotas (`DSH_E2E_MAX_WORKERS=1` restores serial execution).
+    // API quotas (`AVN_E2E_MAX_WORKERS=1` restores serial execution).
     fileParallelism: e2eMaxWorkers > 1,
     maxWorkers: e2eMaxWorkers,
   },

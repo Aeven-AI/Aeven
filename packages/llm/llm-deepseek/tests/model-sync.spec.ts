@@ -53,7 +53,7 @@ async function documentServer(
   return handle
 }
 
-/** A throwaway $DSH_HOME so the settings provider has a file to read. */
+/** A throwaway $AVN_HOME so the settings provider has a file to read. */
 async function home(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), 'dsh-deepseek-sync-'))
   homes.push(dir)
@@ -117,7 +117,7 @@ describe('fetchModelIds', () => {
 describe('the plugin sync', () => {
   /** Boot the plugin over a real settings file and one listing endpoint. */
   async function boot(baseURL: string, extra: object = {}): Promise<Context> {
-    vi.stubEnv('DSH_HOME', await home())
+    vi.stubEnv('AVN_HOME', await home())
     vi.stubEnv('DEEPSEEK_API_KEY', 'test-key')
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)

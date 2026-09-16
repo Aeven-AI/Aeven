@@ -48,7 +48,7 @@ Load the executor with the budgets you want; every field has a default, so the s
 | `maxSpillBytes` | `67,108,864` | Per-stream full-output spill cap |
 | `graceMs` | `3,000` | Grace period for kill escalation and post-exit pipe draining |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-bash-local) is the exhaustive source for every accepted field and its JSDoc.
+The generated [configuration catalog](../../../docs/config-catalog.md#aeven-bash-local) is the exhaustive source for every accepted field and its JSDoc.
 
 ### Running commands
 
@@ -98,7 +98,7 @@ A call runs through three steps: `resolve()` fills `workdir`/`timeoutMs`/`stdout
 ### Invariants and ownership
 
 - The `graceMs` budget must be positive, finite, and no greater than `MAX_TIMER_DELAY_MS` so Node can represent it with one timer; invalid values are refused where they are written.
-- Environment layering is fixed: terminal overrides first, then the caller's `env`, then the trusted `dshEnv` snapshot last; the subprocess service scrubs ambient credentials and inherited `DSH_*` names independently.
+- Environment layering is fixed: terminal overrides first, then the caller's `env`, then the trusted `dshEnv` snapshot last; the subprocess service scrubs ambient credentials and inherited `AVN_*` names independently.
 - A background process belongs to the subprocess service: it survives an executor-only reload and is killed and joined when the service disposes.
 
 </details>

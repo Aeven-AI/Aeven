@@ -184,7 +184,7 @@ describe('AppFrame', () => {
   })
 
   it('projects the selected durable Session title', () => {
-    vi.stubEnv('DSH_CLIENT_TITLE', 'Product')
+    vi.stubEnv('AVN_CLIENT_TITLE', 'Product')
     selectedSessionTitle.current = 'First'
     const { rerenderFrame } = mountFrame()
     expect(document.title).toBe('First — Product')

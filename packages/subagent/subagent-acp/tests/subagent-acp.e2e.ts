@@ -22,7 +22,7 @@ const binScript = fileURLToPath(new URL('../../../../apps/cli/src/bin.ts', impor
 const exampleConfig = fileURLToPath(new URL('../../../../snapshots/acp/escalation-approved/cordis.yml', import.meta.url))
 const repoTsconfig = fileURLToPath(new URL('../../../../tsconfig.json', import.meta.url))
 
-// How to launch the child ACP profile (src via tsx / lib via plain node, per DSH_EXAMPLE_MODE).
+// How to launch the child ACP profile (src via tsx / lib via plain node, per AVN_EXAMPLE_MODE).
 // The subprocess seam scrubs ambient creds while spec.env merges after it, so the model key is
 // forwarded explicitly; TSX_TSCONFIG_PATH is added by the resolver in src mode only.
 function resolveChildLaunch(dshHome: string) {
@@ -34,8 +34,8 @@ function resolveChildLaunch(dshHome: string) {
     env: {
       ...process.env.DEEPSEEK_API_KEY !== undefined ? { DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY } : {},
       ...process.env.DEEPSEEK_BASE_URL !== undefined ? { DEEPSEEK_BASE_URL: process.env.DEEPSEEK_BASE_URL } : {},
-      DSH_HOME: dshHome,
-      DSH_PERMISSION_MODE: 'danger-full-access',
+      AVN_HOME: dshHome,
+      AVN_PERMISSION_MODE: 'danger-full-access',
     },
   })
 }

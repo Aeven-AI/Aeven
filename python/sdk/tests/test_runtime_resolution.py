@@ -115,25 +115,25 @@ def test_node_mode_runs_the_deployed_dsh_cli(
 def test_python_dsh_command_requires_explicit_home(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.delenv("DSH_HOME", raising=False)
+    monkeypatch.delenv("AVN_HOME", raising=False)
 
     with pytest.raises(SystemExit) as excinfo:
         main()
 
     assert excinfo.value.code == 2
-    assert "explicit DSH_HOME" in capsys.readouterr().err
+    assert "explicit AVN_HOME" in capsys.readouterr().err
 
 
 def test_python_dsh_command_executes_the_bundled_cli(
     monkeypatch: pytest.MonkeyPatch
 ) -> None:
     called: dict[str, object] = {}
-    monkeypatch.setenv("DSH_HOME", "/explicit/home")
+    monkeypatch.setenv("AVN_HOME", "/explicit/home")
     monkeypatch.setattr(runtime, "resolve_bundled_launch_args", lambda: ("/runtime",))
     monkeypatch.setattr(runtime.sys, "argv", ["dsh", "plugin", "--profile", "sdk", "list"])
 
     def execvpe(file: str, args: tuple[str, ...], env: dict[str, str]) -> None:
-        called.update(file=file, args=args, home=env.get("DSH_HOME"))
+        called.update(file=file, args=args, home=env.get("AVN_HOME"))
 
     monkeypatch.setattr(runtime.os, "execvpe", execvpe)
 

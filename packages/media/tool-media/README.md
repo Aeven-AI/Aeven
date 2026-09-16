@@ -52,7 +52,7 @@ A deployment mounting two image providers pins one, either here or as the seam's
 
 #### What the model sees
 
-The model sees the generated [`generate_image` schema](../../../docs/tool-catalog.md#deepseek-aidsh-tool-media) with one required `prompt` and seven optional controls: `model` and `provider` for one-call overrides, and `n`, `aspect_ratio`, `resolution`, `size`, `seed` forwarded to the seam. The description names what a good prompt covers and tells the model not to call other tools to locate or verify the image, because the attachment is already the result.
+The model sees the generated [`generate_image` schema](../../../docs/tool-catalog.md#aeven-tool-media) with one required `prompt` and seven optional controls: `model` and `provider` for one-call overrides, and `n`, `aspect_ratio`, `resolution`, `size`, `seed` forwarded to the seam. The description names what a good prompt covers and tells the model not to call other tools to locate or verify the image, because the attachment is already the result.
 
 #### Token effect
 

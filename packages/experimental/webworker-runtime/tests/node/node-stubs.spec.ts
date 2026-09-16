@@ -27,7 +27,7 @@ import * as ws from '../../src/node/external_packages/ws.ts'
 import { REPLACED_EXTERNAL_PACKAGES } from '../../src/node/external_packages/replaced-externals.ts'
 import * as os from '../../src/node/builtin_modules/implemented/os.ts'
 import * as perfHooks from '../../src/node/builtin_modules/implemented/perf_hooks.ts'
-import { DSH_HOME, DSH_TMP } from '../../src/storage/paths.ts'
+import { AVN_HOME, AVN_TMP } from '../../src/storage/paths.ts'
 
 /** Every refusal writes its message to the console before throwing; keep the run quiet. */
 const quiet = (): void => { vi.spyOn(console, 'error').mockImplementation(() => {}) }
@@ -147,7 +147,7 @@ describe('node:net address predicates', () => {
 
 describe('node:os', () => {
   it('reports the virtual platform identity and the VFS directories', () => {
-    expect([os.EOL, os.tmpdir(), os.homedir()]).toEqual(['\n', DSH_TMP, DSH_HOME])
+    expect([os.EOL, os.tmpdir(), os.homedir()]).toEqual(['\n', AVN_TMP, AVN_HOME])
     expect([os.platform(), os.type(), os.arch()]).toEqual(['linux', 'Linux', 'x64'])
     expect([os.release(), os.hostname()]).toEqual(['0.0.0-dsh-worker', 'dsh-worker'])
   })

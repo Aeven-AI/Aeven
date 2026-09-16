@@ -12,9 +12,9 @@ Status: implemented
 
 ## 决策
 
-`dsh-llm-deepseek` 在凭据解析成功后发出的每个提供方请求上发送 `x-deepseek-harness-user-id`。该值来自 `@deepseek-ai/dsh-anonymous-user-id`，因此与同一 `$DSH_HOME` 的 OpenTelemetry Resource `user.id` 及 `/feedback` 确认一致。适配器继续仅在存在 `GenerateOptions.sessionId` 时发送 `x-deepseek-harness-session-id`；普通 agent、标题生成与压缩请求由 agent loop 提供当前持久化 `Session.id`。
+`dsh-llm-deepseek` 在凭据解析成功后发出的每个提供方请求上发送 `x-deepseek-harness-user-id`。该值来自 `@deepseek-ai/dsh-anonymous-user-id`，因此与同一 `$AVN_HOME` 的 OpenTelemetry Resource `user.id` 及 `/feedback` 确认一致。适配器继续仅在存在 `GenerateOptions.sessionId` 时发送 `x-deepseek-harness-session-id`；普通 agent、标题生成与压缩请求由 agent loop 提供当前持久化 `Session.id`。
 
-插件在凭据解析成功后惰性获取用户 id，并在该插件实例内缓存。缺少凭据不会创建 `.anonymous-user-id`；即使设置了 `DSH_TELEMETRY_DISABLED`，首个已授权的提供方请求仍可能创建它。直连适配器构造函数接收 `resolveUserId` 依赖，使线路行为可在单元测试中保持确定性。
+插件在凭据解析成功后惰性获取用户 id，并在该插件实例内缓存。缺少凭据不会创建 `.anonymous-user-id`；即使设置了 `AVN_TELEMETRY_DISABLED`，首个已授权的提供方请求仍可能创建它。直连适配器构造函数接收 `resolveUserId` 依赖，使线路行为可在单元测试中保持确定性。
 
 两个头部都是发送到解析后 `baseURL` 的模型不可见 HTTP 元数据。身份值不在 JSON 请求体中，也不会成为模型可见输入或会话事件。配置的网关会收到它们。提供方特定正文扩展由 [DeepSeek LLM API 扩展决策](../architecture/2026-08-21-deepseek-llm-api-request-extensions.zh.md)单独拥有。遥测共享只控制遥测导出，不会禁用提供方请求身份。
 
@@ -39,6 +39,6 @@ Status: implemented
 ## 后果
 
 - DeepSeek 支持可以通过一个匿名 harness-home id 跨会话关联请求，并通过持久化 session id 关联同一对话。
-- 首个已授权 DeepSeek 请求可独立于遥测导出创建 `$DSH_HOME/.anonymous-user-id`。
+- 首个已授权 DeepSeek 请求可独立于遥测导出创建 `$AVN_HOME/.anonymous-user-id`。
 - 自定义 DeepSeek 网关会收到稳定用户 id 与可用的会话 id，因此运维方必须将配置的 `baseURL` 视为身份接收方。
 - 身份头部不会改变请求体、提示词、token 数、KV cache 身份或会话日志；单独注册的 DeepSeek 正文扩展保留各自约定。

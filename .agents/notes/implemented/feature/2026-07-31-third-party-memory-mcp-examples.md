@@ -27,7 +27,7 @@ These third-party configurations are provided as interoperability examples only.
 | Account, auth, model, embedding, storage initialization | No | Yes |
 | Vendor data migration, retry, crash recovery | No | Yes |
 
-The generic stdio transport scrubs ambient credential-shaped and `DSH_*` variables while inheriting other ambient variables. Baseline examples add only required overrides; optional provider secrets must be added to `config.env` or configured in the provider's own files.
+The generic stdio transport scrubs ambient credential-shaped and `AVN_*` variables while inheriting other ambient variables. Baseline examples add only required overrides; optional provider secrets must be added to `config.env` or configured in the provider's own files.
 
 ## Pins, storage, and identity
 

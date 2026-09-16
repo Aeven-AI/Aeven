@@ -55,21 +55,21 @@ async function launchElectron(projectDir: string): Promise<void> {
   const require = createRequire(import.meta.url)
   const electron: unknown = require('electron')
   if (typeof electron !== 'string') throw new Error('desktop development: electron executable is unavailable')
-  const mainPort = debugPort('DSH_DESKTOP_MAIN_INSPECT_PORT', 9229)
-  const rendererPort = debugPort('DSH_DESKTOP_RENDERER_DEBUG_PORT', 9222)
-  const hostPort = debugPort('DSH_DESKTOP_HOST_INSPECT_PORT', 9230)
-  const home = resolve(process.env.DSH_HOME ?? join(DEVELOPMENT_ROOT, 'home'))
+  const mainPort = debugPort('AVN_DESKTOP_MAIN_INSPECT_PORT', 9229)
+  const rendererPort = debugPort('AVN_DESKTOP_RENDERER_DEBUG_PORT', 9222)
+  const hostPort = debugPort('AVN_DESKTOP_HOST_INSPECT_PORT', 9230)
+  const home = resolve(process.env.AVN_HOME ?? join(DEVELOPMENT_ROOT, 'home'))
   const userData = join(DEVELOPMENT_ROOT, 'electron-user-data')
   const environment: NodeJS.ProcessEnv = {
     ...process.env,
-    DSH_HOME: home,
-    DSH_DESKTOP_DEV_PROJECT_DIR: projectDir,
-    DSH_DESKTOP_HOST_INSPECT_PORT: String(hostPort),
-    DSH_DESKTOP_NODE_BINARY: process.execPath,
-    DSH_DESKTOP_OPEN_DEVTOOLS: process.env.DSH_DESKTOP_OPEN_DEVTOOLS ?? '1',
+    AVN_HOME: home,
+    AVN_DESKTOP_DEV_PROJECT_DIR: projectDir,
+    AVN_DESKTOP_HOST_INSPECT_PORT: String(hostPort),
+    AVN_DESKTOP_NODE_BINARY: process.execPath,
+    AVN_DESKTOP_OPEN_DEVTOOLS: process.env.AVN_DESKTOP_OPEN_DEVTOOLS ?? '1',
     ELECTRON_ENABLE_LOGGING: process.env.ELECTRON_ENABLE_LOGGING ?? '1',
   }
-  console.log(`desktop development: DSH_HOME=${home}`)
+  console.log(`desktop development: AVN_HOME=${home}`)
   console.log(`desktop development: inspectors main=${String(mainPort)}, renderer=${String(rendererPort)}, host=${String(hostPort)}`)
   await run(electron, [
     `--inspect=127.0.0.1:${String(mainPort)}`,

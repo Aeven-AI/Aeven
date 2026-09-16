@@ -11,7 +11,7 @@ export function apply(ctx) {
   process.stderr.write('dsh-test: never-dispose ready\n')
   ctx.effect(() => async () => {
     clearInterval(keepAlive)
-    const armFile = process.env.DSH_TEST_SHUTDOWN_ARM_FILE
+    const armFile = process.env.AVN_TEST_SHUTDOWN_ARM_FILE
     if (armFile === undefined || !existsSync(armFile)) return
     process.stderr.write('dsh-test: never-dispose started\n')
     await new Promise(() => {})

@@ -6,7 +6,7 @@ Status: implemented
 
 ## 问题
 
-`session_projcache` 存储域在已发布版本间演进了三代磁盘结构。升级后的 DSH_HOME 出现两类故障：
+`session_projcache` 存储域在已发布版本间演进了三代磁盘结构。升级后的 AVN_HOME 出现两类故障：
 
 - **v3 单文件 home 升级后启动硬失败**：per-record 布局的 legacy bootstrap 迁移旧单文件时不检查其 `unit.version`，把旧记录原样打上当前版本戳写入新树；domain 层开域时逐条 zod 校验，旧记录缺新增必填字段 → `invalid-record` → 整个域拒开 → 插件树加载失败。且 bootstrap 先写盘后校验，**首次启动即把坏文档永久写入新树**（"投毒"）——此后每次启动新树非空、连 legacy 路径都不再走，home 持续不可用。
 - **v4 per-record home 升级后列表丢标题**：v4 文档被版本戳检查静默丢弃（per-record 契约），SessionList 是零 I/O 纯缓存读，miss 后整行不带投影；标题要等每个会话被逐个重新打开后才恢复。

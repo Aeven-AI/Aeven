@@ -14,7 +14,7 @@ Status: implemented
 
 行内容自我重复。工作区根目录的文件渲染成 `reference.txt reference.txt`，因为 description 是完整路径而 name 是它的基名。会话行渲染标题、完整 session id、完整 cwd 和一个原始的 `toISOString()` 时间戳。下钻后的目录列表除了删字符没有回退方式，而且其中每一行都写着同一个父目录。
 
-Web e2e 看不到这一切：它的 scaffold 固定使用只含两个会话的隔离 `DSH_HOME`。
+Web e2e 看不到这一切：它的 scaffold 固定使用只含两个会话的隔离 `AVN_HOME`。
 
 ## Decision
 
@@ -64,4 +64,4 @@ Web e2e 看不到这一切：它的 scaffold 固定使用只含两个会话的�
 
 包级测试覆盖：被改名的挂载会话在 checkpoint 仍是旧值时按新标题被搜到、冷会话由 checkpoint 标注、无投影可答的会话标成 id、完全没有投影面的组合、以上路径均未调用 `readTitleSnapshots`、经真实文件系统驱动的 stale-while-revalidate——根目录在活索引之下消失时仍继续作答，并在它回来后自动接上——不可读子目录只损失自身候选、`lib` 目录仍可搜索，以及面包屑契约的两端（含被拒绝的下钻编辑）。`reference-composer.e2e.ts` 覆盖随附组合：刷新后的菜单 golden 显示精简后的行，新增用例下钻进入文件夹、断言面包屑只在此时出现、并点击根节点回到裸 `@`。其中被 seed 的会话在那里显示为 id，因为 seed 落到磁盘的只有日志，而该 scaffold 在宿主已载入投影缓存表之后才 seed；把 seed 提前到 boot 之前会让应用启动时就带着一份会话列表，而四个场景共用的「连接新工作区」流程并不预期这一点。带标题的路径留在包级测试里，e2e 断言它真正产生的 id 标签，而不是这个 fixture 承载不了的标题。
 
-1139 ms 是针对真实存储的服务端 I/O 实测下限，不是插桩得到的端到端 UI 延迟；web e2e scaffold 的隔离 `DSH_HOME` 无法复现产生该数字的语料。
+1139 ms 是针对真实存储的服务端 I/O 实测下限，不是插桩得到的端到端 UI 延迟；web e2e scaffold 的隔离 `AVN_HOME` 无法复现产生该数字的语料。

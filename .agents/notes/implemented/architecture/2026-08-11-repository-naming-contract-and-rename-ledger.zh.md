@@ -176,7 +176,7 @@ PascalCase 标识符中的首字母缩略词使用首字母大写格式：`Ui`�
 | `session/user-id/`, `@deepseek-ai/dsh-user-id` | `identity/anonymous-user-id/`, `@deepseek-ai/dsh-anonymous-user-id` | 该值是遥测、反馈和 DeepSeek 请求共用的随机关联 id。它既不属于 Session 领域，也不是经过身份验证的用户身份。 |
 | `USER_ID_FILE_NAME`、`.userid`，反馈标签 `User` | `ANONYMOUS_USER_ID_FILE_NAME`、`.anonymous-user-id`，反馈标签 `Anonymous user` | 文件和 UI 不得暗示账户身份。保留现有 `AnonymousUserId` 函数和标准 OTel 属性 `user.id`。 |
 | `util/environment/`, `@deepseek-ai/dsh-environment` | `util/launch-environment/`, `@deepseek-ai/dsh-launch-environment` | 该包在启动时捕获一份不可变的分层快照。它不是通用环境 API。 |
-| 公开的 `Environment*`、`createEnvironmentSnapshot`、`environmentOf`、`DSH_ENVIRONMENT_KEY` | `LaunchEnvironment*`、`createLaunchEnvironmentSnapshot`、`launchEnvironmentOf`、`DSH_LAUNCH_ENVIRONMENT_KEY` | 这些名称说明快照的生命周期和用途。 |
+| 公开的 `Environment*`、`createEnvironmentSnapshot`、`environmentOf`、`AVN_ENVIRONMENT_KEY` | `LaunchEnvironment*`、`createLaunchEnvironmentSnapshot`、`launchEnvironmentOf`、`AVN_LAUNCH_ENVIRONMENT_KEY` | 这些名称说明快照的生命周期和用途。 |
 | `ctx.launcherEnvironment` | `ctx.launchEnvironment` | 该值描述应用启动，而不只描述启动器组件。保留来源标签 `process`、`project-env` 和 `user-env`。 |
 
 ### 日程、工作流、目标与压缩

@@ -24,7 +24,7 @@ The required GitHub matrix builds `node24-win-x64` on `windows-2025` beside the 
 
 ### Installed-wheel behavior
 
-The Windows lane creates a clean Windows virtual environment, installs the exact SDK and `win_amd64` runtime wheels, changes to a directory outside the checkout, unsets `PYTHONPATH` and `DSH_RUNTIME_MODE`, and runs the same `--scenario all --installed-wheel` blackbox as every other target. Trusted pull requests also run the same two-turn `sdk-live` provider scenario. Fork and Dependabot heads receive no key.
+The Windows lane creates a clean Windows virtual environment, installs the exact SDK and `win_amd64` runtime wheels, changes to a directory outside the checkout, unsets `PYTHONPATH` and `AVN_RUNTIME_MODE`, and runs the same `--scenario all --installed-wheel` blackbox as every other target. Trusted pull requests also run the same two-turn `sdk-live` provider scenario. Fork and Dependabot heads receive no key.
 
 The public Python client gives the initial profile handshake an independent 30-second default through `initialize_timeout_seconds`. The bound accommodates cold Windows x64 executable startup and profile materialization while still failing a stuck runtime; callers may configure it separately from ordinary request timeouts.
 

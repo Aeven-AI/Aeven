@@ -32,7 +32,7 @@ let testHome: string
 
 beforeEach(() => {
   testHome = mkdtempSync(join(tmpdir(), 'dsh-llm-deepseek-'))
-  vi.stubEnv('DSH_HOME', testHome)
+  vi.stubEnv('AVN_HOME', testHome)
 })
 
 afterEach(async () => {

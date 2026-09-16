@@ -16,13 +16,13 @@ Status: implemented
 
 **`dsh` CLI（命令行界面；`apps/cli`，npm 名 `@deepseek-ai/dsh`）。** `apps/*` 是位于 `packages/*` 库之上的产品组装层。一个 bin 负责分发默认交互式 TUI、`-p`/`--prompt` 无头轮次和 `web` 界面。TUI 以调用目录为 workspace，启动 `examples/tui-agent/cordis.yml`（或 `--config` 指定的配置）。在源码检出中，根目录的 `pnpm dsh` 脚本不执行构建，直接使用 tsx 的 ESM hook 运行同一入口；运行方式由[源码启动决策](../architecture/2026-07-29-dsh-source-launch-tsx-esm.zh.md)规定，产物生成由[源码启动与构建分离决策](../simplification/2026-08-12-separate-source-launch-from-build.zh.md)规定。
 
-**个人配置（`dsh-app-boot`）。** 个人 overlay 存放在 Harness home——`$DSH_HOME`，否则 `~/.dsh`——由共享的 [`resolveDshHome`](../architecture/2026-07-24-single-harness-home-resolver.zh.md)（`@deepseek-ai/dsh-home-paths`）解析，与 skill（技能）、AGENTS.md 解析所依据的单一根目录相同。dsh 的 TUI、Web 和无头界面使用其中两个可选文件；各示例 bin 仍然逐字节按已提交的配置树启动：
+**个人配置（`dsh-app-boot`）。** 个人 overlay 存放在 Harness home——`$AVN_HOME`，否则 `~/.dsh`——由共享的 [`resolveDshHome`](../architecture/2026-07-24-single-harness-home-resolver.zh.md)（`@deepseek-ai/dsh-home-paths`）解析，与 skill（技能）、AGENTS.md 解析所依据的单一根目录相同。dsh 的 TUI、Web 和无头界面使用其中两个可选文件；各示例 bin 仍然逐字节按已提交的配置树启动：
 
 - `.env`——在调用目录的 `.env` 之后加载；`process.loadEnvFile` 从不覆盖已有值，因此优先级为环境变量 > 项目 `.env` > 个人 `.env`。
 - `config.yaml`——顶层 YAML 数组，元素为 `@cordisjs/plugin-include` 的 `PatchOptions`，用 include 自己的 `!!js` 方言解析（`loadPersonalPatches`）并传给 `boot()`，由它作为根 include 的 `patches` 转发。补丁语义与交付的 surface overlay 一致：按 id 定位的补丁替换该配置项的整个 `config`，`insert` 追加配置项，未匹配的 id 静默不执行任何操作。外部包作为 [profile 组合包](../simplification/2026-08-09-remove-repository-plugin.zh.md)安装；这个个人层负责配置这些组合包提供的 Loader 配置项。
 - 文件缺失即无 overlay；文件存在但不可读、不可解析或非数组则在启动时抛出（配置错误会明确报错，绝不静默跳过）。
 
-PTY 冒烟测试的启动器把 `$DSH_HOME` 隔离到每个测试自己的目录，与它已有的 `DSH_AGENTS_HOME` 隔离方式完全一致，开发者真实的个人 overlay 不可能泄漏进 fixture（测试前置数据）；只有 dsh CLI 读取个人配置，因此其他测试启动器无需改动。
+PTY 冒烟测试的启动器把 `$AVN_HOME` 隔离到每个测试自己的目录，与它已有的 `AVN_AGENTS_HOME` 隔离方式完全一致，开发者真实的个人 overlay 不可能泄漏进 fixture（测试前置数据）；只有 dsh CLI 读取个人配置，因此其他测试启动器无需改动。
 
 TUI 和 Web 启动后通过 Cordis HMR（热模块替换）注册确切的个人配置路径。每次新增、变更或移除都会以事务方式通过启动器自己的组合闭包重新组合完整 patch 列表，因此新的个人 patch 落在启动时相同的层次位置。YAML 无效或 Loader 候选被拒时，最后一个可用树保持活动状态，并广播 `hmr/config-update-failed(filename, Error)`；无头界面只在启动时读取该文件。Include 在已提交配置文件刷新时也会重新应用其 patch（见[配置热重载韧性 Agent Note](../bug-fix/2026-07-20-config-hot-reload-resilience.zh.md)）。
 
@@ -48,4 +48,4 @@ TUI 和 Web 启动后通过 Cordis HMR（热模块替换）注册确切的个人
 
 ## 测试
 
-`packages/boot/app-boot/tests/user-patches.spec.ts` 固定解析、启动时应用、确切路径的新增、失败、恢复、移除、最后可用状态回滚、失败广播以及应用自有 patch 的保留。`apps/cli/tests/built-bin.e2e.ts` 启动真实 dsh bin 并基于 profile 端到端验证实时 patch 层。测试启动器会隔离 `$DSH_HOME`，因此开发者的真实 overlay 不会泄漏进 fixture。
+`packages/boot/app-boot/tests/user-patches.spec.ts` 固定解析、启动时应用、确切路径的新增、失败、恢复、移除、最后可用状态回滚、失败广播以及应用自有 patch 的保留。`apps/cli/tests/built-bin.e2e.ts` 启动真实 dsh bin 并基于 profile 端到端验证实时 patch 层。测试启动器会隔离 `$AVN_HOME`，因此开发者的真实 overlay 不会泄漏进 fixture。

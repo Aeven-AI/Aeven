@@ -40,7 +40,7 @@ function fakeContext(secret = 'fixture-secret'): {
 async function serve(ctx: Context, maxBodyBytes = 1024): Promise<string> {
   const handler = createGitHubWebhookHandler(ctx, {
     source: 'primary',
-    secretEnv: credentialRef('DSH_GITHUB_WEBHOOK_SECRET'),
+    secretEnv: credentialRef('AVN_GITHUB_WEBHOOK_SECRET'),
     maxBodyBytes,
   })
   const server = createServer((request, response) => { void handler(request, response) })
@@ -163,7 +163,7 @@ describe('GitHub webhook HTTP handler', () => {
     const fake = fakeContext()
     const handler = createGitHubWebhookHandler(fake.ctx, {
       source: 'primary',
-      secretEnv: credentialRef('DSH_GITHUB_WEBHOOK_SECRET'),
+      secretEnv: credentialRef('AVN_GITHUB_WEBHOOK_SECRET'),
       maxBodyBytes: 1024,
     })
     const request = { method: 'POST', headers: {}, headersDistinct: {} } as unknown as IncomingMessage
@@ -178,7 +178,7 @@ describe('GitHub webhook HTTP handler', () => {
     const fake = fakeContext()
     const handler = createGitHubWebhookHandler(fake.ctx, {
       source: 'primary',
-      secretEnv: credentialRef('DSH_GITHUB_WEBHOOK_SECRET'),
+      secretEnv: credentialRef('AVN_GITHUB_WEBHOOK_SECRET'),
       maxBodyBytes: 1024,
     })
     const request = {

@@ -475,7 +475,7 @@ describe('tool-bash-persistent', () => {
     expect(result).toContain('bash: syntax error')
     // The backend owns the prompt text, so the fallback retains it verbatim.
     expect(result.endsWith('stub> ')).toBe(true)
-    expect(result).not.toContain('DSH_PERSISTENT_BASH_START')
+    expect(result).not.toContain('AVN_PERSISTENT_BASH_START')
   })
 
   it('does not attribute old scrollback truncation to a complete current command', async () => {

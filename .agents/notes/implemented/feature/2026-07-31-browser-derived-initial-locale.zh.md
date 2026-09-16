@@ -12,7 +12,7 @@ Status: implemented
 
 ## Decision
 
-**暂定 locale 先经浏览器、再经 `FALLBACK_LOCALE`（`en`）解析；显式 Host 偏好会实时替换它。** `packages/client/locale/src/client/index.ts` 中的 `resolveInitialLocale()` 在服务构造时和每次语言目录变化后运行，依据当时已注册的定义表达浏览器／回落顺序。随后，非阻塞 settings 生命周期会应用 `$DSH_HOME/settings.yaml` 中可选的 `locale.preference`；若该值缺失，则继续使用由浏览器派生的值；若已保存的 id 暂不可用，则保留待采用状态，并在对应语言注册后生效。
+**暂定 locale 先经浏览器、再经 `FALLBACK_LOCALE`（`en`）解析；显式 Host 偏好会实时替换它。** `packages/client/locale/src/client/index.ts` 中的 `resolveInitialLocale()` 在服务构造时和每次语言目录变化后运行，依据当时已注册的定义表达浏览器／回落顺序。随后，非阻塞 settings 生命周期会应用 `$AVN_HOME/settings.yaml` 中可选的 `locale.preference`；若该值缺失，则继续使用由浏览器派生的值；若已保存的 id 暂不可用，则保留待采用状态，并在对应语言注册后生效。
 
 **开场时的最终回落与字典链终点共用一个常量。** `FALLBACK_LOCALE` 同时回答「浏览器未声明任何已注册语言时，界面以哪种语言开场」与「每条已声明的字典 fallback 链必须在哪里结束」。这是两个不同的问题，若其中任一答案必须不同，拆成两个常量才是对的。外部语言可以贡献不完整字典并声明中间 fallback，但每条链最终仍到达 `en`。每一对内置 `zh`／`en` 字典都声明完全相同的 key 集合，因此最后一次回落能够解析；`scripts/locale-dictionary-parity.spec.ts` 会拒绝只加在内置一侧的 key，避免它日后在运行中的界面里显现为形如 `list.aria` 的裸 key。
 

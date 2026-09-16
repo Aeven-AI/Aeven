@@ -24,7 +24,7 @@ concurrency:
 
 env:
   PRIMARY_NODE_VERSION: '24'
-  DSH_TELEMETRY_DISABLED: '1'
+  AVN_TELEMETRY_DISABLED: '1'
 
 jobs:
   pack:

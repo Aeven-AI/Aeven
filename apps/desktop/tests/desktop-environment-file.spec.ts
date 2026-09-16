@@ -22,23 +22,23 @@ describe('desktop packaging environment file', () => {
   it('copies only Desktop packaging settings and leaves other entries out', async () => {
     const path = await envFile([
       'OPENROUTER_API_KEY=secret',
-      'DSH_DESKTOP_APP_ID=com.example.app',
+      'AVN_DESKTOP_APP_ID=com.example.app',
       'DOWNLOAD_TEST_ORIGIN=https://updates.example.com',
       '',
     ].join('\n'))
     const environment: NodeJS.ProcessEnv = {}
-    expect(loadDesktopPackagingEnvironment(path, environment)).toEqual(['DSH_DESKTOP_APP_ID', 'DOWNLOAD_TEST_ORIGIN'])
+    expect(loadDesktopPackagingEnvironment(path, environment)).toEqual(['AVN_DESKTOP_APP_ID', 'DOWNLOAD_TEST_ORIGIN'])
     expect(environment).toEqual({
-      DSH_DESKTOP_APP_ID: 'com.example.app',
+      AVN_DESKTOP_APP_ID: 'com.example.app',
       DOWNLOAD_TEST_ORIGIN: 'https://updates.example.com',
     })
   })
 
   it('keeps a value the shell already set', async () => {
-    const path = await envFile('DSH_DESKTOP_APP_ID=com.example.file\nDSH_DESKTOP_AUTO_UPDATE_ENV=production\n')
-    const environment: NodeJS.ProcessEnv = { DSH_DESKTOP_APP_ID: 'com.example.shell' }
-    expect(loadDesktopPackagingEnvironment(path, environment)).toEqual(['DSH_DESKTOP_AUTO_UPDATE_ENV'])
-    expect(environment).toEqual({ DSH_DESKTOP_APP_ID: 'com.example.shell', DSH_DESKTOP_AUTO_UPDATE_ENV: 'production' })
+    const path = await envFile('AVN_DESKTOP_APP_ID=com.example.file\nAVN_DESKTOP_AUTO_UPDATE_ENV=production\n')
+    const environment: NodeJS.ProcessEnv = { AVN_DESKTOP_APP_ID: 'com.example.shell' }
+    expect(loadDesktopPackagingEnvironment(path, environment)).toEqual(['AVN_DESKTOP_AUTO_UPDATE_ENV'])
+    expect(environment).toEqual({ AVN_DESKTOP_APP_ID: 'com.example.shell', AVN_DESKTOP_AUTO_UPDATE_ENV: 'production' })
   })
 
   it('supplies nothing when the file is absent', () => {

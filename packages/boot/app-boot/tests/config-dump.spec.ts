@@ -27,7 +27,7 @@ function writeBase(dir: string): string {
     '  name: ./noop.mjs',
     '  config:',
     '    value: base',
-    '    key: !!js process.env.DSH_DUMP_SPEC',
+    '    key: !!js process.env.AVN_DUMP_SPEC',
     '- id: untouched',
     '  name: ./noop.mjs',
     '',
@@ -44,7 +44,7 @@ describe('renderConfigDump', () => {
       '- id: shared',
       '  config:',
       '    value: surface',
-      '    key: !!js process.env.DSH_DUMP_SPEC',
+      '    key: !!js process.env.AVN_DUMP_SPEC',
       '- insert:',
       '    - id: surface-extra',
       '      name: ./noop.mjs',
@@ -72,7 +72,7 @@ describe('renderConfigDump', () => {
       {
         id: 'shared',
         name: './noop.mjs',
-        config: { value: 'surface', key: { __jsExpr: 'process.env.DSH_DUMP_SPEC' } },
+        config: { value: 'surface', key: { __jsExpr: 'process.env.AVN_DUMP_SPEC' } },
       },
       { id: 'untouched', name: './noop.mjs' },
       {
@@ -82,7 +82,7 @@ describe('renderConfigDump', () => {
       },
     ])
     // Unevaluated: the expression text round-trips as a !!js scalar.
-    expect(dump).toContain('!!js process.env.DSH_DUMP_SPEC')
+    expect(dump).toContain('!!js process.env.AVN_DUMP_SPEC')
     // Source separators: origin file, plus every layer that changed the
     // row; an inserted row carries the inserting layer as its origin.
     expect(dump).toContain('# == base.yml, patched by surface.yml')

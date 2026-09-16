@@ -140,14 +140,14 @@ suite('persistent Bash through a real cordis.yml Loader composition', () => {
     await execute('state', 'export KEEP=loader; mkdir -p nested; cd nested')
     const observed = text(await execute('observe', 'printf "cwd=%s keep=%s\\n" "$PWD" "$KEEP"'))
     expect(observed).toContain(`cwd=${join(root, 'nested')} keep=loader`)
-    expect(observed).not.toContain('DSH_PERSISTENT_BASH')
+    expect(observed).not.toContain('AVN_PERSISTENT_BASH')
 
     const multiline = text(await execute(
       'multiline',
       'value="line one"\nprintf "%s:%s\\n" "$value" "it\'s fine"',
     ))
     expect(multiline).toBe("line one:it's fine")
-    expect(multiline).not.toContain('DSH_PERSISTENT_BASH')
+    expect(multiline).not.toContain('AVN_PERSISTENT_BASH')
 
     const heredoc = text(await execute(
       'heredoc',

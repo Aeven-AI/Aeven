@@ -13,7 +13,7 @@ from deepseek_harness import DeepSeekHarness
 def main() -> None:
     """Parse one task and print the agent's final response."""
     parser = argparse.ArgumentParser()
-    configured_home = os.environ.get("DSH_HOME", "")
+    configured_home = os.environ.get("AVN_HOME", "")
     parser.add_argument("prompt", help="Task for the minimal agent")
     parser.add_argument("--workspace", type=Path, default=Path.cwd())
     parser.add_argument(
@@ -24,11 +24,11 @@ def main() -> None:
     parser.add_argument("--profile", default="sdk-minimal")
     parser.add_argument("--session-id")
     parser.add_argument("--provider", default="deepseek-official")
-    parser.add_argument("--model", default=os.environ.get("DSH_MODEL", "deepseek-v4-flash"))
+    parser.add_argument("--model", default=os.environ.get("AVN_MODEL", "deepseek-v4-flash"))
     parser.add_argument("--max-tokens", type=int)
     args = parser.parse_args()
     if args.dsh_home is None:
-        parser.error("--dsh-home or a non-empty DSH_HOME is required")
+        parser.error("--dsh-home or a non-empty AVN_HOME is required")
 
     workspace = args.workspace.resolve()
     dsh_home = args.dsh_home.resolve()

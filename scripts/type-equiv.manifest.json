@@ -1608,7 +1608,7 @@
     },
     {
       "doc": "docs/subsystems/subprocess.md",
-      "symbol": "DshEnvironmentKey",
+      "symbol": "AvnEnvironmentKey",
       "source": "packages/subprocess/subprocess/src/types.ts"
     },
     {

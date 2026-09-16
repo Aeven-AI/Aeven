@@ -10,13 +10,13 @@ Node 内置的 `fetch` 会忽略 `HTTP_PROXY` 与 `HTTPS_PROXY`。开发者运�
 
 仓库曾短暂拥有过答案，又在无人察觉时弄丢了。PR #971 在 `bin/dsh` 里设置了 `NODE_USE_ENV_PROXY=1`；十一天后 `bbb1b1cc38 cleanup: remove managed source installer` 整体删除了那个启动器，把该标志一并带走。留下的只有 `apps/cli/reference/README.md` 里的一句话，让读者去设置一个已经无人消费的变量。
 
-即便照做，那句话也不可能生效，原因有三条且都经过实测。`NODE_USE_ENV_PROXY` 在进程启动时对环境取快照，而 `loadLayeredEnv()` 是在之后才合并 `.env` 层，因此写在 `$DSH_HOME/.env` 中的代理对它不可见。它只覆盖 Node 24.0+，在 22 线上只覆盖 22.21+——而 `engines` 允许 `^22.19.0`，那里根本没有这个变量，设置了也不会有任何警告。它也完全触及不到 `web-fetch-http`：该提供方向 `fetch` 传入自己的 `dispatcher`，而显式 dispatcher 无论标志如何都会覆盖全局的那个。
+即便照做，那句话也不可能生效，原因有三条且都经过实测。`NODE_USE_ENV_PROXY` 在进程启动时对环境取快照，而 `loadLayeredEnv()` 是在之后才合并 `.env` 层，因此写在 `$AVN_HOME/.env` 中的代理对它不可见。它只覆盖 Node 24.0+，在 22 线上只覆盖 22.21+——而 `engines` 允许 `^22.19.0`，那里根本没有这个变量，设置了也不会有任何警告。它也完全触及不到 `web-fetch-http`：该提供方向 `fetch` 传入自己的 `dispatcher`，而显式 dispatcher 无论标志如何都会覆盖全局的那个。
 
 ## Decision
 
 **一份策略，从启动环境解析一次，装为全局 dispatcher。** `packages/util/http-proxy` 解析出 `ProxyPolicy`，并在 `runProfile` 中于环境快照提供之后、任何 entry 挂载之前完成安装。Node 的 `fetch` 解析的正是 undici 的全局 dispatcher，因此每一处普通 `fetch()` 以及每一个最终落到 `globalThis.fetch` 的 SDK 都无需改动即被覆盖——撰写时是九个调用点，未来新增的也自动覆盖。`loadLayeredEnv` 只有一个调用方，且 `apps/web` 不提供 bin，因此这一处即覆盖全部 profile，包括不叠加 `base` 的 `sdk-minimal`。
 
-解析读取的是启动器的快照而非 `process.env`，这正是让 `$DSH_HOME/.env` 中的代理生效的原因——也是环境变量方案不可能具备的能力。仅限该文件：`loadLayeredEnv` 拒绝项目 `.env` 里的代理名，正如它在那里拒绝 `PATH` 或 `NODE_OPTIONS`，因为那个文件随 clone 一起到来，不得替 Harness 选择路由。home 文件仅对这四个代理名豁免，而 `DSH_HOME` 本身是 bootstrap-only，因此没有任何 `.env` 能把这份豁免指向仓库控制的目录。
+解析读取的是启动器的快照而非 `process.env`，这正是让 `$AVN_HOME/.env` 中的代理生效的原因——也是环境变量方案不可能具备的能力。仅限该文件：`loadLayeredEnv` 拒绝项目 `.env` 里的代理名，正如它在那里拒绝 `PATH` 或 `NODE_OPTIONS`，因为那个文件随 clone 一起到来，不得替 Harness 选择路由。home 文件仅对这四个代理名豁免，而 `AVN_HOME` 本身是 bootstrap-only，因此没有任何 `.env` 能把这份豁免指向仓库控制的目录。
 
 **放在 `util/` 的库，而非插件。** 传输策略每个进程只有一个答案：没有可替换的实现，也没有比进程更窄的作用域可赋予。因此本包只导出函数、不挂载任何东西——`boot`、`web`、`subprocess` 与 `workflow` 都消费它，而 `util/` 正是其他所有组都可以依赖的那一组。
 
@@ -60,7 +60,7 @@ URL 层策略未受影响：仅 `http(s)`、禁止内嵌凭据、长度上限与
 
 ## Alternatives considered
 
-**只写文档，让用户设 `NODE_USE_ENV_PROXY=1`。** 基于上文三条实测被否决：对 `$DSH_HOME/.env` 不可见、在最低支持的 Node 上不存在、且无论如何被 `web-fetch-http` 绕过。而这恰恰是仓库此前声称的做法。
+**只写文档，让用户设 `NODE_USE_ENV_PROXY=1`。** 基于上文三条实测被否决：对 `$AVN_HOME/.env` 不可见、在最低支持的 Node 上不存在、且无论如何被 `web-fetch-http` 绕过。而这恰恰是仓库此前声称的做法。
 
 **把策略值传递到每一个调用点。** DeepSeek-Reasonix 在 98 处这样做，换来每提供方的 opt-out。被否决：该能力服务于本 Harness 并不具备的需求，而手工改九处意味着第十处会被遗忘——Pi 的变更日志正记录了 OAuth 与 Bedrock 两次事后补漏。它关于隔离性的论点确实成立，本方案改为显式处理 worker 线程、并以「dispose 后还原前一个 dispatcher」的断言来回应。
 
@@ -76,7 +76,7 @@ URL 层策略未受影响：仅 `http(s)`、禁止内嵌凭据、长度上限与
 
 ## Consequences
 
-导出了 `HTTPS_PROXY`、或把它写进 `$DSH_HOME/.env` 的用户，在 Harness 发起请求的每一处都会走代理，无需任何标志与配置。启动器在第一个插件挂载之前恰好安装一次。
+导出了 `HTTPS_PROXY`、或把它写进 `$AVN_HOME/.env` 的用户，在 Harness 发起请求的每一处都会走代理，无需任何标志与配置。启动器在第一个插件挂载之前恰好安装一次。
 
 由于不读取操作系统设置，面向用户的文档从补充材料变成了承重件：仅在代理软件里拨了「系统代理」开关的用户什么也得不到，且没有诊断。因此 `docs/user/guide/network-proxy.md` 说明了要导出哪些变量，以及为什么浏览器走代理而终端不走——这个「三套机制」的困惑是最常见的报障，且并非本 Harness 特有。
 

@@ -33,7 +33,7 @@ if ($fs -eq 'ReFS') {
 - 使用 `corepack pnpm` 是因为 clone 模式需要 `@reflink/reflink` 原生模块，系统 corepack pnpm 带有它，而 `pnpm/action-setup` 的 dest 构建缺少。
 - `.npmrc` 与 `npm_config_*` 环境变量在 Windows 的 pnpm 11.7.0 上不驱动 `package-import-method`；只有 CLI flag 生效，因此命令中显式传 flag。
 
-自托管虚拟机的 store 位于 `F:\.pnpm-store`（ReFS，机器级 `PNPM_CONFIG_STORE_DIR`），工作区位于 `F:\ci\_work-NN`。重建后 F: 卷为 200 GB ReFS。`DSH_CI_FAILOVER_WINDOWS=selfhosted` 把四个 pull-request 原生作业路由到自托管池。
+自托管虚拟机的 store 位于 `F:\.pnpm-store`（ReFS，机器级 `PNPM_CONFIG_STORE_DIR`），工作区位于 `F:\ci\_work-NN`。重建后 F: 卷为 200 GB ReFS。`AVN_CI_FAILOVER_WINDOWS=selfhosted` 把四个 pull-request 原生作业路由到自托管池。
 
 ## Alternatives considered
 

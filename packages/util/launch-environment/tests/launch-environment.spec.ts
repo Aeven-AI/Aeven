@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import {
-  createLaunchEnvironmentSnapshot, DSH_LAUNCH_ENVIRONMENT_KEY, launchEnvironmentOf,
+  createLaunchEnvironmentSnapshot, AVN_LAUNCH_ENVIRONMENT_KEY, launchEnvironmentOf,
 } from '../src/index.ts'
 
 const layered = createLaunchEnvironmentSnapshot([
@@ -53,15 +53,15 @@ describe('createLaunchEnvironmentSnapshot', () => {
 describe('launchEnvironmentOf', () => {
   it('returns the launcher snapshot when the product CLI provided one', () => {
     const ctx = new Context()
-    ctx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, layered)
+    ctx.provide(AVN_LAUNCH_ENVIRONMENT_KEY, layered)
     expect(launchEnvironmentOf(ctx)).toBe(layered)
   })
 
   it('falls back to the inherited environment as the only layer', () => {
-    vi.stubEnv('DSH_ENV_SPEC_FALLBACK', 'ambient')
+    vi.stubEnv('AVN_ENV_SPEC_FALLBACK', 'ambient')
     try {
       const snapshot = launchEnvironmentOf(new Context())
-      expect(snapshot.get('DSH_ENV_SPEC_FALLBACK')).toEqual({ value: 'ambient', source: 'process' })
+      expect(snapshot.get('AVN_ENV_SPEC_FALLBACK')).toEqual({ value: 'ambient', source: 'process' })
     } finally {
       vi.unstubAllEnvs()
     }

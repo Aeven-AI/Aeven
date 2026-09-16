@@ -40,7 +40,7 @@ Choose this service when a product surface should let users rate and annotate in
     maxNoteBytes: 8192
 ```
 
-A note must contain at least one non-whitespace character and fit within the configured byte length; a blank note is rejected with `note-blank` and an oversized one with `note-too-large`. Accepted text is stored exactly as submitted — nothing is trimmed. The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-message-feedback) is the exhaustive source for every accepted field and its JSDoc.
+A note must contain at least one non-whitespace character and fit within the configured byte length; a blank note is rejected with `note-blank` and an oversized one with `note-too-large`. Accepted text is stored exactly as submitted — nothing is trimmed. The generated [configuration catalog](../../../docs/config-catalog.md#aeven-message-feedback) is the exhaustive source for every accepted field and its JSDoc.
 
 ### Reading and changing feedback
 

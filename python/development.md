@@ -27,7 +27,7 @@ uv run --project python/sdk pytest
 
 `python/sdk/tests/test_bundled_runtime.py` exercises available bundled carriers and skips a carrier when its artifact has not been built. For repository-wide test policy, see [Testing](../docs/testing.md).
 
-That suite drives fake runtime peers. `scripts/smoke-python-runtime.py` drives the packaged runtime instead. The required `python-runtime` CI job builds every published native target, installs the matching SDK and runtime wheels into a new Python 3.10 virtual environment, runs outside the checkout with `PYTHONPATH` and `DSH_RUNTIME_MODE` unset, proves that both modules and the executable came from those distributions, and then runs every keyless scenario. A focused local source-SDK run can select one built executable and scenario:
+That suite drives fake runtime peers. `scripts/smoke-python-runtime.py` drives the packaged runtime instead. The required `python-runtime` CI job builds every published native target, installs the matching SDK and runtime wheels into a new Python 3.10 virtual environment, runs outside the checkout with `PYTHONPATH` and `AVN_RUNTIME_MODE` unset, proves that both modules and the executable came from those distributions, and then runs every keyless scenario. A focused local source-SDK run can select one built executable and scenario:
 
 ```sh
 uv run --project python/sdk python scripts/smoke-python-runtime.py \
@@ -47,13 +47,13 @@ with DeepSeekHarness(dsh_home="/absolute/path/to/test-dsh-home") as harness:
     print(harness.run("say hi").final_response)
 ```
 
-Alternatively export a non-empty `DSH_HOME`. The SDK rejects a launch that would silently use `~/.dsh`.
+Alternatively export a non-empty `AVN_HOME`. The SDK rejects a launch that would silently use `~/.dsh`.
 
 ## Run against Node source
 
 Repository contributors can select either development route; both execute the normal `dsh --profile sdk` launcher:
 
-- Set `DSH_RUNTIME_MODE=node` to use the built Node carrier on system Node `>=22.19`. The build script refreshes this carrier, but distributions never include or auto-select it.
+- Set `AVN_RUNTIME_MODE=node` to use the built Node carrier on system Node `>=22.19`. The build script refreshes this carrier, but distributions never include or auto-select it.
 - Set `dsh_bin` to the absolute built `apps/cli/lib/bin.js` path to exercise the checkout's CLI directly. Supply an explicit `dsh_home`, plus `profile` and ordered `patches` as needed.
 
 `python/sdk/tests/manual_sdk_agent_smoke.py` uses the internal `_launch_args` test adapter to exercise the unbuilt TypeScript CLI under tsx. Arbitrary argv replacement is intentionally absent from the public SDK.

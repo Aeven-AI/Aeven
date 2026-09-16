@@ -62,7 +62,7 @@ export async function readRemoteEnvironment(sandbox: Sandbox, signal?: AbortSign
 export function scrubRemoteEnvironment(raw: string): Map<string, string> {
   const environment = new Map<string, string>()
   for (const [name, value] of remoteEnvironmentEntries(raw)) {
-    if (name.startsWith('DSH_') || SENSITIVE_ENV_PATTERN.test(name)) continue
+    if (name.startsWith('AVN_') || SENSITIVE_ENV_PATTERN.test(name)) continue
     environment.set(name, value)
   }
   return environment
@@ -76,7 +76,7 @@ export function scrubRemoteEnvironment(raw: string): Map<string, string> {
 export function bootstrapEnvironment(raw: string): Record<string, string> {
   const environment: Record<string, string> = { TERM: 'dumb' }
   for (const [name] of remoteEnvironmentEntries(raw)) {
-    if (name.startsWith('DSH_') || SENSITIVE_ENV_PATTERN.test(name)) environment[name] = ''
+    if (name.startsWith('AVN_') || SENSITIVE_ENV_PATTERN.test(name)) environment[name] = ''
   }
   return environment
 }

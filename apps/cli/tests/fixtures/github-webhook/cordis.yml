@@ -10,8 +10,8 @@
       config:
         source: github-real-e2e
         repository: deepseek-harness/deepseek-harness
-        workspacePath: !!js process.env.DSH_GITHUB_E2E_WORKSPACE
-        marker: !!js process.env.DSH_GITHUB_E2E_MARKER
+        workspacePath: !!js process.env.AVN_GITHUB_E2E_WORKSPACE
+        marker: !!js process.env.AVN_GITHUB_E2E_MARKER
         agentPreset: minimal
         permissionPreset: read-only
 
@@ -25,12 +25,12 @@
           name: '@deepseek-ai/dsh-host-webserver'
           config:
             host: '127.0.0.1'
-            port: !!js Number(process.env.DSH_GITHUB_WEBHOOK_PORT)
+            port: !!js Number(process.env.AVN_GITHUB_WEBHOOK_PORT)
 
         - id: github-webhook-real-e2e-adapter
           name: '@deepseek-ai/dsh-webhook-github'
           config:
             source: github-real-e2e
             path: /github
-            secretEnv: DSH_GITHUB_WEBHOOK_SECRET
+            secretEnv: AVN_GITHUB_WEBHOOK_SECRET
             maxBodyBytes: 1048576

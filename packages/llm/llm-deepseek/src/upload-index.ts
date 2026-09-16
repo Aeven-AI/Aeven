@@ -114,7 +114,7 @@ export class DeepSeekUploadIndex {
   readonly path: string
 
   /**
-   * @param path - explicit test path; omission uses `DSH_HOME/llm-deepseek/files-v3.json`.
+   * @param path - explicit test path; omission uses `AVN_HOME/llm-deepseek/files-v3.json`.
    */
   constructor(path = join(resolveDshHome(), 'llm-deepseek', 'files-v3.json')) {
     this.path = path

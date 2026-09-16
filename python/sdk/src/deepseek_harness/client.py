@@ -471,10 +471,10 @@ class HarnessClient:
         if self.config.dsh_home is not None:
             if not self.config.dsh_home.strip():
                 raise ValueError("HarnessConfig requires a non-empty dsh_home")
-            env["DSH_HOME"] = str(Path(self.config.dsh_home).expanduser().resolve())
-        elif not env.get("DSH_HOME", "").strip():
+            env["AVN_HOME"] = str(Path(self.config.dsh_home).expanduser().resolve())
+        elif not env.get("AVN_HOME", "").strip():
             raise ValueError(
-                "HarnessConfig requires an explicit dsh_home or non-empty DSH_HOME; "
+                "HarnessConfig requires an explicit dsh_home or non-empty AVN_HOME; "
                 "the Python SDK never uses ~/.dsh implicitly"
             )
 

@@ -41,8 +41,8 @@ describe('desktop build paths', () => {
 
   it('resolves environment overrides and rejects unsupported targets', () => {
     expect(resolveDesktopBuildTarget({
-      DSH_DESKTOP_TARGET_PLATFORM: 'darwin',
-      DSH_DESKTOP_TARGET_ARCH: 'x64',
+      AVN_DESKTOP_TARGET_PLATFORM: 'darwin',
+      AVN_DESKTOP_TARGET_ARCH: 'x64',
     }, 'darwin', 'arm64')).toBe('mac-x64')
     expect(resolveDesktopBuildTarget({}, 'win32', 'x64')).toBe('win-x64')
     expect(resolveDesktopBuildTarget({}, 'win32', 'arm64')).toBe('win-arm64')

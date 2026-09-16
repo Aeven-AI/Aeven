@@ -176,7 +176,7 @@ Keep `@deepseek-ai/dsh-tools` and `ctx.tools`. Keep `@deepseek-ai/dsh-api-gatewa
 | `session/user-id/`, `@deepseek-ai/dsh-user-id` | `identity/anonymous-user-id/`, `@deepseek-ai/dsh-anonymous-user-id` | The value is a random correlation id shared by telemetry, feedback, and DeepSeek requests. It is neither a Session concern nor an authenticated user identity. |
 | `USER_ID_FILE_NAME`, `.userid`, feedback label `User` | `ANONYMOUS_USER_ID_FILE_NAME`, `.anonymous-user-id`, feedback label `Anonymous user` | The file and UI must not imply account identity. Keep the existing `AnonymousUserId` functions and the standard OTel attribute `user.id`. |
 | `util/environment/`, `@deepseek-ai/dsh-environment` | `util/launch-environment/`, `@deepseek-ai/dsh-launch-environment` | The package captures one immutable layered snapshot at launch. It is not a general environment API. |
-| Public `Environment*`, `createEnvironmentSnapshot`, `environmentOf`, `DSH_ENVIRONMENT_KEY` | `LaunchEnvironment*`, `createLaunchEnvironmentSnapshot`, `launchEnvironmentOf`, `DSH_LAUNCH_ENVIRONMENT_KEY` | The names state the snapshot's lifetime and purpose. |
+| Public `Environment*`, `createEnvironmentSnapshot`, `environmentOf`, `AVN_ENVIRONMENT_KEY` | `LaunchEnvironment*`, `createLaunchEnvironmentSnapshot`, `launchEnvironmentOf`, `AVN_LAUNCH_ENVIRONMENT_KEY` | The names state the snapshot's lifetime and purpose. |
 | `ctx.launcherEnvironment` | `ctx.launchEnvironment` | The value describes the application launch, not only a launcher component. Keep source labels `process`, `project-env`, and `user-env`. |
 
 ### Schedule, workflow, goals, and compaction

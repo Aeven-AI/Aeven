@@ -23,7 +23,7 @@ const OVERLAY = fileURLToPath(new URL(
 ))
 const SECRET = 'github-webhook-real-e2e-secret'
 const DELIVERY = 'github-webhook-real-e2e-delivery'
-const MARKER = 'DSH_GITHUB_WEBHOOK_REAL_E2E_OK'
+const MARKER = 'AVN_GITHUB_WEBHOOK_REAL_E2E_OK'
 const TITLE = 'GitHub webhook real e2e'
 const authenticatedCookies = new Map<string, Promise<{ origin: string; cookie: string }>>()
 
@@ -385,13 +385,13 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('GitHub webhook through the real 
       cwd: root,
       env: {
         ...process.env,
-        DSH_AGENTS_HOME: join(root, '.agents'),
-        DSH_GITHUB_E2E_MARKER: MARKER,
-        DSH_GITHUB_E2E_WORKSPACE: workspacePath,
-        DSH_GITHUB_WEBHOOK_PORT: String(webhookPort),
-        DSH_GITHUB_WEBHOOK_SECRET: SECRET,
-        DSH_HOME: join(root, '.dsh'),
-        DSH_TELEMETRY_DISABLED: '1',
+        AVN_AGENTS_HOME: join(root, '.agents'),
+        AVN_GITHUB_E2E_MARKER: MARKER,
+        AVN_GITHUB_E2E_WORKSPACE: workspacePath,
+        AVN_GITHUB_WEBHOOK_PORT: String(webhookPort),
+        AVN_GITHUB_WEBHOOK_SECRET: SECRET,
+        AVN_HOME: join(root, '.dsh'),
+        AVN_TELEMETRY_DISABLED: '1',
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     })

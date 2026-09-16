@@ -24,7 +24,7 @@ Status: implemented
 
 patch 会整体替换目标配置项的 `config` 而不合并。因此，取值因 surface 而异的配置项住在 overlay 中，绝不住在 base 里，从而没有任何配置项会被三层同时 patch。会话身份根本不能经由配置键传递——它迁移到了 `dsh-agent-loop` 的 `CONFIGURED_AGENT_IDENTITIES_KEY`，正如启动器持有身份的记录所述。
 
-TUI 测试位于 `apps/cli/tests/`，Cordis 工具集 e2e 位于 `packages/extensions/tool-cordis/tests/`，受支持的 PTC mode demo 则以 `DSH_TOOLS_MODE=ptc` 运行 `dsh --profile headless`。
+TUI 测试位于 `apps/cli/tests/`，Cordis 工具集 e2e 位于 `packages/extensions/tool-cordis/tests/`，受支持的 PTC mode demo 则以 `AVN_TOOLS_MODE=ptc` 运行 `dsh --profile headless`。
 
 ## 备选方案
 

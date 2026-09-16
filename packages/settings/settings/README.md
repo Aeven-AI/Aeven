@@ -41,7 +41,7 @@ The service stores nothing by itself; mount a provider such as the shipped file-
     path: /absolute/path/to/settings.yaml
 ```
 
-`ctx.settings` appears once the provider is live. The provider README owns the full configuration surface; the generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-settings-file) lists every accepted field.
+`ctx.settings` appears once the provider is live. The provider README owns the full configuration surface; the generated [configuration catalog](../../../docs/config-catalog.md#aeven-settings-file) lists every accepted field.
 
 ### Registering a namespace
 

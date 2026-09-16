@@ -12,7 +12,7 @@ Status: implemented
 
 ## 决定
 
-套件取 `{ timeout: 90_000 }`，与 [`.github/workflows/ci.yml`](../../../../.github/workflows/ci.yml) 里的 `DSH_COVERAGE_TEST_TIMEOUT_MS` 一致，Windows 覆盖率 lane 把它作为 `--testTimeout` 传入。
+套件取 `{ timeout: 90_000 }`，与 [`.github/workflows/ci.yml`](../../../../.github/workflows/ci.yml) 里的 `AVN_COVERAGE_TEST_TIMEOUT_MS` 一致，Windows 覆盖率 lane 把它作为 `--testTimeout` 传入。
 
 `describe` 层的取值优先于那个 flag，而不是让位于它。所以更小的值会压低 lane 已经给出的预算；又因为这里没有任何用例自带余量，23 个用例全部被限制在 15 秒，而 lane 提供的是 90 秒。
 

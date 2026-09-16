@@ -13,7 +13,7 @@
 - id: session-persistence-jsonl
   name: '@deepseek-ai/dsh-session-persistence-jsonl'
   config:
-    root: !!js process.env.DSH_CONFORMANCE_PERSISTENCE_ROOT
+    root: !!js process.env.AVN_CONFORMANCE_PERSISTENCE_ROOT
     compression: none
 
 - insert:

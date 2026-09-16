@@ -24,7 +24,7 @@ Python 进程仍按 [Python profile 运行时决策](2026-08-23-python-sdk-dsh-p
 
 ### Installed-wheel 行为
 
-Windows lane 会创建干净的 Windows 虚拟环境，安装版本精确匹配的 SDK 与 `win_amd64` 运行时 wheel，切换到 checkout 外的目录，清除 `PYTHONPATH` 与 `DSH_RUNTIME_MODE`，再运行与其他目标相同的 `--scenario all --installed-wheel` 黑盒测试。可信拉取请求还会运行相同的双轮 `sdk-live` 真实提供方场景。Fork 与 Dependabot head 不会获得密钥。
+Windows lane 会创建干净的 Windows 虚拟环境，安装版本精确匹配的 SDK 与 `win_amd64` 运行时 wheel，切换到 checkout 外的目录，清除 `PYTHONPATH` 与 `AVN_RUNTIME_MODE`，再运行与其他目标相同的 `--scenario all --installed-wheel` 黑盒测试。可信拉取请求还会运行相同的双轮 `sdk-live` 真实提供方场景。Fork 与 Dependabot head 不会获得密钥。
 
 公开 Python 客户端通过 `initialize_timeout_seconds` 为首次 profile 握手提供独立的 30 秒默认上限。该上限可容纳 Windows x64 可执行文件冷启动与 profile 物化，同时仍会使卡死的运行时失败；调用方可将其与普通请求超时分开配置。
 

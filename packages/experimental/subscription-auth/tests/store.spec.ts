@@ -27,7 +27,7 @@ async function tempStore(): Promise<GrokBuildCredentialStore> {
 }
 
 describe('oauthCredentialPath', () => {
-  it('accepts only a local basename and cannot escape DSH_HOME', () => {
+  it('accepts only a local basename and cannot escape AVN_HOME', () => {
     expect(oauthCredentialPath('codex-oauth.json', '/tmp/example-dsh-home')).toBe(
       resolve('/tmp/example-dsh-home', 'codex-oauth.json'),
     )
@@ -36,7 +36,7 @@ describe('oauthCredentialPath', () => {
     }
   })
 
-  it('resolves the legacy Grok Build auth document below DSH_HOME', () => {
+  it('resolves the legacy Grok Build auth document below AVN_HOME', () => {
     expect(grokBuildAuthPath('/tmp/example-dsh-home')).toBe(
       resolve('/tmp/example-dsh-home', GROK_BUILD_AUTH_FILENAME),
     )

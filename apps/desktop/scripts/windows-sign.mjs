@@ -18,7 +18,7 @@ const PE_HEADER_READ_SIZE = 4096
 const PE32_MAGIC = 0x10B
 const PE32_PLUS_MAGIC = 0x20B
 const SENSITIVE_ENVIRONMENT_NAME = /(?:KEY|SECRET|TOKEN|PASSWORD)/iu
-const WINDOWS_SIGNING_ENVIRONMENT_PREFIX = 'DSH_DESKTOP_WINDOWS_'
+const WINDOWS_SIGNING_ENVIRONMENT_PREFIX = 'AVN_DESKTOP_WINDOWS_'
 
 /**
  * Remove inherited credentials before starting a signing-related subprocess.
@@ -35,17 +35,17 @@ export function scrubWindowsSigningEnvironment(environment) {
 function resolveTokenIdentity(input) {
   const keyContainer = input.keyContainer?.trim()
   if (!keyContainer) {
-    throw new Error('DSH_DESKTOP_WINDOWS_KEY_CONTAINER must contain the SafeNet private-key container name')
+    throw new Error('AVN_DESKTOP_WINDOWS_KEY_CONTAINER must contain the SafeNet private-key container name')
   }
   if (/["\r\n]/u.test(keyContainer)) {
-    throw new Error('DSH_DESKTOP_WINDOWS_KEY_CONTAINER cannot contain quotes or line breaks')
+    throw new Error('AVN_DESKTOP_WINDOWS_KEY_CONTAINER cannot contain quotes or line breaks')
   }
   const tokenPin = input.tokenPin
   if (tokenPin === undefined || tokenPin.length === 0) {
-    throw new Error('DSH_DESKTOP_WINDOWS_TOKEN_PIN must contain the SafeNet Token Password')
+    throw new Error('AVN_DESKTOP_WINDOWS_TOKEN_PIN must contain the SafeNet Token Password')
   }
   if (/[\]"\r\n]/u.test(tokenPin)) {
-    throw new Error('DSH_DESKTOP_WINDOWS_TOKEN_PIN cannot contain "]", quotes, or line breaks because the SafeNet key-container syntax uses them as delimiters')
+    throw new Error('AVN_DESKTOP_WINDOWS_TOKEN_PIN cannot contain "]", quotes, or line breaks because the SafeNet key-container syntax uses them as delimiters')
   }
   return { keyContainer, tokenPin }
 }
@@ -53,7 +53,7 @@ function resolveTokenIdentity(input) {
 function resolveCertificateFile(value) {
   const candidate = value?.trim()
   if (!candidate) {
-    throw new Error('DSH_DESKTOP_WINDOWS_CER_FILE must identify the public X.509 leaf certificate file')
+    throw new Error('AVN_DESKTOP_WINDOWS_CER_FILE must identify the public X.509 leaf certificate file')
   }
   let path
   let certificate
@@ -73,7 +73,7 @@ function resolveCertificateFile(value) {
 function resolveSignTool(value) {
   const candidate = value?.trim()
   if (!candidate) {
-    throw new Error('DSH_DESKTOP_WINDOWS_SIGNTOOL must identify the SafeNet-compatible SignTool executable')
+    throw new Error('AVN_DESKTOP_WINDOWS_SIGNTOOL must identify the SafeNet-compatible SignTool executable')
   }
   let path
   try {
@@ -81,7 +81,7 @@ function resolveSignTool(value) {
     if (!statSync(path).isFile() || !path.toLowerCase().endsWith('.exe')) throw new Error('not an executable file')
   }
   catch {
-    throw new Error(`DSH_DESKTOP_WINDOWS_SIGNTOOL is missing or is not an executable file: ${candidate}`)
+    throw new Error(`AVN_DESKTOP_WINDOWS_SIGNTOOL is missing or is not an executable file: ${candidate}`)
   }
   return path
 }
@@ -124,12 +124,12 @@ export function createRedactedWindowsSigningError(error, path, secrets) {
 export function buildWindowsSigningEnvironment(environment, input) {
   return {
     ...scrubWindowsSigningEnvironment(environment),
-    DSH_DESKTOP_WINDOWS_SIGNTOOL: input.signTool,
-    DSH_DESKTOP_WINDOWS_CER_FILE: input.certificateFile,
-    DSH_DESKTOP_WINDOWS_TOKEN_PIN: input.tokenPin,
-    DSH_DESKTOP_WINDOWS_KEY_CONTAINER: input.keyContainer,
-    DSH_DESKTOP_WINDOWS_SIGN_TARGET: input.path,
-    DSH_DESKTOP_WINDOWS_SIGN_APPEND: input.isNest ? '1' : '',
+    AVN_DESKTOP_WINDOWS_SIGNTOOL: input.signTool,
+    AVN_DESKTOP_WINDOWS_CER_FILE: input.certificateFile,
+    AVN_DESKTOP_WINDOWS_TOKEN_PIN: input.tokenPin,
+    AVN_DESKTOP_WINDOWS_KEY_CONTAINER: input.keyContainer,
+    AVN_DESKTOP_WINDOWS_SIGN_TARGET: input.path,
+    AVN_DESKTOP_WINDOWS_SIGN_APPEND: input.isNest ? '1' : '',
   }
 }
 

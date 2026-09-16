@@ -15,12 +15,12 @@ import { pnpmInvocation } from '../../../scripts/pnpm-invocation.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
-const WINDOWS_SIGNING_ENV_PREFIX = 'DSH_DESKTOP_WINDOWS_'
+const WINDOWS_SIGNING_ENV_PREFIX = 'AVN_DESKTOP_WINDOWS_'
 const WINDOWS_SIGNING_ENV_NAMES = [
-  'DSH_DESKTOP_WINDOWS_CER_FILE',
-  'DSH_DESKTOP_WINDOWS_KEY_CONTAINER',
-  'DSH_DESKTOP_WINDOWS_SIGNTOOL',
-  'DSH_DESKTOP_WINDOWS_TOKEN_PIN',
+  'AVN_DESKTOP_WINDOWS_CER_FILE',
+  'AVN_DESKTOP_WINDOWS_KEY_CONTAINER',
+  'AVN_DESKTOP_WINDOWS_SIGNTOOL',
+  'AVN_DESKTOP_WINDOWS_TOKEN_PIN',
 ] as const
 const DESKTOP_UPLOAD_CREDENTIAL_ENV_NAMES = new Set([
   'DOWNLOAD_TEST_COS_SECRET_ID',
@@ -276,8 +276,8 @@ async function main(): Promise<void> {
   const buildEnv = withoutWindowsSigningEnvironment(withoutDesktopUploadCredentials(process.env))
   const targetEnv: NodeJS.ProcessEnv = {
     ...buildEnv,
-    DSH_DESKTOP_TARGET_PLATFORM: target.platform,
-    DSH_DESKTOP_TARGET_ARCH: target.arch,
+    AVN_DESKTOP_TARGET_PLATFORM: target.platform,
+    AVN_DESKTOP_TARGET_ARCH: target.arch,
   }
   delete targetEnv[DESKTOP_UNSIGNED_ENV]
   if (invocation.unsigned) targetEnv[DESKTOP_UNSIGNED_ENV] = '1'

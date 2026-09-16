@@ -195,12 +195,12 @@ const isMain = invokedPath !== undefined && import.meta.url === pathToFileURL(re
 if (isMain) {
   const buildEnvironment = devWebBuildEnvironment(repoRoot, process.env)
   for (const name of Object.keys(process.env)) {
-    if (name === CLIENT_BUILD_PROFILE_SELECTOR || name.startsWith('DSH_CLIENT_')) {
+    if (name === CLIENT_BUILD_PROFILE_SELECTOR || name.startsWith('AVN_CLIENT_')) {
       Reflect.deleteProperty(process.env, name)
     }
   }
   for (const [name, value] of Object.entries(buildEnvironment)) {
-    if (name.startsWith('DSH_CLIENT_') && value !== undefined) process.env[name] = value
+    if (name.startsWith('AVN_CLIENT_') && value !== undefined) process.env[name] = value
   }
 
   const pluginDirs = discoverPluginDirs()

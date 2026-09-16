@@ -79,12 +79,12 @@ describe('Python SDK dsh profile keyless smoke', () => {
     ], {
       cwd: repoRoot,
       env: {
-        DSH_HOME: join(root, '.dsh'),
-        DSH_PERMISSION_MODE: 'danger-full-access',
-        DSH_TELEMETRY_DISABLED: '1',
+        AVN_HOME: join(root, '.dsh'),
+        AVN_PERMISSION_MODE: 'danger-full-access',
+        AVN_TELEMETRY_DISABLED: '1',
         DEEPSEEK_API_KEY: 'keyless-smoke-no-call',
         DEEPSEEK_BASE_URL: `http://127.0.0.1:${address.port}`,
-        ...(envValue === undefined ? {} : { DSH_MAX_TOKENS_AS_SUCCESS: envValue }),
+        ...(envValue === undefined ? {} : { AVN_MAX_TOKENS_AS_SUCCESS: envValue }),
       },
       timeout: 35_000,
       killSignal: 'SIGKILL',
@@ -202,8 +202,8 @@ describe('Python SDK dsh profile keyless smoke', () => {
     ], {
       cwd: repoRoot,
       env: {
-        DSH_HOME: join(root, '.dsh'),
-        DSH_SYSTEM_PROMPT: 'Minimal allowlist prompt.',
+        AVN_HOME: join(root, '.dsh'),
+        AVN_SYSTEM_PROMPT: 'Minimal allowlist prompt.',
         DEEPSEEK_API_KEY: 'keyless-smoke-no-call',
         DEEPSEEK_BASE_URL: `http://127.0.0.1:${address.port}`,
       },
@@ -274,9 +274,9 @@ describe('Python SDK dsh profile keyless smoke', () => {
       ], {
         cwd: repoRoot,
         env: {
-          DSH_HOME: join(root, '.dsh'),
+          AVN_HOME: join(root, '.dsh'),
           DEEPSEEK_API_KEY: 'keyless-smoke-no-call',
-          DSH_MAX_TOKENS_AS_SUCCESS: 'sometimes',
+          AVN_MAX_TOKENS_AS_SUCCESS: 'sometimes',
         },
         stdin: 'ignore',
         timeout: 25_000,

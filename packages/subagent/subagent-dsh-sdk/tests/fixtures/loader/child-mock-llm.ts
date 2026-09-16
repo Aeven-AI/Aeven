@@ -22,7 +22,7 @@ class RouteEchoAdapter extends LlmAdapter {
   }
 
   async * stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
-    const failure = process.env.DSH_TEST_CHILD_FAILURE === '1'
+    const failure = process.env.AVN_TEST_CHILD_FAILURE === '1'
     const dynamicRoute = options.provider === 'mock'
       && options.model === 'mock-routed'
       && options.reasoningEffort === 'max'

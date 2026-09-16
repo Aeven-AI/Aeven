@@ -21,7 +21,7 @@ The exe is packaged with the **`--sea` (enhanced SEA) mode** of [@yao-pkg/pkg](h
 
 `--sea` requires target ≥ node22; the exe uniformly targets node24. One pkg invocation packages exactly one target; multi-platform builds invoke it once per platform.
 
-Terminology reminder: pkg's `/snapshot` VFS has nothing to do with this repo's testing-system "snapshot" (ACP replay expected outputs, `$DSH_SNAPSHOT`); this document says "VFS" for the former.
+Terminology reminder: pkg's `/snapshot` VFS has nothing to do with this repo's testing-system "snapshot" (ACP replay expected outputs, `$AVN_SNAPSHOT`); this document says "VFS" for the former.
 
 ### The serving interface is a plugin inside the dsh application
 
@@ -48,7 +48,7 @@ CI: [`.github/workflows/build-exe-for-python-sdk.yml`](../../../../.github/workf
 
 ### Python SDK distribution: two carriers, exe for production, node for development
 
-The Python SDK lives at [`python/`](../../../../python/README.md): `python/sdk` is the client and `python/sdk-runtime` is the runtime carrier package. The runtime package's data directory holds the build-injected platform executable with its required `-rg` sidecar and optional macOS helper, plus the build-injected `runtime/node/` closure tree for repository development. `resolve_bundled_launch_args()` selects the executable by default; explicit `DSH_RUNTIME_MODE=node` runs `runtime/node/node_modules/@deepseek-ai/dsh/lib/bin.js` on system Node 22.19 or newer. The node carrier never enters wheel distributions, and neither carrier uses a checked-in complete `cordis.yml`.
+The Python SDK lives at [`python/`](../../../../python/README.md): `python/sdk` is the client and `python/sdk-runtime` is the runtime carrier package. The runtime package's data directory holds the build-injected platform executable with its required `-rg` sidecar and optional macOS helper, plus the build-injected `runtime/node/` closure tree for repository development. `resolve_bundled_launch_args()` selects the executable by default; explicit `AVN_RUNTIME_MODE=node` runs `runtime/node/node_modules/@deepseek-ai/dsh/lib/bin.js` on system Node 22.19 or newer. The node carrier never enters wheel distributions, and neither carrier uses a checked-in complete `cordis.yml`.
 
 [`scripts/build-python-release.py`](../../../../scripts/build-python-release.py) reads the authoritative `X.Y.Z` or prerelease version from the repository root `package.json`, converts prereleases to their PEP 440 spelling, and stages both packages at that wheel version, with `deepseek-harness-sdk` depending exactly on the matching `deepseek-harness-runtime-bin`. An optional `python-v<repository-version>` release tag is a consistency assertion and is rejected when it differs from the repository version; the source `pyproject.toml` development sentinel never determines a release version. Staging also carries the repository license into both wheels and the third-party notices into the bundled runtime wheel. The SDK is a `py3-none-any` wheel; each wheel-only runtime package contains one exe and its architecture-matched ripgrep sidecar, and the macOS wheel also contains its architecture-matched spawn helper. Runtime wheels use `py3-none-manylinux_2_28_x86_64`, `py3-none-manylinux_2_28_aarch64`, the conservative `py3-none-macosx_14_0_arm64` tag for the Node 24 executable's macOS 13.5 deployment target, or `py3-none-win_amd64`; the Hatch hook rejects sdists, universal tags, mixed-platform payloads, missing or extra sidecars, and unsupported platforms.
 

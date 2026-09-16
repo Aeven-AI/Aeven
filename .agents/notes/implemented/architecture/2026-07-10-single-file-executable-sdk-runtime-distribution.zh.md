@@ -21,7 +21,7 @@ exe 使用 [@yao-pkg/pkg](https://github.com/yao-pkg/pkg)（vercel/pkg 归档后
 
 `--sea` 要求构建目标 ≥ node22，exe 统一以 node24 为构建目标；每次 pkg 调用只打包一个构建目标，多平台各调用一次。
 
-术语提醒：pkg 的 `/snapshot` VFS 与本仓库测试体系的「快照」（ACP（Agent Client Protocol）回放预期输出、`$DSH_SNAPSHOT`）无关，本文用「VFS」指前者。
+术语提醒：pkg 的 `/snapshot` VFS 与本仓库测试体系的「快照」（ACP（Agent Client Protocol）回放预期输出、`$AVN_SNAPSHOT`）无关，本文用「VFS」指前者。
 
 ### 对外服务接口是 dsh 应用中的插件
 
@@ -48,7 +48,7 @@ CI 使用 [`.github/workflows/build-exe-for-python-sdk.yml`](../../../../.github
 
 ### Python SDK 分发：双载体，exe 用于生产，`node` 用于开发
 
-Python SDK 位于 [`python/`](../../../../python/README.zh.md)：`python/sdk` 是客户端，`python/sdk-runtime` 是运行时载体包。运行时包的数据目录包含构建注入的平台可执行文件及其必需的 `-rg` 伴随文件和可选的 macOS helper，以及供仓库开发使用的构建注入 `runtime/node/` 闭包树。`resolve_bundled_launch_args()` 默认选择可执行文件；显式设置 `DSH_RUNTIME_MODE=node` 会在系统 Node 22.19 或更高版本上运行 `runtime/node/node_modules/@deepseek-ai/dsh/lib/bin.js`。node 载体从不进入 wheel 分发，两种载体都不使用检入的完整 `cordis.yml`。
+Python SDK 位于 [`python/`](../../../../python/README.zh.md)：`python/sdk` 是客户端，`python/sdk-runtime` 是运行时载体包。运行时包的数据目录包含构建注入的平台可执行文件及其必需的 `-rg` 伴随文件和可选的 macOS helper，以及供仓库开发使用的构建注入 `runtime/node/` 闭包树。`resolve_bundled_launch_args()` 默认选择可执行文件；显式设置 `AVN_RUNTIME_MODE=node` 会在系统 Node 22.19 或更高版本上运行 `runtime/node/node_modules/@deepseek-ai/dsh/lib/bin.js`。node 载体从不进入 wheel 分发，两种载体都不使用检入的完整 `cordis.yml`。
 
 [`scripts/build-python-release.py`](../../../../scripts/build-python-release.py) 从仓库根目录的 `package.json` 读取权威的 `X.Y.Z` 或预发布版本，把预发布版本转换为 PEP 440 写法，并以该 wheel 包版本暂存两个包，让 `deepseek-harness-sdk` 精确依赖匹配版本的 `deepseek-harness-runtime-bin`。可选的 `python-v<repository-version>` 发布标签只是一项一致性断言，与仓库版本不同时会被拒绝；源码 `pyproject.toml` 中的开发占位版本从不决定发布版本。暂存过程还会把仓库许可证放入两个 wheel 包，并把第三方声明放入内置运行时 wheel 包。SDK 是 `py3-none-any` wheel 包；每个只提供 wheel 包的运行时包都包含一个 exe 及其架构匹配的 ripgrep 伴随文件，macOS wheel 包还包含与其架构匹配的 spawn helper。运行时 wheel 包使用 `py3-none-manylinux_2_28_x86_64`、`py3-none-manylinux_2_28_aarch64`、针对 Node 24 可执行文件 macOS 13.5 部署目标而保守选择的 `py3-none-macosx_14_0_arm64` 标签，或 `py3-none-win_amd64`；Hatch 钩子拒绝 sdist、通用标签、混合平台载荷、伴随文件缺失或多余，以及不支持的平台。
 

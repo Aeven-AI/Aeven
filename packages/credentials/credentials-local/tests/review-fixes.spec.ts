@@ -10,9 +10,9 @@ function writeCredentials(file: string, text: string): Promise<void> {
   return writeFile(file, text, { mode: 0o600 })
 }
 
-const ALPHA = credentialRef('DSH_REVIEW_ALPHA')
-const BETA = credentialRef('DSH_REVIEW_BETA')
-const INNER = credentialRef('DSH_REVIEW_INNER')
+const ALPHA = credentialRef('AVN_REVIEW_ALPHA')
+const BETA = credentialRef('AVN_REVIEW_BETA')
+const INNER = credentialRef('AVN_REVIEW_INNER')
 
 const cleanups: Array<() => Promise<void>> = []
 
@@ -154,13 +154,13 @@ describe('document editor', () => {
   it('leaves a sibling multi-line value untouched while patching one entry', async () => {
     const dir = await tempDir()
     const path = join(dir, '.credentials.yaml')
-    const wrapped = `version: 1\nrefs:\n  DSH_REVIEW_WRAPPED: |-\n    line1\n    line2\n  ${ALPHA}: a\n`
+    const wrapped = `version: 1\nrefs:\n  AVN_REVIEW_WRAPPED: |-\n    line1\n    line2\n  ${ALPHA}: a\n`
     await writeCredentials(path, wrapped)
     const ctx = await boot({ path, watch: false })
     await ctx.credentials.set(ALPHA, 'b')
     expect(await readFile(path, 'utf8'))
-      .toBe(`version: 1\nrefs:\n  DSH_REVIEW_WRAPPED: |-\n    line1\n    line2\n  ${ALPHA}: b\n`)
-    expect(await ctx.credentials.resolve(credentialRef('DSH_REVIEW_WRAPPED')))
+      .toBe(`version: 1\nrefs:\n  AVN_REVIEW_WRAPPED: |-\n    line1\n    line2\n  ${ALPHA}: b\n`)
+    expect(await ctx.credentials.resolve(credentialRef('AVN_REVIEW_WRAPPED')))
       .toEqual({ value: 'line1\nline2', source: 'file' })
   })
 

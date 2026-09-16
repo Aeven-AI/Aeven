@@ -42,11 +42,11 @@ Use it as the default local store: the product's base composition loads it, and 
 | Field | Default | Meaning |
 |---|---|---|
 | `path` | `<harness home>/.credentials.yaml` | Where the credential file lives |
-| `dshHome` | `$DSH_HOME` or `~/.dsh` | Harness home used when `path` is omitted |
+| `dshHome` | `$AVN_HOME` or `~/.dsh` | Harness home used when `path` is omitted |
 | `watch` | `true` | Reload the file automatically when it changes on disk |
 | `debounceMs` | `100` | Wait this long after a change before reloading, in milliseconds |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-credentials-local) is the exhaustive source for every accepted field and its JSDoc.
+The generated [configuration catalog](../../../docs/config-catalog.md#aeven-credentials-local) is the exhaustive source for every accepted field and its JSDoc.
 
 ### Storing and removing keys
 
@@ -75,7 +75,7 @@ Keys are resolved in one fixed order — the first place that has a value wins:
 | The environment you launched in (`DEEPSEEK_API_KEY=… dsh`) | no | everything |
 | The stored file | yes (`set`/`unset`) | both `.env` files |
 | Your project's `.env` (`<invocation cwd>/.env`) | not here | your home `.env` |
-| Your home `.env` (`$DSH_HOME/.env`) | not here | nothing |
+| Your home `.env` (`$AVN_HOME/.env`) | not here | nothing |
 
 The launching environment wins because a per-run override — `DEEPSEEK_API_KEY=… dsh`, a CI secret, a container `-e` — is this run's explicit intent; it cannot be edited from inside the product, so it is reported read-only and writes to it are refused. Everything else loses to the stored file, which is why a key you save takes effect immediately even when an older key sits in a `.env`; those two `.env` layers resolve when nothing is stored. The environment layer is the launcher's snapshot taken at launch ([environment snapshot](../../util/launch-environment/README.md)), so a variable exported after startup is not seen.
 

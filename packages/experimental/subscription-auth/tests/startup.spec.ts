@@ -795,15 +795,15 @@ describe('owner composition over a real Cordis context', () => {
 
   beforeEach(async () => {
     home = await mkdtemp(join(tmpdir(), 'dsh-owner-startup-'))
-    previousHome = process.env.DSH_HOME
-    process.env.DSH_HOME = home
+    previousHome = process.env.AVN_HOME
+    process.env.AVN_HOME = home
     workspaceRoot = join(home, 'workspace')
     await mkdir(workspaceRoot, { recursive: true })
   })
 
   afterEach(async () => {
-    if (previousHome === undefined) delete process.env.DSH_HOME
-    else process.env.DSH_HOME = previousHome
+    if (previousHome === undefined) delete process.env.AVN_HOME
+    else process.env.AVN_HOME = previousHome
     await rm(home, { recursive: true, force: true })
   })
 
@@ -946,16 +946,16 @@ describe('Imagine tool execution over the owner composition', () => {
 
   beforeEach(async () => {
     home = await mkdtemp(join(tmpdir(), 'dsh-imagine-tool-'))
-    previousHome = process.env.DSH_HOME
-    process.env.DSH_HOME = home
+    previousHome = process.env.AVN_HOME
+    process.env.AVN_HOME = home
     workspaceRoot = join(home, 'workspace')
     await mkdir(workspaceRoot, { recursive: true })
     imagineTransport.fetch.mockReset()
   })
 
   afterEach(async () => {
-    if (previousHome === undefined) delete process.env.DSH_HOME
-    else process.env.DSH_HOME = previousHome
+    if (previousHome === undefined) delete process.env.AVN_HOME
+    else process.env.AVN_HOME = previousHome
     await rm(home, { recursive: true, force: true })
   })
 
@@ -1137,8 +1137,8 @@ describe('owner composition fault containment', () => {
 
   beforeEach(async () => {
     home = await mkdtemp(join(tmpdir(), 'dsh-owner-faults-'))
-    previousHome = process.env.DSH_HOME
-    process.env.DSH_HOME = home
+    previousHome = process.env.AVN_HOME
+    process.env.AVN_HOME = home
     workspaceRoot = join(home, 'workspace')
     await mkdir(workspaceRoot, { recursive: true })
     imagineTransport.fetch.mockReset()
@@ -1148,8 +1148,8 @@ describe('owner composition fault containment', () => {
   })
 
   afterEach(async () => {
-    if (previousHome === undefined) delete process.env.DSH_HOME
-    else process.env.DSH_HOME = previousHome
+    if (previousHome === undefined) delete process.env.AVN_HOME
+    else process.env.AVN_HOME = previousHome
     await rm(home, { recursive: true, force: true })
   })
 
@@ -1418,15 +1418,15 @@ describe('LLM child composition over a real Cordis context', () => {
 
   beforeEach(async () => {
     home = await mkdtemp(join(tmpdir(), 'dsh-llm-child-'))
-    previousHome = process.env.DSH_HOME
-    process.env.DSH_HOME = home
+    previousHome = process.env.AVN_HOME
+    process.env.AVN_HOME = home
     await mkdir(join(home, 'workspace'), { recursive: true })
   })
 
   afterEach(async () => {
     vi.unstubAllGlobals()
-    if (previousHome === undefined) delete process.env.DSH_HOME
-    else process.env.DSH_HOME = previousHome
+    if (previousHome === undefined) delete process.env.AVN_HOME
+    else process.env.AVN_HOME = previousHome
     await rm(home, { recursive: true, force: true })
   })
 
@@ -1567,8 +1567,8 @@ describe('owner composition runtime seams', () => {
 
   beforeEach(async () => {
     home = await mkdtemp(join(tmpdir(), 'dsh-owner-seams-'))
-    previousHome = process.env.DSH_HOME
-    process.env.DSH_HOME = home
+    previousHome = process.env.AVN_HOME
+    process.env.AVN_HOME = home
     workspaceRoot = join(home, 'workspace')
     await mkdir(workspaceRoot, { recursive: true })
     imagineTransport.fetch.mockReset()
@@ -1579,8 +1579,8 @@ describe('owner composition runtime seams', () => {
 
   afterEach(async () => {
     vi.unstubAllGlobals()
-    if (previousHome === undefined) delete process.env.DSH_HOME
-    else process.env.DSH_HOME = previousHome
+    if (previousHome === undefined) delete process.env.AVN_HOME
+    else process.env.AVN_HOME = previousHome
     await rm(home, { recursive: true, force: true })
   })
 

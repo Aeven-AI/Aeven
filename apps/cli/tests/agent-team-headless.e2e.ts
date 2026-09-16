@@ -57,9 +57,9 @@ describe('dsh run with Agent Teams enabled', () => {
         configArgs: ['--profile', 'headless', '请明确使用 Agent Teams，把调研和实现拆给两个 teammate，等待完成后汇总。'],
         tsconfigPath,
         env: {
-          DSH_HOME: home,
-          DSH_AGENTS_HOME: join(cwd, '.agents'),
-          DSH_TELEMETRY_DISABLED: '1',
+          AVN_HOME: home,
+          AVN_AGENTS_HOME: join(cwd, '.agents'),
+          AVN_TELEMETRY_DISABLED: '1',
           DEEPSEEK_API_KEY: '',
           NODE_OPTIONS: [
             process.env.NODE_OPTIONS,

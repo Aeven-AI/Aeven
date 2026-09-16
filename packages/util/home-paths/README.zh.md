@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-`dsh-home-paths` 解析所有用户数据所在的统一 DeepSeek Harness 主目录，并把子路径拼接上去，让每个产品包都就文件存放位置达成一致。优先级是显式的：显式配置的路径优先，然后是 `$DSH_HOME`，最后是 `~/.dsh`；空或仅含空白的 `$DSH_HOME` 视为未设置。该包还针对操作系统主目录展开 `~`、`~/...` 与 `~\...` 前缀，并规范化监听目标，让原生文件系统 watcher 即使在最终路径段尚不存在时也能获得一种稳定的路径写法。它是一个零依赖库，由产品包直接导入；`cordis.yml` 无法加载它。
+`dsh-home-paths` 解析所有用户数据所在的统一 DeepSeek Harness 主目录，并把子路径拼接上去，让每个产品包都就文件存放位置达成一致。优先级是显式的：显式配置的路径优先，然后是 `$AVN_HOME`，最后是 `~/.dsh`；空或仅含空白的 `$AVN_HOME` 视为未设置。该包还针对操作系统主目录展开 `~`、`~/...` 与 `~\...` 前缀，并规范化监听目标，让原生文件系统 watcher 即使在最终路径段尚不存在时也能获得一种稳定的路径写法。它是一个零依赖库，由产品包直接导入；`cordis.yml` 无法加载它。
 
 ## 目录
 
@@ -31,15 +31,15 @@ kind: "package-library"
 ```ts
 import { resolveDshHome, dshHomePath } from '@deepseek-ai/dsh-home-paths'
 
-const home = resolveDshHome()                // configured path, else $DSH_HOME, else ~/.dsh
+const home = resolveDshHome()                // configured path, else $AVN_HOME, else ~/.dsh
 const settings = dshHomePath('settings')     // join one child onto the resolved home
 ```
 
-显式配置的路径优先级最高，然后是 `$DSH_HOME`，最后是默认的 `~/.dsh`。空或仅含空白的 `$DSH_HOME` 视为未设置，因此空白的覆盖值绝不会把主目录解析到当前工作目录。
+显式配置的路径优先级最高，然后是 `$AVN_HOME`，最后是默认的 `~/.dsh`。空或仅含空白的 `$AVN_HOME` 视为未设置，因此空白的覆盖值绝不会把主目录解析到当前工作目录。
 
 ### 展示主目录
 
-面向用户的路径请以符号形式渲染根目录，而不是机器路径：默认主目录显示为 `~/.dsh`，任何已配置的主目录显示为 `$DSH_HOME`。展示形式绝不会泄露机器的绝对路径。
+面向用户的路径请以符号形式渲染根目录，而不是机器路径：默认主目录显示为 `~/.dsh`，任何已配置的主目录显示为 `$AVN_HOME`。展示形式绝不会泄露机器的绝对路径。
 
 ### 展开用户路径
 
@@ -68,7 +68,7 @@ const settings = dshHomePath('settings')     // join one child onto the resolved
 
 ### 解析规则
 
-`resolveDshHome` 先读显式覆盖值，然后读 `$DSH_HOME`，最后回退到操作系统主目录拼接 `.dsh`。选中的值经过波浪号展开并规范化为绝对路径；`dshHomePath` 用 Node 的平台路径规则拼接子路径段。`dshHomeDisplay` 把解析出的路径与默认根目录比较并返回符号标签，因此已配置的主目录绝不泄露其绝对路径。
+`resolveDshHome` 先读显式覆盖值，然后读 `$AVN_HOME`，最后回退到操作系统主目录拼接 `.dsh`。选中的值经过波浪号展开并规范化为绝对路径；`dshHomePath` 用 Node 的平台路径规则拼接子路径段。`dshHomeDisplay` 把解析出的路径与默认根目录比较并返回符号标签，因此已配置的主目录绝不泄露其绝对路径。
 
 ### 规范化机制
 
@@ -84,7 +84,7 @@ const settings = dshHomePath('settings')     // join one child onto the resolved
 当你需要启动器或依赖统一主目录根的消费方时，阅读以下页面。
 
 - [boot 包](../../boot/app-boot/README.zh.md)——在任何插件挂载之前解析主目录的启动器。
-- [shell 环境](../../shell/shell-env/README.zh.md)——`DSH_HOME` 如何到达模型 shell 调用。
+- [shell 环境](../../shell/shell-env/README.zh.md)——`AVN_HOME` 如何到达模型 shell 调用。
 - [匿名用户 id](../../identity/anonymous-user-id/README.zh.md)——位于解析后主目录下的存储身份文件。
 
 -----

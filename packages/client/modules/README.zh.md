@@ -51,7 +51,7 @@ application combo 脚本在启动时注册插件 factory；模块主体仍保持
 |---|---:|---|
 | `maxInitialBatchBytes` | `786432` | 单个 bundle 能装入限制时，初始 combo 中生成 JavaScript 的最大字节数。 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-client-modules)是所有可接受字段的完整来源。
+生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-client-modules)是所有可接受字段的完整来源。
 
 -----
 

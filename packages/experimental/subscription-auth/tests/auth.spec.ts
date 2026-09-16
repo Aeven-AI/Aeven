@@ -45,17 +45,17 @@ let previousHome: string | undefined
 
 beforeEach(async () => {
   home = await mkdtemp(join(tmpdir(), 'dsh-auth-'))
-  previousHome = process.env.DSH_HOME
-  // Default-argument stores resolve below DSH_HOME; keep them in the sandbox.
-  process.env.DSH_HOME = home
+  previousHome = process.env.AVN_HOME
+  // Default-argument stores resolve below AVN_HOME; keep them in the sandbox.
+  process.env.AVN_HOME = home
   setProvider.mockClear()
   login.mockClear()
   modelsFor.mockClear()
 })
 
 afterEach(() => {
-  if (previousHome === undefined) delete process.env.DSH_HOME
-  else process.env.DSH_HOME = previousHome
+  if (previousHome === undefined) delete process.env.AVN_HOME
+  else process.env.AVN_HOME = previousHome
 })
 
 function storeAt(basename = 'auth.json'): InstanceType<typeof GrokBuildCredentialStore> {
@@ -91,7 +91,7 @@ describe('loginGrokBuild', () => {
     expect(login).toHaveBeenCalledWith(XAI_PI_PROVIDER, 'oauth', interaction)
   })
 
-  it('falls back to the DSH_HOME credential document when no store is given', async () => {
+  it('falls back to the AVN_HOME credential document when no store is given', async () => {
     await loginGrokBuild(interaction)
 
     const credentials = modelsFor.mock.calls[0]?.[0]?.credentials as { filename: string } | undefined
@@ -107,7 +107,7 @@ describe('importGrokBuildFromGrok', () => {
     expect(await store.read(XAI_PI_PROVIDER)).toMatchObject({ type: 'oauth', access: 'access-from-grok' })
   })
 
-  it('imports into the DSH_HOME store when no store is given', async () => {
+  it('imports into the AVN_HOME store when no store is given', async () => {
     await importGrokBuildFromGrok(undefined, await writeGrokFile())
 
     const stored = await new GrokBuildCredentialStore().read(XAI_PI_PROVIDER)
@@ -124,7 +124,7 @@ describe('logoutGrokBuild', () => {
     expect(await store.read(XAI_PI_PROVIDER)).toBeUndefined()
   })
 
-  it('removes the DSH_HOME credential when no store is given', async () => {
+  it('removes the AVN_HOME credential when no store is given', async () => {
     const store = new GrokBuildCredentialStore()
     await writeOAuth(store, Date.now() + 60_000)
     await logoutGrokBuild()
@@ -147,7 +147,7 @@ describe('grokBuildAuthStatus', () => {
     expect(await grokBuildAuthStatus(storeAt())).toStrictEqual({ authenticated: false })
   })
 
-  it('reads the DSH_HOME store when no store is given', async () => {
+  it('reads the AVN_HOME store when no store is given', async () => {
     expect(await grokBuildAuthStatus()).toStrictEqual({ authenticated: false })
   })
 })

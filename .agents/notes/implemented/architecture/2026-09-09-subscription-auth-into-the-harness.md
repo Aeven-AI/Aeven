@@ -42,7 +42,7 @@ Claude has no device flow, so a pending Claude browser sign-in also accepts the 
 
 ## Consequences
 
-The bill-of-materials mechanism is now redundant — workspace resolution makes cross-repository drift impossible — and is kept only until the package settles, then removed with `DSH_EXACT_BOM`.
+The bill-of-materials mechanism is now redundant — workspace resolution makes cross-repository drift impossible — and is kept only until the package settles, then removed with `AVN_EXACT_BOM`.
 
 Existing installs point a profile at the standalone package name. Repointing a profile at the workspace directory works, and the `workspace:^` peer ranges resolve through the harness's own `node_modules`; a profile that has not been repointed keeps loading the retired copy and will not receive changes.
 

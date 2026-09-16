@@ -6,7 +6,7 @@ Status: implemented
 
 ## 问题
 
-首个 Windows 原生基础交付的 `dsh-tool-pwsh` 是刻意最小的画像——仅前台（每次调用都启动新进程；无持久 PTY 会话）、受管环境只有三个硬编码 `DSH_*` 键、以及一个未声明就偏离 bash 工具的 marker 故事（「恒打 `[exit code: N]`」）。模型可见约定曾与实现脱节：描述承诺了渲染器从未执行的 spill 路径报告，README 宣称了不存在的导出与工具未做的渲染，工具自己的测试还钉死了有损行为。最小画像还让 `DSH_*` contributor seam 因缺席而重复：向 `ctx.shellEnv` 贡献环境事实的插件对 pwsh 调用毫无作用。
+首个 Windows 原生基础交付的 `dsh-tool-pwsh` 是刻意最小的画像——仅前台（每次调用都启动新进程；无持久 PTY 会话）、受管环境只有三个硬编码 `AVN_*` 键、以及一个未声明就偏离 bash 工具的 marker 故事（「恒打 `[exit code: N]`」）。模型可见约定曾与实现脱节：描述承诺了渲染器从未执行的 spill 路径报告，README 宣称了不存在的导出与工具未做的渲染，工具自己的测试还钉死了有损行为。最小画像还让 `AVN_*` contributor seam 因缺席而重复：向 `ctx.shellEnv` 贡献环境事实的插件对 pwsh 调用毫无作用。
 
 ## 决策
 
@@ -14,7 +14,7 @@ Status: implemented
 
 - **渲染行为与 bash 完全一致**：stdout、带标记的 `[stderr]` 段、带 spill 路径的截断通知、空体渲染 `(no output)`、退出 marker 仅限非零退出——干净退出不产生 marker。描述与 `tool:pwsh` 提示词部分精确陈述这一点（「Non-zero exits are reported as `[exit code: N]` markers」），刻意不复制 bash 提示词中与其自身渲染矛盾的「every result」措辞。
 - **`run_in_background` 经通用任务运行时接线**，与 bash 工具完全一致：预检、owner 注册、`job_output`/`job_kill` 控制与相同的结果映射。其背后是 `pwsh-local` 早已镜像好的 `start()` 句柄。
-- **`DSH_*` 环境共享而非复制**：`ShellEnvRegistry` 从 `dsh-tool-bash` 迁入新的工具无关包 `@deepseek-ai/dsh-shell-env`（`ctx.shellEnv` + 内置事实 + 会话持久化贡献方），两个 shell 工具都注入它。contributor 对 pwsh 调用与 bash 调用一视同仁；因此，共享环境的所有权不属于任何一个面向模型的 shell 工具。
+- **`AVN_*` 环境共享而非复制**：`ShellEnvRegistry` 从 `dsh-tool-bash` 迁入新的工具无关包 `@deepseek-ai/dsh-shell-env`（`ctx.shellEnv` + 内置事实 + 会话持久化贡献方），两个 shell 工具都注入它。contributor 对 pwsh 调用与 bash 调用一视同仁；因此，共享环境的所有权不属于任何一个面向模型的 shell 工具。
 - **Windows 现实在 bash 无对应处钉死**：每条命令都在 UTF-8 输出前置代码下运行，使 Windows PowerShell 5.1 兜底无法经 UTF-8 解码的 collector 破坏非 ASCII 输出；提示词说明 Windows 强制终止以 exit 1 结算，不产生 signal marker。
 - **范围外，不变**：持久 PTY shell（后端仅限 Linux/macOS；ConPTY 属路线图）。沙箱升级随 [Windows ACL 沙箱决策](2026-08-08-windows-acl-restricted-token-sandbox.zh.md) 稍后交付——pwsh 工具现在携带沙箱拒绝渲染与同轮次 `sandbox_permissions` 升级面，外加其描述中的 Windows ConstrainedLanguage 约定。带退出 pill 的 pwsh 专属 terminal 卡已随 [pwsh UI 呈现与 bash 对齐](2026-08-05-pwsh-ui-bash-parity.zh.md) 决策另行交付。
 

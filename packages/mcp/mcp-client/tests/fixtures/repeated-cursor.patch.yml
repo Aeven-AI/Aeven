@@ -11,7 +11,7 @@
         transport: stdio
         serverName: pagination-cycle
         command: !!js process.execPath
-        args: !!js '[process.env.DSH_MCP_PAGINATION_FIXTURE]'
+        args: !!js '[process.env.AVN_MCP_PAGINATION_FIXTURE]'
         failOnStartupError: true
         reconnect:
           enabled: false

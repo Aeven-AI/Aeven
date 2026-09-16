@@ -47,9 +47,9 @@ Status: implemented
 ```sh
 pnpm run build:
 tsc -b tsconfig.host.json
-tsdown --env.DSH_BUILD_FACE host
+tsdown --env.AVN_BUILD_FACE host
 tsc -b tsconfig.client.json
-tsdown --env.DSH_BUILD_FACE client
+tsdown --env.AVN_BUILD_FACE client
 pnpm run build:web
 
 pnpm run verify-node-next-types:

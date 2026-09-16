@@ -58,9 +58,9 @@ async function childLaunch(failure = false): Promise<{
   return {
     childHome,
     env: {
-      DSH_TEST_CHILD_PATCHES: JSON.stringify([childPatch]),
-      DSH_TEST_CHILD_HOME: childHome,
-      ...(failure ? { DSH_TEST_CHILD_FAILURE: '1' } : {}),
+      AVN_TEST_CHILD_PATCHES: JSON.stringify([childPatch]),
+      AVN_TEST_CHILD_HOME: childHome,
+      ...(failure ? { AVN_TEST_CHILD_FAILURE: '1' } : {}),
     },
   }
 }
@@ -86,8 +86,8 @@ describe('SDK subagent routing and diagnostics through the production profile', 
         processTimeoutMs: 120_000,
         env: {
           ...child.env,
-          DSH_TEST_CHILD_DEFAULT_ROUTE: '1',
-          DSH_TEST_PARENT_MODEL_RECORD: '.parent-model-routes',
+          AVN_TEST_CHILD_DEFAULT_ROUTE: '1',
+          AVN_TEST_PARENT_MODEL_RECORD: '.parent-model-routes',
         },
         inspect: async (cwd) => {
           // The child reports realpaths; canonicalize the temp workspace to match.

@@ -134,7 +134,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)(
       })
       expect(version.stdout.trim()).toBe('2.1.241 (Claude Code)')
 
-      const nonce = `DSH_CLAUDE_DEEPSEEK_${randomUUID()}`
+      const nonce = `AVN_CLAUDE_DEEPSEEK_${randomUUID()}`
       const parent = {
         id: 'deepseek-e2e-parent',
         session: { header: { cwd: workspace } },

@@ -30,7 +30,7 @@ env:
   PRIMARY_NODE_VERSION: '24'
   # CI runs must never report to the production telemetry endpoint baked
   # into apps/cli/cordis.yml (AppCLIEntry disables the row when set).
-  DSH_TELEMETRY_DISABLED: '1'
+  AVN_TELEMETRY_DISABLED: '1'
 
 jobs:
   # Master seeds the Wine apt-archive cache in the default-branch scope,
@@ -66,7 +66,7 @@ jobs:
   # re-runs the complete unsharded aggregate on the persistent 64-core VM,
   # continuously proving that environment can take over a required lane if
   # the hosted pools degrade (the switch is then setting the writer-manageable
-  # DSH_CI_FAILOVER_LINUX variable — see the failover runbook, no merge required).
+  # AVN_CI_FAILOVER_LINUX variable — see the failover runbook, no merge required).
   # Push-triggered, so this lane always executes the base branch's own
   # workflow definition. This workflow never listens to pull_request, so the
   # drill does not appear in PR checks. No cache steps because the VM's
@@ -77,7 +77,7 @@ jobs:
     name: serial / linux (self-hosted standby)
     runs-on: [self-hosted, linux, x64, vm-backup]
     steps:
-      # DSH_ARCHIVE_BASE_REF below compares the frozen-archive gate against
+      # AVN_ARCHIVE_BASE_REF below compares the frozen-archive gate against
       # github.event.before, so full history is required: depth 2 would miss it
       # on multi-commit or force pushes; full fetch is cheap here because
       # checkout resolves against the VM's local mirror.
@@ -109,13 +109,13 @@ jobs:
 
       - name: Run complete unsharded primary Node CI serially
         env:
-          DSH_ARCHIVE_BASE_REF: ${{ github.event.before }}
-          DSH_COVERAGE_MAX_WORKERS: '1'
-          DSH_E2E_MAX_WORKERS: '1'
-          DSH_GATE_CONCURRENCY: '1'
-          DSH_OXLINT_THREADS: '1'
-          DSH_PUBLINT_CONCURRENCY: '1'
-          DSH_SNAPSHOT_MAX_CONCURRENCY: '1'
+          AVN_ARCHIVE_BASE_REF: ${{ github.event.before }}
+          AVN_COVERAGE_MAX_WORKERS: '1'
+          AVN_E2E_MAX_WORKERS: '1'
+          AVN_GATE_CONCURRENCY: '1'
+          AVN_OXLINT_THREADS: '1'
+          AVN_PUBLINT_CONCURRENCY: '1'
+          AVN_SNAPSHOT_MAX_CONCURRENCY: '1'
         run: pnpm run check:ci:linux-primary
 
   # TODO(hosted-serial-ci): Re-enable the one remaining disabled hosted serial
@@ -142,18 +142,18 @@ jobs:
 
       - name: Run complete unsharded primary Node CI serially
         env:
-          DSH_COVERAGE_MAX_WORKERS: '1'
-          DSH_E2E_MAX_WORKERS: '1'
-          DSH_GATE_CONCURRENCY: '1'
-          DSH_PUBLINT_CONCURRENCY: '1'
-          DSH_SNAPSHOT_MAX_CONCURRENCY: '1'
+          AVN_COVERAGE_MAX_WORKERS: '1'
+          AVN_E2E_MAX_WORKERS: '1'
+          AVN_GATE_CONCURRENCY: '1'
+          AVN_PUBLINT_CONCURRENCY: '1'
+          AVN_SNAPSHOT_MAX_CONCURRENCY: '1'
         run: pnpm run check:ci
 
   # Hot-standby drill for the in-house self-hosted Windows pool: every master
   # move re-runs the complete unsharded Windows gate inventory on the persistent
   # VM, continuously proving that environment can take over the required
   # `windows` lane if the hosted pool degrades (the switch is setting the
-  # writer-manageable DSH_CI_FAILOVER_WINDOWS variable — see the failover
+  # writer-manageable AVN_CI_FAILOVER_WINDOWS variable — see the failover
   # runbook, no merge required). Push-triggered, so this lane always executes
   # the base branch's own workflow definition. This workflow never listens to
   # pull_request, so the drill does not appear in PR checks. No cache steps
@@ -207,10 +207,10 @@ jobs:
       - name: Run complete unsharded Windows gate inventory serially
         shell: pwsh
         env:
-          DSH_COVERAGE_MAX_WORKERS: '1'
-          DSH_COVERAGE_TEST_TIMEOUT_MS: '90000'
-          DSH_GATE_CONCURRENCY: '1'
-          DSH_PUBLINT_CONCURRENCY: '1'
+          AVN_COVERAGE_MAX_WORKERS: '1'
+          AVN_COVERAGE_TEST_TIMEOUT_MS: '90000'
+          AVN_GATE_CONCURRENCY: '1'
+          AVN_PUBLINT_CONCURRENCY: '1'
         run: pnpm run check:ci:windows-complete
 
   # Manual, bounded comparison of the actual critical Linux and Windows lanes.
@@ -405,16 +405,16 @@ jobs:
       - name: Run complete unsharded primary Node CI concurrently
         if: matrix.platform == 'linux'
         env:
-          DSH_COVERAGE_MAX_WORKERS: ${{ matrix.workers }}
-          DSH_GATE_CONCURRENCY: ${{ matrix.workers }}
-          DSH_OXLINT_THREADS: ${{ matrix.workers }}
-          DSH_PUBLINT_CONCURRENCY: ${{ matrix.workers }}
-          DSH_SNAPSHOT_MAX_CONCURRENCY: ${{ matrix.workers }}
+          AVN_COVERAGE_MAX_WORKERS: ${{ matrix.workers }}
+          AVN_GATE_CONCURRENCY: ${{ matrix.workers }}
+          AVN_OXLINT_THREADS: ${{ matrix.workers }}
+          AVN_PUBLINT_CONCURRENCY: ${{ matrix.workers }}
+          AVN_SNAPSHOT_MAX_CONCURRENCY: ${{ matrix.workers }}
         run: pnpm run check:ci
 
       - name: Run blocking Windows builds concurrently
         if: matrix.platform == 'windows'
         shell: pwsh
         env:
-          DSH_GATE_CONCURRENCY: ${{ matrix.workers }}
+          AVN_GATE_CONCURRENCY: ${{ matrix.workers }}
         run: pnpm run check:ci:windows-blocking

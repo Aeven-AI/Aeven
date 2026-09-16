@@ -34,7 +34,7 @@ describe('real Loader composition', () => {
       '  config:',
       '    source: loader',
       '    path: /github',
-      '    secretEnv: DSH_GITHUB_WEBHOOK_SECRET',
+      '    secretEnv: AVN_GITHUB_WEBHOOK_SECRET',
       '    maxBodyBytes: 1024',
       '',
     ].join('\n'))

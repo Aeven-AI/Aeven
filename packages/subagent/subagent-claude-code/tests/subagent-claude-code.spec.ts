@@ -454,7 +454,7 @@ describe('task admission and package contracts', () => {
     const spawnSpecs: SubprocessSpawnSpec[] = []
     vi.spyOn(ctx.subprocess, 'spawn').mockImplementation((spec) => {
       spawnSpecs.push(spec)
-      return spec.env?.DSH_CLAUDE_INSTANCE === 'safe'
+      return spec.env?.AVN_CLAUDE_INSTANCE === 'safe'
         ? safeChild.handle
         : bypassChild.handle
     })
@@ -482,14 +482,14 @@ describe('task admission and package contracts', () => {
     const safeFiber = await ctx.plugin(claudeCode, {
       providerName: 'claude-safe',
       model: 'claude-safe-model',
-      env: { DSH_CLAUDE_INSTANCE: 'safe' },
+      env: { AVN_CLAUDE_INSTANCE: 'safe' },
       permissionMode: 'dontAsk',
       disposeGraceMs: 11,
     })
     const bypassFiber = await ctx.plugin(claudeCode, {
       providerName: 'claude-bypass',
       model: 'claude-bypass-model',
-      env: { DSH_CLAUDE_INSTANCE: 'bypass' },
+      env: { AVN_CLAUDE_INSTANCE: 'bypass' },
       permissionMode: 'bypassPermissions',
       disposeGraceMs: 29,
     })
@@ -517,7 +517,7 @@ describe('task admission and package contracts', () => {
       stopReason: 'aborted',
     })
     expect(queryOptions.map(options => ({
-      instance: options.env?.DSH_CLAUDE_INSTANCE,
+      instance: options.env?.AVN_CLAUDE_INSTANCE,
       model: options.model,
       permissionMode: options.permissionMode,
     }))).toEqual([
@@ -525,7 +525,7 @@ describe('task admission and package contracts', () => {
       { instance: 'bypass', model: 'claude-bypass-model', permissionMode: 'bypassPermissions' },
     ])
     expect(spawnSpecs.map(spec => ({
-      instance: spec.env?.DSH_CLAUDE_INSTANCE,
+      instance: spec.env?.AVN_CLAUDE_INSTANCE,
       graceMs: spec.graceMs,
     }))).toEqual([
       { instance: 'safe', graceMs: 11 },
@@ -872,7 +872,7 @@ describe('query options and result mapping', () => {
   it('builds the fixed unattended options over the scrubbed environment', async () => {
     vi.stubEnv('HOST_VISIBLE', 'visible')
     vi.stubEnv('HOST_SECRET_TOKEN', 'must-not-leak')
-    vi.stubEnv('DSH_INTERNAL', 'must-not-leak')
+    vi.stubEnv('AVN_INTERNAL', 'must-not-leak')
     const child = fakeChild()
     const spawn = vi.fn(() => child.handle)
     const captured: SubprocessHandle[] = []
@@ -914,7 +914,7 @@ describe('query options and result mapping', () => {
       ANTHROPIC_API_KEY: 'explicit-fake-key',
     })
     expect(options.env).not.toHaveProperty('HOST_SECRET_TOKEN')
-    expect(options.env).not.toHaveProperty('DSH_INTERNAL')
+    expect(options.env).not.toHaveProperty('AVN_INTERNAL')
     expect(options).not.toHaveProperty('settingSources')
 
     const callbackSignal = new AbortController().signal

@@ -23,7 +23,7 @@ const configPath = fileURLToPath(new URL('../subagent-inheritance-snapshot.patch
 const binScript = fileURLToPath(new URL('../../../../../../packages/test-support/loader-smoke/tests/fixtures/headless-driver.ts', import.meta.url))
 const tsconfigPath = fileURLToPath(new URL('../../../../../../tsconfig.json', import.meta.url))
 const sessionId = SessionId('subagent-inheritance-parent')
-const refreshing = process.env.DSH_SNAPSHOT === 'refresh'
+const refreshing = process.env.AVN_SNAPSHOT === 'refresh'
 const task = 'Delegate the write probe to a subagent.'
 
 /** Seed a completed parent turn with its read-only policy and current LLM selection. */
@@ -82,9 +82,9 @@ describe('parent-only override inheritance snapshot', () => {
       env: {
         // The primary fixture path must exist for llm-replay's config guard;
         // the override sidecar fully replaces the derived parent script.
-        DSH_SNAPSHOT_FILE: replayOverride,
-        DSH_SNAPSHOT_OVERRIDE: replayOverride,
-        DSH_SNAPSHOT_CHILD_FILES: childReplay,
+        AVN_SNAPSHOT_FILE: replayOverride,
+        AVN_SNAPSHOT_OVERRIDE: replayOverride,
+        AVN_SNAPSHOT_CHILD_FILES: childReplay,
       },
       prepare: async (runCwd) => {
         cwd = runCwd

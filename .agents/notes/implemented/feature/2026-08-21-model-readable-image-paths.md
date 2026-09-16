@@ -10,7 +10,7 @@ An uploaded image becomes an opaque durable `ImageAttachmentRef`. Image-capable 
 
 ## Decision
 
-`ImageAttachmentRef` remains portable session data and contains no host path. `AttachmentStore.imageHostPath(ref)` exposes only the attachment provider's optional host object location. The local provider derives that absolute path from the resolved `DSH_HOME`, attachment storage version, and validated digest; it does not inspect the model-tool execution world.
+`ImageAttachmentRef` remains portable session data and contains no host path. `AttachmentStore.imageHostPath(ref)` exposes only the attachment provider's optional host object location. The local provider derives that absolute path from the resolved `AVN_HOME`, attachment storage version, and validated digest; it does not inspect the model-tool execution world.
 
 Each LLM provider plugin supplies the bridge at request assembly. It combines the attachment store with the current `ctx.fs.processPathFromHostPath(hostPath)` mapping and passes the resulting `ImageAttachmentAccess` independently into retained-image serialization and offload placeholders. The filesystem service is authoritative for this question because the mounted filesystem and subprocess providers share one execution world. A separate subprocess-presence check would not prove path reachability. Host-backed filesystems return a process path; E2B and other remote backends without a shared mount return no mapping.
 
@@ -22,13 +22,13 @@ Request-size offload requires a per-image placeholder function; the previous sha
 
 Descriptor identity comes from each occurrence's own durable reference, not from the prepared request version: versions are deduplicated per attachment id, so two uploads of the same content under different names share one version while each occurrence keeps its own display name. Host-location resolution validates the logged attachment id; a malformed reference in durable history fails the request at assembly, the earliest point that resolves it.
 
-Absolute paths stay out of session events and request-image versions. Model-visible path text is reconstructed from the logged attachment reference, the current attachment provider, and the filesystem mounted for the current execution world. Restoring the same session with a different `DSH_HOME` produces the path valid on that host; restoring it with a remote execution world that has no shared mount produces no path. Published attachment objects use owner-read-only mode, including deduplicated objects, and model instructions require a writable copy for modifications.
+Absolute paths stay out of session events and request-image versions. Model-visible path text is reconstructed from the logged attachment reference, the current attachment provider, and the filesystem mounted for the current execution world. Restoring the same session with a different `AVN_HOME` produces the path valid on that host; restoring it with a remote execution world that has no shared mount produces no path. Published attachment objects use owner-read-only mode, including deduplicated objects, and model instructions require a writable copy for modifications.
 
 ## Alternatives considered
 
-**Persist the absolute path in `ImageAttachmentRef`.** A durable host path becomes stale after moving a session, changing `DSH_HOME`, or mounting another provider. Resolving it at request time preserves portable history.
+**Persist the absolute path in `ImageAttachmentRef`.** A durable host path becomes stale after moving a session, changing `AVN_HOME`, or mounting another provider. Resolving it at request time preserves portable history.
 
-**Teach each LLM adapter the `~/.dsh` layout.** Explicit `dshHome` and `$DSH_HOME` can select another root, and non-local providers may expose no path. The attachment provider owns the object location; the shared LLM helper owns the composition with an execution-world mapper.
+**Teach each LLM adapter the `~/.dsh` layout.** Explicit `dshHome` and `$AVN_HOME` can select another root, and non-local providers may expose no path. The attachment provider owns the object location; the shared LLM helper owns the composition with an execution-world mapper.
 
 **Let the attachment provider inspect `ctx.fs`.** The attachment provider knows where its object lives but does not own the model tools' execution environment. Combining both services in the LLM consumer also avoids a package reference cycle between attachment, filesystem, and LLM definitions.
 

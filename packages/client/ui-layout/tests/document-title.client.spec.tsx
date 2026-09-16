@@ -11,7 +11,7 @@ afterEach(() => {
 
 describe('DocumentTitle', () => {
   it('projects a durable title and restores the product title', () => {
-    vi.stubEnv('DSH_CLIENT_TITLE', 'DeepSeek Harness')
+    vi.stubEnv('AVN_CLIENT_TITLE', 'DeepSeek Harness')
     document.title = 'stale title'
     const mounted = render(<DocumentTitle productTitle="DeepSeek Harness" />)
     expect(document.title).toBe('DeepSeek Harness')
@@ -26,8 +26,8 @@ describe('DocumentTitle', () => {
   })
 
   it('uses the generic title when the build provides no title', () => {
-    vi.stubEnv('DSH_CLIENT_TITLE', '')
-    delete process.env.DSH_CLIENT_TITLE
+    vi.stubEnv('AVN_CLIENT_TITLE', '')
+    delete process.env.AVN_CLIENT_TITLE
     const mounted = render(<DocumentTitle title="First title" productTitle="DSH Local Build" />)
     expect(document.title).toBe('First title — DSH Local Build')
     mounted.unmount()

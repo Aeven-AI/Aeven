@@ -51,14 +51,14 @@ let previousDshHome: string | undefined
 
 beforeEach(async () => {
   sessionHome = await mkdtemp(join(tmpdir(), 'dsh-grok-build-catalog-'))
-  previousDshHome = process.env['DSH_HOME']
-  // Every session's credential and model-cache file resolves below DSH_HOME.
-  process.env['DSH_HOME'] = sessionHome
+  previousDshHome = process.env['AVN_HOME']
+  // Every session's credential and model-cache file resolves below AVN_HOME.
+  process.env['AVN_HOME'] = sessionHome
 })
 
 afterEach(async () => {
-  if (previousDshHome === undefined) delete process.env['DSH_HOME']
-  else process.env['DSH_HOME'] = previousDshHome
+  if (previousDshHome === undefined) delete process.env['AVN_HOME']
+  else process.env['AVN_HOME'] = previousDshHome
   await rm(sessionHome, { recursive: true, force: true })
 })
 

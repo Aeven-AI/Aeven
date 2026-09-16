@@ -6,7 +6,7 @@ Status: implemented
 
 ## Problem
 
-每个 `package:desktop:*` 命令都从 shell 读取 `DSH_DESKTOP_APP_ID`、`DSH_DESKTOP_AUTO_UPDATE_ENV` 与 `DOWNLOAD_TEST_ORIGIN`。仓库根目录专门为本机设置提供了 `.env` 文件，产品 CLI 也已在启动时加载它，因此把打包设置放在该文件中的工作站，仍然必须在打包前再次导出这些变量，并且每开一个新 shell 都要重做一次，因为该加载路径属于 CLI，而不属于打包脚本。
+每个 `package:desktop:*` 命令都从 shell 读取 `AVN_DESKTOP_APP_ID`、`AVN_DESKTOP_AUTO_UPDATE_ENV` 与 `DOWNLOAD_TEST_ORIGIN`。仓库根目录专门为本机设置提供了 `.env` 文件，产品 CLI 也已在启动时加载它，因此把打包设置放在该文件中的工作站，仍然必须在打包前再次导出这些变量，并且每开一个新 shell 都要重做一次，因为该加载路径属于 CLI，而不属于打包脚本。
 
 打包无法直接沿用产品的加载路径：package 命令只是一个普通的 pnpm 脚本，它不启动任何 Cordis 应用，因此没有任何 boot 层为它填充环境。
 
@@ -14,7 +14,7 @@ Linux 容器构建让这一缺口变得可见。`package-linux-container.ts` 通
 
 ## Decision
 
-`apps/desktop/scripts/desktop-environment-file.ts` 导出 `loadDesktopPackagingEnvironment(path, environment)`，它用 `parseEnv` 读取一个 env 文件，只把 `DESKTOP_PACKAGING_ENV_NAMES` 中的名字——`DSH_DESKTOP_APP_ID`、`DSH_DESKTOP_AUTO_UPDATE_ENV` 与 `DOWNLOAD_TEST_ORIGIN`——复制进一个尚未持有该名字的环境中。它返回已复制的名字，文件不存在时返回空列表。
+`apps/desktop/scripts/desktop-environment-file.ts` 导出 `loadDesktopPackagingEnvironment(path, environment)`，它用 `parseEnv` 读取一个 env 文件，只把 `DESKTOP_PACKAGING_ENV_NAMES` 中的名字——`AVN_DESKTOP_APP_ID`、`AVN_DESKTOP_AUTO_UPDATE_ENV` 与 `DOWNLOAD_TEST_ORIGIN`——复制进一个尚未持有该名字的环境中。它返回已复制的名字，文件不存在时返回空列表。
 
 `package-target.ts` 与 `package-linux-container.ts` 都在 `main` 开头用仓库根目录的 `.env` 调用它一次，因此主机打包与容器打包会从同一个文件解析同样的三项设置。`package-linux-container.ts` 的 `--env` 转发列表也来自同一个导出的 `DESKTOP_PACKAGING_ENV_NAMES` 常量，因此容器路径不可能转发一组与 loader 提供的名字发生偏移的名字集合。
 
@@ -26,7 +26,7 @@ Linux 容器构建让这一缺口变得可见。`package-linux-container.ts` 通
 
 **把整个文件加载进 `process.env`。** electron-builder 及其 hook 会派生 subprocess，而产品的既定规则是键的环境值优先；用开发者 `.env` 中的每个条目填满环境，会把这些无关的密钥交给那些子进程，并掩盖这一错误。显式的名字列表就是这里全部的安全属性。
 
-**使用 credentials 的 `.env` provider。** 该 provider 属于正在运行的 Cordis 应用，为 credential 引用解析 `$DSH_HOME/.env` 与调用工作目录下的 `.env`。package 命令不启动任何应用，而打包设置也不是 credential，采用该 provider 就意味着为了构建安装包而启动一个 harness。
+**使用 credentials 的 `.env` provider。** 该 provider 属于正在运行的 Cordis 应用，为 credential 引用解析 `$AVN_HOME/.env` 与调用工作目录下的 `.env`。package 命令不启动任何应用，而打包设置也不是 credential，采用该 provider 就意味着为了构建安装包而启动一个 harness。
 
 **要求发布自动化或 shell 导出。** 打包必须能在工作站上运行，而环境已经是 CI 的既有接口。把 `.env` 作为第二个来源不新增任何变量，也不需要第二个文件，而且 shell 设置的值仍然优先。
 

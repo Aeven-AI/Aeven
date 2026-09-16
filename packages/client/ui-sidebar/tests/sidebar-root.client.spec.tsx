@@ -108,9 +108,9 @@ describe('SidebarRoot shell', () => {
   it('renders the brand mark alone when no package fills the brand slots', () => {
     // The brand name has no fallback: unoccupied, the wordmark and the build
     // badge are simply absent, and only a registered occupant puts text here.
-    vi.stubEnv('DSH_CLIENT_COMMIT_HASH', '0123456')
-    vi.stubEnv('DSH_CLIENT_GIT_DIRTY', 'true')
-    vi.stubEnv('DSH_CLIENT_VERSION', '1.2.3-rc.4')
+    vi.stubEnv('AVN_CLIENT_COMMIT_HASH', '0123456')
+    vi.stubEnv('AVN_CLIENT_GIT_DIRTY', 'true')
+    vi.stubEnv('AVN_CLIENT_VERSION', '1.2.3-rc.4')
     const { container } = render(<SidebarRoot
       collapsed={false} width={300}
       useSessions={neverHook} useSessionPendingInteraction={useSessionPendingInteraction} useWorkspaces={neverHook}

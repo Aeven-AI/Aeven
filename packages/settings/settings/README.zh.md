@@ -41,7 +41,7 @@ kind: "package-reference"
     path: /absolute/path/to/settings.yaml
 ```
 
-提供方上线后 `ctx.settings` 即出现。完整配置面由提供方 README 负责；生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-settings-file)列出每个受支持字段。
+提供方上线后 `ctx.settings` 即出现。完整配置面由提供方 README 负责；生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-settings-file)列出每个受支持字段。
 
 ### 注册 namespace
 

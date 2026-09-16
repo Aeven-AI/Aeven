@@ -48,10 +48,10 @@
       name: '@deepseek-ai/dsh-subagent-dsh-sdk'
       config:
         profile: sdk
-        patches: !!js JSON.parse(process.env.DSH_TEST_CHILD_PATCHES ?? '[]')
-        dshHome: !!js process.env.DSH_TEST_CHILD_HOME
+        patches: !!js JSON.parse(process.env.AVN_TEST_CHILD_PATCHES ?? '[]')
+        dshHome: !!js process.env.AVN_TEST_CHILD_HOME
         provider: mock
         model: mock-routed
         env:
-          DSH_TELEMETRY_DISABLED: '1'
-          DSH_TEST_CHILD_FAILURE: !!js String(process.env.DSH_TEST_CHILD_FAILURE ?? '')
+          AVN_TELEMETRY_DISABLED: '1'
+          AVN_TEST_CHILD_FAILURE: !!js String(process.env.AVN_TEST_CHILD_FAILURE ?? '')

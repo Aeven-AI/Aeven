@@ -40,13 +40,13 @@ deb 之所以存在，是因为 Chromium 的 setuid 沙箱辅助程序正是让�
 
 镜像只携带工具：用于 deb 打包的 Ruby 与 `fpm` gem，并设置 `USE_SYSTEM_FPM=true`，以及根清单声明的 pnpm 版本。仓库本身在运行时才进入容器，因此镜像不包含任何仓库内容，源码变更时也无需重建。electron-builder 内置的 fpm 仅支持 x64，这正是 deb 打包在两种架构上都安装系统 fpm 的原因。
 
-`DESKTOP_PACKAGING_ENV_NAMES` 列出容器刻意转发的三项输入：`DSH_DESKTOP_APP_ID`、`DSH_DESKTOP_AUTO_UPDATE_ENV` 与 `DOWNLOAD_TEST_ORIGIN`。容器接收的内容与主机打包路径接收的内容之间唯一区别是来源，因为两者都通过[共享打包环境加载器](2026-09-14-desktop-packaging-reads-the-repository-env-file.zh.md)从仓库根目录的 `.env` 填充这些名称。store 位于 `dsh-desktop-linux-pnpm-store` 卷中，因此重复构建会复用已下载的包，而不会共享主机的 store。`--platform linux/arm64` 与 `linux/amd64` 选择容器架构，架构与 Docker 主机不一致的目标在模拟下运行。
+`DESKTOP_PACKAGING_ENV_NAMES` 列出容器刻意转发的三项输入：`AVN_DESKTOP_APP_ID`、`AVN_DESKTOP_AUTO_UPDATE_ENV` 与 `DOWNLOAD_TEST_ORIGIN`。容器接收的内容与主机打包路径接收的内容之间唯一区别是来源，因为两者都通过[共享打包环境加载器](2026-09-14-desktop-packaging-reads-the-repository-env-file.zh.md)从仓库根目录的 `.env` 填充这些名称。store 位于 `dsh-desktop-linux-pnpm-store` 卷中，因此重复构建会复用已下载的包，而不会共享主机的 store。`--platform linux/arm64` 与 `linux/amd64` 选择容器架构，架构与 Docker 主机不一致的目标在模拟下运行。
 
 `trap` 会在容器退出前复制 electron-builder 已经完成的产物，因此同一轮运行中后续目标失败时已完成的产物仍可保留。`COPYFILE_DISABLE` 环境变量与 `--no-xattrs` 可防止 macOS 主机的 tar 添加 Linux 会拒绝的 AppleDouble 条目与扩展属性头。
 
 ## Unsigned builds
 
-唯一输入是 `DSH_DESKTOP_UNSIGNED=1`。`parseDesktopPackageInvocation` 接受 `--unsigned`，打包脚本会从目标环境中删除任何继承来的值并设置自己的值，而 `createElectronBuilderConfig` 只读取它一次，据此推导各项签名决策。
+唯一输入是 `AVN_DESKTOP_UNSIGNED=1`。`parseDesktopPackageInvocation` 接受 `--unsigned`，打包脚本会从目标环境中删除任何继承来的值并设置自己的值，而 `createElectronBuilderConfig` 只读取它一次，据此推导各项签名决策。
 
 对于 macOS，配置将 `forceCodeSigning`、`hardenedRuntime`、`notarize` 以及 DMG 的 `sign` 标志设为 false，并将 `identity` 设为 `-`。在那里临时签名并非可选：Apple Silicon 拒绝启动完全不带签名的代码，而 hardened runtime 会拒绝 seed 中未签名的原生插件。after-sign 与产物钩子提前返回，因此不会解析发布身份或公证凭据。对于 Windows，配置清除 `forceCodeSigning` 且不安装 token 签名器，因此签名 CMD 从不运行。
 

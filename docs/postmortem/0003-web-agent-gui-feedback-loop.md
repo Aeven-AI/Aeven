@@ -39,7 +39,7 @@ Background process semantics were also bypassed with shell `&`, so job identity,
 
 ## Guardrails added
 
-- The Web launcher publishes the canonical loopback URL in the logged `app:web-surface` prompt section and the managed `$DSH_WEB_URL` environment.
+- The Web launcher publishes the canonical loopback URL in the logged `app:web-surface` prompt section and the managed `$AVN_WEB_URL` environment.
 - Production guidance requires rebuilding artifacts and verifying the existing URL after refresh. Development guidance explains that the HMR receiver is always on; `pnpm run dev:web` in the same checkout rebuilds client-plugin bundles for refresh-free reload, while shell and plain-package changes still require refresh.
 - `apps/web` standalone Vite serve mode rejects during configuration. Its subprocess test proves natural exit and instruments `Server.listen()` so a transient bind cannot pass unnoticed.
 - Layered real-path tests cover the CLI request, exact production/development prompts, shell runtime facts, same-port static replacement, source watcher rebuild, host stat polling, and browser HMR under an unchanged page identity.

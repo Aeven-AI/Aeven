@@ -15,7 +15,7 @@ import type { Config } from './index.ts'
 
 /**
  * The subprocess seam's scrubbed parent env (credential-shaped and stale
- * `DSH_*` names dropped), plus the spec's explicit env. The MCP SDK owns the
+ * `AVN_*` names dropped), plus the spec's explicit env. The MCP SDK owns the
  * actual spawn, so this transport shares the scrub definition rather than the
  * spawn path.
  */

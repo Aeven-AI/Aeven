@@ -14,7 +14,7 @@ The file index was truncating half of a workspace. `WorkspaceFileSearch` fills b
 
 Row content repeated itself. A workspace-root file rendered `reference.txt reference.txt`, because the description was the full path and the name was its basename. A session row rendered its title, its full session id, its full cwd, and a raw `toISOString()` timestamp. A drilled directory listing had no way back except deleting characters, and every row in it named the same parent.
 
-Web e2e could not see any of this: its scaffold pins an isolated `DSH_HOME` holding two sessions.
+Web e2e could not see any of this: its scaffold pins an isolated `AVN_HOME` holding two sessions.
 
 ## Decision
 
@@ -64,4 +64,4 @@ The reference row content is now derived from what the neighbouring chrome alrea
 
 Package tests cover a renamed attached session found by its new title while its checkpoint still holds the old one, a cold session labeled from its checkpoint, an unprojected session labeled by its id, a composition with no projection face at all, `readTitleSnapshots` never called on any of those paths, stale-while-revalidate driven through the real filesystem — a root that vanishes under a live index keeps answering and picks the workspace back up when it returns — an unreadable subtree costing only its own candidates, a `lib` tree that stays searchable, and the breadcrumb contract from both ends including a refused drill edit. `reference-composer.e2e.ts` covers the shipped composition: the refreshed menu golden shows the trimmed rows, and a new case drills into a folder, asserts the breadcrumb appears only then, and clicks the root crumb back to a bare `@`. Its seeded sessions appear there as ids, because a seed reaches disk as a log alone and this scaffold seeds after the host has already loaded its projection-cache table; seeding before boot would give the app a populated session list at startup, which the fresh-workspace flow four scenarios share does not expect. The titled paths stay in the package suite, and the e2e asserts the id labels it actually produces rather than a title the fixture cannot carry.
 
-The 1139 ms figure is a measured floor for the server-side I/O against a real store, not an instrumented end-to-end UI latency; the web e2e scaffold's isolated `DSH_HOME` cannot reproduce the corpus that produces it.
+The 1139 ms figure is a measured floor for the server-side I/O against a real store, not an instrumented end-to-end UI latency; the web e2e scaffold's isolated `AVN_HOME` cannot reproduce the corpus that produces it.

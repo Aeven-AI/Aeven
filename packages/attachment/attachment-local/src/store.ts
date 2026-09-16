@@ -44,7 +44,7 @@ function ensureReference(ref: ImageAttachmentRef): string {
 
 /**
  * Derive the absolute immutable-object path for one normalized attachment.
- * @param root - absolute `DSH_HOME/attachments/v1` root.
+ * @param root - absolute `AVN_HOME/attachments/v1` root.
  * @param ref - durable normalized attachment reference.
  * @returns provider-local path without reading the object.
  */
@@ -169,7 +169,7 @@ async function ensureDurableDirectory(path: string, boundary: string): Promise<v
 }
 
 /**
- * Establish this process's proof that one DSH_HOME entry and every ancestor
+ * Establish this process's proof that one AVN_HOME entry and every ancestor
  * below the filesystem root are durable. Mere existence is insufficient: a
  * concurrent process may have created the directory but not synced its parent.
  */
@@ -184,7 +184,7 @@ async function ensureDurableHome(path: string): Promise<string> {
 
 /**
  * Publish one already verified normalized image below a versioned attachment root.
- * @param root - absolute `DSH_HOME/attachments/v1` root.
+ * @param root - absolute `AVN_HOME/attachments/v1` root.
  * @param prepared - deterministic normalized bytes and reference.
  * @returns durable content-addressed normalized image reference.
  */
@@ -199,7 +199,7 @@ export async function commitPreparedImageFile(
   }
   const bucket = join(root, 'objects', sha256.slice(0, 2))
   const staging = join(root, 'tmp')
-  // Establish DSH_HOME itself against the filesystem root once per process.
+  // Establish AVN_HOME itself against the filesystem root once per process.
   // Every process performs that proof independently, so observing a directory
   // another process created can never be mistaken for durable publication.
   const boundary = await ensureDurableHome(dirname(dirname(resolve(root))))
@@ -255,7 +255,7 @@ export async function commitPreparedImageFile(
 
 /**
  * Decode and normalize one image once, then publish the prepared object.
- * @param root - absolute `DSH_HOME/attachments/v1` root.
+ * @param root - absolute `AVN_HOME/attachments/v1` root.
  * @param input - submitted encoded bytes and declared media type.
  * @param limits - resolved source admission policy.
  * @param policy - resolved normalization policy.
@@ -272,7 +272,7 @@ export async function saveImageFile(
 
 /**
  * Read and verify one content-addressed image.
- * @param root - absolute `DSH_HOME/attachments/v1` root.
+ * @param root - absolute `AVN_HOME/attachments/v1` root.
  * @param ref - reference recorded in the session log.
  * @param signal - optional cancellation for filesystem and verification work.
  * @returns verified bytes and reference.

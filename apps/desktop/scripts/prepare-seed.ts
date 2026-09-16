@@ -85,7 +85,7 @@ function runPnpm(args: readonly string[]): Promise<void> {
       cwd: SEED_ROOT,
       env: {
         ...Object.fromEntries(Object.entries(process.env).filter(([name]) => (
-          !/^DSH_DESKTOP_/u.test(name) && !/^(?:npm|pnpm|corepack)_/iu.test(name)
+          !/^AVN_DESKTOP_/u.test(name) && !/^(?:npm|pnpm|corepack)_/iu.test(name)
         ))),
         NPM_CONFIG_REGISTRY: 'https://registry.npmjs.org/',
         NPM_CONFIG_STORE_DIR: STORE_ROOT,
@@ -160,7 +160,7 @@ async function main(): Promise<void> {
     rmSync(installedModules, { recursive: true, force: true })
     rmSync(PNPM_BUILD_STATE, { recursive: true, force: true })
     await verifyOfflineInstallation(release)
-    const targetPlatform = process.env.DSH_DESKTOP_TARGET_PLATFORM ?? process.platform
+    const targetPlatform = process.env.AVN_DESKTOP_TARGET_PLATFORM ?? process.platform
     let signedMachOFiles: number | undefined
     let macOSSigning: ReturnType<typeof resolveMacOSSigningEnvironment> | undefined
     if (targetPlatform === 'darwin' && process.env[DESKTOP_UNSIGNED_ENV] !== '1') {

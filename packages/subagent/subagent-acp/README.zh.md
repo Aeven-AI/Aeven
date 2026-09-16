@@ -44,9 +44,9 @@ kind: "package-reference"
 | `disposeEofGraceMs` | `6000` | stdin EOF 之后、平台终止之前的宽限 |
 | `disposeGraceMs` | `3000` | 失败后观察结构化进程事实的时限；在 POSIX 上也是 SIGTERM 到 SIGKILL 的宽限 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-subagent-acp)是每个受支持字段及其 JSDoc 的穷尽式真源。
+生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-subagent-acp)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
-DeepSeek Harness 子进程使用产品启动器和一个显式的绝对路径 `DSH_HOME`。隔离 home 可防止嵌套 runtime 发现启动者个人的 profile 或凭据；通用 ACP provider 不会把这一要求强加给非 DSH agent。
+DeepSeek Harness 子进程使用产品启动器和一个显式的绝对路径 `AVN_HOME`。隔离 home 可防止嵌套 runtime 发现启动者个人的 profile 或凭据；通用 ACP provider 不会把这一要求强加给非 DSH agent。
 
 ```yaml
 - id: subagent-acp
@@ -57,7 +57,7 @@ DeepSeek Harness 子进程使用产品启动器和一个显式的绝对路径 `D
     args: ['--profile', 'acp', '--patch', '/absolute/path/to/acp.patch.yml']
     permission: reject
     env:
-      DSH_HOME: /absolute/path/to/isolated-child-home
+      AVN_HOME: /absolute/path/to/isolated-child-home
       DEEPSEEK_API_KEY: !!js process.env.DEEPSEEK_API_KEY
 ```
 
@@ -114,7 +114,7 @@ spawn、初始化或新建会话失败会在发布前拒绝，通常先等待子
 - [dsh-subagent seam](../subagent/README.zh.md)——本提供方注册于其上的注册表与启动 API。
 - [Agent Client Protocol 自动化服务器](../../acp/acp/README.zh.md)——本提供方作为客户端驱动的仅自动化服务器。
 - [dsh-subprocess seam](../../subprocess/subprocess/README.zh.md)——每次运行背后的进程 spawn 与清理机制。
-- [生成配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-subagent-acp)——每个受支持配置字段及其源声明。
+- [生成配置目录](../../../docs/config-catalog.zh.md#aeven-subagent-acp)——每个受支持配置字段及其源声明。
 
 -----
 

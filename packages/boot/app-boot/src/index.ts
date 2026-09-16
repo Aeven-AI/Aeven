@@ -57,7 +57,7 @@ export {
  * Resolve the config to boot. Replay swaps a `cordis.yml` basename for
  * `cordis.snapshot.yml` in the same directory; every other mode keeps the path.
  * @param configPath - the requested config path (absolute, or relative to `cwd`).
- * @param snapshotMode - the bin's `$DSH_SNAPSHOT` value; only `'replay'` swaps the
+ * @param snapshotMode - the bin's `$AVN_SNAPSHOT` value; only `'replay'` swaps the
  *   basename.
  * @param cwd - the base a relative `configPath` resolves against.
  * @returns the absolute path of the config to boot.
@@ -118,12 +118,12 @@ const BOOTSTRAP_NAMES = new Set([
 ])
 
 /** Name prefixes no discovered file may set. */
-const BOOTSTRAP_PREFIXES = ['DSH_', 'XDG_', 'DYLD_', 'BASH_FUNC_']
+const BOOTSTRAP_PREFIXES = ['AVN_', 'XDG_', 'DYLD_', 'BASH_FUNC_']
 
 /**
  * The bootstrap names the Harness-home `.env` alone may set. A proxy chooses the route every
  * request takes, so the invoking directory's file — which arrives with a clone — keeps refusing
- * them; the home file is the user's own, and `DSH_HOME` is itself bootstrap-only, so no `.env` can
+ * them; the home file is the user's own, and `AVN_HOME` is itself bootstrap-only, so no `.env` can
  * relocate this exemption. The CA and TLS names in the same group stay refused everywhere: they
  * change what is trusted, not where traffic goes.
  */

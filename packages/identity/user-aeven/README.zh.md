@@ -56,7 +56,7 @@ kind: "package-reference"
 | `mediaUrl` | 无 | 提供已上传媒体的 origin，头像路径相对于它 |
 | `xOAuthUrl`、`appleOAuthUrl`、`googleOAuthUrl` | 无 | 各提供方的登录 URL；缺失某个会隐藏该提供方的按钮 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-identity-user-aeven)是所有可接受字段的详尽来源。
+生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-identity-user-aeven)是所有可接受字段的详尽来源。
 
 ### 让 DSH 与 API 处于同一站点
 
@@ -104,7 +104,7 @@ Aeven 的各 origin 是部署事实而非构建事实，因此由 Host 声明，
 - [dsh-client-ui-auth-aeven](../../client/ui-auth-aeven/README.zh.md)——登录界面，以及本 authority 随后认得的会话。
 - [dsh-client-ui-account-aeven](../../client/ui-account-aeven/README.zh.md)——展示本 authority 所恢复读者的账户菜单。
 - [dsh-client-connection](../../client/connection/README.zh.md)——一旦挂载 authority 便不再使用启动 token 的围栏。
-- [生成的配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-identity-user-aeven)——每个可接受的配置字段及其源声明。
+- [生成的配置目录](../../../docs/config-catalog.zh.md#aeven-identity-user-aeven)——每个可接受的配置字段及其源声明。
 
 -----
 

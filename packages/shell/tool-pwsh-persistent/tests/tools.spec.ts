@@ -408,13 +408,13 @@ describe('tool-pwsh-persistent', () => {
     session.mode = 'prompt-only'
     const promptFallback = text(await call(ctx, owner, 'bad {'))
     expect(promptFallback).toContain('pwsh: synt')
-    expect(promptFallback).not.toContain('DSH_PERSISTENT_PWSH_PROMPT')
+    expect(promptFallback).not.toContain('AVN_PERSISTENT_PWSH_PROMPT')
 
     session.mode = 'prompt-crlf'
     session.scrollback = ''
     const crlfPromptFallback = text(await call(ctx, owner, 'bad {'))
     expect(crlfPromptFallback).toContain('pwsh: synt')
-    expect(crlfPromptFallback).not.toContain('DSH_PERSISTENT_PWSH_PROMPT')
+    expect(crlfPromptFallback).not.toContain('AVN_PERSISTENT_PWSH_PROMPT')
 
     session.mode = 'end-only'
     session.scrollback = ''
@@ -509,8 +509,8 @@ describe('tool-pwsh-persistent', () => {
     const result = text(await call(ctx, owner, 'bad {'))
     expect(result).toContain('partial syntax output')
     expect(result).toContain('pwsh: syntax error')
-    expect(result).not.toContain('DSH_PERSISTENT_PWSH_PROMPT')
-    expect(result).not.toContain('DSH_PERSISTENT_PWSH_START')
+    expect(result).not.toContain('AVN_PERSISTENT_PWSH_PROMPT')
+    expect(result).not.toContain('AVN_PERSISTENT_PWSH_START')
   })
 
   it('does not attribute old scrollback truncation to a complete current command', async () => {
