@@ -407,6 +407,38 @@ export class Session implements SessionFace {
   }
 
   /**
+   * Page down: pull the page after a detached window's end and append it.
+   *
+   * Attached windows end at the live tail, where the follow stream already
+   * supplies new events, so this is a no-op for them.
+   * @returns completion; failures land in snapshot.loadingOlder.
+   */
+  async loadNewer(): Promise<void> {
+    if (this.openState !== 'open' || !this.hasNewer || this.loadingOlder) return
+    const events = this.events
+    if (events === undefined) return
+    const end = events.detachedEnd()
+    if (end === undefined) return
+    this.loadingOlder = true
+    this.notifier.markDirty()
+    try {
+      // `beforeSeq` is exclusive, so a bound one page past the window end
+      // selects the events that follow it.
+      await events.appendPage({
+        beforeSeq: SessionLogOffset(end + SCROLL_PAGE_MESSAGES),
+        maxMessages: SCROLL_PAGE_MESSAGES,
+      })
+    } catch (error) {
+      if (!isRemoteFailure(error)) {
+        console.error('[session-controller] loadNewer failed:', error)
+      }
+    } finally {
+      this.loadingOlder = false
+      this.notifier.markDirty()
+    }
+  }
+
+  /**
    * Jump loader: install one window anchored on seq (see ISession.loadThrough).
    *
    * One round trip regardless of distance. The Host holds the whole log and
@@ -681,6 +713,9 @@ export class Session implements SessionFace {
         // seeded, since an anchored page carries none of its own.
         this.installWindow(change.entries, change.hasMore, undefined, change.hasNewer)
         return
+      case 'extend':
+        this.extendWindow(change.entries, change.hasNewer)
+        return
       case 'append':
         if (this.appendLive(change.entry)) this.notifier.markDirty()
     }
@@ -720,6 +755,19 @@ export class Session implements SessionFace {
     this.eventSource.prepend(entries, hasMore)
     this.baseSeq = entries[0] === undefined ? this.baseSeq : SessionLogOffset(entries[0].event.seq)
     this.hasMore = hasMore
+  }
+
+  /**
+   * Append one forward page to a detached window.
+   *
+   * A page that reaches the live tail reattaches the window: live events are
+   * appended again from here, so the withheld count is cleared with it.
+   */
+  private extendWindow(entries: readonly SessionEventLikeEntry[], hasNewer: boolean): void {
+    this.eventSource.appendPage(entries, hasNewer)
+    this.hasNewer = hasNewer
+    if (!hasNewer) this.pendingLiveCount = 0
+    this.notifier.markDirty()
   }
 
   /** Append one stream-validated live event. */

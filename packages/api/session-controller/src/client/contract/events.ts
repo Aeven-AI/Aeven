@@ -166,12 +166,19 @@ export class MutableSessionEventSource implements SessionEventSource {
 
   /**
    * Append one contiguous newer page loaded by forward paging.
+   *
+   * Published as a `replace` of the grown window rather than an `append`:
+   * `append` carries live entries a consumer folds in one at a time, while
+   * this delivers a whole page at the window's end. A consumer that
+   * reassembles from `entries` therefore sees the page without needing a
+   * fourth change kind.
    * @param entries - newly loaded newer entries.
    * @param hasNewer - whether still newer history remains outside the window.
    */
   appendPage(entries: readonly SessionEventLikeEntry[], hasNewer: boolean): void {
     this.window = concat(this.window, leaf(entries))
-    this.publish({ hasOlder: this.edges.hasOlder, hasNewer }, { kind: 'append', entries: [] })
+    const grown = materialize(this.window)
+    this.publish({ hasOlder: this.edges.hasOlder, hasNewer }, { kind: 'replace', entries: grown })
   }
 
   /**

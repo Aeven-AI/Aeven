@@ -132,6 +132,12 @@ export interface ISession {
    */
   loadThrough(seq: SessionSeq): Promise<void>
   /**
+   * Extend a detached window forward by one page (newer messages pagination).
+   * A no-op on a window already reaching the live tail.
+   * @returns completion; failures land in snapshot.loadingOlder.
+   */
+  loadNewer(): Promise<void>
+  /**
    * Reattach a detached window to the live tail and deliver the events
    * withheld while it was away. A no-op on an attached window.
    * @returns completion once the tail window is installed.

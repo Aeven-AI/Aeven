@@ -141,6 +141,10 @@ export interface ChatViewInjected {
   openDetails: (target: SelectionTarget) => void
   openFile: (path: string) => Promise<void>
   loadOlder: () => void
+  /** Extend a window detached by a jump forward by one page. */
+  loadNewer: () => void
+  /** Reattach a detached window to the live tail. */
+  returnToLive: () => void
   /** Jump loader: page history back through seq; resolves when the window covers it. */
   loadThrough: (seq: SessionSeq) => Promise<void>
   /** Acknowledge the current exact-event navigation after landing or fallback. */

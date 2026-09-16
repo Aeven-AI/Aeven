@@ -213,7 +213,7 @@ const ChatNodeList = memo(function ChatNodeList({ order, ...seatProps }: ChatNod
  */
 export function ChatView({
   useSession, useChat, useChatNode, useChatNodeProcess, useSessions, useStore, actions, renderSlot,
-  sessionId, openFile, loadOlder, loadThrough, completeEventNavigation, loadImage, openView,
+  sessionId, openFile, loadOlder, loadNewer, returnToLive, loadThrough, completeEventNavigation, loadImage, openView,
   chatScroll, forkAt, fileMentions, onFullscreenChange, useTranscriptView, useEventNavigation, t,
 }: ChatViewSlotProps) {
   const order = useChat(s => s.order)
@@ -226,6 +226,8 @@ export function ChatView({
   const openState = useSession(s => s.openState)
   const openError = useSession(s => s.openError)
   const hasMore = useSession(s => s.hasMore)
+  const detached = useSession(s => s.detached)
+  const pendingLive = useSession(s => s.pendingLive)
   const loadingOlder = useSession(s => s.loadingOlder)
   const selectedCallId = useStore(s => s.selection?.callId)
   const compactTranscript = useTranscriptView(mode => mode === 'compact')
@@ -322,7 +324,8 @@ export function ChatView({
   const eventNavigationLoadRef = useRef<{ requestId: number; settled: boolean } | null>(null)
   const completedEventNavigationRef = useRef(0)
   const [highlightedNodeKey, setHighlightedNodeKey] = useState<string | null>(null)
-  /** Latest automatic-paging test; assigned below, called from scroll, commit, and resize paths. */
+  /** Latest automatic-paging test; assigned below, called from scroll, commit, and resize paths.
+   *  Runs both directions: forward paging is live only while the window is detached. */
   const maybeLoadOlderRef = useRef<() => void>(() => {})
   /** Host chrome layer for floating controls; null when this view owns its own scrolling. */
   const [chromeLayer, setChromeLayer] = useState<HTMLElement | null>(null)
@@ -704,9 +707,14 @@ export function ChatView({
    * (a short first page otherwise leaves the reader nothing to pull with).
    * A rail jump or a search navigation runs its own paging loop, so neither
    * shares the pager with this one.
+   *
+   * A window a jump detached also has a foot short of the live tail, so the
+   * same test runs mirrored below it. Only one direction can pull at a time —
+   * both read the one `loadingOlder` busy flag — and the head is tried first,
+   * which is the direction a reader who jumped back is usually travelling.
    */
   maybeLoadOlderRef.current = () => {
-    if (openState !== 'open' || !hasMore || loadingOlder) return
+    if (openState !== 'open' || loadingOlder) return
     if (eventNavigation !== null) return
     if (eventNavigationLoadRef.current !== null) return
     const local = listRef.current
@@ -717,10 +725,16 @@ export function ChatView({
     // fraction of a taller window, and a fast fling then reaches the head
     // before the page it needs has arrived.
     const margin = Math.max(OLDER_PREFETCH_MARGIN, el.clientHeight * OLDER_PREFETCH_SCREENS)
+    const scrollable = el.scrollHeight > el.clientHeight
     // Ordered so a reader far from the head never pays for `scrollHeight`,
     // which forces layout of the whole transcript.
-    if (el.scrollTop > margin && el.scrollHeight > el.clientHeight) return
-    loadOlder()
+    if (hasMore && !(el.scrollTop > margin && scrollable)) {
+      loadOlder()
+      return
+    }
+    if (!detached) return
+    if (el.scrollHeight - el.scrollTop - el.clientHeight > margin && scrollable) return
+    loadNewer()
   }
 
   // ChatView commits inside a resident shell whose sticky composer and cover
@@ -796,9 +810,17 @@ export function ChatView({
     <div className={css.toBottomSlot}>
       <button
         type="button"
-        className={showToBottom ? `${css.toBottom} ${css.toBottomVisible}` : css.toBottom}
-        aria-label={t('chat.toBottom')}
+        className={showToBottom || detached ? `${css.toBottom} ${css.toBottomVisible}` : css.toBottom}
+        aria-label={detached ? t('chat.toLive') : t('chat.toBottom')}
+        data-pending-live={detached && pendingLive > 0 ? pendingLive : undefined}
         onClick={() => {
+          // A detached window has no live tail to scroll to: its floor is the
+          // jump's page boundary. Reattaching is what reaches the newest
+          // events, and the reinstalled window opens pinned to them.
+          if (detached) {
+            returnToLive()
+            return
+          }
           const local = listRef.current
           /* v8 ignore next -- ref-null guard: the button only renders alongside the mounted list. */
           if (local === null) return

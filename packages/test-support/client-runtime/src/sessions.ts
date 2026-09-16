@@ -161,6 +161,14 @@ export class FixtureSession implements SessionFace {
   }
 
   /**
+   * Fail-loud stub; supply `loadNewer` on the fixture's session face to exercise it.
+   * @returns never — always throws.
+   */
+  loadNewer(): never {
+    throw new Error(`test session "${this.sessionId}": loadNewer is not stubbed — supply it on the fixture's session face`)
+  }
+
+  /**
    * Fail-loud stub; supply `returnToLive` on the fixture's session face to exercise it.
    * @returns never — always throws.
    */

@@ -251,6 +251,8 @@ function makeHarness(
   const openDetails = vi.fn<(t: SelectionTarget) => void>()
   const openFile = vi.fn<(path: string) => Promise<void>>().mockResolvedValue(undefined)
   const loadOlder = vi.fn()
+  const loadNewer = vi.fn()
+  const returnToLive = vi.fn()
   const loadThrough = vi.fn<(seq: number, beforeSeq?: number) => Promise<void>>().mockResolvedValue(undefined)
   const completeEventNavigation = vi.fn<(requestId: number) => void>()
   // Mutable outline holder: tests swap the value and drive a re-render via set().
@@ -401,6 +403,8 @@ function makeHarness(
     openDetails,
     openFile,
     loadOlder,
+    loadNewer,
+    returnToLive,
     loadThrough,
     completeEventNavigation,
     loadImage: vi.fn(() => Promise.reject(new Error('not used'))),
@@ -432,7 +436,7 @@ function makeHarness(
   const setSelection = (next: SelectionTarget | null): void => { chat.actions.select(next) }
   return {
     set, setSession: session.set, setChat: chatSource.set, ChatView, props,
-    openDetails, openFile, loadOlder, loadThrough, completeEventNavigation, openView,
+    openDetails, openFile, loadOlder, loadNewer, returnToLive, loadThrough, completeEventNavigation, openView,
     setOutline: (value: unknown) => { outlineValue = value },
     chatScroll, forkAt, setSelection, toolOwners,
     setTranscriptView: (mode: TranscriptViewMode) => { transcriptView.set(mode) },
