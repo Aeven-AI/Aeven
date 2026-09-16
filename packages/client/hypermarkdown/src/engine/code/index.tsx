@@ -3,6 +3,7 @@ import React, { PureComponent, type ReactElement, type ReactNode } from 'react'
 import type { Emitter } from '../runtime.ts'
 import { cssLength, defaultUi } from '../config.ts'
 import type { UiConfig } from '../config.ts'
+import { portalFullscreen } from '../fullscreen-portal.tsx'
 
 import Header from './header.tsx'
 import LineNumber from './line-numbers.tsx'
@@ -41,6 +42,7 @@ class MarkdownCode extends PureComponent<CodeBlockProps, CodeBlockState> {
   private currentScrollHeight = 0
   private readonly codeRef = React.createRef<HTMLDivElement>()
   private readonly wrapperRef = React.createRef<HTMLDivElement>()
+  private slotHeight: number | undefined
   /** Whether the settle has been decided; kept apart from what it produced. */
   private settled = false
   private settledChildren: ReactNode | undefined
@@ -110,6 +112,7 @@ class MarkdownCode extends PureComponent<CodeBlockProps, CodeBlockState> {
         if (!match) {
           return language
         } else {
+          /* v8 ignore next -- `(\w+)` captures at least one character whenever it matches, so the left side is never null; the fallback answers the `string | undefined` its index type carries. */
           language = match[1] ?? language
           return language
         }
@@ -118,20 +121,17 @@ class MarkdownCode extends PureComponent<CodeBlockProps, CodeBlockState> {
   }
 
   toggleFullScreen(fullscreen: boolean) {
-    let wrapper
-
     const vm = this
+    if (fullscreen && vm.wrapperRef.current) {
+      vm.slotHeight = vm.wrapperRef.current.getBoundingClientRect().height
+    }
     vm.setState({ fullscreen: fullscreen }, () => {
-      wrapper = vm.wrapperRef.current
-
-      if (!wrapper) {
-        return
-      }
+      const wrapper = vm.wrapperRef.current
 
       if (vm.state.fullscreen) {
-        wrapper.addEventListener('scroll', vm.scrollDownListener)
+        wrapper?.addEventListener('scroll', vm.scrollDownListener)
       } else {
-        wrapper.removeEventListener('scroll', vm.scrollDownListener)
+        wrapper?.removeEventListener('scroll', vm.scrollDownListener)
       }
     })
   }
@@ -162,6 +162,7 @@ class MarkdownCode extends PureComponent<CodeBlockProps, CodeBlockState> {
     const vm = this
     const wrapper = vm.wrapperRef.current
 
+    /* v8 ignore next 3 -- the listener is only attached to a mounted wrapper, so the ref it reads is the element the event came from. */
     if (!wrapper) {
       return
     }
@@ -225,7 +226,7 @@ class MarkdownCode extends PureComponent<CodeBlockProps, CodeBlockState> {
       children = vm.settledChildren
     }
 
-    return (
+    const tree = (
       <div
         ref={vm.wrapperRef}
         className={'codeblock-wrapper' + stream + fullscreen}
@@ -265,6 +266,16 @@ class MarkdownCode extends PureComponent<CodeBlockProps, CodeBlockState> {
         </div>
       </div>
     )
+
+    if (state.fullscreen) {
+      return portalFullscreen(
+        tree,
+        'codeblock-wrapper' + stream,
+        vm.slotHeight,
+      )
+    }
+
+    return tree
   }
 
   private scheduleSettledChildren(): void {

@@ -72,6 +72,8 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 Every write resolves only after the backend acknowledges durability, and each emits one `domain/changed` event in write order. Failures carry stable `DomainError` codes: `already-open` (the name is open or still closing), `facet-unsupported` (the routed backend serves no `kv` facet), `invalid-record` (a stored record or global fails its schema, naming the table and key), `missing-key` (an `update` on an absent record), and `closed` (any use after close). Backend failures such as `version-mismatch` pass through unchanged.
 
+When the routed backend can report foreign writes, a domain also converges on writes another process made to the same medium: each reported location is re-read, validated against the same schema the open-time load applies, written into memory, and then emitted as an ordinary `domain/changed`. Foreign changes are indistinguishable from local ones by design — a consumer that treated them differently would be reasoning about which process wrote a value. A foreign record that fails validation is logged and leaves the current value in place. Convergence work runs on the domain's own write chain, so it never interleaves with a local write.
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -148,7 +150,8 @@ Independent: domain reads and writes never touch request prefixes, so nothing he
 
 These limits define when the domain layer is a poor fit or needs special operational care. They are current package constraints, not a task backlog.
 
-- **Single-process change visibility** — `domain/changed` is an in-process event; a second host process or a reconnecting GUI observes no changes until the cross-process revision pattern lands ([Agent Note](../../../.agents/notes/proposed/architecture/2026-07-24-domain-kv-storage-and-workspace.md)).
+- **Convergence is eventual, not transactional** — a domain converges on another process's writes when its backend reports them, but two processes writing one record still resolve last-write-wins at the medium, so a cross-process read-modify-write race can lose an update. Work needing true atomicity takes its own lock ([Agent Note](../../../.agents/notes/implemented/architecture/2026-09-16-cross-process-domain-coherence.md)).
+- **Foreign-write detection depends on the backend** — a backend without `watchExternal` (including the `single` layout and the in-memory double) keeps its open-time snapshot, so a second process observes no changes.
 - **No cross-table transactions, secondary indexes, or multi-segment keys** — each write touches one record; these extensions are deferred in the Agent Note's out-of-scope list.
 - **No data migration** — a domain whose stored version differs from its spec rejects at open (`version-mismatch`); changing a schema requires migrating the stored data by hand.
 

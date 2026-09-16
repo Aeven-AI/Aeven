@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Storage, { storageBackendServiceKey } from '@deepseek-ai/dsh-storage'
+import type { ExternalChange, KvUnit } from '@deepseek-ai/dsh-storage'
 import { runKvBackendContract } from '../../storage/tests/contract.ts'
 import { Config, JsonStorageBackend, apply } from '../src/index.ts'
 
@@ -26,6 +27,19 @@ runKvBackendContract('json', async () => {
     reopen: async () => new JsonStorageBackend(root),
   }
 })
+
+/**
+ * Assert the unit exposes the external-watch capability this backend installs.
+ *
+ * `KvUnit.watchExternal` is optional on the shared interface, so it is typed as
+ * possibly absent; the JSON backend is one of the providers that implements it,
+ * and the cases below are about that implementation. Call the observation as a
+ * method on the narrowed unit: it touches private state, so detaching it loses
+ * its receiver.
+ */
+function assertObservable(unit: KvUnit): asserts unit is KvUnit & Required<Pick<KvUnit, 'watchExternal'>> {
+  if (unit.watchExternal === undefined) throw new Error('json backend unit exposes no external watch')
+}
 
 describe('json backend specifics', () => {
   const descriptor = { name: 'shape', version: 1, tables: ['t'], hasGlobal: true }
@@ -347,6 +361,29 @@ describe('per-record layout', () => {
     await backend.close()
   })
 
+  it('bootstraps the legacy global singleton, not only the table records', async () => {
+    const root = await freshRoot()
+    // A unit whose global carries authoritative state: losing it on adoption
+    // of this layout would silently drop ordering and set membership.
+    const legacy = JSON.stringify({
+      unit: { name: 'recs', version: 2 },
+      global: { order: ['a', 'b'], archived: ['x'] },
+      tables: { t: { a: { v: 1 } } },
+    })
+    await writeFile(join(root, 'recs.json'), legacy, 'utf8')
+    const backend = new JsonStorageBackend(root)
+    const unit = await backend.kv.open(descriptor)
+    expect(await unit.loadAll()).toEqual({
+      tables: { t: { a: { v: 1 } } },
+      global: { order: ['a', 'b'], archived: ['x'] },
+    })
+    // The migrated global is durable: a re-open reads the per-record tree.
+    await unit.close()
+    const reopened = await backend.kv.open(descriptor)
+    expect((await reopened.loadAll()).global).toEqual({ order: ['a', 'b'], archived: ['x'] })
+    await backend.close()
+  })
+
   it('bootstraps from a legacy file only when its stored version is accepted', async () => {
     // Version 3 is neither current (2) nor declared compat: the legacy file
     // is left alone and the unit reads empty — migrating unvouched records
@@ -476,5 +513,72 @@ describe('per-record layout', () => {
     expect(await unit5.loadAll()).toEqual({ tables: { t: {} }, global: null })
     await expect(readFile(join(root5, 'recs.json'), 'utf8')).resolves.toContain('not an object')
     await backend5.close()
+  })
+
+  it('observes foreign writes through one watcher, and releases it exactly once', async () => {
+    const root = await freshRoot()
+    const backend = new JsonStorageBackend(root)
+    const unit = await backend.kv.open(descriptor)
+    assertObservable(unit)
+    const reported: ExternalChange[] = []
+    const release = unit.watchExternal(changes => reported.push(...changes))
+    // One observer per unit: the domain layer is the single consumer, and a
+    // second would need its own independent stamp set.
+    expect(() => unit.watchExternal(() => {})).toThrow(/already observed/)
+
+    // The unit's own durable writes are stamped as observed, so observing the
+    // medium for longer than the detector's own debounce still finds nothing
+    // this unit wrote coming back as foreign.
+    await unit.putRecord('t', 'mine', { v: 1 })
+    await unit.setGlobal({ order: ['a'] })
+    await new Promise(resolve => setTimeout(resolve, 300))
+    expect(reported).toEqual([])
+
+    // Releasing twice is harmless, and the second call must not clear a
+    // watcher it no longer owns; a write afterwards is observed by nothing.
+    release()
+    release()
+    await unit.putRecord('t', 'later', { v: 2 })
+    await new Promise(resolve => setTimeout(resolve, 300))
+    expect(reported).toEqual([])
+    await unit.close()
+    await backend.close()
+  })
+
+  it('degrades to no observation when the baseline scan cannot read the medium', async () => {
+    const root = await freshRoot()
+    const backend = new JsonStorageBackend(root)
+    const notifier = { name: 'notifier', version: 1, layout: 'per-record' as const, tables: ['t'], hasGlobal: true }
+    const unit = await backend.kv.open(notifier)
+    assertObservable(unit)
+    // A file where the table directory belongs: the baseline read fails with
+    // ENOTDIR, which is the shape of any medium the detector cannot read at
+    // open. Failing the caller's boot over a detector whose sweep is the floor
+    // would be the wrong trade, so observation degrades to none instead.
+    await mkdir(join(root, 'notifier'), { recursive: true })
+    await writeFile(join(root, 'notifier', 't'), 'not a directory', 'utf8')
+    const reported: ExternalChange[] = []
+    expect(() => unit.watchExternal(changes => reported.push(...changes))).not.toThrow()
+    // The failed observation stops its own watcher and leaves the unit usable.
+    await unit.setGlobal({ order: ['a'] })
+    expect((await unit.loadAll()).global).toEqual({ order: ['a'] })
+    expect(reported).toEqual([])
+    await unit.close()
+    await backend.close()
+  })
+
+  it('observes a rejected in-flight write once, and its close still settles', async () => {
+    const root = await freshRoot()
+    const backend = new JsonStorageBackend(root)
+    const unit = await backend.kv.open(descriptor)
+    // A directory where the record document belongs: the atomic write fails
+    // with EISDIR, the shape of any write the backend rejects. `close()` then
+    // drains that rejected write instead of letting it surface later.
+    await mkdir(join(root, 'recs', 't', 'boom.json'), { recursive: true })
+    const failed = unit.putRecord('t', 'boom', { v: 1 })
+    const closed = unit.close()
+    await expect(failed).rejects.toMatchObject({ code: 'EISDIR' })
+    await expect(closed).resolves.toBeUndefined()
+    await backend.close()
   })
 })

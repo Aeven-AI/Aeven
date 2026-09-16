@@ -441,12 +441,19 @@ export interface SessionWireEvent {
   readonly surfaceOp?: SessionWireSurfaceOp
 }
 
-/** One message-aligned backwards-history request. */
+/** One message-aligned history request, backwards by default. */
 export interface SessionPageRequest {
   readonly address: SessionAddress
   /** Inclusive log cut obtained from the corresponding follow opening frame. */
   readonly throughSeq: number
+  /** Exclusive upper bound; the page ends here and is read backwards. */
   readonly beforeSeq?: number
+  /**
+   * Exclusive lower bound; the page begins after this seq and is read
+   * forwards. Serves a caller holding a window short of the cursor and asking
+   * for what follows it. Mutually exclusive with `beforeSeq`.
+   */
+  readonly afterSeq?: number
   readonly maxMessages?: number
 }
 

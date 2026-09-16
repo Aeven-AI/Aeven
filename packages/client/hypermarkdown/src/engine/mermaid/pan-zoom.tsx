@@ -173,14 +173,11 @@ class PanZoom extends Component<PanZoomProps, PanZoomState> {
       return
     }
 
-    // The page has to keep scrolling under the pointer. A diagram that took
-    // every wheel event would trap the reader each time one passed beneath
-    // the cursor, and a document with a dozen diagrams is mostly diagram.
-    //
-    // Ctrl is what the browser itself zooms on, and a trackpad pinch arrives
-    // as a wheel event with ctrlKey already set — so pinching still zooms the
-    // diagram, and two fingers still scroll the page.
-    if (!event.ctrlKey && ! event.metaKey) {
+    // Zoom is pinch's alone. A trackpad pinch arrives as a wheel event with
+    // ctrlKey already set — the same signal the browser zooms on — so pinching
+    // zooms the diagram while an unmodified wheel keeps scrolling, inline and
+    // fullscreen alike.
+    if (!event.ctrlKey && !event.metaKey) {
       return
     }
 

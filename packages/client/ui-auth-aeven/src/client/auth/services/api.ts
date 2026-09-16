@@ -10,7 +10,7 @@
 
 import { apiUrl } from './config.ts'
 import { AevenApiError } from './errors.ts'
-import { session, storage, type AevenProfile } from './session.ts'
+import { forgetCachedProfile, session, storage, type AevenProfile } from './session.ts'
 import { currentBearer, deleteBearerToken, setBearerToken, type SessionGrant } from './tokens.ts'
 
 export { AevenApiError } from './errors.ts'
@@ -138,6 +138,9 @@ export async function signOut(): Promise<void> {
     await request<unknown>('/logout', { method: 'POST', credentials: 'include', body: '{}' })
   } finally {
     deleteBearerToken(session.userId)
+    // The kept profile is what would restore this reader through an outage, so
+    // a deliberate sign-out has to discard it too.
+    forgetCachedProfile()
     session.reset()
   }
 }

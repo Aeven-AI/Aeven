@@ -5,8 +5,9 @@ import type {} from '@deepseek-ai/dsh-agent-presets'
 import type { ImageAttachmentLimits } from '@deepseek-ai/dsh-attachment'
 import { SessionLogOffset } from '@deepseek-ai/dsh-session'
 import type { Session, SessionEvent, SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
-import type {} from '@deepseek-ai/dsh-session-projection'
+import type { ProjectionSnapshot } from '@deepseek-ai/dsh-session-projection'
 import type {} from '@deepseek-ai/dsh-session-projection-cache'
+import type {} from '@deepseek-ai/dsh-session-persistence'
 import { SessionQueryError, type SessionSearchCursor } from '@deepseek-ai/dsh-session-query'
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import { z } from 'zod'
@@ -32,6 +33,14 @@ interface ColdListEntry {
   header: SessionHeader
   inheritedEventCount?: SessionLogOffset
 }
+
+/**
+ * Cold sessions whose title one listing will refold from its log. The cap
+ * bounds the exceptional path: a home whose cache is wholly unreadable (an
+ * older build facing a newer domain version) repairs a slice of its sessions
+ * per listing and writes each row back, instead of reading every log at once.
+ */
+const COLD_TITLE_REFOLD_LIMIT = 20
 
 const SEARCH_PROVIDER_CALL_LIMIT = 100
 const SESSION_SEARCH_QUERY_MAX_CHARS = 500
@@ -158,19 +167,82 @@ export class ApiSessionList {
       })
     }
     for (const entry of cold) items.push(this.summarizeCold(entry))
+    await this.recoverMissingTitles(items, cold, signal)
     items.sort((left, right) => right.updatedAt - left.updatedAt)
     return items
   }
 
+  /**
+   * Refold the rows whose cache row produced no title, from their durable
+   * logs, and replace them in `items`.
+   *
+   * The cache is a fold shortcut, not the authority: a row that is absent,
+   * identity-mismatched, or stamped with a version this build does not accept
+   * reads as missing, and serving that as a title-less row renders a session
+   * the user already named as "untitled". The durable `session/title` events
+   * still exist in the log, so the value is recoverable and the list recovers
+   * it rather than displaying a name the session does not have.
+   *
+   * This is the exceptional path. A hit costs nothing extra, the work is
+   * bounded by {@link COLD_TITLE_REFOLD_LIMIT} sessions per listing, and each
+   * refold seeds from the cached watermark and writes the row back, so a
+   * recovered session is a cache hit next time. A refold failure leaves the
+   * cache-only summary in place.
+   * @param items - summaries built so far; repaired rows are replaced in place.
+   * @param cold - the cold entries `items` was built from.
+   * @param signal - cancellation for the persistence reads.
+   */
+  private async recoverMissingTitles(
+    items: SessionSummary[],
+    cold: readonly ColdListEntry[],
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const cache = this.ctx.get('sessionProjectionCache')
+    const persistence = this.ctx.get('sessionPersistence')
+    if (cache === undefined || persistence === undefined) return
+    const byId = new Map(cold.map(entry => [entry.header.id, entry]))
+    const missing = items.filter(item =>
+      byId.has(item.sessionId)
+      && !item.blank
+      && item.projections?.values.title === undefined)
+    for (const item of missing.slice(0, COLD_TITLE_REFOLD_LIMIT)) {
+      signal?.throwIfAborted()
+      const entry = byId.get(item.sessionId)
+      /* v8 ignore next -- every `missing` row was selected through `byId`. */
+      if (entry === undefined) continue
+      const inherited = entry.inheritedEventCount ?? SessionLogOffset(0)
+      let snapshot: ProjectionSnapshot
+      try {
+        const suffix = await persistence.readFrom(item.sessionId, SessionLogOffset(0), signal)
+        snapshot = cache.coldSnapshot(entry.header, inherited, suffix.events)
+      } catch (error: unknown) {
+        signal?.throwIfAborted()
+        this.ctx.logger.warn(
+          `api-session.list: title refold for "${item.sessionId}" failed; serving the cached row: ${String(error)}`,
+        )
+        continue
+      }
+      const index = items.indexOf(item)
+      items[index] = {
+        ...item,
+        projections: {
+          asOfSeq: snapshot.asOfSeq,
+          values: snapshot.values as SessionProjectionValues,
+        },
+      }
+    }
+  }
+
   private summarizeCold(entry: ColdListEntry): SessionSummary {
     const { header } = entry
-    // Session-list startup is a cache-only read: a title is served from the
-    // durable projection cache and the list NEVER opens a cold log body. That is
-    // what keeps listing latency independent of log size, and it is why the
-    // cache — not a per-list body read — must be the thing that is complete.
+    // Cache-first: a title is served from the durable projection cache, so a
+    // hit keeps listing latency independent of log size. Only a miss reaches
+    // `recoverMissingTitles`, which refolds that session from its log.
+    //
+    // No live lookup here: `list` scans the live Session registry and builds
+    // these in one synchronous pass, so a Session attached after the listing
+    // read is already served by `summaryFor` and never reaches this summary.
     const projections = this.projectionsFor(entry)
-    const raced = this.ctx.sessions.get(header.id)
-    if (raced !== undefined) return this.summaryFor(raced)
     const metadata = projections?.values.sessionListMetadata
     return {
       sessionId: header.id,

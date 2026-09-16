@@ -35,6 +35,13 @@ body {
   --dsw-aeven-space-message: 32px;
   --dsw-aeven-reading-line-height: 28px;
 
+  /* One loading mark for every wait in the product — inline spinners, the
+     boot preloader, diagram covers, paging rings. Surfaces consume these
+     rather than restating a size, so the mark cannot drift apart again.
+     The colour is the primary label alias: ink in light, inverting in dark. */
+  --dsw-aeven-loading-mark-size: 18px;
+  --dsw-aeven-loading-mark-color: var(--dsw-alias-label-primary);
+
   --dsw-alias-bg-base: rgb(242, 242, 242);
   --dsw-alias-bg-layer-1: rgb(255, 255, 255);
   --dsw-alias-bg-layer-2: rgb(255, 255, 255);

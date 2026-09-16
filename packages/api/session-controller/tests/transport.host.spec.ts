@@ -494,11 +494,21 @@ describe('SessionHistoryController', () => {
       { address, throughSeq: -1, beforeSeq: -1 },
       { address, throughSeq: -1, beforeSeq: -0 },
       { address, throughSeq: -1, beforeSeq: 1.5 },
+      { address, throughSeq: -1, afterSeq: -1 },
+      { address, throughSeq: -1, afterSeq: -0 },
+      { address, throughSeq: -1, afterSeq: 1.5 },
       { address, throughSeq: -1, maxMessages: 0 },
       { address, throughSeq: -1, maxMessages: 1.5 },
     ]) {
       await expect(transport.page(request, signal())).rejects.toMatchObject({ code: 'gateway/bad-request' })
     }
+    await expect(transport.page(
+      { address, throughSeq: -1, afterSeq: 0, beforeSeq: 1 },
+      signal(),
+    )).rejects.toMatchObject({
+      code: 'gateway/bad-request',
+      message: 'afterSeq and beforeSeq select opposite read directions',
+    })
     await expect(transport.page({ address, throughSeq: 0 }, signal()))
       .rejects.toMatchObject({ code: 'gateway/bad-request' })
 

@@ -64,10 +64,11 @@ function providePersistence(ctx: Context, persistence: Record<string, unknown>):
 
 describe('sessions.list cold merge', () => {
   it('serves cold rows from cached projections without reading a body', async () => {
-    // Listing is a cache-only read. The row's blankness and title both come from
-    // the durable projection cache; a cache miss leaves blankness unknown (the
-    // row stays visible) and NEVER triggers a cold log read, so listing latency
-    // is independent of log size.
+    // Listing is a cache-first read: blankness and title come from the durable
+    // projection cache, so a hit costs no body read and listing latency stays
+    // independent of log size. This context mounts no `sessionPersistence`
+    // refold path for the missed row, so the miss stays uncached here; the
+    // title-recovery refold has its own coverage below.
     const ctx = new Context()
     await ctx.plugin(SessionStore)
     const metas: SessionHeader[] = [
@@ -786,6 +787,8 @@ describe('cold titles are never lost (regression: session-<key> in the foldout)'
     seeded: boolean
     inheritedEventCount?: SessionLogOffset
     title: string
+    /** Suffix read backing the listing's title refold, when the test exercises it. */
+    readFrom?: () => Promise<unknown>
   }): Promise<Context> {
     const ctx = new Context()
     const root = await mkdtempAsync(join(tmpdir(), 'dsh-cold-titles-'))
@@ -823,6 +826,7 @@ describe('cold titles are never lost (regression: session-<key> in the foldout)'
           ? {}
           : { inheritedEventCount: options.inheritedEventCount },
       }),
+      ...options.readFrom === undefined ? {} : { readFrom: options.readFrom },
     })
     return ctx
   }
@@ -875,5 +879,54 @@ describe('cold titles are never lost (regression: session-<key> in the foldout)'
     if (!response.ok) throw new Error('unreachable')
     const row = response.value.items.find(item => item.sessionId === sid('titled-cold'))
     expect(row?.projections?.values.title).toBe('Fix the sidebar labels')
+  })
+
+  it('refolds a titled cold Session from its log when the cache row is unreadable', async () => {
+    // The cross-version case: a second harness process wrote this session's
+    // checkpoint under a domain version this build does not accept, so the row
+    // reads as absent. The durable `session/title` event still exists, so the
+    // listing must recover the title instead of rendering the session untitled.
+    // No cache row is ever written for this session, so `cachedSnapshot`
+    // misses exactly as it does for a foreign-version document.
+    const ctx = await titledContext({
+      id: 'unreadable-cache',
+      seeded: false,
+      title: 'Recovered from the log',
+      readFrom: () => Promise.resolve({
+        meta: header('unreadable-cache', 100),
+        fromSeq: SessionLogOffset(0),
+        events: titledEvents('Recovered from the log'),
+      }),
+    })
+    const remote = createSessionTestRemote(ctx, {
+      defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
+      cwd: '/tmp',
+    })
+
+    const response = await remote.list(request({}))
+    if (!response.ok) throw new Error('unreachable')
+    const row = response.value.items.find(item => item.sessionId === sid('unreadable-cache'))
+    expect(row?.projections?.values.title).toBe('Recovered from the log')
+  })
+
+  it('keeps listing when the refold read fails', async () => {
+    // A refold is best-effort: an unreadable log leaves the cache-only row in
+    // place rather than failing the whole listing.
+    const ctx = await titledContext({
+      id: 'broken-log',
+      seeded: false,
+      title: 'Unreachable',
+      readFrom: () => Promise.reject(new Error('log is gone')),
+    })
+    const remote = createSessionTestRemote(ctx, {
+      defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
+      cwd: '/tmp',
+    })
+
+    const response = await remote.list(request({}))
+    expect(response.ok).toBe(true)
+    if (!response.ok) throw new Error('unreachable')
+    const row = response.value.items.find(item => item.sessionId === sid('broken-log'))
+    expect(row?.projections?.values.title).toBeUndefined()
   })
 })

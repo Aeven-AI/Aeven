@@ -148,7 +148,10 @@ export function apply(ctx: Context): void {
             if (!result.ok) throw new Error(`path open failed: ${result.error.message}`)
           },
           loadOlder: () => { void session.loadOlder() },
+          loadNewer: () => { void session.loadNewer() },
+          returnToLive: () => { void session.returnToLive() },
           loadThrough: seq => session.loadThrough(seq),
+          navigateToEvent: (seq, options) => { ctx.uiConversation.navigateToEvent(sessionId, seq, options) },
           completeEventNavigation: (requestId) => {
             ctx.uiConversation.completeEventNavigation(sessionId, requestId)
           },

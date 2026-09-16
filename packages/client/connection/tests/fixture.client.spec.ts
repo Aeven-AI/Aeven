@@ -926,6 +926,46 @@ describe('createFixtureApi', () => {
     expect(types.at(-1)).toBe('turn/end') // steer did not restart the turn
   })
 
+  it('keeps the standing plan across a new turn instead of clearing the dock', async () => {
+    const api = createFixtureApi()
+    const id = sid('fx-alpha')
+    const baseline = await readControlBaseline(api.sessionRemote)
+    const plan = baseline.value.projections['fx-alpha']?.values['todos']
+    expect(Array.isArray(plan)).toBe(true)
+    expect(plan).not.toHaveLength(0)
+    const followAbort = new AbortController()
+    const controlAbort = new AbortController()
+    const following = collectValues(
+      api.sessionRemote.follow(id, followAbort.signal),
+      followAbort,
+      frames => frames.some(frame => frame.type === 'event' && frame.event.type === 'turn/end'),
+    )
+    // Projection frames ride the control channel, not the follow stream.
+    const controlFrames: FixtureControlFrame[] = []
+    const controlling = (async () => {
+      for await (const frame of api.sessionRemote.control(controlAbort.signal)) controlFrames.push(frame)
+    })()
+    await new Promise(resolve => setTimeout(resolve, 10))
+    const prompted = await api.sessions.prompt(req({
+      sessionId: id,
+      mode: 'queue' as const,
+      content: [{ type: 'text' as const, text: '下一轮次' }],
+    }))
+    expect(prompted.result).toMatchObject({ ok: true, value: { accepted: true } })
+    const frames = await following
+    controlAbort.abort()
+    await controlling
+    // The prompt opened a real turn boundary...
+    expect(frames.some(frame => frame.type === 'event' && frame.event.type === 'turn/start')).toBe(true)
+    // ...and that boundary moves nothing: the plan key is never pushed as cleared.
+    expect(controlFrames.some(frame => frame.type === 'projection'
+      && frame.key === 'todos'
+      && frame.value === null)).toBe(false)
+    // A reader re-entering the session still gets the plan the agent works to.
+    const after = await readControlBaseline(api.sessionRemote)
+    expect(after.value.projections['fx-alpha']?.values['todos']).toEqual(plan)
+  })
+
   it('control replays projections while resident Remote Events retain ids across reconnects', async () => {
     const api = createFixtureApi()
     const first = await readControlBaseline(api.sessionRemote)

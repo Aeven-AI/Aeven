@@ -59,6 +59,8 @@ function sessionSnapshot(openState: SessionSnapshot['openState']): SessionSnapsh
     openState,
     openError: null,
     hasMore: false,
+    detached: false,
+    pendingLive: 0,
     loadingOlder: false,
     promptError: null,
     blank: false,

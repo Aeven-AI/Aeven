@@ -50,6 +50,19 @@ export type SessionJournalChange =
     readonly entries: readonly SessionEventLikeEntry[]
     readonly hasMore: boolean
   }
+  | {
+    readonly type: 'anchor'
+    readonly page: SessionJournalPage
+    readonly entries: readonly SessionEventLikeEntry[]
+    readonly hasMore: boolean
+    readonly hasNewer: boolean
+  }
+  | {
+    readonly type: 'extend'
+    readonly page: SessionJournalPage
+    readonly entries: readonly SessionEventLikeEntry[]
+    readonly hasNewer: boolean
+  }
   | { readonly type: 'append'; readonly entry: SessionLiveEventEntry }
 
 function toSessionJournalChange(
@@ -58,6 +71,8 @@ function toSessionJournalChange(
   switch (change.type) {
     case 'replace':
     case 'prepend':
+    case 'anchor':
+    case 'extend':
       return { ...change, entries: historyEntries(change.entries) }
     case 'append': {
       if (change.entry.type !== 'event') {

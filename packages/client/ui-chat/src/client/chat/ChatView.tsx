@@ -6,12 +6,14 @@ import { createPortal } from 'react-dom'
 import type {
   ConversationTimelineSnapshot, RenderMessageImages,
 } from '@deepseek-ai/dsh-client-ui-conversation/client'
-import { Button, Modal, Spinner } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconChevronDownOutline14, Modal, Spinner } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
 import type { ChatSnapshot } from '../contract/snapshot.ts'
 import { PendingSteeringBubble, PendingSubmissionBubble } from './MessageItem.tsx'
 import { ChatNodeSeat } from './ChatNodeSeat.tsx'
 import { formatRunDuration } from './message-chrome.ts'
+import { TurnRail } from './TurnRail.tsx'
+import { turnRailMarks, type TurnRailMark } from './turn-rail-marks.ts'
 import a11yCss from './accessibility.module.css'
 import css from './ChatView.module.css'
 
@@ -52,6 +54,23 @@ function anchorElement(list: HTMLElement, key: string): HTMLElement | null {
 /** Row position in scrollport coordinates (viewport-independent). */
 function flowTop(row: HTMLElement, scrollport: HTMLElement): number {
   return row.getBoundingClientRect().top - scrollport.getBoundingClientRect().top
+}
+
+/**
+ * Earliest rendered row of the Turn that owns `row`. Seats are direct flow
+ * siblings and a Turn's seats are contiguous; hidden and empty seats render no
+ * box and are skipped.
+ * @param row - a rendered seat carrying `data-chat-turn`.
+ * @returns the Turn's first rendered row, and whether no rendered row precedes it in the flow.
+ */
+function turnHead(row: HTMLElement): { readonly row: HTMLElement; readonly first: boolean } {
+  let head = row
+  for (let sibling = row.previousElementSibling; sibling !== null; sibling = sibling.previousElementSibling) {
+    if (!(sibling instanceof HTMLElement) || sibling.hasAttribute('hidden') || sibling.firstChild === null) continue
+    if (sibling.dataset.chatTurn !== row.dataset.chatTurn) return { row: head, first: false }
+    head = sibling
+  }
+  return { row: head, first: true }
 }
 
 /** Select a visible stable node/call identity, falling back only when layout
@@ -213,8 +232,8 @@ const ChatNodeList = memo(function ChatNodeList({ order, ...seatProps }: ChatNod
  */
 export function ChatView({
   useSession, useChat, useChatNode, useChatNodeProcess, useSessions, useStore, actions, renderSlot,
-  sessionId, openFile, loadOlder, loadThrough, completeEventNavigation, loadImage, openView,
-  chatScroll, forkAt, fileMentions, onFullscreenChange, useTranscriptView, useEventNavigation, t,
+  sessionId, openFile, loadOlder, loadNewer, returnToLive, loadThrough, navigateToEvent, completeEventNavigation, loadImage, openView,
+  chatScroll, forkAt, fileMentions, onFullscreenChange, useTranscriptView, useEventNavigation, useProjection, t,
 }: ChatViewSlotProps) {
   const order = useChat(s => s.order)
   const nodeStore = useChat(s => s.nodes)
@@ -226,7 +245,15 @@ export function ChatView({
   const openState = useSession(s => s.openState)
   const openError = useSession(s => s.openError)
   const hasMore = useSession(s => s.hasMore)
+  const detached = useSession(s => s.detached)
+  const pendingLive = useSession(s => s.pendingLive)
   const loadingOlder = useSession(s => s.loadingOlder)
+  // Host-computed whole-log outline: every turn of the session, including the
+  // ones outside the loaded window. The merge below is view-layer only — the
+  // conversation snapshot never carries projection values.
+  const turnOutline = useProjection('turnOutline')
+  const [activeTurn, setActiveTurn] = useState<number | null>(null)
+  const turnNavigationRef = useRef<TurnRailMark | null>(null)
   const selectedCallId = useStore(s => s.selection?.callId)
   const compactTranscript = useTranscriptView(mode => mode === 'compact')
   const eventNavigation = useEventNavigation(request => request)
@@ -296,6 +323,19 @@ export function ChatView({
   const atBottomRef = useRef(chatScroll.read() === null)
   const scrollSamplePendingRef = useRef(false)
   const [, setScrollSampleTick] = useState(0)
+  /**
+   * Back-to-bottom visibility, observed rather than measured: a zero-height
+   * sentinel at the end of the flow is either intersecting the scrollport or
+   * not, which the browser computes off the main thread and reports only when
+   * it changes. The scroll handler therefore stays free of this control
+   * entirely — no `scrollHeight`, no per-frame layout, nothing on the path
+   * that would interfere with the reader's own scrolling.
+   *
+   * Chrome only: follow OWNERSHIP remains `atBottomRef`, which the throttled
+   * sample owns and which distinguishes reader input from a delivered scroll.
+   */
+  const [showToBottom, setShowToBottom] = useState(false)
+  const floorSentinelRef = useRef<HTMLDivElement | null>(null)
   /** Last position delivered or written on the main thread. */
   const observedTopRef = useRef(0)
   /**
@@ -309,10 +349,19 @@ export function ChatView({
   const eventNavigationLoadRef = useRef<{ requestId: number; settled: boolean } | null>(null)
   const completedEventNavigationRef = useRef(0)
   const [highlightedNodeKey, setHighlightedNodeKey] = useState<string | null>(null)
-  /** Latest automatic-paging test; assigned below, called from scroll, commit, and resize paths. */
+  /** Latest automatic-paging test; assigned below, called from scroll, commit, and resize paths.
+   *  Runs both directions: forward paging is live only while the window is detached. */
   const maybeLoadOlderRef = useRef<() => void>(() => {})
+  /** Reader input enables forward paging; a jump alone preserves its history window. */
+  const forwardPagingArmedRef = useRef(false)
   /** Host chrome layer for floating controls; null when this view owns its own scrolling. */
   const [chromeLayer, setChromeLayer] = useState<HTMLElement | null>(null)
+  /**
+   * Seat-level host chrome layer. A control that must paint over the composer
+   * seat and its fade goes here instead of `chromeLayer`, which is bounded by
+   * a stacking context below the seat.
+   */
+  const [seatChromeLayer, setSeatChromeLayer] = useState<HTMLElement | null>(null)
   const firstSeqRef = useRef<number | null>(null)
   const openedRef = useRef(false)
   /** Ordinary activation needs one post-commit tail correction after the resident shell settles. */
@@ -332,16 +381,19 @@ export function ChatView({
   const lastSubmissionId = visibleSubmissions[visibleSubmissions.length - 1]?.requestId ?? null
   const followSig = `${openState}:${firstSeq}:${lastKey}:${order.length}:${running ? 1 : 0}:${lastSteeringId ?? ''}:${lastSubmissionId ?? ''}`
 
-  // Floating controls must not live inside the scrollport: elastic overscroll
-  // translates its contents, carrying a sticky control with the rubber-band.
-  // The host publishes a non-scrolling layer for them; without one (this view
-  // owning its own scrolling) they stay in place.
+  // The host publishes two layers for floating controls; without them (this
+  // view owning its own scrolling) the controls stay in place. Each layer is
+  // found by name from the scrollport outwards rather than at a fixed depth:
+  // the host's box nesting is its own business, and a lookup that counts
+  // `parentElement` hops breaks silently whenever that nesting changes.
   useLayoutEffect(() => {
     const local = listRef.current
     /* v8 ignore next -- ref-null guard: React attaches the ref before layout effects run. */
     if (local === null) return
     const scrollport = scrollerOf(local)
-    setChromeLayer(scrollport.parentElement?.querySelector<HTMLElement>('[data-conversation-chrome]') ?? null)
+    const host = scrollport.closest('[data-conversation-root]') ?? scrollport
+    setChromeLayer(host.querySelector<HTMLElement>('[data-conversation-chrome]'))
+    setSeatChromeLayer(host.querySelector<HTMLElement>('[data-conversation-chrome-top]'))
   }, [])
 
   /**
@@ -357,9 +409,8 @@ export function ChatView({
     const local = listRef.current
     if (local === null) return
     // A pinned reader is followed to the floor instead, so streaming commits
-    // read no layout here; a scroll still being sampled may be leaving the
-    // floor, so it keeps the row.
-    if (atBottomRef.current && !scrollSamplePendingRef.current) {
+    // read no row layout here.
+    if (atBottomRef.current) {
       anchorRef.current = null
       return
     }
@@ -394,19 +445,35 @@ export function ChatView({
     chatScroll.save(null)
   }
 
-  // Land a row at the reading line and republish scroll-derived state.
+  // Land a row at the reading line — or the view at the scroll origin for a
+  // Turn whose earliest row starts the flow — and republish scroll-derived state.
   const landOnRowRef = useRef<
-    (local: HTMLElement, el: HTMLElement, row: HTMLElement) => void
+    (local: HTMLElement, el: HTMLElement, row: HTMLElement, origin: boolean) => void
   >(() => {})
-  landOnRowRef.current = (local, el, row) => {
-    el.scrollTop += flowTop(row, el) - 24
+  landOnRowRef.current = (local, el, row, origin) => {
+    el.scrollTop = origin ? 0 : el.scrollTop + flowTop(row, el) - 24
     observedTopRef.current = el.scrollTop
     anchorRef.current = readingAnchor(local, el)
-    const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_THRESHOLD + 1
+    const isAtBottom = !detached && el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_THRESHOLD + 1
     atBottomRef.current = isAtBottom
     const position = isAtBottom ? null : scrollPosition(local, el)
     if (isAtBottom) chatScroll.save(null)
     else if (position !== null) chatScroll.save(position)
+  }
+
+  /**
+   * Land a Turn destination: its earliest rendered row, so rows placed before
+   * the Turn's anchor (a request's System prompt) stay in view, and the flow's
+   * own first row at the scroll origin once history is complete — the reader
+   * asked for the conversation's start, not for a reading line inside it.
+   *
+   * A latest-ref, so `navigateToTurn`'s identity stays stable for the memoized
+   * rail while this reads the current `hasMore`.
+   */
+  const landOnTurnRef = useRef<(local: HTMLElement, el: HTMLElement, row: HTMLElement) => void>(() => {})
+  landOnTurnRef.current = (local, el, row) => {
+    const head = turnHead(row)
+    landOnRowRef.current(local, el, head.row, head.first && !hasMore)
   }
 
   useLayoutEffect(() => {
@@ -416,8 +483,8 @@ export function ChatView({
     const el = scrollerOf(local)
     // Every commit first holds the reader's row against the layout it changed,
     // including a page that lands while a reader scroll is still being sampled.
+    if (detached) atBottomRef.current = false
     if (openedRef.current) holdAnchorRef.current()
-    if (scrollSamplePendingRef.current) return
     // Open completed: jump to the bottom once — unless a scroll position
     // survives from a previous mount (view-tab switch away and back), which
     // is restored instead of snapping the reader back to the floor.
@@ -432,7 +499,7 @@ export function ChatView({
         const row = anchorElement(local, saved.anchorKey)
         if (row !== null) el.scrollTop += flowTop(row, el) - saved.anchorTop
         observedTopRef.current = el.scrollTop
-        const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_THRESHOLD + 1
+        const isAtBottom = !detached && el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_THRESHOLD + 1
         atBottomRef.current = isAtBottom
         anchorRef.current = readingAnchor(local, el)
         const normalized = isAtBottom ? null : scrollPosition(local, el)
@@ -462,7 +529,8 @@ export function ChatView({
     firstSeqRef.current = firstSeq
     // Own words must be visible: a new trailing user node force-scrolls
     // (send lives in the composer, so arrival is detected here, not armed there).
-    const appendedUser = lastKey !== lastKeyRef.current && lastNode?.kind === 'user'
+    const appendedUser = !detached && !loadingOlder
+      && lastKey !== lastKeyRef.current && lastNode?.kind === 'user'
     const appendedSteering = lastSteeringId !== null && lastSteeringId !== lastSteeringIdRef.current
     const appendedSubmission = lastSubmissionId !== null && lastSubmissionId !== lastSubmissionIdRef.current
     const tipMoved = followSigRef.current !== followSig
@@ -478,35 +546,17 @@ export function ChatView({
     }
   })
 
-  const onScrollRef = useRef(() => {})
-  onScrollRef.current = () => {
+  const saveScrollRef = useRef(() => {})
+  saveScrollRef.current = () => {
     const local = listRef.current
     /* v8 ignore next -- ref-null guard: the handler only fires while mounted. */
     if (local === null) return
     const el = scrollerOf(local)
-    // Only reader input may make raw scroll geometry change follow ownership:
-    // a delivered position that deviates from the observed-top ledger (every
-    // programmatic write records itself there synchronously). This covers
-    // wheel, touch, scrollbar, and keyboard alike without naming devices.
-    // Browser shrink-clamps land exactly on the floor min and delayed
-    // programmatic deliveries land on the ledger itself, so both preserve
-    // the current ownership state.
-    const floor = Math.max(0, el.scrollHeight - el.clientHeight)
-    const movedByReader = Math.abs(el.scrollTop - Math.min(observedTopRef.current, floor)) > 0.5
-    const isAtBottom = movedByReader
-      ? floor - el.scrollTop <= FOLLOW_THRESHOLD + 1
-      : atBottomRef.current
-    if (!movedByReader && isAtBottom) {
-      toBottom(el)
-      return
-    }
-    atBottomRef.current = isAtBottom
-    const position = isAtBottom ? null : scrollPosition(local, el)
+    const position = atBottomRef.current ? null : scrollPosition(local, el)
     // Continuous save (unmount happens after ref detach, so saving there is
     // too late); pinned-to-bottom clears so a remount keeps following.
-    if (isAtBottom) chatScroll.save(null)
+    if (atBottomRef.current) chatScroll.save(null)
     else if (position !== null) chatScroll.save(position)
-    observedTopRef.current = el.scrollTop
   }
 
   // Follow ownership, restoration anchors, and storage are sampled at most
@@ -522,7 +572,7 @@ export function ChatView({
       scrollSamplePendingRef.current = false
       if (sampleTimer !== undefined) window.clearTimeout(sampleTimer)
       sampleTimer = undefined
-      onScrollRef.current()
+      saveScrollRef.current()
       maybeLoadOlderRef.current()
       setScrollSampleTick(tick => tick + 1)
     }
@@ -530,32 +580,71 @@ export function ChatView({
     // `scrollHeight` near the head, which lays out the whole transcript, and a
     // fling cannot outrun OLDER_PREFETCH_SCREENS of runway within one interval.
     const onScroll = (): void => {
+      const floor = Math.max(0, el.scrollHeight - el.clientHeight)
+      const deliveredTop = Math.min(observedTopRef.current, floor)
+      const top = el.scrollTop
+      const movedByReader = Math.abs(top - deliveredTop) > 0.5
+      if (movedByReader) {
+        // Any upward reader movement leaves the live tail immediately. Moving
+        // back down re-arms following only once the reader reaches its margin.
+        atBottomRef.current = !detached && top > deliveredTop
+          && floor - top <= FOLLOW_THRESHOLD + 1
+        if (top > deliveredTop) forwardPagingArmedRef.current = true
+      }
+      observedTopRef.current = top
       scrollSamplePendingRef.current = true
       sampleTimer ??= window.setTimeout(sample, SCROLL_SAMPLE_INTERVAL_MS)
     }
+    const onWheel = (event: WheelEvent): void => {
+      if (event.deltaY <= 0) return
+      if (detached) atBottomRef.current = false
+      forwardPagingArmedRef.current = true
+      maybeLoadOlderRef.current()
+    }
+    el.addEventListener('wheel', onWheel, { passive: true })
     el.addEventListener('scroll', onScroll, { passive: true })
     el.addEventListener('scrollend', sample, { passive: true })
     return () => {
+      el.removeEventListener('wheel', onWheel)
       el.removeEventListener('scroll', onScroll)
       el.removeEventListener('scrollend', sample)
       if (sampleTimer !== undefined) window.clearTimeout(sampleTimer)
       scrollSamplePendingRef.current = false
     }
-  }, [])
+  }, [detached])
 
   // The ref starts null and is assigned every render, so the placeholder
   // initializer a function initial value would need never exists.
   const followRef = useRef<(() => void) | null>(null)
   followRef.current = () => {
-    if (scrollSamplePendingRef.current) return
     const local = listRef.current
-    if (local !== null && atBottomRef.current) {
+    if (local !== null && !detached && atBottomRef.current) {
       const el = scrollerOf(local)
       el.scrollTop = el.scrollHeight
       observedTopRef.current = el.scrollTop
       chatScroll.save(null)
     }
   }
+  const scrollDown = useCallback(() => { followRef.current?.() }, [])
+
+  // Back-to-bottom visibility. `rootMargin` extends the scrollport's floor by
+  // the follow threshold, so the control disappears on exactly the margin that
+  // re-arms following. Browsers without IntersectionObserver keep the control
+  // hidden: the transcript follows its tail there as it always has, and a
+  // missing affordance beats one that never clears.
+  useEffect(() => {
+    const sentinel = floorSentinelRef.current
+    const local = listRef.current
+    if (sentinel === null || local === null || typeof IntersectionObserver === 'undefined') return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry !== undefined) setShowToBottom(!entry.isIntersecting)
+      },
+      { root: scrollerOf(local), rootMargin: `0px 0px ${String(FOLLOW_THRESHOLD)}px 0px` },
+    )
+    observer.observe(sentinel)
+    return () => { observer.disconnect() }
+  }, [])
   // Streaming, tool disclosures, and other flow changes resize the column;
   // the composer resizes beside it. This observer owns ChatView's
   // dynamic-height follow decisions and writes only while the reader is pinned.
@@ -591,12 +680,22 @@ export function ChatView({
     return () => { observer.disconnect() }
   }, [])
 
+  /** The mounting commit's paging test belongs to the opening branch above. */
+  const mountedPagingRef = useRef(false)
   // A committed page is the only success signal paging needs: `order` grows,
   // this effect runs, and the next pull is tested against the new head. A page
   // that leaves `hasMore` set but adds nothing simply stops chaining here,
   // because the reader is no longer within the prefetch margin of a head that
   // did not move — no latch, and no state to reset per Session.
   useEffect(() => {
+    // An attaching view — a first mount, or a tab returning to an open Session
+    // — tests the window it installs once, in the layout effect that installs
+    // it. Testing the same geometry again here would read it twice on the
+    // frame the reader first sees.
+    if (!mountedPagingRef.current) {
+      mountedPagingRef.current = true
+      return
+    }
     if (loadingOlder) return
     maybeLoadOlderRef.current()
   }, [loadingOlder, order])
@@ -611,13 +710,27 @@ export function ChatView({
     const local = listRef.current
     if (local === null) return
     const el = scrollerOf(local)
-    const exactKey = order.find(key => nodeStore.get(key)?.anchorSeq === eventNavigation.seq)
-    const exactRow = exactKey === undefined ? null : anchorElement(local, exactKey)
+    const targetTurn = turnNavigationRef.current?.seq === eventNavigation.seq
+      ? turnNavigationRef.current.turn : null
+    const turnRow = targetTurn === null ? null
+      : local.querySelector<HTMLElement>(`[data-chat-turn="${String(targetTurn)}"]:not([hidden])`)
+    const exactKey = targetTurn === null
+      ? order.find(key => nodeStore.get(key)?.anchorSeq === eventNavigation.seq)
+      : turnRow?.dataset.chatAnchorKey
+    const exactRow = targetTurn === null
+      ? exactKey === undefined ? null : anchorElement(local, exactKey)
+      : turnRow
     if (exactKey !== undefined && exactRow !== null) {
       const turn = Number(exactRow.dataset.chatTurn)
       if (Number.isSafeInteger(turn)) {
-        landOnRowRef.current(local, el, exactRow)
-        setHighlightedNodeKey(exactKey)
+        // A Turn destination lands like the rail's own click: its earliest row,
+        // or the scroll origin for the flow's first Turn. An exact event
+        // destination lands the row it named.
+        if (targetTurn === null) landOnRowRef.current(local, el, exactRow, false)
+        else landOnTurnRef.current(local, el, exactRow)
+        setActiveTurn(turn)
+        turnNavigationRef.current = null
+        setHighlightedNodeKey(eventNavigation.highlight ? exactKey : null)
         completedEventNavigationRef.current = eventNavigation.requestId
         eventNavigationLoadRef.current = null
         completeEventNavigation(eventNavigation.requestId)
@@ -625,9 +738,10 @@ export function ChatView({
       }
     }
 
-    const uncovered = firstSeq === null || firstSeq > eventNavigation.seq
+    if (loadingOlder && eventNavigationLoadRef.current === null) return
+    const uncovered = firstSeq === null || firstSeq > eventNavigation.seq || detached
     const loading = eventNavigationLoadRef.current
-    if (uncovered && hasMore && loading?.requestId !== eventNavigation.requestId) {
+    if (uncovered && (hasMore || detached) && loading?.requestId !== eventNavigation.requestId) {
       atBottomRef.current = false
       const request = { requestId: eventNavigation.requestId, settled: false }
       eventNavigationLoadRef.current = request
@@ -640,8 +754,9 @@ export function ChatView({
     if (loading?.requestId === eventNavigation.requestId && !loading.settled) return
 
     // The indexed event should map one-to-one to a user or assistant row. If
-    // a changed projection omits it, land the closest visible durable row so
-    // navigation still leaves the reader near the indexed match.
+    // a changed projection or a page that never arrived omits it, the reader
+    // lands on the closest durable row the window holds: a mark naming a Turn
+    // the flow cannot show would be a mark for nothing.
     let fallback: { key: string; distance: number } | null = null
     for (const key of order) {
       const seq = nodeStore.get(key)?.anchorSeq
@@ -654,17 +769,162 @@ export function ChatView({
       const row = anchorElement(local, fallback.key)
       const turn = Number(row?.dataset.chatTurn)
       if (row !== null && Number.isSafeInteger(turn)) {
-        landOnRowRef.current(local, el, row)
-        setHighlightedNodeKey(fallback.key)
+        landOnRowRef.current(local, el, row, false)
+        // The mark follows what landed: a projection that dropped the requested
+        // event leaves the reader on the nearest row, and the rail says so
+        // rather than naming a Turn the flow cannot show.
+        setActiveTurn(turn)
+        setHighlightedNodeKey(eventNavigation.highlight ? fallback.key : null)
       }
     }
+    turnNavigationRef.current = null
     completedEventNavigationRef.current = eventNavigation.requestId
     eventNavigationLoadRef.current = null
     completeEventNavigation(eventNavigation.requestId)
   }, [
     completeEventNavigation, eventNavigation, eventNavigationSettleTick, firstSeq,
-    hasMore, loadThrough, nodeStore, openState, order,
+    detached, hasMore, loadingOlder, loadThrough, nodeStore, openState, order,
   ])
+
+  // The rail's marks: the host outline joined with the turns the window holds.
+  // `timeline.turnOrder` is reference-stable and moves only when a turn enters
+  // or leaves, so this recomputes on real membership changes rather than on
+  // every streaming delta.
+  const railMarks = useMemo(
+    () => turnRailMarks(turnOutline, new Set(timeline.turnOrder)),
+    [turnOutline, timeline.turnOrder],
+  )
+
+  // Active mark tracking. An IntersectionObserver over the turn rows reports
+  // crossings off the main thread and costs no layout read; the reading-line
+  // hit test it replaces ran a bisection over every row on every scroll frame,
+  // forcing a full-transcript layout each time.
+  useEffect(() => {
+    const local = listRef.current
+    if (local === null || typeof IntersectionObserver === 'undefined') return
+    const scroller = scrollerOf(local)
+    const visible = new Map<HTMLElement, number>()
+    /**
+     * Highest turn number present in the flow. Read from the rows rather than
+     * the outline because the mark must name a row the reader can see.
+     */
+    let lastTurn: number | null = null
+    /**
+     * Publish the mark, resolving the floor case the reading band cannot serve.
+     *
+     * The band sits near the top of the viewport, so at the end of a transcript
+     * it covers older turns while the tail occupies the bottom: the last turn is
+     * the one turn that can never be inside it, and the newest intersecting turn
+     * is therefore always an earlier one. A reader pinned to the floor is reading
+     * the last turn, so that is the turn marked.
+     * @param bandTurn - the newest turn the band reported, or null when nothing crossed.
+     */
+    const publishMark = (bandTurn: number | null): void => {
+      const next = atBottomRef.current ? lastTurn : bandTurn
+      if (next !== null) setActiveTurn(current => current === next ? current : next)
+    }
+    const noteTurn = (turn: number): void => {
+      if (Number.isSafeInteger(turn) && (lastTurn === null || turn > lastTurn)) lastTurn = turn
+    }
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        const row = entry.target as HTMLElement
+        const turn = Number(row.dataset.chatTurn)
+        if (!Number.isSafeInteger(turn)) continue
+        noteTurn(turn)
+        if (entry.isIntersecting) visible.set(row, turn)
+        else visible.delete(row)
+      }
+      // Several turns can cross the band at once; the newest one owns the mark,
+      // matching a reader travelling down the transcript.
+      let next: number | null = null
+      for (const [row, turn] of visible) {
+        if (!local.contains(row)) {
+          visible.delete(row)
+          observer.unobserve(row)
+          continue
+        }
+        if (next === null || turn > next) next = turn
+      }
+      publishMark(next)
+    }, {
+      root: scroller === local ? null : scroller,
+      // Collapse the scrollport to a band near its top: the reading line.
+      rootMargin: '-10% 0px -85% 0px',
+    })
+    // Seats attach `data-chat-turn` from their own per-node subscriptions, so
+    // rows can appear after this effect first runs. A MutationObserver picks
+    // those up instead of re-running the whole effect per commit; the rows
+    // already standing at mount are noted here, because they are what a
+    // first-paint mark resolves against.
+    const observeRows = (root: ParentNode): void => {
+      for (const row of root.querySelectorAll<HTMLElement>('[data-chat-turn]')) {
+        noteTurn(Number(row.dataset.chatTurn))
+        observer.observe(row)
+      }
+    }
+    observeRows(local)
+    const rows = new MutationObserver((records) => {
+      for (const record of records) {
+        for (const node of record.addedNodes) {
+          if (!(node instanceof HTMLElement)) continue
+          if (node.dataset.chatTurn !== undefined) {
+            noteTurn(Number(node.dataset.chatTurn))
+            observer.observe(node)
+          } else {
+            for (const row of node.querySelectorAll<HTMLElement>('[data-chat-turn]')) {
+              noteTurn(Number(row.dataset.chatTurn))
+            }
+            observeRows(node)
+          }
+        }
+        if (record.type === 'attributes' && record.target instanceof HTMLElement) {
+          noteTurn(Number(record.target.dataset.chatTurn))
+          observer.observe(record.target)
+        }
+      }
+      // A turn that appeared at the floor is the one being read, and the band
+      // reports nothing for it: the mark is resolved here instead.
+      publishMark(null)
+    })
+    rows.observe(local, {
+      childList: true,
+      subtree: true,
+      attributeFilter: ['data-chat-turn'],
+    })
+    // The band stays silent while nothing crosses it, so a reader who reaches the
+    // floor is still inside the crossing they arrived with and nothing would
+    // correct the mark. Resolving on every commit covers that, a turn appended at
+    // the floor, and a transcript's first rows. State is written only on a change.
+    publishMark(null)
+    return () => {
+      rows.disconnect()
+      observer.disconnect()
+    }
+  }, [])
+
+  /** Rail jump: a loaded turn scrolls now, an unloaded one anchors a window first. */
+  const navigateToTurn = useCallback((mark: TurnRailMark): void => {
+    setActiveTurn(mark.turn)
+    // A Turn destination marks no row, and supersedes a search match that was
+    // still lit from an earlier navigation.
+    setHighlightedNodeKey(null)
+    forwardPagingArmedRef.current = false
+    const local = listRef.current
+    if (local === null) return
+    const row = local.querySelector<HTMLElement>(`[data-chat-turn="${String(mark.turn)}"]:not([hidden])`)
+    if (mark.loaded && row !== null) {
+      atBottomRef.current = false
+      landOnTurnRef.current(local, scrollerOf(local), row)
+      return
+    }
+    // Not in the window: the existing event-navigation path pages history to
+    // the seq and lands the row, reporting progress through the head spinner.
+    turnNavigationRef.current = mark
+    atBottomRef.current = false
+    // No highlight: the reader chose a Turn, not a row inside it.
+    navigateToEvent(mark.seq, { highlight: false })
+  }, [navigateToEvent])
 
   /**
    * Automatic history paging: pull the next older page as the reader
@@ -672,9 +932,14 @@ export function ChatView({
    * (a short first page otherwise leaves the reader nothing to pull with).
    * A rail jump or a search navigation runs its own paging loop, so neither
    * shares the pager with this one.
+   *
+   * A window a jump detached also has a foot short of the live tail, so the
+   * same test runs mirrored below it. Only one direction can pull at a time —
+   * both read the one `loadingOlder` busy flag. Reader-driven forward paging
+   * takes priority when the window is short enough to reach both margins.
    */
   maybeLoadOlderRef.current = () => {
-    if (openState !== 'open' || !hasMore || loadingOlder) return
+    if (openState !== 'open' || loadingOlder) return
     if (eventNavigation !== null) return
     if (eventNavigationLoadRef.current !== null) return
     const local = listRef.current
@@ -685,10 +950,13 @@ export function ChatView({
     // fraction of a taller window, and a fast fling then reaches the head
     // before the page it needs has arrived.
     const margin = Math.max(OLDER_PREFETCH_MARGIN, el.clientHeight * OLDER_PREFETCH_SCREENS)
-    // Ordered so a reader far from the head never pays for `scrollHeight`,
-    // which forces layout of the whole transcript.
-    if (el.scrollTop > margin && el.scrollHeight > el.clientHeight) return
-    loadOlder()
+    const scrollable = el.scrollHeight > el.clientHeight
+    if (detached && forwardPagingArmedRef.current
+      && (!scrollable || el.scrollHeight - el.scrollTop - el.clientHeight <= margin)) {
+      loadNewer()
+      return
+    }
+    if (hasMore && !(el.scrollTop > margin && scrollable)) loadOlder()
   }
 
   // ChatView commits inside a resident shell whose sticky composer and cover
@@ -726,7 +994,10 @@ export function ChatView({
         activationTailFrameRef.current = null
       }
     }
-  }, [])
+    // `order` so a window installed after mount — a return-to-live reattach —
+    // takes the same correction an activation does. The latch above is what
+    // limits this to the commits that asked for it.
+  }, [order])
 
   // Paging status floats in the host's non-scrolling chrome layer when one is
   // available, so elastic overscroll cannot move it.
@@ -753,9 +1024,66 @@ export function ChatView({
     )
     : null
 
+  // Portals to the seat-level layer: this control paints over the composer and
+  // the fade above it, which the scrollport-bounded layer cannot reach.
+  //
+  // Mounted unconditionally so the fade has something to transition: a control
+  // that unmounts vanishes in one frame, and there is no CSS state left to
+  // animate out. Visibility is the class below, and the button is inert while
+  // it is faded so the pointer passes through to the transcript underneath.
+  const seatChrome: ReactNode = (
+    <div className={css.toBottomSlot}>
+      <button
+        type="button"
+        className={showToBottom || detached ? `${css.toBottom} ${css.toBottomVisible}` : css.toBottom}
+        aria-label={detached ? t('chat.toLive') : t('chat.toBottom')}
+        data-pending-live={detached && pendingLive > 0 ? pendingLive : undefined}
+        onClick={() => {
+          // A detached window has no live tail to scroll to: its floor is the
+          // jump's page boundary, so writing scrollTop would strand the reader
+          // mid-history. Reattaching is what reaches the newest events, and the
+          // reinstalled window has to be pinned to its floor once it commits —
+          // the same correction an activation takes.
+          if (detached) {
+            atBottomRef.current = true
+            anchorRef.current = null
+            chatScroll.save(null)
+            activationTailPendingRef.current = true
+            returnToLive()
+            return
+          }
+          const local = listRef.current
+          /* v8 ignore next -- ref-null guard: the button only renders alongside the mounted list. */
+          if (local === null) return
+          const el = scrollerOf(local)
+          // Ledger takes the destination, so the animation's frames read as
+          // ours. Computed, not written-and-read-back: writing would land
+          // instantly and leave the animation nothing to travel.
+          const floor = Math.max(0, el.scrollHeight - el.clientHeight)
+          anchorRef.current = null
+          observedTopRef.current = floor
+          atBottomRef.current = true
+          chatScroll.save(null)
+          el.scrollTo({ top: floor, behavior: 'smooth' })
+        }}
+      >
+        <IconChevronDownOutline14 />
+      </button>
+    </div>
+  )
+
   return (
     <div className={css.root}>
       <div ref={listRef} className={css.scroll}>
+        {/* Inside the scroller, before the flow: the rail is sticky and
+            zero-height, so it holds its line while the transcript travels
+            under it and adds nothing to the scrollable range. */}
+        <TurnRail
+          marks={railMarks}
+          activeTurn={activeTurn}
+          onNavigate={navigateToTurn}
+          t={t}
+        />
         <div ref={columnRef} className={css.column} data-chat-flow="">
           {openState === 'error' && openError !== null && (
             <div className={css.openError}>
@@ -778,6 +1106,7 @@ export function ChatView({
             forkAt={forkAt}
             renderMessageImages={renderMessageImages}
             fileMentions={fileMentions}
+            scrollDown={scrollDown}
             onFullscreenChange={onFullscreenChange}
             renderSlot={renderSlot}
             t={t}
@@ -804,9 +1133,15 @@ export function ChatView({
               t={t}
             />
           ))}
+          {/* Floor sentinel: zero-height, last in the flow, so intersecting the
+              scrollport means the tail is on screen. It carries no margin of
+              its own — the observer's rootMargin owns the threshold — and adds
+              nothing to scrollHeight, so no anchoring or paging math moves. */}
+          <div ref={floorSentinelRef} className={css.floorSentinel} aria-hidden />
         </div>
       </div>
       {chromeLayer === null ? floatingChrome : createPortal(floatingChrome, chromeLayer)}
+      {seatChromeLayer === null ? seatChrome : createPortal(seatChrome, seatChromeLayer)}
       {fileOpenError !== null && (
         <FileOpenErrorDialog
           path={fileOpenError.path}

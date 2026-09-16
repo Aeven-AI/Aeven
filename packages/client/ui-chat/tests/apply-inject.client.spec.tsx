@@ -36,6 +36,8 @@ type ChatActions = ChatInstance['actions']
 function sessionFakeFor() {
   return {
     loadOlder: vi.fn<ISession['loadOlder']>(() => Promise.resolve()),
+    loadNewer: vi.fn<ISession['loadNewer']>(() => Promise.resolve()),
+    returnToLive: vi.fn<ISession['returnToLive']>(() => Promise.resolve()),
     loadThrough: vi.fn<ISession['loadThrough']>(() => Promise.resolve()),
     readAttachment: vi.fn<ISession['readAttachment']>(() => Promise.resolve({
       ok: true,
@@ -49,7 +51,7 @@ function sessionFakeFor() {
 async function bench() {
   const runtime = await SlotTestRuntime.create()
   runtime.ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
-  const layout = { openDetails: vi.fn(), closeDetails: vi.fn() }
+  const layout = { setFullscreen: vi.fn(), openDetails: vi.fn(), closeDetails: vi.fn() }
   runtime.ctx.provide('layout', layout as never)
   const openWorkspacePath = vi.fn<ClientRemote['session']['openWorkspacePath']>(
     () => Promise.resolve({ ok: true, value: { opened: true } }),
@@ -94,9 +96,6 @@ describe('Chat inject API', () => {
     injected.loadOlder()
     expect(b.session.loadOlder).toHaveBeenCalledOnce()
 
-    void injected.loadThrough(SessionSeq(42))
-    expect(b.session.loadThrough).toHaveBeenCalledWith(42)
-
     injected.forkAt(17)
     await vi.waitFor(() => {
       expect(b.runtime.sessions.calls).toContainEqual({ method: 'open', args: [ROOT] })
@@ -110,6 +109,78 @@ describe('Chat inject API', () => {
     await vi.waitFor(() => {
       expect(fork).toHaveBeenCalledWith({ sessionId: ROOT, atSeq: 18, increaseTitle: true })
     })
+    await b.runtime.dispose()
+  })
+
+  it('installs one history window for a jump and hands the returned completion on', async () => {
+    const b = await bench()
+    const { injected } = b.chatViewApi(ROOT)
+    let settle: (() => void) | undefined
+    const installed = new Promise<void>((resolve) => { settle = resolve })
+
+    // The window install is the Session's own operation; the Chat face passes
+    // the completion through, which is what the rail waits on before it
+    // acknowledges the request. A fake that resolved eagerly would hide a face
+    // that dropped the promise.
+    b.session.loadThrough.mockReturnValueOnce(installed)
+    const pending = injected.loadThrough(SessionSeq(42))
+    expect(b.session.loadThrough).toHaveBeenCalledWith(42)
+    expect(pending).toBe(installed)
+
+    settle?.()
+    await expect(pending).resolves.toBeUndefined()
+    await b.runtime.dispose()
+  })
+
+  it('forwards a jump request to the Session\'s own event navigation', async () => {
+    const b = await bench()
+    const { injected } = b.chatViewApi(ROOT)
+    const navigate = vi.spyOn(b.runtime.ctx.uiConversation, 'navigateToEvent')
+
+    injected.navigateToEvent(SessionSeq(9), { highlight: false })
+    expect(navigate).toHaveBeenCalledWith(ROOT, 9, { highlight: false })
+    // The rail's jump is addressed to the Session being shown, never to
+    // whichever Session happens to be current.
+    await b.runtime.sessions.add({
+      id: OTHER,
+      summary: { title: 'Other', displayTitle: 'Other', cwd: '/other' },
+      session: sessionFakeFor(),
+    }, { current: false })
+    await b.runtime.sessions.setCurrent(ROOT)
+    expect(b.runtime.sessions.list.getSnapshot().current).toBe(ROOT)
+    b.chatViewApi(OTHER).injected.navigateToEvent(SessionSeq(11))
+    expect(navigate).toHaveBeenLastCalledWith(OTHER, 11, undefined)
+
+    // The acknowledgement follows the same addressing as its request.
+    const complete = vi.spyOn(b.runtime.ctx.uiConversation, 'completeEventNavigation')
+    injected.completeEventNavigation(3)
+    expect(complete).toHaveBeenLastCalledWith(ROOT, 3)
+    await b.runtime.dispose()
+  })
+
+  it('extends the window forward and reattaches the live tail', async () => {
+    const b = await bench()
+    const { injected } = b.chatViewApi(ROOT)
+
+    injected.loadNewer()
+    expect(b.session.loadNewer).toHaveBeenCalledOnce()
+    injected.returnToLive()
+    expect(b.session.returnToLive).toHaveBeenCalledOnce()
+    // Each verb is its own Session operation: neither one stands in for the other.
+    expect(b.session.loadOlder).not.toHaveBeenCalled()
+    expect(b.session.loadThrough).not.toHaveBeenCalled()
+    await b.runtime.dispose()
+  })
+
+  it('yields the shell chrome to a transcript block that takes the viewport', async () => {
+    const b = await bench()
+    const { injected } = b.chatViewApi(ROOT)
+
+    injected.onFullscreenChange(true)
+    expect(b.layout.setFullscreen).toHaveBeenLastCalledWith(true)
+    injected.onFullscreenChange(false)
+    expect(b.layout.setFullscreen).toHaveBeenLastCalledWith(false)
+    expect(b.layout.setFullscreen).toHaveBeenCalledTimes(2)
     await b.runtime.dispose()
   })
 

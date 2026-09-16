@@ -2,12 +2,18 @@
 //
 // A block that closes must keep its element type at that position. Swapping it
 // remounts the block, which silently turns fullscreen back off.
+//
+// An expanded block is lifted onto `document.body` (see portalFullscreen), so
+// the transcript keeps only the spacer that holds its height: the block being
+// looked for is the lifted one, and the query runs against the document.
 import { createRef } from 'react'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import HyperMarkdown, { type HyperMarkdownHandle } from '../../src/index.ts'
+
+const roots: ReturnType<typeof createRoot>[] = []
 
 beforeAll(() => {
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true
@@ -18,11 +24,20 @@ beforeAll(() => {
     (window as any).requestAnimationFrame || ((cb: FrameRequestCallback) => { setTimeout(cb, 0) })
 })
 
+afterEach(() => {
+  // A block left expanded holds a portal on the body, which the next case's
+  // document-wide lookup would otherwise still find.
+  act(() => { roots.forEach((root) => { root.unmount() }) })
+  roots.length = 0
+  document.body.replaceChildren()
+})
+
 function mount(ui: React.ReactElement) {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const root = createRoot(host)
   act(() => { root.render(ui) })
+  roots.push(root)
   return { host, root }
 }
 
@@ -45,8 +60,13 @@ describe('fullscreen survives a block closing', () => {
     act(() => { for (let i = 0; i < close.length; i += 5) ref.current!.write(close.slice(i, i + 5)) })
     act(() => { ref.current!.write('', true) })
 
-    const after = host.querySelector('.codeblock-wrapper')!
-    expect(after.className).toContain('fullscreen')
+    // The element at the block's position is the height-holding spacer, and the
+    // block itself is still expanded: a remount at the close would have dropped
+    // the expansion and left nothing lifted.
+    expect(host.querySelector('.codeblock-wrapper')?.getAttribute('aria-hidden')).toBe('true')
+    const after = document.querySelector('.codeblock-wrapper.fullscreen')
+    expect(after).not.toBeNull()
+    expect(after?.textContent).toContain('const b = 2')
   })
 
   it('renames the fullscreen button once the block is expanded', () => {
@@ -60,15 +80,18 @@ describe('fullscreen survives a block closing', () => {
 
     act(() => { button.click() })
 
-    // The same button, now offering the way back out.
-    const expanded = host.querySelector('.table-icon-button.last') as HTMLElement
+    // The same button, now offering the way back out, moves onto the body with
+    // the block it expanded.
+    const expanded = document.querySelector('.table-icon-button.last') as HTMLElement
     expect(expanded.getAttribute('aria-label')).toBe('Exit full screen')
 
     act(() => { expanded.click() })
 
+    // Leaving fullscreen puts the block back in the transcript.
     expect(
       host.querySelector('.table-icon-button.last')!.getAttribute('aria-label'),
     ).toBe('Full screen')
+    expect(document.querySelector('.table-wrapper.fullscreen')).toBeNull()
   })
 
   it('table closed by finalize', () => {
@@ -83,8 +106,9 @@ describe('fullscreen survives a block closing', () => {
     act(() => { btn.click() })
 
     act(() => { ref.current!.write('', true) })
-    const after = host.querySelector('.table-wrapper')!
-    expect(after.className).toContain('fullscreen')
+    const after = document.querySelector('.table-wrapper.fullscreen')
+    expect(after).not.toBeNull()
+    expect(after?.textContent).toContain('3')
   })
 
   it('code block closed by finalize', () => {
@@ -98,8 +122,9 @@ describe('fullscreen survives a block closing', () => {
     const btn = wrapper!.querySelector('.codeblock-icon-button.last') as HTMLElement
     act(() => { btn.click() })
     act(() => { ref.current!.write('', true) })
-    const after = host.querySelector('.codeblock-wrapper')!
-    expect(after.className).toContain('fullscreen')
+    const after = document.querySelector('.codeblock-wrapper.fullscreen')
+    expect(after).not.toBeNull()
+    expect(after?.textContent).toContain('const a = 1')
   })
 
   it('table', () => {
@@ -119,7 +144,8 @@ describe('fullscreen survives a block closing', () => {
     act(() => { for (let i = 0; i < close.length; i += 5) ref.current!.write(close.slice(i, i + 5)) })
     act(() => { ref.current!.write('', true) })
 
-    const after = host.querySelector('.table-wrapper')!
-    expect(after.className).toContain('fullscreen')
+    const after = document.querySelector('.table-wrapper.fullscreen')
+    expect(after).not.toBeNull()
+    expect(after?.textContent).toContain('3')
   })
 })

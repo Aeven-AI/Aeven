@@ -104,6 +104,10 @@ ctx.workspaceRegistry.list() // shows the project, newest first
 
 注册表打开 `workspace` 领域（版本 2）：一张以 `WorkspaceId` 为键的 `workspaces` 表，加上一个持有 `workspaceIds`（权威显示顺序）、`archivedSessionIds` 与可选 `pendingMutation` 标记的全局状态。在 `archivedSessionIds` 存在之前写入的记录会通过 schema 默认值解析为空集合。
 
+该领域使用 `per-record` 布局，因此一次写入只重写它改动的那条记录。在此前的整单元布局下，每次写入都会重新发布写入进程的整个内存快照，因此共用一个 home 的两个 harness 进程会互相覆盖对方的 workspace 与归档集合。已存在的 `workspace.json` 会在首次打开时初始化 `per-record` 目录树（含全局值），并原样留在原处。
+
+共用一个 home 的两个进程会收敛：各自通过领域层的[跨进程一致性](../../../.agents/notes/implemented/architecture/2026-09-16-cross-process-domain-coherence.zh.md)观察到对方的记录与全局写入。收敛是最终一致的，而非事务性的，因此对显示顺序或归档集合——两者都存放在单一的 `global.json` 中——的同时编辑，仍按最后写入者胜出裁决。
+
 ### 生命周期
 
 启动时，注册表打开领域、若存在标记则补全被标记的变更、校验已存状态——重复路径、重复会话账本与顺序漂移都会明确报错——并在尚未初始化时先凭持久化头部引导历史、最后写入已初始化标记，因此被中断的引导可以安全恢复。全新空注册表一旦初始化即为真，绝不会再次引导。

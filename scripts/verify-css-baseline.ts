@@ -135,13 +135,23 @@ export function findBaselineViolations(path: string, rawSource: string): Baselin
       found.push({
         id: feature.id,
         path,
-        line: source.slice(0, match.index).split('\n').length,
+        line: lineAt(source, match.index),
         since: feature.since,
         remedy: feature.remedy,
       })
     }
   }
   return found.sort((left, right) => left.line - right.line)
+}
+
+/**
+ * The 1-based line holding one source offset.
+ * @param source - stylesheet text.
+ * @param index - offset into `source`.
+ * @returns the line number a diagnostic names.
+ */
+function lineAt(source: string, index: number): number {
+  return source.slice(0, index).split('\n').length
 }
 
 
@@ -170,21 +180,32 @@ const BREAKPOINT_SCALE: readonly number[] = [1284, 1024, 768, 640, 480]
 
 /**
  * Flag a `@media` width outside the responsive scale.
+ *
+ * The scale is the VIEWPORT scale, so only a `@media` condition states it. A
+ * `@container` query measures the element's own box — a different axis, whose
+ * condition the `container-query` entry rejects outright — so a width inside
+ * its prelude is not a breakpoint and the scale has nothing to say about it.
  * @param path - repository-relative stylesheet path, used in diagnostics.
  * @param source - stylesheet text.
  * @returns every off-scale breakpoint.
  */
 function findOffScaleBreakpoints(path: string, source: string): BaselineViolation[] {
   const found: BaselineViolation[] = []
+  const mediaPreludes = [...source.matchAll(/@media\b[^{]*/g)]
+    .map((match): readonly [number, number] => [match.index, match.index + match[0].length])
   const pattern = /\((?:max|min)-width:\s*(\d+)px\)/g
   let match: RegExpExecArray | null
   while ((match = pattern.exec(source)) !== null) {
+    // The assignment in the condition narrows `match` only for the iteration
+    // itself; a fresh binding is what carries that narrowing into the closure.
+    const at = match.index
     const width = Number(match[1])
+    if (!mediaPreludes.some(([start, end]) => at >= start && at < end)) continue
     if (BREAKPOINT_SCALE.includes(width)) continue
     found.push({
       id: 'breakpoint-off-scale',
       path,
-      line: source.slice(0, match.index).split('\n').length,
+      line: lineAt(source, at),
       since: 'n/a',
       remedy: `use one of the ${BREAKPOINT_SCALE.join(' / ')} steps named in aeven-language.css`,
     })
@@ -192,35 +213,99 @@ function findOffScaleBreakpoints(path: string, source: string): BaselineViolatio
   return found
 }
 
+/** A dynamic viewport unit inside a declared value. */
+const DYNAMIC_VIEWPORT_UNIT = /\b\d*\.?\d+(?:dvh|svh|lvh)\b/
+
+/** A static `vh` length — the value the floor can parse. */
+const STATIC_VIEWPORT_UNIT = /\b\d*\.?\d+vh\b/
+
+/** One declaration, with the block that holds it. */
+interface Declaration {
+  /** Property name as written; CSS properties are case-insensitive. */
+  readonly property: string
+  /** Declared value text. */
+  readonly value: string
+  /** Offset where the value starts, for reporting the line that carries it. */
+  readonly valueIndex: number
+  /** Offset of the `{` opening the enclosing block, or `-1` at the top level. */
+  readonly blockIndex: number
+}
+
 /**
- * Flag a dynamic viewport unit that no static `vh` declaration precedes.
+ * Read every declaration in a stylesheet, each with its enclosing block.
  *
- * `dvh` is the supported spelling once it is the SECOND of a pair: the floor
- * keeps the `vh` value it can parse and later releases override it. A lone
- * `dvh` leaves the floor with no height at all, so only that form is a
- * violation.
+ * Whether a dynamic unit has a fallback is a question about ONE declaration
+ * block — a fallback in a sibling rule or another at-rule never reaches it — so
+ * the answer needs the declarations and their block, not the text lines they
+ * happen to be printed on.
+ * @param source - stylesheet text, without comments.
+ * @returns every declaration, in source order.
+ */
+function declarationsIn(source: string): Declaration[] {
+  const declarations: Declaration[] = []
+  const blocks: number[] = []
+  const token = /(?<brace>[{};])|(?<property>[A-Za-z-]+)\s*:\s*(?<value>[^;{}]*)/g
+  let end = 0
+  let match: RegExpExecArray | null
+  while ((match = token.exec(source)) !== null) {
+    const brace = match.groups?.brace
+    if (brace !== undefined) {
+      if (brace === '{') blocks.push(match.index)
+      else if (brace === '}') blocks.pop()
+      end = match.index + 1
+      continue
+    }
+    const property = match.groups?.property
+    const value = match.groups?.value
+    if (property === undefined || value === undefined) continue
+    // A declaration begins where the last `{`, `}`, or `;` left off, so only
+    // whitespace may precede the property. Without that guard a pseudo-class
+    // (`a:hover`) reads as a declaration named `a`.
+    if (source.slice(end, match.index).trim() !== '') continue
+    declarations.push({
+      property,
+      value,
+      valueIndex: match.index + match[0].indexOf(':') + 1,
+      blockIndex: blocks[blocks.length - 1] ?? -1,
+    })
+    end = match.index + match[0].length
+  }
+  return declarations
+}
+
+/**
+ * Flag a dynamic viewport unit no static `vh` declaration precedes.
+ *
+ * `dvh` is the supported spelling once it is the SECOND declaration of a pair:
+ * the floor drops the declaration it cannot parse and keeps the `vh` value
+ * stated before it. Only that form is a violation, so the fallback is looked up
+ * among the earlier declarations of the SAME property in the SAME block — a
+ * `vh` fallback written for another property, in another rule, or in the same
+ * declaration as the unit itself leaves the floor with no height at all.
  * @param path - repository-relative stylesheet path, used in diagnostics.
  * @param source - stylesheet text.
  * @returns every unpaired dynamic-viewport declaration.
  */
 function findUnpairedDynamicViewportUnits(path: string, source: string): BaselineViolation[] {
-  const lines = source.split('\n')
   const found: BaselineViolation[] = []
-  for (const [index, line] of lines.entries()) {
-    if (!/\b\d*\.?\d+(?:dvh|svh|lvh)\b/.test(line)) continue
-    const property = line.match(/^\s*([a-z-]+)\s*:/)?.[1]
-    const previous = lines[index - 1] ?? ''
-    const paired = property !== undefined
-      && new RegExp(`^\\s*${property}\\s*:`).test(previous)
-      && /\b\d*\.?\d+vh\b/.test(previous)
-    if (paired) continue
-    found.push({
-      id: 'viewport-unit-dvh',
-      path,
-      line: index + 1,
-      since: 'Safari 15.4',
-      remedy: 'declare the same property in vh on the line above, so the floor keeps a usable height',
-    })
+  const fallbacks = new Map<number, Set<string>>()
+  for (const declaration of declarationsIn(source)) {
+    const property = declaration.property.toLowerCase()
+    const stated = fallbacks.get(declaration.blockIndex) ?? new Set<string>()
+    fallbacks.set(declaration.blockIndex, stated)
+    const dynamic = DYNAMIC_VIEWPORT_UNIT.exec(declaration.value)
+    // A value holding both spellings is one declaration, so the floor drops it
+    // whole: the fallback has to be a declaration of its own, stated first.
+    if (dynamic !== null && !stated.has(property)) {
+      found.push({
+        id: 'viewport-unit-dvh',
+        path,
+        line: lineAt(source, declaration.valueIndex + dynamic.index),
+        since: 'Safari 15.4',
+        remedy: 'state the same property in vh before it, so the floor keeps a usable height',
+      })
+    }
+    if (STATIC_VIEWPORT_UNIT.test(declaration.value)) stated.add(property)
   }
   return found
 }

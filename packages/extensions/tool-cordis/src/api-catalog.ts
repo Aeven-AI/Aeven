@@ -4038,7 +4038,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'DomainImpl',
-    declaration: 'export class DomainImpl {\n    readonly name: string;\n    constructor(private readonly ctx: Context, spec: DomainSpec, private readonly unit: KvUnit, records: Map<string, Map<string, unknown>>, globalValue: unknown, private readonly onClosed: () => void);\n    get global(): DomainGlobal<unknown>;\n    table(name: string): KvTable<string, unknown>;\n    close(): Promise<void>;\n}',
+    declaration: 'export class DomainImpl {\n    readonly name: string;\n    constructor(private readonly ctx: Context, private readonly spec: DomainSpec, private readonly unit: KvUnit, records: Map<string, Map<string, unknown>>, globalValue: unknown, private readonly onClosed: () => void);\n    observeExternal(): void;\n    applyExternal(changed: readonly ExternalChange[]): Promise<void>;\n    get global(): DomainGlobal<unknown>;\n    table(name: string): KvTable<string, unknown>;\n    close(): Promise<void>;\n}',
   },
   {
     name: 'DomainSpec',
@@ -4083,6 +4083,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'EpochHeader',
     declaration: 'export interface EpochHeader {\n    config: LlmCallConfig;\n    adapterDefaults?: LlmCallConfigAdapterDefaults;\n    system?: string;\n    tools?: ToolSchema[];\n}',
+  },
+  {
+    name: 'ExternalChange',
+    declaration: 'export interface ExternalChange {\n    readonly table: string;\n    readonly key: string;\n}',
   },
   {
     name: 'FiberState',
@@ -4370,7 +4374,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'KvUnit',
-    declaration: 'export interface KvUnit {\n    loadAll(): Promise<{\n        tables: Record<string, Record<string, unknown>>;\n        global: unknown;\n    }>;\n    putRecord(table: string, key: string, value: unknown): Promise<void>;\n    deleteRecord(table: string, key: string): Promise<void>;\n    backupRecord?(table: string, key: string): Promise<string>;\n    setGlobal(value: unknown): Promise<void>;\n    close(): Promise<void>;\n}',
+    declaration: 'export interface KvUnit {\n    loadAll(): Promise<{\n        tables: Record<string, Record<string, unknown>>;\n        global: unknown;\n    }>;\n    putRecord(table: string, key: string, value: unknown): Promise<void>;\n    deleteRecord(table: string, key: string): Promise<void>;\n    backupRecord?(table: string, key: string): Promise<string>;\n    watchExternal?(onExternal: (changed: readonly ExternalChange[]) => void): () => void;\n    setGlobal(value: unknown): Promise<void>;\n    close(): Promise<void>;\n}',
   },
   {
     name: 'KvUnitDescriptor',
@@ -5150,7 +5154,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionPageRequest',
-    declaration: 'export interface SessionPageRequest {\n    readonly address: SessionAddress;\n    readonly throughSeq: number;\n    readonly beforeSeq?: number;\n    readonly maxMessages?: number;\n}',
+    declaration: 'export interface SessionPageRequest {\n    readonly address: SessionAddress;\n    readonly throughSeq: number;\n    readonly beforeSeq?: number;\n    readonly afterSeq?: number;\n    readonly maxMessages?: number;\n}',
   },
   {
     name: 'SessionPersistenceRevision',

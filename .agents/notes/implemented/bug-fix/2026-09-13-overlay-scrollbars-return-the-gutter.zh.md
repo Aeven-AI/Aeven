@@ -12,7 +12,7 @@ Web 客户端里每个滚动盒子都把自己的 8px 宽度让给了滚动条�
 
 ## 决策
 
-`packages/client/ui-theme/src/styles/scrollbar.css` 在 `body, body *` 上无条件声明 `scrollbar-width: thin` 与 `scrollbar-color: var(--dsh-scrollbar-thumb) transparent`，凡是实现这两个属性的引擎都走这条路径。只有这两个属性能够要到一条不占槽位的滚动条：在运行中的应用里于 chromium 151 上实测，把一个滚动容器从先声明伪元素宽度改为只声明这两个属性，`offsetWidth - clientWidth` 从 8 变为 0，而带主题的滑块仍画在内容的内联边缘（从截图中读出为滚动视口右缘一条 11 × 40 设备像素的色带，布局宽度为 0），`scrollbar-gutter: stable` 也没有为取而代之的覆盖式滚动条预留任何东西。取 `thin` 而不是初始值 `auto`，是因为它让滚动条接近伪元素路径画出的 8px；而对仍在预留槽位的引擎来说，它是两种预留中更窄的那一种。
+`packages/client/ui-theme/src/styles/scrollbar.css` 在 `body *` 上无条件声明 `scrollbar-width: thin`，凡是实现该属性的引擎都走这条路径。这组属性的另一半已经移除：客户端样式表统一遵守的 iOS/Safari 14.5 下限（[基线决策](../process/2026-09-16-css-baseline-pairs-and-breakpoint-scope.zh.md)）无法解析 Safari 18.2 才引入的 `scrollbar-color`，因此样式表一条也不声明，`::-webkit-scrollbar-thumb` 皮肤就成了 WebKit 上唯一的主题化路径。选择器写作 `body *` 而不是 `body, body *`，是因为根元素不绘制滚动条、而 `scrollbar-width` 也不继承：写在 `body` 上的声明没有任何元素会读取，`body *` 才匹配客户端里每一个滚动元素。只有该属性能够要到一条不占槽位的滚动条：在运行中的应用里于 chromium 151 上实测，把一个滚动容器从先声明伪元素宽度改为只声明 `scrollbar-width: thin`（当时本表还声明了 `scrollbar-color`），`offsetWidth - clientWidth` 从 8 变为 0，而带主题的滑块仍画在内容的内联边缘（从截图中读出为滚动视口右缘一条 11 × 40 设备像素的色带，布局宽度为 0），`scrollbar-gutter: stable` 也没有为取而代之的覆盖式滚动条预留任何东西。取 `thin` 而不是初始值 `auto`，是因为它让滚动条接近伪元素路径画出的 8px；而对仍在预留槽位的引擎来说，它是两种预留中更窄的那一种。
 
 伪元素皮肤并没有被删除，只是移进了 `@supports not (scrollbar-width: thin)`，而该条件恰好对无法遵循标准属性的引擎为真（caniuse 记录的首个支持版本是 chromium 121 与 Safari 26.2，26.0 与 26.1 为部分支持）。这样一来，这些规则的作用范围由这条 at-rule 明说，而不是听凭上文那种静音机制：不加门禁的那份副本会被每一个能解析该属性的引擎丢弃——门禁恰恰是在把这些引擎隔开——在评审时读起来就是死 CSS。两种说法本就一致，因为静音机制所依据的取值，与门禁所检测的是同一组非 `auto` 取值，正因如此一道门禁就够了。
 

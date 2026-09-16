@@ -280,11 +280,27 @@ describe('Conversation inject API', () => {
       { name: 'conversation.view', id: 'trajectory', order: 5, label: 'Trajectory' },
       (() => null) as never,
     )
+    // Every entry carries the composer placement the shell resolved for that
+    // View: a registration with no Conversation definition of its own keeps the
+    // docked composer under the transcript.
     await vi.waitFor(() => {
-      expect(source.getSnapshot()).toEqual([{ id: 'trajectory', label: 'Trajectory' }])
+      expect(source.getSnapshot()).toEqual([
+        { id: 'trajectory', label: 'Trajectory', composerPlacement: 'docked' },
+      ])
     })
     expect(listener).toHaveBeenCalledOnce()
     expect(source.getSnapshot()).not.toBe(before)
+
+    // A View whose Conversation definition elects the overlay owns the column's
+    // full height instead, and the ledger follows the definition.
+    const removeDefinition = b.runtime.ctx.uiConversation.views.register({
+      target: 'trajectory',
+      composerPlacement: 'overlay',
+      create: () => ({ empty: null, replace: () => null, apply: () => null }),
+    })
+    await vi.waitFor(() => {
+      expect(source.getSnapshot().map(view => view.composerPlacement)).toEqual(['overlay'])
+    })
 
     const removeBare = b.slots.register(
       { name: 'conversation.view', id: 'bare', order: 6 },
@@ -295,6 +311,7 @@ describe('Conversation inject API', () => {
     })
     removeNamed()
     removeBare()
+    removeDefinition()
     unsubscribe()
     await b.runtime.dispose()
   })

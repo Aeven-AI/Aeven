@@ -123,6 +123,29 @@ export interface KvUnit {
   backupRecord?(table: string, key: string): Promise<string>
 
   /**
+   * Observe writes another process made to this unit's medium, so a domain
+   * opened here converges on them instead of serving its open-time snapshot
+   * indefinitely.
+   *
+   * The unit reports *where* the medium changed and never what the new value
+   * is: `onExternal` receives the locations whose stored bytes differ from
+   * what this unit last observed, and the caller re-reads them through
+   * {@link loadAll} or {@link readRecords}. A location may be reported when
+   * nothing meaningful changed (the caller diffs), but a location whose bytes
+   * changed must eventually be reported — detection may lag, never drop.
+   * Writes this unit performed are not reported.
+   *
+   * Backends whose medium cannot be shared between processes, or that cannot
+   * detect foreign writes, omit this member; the domain then keeps its
+   * open-time snapshot, which is the behavior every caller had before this
+   * member existed. Implementations must tolerate `onExternal` throwing.
+   * @param onExternal - Receives changed locations; `table: ''` and `key: ''`
+   * name the global singleton, matching `DomainChanged`.
+   * @returns a disposer that stops observation; {@link close} also stops it.
+   */
+  watchExternal?(onExternal: (changed: readonly ExternalChange[]) => void): () => void
+
+  /**
    * Write the global singleton durably. Only valid when the descriptor
    * declared `hasGlobal`.
    * @param value - Opaque JSON-serializable value.
@@ -135,4 +158,16 @@ export interface KvUnit {
    * @returns resolution after the unit is released.
    */
   close(): Promise<void>
+}
+
+/**
+ * One location whose stored bytes changed under a unit, reported by
+ * {@link KvUnit.watchExternal}. It names the slot, never the value: the
+ * medium is authoritative and the caller re-reads it.
+ */
+export interface ExternalChange {
+  /** Declared table name; `''` names the global singleton. */
+  readonly table: string
+  /** Record key; `''` names the global singleton. */
+  readonly key: string
 }

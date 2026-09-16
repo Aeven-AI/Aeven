@@ -80,10 +80,22 @@ export const messageFeedbackRowSchema = z.object({
 /** Durable sidecar row inferred from {@link messageFeedbackRowSchema}. */
 export type MessageFeedbackRow = z.infer<typeof messageFeedbackRowSchema>
 
-/** One lifecycle-bound sidecar record per Session id. */
+/**
+ * One lifecycle-bound sidecar record per Session id.
+ *
+ * The `per-record` layout scopes each write to the session it changes, and it
+ * is what lets the JSON backend report another process's writes, so two
+ * harness instances sharing one home converge instead of overwriting each
+ * other's feedback
+ * (.agents/notes/implemented/architecture/2026-09-16-cross-process-domain-coherence.md).
+ * Session ids are path-safe, which the layout requires of every key. An
+ * existing `message_feedback.json` migrates on first open through the JSON
+ * backend's legacy bootstrap and is left in place unchanged.
+ */
 export const messageFeedbackDomainSpec = defineDomain({
   name: 'message_feedback',
   version: 0,
+  layout: 'per-record',
   tables: {
     sessions: domainTable<SessionId, MessageFeedbackRow>(messageFeedbackRowSchema),
   },

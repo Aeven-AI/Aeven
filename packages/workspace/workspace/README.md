@@ -104,6 +104,10 @@ The API is one small family with two owners: `WorkspaceRegistry` creates, orders
 
 The registry opens the `workspace` domain (version 2): a `workspaces` table keyed by `WorkspaceId` plus one global state holding `workspaceIds` (the authoritative display order), `archivedSessionIds`, and the optional `pendingMutation` marker. Records written before `archivedSessionIds` existed parse with an empty set through the schema default.
 
+The domain uses the `per-record` layout, so a write rewrites only the record it changes. Under the previous whole-unit layout every write republished the writing process's entire in-memory snapshot, so two harness processes sharing one home overwrote each other's workspaces and archive set. An existing `workspace.json` initializes the per-record tree on first open, global included, and is left in place unchanged.
+
+Two processes sharing one home converge: each observes the other's record and global writes through the domain layer's [cross-process coherence](../../../.agents/notes/implemented/architecture/2026-09-16-cross-process-domain-coherence.md). Convergence is eventual rather than transactional, so simultaneous edits to the order or archive set — both of which live in the single `global.json` — still resolve last-writer-wins.
+
 ### Lifecycle
 
 On start, the registry opens the domain, completes a marked mutation if one is pending, validates stored state — duplicate paths, duplicate session accounts, and order drift all fail loud — and, when not yet initialized, bootstraps history from persisted headers before writing the initialized marker last, so an interrupted bootstrap resumes safely. A fresh empty registry is real once initialized; it never re-bootstraps.

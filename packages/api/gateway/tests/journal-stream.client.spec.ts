@@ -24,6 +24,13 @@ interface Page {
 interface PageRequest {
   readonly before?: number
   readonly limit?: number
+  /**
+   * The two-sided window's direction: `anchor` walks back from `beforeSeq` and
+   * `appendPage` walks forward from `afterSeq`, so a request carries whichever
+   * one the caller is asking for.
+   */
+  readonly beforeSeq?: number
+  readonly afterSeq?: number
 }
 
 type JournalFrame = RemoteJournalFrame<Entry, number, Page>
@@ -81,6 +88,7 @@ class FixtureJournal extends RemoteJournalStream<Page, Entry, number, PageReques
     changes: RemoteJournalChange<Page, Entry>[],
     failed: (error: unknown) => void,
     factory: RemoteStreamFactory = STREAM_FACTORY,
+    carrierFailed?: (error: RemoteStreamCarrierError) => void,
   ) {
     super(factory, {
       name: 'fixture journal',
@@ -93,6 +101,7 @@ class FixtureJournal extends RemoteJournalStream<Page, Entry, number, PageReques
       follows: (left, right) => right === left + 1,
       publish: (change) => { changes.push(change) },
       failed,
+      ...(carrierFailed === undefined ? {} : { carrierFailed }),
     })
   }
 
@@ -142,6 +151,7 @@ function journalFixture(
   generations: Generation[],
   pages: PageSource[],
   factory: RemoteStreamFactory = STREAM_FACTORY,
+  carrierFailed?: (error: RemoteStreamCarrierError) => void,
 ): {
   readonly journal: RemoteJournalStream<Page, Entry, number, PageRequest>
   readonly changes: RemoteJournalChange<Page, Entry>[]
@@ -167,6 +177,7 @@ function journalFixture(
     changes,
     failed,
     factory,
+    carrierFailed,
   )
   return { journal, changes, failed, calls, pageRequests, pageCursors, followRequests }
 }
@@ -204,6 +215,30 @@ function controlledFactory(
 }
 
 describe('RemoteJournalStream', () => {
+  it('reports a retryable carrier loss before reconnecting the journal', async () => {
+    const lost = new RemoteStreamCarrierError('carrier lost')
+    const carrierFailed = vi.fn<(error: RemoteStreamCarrierError) => void>()
+    const fixture = journalFixture(
+      [
+        { frames: [opened(0, page('initial', [0]))], terminal: lost },
+        { frames: [opened(0, page('reconnected', [0]))], hold: true },
+      ],
+      [],
+      STREAM_FACTORY,
+      carrierFailed,
+    )
+
+    await fixture.journal.open({})
+    await vi.waitFor(() => { expect(carrierFailed).toHaveBeenCalledOnce() })
+    expect(carrierFailed).toHaveBeenCalledWith(lost)
+
+    // The loss is retryable: the replacement generation republishes the window.
+    await vi.waitFor(() => { expect(fixture.changes).toHaveLength(2) })
+    expect(fixture.changes.at(-1)).toMatchObject({ page: { marker: 'reconnected' } })
+    expect(fixture.failed).not.toHaveBeenCalled()
+    await fixture.journal.dispose()
+  })
+
   it('replaces from pages whose entries cover contiguous cursor ranges', async () => {
     const snapshot = rangedPage(
       'ranged',
@@ -361,6 +396,110 @@ describe('RemoteJournalStream', () => {
       type: 'prepend', page: overlap, entries: [], hasMore: false,
     })
     await overlapping.journal.dispose()
+  })
+
+  it('anchors a detached window and extends it forward until it reaches the live tail', async () => {
+    const anchored = page('anchored', [2, 3, 4], true)
+    const extension = page('extension', [5, 6, 7, 8])
+    const tail = page('tail-page', [9])
+    const fixture = journalFixture(
+      [{ frames: [opened(9, page('live', [8, 9], true))], hold: true }],
+      [anchored, extension, tail],
+    )
+
+    await fixture.journal.open({})
+    expect(fixture.journal.detachedEnd()).toBeUndefined()
+
+    await fixture.journal.anchor({ beforeSeq: 5 })
+    expect(fixture.changes.at(-1)).toEqual({
+      type: 'anchor', page: anchored, entries: entries(2, 3, 4), hasMore: true, hasNewer: true,
+    })
+    expect(fixture.journal.detachedEnd()).toBe(4)
+
+    await fixture.journal.appendPage({ afterSeq: 4 })
+    expect(fixture.changes.at(-1)).toEqual({
+      type: 'extend', page: extension, entries: entries(5, 6, 7, 8), hasNewer: true,
+    })
+    expect(fixture.journal.detachedEnd()).toBe(8)
+
+    await fixture.journal.appendPage({ afterSeq: 8 })
+    expect(fixture.changes.at(-1)).toEqual({
+      type: 'extend', page: tail, entries: entries(9), hasNewer: false,
+    })
+    expect(fixture.journal.detachedEnd()).toBeUndefined()
+
+    // Every page is fixed at the live cursor, so an anchor costs one read at any
+    // distance and a forward read resumes from the window's own end.
+    expect(fixture.pageCursors).toEqual([9, 9, 9])
+    expect(fixture.pageRequests).toEqual([{ beforeSeq: 5 }, { afterSeq: 4 }, { afterSeq: 8 }])
+    await fixture.journal.dispose()
+  })
+
+  it('stays attached when an anchored page already reaches the live cursor', async () => {
+    const full = page('full', [0, 1, 2, 3])
+    const fixture = journalFixture(
+      [{ frames: [opened(3, page('live', [2, 3]))], hold: true }],
+      [full],
+    )
+
+    await fixture.journal.open({})
+    await fixture.journal.anchor({ beforeSeq: 2 })
+
+    expect(fixture.changes.at(-1)).toEqual({
+      type: 'anchor',
+      page: full,
+      entries: entries(0, 1, 2, 3),
+      hasMore: false,
+      hasNewer: false,
+    })
+    expect(fixture.journal.detachedEnd()).toBeUndefined()
+
+    // An attached window ends at the live tail, where the follow stream carries
+    // new entries: a forward read is a no-op that issues no page call.
+    await fixture.journal.appendPage({ afterSeq: 3 })
+    expect(fixture.changes).toHaveLength(2)
+    expect(fixture.pageCursors).toEqual([3])
+    await fixture.journal.dispose()
+  })
+
+  it('leaves the standing window alone for an empty anchor page or an extension with nothing past it', async () => {
+    const detached = page('detached', [0, 1])
+    const fixture = journalFixture(
+      [{ frames: [opened(5, page('live', [4, 5]))], hold: true }],
+      [page('empty', []), detached, page('stale', [0, 1])],
+    )
+
+    await fixture.journal.open({})
+    await fixture.journal.anchor({ beforeSeq: 0 })
+    expect(fixture.changes).toHaveLength(1)
+    expect(fixture.journal.detachedEnd()).toBeUndefined()
+
+    await fixture.journal.anchor({ beforeSeq: 2 })
+    expect(fixture.changes.at(-1)).toEqual({
+      type: 'anchor', page: detached, entries: entries(0, 1), hasMore: false, hasNewer: true,
+    })
+    expect(fixture.journal.detachedEnd()).toBe(1)
+
+    // A forward page is addressed by an upper bound, so it also carries entries
+    // the window already holds; one with nothing past the end changes nothing.
+    await fixture.journal.appendPage({ afterSeq: 1 })
+    expect(fixture.changes).toHaveLength(2)
+    expect(fixture.journal.detachedEnd()).toBe(1)
+    await fixture.journal.dispose()
+  })
+
+  it('refuses anchored and forward reads outside an open stream', async () => {
+    const fixture = journalFixture(
+      [{ frames: [opened(-1, page('empty', []))], hold: true }],
+      [],
+    )
+
+    await expect(fixture.journal.anchor({})).rejects.toThrow('is not open')
+    await expect(fixture.journal.appendPage({})).rejects.toThrow('is not open')
+    await fixture.journal.open({})
+    await fixture.journal.dispose()
+    await expect(fixture.journal.anchor({})).rejects.toThrow('is not open')
+    await expect(fixture.journal.appendPage({})).rejects.toThrow('is not open')
   })
 
   it('deduplicates complete ranged entries and rejects partial live overlap', async () => {

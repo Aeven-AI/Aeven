@@ -40,6 +40,7 @@ import { TurnTailNodeView } from '../src/client/chat/TurnTailNodeView.tsx'
 import { TurnProcessNodeView } from '../src/client/chat/TurnProcessNodeView.tsx'
 import { SystemPromptNodeView } from '../src/client/chat/SystemPromptRow.tsx'
 import { formatRunDuration } from '../src/client/chat/message-chrome.ts'
+import { MAX_RAIL_MARKS } from '../src/client/chat/turn-rail-marks.ts'
 import { ChatSnapshotBuilder } from '../src/client/conversation-nodes/chat-snapshot-builder.ts'
 import type { TurnProcessSpec } from '../src/client/contract/turn-process.ts'
 import { chatSnapshotFixture } from './chat-snapshot-fixture.client.ts'
@@ -57,6 +58,24 @@ beforeEach(() => {
 const SID = 's1' as SessionId
 type RoutedChatNodeOwner = ChatNodeOwnerProps & { readonly node: ChatNode }
 
+/**
+ * jsdom implements no scrolling API at all: `Element.prototype.scrollTo` is
+ * absent, and the back-to-bottom control's smooth jump is the one place the
+ * view asks for it. Sibling client suites stub the same gap with a no-op; these
+ * cases assert where the jump landed, so this stub performs exactly what the
+ * view asks for — puts the requested offset on the element. Clamping is the
+ * case's own business, since `installScrollMetrics` owns the elements that
+ * measure one and jsdom's own `scrollTop` stores what it is given.
+ */
+Element.prototype.scrollTo = function scrollTo(
+  this: Element,
+  options?: ScrollToOptions | number,
+  y?: number,
+): void {
+  const top = typeof options === 'number' ? y : options?.top
+  if (top !== undefined) this.scrollTop = top
+}
+
 function sessionSnapshot(overrides: Partial<SessionSnapshot> = {}): SessionSnapshot {
   return {
     sessionId: SID,
@@ -67,6 +86,8 @@ function sessionSnapshot(overrides: Partial<SessionSnapshot> = {}): SessionSnaps
     openState: 'open',
     openError: null,
     hasMore: false,
+    detached: false,
+    pendingLive: 0,
     loadingOlder: false,
     promptError: null,
     blank: false,
@@ -249,8 +270,26 @@ function makeHarness(
   const openDetails = vi.fn<(t: SelectionTarget) => void>()
   const openFile = vi.fn<(path: string) => Promise<void>>().mockResolvedValue(undefined)
   const loadOlder = vi.fn()
+  const loadNewer = vi.fn()
+  /**
+   * The Session's event-navigation seat, behaving as ui-conversation's binding
+   * does: a monotonic request identity published to the hook the view reads,
+   * and an acknowledgement that clears only the request it names. The spies
+   * stay, so a case can also assert the intent the rail delivered.
+   */
+  let nextNavigationRequestId = 0
+  const navigateToEvent = vi.fn<(
+    seq: ConversationEventNavigation['seq'],
+    options?: { readonly highlight?: boolean },
+  ) => void>((seq, options) => {
+    nextNavigationRequestId += 1
+    eventNavigation.set({ requestId: nextNavigationRequestId, seq, highlight: options?.highlight ?? true })
+  })
+  const returnToLive = vi.fn()
   const loadThrough = vi.fn<(seq: number, beforeSeq?: number) => Promise<void>>().mockResolvedValue(undefined)
-  const completeEventNavigation = vi.fn<(requestId: number) => void>()
+  const completeEventNavigation = vi.fn<(requestId: number) => void>((requestId) => {
+    if (eventNavigation.getSnapshot()?.requestId === requestId) eventNavigation.set(null)
+  })
   // Mutable outline holder: tests swap the value and drive a re-render via set().
   let outlineValue: unknown
   const openView = vi.fn<(view: string, focus: string) => void>()
@@ -399,6 +438,9 @@ function makeHarness(
     openDetails,
     openFile,
     loadOlder,
+    loadNewer,
+    navigateToEvent,
+    returnToLive,
     loadThrough,
     completeEventNavigation,
     loadImage: vi.fn(() => Promise.reject(new Error('not used'))),
@@ -430,7 +472,7 @@ function makeHarness(
   const setSelection = (next: SelectionTarget | null): void => { chat.actions.select(next) }
   return {
     set, setSession: session.set, setChat: chatSource.set, ChatView, props,
-    openDetails, openFile, loadOlder, loadThrough, completeEventNavigation, openView,
+    openDetails, openFile, loadOlder, loadNewer, returnToLive, loadThrough, navigateToEvent, completeEventNavigation, openView,
     setOutline: (value: unknown) => { outlineValue = value },
     chatScroll, forkAt, setSelection, toolOwners,
     setTranscriptView: (mode: TranscriptViewMode) => { transcriptView.set(mode) },
@@ -451,6 +493,101 @@ function readerScroll(element: HTMLElement, top: number): void {
 
 function turnProcessControl(container: HTMLElement): HTMLButtonElement | null {
   return container.querySelector<HTMLButtonElement>('[data-turn-process]')
+}
+
+/**
+ * Whether the back-to-bottom control is faded out.
+ *
+ * The control stays mounted for the whole session so its opacity can
+ * transition; "hidden" is therefore the absent visible class, not an absent
+ * element. An unmounted control also counts as hidden, so a future decision to
+ * unmount it does not silently break these assertions.
+ * @param view - the rendered ChatView.
+ * @returns true when the control is not showing.
+ */
+function backToBottomHidden(view: { queryByLabelText: (text: string) => HTMLElement | null }): boolean {
+  const button = view.queryByLabelText('回到底部')
+  return button === null || !button.className.includes('toBottomVisible')
+}
+
+/**
+ * The rail renders the Host's whole-log `turnOutline` projection, not the
+ * loaded window: it lists every Turn of the Session, each anchored on its
+ * `turn/start` seq, and carries the previews the rail shows on hover. A case
+ * that expects marks supplies the outline here; the loaded flags the rail adds
+ * come from the window.
+ * @param turns - Turn number, its jump anchor seq, and its previews.
+ * @returns the value the harness's `setOutline` installs.
+ */
+function turnOutline(
+  turns: readonly {
+    readonly turn: number
+    readonly seq: number
+    readonly prompt?: string
+    readonly response?: string
+  }[],
+): unknown {
+  return turns.map(({ turn, seq, prompt, response }) => ({
+    turn,
+    seq,
+    prompt: prompt ?? `prompt ${String(turn)}`,
+    response: response ?? `response ${String(turn)}`,
+  }))
+}
+
+/** One IntersectionObserver the view constructed while the stub was installed. */
+interface ObserverHandle {
+  readonly callback: IntersectionObserverCallback
+  /** Elements this observer was asked to watch, in observation order. */
+  readonly observed: Element[]
+}
+
+/**
+ * Install a controllable IntersectionObserver; jsdom implements none, and the
+ * view constructs two — the reading band over the Turn rows, and the
+ * back-to-bottom sentinel over its own node. The spec delivers crossings
+ * itself, because a real observer reports geometry jsdom never lays out.
+ * @returns a handle per constructed observer, in construction order.
+ */
+function installIntersectionObserver(): ObserverHandle[] {
+  const handles: ObserverHandle[] = []
+  class IntersectionObserverStub {
+    private readonly handle: ObserverHandle
+
+    constructor(callback: IntersectionObserverCallback) {
+      this.handle = { callback, observed: [] }
+      handles.push(this.handle)
+    }
+
+    observe = (target: Element): void => { this.handle.observed.push(target) }
+    unobserve = vi.fn()
+    disconnect = vi.fn()
+  }
+  vi.stubGlobal('IntersectionObserver', IntersectionObserverStub)
+  return handles
+}
+
+/**
+ * The reading band's callback: the observer watching `row`. Only the band
+ * reports marks; the sentinel observer watches its own node.
+ * @param handles - observers installed by {@link installIntersectionObserver}.
+ * @param row - a Turn row the band is expected to watch.
+ * @returns the band callback, or undefined when no observer watches that row.
+ */
+function observerForElement(
+  handles: readonly ObserverHandle[],
+  row: HTMLElement,
+): IntersectionObserverCallback | undefined {
+  return handles.find(handle => handle.observed.includes(row))?.callback
+}
+
+/**
+ * One crossing, in the shape the browser delivers it.
+ * @param target - the row that crossed the band.
+ * @param isIntersecting - whether it is inside the band now.
+ */
+function crossing(target: HTMLElement, isIntersecting: boolean): IntersectionObserverEntry {
+  return { target, isIntersecting } as unknown as IntersectionObserverEntry
 }
 
 function withSystemPrompt(
@@ -587,6 +724,7 @@ describe('ChatView', () => {
       turnEnds: new Map([[1, 3], [2, 6]]),
     })
     const h = makeHarness({}, {}, snapshot)
+    h.setOutline(turnOutline([{ turn: 1, seq: 1 }, { turn: 2, seq: 4 }]))
     // The rail asks for its own accessible name once per render, so counting
     // that key counts renders without reaching into the component.
     let railRenders = 0
@@ -615,13 +753,22 @@ describe('ChatView', () => {
       turnEnds: new Map([[1, 3], [2, 6]]),
     })
     const h = makeHarness({}, {}, snapshot)
+    h.setOutline(turnOutline([
+      { turn: 1, seq: 1, prompt: 'first prompt', response: 'first response' },
+      { turn: 2, seq: 4, prompt: 'second prompt', response: 'second response' },
+    ]))
+    installIntersectionObserver()
     const view = render(<h.ChatView {...h.props} />)
     const navigation = view.getByRole('navigation', { name: '轮次导航' })
-    expect(navigation.style.getPropertyValue('--turn-natural-height')).toBe('22px')
+    // A fixed-pitch ladder over the outline: two marks sit one pitch apart, and
+    // the band is the distance between their centres.
+    expect(navigation.style.getPropertyValue('--dsh-turn-pitch')).toBe('10px')
+    expect(navigation.style.getPropertyValue('--dsh-turn-band')).toBe('10px')
     const first = view.getByRole('button', { name: '跳转到第 1 轮' })
     const second = view.getByRole('button', { name: '跳转到第 2 轮' })
-    expect(first.parentElement?.style.getPropertyValue('--turn-natural-position')).toBe('0px')
-    expect(second.parentElement?.style.getPropertyValue('--turn-natural-position')).toBe('10px')
+    expect(first.style.top).toBe('0px')
+    expect(second.style.top).toBe('10px')
+    // Pinned to the tail on open, the reader is reading the last Turn.
     expect(second.getAttribute('aria-current')).toBe('true')
     fireEvent.focus(first)
     const preview = view.getByRole('tooltip')
@@ -629,26 +776,11 @@ describe('ChatView', () => {
     expect(preview.textContent).toContain('first response')
   })
 
-  it('updates the active Turn on the next frame while scroll bookkeeping stays sampled', () => {
+  it('takes the active Turn from the reading band while scroll bookkeeping stays sampled', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    let nextFrame = 0
-    const frames = new Map<number, FrameRequestCallback>()
-    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
-      nextFrame += 1
-      frames.set(nextFrame, callback)
-      return nextFrame
-    })
-    vi.stubGlobal('cancelAnimationFrame', (id: number) => { frames.delete(id) })
-    const originalHitTest = Object.getOwnPropertyDescriptor(document, 'elementsFromPoint')
-    const flushFrames = (): void => {
-      act(() => {
-        const pending = [...frames.values()]
-        frames.clear()
-        for (const callback of pending) callback(0)
-      })
-    }
     let view: ReturnType<typeof render> | undefined
     try {
+      const handles = installIntersectionObserver()
       const snapshot = chatSnapshotFixture({
         nodes: [
           userInTurn(1, 'first prompt', 1), assistant(2, 'first response', 1),
@@ -657,37 +789,40 @@ describe('ChatView', () => {
         turnEnds: new Map([[1, 3], [2, 6]]),
       })
       const h = makeHarness({}, {}, snapshot)
+      h.setOutline(turnOutline([{ turn: 1, seq: 1 }, { turn: 2, seq: 4 }]))
       view = render(<h.ChatView {...h.props} />)
       const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement
-      const firstRow = view.container.querySelector('[data-chat-turn="1"]') as HTMLElement
+      const firstRow = view.container.querySelector<HTMLElement>('[data-chat-turn="1"]')
+      const secondRow = view.container.querySelector<HTMLElement>('[data-chat-turn="2"]')
+      expect(firstRow).not.toBeNull()
+      expect(secondRow).not.toBeNull()
       const metrics = installScrollMetrics(scroller, 2_000, 300)
       metrics.setLayout(2_000, 1_700)
-      vi.spyOn(scroller, 'getBoundingClientRect').mockReturnValue({
-        top: 0, bottom: 300, left: 0, right: 600, width: 600, height: 300,
-      } as DOMRect)
-      Object.defineProperty(document, 'elementsFromPoint', {
-        configurable: true,
-        value: () => [firstRow],
-      })
-      flushFrames()
+      const band = observerForElement(handles, firstRow as HTMLElement)
+      expect(band).toBeDefined()
 
+      // The reader leaves the floor: the floor rule stands down, and the band's
+      // crossings alone decide the mark, newest first.
       scroller.scrollTop = 100
       fireEvent.scroll(scroller)
+      act(() => {
+        band?.([crossing(secondRow as HTMLElement, true)], {} as IntersectionObserver)
+      })
       expect(view.getByRole('button', { name: '跳转到第 2 轮' }).getAttribute('aria-current')).toBe('true')
 
-      flushFrames()
+      act(() => {
+        band?.(
+          [crossing(firstRow as HTMLElement, true), crossing(secondRow as HTMLElement, false)],
+          {} as IntersectionObserver,
+        )
+      })
       expect(view.getByRole('button', { name: '跳转到第 1 轮' }).getAttribute('aria-current')).toBe('true')
       // The slow path has not run: restoration persistence waits for its
-      // existing interval or scrollend instead of joining the scroll frame.
+      // existing interval or scrollend instead of joining the mark's update.
       expect(h.chatScroll.read()).toBeNull()
     } finally {
       view?.unmount()
       vi.useRealTimers()
-      if (originalHitTest !== undefined) {
-        Object.defineProperty(document, 'elementsFromPoint', originalHitTest)
-      } else {
-        Reflect.deleteProperty(document, 'elementsFromPoint')
-      }
     }
   })
 
@@ -697,10 +832,10 @@ describe('ChatView', () => {
       userInTurn(7, 'third prompt', 3), assistant(8, 'third response', 3),
     ]
     const h = makeHarness({ nodes: later }, { hasMore: true })
+    h.setOutline(turnOutline([{ turn: 2, seq: 4 }, { turn: 3, seq: 7 }]))
     const view = render(<h.ChatView {...h.props} />)
     const second = view.getByRole('button', { name: '跳转到第 2 轮' })
-    const secondPosition = second.parentElement as HTMLElement
-    expect(secondPosition.style.getPropertyValue('--turn-natural-position')).toBe('0px')
+    expect(second.style.top).toBe('0px')
 
     const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement
     const metrics = installScrollMetrics(scroller, 1_000, 300)
@@ -718,10 +853,13 @@ describe('ChatView', () => {
         turnTimings: new Map([[1, { startTime: 1_000 }], [2, { startTime: 4_000 }], [3, { startTime: 7_000 }]]),
       })
     })
+    // The ladder is built from the outline alone, so an older page arriving
+    // changes a mark's loaded state but never the set of marks or their slots:
+    // the mark the reader just jumped to keeps its node and its place.
     const movedSecond = view.getByRole('button', { name: '跳转到第 2 轮' })
-    expect(movedSecond.parentElement).toBe(secondPosition)
-    // Fixed pitch: the mark moves one slot down and never compresses.
-    expect(secondPosition.style.getPropertyValue('--turn-natural-position')).toBe('10px')
+    expect(movedSecond).toBe(second)
+    expect(movedSecond.style.top).toBe('0px')
+    expect(view.getByRole('button', { name: '跳转到第 3 轮' }).style.top).toBe('10px')
   })
 
   it('lands a jump to the first Turn at the conversation start, above its System prompt row', () => {
@@ -732,6 +870,7 @@ describe('ChatView', () => {
       ],
       turnEnds: new Map([[1, 4], [2, 7]]),
     })))
+    h.setOutline(turnOutline([{ turn: 1, seq: 2 }, { turn: 2, seq: 5 }]))
     const view = render(<h.ChatView {...h.props} />)
     const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement
     const metrics = installScrollMetrics(scroller, 1_000, 300)
@@ -754,6 +893,7 @@ describe('ChatView', () => {
       turnEnds: new Map([[1, 3], [2, 7]]),
     }), undefined, { turn: 2, anchorSeq: 4 })
     const h = makeHarness({}, {}, snapshot)
+    h.setOutline(turnOutline([{ turn: 1, seq: 1 }, { turn: 2, seq: 5 }]))
     const view = render(<h.ChatView {...h.props} />)
     const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement
     const metrics = installScrollMetrics(scroller, 1_000, 300)
@@ -776,7 +916,9 @@ describe('ChatView', () => {
       { turn: 2, seq: 4, prompt: 'second prompt from outline', response: '' },
       { turn: 3, seq: 8, prompt: 'third prompt', response: 'third response' },
     ])
+    installIntersectionObserver()
     const view = render(<h.ChatView {...h.props} />)
+    // Every outline Turn is a mark; the two the window does not hold say so.
     const first = view.getByRole('button', { name: '加载并跳转到第 1 轮' })
     view.getByRole('button', { name: '加载并跳转到第 2 轮' })
     const third = view.getByRole('button', { name: '跳转到第 3 轮' })
@@ -787,14 +929,18 @@ describe('ChatView', () => {
     expect(view.getByRole('tooltip').textContent).toContain('first answer from outline')
 
     fireEvent.click(first)
+    // A Turn destination hands its `turn/start` seq to the event-navigation
+    // path — the one pager, not a second one — and marks no row, because the
+    // reader chose a Turn rather than a row inside it.
+    expect(h.navigateToEvent).toHaveBeenCalledWith(0, { highlight: false })
     expect(h.loadThrough).toHaveBeenCalledWith(0)
-    expect(first.getAttribute('aria-busy')).toBe('true')
+    expect(h.completeEventNavigation).not.toHaveBeenCalled()
 
-    // The fake loader never delivers rows: settlement repages once for the
-    // unmoved head, then lands on the nearest rendered turn and un-busies.
+    // The fake loader never delivers its rows: settlement maps the request onto
+    // the nearest rendered Turn, acknowledges it, and leaves the mark there.
     await act(async () => {})
-    expect(h.loadThrough.mock.calls).toEqual([[0], [0]])
-    expect(first.getAttribute('aria-busy')).toBeNull()
+    expect(h.loadThrough.mock.calls).toEqual([[0]])
+    expect(h.completeEventNavigation).toHaveBeenCalledTimes(1)
     expect(view.getByRole('button', { name: '跳转到第 3 轮' }).getAttribute('aria-current')).toBe('true')
   })
 
@@ -807,19 +953,32 @@ describe('ChatView', () => {
     ])
     let releaseJump: (() => void) | undefined
     h.loadThrough.mockImplementation(() => new Promise<void>((resolve) => { releaseJump = resolve }))
+    const handles = installIntersectionObserver()
     const view = render(<h.ChatView {...h.props} />)
-    // Pinned to the tail on open: the back-to-bottom control is absent.
-    expect(view.queryByRole('button', { name: '回到底部' })).toBeNull()
+    // Pinned to the tail on open: the back-to-bottom control is faded out.
+    expect(backToBottomHidden(view)).toBe(true)
 
     const first = view.getByRole('button', { name: '加载并跳转到第 1 轮' })
     fireEvent.click(first)
-    // The click itself leaves the tail...
-    expect(view.getByRole('button', { name: '回到底部' })).toBeTruthy()
-    // ...so a non-reader scroll delivery at the floor (the first prepend's
-    // compensation fires one) no longer snaps to the tail and cancel the jump.
+    // The click itself leaves the tail, and the sentinel the control watches
+    // reports the tail out of view.
+    const sentinel = view.container.querySelector<HTMLElement>('[class*="floorSentinel"]')
+    expect(sentinel).not.toBeNull()
+    const chrome = observerForElement(handles, sentinel as HTMLElement)
+    expect(chrome).toBeDefined()
+    act(() => { chrome?.([crossing(sentinel as HTMLElement, false)], {} as IntersectionObserver) })
+    expect(backToBottomHidden(view)).toBe(false)
+
+    // A non-reader scroll delivery at the floor — the first prepend's
+    // compensation fires one — must not read as the reader arriving at the
+    // bottom: the sample persists the reader's row instead of clearing it,
+    // which is what a pinned reader saves.
     const scroller = view.container.querySelector('[class*="scroll"]') as HTMLElement
     fireEvent.scroll(scroller)
-    expect(first.getAttribute('aria-busy')).toBe('true')
+    fireEvent(scroller, new Event('scrollend'))
+    expect(h.chatScroll.read()).not.toBeNull()
+    // The jump is still in flight: nothing has landed, so nothing was acknowledged.
+    expect(h.completeEventNavigation).not.toHaveBeenCalled()
     await act(async () => { releaseJump?.() })
   })
 
@@ -833,22 +992,55 @@ describe('ChatView', () => {
     const view = render(<h.ChatView {...h.props} />)
     const first = view.getByRole('button', { name: '加载并跳转到第 1 轮' })
     fireEvent.click(first)
-    // The session-side guard refuses the busy-pager jump instantly, yet the
-    // mark stays busy instead of degrading to the nearest loaded turn.
+    // The pull in flight owns the pager, so the jump waits instead of sharing
+    // it — and it stays the reader's destination rather than degrading to the
+    // nearest loaded Turn.
     await act(async () => {})
-    expect(h.loadThrough.mock.calls).toEqual([[0]])
-    expect(first.getAttribute('aria-busy')).toBe('true')
+    expect(h.loadThrough).not.toHaveBeenCalled()
+    expect(h.completeEventNavigation).not.toHaveBeenCalled()
 
-    // The plain pull settles: the flip re-settles the jump, which repages.
+    // The plain pull settles: the busy flip re-settles the jump, which pages.
     act(() => { h.setSession({ loadingOlder: false }) })
     await act(async () => {})
-    expect(h.loadThrough.mock.calls).toEqual([[0], [0]])
-    expect(first.getAttribute('aria-busy')).toBeNull()
+    expect(h.loadThrough.mock.calls).toEqual([[0]])
+    expect(h.completeEventNavigation).toHaveBeenCalledTimes(1)
   })
 
-  it('scrolls the fixed-pitch rail inside its frame with gradient fades at the scrollable ends', () => {
+  it('keeps the rail a fixed-pitch ladder over the whole session', () => {
     const h = makeHarness(
-      { nodes: [userInTurn(8, 'latest prompt', 60), assistant(9, 'latest response', 60)] },
+      { nodes: [userInTurn(8, 'latest prompt', 25), assistant(9, 'latest response', 25)] },
+      { hasMore: true },
+    )
+    h.setOutline(Array.from({ length: 43 }, (_, index) => ({
+      turn: index + 1,
+      seq: index * 4,
+      prompt: `p${String(index + 1)}`,
+      response: '',
+    })))
+    const view = render(<h.ChatView {...h.props} />)
+    const nav = view.getByRole('navigation', { name: '轮次导航' })
+    // 43 marks fit the band at the comfortable pitch: one tick per Turn, no
+    // inner scroller, and the ladder spans exactly its own band.
+    expect(nav.style.getPropertyValue('--dsh-turn-pitch')).toBe('10px')
+    expect(nav.style.getPropertyValue('--dsh-turn-band')).toBe('420px')
+    expect(nav.querySelectorAll('button')).toHaveLength(43)
+    expect(nav.querySelector('[class*="scroller"]')).toBeNull()
+
+    // Pointer mapping resolves the tick under the pointer from the rail's own
+    // box: a 2px line is not a pointer target, so the reader aims at the rail.
+    vi.spyOn(nav, 'getBoundingClientRect').mockReturnValue({ top: 0 } as DOMRect)
+    fireEvent.pointerMove(nav, { clientY: 240 })
+    expect(view.getByRole('tooltip').textContent).toContain('p25')
+
+    // The whole column is the target, not only the ticks; the window holds
+    // turn 25, so its mark jumps without paging.
+    fireEvent.click(nav, { clientY: 240 })
+    expect(view.getByRole('button', { name: '跳转到第 25 轮' }).getAttribute('aria-current')).toBe('true')
+  })
+
+  it('tightens the rail pitch and samples the marks so a long session fits its band', () => {
+    const h = makeHarness(
+      { nodes: [userInTurn(8, 'latest prompt', 25), assistant(9, 'latest response', 25)] },
       { hasMore: true },
     )
     h.setOutline(Array.from({ length: 60 }, (_, index) => ({
@@ -858,28 +1050,39 @@ describe('ChatView', () => {
       response: '',
     })))
     const view = render(<h.ChatView {...h.props} />)
+    const long = view.getByRole('navigation', { name: '轮次导航' })
+    // Past what the comfortable pitch holds, the ladder tightens rather than
+    // scrolling: every mark stays inside the one band.
+    const pitch = Number.parseFloat(long.style.getPropertyValue('--dsh-turn-pitch'))
+    expect(pitch).toBeGreaterThan(2)
+    expect(pitch).toBeLessThan(10)
+    expect(Number.parseFloat(long.style.getPropertyValue('--dsh-turn-band'))).toBeCloseTo(420, 6)
+    expect(long.querySelectorAll('button')).toHaveLength(60)
+  })
+
+  it('samples a session past the mark cap and always keeps the newest Turn', () => {
+    const h = makeHarness(
+      { nodes: [userInTurn(8, 'latest prompt', 150), assistant(9, 'latest response', 150)] },
+      { hasMore: true },
+    )
+    h.setOutline(Array.from({ length: 150 }, (_, index) => ({
+      turn: index + 1,
+      seq: index * 4,
+      prompt: `p${String(index + 1)}`,
+      response: '',
+    })))
+    const view = render(<h.ChatView {...h.props} />)
     const nav = view.getByRole('navigation', { name: '轮次导航' })
-    // 60 marks at the fixed 10px pitch: the ladder keeps its natural height.
-    expect(nav.style.getPropertyValue('--turn-natural-height')).toBe('602px')
-    const scroller = nav.querySelector('[class*="scroller"]') as HTMLElement
-    Object.defineProperty(scroller, 'scrollHeight', { value: 602, configurable: true })
-    Object.defineProperty(scroller, 'clientHeight', { value: 300, configurable: true })
-    scroller.scrollTop = 0
-    fireEvent.scroll(scroller)
-    expect(scroller.className).toContain('fadeBottom')
-    expect(scroller.className).not.toContain('fadeTop')
-
-    scroller.scrollTop = 150
-    fireEvent.scroll(scroller)
-    expect(scroller.className).toContain('fadeTop')
-    expect(scroller.className).toContain('fadeBottom')
-    expect(nav.style.getPropertyValue('--turn-scroll-top')).toBe('150px')
-
-    // Pointer mapping subtracts the rail scroll: y=94 with scrollTop 150 is
-    // natural offset 238px → the 25th mark.
-    vi.spyOn(nav, 'getBoundingClientRect').mockReturnValue({ top: 0 } as DOMRect)
-    fireEvent.pointerMove(nav, { clientY: 94 })
-    expect(view.getByRole('tooltip').textContent).toContain('p25')
+    // The rendered node count stays inside the cap however long the session
+    // runs, and the ladder still reaches the live end: turn 150 is a mark even
+    // though the stride steps over it.
+    const marks = [...nav.querySelectorAll('button')]
+    expect(marks.length).toBeLessThanOrEqual(MAX_RAIL_MARKS)
+    // 150 entries sample with a stride of two, so the ladder is turns 1, 3, 5 …
+    // plus the newest.
+    expect(marks[0]?.getAttribute('aria-label')).toBe('加载并跳转到第 1 轮')
+    expect(marks[1]?.getAttribute('aria-label')).toBe('加载并跳转到第 3 轮')
+    expect(nav.lastElementChild?.getAttribute('aria-label')).toBe('跳转到第 150 轮')
   })
 
   it('lands a jump on its turn once the paged rows commit', async () => {
@@ -905,15 +1108,14 @@ describe('ChatView', () => {
     })
     const first = view.getByRole('button', { name: '跳转到第 1 轮' })
     expect(first.getAttribute('aria-current')).toBe('true')
-    // The mark stays busy until the jump settles: the loader's completion
-    // runs the final landing correction after the load-earlier button leaves.
-    expect(first.getAttribute('aria-busy')).toBe('true')
+    // The jump has landed its exact row: the navigation is acknowledged, and
+    // the loader's completion only closes a pass that is already done.
+    expect(h.completeEventNavigation).toHaveBeenCalledTimes(1)
     await act(async () => { releaseJump?.() })
-    // Only the busy lifecycle is asserted after settlement: jsdom's zero
-    // geometry makes the rAF active-turn resync read "at bottom" and hand the
-    // mark to the last turn, so aria-current here is timing-dependent under
-    // instrumentation; the landing position contract lives in the browser e2e.
-    expect(first.getAttribute('aria-busy')).toBeNull()
+    // Settlement leaves the landing alone: the mark stays on the Turn the
+    // reader asked for, and the paged rows keep it loaded.
+    expect(first.getAttribute('aria-current')).toBe('true')
+    expect(view.getByRole('button', { name: '跳转到第 1 轮' })).toBe(first)
   })
 
   it('reports a jump in flight through the head spinner it already shows for paging', async () => {
@@ -2514,9 +2716,14 @@ describe('ChatView', () => {
     })
     expect(scroller.scrollTop).toBe(100)
     fireEvent.click(backButton)
-    expect(scroller.scrollTop).toBe(1000)
-    // At the bottom again: follow re-arms and the button unmounts.
-    expect(view.queryByLabelText('回到底部')).toBeNull()
+    // The control scrolls to the floor it computes (scrollHeight − clientHeight)
+    // rather than writing scrollHeight and letting the browser clamp it: jsdom
+    // does not clamp, so the computed destination is what the element records.
+    expect(scroller.scrollTop).toBe(scroller.scrollHeight - scroller.clientHeight)
+    // At the bottom again: follow re-arms and the button fades out. It stays
+    // mounted so the fade has a state to animate from, so the assertion is the
+    // hidden class rather than the element's absence.
+    expect(view.getByLabelText('回到底部').className).not.toContain('toBottomVisible')
   })
 
   it('keeps following when a stream-finalization shrink clamp delivers its scroll', () => {
@@ -2534,7 +2741,7 @@ describe('ChatView', () => {
     fireEvent.scroll(scroller)
     fireEvent(scroller, new Event('scrollend'))
     expect(scroller.scrollTop).toBe(500)
-    expect(view.queryByLabelText('回到底部')).toBeNull()
+    expect(backToBottomHidden(view)).toBe(true)
     expect(h.chatScroll.read()).toBeNull()
 
     metrics.setHeight(1_200)
@@ -2595,14 +2802,6 @@ describe('ChatView', () => {
 
   it('pinned dynamic-height updates select the latest Turn without reading row geometry', () => {
     let notify: (() => void) | undefined
-    let nextFrame = 0
-    const frames = new Map<number, FrameRequestCallback>()
-    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
-      nextFrame += 1
-      frames.set(nextFrame, callback)
-      return nextFrame
-    })
-    vi.stubGlobal('cancelAnimationFrame', (id: number) => { frames.delete(id) })
     class ResizeObserverStub {
       constructor(callback: ResizeObserverCallback) {
         notify = () => { callback([resizeEntry()], this as unknown as ResizeObserver) }
@@ -2612,6 +2811,7 @@ describe('ChatView', () => {
       disconnect = vi.fn()
     }
     vi.stubGlobal('ResizeObserver', ResizeObserverStub)
+    const handles = installIntersectionObserver()
     const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect')
       .mockReturnValue({ top: 0, bottom: 40 } as DOMRect)
     const h = makeHarness({
@@ -2621,27 +2821,31 @@ describe('ChatView', () => {
       ],
       turnEnds: new Map([[1, 3], [2, 6]]),
     })
+    h.setOutline(turnOutline([{ turn: 1, seq: 1 }, { turn: 2, seq: 4 }]))
     const view = render(<h.ChatView {...h.props} />)
     const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement
+    const firstRow = view.container.querySelector<HTMLElement>('[data-chat-turn="1"]')
+    const secondRow = view.container.querySelector<HTMLElement>('[data-chat-turn="2"]')
+    expect(firstRow).not.toBeNull()
+    expect(secondRow).not.toBeNull()
+    const band = observerForElement(handles, firstRow as HTMLElement)
+    expect(band).toBeDefined()
     const metrics = installScrollMetrics(scroller, 1_000, 300)
     scroller.scrollTop = 700
-    act(() => {
-      const pending = [...frames.values()]
-      frames.clear()
-      for (const callback of pending) callback(0)
-    })
     rect.mockClear()
 
+    // Streaming growth while the reader is pinned: the view follows the tail,
+    // and the mark is the newest Turn the flow holds.
     metrics.setHeight(1_200)
     act(() => { notify?.() })
     act(() => {
-      const pending = [...frames.values()]
-      frames.clear()
-      for (const callback of pending) callback(0)
+      band?.([crossing(secondRow as HTMLElement, true)], {} as IntersectionObserver)
     })
 
     expect(scroller.scrollTop).toBe(900)
     expect(view.getByRole('button', { name: '跳转到第 2 轮' }).getAttribute('aria-current')).toBe('true')
+    // Pinned follow reads scrollHeight; the mark comes from the crossing. No
+    // row geometry was measured for either.
     expect(rect).not.toHaveBeenCalled()
   })
 
@@ -2654,7 +2858,7 @@ describe('ChatView', () => {
     // Inside FOLLOW_THRESHOLD (24) but not flush with the floor — the chrome
     // re-render from setAtBottom must not force scrollTop to scrollHeight.
     readerScroll(scroller, 690) // distance-to-bottom = 10
-    expect(view.queryByLabelText('回到底部')).toBeNull()
+    expect(backToBottomHidden(view)).toBe(true)
     expect(scroller.scrollTop).toBe(690)
   })
 
@@ -2722,7 +2926,9 @@ describe('ChatView', () => {
       readerScroll(host, 100)
       expect(view.getByLabelText('回到底部')).toBeTruthy()
       fireEvent.click(view.getByLabelText('回到底部'))
-      expect(host.scrollTop).toBe(2000)
+      // The click scrolls the host scrollport, not the local `.scroll` node,
+      // and lands on the floor it computes there.
+      expect(host.scrollTop).toBe(host.scrollHeight - host.clientHeight)
     } finally {
       host.remove()
     }
@@ -2873,12 +3079,13 @@ describe('ChatView', () => {
     Object.defineProperty(scroller, 'clientHeight', { value: 400, writable: true })
     h.loadOlder.mockClear()
 
-    // Beyond the four-screen margin the head is nowhere near: no pull.
-    readerScroll(scroller, 1_700)
+    // Eight screens of runway: a fling has to outrun that much to reach the
+    // head, and the page it needs leaves while it still has that much to travel.
+    readerScroll(scroller, 3_300)
     expect(h.loadOlder).not.toHaveBeenCalled()
 
     // Inside it, the scroll gesture itself is the request.
-    readerScroll(scroller, 1_500)
+    readerScroll(scroller, 3_100)
     expect(h.loadOlder).toHaveBeenCalledTimes(1)
 
     // A pull already in flight owns the pager; scrolling does not stack more.
@@ -2887,30 +3094,25 @@ describe('ChatView', () => {
     expect(h.loadOlder).toHaveBeenCalledTimes(1)
   })
 
-  it('latches off and offers the manual control when a pull moves no history', () => {
+  it('keeps paging automatic, with no manual control, when a pull moves no history', () => {
     const h = makeHarness({ nodes: [user(5, 'later')] }, { hasMore: true })
     const view = render(<h.ChatView {...h.props} />)
     expect(h.loadOlder).toHaveBeenCalledTimes(1)
 
-    // The pull settles with the window head unmoved and history still
-    // claimed: `loadOlder` swallowed a failure, so automatic paging stops.
+    // The pull settles with the window head unmoved and history still claimed:
+    // `hasMore` alone gates paging, so a head that did not move leaves no latch
+    // behind and the boundary never becomes a control the reader has to find.
     act(() => { h.setSession({ loadingOlder: true }) })
     act(() => { h.setSession({ loadingOlder: false }) })
-    expect(view.getByText('加载更早')).toBeTruthy()
     expect(view.container.querySelector('[data-earlier-history]')?.getAttribute('data-earlier-history'))
-      .toBe('stalled')
+      .toBe('idle')
+    expect(view.queryByText('加载更早')).toBeNull()
     expect(view.queryByText('正在加载更早的消息…')).toBeNull()
 
-    // Scrolling no longer retries; only the reader's click does, and it
-    // re-arms automatic paging for the pages after it.
-    const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement
-    Object.defineProperty(scroller, 'scrollHeight', { value: 4_000, writable: true })
-    Object.defineProperty(scroller, 'clientHeight', { value: 400, writable: true })
-    readerScroll(scroller, 100)
-    expect(h.loadOlder).toHaveBeenCalledTimes(1)
-    fireEvent.click(view.getByText('加载更早'))
+    // The settlement re-tests the head, and the reader is still inside the
+    // margin — a window with nothing to scroll is always inside it — so the next
+    // page follows without a gesture.
     expect(h.loadOlder).toHaveBeenCalledTimes(2)
-    expect(view.queryByText('加载更早')).toBeNull()
   })
 
   it('chains to the next page while the reader stays inside the margin', () => {
@@ -3041,7 +3243,11 @@ describe('ChatView', () => {
     })
     const noHistoryView = render(<noHistory.ChatView {...noHistory.props} />)
     expect(noHistoryView.getByText('No compactable history yet.')).toBeTruthy()
-    expect(noHistoryView.queryByRole('button')).toBeNull()
+    // The settlement stays a plain row: nothing inside the flow is a button,
+    // because a one-line settlement has no body to disclose. (The
+    // back-to-bottom control stays mounted for its fade, and it is chrome
+    // beside the flow, not in it.)
+    expect(noHistoryView.container.querySelector('[data-chat-flow] [role="button"]')).toBeNull()
 
     const failed = makeHarness({
       nodes: [command({
@@ -3053,5 +3259,109 @@ describe('ChatView', () => {
     const failedView = render(<failed.ChatView {...failed.props} />)
     expect(failedView.getByText('Compaction cancelled.')).toBeTruthy()
     expect(failedView.container.querySelector('[data-state="error"]')).not.toBeNull()
+  })
+
+  /**
+   * The active rail mark when the reader sits at the end of a transcript.
+   *
+   * The reading band is a 15%-tall strip near the top of the scrollport, so the
+   * last turn — which occupies the bottom of the viewport at the floor — is the
+   * one turn that can never be inside it. The newest turn the band reports is
+   * therefore an earlier one, and the rail used to mark that instead of the turn
+   * the reader is looking at.
+   */
+  describe('active rail mark at the floor', () => {
+    /**
+     * Two turns, projected into rail marks. The rail reads the Host's
+     * `turnOutline` projection for its marks, so the outline is what puts them
+     * there and the window decides which of them are loaded.
+     */
+    function twoTurns() {
+      const snapshot = chatSnapshotFixture({
+        nodes: [
+          userInTurn(1, 'first prompt', 1), assistant(2, 'first response', 1),
+          userInTurn(4, 'second prompt', 2), assistant(5, 'second response', 2),
+        ],
+        turnEnds: new Map([[1, 3], [2, 6]]),
+      })
+      const h = makeHarness({}, {}, snapshot)
+      h.setOutline(turnOutline([{ turn: 1, seq: 1 }, { turn: 2, seq: 4 }]))
+      return h
+    }
+
+    /** The rail button for a turn. It carries `aria-current` while it is the mark. */
+    function tickFor(view: ReturnType<typeof render>, turn: number): HTMLElement {
+      return view.getByRole('button', { name: `跳转到第 ${String(turn)} 轮` })
+    }
+
+    afterEach(() => {
+      vi.useRealTimers()
+      vi.unstubAllGlobals()
+    })
+
+    it('marks the last turn, not the newest turn the band can see', () => {
+      // The scroll sample is a timer; freezing it keeps the reader where the
+      // test puts them instead of letting a sample re-decide the floor.
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+      const handles = installIntersectionObserver()
+      const h = twoTurns()
+      const view = render(<h.ChatView {...h.props} />)
+      const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement
+      const firstRow = view.container.querySelector<HTMLElement>('[data-chat-turn="1"]')
+      const secondRow = view.container.querySelector<HTMLElement>('[data-chat-turn="2"]')
+      expect(firstRow).not.toBeNull()
+      expect(secondRow).not.toBeNull()
+
+      // The reader reaches the floor: nothing is left below the viewport.
+      const metrics = installScrollMetrics(scroller, 2_000, 300)
+      metrics.setLayout(2_000, 1_700)
+      scroller.scrollTop = 1_700
+      fireEvent.scroll(scroller)
+
+      // The band holds turn 1 while turn 2 sits below it. That is the tail case:
+      // the newest turn in the band is an earlier one than the turn on screen.
+      const observer = observerForElement(handles, firstRow as HTMLElement)
+      expect(observer).toBeDefined()
+      act(() => {
+        observer?.(
+          [crossing(firstRow as HTMLElement, true), crossing(secondRow as HTMLElement, false)],
+          {} as IntersectionObserver,
+        )
+      })
+
+      expect(tickFor(view, 2).getAttribute('aria-current')).toBe('true')
+      expect(tickFor(view, 1).getAttribute('aria-current')).toBeNull()
+    })
+
+    it('gives the mark back to the band once the reader leaves the floor', () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+      const handles = installIntersectionObserver()
+      const h = twoTurns()
+      const view = render(<h.ChatView {...h.props} />)
+      const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement
+      const firstRow = view.container.querySelector<HTMLElement>('[data-chat-turn="1"]') as HTMLElement
+      const secondRow = view.container.querySelector<HTMLElement>('[data-chat-turn="2"]') as HTMLElement
+      const metrics = installScrollMetrics(scroller, 2_000, 300)
+      const observer = observerForElement(handles, firstRow)
+
+      // At the floor, the band still holding turn 1, the mark is turn 2.
+      metrics.setLayout(2_000, 1_700)
+      scroller.scrollTop = 1_700
+      fireEvent.scroll(scroller)
+      act(() => {
+        observer?.([crossing(firstRow, true), crossing(secondRow, false)], {} as IntersectionObserver)
+      })
+      expect(tickFor(view, 2).getAttribute('aria-current')).toBe('true')
+
+      // Scrolled up off the floor: the band decides again, and says turn 1.
+      metrics.setLayout(2_000, 900)
+      scroller.scrollTop = 900
+      fireEvent.scroll(scroller)
+      act(() => {
+        observer?.([crossing(firstRow, true), crossing(secondRow, false)], {} as IntersectionObserver)
+      })
+      expect(tickFor(view, 1).getAttribute('aria-current')).toBe('true')
+      expect(tickFor(view, 2).getAttribute('aria-current')).toBeNull()
+    })
   })
 })

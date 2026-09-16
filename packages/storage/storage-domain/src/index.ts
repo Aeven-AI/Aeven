@@ -158,6 +158,12 @@ export class DomainFacility {
           this.reserved.delete(spec.name)
         })
         this.domains.set(spec.name, domain)
+        // Converge on other processes writing this medium. A backend that
+        // cannot observe foreign writes omits `watchExternal`, and the domain
+        // keeps its open-time snapshot — the behavior every caller had before
+        // this existed. The unit's own close stops observation, so the
+        // disposer here only covers the domain outliving its watcher.
+        domain.observeExternal()
         // The single type-erasure point: DomainImpl is the untyped runtime,
         // Domain<S> the spec-typed view; the unknown hop is required because
         // S's conditional global-handle type stays unresolved here.

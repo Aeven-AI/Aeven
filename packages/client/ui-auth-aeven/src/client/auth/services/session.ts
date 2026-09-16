@@ -59,6 +59,49 @@ export const storage = {
       // As above: a session that cannot be persisted still works for this page.
     }
   },
+  /**
+   * Remove one key.
+   * @param key - the storage key.
+   */
+  removeItem(key: string): void {
+    try {
+      window.localStorage.removeItem(key)
+    } catch {
+      // As above: a store that refuses removal held nothing readable anyway.
+    }
+  },
+}
+
+/** Storage key holding the last profile `/get-profile` answered with. */
+const PROFILE_KEY = 'aevenProfile'
+
+/**
+ * Keep a profile for a load that cannot reach Aeven.
+ * @param data - the profile to keep.
+ */
+export function cacheProfile(data: AevenProfile): void {
+  storage.setItem(PROFILE_KEY, JSON.stringify(data))
+}
+
+/**
+ * The last profile Aeven answered with.
+ * @returns the kept profile, or undefined when none was kept or it will not parse.
+ */
+export function cachedProfile(): AevenProfile | undefined {
+  const raw = storage.getItem(PROFILE_KEY)
+  if (raw === null) return undefined
+  try {
+    const parsed = JSON.parse(raw) as AevenProfile
+    return typeof parsed.userId === 'string' && parsed.userId !== '' ? parsed : undefined
+  } catch {
+    // Unparsable storage holds no profile; the next successful read replaces it.
+    return undefined
+  }
+}
+
+/** Discard the kept profile, so a signed-out browser holds nothing about them. */
+export function forgetCachedProfile(): void {
+  storage.removeItem(PROFILE_KEY)
 }
 
 /**
@@ -87,7 +130,7 @@ class Session {
   }
 
   /**
-   * Adopt what `/get-profile` answered.
+   * Adopt what `/get-profile` answered, and keep it for a load that cannot ask.
    * @param data - the profile response.
    */
   adoptProfile(data: AevenProfile): void {
@@ -96,6 +139,7 @@ class Session {
     this.displayName = data.displayName
     this.profile = data.profile
     this.userSignedIn = true
+    cacheProfile(data)
   }
 
   /** Forget the user, leaving the page signed out. */

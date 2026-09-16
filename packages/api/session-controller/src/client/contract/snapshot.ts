@@ -77,6 +77,13 @@ export interface SessionSnapshot {
   readonly openState: OpenState
   readonly openError: RemoteFailure | null
   readonly hasMore: boolean
+  /**
+   * The window was anchored back in history by a jump and no longer reaches
+   * the live tail, so live events are withheld from it.
+   */
+  readonly detached: boolean
+  /** Live events observed while {@link detached}; 0 while attached. */
+  readonly pendingLive: number
   readonly loadingOlder: boolean
   readonly promptError: PromptError | null
   readonly blank: boolean

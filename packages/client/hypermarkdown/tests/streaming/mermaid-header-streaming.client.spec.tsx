@@ -19,9 +19,9 @@ beforeAll(() => {
 })
 
 afterEach(() => {
-  roots.forEach(root => act(() => root.unmount()))
+  roots.forEach((root) =>{  act(() =>{  root.unmount() }) })
   roots = []
-  hosts.forEach(host => host.remove())
+  hosts.forEach((host) =>{  host.remove() })
   hosts = []
 })
 
@@ -31,7 +31,7 @@ function mount(element: React.ReactElement) {
   const root = createRoot(host)
   hosts.push(host)
   roots.push(root)
-  act(() => root.render(element))
+  act(() =>{  root.render(element) })
   return { host, root }
 }
 
@@ -56,7 +56,7 @@ describe('streaming diagram toolbar', () => {
 
     // Ten deltas of a diagram arriving, as a stream would deliver them.
     for (let i = 0; i < 10; i++) {
-      act(() => root.render(headerOf('graph TD' + '\n  a' + i + '-->b' + i)))
+      act(() =>{  root.render(headerOf('graph TD' + '\n  a' + i + '-->b' + i)) })
     }
 
     const after = host.querySelector('.mermaid-header')
@@ -69,16 +69,16 @@ describe('streaming diagram toolbar', () => {
     const { host, root } = mount(headerOf('graph TD'))
 
     // A failed diagram drops both controls.
-    act(() => root.render(headerOf('graph TD', { failed: true })))
+    act(() =>{  root.render(headerOf('graph TD', { failed: true })) })
     expect(host.querySelectorAll('.mermaid-header button')).toHaveLength(0)
 
     // And gets them back when a rewritten source starts over.
-    act(() => root.render(headerOf('graph TD', { failed: false })))
+    act(() =>{  root.render(headerOf('graph TD', { failed: false })) })
     expect(host.querySelectorAll('.mermaid-header button').length).toBeGreaterThan(0)
 
     // Fullscreen swaps the icon and its label together.
     const beforeFullscreen = host.querySelector('.mermaid-header')?.innerHTML
-    act(() => root.render(headerOf('graph TD', { fullscreen: true })))
+    act(() =>{  root.render(headerOf('graph TD', { fullscreen: true })) })
     expect(host.querySelector('.mermaid-header')?.innerHTML).not.toBe(beforeFullscreen)
   })
 
@@ -92,11 +92,11 @@ describe('streaming diagram toolbar', () => {
     const { host, root } = mount(headerOf('graph TD'))
     // The toolbar sat out these updates; the copy control must still reach the
     // latest source rather than the one it last drew with.
-    act(() => root.render(headerOf('graph TD\n  a-->b')))
+    act(() =>{  root.render(headerOf('graph TD\n  a-->b')) })
 
     const copy = host.querySelector<HTMLButtonElement>('.mermaid-header button')
     expect(copy).not.toBeNull()
-    await act(async () => copy!.click())
+    await act(async () =>{  copy!.click() })
 
     expect(writeText).toHaveBeenCalledWith('graph TD\n  a-->b')
   })

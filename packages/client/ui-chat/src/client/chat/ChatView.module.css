@@ -195,6 +195,77 @@
 }
 
 
+/* Floor sentinel: the back-to-bottom observer's target. Zero height and no
+   margin, so it contributes nothing to the flow the anchoring math measures.
+   `flex: none` keeps the column from stretching it. */
+.floorSentinel {
+  flex: none;
+  height: 0;
+}
+
+/* Back-to-bottom: zero-height slot in the host's non-scrolling chrome layer,
+   so the control neither extends scrollHeight nor rides the scrollport's
+/* Centred on the transcript's axis: the host layer carries the same symmetric
+   side inset as the scrollport, so `justify-content: center` lands the pill on
+   the content column's centre line.
+
+   The stacking win comes from the layer this portals into
+   (`[data-conversation-chrome-top]`, a sibling of the composer seat), not from
+   a z-index here — a control in the scrollport-bounded layer cannot rise above
+   the seat's fade whatever number it carries.
+
+   That layer is a zero-height line whose floor is the input box's top edge, so
+   the pill clears the composer by its own 16px and follows a growing draft
+   without anything measuring it. */
+.toBottomSlot {
+  position: absolute;
+  right: 0;
+  bottom: 16px;
+  left: 0;
+  height: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* A flat white pill. No blur and no translucency, so nothing of the transcript
+   shows through it; no shadow, so it casts nothing onto the rows behind it. No
+   border either — the elevation tokens are avoided here because each one begins
+   with `--dsw-elevation-stroke` (`0 0 0 0.5px`), a hairline ring `border: 0`
+   cannot remove. The glyph keeps the label ink so it stays legible on the fill. */
+.toBottom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  /* The slot's floor is the gap; the pill rises from it on its own. */
+  margin-top: -30px;
+  padding: 0;
+  border: 0;
+  border-radius: 100px;
+  color: var(--dsw-alias-label-primary);
+  background: #fff;
+  cursor: pointer;
+  /* Faded out is the resting state: the control is mounted for the whole
+     session so it can cross-fade, and only the class below reveals it. */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease-out;
+}
+
+/* Shown. The pointer target comes back with it, so the faded control never
+   swallows a click meant for the transcript underneath. */
+.toBottomVisible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toBottom {
+    transition: none;
+  }
+}
 
 @media (max-width: 640px) {
   .scroll {

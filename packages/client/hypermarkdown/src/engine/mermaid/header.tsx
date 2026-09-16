@@ -34,7 +34,6 @@ class Header extends Component<HeaderProps> {
 
     this.copyContent = this.copyContent.bind(this)
     this.toggleFullScreen = this.toggleFullScreen.bind(this)
-    this.updateHeaderScrollClass = this.updateHeaderScrollClass.bind(this)
   }
 
   override componentDidMount() {
@@ -113,10 +112,6 @@ class Header extends Component<HeaderProps> {
     fullscreen = ! props.fullscreen
     props.toggleFullScreen(fullscreen)
     props.events?.dispatchObjectEvent('fullscreen:change', fullscreen)
-  }
-
-  updateHeaderScrollClass() {
-    this.stickyHeader?.update()
   }
 
   override componentWillUnmount() {

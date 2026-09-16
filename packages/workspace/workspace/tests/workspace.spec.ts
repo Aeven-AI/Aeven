@@ -34,6 +34,8 @@ interface HarnessOptions {
   liveSessions?: SessionHeader[]
   sessionStore?: boolean
   backend?: StorageBackend
+  /** Runs on the assembled context immediately before the registry mounts. */
+  beforeRegistry?: (ctx: Context) => void
 }
 
 /** Boot the real storage/domain/registry composition over controllable header-only peers. */
@@ -64,6 +66,7 @@ async function harness(options: HarnessOptions = {}) {
 
   const changes: DomainChanged[] = []
   ctx.on('domain/changed', (change) => { changes.push(change) })
+  options.beforeRegistry?.(ctx)
   const fiber = await ctx.plugin(WorkspaceRegistry)
   const initChanges = [...changes]
   changes.length = 0
@@ -1010,5 +1013,149 @@ describe('membership re-derived from cwd', () => {
     })
     expect(result.registry.list()[0]!.sessionIds).toEqual([])
     expect(result.registry.list().some(workspace => workspace.path === unowned)).toBe(false)
+  })
+
+  it('adopts an announced Session by its cwd, and leaves unowned and cwd-less ones alone', async () => {
+    const owned = await makeDir('adopt-live')
+    const unowned = await makeDir('adopt-unowned')
+    const canonical = await realpath(owned)
+    const result = await harness({ sessionStore: true })
+    const workspace = await result.registry.create(owned)
+
+    // Announced inside its owner's cwd: indexed, matched by path, attached.
+    result.ctx.sessions.create(SessionId('owned'), { meta: { cwd: canonical } })
+    await vi.waitFor(() => { expect(workspace.sessionIds).toEqual(['owned']) })
+
+    // A second Session in the same cwd attaches to the Workspace that already
+    // owns the path, ahead of the one already accounted.
+    result.ctx.sessions.create(SessionId('owned-too'), { meta: { cwd: canonical } })
+    await vi.waitFor(() => { expect(workspace.sessionIds).toEqual(['owned-too', 'owned']) })
+
+    // Announced in a directory no Workspace owns: indexed, and left ungrouped
+    // because the product offers no way to belong to a Workspace that does not
+    // exist.
+    result.ctx.sessions.create(SessionId('unowned'), { meta: { cwd: await realpath(unowned) } })
+    // Announced with no cwd at all: nothing to match, so the adoption pass
+    // stops before it can reach a Workspace.
+    result.ctx.sessions.create(SessionId('cwdless'))
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    expect(result.registry.list().map(entry => entry.path)).toEqual([canonical])
+    expect(workspace.sessionIds).toEqual(['owned-too', 'owned'])
+    expect(storedRecord(result.pool, workspace.id).sessionIds).toEqual(['owned-too', 'owned'])
+    await result.fiber.dispose()
+  })
+
+  it('leaves a Session ungrouped when its directory no longer resolves', async () => {
+    const owned = await makeDir('adopt-vanished')
+    const canonical = await realpath(owned)
+    const result = await harness({ sessionStore: true })
+    const workspace = await result.registry.create(owned)
+    result.ctx.logger.warn = () => {}
+    try {
+      // The workspace exists on the record but not on the medium, so the
+      // adoption pass indexes the Session under "cwd does not resolve" and
+      // never reaches a Workspace to attach it to.
+      await rm(owned, { recursive: true, force: true })
+      result.ctx.sessions.create(SessionId('vanished'), { meta: { cwd: canonical } })
+      await new Promise(resolve => setTimeout(resolve, 100))
+      expect(workspace.sessionIds).toEqual([])
+      expect(storedRecord(result.pool, workspace.id).sessionIds).toEqual([])
+    } finally {
+      await result.fiber.dispose()
+    }
+  })
+
+  it('warns and leaves the Session ungrouped when its own attach refuses', async () => {
+    const owned = await makeDir('adopt-attach-fails')
+    const canonical = await realpath(owned)
+    const result = await harness({ sessionStore: true })
+    const workspace = await result.registry.create(owned)
+    const warnings: string[] = []
+    result.ctx.logger.warn = ((value: unknown) => { warnings.push(String(value)) }) as typeof result.ctx.logger.warn
+    // The one refusal this path can meet that the startup pass cannot: the
+    // attach itself fails after the cwd already resolved. Patching the
+    // published entity face leaves the adoption listener's own error handling
+    // — the branch under test — as the code that runs.
+    const attach = vi.spyOn(workspace, 'attachSession').mockRejectedValue(new Error('attach refused'))
+    try {
+      result.ctx.sessions.create(SessionId('refused'), { meta: { cwd: canonical } })
+      await vi.waitFor(() => {
+        expect(warnings.some(warning => warning.includes('by its cwd'))).toBe(true)
+      })
+      expect(workspace.sessionIds).toEqual([])
+    } finally {
+      attach.mockRestore()
+      await result.fiber.dispose()
+    }
+  })
+
+  it('warns and keeps a Session ungrouped when its adoption cannot be written', async () => {
+    const owned = await makeDir('adopt-fails')
+    const canonical = await realpath(owned)
+    const id = WorkspaceId('00000000-0000-4000-8000-000000000032')
+    // A workspace record already on the medium with no membership, so the one
+    // write the startup performs is the adoption — and the domain refuses it.
+    const pool = storedPool([[id, record(owned, [])]], { initialized: true, workspaceIds: [id] })
+    const warnings: string[] = []
+    const result = await harness({
+      pool,
+      sessions: [header('lost', canonical)],
+      backend: selectiveFailureBackend(pool, { putAt: 1 }),
+      beforeRegistry: (ctx) => {
+        ctx.logger.warn = ((value: unknown) => { warnings.push(String(value)) }) as typeof ctx.logger.warn
+      },
+    })
+    // The refusal is contained: the registry still lists the Workspace and
+    // leaves the Session out of it rather than failing to boot.
+    expect(result.registry.list().map(workspace => workspace.id)).toEqual([id])
+    expect(result.registry.list()[0]!.sessionIds).toEqual([])
+    expect(warnings.join('\n')).toContain("could not re-admit session 'lost'")
+    await result.fiber.dispose()
+  })
+
+  it('re-admits lost memberships oldest-first, so the newest Session ends up on top', async () => {
+    const older = await makeDir('readmit-older')
+    const newer = await makeDir('readmit-newer')
+    const olderId = WorkspaceId('00000000-0000-4000-8000-000000000040')
+    const newerId = WorkspaceId('00000000-0000-4000-8000-000000000041')
+    const pool = storedPool(
+      [[olderId, record(older, [])], [newerId, record(newer, [])]],
+      { initialized: true, workspaceIds: [olderId, newerId] },
+    )
+    const result = await harness({
+      pool,
+      sessions: [
+        header('old-session', await realpath(older), 100),
+        header('new-session', await realpath(newer), 200),
+      ],
+    })
+    // Attach prepends, so the older Session has to be written first for the
+    // newest one to land on top — the sort the startup pass runs.
+    expect(result.registry.list().map(workspace => [...workspace.sessionIds])).toEqual([
+      ['old-session'],
+      ['new-session'],
+    ])
+    await result.fiber.dispose()
+  })
+
+  it('reports a member whose header is missing as filtered, naming that reason', async () => {
+    const owned = await makeDir('filtered-missing')
+    const id = WorkspaceId('00000000-0000-4000-8000-000000000042')
+    // A durable record naming a Session this Host holds no header for: with no
+    // indexed cwd fact the member is filtered out, and the startup account
+    // says which of the two reasons applied.
+    const pool = storedPool([[id, record(owned, ['ghost'])]], { initialized: true, workspaceIds: [id] })
+    const warnings: string[] = []
+    const result = await harness({
+      pool,
+      sessions: [],
+      beforeRegistry: (ctx) => {
+        ctx.logger.warn = ((value: unknown) => { warnings.push(String(value)) }) as typeof ctx.logger.warn
+      },
+    })
+    expect(result.registry.list()[0]!.sessionIds).toEqual([])
+    expect(warnings.join('\n')).toContain(`workspace '${id}' filtered session 'ghost' from membership: session header is missing`)
+    await result.fiber.dispose()
   })
 })

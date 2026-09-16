@@ -35,8 +35,10 @@ body {
      shorthand that omits it resets to 400 — which is why the theme's composite
      font tokens carry 450 explicitly. */
   font-weight: 450;
-  /* Grayscale antialiasing over subpixel rendering: WebKit/Blink and the
-     Firefox macOS equivalent; other engines ignore both lines. */
+  /* Grayscale antialiasing over subpixel rendering: the unprefixed macOS
+     property plus the WebKit/Blink and Firefox equivalents; engines that do
+     not implement a line ignore it. */
+  font-smooth: grayscale;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color: var(--dsw-alias-label-primary, #0f1115);

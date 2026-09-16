@@ -94,6 +94,14 @@ export class Session implements SessionFace {
   // ---- Window and derived state (all private; the snapshot is the only read API) ----
   private baseSeq = SessionLogOffset(0)
   private hasMore = false
+  /**
+   * Newer history remains outside the window's end: the window was installed
+   * around an older seq by a jump and no longer reaches the live tail. Live
+   * events are counted in {@link pendingLiveCount} instead of appended.
+   */
+  private hasNewer = false
+  /** Live events observed while detached, surfaced as the return-to-live count. */
+  private pendingLiveCount = 0
   private openState: OpenState = 'cold'
   private openError: RemoteFailure | null = null
   private openPromise: Promise<void> | null = null
@@ -101,9 +109,9 @@ export class Session implements SessionFace {
    *  passes drop all writes once the generation moves on. */
   private openGeneration = 0
   private loadingOlder = false
-  /** Shared low-water target of the running jump loop; null when no jump is paging. */
+  /** Shared low-water target of the running jump pass; null when no jump is paging. */
   private jumpTargetSeq: SessionSeq | null = null
-  /** The running jump loop's completion, shared by retargeting callers. */
+  /** The running jump pass's completion, shared by retargeting callers. */
   private jumpPromise: Promise<void> | null = null
   /** Authoritative stream-only inbox snapshot; pending work never hits history. */
   private readonly queueMirror = new SessionQueueMirror()
@@ -247,6 +255,10 @@ export class Session implements SessionFace {
     // ahead of navigation (first-send flow).
     this.promptAttempted = true
     if (this.blankBit) this.firstPromptPendingTurn = true
+    // Sending is a move to the live end: the reader's own message lands there,
+    // and a window still anchored back in history would withhold it along with
+    // the turn it starts. Reattaching here is what puts the prompt on screen.
+    if (this.hasNewer) void this.returnToLive()
     this.notifier.markDirty()
     let result: RemoteResult<{ accepted: true }>
     if (this.address === undefined) {
@@ -398,37 +410,87 @@ export class Session implements SessionFace {
     }
   }
 
-  /** Jump loader: page backwards until the window covers seq (see ISession.loadThrough). */
+  /**
+   * Page down: pull the page after a detached window's end and append it.
+   *
+   * Attached windows end at the live tail, where the follow stream already
+   * supplies new events, so this is a no-op for them.
+   * @returns completion; failures land in snapshot.loadingOlder.
+   */
+  async loadNewer(): Promise<void> {
+    if (this.openState !== 'open' || !this.hasNewer || this.loadingOlder) return
+    const events = this.events
+    if (events === undefined) return
+    const end = events.detachedEnd()
+    if (end === undefined) return
+    this.loadingOlder = true
+    this.notifier.markDirty()
+    try {
+      // A forward read: `afterSeq` is the exclusive lower bound, so the page
+      // begins at the event following the window's end. A `beforeSeq` bound
+      // cannot serve this — the host reads those backwards from the bound, so
+      // the page would land entirely before the window it must extend.
+      await events.appendPage({
+        afterSeq: end,
+        maxMessages: SCROLL_PAGE_MESSAGES,
+      })
+    } catch (error) {
+      if (!isRemoteFailure(error)) {
+        console.error('[session-controller] loadNewer failed:', error)
+      }
+    } finally {
+      this.loadingOlder = false
+      this.notifier.markDirty()
+    }
+  }
+
+  /**
+   * Jump loader: install one window anchored on seq (see ISession.loadThrough).
+   *
+   * One round trip regardless of distance. The Host holds the whole log and
+   * `beforeSeq` indexes it directly, so a window around an old seq costs what
+   * a tail page costs; walking backwards page by page would instead scale with
+   * the distance travelled and accumulate the whole intervening history.
+   *
+   * The installed window ends at the target's page boundary, so it is detached
+   * from the live tail whenever older events remain after it: `hasNewer` then
+   * gates live appends and {@link returnToLive} reattaches.
+   *
+   * A request arriving while a read is in flight joins that pass at the lower
+   * of the two targets. The pass serves the deeper target with one more
+   * anchored read rather than by walking to it — the anchored read costs the
+   * same at any distance, so a rail clicked twice in quick succession still
+   * lands the second, deeper destination.
+   */
   loadThrough(seq: SessionSeq): Promise<void> {
-    if (this.openState !== 'open' || !this.hasMore || this.baseSeq <= seq) return Promise.resolve()
+    if (this.openState !== 'open') return Promise.resolve()
+    // Already covered by the standing window, with nothing newer withheld.
+    if (this.baseSeq <= seq && !this.hasNewer) return Promise.resolve()
     if (this.jumpPromise !== null) {
-      // Retarget the running loop to the lowest requested seq.
       this.jumpTargetSeq = SessionSeq(Math.min(this.jumpTargetSeq ?? seq, seq))
       return this.jumpPromise
     }
-    // A plain single-page pull owns the busy flag; the jump does not queue
-    // behind it (the caller retries once it settles) and must leave no
-    // target behind — only the loop's finally clears that field, and no
-    // loop starts here.
     if (this.loadingOlder) return Promise.resolve()
     this.jumpTargetSeq = seq
     this.loadingOlder = true
     this.notifier.markDirty()
-    // Stale-pass guard (the doOpen pattern): a resync mid-loop replaces the
-    // stream generation; this pass then stops instead of paging the new
-    // generation toward its old target.
+    // Stale-pass guard (the doOpen pattern): a resync mid-jump replaces the
+    // stream generation; this pass then drops its result instead of installing
+    // a window built for the previous one.
     const generation = this.openGeneration
     this.jumpPromise = (async () => {
       try {
-        while (this.hasMore && this.jumpTargetSeq !== null && this.baseSeq > this.jumpTargetSeq) {
+        let target = seq
+        for (;;) {
+          await this.installAnchoredWindow(target, generation)
           if (generation !== this.openGeneration) return
-          const events = this.events
-          if (events === undefined) return
-          const before = this.baseSeq
-          await events.prepend({ beforeSeq: this.baseSeq, maxMessages: JUMP_PAGE_MESSAGES })
-          // No-progress guard: an empty or dropped page that still claims more
-          // history must end the loop, not spin it.
-          if (this.baseSeq >= before) return
+          // A retarget strictly below the served target needs its own read; a
+          // target the installed window's head already covers, or no retarget
+          // at all, ends the pass. Each iteration serves a lower target, so the
+          // loop is bounded by the retargets a reader can issue.
+          const retarget = this.jumpTargetSeq
+          if (retarget === null || retarget >= target || this.baseSeq <= retarget) return
+          target = retarget
         }
       } catch (error) {
         if (!isRemoteFailure(error)) {
@@ -444,6 +506,46 @@ export class Session implements SessionFace {
     return this.jumpPromise
   }
 
+  /**
+   * Read and install one window anchored on `seq`.
+   *
+   * `beforeSeq` sits half a page past the target so the target lands with
+   * reading room below it rather than on the window's last row. The journal
+   * publishes the result as an `anchor` change, which carries whether newer
+   * history remains outside it.
+   */
+  private async installAnchoredWindow(seq: SessionSeq, generation: number): Promise<void> {
+    const events = this.events
+    if (events === undefined) return
+    await events.anchor({
+      beforeSeq: SessionLogOffset(seq + Math.floor(JUMP_PAGE_MESSAGES / 2)),
+      maxMessages: JUMP_PAGE_MESSAGES,
+    })
+    if (generation !== this.openGeneration) return
+    if (this.hasMore) {
+      await events.prepend({ beforeSeq: this.baseSeq, maxMessages: SCROLL_PAGE_MESSAGES })
+    }
+    if (generation !== this.openGeneration) return
+    const end = events.detachedEnd()
+    if (end !== undefined) {
+      await events.appendPage({ afterSeq: end, maxMessages: SCROLL_PAGE_MESSAGES })
+    }
+  }
+
+  /**
+   * Reattach the window to the live tail after a jump detached it.
+   *
+   * Reopening the journal is what reattaches: the stream's own opening
+   * snapshot is the authoritative tail window, so this cannot race the live
+   * feed the way a forward page followed by a subscribe would.
+   * @returns completion once the tail window is installed.
+   */
+  async returnToLive(): Promise<void> {
+    if (this.openState !== 'open' || !this.hasNewer) return
+    this.pendingLiveCount = 0
+    await this.resync()
+  }
+
   /** Rebuild an opened history source after address replacement.
    *  Invalidates any in-flight open first; queue state belongs to the independently
    *  reconnecting control stream and remains untouched. */
@@ -457,6 +559,11 @@ export class Session implements SessionFace {
     this.openState = 'cold'
     this.openError = null
     this.baseSeq = SessionLogOffset(0)
+    // The rebuilt window comes from the stream's own opening snapshot, which
+    // is always the live tail: any detachment a jump left behind is gone with
+    // the stream that carried it.
+    this.hasNewer = false
+    this.pendingLiveCount = 0
     this.notifier.markDirty()
     await this.open()
   }
@@ -637,18 +744,37 @@ export class Session implements SessionFace {
       case 'prepend':
         this.prependWindow(change.entries, change.hasMore)
         return
+      case 'anchor':
+        // A jump's window: projections keep the baseline the opening snapshot
+        // seeded, since an anchored page carries none of its own.
+        this.installWindow(change.entries, change.hasMore, undefined, change.hasNewer)
+        return
+      case 'extend':
+        this.extendWindow(change.entries, change.hasNewer)
+        return
       case 'append':
         if (this.appendLive(change.entry)) this.notifier.markDirty()
     }
   }
 
-  /** Replace the complete contiguous window and apply page-owned projection metadata. */
-  private installWindow(entries: readonly SessionEventLikeEntry[], hasMore: boolean, projections?: ProjectionsBaseline): void {
+  /**
+   * Replace the complete contiguous window and apply page-owned projection metadata.
+   * @param hasNewer - newer history remains outside the window's end (an
+   *   anchored jump window); omitted, the window reaches the live tail.
+   */
+  private installWindow(
+    entries: readonly SessionEventLikeEntry[],
+    hasMore: boolean,
+    projections?: ProjectionsBaseline,
+    hasNewer = false,
+  ): void {
     this.baseSeq = SessionLogOffset(entries[0]?.event.seq ?? 0)
     this.hasMore = hasMore
+    this.hasNewer = hasNewer
+    if (!hasNewer) this.pendingLiveCount = 0
     if (entries.some(entry => entry.event.type === 'turn/start')) this.firstPromptPendingTurn = false
     if (projections !== undefined) this.projections.seed(projections)
-    this.eventSource.replace(entries, hasMore)
+    this.eventSource.replace(entries, { hasOlder: hasMore, hasNewer })
     for (const entry of entries) this.observeSubmissionEvent(entry.event)
     this.notifier.markDirty()
   }
@@ -667,12 +793,33 @@ export class Session implements SessionFace {
     this.hasMore = hasMore
   }
 
+  /**
+   * Append one forward page to a detached window.
+   *
+   * A page that reaches the live tail reattaches the window: live events are
+   * appended again from here, so the withheld count is cleared with it.
+   */
+  private extendWindow(entries: readonly SessionEventLikeEntry[], hasNewer: boolean): void {
+    this.eventSource.appendPage(entries, hasNewer)
+    this.hasNewer = hasNewer
+    if (!hasNewer) this.pendingLiveCount = 0
+    this.notifier.markDirty()
+  }
+
   /** Append one stream-validated live event. */
   private appendLive(entry: SessionLiveEventEntry): boolean {
     const event = entry.event
     const awaitingFirstTurn = this.firstPromptPendingTurn
     if (event.type === 'turn/start') this.firstPromptPendingTurn = false
     const queueChanged = this.queueMirror.acceptDurable(event)
+    // A detached window does not adjoin the live tail, so appending here would
+    // splice this event onto history it does not follow. The queue mirror and
+    // submission bookkeeping above are window-independent and still run; the
+    // event itself reaches the reader when returnToLive() reinstalls the tail.
+    if (this.hasNewer) {
+      this.pendingLiveCount += 1
+      return true
+    }
     this.eventSource.append(entry)
     // After the feed append: the conversation assembly's animation frame is
     // registered by the feed subscribers above, so the echo-retirement frame
@@ -767,6 +914,8 @@ export class Session implements SessionFace {
       openState: this.openState,
       openError: this.openError,
       hasMore: this.hasMore,
+      detached: this.hasNewer,
+      pendingLive: this.pendingLiveCount,
       loadingOlder: this.loadingOlder,
       promptError: this.promptError,
       blank: this.blankBit,

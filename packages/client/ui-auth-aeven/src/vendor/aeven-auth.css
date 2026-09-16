@@ -1281,17 +1281,17 @@ body .content-block .table-wrapper .table-container .table-content table[data-he
   border-top: none;
   border-bottom: 1px solid rgb(242, 242, 242);
 }
-body .content-block .table-wrapper.fullscreen {
+body .content-block .table-wrapper.fullscreen,
+body .hypermarkdown .table-wrapper.fullscreen {
   display: flex;
   position: fixed;
+  max-width: none;
   overflow-y: auto;
   z-index: 200;
   top: 0;
+  right: 0;
+  bottom: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  max-width: 100%;
-  max-height: 100%;
   margin: 0px;
   padding: 0px;
   flex-direction: column;
@@ -1367,6 +1367,8 @@ body .content-block .mermaid-wrapper {
   width: 100%;
   max-width: 1024px;
   flex-direction: column;
+  content-visibility: auto;
+  contain-intrinsic-size: auto calc(var(--hm-diagram-height, 500px) + 80px);
 }
 body .content-block .mermaid-wrapper .mermaid-container {
   display: flex;
@@ -1629,6 +1631,8 @@ body .content-block .mermaid-wrapper .mermaid-container .mermaid-content .mermai
   width: 100%;
   min-width: 0;
   --hm-diagram-fade: 10px;
+}
+body .content-block .mermaid-wrapper.drawn .mermaid-container .mermaid-content .mermaid-scroll .mermaid-pan-zoom .mermaid-pan-zoom-viewport {
   mask-image: linear-gradient(to right, transparent, #000 var(--hm-diagram-fade), #000 calc(100% - var(--hm-diagram-fade)), transparent), linear-gradient(to bottom, transparent, #000 var(--hm-diagram-fade), #000 calc(100% - var(--hm-diagram-fade)), transparent);
   mask-repeat: no-repeat;
   mask-composite: intersect;
@@ -1740,17 +1744,19 @@ body .content-block .mermaid-wrapper .mermaid-container .mermaid-content table[d
   border-top: none;
   border-bottom: 1px solid rgb(242, 242, 242);
 }
-body .content-block .mermaid-wrapper.fullscreen {
+body .content-block .mermaid-wrapper.fullscreen,
+body .hypermarkdown .mermaid-wrapper.fullscreen {
   display: flex;
   position: fixed;
+  max-width: none;
   overflow-y: auto;
   z-index: 200;
+  content-visibility: visible;
+  contain-intrinsic-size: none;
   top: 0;
+  right: 0;
+  bottom: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  max-width: 100%;
-  max-height: 100%;
   margin: 0px;
   padding: 0px;
   flex-direction: column;
@@ -2015,7 +2021,6 @@ body .content-block .codeblock-wrapper .code-container .codeblock-pre-code-conte
 body .content-block .codeblock-wrapper .code-container .codeblock-pre-code-content pre .line-numbers {
   display: flex;
   position: relative;
-  contain: layout style paint;
   user-select: none;
   pointer-events: none;
   border-top: 1px solid rgb(242, 242, 242);
@@ -2038,12 +2043,10 @@ body .content-block .codeblock-wrapper .code-container .codeblock-pre-code-conte
 body .content-block .codeblock-wrapper .code-container .codeblock-pre-code-content pre .line-numbers .line-number {
   user-select: none;
   pointer-events: none;
-  contain: layout style paint;
 }
 body .content-block .codeblock-wrapper .code-container .codeblock-pre-code-content pre .code-content {
   display: block;
   overflow-x: scroll;
-  contain: layout style paint;
   padding-top: 8px;
   border-top: 1px solid rgb(242, 242, 242);
 }
@@ -2083,17 +2086,17 @@ body .content-block .codeblock-wrapper.stream-active .code-container .codeblock-
 body .content-block .codeblock-wrapper.stream-active .code-container .codeblock-header .codeblock-header-content .codeblock-button-container .codeblock-icon-button.preview {
   opacity: 0.3;
 }
-body .content-block .codeblock-wrapper.fullscreen {
+body .content-block .codeblock-wrapper.fullscreen,
+body .hypermarkdown .codeblock-wrapper.fullscreen {
   display: flex;
   position: fixed;
+  max-width: none;
   z-index: 200;
   flex-direction: column;
   top: 0;
+  right: 0;
+  bottom: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  max-width: 100%;
-  max-height: 100%;
   margin: 0px;
   padding: 0px;
   overflow-y: auto;
@@ -3551,8 +3554,8 @@ body .mermaid-render-sandbox {
 .loader-button .loader {
   display: none;
   position: relative;
-  width: 16px;
-  height: 16px;
+  width: var(--dsw-aeven-loading-mark-size, 18px);
+  height: var(--dsw-aeven-loading-mark-size, 18px);
 }
 .loader-button .loader svg {
   display: block;
@@ -3606,13 +3609,14 @@ body .mermaid-render-sandbox {
   }
 }
 .loader-button.large .loader {
-  width: 18px;
-  height: 18px;
+  width: var(--dsw-aeven-loading-mark-size, 18px);
+  height: var(--dsw-aeven-loading-mark-size, 18px);
 }
 @media screen and (max-width: 640px) {
   .loader-button.large .loader {
-    width: 16px;
-    height: 16px;
+    /* The loading mark keeps one size at every breakpoint. */
+    width: var(--dsw-aeven-loading-mark-size, 18px);
+    height: var(--dsw-aeven-loading-mark-size, 18px);
   }
 }
 .loader-button.large .loader svg {
@@ -3701,8 +3705,8 @@ body .mermaid-render-sandbox {
 .loader-button-icon .loader {
   display: none;
   position: relative;
-  width: 18px;
-  height: 18px;
+  width: var(--dsw-aeven-loading-mark-size, 18px);
+  height: var(--dsw-aeven-loading-mark-size, 18px);
 }
 .loader-button-icon .loader svg {
   display: block;
@@ -3793,8 +3797,8 @@ body .mermaid-render-sandbox {
 .loader-icon-button .loader {
   display: none;
   position: relative;
-  width: 16px;
-  height: 16px;
+  width: var(--dsw-aeven-loading-mark-size, 18px);
+  height: var(--dsw-aeven-loading-mark-size, 18px);
 }
 .loader-icon-button .loader svg {
   display: block;
@@ -3965,15 +3969,15 @@ body .mermaid-render-sandbox {
 .chat-input-button .loader {
   display: none;
   position: relative;
-  width: 20px;
-  height: 20px;
+  width: var(--dsw-aeven-loading-mark-size, 18px);
+  height: var(--dsw-aeven-loading-mark-size, 18px);
   align-items: center;
   justify-content: center;
 }
 .chat-input-button .loader .icon {
   position: relative;
-  width: 20px;
-  height: 20px;
+  width: var(--dsw-aeven-loading-mark-size, 18px);
+  height: var(--dsw-aeven-loading-mark-size, 18px);
 }
 .chat-input-button .loader .icon svg {
   display: block;
@@ -4020,15 +4024,15 @@ body .mermaid-render-sandbox {
   display: block;
   position: relative;
   z-index: 1;
-  width: 20px;
-  height: 20px;
+  width: var(--dsw-aeven-loading-mark-size, 18px);
+  height: var(--dsw-aeven-loading-mark-size, 18px);
 }
 #loader .spinner svg {
-  color: rgb(10, 10, 10);
+  color: var(--dsw-aeven-loading-mark-color, rgb(10, 10, 10));
   display: block;
   position: relative;
-  width: 20px;
-  height: 20px;
+  width: var(--dsw-aeven-loading-mark-size, 18px);
+  height: var(--dsw-aeven-loading-mark-size, 18px);
 }
 #loader .spinner.active {
   animation: 900ms linear 0s infinite normal none running loader-spin;
@@ -4089,15 +4093,15 @@ body .mermaid-render-sandbox {
 #preloader .container .spinner {
   display: block;
   position: relative;
-  width: 16px;
-  height: 16px;
+  width: var(--dsw-aeven-loading-mark-size, 18px);
+  height: var(--dsw-aeven-loading-mark-size, 18px);
 }
 #preloader .container .spinner svg {
-  color: rgb(10, 10, 10);
+  color: var(--dsw-aeven-loading-mark-color, rgb(10, 10, 10));
   display: block;
   position: relative;
-  width: 16px;
-  height: 16px;
+  width: var(--dsw-aeven-loading-mark-size, 18px);
+  height: var(--dsw-aeven-loading-mark-size, 18px);
 }
 #preloader .container .spinner.active {
   animation: 900ms linear 0s infinite normal none running loader-spin;

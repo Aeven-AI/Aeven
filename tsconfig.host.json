@@ -182,6 +182,7 @@
     { "path": "./packages/workspace/workspace" },
     { "path": "./packages/session/session-title" },
     { "path": "./packages/session/session-title-llm" },
+    { "path": "./packages/session/session-turn-outline" },
     { "path": "./packages/session/session-title-first-prompt-llm" },
     { "path": "./packages/session/session-title-all-prompts-llm" },
     { "path": "./packages/session/session-telemetry" },

@@ -51,7 +51,7 @@ kind: "package-reference"
 
 ### 布局
 
-Trajectory 要求会话壳把 composer 作为浮层置于全高记录表上方；其响应式纵向滚动容器会预留 composer 的实时高度，确保仍可滚动到最后几行。可滚动的 Summary 区域在悬停或聚焦前保持滚动条滑块透明，同时不改变预留的滚动几何空间。本包不提供 service，也不声明 Context 合并。
+Trajectory 要求会话壳把 composer 作为浮层置于全高记录表上方；其响应式纵向滚动容器会预留 composer 的让位高度，确保仍可滚动到最后几行。可滚动的 Summary 区域在悬停或聚焦前保持滚动条滑块透明，同时不改变预留的滚动几何空间。本包不提供 service，也不声明 Context 合并。
 
 </details>
 
@@ -86,6 +86,7 @@ Trajectory 要求会话壳把 composer 作为浮层置于全高记录表上方�
 这些限制定义工作仍在进行时视图能显示什么；它们是当前包约束。
 
 - **进行中时 Time 保持空白**：`partial` 与 `runningCalls` 行会显示运行状态，但不会虚构耗时，因此 Overview 区域只渲染开始标记，而不会杜撰实时跨度。记录选择与时间线选择位于 Trajectory 内部，不提供锚点深链接。
+- **底部让位是静态的**：`.ledger` 仅用 `--dsh-composer-height` 的回退值来设定 `--dsh-trajectory-bottom-clearance`。没有任何代码测量实时 composer，因此草稿比回退值更高或更矮时，账本末行会出现让位过多或不足，直到回退值被改写为止。
 
 <a id="dev-note"></a>
 ### 开发备注

@@ -17,7 +17,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {
   ConversationBinding, ConversationSnapshot, ConversationViewSnapshotMap, ConvViewProps,
-  InputActions, InputState, RequestView, ViewTab,
+  InputActions, InputState, RequestView, ViewTab, ConversationViewDefinition,
 } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { EMPTY_CHAT_SNAPSHOT } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type {
@@ -119,6 +119,8 @@ function sessionSnapshot(nodes: LegacyConversationSlice['nodes']): SessionSnapsh
     openState: 'open',
     openError: null,
     hasMore: false,
+    detached: false,
+    pendingLive: 0,
     loadingOlder: false,
     promptError: null,
     blank: nodes.length === 0,
@@ -269,7 +271,7 @@ async function bench(snapshot = historySnapshot(NODES)) {
     snapshot: conversationStore,
     selectedView,
     activate: () => {},
-    select: view => selectedView.set(view),
+    select: (view) =>{  selectedView.set(view) },
     target: target => targetSources[target],
   }
   vi.spyOn(uiConversation, 'binding').mockReturnValue(binding)
@@ -298,10 +300,26 @@ async function bench(snapshot = historySnapshot(NODES)) {
   }
 }
 
-/** Tab projection twin of apply's viewTabs (the render-side consumption path). */
-function tabsOf(slots: SlotRegistry): ViewTab[] {
+/**
+ * Tab projection twin of apply's viewTabs (the render-side consumption path):
+ * each ring entry, plus the composer placement its own View Definition declares
+ * — the field ConversationRoot reads to mark its root `data-composer-overlay`
+ * while a View that floats its composer (trajectory) is selected.
+ * @param slots - the real SlotRegistry ring.
+ * @param views - the View Definition registry the plugin registered into.
+ * @returns one ViewTab per ring entry, in ring order.
+ */
+function tabsOf(slots: SlotRegistry, views?: readonly ConversationViewDefinition[]): ViewTab[] {
+  const definitions = new Map((views ?? []).map(definition => [definition.target, definition]))
   return slots.entries('conversation.view')
-    .map(e => ({ id: e.options.id!, label: resolveSlotLabel(e.options.label) ?? e.options.id! }))
+    .map((e): ViewTab => {
+      const definition = definitions.get(e.options.id!)
+      return {
+        id: e.options.id!,
+        label: resolveSlotLabel(e.options.label) ?? e.options.id!,
+        ...definition === undefined ? {} : { composerPlacement: definition.composerPlacement ?? 'docked' },
+      }
+    })
 }
 
 type ConvViewOwner = Pick<ConvViewProps, 'viewRequest' | 'openView' | 'completeViewRequest'>
@@ -314,7 +332,7 @@ function isConvViewOwner(owner: object): owner is ConvViewOwner {
 
 /** Mount the strict Session header/body over the ring ledger with outlet-faithful render shares. */
 function mount(fixture: Awaited<ReturnType<typeof bench>>) {
-  const { runtime, slots, trajectoryStore, conversationStore } = fixture
+  const { runtime, slots, views, trajectoryStore, conversationStore } = fixture
   const session = runtime.sessions.binding(SID)?.session
   if (session === undefined) throw new Error('trajectory fixture session is unavailable')
   const useSession = bindSnapshotSelector<SessionSnapshot>(session)
@@ -328,7 +346,7 @@ function mount(fixture: Awaited<ReturnType<typeof bench>>) {
   const useWorkspaces = emptyWorkspaces()
   const conversation = createConversationStore().create()
   const useConversationViews = bindSnapshotSelector(
-    createSnapshotStore<readonly ViewTab[]>(tabsOf(slots)),
+    createSnapshotStore<readonly ViewTab[]>(tabsOf(slots, views.entries())),
   )
   const useInput = bindSnapshotSelector(createSnapshotStore<InputState>({
     draft: '', imageIds: [], draftRev: 0, phase: 'plain', occurrences: [], queue: [],
@@ -504,7 +522,17 @@ describe('tab switching in ConversationRoot', () => {
     expect(screen.queryByRole('columnheader')).toBeNull()
     expect(screen.getByRole('toolbar', { name: '轨迹工具栏' })).toBeTruthy()
     expect(screen.getByRole('region', { name: '轨迹时间线' })).toBeTruthy()
-    expect(view.container.querySelector('[data-conversation-composer-overlay]')).toBeTruthy()
+    // The overlay composer is the View's own declaration, not markup it draws:
+    // trajectory floats its composer over the ledger, and ConversationRoot turns
+    // that declaration into `data-composer-overlay` on its root, which is the
+    // marker its layout rules read. This bench mounts the header and body
+    // without that root, so the declaration is asserted where it travels — on
+    // the tab — and the ledger is asserted to carry no marker of its own.
+    expect(tabsOf(b.slots, b.views.entries())).toContainEqual({
+      id: 'trajectory', label: 'Trajectory', composerPlacement: 'overlay',
+    })
+    expect(view.container.querySelector('[data-conversation-composer-overlay]')).toBeNull()
+    expect(view.container.querySelectorAll('table').length).toBe(1)
     fireEvent.click(screen.getByRole('button', { name: '收起所有轮次' }))
     expect(view.container.querySelector('[data-collapsed-summary="turn"]')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: '展开所有轮次' }))

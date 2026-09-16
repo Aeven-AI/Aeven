@@ -43,6 +43,8 @@ else if (result.state === 'unauthenticated') { requireSignIn(location.pathname);
 
 `restoreSession` 回答 `authenticated`、`unauthenticated` 或 `disabled`。`disabled` 表示所服务的页面中未配置 Aeven API，此时壳的启动与不存在任何 authority 时相同。成功会把读者声明在页面上，插件 bundle 随后据此读取。
 
+Aeven 无法抵达时，`restoreSession` 会用它所保留的最近一份 profile 回答 `authenticated`，而不是把读者登出。Host 用自己持有的签名密钥副本来校验有效期一年的 refresh cookie，因此在 Aeven 不可用期间仍能识别读者，应用也能继续抵达读者自行配置的模型与 OAuth 提供方。只有 Aeven 明确拒绝该凭据，或读者登出，才会结束会话。
+
 ### 界面成功后做什么
 
 界面通过离开认证界面来报告成功——前往读者最初请求的路径，该路径记在 `authReferrer` 中。离开该界面会触发一次文档加载，gate 再次运行并恢复刚刚建立的会话。没有任何东西就地交还控制权，因为 boot 在判定没有会话时便已返回。
@@ -72,6 +74,12 @@ API 每次交换都会轮换 refresh token，拒绝被替换的旧 token，并�
 ### 启动后的会话生命周期
 
 `installAuthenticatedTransport` 还会在 access token 过期前不久续期，并在页面重新可见或网络恢复时再次续期；每次续期都会轮换有效期一年的 refresh token，因此打开的页面保持登录。Host 返回 401 时会续期 bearer 并重试该调用一次。当 API 以 400 或 401 拒绝续期，或另一个标签页的登出移除了已存储的 bearer 时，页面删除持有的 bearer，把当前路径记入 `authReferrer`，并加载登录界面。传输失败或 5xx 不影响会话，稍后重试。
+
+Aeven 无法抵达期间，access token 会过期而没有续期能替换它，因此调用会在不带 `Authorization` header 的情况下发出，Host 仅凭 refresh cookie 完成认证。请求会继续成功，Aeven 恢复后的第一次续期就会恢复 bearer。
+
+### 保留的 profile
+
+每份 `/get-profile` 回答都保存在 `aevenProfile` 下，无法抵达 Aeven 的启动会据此恢复读者，因此账户菜单会显示读者的姓名与头像，而不是一个无名用户。登出会连同 bearer 一起丢弃它；无法解析的条目，或未指明任何人的条目，都按不存在处理，读者需要登录。
 
 ### 跟随页面自身的 loopback 主机
 

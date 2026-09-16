@@ -964,6 +964,23 @@ describe('session-query exact reads', () => {
     }
   })
 
+  it('surfaces a seeded live session inherited cut and omits it for an unseeded one', async () => {
+    const ctx = await liveContext()
+    const inherited = eventLog('seed')
+    const seeded = ctx.sessions.create(SessionId('live-seeded'), {
+      seed: inherited,
+      inheritedEventCount: SessionLogOffset(inherited.length),
+      meta: { createdAt: 2, cwd: '/workspace', isSeeded: true },
+    })
+    const plain = ctx.sessions.create(SessionId('live-unseeded'), { meta: { createdAt: 1, cwd: '/workspace' } })
+
+    const records = await ctx.sessionQuery.listSessions()
+    expect(records).toEqual([
+      { header: seeded.header, live: true, persisted: false, inheritedEventCount: SessionLogOffset(1) },
+      { header: plain.header, live: true, persisted: false },
+    ])
+  })
+
   it('filters sessions symmetrically and owns mutable filter values immediately', async () => {
     const durable = header('durable-filter', 1)
     TestPersistence.reset([{ meta: durable, events: eventLog('durable') }])
@@ -1157,6 +1174,96 @@ describe('session-query exact reads', () => {
     ]) {
       await expect(ctx.sessionQuery.readEvent(request)).rejects.toThrow(expectCode('SESSION_QUERY_INVALID_WINDOW'))
     }
+  })
+
+  it('serves concurrent uncancellable listings from one backend walk', async () => {
+    // A client boot asks several independent surfaces to list at once (the
+    // session list plus one subagent listing per surface); each used to walk
+    // every session directory on its own.
+    TestPersistence.reset([{ meta: header('shared-walk', 1), events: eventLog('one') }])
+    const ctx = await liveContext()
+    await ctx.plugin(TestPersistence)
+    TestPersistence.listCalls = 0
+
+    const results = await Promise.all([
+      ctx.sessionQuery.listSessions(),
+      ctx.sessionQuery.listSessions(),
+      ctx.sessionQuery.listSessions(),
+    ])
+
+    expect(TestPersistence.listCalls).toBe(1)
+    for (const records of results) {
+      expect(records.map(record => record.header.id)).toEqual([SessionId('shared-walk')])
+    }
+  })
+
+  it('never serves a settled listing, so a later caller observes new sessions', async () => {
+    // Sharing covers an in-flight walk only. Retaining a finished result would
+    // be a cache, and a session that appeared since would stay invisible.
+    TestPersistence.reset([{ meta: header('before', 1), events: eventLog('one') }])
+    const ctx = await liveContext()
+    await ctx.plugin(TestPersistence)
+    TestPersistence.listCalls = 0
+
+    expect((await ctx.sessionQuery.listSessions()).map(record => record.header.id))
+      .toEqual([SessionId('before')])
+    TestPersistence.entries.set(
+      SessionId('after'),
+      { meta: header('after', 2), events: eventLog('two') },
+    )
+
+    expect((await ctx.sessionQuery.listSessions()).map(record => record.header.id))
+      .toEqual([SessionId('after'), SessionId('before')])
+    expect(TestPersistence.listCalls).toBe(2)
+  })
+
+  it('gives a cancellable listing its own walk so its signal reaches the backend', async () => {
+    // Cancellation is part of this contract: a signalled caller neither joins
+    // nor offers a shared read, because an abort must reach its own backend call.
+    TestPersistence.reset([{ meta: header('signalled', 1), events: eventLog('one') }])
+    const ctx = await liveContext()
+    await ctx.plugin(TestPersistence)
+    TestPersistence.listCalls = 0
+    const controller = new AbortController()
+
+    await Promise.all([
+      ctx.sessionQuery.listSessions(controller.signal),
+      ctx.sessionQuery.listSessions(),
+    ])
+
+    expect(TestPersistence.listCalls).toBe(2)
+    expect(TestPersistence.listSignals).toContain(controller.signal)
+  })
+
+  it('keeps the outer walk installed when a backend re-enters the corpus while it lists', async () => {
+    const durable = header('reentrant-walk', 1)
+    TestPersistence.reset([{ meta: durable, events: eventLog('one') }])
+    const ctx = await liveContext()
+    await ctx.plugin(TestPersistence)
+
+    const joined = Promise.withResolvers<Awaited<ReturnType<typeof ctx.sessionQuery.listSessions>>>()
+    let walks = 0
+    TestPersistence.listOverride = async () => {
+      walks += 1
+      if (walks > 1) return [structuredClone(durable)]
+      // A backend is free to re-enter the corpus while it lists. The nested read
+      // installs its entry first, because the slot is still empty while this
+      // walk's `listPersisted` reaches the backend; this walk then installs its
+      // own entry over it.
+      await ctx.sessionQuery.listSessions()
+      // The nested read has settled, so its entry has been released. A caller
+      // arriving now must still join this walk: only the installed entry may
+      // clear the slot, or the nested release would drop a read still running.
+      joined.resolve(ctx.sessionQuery.listSessions())
+      return [structuredClone(durable)]
+    }
+
+    const outer = await ctx.sessionQuery.listSessions()
+    const third = await joined.promise
+
+    expect(walks).toBe(2)
+    expect(outer.map(record => record.header.id)).toEqual([durable.id])
+    expect(third.map(record => record.header.id)).toEqual([durable.id])
   })
 
   it('merges authoritative persistence with live precedence and detects conflicts', async () => {

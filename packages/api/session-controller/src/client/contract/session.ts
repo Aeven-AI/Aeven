@@ -120,14 +120,29 @@ export interface ISession {
    */
   loadOlder(): Promise<void>
   /**
-   * Page history backwards until the window covers `seq` (inclusive) — the
-   * turn-jump loader. Repeated calls while a jump is paging lower its shared
-   * target and return the in-flight completion; `snapshot.loadingOlder` is
-   * the busy signal for the whole jump.
-   * @param seq - durable event seq the window must reach (a turn's `turn/start` seq).
-   * @returns completion once covered, exhausted, superseded, or failed soft.
+   * Install one history window anchored on `seq` — the turn-jump loader. One
+   * round trip whatever the distance; `snapshot.loadingOlder` is its busy
+   * signal.
+   *
+   * A window anchored short of the live tail is detached: `snapshot.detached`
+   * is set, live events are withheld and counted in `snapshot.pendingLive`,
+   * and {@link ISession.returnToLive} reattaches.
+   * @param seq - durable event seq to anchor on (a turn's `turn/start` seq).
+   * @returns completion once installed, superseded, or failed soft.
    */
   loadThrough(seq: SessionSeq): Promise<void>
+  /**
+   * Extend a detached window forward by one page (newer messages pagination).
+   * A no-op on a window already reaching the live tail.
+   * @returns completion; failures land in snapshot.loadingOlder.
+   */
+  loadNewer(): Promise<void>
+  /**
+   * Reattach a detached window to the live tail and deliver the events
+   * withheld while it was away. A no-op on an attached window.
+   * @returns completion once the tail window is installed.
+   */
+  returnToLive(): Promise<void>
   /**
    * Execute one slash-command line against this session's agent — pure
    * admission semantics (the host executor durably logs the lifecycle).

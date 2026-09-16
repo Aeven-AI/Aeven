@@ -65,7 +65,7 @@ None; Chat presentation does not assemble or mutate provider requests.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **The transcript reflects the loaded Session window** — older transcript nodes become available as Session Controller loads preceding event pages. Chat offers continuous scrolling and content-search navigation, without a separate Turn-jump control.
+- **The transcript reflects the loaded Session window** — older transcript nodes become available as Session Controller loads preceding event pages. Turn navigation reaches wider than the window: the rail merges the loaded Turns with the host `turnOutline` projection, so every started Turn gets a mark — a loaded mark scrolls to its row, an unloaded one pages history through the Turn's `turn/start` seq before landing on it — and a long session is sampled rather than given one mark per Turn. Without that projection the rail renders no marks at all.
 
 
 <a id="dev-note"></a>

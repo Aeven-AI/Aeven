@@ -185,29 +185,35 @@ function renderStaleReminder(todos: TodoItem[], steps: number): string {
  */
 export function apply(ctx: Context, config: Config): void {
   const allowParallel = config.allowParallelInProgress
-  // Standing-plan fold for the UI: latest whole todo/write list, cleared by the
-  // next turn/start (turn/end keeps the finished checklist visible); null before
-  // the first write or after a later turn begins; every other event returns the
-  // same state reference. That turn-scoped lifetime is a deliberate product
-  // decision — readers take the strip as "what this turn is doing" — so it is
-  // deliberately NOT the source the model reads back below.
+  // Standing-plan fold for the UI: the session's latest whole todo/write list,
+  // replaced only by the next write, and null before the first write. Every
+  // other event returns the same state reference, so an unchanged plan pushes
+  // no client frame.
+  //
+  // The plan's lifetime is the session's, not the turn's. An earlier revision
+  // cleared this client-visible fold on `turn/start` (stateVersion 2), on the
+  // premise that a reader takes the strip as "what this turn is doing". The
+  // read-back fold below invalidated that premise: once an agent reads its own
+  // plan from runtime context on every step, it has no reason to re-write a list
+  // that has not changed, so the clear stopped emptying the dock briefly and
+  // started emptying it for the whole turn — measured at 96 consecutive steps
+  // with no write. The model then believed its plan was on screen while the
+  // reader saw an empty dock: one session, two different truths. Both folds now
+  // fold the same input, so the dock and the model can never disagree.
   ctx.sessionProjections.register<'todos', TodoItem[] | null>({
     key: 'todos',
     stateSchema: todosProjectionSchema,
     init: () => null,
     apply: (state, event) => {
       if (event.type === 'todo/write') return event.data.todos
-      if (event.type === 'turn/start') return null
       return state
     },
     wire: { viewSchema: todosProjectionSchema, view: state => state },
-    stateVersion: 2,
+    stateVersion: 3,
   })
-  // Host-only read-back fold: the session's latest todo/write, retained across
-  // turn boundaries. An agent's working memory has to survive a turn the way its
-  // transcript does, and the turn-scoped UI lifetime above makes `todos` the
-  // wrong source for that. Declared without `wire`, so it never reaches a client
-  // and cannot perturb the dock.
+  // Host-only read-back fold: the same input, but declared without `wire`, so it
+  // never reaches a client and no client-facing lifetime rule or `stateVersion`
+  // bump can perturb the plan an agent reads back as runtime context.
   ctx.sessionProjections.register<'todoPlan', TodoItem[] | null>({
     key: 'todoPlan',
     stateSchema: todosProjectionSchema,

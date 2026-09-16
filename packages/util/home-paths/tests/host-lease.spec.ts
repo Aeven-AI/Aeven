@@ -1,5 +1,5 @@
 import { createServer, type Server } from 'node:http'
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
@@ -69,6 +69,20 @@ it('treats a missing, corrupt, or future-versioned lease as unclaimed', async ()
 
   await writeFile(hostLeasePath(home), JSON.stringify({ version: HOST_LEASE_VERSION, pid: 0, startedAt: 'x' }), 'utf8')
   expect(await readHostLease(home)).toBeUndefined()
+
+  // Valid JSON that is not an object at all, and an object whose optional url
+  // carries the wrong type: the shape guard is all that stands between these
+  // and a consumer reading `.pid` off null.
+  await writeFile(hostLeasePath(home), 'null', 'utf8')
+  expect(await readHostLease(home)).toBeUndefined()
+  await writeFile(hostLeasePath(home), JSON.stringify({ version: HOST_LEASE_VERSION, pid: 1, startedAt: 'x', url: 7 }), 'utf8')
+  expect(await readHostLease(home)).toBeUndefined()
+})
+
+it('reports no live Host on an unclaimed home', async () => {
+  const home = await makeHome()
+  // The absent-lease path: nothing to judge and nothing to take over.
+  expect(await liveHostLease(home)).toBeUndefined()
 })
 
 it('reports a live Host and silently takes over a dead one', async () => {
@@ -129,4 +143,43 @@ it('probes an advertised URL and treats silence as gone', async () => {
 it('keeps the lease inside the runtime directory of its home', async () => {
   expect(HOST_LEASE_FILE).toBe('runtime/host.json')
   expect(hostLeasePath('/tmp/home')).toBe('/tmp/home/runtime/host.json')
+})
+
+/**
+ * Stale-lease removal is best-effort, and the disposal helpers swallow their
+ * own write failures: a Host that lost a race, or that cannot write at all,
+ * must still start. Forcing that failure takes a record that can neither be
+ * unlinked nor rewritten — a read-only file inside a read-only directory —
+ * which only a non-root POSIX process can be denied (as root both succeed and
+ * the failure path is unreachable).
+ */
+it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)('keeps a usable answer when a stale lease cannot be removed or rewritten', async () => {
+  const home = await makeHome()
+  const runtime = join(home, 'runtime')
+  await mkdir(runtime, { recursive: true })
+  await writeHostLease(home, {
+    version: HOST_LEASE_VERSION,
+    pid: DEAD_PID,
+    startedAt: '2026-09-14T00:00:00.000Z',
+  })
+  await chmod(hostLeasePath(home), 0o400)
+  await chmod(runtime, 0o500)
+  try {
+    // The stale advertisement is still rejected, and the failed removal does
+    // not surface as a rejection the next start would have to handle.
+    await expect(liveHostLease(home)).resolves.toBeUndefined()
+    // The same for the two disposal helpers: neither may throw because the
+    // medium refused the write.
+    await expect(clearHostLease(home, DEAD_PID)).resolves.toBeUndefined()
+    await expect(advertiseHostUrl(home, DEAD_PID, 'http://127.0.0.1:9999/?token=x')).resolves.toBeUndefined()
+  } finally {
+    await chmod(runtime, 0o700)
+    await chmod(hostLeasePath(home), 0o600)
+  }
+  // The record survived the failed attempts untouched: no url was attached.
+  expect(await readHostLease(home)).toEqual({
+    version: HOST_LEASE_VERSION,
+    pid: DEAD_PID,
+    startedAt: '2026-09-14T00:00:00.000Z',
+  })
 })

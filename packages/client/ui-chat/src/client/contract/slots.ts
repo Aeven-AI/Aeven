@@ -79,6 +79,8 @@ export interface ChatNodeOwnerProps {
   forkAt: (seq: number) => void
   renderMessageImages: RenderMessageImages
   fileMentions: (owner: TurnTailOwnerProps) => MarkdownFileMentions | undefined
+  /** Keep the transcript on its live tail after streamed Markdown renders. */
+  scrollDown?: (() => void) | undefined
   /** A transcript block took the viewport, or gave it back. */
   onFullscreenChange?: ((fullscreen: boolean) => void) | undefined
   /** Turn-process state when this Node belongs to a projected Turn. */
@@ -139,8 +141,17 @@ export interface ChatViewInjected {
   openDetails: (target: SelectionTarget) => void
   openFile: (path: string) => Promise<void>
   loadOlder: () => void
+  /** Extend a window detached by a jump forward by one page. */
+  loadNewer: () => void
+  /** Reattach a detached window to the live tail. */
+  returnToLive: () => void
   /** Jump loader: page history back through seq; resolves when the window covers it. */
   loadThrough: (seq: SessionSeq) => Promise<void>
+  /**
+   * Reveal one durable event, paging history to it when needed. The rail's
+   * jump: the request is superseded by a later one rather than queued.
+   */
+  navigateToEvent: (seq: SessionSeq, options?: { readonly highlight?: boolean }) => void
   /** Acknowledge the current exact-event navigation after landing or fallback. */
   completeEventNavigation: (requestId: number) => void
   loadImage: MessageImageLoader

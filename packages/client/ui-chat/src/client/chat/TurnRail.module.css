@@ -1,0 +1,173 @@
+/* The rail rides the conversation scroller rather than a chrome layer beside
+   it: a sticky, zero-height box stays put while the transcript scrolls under
+   it, and contributes no scrollHeight of its own — a control in the flow would
+   otherwise extend the scrollable range by its own height. The header above it
+   in the same scroller uses the same mechanism. */
+.slot {
+  position: sticky;
+  top: 50%;
+  z-index: 7;
+  float: right;
+  height: 0;
+  margin-right: 24px;
+  pointer-events: none;
+}
+
+/* The ladder's own box, centred on the sticky line. Its width is a pointer
+   column rather than the tick width: a 2px line is not a mouse target, so the
+   rail takes the pointer for a band wide enough to hit without aiming, and the
+   ticks paint inside it. */
+.rail {
+  position: relative;
+  width: 44px;
+  height: var(--dsh-turn-band);
+  transform: translateY(-50%);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+/* A tick is a keyboard destination that paints one line — never a mouse target
+   of its own, since the rail owns pointer input for the whole column. The box
+   spans the full pointer band so focus rings wrap the line's own row. */
+.tick {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.tick::before {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 4px;
+  height: 2px;
+  border-radius: 1px;
+  /* Tick colours are variables so a state rebinds one name rather than
+     restating the whole background declaration. */
+  --turn-tick-rest: rgb(10, 10, 10);
+  --turn-tick-active: rgb(10, 10, 10);
+  background: var(--turn-tick-rest);
+  content: '';
+  transform: translateY(-50%);
+  transition: width 140ms ease, background-color 140ms ease;
+}
+
+/* Dimming belongs to the RESTING line only. On the shared pseudo-element it
+   would also dim a selected or previewed Turn that is not resident yet, which
+   is how a selected line could render below full strength. Same length as a
+   loaded tick: the ladder reads as one scale of the whole session, and the
+   dimming alone carries "not resident yet". */
+.tickUnloaded::before {
+  /* 35% of the resting colour, stated as the composite rather than through
+     color-mix(): the client's iOS/Safari 14.5 floor drops a value-level
+     function it cannot parse, which would leave the unloaded tick painting at
+     full strength. */
+  --turn-tick-rest: rgba(10, 10, 10, 0.35);
+}
+
+/* The selected Turn and the mark the pointer (or focus) is on paint the same
+   line: same colour, same length. A previewed mark is not a second selection —
+   it carries no `aria-current` — so the two states differ by which mark claims
+   selection, not by how loud the line is. */
+.tickActive::before,
+.tickPreview::before {
+  width: 8px;
+  background: var(--turn-tick-active);
+  opacity: 1;
+}
+
+.tick:focus-visible::before {
+  width: 8px;
+  background: var(--dsw-alias-state-business-primary, rgb(10, 10, 10));
+}
+
+.tick:focus-visible {
+  outline: 1px solid var(--dsw-alias-state-business-primary, rgb(10, 10, 10));
+  outline-offset: 2px;
+}
+
+/* Anchored to the hovered tick and opening away from the rail, which sits in
+   the scroller's end gutter. */
+.preview {
+  position: absolute;
+  right: calc(100% + 10px);
+  box-sizing: border-box;
+  width: min(300px, calc(100cqw - 120px));
+  overflow: hidden;
+  padding: 16px;
+  border: 0;
+  /* The Aeven menu surface: a translucent white plate with a 4px backdrop blur
+     and the two inset highlights. The radius is the balloon's own — the menu's
+     30px rounds a two-line card into a lozenge. */
+  border-radius: 20px;
+  backdrop-filter: blur(4px);
+  background-color: rgb(255 255 255 / 70%);
+  box-shadow:
+    inset 1px 1px 0 0 rgb(255 255 255 / 80%),
+    inset 0 0 1px 1px rgb(255 255 255 / 80%),
+    0 2px 20px rgb(0 0 0 / 10%);
+  color: var(--dsw-alias-label-primary, rgb(10, 10, 10));
+  pointer-events: none;
+  transform: translateY(-50%);
+  animation: dsh-turn-preview-enter 120ms ease-out;
+  transition: top 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.previewPrompt,
+.previewResponse {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+}
+
+/* A fixed 14px over a fixed 20px line, NOT the content axis: the balloon is a
+   fixed-size card, so following the reader's content size would make it
+   disagree with its own geometry. Both lines take the same 20px line so the
+   card keeps one rhythm. */
+.previewPrompt {
+  font: var(--dsw-font-s-14);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  -webkit-line-clamp: 1;
+}
+
+/* Body weight (450), one step under the prompt's 500: the answer is the same
+   size as the prompt and told apart by weight and colour. */
+.previewResponse {
+  margin-top: 4px;
+  color: var(--dsw-alias-label-caption, rgb(10 10 10 / 60%));
+  font: var(--dsw-font-s-14);
+  font-size: 14px;
+  font-weight: 450;
+  line-height: 20px;
+  -webkit-line-clamp: 3;
+}
+
+@keyframes dsh-turn-preview-enter {
+  from { opacity: 0; transform: translateY(-50%) translateX(4px); }
+  to { opacity: 1; transform: translateY(-50%) translateX(0); }
+}
+
+/* The rail is a pointer affordance over a fixed band; a narrow column has no
+   room for it beside the transcript. */
+@media (width <= 1100px) {
+  .slot {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tick::before,
+  .preview {
+    transition: none;
+    animation: none;
+  }
+}

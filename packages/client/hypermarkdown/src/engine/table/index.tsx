@@ -3,6 +3,7 @@ import React, { memo, useCallback, useEffect, useRef, useState } from 'react'
 import type { Emitter } from '../runtime.ts'
 import { cssLength, defaultUi } from '../config.ts'
 import type { UiConfig } from '../config.ts'
+import { portalFullscreen } from '../fullscreen-portal.tsx'
 
 import TableHeader from './header.tsx'
 import { readTableShape, type TableShape } from './shape.ts'
@@ -40,6 +41,7 @@ function MarkdownTableComponent(props: MarkdownTableProps) {
 
   const tableRef = useRef<HTMLTableElement | null>(null)
   const wrapperRef = useRef<HTMLDivElement | null>(null)
+  const slotHeight = useRef<number | undefined>(undefined)
 
   const shapeRef = useRef<TableShape>({ headless: true, headerColumns: 0 })
   const headlessSettled = useRef(false)
@@ -93,21 +95,23 @@ function MarkdownTableComponent(props: MarkdownTableProps) {
   })
 
   const onToggleFullScreen = useCallback((next: boolean) => {
+    if (next && wrapperRef.current) {
+      slotHeight.current = wrapperRef.current.getBoundingClientRect().height
+    }
     setFullscreen(next)
   }, [])
 
   const config = ui ?? defaultUi
   const maxHeight = cssLength(config.tableMaxHeight)
 
+  const streamClass = stream === true ? ' stream-active' : ''
   const wrapperClass =
-    'table-wrapper' +
-    (stream === true ? ' stream-active' : '') +
-    (fullscreen ? ' fullscreen' : '')
+    'table-wrapper' + streamClass + (fullscreen ? ' fullscreen' : '')
   const scrollClass =
     'table-scroll no-scrollbar' +
     (shapeRef.current.headerColumns >= 4 ? ' md-table-wide' : '')
 
-  return (
+  const tree = (
     <div
       ref={wrapperRef}
       className={wrapperClass}
@@ -142,6 +146,16 @@ function MarkdownTableComponent(props: MarkdownTableProps) {
       </div>
     </div>
   )
+
+  if (fullscreen) {
+    return portalFullscreen(
+      tree,
+      'table-wrapper' + streamClass,
+      slotHeight.current,
+    )
+  }
+
+  return tree
 }
 
 const MarkdownTable = memo(MarkdownTableComponent)

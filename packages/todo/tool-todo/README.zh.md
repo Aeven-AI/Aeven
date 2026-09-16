@@ -91,7 +91,7 @@ agent 每次更新都发送完整列表；新列表替换旧列表，因此没�
 
 ### 会话投影
 
-当组合挂载 `ctx.sessionProjections`（[`@deepseek-ai/dsh-session-projection`](../../session/session-projection/README.zh.md)）时，本包在注入的子插件中注册两个单元。`todos` 是 UI 的有效计划：最新的整份 `todo/write` 列表，首次写入前为 `null`，下一轮次开始时清空，而 `turn/end` 保留刚完成的清单。该键在此处合并进 `SessionProjectionMap`；载体通过历史尾页与 `session/projection` 推送帧提供该值。生命周期理由见 [todo 计划在下一轮次清空 Agent Note](../../../.agents/notes/implemented/feature/2026-07-28-todo-plan-clears-on-next-turn.zh.md)。`todoPlan` 是模型对同一份列表的回读，声明时不带 `wire`，因此永不发往客户端：它跨轮次边界保留会话最近一次 `todo/write`，因为即使 dock 的按轮次生命周期有意让已完成的清单退场，agent 的工作记忆仍必须跨轮次存续。未挂载注册表的组合不受影响；两个单元的注册见 [src/index.ts](src/index.ts)。
+当组合挂载 `ctx.sessionProjections`（[`@deepseek-ai/dsh-session-projection`](../../session/session-projection/README.zh.md)）时，本包在注入的子插件中注册两个单元。`todos` 是 UI 的有效计划：最新的整份 `todo/write` 列表，首次写入前为 `null`，仅由下一次写入替换。轮次边界不会移动它，因此 dock 会持续显示 agent 仍在推进的计划。该键在此处合并进 `SessionProjectionMap`；载体通过历史尾页与 `session/projection` 推送帧提供该值。生命周期理由见 [todo 计划跨轮次边界存续 Agent Note](../../../.agents/notes/implemented/bug-fix/2026-09-16-todo-plan-survives-the-turn-boundary.zh.md)，它反转了此前的[下一轮次清空决策](../../../.agents/notes/implemented/feature/2026-07-28-todo-plan-clears-on-next-turn.zh.md)。`todoPlan` 是模型对同一份列表的回读，声明时不带 `wire`，因此永不发往客户端：它折叠同一份输入，所以 dock 显示的计划与模型回读的计划不可能出现分歧。未挂载注册表的组合不受影响；两个单元的注册见 [src/index.ts](src/index.ts)。
 
 ### 持久日志不变式
 
@@ -116,7 +116,7 @@ agent 每次更新都发送完整列表；新列表替换旧列表，因此没�
 - [生成的配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-tool-todo)——每个受支持配置字段及其源声明。
 - [todo_write 工具 Agent Note](../../../.agents/notes/implemented/feature/2026-06-29-todo-write-tool.zh.md)——原始设计、备选方案与砍掉的字段。
 - [并行 in-progress Agent Note](../../../.agents/notes/implemented/feature/2026-07-26-todo-parallel-in-progress.zh.md)——为何活跃计数上限成为部署策略。
-- [todo 计划在下一轮次清空 Agent Note](../../../.agents/notes/implemented/feature/2026-07-28-todo-plan-clears-on-next-turn.zh.md)——投影的有效计划生命周期。
+- [todo 计划跨轮次边界存续 Agent Note](../../../.agents/notes/implemented/bug-fix/2026-09-16-todo-plan-survives-the-turn-boundary.zh.md)——投影的有效计划生命周期，以及下一轮次清空规则的反转。
 
 -----
 
@@ -155,7 +155,7 @@ token 用量随模型每次提交的完整列表增长，这些调用参数会�
 
 #### 模型看到什么
 
-只要存在有效计划，该步骤的运行时上下文就携带一条贡献：`Your current todo list (<completed>/<total> completed) — keep it in sync with todo_write as this work progresses, marking each task completed the moment it is done:`，其后按写入顺序每项一行 `- [<status>] <content>`。它由仅宿主的 `todoPlan` 投影渲染，因此即使轮次边界清空了 dock 的 `todos` 值，它依然存在，并在历史压缩后恢复该计划。首次写入之前以及列表为空时，该贡献渲染为空，完全不产生快照。
+只要存在有效计划，该步骤的运行时上下文就携带一条贡献：`Your current todo list (<completed>/<total> completed) — keep it in sync with todo_write as this work progresses, marking each task completed the moment it is done:`，其后按写入顺序每项一行 `- [<status>] <content>`。它由仅宿主的 `todoPlan` 投影渲染，该投影与 dock 的 `todos` 值折叠同一份输入，并在历史压缩后恢复该计划。首次写入之前以及列表为空时，该贡献渲染为空，完全不产生快照。
 
 #### Token 影响
 
