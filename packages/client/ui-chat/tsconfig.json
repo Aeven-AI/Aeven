@@ -36,6 +36,9 @@
       "path": "../../core/session"
     },
     {
+      "path": "../../session/session-turn-outline"
+    },
+    {
       "path": "../../core/tools"
     },
     {
