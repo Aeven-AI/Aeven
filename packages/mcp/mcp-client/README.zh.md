@@ -65,7 +65,7 @@ kind: "package-reference"
 | `reconnect.maxDelayMs` | `30,000` | 退避上限；同时是重置尝试预算所需的正常运行时长 |
 | `reconnect.maxAttempts` | `10` | 每次中断内连续失败尝试次数上限，超出后放弃 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-mcp-client)是每个受支持字段及其 JSDoc 的穷尽式真源。
+生成的[配置目录](../../../docs/config-catalog.zh.md#aevenmcp-client)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
 启动后，服务器的工具会以 `mcp__<serverName>__<tool>` 形式出现——试着用一条提示词调用其中一个。如果初始连接失败，harness 仍会启动，但该服务器的工具不会出现，并会记录一条错误；设置 `failOnStartupError: true` 可让启动失败改为中止 harness。
 
@@ -149,7 +149,7 @@ kind: "package-reference"
 - [MCP 客户端自动重连 Agent Note](../../../.agents/notes/implemented/feature/2026-08-06-mcp-client-auto-reconnect.zh.md)——重连策略、尝试预算与退出开关的依据。
 - [规范工具输出约定 Agent Note](../../../.agents/notes/implemented/architecture/2026-07-20-canonical-tool-output-contract.zh.md)——MCP 结果如何映射进规范工具输出约定。
 - [第三方记忆 MCP 指南](../../../docs/user/guide/mcp-memory.zh.md)——使用本包的三份记忆服务器 overlay。
-- [生成配置目录](../../../docs/config-catalog.zh.md#aeven-mcp-client)——每个受支持配置字段及其源声明。
+- [生成配置目录](../../../docs/config-catalog.zh.md#aevenmcp-client)——每个受支持配置字段及其源声明。
 
 -----
 

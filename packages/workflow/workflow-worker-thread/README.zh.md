@@ -45,7 +45,7 @@ kind: "package-reference"
 | `syncTimeoutMs` | `5000` | 脚本最初同步片段的 VM 超时时间，单位为毫秒。 |
 | `disposeGraceMs` | `5000` | 强制结算与终止 worker 前的期限；同时约束 `dispose()`。 |
 
-负责该引擎的消费方可以为一次运行设置 `WorkflowStartRequest.subagentProvider` 与 `WorkflowStartRequest.maxTotalAgents`——这是引擎级策略，不是脚本钩子；普通 `workflow` 工具两者都不设置，单次运行的子 agent 总数上限可以降低、但绝不能提高已配置的上限。生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-workflow-worker-thread)是每个受支持字段的穷尽式真源。
+负责该引擎的消费方可以为一次运行设置 `WorkflowStartRequest.subagentProvider` 与 `WorkflowStartRequest.maxTotalAgents`——这是引擎级策略，不是脚本钩子；普通 `workflow` 工具两者都不设置，单次运行的子 agent 总数上限可以降低、但绝不能提高已配置的上限。生成的[配置目录](../../../docs/config-catalog.zh.md#aevenworkflow-worker-thread)是每个受支持字段的穷尽式真源。
 
 ### 运行会得到什么
 

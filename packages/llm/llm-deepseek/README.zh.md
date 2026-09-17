@@ -70,7 +70,7 @@ kind: "package-reference"
 | `fileQuotaCleanupBatch` | `100` | 配额重试前删除的最旧 harness 文件数 |
 | `retryPolicy` | normal，5 次重试 | 由 `avn-llm-retry` 执行的提供方自有重试策略 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-llm-deepseek)是每个受支持字段及其 JSDoc 的穷尽式真源。
+生成的[配置目录](../../../docs/config-catalog.zh.md#aevenllm-deepseek)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
 ### 带 thinking 与图片的流式调用
 

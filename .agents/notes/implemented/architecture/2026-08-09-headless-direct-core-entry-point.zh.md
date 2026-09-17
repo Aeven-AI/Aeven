@@ -20,7 +20,7 @@ Status: implemented
 
 `loadProfile` 识别安装过程拥有的精确 headless 元组（`avn-base`、`avn-web-app`、`avn-headless`），将其规范化为随附的 headless 模板，并保留 manifest（元数据清单）的其他所有字段。带额外项、缺少项或顺序不同的组合包列表归用户所有，保持不变。
 
-本 Agent Note 负责 headless 的传输与完成约定；[headless 推理进度](../feature/2026-08-21-headless-reasoning-progress.zh.md)负责成功运行时的 stderr 输出。[应用持有自己的命令行](2026-08-06-app-owned-command-line.zh.md)负责当前的 `avn --profile headless` 语法；原 [`avn run` 决策](../../archived/feature/2026-08-08-avn-run-headless-command.md)记录已被取代的启动器持有语法，[Web 配置树启动与传输分层](2026-07-24-web-config-tree-boot-and-transport-layering.zh.md)负责 Web 插件树，[默认模型跟随选择器](../feature/2026-08-07-default-model-follows-the-picker.zh.md)负责共享 Agent 默认值的持久化。
+本 Agent Note 负责 headless 的传输与完成约定；[headless 推理进度](../feature/2026-08-21-headless-reasoning-progress.zh.md)负责成功运行时的 stderr 输出。[应用持有自己的命令行](2026-08-06-app-owned-command-line.zh.md)负责当前的 `avn --profile headless` 语法；原 [`avn run` 决策](../../archived/feature/2026-08-08-dsh-run-headless-command.md)记录已被取代的启动器持有语法，[Web 配置树启动与传输分层](2026-07-24-web-config-tree-boot-and-transport-layering.zh.md)负责 Web 插件树，[默认模型跟随选择器](../feature/2026-08-07-default-model-follows-the-picker.zh.md)负责共享 Agent 默认值的持久化。
 
 ## 验证
 

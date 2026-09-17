@@ -47,7 +47,7 @@ The single config field toggles background support.
 |---|---|---|
 | `enableRunInBackground` | `true` | Expose `run_in_background`; when `false`, forced background calls are rejected |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#aeven-tool-pwsh) is the exhaustive source for every accepted field and its JSDoc; the generated [tool catalog](../../../docs/tool-catalog.md#aeven-tool-pwsh) carries the full argument schema.
+The generated [configuration catalog](../../../docs/config-catalog.md#aeventool-pwsh) is the exhaustive source for every accepted field and its JSDoc; the generated [tool catalog](../../../docs/tool-catalog.md#aeventool-pwsh) carries the full argument schema.
 
 ### Running a command
 
@@ -106,8 +106,8 @@ Read these pages when the package-level contract is not enough. They move from t
 - [tool-jobs](../../jobs/tool-jobs/README.md) — `job_output`, `job_list`, and `job_kill` controls for background runs.
 - [pwsh tool and executor Agent Note](../../../.agents/notes/implemented/feature/2026-08-01-pwsh-tool-and-executor.md) — why the tool mirrors the bash tool and how the Windows sandbox gates its description.
 - [Windows ACL restricted-token sandbox Agent Note](../../../.agents/notes/implemented/feature/2026-08-08-windows-acl-restricted-token-sandbox.md) — the language-mode and named-pipe contracts.
-- [Generated tool catalog](../../../docs/tool-catalog.md#aeven-tool-pwsh) — the exact `pwsh` argument schema.
-- [Generated configuration catalog](../../../docs/config-catalog.md#aeven-tool-pwsh) — every accepted config field and its source declaration.
+- [Generated tool catalog](../../../docs/tool-catalog.md#aeventool-pwsh) — the exact `pwsh` argument schema.
+- [Generated configuration catalog](../../../docs/config-catalog.md#aeventool-pwsh) — every accepted config field and its source declaration.
 
 -----
 
@@ -138,7 +138,7 @@ Prefix-stable while the registration scope and prompt text are unchanged. Plugin
 
 #### What the model sees
 
-The model sees the generated [`pwsh` schema](../../../docs/tool-catalog.md#aeven-tool-pwsh). Agent-scoped tool restrictions can remove the definition for that agent.
+The model sees the generated [`pwsh` schema](../../../docs/tool-catalog.md#aeventool-pwsh). Agent-scoped tool restrictions can remove the definition for that agent.
 
 #### Token effect
 

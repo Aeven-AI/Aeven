@@ -52,7 +52,7 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-模型看到生成的 [`generate_image` Schema](../../../docs/tool-catalog.zh.md#aeven-tool-media)：一个必填的 `prompt` 和七个可选控制项——用于单次调用覆盖的 `model` 与 `provider`，以及转发给 Seam 的 `n`、`aspect_ratio`、`resolution`、`size`、`seed`。描述写明了一个好的 prompt 应涵盖什么，并告诉模型不要再调用其他工具去定位或校验图像，因为附件本身就是结果。
+模型看到生成的 [`generate_image` Schema](../../../docs/tool-catalog.zh.md#aeventool-media)：一个必填的 `prompt` 和七个可选控制项——用于单次调用覆盖的 `model` 与 `provider`，以及转发给 Seam 的 `n`、`aspect_ratio`、`resolution`、`size`、`seed`。描述写明了一个好的 prompt 应涵盖什么，并告诉模型不要再调用其他工具去定位或校验图像，因为附件本身就是结果。
 
 #### Token 影响
 

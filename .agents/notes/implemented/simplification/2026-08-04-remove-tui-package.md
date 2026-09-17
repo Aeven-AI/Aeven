@@ -16,7 +16,7 @@ The `packages/ui/tui` package is deleted without a compatibility package or alia
 
 The SDK project toolchain that remained as the TUI package's final consumer is deleted by the [toolchain removal decision](2026-08-11-remove-sdk-project-toolchain.md). Host applications may still mount the provider-neutral `avn-user-questions`, `avn-commands`, and presentation services directly.
 
-This decision supersedes the reusable-package retention in [the explicit-config `avn` entrypoint decision](../../archived/simplification/2026-08-03-explicit-config-avn-entrypoint.md) and the current applicability of the archived TUI implementation notes. Their historical records remain frozen, but they are not authority for the supported package or application inventory.
+This decision supersedes the reusable-package retention in [the explicit-config `avn` entrypoint decision](../../archived/simplification/2026-08-03-explicit-config-dsh-entrypoint.md) and the current applicability of the archived TUI implementation notes. Their historical records remain frozen, but they are not authority for the supported package or application inventory.
 
 This note consolidates the deleted package-only records that could not remain current after removal. The terminal UI had kept session identity visible during long conversations, removed duplicate model labels, attached elapsed timing and phase status to messages, showed workspace and branch context beside the prompt, and conservatively parsed complete XML wrappers for human-readable fallback output. Those choices improved one terminal frontend but do not justify retaining it without a deployment. A future XML fallback must still use a real parser rather than regular expressions.
 

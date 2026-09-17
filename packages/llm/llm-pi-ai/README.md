@@ -87,7 +87,7 @@ Each profile may set a `retryPolicy`; omission uses normal mode with five retrie
 | `maxRequestImageBytes` | `20 MiB` | Aggregate base64 image-payload bound with oldest-first offload |
 | `retryPolicy` | normal, 5 retries | Provider-owned retry policy executed by `avn-llm-retry` |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#aeven-llm-pi-ai) is the exhaustive source for every accepted field and its JSDoc.
+The generated [configuration catalog](../../../docs/config-catalog.md#aevenllm-pi-ai) is the exhaustive source for every accepted field and its JSDoc.
 
 ### Sign in to a provider
 
@@ -191,7 +191,7 @@ Read these pages when the package-level contract is not enough. They move from t
 - [LLM streaming subsystem](../../../docs/subsystems/llm-streaming.md) — the `StreamChunk` protocol and adapter contract.
 - [llm-retry](../llm-retry/README.md) — the retry executor that applies each profile's `retryPolicy`.
 - [Twin LLM adapters](../../../.agents/notes/implemented/architecture/2026-06-13-twin-llm-adapters.md) — why the DeepSeek route ships two structurally different adapters.
-- [Generated configuration catalog](../../../docs/config-catalog.md#aeven-llm-pi-ai) — every accepted config field and its source declaration.
+- [Generated configuration catalog](../../../docs/config-catalog.md#aevenllm-pi-ai) — every accepted config field and its source declaration.
 
 -----
 

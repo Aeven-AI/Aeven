@@ -47,7 +47,7 @@ Load the package with a default mode; the fail-safe default is `read-only`, and 
 | `mode` | `read-only` | The deployment default mode a session starts from, validated at load |
 | `workspaceRoot` | `process.cwd()` | The fallback root `workspace-write` may write under for agentless calls or sessions without a cwd; normal agent calls use the session's immutable cwd instead |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#aeven-sandbox-policy) is the exhaustive source for every accepted field and its JSDoc.
+The generated [configuration catalog](../../../docs/config-catalog.md#aevensandbox-policy) is the exhaustive source for every accepted field and its JSDoc.
 
 ### Switching a session's mode
 

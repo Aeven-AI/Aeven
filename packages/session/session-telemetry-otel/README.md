@@ -61,7 +61,7 @@ Uploading modes require an exporter URL and accept the SDK option blocks verbati
 | `exporter`, `processor` | — | Passed verbatim to the SDK exporter and batch processor |
 | `shutdownTimeoutMillis` | `3,000` | Outer deadline for the SDK's complete shutdown sequence |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#aeven-session-telemetry-otel) is the exhaustive source for every accepted field. Upload authorization is positive and fail-closed: an unknown direct-construction mode fails before transport configuration is read, only `FULL` accepts direct `ctx.sessionTelemetry.emit()` calls, and `FEEDBACK_ONLY` treats only the exact `feedback/record` object already stored in the canonical log as consent.
+The generated [configuration catalog](../../../docs/config-catalog.md#aevensession-telemetry-otel) is the exhaustive source for every accepted field. Upload authorization is positive and fail-closed: an unknown direct-construction mode fails before transport configuration is read, only `FULL` accepts direct `ctx.sessionTelemetry.emit()` calls, and `FEEDBACK_ONLY` treats only the exact `feedback/record` object already stored in the canonical log as consent.
 
 ### What leaves the machine
 
@@ -111,7 +111,7 @@ Read these pages when the backend contract is not enough. They move from the sea
 - [Session telemetry seam](../session-telemetry/README.md) — the capture contract, record vocabulary, and redaction waterfall.
 - [Session telemetry subsystem](../../../docs/subsystems/session-telemetry.md) — the capability split and type declarations.
 - [Anonymous user identity](../../identity/anonymous-user-id/README.md) — the id reported as the OTel Resource `user.id`.
-- [Generated configuration catalog](../../../docs/config-catalog.md#aeven-session-telemetry-otel) — every accepted config field and its source declaration.
+- [Generated configuration catalog](../../../docs/config-catalog.md#aevensession-telemetry-otel) — every accepted config field and its source declaration.
 
 -----
 

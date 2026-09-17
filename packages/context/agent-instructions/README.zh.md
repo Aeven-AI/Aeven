@@ -63,7 +63,7 @@ export interface Config {
 | `localInstructionFileCandidates` | `['AGENTS.local.md', 'CLAUDE.local.md']` | 在基础文件之后加载的本地 overlay 文件名 |
 | `avnHome` | `$AVN_HOME` 或 `~/.aeven` | 存放用户全局 `AGENTS.md` 的目录 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-agent-instructions)是每个受支持字段及其 JSDoc 的穷尽式真源。
+生成的[配置目录](../../../docs/config-catalog.zh.md#aevenagent-instructions)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
 ### 观察预算
 
@@ -115,7 +115,7 @@ export interface Config {
 - [文档标准](../../../docs/AGENTS.md)——`AGENTS.md` 指令文件包含什么、如何维护。
 - [工作区上下文决策记录](../../../.agents/notes/implemented/feature/2026-06-24-workspace-context.zh.md)——按 agent／会话隔离与生命周期理由。
 - [context 组地图](../README.zh.md)——相邻的请求上下文包。
-- [生成的配置目录](../../../docs/config-catalog.zh.md#aeven-agent-instructions)——每个受支持配置字段及其源声明。
+- [生成的配置目录](../../../docs/config-catalog.zh.md#aevenagent-instructions)——每个受支持配置字段及其源声明。
 
 -----
 

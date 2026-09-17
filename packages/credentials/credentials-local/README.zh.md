@@ -46,7 +46,7 @@ kind: "package-reference"
 | `watch` | `true` | 文件在磁盘上变化时自动重载 |
 | `debounceMs` | `100` | 变化后等待这么久再重载，单位为毫秒 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-credentials-local)是每个受支持字段及其 JSDoc 的穷尽式真源。
+生成的[配置目录](../../../docs/config-catalog.zh.md#aevencredentials-local)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
 ### 存储与移除密钥
 

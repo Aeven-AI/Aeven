@@ -46,7 +46,7 @@ Choose it as the default user-settings store: one human-readable document that u
 | `watch` | `true` | Watch the document and hot-publish external edits |
 | `debounceMs` | `100` | Watcher write-settle window, in milliseconds |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#aeven-settings-file) is the exhaustive source for every accepted field and its JSDoc.
+The generated [configuration catalog](../../../docs/config-catalog.md#aevensettings-file) is the exhaustive source for every accepted field and its JSDoc.
 
 ### Editing the document
 
@@ -114,7 +114,7 @@ Read these pages when the provider-level contract is not enough. They move from 
 - [Settings package map](../README.md) — the two packages of the user-settings capability.
 - [Atomic write](../../util/atomic-write/README.md) — the writer lock and atomic replacement every write uses.
 - [Home paths](../../util/home-paths/README.md) — `$AVN_HOME` resolution and canonical watch paths.
-- [Generated configuration catalog](../../../docs/config-catalog.md#aeven-settings-file) — every accepted config field and its source declaration.
+- [Generated configuration catalog](../../../docs/config-catalog.md#aevensettings-file) — every accepted config field and its source declaration.
 
 -----
 

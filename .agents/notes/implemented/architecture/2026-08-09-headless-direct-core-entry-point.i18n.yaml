@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-09-headless-direct-core-entry-point.md
-2026-08-09-headless-direct-core-entry-point.md: 023e15b0d8a22a8853c4b73ff31b6eeb601c26c5
-2026-08-09-headless-direct-core-entry-point.zh.md: 1ffcfe7863b63479595f8a1392669cb4cb3598e4
+2026-08-09-headless-direct-core-entry-point.md: 20e250c537d295aaafd348f5149a35dbc42a62d3
+2026-08-09-headless-direct-core-entry-point.zh.md: 44e0e98b8df65ab57d2d3ef21d66f87067913f14

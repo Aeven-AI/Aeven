@@ -56,7 +56,7 @@ The row injects the seam and reads its secrets from the environment:
 | `mediaUrl` | none | Origin serving uploaded media that profile-image paths are relative to |
 | `xOAuthUrl`, `appleOAuthUrl`, `googleOAuthUrl` | none | Provider sign-in URLs; an absent one hides that provider's button |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#aeven-identity-user-aeven) is the exhaustive source for every accepted field.
+The generated [configuration catalog](../../../docs/config-catalog.md#aevenidentity-user-aeven) is the exhaustive source for every accepted field.
 
 ### Serve AVN from the same site as the API
 
@@ -104,7 +104,7 @@ Read these when the authority alone is not enough: the seam it registers into, t
 - [avn-client-ui-auth-aeven](../../client/ui-auth-aeven/README.md) — the sign-in screens and the session this authority then recognizes.
 - [avn-client-ui-account-aeven](../../client/ui-account-aeven/README.md) — the account menu showing the reader this authority restored.
 - [avn-client-connection](../../client/connection/README.md) — the fence that drops the launch token once an authority is mounted.
-- [Generated configuration catalog](../../../docs/config-catalog.md#aeven-identity-user-aeven) — every accepted config field and its source declaration.
+- [Generated configuration catalog](../../../docs/config-catalog.md#aevenidentity-user-aeven) — every accepted config field and its source declaration.
 
 -----
 

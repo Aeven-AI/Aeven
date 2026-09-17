@@ -51,7 +51,7 @@ Choose it when you want full-text recall over prior sessions with ranking and pa
 | `readWindowMax` | `50` | Maximum `before`/`after` raw events for the inherited `readEvent()` |
 | `persistedInspectConcurrency` | `4` | Concurrent persisted-log inspections for inherited batch reads |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#aeven-session-query-sqlite) is the exhaustive source for every accepted field and its JSDoc.
+The generated [configuration catalog](../../../docs/config-catalog.md#aevensession-query-sqlite) is the exhaustive source for every accepted field and its JSDoc.
 
 ### Search behavior
 

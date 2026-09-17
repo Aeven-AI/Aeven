@@ -43,7 +43,7 @@ Loading the plugin registers `ctx.jobs`; `maxConcurrentJobsPerOwner` is optional
 |---|---|---|
 | `maxConcurrentJobsPerOwner` | `10` | Maximum `running` plus `stopping` jobs per exact owner, or in the shared unowned bucket |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#aeven-jobs-local) is the exhaustive source for the accepted field.
+The generated [configuration catalog](../../../docs/config-catalog.md#aevenjobs-local) is the exhaustive source for the accepted field.
 
 ### What each owner gets
 

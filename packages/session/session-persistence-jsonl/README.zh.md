@@ -50,7 +50,7 @@ kind: "package-reference"
 | `preparedSessionCacheSize` | `5` | 为恢复复用而保留的冷会话准备结果数量 |
 | `writeBatchMaxDelayMs` | `200` | 实时事件的固定聚合窗口，单位为毫秒 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-session-persistence-jsonl)是每个受支持字段及其 JSDoc 的穷尽式真源。
+生成的[配置目录](../../../docs/config-catalog.zh.md#aevensession-persistence-jsonl)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
 ### 磁盘布局
 

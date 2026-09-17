@@ -43,7 +43,7 @@ Navigation returns `path:line:character` locations grouped by file (one-based); 
 | `maxResultChars` | `16000` | Largest complete rendered result, including truncation metadata |
 | `timeoutMs` | `60000` | Tool-call timeout budget enforced by `avn-tool-call-timeout-policy`; covers the complete queued open/query/close lifecycle and is not model-configurable |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#aeven-tool-lsp) is the exhaustive source for every accepted field.
+The generated [configuration catalog](../../../docs/config-catalog.md#aeventool-lsp) is the exhaustive source for every accepted field.
 
 ### Failures and recovery
 
@@ -121,7 +121,7 @@ Prefix-stable while the plugin scope and guidance text are unchanged; activation
 
 #### What the model sees
 
-The model sees the generated [`lsp` schema](../../../docs/tool-catalog.md#aeven-tool-lsp).
+The model sees the generated [`lsp` schema](../../../docs/tool-catalog.md#aeventool-lsp).
 
 #### Token effect
 

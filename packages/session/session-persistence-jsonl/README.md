@@ -50,7 +50,7 @@ Choose this backend when consumers benefit from one artifact per session — nav
 | `preparedSessionCacheSize` | `5` | Cold session preparations retained for resume reuse |
 | `writeBatchMaxDelayMs` | `200` | Fixed live-event coalescing window, in milliseconds |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#aeven-session-persistence-jsonl) is the exhaustive source for every accepted field and its JSDoc.
+The generated [configuration catalog](../../../docs/config-catalog.md#aevensession-persistence-jsonl) is the exhaustive source for every accepted field and its JSDoc.
 
 ### On-disk layout
 

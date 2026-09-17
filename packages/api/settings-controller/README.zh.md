@@ -40,7 +40,7 @@ kind: "package-reference"
 |---|---|---|
 | `nativeOpen` | 平台探测 | Agent preset 目录能否交给原生桌面打开器 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-api-settings-controller)是所有受支持字段及其 JSDoc 的完整来源。
+生成的[配置目录](../../../docs/config-catalog.zh.md#aevenapi-settings-controller)是所有受支持字段及其 JSDoc 的完整来源。
 
 -----
 

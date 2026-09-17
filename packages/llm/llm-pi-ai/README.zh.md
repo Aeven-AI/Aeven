@@ -87,7 +87,7 @@ kind: "package-reference"
 | `maxRequestImageBytes` | `20 MiB` | 带最旧优先卸载的 base64 图片载荷总上限 |
 | `retryPolicy` | normal，5 次重试 | 由 `avn-llm-retry` 执行的提供方自有重试策略 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-llm-pi-ai)是每个受支持字段及其 JSDoc 的穷尽式真源。
+生成的[配置目录](../../../docs/config-catalog.zh.md#aevenllm-pi-ai)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
 ### 登录提供方
 
@@ -191,7 +191,7 @@ pi-ai 不提供的路由需要 `api`、`baseURL` 与非空 `models` 列表；无
 - [LLM 流式子系统](../../../docs/subsystems/llm-streaming.zh.md)——`StreamChunk` 协议与适配器约定。
 - [llm-retry](../llm-retry/README.zh.md)——应用每个 profile `retryPolicy` 的重试执行器。
 - [孪生 LLM 适配器](../../../.agents/notes/implemented/architecture/2026-06-13-twin-llm-adapters.zh.md)——为什么 DeepSeek 路由交付两个结构不同的适配器。
-- [生成配置目录](../../../docs/config-catalog.zh.md#aeven-llm-pi-ai)——每个受支持配置字段及其源声明。
+- [生成配置目录](../../../docs/config-catalog.zh.md#aevenllm-pi-ai)——每个受支持配置字段及其源声明。
 
 -----
 

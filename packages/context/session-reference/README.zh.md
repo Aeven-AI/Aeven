@@ -47,7 +47,7 @@ kind: "package-reference"
 | `candidateLimit` | `50` | 返回给宿主的默认候选数量 |
 | `maxReferenceBytes` | `65536` | 一个引用对象的最大序列化 JSON 字节数 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-session-reference)是每个受支持字段及其 JSDoc 的穷尽式真源。
+生成的[配置目录](../../../docs/config-catalog.zh.md#aevensession-reference)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
 -----
 
@@ -92,7 +92,7 @@ kind: "package-reference"
 - [跨会话引用决策记录](../../../.agents/notes/implemented/feature/2026-07-21-cross-session-references.zh.md)——引用约定的设计理由。
 - [会话查询子系统](../../../docs/subsystems/session-query.zh.md)——提供会话表层的读取服务。
 - [context 组地图](../README.zh.md)——相邻的请求上下文包。
-- [生成的配置目录](../../../docs/config-catalog.zh.md#aeven-session-reference)——每个受支持配置字段及其源声明。
+- [生成的配置目录](../../../docs/config-catalog.zh.md#aevensession-reference)——每个受支持配置字段及其源声明。
 
 -----
 

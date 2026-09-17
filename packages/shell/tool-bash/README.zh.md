@@ -47,7 +47,7 @@ kind: "package-reference"
 |---|---|---|
 | `enableRunInBackground` | `true` | 暴露 `run_in_background`；为 `false` 时拒绝强制后台调用 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-tool-bash)是每个受支持字段及其 JSDoc 的穷尽式真源；生成的[工具目录](../../../docs/tool-catalog.zh.md#aeven-tool-bash)携带完整参数 schema。
+生成的[配置目录](../../../docs/config-catalog.zh.md#aeventool-bash)是每个受支持字段及其 JSDoc 的穷尽式真源；生成的[工具目录](../../../docs/tool-catalog.zh.md#aeventool-bash)携带完整参数 schema。
 
 ### 运行命令
 
@@ -114,8 +114,8 @@ kind: "package-reference"
 - [tool-jobs](../../jobs/tool-jobs/README.zh.md)——后台运行的 `job_output`、`job_list` 与 `job_kill` 控制。
 - [bash stdin/env Agent Note](../../../.agents/notes/implemented/architecture/2026-06-30-bash-stdin-env-trusted-plugin-api.zh.md)——为什么工具不暴露 stdin 或 env。
 - [沙箱 Agent Note](../../../.agents/notes/implemented/feature/2026-07-06-sandbox.zh.md)——升权与模式切换的理由。
-- [生成的工具目录](../../../docs/tool-catalog.zh.md#aeven-tool-bash)——`bash` 参数 schema 的确切内容。
-- [生成的配置目录](../../../docs/config-catalog.zh.md#aeven-tool-bash)——每个受支持配置字段及其源声明。
+- [生成的工具目录](../../../docs/tool-catalog.zh.md#aeventool-bash)——`bash` 参数 schema 的确切内容。
+- [生成的配置目录](../../../docs/config-catalog.zh.md#aeventool-bash)——每个受支持配置字段及其源声明。
 
 -----
 
@@ -146,7 +146,7 @@ Check the [exit code: N] marker on every bash result; investigate failures befor
 
 #### 模型看到什么
 
-模型会看到生成的 [`bash` schema](../../../docs/tool-catalog.zh.md#aeven-tool-bash)。仅当本生产方启用 `run_in_background` 时，该字段才会出现；仅当已挂载执行器声明支持沙箱时，`sandbox_permissions` 和 `justification` 才会出现。按 agent（智能体）scope 限制工具可以移除该 agent 的定义。
+模型会看到生成的 [`bash` schema](../../../docs/tool-catalog.zh.md#aeventool-bash)。仅当本生产方启用 `run_in_background` 时，该字段才会出现；仅当已挂载执行器声明支持沙箱时，`sandbox_permissions` 和 `justification` 才会出现。按 agent（智能体）scope 限制工具可以移除该 agent 的定义。
 
 #### Token 影响
 

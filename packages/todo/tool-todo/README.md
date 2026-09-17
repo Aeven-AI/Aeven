@@ -45,7 +45,7 @@ Choose it when one agent session should own the task list and whole-list updates
 |---|---|---|
 | `allowParallelInProgress` | required | Whether several todos may be `in_progress` at once; also selects the active-status clause of the model description |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#aeven-tool-todo) is the exhaustive source for the accepted field.
+The generated [configuration catalog](../../../docs/config-catalog.md#aeventool-todo) is the exhaustive source for the accepted field.
 
 ### What each call does
 
@@ -112,8 +112,8 @@ Read these pages when the package-level contract is not enough. They move from t
 
 - [Todo subsystem](../../../docs/subsystems/todo.md) — the `todo/write` event payload, ownership rules, and `TodoItem`.
 - [todo group map](../README.md) — the sibling group page and its package table.
-- [Generated tool catalog](../../../docs/tool-catalog.md#aeven-tool-todo) — the `todo_write` schema the model receives.
-- [Generated configuration catalog](../../../docs/config-catalog.md#aeven-tool-todo) — every accepted config field and its source declaration.
+- [Generated tool catalog](../../../docs/tool-catalog.md#aeventool-todo) — the `todo_write` schema the model receives.
+- [Generated configuration catalog](../../../docs/config-catalog.md#aeventool-todo) — every accepted config field and its source declaration.
 - [todo_write tool Agent Note](../../../.agents/notes/implemented/feature/2026-06-29-todo-write-tool.md) — the original design, alternatives, and dropped fields.
 - [parallel in-progress Agent Note](../../../.agents/notes/implemented/feature/2026-07-26-todo-parallel-in-progress.md) — why the active-count cap is a deployment policy.
 - [todo plan survives the turn boundary Agent Note](../../../.agents/notes/implemented/bug-fix/2026-09-16-todo-plan-survives-the-turn-boundary.md) — the projection's standing-plan lifetime, and the reversal of the clear-on-next-turn rule.
@@ -127,7 +127,7 @@ Read these pages when the package-level contract is not enough. They move from t
 
 #### What the model sees
 
-The model sees the generated [`todo_write` schema](../../../docs/tool-catalog.md#aeven-tool-todo): an object with one required `todos` array of `{ content, status }` items, where `status` is `pending`, `in_progress`, or `completed`. The description is the composed whole-list instruction whose active-status clause follows `allowParallelInProgress`.
+The model sees the generated [`todo_write` schema](../../../docs/tool-catalog.md#aeventool-todo): an object with one required `todos` array of `{ content, status }` items, where `status` is `pending`, `in_progress`, or `completed`. The description is the composed whole-list instruction whose active-status clause follows `allowParallelInProgress`.
 
 #### Token effect
 

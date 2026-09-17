@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/typert/loader/README.md
-README.md: 42586ecbef643176d44170b803da98b2f6ad2fd8
-README.zh.md: 7c8ae9a0a08cf246247cc47e0f94eac23d88300e
+README.md: 80f0e3b71a3938f59b229f0b7f449379824f8755
+README.zh.md: 7a0d13c340623d03ff278b25558ec52127cb2ccc

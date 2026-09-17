@@ -40,7 +40,7 @@ kind: "package-reference"
     maxNoteBytes: 8192
 ```
 
-备注必须包含至少一个非空白字符，并且不得超过配置的字节长度；空白备注会以 `note-blank` 拒绝，超长备注会以 `note-too-large` 拒绝。通过校验的文本按提交原样存储——不做任何 trim。生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-message-feedback)是每个受支持字段及其 JSDoc 的穷尽式真源。
+备注必须包含至少一个非空白字符，并且不得超过配置的字节长度；空白备注会以 `note-blank` 拒绝，超长备注会以 `note-too-large` 拒绝。通过校验的文本按提交原样存储——不做任何 trim。生成的[配置目录](../../../docs/config-catalog.zh.md#aevenmessage-feedback)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
 ### 读取与修改反馈
 

@@ -74,6 +74,17 @@ const FOREIGN_PATH_PREFIXES = [
   '/plugins/dsh-grok-build/',
 ]
 
+/**
+ * Path segment naming the content- and path-sealed Agent Note archive.
+ *
+ * `.agents/notes/archived/` is sealed on both content and filenames, so a note
+ * that links into it from elsewhere must spell the sealed name or the link
+ * breaks. Matching the segment rather than listing files keeps the rule correct
+ * as the archive grows, and `.agents/notes/archived/` is the only `archived`
+ * directory in the repository, so nothing else can hide behind it.
+ */
+const SEALED_ARCHIVE_SEGMENT = '/archived/'
+
 /** Files whose content is not ours to rewrite. */
 const EXCLUDED_FILES = new Map([
   // The compatibility shim exists to detect these names, so it has to spell
@@ -137,6 +148,7 @@ function isAllowed(token: string): boolean {
   // spanning the whole path. Test the path prefix before stripping, or the
   // foreign segment inside `/plugins/<name>/oauth` would look like our own.
   if (FOREIGN_PATH_PREFIXES.some(prefix => token.startsWith(prefix))) return true
+  if (token.includes(SEALED_ARCHIVE_SEGMENT)) return true
   // A run may carry surrounding punctuation -- `/` is an identifier character
   // for paths, so a fixture reference reads `/handshake-abort/`. Classify the
   // word inside it, not the raw run, or ordinary prose slips through.

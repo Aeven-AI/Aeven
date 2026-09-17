@@ -61,7 +61,7 @@ kind: "package-reference"
 | `exporter`、`processor` | — | 原样传给 SDK 导出器与批处理器 |
 | `shutdownTimeoutMillis` | `3,000` | SDK 完整关闭序列的外层截止时间 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-session-telemetry-otel)是每个受支持字段的穷尽式真源。上传授权采用显式许可，且为 fail-closed：通过直接构造传入未知模式时会在读取传输配置前失败，只有 `FULL` 接受对 `ctx.sessionTelemetry.emit()` 的直接调用，`FEEDBACK_ONLY` 只把权威日志中已存储的精确 `feedback/record` 对象视为同意。
+生成的[配置目录](../../../docs/config-catalog.zh.md#aevensession-telemetry-otel)是每个受支持字段的穷尽式真源。上传授权采用显式许可，且为 fail-closed：通过直接构造传入未知模式时会在读取传输配置前失败，只有 `FULL` 接受对 `ctx.sessionTelemetry.emit()` 的直接调用，`FEEDBACK_ONLY` 只把权威日志中已存储的精确 `feedback/record` 对象视为同意。
 
 ### 哪些数据会离开本机
 
@@ -111,7 +111,7 @@ kind: "package-reference"
 - [会话遥测 seam](../session-telemetry/README.zh.md)——捕获约定、记录词汇与脱敏 waterfall。
 - [会话遥测子系统](../../../docs/subsystems/session-telemetry.zh.md)——能力拆分与类型声明。
 - [匿名用户身份](../../identity/anonymous-user-id/README.zh.md)——作为 OTel Resource `user.id` 上报的 id。
-- [生成配置目录](../../../docs/config-catalog.zh.md#aeven-session-telemetry-otel)——每个受支持配置字段及其源声明。
+- [生成配置目录](../../../docs/config-catalog.zh.md#aevensession-telemetry-otel)——每个受支持配置字段及其源声明。
 
 -----
 

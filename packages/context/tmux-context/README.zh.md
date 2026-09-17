@@ -45,7 +45,7 @@ kind: "package-reference"
 |---|---|---|
 | `refreshIntervalMs` | `0`（每个变化轮次） | 同一会话中两次持久注入之间的最小毫秒数 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-tmux-context)是每个受支持字段及其 JSDoc 的穷尽式真源。
+生成的[配置目录](../../../docs/config-catalog.zh.md#aeventmux-context)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
 ### 何时知道位置
 
@@ -88,7 +88,7 @@ kind: "package-reference"
 - [tmux 位置上下文决策记录](../../../.agents/notes/implemented/feature/2026-07-27-tmux-location-context.zh.md)——基于 tty 的检测与读数形状的设计理由。
 - [shell 子系统](../../../docs/subsystems/shell.zh.md)——只读查询所经由的执行器服务。
 - [context 组地图](../README.zh.md)——相邻的请求上下文包。
-- [生成的配置目录](../../../docs/config-catalog.zh.md#aeven-tmux-context)——每个受支持配置字段及其源声明。
+- [生成的配置目录](../../../docs/config-catalog.zh.md#aeventmux-context)——每个受支持配置字段及其源声明。
 
 -----
 

@@ -83,7 +83,7 @@ kind: "package-reference"
 - [Webserver](../webserver/README.zh.md) —— 本插件注册进入的具名路由表。
 - [工作区注册表](../../workspace/workspace/README.zh.md) —— `workspaceId` 及其规范目录的来源。
 - [avn-web-app bundle](../../bundle/web-app/README.zh.md) —— 挂载该行并在界面提示词中陈述 URL 形式的编排。
-- [生成的配置目录](../../../docs/config-catalog.zh.md#aeven-host-workspace-files) —— 所有可接受的配置字段及其源声明。
+- [生成的配置目录](../../../docs/config-catalog.zh.md#aevenhost-workspace-files) —— 所有可接受的配置字段及其源声明。
 
 -----
 

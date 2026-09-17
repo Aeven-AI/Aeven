@@ -40,7 +40,7 @@ Mount this package as a Loader entry in a profile that serves browser configurat
 |---|---|---|
 | `nativeOpen` | platform-detected | Whether Agent preset directories can be handed to a native desktop opener |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#aeven-api-settings-controller) is the exhaustive source for accepted fields and their JSDoc.
+The generated [configuration catalog](../../../docs/config-catalog.md#aevenapi-settings-controller) is the exhaustive source for accepted fields and their JSDoc.
 
 -----
 

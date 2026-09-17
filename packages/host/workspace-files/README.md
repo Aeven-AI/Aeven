@@ -83,7 +83,7 @@ Read these when the serving contract is not enough: the route seat, the id sourc
 - [Webserver](../webserver/README.md) — the named-route table this plugin registers into.
 - [Workspace registry](../../workspace/workspace/README.md) — where a `workspaceId` and its canonical directory come from.
 - [avn-web-app bundle](../../bundle/web-app/README.md) — the composition that mounts this row and states the URL form in the surface prompt.
-- [Generated configuration catalog](../../../docs/config-catalog.md#aeven-host-workspace-files) — every accepted config field and its source declaration.
+- [Generated configuration catalog](../../../docs/config-catalog.md#aevenhost-workspace-files) — every accepted config field and its source declaration.
 
 -----
 
