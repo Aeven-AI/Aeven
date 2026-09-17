@@ -29,10 +29,10 @@ exports[`sidebar shell snapshots > keeps the expanded contents mounted behind th
             >
               <svg
                 aria-hidden="true"
-                data-content="965fe321"
+                data-content="a2c38529"
                 fill="none"
-                height="17.6580310880829"
-                viewBox="0 0 23.16 17.04"
+                height="20.780923994038748"
+                viewBox="0 0 671 581"
                 width="24"
               />
             </div>
@@ -169,10 +169,10 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
             >
               <svg
                 aria-hidden="true"
-                data-content="965fe321"
+                data-content="a2c38529"
                 fill="none"
-                height="17.6580310880829"
-                viewBox="0 0 23.16 17.04"
+                height="20.780923994038748"
+                viewBox="0 0 671 581"
                 width="24"
               />
             </div>
@@ -309,10 +309,10 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
             >
               <svg
                 aria-hidden="true"
-                data-content="965fe321"
+                data-content="a2c38529"
                 fill="none"
-                height="17.6580310880829"
-                viewBox="0 0 23.16 17.04"
+                height="20.780923994038748"
+                viewBox="0 0 671 581"
                 width="24"
               />
             </div>

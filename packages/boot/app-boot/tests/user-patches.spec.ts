@@ -394,10 +394,16 @@ describe('boot with user patches', () => {
 
       // Default compose: the user layer IS the whole patch list, so a
       // fresh generation replaces the app-owned layer instead of stacking on it.
+      // The file is written BEFORE the second watcher opens: chokidar reports a
+      // file that is already on disk as an `add` during its initial scan, which
+      // is the path a patch layer present at boot takes and is deterministic. A
+      // write in the same tick as watcher startup races the notification — under
+      // gate load the same assertion failed after the full 30s deadline — and
+      // live add, change, and unlink are already covered above.
       await dispose()
+      writeFileSync(filename, '- id: noop\n  config:\n    value: identity\n')
       const disposeDefault = await watchUserPatches(ctx, { binName: NAME, filename })
       try {
-        writeFileSync(filename, '- id: noop\n  config:\n    value: identity\n')
         await eventually(() => (entryConfig(ctx, 'noop') as { value?: string }).value === 'identity', 'default-compose user patch was not applied')
       } finally {
         await disposeDefault()
