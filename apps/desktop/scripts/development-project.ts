@@ -110,10 +110,10 @@ export function prepareDevelopmentProject(options: DevelopmentProjectOptions): s
   const destinationModules = join(options.projectDir, 'node_modules')
   mkdirSync(destinationModules, { recursive: true })
   mirrorDependencyLinks(options.dependencyDir, destinationModules)
-  const avnLink = join(destinationModules, '@deepseek-ai', 'avn')
+  const avnLink = join(destinationModules, '@aeven', 'cli')
   removeOwnedPath(avnLink)
   linkDirectory(options.cliDir, avnLink)
-  const hostLink = join(destinationModules, '@deepseek-ai', 'avn-desktop-host')
+  const hostLink = join(destinationModules, '@aeven', 'desktop-host')
   removeOwnedPath(hostLink)
   linkDirectory(options.hostDir, hostLink)
   return options.projectDir

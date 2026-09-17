@@ -63,7 +63,7 @@ process.on('message', message => {
 function projectWithHost(source: string): string {
   const project = mkdtempSync(join(tmpdir(), 'avn-desktop-host-test-'))
   roots.push(project)
-  const packageRoot = join(project, 'node_modules', '@deepseek-ai', 'avn-desktop-host')
+  const packageRoot = join(project, 'node_modules', '@aeven', 'desktop-host')
   mkdirSync(join(packageRoot, 'lib'), { recursive: true })
   writeFileSync(join(packageRoot, 'package.json'), '{"name":"@aeven/desktop-host","type":"module"}\n')
   writeFileSync(join(packageRoot, 'lib', 'index.js'), `${HOST_WIRE}\n${source}`)

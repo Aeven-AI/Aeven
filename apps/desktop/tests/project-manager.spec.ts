@@ -56,10 +56,10 @@ function archiveStore(seed: string): void {
 
 function writeCorePackageSet(seed: string, version: string): void {
   const packages = [
-    { name: '@aeven/cli', file: `deepseek-ai-avn-${version}.tgz`, body: Buffer.from(`avn-${version}`) },
+    { name: '@aeven/cli', file: `aeven-cli-${version}.tgz`, body: Buffer.from(`avn-${version}`) },
     {
       name: '@aeven/desktop-host',
-      file: `deepseek-ai-avn-desktop-host-${version}.tgz`,
+      file: `aeven-desktop-host-${version}.tgz`,
       body: Buffer.from(`desktop-host-${version}`),
     },
   ]
@@ -213,7 +213,7 @@ describe('desktop project transactions', () => {
       await expect(manager.applyRelease(seed, '2.0.0', hooks())).rejects.toThrow(/does not match Electron/u)
       await manager.applyRelease(seed, '1.0.0', hooks())
       writeFileSync(
-        join(paths.profile, 'node_modules', '@deepseek-ai', 'avn-desktop-host', 'package.json'),
+        join(paths.profile, 'node_modules', '@aeven', 'desktop-host', 'package.json'),
         '{"name":"@aeven/desktop-host","version":"0.9.0"}\n',
       )
       await expect(manager.applyRelease(seed, '1.0.0', hooks())).resolves.toBe(true)
@@ -226,9 +226,9 @@ describe('desktop project transactions', () => {
     expect(manager.avnVersion()).toBe('1.0.0')
     expect(manager.releaseVersion()).toBe('1.0.0')
     expect(paths.profile).toBe(join(root, '.aeven', 'profiles', 'desktop'))
-    expect(existsSync(join(paths.profile, 'node_modules', '@deepseek-ai', 'avn'))).toBe(true)
+    expect(existsSync(join(paths.profile, 'node_modules', '@aeven', 'cli'))).toBe(true)
     const installedHost = JSON.parse(readFileSync(
-      join(paths.profile, 'node_modules', '@deepseek-ai', 'avn-desktop-host', 'package.json'),
+      join(paths.profile, 'node_modules', '@aeven', 'desktop-host', 'package.json'),
       'utf8',
     )) as { version: string }
     expect(installedHost.version).toBe('1.0.0')

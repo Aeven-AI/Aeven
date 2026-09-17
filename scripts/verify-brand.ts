@@ -61,6 +61,19 @@ const FOREIGN_NAME_PREFIXES = [
   'dsh-hub-oauth-gateway',
 ]
 
+/**
+ * HTTP path prefixes that belong to someone else.
+ *
+ * `dsh-coding-oauth-core` publishes its route constants under this prefix, and
+ * the host registers those values verbatim, so a reference here is a path into
+ * that external package rather than one of our names. Scoped to the whole
+ * `/plugins/...` prefix on purpose: a bare `dsh-grok-build` identifier anywhere
+ * else is still a defect.
+ */
+const FOREIGN_PATH_PREFIXES = [
+  '/plugins/dsh-grok-build/',
+]
+
 /** Files whose content is not ours to rewrite. */
 const EXCLUDED_FILES = new Map([
   // The compatibility shim exists to detect these names, so it has to spell
@@ -120,6 +133,10 @@ function exclusionReason(path: string): string | undefined {
  */
 function isAllowed(token: string): boolean {
   if (FOREIGN_NAME_PREFIXES.some(prefix => token.startsWith(prefix))) return true
+  // `/` is an identifier character here, so a route literal arrives as one run
+  // spanning the whole path. Test the path prefix before stripping, or the
+  // foreign segment inside `/plugins/<name>/oauth` would look like our own.
+  if (FOREIGN_PATH_PREFIXES.some(prefix => token.startsWith(prefix))) return true
   // A run may carry surrounding punctuation -- `/` is an identifier character
   // for paths, so a fixture reference reads `/handshake-abort/`. Classify the
   // word inside it, not the raw run, or ordinary prose slips through.

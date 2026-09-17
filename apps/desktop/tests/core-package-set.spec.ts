@@ -47,7 +47,7 @@ function packageSetProject(): {
   writeFileSync(join(packageDir, host.file), hostBody)
   writeFileSync(join(root, DESKTOP_PACKAGE_SET_FILE), `${JSON.stringify({
     schemaVersion: 1,
-    packages: [avn, base, host],
+    packages: [base, avn, host],
   })}\n`)
   return { root, avn, base, host }
 }
@@ -73,9 +73,9 @@ describe('desktop core package set', () => {
     expect(() => verifyDesktopCorePackageSet(root, '2.0.0')).toThrow(/does not match Desktop/u)
     expect(() => parseDesktopCorePackageSet({
       schemaVersion: 1,
-      packages: [avn, base, { ...host, version: '2.0.0' }],
-    }, '1.2.3')).toThrow(/avn-desktop-host@2\.0\.0 does not match Desktop 1\.2\.3/u)
-    expect(() => parseDesktopCorePackageSet({ schemaVersion: 1, packages: [base, avn, host] }))
+      packages: [base, avn, { ...host, version: '2.0.0' }],
+    }, '1.2.3')).toThrow(/@aeven\/desktop-host@2\.0\.0 does not match Desktop 1\.2\.3/u)
+    expect(() => parseDesktopCorePackageSet({ schemaVersion: 1, packages: [avn, base, host] }))
       .toThrow(/sorted by name/u)
     writeFileSync(join(root, DESKTOP_PACKAGES_DIR, avn.file), 'changed')
     expect(() => verifyDesktopCorePackageSet(root, '1.2.3')).toThrow(/integrity check failed/u)

@@ -41,8 +41,14 @@ describe('bundle composition', () => {
     // harness build leaves `dsh-coding-oauth-core` external, so the route
     // literals it owns no longer appear inlined in `lib/index.js`. What the
     // client depends on is the path values, which are checked directly.
-    expect(OAUTH_IMPORT_SOURCES_PATH).toBe('/plugins/avn-grok-build/oauth/sources')
-    expect(CAPABILITY_SETTINGS_PATH).toBe('/plugins/avn-grok-build/capabilities')
+    //
+    // Two owners share this namespace, so the two halves are pinned apart.
+    // `dsh-coding-oauth-core` is a published npm package we do not patch, so
+    // the paths it exports keep its own prefix; the host and the client both
+    // derive them from that package and therefore agree. Paths this fork
+    // builds itself start from `CODING_OAUTH_API_BASE` below.
+    expect(OAUTH_IMPORT_SOURCES_PATH).toBe('/plugins/dsh-grok-build/oauth/sources')
+    expect(CAPABILITY_SETTINGS_PATH).toBe('/plugins/dsh-grok-build/capabilities')
     expect(CODEX_OAUTH_FAST_ROUTE).toBe('codex-oauth-fast')
     expect(SUBSCRIPTION_USAGE_PATH_PREFIX).toBe('/plugins/avn-grok-build/usage/')
   })
@@ -53,7 +59,7 @@ describe('bundle composition', () => {
     expect(imports.some(statement => statement.includes('"@aeven/tools"'))).toBe(false)
   })
 
-  it('declares a avn bundle and web client half', async () => {
+  it('declares an avn bundle and web client half', async () => {
     const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8')) as {
       name: string
       avn: { bundle: { patch: string }; client: { platform: string; inject: string[] } }

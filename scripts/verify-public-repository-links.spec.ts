@@ -31,7 +31,12 @@ describe('repository link policy', () => {
   })
 
   it('preserves frozen archived Agent Notes', () => {
-    const unavailableRepository = ['deepseek-ai', 'aeven-sdk'].join('/')
+    // Spelled from fragments for the same reason the gate does: this name
+    // belongs to the legacy repository, so it must never be rewritten by the
+    // brand rename, and a literal would be rewritten and then rejected.
+    const unavailableOwner = ['deepseek', 'ai'].join('-')
+    const unavailableRepositoryName = ['deepseek', 'harness', 'sdk'].join('-')
+    const unavailableRepository = `${unavailableOwner}/${unavailableRepositoryName}`
 
     expect(findUnavailableRepositoryReferences(
       '.agents/notes/archived/process/historical-record.md',

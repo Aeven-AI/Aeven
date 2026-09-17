@@ -249,10 +249,10 @@ describe('collectPythonDependencies', () => {
   it('excludes normalized local project names without exempting a third-party prefix', () => {
     const pyprojects = [
       '[project]\nname = "aeven-runtime-bin"\ndependencies = ["pydantic"]\n',
-      '[project]\nname = "aeven-sdk"\ndependencies = ["DeepSeek.Harness_Runtime-Bin", "deepseek-unrelated"]\n',
+      '[project]\nname = "aeven-sdk"\ndependencies = ["Aeven.Runtime_Bin", "aeven-unrelated"]\n',
     ]
     expect(() => collectPythonDependencies(pyprojects)).toThrow(
-      'python dependency deepseek-unrelated is missing from PYTHON_METADATA',
+      'python dependency aeven-unrelated is missing from PYTHON_METADATA',
     )
   })
 })

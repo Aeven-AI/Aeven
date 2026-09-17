@@ -36,7 +36,7 @@ export interface AvnInstallLayoutSummary {
 }
 
 function isAvnPackage(name: string): boolean {
-  return name === AVN_PACKAGE || name.startsWith(`${AVN_PACKAGE}-`)
+  return name.startsWith('@aeven/')
 }
 
 function cloneForVersion(manifest: object, version: string): MutableRegistryManifest {

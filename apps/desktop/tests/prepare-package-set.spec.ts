@@ -38,10 +38,10 @@ describe('desktop package-set selection', () => {
       ['@deepseek-ai/unused', packed('@deepseek-ai/unused')],
     ])
     expect(selectDesktopPackageClosure(available).map(entry => entry.manifest.name)).toEqual([
-      '@deepseek-ai/cordis',
-      '@aeven/cli',
       '@aeven/base',
+      '@aeven/cli',
       '@aeven/desktop-host',
+      '@deepseek-ai/cordis',
       '@deepseek-ai/platform-package',
     ])
   })
