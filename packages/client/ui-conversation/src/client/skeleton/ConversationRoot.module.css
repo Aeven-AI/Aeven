@@ -226,6 +226,24 @@
   display: none;
 }
 
+/* Resident navigation-band utilities: the row the bar keeps whether or not a
+   Session is open, which is where an app-level control (the signed-in reader's
+   account avatar) lives. It follows the Session utilities at exactly the 8px
+   gap that separates entries inside them, so the two read as the one row they
+   have always looked like; the title's own 20px separation stays on
+   `.headerUtilities`, which is absent without a Session. */
+.navigationUtilities {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  margin-left: 8px;
+}
+
+.navigationUtilities:empty {
+  display: none;
+}
+
 /* Tabs sit in the 56px overlay row with the title, matching Aeven's single
    navigation strip rather than a second header band. */
 .tabs {

@@ -43,7 +43,7 @@ export interface AccountMenuInjected {
 
 /** Full component props. */
 export type AccountMenuProps =
-  PropsRuntime<'conversation.session.header.utilities'>
+  PropsRuntime<'conversation.navigation.utilities'>
   & PropsLocale<typeof NS>
   & InjectFace<AccountMenuInjected>
 

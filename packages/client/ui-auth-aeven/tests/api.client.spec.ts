@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  AevenApiError, checkOauthToken, getProfile, signIn, signOut, signUp, verifyEmail,
+  AevenApiError, checkOauthToken, getProfile, setDisplayName, signIn, signOut, signUp, verifyEmail,
 } from '../src/client/auth/services/api.ts'
 import { session } from '../src/client/auth/services/session.ts'
 
@@ -74,6 +74,44 @@ describe('the Aeven API calls', () => {
     // This route reads the header; Aeven sends no cookie with it at all.
     expect(profileCall?.authorization).toMatch(/^Bearer /)
     expect(session.displayName).toBe('Ollie')
+  })
+
+  it('stores the name the reader chose, and adopts it for every surface after', async () => {
+    const api = scriptedApi({
+      '/login': { status: 200, body: grant },
+      '/get-profile': { status: 200, body: { userId: 'u-1', displayName: 'u-1' } },
+      '/set-display-name': {
+        status: 200,
+        body: { result: 'display-name-set', displayName: 'Ollie', displayNameSet: true },
+      },
+    })
+    await signIn('a@b.c', 'secret')
+    await getProfile()
+
+    expect(await setDisplayName('Ollie')).toBe('Ollie')
+    // The route reads the bearer, as the profile read does.
+    const call = api.calls.at(-1)
+    expect(call).toMatchObject({
+      url: '/set-display-name', method: 'POST', body: JSON.stringify({ displayName: 'Ollie' }),
+    })
+    expect(call?.authorization).toMatch(/^Bearer /)
+    expect(session.displayName).toBe('Ollie')
+    expect(session.displayNameSet).toBe(true)
+    // The kept profile carries it too, so the next load does not ask again.
+    expect(JSON.parse(window.localStorage.getItem('aevenProfile') ?? 'null') as unknown)
+      .toMatchObject({ displayName: 'Ollie', displayNameSet: true })
+  })
+
+  it('reports a refused name distinctly, and leaves the session unnamed', async () => {
+    const api = scriptedApi({
+      '/login': { status: 200, body: grant },
+      '/set-display-name': { status: 400, body: { error: 'invalid-display-name' } },
+    })
+    await signIn('a@b.c', 'secret')
+
+    await expect(setDisplayName('')).rejects.toThrow('invalid-display-name')
+    expect(api.calls.at(-1)?.url).toBe('/set-display-name')
+    expect(session.displayNameSet).toBeUndefined()
   })
 
   it('refreshes through the cookie when no token is held', async () => {

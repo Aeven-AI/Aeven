@@ -66,7 +66,7 @@ function accountUrl(): string | undefined {
   return publishedReader()?.accountUrl
 }
 
-/** Register the dictionaries and the Session-header account menu. */
+/** Register the dictionaries and the resident navigation-band account menu. */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-account-aeven: dictionaries')
 
@@ -84,10 +84,15 @@ export function apply(ctx: ClientContext): void {
     },
   })
 
+  // The resident navigation band, not the Session header's utilities: whether
+  // a reader is signed in is a fact about the app, not about a Session, and a
+  // fresh install opens on the no-Session hero where that header never
+  // renders. The Session seat would hide the avatar exactly when a new
+  // deployment first needs to show who is signed in.
   ctx.slots.inject(
-    'conversation.session.header.utilities',
+    'conversation.navigation.utilities',
     () => ctx.slots.register({
-      name: 'conversation.session.header.utilities',
+      name: 'conversation.navigation.utilities',
       id: 'aeven-account',
       order: 100,
       locale: NS,

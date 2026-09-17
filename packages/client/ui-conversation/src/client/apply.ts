@@ -214,9 +214,13 @@ export function apply(ctx: Context): void {
       'conversation.composer': { kind: 'chain', scope: 'session-maybe' },
       'conversation.composer.bar': { kind: 'single', scope: 'session-maybe' },
       'conversation.input.dock': { kind: 'list', scope: 'session' },
-      'conversation.hero.brand.mark': { kind: 'single', scope: 'root' },
       'conversation.hero.workspace': { kind: 'single', scope: 'root' },
       'conversation.hero.agentPreset': { kind: 'single', scope: 'root' },
+      // Resident navigation-band utilities. Declared here, by the resident
+      // root, because the band outlives any one Session: gating these on a
+      // Session is what left the signed-in reader's avatar missing on a
+      // fresh install, whose cold start has no Session to open.
+      'conversation.navigation.utilities': { kind: 'list', scope: 'root' },
     },
     inject: (sessionId: SessionId | undefined): ConversationInjected => ({
       hooks: {

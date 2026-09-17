@@ -153,10 +153,10 @@ root
 │  ├─ conversation.composer.dock
 │  ├─ conversation.input.left
 │  ├─ conversation.input.right
-│  ├─ conversation.hero.brand.mark
 │  ├─ conversation.hero.workspace
 │  │  └─ conversation.hero.workspace.directoryFlow
-│  └─ conversation.hero.agentPreset
+│  ├─ conversation.hero.agentPreset
+│  └─ conversation.navigation.utilities
 ├─ details
 │  └─ conversation.details.tool
 └─ shell.overlay

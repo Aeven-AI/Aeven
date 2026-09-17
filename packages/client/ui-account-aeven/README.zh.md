@@ -1,5 +1,5 @@
 ---
-description: "Web 会话头部中已登录 Aeven 读者的头像与账户菜单：他们的图片或首字母、通往 Aeven 账户页的链接、夜间模式与登出。"
+description: "Web 客户端常驻导航条中已登录 Aeven 读者的头像与账户菜单：他们的图片或首字母、通往 Aeven 账户页的链接、夜间模式与登出。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-client-ui-account-aeven` 把已登录读者的头像放进 Web 会话头部，并从中打开账户菜单，使读者能看到自己以何身份登录、访问 Aeven 账户页、切换夜间模式并登出。它展示 Aeven authority 已经恢复的那个读者，自身不向 Aeven 请求任何内容，因此不产生自己的请求开销。无人登录时没有读者可展示，该座位保持为空。请与 Host authority 一同启用；单独启用时它不渲染任何内容。
+`avn-client-ui-account-aeven` 把已登录读者的头像放进 Web 客户端的常驻导航条，并从中打开账户菜单，使读者能看到自己以何身份登录、访问 Aeven 账户页、切换夜间模式并登出。该导航条属于会话列而非某个会话，因此无论是否打开会话——包括冷启动的 hero 界面——头像都在那里：是否有人登录是应用层面的事实，而全新部署正是从该 hero 界面开始的。它展示 Aeven authority 已经恢复的那个读者，自身不向 Aeven 请求任何内容，因此不产生自己的请求开销。无人登录时没有读者可展示，该座位保持为空。请与 Host authority 一同启用；单独启用时它不渲染任何内容。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在同时挂载 Aeven authority 的 Web 组合中挂载这一行，头部便会出现一个可打开账户菜单的头像。
+在同时挂载 Aeven authority 的 Web 组合中挂载这一行，会话列的导航条便会出现一个可打开账户菜单的头像——无论是否打开会话。
 
 ### 何时选择它
 
@@ -69,7 +69,7 @@ kind: "package-reference"
 | 文件 | 职责 |
 |---|---|
 | [`src/index.ts`](src/index.ts) | 让仅限浏览器的行保持可寻址的空 host 侧 |
-| [`src/client/index.ts`](src/client/index.ts) | 读取已声明的读者、注册 locale 并占据头部座位 |
+| [`src/client/index.ts`](src/client/index.ts) | 读取已声明的读者、注册 locale 并占据导航条座位 |
 | [`src/client/AccountMenu.tsx`](src/client/AccountMenu.tsx) | 菜单：账户链接、夜间模式、登出 |
 | [`src/client/Avatar.tsx`](src/client/Avatar.tsx) | 上传的图片，或生成的渐变与首字母 |
 | [`src/client/locales.ts`](src/client/locales.ts) | `account.aeven` locale 命名空间及其键 |
@@ -85,7 +85,7 @@ kind: "package-reference"
 
 - [avn-client-ui-auth-aeven](../ui-auth-aeven/README.zh.md)——声明本菜单所展示读者的登录界面。
 - [avn-identity-user-aeven](../../identity/user-aeven/README.zh.md)——Host authority，以及决定账户链接是否出现的 `webUrl`。
-- [avn-client-ui-slots](../ui-slots/README.zh.md)——为头像提供头部座位的 slot 映射。
+- [avn-client-ui-slots](../ui-slots/README.zh.md)——为头像提供导航条座位的 slot 映射。
 - [client 组映射](../README.zh.md)——本包所属的浏览器家族。
 
 -----

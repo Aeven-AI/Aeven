@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package fills the sidebar brand slots — `sidebar.brand.mark` and `sidebar.brand.name` — with the official Aeven mark and name. It registers these occupants only when the client bundle builds with the `official` profile; every other build loads the plugin but registers nothing, so the shell fallbacks stay visible. The conversation hero slot (`conversation.hero.brand.mark`) stays unoccupied in every build: its declaring package renders the animated hero fish (hover swim morph) as the fallback, and the official brand is that fish. Choose this package when the deployed identity is DeepSeek's own; a deployment with its own brand composes a different package into the same slots instead. It retains no runtime state and contributes nothing to model requests.
+This package fills the sidebar brand slots — `sidebar.brand.mark` and `sidebar.brand.name` — with the official Aeven monogram and name. It registers these occupants only when the client bundle builds with the `official` profile; every other build loads the plugin but registers nothing, so the shell fallbacks stay visible. The conversation hero names the product from the shared dictionary and declares no brand slot of its own, so this package fills the sidebar pair only. Choose this package when the deployed identity is DeepSeek's own; a deployment with its own brand composes a different package into the same sidebar slots instead. It retains no runtime state and contributes nothing to model requests.
 
 ## Table of Contents
 
@@ -55,7 +55,7 @@ The two occupants install as one declaration-aware registration set: nested `ctx
 Read these pages when the brand surface is not enough. They move from the slots this package occupies to the shell that renders them.
 
 - [ui-sidebar](../ui-sidebar/README.md) — declares `sidebar.brand.mark` and `sidebar.brand.name` and renders their fallbacks.
-- [ui-conversation](../ui-conversation/README.md) — declares `conversation.hero.brand.mark` in the hero.
+- [ui-conversation](../ui-conversation/README.md) — declares the hero's own slots and renders its name.
 - [Web client architecture](../../../.agents/notes/implemented/architecture/2026-07-19-gui-web-client-architecture.md) — how browser plugin rows load and register slots.
 
 -----

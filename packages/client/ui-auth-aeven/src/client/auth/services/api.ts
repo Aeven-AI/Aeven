@@ -144,3 +144,35 @@ export async function signOut(): Promise<void> {
     session.reset()
   }
 }
+
+/** What `/set-display-name` answers with. */
+interface DisplayNameGrant {
+  /** The stored name, echoed back. */
+  readonly displayName?: string
+  /** Always true on a stored name; the screen reads it from the session instead. */
+  readonly displayNameSet?: boolean
+}
+
+/**
+ * Store the name Aeven shows for the reader.
+ *
+ * The name is the one thing about a reader every surface names them by — the
+ * account menu, and the greeting a session opens with — so the API records it
+ * against the account rather than the page. The bearer is this route's
+ * credential, as it is for the profile.
+ * @param displayName - the name to store, already stripped of what a reader cannot see.
+ * @returns the name the API stored.
+ * @throws {AevenApiError} when the API refuses the name or the bearer.
+ */
+export async function setDisplayName(displayName: string): Promise<string> {
+  const bearer = await currentBearer()
+  const answer = await request<DisplayNameGrant>('/set-display-name', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${bearer}` },
+    body: JSON.stringify({ displayName }),
+  })
+  const stored = answer.displayName ?? displayName
+  session.adoptDisplayName(stored)
+  return stored
+}

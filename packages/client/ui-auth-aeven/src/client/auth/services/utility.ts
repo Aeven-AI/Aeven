@@ -74,3 +74,21 @@ export function isValidPassword(password: string): boolean {
 export function cloneObject<T>(source: T): T {
   return JSON.parse(JSON.stringify(source)) as T
 }
+
+/** Zero-width characters a paste can carry invisibly into a name. */
+const ZERO_WIDTH = /[\u200B-\u200D\uFEFF]/g
+
+/**
+ * Strip what a reader cannot see from what they typed, as the API does before
+ * it stores a name.
+ *
+ * A name is shown back to the reader and to whoever they work with, so a field
+ * holding only zero-width characters is empty however long it looks — the API
+ * answers `invalid-display-name` for one, and the screen refuses it before the
+ * request goes out.
+ * @param value - what the field holds.
+ * @returns the value without zero-width characters, trimmed.
+ */
+export function sanitizeString(value: string): string {
+  return value.replace(ZERO_WIDTH, '').trim()
+}

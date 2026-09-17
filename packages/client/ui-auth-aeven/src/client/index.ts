@@ -11,7 +11,8 @@
 export { Authenticate, type AuthenticateProps } from './auth/views/Authenticate.tsx'
 export { OauthResult, type OauthResultProps } from './auth/views/OauthResult.tsx'
 export { matchAuthRoute, type AuthRouteMatch } from './auth/route-match.ts'
-export { mountAuthScreen, type MountedAuthScreen } from './auth/mount.tsx'
+export { mountAuthScreen, mountNameScreen, type MountedAuthScreen } from './auth/mount.tsx'
+export { NameCheck, type NameCheckProps } from './auth/views/NameCheck.tsx'
 export { AUTH_ROUTES, AUTH_ROUTE_PREFIXES, isAuthRoute, navigateRoute } from './auth/services/routes.ts'
 export {
   cachedProfile, forgetCachedProfile, session, storage,
@@ -27,17 +28,35 @@ import { aevenConfig } from './auth/services/config.ts'
 import { isSessionRefusal } from './auth/services/errors.ts'
 import { AUTH_ROUTES, isAuthRoute, navigateRoute } from './auth/services/routes.ts'
 import { publishReader } from './auth/services/reader.ts'
-import { cachedProfile, session, storage } from './auth/services/session.ts'
+import { cachedProfile, session, storage, type AevenProfile } from './auth/services/session.ts'
 import { sessionBearer, watchSession } from './auth/services/watch.ts'
 
 /** How the gate resolved for this page load. */
 export type AuthGateResult =
   /** A session was restored; the application may boot. */
   | { readonly state: 'authenticated'; readonly userId: string }
+  /** A session was restored, but nobody has named this reader yet. */
+  | { readonly state: 'unnamed'; readonly userId: string }
   /** Nobody is signed in; an authentication screen owns the page. */
   | { readonly state: 'unauthenticated' }
   /** No Aeven authority is configured, so this harness authenticates nobody. */
   | { readonly state: 'disabled' }
+
+/**
+ * How a restored profile resolves the gate.
+ *
+ * A name is what every surface calls the reader by, and the API records
+ * whether they chose one — a name it derived from a social profile is not a
+ * choice, and an account that never picked one answers nothing here. Both are
+ * the state the naming step exists for, so only an explicit true boots.
+ * @param profile - the restored profile, read live or kept from the last load.
+ * @returns whether the application may boot, or the naming step owns the page.
+ */
+function gateResultFor(profile: AevenProfile): AuthGateResult {
+  return profile.displayNameSet === true
+    ? { state: 'authenticated', userId: profile.userId }
+    : { state: 'unnamed', userId: profile.userId }
+}
 
 /**
  * Restore the Aeven session, if there is one.
@@ -60,7 +79,7 @@ export async function restoreSession(): Promise<AuthGateResult> {
   try {
     const profile = await getProfile()
     publishReader()
-    return { state: 'authenticated', userId: profile.userId }
+    return gateResultFor(profile)
   } catch (error) {
     // Aeven refusing the credential ends the session; Aeven being unreachable
     // says nothing about it, and signing the reader out over an outage would
@@ -70,7 +89,10 @@ export async function restoreSession(): Promise<AuthGateResult> {
     if (kept !== undefined) {
       session.adoptProfile(kept)
       publishReader()
-      return { state: 'authenticated', userId: kept.userId }
+      // The kept profile decides this the same way a live one does: a reader
+      // who had a name keeps it through the outage, and one who never chose
+      // one was already at the naming step, which needs the API either way.
+      return gateResultFor(kept)
     }
     session.reset()
     publishReader()

@@ -18,6 +18,7 @@ export const NS = 'auth.aeven'
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
   'action.ok': '好的',
+  'action.continue': '继续',
   'action.signIn': '登录',
   'action.signUp': '注册',
   'action.verify': '验证',
@@ -35,6 +36,7 @@ export const zh = {
   'signUp.withApple': '使用 Apple 注册',
   'signUp.withGoogle': '使用 Google 注册',
   'signUp.altPrompt': '已经有账号了？',
+  'field.name': '你的名字',
   'field.email': '邮箱',
   'field.password': '密码',
   'field.confirmPassword': '确认密码',
@@ -70,11 +72,16 @@ export const zh = {
   'modal.accountCreatedBody': '你的账号已成功创建。现在可以用邮箱和密码登录',
   'oauth.failedHeading': '出错了！',
   'oauth.failedBody': '你好，似乎出了点问题。请重试',
+  'name.title': '你好！',
+  'name.prompt': '在我们开始聊天之前，我该怎么称呼你？',
+  'name.promptAnonymous': '在我这里你不必匿名 ;)',
+  'name.saveFailed': '我无法保存这个名字。请重试',
 } as const
 
 /** English dictionary, key-identical to the Chinese source of truth. */
 export const en: Record<AuthAevenKey, string> = {
   'action.ok': 'Ok',
+  'action.continue': 'Continue',
   'action.signIn': 'Sign in',
   'action.signUp': 'Sign up',
   'action.verify': 'Verify',
@@ -92,6 +99,7 @@ export const en: Record<AuthAevenKey, string> = {
   'signUp.withApple': 'Sign up with Apple',
   'signUp.withGoogle': 'Sign up with Google',
   'signUp.altPrompt': 'Already have an account?',
+  'field.name': 'Your name',
   'field.email': 'Email',
   'field.password': 'Password',
   'field.confirmPassword': 'Confirm password',
@@ -127,6 +135,10 @@ export const en: Record<AuthAevenKey, string> = {
   'modal.accountCreatedBody': 'Your account has been successfully created. You can now sign in with your email and password',
   'oauth.failedHeading': 'Oops!',
   'oauth.failedBody': 'Hi, It seems i have an issue. Please try again',
+  'name.title': 'Hi there!',
+  'name.prompt': 'Before we continue to chat, how should I call you?',
+  'name.promptAnonymous': "You don't have to be anonymous with me ;)",
+  'name.saveFailed': 'I could not save that name. Please try again',
 }
 
 /** Key domain of the Aeven authentication namespace. */

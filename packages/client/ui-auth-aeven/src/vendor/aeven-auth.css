@@ -4519,3 +4519,89 @@ body .mermaid-render-sandbox {
     display: none;
   }
 }
+
+/* The naming step: Aeven's `_initCheck.scss`, together with the one rule the
+   step inherited from `_home.scss` at the origin. There the step renders
+   inside the home column's `.content-container`, and it is that rule's flex
+   column and full height that give `.form-container` the box its centring
+   needs — without it the step sits at the top of the page. Two departures,
+   both recorded: the 68px greeting names the Google Sans Flex stack this app
+   ships instead of Libre Bodoni, which the vendored copy above drops, and the
+   step states for itself the `$backgroundColor` its home view supplied. */
+#app-root .view-container .init-check {
+  display: flex;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgb(242, 242, 242);
+  flex-direction: column;
+}
+#app-root .view-container .init-check .content-container {
+  display: flex;
+  position: relative;
+  overflow-y: scroll;
+  top: 0px;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+#app-root .view-container .init-check .content-container .form-container {
+  display: flex;
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+  flex-grow: 1;
+  flex-shrink: 0;
+  padding-left: 24px;
+  padding-right: 24px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+#app-root .view-container .init-check .content-container .form-container .header-text {
+  display: flex;
+  position: relative;
+  padding-bottom: 16px;
+  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-size: 68px;
+  font-weight: 600;
+  line-height: 68px;
+  letter-spacing: 0px;
+}
+#app-root .view-container .init-check .content-container .form-container .content-text {
+  display: flex;
+  position: relative;
+  padding-bottom: 12px;
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+}
+#app-root .view-container .init-check .content-container .form-container .form {
+  display: flex;
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  align-items: center;
+  flex-direction: column;
+}
+#app-root .view-container .init-check .content-container .form-container .form .input-container {
+  display: flex;
+  position: relative;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 24px;
+}
+#app-root .view-container .init-check .content-container .form-container .form .button-container {
+  display: flex;
+  position: relative;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  padding-top: 64px;
+  padding-bottom: 24px;
+}

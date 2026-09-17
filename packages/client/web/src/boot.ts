@@ -110,13 +110,14 @@ export class AppWebEntry {
   }
 
   /**
-   * Present the authentication surface when nobody is signed in.
+   * Present the authentication surface when nobody is signed in, and the
+   * naming step when the reader Aeven restored has no name yet.
    *
    * The screens and the session they restore belong to whichever authority the
    * deployment configured; a harness with none configured reports `disabled`
    * and boots as it always has.
-   * @returns true when an authentication screen owns the page, so the
-   * application must not boot over it.
+   * @returns true when one of those screens owns the page, so the application
+   * must not boot over it.
    */
   private async gateOnAuthentication(): Promise<boolean> {
     const result = await auth.restoreSession()
@@ -126,6 +127,14 @@ export class AppWebEntry {
       // whatever the transport hook holds at that moment.
       auth.installAuthenticatedTransport()
       return false
+    }
+    if (result.state === 'unnamed') {
+      // The name is what the account menu and every session that follows call
+      // the reader by, and the API holds none for them yet: the step stands
+      // between them and the application, as it does in the Aeven client.
+      auth.mountNameScreen(this.container, window.location.pathname)
+      this.page.dispose()
+      return true
     }
 
     const { mountAuthScreen } = auth

@@ -18,11 +18,11 @@ interface Scope {
 const scope = globalThis as Scope
 
 function utilityIds(ctx: Context): (string | undefined)[] {
-  return ctx.slots.entries('conversation.session.header.utilities').map(entry => entry.options.id)
+  return ctx.slots.entries('conversation.navigation.utilities').map(entry => entry.options.id)
 }
 
 function injectedFace(ctx: Context): AccountMenuInjected {
-  const entry = ctx.slots.entries('conversation.session.header.utilities')
+  const entry = ctx.slots.entries('conversation.navigation.utilities')
     .find(e => e.options.id === 'aeven-account')
   return entry?.inject?.() as unknown as AccountMenuInjected
 }
@@ -44,10 +44,10 @@ async function baseContext(theme: {
   return ctx
 }
 
-function declareHeaderUtilities(ctx: Context): () => void {
+function declareNavigationUtilities(ctx: Context): () => void {
   return ctx.slots.register({
     name: 'root',
-    children: { 'conversation.session.header.utilities': { kind: 'list', scope: 'session' } },
+    children: { 'conversation.navigation.utilities': { kind: 'list', scope: 'root' } },
   } as never, Empty)
 }
 
@@ -69,13 +69,13 @@ describe('ui-account-aeven browser half', () => {
     expect(NS).toBe('account.aeven')
   })
 
-  it('waits for the header utility declaration and tears its entry down', async () => {
+  it('waits for the navigation-band declaration and tears its entry down', async () => {
     const ctx = await baseContext({ scheme: 'light', setTheme: () => {} })
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     expect(utilityIds(ctx)).toEqual([])
 
-    const utilities = declareHeaderUtilities(ctx)
+    const utilities = declareNavigationUtilities(ctx)
     expect(utilityIds(ctx)).toEqual(['aeven-account'])
 
     await fiber.dispose()
@@ -86,7 +86,7 @@ describe('ui-account-aeven browser half', () => {
   it('reports no reader until the gate states one', async () => {
     const ctx = await baseContext({ scheme: 'light', setTheme: () => {} })
     await ctx.plugin({ inject: [...inject], apply }).await()
-    declareHeaderUtilities(ctx)
+    declareNavigationUtilities(ctx)
     const face = injectedFace(ctx)
     expect(face.reader()).toBeUndefined()
     expect(face.accountUrl()).toBeUndefined()
@@ -109,7 +109,7 @@ describe('ui-account-aeven browser half', () => {
   it('carries only the facts the deployment stated', async () => {
     const ctx = await baseContext({ scheme: 'light', setTheme: () => {} })
     await ctx.plugin({ inject: [...inject], apply }).await()
-    declareHeaderUtilities(ctx)
+    declareNavigationUtilities(ctx)
     scope.__AVN_AEVEN_READER__ = { userId: 'u-2', signOut: () => Promise.resolve() }
     expect(injectedFace(ctx).reader()).toEqual({ userId: 'u-2' })
   })
@@ -118,7 +118,7 @@ describe('ui-account-aeven browser half', () => {
     const setTheme = vi.fn()
     const ctx = await baseContext({ scheme: 'dark', setTheme })
     await ctx.plugin({ inject: [...inject], apply }).await()
-    declareHeaderUtilities(ctx)
+    declareNavigationUtilities(ctx)
     const face = injectedFace(ctx)
     expect(face.nightMode()).toBe(true)
     face.setNightMode(false)
@@ -133,7 +133,7 @@ describe('ui-account-aeven browser half', () => {
     const signOut = vi.fn(() => Promise.resolve())
     const ctx = await baseContext({ scheme: 'light', setTheme: () => {} })
     await ctx.plugin({ inject: [...inject], apply }).await()
-    declareHeaderUtilities(ctx)
+    declareNavigationUtilities(ctx)
 
     injectedFace(ctx).signOut()
     expect(signOut).not.toHaveBeenCalled()

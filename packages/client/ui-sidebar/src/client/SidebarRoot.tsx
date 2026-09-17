@@ -16,7 +16,7 @@
  */
 import clsx from 'clsx'
 import {
-  FishLogo, IconChevronsLeftOutline14, IconMenuOutline16, IconNewChatOutline16, Tooltip,
+  AevenMark, IconChevronsLeftOutline14, IconMenuOutline16, IconNewChatOutline16, Tooltip,
 } from '@aeven/client-ui-primitives'
 import type { SidebarRootComponentProps } from './contract/slots.ts'
 import css from './SidebarRoot.module.css'
@@ -50,7 +50,7 @@ export function SidebarRoot({
         >
           <span className={css.brandIdentity} aria-hidden="true">
             <span className={css.brandMark}>
-              {renderSlot('sidebar.brand.mark', { size: 24 }, { fallback: <FishLogo size={24} /> })}
+              {renderSlot('sidebar.brand.mark', { size: 24 }, { fallback: <AevenMark size={24} /> })}
             </span>
             {/* No fallback: unoccupied, the brand is the mark alone. A
                 deployment that wants wording here registers an occupant. */}

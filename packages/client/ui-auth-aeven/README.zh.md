@@ -1,5 +1,5 @@
 ---
-description: "AVN web 客户端的 Aeven 登录、注册与 OAuth 结果界面，以及 boot kernel 在插件图存在之前调用的会话恢复、bearer 刷新与已认证传输辅助函数。"
+description: "AVN web 客户端的 Aeven 登录、注册、OAuth 结果与命名界面，以及 boot kernel 在插件图存在之前调用的会话恢复、bearer 刷新与已认证传输辅助函数。"
 kind: "package-library"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-`avn-client-ui-auth-aeven` 为 AVN web 壳提供 Aeven 认证界面：它恢复既有的 Aeven 会话，在没有会话时展示登录、注册与 OAuth 结果界面，并在之后把 Aeven bearer 附加到每次 AVN RPC 调用上。web boot kernel 在任何插件运行之前直接调用它，因此读者要么到达已认证的应用，要么到达登录界面，绝不会停在半启动状态。在 Aeven 客户端中开始的会话在此可被理解，反之亦然，因为两者使用相同的存储键与相同的 `appBearers` 结构。本包中没有任何面向模型的内容。
+`avn-client-ui-auth-aeven` 为 AVN web 壳提供 Aeven 认证界面：它恢复既有的 Aeven 会话，在没有会话时展示登录、注册与 OAuth 结果界面，对 Aeven 尚未持有名字的读者询问该如何称呼，并在之后把 Aeven bearer 附加到每次 AVN RPC 调用上。web boot kernel 在任何插件运行之前直接调用它，因此读者要么到达已认证的应用，要么到达登录界面，绝不会停在半启动状态。在 Aeven 客户端中开始的会话在此可被理解，反之亦然，因为两者使用相同的存储键与相同的 `appBearers` 结构。本包中没有任何面向模型的内容。
 
 ## 目录
 
@@ -38,16 +38,17 @@ import { restoreSession, mountAuthScreen, requireSignIn, installAuthenticatedTra
 
 const result = await restoreSession()
 if (result.state === 'authenticated') installAuthenticatedTransport()
+else if (result.state === 'unnamed') mountNameScreen(container, location.pathname)
 else if (result.state === 'unauthenticated') { requireSignIn(location.pathname); mountAuthScreen(container, location.pathname) }
 ```
 
-`restoreSession` 回答 `authenticated`、`unauthenticated` 或 `disabled`。`disabled` 表示所服务的页面中未配置 Aeven API，此时壳的启动与不存在任何 authority 时相同。成功会把读者声明在页面上，插件 bundle 随后据此读取。
+`restoreSession` 回答 `authenticated`、`unnamed`、`unauthenticated` 或 `disabled`。`unnamed` 表示会话已恢复，但其 profile 中没有任何已选择的名字：命名界面占据页面，直到读者给出名字，由 API 记录在该账号上。`disabled` 表示所服务的页面中未配置 Aeven API，此时壳的启动与不存在任何 authority 时相同。成功会把读者声明在页面上，插件 bundle 随后据此读取。
 
 Aeven 无法抵达时，`restoreSession` 会用它所保留的最近一份 profile 回答 `authenticated`，而不是把读者登出。Host 用自己持有的签名密钥副本来校验有效期一年的 refresh cookie，因此在 Aeven 不可用期间仍能识别读者，应用也能继续抵达读者自行配置的模型与 OAuth 提供方。只有 Aeven 明确拒绝该凭据，或读者登出，才会结束会话。
 
 ### 界面成功后做什么
 
-界面通过离开认证界面来报告成功——前往读者最初请求的路径，该路径记在 `authReferrer` 中。离开该界面会触发一次文档加载，gate 再次运行并恢复刚刚建立的会话。没有任何东西就地交还控制权，因为 boot 在判定没有会话时便已返回。
+界面通过离开认证界面来报告成功——前往读者最初请求的路径，该路径记在 `authReferrer` 中。命名界面以相同方式报告成功：它通过 `/set-display-name` 保存名字，随后加载目标路径，gate 找到的 profile 便已带有名字。离开该界面会触发一次文档加载，gate 再次运行并恢复刚刚建立的会话。没有任何东西就地交还控制权，因为 boot 在判定没有会话时便已返回。
 
 -----
 
@@ -79,7 +80,7 @@ Aeven 无法抵达期间，access token 会过期而没有续期能替换它，�
 
 ### 保留的 profile
 
-每份 `/get-profile` 回答都保存在 `aevenProfile` 下，无法抵达 Aeven 的启动会据此恢复读者，因此账户菜单会显示读者的姓名与头像，而不是一个无名用户。登出会连同 bearer 一起丢弃它；无法解析的条目，或未指明任何人的条目，都按不存在处理，读者需要登录。
+每份 `/get-profile` 回答都保存在 `aevenProfile` 下，无法抵达 Aeven 的启动会据此恢复读者，因此账户菜单会显示读者的姓名与头像，而不是一个无名用户。读者选择的名字会写回该保留条目，因此下次加载不会再询问。登出会连同 bearer 一起丢弃它；无法解析的条目，或未指明任何人的条目，都按不存在处理，读者需要登录。
 
 ### 跟随页面自身的 loopback 主机
 
@@ -91,6 +92,7 @@ Aeven 无法抵达期间，access token 会过期而没有续期能替换它，�
 |---|---|
 | [`src/client/index.ts`](src/client/index.ts) | gate：`restoreSession`、`requireSignIn` 与 `installAuthenticatedTransport` |
 | [`src/client/auth/mount.tsx`](src/client/auth/mount.tsx) | 挂载界面、跟随界面内导航，以及成功后的交接 |
+| [`src/client/auth/views/NameCheck.tsx`](src/client/auth/views/NameCheck.tsx) | 命名界面：问候语、名字输入与 Continue |
 | [`src/client/auth/services/tokens.ts`](src/client/auth/services/tokens.ts) | 持有的 bearer、可用性检查与串行化的刷新交换 |
 | [`src/client/auth/services/watch.ts`](src/client/auth/services/watch.ts) | 后台续期，以及会话结束时前往登录界面 |
 | [`src/client/auth/services/errors.ts`](src/client/auth/services/errors.ts) | `AevenApiError` 与会话拒绝的判定 |

@@ -18,6 +18,15 @@ export interface AevenProfile {
   readonly userId: string
   readonly email?: string
   readonly displayName?: string
+  /**
+   * Whether the reader has chosen the name Aeven shows for them.
+   *
+   * The API writes the pairs together, so a profile carrying a name may still
+   * answer false — that is a name the deployment derived, not one the reader
+   * picked — and an account that has never chosen answers nothing at all. Both
+   * are the state the naming screen exists for.
+   */
+  readonly displayNameSet?: boolean
   readonly profile?: AevenProfileMedia
   readonly roles?: readonly string[]
 }
@@ -27,6 +36,7 @@ export interface UserConfig {
   readonly userId: string | null
   readonly email: string | undefined
   readonly displayName: string | undefined
+  readonly displayNameSet: boolean | undefined
   readonly profile: AevenProfileMedia | undefined
   readonly userSignedIn: boolean
 }
@@ -116,6 +126,7 @@ class Session {
   userSignedIn = false
   email: string | undefined
   displayName: string | undefined
+  displayNameSet: boolean | undefined
   profile: AevenProfileMedia | undefined
 
   /** The bundle the OAuth-result screen passes down. */
@@ -124,6 +135,7 @@ class Session {
       userId: this.userId,
       email: this.email,
       displayName: this.displayName,
+      displayNameSet: this.displayNameSet,
       profile: this.profile,
       userSignedIn: this.userSignedIn,
     }
@@ -137,9 +149,25 @@ class Session {
     this.userId = data.userId
     this.email = data.email
     this.displayName = data.displayName
+    this.displayNameSet = data.displayNameSet
     this.profile = data.profile
     this.userSignedIn = true
     cacheProfile(data)
+  }
+
+  /**
+   * Adopt the name the reader just chose.
+   *
+   * Both halves move together, because the API records them together: a name
+   * the reader picked is one they have set, and the kept profile has to say so
+   * or the next load asks them again.
+   * @param displayName - the name the API stored.
+   */
+  adoptDisplayName(displayName: string): void {
+    this.displayName = displayName
+    this.displayNameSet = true
+    const kept = cachedProfile()
+    if (kept !== undefined) cacheProfile({ ...kept, displayName, displayNameSet: true })
   }
 
   /** Forget the user, leaving the page signed out. */
@@ -148,6 +176,7 @@ class Session {
     this.userSignedIn = false
     this.email = undefined
     this.displayName = undefined
+    this.displayNameSet = undefined
     this.profile = undefined
   }
 }
