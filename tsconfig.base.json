@@ -298,6 +298,7 @@
       "@aeven/launch-environment": ["./packages/util/launch-environment/src"],
       "@aeven/llm": ["./packages/llm/llm/src"],
       "@aeven/llm/invariant": ["./packages/llm/llm/src/invariant.ts"],
+      "@aeven/llm-aeven": ["./packages/llm/llm-aeven/src"],
       "@aeven/llm-deepseek": ["./packages/llm/llm-deepseek/src"],
       "@aeven/llm-mock-server": ["./packages/test-support/llm-mock-server/src"],
       "@aeven/llm-pi-ai": ["./packages/llm/llm-pi-ai/src"],

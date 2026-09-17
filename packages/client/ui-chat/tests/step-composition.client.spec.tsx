@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from '@testing-library/react'
 import { AttachmentId } from '@aeven/attachment'
 import type { AssistantBlock } from '../src/client/contract/snapshot.ts'
-import { runsOf } from '../src/client/chat/AssistantMarkdown.tsx'
+import { drawnBlocks, runsOf } from '../src/client/chat/AssistantMarkdown.tsx'
 
 /** An attachment reference of the shape the projection carries. */
 const attachment = {
@@ -106,6 +106,29 @@ describe('a step becomes engine source', () => {
       { kind: 'text', text: 'Answer.' },
       { kind: 'tool-call', callId: 'c', name: 'bash', argsRaw: '{}' },
     ], false)).toEqual([{ source: 'Answer.', start: 0 }])
+  })
+
+  it('draws a disclosure-owned trace nowhere inline, and the answer everywhere', () => {
+    // The disclosure owns the trace, so the inline source must not repeat it —
+    // and, above all, must not take the answer down with it. A run merges the
+    // trace and the prose into one engine source, so drawing the trace and
+    // hiding the run is what used to hide the reply behind a click.
+    const blocks: AssistantBlock[] = [
+      { kind: 'reasoning', text: 'Hmm.' },
+      { kind: 'text', text: 'Answer.' },
+    ]
+
+    expect(sources(drawnBlocks(blocks, true), false)).toEqual(['Answer.'])
+    expect(sources(drawnBlocks(blocks, false), false)).toEqual(['<think>Hmm.</think>\n\nAnswer.'])
+  })
+
+  it('keeps every other block while the disclosure owns the trace', () => {
+    expect(sources(drawnBlocks([
+      { kind: 'text', text: 'Before.' },
+      { kind: 'reasoning', text: 'Hmm.' },
+      { kind: 'image', attachment },
+      { kind: 'text', text: 'After.' },
+    ], true), false)).toEqual(['Before.', null, 'After.'])
   })
 
   it('closes a trace that something else already follows', () => {
