@@ -6,7 +6,7 @@ Status: implemented
 
 ## Problem
 
-Web composer 的 `/` 与 `@` 触发菜单存在多处呈现缺陷，使引用流程更难阅读和操作。候选行用本地化文字前缀标注类型（`Folder · name/`、`Session · label`），既与 section 标题重复又把名称挤向右侧。指针悬停用 CSS `:hover` 着色，而键盘导航驱动 reducer 持有的高亮，两行可能同时呈现焦点态。可下钻文件夹的操作标记是裸文本 `›`，与 composer 中其他 chevron 不一致，且没有任何提示告诉用户 Tab 可以下钻高亮的文件夹。来源加载中状态是一行"正在加载…"文字。下钻留下的可编辑 `@dir/` 文本在 `@` 前渲染文件夹图标，对一个并非 settled chip 的 token 形成视觉双重标记。composer 的 placeholder 从未提及 `/` 和 `@` 的存在（[#3080](https://github.com/deepseek-harness/deepseek-harness/issues/3080)）。
+Web composer 的 `/` 与 `@` 触发菜单存在多处呈现缺陷，使引用流程更难阅读和操作。候选行用本地化文字前缀标注类型（`Folder · name/`、`Session · label`），既与 section 标题重复又把名称挤向右侧。指针悬停用 CSS `:hover` 着色，而键盘导航驱动 reducer 持有的高亮，两行可能同时呈现焦点态。可下钻文件夹的操作标记是裸文本 `›`，与 composer 中其他 chevron 不一致，且没有任何提示告诉用户 Tab 可以下钻高亮的文件夹。来源加载中状态是一行"正在加载…"文字。下钻留下的可编辑 `@dir/` 文本在 `@` 前渲染文件夹图标，对一个并非 settled chip 的 token 形成视觉双重标记。composer 的 placeholder 从未提及 `/` 和 `@` 的存在（[#3080](https://github.com/aeven/aeven/issues/3080)）。
 
 ## Decision
 
@@ -32,4 +32,4 @@ composer placeholder 同时提示两个触发符（`描述你想要构建的内�
 
 ## Consequences
 
-过去每行用文字拼写的类型信息现在由图标和 section 标题承载；未来新增候选类型必须扩展 `InputTriggerCandidateIcon` 并选定图标，而非传任意字符串。指针移动经 reducer 往返（`hover` 对已高亮行是 no-op，mousemove 风暴不会搅动状态）。下钻的可发现性依赖高亮：空闲文件夹行在被悬停或键盘到达前只显示 chevron。延后的跟进项——精确匹配 token 的空格 settle、`name` 与 `name/` 标签——仍记录在 [#3154](https://github.com/deepseek-harness/deepseek-harness/issues/3154)；候选 description 内容、下钻后的回退导航与引用搜索延迟由 [@ mention 发现与行内容笔记](2026-08-27-web-at-mention-discovery-and-row-content.zh.md) 结清。
+过去每行用文字拼写的类型信息现在由图标和 section 标题承载；未来新增候选类型必须扩展 `InputTriggerCandidateIcon` 并选定图标，而非传任意字符串。指针移动经 reducer 往返（`hover` 对已高亮行是 no-op，mousemove 风暴不会搅动状态）。下钻的可发现性依赖高亮：空闲文件夹行在被悬停或键盘到达前只显示 chevron。延后的跟进项——精确匹配 token 的空格 settle、`name` 与 `name/` 标签——仍记录在 [#3154](https://github.com/aeven/aeven/issues/3154)；候选 description 内容、下钻后的回退导航与引用搜索延迟由 [@ mention 发现与行内容笔记](2026-08-27-web-at-mention-discovery-and-row-content.zh.md) 结清。

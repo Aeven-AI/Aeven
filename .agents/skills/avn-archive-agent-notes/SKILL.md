@@ -1,6 +1,6 @@
 ---
 name: avn-archive-agent-notes
-description: Use when adding, auditing, pruning, archiving, restoring, or reviewing Agent Notes in deepseek-harness; checks every new note for superseded active records, classifies implemented notes by future decision value, deletes rejected notes that no longer prevent a tempting fallacy, and applies the frozen archived/{kind} triplet and manifest rules.
+description: Use when adding, auditing, pruning, archiving, restoring, or reviewing Agent Notes in aeven; checks every new note for superseded active records, classifies implemented notes by future decision value, deletes rejected notes that no longer prevent a tempting fallacy, and applies the frozen archived/{kind} triplet and manifest rules.
 ---
 
 # Archive Aeven Agent Notes

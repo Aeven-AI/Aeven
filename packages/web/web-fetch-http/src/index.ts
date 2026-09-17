@@ -20,7 +20,7 @@ export {
 export type { HttpFetchLimits, HttpFetchResolver } from './provider.ts'
 
 /** Default `User-Agent`: an explicit product agent, never a browser disguise. */
-export const DEFAULT_USER_AGENT = 'deepseek-harness/0.0.1 (+https://github.com/deepseek-ai)'
+export const DEFAULT_USER_AGENT = 'aeven/0.0.1 (+https://github.com/deepseek-ai)'
 
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'web-fetch-http'

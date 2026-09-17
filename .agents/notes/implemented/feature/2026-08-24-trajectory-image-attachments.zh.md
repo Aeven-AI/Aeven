@@ -6,7 +6,7 @@ Status: implemented
 
 ## Problem
 
-Trajectory 不展示会话图片。持久化的 `{ type: 'image', attachment: ImageAttachmentRef }` 块在详情面板里渲染成格式化 JSON，纯图片的用户消息在记录表中是一个空行。Trajectory 唯一认识的图片路径是对内联 wire 字段（`url`、`image_url`、base64 `data`）的 `imageSrc` 嗅探，而生产事件从不携带这些字段：每个生产方都在事件追加前提交持久化的 `ImageAttachmentRef`。用户无法从执行记录确认模型看到了哪张图（[issue #2986](https://github.com/deepseek-harness/deepseek-harness/issues/2986)），而 Chat 已经能展示同样的附件。
+Trajectory 不展示会话图片。持久化的 `{ type: 'image', attachment: ImageAttachmentRef }` 块在详情面板里渲染成格式化 JSON，纯图片的用户消息在记录表中是一个空行。Trajectory 唯一认识的图片路径是对内联 wire 字段（`url`、`image_url`、base64 `data`）的 `imageSrc` 嗅探，而生产事件从不携带这些字段：每个生产方都在事件追加前提交持久化的 `ImageAttachmentRef`。用户无法从执行记录确认模型看到了哪张图（[issue #2986](https://github.com/aeven/aeven/issues/2986)），而 Chat 已经能展示同样的附件。
 
 ## Decision
 

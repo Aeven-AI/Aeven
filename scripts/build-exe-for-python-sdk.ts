@@ -20,7 +20,7 @@ const DEPLOY_ROOT_PACKAGE = 'avn-python-runtime-closure'
 /** The sole application launcher inside the deployed closure. */
 const ENTRY_BIN = 'node_modules/@aeven/cli/lib/bin.js'
 /** Python-visible executable basename. */
-const OUTPUT_BASENAME = 'deepseek-harness-sdk-runtime'
+const OUTPUT_BASENAME = 'aeven-sdk-runtime'
 /** Default Node major; SEA mode requires at least Node 22. */
 const DEFAULT_NODE_RANGE = 'node24'
 /** Pinned for reproducible builds. */

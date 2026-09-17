@@ -3,7 +3,7 @@ requires = ["hatchling==1.32.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "deepseek-harness-sdk"
+name = "aeven-sdk"
 version = "0.0.0.dev0"
 description = "Python SDK for Aeven"
 readme = "README.md"
@@ -12,14 +12,14 @@ license = "MIT"
 authors = [{ name = "DeepSeek" }]
 dependencies = [
   "pydantic>=2.12,<3",
-  "deepseek-harness-runtime-bin==0.0.0.dev0",
+  "aeven-runtime-bin==0.0.0.dev0",
 ]
 
 [project.urls]
-Homepage = "https://github.com/deepseek-ai/deepseek-harness"
-Documentation = "https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/guide/python-sdk.md"
-Issues = "https://github.com/deepseek-ai/deepseek-harness/issues"
-Source = "https://github.com/deepseek-ai/deepseek-harness"
+Homepage = "https://github.com/Aeven-AI/Harness"
+Documentation = "https://github.com/Aeven-AI/Harness/blob/master/docs/user/guide/python-sdk.md"
+Issues = "https://github.com/Aeven-AI/Harness/issues"
+Source = "https://github.com/Aeven-AI/Harness"
 
 [dependency-groups]
 test = ["pytest>=8.0"]
@@ -34,4 +34,4 @@ packages = ["src/deepseek_harness"]
 # Editable installs see runtime executables injected after installation instead
 # of freezing a wheel snapshot.
 [tool.uv.sources]
-deepseek-harness-runtime-bin = { path = "../sdk-runtime", editable = true }
+aeven-runtime-bin = { path = "../sdk-runtime", editable = true }

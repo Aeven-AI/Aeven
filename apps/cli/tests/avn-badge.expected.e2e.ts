@@ -85,14 +85,14 @@ describe('avn badge assembled snapshot', () => {
 
       - Local PNG: [\`avn-badge.png\`](avn-badge.png), 726×120 source image; render at 121×20
       - Shields.io image URL: \`https://img.shields.io/badge/powered_by-avn-4D6BFE?style=flat-square&logo=deepseek&logoColor=white\`
-      - Project URL: \`https://github.com/deepseek-ai/deepseek-harness\`
+      - Project URL: \`https://github.com/Aeven-AI/Harness\`
 
       ## Markdown
 
       Use this linked badge in Markdown:
 
       \`\`\`markdown
-      [![](https://img.shields.io/badge/powered_by-avn-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
+      [![](https://img.shields.io/badge/powered_by-avn-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/Aeven-AI/Harness)
       \`\`\`
 
       If attribution should not be linked, use:
@@ -124,14 +124,14 @@ describe('avn badge assembled snapshot', () => {
 
       - Local PNG: [\`avn-badge.png\`](avn-badge.png), 726×120 source image; render at 121×20
       - Shields.io image URL: \`https://img.shields.io/badge/powered_by-avn-4D6BFE?style=flat-square&logo=deepseek&logoColor=white\`
-      - Project URL: \`https://github.com/deepseek-ai/deepseek-harness\`
+      - Project URL: \`https://github.com/Aeven-AI/Harness\`
 
       ## Markdown
 
       Use this linked badge in Markdown:
 
       \`\`\`markdown
-      [![](https://img.shields.io/badge/powered_by-avn-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
+      [![](https://img.shields.io/badge/powered_by-avn-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/Aeven-AI/Harness)
       \`\`\`
 
       If attribution should not be linked, use:

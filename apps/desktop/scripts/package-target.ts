@@ -286,13 +286,13 @@ async function main(): Promise<void> {
     if (process.env[name] !== undefined) electronBuilderEnv[name] = process.env[name]
   }
   await runPnpm(['run', 'build:official'], buildEnv, REPOSITORY_ROOT)
-  await runPnpm(['run', 'release:pack', '--family', 'avn', '--out', buildPaths.packedDsh], buildEnv, REPOSITORY_ROOT)
+  await runPnpm(['run', 'release:pack', '--family', 'avn', '--out', buildPaths.packedAvn], buildEnv, REPOSITORY_ROOT)
   await runPnpm([
     '--dir',
     'apps/desktop-host',
     'pack',
     '--pack-destination',
-    buildPaths.packedDsh,
+    buildPaths.packedAvn,
   ], buildEnv, REPOSITORY_ROOT)
   await runPnpm(['run', 'release:pack', '--family', 'vendor', '--out', buildPaths.packedVendor], buildEnv, REPOSITORY_ROOT)
   rmSync(buildPaths.packedLandlock, { recursive: true, force: true })

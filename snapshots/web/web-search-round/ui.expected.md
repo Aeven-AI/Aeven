@@ -13,20 +13,20 @@
   - img
   - img
   - text: System prompt
-- text: Use web_search once with queries ["DeepSeek Harness snapshot search","DeepSeek Harness multi-query search"]. Then reply exactly SEARCH_DONE and stop. {{clock}}
+- text: Use web_search once with queries ["Aeven snapshot search","Aeven multi-query search"]. Then reply exactly SEARCH_DONE and stop. {{clock}}
 - button "Copy":
   - img
 - button "1 tool call" [expanded]:
   - text: 1 tool call
   - img
-- button "Context injection @deepseek-ai/dsh-system-prompt":
+- button "Context injection @aeven/system-prompt":
   - img
   - img
-  - text: Context injection @deepseek-ai/dsh-system-prompt
-- button "Search DeepSeek Harness snapshot search, DeepSeek Harness multi-query search":
+  - text: Context injection @aeven/system-prompt
+- button "Search Aeven snapshot search, Aeven multi-query search":
   - img
   - img
-  - text: Search DeepSeek Harness snapshot search, DeepSeek Harness multi-query search
+  - text: Search Aeven snapshot search, Aeven multi-query search
 - paragraph: SEARCH_DONE
 - button "Copy":
   - img

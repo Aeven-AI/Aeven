@@ -58,7 +58,7 @@ avn plugin --profile <name> remove @aeven/subagent-claude-code
 pnpm 操作成功后只会改变磁盘上的 Profile manifest 与 Bundle 列表；正在运行的 Profile 会保留本次启动时的 Bundle 集合。添加、移除或更新 Bundle 后须重启该 Profile。这个启动边界只适用于 Bundle 成员变化，Profile 或 home 中普通 `cordis.patch.yml` 的编辑通过热重载生效。下一次启动时，每个已安装 Bundle 只注册自己的休眠 Host provider；还须在复制出的 Preset 中单独启用对应工具行，新 Agent 才能看到该工具。[Codex provider README](../../../packages/subagent/subagent-codex/README.zh.md)与 [Claude Code provider README](../../../packages/subagent/subagent-claude-code/README.zh.md)负责可执行文件、身份验证、载荷与失败细节；[base Bundle 参考](../../../packages/bundle/base/README.zh.md)负责默认依赖闭包。
 
 ```sh
-avn plugin --profile tui add github:deepseek-harness/turtle-ui
+avn plugin --profile tui add github:aeven/turtle-ui
 avn plugin --profile tui remove turtle-ui
 avn --profile tui
 ```

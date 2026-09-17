@@ -462,7 +462,7 @@ class HarnessClient:
             except ImportError as exc:
                 raise FileNotFoundError(
                     "Unable to locate the bundled Aeven avn runtime. "
-                    "Install deepseek-harness-runtime-bin."
+                    "Install aeven-runtime-bin."
                 ) from exc
             base = resolve_bundled_launch_args()
         else:

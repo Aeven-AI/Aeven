@@ -267,7 +267,7 @@ export class CodexAppServerWire {
   async initialize(signal: AbortSignal): Promise<void> {
     object(await this.guarded(this.transport.request('initialize', {
       clientInfo: {
-        name: 'deepseek-harness',
+        name: 'aeven',
         title: 'Aeven',
         version: '0.0.1',
       },

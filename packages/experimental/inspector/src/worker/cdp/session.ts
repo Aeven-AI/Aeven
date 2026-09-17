@@ -41,7 +41,7 @@ export class CdpSession implements NetworkSink {
     this.runtime.setObjectObserver((objectId, realm, reference, group) =>
       this.dom.bindObject(objectId, realm, reference, group))
     this.unsubscribeSources = sources.subscribeStatus(() => {
-      if (this.diagnosticsEnabled) this.sendEvent('DSHInspector.sourcesChanged', { sources: this.sources.describe() })
+      if (this.diagnosticsEnabled) this.sendEvent('AvnInspector.sourcesChanged', { sources: this.sources.describe() })
     })
   }
 
@@ -70,15 +70,15 @@ export class CdpSession implements NetworkSink {
       let result: unknown
       if (request.method.startsWith('Network.')) {
         result = this.network.handle(request.method, request.params, this)
-      } else if (request.method === 'DSHInspector.enable') {
+      } else if (request.method === 'AvnInspector.enable') {
         this.diagnosticsEnabled = true
         result = { sources: this.sources.describe() }
-      } else if (request.method === 'DSHInspector.disable') {
+      } else if (request.method === 'AvnInspector.disable') {
         this.diagnosticsEnabled = false
         result = {}
-      } else if (request.method === 'DSHInspector.getSources') {
+      } else if (request.method === 'AvnInspector.getSources') {
         result = { sources: this.sources.describe() }
-      } else if (request.method === 'DSHInspector.getCordisTree') {
+      } else if (request.method === 'AvnInspector.getCordisTree') {
         void this.cordisTrees.getTree().then(
           (tree) => { this.transport.send({ id: request.id, result: { tree } }) },
           (error: unknown) => {

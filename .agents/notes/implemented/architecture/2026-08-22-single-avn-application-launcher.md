@@ -48,7 +48,7 @@ Direct SDK use follows normal Harness-home resolution: explicit `avnHome`, inher
 
 The Python runtime wheel packages the ordinary `@aeven/cli` CLI from `node_modules/@aeven/cli/lib/bin.js` through the private `avn-python-runtime-closure` deploy manifest. The Python client selects `avn --profile sdk` by default, ordered patch files, and an explicit Harness home; the runnable example under `python/sdk/examples` selects `sdk-minimal`. The installed `avn` console command exposes the same profile grammar and the separately packaged `web` application.
 
-The executable family is `deepseek-harness-sdk-runtime-<platform>-<arch>`. The SDK wire, wheel and import distribution names, sidecar names, and wire identity `deepseek-harness-sdk-runtime` remain stable. The SDK package family is `@aeven/sdk-client`, `@aeven/sdk-protocol`, and `@aeven/sdk-jsonrpc-server`; `@aeven/acp` remains the ACP protocol plugin. There is no Python-specific Node application, checked-in complete config, compatibility package, forwarding executable, fallback parser, or SDK/ACP launcher alias. The [Python profile-runtime decision](2026-08-23-python-sdk-avn-profile-runtime.md) owns this launch, and the [Windows x64 runtime decision](2026-08-23-python-sdk-windows-x64-runtime.md) owns the fourth carrier.
+The executable family is `aeven-sdk-runtime-<platform>-<arch>`. The SDK wire, wheel and import distribution names, sidecar names, and wire identity `aeven-sdk-runtime` remain stable. The SDK package family is `@aeven/sdk-client`, `@aeven/sdk-protocol`, and `@aeven/sdk-jsonrpc-server`; `@aeven/acp` remains the ACP protocol plugin. There is no Python-specific Node application, checked-in complete config, compatibility package, forwarding executable, fallback parser, or SDK/ACP launcher alias. The [Python profile-runtime decision](2026-08-23-python-sdk-avn-profile-runtime.md) owns this launch, and the [Windows x64 runtime decision](2026-08-23-python-sdk-windows-x64-runtime.md) owns the fourth carrier.
 
 ### Enforcement
 
@@ -85,7 +85,7 @@ The [ACP automation-only protocol](../simplification/2026-07-23-acp-automation-o
 - Focused unit suites cover profile launch resolution, initialization bounds, SDK retries, server readiness, and nested isolated homes with 100% coverage on the changed runtime sources.
 - Keyless ACP and SDK snapshots boot real `avn` profiles and pin protocol output plus persisted logs; the nested SDK composition boots a second real profile runtime.
 - The real-API workflow caps file parallelism at four because one profile e2e file can own several complete `avn` subprocess trees; workflow tests pin that resource bound.
-- The Python suite exercises exe and node carriers; packaged-runtime scenarios, native macOS executable construction, both wheels, and clean-wheel default/MCP smokes pin the `deepseek-harness-sdk-runtime-*` artifacts and profile launch.
+- The Python suite exercises exe and node carriers; packaged-runtime scenarios, native macOS executable construction, both wheels, and clean-wheel default/MCP smokes pin the `aeven-sdk-runtime-*` artifacts and profile launch.
 - `verify-application-entrypoints` includes invalid fixtures for package bins, executable sources, package-launching demo wrappers, and unclassified demos.
 
 ## Consequences

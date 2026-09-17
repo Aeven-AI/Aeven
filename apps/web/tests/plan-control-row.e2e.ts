@@ -2,7 +2,7 @@
 // trigger keep disjoint click areas, and clicking the chip at its center
 // leaves plan mode through the real command channel. This is the browser
 // regression the external report asked for (avn-external/issues#107 →
-// deepseek-harness#1406): "increase an 800×720 browser regression test and
+// aeven#1406): "increase an 800×720 browser regression test and
 // assert that the plan center hits the plan button".
 //
 // Plan mode is entered through the real /plan command with no argument:

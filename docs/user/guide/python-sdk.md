@@ -17,21 +17,21 @@ This tutorial installs the published Python SDK, runs the shipped standalone min
 ### Linux and macOS
 
 ```sh
-git clone https://github.com/deepseek-ai/deepseek-harness.git
-cd deepseek-harness
+git clone https://github.com/Aeven-AI/Harness.git
+cd aeven
 python -m venv .venv
 . .venv/bin/activate
-python -m pip install deepseek-harness-sdk
+python -m pip install aeven-sdk
 ```
 
 ### Windows PowerShell
 
 ```powershell
-git clone https://github.com/deepseek-ai/deepseek-harness.git
-Set-Location deepseek-harness
+git clone https://github.com/Aeven-AI/Harness.git
+Set-Location aeven
 py -3.10 -m venv .venv
 .venv\Scripts\Activate.ps1
-python -m pip install deepseek-harness-sdk
+python -m pip install aeven-sdk
 ```
 
 The installation includes a matching native runtime wheel and the `avn` command. Normal SDK execution needs no system Node.js. Repository contributors who build the artifacts should use the [Python contributor workflow](../../../python/development.md).

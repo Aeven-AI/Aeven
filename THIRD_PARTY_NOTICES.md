@@ -15,15 +15,15 @@ The Cordis framework and its foundation libraries are source-vendored into this 
 
 | Package | Upstream name | Upstream | License |
 | --- | --- | --- | --- |
-| `@deepseek-ai/cosmokit` | `cosmokit` | [github.com/deepseek-harness/cosmokit](https://github.com/deepseek-harness/cosmokit) | MIT |
-| `@deepseek-ai/schemastery` | `schemastery` | [github.com/deepseek-harness/schemastery](https://github.com/deepseek-harness/schemastery) | MIT |
+| `@deepseek-ai/cosmokit` | `cosmokit` | [github.com/aeven/cosmokit](https://github.com/aeven/cosmokit) | MIT |
+| `@deepseek-ai/schemastery` | `schemastery` | [github.com/aeven/schemastery](https://github.com/aeven/schemastery) | MIT |
 | `@deepseek-ai/cordis` | `cordis` | [github.com/cordiverse/cordis](https://github.com/cordiverse/cordis) | MIT |
 | `@deepseek-ai/cordis-plugin-loader` | `@cordisjs/plugin-loader` | [github.com/cordiverse/cordis](https://github.com/cordiverse/cordis) | MIT |
-| `@deepseek-ai/cordis-plugin-include` | `@cordisjs/plugin-include` | [github.com/deepseek-harness/cordis](https://github.com/deepseek-harness/cordis) | MIT |
-| `@deepseek-ai/cordis-plugin-group` | `@cordisjs/plugin-group` | [github.com/deepseek-harness/cordis](https://github.com/deepseek-harness/cordis) | MIT |
-| `@deepseek-ai/cordis-plugin-timer` | `@cordisjs/plugin-timer` | [github.com/deepseek-harness/cordis](https://github.com/deepseek-harness/cordis) | MIT |
-| `@deepseek-ai/cordis-plugin-hmr` | `@cordisjs/plugin-hmr` | [github.com/deepseek-harness/cordis](https://github.com/deepseek-harness/cordis) | MIT |
-| `@deepseek-ai/cordis-plugin-logger-console` | `@cordisjs/plugin-logger-console` | [github.com/deepseek-harness/cordis](https://github.com/deepseek-harness/cordis) | MIT |
+| `@deepseek-ai/cordis-plugin-include` | `@cordisjs/plugin-include` | [github.com/aeven/cordis](https://github.com/aeven/cordis) | MIT |
+| `@deepseek-ai/cordis-plugin-group` | `@cordisjs/plugin-group` | [github.com/aeven/cordis](https://github.com/aeven/cordis) | MIT |
+| `@deepseek-ai/cordis-plugin-timer` | `@cordisjs/plugin-timer` | [github.com/aeven/cordis](https://github.com/aeven/cordis) | MIT |
+| `@deepseek-ai/cordis-plugin-hmr` | `@cordisjs/plugin-hmr` | [github.com/aeven/cordis](https://github.com/aeven/cordis) | MIT |
+| `@deepseek-ai/cordis-plugin-logger-console` | `@cordisjs/plugin-logger-console` | [github.com/aeven/cordis](https://github.com/aeven/cordis) | MIT |
 
 ## Runtime npm dependencies
 
@@ -227,7 +227,7 @@ Direct dependencies of the `pyproject.toml` manifests, plus `uv` as the developm
 | Package | License | Role |
 | --- | --- | --- |
 | [`hatchling`](https://github.com/pypa/hatch) | MIT | build backend |
-| [`pydantic`](https://github.com/pydantic/pydantic) | MIT | runtime dependency of `deepseek-harness-sdk` |
+| [`pydantic`](https://github.com/pydantic/pydantic) | MIT | runtime dependency of `aeven-sdk` |
 | [`pytest`](https://github.com/pytest-dev/pytest) | MIT | test-only |
 | [`uv`](https://github.com/astral-sh/uv) | MIT / Apache-2.0 | development workflow tool |
 

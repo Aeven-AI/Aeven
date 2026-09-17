@@ -192,7 +192,7 @@ describe('rewriteMarkdown', () => {
       repositoryRef: 'abc123',
     })).toBe(
       '[B](./reference/b.md#part) '
-      + '[source](https://github.com/deepseek-ai/deepseek-harness/blob/abc123/packages/tool.ts#L2) '
+      + '[source](https://github.com/Aeven-AI/Harness/blob/abc123/packages/tool.ts#L2) '
       + '[web](https://example.com)\n',
     )
   })
@@ -218,7 +218,7 @@ describe('rewriteMarkdown', () => {
       pages,
       repoRoot: root,
       repositoryRef: 'abc123',
-    })).toBe('![logo](https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/abc123/packages/logo.svg)\n')
+    })).toBe('![logo](https://raw.githubusercontent.com/deepseek-ai/aeven/abc123/packages/logo.svg)\n')
   })
 
   it('hands an image to the placer and uses the URL it returns', () => {
@@ -297,7 +297,7 @@ describe('rewriteMarkdown', () => {
       repositoryRef: 'abc123',
     })).toBe(
       '[title](./reference/b.md "b.md") '
-      + '[escaped](https://github.com/deepseek-ai/deepseek-harness/blob/abc123/docs/x(y).md)\n',
+      + '[escaped](https://github.com/Aeven-AI/Harness/blob/abc123/docs/x(y).md)\n',
     )
   })
 
@@ -619,7 +619,7 @@ describe('projectedPageContent', () => {
   })
 
   it('drops the repository badge every page links from its footer', () => {
-    const badge = '[![](https://img.shields.io/badge/powered_by-avn-4D6BFE?style=flat-square)](https://github.com/deepseek-ai/deepseek-harness)'
+    const badge = '[![](https://img.shields.io/badge/powered_by-avn-4D6BFE?style=flat-square)](https://github.com/Aeven-AI/Harness)'
     expect(projectedPageContent(`# Guide\n\nBody.\n\n${badge}\n`, page('zh-guide')))
       .toBe('# Guide\n\nBody.\n')
   })
@@ -645,7 +645,7 @@ describe('rawMarkdownPageContent', () => {
   })
 
   it('drops the language switcher and repository badge like the rendered site', () => {
-    const badge = '[![](https://img.shields.io/badge/powered_by-avn-4D6BFE?style=flat-square)](https://github.com/deepseek-ai/deepseek-harness)'
+    const badge = '[![](https://img.shields.io/badge/powered_by-avn-4D6BFE?style=flat-square)](https://github.com/Aeven-AI/Harness)'
     expect(rawMarkdownPageContent(`# Guide\n\nEnglish | [中文](./x)\n\nBody.\n\n${badge}\n`, 'docs/guide.md'))
       .toBe('# Guide\n\nBody.\n')
   })

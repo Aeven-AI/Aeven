@@ -66,7 +66,7 @@ describe('AskQuestionRow', () => {
 
   it('expands a successful result as paired questions and readable answer lines', () => {
     render(<AskQuestionRow {...rowProps(resultNode(READABLE_ARGS, answers([
-      { id: 'scope', selected: ['deepseek-harness'] },
+      { id: 'scope', selected: ['aeven'] },
       { id: 'goal', selected: ['Develop a feature'], custom: 'Keep the API small' },
       { id: 'notes', selected: [] },
     ])))} />)
@@ -77,7 +77,7 @@ describe('AskQuestionRow', () => {
     expect(screen.getByText('Develop a feature')).toBeTruthy()
     expect(screen.getByText('Keep the API small')).toBeTruthy()
     expect(screen.getByText('Which project should this apply to?')).toBeTruthy()
-    expect(screen.getByText('deepseek-harness')).toBeTruthy()
+    expect(screen.getByText('aeven')).toBeTruthy()
     expect(screen.getByText('Anything else?')).toBeTruthy()
     expect(screen.getByText('未回答')).toBeTruthy()
     expect(screen.queryByText(/"questions"/)).toBeNull()
@@ -87,7 +87,7 @@ describe('AskQuestionRow', () => {
   it('keeps generic diagnostics when a valid answer result includes a non-text block', () => {
     const resultText = answers([
       { id: 'goal', selected: ['Develop a feature'] },
-      { id: 'scope', selected: ['deepseek-harness'] },
+      { id: 'scope', selected: ['aeven'] },
       { id: 'notes', selected: [] },
     ])
     const view = render(<AskQuestionRow {...rowProps(resultNode(READABLE_ARGS, resultText, {

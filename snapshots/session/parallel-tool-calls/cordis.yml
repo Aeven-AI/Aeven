@@ -1,13 +1,13 @@
 # Filesystem-scenario overlay: the sandboxed filesystem stack already lives in
-# `dsh-base`, so this patch changes only the local tool-result spill
+# `avn-base`, so this patch changes only the local tool-result spill
 # storage those scenarios exercise.
 
 - id: spill-local
-  name: '@deepseek-ai/dsh-spill-local'
+  name: '@aeven/spill-local'
   config:
-    root: !!js process.env.DSH_SNAPSHOT_SPILL_ROOT ?? './.spill'
+    root: !!js process.env.AVN_SNAPSHOT_SPILL_ROOT ?? './.spill'
 
 - id: spill-policy
-  name: '@deepseek-ai/dsh-spill-policy'
+  name: '@aeven/spill-policy'
   config:
-    maxInlineBytes: !!js process.env.DSH_SNAPSHOT && 800 || 50000
+    maxInlineBytes: !!js process.env.AVN_SNAPSHOT && 800 || 50000

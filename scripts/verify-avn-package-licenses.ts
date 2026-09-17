@@ -7,7 +7,7 @@ import { globSync, readFileSync } from 'node:fs'
 import { resolve, sep } from 'node:path'
 
 const ROOT = resolve(import.meta.dirname, '..')
-const AVN_PACKAGE_NAME = /^@deepseek-ai\/avn(?:-|$)/
+const AVN_PACKAGE_NAME = /^@aeven\/cli(?:-|$)/
 
 /** Result of checking every AVN package reachable through the root workspace list. */
 export interface AvnPackageLicenseReport {

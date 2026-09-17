@@ -22,7 +22,7 @@ describe('credentials invariant companion', () => {
     await ctx.plugin(InvariantRegistry)
     await ctx.plugin(CredentialsInvariant)
 
-    expect(() => { ctx.emit('credentials/reference-updated', REF) }).toThrow(/invariant violated by "@deepseek-ai\/avn-credentials"/)
+    expect(() => { ctx.emit('credentials/reference-updated', REF) }).toThrow(/invariant violated by "@aeven\/credentials"/)
   })
 
   it('reserves the package name against duplicate registration', async () => {

@@ -465,7 +465,7 @@ describe.skipIf(!existsSync(avnBin))('avn BUILT bin (node lib/bin.js, no tsx)', 
       expect(await response(1)).toMatchObject({
         jsonrpc: '2.0',
         id: 1,
-        result: { serverInfo: { name: 'deepseek-harness-sdk-runtime' } },
+        result: { serverInfo: { name: 'aeven-sdk-runtime' } },
       })
       child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'shutdown' })}\n`)
       expect(await response(2)).toEqual({ jsonrpc: '2.0', id: 2, result: {} })
@@ -528,7 +528,7 @@ describe.skipIf(!existsSync(avnBin))('avn BUILT bin (node lib/bin.js, no tsx)', 
         protocolVersion: PROTOCOL_VERSION,
         clientCapabilities: {},
       })
-      expect(initialized.agentInfo).toMatchObject({ name: 'deepseek-harness-acp' })
+      expect(initialized.agentInfo).toMatchObject({ name: 'aeven-acp' })
       expect(initialized.agentCapabilities).toEqual({
         mcpCapabilities: { http: true },
         promptCapabilities: { image: false, audio: false, embeddedContext: false },
@@ -929,9 +929,9 @@ describe.skipIf(!existsSync(avnBin))('avn BUILT bin (node lib/bin.js, no tsx)', 
       expect(code).toBe(0)
       expect(stderr).toBe('')
       expect(stdout).toContain("name: '@aeven/headless'")
-      expect(stdout).not.toMatch(/name: '@deepseek-ai\/avn-host-/)
+      expect(stdout).not.toMatch(/name: '@aeven\/host-/)
       expect(stdout).not.toContain("name: '@aeven/web-app'")
-      expect(stdout).not.toMatch(/name: '@deepseek-ai\/avn-client-/)
+      expect(stdout).not.toMatch(/name: '@aeven\/client-/)
     }, SPAWN_TIMEOUT_MS + 30_000)
 
     it('prints the exact standalone sdk-minimal tree without avn-base', async () => {

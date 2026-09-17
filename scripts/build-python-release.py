@@ -17,8 +17,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SDK_DISTRIBUTION = "deepseek-harness-sdk"
-RUNTIME_DISTRIBUTION = "deepseek-harness-runtime-bin"
+SDK_DISTRIBUTION = "aeven-sdk"
+RUNTIME_DISTRIBUTION = "aeven-runtime-bin"
 PLATFORM_MANIFEST = ROOT / "python" / "sdk-runtime" / "platforms.json"
 
 
@@ -153,7 +153,7 @@ def copy_package(source: Path, destination: Path) -> None:
             "*.pyc",
             "dist",
             "node_modules",
-            "deepseek-harness-sdk-runtime-*",
+            "aeven-sdk-runtime-*",
         ),
     )
 
@@ -197,8 +197,8 @@ def stage_sdk(destination: Path, version: str) -> None:
     pyproject = destination / "pyproject.toml"
     rewrite_version(pyproject, version)
     text, count = re.subn(
-        r'"deepseek-harness-runtime-bin==[^"]+"',
-        f'"deepseek-harness-runtime-bin=={version}"',
+        r'"aeven-runtime-bin==[^"]+"',
+        f'"aeven-runtime-bin=={version}"',
         pyproject.read_text(),
         count=1,
     )
@@ -254,7 +254,7 @@ def verify_wheel(
                 f"{wheel} has license files {license_files}, expected {expected_license_files}"
             )
         runtime_files = [
-            name for name in archive.namelist() if "/runtime/deepseek-harness-sdk-runtime-" in name
+            name for name in archive.namelist() if "/runtime/aeven-sdk-runtime-" in name
         ]
         if package == "runtime":
             assert platform is not None

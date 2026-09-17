@@ -24,7 +24,7 @@ No family exposes two public vocabularies.
 
 ### Use `SDK` for one thing
 
-`SDK` means the JSON-RPC-based client/server protocol used by the supported Python and TypeScript SDKs. The repository keeps `@aeven/sdk-client`, `@aeven/sdk-protocol`, and the wire identity `deepseek-harness-sdk-runtime`; the JSON-RPC server belongs to the same family. Aeven itself is not an SDK, and the removed project generator, launcher, helper, and launcher telemetry packages stay absent.
+`SDK` means the JSON-RPC-based client/server protocol used by the supported Python and TypeScript SDKs. The repository keeps `@aeven/sdk-client`, `@aeven/sdk-protocol`, and the wire identity `aeven-sdk-runtime`; the JSON-RPC server belongs to the same family. Aeven itself is not an SDK, and the removed project generator, launcher, helper, and launcher telemetry packages stay absent.
 
 This decision partially supersedes three active decisions. It replaces the retained `bash/`, `pty/`, and `self-modification/` group names and both deferred package targets in the [package-regrouping decision](2026-07-29-package-regrouping.md). It replaces only the repository-wide SDK claim in the [SDK project toolchain removal](../simplification/2026-08-11-remove-sdk-project-toolchain.md), which remains the owner of the deletion and the surviving runtime SDK. It replaces only the package-name rationale in the [tool-call timeout policy](2026-07-07-tool-call-timeout-policy.md); the timeout mechanism and its `guard/timeout-policy/` home remain unchanged.
 
@@ -89,7 +89,7 @@ The tables record public and repository-wide renames. The `Current` column holds
 | `@aeven/jsonrpc` | `@aeven/sdk-jsonrpc-server` | It is the server half of the SDK protocol. `jsonrpc` alone names an encoding; `sdk-jsonrpc-server` gives the family, mechanism, and role. |
 | `HarnessSdkServer` | `HarnessSdkJsonRpcServer` | The class is one JSON-RPC server implementation, not every possible SDK server. |
 
-Keep `@aeven/sdk-client`, `@aeven/sdk-protocol`, and `deepseek-harness-sdk-runtime`. Exclude `@deepseek-ai/create-sdk`, `@aeven/scripts`, `@aeven/helper`, and `@aeven/telemetry`; the separate removal decision deletes them and their support graph.
+Keep `@aeven/sdk-client`, `@aeven/sdk-protocol`, and `aeven-sdk-runtime`. Exclude `@deepseek-ai/create-sdk`, `@aeven/scripts`, `@aeven/helper`, and `@aeven/telemetry`; the separate removal decision deletes them and their support graph.
 
 ### Shell and terminal
 

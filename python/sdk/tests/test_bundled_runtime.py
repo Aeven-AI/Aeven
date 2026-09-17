@@ -53,7 +53,7 @@ def test_bundled_runtime_boots_the_sdk_profile(
         init = client.initialize(provider="deepseek-official", cwd=str(tmp_path), model="deepseek-v4-pro")
 
     assert init.serverInfo is not None
-    assert init.serverInfo.name == "deepseek-harness-sdk-runtime"
+    assert init.serverInfo.name == "aeven-sdk-runtime"
     profile = json.loads((tmp_path / "home" / "profiles" / "sdk" / "package.json").read_text())
     assert profile["avn"]["profile"]["bundles"] == [
         "@aeven/base",

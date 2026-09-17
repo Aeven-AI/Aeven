@@ -10,7 +10,7 @@ The adapter sends the additions to its resolved `baseURL`, including a configure
 
 | Location | Naming | Examples |
 |---|---|---|
-| HTTP field names | Lowercase kebab-case; HTTP matching remains case-insensitive | `user-agent`, `x-deepseek-harness-session-id` |
+| HTTP field names | Lowercase kebab-case; HTTP matching remains case-insensitive | `user-agent`, `x-aeven-session-id` |
 | DeepSeek request-body extension fields | Snake case with the reserved `avn_` prefix | `avn_plugin_packages`, `avn_session_log` |
 | AVN-owned nested JSON members | Camel case | `afterSeq`, `throughSeq`, `sessionId` |
 | Tagged values | Kebab-case strings; durable events use `domain/action` | `session-log-deepseek/delivery-accepted` |
@@ -23,12 +23,12 @@ The [`DeepSeekLlmApiExtensionRegistry`](../packages/llm/deepseek-llm-api-extensi
 
 | Header | Presence | Value |
 |---|---|---|
-| `user-agent` | Every provider HTTP request, including Files API operations | Application identity in `product/version (+url)` form; the default product is `deepseek-harness` |
-| `x-deepseek-harness-user-id` | Every authorized chat-completion request | The stable anonymous UUID for the resolved Harness home |
-| `x-deepseek-harness-session-id` | Chat-completion requests carrying a Session id | The exact request `sessionId` string |
-| `x-deepseek-harness-compact` | Chat-completion requests whose purpose is `compaction` | The literal string `1` |
+| `user-agent` | Every provider HTTP request, including Files API operations | Application identity in `product/version (+url)` form; the default product is `aeven` |
+| `x-aeven-user-id` | Every authorized chat-completion request | The stable anonymous UUID for the resolved Harness home |
+| `x-aeven-session-id` | Chat-completion requests carrying a Session id | The exact request `sessionId` string |
+| `x-aeven-compact` | Chat-completion requests whose purpose is `compaction` | The literal string `1` |
 
-Credential failure happens before anonymous-user-id resolution, so an unauthorized request neither sends these headers nor creates the identity file. A direct request without a Session omits `x-deepseek-harness-session-id`. Session-title requests have no additional purpose header; the ordinary Session-id rule still applies when one carries a `sessionId`.
+Credential failure happens before anonymous-user-id resolution, so an unauthorized request neither sends these headers nor creates the identity file. A direct request without a Session omits `x-aeven-session-id`. Session-title requests have no additional purpose header; the ordinary Session-id rule still applies when one carries a `sessionId`.
 
 ## Body-extension transaction
 

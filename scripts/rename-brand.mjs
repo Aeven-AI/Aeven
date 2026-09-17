@@ -88,10 +88,22 @@ function generatedStem(path) {
  */
 function exclusionReason(path) {
   if (path.startsWith('.agents/notes/archived/')) return 'content-sealed archive (verify-archived-agent-notes)'
-  if (path.startsWith('snapshots/')) return 'regenerated fixture (test:snapshot:refresh)'
+  // NOT excluded. `test:snapshot:record` is the intended path, but it is blocked by
+  // a pre-existing corpus failure on main (session/subagent-tool-filter), so the
+  // fixtures are brought along by the codemod instead. The rename is exactly what
+  // the code now emits, which is what a re-record would have written.
+  // `.agents/notes/archived/` stays excluded: it is content-sealed.
+  // The tools define the replacement rules; running them over themselves would
+  // rewrite their own patterns into no-ops, which is exactly what happened once.
+  if (path === 'scripts/rename-brand.mjs' || path === 'scripts/rename-brand-paths.mjs') {
+    return 'the rename tooling itself'
+  }
   if (path === 'LICENSE') return 'MIT copyright notice is legally fixed'
   if (path === 'THIRD_PARTY_NOTICES.md') return 'third-party attribution is legally fixed'
-  if (GENERATED.has(generatedStem(path))) return 'generated output (regenerated in wave 9)'
+  // Exact match only: the generators rewrite the English file, but a generated
+  // doc's `.zh.md` sibling is a hand-maintained translation they leave alone, so
+  // it must still travel through the codemod or it goes stale against its pair.
+  if (GENERATED.has(path)) return 'generated output (regenerated in wave 9)'
   if (path.endsWith('.snap')) return 'vitest snapshot (regenerated with --update)'
   if (path.startsWith('website/.dist/')) return 'build output (gitignored)'
   if (path.startsWith('.dsh-build/')) return 'build record (gitignored)'
@@ -114,6 +126,10 @@ const RUN_LEVEL_RULES = [
  */
 function replacementsFor(wave) {
   const scope = [
+    // Two rules, not one. Inside a regex literal the separator is written escaped
+    // (`\/`), and the replacement must PRESERVE that escape or the literal ends
+    // on the new slash. The escaped form is listed first.
+    { name: 'npm-scope-escaped', from: /@deepseek-ai\\\/dsh-/g, to: '@aeven\\/' },
     { name: 'npm-scope', from: /@deepseek-ai\/dsh-/g, to: '@aeven/' },
     { name: 'npm-scope-bare', from: /@deepseek-ai\/dsh(?![A-Za-z0-9-])/g, to: '@aeven/cli' },
   ]
@@ -217,7 +233,7 @@ function isHeldBack(run, wave) {
 const TEXT_EXTENSIONS = new Set([
   '.ts', '.tsx', '.mts', '.js', '.mjs', '.cjs', '.json', '.jsonl', '.md', '.yml',
   '.yaml', '.css', '.scss', '.html', '.txt', '.sh', '.py', '.toml', '.webmanifest',
-  '.i18n', '.cmd', '.patch', '.svg',
+  '.i18n', '.cmd', '.patch', '.svg', '.snap',
 ])
 
 /**
@@ -259,7 +275,7 @@ function fileLevelRules(wave) {
       // Property access never is -- `existing?.avn`, `manifest(...).avn` and
       // `manifest.avn` are all preceded by a value-ending character, and a
       // looser lookbehind silently rewrote them.
-      { name: 'home-dir-avn', from: /(?<=['\`/])\.avn(?![A-Za-z0-9])/g, to: '.aeven' },
+      { name: 'home-dir-avn', from: /(?<=['`/])\.avn(?![A-Za-z0-9])/g, to: '.aeven' },
     ]
   }
   if (wave === 4) {
@@ -272,7 +288,39 @@ function fileLevelRules(wave) {
       { name: 'git-ext-key-lower', from: 'extensions.dshunknown', to: 'extensions.avnunknown' },
     ]
   }
-  return []
+  if (wave !== 2) return []
+  return [
+    // Repair wave for trees damaged by the escaped-unaware scope rule. Same
+    // escape-preserving split as wave 3.
+    { name: 'repair-scope-escaped', from: /@deepseek-ai\\\/avn-/g, to: '@aeven\\/' },
+    { name: 'repair-scope', from: /@deepseek-ai\/avn-/g, to: '@aeven/' },
+    { name: 'repair-scope-bare-escaped', from: /@deepseek-ai\\\/avn(?![A-Za-z0-9-])/g, to: '@aeven\\/cli' },
+    { name: 'repair-scope-bare', from: /@deepseek-ai\/avn(?![A-Za-z0-9-])/g, to: '@aeven/cli' },
+    // Escaped-dot paths (`~\\.dsh`, `/^\\.dsh-.../`): the separator ahead of the
+    // home directory is itself escaped, so wave 5's lookbehind saw a backslash,
+    // not a quote or bare separator. The leading backslash is preserved.
+    { name: 'repair-home-dir-escaped', from: /\\\.avn(?![A-Za-z0-9])/g, to: '\\.aeven' },
+    // `DSHInspector` -- an all-caps `DSH` immediately followed by an uppercase
+    // letter is the inspector's CDP domain name and its event/method prefixes.
+    { name: 'repair-DSH-pascal', from: /(?<![A-Za-z0-9])DSH(?=[A-Z])/g, to: 'Avn' },
+    // `dsh>` -- the terminal shell prompt, which appears after a BEL escape
+    // (`'\x1b]133;D;0\x07dsh> '`), so `dsh` is preceded by a digit.
+    { name: 'repair-shell-prompt', from: /dsh(?=>)/g, to: 'avn' },
+    // A bare `Dsh` word in prose (`/** Dsh host adapter. */`), which the wave-4
+    // rules miss because they require an adjacent uppercase or lowercase letter.
+    { name: 'repair-bare-Dsh', from: /(?<![A-Za-z0-9])Dsh(?![A-Za-z0-9])/g, to: 'Avn' },
+    // `packedDsh` -- a camelCase `Dsh` ending a word, which the wave-4 rule
+    // misses because it requires an uppercase character to follow.
+    { name: 'repair-trailing-Dsh', from: /(?<=[a-z0-9])Dsh(?![A-Za-z0-9])/g, to: 'Avn' },
+    { name: 'repair-trailing-dsh', from: /(?<=[a-z0-9])dsh(?![A-Za-z0-9])/g, to: 'Avn' },
+    // The hyphenated product name. Like `DeepSeek Harness` it contains no `dsh`,
+    // so it is unreachable by the run matcher. The fork's own repository
+    // metadata points at the real fork remote (git remote -v); upstream
+    // attribution stays in THIRD_PARTY_NOTICES.md, which is excluded.
+    { name: 'product-repo-url', from: /github\.com\/deepseek-ai\/deepseek-harness/g, to: 'github.com/Aeven-AI/Harness' },
+    { name: 'product-docs-url', from: /deepseek-harness\.github\.io\/deepseek-harness/g, to: 'aeven-ai.github.io/Harness' },
+    { name: 'product-hyphen', from: /deepseek-harness/g, to: 'aeven' },
+  ]
 }
 
 /**
@@ -348,7 +396,7 @@ function corpus() {
 }
 
 /** Every wave this script can apply, in landing order. */
-const WAVES = [1, 3, 4, 5, 6, 7]
+const WAVES = [1, 2, 3, 4, 5, 6, 7]
 
 /**
  * Census of brand tokens remaining in the corpus, plus the false-positive

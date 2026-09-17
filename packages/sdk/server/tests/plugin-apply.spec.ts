@@ -190,7 +190,7 @@ describe('avn-sdk-jsonrpc-server plugin apply', () => {
       expect(response).toEqual({
         jsonrpc: '2.0',
         id: 'init-1',
-        result: { serverInfo: { name: 'deepseek-harness-sdk-runtime', version: '0.0.1' } },
+        result: { serverInfo: { name: 'aeven-sdk-runtime', version: '0.0.1' } },
       })
       expect(harness.exits()).toEqual([])
     } finally {
@@ -243,7 +243,7 @@ describe('avn-sdk-jsonrpc-server plugin apply', () => {
       const response = await harness.waitForFrame(frame => frame.id === 'init-delayed', 'initialize response after Loader settlement')
       expect(response).toMatchObject({
         id: 'init-delayed',
-        result: { serverInfo: { name: 'deepseek-harness-sdk-runtime' } },
+        result: { serverInfo: { name: 'aeven-sdk-runtime' } },
       })
       expect(harness.ctx.llm.listProviders()).toContainEqual({ id: 'delayed-private', name: 'delayed-private' })
     } finally {

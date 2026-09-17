@@ -240,7 +240,7 @@ describe('release families', () => {
     // would order this, and the traversal drops the install edge instead. That
     // order would publish charlie before the alpha it installs, so it is refused
     // here rather than published.
-    expect(() => { avn.publishOrder(members) }).toThrow(/no publish order honours @deepseek-ai\/avn-charlie -> @deepseek-ai\/avn-alpha/)
+    expect(() => { avn.publishOrder(members) }).toThrow(/no publish order honours @aeven\/charlie -> @aeven\/alpha/)
   })
 
   it('ignores devDependencies when ordering', () => {

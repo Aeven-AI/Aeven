@@ -23,7 +23,7 @@ import { OAuthCredentialFileStore, oauthCredentialPath } from './store.ts'
 /**
  * Oauth models cache path.
  * @param basename - Basename value.
- * @param avnHome - Dsh home value.
+ * @param avnHome - Avn home value.
  * @returns The resulting oauth models cache path.
  */
 export function oauthModelsCachePath(basename: string, avnHome?: string): string {

@@ -209,9 +209,9 @@ describe('translation pairing switchers', () => {
 
   it('accepts only the canonical public URL for an absolute switcher', () => {
     const targets = languageSwitcherTargets('python/sdk/README.zh.md')
-    const canonicalMarkdown = '# README\n\nEnglish | [中文](https://github.com/deepseek-ai/deepseek-harness/blob/master/python/sdk/README.zh.md)\n'
+    const canonicalMarkdown = '# README\n\nEnglish | [中文](https://github.com/Aeven-AI/Harness/blob/master/python/sdk/README.zh.md)\n'
     const canonical = parseTranslationMarkdown(canonicalMarkdown)
-    const wrongMarkdown = '# README\n\nEnglish | [中文](https://github.com/deepseek-ai/deepseek-harness/blob/master/other/README.zh.md)\n'
+    const wrongMarkdown = '# README\n\nEnglish | [中文](https://github.com/Aeven-AI/Harness/blob/master/other/README.zh.md)\n'
     const wrongPath = parseTranslationMarkdown(wrongMarkdown)
 
     expect(translationStructureSignature(canonical, targets, {
@@ -226,7 +226,7 @@ describe('translation pairing switchers', () => {
       isTranslationPairSource: fixturePairSource,
       markdown: wrongMarkdown,
     }).links).toEqual([
-      'https://github.com/deepseek-ai/deepseek-harness/blob/master/other/README.zh.md',
+      'https://github.com/Aeven-AI/Harness/blob/master/other/README.zh.md',
     ])
   })
 
@@ -334,7 +334,7 @@ describe('translation scope discovery', () => {
     'packages/example/node_modules/dependency/README.md',
     'packages/example/lib/README.md',
     'coverage/report/README.md',
-    'python/sdk-runtime/src/deepseek_harness_runtime/runtime/deepseek-harness-sdk-runtime-macos-arm64/README.md',
+    'python/sdk-runtime/src/deepseek_harness_runtime/runtime/aeven-sdk-runtime-macos-arm64/README.md',
     'python/sdk-runtime/src/deepseek_harness_runtime/runtime/node/README.md',
   ])('excludes non-source or non-README path %s', (file) => {
     expect(isTranslationScopeFile(file)).toBe(false)

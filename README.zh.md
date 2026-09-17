@@ -6,7 +6,7 @@ Aeven（`avn`）是由 [DeepSeek AI](https://deepseek.com) 开发的开源 agent
 
 它构建于**一切皆插件**的架构之上，由 [Cordis](https://github.com/cordiverse/cordis) 驱动，其设计参见论文 [_A Programming Paradigm for Spatiotemporal Composability_](https://arxiv.org/abs/2608.25512)。
 
-文档：[https://deepseek-harness.github.io/deepseek-harness/](https://deepseek-harness.github.io/deepseek-harness/)
+文档：[https://aeven-ai.github.io/Harness/](https://aeven-ai.github.io/Harness/)
 
 ## 开发者预览
 
@@ -35,8 +35,8 @@ npx @aeven/cli web
 如需从仓库源码运行：
 
 ```sh
-git clone https://github.com/deepseek-ai/deepseek-harness.git
-cd deepseek-harness
+git clone https://github.com/Aeven-AI/Harness.git
+cd aeven
 pnpm install
 pnpm run build
 pnpm avn web
@@ -46,7 +46,7 @@ pnpm avn web
 
 ## 社区与支持
 
-- 通过 [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) 提交反馈或 bug 报告。
+- 通过 [GitHub Discussions](https://github.com/Aeven-AI/Harness/discussions) 提交反馈或 bug 报告。
 - 为你的插件仓库添加 [`avn-plugin`](https://github.com/topics/avn-plugin) 话题，便于被发现。
 - 欢迎加入 Aeven 企微群：扫码添加企微小助手并填写入群问卷，完成后小助手会邀请你入群。
 

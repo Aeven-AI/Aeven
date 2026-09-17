@@ -6,7 +6,7 @@ Status: implemented
 
 ## 问题
 
-当消费方忙碌时，长期存在的流队列可能积累数千个帧。在观测到的 V8 路径上，使用 `Array.prototype.shift()` 移除每个帧会移动剩余数组区间，因此排空 `N` 个排队帧会执行二次方级别的引用移动，并延迟同一事件循环上的无关工作。[Issue #3270](https://github.com/deepseek-harness/deepseek-harness/issues/3270) 记录了把 `ArrayShift`、`MoveRange` 和 `memmove` 识别为主要堆栈的生产采样。
+当消费方忙碌时，长期存在的流队列可能积累数千个帧。在观测到的 V8 路径上，使用 `Array.prototype.shift()` 移除每个帧会移动剩余数组区间，因此排空 `N` 个排队帧会执行二次方级别的引用移动，并延迟同一事件循环上的无关工作。[Issue #3270](https://github.com/aeven/aeven/issues/3270) 记录了把 `ArrayShift`、`MoveRange` 和 `memmove` 识别为主要堆栈的生产采样。
 
 受影响的流具有不同的唤醒、失败、取消和 disposal 行为。它们的共同要求是保持 FIFO 顺序、同时不替它们作出这些生命周期决策的存储。
 

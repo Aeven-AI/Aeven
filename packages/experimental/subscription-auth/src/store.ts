@@ -282,7 +282,7 @@ function validatedDocument(document: AuthDocumentV2, filename: string, label: st
 /**
  * Resolve one private OAuth document path beneath AVN_HOME.
  * @param basename - Basename value.
- * @param avnHome - Dsh home value.
+ * @param avnHome - Avn home value.
  * @returns The resulting oauth credential path.
  */
 export function oauthCredentialPath(basename: string, avnHome?: string): string {
@@ -300,7 +300,7 @@ export function oauthCredentialPath(basename: string, avnHome?: string): string 
 
 /**
  * Resolve the legacy Grok Build OAuth document path.
- * @param avnHome - Dsh home value.
+ * @param avnHome - Avn home value.
  * @returns The resulting grok build auth path.
  */
 export function grokBuildAuthPath(avnHome?: string): string {

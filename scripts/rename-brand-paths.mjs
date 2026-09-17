@@ -23,6 +23,9 @@ import { dirname } from 'node:path'
 
 /** Segment-level rules, ordered longest/most-specific first. */
 const SEGMENT_RULES = [
+  // Must precede the generic `dsh` rule, which would otherwise claim the `dsh`
+  // in `.dsh` and produce `.avn` instead of the product's `.aeven`.
+  { from: /^\.dsh(?![A-Za-z0-9])/g, to: '.aeven' },
   { from: /--dsh-/g, to: '--avn-' },
   { from: /^dsh-/g, to: 'avn-' },
   { from: /-dsh-/g, to: '-avn-' },
@@ -53,7 +56,10 @@ function mapSegment(segment) {
  * @returns true when the path is frozen.
  */
 function frozen(path) {
-  return path.startsWith('.agents/notes/archived/') || path.startsWith('snapshots/')
+  // Snapshots are included: a fixture's *content* is renamed by the codemod, so a
+  // `.dsh` workspace directory left on disk would no longer match the path its own
+  // fixture names. The sealed archive stays excluded.
+  return path.startsWith('.agents/notes/archived/')
 }
 
 function main() {

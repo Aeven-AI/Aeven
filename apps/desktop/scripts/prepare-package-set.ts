@@ -155,7 +155,7 @@ export function prepareDesktopPackageSet(inputs: readonly string[], output: stri
 function main(): void {
   const buildPaths = resolveDesktopTargetBuildPaths()
   const defaultInputs = [
-    buildPaths.packedDsh,
+    buildPaths.packedAvn,
     buildPaths.packedVendor,
     buildPaths.packedLandlock,
   ]

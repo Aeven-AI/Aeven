@@ -33,7 +33,7 @@ Three things your installation sends out carry the same id, so records line up a
 
 - **Session telemetry** — your telemetry exports carry the id as the `user.id` resource attribute, so a collector can group an installation's records.
 - **Feedback** — each feedback acknowledgement names the anonymous installation that recorded it.
-- **DeepSeek requests** — every provider request carries the `x-deepseek-harness-user-id` header, so usage can be attributed per installation.
+- **DeepSeek requests** — every provider request carries the `x-aeven-user-id` header, so usage can be attributed per installation.
 
 ### Observing and resetting the id
 
@@ -97,7 +97,7 @@ Read these pages when the package-level contract is not enough. They move from t
 - [avn-home-paths](../../util/home-paths/README.md) — owns `$AVN_HOME` and `~/.aeven` resolution.
 - [avn-session-telemetry-otel](../../session/session-telemetry-otel/README.md) — reports the id as the OTel Resource `user.id`.
 - [avn-command-feedback](../../feedback/command-feedback/README.md) — embeds the id in the feedback acknowledgement.
-- [avn-llm-deepseek](../../llm/llm-deepseek/README.md) — sends `x-deepseek-harness-user-id` on provider requests.
+- [avn-llm-deepseek](../../llm/llm-deepseek/README.md) — sends `x-aeven-user-id` on provider requests.
 - [Session telemetry subsystem](../../../docs/subsystems/session-telemetry.md) — the telemetry seam and its backend contract.
 
 -----

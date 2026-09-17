@@ -599,7 +599,7 @@ describe('worktree-local Lefthook installer', { timeout: 90_000 }, () => {
       join(externalHooks, '.aeven-lefthook-owned'),
       `${JSON.stringify({
         version: 1,
-        owner: 'deepseek-harness worktree-local lefthook hooks',
+        owner: 'aeven worktree-local lefthook hooks',
         hooksPath: externalHooks,
       })}\n`,
       0o600,

@@ -3,28 +3,28 @@
 # text-only, so the strict read_image gate refuses and no image ever enters
 # the durable log.
 - id: llm-deepseek
-  name: '@deepseek-ai/dsh-llm-deepseek'
+  name: '@aeven/llm-deepseek'
   disabled: true
 
 - id: agent-default-model
-  name: '@deepseek-ai/dsh-agent-default-model'
+  name: '@aeven/agent-default-model'
   config:
     provider: deepseek-official
     model: deepseek-v4-flash
 
 - id: session-persistence-jsonl
-  name: '@deepseek-ai/dsh-session-persistence-jsonl'
+  name: '@aeven/session-persistence-jsonl'
   config:
-    root: !!js dshHomePath('sessions')
+    root: !!js avnHomePath('sessions')
     compression: none
 
 - id: agent-instructions
-  name: '@deepseek-ai/dsh-agent-instructions'
+  name: '@aeven/agent-instructions'
   config:
     maxBytes: 65536
 
 - id: system-prompt
-  name: '@deepseek-ai/dsh-system-prompt'
+  name: '@aeven/system-prompt'
   config:
     persona: |
       You are a coding assistant powered by the {{model}} model. Your working directory is {{cwd}}. Your bash tool runs under a file sandbox — a `[sandbox: file access denied …]` result is policy, not a command bug.
@@ -33,7 +33,7 @@
 
 - insert:
     - id: llm-replay
-      name: '@deepseek-ai/dsh-llm-replay'
+      name: '@aeven/llm-replay'
       config:
         providers:
           - id: deepseek-official
@@ -45,4 +45,4 @@
                 inputModalities: [text]
 
 - id: attachment-local
-  name: '@deepseek-ai/dsh-attachment-local'
+  name: '@aeven/attachment-local'

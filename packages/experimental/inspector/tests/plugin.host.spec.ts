@@ -63,7 +63,7 @@ describe('experimental Inspector Host plugin', () => {
         if (message.id === 1) resolve(message)
       })
     })
-    socket.send(JSON.stringify({ id: 1, method: 'DSHInspector.getSources' }))
+    socket.send(JSON.stringify({ id: 1, method: 'AvnInspector.getSources' }))
     await vi.waitFor(async () => {
       const sources = (await response).result?.sources as Array<{ topics: Record<string, number> }>
       expect(sources.some(source => source.topics['host/plugin-probe'] === 1)).toBe(true)

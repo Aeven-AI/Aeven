@@ -282,7 +282,7 @@ describe('E2B terminal allocation', () => {
     expect(output).not.toContain('runner.bash')
     expect(fake.createOptions).toMatchObject({ rows: 24, cols: 80, cwd: '/workspace', timeoutMs: 0 })
     const controlEnvs = fake.createOptions?.envs
-    expect(controlEnvs?.HOME).toMatch(/^\/\.avn-e2b-control-/)
+    expect(controlEnvs?.HOME).toMatch(/^\/\.aeven-e2b-control-/)
     expect(controlEnvs).toEqual({
       TERM: 'dumb',
       NPM_TOKEN: '',
@@ -795,7 +795,7 @@ describe('E2B subprocess terminal service', () => {
       .resolves.toBe('/workspace/tools/bin/node')
     const commandOptions = fake.commandOptions.at(-1)
     expect(commandOptions).toMatchObject({ cwd: '/workspace' })
-    expect(commandOptions?.envs?.HOME).toMatch(/^\/\.avn-e2b-control-/)
+    expect(commandOptions?.envs?.HOME).toMatch(/^\/\.aeven-e2b-control-/)
     expect(commandOptions?.envs).toEqual({ HOME: commandOptions?.envs?.HOME })
     expect((ctx.e2b)).toBeDefined()
   })

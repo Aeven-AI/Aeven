@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-28-linear-stream-queue-drain.md
-2026-08-28-linear-stream-queue-drain.md: 39c82ca827189fa2353d664602be89c6c63ac64f
-2026-08-28-linear-stream-queue-drain.zh.md: 2d33b6d9ed6410be97f0215a1d5ae8b2d6268697
+2026-08-28-linear-stream-queue-drain.md: 0615b555f2d3b569e46c5440c7effb2b2b98a3b5
+2026-08-28-linear-stream-queue-drain.zh.md: c7247906bd6b045dd14d6d72512a84b5bc775013

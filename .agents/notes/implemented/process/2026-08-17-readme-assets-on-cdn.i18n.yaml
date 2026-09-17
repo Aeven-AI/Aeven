@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-08-17-readme-assets-on-cdn.md
-2026-08-17-readme-assets-on-cdn.md: 56345a6804736a2d4e8c4e16d1f9c2fd4b9cad97
-2026-08-17-readme-assets-on-cdn.zh.md: 2f13e1a5e6e177cbf2a00ca75b4c008cc1ed36ca
+2026-08-17-readme-assets-on-cdn.md: 0e71639cd29be03b598d8086142b910f64a068ff
+2026-08-17-readme-assets-on-cdn.zh.md: f1d4425d55a06174c6e36bc3505de52f18e0524b

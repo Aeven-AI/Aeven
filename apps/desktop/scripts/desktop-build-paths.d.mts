@@ -9,7 +9,7 @@ export interface DesktopTargetBuildPaths {
   readonly seed: string
   readonly seedPnpm: string
   readonly nodeExtract: string
-  readonly packedDsh: string
+  readonly packedAvn: string
   readonly packedVendor: string
   readonly packedLandlock: string
   readonly downloads: string

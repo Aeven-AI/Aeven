@@ -5,7 +5,7 @@ import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-renderer/client'
 import type {} from '@aeven/client-ui-slots'
 
-/** Dsh client compatibility diagnostic. */
+/** Avn client compatibility diagnostic. */
 export interface AvnClientCompatibilityDiagnostic {
   readonly id: string
   readonly level: 'warning' | 'error'
@@ -42,7 +42,7 @@ function slotsOf(context: unknown): SlotsApi | undefined {
   return undefined
 }
 
-/** Dsh client adapter. */
+/** Avn client adapter. */
 export interface AvnClientAdapter {
   readonly context: ClientContext
   readonly locale: ClientContext['locale']

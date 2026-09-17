@@ -99,7 +99,7 @@ describe('experimental Inspector real Worker', { timeout: 60_000 }, () => {
     await client.publish('client/probe', { value: 2 })
 
     await vi.waitFor(async () => {
-      const response = await cdp!.call('DSHInspector.getSources')
+      const response = await cdp!.call('AvnInspector.getSources')
       const sources = response.result?.sources as Array<{ kind: string; topics: Record<string, number> }>
       expect(sources.find(source => source.kind === 'host')?.topics).toEqual({ 'host/probe': 1 })
       expect(sources.find(source => source.kind === 'client')?.topics).toMatchObject({ 'client/probe': 1 })

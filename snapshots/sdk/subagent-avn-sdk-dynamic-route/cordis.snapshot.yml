@@ -1,8 +1,8 @@
-# Keyless replay layer for the DSH SDK dynamic-route snapshot.
+# Keyless replay layer for the AVN SDK dynamic-route snapshot.
 
 - insert:
     - id: llm-replay
-      name: '@deepseek-ai/dsh-llm-replay'
+      name: '@aeven/llm-replay'
       config:
         providers:
           - id: deepseek-official
@@ -16,7 +16,7 @@
                 reasoningEfforts: [max]
 
     - id: sdk-jsonrpc-server-dynamic-replay
-      name: '@deepseek-ai/dsh-sdk-jsonrpc-server'
+      name: '@aeven/sdk-jsonrpc-server'
       inject: [sdkAppStartup, loader]
       config:
         maxTokensAsSuccess: true

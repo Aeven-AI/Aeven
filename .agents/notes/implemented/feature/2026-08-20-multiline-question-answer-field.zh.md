@@ -42,4 +42,4 @@ Enter 继续流程并在最后一题提交整批，Shift+Enter 换行，IME 保�
 
 答案现在能承载问题所要求的结构，用户看到的输入框与其上方的聊天输入框行为一致。代价是每个输入框多一个元素，以及保持镜像与 textarea 度量完全一致的长期义务——`AnswerField` 的 JSDoc 陈述了这项义务，e2e 的增高断言负责发现违反。
 
-同一 Issue 中的[单选高亮项](https://github.com/deepseek-harness/deepseek-harness/issues/1687)未被触及：聚焦自定义输入框时，先前选中的选项在第一个字符落下之前仍保持视觉选中。
+同一 Issue 中的[单选高亮项](https://github.com/aeven/aeven/issues/1687)未被触及：聚焦自定义输入框时，先前选中的选项在第一个字符落下之前仍保持视觉选中。

@@ -2,7 +2,7 @@
 
 This tree contains only tests whose committed session JSONL is replay input and expected persisted output. Keep non-session ARIA, geometry, generator, CLI, and unit expected output with its owning app, script, or package; use `test:expected`, `test:web`, or `test` for its owning tier.
 
-Every process under test starts through the `dsh` CLI with a shipped profile and optional scenario patches. Test clients may drive a public protocol or browser interface; do not add another application entrypoint, hidden CLI mode, or executable scenario driver.
+Every process under test starts through the `avn` CLI with a shipped profile and optional scenario patches. Test clients may drive a public protocol or browser interface; do not add another application entrypoint, hidden CLI mode, or executable scenario driver.
 
 Each scenario owns or explicitly references one primary `session.jsonl` plus contiguous child files. The owner alone records or refreshes it. For an ordinary one-shot case, derive the user task and replay script from that JSONL; do not duplicate them in an `input.json`. Shared references are read-only, acyclic, and used only when another interface intentionally renders the same recorded behavior.
 

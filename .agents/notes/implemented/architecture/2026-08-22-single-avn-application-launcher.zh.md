@@ -48,7 +48,7 @@ SDK 用户通过 profile 自定义插件。`avn plugin --profile <name> ...` 管
 
 Python 运行时 wheel 通过私有 `avn-python-runtime-closure` 部署 manifest，打包来自 `node_modules/@aeven/cli/lib/bin.js` 的普通 `@aeven/cli` CLI。Python 客户端默认选择 `avn --profile sdk`、有序 patch 文件与显式 Harness home；`python/sdk/examples` 下的可运行示例选择 `sdk-minimal`。安装的 `avn` 控制台命令暴露相同 profile 语法与单独打包的 `web` 应用。
 
-可执行文件族是 `deepseek-harness-sdk-runtime-<platform>-<arch>`。SDK 协议格式、wheel 与 import 分发名称、伴随文件名称，以及协议 identity `deepseek-harness-sdk-runtime` 保持稳定。SDK 包族是 `@aeven/sdk-client`、`@aeven/sdk-protocol` 与 `@aeven/sdk-jsonrpc-server`；`@aeven/acp` 继续作为 ACP 协议插件。仓库不保留 Python 专用 Node 应用、检入的完整配置、兼容包、转发可执行文件、后备解析器或 SDK／ACP 启动别名。[Python profile 运行时决策](2026-08-23-python-sdk-avn-profile-runtime.zh.md)负责该启动方式，[Windows x64 运行时决策](2026-08-23-python-sdk-windows-x64-runtime.zh.md)负责第四个载体。
+可执行文件族是 `aeven-sdk-runtime-<platform>-<arch>`。SDK 协议格式、wheel 与 import 分发名称、伴随文件名称，以及协议 identity `aeven-sdk-runtime` 保持稳定。SDK 包族是 `@aeven/sdk-client`、`@aeven/sdk-protocol` 与 `@aeven/sdk-jsonrpc-server`；`@aeven/acp` 继续作为 ACP 协议插件。仓库不保留 Python 专用 Node 应用、检入的完整配置、兼容包、转发可执行文件、后备解析器或 SDK／ACP 启动别名。[Python profile 运行时决策](2026-08-23-python-sdk-avn-profile-runtime.zh.md)负责该启动方式，[Windows x64 运行时决策](2026-08-23-python-sdk-windows-x64-runtime.zh.md)负责第四个载体。
 
 ### 强制校验
 
@@ -85,7 +85,7 @@ Python 运行时 wheel 通过私有 `avn-python-runtime-closure` 部署 manifest
 - 聚焦单元套件覆盖 profile 启动解析、初始化时限、SDK 重试、服务器就绪和嵌套隔离 home，并对变更后的运行时源码实现 100% 覆盖率。
 - 免密钥 ACP 与 SDK 快照启动真实 `avn` profile，并钉住协议输出与持久化日志；嵌套 SDK 组合会启动第二个真实 profile 运行时。
 - 真实 API 工作流把文件并行度限制为 4，因为一个 profile e2e 文件可能拥有多个完整 `avn` 子进程树；工作流测试会钉住该资源上限。
-- Python 套件同时测试 exe 与 node 载体；打包运行时场景、原生 macOS 可执行文件构建、两个 wheel 包以及干净 wheel 默认／MCP 冒烟测试会钉住 `deepseek-harness-sdk-runtime-*` 产物与 profile 启动。
+- Python 套件同时测试 exe 与 node 载体；打包运行时场景、原生 macOS 可执行文件构建、两个 wheel 包以及干净 wheel 默认／MCP 冒烟测试会钉住 `aeven-sdk-runtime-*` 产物与 profile 启动。
 - `verify-application-entrypoints` 包含包 bin、可执行源码、直启包的 demo wrapper 与未分类 demo 等非法 fixture（测试前置数据）。
 
 ## 影响

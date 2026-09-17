@@ -732,7 +732,7 @@ describe('CodexAppServerWire', () => {
     const initialize = await child.peer.nextMethod('initialize')
     expect(initialize.params).toEqual({
       clientInfo: {
-        name: 'deepseek-harness',
+        name: 'aeven',
         title: 'Aeven',
         version: '0.0.1',
       },

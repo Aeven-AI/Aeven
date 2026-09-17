@@ -165,7 +165,7 @@ export const TRANSLATION_SCOPE_GLOB_EXCLUDES = [
   '**/.pytest_cache/**',
   'apps/web/dist/**',
   '.artifacts/**',
-  'python/sdk-runtime/src/deepseek_harness_runtime/runtime/deepseek-harness-sdk-runtime-*/**',
+  'python/sdk-runtime/src/deepseek_harness_runtime/runtime/aeven-sdk-runtime-*/**',
   'python/sdk-runtime/src/deepseek_harness_runtime/runtime/node/**',
   'vendor/**',
 ]
@@ -177,7 +177,7 @@ function isTranslationSourceExcluded(file: string): boolean {
       || segment.startsWith('.doc-typecheck-')
     || segment.startsWith('.node-next-types-'))
     || file.startsWith('apps/web/dist/')
-    || file.startsWith('python/sdk-runtime/src/deepseek_harness_runtime/runtime/deepseek-harness-sdk-runtime-')
+    || file.startsWith('python/sdk-runtime/src/deepseek_harness_runtime/runtime/aeven-sdk-runtime-')
     || file.startsWith('python/sdk-runtime/src/deepseek_harness_runtime/runtime/node/')
 }
 
@@ -323,7 +323,7 @@ export function parseTranslationMarkdown(content: string): Nodes {
   return fromMarkdown(content, { extensions: [gfm()], mdastExtensions: [gfmFromMarkdown()] })
 }
 
-const PUBLIC_REPOSITORY_BLOB_ROOT = 'https://github.com/deepseek-ai/deepseek-harness/blob/master/'
+const PUBLIC_REPOSITORY_BLOB_ROOT = 'https://github.com/Aeven-AI/Harness/blob/master/'
 
 /** Return the accepted relative and public-repository links to one counterpart. */
 export function languageSwitcherTargets(counterpart: string): string[] {

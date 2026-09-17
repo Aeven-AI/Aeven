@@ -58,7 +58,7 @@ describe('desktop package-set selection', () => {
     expect(() => selectDesktopPackageClosure(available)).toThrow(/unpacked internal package/u)
     expect(() => selectDesktopPackageClosure(new Map([
       ['@aeven/cli', packed('@aeven/cli')],
-    ]))).toThrow(/omit @deepseek-ai\/avn-desktop-host/u)
+    ]))).toThrow(/omit @aeven\/desktop-host/u)
   })
 
   it('requires the Desktop Host entry and its packaged overlay', () => {

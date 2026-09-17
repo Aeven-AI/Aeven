@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-22-single-avn-application-launcher.md
-2026-08-22-single-avn-application-launcher.md: 836e45e5f4377bf65d39c1b178057d208d6eb788
-2026-08-22-single-avn-application-launcher.zh.md: 3d57719d3046a113594708c1b829cb53c1493012
+2026-08-22-single-avn-application-launcher.md: b4fd22fd0c36a912b3d80b1eed04000d4cea3b85
+2026-08-22-single-avn-application-launcher.zh.md: 7c5b6de4bddd6abda0720d1e4248ab3195f0cc04

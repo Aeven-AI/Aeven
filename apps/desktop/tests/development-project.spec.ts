@@ -84,6 +84,6 @@ describe('desktop development project', () => {
       hostDir: host,
       dependencyDir: dependencies,
       release: release(),
-    })).toThrow(/must be @deepseek-ai\/avn@1\.2\.3/u)
+    })).toThrow(/must be @aeven\/cli@1\.2\.3/u)
   })
 })

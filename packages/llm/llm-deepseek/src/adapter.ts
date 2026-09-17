@@ -533,12 +533,12 @@ export class DeepSeekAdapter extends LlmAdapter {
       'content-type': 'application/json',
       'accept': 'text/event-stream',
       ...attributionHeaders(),
-      'x-deepseek-harness-user-id': String(userId),
+      'x-aeven-user-id': String(userId),
       ...options.sessionId !== undefined
-        ? { 'x-deepseek-harness-session-id': String(options.sessionId) }
+        ? { 'x-aeven-session-id': String(options.sessionId) }
         : {},
       ...options.purpose === 'compaction'
-        ? { 'x-deepseek-harness-compact': '1' }
+        ? { 'x-aeven-compact': '1' }
         : {},
     }
 

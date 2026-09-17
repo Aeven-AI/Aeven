@@ -12,7 +12,7 @@ Python SDK 运行时分发需要 Windows 载体，同时不能创建另一个应
 
 ### 唯一 x64 产品
 
-`python/sdk-runtime/platforms.json` 声明唯一的 Windows 目标 `win-x64`。其 pkg 目标是 `node24-win-x64`，运行时 wheel 标签是 `py3-none-win_amd64`，载荷包含 `deepseek-harness-sdk-runtime-win-x64.exe` 与 `deepseek-harness-sdk-runtime-win-x64-rg.exe`。打包后的 `node-pty` 文件树必须包含两个 x64 ConPTY addon。运行时查找会拒绝 Windows arm64，不会选择 x64 wheel 或把它重新标记为 arm64。
+`python/sdk-runtime/platforms.json` 声明唯一的 Windows 目标 `win-x64`。其 pkg 目标是 `node24-win-x64`，运行时 wheel 标签是 `py3-none-win_amd64`，载荷包含 `aeven-sdk-runtime-win-x64.exe` 与 `aeven-sdk-runtime-win-x64-rg.exe`。打包后的 `node-pty` 文件树必须包含两个 x64 ConPTY addon。运行时查找会拒绝 Windows arm64，不会选择 x64 wheel 或把它重新标记为 arm64。
 
 Python 进程仍按 [Python profile 运行时决策](2026-08-23-python-sdk-avn-profile-runtime.zh.md)启动普通 `avn --profile sdk` 应用，并要求显式 Harness home。Windows 不会增加 Python 专用 Node 应用、完整配置入口、隐式 `~/.aeven` 或系统 Node 要求。
 

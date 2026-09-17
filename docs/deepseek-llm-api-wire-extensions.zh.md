@@ -10,7 +10,7 @@
 
 | 位置 | 命名方式 | 示例 |
 |---|---|---|
-| HTTP 字段名 | 小写 kebab-case；HTTP 匹配仍不区分大小写 | `user-agent`, `x-deepseek-harness-session-id` |
+| HTTP 字段名 | 小写 kebab-case；HTTP 匹配仍不区分大小写 | `user-agent`, `x-aeven-session-id` |
 | DeepSeek 请求正文扩展字段 | 使用保留 `avn_` 前缀的 snake case | `avn_plugin_packages`, `avn_session_log` |
 | AVN 持有的嵌套 JSON 成员 | Camel case | `afterSeq`, `throughSeq`, `sessionId` |
 | 带标签的值 | 使用 kebab-case 字符串；持久事件采用 `domain/action` | `session-log-deepseek/delivery-accepted` |
@@ -23,12 +23,12 @@
 
 | 标头 | 出现条件 | 值 |
 |---|---|---|
-| `user-agent` | 每个提供方 HTTP 请求，包括 Files API 操作 | 采用 `product/version (+url)` 形式的应用身份；默认产品为 `deepseek-harness` |
-| `x-deepseek-harness-user-id` | 每个已授权的聊天补全请求 | 已解析 Harness home 的稳定匿名 UUID |
-| `x-deepseek-harness-session-id` | 携带会话 id 的聊天补全请求 | 确切的请求 `sessionId` 字符串 |
-| `x-deepseek-harness-compact` | 用途为 `compaction` 的聊天补全请求 | 字面字符串 `1` |
+| `user-agent` | 每个提供方 HTTP 请求，包括 Files API 操作 | 采用 `product/version (+url)` 形式的应用身份；默认产品为 `aeven` |
+| `x-aeven-user-id` | 每个已授权的聊天补全请求 | 已解析 Harness home 的稳定匿名 UUID |
+| `x-aeven-session-id` | 携带会话 id 的聊天补全请求 | 确切的请求 `sessionId` 字符串 |
+| `x-aeven-compact` | 用途为 `compaction` 的聊天补全请求 | 字面字符串 `1` |
 
-凭据失败发生在解析匿名用户 id 之前，因此未授权请求既不会发送这些标头，也不会创建身份文件。没有会话的直接请求会省略 `x-deepseek-harness-session-id`。会话标题请求没有额外的用途标头；请求携带 `sessionId` 时，仍然适用普通的会话 id 规则。
+凭据失败发生在解析匿名用户 id 之前，因此未授权请求既不会发送这些标头，也不会创建身份文件。没有会话的直接请求会省略 `x-aeven-session-id`。会话标题请求没有额外的用途标头；请求携带 `sessionId` 时，仍然适用普通的会话 id 规则。
 
 ## 正文扩展事务
 

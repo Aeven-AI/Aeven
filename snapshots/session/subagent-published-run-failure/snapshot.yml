@@ -11,4 +11,4 @@ header:
 replay:
   override: true
 environment:
-  DSH_SUBAGENT_PUBLISHED_FAILURE: '1'
+  AVN_SUBAGENT_PUBLISHED_FAILURE: '1'

@@ -137,7 +137,7 @@ describe('Host debugger through the Inspector Worker', () => {
     expect((await cdp.call('Runtime.getProperties', { objectId: scopeObjectId })).error).toBeUndefined()
 
     // This Worker-local request must complete while the Host main thread is paused.
-    expect((await cdp.call('DSHInspector.getSources')).result?.sources).toBeDefined()
+    expect((await cdp.call('AvnInspector.getSources')).result?.sources).toBeDefined()
     const local = await cdp.call('Debugger.evaluateOnCallFrame', {
       callFrameId,
       expression: 'value',

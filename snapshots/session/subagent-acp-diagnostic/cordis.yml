@@ -3,18 +3,18 @@
 # remote-abort parity.
 - insert:
     - id: subagent-acp-diagnostic
-      name: '@deepseek-ai/dsh-subagent-acp'
+      name: '@aeven/subagent-acp'
       config:
         providerName: acp-diagnostic
         command: !!js process.execPath
         args:
-          - !!js "decodeURIComponent(new URL('../../../packages/subagent/subagent-acp/tests/mock-acp-server.ts', 'file://' + process.env.DSH_SNAPSHOT_FILE).pathname)"
+          - !!js "decodeURIComponent(new URL('../../../packages/subagent/subagent-acp/tests/mock-acp-server.ts', 'file://' + process.env.AVN_SNAPSHOT_FILE).pathname)"
         permission: reject
         env:
           MOCK_PERMISSION: '1'
           MOCK_TOOL_KIND: execute
     - id: tool-subagent-acp-diagnostic
-      name: '@deepseek-ai/dsh-tool-subagent'
+      name: '@aeven/tool-subagent'
       config:
         provider: acp-diagnostic
         toolName: subagent_acp

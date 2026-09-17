@@ -15,7 +15,7 @@
  * Module resolution is two-anchor by construction: a bundle name resolves
  * first from the avn installation (the launcher's own package), then from the
  * profile directory. Pnpm-managed entries in the profile's `node_modules`
- * resolve first. Dsh-owned links add packages carried only by selected
+ * resolve first. Avn-owned links add packages carried only by selected
  * bundles, while `$AVN_HOME/profiles/node_modules` supplies the installation
  * dependency closure through Node's ordinary parent-walk. Plain Node uses
  * symlinks for that shared fallback; packaged executables use ESM proxies so

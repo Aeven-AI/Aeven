@@ -40,10 +40,10 @@ def test_runtime_requires_spawn_helper_only_on_macos(
 ) -> None:
     runtime_dir = tmp_path / "runtime"
     runtime_dir.mkdir()
-    linux = runtime_dir / "deepseek-harness-sdk-runtime-linux-x64"
+    linux = runtime_dir / "aeven-sdk-runtime-linux-x64"
     linux.touch()
     Path(f"{linux}-rg").touch()
-    macos = runtime_dir / "deepseek-harness-sdk-runtime-macos-arm64"
+    macos = runtime_dir / "aeven-sdk-runtime-macos-arm64"
     macos.touch()
     Path(f"{macos}-rg").touch()
     monkeypatch.setattr(runtime, "bundled_package_dir", lambda: tmp_path)
@@ -60,9 +60,9 @@ def test_windows_runtime_uses_exe_payload_and_exe_sidecar(
 ) -> None:
     runtime_dir = tmp_path / "runtime"
     runtime_dir.mkdir()
-    executable = runtime_dir / "deepseek-harness-sdk-runtime-win-x64.exe"
+    executable = runtime_dir / "aeven-sdk-runtime-win-x64.exe"
     executable.touch()
-    (runtime_dir / "deepseek-harness-sdk-runtime-win-x64-rg.exe").touch()
+    (runtime_dir / "aeven-sdk-runtime-win-x64-rg.exe").touch()
     monkeypatch.setattr(runtime, "bundled_package_dir", lambda: tmp_path)
     monkeypatch.setattr(runtime, "_current_platform_tag", lambda: "win-x64")
 
@@ -92,7 +92,7 @@ def test_runtime_requires_ripgrep_sidecar(
 ) -> None:
     runtime_dir = tmp_path / "runtime"
     runtime_dir.mkdir()
-    (runtime_dir / "deepseek-harness-sdk-runtime-linux-x64").touch()
+    (runtime_dir / "aeven-sdk-runtime-linux-x64").touch()
     monkeypatch.setattr(runtime, "bundled_package_dir", lambda: tmp_path)
     monkeypatch.setattr(runtime, "_current_platform_tag", lambda: "linux-x64")
 

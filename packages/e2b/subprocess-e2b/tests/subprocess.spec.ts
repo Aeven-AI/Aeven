@@ -409,7 +409,7 @@ describe('E2BSubprocessHandle', () => {
     expect(fake.handle.sent.map(value => String(value))).toEqual(['hello'])
     expect(fake.handle.closes).toBe(1)
     const controlEnvs = fake.startOptions?.envs
-    expect(controlEnvs?.HOME).toMatch(/^\/\.avn-e2b-control-/)
+    expect(controlEnvs?.HOME).toMatch(/^\/\.aeven-e2b-control-/)
     expect(controlEnvs).toEqual({
       TERM: 'dumb',
       NPM_TOKEN: '',

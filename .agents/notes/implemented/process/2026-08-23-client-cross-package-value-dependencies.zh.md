@@ -6,7 +6,7 @@ Status: implemented
 
 ## 问题
 
-[PR #2728](https://github.com/deepseek-ai/deepseek-harness/pull/2728) 与 [PR #2911](https://github.com/deepseek-ai/deepseek-harness/pull/2911) 拆分 Client 包后，功能插件 manifest 中还留有 15 条 `avn.client.external` 请求。即使消费方只需要一个类型、一段小型纯转换或访问已经注入的 Cordis service，这些请求也会把普通值 import 变成同步模块表顺序约束。
+[PR #2728](https://github.com/Aeven-AI/Harness/pull/2728) 与 [PR #2911](https://github.com/Aeven-AI/Harness/pull/2911) 拆分 Client 包后，功能插件 manifest 中还留有 15 条 `avn.client.external` 请求。即使消费方只需要一个类型、一段小型纯转换或访问已经注入的 Cordis service，这些请求也会把普通值 import 变成同步模块表顺序约束。
 
 机械删除所有 import 会产生别的耦合：通用工具包可能变成杂项业务 owner，service 可能承载纯展示转换，或者只为通过重复检测而把 target 行为集中到一处。维护 Client 时，需要先用同一套流程分类，再决定跨包引用应当放在哪里。
 

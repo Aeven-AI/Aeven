@@ -2,10 +2,10 @@
 
 English | [中文](README.zh.md)
 
-Python subprocess SDK for driving Aeven over newline-delimited JSON-RPC on stdio. Install `deepseek-harness-sdk`; it installs the exact same-version `deepseek-harness-runtime-bin` wheel for the current platform.
+Python subprocess SDK for driving Aeven over newline-delimited JSON-RPC on stdio. Install `aeven-sdk`; it installs the exact same-version `aeven-runtime-bin` wheel for the current platform.
 
 ```sh
-python -m pip install deepseek-harness-sdk
+python -m pip install aeven-sdk
 ```
 
 ## Start a runtime

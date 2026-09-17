@@ -8,8 +8,8 @@
 
 | 目录 | 分发名／模块 | 职责 |
 |---|---|---|
-| [sdk](sdk/README.zh.md) | `deepseek-harness-sdk` / `deepseek_harness` | 高层轮次 API 与低层 JSON-RPC 客户端 |
-| [sdk-runtime](sdk-runtime/README.zh.md) | `deepseek-harness-runtime-bin` / `deepseek_harness_runtime` | 内置 `avn` CLI 可执行程序与原生伴随文件 |
+| [sdk](sdk/README.zh.md) | `aeven-sdk` / `deepseek_harness` | 高层轮次 API 与低层 JSON-RPC 客户端 |
+| [sdk-runtime](sdk-runtime/README.zh.md) | `aeven-runtime-bin` / `deepseek_harness_runtime` | 内置 `avn` CLI 可执行程序与原生伴随文件 |
 
 ## 行为
 

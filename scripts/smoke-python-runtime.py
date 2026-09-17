@@ -786,14 +786,14 @@ def assert_installed_wheel_environment() -> Path:
     if cwd.is_relative_to(repo_root):
         raise AssertionError(f"installed-wheel smoke must run outside the repository, got {cwd}")
 
-    sdk_version = importlib.metadata.version("deepseek-harness-sdk")
-    runtime_version = importlib.metadata.version("deepseek-harness-runtime-bin")
+    sdk_version = importlib.metadata.version("aeven-sdk")
+    runtime_version = importlib.metadata.version("aeven-runtime-bin")
     if sdk_version != runtime_version:
         raise AssertionError(
             f"installed SDK/runtime versions differ: {sdk_version} != {runtime_version}"
         )
-    expected_runtime_requirement = f"deepseek-harness-runtime-bin=={sdk_version}"
-    requirements = importlib.metadata.requires("deepseek-harness-sdk") or []
+    expected_runtime_requirement = f"aeven-runtime-bin=={sdk_version}"
+    requirements = importlib.metadata.requires("aeven-sdk") or []
     if expected_runtime_requirement not in requirements:
         raise AssertionError(
             f"installed SDK does not require {expected_runtime_requirement}: {requirements}"
@@ -818,7 +818,7 @@ def assert_installed_wheel_environment() -> Path:
     runtime_package = imported["deepseek_harness_runtime"].parent
     if not executable.is_relative_to(runtime_package):
         raise AssertionError(f"bundled runtime came from outside the installed runtime wheel: {executable}")
-    runtime_files = importlib.metadata.files("deepseek-harness-runtime-bin") or []
+    runtime_files = importlib.metadata.files("aeven-runtime-bin") or []
     if not any(Path(file).name == executable.name for file in runtime_files):
         raise AssertionError(f"runtime executable is absent from installed distribution records: {executable}")
     return executable

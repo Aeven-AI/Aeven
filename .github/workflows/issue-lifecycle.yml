@@ -55,8 +55,8 @@ jobs:
         with:
           client-id: ${{ vars.AVN_ISSUE_APP_CLIENT_ID }}
           private-key: ${{ secrets.AVN_ISSUE_APP_PRIVATE_KEY }}
-          owner: deepseek-harness
-          repositories: deepseek-harness
+          owner: aeven
+          repositories: aeven
       - name: Handle repository event
         if: ${{ github.event_name != 'pull_request_review' || github.event.review.state == 'changes_requested' }}
         env:

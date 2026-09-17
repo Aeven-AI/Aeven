@@ -44,7 +44,7 @@ Every supported Node application starts at the `avn` CLI with a named profile. T
 
 Vendored CLIs, build-only and test-only executables, direct in-process plugin mounting, and the private browser WebWorker preview are not Harness application launchers. [`verify-application-entrypoints`](../scripts/verify-application-entrypoints.ts) keeps every package bin, executable source, and root demo in an explicit class and rejects a Node application path that bypasses `avn`.
 
-The Python SDK follows the same application architecture. Its runtime wheel packages the normal `avn` CLI as `deepseek-harness-sdk-runtime-<platform>-<arch>`, and the client launches `avn --profile sdk` with an explicit Harness home by default. The minimal example selects the shipped `sdk-minimal` profile. Python exposes profile selection and ordered patch files rather than a complete Cordis tree; persistent external plugins are installed through `avn plugin`. The removed private direct-config carrier has no compatibility bin or fallback parser.
+The Python SDK follows the same application architecture. Its runtime wheel packages the normal `avn` CLI as `aeven-sdk-runtime-<platform>-<arch>`, and the client launches `avn --profile sdk` with an explicit Harness home by default. The minimal example selects the shipped `sdk-minimal` profile. Python exposes profile selection and ordered patch files rather than a complete Cordis tree; persistent external plugins are installed through `avn plugin`. The removed private direct-config carrier has no compatibility bin or fallback parser.
 
 ## Core packages
 

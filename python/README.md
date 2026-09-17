@@ -8,8 +8,8 @@ Python packages for driving Aeven as a subprocess. The client SDK communicates w
 
 | Directory | Dist / module | Role |
 |---|---|---|
-| [sdk](sdk/README.md) | `deepseek-harness-sdk` / `deepseek_harness` | High-level turns API and lower-level JSON-RPC client |
-| [sdk-runtime](sdk-runtime/README.md) | `deepseek-harness-runtime-bin` / `deepseek_harness_runtime` | Bundled `avn` CLI executable and native sidecars |
+| [sdk](sdk/README.md) | `aeven-sdk` / `deepseek_harness` | High-level turns API and lower-level JSON-RPC client |
+| [sdk-runtime](sdk-runtime/README.md) | `aeven-runtime-bin` / `deepseek_harness_runtime` | Bundled `avn` CLI executable and native sidecars |
 
 ## Behavior
 

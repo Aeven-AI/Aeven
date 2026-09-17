@@ -18,7 +18,7 @@ import type { OwnerRequestPolicy } from './web-origin.ts'
 
 const require = createRequire(import.meta.url)
 
-/** Dsh host adapter. */
+/** Avn host adapter. */
 export interface AvnHostAdapter extends CodingOAuthParticipantDiagnosticSource {
   readonly context: Context
   scope(): object

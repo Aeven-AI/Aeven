@@ -19,7 +19,7 @@ describe('desktop build paths', () => {
       'seed',
       'seedPnpm',
       'nodeExtract',
-      'packedDsh',
+      'packedAvn',
       'packedVendor',
       'packedLandlock',
     ] as const

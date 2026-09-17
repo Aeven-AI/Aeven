@@ -27,7 +27,7 @@ describe('avn path helpers', () => {
   it('expands tilde paths without changing non-tilde paths', () => {
     expect(expandHomePath('~')).toBe(homedir())
     expect(expandHomePath('~/.aeven')).toBe(join(homedir(), '.aeven'))
-    expect(expandHomePath('~\\.avn')).toBe(join(homedir(), '.aeven'))
+    expect(expandHomePath('~\\.aeven')).toBe(join(homedir(), '.aeven'))
     expect(expandHomePath('/tmp/.aeven')).toBe('/tmp/.aeven')
     expect(expandHomePath('~other/.aeven')).toBe('~other/.aeven')
   })

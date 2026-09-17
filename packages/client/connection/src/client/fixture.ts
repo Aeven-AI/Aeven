@@ -535,7 +535,7 @@ const WEB_SEARCH_META = {
   answer: 'Aeven is a plugin-based agent harness on vendored Cordis where **every capability is a plugin**.',
   sources: [
     {
-      url: 'https://github.com/deepseek-ai/deepseek-harness',
+      url: 'https://github.com/Aeven-AI/Harness',
       title: 'Aeven — plugin-based agent harness',
       snippet: 'Everything is a plugin: session, tools, agent-loop, and LLM adapters all mount on the same Cordis context.',
       publishedAt: '2026-07-01',
@@ -1978,7 +1978,7 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
     [FIXTURE_HOME, ['Documents', 'Downloads', '.config']],
     [`${FIXTURE_HOME}/Documents`, [
       'project', 'deepseek-iOS', 'deepseek-android', 'deepseek-platform',
-      'deepseek-web', 'deepseek-harness', 'deepseek-app', 'deepseek-landing-blog',
+      'deepseek-web', 'aeven', 'deepseek-app', 'deepseek-landing-blog',
     ]],
   ])
   const childrenOf = (path: string): string[] | undefined => {

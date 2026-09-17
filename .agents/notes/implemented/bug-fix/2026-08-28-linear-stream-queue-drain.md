@@ -6,7 +6,7 @@ English | [中文](2026-08-28-linear-stream-queue-drain.zh.md)
 
 ## Problem
 
-Long-lived stream queues can accumulate thousands of frames while their consumers are busy. Removing each frame with `Array.prototype.shift()` moves the remaining array range on the observed V8 path, so draining `N` queued frames performs quadratic reference movement and delays unrelated work on the same event loop. [Issue #3270](https://github.com/deepseek-harness/deepseek-harness/issues/3270) records the production sample that identified `ArrayShift`, `MoveRange`, and `memmove` as the dominant stack.
+Long-lived stream queues can accumulate thousands of frames while their consumers are busy. Removing each frame with `Array.prototype.shift()` moves the remaining array range on the observed V8 path, so draining `N` queued frames performs quadratic reference movement and delays unrelated work on the same event loop. [Issue #3270](https://github.com/aeven/aeven/issues/3270) records the production sample that identified `ArrayShift`, `MoveRange`, and `memmove` as the dominant stack.
 
 The affected streams have different wake-up, failure, cancellation, and disposal behavior. Their shared requirement is storage that preserves FIFO order without making those lifecycle decisions.
 

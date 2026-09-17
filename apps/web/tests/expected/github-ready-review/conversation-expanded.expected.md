@@ -2,16 +2,16 @@
   - treeitem "{{workspace}}" [expanded]:
     - img
     - text: {{workspace}}
-  - treeitem "Review deepseek-harness/deepseek-harness#314 Session actions for Review deepseek-harness/deepseek-harness#314" [selected]:
-    - text: Review deepseek-harness/deepseek-harness#314
-    - button "Session actions for Review deepseek-harness/deepseek-harness#314":
+  - treeitem "Review aeven/aeven#314 Session actions for Review aeven/aeven#314" [selected]:
+    - text: Review aeven/aeven#314
+    - button "Session actions for Review aeven/aeven#314":
       - img
 
 ---
 
 - banner:
   - navigation "Session hierarchy":
-    - button "Review deepseek-harness/deepseek-harness#314" [disabled]
+    - button "Review aeven/aeven#314" [disabled]
   - tablist:
     - tab "Chat" [selected]
     - tab "Trajectory"

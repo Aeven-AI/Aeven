@@ -42,4 +42,4 @@ Component tests pin the round trip: both shapes render a textarea, the mirror fo
 
 An answer can now carry the structure the question asks for, and the field the user sees behaves like the chat composer above it. The cost is a second element per field and the standing obligation to keep mirror and textarea metrics identical, which the JSDoc at `AnswerField` states and the e2e growth assertion detects.
 
-The [single-select highlight item](https://github.com/deepseek-harness/deepseek-harness/issues/1687) of the same issue is untouched: focusing the custom field still leaves the previously chosen option visually selected until the first character lands.
+The [single-select highlight item](https://github.com/aeven/aeven/issues/1687) of the same issue is untouched: focusing the custom field still leaves the previously chosen option visually selected until the first character lands.

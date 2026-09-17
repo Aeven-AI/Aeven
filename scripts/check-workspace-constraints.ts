@@ -41,13 +41,13 @@ const publicLandlockPackages = new Set([
 const publicationSourceAllowlist: Readonly<Record<string, readonly string[]>> = {
   '@deepseek-ai/node-addon-landlock-run': ['src/main.c'],
 }
-const repositoryUrl = 'git+https://github.com/deepseek-harness/deepseek-harness.git'
+const repositoryUrl = 'git+https://github.com/aeven/aeven.git'
 /**
  * Source home the published packages point consumers at. It differs from
  * {@link repositoryUrl}, which the Landlock packages keep because npm resolves
  * their trusted publishing against the repository that runs the workflow.
  */
-const publishedRepositoryUrl = 'git+https://github.com/deepseek-ai/deepseek-harness.git'
+const publishedRepositoryUrl = 'git+https://github.com/Aeven-AI/Harness.git'
 /** Private packages that participate in workspace checks but not releases. */
 const experimentalPackageDirectory = /^packages\/experimental\/[^/]+$/
 /** npm namespace reserved for private experimental packages. */

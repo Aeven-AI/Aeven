@@ -58,7 +58,7 @@ function styleInjectionModule(
  * Everything else under @deepseek-ai/* is either a module-table entry
  * (external) or a leak the purity gate rejects.
  */
-export const INLINE_SAFE = /^(?:@deepseek-ai\/avn-(?:file-reference|session|llm|tools|brand|deque|output-retention|typert-protocol|util-crypto|util-values|util-workspace-path)(?:\/|$)|@deepseek-ai\/avn-token-meter\/client$|@deepseek-ai\/avn-agent-presets\/display$|@deepseek-ai\/avn-spill-policy\/notice$)/
+export const INLINE_SAFE = /^(?:@aeven\/(?:file-reference|session|llm|tools|brand|deque|output-retention|typert-protocol|util-crypto|util-values|util-workspace-path)(?:\/|$)|@aeven\/token-meter\/client$|@aeven\/agent-presets\/display$|@aeven\/spill-policy\/notice$)/
 
 /**
  * Vendored framework libraries: rescoped into @deepseek-ai, so the gate below
@@ -69,7 +69,7 @@ export const INLINE_SAFE = /^(?:@deepseek-ai\/avn-(?:file-reference|session|llm|
 const VENDORED_LIBRARY = /^@deepseek-ai\/(cosmokit|schemastery)(\/|$)/
 
 /** Generated descriptor/codec contribution with no shared runtime identity. */
-const GENERATED_REMOTE = /^@deepseek-ai\/avn-[a-z0-9]+(?:-[a-z0-9]+)*\/remote$/
+const GENERATED_REMOTE = /^@aeven\/[a-z0-9]+(?:-[a-z0-9]+)*\/remote$/
 
 /**
  * Workspace mode replaces an empty config array with the root defaults. A

@@ -58,7 +58,7 @@ avn plugin --profile <name> remove @aeven/subagent-claude-code
 The successful pnpm operation changes the Profile manifest and Bundle list on disk; a running Profile keeps the Bundle set from its current start. Restart that Profile after adding, removing, or updating a Bundle. This startup boundary applies to Bundle membership, while ordinary edits to the Profile or home `cordis.patch.yml` take effect through hot reload. On the next start, each installed Bundle registers only its dormant Host provider; a copied Preset must separately enable the matching tool row for new Agents. The [Codex provider README](../../../packages/subagent/subagent-codex/README.md) and [Claude Code provider README](../../../packages/subagent/subagent-claude-code/README.md) own executable, authentication, payload, and failure details; the [base Bundle reference](../../../packages/bundle/base/README.md) owns the default dependency closure.
 
 ```sh
-avn plugin --profile tui add github:deepseek-harness/turtle-ui
+avn plugin --profile tui add github:aeven/turtle-ui
 avn plugin --profile tui remove turtle-ui
 avn --profile tui
 ```

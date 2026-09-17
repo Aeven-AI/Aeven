@@ -2,7 +2,7 @@
 
 import type { DshHostCapability, OwnerAccessMode } from 'dsh-coding-oauth-core'
 
-/** Dsh compatibility diagnostic. */
+/** Avn compatibility diagnostic. */
 export interface AvnCompatibilityDiagnostic {
   readonly id: string
   readonly component: 'host' | 'client' | 'owner-request' | 'runtime'
@@ -18,7 +18,7 @@ export interface CodingOAuthParticipantDiagnosticSource {
   diagnostics(): readonly AvnCompatibilityDiagnostic[]
 }
 
-/** Dsh compatibility. */
+/** Avn compatibility. */
 export interface AvnCompatibility {
   readonly coreAbi: string
   readonly avnVersion: string | null
@@ -29,7 +29,7 @@ export interface AvnCompatibility {
   readonly diagnostics: readonly string[]
 }
 
-/** Dsh exact bom. */
+/** Avn exact bom. */
 export const AVN_EXACT_BOM = Object.freeze({
   '@deepseek-ai/cordis': '4.0.2',
   '@aeven/atomic-write': '0.1.2-alpha.5',

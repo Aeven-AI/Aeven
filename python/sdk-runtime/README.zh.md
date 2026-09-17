@@ -1,4 +1,4 @@
-# deepseek-harness-runtime-bin
+# aeven-runtime-bin
 
 [English](README.md) | 中文
 
@@ -8,7 +8,7 @@ Aeven Python SDK 的平台运行时 wheel。它把普通 `avn` CLI 及其封闭�
 
 Wheel 会安装 `avn` 控制台命令和 `deepseek_harness_runtime` Python 模块。`avn` 将参数转发给内置可执行程序，并要求非空 `AVN_HOME`；它不会回退到 `~/.aeven`。
 
-生产可执行程序位于模块的 `runtime/` 目录，命名为 `deepseek-harness-sdk-runtime-<platform>-<arch>`；Windows 使用 `.exe` 后缀。Linux 与 macOS wheel 包含目标平台原生的 `-rg` 伴随程序，Windows 包含 `-rg.exe`，macOS 还包含 `node-pty` 使用的 `-spawn-helper`。已发布目标是 Linux x64、Linux arm64、macOS arm64 与 Windows x64。Wheel tag 必须与载荷严格匹配；不发布 Windows arm64 wheel。
+生产可执行程序位于模块的 `runtime/` 目录，命名为 `aeven-sdk-runtime-<platform>-<arch>`；Windows 使用 `.exe` 后缀。Linux 与 macOS wheel 包含目标平台原生的 `-rg` 伴随程序，Windows 包含 `-rg.exe`，macOS 还包含 `node-pty` 使用的 `-spawn-helper`。已发布目标是 Linux x64、Linux arm64、macOS arm64 与 Windows x64。Wheel tag 必须与载荷严格匹配；不发布 Windows arm64 wheel。
 
 仓库构建还会物化仅限开发的 `runtime/node/` 载体。它在系统 Node 22.19 或更高版本上运行 `node runtime/node/node_modules/@aeven/cli/lib/bin.js`。系统不会自动选择它，而且 wheel 与 sdist 均不包含它。
 
@@ -31,6 +31,6 @@ Wheel 会安装 `avn` 控制台命令和 `deepseek_harness_runtime` Python 模�
 
 ## 构建与分发
 
-在仓库根目录运行 `pnpm exec tsx scripts/build-exe-for-python-sdk.ts`，会校验闭包、构建包、部署无符号链接的文件树、打包所选目标，并把可执行程序及伴随文件同步到本模块。`scripts/build-python-release.py` 按仓库根版本暂存发布形态的 wheel，并将 `deepseek-harness-sdk` 固定到完全相同的运行时版本。
+在仓库根目录运行 `pnpm exec tsx scripts/build-exe-for-python-sdk.ts`，会校验闭包、构建包、部署无符号链接的文件树、打包所选目标，并把可执行程序及伴随文件同步到本模块。`scripts/build-python-release.py` 按仓库根版本暂存发布形态的 wheel，并将 `aeven-sdk` 固定到完全相同的运行时版本。
 
 Installed-wheel smoke 会在 checkout 外创建干净虚拟环境，证明 distribution 与可执行程序来源，然后覆盖默认及自定义 SDK profile、外部插件、MCP、原生工具、直接 JSON-RPC、检入快照，以及可信运行中的真实提供方。另见 [Python 贡献者工作流](../development.zh.md)与 [installed-wheel 测试决策](../../.agents/notes/implemented/testing/2026-08-23-installed-python-wheel-black-box-ci.zh.md)。
