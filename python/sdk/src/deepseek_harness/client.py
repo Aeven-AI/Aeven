@@ -475,7 +475,7 @@ class HarnessClient:
         elif not env.get("AVN_HOME", "").strip():
             raise ValueError(
                 "HarnessConfig requires an explicit avn_home or non-empty AVN_HOME; "
-                "the Python SDK never uses ~/.avn implicitly"
+                "the Python SDK never uses ~/.aeven implicitly"
             )
 
         patches = tuple(

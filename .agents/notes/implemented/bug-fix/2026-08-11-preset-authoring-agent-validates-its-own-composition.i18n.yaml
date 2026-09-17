@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-11-preset-authoring-agent-validates-its-own-composition.md
-2026-08-11-preset-authoring-agent-validates-its-own-composition.md: 1aa4ef2bb8e5a89307f8d3522e1a32d6a62a591c
-2026-08-11-preset-authoring-agent-validates-its-own-composition.zh.md: c5395c6e3cc9fdea6ff054839e5f531b73edf737
+2026-08-11-preset-authoring-agent-validates-its-own-composition.md: 7395a207a1caf6560c98565cf1183f4ec55ed719
+2026-08-11-preset-authoring-agent-validates-its-own-composition.zh.md: 255de70705002aaf1eb33d8e6948dbb8c917b325

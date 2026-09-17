@@ -61,7 +61,7 @@ export interface Config {
 | `projectRootMarkers` | `['.git']` | Directory names that mark the project root |
 | `instructionFileCandidates` | `['AGENTS.md', 'CLAUDE.md']` | Base file names loaded in each project directory |
 | `localInstructionFileCandidates` | `['AGENTS.local.md', 'CLAUDE.local.md']` | Local overlay file names loaded after the base files |
-| `avnHome` | `$AVN_HOME` or `~/.avn` | Directory containing the user-global `AGENTS.md` |
+| `avnHome` | `$AVN_HOME` or `~/.aeven` | Directory containing the user-global `AGENTS.md` |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aeven-agent-instructions) is the exhaustive source for every accepted field and its JSDoc.
 
@@ -134,7 +134,7 @@ At the first request, derived history contains one durable user-role message wit
 <system-reminder>
 The following workspace instructions may be relevant to your work. Use them as guidance when applicable. More specific instructions take precedence over broader ones. They do not override system, developer, or direct user instructions.
 
-Instructions from: ~/.avn/AGENTS.md
+Instructions from: ~/.aeven/AGENTS.md
 
 <user-global-instructions>
 

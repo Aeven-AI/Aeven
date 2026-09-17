@@ -6,7 +6,7 @@ English | [中文](2026-09-16-cross-process-domain-coherence.zh.md)
 
 ## Problem
 
-The storage-domain layer assumed one process owns `~/.avn`. Running two harness instances against the same home — the shipped web app and a desktop build, or two dev servers — made session titles vanish from the session list and silently destroyed workspace grouping.
+The storage-domain layer assumed one process owns `~/.aeven`. Running two harness instances against the same home — the shipped web app and a desktop build, or two dev servers — made session titles vanish from the session list and silently destroyed workspace grouping.
 
 The cause is not the medium. The facility opens a domain by calling `unit.loadAll()` exactly once and building `Map`s; `KvTableImpl.get()` then serves every read from that Map. `put()` writes through the unit, then mutates the same Map. Each process therefore holds a private snapshot taken at open time, and two processes diverge on the first write by either one. Swapping the JSON backend for `storage-sqlite` does not address this: its `loadAll()` is also a bulk read into the same Maps, so WAL would make concurrent writes safe while leaving reads equally stale.
 
@@ -71,13 +71,13 @@ It is also not a performance argument. Measured on a real home of 176 projcache 
 
 **A lock file making the second instance read-only.** Cheap and safe. Rejected because it makes running a desktop app beside the web app a degraded mode rather than a supported one.
 
-**A broker process owning `~/.avn`.** One writer by construction, no reconciliation. Rejected as disproportionate: it introduces a lifecycle, a wire protocol, and a broker-death failure mode larger than the problem, and it would still need the `domain/changed` path this uses.
+**A broker process owning `~/.aeven`.** One writer by construction, no reconciliation. Rejected as disproportionate: it introduces a lifecycle, a wire protocol, and a broker-death failure mode larger than the problem, and it would still need the `domain/changed` path this uses.
 
 **Polling stat on an interval.** Portable, no `fs.watch` quirks. Rejected as the primary mechanism on both latency and idle cost, and kept as the sweep that backs the watch.
 
 ## Consequences
 
-Two harness processes sharing one home converge: a record written by one is visible to the other in roughly 95 ms on a real 157-record projcache, and the workspace global — the slot holding display order and `archivedSessionIds` — converges the same way. Running the web app and a desktop build against one `~/.avn` is now a supported configuration.
+Two harness processes sharing one home converge: a record written by one is visible to the other in roughly 95 ms on a real 157-record projcache, and the workspace global — the slot holding display order and `archivedSessionIds` — converges the same way. Running the web app and a desktop build against one `~/.aeven` is now a supported configuration.
 
 What it cost: `domain/changed` fan-out is now load-bearing across processes, so listeners that were implicitly "our own writes only" see foreign ones. That is the intended semantic and no consumer should distinguish them, but it widens the event's blast radius. Every open domain on a watching backend also carries one interval timer and a few directory watchers.
 

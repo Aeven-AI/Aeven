@@ -51,7 +51,7 @@ export interface Config {
   providerName?: string
   /** Whether project and user roots are included around custom roots. */
   includeDefaultRoots?: boolean
-  /** DeepSeek Harness config root. Defaults to `$AVN_HOME` or `~/.avn`. */
+  /** DeepSeek Harness config root. Defaults to `$AVN_HOME` or `~/.aeven`. */
   avnHome?: string
   /** Shared agent config root. Defaults to `$AVN_AGENTS_HOME` or `~/.agents`. */
   agentsHome?: string
@@ -243,7 +243,7 @@ export class FileSystemSkillProvider implements SkillProvider {
     if (this.includeDefaultRoots && cwd !== undefined) {
       const projectRoot = await findProjectRoot(resolve(cwd), optionalFileSystem(this.ctx))
       roots.push(
-        { path: join(projectRoot, '.avn/skills'), source: 'project-avn', rank: PROJECT_AVN_RANK, projectRoot },
+        { path: join(projectRoot, '.aeven/skills'), source: 'project-avn', rank: PROJECT_AVN_RANK, projectRoot },
         { path: join(projectRoot, '.agents/skills'), source: 'project-agents', rank: PROJECT_AGENTS_RANK, projectRoot },
       )
     }

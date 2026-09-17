@@ -370,14 +370,14 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
   const workspaceCwd = await realpath(await mkdtemp(join(tmpdir(), 'avn-web-e2e-ws-')))
   // Isolated harness home: the settings/credentials rows resolve $AVN_HOME
   // paths at load, and an in-process boot must NEVER touch the developer's
-  // real ~/.avn document or credential file.
-  const harnessHome = options.harnessHome ?? join(workspaceCwd, '.avn-home')
+  // real ~/.aeven document or credential file.
+  const harnessHome = options.harnessHome ?? join(workspaceCwd, '.aeven-home')
   // Skill discovery is model-visible input, and its roots now resolve inside a
   // PRESET — a subtree this lane's include patches cannot reach, because the
   // roster mounts it directly per session rather than as a row of the booted
   // tree. The row's documented fallback is the environment, so pin that: the
   // whole scaffold lifetime, not just the boot, since presets mount when a
-  // session is created. Without this a developer's real ~/.avn/skills silently
+  // session is created. Without this a developer's real ~/.aeven/skills silently
   // enters replay requests and goldens while CI sees none. `AVN_HOME` follows
   // the resolved harness home so a scaffold sharing another's home — the
   // cross-port persistence scenario — pins the same roots the settings and
@@ -432,7 +432,7 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     ...extraOverlayPatches,
     // The roster's shipped presets are the plugin's own, bundled inside
     // `avn-agent-presets` and prepended by it. Pin only the machine-local
-    // root away: a developer's own `~/.avn/.agent-presets` must not be able
+    // root away: a developer's own `~/.aeven/.agent-presets` must not be able
     // to change a golden.
     {
       id: 'agent-presets',
@@ -455,15 +455,15 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     // storage-json's yml root is anchored to the real $AVN_HOME; pin the row
     // to an absolute temp root (removed with the workspace at close) so tests
     // never write the user's harness home.
-    { id: 'storage-json', config: { root: join(workspaceCwd, '.avn-storages') } },
+    { id: 'storage-json', config: { root: join(workspaceCwd, '.aeven-storages') } },
     // Skill discovery is model-visible input. Pin every host-level root inside
-    // the owned temp world so ~/.avn, ~/.agents, and a bundled-root env setting
+    // the owned temp world so ~/.aeven, ~/.agents, and a bundled-root env setting
     // cannot change replay requests or conversation goldens. Project roots stay
     // enabled against the same empty temp workspace, preserving the real seam.
     {
       id: 'skill-filesystem',
       config: {
-        avnHome: join(workspaceCwd, '.avn-home'),
+        avnHome: join(workspaceCwd, '.aeven-home'),
         agentsHome: join(workspaceCwd, '.agents-home'),
         bundledSkillDir: join(workspaceCwd, '.bundled-skills'),
         watch: false,

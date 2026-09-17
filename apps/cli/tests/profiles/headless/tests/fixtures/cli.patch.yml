@@ -18,14 +18,14 @@
 
 - id: shell-env
   config:
-    avnHome: './.avn-home'
+    avnHome: './.aeven-home'
 
 - id: agent-instructions
   disabled: true
 
 - id: skill-filesystem
   config:
-    avnHome: './.avn-home'
+    avnHome: './.aeven-home'
     agentsHome: './.agents-home'
 
 - id: session-persistence-jsonl

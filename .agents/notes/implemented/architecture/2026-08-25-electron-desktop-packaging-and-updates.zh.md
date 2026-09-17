@@ -8,7 +8,7 @@ Status: implemented
 
 DeepSeek Harness 需要一个复用 Web UI 的 Electron 桌面应用。该应用无需系统 Node.js 或 pnpm 即可工作，通过应用内置 pnpm 安装 avn 与桌面插件，并通过一个面向用户的流程更新完整桌面发布。
 
-桌面应用与通过 npm 安装的 avn 共享 `.avn` 数据根目录，但两者可能使用不同的 avn 与插件版本。它们必须共享受支持的产品数据，同时不得共享可执行包、lockfile、`node_modules`、插件激活状态或包管理器配置。
+桌面应用与通过 npm 安装的 avn 共享 `.aeven` 数据根目录，但两者可能使用不同的 avn 与插件版本。它们必须共享受支持的产品数据，同时不得共享可执行包、lockfile、`node_modules`、插件激活状态或包管理器配置。
 
 当前 GUI 协议绑定 Web 客户端与后端版本。Electron 产物与其中通过 pnpm 安装的 avn 如果独立定版本，就会产生未经验证的壳、客户端、后端与插件组合，也无法明确判断更新是否可用。
 
@@ -16,7 +16,7 @@ DeepSeek Harness 需要一个复用 Web UI 的 Electron 桌面应用。该应用
 
 交付一个小型 Electron 壳，其中内置上游 Node.js 可执行文件和固定版本的 pnpm。Electron 把私有 Desktop Host 包作为隔离子进程启动；该包组合已安装的 avn 后端与匹配的客户端图。Fetch 元数据及有界的原始请求与响应分块通过两条带版本的分帧字节管道传递，Node IPC 只承载就绪、致命失败和关闭，Electron 通过 `avn-app://` 提供经过验证的资源；它不会打开监听端口。每个帧都包含固定标记、类型、单调 stream id、负载长度和经过验证的负载。串行 writer 遵守 pipe drain，请求或响应 stream 施加背压时 reader 会全局暂停，取消会关闭匹配的 stream，已退役 stream 的迟到响应帧保持无效。Connection 插件无需 `webServer` 即可提供与载体无关的 RPC 与 Fetch 注册表，Client Modules 则向 shell-owned carrier 提供与广告内容完全一致的组合 bundle 响应；Web 组合为两者挂载可选 HTTP route。渲染进程保留相同的 Fetch、RPC 与 Remote-stream 格式，子进程载体则避免 Base64 膨胀，也不依赖 Electron 与内置上游 Node.js 之间的 V8 序列化兼容性。发送 shutdown 后，Electron 会关闭自己持有的请求管道写端，以便在等待子进程退出前释放 Windows 上仍在进行的管道读取。该设计沿用 [GUI 分层与 RPC 协议 Agent Note](../../archived/architecture/2026-07-19-gui-layering-and-rpc-protocol.md)中的 Electron 预留。
 
-Electron 拥有保留 profile `.avn/profiles/desktop`。其中精确的 `@aeven/cli` 依赖提供后端与匹配的 Web UI，匹配的私有 `@aeven/desktop-host` 依赖则只提供 Electron 子进程入口与组合 overlay。avn 发布、私有 Host 及其第一方依赖闭包使用同一次源码构建生成的本地 npm tarball；profile manifest 把每个核心包列为本地 `file:` 依赖，`pnpm-workspace.yaml` 再通过 overrides 重复该映射。Host 不进入公共 CLI 包，也不会发布到 npm。桌面插件既是同一 profile 中来自 registry 的其他 npm 依赖，也是有序的 `avn.profile.bundles` 条目，并从该 profile 唯一的 `node_modules` 解析。
+Electron 拥有保留 profile `.aeven/profiles/desktop`。其中精确的 `@aeven/cli` 依赖提供后端与匹配的 Web UI，匹配的私有 `@aeven/desktop-host` 依赖则只提供 Electron 子进程入口与组合 overlay。avn 发布、私有 Host 及其第一方依赖闭包使用同一次源码构建生成的本地 npm tarball；profile manifest 把每个核心包列为本地 `file:` 依赖，`pnpm-workspace.yaml` 再通过 overrides 重复该映射。Host 不进入公共 CLI 包，也不会发布到 npm。桌面插件既是同一 profile 中来自 registry 的其他 npm 依赖，也是有序的 `avn.profile.bundles` 条目，并从该 profile 唯一的 `node_modules` 解析。
 
 一个 Desktop 发布号同时标识 Electron 产物及其精确的 `@aeven/cli` 与 `@aeven/desktop-host` 依赖。发布不能在构建或运行时选择不同的核心版本。因此，即使壳代码没有变化，更新 avn 也必须产生新的 Electron 发布。
 
@@ -31,7 +31,7 @@ Electron 拥有保留 profile `.avn/profiles/desktop`。其中精确的 `@aeven/
 | Desktop profile | 为桌面 avn 包与桌面插件提供一个依赖图、有序 bundle 列表和一个 `node_modules` |
 | 私有 Desktop Host 包 | 与 avn 一起安装、但不进入公共 CLI 包或 npm 发布的 Electron 专用子进程入口与组合 overlay |
 | 已安装 avn 包 | 后端、匹配的 Web UI、启动 manifest、客户端包和产品行为 |
-| 共享 `.avn` owner | 会话、设置、凭据、工作区和存储，由其现有锁与格式版本保护 |
+| 共享 `.aeven` owner | 会话、设置、凭据、工作区和存储，由其现有锁与格式版本保护 |
 | 通过 npm 安装的 avn | 自己的可执行安装和用户管理的 profile；不能访问保留 desktop profile 或包状态 |
 
 渲染进程使用 `nodeIntegration: false`、`contextIsolation: true` 和 `sandbox: true`。Preload 暴露类型化 RPC、生命周期、更新、locale 与桌面插件操作，而不暴露原始 `ipcRenderer`、文件系统访问、shell 命令或 pnpm 参数。Electron 根据应用 locale 选择类型化的中英文字典，并以英文作为 fallback；菜单、原生对话框与插件管理渲染进程使用这些由 locale 持有的文案。
@@ -39,7 +39,7 @@ Electron 拥有保留 profile `.avn/profiles/desktop`。其中精确的 `@aeven/
 ## 文件系统布局
 
 ```text
-~/.avn/
+~/.aeven/
   desktop/
     staging/<transaction-id>/profile/
     rollback/profile/
@@ -63,23 +63,23 @@ Electron 拥有保留 profile `.avn/profiles/desktop`。其中精确的 `@aeven/
   storages/
 ```
 
-`.avn/profiles/desktop` 是唯一活跃的 desktop profile。其 package manifest 记录内置与已安装插件 bundle 的顺序；只有 Electron 可以修改它的依赖、lockfile 和 `node_modules`。生产启动会拒绝解析到该 profile 之外的 bundle，包括 CLI 维护的 `.avn/profiles/node_modules` fallback。desktop profile 安装的所有包内容都使用 `.avn/desktop/pnpm/store`。
+`.aeven/profiles/desktop` 是唯一活跃的 desktop profile。其 package manifest 记录内置与已安装插件 bundle 的顺序；只有 Electron 可以修改它的依赖、lockfile 和 `node_modules`。生产启动会拒绝解析到该 profile 之外的 bundle，包括 CLI 维护的 `.aeven/profiles/node_modules` fallback。desktop profile 安装的所有包内容都使用 `.aeven/desktop/pnpm/store`。
 
 ## 安装与解析
 
-安装器绝不原地修改活跃 profile。它把 profile 元数据复制到事务暂存目录，并使用内置 pnpm 应用精确依赖变更。测试 staging 前，Electron 会停止活跃后端；它单独启动并停止 staging 后端，再在激活前恢复活跃后端，因此两个 Desktop 后端绝不会并发共享 `.avn` 状态。激活过程再次停止后端，在对应目录移动前先持久化 `pending.json` 的每个下一阶段，把活跃 profile 移到 `rollback/profile`，把暂存 profile 移到 `.avn/profiles/desktop`，然后重启。恢复过程会结合预写阶段与真实的 active、rollback 和 staging 目录，因此任一个写入与移动间隙中断后仍会保留或恢复一个完整 profile。
+安装器绝不原地修改活跃 profile。它把 profile 元数据复制到事务暂存目录，并使用内置 pnpm 应用精确依赖变更。测试 staging 前，Electron 会停止活跃后端；它单独启动并停止 staging 后端，再在激活前恢复活跃后端，因此两个 Desktop 后端绝不会并发共享 `.aeven` 状态。激活过程再次停止后端，在对应目录移动前先持久化 `pending.json` 的每个下一阶段，把活跃 profile 移到 `rollback/profile`，把暂存 profile 移到 `.aeven/profiles/desktop`，然后重启。恢复过程会结合预写阶段与真实的 active、rollback 和 staging 目录，因此任一个写入与移动间隙中断后仍会保留或恢复一个完整 profile。
 
 进程生命周期 Electron 锁是 Desktop 的权威 owner。包事务锁用于纵深防御，并记录仍能修改包状态的进程：包操作之间记录 Electron，pnpm 运行期间记录已生成的 pnpm PID。Owner 变更通过已经打开的排他锁文件完成截断、写入与同步。如果 Electron 在 pnpm 执行期间终止，后续进程会发现仍存活的 worker，并拒绝启动并发的 store 或 staging 事务；该 worker 退出后，陈旧 PID 才可以恢复。
 
 打包 seed 是离线安装包，而不是可执行 avn 目录。它包含发布身份、初始桌面项目 manifest、分别以 avn 和私有 Desktop Host 为根的第一方包闭包之并集的描述文件及不可变 tarball、lockfile、完整性清单和所需 store 子集。每个 `mac-arm64`、`mac-x64`、`win-arm64` 和 `win-x64` 构建都在 `.desktop-build/targets/<target>` 下持有自己的打包输入、运行时、包集合、seed、pnpm 准备状态、未打包应用、更新元数据和最终产物；只有不可变且经过校验和验证的 Node.js 下载缓存会被共享。发布构建要求 Electron 包、根 avn 包与私有 Host 包使用相同版本，从正式源码构建生成最终 npm tarball，在本地打包私有 Host，选择可达的 avn、Host 与 vendored 包以及 Landlock 入口，并验证 Host tarball 中包含 `lib/index.js` 与 `config/desktop.cordis.patch.yml`。Host 的 `files` manifest 只包含该运行入口与 overlay，并且该包不会发布到 npm。公共包 tarball 仍是由各包发布 manifest 控制的正式 `pnpm pack` 结果；Desktop 不删除已发布的声明文件，也不建立第二套包内容策略。seed manifest 把每个选中的包列为本地直接依赖，关闭 peer dependency 自动安装，workspace 文件再把每个选中的第一方包 override 到对应本地 tarball。目标 Node.js 执行内置 pnpm，因此 pnpm 的操作系统和 CPU 选择会使物化的依赖图与 seed 成为目标专用内容。内置 pnpm 关闭全局 virtual store，在禁用生命周期脚本的情况下从 npm 物化外部生产依赖，删除 `node_modules` 以及所有临时 pnpm cache、config 和 state 目录，然后只使用最终 store 执行一次干净的离线安装，并检查私有 Host 的入口与 overlay。构建会拒绝任何通过 registry 版本解析本地第一方包名的 lockfile。生成清单前会删除第二次生成的 `node_modules` 和临时 pnpm 项目注册。在复制 package set 前与离线安装后都要求这两个 Host 文件，可防止进程入口能够加载、却无法组合所需 overlay 的发布进入应用签名阶段。
 
-种子根据规范化 store 路径，把 pnpm 内容放入 16 个确定性的未压缩 tar 分片。Apple 公证会检查这些归档内的 Mach-O 代码，因此 macOS seed 会 staging 每个被引用的内容寻址 Mach-O 对象，最多并发四个独立的 Developer ID 签名进程，并带上安全时间戳与 hardened runtime。任一签名失败后，准备过程会等待已启动的签名进程全部退出，原始 CAS 对象与包索引保持不变。所有签名成功后，准备过程把每个对象写到新的 SHA-512 路径，并以事务方式重写 pnpm MessagePack SQLite 索引内全部基础文件和 side-effects 文件引用。第二次离线安装证明 pnpm 可以解析重写后的 store；准备过程随后完成分片、解包最终归档并验证每个内嵌签名。包路径和非原生字节保持不变；种子保留包内附带的架构变体，因为删除文件会创建 Desktop 专属的包文件集。种子完整性覆盖分片 manifest 和解包前的每个归档。启动时验证归档路径、条目类型、唯一性和数量，把所有分片解包到唯一且由 Desktop 拥有的 staging 目录，替换匹配的不可变 store 文件，并以事务方式把各 pnpm store 版本的 SQLite `package_index` 合并进 `.avn/desktop/pnpm/store`。Seed 记录替换匹配的键，为 Desktop 插件下载的记录继续保留。中断的文件合并可能留下有效的不可变缓存内容，但每次 SQLite 合并都是原子的，profile 安装与激活仍必须通过 pnpm 完整性与完整健康检查。
+种子根据规范化 store 路径，把 pnpm 内容放入 16 个确定性的未压缩 tar 分片。Apple 公证会检查这些归档内的 Mach-O 代码，因此 macOS seed 会 staging 每个被引用的内容寻址 Mach-O 对象，最多并发四个独立的 Developer ID 签名进程，并带上安全时间戳与 hardened runtime。任一签名失败后，准备过程会等待已启动的签名进程全部退出，原始 CAS 对象与包索引保持不变。所有签名成功后，准备过程把每个对象写到新的 SHA-512 路径，并以事务方式重写 pnpm MessagePack SQLite 索引内全部基础文件和 side-effects 文件引用。第二次离线安装证明 pnpm 可以解析重写后的 store；准备过程随后完成分片、解包最终归档并验证每个内嵌签名。包路径和非原生字节保持不变；种子保留包内附带的架构变体，因为删除文件会创建 Desktop 专属的包文件集。种子完整性覆盖分片 manifest 和解包前的每个归档。启动时验证归档路径、条目类型、唯一性和数量，把所有分片解包到唯一且由 Desktop 拥有的 staging 目录，替换匹配的不可变 store 文件，并以事务方式把各 pnpm store 版本的 SQLite `package_index` 合并进 `.aeven/desktop/pnpm/store`。Seed 记录替换匹配的键，为 Desktop 插件下载的记录继续保留。中断的文件合并可能留下有效的不可变缓存内容，但每次 SQLite 合并都是原子的，profile 安装与激活仍必须通过 pnpm 完整性与完整健康检查。
 
-启动过程先要求安装包内的发布身份等于 Electron 应用版本，再在启动后端前比较 `.avn/profiles/desktop/desktop-release.json`、已安装 avn 包、已安装 Desktop Host 包与该发布版本。它在 staging 中通过 `pnpm install --offline --frozen-lockfile --trust-lockfile` 安装新的 seed manifest 与 lockfile。Electron 替换后，启动过程再通过一次离线 pnpm add，从桌面端现有 store 与元数据缓存恢复活跃 profile 记录的每个插件 bundle 精确版本。完整依赖图必须通过同一套健康检查才能激活。
+启动过程先要求安装包内的发布身份等于 Electron 应用版本，再在启动后端前比较 `.aeven/profiles/desktop/desktop-release.json`、已安装 avn 包、已安装 Desktop Host 包与该发布版本。它在 staging 中通过 `pnpm install --offline --frozen-lockfile --trust-lockfile` 安装新的 seed manifest 与 lockfile。Electron 替换后，启动过程再通过一次离线 pnpm add，从桌面端现有 store 与元数据缓存恢复活跃 profile 记录的每个插件 bundle 精确版本。完整依赖图必须通过同一套健康检查才能激活。
 
 插件 GUI 执行等价于 `pnpm add <package> --save-exact`、`pnpm remove <package>` 和精确版本更新的 registry npm 包操作。每次修改都保留本地核心包描述文件、tarball、avn 与 Desktop Host 依赖和完整 override 映射。Electron 验证已安装包 manifest，并更新 profile 的依赖与有序 bundle 条目；任何渲染进程请求都不能选择 registry、安装目录、生命周期策略或任意 pnpm flag。
 
-后端与 Loader 把 `.avn/profiles/desktop/package.json` 作为 profile manifest 和 npm 解析锚点。公共 profile loader 先组合其中的有序 bundle 条目，再由私有 Desktop Host 应用其打包的 overlay。Host、avn、Cordis、桌面插件、插件依赖和 peer dependency 均通过普通 pnpm `node_modules` 图解析。贡献 `avn.client` 代码的桌面插件只有在完整 profile 通过健康检查后才进入启动 manifest。
+后端与 Loader 把 `.aeven/profiles/desktop/package.json` 作为 profile manifest 和 npm 解析锚点。公共 profile loader 先组合其中的有序 bundle 条目，再由私有 Desktop Host 应用其打包的 overlay。Host、avn、Cordis、桌面插件、插件依赖和 peer dependency 均通过普通 pnpm `node_modules` 图解析。贡献 `avn.client` 代码的桌面插件只有在完整 profile 通过健康检查后才进入启动 manifest。
 
 ## 更新与恢复
 
@@ -136,17 +136,17 @@ Windows 发布打包通过 `/f` 向已配置且与 SafeNet 兼容的 SignTool �
 
 ## 结果
 
-- 没有系统 Node.js 或 pnpm 的干净离线机器把种子安装进 `.avn/profiles/desktop`，并启动可工作的 avn 会话。
+- 没有系统 Node.js 或 pnpm 的干净离线机器把种子安装进 `.aeven/profiles/desktop`，并启动可工作的 avn 会话。
 - 已签名应用记录固定少量的 seed store 分片，而不是记录每个 pnpm 缓存文件；macOS 分片内每个 Mach-O 对象都带有发布 Developer ID、安全时间戳与 hardened runtime，每个 Windows 产物都带有配置的硬件支持 EV 签名，安装后的私有 store 仍保持普通 pnpm 布局。
-- `.avn/profiles/desktop/node_modules` 包含并解析桌面 avn 包和每个 GUI 安装的桌面插件。
-- 每个桌面 pnpm 操作都使用内置可执行文件和 `.avn/desktop/pnpm/store`；不读取用户 `PATH`、配置、store 或 profile `node_modules`。
+- `.aeven/profiles/desktop/node_modules` 包含并解析桌面 avn 包和每个 GUI 安装的桌面插件。
+- 每个桌面 pnpm 操作都使用内置可执行文件和 `.aeven/desktop/pnpm/store`；不读取用户 `PATH`、配置、store 或 profile `node_modules`。
 - Electron-only GUI 安装、删除和更新普通 npm 插件包，而不暴露原始 pnpm 参数。
 - 后端与浏览器应用不能修改桌面包。
 - npm/CLI avn 与 Electron 绝不从对方的 `node_modules` 解析或安装插件。
 - 在产品窗口打开前，活跃后端与 Web UI 报告相同 avn 版本和兼容壳 API。
 - 安装、健康检查或更新失败后，当前 profile 仍然可用，或在重启后恢复 `rollback/profile`。
 - 一个 Desktop 版本绑定 Electron 与 avn；每次 avn 更新都通过一个 Electron 更新弹窗交付，并产生一次用户可见的重启。
-- 共享 `.avn` 数据在迁移或修改前拒绝不兼容的读取方。
+- 共享 `.aeven` 数据在迁移或修改前拒绝不兼容的读取方。
 - 不打开回环监听端口，沙箱渲染进程不能访问任意文件系统或 Electron API。
 - Workspace 开发无需下载发布资源即可运行当前已构建代码，未封装安装器的应用验证仍保留生产安装路径。
 - Windows 发布打包要求已验证的 SignTool、EV Token、匹配的公开叶证书、Token Password 和明确的密钥容器，绝不会回退到未签名产物或可导出的密钥文件。显式的 `--unsigned` 打包模式是开发路径，其产物不带完成记录，因此 `upload:*` 会拒绝它们。

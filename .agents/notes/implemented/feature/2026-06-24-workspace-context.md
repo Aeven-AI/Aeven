@@ -24,7 +24,7 @@ The default per-directory candidate list is `['AGENTS.md', 'CLAUDE.md']`. The li
 
 Candidate entries are same-directory file names. Empty entries, `.`/`..`, and entries containing `/` or `\` are ignored. Other same-directory names can be opted into explicitly; rule directories and import semantics are outside this contract.
 
-The user-global file is fixed at `$AVN_HOME/AGENTS.md`, is not affected by either candidate list, and has no local overlay. `$AVN_HOME` defaults to `~/.avn`, matching the harness-level home role of `~/.codex` or `~/.claude` rather than introducing a plugin-specific home. Tilde expansion and the default live in `avn-home-paths` so future harness features share the same convention.
+The user-global file is fixed at `$AVN_HOME/AGENTS.md`, is not affected by either candidate list, and has no local overlay. `$AVN_HOME` defaults to `~/.aeven`, matching the harness-level home role of `~/.codex` or `~/.claude` rather than introducing a plugin-specific home. Tilde expansion and the default live in `avn-home-paths` so future harness features share the same convention.
 
 ### Baseline Injection
 
@@ -34,7 +34,7 @@ The baseline becomes a durable `user/message` with a typed `agent-instructions` 
 
 A resumed agent creates a new loop instance over persisted history. At its first `agent/pre-step`, a visible baseline with the current identity remains authoritative while the plugin compares its retained scopes with a complete current rendering. Unchanged and budget-omitted files append nothing; offline additions, edits, removals, and files that leave the retained budget set append `set`, `replace`, or `remove` transitions in the entering batch without mutating or duplicating the original baseline. An incompatible visible baseline is superseded by one complete baseline in current precedence order with explicit replacement language; when no current candidate exists, an explicit empty baseline clears the earlier scopes. A hot plugin remount follows the same rule. If compaction has shadowed the typed baseline, the next entering pre-step composes one complete current baseline and carries it in the same request.
 
-The baseline is a user-role `<system-reminder>` with `Instructions from: <path>` sections and explicit authority and precedence language. This familiar model-facing frame avoids a harness-specific XML vocabulary. Project paths are root-relative and the user-global path is `~/.avn/AGENTS.md` for the default home or `$AVN_HOME/AGENTS.md` for a configured home. The final rendering boundary escapes a literal `</system-reminder>` anywhere in instruction content or model-visible path, scope, and budget metadata before byte accounting completes. The package README owns the exact current [prompt shape](../../../../packages/context/agent-instructions/README.md#prompt-shape).
+The baseline is a user-role `<system-reminder>` with `Instructions from: <path>` sections and explicit authority and precedence language. This familiar model-facing frame avoids a harness-specific XML vocabulary. Project paths are root-relative and the user-global path is `~/.aeven/AGENTS.md` for the default home or `$AVN_HOME/AGENTS.md` for a configured home. The final rendering boundary escapes a literal `</system-reminder>` anywhere in instruction content or model-visible path, scope, and budget metadata before byte accounting completes. The package README owns the exact current [prompt shape](../../../../packages/context/agent-instructions/README.md#prompt-shape).
 
 ### Dynamic Discovery And Refresh
 

@@ -150,7 +150,7 @@ describe('preset discovery', () => {
   it('expands a leading tilde in a root path', async () => {
     // `~` alone resolves to the home directory, which exists but holds no
     // preset directories; the point is that it did not throw on a literal `~`.
-    const found = await scanRoot({ path: '~/.avn-agent-presets-absent', trust: 'user' }, HARNESS)
+    const found = await scanRoot({ path: '~/.aeven-agent-presets-absent', trust: 'user' }, HARNESS)
 
     expect(found).toEqual([])
   })

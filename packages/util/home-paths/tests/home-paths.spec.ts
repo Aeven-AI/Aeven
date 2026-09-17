@@ -19,17 +19,17 @@ afterEach(() => {
 
 describe('avn path helpers', () => {
   it('owns the shared default AVN home directory name', () => {
-    expect(AVN_HOME_DIR_NAME).toBe('.avn')
-    expect(DEFAULT_AVN_HOME_DISPLAY).toBe('~/.avn')
-    expect(defaultAvnHome()).toBe(join(homedir(), '.avn'))
+    expect(AVN_HOME_DIR_NAME).toBe('.aeven')
+    expect(DEFAULT_AVN_HOME_DISPLAY).toBe('~/.aeven')
+    expect(defaultAvnHome()).toBe(join(homedir(), '.aeven'))
   })
 
   it('expands tilde paths without changing non-tilde paths', () => {
     expect(expandHomePath('~')).toBe(homedir())
-    expect(expandHomePath('~/.avn')).toBe(join(homedir(), '.avn'))
-    expect(expandHomePath('~\\.avn')).toBe(join(homedir(), '.avn'))
-    expect(expandHomePath('/tmp/.avn')).toBe('/tmp/.avn')
-    expect(expandHomePath('~other/.avn')).toBe('~other/.avn')
+    expect(expandHomePath('~/.aeven')).toBe(join(homedir(), '.aeven'))
+    expect(expandHomePath('~\\.avn')).toBe(join(homedir(), '.aeven'))
+    expect(expandHomePath('/tmp/.aeven')).toBe('/tmp/.aeven')
+    expect(expandHomePath('~other/.aeven')).toBe('~other/.aeven')
   })
 
   it('resolves explicit path before AVN_HOME and the default', () => {
@@ -52,7 +52,7 @@ describe('avn path helpers', () => {
   })
 
   it('labels a resolved home by whether it is the default root', () => {
-    expect(avnHomeDisplay(resolve(defaultAvnHome()))).toBe('~/.avn')
+    expect(avnHomeDisplay(resolve(defaultAvnHome()))).toBe('~/.aeven')
     expect(avnHomeDisplay('/some/other/root')).toBe('$AVN_HOME')
   })
 

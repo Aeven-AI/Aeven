@@ -313,7 +313,7 @@ function spec(overrides: Partial<SubprocessSpawnSpec> = {}): SubprocessSpawnSpec
 function runtime(fake: FakeSandbox, getSandbox: () => Promise<Sandbox> = async () => fake.sandbox): E2BRuntime {
   return {
     cwd: '/workspace',
-    runtimeRoot: '/workspace/.avn-e2b',
+    runtimeRoot: '/workspace/.aeven-e2b',
     getSandbox,
   } as unknown as E2BRuntime
 }
@@ -399,7 +399,7 @@ describe('E2BSubprocessHandle', () => {
         // The seam's tombstone: an explicit undefined removes the ambient entry.
         KEEP: undefined,
       },
-    }), '/workspace/.avn-e2b/processes/one')
+    }), '/workspace/.aeven-e2b/processes/one')
     expect(handle.pid).toBe(-1)
     handle.stdin!.write('hello')
     handle.stdin!.end()
@@ -437,12 +437,12 @@ describe('E2BSubprocessHandle', () => {
     expect(command).not.toContain('2>/dev/null >&2')
     expect(command).toContain('base64')
     expect(fake.writtenFiles[0]).toEqual([
-      '/workspace/.avn-e2b/processes/one/pid',
-      '/workspace/.avn-e2b/processes/one/exit-code',
-      '/workspace/.avn-e2b/processes/one/environment',
-      '/workspace/.avn-e2b/processes/one/stderr.log',
+      '/workspace/.aeven-e2b/processes/one/pid',
+      '/workspace/.aeven-e2b/processes/one/exit-code',
+      '/workspace/.aeven-e2b/processes/one/environment',
+      '/workspace/.aeven-e2b/processes/one/stderr.log',
     ])
-    expect(fake.writtenFileData.get('/workspace/.avn-e2b/processes/one/environment')).toBe(
+    expect(fake.writtenFileData.get('/workspace/.aeven-e2b/processes/one/environment')).toBe(
       'PATH=/bin\0UNICODE=你好\0HOME=/home/user\0FOO-BAR=hyphen-value\0--split-string=literal-value\0DEEPSEEK_API_KEY=explicit-secret\0AVN_MODE=test\0',
     )
 
@@ -454,7 +454,7 @@ describe('E2BSubprocessHandle', () => {
     await expect(handle.done).resolves.toEqual({ exitCode: 0, signal: null })
     expect(piped).toBe('pipe-data')
     expect(handle.collected.stderr!.readFrom(0)).toMatchObject({ text: 'err', lossy: false })
-    expect(fake.removed).toContain('/workspace/.avn-e2b/processes/one/stderr.log')
+    expect(fake.removed).toContain('/workspace/.aeven-e2b/processes/one/stderr.log')
     await expect(handle.waitForExit()).resolves.toBe(true)
   })
 

@@ -42,7 +42,7 @@ Use it as the default local store: the product's base composition loads it, and 
 | Field | Default | Meaning |
 |---|---|---|
 | `path` | `<harness home>/.credentials.yaml` | Where the credential file lives |
-| `avnHome` | `$AVN_HOME` or `~/.avn` | Harness home used when `path` is omitted |
+| `avnHome` | `$AVN_HOME` or `~/.aeven` | Harness home used when `path` is omitted |
 | `watch` | `true` | Reload the file automatically when it changes on disk |
 | `debounceMs` | `100` | Wait this long after a change before reloading, in milliseconds |
 

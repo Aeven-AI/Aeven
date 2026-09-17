@@ -59,7 +59,7 @@ async function bootWeb(
     // below pins `includeUserRoot` off.
     { id: 'settings', config: { path: settingsFile, watch: false } },
     // storage-json's root is anchored to the real $AVN_HOME. Unpinned, this
-    // file writes the developer's own `~/.avn/storages/` — and then reads it
+    // file writes the developer's own `~/.aeven/storages/` — and then reads it
     // back on the next run, so a stored document from any other build decides
     // this test's boot. Same reason the settings row above is pinned.
     { id: 'storage-json', config: { root: storageRoot } },
@@ -98,7 +98,7 @@ async function bootWeb(
       { id: 'ui-directory-picker-browse', name: '@aeven/client-ui-directory-picker-browse' },
     ] },
     // Pin the roster away from the developer's machine: `includeUserRoot`
-    // false keeps `~/.avn/.agent-presets` from changing a test's outcome.
+    // false keeps `~/.aeven/.agent-presets` from changing a test's outcome.
     // `default` here is the COMPOSITION default — the base layer the settings
     // document overrides — and repeats the web-app bundle's own value so the
     // shipped default is asserted rather than inherited. No `roots` entry:
@@ -408,8 +408,8 @@ describe('the shipped Web composition', () => {
 
   it('merges the global skill layer into a preset agent\'s catalog, keeping local discovery preset-side', async () => {
     const proj = await mkdtemp(join(tmpdir(), 'avn-preset-skill-proj-'))
-    await mkdir(join(proj, '.avn', 'skills', 'project-proof'), { recursive: true })
-    await writeFile(join(proj, '.avn', 'skills', 'project-proof', 'SKILL.md'), [
+    await mkdir(join(proj, '.aeven', 'skills', 'project-proof'), { recursive: true })
+    await writeFile(join(proj, '.aeven', 'skills', 'project-proof', 'SKILL.md'), [
       '---',
       'name: project-proof',
       'description: Proves the preset layer discovers project skills beside global ones.',

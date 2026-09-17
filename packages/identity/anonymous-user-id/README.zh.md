@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-每个 harness home 都会获得一个匿名 id，遥测、反馈与 DeepSeek 请求会把它附加到各自的记录上，让接收系统无需了解用户身份即可判断记录来自同一套安装。该 id 是存储在 `$AVN_HOME/.anonymous-user-id`（默认 `~/.avn`）中的随机 UUID；它会在这些功能之一首次运行时自动出现，跨重启保持稳定，删除文件后会重新生成。不同 harness home 永远不会共享同一个 id，其中也不包含任何机器或账户信息。当你希望关联来自同一套安装、且不依赖账户的记录时使用它；它无法关联不同 home 之间的记录。
+每个 harness home 都会获得一个匿名 id，遥测、反馈与 DeepSeek 请求会把它附加到各自的记录上，让接收系统无需了解用户身份即可判断记录来自同一套安装。该 id 是存储在 `$AVN_HOME/.anonymous-user-id`（默认 `~/.aeven`）中的随机 UUID；它会在这些功能之一首次运行时自动出现，跨重启保持稳定，删除文件后会重新生成。不同 harness home 永远不会共享同一个 id，其中也不包含任何机器或账户信息。当你希望关联来自同一套安装、且不依赖账户的记录时使用它；它无法关联不同 home 之间的记录。
 
 ## 目录
 
@@ -37,7 +37,7 @@ kind: "package-library"
 
 ### 查看与重置 id
 
-该 id 存放在 `$AVN_HOME/.anonymous-user-id`（默认 `~/.avn`）中，是一个纯 UUID 文本文件。删除该文件即可在下次启动时获得全新 id；正在运行的进程在退出前会一直保留当前 id。不同 harness home 各自保留独立 id，值中永远不会包含任何机器或账户信息。
+该 id 存放在 `$AVN_HOME/.anonymous-user-id`（默认 `~/.aeven`）中，是一个纯 UUID 文本文件。删除该文件即可在下次启动时获得全新 id；正在运行的进程在退出前会一直保留当前 id。不同 harness home 各自保留独立 id，值中永远不会包含任何机器或账户信息。
 
 ### 在自己的包中使用
 
@@ -94,7 +94,7 @@ const userId = getOrCreateAnonymousUserId() // stable for the process lifetime
 当包级约定不够用时阅读以下页面。它们从 identity 组映射逐步进入本包所依赖的 home 路径解析，以及使用该 id 的功能。
 
 - [identity 组映射](../README.zh.md)——兄弟包与组范围。
-- [avn-home-paths](../../util/home-paths/README.zh.md)——负责 `$AVN_HOME` 与 `~/.avn` 的解析。
+- [avn-home-paths](../../util/home-paths/README.zh.md)——负责 `$AVN_HOME` 与 `~/.aeven` 的解析。
 - [avn-session-telemetry-otel](../../session/session-telemetry-otel/README.zh.md)——将该 id 作为 OTel Resource `user.id` 上报。
 - [avn-command-feedback](../../feedback/command-feedback/README.zh.md)——将 id 嵌入反馈确认。
 - [avn-llm-deepseek](../../llm/llm-deepseek/README.zh.md)——在提供方请求中发送 `x-deepseek-harness-user-id`。

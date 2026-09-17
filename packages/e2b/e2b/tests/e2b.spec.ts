@@ -76,7 +76,7 @@ describe('E2BRuntime', () => {
     const service = ctx.e2b
     await expect(service.getSandbox()).resolves.toBe(fixture.sandbox)
     expect(service.cwd).toBe('/home/user/workspace')
-    expect(service.runtimeRoot).toBe('/home/user/workspace/.avn-e2b')
+    expect(service.runtimeRoot).toBe('/home/user/workspace/.aeven-e2b')
     expect(sdk.create).toHaveBeenCalledWith({
       apiKey: 'test-key',
       timeoutMs: 300_000,
@@ -84,12 +84,12 @@ describe('E2BRuntime', () => {
       lifecycle: { onTimeout: 'kill' },
     })
     expect(fixture.makeDir).toHaveBeenNthCalledWith(1, '/home/user/workspace')
-    expect(fixture.makeDir).toHaveBeenNthCalledWith(2, '/home/user/workspace/.avn-e2b')
-    expect(fixture.getInfo).toHaveBeenCalledWith('/home/user/workspace/.avn-e2b')
+    expect(fixture.makeDir).toHaveBeenNthCalledWith(2, '/home/user/workspace/.aeven-e2b')
+    expect(fixture.getInfo).toHaveBeenCalledWith('/home/user/workspace/.aeven-e2b')
     const runOptions = fixture.run.mock.calls[0]?.[1]
     expect(runOptions?.envs?.HOME).toMatch(/^\/\.avn-e2b-control-/)
     expect(fixture.run).toHaveBeenCalledWith(
-      "chmod 700 -- '/home/user/workspace/.avn-e2b'",
+      "chmod 700 -- '/home/user/workspace/.aeven-e2b'",
       { envs: { HOME: runOptions?.envs?.HOME } },
     )
 

@@ -194,7 +194,7 @@ export async function runLoaderSmoke(options: LoaderSmokeOptions): Promise<Loade
       ...options.mode !== undefined ? { mode: options.mode } : {},
       tsconfigPath: options.tsconfigPath,
       env: {
-        AVN_HOME: join(cwd, '.avn'),
+        AVN_HOME: join(cwd, '.aeven'),
         AVN_AGENTS_HOME: join(cwd, '.agents'),
         ...options.env,
       },

@@ -33,7 +33,7 @@ Use `writeFileAtomic` when a file-backed store must replace one already-rendered
 import { writeFileAtomic } from '@aeven/atomic-write'
 
 declare const text: string
-await writeFileAtomic('/home/u/.avn/settings.yaml', text, { mode: 0o600 })
+await writeFileAtomic('/home/u/.aeven/settings.yaml', text, { mode: 0o600 })
 ```
 
 Parent directories are created as needed, and readers observe either the old or the new complete content. On Windows, transient replacement interference reported as `EACCES`, `EBUSY`, or `EPERM` is retried for a bounded interval; any remaining failure removes the temporary file and leaves the target untouched.
@@ -48,9 +48,9 @@ import { withFileLock, writeFileAtomic } from '@aeven/atomic-write'
 declare const render: (previous: string) => string
 declare const readCurrent: () => Promise<string>
 
-await withFileLock('/home/u/.avn/settings.yaml', async () => {
+await withFileLock('/home/u/.aeven/settings.yaml', async () => {
   const previous = await readCurrent()
-  await writeFileAtomic('/home/u/.avn/settings.yaml', render(previous), { mode: 0o600 })
+  await writeFileAtomic('/home/u/.aeven/settings.yaml', render(previous), { mode: 0o600 })
 })
 ```
 

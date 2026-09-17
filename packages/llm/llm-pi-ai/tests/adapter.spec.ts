@@ -31,8 +31,8 @@ const IMAGE_REF: ImageAttachmentRef = {
   width: 1,
   height: 1,
 }
-const HOST_IMAGE_PATH = '/host/.avn/attachments/objects/aa/object'
-const MODEL_IMAGE_PATH = '/model/.avn/attachments/objects/aa/object'
+const HOST_IMAGE_PATH = '/host/.aeven/attachments/objects/aa/object'
+const MODEL_IMAGE_PATH = '/model/.aeven/attachments/objects/aa/object'
 
 class MappedFileSystem extends Service {
   constructor(ctx: Context) {

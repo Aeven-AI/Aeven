@@ -912,7 +912,7 @@ function installedArtifactEnvironment(consumerRoot: string): NodeJS.ProcessEnv {
   const environment = npmClientEnvironment()
   delete environment.NODE_OPTIONS
   delete environment.NODE_PATH
-  environment.AVN_HOME = resolve(consumerRoot, '.avn')
+  environment.AVN_HOME = resolve(consumerRoot, '.aeven')
   environment.AVN_AGENTS_HOME = resolve(consumerRoot, '.agents')
   environment.AVN_TELEMETRY_DISABLED = '1'
   environment.DEEPSEEK_API_KEY = 'keyless-installed-web-no-call'

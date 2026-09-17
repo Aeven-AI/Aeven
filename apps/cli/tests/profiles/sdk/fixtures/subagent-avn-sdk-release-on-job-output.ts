@@ -14,7 +14,7 @@ export function apply(ctx: Context): void {
   ctx.on('tools/execute', async (exec, next) => {
     const delegated = next()
     if (exec.name === 'job_output') {
-      writeFileSync('.avn-sdk-background-release', 'release\n')
+      writeFileSync('.aeven-sdk-background-release', 'release\n')
     }
     return delegated
   }, { prepend: true })

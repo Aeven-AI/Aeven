@@ -79,7 +79,7 @@ describe('Python SDK avn profile keyless smoke', () => {
     ], {
       cwd: repoRoot,
       env: {
-        AVN_HOME: join(root, '.avn'),
+        AVN_HOME: join(root, '.aeven'),
         AVN_PERMISSION_MODE: 'danger-full-access',
         AVN_TELEMETRY_DISABLED: '1',
         DEEPSEEK_API_KEY: 'keyless-smoke-no-call',
@@ -162,7 +162,7 @@ describe('Python SDK avn profile keyless smoke', () => {
       expect(shutdown).toMatchObject({ jsonrpc: '2.0', id: 3, result: {} })
       const exit = await child
       expect(exit.exitCode, `signal=${String(exit.signal)}; stderr=${stderr}`).toBe(0)
-      const sessionsRoot = join(root, '.avn', 'sessions')
+      const sessionsRoot = join(root, '.aeven', 'sessions')
       const files = await readdir(sessionsRoot, { recursive: true })
       const log = files.find(file => file.endsWith('.jsonl.zstd'))
       expect(log).toBeDefined()
@@ -202,7 +202,7 @@ describe('Python SDK avn profile keyless smoke', () => {
     ], {
       cwd: repoRoot,
       env: {
-        AVN_HOME: join(root, '.avn'),
+        AVN_HOME: join(root, '.aeven'),
         AVN_SYSTEM_PROMPT: 'Minimal allowlist prompt.',
         DEEPSEEK_API_KEY: 'keyless-smoke-no-call',
         DEEPSEEK_BASE_URL: `http://127.0.0.1:${address.port}`,
@@ -243,7 +243,7 @@ describe('Python SDK avn profile keyless smoke', () => {
       }, () => stderr)
 
       const profile = JSON.parse(
-        await readFile(join(root, '.avn', 'profiles', 'sdk-minimal', 'package.json'), 'utf8'),
+        await readFile(join(root, '.aeven', 'profiles', 'sdk-minimal', 'package.json'), 'utf8'),
       ) as { avn?: { profile?: { bundles?: string[]; patchReload?: string } } }
       expect(profile.avn?.profile).toEqual({
         bundles: ['@aeven/sdk-minimal'],
@@ -274,7 +274,7 @@ describe('Python SDK avn profile keyless smoke', () => {
       ], {
         cwd: repoRoot,
         env: {
-          AVN_HOME: join(root, '.avn'),
+          AVN_HOME: join(root, '.aeven'),
           DEEPSEEK_API_KEY: 'keyless-smoke-no-call',
           AVN_MAX_TOKENS_AS_SUCCESS: 'sometimes',
         },

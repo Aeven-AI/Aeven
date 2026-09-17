@@ -54,11 +54,11 @@ Contributors must declare every key they return; returning an undeclared or non-
 
 ### Choosing the Harness home
 
-The single config field picks the home directory exposed as `AVN_HOME`; the default resolution order is the `avnHome` config, then ambient `$AVN_HOME`, then `~/.avn`.
+The single config field picks the home directory exposed as `AVN_HOME`; the default resolution order is the `avnHome` config, then ambient `$AVN_HOME`, then `~/.aeven`.
 
 | Field | Default | Meaning |
 |---|---|---|
-| `avnHome` | `$AVN_HOME`, then `~/.avn` | Absolute Harness home exposed as `AVN_HOME` |
+| `avnHome` | `$AVN_HOME`, then `~/.aeven` | Absolute Harness home exposed as `AVN_HOME` |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aeven-shell-env) is the exhaustive source for every accepted field and its JSDoc.
 

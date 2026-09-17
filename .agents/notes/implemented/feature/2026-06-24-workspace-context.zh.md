@@ -24,7 +24,7 @@ Status: implemented
 
 候选条目必须是同一目录中的文件名。空条目、`.`／`..`，以及包含 `/` 或 `\` 的条目会被忽略。其他同目录名称可以显式选择加入；规则目录和导入语义不属于本约定。
 
-用户全局文件固定为 `$AVN_HOME/AGENTS.md`，不受任一候选列表影响，也没有本地覆盖层。`$AVN_HOME` 默认为 `~/.avn`，与 `~/.codex` 或 `~/.claude` 在 harness 层的 home 角色一致，而不会引入插件专用 home。波浪号展开与默认值位于 `avn-home-paths` 中，以便未来的 harness 功能共享同一约定。
+用户全局文件固定为 `$AVN_HOME/AGENTS.md`，不受任一候选列表影响，也没有本地覆盖层。`$AVN_HOME` 默认为 `~/.aeven`，与 `~/.codex` 或 `~/.claude` 在 harness 层的 home 角色一致，而不会引入插件专用 home。波浪号展开与默认值位于 `avn-home-paths` 中，以便未来的 harness 功能共享同一约定。
 
 ### 基线注入
 
@@ -34,7 +34,7 @@ Status: implemented
 
 恢复 agent 会基于持久化历史创建新的 loop 实例。在第一个 `agent/pre-step`，具有当前标识的可见基线仍是权威状态；插件会将其保留的 scope 与当前完整渲染进行比较。未变化和被预算省略的文件不追加任何内容；agent 离线期间新增、编辑、移除或不再属于预算保留集的文件，会在进入步骤的批次中追加 `set`、`replace` 或 `remove` 转换，既不改写也不重复原始基线。不兼容的可见基线会被一条按当前优先级排列的完整基线取代，并以明确措辞说明替换关系；如果当前不存在任何候选文件，一条显式空基线会清除先前的 scope。插件热重挂遵循相同规则。如果压缩（compaction）已遮蔽带类型的基线，下一次进入步骤的 pre-step 会组合一条完整的当前基线，并在同一请求中携带它。
 
-基线是一条 user 角色的 `<system-reminder>`，包含 `Instructions from: <path>` 章节，以及明确的权威性与优先级说明。这种熟悉的模型可见框架避免引入 harness 专用的 XML 词汇。项目路径相对于根目录；使用默认 home 时，用户全局路径为 `~/.avn/AGENTS.md`，使用已配置 home 时则为 `$AVN_HOME/AGENTS.md`。最终渲染边界会在完成字节核算前，转义指令内容或模型可见的路径、scope 与预算元数据中出现的字面量 `</system-reminder>`。包 README 负责规定当前准确的[提示词形态](../../../../packages/context/agent-instructions/README.zh.md#prompt-shape)。
+基线是一条 user 角色的 `<system-reminder>`，包含 `Instructions from: <path>` 章节，以及明确的权威性与优先级说明。这种熟悉的模型可见框架避免引入 harness 专用的 XML 词汇。项目路径相对于根目录；使用默认 home 时，用户全局路径为 `~/.aeven/AGENTS.md`，使用已配置 home 时则为 `$AVN_HOME/AGENTS.md`。最终渲染边界会在完成字节核算前，转义指令内容或模型可见的路径、scope 与预算元数据中出现的字面量 `</system-reminder>`。包 README 负责规定当前准确的[提示词形态](../../../../packages/context/agent-instructions/README.zh.md#prompt-shape)。
 
 ### 动态发现与刷新
 

@@ -47,7 +47,7 @@ with DeepSeekHarness(avn_home="/absolute/path/to/test-avn-home") as harness:
     print(harness.run("say hi").final_response)
 ```
 
-Alternatively export a non-empty `AVN_HOME`. The SDK rejects a launch that would silently use `~/.avn`.
+Alternatively export a non-empty `AVN_HOME`. The SDK rejects a launch that would silently use `~/.aeven`.
 
 ## Run against Node source
 

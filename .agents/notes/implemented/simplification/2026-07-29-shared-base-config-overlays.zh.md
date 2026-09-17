@@ -18,7 +18,7 @@ Status: implemented
 
 `apps/cli/config/base.cordis.yml` 持有两个 surface 都会挂载的 43 个配置项。`apps/cli/config/tui.cordis.yml` 与 `apps/cli/config/web.cordis.yml` 是 **patch 列表**，不是配置树：各自声明少数取值因 surface 而异的配置项，并 insert 自己的配置项。启动器只 include base 一次，并把每个 overlay 作为**同一** include 层级上的平级 patch 列表应用——因为 include patch 不会跨越 include 边界，把 overlay 堆叠成嵌套 include 会使其静默地无法触达 base 配置项。
 
-优先级即列表顺序，逐配置项后写者胜：base，然后是 surface overlay，接着是 `--config` overlay 或个人 `~/.avn/config.yaml`，最后是启动器自身的 flag 与 profile patch。
+优先级即列表顺序，逐配置项后写者胜：base，然后是 surface overlay，接着是 `--config` overlay 或个人 `~/.aeven/config.yaml`，最后是启动器自身的 flag 与 profile patch。
 
 `--config <path>` 应用一个 overlay 来**取代**个人 overlay，因此测试树绝不会继承用户的提供方与 model。`--config-replace <path>` 则把某个文件作为整棵树启动，同时绕过 base、surface overlay 与个人 overlay。两个 flag 都会在 `/resume` 的 execve 交接中保留，否则恢复时会静默更换 agent（智能体）。
 

@@ -3,7 +3,7 @@ import { registerHooks } from 'node:module'
 import { join } from 'node:path'
 
 const openerUrl = new URL('./open.mjs', import.meta.url).href
-const exitMarker = join(process.cwd(), `.avn-browser-open-${process.pid}`)
+const exitMarker = join(process.cwd(), `.aeven-browser-open-${process.pid}`)
 
 const markerPoll = setInterval(() => {
   if (!existsSync(exitMarker)) return

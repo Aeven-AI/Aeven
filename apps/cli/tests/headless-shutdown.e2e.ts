@@ -64,7 +64,7 @@ if actual_exit != 130:
 async function runHeadlessPtySmoke(): Promise<string> {
   const cwd = await mkdtemp(join(tmpdir(), 'avn-headless-shutdown-'))
   try {
-    const home = join(cwd, '.avn')
+    const home = join(cwd, '.aeven')
     // Pre-initialize the headless profile with the never-dispose row in its
     // user patch layer (the same file a long-lived profile boot hot-reloads).
     const profileDir = join(home, 'profiles', 'headless')

@@ -38,7 +38,7 @@ export function quoteE2BShellArg(value: string): string {
 export function e2bControlEnvs(
   overrides: Readonly<Record<string, string>> = {},
 ): Record<string, string> {
-  return { ...overrides, HOME: `/.avn-e2b-control-${randomUUID()}` }
+  return { ...overrides, HOME: `/.aeven-e2b-control-${randomUUID()}` }
 }
 
 /** Configuration for the shared E2B sandbox owner. */
@@ -102,7 +102,7 @@ export class E2BRuntime extends Service {
     }
     this.validate()
     this.cwd = this.config.cwd
-    this.runtimeRoot = posix.join(this.cwd, '.avn-e2b')
+    this.runtimeRoot = posix.join(this.cwd, '.aeven-e2b')
     this.ready = this.open()
     // A deployment may load the owner before any adapter uses it. Keep a
     // failed eager connection observed; getSandbox() still returns the error.

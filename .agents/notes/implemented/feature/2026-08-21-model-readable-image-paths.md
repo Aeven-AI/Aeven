@@ -28,7 +28,7 @@ Absolute paths stay out of session events and request-image versions. Model-visi
 
 **Persist the absolute path in `ImageAttachmentRef`.** A durable host path becomes stale after moving a session, changing `AVN_HOME`, or mounting another provider. Resolving it at request time preserves portable history.
 
-**Teach each LLM adapter the `~/.avn` layout.** Explicit `avnHome` and `$AVN_HOME` can select another root, and non-local providers may expose no path. The attachment provider owns the object location; the shared LLM helper owns the composition with an execution-world mapper.
+**Teach each LLM adapter the `~/.aeven` layout.** Explicit `avnHome` and `$AVN_HOME` can select another root, and non-local providers may expose no path. The attachment provider owns the object location; the shared LLM helper owns the composition with an execution-world mapper.
 
 **Let the attachment provider inspect `ctx.fs`.** The attachment provider knows where its object lives but does not own the model tools' execution environment. Combining both services in the LLM consumer also avoids a package reference cycle between attachment, filesystem, and LLM definitions.
 

@@ -7,14 +7,14 @@ import {
 const layered = createLaunchEnvironmentSnapshot([
   { source: 'process', values: { SHARED: 'from-process', ONLY_PROCESS: 'p' } },
   { source: 'project-env', path: '/work/.env', values: { SHARED: 'from-project', ONLY_PROJECT: 'j' } },
-  { source: 'user-env', path: '/home/.avn/.env', values: { SHARED: 'from-user', ONLY_USER: 'u' } },
+  { source: 'user-env', path: '/home/.aeven/.env', values: { SHARED: 'from-user', ONLY_USER: 'u' } },
 ])
 
 describe('createLaunchEnvironmentSnapshot', () => {
   it('resolves across every layer, most trusted first, and reports the winning source', () => {
     expect(layered.get('SHARED')).toEqual({ value: 'from-process', source: 'process' })
     expect(layered.get('ONLY_PROJECT')).toEqual({ value: 'j', source: 'project-env', path: '/work/.env' })
-    expect(layered.get('ONLY_USER')).toEqual({ value: 'u', source: 'user-env', path: '/home/.avn/.env' })
+    expect(layered.get('ONLY_USER')).toEqual({ value: 'u', source: 'user-env', path: '/home/.aeven/.env' })
     expect(layered.get('ABSENT')).toBeUndefined()
   })
 

@@ -897,8 +897,8 @@ describe('MediaStore filesystem-race tolerance', () => {
 
   it('reports a legacy media directory that a competing process moved first', async () => {
     const parent = await tempDir('avn-media-migrate-')
-    const legacy = join(parent, '.avn-coding-subscription-oauth-media')
-    const current = join(parent, '.avn-subscription-auth-media')
+    const legacy = join(parent, '.aeven-coding-subscription-oauth-media')
+    const current = join(parent, '.aeven-subscription-auth-media')
     await mkdir(legacy, { recursive: true, mode: 0o700 })
     const racing = await importWithFaults([{ op: 'rename', path: current, code: 'ENOENT' }])
     await expect(racing.migrateLegacyMediaStoreDir(current, legacy)).resolves.toBe(false)
@@ -908,8 +908,8 @@ describe('MediaStore filesystem-race tolerance', () => {
 
   it('reports a legacy media directory the filesystem refused to move', async () => {
     const parent = await tempDir('avn-media-migrate-')
-    const legacy = join(parent, '.avn-coding-subscription-oauth-media')
-    const current = join(parent, '.avn-subscription-auth-media')
+    const legacy = join(parent, '.aeven-coding-subscription-oauth-media')
+    const current = join(parent, '.aeven-subscription-auth-media')
     await mkdir(legacy, { recursive: true, mode: 0o700 })
     const racing = await importWithFaults([{ op: 'rename', path: current, code: 'EACCES' }])
     await expect(racing.migrateLegacyMediaStoreDir(current, legacy)).rejects.toMatchObject({
@@ -1359,7 +1359,7 @@ describe('MediaStore open-flag derivation', () => {
   it('runs the Windows write and migration seams when the platform reports win32', async () => {
     const original = process.platform
     const parent = await tempDir('avn-media-platform-')
-    const legacy = join(parent, '.avn-coding-subscription-oauth-media')
+    const legacy = join(parent, '.aeven-coding-subscription-oauth-media')
     await mkdir(join(legacy, 'objects'), { recursive: true, mode: 0o700 })
     const root = join(parent, 'store')
     vi.resetModules()
@@ -1463,8 +1463,8 @@ describe('migrateLegacyMediaStoreDir', () => {
 
   it('moves a pre-rename directory and keeps its artifacts and mode', async () => {
     const parent = await tempParent()
-    const legacy = join(parent, '.avn-coding-subscription-oauth-media')
-    const current = join(parent, '.avn-subscription-auth-media')
+    const legacy = join(parent, '.aeven-coding-subscription-oauth-media')
+    const current = join(parent, '.aeven-subscription-auth-media')
     await mkdir(join(legacy, 'objects'), { recursive: true, mode: 0o700 })
     await writeFile(join(legacy, 'objects', 'clip.mp4'), sampleVideo(), { mode: 0o600 })
 
@@ -1476,8 +1476,8 @@ describe('migrateLegacyMediaStoreDir', () => {
 
   it('never overwrites an existing current directory', async () => {
     const parent = await tempParent()
-    const legacy = join(parent, '.avn-coding-subscription-oauth-media')
-    const current = join(parent, '.avn-subscription-auth-media')
+    const legacy = join(parent, '.aeven-coding-subscription-oauth-media')
+    const current = join(parent, '.aeven-subscription-auth-media')
     await mkdir(legacy, { recursive: true, mode: 0o700 })
     await writeFile(join(legacy, 'stale'), 'old', { mode: 0o600 })
     await mkdir(current, { recursive: true, mode: 0o700 })
@@ -1490,8 +1490,8 @@ describe('migrateLegacyMediaStoreDir', () => {
 
   it('does no work without a legacy directory, and refuses to follow a symlink', async () => {
     const parent = await tempParent()
-    const current = join(parent, '.avn-subscription-auth-media')
-    const legacy = join(parent, '.avn-coding-subscription-oauth-media')
+    const current = join(parent, '.aeven-subscription-auth-media')
+    const legacy = join(parent, '.aeven-coding-subscription-oauth-media')
     expect(await migrateLegacyMediaStoreDir(current, legacy)).toBe(false)
     expect(await migrateLegacyMediaStoreDir(current, current)).toBe(false)
 

@@ -18,7 +18,7 @@ Finally, resume never changed directory. The host re-execs `avn --resume=<id>` t
 
 The shared CLI configuration supplies one session root under the Harness home, the picker gains a workspace scope, and the handoff carries the target directory.
 
-**Storage.** The shared base owns the default in `apps/cli/config/base.cordis.yml`: its `session-persistence-jsonl` row calls the app-boot-provided `avnHomePath('sessions')`, which uses the canonical `AVN_HOME` resolver and its standard `~/.avn` fallback. TUI, Web, and headless therefore consume one default without a session-specific launcher patch or slot. An overlay or personal patch that states an explicit root replaces that row's whole `config` and remains the deployment's authoritative choice.
+**Storage.** The shared base owns the default in `apps/cli/config/base.cordis.yml`: its `session-persistence-jsonl` row calls the app-boot-provided `avnHomePath('sessions')`, which uses the canonical `AVN_HOME` resolver and its standard `~/.aeven` fallback. TUI, Web, and headless therefore consume one default without a session-specific launcher patch or slot. An overlay or personal patch that states an explicit root replaces that row's whole `config` and remains the deployment's authoritative choice.
 
 **Scope, not exclusion.** A workspace other than the current one is a display scope rather than a disabled reason. `showResume()` summarizes every record and the `ResumePicker` owns a `scope` of `'workspace' | 'all'`, defaulting to the current workspace so the common case is unchanged. Tab toggles; the scope line names the active scope and the count the other holds; each row in the all-workspaces scope reports its own workspace, and that label joins the searchable text only in the scope that shows it. A toggle clears the query and selection so the highlighted row always belongs to the visible list, and the per-row workspace line makes a row one terminal row taller in that scope, which the visible-count budget accounts for.
 
@@ -28,7 +28,7 @@ The shared CLI configuration supplies one session root under the Harness home, t
 
 ## Alternatives considered
 
-**Patch `persistenceRoot` from the `avn` launcher instead of changing the bundle default.** Rejected after finding that a loader patch assigns `config` wholesale. The personal `~/.avn/config.yaml` overlay already patches the `tui-agent` row with a partial config, which is exactly why `persistenceRoot` was falling back to the bundle default in the first place; a launcher patch would either be erased by that overlay or have to win over it and make the overlay unable to set the field. Owning the default in the bundle survives any partial patch and keeps one home for the fact.
+**Patch `persistenceRoot` from the `avn` launcher instead of changing the bundle default.** Rejected after finding that a loader patch assigns `config` wholesale. The personal `~/.aeven/config.yaml` overlay already patches the `tui-agent` row with a partial config, which is exactly why `persistenceRoot` was falling back to the bundle default in the first place; a launcher patch would either be erased by that overlay or have to win over it and make the overlay unable to set the field. Owning the default in the bundle survives any partial patch and keeps one home for the fact.
 
 **Keep `./.sessions` and additionally scan the Harness-home root.** Rejected: two roots means two SQLite indexes and a merged listing whose rows have different liveness and revision authorities, to preserve visibility of logs that the no-migration decision already gives up.
 

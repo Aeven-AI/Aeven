@@ -17,7 +17,7 @@ python python/sdk/examples/minimal.py \
   "Inspect the repository and fix the failing tests."
 ```
 
-Set `DEEPSEEK_BASE_URL` for a compatible proxy, `AVN_MODEL` for the script's default model, or `AVN_SYSTEM_PROMPT` for the deployment persona. `--model` is the single runtime model selection; no matching environment variable is required. `--profile` can select another SDK-serving profile. The selected home stores the generated `sdk-minimal` profile and uncompressed JSONL session logs under `sessions/`; the script never reads `~/.avn` implicitly.
+Set `DEEPSEEK_BASE_URL` for a compatible proxy, `AVN_MODEL` for the script's default model, or `AVN_SYSTEM_PROMPT` for the deployment persona. `--model` is the single runtime model selection; no matching environment variable is required. `--profile` can select another SDK-serving profile. The selected home stores the generated `sdk-minimal` profile and uncompressed JSONL session logs under `sessions/`; the script never reads `~/.aeven` implicitly.
 
 The shipped [`@aeven/sdk-minimal` bundle](../../../packages/bundle/sdk-minimal/README.md) is the complete explicit Cordis tree for this mode. It exposes exactly:
 

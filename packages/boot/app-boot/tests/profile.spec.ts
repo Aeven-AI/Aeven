@@ -364,8 +364,8 @@ describe('healProfilesModuleFallback', () => {
     await healProfilesModuleFallback({ installAnchor: installationAnchor, profile: profileA, home })
     await healProfilesModuleFallback({ installAnchor: installationAnchor, profile: profileB, home })
     const sharedFallback = join(home, 'profiles', 'node_modules')
-    const ownedA = join(profileA.dir, '.avn-module-fallback', 'node_modules', '@scope', 'bundle-only')
-    const ownedB = join(profileB.dir, '.avn-module-fallback', 'node_modules', '@scope', 'bundle-only')
+    const ownedA = join(profileA.dir, '.aeven-module-fallback', 'node_modules', '@scope', 'bundle-only')
+    const ownedB = join(profileB.dir, '.aeven-module-fallback', 'node_modules', '@scope', 'bundle-only')
 
     expect(realpathSync.native(readlinkSync(join(sharedFallback, 'shared'))))
       .toBe(realpathSync.native(join(installationAnchor, '..', 'node_modules', 'shared')))
@@ -438,7 +438,7 @@ describe('healProfilesModuleFallback', () => {
 
     await healProfilesModuleFallback({ installAnchor: installationAnchor, profile, home })
 
-    expect(readlinkSync(join(dir, '.avn-module-fallback', 'node_modules', 'bundle-only')))
+    expect(readlinkSync(join(dir, '.aeven-module-fallback', 'node_modules', 'bundle-only')))
       .toBe(realpathSync.native(realDependency))
   })
 
@@ -483,7 +483,7 @@ describe('healProfilesModuleFallback', () => {
 
     await healProfilesModuleFallback({ installAnchor: installationAnchor, profile, home })
 
-    const ownedModules = join(dir, '.avn-module-fallback', 'node_modules')
+    const ownedModules = join(dir, '.aeven-module-fallback', 'node_modules')
     expect(readlinkSync(join(ownedModules, 'nested-only'))).toBe(realpathSync.native(nestedOnly))
     expect(readlinkSync(join(ownedModules, 'explicit-only'))).toBe(realpathSync.native(explicitOnly))
   })
@@ -524,7 +524,7 @@ describe('healProfilesModuleFallback', () => {
     await healProfilesModuleFallback({ installAnchor: installationAnchor, profile, home })
     await healProfilesModuleFallback({ installAnchor: installationAnchor, profile, home })
 
-    const owned = join(dir, '.avn-module-fallback', 'node_modules', 'bundle-only')
+    const owned = join(dir, '.aeven-module-fallback', 'node_modules', 'bundle-only')
     expect(readlinkSync(owned)).toBe(realpathSync.native(nested))
     expect(JSON.parse(readFileSync(join(profileModules, 'bundle-only', 'package.json'), 'utf8')))
       .toMatchObject({ name: 'bundle-only' })
@@ -536,7 +536,7 @@ describe('healProfilesModuleFallback', () => {
     const home = tmp()
     const profile = stageProfile(home, 'managed', bundleAnchor)
     await healProfilesModuleFallback({ installAnchor: installationAnchor, profile, home })
-    const ownedModules = join(profile.dir, '.avn-module-fallback', 'node_modules')
+    const ownedModules = join(profile.dir, '.aeven-module-fallback', 'node_modules')
     const profileModules = join(profile.dir, 'node_modules')
     const foreignTarget = tmp()
     unlinkSync(join(profileModules, 'managed-dir'))
@@ -570,7 +570,7 @@ describe('healProfilesModuleFallback', () => {
     const profile = stageProfile(home, 'canonical', bundleAnchor)
     await healProfilesModuleFallback({ installAnchor: installationAnchor, profile, home })
     const profileLink = join(profile.dir, 'node_modules', 'fallback')
-    const ownedModules = join(profile.dir, '.avn-module-fallback', 'node_modules')
+    const ownedModules = join(profile.dir, '.aeven-module-fallback', 'node_modules')
     unlinkSync(profileLink)
     symlinkSync(join(realpathSync(ownedModules), 'fallback'), profileLink, 'junction')
 

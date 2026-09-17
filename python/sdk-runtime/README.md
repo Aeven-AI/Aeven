@@ -6,7 +6,7 @@ Platform runtime wheel for the DeepSeek Harness Python SDK. It packages the norm
 
 ## Installed commands and artifacts
 
-The wheel installs a `avn` console command and the `deepseek_harness_runtime` Python module. `avn` forwards its arguments to the bundled executable and requires a non-empty `AVN_HOME`; it never falls back to `~/.avn`.
+The wheel installs a `avn` console command and the `deepseek_harness_runtime` Python module. `avn` forwards its arguments to the bundled executable and requires a non-empty `AVN_HOME`; it never falls back to `~/.aeven`.
 
 Production executables are named `deepseek-harness-sdk-runtime-<platform>-<arch>` under the module's `runtime/` directory; Windows uses the `.exe` suffix. Linux and macOS wheels include a target-native `-rg` sidecar, Windows includes `-rg.exe`, and macOS also includes `-spawn-helper` for `node-pty`. Published targets are Linux x64, Linux arm64, macOS arm64, and Windows x64. The wheel tag and payload must match exactly; no Windows arm64 wheel is published.
 

@@ -44,7 +44,7 @@ export const PROFILES_DIR = 'profiles'
 export const PROFILE_PATCH_FILENAME = 'cordis.patch.yml'
 
 /** Profile-private package links projected into its pnpm-managed node_modules. */
-const PROFILE_MODULE_FALLBACK_DIR = '.avn-module-fallback'
+const PROFILE_MODULE_FALLBACK_DIR = '.aeven-module-fallback'
 
 /** The bundle half of the `avn` manifest section: what a bundle package exports. */
 export interface AvnBundleManifest {

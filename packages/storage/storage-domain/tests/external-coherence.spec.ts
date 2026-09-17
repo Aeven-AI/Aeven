@@ -1,7 +1,7 @@
 /**
  * Cross-process convergence over the real JSON backend: two independently
  * opened domains share one root, exactly as two harness processes share one
- * `~/.avn`. These run on disk rather than the memory double because the
+ * `~/.aeven`. These run on disk rather than the memory double because the
  * behavior under test is detection of another writer's bytes.
  * @module
  */

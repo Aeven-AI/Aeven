@@ -37,7 +37,7 @@ Mount the plugin with no required configuration. The defaults below define what 
 
 | Field | Default | Meaning |
 |---|---|---|
-| `avnHome` | resolved | Explicit harness home; omitted follows `$AVN_HOME`, then `~/.avn` |
+| `avnHome` | resolved | Explicit harness home; omitted follows `$AVN_HOME`, then `~/.aeven` |
 | `maxImageBytes` | `20 MiB` | Maximum encoded source bytes accepted for one image |
 | `maxImagesPerMessage` | `20` | Maximum image count accepted in one submitted message |
 | `maxMessageImageBytes` | `200 MiB` | Maximum aggregate encoded source bytes in one submitted message |

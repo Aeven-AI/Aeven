@@ -229,7 +229,7 @@ class FakeTerminalSandbox {
 function runtime(fake: FakeTerminalSandbox): E2BRuntime {
   return {
     cwd: '/workspace',
-    runtimeRoot: '/workspace/.avn-e2b',
+    runtimeRoot: '/workspace/.aeven-e2b',
     getSandbox: async () => fake.sandbox,
   } as unknown as E2BRuntime
 }

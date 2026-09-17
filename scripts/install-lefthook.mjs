@@ -18,7 +18,7 @@ import lefthookPackage from 'lefthook/package.json' with { type: 'json' }
 
 const MINIMUM_GIT = [2, 26, 0]
 const HOOKS_DIRECTORY = 'avn-hooks'
-const OWNERSHIP_MARKER = '.avn-lefthook-owned'
+const OWNERSHIP_MARKER = '.aeven-lefthook-owned'
 const OWNERSHIP_MARKER_VERSION = 1
 const OWNERSHIP_MARKER_OWNER = 'deepseek-harness worktree-local lefthook hooks'
 const INSTALL_LOCK = 'avn-lefthook-install.lock'

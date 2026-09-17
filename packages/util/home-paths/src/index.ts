@@ -9,7 +9,7 @@ import { homedir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 
 /** Directory name for the default DeepSeek Harness home under the OS home. */
-export const AVN_HOME_DIR_NAME = '.avn'
+export const AVN_HOME_DIR_NAME = '.aeven'
 
 /** Stable user-facing display form for the default DeepSeek Harness home. */
 export const DEFAULT_AVN_HOME_DISPLAY = `~/${AVN_HOME_DIR_NAME}`
@@ -77,7 +77,7 @@ export function expandHomePath(path: string): string {
  * Resolve the single-root DeepSeek Harness home.
  *
  * Precedence, highest first: an explicit configured path, `$AVN_HOME`, then
- * `~/.avn`. The harness keeps all user data under one root. An empty or
+ * `~/.aeven`. The harness keeps all user data under one root. An empty or
  * whitespace-only `$AVN_HOME` is treated as unset, so a blank override never
  * resolves the home to the current working directory.
  * @param configured - explicit harness-home override, which has highest precedence.
@@ -103,9 +103,9 @@ export function avnHomePath(...segments: string[]): string {
  * Describe a resolved harness home symbolically for user-facing display.
  *
  * It never returns an absolute machine path: the default home is labelled
- * `~/.avn`, and any configured home is labelled `$AVN_HOME`.
+ * `~/.aeven`, and any configured home is labelled `$AVN_HOME`.
  * @param resolvedHome - the absolute path returned by {@link resolveAvnHome}.
- * @returns `~/.avn` for the default home, otherwise `$AVN_HOME`.
+ * @returns `~/.aeven` for the default home, otherwise `$AVN_HOME`.
  */
 export function avnHomeDisplay(resolvedHome: string): string {
   return resolvedHome === resolve(defaultAvnHome()) ? DEFAULT_AVN_HOME_DISPLAY : `$${AVN_HOME_ENV}`

@@ -13,7 +13,7 @@ Python packages for driving DeepSeek Harness as a subprocess. The client SDK com
 
 ## Behavior
 
-The SDK starts the matching bundled `avn --profile sdk` runtime unless the caller selects another `avn` executable or profile. The runnable minimal example selects the shipped standalone `sdk-minimal` profile; the same runtime also packages `avn web` and its frontend assets for separate CLI use. Every launch requires an explicitly selected Harness home; Python never silently reads `~/.avn`. The [SDK reference](sdk/README.md) and [runtime carrier reference](sdk-runtime/README.md) own runtime selection, profiles, patches, and external plugin management.
+The SDK starts the matching bundled `avn --profile sdk` runtime unless the caller selects another `avn` executable or profile. The runnable minimal example selects the shipped standalone `sdk-minimal` profile; the same runtime also packages `avn web` and its frontend assets for separate CLI use. Every launch requires an explicitly selected Harness home; Python never silently reads `~/.aeven`. The [SDK reference](sdk/README.md) and [runtime carrier reference](sdk-runtime/README.md) own runtime selection, profiles, patches, and external plugin management.
 
 ## Contributor workflows
 

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-23-python-sdk-avn-profile-runtime.md
-2026-08-23-python-sdk-avn-profile-runtime.md: 4e930c5fd272773722a706c44526dfa5d10aff88
-2026-08-23-python-sdk-avn-profile-runtime.zh.md: a9f281f20bece398ca108f4752f8763615a0b8f2
+2026-08-23-python-sdk-avn-profile-runtime.md: 3faa9669527377db821008d05cdd0c8cc1c63533
+2026-08-23-python-sdk-avn-profile-runtime.zh.md: bd76c0755d54d1482b10229da1bbc7402948e1f6

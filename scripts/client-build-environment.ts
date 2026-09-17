@@ -29,7 +29,7 @@ const CLIENT_COMMIT_HASH_VARIABLE = 'AVN_CLIENT_COMMIT_HASH'
 const CLIENT_VERSION_VARIABLE = 'AVN_CLIENT_VERSION'
 
 /** Repository-relative path of the complete client build record. */
-export const CLIENT_BUILD_RECORD_PATH = '.avn-build/client-build-environment.json'
+export const CLIENT_BUILD_RECORD_PATH = '.aeven-build/client-build-environment.json'
 
 const CLIENT_BUILD_RECORD_FORMAT = 1
 const CLIENT_ARTIFACT_PATTERNS = [

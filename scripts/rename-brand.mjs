@@ -248,6 +248,20 @@ function fileLevelRules(wave) {
       { name: 'phrase-product-name', from: 'DeepSeek Harness', to: 'Aeven' },
     ]
   }
+  if (wave === 5) {
+    return [
+      // Not reachable by the run matcher: after wave 4 the text is `.avn`,
+      // which no longer contains `dsh`, so the run pattern never visits it.
+      // The product's home directory is `.aeven`, not `.avn`.
+      //
+      // The lookbehind is restricted to a quote, backtick or path separator
+      // because that is the only thing a path literal can be preceded by.
+      // Property access never is -- `existing?.avn`, `manifest(...).avn` and
+      // `manifest.avn` are all preceded by a value-ending character, and a
+      // looser lookbehind silently rewrote them.
+      { name: 'home-dir-avn', from: /(?<=['\`/])\.avn(?![A-Za-z0-9])/g, to: '.aeven' },
+    ]
+  }
   if (wave === 4) {
     return [
       // A fabricated git repo-format extension name used by the lefthook
@@ -274,10 +288,18 @@ function rewrite(text, wave) {
 
   let staged = text
   for (const rule of fileLevelRules(wave)) {
-    if (!staged.includes(rule.from)) continue
-    const parts = staged.split(rule.from)
-    for (let i = 1; i < parts.length; i += 1) bump(rule.name)
-    staged = parts.join(rule.to)
+    if (typeof rule.from === 'string') {
+      if (!staged.includes(rule.from)) continue
+      const parts = staged.split(rule.from)
+      for (let i = 1; i < parts.length; i += 1) bump(rule.name)
+      staged = parts.join(rule.to)
+      continue
+    }
+    rule.from.lastIndex = 0
+    const matched = staged.match(rule.from)
+    if (matched === null) continue
+    staged = staged.replace(rule.from, rule.to)
+    for (let i = 0; i < matched.length; i += 1) bump(rule.name)
   }
 
   const out = staged.replace(RUN_PATTERN, (match) => {

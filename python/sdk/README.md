@@ -12,7 +12,7 @@ python -m pip install deepseek-harness-sdk
 
 The Python SDK has no separate application entrypoint. It launches the bundled `avn` CLI with `--profile sdk`; the selected profile owns the JSON-RPC server, agent composition, credentials, persistence, tools, and shutdown behavior.
 
-Every launch requires an explicit Harness home. Pass `avn_home` or provide a non-empty `AVN_HOME` in the child environment. The SDK deliberately never discovers `~/.avn`.
+Every launch requires an explicit Harness home. Pass `avn_home` or provide a non-empty `AVN_HOME` in the child environment. The SDK deliberately never discovers `~/.aeven`.
 
 ```py
 from deepseek_harness import DeepSeekHarness

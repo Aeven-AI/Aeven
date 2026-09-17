@@ -6,7 +6,7 @@ DeepSeek Harness Python SDK 的平台运行时 wheel。它把普通 `avn` CLI �
 
 ## 安装命令与产物
 
-Wheel 会安装 `avn` 控制台命令和 `deepseek_harness_runtime` Python 模块。`avn` 将参数转发给内置可执行程序，并要求非空 `AVN_HOME`；它不会回退到 `~/.avn`。
+Wheel 会安装 `avn` 控制台命令和 `deepseek_harness_runtime` Python 模块。`avn` 将参数转发给内置可执行程序，并要求非空 `AVN_HOME`；它不会回退到 `~/.aeven`。
 
 生产可执行程序位于模块的 `runtime/` 目录，命名为 `deepseek-harness-sdk-runtime-<platform>-<arch>`；Windows 使用 `.exe` 后缀。Linux 与 macOS wheel 包含目标平台原生的 `-rg` 伴随程序，Windows 包含 `-rg.exe`，macOS 还包含 `node-pty` 使用的 `-spawn-helper`。已发布目标是 Linux x64、Linux arm64、macOS arm64 与 Windows x64。Wheel tag 必须与载荷严格匹配；不发布 Windows arm64 wheel。
 

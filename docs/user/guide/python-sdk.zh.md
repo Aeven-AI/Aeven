@@ -76,7 +76,7 @@ python python/sdk/examples/minimal.py `
   "Inspect the repository and fix the failing tests."
 ```
 
-脚本会打印最终 assistant 响应。所选 home 会保存生成的 `sdk-minimal` profile、已安装插件，以及 `sessions/` 下的未压缩 JSONL 会话日志。示例与 SDK 绝不会静默读取 `~/.avn`。
+脚本会打印最终 assistant 响应。所选 home 会保存生成的 `sdk-minimal` profile、已安装插件，以及 `sessions/` 下的未压缩 JSONL 会话日志。示例与 SDK 绝不会静默读取 `~/.aeven`。
 
 ## 在程序中使用 SDK
 

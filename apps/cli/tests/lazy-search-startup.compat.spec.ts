@@ -49,7 +49,7 @@ function runBuiltWeb(cwd: string): Promise<{ stdout: string; stderr: string; cod
     const env: NodeJS.ProcessEnv = {
       ...process.env,
       DEEPSEEK_API_KEY: 'avn-cli-smoke-dummy-key',
-      AVN_HOME: join(cwd, '.avn'),
+      AVN_HOME: join(cwd, '.aeven'),
     }
     delete env.DEEPSEEK_BASE_URL
     delete env.NODE_OPTIONS

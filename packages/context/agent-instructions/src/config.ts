@@ -16,7 +16,7 @@ const RESERVED_PATH_SEGMENTS = new Set(['', '.', '..'])
 
 /** User-facing workspace instruction loader configuration. */
 export interface Config {
-  /** Harness home containing the fixed user-global `AGENTS.md`; defaults to `$AVN_HOME` or `~/.avn`. */
+  /** Harness home containing the fixed user-global `AGENTS.md`; defaults to `$AVN_HOME` or `~/.aeven`. */
   avnHome?: string
   /** Directory entries that identify the project root while walking upward from the session cwd. */
   projectRootMarkers?: string[]

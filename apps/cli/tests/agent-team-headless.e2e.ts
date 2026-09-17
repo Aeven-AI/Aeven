@@ -20,7 +20,7 @@ describe('avn run with Agent Teams enabled', () => {
   it('runs two teammates, durable peer mail, dependent tasks, waiting, and final aggregation', async () => {
     const cwd = await mkdtemp(join(tmpdir(), 'avn-agent-team-headless-'))
     try {
-      const home = join(cwd, '.avn')
+      const home = join(cwd, '.aeven')
       const sessions = join(home, 'sessions')
       const profileDir = join(home, 'profiles', 'headless')
       await mkdir(profileDir, { recursive: true })

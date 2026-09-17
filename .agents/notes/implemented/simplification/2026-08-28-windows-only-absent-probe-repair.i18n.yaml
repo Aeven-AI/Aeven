@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/simplification/2026-08-28-windows-only-absent-probe-repair.md
-2026-08-28-windows-only-absent-probe-repair.md: 63f03e8dd442497655c20c3422ed661c64ac1881
-2026-08-28-windows-only-absent-probe-repair.zh.md: 6062e728f277e741243d7faf8d01bc03f80a81fc
+2026-08-28-windows-only-absent-probe-repair.md: 7f27d307655a03f2d6cbf11eb9f3c3f20e9e50a5
+2026-08-28-windows-only-absent-probe-repair.zh.md: bb04fa1dd0bc9a3f4320e0b291f872374a51be37

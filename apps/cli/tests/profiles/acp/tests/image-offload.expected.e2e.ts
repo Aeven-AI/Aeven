@@ -126,7 +126,7 @@ it('pins native DeepSeek Files offload and inline fallback in assembled requests
     const accessText = (cwd: string): string => {
       const attachmentPath = join(
         cwd,
-        '.avn',
+        '.aeven',
         'attachments',
         'v1',
         'objects',

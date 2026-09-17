@@ -129,7 +129,7 @@ export function launchAcpTestAgent(options: AcpTestLaunchOptions): LaunchedAcpTe
     ...agent.profile === undefined ? {} : { sourceImport: 'tsx/esm' },
     env: {
       ...options.env,
-      AVN_HOME: join(cwd, '.avn'),
+      AVN_HOME: join(cwd, '.aeven'),
       AVN_AGENTS_HOME: join(cwd, '.agents'),
     },
   })
@@ -355,7 +355,7 @@ function profileArgs(
   const patches = snapshotMode === 'replay'
     ? [base, replayPatchPath(selected)]
     : [...new Set([base, selected])]
-  const materializedRoot = join(cwd, '.avn-profile-patches')
+  const materializedRoot = join(cwd, '.aeven-profile-patches')
   mkdirSync(materializedRoot, { recursive: true })
   const materializedDir = mkdtempSync(join(materializedRoot, 'launch-'))
   const materialized = patches.map((file, index) => materializeProfilePatch(file, cwd, materializedDir, index))
@@ -393,7 +393,7 @@ function linkProfilePackage(source: string, cwd: string, packageName: string): v
   const packageDir = packageDirFromPatch(source, packageName)
   // The package may instead belong to the avn installation; profile boot heals those links.
   if (packageDir === undefined) return
-  const link = join(cwd, '.avn', 'profiles', 'node_modules', packageName)
+  const link = join(cwd, '.aeven', 'profiles', 'node_modules', packageName)
   mkdirSync(dirname(link), { recursive: true })
   if (existsSync(link)) {
     if (realpathSync(link) !== packageDir) {

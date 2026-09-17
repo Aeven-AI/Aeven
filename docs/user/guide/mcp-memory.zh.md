@@ -50,7 +50,7 @@ npm install --global @modelcontextprotocol/server-memory@2026.7.4
 avn web --patch "$PWD/apps/cli/config/examples/mcp-memory/mcp-reference-memory.cordis.yml"
 ```
 
-该参考服务器存储本地知识图谱，并公开实体、关系、观察、读取、搜索和打开工具。它不需要模型或 embedding 服务。该示例将 JSONL 存储在 `$HOME/.avn-mcp-reference-memory.jsonl`，而不是已安装的 npm 包目录中。若要覆盖该路径，请在启动 AVN 前设置 `MEMORY_FILE_PATH`。
+该参考服务器存储本地知识图谱，并公开实体、关系、观察、读取、搜索和打开工具。它不需要模型或 embedding 服务。该示例将 JSONL 存储在 `$HOME/.aeven-mcp-reference-memory.jsonl`，而不是已安装的 npm 包目录中。若要覆盖该路径，请在启动 AVN 前设置 `MEMORY_FILE_PATH`。
 
 搜索只对实体名称、类型和观察进行不区分大小写的子字符串匹配，不是语义检索。该服务器不提供 embedding、自动摘要、冲突消解或遗忘策略。
 

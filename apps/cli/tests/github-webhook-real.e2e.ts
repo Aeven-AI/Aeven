@@ -390,7 +390,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('GitHub webhook through the real 
         AVN_GITHUB_E2E_WORKSPACE: workspacePath,
         AVN_GITHUB_WEBHOOK_PORT: String(webhookPort),
         AVN_GITHUB_WEBHOOK_SECRET: SECRET,
-        AVN_HOME: join(root, '.avn'),
+        AVN_HOME: join(root, '.aeven'),
         AVN_TELEMETRY_DISABLED: '1',
       },
       stdio: ['ignore', 'pipe', 'pipe'],

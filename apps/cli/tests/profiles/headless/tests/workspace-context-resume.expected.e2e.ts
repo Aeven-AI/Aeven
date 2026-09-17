@@ -64,7 +64,7 @@ async function seedVisibleBaseline(
     content: file.content,
   })), { maxBytes: 65536 })
   const config = resolveConfig({
-    avnHome: join(cwd, '.avn'),
+    avnHome: join(cwd, '.aeven'),
     maxBytes: 65536,
     ...options.instructionFileCandidates === undefined
       ? {}

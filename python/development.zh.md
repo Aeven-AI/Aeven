@@ -47,7 +47,7 @@ with DeepSeekHarness(avn_home="/absolute/path/to/test-avn-home") as harness:
     print(harness.run("say hi").final_response)
 ```
 
-也可以导出非空 `AVN_HOME`。SDK 会拒绝可能静默使用 `~/.avn` 的启动。
+也可以导出非空 `AVN_HOME`。SDK 会拒绝可能静默使用 `~/.aeven` 的启动。
 
 ## 针对 Node 源码运行
 

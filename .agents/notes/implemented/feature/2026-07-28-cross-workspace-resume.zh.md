@@ -18,7 +18,7 @@ Status: implemented
 
 共享 CLI（命令行界面）配置提供 Harness home 下的同一个会话根目录，选择器获得 workspace 范围，交接过程携带目标目录。
 
-**存储。** 共享 base 在 `apps/cli/config/base.cordis.yml` 中拥有默认值：其 `session-persistence-jsonl` 配置项调用由 app-boot 提供的 `avnHomePath('sessions')`，该函数使用规范的 `AVN_HOME` 解析器及其标准的 `~/.avn` 回退值。因此 TUI、Web 与 headless 使用同一个默认值，无需针对会话的启动器补丁或 slot。若 overlay 或个人 patch 显式声明根目录，它会整体替换该配置项的 `config`，并继续作为部署的权威选择。
+**存储。** 共享 base 在 `apps/cli/config/base.cordis.yml` 中拥有默认值：其 `session-persistence-jsonl` 配置项调用由 app-boot 提供的 `avnHomePath('sessions')`，该函数使用规范的 `AVN_HOME` 解析器及其标准的 `~/.aeven` 回退值。因此 TUI、Web 与 headless 使用同一个默认值，无需针对会话的启动器补丁或 slot。若 overlay 或个人 patch 显式声明根目录，它会整体替换该配置项的 `config`，并继续作为部署的权威选择。
 
 **是范围，不是排除。** 当前 workspace 之外的 workspace 是一种展示范围，而不是禁用理由。`showResume()` 汇总每一条记录，`ResumePicker` 持有一个 `'workspace' | 'all'` 的 `scope`，默认为当前 workspace，因此常见场景毫无变化。Tab 切换范围；范围行会说明当前生效的范围，以及另一个范围下的数量；在全 workspace 范围中每一行都报告自己的 workspace，而该标签只在展示它的范围里才加入可搜索文本。切换范围会清空查询和选中项，使高亮行始终属于可见列表；而逐行的 workspace 行会让该范围下的每一行在终端里多占一行，可见条数预算已经把这一点计入。
 
@@ -28,7 +28,7 @@ Status: implemented
 
 ## Alternatives considered
 
-**从 `avn` 启动器给 `persistenceRoot` 打补丁，而不是改动组合包默认值。** 在发现 loader 补丁会整体赋值 `config` 之后否决。个人的 `~/.avn/config.yaml` 覆盖层已经用一份局部配置给 `tui-agent` 那一项打了补丁，这恰恰就是 `persistenceRoot` 一开始会退回到组合包默认值的原因；启动器补丁要么会被该覆盖层擦除，要么必须压过它，从而让覆盖层再也无法设置这个字段。把默认值放在组合包里能经受任何局部补丁，并让这项事实只有一个归属。
+**从 `avn` 启动器给 `persistenceRoot` 打补丁，而不是改动组合包默认值。** 在发现 loader 补丁会整体赋值 `config` 之后否决。个人的 `~/.aeven/config.yaml` 覆盖层已经用一份局部配置给 `tui-agent` 那一项打了补丁，这恰恰就是 `persistenceRoot` 一开始会退回到组合包默认值的原因；启动器补丁要么会被该覆盖层擦除，要么必须压过它，从而让覆盖层再也无法设置这个字段。把默认值放在组合包里能经受任何局部补丁，并让这项事实只有一个归属。
 
 **保留 `./.sessions`，并额外扫描 Harness home 根目录。** 否决：两个根目录意味着两份 SQLite 索引，以及一份合并列表——其中各行的活跃状态与版本权威来源并不相同，而这一切只是为了保住不做迁移的决策本就已经放弃的那部分日志可见性。
 

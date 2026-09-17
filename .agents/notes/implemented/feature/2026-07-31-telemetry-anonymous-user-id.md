@@ -10,7 +10,7 @@ Session telemetry is mounted by default ([default-mount Note](2026-07-31-web-tel
 
 ## Decision
 
-`getOrCreateAnonymousUserId()` returns the bare UUID line in `$AVN_HOME/.anonymous-user-id` (resolved by `resolveAvnHome`, `$AVN_HOME` > `~/.avn`), minting and persisting a random UUID v4 on first use; the backend constructor carries it as the Resource's `user.id` (the OTel semconv user attribute), once per export batch. The original implementation lived inside `session-telemetry-otel` because no second real consumer existed. `/feedback` later became that consumer, so [the shared-id decision](../architecture/2026-08-07-shared-feedback-telemetry-user-id.md) moves ownership to `@aeven/anonymous-user-id` without changing the storage, anonymity, concurrency, or loss semantics recorded here. [Direct DeepSeek request identity](2026-08-11-deepseek-request-user-id-header.md) is a third consumer of the same id.
+`getOrCreateAnonymousUserId()` returns the bare UUID line in `$AVN_HOME/.anonymous-user-id` (resolved by `resolveAvnHome`, `$AVN_HOME` > `~/.aeven`), minting and persisting a random UUID v4 on first use; the backend constructor carries it as the Resource's `user.id` (the OTel semconv user attribute), once per export batch. The original implementation lived inside `session-telemetry-otel` because no second real consumer existed. `/feedback` later became that consumer, so [the shared-id decision](../architecture/2026-08-07-shared-feedback-telemetry-user-id.md) moves ownership to `@aeven/anonymous-user-id` without changing the storage, anonymity, concurrency, or loss semantics recorded here. [Direct DeepSeek request identity](2026-08-11-deepseek-request-user-id-header.md) is a third consumer of the same id.
 
 | Ruling | Value | Rationale |
 |---|---|---|

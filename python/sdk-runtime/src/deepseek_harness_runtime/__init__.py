@@ -161,7 +161,7 @@ def main() -> None:
     if not os.environ.get("AVN_HOME", "").strip():
         print(
             "avn: the Python runtime command requires an explicit AVN_HOME; "
-            "it never uses ~/.avn implicitly",
+            "it never uses ~/.aeven implicitly",
             file=sys.stderr,
         )
         raise SystemExit(2)

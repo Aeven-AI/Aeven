@@ -12,7 +12,7 @@ Web 的 Appearance、Language 和繁忙态 Enter 偏好原本存在浏览器 `lo
 
 ## 决策
 
-各领域所属的 Host half 注册三份 schema：可选的 `locale.preference`（`zh` 或 `en`，缺失时交由浏览器决定）、`ui-theme.preference`（`light`、`dark` 或 `system`，默认为 `system`），以及 `ui-conversation.busyEnter`（`queue` 或 `steer`，默认为 `queue`）。本地 settings 提供方将显式选择存入 `$AVN_HOME/settings.yaml`，在使用默认 home 时，该路径解析为 `~/.avn/settings.yaml`。API 代理在 Connection 浏览器认证之后服务每一个已注册的 namespace；字段角色仍会脱敏机密值。
+各领域所属的 Host half 注册三份 schema：可选的 `locale.preference`（`zh` 或 `en`，缺失时交由浏览器决定）、`ui-theme.preference`（`light`、`dark` 或 `system`，默认为 `system`），以及 `ui-conversation.busyEnter`（`queue` 或 `steer`，默认为 `queue`）。本地 settings 提供方将显式选择存入 `$AVN_HOME/settings.yaml`，在使用默认 home 时，该路径解析为 `~/.aeven/settings.yaml`。API 代理在 Connection 浏览器认证之后服务每一个已注册的 namespace；字段角色仍会脱敏机密值。
 
 `avn-client-ui-settings` 持有一个浏览器全局的 settings describe 镜像，并提供 `ctx.settingsScope.bind(spec)` 作为该镜像上的逐 namespace selector。镜像在开始后台读取之前安装 `settings/document-updated` 和 `connection/reset` 监听器，因此任何 settings 传输都不会阻塞插件激活，失效通知也不会掉入先读取、后订阅的空档。每个绑定的 scope 会发布一个供领域服务订阅的快照 store（状态、分节值、revision、可写性、host／内存模式），自身不再增加协议读取或监听器。默认解码器会对照该 namespace 自身的序列化 wire schema（经同包的 `ctx.settingsSchema` 服务还原）校验每个传入分节，因此各领域无需携带手写的 wire 校验器。领域服务把 scope 当作普通的构造函数协作者接收，立即发布各自的暂定默认值：由浏览器派生的 locale、系统主题和 Queue；随后采纳已获接受的 Host 分节，但不将其写回；不带 scope 构造的服务——独立词典或政策 fixture（测试前置数据）——则仅停留在进程本地。共享读取与失效生命周期由后续的 [settings describe 镜像决策](../architecture/2026-08-17-settings-describe-mirror.zh.md)规定。
 

@@ -73,7 +73,7 @@ export type CodingOAuthRoute = (typeof CODING_OAUTH_ROUTES)[number]
  * the pre-rename directory as a shared on-disk contract, so it stays reachable as
  * the legacy name: an existing install's artifacts are moved over on first start.
  */
-export const IMAGINE_MEDIA_STORE_DIRNAME = '.avn-subscription-auth-media' as const
+export const IMAGINE_MEDIA_STORE_DIRNAME = '.aeven-subscription-auth-media' as const
 export { IMAGINE_MEDIA_STORE_DIRNAME as LEGACY_IMAGINE_MEDIA_STORE_DIRNAME } from 'dsh-coding-oauth-core'
 
 /** Multi-account mutations (peer core contracts do not list these yet). */

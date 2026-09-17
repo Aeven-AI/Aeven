@@ -518,7 +518,7 @@ export class E2BFileSystem extends FileSystem {
     const sandbox = await this.ctx.e2b.getSandbox()
     const targetPath = String(target.targetKey)
     const versionId = randomUUID()
-    const stagingDirectory = posix.join(posix.dirname(targetPath), `.avn-${randomUUID()}.tmp`)
+    const stagingDirectory = posix.join(posix.dirname(targetPath), `.aeven-${randomUUID()}.tmp`)
     const temporary = posix.join(stagingDirectory, 'content')
     let stagingDirectoryCreated = false
     try {

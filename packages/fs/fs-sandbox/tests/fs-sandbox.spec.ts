@@ -42,7 +42,7 @@ beforeEach(async () => {
   // would be legitimately writable. Sibling dirs under HOME are outside every
   // grant, so containment failures are real denials. (The bwrap e2e roots its
   // workspaces under HOME for the same reason.)
-  base = await mkdtemp(join(homedir(), '.avn-fssbx-'))
+  base = await mkdtemp(join(homedir(), '.aeven-fssbx-'))
   workspace = join(base, 'ws')
   outside = join(base, 'out')
   await mkdir(workspace)

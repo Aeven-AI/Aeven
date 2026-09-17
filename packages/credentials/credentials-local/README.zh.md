@@ -42,7 +42,7 @@ kind: "package-reference"
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `path` | `<harness home>/.credentials.yaml` | 凭据文件所在位置 |
-| `avnHome` | `$AVN_HOME` 或 `~/.avn` | `path` 缺省时使用的 harness home |
+| `avnHome` | `$AVN_HOME` 或 `~/.aeven` | `path` 缺省时使用的 harness home |
 | `watch` | `true` | 文件在磁盘上变化时自动重载 |
 | `debounceMs` | `100` | 变化后等待这么久再重载，单位为毫秒 |
 

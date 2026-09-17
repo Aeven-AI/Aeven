@@ -183,7 +183,7 @@ describe('DeepSeekHarness', () => {
   it('resolves a relative launch cwd to an absolute workspace before the handshake', async () => {
     // vitest workers forbid chdir, so derive a RELATIVE path from the real
     // process cwd to a temp worker dir; resolution is lexical either way.
-    const dir = await mkdtemp(join(process.cwd(), '.avn-sdk-client-relcwd-'))
+    const dir = await mkdtemp(join(process.cwd(), '.aeven-sdk-client-relcwd-'))
     cleanups.push(() => rm(dir, { recursive: true, force: true }))
     const recordFile = join(dir, 'init.jsonl')
     const inner = join(dir, 'worker')

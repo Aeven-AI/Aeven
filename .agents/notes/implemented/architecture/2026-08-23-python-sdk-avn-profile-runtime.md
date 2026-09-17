@@ -18,7 +18,7 @@ The runtime executable packages `@aeven/cli` and runs its ordinary command gramm
 
 The public Python configuration is `avn_bin`, `profile`, ordered `patches`, `avn_home`, process cwd/environment, provider/model/token selection, a bounded initialization timeout, and optional turn/shutdown timeouts. It does not expose a complete Cordis tree or arbitrary launch argv. `RunResult` reports the protocol-owned run values and does not duplicate the profile's persistence path.
 
-Every Python launch requires either explicit `avn_home` or a non-empty `AVN_HOME` in the child environment. The SDK never discovers `~/.avn`. The selected home consistently owns profiles, external plugins, credentials, settings, and sessions.
+Every Python launch requires either explicit `avn_home` or a non-empty `AVN_HOME` in the child environment. The SDK never discovers `~/.aeven`. The selected home consistently owns profiles, external plugins, credentials, settings, and sessions.
 
 ### Plugin customization
 
@@ -44,7 +44,7 @@ This decision implements and supersedes the Python exception and deferred-migrat
 
 **Keep complete `cordis.yml` as an advanced escape hatch.** Rejected because it preserves a second application assembly and lets a caller bypass profile environment, plugin, and shutdown ownership.
 
-**Silently use `~/.avn` for compatibility.** Rejected because an SDK process must not inherit a person's plugins, credentials, settings, or sessions without an explicit choice.
+**Silently use `~/.aeven` for compatibility.** Rejected because an SDK process must not inherit a person's plugins, credentials, settings, or sessions without an explicit choice.
 
 **Copy the virtual dependency tree into every home.** Rejected because it duplicates hundreds of megabytes and loads a second Cordis instance. Export-preserving proxies are small and retain module identity.
 

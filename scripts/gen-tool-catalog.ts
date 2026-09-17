@@ -435,7 +435,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
       await ctx.plugin(AgentRegistry)
       await ctx.plugin(SkillRegistry)
       await ctx.plugin(SkillFileSystem, {
-        avnHome: resolve(root, '.tmp/tool-catalog/.avn'),
+        avnHome: resolve(root, '.tmp/tool-catalog/.aeven'),
         agentsHome: resolve(root, '.tmp/tool-catalog/.agents'),
       })
       await ctx.plugin(ToolSkill)

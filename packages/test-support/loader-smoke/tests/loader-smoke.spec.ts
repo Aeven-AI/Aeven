@@ -37,7 +37,7 @@ describe('runLoaderSmoke', () => {
       marker: 'present',
       input: '',
     })
-    expect(canonicalTempPath(output.avnHome)).toBe(canonicalTempPath(join(output.cwd, '.avn')))
+    expect(canonicalTempPath(output.avnHome)).toBe(canonicalTempPath(join(output.cwd, '.aeven')))
     expect(canonicalTempPath(output.agentsHome)).toBe(canonicalTempPath(join(output.cwd, '.agents')))
     expect(result.stderr).toContain('fixture stderr')
     expect(existsSync(output.cwd)).toBe(false)

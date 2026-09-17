@@ -16,7 +16,7 @@ Status: implemented
 
 ## Testing
 
-借用测试套件既有的模块 mock 统计 `node:fs/promises` 调用，对照一个五 project 目录的存储——即真实 `~/.avn/sessions` 的布局：
+借用测试套件既有的模块 mock 统计 `node:fs/promises` 调用，对照一个五 project 目录的存储——即真实 `~/.aeven/sessions` 的布局：
 
 | 操作 | 改动前 | 改动后 |
 |---|---|---|

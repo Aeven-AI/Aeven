@@ -42,7 +42,7 @@ export default async function open(url) {
   // remains alive, so the assembled test detects an early helper exit.
   const launcher = spawn(process.execPath, [
     '--eval', handoffProbe,
-    '--', join(process.cwd(), `.avn-browser-open-${process.ppid}`), String(process.pid),
+    '--', join(process.cwd(), `.aeven-browser-open-${process.ppid}`), String(process.pid),
   ], { stdio: 'ignore' })
   launcher.unref()
   return launcher

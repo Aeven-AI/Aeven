@@ -305,7 +305,7 @@ async function setup(remote = new FakeRemote()): Promise<{ ctx: Context; fs: E2B
   const ctx = new Context()
   const runtime = {
     cwd: '/workspace',
-    runtimeRoot: '/workspace/.avn-e2b',
+    runtimeRoot: '/workspace/.aeven-e2b',
     getSandbox: async () => remote.sandbox,
   } as unknown as E2BRuntime
   ctx.provide('e2b', runtime)
@@ -358,7 +358,7 @@ describe('E2BFileSystem identity, metadata, and reads', () => {
     const outside = await fs.resolve('/outside.ts')
 
     expect(fs.processPath(nested)).toBe('/workspace/nested/multibyte # file.ts')
-    expect(fs.processPathFromHostPath('/Users/alice/.avn/attachments/object')).toBeUndefined()
+    expect(fs.processPathFromHostPath('/Users/alice/.aeven/attachments/object')).toBeUndefined()
     expect(fs.fileUrl(nested)).toBe('file:///workspace/nested/multibyte%20%23%20file.ts')
     expect(fs.contains(workspace, workspace)).toBe(true)
     expect(fs.contains(workspace, nested)).toBe(true)

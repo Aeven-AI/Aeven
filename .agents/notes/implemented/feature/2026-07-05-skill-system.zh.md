@@ -18,7 +18,7 @@ DeepSeek Harness 使用同一原语，使项目特定的评审、插件编写和
 
 提供方插件在 `apply()` 期间同步注册。提供方成员资格是由直接 effect 持有的状态：注册与 dispose（资源释放）同步地使已完成的目录失效，发现操作按需读取当前提供方映射而非监听注册表变更事件。提供方目录从等待的 `list()` 调用返回排序后的候选项，远程提供方在此过程中执行初始化、认证和发现，同时遵守查找的 abort 信号。注册表校验每个候选项，按排名、提供方注册顺序和提供方内部顺序以先到先得方式解决同名 skill 冲突，然后按 skill 名称排序摘要以保证消费方获得确定性结果。它仅缓存已完成的目录快照，并在发现过程中提供方／运行时修订版本发生变化时重试，因此卸载操作不会将一个陈旧且不可解析的 skill 冻结到会话目录中。运行时 `ctx.skills.register(...)` 仍作为嵌入式进程内 skill 的便捷方式保留，使用 project 优先于 user 的优先级；`runtime` 保留为注册表拥有的提供方名称。
 
-本地提供方按先到先得的排名顺序扫描 cwd 敏感的项目根目录、自定义根目录和用户根目录：项目 `.avn`、项目 `.agents`、`customSkillDirs`、用户 `.avn`，然后是用户 `.agents`。用户 `.avn/skills` 扫描跳过 `.system`，以免系统拥有的目录被当作普通用户内容处理。本地提供方不会合成内置系统 skill；已配置的 bundled 根目录和专用提供方会提供额外 skill。
+本地提供方按先到先得的排名顺序扫描 cwd 敏感的项目根目录、自定义根目录和用户根目录：项目 `.aeven`、项目 `.agents`、`customSkillDirs`、用户 `.aeven`，然后是用户 `.agents`。用户 `.aeven/skills` 扫描跳过 `.system`，以免系统拥有的目录被当作普通用户内容处理。本地提供方不会合成内置系统 skill；已配置的 bundled 根目录和专用提供方会提供额外 skill。
 
 每个 skill 是带 YAML frontmatter 的 `<name>/SKILL.md` 或 `<name>.md`。`name` 和 `description` 为必填；`whenToUse`、`metadata`、`disable-model-invocation` 和 `user-invocable` 为可选。名称采用 kebab-case。调用字段会投影到类型化的嵌套策略中，具体由[模型与用户独立调用决策](2026-07-28-skill-invocation-policy.zh.md)定义；解析器会拒绝旧的驼峰拼写。YAML frontmatter 使用 `yaml` 包解析，而非 `js-yaml` 或手写解析器：`yaml` 是本包已声明的现代解析器，足以满足有限的 frontmatter 需求，窄解析器要么拒绝用户预期可用的合法 YAML，要么膨胀为一个未经评审的 YAML 子集。
 
@@ -40,7 +40,7 @@ DeepSeek Harness 使用同一原语，使项目特定的评审、插件编写和
 
 **使用系统提示词段落。** 否决，因为渲染后的系统提示词是单一字符串，而目录是一条 user-role `<system-reminder>` 消息。[仅请求的会话前缀扩展点](../../archived/feature/2026-07-07-session-prefix.md)（已归档）是最初的机制；统一带来源消息的决策移除该扩展点后，目录改为具有相同消息形状的持久化带来源注入。
 
-**在 `~/.avn/skills/.system` 下物化内置 AVN 编写 skill。** 否决，因为打包的 skill 不会在启动时写入用户主目录，嵌入式或远程提供方在配置后提供 skill。
+**在 `~/.aeven/skills/.system` 下物化内置 AVN 编写 skill。** 否决，因为打包的 skill 不会在启动时写入用户主目录，嵌入式或远程提供方在配置后提供 skill。
 
 **递归发现嵌套的 `**/SKILL.md`。** 否决。扁平文件和一级目录包覆盖了配置的根目录，同时使重复处理和目录顺序易于推理。
 

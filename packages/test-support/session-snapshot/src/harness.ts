@@ -254,7 +254,7 @@ export async function runScenario(input: InputScript, opts: RunOptions): Promise
     }
     await opts.prepareWorkspace?.(cwd)
     const initialWorkspace = await captureWorkspaceSnapshot(cwd, {
-      ignoredRootEntries: ['.agents', '.avn', '.avn-profile-patches', '.avn-snapshot-stream-ready'],
+      ignoredRootEntries: ['.agents', '.aeven', '.aeven-profile-patches', '.aeven-snapshot-stream-ready'],
     })
     const env: NodeJS.ProcessEnv = {
       ...opts.env,
@@ -268,7 +268,7 @@ export async function runScenario(input: InputScript, opts: RunOptions): Promise
       AVN_SNAPSHOT_FILE: opts.fixtureFile,
       AVN_SNAPSHOT_SESSIONS_ROOT: sessionsRoot,
       AVN_SNAPSHOT_SPILL_ROOT: spillRoot,
-      AVN_HOME: join(cwd, '.avn'),
+      AVN_HOME: join(cwd, '.aeven'),
       AVN_AGENTS_HOME: join(cwd, '.agents'),
       ...opts.overrideFile !== undefined ? { AVN_SNAPSHOT_OVERRIDE: opts.overrideFile } : {},
       ...opts.childFiles !== undefined && opts.childFiles.length > 0
@@ -342,7 +342,7 @@ export async function runScenario(input: InputScript, opts: RunOptions): Promise
     // generated dirs still exist, ordered primary-first.
     sessionLogs = await harvestSessionLogs(sessionsRoot)
     const finalWorkspace = await captureWorkspaceSnapshot(cwd, {
-      ignoredRootEntries: ['.agents', '.avn', '.avn-profile-patches', '.avn-snapshot-stream-ready'],
+      ignoredRootEntries: ['.agents', '.aeven', '.aeven-profile-patches', '.aeven-snapshot-stream-ready'],
     })
     return {
       rawStdout: launched.rawStdout(),

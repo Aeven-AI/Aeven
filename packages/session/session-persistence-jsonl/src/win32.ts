@@ -144,7 +144,7 @@ export async function ensureDurableDirectoryWin32(target: string): Promise<void>
 async function createLeafDirectoryWin32(parent: string, target: string): Promise<void> {
   // Keep the staging component independent of the target basename so a legal
   // 255-byte target component does not make mkdtemp's sibling name too long.
-  const staging = await mkdtemp(toNamespacedPath(join(parent, '.avn-mkdir-')))
+  const staging = await mkdtemp(toNamespacedPath(join(parent, '.aeven-mkdir-')))
   try {
     await publishNewFileWin32(staging, target)
   } catch (error) {

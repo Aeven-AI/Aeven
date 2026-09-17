@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-07-05-windows-jsonl-durable-publish.md
-2026-07-05-windows-jsonl-durable-publish.md: 94abb8a63b447fcdf23e0315377e0ea92b6e549f
-2026-07-05-windows-jsonl-durable-publish.zh.md: 1558ec66bd16701a0ae510fab2d29a61fb8ee9cf
+2026-07-05-windows-jsonl-durable-publish.md: 4cae5c6f70a19e884bb539f34d08314b3038140d
+2026-07-05-windows-jsonl-durable-publish.zh.md: 2b375d3fd4decffb32926ebc90f507b9000d27af

@@ -76,7 +76,7 @@ python python/sdk/examples/minimal.py `
   "Inspect the repository and fix the failing tests."
 ```
 
-The script prints the final assistant response. The selected home receives the generated `sdk-minimal` profile, installed plugins, and uncompressed JSONL session logs under `sessions/`. The example and SDK never silently read `~/.avn`.
+The script prints the final assistant response. The selected home receives the generated `sdk-minimal` profile, installed plugins, and uncompressed JSONL session logs under `sessions/`. The example and SDK never silently read `~/.aeven`.
 
 ## Use the SDK in your program
 

@@ -103,7 +103,7 @@ it('hot-reloads a real client-plugin source edit without refreshing the page', a
       world,
       {
         DEEPSEEK_API_KEY: 'keyless-hmr-no-call',
-        AVN_HOME: join(world, '.avn'),
+        AVN_HOME: join(world, '.aeven'),
       },
     ))
     const baseUrl = await waitForOutput(host, /avn web: (http:\/\/[^\s]+)/, 'built avn web')

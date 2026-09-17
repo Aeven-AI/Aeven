@@ -8,7 +8,7 @@ English | [中文](2026-07-24-single-harness-home-resolver.zh.md)
 
 The harness had two inconsistent conventions for "where does DeepSeek Harness user data live":
 
-- `@aeven/home` resolved `configured ?? $AVN_HOME ?? ~/.avn`.
+- `@aeven/home` resolved `configured ?? $AVN_HOME ?? ~/.aeven`.
 - `@aeven/home-paths` shipped a **second** `resolveAvnHome` with the same precedence plus tilde expansion — a near-duplicate of `avn-home` that no gate flagged because the two lived in different packages and had already drifted (only one expanded tildes).
 
 Two resolvers for the same cross-cutting fact meant there was no single home policy.
@@ -18,10 +18,10 @@ Two resolvers for the same cross-cutting fact meant there was no single home pol
 One resolver owns the harness home, in `@aeven/home-paths`, single-root:
 
 ```
-explicit configured path  >  $AVN_HOME  >  ~/.avn
+explicit configured path  >  $AVN_HOME  >  ~/.aeven
 ```
 
-An empty or whitespace-only `$AVN_HOME` is treated as unset; otherwise `resolve('')` would silently place the home at the current working directory. The harness keeps all user data under one root; there is no XDG config/data/cache split. `avnHomePath(...segments)` joins deployment-owned children onto that root, and `avn-app-boot` exposes it to Loader `!!js` config expressions before mounting entries, so shipped compositions derive `sessions` and `storages` without copying the resolver. `avnHomeDisplay()` names a resolved root symbolically for user-facing paths — `~/.avn` for the default home, `$AVN_HOME` for any configured home — so the user-global `AGENTS.md` label never leaks an absolute machine path. It replaces agent-instructions's bespoke default-vs-`$AVN_HOME` check.
+An empty or whitespace-only `$AVN_HOME` is treated as unset; otherwise `resolve('')` would silently place the home at the current working directory. The harness keeps all user data under one root; there is no XDG config/data/cache split. `avnHomePath(...segments)` joins deployment-owned children onto that root, and `avn-app-boot` exposes it to Loader `!!js` config expressions before mounting entries, so shipped compositions derive `sessions` and `storages` without copying the resolver. `avnHomeDisplay()` names a resolved root symbolically for user-facing paths — `~/.aeven` for the default home, `$AVN_HOME` for any configured home — so the user-global `AGENTS.md` label never leaks an absolute machine path. It replaces agent-instructions's bespoke default-vs-`$AVN_HOME` check.
 
 `@aeven/home` is deleted. Home-owning providers and boot packages import `resolveAvnHome` from `avn-home-paths`; composition bundles contain only the resolved configuration rows.
 
@@ -31,7 +31,7 @@ An empty or whitespace-only `$AVN_HOME` is treated as unset; otherwise `resolve(
 
 **Leave the two `resolveAvnHome` copies in place.** They had already drifted (one expands tildes, one didn't) and encode the same cross-cutting fact twice. Consolidation is the point of the `util/` layer; a duplicate resolver is a latent divergence bug.
 
-**Adopt XDG (honor `$XDG_CONFIG_HOME`, or split config/data/cache into separate trees).** Considered and dropped in favor of one obvious root. A single `$AVN_HOME || ~/.avn` ground truth matches `~/.claude` / `~/.aws`, needs no per-kind reclassification of every `~/.avn` consumer, and leaves no resolver asymmetry to reconcile.
+**Adopt XDG (honor `$XDG_CONFIG_HOME`, or split config/data/cache into separate trees).** Considered and dropped in favor of one obvious root. A single `$AVN_HOME || ~/.aeven` ground truth matches `~/.claude` / `~/.aws`, needs no per-kind reclassification of every `~/.aeven` consumer, and leaves no resolver asymmetry to reconcile.
 
 ## Consequences
 

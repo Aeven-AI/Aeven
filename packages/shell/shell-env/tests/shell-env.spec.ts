@@ -55,7 +55,7 @@ describe('ShellEnvRegistry', () => {
 
     vi.stubEnv('AVN_HOME', undefined)
     const fromDefault = new ShellEnvRegistry(new Context())
-    expect(fromDefault.collect(execution()).AVN_HOME).toBe(join(homedir(), '.avn'))
+    expect(fromDefault.collect(execution()).AVN_HOME).toBe(join(homedir(), '.aeven'))
   })
 
   it('collects declared contributor variables and omits unavailable values', () => {

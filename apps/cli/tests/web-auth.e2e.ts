@@ -154,7 +154,7 @@ function describeSettings(port: number, host: string, cookie?: string): Promise<
 describe('avn web authentication through the real CLI', () => {
   it('rejects a forged loopback Host and preserves the browser cookie across restart', { timeout: 180_000 }, async () => {
     const root = await mkdtemp(join(tmpdir(), 'avn-web-auth-real-cli-'))
-    const avnHome = join(root, '.avn')
+    const avnHome = join(root, '.aeven')
     const port = await freePort()
     let first: RunningWeb | undefined
     let second: RunningWeb | undefined

@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-`avn-home-paths` 解析所有用户数据所在的统一 DeepSeek Harness 主目录，并把子路径拼接上去，让每个产品包都就文件存放位置达成一致。优先级是显式的：显式配置的路径优先，然后是 `$AVN_HOME`，最后是 `~/.avn`；空或仅含空白的 `$AVN_HOME` 视为未设置。该包还针对操作系统主目录展开 `~`、`~/...` 与 `~\...` 前缀，并规范化监听目标，让原生文件系统 watcher 即使在最终路径段尚不存在时也能获得一种稳定的路径写法。它是一个零依赖库，由产品包直接导入；`cordis.yml` 无法加载它。
+`avn-home-paths` 解析所有用户数据所在的统一 DeepSeek Harness 主目录，并把子路径拼接上去，让每个产品包都就文件存放位置达成一致。优先级是显式的：显式配置的路径优先，然后是 `$AVN_HOME`，最后是 `~/.aeven`；空或仅含空白的 `$AVN_HOME` 视为未设置。该包还针对操作系统主目录展开 `~`、`~/...` 与 `~\...` 前缀，并规范化监听目标，让原生文件系统 watcher 即使在最终路径段尚不存在时也能获得一种稳定的路径写法。它是一个零依赖库，由产品包直接导入；`cordis.yml` 无法加载它。
 
 ## 目录
 
@@ -31,15 +31,15 @@ kind: "package-library"
 ```ts
 import { resolveAvnHome, avnHomePath } from '@aeven/home-paths'
 
-const home = resolveAvnHome()                // configured path, else $AVN_HOME, else ~/.avn
+const home = resolveAvnHome()                // configured path, else $AVN_HOME, else ~/.aeven
 const settings = avnHomePath('settings')     // join one child onto the resolved home
 ```
 
-显式配置的路径优先级最高，然后是 `$AVN_HOME`，最后是默认的 `~/.avn`。空或仅含空白的 `$AVN_HOME` 视为未设置，因此空白的覆盖值绝不会把主目录解析到当前工作目录。
+显式配置的路径优先级最高，然后是 `$AVN_HOME`，最后是默认的 `~/.aeven`。空或仅含空白的 `$AVN_HOME` 视为未设置，因此空白的覆盖值绝不会把主目录解析到当前工作目录。
 
 ### 展示主目录
 
-面向用户的路径请以符号形式渲染根目录，而不是机器路径：默认主目录显示为 `~/.avn`，任何已配置的主目录显示为 `$AVN_HOME`。展示形式绝不会泄露机器的绝对路径。
+面向用户的路径请以符号形式渲染根目录，而不是机器路径：默认主目录显示为 `~/.aeven`，任何已配置的主目录显示为 `$AVN_HOME`。展示形式绝不会泄露机器的绝对路径。
 
 ### 展开用户路径
 
@@ -68,7 +68,7 @@ const settings = avnHomePath('settings')     // join one child onto the resolved
 
 ### 解析规则
 
-`resolveAvnHome` 先读显式覆盖值，然后读 `$AVN_HOME`，最后回退到操作系统主目录拼接 `.avn`。选中的值经过波浪号展开并规范化为绝对路径；`avnHomePath` 用 Node 的平台路径规则拼接子路径段。`avnHomeDisplay` 把解析出的路径与默认根目录比较并返回符号标签，因此已配置的主目录绝不泄露其绝对路径。
+`resolveAvnHome` 先读显式覆盖值，然后读 `$AVN_HOME`，最后回退到操作系统主目录拼接 `.aeven`。选中的值经过波浪号展开并规范化为绝对路径；`avnHomePath` 用 Node 的平台路径规则拼接子路径段。`avnHomeDisplay` 把解析出的路径与默认根目录比较并返回符号标签，因此已配置的主目录绝不泄露其绝对路径。
 
 ### 规范化机制
 

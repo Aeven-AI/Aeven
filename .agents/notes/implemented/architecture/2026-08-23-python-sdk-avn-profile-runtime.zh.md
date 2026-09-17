@@ -18,7 +18,7 @@ Python SDK 分发一个私有 Node 应用，直接启动完整外部 `cordis.yml
 
 公开 Python 配置包括 `avn_bin`、`profile`、有序 `patches`、`avn_home`、进程 cwd／环境、provider／model／token 选择、有界初始化 timeout，以及可选的轮次／关闭 timeout。它不暴露完整 Cordis 树或任意启动 argv。`RunResult` 报告协议所有的运行值，不重复 profile 的持久化路径。
 
-每次 Python 启动都要求显式 `avn_home`，或子进程环境中的非空 `AVN_HOME`。SDK 绝不会发现 `~/.avn`。所选 home 统一拥有 profile、外部插件、凭据、设置与会话。
+每次 Python 启动都要求显式 `avn_home`，或子进程环境中的非空 `AVN_HOME`。SDK 绝不会发现 `~/.aeven`。所选 home 统一拥有 profile、外部插件、凭据、设置与会话。
 
 ### 插件自定义
 
@@ -44,7 +44,7 @@ Python SDK 分发一个私有 Node 应用，直接启动完整外部 `cordis.yml
 
 **把完整 `cordis.yml` 保留为高级逃生口。** 不予采用，因为它会保留第二套应用组装，并允许调用方绕过 profile 的环境、插件与关闭所有权。
 
-**为兼容性静默使用 `~/.avn`。** 不予采用，因为 SDK 进程不应在没有显式选择时继承个人插件、凭据、设置或会话。
+**为兼容性静默使用 `~/.aeven`。** 不予采用，因为 SDK 进程不应在没有显式选择时继承个人插件、凭据、设置或会话。
 
 **把虚拟依赖树复制到每个 home。** 不予采用，因为这会重复数百 MB，并加载第二个 Cordis 实例。保留 exports 的代理很小，而且维持模块身份。
 

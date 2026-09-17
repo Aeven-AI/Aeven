@@ -42,7 +42,7 @@ Profile manifest 负责 patch 重载：
 
 SDK 用户通过 profile 自定义插件。`avn plugin --profile <name> ...` 管理持久依赖与组合包顺序，profile 的 `cordis.patch.yml` 负责持久配置项变更，启动时 `patches` 提供有序临时覆盖。自定义 profile 必须保留 `@aeven/sdk-app` 或另一个 SDK 服务器配置项。相对 CLI 模块、patch、显式 home 与进程 cwd 路径会在 spawn 前变为绝对路径；初始化具有有限时限，诊断会写明所选 profile。
 
-直接使用 SDK 时遵循普通 Harness home 解析：显式 `avnHome`、继承的 `AVN_HOME`，最后是 `~/.avn`。`subagent-avn-sdk` 则要求显式绝对 home，因此嵌套运行时不会通过操作系统 home 发现个人 profile、已安装插件、凭据或会话。AVN 专用 ACP 子进程示例同样传入隔离 home；ACP 后端自身继续适用于非 AVN agent。
+直接使用 SDK 时遵循普通 Harness home 解析：显式 `avnHome`、继承的 `AVN_HOME`，最后是 `~/.aeven`。`subagent-avn-sdk` 则要求显式绝对 home，因此嵌套运行时不会通过操作系统 home 发现个人 profile、已安装插件、凭据或会话。AVN 专用 ACP 子进程示例同样传入隔离 home；ACP 后端自身继续适用于非 AVN agent。
 
 ### Python 运行时
 

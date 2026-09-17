@@ -100,7 +100,7 @@ interface PackageManifest {
 const DESKTOP_PATCH = fileURLToPath(new URL('../config/desktop.cordis.patch.yml', import.meta.url))
 const ROOT_CONFIG = '# Electron desktop composition root; package transactions own this file.\n[]\n'
 const ROOT_CONFIG_FILENAME = 'desktop.cordis.yml'
-const DESKTOP_STREAM_PATH = '/.avn/remote-stream'
+const DESKTOP_STREAM_PATH = '/.aeven/remote-stream'
 
 const DESKTOP_TRANSPORT_SCRIPT = `globalThis.__DSH_TRANSPORT__={
   ownsHost:true,

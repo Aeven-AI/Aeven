@@ -37,7 +37,7 @@ The generic stdio transport scrubs ambient credential-shaped and `AVN_*` variabl
 | MCP Reference Memory | npm `2026.7.4`, package commit `6dd0a683e198783e30feabf7abaf42f925bd18b1` |
 | Engram | tag `v1.20.0`, commit `ba9e46ced152c37a7cb9e576153c41995873e2fc` |
 
-Storage remains provider-owned. Memorix uses `~/.memorix/data` and Engram uses `~/.engram` by default. The Reference Memory example sets a stable `$HOME/.avn-mcp-reference-memory.jsonl` path instead of writing into the installed npm package directory. Each provider's own environment variable can override these locations before AVN starts.
+Storage remains provider-owned. Memorix uses `~/.memorix/data` and Engram uses `~/.engram` by default. The Reference Memory example sets a stable `$HOME/.aeven-mcp-reference-memory.jsonl` path instead of writing into the installed npm package directory. Each provider's own environment variable can override these locations before AVN starts.
 
 Project identity remains provider-owned: Memorix and Engram use the AVN working directory's Git project, with Engram optionally accepting `ENGRAM_PROJECT`.
 

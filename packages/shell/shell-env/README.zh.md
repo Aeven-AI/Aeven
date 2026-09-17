@@ -54,11 +54,11 @@ contributor 必须声明它返回的每个键；返回未声明或非字符串�
 
 ### 选择 Harness 主目录
 
-唯一配置字段决定暴露为 `AVN_HOME` 的主目录；默认解析顺序为 `avnHome` 配置、环境变量 `$AVN_HOME`，然后是 `~/.avn`。
+唯一配置字段决定暴露为 `AVN_HOME` 的主目录；默认解析顺序为 `avnHome` 配置、环境变量 `$AVN_HOME`，然后是 `~/.aeven`。
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `avnHome` | `$AVN_HOME`，然后 `~/.avn` | 暴露为 `AVN_HOME` 的 Harness 主目录绝对路径 |
+| `avnHome` | `$AVN_HOME`，然后 `~/.aeven` | 暴露为 `AVN_HOME` 的 Harness 主目录绝对路径 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-shell-env)是每个受支持字段及其 JSDoc 的穷尽式真源。
 

@@ -42,7 +42,7 @@ Choose it as the default user-settings store: one human-readable document that u
 | Field | Default | Meaning |
 |---|---|---|
 | `path` | `<harness home>/settings.yaml` | Settings document path; the extension picks the format (`.yaml`, `.yml`, or `.json`) |
-| `avnHome` | `$AVN_HOME` or `~/.avn` | Harness home used when `path` is omitted |
+| `avnHome` | `$AVN_HOME` or `~/.aeven` | Harness home used when `path` is omitted |
 | `watch` | `true` | Watch the document and hot-publish external edits |
 | `debounceMs` | `100` | Watcher write-settle window, in milliseconds |
 
