@@ -471,14 +471,20 @@
     }
   }
 
-  ul li::before {
+  /*
+   * Direct children only. A descendant selector would let `ol li::before` match
+   * items of a `ul` nested inside an ordered list — both are ancestors, the
+   * specificity ties, and this later rule wins on source order, so a bullet
+   * would render as a number.
+   */
+  ul > li::before {
     content: "•";
     position: absolute;
     left: 0;
     text-align: left;
   }
 
-  ol li::before {
+  ol > li::before {
     content: counter(item) ".";
     counter-increment: item;
     position: absolute;
@@ -486,7 +492,7 @@
     text-align: left;
   }
 
-  dl dt::before {
+  dl > dt::before {
     content: attr(data-term) ": ";
     position: absolute;
     left: 0;
