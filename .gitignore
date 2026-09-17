@@ -35,7 +35,7 @@ python/**/.pytest_cache/
 packages/**/__pycache__/
 apps/web/dist/
 .artifacts/
-.avn-build/
+.aeven-build/
 .playwright-mcp/
 .orig
 .worktrees/
