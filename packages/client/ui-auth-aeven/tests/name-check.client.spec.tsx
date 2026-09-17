@@ -76,7 +76,11 @@ function mountStep(NameCheck: NameCheckComponent, copy: Copy) {
   render(<NameCheck onNamed={onNamed} />)
   return {
     onNamed,
-    field: screen.getByPlaceholderText(copy('field.name')) as HTMLInputElement,
+    // The query's own type parameter, not an assertion: `getByPlaceholderText`
+    // defaults to `HTMLElement`, which has no `value`, and the two gates disagree
+    // about the cast — `tsc` needs it and `no-unnecessary-type-assertion` rejects
+    // it. A generic satisfies both, and says the same thing once.
+    field: screen.getByPlaceholderText<HTMLInputElement>(copy('field.name')),
     submit: screen.getByRole('button', { name: copy('action.continue') }),
   }
 }
