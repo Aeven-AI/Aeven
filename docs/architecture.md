@@ -16,7 +16,7 @@ There is no privileged core to patch: you extend avn by mounting a plugin beside
 
 A running `avn` is a plugin tree composed at boot from ordered layers.
 
-A **profile** is a named composition stored in the Harness home. It lists the bundles it stacks, holds any out-of-tree plugins it installs, and keeps the user's own `cordis.patch.yml`. `web`, `headless`, `sdk`, `sdk-minimal`, and `acp` ship as templates.
+A **profile** is a named composition stored in the Aeven home. It lists the bundles it stacks, holds any out-of-tree plugins it installs, and keeps the user's own `cordis.patch.yml`. `web`, `headless`, `sdk`, `sdk-minimal`, and `acp` ship as templates.
 
 A **bundle** is a distribution format for Cordis config rows and the code they mount, so whatever it inserts stays patchable by the layers above it.
 
@@ -42,9 +42,9 @@ Composition mechanics are in [app-boot](../packages/boot/app-boot/README.md#prof
 
 Every supported Node application starts at the `avn` CLI with a named profile. The shipped applications are `avn web` (the deliberate alias for `--profile web`), `avn --profile headless`, `avn --profile sdk`, `avn --profile sdk-minimal`, and `avn --profile acp`. The TypeScript SDK resolves its same-version `avn` dependency and selects `sdk`; custom plugin composition remains a profile plus ordered patch files, not another executable or inline application tree. `sdk-minimal` is a repository-owned standalone bundle behind the same launcher, not a caller-supplied Cordis tree.
 
-Vendored CLIs, build-only and test-only executables, direct in-process plugin mounting, and the private browser WebWorker preview are not Harness application launchers. [`verify-application-entrypoints`](../scripts/verify-application-entrypoints.ts) keeps every package bin, executable source, and root demo in an explicit class and rejects a Node application path that bypasses `avn`.
+Vendored CLIs, build-only and test-only executables, direct in-process plugin mounting, and the private browser WebWorker preview are not Aeven application launchers. [`verify-application-entrypoints`](../scripts/verify-application-entrypoints.ts) keeps every package bin, executable source, and root demo in an explicit class and rejects a Node application path that bypasses `avn`.
 
-The Python SDK follows the same application architecture. Its runtime wheel packages the normal `avn` CLI as `aeven-sdk-runtime-<platform>-<arch>`, and the client launches `avn --profile sdk` with an explicit Harness home by default. The minimal example selects the shipped `sdk-minimal` profile. Python exposes profile selection and ordered patch files rather than a complete Cordis tree; persistent external plugins are installed through `avn plugin`. The removed private direct-config carrier has no compatibility bin or fallback parser.
+The Python SDK follows the same application architecture. Its runtime wheel packages the normal `avn` CLI as `aeven-sdk-runtime-<platform>-<arch>`, and the client launches `avn --profile sdk` with an explicit Aeven home by default. The minimal example selects the shipped `sdk-minimal` profile. Python exposes profile selection and ordered patch files rather than a complete Cordis tree; persistent external plugins are installed through `avn plugin`. The removed private direct-config carrier has no compatibility bin or fallback parser.
 
 ## Core packages
 

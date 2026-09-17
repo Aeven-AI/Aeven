@@ -59,7 +59,7 @@ GUI 插件修改会在把注册表包安装到共享 Desktop pnpm 存储后，�
 pnpm run dev:desktop
 ```
 
-开发 Harness 状态默认写入 `apps/desktop/.desktop-build/development/home`，一次性 npm 项目位于 `apps/desktop/.desktop-build/development/project`，Electron 浏览器数据则位于 `apps/desktop/.desktop-build/development/electron-user-data`。因此，会话、设置、凭据、包链接和浏览器数据都不会进入用户正常使用的 Harness home；显式 `AVN_HOME` 只会替换开发 Harness home。Renderer DevTools 默认自动打开，Main、Renderer 和 avn Host 调试端口依次为 9229、9222 和 9230。`AVN_DESKTOP_MAIN_INSPECT_PORT`、`AVN_DESKTOP_RENDERER_DEBUG_PORT` 与 `AVN_DESKTOP_HOST_INSPECT_PORT` 可以替换这些端口，`AVN_DESKTOP_OPEN_DEVTOOLS=0` 则保持 Renderer 调试窗口关闭。
+开发 Harness 状态默认写入 `apps/desktop/.desktop-build/development/home`，一次性 npm 项目位于 `apps/desktop/.desktop-build/development/project`，Electron 浏览器数据则位于 `apps/desktop/.desktop-build/development/electron-user-data`。因此，会话、设置、凭据、包链接和浏览器数据都不会进入用户正常使用的 Aeven home；显式 `AVN_HOME` 只会替换开发 Aeven home。Renderer DevTools 默认自动打开，Main、Renderer 和 avn Host 调试端口依次为 9229、9222 和 9230。`AVN_DESKTOP_MAIN_INSPECT_PORT`、`AVN_DESKTOP_RENDERER_DEBUG_PORT` 与 `AVN_DESKTOP_HOST_INSPECT_PORT` 可以替换这些端口，`AVN_DESKTOP_OPEN_DEVTOOLS=0` 则保持 Renderer 调试窗口关闭。
 
 显式构建完成后，`start:desktop` 会重新生成一次性项目，并跳过构建直接启动已有产物：
 
@@ -182,7 +182,7 @@ pnpm run prepare:desktop
 
 每条打包命令都会先执行仓库的正式构建，打包 avn 与 vendored 包族，在本地打包私有 Desktop Host 包，并打包 Landlock 入口，然后再准备发布资源。`prepare:packages` 选择分别以 `@aeven/cli` 和 `@aeven/desktop-host` 为根的第一方生产依赖闭包之并集，验证私有 Host tarball 同时包含 `lib/index.js` 与 `config/desktop.cordis.patch.yml`，把选中的 tarball 复制到 seed 输入，并记录其大小与 SHA-512 完整性。Host 包不会发布到 npm；它的 `files` manifest 只包含该运行入口与 overlay。公共包 tarball 仍是由各包发布 manifest 控制的正式 `pnpm pack` 输出，因此 Desktop 不增加第二套过滤规则，会保留 `lib/types` 等已发布声明，也不会独立删除或增加 source map。注册表包同样在 pnpm 内容寻址存储中保留其发布的包字节。avn 发布版本更新会同步更新两个私有 Desktop manifest、仓库根与可发布 workspace；打包还会要求根 avn 包、Desktop Host 包与 Electron 包使用同一版本。构建 Desktop 应用前不要求 avn 或私有 Host 已发布到 npm。`prepare:runtime` 从 Node.js 官方发行服务下载 Node.js 24.17.0，在解压前验证其 SHA-256 条目，并在兼容的构建宿主上执行准备完成的目标二进制文件以验证其报告版本。它复制桌面包声明的 pnpm 版本，并把两个运行时版本记录进发布 seed。`prepare:seed` 运行该目标 Node.js 与内置 pnpm，因此按平台和 CPU 过滤的可选依赖会使 pnpm 存储与 seed 成为目标专用内容。它生成本地核心包映射、禁用全局 virtual 存储、从 npm 物化外部生产依赖并禁用生命周期脚本、删除 `node_modules` 以及所有临时 pnpm cache、配置和 state，证明完整依赖图可以离线安装并包含私有 Host 的入口与 overlay，在适用时执行 macOS 重写，再通过一次离线安装证明重写后的存储，删除临时 pnpm 项目注册，然后把松散存储替换为 16 个确定性的未压缩 tar 分片。它会解包这些最终分片，并在生成清单前验证每个内嵌 macOS 签名。后续 GUI 插件操作保留本地核心包映射，同时从固定的 Desktop npm 注册表解析插件包及其外部依赖。`electron-builder` 把各目标的平台产物写到 `apps/desktop/.desktop-build/targets/<target>/artifacts`；后续版本会保留不同名称的不可变安装包与 blockmap，但会替换该目标的未打包应用、诊断文件、完成记录与频道元数据。
 
-未打包产物包含四块相互独立的体积：Electron、离线 seed 存储分片与本地 avn tarball、上游 Node.js 与 pnpm 运行时，以及很小的桌面壳应用。分片不压缩，使外层 DMG、ZIP 或 NSIS 压缩器与差分更新器可以处理稳定的数据区间。文件系统占用不等于安装包下载大小，因此必须分别测量。打包应用首次启动时还会先把 seed 存储解包到 `$AVN_HOME/desktop/pnpm/store`，再安装可写 profile，因此发布验证必须同时测量应用与 Harness home 的磁盘占用。
+未打包产物包含四块相互独立的体积：Electron、离线 seed 存储分片与本地 avn tarball、上游 Node.js 与 pnpm 运行时，以及很小的桌面壳应用。分片不压缩，使外层 DMG、ZIP 或 NSIS 压缩器与差分更新器可以处理稳定的数据区间。文件系统占用不等于安装包下载大小，因此必须分别测量。打包应用首次启动时还会先把 seed 存储解包到 `$AVN_HOME/desktop/pnpm/store`，再安装可写 profile，因此发布验证必须同时测量应用与 Aeven home 的磁盘占用。
 
 ## 更新
 

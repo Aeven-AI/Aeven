@@ -110,7 +110,7 @@ Windows 发布打包通过 `/f` 向已配置且与 SafeNet 兼容的 SignTool �
 | 包状态 | 发布种子和后续每次修改都通过内置 Node.js 与 pnpm 执行，并使用桌面端拥有的 store、config、cache、state 和 home 路径；核心包从发布 tarball 解析，插件从固定 npm registry 解析。 |
 | 资格验证 | macOS 打包要求已配置的公司身份与公证凭据可用，在解包最终归档后验证每个原生 seed 对象，验证完整应用签名，并要求应用和 DMG 都完成公证且通过 Gatekeeper。Windows 打包要求已配置的公开证书、SafeNet 私钥容器、Token Password 与 SignTool，并验证生成的每个签名。更新托管、跨上一版本的已安装产物测试和各平台 GUI 录制仍是发布环境门槛。 |
 
-`dev:desktop` 会构建当前 workspace，把已构建 CLI 包、私有 Desktop Host 包及其依赖链接投影为一次性项目，使用隔离的 Harness home，打开 Main、Renderer 和 Host 调试器，并在不准备发布资源的情况下启动未打包 Electron。该模式的链接依赖图不是由 pnpm 安装的桌面项目，因此会禁用包修改。固定的 macOS arm64、macOS x64、Windows arm64 与 Windows x64 打包命令会把同一目标传给运行时准备、seed 安装和 electron-builder；每条命令还提供未封装安装器的变体，用于在生成安装器前验证发布路径。
+`dev:desktop` 会构建当前 workspace，把已构建 CLI 包、私有 Desktop Host 包及其依赖链接投影为一次性项目，使用隔离的 Aeven home，打开 Main、Renderer 和 Host 调试器，并在不准备发布资源的情况下启动未打包 Electron。该模式的链接依赖图不是由 pnpm 安装的桌面项目，因此会禁用包修改。固定的 macOS arm64、macOS x64、Windows arm64 与 Windows x64 打包命令会把同一目标传给运行时准备、seed 安装和 electron-builder；每条命令还提供未封装安装器的变体，用于在生成安装器前验证发布路径。
 
 ## 考虑过的替代方案
 

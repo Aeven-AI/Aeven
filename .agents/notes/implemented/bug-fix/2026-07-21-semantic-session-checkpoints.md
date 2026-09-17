@@ -18,7 +18,7 @@ Checkpoint failure and cancellation are fail-closed at effect boundaries. A reje
 
 The ACP app owns its bridge, checkpoint policy, and persistence backend in one ordered Cordis effect. Cordis unloads sibling plugin effects concurrently, so independent mounts would let persistence detach while bridge teardown was still closing an interrupted turn. The composite lifecycle unloads the bridge first, waits for its agents to quiesce and flush the real `step/end` and `turn/end`, then removes checkpoint scheduling and persistence.
 
-Crash repair distinguishes durable evidence. An assistant tool request without a `tool/call` becomes `TOOL_NOT_STARTED` and may be retried if still needed. A durable `tool/call` without a result becomes `TOOL_OUTCOME_UNKNOWN`; its model-visible result permits retry only for read-only or idempotent operations and directs the model to verify external state or ask the user before deciding about side-effecting work. A provider that supports idempotency keys can receive the stable `callId`, but the Harness does not claim generic exactly-once effects.
+Crash repair distinguishes durable evidence. An assistant tool request without a `tool/call` becomes `TOOL_NOT_STARTED` and may be retried if still needed. A durable `tool/call` without a result becomes `TOOL_OUTCOME_UNKNOWN`; its model-visible result permits retry only for read-only or idempotent operations and directs the model to verify external state or ask the user before deciding about side-effecting work. A provider that supports idempotency keys can receive the stable `callId`, but the Aeven does not claim generic exactly-once effects.
 
 ## Alternatives considered
 

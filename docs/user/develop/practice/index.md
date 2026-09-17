@@ -6,7 +6,7 @@ This page has two parts: a concept reference for the three-role capability patte
 
 ## Concept reference
 
-When a capability is general enough to need replaceable providers, such as Bash execution, Harness separates three roles: a **Service Definition**, a **Service Provider**, and a **Consumer**. Put the roles in separate packages when they need to evolve or be replaced independently; a package may otherwise own more than one role. The complete capability is its seam. No individual role is a seam.
+When a capability is general enough to need replaceable providers, such as Bash execution, Aeven separates three roles: a **Service Definition**, a **Service Provider**, and a **Consumer**. Put the roles in separate packages when they need to evolve or be replaced independently; a package may otherwise own more than one role. The complete capability is its seam. No individual role is a seam.
 
 ## Bash example
 

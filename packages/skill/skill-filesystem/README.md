@@ -66,7 +66,7 @@ Load the plugin alongside the skill registry; it requires `ctx.skills`.
 |---|---|---|
 | `providerName` | `filesystem` | Unique provider name registered on `ctx.skills` |
 | `includeDefaultRoots` | `true` | Include project and user roots around `customSkillDirs` |
-| `avnHome` | `$AVN_HOME` or `~/.aeven` | Harness config root; its `skills` subdirectory is scanned |
+| `avnHome` | `$AVN_HOME` or `~/.aeven` | Aeven config root; its `skills` subdirectory is scanned |
 | `agentsHome` | `$AVN_AGENTS_HOME` or `~/.agents` | Shared agent config root scanned for compatible skills |
 | `customSkillDirs` | `[]` | Additional local skill roots, after project roots and before user roots |
 | `watch` | `true` | Watch local roots and invalidate the provider when the catalog may have changed |

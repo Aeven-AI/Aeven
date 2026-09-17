@@ -1,5 +1,5 @@
 /**
- * Harness error base with a stable machine-routable code and chained cause.
+ * Aeven error base with a stable machine-routable code and chained cause.
  * Package errors extend it so tool results and replay can retain failure class.
  * @module @aeven/llm/error
  */

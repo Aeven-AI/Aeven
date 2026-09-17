@@ -1,5 +1,5 @@
 /**
- * Native pi-ai OAuth providers and their stable Harness route aliases.
+ * Native pi-ai OAuth providers and their stable Aeven route aliases.
  * @module @aeven/experimental-subscription-auth/oauth-providers
  */
 

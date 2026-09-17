@@ -58,7 +58,7 @@ Requires: `sessionProjections`
 ```ts config-catalog
 /** User-facing workspace instruction loader configuration. */
 export interface Config {
-  /** Harness home containing the fixed user-global `AGENTS.md`; defaults to `$AVN_HOME` or `~/.aeven`. */
+  /** Aeven home containing the fixed user-global `AGENTS.md`; defaults to `$AVN_HOME` or `~/.aeven`. */
   avnHome?: string
   /** Directory entries that identify the project root while walking upward from the session cwd. */
   projectRootMarkers?: string[]
@@ -501,7 +501,7 @@ Source: [`packages/extensions/cordis-host-runner/src/index.ts:88`](../packages/e
 export interface Config {
   /** Credentials document path; defaults to `.credentials.yaml` under the harness home. */
   path?: string
-  /** Harness home used when `path` is omitted; defaults to `$AVN_HOME` or `~/.aeven`. */
+  /** Aeven home used when `path` is omitted; defaults to `$AVN_HOME` or `~/.aeven`. */
   avnHome?: string
   /** Watch the document and hot-publish external edits; defaults to true. */
   watch?: boolean
@@ -1268,7 +1268,7 @@ export interface PiAiProviderProfile {
    * to answer instead.
    */
   defaultInput?: PiAiModality[]
-  /** Provider request headers, validated against Fetch when the profile resolves; Harness attribution wins reserved names. */
+  /** Provider request headers, validated against Fetch when the profile resolves; Aeven attribution wins reserved names. */
   headers?: Record<string, string>
   /** Provider-neutral pi-ai reasoning level. */
   reasoning?: ModelThinkingLevel
@@ -2343,7 +2343,7 @@ Source: [`packages/session/session-title-first-prompt-llm/src/index.ts:15`](../p
 export interface Config {
   /** Settings document path; defaults to `settings.yaml` under the harness home. */
   path?: string
-  /** Harness home used when `path` is omitted; defaults to `$AVN_HOME` or `~/.aeven`. */
+  /** Aeven home used when `path` is omitted; defaults to `$AVN_HOME` or `~/.aeven`. */
   avnHome?: string
   /** Watch the document and hot-publish external edits; defaults to true. */
   watch?: boolean
@@ -2623,7 +2623,7 @@ export interface Config {
   profile: string
   /** Ordered per-launch profile patch files, resolved and checked at plugin load. */
   patches: string[]
-  /** Absolute isolated Harness home for every nested child process. */
+  /** Absolute isolated Aeven home for every nested child process. */
   avnHome: string
   /**
    * Working directory override for the child process and its SDK session

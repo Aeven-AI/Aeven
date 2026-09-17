@@ -30,7 +30,7 @@ Each package provides one primitive; open a package page for how to use it.
 | [`crypto/`](crypto/README.md) | Mints RFC 9562 v4 UUIDs from the cross-runtime `crypto.getRandomValues` primitive |
 | [`deque/`](deque/README.md) | Provides amortized constant-time queue operations with bounded vacant storage |
 | [`values/`](values/README.md) | Validates, snapshots, compares, and freezes lossless JSON-compatible values |
-| [`home-paths/`](home-paths/README.md) | Resolves the single Harness home and joins shared user-data paths |
+| [`home-paths/`](home-paths/README.md) | Resolves the single Aeven home and joins shared user-data paths |
 | [`http-proxy/`](http-proxy/README.md) | Resolves one outbound proxy policy and installs it for `fetch`, SDK agents, and spawned children |
 | [`launch-environment/`](launch-environment/README.md) | Frozen launch environment that remembers which layer supplied each value |
 | [`atomic-write/`](atomic-write/README.md) | Atomic file replacement and cross-process writer locking |

@@ -191,7 +191,7 @@ function resolveDistIndex(): string {
   }
 }
 
-/** Start the maintained platform opener without forwarding Harness credentials. */
+/** Start the maintained platform opener without forwarding Aeven credentials. */
 function spawnBrowserLauncher(url: string): ChildProcess {
   return spawn(process.execPath, [
     '--input-type=module',

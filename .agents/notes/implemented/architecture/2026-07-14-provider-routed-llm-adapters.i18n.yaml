@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-07-14-provider-routed-llm-adapters.md
-2026-07-14-provider-routed-llm-adapters.md: 69e1e3f16bbc92e1c573a819ffe9aede6bae70f8
+2026-07-14-provider-routed-llm-adapters.md: 47e4b84cc17808f4e7827b27391099e35345f09c
 2026-07-14-provider-routed-llm-adapters.zh.md: a316fed567b2d5580db5c0f7f1c80568df15d105

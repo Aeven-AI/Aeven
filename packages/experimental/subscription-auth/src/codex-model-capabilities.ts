@@ -24,7 +24,7 @@ import {
 } from './codex-http.ts'
 import { CODEX_OAUTH_FAST_ROUTE } from './ids.ts'
 
-/** Distinct optional Harness route; parent owns dynamic registration. */
+/** Distinct optional Aeven route; parent owns dynamic registration. */
 export { CODEX_OAUTH_FAST_ROUTE }
 
 /** Codex models url. */

@@ -41,7 +41,7 @@ kind: "package-reference"
 | `avnBin` | SDK 依赖 | 显式 avn CLI 模块，在插件加载时解析并校验；省略则使用 SDK 依赖 |
 | `profile` | `sdk` | 子进程命名的 profile |
 | `patches` | `[]` | 每次启动的有序 profile patch 文件，在插件加载时解析并校验 |
-| `avnHome` | 必填 | 每个嵌套子进程的绝对隔离 Harness home |
+| `avnHome` | 必填 | 每个嵌套子进程的绝对隔离 Aeven home |
 | `cwd` | 父会话 cwd | 子进程及其 SDK 会话的工作目录覆盖值 |
 | `provider` | `deepseek-official` | 写入子进程 `initialize` 的提供方路由 |
 | `model` | `deepseek-v4-flash` | 写入子进程 `initialize` 的模型 |

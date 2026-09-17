@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-07-20-avn-cli-personal-config.md
-2026-07-20-avn-cli-personal-config.md: 39891a2977dfab59be93f91464739e1c11c25aa4
-2026-07-20-avn-cli-personal-config.zh.md: 198c9822d33250160f19f71ce0d86dbbab300f63
+2026-07-20-avn-cli-personal-config.md: 5fcc50b4ddf2ac7d979b237288bdd74bfe3e8d41
+2026-07-20-avn-cli-personal-config.zh.md: 05bc331a6bfff3ec68a8524cb6b89f677c645cd1

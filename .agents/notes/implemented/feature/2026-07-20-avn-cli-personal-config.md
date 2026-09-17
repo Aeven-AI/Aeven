@@ -1,4 +1,4 @@
-# Agent Note: The avn CLI and personal config overlays from the Harness home
+# Agent Note: The avn CLI and personal config overlays from the Aeven home
 
 Status: implemented
 
@@ -10,13 +10,13 @@ A developer's own preferences — which provider and model the TUI uses, persona
 
 ## Decision
 
-The entry modes and the personal file's name and location below are superseded by the [profile plugin bundles decision](../architecture/2026-08-05-profile-plugin-bundles.md): `avn` boots profiles, and the personal layer became the per-profile and home-level `cordis.patch.yml`. What survives unchanged is this note's substance — the Harness home as the machine-level layer's root, patch semantics over a shipped composition, and fail-loud parsing.
+The entry modes and the personal file's name and location below are superseded by the [profile plugin bundles decision](../architecture/2026-08-05-profile-plugin-bundles.md): `avn` boots profiles, and the personal layer became the per-profile and home-level `cordis.patch.yml`. What survives unchanged is this note's substance — the Aeven home as the machine-level layer's root, patch semantics over a shipped composition, and fail-loud parsing.
 
 Two coupled pieces, aligned with the `apps/` assembly tier proposed by the `avn web` PR (#443):
 
 **The `avn` CLI (`apps/cli`, npm name `@aeven/cli`).** `apps/*` is the product-assembly tier over `packages/*` libraries. One bin dispatches the default interactive TUI, `-p`/`--prompt` headless turns, and the `web` surface. The TUI boots `examples/tui-agent/cordis.yml` (or `--config`) with the invoking directory as the workspace. From a source checkout, the root `pnpm avn` script runs the same entry with tsx's ESM hook without building; the [source-launch decision](../architecture/2026-07-29-avn-source-launch-tsx-esm.md) owns the runtime vector and the [source-launch/build separation decision](../simplification/2026-08-12-separate-source-launch-from-build.md) owns artifact generation.
 
-**Personal config (`avn-app-boot`).** The personal overlay lives in the Harness home — `$AVN_HOME`, else `~/.aeven` — resolved by the shared [`resolveAvnHome`](../architecture/2026-07-24-single-harness-home-resolver.md) (`@aeven/home-paths`), the same single root skills and AGENTS.md resolve against. The avn TUI, Web, and headless surfaces consume its two optional files; the demo bins boot their committed trees verbatim:
+**Personal config (`avn-app-boot`).** The personal overlay lives in the Aeven home — `$AVN_HOME`, else `~/.aeven` — resolved by the shared [`resolveAvnHome`](../architecture/2026-07-24-single-harness-home-resolver.md) (`@aeven/home-paths`), the same single root skills and AGENTS.md resolve against. The avn TUI, Web, and headless surfaces consume its two optional files; the demo bins boot their committed trees verbatim:
 
 - `.env` — loaded after the invoking directory's `.env`; `process.loadEnvFile` never overrides, so precedence is ambient > project `.env` > personal `.env`.
 - `config.yaml` — a top-level YAML array of `@cordisjs/plugin-include` `PatchOptions`, parsed with the include's own `!!js` dialect (`loadPersonalPatches`) and passed to `boot()`, which forwards it as the root include's `patches`. Patch semantics match the shipped surface overlays: an id-targeted patch replaces the named entry's whole `config`, `insert` appends entries, and an unmatched id is a silent no-op. External packages are installed as [profile bundles](../simplification/2026-08-09-remove-repository-plugin.md); this personal layer configures the Loader rows those bundles contribute.

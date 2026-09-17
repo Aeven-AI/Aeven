@@ -1,5 +1,5 @@
 /**
- * Model-facing `str_replace_editor` over the Harness filesystem seam.
+ * Model-facing `str_replace_editor` over the Aeven filesystem seam.
  * @module @aeven/tool-str-replace-editor
  */
 

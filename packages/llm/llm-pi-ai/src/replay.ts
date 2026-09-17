@@ -1,7 +1,7 @@
 /**
  * Durable pi-ai replay metadata and assistant-history reconstruction.
  *
- * Harness content remains the durable source for text and tool calls. This
+ * Aeven content remains the durable source for text and tool calls. This
  * module stores only the provider-native metadata needed to reconstruct a
  * pi-ai assistant message on a later request.
  *
@@ -175,7 +175,7 @@ function foreignAssistant(message: Message): AssistantMessage {
   }
 }
 
-/** Recombine durable Harness content with validated pi-ai replay metadata. */
+/** Recombine durable Aeven content with validated pi-ai replay metadata. */
 function replayedAssistant(message: Message, source: ModelMessageSource, rawState: unknown): AssistantMessage {
   const state = readReplayState(rawState)
   if (state.response.provider !== source.provider) return invalidReplay('provider does not match assistant source')
@@ -203,8 +203,8 @@ function replayedAssistant(message: Message, source: ModelMessageSource, rawStat
         arguments: parseArguments(block.arguments),
         ...replay.type === 'tool-call' && replay.thoughtSignature !== undefined ? { thoughtSignature: replay.thoughtSignature } : {},
       }
-      /* v8 ignore next -- readReplayState rejects unknown replay tags, so an equal plugin-added Harness tag cannot reach this switch */
-      default: return invalidReplay(`block ${index} has an unsupported Harness type`)
+      /* v8 ignore next -- readReplayState rejects unknown replay tags, so an equal plugin-added Aeven tag cannot reach this switch */
+      default: return invalidReplay(`block ${index} has an unsupported Aeven type`)
     }
   })
   return {
@@ -222,7 +222,7 @@ function replayedAssistant(message: Message, source: ModelMessageSource, rawStat
 }
 
 /**
- * Convert one durable Harness assistant message into pi-ai history.
+ * Convert one durable Aeven assistant message into pi-ai history.
  *
  * Durable content is the authoritative record; replay metadata only restores
  * native fidelity (ids, signatures). A replay state this build cannot use —

@@ -1,7 +1,7 @@
 /**
  * `node:timers/promises` over the worker's timer globals.
  *
- * The abort paths are the substance. Harness code hands these waits a
+ * The abort paths are the substance. Aeven code hands these waits a
  * cancellation signal, and an already-aborted signal emits no further `abort`
  * event — so a wait that only subscribes runs its full delay before answering,
  * which is a cancelled operation that still costs its timeout. The delays below

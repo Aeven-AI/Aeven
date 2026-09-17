@@ -1,5 +1,5 @@
 /**
- * The `node:events` shim's dispatch semantics. Harness code registers on this
+ * The `node:events` shim's dispatch semantics. Aeven code registers on this
  * class through the module proxy table and branches on what it returns, so the
  * cases below pin the parts a hand-written emitter gets wrong: the boolean
  * `emit` reports, the point at which `once` unregisters, and the listener set an

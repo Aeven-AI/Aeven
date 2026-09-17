@@ -6,7 +6,7 @@ English | [中文](2026-07-27-workspace-registration-deletion.zh.md)
 
 ## Problem
 
-A Workspace registers an existing code directory so the GUI can name it and order its Sessions. That record does not say that Harness created or owns the directory, and the Session log is an independent persistence object. Treating the row's Delete action as recursive source deletion or Session deletion would destroy data outside the record's ownership boundary.
+A Workspace registers an existing code directory so the GUI can name it and order its Sessions. That record does not say that Aeven created or owns the directory, and the Session log is an independent persistence object. Treating the row's Delete action as recursive source deletion or Session deletion would destroy data outside the record's ownership boundary.
 
 The existing visual-only menu row also left deletion semantics undefined across durable order, the Workspace table, Host streams, concurrent browser tabs, reconnect baselines, and a list request racing the mutation.
 

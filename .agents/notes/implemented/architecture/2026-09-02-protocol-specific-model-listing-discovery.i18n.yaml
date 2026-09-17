@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-02-protocol-specific-model-listing-discovery.md
-2026-09-02-protocol-specific-model-listing-discovery.md: 77443543fd441a7e5c4260216e87faeacbe25e5c
+2026-09-02-protocol-specific-model-listing-discovery.md: 8f877385ab0bc749fae4673bbcb84d158db33ec3
 2026-09-02-protocol-specific-model-listing-discovery.zh.md: 992d856b79e0edaf7af9a82e957c4ba0b31c11c2

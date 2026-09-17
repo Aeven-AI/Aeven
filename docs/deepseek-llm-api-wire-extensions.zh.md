@@ -24,7 +24,7 @@
 | 标头 | 出现条件 | 值 |
 |---|---|---|
 | `user-agent` | 每个提供方 HTTP 请求，包括 Files API 操作 | 采用 `product/version (+url)` 形式的应用身份；默认产品为 `aeven` |
-| `x-aeven-user-id` | 每个已授权的聊天补全请求 | 已解析 Harness home 的稳定匿名 UUID |
+| `x-aeven-user-id` | 每个已授权的聊天补全请求 | 已解析 Aeven home 的稳定匿名 UUID |
 | `x-aeven-session-id` | 携带会话 id 的聊天补全请求 | 确切的请求 `sessionId` 字符串 |
 | `x-aeven-compact` | 用途为 `compaction` 的聊天补全请求 | 字面字符串 `1` |
 

@@ -3,7 +3,7 @@
 
 # Events
 
-The event-dispatch API mixed into every context. Harness event declarations and their dispatch modes are generated into each owning [subsystem page](../subsystems/core.md).
+The event-dispatch API mixed into every context. Aeven event declarations and their dispatch modes are generated into each owning [subsystem page](../subsystems/core.md).
 
 ### ctx.parallel(name, ...args)
 

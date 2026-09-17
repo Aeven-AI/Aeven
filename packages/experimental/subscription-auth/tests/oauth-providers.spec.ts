@@ -54,7 +54,7 @@ describe('OAuth request providers', () => {
     expect(provider.getModels()[0]?.provider).toBe(CLAUDE_PI_PROVIDER)
   })
 
-  it('uses collision-free Harness route aliases', () => {
+  it('uses collision-free Aeven route aliases', () => {
     expect(CODEX_OAUTH_PROVIDER.route).toBe(CODEX_OAUTH_ROUTE)
     expect(CLAUDE_CODE_OAUTH_PROVIDER.route).toBe(CLAUDE_CODE_OAUTH_ROUTE)
     expect(new Set([CODEX_OAUTH_PROVIDER.route, CLAUDE_CODE_OAUTH_PROVIDER.route]).size).toBe(2)

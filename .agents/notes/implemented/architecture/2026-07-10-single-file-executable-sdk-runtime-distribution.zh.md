@@ -30,7 +30,7 @@ exe 使用 [@yao-pkg/pkg](https://github.com/yao-pkg/pkg)（vercel/pkg 归档后
 - [`packages/sdk/server`](../../../../packages/sdk/server/README.zh.md)（`@aeven/sdk-jsonrpc-server`）：纯协议插件；执行 `apply` 时，在进程 stdio 上挂载 `HarnessSdkJsonRpcServer` 与按行分隔的 JSON-RPC 传输层，资源释放走 `ctx.effect()`。是否提供服务由 `cordis.yml` 决定；未挂载该插件的配置会启动一个不提供此服务的合法进程。协议级退出归插件所有（应答并确保 `shutdown` 响应发送完毕后，对根运行时执行 dispose（资源释放），让待处理的持久化操作完成，再调用 `exit(0)`；HMR（热模块替换）式卸载只停止服务，不退出进程）。
 - [`apps/cli`](../../../../apps/cli/README.zh.md)（`@aeven/cli`）：打包后的应用入口；其 `sdk` profile 挂载 `avn-sdk-jsonrpc-server`，CLI 负责环境分层、profile 组合、stdin／signal 关闭与进程退出。
 
-Python 客户端提供显式 Harness home，并选择 `sdk` profile 与有序 patch 文件。缺失 home、profile、bundle 或 server 配置项都会明确失败；不存在外部完整配置回退。[Python profile 运行时决策](2026-08-23-python-sdk-avn-profile-runtime.zh.md)负责该应用接口。
+Python 客户端提供显式 Aeven home，并选择 `sdk` profile 与有序 patch 文件。缺失 home、profile、bundle 或 server 配置项都会明确失败；不存在外部完整配置回退。[Python profile 运行时决策](2026-08-23-python-sdk-avn-profile-runtime.zh.md)负责该应用接口。
 
 ### 插件解析：VFS 装载真实包树，闭包 manifest（元数据清单）就是部署根目录
 
@@ -52,7 +52,7 @@ Python SDK 位于 [`python/`](../../../../python/README.zh.md)：`python/sdk` �
 
 [`scripts/build-python-release.py`](../../../../scripts/build-python-release.py) 从仓库根目录的 `package.json` 读取权威的 `X.Y.Z` 或预发布版本，把预发布版本转换为 PEP 440 写法，并以该 wheel 包版本暂存两个包，让 `aeven-sdk` 精确依赖匹配版本的 `aeven-runtime-bin`。可选的 `python-v<repository-version>` 发布标签只是一项一致性断言，与仓库版本不同时会被拒绝；源码 `pyproject.toml` 中的开发占位版本从不决定发布版本。暂存过程还会把仓库许可证放入两个 wheel 包，并把第三方声明放入内置运行时 wheel 包。SDK 是 `py3-none-any` wheel 包；每个只提供 wheel 包的运行时包都包含一个 exe 及其架构匹配的 ripgrep 伴随文件，macOS wheel 包还包含与其架构匹配的 spawn helper。运行时 wheel 包使用 `py3-none-manylinux_2_28_x86_64`、`py3-none-manylinux_2_28_aarch64`、针对 Node 24 可执行文件 macOS 13.5 部署目标而保守选择的 `py3-none-macosx_14_0_arm64` 标签，或 `py3-none-win_amd64`；Hatch 钩子拒绝 sdist、通用标签、混合平台载荷、伴随文件缺失或多余，以及不支持的平台。
 
-Python 客户端使用所选 profile（默认 `sdk`）、有序 patch 文件和显式 Harness home 启动打包后的 `avn` 命令。Profile 负责 JSON-RPC 服务和应用组合；缺失 home、profile、bundle、patch 或 server 配置项都会失败，不存在外部完整配置回退。
+Python 客户端使用所选 profile（默认 `sdk`）、有序 patch 文件和显式 Aeven home 启动打包后的 `avn` 命令。Profile 负责 JSON-RPC 服务和应用组合；缺失 home、profile、bundle、patch 或 server 配置项都会失败，不存在外部完整配置回退。
 
 ### 命名血统
 

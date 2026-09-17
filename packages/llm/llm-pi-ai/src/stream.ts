@@ -1,9 +1,9 @@
 /**
- * pi-ai assistant event translation into the Harness streaming protocol.
+ * pi-ai assistant event translation into the Aeven streaming protocol.
  *
- * pi-ai tool-call arguments are parsed objects while the Harness keeps their
+ * pi-ai tool-call arguments are parsed objects while the Aeven keeps their
  * raw JSON representation. pi-ai also reports failures as terminal stream
- * events, which this module maps into Harness finish chunks.
+ * events, which this module maps into Aeven finish chunks.
  *
  * @module avn-llm-pi-ai/stream
  */

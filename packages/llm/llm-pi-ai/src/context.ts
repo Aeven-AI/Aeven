@@ -1,5 +1,5 @@
 /**
- * Harness request-history conversion into pi-ai's Context vocabulary.
+ * Aeven request-history conversion into pi-ai's Context vocabulary.
  *
  * @module avn-llm-pi-ai/context
  */

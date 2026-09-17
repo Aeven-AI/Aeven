@@ -10,7 +10,7 @@ This tutorial installs the published Python SDK, runs the shipped standalone min
 - Git
 - Linux x64, Linux arm64, macOS 14 or newer on arm64, or Windows x64
 - A DeepSeek-compatible API endpoint and credential
-- An isolated workspace and an isolated Harness home
+- An isolated workspace and an isolated Aeven home
 
 ## Install the SDK
 

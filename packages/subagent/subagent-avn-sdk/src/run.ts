@@ -34,7 +34,7 @@ export interface SdkRunSpec {
   profile: string
   /** Ordered per-launch profile patch files. */
   patches: string[]
-  /** Absolute isolated Harness home for the nested runtime. */
+  /** Absolute isolated Aeven home for the nested runtime. */
   avnHome: string
   /**
    * Absolute working directory for the child process AND the workspace cwd

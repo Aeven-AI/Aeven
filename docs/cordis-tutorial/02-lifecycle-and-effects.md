@@ -87,7 +87,7 @@ You rarely write `ctx.effect()` yourself, because the built-in registration APIs
 
 - `ctx.on(event, listener)` — the listener is removed on unload ([chapter 4](04-events.md)).
 - `ctx.plugin(child)` — the child is disposed with its parent.
-- Service registrations are effects. Harness registries such as `ctx.tools.register(...)` also attach their returned disposers to the calling plugin, so they unwind automatically ([chapter 7](07-into-the-harness.md)).
+- Service registrations are effects. Aeven registries such as `ctx.tools.register(...)` also attach their returned disposers to the calling plugin, so they unwind automatically ([chapter 7](07-into-the-harness.md)).
 
 For a resource Cordis does not manage, acquire it inside `ctx.effect()` and return a disposer that releases it. Cordis then invokes that release during unloading, including hot reload.
 

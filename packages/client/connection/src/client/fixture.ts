@@ -898,7 +898,7 @@ function buildAlphaLog(): SessionEvent[] {
     71,
     'web_fetch',
     '{"url":"https://www.deepseek.com/blog/harness-architecture"}',
-    '# Harness architecture\n\nEverything is a plugin.',
+    '# Aeven architecture\n\nEverything is a plugin.',
     WEB_FETCH_META,
   )
 

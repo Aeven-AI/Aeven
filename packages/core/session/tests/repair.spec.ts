@@ -94,7 +94,7 @@ describe('interruptedTurnClosers', () => {
       error: { code: TOOL_NOT_STARTED },
     })
     expect(result.type === 'tool/result' && result.data.message.content[0].content).toEqual([{
-      type: 'text', text: 'The tool call was interrupted before the Harness recorded it as started. Retry it if it is still needed.',
+      type: 'text', text: 'The tool call was interrupted before the Aeven recorded it as started. Retry it if it is still needed.',
     }])
   })
 

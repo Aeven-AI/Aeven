@@ -48,7 +48,7 @@ Focused package suites pin sandbox lifecycle, canonical path framing, filesystem
 
 **Model a terminal as an ordinary piped subprocess.** Rejected because pipes cannot allocate a controlling terminal, resolve the current foreground process group, or prove complete terminal-session cleanup. One terminal primitive is smaller and more honest than exposing substrate-specific escape hatches.
 
-**Move PTY readiness and session policy into the subprocess service.** Rejected because those are persistent-terminal consumer semantics, not OS process mechanics. A subprocess provider owns what only its substrate can do; `avn-terminal-bash` owns what a Harness terminal means.
+**Move PTY readiness and session policy into the subprocess service.** Rejected because those are persistent-terminal consumer semantics, not OS process mechanics. A subprocess provider owns what only its substrate can do; `avn-terminal-bash` owns what an Aeven terminal means.
 
 **Expose separate terminal termination and quiescence operations plus a shared lifecycle controller.** Rejected because every terminal consumer needs the same single cleanup outcome. Separate operations export provider bookkeeping, bounded-observer, and retry semantics without a production consumer; one awaited provider operation is a deeper interface.
 

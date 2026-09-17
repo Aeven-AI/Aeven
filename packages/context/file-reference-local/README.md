@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Agents and their host UIs get ranked path candidates for `@file` mentions, scoped to each agent's workspace and bounded so even large repositories stay responsive. `avn-file-reference-local` implements `ctx.fileReferences` for the local filesystem: it keeps one reusable search index per agent, rebuilds it in the background after tool results so completion reflects workspace changes without stalling, and never follows directory symlinks. When the addressed agent can call `read`, it also installs a stable one-sentence guidance into the system prompt. Choose it when the agent's `read` tool operates on the Harness host filesystem; remote or virtual namespaces need a provider whose discovery matches the tool.
+Agents and their host UIs get ranked path candidates for `@file` mentions, scoped to each agent's workspace and bounded so even large repositories stay responsive. `avn-file-reference-local` implements `ctx.fileReferences` for the local filesystem: it keeps one reusable search index per agent, rebuilds it in the background after tool results so completion reflects workspace changes without stalling, and never follows directory symlinks. When the addressed agent can call `read`, it also installs a stable one-sentence guidance into the system prompt. Choose it when the agent's `read` tool operates on the Aeven host filesystem; remote or virtual namespaces need a provider whose discovery matches the tool.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ Agents and their host UIs get ranked path candidates for `@file` mentions, scope
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this provider when `@file` completion should discover the Harness host's own filesystem — the namespace the shipped `read` tool operates on. Each agent's workspace is indexed from its session working directory, falling back to the host process directory when the session has none.
+Mount this provider when `@file` completion should discover the Aeven host's own filesystem — the namespace the shipped `read` tool operates on. Each agent's workspace is indexed from its session working directory, falling back to the host process directory when the session has none.
 
 ### Enabling the provider
 
@@ -123,7 +123,7 @@ The stable sentence joins the system-prompt prefix. Mounting or removing this pr
 
 These limits define when the provider is a poor fit. They are current package constraints.
 
-- **Host-local namespace** — the provider scans the Harness host filesystem, so remote or virtual `read` implementations require a provider whose namespace matches the tool.
+- **Host-local namespace** — the provider scans the Aeven host filesystem, so remote or virtual `read` implementations require a provider whose namespace matches the tool.
 - **Bounded advisory index** — very large workspaces may omit paths after `maxEntries`, and excluded or unreadable directories do not appear. The default exclusions name only build outputs no ecosystem also uses for sources; `lib` is deliberately absent, so a workspace that builds into it adds that name through `excludedDirectories`.
 - **One invalidation of staleness** — a bare query answered right after a tool result reflects the tree as of the previous traversal; the following query sees the rebuild.
 - **No ignore-file semantics** — `.gitignore` and other project ignore files do not influence discovery; only configured directory basenames are excluded.

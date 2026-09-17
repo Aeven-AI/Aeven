@@ -201,7 +201,7 @@ export class BrowserAuth {
 
   /**
    * Initialize browser authentication and create its durable signing secret
-   * when this Harness home has none.
+   * when this Aeven home has none.
    * @param processOwner - root application context retaining one token across Connection reloads.
    * @param credentials - persistent credential provider for the Web profile.
    * @param maxAgeDays - positive absolute browser-cookie lifetime in days.

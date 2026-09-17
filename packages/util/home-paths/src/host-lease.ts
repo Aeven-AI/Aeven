@@ -1,7 +1,7 @@
 /**
- * Cross-host advertisement for one Harness home.
+ * Cross-host advertisement for one Aeven home.
  *
- * Every durable share in a Harness home is single-writer by construction
+ * Every durable share in an Aeven home is single-writer by construction
  * except the domain KV documents under `storages/`, whose backend republishes
  * a whole document from one process's memory with no cross-process
  * coordination. Two Hosts sharing a home therefore do not merge: whichever
@@ -83,7 +83,7 @@ function isHostLease(value: unknown): value is HostLease {
  * Read the home's lease without judging whether its owner is still alive.
  * A missing, unparsable, or future-versioned file reads as absent: a lease is
  * an advisory fact, so a corrupt one must never fail a Host's startup.
- * @param home - absolute Harness home.
+ * @param home - absolute Aeven home.
  * @returns the recorded lease, or undefined when there is none to trust.
  */
 export async function readHostLease(home: string): Promise<HostLease | undefined> {
@@ -104,7 +104,7 @@ export async function readHostLease(home: string): Promise<HostLease | undefined
 /**
  * Publish this Host's lease, replacing any existing record. The file is
  * owner-only because `url` carries a live launch token.
- * @param home - absolute Harness home.
+ * @param home - absolute Aeven home.
  * @param lease - advertisement to record; `pid` is normally `process.pid`.
  * @returns resolution after durability.
  */
@@ -118,7 +118,7 @@ export async function writeHostLease(home: string, lease: HostLease): Promise<vo
  * Remove the lease when it still belongs to `pid`. A peer that took the lease
  * over keeps it: the disposer of the Host that lost it must not delete the
  * winner's advertisement.
- * @param home - absolute Harness home.
+ * @param home - absolute Aeven home.
  * @param pid - the claiming process id.
  * @returns resolution after the attempt; failures stay silent.
  */
@@ -131,7 +131,7 @@ export async function clearHostLease(home: string, pid: number): Promise<void> {
 /**
  * Read the home's lease, discarding one whose owning process has exited. Stale
  * removal is best-effort: a Host that cannot write still gets a usable answer.
- * @param home - absolute Harness home.
+ * @param home - absolute Aeven home.
  * @returns the live lease, or undefined when the home is unclaimed.
  */
 export async function liveHostLease(home: string): Promise<HostLease | undefined> {
@@ -146,7 +146,7 @@ export async function liveHostLease(home: string): Promise<HostLease | undefined
  * Attach this Host's HTTP URL to a lease it already owns, so a peer reading
  * the advertisement learns the attachable origin once the server has bound.
  * A lease claimed by another process is left untouched.
- * @param home - absolute Harness home.
+ * @param home - absolute Aeven home.
  * @param pid - the claiming process id.
  * @param url - tokenized root URL clients attach with.
  * @returns resolution after the attempt; failures stay silent.

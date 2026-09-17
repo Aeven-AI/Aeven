@@ -5,7 +5,7 @@ disable-model-invocation: true
 user-invocable: true
 ---
 
-# Translating DeepSeek-Harness docs
+# Translating DeepSeek-Aeven docs
 
 ## Invocation boundary
 

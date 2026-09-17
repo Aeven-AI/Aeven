@@ -92,7 +92,7 @@ export function resolveAvnHome(configured?: string, env: Record<string, string |
 
 /**
  * Join path segments onto the resolved Aeven home.
- * @param segments - path segments appended to the Harness home; an empty list returns the home itself.
+ * @param segments - path segments appended to the Aeven home; an empty list returns the home itself.
  * @returns the normalized absolute joined path.
  */
 export function avnHomePath(...segments: string[]): string {

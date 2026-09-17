@@ -1,5 +1,5 @@
 ---
-description: "The SDK wire protocol for client and server implementers: the newline-delimited JSON-RPC transport and the named request, result, and notification types spoken between a Harness runtime and its SDK clients."
+description: "The SDK wire protocol for client and server implementers: the newline-delimited JSON-RPC transport and the named request, result, and notification types spoken between an Aeven runtime and its SDK clients."
 kind: "package-library"
 ---
 

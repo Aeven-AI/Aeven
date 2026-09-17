@@ -3,7 +3,7 @@ description: "Package map for the SDK family: JSON-RPC protocol plus the TypeScr
 kind: "package-group"
 ---
 
-# sdk/ — drive a Harness runtime from another process
+# sdk/ — drive an Aeven runtime from another process
 
 English | [中文](README.zh.md)
 

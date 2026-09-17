@@ -18,7 +18,7 @@ Anthropic SDK resource methods append `/v1` themselves, and gateway documentatio
 
 The parser accepts a `data` array or an enriched `models` object, with a present array taking precedence. Array entries use their `id`; object entries use the property key because a nested `id` may name a canonical model instead of the route alias accepted on requests. Only object-valued map entries are considered models, so primitive directory metadata cannot become a candidate accidentally. A nested `id` is the fallback for an empty property key.
 
-The parser normalizes the supported name and capacity spellings into `LlmDiscoveredModel`. A missing display name becomes the request id so adoption fills a complete editable row. The request keeps the Harness attribution headers; response parsing, not client impersonation, provides gateway compatibility.
+The parser normalizes the supported name and capacity spellings into `LlmDiscoveredModel`. A missing display name becomes the request id so adoption fills a complete editable row. The request keeps the Aeven attribution headers; response parsing, not client impersonation, provides gateway compatibility.
 
 ## Alternatives considered
 
@@ -28,7 +28,7 @@ The parser normalizes the supported name and capacity spellings into `LlmDiscove
 
 **Refuse a trailing `/v1`.** A load-time or discovery-time rejection would name the mistake early, but gateway documentation publishes the `/v1` spelling, so a user pasting a documented address would be turned away from a listing that works.
 
-**Send an OpenAI SDK `User-Agent` for discovery.** This made one gateway return `data`, but it misattributed Harness traffic and relied on an undocumented client-name branch. Reading both known reply formats keeps attribution accurate.
+**Send an OpenAI SDK `User-Agent` for discovery.** This made one gateway return `data`, but it misattributed Aeven traffic and relied on an undocumented client-name branch. Reading both known reply formats keeps attribution accurate.
 
 **Adopt every property of a `models` object.** A primitive-valued property does not prove that its key is a model id and may be directory metadata such as a count or status. Restricting entries to records avoids inventing model candidates.
 

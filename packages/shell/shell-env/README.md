@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-shell-env` provides the trusted `AVN_*` environment that every model shell call — bash or pwsh — runs with: built-in facts such as `AVN_HOME`, `AVN_SHELL=1`, and the agent's `AVN_SESSION_ID`, plus `AVN_SESSION_JSONL` when the active persistence backend locates a JSONL artifact. Plugin authors can register their own facts with declared keys, collected per execution and disposed with their plugin; duplicate ownership or undeclared runtime keys fail loudly instead of silently overwriting. The registry changes nothing else the model sees — the shell tools own their own schemas and prompts. Choose it in any composition that mounts a model shell tool; configuration only picks the Harness home directory.
+`avn-shell-env` provides the trusted `AVN_*` environment that every model shell call — bash or pwsh — runs with: built-in facts such as `AVN_HOME`, `AVN_SHELL=1`, and the agent's `AVN_SESSION_ID`, plus `AVN_SESSION_JSONL` when the active persistence backend locates a JSONL artifact. Plugin authors can register their own facts with declared keys, collected per execution and disposed with their plugin; duplicate ownership or undeclared runtime keys fail loudly instead of silently overwriting. The registry changes nothing else the model sees — the shell tools own their own schemas and prompts. Choose it in any composition that mounts a model shell tool; configuration only picks the Aeven home directory.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ Load this plugin in any composition that mounts a model shell tool (`avn-tool-ba
 
 ### What every shell call receives
 
-Every call receives `AVN_HOME` (the absolute Harness home), `AVN_SHELL=1`, and, for agent calls, `AVN_SESSION_ID` (the calling session's id). When the active persistence backend locates a JSONL artifact for the session, calls also receive `AVN_SESSION_JSONL` with its absolute target path — a location hint, not a guarantee: the file may not exist before the first flush and may not contain the current buffered turn, and the value is not an authorization credential.
+Every call receives `AVN_HOME` (the absolute Aeven home), `AVN_SHELL=1`, and, for agent calls, `AVN_SESSION_ID` (the calling session's id). When the active persistence backend locates a JSONL artifact for the session, calls also receive `AVN_SESSION_JSONL` with its absolute target path — a location hint, not a guarantee: the file may not exist before the first flush and may not contain the current buffered turn, and the value is not an authorization credential.
 
 ### Adding your own environment facts
 
@@ -52,13 +52,13 @@ export function apply(ctx: Context): void {
 
 Contributors must declare every key they return; returning an undeclared or non-string value fails the call. Registration is disposed with the registering plugin, so hot-reloading a plugin removes its facts.
 
-### Choosing the Harness home
+### Choosing the Aeven home
 
 The single config field picks the home directory exposed as `AVN_HOME`; the default resolution order is the `avnHome` config, then ambient `$AVN_HOME`, then `~/.aeven`.
 
 | Field | Default | Meaning |
 |---|---|---|
-| `avnHome` | `$AVN_HOME`, then `~/.aeven` | Absolute Harness home exposed as `AVN_HOME` |
+| `avnHome` | `$AVN_HOME`, then `~/.aeven` | Absolute Aeven home exposed as `AVN_HOME` |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aeven-shell-env) is the exhaustive source for every accepted field and its JSDoc.
 

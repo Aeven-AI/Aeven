@@ -37,7 +37,7 @@ export const CORDIS_CORE_API_PAGES: CordisCoreApiPage[] = [
   {
     out: 'docs/cordis-api/events.md',
     title: 'Events',
-    intro: 'The event-dispatch API mixed into every context. Harness event declarations and their dispatch modes are generated into each owning [subsystem page](../subsystems/core.md).',
+    intro: 'The event-dispatch API mixed into every context. Aeven event declarations and their dispatch modes are generated into each owning [subsystem page](../subsystems/core.md).',
     sections: [
       { kind: 'context-merge', file: 'vendor/cordis/src/events.ts' },
       { kind: 'decl', file: 'vendor/cordis/src/events.ts', symbol: 'EventOptions' },

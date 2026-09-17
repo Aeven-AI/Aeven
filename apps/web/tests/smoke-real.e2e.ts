@@ -687,7 +687,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY || notReady.length > 0)('web smoke
     sessionsDir = mkdtempSync(join(tmpdir(), 'avn-web-w5-'))
     const port = await probeFreePort()
     // tsx boot mirrors the runtime half of the root avn script. Isolate
-    // the host-level Harness and shared-agent homes inside the temp world; tsx
+    // the host-level Aeven and shared-agent homes inside the temp world; tsx
     // also needs the repo's loader and tsconfig paths pointed at explicitly.
     const tsxLoader = pathToFileURL(createRequire(join(REPO_ROOT, 'package.json')).resolve('tsx')).href
     child = spawn(

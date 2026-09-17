@@ -6,7 +6,7 @@
 
 ## 运行极简 agent
 
-安装 `aeven-sdk`、导出模型凭据，然后提供隔离的 Harness home 与 workspace：
+安装 `aeven-sdk`、导出模型凭据，然后提供隔离的 Aeven home 与 workspace：
 
 ```sh
 export DEEPSEEK_API_KEY=sk-your-key-here

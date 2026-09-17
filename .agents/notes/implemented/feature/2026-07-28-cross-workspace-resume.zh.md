@@ -16,7 +16,7 @@ Status: implemented
 
 ## Decision
 
-共享 CLI（命令行界面）配置提供 Harness home 下的同一个会话根目录，选择器获得 workspace 范围，交接过程携带目标目录。
+共享 CLI（命令行界面）配置提供 Aeven home 下的同一个会话根目录，选择器获得 workspace 范围，交接过程携带目标目录。
 
 **存储。** 共享 base 在 `apps/cli/config/base.cordis.yml` 中拥有默认值：其 `session-persistence-jsonl` 配置项调用由 app-boot 提供的 `avnHomePath('sessions')`，该函数使用规范的 `AVN_HOME` 解析器及其标准的 `~/.aeven` 回退值。因此 TUI、Web 与 headless 使用同一个默认值，无需针对会话的启动器补丁或 slot。若 overlay 或个人 patch 显式声明根目录，它会整体替换该配置项的 `config`，并继续作为部署的权威选择。
 
@@ -30,7 +30,7 @@ Status: implemented
 
 **从 `avn` 启动器给 `persistenceRoot` 打补丁，而不是改动组合包默认值。** 在发现 loader 补丁会整体赋值 `config` 之后否决。个人的 `~/.aeven/config.yaml` 覆盖层已经用一份局部配置给 `tui-agent` 那一项打了补丁，这恰恰就是 `persistenceRoot` 一开始会退回到组合包默认值的原因；启动器补丁要么会被该覆盖层擦除，要么必须压过它，从而让覆盖层再也无法设置这个字段。把默认值放在组合包里能经受任何局部补丁，并让这项事实只有一个归属。
 
-**保留 `./.sessions`，并额外扫描 Harness home 根目录。** 否决：两个根目录意味着两份 SQLite 索引，以及一份合并列表——其中各行的活跃状态与版本权威来源并不相同，而这一切只是为了保住不做迁移的决策本就已经放弃的那部分日志可见性。
+**保留 `./.sessions`，并额外扫描 Aeven home 根目录。** 否决：两个根目录意味着两份 SQLite 索引，以及一份合并列表——其中各行的活跃状态与版本权威来源并不相同，而这一切只是为了保住不做迁移的决策本就已经放弃的那部分日志可见性。
 
 **把现有的项目本地日志迁移到共享根目录。** 被需求方否决。项目 `./.sessions` 下的会话仍留在磁盘上，从该目录显式执行 `avn --resume <id>` 仍可恢复，只是不再出现在 `/resume` 中。
 
@@ -42,7 +42,7 @@ Status: implemented
 
 - 已经存放在项目本地 `./.sessions` 下的会话会从 `/resume` 中消失。这是不做迁移所接受的代价。
 - 恢复一个会话可以改变进程的工作目录，因此恢复外部会话不是单纯的 transcript 还原——每个解析路径的工具都会随之移动。
-- Harness home 现在保存着这台机器上每个项目的会话日志。它的增长不再受单个 checkout 约束，而本记录也没有引入任何保留策略。
+- Aeven home 现在保存着这台机器上每个项目的会话日志。它的增长不再受单个 checkout 约束，而本记录也没有引入任何保留策略。
 
 ## Testing
 

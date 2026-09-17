@@ -28,7 +28,7 @@
  *
  * The document holds nothing but credentials, which is why it is a strict
  * `CredentialRef`-to-string mapping rather than a dotenv file: a store the
- * Harness owns and never materializes into the environment cannot also serve
+ * Aeven owns and never materializes into the environment cannot also serve
  * as the user's environment layer; a store that doubled as the environment
  * layer would shadow non-secret entries behind its precedence, making them
  * silently unreachable.
@@ -64,7 +64,7 @@ export const CREDENTIALS_FILENAME = '.credentials.yaml'
 export interface Config {
   /** Credentials document path; defaults to `.credentials.yaml` under the harness home. */
   path?: string
-  /** Harness home used when `path` is omitted; defaults to `$AVN_HOME` or `~/.aeven`. */
+  /** Aeven home used when `path` is omitted; defaults to `$AVN_HOME` or `~/.aeven`. */
   avnHome?: string
   /** Watch the document and hot-publish external edits; defaults to true. */
   watch?: boolean

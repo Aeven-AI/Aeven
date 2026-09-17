@@ -1,4 +1,4 @@
-# Agent Note: avn CLI 与来自 Harness home 的个人配置 overlay
+# Agent Note: avn CLI 与来自 Aeven home 的个人配置 overlay
 
 Status: implemented
 
@@ -10,13 +10,13 @@ Status: implemented
 
 ## 决策
 
-下文的各入口模式，以及个人文件的名称与位置，已被 [profile 插件组合包决策](../architecture/2026-08-05-profile-plugin-bundles.zh.md)取代：`avn` 启动 profile，个人层变成逐 profile 与 home 级的 `cordis.patch.yml`。保留不变的是本笔记的实质：以 Harness home 作为机器级层的根目录、在随附组合之上使用 patch 语义，以及解析失败时明确报错。
+下文的各入口模式，以及个人文件的名称与位置，已被 [profile 插件组合包决策](../architecture/2026-08-05-profile-plugin-bundles.zh.md)取代：`avn` 启动 profile，个人层变成逐 profile 与 home 级的 `cordis.patch.yml`。保留不变的是本笔记的实质：以 Aeven home 作为机器级层的根目录、在随附组合之上使用 patch 语义，以及解析失败时明确报错。
 
 两个耦合的部分，与 `avn web` PR（#443）提出的 `apps/` 装配层对齐：
 
 **`avn` CLI（命令行界面；`apps/cli`，npm 名 `@aeven/cli`）。** `apps/*` 是位于 `packages/*` 库之上的产品组装层。一个 bin 负责分发默认交互式 TUI、`-p`/`--prompt` 无头轮次和 `web` 界面。TUI 以调用目录为 workspace，启动 `examples/tui-agent/cordis.yml`（或 `--config` 指定的配置）。在源码检出中，根目录的 `pnpm avn` 脚本不执行构建，直接使用 tsx 的 ESM hook 运行同一入口；运行方式由[源码启动决策](../architecture/2026-07-29-avn-source-launch-tsx-esm.zh.md)规定，产物生成由[源码启动与构建分离决策](../simplification/2026-08-12-separate-source-launch-from-build.zh.md)规定。
 
-**个人配置（`avn-app-boot`）。** 个人 overlay 存放在 Harness home——`$AVN_HOME`，否则 `~/.aeven`——由共享的 [`resolveAvnHome`](../architecture/2026-07-24-single-harness-home-resolver.zh.md)（`@aeven/home-paths`）解析，与 skill（技能）、AGENTS.md 解析所依据的单一根目录相同。avn 的 TUI、Web 和无头界面使用其中两个可选文件；各示例 bin 仍然逐字节按已提交的配置树启动：
+**个人配置（`avn-app-boot`）。** 个人 overlay 存放在 Aeven home——`$AVN_HOME`，否则 `~/.aeven`——由共享的 [`resolveAvnHome`](../architecture/2026-07-24-single-harness-home-resolver.zh.md)（`@aeven/home-paths`）解析，与 skill（技能）、AGENTS.md 解析所依据的单一根目录相同。avn 的 TUI、Web 和无头界面使用其中两个可选文件；各示例 bin 仍然逐字节按已提交的配置树启动：
 
 - `.env`——在调用目录的 `.env` 之后加载；`process.loadEnvFile` 从不覆盖已有值，因此优先级为环境变量 > 项目 `.env` > 个人 `.env`。
 - `config.yaml`——顶层 YAML 数组，元素为 `@cordisjs/plugin-include` 的 `PatchOptions`，用 include 自己的 `!!js` 方言解析（`loadPersonalPatches`）并传给 `boot()`，由它作为根 include 的 `patches` 转发。补丁语义与交付的 surface overlay 一致：按 id 定位的补丁替换该配置项的整个 `config`，`insert` 追加配置项，未匹配的 id 静默不执行任何操作。外部包作为 [profile 组合包](../simplification/2026-08-09-remove-repository-plugin.zh.md)安装；这个个人层负责配置这些组合包提供的 Loader 配置项。

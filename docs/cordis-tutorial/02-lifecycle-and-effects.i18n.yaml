@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/cordis-tutorial/02-lifecycle-and-effects.md
-02-lifecycle-and-effects.md: b4534987f84ef2425f5b247bb716ea08770e8929
+02-lifecycle-and-effects.md: 1a6a5bdd6fdbc4ae75b41f36ca0baba1a46008ef
 02-lifecycle-and-effects.zh.md: 1cfd157c3e47e14def76683557edc8e050c1d36b

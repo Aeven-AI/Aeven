@@ -6,7 +6,7 @@ English | [中文](2026-08-06-in-repository-landlock-release.zh.md)
 
 ## Problem
 
-The `@deepseek-ai/node-addon-landlock-run` source already lives beside its Aeven consumers under `native/landlock-run`, but it previously kept a separate pnpm workspace and lockfile and depended on a standalone repository for npm publication. Harness packages consumed a fixed registry version, so one pull request could change the launcher contract and its consumer without testing those changes together. The source repository's native workflow could rehearse the package, but it did not publish the artifact it tested.
+The `@deepseek-ai/node-addon-landlock-run` source already lives beside its Aeven consumers under `native/landlock-run`, but it previously kept a separate pnpm workspace and lockfile and depended on a standalone repository for npm publication. Aeven packages consumed a fixed registry version, so one pull request could change the launcher contract and its consumer without testing those changes together. The source repository's native workflow could rehearse the package, but it did not publish the artifact it tested.
 
 The mirror also duplicated release coordination: export the source, update another lockfile, run another release workflow, publish the native family, then return to this repository to bump registry dependencies. That split made it harder to match each binary to its source commit, roll back releases, and coordinate security fixes without changing what npm users actually needed.
 
@@ -16,7 +16,7 @@ The consolidation must preserve platform selection. The public distribution is d
 
 ## Decision
 
-`native/landlock-run` and `native/landlock-run/packages/*` belong to the repository's root pnpm workspace and use the root `pnpm-lock.yaml`. Harness consumers declare `@deepseek-ai/node-addon-landlock-run` with `workspace:*`, so development, type checking, builds, and pull-request tests resolve the entry package from the same checkout. The root TypeScript project graph builds that entry package before consumers, and the repository cleaner owns its direct `lib/` output.
+`native/landlock-run` and `native/landlock-run/packages/*` belong to the repository's root pnpm workspace and use the root `pnpm-lock.yaml`. Aeven consumers declare `@deepseek-ai/node-addon-landlock-run` with `workspace:*`, so development, type checking, builds, and pull-request tests resolve the entry package from the same checkout. The root TypeScript project graph builds that entry package before consumers, and the repository cleaner owns its direct `lib/` output.
 
 The public npm boundary is three organization-owned packages with one launcher-family version: `@deepseek-ai/node-addon-landlock-run`, `@deepseek-ai/node-addon-landlock-run-linux-x64`, and `@deepseek-ai/node-addon-landlock-run-linux-arm64`. The entry package retains both platform packages as `optionalDependencies`; their `os` and `cpu` manifest fields let npm install only the compatible package. Repository constraints require `publishConfig.access: public` for those three names and require their versions to match the private launcher workspace root. The former unscoped names are not release targets of this repository. These three are no longer the only public packages: the [per-sequence access decision](2026-08-13-public-vendor-and-native-sequences.md) publishes the nine vendored framework packages publicly as well, while the avn family stays restricted.
 

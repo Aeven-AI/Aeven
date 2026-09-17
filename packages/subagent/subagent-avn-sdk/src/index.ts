@@ -1,6 +1,6 @@
 /**
  * Out-of-process SDK subagent backend. Each child is a complete DeepSeek
- * Harness runtime in its own process — own named profile and patch composition,
+ * Aeven runtime in its own process — own named profile and patch composition,
  * session, model route, and tools — driven over stdio JSON-RPC through the
  * TypeScript SDK client, so it shares no Cordis context. It accepts the
  * provider/model/reasoning/maxTokens subset of `agentOptions`; other start
@@ -40,7 +40,7 @@ export interface Config {
   profile: string
   /** Ordered per-launch profile patch files, resolved and checked at plugin load. */
   patches: string[]
-  /** Absolute isolated Harness home for every nested child process. */
+  /** Absolute isolated Aeven home for every nested child process. */
   avnHome: string
   /**
    * Working directory override for the child process and its SDK session

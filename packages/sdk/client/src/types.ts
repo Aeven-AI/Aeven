@@ -28,7 +28,7 @@ export interface HarnessClientOptions {
   profile?: string
   /** Ordered per-launch profile patches; relative paths resolve before spawn. */
   patches?: string[]
-  /** Explicit Harness home for this child; relative paths resolve before spawn. */
+  /** Explicit Aeven home for this child; relative paths resolve before spawn. */
   avnHome?: string
   /** Working directory for the avn process itself. */
   processCwd?: string

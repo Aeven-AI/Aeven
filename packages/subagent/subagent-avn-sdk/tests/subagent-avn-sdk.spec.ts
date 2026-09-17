@@ -836,7 +836,7 @@ describe('avn-subagent-avn-sdk provider', () => {
     await ctx.fiber.dispose()
   })
 
-  it('requires an explicit absolute Harness home for nested avn runtimes', async () => {
+  it('requires an explicit absolute Aeven home for nested avn runtimes', async () => {
     const ctx = new Context()
     await ctx.plugin(SubagentRuntime)
     await expect(ctx.plugin(sdk, {

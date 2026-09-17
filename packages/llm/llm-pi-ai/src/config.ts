@@ -168,7 +168,7 @@ export interface PiAiProviderProfile {
    * to answer instead.
    */
   defaultInput?: PiAiModality[]
-  /** Provider request headers, validated against Fetch when the profile resolves; Harness attribution wins reserved names. */
+  /** Provider request headers, validated against Fetch when the profile resolves; Aeven attribution wins reserved names. */
   headers?: Record<string, string>
   /** Provider-neutral pi-ai reasoning level. */
   reasoning?: ModelThinkingLevel
@@ -223,7 +223,7 @@ export interface ResolvedPiAiProviderProfile
   extends Omit<PiAiProviderProfile, 'apiKeyEnv' | 'retryPolicy' | 'models' | 'displayName' | 'catalogRefresh'> {
   /** Live model-list refresh this route configured, with its timeout defaulted; absent when it configured none. */
   catalogRefresh?: ResolvedPiAiCatalogRefresh
-  /** Harness route key and the `Models` collection key (the configuration dict key). */
+  /** Aeven route key and the `Models` collection key (the configuration dict key). */
   provider: string
   /** Resolved display name for selectors and configuration surfaces. */
   displayName: string

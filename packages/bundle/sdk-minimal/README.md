@@ -64,7 +64,7 @@ The bundle's single insert is the complete application tree: SDK stdio startup a
 <a id="further-exploration"></a>
 ## Further Exploration
 
-- [Python SDK example](../../../python/sdk/examples/README.md) — launches this profile from Python against an explicit Harness home.
+- [Python SDK example](../../../python/sdk/examples/README.md) — launches this profile from Python against an explicit Aeven home.
 - [SDK application bundle](../sdk-app/README.md) — the JSON-RPC application layer reused by full and minimal SDK profiles.
 - [Base bundle](../base/README.md) — the full product foundation that this profile deliberately omits.
 
@@ -77,7 +77,7 @@ The bundle's single insert is the complete application tree: SDK stdio startup a
 
 #### What the model sees
 
-The system prompt is `AVN_SYSTEM_PROMPT` or `You are a helpful software engineer assistant.`. The only advertised tools are owner-scoped persistent `bash` on Linux/macOS or `pwsh` on Windows, plus `str_replace_editor`; runtime context, workspace instructions, skills, jobs controls, compaction, and Harness identity are absent.
+The system prompt is `AVN_SYSTEM_PROMPT` or `You are a helpful software engineer assistant.`. The only advertised tools are owner-scoped persistent `bash` on Linux/macOS or `pwsh` on Windows, plus `str_replace_editor`; runtime context, workspace instructions, skills, jobs controls, compaction, and Aeven identity are absent.
 
 #### Token effect
 

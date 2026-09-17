@@ -10,7 +10,7 @@
 - Git
 - Linux x64、Linux arm64、arm64 上的 macOS 14 或更高版本，或 Windows x64
 - DeepSeek 兼容的 API endpoint 与凭据
-- 隔离的 workspace 与隔离的 Harness home
+- 隔离的 workspace 与隔离的 Aeven home
 
 ## 安装 SDK
 

@@ -14,7 +14,7 @@ The Python SDK runtime distribution needs a Windows carrier without creating ano
 
 `python/sdk-runtime/platforms.json` declares one Windows target, `win-x64`. Its pkg target is `node24-win-x64`, its runtime wheel tag is `py3-none-win_amd64`, and its payload is `aeven-sdk-runtime-win-x64.exe` with `aeven-sdk-runtime-win-x64-rg.exe`. The packaged `node-pty` tree must contain both x64 ConPTY addons. Runtime lookup rejects Windows arm64 rather than selecting or relabeling the x64 wheel.
 
-The Python process still launches the ordinary `avn --profile sdk` application and requires an explicit Harness home under the [Python profile-runtime decision](2026-08-23-python-sdk-avn-profile-runtime.md). Windows adds no Python-specific Node application, complete-config entrypoint, implicit `~/.aeven`, or system Node requirement.
+The Python process still launches the ordinary `avn --profile sdk` application and requires an explicit Aeven home under the [Python profile-runtime decision](2026-08-23-python-sdk-avn-profile-runtime.md). Windows adds no Python-specific Node application, complete-config entrypoint, implicit `~/.aeven`, or system Node requirement.
 
 ### Native build and publication
 

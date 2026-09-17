@@ -1,6 +1,6 @@
 /**
  * Immutable launch-time environment snapshot that records which layer
- * supplied each value. Harness consumers resolve through it instead of a flattened
+ * supplied each value. Aeven consumers resolve through it instead of a flattened
  * `process.env`; launchers may still materialize accepted values for config
  * expressions and third-party libraries.
  * @module @aeven/launch-environment
@@ -10,7 +10,7 @@ import type { Context } from '@deepseek-ai/cordis'
 
 /**
  * Which layer supplied a value, from most to least trusted: the environment
- * this process inherited, the invoking directory's `.env`, the Harness home's
+ * this process inherited, the invoking directory's `.env`, the Aeven home's
  * `.env`.
  */
 export type LaunchEnvironmentSource = 'process' | 'project-env' | 'user-env'

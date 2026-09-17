@@ -2,7 +2,7 @@
 
 English | [中文](events.zh.md)
 
-Events are the core communication mechanism between Cordis plugins. Harness uses them extensively for loosely coupled extension points.
+Events are the core communication mechanism between Cordis plugins. Aeven uses them extensively for loosely coupled extension points.
 
 ## Basic use
 
@@ -82,7 +82,7 @@ A waterfall listener **must call `next()`**. Omitting it short-circuits the pipe
 
 ## Typed events
 
-Harness uses TypeScript declaration merging for type-safe events:
+Aeven uses TypeScript declaration merging for type-safe events:
 
 ```ts
 import '@deepseek-ai/cordis'

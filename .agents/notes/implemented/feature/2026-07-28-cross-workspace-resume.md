@@ -16,7 +16,7 @@ Finally, resume never changed directory. The host re-execs `avn --resume=<id>` t
 
 ## Decision
 
-The shared CLI configuration supplies one session root under the Harness home, the picker gains a workspace scope, and the handoff carries the target directory.
+The shared CLI configuration supplies one session root under the Aeven home, the picker gains a workspace scope, and the handoff carries the target directory.
 
 **Storage.** The shared base owns the default in `apps/cli/config/base.cordis.yml`: its `session-persistence-jsonl` row calls the app-boot-provided `avnHomePath('sessions')`, which uses the canonical `AVN_HOME` resolver and its standard `~/.aeven` fallback. TUI, Web, and headless therefore consume one default without a session-specific launcher patch or slot. An overlay or personal patch that states an explicit root replaces that row's whole `config` and remains the deployment's authoritative choice.
 
@@ -42,7 +42,7 @@ The shared CLI configuration supplies one session root under the Harness home, t
 
 - Sessions already stored under a project-local `./.sessions` disappear from `/resume`. This is the accepted cost of no migration.
 - A resumed session can change the process's working directory, so a foreign resume is not a pure transcript restoration — every path-resolving tool moves with it.
-- The Harness home now holds session logs for every project on the machine. Its growth is no longer bounded by one checkout, and no retention policy is introduced here.
+- The Aeven home now holds session logs for every project on the machine. Its growth is no longer bounded by one checkout, and no retention policy is introduced here.
 
 ## Testing
 

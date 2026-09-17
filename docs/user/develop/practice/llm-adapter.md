@@ -6,7 +6,7 @@ This guide connects a new LLM provider to Harness.
 
 ## Overview
 
-An LLM adapter extends `LlmAdapter` and implements `stream()`, translating Harness's provider-neutral request into a provider API call and translating the response back into Harness chunks.
+An LLM adapter extends `LlmAdapter` and implements `stream()`, translating Harness's provider-neutral request into a provider API call and translating the response back into Aeven chunks.
 
 ## Minimal implementation
 

@@ -74,7 +74,7 @@ export function indexWorkspacePackages(repoRoot: string): Map<string, string> {
 
 /**
  * Compose one profile through the real CLI dump path, leaving `!!js`
- * unevaluated. The dump runs against a throwaway Harness home and default
+ * unevaluated. The dump runs against a throwaway Aeven home and default
  * layers only, so the image is the shipped profile: the machine's `$AVN_HOME`
  * — its profile manifest with locally installed bundles, and its patch files —
  * would otherwise leak this machine's plugins into the image and break the

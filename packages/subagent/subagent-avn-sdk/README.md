@@ -1,5 +1,5 @@
 ---
-description: "The out-of-process SDK subagent backend for users and maintainers choosing a delegation provider, configuring a child Harness runtime command, or debugging remote child runs."
+description: "The out-of-process SDK subagent backend for users and maintainers choosing a delegation provider, configuring a child Aeven runtime command, or debugging remote child runs."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-subagent-avn-sdk` runs each delegated child as a complete Aeven runtime in a fresh subprocess, driven over stdio JSON-RPC through the TypeScript SDK client. It is the second out-of-process backend beside the ACP provider, differing in the wire and the child contract: the child is a full peer harness with its own `cordis.yml`-decided composition, session persistence, model route, and tools. Each run spawns the child runtime (the resolved `@aeven/cli` CLI under Node, or the configured `avnBin`), completes an `initialize` handshake with the configured provider and model route, submits the task, and reads the answer from the child's session events. The parent receives only the child's final assistant text or a safe error — no intermediate messages or tool traffic crosses the boundary. Choose it when the child should be a genuine Harness runtime, fully isolated from the parent harness.
+`avn-subagent-avn-sdk` runs each delegated child as a complete Aeven runtime in a fresh subprocess, driven over stdio JSON-RPC through the TypeScript SDK client. It is the second out-of-process backend beside the ACP provider, differing in the wire and the child contract: the child is a full peer harness with its own `cordis.yml`-decided composition, session persistence, model route, and tools. Each run spawns the child runtime (the resolved `@aeven/cli` CLI under Node, or the configured `avnBin`), completes an `initialize` handshake with the configured provider and model route, submits the task, and reads the answer from the child's session events. The parent receives only the child's final assistant text or a safe error — no intermediate messages or tool traffic crosses the boundary. Choose it when the child should be a genuine Aeven runtime, fully isolated from the parent harness.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this provider when a delegation should run as a complete Harness runtime in its own process. The common path is explicit: mount the seam, mount this provider, and give it a command that starts an SDK runtime with its own `cordis.yml`.
+Mount this provider when a delegation should run as a complete Aeven runtime in its own process. The common path is explicit: mount the seam, mount this provider, and give it a command that starts an SDK runtime with its own `cordis.yml`.
 
 ### When to choose it
 
@@ -41,7 +41,7 @@ The provider advertises `agentOptions: true`, with `outputSchema`/`depthLimit`/`
 | `avnBin` | SDK dependency | Explicit avn CLI module, resolved and checked at plugin load; omission uses the SDK dependency |
 | `profile` | `sdk` | Named child profile |
 | `patches` | `[]` | Ordered per-launch profile patch files, resolved and checked at plugin load |
-| `avnHome` | required | Absolute isolated Harness home for every nested child process |
+| `avnHome` | required | Absolute isolated Aeven home for every nested child process |
 | `cwd` | parent session cwd | Working-directory override for the child process and its SDK session |
 | `provider` | `deepseek-official` | Provider route sent in the child's `initialize` |
 | `model` | `deepseek-v4-flash` | Model sent in the child's `initialize` |
@@ -87,11 +87,11 @@ An already-aborted request fails before path resolution or spawn. A route, spawn
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-This section explains how the backend drives a child Harness runtime and where the observable behavior comes from; the full contract lives in [Use this package](#use-this-package).
+This section explains how the backend drives a child Aeven runtime and where the observable behavior comes from; the full contract lives in [Use this package](#use-this-package).
 
 ### Design concept
 
-- **Full harness peer.** Each child is a complete Harness runtime in its own process — own composition, session, model route, and tools; only the resolved working directory and the `initialize` route cross from the parent.
+- **Full harness peer.** Each child is a complete Aeven runtime in its own process — own composition, session, model route, and tools; only the resolved working directory and the `initialize` route cross from the parent.
 - **One runtime per run.** Every run spawns a fresh runtime process; there is no pooling.
 - **The JSON-RPC wire is the serialization boundary.** Same-process subagent values are not defensively cloned; the protocol is where hostile input is validated.
 

@@ -113,7 +113,7 @@ describe('PiAiAdapter provider routing', () => {
     expect(second.requests).toHaveLength(0)
   })
 
-  it('merges profile headers with Harness attribution winning', async () => {
+  it('merges profile headers with Aeven attribution winning', async () => {
     const server = await mockServer([{ events: textEvents }])
     const ctx = await harness(server.url, {
       headers: { 'x-company': 'private', 'User-Agent': 'wrong' },

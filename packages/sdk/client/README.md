@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Use this client when TypeScript code must drive a complete Harness runtime from another process and you can name the runtime executable explicitly. The common path is minimal: construct a `Aeven` with a launch spec, run prompts, and close it so the child process is always reaped.
+Use this client when TypeScript code must drive a complete Aeven runtime from another process and you can name the runtime executable explicitly. The common path is minimal: construct a `Aeven` with a launch spec, run prompts, and close it so the child process is always reaped.
 
 ### Running agent turns with Aeven
 

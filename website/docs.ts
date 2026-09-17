@@ -176,7 +176,7 @@ const develop = pairedPages([
   {
     source: 'docs/user/develop/basic/index.md',
     route: 'develop/basic/index.md',
-    label: { root: '第一个 Harness 插件', en: 'Your first Harness plugin' },
+    label: { root: '第一个 Harness 插件', en: 'Your first Aeven plugin' },
     sidebar: { root: 'zh-develop', en: 'en-develop' },
     section: { root: '基础', en: 'Basics' },
     order: 1,

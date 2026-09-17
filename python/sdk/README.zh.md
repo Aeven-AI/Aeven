@@ -12,7 +12,7 @@ python -m pip install aeven-sdk
 
 Python SDK 没有独立的应用入口。它以 `--profile sdk` 启动内置的 `avn` CLI；所选 profile 负责 JSON-RPC 服务器、agent 组合、凭据、持久化、工具和关闭流程。
 
-每次启动都必须显式指定 Harness home。请传入 `avn_home`，或在子进程环境中提供非空的 `AVN_HOME`。SDK 刻意不会发现 `~/.aeven`。
+每次启动都必须显式指定 Aeven home。请传入 `avn_home`，或在子进程环境中提供非空的 `AVN_HOME`。SDK 刻意不会发现 `~/.aeven`。
 
 ```py
 from aeven import Aeven

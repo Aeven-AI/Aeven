@@ -33,7 +33,7 @@ interface SessionPersistence {
 
 注册表会为每次前台和后台 bash `ToolExecution` 重新构建受信任的覆盖层：
 
-- `AVN_HOME` 始终是配置的 Harness home 绝对路径。独立的 [`@aeven/home-paths`](../../../../packages/util/home-paths/README.zh.md) 工具库规定其优先级：显式 `avnHome`，其次是环境中的 `$AVN_HOME`，最后是 `~/.aeven`。
+- `AVN_HOME` 始终是配置的 Aeven home 绝对路径。独立的 [`@aeven/home-paths`](../../../../packages/util/home-paths/README.zh.md) 工具库规定其优先级：显式 `avnHome`，其次是环境中的 `$AVN_HOME`，最后是 `~/.aeven`。
 - `AVN_SHELL=1` 始终存在，用于标识由 Aeven 管理、面向模型的 bash 子进程。
 - 执行具有关联 agent 时，`AVN_SESSION_ID` 存在并等于 `agent.session.header.id`。
 - 内置的持久化转换层提供 `AVN_SESSION_JSONL` 的条件是 `ctx.sessionPersistence.locate(header)` 返回 `kind: 'jsonl'`。
@@ -82,6 +82,6 @@ bash 工具说明只讲解持久约定：当前 harness 环境事实通过受管
 
 ## 影响
 
-每个面向模型的 bash 子进程都会收到当前 Harness home 和 shell 标识，关联 agent 的调用还会收到稳定的会话标识。使用 JSONL 后端的调用可以获得可选的目标路径；非文件持久化会如实省略该值。这些子进程中受管理的 `AVN_*` 事实来自 harness：系统移除环境中已有的受管理值、在最后重新加入当前受信任的值，普通调用方的 `env` 条目无法顶掉它们。
+每个面向模型的 bash 子进程都会收到当前 Aeven home 和 shell 标识，关联 agent 的调用还会收到稳定的会话标识。使用 JSONL 后端的调用可以获得可选的目标路径；非文件持久化会如实省略该值。这些子进程中受管理的 `AVN_*` 事实来自 harness：系统移除环境中已有的受管理值、在最后重新加入当前受信任的值，普通调用方的 `env` 条目无法顶掉它们。
 
 该命名空间可被发现，但并非秘密。路径可能泄露配置的根目录，延迟创建的目标也可能不存在或处于陈旧状态，而且命令可以在自己的 shell 语法中覆盖变量。消费方应把这些值视为关联信息和环境事实，在归属关系重要时校验 transcript 元数据，并依靠沙箱／文件系统策略而不是变量保密性来完成授权。

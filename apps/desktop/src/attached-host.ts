@@ -2,7 +2,7 @@
  * Backend selection for the Electron shell: adopt a Host that already serves
  * this home, or start one of our own.
  *
- * Every durable share in a Harness home is single-writer by construction
+ * Every durable share in an Aeven home is single-writer by construction
  * except the domain KV documents, whose JSON backend republishes a whole
  * document from one process's memory with no cross-process coordination. Two
  * Hosts on one home therefore do not merge: the last writer replaces the
@@ -37,7 +37,7 @@ export interface DesktopBackendOptions {
   readonly probe?: (url: string) => Promise<boolean>
   /** Pid of the process asking, so its own lease never counts as a peer. */
   readonly ownPid?: number
-  /** Home to inspect; defaults to the resolved Harness home. */
+  /** Home to inspect; defaults to the resolved Aeven home. */
   readonly home?: string
 }
 

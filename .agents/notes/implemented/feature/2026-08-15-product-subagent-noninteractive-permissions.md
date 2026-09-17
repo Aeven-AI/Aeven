@@ -71,7 +71,7 @@ Package tests pin every allowed and rejected Config value, the exact SDK and app
 
 **Put permission mode in the model-facing tool or each start request.** That would let task content select authority and would duplicate a Profile deployment decision on every call.
 
-**Copy product settings or map the parent Harness sandbox.** The products do not share one permission vocabulary. Mirroring their state would create a second authority and obscure the native sandbox consequences of automatic and bypass modes.
+**Copy product settings or map the parent Aeven sandbox.** The products do not share one permission vocabulary. Mirroring their state would create a second authority and obscure the native sandbox consequences of automatic and bypass modes.
 
 **Forward prompts to a parent, Web client, or CLI.** The one-shot product run has no owned human-interaction lifecycle. Adding one would require durable request identity, routing, cancellation, and timeout semantics beyond this decision.
 

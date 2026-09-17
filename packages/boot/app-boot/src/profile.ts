@@ -37,7 +37,7 @@ import { resolveAvnHome } from '@aeven/home-paths'
 import { resolve as resolvePackage, type Package as ResolvePackageManifest } from 'resolve.exports'
 import { loadOverlayPatches } from './index.ts'
 
-/** Directory under the Harness home holding every profile. */
+/** Directory under the Aeven home holding every profile. */
 export const PROFILES_DIR = 'profiles'
 
 /** The user patch layer inside a profile directory (hot-reloaded on long-lived surfaces). */
@@ -119,9 +119,9 @@ export interface Profile {
 }
 
 /**
- * Resolve a profile's directory under the Harness home.
+ * Resolve a profile's directory under the Aeven home.
  * @param name - the profile name (`avn --profile <name>`).
- * @param home - the Harness home; defaults to {@link resolveAvnHome}.
+ * @param home - the Aeven home; defaults to {@link resolveAvnHome}.
  * @returns the absolute profile directory (which may not exist yet).
  */
 export function resolveProfileDir(name: string, home: string = resolveAvnHome()): string {
@@ -560,7 +560,7 @@ export interface ProfileModuleFallbackOptions {
   installAnchor: string
   /** Loaded profile whose selected bundles may carry profile-local plugins. */
   profile?: Profile
-  /** Harness home; defaults to {@link resolveAvnHome}. */
+  /** Aeven home; defaults to {@link resolveAvnHome}. */
   home?: string
 }
 
@@ -573,7 +573,7 @@ export interface ProfileModuleFallbackOptions {
  * bundles are linked through a profile-owned directory into that profile's
  * `node_modules`; pnpm-managed entries remain authoritative, and another
  * profile's links cannot change its resolution.
- * @param options - installation anchor, optional loaded profile, and Harness home.
+ * @param options - installation anchor, optional loaded profile, and Aeven home.
  * @returns settlement after the shared fallback and profile-local links are current.
  */
 export async function healProfilesModuleFallback(options: ProfileModuleFallbackOptions): Promise<void> {
@@ -796,7 +796,7 @@ export function resolveBundleDir(
  * @param binName - the diagnostic prefix on thrown errors.
  * @param name - the profile name.
  * @param installAnchor - absolute path of the avn app's package.json (first resolution anchor).
- * @param home - the Harness home; defaults to {@link resolveAvnHome}.
+ * @param home - the Aeven home; defaults to {@link resolveAvnHome}.
  * @param options - `userLayer: false` skips reading `cordis.patch.yml`, so a
  * bundles-only consumer (`--dump-default-config`, a recovery diagnostic)
  * cannot fail on a broken user layer.
@@ -822,7 +822,7 @@ export function loadProfile(
 
 /**
  * Load an already initialized profile directory without resolving it through
- * the shared Harness home. Application-owned profiles, such as the Electron
+ * the shared Aeven home. Application-owned profiles, such as the Electron
  * desktop profile, own their package project and lifecycle.
  * @param binName - the diagnostic prefix on thrown errors.
  * @param dir - absolute profile package directory.

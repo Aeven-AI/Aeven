@@ -3,7 +3,7 @@
 import { join } from 'node:path'
 import { resolveAvnHome } from '@aeven/home-paths'
 
-/** Stable desktop installation paths under the shared Harness home. */
+/** Stable desktop installation paths under the shared Aeven home. */
 export interface DesktopPaths {
   readonly root: string
   readonly profile: string
@@ -23,7 +23,7 @@ export interface DesktopPaths {
 
 /**
  * Resolve every Electron-owned path without changing the shared data roots.
- * @param avnHome - Harness home shared with npm-installed avn.
+ * @param avnHome - Aeven home shared with npm-installed avn.
  * @returns immutable desktop path set.
  */
 export function resolveDesktopPaths(avnHome: string = resolveAvnHome()): DesktopPaths {

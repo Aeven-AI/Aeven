@@ -1,7 +1,7 @@
 /**
  * Shared boot glue for `avn` profiles, including the CLI packaged by the Python runtime wheel: load the gitignored
  * `.env`, install the fail-loud Loader guards, resolve the config path (snapshot-aware), load the
- * optional user patch layers from the Harness home (`~/.aeven`), expose its path resolver to
+ * optional user patch layers from the Aeven home (`~/.aeven`), expose its path resolver to
  * config expressions, and drive the Cordis Loader against a leaf `cordis.yml` until the tree settles.
  * @module @aeven/app-boot
  */
@@ -147,7 +147,7 @@ function isBootstrapOnly(name: string): boolean {
  * @param binName - the diagnostic prefix on the thrown error.
  * @param dir - the directory whose `.env` to read.
  * @param warn - sink for the one-line unreadable-file diagnostic.
- * @param home - the resolved Harness home; when `dir` is it, {@link HOME_LAYER_PROXY_NAMES} are accepted.
+ * @param home - the resolved Aeven home; when `dir` is it, {@link HOME_LAYER_PROXY_NAMES} are accepted.
  * @returns the parsed entries, or `undefined` when the file is absent or unreadable.
  * @throws when the file declares a name {@link isBootstrapOnly} rejects and this layer may not set.
  */
@@ -187,7 +187,7 @@ function readEnvLayer(
 
 /**
  * Load the product CLI's inherited > invoking-directory `.env` > Harness-home
- * `.env` snapshot. The Harness home resolves before either file; both files
+ * `.env` snapshot. The Aeven home resolves before either file; both files
  * are checked before either is applied, and accepted values are materialized
  * without replacing inherited ones. The snapshot preserves which layer supplied each value.
  * @param binName - the diagnostic prefix on the diagnostics.

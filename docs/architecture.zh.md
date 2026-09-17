@@ -16,7 +16,7 @@
 
 运行中的 `avn` 是一棵插件树，由启动时按序叠加的各层组合而成。
 
-**profile** 是存放在 Harness home 中的具名组装。它列出自己叠放的组合包，存放自己安装的树外插件，并保存用户自己的 `cordis.patch.yml`。`web`、`headless`、`sdk`、`sdk-minimal` 和 `acp` 作为模板随发行版交付。
+**profile** 是存放在 Aeven home 中的具名组装。它列出自己叠放的组合包，存放自己安装的树外插件，并保存用户自己的 `cordis.patch.yml`。`web`、`headless`、`sdk`、`sdk-minimal` 和 `acp` 作为模板随发行版交付。
 
 **组合包**是 Cordis 配置项及其挂载代码的分发格式，因此它插入的内容始终可被其上各层 patch。
 
@@ -44,7 +44,7 @@ avn --profile web --dump-config
 
 Vendored CLI、仅用于构建和测试的可执行文件、进程内直接挂载插件以及私有浏览器 WebWorker 预览都不属于 Harness 应用启动器。[`verify-application-entrypoints`](../scripts/verify-application-entrypoints.ts)将每个包 bin、可执行源码与根 demo 归入显式类别，并拒绝任何绕过 `avn` 的 Node 应用路径。
 
-Python SDK 遵循相同的应用架构。其运行时 wheel 把普通 `avn` CLI 打包为 `aeven-sdk-runtime-<platform>-<arch>`，客户端默认以显式 Harness home 启动 `avn --profile sdk`。极简示例选择随附的 `sdk-minimal` profile。Python 暴露 profile 选择与有序 patch 文件，而不是完整 Cordis 树；持久外部插件通过 `avn plugin` 安装。已删除的私有直读配置载体没有兼容 bin 或回退 parser。
+Python SDK 遵循相同的应用架构。其运行时 wheel 把普通 `avn` CLI 打包为 `aeven-sdk-runtime-<platform>-<arch>`，客户端默认以显式 Aeven home 启动 `avn --profile sdk`。极简示例选择随附的 `sdk-minimal` profile。Python 暴露 profile 选择与有序 patch 文件，而不是完整 Cordis 树；持久外部插件通过 `avn plugin` 安装。已删除的私有直读配置载体没有兼容 bin 或回退 parser。
 
 ## 核心包
 

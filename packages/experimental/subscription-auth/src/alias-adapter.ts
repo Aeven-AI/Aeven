@@ -1,5 +1,5 @@
 /**
- * Harness route aliases over a native-id PiAiAdapter.
+ * Aeven route aliases over a native-id PiAiAdapter.
  * @module @aeven/experimental-subscription-auth/alias-adapter
  */
 
@@ -63,7 +63,7 @@ export function normalizeReplayForRoute(
 
 /**
  * Keeps pi-ai model.provider identities native while exposing collision-free
- * Harness route names. Every public operation translates exactly once.
+ * Aeven route names. Every public operation translates exactly once.
  */
 export class AliasLlmAdapter extends LlmAdapter {
   constructor(

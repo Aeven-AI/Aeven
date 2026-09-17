@@ -33,7 +33,7 @@ The model-facing bash package owns a `ctx.shellEnv` registry. A contributor decl
 
 The registry rebuilds a trusted overlay for every foreground and background bash `ToolExecution`:
 
-- `AVN_HOME` is always the absolute configured Harness home. The standalone [`@aeven/home-paths`](../../../../packages/util/home-paths/README.md) utility owns its precedence: explicit `avnHome`, then ambient `$AVN_HOME`, then `~/.aeven`.
+- `AVN_HOME` is always the absolute configured Aeven home. The standalone [`@aeven/home-paths`](../../../../packages/util/home-paths/README.md) utility owns its precedence: explicit `avnHome`, then ambient `$AVN_HOME`, then `~/.aeven`.
 - `AVN_SHELL=1` is always present and identifies a model bash child managed by Aeven.
 - `AVN_SESSION_ID` is present when the execution has an agent and equals `agent.session.header.id`.
 - The built-in persistence translator contributes `AVN_SESSION_JSONL` only when `ctx.sessionPersistence.locate(header)` returns `kind: 'jsonl'`.
@@ -82,6 +82,6 @@ A keyless full-loop integration drives the real agent loop, JSONL persistence, t
 
 ## Consequences
 
-Every model bash child receives current Harness home and shell identity, and agent calls additionally receive stable session identity. JSONL-backed calls get an optional target path; non-file persistence omits it honestly. The managed `AVN_*` facts inside these children come from the harness: ambient values are removed, current trusted values are re-added last, and an ordinary caller's `env` entry cannot displace them.
+Every model bash child receives current Aeven home and shell identity, and agent calls additionally receive stable session identity. JSONL-backed calls get an optional target path; non-file persistence omits it honestly. The managed `AVN_*` facts inside these children come from the harness: ambient values are removed, current trusted values are re-added last, and an ordinary caller's `env` entry cannot displace them.
 
 The namespace is discoverable but not secret. Paths can reveal configured roots, lazy targets can be absent or stale, and a command can override variables inside its own shell syntax. Consumers treat them as correlation and environment facts, verify transcript metadata when attribution matters, and rely on sandbox/filesystem policy rather than variable secrecy for authorization.

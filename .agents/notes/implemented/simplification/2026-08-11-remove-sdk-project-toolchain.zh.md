@@ -30,7 +30,7 @@ workspace 中不再存在上述 4 个已删除包名或 2 套已移除的命令�
 
 **保留仅用于报错的包或命令别名。** 不予采纳，因为这些命令都从未公开发布。墓碑会在不存在兼容义务的情况下保留包与可执行文件的接口范围。
 
-**同时删除运行时 SDK 栈。** 不予采纳，因为 Python SDK、进程外 Harness subagent 提供方和 JSON-RPC 示例目前仍是协议、客户端和服务器的消费方。
+**同时删除运行时 SDK 栈。** 不予采纳，因为 Python SDK、进程外 Aeven subagent 提供方和 JSON-RPC 示例目前仍是协议、客户端和服务器的消费方。
 
 **将运行时栈继续留在 `packages/scaffold/` 下。** 不予采纳，因为该分组剩余内容均不再负责搭建项目。`packages/sdk/` 直接说明了保留内容的职责，因为 `SDK` 在仓库中只有一个含义：受支持的 Python 与 TypeScript SDK 所使用的 JSON-RPC 客户端／服务器协议。Aeven 本身不是 SDK 项目。
 

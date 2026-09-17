@@ -211,7 +211,7 @@ describe('loadLayeredEnv', () => {
     }
   })
 
-  it('treats the invoking directory as the Harness home when they are the same directory', () => {
+  it('treats the invoking directory as the Aeven home when they are the same directory', () => {
     const home = tmp()
     writeFileSync(join(home, '.env'), 'HTTP_PROXY=http://from-home:8080\n')
     clear(); clearProxy()

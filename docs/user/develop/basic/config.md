@@ -77,7 +77,7 @@ The schema runs while the plugin loads. Invalid configuration fails the load wit
 
 ### Do not hardcode tunable values
 
-Harness requires **anything that two deployments may want to set differently to be a configuration field**.
+Aeven requires **anything that two deployments may want to set differently to be a configuration field**.
 
 ```ts
 // Wrong: hardcoded timeout.

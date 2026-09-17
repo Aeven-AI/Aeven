@@ -269,7 +269,7 @@ Keep MCP, Todo, and the Plan Mode package, key, events, and tool names. This dec
 
 | Former | Current | Reason |
 |---|---|---|
-| `util/paths/`, `@aeven/paths` | `util/home-paths/`, `@aeven/home-paths` | The helpers resolve paths under the Harness home. They are not a general path library. Keep the individual function names when they already state the returned path. |
+| `util/paths/`, `@aeven/paths` | `util/home-paths/`, `@aeven/home-paths` | The helpers resolve paths under the Aeven home. They are not a general path library. Keep the individual function names when they already state the returned path. |
 | `util/retention/`, `@aeven/retention` | `util/output-retention/`, `@aeven/output-retention` | The policy retains command and tool output. It is not a general data-retention framework. |
 | `E2BSandboxService` | `E2BRuntime` | The class creates, reuses, and disposes the E2B execution environment used by filesystem and subprocess adapters. It is broader than one sandbox handle and narrower than a generic owner. Keep `@aeven/e2b`, `ctx.e2b`, and the `e2b/` group. |
 | `@aeven/frontend-static` | `@aeven/host-frontend-static` | The package is the Host plugin that serves the frontend assets. The prefix distinguishes it from frontend application code. |

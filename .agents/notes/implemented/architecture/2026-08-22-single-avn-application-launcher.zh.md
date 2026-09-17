@@ -42,11 +42,11 @@ Profile manifest 负责 patch 重载：
 
 SDK 用户通过 profile 自定义插件。`avn plugin --profile <name> ...` 管理持久依赖与组合包顺序，profile 的 `cordis.patch.yml` 负责持久配置项变更，启动时 `patches` 提供有序临时覆盖。自定义 profile 必须保留 `@aeven/sdk-app` 或另一个 SDK 服务器配置项。相对 CLI 模块、patch、显式 home 与进程 cwd 路径会在 spawn 前变为绝对路径；初始化具有有限时限，诊断会写明所选 profile。
 
-直接使用 SDK 时遵循普通 Harness home 解析：显式 `avnHome`、继承的 `AVN_HOME`，最后是 `~/.aeven`。`subagent-avn-sdk` 则要求显式绝对 home，因此嵌套运行时不会通过操作系统 home 发现个人 profile、已安装插件、凭据或会话。AVN 专用 ACP 子进程示例同样传入隔离 home；ACP 后端自身继续适用于非 AVN agent。
+直接使用 SDK 时遵循普通 Aeven home 解析：显式 `avnHome`、继承的 `AVN_HOME`，最后是 `~/.aeven`。`subagent-avn-sdk` 则要求显式绝对 home，因此嵌套运行时不会通过操作系统 home 发现个人 profile、已安装插件、凭据或会话。AVN 专用 ACP 子进程示例同样传入隔离 home；ACP 后端自身继续适用于非 AVN agent。
 
 ### Python 运行时
 
-Python 运行时 wheel 通过私有 `avn-python-runtime-closure` 部署 manifest，打包来自 `node_modules/@aeven/cli/lib/bin.js` 的普通 `@aeven/cli` CLI。Python 客户端默认选择 `avn --profile sdk`、有序 patch 文件与显式 Harness home；`python/sdk/examples` 下的可运行示例选择 `sdk-minimal`。安装的 `avn` 控制台命令暴露相同 profile 语法与单独打包的 `web` 应用。
+Python 运行时 wheel 通过私有 `avn-python-runtime-closure` 部署 manifest，打包来自 `node_modules/@aeven/cli/lib/bin.js` 的普通 `@aeven/cli` CLI。Python 客户端默认选择 `avn --profile sdk`、有序 patch 文件与显式 Aeven home；`python/sdk/examples` 下的可运行示例选择 `sdk-minimal`。安装的 `avn` 控制台命令暴露相同 profile 语法与单独打包的 `web` 应用。
 
 可执行文件族是 `aeven-sdk-runtime-<platform>-<arch>`。SDK 协议格式、wheel 与 import 分发名称、伴随文件名称，以及协议 identity `aeven-sdk-runtime` 保持稳定。SDK 包族是 `@aeven/sdk-client`、`@aeven/sdk-protocol` 与 `@aeven/sdk-jsonrpc-server`；`@aeven/acp` 继续作为 ACP 协议插件。仓库不保留 Python 专用 Node 应用、检入的完整配置、兼容包、转发可执行文件、后备解析器或 SDK／ACP 启动别名。[Python profile 运行时决策](2026-08-23-python-sdk-avn-profile-runtime.zh.md)负责该启动方式，[Windows x64 运行时决策](2026-08-23-python-sdk-windows-x64-runtime.zh.md)负责第四个载体。
 

@@ -1,4 +1,4 @@
-/** Real `avn web` authentication against a temporary Harness home. */
+/** Real `avn web` authentication against a temporary Aeven home. */
 
 import type { ChildProcess } from 'node:child_process'
 import { spawn } from 'node:child_process'

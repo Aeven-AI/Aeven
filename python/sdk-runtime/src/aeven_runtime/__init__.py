@@ -15,7 +15,7 @@ Two runtime carriers coexist under ``runtime/``, both injected by the repo's
   selected automatically, and excluded from wheel/sdist distributions.
 
 Both carriers execute the same avn command grammar. The Python SDK selects the
-``sdk`` profile and requires an explicit Harness home; the installed ``avn``
+``sdk`` profile and requires an explicit Aeven home; the installed ``avn``
 console command requires ``AVN_HOME`` for the same reason.
 """
 
@@ -157,7 +157,7 @@ def _node_launch_args() -> tuple[str, str]:
 
 
 def main() -> None:
-    """Execute the bundled avn CLI with an explicitly selected Harness home."""
+    """Execute the bundled avn CLI with an explicitly selected Aeven home."""
     if not os.environ.get("AVN_HOME", "").strip():
         print(
             "avn: the Python runtime command requires an explicit AVN_HOME; "

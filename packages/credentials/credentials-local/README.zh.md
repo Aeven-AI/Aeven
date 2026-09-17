@@ -176,7 +176,7 @@ YAML 解析器自己的消息会引用出错的那行源码，而在这份文档
 - [凭据子系统参考](../../../docs/subsystems/credentials.zh.md)——`CredentialRef`、按操作解析、对 UI 安全的 `CredentialInfo`、提供方层。
 - [启动环境快照](../../util/launch-environment/README.zh.md)——解析读取的冻结层快照，而非 `process.env`。
 - [原子写入](../../util/atomic-write/README.zh.md)——每次写入所用的写锁与原子替换。
-- [应用启动与 Harness home 各层](../../boot/app-boot/README.zh.md)——产品 CLI 如何把 `.env` 载入快照与 `process.env`。
+- [应用启动与 Aeven home 各层](../../boot/app-boot/README.zh.md)——产品 CLI 如何把 `.env` 载入快照与 `process.env`。
 
 -----
 

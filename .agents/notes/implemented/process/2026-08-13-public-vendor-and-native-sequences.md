@@ -24,7 +24,7 @@ Access is a property of each release sequence, not of the scope:
 
 **No publish path passes `--access`.** A single flag cannot serve sequences that disagree, and a flag overrides the manifest that owns the fact — so `publish.ts` passes none, and the native workflow continues to pass none. Each packed manifest decides.
 
-Harness consumers reference the Landlock entry as `workspace:^` rather than `workspace:*`, so a published harness package accepts the entry's patch and minor releases instead of pinning one exact version. The entry keeps `workspace:*` for its two platform packages, where the binary must match the entry version exactly.
+Aeven consumers reference the Landlock entry as `workspace:^` rather than `workspace:*`, so a published harness package accepts the entry's patch and minor releases instead of pinning one exact version. The entry keeps `workspace:*` for its two platform packages, where the binary must match the entry version exactly.
 
 Access is a property of the package, not of a version: the twelve packages already published as restricted — `landlock-run@0.0.1` and the vendored `*-rc.*` versions — become world-readable at their next publication.
 

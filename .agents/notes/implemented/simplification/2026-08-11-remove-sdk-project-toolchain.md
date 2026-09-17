@@ -30,7 +30,7 @@ The workspace contains none of the four deleted package names or either removed 
 
 **Keep error-only packages or command aliases.** Rejected because none of the commands shipped publicly. A tombstone would preserve package and executable surface area without a compatibility obligation.
 
-**Delete the runtime SDK stack too.** Rejected because the Python SDK, the out-of-process Harness subagent provider, and the JSON-RPC example are current consumers of the protocol, client, and server.
+**Delete the runtime SDK stack too.** Rejected because the Python SDK, the out-of-process Aeven subagent provider, and the JSON-RPC example are current consumers of the protocol, client, and server.
 
 **Leave the runtime stack under `packages/scaffold/`.** Rejected because nothing left in that group scaffolds a project. `packages/sdk/` states the surviving role directly because `SDK` has one repository meaning: the JSON-RPC client/server protocol used by the supported Python and TypeScript SDKs. Aeven itself is not an SDK project.
 

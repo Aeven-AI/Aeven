@@ -46,7 +46,7 @@ Direct SDK use follows normal Harness-home resolution: explicit `avnHome`, inher
 
 ### Python runtime
 
-The Python runtime wheel packages the ordinary `@aeven/cli` CLI from `node_modules/@aeven/cli/lib/bin.js` through the private `avn-python-runtime-closure` deploy manifest. The Python client selects `avn --profile sdk` by default, ordered patch files, and an explicit Harness home; the runnable example under `python/sdk/examples` selects `sdk-minimal`. The installed `avn` console command exposes the same profile grammar and the separately packaged `web` application.
+The Python runtime wheel packages the ordinary `@aeven/cli` CLI from `node_modules/@aeven/cli/lib/bin.js` through the private `avn-python-runtime-closure` deploy manifest. The Python client selects `avn --profile sdk` by default, ordered patch files, and an explicit Aeven home; the runnable example under `python/sdk/examples` selects `sdk-minimal`. The installed `avn` console command exposes the same profile grammar and the separately packaged `web` application.
 
 The executable family is `aeven-sdk-runtime-<platform>-<arch>`. The SDK wire, wheel and import distribution names, sidecar names, and wire identity `aeven-sdk-runtime` remain stable. The SDK package family is `@aeven/sdk-client`, `@aeven/sdk-protocol`, and `@aeven/sdk-jsonrpc-server`; `@aeven/acp` remains the ACP protocol plugin. There is no Python-specific Node application, checked-in complete config, compatibility package, forwarding executable, fallback parser, or SDK/ACP launcher alias. The [Python profile-runtime decision](2026-08-23-python-sdk-avn-profile-runtime.md) owns this launch, and the [Windows x64 runtime decision](2026-08-23-python-sdk-windows-x64-runtime.md) owns the fourth carrier.
 
