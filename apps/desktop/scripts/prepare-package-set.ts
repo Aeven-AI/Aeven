@@ -65,7 +65,7 @@ export function selectDesktopPackageClosure(
     for (const section of REQUIRED_DEPENDENCY_SECTIONS) {
       for (const dependency of dependencyNames(packed.manifest, section)) {
         if (available.has(dependency)) visit(dependency)
-        else if (dependency.startsWith('@deepseek-ai/')) {
+        else if (dependency.startsWith('@aeven/')) {
           throw new Error(`desktop package set: ${name} requires unpacked internal package ${dependency}`)
         }
       }
