@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-goal-round-driver` 会在同一会话中自动继续 active 的 goal：每当 agent 空闲且存在 active、已启用续行并有剩余容量的 goal 时，驱动器就会启动下一个 Goal Round。每一轮都是朝目标前进的一次模型轮次，由保留的 goal-round 提示词驱动；只有来源为 goal 的 Round 会计入 goal 的 Round 上限，上限耗尽时 goal 会记录一个 blocker。驱动器没有自己的配置——Round 上限属于 goal 定义，面向模型的阻塞阈值属于 `dsh-tool-goal`，策略因此只保留在一处。当任务应跨多轮自行推进时，与 `dsh-goal` 和 `dsh-tool-goal` 一起挂载它；当每一步都需要人工 steering（中途引导）时，不要挂载。
+`avn-goal-round-driver` 会在同一会话中自动继续 active 的 goal：每当 agent 空闲且存在 active、已启用续行并有剩余容量的 goal 时，驱动器就会启动下一个 Goal Round。每一轮都是朝目标前进的一次模型轮次，由保留的 goal-round 提示词驱动；只有来源为 goal 的 Round 会计入 goal 的 Round 上限，上限耗尽时 goal 会记录一个 blocker。驱动器没有自己的配置——Round 上限属于 goal 定义，面向模型的阻塞阈值属于 `avn-tool-goal`，策略因此只保留在一处。当任务应跨多轮自行推进时，与 `avn-goal` 和 `avn-tool-goal` 一起挂载它；当每一步都需要人工 steering（中途引导）时，不要挂载。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-当 active 的 goal 应在无人干预的情况下持续推进时，挂载 `dsh-goal-round-driver`。它与 goal 服务和 goal 工具组合使用：服务拥有状态，工具让模型控制状态，本包负责调度轮次。
+当 active 的 goal 应在无人干预的情况下持续推进时，挂载 `avn-goal-round-driver`。它与 goal 服务和 goal 工具组合使用：服务拥有状态，工具让模型控制状态，本包负责调度轮次。
 
 ### 组合方式
 
@@ -42,11 +42,11 @@ kind: "package-reference"
   name: '@aeven/goal-round-driver'
 ```
 
-`maxGoalRounds` 属于 goal 定义，面向模型的阻塞阈值属于 `dsh-tool-goal`；在驱动器中重复任一数值都可能产生分歧策略。
+`maxGoalRounds` 属于 goal 定义，面向模型的阻塞阈值属于 `avn-tool-goal`；在驱动器中重复任一数值都可能产生分歧策略。
 
 ### 每轮做什么
 
-当对应的活跃 agent 处于 idle，且存在 active、已启用续行、仍有容量的 goal 时，驱动器会排入一条 goal-round 提示词。它点明以 JSON 引用的目标、Round 编号与上限，并告诉模型以当前工作区、工具结果和持久状态为准。被接纳的 Round 会开启独立请求序列，因此 Chat 会在 goal 消息之前渲染其自包含请求 header。该 Round 以 goal 来源的用户消息进入历史；只有进入步骤的 goal 消息消耗上限，人类消息和陈旧预留不会消耗。goal 生命周期变更仍必须通过 `dsh-tool-goal` 的独立权限检查。
+当对应的活跃 agent 处于 idle，且存在 active、已启用续行、仍有容量的 goal 时，驱动器会排入一条 goal-round 提示词。它点明以 JSON 引用的目标、Round 编号与上限，并告诉模型以当前工作区、工具结果和持久状态为准。被接纳的 Round 会开启独立请求序列，因此 Chat 会在 goal 消息之前渲染其自包含请求 header。该 Round 以 goal 来源的用户消息进入历史；只有进入步骤的 goal 消息消耗上限，人类消息和陈旧预留不会消耗。goal 生命周期变更仍必须通过 `avn-tool-goal` 的独立权限检查。
 
 ### 何时停止续行
 

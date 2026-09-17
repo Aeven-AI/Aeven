@@ -64,7 +64,7 @@ describe('web e2e: queued image submission', () => {
   })
 
   it.skipIf(MODE === 'record')('queues a text-plus-image submission with a thumbnail and delivers it as the next turn', async () => {
-    overrideDir = await mkdtemp(join(tmpdir(), 'dsh-web-queued-image-'))
+    overrideDir = await mkdtemp(join(tmpdir(), 'avn-web-queued-image-'))
     const readyFile = join(overrideDir, '.hang-ready')
     const overridePath = join(overrideDir, 'replay.override.json')
     const recorded = deriveReplayScript(parseSessionLog(await readFile(FIXTURE, 'utf8')))

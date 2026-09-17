@@ -3,7 +3,7 @@
    The Settings font-size preference rides the body-published axis: the shared
    DisclosureRow chrome scales the row height and leading glyph by the body px
    delta; the title and the summary texts here read the secondary tier
-   (--dsh-content-font-size-secondary: one step under the body — setting −1 at
+   (--avn-content-font-size-secondary: one step under the body — setting −1 at
    ≤14, setting −2 above), matching think text. */
 
 .root {
@@ -33,11 +33,11 @@
     var(--dsw-tint-surface-fade) 55%,
     transparent 100%
   );
-  animation: dsh-tool-row-sweep 2.6s ease-out infinite;
+  animation: avn-tool-row-sweep 2.6s ease-out infinite;
   pointer-events: none;
 }
 
-@keyframes dsh-tool-row-sweep {
+@keyframes avn-tool-row-sweep {
   0% { left: -300px; }
   90%, 100% { left: 100%; }
 }
@@ -84,8 +84,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--dsh-content-font-size, 16px);
-  line-height: calc(28px + var(--dsh-content-font-delta, 0px));
+  font-size: var(--avn-content-font-size, 16px);
+  line-height: calc(28px + var(--avn-content-font-delta, 0px));
   color: var(--dsw-alias-label-tertiary);
 }
 
@@ -98,8 +98,8 @@
   flex: none;
   margin-left: 4px;
   white-space: nowrap;
-  font-size: var(--dsh-content-font-size, 16px);
-  line-height: calc(28px + var(--dsh-content-font-delta, 0px));
+  font-size: var(--avn-content-font-size, 16px);
+  line-height: calc(28px + var(--avn-content-font-delta, 0px));
   color: var(--dsw-alias-label-tertiary);
 }
 
@@ -113,7 +113,7 @@
 .diffStat {
   margin-left: 10px;
   font-family: var(--ds-font-family-code);
-  font-size: calc(var(--dsh-content-font-size-secondary, 14px) - 2px);
+  font-size: calc(var(--avn-content-font-size-secondary, 14px) - 2px);
   color: var(--dsw-alias-label-caption);
   transform: translateY(0.5px);
 }
@@ -135,8 +135,8 @@
   background: none;
   font: inherit;
   text-align: left;
-  font-size: var(--dsh-content-font-size, 16px);
-  line-height: calc(28px + var(--dsh-content-font-delta, 0px));
+  font-size: var(--avn-content-font-size, 16px);
+  line-height: calc(28px + var(--avn-content-font-delta, 0px));
   color: var(--dsw-alias-label-secondary);
   text-decoration: underline dotted;
   text-decoration-color: var(--dsw-alias-label-tertiary);

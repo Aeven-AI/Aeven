@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The dependency-free `dsh-scope` library gives registrations a per-agent home. Mint a tagged context with `createScope(ctx, key)` and everything registered through it is visible in one scope, unwinding when that scope disposes; read a context's scope tag with `scopeOf(ctx)`; and route scope-filtered events with `scopeTarget(base, key)` to listeners with the same key while leaving untagged listeners global. Keys can form a parent chain: a child scope sees its ancestors' layers (nearest shadows farthest), and a listener tagged with an ancestor receives descendant events — never the reverse. It is key-agnostic: the agent loop uses one scope per live agent and an agent preset's standing mount is a parent scope over its agents, but lower-level packages can use it without depending on either. Choose it when you build a registry or event surface that must isolate contributions per agent or per group.
+The dependency-free `avn-scope` library gives registrations a per-agent home. Mint a tagged context with `createScope(ctx, key)` and everything registered through it is visible in one scope, unwinding when that scope disposes; read a context's scope tag with `scopeOf(ctx)`; and route scope-filtered events with `scopeTarget(base, key)` to listeners with the same key while leaving untagged listeners global. Keys can form a parent chain: a child scope sees its ancestors' layers (nearest shadows farthest), and a listener tagged with an ancestor receives descendant events — never the reverse. It is key-agnostic: the agent loop uses one scope per live agent and an agent preset's standing mount is a parent scope over its agents, but lower-level packages can use it without depending on either. Choose it when you build a registry or event surface that must isolate contributions per agent or per group.
 
 ## Table of Contents
 
@@ -24,7 +24,7 @@ The dependency-free `dsh-scope` library gives registrations a per-agent home. Mi
 <a id="use-this-package"></a>
 ## Use this package
 
-Plugin authors use `dsh-scope` to give one agent (or one group) its own registration world. The registries in the core group build on it — a tool registered through `agent.ctx` is visible only to that agent — and the same primitive serves any custom registry or scope-filtered event.
+Plugin authors use `avn-scope` to give one agent (or one group) its own registration world. The registries in the core group build on it — a tool registered through `agent.ctx` is visible only to that agent — and the same primitive serves any custom registry or scope-filtered event.
 
 ### Mint a scope
 

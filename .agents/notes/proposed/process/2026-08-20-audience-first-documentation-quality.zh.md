@@ -10,7 +10,7 @@ Status: proposed
 
 ### 语义正确性可以在没有现行归属者的情况下通过检查
 
-这些门禁证明结构和生成内容的新鲜度，却不能证明维护中的正文仍指向实际机制。以前的 `dsh-doc-site-sync` 技能曾要求作者复用并不存在的 `en-docs` 侧边栏，还要求把章节加入已经移除的 `sectionOrder`；[website/docs.ts](../../../../website/docs.ts)实际拥有 `en-guide`、`en-develop`、`en-reference` 和 `sections`。已实现的[产品优先 README 决策](../../implemented/process/2026-07-22-product-first-root-readme.zh.md)描述了内部测试说明，以及 ACP、Python 与 JSON-RPC 界面章节，但[根 README](../../../../README.zh.md)并无这些内容；与此同时，已实现 Agent Note 必须跟随已交付事实。
+这些门禁证明结构和生成内容的新鲜度，却不能证明维护中的正文仍指向实际机制。以前的 `avn-doc-site-sync` 技能曾要求作者复用并不存在的 `en-docs` 侧边栏，还要求把章节加入已经移除的 `sectionOrder`；[website/docs.ts](../../../../website/docs.ts)实际拥有 `en-guide`、`en-develop`、`en-reference` 和 `sections`。已实现的[产品优先 README 决策](../../implemented/process/2026-07-22-product-first-root-readme.zh.md)描述了内部测试说明，以及 ACP、Python 与 JSON-RPC 界面章节，但[根 README](../../../../README.zh.md)并无这些内容；与此同时，已实现 Agent Note 必须跟随已交付事实。
 
 预算策略也存在相同的分裂。[docs/AGENTS.md](../../../../docs/AGENTS.md#wordcount-budgets)为 `architecture.md` 规定 1,800 词目标和 5% 余量，但[预算 manifest（元数据清单）](../../../../scripts/doc-budgets.manifest.json)允许 2,400 词，而该文件实际包含 1,313 词。预算门禁之所以通过，是因为它只检查 manifest 上限，不检查目标或棘轮规则。因此，高影响正文需要一个具名真源或消费真源的聚焦检查；第二份手写副本不是新鲜度机制。
 
@@ -48,9 +48,9 @@ Status: proposed
 
 ### 原型规则
 
-[dsh-doc skill](../../../skills/dsh-doc/SKILL.md) 负责这些规则的首个可执行版本。`session-persistence-jsonl` README 对以已交付的追加、恢复与编码行为为证据，而不把其旧版正文当作权威。
+[avn-doc skill](../../../skills/avn-doc/SKILL.md) 负责这些规则的首个可执行版本。`session-persistence-jsonl` README 对以已交付的追加、恢复与编码行为为证据，而不把其旧版正文当作权威。
 
-- 每个撰写型包 README 都以可搜索 YAML 开头。Skill 风格的 `description` 与按机制推导的 `kind` 为必填字段。四种 kind 与四个技能模板一一对应：`package-group`（组地图）、`package-reference`（插件或服务包）、`package-library`（纯模块入口）与 `package-bundle`（`dsh.bundle.patch`）。对照文件路径、哈希与物理行对齐由支持自动合并的 sidecar 及其门禁负责，因此 README frontmatter 不包含 `i18n` 块。名称已由标题或包 manifest 归属，受众已由文档职责表达；在受治理的标签分类与搜索消费方证明其价值超过全文检索之前，不加入标签。
+- 每个撰写型包 README 都以可搜索 YAML 开头。Skill 风格的 `description` 与按机制推导的 `kind` 为必填字段。四种 kind 与四个技能模板一一对应：`package-group`（组地图）、`package-reference`（插件或服务包）、`package-library`（纯模块入口）与 `package-bundle`（`avn.bundle.patch`）。对照文件路径、哈希与物理行对齐由支持自动合并的 sidecar 及其门禁负责，因此 README frontmatter 不包含 `i18n` 块。名称已由标题或包 manifest 归属，受众已由文档职责表达；在受治理的标签分类与搜索消费方证明其价值超过全文检索之前，不加入标签。
 - 撰写型页面先写三至五句的 `Summary`，再写带链接的 `Table of Contents`。由格式约束的 Agent Note、事故复盘、生成片段和机器文件保留其必需骨架。
 - 每个实质章节在子章节、表格或代码之前先给出简短引导，页面则从基础用户用法逐步进入高级开发者与维护者细节。
 - 英文技术正文采用受 ASD-STE100 启发但不宣称认证的清晰度评审：明确行动者与动作，稳定使用术语，使用直接动词，拆分指令与条件，并完整保留情态、例外、时序与数值。指令 20 词和描述 25 词的限制仅作评审提示。准确性高于句长。
@@ -85,7 +85,7 @@ Status: proposed
 
 ### 执行切片
 
-1. 创建并验证 `dsh-doc`，再把一组 package README 对改写为行对齐、带元数据的原型，同时不改变运行时事实。
+1. 创建并验证 `avn-doc`，再把一组 package README 对改写为行对齐、带元数据的原型，同时不改变运行时事实。
 2. 用新人、用户、开发者和 agent 任务评审渲染后的原型；先修订 skill，再在其他位置强制执行该格式。
 3. 添加聚焦的元数据、章节顺序、行对齐、链接解析和配对 fixture。在每个合并与恢复消费方都有替代支持前，保留伴随文件。
 4. 把已接受的常驻规则提取到一份规范质量参考，将 `docs/AGENTS.md` 精简到目标以下，并且一次只组织一个内聚的 `docs/` 主题，同时原子地修复链接与导航。
@@ -93,7 +93,7 @@ Status: proposed
 
 该顺序使每项变更都能独立评审。前三个切片在不重写语料的情况下改进标准与正确性；生成文档原型则在更广的信息架构变更前提供证据。
 
-切片 1–3 已按此形式交付：`dsh-doc` 成为合并后的标准（`dsh-doc-standards` 与 `dsh-doc-site-sync` 已并入其中，站点工作流携带修正后的侧边栏值），`session-persistence-jsonl` README 对是参考示例，`pnpm run test:docs` 强制执行元数据、配对与快速文档检查。切片 4–5 仍待完成。
+切片 1–3 已按此形式交付：`avn-doc` 成为合并后的标准（`avn-doc-standards` 与 `avn-doc-site-sync` 已并入其中，站点工作流携带修正后的侧边栏值），`session-persistence-jsonl` README 对是参考示例，`pnpm run test:docs` 强制执行元数据、配对与快速文档检查。切片 4–5 仍待完成。
 
 ### 非目标
 
@@ -114,7 +114,7 @@ Status: proposed
 ## 验收标准
 
 - 一份规范质量参考按文档职责定义简短、直观、友好、准确和便于 agent 阅读的文档。
-- `.agents/skills/dsh-doc` 通过验证，并直接链接其元数据、结构或层级及评审或原型参考，而不在 `SKILL.md` 中复制这些参考的详细规则。
+- `.agents/skills/avn-doc` 通过验证，并直接链接其元数据、结构或层级及评审或原型参考，而不在 `SKILL.md` 中复制这些参考的详细规则。
 - `session-persistence-jsonl` README 对展示可搜索 YAML、Summary、Table of Contents、从用户到开发者的渐进结构、Further Exploration、结尾 Dev Note、结构一致性和精确行数相等，同时保留已验证的包约定。
 - `docs/AGENTS.md` 链接该参考，仍足以充当常驻指令，并低于其目标且至少保留 5% 余量。
 - 根级用户路径、Web 快速开始、第一个插件教程、贡献者设置和架构概览各自给出一个可观察结果与验证归属者，同时不复制实现细节。

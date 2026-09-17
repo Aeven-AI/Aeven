@@ -19,7 +19,7 @@
 # A service row here MUST sit inside a group carrying an `isolate` realm.
 # Without one it publishes into the root realm, where it is process-global
 # rather than per-session and the second session mounting this preset collides
-# with the first; `dsh-agent-presets` rejects that at mount. `true` means an
+# with the first; `avn-agent-presets` rejects that at mount. `true` means an
 # entry-local realm — one private instance per mounted session, which is the
 # default this deployment wants. A shared label would instead pool one instance
 # across every session naming it.
@@ -203,7 +203,7 @@
         toolName: subagent_fork
         backgroundMode: continuable
 
-    # Production dsh does not install these optional providers. Install the
+    # Production avn does not install these optional providers. Install the
     # matching Bundle in this Profile and restart the Host, then copy this
     # preset and remove `disabled` from the matching tool row. Host availability
     # alone grants no tool.

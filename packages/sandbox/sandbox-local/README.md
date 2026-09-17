@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-sandbox-local` provides the platform confinement backends behind `ctx.sandbox`: Linux runs commands under `bwrap` when that works, otherwise under the Landlock launcher; macOS uses Seatbelt (`sandbox-exec`); Windows uses the ACL restricted-token runner. It selects one runner per host, so every command — and everything it spawns — runs confined. When no runner is usable the provider fails closed with `SANDBOX_UNAVAILABLE` — a command never silently runs unconfined. Each wrap reports how completely the backend enforces the mode (`full` or `partial`) plus the backend's denial signatures, so consumers can tell a broken sandbox apart from a denied command. Mount it behind `ctx.sandbox` with a confined executor to give every bash or pwsh call a confined default.
+`avn-sandbox-local` provides the platform confinement backends behind `ctx.sandbox`: Linux runs commands under `bwrap` when that works, otherwise under the Landlock launcher; macOS uses Seatbelt (`sandbox-exec`); Windows uses the ACL restricted-token runner. It selects one runner per host, so every command — and everything it spawns — runs confined. When no runner is usable the provider fails closed with `SANDBOX_UNAVAILABLE` — a command never silently runs unconfined. Each wrap reports how completely the backend enforces the mode (`full` or `partial`) plus the backend's denial signatures, so consumers can tell a broken sandbox apart from a denied command. Mount it behind `ctx.sandbox` with a confined executor to give every bash or pwsh call a confined default.
 
 ## Table of Contents
 
@@ -112,7 +112,7 @@ Start with the subsystem reference for the shared vocabulary, then the seam cont
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through [`dsh-bash-sandbox`](../../shell/bash-sandbox/README.md) and [`dsh-tool-bash`](../../shell/tool-bash/README.md), which render this provider's enforcement and denial facts, while the [`dsh-sandbox`](../sandbox/README.md) seam owns the `SANDBOX_UNAVAILABLE` text and this provider owns runner selection, and profiles stay outside context.
+Indirectly, through [`avn-bash-sandbox`](../../shell/bash-sandbox/README.md) and [`avn-tool-bash`](../../shell/tool-bash/README.md), which render this provider's enforcement and denial facts, while the [`avn-sandbox`](../sandbox/README.md) seam owns the `SANDBOX_UNAVAILABLE` text and this provider owns runner selection, and profiles stay outside context.
 
 #### KV Cache effect
 

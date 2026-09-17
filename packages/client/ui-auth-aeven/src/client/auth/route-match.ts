@@ -2,7 +2,7 @@
  * Matching a browser path to the authentication screen that owns it.
  *
  * The ported screens read `match.path` and `match.params.authType`, which the
- * Aeven client's router supplied. DSH has no general router, so the six auth
+ * Aeven client's router supplied. AVN has no general router, so the six auth
  * paths are matched here and nowhere else.
  * @module
  */

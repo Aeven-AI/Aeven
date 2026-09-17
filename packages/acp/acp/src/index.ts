@@ -150,7 +150,7 @@ export function apply(ctx: Context, config: AcpConfig): void {
   })
 
   // Permission requests are a machine policy channel for ACP clients such as
-  // dsh-subagent-acp. The bridge offers one-shot choices only and never infers a
+  // avn-subagent-acp. The bridge offers one-shot choices only and never infers a
   // durable grant from an unknown client response.
   ctx.on('approval/request', (request, next) => {
     const record = ownedRecord(request.agent)

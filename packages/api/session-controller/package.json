@@ -41,7 +41,7 @@
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },
-  "dsh": {
+  "avn": {
     "client": {
       "external": [
         "@aeven/api-gateway/client"

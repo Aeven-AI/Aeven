@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-agent（智能体）及其宿主 UI 获得 `@file` mention 的排序路径候选，范围限定在各自 agent 的工作区，并有界以保证大型仓库依然响应迅速。`dsh-file-reference-local` 在本地文件系统上实现 `ctx.fileReferences`：它为每个 agent 维护一个可复用的搜索索引，在工具结果后于后台重建索引，让补全反映工作区变化而不发生停顿，且从不跟随目录符号链接。当指定 agent 可以调用 `read` 时，它还会向系统提示词安装一句稳定指引。当 agent 的 `read` 工具作用于 Harness 宿主文件系统时选择它；远程或虚拟命名空间需要发现能力与工具一致的提供方。
+agent（智能体）及其宿主 UI 获得 `@file` mention 的排序路径候选，范围限定在各自 agent 的工作区，并有界以保证大型仓库依然响应迅速。`avn-file-reference-local` 在本地文件系统上实现 `ctx.fileReferences`：它为每个 agent 维护一个可复用的搜索索引，在工具结果后于后台重建索引，让补全反映工作区变化而不发生停顿，且从不跟随目录符号链接。当指定 agent 可以调用 `read` 时，它还会向系统提示词安装一句稳定指引。当 agent 的 `read` 工具作用于 Harness 宿主文件系统时选择它；远程或虚拟命名空间需要发现能力与工具一致的提供方。
 
 ## 目录
 

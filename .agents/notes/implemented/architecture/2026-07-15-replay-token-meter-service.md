@@ -6,7 +6,7 @@ English | [中文](2026-07-15-replay-token-meter-service.zh.md)
 
 ## Problem
 
-Context pressure is useful outside compaction. A compaction backend, an overflow guard, or a future request-policy plugin can all need the same answer: how many tokens does the durable request consume? Keeping that fold inside `dsh-compaction-basic` duplicates replay logic, makes measurement unavailable without compaction, and encourages callers to reuse stale accounting.
+Context pressure is useful outside compaction. A compaction backend, an overflow guard, or a future request-policy plugin can all need the same answer: how many tokens does the durable request consume? Keeping that fold inside `avn-compaction-basic` duplicates replay logic, makes measurement unavailable without compaction, and encourages callers to reuse stale accounting.
 
 Provider usage is not a complete answer. It describes one successful call under one exact request envelope, while the current surface can grow, shrink, or be replaced afterward. Sessions also switch providers and models, old logs can omit the chunk seqs behind an assistant message, and usage fields separate input, cache-read, cache-write, output, and reasoning counts. A useful service therefore combines the latest exact anchor with conservative heuristic repricing and exposes the log revision consumed by each result.
 
@@ -30,7 +30,7 @@ Usage sums the disjoint input, cache-read, cache-write, and output buckets. Reas
 
 ### Compact-basic consumes, but does not own, measurement
 
-`dsh-compaction-basic` requires `ctx.tokenMeter`; `CompactionEngine` gains no token methods or types. Configuration, the region transaction, and summarization stay in separate modules; the service registers automatic listeners itself, while `summarize()` remains its sole subclass hook. The singleton meter consistently prices pressure, retention, shadowed content, cited source events, and non-shrinking-summary rejection.
+`avn-compaction-basic` requires `ctx.tokenMeter`; `CompactionEngine` gains no token methods or types. Configuration, the region transaction, and summarization stay in separate modules; the service registers automatic listeners itself, while `summarize()` remains its sole subclass hook. The singleton meter consistently prices pressure, retention, shadowed content, cited source events, and non-shrinking-summary rejection.
 
 Automatic compaction uses one unified measurement for each threshold-and-retention decision. The region transaction measures after appending its durable `compaction/start` lock and again after asynchronous summarization, then compares the detached surface-node vectors. An intervening surface mutation prevents replacement; `logRevision` may advance for unrelated log-only facts without invalidating an unchanged selected span.
 

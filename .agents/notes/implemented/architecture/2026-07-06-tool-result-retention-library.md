@@ -12,7 +12,7 @@ The shared abstraction the tools need is **retention**, not generic collection. 
 
 ## Decision
 
-`@aeven/output-retention` lives under `packages/util/` (peer to `dsh-brand` and `dsh-timeout`) and owns bounded model-facing output. It is a library of pure classes and functions, **not** a Cordis service or plugin: it takes no `ctx`, registers nothing, holds no cross-call state, and emits no events. Tool packages import it directly when they need bounded output.
+`@aeven/output-retention` lives under `packages/util/` (peer to `avn-brand` and `avn-timeout`) and owns bounded model-facing output. It is a library of pure classes and functions, **not** a Cordis service or plugin: it takes no `ctx`, registers nothing, holds no cross-call state, and emits no events. Tool packages import it directly when they need bounded output.
 
 The library has two independent retainers:
 

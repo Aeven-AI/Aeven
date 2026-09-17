@@ -149,7 +149,7 @@ describe('node:os', () => {
   it('reports the virtual platform identity and the VFS directories', () => {
     expect([os.EOL, os.tmpdir(), os.homedir()]).toEqual(['\n', AVN_TMP, AVN_HOME])
     expect([os.platform(), os.type(), os.arch()]).toEqual(['linux', 'Linux', 'x64'])
-    expect([os.release(), os.hostname()]).toEqual(['0.0.0-dsh-worker', 'dsh-worker'])
+    expect([os.release(), os.hostname()]).toEqual(['0.0.0-avn-worker', 'avn-worker'])
   })
 
   it('reports no per-core facts and no network interfaces', () => {

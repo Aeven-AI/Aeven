@@ -6,13 +6,13 @@ Status: implemented
 
 ## 问题
 
-`composeProfile` 交付内置 agent-preset 根目录的方式，是在启动时推入一个 overlay：其 `config` 展开已组合的 roster 行后，把 `roots` 硬设为仅含内置根。由于 id 定向补丁整体替换 `config` 值，这个 overlay 压掉了 profile 的 `cordis.patch.yml`（以及 home 层、`--patch` overlay）配置的全部根目录：把 `agent-presets` 指向共享 preset 目录的部署，启动后只剩内置根加 roster 的可写 home 根，所有自定义 preset 从 Web 选择器中消失。`dsh --dump-config` 只组合文件承载的层，dump 显示配置的根目录完好而启动却丢弃了它们。该 overlay 还把行的启动时 `config` 冻结在所有热重载之上，重启前对该行的任何 `cordis.patch.yml` 编辑都不生效。外部报告 discussion #3636 给出了准确根因。
+`composeProfile` 交付内置 agent-preset 根目录的方式，是在启动时推入一个 overlay：其 `config` 展开已组合的 roster 行后，把 `roots` 硬设为仅含内置根。由于 id 定向补丁整体替换 `config` 值，这个 overlay 压掉了 profile 的 `cordis.patch.yml`（以及 home 层、`--patch` overlay）配置的全部根目录：把 `agent-presets` 指向共享 preset 目录的部署，启动后只剩内置根加 roster 的可写 home 根，所有自定义 preset 从 Web 选择器中消失。`avn --dump-config` 只组合文件承载的层，dump 显示配置的根目录完好而启动却丢弃了它们。该 overlay 还把行的启动时 `config` 冻结在所有热重载之上，重启前对该行的任何 `cordis.patch.yml` 编辑都不生效。外部报告 discussion #3636 给出了准确根因。
 
 在"补丁整体替换 `config`"的语义下，任何"必须在用户层之后存活"的值都需要组合后的强制注入——而评审否决了把这份强制留在启动器里：`apps/cli` 对某一个插件的行 id、config 键与优先级做特判，是组合机器不应携带的耦合。
 
 ## 决定
 
-内置 preset 归插件自有。四套内置组合从 `apps/cli/config/agent-presets/` 搬入 `packages/preset/agent-presets/presets/`，列入包的 `files`；`dsh-agent-presets` 相对自己的模块解析 `SHIPPED_PRESET_ROOT`——Loader 在运行时按包名导入插件，目录在源码与安装两种布局中都真实存在于磁盘上，与 `cordis` preset 目录内随行携带 skill 依赖的是同一机制。`resolvedRoots` 变为：除非 `includeShippedRoot` 为 false，先是内置根（`system` 信任），再按序 `config.roots`，最后除非 `includeUserRoot` 为 false 追加推导的可写 home 根——前置，因此内置集合始终挂载并赢得重复 id。
+内置 preset 归插件自有。四套内置组合从 `apps/cli/config/agent-presets/` 搬入 `packages/preset/agent-presets/presets/`，列入包的 `files`；`avn-agent-presets` 相对自己的模块解析 `SHIPPED_PRESET_ROOT`——Loader 在运行时按包名导入插件，目录在源码与安装两种布局中都真实存在于磁盘上，与 `cordis` preset 目录内随行携带 skill 依赖的是同一机制。`resolvedRoots` 变为：除非 `includeShippedRoot` 为 false，先是内置根（`system` 信任），再按序 `config.roots`，最后除非 `includeUserRoot` 为 false 追加推导的可写 home 根——前置，因此内置集合始终挂载并赢得重复 id。
 
 这补全了 #2278 为可写根开启的[会话级 preset roster](../architecture/2026-08-03-per-session-agent-presets.zh.md) 方向：两个非配置根现在都属于本包，启动器不带任何插件知识地组合补丁层，压掉、重载冻结与 dump 分叉从"被修复"变为"不再可能发生"。"一定加载"的保证不再依赖补丁顺序：`includeShippedRoot` 在 schema 中默认 true，用户层整体替换该行 `config` 后内置集合依然保留，只有显式 `false`——与整行 disable 同级的故意行为——才会去掉它。组合绑定的是宿主的 agent-plane 服务而非 Web 表面：没有任何 preset 行引用 client 或 web 插件；宿主缺少被注入的服务时，该行保持等待，与任何其他根目录下的 preset 无异。
 

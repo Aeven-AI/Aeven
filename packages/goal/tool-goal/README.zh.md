@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-tool-goal` 为模型提供基于持久 goal 服务的三个工具：`get_goal` 读取当前 goal，`create_goal` 创建新 goal，`update_goal` 编辑、暂停、恢复、完成或阻塞它。模型可以从人类直接请求中推断长期目标并创建 goal；更新必须携带先前读取到的精确 id 与 revision。权限在执行时强制：create、edit、pause 和 resume 要求顶层 agent 的当前轮次中存在人类直接消息；complete 和 blocked 在自动续行期间还接受当前 Goal Round。可配置的阈值（默认 3）约束自主 Round 多快可以自行报告 `blocked`。当模型需要自行管理 goal 时，与 `dsh-goal` 一起挂载它。
+`avn-tool-goal` 为模型提供基于持久 goal 服务的三个工具：`get_goal` 读取当前 goal，`create_goal` 创建新 goal，`update_goal` 编辑、暂停、恢复、完成或阻塞它。模型可以从人类直接请求中推断长期目标并创建 goal；更新必须携带先前读取到的精确 id 与 revision。权限在执行时强制：create、edit、pause 和 resume 要求顶层 agent 的当前轮次中存在人类直接消息；complete 和 blocked 在自动续行期间还接受当前 Goal Round。可配置的阈值（默认 3）约束自主 Round 多快可以自行报告 `blocked`。当模型需要自行管理 goal 时，与 `avn-goal` 一起挂载它。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-当模型需要自行创建和更新持久 goal 时，把 `dsh-tool-goal` 挂在 goal 服务旁边。这些工具是 goal 表面面向模型的一半；`/goal` 命令是面向人类的一半，续行驱动器在自主 Round 结束时使用同一套工具完成或阻塞 goal。
+当模型需要自行创建和更新持久 goal 时，把 `avn-tool-goal` 挂在 goal 服务旁边。这些工具是 goal 表面面向模型的一半；`/goal` 命令是面向人类的一半，续行驱动器在自主 Round 结束时使用同一套工具完成或阻塞 goal。
 
 ### 工具
 
@@ -148,7 +148,7 @@ schema 的定义与可见性不变时，前缀保持稳定。调用和结果会�
 
 - **语义意图仍由模型判断**——执行只能证明当前轮次包含一条人类直接发送的消息，无法证明请求是否足够重大而值得创建 goal。
 - **阻塞条件是否相同仍由模型判断**——运行时强制统计互不重复的已准入 Goal Round，而不判断障碍在语义上是否等价；独立评估器的实现暂缓。
-- **不负责调度或直接面向人类呈现**——这些工具只变更状态；同会话驱动器与 `dsh-command-goal` 是同一领域的独立消费方。
+- **不负责调度或直接面向人类呈现**——这些工具只变更状态；同会话驱动器与 `avn-command-goal` 是同一领域的独立消费方。
 - **Goal Round 权限需要驱动器**——除非续行驱动器准入 goal 来源的用户轮次，否则自主 `complete`／`blocked` 路径不会启用；只挂载这个包不会创建这些轮次。
 - **提示词注册与过滤相互独立**——某个范围可能隐藏工具，却保留指引，除非部署将两项注册限定在同一范围。
 

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The automation-only ACP stdio application as a `dsh` profile bundle over [`dsh-base`](../base/README.md). It inherits the base's disabled module-HMR policy; its patch sets the coding-agent persona and default model route, mounts an app-owned zero-option command provider, and starts [`dsh-acp`](../../acp/acp/README.md) only after that provider accepts the invocation. `dsh --profile acp --help` therefore writes help and exits without claiming stdin or stdout.
+The automation-only ACP stdio application as a `avn` profile bundle over [`avn-base`](../base/README.md). It inherits the base's disabled module-HMR policy; its patch sets the coding-agent persona and default model route, mounts an app-owned zero-option command provider, and starts [`avn-acp`](../../acp/acp/README.md) only after that provider accepts the invocation. `avn --profile acp --help` therefore writes help and exits without claiming stdin or stdout.
 
 ## Table of Contents
 
@@ -33,9 +33,9 @@ The shipped row creates sessions with `deepseek-official` and `deepseek-v4-flash
 <a id="standard-automation-workflow"></a>
 ## Standard automation workflow
 
-An ACP v1 SDK client initializes `dsh --profile acp`, creates a session with an absolute `cwd` and optional standard stdio/HTTP MCP declarations, chooses an advertised `model` or `reasoning_effort`, prompts while observing standard semantic updates, then calls `session/close`. Another process can use `session/list` and `session/resume` against the same profile persistence root; resume reconnects the MCP declarations supplied by that request and does not replay history.
+An ACP v1 SDK client initializes `avn --profile acp`, creates a session with an absolute `cwd` and optional standard stdio/HTTP MCP declarations, chooses an advertised `model` or `reasoning_effort`, prompts while observing standard semantic updates, then calls `session/close`. Another process can use `session/list` and `session/resume` against the same profile persistence root; resume reconnects the MCP declarations supplied by that request and does not replay history.
 
-The complete supported method matrix, MCP trust model, update mapping, and stop reasons live in the [`dsh-acp` protocol contract](../../acp/acp/README.md#standard-acp-v1-surface). This profile adds no private method, capability, `_meta`, environment variable, or transport field. The keyless control-surface conformance test drives the real profile through the public ACP SDK.
+The complete supported method matrix, MCP trust model, update mapping, and stop reasons live in the [`avn-acp` protocol contract](../../acp/acp/README.md#standard-acp-v1-surface). This profile adds no private method, capability, `_meta`, environment variable, or transport field. The keyless control-surface conformance test drives the real profile through the public ACP SDK.
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -58,7 +58,7 @@ Stable for a fixed profile, provider, model, and tool roster. Profile changes ta
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **A profile can omit the ACP bridge** — a custom ACP launch profile must retain this bundle or another `dsh-acp` row; otherwise no peer answers the client.
+- **A profile can omit the ACP bridge** — a custom ACP launch profile must retain this bundle or another `avn-acp` row; otherwise no peer answers the client.
 - **User plugins can violate stdout purity** — profile and per-launch patches are trusted application composition. The shipped bundle writes no non-protocol stdout, but it cannot contain an arbitrary inserted plugin.
 - **Configuration changes require restart** — the shipped `acp` profile uses `patchReload: startup` so one stdio connection never observes a replacement bridge or Agent dependency.
 

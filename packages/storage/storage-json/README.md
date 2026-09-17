@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-storage-json` stores domain data as readable JSON under a configured root and registers as backend `json`. Its default `single` layout keeps one complete `<unit>.json` file per unit; its `per-record` layout keeps one version-stamped document per record. Both layouts publish each changed file atomically, while the domain layer orders calls. Choose it when operators need inspectable files and the selected layout fits the write volume; choose SQLite for larger or highly concurrent data. The backend is host-side only and contributes no prompt, tool, or schema.
+`avn-storage-json` stores domain data as readable JSON under a configured root and registers as backend `json`. Its default `single` layout keeps one complete `<unit>.json` file per unit; its `per-record` layout keeps one version-stamped document per record. Both layouts publish each changed file atomically, while the domain layer orders calls. Choose it when operators need inspectable files and the selected layout fits the write volume; choose SQLite for larger or highly concurrent data. The backend is host-side only and contributes no prompt, tool, or schema.
 
 ## Table of Contents
 
@@ -39,7 +39,7 @@ The only plugin field is `root`, which holds the unit files and directories. It 
 - name: '@aeven/storage'
 - name: '@aeven/storage-json'
   config:
-    root: /var/lib/dsh/data
+    root: /var/lib/avn/data
 - name: '@aeven/storage-domain'
   config:
     backend: json

@@ -66,7 +66,7 @@ afterEach(async () => {
 })
 
 async function tempHome(): Promise<string> {
-  const home = await mkdtemp(join(tmpdir(), 'dsh-credential-file-'))
+  const home = await mkdtemp(join(tmpdir(), 'avn-credential-file-'))
   homes.push(home)
   return home
 }

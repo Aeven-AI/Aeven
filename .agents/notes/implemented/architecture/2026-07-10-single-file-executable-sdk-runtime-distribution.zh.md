@@ -23,26 +23,26 @@ exe 使用 [@yao-pkg/pkg](https://github.com/yao-pkg/pkg)（vercel/pkg 归档后
 
 术语提醒：pkg 的 `/snapshot` VFS 与本仓库测试体系的「快照」（ACP（Agent Client Protocol）回放预期输出、`$AVN_SNAPSHOT`）无关，本文用「VFS」指前者。
 
-### 对外服务接口是 dsh 应用中的插件
+### 对外服务接口是 avn 应用中的插件
 
-确定性服务接口由打包后的 `dsh` 应用选择为插件：
+确定性服务接口由打包后的 `avn` 应用选择为插件：
 
 - [`packages/sdk/server`](../../../../packages/sdk/server/README.zh.md)（`@aeven/sdk-jsonrpc-server`）：纯协议插件；执行 `apply` 时，在进程 stdio 上挂载 `HarnessSdkJsonRpcServer` 与按行分隔的 JSON-RPC 传输层，资源释放走 `ctx.effect()`。是否提供服务由 `cordis.yml` 决定；未挂载该插件的配置会启动一个不提供此服务的合法进程。协议级退出归插件所有（应答并确保 `shutdown` 响应发送完毕后，对根运行时执行 dispose（资源释放），让待处理的持久化操作完成，再调用 `exit(0)`；HMR（热模块替换）式卸载只停止服务，不退出进程）。
-- [`apps/cli`](../../../../apps/cli/README.zh.md)（`@aeven/cli`）：打包后的应用入口；其 `sdk` profile 挂载 `dsh-sdk-jsonrpc-server`，CLI 负责环境分层、profile 组合、stdin／signal 关闭与进程退出。
+- [`apps/cli`](../../../../apps/cli/README.zh.md)（`@aeven/cli`）：打包后的应用入口；其 `sdk` profile 挂载 `avn-sdk-jsonrpc-server`，CLI 负责环境分层、profile 组合、stdin／signal 关闭与进程退出。
 
-Python 客户端提供显式 Harness home，并选择 `sdk` profile 与有序 patch 文件。缺失 home、profile、bundle 或 server 配置项都会明确失败；不存在外部完整配置回退。[Python profile 运行时决策](2026-08-23-python-sdk-dsh-profile-runtime.zh.md)负责该应用接口。
+Python 客户端提供显式 Harness home，并选择 `sdk` profile 与有序 patch 文件。缺失 home、profile、bundle 或 server 配置项都会明确失败；不存在外部完整配置回退。[Python profile 运行时决策](2026-08-23-python-sdk-avn-profile-runtime.zh.md)负责该应用接口。
 
 ### 插件解析：VFS 装载真实包树，闭包 manifest（元数据清单）就是部署根目录
 
 exe 的 VFS 内是**构建产物形态的真实包树**（各包的 `lib/` + 真实 `node_modules`）。打包专用 JSON-RPC 入口会向 app-boot 的根 Include 提供自身已安装 harness 的基准位置：相对插件说明符从外部配置目录解析，裸包名则从 VFS 解析，因此位于另一个 Node 项目内的配置无法遮蔽已打包的插件集合。普通开发 bin 仍由配置项目提供裸包。打包入口中的裸包名从该入口在 VFS 内的位置沿 `node_modules` 向上解析，自然落在 VFS 内。封闭集不需要白名单代码——VFS 中安装了什么，集合中就有什么；`import()` 集合外的名称会失败。
 
-部署根目录是 [`python/sdk-runtime/package.json`](../../../../python/sdk-runtime/package.json)（`dsh-python-runtime-closure`，pnpm 工作区成员、零代码纯依赖 manifest），也是「exe 安装哪些插件」与「Python 运行时分发什么」的统一真源。向 exe 添加插件，就是在 manifest 中增加一行依赖后重新打包。[`scripts/verify-runtime-closure.ts`](../../../../scripts/verify-runtime-closure.ts) 读取每个已发布的 `packages/preset/agent-presets/presets/*/agent.cordis.yml`，针对 `python/sdk-runtime/platforms.json` 中的每个目标解析比较 `process.platform` 的 `disabled` 条件，并要求该目标启用的每个工作区插件都通过显式的 `workspace:` 依赖列在运行时根目录。它还遍历该 manifest 覆盖的全部工作区包，要求每个非可选的工作区对等依赖（peer dependency）都显式列出，并报告“preset 或引用包 → 缺失依赖”的完整链路；无法识别的平台条件会保持启用，避免因不支持的表达式遗漏插件。`pnpm run hygiene`、CI 静态检查与 single-exe 构建都会在打包前运行该门禁。部署还会依据各包的 `files` 字段打包，因此 tsdown 拆出的共享分片必须被 `files` 覆盖。
+部署根目录是 [`python/sdk-runtime/package.json`](../../../../python/sdk-runtime/package.json)（`avn-python-runtime-closure`，pnpm 工作区成员、零代码纯依赖 manifest），也是「exe 安装哪些插件」与「Python 运行时分发什么」的统一真源。向 exe 添加插件，就是在 manifest 中增加一行依赖后重新打包。[`scripts/verify-runtime-closure.ts`](../../../../scripts/verify-runtime-closure.ts) 读取每个已发布的 `packages/preset/agent-presets/presets/*/agent.cordis.yml`，针对 `python/sdk-runtime/platforms.json` 中的每个目标解析比较 `process.platform` 的 `disabled` 条件，并要求该目标启用的每个工作区插件都通过显式的 `workspace:` 依赖列在运行时根目录。它还遍历该 manifest 覆盖的全部工作区包，要求每个非可选的工作区对等依赖（peer dependency）都显式列出，并报告“preset 或引用包 → 缺失依赖”的完整链路；无法识别的平台条件会保持启用，避免因不支持的表达式遗漏插件。`pnpm run hygiene`、CI 静态检查与 single-exe 构建都会在打包前运行该门禁。部署还会依据各包的 `files` 字段打包，因此 tsdown 拆出的共享分片必须被 `files` 覆盖。
 
 部署根目录显式包含 `@aeven/mcp-client`，将其作为自定义配置可用的插件，即使随附 preset 均未挂载该插件。外部配置因此可以连接由用户提供的 stdio 与 Streamable HTTP MCP server 并注册其工具；分发物不包含这些 server，也不将桥接范围扩展到 MCP Resources 和 Prompts。可执行程序与已安装 wheel 包的冒烟测试会启动临时 stdio server，发现其工具，并完成一次由模型请求的调用。
 
 ### 构建流水线与产物
 
-[`scripts/build-exe-for-python-sdk.ts`](../../../../scripts/build-exe-for-python-sdk.ts)：运行时闭包校验 → `pnpm run build` →（清空后）`pnpm --filter dsh-python-runtime-closure deploy --legacy --prod --config.node-linker=hoisted --config.auto-install-peers=false --config.link-workspace-packages=true` **直接写入** `python/sdk-runtime/src/deepseek_harness_runtime/runtime/node/` → 恢复 legacy deploy 遗漏的直接工作区包，并拒绝剩余的 manifest 缺口 → 将暂存依赖中的符号链接替换为目标文件内容，删除包管理器的 `.bin` 链接，并在仍有任何符号链接时失败 → 注入 pkg 配置，其中 bin 为 `node_modules/@aeven/cli/lib/bin.js`，assets 覆盖动态读取的 profile、bundle、前端、preset、原生库与配置文件 → 暂存目标平台的 `node-pty` addon → 每个构建目标调用一次 `pkg --sea` → 将 `deepseek-harness-sdk-runtime-<platform>-<arch>` 写入 `dist-exe/` 并拷回运行时目录。Linux CI 会在匹配的 manylinux 2.28 容器中重新构建 `pty.node`，因为 legacy deploy 会遗漏这一安装副作用。每个目标都会把对应的原生 `@vscode/ripgrep` 二进制复制到可执行文件旁，作为必需的 `-rg` 伴随文件；pkg 运行时通过 `process.pkg` 选择该伴随文件，普通 Node 执行则直接使用 `@vscode/ripgrep`。macOS 使用对应目标的预构建产物，并额外生成所需的 `-spawn-helper`。四个部署标志都有实测依据：未启用 `inject-workspace-packages` 时必须使用 `--legacy`；`hoisted` 为 pkg 提供稳定的单实例布局，再由显式物化步骤消除符号链接；关闭对等依赖自动安装可防止未声明的对等依赖扩大闭包；`link-workspace-packages` 选择直接工作区依赖。[`pnpm-workspace.yaml`](../../../../pnpm-workspace.yaml) 将传递的 `@deepseek-ai/cosmokit` 与 `@deepseek-ai/schemastery` semver 请求覆盖到固定的 vendor 源码，使 legacy deploy 不会从注册表解析这些未发布名称。
+[`scripts/build-exe-for-python-sdk.ts`](../../../../scripts/build-exe-for-python-sdk.ts)：运行时闭包校验 → `pnpm run build` →（清空后）`pnpm --filter avn-python-runtime-closure deploy --legacy --prod --config.node-linker=hoisted --config.auto-install-peers=false --config.link-workspace-packages=true` **直接写入** `python/sdk-runtime/src/deepseek_harness_runtime/runtime/node/` → 恢复 legacy deploy 遗漏的直接工作区包，并拒绝剩余的 manifest 缺口 → 将暂存依赖中的符号链接替换为目标文件内容，删除包管理器的 `.bin` 链接，并在仍有任何符号链接时失败 → 注入 pkg 配置，其中 bin 为 `node_modules/@aeven/cli/lib/bin.js`，assets 覆盖动态读取的 profile、bundle、前端、preset、原生库与配置文件 → 暂存目标平台的 `node-pty` addon → 每个构建目标调用一次 `pkg --sea` → 将 `deepseek-harness-sdk-runtime-<platform>-<arch>` 写入 `dist-exe/` 并拷回运行时目录。Linux CI 会在匹配的 manylinux 2.28 容器中重新构建 `pty.node`，因为 legacy deploy 会遗漏这一安装副作用。每个目标都会把对应的原生 `@vscode/ripgrep` 二进制复制到可执行文件旁，作为必需的 `-rg` 伴随文件；pkg 运行时通过 `process.pkg` 选择该伴随文件，普通 Node 执行则直接使用 `@vscode/ripgrep`。macOS 使用对应目标的预构建产物，并额外生成所需的 `-spawn-helper`。四个部署标志都有实测依据：未启用 `inject-workspace-packages` 时必须使用 `--legacy`；`hoisted` 为 pkg 提供稳定的单实例布局，再由显式物化步骤消除符号链接；关闭对等依赖自动安装可防止未声明的对等依赖扩大闭包；`link-workspace-packages` 选择直接工作区依赖。[`pnpm-workspace.yaml`](../../../../pnpm-workspace.yaml) 将传递的 `@deepseek-ai/cosmokit` 与 `@deepseek-ai/schemastery` semver 请求覆盖到固定的 vendor 源码，使 legacy deploy 不会从注册表解析这些未发布名称。
 
 CI 使用 [`.github/workflows/build-exe-for-python-sdk.yml`](../../../../.github/workflows/build-exe-for-python-sdk.yml)：[安装后 wheel Python 运行时拉取请求验证](../testing/2026-08-23-installed-python-wheel-black-box-ci.zh.md)与[公开发布工作流](../process/2026-08-11-python-publication-workflow.zh.md)都会调用它构建全部四个目标；`workflow_dispatch` 仍可选择部分目标。linux-x64、linux-arm64（`ubuntu-24.04-arm`）、macos-arm64 与 win-x64（`windows-2025`）分别进行原生构建，并在适用平台缓存 `~/.pkg-cache`；macOS 的 ad-hoc 签名由 pkg 处理。每个平台都把发布形态的 SDK wheel 包与运行时 wheel 包安装到 checkout 外的干净 venv，证明包与可执行文件来源，再通过公开 SDK 与直接 NDJSON JSON-RPC 运行完整 keyless 场景。可信拉取请求还会在每个目标上运行真实 DeepSeek 双轮工具冒烟测试；fork 与 Dependabot head 不会获得密钥。Linux 会检查可执行文件和原生 addon 各自的 GLIBC 依赖，并额外运行 manylinux 2.28 冒烟测试；macOS 则验证可执行文件的部署目标符合 wheel 包标签。完整构建四个目标时保留 5 个产物，每个产物只含一个发布文件：平台无关的 SDK wheel 包与 4 个原生运行时 wheel 包；手动选择部分目标时保留 SDK wheel 与所选运行时 wheel。裸 exe 与源码包只作为测试中间输入。[`.gitlab-ci.yml`](../../../../.gitlab-ci.yml) 只接受版本与根目录 `package.json` 匹配的 `python-v<repository-version>` 标签流水线，构建一个 SDK wheel 包和 4 个原生运行时 wheel 包，再由单个串行任务校验并将这 5 个文件发布到项目的 PyPI 注册表。[Windows x64 运行时决策](2026-08-23-python-sdk-windows-x64-runtime.zh.md)负责第四个目标及对 Windows arm64 的明确排除。
 
@@ -52,15 +52,15 @@ Python SDK 位于 [`python/`](../../../../python/README.zh.md)：`python/sdk` �
 
 [`scripts/build-python-release.py`](../../../../scripts/build-python-release.py) 从仓库根目录的 `package.json` 读取权威的 `X.Y.Z` 或预发布版本，把预发布版本转换为 PEP 440 写法，并以该 wheel 包版本暂存两个包，让 `deepseek-harness-sdk` 精确依赖匹配版本的 `deepseek-harness-runtime-bin`。可选的 `python-v<repository-version>` 发布标签只是一项一致性断言，与仓库版本不同时会被拒绝；源码 `pyproject.toml` 中的开发占位版本从不决定发布版本。暂存过程还会把仓库许可证放入两个 wheel 包，并把第三方声明放入内置运行时 wheel 包。SDK 是 `py3-none-any` wheel 包；每个只提供 wheel 包的运行时包都包含一个 exe 及其架构匹配的 ripgrep 伴随文件，macOS wheel 包还包含与其架构匹配的 spawn helper。运行时 wheel 包使用 `py3-none-manylinux_2_28_x86_64`、`py3-none-manylinux_2_28_aarch64`、针对 Node 24 可执行文件 macOS 13.5 部署目标而保守选择的 `py3-none-macosx_14_0_arm64` 标签，或 `py3-none-win_amd64`；Hatch 钩子拒绝 sdist、通用标签、混合平台载荷、伴随文件缺失或多余，以及不支持的平台。
 
-Python 客户端使用所选 profile（默认 `sdk`）、有序 patch 文件和显式 Harness home 启动打包后的 `dsh` 命令。Profile 负责 JSON-RPC 服务和应用组合；缺失 home、profile、bundle、patch 或 server 配置项都会失败，不存在外部完整配置回退。
+Python 客户端使用所选 profile（默认 `sdk`）、有序 patch 文件和显式 Harness home 启动打包后的 `avn` 命令。Profile 负责 JSON-RPC 服务和应用组合；缺失 home、profile、bundle、patch 或 server 配置项都会失败，不存在外部完整配置回退。
 
 ### 命名血统
 
-`dsh-python-runtime-closure` 是私有部署 manifest，`deepseek-harness-sdk-runtime-<platform>-<arch>` 是可执行文件族。协议字段 `serverInfo.name` 是 `deepseek-harness-sdk-runtime`；Python 分发包名是 `deepseek-harness-sdk` / `deepseek-harness-runtime-bin`，导入模块名是 `deepseek_harness` / `deepseek_harness_runtime`。
+`avn-python-runtime-closure` 是私有部署 manifest，`deepseek-harness-sdk-runtime-<platform>-<arch>` 是可执行文件族。协议字段 `serverInfo.name` 是 `deepseek-harness-sdk-runtime`；Python 分发包名是 `deepseek-harness-sdk` / `deepseek-harness-runtime-bin`，导入模块名是 `deepseek_harness` / `deepseek_harness_runtime`。
 
 ## 工作线程插件
 
-exe 内支持 `dsh-workflow-worker-thread` 与 `dsh-code-runtime-worker-thread`。两个后端构建后的宿主都通过 `fileURLToPath()` 转换相邻 `lib/worker.cjs` 的 URL，再将所得文件系统字符串传给 `Worker`；pkg 的 Worker 钩子可以用这种形式解析 VFS 内文件。该钩子会把 VFS 内的工作线程文件作为 CommonJS 编译，所以工作线程入口采用 CommonJS。工作流引擎在未构建的源码执行中仍保留 `data:` URL 引导程序，只有构建后的相邻入口使用文件系统字符串。自定义配置的可执行文件冒烟测试会加载两个后端，实际调用 `run_code` 与不启动 agent（智能体）的 `workflow`，并要求两个工作线程都从 pkg 的 VFS 内返回 `42`。
+exe 内支持 `avn-workflow-worker-thread` 与 `avn-code-runtime-worker-thread`。两个后端构建后的宿主都通过 `fileURLToPath()` 转换相邻 `lib/worker.cjs` 的 URL，再将所得文件系统字符串传给 `Worker`；pkg 的 Worker 钩子可以用这种形式解析 VFS 内文件。该钩子会把 VFS 内的工作线程文件作为 CommonJS 编译，所以工作线程入口采用 CommonJS。工作流引擎在未构建的源码执行中仍保留 `data:` URL 引导程序，只有构建后的相邻入口使用文件系统字符串。自定义配置的可执行文件冒烟测试会加载两个后端，实际调用 `run_code` 与不启动 agent（智能体）的 `workflow`，并要求两个工作线程都从 pkg 的 VFS 内返回 `42`。
 
 ## 测试
 

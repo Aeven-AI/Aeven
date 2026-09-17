@@ -178,7 +178,7 @@ export function AppFrame({
     <div
       className={css.frame}
       style={{
-        '--dsh-frame-details-width': `${String(detailsWidth)}px`,
+        '--avn-frame-details-width': `${String(detailsWidth)}px`,
       } as CSSProperties}
       data-sidebar-collapsed={sidebarCollapsed || undefined}
       data-details-collapsed={detailsWidth === 0 || undefined}

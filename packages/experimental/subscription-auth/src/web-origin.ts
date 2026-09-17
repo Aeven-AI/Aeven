@@ -10,12 +10,12 @@ import type {
   OwnerAccessMode,
   OwnerRequestDecision,
 } from 'dsh-coding-oauth-core'
-import type { DshCompatibilityDiagnostic } from './compatibility.ts'
+import type { AvnCompatibilityDiagnostic } from './compatibility.ts'
 
 /** HTTP header name for owner proof. */
-export const OWNER_PROOF_HEADER = 'x-dsh-owner-proof'
+export const OWNER_PROOF_HEADER = 'x-avn-owner-proof'
 /** HTTP header name for owner csrf. */
-export const OWNER_CSRF_HEADER = 'x-dsh-csrf-token'
+export const OWNER_CSRF_HEADER = 'x-avn-csrf-token'
 
 export type { OwnerAccessMode } from 'dsh-coding-oauth-core'
 
@@ -39,7 +39,7 @@ export interface OwnerRequestPolicyConfig {
 }
 
 /** Owner request policy. */
-export type OwnerRequestPolicy = CoreOwnerRequestPolicy<IncomingMessage, DshCompatibilityDiagnostic>
+export type OwnerRequestPolicy = CoreOwnerRequestPolicy<IncomingMessage, AvnCompatibilityDiagnostic>
 
 interface TrustedProxyPolicy {
   readonly peers: ReadonlySet<string>
@@ -77,23 +77,23 @@ export function safeguardOwnerRequestPolicy(policy: OwnerRequestPolicy): OwnerRe
         return { authorized: false, reason: 'owner-policy-error' }
       }
     },
-    diagnostics(): readonly DshCompatibilityDiagnostic[] {
+    diagnostics(): readonly AvnCompatibilityDiagnostic[] {
       try {
         const diagnostics = policy.diagnostics()
         if (!Array.isArray(diagnostics) || !diagnostics.every(isOwnerRequestDiagnostic)) {
-          return [ownerPolicyDiagnosticError('DSH owner-request policy returned invalid diagnostics')]
+          return [ownerPolicyDiagnosticError('AVN owner-request policy returned invalid diagnostics')]
         }
         return Object.freeze([...diagnostics])
       } catch {
-        return [ownerPolicyDiagnosticError('DSH owner-request policy diagnostics failed')]
+        return [ownerPolicyDiagnosticError('AVN owner-request policy diagnostics failed')]
       }
     },
   })
 }
 
-function isOwnerRequestDiagnostic(value: unknown): value is DshCompatibilityDiagnostic {
+function isOwnerRequestDiagnostic(value: unknown): value is AvnCompatibilityDiagnostic {
   if (typeof value !== 'object' || value === null) return false
-  const candidate = value as Partial<DshCompatibilityDiagnostic>
+  const candidate = value as Partial<AvnCompatibilityDiagnostic>
   return (
     typeof candidate.id === 'string' &&
 		(candidate.level === 'info' || candidate.level === 'warning' || candidate.level === 'error') &&
@@ -101,8 +101,8 @@ function isOwnerRequestDiagnostic(value: unknown): value is DshCompatibilityDiag
   )
 }
 
-function ownerPolicyDiagnosticError(message: string): DshCompatibilityDiagnostic {
-  return { id: 'owner-request.dsh-policy-invalid', component: 'owner-request', level: 'error', message }
+function ownerPolicyDiagnosticError(message: string): AvnCompatibilityDiagnostic {
+  return { id: 'owner-request.avn-policy-invalid', component: 'owner-request', level: 'error', message }
 }
 
 /**
@@ -114,7 +114,7 @@ export function createOwnerRequestPolicy(config: OwnerRequestPolicyConfig = {}):
   const loopbackAccessMode = config.loopbackAccessMode ?? 'loopback'
   const configured = config.trustedProxy !== undefined
   const trustedProxy = parseTrustedProxyPolicy(config.trustedProxy)
-  const diagnostics: DshCompatibilityDiagnostic[] = [
+  const diagnostics: AvnCompatibilityDiagnostic[] = [
     {
       id: 'owner-request.loopback',
       component: 'owner-request',

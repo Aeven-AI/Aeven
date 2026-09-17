@@ -94,7 +94,7 @@ describe.skipIf(MODE === 'record')('web e2e: composer interrupt for a running co
   const apiCalls: string[] = []
 
   beforeAll(async () => {
-    sidecarRoot = await mkdtemp(join(tmpdir(), 'dsh-web-subagent-interrupt-ui-'))
+    sidecarRoot = await mkdtemp(join(tmpdir(), 'avn-web-subagent-interrupt-ui-'))
     const readyFile = join(sidecarRoot, 'hang-ready')
     rearmedReadyFile = join(sidecarRoot, 'hang-rearmed-ready')
     // The child claims this whole-script replacement: the offline and online

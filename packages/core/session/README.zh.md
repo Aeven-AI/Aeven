@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-session` 提供仅追加的会话日志，记录 agent（智能体）的完整交互历史——每个模型可见事实都流经的单一真源。LLM（大语言模型）消息历史由日志*派生*（`deriveMessages()`），从不另行存储，因此回放就是对同一批事件重新派生，压缩（compaction）也可以遮蔽较旧的表层条目而不删除历史。该包还提供内存存储（`ctx.sessions`）、插件通过声明合并扩展的类型化 `SessionEvent` 词汇，以及为产生消息的事件排序的 surface 层。持久化刻意是独立关注点：后端订阅 `session/event` 并在 `session/flush` 时刷新。作为任何 agent 会话的基础时请选择本包；它本身不运行模型调用。
+`avn-session` 提供仅追加的会话日志，记录 agent（智能体）的完整交互历史——每个模型可见事实都流经的单一真源。LLM（大语言模型）消息历史由日志*派生*（`deriveMessages()`），从不另行存储，因此回放就是对同一批事件重新派生，压缩（compaction）也可以遮蔽较旧的表层条目而不删除历史。该包还提供内存存储（`ctx.sessions`）、插件通过声明合并扩展的类型化 `SessionEvent` 词汇，以及为产生消息的事件排序的 surface 层。持久化刻意是独立关注点：后端订阅 `session/event` 并在 `session/flush` 时刷新。作为任何 agent 会话的基础时请选择本包；它本身不运行模型调用。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在必须存在会话的任何地方挂载 `dsh-session`。它在内存中创建并持有事件溯源的 `Session` 实例；持久存储由订阅 `session/event` 流的持久化插件叠加。
+在必须存在会话的任何地方挂载 `avn-session`。它在内存中创建并持有事件溯源的 `Session` 实例；持久存储由订阅 `session/event` 流的持久化插件叠加。
 
 ### 创建与检查会话
 
@@ -91,7 +91,7 @@ session.deriveMessages()         // the derived model history
 | [`src/types.ts`](src/types.ts) | `SessionEventMap`、`SessionEvent`、`UserMessage`、`SessionHeader`、`TurnEndReasonMap` |
 | [`src/surface.ts`](src/surface.ts) | 有序 surface 投影、替换校验、`deriveEventMessage` |
 | [`src/request-header.ts`](src/request-header.ts) | `request/header` 折叠与重建 |
-| [`dsh-util-values`](../../util/values/README.zh.md) | 共享无损 JSON 校验与分离式快照 |
+| [`avn-util-values`](../../util/values/README.zh.md) | 共享无损 JSON 校验与分离式快照 |
 | [`src/chunk-rows.ts`](src/chunk-rows.ts) | 供持久化后端使用的共享紧凑行存储编解码器 |
 | [`src/repair.ts`](src/repair.ts) | 崩溃遗留日志的冷修复 |
 | [`src/invariant.ts`](src/invariant.ts) | 不变式配套：序号、轮次／步骤闭合、工具调用／结果配对 |

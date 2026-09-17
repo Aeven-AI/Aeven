@@ -1,0 +1,29 @@
+# SDK-profile patch for the child runtime in the cwd-inheritance proof.
+
+- id: llm-deepseek
+  name: '@aeven/llm-deepseek'
+  disabled: true
+
+- id: system-prompt
+  name: '@aeven/system-prompt'
+  config:
+    persona: 'Echo where you run.'
+
+- id: agent-instructions
+  name: '@aeven/agent-instructions'
+  disabled: true
+
+- id: skill-filesystem
+  name: '@aeven/skill-filesystem'
+  config:
+    includeDefaultRoots: false
+
+- id: session-persistence-jsonl
+  name: '@aeven/session-persistence-jsonl'
+  config:
+    root: !!js avnHomePath('sessions')
+    compression: none
+
+- insert:
+    - id: child-mock-llm
+      name: './child-mock-llm.ts'

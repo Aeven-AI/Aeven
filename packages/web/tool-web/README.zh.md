@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-有了 `dsh-tool-web`，模型可以通过 `web_search` 与 `web_fetch` 工具搜索 web 或抓取页面，二者构建于 harness web 服务（`ctx.web`）之上。当模型需要搜索 web 或抓取页面时选择它；两个工具独立注册，因此产品可以通过配置禁用任一工具。每个成功结果都把提供方控制的文本标记为外部不可信数据，HTML 转换会删除活动或隐藏内容。即使选中的提供方缺失或不可用，工具仍保持可见：执行随后以模型可读的结构化错误失败。两个工具都不公开面向模型的超时；每个工具预算都是部署配置，由超时策略强制执行。
+有了 `avn-tool-web`，模型可以通过 `web_search` 与 `web_fetch` 工具搜索 web 或抓取页面，二者构建于 harness web 服务（`ctx.web`）之上。当模型需要搜索 web 或抓取页面时选择它；两个工具独立注册，因此产品可以通过配置禁用任一工具。每个成功结果都把提供方控制的文本标记为外部不可信数据，HTML 转换会删除活动或隐藏内容。即使选中的提供方缺失或不可用，工具仍保持可见：执行随后以模型可读的结构化错误失败。两个工具都不公开面向模型的超时；每个工具预算都是部署配置，由超时策略强制执行。
 
 ## 目录
 
@@ -128,9 +128,9 @@ schema 校验会在执行前拒绝缺失或非数组的 `queries` 字段、非�
 
 - [web 子系统](../../../docs/subsystems/web.zh.md)——穷尽式的搜索／抓取请求与结果、提供方可用性与错误码。
 - [web 包映射](../README.zh.md)——六包家族与各角色。
-- [dsh-web](../web/README.zh.md)——工具经由其执行的 web 服务。
+- [avn-web](../web/README.zh.md)——工具经由其执行的 web 服务。
 - [生成工具目录](../../../docs/tool-catalog.zh.md#aeven-tool-web)——精确的 `web_search` 与 `web_fetch` schema。
-- [dsh-tool-call-timeout-policy](../../guard/timeout-policy/README.zh.md)——强制执行每个工具超时预算的部署策略。
+- [avn-tool-call-timeout-policy](../../guard/timeout-policy/README.zh.md)——强制执行每个工具超时预算的部署策略。
 - [生成配置目录](../../../docs/config-catalog.zh.md#aeven-tool-web)——每个受支持配置字段及其源声明。
 - [web 能力 seam 决策](../../../.agents/notes/implemented/architecture/2026-06-24-web-capability-seam.zh.md)——搜索与抓取为何共用一项提供方选择服务。
 

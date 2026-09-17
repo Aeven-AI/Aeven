@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-tool-bash-persistent` gives the agent a `bash` tool whose shell state persists across calls for the owning agent: cwd, exported variables, functions, and background jobs survive between commands. Each agent gets its own shell backed by an owner-scoped PTY session from the terminal service, and commands for the same agent run one at a time. Configuration selects the PTY backend and the wall-clock limit for one command; a timeout or an explicit `exit` closes the shell, and the next call starts fresh. It complements the one-shot `dsh-tool-bash` tool — choose it when work needs cross-call state. Mount it together with a terminal backend such as `dsh-terminal-bash` and the `ctx.terminals` service.
+`avn-tool-bash-persistent` gives the agent a `bash` tool whose shell state persists across calls for the owning agent: cwd, exported variables, functions, and background jobs survive between commands. Each agent gets its own shell backed by an owner-scoped PTY session from the terminal service, and commands for the same agent run one at a time. Configuration selects the PTY backend and the wall-clock limit for one command; a timeout or an explicit `exit` closes the shell, and the next call starts fresh. It complements the one-shot `avn-tool-bash` tool — choose it when work needs cross-call state. Mount it together with a terminal backend such as `avn-terminal-bash` and the `ctx.terminals` service.
 
 ## Table of Contents
 
@@ -29,11 +29,11 @@ Load this plugin in any composition where the agent should keep shell state betw
 
 ### When to choose it
 
-Choose the persistent tool when work depends on cross-call state: a one-shot `dsh-tool-bash` call cannot remember a `cd` or an exported variable. Choose the one-shot tool when every command should start from a known, clean environment, or when the command is short and self-contained. Commands that need interactive stdin are unsupported here — a foreground child that reads input blocks until the command timeout — so interactive work belongs to the terminal tools.
+Choose the persistent tool when work depends on cross-call state: a one-shot `avn-tool-bash` call cannot remember a `cd` or an exported variable. Choose the one-shot tool when every command should start from a known, clean environment, or when the command is short and self-contained. Commands that need interactive stdin are unsupported here — a foreground child that reads input blocks until the command timeout — so interactive work belongs to the terminal tools.
 
 ### Minimal configuration
 
-The default `shell` backend starts an interactive bash through `dsh-terminal-bash`; deployments may register another PTY backend and select it by name.
+The default `shell` backend starts an interactive bash through `avn-terminal-bash`; deployments may register another PTY backend and select it by name.
 
 ```yaml
 - name: '@aeven/terminal'

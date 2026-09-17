@@ -187,7 +187,7 @@ async function run(ctx: Context, parent: Agent, source: { script: string; meta: 
 
 // The per-test cap leaves room for one generous startup wait plus the tight
 // post-event assertions; explicit narrower timeouts inside stay authoritative.
-describe('dsh-workflow-worker-thread', { timeout: 120_000 }, () => {
+describe('avn-workflow-worker-thread', { timeout: 120_000 }, () => {
   describe('script execution over a real worker thread', () => {
     it('runs a script end-to-end: agent() text results, phases, log, args, return value, events', async () => {
       const { ctx, parent, provider } = await setup({ reply: (_request, index) => text(`answer-${index}`) })
@@ -625,7 +625,7 @@ describe('dsh-workflow-worker-thread', { timeout: 120_000 }, () => {
       const { ctx, parent } = await setup()
       // The ACP snapshot harness runs the parent with its cwd OUTSIDE the
       // repo and pins the repo tsconfig through this variable; the worker
-      // must inherit the pin (or its dsh-* imports silently resolve to
+      // must inherit the pin (or its avn-* imports silently resolve to
       // unbuilt lib/ bundles) while every other variable stays scrubbed.
       const tsconfig = fileURLToPath(new URL('../../../../tsconfig.json', import.meta.url))
       process.env.TSX_TSCONFIG_PATH = tsconfig

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-media-openrouter` registers OpenRouter as both a `ctx.media` image backend and a video backend. Images are one call against OpenRouter's dedicated `/api/v1/images` route, which is where OpenRouter adds new image models; video is a job — submit, poll, and retrieve its bytes. OpenRouter brokers 28 video models at the time of writing — Wan, Seedance, Hailuo, and the FLUX video family — and is the only surveyed provider that enumerates its own job states, which is why the seam's status union follows its vocabulary and this adapter maps onto it directly. Mount it when a deployment wants image or video generation through an OpenRouter account.
+`avn-media-openrouter` registers OpenRouter as both a `ctx.media` image backend and a video backend. Images are one call against OpenRouter's dedicated `/api/v1/images` route, which is where OpenRouter adds new image models; video is a job — submit, poll, and retrieve its bytes. OpenRouter brokers 28 video models at the time of writing — Wan, Seedance, Hailuo, and the FLUX video family — and is the only surveyed provider that enumerates its own job states, which is why the seam's status union follows its vocabulary and this adapter maps onto it directly. Mount it when a deployment wants image or video generation through an OpenRouter account.
 
 ## Table of Contents
 
@@ -24,7 +24,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount the provider in a composition that already loads `dsh-media`; it registers as both an image and a video provider under `openrouter` by default. A caller generates images with `ctx.media.generateImage()`. A caller starts a job with `ctx.media.startVideo()`, polls `ctx.media.videoStatus()` at its own cadence, and retrieves the clip with `ctx.media.fetchVideo()` once the job reports `succeeded`.
+Mount the provider in a composition that already loads `avn-media`; it registers as both an image and a video provider under `openrouter` by default. A caller generates images with `ctx.media.generateImage()`. A caller starts a job with `ctx.media.startVideo()`, polls `ctx.media.videoStatus()` at its own cadence, and retrieves the clip with `ctx.media.fetchVideo()` once the job reports `succeeded`.
 
 ### Minimal configuration
 
@@ -73,7 +73,7 @@ No direct invalidation; the consumer owns any request-prefix changes.
 These limits define when the provider is a poor fit. They are current package constraints.
 
 - **No invariant companion** — No runtime invariant companion is published because this package owns no relationship two independent observers could disagree about; its single registration is disposed with the calling fiber and covered by the package's tests.
-- **Two packages can serve OpenRouter images** — `dsh-media-pi-ai` reaches the same account through pi-ai's chat-modality transport and registers under the same default id, so a composition mounting both must give one of them a different `id`. This package's dedicated route is the one that receives new image models.
+- **Two packages can serve OpenRouter images** — `avn-media-pi-ai` reaches the same account through pi-ai's chat-modality transport and registers under the same default id, so a composition mounting both must give one of them a different `id`. This package's dedicated route is the one that receives new image models.
 - **No streaming** — the image route accepts `stream` for incremental delivery, which this provider does not request; a call returns once, when every image is ready.
 - **`quality`, `output_format`, `background` and `output_compression` are not forwarded** — the seam carries no field for them, so the model's own defaults apply. Requesting SVG would in any case produce bytes the version-one attachment path cannot store.
 - **No model catalog** — the model id passes through verbatim and is validated by OpenRouter, not here, so an invalid id fails upstream rather than before the call.
@@ -91,6 +91,6 @@ This Dev Note is working context for maintainers: open questions and undecided d
 
 #### Retiring the pi-ai image path
 
-With the dedicated route implemented here, `dsh-media-pi-ai` is a second way to reach the same account for the same kind, over a transport OpenRouter treats as legacy and against a model list frozen into the installed pi-ai. Whether that package keeps a reason to exist is open; retiring it would remove the id collision named in the limits above.
+With the dedicated route implemented here, `avn-media-pi-ai` is a second way to reach the same account for the same kind, over a transport OpenRouter treats as legacy and against a model list frozen into the installed pi-ai. Whether that package keeps a reason to exist is open; retiring it would remove the id collision named in the limits above.
 
 </details>

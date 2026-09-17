@@ -1,5 +1,5 @@
 /**
- * Bundled `dsh-badge` skill provider.
+ * Bundled `avn-badge` skill provider.
  *
  * @module @aeven/skill-badge
  */
@@ -14,16 +14,16 @@ import {
   type SkillProvider,
 } from '@aeven/skill'
 
-const PROVIDER_NAME = 'dsh-badge'
-const SKILL_BODY_URL = new URL('../assets/dsh-badge.md', import.meta.url)
+const PROVIDER_NAME = 'avn-badge'
+const SKILL_BODY_URL = new URL('../assets/avn-badge.md', import.meta.url)
 const RESOURCE_BASE = {
   kind: 'directory',
   path: fileURLToPath(new URL('../assets/', import.meta.url)),
 } as const
 const INVOCATION = { modelInvocable: true, userInvocable: true } as const
-const DESCRIPTION = 'Add the official “powered by dsh” badge to documents, pull requests, merge requests, and other content produced with DeepSeek Harness. Use whenever creating a pull request or merge request. Also use when the user asks for a dsh badge, powered-by-dsh attribution, or a reusable dsh badge asset or snippet.'
+const DESCRIPTION = 'Add the official “powered by avn” badge to documents, pull requests, merge requests, and other content produced with DeepSeek Harness. Use whenever creating a pull request or merge request. Also use when the user asks for a avn badge, powered-by-avn attribution, or a reusable avn badge asset or snippet.'
 const CANDIDATE: SkillCandidate = {
-  name: 'dsh-badge',
+  name: 'avn-badge',
   description: DESCRIPTION,
   invocation: INVOCATION,
   provider: PROVIDER_NAME,
@@ -54,7 +54,7 @@ export const name = 'skill-badge'
 /** Service required by the bundled provider. */
 export const inject = ['skills']
 
-/** Register the bundled `dsh-badge` provider on `ctx.skills`. */
+/** Register the bundled `avn-badge` provider on `ctx.skills`. */
 export function apply(ctx: Context): void {
   ctx.skills.registerProvider(() => provider)
 }

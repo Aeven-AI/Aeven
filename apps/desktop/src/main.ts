@@ -23,7 +23,7 @@ import { formatDesktopMessage, resolveDesktopLocale } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
 
-const SCHEME = 'dsh-app'
+const SCHEME = 'avn-app'
 let focusPrimaryWindow = (): void => {}
 
 /**
@@ -86,7 +86,7 @@ function runtimeResources(): RuntimeResources {
 function developmentProject(): string | undefined {
   const configured = process.env.AVN_DESKTOP_DEV_PROJECT_DIR
   if (configured === undefined || configured === '') return undefined
-  if (app.isPackaged) throw new Error('dsh desktop: development project override is unavailable in packaged applications')
+  if (app.isPackaged) throw new Error('avn desktop: development project override is unavailable in packaged applications')
   return resolve(configured)
 }
 
@@ -95,7 +95,7 @@ function developmentHostInspectPort(enabled: boolean): number | undefined {
   if (!enabled || configured === undefined || configured === '') return undefined
   const port = Number(configured)
   if (!Number.isSafeInteger(port) || port < 1 || port > 65_535) {
-    throw new Error('dsh desktop: AVN_DESKTOP_HOST_INSPECT_PORT must be an integer from 1 through 65535')
+    throw new Error('avn desktop: AVN_DESKTOP_HOST_INSPECT_PORT must be an integer from 1 through 65535')
   }
   return port
 }
@@ -129,10 +129,10 @@ function createWindow(preload: string): BrowserWindow {
 
 function assertDesktopSender(event: IpcMainInvokeEvent, hostnames: readonly string[]): void {
   const senderFrame = event.senderFrame
-  if (senderFrame === null) throw new Error('dsh desktop: rejected IPC without a sender frame')
+  if (senderFrame === null) throw new Error('avn desktop: rejected IPC without a sender frame')
   const url = new URL(senderFrame.url)
   if (url.protocol !== `${SCHEME}:` || !hostnames.includes(url.hostname)) {
-    throw new Error('dsh desktop: rejected IPC from an unowned renderer')
+    throw new Error('avn desktop: rejected IPC from an unowned renderer')
   }
 }
 
@@ -271,7 +271,7 @@ async function main(): Promise<void> {
   const mutate = async (event: IpcMainInvokeEvent, mutation: Parameters<DesktopProjectManager['mutate']>[0]): Promise<void> => {
     assertDesktopSender(event, ['shell'])
     if (development !== undefined) {
-      throw new Error('dsh desktop: plugin package changes require a packaged application')
+      throw new Error('avn desktop: plugin package changes require a packaged application')
     }
     await manager.mutate(mutation, hooks)
     if (mainWindow !== undefined && !mainWindow.isDestroyed()) mainWindow.webContents.reload()
@@ -286,16 +286,16 @@ async function main(): Promise<void> {
     return manager.listPlugins()
   })
   ipcMain.handle(DESKTOP_IPC.pluginsAdd, (event, spec: unknown) => {
-    if (typeof spec !== 'string') throw new Error('dsh desktop: plugin spec must be a string')
+    if (typeof spec !== 'string') throw new Error('avn desktop: plugin spec must be a string')
     return mutate(event, { type: 'plugin-add', spec })
   })
   ipcMain.handle(DESKTOP_IPC.pluginsRemove, (event, name: unknown) => {
-    if (typeof name !== 'string') throw new Error('dsh desktop: plugin name must be a string')
+    if (typeof name !== 'string') throw new Error('avn desktop: plugin name must be a string')
     return mutate(event, { type: 'plugin-remove', name })
   })
   ipcMain.handle(DESKTOP_IPC.pluginsUpdate, (event, name: unknown, version: unknown) => {
     if (typeof name !== 'string' || typeof version !== 'string') {
-      throw new Error('dsh desktop: plugin name and version must be strings')
+      throw new Error('avn desktop: plugin name and version must be strings')
     }
     return mutate(event, { type: 'plugin-update', name, version })
   })

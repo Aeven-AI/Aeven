@@ -16,7 +16,7 @@
  * which adapters exist stays composition, and which providers run stays the
  * user's settings document.
  *
- * @module dsh-llm-pi-ai/known-routes
+ * @module avn-llm-pi-ai/known-routes
  */
 
 import type { PiAiCatalogRefresh } from './catalog.ts'

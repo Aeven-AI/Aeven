@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-tool-session-query` gives the model five read-only tools over session history: `session_search`, `session_event_search`, `session_trace`, `session_event_trace`, and `session_event_read`. The tools are workspace-authorized — a model can only reach sessions whose `cwd` exactly matches its own caller session — and results are cursor-free plain text, so the model can search prior work and follow a useful hit into its lineage or exact event data. The package is opt-in and not mounted by shipped host compositions: mounting it adds one concise guidance section and the five schemas to every request. Configuration and usage come first; the implementation internals live in a collapsible developer section below.
+`avn-tool-session-query` gives the model five read-only tools over session history: `session_search`, `session_event_search`, `session_trace`, `session_event_trace`, and `session_event_read`. The tools are workspace-authorized — a model can only reach sessions whose `cwd` exactly matches its own caller session — and results are cursor-free plain text, so the model can search prior work and follow a useful hit into its lineage or exact event data. The package is opt-in and not mounted by shipped host compositions: mounting it adds one concise guidance section and the five schemas to every request. Configuration and usage come first; the implementation internals live in a collapsible developer section below.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this package when the agent should be able to search its own prior sessions and inspect their relationships and events. The common path is explicit: mount the plugin over `ctx.sessionQuery` (backed by `dsh-session-query-sqlite`), then let the model call the tools.
+Mount this package when the agent should be able to search its own prior sessions and inspect their relationships and events. The common path is explicit: mount the plugin over `ctx.sessionQuery` (backed by `avn-session-query-sqlite`), then let the model call the tools.
 
 ### When to choose it
 
@@ -102,8 +102,8 @@ Each executor derives the caller, normalizes the model's arguments into service 
 Read these pages when the package-level contract is not enough. They move from the tool surface to the underlying service, the schema catalog, and the design evidence.
 
 - [Generated tool catalog](../../../docs/tool-catalog.md#aeven-tool-session-query) — the five tool schemas as the model sees them.
-- [dsh-session-query](../session-query/README.md) — the service these tools call.
-- [dsh-session-query-sqlite](../session-query-sqlite/README.md) — the full-text backend behind the two search tools.
+- [avn-session-query](../session-query/README.md) — the service these tools call.
+- [avn-session-query-sqlite](../session-query-sqlite/README.md) — the full-text backend behind the two search tools.
 - [Session Query subsystem reference](../../../docs/subsystems/session-query.md) — the type-level contract under the tools.
 - [Model-facing session query tools](../../../.agents/notes/implemented/feature/2026-07-24-model-facing-session-query-tools.md) — workspace authority, cursor-free results, and spill decisions.
 

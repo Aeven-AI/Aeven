@@ -10,9 +10,9 @@ Status: implemented
 
 ## Decision
 
-布局 store 只持久化侧栏宽度，键为 `dsh.layout.panels`。关闭的侧栏就是宽度 `0`，因此用户收起的栏重新加载后仍为收起。详情栏宽度与窄视口那一对字段（`narrow`、`narrowExpanded`）保持每页重来：详情栏保留其[默认关闭](../../archived/bug-fix/2026-07-30-web-details-default-closed.md)，只由显式选择重新打开；窄视口那一对是对当前视口的读数，`AppFrame` 挂载时会从 `matchMedia` 重新推导。
+布局 store 只持久化侧栏宽度，键为 `avn.layout.panels`。关闭的侧栏就是宽度 `0`，因此用户收起的栏重新加载后仍为收起。详情栏宽度与窄视口那一对字段（`narrow`、`narrowExpanded`）保持每页重来：详情栏保留其[默认关闭](../../archived/bug-fix/2026-07-30-web-details-default-closed.md)，只由显式选择重新打开；窄视口那一对是对当前视口的读数，`AppFrame` 挂载时会从 `matchMedia` 重新推导。
 
-只持久化 store 的某个字段是 `dsh-client-store` 的一项声明：`persist` 既接受单独的键（整份状态持久化，行为不变），也接受 `{ key, fields }`。带字段列表的回填以 `init()` 的状态为底，仅当还原出的值非 null 且与初始值的 `typeof` 一致时才采用该字段，因此被截断、过期或手工编辑过的条目只会丢掉该字段，而不会污染整个 store。写入只序列化声明出的字段，因此某字段离开持久集合后即停止写入，无需重命名键。
+只持久化 store 的某个字段是 `avn-client-store` 的一项声明：`persist` 既接受单独的键（整份状态持久化，行为不变），也接受 `{ key, fields }`。带字段列表的回填以 `init()` 的状态为底，仅当还原出的值非 null 且与初始值的 `typeof` 一致时才采用该字段，因此被截断、过期或手工编辑过的条目只会丢掉该字段，而不会污染整个 store。写入只序列化声明出的字段，因此某字段离开持久集合后即停止写入，无需重命名键。
 
 这取代了[详情栏 Session 生命周期笔记](2026-07-29-web-details-session-lifecycle.zh.md)中记录的“store 为瞬时”这一事实；该笔记关于详情栏归属的决定不变。
 

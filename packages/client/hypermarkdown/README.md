@@ -1,5 +1,5 @@
 ---
-description: "The streaming-native Markdown engine that renders assistant output in the dsh web client: it caches settled blocks down to code lines, table rows and list items so a growing reply never re-parses finished work."
+description: "The streaming-native Markdown engine that renders assistant output in the avn web client: it caches settled blocks down to code lines, table rows and list items so a growing reply never re-parses finished work."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-client-hypermarkdown` is the Markdown engine behind the web client's transcript. It renders untrusted GFM, TeX math, syntax-highlighted fences and Mermaid diagrams, and it is built for text that arrives in pieces: a block that has settled is never parsed again, so a reply that grows to thousands of lines keeps paying only for the part that changed. The renderer caches per code line, table row, and list item, reconciles streamed output against a full parse at every step, and publishes the finished render through its own external store so word-fade animation survives finalization.
+`avn-client-hypermarkdown` is the Markdown engine behind the web client's transcript. It renders untrusted GFM, TeX math, syntax-highlighted fences and Mermaid diagrams, and it is built for text that arrives in pieces: a block that has settled is never parsed again, so a reply that grows to thousands of lines keeps paying only for the part that changed. The renderer caches per code line, table row, and list item, reconciles streamed output against a full parse at every step, and publishes the finished render through its own external store so word-fade animation survives finalization.
 
 [`MarkdownText`](../ui-primitives/src/markdown/MarkdownText.tsx) in `ui-primitives` is the only consumer inside this repository and owns the untrusted-output policy: raw HTML is never parsed, unsafe link and image schemes are blocked, and Mermaid runs at its strict security level. This package owns the engine itself — the parser pipeline, the streaming caches, the block repair pass, the toolbar chrome, and the stylesheet it renders with.
 

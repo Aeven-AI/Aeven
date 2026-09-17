@@ -2,4 +2,4 @@
 
 import { contextBridge } from 'electron'
 
-contextBridge.exposeInMainWorld('dshDesktop', { protocolVersion: 1 })
+contextBridge.exposeInMainWorld('avnDesktop', { protocolVersion: 1 })

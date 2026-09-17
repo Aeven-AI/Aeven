@@ -40,7 +40,7 @@ async function projectedContext(): Promise<Context> {
 }
 
 /**
- * Drives the REAL plugin body: mounts `dsh-tool-subagent` on a real
+ * Drives the REAL plugin body: mounts `avn-tool-subagent` on a real
  * `ToolRuntime` + `SubagentRuntime`, with a package-local scripted child
  * boundary, and invokes the registered `subagent` tool through
  * `ctx.tools.execute`. Everything downstream of the child boundary is the
@@ -48,7 +48,7 @@ async function projectedContext(): Promise<Context> {
  */
 
 
-describe('dsh-tool-subagent', () => {
+describe('avn-tool-subagent', () => {
   it('rejects continuable background policy when the provider cannot prepare continuable children', async () => {
     let failure: unknown
     try {
@@ -798,7 +798,7 @@ describe('dsh-tool-subagent', () => {
   })
 })
 
-describe('dsh-tool-subagent background mode', () => {
+describe('avn-tool-subagent background mode', () => {
   /** A live parent with a dedicated scope fiber for structural task cleanup. */
   function ownerAgent(ctx: Context, sessionId: string, inject: (...args: unknown[]) => void = () => {}): Agent {
     const scopeFiber = ctx.plugin(() => {})
@@ -1173,7 +1173,7 @@ describe('dsh-tool-subagent background mode', () => {
 
 })
 
-describe('dsh-tool-subagent continuable background mode', () => {
+describe('avn-tool-subagent continuable background mode', () => {
   const roots: string[] = []
   afterEach(() => {
     for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
@@ -1183,7 +1183,7 @@ describe('dsh-tool-subagent continuable background mode', () => {
   async function continuableSetup() {
     const ctx = await projectedContext()
     await mountAgentLoopTestDependencies(ctx)
-    const root = mkdtempSync(path.join(tmpdir(), 'dsh-tool-subagent-continuable-'))
+    const root = mkdtempSync(path.join(tmpdir(), 'avn-tool-subagent-continuable-'))
     roots.push(root)
     await ctx.plugin(JsonlSessionPersistence, { root })
     await ctx.plugin(AgentLoop, { agents: [] })

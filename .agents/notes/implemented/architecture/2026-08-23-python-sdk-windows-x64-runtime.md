@@ -14,7 +14,7 @@ The Python SDK runtime distribution needs a Windows carrier without creating ano
 
 `python/sdk-runtime/platforms.json` declares one Windows target, `win-x64`. Its pkg target is `node24-win-x64`, its runtime wheel tag is `py3-none-win_amd64`, and its payload is `deepseek-harness-sdk-runtime-win-x64.exe` with `deepseek-harness-sdk-runtime-win-x64-rg.exe`. The packaged `node-pty` tree must contain both x64 ConPTY addons. Runtime lookup rejects Windows arm64 rather than selecting or relabeling the x64 wheel.
 
-The Python process still launches the ordinary `dsh --profile sdk` application and requires an explicit Harness home under the [Python profile-runtime decision](2026-08-23-python-sdk-dsh-profile-runtime.md). Windows adds no Python-specific Node application, complete-config entrypoint, implicit `~/.dsh`, or system Node requirement.
+The Python process still launches the ordinary `avn --profile sdk` application and requires an explicit Harness home under the [Python profile-runtime decision](2026-08-23-python-sdk-avn-profile-runtime.md). Windows adds no Python-specific Node application, complete-config entrypoint, implicit `~/.avn`, or system Node requirement.
 
 ### Native build and publication
 
@@ -28,7 +28,7 @@ The Windows lane creates a clean Windows virtual environment, installs the exact
 
 The public Python client gives the initial profile handshake an independent 30-second default through `initialize_timeout_seconds`. The bound accommodates cold Windows x64 executable startup and profile materialization while still failing a stuck runtime; callers may configure it separately from ordinary request timeouts.
 
-After a successful shutdown response, the Python client closes stdin and waits within the configured shutdown timeout for the `dsh` context to exit and flush durable session state before terminating it. A failed shutdown retains immediate bounded termination. `shutdown_timeout_seconds` bounds each of the shutdown request, EOF grace, and termination-confirmation phases, so a pathological close can approach three times that value before the final kill. This distinction preserves the final accepted turn on Windows, where `terminate()` force-kills the process rather than delivering a catchable signal.
+After a successful shutdown response, the Python client closes stdin and waits within the configured shutdown timeout for the `avn` context to exit and flush durable session state before terminating it. A failed shutdown retains immediate bounded termination. `shutdown_timeout_seconds` bounds each of the shutdown request, EOF grace, and termination-confirmation phases, so a pathological close can approach three times that value before the final kill. This distinction preserves the final accepted turn on Windows, where `terminate()` force-kills the process rather than delivering a catchable signal.
 
 The minimal blackbox uses persistent `pwsh` plus `str_replace_editor` on Windows and owns `minimal/win-x64/model-visible.json`; Linux and macOS retain persistent Bash and the shared `minimal/model-visible.json`. The advanced process/subagent snapshot and restart/durable-log snapshot remain shared across all targets. The shipped [`sdk-minimal` bundle](../../../../packages/bundle/sdk-minimal/README.md) selects the same platform shell pair for the runnable Python tutorial.
 
@@ -38,7 +38,7 @@ This decision partially supersedes the Windows non-goal in the [single-file runt
 
 ## Alternatives considered
 
-**Add Windows before the dsh profile runtime.** Rejected because tests for the retired private direct-config carrier would not prove the Windows form users receive. Windows is defined only for the sole `dsh` launch architecture.
+**Add Windows before the avn profile runtime.** Rejected because tests for the retired private direct-config carrier would not prove the Windows form users receive. Windows is defined only for the sole `avn` launch architecture.
 
 **Publish Windows arm64 too.** Rejected because the accepted product scope is x64 only; adding a second architecture would require its own native builder, wheel tag, ConPTY and ripgrep payload checks, installed-wheel matrix leg, and release artifact.
 

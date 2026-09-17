@@ -93,7 +93,7 @@ type TaskSurfaceSubmissionId = Branded<'TaskSurfaceSubmissionId'>
 type TaskSurfaceDismissalId = Branded<'TaskSurfaceDismissalId'>
 
 interface TaskSurfacePresentationMeta {
-  kind: 'dsh/task-surface'
+  kind: 'avn/task-surface'
   version: 1
   surfaceId: TaskSurfaceId
   model: TaskSurfaceModelV1

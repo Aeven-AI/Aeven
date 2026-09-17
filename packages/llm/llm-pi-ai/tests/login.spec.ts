@@ -27,7 +27,7 @@ const dirs: string[] = []
 
 /** A context with the record store, the seam, and every pi-ai login flow. */
 async function harness(): Promise<Context> {
-  const dir = await mkdtemp(join(tmpdir(), 'dsh-pi-login-'))
+  const dir = await mkdtemp(join(tmpdir(), 'avn-pi-login-'))
   dirs.push(dir)
   const ctx = new Context()
   await ctx.plugin(LocalCredentialProvider, { path: join(dir, '.credentials.yaml'), watch: false })

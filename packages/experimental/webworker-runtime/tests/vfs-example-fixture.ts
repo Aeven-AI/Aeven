@@ -34,7 +34,7 @@ export const VFS_EXAMPLE_OLDEST_MESSAGE = 'History checkpoint 01: verify determi
 /** Settled tail marker used by browser acceptance and the demonstration GIF. */
 export const VFS_EXAMPLE_TAIL_MESSAGE = 'Preview tour complete'
 
-const WORKSPACE = '/dsh/workspace'
+const WORKSPACE = '/avn/workspace'
 const CREATED_AT = 1_787_472_000_000
 const HISTORICAL_TURNS = 28
 

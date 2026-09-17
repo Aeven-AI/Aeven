@@ -1,17 +1,17 @@
 // Shared scaffold for the keyless browser e2e lane (Agent Note:
 // .agents/notes/implemented/testing/2026-07-24-web-gui-browser-e2e-lane.md).
-// Boots the REAL web composition — the dsh-base and dsh-web-app bundle
+// Boots the REAL web composition — the avn-base and avn-web-app bundle
 // patches over the empty profile root through the vendored Loader (the same
 // layer stack the profile boot composes), patched the
 // snapshot way — so a real chromium exercises the real HTTP uplink/WebSocket
 // downlink, api-gateway, agent loop, tools, and persistence. Modes ride $AVN_SNAPSHOT:
 // replay (default, keyless: normally disables the llm-deepseek row and
-// inserts dsh-llm-replay in providers mode), record (real adapter + key,
+// inserts avn-llm-replay in providers mode), record (real adapter + key,
 // harvests fixtures from live session memory), refresh (keyless replay that
 // rewrites goldens). A first-run option keeps the real adapter mounted while
 // masking its credential, without making a model call.
 //
-// Composition divergences from `dsh web`, all deliberate, all via include
+// Composition divergences from `avn web`, all deliberate, all via include
 // patches after the shipped bundle layers, over the SAME tree (never a
 // second yml): temp persistenceRoot; host-level skill roots confined to the
 // temp workspace while project skill discovery remains real; agent-instructions
@@ -56,7 +56,7 @@ import {
   loadOverlayPatches,
   type Profile,
 } from '@aeven/app-boot'
-import { dshHomePath } from '@aeven/home-paths'
+import { avnHomePath } from '@aeven/home-paths'
 import { LlmAdapter } from '@aeven/llm'
 import type {
   LlmModelInfo, LlmProviderInfo, LlmResolvedModelInfo, RetryPolicyConfig, StreamChunk,
@@ -116,7 +116,7 @@ async function ownsReplayFixture(replayFixture: string | undefined): Promise<boo
   return manifest.session === undefined
 }
 
-/** The shipped composition under test: the dsh-base and dsh-web-app bundle patches over the empty profile root. */
+/** The shipped composition under test: the avn-base and avn-web-app bundle patches over the empty profile root. */
 const BASE_PATCH_PATH = join(REPO_ROOT, 'packages/bundle/base/cordis.patch.yml')
 const WEB_PATCH_PATH = join(REPO_ROOT, 'packages/bundle/web-app/cordis.patch.yml')
 /** The installation anchor whose dependency surface the profile module fallback mirrors. */
@@ -225,7 +225,7 @@ export interface LaunchOptions {
    */
   extraInstallAnchors?: string[]
   /**
-   * Replay fixture (session.jsonl) served by the inserted dsh-llm-replay row
+   * Replay fixture (session.jsonl) served by the inserted avn-llm-replay row
    * in replay/refresh modes; ignored in record mode (the real adapter
    * answers). Omit for scenarios issuing no model calls — a stray stream then
    * fails loud with NO_ADAPTER (llm-deepseek is disabled and no replay row
@@ -367,17 +367,17 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
       process.env.DEEPSEEK_API_KEY = originalDeepSeekCredential
     }
   }
-  const workspaceCwd = await realpath(await mkdtemp(join(tmpdir(), 'dsh-web-e2e-ws-')))
+  const workspaceCwd = await realpath(await mkdtemp(join(tmpdir(), 'avn-web-e2e-ws-')))
   // Isolated harness home: the settings/credentials rows resolve $AVN_HOME
   // paths at load, and an in-process boot must NEVER touch the developer's
-  // real ~/.dsh document or credential file.
-  const harnessHome = options.harnessHome ?? join(workspaceCwd, '.dsh-home')
+  // real ~/.avn document or credential file.
+  const harnessHome = options.harnessHome ?? join(workspaceCwd, '.avn-home')
   // Skill discovery is model-visible input, and its roots now resolve inside a
   // PRESET — a subtree this lane's include patches cannot reach, because the
   // roster mounts it directly per session rather than as a row of the booted
   // tree. The row's documented fallback is the environment, so pin that: the
   // whole scaffold lifetime, not just the boot, since presets mount when a
-  // session is created. Without this a developer's real ~/.dsh/skills silently
+  // session is created. Without this a developer's real ~/.avn/skills silently
   // enters replay requests and goldens while CI sees none. `AVN_HOME` follows
   // the resolved harness home so a scaffold sharing another's home — the
   // cross-port persistence scenario — pins the same roots the settings and
@@ -402,7 +402,7 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
   Object.assign(process.env, skillRootEnvironment)
   let persistenceRoot: string
   try {
-    persistenceRoot = await mkdtemp(join(tmpdir(), 'dsh-web-e2e-sessions-'))
+    persistenceRoot = await mkdtemp(join(tmpdir(), 'avn-web-e2e-sessions-'))
   } catch (error) {
     const failures: unknown[] = [error]
     await rm(workspaceCwd, { recursive: true, force: true }).catch((cleanupError: unknown) => failures.push(cleanupError))
@@ -413,7 +413,7 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
   if (maskDeepSeekCredential) Reflect.deleteProperty(process.env, 'DEEPSEEK_API_KEY')
 
   // The include patch set — the same layer stack the profile boot composes
-  // (bundle patches in dsh.profile.bundles order), applied over the SAME empty root (a
+  // (bundle patches in avn.profile.bundles order), applied over the SAME empty root (a
   // patch id that stops matching a row fails the boot sweep loudly instead of
   // drifting).
   const basePatches = loadOverlayPatches('web e2e scaffold', BASE_PATCH_PATH)
@@ -431,8 +431,8 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     ...surfacePatches,
     ...extraOverlayPatches,
     // The roster's shipped presets are the plugin's own, bundled inside
-    // `dsh-agent-presets` and prepended by it. Pin only the machine-local
-    // root away: a developer's own `~/.dsh/.agent-presets` must not be able
+    // `avn-agent-presets` and prepended by it. Pin only the machine-local
+    // root away: a developer's own `~/.avn/.agent-presets` must not be able
     // to change a golden.
     {
       id: 'agent-presets',
@@ -455,15 +455,15 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     // storage-json's yml root is anchored to the real $AVN_HOME; pin the row
     // to an absolute temp root (removed with the workspace at close) so tests
     // never write the user's harness home.
-    { id: 'storage-json', config: { root: join(workspaceCwd, '.dsh-storages') } },
+    { id: 'storage-json', config: { root: join(workspaceCwd, '.avn-storages') } },
     // Skill discovery is model-visible input. Pin every host-level root inside
-    // the owned temp world so ~/.dsh, ~/.agents, and a bundled-root env setting
+    // the owned temp world so ~/.avn, ~/.agents, and a bundled-root env setting
     // cannot change replay requests or conversation goldens. Project roots stay
     // enabled against the same empty temp workspace, preserving the real seam.
     {
       id: 'skill-filesystem',
       config: {
-        dshHome: join(workspaceCwd, '.dsh-home'),
+        avnHome: join(workspaceCwd, '.avn-home'),
         agentsHome: join(workspaceCwd, '.agents-home'),
         bundledSkillDir: join(workspaceCwd, '.bundled-skills'),
         watch: false,
@@ -506,8 +506,8 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     ...options.remoteAuthority === undefined
       ? []
       : [{ id: 'connection', config: { trustedHosts: [options.remoteAuthority] } }],
-    { id: 'settings', config: { dshHome: harnessHome } },
-    { id: 'credentials', config: { dshHome: harnessHome } },
+    { id: 'settings', config: { avnHome: harnessHome } },
+    { id: 'credentials', config: { avnHome: harnessHome } },
     // The shipped directory-picker row is the -auto chooser, which resolves
     // the interaction from the RUNNING host (display, SSH launch, bind). The
     // lane's goldens are interaction-specific (workspace-management drives
@@ -595,7 +595,7 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     await writeFile(rootConfig, '[]\n')
     ctx.baseUrl = pathToFileURL(profileDir).href + '/'
     // This direct Loader harness supplies the same root-path capability as app-boot.
-    ctx.provide('dshHomePath', dshHomePath)
+    ctx.provide('avnHomePath', avnHomePath)
     // A host with no command line still provides one: the web bundle's startup
     // row releases the rows waiting on it, and with no arguments each starts on
     // the values this scaffold composed above. An exit request can only come

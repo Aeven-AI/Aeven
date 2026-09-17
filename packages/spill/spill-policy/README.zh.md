@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-spill-policy` 把过大的纯文本工具结果挡在模型上下文之外：当最终结果超过 `maxInlineBytes` 时，它通过 `ctx.spillStore` 保存完整文本，并把面向模型的结果替换为有界的首尾预览、后端定位信息与取回指引，模型可据此读取或搜索 spill 文件。它不注册任何服务，也不负责存储或预览机制——存储由已挂载的 `SpillStore` 后端负责，预览来自 `dsh-output-retention`；它只决定何时 spill 并组合通知。它是可选且尽力而为的：省略 `maxInlineBytes` 时完全禁用，spill 失败时原始结果仍然可见。第二条分支把同样的上限应用到 `run_code` 子调用结果的持久日志副本，因此回放与 UI 也不会无限增长。
+`avn-spill-policy` 把过大的纯文本工具结果挡在模型上下文之外：当最终结果超过 `maxInlineBytes` 时，它通过 `ctx.spillStore` 保存完整文本，并把面向模型的结果替换为有界的首尾预览、后端定位信息与取回指引，模型可据此读取或搜索 spill 文件。它不注册任何服务，也不负责存储或预览机制——存储由已挂载的 `SpillStore` 后端负责，预览来自 `avn-output-retention`；它只决定何时 spill 并组合通知。它是可选且尽力而为的：省略 `maxInlineBytes` 时完全禁用，spill 失败时原始结果仍然可见。第二条分支把同样的上限应用到 `run_code` 子调用结果的持久日志副本，因此回放与 UI 也不会无限增长。
 
 ## 目录
 
@@ -80,7 +80,7 @@ kind: "package-reference"
 
 ### 设计理念
 
-该策略刻意保持狭窄：它只决定**何时** spill，并组合通知。它不注册服务、不负责存储、也不负责预览机制——`dsh-output-retention` 的 `TextRetainer` 负责构建首尾预览。两个不变式塑造了代码：面向模型的替换永远不会超过 `maxInlineBytes`（先为通知预留字节成本），且 spill 失败永远不会改变工具调用的结果。
+该策略刻意保持狭窄：它只决定**何时** spill，并组合通知。它不注册服务、不负责存储、也不负责预览机制——`avn-output-retention` 的 `TextRetainer` 负责构建首尾预览。两个不变式塑造了代码：面向模型的替换永远不会超过 `maxInlineBytes`（先为通知预留字节成本），且 spill 失败永远不会改变工具调用的结果。
 
 ### 两条分支
 
@@ -114,8 +114,8 @@ kind: "package-reference"
 当包级约定不够用时阅读以下页面。
 
 - [spill 存储服务](../spill/README.zh.md)——策略替换背后的 `saveText` 约定。
-- [dsh-spill-local](../spill-local/README.zh.md)——保存 spill 文本的本地后端。
-- [dsh-output-retention](../../util/output-retention/README.zh.md)——策略组合的预览机制（`TextRetainer`）。
+- [avn-spill-local](../spill-local/README.zh.md)——保存 spill 文本的本地后端。
+- [avn-output-retention](../../util/output-retention/README.zh.md)——策略组合的预览机制（`TextRetainer`）。
 - [工具输出 spill 决策](../../../.agents/notes/implemented/architecture/2026-07-08-tool-output-spill-files.zh.md)——能力边界与设计依据。
 - [PTC dispatch-log spill 决策](../../../.agents/notes/implemented/feature/2026-07-26-ptc-dispatch-log-spill.zh.md)——为何持久日志副本同样设界。
 

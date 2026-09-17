@@ -1,5 +1,5 @@
 ---
-description: "Web ask_user_question feature for the dsh web client: the composer-takeover question UI and the plan-review approval card."
+description: "Web ask_user_question feature for the avn web client: the composer-takeover question UI and the plan-review approval card."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-client-ui-user-questions` is the web question feature plugin: its browser half registers the `question` entry in the conversation-owned `conversation.composer` chain, so when the agent asks the user a question the composer is taken over by the question UI. The component renders one question at a time with progress navigation, single- and multi-select choices, recommendation badges, and custom answers, and submits one structured answer batch for the whole request. A request whose single question declares a presentation intent renders as that intent's own surface instead — notably the `plan-review` waiting-approval card with `Chat about it` / `Refuse` / `Approve`. Its host half is empty on purpose: mounting `dsh-tool-ask-user` there would put the tool in the registry's global layer and merge it into every agent regardless of the preset that composed it.
+`avn-client-ui-user-questions` is the web question feature plugin: its browser half registers the `question` entry in the conversation-owned `conversation.composer` chain, so when the agent asks the user a question the composer is taken over by the question UI. The component renders one question at a time with progress navigation, single- and multi-select choices, recommendation badges, and custom answers, and submits one structured answer batch for the whole request. A request whose single question declares a presentation intent renders as that intent's own surface instead — notably the `plan-review` waiting-approval card with `Chat about it` / `Refuse` / `Approve`. Its host half is empty on purpose: mounting `avn-tool-ask-user` there would put the tool in the registry's global layer and merge it into every agent regardless of the preset that composed it.
 
 ## Table of Contents
 
@@ -33,7 +33,7 @@ A multi-select draft keeps its selected labels while the user opens or edits the
 
 ### The plan-review card
 
-A `plan-review` intent — set by `dsh-plan-mode` on the `exit_plan_mode` review — renders the waiting-approval card layout: a `Plan review` strip, the plan as the scrolling markdown body, and one decision row of `Chat about it` / `Refuse` / `Approve`. Approve and Refuse answer with the asker's own option labels; `Chat about it` rejects the wait as `ASK_CANCELLED`, returning the composer so the user can say what they want instead.
+A `plan-review` intent — set by `avn-plan-mode` on the `exit_plan_mode` review — renders the waiting-approval card layout: a `Plan review` strip, the plan as the scrolling markdown body, and one decision row of `Chat about it` / `Refuse` / `Approve`. Approve and Refuse answer with the asker's own option labels; `Chat about it` rejects the wait as `ASK_CANCELLED`, returning the composer so the user can say what they want instead.
 
 ### Failure and recovery
 
@@ -55,7 +55,7 @@ The card claims a request only when it can send every answer that request allows
 
 ### Copy and locale
 
-Composer chrome copy (pager, buttons, placeholders, validation feedback) is bilingual: the plugin registers zh/en dictionaries under the `question` namespace of `dsh-client-locale` and hands the entry its bound translator plus the locale snapshot source through the inject face, so a locale switch re-renders a mounted composer. Question and option text arrives from the model and renders verbatim; carrier failure messages also display untranslated.
+Composer chrome copy (pager, buttons, placeholders, validation feedback) is bilingual: the plugin registers zh/en dictionaries under the `question` namespace of `avn-client-locale` and hands the entry its bound translator plus the locale snapshot source through the inject face, so a locale switch re-renders a mounted composer. Question and option text arrives from the model and renders verbatim; carrier failure messages also display untranslated.
 
 </details>
 
@@ -76,11 +76,11 @@ These pages cover the composer host, the tool seam, and the plan-mode consumer.
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through `dsh-tool-ask-user`, whose model-visible schema and answer rendering this package presents in the Web client.
+Indirectly, through `avn-tool-ask-user`, whose model-visible schema and answer rendering this package presents in the Web client.
 
 #### KV Cache effect
 
-No direct invalidation; `dsh-tool-ask-user` owns the model-visible tool call and result.
+No direct invalidation; `avn-tool-ask-user` owns the model-visible tool call and result.
 
 ## Known Limitations and Deferred Work
 

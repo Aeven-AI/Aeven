@@ -93,7 +93,7 @@ export function apply(ctx: Context) {
 
 ## 可运行的组装示例
 
-交付应用通过 `packages/bundle/*/cordis.patch.yml` 提供 profile 层，产品 `dsh` 启动器通过具名 profile 负责 Web、ACP、SDK 与一次性 headless 执行。可选的用户 overlay 位于 `apps/cli/config/examples/`；profile 集成测试位于 `apps/cli/tests/profiles/`，包专属 Loader 组合则留在对应包的测试目录中。
+交付应用通过 `packages/bundle/*/cordis.patch.yml` 提供 profile 层，产品 `avn` 启动器通过具名 profile 负责 Web、ACP、SDK 与一次性 headless 执行。可选的用户 overlay 位于 `apps/cli/config/examples/`；profile 集成测试位于 `apps/cli/tests/profiles/`，包专属 Loader 组合则留在对应包的测试目录中。
 
 <a id="the-feature--mechanism-map"></a>
 
@@ -105,24 +105,24 @@ export function apply(ctx: Context) {
 
 | 产品功能 | 插件机制 |
 |---|---|
-| 钩子系统（用户级 + 项目级） | `agent/session-start`、`agent/pre-step`、`agent/request`、`tools/pre-execute`、`tools/post-execute` 和 `agent/turn-stopping` 上的监听器；waterfall 返回类型化决策，`agent/turn-stopping` 则可通过 steering（中途引导）触发下一步；`dsh-hooks-claude-code` / `dsh-hooks-codex` 桥接器将钩子配置文件映射到这些扩展点上 |
-| `/goal` | `ctx.goals` 管理持久状态，`dsh-goal-round-driver` 通过公共 `Agent` 调度同会话 Round，独立的命令/工具生产方分别提供人类/模型控制 |
+| 钩子系统（用户级 + 项目级） | `agent/session-start`、`agent/pre-step`、`agent/request`、`tools/pre-execute`、`tools/post-execute` 和 `agent/turn-stopping` 上的监听器；waterfall 返回类型化决策，`agent/turn-stopping` 则可通过 steering（中途引导）触发下一步；`avn-hooks-claude-code` / `avn-hooks-codex` 桥接器将钩子配置文件映射到这些扩展点上 |
+| `/goal` | `ctx.goals` 管理持久状态，`avn-goal-round-driver` 通过公共 `Agent` 调度同会话 Round，独立的命令/工具生产方分别提供人类/模型控制 |
 | `/loop` | 在 `turn/end` 会话事件上 `followup()` 下一次迭代；或强制继续 |
 | 动态工作流 | `ctx.workflowEngine` + worker-thread 引擎 + `workflow` 工具；结构化的进程内子任务通过作用域化的提示词/工具注册、单调工具守卫、最终 `tools/result` 提交（包括外层 `run_code`）和结构化输出执行的单调 `concludeTurn()` 标记来强制输出 |
 | 排队消息 + steering | 核心 `Agent.followup()` / `Agent.steer()` |
-| 上下文压缩（context compaction）（自动 + 手动） | `ctx.compaction` seam + `dsh-compaction-basic`；自动压力检查运行在串行 `agent/pre-step`，标准的溢出恢复机制运行在 `agent/request-error`，手动调用方使用同一个压缩服务（[压缩 Agent Note](../../.agents/notes/implemented/feature/2026-06-18-compaction-capability-seam.zh.md)） |
+| 上下文压缩（context compaction）（自动 + 手动） | `ctx.compaction` seam + `avn-compaction-basic`；自动压力检查运行在串行 `agent/pre-step`，标准的溢出恢复机制运行在 `agent/request-error`，手动调用方使用同一个压缩服务（[压缩 Agent Note](../../.agents/notes/implemented/feature/2026-06-18-compaction-capability-seam.zh.md)） |
 | 系统提示词可配置性 | `ctx.systemPrompt.section()`，支持排序与作用域局部覆盖 |
 | AGENTS.md（根目录） | 一个读取该文件的 section 提供方 |
 | AGENTS.md（子目录，按需触发）+ 文件变更通知 | 从 watcher / 工具结果监听器调用 `agent.inject()` |
-| 内置工具 | `ctx.tools.register()`；schema 自动流入装配——`dsh-tool-*` 系列（bash、fs、web、subagent、todo）是已交付的示例 |
+| 内置工具 | `ctx.tools.register()`；schema 自动流入装配——`avn-tool-*` 系列（bash、fs、web、subagent、todo）是已交付的示例 |
 | ToolSearch / 渐进式披露 | 当可见集变化时替换一个作用域化的 `ctx.tools.restrict()` 注册；注册表保持展示、查找和执行三者对齐 |
 | 工具截止时间 / 重试 / 指标 | 用 `tools/execute` 包裹核心分发；包装层可替换 `exec.signal`、委托执行，并在同一词法生命周期内检视规范化结果 |
 | 最终工具结果指标 / 审计 / 捕获 | 用 `tools/result` 观察不可变的权威结果；仅当插件需要变换结果或附加上下文时才使用 `tools/post-execute` |
 | 单调终端轮次策略 | 从成功的终端工具调用 `ToolExecution.concludeTurn()`；同一响应中后续工具调用仍可由守卫阻止，循环在该步骤后停止 |
-| 子进程沙箱（landlock / sandbox-exec） | 通过 `dsh-bash-sandbox` 使用 `ctx.sandbox` 后端；能力级别的拒绝使用 `tools/pre-execute` |
+| 子进程沙箱（landlock / sandbox-exec） | 通过 `avn-bash-sandbox` 使用 `ctx.sandbox` 后端；能力级别的拒绝使用 `tools/pre-execute` |
 | 权限系统 / AskUserQuestion | 从 `tools/pre-execute` 返回 `ask` 并通过 `ctx.approval` 应答；为普通用户提问注册一个独立的面向模型的 ask 工具 |
 | Plan mode | [`@aeven/plan-mode`](../../packages/plan/plan-mode/README.zh.md)：落日志的 `plan/mode` 状态、`plan:policy` 引导段、`/plan [message]` 入口、`/plan off` 直接退出，以及经用户评审的 `exit_plan_mode` 出口；强制约束留在独立的沙箱/审批轴上 |
-| subagent 委派 | `ctx.subagents` 提供方注册表（`dsh-subagent-spawn-in-process`/`dsh-subagent-fork-in-process`/`dsh-subagent-acp`/`dsh-subagent-codex`/`dsh-subagent-claude-code`/`dsh-subagent-dsh-sdk`）+ `dsh-tool-subagent` 向模型暴露一个已配置的提供方 |
+| subagent 委派 | `ctx.subagents` 提供方注册表（`avn-subagent-spawn-in-process`/`avn-subagent-fork-in-process`/`avn-subagent-acp`/`avn-subagent-codex`/`avn-subagent-claude-code`/`avn-subagent-avn-sdk`）+ `avn-tool-subagent` 向模型暴露一个已配置的提供方 |
 | MCP | 每个服务器一个插件：发现工具 → `ctx.tools.register()` |
 | skill（技能） | section + 工具注册；调用时通过 `inject()` 注入 skill 内容 |
 | 记忆 | section 提供方 + 工具 |
@@ -130,5 +130,5 @@ export function apply(ctx: Context) {
 | UI（GUI；CLI（命令行界面）输出 JSONL） | 监听 `session/event`（助手分片、边界、工具活动）；输入 → `followup()` |
 | Web Client Chat 业务节点 | 注册 `ConversationNodeDefinition` 与 `conversation.chat.node` keyed renderer |
 | 遥测 / 可回放 trace | `session/event` → JSONL；回放 = `sessions.create(id, { seed })` |
-| 模型适配器 | 通过 `registerAdapter` 注册 `LlmAdapter` 子类（`dsh-llm-deepseek`、`dsh-llm-pi-ai`） |
+| 模型适配器 | 通过 `registerAdapter` 注册 `LlmAdapter` 子类（`avn-llm-deepseek`、`avn-llm-pi-ai`） |
 | 插件热重载 | 每个注册都是一个 `ctx.effect` → 随仓库提供的 HMR（热模块替换）直接生效 |

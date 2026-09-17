@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Complete active Loader-backed plugin package inventory for official DeepSeek LLM API requests. This function plugin injects the Loader, live Agent registry, and `ctx.deepseekLlmApiExtensions`, then owns the `dsh_plugin_packages` field. Enable it when the official API needs the active package list for request diagnostics.
+Complete active Loader-backed plugin package inventory for official DeepSeek LLM API requests. This function plugin injects the Loader, live Agent registry, and `ctx.deepseekLlmApiExtensions`, then owns the `avn_plugin_packages` field. Enable it when the official API needs the active package list for request diagnostics.
 
 ## Table of Contents
 
@@ -26,7 +26,7 @@ Complete active Loader-backed plugin package inventory for official DeepSeek LLM
 
 | Key | Default | Meaning |
 |---|---:|---|
-| `enabled` | `true` | Register the `dsh_plugin_packages` contribution. Set it to `false` to omit package metadata. |
+| `enabled` | `true` | Register the `avn_plugin_packages` contribution. Set it to `false` to omit package metadata. |
 
 Shipped profiles use the default, so every official DeepSeek request carries the package inventory when preparation succeeds.
 
@@ -37,7 +37,7 @@ Every request re-reads active non-group entries from the host Loader tree. When 
 
 Bare package and package-subpath specifiers resolve through Node's package search paths without requiring a `./package.json` export. Each ordinary entry uses its owning Loader tree base. A standing preset's root entries use the harness base, matching the preset Loader's deliberate bare-package override; nested includes retain their own bases. Relative and absolute modules walk to their nearest manifest; a manifest without `name` marks a loose module and contributes no package identity. A named package manifest must also declare a non-empty `version`, and malformed package metadata fails request preparation. Exact name/version pairs are deduplicated and sorted with a locale-independent comparison, while simultaneously active different versions remain separate.
 
-The version-1 `dsh_plugin_packages` field contains only `{ name, version }` pairs. Disabled, pending, failed, disposed, unloading, structural `cordis:` rows, ordinary dependencies, loose files without an owning package identity, programmatically mounted child fibers, and in-memory dynamic plugins are excluded.
+The version-1 `avn_plugin_packages` field contains only `{ name, version }` pairs. Disabled, pending, failed, disposed, unloading, structural `cordis:` rows, ordinary dependencies, loose files without an owning package identity, programmatically mounted child fibers, and in-memory dynamic plugins are excluded.
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -46,7 +46,7 @@ The version-1 `dsh_plugin_packages` field contains only `{ name, version }` pair
 
 #### What the model sees
 
-Nothing. `dsh_plugin_packages` is provider metadata outside the model's messages, system prompt, and tool schemas.
+Nothing. `avn_plugin_packages` is provider metadata outside the model's messages, system prompt, and tool schemas.
 
 #### Token effect
 

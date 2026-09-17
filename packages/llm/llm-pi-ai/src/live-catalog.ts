@@ -15,7 +15,7 @@
  * therefore only widens the catalog; correcting an installed entry stays
  * `modelOverrides`, whose diagnostics already name a miss.
  *
- * @module dsh-llm-pi-ai/live-catalog
+ * @module avn-llm-pi-ai/live-catalog
  */
 
 import type { Api, Model, ModelCost, ThinkingLevelMap } from '@earendil-works/pi-ai'

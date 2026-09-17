@@ -6,7 +6,7 @@
 import { mkdir, readFile, rm } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { writeFileAtomic } from '@aeven/atomic-write'
-import { resolveDshHome } from '@aeven/home-paths'
+import { resolveAvnHome } from '@aeven/home-paths'
 import type { Api, Model, MutableModels, Provider } from '@earendil-works/pi-ai'
 import { createModels } from '@earendil-works/pi-ai'
 import { xaiProvider } from '@earendil-works/pi-ai/providers/xai'
@@ -40,8 +40,8 @@ function isENOENT(error: unknown): boolean {
   return (error as NodeJS.ErrnoException | null)?.code === 'ENOENT'
 }
 
-function modelsCachePath(dshHome?: string): string {
-  return resolve(join(resolveDshHome(dshHome), GROK_BUILD_MODELS_CACHE_FILENAME))
+function modelsCachePath(avnHome?: string): string {
+  return resolve(join(resolveAvnHome(avnHome), GROK_BUILD_MODELS_CACHE_FILENAME))
 }
 
 function parseIdList(value: unknown): string[] {

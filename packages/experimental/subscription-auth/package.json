@@ -18,10 +18,10 @@
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },
-  "dsh": {
+  "avn": {
     "compatibility": {
       "coreAbi": "dsh-coding-oauth-core/v1",
-      "verifiedBom": "./compatibility/dsh-bom.json",
+      "verifiedBom": "./compatibility/avn-bom.json",
       "participant": "coding-subscription-oauth",
       "diagnostics": "standalone",
       "bom": {

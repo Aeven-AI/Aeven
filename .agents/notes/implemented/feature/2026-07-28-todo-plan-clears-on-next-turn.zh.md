@@ -16,7 +16,7 @@ Status: implemented
 
 ### 宿主投影（web）
 
-按本笔记的决策，`dsh-tool-todo` 的 `todos` 投影单元曾折叠该规则：`apply` 从每个 `todo/write` 取完整列表，并在每个 `turn/start` 返回 `null`（`stateVersion` 2，现为 3，已无 `turn/start` 分支）。Session Controller 在历史记录尾部的 `projections` 块中提供该值，并以 `session/projection` 帧推送；Web dock 经 `useProjection('todos')` 读取。无密钥 fixture（测试前置数据）镜像同一折叠，供组装后的快照使用。
+按本笔记的决策，`avn-tool-todo` 的 `todos` 投影单元曾折叠该规则：`apply` 从每个 `todo/write` 取完整列表，并在每个 `turn/start` 返回 `null`（`stateVersion` 2，现为 3，已无 `turn/start` 分支）。Session Controller 在历史记录尾部的 `projections` 块中提供该值，并以 `session/projection` 帧推送；Web dock 经 `useProjection('todos')` 读取。无密钥 fixture（测试前置数据）镜像同一折叠，供组装后的快照使用。
 
 ### TUI 实时路径
 

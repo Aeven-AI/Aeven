@@ -12,13 +12,13 @@ host 侧，cordis 插件装载站在 Node 的模块机制之上——require cac
 
 浏览器客户端跑同一套 cordis 插件机制，因此底下需要同样的基座——而浏览器没有 Node 模块系统。
 
-常规前端工程在构建期消化全部依赖：单一 bundle，external 由打包器解决，运行时无物可管。在此之上再做运行时模块管理，正是这里的特殊需求。client 因此拆成两层：上层是经同一份 vendored Loader 的 cordis 插件装载，下层是模块粒度的依赖管理——`dsh-client-modules`。
+常规前端工程在构建期消化全部依赖：单一 bundle，external 由打包器解决，运行时无物可管。在此之上再做运行时模块管理，正是这里的特殊需求。client 因此拆成两层：上层是经同一份 vendored Loader 的 cordis 插件装载，下层是模块粒度的依赖管理——`avn-client-modules`。
 
 下层供给四项能力：external（平台清单）、远程到达（同源外部 classic script 加惰性工厂登记）、不可变的版本化交付、热更新（invalidate/prefetch）。
 
 插件 bundle 独立构建在 Vite 模块图之外。若把响应文本塞进内联 script，浏览器只能看到一次动态源码执行：网络资源、生成 bundle、TypeScript/TSX 源码之间没有标准 sourcemap 链，性能 profile 与 stack 只能落到生成后的 `client.js`；模块系统还要持有整份源码文本，并把同一项到达职责拆成 fetch 与 execute 两道传输边界。
 
-在此之上，client 与 host 插件以一致的方式注册与装载：包声明一次 `dsh.client`，host 把声明扫描进 boot 图，同一套 Loader 语义在两侧治理 entry。
+在此之上，client 与 host 插件以一致的方式注册与装载：包声明一次 `avn.client`，host 把声明扫描进 boot 图，同一套 Loader 语义在两侧治理 entry。
 
 第一代 client loader（`createClientLoader`）把这两层手写进了同一个函数。这一融合留下的是：没有卸载/重载路径（装载一次性，style 标签从不移除）、在三个文件间人肉抄写且早已漂移的依赖清单、一条供跨插件 import 走的模块表后门——既复制了 cordis 的服务机制，又把装载顺序变成正确性约束。下文的结构取代了它。
 
@@ -26,13 +26,13 @@ host 侧，cordis 插件装载站在 Node 的模块机制之上——require cac
 
 ### 包成员与模块请求
 
-[Client 外壳分层 Note](2026-08-15-client-shells-and-dynamic-packages.zh.md)定义当前的静态、动态包集合及其 import 规则。装载机件把每个 `dsh.client` 包视为一个 host graph row，且每个包只有一个普通 `lib/client.js` factory bundle。包声明携带 Cordis `inject` 边、同步模块表 `external` 请求，以及可选的 `immediately` 预取标记；负责组合的 app 只拥有挂载名册。
+[Client 外壳分层 Note](2026-08-15-client-shells-and-dynamic-packages.zh.md)定义当前的静态、动态包集合及其 import 规则。装载机件把每个 `avn.client` 包视为一个 host graph row，且每个包只有一个普通 `lib/client.js` factory bundle。包声明携带 Cordis `inject` 边、同步模块表 `external` 请求，以及可选的 `immediately` 预取标记；负责组合的 app 只拥有挂载名册。
 
 Web 内核保持不依赖框架，也不 import 任何动态包实体。Modules 本身是动态图 row，但 host parser 会在 Vite 主模块前送达其 factory。内核调用 `create()` 时，由 HTML 安装的 `__ModuleLoader__` facade 使用该 factory 构造模块系统。其他每个动态图 row 都归属一个 application combo 脚本；React、Cordis 与静态 UI 库的身份由外壳 seed 提供。
 
 ### 一套模块系统，一个插件治理器
 
-浏览器复刻 host 侧的分工。`dsh-client-modules`（`ClientModuleSystem`）坐上 host 侧由 Node 内部 ESM loader 占据的模块系统席位；同一份 vendored `@cordisjs/plugin-loader` 在两侧都坐治理席。二者的分界线一句话说尽：**模块系统拥有模块身份与字节——代码怎么到达、怎么登记、怎么变成导出内容；Loader 拥有插件生命周期——插件何时挂载、等待什么、如何拆除。**
+浏览器复刻 host 侧的分工。`avn-client-modules`（`ClientModuleSystem`）坐上 host 侧由 Node 内部 ESM loader 占据的模块系统席位；同一份 vendored `@cordisjs/plugin-loader` 在两侧都坐治理席。二者的分界线一句话说尽：**模块系统拥有模块身份与字节——代码怎么到达、怎么登记、怎么变成导出内容；Loader 拥有插件生命周期——插件何时挂载、等待什么、如何拆除。**
 
 `ClientModuleSystem` 是一张 lazy CJS 表。执行 bundle 只**登记**其 factory——bundle 调用 `window.__ModuleLoader__.load({ id, factory })`，此外什么都不发生。模块体的一切副作用（包括 CSS 注入）都住在 factory 闭包里，在物化时运行：物化即该 id 的首次 `require`/import，此后记忆化。Import 和 prefetch 会先递归登记已声明的动态请求，再登记消费者；随后 factory 会同步物化任何已登记但尚未物化的请求。模块表按固定分支顺序解析：seed word → 记忆化记录 → graph row classic-script 登记 → 已登记 factory 物化 → 大声抛错。Modules factory 是自举例外：HTML facade 先物化它，构造过程再把同一 exports 直接写入记忆化表。最后这一抛是构建期纯度门禁在运行时的镜像。系统还保管逐模块簿记——名下 `<style data-plugin>` 标签 id、观测到的 require 边——并暴露 HMR（热模块替换）需要的两个动词：`prefetch(id)`（登记所请求的动态 factory 和本 row 自身的 factory；并发到达共享一个任务）与 `invalidate(id)`（丢弃非 bootstrap factory 与记录，下次到达即重新加载）。
 
@@ -48,22 +48,22 @@ Host 会快照每个已构建插件产物，并把每个调度阶段的有序 ro
 
 ### 装载流程，端到端
 
-从 `dsh web` 启动到 UI 出现之间发生了什么？三个阶段：host 组合 graph 并由 parser 预载 bootstrap factory，HTML facade 创建模块系统且外壳执行预取，然后 Cordis 编排。
+从 `avn web` 启动到 UI 出现之间发生了什么？三个阶段：host 组合 graph 并由 parser 预载 bootstrap factory，HTML facade 创建模块系统且外壳执行预取，然后 Cordis 编排。
 
 **host 侧——组合这张图。**
 
 1. 负责组合的 app（`apps/cli`）把名册作为普通行放进它的 `cordis.yml` 配置树——client 插件包与每个 host 插件一样是 entry 行，包括无条件挂载的 `client-hmr` 行。名册行 import 失败由 `assertEntriesLoaded` 捕获；fiber reject 的行则由 `assertEntriesActivated` 报告原始 stack（[host boot 决策](2026-07-24-web-config-tree-boot-and-transport-layering.zh.md)）。
-2. `dsh-client-modules` 的 node 半（该包是双面的：浏览器半就是模块表）使用 Host face import 时相同的 `name` 与所属 tree `baseUrl` 解析每个 live Loader entry，再读取最近归属 package.json 的 `dsh.client` 声明并组合出 `window.__DSH_BOOT__`：`{ rev, entries: [{ id, url, rev, inject?, immediately?, external? }], batches: [{ phase, url, rev, entries }] }`。即使 overlay 指向相对的 source 或 built entry 文件，manifest 包名仍是浏览器模块身份。若不同的 active Loader source 解析到同一包名，组合会失败；一个来源卸载后，仍存活的来源无需重启 fiber 即可提供该 row。Row 的三个可选字段都来自 manifest，永不人肉抄写。组合会把被请求的动态图 row 排到消费者之前、拒绝同步请求环，并把每个 row 恰好分配给一个初始批次。它会拒绝没有已构建 `./client` bundle 的已声明插件，并把它们的 package/path 行归到一条源码构建要求下；畸形声明字段同样会让激活失败，Host 检查会从 FAILED fiber 报告这两类错误。
+2. `avn-client-modules` 的 node 半（该包是双面的：浏览器半就是模块表）使用 Host face import 时相同的 `name` 与所属 tree `baseUrl` 解析每个 live Loader entry，再读取最近归属 package.json 的 `avn.client` 声明并组合出 `window.__DSH_BOOT__`：`{ rev, entries: [{ id, url, rev, inject?, immediately?, external? }], batches: [{ phase, url, rev, entries }] }`。即使 overlay 指向相对的 source 或 built entry 文件，manifest 包名仍是浏览器模块身份。若不同的 active Loader source 解析到同一包名，组合会失败；一个来源卸载后，仍存活的来源无需重启 fiber 即可提供该 row。Row 的三个可选字段都来自 manifest，永不人肉抄写。组合会把被请求的动态图 row 排到消费者之前、拒绝同步请求环，并把每个 row 恰好分配给一个初始批次。它会拒绝没有已构建 `./client` bundle 的已声明插件，并把它们的 package/path 行归到一条源码构建要求下；畸形声明字段同样会让激活失败，Host 检查会从 FAILED fiber 报告这两类错误。
 3. 扫描是单包增量——不存在全量重扫代码路径。每次 cordis `internal/plugin` 发射把该 fiber 的 entry 名标脏（无 entry 的 fiber O(1) 丢弃）；微任务 flush 把每个脏名对账 live loader entries，包元数据（含「非 client 包」的否定结论）按 entry 名与所属 tree base URL 缓存至进程结束，bundle 重哈希只经 `rebuilt(id)` 可达。激活趟从当前 entries 灌同一脏集合并同步 flush，初扫与稳态共享一条实现。初始 row 使用不透明的进程 nonce 加序号，不对其产物求哈希；启动 combo revision 对合并脚本输入及 indexed map 求哈希，row 与批次描述再共同哈希进 `graph.rev`。图类型单源在 modules 包的 `./client` 出口——webserver 对图一无所知；modules 会注册 combo 路由并贡献结构化 index 注入行。
 
-为什么名册是 yml 行而不是扫描？因为哪些插件组合进一次部署是组合决策，不是包属性——一个在仓库中声明了 dsh.client 的包，不代表这次部署要挂载它，扫描发现无从替人做这个决定；node 半只扫描配置树实际挂载了的东西。
+为什么名册是 yml 行而不是扫描？因为哪些插件组合进一次部署是组合决策，不是包属性——一个在仓库中声明了 avn.client 的包，不代表这次部署要挂载它，扫描发现无从替人做这个决定；node 半只扫描配置树实际挂载了的东西。
 
 **第一阶段——模块面。**注入的 HTML 以 queue 模式安装 `window.__ModuleLoader__`，开始预加载所有 application combo URL，以阻塞式 classic script 依次执行所有 bootstrap combo URL，赋值 `window.__DSH_BOOT__`，然后启动 Vite 主模块。内核把原始图和外壳 seed 传给 facade 的 `create()`。Facade 移除 modules registration，用拒绝全部 external 的 bootstrap `require` 将其物化，再调用其 `createClientModuleSystem` 导出。Modules bundle 解析图、构造系统、记忆化自身 exports、在模块闭包中保留该实例，并把同一 facade 切换到 live registration。随后内核并行预取每个 `immediately` row；同一 application combo 中的 row 共享一次执行，不同 combo 会在 immediate row、被请求依赖或普通 entry import 首次触及时独立加载。预取失败在这里被吞下，因为第二阶段 import 会重试并拥有那次大声失败。`immediately` 仍是 registration barrier，不是包身份。
 
 **第二阶段——插件面。**
 
 1. 内核挂载 vendored Loader，在任何 entry 存在之前就把模块系统注入为 `internal`。顺序有讲究：`tree.import` 的裸 import 兜底分支在浏览器里绝不能跑到。
-2. 它统一创建每个 graph row。Import modules row 会返回记忆化的 bootstrap exports，其 `apply()` 把闭包中的系统提供为 `ctx.modules`；需要该 service 的 row 会保持 PENDING 直至此时，因此 modules row 无需特殊创建位置。渲染组装是由 `dsh-client-ui-renderer` 提供的普通 host graph row；内核不追加组装伪 entry。
+2. 它统一创建每个 graph row。Import modules row 会返回记忆化的 bootstrap exports，其 `apply()` 把闭包中的系统提供为 `ctx.modules`；需要该 service 的 row 会保持 PENDING 直至此时，因此 modules row 无需特殊创建位置。渲染组装是由 `avn-client-ui-renderer` 提供的普通 host graph row；内核不追加组装伪 entry。
 3. Graph 顺序治理同步 factory 可用性；Cordis 激活与之独立，仍经服务等待推进。
 4. `settled` = 每个 entry 已创建 + `loader.await()` 完全停稳 + 一次全 ACTIVE 扫描。扫描列出每个 import 失败、FAILED 或 PENDING 的 fiber 及其缺失的服务。它存在的理由：cordis 的 inject 等待没有超时——这次扫描就是大声失败的兜底线。
 5. 不依赖框架的 loading 页经 `internal/status` 投影真实 fiber 状态。检查完成后，内核调用 `ctx.uiRenderer.mount(container)`，一次切换到真实 UI。
@@ -72,7 +72,7 @@ Host 会快照每个已构建插件产物，并把每个调度阶段的有序 ro
 
 热重载是一项组合决策：web 组合包无条件挂载 `client-hmr` 行（一个常规的插件包），其 node 半带来 bundle 监视与 SSE（Server-Sent Events）通道；没有重建 watcher 改写客户端 bundle 时链路保持空闲。不应暴露它的组合可以禁用该行。
 
-重建好的 bundle 怎么变成重载信号？hmr 的 node 半自己观察——没有构建器来通知它。模块 host 在读取每份启动快照前捕获 bundle 的 stat 基线，并通过 `ctx.clientModules.artifactBaseline(id)` 暴露它。HMR 自持的单个定时器把当前图的每个 row 与这份基线比较：未变化的 row 直接开始监视，不读取内容也不求哈希；基线捕获后的写入已经形成 stat 差异，只有该 row 会进入 `rebuilt(id)`。这同时消除了启动期的全量重哈希，并避开 `fs.watchFile` 以异步首次 stat 建立基线、可能静默吸收构造期重建的问题。监视集合的成员随 `onGraphChanged` 更新；消失的 row 撤下监视，轮询时缺失的 bundle 则让对应 row 保持标脏状态，文件重现时即使元数据相同也强制重哈希。Bundle 的 mtime 或 size 变化，或 row 处于标脏状态时，`rebuilt(id)` 是重哈希的唯一入口；它会在新产物快照中一并读取当前 source map，而仅写入 map 不会重新挂载未变化的可执行代码。`rev` 真正变化时，node 半才在 `GET /plugins/events` 上广播 `rebuilt` 帧——这是一条系统级 SSE 通道，连接即发全量图，变更时发 `rebuilt` 帧，仅供呈现的 wire，永不进会话日志。轮询是刻意选择：inotify 在 weka 网络挂载上不触发，构建侧监视器需要 `--poll` 也是同一原因；每个 row 每个间隔只需一次 bundle stat，轮询间隔是一个经校验的配置字段（默认 500ms），dispose（资源释放）会清掉那一个定时器。重建产物是任意一个 tsdown watch 进程的事——`scripts/dev-web.ts` 仍作为 watch 构建入口保留，其包清单在启动时扫描 `packages/*/*/package.json` 按 dsh.client 发现——构建器与 host 共享零协议。写一半的 bundle 被撕裂读取会自愈：写入完成期间 stat 持续变化，下一个轮询节拍会再次重哈希并广播最终的 rev。
+重建好的 bundle 怎么变成重载信号？hmr 的 node 半自己观察——没有构建器来通知它。模块 host 在读取每份启动快照前捕获 bundle 的 stat 基线，并通过 `ctx.clientModules.artifactBaseline(id)` 暴露它。HMR 自持的单个定时器把当前图的每个 row 与这份基线比较：未变化的 row 直接开始监视，不读取内容也不求哈希；基线捕获后的写入已经形成 stat 差异，只有该 row 会进入 `rebuilt(id)`。这同时消除了启动期的全量重哈希，并避开 `fs.watchFile` 以异步首次 stat 建立基线、可能静默吸收构造期重建的问题。监视集合的成员随 `onGraphChanged` 更新；消失的 row 撤下监视，轮询时缺失的 bundle 则让对应 row 保持标脏状态，文件重现时即使元数据相同也强制重哈希。Bundle 的 mtime 或 size 变化，或 row 处于标脏状态时，`rebuilt(id)` 是重哈希的唯一入口；它会在新产物快照中一并读取当前 source map，而仅写入 map 不会重新挂载未变化的可执行代码。`rev` 真正变化时，node 半才在 `GET /plugins/events` 上广播 `rebuilt` 帧——这是一条系统级 SSE 通道，连接即发全量图，变更时发 `rebuilt` 帧，仅供呈现的 wire，永不进会话日志。轮询是刻意选择：inotify 在 weka 网络挂载上不触发，构建侧监视器需要 `--poll` 也是同一原因；每个 row 每个间隔只需一次 bundle stat，轮询间隔是一个经校验的配置字段（默认 500ms），dispose（资源释放）会清掉那一个定时器。重建产物是任意一个 tsdown watch 进程的事——`scripts/dev-web.ts` 仍作为 watch 构建入口保留，其包清单在启动时扫描 `packages/*/*/package.json` 按 avn.client 发现——构建器与 host 共享零协议。写一半的 bundle 被撕裂读取会自愈：写入完成期间 stat 持续变化，下一个轮询节拍会再次重哈希并广播最终的 rev。
 
 浏览器侧，驱动插件每帧重载一个插件，串行执行：
 
@@ -98,13 +98,13 @@ Wire 两侧运行同一份治理实现；浏览器特有层只包含一套模块
 
 接受的代价：vendored Loader 在浏览器里背着闲置机件（EntryTree 持久化是 no-op，分组／隔离未用）；开发期每次修改插件都要付一次 bundle 重建加 fiber 重挂；graph `inject` row 指导 factory 到达，但服务可用性仍是激活权威，因此不匹配会在 settled 扫描时浮出；静态 UI 库保留直接实体导出；每个 bundle 多出一份 sourcemap 产物；多个启动批次会花费额外的请求元数据，压缩效率也低于一个不设限的响应；外部 script 失败也只能给出粗粒度 URL 诊断，不能像显式 fetch 那样报告 HTTP 状态。Host 会保留逐插件 bundle/map 快照、生成的单资源响应、当前启动 combo 响应及上一代启动响应，因此内存会随组合出的客户端产物增长为数份副本。这组保留状态使 URL 保持不可变，并让进行中的请求跨越一次 HMR 重组后仍能完成。
 
-名册位于 web 组合包的配置树（`packages/bundle/web-app/cordis.patch.yml`）；`mountWebPlugins` 与 `CLIENT_PACKAGES` 常量已消失，重组一次部署等于替换 yml/overlay。Graph 组合器位于 `dsh-client-modules` node 半，由 parser 预载的 Client face 则自举浏览器模块表。Webserver 继续作为朴素路由注册插件；`/api/*` 绑定、浏览器认证、RPC envelope 与精确 Fetch 路由属于 Connection node 半，Remote 分发属于 API Gateway，开发期 bundle 监视与 SSE 通道属于 HMR node 半。
+名册位于 web 组合包的配置树（`packages/bundle/web-app/cordis.patch.yml`）；`mountWebPlugins` 与 `CLIENT_PACKAGES` 常量已消失，重组一次部署等于替换 yml/overlay。Graph 组合器位于 `avn-client-modules` node 半，由 parser 预载的 Client face 则自举浏览器模块表。Webserver 继续作为朴素路由注册插件；`/api/*` 绑定、浏览器认证、RPC envelope 与精确 Fetch 路由属于 Connection node 半，Remote 分发属于 API Gateway，开发期 bundle 监视与 SSE 通道属于 HMR node 半。
 
 ## Alternatives considered
 
 | Rejected | One-line reason |
 |---|---|
-| 两轴分类体系（entry × 到达），基础设施包不带 dsh.client | 抹掉了 manifest 依赖边（inject 泄漏给组合方）、把插件形态拆成两种、让纯度门禁对一半插件失明 |
+| 两轴分类体系（entry × 到达），基础设施包不带 avn.client | 抹掉了 manifest 依赖边（inject 泄漏给组合方）、把插件形态拆成两种、让纯度门禁对一半插件失明 |
 | 继续把手写 loader 演化成治理器 | 重新实现 vendored Loader 已拥有的 entry/fiber 生命周期；HMR 将与 host 侧毫无共享骨架 |
 | 在浏览器复用 `@cordisjs/plugin-hmr` | 约 80% 在解决浏览器没有的问题（fs 监听、深度图着色、Node 的双缓存）；只按形状抄用其重载骨架 |
 | 模块联邦（module federation） | 独立构建的远端 bundle 恰是 vite 联邦不支持的形态 |

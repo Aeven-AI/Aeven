@@ -8,7 +8,7 @@
  * an event dispatches only on its blank-line terminator, so an unterminated
  * tail at EOF is truncation, not a flushable payload.
  *
- * @module dsh-llm-deepseek/sse
+ * @module avn-llm-deepseek/sse
  */
 
 import { EventSourceParserStream } from 'eventsource-parser/stream'

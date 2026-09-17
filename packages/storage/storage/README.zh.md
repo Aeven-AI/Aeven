@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-挂载 `dsh-storage` 即可为组合提供持久的非会话存储：它是后端与数据形式交汇的枢纽（hub），宿主包因此可以通过 `ctx.storageDomain` 读写类型化记录。枢纽自身不执行任何 IO——后端拥有介质（一个文件树根目录、一个数据库文件），数据形式拥有语义——因此组合会把它与一个或多个后端以及领域数据形式一起挂载。它是可选项，且只面向宿主侧：不注册工具、不注入提示词，也不写入会话事件，因此模型与 agent loop（智能体循环）永远不会看到它。只要组合中任何包需要会话事件日志以外的持久数据就选择它；没有任何此类数据的组合可以省略整个组。
+挂载 `avn-storage` 即可为组合提供持久的非会话存储：它是后端与数据形式交汇的枢纽（hub），宿主包因此可以通过 `ctx.storageDomain` 读写类型化记录。枢纽自身不执行任何 IO——后端拥有介质（一个文件树根目录、一个数据库文件），数据形式拥有语义——因此组合会把它与一个或多个后端以及领域数据形式一起挂载。它是可选项，且只面向宿主侧：不注册工具、不注入提示词，也不写入会话事件，因此模型与 agent loop（智能体循环）永远不会看到它。只要组合中任何包需要会话事件日志以外的持久数据就选择它；没有任何此类数据的组合可以省略整个组。
 
 ## 目录
 
@@ -37,13 +37,13 @@ kind: "package-reference"
 - name: '@aeven/storage'
 - name: '@aeven/storage-json'
   config:
-    root: /var/lib/dsh/data
+    root: /var/lib/avn/data
 - name: '@aeven/storage-domain'
   config:
     backend: json
 ```
 
-这些行加载后，`json` 后端注册自身、`domain` 数据形式挂载；诸如 `dsh-workspace` 之类的消费方随后在已路由后端上打开自己的领域，并通过 `ctx.storageDomain` 读写记录。多个后端可以并排保持挂载；哪个后端服务哪个领域由领域数据形式的配置决定，绝非枢纽的全局选择。
+这些行加载后，`json` 后端注册自身、`domain` 数据形式挂载；诸如 `avn-workspace` 之类的消费方随后在已路由后端上打开自己的领域，并通过 `ctx.storageDomain` 读写记录。多个后端可以并排保持挂载；哪个后端服务哪个领域由领域数据形式的配置决定，绝非枢纽的全局选择。
 
 ### 你能得到什么
 
@@ -54,7 +54,7 @@ kind: "package-reference"
 ### 失败与恢复
 
 - `backend-not-found`——领域数据形式路由到未挂载的后端；请添加后端包。数据形式会等待所有已配置后端注册，因此行序不会造成失败。
-- `form-not-mounted`——消费方在 `dsh-storage-domain` 加载前读取 `ctx.storage.domain`；请把领域行放在消费方之前。
+- `form-not-mounted`——消费方在 `avn-storage-domain` 加载前读取 `ctx.storage.domain`；请把领域行放在消费方之前。
 - `duplicate-backend`／`duplicate-mount`——同一名称或形式注册了两次；这是组合错误，会明确报错。
 
 -----

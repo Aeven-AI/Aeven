@@ -92,7 +92,7 @@ async function loadComposition(
   bindHost: '127.0.0.1' | '0.0.0.0',
   options: { failSurface?: boolean } = {},
 ): Promise<{ ctx: Context; configPath: string }> {
-  root = await mkdtemp(join(tmpdir(), 'dsh-directory-picker-auto-'))
+  root = await mkdtemp(join(tmpdir(), 'avn-directory-picker-auto-'))
   const configPath = join(root, 'cordis.yml')
   await writeFile(configPath, [
     "- name: '@aeven/host-webserver'",
@@ -152,7 +152,7 @@ function includeTree(ctx: Context): Include {
  * probe resolves identically on hosts with and without zenity/kdialog.
  */
 function stubAttendedHost(): void {
-  fakeBin = mkdtempSync(join(tmpdir(), 'dsh-picker-bin-'))
+  fakeBin = mkdtempSync(join(tmpdir(), 'avn-picker-bin-'))
   const zenity = join(fakeBin, 'zenity')
   writeFileSync(zenity, '#!/bin/sh\n')
   chmodSync(zenity, 0o755)

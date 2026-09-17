@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-media-deepinfra` registers DeepInfra as both an image and a video backend for `ctx.media`. Images go through DeepInfra's OpenAI-compatible route and come back as base64; video is a job — submit, poll, retrieve — against the same account and origin. DeepInfra brokers 16 models tagged `video-gen` at the time of writing, from Wan and Seedance to Veo, at per-second pricing. Mount it when a deployment wants both media from one DeepInfra key.
+`avn-media-deepinfra` registers DeepInfra as both an image and a video backend for `ctx.media`. Images go through DeepInfra's OpenAI-compatible route and come back as base64; video is a job — submit, poll, retrieve — against the same account and origin. DeepInfra brokers 16 models tagged `video-gen` at the time of writing, from Wan and Seedance to Veo, at per-second pricing. Mount it when a deployment wants both media from one DeepInfra key.
 
 ## Table of Contents
 
@@ -24,7 +24,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount the provider in a composition that already loads `dsh-media`; it registers under `deepinfra` for both media, so one mount serves `ctx.media.generateImage()` and the video job methods.
+Mount the provider in a composition that already loads `avn-media`; it registers under `deepinfra` for both media, so one mount serves `ctx.media.generateImage()` and the video job methods.
 
 ### Minimal configuration
 

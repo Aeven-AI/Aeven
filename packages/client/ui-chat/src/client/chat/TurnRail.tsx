@@ -20,8 +20,8 @@ const MAX_PITCH_PX = 10
 const MIN_PITCH_PX = 2
 
 type RailStyle = CSSProperties & {
-  readonly '--dsh-turn-pitch': string
-  readonly '--dsh-turn-band': string
+  readonly '--avn-turn-pitch': string
+  readonly '--avn-turn-band': string
 }
 
 /**
@@ -70,8 +70,8 @@ function TurnRailLadder({ marks, activeTurn, onNavigate, t }: TurnRailProps) {
 
   const pitch = pitchFor(marks.length)
   const style: RailStyle = {
-    '--dsh-turn-pitch': `${String(pitch)}px`,
-    '--dsh-turn-band': `${String((marks.length - 1) * pitch)}px`,
+    '--avn-turn-pitch': `${String(pitch)}px`,
+    '--avn-turn-band': `${String((marks.length - 1) * pitch)}px`,
   }
   const preview = marks.find(mark => mark.turn === previewTurn)
   const previewIndex = preview === undefined ? -1 : marks.indexOf(preview)

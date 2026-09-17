@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-code-runtime` 定义代码运行时做什么：针对一组宿主提供的异步函数运行一段模型编写的程序，并报告 `{ value, logs, error? }`——不规定任何后端如何实现。在组合中与一个后端一起加载它，服务即可作为 `ctx.codeRuntime` 使用；随后 `dsh-tools` 中的 PTC mode 即可运行组合工具的模型程序。每次请求只运行一次，运行之间不保留状态；每个程序结果——包括失败——都以结果字段 resolve，而不是 reject。运行时不了解工具或会话：调用方只向它提供程序与具名绑定，所有与工具有关的内容都留在 Consumer。
+`avn-code-runtime` 定义代码运行时做什么：针对一组宿主提供的异步函数运行一段模型编写的程序，并报告 `{ value, logs, error? }`——不规定任何后端如何实现。在组合中与一个后端一起加载它，服务即可作为 `ctx.codeRuntime` 使用；随后 `avn-tools` 中的 PTC mode 即可运行组合工具的模型程序。每次请求只运行一次，运行之间不保留状态；每个程序结果——包括失败——都以结果字段 resolve，而不是 reject。运行时不了解工具或会话：调用方只向它提供程序与具名绑定，所有与工具有关的内容都留在 Consumer。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-当你要组合一个执行模型程序的部署、直接消费 `ctx.codeRuntime`，或构建运行程序的后端时，选择本包。在已发布的组合中，`dsh-tools` 里的 PTC mode 是消费方：只有程序打印和返回的内容重新进入对话。
+当你要组合一个执行模型程序的部署、直接消费 `ctx.codeRuntime`，或构建运行程序的后端时，选择本包。在已发布的组合中，`avn-tools` 里的 PTC mode 是消费方：只有程序打印和返回的内容重新进入对话。
 
 ### 运行一个程序
 
@@ -41,7 +41,7 @@ const result = await ctx.codeRuntime.run({
 
 ### 选择后端
 
-后端声明两个你可以依赖的描述符：`language`——程序必须使用的源语言，已知值为 `'typescript'` 与 `'python'`——以及 `isolation`——执行基底（`'worker-thread'`、`'process'`、`'container'`），仅供部署与诊断使用，不构成安全声明。[`dsh-code-runtime-worker-thread`](../code-runtime-worker-thread/README.zh.md) 在全新的 Node Worker 线程中执行 TypeScript；私有的 [`dsh-experimental-code-runtime-python`](../../experimental/code-runtime-python/README.zh.md) 包在全新的 CPython 子进程中执行 Python，供选择性组合使用。
+后端声明两个你可以依赖的描述符：`language`——程序必须使用的源语言，已知值为 `'typescript'` 与 `'python'`——以及 `isolation`——执行基底（`'worker-thread'`、`'process'`、`'container'`），仅供部署与诊断使用，不构成安全声明。[`avn-code-runtime-worker-thread`](../code-runtime-worker-thread/README.zh.md) 在全新的 Node Worker 线程中执行 TypeScript；私有的 [`avn-experimental-code-runtime-python`](../../experimental/code-runtime-python/README.zh.md) 包在全新的 CPython 子进程中执行 Python，供选择性组合使用。
 
 ### 可移植地命名绑定
 
@@ -63,7 +63,7 @@ binding-global 与 error-class 名称是语言可移植的：必须匹配 `[A-Za
 
 ### 设计理念
 
-本包是代码执行能力 seam 的 Service Definition 角色（[能力 seam](../../../.agents/notes/implemented/architecture/2026-06-13-capability-seams.zh.md)）：一个注册为 `ctx.codeRuntime` 的抽象 `CodeRuntime extends Service`，加上两个后端与消费方共享的词汇。提供方继承 `CodeRuntime`、实现 `run` 并注册服务；消费方（`dsh-tools` 中的 PTC mode）生成面向模型的 SDK 并桥接工具分发。按约定，运行时不了解工具与会话：它接收程序与具名异步绑定，返回 `{ value, logs, error? }`。
+本包是代码执行能力 seam 的 Service Definition 角色（[能力 seam](../../../.agents/notes/implemented/architecture/2026-06-13-capability-seams.zh.md)）：一个注册为 `ctx.codeRuntime` 的抽象 `CodeRuntime extends Service`，加上两个后端与消费方共享的词汇。提供方继承 `CodeRuntime`、实现 `run` 并注册服务；消费方（`avn-tools` 中的 PTC mode）生成面向模型的 SDK 并桥接工具分发。按约定，运行时不了解工具与会话：它接收程序与具名异步绑定，返回 `{ value, logs, error? }`。
 
 ### 服务 API
 
@@ -77,7 +77,7 @@ binding-global 与 error-class 名称是语言可移植的：必须匹配 `[A-Za
 
 ### 可移植标识符
 
-binding-global 与 error-class 名称是语言可移植的：必须匹配标识符子集 `[A-Za-z_][A-Za-z0-9_]*`（不含 JS 专有的 `$`）并通过 seam 导出的排除集，因此同一份 `bindings` 列表对每个后端都有效。本包导出每个后端都执行的约定——`PORTABLE_RESERVED_WORDS`（ECMAScript ∪ Python 保留字）、`RESERVED_BINDING_GLOBALS`（如 `console`、`__dsh_main__` 等后端拥有的 global）、`RESERVED_ERROR_MEMBERS` 与 `DUNDER_MEMBER`（error-member 排除）——因此 `$tools`、`lambda` 或 `__dsh_main__` 之类的名称会让 `run()` 在任何后端上作为 seam 误用而 reject。确切集合见 `src/index.ts`。
+binding-global 与 error-class 名称是语言可移植的：必须匹配标识符子集 `[A-Za-z_][A-Za-z0-9_]*`（不含 JS 专有的 `$`）并通过 seam 导出的排除集，因此同一份 `bindings` 列表对每个后端都有效。本包导出每个后端都执行的约定——`PORTABLE_RESERVED_WORDS`（ECMAScript ∪ Python 保留字）、`RESERVED_BINDING_GLOBALS`（如 `console`、`__avn_main__` 等后端拥有的 global）、`RESERVED_ERROR_MEMBERS` 与 `DUNDER_MEMBER`（error-member 排除）——因此 `$tools`、`lambda` 或 `__avn_main__` 之类的名称会让 `run()` 在任何后端上作为 seam 误用而 reject。确切集合见 `src/index.ts`。
 
 ### 源码地图
 
@@ -107,7 +107,7 @@ binding-global 与 error-class 名称是语言可移植的：必须匹配标识�
 <a id="model-experience"></a>
 ## 模型体验
 
-通过 `dsh-tools` 中的 PTC mode 间接提供；后者公开 `run_code`，并将程序日志、值或失败作为保留的工具结果 token 返回。
+通过 `avn-tools` 中的 PTC mode 间接提供；后者公开 `run_code`，并将程序日志、值或失败作为保留的工具结果 token 返回。
 
 #### KV Cache 影响
 

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package renders the plan-mode status chip in the Web GUI: when the host-computed projection's effective target is plan mode, the composer shows a warn-colored "Plan ×" button that turns plan mode off; otherwise the seat stays empty. Plan mode itself — the `/plan` command, the committed `plan/mode` state, the projection unit, and the policy section — belongs to `dsh-plan-mode`; this package only renders the projection and sends what a user could equally type. The model exits plan mode through the stable `exit_plan_mode` tool; its plan review uses the composed Web question channel.
+This package renders the plan-mode status chip in the Web GUI: when the host-computed projection's effective target is plan mode, the composer shows a warn-colored "Plan ×" button that turns plan mode off; otherwise the seat stays empty. Plan mode itself — the `/plan` command, the committed `plan/mode` state, the projection unit, and the policy section — belongs to `avn-plan-mode`; this package only renders the projection and sends what a user could equally type. The model exits plan mode through the stable `exit_plan_mode` tool; its plan review uses the composed Web question channel.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ This package renders the plan-mode status chip in the Web GUI: when the host-com
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin alongside `ui-conversation` and `dsh-plan-mode`; the chip then occupies the composer's plan seat to the right of the access-mode control whenever plan mode is active. Enter plan mode through the `/plan` command path — choose Plan from the composer's `+` Command menu or type `/plan` — and turn it off with the chip.
+Mount this plugin alongside `ui-conversation` and `avn-plan-mode`; the chip then occupies the composer's plan seat to the right of the access-mode control whenever plan mode is active. Enter plan mode through the `/plan` command path — choose Plan from the composer's `+` Command menu or type `/plan` — and turn it off with the chip.
 
 ### What the chip shows
 
@@ -54,7 +54,7 @@ The chip occupies the conversation-declared `conversation.input.plan` single sea
 
 Read these pages when the plan surface is not enough. They move from the chip to the plan-mode domain and the composer shell.
 
-- [dsh-plan-mode](../../plan/plan-mode/README.md) — owns plan mode, the `/plan` command, the projection, and the policy section.
+- [avn-plan-mode](../../plan/plan-mode/README.md) — owns plan mode, the `/plan` command, the projection, and the policy section.
 - [ui-conversation](../ui-conversation/README.md) — declares the composer's `conversation.input.plan` seat and the placeholder locale keys.
 - [Tool catalog](../../../docs/tool-catalog.md#aeven-plan-mode) — the `exit_plan_mode` tool schema the model uses to leave plan mode.
 - [Client package map](../README.md) — adjacent browser UI packages.
@@ -64,7 +64,7 @@ Read these pages when the plan surface is not enough. They move from the chip to
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through the `/plan off` command line the chip dispatches: `dsh-plan-mode` owns the model-visible policy section, the exit-tool schema, and the logged state that line drives.
+Indirectly, through the `/plan off` command line the chip dispatches: `avn-plan-mode` owns the model-visible policy section, the exit-tool schema, and the logged state that line drives.
 
 #### KV Cache effect
 
@@ -91,4 +91,4 @@ None.
 
 </details>
 
-**Runtime invariant:** No companion is published. Plan state and boundary ownership are audited by dsh-plan-mode, while the control is a slot effect whose declaration, registration, and teardown are exercised by this package.
+**Runtime invariant:** No companion is published. Plan state and boundary ownership are audited by avn-plan-mode, while the control is a slot effect whose declaration, registration, and teardown are exercised by this package.

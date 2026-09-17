@@ -14,18 +14,18 @@ describe('Agent Teams profile bundle', () => {
       private?: boolean
       publishConfig?: unknown
       dependencies?: Record<string, string>
-      dsh?: { bundle?: { patch?: string } }
+      avn?: { bundle?: { patch?: string } }
     }
     expect(manifest.private).toBe(true)
     expect(manifest.publishConfig).toBeUndefined()
-    expect(manifest.dsh?.bundle?.patch).toBe('./cordis.patch.yml')
+    expect(manifest.avn?.bundle?.patch).toBe('./cordis.patch.yml')
     expect(manifest.dependencies).toMatchObject({
       '@aeven/experimental-agent-team': 'workspace:^',
       '@aeven/experimental-tool-agent-team': 'workspace:^',
     })
 
     const parsed = yaml.load(
-      readFileSync(resolve(root, manifest.dsh!.bundle!.patch!), 'utf8'),
+      readFileSync(resolve(root, manifest.avn!.bundle!.patch!), 'utf8'),
       { schema: entryListSchema },
     )
     expect(Array.isArray(parsed)).toBe(true)

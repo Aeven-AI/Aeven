@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-11-web-markdown-engine-into-the-harness.md
-2026-09-11-web-markdown-engine-into-the-harness.md: 3903933bddd90871aa00c6b71f7344681280a196
-2026-09-11-web-markdown-engine-into-the-harness.zh.md: c9515c08e8442ef8bebba11537243d81712c1878
+2026-09-11-web-markdown-engine-into-the-harness.md: 133d435c1ed86cd1439c61d8b3b3e31f2d9f6cea
+2026-09-11-web-markdown-engine-into-the-harness.zh.md: 6caa372dab5a3c35ef5df317de7e946e12cfb6e6

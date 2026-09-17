@@ -1,5 +1,5 @@
 ---
-description: "App-owned command lines for dsh app bins: your app parses its own flags, --help, and exit behavior from the launcher's remaining arguments."
+description: "App-owned command lines for avn app bins: your app parses its own flags, --help, and exit behavior from the launcher's remaining arguments."
 kind: "package-library"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-cmdline` lets your app own its command line: the launcher keeps only its own flags (`--profile`, `--patch`, the config dumps) and passes everything after them to your app verbatim, so your app decides its flags, its `--help` text, and its parse errors. Values you parse from those arguments win over any default written in the config, without writing anything back. Your app also gets a bounded way to ask for process exit, wired to the launcher's shutdown. Use it when you write an app bin that accepts its own flags; it adds no prompt, schema, or model-facing surface of its own.
+`avn-cmdline` lets your app own its command line: the launcher keeps only its own flags (`--profile`, `--patch`, the config dumps) and passes everything after them to your app verbatim, so your app decides its flags, its `--help` text, and its parse errors. Values you parse from those arguments win over any default written in the config, without writing anything back. Your app also gets a bounded way to ask for process exit, wired to the launcher's shutdown. Use it when you write an app bin that accepts its own flags; it adds no prompt, schema, or model-facing surface of its own.
 
 ## Table of Contents
 
@@ -31,7 +31,7 @@ Your app reads the invocation's inner arguments at startup, and any number of it
 
 The launcher makes three things available to your app:
 
-- `ctx.cmdlineArgs` — the inner arguments of your invocation. Reading them returns an immutable snapshot and never consumes or changes them: `dsh --profile tui --resume abc` gives your app `['--resume', 'abc']`.
+- `ctx.cmdlineArgs` — the inner arguments of your invocation. Reading them returns an immutable snapshot and never consumes or changes them: `avn --profile tui --resume abc` gives your app `['--resume', 'abc']`.
 - `ctx.appExit` — a way to ask the process to exit once the tree has shut down, wired to the launcher's shutdown controller.
 - `ctx.appReady` — the successful-startup signal, committed only after the Loader tree and launcher-owned setup succeed.
 
@@ -59,7 +59,7 @@ Rows configured from the parsed values inject the published service and read it 
     port: !!js ctx.webStartup.port ?? 3080
 ```
 
-The outcomes: `dsh --profile web --port 8080` starts the server on port 8080 even when the config says 3080, because the flag wins. `--help` prints your app's help and exits 0 without starting anything; a rejected value (for example a non-numeric port) prints your error and exits nonzero, and no row that depends on the parsed values ever starts.
+The outcomes: `avn --profile web --port 8080` starts the server on port 8080 even when the config says 3080, because the flag wins. `--help` prints your app's help and exits 0 without starting anything; a rejected value (for example a non-numeric port) prints your error and exits nonzero, and no row that depends on the parsed values ever starts.
 
 ### How flags beat config values
 
@@ -110,9 +110,9 @@ Read these pages when the package-level contract is not enough. They move from t
 
 - [App-owned command-line decision](../../../.agents/notes/implemented/architecture/2026-08-06-app-owned-command-line.md) — why apps own their flag family and how the handoff works.
 - [Command-line seam trim](../../../.agents/notes/implemented/architecture/2026-08-11-cmdline-seam-trim.md) — the seams reduced to existing interfaces.
-- [dsh-app-boot](../app-boot/README.md) — the boot sequence that provides these launcher values.
-- [dsh-web-app bundle](../../bundle/web-app/README.md) — an app that owns the Web flag family through this package.
-- [dsh-headless bundle](../../bundle/headless/README.md) — the one-shot runner that reads its task from the command line.
+- [avn-app-boot](../app-boot/README.md) — the boot sequence that provides these launcher values.
+- [avn-web-app bundle](../../bundle/web-app/README.md) — an app that owns the Web flag family through this package.
+- [avn-headless bundle](../../bundle/headless/README.md) — the one-shot runner that reads its task from the command line.
 
 -----
 

@@ -41,12 +41,12 @@ interface TunnelStreamFailureMarker {
 
 /** Error carrying stream semantics across independently bundled Client code. */
 class TunnelLogicalStreamError extends Error {
-  readonly dshRemoteStreamFailure: TunnelStreamFailureMarker
+  readonly avnRemoteStreamFailure: TunnelStreamFailureMarker
 
   constructor(failure: TunnelStreamErrorFrame['failure'], options?: ErrorOptions) {
     super(failure.message, options)
     this.name = 'TunnelLogicalStreamError'
-    this.dshRemoteStreamFailure = failure.kind === 'remote'
+    this.avnRemoteStreamFailure = failure.kind === 'remote'
       ? { kind: 'remote', code: failure.code, details: failure.details }
       : { kind: 'carrier' }
   }

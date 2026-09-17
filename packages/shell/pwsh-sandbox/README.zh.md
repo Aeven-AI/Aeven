@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-pwsh-sandbox` 是沙箱消费型 PowerShell 执行器：每条命令都以全新的 `pwsh -Command` 进程运行，经 `ctx.sandbox` 能力隔离，并在每个已结算的结果上标记所选模式、强制执行完整度与拒绝事实。在 Windows 上，sandbox seam 解析到 ACL 受限令牌 runner 链；在 Linux 与 macOS 上则使用 bwrap、Landlock 或 Seatbelt。当没有 runner 能强制执行受限模式时，调用按失败关闭原则抛结构化 `SANDBOX_UNAVAILABLE` 错误，绝不无隔离地运行。它是 `dsh-bash-sandbox` 的 pwsh 孪生，逐调用镜像。
+`avn-pwsh-sandbox` 是沙箱消费型 PowerShell 执行器：每条命令都以全新的 `pwsh -Command` 进程运行，经 `ctx.sandbox` 能力隔离，并在每个已结算的结果上标记所选模式、强制执行完整度与拒绝事实。在 Windows 上，sandbox seam 解析到 ACL 受限令牌 runner 链；在 Linux 与 macOS 上则使用 bwrap、Landlock 或 Seatbelt。当没有 runner 能强制执行受限模式时，调用按失败关闭原则抛结构化 `SANDBOX_UNAVAILABLE` 错误，绝不无隔离地运行。它是 `avn-bash-sandbox` 的 pwsh 孪生，逐调用镜像。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-当 PowerShell 命令不得以 harness 进程的完整文件权限运行时，用本执行器替代 `dsh-pwsh-local`。它注册为 `ctx.shell`，继承 `dsh-pwsh-local` 的进程机制，并要求一个 `ctx.sandbox` 提供方加上 `ctx.sandboxPolicy`。
+当 PowerShell 命令不得以 harness 进程的完整文件权限运行时，用本执行器替代 `avn-pwsh-local`。它注册为 `ctx.shell`，继承 `avn-pwsh-local` 的进程机制，并要求一个 `ctx.sandbox` 提供方加上 `ctx.sandboxPolicy`。
 
 ### 何时选择
 
@@ -75,7 +75,7 @@ kind: "package-reference"
 
 ### 设计概念
 
-本执行器是 `dsh-bash-sandbox` 的 pwsh 孪生：它继承 `dsh-pwsh-local` 的进程机制，消费其 argv 级 seam（`argv()`/`runArgv()`/`startArgv()`/`onProcessDone()`），并在 spawn 前把精确的 pwsh 调用经 `ctx.sandbox.confine()` 包装。隔离实体本身是平台无关的——sandbox seam 解析到平台的 runner——而本包只负责 pwsh 侧：所选模式、强制执行完整度，以及结果上的拒绝分类。
+本执行器是 `avn-bash-sandbox` 的 pwsh 孪生：它继承 `avn-pwsh-local` 的进程机制，消费其 argv 级 seam（`argv()`/`runArgv()`/`startArgv()`/`onProcessDone()`），并在 spawn 前把精确的 pwsh 调用经 `ctx.sandbox.confine()` 包装。隔离实体本身是平台无关的——sandbox seam 解析到平台的 runner——而本包只负责 pwsh 侧：所选模式、强制执行完整度，以及结果上的拒绝分类。
 
 ### 源码地图
 

@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-`dsh-session-snapshot` 提供无密钥已记录会话测试（`pnpm run test:snapshot`）背后的共享支持：封闭 manifest、类型化身份脱敏、规范化、workspace 比较、fixture 保护，以及 headless、SDK、ACP 与 Web owner 使用的协议适配器。ACP 适配器以真实子进程启动被测 profile，驱动确定性输入脚本，并注册完整的录制、回放与刷新套件。每个场景都提交足够证据来证明模型可见输出与文件系统效果，不依赖 agent 自述。包入口会导入 vitest，因此只能在 vitest 运行中使用。
+`avn-session-snapshot` 提供无密钥已记录会话测试（`pnpm run test:snapshot`）背后的共享支持：封闭 manifest、类型化身份脱敏、规范化、workspace 比较、fixture 保护，以及 headless、SDK、ACP 与 Web owner 使用的协议适配器。ACP 适配器以真实子进程启动被测 profile，驱动确定性输入脚本，并注册完整的录制、回放与刷新套件。每个场景都提交足够证据来证明模型可见输出与文件系统效果，不依赖 agent 自述。包入口会导入 vitest，因此只能在 vitest 运行中使用。
 
 ## 目录
 
@@ -74,7 +74,7 @@ defineAcpSnapshotSuite({
 
 ### 录制、回放与刷新
 
-`pnpm run test:snapshot:record` 调用在线 LLM（大语言模型），并重写已录制的模型 fixture；`pnpm run test:snapshot:refresh` 保持无密钥，运行回放 overlay，并从已提交模型脚本重写 stdout、可比较会话日志预期输出，以及各 pin 自有的提示词与工具 schema 伴随文件。每个组合 owner 把 replay patch 放在 live patch 旁；顶层 `snapshots/` 拥有会话驱动场景，其他预期输出留在其包 owner 旁。[`dsh-llm-replay`](../llm-replay/README.zh.md) 提供通过 `AVN_SNAPSHOT_*` 环境值选择的已记录流。
+`pnpm run test:snapshot:record` 调用在线 LLM（大语言模型），并重写已录制的模型 fixture；`pnpm run test:snapshot:refresh` 保持无密钥，运行回放 overlay，并从已提交模型脚本重写 stdout、可比较会话日志预期输出，以及各 pin 自有的提示词与工具 schema 伴随文件。每个组合 owner 把 replay patch 放在 live patch 旁；顶层 `snapshots/` 拥有会话驱动场景，其他预期输出留在其包 owner 旁。[`avn-llm-replay`](../llm-replay/README.zh.md) 提供通过 `AVN_SNAPSHOT_*` 环境值选择的已记录流。
 
 ### 固定请求 header
 

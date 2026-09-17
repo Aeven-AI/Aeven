@@ -16,7 +16,7 @@
      ([decision](../../../../../../.agents/notes/implemented/bug-fix/2026-09-12-transcript-scroll-anchoring-opt-out.md)). */
   overflow-anchor: none;
   /* Transcript and composer share the same Aeven inset and width axis. */
-  padding: 56px var(--dsh-composer-side-clearance) 48px;
+  padding: 56px var(--avn-composer-side-clearance) 48px;
 }
 
 :global([data-conversation-scroll]) .root {
@@ -31,11 +31,11 @@
   min-height: auto;
 }
 
-/* Message column: shared chat width (ConversationRoot --dsh-chat-content-width),
+/* Message column: shared chat width (ConversationRoot --avn-chat-content-width),
    centered on the same axis as the input box (which caps at chat + 16px); the
    scroller itself stays full-bleed. */
 .column {
-  max-width: var(--dsh-chat-content-width);
+  max-width: var(--avn-chat-content-width);
   width: 100%;
   margin: 0 auto;
   display: flex;
@@ -47,7 +47,7 @@
    hidden and empty Seats do not contribute spacing. */
 .column > :not([hidden]):not(.flowItem:empty)
   ~ :not([hidden]):not(.flowItem:empty) {
-  margin-top: var(--dsh-chat-flow-gap, var(--dsw-aeven-space-message));
+  margin-top: var(--avn-chat-flow-gap, var(--dsw-aeven-space-message));
 }
 
 /* Settled-flow identity boundary. It is neutral until it becomes the natural
@@ -82,7 +82,7 @@
 /* A closed process reads as one summary immediately followed by its answer.
    Expanded process rows return to the ordinary 16px rhythm. */
 .flowItem[data-turn-process-answer] {
-  --dsh-chat-flow-gap: 16px;
+  --avn-chat-flow-gap: 16px;
 }
 
 /* A keyed renderer may intentionally decline its row after dispatch (the
@@ -106,15 +106,15 @@
   flex: none;
   display: inline-flex;
   align-items: center;
-  height: calc(26px + var(--dsh-content-font-delta, 0px));
+  height: calc(26px + var(--avn-content-font-delta, 0px));
   font: var(--dsw-font-s-strong-14);
   /* The status line reads at the body size: the fixed 14 token supplies the
      family/weight, the axis supplies the size. At default that is 14px text
      on a 22px line inside a 26px row; both box heights shift by the same
      delta, preserving the 8px (22 − 14) leading and the 4px (26 − 22) row
      padding at every size. */
-  font-size: var(--dsh-content-font-size, 14px);
-  line-height: calc(22px + var(--dsh-content-font-delta, 0px));
+  font-size: var(--avn-content-font-size, 14px);
+  line-height: calc(22px + var(--avn-content-font-delta, 0px));
   white-space: nowrap;
   background: linear-gradient(
     90deg,
@@ -130,21 +130,21 @@
   color: transparent;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: dsh-turn-status-shimmer 1.8s linear infinite;
+  animation: avn-turn-status-shimmer 1.8s linear infinite;
 }
 
 .turnStatusClock {
   margin-left: 8px;
   font: var(--dsw-font-xs-14);
-  font-size: var(--dsh-content-font-size-secondary, 14px);
-  line-height: calc(20px + var(--dsh-content-font-delta-secondary, 0px));
+  font-size: var(--avn-content-font-size-secondary, 14px);
+  line-height: calc(20px + var(--avn-content-font-delta-secondary, 0px));
   font-weight: 450;
   font-variant-numeric: tabular-nums;
   color: var(--dsw-alias-label-caption);
   -webkit-text-fill-color: var(--dsw-alias-label-caption);
 }
 
-@keyframes dsh-turn-status-shimmer {
+@keyframes avn-turn-status-shimmer {
   to {
     background-position: 0 0;
   }
@@ -160,8 +160,8 @@
 
 .openError {
   color: var(--dsw-alias-state-error-primary);
-  font-size: var(--dsh-content-font-size-secondary, 14px);
-  line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
+  font-size: var(--avn-content-font-size-secondary, 14px);
+  line-height: calc(18px + var(--avn-content-font-delta-secondary, 0px));
 }
 
 /* Head boundary: a zero-height sticky slot, like the back-to-bottom control,
@@ -171,7 +171,7 @@
 .olderSlot {
   position: absolute;
   /* Below the host's Session header, which overlays the top of the chrome layer. */
-  top: var(--dsh-session-header-height, 0px);
+  top: var(--avn-session-header-height, 0px);
   right: 0;
   left: 0;
   /* Above transcript CodeBlock banners (z-index 6), below back-to-bottom. */

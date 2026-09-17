@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsdown'
 
 /**
- * The packer ships TWO entries: the library (`index`) and the `dsh-pack-vfs-image`
+ * The packer ships TWO entries: the library (`index`) and the `avn-pack-vfs-image`
  * CLI (`bin`), the latter referenced by package.json `bin`. The root tsdown
  * builds only `lib/types/index.js`, so this override adds `lib/types/bin.js`.
  * Declarations come from `tsc -b` (dts: false), matching every package.

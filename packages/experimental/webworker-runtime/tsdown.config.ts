@@ -25,7 +25,7 @@ const SHELL_PARSER_ENTRY = join(dirname(resolveFrom.resolve('@yarnpkg/parsers/pa
 
 /** Redirects the parsers root specifier onto {@link SHELL_PARSER_ENTRY}. */
 const shellParserOnlyPlugin = {
-  name: 'dsh-shell-parser-only',
+  name: 'avn-shell-parser-only',
   resolveId(source: string): string | null {
     return source === '@yarnpkg/parsers' ? SHELL_PARSER_ENTRY : null
   },
@@ -38,7 +38,7 @@ const shellParserOnlyPlugin = {
  * loads with `new Worker(url, { type: 'module' })`.
  */
 const moduleProxyPlugin = {
-  name: 'dsh-module-proxies',
+  name: 'avn-module-proxies',
   resolveId(source: string): string | null {
     const exact = MODULE_PROXIES[source]
     if (exact !== undefined) return here(`./src/${exact.replace('./', '')}`)
@@ -81,7 +81,7 @@ export default defineConfig([{
   outputOptions: { inlineDynamicImports: true },
 }, {
   // Page half: an ordinary browser ES module the deployment's page imports. It
-  // is not a `dsh.client` graph row — it installs the module loader the graph is
+  // is not a `avn.client` graph row — it installs the module loader the graph is
   // loaded through, so it cannot be loaded by it. Workspace peers stay external
   // so the page keeps one instance of each.
   entry: ['src/client/index.ts'],

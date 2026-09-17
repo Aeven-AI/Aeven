@@ -19,7 +19,7 @@ textarea 输入框用三个耦合层绘制文本（隐藏自增高 mirror、装�
 - **一棵树，三个投影**：检测投影（chip = 1 个 U+FFFC）供 `detectTrigger` 与 TokenSpan 坐标使用，恢复了 #2769 打破的不透明引用不变量；剪贴板投影（chip = clipboardText）供 `InputState.draft`、持久化与提交面决策使用；模型形式在提交时逐 chip 经所有者 codec 产出。`span-map.ts` 是数字 span 映射回 Lexical point 的唯一场所。
 - **状态机瘦身为提交面**（phase/claim/attempt）；它不再持有草稿——事件携带剪贴板投影（`enter`、`submit-settled`），claimed 完整性监视跑在 `draft-changed` 上。清空草稿变成 shell 在编辑器里执行的 `commit-draft` 效果（含后缀保留），随后 `CLEAR_HISTORY_COMMAND`。
 - **契约稳定**：`TokenSpan {start, end, draftRev}`、`ReferenceInsert`、`CommandClaim`、四个 `slash/input-*` bail 事件、所有 trigger source、controller 与 MenuView 一律未改。`draftRev` 现在是编辑器 update 计数。
-- **claim token 保持字面文本**，前缀叶子由 transform 上色（退格删 token 仍是退出手势）；纯文本引用走 `registerLexicalTextEntity`（`TextRefNode`）；ghost hint 是 CSS 变量 `--dsh-composer-hint` 生成内容。
+- **claim token 保持字面文本**，前缀叶子由 transform 上色（退格删 token 仍是退出手势）；纯文本引用走 `registerLexicalTextEntity`（`TextRefNode`）；ghost hint 是 CSS 变量 `--avn-composer-hint` 生成内容。
 
 ## 随重构退役
 

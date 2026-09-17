@@ -50,7 +50,7 @@ The package contributes the `feedback` entry (order 10) of `conversation.chat.as
 
 Read these pages when the feedback surface is not enough. They move from the browser strip to the sidecar backend and the conversation shell.
 
-- [dsh-message-feedback](../../feedback/message-feedback/README.md) — the sidecar backend that owns per-item compare-and-set.
+- [avn-message-feedback](../../feedback/message-feedback/README.md) — the sidecar backend that owns per-item compare-and-set.
 - [ui-conversation](../ui-conversation/README.md) — declares the assistant-actions strip and renders the action row.
 - [Client package map](../README.md) — adjacent browser UI packages.
 

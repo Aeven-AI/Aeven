@@ -83,7 +83,7 @@ describe('Preview source chooser', () => {
     const root = document.getElementById('root')
     if (root === null) throw new Error('test root is missing')
     const bootPage = document.createElement('div')
-    bootPage.dataset.dshBoot = ''
+    bootPage.dataset.avnBoot = ''
     root.append(bootPage)
 
     const selected = choosePreviewSource(MANIFEST_URL)

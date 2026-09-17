@@ -1,5 +1,5 @@
 ---
-description: "dsh Web 客户端的侧边栏外壳插件：品牌行、New Session 操作、折叠控件、可感知滚动的区域席位与底部固定的 Settings 席位。"
+description: "avn Web 客户端的侧边栏外壳插件：品牌行、New Session 操作、折叠控件、可感知滚动的区域席位与底部固定的 Settings 席位。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-client-ui-sidebar` 为 dsh Web 客户端提供 Aeven 风格的导航菜单：整行 hamburger、New Session 操作、Workspace 与 Session 浏览器，以及底部固定的 Settings 席位。收起菜单会让其布局栏回到零宽度，只在左上角保留 hamburger。渲染到 `sidebar.workspaces` 的 Workspace 与 Session 浏览器归 ui-workspace 所有；本包既不派生其中的行，也不持有其视图偏好。New Session 会针对显式指定、当前或最近活跃的 Workspace 启动运行时的页面局部前端 Session Intent。
+`avn-client-ui-sidebar` 为 avn Web 客户端提供 Aeven 风格的导航菜单：整行 hamburger、New Session 操作、Workspace 与 Session 浏览器，以及底部固定的 Settings 席位。收起菜单会让其布局栏回到零宽度，只在左上角保留 hamburger。渲染到 `sidebar.workspaces` 的 Workspace 与 Session 浏览器归 ui-workspace 所有；本包既不派生其中的行，也不持有其视图偏好。New Session 会针对显式指定、当前或最近活跃的 Workspace 启动运行时的页面局部前端 Session Intent。
 
 展开面板使用 Aeven 的 280px 宽度、半透明白色表面、20px 外侧圆角、40px 行高、响应式行内边距、底部内边距和 400ms easing 变量。菜单开关使用参考 hamburger 与双左箭头字形；功能操作与状态图标保持不变。
 

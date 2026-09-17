@@ -36,7 +36,7 @@ pack 阶段按以下顺序执行：
 
 ## 当前实现边界
 
-已提交的 pack 命令实现了固定 commit 暂存、内部依赖精确固化、静态与 tarball payload 检查、不可变 manifest，以及把每个发布 tarball 都作为本地顶层依赖的隔离 npm 安装。它在输出 publish 命令前，用普通 Node 运行安装后的 `dsh --version` 与 `dsh --dump-default-config` 入口，再在 POSIX PTY 中启动安装后的默认 TUI，等待其 `main-session-` 就绪信号，并通过 `/exit` 退出。Publish 支持按 integrity 恢复，将只读注册表验证与认证身份检查分离，并以完整的远端 integrity 和 dist-tag 验证结束。
+已提交的 pack 命令实现了固定 commit 暂存、内部依赖精确固化、静态与 tarball payload 检查、不可变 manifest，以及把每个发布 tarball 都作为本地顶层依赖的隔离 npm 安装。它在输出 publish 命令前，用普通 Node 运行安装后的 `avn --version` 与 `avn --dump-default-config` 入口，再在 POSIX PTY 中启动安装后的默认 TUI，等待其 `main-session-` 就绪信号，并通过 `/exit` 退出。Publish 支持按 integrity 恢复，将只读注册表验证与认证身份检查分离，并以完整的远端 integrity 和 dist-tag 验证结束。
 
 PR（Pull Request） CI 不会调用 pack 命令；安装态入口探测属于本地发布检查，而不是合并门禁。免凭据 CI 执行、其他每个 bin 与公开运行时入口的包自有探测、workflow artifact 传递及受保护 publish job 仍属于提案范围。
 
@@ -56,8 +56,8 @@ PR（Pull Request） CI 不会调用 pack 命令；安装态入口探测属于�
 
 测试至少覆盖以下执行面：
 
-- `@aeven/cli` 安装后的 `dsh --version` 与 `dsh --dump-default-config` 在普通 Node 下成功，分别覆盖静态 CLI 入口和一个动态模式入口。
-- 安装后的默认 `dsh` 在 PTY 中完成一次无密钥 TUI 启动，到达既定 ready 信号后由测试受控退出。这条路径必须加载真实 TUI 动态 chunk，因此缺少类似 `lib/tui-*.js` 的发布文件会使门禁失败。
+- `@aeven/cli` 安装后的 `avn --version` 与 `avn --dump-default-config` 在普通 Node 下成功，分别覆盖静态 CLI 入口和一个动态模式入口。
+- 安装后的默认 `avn` 在 PTY 中完成一次无密钥 TUI 启动，到达既定 ready 信号后由测试受控退出。这条路径必须加载真实 TUI 动态 chunk，因此缺少类似 `lib/tui-*.js` 的发布文件会使门禁失败。
 - 每个其他已发布 `bin` 都定义一个不会访问真实服务或修改用户状态的包级冒烟命令。不同 CLI 不强制共用 `--help`；测试必须运行其真实安装入口并检查约定的退出或 ready 信号。
 - Node 兼容的公开运行时入口从安装目录加载；浏览器、worker 或必须由宿主协议驱动的入口使用对应的隔离 fixture（测试前置数据），但输入仍只能是本次 tarball。
 
@@ -85,7 +85,7 @@ PR 与普通 push 可以运行无凭据的 pack-and-test 信号，从而在合�
 
 **只测试工作树中构建后的 `lib/`。** 不采用，因为这验证的是构建树，不是 `package.json#files` 选出的 tarball。工作树中存在而 tarball 中漏掉的动态 chunk 正是本提案必须捕获的失败。
 
-**只运行 `dsh --help`。** 不采用，因为 Commander 可以在加载 TUI、Web 或 headless 动态入口之前输出帮助并退出。它无法证明默认生产启动路径完整。
+**只运行 `avn --help`。** 不采用，因为 Commander 可以在加载 TUI、Web 或 headless 动态入口之前输出帮助并退出。它无法证明默认生产启动路径完整。
 
 **把 `src` 和声明映射一起发布以降低漏文件风险。** 不采用，因为源码平面不是生产运行时的后备路径；扩大 payload 会掩盖 bundle 闭包错误，并把本地调试产物变成无意的发布约定。
 
@@ -98,7 +98,7 @@ PR 与普通 push 可以运行无凭据的 pack-and-test 信号，从而在合�
 - 一个 pack 入口从确定 commit 发现 `packages/*/*` 和 `apps/*` 的全部目标包，以 UTC 秒级时间戳与短 commit 生成并显示版本，再等待 Enter；它在任何注册表写入前生成完整 release bundle，并输出一个可复制的 publish 命令；`release` 在 pack 后再次等待，`--yes` 跳过两次确认。
 - 静态 manifest 门禁和 tarball 内容门禁都拒绝发布 `src` 与 `.d.ts.map`，同时保留源码 manifest 中的 `exports["./src/*"]`。
 - release bundle 记录完整包集合、commit、派生版本、tag、注册表和逐 tarball integrity；所有内部依赖都精确固化到该版本，publish 只消费该 bundle，绝不重建。
-- 一个隔离集成测试从本地 tarball 安装消费方，并用普通 Node 启动安装后的默认 `dsh` TUI；删除任一所需动态 chunk 会使该测试稳定失败。
+- 一个隔离集成测试从本地 tarball 安装消费方，并用普通 Node 启动安装后的默认 `avn` TUI；删除任一所需动态 chunk 会使该测试稳定失败。
 - 所有已发布 bin 和适用的公开运行时入口都有 tarball 安装后的执行覆盖，且解析路径证明没有回退到 monorepo。
 - publish 可在部分成功后用同一 manifest 安全重跑；相同 integrity 被跳过，不同 integrity 被拒绝，最终验证要求所有版本与 tag 一致。
 - GitHub Actions 的无凭据 job 生成并测试 bundle，受保护 job 上传完全相同的 bundle，发布 token 只存在于后者。
@@ -109,6 +109,6 @@ PR 与普通 push 可以运行无凭据的 pack-and-test 信号，从而在合�
 
 把所有 tarball 都安装为临时项目的顶层依赖可能掩盖未声明的内部依赖。测试生成器应按被测应用的声明式递归闭包安装，并结合现有依赖门禁；对依赖面接近全集的 `@aeven/cli`，仍需依靠 package manifest 与静态图检查发现未声明边。
 
-不同平台的 optional dependency、native addon、PTY 与浏览器入口可能需要平台专属 probe。第一阶段至少在发布所用 Linux runner 和一个本地 macOS 路径上覆盖主 `dsh` 启动，后续矩阵按实际发布平台扩展；不能用跳过不稳定 probe 的方式把生产路径移出门禁。
+不同平台的 optional dependency、native addon、PTY 与浏览器入口可能需要平台专属 probe。第一阶段至少在发布所用 Linux runner 和一个本地 macOS 路径上覆盖主 `avn` 启动，后续矩阵按实际发布平台扩展；不能用跳过不稳定 probe 的方式把生产路径移出门禁。
 
 恢复机制不能消除 npm 的部分可见性。发布失败期间，注册表可能短暂含有本次版本的一部分包；操作者与自动化必须以最终 bundle 验证结果而非单个 `npm publish` 的成功作为基线可用信号。

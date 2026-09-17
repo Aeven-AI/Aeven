@@ -4,7 +4,7 @@
  * chooser; the unchanged Host connector then owns the Worker handshake.
  * Everything after those calls is the served startup chain verbatim.
  */
-import DshWorker from '@aeven/experimental-webworker-runtime/worker?worker'
+import AvnWorker from '@aeven/experimental-webworker-runtime/worker?worker'
 import {
   chooseWorkerHostSource, connectWorkerHost, IMAGE_FILE_NAME,
 } from '@aeven/experimental-webworker-runtime/client'
@@ -14,4 +14,4 @@ const image = `preview/${IMAGE_FILE_NAME}`
 hidePreloader(false)
 const source = await chooseWorkerHostSource({ image })
 showPreloader(false)
-await connectWorkerHost(new DshWorker({ name: 'dsh-host' }), { image, overlays: source.overlays })
+await connectWorkerHost(new AvnWorker({ name: 'avn-host' }), { image, overlays: source.overlays })

@@ -8,9 +8,9 @@ import { clientBuildEnvironmentDefines } from '../../scripts/client-build-enviro
 
 const src = (rel: string): string => fileURLToPath(new URL(rel, import.meta.url))
 const STANDALONE_ERROR = 'apps/web is not a standalone application: bare Vite cannot inject window.__DSH_BOOT__. '
-  + 'From a repository checkout, run `pnpm dsh web`; an installed package uses `dsh web`. '
-  + 'For client-plugin HMR, run `pnpm dsh web` together with `pnpm run dev:web`.'
-const DEFAULT_CLIENT_TITLE = 'DSH Local Build'
+  + 'From a repository checkout, run `pnpm avn web`; an installed package uses `avn web`. '
+  + 'For client-plugin HMR, run `pnpm avn web` together with `pnpm run dev:web`.'
+const DEFAULT_CLIENT_TITLE = 'AVN Local Build'
 
 /** Escape build-time text before placing it in the HTML title element. */
 function escapeHtmlText(value: string): string {
@@ -21,9 +21,9 @@ function escapeHtmlText(value: string): string {
 function clientDocumentTitle(): Plugin {
   const title = escapeHtmlText(process.env.AVN_CLIENT_TITLE ?? DEFAULT_CLIENT_TITLE)
   return {
-    name: 'dsh-client-document-title',
+    name: 'avn-client-document-title',
     transformIndexHtml(html) {
-      return html.replace('<title>DSH Local Build</title>', `<title>${title}</title>`)
+      return html.replace('<title>AVN Local Build</title>', `<title>${title}</title>`)
     },
   }
 }
@@ -31,7 +31,7 @@ function clientDocumentTitle(): Plugin {
 /** Fail before a Vite dev or preview server can expose the boot-manifest-free shell. */
 function rejectStandaloneServe(): Plugin {
   return {
-    name: 'dsh-reject-standalone-web-serve',
+    name: 'avn-reject-standalone-web-serve',
     config(_config, env) {
       if (env.command === 'serve') throw new Error(STANDALONE_ERROR)
     },
@@ -47,7 +47,7 @@ function inlinePreloaderCss(): Plugin {
   const cssPath = src('./src/preloader.css')
   const sourceTag = '<link rel="stylesheet" href="/src/preloader.css" />'
   return {
-    name: 'dsh-inline-preloader-css',
+    name: 'avn-inline-preloader-css',
     transformIndexHtml: {
       order: 'pre',
       handler(html) {
@@ -69,7 +69,7 @@ function inlinePreloaderCss(): Plugin {
  */
 function destageBuiltStylesheets(): Plugin {
   return {
-    name: 'dsh-destage-built-stylesheets',
+    name: 'avn-destage-built-stylesheets',
     apply: 'build',
     enforce: 'post',
     generateBundle(_options, bundle) {
@@ -105,7 +105,7 @@ const APPLICATION_FONT_STEMS: readonly string[] = [
  */
 function preloadApplicationFonts(): Plugin {
   return {
-    name: 'dsh-preload-application-fonts',
+    name: 'avn-preload-application-fonts',
     apply: 'build',
     enforce: 'post',
     generateBundle(_options, bundle) {
@@ -137,7 +137,7 @@ function preloadApplicationFonts(): Plugin {
 function emitPreviewPage(): Plugin {
   let bootstrapFile: string | undefined
   return {
-    name: 'dsh-emit-preview-page',
+    name: 'avn-emit-preview-page',
     generateBundle(_options, bundle) {
       for (const item of Object.values(bundle)) {
         if (item.type === 'chunk' && item.isEntry && item.name === 'bootstrap') bootstrapFile = item.fileName

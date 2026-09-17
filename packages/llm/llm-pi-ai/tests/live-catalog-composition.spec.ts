@@ -79,7 +79,7 @@ const DOCUMENT = JSON.stringify({
  * @returns the booted root context.
  */
 async function loadComposition(url: string, route = 'openrouter', extra: string[] = []): Promise<Context> {
-  root = await mkdtemp(join(tmpdir(), 'dsh-pi-live-catalog-'))
+  root = await mkdtemp(join(tmpdir(), 'avn-pi-live-catalog-'))
   const settingsPath = join(root, 'settings.yaml')
   await writeFile(settingsPath, [
     'llm-pi-ai:',

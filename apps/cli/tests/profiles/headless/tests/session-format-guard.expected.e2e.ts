@@ -57,7 +57,7 @@ describe('session format guard through the assembled app', () => {
     let sessionPath = ''
     const result = await runLoaderSmoke({
       label: 'newer-format resume refusal',
-      tempDirPrefix: 'dsh-format-guard-version-',
+      tempDirPrefix: 'avn-format-guard-version-',
       binScript,
       libBinScript: binScript,
       configPath,
@@ -82,7 +82,7 @@ describe('session format guard through the assembled app', () => {
     let sessionPath = ''
     const result = await runLoaderSmoke({
       label: 'unknown-event resume refusal',
-      tempDirPrefix: 'dsh-format-guard-event-',
+      tempDirPrefix: 'avn-format-guard-event-',
       binScript,
       libBinScript: binScript,
       configPath,

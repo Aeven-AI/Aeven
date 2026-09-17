@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-mcp-client` attaches external Model Context Protocol (MCP) servers to the harness so their tools work like any native tool. With one configuration entry per server, the model can call that server's tools — a filesystem, GitHub, database, or memory server — under stable names such as `mcp__github__create_issue`. Add it when the model should work with an external tool server; nothing ships enabled, so you opt in. The main cost is the tokens those tool definitions add to every request, and a slow or crashed server can delay startup or leave its tools failing until it recovers. Only tools are bridged: MCP resources and prompts are not supported.
+`avn-mcp-client` attaches external Model Context Protocol (MCP) servers to the harness so their tools work like any native tool. With one configuration entry per server, the model can call that server's tools — a filesystem, GitHub, database, or memory server — under stable names such as `mcp__github__create_issue`. Add it when the model should work with an external tool server; nothing ships enabled, so you opt in. The main cost is the tokens those tool definitions add to every request, and a slow or crashed server can delay startup or leave its tools failing until it recovers. Only tools are bridged: MCP resources and prompts are not supported.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Add `dsh-mcp-client` when the model should call tools from an external MCP server as if they were native. One configuration entry per server is the entire setup: give the server a short unique name and a transport, and its tools appear as `mcp__<serverName>__<tool>`. Choose stdio when the server runs as a local program and Streamable HTTP when it runs as a service. If you already use MCP tool servers from another client, the same server rows work here.
+Add `avn-mcp-client` when the model should call tools from an external MCP server as if they were native. One configuration entry per server is the entire setup: give the server a short unique name and a transport, and its tools appear as `mcp__<serverName>__<tool>`. Choose stdio when the server runs as a local program and Streamable HTTP when it runs as a service. If you already use MCP tool servers from another client, the same server rows work here.
 
 ### Minimal configuration
 
@@ -207,7 +207,7 @@ These limits describe what you cannot do with this plugin and when it needs oper
 This Dev Note is working context for maintainers: open design questions and directions that are not decided. It is explicitly non-authoritative — shipped behavior, limits, and accepted rationale live in the sections above, the package code, and the linked Agent Notes.
 
 - The public-name algorithm is a v1 contract pinned by tests; changing it after release would break session history and permission rules.
-- An explicit DSH-owned connection and discovery timeout is an open direction; the SDK's 60-second default bounds startup and teardown.
+- An explicit AVN-owned connection and discovery timeout is an open direction; the SDK's 60-second default bounds startup and teardown.
 - Reconnect ownership for Streamable HTTP is open: per-request retry is SDK behavior, and the supervisor could also own the HTTP generation.
 - Bridging MCP Resources needs a harness-side injection decision (system prompt, on demand, or model-triggered); bridging Prompts needs a prompt-template concept the harness lacks.
 - The pinned MCP SDK is still evolving; a breaking upstream change requires updating the bridge.

@@ -162,7 +162,7 @@ async function launchScrollWorld(options: ScrollWorldOptions): Promise<ScrollWor
   let page: Page | undefined
   try {
     if (options.replay !== undefined) {
-      replayDir = await mkdtemp(join(tmpdir(), 'dsh-chat-scroll-replay-'))
+      replayDir = await mkdtemp(join(tmpdir(), 'avn-chat-scroll-replay-'))
       const replayOverride = join(replayDir, 'replay.override.json')
       await writeFile(replayOverride, JSON.stringify(options.replay))
       scaffold = await launchWebScaffold({

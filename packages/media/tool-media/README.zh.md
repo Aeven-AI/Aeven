@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-tool-media` 发布 `generate_image`，即生成式媒体 Seam 面向模型的接触面。它解析一次调用的模型与 Provider，经 `ctx.media` 生成，再用 `ctx.attachments` 存下每张返回的图像，因此结果携带的是持久图像块，而不是文件或 URL。请在已加载 `dsh-media` 且至少有一个图像 Provider 的组合中挂载它。
+`avn-tool-media` 发布 `generate_image`，即生成式媒体 Seam 面向模型的接触面。它解析一次调用的模型与 Provider，经 `ctx.media` 生成，再用 `ctx.attachments` 存下每张返回的图像，因此结果携带的是持久图像块，而不是文件或 URL。请在已加载 `avn-media` 且至少有一个图像 Provider 的组合中挂载它。
 
 ## 目录
 
@@ -24,7 +24,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-请与 `dsh-media` 及一个或多个图像 Provider 一起挂载。`model` 指定调用未给出模型时所用的模型，按 Provider 自己的写法原样传递；`provider` 固定由哪个已注册 Provider 服务这些调用。两者默认都不设置，即交由 Seam 自行选择，并要求每次调用自己指明模型。
+请与 `avn-media` 及一个或多个图像 Provider 一起挂载。`model` 指定调用未给出模型时所用的模型，按 Provider 自己的写法原样传递；`provider` 固定由哪个已注册 Provider 服务这些调用。两者默认都不设置，即交由 Seam 自行选择，并要求每次调用自己指明模型。
 
 挂载两个图像 Provider 的部署需要固定其一，或在此处、或作为 Seam 的 `imageProvider`：选择存在歧义时，Seam 会报错而不是猜测。
 

@@ -61,9 +61,9 @@ process.on('message', message => {
 `
 
 function projectWithHost(source: string): string {
-  const project = mkdtempSync(join(tmpdir(), 'dsh-desktop-host-test-'))
+  const project = mkdtempSync(join(tmpdir(), 'avn-desktop-host-test-'))
   roots.push(project)
-  const packageRoot = join(project, 'node_modules', '@deepseek-ai', 'dsh-desktop-host')
+  const packageRoot = join(project, 'node_modules', '@deepseek-ai', 'avn-desktop-host')
   mkdirSync(join(packageRoot, 'lib'), { recursive: true })
   writeFileSync(join(packageRoot, 'package.json'), '{"name":"@aeven/desktop-host","type":"module"}\n')
   writeFileSync(join(packageRoot, 'lib', 'index.js'), `${HOST_WIRE}\n${source}`)
@@ -78,7 +78,7 @@ describe('desktop host process', () => {
   it('carries raw request and response bytes and shuts the child down cleanly', async () => {
     const project = projectWithHost(`
 const bodies = new Map()
-process.send({ type: 'ready', protocolVersion: 4, dshVersion: process.env.NODE_OPTIONS ?? 'clean' })
+process.send({ type: 'ready', protocolVersion: 4, avnVersion: process.env.NODE_OPTIONS ?? 'clean' })
 function onRequestFrame(frame) {
   if (frame.type === 1) {
     const request = JSON.parse(frame.payload)
@@ -100,8 +100,8 @@ function answer(streamId) {
     process.env.NODE_OPTIONS = '--require /path/that-must-not-reach-the-child'
     const host = new DesktopHostProcess(process.execPath, project)
     try {
-      await expect(host.start()).resolves.toMatchObject({ dshVersion: 'clean' })
-      const response = await host.fetch(new Request('dsh-app://app/example', { method: 'POST', body: 'request' }))
+      await expect(host.start()).resolves.toMatchObject({ avnVersion: 'clean' })
+      const response = await host.fetch(new Request('avn-app://app/example', { method: 'POST', body: 'request' }))
       expect(response.status).toBe(200)
       await expect(response.text()).resolves.toBe('desktop:request')
       await expect(host.stop()).resolves.toBeUndefined()
@@ -115,7 +115,7 @@ function answer(streamId) {
   it('streams a large binary response in bounded raw frames', async () => {
     const size = 2 * 1024 * 1024
     const project = projectWithHost(`
-process.send({ type: 'ready', protocolVersion: 4, dshVersion: 'large-response' })
+process.send({ type: 'ready', protocolVersion: 4, avnVersion: 'large-response' })
 function onRequestFrame(frame) {
   if (frame.type !== 1) return
   responseStart(frame.streamId)
@@ -126,7 +126,7 @@ function onRequestFrame(frame) {
 `)
     const host = new DesktopHostProcess(process.execPath, project)
     try {
-      const response = await host.fetch(new Request('dsh-app://app/large'))
+      const response = await host.fetch(new Request('avn-app://app/large'))
       const body = new Uint8Array(await response.arrayBuffer())
       expect(body).toHaveLength(size)
       expect(body[0]).toBe(97)
@@ -138,7 +138,7 @@ function onRequestFrame(frame) {
 
   it('stops an unfinished upload when the Host completes its response early', async () => {
     const project = projectWithHost(`
-process.send({ type: 'ready', protocolVersion: 4, dshVersion: 'early-response' })
+process.send({ type: 'ready', protocolVersion: 4, avnVersion: 'early-response' })
 function onRequestFrame(frame) {
   if (frame.type !== 2) return
   responseStart(frame.streamId)
@@ -153,7 +153,7 @@ function onRequestFrame(frame) {
     })
     const host = new DesktopHostProcess(process.execPath, project)
     try {
-      const request = new Request('dsh-app://app/early', {
+      const request = new Request('avn-app://app/early', {
         method: 'POST',
         body,
         duplex: 'half',
@@ -168,7 +168,7 @@ function onRequestFrame(frame) {
 
   it('ignores a response end that arrives after the renderer cancels its stream', async () => {
     const project = projectWithHost(`
-process.send({ type: 'ready', protocolVersion: 4, dshVersion: 'cancel-race' })
+process.send({ type: 'ready', protocolVersion: 4, avnVersion: 'cancel-race' })
 const urls = new Map()
 function onRequestFrame(frame) {
   if (frame.type === 1) {
@@ -186,10 +186,10 @@ function onRequestFrame(frame) {
 `)
     const host = new DesktopHostProcess(process.execPath, project)
     try {
-      const canceled = await host.fetch(new Request('dsh-app://app/cancel'))
+      const canceled = await host.fetch(new Request('avn-app://app/cancel'))
       await canceled.body?.cancel()
       await new Promise(resolve => setTimeout(resolve, 25))
-      const after = await host.fetch(new Request('dsh-app://app/after'))
+      const after = await host.fetch(new Request('avn-app://app/after'))
       await expect(after.text()).resolves.toBe('alive')
     } finally {
       await host.stop().catch(() => undefined)
@@ -198,13 +198,13 @@ function onRequestFrame(frame) {
 
   it('rejects invalid response framing and a clean exit before readiness', async () => {
     const invalid = new DesktopHostProcess(process.execPath, projectWithHost(`
-process.send({ type: 'ready', protocolVersion: 4, dshVersion: 'invalid-frame' })
+process.send({ type: 'ready', protocolVersion: 4, avnVersion: 'invalid-frame' })
 function onRequestFrame(frame) {
   if (frame.type === 1) responsePipe.write(Buffer.alloc(13))
 }
 `))
     await invalid.start()
-    await expect(invalid.fetch(new Request('dsh-app://app/invalid'))).rejects.toThrow(/invalid Host response frame marker/u)
+    await expect(invalid.fetch(new Request('avn-app://app/invalid'))).rejects.toThrow(/invalid Host response frame marker/u)
     await invalid.stop().catch(() => undefined)
 
     const earlyExit = new DesktopHostProcess(process.execPath, projectWithHost(`

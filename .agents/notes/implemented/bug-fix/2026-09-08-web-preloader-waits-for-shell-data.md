@@ -10,7 +10,7 @@ A reload of a conversation URL hides the static shell preloader as soon as the c
 
 ## Decision
 
-`AppWebEntry` still mounts the application after every client entry is ACTIVE, then waits on `ctx.uiWorkspace.whenInitialDataReady()` before fading `#dsh-preloader`. That waiter resolves once both list projections have left `pending` (a Workspace stream error counts as arrived), initial URL or recent-Workspace navigation has finished, and the selected Session's `openState` is `open` or `error`. No selected Session is a ready empty shell. Later navigation does not restore the overlay. A composition without `uiWorkspace` still fades immediately after mount. Authentication screens and boot failures still hide immediately. The waiter also resolves on plugin disposal so boot cannot hang behind teardown.
+`AppWebEntry` still mounts the application after every client entry is ACTIVE, then waits on `ctx.uiWorkspace.whenInitialDataReady()` before fading `#avn-preloader`. That waiter resolves once both list projections have left `pending` (a Workspace stream error counts as arrived), initial URL or recent-Workspace navigation has finished, and the selected Session's `openState` is `open` or `error`. No selected Session is a ready empty shell. Later navigation does not restore the overlay. A composition without `uiWorkspace` still fades immediately after mount. Authentication screens and boot failures still hide immediately. The waiter also resolves on plugin disposal so boot cannot hang behind teardown.
 
 The wait is the first list baselines and the selected history page only. Older-history pagination, images, and later catalog refreshes stay off the critical path. Boot yields one macrotask after the waiter so the mounted shell can commit that payload before the 400ms fade starts.
 
@@ -28,4 +28,4 @@ Workspace unit tests cover a ready empty shell, a selected Session that opens or
 
 ## Consequences
 
-A slow first list or history round-trip keeps the branded overlay up instead of flashing empty chrome. A first pull that never arrives keeps the overlay until disposal. Worker preview and documents without `#dsh-preloader` are unchanged. The [static preloader note](2026-09-02-static-web-shell-preloader.md) still owns first-paint markup and CSS; this note owns when a successful Web boot dismisses that visual.
+A slow first list or history round-trip keeps the branded overlay up instead of flashing empty chrome. A first pull that never arrives keeps the overlay until disposal. Worker preview and documents without `#avn-preloader` are unchanged. The [static preloader note](2026-09-02-static-web-shell-preloader.md) still owns first-paint markup and CSS; this note owns when a successful Web boot dismisses that visual.

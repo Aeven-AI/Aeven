@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-fs-e2b` runs the agent's file operations inside the remote sandbox: the agent can read files, list directories, write new files, overwrite or edit existing ones, and get accurate metadata — all in the same remote world where its commands run. It needs no configuration; mounting it moves file work off the host machine. Use it together with `dsh-e2b` and `dsh-subprocess-e2b` so files and commands share one remote working directory. The host machine's files are never touched, and results look to the model exactly like local file results. Choose the local filesystem package instead when files should live on the host.
+`avn-fs-e2b` runs the agent's file operations inside the remote sandbox: the agent can read files, list directories, write new files, overwrite or edit existing ones, and get accurate metadata — all in the same remote world where its commands run. It needs no configuration; mounting it moves file work off the host machine. Use it together with `avn-e2b` and `avn-subprocess-e2b` so files and commands share one remote working directory. The host machine's files are never touched, and results look to the model exactly like local file results. Choose the local filesystem package instead when files should live on the host.
 
 ## Table of Contents
 
@@ -83,7 +83,7 @@ Relative paths resolve as POSIX paths against the caller `cwd` or `ctx.e2b.cwd`;
 
 ### Write path
 
-Writes create a random sibling staging directory, set it to mode `0700` before uploading content, and preserve an existing file's POSIX mode; replacements publish through E2B's same-filesystem atomic rename, and a guarded `createIfAbsent` publishes with `ln -T` so the commit is atomically no-replace even when a directory appears at the destination. The `dsh-version` extended attribute plus the committed entry's metadata form the returned version; literal edits LF-normalize for matching and restore the dominant CRLF style, and mutations serialize per canonical target. Staging-cleanup failures after commit never turn a successful write into a failure.
+Writes create a random sibling staging directory, set it to mode `0700` before uploading content, and preserve an existing file's POSIX mode; replacements publish through E2B's same-filesystem atomic rename, and a guarded `createIfAbsent` publishes with `ln -T` so the commit is atomically no-replace even when a directory appears at the destination. The `avn-version` extended attribute plus the committed entry's metadata form the returned version; literal edits LF-normalize for matching and restore the dominant CRLF style, and mutations serialize per canonical target. Staging-cleanup failures after commit never turn a successful write into a failure.
 
 ### Failure and cancellation
 
@@ -108,11 +108,11 @@ Read these pages when the package-level contract is not enough. They move from t
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through [`dsh-tool-fs`](../../fs/tool-fs/README.md), which renders remote UTF-8 content, directory results, mutation acknowledgements, and provider errors while E2B identity and transport remain internal.
+Indirectly, through [`avn-tool-fs`](../../fs/tool-fs/README.md), which renders remote UTF-8 content, directory results, mutation acknowledgements, and provider errors while E2B identity and transport remain internal.
 
 #### KV Cache effect
 
-No direct invalidation: `dsh-tool-fs` owns any request-prefix changes; the E2B transport never reaches a request.
+No direct invalidation: `avn-tool-fs` owns any request-prefix changes; the E2B transport never reaches a request.
 
 ## Known Limitations and Deferred Work
 

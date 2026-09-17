@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-sandbox` confines same-world subprocesses to a file-effect policy: commands run `read-only`, write only under the session workspace (`workspace-write`), or run unrestricted (`danger-full-access`), and every confined execution runs under a per-call policy. The bash and pwsh executors consume it, so a command — and everything it spawns — runs confined without the consumer knowing which platform runner is behind it. When the requested mode cannot be enforced, the call fails closed with a `SANDBOX_UNAVAILABLE` error instead of running unconfined. A denied call can request a strictly wider mode that a human approves once. Confinement is same-world only — backends share the host kernel and filesystem, while containers, microVMs, and remote executors replace whole capabilities instead.
+`avn-sandbox` confines same-world subprocesses to a file-effect policy: commands run `read-only`, write only under the session workspace (`workspace-write`), or run unrestricted (`danger-full-access`), and every confined execution runs under a per-call policy. The bash and pwsh executors consume it, so a command — and everything it spawns — runs confined without the consumer knowing which platform runner is behind it. When the requested mode cannot be enforced, the call fails closed with a `SANDBOX_UNAVAILABLE` error instead of running unconfined. A denied call can request a strictly wider mode that a human approves once. Confinement is same-world only — backends share the host kernel and filesystem, while containers, microVMs, and remote executors replace whole capabilities instead.
 
 ## Table of Contents
 
@@ -127,7 +127,7 @@ Start with the subsystem reference for the exhaustive contract, then the backend
 
 #### What the model sees
 
-Through [`dsh-bash-sandbox`](../../shell/bash-sandbox/README.md) and [`dsh-tool-bash`](../../shell/tool-bash/README.md), a requested confined mode with no usable backend produces code `SANDBOX_UNAVAILABLE` and the exact error below; an execution-time runner failure appends ` Runner failure: <detail>`.
+Through [`avn-bash-sandbox`](../../shell/bash-sandbox/README.md) and [`avn-tool-bash`](../../shell/tool-bash/README.md), a requested confined mode with no usable backend produces code `SANDBOX_UNAVAILABLE` and the exact error below; an execution-time runner failure appends ` Runner failure: <detail>`.
 
 ##### Exact error
 

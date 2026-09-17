@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-llm-mock-server` stands in for a real model provider during tests as a scriptable OpenAI-compatible HTTP/SSE server: you script a sequence of wire behaviors — stream resets, stalls, malformed chunks, rate limits, server errors, successful completions, tool calls — and each accepted `/chat/completions` request consumes the next one. It serves the shipping DeepSeek adapter and the agent loop over real HTTP, so recovery policy such as retries, backoff, and timeouts is exercised against a genuine wire boundary without a provider key. A CLI (`pnpm run mock:llm`) runs the server standalone; the library entry `startMockLlmServer` embeds it in tests and returns captured requests. A `random` behavior with seeded weights mixes failures for open-ended stress runs.
+`avn-llm-mock-server` stands in for a real model provider during tests as a scriptable OpenAI-compatible HTTP/SSE server: you script a sequence of wire behaviors — stream resets, stalls, malformed chunks, rate limits, server errors, successful completions, tool calls — and each accepted `/chat/completions` request consumes the next one. It serves the shipping DeepSeek adapter and the agent loop over real HTTP, so recovery policy such as retries, backoff, and timeouts is exercised against a genuine wire boundary without a provider key. A CLI (`pnpm run mock:llm`) runs the server standalone; the library entry `startMockLlmServer` embeds it in tests and returns captured requests. A `random` behavior with seeded weights mixes failures for open-ended stress runs.
 
 ## Table of Contents
 
@@ -44,7 +44,7 @@ Point the shipping DeepSeek adapter at the server; it appends `/chat/completions
 ```sh
 DEEPSEEK_BASE_URL=http://127.0.0.1:8000/v1 \
 DEEPSEEK_API_KEY=mock-key \
-pnpm dsh --profile headless "test provider recovery"
+pnpm avn --profile headless "test provider recovery"
 ```
 
 The repository script writes JSONL to stdout: a `ready` record carries the `/v1` base URL and random seed, followed by request/result records that name both the scripted behavior and the concrete behavior selected. The package exposes no installable binary.

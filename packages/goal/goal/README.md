@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-goal` keeps one durable completion objective per agent session: the goal's text, phase, round count, and revision history live in the session log, so they survive session resume, fork, and process restarts. You can create, edit, pause, resume, complete, block, and clear a goal, and every mutation is compare-and-set, so a stale view cannot clobber newer state. A goal carries a round cap (default 256) that bounds automatic continuation, and a blocked goal keeps a stable policy code plus a human explanation. It is state, not a scheduler: the service decides nothing about when work continues, and continuation permission is process-local and never persisted. Choose it when one long-running objective should span many turns; skip it for routine single-turn work.
+`avn-goal` keeps one durable completion objective per agent session: the goal's text, phase, round count, and revision history live in the session log, so they survive session resume, fork, and process restarts. You can create, edit, pause, resume, complete, block, and clear a goal, and every mutation is compare-and-set, so a stale view cannot clobber newer state. A goal carries a round cap (default 256) that bounds automatic continuation, and a blocked goal keeps a stable policy code plus a human explanation. It is state, not a scheduler: the service decides nothing about when work continues, and continuation permission is process-local and never persisted. Choose it when one long-running objective should span many turns; skip it for routine single-turn work.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount `dsh-goal` whenever a session should remember one long-running completion objective across many turns and restarts. The package is a service: the model tools, the `/goal` command, and the continuation driver are separate packages that consume the same goal state, so mounting only this package stores and serves the goal without starting any work.
+Mount `avn-goal` whenever a session should remember one long-running completion objective across many turns and restarts. The package is a service: the model tools, the `/goal` command, and the continuation driver are separate packages that consume the same goal state, so mounting only this package stores and serves the goal without starting any work.
 
 ### When to use it
 
@@ -155,7 +155,7 @@ There is no KV-cache effect until another component exposes goal state in model-
 
 These limits define when the goal service is a poor fit or needs special care. They are current package constraints, not a task backlog.
 
-- **State, not scheduling** — this package does not decide when an armed goal continues, retry abnormal failures, or cancel an active turn; those policies belong to consumer packages such as `dsh-goal-round-driver`.
+- **State, not scheduling** — this package does not decide when an armed goal continues, retry abnormal failures, or cancel an active turn; those policies belong to consumer packages such as `avn-goal-round-driver`.
 - **Round-count budget only** — `maxGoalRounds` does not meter tokens, currency, wall time, or provider quotas.
 - **No independent evaluator** — the caller that records completion or blocking is authoritative; evaluator-backed certification is deferred to a separate policy layer.
 - **One current goal** — parallel objectives and a separate goal database are intentionally absent; history remains available in the session log after replacement or clear.

@@ -37,5 +37,5 @@ Each `@aeven/tool-subagent` instance selects `backgroundMode: 'one-shot' | 'cont
 - The service topology has one public key and one package fewer while raw provider dispatch remains usable without Jobs or persistence.
 - Continuable mode fails at provider mount when the configured provider lacks `resume`; missing Jobs, Agents, or persistence still fail at the earliest operation that requires them.
 - Follow-up delivery remains optional. Deployments may start and collect continuable work through Task tools without exposing `send_message`.
-- The continuation manager is still Task- and persistence-aware inside the `dsh-subagent` package, so the package declares optional peer dependencies on those services even though ordinary `start` callers do not need them.
+- The continuation manager is still Task- and persistence-aware inside the `avn-subagent` package, so the package declares optional peer dependencies on those services even though ordinary `start` callers do not need them.
 - Existing continuation races, authorization, durability, cancellation, and settle-then-dispose semantics are unchanged and remain pinned by the migrated `subagent` tests.

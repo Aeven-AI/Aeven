@@ -38,14 +38,14 @@ describe('Aeven deployment configuration', () => {
   })
 
   it('leaves a deployment origin alone', () => {
-    servedFrom('dsh.example')
+    servedFrom('avn.example')
     scope.__DSH_AEVEN__ = { webUrl: 'https://aeven.example', mediaUrl: 'https://media.example' }
     expect(webUrl()).toBe('https://aeven.example')
     expect(mediaUrl()).toBe('https://media.example')
   })
 
   it('leaves a loopback origin alone for a page served elsewhere', () => {
-    servedFrom('dsh.example')
+    servedFrom('avn.example')
     scope.__DSH_AEVEN__ = { webUrl: 'http://localhost:3030' }
     expect(webUrl()).toBe('http://localhost:3030')
   })

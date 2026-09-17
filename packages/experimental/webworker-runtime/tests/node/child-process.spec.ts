@@ -29,9 +29,9 @@ import { spawnSubprocess } from '@aeven/subprocess-local/src/spawn.ts'
 vi.mock('node:child_process', async () =>
   await import('@aeven/experimental-webworker-runtime/src/node/builtin_modules/implemented/child_process.ts'))
 
-const WORKSPACE = '/dsh/workspace'
-const HOME = '/dsh/home'
-const TMP = '/dsh/tmp'
+const WORKSPACE = '/avn/workspace'
+const HOME = '/avn/home'
+const TMP = '/avn/tmp'
 
 let vfs: MemoryVfs
 
@@ -128,10 +128,10 @@ it('keeps the native Landlock package API and CLI failure contract', async () =>
     stderr: 'landlock-run: usage error: --rw requires a path\n',
     code: 125,
   })
-  const missingGrant = spawn(launcherPath(), ['--rw', '/dsh/missing', '--', 'touch', `${WORKSPACE}/never`], { cwd: WORKSPACE })
+  const missingGrant = spawn(launcherPath(), ['--rw', '/avn/missing', '--', 'touch', `${WORKSPACE}/never`], { cwd: WORKSPACE })
   expect(await collect(missingGrant)).toEqual({
     stdout: '',
-    stderr: 'landlock-run: cannot open rule path: /dsh/missing: No such file or directory\n',
+    stderr: 'landlock-run: cannot open rule path: /avn/missing: No such file or directory\n',
     code: 125,
   })
   expect(vfs.existsSync(`${WORKSPACE}/never`)).toBe(false)

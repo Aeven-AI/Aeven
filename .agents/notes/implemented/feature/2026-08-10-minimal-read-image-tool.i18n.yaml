@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-10-minimal-read-image-tool.md
-2026-08-10-minimal-read-image-tool.md: be7c24965ee256e4062b5caf32ce7f8c62d9c1ae
-2026-08-10-minimal-read-image-tool.zh.md: f1d09a320e0f44145e4c8681668996d66fbb4898
+2026-08-10-minimal-read-image-tool.md: 1e0c250f4e2e9f425290b6c510076dc8da9d87e3
+2026-08-10-minimal-read-image-tool.zh.md: 36c5df4fab4be2b56aff7479bf8e649317110f0c

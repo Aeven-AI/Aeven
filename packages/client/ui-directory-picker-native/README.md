@@ -25,7 +25,7 @@ This package provides the native directory-picking surface for the Web GUI: when
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin alongside `ui-workspace` and the host backend [`dsh-host-directory-picker-native`](../../host/directory-picker-native/README.md); one cordis.yml row then composes the whole native picking interaction. When a workspace add or picker flow opens a directory request, the user sees the operating system's folder dialog; the picked path is adopted by the workspace flow, and cancelling closes the dialog.
+Mount this plugin alongside `ui-workspace` and the host backend [`avn-host-directory-picker-native`](../../host/directory-picker-native/README.md); one cordis.yml row then composes the whole native picking interaction. When a workspace add or picker flow opens a directory request, the user sees the operating system's folder dialog; the picked path is adopted by the workspace flow, and cancelling closes the dialog.
 
 ### When to choose it
 
@@ -50,7 +50,7 @@ Both slot registrations install as one transactional effect through nested `ctx.
 
 Read these pages when the picking surface is not enough. They move from the browser half to the host backend and the slots it fills.
 
-- [dsh-host-directory-picker-native](../../host/directory-picker-native/README.md) — the OS chooser backend this surface drives.
+- [avn-host-directory-picker-native](../../host/directory-picker-native/README.md) — the OS chooser backend this surface drives.
 - [ui-workspace](../ui-workspace/README.md) — declares the directory-flow slots and owns the picking conversation.
 - [ui-directory-picker-browse](../ui-directory-picker-browse/README.md) — the in-app browsing alternative for remote and in-process deployments.
 - [Web client architecture](../../../.agents/notes/implemented/architecture/2026-07-19-gui-web-client-architecture.md) — how browser plugin rows load and register slots.

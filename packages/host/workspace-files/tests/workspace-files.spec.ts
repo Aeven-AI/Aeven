@@ -62,7 +62,7 @@ function stubRegistry(dir: string) {
 
 /** Write a workspace fixture and the authenticated Web rows, then boot them through the real Loader. */
 async function loadComposition(): Promise<Context> {
-  root = await mkdtemp(join(tmpdir(), 'dsh-workspace-files-'))
+  root = await mkdtemp(join(tmpdir(), 'avn-workspace-files-'))
   const dir = join(root, 'work')
   await mkdir(dir)
   await writeFile(join(dir, 'chart.png'), 'PNGBYTES')

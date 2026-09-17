@@ -14,11 +14,11 @@ Web 应用在入口 module 与客户端插件 bundle 加载期间必须用带样
 
 预加载页样式表只拥有首帧布局、明色与暗色回退，以及淡出和转轮动画。ui-theme 的 Host 侧继续在 opening body tag 后立即注入持久偏好引导。该脚本会在 parser 到达静态预加载页前应用 `body[data-ds-dark-theme]`，而浏览器侧 ThemeRuntime 在插件激活后仍是权威。
 
-`dsh-client-web/src/preloader.ts` 控制已有元素。成功的 Web 启动会在第一份侧边栏列表与所选会话历史到达后用 400ms 淡出，再将元素移出布局；启动失败时，它会在 `BootPage` 渲染诊断前立即隐藏元素。静态元素拥有加载呈现时 `BootPage` 保持视觉静默，而不含 Web 外壳的 document 仍使用其自有进度视觉。Worker preview 会为 source chooser 隐藏静态元素，再在所选 image 与插件树启动期间恢复它。[外壳数据等待](2026-09-08-web-preloader-waits-for-shell-data.zh.md)拥有该成功启动时机。
+`avn-client-web/src/preloader.ts` 控制已有元素。成功的 Web 启动会在第一份侧边栏列表与所选会话历史到达后用 400ms 淡出，再将元素移出布局；启动失败时，它会在 `BootPage` 渲染诊断前立即隐藏元素。静态元素拥有加载呈现时 `BootPage` 保持视觉静默，而不含 Web 外壳的 document 仍使用其自有进度视觉。Worker preview 会为 source chooser 隐藏静态元素，再在所选 image 与插件树启动期间恢复它。[外壳数据等待](2026-09-08-web-preloader-waits-for-shell-data.zh.md)拥有该成功启动时机。
 
 ## 验证
 
-客户端单元测试覆盖动画关闭、立即隐藏与恢复、取消、缺少静态元素，以及 BootPage 失败回退。构建产物测试要求标记位于应用 root 前、document `<style>` 中内联 `#dsh-preloader` 规则，并要求其余样式表只以 preload-plus-onload 标签加 `noscript` stylesheet 回退出现。Head `script-src` 行带 `defer` 渲染；body `script-src` 行不带。真实 Chromium 主题场景会拦住产出样式表与应用插件请求，并断言可见静态预加载页采用内联 CSS 中的持久化深色偏好。Worker-preview 验收继续覆盖 source chooser 与完整启动。
+客户端单元测试覆盖动画关闭、立即隐藏与恢复、取消、缺少静态元素，以及 BootPage 失败回退。构建产物测试要求标记位于应用 root 前、document `<style>` 中内联 `#avn-preloader` 规则，并要求其余样式表只以 preload-plus-onload 标签加 `noscript` stylesheet 回退出现。Head `script-src` 行带 `defer` 渲染；body `script-src` 行不带。真实 Chromium 主题场景会拦住产出样式表与应用插件请求，并断言可见静态预加载页采用内联 CSS 中的持久化深色偏好。Worker-preview 验收继续覆盖 source chooser 与完整启动。
 
 ## 考虑过的替代方案
 
@@ -34,4 +34,4 @@ Web 应用在入口 module 与客户端插件 bundle 加载期间必须用带样
 
 ## 后果
 
-应用从 document 字节起即有带样式加载内容，常规启动不再暴露中间空白应用 root，也不会在等待 CSS 时显示白页。外壳新增一小段静态标记，并内联其首帧 CSS。其余 CSS 是插件加载期间完成的非阻塞 fetch。视觉与生命周期控制器共享固定的 `dsh-preloader` id、class name 与 400ms 淡出时长，因此改变这些值时必须同步更新 HTML、CSS、控制器与产物测试。不提供 `apps/web` 的组合仍保留无框架 BootPage 回退。
+应用从 document 字节起即有带样式加载内容，常规启动不再暴露中间空白应用 root，也不会在等待 CSS 时显示白页。外壳新增一小段静态标记，并内联其首帧 CSS。其余 CSS 是插件加载期间完成的非阻塞 fetch。视觉与生命周期控制器共享固定的 `avn-preloader` id、class name 与 400ms 淡出时长，因此改变这些值时必须同步更新 HTML、CSS、控制器与产物测试。不提供 `apps/web` 的组合仍保留无框架 BootPage 回退。

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-hooks-claude-code` runs the hooks from your existing Claude Code config — a `hooks.json` or a settings file's `hooks` key — during agent runs, so the behavior you already wrote keeps working without rewriting it. Your hooks fire at the matching moments: when a session starts, when a prompt is submitted, before and after a tool runs, when the run is about to stop, and when subagents start or end. A hook can block a prompt or tool call with a message the model sees, attach extra context to the conversation, or force the run to continue. Choose it when you have Claude Code command hooks and want them to work in the harness as-is; behavior with no Claude Code equivalent belongs in a native plugin.
+`avn-hooks-claude-code` runs the hooks from your existing Claude Code config — a `hooks.json` or a settings file's `hooks` key — during agent runs, so the behavior you already wrote keeps working without rewriting it. Your hooks fire at the matching moments: when a session starts, when a prompt is submitted, before and after a tool runs, when the run is about to stop, and when subagents start or end. A hook can block a prompt or tool call with a message the model sees, attach extra context to the conversation, or force the run to continue. Choose it when you have Claude Code command hooks and want them to work in the harness as-is; behavior with no Claude Code equivalent belongs in a native plugin.
 
 ## Table of Contents
 
@@ -96,7 +96,7 @@ The matcher subject is the tool name (`PreToolUse` / `PostToolUse`), the session
 
 ### Detached runs and disposal
 
-The three emit points (`SessionStart`, `SubagentStart`, `SubagentStop`) run detached — no extension point awaits them. Each run chain is tracked, and disposing the bridge aborts still-running hook processes, then drains the continuations before the dispose resolves (`createDetachedRuns` in `dsh-hook-protocol`).
+The three emit points (`SessionStart`, `SubagentStart`, `SubagentStop`) run detached — no extension point awaits them. Each run chain is tracked, and disposing the bridge aborts still-running hook processes, then drains the continuations before the dispose resolves (`createDetachedRuns` in `avn-hook-protocol`).
 
 ### Design philosophy
 

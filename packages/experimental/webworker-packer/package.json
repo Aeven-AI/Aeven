@@ -12,7 +12,7 @@
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
   "bin": {
-    "dsh-pack-vfs-image": "./bin.js"
+    "avn-pack-vfs-image": "./bin.js"
   },
   "exports": {
     ".": {

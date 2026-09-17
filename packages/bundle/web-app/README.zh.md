@@ -1,5 +1,5 @@
 ---
-description: "dsh 的浏览器 GUI：交互式聊天、模型与设置管理、会话历史，供用户运行 dsh web 表层。"
+description: "avn 的浏览器 GUI：交互式聊天、模型与设置管理、会话历史，供用户运行 avn web 表层。"
 kind: "package-bundle"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-运行 `dsh --profile web`，界面会在你的默认浏览器中打开，即可与 agent（智能体）交互式聊天。你会获得会话视图、模型与设置管理以及会话历史，背后与其他表层相同的模型访问、工具与安全默认值。该命令会打印带 token 的启动 URL；浏览器用该 token 换取签名会话 cookie，再重定向到干净的根 URL。你可以从命令行更改端口、关闭浏览器交接并允许额外主机；有意不支持绑定所有网络接口。需要浏览器中的交互式工作时选择它；`dsh-headless` 是一次性的命令行兄弟表层。
+运行 `avn --profile web`，界面会在你的默认浏览器中打开，即可与 agent（智能体）交互式聊天。你会获得会话视图、模型与设置管理以及会话历史，背后与其他表层相同的模型访问、工具与安全默认值。该命令会打印带 token 的启动 URL；浏览器用该 token 换取签名会话 cookie，再重定向到干净的根 URL。你可以从命令行更改端口、关闭浏览器交接并允许额外主机；有意不支持绑定所有网络接口。需要浏览器中的交互式工作时选择它；`avn-headless` 是一次性的命令行兄弟表层。
 
 ## 目录
 
@@ -30,11 +30,11 @@ kind: "package-bundle"
 ### 启动 Web GUI
 
 ```sh
-dsh --profile web
-dsh --profile web --no-open --port 8080
+avn --profile web
+avn --profile web --no-open --port 8080
 ```
 
-启动后你会看到 `dsh web:` 行，其根 URL 携带新的进程 token。除非 `--no-open` 或 SSH 会话抑制，否则默认浏览器会打开该 URL、取得签名 cookie，再重定向到干净的根页面。页面加载且你可以与 agent（智能体）对话，就说明成功了。两种可预期的失败：前端未构建时，启动会以构建提示停止（checkout 中运行 `pnpm run build`）；浏览器无法打开时，stderr 会打印不含凭据的诊断，但服务器会继续运行——请自行打开已打印的启动 URL。
+启动后你会看到 `avn web:` 行，其根 URL 携带新的进程 token。除非 `--no-open` 或 SSH 会话抑制，否则默认浏览器会打开该 URL、取得签名 cookie，再重定向到干净的根页面。页面加载且你可以与 agent（智能体）对话，就说明成功了。两种可预期的失败：前端未构建时，启动会以构建提示停止（checkout 中运行 `pnpm run build`）；浏览器无法打开时，stderr 会打印不含凭据的诊断，但服务器会继续运行——请自行打开已打印的启动 URL。
 
 ### 配置
 
@@ -43,7 +43,7 @@ dsh --profile web --no-open --port 8080
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `openBrowser` | `true` | 启动后用默认浏览器打开；SSH 启动会抑制它 |
-| `printUrl` | `true` | 启动时打印 `dsh web:` URL 行 |
+| `printUrl` | `true` | 启动时打印 `avn web:` URL 行 |
 | `surfaceContext` | `true` | 给 agent（智能体）提供 GUI 定位上下文，并把 `AVN_WEB_URL` 暴露给其 shell 命令 |
 | `trustedHosts` | `[]` | 允许从网络访问 GUI 的额外主机 |
 
@@ -55,7 +55,7 @@ dsh --profile web --no-open --port 8080
 
 ### 通过 SSH 运行
 
-通过 SSH 启动 `dsh --profile web` 时，URL 行仍会打印，但不会为你打开浏览器：本地转发地址由 SSH 客户端或编辑器持有。请在自己的机器上打开转发后的 URL；打印出的 URL 指向远端宿主机 loopback 端点。
+通过 SSH 启动 `avn --profile web` 时，URL 行仍会打印，但不会为你打开浏览器：本地转发地址由 SSH 客户端或编辑器持有。请在自己的机器上打开转发后的 URL；打印出的 URL 指向远端宿主机 loopback 端点。
 
 ### 按会话的 agent 设置
 
@@ -110,8 +110,8 @@ URL 行与浏览器交接都是就绪信号：监督方一观察到该行就发�
 当你想深入了解共享核心、浏览器重载流水线或已构建的前端时，阅读以下页面。
 
 - [组合包包映射](../README.zh.md)——基于同一核心构建的表层。
-- [dsh-base](../base/README.zh.md)——GUI 运行其上的共享核心。
-- [dsh-client-hmr](../../client/hmr/README.zh.md)——开发期间客户端插件变更如何重载。
+- [avn-base](../base/README.zh.md)——GUI 运行其上的共享核心。
+- [avn-client-hmr](../../client/hmr/README.zh.md)——开发期间客户端插件变更如何重载。
 - [frontend-static](../../host/frontend-static/README.zh.md)——已构建的前端如何被服务。
 - [生成配置目录](../../../docs/config-catalog.zh.md#aeven-web-app)——每个受支持配置字段及其源声明。
 

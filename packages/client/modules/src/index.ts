@@ -1,6 +1,6 @@
 /**
- * Node half of the client module system (`dsh.client` dual-face package): scans
- * the host Loader's entries for packages declaring `dsh.client`, composes the
+ * Node half of the client module system (`avn.client` dual-face package): scans
+ * the host Loader's entries for packages declaring `avn.client`, composes the
  * `window.__DSH_BOOT__` entry graph (wire single source: {@link WebBootEntry}
  * in `./client/manifest.ts`) in module-graph order, serves one-or-more-plugin
  * combo scripts plus their source maps,
@@ -49,8 +49,8 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-/** package.json `dsh.client` declaration fields, validated one by one after reading the file. */
-interface DshClientDeclaration {
+/** package.json `avn.client` declaration fields, validated one by one after reading the file. */
+interface AvnClientDeclaration {
   inject?: string[]
   platform: string
   /** Boot phase-one registration barrier; absent rows still ride the shared application batch. */
@@ -199,20 +199,20 @@ function exactPackageSpecifier(specifier: string): string | undefined {
   return specifier.length > 0 && !specifier.includes('/') ? specifier : undefined
 }
 
-/** Narrow an unknown parsed JSON value to the `dsh.client` declaration, throwing on malformed fields. */
-function parseDshClient(pkgName: string, value: unknown): DshClientDeclaration | undefined {
+/** Narrow an unknown parsed JSON value to the `avn.client` declaration, throwing on malformed fields. */
+function parseAvnClient(pkgName: string, value: unknown): AvnClientDeclaration | undefined {
   if (value === undefined) return undefined
   if (typeof value !== 'object' || value === null) {
-    throw new Error(`client-modules: ${pkgName} has a non-object dsh.client declaration`)
+    throw new Error(`client-modules: ${pkgName} has a non-object avn.client declaration`)
   }
   const decl = value as Record<string, unknown>
   if (typeof decl.platform !== 'string') {
-    throw new Error(`client-modules: ${pkgName} dsh.client.platform must be a string`)
+    throw new Error(`client-modules: ${pkgName} avn.client.platform must be a string`)
   }
-  const inject = optionalStringArray(pkgName, 'dsh.client.inject', decl.inject)
-  const external = optionalStringArray(pkgName, 'dsh.client.external', decl.external)
+  const inject = optionalStringArray(pkgName, 'avn.client.inject', decl.inject)
+  const external = optionalStringArray(pkgName, 'avn.client.external', decl.external)
   if (decl.immediately !== undefined && typeof decl.immediately !== 'boolean') {
-    throw new Error(`client-modules: ${pkgName} dsh.client.immediately must be a boolean`)
+    throw new Error(`client-modules: ${pkgName} avn.client.immediately must be a boolean`)
   }
   return {
     platform: decl.platform,
@@ -398,7 +398,7 @@ function comboSectionMap(record: WebPluginRecord): Record<string, unknown> {
   if (original === undefined) throw new Error(`client-modules: source map missing for ${record.entry.id}`)
   const sourcePaths = original.sources as string[]
   const sourceRoot = typeof original.sourceRoot === 'string' ? original.sourceRoot : ''
-  const base = new URL(`/plugins/${record.entry.id}/client.js.map`, 'http://dsh.invalid')
+  const base = new URL(`/plugins/${record.entry.id}/client.js.map`, 'http://avn.invalid')
   const relocated = sourcePaths.map((source) => {
     const separator = sourceRoot !== '' && !sourceRoot.endsWith('/') && !source.startsWith('/') ? '/' : ''
     const resolved = new URL(`${sourceRoot}${separator}${source}`, base)
@@ -500,7 +500,7 @@ export function orderByModuleGraph(entries: readonly WebBootEntry[]): WebBootEnt
       if (dependency === entry) {
         throw new Error(
           `client-modules: "${entry.id}" requests module "${name}" that it answers itself `
-          + '— a row must not declare its own package in dsh.client.external',
+          + '— a row must not declare its own package in avn.client.external',
         )
       }
       if (dependency !== undefined) visit(dependency)
@@ -569,7 +569,7 @@ window.__ModuleLoader__={
 }
 
 /**
- * The web plugin table service: incremental `dsh.client` scan + wire composition
+ * The web plugin table service: incremental `avn.client` scan + wire composition
  * + bundle route + index injection rows. Construction runs the activation scan
  * synchronously — a malformed declaration or missing bundle among the
  * already-loaded entries aggregates into one loud throw (FAILED fiber; the
@@ -820,10 +820,10 @@ export class ClientModuleRegistry extends Service {
     }
     const { packageName, path: pkgPath } = located
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as Record<string, unknown>
-    const dsh = pkg.dsh
-    const decl = parseDshClient(
+    const avn = pkg.avn
+    const decl = parseAvnClient(
       packageName,
-      dsh !== null && typeof dsh === 'object' ? (dsh as Record<string, unknown>).client : undefined,
+      avn !== null && typeof avn === 'object' ? (avn as Record<string, unknown>).client : undefined,
     )
     if (decl === undefined || decl.platform !== 'web') {
       this.pkgMeta.set(sourceKey, null)
@@ -831,7 +831,7 @@ export class ClientModuleRegistry extends Service {
     }
     const clientRel = clientExportOf(packageName, pkg.exports)
     if (clientRel === undefined) {
-      throw new Error(`client-modules: ${packageName} declares dsh.client but exports no "./client" bundle`)
+      throw new Error(`client-modules: ${packageName} declares avn.client but exports no "./client" bundle`)
     }
     const meta: PkgMeta = {
       clientPath: join(dirname(pkgPath), clientRel),

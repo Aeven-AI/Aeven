@@ -50,7 +50,7 @@ kind: "package-reference"
 
 当反馈面不够用时阅读以下页面。它们从浏览器条带进入 sidecar 后端与会话外壳。
 
-- [dsh-message-feedback](../../feedback/message-feedback/README.zh.md)——拥有按条目比较并交换的 sidecar 后端。
+- [avn-message-feedback](../../feedback/message-feedback/README.zh.md)——拥有按条目比较并交换的 sidecar 后端。
 - [ui-conversation](../ui-conversation/README.zh.md)——声明助手动作条并渲染动作行。
 - [客户端包映射](../README.zh.md)——相邻的浏览器 UI 包。
 

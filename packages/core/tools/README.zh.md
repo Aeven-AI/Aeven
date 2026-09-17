@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-使用 `dsh-tools`，工具插件注册 schema 与执行器，每次模型工具调用都经过一条受守卫的流水线——允许／拒绝／询问策略、单调守卫、环绕分发包装层、结果检查、由工具定义持有的内容终结，以及最终的仅观测通知。该包还控制工具向模型呈现的方式：`mode` 配置选择原生 Function Calling（函数调用）、[PTC mode](#ptc-mode) 或两者，单个 agent 可用 `presentAs` 为自己遮蔽该默认值。工具作者使用 `defineTool` 定义类型化参数与输出 schema、可选的协作式超时、并行安全分类与可选的 UI 呈现意图。把任何希望模型触达的能力做成注册表时请选择本包——schema 会自动流入提示词组装。
+使用 `avn-tools`，工具插件注册 schema 与执行器，每次模型工具调用都经过一条受守卫的流水线——允许／拒绝／询问策略、单调守卫、环绕分发包装层、结果检查、由工具定义持有的内容终结，以及最终的仅观测通知。该包还控制工具向模型呈现的方式：`mode` 配置选择原生 Function Calling（函数调用）、[PTC mode](#ptc-mode) 或两者，单个 agent 可用 `presentAs` 为自己遮蔽该默认值。工具作者使用 `defineTool` 定义类型化参数与输出 schema、可选的协作式超时、并行安全分类与可选的 UI 呈现意图。把任何希望模型触达的能力做成注册表时请选择本包——schema 会自动流入提示词组装。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在任何 agent 调用工具的地方挂载 `dsh-tools`：它提供 `ctx.tools`，即每个工具插件注册进去、循环分发所经过的注册表。注册一个工具就足以让它可见——注册表会自动把其 schema 送入系统提示词组装。
+在任何 agent 调用工具的地方挂载 `avn-tools`：它提供 `ctx.tools`，即每个工具插件注册进去、循环分发所经过的注册表。注册一个工具就足以让它可见——注册表会自动把其 schema 送入系统提示词组装。
 
 ### 注册工具
 
@@ -74,7 +74,7 @@ ctx.tools.register(defineTool({
 | `mode` | `native` | 可见工具向模型呈现的方式：`native`、`ptc` 或 `both` |
 | `maxParallelSubCalls` | `10` | `run_code` 程序重叠子调用的并发上限；`1` 恢复严格串行分发 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-tools)是每个受支持字段的穷尽式真源。非原生模式要求已组合的 `ctx.codeRuntime` 且其语言有已注册的 SDK 渲染器；agent preset 通过 [`dsh-agent-tool-presentation`](../agent-tool-presentation/README.zh.md) 自行选择呈现方式，单个 agent 可用 `presentAs(mode)` 遮蔽默认值。
+生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-tools)是每个受支持字段的穷尽式真源。非原生模式要求已组合的 `ctx.codeRuntime` 且其语言有已注册的 SDK 渲染器；agent preset 通过 [`avn-agent-tool-presentation`](../agent-tool-presentation/README.zh.md) 自行选择呈现方式，单个 agent 可用 `presentAs(mode)` 遮蔽默认值。
 
 ### 按 agent 限制工具
 

@@ -679,7 +679,7 @@ describe('Schedule runtime failure and teardown boundaries', () => {
 
     const runFailure = await harness()
     appendAfter(runFailure, 'schedule-1', 1, Date.now() - 1_000)
-    // The reminder message mints its id through dsh-util-crypto, whose
+    // The reminder message mints its id through avn-util-crypto, whose
     // entropy source is getRandomValues — the failure injection follows it.
     const uuidSpy = vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation(() => { throw 'message failed' })
     const failingRuntime = runtimeFor(runFailure)

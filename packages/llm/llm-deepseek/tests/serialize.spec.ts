@@ -426,7 +426,7 @@ describe('image serialization', () => {
     const version = images.requestImages.get(ref.attachmentId) as RequestImageAttachment
     version.width = 1130
     version.height = 565
-    images.resolveImageAccess = () => ({ readonlyPath: '/tmp/dsh/objects/aa/object' })
+    images.resolveImageAccess = () => ({ readonlyPath: '/tmp/avn/objects/aa/object' })
     const wire = await serializeRequestWithImages(request({
       model: 'deepseek-v4-flash-vision-exp',
       messages: [createUserMessage({
@@ -442,7 +442,7 @@ describe('image serialization', () => {
         text: expect.stringContaining('Image "diagram.png"') as string,
       }, { type: 'file' }],
     })
-    expect(JSON.stringify(wire.messages[0])).toContain('/tmp/dsh/objects/aa/object')
+    expect(JSON.stringify(wire.messages[0])).toContain('/tmp/avn/objects/aa/object')
     expect(JSON.stringify(wire.messages[0])).toContain('request preview 1130x565px')
   })
 
@@ -595,7 +595,7 @@ describe('image serialization', () => {
     const jpeg = imageRef('image/jpeg', 3)
     const images = imageOptions([png, jpeg], resolveFileId, 4)
     images.resolveImageAccess = ref => ref.mediaType === 'image/png'
-      ? { readonlyPath: '/tmp/dsh/objects/png' }
+      ? { readonlyPath: '/tmp/avn/objects/png' }
       : undefined
     const wire = await serializeRequestWithImages(request({
       model: 'deepseek-v4-flash-vision-exp',
@@ -613,7 +613,7 @@ describe('image serialization', () => {
       content: [
         {
           type: 'text',
-          text: expect.stringContaining(`image omitted to fit request image limits; ${png.attachmentId}. Normalized copy (read-only; may be resized or re-encoded): "/tmp/dsh/objects/png"`) as string,
+          text: expect.stringContaining(`image omitted to fit request image limits; ${png.attachmentId}. Normalized copy (read-only; may be resized or re-encoded): "/tmp/avn/objects/png"`) as string,
         },
         { type: 'text', text: expect.stringContaining(`Image ${jpeg.attachmentId}`) as string },
         { type: 'file', file_id: 'file-api-image' },

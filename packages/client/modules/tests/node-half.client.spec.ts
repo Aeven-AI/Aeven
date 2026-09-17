@@ -33,9 +33,9 @@ afterEach(() => {
 /** Create a resolvable package whose client export points at the returned path. */
 function writePackage(
   packageName: string,
-  metadata: Record<string, unknown> = { dsh: { client: { platform: 'web' } } },
+  metadata: Record<string, unknown> = { avn: { client: { platform: 'web' } } },
 ): string {
-  root ??= realpathSync(mkdtempSync(join(tmpdir(), 'dsh-client-modules-')))
+  root ??= realpathSync(mkdtempSync(join(tmpdir(), 'avn-client-modules-')))
   const pkgRoot = join(root, 'node_modules', ...packageName.split('/'))
   const clientPath = join(pkgRoot, 'lib', 'client.js')
   mkdirSync(pkgRoot, { recursive: true })
@@ -52,7 +52,7 @@ function writePackage(
 
 /** Create a built package with the supplied client declaration. */
 function writeBuiltPackage(packageName: string, client: Record<string, unknown>): void {
-  const clientPath = writePackage(packageName, { dsh: { client: { platform: 'web', ...client } } })
+  const clientPath = writePackage(packageName, { avn: { client: { platform: 'web', ...client } } })
   mkdirSync(dirname(clientPath), { recursive: true })
   writeFileSync(clientPath, 'module.exports = {}\n')
 }
@@ -406,10 +406,10 @@ describe('client bundle activation', () => {
     expect(service.graph().entries.map(entry => entry.id)).toEqual([packageName])
   })
 
-  it('allows sibling dsh roles', () => {
+  it('allows sibling avn roles', () => {
     const currentName = '@fixture/current-client-field'
     const clientPath = writePackage(currentName, {
-      dsh: {
+      avn: {
         bundle: { patch: './cordis.patch.yml' },
         client: { platform: 'web' },
         profile: { bundles: [] },
@@ -626,7 +626,7 @@ describe('client bundle activation', () => {
     ctx.baseUrl = 'file:///'
     ctx.provide('loader', { internal: undefined, *entries() {} })
     const service = new ClientModuleRegistry(ctx)
-    expect(service.fetchBundle(new Request('dsh-app://app/plugins/unknown.js')).status).toBe(404)
+    expect(service.fetchBundle(new Request('avn-app://app/plugins/unknown.js')).status).toBe(404)
     const paths: string[] = []
     const webServer: Pick<WebServer, 'port' | 'register' | 'tapIndex'> = {
       port: 0,
@@ -675,13 +675,13 @@ describe('client bundle activation', () => {
     expect(batchScript.status).toBe(200)
     expect(batchScript.headers?.['cache-control']).toBe('public, max-age=31536000, immutable')
     expect(batchScript.body.toString('utf8')).toContain(`//# sourceMappingURL=${mapUrl(batch.url)}`)
-    const shellResponse = service.fetchBundle(new Request(`dsh-app://app${batch.url}`))
+    const shellResponse = service.fetchBundle(new Request(`avn-app://app${batch.url}`))
     expect(shellResponse.status).toBe(200)
     expect(shellResponse.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
     expect(await shellResponse.text()).toBe(batchScript.body.toString('utf8'))
-    expect((await service.fetchBundle(new Request(`dsh-app://app${batch.url}`, { method: 'HEAD' })).arrayBuffer()).byteLength).toBe(0)
-    expect(service.fetchBundle(new Request(`dsh-app://app${batch.url}`, { method: 'POST' })).status).toBe(405)
-    expect(service.fetchBundle(new Request('dsh-app://app/plugins/unknown.js')).status).toBe(404)
+    expect((await service.fetchBundle(new Request(`avn-app://app${batch.url}`, { method: 'HEAD' })).arrayBuffer()).byteLength).toBe(0)
+    expect(service.fetchBundle(new Request(`avn-app://app${batch.url}`, { method: 'POST' })).status).toBe(405)
+    expect(service.fetchBundle(new Request('avn-app://app/plugins/unknown.js')).status).toBe(404)
     expect((await routeRequest(route, batch.url, 'HEAD')).body).toHaveLength(0)
     expect((await routeRequest(route, batch.url, 'POST')).status).toBe(405)
     const batchMap = await routeRequest(route, mapUrl(batch.url))
@@ -825,7 +825,7 @@ describe('shared module declarations', () => {
     const packageName = '@fixture/external-not-array'
     writeBuiltPackage(packageName, { external: 'react' })
     expect(() => construct([packageName]))
-      .toThrow(`client-modules: ${packageName} dsh.client.external must be a string array`)
+      .toThrow(`client-modules: ${packageName} avn.client.external must be a string array`)
   })
 })
 

@@ -184,7 +184,7 @@ describe('web e2e: Trajectory virtualization over tail-paged history', () => {
   let replayDir: string
 
   beforeAll(async () => {
-    replayDir = await mkdtemp(join(tmpdir(), 'dsh-trajectory-virtualization-'))
+    replayDir = await mkdtemp(join(tmpdir(), 'avn-trajectory-virtualization-'))
     const replayFixture = join(replayDir, 'session.jsonl')
     const replayOverride = join(replayDir, 'replay.override.json')
     await writeFile(replayFixture, FIXTURE.log)

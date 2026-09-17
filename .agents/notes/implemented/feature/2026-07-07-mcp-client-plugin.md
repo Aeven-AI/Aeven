@@ -8,7 +8,7 @@ English | [中文](2026-07-07-mcp-client-plugin.zh.md)
 
 The harness had no way to consume tools from the MCP (Model Context Protocol) ecosystem. MCP is the emerging standard for tool servers — GitHub, filesystem, databases, code search, and hundreds of community servers expose tools via MCP. Users want to point the harness at one or more MCP servers and have their tools appear as native model-facing tools, without writing per-server glue code.
 
-The `ToolRuntime` already accepts raw JSON Schema tool definitions (documented in `dsh-tools` README: "Raw JSON-Schema tool definitions (from MCP servers) are still accepted by `ToolRuntime.register()` directly"), and the extension cookbook sketches the intended pattern ("MCP | one plugin per server: discover tools → `ctx.tools.register()`"). The infrastructure was ready; the bridge plugin was missing.
+The `ToolRuntime` already accepts raw JSON Schema tool definitions (documented in `avn-tools` README: "Raw JSON-Schema tool definitions (from MCP servers) are still accepted by `ToolRuntime.register()` directly"), and the extension cookbook sketches the intended pattern ("MCP | one plugin per server: discover tools → `ctx.tools.register()`"). The infrastructure was ready; the bridge plugin was missing.
 
 ## Decision
 
@@ -26,7 +26,7 @@ MCP Client only (no server side — ACP already covers the "expose harness as an
 
 ### Plugin shape
 
-Namespace plugin (named exports `name`/`inject`/`Config`/`apply`, no `export default`). `inject: ['tools']`. Each MCP server is one plugin instance in `cordis.yml` — the same package loaded N times with different configs, like `dsh-tool-subagent`.
+Namespace plugin (named exports `name`/`inject`/`Config`/`apply`, no `export default`). `inject: ['tools']`. Each MCP server is one plugin instance in `cordis.yml` — the same package loaded N times with different configs, like `avn-tool-subagent`.
 
 ### Configuration
 

@@ -20,7 +20,7 @@ The [settings seam](2026-07-28-user-settings-seam.md) shipped without a producti
 
 ## Alternatives considered
 
-- **A bridge plugin (`dsh-llm-models`) owning one unified `models` dict** — with per-plugin namespaces there is nothing left to bridge, and the adapter-mapping rules it needed were pure invented indirection.
+- **A bridge plugin (`avn-llm-models`) owning one unified `models` dict** — with per-plugin namespaces there is nothing left to bridge, and the adapter-mapping rules it needed were pure invented indirection.
 - **Secrets in settings.yaml under `role('secret')` masking** — deleting the problem (references) beats mitigating it (mask + backfill + sync warnings); the coding-agent cohort is unanimous.
 - **Registry-level live retry policy** — making `providerRetryPolicy` re-read per call would silently change the `ctx.llm` capture contract every registration relies on; re-registering the route in place keeps that contract and stays observable.
 

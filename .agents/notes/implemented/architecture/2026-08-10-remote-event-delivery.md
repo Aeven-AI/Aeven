@@ -28,7 +28,7 @@ All allowlisted events use this path, and dedicated frames and Client aliases ar
 
 `skills/change`, `tools/change`, and `system-prompt/change` have the same pure invalidation form but no shipped consumer. The rule that every abstraction needs a current owner and need keeps them outside the allowlist; they remain only an extension point recorded here.
 
-### Consumer contract (`dsh-typert-protocol`)
+### Consumer contract (`avn-typert-protocol`)
 
 Type metadata adds event-form predicates, mode entries, a selection seat, and one member of `TypertClientRemote`, with no runtime code:
 
@@ -119,7 +119,7 @@ It enforces three properties: the name exists because the predicate is keyed by 
 
 Verbatim correspondence is not proved separately because it holds by construction. `$on`'s listener type and Host forwarding both read the owner package's one Cordis `Events` declaration, so no second declaration can drift.
 
-JSON safety remains a runtime concern. Before queueing, the API Remotes Host source checks every argument with `dsh-session`'s `isJsonValue` and fails loudly when one is invalid, because this is an allowlist composition error rather than untrusted input.
+JSON safety remains a runtime concern. Before queueing, the API Remotes Host source checks every argument with `avn-session`'s `isJsonValue` and fails loudly when one is invalid, because this is an allowlist composition error rather than untrusted input.
 
 ### Wire protocol (API Gateway Remote mux)
 
@@ -142,18 +142,18 @@ The `apps/web/tests/**` e2e files typecheck in root `tsconfig.host.json`: they b
 
 This implies one build rule needed by the design: importing a value or type from a Client package in those tests brings that package's whole project and all its project references into the Host build graph. Four consumers (`ui-settings-general`, `ui-settings-models`, `ui-permission`, and `ui-commands`) reference API Remotes' Client face, which cannot compile until Host tsdown generates `@aeven/goal/remote`. That forms a build-order cycle: Host tsc needs API Remotes Client, which needs generated `goal/remote`, which Host tsdown emits after Host tsc.
 
-The few required Client symbols are mirrored on the test side: `scaffold.ts` exports the mirrored welcome-notice constants, while the two chat e2e files import `dsh-client-runtime/client` directly because the Runtime project already belongs to the Host graph. This removes those four consumers from the Host graph, and the 15 Client project references in `apps/cli/tsconfig.json` no longer serve an owner-map role. Each mirror is byte-identical to its source; drift produces a selector mismatch or an unsuppressed notice and fails loudly.
+The few required Client symbols are mirrored on the test side: `scaffold.ts` exports the mirrored welcome-notice constants, while the two chat e2e files import `avn-client-runtime/client` directly because the Runtime project already belongs to the Host graph. This removes those four consumers from the Host graph, and the 15 Client project references in `apps/cli/tsconfig.json` no longer serve an owner-map role. Each mirror is byte-identical to its source; drift produces a selector mismatch or an unsuppressed notice and fails loudly.
 
 ### Change inventory
 
 | Location | Change |
 |---|---|
-| `dsh-typert-protocol` | `src/types.ts` provides forwardable-mode derivation, selection, and Client-listener projection; `TypertClientRemote` exposes only `$on`. Types only, no runtime |
+| `avn-typert-protocol` | `src/types.ts` provides forwardable-mode derivation, selection, and Client-listener projection; `TypertClientRemote` exposes only `$on`. Types only, no runtime |
 | `api/gateway` | Host provides one Remote event source, `$events`, pending-waterfall coordination, and `$events/result`; Client registers the private pump as the Connection generation source and owns frame validation and Cordis dispatch |
 | `api/remotes` | `src/remote-events.ts` (mode-bearing allowlist value) and `src/types.ts` (key projection and selection) belong to both faces; Host registers each Client source and validates JSON before queueing; Client continues to compose generated Remote contributions |
-| Root `tsconfig.base.json` | Adds source-plane `paths` entries for `dsh-settings/types`, `dsh-credentials/types`, and `dsh-api-remotes/types` |
-| `dsh-commands` / `dsh-settings` / `dsh-credentials` | Moves each `interface Events` member to the owner's Client-safe `./types`; settings and credentials add that export, move brands and pure types with it, retain constructors in index, and include `lib/types/**/*.js` in published files |
-| `dsh-session` | Exposes `isJsonValue` for validation of every event argument by the API Remotes Host source |
+| Root `tsconfig.base.json` | Adds source-plane `paths` entries for `avn-settings/types`, `avn-credentials/types`, and `avn-api-remotes/types` |
+| `avn-commands` / `avn-settings` / `avn-credentials` | Moves each `interface Events` member to the owner's Client-safe `./types`; settings and credentials add that export, move brands and pure types with it, retain constructors in index, and include `lib/types/**/*.js` in published files |
+| `avn-session` | Exposes `isJsonValue` for validation of every event argument by the API Remotes Host source |
 | `client/runtime` | Removes the bridge from Host frames to the Remote subscription table; it only publishes `connection/reset` after a Connection generation is established |
 | Consumers | Client plugins subscribe directly through `ctx.remote.$on(...)`, import owner event declarations type-only, and inject `'remote'` |
 | `client/connection` | Provides the one generation-source registration point; `ConnectionController` publishes the Host facts from `$events` ready, and the fixture emits events from the same source |
@@ -193,5 +193,5 @@ The few required Client symbols are mirrored on the test side: `scaffold.ts` exp
 - **Malformed arguments fail at emit.** An API Remotes listener throws before queueing, so Host `ctx.emit` immediately observes an allowlist composition error and the queue can still deliver subsequent valid events.
 - **Test-side mirrors can drift.** No mechanism compares mirrored Client constants under `apps/web/tests` with their source. Drift instead produces a selector mismatch. `apps/web/tests/README.md` records the review rule; a grep-level gate is deliberately omitted.
 - **Capabilities deliberately omitted.** Payload projection and redaction are unsupported, scopes other than Agent are unsupported, and ordinary notifications are not replayed. Recoverable state needs a query, cursor, or opening baseline; a waterfall is replayed only while its original Host invocation remains pending.
-- **Some Client packages remain in the Host graph.** Twelve projects, including `connection`, `runtime`, and `ui-slots`, remain reachable through unsplit `directory-picker-browse`/`-native` and `api/gateway → client/connection`. They compile and no longer pull in API Remotes' Client face, so this change does not split them. Direct `dsh-client-runtime/client` imports in two chat e2e files rely on Runtime's current presence in that graph rather than a general guarantee.
+- **Some Client packages remain in the Host graph.** Twelve projects, including `connection`, `runtime`, and `ui-slots`, remain reachable through unsplit `directory-picker-browse`/`-native` and `api/gateway → client/connection`. They compile and no longer pull in API Remotes' Client face, so this change does not split them. Direct `avn-client-runtime/client` imports in two chat e2e files rely on Runtime's current presence in that graph rather than a general guarantee.
 - **The package intentionally publishes no invariant companion.** A prior revision asserted delivery form on the live event bus, coupling diagnostics to the allowlist and causing Rolldown to emit a third bundle chunk omitted by the mechanically derived publication list. The Host-face `TypertForwardableEventEntry` assertion already rejects those mismatches at compile time, and the package README records why no independent runtime relation remains.

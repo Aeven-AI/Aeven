@@ -5,7 +5,7 @@
 
 import { mkdir, rm } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
-import { resolveDshHome } from '@aeven/home-paths'
+import { resolveAvnHome } from '@aeven/home-paths'
 import type {
   Api,
   AuthInteraction,
@@ -23,11 +23,11 @@ import { OAuthCredentialFileStore, oauthCredentialPath } from './store.ts'
 /**
  * Oauth models cache path.
  * @param basename - Basename value.
- * @param dshHome - Dsh home value.
+ * @param avnHome - Dsh home value.
  * @returns The resulting oauth models cache path.
  */
-export function oauthModelsCachePath(basename: string, dshHome?: string): string {
-  return resolve(join(resolveDshHome(dshHome), basename))
+export function oauthModelsCachePath(basename: string, avnHome?: string): string {
+  return resolve(join(resolveAvnHome(avnHome), basename))
 }
 
 /** Reported oauth provider status. */

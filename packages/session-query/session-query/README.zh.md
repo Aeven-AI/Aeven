@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-session-query` 为代码调用方提供检索会话历史的唯一服务：读取完整原始日志、列出并过滤会话、折叠标题、读取带边界上下文的事件、追踪会话血缘与事件关系，并执行全文搜索。实时会话优先于持久化会话，且返回的每条记录都是脱离存储的克隆，因此结果始终描述同一一致时刻。精确读取、过滤与追踪为内置行为；全文搜索来自挂载的后端，已发布实现为 `dsh-session-query-sqlite`。当你需要以编程方式访问模型所看到的内容时，直接从代码使用它。设置与用法在前；实现内部细节放在下方可折叠的开发者章节中。
+`avn-session-query` 为代码调用方提供检索会话历史的唯一服务：读取完整原始日志、列出并过滤会话、折叠标题、读取带边界上下文的事件、追踪会话血缘与事件关系，并执行全文搜索。实时会话优先于持久化会话，且返回的每条记录都是脱离存储的克隆，因此结果始终描述同一一致时刻。精确读取、过滤与追踪为内置行为；全文搜索来自挂载的后端，已发布实现为 `avn-session-query-sqlite`。当你需要以编程方式访问模型所看到的内容时，直接从代码使用它。设置与用法在前；实现内部细节放在下方可折叠的开发者章节中。
 
 ## 目录
 
@@ -80,7 +80,7 @@ kind: "package-reference"
 - **实时优先的逻辑语料库。** 每次读取都解析一个一致的观察：实时 `ctx.sessions` 优先，可选的 `ctx.sessionPersistence` 补充其余部分，冲突的不可变 header 宁可失败也不合并。
 - **脱离存储的结果。** 所有返回的 header、事件与记录都是克隆；不暴露实时状态，也不保留订阅。
 - **精确读取具体，搜索抽象。** 读取、过滤与追踪在此只实现一次；两个全文方法是由后端拥有的唯一抽象表面。
-- **一次规范的表层折叠。** `listEvents`、`readSurface` 与 `traceEvent` 使用同一个 `dsh-session` 折叠校验整个日志，因此搜索与追踪和模型历史推导一致。
+- **一次规范的表层折叠。** `listEvents`、`readSurface` 与 `traceEvent` 使用同一个 `avn-session` 折叠校验整个日志，因此搜索与追踪和模型历史推导一致。
 
 决策历史记录在[统一服务决策](../../../.agents/notes/archived/architecture/2026-07-23-unified-session-query-service.md)、[追踪笔记](../../../.agents/notes/implemented/feature/2026-07-13-session-query-tracing.zh.md)与 [SQLite 提供方笔记](../../../.agents/notes/implemented/feature/2026-07-10-sqlite-session-query-provider.zh.md)中。
 
@@ -117,8 +117,8 @@ kind: "package-reference"
 当包级约定不够用时阅读以下页面。它们从共享查询词汇逐步进入具体后端与决策证据。
 
 - [会话查询子系统参考](../../../docs/subsystems/session-query.zh.md)——完整类型级约定：记录、过滤器、搜索页、血缘、有界读取与错误。
-- [dsh-session-query-sqlite](../session-query-sqlite/README.zh.md)——已发布的全文后端及其索引生命周期。
-- [dsh-tool-session-query](../tool-session-query/README.zh.md)——构建在本服务之上的面向模型消费方。
+- [avn-session-query-sqlite](../session-query-sqlite/README.zh.md)——已发布的全文后端及其索引生命周期。
+- [avn-tool-session-query](../tool-session-query/README.zh.md)——构建在本服务之上的面向模型消费方。
 - [会话查询关系追踪](../../../.agents/notes/implemented/feature/2026-07-13-session-query-tracing.zh.md)——追踪语义与校验边界。
 - [SQLite FTS5 会话搜索](../../../.agents/notes/implemented/feature/2026-07-10-sqlite-session-query-provider.zh.md)——搜索表面如何实现与对账。
 

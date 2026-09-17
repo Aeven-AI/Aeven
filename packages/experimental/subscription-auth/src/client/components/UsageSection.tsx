@@ -285,7 +285,7 @@ export function UsageSection({ usage, error, loading, t, style, onRefresh }: Usa
               <span
                 style={{
                   display: 'inline-flex',
-                  animation: loading ? 'dsh-coding-oauth-spin 0.8s linear infinite' : undefined,
+                  animation: loading ? 'avn-coding-oauth-spin 0.8s linear infinite' : undefined,
                 }}
               >
                 <RefreshIcon />

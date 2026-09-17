@@ -1,5 +1,5 @@
 ---
-description: "Slot registry pure core for the dsh web client: SlotMap declaration merging, the single register composition API, four-share props types, store seats, and the renderer install contract."
+description: "Slot registry pure core for the avn web client: SlotMap declaration merging, the single register composition API, four-share props types, store seats, and the renderer install contract."
 kind: "package-library"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-client-ui-slots` is the pure core of the web client's slot system: the type-level contract every UI feature composes through. One `register({ name, children?, store?, inject?, ...kind }, Component)` call contributes a component into a declared slot and, in the same breath, declares child slots, a store seat, and the registrant's business face. The component is checked at the call site against `ComposedProps` — the intersection of four shares, each derived from its single source of truth — so a wrong composition fails to compile. Chain-kind slots invert keyed routing: entries self-nominate through a pure selector instead of the dispatch site picking an `entryKey`. The package is React-free and Cordis-free at runtime (React types only); `ui-renderer` owns the engine implementation and React bindings.
+`avn-client-ui-slots` is the pure core of the web client's slot system: the type-level contract every UI feature composes through. One `register({ name, children?, store?, inject?, ...kind }, Component)` call contributes a component into a declared slot and, in the same breath, declares child slots, a store seat, and the registrant's business face. The component is checked at the call site against `ComposedProps` — the intersection of four shares, each derived from its single source of truth — so a wrong composition fails to compile. Chain-kind slots invert keyed routing: entries self-nominate through a pure selector instead of the dispatch site picking an `entryKey`. The package is React-free and Cordis-free at runtime (React types only); `ui-renderer` owns the engine implementation and React bindings.
 
 ## Table of Contents
 

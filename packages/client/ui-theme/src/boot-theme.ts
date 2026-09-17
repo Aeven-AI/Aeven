@@ -18,8 +18,8 @@ function bootThemeScript(preference: ThemePreference, fontSize: number): string 
   const dark = preference === 'dark' || systemDark
   document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
   document.body.toggleAttribute('data-ds-dark-theme', dark)
-  document.body.style.setProperty('--dsh-content-font-size', ${JSON.stringify(`${fontSize}px`)})
-  document.body.style.setProperty('--dsh-content-font-size-secondary', ${JSON.stringify(`${secondaryFontSize(fontSize)}px`)})
+  document.body.style.setProperty('--avn-content-font-size', ${JSON.stringify(`${fontSize}px`)})
+  document.body.style.setProperty('--avn-content-font-size-secondary', ${JSON.stringify(`${secondaryFontSize(fontSize)}px`)})
 })()`
 }
 

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Incremental canonical session-log upload for official DeepSeek LLM API requests. This function plugin injects `ctx.sessions` and `ctx.deepseekLlmApiExtensions`, then owns the `dsh_session_log` request field and the durable `session-log-deepseek/delivery-accepted` event from which it derives the acceptance watermark. Enable it only when the official API should receive a Session-log suffix.
+Incremental canonical session-log upload for official DeepSeek LLM API requests. This function plugin injects `ctx.sessions` and `ctx.deepseekLlmApiExtensions`, then owns the `avn_session_log` request field and the durable `session-log-deepseek/delivery-accepted` event from which it derives the acceptance watermark. Enable it only when the official API should receive a Session-log suffix.
 
 ## Table of Contents
 
@@ -27,7 +27,7 @@ Incremental canonical session-log upload for official DeepSeek LLM API requests.
 
 | Key | Default | Meaning |
 |---|---:|---|
-| `enabled` | `false` | Register the `dsh_session_log` contribution. Set it to `true` to opt into Session-log upload. |
+| `enabled` | `false` | Register the `avn_session_log` contribution. Set it to `true` to opt into Session-log upload. |
 
 Shipped profiles mount the plugin so an overlay can enable it, but the default configuration registers no request field and appends no acceptance watermark.
 
@@ -43,7 +43,7 @@ The DeepSeek adapter calls the prepared contribution's `accept()` after HTTP 2xx
 
 A crash after server acceptance but before the watermark reaches persistence can replay an accepted range after restart. This is the at-least-once failure direction: uncertainty creates duplicates, never a skipped sequence. The ordinary session checkpoint policy persists the watermark at the next semantic checkpoint; this plugin performs no independent I/O.
 
-Direct requests without a live Session omit `dsh_session_log`. Normal agent, compaction, and session-title calls carry their live Session id.
+Direct requests without a live Session omit `avn_session_log`. Normal agent, compaction, and session-title calls carry their live Session id.
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -52,7 +52,7 @@ Direct requests without a live Session omit `dsh_session_log`. Normal agent, com
 
 #### What the model sees
 
-Nothing. `dsh_session_log` is a sibling of the DeepSeek request's model-input fields and is not inserted into `messages`, the system prompt, or tool schemas.
+Nothing. `avn_session_log` is a sibling of the DeepSeek request's model-input fields and is not inserted into `messages`, the system prompt, or tool schemas.
 
 #### Token effect
 

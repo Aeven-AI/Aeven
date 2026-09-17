@@ -30,7 +30,7 @@ interface AssembledBootOptions {
 interface ClientPackageManifest {
   name?: string
   exports?: Record<string, string | { default?: string }>
-  dsh?: {
+  avn?: {
     client?: {
       platform?: string
       inject?: string[]
@@ -80,7 +80,7 @@ function resolveClientExport(packagePath: string, pkg: ClientPackageManifest): s
   const declared = pkg.exports?.['./client']
   const relative = typeof declared === 'string' ? declared : declared?.default
   if (relative === undefined) {
-    throw new Error(`assembled boot: ${pkg.name ?? packagePath} declares dsh.client without a ./client export`)
+    throw new Error(`assembled boot: ${pkg.name ?? packagePath} declares avn.client without a ./client export`)
   }
   return resolve(dirname(packagePath), relative)
 }
@@ -88,7 +88,7 @@ function resolveClientExport(packagePath: string, pkg: ClientPackageManifest): s
 const comboUrl = (ids: readonly string[], rev: string): string =>
   `/plugins/??${ids.map(id => `${id}/client.js`).join(',')}&rev=${rev}`
 
-/** Derive the assembled browser graph from the same bundle patches and package declarations as `dsh web`. */
+/** Derive the assembled browser graph from the same bundle patches and package declarations as `avn web`. */
 function loadAssembledPlugins(): readonly AssembledPlugin[] {
   const entries = appBoot.composeEntries(BUNDLE_LAYERS.map(layer =>
     appBoot.loadOverlayPatches('assembled boot', layer.patch)))
@@ -98,7 +98,7 @@ function loadAssembledPlugins(): readonly AssembledPlugin[] {
     const packagePath = resolvePackageManifest(entry.name)
     if (packagePath === undefined) continue
     const pkg = JSON.parse(readFileSync(packagePath, 'utf8')) as ClientPackageManifest
-    const declaration = pkg.dsh?.client
+    const declaration = pkg.avn?.client
     if (declaration?.platform !== 'web') continue
     if (pkg.name !== entry.name) {
       throw new Error(`assembled boot: ${entry.name} resolved package ${pkg.name ?? '<unnamed>'}`)

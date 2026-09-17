@@ -14,7 +14,7 @@ Python SDK 运行时分发需要 Windows 载体，同时不能创建另一个应
 
 `python/sdk-runtime/platforms.json` 声明唯一的 Windows 目标 `win-x64`。其 pkg 目标是 `node24-win-x64`，运行时 wheel 标签是 `py3-none-win_amd64`，载荷包含 `deepseek-harness-sdk-runtime-win-x64.exe` 与 `deepseek-harness-sdk-runtime-win-x64-rg.exe`。打包后的 `node-pty` 文件树必须包含两个 x64 ConPTY addon。运行时查找会拒绝 Windows arm64，不会选择 x64 wheel 或把它重新标记为 arm64。
 
-Python 进程仍按 [Python profile 运行时决策](2026-08-23-python-sdk-dsh-profile-runtime.zh.md)启动普通 `dsh --profile sdk` 应用，并要求显式 Harness home。Windows 不会增加 Python 专用 Node 应用、完整配置入口、隐式 `~/.dsh` 或系统 Node 要求。
+Python 进程仍按 [Python profile 运行时决策](2026-08-23-python-sdk-avn-profile-runtime.zh.md)启动普通 `avn --profile sdk` 应用，并要求显式 Harness home。Windows 不会增加 Python 专用 Node 应用、完整配置入口、隐式 `~/.avn` 或系统 Node 要求。
 
 ### 原生构建与发布
 
@@ -28,7 +28,7 @@ Windows lane 会创建干净的 Windows 虚拟环境，安装版本精确匹配�
 
 公开 Python 客户端通过 `initialize_timeout_seconds` 为首次 profile 握手提供独立的 30 秒默认上限。该上限可容纳 Windows x64 可执行文件冷启动与 profile 物化，同时仍会使卡死的运行时失败；调用方可将其与普通请求超时分开配置。
 
-成功收到 shutdown 响应后，Python 客户端会关闭 stdin，并在已配置的 shutdown 超时内等待 `dsh` 上下文退出及刷写持久 session 状态，然后才回退到终止进程。Shutdown 失败时仍立即执行有界终止。`shutdown_timeout_seconds` 会分别限制 shutdown 请求、EOF 宽限与终止确认阶段，因此异常关闭在最终 kill 前可能接近该值的三倍。该区别会保留 Windows 上最后一个已接受轮次；该平台的 `terminate()` 会强制结束进程，而不是发送可捕获信号。
+成功收到 shutdown 响应后，Python 客户端会关闭 stdin，并在已配置的 shutdown 超时内等待 `avn` 上下文退出及刷写持久 session 状态，然后才回退到终止进程。Shutdown 失败时仍立即执行有界终止。`shutdown_timeout_seconds` 会分别限制 shutdown 请求、EOF 宽限与终止确认阶段，因此异常关闭在最终 kill 前可能接近该值的三倍。该区别会保留 Windows 上最后一个已接受轮次；该平台的 `terminate()` 会强制结束进程，而不是发送可捕获信号。
 
 极简黑盒测试在 Windows 上使用持久 `pwsh` 与 `str_replace_editor`，并由 `minimal/win-x64/model-visible.json` 固定预期；Linux 与 macOS 保留持久 Bash 和共享的 `minimal/model-visible.json`。高级进程／subagent 快照与重启／持久日志快照继续由所有目标共享。随附的 [`sdk-minimal` 组合包](../../../../packages/bundle/sdk-minimal/README.zh.md)为可运行 Python 教程选择同一组平台 shell。
 
@@ -38,7 +38,7 @@ Windows lane 会创建干净的 Windows 虚拟环境，安装版本精确匹配�
 
 ## Alternatives considered
 
-**在 dsh profile 运行时之前增加 Windows。** 否决：针对已退役私有直启载体的测试无法证明 Windows 用户实际获得的形态。Windows 仅定义于唯一的 `dsh` 启动架构。
+**在 avn profile 运行时之前增加 Windows。** 否决：针对已退役私有直启载体的测试无法证明 Windows 用户实际获得的形态。Windows 仅定义于唯一的 `avn` 启动架构。
 
 **同时发布 Windows arm64。** 否决：已接受的产品范围只有 x64；增加第二种架构需要独立的原生构建器、wheel 标签、ConPTY 与 ripgrep 载荷校验、installed-wheel 矩阵 lane 及发布产物。
 

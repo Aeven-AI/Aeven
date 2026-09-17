@@ -38,7 +38,7 @@ inherited process environment      (read-only, wins)
 > $AVN_HOME/.env
 ```
 
-The launching environment wins because `DEEPSEEK_API_KEY=… dsh`, a CI secret, and a container `-e` are the one override an operator must be able to apply per run without editing machine state, and because it cannot be edited from inside it must be *visibly* read-only. Configuration is meant to carry only the *reference* — which name to resolve — and that name follows the non-secret ordering above.
+The launching environment wins because `DEEPSEEK_API_KEY=… avn`, a CI secret, and a container `-e` are the one override an operator must be able to apply per run without editing machine state, and because it cannot be edited from inside it must be *visibly* read-only. Configuration is meant to carry only the *reference* — which name to resolve — and that name follows the non-secret ordering above.
 
 **The project the harness is launched in is trusted, by default and without a prompt.** A checkout may carry its own endpoint, its own ordinary variables, and its own key; the key ranks below the managed store, so a key stored through the Models page is never displaced by one a checkout happens to contain. `LaunchEnvironmentSnapshot.getFrom(name, sources)` still searches only the layers a caller names, and omitting one is a refusal rather than a demotion — the mechanism exists for decisions where a layer must be unreachable; this decision includes the project layer.
 

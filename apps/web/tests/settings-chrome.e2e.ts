@@ -219,7 +219,7 @@ describe('web e2e: settings modal and General preferences', () => {
     let reload: ReturnType<Page['reload']> | undefined
     try {
       reload = page.reload({ waitUntil: 'domcontentloaded' })
-      const loading = page.locator('#dsh-preloader:not(.screen-hidden)')
+      const loading = page.locator('#avn-preloader:not(.screen-hidden)')
       await loading.waitFor({ timeout: 10_000 })
       const state = await loading.evaluate((element) => {
         const background = element.querySelector('.background')
@@ -278,7 +278,7 @@ describe('web e2e: settings modal and General preferences', () => {
       return {
         attr: document.body.hasAttribute('data-ds-dark-theme'),
         background: computed.backgroundColor,
-        legacy: localStorage.getItem('dsh.theme'),
+        legacy: localStorage.getItem('avn.theme'),
         themeColor: metas[0]?.content ?? null,
         themeColorCount: metas.length,
         token: computed.getPropertyValue('--dsw-alias-bg-base').trim(),
@@ -369,14 +369,14 @@ describe('web e2e: settings modal and General preferences', () => {
   it('steps the content font size, applies it to body, and persists across reload', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-settings-font-size'))
     const readFontSize = async (target: Page = page): Promise<string> => await target.evaluate(
-      () => document.body.style.getPropertyValue('--dsh-content-font-size'),
+      () => document.body.style.getPropertyValue('--avn-content-font-size'),
     )
     // The secondary tier resolved by the real engine: a probe element's
     // font-size forces min/max/calc evaluation, which the CSS-text specs
     // cannot exercise. Setting −1 at ≤14, setting −2 above.
     const readSecondaryFontSize = async (): Promise<string> => await page.evaluate(() => {
       const probe = document.createElement('div')
-      probe.style.fontSize = 'var(--dsh-content-font-size-secondary, 13px)'
+      probe.style.fontSize = 'var(--avn-content-font-size-secondary, 13px)'
       document.body.appendChild(probe)
       const size = getComputedStyle(probe).fontSize
       probe.remove()
@@ -466,7 +466,7 @@ describe('web e2e: settings modal and General preferences', () => {
     await dialog.getByRole('button', { name: '排队发送' }).click()
     await page.getByRole('menuitem', { name: '插话发送' }).click()
     await dialog.getByRole('button', { name: '插话发送' }).waitFor({ timeout: 10_000 })
-    expect(await page.evaluate(() => localStorage.getItem('dsh.conversation.busyEnter'))).toBeNull()
+    expect(await page.evaluate(() => localStorage.getItem('avn.conversation.busyEnter'))).toBeNull()
     await expect.poll(async () => readFile(join(scaffold.harnessHome, 'settings.yaml'), 'utf8'), { timeout: 5_000 })
       .toMatch(/ui-conversation:\n\s+busyEnter: steer/)
     await page.keyboard.press('Escape')
@@ -489,7 +489,7 @@ describe('web e2e: settings modal and General preferences', () => {
       await secondPage.getByRole('button', { name: '设置', exact: true }).click()
       await secondPage.getByRole('dialog', { name: '设置' })
         .getByRole('button', { name: '插话发送' }).waitFor({ timeout: 10_000 })
-      expect(await secondPage.evaluate(() => localStorage.getItem('dsh.conversation.busyEnter'))).toBeNull()
+      expect(await secondPage.evaluate(() => localStorage.getItem('avn.conversation.busyEnter'))).toBeNull()
       expect(secondTripwire.pageErrors).toEqual([])
       expect(secondTripwire.warnings).toEqual([])
     } finally {
@@ -500,7 +500,7 @@ describe('web e2e: settings modal and General preferences', () => {
     await reloaded.getByRole('button', { name: '插话发送' }).click()
     await page.getByRole('menuitem', { name: '排队发送' }).click()
     await reloaded.getByRole('button', { name: '排队发送' }).waitFor({ timeout: 10_000 })
-    expect(await page.evaluate(() => localStorage.getItem('dsh.conversation.busyEnter'))).toBeNull()
+    expect(await page.evaluate(() => localStorage.getItem('avn.conversation.busyEnter'))).toBeNull()
     await expect.poll(async () => readFile(join(scaffold.harnessHome, 'settings.yaml'), 'utf8'), { timeout: 5_000 })
       .toMatch(/ui-conversation:\n\s+busyEnter: queue/)
     await page.keyboard.press('Escape')
@@ -531,7 +531,7 @@ describe('web e2e: settings modal and General preferences', () => {
     await expect.poll(() => page.evaluate(() => document.documentElement.lang), { timeout: 5_000 }).toBe('en')
     expect(await enDialog.getByRole('button', { name: 'General' }).getAttribute('aria-current')).toBe('true')
     await expect.poll(() => enDialog.getByText('Appearance', { exact: true }).count(), { timeout: 5_000 }).toBe(1)
-    expect(await page.evaluate(() => localStorage.getItem('dsh.locale'))).toBeNull()
+    expect(await page.evaluate(() => localStorage.getItem('avn.locale'))).toBeNull()
     await expect.poll(async () => readFile(join(scaffold.harnessHome, 'settings.yaml'), 'utf8'), { timeout: 5_000 })
       .toMatch(/locale:\n\s+preference: en/)
     // Reload keeps English; then restore zh so shared page state (and the
@@ -555,7 +555,7 @@ describe('web e2e: settings modal and General preferences', () => {
       await secondPage.getByRole('button', { name: 'Settings', exact: true }).click()
       await secondPage.getByRole('dialog', { name: 'Settings' })
         .getByRole('button', { name: 'English' }).waitFor({ timeout: 10_000 })
-      expect(await secondPage.evaluate(() => localStorage.getItem('dsh.locale'))).toBeNull()
+      expect(await secondPage.evaluate(() => localStorage.getItem('avn.locale'))).toBeNull()
       expect(secondTripwire.pageErrors).toEqual([])
       expect(secondTripwire.warnings).toEqual([])
     } finally {
@@ -567,7 +567,7 @@ describe('web e2e: settings modal and General preferences', () => {
     await page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'English' }).click()
     await page.getByRole('menuitem', { name: '中文' }).click()
     await page.getByRole('dialog', { name: '设置' }).waitFor({ timeout: 10_000 })
-    expect(await page.evaluate(() => localStorage.getItem('dsh.locale'))).toBeNull()
+    expect(await page.evaluate(() => localStorage.getItem('avn.locale'))).toBeNull()
     await expect.poll(async () => readFile(join(scaffold.harnessHome, 'settings.yaml'), 'utf8'), { timeout: 5_000 })
       .toMatch(/locale:\n\s+preference: zh/)
     await page.keyboard.press('Escape')
@@ -586,7 +586,7 @@ describe('web e2e: settings modal and General preferences', () => {
     try {
       await enPage.goto(fresh.authenticatedUrl, { waitUntil: 'load' })
       await enPage.waitForSelector('[class*="frame"]', { timeout: 30_000 })
-      expect(await enPage.evaluate(() => localStorage.getItem('dsh.locale'))).toBeNull()
+      expect(await enPage.evaluate(() => localStorage.getItem('avn.locale'))).toBeNull()
       await enPage.getByRole('button', { name: 'Settings', exact: true }).click()
       const dialog = enPage.getByRole('dialog', { name: 'Settings' })
       await dialog.waitFor({ timeout: 10_000 })
@@ -619,7 +619,7 @@ describe('web e2e: settings modal and General preferences', () => {
     try {
       await frPage.goto(fresh.authenticatedUrl, { waitUntil: 'load' })
       await frPage.waitForSelector('[class*="frame"]', { timeout: 30_000 })
-      expect(await frPage.evaluate(() => localStorage.getItem('dsh.locale'))).toBeNull()
+      expect(await frPage.evaluate(() => localStorage.getItem('avn.locale'))).toBeNull()
       await frPage.getByRole('button', { name: 'Settings', exact: true }).click()
       const dialog = frPage.getByRole('dialog', { name: 'Settings' })
       await dialog.waitFor({ timeout: 10_000 })

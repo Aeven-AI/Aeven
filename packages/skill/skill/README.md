@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Agents and users can access reusable, task-specific instructions through one lookup no matter where the instructions come from: any provider can contribute skills from local directories, embedded plugin data, or a remote service, and every consumer receives one merged catalog with the winning skill for each name and can load any skill's full instructions on demand. Mount this plugin when skills should be loadable from more than one source or from a non-filesystem source, and skip it when a composition loads no skills. It ships no skill content of its own — pair it with at least one provider (the shipped `dsh-skill-filesystem`), and with `dsh-tool-skill` when agents should load skills.
+Agents and users can access reusable, task-specific instructions through one lookup no matter where the instructions come from: any provider can contribute skills from local directories, embedded plugin data, or a remote service, and every consumer receives one merged catalog with the winning skill for each name and can load any skill's full instructions on demand. Mount this plugin when skills should be loadable from more than one source or from a non-filesystem source, and skip it when a composition loads no skills. It ships no skill content of its own — pair it with at least one provider (the shipped `avn-skill-filesystem`), and with `avn-tool-skill` when agents should load skills.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ Mount the plugin to give a composition one skill registry. Skill sources (provid
 
 ### When to choose it
 
-Use `dsh-skill` when agents should load skills from more than one source through one interface, or when the source of skills is not the local filesystem. Avoid it when a composition needs no skill loading at all — the plugin adds a service and a per-lookup discovery cost. The shipped local provider (`dsh-skill-filesystem`) and the model-facing consumer (`dsh-tool-skill`) are separate packages; mount them alongside when the deployment wants local skills and model access.
+Use `avn-skill` when agents should load skills from more than one source through one interface, or when the source of skills is not the local filesystem. Avoid it when a composition needs no skill loading at all — the plugin adds a service and a per-lookup discovery cost. The shipped local provider (`avn-skill-filesystem`) and the model-facing consumer (`avn-tool-skill`) are separate packages; mount them alongside when the deployment wants local skills and model access.
 
 ### Mount and configure
 
@@ -120,7 +120,7 @@ Read these pages when the package-level contract is not enough. They move from t
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through `dsh-tool-skill`, which renders provider summaries into durable initial or replacement catalog messages and loaded instruction bodies into retained tool results.
+Indirectly, through `avn-tool-skill`, which renders provider summaries into durable initial or replacement catalog messages and loaded instruction bodies into retained tool results.
 
 #### KV Cache effect
 

@@ -29,9 +29,9 @@ afterEach(async () => {
 
 describe('request image verification', () => {
   it('rejects an encoded request whose decoded facts disagree with the encoder result', async () => {
-    const dshHome = await mkdtemp(join(tmpdir(), 'dsh-request-verification-'))
-    homes.push(dshHome)
-    const attachments = new LocalAttachmentStore(new Context(), { dshHome })
+    const avnHome = await mkdtemp(join(tmpdir(), 'avn-request-verification-'))
+    homes.push(avnHome)
+    const attachments = new LocalAttachmentStore(new Context(), { avnHome })
     const source = new Uint8Array(await sharp({
       create: { width: 64, height: 32, channels: 3, background: { r: 12, g: 34, b: 56 } },
     }).png().toBuffer())

@@ -22,7 +22,7 @@ export interface User {
 /**
  * The facts an authority is given to identify the caller.
  *
- * Headers only, because that is what both DSH transports have in common: an
+ * Headers only, because that is what both AVN transports have in common: an
  * HTTP request carries the credential in `authorization`, and a WebSocket
  * upgrade carries it in `cookie`. Nothing here is decoded — an authority reads
  * whichever it recognizes.
@@ -34,7 +34,7 @@ export interface IdentityRequest {
 /**
  * An authority that turns a request's credential into the person who made it.
  *
- * Resolution is synchronous by contract. DSH consults it inside the request
+ * Resolution is synchronous by contract. AVN consults it inside the request
  * fence that already runs for every HTTP request and every WebSocket upgrade,
  * and that fence answers before dispatch; an authority that must call out to a
  * network service cannot be consulted there.
@@ -47,7 +47,7 @@ export interface UserResolver {
    * @param request - the credential-bearing headers.
    * @returns the authenticated user, or undefined when the credential is
    * absent, malformed, or expired. The reason is deliberately not reported:
-   * DSH answers 401 either way, and distinguishing them for a caller that
+   * AVN answers 401 either way, and distinguishing them for a caller that
    * failed to authenticate describes the credential to whoever supplied it.
    */
   resolve(request: IdentityRequest): User | undefined

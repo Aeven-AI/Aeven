@@ -6,58 +6,58 @@ import {
   DEFAULT_AVN_HOME_DISPLAY,
   AVN_HOME_DIR_NAME,
   canonicalizeWatchPath,
-  defaultDshHome,
-  dshHomeDisplay,
-  dshHomePath,
+  defaultAvnHome,
+  avnHomeDisplay,
+  avnHomePath,
   expandHomePath,
-  resolveDshHome,
+  resolveAvnHome,
 } from '@aeven/home-paths'
 
 afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-describe('dsh path helpers', () => {
-  it('owns the shared default DSH home directory name', () => {
-    expect(AVN_HOME_DIR_NAME).toBe('.dsh')
-    expect(DEFAULT_AVN_HOME_DISPLAY).toBe('~/.dsh')
-    expect(defaultDshHome()).toBe(join(homedir(), '.dsh'))
+describe('avn path helpers', () => {
+  it('owns the shared default AVN home directory name', () => {
+    expect(AVN_HOME_DIR_NAME).toBe('.avn')
+    expect(DEFAULT_AVN_HOME_DISPLAY).toBe('~/.avn')
+    expect(defaultAvnHome()).toBe(join(homedir(), '.avn'))
   })
 
   it('expands tilde paths without changing non-tilde paths', () => {
     expect(expandHomePath('~')).toBe(homedir())
-    expect(expandHomePath('~/.dsh')).toBe(join(homedir(), '.dsh'))
-    expect(expandHomePath('~\\.dsh')).toBe(join(homedir(), '.dsh'))
-    expect(expandHomePath('/tmp/.dsh')).toBe('/tmp/.dsh')
-    expect(expandHomePath('~other/.dsh')).toBe('~other/.dsh')
+    expect(expandHomePath('~/.avn')).toBe(join(homedir(), '.avn'))
+    expect(expandHomePath('~\\.avn')).toBe(join(homedir(), '.avn'))
+    expect(expandHomePath('/tmp/.avn')).toBe('/tmp/.avn')
+    expect(expandHomePath('~other/.avn')).toBe('~other/.avn')
   })
 
   it('resolves explicit path before AVN_HOME and the default', () => {
-    const envHome = join(homedir(), 'env-dsh')
+    const envHome = join(homedir(), 'env-avn')
 
-    expect(resolveDshHome('/tmp/explicit-dsh', { AVN_HOME: '~/env-dsh' })).toBe(resolve('/tmp/explicit-dsh'))
-    expect(resolveDshHome(undefined, { AVN_HOME: '~/env-dsh' })).toBe(envHome)
-    expect(resolveDshHome(undefined, {})).toBe(defaultDshHome())
+    expect(resolveAvnHome('/tmp/explicit-avn', { AVN_HOME: '~/env-avn' })).toBe(resolve('/tmp/explicit-avn'))
+    expect(resolveAvnHome(undefined, { AVN_HOME: '~/env-avn' })).toBe(envHome)
+    expect(resolveAvnHome(undefined, {})).toBe(defaultAvnHome())
   })
 
   it('treats an empty or whitespace-only AVN_HOME as unset', () => {
-    expect(resolveDshHome(undefined, { AVN_HOME: '' })).toBe(defaultDshHome())
-    expect(resolveDshHome(undefined, { AVN_HOME: '   ' })).toBe(defaultDshHome())
+    expect(resolveAvnHome(undefined, { AVN_HOME: '' })).toBe(defaultAvnHome())
+    expect(resolveAvnHome(undefined, { AVN_HOME: '   ' })).toBe(defaultAvnHome())
   })
 
   it('joins child segments onto the resolved AVN_HOME', () => {
-    vi.stubEnv('AVN_HOME', '~/env-dsh')
-    expect(dshHomePath()).toBe(join(homedir(), 'env-dsh'))
-    expect(dshHomePath('storages', 'cache')).toBe(join(homedir(), 'env-dsh', 'storages', 'cache'))
+    vi.stubEnv('AVN_HOME', '~/env-avn')
+    expect(avnHomePath()).toBe(join(homedir(), 'env-avn'))
+    expect(avnHomePath('storages', 'cache')).toBe(join(homedir(), 'env-avn', 'storages', 'cache'))
   })
 
   it('labels a resolved home by whether it is the default root', () => {
-    expect(dshHomeDisplay(resolve(defaultDshHome()))).toBe('~/.dsh')
-    expect(dshHomeDisplay('/some/other/root')).toBe('$AVN_HOME')
+    expect(avnHomeDisplay(resolve(defaultAvnHome()))).toBe('~/.avn')
+    expect(avnHomeDisplay('/some/other/root')).toBe('$AVN_HOME')
   })
 
   it('canonicalizes a watcher ancestor while preserving a missing suffix', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dsh-watch-path-'))
+    const root = await mkdtemp(join(tmpdir(), 'avn-watch-path-'))
     const target = join(root, 'target')
     const alias = join(root, 'alias')
     try {

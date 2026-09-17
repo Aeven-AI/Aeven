@@ -5,7 +5,7 @@
  * DELETE + FILE_DELETE_CHILD (never WRITE_DAC/WRITE_OWNER).
  *
  * All state lives in %TEMP% mkdtemp scratch directories; the only exception
- * is the mandated lock infrastructure under <GetTempPathW()>\dsh-acl-locks,
+ * is the mandated lock infrastructure under <GetTempPathW()>\avn-acl-locks,
  * whose per-test lock file is removed in cleanup.
  */
 
@@ -111,7 +111,7 @@ describe.skipIf(!isWin32)('ACL editing', () => {
   })
 
   function scratch(): string {
-    const dir = mkdtempSync(join(tmpdir(), 'dsh-acl-edit-'))
+    const dir = mkdtempSync(join(tmpdir(), 'avn-acl-edit-'))
     scratchDirs.push(dir)
     return dir
   }

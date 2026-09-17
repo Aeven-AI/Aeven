@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-agent-instructions` loads `AGENTS.md`-compatible workspace instruction files into model context: the user-global file and the project chain reach the first request as one durable baseline, and successful `read`, `write`, or `edit` calls bring newly relevant nested files, changes, and removals into later requests. `dsh-base` includes it by default, and a profile patch can disable it. Everything is bounded by a byte budget: broader files are omitted before the most specific file is truncated, and an empty chain contributes nothing. There is no file watcher — external edits become visible on the next successful filesystem touch or when a resumed session reconciles its baseline.
+`avn-agent-instructions` loads `AGENTS.md`-compatible workspace instruction files into model context: the user-global file and the project chain reach the first request as one durable baseline, and successful `read`, `write`, or `edit` calls bring newly relevant nested files, changes, and removals into later requests. `avn-base` includes it by default, and a profile patch can disable it. Everything is bounded by a byte budget: broader files are omitted before the most specific file is truncated, and an empty chain contributes nothing. There is no file watcher — external edits become visible on the next successful filesystem touch or when a resumed session reconciles its baseline.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin when agents should work from the workspace's own instruction files. `dsh-base` already includes it with a 65,536-byte budget, so base-backed profiles only need to replace the row when they want another `maxBytes`; providerless trees load nothing until a filesystem provider is present.
+Mount this plugin when agents should work from the workspace's own instruction files. `avn-base` already includes it with a 65,536-byte budget, so base-backed profiles only need to replace the row when they want another `maxBytes`; providerless trees load nothing until a filesystem provider is present.
 
 ### What the agent gets
 
@@ -45,7 +45,7 @@ The accepted fields, at a glance:
 
 ```ts
 export interface Config {
-  dshHome?: string
+  avnHome?: string
   projectRootMarkers?: string[]
   maxBytes: number
   maxSourceBytes?: number
@@ -61,7 +61,7 @@ export interface Config {
 | `projectRootMarkers` | `['.git']` | Directory names that mark the project root |
 | `instructionFileCandidates` | `['AGENTS.md', 'CLAUDE.md']` | Base file names loaded in each project directory |
 | `localInstructionFileCandidates` | `['AGENTS.local.md', 'CLAUDE.local.md']` | Local overlay file names loaded after the base files |
-| `dshHome` | `$AVN_HOME` or `~/.dsh` | Directory containing the user-global `AGENTS.md` |
+| `avnHome` | `$AVN_HOME` or `~/.avn` | Directory containing the user-global `AGENTS.md` |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aeven-agent-instructions) is the exhaustive source for every accepted field and its JSDoc.
 
@@ -134,7 +134,7 @@ At the first request, derived history contains one durable user-role message wit
 <system-reminder>
 The following workspace instructions may be relevant to your work. Use them as guidance when applicable. More specific instructions take precedence over broader ones. They do not override system, developer, or direct user instructions.
 
-Instructions from: ~/.dsh/AGENTS.md
+Instructions from: ~/.avn/AGENTS.md
 
 <user-global-instructions>
 

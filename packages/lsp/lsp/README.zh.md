@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-lsp` 为 harness 提供语言服务器代码导航：agent 可以转到符号的定义、查找其引用、跳转到其实现或阅读悬停文档，代码导航服务（`ctx.lsp`）会把每个查询路由到拥有该文件扩展名的语言服务器提供方。提供方按品牌化 id 与文件扩展名注册，因此更换提供方绝不会改变请求导航的方式，也不会改变模型看到的内容。该服务恰好暴露四种只读操作，没有通用 JSON-RPC 逃生口；它自身不贡献提示词或工具 schema——面向模型的 `lsp` 工具位于 `dsh-tool-lsp`。与 `dsh-lsp-stdio` 之类的提供方及该工具组合，即可为 agent 提供精确导航；本包单独加载时什么也不做。
+`avn-lsp` 为 harness 提供语言服务器代码导航：agent 可以转到符号的定义、查找其引用、跳转到其实现或阅读悬停文档，代码导航服务（`ctx.lsp`）会把每个查询路由到拥有该文件扩展名的语言服务器提供方。提供方按品牌化 id 与文件扩展名注册，因此更换提供方绝不会改变请求导航的方式，也不会改变模型看到的内容。该服务恰好暴露四种只读操作，没有通用 JSON-RPC 逃生口；它自身不贡献提示词或工具 schema——面向模型的 `lsp` 工具位于 `avn-tool-lsp`。与 `avn-lsp-stdio` 之类的提供方及该工具组合，即可为 agent 提供精确导航；本包单独加载时什么也不做。
 
 ## 目录
 
@@ -43,7 +43,7 @@ seam 需要提供方与消费方才能发挥作用。最小组合挂载服务、
 - name: '@aeven/tool-lsp'
 ```
 
-服务器命令、扩展名映射与文件系统／子进程配对在提供方与工具包中配置；见 [dsh-lsp-stdio](../lsp-stdio/README.zh.md) 与 [dsh-tool-lsp](../tool-lsp/README.zh.md)。
+服务器命令、扩展名映射与文件系统／子进程配对在提供方与工具包中配置；见 [avn-lsp-stdio](../lsp-stdio/README.zh.md) 与 [avn-tool-lsp](../tool-lsp/README.zh.md)。
 
 ### 四种操作
 
@@ -74,7 +74,7 @@ seam 需要提供方与消费方才能发挥作用。最小组合挂载服务、
 
 ### 设计理念
 
-- **能力 seam，Service Definition 角色。** 本包拥有 `ctx.lsp` 与提供方注册表；提供方注册的是能力而非工具，`dsh-tool-lsp` 是面向模型表层的唯一 owner。
+- **能力 seam，Service Definition 角色。** 本包拥有 `ctx.lsp` 与提供方注册表；提供方注册的是能力而非工具，`avn-tool-lsp` 是面向模型表层的唯一 owner。
 - **原子注册。** `registerProvider()` 在变更前验证并检查全部冲突：无效或冲突的注册不会发布任何内容，其 disposer 会一并释放 id 与全部扩展名保留。
 - **与顺序无关的选择。** `query()` 按文件的最终扩展名（规范化为小写、以点开头的形式）路由；注册与 HMR 顺序绝不会改变路由。language id 只用于同步临时文档，绝不参与选择。
 - **封闭的词汇。** 四种操作的联合是封闭的——新增操作是跨 seam、提供方与工具的编译期强制变更。没有 JSON-RPC 逃生口，且每个请求字段都必填，因此不存在 `resolve()` 步骤。
@@ -104,8 +104,8 @@ seam 需要提供方与消费方才能发挥作用。最小组合挂载服务、
 
 - [LSP 导航子系统](../../../docs/subsystems/lsp.zh.md)——操作、坐标、请求与结果，以及 `LspError` code。
 - [LSP 能力 seam Agent Note](../../../.agents/notes/implemented/architecture/2026-07-15-lsp-capability-seam.zh.md)——设计原理、备选方案与刻意推迟的 API。
-- [dsh-lsp-stdio](../lsp-stdio/README.zh.md)——注册到该 seam 的 stdio 提供方。
-- [dsh-tool-lsp](../tool-lsp/README.zh.md)——基于该 seam 的面向模型工具。
+- [avn-lsp-stdio](../lsp-stdio/README.zh.md)——注册到该 seam 的 stdio 提供方。
+- [avn-tool-lsp](../tool-lsp/README.zh.md)——基于该 seam 的面向模型工具。
 - [lsp 组地图](../README.zh.md)——三个包的家族及其相关文档。
 
 -----
@@ -113,11 +113,11 @@ seam 需要提供方与消费方才能发挥作用。最小组合挂载服务、
 <a id="model-experience"></a>
 ## 模型体验
 
-通过 `dsh-tool-lsp` 间接影响；该工具拥有面向模型的 `lsp` schema、提示词指引与渲染结果，本注册表自身不贡献提示词或 schema。
+通过 `avn-tool-lsp` 间接影响；该工具拥有面向模型的 `lsp` schema、提示词指引与渲染结果，本注册表自身不贡献提示词或 schema。
 
 #### KV Cache 影响
 
-不会直接失效；请求前缀变更由 `dsh-tool-lsp` 负责。
+不会直接失效；请求前缀变更由 `avn-tool-lsp` 负责。
 
 ## 已知限制与延期工作
 

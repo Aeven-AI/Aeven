@@ -26,7 +26,7 @@ import {
   registerGrokBuildAuthRoutes,
 } from '../src/auth-routes.ts'
 import type { CatalogSource } from '../src/catalog.ts'
-import type { DshCompatibility } from '../src/compatibility.ts'
+import type { AvnCompatibility } from '../src/compatibility.ts'
 import type { PkceLoginCallbacks } from '../src/oauth.ts'
 import {
   CLAUDE_CODE_OAUTH_PROVIDER,
@@ -80,7 +80,7 @@ afterEach(async () => {
 })
 
 async function loginHandler(): Promise<RegisteredRoute['handler']> {
-  const directory = await mkdtemp(join(tmpdir(), 'dsh-coding-oauth-routes-'))
+  const directory = await mkdtemp(join(tmpdir(), 'avn-coding-oauth-routes-'))
   temporaryDirectories.push(directory)
   const routes = new Map<string, RegisteredRoute['handler']>()
   const cleanups: Array<() => void | Promise<void>> = []
@@ -814,7 +814,7 @@ interface CodingRouteHarness {
 
 function codingRouteHarness(options: {
   policy?: OwnerRequestPolicy
-  compatibility?: (accessMode: OwnerAccessMode) => DshCompatibility
+  compatibility?: (accessMode: OwnerAccessMode) => AvnCompatibility
   grokOptions?: GrokSessionOptions
   subscriptions?: readonly OAuthProviderSession[]
   codexLogin?: (interaction: AuthInteraction) => Promise<Credential>
@@ -1080,9 +1080,9 @@ describe('Grok logout route', () => {
   })
 })
 
-const injectedCompatibility = (accessMode: OwnerAccessMode): DshCompatibility => ({
+const injectedCompatibility = (accessMode: OwnerAccessMode): AvnCompatibility => ({
   coreAbi: 'injected-abi',
-  dshVersion: '9.9.9',
+  avnVersion: '9.9.9',
   status: 'healthy',
   uiOwner: 'hub',
   accessMode,
@@ -1147,7 +1147,7 @@ describe('coding OAuth status route', () => {
     expect(body.uiOwner).toBe('standalone')
     expect(body.compatibility).toEqual({
       coreAbi: CODING_OAUTH_CORE_ABI,
-      dshVersion: null,
+      avnVersion: null,
       status: 'degraded',
       uiOwner: 'standalone',
       accessMode: 'ssh-tunnel',

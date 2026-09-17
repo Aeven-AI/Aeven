@@ -21,7 +21,7 @@
   width: auto;
   height: var(--dsw-aeven-control-size);
   margin: 0;
-  padding: 0 var(--dsh-sidebar-inline-padding);
+  padding: 0 var(--avn-sidebar-inline-padding);
   box-sizing: border-box;
   border: none;
   border-radius: 0;
@@ -95,8 +95,8 @@
      elevation choice sits with the surface; the custom properties inherit
      down to whichever descendant scrolls (see ui-theme
      styles/scrollbar.css for the rebinding contract). */
-  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
-  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 
 /* Nav rail (figma .Setting-nav 501:29958): 188 wide, pad (12,22,12,0),

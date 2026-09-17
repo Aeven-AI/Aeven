@@ -42,7 +42,7 @@ export interface VfsStats {
 /**
  * Stats as Node returns them under `{ bigint: true }`.
  *
- * The filesystem service (`dsh-fs-local`) stats every target this way and then
+ * The filesystem service (`avn-fs-local`) stats every target this way and then
  * does BigInt arithmetic on `mode` and builds its version token from
  * `dev:ino:size:mtimeNs:ctimeNs`, so these fields are load-bearing rather than
  * decorative: a number-valued `mode` here fails the whole read as a type error,

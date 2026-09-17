@@ -1,5 +1,5 @@
 ---
-description: "DSH web 客户端的 Aeven 登录、注册与 OAuth 结果界面，以及 boot kernel 在插件图存在之前调用的会话恢复、bearer 刷新与已认证传输辅助函数。"
+description: "AVN web 客户端的 Aeven 登录、注册与 OAuth 结果界面，以及 boot kernel 在插件图存在之前调用的会话恢复、bearer 刷新与已认证传输辅助函数。"
 kind: "package-library"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-`dsh-client-ui-auth-aeven` 为 DSH web 壳提供 Aeven 认证界面：它恢复既有的 Aeven 会话，在没有会话时展示登录、注册与 OAuth 结果界面，并在之后把 Aeven bearer 附加到每次 DSH RPC 调用上。web boot kernel 在任何插件运行之前直接调用它，因此读者要么到达已认证的应用，要么到达登录界面，绝不会停在半启动状态。在 Aeven 客户端中开始的会话在此可被理解，反之亦然，因为两者使用相同的存储键与相同的 `appBearers` 结构。本包中没有任何面向模型的内容。
+`avn-client-ui-auth-aeven` 为 AVN web 壳提供 Aeven 认证界面：它恢复既有的 Aeven 会话，在没有会话时展示登录、注册与 OAuth 结果界面，并在之后把 Aeven bearer 附加到每次 AVN RPC 调用上。web boot kernel 在任何插件运行之前直接调用它，因此读者要么到达已认证的应用，要么到达登录界面，绝不会停在半启动状态。在 Aeven 客户端中开始的会话在此可被理解，反之亦然，因为两者使用相同的存储键与相同的 `appBearers` 结构。本包中没有任何面向模型的内容。
 
 ## 目录
 
@@ -27,7 +27,7 @@ kind: "package-library"
 
 ### 何时使用它
 
-这是一个库而非插件：认证 gate 在插件图存在之前运行，因此它的代码无法经由投递插件的模块系统抵达。它被静态链接进 [`dsh-client-web`](../web/README.zh.md)，那是它唯一的调用方。当你要改动 web 壳的启动序列时使用它；仅需知道谁已登录的功能应改为读取已声明的读者，而不是导入本包，因为插件 bundle 无法触及它。
+这是一个库而非插件：认证 gate 在插件图存在之前运行，因此它的代码无法经由投递插件的模块系统抵达。它被静态链接进 [`avn-client-web`](../web/README.zh.md)，那是它唯一的调用方。当你要改动 web 壳的启动序列时使用它；仅需知道谁已登录的功能应改为读取已声明的读者，而不是导入本包，因为插件 bundle 无法触及它。
 
 ### 入口点
 
@@ -108,9 +108,9 @@ Aeven 无法抵达期间，access token 会过期而没有续期能替换它，�
 
 当仅有该界面还不够时阅读这些：调用它的壳、校验它所建立内容的 authority，以及展示结果的菜单。
 
-- [dsh-client-web](../web/README.zh.md)——在插件图之前以本库为闸门的 boot kernel。
-- [dsh-identity-user-aeven](../../identity/user-aeven/README.zh.md)——校验凭据并声明本库所读端点的 Host authority。
-- [dsh-client-ui-account-aeven](../ui-account-aeven/README.zh.md)——读取本库所声明读者的账户菜单。
+- [avn-client-web](../web/README.zh.md)——在插件图之前以本库为闸门的 boot kernel。
+- [avn-identity-user-aeven](../../identity/user-aeven/README.zh.md)——校验凭据并声明本库所读端点的 Host authority。
+- [avn-client-ui-account-aeven](../ui-account-aeven/README.zh.md)——读取本库所声明读者的账户菜单。
 - [client 组映射](../README.zh.md)——本包所属的浏览器家族。
 
 -----

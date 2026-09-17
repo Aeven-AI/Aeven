@@ -8,7 +8,7 @@ English | [中文](2026-07-08-tool-output-spill-files.zh.md)
 
 Tool outputs need bounded model-facing previews, but some oversized results are still useful later. A fetched page body or a verbose tool response should not consume the next model request in full, but the model should be able to inspect the complete formatted result later with existing file-reading tools.
 
-Before this change the behavior was uneven. `dsh-bash-local` already writes complete stdout/stderr streams to private temp spill files when its in-memory tail overflows, but ordinary text tool results were returned inline unless the tool hand-rolled its own cap. The [tool result retention library](2026-07-06-tool-result-retention-library.md) owns preview mechanics, but it does not own storage or an execution-pipeline policy that applies those mechanics to final tool results.
+Before this change the behavior was uneven. `avn-bash-local` already writes complete stdout/stderr streams to private temp spill files when its in-memory tail overflows, but ordinary text tool results were returned inline unless the tool hand-rolled its own cap. The [tool result retention library](2026-07-06-tool-result-retention-library.md) owns preview mechanics, but it does not own storage or an execution-pipeline policy that applies those mechanics to final tool results.
 
 The shape matches the timeout policy design: a tool author declares a canonical value plus Native renderer, and a policy plugin enforces the deployment's default context budget on rendered content. Tool-specific early spill remains possible for provider acquisition bounds; tool-owned presentation spill may retain a complete acquired canonical value while replacing only presentation. The [canonical tool-output contract](2026-07-20-canonical-tool-output-contract.md) owns that split.
 
@@ -22,7 +22,7 @@ A thin spill storage seam plus a default spill policy plugin, in a new `packages
 | `@aeven/spill-local` | Local backend: private, session-scoped file storage on the host filesystem. |
 | `@aeven/spill-policy` | Tool-result policy plugin: wraps final text results after dispatch and replaces oversized results with a retained preview plus a spill locator. |
 
-There is no dedicated model-facing Consumer package. The Consumer is the existing `ctx.tools` execution pipeline: `dsh-spill-policy` consumes final tool results through the `tools/post-execute` waterfall, and the model follows the backend-supplied retrieval hint for the returned locator.
+There is no dedicated model-facing Consumer package. The Consumer is the existing `ctx.tools` execution pipeline: `avn-spill-policy` consumes final tool results through the `tools/post-execute` waterfall, and the model follows the backend-supplied retrieval hint for the returned locator.
 
 ### Spill seam
 
@@ -57,11 +57,11 @@ interface SpillRef {
 
 `SpillLocator` is a [branded](../../../../packages/util/brand) model-facing handle returned by the backend. The local backend renders it as a filesystem path; a remote or database backend can render a URI, key, or command token. Consumers treat it as opaque and render it with `retrievalHint` instead of assuming `read` is always the right retrieval mechanism. `SpillOwner.sessionId` is the save-time storage namespace: forked sessions inherit existing spill locators from the seeded log without copying or re-owning them, and new spills after the fork use the child session id. A retention-period cleanup may expire old locators with other old session artifacts; the spill seam does not define a per-session cleanup policy.
 
-`dsh-spill-local` owns storage details: session-scoped directory selection, safe names, path-traversal protection, the write, local artifact lifetime, and returning `{ locator, bytes, retrievalHint }`. It does not own tool-result replacement, model-facing preview policy, search, file inspection, or a seam-wide/per-session retention policy. Files land at `<root>/session-<hash>/<random>-<safeName>`, where `root` is a configured path or a lazily-created private (0700) per-process temp dir, the session subdir is a short `sha256(sessionId)` prefix, and the leaf is a random hex prefix plus the caller's `suggestedName` sanitized to one path segment (mirrors the JSONL backend's `encodeSegment`). The write is `open(path, 'wx', 0o600)` — exclusive and owner-only, so a planted symlink cannot redirect it. The locator is the path, and the retrieval hint tells the model it can use `read` or `grep` on that path. Its one-shot startup cleanup applies the backend-specific artifact lifetime described in the [local spill cleanup note](./2026-07-17-local-spill-startup-cleanup.md).
+`avn-spill-local` owns storage details: session-scoped directory selection, safe names, path-traversal protection, the write, local artifact lifetime, and returning `{ locator, bytes, retrievalHint }`. It does not own tool-result replacement, model-facing preview policy, search, file inspection, or a seam-wide/per-session retention policy. Files land at `<root>/session-<hash>/<random>-<safeName>`, where `root` is a configured path or a lazily-created private (0700) per-process temp dir, the session subdir is a short `sha256(sessionId)` prefix, and the leaf is a random hex prefix plus the caller's `suggestedName` sanitized to one path segment (mirrors the JSONL backend's `encodeSegment`). The write is `open(path, 'wx', 0o600)` — exclusive and owner-only, so a planted symlink cannot redirect it. The locator is the path, and the retrieval hint tells the model it can use `read` or `grep` on that path. Its one-shot startup cleanup applies the backend-specific artifact lifetime described in the [local spill cleanup note](./2026-07-17-local-spill-startup-cleanup.md).
 
 ### Spill policy
 
-`dsh-spill-policy` is a `tools/post-execute` result transformer with one configuration knob:
+`avn-spill-policy` is a `tools/post-execute` result transformer with one configuration knob:
 
 ```ts ignore-check
 interface Config {
@@ -110,7 +110,7 @@ ctx.tools.register(defineTool({
 }))
 ```
 
-With `dsh-spill-policy` configured, a large formatted fetch result is automatically retained and spilled. A deployment demonstrates the behavior by setting the provider resource cap higher than the policy cap:
+With `avn-spill-policy` configured, a large formatted fetch result is automatically retained and spilled. A deployment demonstrates the behavior by setting the provider resource cap higher than the policy cap:
 
 ```yaml
 - id: web-fetch-http
@@ -165,10 +165,10 @@ Cleanup shipped for the local backend as a one-shot startup sweep, not tied to s
 
 ## Testing
 
-- `dsh-spill` unit tests pin the seam contract: registration as `ctx.spillStore`, one-implementation-per-context, and disposal release.
-- `dsh-spill-local` unit tests cover `saveText`, `encodeSegment` sanitization (separators/tilde/whole-segment dots/empty), the session-hash directory, owner-only permissions, distinct paths per save, the configured/private root, and a storage-failure rejection.
-- `dsh-spill-policy` unit tests drive real tools through `ctx.tools.execute`: disabled-mode no-op, oversized-text replacement, small/non-text passthrough, `read` skip, best-effort fallback (save failure / no backend / no owner), and downstream-composition (bounding a replaced result, preserving `additionalContexts`).
-- `dsh-tool-web` integration drives `web_fetch` through `ctx.tools.execute` with the real `spill-local` backend + policy, proving the model-facing text changes only by the deliberate spill notice while the spill file holds the full formatted result.
+- `avn-spill` unit tests pin the seam contract: registration as `ctx.spillStore`, one-implementation-per-context, and disposal release.
+- `avn-spill-local` unit tests cover `saveText`, `encodeSegment` sanitization (separators/tilde/whole-segment dots/empty), the session-hash directory, owner-only permissions, distinct paths per save, the configured/private root, and a storage-failure rejection.
+- `avn-spill-policy` unit tests drive real tools through `ctx.tools.execute`: disabled-mode no-op, oversized-text replacement, small/non-text passthrough, `read` skip, best-effort fallback (save failure / no backend / no owner), and downstream-composition (bounding a replaced result, preserving `additionalContexts`).
+- `avn-tool-web` integration drives `web_fetch` through `ctx.tools.execute` with the real `spill-local` backend + policy, proving the model-facing text changes only by the deliberate spill notice while the spill file holds the full formatted result.
 - The `tui-agent` example loads `spill-local` + `spill-policy`, so its keyless Loader/PTY smoke exercises the real load path (the namespace-plugin export shape + `inject`).
 
 ## Consequences
@@ -179,7 +179,7 @@ Returning real paths keeps the local backend simple and matches proven agent-too
 
 The local-backend value proposition depends on the existing `read`/`grep` tools being able to inspect the returned local path, even when the spill directory is outside the session cwd. That holds because the filesystem policy records observations and write guards but does not confine reads to the workspace. A future workspace-confinement policy must either allow local spill paths explicitly or use a non-file spill backend whose retrieval hint points at a supported reader.
 
-**Snapshot gap.** No ACP snapshot scenario covers the transcript-visible `web_fetch` spill notice yet. The ACP snapshot harness replays keyless and cannot hit the live web, and a `web_fetch` spill requires a real over-cap HTTP body; a deterministic scenario would need a seeded loopback fetch target the replay tree does not currently wire (the examples do not load `tool-web` at all). The behavior is covered instead by the `dsh-tool-web` integration test against a loopback server. Closing the gap is follow-up work: wire `tool-web` + a seeded fetch target into the ACP example, then record a `web-fetch-spill` scenario.
+**Snapshot gap.** No ACP snapshot scenario covers the transcript-visible `web_fetch` spill notice yet. The ACP snapshot harness replays keyless and cannot hit the live web, and a `web_fetch` spill requires a real over-cap HTTP body; a deterministic scenario would need a seeded loopback fetch target the replay tree does not currently wire (the examples do not load `tool-web` at all). The behavior is covered instead by the `avn-tool-web` integration test against a loopback server. Closing the gap is follow-up work: wire `tool-web` + a seeded fetch target into the ACP example, then record a `web-fetch-spill` scenario.
 
 The policy can become too large if it starts owning tool-specific semantics. It stays narrow: plain-text final results only. Tool-owned early spill remains future work.
 

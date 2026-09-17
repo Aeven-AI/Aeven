@@ -12,11 +12,11 @@ The earlier [direct core entry-point decision](../architecture/2026-08-09-headle
 
 ## Decision
 
-`headless-runner` observes the exact Session it creates after startup quiescence and before submitting the task. Once the owned interval opens with `turn/start`, each non-empty `assistant/chunk.reasoning-delta` is written immediately to stderr. A contiguous reasoning phase starts with `dsh: reasoning:` on its own line; deltas retain provider order without token-boundary decoration. Reasoning block boundaries and usage metadata keep that phase open; a later non-reasoning block or output delta, stream finish, new turn, or listener disposal terminates it with one newline when the provider supplied none.
+`headless-runner` observes the exact Session it creates after startup quiescence and before submitting the task. Once the owned interval opens with `turn/start`, each non-empty `assistant/chunk.reasoning-delta` is written immediately to stderr. A contiguous reasoning phase starts with `avn: reasoning:` on its own line; deltas retain provider order without token-boundary decoration. Reasoning block boundaries and usage metadata keep that phase open; a later non-reasoning block or output delta, stream finish, new turn, or listener disposal terminates it with one newline when the provider supplied none.
 
 This output is a transient projection of the existing durable Session event stream. The runner still derives final text and exit status from the flushed log rather than from progress-presentation state. The LLM adapter, agent loop, Session event types, persistence format, and SDK projections do not change.
 
-Reasoning progress is not TTY-gated and has no separate flag. A redirected stderr stream and a supervisor receive the same provider-reported content as an attached terminal. A successful run without reasoning still writes nothing to stderr; terminal model and driver errors keep their existing `dsh:` diagnostics after any open reasoning phase is terminated.
+Reasoning progress is not TTY-gated and has no separate flag. A redirected stderr stream and a supervisor receive the same provider-reported content as an attached terminal. A successful run without reasoning still writes nothing to stderr; terminal model and driver errors keep their existing `avn:` diagnostics after any open reasoning phase is terminated.
 
 ## Verification
 

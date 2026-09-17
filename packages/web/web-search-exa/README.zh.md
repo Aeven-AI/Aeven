@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-有了 `dsh-web-search-exa`，harness 可以通过 Exa 搜索 web，获得带可移植 snippet 与发布日期的厂商原生结果。当部署持有 Exa API 密钥、并希望使用 Exa 的关键词或神经搜索时选择它。Exa 不返回生成答案，因此结果不携带 `content`——只产出可引用的来源。没有非空白高亮的来源会被丢弃，因此一次调用返回的来源可能少于请求数量。面向模型的 `web_search` 工具位于 `dsh-tool-web`。
+有了 `avn-web-search-exa`，harness 可以通过 Exa 搜索 web，获得带可移植 snippet 与发布日期的厂商原生结果。当部署持有 Exa API 密钥、并希望使用 Exa 的关键词或神经搜索时选择它。Exa 不返回生成答案，因此结果不携带 `content`——只产出可引用的来源。没有非空白高亮的来源会被丢弃，因此一次调用返回的来源可能少于请求数量。面向模型的 `web_search` 工具位于 `avn-tool-web`。
 
 ## 目录
 
@@ -101,8 +101,8 @@ kind: "package-reference"
 
 - [web 子系统](../../../docs/subsystems/web.zh.md)——穷尽式的搜索请求／结果词汇与错误码。
 - [web 包映射](../README.zh.md)——六包家族与各角色。
-- [dsh-web](../web/README.zh.md)——本提供方注册进入的 web 服务。
-- [dsh-tool-web](../tool-web/README.zh.md)——渲染本提供方来源的面向模型 `web_search` 工具。
+- [avn-web](../web/README.zh.md)——本提供方注册进入的 web 服务。
+- [avn-tool-web](../tool-web/README.zh.md)——渲染本提供方来源的面向模型 `web_search` 工具。
 - [生成配置目录](../../../docs/config-catalog.zh.md#aeven-web-search-exa)——每个受支持配置字段及其源声明。
 - [web 能力 seam 决策](../../../.agents/notes/implemented/architecture/2026-06-24-web-capability-seam.zh.md)——搜索与抓取为何共用一项提供方选择服务。
 
@@ -111,7 +111,7 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-间接地，通过 `dsh-tool-web`：该工具把本提供方经 `maxResults` 限制的 URL、标题、首条高亮与发布日期，或将确切的错误消息 `Exa search aborted`、`Exa search request failed: <error>` 和 `Exa returned an unprocessable response body: <error>` 保留在消费方的错误包装层内。
+间接地，通过 `avn-tool-web`：该工具把本提供方经 `maxResults` 限制的 URL、标题、首条高亮与发布日期，或将确切的错误消息 `Exa search aborted`、`Exa search request failed: <error>` 和 `Exa returned an unprocessable response body: <error>` 保留在消费方的错误包装层内。
 
 #### KV Cache 影响
 
@@ -126,7 +126,7 @@ kind: "package-reference"
 
 - **没有非空白高亮的来源会被整个丢弃**——没有可映射的可移植 snippet，因此返回来源可能少于请求数量。
 - **只公开 `searchType`／`numResults`／`highlightsPerResult`**——Exa 的其他控制项（livecrawl、category、域名／日期过滤条件、全文内容）等待提供方无关的服务字段（见 [seam Agent Note](../../../.agents/notes/implemented/architecture/2026-06-24-web-capability-seam.zh.md)）。
-- **按错误形状分类中止**——只有名为 `AbortError` 的 `DOMException` 才映射为 `WEB_ABORTED`；携带自定义原因的中止（例如 `dsh-timeout` 的 `TimeoutReason`）呈现为 `WEB_PROVIDER_ERROR`。
+- **按错误形状分类中止**——只有名为 `AbortError` 的 `DOMException` 才映射为 `WEB_ABORTED`；携带自定义原因的中止（例如 `avn-timeout` 的 `TimeoutReason`）呈现为 `WEB_PROVIDER_ERROR`。
 
 <a id="dev-note"></a>
 ### 开发备注

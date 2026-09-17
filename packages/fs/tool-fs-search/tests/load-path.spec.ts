@@ -22,7 +22,7 @@ import ToolRuntime from '@aeven/tools'
 import LocalSubprocessRuntime from '@aeven/subprocess-local'
 import * as toolFsSearch from '@aeven/tool-fs-search'
 
-describe('dsh-tool-fs-search real-load-path guard', () => {
+describe('avn-tool-fs-search real-load-path guard', () => {
   it('has no default export and keeps name/inject/Config through unwrapExports', () => {
     expect('default' in toolFsSearch).toBe(false)
 

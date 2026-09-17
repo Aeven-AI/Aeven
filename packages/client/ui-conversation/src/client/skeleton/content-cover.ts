@@ -5,7 +5,7 @@ import type { OpenState } from '@aeven/api-session-controller/client'
 import type { SessionId } from '@aeven/session/types'
 
 /** Static page-preloader id from `apps/web/index.html`. */
-export const PAGE_PRELOADER_ELEMENT_ID = 'dsh-preloader'
+export const PAGE_PRELOADER_ELEMENT_ID = 'avn-preloader'
 
 /** Inputs that decide whether the conversation column stays covered. */
 export interface ContentCoverInput {
@@ -27,7 +27,7 @@ export interface ContentCover {
 
 /**
  * Whether the static page preloader still occupies the screen.
- * @returns true while `#dsh-preloader` is in the document and not `.screen-hidden`.
+ * @returns true while `#avn-preloader` is in the document and not `.screen-hidden`.
  */
 export function isPagePreloaderVisible(): boolean {
   const el = document.getElementById(PAGE_PRELOADER_ELEMENT_ID)
@@ -35,7 +35,7 @@ export function isPagePreloaderVisible(): boolean {
 }
 
 /**
- * Follow `#dsh-preloader` visibility, including the fade that precedes
+ * Follow `#avn-preloader` visibility, including the fade that precedes
  * `.screen-hidden`.
  * @returns true while the page preloader still occupies the screen.
  */

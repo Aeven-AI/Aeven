@@ -29,11 +29,11 @@
     var(--dsw-tint-surface-fade) 55%,
     transparent 100%
   );
-  animation: dsh-skill-row-sweep 2.6s ease-out infinite;
+  animation: avn-skill-row-sweep 2.6s ease-out infinite;
   pointer-events: none;
 }
 
-@keyframes dsh-skill-row-sweep {
+@keyframes avn-skill-row-sweep {
   0% { left: -300px; }
   90%, 100% { left: 100%; }
 }

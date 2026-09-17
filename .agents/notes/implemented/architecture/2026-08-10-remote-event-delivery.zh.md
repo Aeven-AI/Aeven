@@ -28,7 +28,7 @@ Host 拥有 `agent-preset/selected`、`commands/change`、`credentials/reference
 
 `skills/change`、`tools/change`、`system-prompt/change` 是同形状的纯失效事件但**没有任何已交付消费者**，按「每个抽象都要有当前 owner 与需求」不进名单，只作为扩展位记录在此。
 
-### 消费端契约（dsh-typert-protocol）
+### 消费端契约（avn-typert-protocol）
 
 type-meta 加事件形状谓词、mode 条目、选择座位和 `TypertClientRemote` 的一个成员；零运行时代码：
 
@@ -119,7 +119,7 @@ API_REMOTE_FORWARDED_EVENTS satisfies readonly TypertForwardableEventEntry[]
 
 **「原样」不在任何地方证明，而是构造性成立**：`$on` 的 listener 类型取自 owner 包 `./types` 里那一份 cordis `Events` 声明，host 转发读的是同一份，不存在可以彼此偏离的第二份声明。
 
-载荷 JSON-safe 交给运行时：`api/remotes` 的 Host source 在入队前用 `dsh-session` 的 `isJsonValue` 逐元素校验，不合格**抛错 fail loud**（这是名单配置错误，不是外部输入）。
+载荷 JSON-safe 交给运行时：`api/remotes` 的 Host source 在入队前用 `avn-session` 的 `isJsonValue` 逐元素校验，不合格**抛错 fail loud**（这是名单配置错误，不是外部输入）。
 
 ### 线协议（API Gateway Remote mux）
 
@@ -142,18 +142,18 @@ Client 要求首项是带非空 `clientId` 与 `host.home` 的 `ready`；后续 
 
 由此得到一条对本设计要紧的连带纪律：**这些测试从客户端包 import 值或类型，会把该包的整个 project——以及它引用的每个 project——拖进 Host 构建图**。`ui-settings-general`/`ui-settings-models`/`ui-permission`/`ui-commands` 四个消费者 references `api/remotes` 的 client face，而该 face 必须等 host tsdown 生成 `@aeven/goal/remote` 才能编译，于是形成构建期死锁：host tsc → api/remotes client face → `goal/remote` → host tsdown → 排在 host tsc 之后。
 
-所需的客户端符号在测试侧**镜像**了一份（`scaffold.ts` 导出镜像后的 welcome-notice 常量，两个 chat e2e 直接引 `dsh-client-runtime/client` 因为 `runtime` 工程本来就在 host 图里），从而让那 4 个消费者离开了 host 图；`apps/cli/tsconfig.json` 里 15 条 client 工程引用随之失去 owner-map 职责，已一并删除。镜像值与源逐字一致，漂移的表现是选择器失配或通知未被抑制，都是响亮失败。
+所需的客户端符号在测试侧**镜像**了一份（`scaffold.ts` 导出镜像后的 welcome-notice 常量，两个 chat e2e 直接引 `avn-client-runtime/client` 因为 `runtime` 工程本来就在 host 图里），从而让那 4 个消费者离开了 host 图；`apps/cli/tsconfig.json` 里 15 条 client 工程引用随之失去 owner-map 职责，已一并删除。镜像值与源逐字一致，漂移的表现是选择器失配或通知未被抑制，都是响亮失败。
 
 ### 改动清单
 
 | 位置 | 改动 |
 |---|---|
-| `dsh-typert-protocol` | `src/types.ts` 提供 forwardable mode 推导、selection 与 Client listener 投影；`TypertClientRemote` 只公开 `$on`。纯类型，零运行时 |
+| `avn-typert-protocol` | `src/types.ts` 提供 forwardable mode 推导、selection 与 Client listener 投影；`TypertClientRemote` 只公开 `$on`。纯类型，零运行时 |
 | `api/gateway` | Host 半提供唯一 Remote event source、`$events` stream、pending waterfall 协调和 `$events/result`；Client 半把私有 pump 注册为 Connection generation source，负责 frame 校验和 Cordis 分发 |
 | `api/remotes` | `src/remote-events.ts`（带 mode 的名单值）与 `src/types.ts`（键投影 + selection）双列进两个 face；Host 半注册每 Client source，并在入队前校验 JSON；Client 半继续组合生成的 Remote contribution |
-| 根 `tsconfig.base.json` | 加 `dsh-settings/types`、`dsh-credentials/types`、`dsh-api-remotes/types` 三条 `paths`，全部指向**源**平面 |
-| `dsh-commands` / `dsh-settings` / `dsh-credentials` | `interface Events` 子块移入各自 client-safe 的 `./types`（settings/credentials 新建该出口，brand 与纯类型一并移入，index 继续 re-export 并留住构造器；`files` 补 `lib/types/**/*.js`） |
-| `dsh-session` | `isJsonValue` 供 `api/remotes` Host source 校验每个事件参数 |
+| 根 `tsconfig.base.json` | 加 `avn-settings/types`、`avn-credentials/types`、`avn-api-remotes/types` 三条 `paths`，全部指向**源**平面 |
+| `avn-commands` / `avn-settings` / `avn-credentials` | `interface Events` 子块移入各自 client-safe 的 `./types`（settings/credentials 新建该出口，brand 与纯类型一并移入，index 继续 re-export 并留住构造器；`files` 补 `lib/types/**/*.js`） |
+| `avn-session` | `isJsonValue` 供 `api/remotes` Host source 校验每个事件参数 |
 | `client/runtime` | 删除 Host frame 到 Remote subscription table 的桥；只继续在 Connection generation 建立后发布 `connection/reset` |
 | 消费方 | Client 插件直接订阅 `ctx.remote.$on(...)`，type-only 引入 owner 事件声明并把 `'remote'` 加进 `inject` |
 | `client/connection` | 提供唯一 generation source 注册位；`ConnectionController` 发布 `$events` ready 携带的 Host 信息，fixture 也从同一 source 产生事件 |
@@ -195,5 +195,5 @@ Client 要求首项是带非空 `clientId` 与 `host.home` 的 `ready`；后续 
 - **畸形实参在 emit 点失败**：`api/remotes` listener 在入队前抛出，因此调用 Host `ctx.emit` 的操作立即看到名单配置错误；队列仍可继续投递后续合法事件。
 - **测试侧镜像值可能漂移**：没有任何机制核对 `apps/web/tests` 中镜像的 client 常量与其源；安全网只是漂移会让选择器失配。规则写在 `apps/web/tests/README.md`，由 review 守；grep 级门禁经评估后刻意不做。
 - **放弃的能力**：不支持投影或脱敏载荷，不支持 Agent 以外的 Scope，也不为普通通知提供重放。需要可靠恢复的状态必须拥有查询、cursor 或 opening baseline；waterfall 只重放仍处于同一次 Host 调用生命周期内的 pending request。
-- **仍有 client 包留在 host 图里**：12 个工程（`connection`、`runtime`、`ui-slots` 等）经未拆分的 `directory-picker-browse`/`-native` 与 `api/gateway → client/connection` 仍可达 host 图。它们都能编译且不再牵连 api/remotes 的 client face，因此没有阻塞本次改动；拆分那些包能减少几个，但经评估后不做。两个 chat e2e 直接引 `dsh-client-runtime/client` 依赖 `runtime` 本来就在图里——属偶然而非保证。
+- **仍有 client 包留在 host 图里**：12 个工程（`connection`、`runtime`、`ui-slots` 等）经未拆分的 `directory-picker-browse`/`-native` 与 `api/gateway → client/connection` 仍可达 host 图。它们都能编译且不再牵连 api/remotes 的 client face，因此没有阻塞本次改动；拆分那些包能减少几个，但经评估后不做。两个 chat e2e 直接引 `avn-client-runtime/client` 依赖 `runtime` 本来就在图里——属偶然而非保证。
 - **本包不发布 invariant companion**：早先的修订曾在活事件总线上断言投递形状（`thisArg === null`、`mode === 'emit'`），这让诊断逻辑与名单值耦合，并使 rolldown 把它提成第三个 bundle chunk——而机械推导的发布文件清单并不携带它。Host 面的 `TypertForwardableEventEntry` 断言已在编译期拒绝这些偏离，包 README 也记录了不再存在独立运行时关系的原因。

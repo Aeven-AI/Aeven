@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-session-query` gives code callers one service for retrieving session history: read a complete raw log, list and filter sessions, fold titles, read events with bounded context, trace session lineage and event relationships, and run full-text search. Live sessions take precedence over persisted ones, and every returned record is a detached clone, so results always describe one consistent moment. Exact reads, filters, and traces are built in; full-text search comes from a mounted backend such as `dsh-session-query-sqlite`. Use it directly from code when you need programmatic access to what the model saw. Setup and usage come first; the implementation internals live in a collapsible developer section below.
+`avn-session-query` gives code callers one service for retrieving session history: read a complete raw log, list and filter sessions, fold titles, read events with bounded context, trace session lineage and event relationships, and run full-text search. Live sessions take precedence over persisted ones, and every returned record is a detached clone, so results always describe one consistent moment. Exact reads, filters, and traces are built in; full-text search comes from a mounted backend such as `avn-session-query-sqlite`. Use it directly from code when you need programmatic access to what the model saw. Setup and usage come first; the implementation internals live in a collapsible developer section below.
 
 ## Table of Contents
 
@@ -80,7 +80,7 @@ The service is built on one separation and three commitments:
 - **Live-preferred logical corpus.** Every read resolves one consistent observation: live `ctx.sessions` wins, optional `ctx.sessionPersistence` fills the rest, and conflicting immutable headers fail rather than merge.
 - **Detached results.** All returned headers, events, and records are cloned; nothing exposes live state or a retained subscription.
 - **Exact reads concrete, search abstract.** Reads, filters, and traces are implemented here once; the two full-text methods are the only abstract surface a backend owns.
-- **One canonical surface fold.** `listEvents`, `readSurface`, and `traceEvent` validate the whole log with the same `dsh-session` fold, so search and traces agree with model-history derivation.
+- **One canonical surface fold.** `listEvents`, `readSurface`, and `traceEvent` validate the whole log with the same `avn-session` fold, so search and traces agree with model-history derivation.
 
 The decision history lives in the [unified service decision](../../../.agents/notes/archived/architecture/2026-07-23-unified-session-query-service.md), the [tracing note](../../../.agents/notes/implemented/feature/2026-07-13-session-query-tracing.md), and the [SQLite provider note](../../../.agents/notes/implemented/feature/2026-07-10-sqlite-session-query-provider.md).
 
@@ -117,8 +117,8 @@ The decision history lives in the [unified service decision](../../../.agents/no
 Read these pages when the package-level contract is not enough. They move from the shared query vocabulary to the concrete backend and the decision evidence.
 
 - [Session Query subsystem reference](../../../docs/subsystems/session-query.md) — the full type-level contract: records, filters, search pages, lineage, bounded reads, and errors.
-- [dsh-session-query-sqlite](../session-query-sqlite/README.md) — the shipped full-text backend and its index lifecycle.
-- [dsh-tool-session-query](../tool-session-query/README.md) — the model-facing consumer built on this service.
+- [avn-session-query-sqlite](../session-query-sqlite/README.md) — the shipped full-text backend and its index lifecycle.
+- [avn-tool-session-query](../tool-session-query/README.md) — the model-facing consumer built on this service.
 - [Session query relationship tracing](../../../.agents/notes/implemented/feature/2026-07-13-session-query-tracing.md) — trace semantics and the validation boundary.
 - [SQLite FTS5 session search](../../../.agents/notes/implemented/feature/2026-07-10-sqlite-session-query-provider.md) — how the search surface is implemented and reconciled.
 

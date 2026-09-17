@@ -3,7 +3,7 @@
  * requests retain string user content; the image path resolves durable
  * attachments into ordered file-id or inline parts. Tool-result images follow their
  * string-only tool messages in a separate user message.
- * @module dsh-llm-deepseek/serialize
+ * @module avn-llm-deepseek/serialize
  */
 
 import { contentHasImage, LlmError, offloadedImageText, offloadRequestImagesWithPolicy, requestImageHandleText } from '@aeven/llm'

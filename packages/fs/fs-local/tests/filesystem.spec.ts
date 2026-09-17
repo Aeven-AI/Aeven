@@ -3,7 +3,7 @@
  * file/streamed text reads, atomic guarded writes (createIfAbsent /
  * replaceIfVersion), version-guarded literal edits, concurrency races, symlink
  * identity, and HMR/disposal. Read WINDOWING is policy and lives in
- * `dsh-fs-observation-policy`, so it is not exercised here.
+ * `avn-fs-observation-policy`, so it is not exercised here.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -23,7 +23,7 @@ let fs: LocalFileSystem
 let fiber: Awaited<ReturnType<Context['plugin']>>
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), 'dsh-fs-'))
+  dir = await mkdtemp(join(tmpdir(), 'avn-fs-'))
   ctx = new Context()
   fiber = await ctx.plugin(LocalFileSystem, { cwd: dir })
   fs = ctx.fs as LocalFileSystem
@@ -89,7 +89,7 @@ describe('resolve', () => {
   it('resolves a relative path against opts.cwd, not config.cwd', async () => {
     // config.cwd is `dir`; a call supplying a DIFFERENT cwd bases the relative
     // path there (the per-session workspace mapping — mirrors tool-bash workdir).
-    const other = await mkdtemp(join(tmpdir(), 'dsh-fs-other-'))
+    const other = await mkdtemp(join(tmpdir(), 'avn-fs-other-'))
     try {
       await writeFile(join(other, 'x.txt'), 'in other')
       const viaOther = await fs.resolve('x.txt', { cwd: other })
@@ -177,7 +177,7 @@ describe('lstat', () => {
   })
 
   it('resolves relative paths against opts.cwd and honors a pre-aborted signal', async () => {
-    const other = await mkdtemp(join(tmpdir(), 'dsh-fs-other-'))
+    const other = await mkdtemp(join(tmpdir(), 'avn-fs-other-'))
     try {
       await writeFile(join(other, 'x.txt'), 'in other')
       expect((await fs.lstat('x.txt', { cwd: other }))?.type).toBe('file')

@@ -14,9 +14,9 @@ body[data-ds-dark-theme] #root {
   background-color: rgb(21, 21, 23);
 }
 
-#dsh-preloader {
-  --dsh-preloader-bg: rgb(242, 242, 242);
-  --dsh-preloader-fg: rgb(10, 10, 10);
+#avn-preloader {
+  --avn-preloader-bg: rgb(242, 242, 242);
+  --avn-preloader-fg: rgb(10, 10, 10);
 
   display: flex;
   position: fixed;
@@ -30,12 +30,12 @@ body[data-ds-dark-theme] #root {
   justify-content: center;
 }
 
-body[data-ds-dark-theme] #dsh-preloader {
-  --dsh-preloader-bg: rgb(21, 21, 23);
-  --dsh-preloader-fg: rgb(249, 250, 251);
+body[data-ds-dark-theme] #avn-preloader {
+  --avn-preloader-bg: rgb(21, 21, 23);
+  --avn-preloader-fg: rgb(249, 250, 251);
 }
 
-#dsh-preloader .container {
+#avn-preloader .container {
   display: flex;
   position: relative;
   z-index: 1;
@@ -45,17 +45,17 @@ body[data-ds-dark-theme] #dsh-preloader {
   flex-direction: column;
 }
 
-#dsh-preloader .logo {
+#avn-preloader .logo {
   display: flex;
   position: relative;
   width: 50px;
   height: 50px;
-  color: var(--dsh-preloader-fg);
+  color: var(--avn-preloader-fg);
   margin-bottom: 4px;
   filter: blur(0);
 }
 
-#dsh-preloader .logo svg {
+#avn-preloader .logo svg {
   display: flex;
   width: 50px;
   height: 50px;
@@ -65,37 +65,37 @@ body[data-ds-dark-theme] #dsh-preloader {
    this sheet is inlined into the document head ahead of every stylesheet, so a
    token reference here would resolve to nothing on first paint. Keep it equal
    to the token, which is what `aeven-language-styles.client.spec.ts` asserts. */
-#dsh-preloader .spinner,
-#dsh-preloader .spinner svg {
+#avn-preloader .spinner,
+#avn-preloader .spinner svg {
   display: block;
   position: relative;
   width: 18px;
   height: 18px;
 }
 
-#dsh-preloader .spinner svg {
-  color: var(--dsh-preloader-fg);
+#avn-preloader .spinner svg {
+  color: var(--avn-preloader-fg);
 }
 
-#dsh-preloader .spinner.active {
-  animation: 900ms linear 0s infinite normal none running dsh-preloader-spin;
+#avn-preloader .spinner.active {
+  animation: 900ms linear 0s infinite normal none running avn-preloader-spin;
 }
 
-#dsh-preloader .background {
+#avn-preloader .background {
   display: block;
   position: fixed;
   inset: 0;
   width: 100vw;
   height: 120%;
   max-width: 100%;
-  background-color: var(--dsh-preloader-bg);
+  background-color: var(--avn-preloader-bg);
 }
 
-#dsh-preloader.hide {
+#avn-preloader.hide {
   opacity: 0;
 }
 
-#dsh-preloader.hide .logo {
+#avn-preloader.hide .logo {
   filter: blur(1px);
 }
 
@@ -103,21 +103,21 @@ body[data-ds-dark-theme] #dsh-preloader {
    the shell after boot reveals it. `FADE_DELAY_MS` in
    `packages/client/web/src/preloader.ts` repeats this delay, and
    `preloader.client.spec.ts` fails if the two drift apart. */
-#dsh-preloader.animate {
+#avn-preloader.animate {
   transition: opacity 400ms linear 500ms;
 }
 
-#dsh-preloader.animate .logo {
+#avn-preloader.animate .logo {
   transition: filter 400ms ease-out 500ms;
 }
 
-#dsh-preloader.screen-hidden {
+#avn-preloader.screen-hidden {
   width: 0;
   height: 0;
   visibility: hidden;
 }
 
-@keyframes dsh-preloader-spin {
+@keyframes avn-preloader-spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }

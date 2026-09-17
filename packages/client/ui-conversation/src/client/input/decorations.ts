@@ -25,7 +25,7 @@ const TEXT_REF_RE = /(^|\s)([/@])([\w-]+)/g
 const FOLDER_REF_RE = /(^|\s)(@(?:"[^"\n]*\/|[^\s"]+\/))/g
 /**
  * What may follow a `/name` token: whitespace or the draft end, the boundary
- * the host skill gesture (`dsh-tool-skill`) requires, so `/nfs-hg/xxx`,
+ * the host skill gesture (`avn-tool-skill`) requires, so `/nfs-hg/xxx`,
  * `/plan.md`, and `/plan。` are prose, never a reference.
  */
 const SLASH_TOKEN_END_RE = /^(?:\s|$)/

@@ -1,5 +1,5 @@
 ---
-description: "Sidebar shell plugin for the dsh web client: brand row, New Session action, collapse control, scroll-aware region seat, and bottom-pinned Settings seat."
+description: "Sidebar shell plugin for the avn web client: brand row, New Session action, collapse control, scroll-aware region seat, and bottom-pinned Settings seat."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-client-ui-sidebar` gives the dsh web client an Aeven-style navigation menu: a full-width hamburger row, New Session action, Workspace and Session browser, and bottom-pinned Settings seat. Collapsing the menu returns its layout column to zero width and leaves only the hamburger at the upper-left. The Workspace and Session browser rendered into `sidebar.workspaces` belongs to ui-workspace; this package neither derives its rows nor owns its view preferences. New Session starts the runtime's page-local frontend Session Intent against the explicit, current, or most recently active Workspace.
+`avn-client-ui-sidebar` gives the avn web client an Aeven-style navigation menu: a full-width hamburger row, New Session action, Workspace and Session browser, and bottom-pinned Settings seat. Collapsing the menu returns its layout column to zero width and leaves only the hamburger at the upper-left. The Workspace and Session browser rendered into `sidebar.workspaces` belongs to ui-workspace; this package neither derives its rows nor owns its view preferences. New Session starts the runtime's page-local frontend Session Intent against the explicit, current, or most recently active Workspace.
 
 The expanded panel consumes the Aeven 280px width, translucent white surface, 20px outer corner, 40px row height, responsive row inset, bottom inset, and 400ms easing variables. The menu toggle uses the reference hamburger and double-chevron glyphs; feature action and status icons remain unchanged.
 

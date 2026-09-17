@@ -1,4 +1,4 @@
-/** DeepSeek Files API identifiers. @module dsh-llm-deepseek/file-id */
+/** DeepSeek Files API identifiers. @module avn-llm-deepseek/file-id */
 
 import type { Branded } from '@aeven/brand'
 

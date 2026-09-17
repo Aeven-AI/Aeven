@@ -24,7 +24,7 @@ import { MockAdapter, textResponse, toolCallResponse } from '../../../core/agent
  * (tool/call + tool/result session events, the generic `ctx.jobs` runtime,
  * agent.inject completion notices).
  */
-async function harness(adapter: MockAdapter, sessionRoot?: string, dshHome?: string) {
+async function harness(adapter: MockAdapter, sessionRoot?: string, avnHome?: string) {
   const ctx = new Context()
   await mountAgentLoopTestDependencies(ctx)
   // AgentLoop declares the registry as a required injection.
@@ -36,7 +36,7 @@ async function harness(adapter: MockAdapter, sessionRoot?: string, dshHome?: str
   await ctx.plugin(LocalJobRegistry)
   await ctx.plugin(ToolTasks)
   await ctx.plugin(LocalSubprocessRuntime)
-  await ctx.plugin(BashEnvPlugin, dshHome === undefined ? {} : { dshHome })
+  await ctx.plugin(BashEnvPlugin, avnHome === undefined ? {} : { avnHome })
   await ctx.plugin(LocalBashExecutor, { timeoutMs: 10_000 })
   await ctx.plugin(ToolBash)
   ctx.llm.registerAdapter(['mock'], adapter)
@@ -97,9 +97,9 @@ async function pollUntil(predicate: () => boolean, timeoutMs = 5_000): Promise<v
 
 describe('bash tool through the agent loop', () => {
   it('first-turn bash receives session identity before the lazy JSONL file materializes', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'dsh-bash-session-env-'))
+    const root = mkdtempSync(join(tmpdir(), 'avn-bash-session-env-'))
     dirs.push(root)
-    const dshHome = join(root, 'dsh-home')
+    const avnHome = join(root, 'avn-home')
     vi.stubEnv('AVN_STALE_PARENT', 'stale')
     const adapter = new MockAdapter([
       toolCallResponse('call-1', 'bash', {
@@ -108,7 +108,7 @@ describe('bash tool through the agent loop', () => {
       }),
       textResponse('Session environment inspected.'),
     ])
-    const ctx = await harness(adapter, root, dshHome)
+    const ctx = await harness(adapter, root, avnHome)
     const handle = await ctx.agents.create({
       sessionId: SessionId('session-env-id'),
       agentOptions: { provider: 'mock', model: 'mock' },
@@ -121,7 +121,7 @@ describe('bash tool through the agent loop', () => {
     await waitForIdle(ctx, agent)
 
     const result = findEvent(events(agent), 'tool/result')
-    expect(resultText(result)).toBe(`${dshHome}\n1\nsession-env-id\n${location?.path}\nunset\nabsent\n`)
+    expect(resultText(result)).toBe(`${avnHome}\n1\nsession-env-id\n${location?.path}\nunset\nabsent\n`)
     await ctx.sessions.flush(agent.session)
     expect(existsSync(location!.path)).toBe(true)
     const header = JSON.parse(readFileSync(location!.path, 'utf8').split('\n')[0]!) as { type: string; id: string }
@@ -184,7 +184,7 @@ describe('bash tool through the agent loop', () => {
     // claim, which folds the notice into a turn whose scripted reply is final:
     // the turn then closes with an empty next-step inbox and the collection
     // entries are never reached.
-    const dir = mkdtempSync(join(tmpdir(), 'dsh-bg-'))
+    const dir = mkdtempSync(join(tmpdir(), 'avn-bg-'))
     dirs.push(dir)
     const sentinel = join(dir, 'release')
     // The job id is deterministic (a fresh LocalJobRegistry counts per kind from 1),

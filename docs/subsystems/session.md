@@ -2,7 +2,7 @@
 
 English | [中文](session.zh.md)
 
-The in-memory, event-sourced model of [dsh-session](../../packages/core/session). A `Session` is an **append-only log** of typed `SessionEvent`s — the single source of truth for an agent's whole interaction history. The LLM message history is *derived* from the log, never stored separately; replay is re-derivation from the same events. How the log is made **durable** (the persistence seam, backends, crash recovery) is the sibling concern on [persistence.md](persistence.md).
+The in-memory, event-sourced model of [avn-session](../../packages/core/session). A `Session` is an **append-only log** of typed `SessionEvent`s — the single source of truth for an agent's whole interaction history. The LLM message history is *derived* from the log, never stored separately; replay is re-derivation from the same events. How the log is made **durable** (the persistence seam, backends, crash recovery) is the sibling concern on [persistence.md](persistence.md).
 
 Source: [`packages/core/session/src/types.ts`](../../packages/core/session/src/types.ts)
 
@@ -35,7 +35,7 @@ interface SessionEventMap {
   /**
    * Closes turn `turn` with the {@link TurnEndReason} that ended it. A turn
    * with no entered step has no `step/start` or `step/end`. The loop does not await a
-   * flush at turn boundaries: `dsh-session-checkpoint-policy` owns the
+   * flush at turn boundaries: `avn-session-checkpoint-policy` owns the
    * per-request durability checkpoint, and consumers that read storage after
    * `whenIdle()` flush themselves. Success commits the turn; rejection is
    * reported live and does not prevent later work.
@@ -80,7 +80,7 @@ interface SessionEventMap {
    * runtime-validates all event data with `isJsonValue`, so a non-serializable
    * `meta` is rejected at the source, and the durable log reproduces the
    * identical card on replay. Absent
-   * unless the tool attaches one (e.g. `dsh-tool-fs` carries its result-time
+   * unless the tool attaches one (e.g. `avn-tool-fs` carries its result-time
    * contextual diff here).
    */
   'tool/result': {
@@ -314,7 +314,7 @@ interface SurfaceIntent {
 }
 ```
 
-Required for `SurfaceEventType` events — every message-producing event must declare how it joins the surface, the sole source of derived model history. A human-facing transcript is the other projection and reads the log's append-origin events instead, because the surface deliberately shadows the ranges a replacement summarizes (`isAppendSurfaceEvent` in [dsh-session](../../packages/core/session/README.md)). Non-surface types reject it at compile time.
+Required for `SurfaceEventType` events — every message-producing event must declare how it joins the surface, the sole source of derived model history. A human-facing transcript is the other projection and reads the log's append-origin events instead, because the surface deliberately shadows the ranges a replacement summarizes (`isAppendSurfaceEvent` in [avn-session](../../packages/core/session/README.md)). Non-surface types reject it at compile time.
 
 Only `assistant/message` may carry a present empty `sourceEventSeqs`; when the field is absent, the event does not record which earlier events produced the message, and the provider may still have emitted chunks.
 
@@ -577,7 +577,7 @@ Everything else (`turn/*`, `step/*`, plugin-owned `llm/retry`) is structural and
 
 - `fork(source, boundary?, childSessionId?)` accepts a live `Session` object or live `SessionId`, selects source events through the inclusive `SessionSeq` boundary (default: current last event), requires the selected prefix to end outside an open turn, then creates a live child session with deep-cloned seed events, `parentSession`, `isSeeded: true`, the exact `inheritedEventCount`, and inherited `cwd`.
 
-An explicit `boundary` lets callers fork from any stable between-turn position, including a previous `turn/end` or a later standalone log-only event, even if the source has newer events or an open current turn. The API rejects a prefix that ends inside an open turn instead of clipping silently. Broader execution-relation sanity stays in the existing `dsh-invariants` plugin and persistence repair path rather than being duplicated in `fork()`. `dsh-subagent-fork-in-process` keeps its completed-prefix clipping because tool-time delegation usually starts while the parent turn is open; ordinary session branching should make the requested boundary explicit.
+An explicit `boundary` lets callers fork from any stable between-turn position, including a previous `turn/end` or a later standalone log-only event, even if the source has newer events or an open current turn. The API rejects a prefix that ends inside an open turn instead of clipping silently. Broader execution-relation sanity stays in the existing `avn-invariants` plugin and persistence repair path rather than being duplicated in `fork()`. `avn-subagent-fork-in-process` keeps its completed-prefix clipping because tool-time delegation usually starts while the parent turn is open; ordinary session branching should make the requested boundary explicit.
 
 ## Why a turn ended: `TurnEndReasonMap`
 
@@ -620,7 +620,7 @@ interface TurnEndReasonMap {
 
 A turn encloses one model-loop execution, not the whole session log. AgentLoop records injected `user/message` events only from entering pre-step batches inside a turn; plugin-owned log-only events may still appear between `turn/end` and the next `turn/start`, consuming event seqs without incrementing turn numbers. Persistence admits every contiguous accepted event into a bounded durable batch, while crash repair closes only a genuinely open trailing turn. A producer that needs an immediate durability barrier explicitly awaits `ctx.sessions.flush(session)`.
 
-The optional `dsh-session/invariant` companion enforces the relations owned by core: turn and step numbering, execution-event enclosure, and same-step tool call/result pairing. Merge-extensible event relations belong to the plugin that declares them, so core does not reject an unknown event merely because no turn is open. See [the standalone-event decision](../../.agents/notes/implemented/simplification/2026-07-28-remove-synthetic-log-only-turns.md).
+The optional `avn-session/invariant` companion enforces the relations owned by core: turn and step numbering, execution-event enclosure, and same-step tool call/result pairing. Merge-extensible event relations belong to the plugin that declares them, so core does not reject an unknown event merely because no turn is open. See [the standalone-event decision](../../.agents/notes/implemented/simplification/2026-07-28-remove-synthetic-log-only-turns.md).
 
 ## The end-seed boundary: `session/end-seed`
 
@@ -831,7 +831,7 @@ Persistence is intentionally not implemented here — persistence plugins subscr
  * loop's final events are published before the store attachment ends), do NOT use this
  * — fold the session lifecycle into the agent's own effect via
  * {@link prepare} + {@link enter} + {@link announce} (see
- * `dsh-agent-loop`'s creation transaction).
+ * `avn-agent-loop`'s creation transaction).
  *
  * @param id - the session id; omitted, the store mints `session-<n>`.
  * @param options - seed events and/or creation metadata for the header.
@@ -1065,7 +1065,7 @@ Creation announcement during session publication. A synchronous throw vetoes and
  * Scope-filtered dispatch (`@aeven/scope`): agent-scoped listeners
  * receive only sessions entered through that agent's context.
  * @param session - the session just entered and announced.
- * @dshScopeScan unsupported
+ * @avnScopeScan unsupported
  * @mode emit
  */
 'session/created'(this: Scoped<Session>, session: Session): void
@@ -1088,7 +1088,7 @@ Emitted once when an announced session leaves the store, including publication r
  * did not begin. Listener failures are logged and contained.
  * Scope-filtered dispatch (`@aeven/scope`) reuses the owner scope.
  * @param session - the session that is no longer live in the store.
- * @dshScopeScan unsupported
+ * @avnScopeScan unsupported
  * @mode emit
  */
 'session/disposed'(this: Scoped<Session>, session: Session): void
@@ -1113,7 +1113,7 @@ Post-commit, fire-and-forget append feed. The listener snapshot resolves before 
  * receive only events from sessions entered through that agent's context.
  * @param session - the session whose log grew.
  * @param event - the appended event, exactly as recorded.
- * @dshScopeScan unsupported
+ * @avnScopeScan unsupported
  * @mode emit
  */
 'session/event'(this: Scoped<Session>, session: Session, event: SessionEvent): void
@@ -1135,7 +1135,7 @@ Awaited parallel durability checkpoint: every listener runs and the caller await
  * caller awaits all of them, with no waterfall veto. Scope-filtered dispatch
  * (`@aeven/scope`) reuses the session's owner scope.
  * @param session - the session whose buffered events must reach durable storage.
- * @dshScopeScan unsupported
+ * @avnScopeScan unsupported
  * @mode parallel
  */
 'session/flush'(this: Scoped<Session>, session: Session): Promise<void> | void

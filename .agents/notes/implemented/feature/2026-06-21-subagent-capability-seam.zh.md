@@ -4,7 +4,7 @@ Status: implemented
 
 [English](2026-06-21-subagent-capability-seam.md) | 中文
 
-> 完整 seam 已交付：`dsh-subagent` 接口与 `dsh-tool-subagent` 消费方；两个进程内后端（`dsh-subagent-spawn-in-process`、`dsh-subagent-fork-in-process`）；嵌套 agent（智能体）快照基础设施（[逐会话快照回放](../testing/2026-06-22-subagent-snapshot-replay.zh.md)）；以及进程外的 ACP（Agent Client Protocol）、Codex 与 Claude Code 后端（[ACP Agent Note](2026-06-22-acp-subagent-backend.zh.md)、[产品提供方 Agent Note](2026-08-04-claude-code-and-codex-subagent-backends.zh.md)）。
+> 完整 seam 已交付：`avn-subagent` 接口与 `avn-tool-subagent` 消费方；两个进程内后端（`avn-subagent-spawn-in-process`、`avn-subagent-fork-in-process`）；嵌套 agent（智能体）快照基础设施（[逐会话快照回放](../testing/2026-06-22-subagent-snapshot-replay.zh.md)）；以及进程外的 ACP（Agent Client Protocol）、Codex 与 Claude Code 后端（[ACP Agent Note](2026-06-22-acp-subagent-backend.zh.md)、[产品提供方 Agent Note](2026-08-04-claude-code-and-codex-subagent-backends.zh.md)）。
 
 ## 问题
 
@@ -50,7 +50,7 @@ bash seam（[能力 seam](../architecture/2026-06-13-capability-seams.zh.md)）�
 
 ### Fork 与 fresh 是独立后端，而非一个 flag
 
-全新子 agent 与 fork 子 agent 是独立的提供方，而非请求中的一个 flag。`dsh-subagent-spawn-in-process` 启动隔离的子 agent；`dsh-subagent-fork-in-process` 用一个平衡前缀初始化子 agent，该前缀仅包含已完成的父轮次。进行中的轮次被排除，因为其 subagent 调用尚无结果，无法构成有效的回放历史。
+全新子 agent 与 fork 子 agent 是独立的提供方，而非请求中的一个 flag。`avn-subagent-spawn-in-process` 启动隔离的子 agent；`avn-subagent-fork-in-process` 用一个平衡前缀初始化子 agent，该前缀仅包含已完成的父轮次。进行中的轮次被排除，因为其 subagent 调用尚无结果，无法构成有效的回放历史。
 
 ### 子 agent 隔离与父日志
 
@@ -58,11 +58,11 @@ bash seam（[能力 seam](../architecture/2026-06-13-capability-seams.zh.md)）�
 
 ### 同步收集（首版）
 
-`dsh-tool-subagent` 将其执行信号传给 `start()`，等待子 agent 结果，并在报告前 dispose 该 run。非完成态的结果变为错误结果，而非成功的部分输出；它会把由[非交互权限决策](2026-08-15-product-subagent-noninteractive-permissions.zh.md)负责的可选安全诊断与部分 assistant 文本分开呈现。结果与 dispose 的拒绝仍可彼此独立地观察。
+`avn-tool-subagent` 将其执行信号传给 `start()`，等待子 agent 结果，并在报告前 dispose 该 run。非完成态的结果变为错误结果，而非成功的部分输出；它会把由[非交互权限决策](2026-08-15-product-subagent-noninteractive-permissions.zh.md)负责的可选安全诊断与部分 assistant 文本分开呈现。结果与 dispose 的拒绝仍可彼此独立地观察。
 
 ### 传输提供方选择是配置，不面向模型
 
-`dsh-tool-subagent` 绑定到恰好一个 subagent 传输提供方名称（`Config.provider`）。若要暴露多种传输方式，请多次加载该工具插件，每次绑定不同的提供方和不同的 `toolName`（工具注册表拒绝重名）。*服务*持有多提供方注册表；*工具*选择其中一个——schema 中没有 subagent 传输/type 参数。后续 opt-in 增加了子 agent LLM 提供方/模型字段，但没有改变这项传输决策；见[模型选择的 subagent 路由](2026-08-18-model-selected-subagent-routes.zh.md)。
+`avn-tool-subagent` 绑定到恰好一个 subagent 传输提供方名称（`Config.provider`）。若要暴露多种传输方式，请多次加载该工具插件，每次绑定不同的提供方和不同的 `toolName`（工具注册表拒绝重名）。*服务*持有多提供方注册表；*工具*选择其中一个——schema 中没有 subagent 传输/type 参数。后续 opt-in 增加了子 agent LLM 提供方/模型字段，但没有改变这项传输决策；见[模型选择的 subagent 路由](2026-08-18-model-selected-subagent-routes.zh.md)。
 
 ## 测试
 

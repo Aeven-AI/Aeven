@@ -48,7 +48,7 @@ class FakeWebSocket extends EventTarget {
 
 const bootstrap: InspectorClientBootstrap = {
   endpoint: 'ws://127.0.0.1:9230/ingest',
-  protocol: 'dsh-inspector-v0-token',
+  protocol: 'avn-inspector-v0-token',
   maxQueuedRecords: 16,
   maxQueuedBytes: 16_384,
   maxRecordsPerFrame: 8,
@@ -239,7 +239,7 @@ describe('experimental Inspector Client plugin', () => {
 
       first.close()
       await vi.waitFor(() => { expect(held.size).toBe(1) })
-      sessionStorage.setItem('dsh.experimental-inspector.client-source-id.v0', first.sourceId)
+      sessionStorage.setItem('avn.experimental-inspector.client-source-id.v0', first.sourceId)
       refreshed = await ClientRealmSource.claim('refreshed')
       expect(refreshed.sourceId).toBe(first.sourceId)
     } finally {

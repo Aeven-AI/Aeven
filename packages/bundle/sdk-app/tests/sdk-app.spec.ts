@@ -7,17 +7,17 @@ import * as yaml from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
 
-describe('dsh-sdk-app bundle', () => {
+describe('avn-sdk-app bundle', () => {
   it('declares startup-gated JSON-RPC serving without overriding base HMR policy', () => {
     const root = fileURLToPath(new URL('..', import.meta.url))
     const manifest = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as {
       dependencies?: Record<string, string>
-      dsh?: { bundle?: { patch?: string } }
+      avn?: { bundle?: { patch?: string } }
     }
-    expect(manifest.dsh?.bundle?.patch).toBe('./cordis.patch.yml')
+    expect(manifest.avn?.bundle?.patch).toBe('./cordis.patch.yml')
     expect(manifest.dependencies).toHaveProperty('@aeven/sdk-jsonrpc-server')
     const patches = yaml.load(
-      readFileSync(resolve(root, manifest.dsh!.bundle!.patch!), 'utf8'),
+      readFileSync(resolve(root, manifest.avn!.bundle!.patch!), 'utf8'),
       { schema: entryListSchema },
     ) as Array<{ id?: string; disabled?: boolean; insert?: Array<{ id?: string; inject?: string[]; name?: string }> }>
     expect(patches.find(patch => patch.id === 'hmr')).toBeUndefined()

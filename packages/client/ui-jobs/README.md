@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package renders the background-job surface of the Web GUI: a session-header action that opens a popover listing the jobs this session can see. It reads host-computed registry state through the runtime's `jobsBySession` mirror and issues no RPC of its own. The trigger appears only when the session has at least one job, with a badge counting running and stopping jobs; settled rows stay visible and de-emphasized until the registry drops them. The model's own view of the same jobs belongs to `dsh-tool-jobs`; this package is a read-only projection for the human.
+This package renders the background-job surface of the Web GUI: a session-header action that opens a popover listing the jobs this session can see. It reads host-computed registry state through the runtime's `jobsBySession` mirror and issues no RPC of its own. The trigger appears only when the session has at least one job, with a badge counting running and stopping jobs; settled rows stay visible and de-emphasized until the registry drops them. The model's own view of the same jobs belongs to `avn-tool-jobs`; this package is a read-only projection for the human.
 
 ## Table of Contents
 
@@ -50,7 +50,7 @@ The package contributes one entry to `conversation.session.header.actions` (`Job
 
 Read these pages when the job surface is not enough. They move from the browser list to the registry and the model-facing tool.
 
-- [dsh-tool-jobs](../../jobs/tool-jobs/README.md) — the model-facing jobs tool over the same registry.
+- [avn-tool-jobs](../../jobs/tool-jobs/README.md) — the model-facing jobs tool over the same registry.
 - [Session Controller](../../api/session-controller/README.md) — folds the `jobsBySession` mirror this package reads.
 - [ui-subagent](../ui-subagent/README.md) — the subagent catalog, where a running one-shot background subagent also appears.
 - [Web client architecture](../../../.agents/notes/implemented/architecture/2026-07-19-gui-web-client-architecture.md) — how browser plugin rows load and register slots.

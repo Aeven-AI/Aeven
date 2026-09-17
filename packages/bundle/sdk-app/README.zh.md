@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-以 [`dsh-base`](../base/README.zh.md) 为基础的 SDK stdio 应用 `dsh` profile 组合包。它继承 base 默认禁用模块 HMR（热模块替换）的策略；其 patch 设置 coding agent（编程智能体）persona、挂载应用自有的零选项命令提供方，并且只在该提供方接受调用后启动 [`dsh-sdk-jsonrpc-server`](../../sdk/server/README.zh.md)。因此，`dsh --profile sdk --help` 会写出 help 并退出，不会占用 stdin 或 stdout。独立的 [`sdk-minimal`](../sdk-minimal/README.zh.md) bundle 复用同一个启动提供方，并提供自己的 profile 名称。
+以 [`avn-base`](../base/README.zh.md) 为基础的 SDK stdio 应用 `avn` profile 组合包。它继承 base 默认禁用模块 HMR（热模块替换）的策略；其 patch 设置 coding agent（编程智能体）persona、挂载应用自有的零选项命令提供方，并且只在该提供方接受调用后启动 [`avn-sdk-jsonrpc-server`](../../sdk/server/README.zh.md)。因此，`avn --profile sdk --help` 会写出 help 并退出，不会占用 stdin 或 stdout。独立的 [`sdk-minimal`](../sdk-minimal/README.zh.md) bundle 复用同一个启动提供方，并提供自己的 profile 名称。
 
 ## 目录
 
@@ -54,7 +54,7 @@ profile 会在 base 工具与上下文贡献之前提供 `You are a coding agent
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **profile 可以省略 SDK server**：TypeScript client 选择的自定义 profile 必须保留本组合包或另一个 `dsh-sdk-jsonrpc-server` 配置项；没有 peer 响应时，client 初始化会失败。
+- **profile 可以省略 SDK server**：TypeScript client 选择的自定义 profile 必须保留本组合包或另一个 `avn-sdk-jsonrpc-server` 配置项；没有 peer 响应时，client 初始化会失败。
 - **用户插件可以破坏 stdout 纯净性**：profile 与逐次启动 patch 属于受信任应用组合。随附组合包不会向 stdout 写入非协议内容，但无法约束任意插入插件。
 - **配置变化需要重启**：随附 `sdk` profile 使用 `patchReload: startup`，因此一个 stdio 连接不会观察到 server 或 Agent 依赖被替换。
 

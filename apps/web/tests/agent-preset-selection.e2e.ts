@@ -208,7 +208,7 @@ describe('web e2e: agent-preset selection', () => {
   beforeAll(async () => {
     // The shipped presets, plus one lane-owned preset that mounts and refuses:
     // the chip's own failure path needs a preset the roster offers.
-    presetRoot = await realpath(await mkdtemp(join(tmpdir(), 'dsh-web-e2e-refusing-')))
+    presetRoot = await realpath(await mkdtemp(join(tmpdir(), 'avn-web-e2e-refusing-')))
     await seedRefusingPreset(presetRoot)
     scaffold = await launchWebScaffold({
       agentPresets: { roots: [{ path: presetRoot, trust: 'user' }], default: 'standard' },

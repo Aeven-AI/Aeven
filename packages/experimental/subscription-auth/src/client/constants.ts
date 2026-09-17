@@ -25,7 +25,7 @@ export const LOGOUT_PATH = CODING_OAUTH_LOGOUT_PATH
  * client bundle cannot import Host modules, so the one path rule is restated
  * rather than shared.
  */
-export const SUBSCRIPTION_USAGE_PATH_PREFIX = '/plugins/dsh-grok-build/usage/'
+export const SUBSCRIPTION_USAGE_PATH_PREFIX = '/plugins/avn-grok-build/usage/'
 
 /**
  * Build the usage path for one provider slug.

@@ -1,6 +1,6 @@
 {
   "name": "@aeven/acp-app",
-  "description": "The dsh ACP profile bundle: automation-only JSON-RPC stdio and process lifecycle over dsh-base",
+  "description": "The avn ACP profile bundle: automation-only JSON-RPC stdio and process lifecycle over avn-base",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"
@@ -28,7 +28,7 @@
     "lib/types/**/*.d.ts"
   ],
   "license": "MIT",
-  "dsh": {
+  "avn": {
     "bundle": {
       "patch": "./cordis.patch.yml"
     }

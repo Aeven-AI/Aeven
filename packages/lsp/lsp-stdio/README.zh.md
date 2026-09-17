@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-lsp-stdio` 把配置好的本地语言服务器命令变成 `ctx.lsp` 上的提供方：给它一张服务器命令与扩展名到语言的映射表，agent 就能针对这些语言的文件获得由真实语言服务器服务的语义代码导航——定义、引用、实现与悬停。一个插件实例针对每个配置的服务器注册一个隔离的提供方；每个提供方按工作区惰性启动一个服务器进程，并在查询时临时打开文档，因此查询之间不会累积任何文档状态。服务器与源文件始终位于已挂载的文件系统与子进程执行世界中。它是通用主机，而不是语言服务器目录或安装器——部署需要显式配置命令。本包信任所配置的服务器，自身不提供任何沙箱。
+`avn-lsp-stdio` 把配置好的本地语言服务器命令变成 `ctx.lsp` 上的提供方：给它一张服务器命令与扩展名到语言的映射表，agent 就能针对这些语言的文件获得由真实语言服务器服务的语义代码导航——定义、引用、实现与悬停。一个插件实例针对每个配置的服务器注册一个隔离的提供方；每个提供方按工作区惰性启动一个服务器进程，并在查询时临时打开文档，因此查询之间不会累积任何文档状态。服务器与源文件始终位于已挂载的文件系统与子进程执行世界中。它是通用主机，而不是语言服务器目录或安装器——部署需要显式配置命令。本包信任所配置的服务器，自身不提供任何沙箱。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-当部署拥有本地语言服务器——例如 `typescript-language-server`——并希望 harness 通过它们导航代码时，挂载此提供方。它需要描述同一执行世界的文件系统与子进程提供方，以及 `dsh-lsp` seam；若要向模型开放，还需要 `dsh-tool-lsp`。
+当部署拥有本地语言服务器——例如 `typescript-language-server`——并希望 harness 通过它们导航代码时，挂载此提供方。它需要描述同一执行世界的文件系统与子进程提供方，以及 `avn-lsp` seam；若要向模型开放，还需要 `avn-tool-lsp`。
 
 ### 最小配置
 
@@ -123,8 +123,8 @@ kind: "package-reference"
 
 - [LSP 导航子系统](../../../docs/subsystems/lsp.zh.md)——操作、坐标、请求与结果，以及 `LspError` code。
 - [LSP 能力 seam Agent Note](../../../.agents/notes/implemented/architecture/2026-07-15-lsp-capability-seam.zh.md)——设计原理、备选方案与刻意推迟的 API。
-- [dsh-lsp](../lsp/README.zh.md)——本提供方注册到的 seam。
-- [dsh-tool-lsp](../tool-lsp/README.zh.md)——基于该 seam 的面向模型工具。
+- [avn-lsp](../lsp/README.zh.md)——本提供方注册到的 seam。
+- [avn-tool-lsp](../tool-lsp/README.zh.md)——基于该 seam 的面向模型工具。
 - [lsp 组地图](../README.zh.md)——三个包的家族及其相关文档。
 
 -----
@@ -132,11 +132,11 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-通过 `dsh-tool-lsp` 间接影响；该工具呈现此提供方的规范化结果，本主机自身不贡献提示词或 schema。
+通过 `avn-tool-lsp` 间接影响；该工具呈现此提供方的规范化结果，本主机自身不贡献提示词或 schema。
 
 #### KV Cache 影响
 
-不会直接失效；请求前缀变更由 `dsh-tool-lsp` 负责。
+不会直接失效；请求前缀变更由 `avn-tool-lsp` 负责。
 
 ## 已知限制与延期工作
 

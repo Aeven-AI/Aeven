@@ -50,7 +50,7 @@ afterEach(async () => {
 })
 
 async function scratch(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'dsh-atomic-write-'))
+  const dir = await mkdtemp(join(tmpdir(), 'avn-atomic-write-'))
   scratchDirs.push(dir)
   return dir
 }

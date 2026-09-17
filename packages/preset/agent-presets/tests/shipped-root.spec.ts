@@ -28,7 +28,7 @@ let previousHome: string | undefined
 
 beforeEach(async () => {
   previousHome = process.env.AVN_HOME
-  process.env.AVN_HOME = await mkdtemp(join(tmpdir(), 'dsh-shipped-root-'))
+  process.env.AVN_HOME = await mkdtemp(join(tmpdir(), 'avn-shipped-root-'))
 })
 
 afterEach(() => {

@@ -134,7 +134,7 @@ export interface SessionBinding {
 }
 
 // Scope primitives live in ../scope.ts (the client mirror of host
-// dsh-scope, keyed by Agent identity); re-exported here so existing
+// avn-scope, keyed by Agent identity); re-exported here so existing
 // consumers keep their import site.
 export { scopeOf } from '../scope.ts'
 
@@ -228,7 +228,7 @@ export class ClientSessions implements ISessions {
   ) {
     this.selection = createSnapshotStore<SessionSelection>(
       {},
-      { persist: { name: 'dsh.sessions.current' } })
+      { persist: { name: 'avn.sessions.current' } })
     const restored = this.selection.getSnapshot()
     this.manager = new SessionManager(
       remote,

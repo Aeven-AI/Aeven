@@ -31,7 +31,7 @@ function declarations(selector: string): Map<string, string> | undefined {
 
 describe('SidebarRoot.module.css', () => {
   it('uses the Aeven panel and row geometry', () => {
-    expect(declarations('.root')?.get('--dsh-sidebar-inline-padding')).toBe('var(--dsw-aeven-sidebar-row-inset)')
+    expect(declarations('.root')?.get('--avn-sidebar-inline-padding')).toBe('var(--dsw-aeven-sidebar-row-inset)')
     expect(declarations('.content')?.get('padding-top')).toBe('8px')
     const panel = declarations('.panel')
     expect(panel?.get('border-top-right-radius')).toBe('var(--dsw-aeven-sidebar-panel-radius)')
@@ -42,7 +42,7 @@ describe('SidebarRoot.module.css', () => {
     expect(panel?.get('box-shadow')).toBe('inset -1px 1px 0 0 rgb(255, 255, 255)')
     expect(panel?.get('bottom')).toBe('-2px')
     expect(declarations('.toggle')?.get('height')).toBe('var(--dsw-aeven-control-size)')
-    expect(declarations('.toggle')?.get('padding')).toBe('0 var(--dsh-sidebar-inline-padding)')
+    expect(declarations('.toggle')?.get('padding')).toBe('0 var(--avn-sidebar-inline-padding)')
     expect(declarations('.regionArea')?.get('margin')).toBe('0')
     expect(declarations('.regionArea')?.get('padding')).toBe('0')
   })
@@ -51,14 +51,14 @@ describe('SidebarRoot.module.css', () => {
     // The content column carries the whole collapse; the button keeps its
     // static seat, so nothing switches to fixed positioning mid-slide.
     expect(declarations('.content')?.get('position')).toBe('absolute')
-    expect(declarations('.content')?.get('width')).toBe('var(--dsh-sidebar-open-width)')
-    expect(declarations('.root')?.get('--dsh-sidebar-open-width')).toBe('0px')
+    expect(declarations('.content')?.get('width')).toBe('var(--avn-sidebar-open-width)')
+    expect(declarations('.root')?.get('--avn-sidebar-open-width')).toBe('0px')
     expect(declarations('.root')?.get('width')).toBe('0')
-    expect(declarations('.root.visible')?.get('--dsh-sidebar-open-width')).toBe('var(--dsw-aeven-sidebar-width)')
+    expect(declarations('.root.visible')?.get('--avn-sidebar-open-width')).toBe('var(--dsw-aeven-sidebar-width)')
     expect(declarations('.root.visible')?.get('width')).toBe('var(--dsw-aeven-sidebar-width)')
     expect(declarations('.toggle')?.get('position')).toBe('relative')
     expect(declarations('.toggle')?.get('width')).toBe('var(--dsw-aeven-sidebar-toggle-width)')
-    expect(declarations('.visible .toggle')?.get('width')).toBe('var(--dsh-sidebar-open-width)')
+    expect(declarations('.visible .toggle')?.get('width')).toBe('var(--avn-sidebar-open-width)')
     // Clipped, not unmounted: the chevron rides opacity so it crossfades.
     expect(declarations('.toggle')?.get('overflow')).toBe('hidden')
     expect(declarations('.toggleEnd')?.get('opacity')).toBe('0')

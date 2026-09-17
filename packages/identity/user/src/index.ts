@@ -1,7 +1,7 @@
 /**
  * The authenticated-user seam.
  *
- * DSH subsystems read `ctx.identityUsers` to learn who is acting. They never
+ * AVN subsystems read `ctx.identityUsers` to learn who is acting. They never
  * see a cookie, a bearer token, a login page, or an expiry: an authority
  * package registers a {@link UserResolver}, and this service is the whole of
  * what the rest of the harness knows about authentication.

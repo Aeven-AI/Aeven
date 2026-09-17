@@ -44,17 +44,17 @@ interface OtlpLogsRequest {
 const servers: Server[] = []
 
 // The backend resolves the harness home's anonymous user id at construction;
-// pin AVN_HOME to a temp dir so the suite never touches the ambient ~/.dsh.
+// pin AVN_HOME to a temp dir so the suite never touches the ambient ~/.avn.
 let tempHome: string
-let previousDshHome: string | undefined
+let previousAvnHome: string | undefined
 beforeAll(() => {
-  tempHome = mkdtempSync(join(tmpdir(), 'dsh-otel-home-'))
-  previousDshHome = process.env.AVN_HOME
+  tempHome = mkdtempSync(join(tmpdir(), 'avn-otel-home-'))
+  previousAvnHome = process.env.AVN_HOME
   process.env.AVN_HOME = tempHome
 })
 afterAll(() => {
-  if (previousDshHome === undefined) delete process.env.AVN_HOME
-  else process.env.AVN_HOME = previousDshHome
+  if (previousAvnHome === undefined) delete process.env.AVN_HOME
+  else process.env.AVN_HOME = previousAvnHome
   rmSync(tempHome, { recursive: true, force: true })
 })
 
@@ -490,7 +490,7 @@ describe('OpenTelemetrySessionBackend config fails loud', () => {
   })
 })
 
-describe('dsh-session-telemetry-otel real-load-path guard', () => {
+describe('avn-session-telemetry-otel real-load-path guard', () => {
   it('keeps the Service class with inject/Config through unwrapExports', async () => {
     const module = await import('../src/index.ts')
     const loader = Object.create(Loader.prototype) as Loader

@@ -16,7 +16,7 @@ Schedule 已经通过将普通的 agent（智能体）后续轮次排入队列�
 
 `schedule/change` 仍是唯一持久 Schedule 状态。其 dispatch 操作记录后续轮次已同步入队，这会在 dispatch 持久化后阻止普通的重启回放。dispatch 不表示模型成功、用户确认或外部通知。入队与持久 dispatch 之间的狭窄崩溃窗口仍保留至少一次语义。
 
-Schedule 不公开交付回执 projection、Host 伴随数据、浏览器事件节点、按事件键控的 slot 或回执 renderer。会话持久化保留共享的 `flush()` 约定，且不存在由 Schedule 驱动的成功事件。另一条 Session projection 可以发布完整的当前活动记录集合，`dsh-client-ui-schedule` 可以只读渲染该集合；两者都不包含 dispatch 成功、acknowledgement 或 transcript 历史。显式启用的 Web overlay 会加载 Host Schedule 服务，并启用 Web bundle 中默认 disabled 的目录 row。
+Schedule 不公开交付回执 projection、Host 伴随数据、浏览器事件节点、按事件键控的 slot 或回执 renderer。会话持久化保留共享的 `flush()` 约定，且不存在由 Schedule 驱动的成功事件。另一条 Session projection 可以发布完整的当前活动记录集合，`avn-client-ui-schedule` 可以只读渲染该集合；两者都不包含 dispatch 成功、acknowledgement 或 transcript 历史。显式启用的 Web overlay 会加载 Host Schedule 服务，并启用 Web bundle 中默认 disabled 的目录 row。
 
 ## 已考虑的替代方案
 

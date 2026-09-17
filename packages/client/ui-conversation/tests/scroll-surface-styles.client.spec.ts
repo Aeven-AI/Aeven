@@ -61,8 +61,8 @@ describe('conversation composer seat styles', () => {
     // the controls it holds keep the horizontal math they had inside it. That
     // math is symmetric, and so is the scroller's content box: no reserved
     // gutter can pull one edge in further than the other.
-    expect(declarationsFrom('.viewChrome')).toContain('padding-left: var(--dsh-composer-side-clearance)')
-    expect(declarationsFrom('.viewChrome')).toContain('padding-right: var(--dsh-composer-side-clearance)')
+    expect(declarationsFrom('.viewChrome')).toContain('padding-left: var(--avn-composer-side-clearance)')
+    expect(declarationsFrom('.viewChrome')).toContain('padding-right: var(--avn-composer-side-clearance)')
   })
 })
 

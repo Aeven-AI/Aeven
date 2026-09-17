@@ -16,7 +16,7 @@ Maintained prose names the exact actor, action, source, event, field, file, or p
 
 The rule applies to Markdown, READMEs, active Agent Notes, JSDoc and comments, prompts, diagnostics, and user-visible strings. An audit judges each sentence separately; it does not replace a term across the repository with one preferred synonym. The edited sentence preserves actor, action, conditions, order, modality, exceptions, ownership, failure behavior, and consequences.
 
-Comments retain only facts that nearby code cannot express. Documentation stays at its owning level and omits private control flow and rare implementation cases unless they change supported behavior, safe use, compatibility, data integrity, security, or another maintained contract. The [simplification workflow](../../../skills/dsh-find-simplifications/SKILL.md) applies this rule while surveying code and prose together.
+Comments retain only facts that nearby code cannot express. Documentation stays at its owning level and omits private control flow and rare implementation cases unless they change supported behavior, safe use, compatibility, data integrity, security, or another maintained contract. The [simplification workflow](../../../skills/avn-find-simplifications/SKILL.md) applies this rule while surveying code and prose together.
 
 Exact code identifiers, public APIs, durable fields, protocol members, type names, headings with external references, and filenames stay unchanged unless a coordinated contract rename is independently required. Surrounding prose explains their fields or behavior directly. Generated documents and catalogs update from their owning source.
 

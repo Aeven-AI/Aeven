@@ -4,14 +4,14 @@
  * managed-environment and captured-output vocabulary is owned by the
  * subprocess seam and re-exported here so bash consumers keep one import
  * root.
- * @module dsh-shell/types
+ * @module avn-shell/types
  */
 
 import type { SandboxEnforcement, SandboxExecutionPolicy, SandboxMode } from '@aeven/sandbox'
-import type { CollectedOutput, DshEnvironment } from '@aeven/subprocess'
+import type { CollectedOutput, AvnEnvironment } from '@aeven/subprocess'
 
 export { AVN_ENV_PREFIX } from '@aeven/subprocess'
-export type { CollectedOutput, DshEnvironment, AvnEnvironmentKey } from '@aeven/subprocess'
+export type { CollectedOutput, AvnEnvironment, AvnEnvironmentKey } from '@aeven/subprocess'
 
 /**
  * Sandbox facts for one run, present iff a sandboxing executor handled it.
@@ -60,7 +60,7 @@ export interface ShellExecRequest {
   stdin?: string | undefined
   /**
    * Ordinary environment entries for the command, merged after the credential
-   * scrub. Managed facts belong in {@link dshEnv}, which merges after this
+   * scrub. Managed facts belong in {@link avnEnv}, which merges after this
    * map, so an entry here can never displace one. Set by in-process plugins
    * (the hooks bridges set `CLAUDE_PROJECT_DIR`, `CLAUDE_PLUGIN_ROOT`, …); the
    * model-facing bash tool does not expose it as a parameter.
@@ -73,7 +73,7 @@ export interface ShellExecRequest {
    * value from the harness process and a caller {@link env} entry cannot
    * displace a managed one.
    */
-  dshEnv?: DshEnvironment | undefined
+  avnEnv?: AvnEnvironment | undefined
   /** Fully resolved per-call sandbox policy; sandboxing executors default it. */
   sandboxPolicy?: SandboxExecutionPolicy | undefined
 }
@@ -98,13 +98,13 @@ export interface ShellExecSpec {
   stdin?: string | undefined
   /**
    * Ordinary environment entries carried through from
-   * {@link ShellExecRequest.env}; {@link dshEnv} still merges after them.
+   * {@link ShellExecRequest.env}; {@link avnEnv} still merges after them.
    * OPTIONAL on the spec for the same reason as `stdin`: absent means no
    * ordinary extra environment.
    */
   env?: Record<string, string> | undefined
   /** Managed `AVN_*` snapshot (typed to managed keys); merges after {@link env}. */
-  dshEnv?: DshEnvironment | undefined
+  avnEnv?: AvnEnvironment | undefined
   /** Resolved sandbox policy; ignored by executors that do not confine. */
   sandboxPolicy: SandboxExecutionPolicy | undefined
 }

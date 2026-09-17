@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-tool-terminal` gives the model six tools over persistent terminal sessions: `terminal_open`, `terminal_send`, `terminal_read`, `terminal_signal`, `terminal_close`, and `terminal_list`. Every call is fenced to the exact agent that opened the session, so a model cannot operate another agent's terminal even if it learns the id. Sends run in the foreground (returning bounded output with a wait reason) or in the background through the jobs service (returning a job id collected with `job_output` and stopped with `job_kill`). Results are capped by `maxResultBytes` and stay in session history until compaction. A short guidance section tells the model to prefer one-shot tools unless a terminal's persistent state or interactive stdin is genuinely needed.
+`avn-tool-terminal` gives the model six tools over persistent terminal sessions: `terminal_open`, `terminal_send`, `terminal_read`, `terminal_signal`, `terminal_close`, and `terminal_list`. Every call is fenced to the exact agent that opened the session, so a model cannot operate another agent's terminal even if it learns the id. Sends run in the foreground (returning bounded output with a wait reason) or in the background through the jobs service (returning a job id collected with `job_output` and stopped with `job_kill`). Results are capped by `maxResultBytes` and stay in session history until compaction. A short guidance section tells the model to prefer one-shot tools unless a terminal's persistent state or interactive stdin is genuinely needed.
 
 ## Table of Contents
 
@@ -139,7 +139,7 @@ Prefix-stable while the registration scope and guidance text are unchanged.
 
 #### What the model sees
 
-The six generated schemas are listed in the [`dsh-tool-terminal` catalog section](../../../docs/tool-catalog.md#aeven-tool-terminal). Their fixed schema tokens are present whenever this plugin is active; agent-scoped tool filtering may hide them.
+The six generated schemas are listed in the [`avn-tool-terminal` catalog section](../../../docs/tool-catalog.md#aeven-tool-terminal). Their fixed schema tokens are present whenever this plugin is active; agent-scoped tool filtering may hide them.
 
 #### Token effect
 

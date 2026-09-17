@@ -1,4 +1,4 @@
-# The SDK application over dsh-base. Stdout belongs exclusively to JSON-RPC.
+# The SDK application over avn-base. Stdout belongs exclusively to JSON-RPC.
 
 - id: system-prompt
   config:

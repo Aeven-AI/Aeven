@@ -28,7 +28,7 @@ LLM（大语言模型）提供方请求应当标识发出请求的产品。这�
 
 OpenRouter 应用归属刻意未实现。`HTTP-Referer`、`X-OpenRouter-Title`、`X-Title` 和 `X-OpenRouter-Categories` 是 OpenRouter 特有的产品展示头部，不是提供方无关的模型请求归属。它们可以后续由 OpenRouter 适配器或显式 OpenRouter 模式提出，附带自己的隐私/产品决策、测试和文档。在此之前，即使请求指向 OpenRouter，也只发送本决策定义的共享 `User-Agent` 归属。
 
-提供方无关的身份由 `dsh-llm`（`packages/llm/llm/src/attribution.ts`）拥有，而非各适配器。`AppIdentity` 仅包含构建 `User-Agent` 所需的公开产品事实，默认的 `APP_IDENTITY` 取值如下：
+提供方无关的身份由 `avn-llm`（`packages/llm/llm/src/attribution.ts`）拥有，而非各适配器。`AppIdentity` 仅包含构建 `User-Agent` 所需的公开产品事实，默认的 `APP_IDENTITY` 取值如下：
 
 - `User-Agent` 的产品 token：`deepseek-harness`（与 Agent Note 之前的线路值及仓库/组织身份保持连续性）
 - 版本：通过 `createRequire` 从所属包的 manifest（元数据清单）读取，绝不手动复制常量
@@ -51,10 +51,10 @@ OpenRouter 应用归属刻意未实现。`HTTP-Referer`、`X-OpenRouter-Title`�
 
 已落地的约定：
 
-- `dsh-llm` 为 `LlmAdapter` 作者文档化了强制的 `User-Agent` 归属约定（`LlmAdapter` JSDoc、包 README，以及 `docs/subsystems/llm-streaming.md` 的适配器约定（adapter contract）章节）。
+- `avn-llm` 为 `LlmAdapter` 作者文档化了强制的 `User-Agent` 归属约定（`LlmAdapter` JSDoc、包 README，以及 `docs/subsystems/llm-streaming.md` 的适配器约定（adapter contract）章节）。
 - 共享辅助函数（`attributionHeaders` / `userAgent`）从包元数据构建应用身份和标准 `User-Agent` 值，适配器无需手动复制版本常量。
-- `dsh-llm-deepseek` 在每个请求上发送共享的 `User-Agent`，其 mock 服务器套件断言精确值。
-- `dsh-llm-pi-ai` 通过 pi-ai 的 `StreamOptions.headers` 钩子发送相同的 `User-Agent`，其 mock 服务器套件断言精确值。
+- `avn-llm-deepseek` 在每个请求上发送共享的 `User-Agent`，其 mock 服务器套件断言精确值。
+- `avn-llm-pi-ai` 通过 pi-ai 的 `StreamOptions.headers` 钩子发送相同的 `User-Agent`，其 mock 服务器套件断言精确值。
 - 本决策下没有适配器发送 OpenRouter 特有的归属头部（`HTTP-Referer`、`X-OpenRouter-Title`、`X-Title`、`X-OpenRouter-Categories`）。
 - 没有应用归属字段携带机密、本地路径、会话 id、提示词文本、模型输出、用户邮箱或逐用户的稳定标识符。
 - 适配器 README 声明了 `User-Agent` 归属策略，并明确避免将 OpenRouter 应用归属记录为已实现的行为。

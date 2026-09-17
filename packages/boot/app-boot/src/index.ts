@@ -1,7 +1,7 @@
 /**
- * Shared boot glue for `dsh` profiles, including the CLI packaged by the Python runtime wheel: load the gitignored
+ * Shared boot glue for `avn` profiles, including the CLI packaged by the Python runtime wheel: load the gitignored
  * `.env`, install the fail-loud Loader guards, resolve the config path (snapshot-aware), load the
- * optional user patch layers from the Harness home (`~/.dsh`), expose its path resolver to
+ * optional user patch layers from the Harness home (`~/.avn`), expose its path resolver to
  * config expressions, and drive the Cordis Loader against a leaf `cordis.yml` until the tree settles.
  * @module @aeven/app-boot
  */
@@ -15,7 +15,7 @@ import { Context, type FiberState } from '@deepseek-ai/cordis'
 import Loader, { type Entry, type EntryOptions } from '@deepseek-ai/cordis-plugin-loader'
 import Include, { applyEntryPatches, entryListSchema, type PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import Group from '@deepseek-ai/cordis-plugin-group'
-import { dshHomePath, resolveDshHome } from '@aeven/home-paths'
+import { avnHomePath, resolveAvnHome } from '@aeven/home-paths'
 import { createLaunchEnvironmentSnapshot, type LaunchEnvironmentSnapshot } from '@aeven/launch-environment'
 import type {} from '@deepseek-ai/cordis-plugin-hmr'
 import type {} from '@aeven/system-prompt'
@@ -23,7 +23,7 @@ import type {} from '@aeven/system-prompt'
 declare module '@deepseek-ai/cordis' {
   interface Context {
     /** Harness-home path resolver available to Loader `!!js` config expressions. */
-    dshHomePath?: typeof dshHomePath
+    avnHomePath?: typeof avnHomePath
   }
 }
 
@@ -42,9 +42,9 @@ export {
   resolveBundleDir,
   resolveProfileDir,
   writeProfileManifest,
-  type DshBundleManifest,
-  type DshManifestSection,
-  type DshProfileManifest,
+  type AvnBundleManifest,
+  type AvnManifestSection,
+  type AvnProfileManifest,
   type Profile,
   type ProfileLayer,
   type ProfileManifest,
@@ -200,7 +200,7 @@ export function loadLayeredEnv(
   binName: string, cwd: string = process.cwd(),
   warn: (line: string) => void = line => void process.stderr.write(line),
 ): LaunchEnvironmentSnapshot {
-  const home = resolveDshHome()
+  const home = resolveAvnHome()
   const inherited = { ...process.env } as Record<string, string>
   // Parse both layers first: a rejection must not leave one file applied.
   const project = readEnvLayer(binName, cwd, warn, home)
@@ -801,7 +801,7 @@ export async function boot(
   let stage = 'host preparation failed'
   try {
     ctx.baseUrl = pathToFileURL(dirname(absoluteConfigPath)).href + '/'
-    ctx.provide('dshHomePath', dshHomePath)
+    ctx.provide('avnHomePath', avnHomePath)
     await ctx.plugin(Loader)
     await prepare?.(ctx)
     stage = 'plugin tree failed to load'
@@ -843,7 +843,7 @@ export const HARNESS_SOURCE_SECTION = 'harness:source'
 /**
  * Add a global prompt section naming the on-disk harness source checkout while
  * explicitly distinguishing it from the task workspace and current working
- * directory. The self-referential `dsh-tool-cordis` toolset reads and edits this
+ * directory. The self-referential `avn-tool-cordis` toolset reads and edits this
  * checkout. Call once on the settled boot context ({@link boot}); the section
  * uses the shared first-party placement just after the harness identity opener
  * and before the deployment persona. A booted tree with no `systemPrompt` service has no prompt to
@@ -860,6 +860,6 @@ export function addHarnessSourceSection(ctx: Context, sourceRoot: string): (() =
   return systemPrompt.section({
     name: HARNESS_SOURCE_SECTION,
     order: systemPrompt.getSectionOrder('HARNESS_SOURCE'),
-    text: `The DeepSeek Harness implementation checkout is at ${sourceRoot}. The checkout location and current working directory are separate values and may differ; never infer the working directory from this path. Use pwd to determine the current working directory. Use this checkout only to inspect or extend DSH itself.`,
+    text: `The DeepSeek Harness implementation checkout is at ${sourceRoot}. The checkout location and current working directory are separate values and may differ; never infer the working directory from this path. Use pwd to determine the current working directory. Use this checkout only to inspect or extend AVN itself.`,
   })
 }

@@ -9,7 +9,7 @@ This practice guide enables [`@aeven/tool-cordis`](../../../../packages/extensio
 Start the browser interface with the checked-in overlay:
 
 ```sh
-pnpm dsh web --patch apps/cli/config/examples/cordis/cordis.yml
+pnpm avn web --patch apps/cli/config/examples/cordis/cordis.yml
 ```
 
 The command requires a model credential. The [Cordis tool reference](../../../../packages/extensions/tool-cordis/README.md) defines the tool arguments, lifetime, cleanup, and safety contracts.

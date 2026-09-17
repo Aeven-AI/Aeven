@@ -47,18 +47,18 @@ const authCtx: AuthContext = {
 }
 
 let sessionHome: string
-let previousDshHome: string | undefined
+let previousAvnHome: string | undefined
 
 beforeEach(async () => {
-  sessionHome = await mkdtemp(join(tmpdir(), 'dsh-grok-build-catalog-'))
-  previousDshHome = process.env['AVN_HOME']
+  sessionHome = await mkdtemp(join(tmpdir(), 'avn-grok-build-catalog-'))
+  previousAvnHome = process.env['AVN_HOME']
   // Every session's credential and model-cache file resolves below AVN_HOME.
   process.env['AVN_HOME'] = sessionHome
 })
 
 afterEach(async () => {
-  if (previousDshHome === undefined) delete process.env['AVN_HOME']
-  else process.env['AVN_HOME'] = previousDshHome
+  if (previousAvnHome === undefined) delete process.env['AVN_HOME']
+  else process.env['AVN_HOME'] = previousAvnHome
   await rm(sessionHome, { recursive: true, force: true })
 })
 
@@ -163,7 +163,7 @@ describe('grokBuildFingerprintHeaders', () => {
 describe('GrokBuildSession.provider', () => {
   it('registers models under the harness route so the picker can find them', async () => {
     const { createModels } = await import('@earendil-works/pi-ai')
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-grok-build-session-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-grok-build-session-'))
     const session = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'auth.json')))
     const provider = session.provider()
     expect(provider.id).toBe(GROK_BUILD_ROUTE)
@@ -175,7 +175,7 @@ describe('GrokBuildSession.provider', () => {
   })
 
   it('notifies model discovery after login even when the live catalog fails', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-grok-build-notify-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-grok-build-notify-'))
     const store = new GrokBuildCredentialStore(join(dir, 'auth.json'))
     await store.modify(XAI_PI_PROVIDER, async () => ({
       type: 'oauth',
@@ -195,7 +195,7 @@ describe('GrokBuildSession.provider', () => {
   })
 
   it('contains token-refresh failures and exposes only a redacted catalog diagnostic', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-grok-build-refresh-failure-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-grok-build-refresh-failure-'))
     const notify = vi.fn()
     const session = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'auth.json')), notify)
     vi.spyOn(session.models, 'getAuth').mockRejectedValue(new Error('Bearer EXAMPLE_ACCESS_TOKEN'))
@@ -393,7 +393,7 @@ describe('GrokBuildSession cached catalog', () => {
 
 describe('createCodingOAuthAdapter model discovery', () => {
   it('injects the owner-scoped OAuth stores and image policy into every pi-ai profile', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-coding-oauth-auth-injection-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-coding-oauth-auth-injection-'))
     const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
     const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
       definition =>
@@ -452,7 +452,7 @@ describe('createCodingOAuthAdapter model discovery', () => {
   })
 
   it('lists only authenticated OAuth routes and marks provider names', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-coding-oauth-adapter-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-coding-oauth-adapter-'))
     const grokStore = new GrokBuildCredentialStore(join(dir, 'grok.json'))
     const grok = new GrokBuildSession(grokStore)
     const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
@@ -499,7 +499,7 @@ describe('createCodingOAuthAdapter model discovery', () => {
   })
 
   it('exposes a retry policy that retries AUTH and transient failures on every route', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-coding-oauth-retry-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-coding-oauth-retry-'))
     const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
     const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
       definition =>
@@ -535,7 +535,7 @@ describe('createCodingOAuthAdapter model discovery', () => {
   })
 
   it('honours a retryPolicy override for every route', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-coding-oauth-retry-override-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-coding-oauth-retry-override-'))
     const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
     const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
       definition =>
@@ -562,7 +562,7 @@ describe('createCodingOAuthAdapter model discovery', () => {
   })
 
   it('omits Fast from default routes and existing call signatures', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-coding-oauth-fast-default-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-coding-oauth-fast-default-'))
     const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
     const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
       definition =>
@@ -584,7 +584,7 @@ describe('createCodingOAuthAdapter model discovery', () => {
   })
 
   it('lists only priority-eligible Codex models on the opt-in Fast route', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-coding-oauth-fast-list-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-coding-oauth-fast-list-'))
     const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
     const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
       definition =>
@@ -631,7 +631,7 @@ describe('createCodingOAuthAdapter model discovery', () => {
         return { type: 'image', data: new Uint8Array([137, 80, 78, 71]), mediaType: 'image/png' }
       },
     }
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-coding-oauth-fast-stream-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-coding-oauth-fast-stream-'))
     const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
     const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
       definition =>
@@ -817,7 +817,7 @@ describe('createCodingOAuthAdapter model discovery', () => {
   })
 
   it('maps a failed token refresh to MISSING_CREDENTIAL instead of a bare 401', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-coding-oauth-dead-refresh-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-coding-oauth-dead-refresh-'))
     const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
     const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
       definition =>
@@ -902,7 +902,7 @@ describe('createCodingOAuthAdapter credential routing', () => {
     grok: GrokBuildSession
     subscriptions: OAuthProviderSession[]
   }> {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-coding-oauth-credentials-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-coding-oauth-credentials-'))
     const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
     const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
       definition =>
@@ -961,7 +961,7 @@ describe('createCodingOAuthAdapter credential routing', () => {
   })
 
   it('keeps the Grok-only adapter resolving its own route token', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-grok-build-adapter-token-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-grok-build-adapter-token-'))
     const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
     const adapter = createGrokBuildAdapter(grok, () => undefined)
     const config = (adapter as unknown as { config: AdapterConfigProbe }).config

@@ -28,7 +28,7 @@ kind: "package-reference"
 在需要显示提醒的 Web Session 启动前启用 Schedule overlay：
 
 ```sh
-dsh web --patch apps/cli/config/examples/schedule/cordis.yml
+avn web --patch apps/cli/config/examples/schedule/cordis.yml
 ```
 
 随附 Web graph 已通过 disabled 的 `ui-schedule` row 解析 `@aeven/client-ui-schedule`；overlay 会把该 row 与 `@aeven/schedule` 一起启用。只有 Session 已成功打开且 projection 至少包含一条活动记录时，触发器才会出现。打开目录后，逾期行在前，未来行再按目标时间排序；完全并列时保留 projection 的创建顺序。

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The `client/` group runs the browser half of the dsh web GUI: it boots the web shell, loads browser-side plugin modules, keeps browser-to-host RPC and event delivery alive, and provides the shared client services and UI feature plugins that render the application. UI features compose through the slot system — each plugin fills declared extension slots with typed props and stores, and the shell renders the assembled tree. All packages here are product packages named `@aeven/client-<name>`; the host half that serves the page lives in [`host/`](../host/README.md). Authoring rules live in [AGENTS.md](AGENTS.md), and the module graph, slot model, and object layer are documented in the related notes below.
+The `client/` group runs the browser half of the avn web GUI: it boots the web shell, loads browser-side plugin modules, keeps browser-to-host RPC and event delivery alive, and provides the shared client services and UI feature plugins that render the application. UI features compose through the slot system — each plugin fills declared extension slots with typed props and stores, and the shell renders the assembled tree. All packages here are product packages named `@aeven/client-<name>`; the host half that serves the page lives in [`host/`](../host/README.md). Authoring rules live in [AGENTS.md](AGENTS.md), and the module graph, slot model, and object layer are documented in the related notes below.
 
 ## Table of Contents
 
@@ -81,7 +81,7 @@ The kernel packages boot and serve the page; the UI feature packages present it.
 
 Start with the subsystem reference and the two notes that own the cross-package composition decisions, then the host half that serves this page.
 
-- [Client modules subsystem](../../docs/subsystems/client-modules.md) — the web plugin table: `dsh.client` declarations, the boot graph wire, and the bundle route.
+- [Client modules subsystem](../../docs/subsystems/client-modules.md) — the web plugin table: `avn.client` declarations, the boot graph wire, and the bundle route.
 - [Slot system standard](../../.agents/notes/implemented/architecture/2026-07-22-slot-type-chain-implementation.md) — the definitive slot model: registration, props shares, and stores.
 - [Web client architecture note](../../.agents/notes/implemented/architecture/2026-07-19-gui-web-client-architecture.md) — the loading chain, object layer, and client services.
 - [Host group map](../host/README.md) — the host half that serves this browser half.

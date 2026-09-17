@@ -8,11 +8,11 @@ This decision partially supersedes the fetch opt-in choice in [Default Web searc
 
 ## Problem
 
-Every shipped full agent product accepts anonymous public Web fetch, but `dsh-base` disabled `web_fetch` and required each application bundle to repeat the same override. The repeated configuration omitted ACP, made new base-backed profiles search-only unless their authors noticed the exception, and forced otherwise identical snapshot headers to split by product.
+Every shipped full agent product accepts anonymous public Web fetch, but `avn-base` disabled `web_fetch` and required each application bundle to repeat the same override. The repeated configuration omitted ACP, made new base-backed profiles search-only unless their authors noticed the exception, and forced otherwise identical snapshot headers to split by product.
 
 ## Decision
 
-`packages/bundle/base/cordis.patch.yml` mounts `dsh-tool-web` with `fetch: true` and the shipped 60-second search timeout. Headless, full SDK, ACP, and custom base-only profiles inherit both `web_search` and `web_fetch` without application-level overrides. The Web app disables the base tool row and composes the same pair per agent preset. The standalone `sdk-minimal` profile remains independent of base.
+`packages/bundle/base/cordis.patch.yml` mounts `avn-tool-web` with `fetch: true` and the shipped 60-second search timeout. Headless, full SDK, ACP, and custom base-only profiles inherit both `web_search` and `web_fetch` without application-level overrides. The Web app disables the base tool row and composes the same pair per agent preset. The standalone `sdk-minimal` profile remains independent of base.
 
 The base HTTP provider permits anonymous `http:` and `https:` requests only to validated public destinations. Fetch executes outside shell and filesystem sandbox or approval presets and requires no per-call approval; public-destination validation does not prevent public data egress. A product that requires a different network policy overrides the complete `tool-web` config in a later bundle or profile patch.
 
@@ -24,4 +24,4 @@ The base HTTP provider permits anonymous `http:` and `https:` requests only to v
 
 ## Consequences
 
-Base-backed model requests expose the fetch schema and prompt guidance by default, including ACP automation and custom profiles that name only `dsh-base`. Restricted deployments must opt out explicitly. Headless, SDK, and ACP can share the same model-header snapshot sources, while focused real-profile tests pin the shipped tool roster.
+Base-backed model requests expose the fetch schema and prompt guidance by default, including ACP automation and custom profiles that name only `avn-base`. Restricted deployments must opt out explicitly. Headless, SDK, and ACP can share the same model-header snapshot sources, while focused real-profile tests pin the shipped tool roster.

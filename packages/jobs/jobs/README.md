@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-jobs` lets tools run long work as background jobs: the work gets a stable `<kind>-N` id, keeps running while the agent moves on, and the owning agent can read its output, wait for it with a timeout, or request cancellation at any time. Jobs belong to the agent session that started them, so one agent's work is never visible to another, and completion reaches the owner as an in-session notice rather than by polling. This package ships the contract only: the process-local registry lives in `dsh-jobs-local`, and the model-facing controls and completion notices live in `dsh-tool-jobs`. Load an implementation to get background jobs; without one, `ctx.jobs` does not exist and `start()` cannot run.
+`avn-jobs` lets tools run long work as background jobs: the work gets a stable `<kind>-N` id, keeps running while the agent moves on, and the owning agent can read its output, wait for it with a timeout, or request cancellation at any time. Jobs belong to the agent session that started them, so one agent's work is never visible to another, and completion reaches the owner as an in-session notice rather than by polling. This package ships the contract only: the process-local registry lives in `avn-jobs-local`, and the model-facing controls and completion notices live in `avn-tool-jobs`. Load an implementation to get background jobs; without one, `ctx.jobs` does not exist and `start()` cannot run.
 
 ## Table of Contents
 
@@ -25,11 +25,11 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Use this package when you are composing a background-job capability or writing a producer that registers long work. The package itself defines the contract; a composition gets the feature by loading an implementation such as `dsh-jobs-local` and, for the model side, `dsh-tool-jobs`.
+Use this package when you are composing a background-job capability or writing a producer that registers long work. The package itself defines the contract; a composition gets the feature by loading an implementation such as `avn-jobs-local` and, for the model side, `avn-tool-jobs`.
 
 ### What a background job gives you
 
-A producer registers work with a kind and a one-line label; the registry returns a `<kind>-N` id such as `bash-1`. Anyone who owns the job can read output, list jobs, wait up to a timeout for settlement, and request cancellation — each call returns a fresh snapshot of the job's status, from `running` and `stopping` to the terminal `completed`, `killed`, or `failed`. When a job settles, the owning agent is notified through the completion listener that `dsh-tool-jobs` turns into an in-session notice, so no polling is needed. A producer may attach an optional byte cap so each complete model-facing output read or completion notice stays bounded.
+A producer registers work with a kind and a one-line label; the registry returns a `<kind>-N` id such as `bash-1`. Anyone who owns the job can read output, list jobs, wait up to a timeout for settlement, and request cancellation — each call returns a fresh snapshot of the job's status, from `running` and `stopping` to the terminal `completed`, `killed`, or `failed`. When a job settles, the owning agent is notified through the completion listener that `avn-tool-jobs` turns into an in-session notice, so no polling is needed. A producer may attach an optional byte cap so each complete model-facing output read or completion notice stays bounded.
 
 ### The ownership boundary
 
@@ -37,7 +37,7 @@ A job belongs to the agent session that started it: another agent cannot read or
 
 ### Starting background work needs a controller
 
-A producer can start work only while a controller that serves the owner is attached — loading `dsh-tool-jobs` attaches one. An agent whose composition loads no controller cannot start background work; `start()` fails with a message that names the missing controller rather than starting work the agent could never collect or stop.
+A producer can start work only while a controller that serves the owner is attached — loading `avn-tool-jobs` attaches one. An agent whose composition loads no controller cannot start background work; `start()` fails with a message that names the missing controller rather than starting work the agent could never collect or stop.
 
 ### Smallest working composition
 
@@ -46,7 +46,7 @@ A producer can start work only while a controller that serves the owner is attac
 - name: '@aeven/tool-jobs'
 ```
 
-Loading these two plugins on a harness base that already provides the agent, tools, and system-prompt services gives the full feature: `dsh-jobs-local` provides the in-process background-job registry, and `dsh-tool-jobs` provides the `job_output`, `job_list`, and `job_kill` tools plus completion-notice delivery.
+Loading these two plugins on a harness base that already provides the agent, tools, and system-prompt services gives the full feature: `avn-jobs-local` provides the in-process background-job registry, and `avn-tool-jobs` provides the `job_output`, `job_list`, and `job_kill` tools plus completion-notice delivery.
 
 ### What can go wrong
 

@@ -49,7 +49,7 @@ async function loadComposition(
   options?: { withSettings?: boolean },
 ): Promise<{ ctx: Context; state: ConsumerState; settingsPath: string }> {
   const withSettings = options?.withSettings ?? true
-  root = await mkdtemp(join(tmpdir(), 'dsh-settings-composition-'))
+  root = await mkdtemp(join(tmpdir(), 'avn-settings-composition-'))
   const settingsPath = join(root, 'settings.yaml')
   await writeFile(settingsPath, 'ui-theme:\n  theme: light\n')
 

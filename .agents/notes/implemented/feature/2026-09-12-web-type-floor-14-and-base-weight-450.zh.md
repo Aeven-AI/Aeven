@@ -10,13 +10,13 @@ Web UI 上有两项字体默认值来自 Figma 导出，而不是出自针对产
 
 ## Decision
 
-没有任何 Web 源码声明 13px 字号，基础字重为 450。两条规则覆盖每一个带浏览器半部的包——52 个声明 `dsh.client.platform === 'web'` 的包，加上 `apps/web`——即 101 个样式表以及它们旁边的内联样式对象，因为部分插件包以 CSS-in-JS 而非规则来写这些界面。
+没有任何 Web 源码声明 13px 字号，基础字重为 450。两条规则覆盖每一个带浏览器半部的包——52 个声明 `avn.client.platform === 'web'` 的包，加上 `apps/web`——即 101 个样式表以及它们旁边的内联样式对象，因为部分插件包以 CSS-in-JS 而非规则来写这些界面。
 
 字号改动不是文本替换：导出的 `--dsw-font-xs-13` 与 `--dsw-font-xs-strong-13` 档位改名为 `--dsw-font-xs-14` 与 `--dsw-font-xs-strong-14`，并声明为 `14px/20px` 与 `500 14px/20px`，使令牌名、其取值与 39 处消费方三者一致。行高刻意保持 20px 不变：该档位正是密集档，字形大 1px 可保住消费它的行高——轨迹表、终端、读取、diff 与网页块。
 
 字重改动覆盖 400 的三种写法——两个包组共 52 处声明——因为样式表有三条路径到达它：`font-weight: 400`、`font-weight: normal`（highlight.js 那些把加粗默认值重置掉的令牌规则），以及 `font` 简写内部的 `400`。它还覆盖完全不声明字重的声明——12 处组件 `font` 简写与 16 个复合字体令牌——因为 `font` 简写会把省略的字重重置为 `normal`，不处理它们，就等于恰好在使用简写的那些密集界面里保留 400。随后 `packages/client/web/src/base.css` 把 450 设为 `body` 的文档默认值，并在 `button`、`input`、`select`、`textarea` 上重申，因为它们的用户代理简写会同时重置字族与字重。
 
-派生档位遵循同一条规则。`--dsh-content-font-size-secondary`——流式行、聊天的次级行与 Markdown 表格所读取的那一档——原先在样式表里由 `min(设置值 − 1px, max(13px, 设置值 − 2px))` 计算，在设置为 14 与 15 时会解析为 13px。任何 `min`/`max` 组合都无法在阶梯中间跳过单一取值，因此该映射移到 `src/theme-settings.ts` 的 `secondaryFontSize`：低于 14 时取设置值 −1，14 与 15 时守住 14 下限（再降一级就会落到 13px），16 及以上取设置值 −2。其结果与 `fontSize` 一同搭载在主题快照上，因为 bundle 纯净度门禁禁止 ui-layout 的客户端 bundle 从 ui-theme 做值导入；`boot-theme.ts` 的启动脚本在任何插件运行前就发布同一对变量，`ThemePresenter` 在每次快照时发布，样式表中只声明会被它们覆写的回退值。
+派生档位遵循同一条规则。`--avn-content-font-size-secondary`——流式行、聊天的次级行与 Markdown 表格所读取的那一档——原先在样式表里由 `min(设置值 − 1px, max(13px, 设置值 − 2px))` 计算，在设置为 14 与 15 时会解析为 13px。任何 `min`/`max` 组合都无法在阶梯中间跳过单一取值，因此该映射移到 `src/theme-settings.ts` 的 `secondaryFontSize`：低于 14 时取设置值 −1，14 与 15 时守住 14 下限（再降一级就会落到 13px），16 及以上取设置值 −2。其结果与 `fontSize` 一同搭载在主题快照上，因为 bundle 纯净度门禁禁止 ui-layout 的客户端 bundle 从 ui-theme 做值导入；`boot-theme.ts` 的启动脚本在任何插件运行前就发布同一对变量，`ThemePresenter` 在每次快照时发布，样式表中只声明会被它们覆写的回退值。
 
 作为字重而非文本样式的标注保留原值：ANSI 渲染器的 `bold: { fontWeight: 700 }`、`600` 强调字重，以及内置 Aeven 样式表自有的字阶都照旧。
 

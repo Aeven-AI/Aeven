@@ -197,7 +197,7 @@ function safeSessionIdSegment(id: string): string {
  * @returns the attachment filename for the session's export archive.
  */
 export function sessionLogZipFilename(sessionId: string): string {
-  return `dsh-session-${safeSessionIdSegment(sessionId)}.zip`
+  return `avn-session-${safeSessionIdSegment(sessionId)}.zip`
 }
 
 /**

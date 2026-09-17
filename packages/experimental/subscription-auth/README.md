@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-experimental-subscription-auth` lets a deployment drive models from coding subscriptions the operator already pays for, instead of an API key. It signs in to Grok Build, ChatGPT Codex, and Claude Code over OAuth, publishes each as an LLM route, reports what quota is left, and contributes image and video generation to the media seam. A Settings section owns the sign-in, quota, and capability surface in the browser. It is experimental: excluded from official releases, and it talks to private endpoints the vendors do not document, so a provider change can break a route without warning.
+`avn-experimental-subscription-auth` lets a deployment drive models from coding subscriptions the operator already pays for, instead of an API key. It signs in to Grok Build, ChatGPT Codex, and Claude Code over OAuth, publishes each as an LLM route, reports what quota is left, and contributes image and video generation to the media seam. A Settings section owns the sign-in, quota, and capability surface in the browser. It is experimental: excluded from official releases, and it talks to private endpoints the vendors do not document, so a provider change can break a route without warning.
 
 ## Table of Contents
 
@@ -94,7 +94,7 @@ Tool advertisement changes the tool catalogue, and the catalogue is part of the 
 - **Vendor endpoints are private and undocumented.** Quota reads and the Grok Build media route call each vendor's own client endpoints. A vendor may change or withdraw one without notice, and the failure surfaces as a refused tool rather than a build error.
 - **The Grok Imagine image model has two names.** The direct xAI API calls it `grok-imagine-image-2.0` and the Grok Build proxy calls it `grok-imagine-image-quality`. Both spellings are accepted and normalized to the transport in play, so a model picker offering either id works whichever credential resolves.
 - **Grok's billing redirect is not observed.** The official client hides quota for accounts whose remote settings carry `usage_billing_redirect_url`. This package does not fetch remote settings, so such an account sees numbers its own vendor client would decline to show.
-- **The compatibility BOM is now redundant.** `compatibility/dsh-bom.json` and `AVN_EXACT_BOM` detect cross-repository version drift, which workspace resolution makes impossible. They are kept until the package settles in the harness, then removed.
+- **The compatibility BOM is now redundant.** `compatibility/avn-bom.json` and `AVN_EXACT_BOM` detect cross-repository version drift, which workspace resolution makes impossible. They are kept until the package settles in the harness, then removed.
 - **The package spans several product roles.** OAuth sessions, an LLM adapter, media providers, tools, and a client UI live in one package. It is expected to split along those roles before promotion out of `experimental/`.
 - **Credential files are the only durable state.** They hold refresh tokens, and removing a provider's last account deletes its document — a full sign-out that also discards the refresh token, recoverable only by a fresh browser sign-in.
 

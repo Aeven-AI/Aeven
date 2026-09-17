@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-shell-env` 提供每次模型 shell 调用——bash 或 pwsh——所运行的受信 `AVN_*` 环境：内置事实如 `AVN_HOME`、`AVN_SHELL=1` 与 agent（智能体）的 `AVN_SESSION_ID`，以及活跃持久化后端定位到 JSONL 产物时的 `AVN_SESSION_JSONL`。插件作者可以注册自己的事实，带声明键、按每次执行收集，并随插件释放；重复所有权或未声明的运行时键会响亮失败，而不是静默覆盖。注册表不会改变模型看到的其他任何内容——shell 工具拥有各自的 schema 与提示词。任何挂载了模型 shell 工具的组合都适合选择它；配置只决定 Harness 主目录。
+`avn-shell-env` 提供每次模型 shell 调用——bash 或 pwsh——所运行的受信 `AVN_*` 环境：内置事实如 `AVN_HOME`、`AVN_SHELL=1` 与 agent（智能体）的 `AVN_SESSION_ID`，以及活跃持久化后端定位到 JSONL 产物时的 `AVN_SESSION_JSONL`。插件作者可以注册自己的事实，带声明键、按每次执行收集，并随插件释放；重复所有权或未声明的运行时键会响亮失败，而不是静默覆盖。注册表不会改变模型看到的其他任何内容——shell 工具拥有各自的 schema 与提示词。任何挂载了模型 shell 工具的组合都适合选择它；配置只决定 Harness 主目录。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在任何挂载模型 shell 工具（`dsh-tool-bash` 或 `dsh-tool-pwsh`）的组合中加载本插件：此后每次前台或后台 shell 调用都会运行在新收集的受管环境中，而不是进程继承来的任意 `AVN_*` 值。
+在任何挂载模型 shell 工具（`avn-tool-bash` 或 `avn-tool-pwsh`）的组合中加载本插件：此后每次前台或后台 shell 调用都会运行在新收集的受管环境中，而不是进程继承来的任意 `AVN_*` 值。
 
 ### 每次 shell 调用都会收到什么
 
@@ -54,11 +54,11 @@ contributor 必须声明它返回的每个键；返回未声明或非字符串�
 
 ### 选择 Harness 主目录
 
-唯一配置字段决定暴露为 `AVN_HOME` 的主目录；默认解析顺序为 `dshHome` 配置、环境变量 `$AVN_HOME`，然后是 `~/.dsh`。
+唯一配置字段决定暴露为 `AVN_HOME` 的主目录；默认解析顺序为 `avnHome` 配置、环境变量 `$AVN_HOME`，然后是 `~/.avn`。
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `dshHome` | `$AVN_HOME`，然后 `~/.dsh` | 暴露为 `AVN_HOME` 的 Harness 主目录绝对路径 |
+| `avnHome` | `$AVN_HOME`，然后 `~/.avn` | 暴露为 `AVN_HOME` 的 Harness 主目录绝对路径 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-shell-env)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
@@ -91,7 +91,7 @@ contributor 必须声明它返回的每个键；返回未声明或非字符串�
 
 ### 收集
 
-`collect(execution)` 从内置键出发，当执行携带 agent 时加入会话 id，再按 contributor 名称排序合并每个已注册 contributor 解析出的值。结果是一个冻结、按键排序的快照，通过 `ShellExecRequest.dshEnv` 传递。`list()` 枚举声明而不运行 resolver，因此无法反映依赖执行的值。
+`collect(execution)` 从内置键出发，当执行携带 agent 时加入会话 id，再按 contributor 名称排序合并每个已注册 contributor 解析出的值。结果是一个冻结、按键排序的快照，通过 `ShellExecRequest.avnEnv` 传递。`list()` 枚举声明而不运行 resolver，因此无法反映依赖执行的值。
 
 </details>
 
@@ -114,7 +114,7 @@ contributor 必须声明它返回的每个键；返回未声明或非字符串�
 <a id="model-experience"></a>
 ## 模型体验
 
-通过 shell 工具（`dsh-tool-bash`、`dsh-tool-pwsh`）间接产生影响；这些工具把本注册表的受管 `AVN_*` 事实暴露在每次 shell 工具调用中。
+通过 shell 工具（`avn-tool-bash`、`avn-tool-pwsh`）间接产生影响；这些工具把本注册表的受管 `AVN_*` 事实暴露在每次 shell 工具调用中。
 
 #### KV Cache 影响
 

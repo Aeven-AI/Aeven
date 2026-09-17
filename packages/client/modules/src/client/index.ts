@@ -22,7 +22,7 @@ export { parseBootManifest, stripClientSuffix } from './manifest.ts'
 export type {
   BootManifest, BootModuleRow, BootPluginRow, ClientBootstrapModule, ClientBundleRegistration,
   ClientModuleCreateOptions, ClientModuleLoader, ClientModuleLoaderTarget, ClientModuleRecord,
-  ClientModuleSystemOptions, DshWindow,
+  ClientModuleSystemOptions, AvnWindow,
   WebBootEntry, WebBootGraph,
 } from './manifest.ts'
 

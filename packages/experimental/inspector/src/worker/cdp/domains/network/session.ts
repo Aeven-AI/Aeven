@@ -84,16 +84,16 @@ export class NetworkDomain {
         return {
           body: Buffer.from(body.bytes).toString('base64'),
           base64Encoded: true,
-          dshInspectorTruncated: body.truncated,
-          ...(body.captureError === undefined ? {} : { dshInspectorCaptureError: body.captureError }),
+          avnInspectorTruncated: body.truncated,
+          ...(body.captureError === undefined ? {} : { avnInspectorCaptureError: body.captureError }),
         }
       }
       case 'Network.getRequestPostData': {
         const body = this.store.requestBody(params.requestId)
         return {
           postData: Buffer.from(body.bytes).toString('utf8'),
-          dshInspectorTruncated: body.truncated,
-          ...(body.captureError === undefined ? {} : { dshInspectorCaptureError: body.captureError }),
+          avnInspectorTruncated: body.truncated,
+          ...(body.captureError === undefined ? {} : { avnInspectorCaptureError: body.captureError }),
         }
       }
       case 'Network.streamResourceContent': {
@@ -141,8 +141,8 @@ export class NetworkDomain {
         this.sendRequestStart(session, event.requestKey, resourceType)
         session.sendEvent('Network.responseReceived', {
           requestId: event.requestId,
-          loaderId: 'dsh-inspector-loader',
-          frameId: 'dsh-inspector-host-frame',
+          loaderId: 'avn-inspector-loader',
+          frameId: 'avn-inspector-host-frame',
           timestamp,
           type: resourceType,
           response: {
@@ -183,7 +183,7 @@ export class NetworkDomain {
           requestId: event.requestId,
           timestamp,
           encodedDataLength: event.encodedDataLength,
-          dshInspectorTruncated: event.truncated,
+          avnInspectorTruncated: event.truncated,
         })
         this.stopRequest(session, event.requestKey)
         return
@@ -213,8 +213,8 @@ export class NetworkDomain {
     this.requestTypes.get(session)?.set(requestKey, resourceType)
     session.sendEvent('Network.requestWillBeSent', {
       requestId: event.requestId,
-      loaderId: 'dsh-inspector-loader',
-      documentURL: 'dsh://host',
+      loaderId: 'avn-inspector-loader',
+      documentURL: 'avn://host',
       request: {
         url: event.url,
         method: event.method,

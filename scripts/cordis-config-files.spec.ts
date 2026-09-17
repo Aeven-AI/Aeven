@@ -12,7 +12,7 @@ afterEach(() => {
 
 describe('cordisConfigFiles', () => {
   it('finds Loader YAML without treating translation records as configs', () => {
-    const root = mkdtempSync(join(tmpdir(), 'dsh-cordis-config-files-'))
+    const root = mkdtempSync(join(tmpdir(), 'avn-cordis-config-files-'))
     roots.push(root)
     for (const directory of ['.claude', 'apps/cli/config/examples', 'docs', 'node_modules/pkg', 'vendor/pkg']) {
       mkdirSync(join(root, directory), { recursive: true })

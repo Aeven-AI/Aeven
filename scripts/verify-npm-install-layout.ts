@@ -1,4 +1,4 @@
-/** Verify npm's physical package placement for two incompatible DSH releases. */
+/** Verify npm's physical package placement for two incompatible AVN releases. */
 
 import { readFileSync } from 'node:fs'
 import { posix, resolve } from 'node:path'
@@ -12,7 +12,7 @@ import {
 
 const AVN_PACKAGE = '@aeven/cli'
 const CORDIS_PACKAGE = '@deepseek-ai/cordis'
-const NESTED_AVN_ALIAS = 'dsh-previous'
+const NESTED_AVN_ALIAS = 'avn-previous'
 const NESTED_AVN_PATH = `node_modules/${NESTED_AVN_ALIAS}`
 const DEPENDENCY_FIELDS = ['dependencies', 'optionalDependencies', 'peerDependencies'] as const
 const TIMEOUT_MS = 300_000
@@ -30,12 +30,12 @@ interface MutableRegistryManifest {
 }
 
 /** Summary of a verified two-release npm layout. */
-export interface DshInstallLayoutSummary {
-  readonly dshPackagesPerVersion: number
-  readonly checkedDshEdges: number
+export interface AvnInstallLayoutSummary {
+  readonly avnPackagesPerVersion: number
+  readonly checkedAvnEdges: number
 }
 
-function isDshPackage(name: string): boolean {
+function isAvnPackage(name: string): boolean {
   return name === AVN_PACKAGE || name.startsWith(`${AVN_PACKAGE}-`)
 }
 
@@ -46,35 +46,35 @@ function cloneForVersion(manifest: object, version: string): MutableRegistryMani
     const dependencies = cloned[field]
     if (dependencies === undefined) continue
     for (const name of Object.keys(dependencies)) {
-      if (isDshPackage(name)) dependencies[name] = `^${version}`
+      if (isAvnPackage(name)) dependencies[name] = `^${version}`
     }
   }
   return cloned
 }
 
 /**
- * Replace the working release with two incompatible, internally consistent DSH releases.
+ * Replace the working release with two incompatible, internally consistent AVN releases.
  * @param index - Registry metadata containing the working release.
  * @param sourceVersion - Workspace version copied into each synthetic release.
- * @returns Registry metadata containing both synthetic DSH releases and unchanged external packages.
+ * @returns Registry metadata containing both synthetic AVN releases and unchanged external packages.
  */
-export function buildDualDshRegistry(index: RegistryIndex, sourceVersion: string): RegistryIndex {
+export function buildDualAvnRegistry(index: RegistryIndex, sourceVersion: string): RegistryIndex {
   const output = new Map(index)
-  let dshPackages = 0
+  let avnPackages = 0
   for (const [name, versions] of index) {
-    if (!isDshPackage(name)) {
+    if (!isAvnPackage(name)) {
       output.set(name, versions)
       continue
     }
     const source = versions.get(sourceVersion)
     if (source === undefined) throw new Error(`${name} has no workspace version ${sourceVersion}`)
-    dshPackages++
+    avnPackages++
     output.set(name, new Map(SYNTHETIC_AVN_VERSIONS.map(version => [
       version,
       cloneForVersion(source, version),
     ])))
   }
-  if (dshPackages === 0) throw new Error('registry contains no DSH packages')
+  if (avnPackages === 0) throw new Error('registry contains no AVN packages')
   return output
 }
 
@@ -110,11 +110,11 @@ function setDifference(left: ReadonlySet<string>, right: ReadonlySet<string>): s
 }
 
 /**
- * Assert that npm isolates both DSH releases while sharing the Cordis runtime.
+ * Assert that npm isolates both AVN releases while sharing the Cordis runtime.
  * @param packageLock - Metadata-only package lock produced by npm.
- * @returns Counts for the verified DSH packages and dependency edges.
+ * @returns Counts for the verified AVN packages and dependency edges.
  */
-export function assertDualDshInstallLayout(packageLock: NpmPackageLock): DshInstallLayoutSummary {
+export function assertDualAvnInstallLayout(packageLock: NpmPackageLock): AvnInstallLayoutSummary {
   const [nestedVersion, rootVersion] = SYNTHETIC_AVN_VERSIONS
   const errors: string[] = []
   const namesByVersion = new Map<string, Set<string>>([
@@ -122,14 +122,14 @@ export function assertDualDshInstallLayout(packageLock: NpmPackageLock): DshInst
     [rootVersion, new Set()],
   ])
   const installed = Object.entries(packageLock.packages)
-  let checkedDshEdges = 0
+  let checkedAvnEdges = 0
 
   for (const [path, manifest] of installed) {
     const name = packageNameAtPath(path, manifest)
-    if (name === undefined || !isDshPackage(name)) continue
+    if (name === undefined || !isAvnPackage(name)) continue
     const version = manifest.version
     if (version !== nestedVersion && version !== rootVersion) {
-      errors.push(`${path}: expected DSH version ${nestedVersion} or ${rootVersion}, got ${String(version)}`)
+      errors.push(`${path}: expected AVN version ${nestedVersion} or ${rootVersion}, got ${String(version)}`)
       continue
     }
     namesByVersion.get(version)?.add(name)
@@ -144,7 +144,7 @@ export function assertDualDshInstallLayout(packageLock: NpmPackageLock): DshInst
 
     for (const field of DEPENDENCY_FIELDS) {
       for (const dependency of Object.keys(manifest[field] ?? {})) {
-        if (!isDshPackage(dependency)) continue
+        if (!isAvnPackage(dependency)) continue
         const targetPath = resolvePackagePath(packageLock.packages, path, dependency)
         const optionalPeer = field === 'peerDependencies'
           && manifest.peerDependenciesMeta?.[dependency]?.optional === true
@@ -153,7 +153,7 @@ export function assertDualDshInstallLayout(packageLock: NpmPackageLock): DshInst
           errors.push(`${path}: ${field} ${dependency} does not resolve`)
           continue
         }
-        checkedDshEdges++
+        checkedAvnEdges++
         const targetVersion = packageLock.packages[targetPath]?.version
         if (targetVersion !== version) {
           errors.push(
@@ -180,7 +180,7 @@ export function assertDualDshInstallLayout(packageLock: NpmPackageLock): DshInst
   }
 
   if (errors.length > 0) throw new Error(`invalid npm install layout:\n${errors.map(error => `  - ${error}`).join('\n')}`)
-  return { dshPackagesPerVersion: rootNames.size, checkedDshEdges }
+  return { avnPackagesPerVersion: rootNames.size, checkedAvnEdges }
 }
 
 function workspaceVersion(root: string): string {
@@ -191,17 +191,17 @@ function workspaceVersion(root: string): string {
 
 async function main(): Promise<void> {
   const root = resolve(import.meta.dirname, '..')
-  const index = buildDualDshRegistry(buildRegistryIndex(root), workspaceVersion(root))
+  const index = buildDualAvnRegistry(buildRegistryIndex(root), workspaceVersion(root))
   const [nestedVersion, rootVersion] = SYNTHETIC_AVN_VERSIONS
   const result = await resolveNpmPackageLock(index, {
     [AVN_PACKAGE]: rootVersion,
     [NESTED_AVN_ALIAS]: `npm:${AVN_PACKAGE}@${nestedVersion}`,
   }, TIMEOUT_MS)
   if (result.archiveRequests !== 0) throw new Error(`npm requested ${String(result.archiveRequests)} package archive(s)`)
-  const summary = assertDualDshInstallLayout(result.packageLock)
+  const summary = assertDualAvnInstallLayout(result.packageLock)
   console.log(
-    `verify-npm-install-layout: ${String(summary.dshPackagesPerVersion)} DSH package(s) per release and `
-    + `${String(summary.checkedDshEdges)} internal edge(s) verified in ${(result.durationMs / 1000).toFixed(2)} s; `
+    `verify-npm-install-layout: ${String(summary.avnPackagesPerVersion)} AVN package(s) per release and `
+    + `${String(summary.checkedAvnEdges)} internal edge(s) verified in ${(result.durationMs / 1000).toFixed(2)} s; `
     + `both releases share one Cordis installation; ${String(result.unknownPackages.length)} unavailable optional `
     + 'package name(s) ignored by npm.',
   )

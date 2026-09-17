@@ -73,7 +73,7 @@ describe('parent-only override inheritance snapshot', () => {
     let cwd = ''
     const result = await runLoaderSmoke({
       label: 'subagent inheritance headless stream-json snapshot',
-      tempDirPrefix: 'dsh-subagent-inherit-',
+      tempDirPrefix: 'avn-subagent-inherit-',
       binScript,
       libBinScript: binScript,
       configPath,
@@ -127,7 +127,7 @@ describe('parent-only override inheritance snapshot', () => {
         const policyContexts = [...runtimeContexts(parent), ...runtimeContexts(child)]
         expect(policyContexts).toHaveLength(2)
         for (const context of policyContexts) {
-          expect(context).toContain('Any available operation enforced by the DSH file sandbox cannot modify files in the standing mode.')
+          expect(context).toContain('Any available operation enforced by the AVN file sandbox cannot modify files in the standing mode.')
           expect(context).toContain('Do not refuse a required modification from this policy alone')
           expect(context).not.toContain('write and edit tools')
           expect(context).not.toContain('one-shot bash commands')

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-29-host-console-is-the-hosts.md
-2026-08-29-host-console-is-the-hosts.md: f93e3f7838d193f865e64dee1920eccc79426a9c
-2026-08-29-host-console-is-the-hosts.zh.md: 059c2c31b0e10065fbad09969b9e733db533e84b
+2026-08-29-host-console-is-the-hosts.md: 83999bdf19026416e4fc801f090ec8b66b8ca1a2
+2026-08-29-host-console-is-the-hosts.zh.md: 9bfe666585753ffd2e8d7db70a0c8e106c8bbdef

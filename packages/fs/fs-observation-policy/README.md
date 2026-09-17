@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-fs-observation-policy` adds the read-before-edit policy to the `ctx.fs` filesystem contract ([`dsh-fs`](../fs/README.md)): it records which files the calling session has observed, and guards every write and edit with that record — an unseen file can only be created, an observed file can only be replaced at the version last seen, and editing requires a prior read. It participates through the `fs/*` events only, so it registers no service and has no public methods; removing it leaves the bare provider's unconditional mutation behavior instead of breaking the tools. Loading it alongside a backend (`fs-local`, `fs-sandbox`) and the tools (`tool-fs`) makes model file edits fail with a clear remedy until the file has been read. Choose it for deployments that want agents to read before they mutate files.
+`avn-fs-observation-policy` adds the read-before-edit policy to the `ctx.fs` filesystem contract ([`avn-fs`](../fs/README.md)): it records which files the calling session has observed, and guards every write and edit with that record — an unseen file can only be created, an observed file can only be replaced at the version last seen, and editing requires a prior read. It participates through the `fs/*` events only, so it registers no service and has no public methods; removing it leaves the bare provider's unconditional mutation behavior instead of breaking the tools. Loading it alongside a backend (`fs-local`, `fs-sandbox`) and the tools (`tool-fs`) makes model file edits fail with a clear remedy until the file has been read. Choose it for deployments that want agents to read before they mutate files.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Load this plugin alongside a `ctx.fs` backend and the `dsh-tool-fs` tools when a deployment wants the model to read a file before it can overwrite or edit it. The plugin needs no configuration and injects no service; it only listens for the `fs/*` events the tools dispatch.
+Load this plugin alongside a `ctx.fs` backend and the `avn-tool-fs` tools when a deployment wants the model to read a file before it can overwrite or edit it. The plugin needs no configuration and injects no service; it only listens for the `fs/*` events the tools dispatch.
 
 ### Minimal composition
 
@@ -59,7 +59,7 @@ This section explains the design decisions behind the policy plugin and points a
 
 The plugin is built on two ideas:
 
-- **Event gate, not method service.** The plugin influences the world only through the `fs/*` events, so it registers no `ctx.fsPolicy` service and has no public methods. Removing it cannot break `dsh-tool-fs` at a service-injection boundary — the tool falls through to the bare provider.
+- **Event gate, not method service.** The plugin influences the world only through the `fs/*` events, so it registers no `ctx.fsPolicy` service and has no public methods. Removing it cannot break `avn-tool-fs` at a service-injection boundary — the tool falls through to the bare provider.
 - **Observed state is a prior-observation record.** A weak owner-to-target map holds three logical states — unseen, confirmed absent, or present at a version. The plugin performs no filesystem I/O of its own; it converts recorded state into the provider's optional guard, and the provider performs the atomic freshness check.
 
 ### Source map
@@ -91,7 +91,7 @@ Observed state is dropped on plugin disposal (HMR safety) and is never persisted
 Read these pages when the package-level contract is not enough. They move from the policy to the contract, tools, and backends it composes with.
 
 - [Filesystem subsystem](../../../docs/subsystems/filesystem.md) — exhaustive provider contract, policy events, and error taxonomy.
-- [dsh-fs](../fs/README.md) — the `ctx.fs` contract and the `fs/*` event vocabulary.
+- [avn-fs](../fs/README.md) — the `ctx.fs` contract and the `fs/*` event vocabulary.
 - [tool-fs](../tool-fs/README.md) — the model-facing tools that dispatch the `fs/*` events.
 - [fs-local](../fs-local/README.md) — the host-filesystem backend this policy guards.
 - [fs-sandbox](../fs-sandbox/README.md) — the sandbox-enforcing backend this policy composes with.
@@ -106,7 +106,7 @@ Read these pages when the package-level contract is not enough. They move from t
 
 #### What the model sees
 
-This plugin adds no prompt or schema. It rejects an edit without a prior observation with code `FS_NOT_OBSERVED` and policy reason `edit requires reading "<path>" first`; editing a target observed absent returns `FS_NOT_FOUND`. Guarded mutations whose positive observation is stale propagate the provider-owned `FS_STALE_VERSION` error. [`dsh-tool-fs`](../tool-fs/README.md) owns the model-facing error wrapper: it normalizes every `FS_NOT_OBSERVED` source to `cannot modify "<path>": file has not been read — read the file, then retry`, while `FS_STALE_VERSION` retains the provider reason and adds `— re-read the file, then retry`; both preserve the code and original cause. Following the stale remedy on an externally deleted target records absence: the next guarded write may recreate it with `createIfAbsent`, while the provider atomically preserves any concurrent creator.
+This plugin adds no prompt or schema. It rejects an edit without a prior observation with code `FS_NOT_OBSERVED` and policy reason `edit requires reading "<path>" first`; editing a target observed absent returns `FS_NOT_FOUND`. Guarded mutations whose positive observation is stale propagate the provider-owned `FS_STALE_VERSION` error. [`avn-tool-fs`](../tool-fs/README.md) owns the model-facing error wrapper: it normalizes every `FS_NOT_OBSERVED` source to `cannot modify "<path>": file has not been read — read the file, then retry`, while `FS_STALE_VERSION` retains the provider reason and adds `— re-read the file, then retry`; both preserve the code and original cause. Following the stale remedy on an externally deleted target records absence: the next guarded write may recreate it with `createIfAbsent`, while the provider atomically preserves any concurrent creator.
 
 #### Token effect
 

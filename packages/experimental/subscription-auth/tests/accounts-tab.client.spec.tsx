@@ -52,7 +52,7 @@ function status(
   return {
     accessMode: 'loopback',
     uiOwner: 'standalone',
-    compatibility: { coreAbi: 'test', dshVersion: null, status: 'healthy', diagnostics: [] },
+    compatibility: { coreAbi: 'test', avnVersion: null, status: 'healthy', diagnostics: [] },
     providers: {
       grok: { status: 'signed-out', grokImportAvailable: false },
       codex,

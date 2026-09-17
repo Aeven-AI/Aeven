@@ -55,7 +55,7 @@ Remote 失败只有一个类 `RemoteError`：域码经 declaration merging 进 `
 码名是 `<域>/<理由>`，声明落点四条：
 
 - 只有一个生产者：声明落生产者包，紧挨抛出点。
-- 多个包共同生产：落双方共同依赖的最低层域包（`session/not-found` 在 `core/session`，`workspace/not-found` 在 `dsh-workspace`）。
+- 多个包共同生产：落双方共同依赖的最低层域包（`session/not-found` 在 `core/session`，`workspace/not-found` 在 `avn-workspace`）。
 - 载体码 `gateway/bad-request`、`gateway/cancelled`、`gateway/internal` 已在 protocol 声明，Gateway 基础设施码已在 gateway 声明——直接用，不要复制。
 - 不上 wire 的本地失败不进码表，用调用方自己的类型表达。
 

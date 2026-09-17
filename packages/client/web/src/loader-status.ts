@@ -10,7 +10,7 @@ import type { FiberState } from '@deepseek-ai/cordis'
  * Value mirror of cordis's `FiberState` const enum: a const enum has no
  * runtime object to import (and esbuild-based pipelines cannot inline it
  * across modules), so these values mirror the pinned vendored definition
- * while retaining its type (same rationale as dsh-tool-cordis's mirror).
+ * while retaining its type (same rationale as avn-tool-cordis's mirror).
  */
 export const FIBER_STATE = {
   PENDING: 0 as FiberState.PENDING,

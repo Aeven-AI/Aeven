@@ -53,7 +53,7 @@ afterEach(async () => {
 })
 
 async function tempDir(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'dsh-settings-lockrace-'))
+  const dir = await mkdtemp(join(tmpdir(), 'avn-settings-lockrace-'))
   cleanups.push(() => rm(dir, { recursive: true, force: true }))
   return dir
 }

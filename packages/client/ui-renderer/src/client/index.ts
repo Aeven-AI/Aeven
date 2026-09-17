@@ -62,14 +62,14 @@ function BootHandoff(props: { app: () => ReactNode; boot: BootSnapshot }): React
   if (ready) return props.app()
   return createElement('div', {
     className: props.boot.className,
-    'data-dsh-boot': '',
+    'data-avn-boot': '',
     dangerouslySetInnerHTML: { __html: props.boot.html },
   })
 }
 
 /** Mount React while preserving the framework-free boot DOM through hydration. */
 function mountApp(container: HTMLElement, app: () => ReactNode): Root {
-  const boot = container.querySelector<HTMLElement>(':scope > [data-dsh-boot]')
+  const boot = container.querySelector<HTMLElement>(':scope > [data-avn-boot]')
   if (boot !== null) {
     return hydrateRoot(container, createElement(BootHandoff, {
       app,

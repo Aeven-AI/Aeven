@@ -35,8 +35,8 @@
 .label {
   min-width: 0;
   overflow: hidden;
-  font-size: var(--dsh-content-font-size, 16px);
-  line-height: calc(28px + var(--dsh-content-font-delta, 0px));
+  font-size: var(--avn-content-font-size, 16px);
+  line-height: calc(28px + var(--avn-content-font-delta, 0px));
   text-overflow: ellipsis;
   white-space: nowrap;
 }

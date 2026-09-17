@@ -30,7 +30,7 @@ export type {
   ShellRunResult,
   ShellSandboxInfo,
   CollectedOutput,
-  DshEnvironment,
+  AvnEnvironment,
   AvnEnvironmentKey,
 } from './types.ts'
 export { parseExitStatus } from './render.ts'

@@ -3,7 +3,7 @@ description: "Browser-safe Workspace path helpers for joining relative paths, ab
 kind: "package-library"
 ---
 
-# dsh-util-workspace-path
+# avn-util-workspace-path
 
 English | [中文](README.zh.md)
 

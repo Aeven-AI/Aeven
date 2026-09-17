@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-02-static-web-shell-preloader.md
-2026-09-02-static-web-shell-preloader.md: 3818f52e0aa219a7989a9c0a9ddff53aec97c1c2
-2026-09-02-static-web-shell-preloader.zh.md: de9e25c32932087b940183a7df86d6b0a47370f1
+2026-09-02-static-web-shell-preloader.md: c50ce5079692ad921532a646d8b2484399b47327
+2026-09-02-static-web-shell-preloader.zh.md: 2f52245eee87d7be561d4ffa423656b13441c38c

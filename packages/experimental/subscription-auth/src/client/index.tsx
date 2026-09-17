@@ -1,4 +1,4 @@
-/** Browser half: coding-subscription account management inside dsh Settings. */
+/** Browser half: coding-subscription account management inside avn Settings. */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@aeven/client-locale/client'
@@ -6,7 +6,7 @@ import type {} from '@aeven/client-ui-settings/client'
 import type {} from '@aeven/client-ui-slots'
 import { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { createDshClientAdapter } from './dshClientAdapter.ts'
+import { createAvnClientAdapter } from './avnClientAdapter.ts'
 import type { GrokBuildSettingsInjected } from './GrokBuildSettings.tsx'
 import { GrokBuildSettings } from './GrokBuildSettings.tsx'
 import type { GrokBuildSettingsKey } from './locales.ts'
@@ -18,7 +18,7 @@ declare module '@aeven/client-ui-slots' {
   }
 }
 
-export const name = 'dsh-grok-build-client'
+export const name = 'avn-grok-build-client'
 export const inject = ['locale']
 
 function IndependentSettingsEntry({ t }: { readonly t: GrokBuildSettingsInjected['t'] }) {
@@ -29,7 +29,7 @@ function IndependentSettingsEntry({ t }: { readonly t: GrokBuildSettingsInjected
   useEffect(() => {
     if (!open) return
     closeButton.current?.focus()
-    const host = dialog.current?.closest('[data-dsh-coding-oauth]')?.parentElement
+    const host = dialog.current?.closest('[data-avn-coding-oauth]')?.parentElement
     const inertSiblings =
       host == null
         ? []
@@ -82,7 +82,7 @@ function IndependentSettingsEntry({ t }: { readonly t: GrokBuildSettingsInjected
     }
   }, [open])
   return (
-    <div data-dsh-coding-oauth>
+    <div data-avn-coding-oauth>
       <button
         ref={trigger}
         type="button"
@@ -137,12 +137,12 @@ function mountIndependentEntry(t: GrokBuildSettingsInjected['t']): () => void {
 }
 
 export function apply(ctx: ClientContext): void {
-  const dsh = createDshClientAdapter(ctx)
-  dsh.assertCompatible()
+  const avn = createAvnClientAdapter(ctx)
+  avn.assertCompatible()
   const namespace = 'settings.grok-build'
-  dsh.effect(() => dsh.locale.register(namespace, { zh, en }), 'dsh-subscription-auth: settings copy')
-  const t = dsh.locale.bind(namespace) as GrokBuildSettingsInjected['t']
-  dsh.installSlots({
+  avn.effect(() => avn.locale.register(namespace, { zh, en }), 'avn-subscription-auth: settings copy')
+  const t = avn.locale.bind(namespace) as GrokBuildSettingsInjected['t']
+  avn.installSlots({
     mountFallback: () => mountIndependentEntry(t),
     register: slots =>
       slots.inject('settings.section', () =>

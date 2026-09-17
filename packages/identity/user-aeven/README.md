@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-identity-user-aeven` makes an Aeven account the credential a DSH deployment authenticates against, so a reader signed in to Aeven is signed in here without a second login. It verifies both credentials the Aeven client presents — the access bearer on HTTP calls and the `refreshToken` cookie on a WebSocket upgrade — locally against the API's own signing secrets, so identifying a caller costs no request to Aeven. Mounting it makes the request fence demand a session instead of the launch token, which is a decision a deployment operating an Aeven API makes deliberately. It also states the Aeven endpoints in the served page, which is what gives the browser its sign-in screens.
+`avn-identity-user-aeven` makes an Aeven account the credential a AVN deployment authenticates against, so a reader signed in to Aeven is signed in here without a second login. It verifies both credentials the Aeven client presents — the access bearer on HTTP calls and the `refreshToken` cookie on a WebSocket upgrade — locally against the API's own signing secrets, so identifying a caller costs no request to Aeven. Mounting it makes the request fence demand a session instead of the launch token, which is a decision a deployment operating an Aeven API makes deliberately. It also states the Aeven endpoints in the served page, which is what gives the browser its sign-in screens.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ Mount it after the seam, give it the Aeven API's two signing secrets, and the We
 
 ### When to choose it
 
-Choose it when DSH and an Aeven API are operated together and readers should reach DSH with their Aeven account. Local verification is only sound under that condition, because it depends on sharing the API's secrets. A deployment that does not run an Aeven API must not mount this row: with an authority present and no reachable API, every `/api` route answers 401 and no reader can sign in.
+Choose it when AVN and an Aeven API are operated together and readers should reach AVN with their Aeven account. Local verification is only sound under that condition, because it depends on sharing the API's secrets. A deployment that does not run an Aeven API must not mount this row: with an authority present and no reachable API, every `/api` route answers 401 and no reader can sign in.
 
 ### Minimal configuration
 
@@ -58,9 +58,9 @@ The row injects the seam and reads its secrets from the environment:
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aeven-identity-user-aeven) is the exhaustive source for every accepted field.
 
-### Serve DSH from the same site as the API
+### Serve AVN from the same site as the API
 
-A WebSocket upgrade carries no header, so it authenticates by cookie alone, and a browser returns a cookie only to the site that set it. `localhost` and `127.0.0.1` reach the same machine but are different sites: serving DSH on one while the API answers on the other signs a reader in over HTTP and then refuses their socket. The browser configuration follows the page's own loopback host to keep both on one site whichever address was typed.
+A WebSocket upgrade carries no header, so it authenticates by cookie alone, and a browser returns a cookie only to the site that set it. `localhost` and `127.0.0.1` reach the same machine but are different sites: serving AVN on one while the API answers on the other signs a reader in over HTTP and then refuses their socket. The browser configuration follows the page's own loopback host to keep both on one site whichever address was typed.
 
 -----
 
@@ -100,10 +100,10 @@ The Aeven origins are deployment facts, not build facts, so the Host states them
 
 Read these when the authority alone is not enough: the seam it registers into, the browser surface that establishes the session, and the fence that enforces it.
 
-- [dsh-identity-user](../user/README.md) — the seam and the resolver contract this package implements.
-- [dsh-client-ui-auth-aeven](../../client/ui-auth-aeven/README.md) — the sign-in screens and the session this authority then recognizes.
-- [dsh-client-ui-account-aeven](../../client/ui-account-aeven/README.md) — the account menu showing the reader this authority restored.
-- [dsh-client-connection](../../client/connection/README.md) — the fence that drops the launch token once an authority is mounted.
+- [avn-identity-user](../user/README.md) — the seam and the resolver contract this package implements.
+- [avn-client-ui-auth-aeven](../../client/ui-auth-aeven/README.md) — the sign-in screens and the session this authority then recognizes.
+- [avn-client-ui-account-aeven](../../client/ui-account-aeven/README.md) — the account menu showing the reader this authority restored.
+- [avn-client-connection](../../client/connection/README.md) — the fence that drops the launch token once an authority is mounted.
 - [Generated configuration catalog](../../../docs/config-catalog.md#aeven-identity-user-aeven) — every accepted config field and its source declaration.
 
 -----
@@ -124,7 +124,7 @@ None; this package neither assembles nor sends a provider request.
 These are current constraints of the authority, not a task backlog.
 
 - **Revoked-before-expiry tokens still verify** — local verification cannot observe a revocation the API recorded. The window closes when the token expires.
-- **DSH and the API must share a site and a secret** — the cookie path requires one site, and local verification requires the API's own `JWT_SECRET` and `REFRESH_SECRET`. This authority suits DSH and Aeven operated together, not a third party integrating against a public Aeven.
+- **AVN and the API must share a site and a secret** — the cookie path requires one site, and local verification requires the API's own `JWT_SECRET` and `REFRESH_SECRET`. This authority suits AVN and Aeven operated together, not a third party integrating against a public Aeven.
 - **Mounting it fences the whole surface** — there is no per-route opt-out. A deployment with no reachable Aeven API must remove the row rather than expect a degraded mode.
 
 <a id="dev-note"></a>

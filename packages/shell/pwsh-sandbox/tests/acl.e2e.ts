@@ -38,10 +38,10 @@ describe.skipIf(!isWin32 || !pwshAvailable())('pwsh-sandbox real ACL confinement
     // The workspace escape sits under the profile. A separate directory under
     // the ambient temp root proves that the root itself is not granted: the
     // runner creates its own private child and rewrites TMP/TEMP to it.
-    scratchRoot = mkdtempSync(join(homedir(), 'dsh-pwsh-sandbox-e2e-'))
+    scratchRoot = mkdtempSync(join(homedir(), 'avn-pwsh-sandbox-e2e-'))
     writableDir = join(scratchRoot, 'writable')
     mkdirSync(writableDir)
-    outsideTempDir = mkdtempSync(join(tmpdir(), 'dsh-pwsh-sandbox-e2e-outside-temp-'))
+    outsideTempDir = mkdtempSync(join(tmpdir(), 'avn-pwsh-sandbox-e2e-outside-temp-'))
     secretFile = join(scratchRoot, 'secret.txt')
     writeFileSync(secretFile, 'top secret - must stay readable to prove the read boundary')
     escapeFile = join(scratchRoot, 'escaped.txt')

@@ -4,7 +4,7 @@
  * (if any) a given URL goes through.
  *
  * Nothing here imports `undici`, so the module stays loadable in the browser-worker runtime that
- * evaluates `dsh-web-fetch-http` without a Node transport.
+ * evaluates `avn-web-fetch-http` without a Node transport.
  * @module @aeven/http-proxy/policy
  */
 
@@ -328,7 +328,7 @@ export function resolveProxyPolicy(env: EnvLookup): ProxyResolution {
 /**
  * Resolve which proxy one URL goes through under a policy.
  *
- * This is the single answer both the installed dispatcher and `dsh-web-fetch-http` consult, so a URL
+ * This is the single answer both the installed dispatcher and `avn-web-fetch-http` consult, so a URL
  * can never be pinned to a resolved address by one and tunnelled by the other.
  *
  * @param policy - the active policy.

@@ -1,5 +1,5 @@
 ---
-description: "为 dsh Web 客户端渲染 assistant 输出的流式原生 Markdown 引擎：把已稳定的块缓存到代码行、表格行与列表项级别，使不断增长的回复不会重复解析已完成的内容。"
+description: "为 avn Web 客户端渲染 assistant 输出的流式原生 Markdown 引擎：把已稳定的块缓存到代码行、表格行与列表项级别，使不断增长的回复不会重复解析已完成的内容。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-client-hypermarkdown` 是 Web 客户端对话记录背后的 Markdown 引擎。它渲染不受信任的 GFM、TeX 公式、带语法高亮的代码围栏与 Mermaid 图表，并且专为分段到达的文本而设计：已经稳定的块不会被再次解析，因此增长到数千行的回复只需为变化的部分付出代价。渲染器按代码行、表格行与列表项分别缓存，在每一步都把流式输出与完整解析结果对齐，并通过自己的 external store 发布最终渲染结果，使逐词淡入动画在 finalize 后依然保留。
+`avn-client-hypermarkdown` 是 Web 客户端对话记录背后的 Markdown 引擎。它渲染不受信任的 GFM、TeX 公式、带语法高亮的代码围栏与 Mermaid 图表，并且专为分段到达的文本而设计：已经稳定的块不会被再次解析，因此增长到数千行的回复只需为变化的部分付出代价。渲染器按代码行、表格行与列表项分别缓存，在每一步都把流式输出与完整解析结果对齐，并通过自己的 external store 发布最终渲染结果，使逐词淡入动画在 finalize 后依然保留。
 
 本仓库内唯一的消费者是 `ui-primitives` 中的 [`MarkdownText`](../ui-primitives/src/markdown/MarkdownText.tsx)，它负责不受信任输出的策略：原始 HTML 从不被解析、不安全的链接与图片协议被拦截、Mermaid 以 strict 安全级别运行。本包则负责引擎本身——解析流水线、流式缓存、块修复阶段、工具栏外观，以及它渲染时使用的样式表。
 

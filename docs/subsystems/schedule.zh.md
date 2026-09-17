@@ -181,7 +181,7 @@ type ScheduleView = ScheduleRecord & {
 
 可选 Session projection 注册表存在时，Schedule 会注册客户端可见的 `schedule` key，其值是完整的活动 `ScheduleRecord[]`。live、cache、history 与 detached 读取共用同一套 header-aware 严格 fold；畸形权威输入会使既有读取路径失败，而不会发布部分值。
 
-shipped Web bundle 默认禁用 `ui-schedule`，显式 Schedule overlay 则把它与 Host 能力一同启用。[`dsh-client-ui-schedule`](../../packages/client/ui-schedule/README.zh.md)拥有 header 交互，[`dsh-client-ui-workspace`](../../packages/client/ui-workspace/README.zh.md)拥有列表行呈现，持久 Schedule Agent Note 拥有二者共享的活动状态边界。共享值只表示当前活动状态，绝不表示交付历史或回执；到期提醒仍通过下文所述的普通 Assistant 输出出现。
+shipped Web bundle 默认禁用 `ui-schedule`，显式 Schedule overlay 则把它与 Host 能力一同启用。[`avn-client-ui-schedule`](../../packages/client/ui-schedule/README.zh.md)拥有 header 交互，[`avn-client-ui-workspace`](../../packages/client/ui-workspace/README.zh.md)拥有列表行呈现，持久 Schedule Agent Note 拥有二者共享的活动状态边界。共享值只表示当前活动状态，绝不表示交付历史或回执；到期提醒仍通过下文所述的普通 Assistant 输出出现。
 
 ## Live 交付
 

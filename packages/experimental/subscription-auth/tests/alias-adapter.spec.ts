@@ -527,9 +527,9 @@ describe('AliasLlmAdapter', () => {
 
 describe('subscriptionUsagePath', () => {
   it('builds the same-origin usage path the Settings client requests', () => {
-    expect(SUBSCRIPTION_USAGE_PATH_PREFIX).toBe('/plugins/dsh-grok-build/usage/')
+    expect(SUBSCRIPTION_USAGE_PATH_PREFIX).toBe('/plugins/avn-grok-build/usage/')
     expect(subscriptionUsagePath('codex')).toBe(`${SUBSCRIPTION_USAGE_PATH_PREFIX}codex`)
-    expect(subscriptionUsagePath('claude')).toBe('/plugins/dsh-grok-build/usage/claude')
+    expect(subscriptionUsagePath('claude')).toBe('/plugins/avn-grok-build/usage/claude')
     // The registered route deliberately has no trailing slash, so the built path
     // extends the route instead of doubling the separator.
     expect(SUBSCRIPTION_USAGE_ROUTE.endsWith('/')).toBe(false)

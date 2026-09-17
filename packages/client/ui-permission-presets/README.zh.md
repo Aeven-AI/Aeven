@@ -54,7 +54,7 @@ kind: "package-reference"
 
 当权限面不够用时阅读以下页面。它们从浏览器表面进入宿主策略与命令外壳。
 
-- [dsh-permission-presets](../../interaction/permission-presets/README.zh.md)——这些表面写入的宿主侧权限预设策略。
+- [avn-permission-presets](../../interaction/permission-presets/README.zh.md)——这些表面写入的宿主侧权限预设策略。
 - [ui-commands](../ui-commands/README.zh.md)——`/permission` 装饰注册进的 popupSelect 外壳。
 - [ui-conversation](../ui-conversation/README.zh.md)——渲染同一份权限投影的 composer chip。
 - [客户端包映射](../README.zh.md)——相邻的浏览器 UI 包。

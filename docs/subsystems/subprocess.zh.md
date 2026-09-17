@@ -2,7 +2,7 @@
 
 [English](subprocess.md) | 中文
 
-子进程 seam 分为 Service Definition（[dsh-subprocess](../../packages/subprocess/subprocess)，`ctx.subprocess`）与 Service Provider（[dsh-subprocess-local](../../packages/subprocess/subprocess-local)）；它的 Consumer 是其他能力 seam 与进程外后端：[bash 执行器家族](shell.zh.md)使用收集模式的批量输出，LSP 使用原始协议管道，PTY 后端使用终端原语，ACP（Agent Client Protocol）subagent 后端则使用通过管道传输的 ndjson，并让 stderr 采用 inherit。该 seam 拥有受管的 `AVN_*` 环境命名空间、共享的凭据清除（`scrubbedParentEnv`）与 `CollectedOutput` 形状；[dsh-shell](../../packages/shell/shell) 重导出这套词汇，使 bash 消费方保持单一导入入口。
+子进程 seam 分为 Service Definition（[avn-subprocess](../../packages/subprocess/subprocess)，`ctx.subprocess`）与 Service Provider（[avn-subprocess-local](../../packages/subprocess/subprocess-local)）；它的 Consumer 是其他能力 seam 与进程外后端：[bash 执行器家族](shell.zh.md)使用收集模式的批量输出，LSP 使用原始协议管道，PTY 后端使用终端原语，ACP（Agent Client Protocol）subagent 后端则使用通过管道传输的 ndjson，并让 stderr 采用 inherit。该 seam 拥有受管的 `AVN_*` 环境命名空间、共享的凭据清除（`scrubbedParentEnv`）与 `CollectedOutput` 形状；[avn-shell](../../packages/shell/shell) 重导出这套词汇，使 bash 消费方保持单一导入入口。
 
 源码：[`packages/subprocess/subprocess/src/types.ts`](../../packages/subprocess/subprocess/src/types.ts) 与 [`packages/subprocess/subprocess/src/index.ts`](../../packages/subprocess/subprocess/src/index.ts)
 
@@ -21,7 +21,7 @@ type AvnEnvironmentKey = `${typeof AVN_ENV_PREFIX}${string}`
 
 ```ts type-equiv
 /** Trusted DeepSeek Harness variables for one child-process execution. */
-type DshEnvironment = Readonly<Record<AvnEnvironmentKey, string>>
+type AvnEnvironment = Readonly<Record<AvnEnvironmentKey, string>>
 ```
 
 ```ts type-equiv
@@ -94,7 +94,7 @@ interface SubprocessStdio {
 /**
  * A fully-specified spawn request. This seam applies no defaults: every
  * disposition, limit, and directory is explicit, so the caller's own config —
- * not a hidden subprocess-service default — decides them (the `dsh-shell`
+ * not a hidden subprocess-service default — decides them (the `avn-shell`
  * request/spec split is the owning template).
  */
 interface SubprocessSpawnSpec {
@@ -246,7 +246,7 @@ interface SubprocessOutcome {
 
 ## 服务行为
 
-抽象的 [`SubprocessRuntime`](../../packages/subprocess/subprocess/src/index.ts) Service Definition 规定执行世界坐标、可执行文件查找、普通 `spawn` 与 `spawnTerminal`。[`LocalSubprocessRuntime`](../../packages/subprocess/subprocess-local/src/index.ts) 以 detached 进程树、按处置方式接线、凭据清除、`node-pty`、平台进程检查，以及先终止再等待退出的资源释放提供这些能力。Service Definition 约定见 [`dsh-subprocess`](../../packages/subprocess/subprocess/README.zh.md)，本地机制见 [`dsh-subprocess-local`](../../packages/subprocess/subprocess-local/README.zh.md)。
+抽象的 [`SubprocessRuntime`](../../packages/subprocess/subprocess/src/index.ts) Service Definition 规定执行世界坐标、可执行文件查找、普通 `spawn` 与 `spawnTerminal`。[`LocalSubprocessRuntime`](../../packages/subprocess/subprocess-local/src/index.ts) 以 detached 进程树、按处置方式接线、凭据清除、`node-pty`、平台进程检查，以及先终止再等待退出的资源释放提供这些能力。Service Definition 约定见 [`avn-subprocess`](../../packages/subprocess/subprocess/README.zh.md)，本地机制见 [`avn-subprocess-local`](../../packages/subprocess/subprocess-local/README.zh.md)。
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 

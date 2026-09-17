@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-08-09-md-fragment-anchor-gate.md
-2026-08-09-md-fragment-anchor-gate.md: de0d02318b63c4892233c8c2ebe8457152def10c
-2026-08-09-md-fragment-anchor-gate.zh.md: 54ac751900b508fb0dc6fa0e20f0b50b11e252a9
+2026-08-09-md-fragment-anchor-gate.md: 9fcec6442f0cbaf9e929a887779e4fb0b28a3f91
+2026-08-09-md-fragment-anchor-gate.zh.md: f59ffeaa68050181f5555ef36d053d8dbe9fb9cc

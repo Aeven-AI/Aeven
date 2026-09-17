@@ -1,9 +1,9 @@
 /** Explicit exceptions and Host packages for the published dependency policy. */
 
-/** Packages treated as Client/Host packages without declaring `dsh.client`. */
+/** Packages treated as Client/Host packages without declaring `avn.client`. */
 const CLIENT_FACE_INCLUDE: readonly string[] = []
 
-/** Packages exempted from automatic Client/Host treatment despite declaring `dsh.client`. */
+/** Packages exempted from automatic Client/Host treatment despite declaring `avn.client`. */
 const CLIENT_FACE_EXCLUDE: readonly string[] = [
   '@aeven/api-session-controller',
   '@aeven/api-workspace-controller',
@@ -83,20 +83,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /** Whether a package manifest declares a dynamically loaded Client entry. */
-export function hasClientDeclaration(dshField: unknown): boolean {
-  return isRecord(dshField) && Object.hasOwn(dshField, 'client')
+export function hasClientDeclaration(avnField: unknown): boolean {
+  return isRecord(avnField) && Object.hasOwn(avnField, 'client')
 }
 
 /** Whether the repository policy flattens one package's non-Cordis peers. */
 export function usesFlattenedPackageDependencies(
   manifestPath: string,
   packageName: string,
-  dshField: unknown,
+  avnField: unknown,
   policy: PackageDependencyPolicy = PACKAGE_DEPENDENCY_POLICY,
 ): boolean {
   if (!manifestPath.startsWith('packages/') || manifestPath.startsWith('packages/experimental/')) return false
   if (policy.hostPackages.includes(packageName)) return true
   if (manifestPath.startsWith('packages/client/')) return true
-  const included = hasClientDeclaration(dshField) || policy.clientFaceInclude.includes(packageName)
+  const included = hasClientDeclaration(avnField) || policy.clientFaceInclude.includes(packageName)
   return included && !policy.clientFaceExclude.includes(packageName)
 }

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-tool-cordis` gives the model seven tools over the live Cordis runtime of the current DSH process: inspect what is loaded and what a dynamic package may use, define a package with a host half, a browser half, or both, run it, stop it, and remove it. Packages are versioned — a plugin holds immutable package versions, and the model can append a corrected package and update to it after a failure. Definitions live only in process memory and vanish on DSH restart; nothing here writes repository files, installs packages, or changes `cordis.yml`. It also adds a system-prompt section that teaches the workflow; compose it with `@aeven/cordis-host-runner`, the package that runs the sandbox and the run round trip.
+`avn-tool-cordis` gives the model seven tools over the live Cordis runtime of the current AVN process: inspect what is loaded and what a dynamic package may use, define a package with a host half, a browser half, or both, run it, stop it, and remove it. Packages are versioned — a plugin holds immutable package versions, and the model can append a corrected package and update to it after a failure. Definitions live only in process memory and vanish on AVN restart; nothing here writes repository files, installs packages, or changes `cordis.yml`. It also adds a system-prompt section that teaches the workflow; compose it with `@aeven/cordis-host-runner`, the package that runs the sandbox and the run round trip.
 
 ## Table of Contents
 
@@ -56,7 +56,7 @@ Inspect before writing, then define, then run: `cordis_inspect_query` reads the 
 
 ### Boundaries to plan around
 
-Definitions are session-scoped and process-local: a package is visible and controllable only in the session that defined it, stays active across later turns, and can affect other sessions in the same process while running. Stopping, removing, unloading the toolset, or restarting DSH clears it. The sandbox isolates globals but is not a security boundary — treat a dynamic package like bash access, and load this plugin as deliberately as you would grant one.
+Definitions are session-scoped and process-local: a package is visible and controllable only in the session that defined it, stays active across later turns, and can affect other sessions in the same process while running. Stopping, removing, unloading the toolset, or restarting AVN clears it. The sandbox isolates globals but is not a security boundary — treat a dynamic package like bash access, and load this plugin as deliberately as you would grant one.
 
 -----
 
@@ -133,7 +133,7 @@ This package registers one system-prompt section (`tool:cordis`, order 115) teac
 ```markdown
 # Dynamic Cordis Plugins
 
-Dynamic Cordis plugins temporarily extend the current DSH process. A Plugin uses apply(ctx) to consume Services, listen to Events, provide Services, register model Tools, or register browser UI in Slots.
+Dynamic Cordis plugins temporarily extend the current AVN process. A Plugin uses apply(ctx) to consume Services, listen to Events, provide Services, register model Tools, or register browser UI in Slots.
 ```
 
 #### Token effect

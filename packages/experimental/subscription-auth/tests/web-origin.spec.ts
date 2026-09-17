@@ -78,7 +78,7 @@ describe('OwnerRequestPolicy', () => {
   const config = {
     trustedProxy: {
       peers: ['10.0.0.8'],
-      origins: ['https://dsh.example.test'],
+      origins: ['https://avn.example.test'],
       ownerProof: 'owner-proof-secret',
       csrfToken: 'csrf-proof-secret',
     },
@@ -95,8 +95,8 @@ describe('OwnerRequestPolicy', () => {
   it('admits a trusted proxy only when every independent proof is present', () => {
     const policy = createOwnerRequestPolicy(config)
     const headers = {
-      host: 'dsh.example.test',
-      origin: 'https://dsh.example.test',
+      host: 'avn.example.test',
+      origin: 'https://avn.example.test',
       'sec-fetch-site': 'same-origin',
       [OWNER_PROOF_HEADER]: 'owner-proof-secret',
       [OWNER_CSRF_HEADER]: 'csrf-proof-secret',
@@ -117,10 +117,10 @@ describe('OwnerRequestPolicy', () => {
       proxyRequest(
         {
           host: 'attacker.invalid',
-          origin: 'https://dsh.example.test',
+          origin: 'https://avn.example.test',
           'sec-fetch-site': 'same-origin',
           'x-forwarded-for': '10.0.0.8',
-          'x-forwarded-host': 'dsh.example.test',
+          'x-forwarded-host': 'avn.example.test',
           [OWNER_PROOF_HEADER]: 'owner-proof-secret',
           [OWNER_CSRF_HEADER]: 'csrf-proof-secret',
         },
@@ -130,7 +130,7 @@ describe('OwnerRequestPolicy', () => {
     expect(decision).toEqual({ authorized: false, reason: 'peer' })
   })
 
-  it('fails closed when a DSH-native owner policy throws or returns invalid data', () => {
+  it('fails closed when a AVN-native owner policy throws or returns invalid data', () => {
     for (const candidate of [
       {
         authorize() {
@@ -152,7 +152,7 @@ describe('OwnerRequestPolicy', () => {
     const policy = createOwnerRequestPolicy({
       trustedProxy: {
         peers: ['127.0.0.1'],
-        origins: ['https://dsh.example.test'],
+        origins: ['https://avn.example.test'],
         ownerProof: 'owner-proof-secret',
         csrfToken: 'csrf-proof-secret',
       },
@@ -165,10 +165,10 @@ describe('OwnerRequestPolicy', () => {
 
   it('fails closed when the trusted proxy configuration is incomplete or reuses one proof', () => {
     for (const trustedProxy of [
-      { peers: ['10.0.0.8'], origins: ['https://dsh.example.test'], ownerProof: 'owner' },
+      { peers: ['10.0.0.8'], origins: ['https://avn.example.test'], ownerProof: 'owner' },
       {
         peers: ['10.0.0.8'],
-        origins: ['https://dsh.example.test'],
+        origins: ['https://avn.example.test'],
         ownerProof: 'same',
         csrfToken: 'same',
       },
@@ -177,7 +177,7 @@ describe('OwnerRequestPolicy', () => {
       expect(
         policy.authorize(
           proxyRequest({
-            origin: 'https://dsh.example.test',
+            origin: 'https://avn.example.test',
             'sec-fetch-site': 'same-origin',
             [OWNER_PROOF_HEADER]: 'owner',
             [OWNER_CSRF_HEADER]: 'csrf',
@@ -193,7 +193,7 @@ describe('OwnerRequestPolicy', () => {
     expect(
       policy.authorize(
         proxyRequest({
-          origin: 'https://dsh.example.test/#spoofed',
+          origin: 'https://avn.example.test/#spoofed',
           'sec-fetch-site': 'same-origin',
           [OWNER_PROOF_HEADER]: 'owner-proof-secret',
           [OWNER_CSRF_HEADER]: 'csrf-proof-secret',
@@ -224,7 +224,7 @@ describe('OwnerRequestPolicy', () => {
       policy.authorize(
         proxyRequest({
           host: '[',
-          origin: 'https://dsh.example.test',
+          origin: 'https://avn.example.test',
           'sec-fetch-site': 'same-origin',
           [OWNER_PROOF_HEADER]: 'owner-proof-secret',
           [OWNER_CSRF_HEADER]: 'csrf-proof-secret',
@@ -235,15 +235,15 @@ describe('OwnerRequestPolicy', () => {
 
   it('fails closed when the proxy configuration omits peers or origins', () => {
     for (const trustedProxy of [
-      { origins: ['https://dsh.example.test'], ownerProof: 'owner-proof-secret', csrfToken: 'csrf-proof-secret' },
+      { origins: ['https://avn.example.test'], ownerProof: 'owner-proof-secret', csrfToken: 'csrf-proof-secret' },
       { peers: ['10.0.0.8'], ownerProof: 'owner-proof-secret', csrfToken: 'csrf-proof-secret' },
     ]) {
       const policy = createOwnerRequestPolicy({ trustedProxy })
       expect(
         policy.authorize(
           proxyRequest({
-            host: 'dsh.example.test',
-            origin: 'https://dsh.example.test',
+            host: 'avn.example.test',
+            origin: 'https://avn.example.test',
             'sec-fetch-site': 'same-origin',
             [OWNER_PROOF_HEADER]: 'owner-proof-secret',
             [OWNER_CSRF_HEADER]: 'csrf-proof-secret',
@@ -258,12 +258,12 @@ describe('OwnerRequestPolicy', () => {
     const policy = createOwnerRequestPolicy({
       trustedProxy: {
         peers: ['10.0.0.8'],
-        origins: ['http://dsh.example.test'],
+        origins: ['http://avn.example.test'],
         ownerProof: 'owner-proof-secret',
         csrfToken: 'csrf-proof-secret',
       },
     })
-    expect(policy.authorize(proxyRequest({ origin: 'http://dsh.example.test' }))).toEqual({
+    expect(policy.authorize(proxyRequest({ origin: 'http://avn.example.test' }))).toEqual({
       authorized: false,
       reason: 'incomplete-policy',
     })
@@ -354,10 +354,10 @@ describe('safeguardOwnerRequestPolicy', () => {
     } as never)
     expect(policy.diagnostics()).toEqual([
       {
-        id: 'owner-request.dsh-policy-invalid',
+        id: 'owner-request.avn-policy-invalid',
         component: 'owner-request',
         level: 'error',
-        message: 'DSH owner-request policy returned invalid diagnostics',
+        message: 'AVN owner-request policy returned invalid diagnostics',
       },
     ])
   })

@@ -1,6 +1,6 @@
 {
   "name": "@aeven/web-frontend",
-  "description": "Web application entry: vite build over the @aeven/client-web shell library; dist/ served by apps/cli's dsh web",
+  "description": "Web application entry: vite build over the @aeven/client-web shell library; dist/ served by apps/cli's avn web",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"
@@ -25,7 +25,7 @@
     "build": "vite build",
     "dev": "vite",
     "watch": "vite build --watch --no-emptyOutDir",
-    "build:preview": "pnpm --filter @aeven/experimental-webworker-runtime exec tsdown && pnpm --filter @aeven/experimental-webworker-packer exec tsdown && vite build && dsh-pack-vfs-image --out dist/preview/vfs-image.tar.gz",
+    "build:preview": "pnpm --filter @aeven/experimental-webworker-runtime exec tsdown && pnpm --filter @aeven/experimental-webworker-packer exec tsdown && vite build && avn-pack-vfs-image --out dist/preview/vfs-image.tar.gz",
     "serve:preview": "http-server dist -a 0.0.0.0 -p 4173 -c-1"
   },
   "license": "MIT",

@@ -16,7 +16,7 @@ The repair is reached only under `process.platform === 'win32'`, matching the pl
 
 ## Testing
 
-Counting `node:fs/promises` calls through the suite's existing module mock, against a store with five project directories — the layout of a real `~/.dsh/sessions`:
+Counting `node:fs/promises` calls through the suite's existing module mock, against a store with five project directories — the layout of a real `~/.avn/sessions`:
 
 | Operation | Before | After |
 |---|---|---|

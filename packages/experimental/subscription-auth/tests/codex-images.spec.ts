@@ -685,16 +685,16 @@ describe('createCodexImageController', () => {
     }
     const controller = imageController(fetchImpl, {
       attachments: store,
-      originator: 'dsh-image-test',
-      userAgent: 'dsh-image-test',
+      originator: 'avn-image-test',
+      userAgent: 'avn-image-test',
       now: () => 1_700_000_000_000,
     })
     const result = await controller.generate({ prompt: 'jpeg' })
     expect(result.images.map(ref => String(ref.attachmentId))).toEqual(['saved-jpeg'])
     expect(store.saveImage.mock.calls[0]?.[0].name).toBe('codex-image-1700000000000-1.jpg')
     const headers = new Headers(fetchImpl.mock.calls[0]?.[1]?.headers)
-    expect(headers.get('originator')).toBe('dsh-image-test')
-    expect(headers.get('user-agent')).toBe('dsh-image-test')
+    expect(headers.get('originator')).toBe('avn-image-test')
+    expect(headers.get('user-agent')).toBe('avn-image-test')
   })
 
   it('forwards the caller abort signal into the image request', async () => {

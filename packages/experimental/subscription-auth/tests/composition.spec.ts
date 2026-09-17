@@ -41,10 +41,10 @@ describe('bundle composition', () => {
     // harness build leaves `dsh-coding-oauth-core` external, so the route
     // literals it owns no longer appear inlined in `lib/index.js`. What the
     // client depends on is the path values, which are checked directly.
-    expect(OAUTH_IMPORT_SOURCES_PATH).toBe('/plugins/dsh-grok-build/oauth/sources')
-    expect(CAPABILITY_SETTINGS_PATH).toBe('/plugins/dsh-grok-build/capabilities')
+    expect(OAUTH_IMPORT_SOURCES_PATH).toBe('/plugins/avn-grok-build/oauth/sources')
+    expect(CAPABILITY_SETTINGS_PATH).toBe('/plugins/avn-grok-build/capabilities')
     expect(CODEX_OAUTH_FAST_ROUTE).toBe('codex-oauth-fast')
-    expect(SUBSCRIPTION_USAGE_PATH_PREFIX).toBe('/plugins/dsh-grok-build/usage/')
+    expect(SUBSCRIPTION_USAGE_PATH_PREFIX).toBe('/plugins/avn-grok-build/usage/')
   })
 
   it('keeps the model-facing tool registry out of the shipped host bundle', async () => {
@@ -53,10 +53,10 @@ describe('bundle composition', () => {
     expect(imports.some(statement => statement.includes('"@aeven/tools"'))).toBe(false)
   })
 
-  it('declares a dsh bundle and web client half', async () => {
+  it('declares a avn bundle and web client half', async () => {
     const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8')) as {
       name: string
-      dsh: { bundle: { patch: string }; client: { platform: string; inject: string[] } }
+      avn: { bundle: { patch: string }; client: { platform: string; inject: string[] } }
       exports: Record<string, unknown>
     }
     expect(manifest.name).toBe('@aeven/experimental-subscription-auth')
@@ -65,9 +65,9 @@ describe('bundle composition', () => {
       '0.1.2',
     )
     expect((manifest as { dependencies?: Record<string, string> }).dependencies?.undici).toBe('7.29.0')
-    expect(manifest.dsh.bundle.patch).toBe('./cordis.patch.yml')
-    expect(manifest.dsh.client.platform).toBe('web')
-    expect(manifest.dsh.client.inject).toContain('@aeven/client-ui-settings')
+    expect(manifest.avn.bundle.patch).toBe('./cordis.patch.yml')
+    expect(manifest.avn.client.platform).toBe('web')
+    expect(manifest.avn.client.inject).toContain('@aeven/client-ui-settings')
     expect(manifest.exports['./client']).toMatchObject({ default: './lib/client.js' })
   })
 })

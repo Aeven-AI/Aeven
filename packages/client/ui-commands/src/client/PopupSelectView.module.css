@@ -23,8 +23,8 @@
   /* Elevated surface: the l2 elevation thumb is the surface's declaration
      (see ui-theme styles/scrollbar.css for the rebinding contract). The viewport
      hides its bar, so this only takes effect if that hiding is ever reverted. */
-  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
-  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
   border: 0;
   /* Aeven's popup surface, same as ui-primitives' Menu card and the avatar
      menu: the 30px surface radius over a translucent, blurred fill. */

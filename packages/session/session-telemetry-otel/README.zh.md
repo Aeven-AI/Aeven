@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-session-telemetry-otel` 通过 OpenTelemetry 日志投递会话记录，是[会话遥测 seam](../session-telemetry/README.zh.md) 的后端，也是部署方唯一要加载的条目。其 `mode` 决定会话记录是跟随实时流、仅在记录反馈时释放，还是留在本地：`FULL` 把每条记录立即交给 OTel SDK，`FEEDBACK_ONLY` 在 `feedback/record` 落地时回放权威日志，`DISABLED`（默认值）不构造任何内容也不共享任何内容。上传模式会原样组合 OTel JS SDK——`LoggerProvider` → `BatchLogRecordProcessor` → OTLP/HTTP 日志导出器——并把每条记录映射到 `logger.emit()`，因此批处理、重试、排队与丢失策略都遵循 SDK。记录携带 seam 脱敏 waterfall（瀑布式事件）返回的完整事件数据，因此向可信边界之外导出的部署方要挂载自己的脱敏规则。模式、配置与导出面在前；实现内部细节放在下方可折叠的开发者章节中。
+`avn-session-telemetry-otel` 通过 OpenTelemetry 日志投递会话记录，是[会话遥测 seam](../session-telemetry/README.zh.md) 的后端，也是部署方唯一要加载的条目。其 `mode` 决定会话记录是跟随实时流、仅在记录反馈时释放，还是留在本地：`FULL` 把每条记录立即交给 OTel SDK，`FEEDBACK_ONLY` 在 `feedback/record` 落地时回放权威日志，`DISABLED`（默认值）不构造任何内容也不共享任何内容。上传模式会原样组合 OTel JS SDK——`LoggerProvider` → `BatchLogRecordProcessor` → OTLP/HTTP 日志导出器——并把每条记录映射到 `logger.emit()`，因此批处理、重试、排队与丢失策略都遵循 SDK。记录携带 seam 脱敏 waterfall（瀑布式事件）返回的完整事件数据，因此向可信边界之外导出的部署方要挂载自己的脱敏规则。模式、配置与导出面在前；实现内部细节放在下方可折叠的开发者章节中。
 
 ## 目录
 
@@ -83,7 +83,7 @@ kind: "package-reference"
 
 ### 设计理念
 
-后端是对 OTel JS SDK 的薄适配层：它拥有捕获模式、资源身份与一个外层关闭截止时间，其余全部原样透传。两个插桩作用域区分记录通道——ledger 记录挂在 `@aeven/session-telemetry-otel` 下，运维记录挂在 `@aeven/session-telemetry-otel/ops` 下——使接收端可以在不累加它们的情况下对运维记录告警。资源身份携带 `service.name`/`service.version`（来自 `dsh-llm` 的 `APP_IDENTITY`）以及本包的匿名 `user.id`（来自 `$AVN_HOME/.anonymous-user-id`），按导出批次携带一次，而非逐条记录。
+后端是对 OTel JS SDK 的薄适配层：它拥有捕获模式、资源身份与一个外层关闭截止时间，其余全部原样透传。两个插桩作用域区分记录通道——ledger 记录挂在 `@aeven/session-telemetry-otel` 下，运维记录挂在 `@aeven/session-telemetry-otel/ops` 下——使接收端可以在不累加它们的情况下对运维记录告警。资源身份携带 `service.name`/`service.version`（来自 `avn-llm` 的 `APP_IDENTITY`）以及本包的匿名 `user.id`（来自 `$AVN_HOME/.anonymous-user-id`），按导出批次携带一次，而非逐条记录。
 
 ### 源码地图
 

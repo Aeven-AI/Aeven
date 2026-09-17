@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-spill` 让任何插件或工具都能通过 `ctx.spillStore` 保存过大的文本，并拿到一个不透明定位信息、精确的字节数与模型可以直接依据的取回指引。它定义 spill 后端做什么，而不规定如何存储——部署需要挂载 `dsh-spill-local` 之类的后端才能真正持久化，由 `dsh-spill-policy` 插件决定工具结果何时过大。当部署必须在不让模型上下文泛滥的前提下保留超大工具输出时，选择它。该服务只负责存储：没有保留策略、没有工具结果替换，也没有取回或搜索 API。真实存储故障会以拒绝结束，由调用方决定如何降级。
+`avn-spill` 让任何插件或工具都能通过 `ctx.spillStore` 保存过大的文本，并拿到一个不透明定位信息、精确的字节数与模型可以直接依据的取回指引。它定义 spill 后端做什么，而不规定如何存储——部署需要挂载 `avn-spill-local` 之类的后端才能真正持久化，由 `avn-spill-policy` 插件决定工具结果何时过大。当部署必须在不让模型上下文泛滥的前提下保留超大工具输出时，选择它。该服务只负责存储：没有保留策略、没有工具结果替换，也没有取回或搜索 API。真实存储故障会以拒绝结束，由调用方决定如何降级。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-需要 spill 工具输出的组合会挂载一个 spill 后端——仅本包本身不存储任何内容——并由 `dsh-spill-policy` 插件决定何时 spill。插件与工具作者直接调用 `ctx.spillStore.saveText()`，在当前会话下持久化文本。
+需要 spill 工具输出的组合会挂载一个 spill 后端——仅本包本身不存储任何内容——并由 `avn-spill-policy` 插件决定何时 spill。插件与工具作者直接调用 `ctx.spillStore.saveText()`，在当前会话下持久化文本。
 
 ### 何时选择
 
@@ -55,15 +55,15 @@ const ref = await ctx.spillStore.saveText({
 })
 ```
 
-返回的 `SpillRef` 携带三个字段：`locator`，后端产生的不透明模型面向句柄（对 `dsh-spill-local` 是本地文件路径，对其他后端可能是 URI 或键）；`bytes`，写入的精确 UTF-8 字节数；`retrievalHint`，消费方展示给模型的指引——对本地后端而言是读取或搜索该路径。消费方按指引渲染定位信息，绝不自行解析定位信息。
+返回的 `SpillRef` 携带三个字段：`locator`，后端产生的不透明模型面向句柄（对 `avn-spill-local` 是本地文件路径，对其他后端可能是 URI 或键）；`bytes`，写入的精确 UTF-8 字节数；`retrievalHint`，消费方展示给模型的指引——对本地后端而言是读取或搜索该路径。消费方按指引渲染定位信息，绝不自行解析定位信息。
 
 ### 归属与边界
 
-存储按所属会话分组：fork 后的会话从种子日志继承既有定位信息，无需复制或更改归属，fork 后新产生的 spill 使用子会话 id。`suggestedName` 只是提示——后端会把它清理成单个安全路径段，绝不把它当作可信路径。该服务刻意排除其他包负责的内容：保留与预览决策（`dsh-output-retention`）、何时 spill（`dsh-spill-policy`），以及取回或搜索（后端的 `retrievalHint` 会告诉模型如何处理定位信息）。
+存储按所属会话分组：fork 后的会话从种子日志继承既有定位信息，无需复制或更改归属，fork 后新产生的 spill 使用子会话 id。`suggestedName` 只是提示——后端会把它清理成单个安全路径段，绝不把它当作可信路径。该服务刻意排除其他包负责的内容：保留与预览决策（`avn-output-retention`）、何时 spill（`avn-spill-policy`），以及取回或搜索（后端的 `retrievalHint` 会告诉模型如何处理定位信息）。
 
 ### 故障与恢复
 
-`saveText` 只在真实存储故障时拒绝——权限不足、磁盘已满或后端不可用。由调用方决定如何降级：随附策略把拒绝当作尽力而为处理，记录警告并保留原始内联结果，因此 spill 失败绝不会把成功的工具调用变成错误或隐藏内容。如果没有挂载后端，就没有可保存的目标；请在组合中加载 `dsh-spill-local` 或其他后端。
+`saveText` 只在真实存储故障时拒绝——权限不足、磁盘已满或后端不可用。由调用方决定如何降级：随附策略把拒绝当作尽力而为处理，记录警告并保留原始内联结果，因此 spill 失败绝不会把成功的工具调用变成错误或隐藏内容。如果没有挂载后端，就没有可保存的目标；请在组合中加载 `avn-spill-local` 或其他后端。
 
 -----
 
@@ -79,7 +79,7 @@ const ref = await ctx.spillStore.saveText({
 
 本包建立在一个分离与刻意的极简之上：
 
-- **约定、实现与策略保持分离。** 本包定义后端做什么（`saveText`）；`dsh-spill-local` 实现它；`dsh-spill-policy` 决定何时触发。各项关注点独立演进与替换。
+- **约定、实现与策略保持分离。** 本包定义后端做什么（`saveText`）；`avn-spill-local` 实现它；`avn-spill-policy` 决定何时触发。各项关注点独立演进与替换。
 - **只有一个方法，别无其他。** 该 seam 不负责保留策略、结果替换或取回/搜索 API——那些都有各自的归属包。
 - **在 seam 处拒绝，绝不静默降级。** 降级由调用方负责；seam 报告真实存储故障。
 
@@ -110,9 +110,9 @@ const ref = await ctx.spillStore.saveText({
 
 - [spill 子系统](../../../docs/subsystems/spill.zh.md)——穷尽式词汇、归属与后端关系。
 - [spill 包映射](../README.zh.md)——三包家族与各自职责。
-- [dsh-spill-local](../spill-local/README.zh.md)——已交付的本地文件系统后端。
-- [dsh-spill-policy](../spill-policy/README.zh.md)——决定最终结果何时过大的策略。
-- [dsh-output-retention](../../util/output-retention/README.zh.md)——策略背后的预览机制。
+- [avn-spill-local](../spill-local/README.zh.md)——已交付的本地文件系统后端。
+- [avn-spill-policy](../spill-policy/README.zh.md)——决定最终结果何时过大的策略。
+- [avn-output-retention](../../util/output-retention/README.zh.md)——策略背后的预览机制。
 - [工具输出 spill 决策](../../../.agents/notes/implemented/architecture/2026-07-08-tool-output-spill-files.zh.md)——能力边界与设计依据。
 
 -----

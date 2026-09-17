@@ -31,7 +31,7 @@ The subagent group is the delegation family: it lets an agent hand a task to a c
 | [`subagent-acp/`](subagent-acp/README.md) | Runs an out-of-process child over the Agent Client Protocol | registers on `ctx.subagents` |
 | [`subagent-codex/`](subagent-codex/README.md) | Runs a real Codex child through the official app-server protocol | registers on `ctx.subagents` |
 | [`subagent-claude-code/`](subagent-claude-code/README.md) | Runs a real Claude Code child through the official Agent SDK | registers on `ctx.subagents` |
-| [`subagent-dsh-sdk/`](subagent-dsh-sdk/README.md) | Runs an out-of-process Harness child through the TypeScript SDK | registers on `ctx.subagents` |
+| [`subagent-avn-sdk/`](subagent-avn-sdk/README.md) | Runs an out-of-process Harness child through the TypeScript SDK | registers on `ctx.subagents` |
 | [`tool-subagent/`](tool-subagent/README.md) | Exposes delegation to the model | registers on `ctx.tools` |
 | [`tool-subagent-control/`](tool-subagent-control/README.md) | Exposes adjacent-Agent messaging, interrupt, and listing to the model | registers on `ctx.tools` |
 

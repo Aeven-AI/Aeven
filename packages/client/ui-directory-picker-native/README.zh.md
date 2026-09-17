@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-与 `ui-workspace` 及宿主后端 [`dsh-host-directory-picker-native`](../../host/directory-picker-native/README.zh.md) 一起挂载本插件；一行 cordis.yml 随即组合出完整的原生拾取交互。当工作区添加或选择器流程发起目录请求时，用户看到操作系统的文件夹对话框；拾取的路径被工作区流程采纳，取消则关闭对话框。
+与 `ui-workspace` 及宿主后端 [`avn-host-directory-picker-native`](../../host/directory-picker-native/README.zh.md) 一起挂载本插件；一行 cordis.yml 随即组合出完整的原生拾取交互。当工作区添加或选择器流程发起目录请求时，用户看到操作系统的文件夹对话框；拾取的路径被工作区流程采纳，取消则关闭对话框。
 
 ### 何时选择
 
@@ -50,7 +50,7 @@ kind: "package-reference"
 
 当拾取面不够用时阅读以下页面。它们从浏览器半部进入宿主后端与它所填充的槽位。
 
-- [dsh-host-directory-picker-native](../../host/directory-picker-native/README.zh.md)——本表面驱动的操作系统选择器后端。
+- [avn-host-directory-picker-native](../../host/directory-picker-native/README.zh.md)——本表面驱动的操作系统选择器后端。
 - [ui-workspace](../ui-workspace/README.zh.md)——声明目录流程槽位并拥有拾取对话。
 - [ui-directory-picker-browse](../ui-directory-picker-browse/README.zh.md)——面向远程与进程内部署的应用内浏览替代方案。
 - [Web 客户端架构](../../../.agents/notes/implemented/architecture/2026-07-19-gui-web-client-architecture.zh.md)——浏览器插件行如何加载并注册槽位。

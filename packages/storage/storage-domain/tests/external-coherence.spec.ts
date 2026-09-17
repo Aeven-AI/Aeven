@@ -1,7 +1,7 @@
 /**
  * Cross-process convergence over the real JSON backend: two independently
  * opened domains share one root, exactly as two harness processes share one
- * `~/.dsh`. These run on disk rather than the memory double because the
+ * `~/.avn`. These run on disk rather than the memory double because the
  * behavior under test is detection of another writer's bytes.
  * @module
  */
@@ -77,7 +77,7 @@ async function until(predicate: () => boolean, timeoutMs = 15_000): Promise<void
 
 describe('cross-process domain coherence', () => {
   it('converges a second process on a record the first one wrote', { timeout: 25_000 }, async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dsh-coherence-'))
+    const root = await mkdtemp(join(tmpdir(), 'avn-coherence-'))
     const alpha = await openProcess(root)
     const beta = await openProcess(root)
     try {
@@ -101,7 +101,7 @@ describe('cross-process domain coherence', () => {
   })
 
   it('converges the global singleton, the slot that held workspace ordering', { timeout: 25_000 }, async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dsh-coherence-global-'))
+    const root = await mkdtemp(join(tmpdir(), 'avn-coherence-global-'))
     const alpha = await openProcess(root)
     const beta = await openProcess(root)
     try {
@@ -116,7 +116,7 @@ describe('cross-process domain coherence', () => {
   })
 
   it('converges a foreign delete', { timeout: 25_000 }, async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dsh-coherence-delete-'))
+    const root = await mkdtemp(join(tmpdir(), 'avn-coherence-delete-'))
     const alpha = await openProcess(root)
     await alpha.domain.table('notes').put('gone', { title: 'doomed' })
     const beta = await openProcess(root)
@@ -135,7 +135,7 @@ describe('cross-process domain coherence', () => {
   })
 
   it('does not report a process its own writes', { timeout: 25_000 }, async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dsh-coherence-self-'))
+    const root = await mkdtemp(join(tmpdir(), 'avn-coherence-self-'))
     const alpha = await openProcess(root)
     try {
       await alpha.domain.table('notes').put('mine', { title: 'local' })
@@ -151,7 +151,7 @@ describe('cross-process domain coherence', () => {
   })
 
   it('keeps the current value when a foreign write fails this build schema', { timeout: 25_000 }, async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dsh-coherence-invalid-'))
+    const root = await mkdtemp(join(tmpdir(), 'avn-coherence-invalid-'))
     const alpha = await openProcess(root)
     await alpha.domain.table('notes').put('n1', { title: 'valid' })
     const beta = await openProcess(root)

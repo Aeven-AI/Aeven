@@ -4,7 +4,7 @@
   align-items: center;
   gap: 6px;
   border-radius: 0;
-  padding: 0 var(--dsh-sidebar-inline-padding);
+  padding: 0 var(--avn-sidebar-inline-padding);
   cursor: pointer;
   user-select: none;
   color: var(--dsw-alias-label-primary);

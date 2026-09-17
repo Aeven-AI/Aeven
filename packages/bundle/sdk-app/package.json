@@ -1,6 +1,6 @@
 {
   "name": "@aeven/sdk-app",
-  "description": "The dsh SDK profile bundle: stdio JSON-RPC serving and process lifecycle over dsh-base",
+  "description": "The avn SDK profile bundle: stdio JSON-RPC serving and process lifecycle over avn-base",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"
@@ -28,7 +28,7 @@
     "lib/types/**/*.d.ts"
   ],
   "license": "MIT",
-  "dsh": {
+  "avn": {
     "bundle": {
       "patch": "./cordis.patch.yml"
     }

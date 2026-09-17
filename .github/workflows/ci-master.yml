@@ -163,7 +163,7 @@ jobs:
   serial-windows:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     name: serial / windows (self-hosted standby)
-    runs-on: [self-hosted, dsh-win-ci, windows]
+    runs-on: [self-hosted, avn-win-ci, windows]
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
@@ -226,51 +226,51 @@ jobs:
         include:
           - platform: linux
             cores: '4'
-            runner: dsh-ubuntu-24-04-4core
+            runner: avn-ubuntu-24-04-4core
             workload: typecheck
           - platform: linux
             cores: '8'
-            runner: dsh-ubuntu-24-04-8core
+            runner: avn-ubuntu-24-04-8core
             workload: typecheck
           - platform: linux
             cores: '16'
-            runner: dsh-ubuntu-24-04-16core
+            runner: avn-ubuntu-24-04-16core
             workload: typecheck
           - platform: linux
             cores: '32'
-            runner: dsh-ubuntu-24-04-32core
+            runner: avn-ubuntu-24-04-32core
             workload: typecheck
           - platform: linux
             cores: '64'
-            runner: dsh-ubuntu-24-04-64core
+            runner: avn-ubuntu-24-04-64core
             workload: typecheck
           - platform: linux
             cores: '96'
-            runner: dsh-ubuntu-24-04-96core
+            runner: avn-ubuntu-24-04-96core
             workload: typecheck
           - platform: windows
             cores: '4'
-            runner: dsh-windows-2025-4core
+            runner: avn-windows-2025-4core
             workload: production-site
           - platform: windows
             cores: '8'
-            runner: dsh-windows-2025-8core
+            runner: avn-windows-2025-8core
             workload: production-site
           - platform: windows
             cores: '16'
-            runner: dsh-windows-2025-16core
+            runner: avn-windows-2025-16core
             workload: production-site
           - platform: windows
             cores: '32'
-            runner: dsh-windows-2025-32core
+            runner: avn-windows-2025-32core
             workload: production-site
           - platform: windows
             cores: '64'
-            runner: dsh-windows-2025-64core
+            runner: avn-windows-2025-64core
             workload: production-site
           - platform: windows
             cores: '96'
-            runner: dsh-windows-2025-96core
+            runner: avn-windows-2025-96core
             workload: production-site
     steps:
       - uses: actions/checkout@v7
@@ -317,51 +317,51 @@ jobs:
         include:
           - platform: linux
             cores: '4'
-            runner: dsh-ubuntu-24-04-4core
+            runner: avn-ubuntu-24-04-4core
             workers: '4'
           - platform: linux
             cores: '8'
-            runner: dsh-ubuntu-24-04-8core
+            runner: avn-ubuntu-24-04-8core
             workers: '8'
           - platform: linux
             cores: '16'
-            runner: dsh-ubuntu-24-04-16core
+            runner: avn-ubuntu-24-04-16core
             workers: '16'
           - platform: linux
             cores: '32'
-            runner: dsh-ubuntu-24-04-32core
+            runner: avn-ubuntu-24-04-32core
             workers: '32'
           - platform: linux
             cores: '64'
-            runner: dsh-ubuntu-24-04-64core
+            runner: avn-ubuntu-24-04-64core
             workers: '32'
           - platform: linux
             cores: '96'
-            runner: dsh-ubuntu-24-04-96core
+            runner: avn-ubuntu-24-04-96core
             workers: '32'
           - platform: windows
             cores: '4'
-            runner: dsh-windows-2025-4core
+            runner: avn-windows-2025-4core
             workers: '2'
           - platform: windows
             cores: '8'
-            runner: dsh-windows-2025-8core
+            runner: avn-windows-2025-8core
             workers: '2'
           - platform: windows
             cores: '16'
-            runner: dsh-windows-2025-16core
+            runner: avn-windows-2025-16core
             workers: '2'
           - platform: windows
             cores: '32'
-            runner: dsh-windows-2025-32core
+            runner: avn-windows-2025-32core
             workers: '2'
           - platform: windows
             cores: '64'
-            runner: dsh-windows-2025-64core
+            runner: avn-windows-2025-64core
             workers: '2'
           - platform: windows
             cores: '96'
-            runner: dsh-windows-2025-96core
+            runner: avn-windows-2025-96core
             workers: '2'
     steps:
       - uses: actions/checkout@v7

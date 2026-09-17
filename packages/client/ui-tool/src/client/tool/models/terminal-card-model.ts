@@ -190,7 +190,7 @@ function shellCall(name: string, args: Record<string, unknown>): ShellCall | nul
   if (background !== undefined && typeof background !== 'boolean') return null
   if (!validEscalationFields(args)) return null
   if (description === undefined) {
-    // Standard dsh-tool-bash and dsh-tool-pwsh schemas require `description`;
+    // Standard avn-tool-bash and avn-tool-pwsh schemas require `description`;
     // persistent shell providers omit it. Their parameter roots stay open, so
     // unrelated fields do not change their running-card behavior.
     return { kind: 'shell', command, description: undefined, workdir: undefined, persistent: true, background: false }

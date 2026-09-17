@@ -60,7 +60,7 @@ class FakeBash extends ShellExecutor {
       ...request.signal ? { signal: request.signal } : {},
       ...request.stdin !== undefined ? { stdin: request.stdin } : {},
       ...request.env !== undefined ? { env: request.env } : {},
-      ...request.dshEnv !== undefined ? { dshEnv: request.dshEnv } : {},
+      ...request.avnEnv !== undefined ? { avnEnv: request.avnEnv } : {},
       sandboxPolicy: request.sandboxPolicy,
     }
   }
@@ -129,12 +129,12 @@ function killableProcess(): ShellProcess {
   return proc
 }
 
-async function setup(toolConfig: Partial<ToolPwsh.Config> = {}, dshHome?: string) {
+async function setup(toolConfig: Partial<ToolPwsh.Config> = {}, avnHome?: string) {
   const ctx = new Context()
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(AgentRegistry)
-  await ctx.plugin(BashEnvPlugin, dshHome === undefined ? {} : { dshHome })
+  await ctx.plugin(BashEnvPlugin, avnHome === undefined ? {} : { avnHome })
   await ctx.plugin(FakeBash)
   await ctx.plugin(ToolPwsh, toolConfig)
   const bash = ctx.shell as FakeBash
@@ -142,14 +142,14 @@ async function setup(toolConfig: Partial<ToolPwsh.Config> = {}, dshHome?: string
 }
 
 /** Full harness: the generic job runtime + its controller, then the pwsh tool. */
-async function setupWithTasks(toolConfig: Partial<ToolPwsh.Config> = {}, dshHome?: string) {
+async function setupWithTasks(toolConfig: Partial<ToolPwsh.Config> = {}, avnHome?: string) {
   const ctx = new Context()
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(LocalJobRegistry)
   await ctx.plugin(ToolTasks)
-  await ctx.plugin(BashEnvPlugin, dshHome === undefined ? {} : { dshHome })
+  await ctx.plugin(BashEnvPlugin, avnHome === undefined ? {} : { avnHome })
   await ctx.plugin(FakeBash)
   await ctx.plugin(ToolPwsh, toolConfig)
   const bash = ctx.shell as FakeBash
@@ -179,7 +179,7 @@ class ConfiningFakeBash extends ShellExecutor {
       timeoutMs: request.timeoutMs ?? 60_000,
       stdoutMaxBytes: request.stdoutMaxBytes ?? 64_000,
       ...request.signal ? { signal: request.signal } : {},
-      ...request.dshEnv !== undefined ? { dshEnv: request.dshEnv } : {},
+      ...request.avnEnv !== undefined ? { avnEnv: request.avnEnv } : {},
       sandboxPolicy: request.sandboxPolicy,
     }
   }
@@ -387,8 +387,8 @@ describe('argument validation', () => {
 
 describe('execution through the bash seam', () => {
   it('forwards command, session cwd, timeout, and managed AVN_* environment', async () => {
-    const dshHome = mkdtempSync(join(tmpdir(), 'dsh-tool-pwsh-home-'))
-    const { ctx, bash } = await setup({}, dshHome)
+    const avnHome = mkdtempSync(join(tmpdir(), 'avn-tool-pwsh-home-'))
+    const { ctx, bash } = await setup({}, avnHome)
     bash.handler = () => runResult('hi\n')
     const agent = registerFakeAgent(ctx, 'session-1')
     Object.assign(agent.session.header, { cwd: '/sessions/s1' })
@@ -402,8 +402,8 @@ describe('execution through the bash seam', () => {
     expect(request?.command).toBe('Write-Output hi')
     expect(request?.workdir).toBe('/sessions/s1')
     expect(request?.timeoutMs).toBe(1234)
-    expect(request?.dshEnv).toEqual({
-      AVN_HOME: dshHome,
+    expect(request?.avnEnv).toEqual({
+      AVN_HOME: avnHome,
       AVN_SHELL: '1',
       AVN_SESSION_ID: 'session-1',
     })
@@ -426,11 +426,11 @@ describe('execution through the bash seam', () => {
     bash.handler = () => runResult('ok\n')
     await call(ctx, 'pwsh', { command: 'Write-Output ok', description: 'ok' })
     expect(bash.requests[0]).not.toHaveProperty('workdir')
-    const dshEnv = bash.requests[0]?.dshEnv
-    expect(dshEnv).toBeDefined()
-    expect(dshEnv?.['AVN_SHELL']).toBe('1')
-    expect(dshEnv?.['AVN_HOME']).toEqual(expect.any(String))
-    expect(dshEnv).not.toHaveProperty('AVN_SESSION_ID')
+    const avnEnv = bash.requests[0]?.avnEnv
+    expect(avnEnv).toBeDefined()
+    expect(avnEnv?.['AVN_SHELL']).toBe('1')
+    expect(avnEnv?.['AVN_HOME']).toEqual(expect.any(String))
+    expect(avnEnv).not.toHaveProperty('AVN_SESSION_ID')
   })
 
   it('forwards exec.signal into the resolved request', async () => {
@@ -537,7 +537,7 @@ describe('execution through the bash seam', () => {
 describe('per-call sandbox policy resolution', () => {
   it('stamps the CALLING SESSION\'s resolved policy onto the request (session cwd, not the server launch dir)', async () => {
     const { ctx, bash } = await setupSandboxed()
-    const sessionCwd = mkdtempSync(join(tmpdir(), 'dsh-tool-pwsh-policy-'))
+    const sessionCwd = mkdtempSync(join(tmpdir(), 'avn-tool-pwsh-policy-'))
     const agent = registerFakeAgent(ctx, 'policy-session')
     Object.assign(agent.session.header, { cwd: sessionCwd })
     const result = await call(ctx, 'pwsh', { command: 'Write-Output hi', description: 'say hi' }, agent)

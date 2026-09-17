@@ -2,7 +2,7 @@
 /*
  * Aeven's own faces are dropped from this vendored copy: the web app already
  * declares Google Sans Flex and Google Sans Code from files it ships
- * (apps/web/src/aeven-fonts.css), and Aeven's paths point at font files DSH
+ * (apps/web/src/aeven-fonts.css), and Aeven's paths point at font files AVN
  * does not serve, so keeping them only produced 404s. Libre Bodoni was
  * declared and never used.
  */

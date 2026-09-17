@@ -375,7 +375,7 @@ export class ThemeRuntime {
 function bootstrapFontSize(): number {
   /* v8 ignore next -- needs a documentless run (node e2e booting the client tree), not constructible under jsdom */
   if (typeof document === 'undefined') return DEFAULT_FONT_SIZE
-  const raw = document.body.style.getPropertyValue('--dsh-content-font-size')
+  const raw = document.body.style.getPropertyValue('--avn-content-font-size')
   const parsed = Number.parseInt(raw, 10)
   return Number.isInteger(parsed) && parsed >= FONT_SIZE_MIN && parsed <= FONT_SIZE_MAX
     ? parsed

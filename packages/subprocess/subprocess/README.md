@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Any composition that runs child processes can start a fully specified child process or a real terminal session through `ctx.subprocess`, receive a live handle with streams and exit facts, and terminate the whole process tree on demand. The service provides executable lookup, the shared environment scrub, and bounded output capture, while every default — argv, deadlines, shell semantics — stays explicit on the request, so the consuming capability seams decide what a process means. A composition mounts one provider implementation (such as `dsh-subprocess-local`) that registers the service; the seam package itself is an abstract contract, not a loadable plugin. Nothing here reaches a model directly: process output and lifecycle are rendered by the consuming tools.
+Any composition that runs child processes can start a fully specified child process or a real terminal session through `ctx.subprocess`, receive a live handle with streams and exit facts, and terminate the whole process tree on demand. The service provides executable lookup, the shared environment scrub, and bounded output capture, while every default — argv, deadlines, shell semantics — stays explicit on the request, so the consuming capability seams decide what a process means. A composition mounts one provider implementation (such as `avn-subprocess-local`) that registers the service; the seam package itself is an abstract contract, not a loadable plugin. Nothing here reaches a model directly: process output and lifecycle are rendered by the consuming tools.
 
 ## Table of Contents
 
@@ -88,7 +88,7 @@ This section explains the design decisions behind the seam and points at the cod
 
 ### Design concept
 
-The seam is built on one separation: the service owns process coordinates and lifetime; consumers own what a process means and every default that shapes one. That is why the spawn request is fully explicit — no hidden subprocess-service default — and why `SubprocessOutcome` carries exit facts only: callers own deadlines, teardown ladders, and cause classification. The `dsh-shell` request/spec split is the owning template.
+The seam is built on one separation: the service owns process coordinates and lifetime; consumers own what a process means and every default that shapes one. That is why the spawn request is fully explicit — no hidden subprocess-service default — and why `SubprocessOutcome` carries exit facts only: callers own deadlines, teardown ladders, and cause classification. The `avn-shell` request/spec split is the owning template.
 
 ### Source map
 
@@ -116,9 +116,9 @@ One implementation registers per context; loading a second throws (cordis standa
 Read these pages when the package-level contract is not enough. They move from the exhaustive type reference to the providers and the decision evidence behind the seam.
 
 - [Subprocess subsystem](../../../docs/subsystems/subprocess.md) — spawn specs, output readers, outcomes, and the `AVN_*` environment in full.
-- [dsh-subprocess-local](../subprocess-local/README.md) — the local host provider that implements this contract.
-- [dsh-subprocess-e2b](../../e2b/subprocess-e2b/README.md) — the remote E2B provider for the same seam.
-- [dsh-bash-local](../../shell/bash-local/README.md) — the largest consumer: bash commands over this service.
+- [avn-subprocess-local](../subprocess-local/README.md) — the local host provider that implements this contract.
+- [avn-subprocess-e2b](../../e2b/subprocess-e2b/README.md) — the remote E2B provider for the same seam.
+- [avn-bash-local](../../shell/bash-local/README.md) — the largest consumer: bash commands over this service.
 - [Subprocess seam Agent Note](../../../.agents/notes/implemented/architecture/2026-07-26-subprocess-seam.md) — why the process half became its own seam and what moved with it.
 
 -----

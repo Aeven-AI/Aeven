@@ -169,6 +169,30 @@ function replacementsFor(wave) {
 const RUN_PATTERN = /[A-Za-z0-9_@./\\-]*[Dd][Ss][Hh][A-Za-z0-9_@./\\-]*/g
 
 /**
+ * Runs left untouched because the name belongs to someone else.
+ *
+ * `dsh-coding-oauth-core` is a *published external npm dependency* (v0.1.2) of
+ * `packages/experimental/subscription-auth`, not a workspace package, so its
+ * name is not ours to change. Renaming it and its subpaths
+ * (`dsh-coding-oauth-core/contracts`, `/grok-errors`, ...) broke module
+ * resolution — caught by typecheck, not by inspection.
+ */
+const PROTECTED_RUNS = [
+  /dsh-coding-oauth-core/,
+  // Symbols *exported by* that package. Note `DshHostAdapter` is NOT here: it is
+  // this repo's own interface in `avn-host-adapter.ts` and must still rename.
+  /DshHostCapabilit(?:y|ies)/,
+]
+
+/**
+ * @param run - one candidate run.
+ * @returns whether the run names an external dependency.
+ */
+function isProtected(run) {
+  return PROTECTED_RUNS.some((p) => p.test(run))
+}
+
+/**
  * Runs held back for wave 7, which must land atomically on both sides of a
  * process boundary: browser boot globals injected by the host and consumed by
  * client plugins, plus the harness<->persistent-shell sentinels.
@@ -258,6 +282,7 @@ function rewrite(text, wave) {
 
   const out = staged.replace(RUN_PATTERN, (match) => {
     if (FALSE_POSITIVES.has(match)) return match
+    if (isProtected(match)) return match
     if (isHeldBack(match, wave)) return match
     let next = match
     for (const rule of RUN_LEVEL_RULES) {

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-spill` lets any plugin or tool save oversized text through `ctx.spillStore` and receive an opaque locator, the exact byte count, and retrieval guidance the model can act on. It defines what a spill backend does, not how it stores — a deployment mounts a backend such as `dsh-spill-local` for real persistence, and the `dsh-spill-policy` plugin decides when a tool result is too large. Choose it when a deployment must keep oversized tool output retrievable without flooding the model's context. The service owns storage only: no retention policy, no tool-result replacement, and no retrieval or search API. A real storage failure rejects loudly, so the caller decides how to degrade.
+`avn-spill` lets any plugin or tool save oversized text through `ctx.spillStore` and receive an opaque locator, the exact byte count, and retrieval guidance the model can act on. It defines what a spill backend does, not how it stores — a deployment mounts a backend such as `avn-spill-local` for real persistence, and the `avn-spill-policy` plugin decides when a tool result is too large. Choose it when a deployment must keep oversized tool output retrievable without flooding the model's context. The service owns storage only: no retention policy, no tool-result replacement, and no retrieval or search API. A real storage failure rejects loudly, so the caller decides how to degrade.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-A composition that spills tool output mounts one spill backend — this package alone stores nothing — and the `dsh-spill-policy` plugin decides when to spill. Plugin and tool authors call `ctx.spillStore.saveText()` directly to persist text under the current session.
+A composition that spills tool output mounts one spill backend — this package alone stores nothing — and the `avn-spill-policy` plugin decides when to spill. Plugin and tool authors call `ctx.spillStore.saveText()` directly to persist text under the current session.
 
 ### When to choose it
 
@@ -55,15 +55,15 @@ const ref = await ctx.spillStore.saveText({
 })
 ```
 
-The returned `SpillRef` carries three fields: `locator`, an opaque model-facing handle the backend produces (a local file path for `dsh-spill-local`, possibly a URI or key for another backend); `bytes`, the exact UTF-8 byte count written; and `retrievalHint`, the guidance a consumer shows the model — for the local backend, read or grep the path. Consumers render the locator with the hint and never parse the locator itself.
+The returned `SpillRef` carries three fields: `locator`, an opaque model-facing handle the backend produces (a local file path for `avn-spill-local`, possibly a URI or key for another backend); `bytes`, the exact UTF-8 byte count written; and `retrievalHint`, the guidance a consumer shows the model — for the local backend, read or grep the path. Consumers render the locator with the hint and never parse the locator itself.
 
 ### Ownership and boundaries
 
-Storage is grouped by the owning session: forked sessions inherit existing locators from the seeded log without copying or re-owning them, and new spills after a fork use the child session id. `suggestedName` is only a hint — backends sanitize it to one safe segment and never trust it as a path. The service deliberately excludes what other packages own: retention and preview decisions (`dsh-output-retention`), when to spill (`dsh-spill-policy`), and retrieval or search (the backend's `retrievalHint` tells the model what to do with the locator).
+Storage is grouped by the owning session: forked sessions inherit existing locators from the seeded log without copying or re-owning them, and new spills after a fork use the child session id. `suggestedName` is only a hint — backends sanitize it to one safe segment and never trust it as a path. The service deliberately excludes what other packages own: retention and preview decisions (`avn-output-retention`), when to spill (`avn-spill-policy`), and retrieval or search (the backend's `retrievalHint` tells the model what to do with the locator).
 
 ### Failures and recovery
 
-`saveText` rejects only on a real storage failure — permissions, no space left, or a backend that is down. The caller decides how to degrade: the shipped policy treats a rejection as best-effort, logs a warning, and keeps the original inline result, so a spill failure never turns a successful tool call into an error or hides content. If no backend is mounted, there is nothing to save; load `dsh-spill-local` or another backend in the composition.
+`saveText` rejects only on a real storage failure — permissions, no space left, or a backend that is down. The caller decides how to degrade: the shipped policy treats a rejection as best-effort, logs a warning, and keeps the original inline result, so a spill failure never turns a successful tool call into an error or hides content. If no backend is mounted, there is nothing to save; load `avn-spill-local` or another backend in the composition.
 
 -----
 
@@ -79,7 +79,7 @@ This section explains the design decisions behind the service; the observable be
 
 The package is built on one separation and a deliberate minimum:
 
-- **Contract, implementation, and policy stay separate.** This package defines what a backend does (`saveText`); `dsh-spill-local` implements it; `dsh-spill-policy` decides when. Each concern evolves and swaps independently.
+- **Contract, implementation, and policy stay separate.** This package defines what a backend does (`saveText`); `avn-spill-local` implements it; `avn-spill-policy` decides when. Each concern evolves and swaps independently.
 - **One method, nothing else.** The seam owns no retention policy, no result replacement, and no retrieval or search API — those have owning packages.
 - **Reject, never silently degrade at the seam.** The caller owns degradation; the seam reports real storage failures.
 
@@ -110,9 +110,9 @@ Read these pages when the package-level contract is not enough. They move from t
 
 - [Spill subsystem](../../../docs/subsystems/spill.md) — the exhaustive vocabulary, ownership, and backend relationships.
 - [Spill package map](../README.md) — the three-package family and each role.
-- [dsh-spill-local](../spill-local/README.md) — the shipped local filesystem backend.
-- [dsh-spill-policy](../spill-policy/README.md) — the policy that decides when a final result is too large.
-- [dsh-output-retention](../../util/output-retention/README.md) — the preview mechanics behind the policy.
+- [avn-spill-local](../spill-local/README.md) — the shipped local filesystem backend.
+- [avn-spill-policy](../spill-policy/README.md) — the policy that decides when a final result is too large.
+- [avn-output-retention](../../util/output-retention/README.md) — the preview mechanics behind the policy.
 - [Tool output spill decision](../../../.agents/notes/implemented/architecture/2026-07-08-tool-output-spill-files.md) — the capability boundary and design rationale.
 
 -----

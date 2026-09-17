@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-sandbox-policy` resolves the file-effect mode and workspace root for every confined capability call from one shared policy home, and tells the model the current policy before each request. A deployment sets a default mode and a fallback workspace root; a session can switch its own mode, and the switch survives restart because it lives in the session log. Every enforcing capability — bash, filesystem, terminal — reads the same resolved policy, so the mode a call runs under never depends on which family resolved it. The model sees one concise `sandbox:policy` contribution naming the mode and workspace, without a separate inventory of mounted capabilities.
+`avn-sandbox-policy` resolves the file-effect mode and workspace root for every confined capability call from one shared policy home, and tells the model the current policy before each request. A deployment sets a default mode and a fallback workspace root; a session can switch its own mode, and the switch survives restart because it lives in the session log. Every enforcing capability — bash, filesystem, terminal — reads the same resolved policy, so the mode a call runs under never depends on which family resolved it. The model sees one concise `sandbox:policy` contribution naming the mode and workspace, without a separate inventory of mounted capabilities.
 
 ## Table of Contents
 
@@ -77,7 +77,7 @@ A runtime switch is one log-only `sandbox/mode` event on the session it applies 
 
 ### Model-visible text
 
-The `sandbox:policy` contribution states the mode's capability-neutral file-effect contract and the canonical session workspace under `workspace-write`. It does not enumerate mounted capabilities; tool plugins retain operation-specific denial and escalation guidance, approval policy contributes separately to the same snapshot, and plan guidance remains `dsh-plan-mode`'s system section. The optional `./invariant` companion rejects a forged durable `sandbox/mode` event whose value falls outside the closed mode vocabulary.
+The `sandbox:policy` contribution states the mode's capability-neutral file-effect contract and the canonical session workspace under `workspace-write`. It does not enumerate mounted capabilities; tool plugins retain operation-specific denial and escalation guidance, approval policy contributes separately to the same snapshot, and plan guidance remains `avn-plan-mode`'s system section. The optional `./invariant` companion rejects a forged durable `sandbox/mode` event whose value falls outside the closed mode vocabulary.
 
 ### Source map
 
@@ -111,24 +111,24 @@ Start with the subsystem reference for the shared vocabulary, then the seam cont
 
 #### What the model sees
 
-One `sandbox:policy` contribution in the current runtime-context snapshot for every agent session. It does not enumerate mounted capabilities. Tool plugins retain operation and escalation guidance, approval policy contributes separately to the same snapshot, and plan guidance remains `dsh-plan-mode`'s system section.
+One `sandbox:policy` contribution in the current runtime-context snapshot for every agent session. It does not enumerate mounted capabilities. Tool plugins retain operation and escalation guidance, approval policy contributes separately to the same snapshot, and plan guidance remains `avn-plan-mode`'s system section.
 
 ##### Read-only
 
 ```markdown
-Current DSH file policy: read-only. Any available operation enforced by the DSH file sandbox cannot modify files in the standing mode. Do not refuse a required modification from this policy alone: try an available tool normally and follow any denial and escalation guidance it returns.
+Current AVN file policy: read-only. Any available operation enforced by the AVN file sandbox cannot modify files in the standing mode. Do not refuse a required modification from this policy alone: try an available tool normally and follow any denial and escalation guidance it returns.
 ```
 
 ##### Workspace-write
 
 ```markdown
-Current DSH file policy: workspace-write. Any available operation enforced by the DSH file sandbox may modify files under the session workspace: "<workspace root>". Some platform temporary areas may also be writable.
+Current AVN file policy: workspace-write. Any available operation enforced by the AVN file sandbox may modify files under the session workspace: "<workspace root>". Some platform temporary areas may also be writable.
 ```
 
 ##### Danger-full-access
 
 ```markdown
-Current DSH file policy: danger-full-access. The DSH file sandbox does not restrict file modifications by available operations.
+Current AVN file policy: danger-full-access. The AVN file sandbox does not restrict file modifications by available operations.
 ```
 
 #### Token effect

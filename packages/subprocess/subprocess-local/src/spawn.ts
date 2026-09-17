@@ -4,7 +4,7 @@
  * files, tree-scoped signalling (POSIX groups; Windows taskkill), and the
  * SIGTERM→SIGKILL escalation. This layer reacts to an abort signal; callers
  * own deadlines, teardown ladders, and cause classification.
- * @module dsh-subprocess-local/spawn
+ * @module avn-subprocess-local/spawn
  */
 
 import { type ChildProcess, type SpawnOptions, spawn, spawnSync } from 'node:child_process'
@@ -95,7 +95,7 @@ let defaultSpillDir: string | undefined
  * other local users read command output or pre-create symlinks.
  */
 function privateSpillDir(): string {
-  defaultSpillDir ??= mkdtempSync(join(tmpdir(), 'dsh-subprocess-'))
+  defaultSpillDir ??= mkdtempSync(join(tmpdir(), 'avn-subprocess-'))
   return defaultSpillDir
 }
 
@@ -172,7 +172,7 @@ export class OutputCollector {
       // prediction and symlink planting in shared tmp dirs.
       this.spillFile = join(
         this.spillDir,
-        `dsh-subprocess-${process.pid}-${++spillCounter}-${randomBytes(6).toString('hex')}-${this.label}.log`,
+        `avn-subprocess-${process.pid}-${++spillCounter}-${randomBytes(6).toString('hex')}-${this.label}.log`,
       )
       this.spillFd = openSync(this.spillFile, 'wx', 0o600)
       for (const prior of this.chunks) writeSync(this.spillFd, prior)

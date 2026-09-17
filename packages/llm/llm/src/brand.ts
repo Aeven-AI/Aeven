@@ -1,10 +1,10 @@
 /**
- * dsh-llm's owned branded ids: tool-call correlation and provider request
+ * avn-llm's owned branded ids: tool-call correlation and provider request
  * diagnostics.
  *
  * The `Branded<B>` primitive and stateless constructor live in
  * `@aeven/brand` so every owner of a cross-boundary id can brand it
- * without depending on dsh-llm; see that package's README for the
+ * without depending on avn-llm; see that package's README for the
  * nominal-typing policy.
  *
  * @module @aeven/llm/brand

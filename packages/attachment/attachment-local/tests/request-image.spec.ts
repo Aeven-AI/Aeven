@@ -10,9 +10,9 @@ import LocalAttachmentStore from '../src/index.ts'
 const homes: string[] = []
 
 async function store(): Promise<LocalAttachmentStore> {
-  const dshHome = await mkdtemp(join(tmpdir(), 'dsh-request-image-'))
-  homes.push(dshHome)
-  return new LocalAttachmentStore(new Context(), { dshHome })
+  const avnHome = await mkdtemp(join(tmpdir(), 'avn-request-image-'))
+  homes.push(avnHome)
+  return new LocalAttachmentStore(new Context(), { avnHome })
 }
 
 async function image(width: number, height: number): Promise<Uint8Array> {

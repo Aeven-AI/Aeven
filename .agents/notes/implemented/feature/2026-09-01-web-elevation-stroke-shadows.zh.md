@@ -14,7 +14,7 @@ Web 客户端的高层级表面——菜单、浮层、对话框、面板、悬�
 
 `gradient-shadow-text.css`（ui-theme 的阴影归属地）在 `--dsw-shadow-lv*` 阶旁定义 elevation token：
 
-- `--dsw-elevation-stroke-color`——发丝描边颜色，默认 `--dsw-alias-border-l4`（浅色黑 16%、深色白 20%）；组件可按表面或状态重绑：所有菜单面（`--dsw-specific-menu` 背景）重绑最浅的 `--dsw-alias-border-l1`、输入框重绑 `--dsw-alias-border-l2`，两者都比面板与按钮安静。默认色只声明在 `body` 上，而下述派生 token 在 `body, body *` 上逐元素重声明：自定义属性的计算值已替换完 `var()`，派生 token 若只在 body 声明会把 body 的颜色固化进去，让所有重绑失效（与 scrollbar.css 对 `--dsh-scrollbar-thumb` 声明的逐元素重替换是同一契约）。
+- `--dsw-elevation-stroke-color`——发丝描边颜色，默认 `--dsw-alias-border-l4`（浅色黑 16%、深色白 20%）；组件可按表面或状态重绑：所有菜单面（`--dsw-specific-menu` 背景）重绑最浅的 `--dsw-alias-border-l1`、输入框重绑 `--dsw-alias-border-l2`，两者都比面板与按钮安静。默认色只声明在 `body` 上，而下述派生 token 在 `body, body *` 上逐元素重声明：自定义属性的计算值已替换完 `var()`，派生 token 若只在 body 声明会把 body 的颜色固化进去，让所有重绑失效（与 scrollbar.css 对 `--avn-scrollbar-thumb` 声明的逐元素重替换是同一契约）。
 - `--dsw-elevation-stroke: 0 0 0 0.5px var(--dsw-elevation-stroke-color)`——单独的描边，供只要轮廓的行内卡片独立使用（插件清单卡片）。
 - `--dsw-elevation-panel` / `--dsw-elevation-prominent`——描边加两层极淡柔光（3px 方向光 + 16/20px 辉光，黑 2–5%），panel 用于小型悬浮部件与卡片，prominent 用于浮层，soft——更大模糊、更低透明度——用于输入框。
 

@@ -9,7 +9,7 @@ import { createNodeBuiltins } from '../../src/node/builtins.ts'
 import { MemoryVfs } from '../../src/storage/memory.ts'
 import { setActiveVfs } from '../../src/storage/active.ts'
 
-const ROOT = '/dsh/workspace/skills'
+const ROOT = '/avn/workspace/skills'
 let vfs: MemoryVfs
 let chokidar: typeof import('chokidar')
 const openWatchers: import('chokidar').FSWatcher[] = []
@@ -54,7 +54,7 @@ function packageRoot(name: string, entry: string): string {
 function mountPackage(name: string, directory: string, files: readonly string[]): void {
   for (const file of files) {
     const source = readFileSync(join(directory, file), 'utf8')
-    const path = `/dsh/node_modules/${name}/${file}`
+    const path = `/avn/node_modules/${name}/${file}`
     vfs.seed(path, file.endsWith('.js') ? lowerModuleSource({ filename: path, source }).code : source)
   }
 }
@@ -67,7 +67,7 @@ function loadChokidar(fixture: ChokidarFixture): typeof import('chokidar') {
   mountPackage('chokidar', packageRoot('chokidar', chokidarEntry), fixture.chokidarFiles)
   mountPackage('readdirp', packageRoot('readdirp', readdirpEntry), fixture.readdirpFiles)
   const loader = new WorkerModuleLoader({ vfs, staticModules: createNodeBuiltins() })
-  return loader.createRequire('/dsh/')('chokidar') as typeof import('chokidar')
+  return loader.createRequire('/avn/')('chokidar') as typeof import('chokidar')
 }
 
 beforeEach(() => {
@@ -140,8 +140,8 @@ describe.each(CHOKIDAR_FIXTURES)('$label running unchanged', (fixture) => {
   })
 
   it('watches a missing file through its existing parent', async () => {
-    const path = '/dsh/home/settings.yaml'
-    vfs.mkdirSync('/dsh/home', { recursive: true })
+    const path = '/avn/home/settings.yaml'
+    vfs.mkdirSync('/avn/home', { recursive: true })
     const watcher = watchPath(path)
     await onceEvent(watcher, 'ready')
 

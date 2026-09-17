@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-subagent-acp` runs each delegated child in a fresh subprocess and drives it as an Agent Client Protocol client: the child gets its own runtime, session, model configuration, and tools, and it can be any ACP-compatible agent, not just Harness. It is the out-of-process alternative to the in-process spawn and fork backends, sharing only the parent session's working directory with the child. Each run spawns a fresh process, initializes an ACP session, sends the task, and collects the streamed final answer; permission prompts are auto-answered by configuration, so no human is needed. The parent receives only the child's final answer or a safe error — no intermediate messages or tool traffic crosses the boundary. Choose it when the child must be fully isolated from the parent harness and can speak ACP.
+`avn-subagent-acp` runs each delegated child in a fresh subprocess and drives it as an Agent Client Protocol client: the child gets its own runtime, session, model configuration, and tools, and it can be any ACP-compatible agent, not just Harness. It is the out-of-process alternative to the in-process spawn and fork backends, sharing only the parent session's working directory with the child. Each run spawns a fresh process, initializes an ACP session, sends the task, and collects the streamed final answer; permission prompts are auto-answered by configuration, so no human is needed. The parent receives only the child's final answer or a safe error — no intermediate messages or tool traffic crosses the boundary. Choose it when the child must be fully isolated from the parent harness and can speak ACP.
 
 ## Table of Contents
 
@@ -46,14 +46,14 @@ Choose this backend when the child must run with its own runtime, model, and too
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aeven-subagent-acp) is the exhaustive source for every accepted field and its JSDoc.
 
-A DeepSeek Harness child uses the product launcher and an explicit absolute `AVN_HOME`. The isolated home prevents a nested runtime from discovering the launching person's profiles or credentials; the generic ACP provider does not impose this requirement on non-DSH agents.
+A DeepSeek Harness child uses the product launcher and an explicit absolute `AVN_HOME`. The isolated home prevents a nested runtime from discovering the launching person's profiles or credentials; the generic ACP provider does not impose this requirement on non-AVN agents.
 
 ```yaml
 - id: subagent-acp
   name: '@aeven/subagent-acp'
   config:
     providerName: acp
-    command: dsh
+    command: avn
     args: ['--profile', 'acp', '--patch', '/absolute/path/to/acp.patch.yml']
     permission: reject
     env:
@@ -111,9 +111,9 @@ The child spawns through the subprocess seam: credential-shaped ambient variable
 Read these pages when the package-level contract is not enough. They move from this backend to the seam it plugs into and the protocol it drives.
 
 - [Subagent subsystem](../../../docs/subsystems/subagent.md) — the service contract, provider contract, and terminal result semantics.
-- [dsh-subagent seam](../subagent/README.md) — the registry and start API this provider registers on.
+- [avn-subagent seam](../subagent/README.md) — the registry and start API this provider registers on.
 - [Agent Client Protocol automation server](../../acp/acp/README.md) — the automation-only server this provider drives as a client.
-- [dsh-subprocess seam](../../subprocess/subprocess/README.md) — the process-spawn and teardown machinery behind each run.
+- [avn-subprocess seam](../../subprocess/subprocess/README.md) — the process-spawn and teardown machinery behind each run.
 - [Generated configuration catalog](../../../docs/config-catalog.md#aeven-subagent-acp) — every accepted config field and its source declaration.
 
 -----
@@ -139,7 +139,7 @@ Independent of the parent request cache. Each ACP child can reuse only prefixes 
 
 #### What the model sees
 
-Through `dsh-tool-subagent`, the parent receives only the child's final streamed assistant text or that consumer's exact stop-reason error, not intermediate messages or tool traffic. Non-completed results present the safe diagnostic before separately preserved partial assistant output. A request already cancelled before publication becomes exactly `Error: subagent request was aborted before the ACP child started`; another start failure contains only the fixed `Subagent failure (...)` line.
+Through `avn-tool-subagent`, the parent receives only the child's final streamed assistant text or that consumer's exact stop-reason error, not intermediate messages or tool traffic. Non-completed results present the safe diagnostic before separately preserved partial assistant output. A request already cancelled before publication becomes exactly `Error: subagent request was aborted before the ACP child started`; another start failure contains only the fixed `Subagent failure (...)` line.
 
 #### Token effect
 

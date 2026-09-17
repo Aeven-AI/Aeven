@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-hooks-codex` 在 agent（智能体）运行期间执行你现有 Codex 配置（`hooks.json`）中的钩子，让你已经写好的行为无需重写即可继续生效。Codex 的 5 个 hook 点会在对应时刻触发：会话开始时、提示词提交时、工具运行前后，以及运行即将停止时。钩子可以带一条模型可见的消息阻塞提示词或工具调用、向对话附加额外上下文，或强制运行继续。当你持有 Codex command 钩子、希望它们原样在 harness 中工作时选择它；没有 Codex 对应物的行为应放入原生插件。
+`avn-hooks-codex` 在 agent（智能体）运行期间执行你现有 Codex 配置（`hooks.json`）中的钩子，让你已经写好的行为无需重写即可继续生效。Codex 的 5 个 hook 点会在对应时刻触发：会话开始时、提示词提交时、工具运行前后，以及运行即将停止时。钩子可以带一条模型可见的消息阻塞提示词或工具调用、向对话附加额外上下文，或强制运行继续。当你持有 Codex command 钩子、希望它们原样在 harness 中工作时选择它；没有 Codex 对应物的行为应放入原生插件。
 
 ## 目录
 
@@ -92,7 +92,7 @@ matcher subject 是工具名称（`PreToolUse`／`PostToolUse`）或会话源（
 
 ### 脱离运行与释放
 
-`SessionStart` 是唯一的 emit 点，它脱离运行——没有扩展点等待它。每条运行链都会被跟踪，对桥接执行 dispose（资源释放）时会中止仍在运行的 hook 进程，并在 dispose 完成前排空 continuation（`createDetachedRuns`，位于 `dsh-hook-protocol`）。
+`SessionStart` 是唯一的 emit 点，它脱离运行——没有扩展点等待它。每条运行链都会被跟踪，对桥接执行 dispose（资源释放）时会中止仍在运行的 hook 进程，并在 dispose 完成前排空 continuation（`createDetachedRuns`，位于 `avn-hook-protocol`）。
 
 ### 设计理念
 
@@ -110,7 +110,7 @@ matcher subject 是工具名称（`PreToolUse`／`PostToolUse`）或会话源（
 |---|---|
 | [`src/index.ts`](src/index.ts) | 插件入口：配置校验、监听器注册、逐事件 payload、决策映射 |
 | [`src/config.ts`](src/config.ts) | Codex 配置解析：五个受支持事件、matcher 校验、跳过原因 |
-| — | 不发布运行时不变式伴生入口；`hook/*` 配对检查位于 `dsh-hook-protocol`。 |
+| — | 不发布运行时不变式伴生入口；`hook/*` 配对检查位于 `avn-hook-protocol`。 |
 
 </details>
 

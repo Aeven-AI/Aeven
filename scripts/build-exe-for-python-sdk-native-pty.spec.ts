@@ -54,7 +54,7 @@ describe('resolveWindowsNodePtyAddons', () => {
 })
 
 function temporaryPackage(): string {
-  const root = mkdtempSync(join(tmpdir(), 'dsh-node-pty-addon-'))
+  const root = mkdtempSync(join(tmpdir(), 'avn-node-pty-addon-'))
   roots.push(root)
   return root
 }

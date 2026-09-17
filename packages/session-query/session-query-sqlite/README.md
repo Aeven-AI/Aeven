@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-session-query-sqlite` searches session history with a SQLite FTS5 index and returns ranked, cursor-paginated results grouped by session or within one session. Mount it together with `dsh-session-query` and you get full-text search plus the whole query surface — exact reads, filters, and traces — at once. Live sessions are indexed from memory and persisted sessions from a dedicated derived-index database, so results always reflect the newest state without touching the session-persistence store. Shipped compositions enable search with `openAt: first-search`, which leaves SQLite unopened until content search is first used; `openAt` can instead open at startup or disable full-text search. Setup and usage come first; the implementation internals live in a collapsible developer section below.
+`avn-session-query-sqlite` searches session history with a SQLite FTS5 index and returns ranked, cursor-paginated results grouped by session or within one session. Mount it together with `avn-session-query` and you get full-text search plus the whole query surface — exact reads, filters, and traces — at once. Live sessions are indexed from memory and persisted sessions from a dedicated derived-index database, so results always reflect the newest state without touching the session-persistence store. Shipped compositions enable search with `openAt: first-search`, which leaves SQLite unopened until content search is first used; `openAt` can instead open at startup or disable full-text search. Setup and usage come first; the implementation internals live in a collapsible developer section below.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ Mount this package when a composition needs ranked full-text search over session
 
 ### When to choose it
 
-Choose it when you want full-text recall over prior sessions with ranking and paging. Choose it together with `dsh-session-query` and the session service; a persistence backend is optional but recommended so persisted history is searchable after restarts. Avoid pointing `path` at the session-persistence database — this package owns a separate derived index.
+Choose it when you want full-text recall over prior sessions with ranking and paging. Choose it together with `avn-session-query` and the session service; a persistence backend is optional but recommended so persisted history is searchable after restarts. Avoid pointing `path` at the session-persistence database — this package owns a separate derived index.
 
 ### Minimal configuration
 
@@ -117,8 +117,8 @@ The database carries an application id and schema version 8. Opening refuses a f
 Read these pages when the package-level contract is not enough. They move from the shared query service to the type-level contract and the design evidence.
 
 - [Session Query subsystem reference](../../../docs/subsystems/session-query.md) — the full type-level contract this backend implements.
-- [dsh-session-query](../session-query/README.md) — the service definition: exact reads, filters, and traces this backend inherits.
-- [dsh-tool-session-query](../tool-session-query/README.md) — the model-facing consumer that calls these search methods.
+- [avn-session-query](../session-query/README.md) — the service definition: exact reads, filters, and traces this backend inherits.
+- [avn-tool-session-query](../tool-session-query/README.md) — the model-facing consumer that calls these search methods.
 - [SQLite FTS5 session search](../../../.agents/notes/implemented/feature/2026-07-10-sqlite-session-query-provider.md) — search semantics, reconciliation, and the tokenizer decision.
 - [JSONL session persistence](../../session/session-persistence-jsonl/README.md) — the authoritative Session store this disposable index observes; keep its root separate from this package's database path.
 

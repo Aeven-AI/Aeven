@@ -1,5 +1,5 @@
 ---
-description: "Trajectory view for the dsh web client: a turn-aware event ledger with an interactive timing overview, registered into the conversation view ring."
+description: "Trajectory view for the avn web client: a turn-aware event ledger with an interactive timing overview, registered into the conversation view ring."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-client-ui-trajectory` is the Trajectory view of the dsh web client: it renders a turn-aware event ledger with selectable User, Assistant, Tool, and nested Subtool records, plus an interactive timing overview. Thick rules mark Turn boundaries, compact inline markers identify Steps, and selecting a record opens a local inspector for token usage, duration, Input, Output, Timing, and durable images from user, assistant, or tool content. The view is a pure consumer: it registers target-specific Event Definitions, a Trajectory view builder, and one tab in the conversation's `conversation.view` slot ring, and provides no service and declares no Context merge. Its typed `trajectory` locale namespace owns every product-authored ledger, timeline, inspector, tooltip, and accessibility phrase; event content, tool names, identifiers, and provider diagnostics remain verbatim data. Long ledgers open at the current tail, page older history on demand, and mount only the visible row window.
+`avn-client-ui-trajectory` is the Trajectory view of the avn web client: it renders a turn-aware event ledger with selectable User, Assistant, Tool, and nested Subtool records, plus an interactive timing overview. Thick rules mark Turn boundaries, compact inline markers identify Steps, and selecting a record opens a local inspector for token usage, duration, Input, Output, Timing, and durable images from user, assistant, or tool content. The view is a pure consumer: it registers target-specific Event Definitions, a Trajectory view builder, and one tab in the conversation's `conversation.view` slot ring, and provides no service and declares no Context merge. Its typed `trajectory` locale namespace owns every product-authored ledger, timeline, inspector, tooltip, and accessibility phrase; event content, tool names, identifiers, and provider diagnostics remain verbatim data. Long ledgers open at the current tail, page older history on demand, and mount only the visible row window.
 
 ## Table of Contents
 
@@ -86,7 +86,7 @@ None; this package neither assembles nor sends a provider request.
 These limits define what the view can show while work is in flight; they are current package constraints.
 
 - **In-flight Time stays blank** — `partial` and `runningCalls` rows show their running state without a fabricated duration, so the Overview renders a start marker rather than inventing a live span. Record and timeline selection are local to Trajectory, with no anchor deep links.
-- **Bottom clearance is static** — `.ledger` sizes `--dsh-trajectory-bottom-clearance` from the `--dsh-composer-height` fallback alone. Nothing measures the live composer, so a draft taller or shorter than the fallback leaves the last ledger rows over- or under-cleared until the fallback is changed.
+- **Bottom clearance is static** — `.ledger` sizes `--avn-trajectory-bottom-clearance` from the `--avn-composer-height` fallback alone. Nothing measures the live composer, so a draft taller or shorter than the fallback leaves the last ledger rows over- or under-cleared until the fallback is changed.
 
 <a id="dev-note"></a>
 ### Dev Note

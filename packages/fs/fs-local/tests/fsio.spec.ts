@@ -2,7 +2,7 @@
  * Cordis-free tests for the raw local-filesystem I/O: path resolution, probe,
  * whole-file/streamed text reads, binary/UTF-8 rejection, atomic-write temp
  * safety, literal edit matching, and line-ending handling. Line WINDOWING is
- * policy and lives in `dsh-fs-observation-policy`, so it is not tested here.
+ * policy and lives in `avn-fs-observation-policy`, so it is not tested here.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -29,7 +29,7 @@ import { FsError, FsTargetKey } from '@aeven/fs'
 
 let dir: string
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), 'dsh-fsio-'))
+  dir = await mkdtemp(join(tmpdir(), 'avn-fsio-'))
 })
 afterEach(async () => {
   await rm(dir, { recursive: true, force: true })

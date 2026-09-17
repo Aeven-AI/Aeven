@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-08-web-preloader-waits-for-shell-data.md
-2026-09-08-web-preloader-waits-for-shell-data.md: 3c1b559c8cf8d63597936a17f08f2826dbed8e62
-2026-09-08-web-preloader-waits-for-shell-data.zh.md: 1ebf55a0175a2891570bf76cc5a46731d795d47e
+2026-09-08-web-preloader-waits-for-shell-data.md: a55b496c4b118045adbab38aaf3209f07201efeb
+2026-09-08-web-preloader-waits-for-shell-data.zh.md: 5f9add35e92d4dca29494fa1f62345264d917564

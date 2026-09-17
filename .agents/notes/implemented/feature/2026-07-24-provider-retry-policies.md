@@ -46,7 +46,7 @@ Each scheduled retry appends a non-surface `llm/retry` event with the failed pro
 
 **One retry-executor-level `always` switch** — rejected because it cannot isolate the unbounded cost and latency risk to the provider that needs it and can silently apply after runtime rerouting. Provider route policies remain authoritative, and the effective policy is captured only after routing selects a registration.
 
-**A separate exact-provider list on `dsh-llm-retry`** — rejected because it duplicates provider route names outside their owning adapter configuration and lets provider registration drift from recovery policy.
+**A separate exact-provider list on `avn-llm-retry`** — rejected because it duplicates provider route names outside their owning adapter configuration and lets provider registration drift from recovery policy.
 
 **A very large finite retry count** — rejected because it eventually violates the requested keep-retrying contract and serializes an arbitrary operational limit as if it were meaningful.
 

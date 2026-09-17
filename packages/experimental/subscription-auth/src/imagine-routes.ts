@@ -298,7 +298,7 @@ export function registerImagineRoutes(ctx: ImagineRouteContext, options: Imagine
   }
 
   if (typeof ctx.effect === 'function') {
-    ctx.effect(() => dispose, 'dsh-subscription-auth: imagine download routes')
+    ctx.effect(() => dispose, 'avn-subscription-auth: imagine download routes')
   }
 
   return {

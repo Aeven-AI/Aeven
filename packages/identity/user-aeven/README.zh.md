@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-identity-user-aeven` 让 Aeven 账号成为 DSH 部署所认证的凭据，因此已登录 Aeven 的读者无需二次登录即可在此登录。它校验 Aeven 客户端出示的两种凭据——HTTP 调用上的 access bearer 与 WebSocket 升级上的 `refreshToken` cookie——用 API 自身的签名密钥在本地完成，因此识别调用方无需向 Aeven 发出请求。挂载它会让请求围栏改为要求会话而非启动 token，这是运营 Aeven API 的部署刻意做出的决定。它还在所服务的页面中声明 Aeven 端点，这正是浏览器获得登录界面的方式。
+`avn-identity-user-aeven` 让 Aeven 账号成为 AVN 部署所认证的凭据，因此已登录 Aeven 的读者无需二次登录即可在此登录。它校验 Aeven 客户端出示的两种凭据——HTTP 调用上的 access bearer 与 WebSocket 升级上的 `refreshToken` cookie——用 API 自身的签名密钥在本地完成，因此识别调用方无需向 Aeven 发出请求。挂载它会让请求围栏改为要求会话而非启动 token，这是运营 Aeven API 的部署刻意做出的决定。它还在所服务的页面中声明 Aeven 端点，这正是浏览器获得登录界面的方式。
 
 ## 目录
 
@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 何时选择它
 
-当 DSH 与 Aeven API 一同运营，且读者应以 Aeven 账号访问 DSH 时选择它。只有在该前提下本地校验才是可靠的，因为它依赖共享 API 的密钥。不运行 Aeven API 的部署不得挂载这一行：存在 authority 而 API 不可达时，每个 `/api` 路由都回答 401，任何读者都无法登录。
+当 AVN 与 Aeven API 一同运营，且读者应以 Aeven 账号访问 AVN 时选择它。只有在该前提下本地校验才是可靠的，因为它依赖共享 API 的密钥。不运行 Aeven API 的部署不得挂载这一行：存在 authority 而 API 不可达时，每个 `/api` 路由都回答 401，任何读者都无法登录。
 
 ### 最小配置
 
@@ -58,9 +58,9 @@ kind: "package-reference"
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-identity-user-aeven)是所有可接受字段的详尽来源。
 
-### 让 DSH 与 API 处于同一站点
+### 让 AVN 与 API 处于同一站点
 
-WebSocket 升级不携带 header，因此只能凭 cookie 认证，而浏览器只把 cookie 送回设置它的那个站点。`localhost` 与 `127.0.0.1` 指向同一台机器，却是不同站点：把 DSH 放在其中一个而 API 在另一个上作答，会让读者通过 HTTP 登录成功，随后 socket 被拒绝。浏览器端配置会跟随页面自身的 loopback 主机，使无论键入哪个地址两者都处于同一站点。
+WebSocket 升级不携带 header，因此只能凭 cookie 认证，而浏览器只把 cookie 送回设置它的那个站点。`localhost` 与 `127.0.0.1` 指向同一台机器，却是不同站点：把 AVN 放在其中一个而 API 在另一个上作答，会让读者通过 HTTP 登录成功，随后 socket 被拒绝。浏览器端配置会跟随页面自身的 loopback 主机，使无论键入哪个地址两者都处于同一站点。
 
 -----
 
@@ -100,10 +100,10 @@ Aeven 的各 origin 是部署事实而非构建事实，因此由 Host 声明，
 
 当仅有 authority 还不够时阅读这些：它注册进入的 seam、建立会话的浏览器界面，以及执行认证的围栏。
 
-- [dsh-identity-user](../user/README.zh.md)——本包实现的 seam 与 resolver 契约。
-- [dsh-client-ui-auth-aeven](../../client/ui-auth-aeven/README.zh.md)——登录界面，以及本 authority 随后认得的会话。
-- [dsh-client-ui-account-aeven](../../client/ui-account-aeven/README.zh.md)——展示本 authority 所恢复读者的账户菜单。
-- [dsh-client-connection](../../client/connection/README.zh.md)——一旦挂载 authority 便不再使用启动 token 的围栏。
+- [avn-identity-user](../user/README.zh.md)——本包实现的 seam 与 resolver 契约。
+- [avn-client-ui-auth-aeven](../../client/ui-auth-aeven/README.zh.md)——登录界面，以及本 authority 随后认得的会话。
+- [avn-client-ui-account-aeven](../../client/ui-account-aeven/README.zh.md)——展示本 authority 所恢复读者的账户菜单。
+- [avn-client-connection](../../client/connection/README.zh.md)——一旦挂载 authority 便不再使用启动 token 的围栏。
 - [生成的配置目录](../../../docs/config-catalog.zh.md#aeven-identity-user-aeven)——每个可接受的配置字段及其源声明。
 
 -----
@@ -124,7 +124,7 @@ None, as the authority only identifies the caller for the request fence and regi
 以下是该 authority 的当前约束，不是任务积压。
 
 - **过期前被吊销的 token 仍会校验通过**——本地校验无法观察到 API 记录的吊销。该窗口在 token 过期时关闭。
-- **DSH 与 API 必须共享站点与密钥**——cookie 路径要求同一站点，本地校验要求 API 自身的 `JWT_SECRET` 与 `REFRESH_SECRET`。本 authority 适用于 DSH 与 Aeven 一同运营，而非第三方对接公开的 Aeven。
+- **AVN 与 API 必须共享站点与密钥**——cookie 路径要求同一站点，本地校验要求 API 自身的 `JWT_SECRET` 与 `REFRESH_SECRET`。本 authority 适用于 AVN 与 Aeven 一同运营，而非第三方对接公开的 Aeven。
 - **挂载它会为整个界面设围栏**——没有按路由的豁免。没有可达 Aeven API 的部署应移除该行，而不是期待降级模式。
 
 <a id="dev-note"></a>

@@ -37,7 +37,7 @@ afterEach(async () => {
 
 /** A throwaway $AVN_HOME with an empty settings document. */
 async function home(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'dsh-pi-catalog-'))
+  const dir = await mkdtemp(join(tmpdir(), 'avn-pi-catalog-'))
   homes.push(dir)
   await writeFile(join(dir, 'settings.yaml'), '')
   return dir

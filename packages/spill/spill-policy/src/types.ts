@@ -3,9 +3,9 @@
  * execution the policy needs to derive the owning session for a spill artifact.
  *
  * `@aeven/tools`' `ToolExecution` satisfies this shape, so the policy
- * reads `exec` straight through without importing `dsh-tools` or `dsh-agent`.
+ * reads `exec` straight through without importing `avn-tools` or `avn-agent`.
  * Only the session HEADER id is read — the same identity every other subsystem
- * keys off (see `dsh-tool-bash`'s owner derivation).
+ * keys off (see `avn-tool-bash`'s owner derivation).
  *
  * @module @aeven/spill-policy/types
  */

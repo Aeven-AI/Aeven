@@ -1,6 +1,6 @@
 {
   "name": "@aeven/client-ui-workflow-run",
-  "description": "Durable workflow-run Conversation Node and nested member disclosure for dsh web",
+  "description": "Durable workflow-run Conversation Node and nested member disclosure for avn web",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"
@@ -25,7 +25,7 @@
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },
-  "dsh": {
+  "avn": {
     "client": {
       "inject": [
         "@aeven/api-session-controller",

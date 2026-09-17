@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 概述
 
-`client/` 组运行 dsh web GUI 的浏览器侧：它启动 web 外壳、加载浏览器侧插件模块、维持浏览器与宿主之间的 RPC 与事件投递，并提供渲染应用所需的共享客户端服务与 UI 功能插件。UI 功能通过 slot 系统组合——每个插件填充已声明的扩展 slot，携带类型化 props 与 store，由外壳渲染组装后的整棵树。本组所有包均为产品包，名为 `@aeven/client-<name>`；服务于页面的宿主半侧位于 [`host/`](../host/README.zh.md)。编写规则见 [AGENTS.md](AGENTS.md)，模块图、slot 模型与对象层的说明见下方相关文档。
+`client/` 组运行 avn web GUI 的浏览器侧：它启动 web 外壳、加载浏览器侧插件模块、维持浏览器与宿主之间的 RPC 与事件投递，并提供渲染应用所需的共享客户端服务与 UI 功能插件。UI 功能通过 slot 系统组合——每个插件填充已声明的扩展 slot，携带类型化 props 与 store，由外壳渲染组装后的整棵树。本组所有包均为产品包，名为 `@aeven/client-<name>`；服务于页面的宿主半侧位于 [`host/`](../host/README.zh.md)。编写规则见 [AGENTS.md](AGENTS.md)，模块图、slot 模型与对象层的说明见下方相关文档。
 
 ## 目录
 
@@ -81,7 +81,7 @@ kind: "package-group"
 
 先从子系统参考与两份拥有跨包组合决策的 Agent Note 读起，再看服务于本页的宿主半侧。
 
-- [客户端模块子系统](../../docs/subsystems/client-modules.zh.md)——web 插件表：`dsh.client` 声明、启动图协议与 bundle 路由。
+- [客户端模块子系统](../../docs/subsystems/client-modules.zh.md)——web 插件表：`avn.client` 声明、启动图协议与 bundle 路由。
 - [slot 系统标准](../../.agents/notes/implemented/architecture/2026-07-22-slot-type-chain-implementation.zh.md)——权威 slot 模型：注册、props 份额与 store。
 - [web 客户端架构 Agent Note](../../.agents/notes/implemented/architecture/2026-07-19-gui-web-client-architecture.zh.md)——加载链、对象层与客户端服务。
 - [宿主组地图](../host/README.zh.md)——服务于本浏览器半侧的宿主半侧。

@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-`dsh-subagent-in-process-driver` 是两个进程内 subagent 后端共用的运行驱动器：它通过宿主的 agent 工厂创建一个子 agent，应用按子 agent 的定制，把一项任务驱动到完成，并以单一完全停稳的 dispose（资源释放）路径返回子 agent 自身的最终输出。spawn 调用它时不传入会话初始内容；fork 调用它时传入父级已完成轮次的前缀。它是库而非独立功能：提供方后端调用 `startInProcessRun`，组合中没有任何东西配置它。阅读本页可理解两个进程内后端共享的运行生命周期。
+`avn-subagent-in-process-driver` 是两个进程内 subagent 后端共用的运行驱动器：它通过宿主的 agent 工厂创建一个子 agent，应用按子 agent 的定制，把一项任务驱动到完成，并以单一完全停稳的 dispose（资源释放）路径返回子 agent 自身的最终输出。spawn 调用它时不传入会话初始内容；fork 调用它时传入父级已完成轮次的前缀。它是库而非独立功能：提供方后端调用 `startInProcessRun`，组合中没有任何东西配置它。阅读本页可理解两个进程内后端共享的运行生命周期。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-library"
 <a id="use-this-package"></a>
 ## 使用本包
 
-你通过提供方后端而非组合到达本包：`dsh-subagent-spawn-in-process` 与 `dsh-subagent-fork-in-process` 各自调用 `startInProcessRun(request, options)` 并拥有其外围的一切。本页记录两者共享的生命周期，使你读懂一个后端的行为后即可推断另一个。
+你通过提供方后端而非组合到达本包：`avn-subagent-spawn-in-process` 与 `avn-subagent-fork-in-process` 各自调用 `startInProcessRun(request, options)` 并拥有其外围的一切。本页记录两者共享的生命周期，使你读懂一个后端的行为后即可推断另一个。
 
 ### 一次运行提供什么
 
@@ -85,8 +85,8 @@ kind: "package-library"
 当包级约定不够用时阅读以下页面；它们从共享 subagent 模型进入构建于本驱动器之上的后端，以及委派策略决策。
 
 - [Subagent 子系统](../../../docs/subsystems/subagent.zh.md)——启动请求、结果、提供方约定与进程内深度和初始内容。
-- [dsh-subagent-spawn-in-process](../subagent-spawn-in-process/README.zh.md)——构建于本驱动器之上的全新子级后端。
-- [dsh-subagent-fork-in-process](../subagent-fork-in-process/README.zh.md)——构建于本驱动器之上的初始内容子级后端。
+- [avn-subagent-spawn-in-process](../subagent-spawn-in-process/README.zh.md)——构建于本驱动器之上的全新子级后端。
+- [avn-subagent-fork-in-process](../subagent-fork-in-process/README.zh.md)——构建于本驱动器之上的初始内容子级后端。
 - [委派策略决策](../../../.agents/notes/implemented/feature/2026-07-25-subagent-policy-inheritance.zh.md)——父级沙箱与审批策略如何到达子 agent。
 
 -----
@@ -132,7 +132,7 @@ When you have your final answer, you MUST report it by calling the `structured_o
 
 #### 模型看到什么
 
-通过 `dsh-tool-subagent`，无效深度状态会精确变为 `Error: agent subagentDepth must be a non-negative safe integer`、`Error: subagent child depth exceeds the safe-integer range` 或 `Error: subagent depth <attempted> exceeds maxDepth <max>`。发布前取消的中止原因会通过注册表的 `Error: <message>` 包装传递。
+通过 `avn-tool-subagent`，无效深度状态会精确变为 `Error: agent subagentDepth must be a non-negative safe integer`、`Error: subagent child depth exceeds the safe-integer range` 或 `Error: subagent depth <attempted> exceeds maxDepth <max>`。发布前取消的中止原因会通过注册表的 `Error: <message>` 包装传递。
 
 #### Token 影响
 

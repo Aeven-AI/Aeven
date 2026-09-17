@@ -2,7 +2,7 @@
 
 English | [中文](media.zh.md)
 
-The generated-media seam — a [capability seam](../../.agents/notes/implemented/architecture/2026-09-03-generated-media-capability-seam.md) that spans **two media** (image and video) on one `ctx.media` service: Service Definition ([dsh-media](../../packages/media/media), `ctx.media` + the provider registries), Service Providers, and a Consumer that owns whatever a model sees. Generated media is **one optional capability**, not part of the agent-loop spine — so its vocabulary lives here, not in [core.md](core.md). Swapping a provider does not change how a caller asks for an image or a clip.
+The generated-media seam — a [capability seam](../../.agents/notes/implemented/architecture/2026-09-03-generated-media-capability-seam.md) that spans **two media** (image and video) on one `ctx.media` service: Service Definition ([avn-media](../../packages/media/media), `ctx.media` + the provider registries), Service Providers, and a Consumer that owns whatever a model sees. Generated media is **one optional capability**, not part of the agent-loop spine — so its vocabulary lives here, not in [core.md](core.md). Swapping a provider does not change how a caller asks for an image or a clip.
 
 Source: [`packages/media/media/src/types.ts`](../../packages/media/media/src/types.ts)
 

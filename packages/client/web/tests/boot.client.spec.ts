@@ -2,7 +2,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import * as modulesClient from '@aeven/client-modules/client'
 import type {
-  ClientBundleRegistration, ClientModuleCreateOptions, ClientModuleLoaderTarget, DshWindow,
+  ClientBundleRegistration, ClientModuleCreateOptions, ClientModuleLoaderTarget, AvnWindow,
   WebBootEntry,
 } from '@aeven/client-modules/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -12,7 +12,7 @@ import { PRELOADER_ELEMENT_ID } from '../src/preloader.ts'
 const MODULES_ID = '@aeven/client-modules'
 const PROVIDER_CLIENT_ID = 'provider/client'
 const RUNTIME_CLIENT_ID = 'runtime/client'
-const win = globalThis as DshWindow
+const win = globalThis as AvnWindow
 const transportGlobal = globalThis as {
   __DSH_TRANSPORT__?: { loadBundle(url: string): Promise<void> }
 }

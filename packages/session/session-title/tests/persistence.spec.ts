@@ -52,7 +52,7 @@ async function expectPersistedTitle(ctx: Context, id: ReturnType<typeof SessionI
 
 describe('session title persistence round trips', () => {
   it('round-trips through a remounted JSONL backend', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dsh-title-jsonl-'))
+    const root = await mkdtemp(join(tmpdir(), 'avn-title-jsonl-'))
     roots.push(root)
     const id = SessionId('title-jsonl')
     const writer = new Context()

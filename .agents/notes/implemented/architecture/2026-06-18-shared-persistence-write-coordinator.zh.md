@@ -10,7 +10,7 @@ JSONL provider 需要在其存储原语周围执行对正确性要求很高的�
 
 ## 决策
 
-`dsh-session-persistence` 导出后端无关的 `PersistenceCoordinator`。JSONL provider 组合一个协调器实例（`new PersistenceCoordinator(ctx, this)`）、实现小型 `PersistenceBackend` 钩子接口，并把有状态公开方法（`create`/`append`/`prepare`/`load`/`inspect`/`readFrom`）委托给协调器。由后端拥有的元数据与修订版本列举会绕过协调器。
+`avn-session-persistence` 导出后端无关的 `PersistenceCoordinator`。JSONL provider 组合一个协调器实例（`new PersistenceCoordinator(ctx, this)`）、实现小型 `PersistenceBackend` 钩子接口，并把有状态公开方法（`create`/`append`/`prepare`/`load`/`inspect`/`readFrom`）委托给协调器。由后端拥有的元数据与修订版本列举会绕过协调器。
 
 组合，而非继承。协调器是后端持有的具体类，不是后端继承的基类。协调器让非常规后端与继承层级作斗争的风险由此规避：后端只暴露钩子，无法触及协调器的私有编排状态。第三方后端仍然可以完全不使用协调器、直接实现抽象服务，包括不可变逻辑检查，以及通过 `load` 实现的默认准备回退。
 
@@ -36,7 +36,7 @@ JSONL provider 需要在其存储原语周围执行对正确性要求很高的�
 
 ### 不透明的 torn marker
 
-保持 seam 整洁的唯一设计选择：崩溃修复中「损坏尾部在哪里」的 token 对协调器是不透明的。协调器计算合成收尾事件（它拥有来自 `dsh-session` 的 `interruptedTurnClosers`），但只测试 `tornMarker !== undefined` 并将值原样传回 `commitRepair`，从不检视其内容。JSONL 携带要截断到的字节偏移，以及从不完整最终帧中解码出的任何完整事件；其他 provider 可以选择自己的 marker 类型。协调器因此既不了解字节长度，也不了解帧恢复状态。
+保持 seam 整洁的唯一设计选择：崩溃修复中「损坏尾部在哪里」的 token 对协调器是不透明的。协调器计算合成收尾事件（它拥有来自 `avn-session` 的 `interruptedTurnClosers`），但只测试 `tornMarker !== undefined` 并将值原样传回 `commitRepair`，从不检视其内容。JSONL 携带要截断到的字节偏移，以及从不完整最终帧中解码出的任何完整事件；其他 provider 可以选择自己的 marker 类型。协调器因此既不了解字节长度，也不了解帧恢复状态。
 
 ## 测试
 

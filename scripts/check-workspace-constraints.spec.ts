@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   checkExperimentalDependencyIsolation,
   checkExperimentalManifest,
-  expectedDshPackageFiles,
+  expectedAvnPackageFiles,
   type WorkspaceManifest,
 } from './check-workspace-constraints.ts'
 
@@ -78,9 +78,9 @@ describe('experimental workspace constraints', () => {
 
 describe('package payload constraints', () => {
   it('includes a declared profile patch without a package-name allowlist', () => {
-    expect(expectedDshPackageFiles({
+    expect(expectedAvnPackageFiles({
       name: '@aeven/private-profile',
-      dsh: { bundle: { patch: './cordis.patch.yml' } },
+      avn: { bundle: { patch: './cordis.patch.yml' } },
     })).toEqual([
       'lib/index.js',
       'cordis.patch.yml',

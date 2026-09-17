@@ -1,5 +1,5 @@
 ---
-description: "Durable workflow-run Conversation Node for the dsh web client: reconstructs top-level workflow runs as independent chat nodes with nested member disclosure."
+description: "Durable workflow-run Conversation Node for the avn web client: reconstructs top-level workflow runs as independent chat nodes with nested member disclosure."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-client-ui-workflow-run` is the browser plugin that reconstructs durable top-level workflow runs as independent Chat nodes in the dsh web client. It consumes the four `tool-workflow/*` Session events owned by `dsh-tool-workflow`, registers one `ConversationNodeDefinition`, and renders through the keyed `conversation.chat.node` slot without changing the existing workflow tool card. The run and each phase are controlled disclosures: a mount opens running, failed, cancelled, and interrupted levels and closes fully completed levels, and users can toggle either level with the full row, Enter, or Space. A member opens a child Session only while every current fact agrees, and the node shows run, phase, member identity, and status only.
+`avn-client-ui-workflow-run` is the browser plugin that reconstructs durable top-level workflow runs as independent Chat nodes in the avn web client. It consumes the four `tool-workflow/*` Session events owned by `avn-tool-workflow`, registers one `ConversationNodeDefinition`, and renders through the keyed `conversation.chat.node` slot without changing the existing workflow tool card. The run and each phase are controlled disclosures: a mount opens running, failed, cancelled, and interrupted levels and closes fully completed levels, and users can toggle either level with the full row, Enter, or Space. A member opens a child Session only while every current fact agrees, and the node shows run, phase, member identity, and status only.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-A top-level workflow run through `dsh-tool-workflow` appears in the conversation as its own node: expand the run to see its phases, and expand a phase to see its members. Phase groups come only from members that started, and settlement changes status without removing or reordering members.
+A top-level workflow run through `avn-tool-workflow` appears in the conversation as its own node: expand the run to see its phases, and expand a phase to see its members. Phase groups come only from members that started, and settlement changes status without removing or reordering members.
 
 ### Navigating the node
 
@@ -85,7 +85,7 @@ None; this package neither assembles nor sends a provider request.
 
 These limits define which runs produce records and what the node exposes; they are current package constraints.
 
-- **Only top-level calls through `dsh-tool-workflow` produce these records** — nested PTC mode calls and direct `WorkflowEngine` consumers do not.
+- **Only top-level calls through `avn-tool-workflow` produce these records** — nested PTC mode calls and direct `WorkflowEngine` consumers do not.
 - **Navigation is intentionally live-only** — terminal members remain visible for review but never expose a cold-session opener from this node.
 - **The node shows run, phase, member identity, and status only** — scripts, outputs, errors, logs, usage, static topology, and controls remain outside this surface.
 

@@ -30,17 +30,17 @@ import { asError, commandOpts, delay, signalOpts, signalRemoteGroups } from './r
 const TERMINAL_RUNNER_SOURCE = [
   '#!/bin/bash',
   'set -euo pipefail',
-  'dsh_state=$1',
-  'mapfile -d \'\' -t dsh_env < "$dsh_state/environment"',
-  'mapfile -d \'\' -t dsh_argv < "$dsh_state/argv"',
-  'dsh_output_marker=$(<"$dsh_state/output-marker")',
-  'rm -f -- "$dsh_state/environment" "$dsh_state/argv" "$dsh_state/output-marker" "$dsh_state/runner.bash"',
-  'if (( ${#dsh_argv[@]} == 0 )); then',
+  'avn_state=$1',
+  'mapfile -d \'\' -t avn_env < "$avn_state/environment"',
+  'mapfile -d \'\' -t avn_argv < "$avn_state/argv"',
+  'avn_output_marker=$(<"$avn_state/output-marker")',
+  'rm -f -- "$avn_state/environment" "$avn_state/argv" "$avn_state/output-marker" "$avn_state/runner.bash"',
+  'if (( ${#avn_argv[@]} == 0 )); then',
   "  printf 'terminal runner received empty argv\\n' >&2",
   '  exit 125',
   'fi',
-  'printf \'%s\' "$dsh_output_marker"',
-  'exec env -i -- "${dsh_env[@]}" "${dsh_argv[@]}"',
+  'printf \'%s\' "$avn_output_marker"',
+  'exec env -i -- "${avn_env[@]}" "${avn_argv[@]}"',
   '',
 ].join('\n')
 
@@ -469,7 +469,7 @@ export async function spawnE2BTerminal(
     argv: posix.join(stateDir, 'argv'),
     outputMarker: posix.join(stateDir, 'output-marker'),
   }
-  const outputMarker = Buffer.from(`dsh-e2b-bootstrap:${randomUUID()}`)
+  const outputMarker = Buffer.from(`avn-e2b-bootstrap:${randomUUID()}`)
   const output = new PassThrough()
   const outputFilter = new BootstrapOutputFilter(outputMarker, output)
   let handle: CommandHandle | undefined

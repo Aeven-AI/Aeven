@@ -11,8 +11,8 @@
 | 位置 | 命名方式 | 示例 |
 |---|---|---|
 | HTTP 字段名 | 小写 kebab-case；HTTP 匹配仍不区分大小写 | `user-agent`, `x-deepseek-harness-session-id` |
-| DeepSeek 请求正文扩展字段 | 使用保留 `dsh_` 前缀的 snake case | `dsh_plugin_packages`, `dsh_session_log` |
-| DSH 持有的嵌套 JSON 成员 | Camel case | `afterSeq`, `throughSeq`, `sessionId` |
+| DeepSeek 请求正文扩展字段 | 使用保留 `avn_` 前缀的 snake case | `avn_plugin_packages`, `avn_session_log` |
+| AVN 持有的嵌套 JSON 成员 | Camel case | `afterSeq`, `throughSeq`, `sessionId` |
 | 带标签的值 | 使用 kebab-case 字符串；持久事件采用 `domain/action` | `session-log-deepseek/delivery-accepted` |
 
 每个正文扩展独立持有自身的 `version`。版本仅适用于包含该字段的对象；不同字段的版本之间不存在兼容或排序关系。JSON 成员顺序不属于协议。
@@ -38,13 +38,13 @@
 
 已配置端点返回 HTTP 2xx 后，适配器会在读取 SSE 正文之前运行已准备的 `accept()` 事务。传输失败和非 2xx 响应不会接受任何贡献。即使端点返回 2xx，接受失败仍会使模型请求失败。接受仅记录端点级 HTTP 成功，不表示 SSE 流已完整结束，也不表示端点已持久化扩展。
 
-## `dsh_plugin_packages`
+## `avn_plugin_packages`
 
 [`@aeven/plugin-package-inventory-deepseek`](../packages/llm/plugin-package-inventory-deepseek/README.zh.md) 贡献完整存活的 Loader-backed 插件包清单。该字段默认启用。
 
 ```json
 {
-  "dsh_plugin_packages": {
+  "avn_plugin_packages": {
     "version": 1,
     "packages": [
       {
@@ -58,7 +58,7 @@
 
 | 成员 | 类型 | 含义 |
 |---|---|---|
-| `version` | `1` | `dsh_plugin_packages` 的 schema 版本 |
+| `version` | `1` | `avn_plugin_packages` 的 schema 版本 |
 | `packages` | 数组 | 本次请求的完整存活集合 |
 | `packages[].name` | 字符串 | 来自所属 manifest（元数据清单）的确切非空 npm 包名 |
 | `packages[].version` | 字符串 | 来自同一 manifest 的确切非空包版本 |
@@ -69,15 +69,15 @@
 
 该清单不包含已禁用、pending、failed、unloading、disposed 和结构性 Loader 配置项。普通依赖、没有具名所属包的松散模块、以编程方式挂载的子 fiber，以及内存动态插件也不在其中，因为它们没有权威的 Loader 包来源信息。
 
-清单已启用但没有符合条件的配置项时，系统发送 `packages: []`；禁用贡献插件时，系统省略整个 `dsh_plugin_packages` 字段。包身份属于提供方元数据，绝不进入模型输入。
+清单已启用但没有符合条件的配置项时，系统发送 `packages: []`；禁用贡献插件时，系统省略整个 `avn_plugin_packages` 字段。包身份属于提供方元数据，绝不进入模型输入。
 
-## `dsh_session_log`
+## `avn_session_log`
 
 [`@aeven/session-log-deepseek`](../packages/session/session-log-deepseek/README.zh.md) 贡献权威会话日志的一段连续后缀。该字段默认禁用。启用后，它适用于携带存活会话且至少存在一个事件的请求；直接请求、陈旧会话 id 或空日志会省略该字段。
 
 ```json
 {
-  "dsh_session_log": {
+  "avn_session_log": {
     "version": 1,
     "session": {
       "version": 0,
@@ -102,7 +102,7 @@
 
 | 成员 | 类型 | 含义 |
 |---|---|---|
-| `version` | `1` | `dsh_session_log` 的 schema 版本 |
+| `version` | `1` | `avn_session_log` 的 schema 版本 |
 | `session` | 对象 | 不可变的权威 `SessionHeader` |
 | `afterSeq` | 整数 | 本次请求前记录为已接受的最大序号，或 `-1` |
 | `throughSeq` | 非负整数 | 本次请求所表示的最大序号 |
@@ -112,7 +112,7 @@
 
 ### 会话头
 
-`session` 成员是确切的 `Session.header`，不是完整的运行时会话。外层 `dsh_session_log.version` 选择本扩展 schema，`session.version` 则选择权威磁盘会话格式；两个版本值相互独立演进。
+`session` 成员是确切的 `Session.header`，不是完整的运行时会话。外层 `avn_session_log.version` 选择本扩展 schema，`session.version` 则选择权威磁盘会话格式；两个版本值相互独立演进。
 
 | 成员 | 出现条件 | 含义 |
 |---|---|---|
@@ -154,6 +154,6 @@
 
 ## 暴露内容与接收方要求
 
-请求标头会暴露 Harness 应用版本、一个匿名 Harness-home 身份和可选的会话身份。`dsh_plugin_packages` 会暴露存活 npm 包的名称与版本。启用后，`dsh_session_log` 可能暴露会话工作目录、系统提示词快照、用户与 assistant 内容、原始 assistant 分片、工具参数与结果、压缩摘要、反馈和插件持有的事件。适配器 API key 不是会话事件，因此不会进入该字段。通过 `baseURL` 选择的网关会收到与官方端点相同的值。
+请求标头会暴露 Harness 应用版本、一个匿名 Harness-home 身份和可选的会话身份。`avn_plugin_packages` 会暴露存活 npm 包的名称与版本。启用后，`avn_session_log` 可能暴露会话工作目录、系统提示词快照、用户与 assistant 内容、原始 assistant 分片、工具参数与结果、压缩摘要、反馈和插件持有的事件。适配器 API key 不是会话事件，因此不会进入该字段。通过 `baseURL` 选择的网关会收到与官方端点相同的值。
 
 接收方按名称定位扩展字段，按各字段自己的 `version` 分派，保留不同的包版本，并忽略 JSON 成员顺序。会话日志接收方必须先校验连续序号范围，再解释事件类型。遇到不带 `ignorable: true` 的未知权威事件时，接收方无法进行无损重建。即使缺少注册表或某项贡献，基础请求仍然可用；字段缺失表示该项贡献不适用于本次请求。

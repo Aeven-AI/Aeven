@@ -8,7 +8,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-const STYLE_ID = 'dsh-coding-oauth-micro-styles'
+const STYLE_ID = 'avn-coding-oauth-micro-styles'
 
 afterEach(() => {
   for (const style of document.head.querySelectorAll(`style#${STYLE_ID}`)) style.remove()
@@ -29,8 +29,8 @@ describe('micro styles injection', () => {
 
     const injected = document.getElementById(STYLE_ID)
     expect(injected?.tagName).toBe('STYLE')
-    expect(injected?.textContent).toContain('@keyframes dsh-coding-oauth-spin')
-    expect(injected?.textContent).toContain('@keyframes dsh-coding-oauth-skeleton-pulse')
+    expect(injected?.textContent).toContain('@keyframes avn-coding-oauth-spin')
+    expect(injected?.textContent).toContain('@keyframes avn-coding-oauth-skeleton-pulse')
     expect(injected?.textContent).toContain('prefers-reduced-motion')
 
     // A later call in the same module instance adds nothing.

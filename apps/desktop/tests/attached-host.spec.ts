@@ -8,7 +8,7 @@ import { planDesktopBackend } from '../src/attached-host.ts'
 const homes: string[] = []
 
 async function makeHome(): Promise<string> {
-  const home = await mkdtemp(join(tmpdir(), 'dsh-attach-'))
+  const home = await mkdtemp(join(tmpdir(), 'avn-attach-'))
   homes.push(home)
   return home
 }

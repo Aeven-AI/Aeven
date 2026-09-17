@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-任何插件或工具都可以通过 `dsh-web`（`ctx.web`）搜索 web 或抓取 URL，而无需绑定任何厂商的 API。搜索与抓取提供方以后端形式接入，服务按操作挑选一个可用的提供方，调用方无需追踪每次调用背后是哪家厂商。在构建 web 工具或其他后端时选择它；已交付的面向模型工具（`dsh-tool-web`）会自动挂载它。服务本身不发起网络调用、不注册面向模型的工具：搜索或抓取执行前必须已挂载提供方。搜索与抓取共用同一套选择策略、取消与错误词汇以及配置接口，因此「这个 harness 如何访问 web」只有一个归属方。
+任何插件或工具都可以通过 `avn-web`（`ctx.web`）搜索 web 或抓取 URL，而无需绑定任何厂商的 API。搜索与抓取提供方以后端形式接入，服务按操作挑选一个可用的提供方，调用方无需追踪每次调用背后是哪家厂商。在构建 web 工具或其他后端时选择它；已交付的面向模型工具（`avn-tool-web`）会自动挂载它。服务本身不发起网络调用、不注册面向模型的工具：搜索或抓取执行前必须已挂载提供方。搜索与抓取共用同一套选择策略、取消与错误词汇以及配置接口，因此「这个 harness 如何访问 web」只有一个归属方。
 
 ## 目录
 
@@ -25,11 +25,11 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-需要 web 访问的组合会加载 `dsh-web` 服务并挂载至少一个后端——搜索提供方和／或抓取提供方——插件或工具作者随后直接调用 `ctx.web.search()` 与 `ctx.web.fetch()`。服务会为每次调用解析后端，因此除非调用方配置了提供方 id，否则它们看不到提供方 id。
+需要 web 访问的组合会加载 `avn-web` 服务并挂载至少一个后端——搜索提供方和／或抓取提供方——插件或工具作者随后直接调用 `ctx.web.search()` 与 `ctx.web.fetch()`。服务会为每次调用解析后端，因此除非调用方配置了提供方 id，否则它们看不到提供方 id。
 
 ### 何时选择
 
-当插件或工具必须搜索或抓取、又不希望硬编码厂商时选择本服务；只使用已交付的 `web_search`／`web_fetch` 工具的组合会通过 `dsh-tool-web` 免费获得它。当组合从不访问 web 时，你不需要它。服务本身不增加任何网络访问能力：没有至少一个可用提供方时，每次调用都会以结构化 `WebError` 失败。
+当插件或工具必须搜索或抓取、又不希望硬编码厂商时选择本服务；只使用已交付的 `web_search`／`web_fetch` 工具的组合会通过 `avn-tool-web` 免费获得它。当组合从不访问 web 时，你不需要它。服务本身不增加任何网络访问能力：没有至少一个可用提供方时，每次调用都会以结构化 `WebError` 失败。
 
 ### 最小配置
 
@@ -126,8 +126,8 @@ const page = await ctx.web.fetch({ url: 'https://example.com' })
 
 - [web 子系统](../../../docs/subsystems/web.zh.md)——穷尽式的搜索／抓取请求与结果、提供方可用性与错误码。
 - [web 包映射](../README.zh.md)——六包家族与各角色。
-- [dsh-tool-web](../tool-web/README.zh.md)——构建于本服务之上的面向模型 `web_search` 与 `web_fetch` 工具。
-- [dsh-web-fetch-http](../web-fetch-http/README.zh.md)——已交付的匿名 HTTP(S) 抓取后端。
+- [avn-tool-web](../tool-web/README.zh.md)——构建于本服务之上的面向模型 `web_search` 与 `web_fetch` 工具。
+- [avn-web-fetch-http](../web-fetch-http/README.zh.md)——已交付的匿名 HTTP(S) 抓取后端。
 - [生成配置目录](../../../docs/config-catalog.zh.md#aeven-web)——每个受支持配置字段及其源声明。
 - [web 能力 seam 决策](../../../.agents/notes/implemented/architecture/2026-06-24-web-capability-seam.zh.md)——搜索与抓取为何共用一项提供方选择服务。
 
@@ -136,7 +136,7 @@ const page = await ctx.web.fetch({ url: 'https://example.com' })
 <a id="model-experience"></a>
 ## 模型体验
 
-间接地，通过 `dsh-tool-web`：该工具把 seam 规范化的搜索结果与抓取正文渲染给模型，而本服务不贡献任何提示词或 schema。
+间接地，通过 `avn-tool-web`：该工具把 seam 规范化的搜索结果与抓取正文渲染给模型，而本服务不贡献任何提示词或 schema。
 
 #### KV Cache 影响
 

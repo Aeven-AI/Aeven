@@ -28,7 +28,7 @@ import { renderProcessRead, renderResult } from '../src/render.ts'
 
 const testToolSignal = new AbortController().signal
 
-const spillDir = mkdtempSync(join(tmpdir(), 'dsh-tool-bash-spec-'))
+const spillDir = mkdtempSync(join(tmpdir(), 'avn-tool-bash-spec-'))
 
 /** Foreground-only harness: no job runtime (backgrounding fails loud here). */
 async function setup() {
@@ -323,7 +323,7 @@ describe('bash tool', () => {
 
   it('surfaces spawn failures as isError', async () => {
     const ctx = await setup()
-    const result = await call(ctx, 'bash', { command: 'true', description: 'test command', workdir: '/nonexistent-dsh' })
+    const result = await call(ctx, 'bash', { command: 'true', description: 'test command', workdir: '/nonexistent-avn' })
     expect(result.isError).toBe(true)
     expect(text(result)).toMatch(/ENOENT/)
   })
@@ -1082,7 +1082,7 @@ describe('tool-owned UI presentation (presentCall / presentResult)', () => {
 })
 
 describe('the model-facing bash tool builds its request from named args only (no {...args} forward)', () => {
-  const recordingDshHome = join(spillDir, 'dsh-home')
+  const recordingAvnHome = join(spillDir, 'avn-home')
 
   /**
    * Records every {@link ShellExecRequest} the consumer hands to `resolve()`, so a
@@ -1093,7 +1093,7 @@ describe('the model-facing bash tool builds its request from named args only (no
    * future refactor that blindly forwards `...args` — which would silently thread
    * model input into the post-scrub `env` merge or per-run capture budget — NOT
    * to defend a trust boundary
-   * (the credential scrub in dsh-bash-local is the security control; see the
+   * (the credential scrub in avn-bash-local is the security control; see the
    * bash-stdin-env Agent Note). Foreground `run()` returns a canned result; `start()`
    * hands back an already-settled fake handle so the task registration completes.
    */
@@ -1109,7 +1109,7 @@ describe('the model-facing bash tool builds its request from named args only (no
         ...request.signal ? { signal: request.signal } : {},
         ...request.stdin !== undefined ? { stdin: request.stdin } : {},
         ...request.env !== undefined ? { env: request.env } : {},
-        ...request.dshEnv !== undefined ? { dshEnv: request.dshEnv } : {},
+        ...request.avnEnv !== undefined ? { avnEnv: request.avnEnv } : {},
         sandboxPolicy: request.sandboxPolicy,
       }
     }
@@ -1142,7 +1142,7 @@ describe('the model-facing bash tool builds its request from named args only (no
     }
     await ctx.plugin(LocalJobRegistry)
     await ctx.plugin(ToolTasks)
-    await ctx.plugin(BashEnvPlugin, { dshHome: recordingDshHome })
+    await ctx.plugin(BashEnvPlugin, { avnHome: recordingAvnHome })
     await ctx.plugin(RecordingBashExecutor)
     await ctx.plugin(ToolBash)
     return { ctx, bash: ctx.shell as RecordingBashExecutor }
@@ -1168,8 +1168,8 @@ describe('the model-facing bash tool builds its request from named args only (no
       agent,
     })
 
-    expect(bash.requests[0]?.dshEnv).toEqual({
-      AVN_HOME: recordingDshHome,
+    expect(bash.requests[0]?.avnEnv).toEqual({
+      AVN_HOME: recordingAvnHome,
       AVN_SESSION_ID: 'request-fg',
       AVN_SESSION_JSONL: path,
       AVN_SHELL: '1',
@@ -1195,8 +1195,8 @@ describe('the model-facing bash tool builds its request from named args only (no
     })
 
     expect(bash.requests[0]?.env).toBeUndefined()
-    expect(bash.requests[0]?.dshEnv).toEqual({
-      AVN_HOME: recordingDshHome,
+    expect(bash.requests[0]?.avnEnv).toEqual({
+      AVN_HOME: recordingAvnHome,
       AVN_SESSION_ID: 'request-bg',
       AVN_SESSION_JSONL: path,
       AVN_SHELL: '1',
@@ -1216,8 +1216,8 @@ describe('the model-facing bash tool builds its request from named args only (no
       agent,
     })
 
-    expect(bash.requests[0]?.dshEnv).toEqual({
-      AVN_HOME: recordingDshHome,
+    expect(bash.requests[0]?.avnEnv).toEqual({
+      AVN_HOME: recordingAvnHome,
       AVN_SESSION_ID: 'request-id-only',
       AVN_SHELL: '1',
     })
@@ -1239,21 +1239,21 @@ describe('the model-facing bash tool builds its request from named args only (no
       })
     }
 
-    expect(bash.requests.map(request => request.dshEnv)).toEqual([
+    expect(bash.requests.map(request => request.avnEnv)).toEqual([
       {
-        AVN_HOME: recordingDshHome,
+        AVN_HOME: recordingAvnHome,
         AVN_SESSION_ID: 'request-parent',
         AVN_SESSION_JSONL: ctx.sessionPersistence.locate(parent.session.header)?.path,
         AVN_SHELL: '1',
       },
       {
-        AVN_HOME: recordingDshHome,
+        AVN_HOME: recordingAvnHome,
         AVN_SESSION_ID: 'request-child',
         AVN_SESSION_JSONL: ctx.sessionPersistence.locate(child.session.header)?.path,
         AVN_SHELL: '1',
       },
     ])
-    expect(bash.requests[0]?.dshEnv?.AVN_SESSION_JSONL).not.toBe(bash.requests[1]?.dshEnv?.AVN_SESSION_JSONL)
+    expect(bash.requests[0]?.avnEnv?.AVN_SESSION_JSONL).not.toBe(bash.requests[1]?.avnEnv?.AVN_SESSION_JSONL)
   })
 
   it('does not forward trusted-only fields even when the model includes them as extra arguments', async () => {

@@ -6,7 +6,7 @@ Status: proposed
 
 ## Problem
 
-模型需要在不修改仓库源码、不重新构建应用、不刷新浏览器的前提下，临时扩展当前 DSH 进程。扩展既可能运行在 Host 的 Node.js 进程，也可能运行在 Client 浏览器页面，还可能由 Host 取数、Client 展示，共同组成一个插件。
+模型需要在不修改仓库源码、不重新构建应用、不刷新浏览器的前提下，临时扩展当前 AVN 进程。扩展既可能运行在 Host 的 Node.js 进程，也可能运行在 Client 浏览器页面，还可能由 Host 取数、Client 展示，共同组成一个插件。
 
 这项能力不能只是“执行一段代码”。模型需要在写代码前发现两端允许使用的 Service、Event、Builtin、Slot 和主题 token；用户需要先预览代码，再决定是否允许 Client 代码进入页面；同一个插件需要追加不可变版本、失败后重试或回退；运行后的异步错误需要回到模型，而不是只留在服务端日志或浏览器控制台。
 
@@ -69,7 +69,7 @@ Host-only Package 在 Host 成功建立 Fiber 后提交 current。包含 Client 
 
 ### Host 权威状态与持久性
 
-`DynamicCordisRunnerService` 及其内部 Registry 是当前 DSH 进程内的唯一权威，保存：
+`DynamicCordisRunnerService` 及其内部 Registry 是当前 AVN 进程内的唯一权威，保存：
 
 - Plugin 的 Session 归属和不可变 Package 集合；
 - `currentPackageId`、`nextPackageId`、物理 Run 和 `latestRun`；
@@ -151,7 +151,7 @@ Host 与 Client 的 `timer` 都是同名 Cordis Service，使用一致接口，�
 
 所有注册和可撤销副作用由当前 Fiber 拥有。Event listener、Service、Tool、handler、timer、Slot、样式和主题覆盖通过 `ctx.effect()`、`ctx.on()` 或返回 disposer 的官方 API 注册。停止、更新、失败回滚或 undefine 时撤销两端贡献。Theme override 必须按 source 分层并返回 disposer，使卸载后恢复此前主题值。
 
-宿主、DSH、Cordis 及其 Service、Event payload、Slot props、Session/Conversation Snapshot、Tool 状态和其他运行时对象是内部 live data。动态代码不得对这些对象或其子对象执行 `JSON.stringify`、`structuredClone`、递归枚举、全量复制或整体展示；只能读取当前任务所需叶子字段，构造不含宿主引用的最小自有数据。
+宿主、AVN、Cordis 及其 Service、Event payload、Slot props、Session/Conversation Snapshot、Tool 状态和其他运行时对象是内部 live data。动态代码不得对这些对象或其子对象执行 `JSON.stringify`、`structuredClone`、递归枚举、全量复制或整体展示；只能读取当前任务所需叶子字段，构造不含宿主引用的最小自有数据。
 
 ### Inspect Provider 与 Catalog
 

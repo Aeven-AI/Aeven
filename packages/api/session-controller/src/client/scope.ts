@@ -1,6 +1,6 @@
 /**
  * Client Agent-scope primitive: mint a Cordis context tagged with the owning
- * Agent's identity. The mechanism mirrors the host `dsh-scope` architecture
+ * Agent's identity. The mechanism mirrors the host `avn-scope` architecture
  * (no-op plugin fiber + context tag + `Context.filter` routing predicate);
  * the shape deliberately diverges: the filter lives on the actx itself
  * instead of a separate carrier object, so scoped dispatch is plain cordis —
@@ -27,7 +27,7 @@ export type AgentContext = Omit<Context, 'remote'> & {
 }
 
 /** Context tag written by {@link createScope}. */
-const kScope = Symbol('dsh.client.scope')
+const kScope = Symbol('avn.client.scope')
 
 /** A minted Agent scope and its disposal boundary. */
 export interface AgentScopeHandle {

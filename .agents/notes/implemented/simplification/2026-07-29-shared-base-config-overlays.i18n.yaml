@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/simplification/2026-07-29-shared-base-config-overlays.md
-2026-07-29-shared-base-config-overlays.md: de9dcafeab46c21a4fea85f36d73e3fbc9736d9a
-2026-07-29-shared-base-config-overlays.zh.md: 0e5b76df33be433391572f08b639dd85c0f30b8e
+2026-07-29-shared-base-config-overlays.md: f646cb7cede466d4887d2830acb029ad5393f172
+2026-07-29-shared-base-config-overlays.zh.md: f966351c7a5e2b1657f1097b1aa8a05a5e2ee467

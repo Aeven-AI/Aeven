@@ -297,7 +297,7 @@ describe('disposeAcpChild (the backend-owned teardown ladder over seam verbs)', 
   it('observes a spawn-level rejection and returns without a process to reap', async () => {
     const child = spawnSubprocess({
       argv: [process.execPath, '--input-type=module', '--eval', ''],
-      cwd: '/nonexistent-dir-dsh-acp-ladder-test',
+      cwd: '/nonexistent-dir-avn-acp-ladder-test',
       stdio: { stdin: 'ignore', stdout: { maxBytes: 1000 }, stderr: { maxBytes: 1000 } },
       graceMs: 200,
     })
@@ -374,7 +374,7 @@ describe('cwd resolution', () => {
 
   it('resolves a relative config cwd against the launch directory at load', async () => {
     // The child process AND its announced ACP session cwd must both get the
-    // ABSOLUTE form — DSH's own ACP server rejects a relative session cwd, and
+    // ABSOLUTE form — AVN's own ACP server rejects a relative session cwd, and
     // deferring resolution to spawn would hide the launch-dir dependency.
     const relative = 'packages/subagent/subagent-acp'
     const absolute = resolve(relative)
@@ -499,7 +499,7 @@ describe('cwd resolution', () => {
   })
 })
 
-describe('dsh-subagent-acp', () => {
+describe('avn-subagent-acp', () => {
   it('drives child processes with parent-unique run ids and returns streamed output', async () => {
     const ctx = await setup({ MOCK_TEXT: 'hello from acp child', MOCK_STOP: 'end_turn', MOCK_SESSION_ID: 'acp-child-session' })
     const run = await ctx.subagents.start('acp', request('do X'))

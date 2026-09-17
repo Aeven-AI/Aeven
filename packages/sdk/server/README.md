@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-sdk-jsonrpc-server` serves the SDK wire protocol over stdio so out-of-process clients can drive harness agents: it opens one session per `sessionId`, queues user prompts, and streams every session event and agent status transition back to the client. Mount it as the `jsonrpc` plugin in a Loader composition; the surrounding tree supplies everything else — agents, model adapters, persistence, and tools. Stdout carries only JSON-RPC frames, so a deployment must not compose a stdout logger. It answers `shutdown` by disposing the root runtime and exiting 0; the app bin owns EOF and signal exits.
+`avn-sdk-jsonrpc-server` serves the SDK wire protocol over stdio so out-of-process clients can drive harness agents: it opens one session per `sessionId`, queues user prompts, and streams every session event and agent status transition back to the client. Mount it as the `jsonrpc` plugin in a Loader composition; the surrounding tree supplies everything else — agents, model adapters, persistence, and tools. Stdout carries only JSON-RPC frames, so a deployment must not compose a stdout logger. It answers `shutdown` by disposing the root runtime and exiting 0; the app bin owns EOF and signal exits.
 
 ## Table of Contents
 
@@ -63,7 +63,7 @@ This section explains the design behind the serving plugin; the observable behav
 
 ### Design concept
 
-The plugin is a thin presentation adapter: [`HarnessSdkJsonRpcServer`](src/server.ts) owns the protocol methods and notifications, while the transport and the named wire types come from `dsh-sdk-protocol`, shared with the client SDKs. It subscribes to session, agent, and subagent lifecycle events and forwards them as wire notifications; subagent completions are forwarded only when the service-snapshotted lifecycle `local` flag is true — provider names, child ids, and durable lineage never establish locality.
+The plugin is a thin presentation adapter: [`HarnessSdkJsonRpcServer`](src/server.ts) owns the protocol methods and notifications, while the transport and the named wire types come from `avn-sdk-protocol`, shared with the client SDKs. It subscribes to session, agent, and subagent lifecycle events and forwards them as wire notifications; subagent completions are forwarded only when the service-snapshotted lifecycle `local` flag is true — provider names, child ids, and durable lineage never establish locality.
 
 ### Source map
 
@@ -92,7 +92,7 @@ Read these pages when the plugin contract is not enough. They move from the wire
 
 - [SDK wire protocol](../protocol/README.md) — the methods and payload shapes this plugin serves.
 - [TypeScript SDK client](../client/README.md) — the client that drives this plugin.
-- [SDK application bundle](../../bundle/sdk-app/README.md) — the `dsh --profile sdk` application that boots this plugin.
+- [SDK application bundle](../../bundle/sdk-app/README.md) — the `avn --profile sdk` application that boots this plugin.
 - [Python SDK](../../../python/README.md) — the Python client that drives the same server.
 - [SDK runtime distribution decision](../../../.agents/notes/implemented/architecture/2026-07-10-single-file-executable-sdk-runtime-distribution.md) — why the packaged runtime serves a closed plugin tree.
 

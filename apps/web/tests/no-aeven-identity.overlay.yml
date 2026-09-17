@@ -1,10 +1,10 @@
-# Loader overlay for the real-host smoke (`dsh web --patch`): run the shipped
+# Loader overlay for the real-host smoke (`avn web --patch`): run the shipped
 # Web graph without an authenticated-user authority.
 #
 # This smoke operates no Aeven API, and the shipped rows require one. An
 # authority registered here fences every API route behind a credential the
 # smoke cannot obtain, and replaces the launch token with the sign-in screen —
-# so `dsh web` prints a bare origin and serves the index to anyone instead of
+# so `avn web` prints a bare origin and serves the index to anyone instead of
 # printing `/?token=…` and exchanging it for a session cookie, which is the
 # admission this smoke drives. Disabling the authority also disables the
 # account menu that shows its reader, exactly as the web-app patch pairs them.

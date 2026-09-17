@@ -158,14 +158,14 @@ describe('package dependency scope', () => {
     expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@aeven/typert-protocol']).toBeUndefined()
   })
 
-  it('discovers the Client directory, dsh.client declarations, and configured Host packages', () => {
+  it('discovers the Client directory, avn.client declarations, and configured Host packages', () => {
     const packages = [
       pkg('@f/static', 'packages/client/static/package.json'),
-      pkg('@f/dynamic-client', 'packages/client/dynamic/package.json', { dsh: { client: {} } }),
-      pkg('@f/dual', 'packages/api/dual/package.json', { dsh: { client: {} } }),
+      pkg('@f/dynamic-client', 'packages/client/dynamic/package.json', { avn: { client: {} } }),
+      pkg('@f/dual', 'packages/api/dual/package.json', { avn: { client: {} } }),
       pkg('@f/export-only', 'packages/api/export-only/package.json', { exports: { './client': './lib/client.js' } }),
       pkg('@f/forced-client', 'packages/api/forced/package.json'),
-      pkg('@f/excluded', 'packages/api/excluded/package.json', { dsh: { client: {} } }),
+      pkg('@f/excluded', 'packages/api/excluded/package.json', { avn: { client: {} } }),
       pkg('@f/host', 'packages/core/host/package.json'),
     ]
 
@@ -188,7 +188,7 @@ describe('package dependency scope', () => {
   it('rejects stale, redundant, overlapping, and unknown configuration', () => {
     const packages = [
       pkg('@f/client', 'packages/client/client/package.json'),
-      pkg('@f/dual', 'packages/api/dual/package.json', { dsh: { client: {} } }),
+      pkg('@f/dual', 'packages/api/dual/package.json', { avn: { client: {} } }),
       pkg('@f/host', 'packages/core/host/package.json'),
     ]
     const found = discoverPackageDependencyScope(packages, policy({
@@ -201,7 +201,7 @@ describe('package dependency scope', () => {
       expect.stringContaining('clientFaceInclude redundantly names automatically discovered package @f/dual'),
       expect.stringContaining('@f/host appears in both clientFaceInclude and clientFaceExclude'),
       expect.stringContaining('clientFaceExclude cannot exempt packages/client package @f/client'),
-      expect.stringContaining('clientFaceExclude names @f/host, which declares no dsh.client entry'),
+      expect.stringContaining('clientFaceExclude names @f/host, which declares no avn.client entry'),
       expect.stringContaining('hostPackages redundantly names Client-faced package @f/dual'),
       expect.stringContaining('unknown release package @f/missing'),
     ]))
@@ -255,7 +255,7 @@ describe('package dependency scope', () => {
 
 describe('face-aware source classification', () => {
   it('fails when a managed Host package has no Host entry', () => {
-    const root = mkdtempSync(join(tmpdir(), 'dsh-package-missing-host-'))
+    const root = mkdtempSync(join(tmpdir(), 'avn-package-missing-host-'))
     roots.push(root)
     const subject = pkg('@f/host', 'packages/g/host/package.json')
 
@@ -264,10 +264,10 @@ describe('face-aware source classification', () => {
   })
 
   it('counts Host values as dependencies and Client values as development inputs', () => {
-    const root = mkdtempSync(join(tmpdir(), 'dsh-package-faces-'))
+    const root = mkdtempSync(join(tmpdir(), 'avn-package-faces-'))
     roots.push(root)
     const subject = pkg('@f/dual', 'packages/g/dual/package.json', {
-      dsh: { client: { inject: ['@f/injected'] } },
+      avn: { client: { inject: ['@f/injected'] } },
     })
     const files = {
       'packages/g/dual/src/index.ts': [
@@ -516,7 +516,7 @@ describe('dependency sections', () => {
   })
 
   it('repairs owned relationships without changing unrelated dependencies', () => {
-    const root = mkdtempSync(join(tmpdir(), 'dsh-package-dependencies-'))
+    const root = mkdtempSync(join(tmpdir(), 'avn-package-dependencies-'))
     roots.push(root)
     const manifestPath = 'package.json'
     const manifest: PackageDependencyManifest = {

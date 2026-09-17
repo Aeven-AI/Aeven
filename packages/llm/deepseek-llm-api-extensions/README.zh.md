@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-用于向 DeepSeek 官方 LLM API 请求添加顶层字段的提供方特定注册表。`DeepSeekLlmApiExtensionRegistry` 注册 `ctx.deepseekLlmApiExtensions`；贡献插件分别认领一个经声明合并的字段，`dsh-llm-deepseek` 则在序列化基础请求后准备当前贡献。当插件必须添加经过验证的提供方特定字段且不能修改基础 adapter 时，请使用它。
+用于向 DeepSeek 官方 LLM API 请求添加顶层字段的提供方特定注册表。`DeepSeekLlmApiExtensionRegistry` 注册 `ctx.deepseekLlmApiExtensions`；贡献插件分别认领一个经声明合并的字段，`avn-llm-deepseek` 则在序列化基础请求后准备当前贡献。当插件必须添加经过验证的提供方特定字段且不能修改基础 adapter 时，请使用它。
 
 ## 目录
 
@@ -29,7 +29,7 @@ kind: "package-reference"
 
 每个提供方都会看到确切的已序列化基础正文、请求 `AbortSignal`，以及可选的 `sessionId` 与辅助调用 `purpose`。提供方必须在取消后迅速停止自身工作；字段不适用于当前请求时返回 `undefined`。即使 HMR（热模块替换）在 HTTP 接受前移除了注册，已准备的操作仍会保留其捕获的提供方。
 
-注册表拥有字段添加与生命周期，不拥有字段语义。`@aeven/session-log-deepseek` 拥有 `dsh_session_log`；`@aeven/plugin-package-inventory-deepseek` 拥有 `dsh_plugin_packages`。提供方无关的 LLM seam 与 `llm-pi-ai` 都不消费该注册表。
+注册表拥有字段添加与生命周期，不拥有字段语义。`@aeven/session-log-deepseek` 拥有 `avn_session_log`；`@aeven/plugin-package-inventory-deepseek` 拥有 `avn_plugin_packages`。提供方无关的 LLM seam 与 `llm-pi-ai` 都不消费该注册表。
 
 <a id="model-experience"></a>
 ## 模型体验

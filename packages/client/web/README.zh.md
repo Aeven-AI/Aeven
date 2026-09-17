@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-`dsh-client-web` 启动 web GUI：它先从 Host 提供的启动图加载客户端模块系统，再在应用挂载前激活每一个客户端插件，因此只有当所有插件都就绪时完整 UI 才会出现。`apps/web` 在 HTML 外壳中固定写入带样式的预加载页，使转轮在 JavaScript 前绘制；无框架失败页则报告无法激活的 bundle 或插件。本包还定义共享模块表（`PLATFORM_MODULES`），每个动态 bundle 都依据它解析 external。模型永远看不到本包。
+`avn-client-web` 启动 web GUI：它先从 Host 提供的启动图加载客户端模块系统，再在应用挂载前激活每一个客户端插件，因此只有当所有插件都就绪时完整 UI 才会出现。`apps/web` 在 HTML 外壳中固定写入带样式的预加载页，使转轮在 JavaScript 前绘制；无框架失败页则报告无法激活的 bundle 或插件。本包还定义共享模块表（`PLATFORM_MODULES`），每个动态 bundle 都依据它解析 external。模型永远看不到本包。
 
 ## 目录
 
@@ -37,13 +37,13 @@ kind: "package-library"
 
 ### 启动页
 
-常规 Web 外壳在应用 root 前承载 `#dsh-preloader`。生产构建会在 document head 中内联其样式表，使全屏背景、品牌标识与转轮从 document 字节绘制；其余样式表不再阻塞该绘制。`AppWebEntry` 在插件树激活、应用接管挂载点，以及——当存在 `uiWorkspace` 时——第一份侧边栏列表与所选会话历史到达之后，才淡出该视觉。
+常规 Web 外壳在应用 root 前承载 `#avn-preloader`。生产构建会在 document head 中内联其样式表，使全屏背景、品牌标识与转轮从 document 字节绘制；其余样式表不再阻塞该绘制。`AppWebEntry` 在插件树激活、应用接管挂载点，以及——当存在 `uiWorkspace` 时——第一份侧边栏列表与所选会话历史到达之后，才淡出该视觉。
 
 `BootPage` 使用原生 DOM 与本地 CSS 作为失败回退。静态预加载页拥有加载呈现时它保持视觉静默；导入或激活失败后，内核会立即揭开它，并由 BootPage 按名称和原因报告错误。不含静态外壳的 document 仍使用 BootPage 的进度转轮。
 
 ### 共享模块表
 
-`PLATFORM_MODULES`（位于 `src/platform.ts`）列出外壳播种的共享模块——React、Cordis 与 UI 库——并与 `PRELOADED_CLIENT_EXTERNALS`（parser 预载的 runtime 行）一起定义每个动态 bundle 解析所依据的隐式 external 基座。外壳同步播种即时模块，并在构造模块系统前加入已立即请求的 UI primitives。`dsh.client.external` 只添加基座之外的精确请求；参见[共享模块与模块图](../AGENTS.md#shared-modules-and-the-module-graph)。
+`PLATFORM_MODULES`（位于 `src/platform.ts`）列出外壳播种的共享模块——React、Cordis 与 UI 库——并与 `PRELOADED_CLIENT_EXTERNALS`（parser 预载的 runtime 行）一起定义每个动态 bundle 解析所依据的隐式 external 基座。外壳同步播种即时模块，并在构造模块系统前加入已立即请求的 UI primitives。`avn.client.external` 只添加基座之外的精确请求；参见[共享模块与模块图](../AGENTS.md#shared-modules-and-the-module-graph)。
 
 ### 配置
 
@@ -94,7 +94,7 @@ kind: "package-library"
 - [客户端模块系统](../modules/README.zh.md)——本内核消费的惰性模块表与启动图。
 - [UI 渲染器](../ui-renderer/README.zh.md)——接收挂载点并把 slot 数据绑定到 React。
 - [客户端模块子系统](../../../docs/subsystems/client-modules.zh.md)——web 插件表、启动图协议与 bundle 路由。
-- [客户端编写规则](../AGENTS.md#shared-modules-and-the-module-graph)——共享模块基座与 `dsh.client.external` 语义。
+- [客户端编写规则](../AGENTS.md#shared-modules-and-the-module-graph)——共享模块基座与 `avn.client.external` 语义。
 - [客户端组地图](../README.zh.md)——本包所属的浏览器半侧。
 
 -----

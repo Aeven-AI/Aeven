@@ -3,7 +3,7 @@ description: "浏览器安全的 Workspace 路径辅助函数：拼接相对路�
 kind: "package-library"
 ---
 
-# dsh-util-workspace-path
+# avn-util-workspace-path
 
 [English](README.md) | 中文
 

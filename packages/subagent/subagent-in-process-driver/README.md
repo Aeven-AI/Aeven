@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-subagent-in-process-driver` is the shared run driver behind the two in-process subagent backends: it creates one child agent through the host's agent factory, applies per-child customization, drives one task to completion, and returns the child's own final output with a single quiescent disposal path. Spawn calls it with no session seed; fork calls it with the parent's completed-turn prefix. It is a library, not a standalone feature: provider backends call `startInProcessRun`, and nothing in a composition configures it. Read this page to understand the run lifecycle both in-process backends share.
+`avn-subagent-in-process-driver` is the shared run driver behind the two in-process subagent backends: it creates one child agent through the host's agent factory, applies per-child customization, drives one task to completion, and returns the child's own final output with a single quiescent disposal path. Spawn calls it with no session seed; fork calls it with the parent's completed-turn prefix. It is a library, not a standalone feature: provider backends call `startInProcessRun`, and nothing in a composition configures it. Read this page to understand the run lifecycle both in-process backends share.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-You reach this package through a provider backend, not a composition: `dsh-subagent-spawn-in-process` and `dsh-subagent-fork-in-process` each call `startInProcessRun(request, options)` and own everything around it. This page documents the lifecycle both share so you can read one backend's behavior and reason about the other.
+You reach this package through a provider backend, not a composition: `avn-subagent-spawn-in-process` and `avn-subagent-fork-in-process` each call `startInProcessRun(request, options)` and own everything around it. This page documents the lifecycle both share so you can read one backend's behavior and reason about the other.
 
 ### What one run provides
 
@@ -85,8 +85,8 @@ The required request signal covers both startup and the live run. Before publica
 Read these pages when the package-level contract is not enough; they move from the shared subagent model to the backends built on this driver and the delegation-policy decision.
 
 - [Subagent subsystem](../../../docs/subsystems/subagent.md) — start requests, results, provider contract, and in-process depth and seed.
-- [dsh-subagent-spawn-in-process](../subagent-spawn-in-process/README.md) — the fresh-child backend built on this driver.
-- [dsh-subagent-fork-in-process](../subagent-fork-in-process/README.md) — the seeded-child backend built on this driver.
+- [avn-subagent-spawn-in-process](../subagent-spawn-in-process/README.md) — the fresh-child backend built on this driver.
+- [avn-subagent-fork-in-process](../subagent-fork-in-process/README.md) — the seeded-child backend built on this driver.
 - [Delegation-policy decision](../../../.agents/notes/implemented/feature/2026-07-25-subagent-policy-inheritance.md) — how parent sandbox and approval policy reach the child.
 
 -----
@@ -132,7 +132,7 @@ Prefix-stable inside the child while the structured-output instruction and schem
 
 #### What the model sees
 
-Through `dsh-tool-subagent`, invalid depth state becomes exactly `Error: agent subagentDepth must be a non-negative safe integer`, `Error: subagent child depth exceeds the safe-integer range`, or `Error: subagent depth <attempted> exceeds maxDepth <max>`. A pre-publication cancellation passes its abort reason through the registry's `Error: <message>` wrapper.
+Through `avn-tool-subagent`, invalid depth state becomes exactly `Error: agent subagentDepth must be a non-negative safe integer`, `Error: subagent child depth exceeds the safe-integer range`, or `Error: subagent depth <attempted> exceeds maxDepth <max>`. A pre-publication cancellation passes its abort reason through the registry's `Error: <message>` wrapper.
 
 #### Token effect
 

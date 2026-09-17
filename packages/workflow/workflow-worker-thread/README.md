@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-workflow-worker-thread` implements the workflow engine with one Node worker thread per run: the orchestration script executes inside a fresh worker while its `agent()` calls reach host subagents over a typed host/worker protocol. A synchronous script loop cannot block the harness event loop, and a script that ignores cancellation can be terminated with its worker. The isolation is containment, not a security boundary — a model-written script has the same trust premise as the model's existing bash access, and escaping the `node:vm` context recovers the worker's process authority. Mount this engine to give `ctx.workflowEngine` a concrete implementation; a composition that loads it with `dsh-tool-workflow` gives the model the `workflow` tool.
+`avn-workflow-worker-thread` implements the workflow engine with one Node worker thread per run: the orchestration script executes inside a fresh worker while its `agent()` calls reach host subagents over a typed host/worker protocol. A synchronous script loop cannot block the harness event loop, and a script that ignores cancellation can be terminated with its worker. The isolation is containment, not a security boundary — a model-written script has the same trust premise as the model's existing bash access, and escaping the `node:vm` context recovers the worker's process authority. Mount this engine to give `ctx.workflowEngine` a concrete implementation; a composition that loads it with `avn-tool-workflow` gives the model the `workflow` tool.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ Mount this engine when a composition needs the workflow capability: each orchest
 
 ### Minimal configuration
 
-Loading the engine registers `ctx.workflowEngine`; adding `dsh-tool-workflow` on top gives the model the `workflow` tool. Every config field is optional:
+Loading the engine registers `ctx.workflowEngine`; adding `avn-tool-workflow` on top gives the model the `workflow` tool. Every config field is optional:
 
 ```yaml
 - name: '@aeven/workflow-worker-thread'
@@ -147,7 +147,7 @@ Independent of the parent request cache and of sibling children. Each child can 
 
 #### What the model sees
 
-Through [`dsh-tool-workflow`](../tool-workflow/README.md), success exposes only the materialized final JSON value and child count in that consumer's wrapper. This engine supplies stable errors including `workflow script does not parse: <error>`, `invalid meta: <violations>`, `agent() requires a non-empty prompt string`, `agent() could not start a child: <error>`, and `child agent run failed: <error>`, plus its exact `parallel()`, `pipeline()`, `phase()`, option, schema, and JSON-boundary validation messages. Intermediate child outputs are available to the script but not the parent model.
+Through [`avn-tool-workflow`](../tool-workflow/README.md), success exposes only the materialized final JSON value and child count in that consumer's wrapper. This engine supplies stable errors including `workflow script does not parse: <error>`, `invalid meta: <violations>`, `agent() requires a non-empty prompt string`, `agent() could not start a child: <error>`, and `child agent run failed: <error>`, plus its exact `parallel()`, `pipeline()`, `phase()`, option, schema, and JSON-boundary validation messages. Intermediate child outputs are available to the script but not the parent model.
 
 #### Token effect
 

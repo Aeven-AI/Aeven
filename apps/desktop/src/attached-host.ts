@@ -16,7 +16,7 @@
  * @module @aeven/desktop/attached-host
  */
 
-import { liveHostLease, probeHostUrl, resolveDshHome } from '@aeven/home-paths'
+import { liveHostLease, probeHostUrl, resolveAvnHome } from '@aeven/home-paths'
 
 /** The backend this shell should render. */
 export type DesktopBackendPlan =
@@ -53,7 +53,7 @@ export interface DesktopBackendOptions {
 export async function planDesktopBackend(
   options: DesktopBackendOptions = {},
 ): Promise<DesktopBackendPlan> {
-  const home = options.home ?? resolveDshHome()
+  const home = options.home ?? resolveAvnHome()
   const lease = await liveHostLease(home).catch(() => undefined)
   // An incumbent with no advertised URL has no HTTP surface to render.
   if (lease === undefined || lease.url === undefined) return { kind: 'spawn' }

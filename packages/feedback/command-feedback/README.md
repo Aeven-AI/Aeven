@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-command-feedback` lets a user tell the harness what they think of a session: type `/feedback` plus a remark, and the remark is recorded and acknowledged. Recording is immediate and never starts model work, so it is safe at any point in a conversation — the model neither sees the remark nor is interrupted by it. The acknowledgement names the session and the anonymous user, and reports how the session is shared under the deployment's telemetry policy. The command ships with the Web client and needs no configuration; headless, ACP, and JSON-RPC entry points do not provide slash commands and cannot run it.
+`avn-command-feedback` lets a user tell the harness what they think of a session: type `/feedback` plus a remark, and the remark is recorded and acknowledged. Recording is immediate and never starts model work, so it is safe at any point in a conversation — the model neither sees the remark nor is interrupted by it. The acknowledgement names the session and the anonymous user, and reports how the session is shared under the deployment's telemetry policy. The command ships with the Web client and needs no configuration; headless, ACP, and JSON-RPC entry points do not provide slash commands and cannot run it.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Users can record feedback from the Web client out of the box: the `/feedback` command ships with the standard `dsh` base, needs no configuration, and works in any conversation. A custom app gets the same command by mounting the command registry and this plugin together.
+Users can record feedback from the Web client out of the box: the `/feedback` command ships with the standard `avn` base, needs no configuration, and works in any conversation. A custom app gets the same command by mounting the command registry and this plugin together.
 
 ### The `/feedback` command
 
@@ -97,8 +97,8 @@ The producer trims the text, rejects empty input, and writes one event into the 
 Read these pages when the package-level contract is not enough. They move from the sharing policy and command registry behind this capture path to the persistence and identity facts the acknowledgement relies on.
 
 - [Session telemetry subsystem](../../../docs/subsystems/session-telemetry.md) — the `SessionTelemetrySharingStatus` vocabulary and backend contract behind the disclosure.
-- [dsh-session-telemetry](../../session/session-telemetry/README.md) — the seam whose `sharing` member drives the acknowledgement sentence.
-- [dsh-commands](../../interaction/commands/README.md) — the registry that discovers the global command and its `recordInput` semantics.
+- [avn-session-telemetry](../../session/session-telemetry/README.md) — the seam whose `sharing` member drives the acknowledgement sentence.
+- [avn-commands](../../interaction/commands/README.md) — the registry that discovers the global command and its `recordInput` semantics.
 - [Session persistence subsystem](../../../docs/subsystems/persistence.md) — how appended events become durable and what a flush barrier means.
 - [Anonymous user identity](../../identity/anonymous-user-id/README.md) — the id the acknowledgement reports.
 - [Feedback package map](../README.md) — where log-only capture sits next to per-message feedback.

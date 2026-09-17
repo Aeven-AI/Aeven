@@ -1,5 +1,5 @@
 # Standalone minimal SDK application. Unlike the ordinary SDK profile, this
-# bundle does not layer over dsh-base: this insert is the complete Cordis tree.
+# bundle does not layer over avn-base: this insert is the complete Cordis tree.
 # User profile, home, and invocation patches still apply above it.
 
 - insert:
@@ -70,7 +70,7 @@
       config:
         cwd: !!js process.cwd()
 
-    # Keep the minimal agent kernel explicit: unlike dsh-base, this profile
+    # Keep the minimal agent kernel explicit: unlike avn-base, this profile
     # owns each service row and omits every optional producer it does not use.
     - id: timer
       name: '@deepseek-ai/cordis-plugin-timer'
@@ -164,5 +164,5 @@
     - id: sessions
       name: '@aeven/session-persistence-jsonl'
       config:
-        root: !!js dshHomePath('sessions')
+        root: !!js avnHomePath('sessions')
         compression: none

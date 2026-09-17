@@ -121,9 +121,9 @@
       "@aeven/scope/invariant": ["./packages/core/scope/src/invariant.ts"],
       "@aeven/agent-loop/invariant": ["./packages/core/agent-loop/src/invariant.ts"],
       "@aeven/experimental-agent-team/invariant": ["./packages/experimental/agent-team/src/invariant.ts"],
-      // host/client package names prefix the group dir (dsh-client-<dir>), so
+      // host/client package names prefix the group dir (avn-client-<dir>), so
       // the generated aliases below — which map a package only when its name is
-      // exactly dsh-<dir> — skip them; strip the group prefix with a dedicated
+      // exactly avn-<dir> — skip them; strip the group prefix with a dedicated
       // wildcard per group instead.
       "@aeven/host-*/invariant": ["./packages/host/*/src/invariant.ts"],
       "@aeven/client-*/invariant": ["./packages/client/*/src/invariant.ts"],
@@ -229,7 +229,7 @@
       "@aeven/util-crypto": ["./packages/util/crypto/src"],
       "@aeven/util-values": ["./packages/util/values/src"],
       // util/ folders are role-named without the util- prefix their npm names carry,
-      // so these aliases stay hand-written like dsh-util-crypto above.
+      // so these aliases stay hand-written like avn-util-crypto above.
       "@aeven/util-time": ["./packages/util/time/src"],
       // identity/ and the Aeven client folders drop the identity- and
       // ui- prefixes their npm names carry, so these stay hand-written.
@@ -380,7 +380,7 @@
       "@aeven/subagent-acp": ["./packages/subagent/subagent-acp/src"],
       "@aeven/subagent-claude-code": ["./packages/subagent/subagent-claude-code/src"],
       "@aeven/subagent-codex": ["./packages/subagent/subagent-codex/src"],
-      "@aeven/subagent-dsh-sdk": ["./packages/subagent/subagent-dsh-sdk/src"],
+      "@aeven/subagent-avn-sdk": ["./packages/subagent/subagent-avn-sdk/src"],
       "@aeven/subagent-fork-in-process": ["./packages/subagent/subagent-fork-in-process/src"],
       "@aeven/subagent-in-process-driver": ["./packages/subagent/subagent-in-process-driver/src"],
       "@aeven/subagent-spawn-in-process": ["./packages/subagent/subagent-spawn-in-process/src"],

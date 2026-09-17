@@ -23,7 +23,7 @@ A workspace package publishes a separately built `./invariant` companion only wh
 
 When no plausible relationship exists, the package omits the companion and publication wiring and records its package-specific reason in the README. A future change that introduces an independently observable relationship must replace the explanation with the corresponding check. The omission mechanics and current audit are owned by the [omit-unneeded-companions decision](../simplification/2026-08-28-omit-unneeded-invariant-companions.md).
 
-The central `dsh-invariants` service owns only configuration, registration uniqueness, child-fiber lifecycle, rollback, disposal, and package-attributed failure. It exposes no generic plugin-shape, service-shape, or startup-assertion helpers and imports no product package.
+The central `avn-invariants` service owns only configuration, registration uniqueness, child-fiber lifecycle, rollback, disposal, and package-attributed failure. It exposes no generic plugin-shape, service-shape, or startup-assertion helpers and imports no product package.
 
 ### Representative implemented checks
 
@@ -31,27 +31,27 @@ Published companions are enumerated mechanically by `verify-package-invariants`;
 
 | Owner | Runtime relationship |
 |---|---|
-| `dsh-session` | Strict sequence growth, turn/step enclosure, and same-step tool call/result pairing. |
-| `dsh-agent` | Non-repeating agent status and terminal disposal transitions. |
-| `dsh-scope` | Scoped-event carrier presence and routed-subject consistency. |
-| `dsh-agent-loop` | Explicitly marked, frozen loop request reconstruction from the session event log. |
-| `dsh-llm` | Stream block grammar, delta type/index matching, single usage, closed blocks, and terminal finish. |
-| `dsh-llm-retry` | Durable retry records identify the open turn's latest closed step, remain unique per step, increase monotonically, and stay within retry and non-negative timer bounds. |
-| `dsh-tools` | Monotonic pre/execute/post stages and immutable final execution/result snapshots. |
-| `dsh-system-prompt` | Authoritative assembly section, tool, and variable data constraints. |
-| `dsh-compaction` | Compaction start/summary/end pairing, range endpoints, token counts, and successful-summary presence. |
-| `dsh-hook-protocol` | Hook invocation/result correlation, dialect, identity, and duration constraints. |
-| `dsh-sandbox-policy` | Durable `sandbox/mode` events use the closed sandbox-mode vocabulary. |
-| `dsh-fs` | Filesystem decision/observation events carry usable target and version identities. |
-| `dsh-goal` | Durable goal snapshots preserve source attribution, rendered content, revisions, lifecycle and timestamp relationships, and sequential admitted rounds. |
-| `dsh-goal-round-driver` | Goal-sourced continuation messages match the prompt reconstructed from the preceding durable goal state. |
-| `dsh-subagent` | Provider add/remove and child start/end events preserve identity and pairing. |
-| `dsh-permission-presets` | Durable permission decisions name a preset in the active permission table. |
-| `dsh-user-approval` | Approval asked/decided records pair by call and use valid outcomes and policies. |
-| `dsh-workflow` | Workflow and child-agent start/end events preserve run metadata, identity, outcome, count, and error relations. |
-| `dsh-jobs` | Current and terminal task snapshots preserve id/kind, owner, status, and timestamp relationships. |
-| `dsh-tool-todo` | Durable whole-list snapshots use unique trimmed items and closed statuses. |
-| `dsh-time-context` | Plugin-attributed clock readings agree with the session's open turn, next pre-step position, and elapsed baseline; rendered time parses and does not postdate its event. |
+| `avn-session` | Strict sequence growth, turn/step enclosure, and same-step tool call/result pairing. |
+| `avn-agent` | Non-repeating agent status and terminal disposal transitions. |
+| `avn-scope` | Scoped-event carrier presence and routed-subject consistency. |
+| `avn-agent-loop` | Explicitly marked, frozen loop request reconstruction from the session event log. |
+| `avn-llm` | Stream block grammar, delta type/index matching, single usage, closed blocks, and terminal finish. |
+| `avn-llm-retry` | Durable retry records identify the open turn's latest closed step, remain unique per step, increase monotonically, and stay within retry and non-negative timer bounds. |
+| `avn-tools` | Monotonic pre/execute/post stages and immutable final execution/result snapshots. |
+| `avn-system-prompt` | Authoritative assembly section, tool, and variable data constraints. |
+| `avn-compaction` | Compaction start/summary/end pairing, range endpoints, token counts, and successful-summary presence. |
+| `avn-hook-protocol` | Hook invocation/result correlation, dialect, identity, and duration constraints. |
+| `avn-sandbox-policy` | Durable `sandbox/mode` events use the closed sandbox-mode vocabulary. |
+| `avn-fs` | Filesystem decision/observation events carry usable target and version identities. |
+| `avn-goal` | Durable goal snapshots preserve source attribution, rendered content, revisions, lifecycle and timestamp relationships, and sequential admitted rounds. |
+| `avn-goal-round-driver` | Goal-sourced continuation messages match the prompt reconstructed from the preceding durable goal state. |
+| `avn-subagent` | Provider add/remove and child start/end events preserve identity and pairing. |
+| `avn-permission-presets` | Durable permission decisions name a preset in the active permission table. |
+| `avn-user-approval` | Approval asked/decided records pair by call and use valid outcomes and policies. |
+| `avn-workflow` | Workflow and child-agent start/end events preserve run metadata, identity, outcome, count, and error relations. |
+| `avn-jobs` | Current and terminal task snapshots preserve id/kind, owner, status, and timestamp relationships. |
+| `avn-tool-todo` | Durable whole-list snapshots use unique trimmed items and closed statuses. |
+| `avn-time-context` | Plugin-attributed clock readings agree with the session's open turn, next pre-step position, and elapsed baseline; rendered time parses and does not postdate its event. |
 
 Session-backed companions validate existing durable events when they load, using the prefix preceding each candidate where the relationship depends on event order. Other checks observe the authoritative live event boundary or mutable service result. Validation runs before publication where accepting an invalid event would otherwise commit bad state.
 

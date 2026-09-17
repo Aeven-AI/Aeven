@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-persona` gives one agent its own persona: a preset mounts this composable row to register the `deployment:persona` system-prompt section, shadowing the deployment-wide persona for that session. It can also make that persona the session's complete system prompt, suppressing every other section, and can turn off dynamic runtime-context snapshots for the session. Mount it inside a preset composition — mounting it globally collides with the prompt registry's own persona registration and fails loud. Without this row, a preset could change an agent's tools but never its identity.
+`avn-persona` gives one agent its own persona: a preset mounts this composable row to register the `deployment:persona` system-prompt section, shadowing the deployment-wide persona for that session. It can also make that persona the session's complete system prompt, suppressing every other section, and can turn off dynamic runtime-context snapshots for the session. Mount it inside a preset composition — mounting it globally collides with the prompt registry's own persona registration and fails loud. Without this row, a preset could change an agent's tools but never its identity.
 
 ## Table of Contents
 
@@ -49,7 +49,7 @@ The persona `text` is a template: complete `{{…}}` groups resolve strictly aga
 
 ### When to use it
 
-Use this row when a preset must change an agent's identity and not only its tools. The deployment-wide persona itself is configured on the `dsh-system-prompt` row, not here; this row exists only to shadow or replace it for one agent.
+Use this row when a preset must change an agent's identity and not only its tools. The deployment-wide persona itself is configured on the `avn-system-prompt` row, not here; this row exists only to shadow or replace it for one agent.
 
 -----
 
@@ -65,7 +65,7 @@ Use this row when a preset must change an agent's identity and not only its tool
 
 ### Why the row is scope-only
 
-`dsh-system-prompt` owns the global persona as its own config and registers `deployment:persona` unconditionally, so a process has exactly one. This row collides with that registration outside an agent scope, by design: the row exists because a preset cannot mount the prompt registry itself.
+`avn-system-prompt` owns the global persona as its own config and registers `deployment:persona` unconditionally, so a process has exactly one. This row collides with that registration outside an agent scope, by design: the row exists because a preset cannot mount the prompt registry itself.
 
 ### Source map
 

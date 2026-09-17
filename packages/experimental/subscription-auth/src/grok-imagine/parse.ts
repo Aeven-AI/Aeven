@@ -67,7 +67,7 @@ export function isSafeImagineAttachmentId(attachmentId: string): boolean {
   ) {
     return false
   }
-  // DSH's local attachment backend currently emits `sha256:<hex>`; keep the
+  // AVN's local attachment backend currently emits `sha256:<hex>`; keep the
   // host's opaque colon/dot-compatible contract while excluding separators.
   return /^[A-Za-z0-9:._-]+$/u.test(attachmentId)
 }

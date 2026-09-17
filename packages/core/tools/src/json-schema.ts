@@ -8,7 +8,7 @@
  * Unsupported or misplaced keywords reject rather than being accepted without
  * enforcement. Consumers that require an object root apply
  * {@link assertObjectJsonSchema} before accepting input.
- * @module dsh-tools/json-schema
+ * @module avn-tools/json-schema
  */
 
 import { HarnessError } from '@aeven/llm'

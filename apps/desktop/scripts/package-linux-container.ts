@@ -10,7 +10,7 @@ import { DESKTOP_PACKAGING_ENV_NAMES, loadDesktopPackagingEnvironment } from './
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
 const DOCKERFILE = join(APP_ROOT, 'linux-builder.Dockerfile')
-const PNPM_STORE_VOLUME = 'dsh-desktop-linux-pnpm-store'
+const PNPM_STORE_VOLUME = 'avn-desktop-linux-pnpm-store'
 const DOCKER_PLATFORMS = {
   'linux-arm64': 'linux/arm64',
   'linux-x64': 'linux/amd64',
@@ -77,7 +77,7 @@ async function main(): Promise<void> {
     throw new Error(`desktop linux container: expected one target from ${Object.keys(DOCKER_PLATFORMS).join(', ')}`)
   }
   const platform = DOCKER_PLATFORMS[target]
-  const tag = `dsh-desktop-linux-builder:${target}`
+  const tag = `avn-desktop-linux-builder:${target}`
   const artifacts = desktopTargetBuildPaths(target).artifacts
   await buildImage(platform, tag)
   rmSync(artifacts, { recursive: true, force: true })

@@ -234,7 +234,7 @@ function bytesResponse(
 }
 
 async function tempMedia(maxBytes = 1024): Promise<MediaStore> {
-  const dir = await mkdtemp(join(tmpdir(), 'dsh-imagine-media-'))
+  const dir = await mkdtemp(join(tmpdir(), 'avn-imagine-media-'))
   temporaryDirectories.push(dir)
   return new MediaStore(dir, { maxBytes })
 }
@@ -247,7 +247,7 @@ async function tempMediaWith(
     onDelete?: (artifactId: string) => void
   } = {},
 ): Promise<MediaStore> {
-  const dir = await mkdtemp(join(tmpdir(), 'dsh-imagine-media-'))
+  const dir = await mkdtemp(join(tmpdir(), 'avn-imagine-media-'))
   temporaryDirectories.push(dir)
   class HookedMedia extends MediaStore {
     override async save(input: Parameters<MediaStore['save']>[0]): Promise<Awaited<ReturnType<MediaStore['save']>>> {
@@ -714,7 +714,7 @@ describe('GrokImagineClient image generation', () => {
     expect(attachments.saved).toHaveLength(1)
     expect(attachments.saved[0]?.mediaType).toBe('image/png')
     expect(result.path).toBe(imagineImagePath(result.attachment.attachmentId))
-    expect(result.path.startsWith('/plugins/dsh-grok-build/imagine/images/')).toBe(true)
+    expect(result.path.startsWith('/plugins/avn-grok-build/imagine/images/')).toBe(true)
     expect(JSON.stringify(result)).not.toContain('imgen.x.ai')
     expect(JSON.stringify(result)).not.toContain('https://')
     expect(JSON.stringify(result)).not.toMatch(/[a-f0-9]{64}/)
@@ -1180,7 +1180,7 @@ describe('image route gate', () => {
     }
     const path = imagineImagePath(ref.attachmentId)
     expect(parseImagineImagePath(path)).toBe(ref.attachmentId)
-    expect(parseImagineImagePath('/plugins/dsh-grok-build/imagine/images/../etc/passwd')).toBeUndefined()
+    expect(parseImagineImagePath('/plugins/avn-grok-build/imagine/images/../etc/passwd')).toBeUndefined()
     expect(isSafeImagineAttachmentId('../etc/passwd')).toBe(false)
     expect(imagineImageDownloadHeaders(ref)['X-Content-Type-Options']).toBe('nosniff')
     await expect(openTrustedImagineImageDownload(new MemoryAttachments(), ref, {} as never)).rejects.toMatchObject({
@@ -1381,7 +1381,7 @@ describe('GrokImagineClient dispose ownership', () => {
 })
 
 describe('imagine image route suffix hardening', () => {
-  it('accepts opaque DSH attachment ids while rejecting path syntax and controls', () => {
+  it('accepts opaque AVN attachment ids while rejecting path syntax and controls', () => {
     expect(isSafeImagineAttachmentId(`sha256:${'ab'.repeat(32)}`)).toBe(true)
     expect(isSafeImagineAttachmentId('att.dot')).toBe(true)
     expect(isSafeImagineAttachmentId('att..dot')).toBe(false)

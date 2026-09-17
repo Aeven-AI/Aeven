@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-09-14-desktop-packaging-reads-the-repository-env-file.md
-2026-09-14-desktop-packaging-reads-the-repository-env-file.md: 88896e9d29fee058e6ee3787b7d1ae1bf3f0fed3
-2026-09-14-desktop-packaging-reads-the-repository-env-file.zh.md: 23f7d39ab97b4832dbf280df0726a170b6159172
+2026-09-14-desktop-packaging-reads-the-repository-env-file.md: 9a4de097488c33bbdc6cd7a8c10a15767747b3e1
+2026-09-14-desktop-packaging-reads-the-repository-env-file.zh.md: e2c7f5a12de7f31eb987b5745124430082366180

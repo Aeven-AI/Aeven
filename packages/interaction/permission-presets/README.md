@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-permission-presets` gives a deployment one user-facing Permissions selector that bundles two independent enforcement knobs — the sandbox mode and the approval policy — into named presets. Selecting a preset applies the sandbox mode and approval policy together, while each knob keeps its own value, so sandbox execution, approval, prompt narration, and replay each read their own setting. The default table ships `workspace-write` (workspace-write + ask) and `danger-full-access` (danger-full-access + never); a knob combination matching no preset reads back as the derived `custom`, which clients may display but never select. The service also owns the `permission` settings namespace whose default applies only when a later session is created, and two optional children — a `permissions` session projection and the `/permission` command — expose the same surface to the Web client. Mounting it requires a confining bash executor and the approval service; it owns no enforcement itself.
+`avn-permission-presets` gives a deployment one user-facing Permissions selector that bundles two independent enforcement knobs — the sandbox mode and the approval policy — into named presets. Selecting a preset applies the sandbox mode and approval policy together, while each knob keeps its own value, so sandbox execution, approval, prompt narration, and replay each read their own setting. The default table ships `workspace-write` (workspace-write + ask) and `danger-full-access` (danger-full-access + never); a knob combination matching no preset reads back as the derived `custom`, which clients may display but never select. The service also owns the `permission` settings namespace whose default applies only when a later session is created, and two optional children — a `permissions` session projection and the `/permission` command — expose the same surface to the Web client. Mounting it requires a confining bash executor and the approval service; it owns no enforcement itself.
 
 ## Table of Contents
 
@@ -83,7 +83,7 @@ The observable behavior is covered in [Use this package](#use-this-package); thi
 
 ### Write path
 
-`apply()` resolves the preset, appends `permission/preset` only when the effective preset changes, then writes each changed knob through its canonical setter — `setSandboxMode` from `dsh-sandbox-policy` and `setApprovalPolicy` from `dsh-user-approval`. The selection event precedes the knob events so user intent survives when two presets share a bundle; a net-zero selection appends nothing.
+`apply()` resolves the preset, appends `permission/preset` only when the effective preset changes, then writes each changed knob through its canonical setter — `setSandboxMode` from `avn-sandbox-policy` and `setApprovalPolicy` from `avn-user-approval`. The selection event precedes the knob events so user intent survives when two presets share a bundle; a net-zero selection appends nothing.
 
 ### Read side and `custom`
 
@@ -116,7 +116,7 @@ Read these pages when the package-level contract is not enough. They move from t
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through `dsh-user-approval` and `dsh-tool-bash`, which render the approval-policy prompt, switch notice, and sandboxed tool outcomes selected by this service's knob events; `permission/preset` itself is log-only.
+Indirectly, through `avn-user-approval` and `avn-tool-bash`, which render the approval-policy prompt, switch notice, and sandboxed tool outcomes selected by this service's knob events; `permission/preset` itself is log-only.
 
 #### KV Cache effect
 

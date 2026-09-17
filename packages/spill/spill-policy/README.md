@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-spill-policy` keeps oversized plain-text tool results out of the model's context: when a final result exceeds `maxInlineBytes`, it saves the full text through `ctx.spillStore` and replaces the model-facing result with a bounded head/tail preview plus the backend's locator and retrieval guidance, which the model can use to read or grep the spill file. It registers no service and owns no storage or preview mechanics — storage is the mounted `SpillStore` backend and previews come from `dsh-output-retention`; it only decides when to spill and composes the notice. It is opt-in and best-effort: omitted `maxInlineBytes` disables it entirely, and a spill failure leaves the original result visible. A second arm applies the same cap to the durable log copy of `run_code` sub-call results, so replay and UIs never grow unbounded either.
+`avn-spill-policy` keeps oversized plain-text tool results out of the model's context: when a final result exceeds `maxInlineBytes`, it saves the full text through `ctx.spillStore` and replaces the model-facing result with a bounded head/tail preview plus the backend's locator and retrieval guidance, which the model can use to read or grep the spill file. It registers no service and owns no storage or preview mechanics — storage is the mounted `SpillStore` backend and previews come from `avn-output-retention`; it only decides when to spill and composes the notice. It is opt-in and best-effort: omitted `maxInlineBytes` disables it entirely, and a spill failure leaves the original result visible. A second arm applies the same cap to the durable log copy of `run_code` sub-call results, so replay and UIs never grow unbounded either.
 
 ## Table of Contents
 
@@ -80,7 +80,7 @@ This section explains the design decisions behind the policy; the observable beh
 
 ### Design philosophy
 
-The policy is deliberately narrow: it only decides **when** to spill and composes the notice. It registers no service, owns no storage, and owns no preview mechanics — `TextRetainer` from `dsh-output-retention` builds the head/tail preview. Two invariants shape the code: the model-facing replacement never exceeds `maxInlineBytes` (the notice's byte cost is reserved out of the budget first), and a spill failure never changes the tool call's outcome.
+The policy is deliberately narrow: it only decides **when** to spill and composes the notice. It registers no service, owns no storage, and owns no preview mechanics — `TextRetainer` from `avn-output-retention` builds the head/tail preview. Two invariants shape the code: the model-facing replacement never exceeds `maxInlineBytes` (the notice's byte cost is reserved out of the budget first), and a spill failure never changes the tool call's outcome.
 
 ### The two arms
 
@@ -114,8 +114,8 @@ Best-effort degradation applies to both arms: no session owner, no backend, a sa
 Read these pages when the package-level contract is not enough.
 
 - [Spill storage service](../spill/README.md) — the `saveText` contract behind the policy's replacement.
-- [dsh-spill-local](../spill-local/README.md) — the local backend that stores the spilled text.
-- [dsh-output-retention](../../util/output-retention/README.md) — the preview mechanics (`TextRetainer`) the policy composes.
+- [avn-spill-local](../spill-local/README.md) — the local backend that stores the spilled text.
+- [avn-output-retention](../../util/output-retention/README.md) — the preview mechanics (`TextRetainer`) the policy composes.
 - [Tool output spill decision](../../../.agents/notes/implemented/architecture/2026-07-08-tool-output-spill-files.md) — the capability boundary and design rationale.
 - [PTC dispatch-log spill decision](../../../.agents/notes/implemented/feature/2026-07-26-ptc-dispatch-log-spill.md) — why the durable log copy is bounded too.
 

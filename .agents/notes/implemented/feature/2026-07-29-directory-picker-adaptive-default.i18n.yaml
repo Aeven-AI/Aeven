@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-07-29-directory-picker-adaptive-default.md
-2026-07-29-directory-picker-adaptive-default.md: 92eb2b5ab4fb1312f03537d891b9f4afff6c7f22
-2026-07-29-directory-picker-adaptive-default.zh.md: a3d0c4b79950ef3452ac906b4a8917321cec6829
+2026-07-29-directory-picker-adaptive-default.md: cafa70a2919732610fb0303ce295c3f3826edc37
+2026-07-29-directory-picker-adaptive-default.zh.md: 062ce0abd55308b89a42fbcdbf5747da3d8537dc

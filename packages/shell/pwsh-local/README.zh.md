@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-pwsh-local` 是 PowerShell 执行器：每条命令都以全新的非交互 `pwsh -Command` 进程运行，不加载 profile 文件，因此调用之间不会残留任何 shell 状态。它逐调用镜像 `dsh-bash-local` 的语义，并额外负责 PowerShell 层事项：可执行文件解析、UTF-8 输出固定与面向模型的终端环境。命令以 harness 进程自身的权限运行——本执行器不做任何隔离；需要沙箱能力时请组合 `dsh-pwsh-sandbox`。挂载后，面向模型的 `pwsh` 工具会与它对接。
+`avn-pwsh-local` 是 PowerShell 执行器：每条命令都以全新的非交互 `pwsh -Command` 进程运行，不加载 profile 文件，因此调用之间不会残留任何 shell 状态。它逐调用镜像 `avn-bash-local` 的语义，并额外负责 PowerShell 层事项：可执行文件解析、UTF-8 输出固定与面向模型的终端环境。命令以 harness 进程自身的权限运行——本执行器不做任何隔离；需要沙箱能力时请组合 `avn-pwsh-sandbox`。挂载后，面向模型的 `pwsh` 工具会与它对接。
 
 ## 目录
 
@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 何时选择
 
-它是 `dsh-bash-local` 的 Windows 对应实现：当 `pwsh` 是平台 shell 时选择它，组合即可把 POSIX 行换成 pwsh 行并保持相同的语义。执行器从显式 `pwshPath`、常见的 Windows 安装位置、PATH 条目，或作为最后手段的 Windows PowerShell 5.1 解析 `pwsh` 可执行文件。非隔离执行时它就是默认选择；需要沙箱能力时组合 `dsh-pwsh-sandbox`。
+它是 `avn-bash-local` 的 Windows 对应实现：当 `pwsh` 是平台 shell 时选择它，组合即可把 POSIX 行换成 pwsh 行并保持相同的语义。执行器从显式 `pwshPath`、常见的 Windows 安装位置、PATH 条目，或作为最后手段的 Windows PowerShell 5.1 解析 `pwsh` 可执行文件。非隔离执行时它就是默认选择；需要沙箱能力时组合 `avn-pwsh-sandbox`。
 
 ### 最小配置
 
@@ -103,7 +103,7 @@ if (result.timedOut) console.log('timed out after', result.timeoutMs)
 ### 不变式与归属
 
 - `graceMs` 预算必须为正有限值且不大于 `MAX_TIMER_DELAY_MS`，这样 Node 就能用一个定时器表示它；无效值在写入处被拒绝。
-- 环境分层固定：先是终端覆盖值，然后是调用方的 `env`，最后才是受信任的 `dshEnv` 快照；subprocess 服务独立清除环境中的凭据与继承的 `AVN_*` 名称。
+- 环境分层固定：先是终端覆盖值，然后是调用方的 `env`，最后才是受信任的 `avnEnv` 快照；subprocess 服务独立清除环境中的凭据与继承的 `AVN_*` 名称。
 - 可执行文件解析是 `(configured, env, platform)` 的纯函数，仅当存储的 `pwshPath` 与当前可执行文件所依据的值不同时才重新探测文件系统。
 - 后台进程属于 subprocess 服务：它能在仅重载执行器后存活，并在服务 dispose 时被终止并 join。
 
@@ -127,7 +127,7 @@ if (result.timedOut) console.log('timed out after', result.timeoutMs)
 <a id="model-experience"></a>
 ## 模型体验
 
-通过 `dsh-tool-pwsh` 间接影响；该工具会渲染本执行器有界的 stdout/stderr 尾部、后台进程增量（经通用任务运行时）、spill 文件路径与基础设施失败。
+通过 `avn-tool-pwsh` 间接影响；该工具会渲染本执行器有界的 stdout/stderr 尾部、后台进程增量（经通用任务运行时）、spill 文件路径与基础设施失败。
 
 #### KV Cache 影响
 

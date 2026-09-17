@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-workflow` runs a plain-JavaScript orchestration script and gives the caller a live run whose result resolves with the script's final JSON value. The script can fan out subagents with `agent()`, combine independent work with `parallel()` and `pipeline()`, and narrate progress with `phase()` and `log()`; agents normally drive this through the `workflow` tool from `dsh-tool-workflow`. A run is holder-owned: its result never rejects, cancellation and disposal are bounded, and every child is attributed to the invoking agent. The package ships no execution engine — `dsh-workflow-worker-thread` is the current one — so a different isolation strategy can replace it without changing what callers or the model see.
+`avn-workflow` runs a plain-JavaScript orchestration script and gives the caller a live run whose result resolves with the script's final JSON value. The script can fan out subagents with `agent()`, combine independent work with `parallel()` and `pipeline()`, and narrate progress with `phase()` and `log()`; agents normally drive this through the `workflow` tool from `avn-tool-workflow`. A run is holder-owned: its result never rejects, cancellation and disposal are bounded, and every child is attributed to the invoking agent. The package ships no execution engine — `avn-workflow-worker-thread` is the current one — so a different isolation strategy can replace it without changing what callers or the model see.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ Run a workflow when a task decomposes into many independent pieces that one scri
 
 ### The model-facing path
 
-The model reaches the capability through the `workflow` tool from `dsh-tool-workflow`, which owns the call schema and result envelope; the engine supplies the execution underneath. A tool call submits `meta`, `script`, and optional `args` and returns `{ runId, agentsStarted, result }` when the run completes. The tool blocks the parent turn until the whole workflow settles, so the model sees one final outcome, never intermediate child messages.
+The model reaches the capability through the `workflow` tool from `avn-tool-workflow`, which owns the call schema and result envelope; the engine supplies the execution underneath. A tool call submits `meta`, `script`, and optional `args` and returns `{ runId, agentsStarted, result }` when the run completes. The tool blocks the parent turn until the whole workflow settles, so the model sees one final outcome, never intermediate child messages.
 
 ### Running a workflow script
 
@@ -111,7 +111,7 @@ Read these pages when the package-level contract is not enough. They move from t
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through its consumer `dsh-tool-workflow` and a workflow engine, which render the parent tool result and the child-agent requests.
+Indirectly, through its consumer `avn-tool-workflow` and a workflow engine, which render the parent tool result and the child-agent requests.
 
 #### KV Cache effect
 

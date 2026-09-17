@@ -12,7 +12,7 @@ Status: implemented
 
 但 `broken` 是承重的，不是卡片上的装饰。`presetOptions` 会把损坏的行从会话选择器里滤掉，好让选择的人不必等到会话启动失败才发现；`resolveMountable` 会在花费一次挂载之前拒绝它。因此下游一切都把「不是 broken」读作「能组装」。
 
-这个缺口在[仓库命名契约](2026-08-11-repository-naming-contract-and-rename-ledger.zh.md)按预发布立场重命名包时暴露出来。仓库内的引用随之更新；写在 `<dshHome>/.agent-presets` 下的 preset 没有，于是引用 `@aeven/workspace-context` 的那一个保住了健康的卡片、保住了在选择器里的位置，直到有人切换过去才失败。引用了被后续版本改名或卸载的包，正是手写 preset 真正的腐化方式，而它恰好是这项检查排除掉的那一类。
+这个缺口在[仓库命名契约](2026-08-11-repository-naming-contract-and-rename-ledger.zh.md)按预发布立场重命名包时暴露出来。仓库内的引用随之更新；写在 `<avnHome>/.agent-presets` 下的 preset 没有，于是引用 `@aeven/workspace-context` 的那一个保住了健康的卡片、保住了在选择器里的位置，直到有人切换过去才失败。引用了被后续版本改名或卸载的包，正是手写 preset 真正的腐化方式，而它恰好是这项检查排除掉的那一类。
 
 而它真正产出的失败，说得比它知道的还少。加载器的逐行包装构造一个普通 `Error`，其 message 以 `cause.message` 结尾，cause 只留在 `error.cause` 上。于是一个有两行失败的 group，抵达时是一行被包装的行，message 为 `failed to apply loader entry <group> (cordis:group): loader entries failed to apply`，两条真正的原因只能经由 `cause.errors` 取得。挂载诊断只展平 `AggregateError.errors`，从不跟随 `cause`，因此它停在那一行，一行都没点名。
 
@@ -22,7 +22,7 @@ Status: implemented
 
 用磁盘查找而不是 `import.meta.resolve`，有两个理由。它便宜：只要注册了 ESM loader hook，每一次解析器调用就变成一次到 hooks 线程的同步往返，在源码启动所用的 `tsx` hook 下实测命中 2ms、未命中 5ms，而裸 Node 分别是 0.055ms 与 0.032ms——每次名单读取要背上 238ms 的解析器时间，而同样这 135 行磁盘走法只要 0.7ms。它也是唯一问得到「宿主」的：`import.meta.resolve` 的 `parentURL` 参数只在 `--experimental-import-meta-resolve` 下生效，而没有任何启动方式传它，因此它是相对调用方模块解析的，回答的是关于本包而不是关于部署的问题。真正认显式 parent 的是 Loader 的内部解析器，而它的 `resolveSync` 在 Node 22 与 24 上签名不同。Node 内建模块在磁盘查找之前直接短路。
 
-磁盘走法放弃了什么：只有经由 loader hook 才能解析的包——import map，或根本没有 `node_modules` 的目录树——会被报为损坏。任何受支持的安装都不会产出这种情况，因为 `dsh plugin install` 会把每个插件装在名单旁边。
+磁盘走法放弃了什么：只有经由 loader hook 才能解析的包——import map，或根本没有 `node_modules` 的目录树——会被报为损坏。任何受支持的安装都不会产出这种情况，因为 `avn plugin install` 会把每个插件装在名单旁边。
 
 **只有一个分类器决定一行在哪里解析。** `src/specifier.ts` 拥有这个划分——`cordis:` 内建、preset 相对、绝对文件、包名——挂载的 import 覆写与发现过程的检查都读它。若发现过程按一个基准解析、而挂载按另一个基准 import，那一行会被报告为健康，然后加载失败。
 
@@ -72,4 +72,4 @@ Status: implemented
 
 在 web 应用中对十一个 preset 的名单实测：`agentPreset.list` 冷启动 14ms、之后 6–8ms，客户端开场并发的三次读取合计 9ms wall。在每一行都过解析器的版本里，同样这三次读取各要 2.45 秒。
 
-`@deepseek-ai/cordis-plugin-group` 成为 `dsh-agent-presets` 的 devDependency：挂载夹具现在像真实 preset 那样经由 `cordis:group` 组装，而工作区之外的 preset 无法按名解析该包，所以应用把它注册为内建，夹具 harness 也照做。
+`@deepseek-ai/cordis-plugin-group` 成为 `avn-agent-presets` 的 devDependency：挂载夹具现在像真实 preset 那样经由 `cordis:group` 组装，而工作区之外的 preset 无法按名解析该包，所以应用把它注册为内建，夹具 harness 也照做。

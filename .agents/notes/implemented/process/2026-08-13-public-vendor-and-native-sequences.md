@@ -6,9 +6,9 @@ English | [中文](2026-08-13-public-vendor-and-native-sequences.zh.md)
 
 ## Problem
 
-The [three release sequences](2026-08-10-npm-release-sequences.md) shipped with `publishConfig.access: restricted`, so every package published to the `@deepseek-ai` scope was visible only inside the organization. Five rehearsal publications ran that way, through `dsh@0.0.1-rc.5`, `vendor *-rc.4`, and `landlock-run@0.0.1`.
+The [three release sequences](2026-08-10-npm-release-sequences.md) shipped with `publishConfig.access: restricted`, so every package published to the `@deepseek-ai` scope was visible only inside the organization. Five rehearsal publications ran that way, through `avn@0.0.1-rc.5`, `vendor *-rc.4`, and `landlock-run@0.0.1`.
 
-A restricted dependency is what actually blocks a public consumer. Every harness package declares the vendored framework as a `peerDependency`, and `dsh-sandbox-local` declares the Landlock entry as a `dependency`. A public package that requires a restricted one cannot be installed by anyone outside the organization, so those two sequences have to be public before the dsh family can be — and while the dsh family is still restricted, they are the only two whose artifacts an outside consumer would need to resolve.
+A restricted dependency is what actually blocks a public consumer. Every harness package declares the vendored framework as a `peerDependency`, and `avn-sandbox-local` declares the Landlock entry as a `dependency`. A public package that requires a restricted one cannot be installed by anyone outside the organization, so those two sequences have to be public before the avn family can be — and while the avn family is still restricted, they are the only two whose artifacts an outside consumer would need to resolve.
 
 ## Decision
 
@@ -18,9 +18,9 @@ Access is a property of each release sequence, not of the scope:
 |---|---|---|
 | vendored framework | the nine `vendor/*` packages | `public` |
 | native | the three `native/landlock-run/packages/*` packages | `public` |
-| dsh | `packages/*/*` + `apps/*` (221 members) | `restricted` |
+| avn | `packages/*/*` + `apps/*` (221 members) | `restricted` |
 
-`check-workspace-constraints.ts` holds every manifest to its own sequence's level, which is what stops the scope from drifting: a new `vendor/*` package left at `restricted`, or a dsh member flipped to `public`, fails the workspace constraints.
+`check-workspace-constraints.ts` holds every manifest to its own sequence's level, which is what stops the scope from drifting: a new `vendor/*` package left at `restricted`, or a avn member flipped to `public`, fails the workspace constraints.
 
 **No publish path passes `--access`.** A single flag cannot serve sequences that disagree, and a flag overrides the manifest that owns the fact — so `publish.ts` passes none, and the native workflow continues to pass none. Each packed manifest decides.
 
@@ -30,7 +30,7 @@ Access is a property of the package, not of a version: the twelve packages alrea
 
 ## Alternatives considered
 
-**Flip the whole scope public at once.** Rejected: it would make a dsh release public as a side effect of a manifest change rather than a deliberate release decision. Opening the two dependency sequences first keeps every published package installable at each step and is a precondition for opening dsh.
+**Flip the whole scope public at once.** Rejected: it would make a avn release public as a side effect of a manifest change rather than a deliberate release decision. Opening the two dependency sequences first keeps every published package installable at each step and is a precondition for opening avn.
 
 **Keep everything restricted and grant a read-only team instead.** `npm access grant read-only <org:team> <package>` is per-package with no scope wildcard, so covering the set means one grant per package plus a standing reconciliation job for every package added afterwards. It also only reaches organization members, which does not serve an installable public artifact.
 

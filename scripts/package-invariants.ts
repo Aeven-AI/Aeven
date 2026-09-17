@@ -14,7 +14,7 @@ const OMITTED_COMPANION_REASON = /No (?:(?:runtime )?invariant )?companion is pu
 
 interface PackageManifest {
   name?: string
-  dsh?: unknown
+  avn?: unknown
   exports?: Record<string, { types?: string; default?: string } | string | null | undefined>
   files?: string[]
   peerDependencies?: Record<string, string>
@@ -131,7 +131,7 @@ function checkManifest(
   const developmentOnlyInvariant = usesFlattenedPackageDependencies(
     owner.manifestPath,
     owner.packageName,
-    manifest.dsh,
+    manifest.avn,
   )
   const expectedRange = 'workspace:^'
   const peerRange = manifest.peerDependencies?.['@aeven/invariants']

@@ -202,14 +202,14 @@
 
 .markdown.markdown :global(.reasoning-header) {
   font-family: var(--dsw-font-family);
-  font-size: var(--dsh-content-font-size, 16px);
+  font-size: var(--avn-content-font-size, 16px);
   color: var(--dsw-alias-label-tertiary);
 }
 
 .markdown.markdown :global(.reasoning-content) {
   color: var(--dsw-alias-label-tertiary);
-  font-size: var(--dsh-content-font-size, 16px);
-  line-height: calc(28px + var(--dsh-content-font-delta, 0px));
+  font-size: var(--avn-content-font-size, 16px);
+  line-height: calc(28px + var(--avn-content-font-delta, 0px));
 }
 
 /* Diagrams follow the product typeface. Mermaid bakes its stock Trebuchet

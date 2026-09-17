@@ -143,7 +143,7 @@ function requireVfsAssets(): PreviewAssets {
   if (packed.missing.length > 0) {
     throw new Error(`preview boot: ${String(packed.missing.length)} dependencies did not resolve: ${packed.missing.join(', ')}`)
   }
-  const directory = mkdtempSync(join(tmpdir(), 'dsh-preview-boot-'))
+  const directory = mkdtempSync(join(tmpdir(), 'avn-preview-boot-'))
   const overrides = new Map<string, string>()
   const writeAsset = (relativePath: string, bytes: Uint8Array | string): void => {
     const path = join(directory, relativePath)
@@ -358,7 +358,7 @@ async function bootPreview(origin: string, browser: Browser): Promise<void> {
           'skills/list', { request: { sessionId } },
         )
       }
-      await createDirectory('/dsh/workspace/.agents/skills', 'runtime-created')
+      await createDirectory('/avn/workspace/.agents/skills', 'runtime-created')
       // Settings and credentials both answer over the Remote carrier, so this
       // half of the sweep posts the generated endpoints directly like the
       // session read above.

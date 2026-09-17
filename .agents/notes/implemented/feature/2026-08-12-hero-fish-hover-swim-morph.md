@@ -6,13 +6,13 @@ English | [中文](2026-08-12-hero-fish-hover-swim-morph.zh.md)
 
 ## Problem
 
-Hovering the New Session hero fish (`EmptyHero.tsx` in `dsh-client-ui-conversation`) played a one-shot rigid CSS sway of the whole svg. The user wanted the whale to visibly swim — the tail wagging and the mouth curve lifting — which requires deforming the path geometry itself. CSS transforms cannot bend a subset of a path's curves, and the logo ships as one `FISH_LOGO_PATH` string in `dsh-client-ui-primitives`.
+Hovering the New Session hero fish (`EmptyHero.tsx` in `avn-client-ui-conversation`) played a one-shot rigid CSS sway of the whole svg. The user wanted the whale to visibly swim — the tail wagging and the mouth curve lifting — which requires deforming the path geometry itself. CSS transforms cannot bend a subset of a path's curves, and the logo ships as one `FISH_LOGO_PATH` string in `avn-client-ui-primitives`.
 
 ## Decision
 
 Real curve deformation via SMIL `<animate attributeName="d">` cycling `rest → tail-up → rest → tail-down → rest` on the same 1.6s period as the CSS sway, which becomes continuous (`infinite`) for as long as the pointer stays. The two morph targets are generated programmatically (`/tmp`-run script, not checked in): parse `FISH_LOGO_PATH`'s absolute M/C/L/Z commands, rotate the tail region about a pivot with smoothstep falloff weights, bend the mouth/fin swoosh vertically with weight-squared falloff from its body anchor (a smile lift, not a rigid swing — rigid rotation read as detached), and emit structure-identical command strings SMIL can interpolate. The baked path constants live next to the component with the generation parameters documented. SMIL cannot ride CSS media queries, so a `hovering` state gated by `matchMedia('(prefers-reduced-motion: reduce)')` mounts the morph, while the CSS sway sits under `@media (hover: hover) and (prefers-reduced-motion: no-preference)`.
 
-The morphing fish reaches the hero as the fallback of the `conversation.hero.brand.mark` slot; no shipped package occupies it — `dsh-client-ui-brand-official` fills only the sidebar slots, since a feature plugin may not value-import `HeroFish` across packages ([client cross-package rule](../process/2026-08-23-client-cross-package-value-dependencies.md)) and the fallback already is the official mark. `FISH_LOGO_PATH` and `FISH_LOGO_VIEWBOX` are exported from `dsh-client-ui-primitives` for consumers that compose their own svg around the same geometry.
+The morphing fish reaches the hero as the fallback of the `conversation.hero.brand.mark` slot; no shipped package occupies it — `avn-client-ui-brand-official` fills only the sidebar slots, since a feature plugin may not value-import `HeroFish` across packages ([client cross-package rule](../process/2026-08-23-client-cross-package-value-dependencies.md)) and the fallback already is the official mark. `FISH_LOGO_PATH` and `FISH_LOGO_VIEWBOX` are exported from `avn-client-ui-primitives` for consumers that compose their own svg around the same geometry.
 
 ## Alternatives considered
 

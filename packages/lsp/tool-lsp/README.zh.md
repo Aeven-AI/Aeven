@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-tool-lsp` 通过 LSP seam 为模型提供单一的只读 `lsp` 工具，用于精确代码导航：转到符号的定义、查找其引用、跳转到其实现，或阅读悬停文档。该工具拥有模型看到的一切——名称、schema、提示词指引、结果格式化与 UI 呈现——并且绝不依赖哪个语言服务器应答查询。位置是从 1 开始的 UTF-16 光标坐标，工具会将其转换为 seam 从零开始的约定。结果是有边界的位置列表或规范化悬停文本，带有明确的空结果与截断标记。与 `dsh-lsp-stdio` 之类的提供方及 `dsh-lsp` seam 组合，即可启用导航。
+`avn-tool-lsp` 通过 LSP seam 为模型提供单一的只读 `lsp` 工具，用于精确代码导航：转到符号的定义、查找其引用、跳转到其实现，或阅读悬停文档。该工具拥有模型看到的一切——名称、schema、提示词指引、结果格式化与 UI 呈现——并且绝不依赖哪个语言服务器应答查询。位置是从 1 开始的 UTF-16 光标坐标，工具会将其转换为 seam 从零开始的约定。结果是有边界的位置列表或规范化悬停文本，带有明确的空结果与截断标记。与 `avn-lsp-stdio` 之类的提供方及 `avn-lsp` seam 组合，即可启用导航。
 
 ## 目录
 
@@ -41,7 +41,7 @@ kind: "package-reference"
 |---|---|---|
 | `maxLocations` | `100` | 出现省略标记前可渲染位置的最大数量 |
 | `maxResultChars` | `16000` | 完整渲染结果的最大长度，包括截断元数据 |
-| `timeoutMs` | `60000` | 由 `dsh-tool-call-timeout-policy` 强制执行的工具调用超时预算；覆盖完整的排队打开／查询／关闭生命周期，且模型不可配置 |
+| `timeoutMs` | `60000` | 由 `avn-tool-call-timeout-policy` 强制执行的工具调用超时预算；覆盖完整的排队打开／查询／关闭生命周期，且模型不可配置 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-tool-lsp)是每个受支持字段的穷尽式真源。
 
@@ -88,8 +88,8 @@ kind: "package-reference"
 
 - [LSP 导航子系统](../../../docs/subsystems/lsp.zh.md)——操作、坐标、请求与结果，以及 `LspError` code。
 - [LSP 能力 seam Agent Note](../../../.agents/notes/implemented/architecture/2026-07-15-lsp-capability-seam.zh.md)——设计原理、备选方案与刻意推迟的 API。
-- [dsh-lsp](../lsp/README.zh.md)——本工具查询的 seam。
-- [dsh-lsp-stdio](../lsp-stdio/README.zh.md)——应答这些查询的 stdio 提供方。
+- [avn-lsp](../lsp/README.zh.md)——本工具查询的 seam。
+- [avn-lsp-stdio](../lsp-stdio/README.zh.md)——应答这些查询的 stdio 提供方。
 - [lsp 组地图](../README.zh.md)——三个包的家族及其相关文档。
 
 -----

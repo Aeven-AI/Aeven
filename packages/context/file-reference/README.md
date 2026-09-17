@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Host-backed user interfaces use `dsh-file-reference` to offer `@file` completion: a UI asks for path candidates for the addressed agent, the model types `@path` or `@"path with spaces"`, and picking a candidate inserts the matching mention as ordinary prompt text. The seam itself owns no filesystem access — a concrete provider such as `@aeven/file-reference-local` supplies candidates, ranking, caching, and invalidation. Selecting a candidate never reads or attaches file contents; the model must call a filesystem tool to inspect a file. Session Controller exposes the same discovery to browser consumers through the `fileReferences/list` Remote.
+Host-backed user interfaces use `avn-file-reference` to offer `@file` completion: a UI asks for path candidates for the addressed agent, the model types `@path` or `@"path with spaces"`, and picking a candidate inserts the matching mention as ordinary prompt text. The seam itself owns no filesystem access — a concrete provider such as `@aeven/file-reference-local` supplies candidates, ranking, caching, and invalidation. Selecting a candidate never reads or attaches file contents; the model must call a filesystem tool to inspect a file. Session Controller exposes the same discovery to browser consumers through the `fileReferences/list` Remote.
 
 ## Table of Contents
 
@@ -51,7 +51,7 @@ This section explains the design of the seam; the observable behavior is covered
 
 ### Design concept
 
-The package separates an abstract discovery service from a shared, browser-safe mention grammar, with providers owning namespace access, ranking, caching, and invalidation. The service remains wire-neutral; `dsh-api-session-controller` owns the `fileReferences/list` Remote adapter and delegates to the active provider after resolving its Agent.
+The package separates an abstract discovery service from a shared, browser-safe mention grammar, with providers owning namespace access, ranking, caching, and invalidation. The service remains wire-neutral; `avn-api-session-controller` owns the `fileReferences/list` Remote adapter and delegates to the active provider after resolving its Agent.
 
 ### Source map
 

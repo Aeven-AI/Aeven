@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-home-paths` resolves the single DeepSeek Harness home that all user data lives under, and joins child paths onto it, so every product package agrees on where its files go. Precedence is explicit: a configured path wins, then `$AVN_HOME`, then `~/.dsh`, and an empty or whitespace-only `$AVN_HOME` counts as unset. The package also expands `~`, `~/...`, and `~\...` prefixes against the operating-system home, and canonicalizes a watch target so a native filesystem watcher gets one stable path spelling even when the final components do not exist yet. It is a zero-dependency library that product packages import directly; a `cordis.yml` cannot load it.
+`avn-home-paths` resolves the single DeepSeek Harness home that all user data lives under, and joins child paths onto it, so every product package agrees on where its files go. Precedence is explicit: a configured path wins, then `$AVN_HOME`, then `~/.avn`, and an empty or whitespace-only `$AVN_HOME` counts as unset. The package also expands `~`, `~/...`, and `~\...` prefixes against the operating-system home, and canonicalizes a watch target so a native filesystem watcher gets one stable path spelling even when the final components do not exist yet. It is a zero-dependency library that product packages import directly; a `cordis.yml` cannot load it.
 
 ## Table of Contents
 
@@ -29,17 +29,17 @@ Use these helpers wherever a package must agree with the rest of the harness abo
 ### Resolving the home
 
 ```ts
-import { resolveDshHome, dshHomePath } from '@aeven/home-paths'
+import { resolveAvnHome, avnHomePath } from '@aeven/home-paths'
 
-const home = resolveDshHome()                // configured path, else $AVN_HOME, else ~/.dsh
-const settings = dshHomePath('settings')     // join one child onto the resolved home
+const home = resolveAvnHome()                // configured path, else $AVN_HOME, else ~/.avn
+const settings = avnHomePath('settings')     // join one child onto the resolved home
 ```
 
-An explicit configured path has the highest precedence, then `$AVN_HOME`, then the default `~/.dsh`. An empty or whitespace-only `$AVN_HOME` is treated as unset, so a blank override never resolves the home to the current working directory.
+An explicit configured path has the highest precedence, then `$AVN_HOME`, then the default `~/.avn`. An empty or whitespace-only `$AVN_HOME` is treated as unset, so a blank override never resolves the home to the current working directory.
 
 ### Displaying a home
 
-For user-facing paths, render the root symbolically rather than as a machine path: the default home displays as `~/.dsh` and any configured home displays as `$AVN_HOME`. The display form never leaks an absolute machine path.
+For user-facing paths, render the root symbolically rather than as a machine path: the default home displays as `~/.avn` and any configured home displays as `$AVN_HOME`. The display form never leaks an absolute machine path.
 
 ### Expanding user paths
 
@@ -68,7 +68,7 @@ The package is built on one principle: all harness user data lives under one roo
 
 ### Resolution rules
 
-`resolveDshHome` reads the explicit override, then `$AVN_HOME`, then falls back to the operating-system home joined with `.dsh`. The chosen value is tilde-expanded and normalized to an absolute path; `dshHomePath` joins child segments with Node's platform path rules. `dshHomeDisplay` compares the resolved path against the default root and returns the symbolic label, so a configured home never leaks its absolute path.
+`resolveAvnHome` reads the explicit override, then `$AVN_HOME`, then falls back to the operating-system home joined with `.avn`. The chosen value is tilde-expanded and normalized to an absolute path; `avnHomePath` joins child segments with Node's platform path rules. `avnHomeDisplay` compares the resolved path against the default root and returns the symbolic label, so a configured home never leaks its absolute path.
 
 ### Canonicalization mechanics
 

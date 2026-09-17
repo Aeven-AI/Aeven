@@ -10,7 +10,7 @@ The [per-session snapshot replay Agent Note](2026-06-22-subagent-snapshot-replay
 
 A subagent script is derived from a recorded session log by [`deriveReplayScript`](../../../../packages/test-support/llm-replay): it groups the log's `assistant/chunk` events by `(turn, step)` into one replay entry per `stream()` call. This is correct for a **spawn** child, whose log contains only its own model calls.
 
-A **fork** child is different. The fork backend seeds the child session with a *balanced completed-turn prefix of the parent's log* ([`dsh-subagent-in-process-driver`](../../../../packages/subagent/subagent-in-process-driver)), and that seed becomes the child session's persisted `log` (`Session`'s constructor copies the seed into `this.log`). So a fork child's `.jsonl` begins with the **parent's** events — including the parent's `assistant/chunk` events — and only then carries the child's own turn.
+A **fork** child is different. The fork backend seeds the child session with a *balanced completed-turn prefix of the parent's log* ([`avn-subagent-in-process-driver`](../../../../packages/subagent/subagent-in-process-driver)), and that seed becomes the child session's persisted `log` (`Session`'s constructor copies the seed into `this.log`). So a fork child's `.jsonl` begins with the **parent's** events — including the parent's `assistant/chunk` events — and only then carries the child's own turn.
 
 Deriving the child script from the whole fork-child log therefore replays the **parent's** recorded responses as the **child's** model calls: the live fork child's first `stream()` would receive the parent's first recorded chunk sequence instead of its own. All recorded scenarios use spawn, so this never fired — but a fork snapshot would have mis-routed silently, exactly the class of bug the snapshot tier exists to catch.
 
@@ -30,7 +30,7 @@ The v0 JSONL header keeps its optional numeric `seedLength` for byte compatibili
 
 ### 3. Replay derives a child script after the boundary
 
-`dsh-llm-replay`'s private v0 parser reads physical `seedLength` into `inheritedEventCount` (absent ⇒ 0), and `loadSessionScripts` derives a child's entries from `parseSessionLog(text).slice(inheritedEventCount)` — the events at or after the boundary, i.e. the child's own model calls. For a spawn child the cut is 0 and this is a no-op, so spawn scenarios are byte-for-byte unchanged.
+`avn-llm-replay`'s private v0 parser reads physical `seedLength` into `inheritedEventCount` (absent ⇒ 0), and `loadSessionScripts` derives a child's entries from `parseSessionLog(text).slice(inheritedEventCount)` — the events at or after the boundary, i.e. the child's own model calls. For a spawn child the cut is 0 and this is a no-op, so spawn scenarios are byte-for-byte unchanged.
 
 This closes the routing correctness gap, and two recorded fork scenarios exercise it end to end — see [Record fork and mixed spawn+fork snapshot scenarios](../../archived/testing/2026-06-22-fork-snapshot-scenarios.md).
 

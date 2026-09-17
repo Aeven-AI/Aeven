@@ -100,10 +100,10 @@ def test_runtime_requires_ripgrep_sidecar(
         runtime.bundled_runtime_path()
 
 
-def test_node_mode_runs_the_deployed_dsh_cli(
+def test_node_mode_runs_the_deployed_avn_cli(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    bin_js = tmp_path / "runtime" / "node" / "node_modules" / "@deepseek-ai" / "dsh" / "lib" / "bin.js"
+    bin_js = tmp_path / "runtime" / "node" / "node_modules" / "@deepseek-ai" / "avn" / "lib" / "bin.js"
     bin_js.parent.mkdir(parents=True)
     bin_js.touch()
     monkeypatch.setattr(runtime, "bundled_package_dir", lambda: tmp_path)
@@ -112,7 +112,7 @@ def test_node_mode_runs_the_deployed_dsh_cli(
     assert resolve_bundled_launch_args("node") == ("/node", str(bin_js))
 
 
-def test_python_dsh_command_requires_explicit_home(
+def test_python_avn_command_requires_explicit_home(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     monkeypatch.delenv("AVN_HOME", raising=False)
@@ -124,13 +124,13 @@ def test_python_dsh_command_requires_explicit_home(
     assert "explicit AVN_HOME" in capsys.readouterr().err
 
 
-def test_python_dsh_command_executes_the_bundled_cli(
+def test_python_avn_command_executes_the_bundled_cli(
     monkeypatch: pytest.MonkeyPatch
 ) -> None:
     called: dict[str, object] = {}
     monkeypatch.setenv("AVN_HOME", "/explicit/home")
     monkeypatch.setattr(runtime, "resolve_bundled_launch_args", lambda: ("/runtime",))
-    monkeypatch.setattr(runtime.sys, "argv", ["dsh", "plugin", "--profile", "sdk", "list"])
+    monkeypatch.setattr(runtime.sys, "argv", ["avn", "plugin", "--profile", "sdk", "list"])
 
     def execvpe(file: str, args: tuple[str, ...], env: dict[str, str]) -> None:
         called.update(file=file, args=args, home=env.get("AVN_HOME"))

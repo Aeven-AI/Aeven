@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-experimental-agent-team-web-profile` is the private Web layer for [Agent Teams](../agent-team/README.md). Add it after `@aeven/web-app` and [`@aeven/experimental-agent-team-profile`](../agent-team-profile/README.md) to show the Team roster, task board, and teammate navigation in the browser. Removing either experimental layer leaves the stable base and Web composition unchanged. Official releases exclude this package, so it is available only from a source checkout.
+`avn-experimental-agent-team-web-profile` is the private Web layer for [Agent Teams](../agent-team/README.md). Add it after `@aeven/web-app` and [`@aeven/experimental-agent-team-profile`](../agent-team-profile/README.md) to show the Team roster, task board, and teammate navigation in the browser. Removing either experimental layer leaves the stable base and Web composition unchanged. Official releases exclude this package, so it is available only from a source checkout.
 
 ## Table of Contents
 
@@ -30,11 +30,11 @@ English | [中文](README.zh.md)
 From this repository checkout, add the Host and Web Agent Teams layers to an initialized `web` profile in this order:
 
 ```sh
-pnpm dsh plugin --profile web add ./packages/experimental/agent-team-profile
-pnpm dsh plugin --profile web add ./packages/experimental/agent-team-web-profile
+pnpm avn plugin --profile web add ./packages/experimental/agent-team-profile
+pnpm avn plugin --profile web add ./packages/experimental/agent-team-web-profile
 ```
 
-The first command supplies the Team domain, generated Remote methods, and model tools. The second command activates this package's declared patch and its browser presentation. Removing the package with `dsh plugin --profile web remove @aeven/experimental-agent-team-web-profile` removes the Web layer from the profile's ordered bundle list.
+The first command supplies the Team domain, generated Remote methods, and model tools. The second command activates this package's declared patch and its browser presentation. Removing the package with `avn plugin --profile web remove @aeven/experimental-agent-team-web-profile` removes the Web layer from the profile's ordered bundle list.
 
 ### What you get
 
@@ -48,7 +48,7 @@ The conversation header gains the Team roster, shared task board, and teammate n
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The package's runtime content is [`cordis.patch.yml`](cordis.patch.yml). Applied after `dsh-web-app` and the Host Agent Teams layer, its single `insert` entry adds the `ui-agent-team` row for `@aeven/experimental-client-ui-agent-team`. The inserted Client plugin owns the generated Remote assembly and Team UI; this static bundle holds no mutable state and installs no runtime invariant.
+The package's runtime content is [`cordis.patch.yml`](cordis.patch.yml). Applied after `avn-web-app` and the Host Agent Teams layer, its single `insert` entry adds the `ui-agent-team` row for `@aeven/experimental-client-ui-agent-team`. The inserted Client plugin owns the generated Remote assembly and Team UI; this static bundle holds no mutable state and installs no runtime invariant.
 
 | File | Role |
 |---|---|
@@ -83,7 +83,7 @@ This Web bundle adds no model request content; the Host-side Team tools own prom
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **Ordered composition** — `dsh-base`, `dsh-web-app`, `dsh-experimental-agent-team-profile`, and this package must remain in that order.
+- **Ordered composition** — `avn-base`, `avn-web-app`, `avn-experimental-agent-team-profile`, and this package must remain in that order.
 - **Preset-scoped legacy controls** — stable Web presets still mount continuable Subagent controls inside the preset scope. Top-level Host profile overrides do not replace those scoped registrations, so the Team roster and legacy child controls can both appear until Web has a Team-aware preset. The [Web Agent Teams decision](../../../.agents/notes/implemented/feature/2026-08-06-agent-teams-web.md) records this deferred composition work.
 - **Source-checkout only** — official CLI, Web, npm, and Python release payloads exclude this private package.
 

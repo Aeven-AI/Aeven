@@ -27,7 +27,7 @@ describe('Settings theme token contracts', () => {
     expect(String(stepNumberActiveStyle.color)).not.toMatch(/#fff/i)
   })
 
-  it('uses the real DSH warn token spelling and readable neutral labels', () => {
+  it('uses the real AVN warn token spelling and readable neutral labels', () => {
     expect(statusToneColor('warning')).toContain('--dsw-alias-state-warn-primary')
     expect(statusToneColor('warning')).not.toContain('state-warning')
     expect(statusToneColor('neutral')).toContain('--dsw-alias-label-tertiary')

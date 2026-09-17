@@ -25,7 +25,7 @@ const COMMIT_HASH = '0123456789abcdef0123456789abcdef01234567'
 const PROBE_KEY = `process.env.${PROBE_NAME}`
 const originalProbe = process.env[PROBE_NAME]
 const roots: string[] = []
-const dshBuildWorkflows = [
+const avnBuildWorkflows = [
   'build-exe-for-python-sdk.yml',
   'ci.yml',
   'e2b-e2e.yml',
@@ -48,7 +48,7 @@ function write(path: string, content: string): void {
 }
 
 function buildFixture(environment: Record<string, string>): string {
-  const fixtureRoot = mkdtempSync(join(tmpdir(), 'dsh-client-build-'))
+  const fixtureRoot = mkdtempSync(join(tmpdir(), 'avn-client-build-'))
   roots.push(fixtureRoot)
   write(join(fixtureRoot, 'apps/web/dist/index.html'), '<main></main>')
   write(join(fixtureRoot, 'packages/client/example/lib/client.js'), 'module.exports = {}\n')
@@ -65,13 +65,13 @@ function git(root: string, args: readonly string[]): string {
 }
 
 function repositoryFixture(version = '1.2.3-rc.4'): string {
-  const fixtureRoot = mkdtempSync(join(tmpdir(), 'dsh-client-build-repository-'))
+  const fixtureRoot = mkdtempSync(join(tmpdir(), 'avn-client-build-repository-'))
   roots.push(fixtureRoot)
   write(join(fixtureRoot, 'package.json'), `${JSON.stringify({ version })}\n`)
   write(join(fixtureRoot, 'tracked.txt'), 'committed\n')
   git(fixtureRoot, ['init'])
-  git(fixtureRoot, ['config', 'user.name', 'DSH test'])
-  git(fixtureRoot, ['config', 'user.email', 'dsh-test@example.invalid'])
+  git(fixtureRoot, ['config', 'user.name', 'AVN test'])
+  git(fixtureRoot, ['config', 'user.email', 'avn-test@example.invalid'])
   git(fixtureRoot, ['add', 'package.json', 'tracked.txt'])
   git(fixtureRoot, ['commit', '-m', 'fixture'])
   return fixtureRoot
@@ -201,7 +201,7 @@ describe('client build environment', () => {
   })
 
   it('omits dirty metadata when repository metadata is unavailable', () => {
-    const fixtureRoot = mkdtempSync(join(tmpdir(), 'dsh-client-build-no-git-'))
+    const fixtureRoot = mkdtempSync(join(tmpdir(), 'avn-client-build-no-git-'))
     roots.push(fixtureRoot)
     write(join(fixtureRoot, 'package.json'), '{"version":"2.0.0"}\n')
 
@@ -278,7 +278,7 @@ describe('client build environment', () => {
   })
 
   it('keeps public client values out of workflow-wide environments', () => {
-    for (const name of dshBuildWorkflows) {
+    for (const name of avnBuildWorkflows) {
       const path = `.github/workflows/${name}`
       const document: unknown = yaml.load(readFileSync(resolve(root, path), 'utf8'))
       if (typeof document !== 'object' || document === null || Array.isArray(document)) {

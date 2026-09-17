@@ -6,7 +6,7 @@
  * session's workspace), the never-reject result settlement, and the standard
  * run-handle publication. Backends compose these with their own wire drivers;
  * the process machinery itself (spawn, env scrub, tree-scoped teardown)
- * belongs to the `dsh-subprocess` seam.
+ * belongs to the `avn-subprocess` seam.
  *
  * @module @aeven/subagent/out-of-process
  */

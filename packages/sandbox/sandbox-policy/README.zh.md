@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-sandbox-policy` 为每次受限能力调用从统一的策略归属位置解析文件效果模式与工作区根目录，并在每次请求前把当前策略告知模型。部署方设置默认模式与回退工作区根目录；会话可以切换自己的模式，切换因存在于会话日志中而跨重启保留。每个强制执行能力——bash、文件系统、终端——读取同一份解析出的策略，因此调用运行的模式绝不取决于由哪个家族解析。模型会看到一条简洁的 `sandbox:policy` 贡献，指明模式与工作区，而不会收到一份已挂载能力的清单。
+`avn-sandbox-policy` 为每次受限能力调用从统一的策略归属位置解析文件效果模式与工作区根目录，并在每次请求前把当前策略告知模型。部署方设置默认模式与回退工作区根目录；会话可以切换自己的模式，切换因存在于会话日志中而跨重启保留。每个强制执行能力——bash、文件系统、终端——读取同一份解析出的策略，因此调用运行的模式绝不取决于由哪个家族解析。模型会看到一条简洁的 `sandbox:policy` 贡献，指明模式与工作区，而不会收到一份已挂载能力的清单。
 
 ## 目录
 
@@ -77,7 +77,7 @@ kind: "package-reference"
 
 ### 模型可见文本
 
-`sandbox:policy` 贡献说明模式的与具体能力无关的文件操作约定，以及 `workspace-write` 下规范化的会话工作区。它不枚举已挂载能力；工具插件保留特定于操作的拒绝与升权引导，批准策略单独贡献给同一份快照，计划引导仍由 `dsh-plan-mode` 的系统段落管理。可选的 `./invariant` 配套组件会拒绝值超出封闭模式词汇的伪造持久 `sandbox/mode` 事件。
+`sandbox:policy` 贡献说明模式的与具体能力无关的文件操作约定，以及 `workspace-write` 下规范化的会话工作区。它不枚举已挂载能力；工具插件保留特定于操作的拒绝与升权引导，批准策略单独贡献给同一份快照，计划引导仍由 `avn-plan-mode` 的系统段落管理。可选的 `./invariant` 配套组件会拒绝值超出封闭模式词汇的伪造持久 `sandbox/mode` 事件。
 
 ### 源码地图
 
@@ -111,24 +111,24 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-每个 agent 会话的当前运行时上下文快照中都有一项 `sandbox:policy` 贡献。它不枚举已挂载的能力。工具插件继续负责操作与升权引导，批准策略单独贡献给同一份快照，计划引导仍由 `dsh-plan-mode` 的系统段落管理。
+每个 agent 会话的当前运行时上下文快照中都有一项 `sandbox:policy` 贡献。它不枚举已挂载的能力。工具插件继续负责操作与升权引导，批准策略单独贡献给同一份快照，计划引导仍由 `avn-plan-mode` 的系统段落管理。
 
 ##### 只读
 
 ```markdown
-Current DSH file policy: read-only. Any available operation enforced by the DSH file sandbox cannot modify files in the standing mode. Do not refuse a required modification from this policy alone: try an available tool normally and follow any denial and escalation guidance it returns.
+Current AVN file policy: read-only. Any available operation enforced by the AVN file sandbox cannot modify files in the standing mode. Do not refuse a required modification from this policy alone: try an available tool normally and follow any denial and escalation guidance it returns.
 ```
 
 ##### 工作区写入
 
 ```markdown
-Current DSH file policy: workspace-write. Any available operation enforced by the DSH file sandbox may modify files under the session workspace: "<workspace root>". Some platform temporary areas may also be writable.
+Current AVN file policy: workspace-write. Any available operation enforced by the AVN file sandbox may modify files under the session workspace: "<workspace root>". Some platform temporary areas may also be writable.
 ```
 
 ##### 完全访问
 
 ```markdown
-Current DSH file policy: danger-full-access. The DSH file sandbox does not restrict file modifications by available operations.
+Current AVN file policy: danger-full-access. The AVN file sandbox does not restrict file modifications by available operations.
 ```
 
 #### Token 影响

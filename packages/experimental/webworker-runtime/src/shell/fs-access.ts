@@ -25,7 +25,7 @@ export function resolveIn(cwd: string, path: string): string {
 
 /**
  * Restate a filesystem failure the way a shell utility reports it, so the model
- * reads `cat: /dsh/none: No such file or directory` instead of a Node error
+ * reads `cat: /avn/none: No such file or directory` instead of a Node error
  * string.
  * @param program - the utility's name, used as the message prefix.
  * @param path - the path the utility was working on.

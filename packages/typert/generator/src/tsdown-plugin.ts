@@ -44,7 +44,7 @@ export function typertPlugin(pluginOptions: TypertPluginOptions = {}): TypertPlu
   const artifactsByRoot = new Map<string, readonly WorkspaceEmitResult[]>()
   const emittedWorkspaces = new Set<string>()
   return {
-    name: 'dsh-typert-generator',
+    name: 'avn-typert-generator',
     transform(code, id) {
       const file = id.split('?', 1)[0] ?? id
       if (!/\.[cm]?tsx?$/.test(file) || !DECORATOR_SYNTAX.test(code)) return

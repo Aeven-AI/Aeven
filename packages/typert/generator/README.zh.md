@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-`dsh-typert-generator` 在构建时把源代码 TypeScript 转换为与编译器无关的数据与可运行产物：它分析工作区各包的类型树，生成 `FaceModel` 与类型图，并输出包含受支持 Zod schema 与 `TYPERT` 反射贡献的可执行 JavaScript，以及配套声明文件。它是构建时库而非插件——绝不会在实时 agent 会话中运行。仓库的 Host tsdown 会自动运行它；业务包通过导出 `./typert` 与 `./client/typert` 入口选择加入，生成器会校验这些导出与发布文件清单。静态消费方也可以直接调用分析器进行类型检查或目录生成，无需发布任何内容。
+`avn-typert-generator` 在构建时把源代码 TypeScript 转换为与编译器无关的数据与可运行产物：它分析工作区各包的类型树，生成 `FaceModel` 与类型图，并输出包含受支持 Zod schema 与 `TYPERT` 反射贡献的可执行 JavaScript，以及配套声明文件。它是构建时库而非插件——绝不会在实时 agent 会话中运行。仓库的 Host tsdown 会自动运行它；业务包通过导出 `./typert` 与 `./client/typert` 入口选择加入，生成器会校验这些导出与发布文件清单。静态消费方也可以直接调用分析器进行类型检查或目录生成，无需发布任何内容。
 
 ## 目录
 
@@ -79,7 +79,7 @@ files:
 
 ### 分析与 face
 
-Host 与 Client 是两个独立的 TypeScript 程序。直接项目引用确定编译器 face 的成员归属，`dsh.client` 包子路径则确定运行时 face 的贡献；`package.json#exports` 划定所有跨包公开边界，跨 face 的边只能来自导入或重新导出。`check` 模式遇到语法或语义诊断、缺失的公开类型标注、跨包私有引用，以及模型无法无损保留的可达声明合并时都会失败；`write` 模式插入类型检查器推导出的标注，并返回无诊断的 check 模式模型。NPM 依赖拥有的类型继续以 `external` 引用表示，不会被展开。
+Host 与 Client 是两个独立的 TypeScript 程序。直接项目引用确定编译器 face 的成员归属，`avn.client` 包子路径则确定运行时 face 的贡献；`package.json#exports` 划定所有跨包公开边界，跨 face 的边只能来自导入或重新导出。`check` 模式遇到语法或语义诊断、缺失的公开类型标注、跨包私有引用，以及模型无法无损保留的可达声明合并时都会失败；`write` 模式插入类型检查器推导出的标注，并返回无诊断的 check 模式模型。NPM 依赖拥有的类型继续以 `external` 引用表示，不会被展开。
 
 ### 生成与发布约定
 

@@ -54,9 +54,9 @@ describe('image gzip envelope', () => {
   })
 
   it('mounts an inflated image through the real VFS loader', async () => {
-    const vfs = loadVfsImage(await inflateImage(gzipSync(archive()), 'the spec image'), '/dsh')
-    expect(vfs.existsSync('/dsh/node_modules/@scope/pkg/lib/index.js')).toBe(true)
-    expect(decoder.decode(vfs.readFileSync('/dsh/config/cordis.yml') as Uint8Array)).toBe('- id: subject\n')
+    const vfs = loadVfsImage(await inflateImage(gzipSync(archive()), 'the spec image'), '/avn')
+    expect(vfs.existsSync('/avn/node_modules/@scope/pkg/lib/index.js')).toBe(true)
+    expect(decoder.decode(vfs.readFileSync('/avn/config/cordis.yml') as Uint8Array)).toBe('- id: subject\n')
   })
 
   it('refuses an uncompressed tar, naming the source and the expected member', async () => {

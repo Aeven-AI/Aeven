@@ -97,7 +97,7 @@ const parsesAsScript = (label: string, code: string): void => {
 
 check('LOWERING_VERSION is a non-empty string', typeof LOWERING_VERSION === 'string' && LOWERING_VERSION.length > 0, true)
 check('WRAPPER_PARAMS is the frozen 7-parameter shape', [...WRAPPER_PARAMS], [
-  'exports', 'require', 'module', '__filename', '__dirname', '__dsh$meta', '__als',
+  'exports', 'require', 'module', '__filename', '__dirname', '__avn$meta', '__als',
 ])
 // The wrapper signature is a contract with the loader's `new Function`, so the
 // parameters must be valid identifiers in that position.
@@ -344,7 +344,7 @@ check(
 {
   const code = transformModule('export const here = import.meta.url\n', 'probe.js')
   parsesAsScript('import.meta', code)
-  contains('import.meta becomes the wrapper parameter', code, '__dsh$meta')
+  contains('import.meta becomes the wrapper parameter', code, '__avn$meta')
   check('import.meta.url resolves through the wrapper', runBody(code).here, 'file:///vfs/probe.js')
 }
 
@@ -354,7 +354,7 @@ check(
   // result is namespace-shaped.
   const code = transformModule("export const load = () => import('p')\n", 'probe.js')
   parsesAsScript('dynamic import', code)
-  contains('dynamic import becomes the helper call', code, '__dsh$dynImport')
+  contains('dynamic import becomes the helper call', code, '__avn$dynImport')
   const load = runBody(code, () => ({ x: 1 })).load as () => Promise<Record<string, unknown>>
   const namespace = await load()
   check('dynamic import resolves to a namespace object', namespace.x, 1)
@@ -630,7 +630,7 @@ refuses('unparseable source is refused', 'export const = \n', 'parse failed')
   // transform that skips such files would leave it unrewritten, and it would
   // escape to the host engine's parser.
   const code = transformModule("module.exports = () => import('./x.js')\n", 'probe.js')
-  contains('trap 1: dynamic import in a CommonJS file is still rewritten', code, '__dsh$dynImport')
+  contains('trap 1: dynamic import in a CommonJS file is still rewritten', code, '__avn$dynImport')
   parsesAsScript('trap 1', code)
 }
 
@@ -663,7 +663,7 @@ refuses('unparseable source is refused', 'export const = \n', 'parse failed')
   // "this.parent.tree.import is not a function".
   const source = 'export class A {\n  /** doc */ import(name) { return name }\n}\n'
   const code = transformModule(source, 'probe.js')
-  lacks('trap 6: a method named import is not rewritten', code, '__dsh$dynImport')
+  lacks('trap 6: a method named import is not rewritten', code, '__avn$dynImport')
   parsesAsScript('trap 6', code)
   const A = runBody(code).A as new () => { import: (name: string) => string }
   check('trap 6: the method is still callable under its own name', new A().import('kept'), 'kept')
@@ -686,7 +686,7 @@ refuses('unparseable source is refused', 'export const = \n', 'parse failed')
   const source = 'export class Base {\n  constructor() { this.direct = new.target === Base }\n}\n'
   const code = transformModule(source, 'probe.js')
   contains('trap 8: new.target survives verbatim', code, 'new.target')
-  lacks('trap 8: new.target is not replaced by the meta parameter', code, '__dsh$meta')
+  lacks('trap 8: new.target is not replaced by the meta parameter', code, '__avn$meta')
   parsesAsScript('trap 8', code)
   const Base = runBody(code).Base as new () => { direct: boolean }
   class Derived extends Base {}

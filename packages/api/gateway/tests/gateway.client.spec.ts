@@ -2153,7 +2153,7 @@ describe('Client Typert API', () => {
   it('normalizes worker-local structural stream failures without sharing class identity', async () => {
     const cases = [{
       failure: Object.assign(new Error('fixture Host rejected the stream'), {
-        dshRemoteStreamFailure: {
+        avnRemoteStreamFailure: {
           kind: 'remote' as const,
           code: 'fixture/rejected',
           details: { retry: false },
@@ -2169,7 +2169,7 @@ describe('Client Typert API', () => {
       },
     }, {
       failure: Object.assign(new Error('worker carrier stopped'), {
-        dshRemoteStreamFailure: { kind: 'carrier' as const },
+        avnRemoteStreamFailure: { kind: 'carrier' as const },
       }),
       assert: (error: unknown) => {
         expect(error).toBeInstanceOf(RemoteStreamCarrierError)
@@ -2431,7 +2431,7 @@ describe('Remote stream client carrier lifecycle', () => {
       const secondPending = second.next()
       expect(FakeWebSocket.sockets).toHaveLength(1)
       const socket = FakeWebSocket.sockets[0]!
-      expect(socket.url).toBe('ws://dsh.internal/api/remote.mux')
+      expect(socket.url).toBe('ws://avn.internal/api/remote.mux')
 
       socket.open()
       await vi.waitFor(() => { expect(socket.sent).toHaveLength(2) })
@@ -2480,7 +2480,7 @@ describe('Remote stream client carrier lifecycle', () => {
       abort.abort('cancelled while connecting')
       await expect(aborted).rejects.toBe('cancelled while connecting')
       await abortedClient.close()
-      expect(FakeWebSocket.sockets[3]?.url).toBe('ws://dsh.internal/api/remote.mux')
+      expect(FakeWebSocket.sockets[3]?.url).toBe('ws://avn.internal/api/remote.mux')
     })
   })
 

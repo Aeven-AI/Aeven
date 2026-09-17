@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-session-snapshot` provides the shared support behind keyless recorded-session tests (`pnpm run test:snapshot`): closed manifests, typed identity redaction, normalization, workspace comparison, fixture guards, and protocol adapters for headless, SDK, ACP, and Web owners. The ACP adapter launches the tested profile as a real subprocess, drives a deterministic input script, and registers the complete record, replay, and refresh suite. Every scenario owns enough committed evidence to prove model-visible output and filesystem effects without trusting the agent's report. The package entry imports vitest and is therefore available only inside a vitest run.
+`avn-session-snapshot` provides the shared support behind keyless recorded-session tests (`pnpm run test:snapshot`): closed manifests, typed identity redaction, normalization, workspace comparison, fixture guards, and protocol adapters for headless, SDK, ACP, and Web owners. The ACP adapter launches the tested profile as a real subprocess, drives a deterministic input script, and registers the complete record, replay, and refresh suite. Every scenario owns enough committed evidence to prove model-visible output and filesystem effects without trusting the agent's report. The package entry imports vitest and is therefore available only inside a vitest run.
 
 ## Table of Contents
 
@@ -74,7 +74,7 @@ Each recorded-session directory carries a closed `snapshot.yml` manifest plus it
 
 ### Record, replay, and refresh
 
-`pnpm run test:snapshot:record` calls the live LLM and rewrites recorded model fixtures; `pnpm run test:snapshot:refresh` stays keyless, runs the replay overlay, and rewrites stdout, comparable session-log expected outputs, and owned prompt and tool-schema sidecars from committed model scripts. Each composition owner keeps its replay patch beside its live patch; top-level `snapshots/` owns session-driven scenarios, while other expected outputs stay beside their owning package. [`dsh-llm-replay`](../llm-replay/README.md) serves the recorded streams selected through `AVN_SNAPSHOT_*` environment values.
+`pnpm run test:snapshot:record` calls the live LLM and rewrites recorded model fixtures; `pnpm run test:snapshot:refresh` stays keyless, runs the replay overlay, and rewrites stdout, comparable session-log expected outputs, and owned prompt and tool-schema sidecars from committed model scripts. Each composition owner keeps its replay patch beside its live patch; top-level `snapshots/` owns session-driven scenarios, while other expected outputs stay beside their owning package. [`avn-llm-replay`](../llm-replay/README.md) serves the recorded streams selected through `AVN_SNAPSHOT_*` environment values.
 
 ### Pinning request headers
 

@@ -51,8 +51,8 @@ describe('WorkspaceBrowser.module.css list', () => {
     expect(list?.get('margin')).toBe('0')
     expect(list?.get('padding-left')).toBe('0')
     expect(list?.get('padding-right')).toBe('0')
-    expect(rowDeclarations('.projectRow')?.get('padding')).toBe('0 var(--dsh-sidebar-inline-padding)')
-    expect(rowDeclarations('.sessionRow')?.get('padding')).toBe('0 var(--dsh-sidebar-inline-padding)')
+    expect(rowDeclarations('.projectRow')?.get('padding')).toBe('0 var(--avn-sidebar-inline-padding)')
+    expect(rowDeclarations('.sessionRow')?.get('padding')).toBe('0 var(--avn-sidebar-inline-padding)')
     expect(declarations('.list::-webkit-scrollbar')).toBeUndefined()
   })
 

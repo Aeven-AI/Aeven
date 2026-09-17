@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-04-web-composer-shared-width-axis.md
-2026-08-04-web-composer-shared-width-axis.md: 98968f810a5e83331ed7eec48632af27928302e2
-2026-08-04-web-composer-shared-width-axis.zh.md: e166b533d5cb262c0507c2112fde52cfaed24387
+2026-08-04-web-composer-shared-width-axis.md: 557a612b75b7838dc899989ec36745c9bf991744
+2026-08-04-web-composer-shared-width-axis.zh.md: e603996c4836526787e146f521f481d43463a31b

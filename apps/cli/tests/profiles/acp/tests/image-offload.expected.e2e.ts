@@ -52,7 +52,7 @@ it('pins native DeepSeek Files offload and inline fallback in assembled requests
             object: 'file',
             bytes: file.size,
             created_at: createdAt,
-            filename: 'dsh-snapshot.png',
+            filename: 'avn-snapshot.png',
             purpose: 'user_data',
             expires_at: createdAt + Number(form.get('expires_after[seconds]')),
           }))
@@ -126,7 +126,7 @@ it('pins native DeepSeek Files offload and inline fallback in assembled requests
     const accessText = (cwd: string): string => {
       const attachmentPath = join(
         cwd,
-        '.dsh',
+        '.avn',
         'attachments',
         'v1',
         'objects',
@@ -175,7 +175,7 @@ it('pins native DeepSeek Files offload and inline fallback in assembled requests
       {
         role: 'user',
         content: 'Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\n'
-          + 'Current DSH file policy: danger-full-access. The DSH file sandbox does not restrict file modifications by available operations.\n\n'
+          + 'Current AVN file policy: danger-full-access. The AVN file sandbox does not restrict file modifications by available operations.\n\n'
           + 'Approval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`).',
       },
       {

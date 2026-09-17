@@ -356,13 +356,13 @@ describe('normalizeSessionLog', () => {
       data: {
         content: [{
           type: 'text',
-          text: 'Full formatted result stored at: /tmp/dsh-acp-snapshot-spill/session-c22bc3f1d2af/8a7b6c5d4e3f-bash.txt. Use read with offset/limit, or grep this path to search within it.',
+          text: 'Full formatted result stored at: /tmp/avn-acp-snapshot-spill/session-c22bc3f1d2af/8a7b6c5d4e3f-bash.txt. Use read with offset/limit, or grep this path to search within it.',
         }],
       },
     })
     const out = normalizeSessionLog(`${header({ cwd: ctx.cwd })}\n${ev}\n`, ctx)
     expect(out).toContain('{{spillLocator:bash.txt}}')
-    expect(out).not.toContain('/tmp/dsh-acp-snapshot-spill')
+    expect(out).not.toContain('/tmp/avn-acp-snapshot-spill')
   })
 
   it('scrubs scenario-owned snapshot spill paths', () => {
@@ -371,13 +371,13 @@ describe('normalizeSessionLog', () => {
       data: {
         content: [{
           type: 'text',
-          text: 'Full formatted result stored at: /tmp/dsh-acp-snap-012345678/session-c22bc3f1d2af/8a7b6c5d4e3f-bash.txt. Use read with offset/limit, or grep this path to search within it.',
+          text: 'Full formatted result stored at: /tmp/avn-acp-snap-012345678/session-c22bc3f1d2af/8a7b6c5d4e3f-bash.txt. Use read with offset/limit, or grep this path to search within it.',
         }],
       },
     })
     const out = normalizeSessionLog(`${header({ cwd: ctx.cwd })}\n${ev}\n`, ctx)
     expect(out).toContain('{{spillLocator:bash.txt}}')
-    expect(out).not.toContain('/tmp/dsh-acp-snap-012345678')
+    expect(out).not.toContain('/tmp/avn-acp-snap-012345678')
   })
 
   it('scrubs scenario-owned snapshot spill paths with Windows drive and separators', () => {
@@ -386,13 +386,13 @@ describe('normalizeSessionLog', () => {
       data: {
         content: [{
           type: 'text',
-          text: String.raw`Full formatted result stored at: C:\t\dsh-acp-snap-012345678\session-c22bc3f1d2af\8a7b6c5d4e3f-bash.txt. Use read with offset/limit, or grep this path to search within it.`,
+          text: String.raw`Full formatted result stored at: C:\t\avn-acp-snap-012345678\session-c22bc3f1d2af\8a7b6c5d4e3f-bash.txt. Use read with offset/limit, or grep this path to search within it.`,
         }],
       },
     })
     const out = normalizeSessionLog(`${header({ cwd: ctx.cwd })}\n${ev}\n`, ctx)
     expect(out).toContain('{{spillLocator:bash.txt}}')
-    expect(out).not.toContain('C:\\t\\dsh-acp-snap-012345678')
+    expect(out).not.toContain('C:\\t\\avn-acp-snap-012345678')
   })
 
   it('shares cwd-rooted path handling with stdout normalization', () => {
@@ -655,13 +655,13 @@ describe('tokenizeSessionFixtureCwd', () => {
 describe('extractSnapshotSpillPaths', () => {
   it('maps each spill filename to its full matched path, last match wins per name', () => {
     const log = [
-      'Full formatted result stored at: /tmp/dsh-acp-snapshot-spill/session-c22bc3f1d2af/8a7b6c5d4e3f-bash.txt. Use read with offset/limit, or grep this path to search within it.',
-      'stale copy at /tmp/dsh-acp-snap-012345678/session-aaaaaaaaaaaa/bbbbbbbbbbbb-grep.txt then',
-      'fresh copy at /tmp/dsh-acp-snap-012345678/session-cccccccccccc/dddddddddddd-grep.txt then',
+      'Full formatted result stored at: /tmp/avn-acp-snapshot-spill/session-c22bc3f1d2af/8a7b6c5d4e3f-bash.txt. Use read with offset/limit, or grep this path to search within it.',
+      'stale copy at /tmp/avn-acp-snap-012345678/session-aaaaaaaaaaaa/bbbbbbbbbbbb-grep.txt then',
+      'fresh copy at /tmp/avn-acp-snap-012345678/session-cccccccccccc/dddddddddddd-grep.txt then',
     ].join('\n')
     expect(extractSnapshotSpillPaths(log)).toEqual(new Map([
-      ['bash.txt', '/tmp/dsh-acp-snapshot-spill/session-c22bc3f1d2af/8a7b6c5d4e3f-bash.txt'],
-      ['grep.txt', '/tmp/dsh-acp-snap-012345678/session-cccccccccccc/dddddddddddd-grep.txt'],
+      ['bash.txt', '/tmp/avn-acp-snapshot-spill/session-c22bc3f1d2af/8a7b6c5d4e3f-bash.txt'],
+      ['grep.txt', '/tmp/avn-acp-snap-012345678/session-cccccccccccc/dddddddddddd-grep.txt'],
     ]))
   })
 

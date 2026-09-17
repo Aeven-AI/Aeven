@@ -14,11 +14,11 @@ Web GUI 中的助手回复经由 `MarkdownText` 渲染：它把 ` ```mermaid ` �
 
 ## 决策
 
-**界面提示词陈述该界面渲染什么。** `webSurfacePrompt` 现在说明：回复以 GFM 渲染，mermaid 围栏成为图表，数学公式经 KaTeX 渲染，图片从绝对 `http`/`https` URL 显示而文件系统路径与 `data:` URI 会被拒绝，并且模型绝不可声称自己无法内联显示图片或图表。`WEB_SURFACE` 分节是正确的归属地，因为这是界面的属性而非 Agent 的属性：它仅在 `dsh web` 下挂载，因此该陈述在 CLI 上不存在 —— 那里这些都不会渲染。
+**界面提示词陈述该界面渲染什么。** `webSurfacePrompt` 现在说明：回复以 GFM 渲染，mermaid 围栏成为图表，数学公式经 KaTeX 渲染，图片从绝对 `http`/`https` URL 显示而文件系统路径与 `data:` URI 会被拒绝，并且模型绝不可声称自己无法内联显示图片或图表。`WEB_SURFACE` 分节是正确的归属地，因为这是界面的属性而非 Agent 的属性：它仅在 `avn web` 下挂载，因此该陈述在 CLI 上不存在 —— 那里这些都不会渲染。
 
 这刻意不采用 Agent 预设的 persona 规则。persona 会随 Agent 进入该陈述不成立的界面；而为承载一句话去 fork 一个随发行的预设，会使此后每一次上游预设变更都变成手工合并。
 
-**`dsh-host-workspace-files` 为生成的文件提供 URL。** 一条经过认证的前缀路由从工作区的规范目录提供 `<mount>/<workspaceId>/<相对路径>`。`ctx.connection.requestRejection` 在任何路径处理之前运行，因此未认证的调用方无法区分真实工作区 id 与编造的 id。越出目录的穿越返回 403，未知 id 与文件缺失都返回空的 404，非 GET/HEAD 返回 405。
+**`avn-host-workspace-files` 为生成的文件提供 URL。** 一条经过认证的前缀路由从工作区的规范目录提供 `<mount>/<workspaceId>/<相对路径>`。`ctx.connection.requestRejection` 在任何路径处理之前运行，因此未认证的调用方无法区分真实工作区 id 与编造的 id。越出目录的穿越返回 403，未知 id 与文件缺失都返回空的 404，非 GET/HEAD 返回 405。
 
 **整目录暴露是有意为之。** 持有浏览器会话者可读取工作区下的每个文件。更窄的发布子树曾被考虑并暂时否决：它要求 Agent 把产物复制进发布目录，而这正是模型会遗忘的步骤，且失败是静默的 —— 得到的是坏掉的图片而非报错。无法接受该暴露面的部署应移除该行，并同时移除提示词中关于工作区 URL 的那句话。
 
@@ -34,7 +34,7 @@ Web GUI 中的助手回复经由 `MarkdownText` 渲染：它把 ` ```mermaid ` �
 
 Web 界面提示词增加了一个段落，因此每个 Web 会话的系统提示词都会改变，其前缀缓存在升级时会失效一次。
 
-`dsh web` 现在会向已认证的浏览器会话暴露工作区内容。这确实扩大了泄漏的会话 cookie 所能触及的范围，也正因如此，暴露面那一段写在包 README 中，而不只写在本 Note 里。
+`avn web` 现在会向已认证的浏览器会话暴露工作区内容。这确实扩大了泄漏的会话 cookie 所能触及的范围，也正因如此，暴露面那一段写在包 README 中，而不只写在本 Note 里。
 
 提示词中的工作区 URL 语句与 `workspace-files` 行是一个整体：移除该行却保留该语句，会让模型构造出返回 404 的 URL。两者都位于 `packages/bundle/web-app`，README 中陈述了这一配对关系。
 

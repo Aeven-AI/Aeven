@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-permission-presets` 为部署提供一个面向用户的 Permissions 选择器，把两个独立的执行旋钮——沙箱模式与审批策略——捆绑为具名预设。选择预设会同时应用沙箱模式与审批策略，而每个旋钮各自保留自己的值，因此沙箱执行、审批、提示词叙述与回放都读取各自的设置。默认表提供 `workspace-write`（workspace-write ＋ ask）与 `danger-full-access`（danger-full-access ＋ never）；不匹配任何预设的旋钮组合会读回推导出的 `custom`，客户端可以显示它，但不能选择它。该服务还拥有 `permission` 设置命名空间，其默认值只在之后创建会话时生效；两个可选子功能——`permissions` 会话投影单元与 `/permission` 命令——向 Web 客户端暴露同一表面。挂载它需要具有约束能力的 bash 执行器与审批服务；它自身不拥有任何执行权。
+`avn-permission-presets` 为部署提供一个面向用户的 Permissions 选择器，把两个独立的执行旋钮——沙箱模式与审批策略——捆绑为具名预设。选择预设会同时应用沙箱模式与审批策略，而每个旋钮各自保留自己的值，因此沙箱执行、审批、提示词叙述与回放都读取各自的设置。默认表提供 `workspace-write`（workspace-write ＋ ask）与 `danger-full-access`（danger-full-access ＋ never）；不匹配任何预设的旋钮组合会读回推导出的 `custom`，客户端可以显示它，但不能选择它。该服务还拥有 `permission` 设置命名空间，其默认值只在之后创建会话时生效；两个可选子功能——`permissions` 会话投影单元与 `/permission` 命令——向 Web 客户端暴露同一表面。挂载它需要具有约束能力的 bash 执行器与审批服务；它自身不拥有任何执行权。
 
 ## 目录
 
@@ -83,7 +83,7 @@ kind: "package-reference"
 
 ### 写入路径
 
-`apply()` 解析预设，仅当有效预设变化时追加 `permission/preset`，然后通过各自的权威 setter——`dsh-sandbox-policy` 的 `setSandboxMode` 与 `dsh-user-approval` 的 `setApprovalPolicy`——写入每个变化的旋钮。选择事件先于旋钮事件，因此在两个预设共享同一组取值时保留用户意图；净变化为零的选择不追加任何内容。
+`apply()` 解析预设，仅当有效预设变化时追加 `permission/preset`，然后通过各自的权威 setter——`avn-sandbox-policy` 的 `setSandboxMode` 与 `avn-user-approval` 的 `setApprovalPolicy`——写入每个变化的旋钮。选择事件先于旋钮事件，因此在两个预设共享同一组取值时保留用户意图；净变化为零的选择不追加任何内容。
 
 ### 读取侧与 `custom`
 
@@ -116,7 +116,7 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-间接地，通过 `dsh-user-approval` 和 `dsh-tool-bash`：二者渲染由此服务的旋钮事件所选择的审批策略提示词、切换通知与沙箱工具结果；`permission/preset` 本身只写入日志。
+间接地，通过 `avn-user-approval` 和 `avn-tool-bash`：二者渲染由此服务的旋钮事件所选择的审批策略提示词、切换通知与沙箱工具结果；`permission/preset` 本身只写入日志。
 
 #### KV Cache 影响
 

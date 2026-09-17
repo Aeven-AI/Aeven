@@ -32,10 +32,10 @@ export function guid(): string {
 /**
  * The href for a path.
  *
- * DSH serves these screens as ordinary paths, so a path is already its own
+ * AVN serves these screens as ordinary paths, so a path is already its own
  * href; the Aeven client's hash-route branch has no counterpart here.
  * @param path - the path.
- * @param trailingSlash - accepted because the ported screens pass it; DSH's
+ * @param trailingSlash - accepted because the ported screens pass it; AVN's
  * routes match with or without it, so it changes nothing.
  * @returns the path to navigate to.
  */

@@ -67,7 +67,7 @@ function isHeaders(value: unknown): value is readonly [string, string][] {
 
 function assertStreamId(streamId: number): void {
   if (!Number.isInteger(streamId) || streamId < 1 || streamId > 0xffff_ffff) {
-    throw new Error(`dsh desktop: invalid pipe stream id ${String(streamId)}`)
+    throw new Error(`avn desktop: invalid pipe stream id ${String(streamId)}`)
   }
 }
 
@@ -75,7 +75,7 @@ function encodeFrame(type: ResponseFrameType, streamId: number, payload: Buffer)
   assertStreamId(streamId)
   const limit = type === RESPONSE_FRAME_DATA ? DESKTOP_PIPE_CHUNK_BYTES : MAX_CONTROL_PAYLOAD_BYTES
   if (payload.byteLength > limit) {
-    throw new Error(`dsh desktop: response pipe frame exceeds the ${String(limit)}-byte limit`)
+    throw new Error(`avn desktop: response pipe frame exceeds the ${String(limit)}-byte limit`)
   }
   const frame = Buffer.allocUnsafe(FRAME_HEADER_BYTES + payload.byteLength)
   frame.writeUInt32BE(FRAME_MAGIC, 0)
@@ -138,19 +138,19 @@ export class DesktopHostRequestDecoder {
 
   /** Reject EOF that splits a frame. */
   finish(): void {
-    if (this.buffer.byteLength !== 0) throw new Error('dsh desktop: Electron request pipe ended inside a frame')
+    if (this.buffer.byteLength !== 0) throw new Error('avn desktop: Electron request pipe ended inside a frame')
   }
 
   private next(): DesktopHostRequestFrame | undefined {
     if (this.buffer.byteLength < FRAME_HEADER_BYTES) return undefined
-    if (this.buffer.readUInt32BE(0) !== FRAME_MAGIC) throw new Error('dsh desktop: invalid Electron request frame marker')
+    if (this.buffer.readUInt32BE(0) !== FRAME_MAGIC) throw new Error('avn desktop: invalid Electron request frame marker')
     const rawType = this.buffer.readUInt8(4)
     const streamId = this.buffer.readUInt32BE(5)
     const payloadLength = this.buffer.readUInt32BE(9)
     assertStreamId(streamId)
     const limit = rawType === REQUEST_FRAME_DATA ? DESKTOP_PIPE_CHUNK_BYTES : MAX_CONTROL_PAYLOAD_BYTES
     if (payloadLength > limit) {
-      throw new Error(`dsh desktop: Electron request frame exceeds the ${String(limit)}-byte limit`)
+      throw new Error(`avn desktop: Electron request frame exceeds the ${String(limit)}-byte limit`)
     }
     const frameLength = FRAME_HEADER_BYTES + payloadLength
     if (this.buffer.byteLength < frameLength) return undefined
@@ -162,13 +162,13 @@ export class DesktopHostRequestDecoder {
       case REQUEST_FRAME_DATA:
         return { type: 'data', streamId, data: payload }
       case REQUEST_FRAME_END:
-        if (payloadLength !== 0) throw new Error('dsh desktop: Electron request end frame carried a payload')
+        if (payloadLength !== 0) throw new Error('avn desktop: Electron request end frame carried a payload')
         return { type: 'end', streamId }
       case REQUEST_FRAME_CANCEL:
-        if (payloadLength !== 0) throw new Error('dsh desktop: Electron request cancel frame carried a payload')
+        if (payloadLength !== 0) throw new Error('avn desktop: Electron request cancel frame carried a payload')
         return { type: 'cancel', streamId }
       default:
-        throw new Error(`dsh desktop: unknown Electron request frame type ${String(rawType)}`)
+        throw new Error(`avn desktop: unknown Electron request frame type ${String(rawType)}`)
     }
   }
 
@@ -177,11 +177,11 @@ export class DesktopHostRequestDecoder {
     try {
       value = JSON.parse(payload.toString('utf8')) as unknown
     } catch (error) {
-      throw new Error(`dsh desktop: Electron request start payload is not JSON: ${error instanceof Error ? error.message : String(error)}`)
+      throw new Error(`avn desktop: Electron request start payload is not JSON: ${error instanceof Error ? error.message : String(error)}`)
     }
     if (!isRecord(value) || typeof value.url !== 'string' || typeof value.method !== 'string'
       || !isHeaders(value.headers) || typeof value.hasBody !== 'boolean') {
-      throw new Error('dsh desktop: invalid Electron request start payload')
+      throw new Error('avn desktop: invalid Electron request start payload')
     }
     return {
       type: 'start',

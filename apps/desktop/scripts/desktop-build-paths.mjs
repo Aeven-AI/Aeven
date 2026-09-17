@@ -47,7 +47,7 @@ export function desktopTargetBuildPaths(target) {
     seed: join(root, 'seed'),
     seedPnpm: join(root, 'seed-pnpm'),
     nodeExtract: join(root, 'node-extract'),
-    packedDsh: join(packed, 'dsh'),
+    packedDsh: join(packed, 'avn'),
     packedVendor: join(packed, 'vendor'),
     packedLandlock: join(packed, 'landlock'),
     downloads: join(BUILD_ROOT, 'downloads'),

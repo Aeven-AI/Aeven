@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-shell` 定义运行 shell 命令的执行器服务（`ctx.shell`）：前台命令在结束时以有界输出 resolve，后台进程则立即返回句柄。仓库中的每个 shell 执行器——本地 Bash、沙箱 Bash、本地 PowerShell、沙箱 PowerShell——都实现这同一个约定，因此面向模型的 `bash` 与 `pwsh` 工具在任何一个之上都能不加改动地工作。调用方先提交请求，再在任何命令运行前拿到一份默认值与上限都已显式填好的 spec。该服务本身从不向模型渲染任何内容；所有模型可见的输出与沙箱指引都归 shell 工具所有。
+`avn-shell` 定义运行 shell 命令的执行器服务（`ctx.shell`）：前台命令在结束时以有界输出 resolve，后台进程则立即返回句柄。仓库中的每个 shell 执行器——本地 Bash、沙箱 Bash、本地 PowerShell、沙箱 PowerShell——都实现这同一个约定，因此面向模型的 `bash` 与 `pwsh` 工具在任何一个之上都能不加改动地工作。调用方先提交请求，再在任何命令运行前拿到一份默认值与上限都已显式填好的 spec。该服务本身从不向模型渲染任何内容；所有模型可见的输出与沙箱指引都归 shell 工具所有。
 
 ## 目录
 
@@ -46,7 +46,7 @@ console.log(result.exitCode, result.stdout.text)
 
 ### 选择并组合一个执行器
 
-seam 本身不是执行器：每个组合只挂载一个提供方，工具即可不加改动地工作。在 POSIX 上，`dsh-bash-local` 以全新的 `bash -c` 进程运行命令，`dsh-bash-sandbox` 则通过沙箱能力限制每条命令；在 Windows 上，对应实现是 `dsh-pwsh-local` 与 `dsh-pwsh-sandbox`。`bash` 与 `pwsh` 工具只在挂载沙箱执行器时公布升权字段。最小的组合只需执行器本身：
+seam 本身不是执行器：每个组合只挂载一个提供方，工具即可不加改动地工作。在 POSIX 上，`avn-bash-local` 以全新的 `bash -c` 进程运行命令，`avn-bash-sandbox` 则通过沙箱能力限制每条命令；在 Windows 上，对应实现是 `avn-pwsh-local` 与 `avn-pwsh-sandbox`。`bash` 与 `pwsh` 工具只在挂载沙箱执行器时公布升权字段。最小的组合只需执行器本身：
 
 ```yaml
 - id: bash
@@ -113,7 +113,7 @@ seam 本身不是执行器：每个组合只挂载一个提供方，工具即可
 <a id="model-experience"></a>
 ## 模型体验
 
-通过 `dsh-tool-bash` 间接影响；该工具会将执行器输出与沙箱事实转为指引和保留的工具结果 token。
+通过 `avn-tool-bash` 间接影响；该工具会将执行器输出与沙箱事实转为指引和保留的工具结果 token。
 
 #### KV Cache 影响
 

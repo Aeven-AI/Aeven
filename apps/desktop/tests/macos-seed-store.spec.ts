@@ -26,7 +26,7 @@ const SIGNING_ENVIRONMENT = {
 }
 
 function temporaryRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), 'dsh-desktop-seed-signing-test-'))
+  const root = mkdtempSync(join(tmpdir(), 'avn-desktop-seed-signing-test-'))
   temporaryRoots.push(root)
   return root
 }

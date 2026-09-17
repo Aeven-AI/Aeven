@@ -1,5 +1,5 @@
 /**
- * Generated scoped-event routing-subject resolvers for dsh-scope invariants.
+ * Generated scoped-event routing-subject resolvers for avn-scope invariants.
  * Do not edit by hand; run `pnpm run gen-scoped-events`.
  *
  * @module @aeven/scope/scoped-events.generated

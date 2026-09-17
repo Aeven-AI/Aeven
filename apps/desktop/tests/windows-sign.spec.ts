@@ -76,7 +76,7 @@ describe('Windows token signing', () => {
   })
 
   it('rejects incomplete signing identities and non-SHA-256 signing tasks', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'dsh-windows-sign-tool-'))
+    const directory = await mkdtemp(join(tmpdir(), 'avn-windows-sign-tool-'))
     const certificateFile = join(directory, 'server.cer')
     const signTool = join(directory, 'signtool.exe')
     await writeFile(certificateFile, 'code-signing-certificate-fixture')
@@ -199,7 +199,7 @@ describe('Windows token signing', () => {
   })
 
   it('clears a certificate table inherited beyond the generated uninstaller', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'dsh-windows-sign-'))
+    const directory = await mkdtemp(join(tmpdir(), 'avn-windows-sign-'))
     const path = join(directory, 'uninstaller.exe')
     const executable = Buffer.alloc(512)
     const peOffset = 216

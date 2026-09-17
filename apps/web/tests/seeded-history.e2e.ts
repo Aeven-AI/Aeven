@@ -499,7 +499,7 @@ describe('web e2e: seeded history renders through cold resume', () => {
 
   it.skipIf(MODE === 'record')('reports full feedback correlation ids in an expandable two-line row', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-seeded-feedback-row'))
-    const previousDshHome = process.env.AVN_HOME
+    const previousAvnHome = process.env.AVN_HOME
     process.env.AVN_HOME = scaffold.harnessHome
     try {
       const input = page.locator('[data-composer-input]').first()
@@ -530,8 +530,8 @@ describe('web e2e: seeded history renders through cold resume', () => {
         .split(userId).join('{{userId}}')
       await compareOrRefreshGolden(FEEDBACK_ROW_EXPECTED, snapshot, MODE)
     } finally {
-      if (previousDshHome === undefined) delete process.env.AVN_HOME
-      else process.env.AVN_HOME = previousDshHome
+      if (previousAvnHome === undefined) delete process.env.AVN_HOME
+      else process.env.AVN_HOME = previousAvnHome
     }
   }, 60_000)
 

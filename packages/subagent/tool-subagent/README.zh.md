@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-tool-subagent` 是面向模型的委派工具：它把一个已配置的 `ctx.subagents` 提供方变成 agent 可以调用来启动子 agent（智能体）的工具。更换提供方只会改变传输，不会改变执行约定，因此一个组合可以暴露多个委派工具，各自绑定不同的后端。`one-shot` 策略下，调用默认在前台等待子 agent；`continuable` 策略下，调用默认在后台启动工作，并返回模型之后可以发消息的持久化子 agent id。合适的实例还可让模型发现并选择子 agent 的 LLM 提供方、模型与推理等级。工具的描述会随子 agent 是否继承父级已完成轮次而调整，失败的运行以出错的工具结果呈现，而非部分成功。
+`avn-tool-subagent` 是面向模型的委派工具：它把一个已配置的 `ctx.subagents` 提供方变成 agent 可以调用来启动子 agent（智能体）的工具。更换提供方只会改变传输，不会改变执行约定，因此一个组合可以暴露多个委派工具，各自绑定不同的后端。`one-shot` 策略下，调用默认在前台等待子 agent；`continuable` 策略下，调用默认在后台启动工作，并返回模型之后可以发消息的持久化子 agent id。合适的实例还可让模型发现并选择子 agent 的 LLM 提供方、模型与推理等级。工具的描述会随子 agent 是否继承父级已完成轮次而调整，失败的运行以出错的工具结果呈现，而非部分成功。
 
 ## 目录
 
@@ -64,7 +64,7 @@ kind: "package-reference"
 
 ### 选择子级 LLM
 
-设置 `modelSelectionSettings: true`，即可在组合每个全新顶层 Session 时读取宿主的 `subagent-model-selection` 偏好。没有已记录策略的恢复 Session 会保持禁用，包括显式为空的恢复。启用后，非空的精确 provider/model 路由列表会记录进 Session、由子 Session 继承，后续设置编辑不会改变它。工具随后公开可选的 `provider`、`model` 与 `reasoning_effort` 字段，并注册共享的 `list_subagent_models` 工具。此模式要求后端声明 `agentOptions`；两个进程内后端和 DSH SDK 支持该能力，而 ACP、Codex 与 Claude Code 会拒绝它，而不是忽略它。
+设置 `modelSelectionSettings: true`，即可在组合每个全新顶层 Session 时读取宿主的 `subagent-model-selection` 偏好。没有已记录策略的恢复 Session 会保持禁用，包括显式为空的恢复。启用后，非空的精确 provider/model 路由列表会记录进 Session、由子 Session 继承，后续设置编辑不会改变它。工具随后公开可选的 `provider`、`model` 与 `reasoning_effort` 字段，并注册共享的 `list_subagent_models` 工具。此模式要求后端声明 `agentOptions`；两个进程内后端和 AVN SDK 支持该能力，而 ACP、Codex 与 Claude Code 会拒绝它，而不是忽略它。
 
 一次调用需同时提供 `provider` 与 `model`；当配置值、父 agent 值或提供方持有的默认值能提供路由时，也可只提供推理等级。静态的 `provider.agentRouteDefaults` 在存在时构成提供方／模型基线；工具配置与模型字段会在路由相关强度合并和确切路由预检前覆盖它。没有这些默认值的提供方会使用父 agent 最新已记录请求中的兼容值，再使用父级首次请求前的创建选项，并保留配置的 `maxTokens`。更改路由但未显式提供推理等级时，会清除继承的路由自有等级，使所选模型解析自己的默认值。实时 LLM 适配器在创建子 agent 前校验有效路由。目录成员资格只提供建议，因此适配器接受时，模型可以使用未列出的 id。
 
@@ -114,7 +114,7 @@ kind: "package-reference"
 当包级约定不够用时阅读以下页面；它们从工具运行时行为进入它所委派其上的 seam，以及相邻的子 agent 工具。
 
 - [Subagent 子系统](../../../docs/subsystems/subagent.zh.md)——提供方、一次性启动请求、可继续子 agent 与 Activation。
-- [dsh-tool-subagent-control](../tool-subagent-control/README.zh.md)——可继续子 agent 的消息、中断与列表工具。
+- [avn-tool-subagent-control](../tool-subagent-control/README.zh.md)——可继续子 agent 的消息、中断与列表工具。
 - [生成工具目录](../../../docs/tool-catalog.zh.md#aeven-tool-subagent)——默认 schema 与各模式的措辞。
 - [生成配置目录](../../../docs/config-catalog.zh.md#aeven-tool-subagent)——每个受支持配置字段。
 - [后台 subagent 任务](../../../.agents/notes/implemented/feature/2026-07-08-background-subagent-tasks.zh.md)——一次性后台路由。
@@ -212,7 +212,7 @@ Use subagent in the background by default. Start independent delegations togethe
 - **后台运行不通过本工具公开结果**——一次性任务的最终输出通过通用 Task 接口收集，可继续子 agent 的输出留在其自身会话中，按其 subagent id 读取。结算通知会说明该子 agent 如何结束，并携带可能存在的最终 assistant 消息，但它不是本次调用的返回值，也无法在此等待。
 - **等待中的一次性实例较晚才发现重复名称**（`TODO(subagent-dup-toolname)`）——可继续实例会在插件应用期间预留提示词 section 名称，但若要阻止等待中的一次性实例回滚提供方注册，仍需要一份预期名称注册表。
 - **随附 fork 工具不能选择子级 LLM 路由**——它们继承父级提供方与模型，使复制的对话前缀仍有资格复用 KV Cache。仅当路由变更能保留复用或公开有界重算成本时，才重新启用选择。
-- **非路由子 agent 策略按实例固定**——另一个 persona、工具过滤器或深度上限需要另一个名称不同的工具。LLM 选择要求启用逐 Session 偏好，且提供方必须声明 `agentOptions`；两个进程内提供方和 DSH SDK 会声明该能力，而 ACP、Codex 与 Claude Code 会拒绝它，而不是忽略它。
+- **非路由子 agent 策略按实例固定**——另一个 persona、工具过滤器或深度上限需要另一个名称不同的工具。LLM 选择要求启用逐 Session 偏好，且提供方必须声明 `agentOptions`；两个进程内提供方和 AVN SDK 会声明该能力，而 ACP、Codex 与 Claude Code 会拒绝它，而不是忽略它。
 
 <a id="dev-note"></a>
 ### 开发备注

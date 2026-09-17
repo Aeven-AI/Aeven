@@ -175,7 +175,7 @@ describe('LocalPtySession readiness and output', () => {
     responseGate.resolve(undefined)
     await vi.advanceTimersByTimeAsync(10)
     await pending
-    expect(session.motd).toBe('dsh> ')
+    expect(session.motd).toBe('avn> ')
   })
 
   it('drains terminal replies before caller input and re-inspects after concurrent output', async () => {
@@ -511,7 +511,7 @@ describe('LocalPtySession readiness and output', () => {
     const inspector = new FakeInspector()
     const session = makeSession(terminal, inspector, config())
     await initialize(session, terminal)
-    expect(session.motd).toBe('dsh> ')
+    expect(session.motd).toBe('avn> ')
 
     inspector.waiting = true
     const operation = session.startSend({ text: 'python3', submit: true })
@@ -1115,10 +1115,10 @@ describe('LocalPtySession readiness and output', () => {
     await vi.advanceTimersByTimeAsync(20)
     expect(settled).toBe(false)
 
-    terminal.emitData('dsh> ')
+    terminal.emitData('avn> ')
     await vi.advanceTimersByTimeAsync(10)
     await initializing
-    expect(session.motd).toBe('dsh> ')
+    expect(session.motd).toBe('avn> ')
   })
 
   it('does not attribute a delayed prior prompt to the current send', async () => {

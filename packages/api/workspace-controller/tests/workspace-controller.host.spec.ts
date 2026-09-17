@@ -38,7 +38,7 @@ function deferred<T>(): Deferred<T> {
 }
 
 async function harness() {
-  const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'dsh-workspace-controller-')))
+  const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'avn-workspace-controller-')))
   const ctx = new Context()
   roots.push(ctx)
   await ctx.plugin(SessionStore)

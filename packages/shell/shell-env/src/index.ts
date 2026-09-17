@@ -1,7 +1,7 @@
 /**
  * Tool-independent shell environment plugin: owns the `ctx.shellEnv` registry of
  * trusted, per-execution `AVN_*` variables consumed by the model-facing shell
- * tools (`dsh-tool-bash`, `dsh-tool-pwsh`). Built-in shell facts are owned by
+ * tools (`avn-tool-bash`, `avn-tool-pwsh`). Built-in shell facts are owned by
  * the registry itself while plugins can register additional, enumerable facts
  * with effect-scoped disposal.
  *
@@ -11,8 +11,8 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { AVN_ENV_PREFIX } from '@aeven/shell'
-import type { DshEnvironment, AvnEnvironmentKey } from '@aeven/shell'
-import { AVN_HOME_ENV, resolveDshHome } from '@aeven/home-paths'
+import type { AvnEnvironment, AvnEnvironmentKey } from '@aeven/shell'
+import { AVN_HOME_ENV, resolveAvnHome } from '@aeven/home-paths'
 import type { ToolExecution } from '@aeven/tools'
 import type {} from '@aeven/session-persistence'
 
@@ -27,13 +27,13 @@ export const inject: string[] = []
 
 /** Plugin config (all optional — the built-in facts resolve without defaults). */
 export interface Config {
-  /** DeepSeek Harness home directory exposed as `AVN_HOME`; defaults to `$AVN_HOME` or `~/.dsh`. */
-  dshHome?: string
+  /** DeepSeek Harness home directory exposed as `AVN_HOME`; defaults to `$AVN_HOME` or `~/.avn`. */
+  avnHome?: string
 }
 
 /** Runtime configuration schema for the shell-env plugin. */
 export const Config: z<Config> = z.object({
-  dshHome: z.string(),
+  avnHome: z.string(),
 })
 
 /** Model-visible metadata for one managed `AVN_*` environment variable. */
@@ -89,7 +89,7 @@ const BASH_ENV_KEY_SUFFIX = /^[A-Z][A-Z0-9_]*$/
 export class ShellEnvRegistry extends Service {
   private readonly contributors = new Map<string, BashEnvContributor>()
   private readonly keyOwners = new Map<AvnEnvironmentKey, string>()
-  private readonly dshHome: string
+  private readonly avnHome: string
 
   /**
    * Create and install the `ctx.shellEnv` service.
@@ -98,7 +98,7 @@ export class ShellEnvRegistry extends Service {
    */
   constructor(ctx: Context, config: Config = {}) {
     super(ctx, 'shellEnv')
-    this.dshHome = resolveDshHome(config.dshHome)
+    this.avnHome = resolveAvnHome(config.avnHome)
   }
 
   /**
@@ -149,9 +149,9 @@ export class ShellEnvRegistry extends Service {
    * @param execution - the current tool execution.
    * @returns an immutable environment overlay containing built-ins and current contributions.
    */
-  collect(execution: ToolExecution): DshEnvironment {
+  collect(execution: ToolExecution): AvnEnvironment {
     const values: Record<AvnEnvironmentKey, string> = {
-      [AVN_HOME_ENV]: this.dshHome,
+      [AVN_HOME_ENV]: this.avnHome,
       [AVN_SHELL_KEY]: '1',
     }
     if (execution.agent !== undefined) {

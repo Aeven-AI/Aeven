@@ -8,7 +8,7 @@
  * the user exported" in any assertion about inherited proxy names.
  *
  * Clearing here gives every suite one known starting environment, so a test that needs a proxy sets
- * exactly the names it means to exercise. Suites that spawn a real `dsh` still clear the child's
+ * exactly the names it means to exercise. Suites that spawn a real `avn` still clear the child's
  * environment themselves — they must hold whether or not a Vitest setup ran.
  *
  * One name resists this: `NODE_USE_ENV_PROXY`. Node samples the proxy environment when the process

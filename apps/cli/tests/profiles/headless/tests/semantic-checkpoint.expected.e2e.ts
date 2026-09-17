@@ -86,7 +86,7 @@ describe('semantic checkpoint recovery snapshot', () => {
     let sessionPath = ''
     const result = await runLoaderSmoke({
       label: 'semantic checkpoint headless stream-json snapshot',
-      tempDirPrefix: 'dsh-semantic-snapshot-',
+      tempDirPrefix: 'avn-semantic-snapshot-',
       binScript,
       libBinScript: binScript,
       configPath,

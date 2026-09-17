@@ -2,7 +2,7 @@
 
 [English](media.md) | 中文
 
-生成式媒体 seam——一个横跨**两种媒介**（图片与视频）、位于单个 `ctx.media` 服务上的[能力 seam](../../.agents/notes/implemented/architecture/2026-09-03-generated-media-capability-seam.zh.md)：Service Definition（[dsh-media](../../packages/media/media)，`ctx.media` 与各 provider 注册表）、Service Provider，以及拥有模型所见一切的 Consumer。生成式媒体是**一项可选能力**，不属于 agent-loop 主干——因此它的词汇位于此处，而非 [core.md](core.zh.md)。更换 provider 不会改变调用方索取图片或片段的方式。
+生成式媒体 seam——一个横跨**两种媒介**（图片与视频）、位于单个 `ctx.media` 服务上的[能力 seam](../../.agents/notes/implemented/architecture/2026-09-03-generated-media-capability-seam.zh.md)：Service Definition（[avn-media](../../packages/media/media)，`ctx.media` 与各 provider 注册表）、Service Provider，以及拥有模型所见一切的 Consumer。生成式媒体是**一项可选能力**，不属于 agent-loop 主干——因此它的词汇位于此处，而非 [core.md](core.zh.md)。更换 provider 不会改变调用方索取图片或片段的方式。
 
 来源：[`packages/media/media/src/types.ts`](../../packages/media/media/src/types.ts)
 

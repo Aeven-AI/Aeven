@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-任何插件或工具都可以通过 `dsh-media`（`ctx.media`）生成图片或视频片段，而无需绑定某个厂商的 API。图片与视频 provider 以后端形式接入，服务为每次调用解析出一个 provider，因此调用方无需跟踪某次生成背后跑的是哪家厂商。构建媒体工具或另一个后端时选用它。服务本身不发起网络调用，也不注册任何面向模型的工具：必须先挂载 provider 才能生成任何东西。图片与视频共享一套选择策略、一套取消与错误词汇、一套配置面，因此"本 harness 如何生成媒体"只有一个归属。
+任何插件或工具都可以通过 `avn-media`（`ctx.media`）生成图片或视频片段，而无需绑定某个厂商的 API。图片与视频 provider 以后端形式接入，服务为每次调用解析出一个 provider，因此调用方无需跟踪某次生成背后跑的是哪家厂商。构建媒体工具或另一个后端时选用它。服务本身不发起网络调用，也不注册任何面向模型的工具：必须先挂载 provider 才能生成任何东西。图片与视频共享一套选择策略、一套取消与错误词汇、一套配置面，因此"本 harness 如何生成媒体"只有一个归属。
 
 ## 目录
 
@@ -24,7 +24,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-需要生成媒体的组合加载 `dsh-media` 服务并至少挂载一个后端——图片 provider、视频 provider 或两者——插件与工具作者随后直接调用 `ctx.media.generateImage()`、`ctx.media.startVideo()`、`ctx.media.videoStatus()` 与 `ctx.media.fetchVideo()`。
+需要生成媒体的组合加载 `avn-media` 服务并至少挂载一个后端——图片 provider、视频 provider 或两者——插件与工具作者随后直接调用 `ctx.media.generateImage()`、`ctx.media.startVideo()`、`ctx.media.videoStatus()` 与 `ctx.media.fetchVideo()`。
 
 ### 图片与视频
 
@@ -45,7 +45,7 @@ kind: "package-reference"
 
 ### 设计理念
 
-seam 拥有选择、词汇与任务约定；provider 拥有协议与凭据。图片与视频共享一个 seam，理由与 `dsh-web` 中搜索与抓取相同：它们共享 provider 标识、凭据、取消与错误，拆开会把这四样都复制一遍。
+seam 拥有选择、词汇与任务约定；provider 拥有协议与凭据。图片与视频共享一个 seam，理由与 `avn-web` 中搜索与抓取相同：它们共享 provider 标识、凭据、取消与错误，拆开会把这四样都复制一遍。
 
 ### 视频状态联合类型
 
@@ -93,6 +93,6 @@ seam 拥有选择、词汇与任务约定；provider 拥有协议与凭据。图
 
 #### 未来：模型目录
 
-provider 知道自己哪些模型生成图片、哪些生成视频，所调研的两家都为其打了标签。这究竟应作为 seam 的目录方法存在，还是像 `dsh-llm-pi-ai` 处理聊天目录那样留在各 provider 自己的配置中，尚未决定；由于调用方本就要指名模型，seam 没有它也能工作。
+provider 知道自己哪些模型生成图片、哪些生成视频，所调研的两家都为其打了标签。这究竟应作为 seam 的目录方法存在，还是像 `avn-llm-pi-ai` 处理聊天目录那样留在各 provider 自己的配置中，尚未决定；由于调用方本就要指名模型，seam 没有它也能工作。
 
 </details>

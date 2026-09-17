@@ -10,7 +10,7 @@ The documentation system has strong placement, freshness, linking, bilingual, an
 
 ### Semantic correctness can pass without a current owner
 
-The gates prove structure and generated freshness, not that maintained prose still names the live mechanism. The former `dsh-doc-site-sync` skill told authors to reuse a nonexistent `en-docs` sidebar and to add sections to a removed `sectionOrder`; [website/docs.ts](../../../../website/docs.ts) owns `en-guide`, `en-develop`, `en-reference`, and `sections`. The implemented [product-first README decision](../../implemented/process/2026-07-22-product-first-root-readme.md) describes an internal-testing notice and ACP, Python, and JSON-RPC surface sections absent from the [root README](../../../../README.md), although implemented Agent Notes must track shipped facts.
+The gates prove structure and generated freshness, not that maintained prose still names the live mechanism. The former `avn-doc-site-sync` skill told authors to reuse a nonexistent `en-docs` sidebar and to add sections to a removed `sectionOrder`; [website/docs.ts](../../../../website/docs.ts) owns `en-guide`, `en-develop`, `en-reference`, and `sections`. The implemented [product-first README decision](../../implemented/process/2026-07-22-product-first-root-readme.md) describes an internal-testing notice and ACP, Python, and JSON-RPC surface sections absent from the [root README](../../../../README.md), although implemented Agent Notes must track shipped facts.
 
 The budget policy has the same split. [docs/AGENTS.md](../../../../docs/AGENTS.md#wordcount-budgets) states a 1,800-word target and 5% headroom for `architecture.md`, but the [budget manifest](../../../../scripts/doc-budgets.manifest.json) allows 2,400 words while the file contains 1,313. The budget gate passes because it checks the manifest ceiling, not the target or ratchet rule. High-impact prose therefore needs a named source or a focused check that consumes the source; a second hand-written copy is not a freshness mechanism.
 
@@ -48,9 +48,9 @@ Adopt one audience-first quality contract with five definitions:
 
 ### Prototype rules
 
-The [dsh-doc skill](../../../skills/dsh-doc/SKILL.md) owns the first executable version of these rules. The `session-persistence-jsonl` README pair uses the shipped append, recovery, and encoding behavior as evidence rather than treating its prior prose as authority.
+The [avn-doc skill](../../../skills/avn-doc/SKILL.md) owns the first executable version of these rules. The `session-persistence-jsonl` README pair uses the shipped append, recovery, and encoding behavior as evidence rather than treating its prior prose as authority.
 
-- Every authored package README starts with searchable YAML. A Skill-style `description` and mechanically derived `kind` are required. Four kinds map one-to-one to four skill templates: `package-group` (group map), `package-reference` (plugin or service package), `package-library` (plain module entry), and `package-bundle` (`dsh.bundle.patch`). The counterpart path, hashes, and physical line alignment belong to the merge-safe sidecar and its gate, so README frontmatter contains no `i18n` block. The title or package manifest already owns the name, the document job expresses its audience, and tags remain absent until a governed taxonomy and search consumer proves value beyond full-text search.
+- Every authored package README starts with searchable YAML. A Skill-style `description` and mechanically derived `kind` are required. Four kinds map one-to-one to four skill templates: `package-group` (group map), `package-reference` (plugin or service package), `package-library` (plain module entry), and `package-bundle` (`avn.bundle.patch`). The counterpart path, hashes, and physical line alignment belong to the merge-safe sidecar and its gate, so README frontmatter contains no `i18n` block. The title or package manifest already owns the name, the document job expresses its audience, and tags remain absent until a governed taxonomy and search consumer proves value beyond full-text search.
 - Authored pages start with a three-to-five-sentence `Summary`, then a linked `Table of Contents`. Format-owned Agent Notes, postmortems, generated fragments, and machine files keep their required skeletons.
 - Each substantive section starts with a short orientation before subsections, tables, or code, and the page progresses from basic user use to advanced developer and maintainer detail.
 - English technical prose uses an ASD-STE100-inspired, non-certified clarity review: explicit actors and actions, stable terms, direct verbs, separated instructions and conditions, and preserved modality, exceptions, timing, and numbers. The 20-word instruction and 25-word description limits are review prompts. Precision overrides them.
@@ -85,7 +85,7 @@ The first prototype should use one large catalog and one mixed subsystem page. I
 
 ### Enforcement slices
 
-1. Create and validate `dsh-doc`, then rewrite one package README pair as a line-aligned, metadata-bearing prototype without changing runtime claims.
+1. Create and validate `avn-doc`, then rewrite one package README pair as a line-aligned, metadata-bearing prototype without changing runtime claims.
 2. Review the rendered prototype with newcomer, user, developer, and agent tasks; revise the skill before enforcing the format elsewhere.
 3. Add narrow metadata, section-order, line-alignment, link-resolution, and pairing fixtures. Keep sidecars until every merge and recovery consumer has replacement support.
 4. Extract accepted standing rules into one canonical quality reference, condense `docs/AGENTS.md` below its target, and organize one coherent `docs/` topic at a time with atomic link/navigation repair.
@@ -93,7 +93,7 @@ The first prototype should use one large catalog and one mixed subsystem page. I
 
 This sequence keeps each change independently reviewable. The first three slices improve criteria and correctness without rewriting the corpus; the generated-doc prototype supplies evidence before a broader information-architecture change.
 
-Slices 1–3 have shipped in this form: `dsh-doc` is the consolidated standard (`dsh-doc-standards` and `dsh-doc-site-sync` are folded into it, and the site workflow carries the corrected sidebar values), the `session-persistence-jsonl` README pair is the reference example, and `pnpm run test:docs` enforces the metadata, pairing, and quick documentation checks. Slices 4–5 remain open.
+Slices 1–3 have shipped in this form: `avn-doc` is the consolidated standard (`avn-doc-standards` and `avn-doc-site-sync` are folded into it, and the site workflow carries the corrected sidebar values), the `session-persistence-jsonl` README pair is the reference example, and `pnpm run test:docs` enforces the metadata, pairing, and quick documentation checks. Slices 4–5 remain open.
 
 ### Non-goals
 
@@ -114,7 +114,7 @@ This proposal does not shorten exhaustive facts, merge audience tiers, publish i
 ## Acceptance criteria
 
 - One canonical quality reference defines brief, intuitive, friendly, accurate, and agent-readable documentation by document job.
-- `.agents/skills/dsh-doc` validates and directly links its metadata, structure/hierarchy, and review/prototype references without duplicating their detailed rules in `SKILL.md`.
+- `.agents/skills/avn-doc` validates and directly links its metadata, structure/hierarchy, and review/prototype references without duplicating their detailed rules in `SKILL.md`.
 - The `session-persistence-jsonl` README pair demonstrates searchable YAML, Summary, Table of Contents, user-to-developer progression, Further Exploration, final Dev Note, structural parity, and exact line-count equality while preserving verified package contracts.
 - `docs/AGENTS.md` links that reference, remains sufficient as standing instruction, and is below its target with at least 5% headroom.
 - The root user path, Web quick start, first-plugin tutorial, contributor setup, and architecture overview each name an observable outcome and a verification owner without duplicating implementation detail.

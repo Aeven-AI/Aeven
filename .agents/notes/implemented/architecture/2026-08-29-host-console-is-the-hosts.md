@@ -6,14 +6,14 @@ English | [中文](2026-08-29-host-console-is-the-hosts.zh.md)
 
 ## Problem
 
-`dsh web` printed eight lines before its own first line. None of them were the Host's:
+`avn web` printed eight lines before its own first line. None of them were the Host's:
 
 ```
 npm warn Unknown env config "manage-package-manager-versions". ...
 (node:38214) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
 chrome-devtools-mcp exposes content of the browser instance to the MCP clients ...
 [chrome-devtools-mcp] The connecting client did not negotiate the MCP roots capability. ...
-dsh web: http://127.0.0.1:3080/?token=...
+avn web: http://127.0.0.1:3080/?token=...
 ```
 
 Two independent sources produced them.
@@ -30,7 +30,7 @@ Two independent sources produced them.
 
 ## Testing
 
-`dsh web --no-open --port 3199` now prints one line, its own. The forwarding is covered twice: through a real spawned process whose stderr carries a blank line and an unterminated last line, and through the plugin lifecycle, where a server's line is asserted to reach `ctx.logger.debug` under its label and a mid-line chunk is asserted not to appear until it is complete. The store's browser arm is covered by a stubbed `window`, its Host arm by the existing suite, which runs without one.
+`avn web --no-open --port 3199` now prints one line, its own. The forwarding is covered twice: through a real spawned process whose stderr carries a blank line and an unterminated last line, and through the plugin lifecycle, where a server's line is asserted to reach `ctx.logger.debug` under its label and a mid-line chunk is asserted not to appear until it is complete. The store's browser arm is covered by a stubbed `window`, its Host arm by the existing suite, which runs without one.
 
 The SDK stand-ins in `apply.spec.ts` and `reconnect.spec.ts` now expose a readable `stderr`, as the transport they stand in for does under `stderr: 'pipe'`.
 
@@ -38,7 +38,7 @@ The SDK stand-ins in `apply.spec.ts` and `reconnect.spec.ts` now expose a readab
 
 **Log the server's stderr at warn or info.** Rejected: most of it is a greeting. Reporting a banner as a warning trains a reader to skip the level that a real fault would arrive on, and the connection path already reports failures with their own message.
 
-**Pass `--no-webstorage` in the `dsh` bin script.** Rejected: it silences the symptom for one launcher, leaving the same warning for every other entry point and for anything embedding the client tree, and the flag is not available across the whole supported engines range.
+**Pass `--no-webstorage` in the `avn` bin script.** Rejected: it silences the symptom for one launcher, leaving the same warning for every other entry point and for anything embedding the client tree, and the flag is not available across the whole supported engines range.
 
 **Drop persistence whenever `window` is absent.** Rejected as measured: the store's own suite runs on Node and installs Web Storage through `vi.stubGlobal`, so a `window` test alone disables the persistence those cases exist to check.
 

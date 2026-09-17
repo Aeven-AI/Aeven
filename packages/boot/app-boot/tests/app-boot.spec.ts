@@ -11,9 +11,9 @@ import {
   installFailLoud, loadEnv, loadLayeredEnv, loadOverlayPatches, resolveConfigPath, type FailLoudProcess,
 } from '../src/index.ts'
 
-const NAME = 'dsh-test-bin'
+const NAME = 'avn-test-bin'
 
-const tmp = (): string => mkdtempSync(join(tmpdir(), 'dsh-app-boot-'))
+const tmp = (): string => mkdtempSync(join(tmpdir(), 'avn-app-boot-'))
 
 describe('resolveConfigPath', () => {
   it('resolves relative to the given cwd outside replay mode', () => {
@@ -640,8 +640,8 @@ describe('boot', () => {
     const dir = tmp()
     const harness = tmp()
     const absolutePlugin = join(dir, 'absolute.mjs')
-    const shadow = join(dir, 'node_modules', '@deepseek-ai', 'dsh-system-prompt')
-    const harnessPlugin = join(harness, 'node_modules', '@deepseek-ai', 'dsh-system-prompt')
+    const shadow = join(dir, 'node_modules', '@deepseek-ai', 'avn-system-prompt')
+    const harnessPlugin = join(harness, 'node_modules', '@deepseek-ai', 'avn-system-prompt')
     mkdirSync(shadow, { recursive: true })
     mkdirSync(harnessPlugin, { recursive: true })
     writeFileSync(join(shadow, 'package.json'), JSON.stringify({
@@ -736,10 +736,10 @@ describe('boot', () => {
     expect(disposed).toBe(true)
   })
 
-  it('exposes dshHomePath to Loader config expressions', async () => {
+  it('exposes avnHomePath to Loader config expressions', async () => {
     const dir = tmp()
-    const dshHome = join(dir, 'home')
-    vi.stubEnv('AVN_HOME', dshHome)
+    const avnHome = join(dir, 'home')
+    vi.stubEnv('AVN_HOME', avnHome)
     writeFileSync(join(dir, 'capture.mjs'), [
       'export const name = "capture"',
       'export function apply(ctx, config) {',
@@ -751,13 +751,13 @@ describe('boot', () => {
       '- id: capture',
       '  name: ./capture.mjs',
       '  config:',
-      "    path: !!js dshHomePath('sessions')",
+      "    path: !!js avnHomePath('sessions')",
       '',
     ].join('\n'))
     let ctx: Context | undefined
     try {
       ctx = await boot(NAME, join(dir, 'cordis.yml'))
-      expect(ctx.get('capturedPath')).toBe(join(dshHome, 'sessions'))
+      expect(ctx.get('capturedPath')).toBe(join(avnHome, 'sessions'))
     } finally {
       await ctx?.fiber.dispose()
       vi.unstubAllEnvs()
@@ -883,7 +883,7 @@ describe('boot', () => {
 
 describe('addHarnessSourceSection', () => {
   const SOURCE_ROOT = `${sep}opt${sep}harness-src`
-  const EXPECTED = `The DeepSeek Harness implementation checkout is at ${SOURCE_ROOT}. The checkout location and current working directory are separate values and may differ; never infer the working directory from this path. Use pwd to determine the current working directory. Use this checkout only to inspect or extend DSH itself.`
+  const EXPECTED = `The DeepSeek Harness implementation checkout is at ${SOURCE_ROOT}. The checkout location and current working directory are separate values and may differ; never infer the working directory from this path. Use pwd to determine the current working directory. Use this checkout only to inspect or extend AVN itself.`
 
   it('distinguishes the source path from the current workdir between identity and persona', async () => {
     const ctx = new Context()

@@ -134,7 +134,7 @@ export class WorkerModuleLoader {
 
   constructor(options: WorkerModuleLoaderOptions) {
     this.vfs = options.vfs
-    this.root = options.root ?? '/dsh'
+    this.root = options.root ?? '/avn'
     // A Map, not the record itself: a specifier that names an Object prototype
     // member must miss the table the way any other unregistered name does.
     this.staticModules = new Map(Object.entries(options.staticModules))

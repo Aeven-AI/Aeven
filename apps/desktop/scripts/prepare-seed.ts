@@ -35,7 +35,7 @@ import { resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const BUILD_PATHS = resolveDesktopTargetBuildPaths()
 const SEED_OUTPUT_ROOT = BUILD_PATHS.seed
-const SEED_ROOT = mkdtempSync(join(tmpdir(), 'dsh-desktop-seed-'))
+const SEED_ROOT = mkdtempSync(join(tmpdir(), 'avn-desktop-seed-'))
 const STORE_ROOT = join(SEED_ROOT, 'store')
 const RUNTIME_ROOT = BUILD_PATHS.runtime
 const PNPM_BUILD_STATE = BUILD_PATHS.seedPnpm
@@ -51,9 +51,9 @@ function manifestVersion(path: string, subject: string): string {
 
 function desktopRelease(): DesktopRelease {
   const version = manifestVersion(join(APP_ROOT, 'package.json'), 'desktop package')
-  const dshVersion = manifestVersion(resolve(APP_ROOT, '..', '..', 'package.json'), 'root dsh package')
-  if (version !== dshVersion) {
-    throw new Error(`desktop seed: Electron ${version} must bind the same version of @aeven/cli, found ${dshVersion}`)
+  const avnVersion = manifestVersion(resolve(APP_ROOT, '..', '..', 'package.json'), 'root avn package')
+  if (version !== avnVersion) {
+    throw new Error(`desktop seed: Electron ${version} must bind the same version of @aeven/cli, found ${avnVersion}`)
   }
   const runtime = JSON.parse(readFileSync(join(RUNTIME_ROOT, 'versions.json'), 'utf8')) as Record<string, unknown>
   return parseDesktopRelease({
@@ -179,7 +179,7 @@ async function main(): Promise<void> {
     removePnpmProjectRegistrations(STORE_ROOT)
     archivePnpmStore(SEED_ROOT, STORE_ROOT)
     if (macOSSigning !== undefined && signedMachOFiles !== undefined) {
-      const extractedStore = mkdtempSync(join(tmpdir(), 'dsh-desktop-seed-verification-'))
+      const extractedStore = mkdtempSync(join(tmpdir(), 'avn-desktop-seed-verification-'))
       try {
         extractPnpmStoreArchives(SEED_ROOT, extractedStore)
         const verified = verifyMacOSSeedStore(extractedStore, macOSSigning)

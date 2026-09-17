@@ -4,7 +4,7 @@
  *
  * The library half takes all of this as parameters. Keeping the lookup here is what
  * lets the same library pack a different tree, and what keeps `pack.ts` free of
- * assumptions about pnpm workspaces or the `dsh` CLI.
+ * assumptions about pnpm workspaces or the `avn` CLI.
  * @module @aeven/experimental-webworker-packer/src/repository
  */
 import { execFileSync } from 'node:child_process'
@@ -22,10 +22,10 @@ import type { ConfigTree, ImageTree, PackResult } from './pack.ts'
  */
 const WORKSPACE_SCAN_ROOTS = ['vendor', 'packages', 'native/landlock-run/packages', 'apps']
 
-/** Composition entry point package: the `dsh` CLI, run from source. */
+/** Composition entry point package: the `avn` CLI, run from source. */
 const CLI_PACKAGE = 'apps/cli'
 
-/** Composition entry point: the `dsh` CLI, run from source. */
+/** Composition entry point: the `avn` CLI, run from source. */
 const CLI_ENTRY = `${CLI_PACKAGE}/src/bin.ts`
 
 /** Repository-owned deterministic filesystem content offered by the preview. */
@@ -84,7 +84,7 @@ export function indexWorkspacePackages(repoRoot: string): Map<string, string> {
  * @returns The composed YAML.
  */
 export function composeProfile(repoRoot: string, profile: string): string {
-  const home = mkdtempSync(join(tmpdir(), 'dsh-pack-home-'))
+  const home = mkdtempSync(join(tmpdir(), 'avn-pack-home-'))
   try {
     return execFileSync(
       process.execPath,
@@ -96,7 +96,7 @@ export function composeProfile(repoRoot: string, profile: string): string {
   }
 }
 
-/** One `dsh.configTrees` declaration entry, validated field by field. */
+/** One `avn.configTrees` declaration entry, validated field by field. */
 interface ConfigTreeDeclaration {
   mount: string
   path: string
@@ -105,7 +105,7 @@ interface ConfigTreeDeclaration {
 
 /**
  * Config trees the CLI package declares for deployment images
- * (`dsh.configTrees` in its package.json): `path` is relative to the CLI
+ * (`avn.configTrees` in its package.json): `path` is relative to the CLI
  * package root, `mount` is the image path, `scanRoster` feeds the tree's yml
  * plugin rows into the pack roster. The CLI owns its config layout; this
  * reader follows the declaration instead of naming directories. A malformed
@@ -116,17 +116,17 @@ interface ConfigTreeDeclaration {
 export function configTrees(repoRoot: string): ConfigTree[] {
   const packageDir = join(repoRoot, CLI_PACKAGE)
   const manifest = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8')) as {
-    dsh?: { configTrees?: unknown }
+    avn?: { configTrees?: unknown }
   }
-  const declared = manifest.dsh?.configTrees
+  const declared = manifest.avn?.configTrees
   if (declared === undefined) return []
   if (!Array.isArray(declared)) {
-    throw new Error(`vfs image: ${CLI_PACKAGE} dsh.configTrees must be an array`)
+    throw new Error(`vfs image: ${CLI_PACKAGE} avn.configTrees must be an array`)
   }
   const mounts = new Set<string>()
   return declared.map((entry, index) => {
     const tree = entry as Partial<ConfigTreeDeclaration> | null
-    const at = `${CLI_PACKAGE} dsh.configTrees[${String(index)}]`
+    const at = `${CLI_PACKAGE} avn.configTrees[${String(index)}]`
     if (tree === null || typeof tree !== 'object'
       || typeof tree.mount !== 'string' || tree.mount === ''
       || typeof tree.path !== 'string' || tree.path === ''

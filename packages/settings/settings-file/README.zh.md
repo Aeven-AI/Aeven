@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-settings-file` 把所有 namespace 的用户设置保存在一个 YAML 或 JSON 文档中，默认是 harness home 下的 `settings.yaml`：用户可以直接编辑文档——变更实时生效——也可以经服务写入，后者会安全合并并发编辑。YAML 写入保留每个未触碰节点上的注释、锚点与排版，未加载插件所拥有的分节也绝不会被丢弃。启动时非法文档直接报错；运行中失败的热重载保留最后可用分节并告警，而不是拖垮进程。
+`avn-settings-file` 把所有 namespace 的用户设置保存在一个 YAML 或 JSON 文档中，默认是 harness home 下的 `settings.yaml`：用户可以直接编辑文档——变更实时生效——也可以经服务写入，后者会安全合并并发编辑。YAML 写入保留每个未触碰节点上的注释、锚点与排版，未加载插件所拥有的分节也绝不会被丢弃。启动时非法文档直接报错；运行中失败的热重载保留最后可用分节并告警，而不是拖垮进程。
 
 ## 目录
 
@@ -42,7 +42,7 @@ kind: "package-reference"
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `path` | `<harness home>/settings.yaml` | 设置文档路径；扩展名决定格式（`.yaml`、`.yml` 或 `.json`） |
-| `dshHome` | `$AVN_HOME` 或 `~/.dsh` | `path` 省略时使用的 harness home |
+| `avnHome` | `$AVN_HOME` 或 `~/.avn` | `path` 省略时使用的 harness home |
 | `watch` | `true` | 监听文档并热发布外部编辑 |
 | `debounceMs` | `100` | watcher 写入稳定窗口（毫秒） |
 
@@ -90,7 +90,7 @@ kind: "package-reference"
 | 文件 | 职责 |
 |---|---|
 | [`src/index.ts`](src/index.ts) | 提供方：spec 解析、加载/解析、写锁下的读-改-写、watcher 生命周期、YAML/JSON 渲染 |
-| — | 不发布运行时不变式伴生入口；文件往返、watcher 时序与原子写入行为由包测试证明，进程内提交关系归 `dsh-settings` 所有。 |
+| — | 不发布运行时不变式伴生入口；文件往返、watcher 时序与原子写入行为由包测试证明，进程内提交关系归 `avn-settings` 所有。 |
 
 ### 文档生命周期
 

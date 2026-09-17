@@ -55,7 +55,7 @@ A Remote failure is one class, `RemoteError`: merge the domain codes into `Remot
 A code reads `<domain>/<reason>`, and its declaration has four placement rules:
 
 - One producer only: declare it in the producing package, next to the throw.
-- Several packages produce it: declare it in the lowest domain package both depend on (`session/not-found` in `core/session`, `workspace/not-found` in `dsh-workspace`).
+- Several packages produce it: declare it in the lowest domain package both depend on (`session/not-found` in `core/session`, `workspace/not-found` in `avn-workspace`).
 - The carrier codes `gateway/bad-request`, `gateway/cancelled`, and `gateway/internal` are declared in protocol, and the Gateway infrastructure codes in gateway — use them, never copy them.
 - A local failure that never crosses the wire stays out of the code table; express it with the caller's own type.
 

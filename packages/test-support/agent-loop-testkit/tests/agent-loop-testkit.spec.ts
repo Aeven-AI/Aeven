@@ -4,7 +4,7 @@ import AgentLoop from '@aeven/agent-loop'
 import { renderPrompt } from '@aeven/system-prompt'
 import { mountAgentLoopTestDependencies } from '../src/index.ts'
 
-describe('dsh-agent-loop-testkit', () => {
+describe('avn-agent-loop-testkit', () => {
   it('mounts a configurable prerequisite spine that can activate AgentLoop', async () => {
     const ctx = new Context()
     await mountAgentLoopTestDependencies(ctx, {

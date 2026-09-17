@@ -1,5 +1,5 @@
 ---
-description: "The authenticated-user seam: ctx.identityUsers, which every DSH subsystem reads to learn who is acting, and the resolver contract an authority package registers into."
+description: "The authenticated-user seam: ctx.identityUsers, which every AVN subsystem reads to learn who is acting, and the resolver contract an authority package registers into."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-identity-user` gives a composition one place to answer "who is making this request", so a subsystem that needs the acting user reads `ctx.identityUsers` instead of learning about cookies, bearer tokens, or expiry. Mount it, then mount an authority package that knows a real credential; without one the service recognizes nobody and the request fence keeps its existing behavior, so a stock harness stays single-user and unauthenticated. Resolution is synchronous by contract, because DSH consults it inside the fence that answers before dispatch. The service registers nothing model-facing.
+`avn-identity-user` gives a composition one place to answer "who is making this request", so a subsystem that needs the acting user reads `ctx.identityUsers` instead of learning about cookies, bearer tokens, or expiry. Mount it, then mount an authority package that knows a real credential; without one the service recognizes nobody and the request fence keeps its existing behavior, so a stock harness stays single-user and unauthenticated. Resolution is synchronous by contract, because AVN consults it inside the fence that answers before dispatch. The service registers nothing model-facing.
 
 ## Table of Contents
 
@@ -48,7 +48,7 @@ The service exposes three members: `registerResolver(resolver)` adds one authori
 
 ### What resolution answers
 
-`resolve` hands the request to each registered authority in registration order and returns the first user any of them recognizes, or `undefined` when none does. A composition controls precedence purely by the order it mounts authorities. The reason a credential failed is deliberately not reported — DSH answers 401 either way, and naming the reason describes the credential back to whoever supplied it.
+`resolve` hands the request to each registered authority in registration order and returns the first user any of them recognizes, or `undefined` when none does. A composition controls precedence purely by the order it mounts authorities. The reason a credential failed is deliberately not reported — AVN answers 401 either way, and naming the reason describes the credential back to whoever supplied it.
 
 -----
 
@@ -66,11 +66,11 @@ The seam is deliberately thin: a `Map` from authority id to resolver, plus a fir
 
 ### Why resolution is synchronous
 
-DSH consults the seam inside the request fence that already runs for every HTTP request and every WebSocket upgrade, and that fence answers before dispatch. A resolver that had to reach a network service could not be consulted there, so the contract forbids it: an authority verifies locally, which is what keeps identifying a caller free of an outbound request.
+AVN consults the seam inside the request fence that already runs for every HTTP request and every WebSocket upgrade, and that fence answers before dispatch. A resolver that had to reach a network service could not be consulted there, so the contract forbids it: an authority verifies locally, which is what keeps identifying a caller free of an outbound request.
 
 ### The request vocabulary
 
-An authority is given headers only, because that is what both DSH transports have in common — HTTP carries the credential in `authorization`, and a WebSocket upgrade carries it in `cookie` because a browser cannot set a header on the upgrade. Nothing is decoded for the authority; it reads whichever header it recognizes.
+An authority is given headers only, because that is what both AVN transports have in common — HTTP carries the credential in `authorization`, and a WebSocket upgrade carries it in `cookie` because a browser cannot set a header on the upgrade. Nothing is decoded for the authority; it reads whichever header it recognizes.
 
 ### Source map
 
@@ -88,9 +88,9 @@ An authority is given headers only, because that is what both DSH transports hav
 
 Read these when the seam alone is not enough: the authority that implements it, the fence that consults it, and the browser surface a reader signs in through.
 
-- [dsh-identity-user-aeven](../user-aeven/README.md) — the Aeven authority that verifies a real credential against this contract.
-- [dsh-client-ui-auth-aeven](../../client/ui-auth-aeven/README.md) — the browser sign-in surface that establishes the session an authority then recognizes.
-- [dsh-client-connection](../../client/connection/README.md) — the request fence that reads this service and decides 401.
+- [avn-identity-user-aeven](../user-aeven/README.md) — the Aeven authority that verifies a real credential against this contract.
+- [avn-client-ui-auth-aeven](../../client/ui-auth-aeven/README.md) — the browser sign-in surface that establishes the session an authority then recognizes.
+- [avn-client-connection](../../client/connection/README.md) — the request fence that reads this service and decides 401.
 - [identity group map](../README.md) — the family this package belongs to.
 
 -----

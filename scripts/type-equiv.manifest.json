@@ -1613,7 +1613,7 @@
     },
     {
       "doc": "docs/subsystems/subprocess.md",
-      "symbol": "DshEnvironment",
+      "symbol": "AvnEnvironment",
       "source": "packages/subprocess/subprocess/src/types.ts"
     },
     {

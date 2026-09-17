@@ -33,13 +33,13 @@ describe('Python runtime executable builder CLI', () => {
 
     expect(result.status).toBe(0)
     expect(result.stdout).toContain(`${process.execPath} C:\\tools\\pnpm.cjs run verify-runtime-closure`)
-    expect(result.stdout).toContain(`${process.execPath} C:\\tools\\pnpm.cjs --filter dsh-python-runtime-closure deploy`)
+    expect(result.stdout).toContain(`${process.execPath} C:\\tools\\pnpm.cjs --filter avn-python-runtime-closure deploy`)
     expect(result.stdout).toContain(`${process.execPath} C:\\tools\\pnpm.cjs dlx @yao-pkg/pkg@6.21.0`)
     expect(result.stdout).not.toMatch(/pnpm\.cmd/i)
   })
 
   it('resolves the pnpm package behind a Windows command shim', () => {
-    const setup = mkdtempSync(join(tmpdir(), 'dsh-pnpm-home-'))
+    const setup = mkdtempSync(join(tmpdir(), 'avn-pnpm-home-'))
     temporaryDirectories.push(setup)
     const home = join(setup, 'node_modules', '.bin')
     const entrypoint = join(setup, 'node_modules', 'pnpm', 'bin', 'pnpm.mjs')

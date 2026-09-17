@@ -33,7 +33,7 @@ afterEach(async () => {
 })
 
 async function tempDir(base: string): Promise<string> {
-  const dir = await mkdtemp(join(base, 'dsh-seatbelt-e2e-'))
+  const dir = await mkdtemp(join(base, 'avn-seatbelt-e2e-'))
   tempDirs.push(dir)
   return dir
 }
@@ -94,7 +94,7 @@ describe.skipIf(!seatbeltUsable)('bash-sandbox: real Seatbelt confinement throug
     await bash.run(bash.resolve({
       command: 'true',
       env: { BASH_ENV: hook },
-      dshEnv: {
+      avnEnv: {
         AVN_BASH_ENV_INSIDE: insideProbe,
         AVN_BASH_ENV_OUTSIDE: outsideProbe,
       },

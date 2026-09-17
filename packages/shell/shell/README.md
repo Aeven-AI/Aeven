@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-shell` defines the executor service (`ctx.shell`) that runs shell commands for the harness: foreground commands that resolve with bounded output when they finish, and background processes that return a handle immediately. Every shell executor in the repository — local Bash, sandboxed Bash, local PowerShell, sandboxed PowerShell — implements this one contract, so the model-facing `bash` and `pwsh` tools work unchanged over any of them. Callers pass a request and receive a fully-resolved spec with explicit defaults and caps before any command runs. The service itself never renders anything to a model; the shell tools own all model-visible output and sandbox guidance.
+`avn-shell` defines the executor service (`ctx.shell`) that runs shell commands for the harness: foreground commands that resolve with bounded output when they finish, and background processes that return a handle immediately. Every shell executor in the repository — local Bash, sandboxed Bash, local PowerShell, sandboxed PowerShell — implements this one contract, so the model-facing `bash` and `pwsh` tools work unchanged over any of them. Callers pass a request and receive a fully-resolved spec with explicit defaults and caps before any command runs. The service itself never renders anything to a model; the shell tools own all model-visible output and sandbox guidance.
 
 ## Table of Contents
 
@@ -46,7 +46,7 @@ Every execution starts from a `ShellExecRequest` with optional fields; the execu
 
 ### Choosing and composing an executor
 
-The seam is not an executor: mount exactly one provider per composition, and the tools work unchanged. On POSIX, `dsh-bash-local` runs commands as fresh `bash -c` processes and `dsh-bash-sandbox` confines every command through the sandbox capability; on Windows, `dsh-pwsh-local` and `dsh-pwsh-sandbox` are the counterparts. The `bash` and `pwsh` tools advertise escalation fields only while a sandboxing executor is mounted. The smallest composition is the executor alone:
+The seam is not an executor: mount exactly one provider per composition, and the tools work unchanged. On POSIX, `avn-bash-local` runs commands as fresh `bash -c` processes and `avn-bash-sandbox` confines every command through the sandbox capability; on Windows, `avn-pwsh-local` and `avn-pwsh-sandbox` are the counterparts. The `bash` and `pwsh` tools advertise escalation fields only while a sandboxing executor is mounted. The smallest composition is the executor alone:
 
 ```yaml
 - id: bash
@@ -113,7 +113,7 @@ Read these pages when the seam contract is not enough. They move from the shared
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through `dsh-tool-bash`, which turns executor output and sandbox facts into guidance and retained tool-result tokens.
+Indirectly, through `avn-tool-bash`, which turns executor output and sandbox facts into guidance and retained tool-result tokens.
 
 #### KV Cache effect
 

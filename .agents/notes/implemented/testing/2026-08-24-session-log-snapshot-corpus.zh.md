@@ -6,13 +6,13 @@ Status: implemented
 
 ## Problem
 
-无密钥快照语料通过 ACP 控制许多场景，但这些场景断言的行为实际属于组装后的 Agent、工具、持久化或其他产品接口。这使自动化协议看似拥有后端行为，同时在受支持的 `dsh` 启动器之外保留了测试专用应用入口，并将录制会话分散在示例、SDK、Web 和脚本目录中。
+无密钥快照语料通过 ACP 控制许多场景，但这些场景断言的行为实际属于组装后的 Agent、工具、持久化或其他产品接口。这使自动化协议看似拥有后端行为，同时在受支持的 `avn` 启动器之外保留了测试专用应用入口，并将录制会话分散在示例、SDK、Web 和脚本目录中。
 
 快照一词也用于互不相关的 ARIA、几何、生成器和包级单元测试预期输出。贡献者无法从路径判断测试是否由录制会话驱动、会话是否同时作为回放输入和预期输出，或哪个命令负责刷新。
 
 ## Decision
 
-顶层 `snapshots/` 树和 `*.snapshot.ts` 后缀只用于拥有或显式引用录制会话 JSONL 的场景。每个进程级场景都通过 `dsh` 启动一个随附 profile；小型适配器控制 headless、SDK、ACP 或 Web 行为，但不成为另一个应用入口。声明式 `snapshot.yml` 只保存已完成会话无法表达的 profile、patch、生命周期控制、平台、header pin 和 workspace 事实。
+顶层 `snapshots/` 树和 `*.snapshot.ts` 后缀只用于拥有或显式引用录制会话 JSONL 的场景。每个进程级场景都通过 `avn` 启动一个随附 profile；小型适配器控制 headless、SDK、ACP 或 Web 行为，但不成为另一个应用入口。声明式 `snapshot.yml` 只保存已完成会话无法表达的 profile、patch、生命周期控制、平台、header pin 和 workspace 事实。
 
 本决策取代[一次录制／确定性回放决策](2026-06-19-acp-snapshot-tests.zh.md)中 ACP 专属的放置位置与控制器所有权；后者继续负责会话日志回放、例外 override、规范化和 ACP transcript 比较。
 
@@ -43,7 +43,7 @@ Workspace 输入继续归各场景本地所有。变更文件的场景比较完�
 ## Invariants
 
 - 每个现有录制会话场景都在移除旧所有者之前拥有一个通过的替代场景。
-- 每个进程级快照都通过 `dsh` 启动，应用入口清单不再允许已退休的快照驱动器。
+- 每个进程级快照都通过 `avn` 启动，应用入口清单不再允许已退休的快照驱动器。
 - 每个顶层场景都拥有或引用会话 JSONL；非会话预期输出继续归所有者本地所有。
 - 提交的会话 fixture 是脱敏固定点，不含 system prompt 或工具 schema 正文，并为每个 header 类保留且仅保留一个 pin。
 - 变更内容的场景从外部验证最终 workspace。

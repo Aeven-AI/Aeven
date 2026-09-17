@@ -7,7 +7,7 @@
  * `permissions` session projection; the write side ships as the
  * `/permission` command.
  *
- * @module dsh-permission-presets
+ * @module avn-permission-presets
  */
 
 import { Context, Service } from '@deepseek-ai/cordis'

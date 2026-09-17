@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-cordis-host-runner` makes dynamic packages runnable in this process: definitions the model records with `cordis_define` stay here, host halves run in a `node:vm` sandbox, a package with a browser half waits for a person to approve or decline it on a page, and the model can inspect the live runtime and its definitions here. The model-facing tools live in `@aeven/tool-cordis`, and the browser half loads through `@aeven/cordis-client-runner`. Definitions live only in process memory, so a DSH restart clears them and nothing is written to disk. One config field, `vmTimeoutMs`, bounds synchronous sandbox evaluation.
+`avn-cordis-host-runner` makes dynamic packages runnable in this process: definitions the model records with `cordis_define` stay here, host halves run in a `node:vm` sandbox, a package with a browser half waits for a person to approve or decline it on a page, and the model can inspect the live runtime and its definitions here. The model-facing tools live in `@aeven/tool-cordis`, and the browser half loads through `@aeven/cordis-client-runner`. Definitions live only in process memory, so a AVN restart clears them and nothing is written to disk. One config field, `vmTimeoutMs`, bounds synchronous sandbox evaluation.
 
 ## Table of Contents
 
@@ -47,7 +47,7 @@ A definition is recorded by `cordis_define` and activated by `cordis_run`. A pac
 
 ### What happens to definitions
 
-Definitions are session-scoped and process-local: a package is visible only to the session that defined it, other sessions read it as absent, and everything disappears on DSH restart. The session log keeps the define call's arguments — including the code it submitted — and the receipt; only the in-memory registry holds the parsed definition. A browser half reaches a page only through a run, so a reloaded page holds nothing until someone runs the package again.
+Definitions are session-scoped and process-local: a package is visible only to the session that defined it, other sessions read it as absent, and everything disappears on AVN restart. The session log keeps the define call's arguments — including the code it submitted — and the receipt; only the in-memory registry holds the parsed definition. A browser half reaches a page only through a run, so a reloaded page holds nothing until someone runs the package again.
 
 ### Trust stance
 

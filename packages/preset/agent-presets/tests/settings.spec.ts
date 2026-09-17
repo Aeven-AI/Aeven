@@ -33,7 +33,7 @@ const NS = SETTINGS_NAMESPACE
 async function harness(
   extraRoots: readonly { path: string; trust: 'system' | 'user' }[] = [],
 ): Promise<{ ctx: Context; settingsFile: string; settingsFiber: { dispose: () => unknown } }> {
-  const home = await mkdtemp(join(tmpdir(), 'dsh-preset-settings-'))
+  const home = await mkdtemp(join(tmpdir(), 'avn-preset-settings-'))
   const settingsFile = join(home, 'settings.yaml')
   await writeFile(settingsFile, '{}\n')
 
@@ -118,7 +118,7 @@ describe('the default preset as a user setting', () => {
   })
 
   it('clears a user default it has just deleted', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dsh-preset-authored-'))
+    const root = await mkdtemp(join(tmpdir(), 'avn-preset-authored-'))
     await mkdir(join(root, 'mine'))
     await writeFile(
       join(root, 'mine', COMPOSITION_FILE),

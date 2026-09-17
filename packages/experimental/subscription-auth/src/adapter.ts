@@ -1,4 +1,4 @@
-/** Coding-subscription adapter assembled from public dsh-llm-pi-ai extension points. */
+/** Coding-subscription adapter assembled from public avn-llm-pi-ai extension points. */
 
 import type { AttachmentStore } from '@aeven/attachment'
 import type { RetryPolicyConfig } from '@aeven/llm'
@@ -137,7 +137,7 @@ function profile(
     provider,
     displayName,
     streamIdleTimeoutMs: GROK_BUILD_STREAM_IDLE_TIMEOUT_MS,
-    retryPolicy: resolveRetryPolicy(retryPolicy ?? CODING_OAUTH_RETRY_POLICY, 'dsh-subscription-auth retryPolicy'),
+    retryPolicy: resolveRetryPolicy(retryPolicy ?? CODING_OAUTH_RETRY_POLICY, 'avn-subscription-auth retryPolicy'),
     configuredMaxTokens: new Map(),
     ...REQUEST_IMAGE_POLICY,
     ...(headers === undefined ? {} : { headers }),

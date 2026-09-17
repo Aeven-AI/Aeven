@@ -1,6 +1,6 @@
 /**
  * Optional xAI Grok Build bundle with OAuth, account model catalog,
- * and an account section inside dsh Settings.
+ * and an account section inside avn Settings.
  * @module @aeven/experimental-subscription-auth
  */
 
@@ -48,7 +48,7 @@ import { createCodexModelCapabilities } from './codex-model-capabilities.ts'
 import { createCodexSearchProvider } from './codex-search.ts'
 import { createCodexUsageReader } from './codex-usage.ts'
 import { createCodexProviderUsageReader } from './codex-usage-adapter.ts'
-import { createDshHostAdapter } from './dsh-host-adapter.ts'
+import { createAvnHostAdapter } from './avn-host-adapter.ts'
 import {
   createGrokImagineClient,
   GROK_IMAGINE_IMAGE_TOOL,
@@ -137,7 +137,7 @@ export {
   preferredGrokBuildModelFrom,
   thinkingLevelMapFromLiveEfforts,
 } from './catalog.ts'
-export { createDshHostAdapter } from './dsh-host-adapter.ts'
+export { createAvnHostAdapter } from './avn-host-adapter.ts'
 export type { GrokImportProbe } from './grok-import.ts'
 export { grokAuthPath, importGrokAuth, parseGrokAuthDocument, probeGrokAuth } from './grok-import.ts'
 export type { CodingOAuthProviderSlug, CodingOAuthRoute } from './ids.ts'
@@ -242,7 +242,7 @@ function fixedCredentialRef(value: string): CredentialRef {
   return value as CredentialRef
 }
 
-/** Owner-private artifact directory below the resolved DSH home. */
+/** Owner-private artifact directory below the resolved AVN home. */
 export { IMAGINE_MEDIA_STORE_DIRNAME } from './ids.ts'
 
 /** Optional host services are acquired inside the elected child fiber. */
@@ -352,7 +352,7 @@ async function describeImagineCredential(credentials: CredentialProvider | undef
  * client fingerprint the chat route sends, which is the route the official Grok
  * CLI takes and which requires a SuperGrok tier. `auto` prefers a configured
  * `XAI_API_KEY` and otherwise takes the subscription route.
- * @param credentials - DSH credential provider holding `XAI_API_KEY`.
+ * @param credentials - AVN credential provider holding `XAI_API_KEY`.
  * @param grok - Grok Build session owning the refreshed OAuth access token.
  * @param transport - configured route selection.
  * @param sessionId - stable per-process id sent as `x-grok-session-id`.
@@ -500,7 +500,7 @@ function unavailableImagineClient(): {
  * @param ctx - plugin context carrying the LLM registry plus optional web server.
  */
 export function apply(ctx: Context, config: Config = {}): void {
-  const host = createDshHostAdapter(ctx)
+  const host = createAvnHostAdapter(ctx)
   const lease: CodingOAuthRuntime = acquireCodingOAuthRuntime(host.scope(), {
     id: '@aeven/experimental-subscription-auth',
     role: 'standalone',
@@ -533,7 +533,7 @@ export function apply(ctx: Context, config: Config = {}): void {
       }
     },
   })
-  ctx.effect(() => () => lease.release(), 'dsh-subscription-auth: release shared runtime ownership')
+  ctx.effect(() => () => lease.release(), 'avn-subscription-auth: release shared runtime ownership')
 }
 
 /**
@@ -542,14 +542,14 @@ export function apply(ctx: Context, config: Config = {}): void {
  * child fiber, so a transient LLM unload cannot make account recovery vanish.
  */
 function applyOwned(ctx: Context, config: Config): void {
-  const host = createDshHostAdapter(ctx)
+  const host = createAvnHostAdapter(ctx)
   const ownerRequestPolicy = safeguardOwnerRequestPolicy(
     host.ownerRequestPolicy() ?? createOwnerRequestPolicy(config.ownerRequest),
   )
   const proxyLease = acquireCodingOAuthProxy(
     config.proxy,
   )
-  ctx.effect(() => () => proxyLease.release(), 'dsh-subscription-auth: scoped proxy policy')
+  ctx.effect(() => () => proxyLease.release(), 'avn-subscription-auth: scoped proxy policy')
   const logger = ctx.logger(name)
   const baseCapabilities = resolveCapabilitySettings(config.capabilities)
   const runtime = new CapabilityRuntimeState(baseCapabilities, () => {
@@ -560,7 +560,7 @@ function applyOwned(ctx: Context, config: Config): void {
     () => () => {
       active = false
     },
-    'dsh-subscription-auth: startup lifetime',
+    'avn-subscription-auth: startup lifetime',
   )
   /* v8 ignore next -- replaced synchronously before any credential-change listener can run */
   let invalidateOptionalAuthState = (): void => undefined
@@ -679,7 +679,7 @@ function applyOwned(ctx: Context, config: Config): void {
       releaseActiveSettings()
       capabilityController.dispose()
     },
-    'dsh-subscription-auth: capability settings bridge',
+    'avn-subscription-auth: capability settings bridge',
   )
   ctx.inject(['settings'], (settingsCtx) => {
     // Re-injection may happen before Cordis runs the previous child effect's
@@ -712,7 +712,7 @@ function applyOwned(ctx: Context, config: Config): void {
       runtime.set(capabilityController.current())
     }
     releaseActiveSettings = release
-    settingsCtx.effect(() => release, 'dsh-subscription-auth: capability settings')
+    settingsCtx.effect(() => release, 'avn-subscription-auth: capability settings')
   })
 
 
@@ -738,7 +738,7 @@ function applyOwned(ctx: Context, config: Config): void {
   })
   ctx.inject(['web'], (webCtx) => {
     const web = webCtx.get('web') as CapabilitySearchRegistry
-    webCtx.effect(() => bindCapabilitySearch(runtime, web, search), 'dsh-subscription-auth: Codex search')
+    webCtx.effect(() => bindCapabilitySearch(runtime, web, search), 'avn-subscription-auth: Codex search')
   })
 
   ctx.inject(['tools', 'attachments', 'credentials', 'webServer'], async (toolCtx) => {
@@ -804,7 +804,7 @@ function applyOwned(ctx: Context, config: Config): void {
       if (registry === undefined) return
       mediaCtx.effect(
         () => registry.registerImageProvider(createImagineImageProvider({ imagine: routedImagine })),
-        'dsh-subscription-auth: Imagine image provider',
+        'avn-subscription-auth: Imagine image provider',
       )
       mediaCtx.effect(
         () =>
@@ -826,7 +826,7 @@ function applyOwned(ctx: Context, config: Config): void {
               imageCount: () => runtime.current().imageCount,
             }),
           ),
-        'dsh-subscription-auth: Codex image provider',
+        'avn-subscription-auth: Codex image provider',
       )
     })
 
@@ -848,7 +848,7 @@ function applyOwned(ctx: Context, config: Config): void {
     })
     toolCtx.effect(
       () => bindCapabilityTools(runtime, tools, definitions, () => mediaReadiness),
-      'dsh-subscription-auth: Grok Imagine tools',
+      'avn-subscription-auth: Grok Imagine tools',
     )
     toolCtx.effect(
       () => async () => {
@@ -862,7 +862,7 @@ function applyOwned(ctx: Context, config: Config): void {
           logger.warn('Imagine media cleanup failed')
         }
       },
-      'dsh-subscription-auth: Imagine client and media lifetime',
+      'avn-subscription-auth: Imagine client and media lifetime',
     )
   })
 
@@ -886,7 +886,7 @@ interface OwnedLlmDependencies {
 
 /** LLM-only child runtime, independently restarted by Cordis when LLM changes. */
 function applyOwnedLlm(ctx: Context, config: Config, owner: OwnedLlmDependencies): void {
-  createDshHostAdapter(ctx).assertCompatible()
+  createAvnHostAdapter(ctx).assertCompatible()
   const resolveCodexImageRoute: ResolveCodexImageRoute = exec =>
     resolveCodexImageRouteFromLlm(exec, (provider, model, signal) => ctx.llm.resolveModelInfo(provider, model, signal))
   const adapterRegistration = ctx.llm.registerAdapter(
@@ -897,14 +897,14 @@ function applyOwnedLlm(ctx: Context, config: Config, owner: OwnedLlmDependencies
       },
     }),
   )
-  ctx.effect(() => adapterRegistration, 'dsh-subscription-auth: OAuth LLM adapters')
+  ctx.effect(() => adapterRegistration, 'avn-subscription-auth: OAuth LLM adapters')
   ctx.effect(
     () =>
       bindCodexFastRoute(owner.runtime, owner.codexModels, adapterRegistration, {
         /* v8 ignore next -- Fast eligibility refresh failures are contained */
         onError: () =>{  owner.logger.warn('Codex Fast eligibility refresh failed closed') },
       }),
-    'dsh-subscription-auth: Codex Fast route',
+    'avn-subscription-auth: Codex Fast route',
   )
   ctx.inject(['tools', 'attachments'], async (toolCtx) => {
     const tools = toolCtx.get('tools') as CapabilityToolRegistry
@@ -924,7 +924,7 @@ function applyOwnedLlm(ctx: Context, config: Config, owner: OwnedLlmDependencies
     ).filter(definition => CODEX_TOOL_NAMES.has(definition.name))
     toolCtx.effect(
       () => bindCapabilityTools(owner.runtime, tools, definitions, () => owner.mediaReadiness),
-      'dsh-subscription-auth: Codex image tools',
+      'avn-subscription-auth: Codex image tools',
     )
   })
 }

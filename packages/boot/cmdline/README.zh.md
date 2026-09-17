@@ -1,5 +1,5 @@
 ---
-description: "dsh app bin 的应用自有命令行：应用从启动器剩余参数中解析自己的 flag、--help 与退出行为。"
+description: "avn app bin 的应用自有命令行：应用从启动器剩余参数中解析自己的 flag、--help 与退出行为。"
 kind: "package-library"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-`dsh-cmdline` 让你的应用持有自己的命令行：启动器只保留属于自己的 flag（`--profile`、`--patch`、配置 dump），并把**其后的一切**原样交给你的应用，因此 flag、`--help` 文本与解析错误都由你的应用决定。你从这些参数解析出的值会胜过配置中写下的任何默认值，且无需写回任何内容。你的应用还获得一个有边界的进程退出请求，接到启动器的关停上。当你编写接受自有 flag 的应用 bin 时使用它；它本身不增加任何提示词、schema 或面向模型的表面。
+`avn-cmdline` 让你的应用持有自己的命令行：启动器只保留属于自己的 flag（`--profile`、`--patch`、配置 dump），并把**其后的一切**原样交给你的应用，因此 flag、`--help` 文本与解析错误都由你的应用决定。你从这些参数解析出的值会胜过配置中写下的任何默认值，且无需写回任何内容。你的应用还获得一个有边界的进程退出请求，接到启动器的关停上。当你编写接受自有 flag 的应用 bin 时使用它；它本身不增加任何提示词、schema 或面向模型的表面。
 
 ## 目录
 
@@ -31,7 +31,7 @@ kind: "package-library"
 
 启动器向你的应用提供三样东西：
 
-- `ctx.cmdlineArgs`——本次调用的内层参数。读取它返回一份不可变快照，且绝不会消费或修改它们：`dsh --profile tui --resume abc` 给你的应用 `['--resume', 'abc']`。
+- `ctx.cmdlineArgs`——本次调用的内层参数。读取它返回一份不可变快照，且绝不会消费或修改它们：`avn --profile tui --resume abc` 给你的应用 `['--resume', 'abc']`。
 - `ctx.appExit`——在整棵树关闭后请求进程退出的方式，接到启动器的关停控制器上。
 - `ctx.appReady`——成功启动信号，只在 Loader 树与 launcher 自有设置成功后提交。
 
@@ -59,7 +59,7 @@ kind: "package-library"
     port: !!js ctx.webStartup.port ?? 3080
 ```
 
-结果：即使配置写的是 3080，`dsh --profile web --port 8080` 也会让服务器监听 8080 端口，因为 flag 优先。`--help` 打印你的应用帮助并以 0 退出、不启动任何内容；被拒绝的值（例如非数字端口）打印你的错误并以非零码退出，任何依赖解析值的行都不会启动。
+结果：即使配置写的是 3080，`avn --profile web --port 8080` 也会让服务器监听 8080 端口，因为 flag 优先。`--help` 打印你的应用帮助并以 0 退出、不启动任何内容；被拒绝的值（例如非数字端口）打印你的错误并以非零码退出，任何依赖解析值的行都不会启动。
 
 ### flag 如何胜过配置值
 
@@ -110,9 +110,9 @@ kind: "package-library"
 
 - [应用持有命令行决策](../../../.agents/notes/implemented/architecture/2026-08-06-app-owned-command-line.zh.md)——为什么 flag 家族由应用持有，以及交接如何运作。
 - [命令行 seam 精简](../../../.agents/notes/implemented/architecture/2026-08-11-cmdline-seam-trim.zh.md)——缩减到既有接口的各 seam。
-- [dsh-app-boot](../app-boot/README.zh.md)——提供这些启动器值的启动序列。
-- [dsh-web-app 组合包](../../bundle/web-app/README.zh.md)——通过此包持有 Web flag 家族的应用。
-- [dsh-headless 组合包](../../bundle/headless/README.zh.md)——从命令行读取任务的一次性 runner。
+- [avn-app-boot](../app-boot/README.zh.md)——提供这些启动器值的启动序列。
+- [avn-web-app 组合包](../../bundle/web-app/README.zh.md)——通过此包持有 Web flag 家族的应用。
+- [avn-headless 组合包](../../bundle/headless/README.zh.md)——从命令行读取任务的一次性 runner。
 
 -----
 

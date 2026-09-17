@@ -65,7 +65,7 @@
     "react": "^18.2.0",
     "@aeven/session": "workspace:^"
   },
-  "dsh": {
+  "avn": {
     "client": {
       "inject": [
         "@aeven/client-locale",

@@ -791,7 +791,7 @@ describe('cold titles are never lost (regression: session-<key> in the foldout)'
     readFrom?: () => Promise<unknown>
   }): Promise<Context> {
     const ctx = new Context()
-    const root = await mkdtempAsync(join(tmpdir(), 'dsh-cold-titles-'))
+    const root = await mkdtempAsync(join(tmpdir(), 'avn-cold-titles-'))
     await ctx.plugin(Storage)
     await ctx.plugin(StorageJson, { root })
     await ctx.plugin(StorageDomain, { backend: 'json' })
@@ -804,7 +804,7 @@ describe('cold titles are never lost (regression: session-<key> in the foldout)'
       ? { ...header(options.id, 100), isSeeded: true }
       : header(options.id, 100)
     // A cold log far above the 1 KiB probe budget: the listing must not need it.
-    const logRoot = mkdtempSync(join(tmpdir(), 'dsh-cold-titles-log-'))
+    const logRoot = mkdtempSync(join(tmpdir(), 'avn-cold-titles-log-'))
     const path = join(logRoot, 'titled.log')
     writeFileSync(path, 'x'.repeat(8 * 1024))
     providePersistence(ctx, {

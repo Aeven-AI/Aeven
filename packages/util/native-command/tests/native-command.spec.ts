@@ -25,7 +25,7 @@ describe('runNativeCommand', () => {
 
   it('rejects a missing executable with the spawn ENOENT code', async () => {
     const failure = await runNativeCommand(
-      'dsh-definitely-missing-command',
+      'avn-definitely-missing-command',
       [],
       new AbortController().signal,
     ).then(() => { throw new Error('unexpected resolve') }, (error: unknown) => error)

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-settings-file` keeps every namespace's user settings in one YAML or JSON document, by default `settings.yaml` under the harness home: users can edit the document directly — changes take effect live — or write through the service, which merges concurrent edits safely. YAML writes preserve comments, anchors, and formatting on every untouched node, and a section owned by a plugin that is not loaded is never dropped. Boot fails loud on an invalid document; a live reload that fails keeps the last good sections and warns rather than taking the process down.
+`avn-settings-file` keeps every namespace's user settings in one YAML or JSON document, by default `settings.yaml` under the harness home: users can edit the document directly — changes take effect live — or write through the service, which merges concurrent edits safely. YAML writes preserve comments, anchors, and formatting on every untouched node, and a section owned by a plugin that is not loaded is never dropped. Boot fails loud on an invalid document; a live reload that fails keeps the last good sections and warns rather than taking the process down.
 
 ## Table of Contents
 
@@ -42,7 +42,7 @@ Choose it as the default user-settings store: one human-readable document that u
 | Field | Default | Meaning |
 |---|---|---|
 | `path` | `<harness home>/settings.yaml` | Settings document path; the extension picks the format (`.yaml`, `.yml`, or `.json`) |
-| `dshHome` | `$AVN_HOME` or `~/.dsh` | Harness home used when `path` is omitted |
+| `avnHome` | `$AVN_HOME` or `~/.avn` | Harness home used when `path` is omitted |
 | `watch` | `true` | Watch the document and hot-publish external edits |
 | `debounceMs` | `100` | Watcher write-settle window, in milliseconds |
 

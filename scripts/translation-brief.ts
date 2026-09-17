@@ -7,7 +7,7 @@
  * the binding update rules. The unit mapping, mechanical code splice, and
  * first-occurrence tracking follow the incremental-pipeline planner mechanics.
  * The CLI wrapper is `scripts/gen-translation-brief.ts`; the workflow that
- * consumes the briefing is `.agents/skills/dsh-translate-docs/SKILL.md`.
+ * consumes the briefing is `.agents/skills/avn-translate-docs/SKILL.md`.
  */
 
 import type { Nodes } from 'mdast'

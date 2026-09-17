@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-media-pi-ai` registers pi-ai's images registry as a `ctx.media` image backend, so a deployment that already trusts pi-ai for chat reaches its image catalog the same way. pi-ai owns the transports and the model metadata — 45 OpenRouter image models at the pinned version, including the FLUX.2 and Seedream families — while this package owns credential resolution, translating the seam's request into pi-ai's input content, and turning pi-ai's in-band failures into `MediaError`. Mount it when a deployment wants OpenRouter images without a hand-written client.
+`avn-media-pi-ai` registers pi-ai's images registry as a `ctx.media` image backend, so a deployment that already trusts pi-ai for chat reaches its image catalog the same way. pi-ai owns the transports and the model metadata — 45 OpenRouter image models at the pinned version, including the FLUX.2 and Seedream families — while this package owns credential resolution, translating the seam's request into pi-ai's input content, and turning pi-ai's in-band failures into `MediaError`. Mount it when a deployment wants OpenRouter images without a hand-written client.
 
 ## Table of Contents
 
@@ -24,7 +24,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount the provider in a composition that already loads `dsh-media`; it registers as an image provider under `openrouter` by default, so `ctx.media.generateImage()` resolves it automatically when it is the only usable image backend — or name it in the request.
+Mount the provider in a composition that already loads `avn-media`; it registers as an image provider under `openrouter` by default, so `ctx.media.generateImage()` resolves it automatically when it is the only usable image backend — or name it in the request.
 
 ### Minimal configuration
 

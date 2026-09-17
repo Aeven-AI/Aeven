@@ -762,8 +762,8 @@ describe('ChatView', () => {
     const navigation = view.getByRole('navigation', { name: '轮次导航' })
     // A fixed-pitch ladder over the outline: two marks sit one pitch apart, and
     // the band is the distance between their centres.
-    expect(navigation.style.getPropertyValue('--dsh-turn-pitch')).toBe('10px')
-    expect(navigation.style.getPropertyValue('--dsh-turn-band')).toBe('10px')
+    expect(navigation.style.getPropertyValue('--avn-turn-pitch')).toBe('10px')
+    expect(navigation.style.getPropertyValue('--avn-turn-band')).toBe('10px')
     const first = view.getByRole('button', { name: '跳转到第 1 轮' })
     const second = view.getByRole('button', { name: '跳转到第 2 轮' })
     expect(first.style.top).toBe('0px')
@@ -1021,8 +1021,8 @@ describe('ChatView', () => {
     const nav = view.getByRole('navigation', { name: '轮次导航' })
     // 43 marks fit the band at the comfortable pitch: one tick per Turn, no
     // inner scroller, and the ladder spans exactly its own band.
-    expect(nav.style.getPropertyValue('--dsh-turn-pitch')).toBe('10px')
-    expect(nav.style.getPropertyValue('--dsh-turn-band')).toBe('420px')
+    expect(nav.style.getPropertyValue('--avn-turn-pitch')).toBe('10px')
+    expect(nav.style.getPropertyValue('--avn-turn-band')).toBe('420px')
     expect(nav.querySelectorAll('button')).toHaveLength(43)
     expect(nav.querySelector('[class*="scroller"]')).toBeNull()
 
@@ -1053,10 +1053,10 @@ describe('ChatView', () => {
     const long = view.getByRole('navigation', { name: '轮次导航' })
     // Past what the comfortable pitch holds, the ladder tightens rather than
     // scrolling: every mark stays inside the one band.
-    const pitch = Number.parseFloat(long.style.getPropertyValue('--dsh-turn-pitch'))
+    const pitch = Number.parseFloat(long.style.getPropertyValue('--avn-turn-pitch'))
     expect(pitch).toBeGreaterThan(2)
     expect(pitch).toBeLessThan(10)
-    expect(Number.parseFloat(long.style.getPropertyValue('--dsh-turn-band'))).toBeCloseTo(420, 6)
+    expect(Number.parseFloat(long.style.getPropertyValue('--avn-turn-band'))).toBeCloseTo(420, 6)
     expect(long.querySelectorAll('button')).toHaveLength(60)
   })
 

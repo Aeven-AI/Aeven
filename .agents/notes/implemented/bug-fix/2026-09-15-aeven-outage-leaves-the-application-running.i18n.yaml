@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-15-aeven-outage-leaves-the-application-running.md
-2026-09-15-aeven-outage-leaves-the-application-running.md: 022362cad412bc95c0f8cd12aa9b57e5401bc908
-2026-09-15-aeven-outage-leaves-the-application-running.zh.md: 6d1c3b6f74ac31255eedad023e57e063cf55f73b
+2026-09-15-aeven-outage-leaves-the-application-running.md: c7c031b1516a7f1f3bf3a1923d9858c32d9105a1
+2026-09-15-aeven-outage-leaves-the-application-running.zh.md: 152b642f29a050e1371e758abcaa5b8027976a7a

@@ -27,7 +27,7 @@ import {
   DESKTOP_PACKAGE_SET_FILE,
   DESKTOP_HOST_PACKAGE,
   desktopCorePackageOverrides,
-  desktopDshPackageSpec,
+  desktopAvnPackageSpec,
   readDesktopCorePackageSet,
   verifyDesktopCorePackageSet,
 } from './core-package-set.ts'
@@ -56,7 +56,7 @@ interface DesktopProjectManifest {
   readonly private: true
   readonly version: string
   readonly dependencies: Record<string, string>
-  readonly dsh: {
+  readonly avn: {
     readonly profile: {
       readonly bundles: string[]
     }
@@ -253,8 +253,8 @@ export function verifySeedIntegrity(seedDir: string): void {
 function projectManifest(projectDir: string): DesktopProjectManifest {
   const path = join(projectDir, 'package.json')
   const value = readJson(path)
-  const dsh = isRecord(value) && isRecord(value.dsh) ? value.dsh : undefined
-  const profile = isRecord(dsh?.profile) ? dsh.profile : undefined
+  const avn = isRecord(value) && isRecord(value.avn) ? value.avn : undefined
+  const profile = isRecord(avn?.profile) ? avn.profile : undefined
   if (!isRecord(value) || value.name !== PROJECT_NAME || value.private !== true
     || typeof value.version !== 'string' || !isRecord(value.dependencies)
     || !Array.isArray(profile?.bundles) || !profile.bundles.every(bundle => typeof bundle === 'string')) {
@@ -263,7 +263,7 @@ function projectManifest(projectDir: string): DesktopProjectManifest {
   const manifest = value as unknown as DesktopProjectManifest
   const packageSet = readDesktopCorePackageSet(projectDir, releaseFile(projectDir).version)
   const expectedOverrides = desktopCorePackageOverrides(packageSet)
-  if (manifest.dependencies[AVN_PACKAGE] !== desktopDshPackageSpec(packageSet)
+  if (manifest.dependencies[AVN_PACKAGE] !== desktopAvnPackageSpec(packageSet)
     || Object.entries(expectedOverrides).some(([name, spec]) => manifest.dependencies[name] !== spec)
     || readFileSync(join(projectDir, 'pnpm-workspace.yaml'), 'utf8') !== workspaceFile(expectedOverrides)) {
     throw new Error(`desktop project: core package mapping does not match ${DESKTOP_PACKAGE_SET_FILE}`)
@@ -272,7 +272,7 @@ function projectManifest(projectDir: string): DesktopProjectManifest {
 }
 
 function profilePluginNames(projectDir: string): readonly string[] {
-  const bundles = projectManifest(projectDir).dsh.profile.bundles
+  const bundles = projectManifest(projectDir).avn.profile.bundles
   if (!DESKTOP_PROFILE_BUNDLES.every((bundle, index) => bundles[index] === bundle)) {
     throw new Error('desktop project: profile must begin with the built-in desktop bundle list')
   }
@@ -292,10 +292,10 @@ function writeProfilePlugins(projectDir: string, plugins: readonly DesktopPlugin
   const manifest = projectManifest(projectDir)
   writeJson(join(projectDir, 'package.json'), {
     ...manifest,
-    dsh: {
-      ...manifest.dsh,
+    avn: {
+      ...manifest.avn,
       profile: {
-        ...manifest.dsh.profile,
+        ...manifest.avn.profile,
         bundles: [...DESKTOP_PROFILE_BUNDLES, ...plugins.map(plugin => plugin.name)],
       },
     },
@@ -311,11 +311,11 @@ function inspectPlugin(projectDir: string, requestedName: string): DesktopPlugin
   if (!isRecord(manifest) || manifest.name !== requestedName || typeof manifest.version !== 'string') {
     throw new Error(`desktop project: installed package ${JSON.stringify(requestedName)} has inconsistent name or version`)
   }
-  const dsh = manifest.dsh
-  const bundle = isRecord(dsh) ? dsh.bundle : undefined
+  const avn = manifest.avn
+  const bundle = isRecord(avn) ? avn.bundle : undefined
   const patch = isRecord(bundle) ? bundle.patch : undefined
   if (typeof patch !== 'string' || patch === '') {
-    throw new Error(`desktop project: ${requestedName}@${manifest.version} does not declare dsh.bundle.patch`)
+    throw new Error(`desktop project: ${requestedName}@${manifest.version} does not declare avn.bundle.patch`)
   }
   const packageDir = dirname(manifestPath)
   const patchPath = resolve(packageDir, patch)
@@ -368,8 +368,8 @@ export class DesktopProjectManager {
     return pluginRecords(this.paths.profile)
   }
 
-  /** Read the exact dsh version installed in the active desktop project. */
-  dshVersion(): string {
+  /** Read the exact avn version installed in the active desktop project. */
+  avnVersion(): string {
     if (!existsSync(this.paths.profile)) throw new Error('desktop project: active profile is not installed')
     return this.installedPackageVersion(AVN_PACKAGE)
   }
@@ -401,7 +401,7 @@ export class DesktopProjectManager {
         throw new Error(`desktop project: seed ${target.version} does not match Electron ${electronVersion}`)
       }
       if (existsSync(this.paths.profile) && this.releaseVersion() === target.version
-        && this.dshVersion() === target.version
+        && this.avnVersion() === target.version
         && this.installedPackageVersion(DESKTOP_HOST_PACKAGE) === target.version) {
         verifyDesktopCorePackageSet(this.paths.profile, target.version)
         return false
@@ -682,7 +682,7 @@ export class DesktopProjectManager {
   }
 }
 
-/** Create seed metadata for one exact Electron and dsh release. */
+/** Create seed metadata for one exact Electron and avn release. */
 export function createSeedMetadata(seedDir: string, release: DesktopRelease): void {
   mkdirSync(seedDir, { recursive: true, mode: 0o700 })
   const packageSet = verifyDesktopCorePackageSet(seedDir, release.version)
@@ -691,7 +691,7 @@ export function createSeedMetadata(seedDir: string, release: DesktopRelease): vo
     private: true,
     version: '0.0.0',
     dependencies: desktopCorePackageOverrides(packageSet),
-    dsh: { profile: { bundles: [...DESKTOP_PROFILE_BUNDLES] } },
+    avn: { profile: { bundles: [...DESKTOP_PROFILE_BUNDLES] } },
   }
   writeJson(join(seedDir, 'package.json'), manifest)
   writeFileSync(
@@ -717,7 +717,7 @@ export function createDevelopmentProjectMetadata(projectDir: string, release: De
       [AVN_PACKAGE]: release.version,
       [DESKTOP_HOST_PACKAGE]: release.version,
     },
-    dsh: { profile: { bundles: [...DESKTOP_PROFILE_BUNDLES] } },
+    avn: { profile: { bundles: [...DESKTOP_PROFILE_BUNDLES] } },
   }
   writeJson(join(projectDir, 'package.json'), manifest)
   writeFileSync(join(projectDir, 'pnpm-workspace.yaml'), workspaceFile(), { mode: 0o600 })

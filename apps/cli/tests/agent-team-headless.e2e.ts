@@ -6,7 +6,7 @@ import { execa } from 'execa'
 import { describe, expect, it } from 'vitest'
 import { resolveExampleLaunch } from '@aeven/loader-smoke'
 
-const dshBinScript = fileURLToPath(new URL('../src/bin.ts', import.meta.url))
+const avnBinScript = fileURLToPath(new URL('../src/bin.ts', import.meta.url))
 const tsconfigPath = fileURLToPath(new URL('../../../tsconfig.json', import.meta.url))
 const fixturePlugin = pathToFileURL(fileURLToPath(
   new URL('./profiles/headless/tests/fixtures/team-llm.mjs', import.meta.url),
@@ -16,21 +16,21 @@ function records(content: string): Record<string, unknown>[] {
   return content.split('\n').filter(Boolean).map(line => JSON.parse(line) as Record<string, unknown>)
 }
 
-describe('dsh run with Agent Teams enabled', () => {
+describe('avn run with Agent Teams enabled', () => {
   it('runs two teammates, durable peer mail, dependent tasks, waiting, and final aggregation', async () => {
-    const cwd = await mkdtemp(join(tmpdir(), 'dsh-agent-team-headless-'))
+    const cwd = await mkdtemp(join(tmpdir(), 'avn-agent-team-headless-'))
     try {
-      const home = join(cwd, '.dsh')
+      const home = join(cwd, '.avn')
       const sessions = join(home, 'sessions')
       const profileDir = join(home, 'profiles', 'headless')
       await mkdir(profileDir, { recursive: true })
       await writeFile(join(profileDir, 'package.json'), JSON.stringify({
-        name: 'dsh-profile-headless',
+        name: 'avn-profile-headless',
         private: true,
         dependencies: {
           '@aeven/experimental-agent-team-profile': 'workspace:^',
         },
-        dsh: {
+        avn: {
           profile: {
             bundles: [
               '@aeven/base',
@@ -53,7 +53,7 @@ describe('dsh run with Agent Teams enabled', () => {
         '',
       ].join('\n'))
       const launch = resolveExampleLaunch({
-        srcBin: dshBinScript,
+        srcBin: avnBinScript,
         configArgs: ['--profile', 'headless', '请明确使用 Agent Teams，把调研和实现拆给两个 teammate，等待完成后汇总。'],
         tsconfigPath,
         env: {
@@ -78,7 +78,7 @@ describe('dsh run with Agent Teams enabled', () => {
       })
       expect(
         result.exitCode,
-        `dsh headless profile exited unexpectedly.\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+        `avn headless profile exited unexpectedly.\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
       ).toBe(0)
       expect(result.stderr).toBe('')
       expect(result.stdout).toContain('TEAM_WORKFLOW_OK')

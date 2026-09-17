@@ -1,8 +1,8 @@
 /**
  * Aeven sign-in for the desktop renderer. The renderer addresses the Aeven API
- * at a same-origin `dsh-app://` path; this module forwards only the sign-in
+ * at a same-origin `avn-app://` path; this module forwards only the sign-in
  * routes through Electron's persistent session, which keeps the API's refresh
- * cookie that a cross-site `dsh-app://` page cannot. Provider sign-in runs in a
+ * cookie that a cross-site `avn-app://` page cannot. Provider sign-in runs in a
  * separate window whose landing URL is handed back to the application.
  */
 
@@ -29,7 +29,7 @@ export type AevenApiFetch = (url: string, init: RequestInit) => Promise<Response
 
 /**
  * Resolve a renderer request to the Aeven API URL it may reach.
- * @param requestUrl - `dsh-app://app` URL below {@link DESKTOP_AEVEN_API_PATH}.
+ * @param requestUrl - `avn-app://app` URL below {@link DESKTOP_AEVEN_API_PATH}.
  * @param apiUrl - Aeven API URL reported by the Host.
  * @returns the target URL, or undefined when the route is not a sign-in route.
  */

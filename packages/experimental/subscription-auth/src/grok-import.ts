@@ -1,6 +1,6 @@
 /**
- * One-shot import of Grok CLI credentials into the dsh-owned store.
- * The source file is never written. Refresh tokens rotate, so later dsh
+ * One-shot import of Grok CLI credentials into the avn-owned store.
+ * The source file is never written. Refresh tokens rotate, so later avn
  * refresh may invalidate ~/.grok/auth.json — that is documented, not a bug.
  * @module @aeven/experimental-subscription-auth/grok-import
  */
@@ -146,7 +146,7 @@ export async function probeGrokAuth(filename: string = grokAuthPath()): Promise<
 }
 
 /**
- * Copy Grok CLI tokens into the dsh store. Does not write the Grok file.
+ * Copy Grok CLI tokens into the avn store. Does not write the Grok file.
  * @param store - Credential store used by the operation.
  * @param filename - Source filename used in diagnostics.
  * @returns The resulting import grok auth.

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package provides the local storage and image-processing backend for attachments: source images are validated, oriented, stripped of metadata and color profiles, normalized to 8-bit sRGB/sRGBA, and saved below `AVN_HOME`; route-specific request versions are derived and cached separately. It is what the shipped `dsh` composition uses, so durable image attachments work without configuration. Identical normalized images are stored only once, concurrent reads of one request variant share work, and stored images stay readable after later admission-limit changes. Storage is local to this machine — other hosts cannot read these images — and objects are never deleted automatically.
+This package provides the local storage and image-processing backend for attachments: source images are validated, oriented, stripped of metadata and color profiles, normalized to 8-bit sRGB/sRGBA, and saved below `AVN_HOME`; route-specific request versions are derived and cached separately. It is what the shipped `avn` composition uses, so durable image attachments work without configuration. Identical normalized images are stored only once, concurrent reads of one request variant share work, and stored images stay readable after later admission-limit changes. Storage is local to this machine — other hosts cannot read these images — and objects are never deleted automatically.
 
 ## Table of Contents
 
@@ -37,7 +37,7 @@ Mount the plugin with no required configuration. The defaults below define what 
 
 | Field | Default | Meaning |
 |---|---|---|
-| `dshHome` | resolved | Explicit harness home; omitted follows `$AVN_HOME`, then `~/.dsh` |
+| `avnHome` | resolved | Explicit harness home; omitted follows `$AVN_HOME`, then `~/.avn` |
 | `maxImageBytes` | `20 MiB` | Maximum encoded source bytes accepted for one image |
 | `maxImagesPerMessage` | `20` | Maximum image count accepted in one submitted message |
 | `maxMessageImageBytes` | `200 MiB` | Maximum aggregate encoded source bytes in one submitted message |

@@ -28,7 +28,7 @@ This package renders a read-only catalog of the current Session's active Schedul
 Enable the Schedule overlay before starting the Web Session that should expose reminders:
 
 ```sh
-dsh web --patch apps/cli/config/examples/schedule/cordis.yml
+avn web --patch apps/cli/config/examples/schedule/cordis.yml
 ```
 
 The shipped Web graph already resolves `@aeven/client-ui-schedule` through a disabled `ui-schedule` row; the overlay enables that row together with `@aeven/schedule`. The trigger appears only while the Session is successfully open and the projection contains at least one active record. Opening it shows overdue rows first, then future rows by target time, with exact ties preserving the projection's creation order.

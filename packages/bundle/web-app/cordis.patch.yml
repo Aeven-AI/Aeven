@@ -1,5 +1,5 @@
-# The dsh-web-app bundle patch: the browser surface over the dsh-base layer.
-# Applied after dsh-base's insert; rows here override base rows by id, with
+# The avn-web-app bundle patch: the browser surface over the avn-base layer.
+# Applied after avn-base's insert; rows here override base rows by id, with
 # the profile's own cordis.patch.yml and any --patch overlays still to come.
 #
 # A patch replaces the targeted row's whole `config`, so each row below
@@ -9,7 +9,7 @@
 # ordinary Cordis service. Rows configured from flags inject that service, so
 # Loader resolves their expressions only after it exists. The web runtime then
 # provides bind-dependent `webRuntime` values to the trust fence.
-# `dsh --profile web --help` provides neither service, so no server binds.
+# `avn --profile web --help` provides neither service, so no server binds.
 
 # ── surface-specific values the base deliberately omits ─────────────────────
 
@@ -28,7 +28,7 @@
 
 - id: tools
   config:
-    # TEMPORARY workaround: AVN_TOOLS_MODE (native|ptc|both) opts a whole dsh
+    # TEMPORARY workaround: AVN_TOOLS_MODE (native|ptc|both) opts a whole avn
     # process into PTC mode while per-session tool-presentation selection is being
     # designed; unset keeps the schema default (native). Remove the env seam
     # once the web UI owns the choice per session.
@@ -36,7 +36,7 @@
 
 # ── web-only host rows, the transport layer, and the browser roster ─────────
 
-# `dsh.client` rows are the browser roster the modules node half scans into
+# `avn.client` rows are the browser roster the modules node half scans into
 # window.__DSH_BOOT__; the modules row is simultaneously a host row.
 - insert:
     # Host-owned opt-in sampled when a new Web session receives its preset
@@ -109,7 +109,7 @@
     # disable this row and `ui-account-aeven` together.
     #
     # The two secrets are the Aeven API's own JWT_SECRET and REFRESH_SECRET;
-    # verification is local, so identifying a caller costs no request. DSH must
+    # verification is local, so identifying a caller costs no request. AVN must
     # be served from the same site as the API: a WebSocket upgrade carries no
     # header and authenticates by cookie alone, and `localhost` and `127.0.0.1`
     # are different sites to a browser.
@@ -163,7 +163,7 @@
         compressionThresholdBytes: 1024
 
     # Web glue owned by this bundle: resolves the built frontend dist (an
-    # assembly fact of dsh-web-app, never user config), mounts the
+    # assembly fact of avn-web-app, never user config), mounts the
     # frontend-static fallback owner, registers the web-surface prompt
     # section and the bash runtime variable, prints the URL line, and opens the
     # canonical local URL after the full tree settles. The webStartup provider
@@ -187,7 +187,7 @@
     - id: client-hmr
       name: '@aeven/client-hmr'
 
-    # ── browser plugin roster (dsh.client rows; node halves are layer-2 hosts) ──
+    # ── browser plugin roster (avn.client rows; node halves are layer-2 hosts) ──
 
     # Dual-face: the node half scans this tree, composes window.__DSH_BOOT__,
     # and serves /plugins/<id>/client.js; the browser half is the module table
@@ -495,7 +495,7 @@
       name: '@aeven/media-openrouter'
 
 # The preset roster. The shipped presets are bundled inside
-# `dsh-agent-presets` itself and prepended as a read-only `system` root
+# `avn-agent-presets` itself and prepended as a read-only `system` root
 # (`includeShippedRoot`); `$AVN_HOME/.agent-presets` is where a person — or an
 # agent — authors their own, appended by the same package (`includeUserRoot`),
 # and carries the same trust as shell access because a preset IS a

@@ -74,7 +74,7 @@ async function setup() {
 }
 
 function workspaceRoot(): string {
-  return mkdtempSync(join(tmpdir(), 'dsh-acl-grants-ws-'))
+  return mkdtempSync(join(tmpdir(), 'avn-acl-grants-ws-'))
 }
 
 function flag(argv: readonly string[], name: string): string | undefined {
@@ -113,7 +113,7 @@ describe('windows-acl write grants (LocalSandboxProvider)', () => {
       const tempDir = flag(confined.argv, '--temp')
       const tempSid = flag(confined.argv, '--temp-write-sid')
       expect(tempDir).toBeDefined()
-      expect(basename(tempDir ?? '')).toMatch(/^dsh-[A-Za-z0-9_-]{6}$/u)
+      expect(basename(tempDir ?? '')).toMatch(/^avn-[A-Za-z0-9_-]{6}$/u)
       expect(tempSid).toBe(`TEMP:${tempDir}`)
       expect(tempSid).not.toBe(WORKSPACE_SID)
       expect(confined.argv).toEqual([

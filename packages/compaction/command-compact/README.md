@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-command-compact` adds a `/compact` command to chat UIs: type it and the conversation condenses on demand — the older history is replaced by one summary even before automatic pressure triggers. The command works with any condensation backend and does not consume a model turn; after it finishes you see how many history items were condensed and the estimated tokens saved. While the agent is mid-turn or condensation is already running, it tells you condensation is unavailable. Prompts you send while it runs stay queued and start after it finishes.
+`avn-command-compact` adds a `/compact` command to chat UIs: type it and the conversation condenses on demand — the older history is replaced by one summary even before automatic pressure triggers. The command works with any condensation backend and does not consume a model turn; after it finishes you see how many history items were condensed and the estimated tokens saved. While the agent is mid-turn or condensation is already running, it tells you condensation is unavailable. Prompts you send while it runs stay queued and start after it finishes.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Type `/compact` in a chat UI when the conversation has grown long and you want to condense it immediately. The shipped `dsh` base mounts the command next to the default backend, so it is usually already available.
+Type `/compact` in a chat UI when the conversation has grown long and you want to condense it immediately. The shipped `avn` base mounts the command next to the default backend, so it is usually already available.
 
 ### Using the command
 
@@ -62,7 +62,7 @@ Mount the command registry, one condensation backend, and this plugin:
   name: '@aeven/command-compact'
 ```
 
-The shipped `dsh` base mounts it beside the default backend, and the Web client provides the command adapter. Automation surfaces that compose no command adapter keep automatic condensation only.
+The shipped `avn` base mounts it beside the default backend, and the Web client provides the command adapter. Automation surfaces that compose no command adapter keep automatic condensation only.
 
 ### What happens to the conversation
 

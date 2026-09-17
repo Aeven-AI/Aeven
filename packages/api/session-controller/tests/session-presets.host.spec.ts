@@ -41,7 +41,7 @@ function roster(ids: readonly string[]): unknown {
 }
 
 async function harness(presets?: readonly string[]) {
-  const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'dsh-session-preset-')))
+  const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'avn-session-preset-')))
   const ctx = new Context()
   await ctx.plugin(SessionStore)
   await ctx.plugin(AgentRegistry)

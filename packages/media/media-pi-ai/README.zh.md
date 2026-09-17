@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-media-pi-ai` 把 pi-ai 的 images 注册表注册为 `ctx.media` 的图片后端，因此已经在聊天上信任 pi-ai 的部署可以用同样的方式触达它的图片目录。pi-ai 拥有传输层与模型元数据——在所固定的版本上是 45 个 OpenRouter 图片模型，含 FLUX.2 与 Seedream 系列——而本包拥有凭据解析、把 seam 的请求转换为 pi-ai 的输入内容，以及把 pi-ai 的带内失败转为 `MediaError`。当部署希望无需手写客户端即可使用 OpenRouter 图片时挂载它。
+`avn-media-pi-ai` 把 pi-ai 的 images 注册表注册为 `ctx.media` 的图片后端，因此已经在聊天上信任 pi-ai 的部署可以用同样的方式触达它的图片目录。pi-ai 拥有传输层与模型元数据——在所固定的版本上是 45 个 OpenRouter 图片模型，含 FLUX.2 与 Seedream 系列——而本包拥有凭据解析、把 seam 的请求转换为 pi-ai 的输入内容，以及把 pi-ai 的带内失败转为 `MediaError`。当部署希望无需手写客户端即可使用 OpenRouter 图片时挂载它。
 
 ## 目录
 
@@ -24,7 +24,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在已经加载 `dsh-media` 的组合中挂载本 provider；它默认以 `openrouter` 作为图片 provider 注册，因此当它是唯一可用的图片后端时 `ctx.media.generateImage()` 会自动解析到它——也可以在请求中指名。
+在已经加载 `avn-media` 的组合中挂载本 provider；它默认以 `openrouter` 作为图片 provider 注册，因此当它是唯一可用的图片后端时 `ctx.media.generateImage()` 会自动解析到它——也可以在请求中指名。
 
 ### 最小配置
 

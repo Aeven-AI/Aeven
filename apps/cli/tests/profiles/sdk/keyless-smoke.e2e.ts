@@ -44,13 +44,13 @@ function waitForLine(
   })
 }
 
-describe('Python SDK dsh profile keyless smoke', () => {
+describe('Python SDK avn profile keyless smoke', () => {
   it.each([
     { label: 'reports max-token turns with the default mapping config', envValue: undefined },
     { label: 'reports max-token turns with mapping enabled through env', envValue: 'true' },
     { label: 'reports max-token turns with mapping disabled through env', envValue: 'false' },
   ])('$label', async ({ envValue }) => {
-    const root = await mkdtemp(join(tmpdir(), 'dsh-python-sdk-runtime-smoke-'))
+    const root = await mkdtemp(join(tmpdir(), 'avn-python-sdk-runtime-smoke-'))
     const modelRequests: Record<string, unknown>[] = []
     const modelServer = createServer((request, response) => {
       let body = ''
@@ -79,7 +79,7 @@ describe('Python SDK dsh profile keyless smoke', () => {
     ], {
       cwd: repoRoot,
       env: {
-        AVN_HOME: join(root, '.dsh'),
+        AVN_HOME: join(root, '.avn'),
         AVN_PERMISSION_MODE: 'danger-full-access',
         AVN_TELEMETRY_DISABLED: '1',
         DEEPSEEK_API_KEY: 'keyless-smoke-no-call',
@@ -162,7 +162,7 @@ describe('Python SDK dsh profile keyless smoke', () => {
       expect(shutdown).toMatchObject({ jsonrpc: '2.0', id: 3, result: {} })
       const exit = await child
       expect(exit.exitCode, `signal=${String(exit.signal)}; stderr=${stderr}`).toBe(0)
-      const sessionsRoot = join(root, '.dsh', 'sessions')
+      const sessionsRoot = join(root, '.avn', 'sessions')
       const files = await readdir(sessionsRoot, { recursive: true })
       const log = files.find(file => file.endsWith('.jsonl.zstd'))
       expect(log).toBeDefined()
@@ -179,7 +179,7 @@ describe('Python SDK dsh profile keyless smoke', () => {
   }, 40_000)
 
   it('boots the standalone minimal profile through its generated manifest', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dsh-python-sdk-minimal-'))
+    const root = await mkdtemp(join(tmpdir(), 'avn-python-sdk-minimal-'))
     const modelServer = createServer((request, response) => {
       request.resume()
       request.on('end', () => {
@@ -202,7 +202,7 @@ describe('Python SDK dsh profile keyless smoke', () => {
     ], {
       cwd: repoRoot,
       env: {
-        AVN_HOME: join(root, '.dsh'),
+        AVN_HOME: join(root, '.avn'),
         AVN_SYSTEM_PROMPT: 'Minimal allowlist prompt.',
         DEEPSEEK_API_KEY: 'keyless-smoke-no-call',
         DEEPSEEK_BASE_URL: `http://127.0.0.1:${address.port}`,
@@ -243,9 +243,9 @@ describe('Python SDK dsh profile keyless smoke', () => {
       }, () => stderr)
 
       const profile = JSON.parse(
-        await readFile(join(root, '.dsh', 'profiles', 'sdk-minimal', 'package.json'), 'utf8'),
-      ) as { dsh?: { profile?: { bundles?: string[]; patchReload?: string } } }
-      expect(profile.dsh?.profile).toEqual({
+        await readFile(join(root, '.avn', 'profiles', 'sdk-minimal', 'package.json'), 'utf8'),
+      ) as { avn?: { profile?: { bundles?: string[]; patchReload?: string } } }
+      expect(profile.avn?.profile).toEqual({
         bundles: ['@aeven/sdk-minimal'],
         patchReload: 'startup',
       })
@@ -263,7 +263,7 @@ describe('Python SDK dsh profile keyless smoke', () => {
   }, 40_000)
 
   it('rejects an invalid max-token success env value', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dsh-python-sdk-runtime-invalid-'))
+    const root = await mkdtemp(join(tmpdir(), 'avn-python-sdk-runtime-invalid-'))
     try {
       const { exitCode, stdout, stderr } = await execa(process.execPath, [
         '--import',
@@ -274,7 +274,7 @@ describe('Python SDK dsh profile keyless smoke', () => {
       ], {
         cwd: repoRoot,
         env: {
-          AVN_HOME: join(root, '.dsh'),
+          AVN_HOME: join(root, '.avn'),
           DEEPSEEK_API_KEY: 'keyless-smoke-no-call',
           AVN_MAX_TOKENS_AS_SUCCESS: 'sometimes',
         },

@@ -6,11 +6,11 @@ English | [中文](2026-09-03-normalized-unread-fs-tool-diagnostic.zh.md)
 
 ## Problem
 
-The `dsh-tool-fs` write and edit operations can receive `FS_NOT_OBSERVED` from either the observation policy or a filesystem provider. Those sources describe the same requirement with operation-specific messages, so identical recovery conditions reach the model with different wording. Provider text can also expose whether the rejected operation would overwrite an existing target, although the model only needs to read the target and retry.
+The `avn-tool-fs` write and edit operations can receive `FS_NOT_OBSERVED` from either the observation policy or a filesystem provider. Those sources describe the same requirement with operation-specific messages, so identical recovery conditions reach the model with different wording. Provider text can also expose whether the rejected operation would overwrite an existing target, although the model only needs to read the target and retry.
 
 ## Decision
 
-`remediateFsError(error, displayPath)` replaces every `FS_NOT_OBSERVED` message at the `dsh-tool-fs` model boundary with `cannot modify "<path>": file has not been read — read the file, then retry`. The wrapper preserves the structured error code and chains the source error as `cause`, so machine routing and diagnostics can still inspect the original failure.
+`remediateFsError(error, displayPath)` replaces every `FS_NOT_OBSERVED` message at the `avn-tool-fs` model boundary with `cannot modify "<path>": file has not been read — read the file, then retry`. The wrapper preserves the structured error code and chains the source error as `cause`, so machine routing and diagnostics can still inspect the original failure.
 
 `FS_STALE_VERSION` retains the appended re-read remedy owned by the [guarded-mutation remedy note](../feature/2026-08-03-fs-tool-error-remedy.md). Filesystem providers and policies keep their operation-specific messages because other consumers do not share the tool's model-facing presentation.
 
@@ -18,7 +18,7 @@ The `dsh-tool-fs` write and edit operations can receive `FS_NOT_OBSERVED` from e
 
 **Append the same recovery suffix to each source message.** Rejected because the model would still receive different reasons for one required action, including provider-specific target-existence detail that does not change recovery.
 
-**Normalize the provider and policy messages at their source.** Rejected because those components own machine-oriented errors used by consumers other than `dsh-tool-fs`; only the tool owns this model-visible wording.
+**Normalize the provider and policy messages at their source.** Rejected because those components own machine-oriented errors used by consumers other than `avn-tool-fs`; only the tool owns this model-visible wording.
 
 **Introduce another error code for the normalized result.** Rejected because the underlying condition and recovery routing remain `FS_NOT_OBSERVED`; changing the code would discard useful compatibility for machine consumers.
 

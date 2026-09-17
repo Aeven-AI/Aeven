@@ -17,7 +17,7 @@ import type {
   ShellDirent, ShellFileSystem, ShellRunOutcome, ShellStats,
 } from '@aeven/experimental-webworker-runtime/src/shell/types.ts'
 
-const WORKSPACE = '/dsh/workspace'
+const WORKSPACE = '/avn/workspace'
 
 /** One call a program made on the injected filesystem. */
 interface Call {

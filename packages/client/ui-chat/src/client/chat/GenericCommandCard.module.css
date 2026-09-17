@@ -20,11 +20,11 @@
     var(--dsw-tint-surface-fade) 55%,
     transparent 100%
   );
-  animation: dsh-command-row-sweep 2.6s ease-out infinite;
+  animation: avn-command-row-sweep 2.6s ease-out infinite;
   pointer-events: none;
 }
 
-@keyframes dsh-command-row-sweep {
+@keyframes avn-command-row-sweep {
   0% { left: -300px; }
   90%, 100% { left: 100%; }
 }
@@ -55,8 +55,8 @@
   overflow: hidden;
   flex: 1 1 auto;
   color: var(--dsw-alias-label-tertiary);
-  font-size: var(--dsh-content-font-size, 16px);
-  line-height: calc(28px + var(--dsh-content-font-delta, 0px));
+  font-size: var(--avn-content-font-size, 16px);
+  line-height: calc(28px + var(--avn-content-font-delta, 0px));
   text-overflow: ellipsis;
   white-space: nowrap;
 }

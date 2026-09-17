@@ -12,7 +12,7 @@ import { setActiveVfs } from '@aeven/experimental-webworker-runtime/src/storage/
 import { runShellCommand } from '@aeven/experimental-webworker-runtime/src/shell/interpret.ts'
 import type { ShellRunOutcome } from '@aeven/experimental-webworker-runtime/src/shell/types.ts'
 
-const WORKSPACE = '/dsh/workspace'
+const WORKSPACE = '/avn/workspace'
 
 let vfs: MemoryVfs
 
@@ -20,7 +20,7 @@ let vfs: MemoryVfs
 async function run(command: string, options: { stdin?: string; cwd?: string } = {}): Promise<ShellRunOutcome> {
   return await runShellCommand(command, {
     cwd: options.cwd ?? WORKSPACE,
-    env: { HOME: '/dsh/home', PWD: WORKSPACE, GREETING: 'hello world' },
+    env: { HOME: '/avn/home', PWD: WORKSPACE, GREETING: 'hello world' },
     stdin: options.stdin,
   })
 }

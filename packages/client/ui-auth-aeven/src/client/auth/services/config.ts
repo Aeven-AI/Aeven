@@ -2,7 +2,7 @@
  * Deployment facts the Aeven screens read.
  *
  * Injected by the Host into the served index rather than read from Vite's
- * `import.meta.env`: DSH serves a built bundle, so the Aeven endpoints are
+ * `import.meta.env`: AVN serves a built bundle, so the Aeven endpoints are
  * deployment configuration, not build configuration.
  * @module
  */

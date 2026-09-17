@@ -8983,7 +8983,7 @@ importers:
         specifier: workspace:^
         version: link:../../core/tools
 
-  packages/subagent/subagent-dsh-sdk:
+  packages/subagent/subagent-avn-sdk:
     dependencies:
       '@aeven/brand':
         specifier: workspace:^

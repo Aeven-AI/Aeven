@@ -1,5 +1,5 @@
 ---
-description: "The Aeven sign-in, sign-up, and OAuth-result screens for the DSH web client, plus the session restore, bearer refresh, and authenticated-transport helpers the boot kernel calls before the plugin graph exists."
+description: "The Aeven sign-in, sign-up, and OAuth-result screens for the AVN web client, plus the session restore, bearer refresh, and authenticated-transport helpers the boot kernel calls before the plugin graph exists."
 kind: "package-library"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-client-ui-auth-aeven` gives the DSH web shell its Aeven authentication surface: it restores an existing Aeven session, presents the sign-in, sign-up, and OAuth-result screens when there is none, and attaches the Aeven bearer to every DSH RPC call afterwards. The web boot kernel calls it directly, before any plugin runs, so a reader either arrives at an authenticated application or at a sign-in screen and never at a half-booted one. A session started in the Aeven client is understood here and the reverse, because both use the same storage keys and the same `appBearers` shape. Nothing in this package is model-facing.
+`avn-client-ui-auth-aeven` gives the AVN web shell its Aeven authentication surface: it restores an existing Aeven session, presents the sign-in, sign-up, and OAuth-result screens when there is none, and attaches the Aeven bearer to every AVN RPC call afterwards. The web boot kernel calls it directly, before any plugin runs, so a reader either arrives at an authenticated application or at a sign-in screen and never at a half-booted one. A session started in the Aeven client is understood here and the reverse, because both use the same storage keys and the same `appBearers` shape. Nothing in this package is model-facing.
 
 ## Table of Contents
 
@@ -27,7 +27,7 @@ English | [中文](README.zh.md)
 
 ### When to use it
 
-This is a library, not a plugin: the authentication gate runs before the plugin graph exists, so its code cannot arrive through the module system that delivers plugins. It is statically linked into [`dsh-client-web`](../web/README.md), which is its only caller. Reach for it when you are changing the web shell's boot sequence; a feature that merely needs to know who is signed in should read the published reader instead of importing this package, because a plugin bundle cannot reach it.
+This is a library, not a plugin: the authentication gate runs before the plugin graph exists, so its code cannot arrive through the module system that delivers plugins. It is statically linked into [`avn-client-web`](../web/README.md), which is its only caller. Reach for it when you are changing the web shell's boot sequence; a feature that merely needs to know who is signed in should read the published reader instead of importing this package, because a plugin bundle cannot reach it.
 
 ### Entry point
 
@@ -108,9 +108,9 @@ A configured `localhost` origin is rewritten to the page's own hostname when bot
 
 Read these when the surface alone is not enough: the shell that calls it, the authority that verifies what it establishes, and the menu that shows the result.
 
-- [dsh-client-web](../web/README.md) — the boot kernel that gates on this library before the plugin graph.
-- [dsh-identity-user-aeven](../../identity/user-aeven/README.md) — the Host authority that verifies the credential and states the endpoints this library reads.
-- [dsh-client-ui-account-aeven](../ui-account-aeven/README.md) — the account menu that reads the reader this library publishes.
+- [avn-client-web](../web/README.md) — the boot kernel that gates on this library before the plugin graph.
+- [avn-identity-user-aeven](../../identity/user-aeven/README.md) — the Host authority that verifies the credential and states the endpoints this library reads.
+- [avn-client-ui-account-aeven](../ui-account-aeven/README.md) — the account menu that reads the reader this library publishes.
 - [client group map](../README.md) — the browser family this package belongs to.
 
 -----

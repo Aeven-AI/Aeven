@@ -3,7 +3,7 @@
 import type { DshHostCapability, OwnerAccessMode } from 'dsh-coding-oauth-core'
 
 /** Dsh compatibility diagnostic. */
-export interface DshCompatibilityDiagnostic {
+export interface AvnCompatibilityDiagnostic {
   readonly id: string
   readonly component: 'host' | 'client' | 'owner-request' | 'runtime'
   readonly level: 'info' | 'warning' | 'error'
@@ -15,13 +15,13 @@ export interface DshCompatibilityDiagnostic {
 /** Coding oauth participant diagnostic source. */
 export interface CodingOAuthParticipantDiagnosticSource {
   readonly participantId: 'coding-subscription-oauth'
-  diagnostics(): readonly DshCompatibilityDiagnostic[]
+  diagnostics(): readonly AvnCompatibilityDiagnostic[]
 }
 
 /** Dsh compatibility. */
-export interface DshCompatibility {
+export interface AvnCompatibility {
   readonly coreAbi: string
-  readonly dshVersion: string | null
+  readonly avnVersion: string | null
   readonly status: 'healthy' | 'degraded' | 'incompatible'
   readonly uiOwner: 'hub' | 'standalone' | null
   readonly accessMode: OwnerAccessMode
@@ -58,7 +58,7 @@ export const AVN_EXACT_BOM = Object.freeze({
  * @returns The resulting incompatible diagnostics.
  */
 export function incompatibleDiagnostics(
-  diagnostics: readonly DshCompatibilityDiagnostic[],
-): DshCompatibilityDiagnostic[] {
+  diagnostics: readonly AvnCompatibilityDiagnostic[],
+): AvnCompatibilityDiagnostic[] {
   return diagnostics.filter(diagnostic => diagnostic.level === 'error')
 }

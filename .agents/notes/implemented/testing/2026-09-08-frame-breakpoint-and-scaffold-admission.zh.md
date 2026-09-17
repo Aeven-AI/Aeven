@@ -12,7 +12,7 @@ Status: implemented
 
 同一次改动还移除了侧栏拖拽把手、它的指针处理函数、视口让位链，以及框架用来观察的 `ResizeObserver`。十二个 spec 仍把 `handles[0]` 当作侧栏把手来驱动，仍从已经变成自定义属性的内联 `style.width` 读取详情列宽度，并且仍通过再也不会被赋值的 `fireResize` 驱动 resize——这个调用只是静默地什么都不做，而不是失败。
 
-另一件事是：Aeven 身份行移入了 `dsh-web-app` 组合包 patch，因此由它构建的每一种组合都会注册一个 authority。只要注册了一个解析器，`identityUsers.enforcing` 就为真，而一个正在执行的 authority 会取代启动 token：`authenticatedUrl` 返回裸 origin，`authorizeIndex` 对任何人都提供 index。web e2e scaffold 启动的正是那个真实组合，却要求 token 握手——一次带会话 cookie 的、指向 `/` 的 303——于是它的初始化对每个用到它的场景都抛错。
+另一件事是：Aeven 身份行移入了 `avn-web-app` 组合包 patch，因此由它构建的每一种组合都会注册一个 authority。只要注册了一个解析器，`identityUsers.enforcing` 就为真，而一个正在执行的 authority 会取代启动 token：`authenticatedUrl` 返回裸 origin，`authorizeIndex` 对任何人都提供 index。web e2e scaffold 启动的正是那个真实组合，却要求 token 握手——一次带会话 cookie 的、指向 `/` 的 303——于是它的初始化对每个用到它的场景都抛错。
 
 ## 决策
 

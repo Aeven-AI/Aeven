@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包在 Web GUI 中渲染 plan 模式状态徽章：当宿主计算的投影有效目标为 plan 模式时，composer 显示一个 warn 色「Plan ×」按钮，可关闭 plan 模式；否则该座位保持为空。plan 模式本身——`/plan` 命令、已提交的 `plan/mode` 状态、投影单元与 policy 段——归 `dsh-plan-mode` 所有；本包只渲染投影并发送用户同样可以手敲的内容。模型经稳定的 `exit_plan_mode` 工具退出 plan 模式；其 plan 评审走已组合的 Web question 通道。
+本包在 Web GUI 中渲染 plan 模式状态徽章：当宿主计算的投影有效目标为 plan 模式时，composer 显示一个 warn 色「Plan ×」按钮，可关闭 plan 模式；否则该座位保持为空。plan 模式本身——`/plan` 命令、已提交的 `plan/mode` 状态、投影单元与 policy 段——归 `avn-plan-mode` 所有；本包只渲染投影并发送用户同样可以手敲的内容。模型经稳定的 `exit_plan_mode` 工具退出 plan 模式；其 plan 评审走已组合的 Web question 通道。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-与 `ui-conversation` 及 `dsh-plan-mode` 一起挂载本插件；plan 模式激活时，徽章随即占据 composer 的 plan 座位（访问模式控件右侧）。经 `/plan` 命令路径进入 plan 模式——从 composer 的 `+` Command 菜单选择 Plan，或键入 `/plan`——再用徽章将其关闭。
+与 `ui-conversation` 及 `avn-plan-mode` 一起挂载本插件；plan 模式激活时，徽章随即占据 composer 的 plan 座位（访问模式控件右侧）。经 `/plan` 命令路径进入 plan 模式——从 composer 的 `+` Command 菜单选择 Plan，或键入 `/plan`——再用徽章将其关闭。
 
 ### 徽章显示什么
 
@@ -54,7 +54,7 @@ kind: "package-reference"
 
 当 plan 面不够用时阅读以下页面。它们从徽章进入 plan 模式领域与 composer 外壳。
 
-- [dsh-plan-mode](../../plan/plan-mode/README.zh.md)——拥有 plan 模式、`/plan` 命令、投影与 policy 段。
+- [avn-plan-mode](../../plan/plan-mode/README.zh.md)——拥有 plan 模式、`/plan` 命令、投影与 policy 段。
 - [ui-conversation](../ui-conversation/README.zh.md)——声明 composer 的 `conversation.input.plan` 座位与 placeholder locale 键。
 - [工具目录](../../../docs/tool-catalog.zh.md#aeven-plan-mode)——模型退出 plan 模式所用的 `exit_plan_mode` 工具 schema。
 - [客户端包映射](../README.zh.md)——相邻的浏览器 UI 包。
@@ -64,7 +64,7 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-间接地，通过 chip 派发的 `/plan off` 命令行：`dsh-plan-mode` 拥有该命令行驱动的模型可见 policy 段、退出工具 schema 与已记录状态。
+间接地，通过 chip 派发的 `/plan off` 命令行：`avn-plan-mode` 拥有该命令行驱动的模型可见 policy 段、退出工具 schema 与已记录状态。
 
 #### KV Cache 影响
 
@@ -91,4 +91,4 @@ kind: "package-reference"
 
 </details>
 
-**运行时不变式：** 不发布伴生入口。plan state 与 boundary 归 `dsh-plan-mode` 审计；本包 control 只是由包测试覆盖声明、注册和释放的 slot effect。
+**运行时不变式：** 不发布伴生入口。plan state 与 boundary 归 `avn-plan-mode` 审计；本包 control 只是由包测试覆盖声明、注册和释放的 slot effect。

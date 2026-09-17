@@ -6,13 +6,13 @@ Status: implemented
 
 ## 问题
 
-`dsh-tool-subagent` 可以配置子级 `AgentOptions`，两个进程内提供方也已把这些值合并到父 Agent 的 LLM 选择之上。但面向模型的工具不能为某个适合的子任务请求不同的提供方、模型或推理强度。为每条 LLM 路由加载一个名称不同的委派工具会重复 schema，并把每次调用的调度选择变成部署配置。
+`avn-tool-subagent` 可以配置子级 `AgentOptions`，两个进程内提供方也已把这些值合并到父 Agent 的 LLM 选择之上。但面向模型的工具不能为某个适合的子任务请求不同的提供方、模型或推理强度。为每条 LLM 路由加载一个名称不同的委派工具会重复 schema，并把每次调用的调度选择变成部署配置。
 
 模型还需要一种有界方式来发现实时提供方和模型自有的推理强度 ID。把 adapter 目录渲染到每一份委派描述中，会让仅供参考且会变化的目录进入 prompt 前缀。
 
 ## 决策
 
-只有 Agent 作用域的 `modelSelectionSettings` 实例解析出 Session 策略，且绑定的 subagent 提供方声明 `SubagentCapabilities.agentOptions` 时，`dsh-tool-subagent` 才公开可选的 `provider`、`model` 与 `reasoning_effort` 字段。该策略使用[用户授权的 subagent 模型路由](2026-08-24-user-authorized-subagent-model-routes.zh.md)所拥有的精确用户授权；不存在无限制静态模式。禁用的实例会省略并拒绝面向模型的选择，而配置的 `Config.agentOptions` 仍是部署方所有的默认值。如果 settings 已启用的实例缺少该提供方能力，插件挂载会失败。
+只有 Agent 作用域的 `modelSelectionSettings` 实例解析出 Session 策略，且绑定的 subagent 提供方声明 `SubagentCapabilities.agentOptions` 时，`avn-tool-subagent` 才公开可选的 `provider`、`model` 与 `reasoning_effort` 字段。该策略使用[用户授权的 subagent 模型路由](2026-08-24-user-authorized-subagent-model-routes.zh.md)所拥有的精确用户授权；不存在无限制静态模式。禁用的实例会省略并拒绝面向模型的选择，而配置的 `Config.agentOptions` 仍是部署方所有的默认值。如果 settings 已启用的实例缺少该提供方能力，插件挂载会失败。
 
 提供方与模型共同组成一条路由，必须一起提供。如果配置值、父级值或提供方持有的路由默认值能够提供生效路由，则可以只提供推理强度。静态的 `provider.agentRouteDefaults` 在存在时构成 provider／model 基线；`Config.agentOptions` 与模型参数会在路由相关强度清除之前覆盖它。没有静态默认值的提供方会使用父 Agent 最新记录请求中的兼容字段，首个请求之前由创建选项提供回退，并保留其中配置的输出 token 上限。推理强度 ID 仍由 adapter 所有。只有所选基线的路由不变时才会继承省略的强度；更换提供方或模型但没有指定强度时，会清除下层路由自有的值，使所选模型解析自己的默认值。`AgentOptions` 把结果强度传入子级循环，其请求 header 会记录生效值。可继续描述符会把它与解析后的提供方和模型一同记录，使尚未写入首个请求的子级能以相同选择冷恢复。
 
@@ -24,7 +24,7 @@ Status: implemented
 
 委派定义不会随 adapter 注册和目录变化而改变，因此实时拓扑既不会扩大每个父级请求，也不会使缓存前缀失效。只有调用发现工具时，目录结果才进入 transcript。自定义的上下文继承实例如果启用选择，其描述会警告，更改提供方或模型可能阻止提供方复用继承的对话前缀。
 
-`SubagentCapabilities.agentOptions` 仍是传输事实。如果请求携带这些选项，而提供方声明为 `false`，服务会在调用提供方前拒绝。两个进程内提供方与 DSH SDK 传输声明为 `true`；DSH SDK 会把 provider／model 默认值作为分离且不可变的数据公开给 Consumer 预检，而 `start()` 会为直接调用方与子运行时初始化独立应用同一份 Config 默认值及 maxTokens。ACP、Codex 与 Claude Code 声明为 `false`。工具配置提供 `agentOptions`、静态启用模型选择或让它受 settings 控制时，如果绑定的提供方缺少该能力，也会失败。
+`SubagentCapabilities.agentOptions` 仍是传输事实。如果请求携带这些选项，而提供方声明为 `false`，服务会在调用提供方前拒绝。两个进程内提供方与 AVN SDK 传输声明为 `true`；AVN SDK 会把 provider／model 默认值作为分离且不可变的数据公开给 Consumer 预检，而 `start()` 会为直接调用方与子运行时初始化独立应用同一份 Config 默认值及 maxTokens。ACP、Codex 与 Claude Code 声明为 `false`。工具配置提供 `agentOptions`、静态启用模型选择或让它受 settings 控制时，如果绑定的提供方缺少该能力，也会失败。
 
 ## 考虑过的替代方案
 
@@ -53,7 +53,7 @@ Status: implemented
 - 随附 fork 工具会继承父级的提供方与模型，并省略面向模型的路由字段，使继承的对话前缀仍可供 KV Cache 复用。
 - 省略选择时保留配置默认值，并使用静态提供方路由默认值或来自父级最新记录请求的兼容继承；改变路由但不显式指定强度时，使用所选模型的默认值。
 - adapter 目录和拓扑变化不会改变委派定义及其 prompt 缓存前缀。
-- DSH SDK 子级接受配置和模型选择的 Agent 路由；ACP、Codex 与 Claude Code 在实现并声明该能力前仍会拒绝。
+- AVN SDK 子级接受配置和模型选择的 Agent 路由；ACP、Codex 与 Claude Code 在实现并声明该能力前仍会拒绝。
 - 单元测试覆盖默认关闭的 Host 偏好、新 Session 读取、子级继承、恢复决定、选择启用时的 schema 与执行强制、合并优先级、路由相关强度继承、预检取消、实时发现、诊断、定义稳定性、能力拒绝与可选服务行为。随附的 headless 快照固定从父级已记录选择继承的行为；随附示例覆盖组装后无密钥、模型可见的 schema，SDK Loader 与快照证据固定完整路由经过独立子运行时的链路。
 
 ## 相关决策

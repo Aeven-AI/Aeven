@@ -72,7 +72,7 @@ Status: implemented
 
 PascalCase 标识符中的首字母缩略词使用首字母大写格式：`Ui`、`Llm`、`JsonRpc` 和 `ApiProxy`。在文案和适用的包名中使用惯例规定的全大写形式：UI、LLM、JSON-RPC 和 API。`Typert` 是标识符和文案中的唯一准确产品拼写；不得写成 `TypeRT`、`TypeRt`，也不得对 `Typert` 作其他内部拆分。
 
-不得为了避免重复而删除有意保留的供应商限定词。`dsh-subagent-dsh-sdk` 表示 DeepSeek Harness SDK 提供方，可避免与其他 SDK 混淆。其私有类改名为 `SdkSubagentProvider`，因为类名还需要说明它提供什么。
+不得为了避免重复而删除有意保留的供应商限定词。`avn-subagent-avn-sdk` 表示 DeepSeek Harness SDK 提供方，可避免与其他 SDK 混淆。其私有类改名为 `SdkSubagentProvider`，因为类名还需要说明它提供什么。
 
 ### 将规则写入项目文档
 
@@ -171,7 +171,7 @@ PascalCase 标识符中的首字母缩略词使用首字母大写格式：`Ui`�
 | `TelemetryBackend` | `SessionTelemetrySink` | 该底层接收已发出的记录。`Sink` 用于将它与协调型后端服务区分开。 |
 | `TelemetryCoordinator`、`TelemetryRecord`、`TelemetrySeverity`、`TelemetrySharingStatus` 和 `TelemetryCapture` | 对应的 `SessionTelemetry*` 名称 | 这些公开类型只属于会话遥测。 |
 | `telemetry/record` | `session-telemetry/record` | 事件名称必须说明所属领域。 |
-| `TelemetryOtel`、`TelemetryMode`，插件 `telemetry-otel` | `OpenTelemetrySessionBackend`、`SessionTelemetryMode`，插件 `session-telemetry-otel` | 提供方名称同时说明 OpenTelemetry 机制和会话作用域。保留包名 `dsh-session-telemetry` 和 `dsh-session-telemetry-otel`。 |
+| `TelemetryOtel`、`TelemetryMode`，插件 `telemetry-otel` | `OpenTelemetrySessionBackend`、`SessionTelemetryMode`，插件 `session-telemetry-otel` | 提供方名称同时说明 OpenTelemetry 机制和会话作用域。保留包名 `avn-session-telemetry` 和 `avn-session-telemetry-otel`。 |
 | `docs/subsystems/telemetry.md` | `docs/subsystems/session-telemetry.md` | 该页面记录会话遥测，而不是仓库级可观测性。 |
 | `session/user-id/`, `@aeven/user-id` | `identity/anonymous-user-id/`, `@aeven/anonymous-user-id` | 该值是遥测、反馈和 DeepSeek 请求共用的随机关联 id。它既不属于 Session 领域，也不是经过身份验证的用户身份。 |
 | `USER_ID_FILE_NAME`、`.userid`，反馈标签 `User` | `ANONYMOUS_USER_ID_FILE_NAME`、`.anonymous-user-id`，反馈标签 `Anonymous user` | 文件和 UI 不得暗示账户身份。保留现有 `AnonymousUserId` 函数和标准 OTel 属性 `user.id`。 |
@@ -243,11 +243,11 @@ PascalCase 标识符中的首字母缩略词使用首字母大写格式：`Ui`�
 | `@aeven/subagent-spawn`, `SpawnProvider` | `@aeven/subagent-spawn-in-process`, `SpawnInProcessProvider` | 该提供方在当前进程内启动子 agent。配置的提供方 id 仍为 `spawn`。 |
 | `@aeven/subagent-fork`, `ForkProvider` | `@aeven/subagent-fork-in-process`, `ForkInProcessProvider` | 该提供方在当前进程内 fork 一个 agent。配置的提供方 id 仍为 `fork`。 |
 | `@aeven/subagent-inprocess`, `subagent-inprocess/` | `@aeven/subagent-in-process-driver`, `subagent-in-process-driver/` | 该包包含通用的进程内驱动逻辑，而不是第三个提供方。 |
-| 私有的 `SdkProvider`，位于 `dsh-subagent-dsh-sdk` 中 | `SdkSubagentProvider` | 重复的包限定词是有意保留的，类名还必须说明它通过 SDK 提供 subagent。 |
+| 私有的 `SdkProvider`，位于 `avn-subagent-avn-sdk` 中 | `SdkSubagentProvider` | 重复的包限定词是有意保留的，类名还必须说明它通过 SDK 提供 subagent。 |
 | `WebService`, `WebServiceConfig` | `WebRuntime`, `WebRuntimeConfig` | 该对象选择提供方并运行实时搜索和抓取操作。保留包、键、提供方包和模型工具。 |
 | `@aeven/web-fetch-local`、`LocalFetchProvider`、`LocalFetchLimits`，提供方 id `local-http` | `@aeven/web-fetch-http`、`HttpFetchProvider`、`HttpFetchLimits`，提供方 id `http` | 该提供方执行直接 HTTP 抓取。`local` 只说明代码恰好在哪里运行，并未说明它提供哪种机制。 |
 
-保留 `@aeven/subagent-dsh-sdk`、其提供方 id `dsh-sdk`、外部 ACP（Agent Client Protocol）、Codex 和 Claude Code 提供方系列、subagent 工具包名、主文件系统包和后端、文件系统工具和事件，以及 skill 徽章和工具包。
+保留 `@aeven/subagent-avn-sdk`、其提供方 id `avn-sdk`、外部 ACP（Agent Client Protocol）、Codex 和 Claude Code 提供方系列、subagent 工具包名、主文件系统包和后端、文件系统工具和事件，以及 skill 徽章和工具包。
 
 ### 钩子、防护、Plan Mode、扩展与诊断
 
@@ -278,10 +278,10 @@ PascalCase 标识符中的首字母缩略词使用首字母大写格式：`Ui`�
 | `packages/examples/jsonrpc-demo/`、`packages/sdk/python-runtime/` | 已删除 | Python 运行时 wheel 的闭包 manifest 负责打包，无需独立应用包。 |
 | `examples/jsonrpc-agent/` | `python/sdk/examples/` | 该示例演示 Python 使用 `sdk` profile 与有序 patch。 |
 | `@aeven/acp-demo` | `@aeven/acp-app` | 该包是 ACP profile 的应用组合包，不是独立 demo bin。 |
-| 部署根 manifest `dsh-jsonrpc-agent-pkg`、`dsh-sdk-python-runtime-closure` | `dsh-python-runtime-closure` | 该零代码 manifest 定义 Python 运行时 wheel 的完整 `dsh` 依赖闭包，不再命名独立 SDK 应用。 |
+| 部署根 manifest `avn-jsonrpc-agent-pkg`、`avn-sdk-python-runtime-closure` | `avn-python-runtime-closure` | 该零代码 manifest 定义 Python 运行时 wheel 的完整 `avn` 依赖闭包，不再命名独立 SDK 应用。 |
 | `@aeven/frontend` | `@aeven/web-frontend` | 该应用是 Web 前端。保留其物理目录 `apps/web/`。 |
 
-保留 atomic-write、brand、native-command、timeout 实用工具、目录选择器、`dsh-base`、`dsh-web-app`、`dsh-sdk-app`、`dsh-acp-app`、应用启动、CLI（命令行界面）名称，以及 `headless` 包、组合包和示例身份。`headless` 是预期的产品本质，未来也可以支持不止一次性执行。
+保留 atomic-write、brand、native-command、timeout 实用工具、目录选择器、`avn-base`、`avn-web-app`、`avn-sdk-app`、`avn-acp-app`、应用启动、CLI（命令行界面）名称，以及 `headless` 包、组合包和示例身份。`headless` 是预期的产品本质，未来也可以支持不止一次性执行。
 
 ### 客户端运行时与 UI
 
@@ -328,7 +328,7 @@ PascalCase 标识符内部使用 `Ui`，不要使用 `UI`。除非清单明确�
 - 保留 `PermissionPresetSettingsController`，即使它很长。每个词都在限定其职责。
 - 保留 `ModelsSettingsStore`；其主要约定是一个具有存储操作的设置数据模型。
 - 保留 `InputHub`；它是支撑 `SessionInputResolver` 的具体中枢。
-- 保留 `dsh-subagent-dsh-sdk` 和提供方 id `dsh-sdk`；重复的限定词可避免歧义。
+- 保留 `avn-subagent-avn-sdk` 和提供方 id `avn-sdk`；重复的限定词可避免歧义。
 - 保留 `headless`；即使运行时以后支持不止一次性使用，该产品身份仍然准确。
 - 保留已弃用的 Host `ApiProxy` 和客户端连接名称，直至 API 替代方案将其移除。
 - Host 服务器和提供方无关的 Web 能力都保留 `Web`。仅直接抓取提供方使用 `HTTP`。
@@ -359,7 +359,7 @@ PascalCase 标识符内部使用 `Ui`，不要使用 `UI`。除非清单明确�
 
 **为未来可能出现的功能使用宽泛名称。**不予采纳。应按稳定的当前职责命名。未来若要改变边界，可以在发布前再次重命名对象，或在发布后另写提案。含义模糊的名称会让每位当前读者为尚未构建的未来付出理解成本。
 
-**将 `dsh-compact-basic` 重命名为 `dsh-compaction-llm`。**不予采纳。`LLM` 没有在当前后端系列中增加区别。`basic` 意图更克制，也不会声称存在一个实际并不存在的算法。
+**将 `avn-compact-basic` 重命名为 `avn-compaction-llm`。**不予采纳。`LLM` 没有在当前后端系列中增加区别。`basic` 意图更克制，也不会声称存在一个实际并不存在的算法。
 
 **将会话投影重命名为归约器。**不予采纳。归约只是构建投影的方式。该包还拥有读取模型值、缓存和查找约定。
 

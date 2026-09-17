@@ -135,7 +135,7 @@ describe('createCodexSearchProvider', () => {
     })
     expect(provider.id).toBe('codex-oauth-search')
     expect(provider.available()).toBe(true)
-    const result = await provider.search({ query: 'dsh plugin' })
+    const result = await provider.search({ query: 'avn plugin' })
     expect(result.sources.map(source => source.url)).toEqual(['https://example.com/doc'])
     const [url, init = {}] = fetchImpl.mock.calls[0] ?? []
     expect(url).toBe('https://chatgpt.com/backend-api/codex/alpha/search')
@@ -143,8 +143,8 @@ describe('createCodexSearchProvider', () => {
     expect(JSON.parse(init.body as string)).toEqual({
       id: 'req-1',
       model: 'gpt-5.4',
-      input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'dsh plugin' }] }],
-      commands: { search_query: [{ q: 'dsh plugin' }] },
+      input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'avn plugin' }] }],
+      commands: { search_query: [{ q: 'avn plugin' }] },
       settings: {
         search_context_size: 'high',
         allowed_callers: ['direct'],
@@ -170,7 +170,7 @@ describe('createCodexSearchProvider', () => {
     expect(provider.available()).toBe(false)
     model = 'gpt-5.4-live'
     expect(provider.available()).toBe(true)
-    await provider.search({ query: 'dsh' })
+    await provider.search({ query: 'avn' })
     const [, init = {}] = fetchImpl.mock.calls[0] ?? []
     expect(JSON.parse(init.body as string)).toMatchObject({ model: 'gpt-5.4-live' })
   })
@@ -199,8 +199,8 @@ describe('createCodexSearchProvider', () => {
       fetchImpl,
       model: 'gpt-5.4',
     })
-    await expect(provider.search({ query: 'dsh', maxResults: 0 })).rejects.toMatchObject({ code: 'INVALID_ARGS' })
-    await expect(provider.search({ query: 'dsh', maxResults: Number.NaN })).rejects.toMatchObject({
+    await expect(provider.search({ query: 'avn', maxResults: 0 })).rejects.toMatchObject({ code: 'INVALID_ARGS' })
+    await expect(provider.search({ query: 'avn', maxResults: Number.NaN })).rejects.toMatchObject({
       code: 'INVALID_ARGS',
     })
     expect(fetchImpl).not.toHaveBeenCalled()
@@ -215,11 +215,11 @@ describe('createCodexSearchProvider', () => {
       },
       fetchImpl,
       model: 'gpt-5.4',
-      originator: 'dsh-search-test',
-      userAgent: 'dsh-search-test',
+      originator: 'avn-search-test',
+      userAgent: 'avn-search-test',
       sleep: async () => {},
     })
-    await expect(provider.search({ query: 'dsh' })).resolves.toEqual({ content: 'ok', sources: [], truncated: false })
+    await expect(provider.search({ query: 'avn' })).resolves.toEqual({ content: 'ok', sources: [], truncated: false })
     const [, init = {}] = fetchImpl.mock.calls[0] ?? []
     const body = JSON.parse(init.body as string) as {
       id: string
@@ -234,12 +234,12 @@ describe('createCodexSearchProvider', () => {
     })
     expect(body.max_output_tokens).toBe(1024)
     const headers = new Headers(init.headers)
-    expect(headers.get('originator')).toBe('dsh-search-test')
-    expect(headers.get('user-agent')).toBe('dsh-search-test')
+    expect(headers.get('originator')).toBe('avn-search-test')
+    expect(headers.get('user-agent')).toBe('avn-search-test')
 
     const aborted = new AbortController()
     aborted.abort()
-    await expect(provider.search({ query: 'dsh' }, aborted.signal)).rejects.toMatchObject({ code: 'TIMEOUT' })
+    await expect(provider.search({ query: 'avn' }, aborted.signal)).rejects.toMatchObject({ code: 'TIMEOUT' })
     expect(fetchImpl).toHaveBeenCalledOnce()
   })
 
@@ -253,7 +253,7 @@ describe('createCodexSearchProvider', () => {
       },
       model: 'gpt-5.4',
     })
-    await expect(provider.search({ query: 'dsh' })).resolves.toEqual({ content: 'ok', sources: [], truncated: false })
+    await expect(provider.search({ query: 'avn' })).resolves.toEqual({ content: 'ok', sources: [], truncated: false })
     expect(fetchImpl).toHaveBeenCalledOnce()
   })
 
@@ -268,7 +268,7 @@ describe('createCodexSearchProvider', () => {
       model: '   ',
     })
     expect(provider.available()).toBe(false)
-    await expect(provider.search({ query: 'dsh' })).rejects.toThrow(/not configured/)
+    await expect(provider.search({ query: 'avn' })).rejects.toThrow(/not configured/)
     expect(fetchImpl).not.toHaveBeenCalled()
   })
 
@@ -285,7 +285,7 @@ describe('createCodexSearchProvider', () => {
         maxOutputTokens,
       })
       expect(provider.available()).toBe(false)
-      await expect(provider.search({ query: 'dsh' })).rejects.toMatchObject({ code: 'INVALID_ARGS' })
+      await expect(provider.search({ query: 'avn' })).rejects.toMatchObject({ code: 'INVALID_ARGS' })
     }
     expect(fetchImpl).not.toHaveBeenCalled()
   })

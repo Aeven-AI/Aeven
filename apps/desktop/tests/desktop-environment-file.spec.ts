@@ -7,7 +7,7 @@ import { loadDesktopPackagingEnvironment } from '../scripts/desktop-environment-
 const temporaryDirectories: string[] = []
 
 async function envFile(contents: string): Promise<string> {
-  const root = await mkdtemp(join(tmpdir(), 'dsh-desktop-env-'))
+  const root = await mkdtemp(join(tmpdir(), 'avn-desktop-env-'))
   temporaryDirectories.push(root)
   const path = join(root, '.env')
   await writeFile(path, contents)
@@ -43,7 +43,7 @@ describe('desktop packaging environment file', () => {
 
   it('supplies nothing when the file is absent', () => {
     const environment: NodeJS.ProcessEnv = {}
-    expect(loadDesktopPackagingEnvironment(join(tmpdir(), 'dsh-desktop-env-absent', '.env'), environment)).toEqual([])
+    expect(loadDesktopPackagingEnvironment(join(tmpdir(), 'avn-desktop-env-absent', '.env'), environment)).toEqual([])
     expect(environment).toEqual({})
   })
 })

@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-有了 `dsh-web-search-deepseek`，harness 可以通过 DeepSeek 原生搜索检索 web，使用部署已有的 `DEEPSEEK_API_KEY`。当部署希望使用 DeepSeek 原生搜索、并接受一次搜索在延迟与 token 上消耗一个完整模型轮次时选择它，因为 DeepSeek 不提供专用搜索端点。结果来自 DeepSeek 返回的结构化搜索块，绝不会从回复文本中抓取。凭据缺失时调用以结构化错误失败；响应缺少搜索结果块时会响亮地失败，而非降级。面向模型的 `web_search` 工具位于 `dsh-tool-web`。
+有了 `avn-web-search-deepseek`，harness 可以通过 DeepSeek 原生搜索检索 web，使用部署已有的 `DEEPSEEK_API_KEY`。当部署希望使用 DeepSeek 原生搜索、并接受一次搜索在延迟与 token 上消耗一个完整模型轮次时选择它，因为 DeepSeek 不提供专用搜索端点。结果来自 DeepSeek 返回的结构化搜索块，绝不会从回复文本中抓取。凭据缺失时调用以结构化错误失败；响应缺少搜索结果块时会响亮地失败，而非降级。面向模型的 `web_search` 工具位于 `avn-tool-web`。
 
 ## 目录
 
@@ -108,8 +108,8 @@ kind: "package-reference"
 
 - [web 子系统](../../../docs/subsystems/web.zh.md)——穷尽式的搜索请求／结果词汇与错误码。
 - [web 包映射](../README.zh.md)——六包家族与各角色。
-- [dsh-web](../web/README.zh.md)——本提供方注册进入的 web 服务。
-- [dsh-tool-web](../tool-web/README.zh.md)——渲染本提供方来源的面向模型 `web_search` 工具。
+- [avn-web](../web/README.zh.md)——本提供方注册进入的 web 服务。
+- [avn-tool-web](../tool-web/README.zh.md)——渲染本提供方来源的面向模型 `web_search` 工具。
 - [生成配置目录](../../../docs/config-catalog.zh.md#aeven-web-search-deepseek)——每个受支持配置字段及其源声明。
 - [web 能力 seam 决策](../../../.agents/notes/implemented/architecture/2026-06-24-web-capability-seam.zh.md)——搜索与抓取为何共用一项提供方选择服务。
 
@@ -136,7 +136,7 @@ kind: "package-reference"
 
 #### 模型看到的内容
 
-通过 `dsh-tool-web`，会话模型会看到结构化搜索块中去重后的 URL、标题、日期与引用 snippet；提供方文本不会作为答案受到信任。该提供方的具体失败消息包括带有处理指引的凭据缺失消息、`DeepSeek search credential resolution failed: <error>` 和 `DeepSeek search aborted`。请求、HTTP、原生搜索和响应正文失败会追加已解析端点及前述条件式配置指引。错误包装属于消费方。
+通过 `avn-tool-web`，会话模型会看到结构化搜索块中去重后的 URL、标题、日期与引用 snippet；提供方文本不会作为答案受到信任。该提供方的具体失败消息包括带有处理指引的凭据缺失消息、`DeepSeek search credential resolution failed: <error>` 和 `DeepSeek search aborted`。请求、HTTP、原生搜索和响应正文失败会追加已解析端点及前述条件式配置指引。错误包装属于消费方。
 
 #### Token 影响
 

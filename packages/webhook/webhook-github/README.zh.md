@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-webhook-github` 会在注入的 `ctx.webServer` 上注册一条精确 HTTP 路由。它限制并验证 GitHub 原始 JSON body，投影提供方无关的交付，调用 `ctx.webhookRuntime.dispatch()`，并在不等待规则或 Session 的情况下返回 `202`。部署需要为通用 webhook runtime 提供经过身份验证的 GitHub 入口时，请使用它。
+`avn-webhook-github` 会在注入的 `ctx.webServer` 上注册一条精确 HTTP 路由。它限制并验证 GitHub 原始 JSON body，投影提供方无关的交付，调用 `ctx.webhookRuntime.dispatch()`，并在不等待规则或 Session 的情况下返回 `202`。部署需要为通用 webhook runtime 提供经过身份验证的 GitHub 入口时，请使用它。
 
 ## 目录
 
@@ -54,12 +54,12 @@ kind: "package-reference"
 <a id="dedicated-listener-composition"></a>
 ## 专用监听器组合
 
-普通 Web profile 已经拥有 `ctx.webServer`。把另一个 `dsh-host-webserver` 和此适配器挂载到仅隔离 `webServer` 的 group 内；适配器仍会继承凭据与 `webhookRuntime`。[GitHub 评审指南](../../../docs/user/guide/github-review.zh.md)在 TLS 反向代理后使用 `127.0.0.1:3081/github`，而 UI 继续位于端口 3080。
+普通 Web profile 已经拥有 `ctx.webServer`。把另一个 `avn-host-webserver` 和此适配器挂载到仅隔离 `webServer` 的 group 内；适配器仍会继承凭据与 `webhookRuntime`。[GitHub 评审指南](../../../docs/user/guide/github-review.zh.md)在 TLS 反向代理后使用 `127.0.0.1:3081/github`，而 UI 继续位于端口 3080。
 
 <a id="model-experience"></a>
 ## Model Experience
 
-通过 `dsh-webhook` 间接产生影响：此适配器不贡献提示词或工具 schema；匹配规则拥有 Session 请求与模型可见文本。
+通过 `avn-webhook` 间接产生影响：此适配器不贡献提示词或工具 schema；匹配规则拥有 Session 请求与模型可见文本。
 
 #### KV Cache effect
 
@@ -85,4 +85,4 @@ kind: "package-reference"
 
 </details>
 
-**运行时不变式：** 不发布伴生入口。authentication 与 input validation 在对应 HTTP 操作中完成；route/disposer 对称性由 `dsh-host-webserver` 负责。
+**运行时不变式：** 不发布伴生入口。authentication 与 input validation 在对应 HTTP 操作中完成；route/disposer 对称性由 `avn-host-webserver` 负责。

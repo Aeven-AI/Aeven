@@ -23,7 +23,7 @@ import * as workerFs from '../../src/node/builtin_modules/implemented/fs.ts'
 import * as workerFsp from '../../src/node/builtin_modules/implemented/fs/promises.ts'
 import * as workerStream from '../../src/node/builtin_modules/implemented/stream.ts'
 
-const VFS_ROOT = '/dsh/watch-stream'
+const VFS_ROOT = '/avn/watch-stream'
 const nativeRoots: string[] = []
 let vfs: MemoryVfs
 
@@ -112,7 +112,7 @@ async function writeScenario(create: () => WritableFileStream): Promise<{
 
 describe('file streams', () => {
   it('keeps an opened file identity across rename, replacement, and unlink', () => {
-    const nativeRoot = mkdtempSync(join(tmpdir(), 'dsh-stream-diff-'))
+    const nativeRoot = mkdtempSync(join(tmpdir(), 'avn-stream-diff-'))
     nativeRoots.push(nativeRoot)
     const nativePath = join(nativeRoot, 'identity.txt')
     const workerPath = `${VFS_ROOT}/identity.txt`
@@ -148,7 +148,7 @@ describe('file streams', () => {
   })
 
   it('keeps a read stream on the file opened before an atomic replacement', async () => {
-    const nativeRoot = mkdtempSync(join(tmpdir(), 'dsh-stream-diff-'))
+    const nativeRoot = mkdtempSync(join(tmpdir(), 'avn-stream-diff-'))
     nativeRoots.push(nativeRoot)
     const nativePath = join(nativeRoot, 'stream-identity.txt')
     const workerPath = `${VFS_ROOT}/stream-identity.txt`
@@ -176,7 +176,7 @@ describe('file streams', () => {
   })
 
   it('rejects descriptor operations that conflict with the open mode', () => {
-    const nativeRoot = mkdtempSync(join(tmpdir(), 'dsh-stream-diff-'))
+    const nativeRoot = mkdtempSync(join(tmpdir(), 'avn-stream-diff-'))
     nativeRoots.push(nativeRoot)
     const nativePath = join(nativeRoot, 'mode.txt')
     const workerPath = `${VFS_ROOT}/mode.txt`
@@ -245,7 +245,7 @@ describe('file streams', () => {
   })
 
   it('matches Node chunking, inclusive ranges, and read lifecycle ordering', async () => {
-    const nativeRoot = mkdtempSync(join(tmpdir(), 'dsh-stream-diff-'))
+    const nativeRoot = mkdtempSync(join(tmpdir(), 'avn-stream-diff-'))
     nativeRoots.push(nativeRoot)
     const nativePath = join(nativeRoot, 'input.txt')
     const workerPath = `${VFS_ROOT}/input.txt`
@@ -258,7 +258,7 @@ describe('file streams', () => {
   })
 
   it('matches Node write backpressure, lifecycle ordering, and byte accounting', async () => {
-    const nativeRoot = mkdtempSync(join(tmpdir(), 'dsh-stream-diff-'))
+    const nativeRoot = mkdtempSync(join(tmpdir(), 'avn-stream-diff-'))
     nativeRoots.push(nativeRoot)
     const nativePath = join(nativeRoot, 'output.txt')
     const workerPath = `${VFS_ROOT}/output.txt`
@@ -283,7 +283,7 @@ describe('file streams', () => {
   })
 
   it('uses Node 22 Linux file-stream defaults and abort error identity', async () => {
-    const nativeRoot = mkdtempSync(join(tmpdir(), 'dsh-stream-diff-'))
+    const nativeRoot = mkdtempSync(join(tmpdir(), 'avn-stream-diff-'))
     nativeRoots.push(nativeRoot)
     const nativePath = join(nativeRoot, 'input.txt')
     const workerPath = `${VFS_ROOT}/input.txt`
@@ -362,7 +362,7 @@ describe('file streams', () => {
   })
 
   it('matches Node positional overwrite and missing-file failure', async () => {
-    const nativeRoot = mkdtempSync(join(tmpdir(), 'dsh-stream-diff-'))
+    const nativeRoot = mkdtempSync(join(tmpdir(), 'avn-stream-diff-'))
     nativeRoots.push(nativeRoot)
     const nativePath = join(nativeRoot, 'position.txt')
     const workerPath = `${VFS_ROOT}/position.txt`
@@ -546,7 +546,7 @@ describe('watchers', () => {
   })
 
   it('matches Node watchFile state transitions for a missing and recreated file', async () => {
-    const nativeRoot = mkdtempSync(join(tmpdir(), 'dsh-watch-diff-'))
+    const nativeRoot = mkdtempSync(join(tmpdir(), 'avn-watch-diff-'))
     nativeRoots.push(nativeRoot)
     const nativePath = join(nativeRoot, 'watched.txt')
     const workerPath = `${VFS_ROOT}/watched.txt`

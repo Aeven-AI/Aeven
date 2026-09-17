@@ -1,5 +1,5 @@
 /**
- * SDK-facing JSON-RPC plugin over stdio. The selected dsh profile decides
+ * SDK-facing JSON-RPC plugin over stdio. The selected avn profile decides
  * whether to load it; see the single-launch Agent Note and package README.
  * Stdout is reserved for protocol frames, so the tree must not load a stdout logger.
  * This plugin answers `shutdown`, disposes the complete root runtime, and exits 0; the app bin

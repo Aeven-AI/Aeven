@@ -24,7 +24,7 @@ ACP selection must also preserve the provider dimension. The same model id may a
 
 Catalog membership is advisory. It drives selectors and diagnostics but never changes `stream()` routing and never rejects an otherwise valid request. Provider ownership remains exclusive and lifecycle-bound; model ids remain request-time adapter input.
 
-`dsh-llm-pi-ai` maps the configured provider's installed `getModels(provider)` entries into the neutral catalog. Its existing request-time catalog lookup remains authoritative and still rejects unknown models with `UNKNOWN_MODEL`. `dsh-llm-deepseek` accepts an optional `models` config containing display entries, defaulting to `deepseek-v4-flash` named `DeepSeek-V4-Flash`, `deepseek-v4-pro` named `DeepSeek-V4-Pro`, and image-capable `deepseek-v4-flash-vision-exp` named `DeepSeek-V4-Flash-Vision-Exp`. An explicit list replaces those defaults and an empty list disables discovery. The entries improve selector UX for known public or private models, while every unlisted model id continues to pass through unchanged.
+`avn-llm-pi-ai` maps the configured provider's installed `getModels(provider)` entries into the neutral catalog. Its existing request-time catalog lookup remains authoritative and still rejects unknown models with `UNKNOWN_MODEL`. `avn-llm-deepseek` accepts an optional `models` config containing display entries, defaulting to `deepseek-v4-flash` named `DeepSeek-V4-Flash`, `deepseek-v4-pro` named `DeepSeek-V4-Pro`, and image-capable `deepseek-v4-flash-vision-exp` named `DeepSeek-V4-Flash-Vision-Exp`. An explicit list replaces those defaults and an empty list disables discovery. The entries improve selector UX for known public or private models, while every unlisted model id continues to pass through unchanged.
 
 ### Per-session selection in the front end
 
@@ -34,7 +34,7 @@ The ACP automation transport consumes the advisory catalog through standard sess
 
 ### Prompt/request consistency and durability
 
-`installModelSelection` (in `dsh-agent`) installs scoped `system-prompt/assemble` and `agent/request` listeners for a front-end-owned selection. Ordinary consumers snapshot the selection once per step. ACP associates its admission snapshot with the identified message in the per-session module until inbox claim, then pins that selection for the complete admitted turn, so asynchronous image admission, prompt variables, and every request step remain aligned without changing the durable user source. A concurrent selection starts on the next ACP turn. Other call-config fields remain untouched.
+`installModelSelection` (in `avn-agent`) installs scoped `system-prompt/assemble` and `agent/request` listeners for a front-end-owned selection. Ordinary consumers snapshot the selection once per step. ACP associates its admission snapshot with the identified message in the per-session module until inbox claim, then pins that selection for the complete admitted turn, so asynchronous image admission, prompt variables, and every request step remain aligned without changing the durable user source. A concurrent selection starts on the next ACP turn. Other call-config fields remain untouched.
 
 The request header remains the durable source of truth. When a selection is actually used, the existing full `request/header` snapshot records it, and a front end initializes its selection from the folded last request header before falling back to creation options. A selection that is never used by a request is intentionally in-memory only because it never became model-visible state.
 
@@ -53,7 +53,7 @@ The request header remains the durable source of truth. When a selection is actu
 - Any adapter can expose a dynamic model list without leaking provider-library types into the LLM Service Definition.
 - Catalog consumers must treat absence as “not advertised,” never “invalid request.”
 - pi-ai adapters expose their installed provider catalogs; hand-written DeepSeek deployments list known choices explicitly and retain arbitrary model support.
-- Each catalog consumer owns its selection interaction. ACP uses standard session configuration options and emits no DSH-specific selector or UI metadata.
+- Each catalog consumer owns its selection interaction. ACP uses standard session configuration options and emits no AVN-specific selector or UI metadata.
 - Request headers remain compatible with the provider-routed session shape; no new JSONL event or format version is required.
 - A catalog read can be asynchronous, and every caller receives detached values.
 

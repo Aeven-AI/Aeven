@@ -28,7 +28,7 @@ function filesUnder(root: string): string[] {
 
 function readSession(id: string): ReturnType<typeof scanLog> {
   return scanLog(readFileSync(
-    join(VFS_EXAMPLE_ROOT, 'home/sessions/--dsh-workspace--', id, 'session.jsonl'),
+    join(VFS_EXAMPLE_ROOT, 'home/sessions/--avn-workspace--', id, 'session.jsonl'),
   ))
 }
 
@@ -68,7 +68,7 @@ describe('WebWorker preview VFS example', () => {
     expect(cache.tables.sessions[VFS_EXAMPLE_SESSION_IDS.main]).toMatchObject({
       identity: {
         createdAt: 1_787_472_000_000,
-        cwd: '/dsh/workspace',
+        cwd: '/avn/workspace',
         isSeeded: false,
         inheritedEventCount: 0,
       },
@@ -85,7 +85,7 @@ describe('WebWorker preview VFS example', () => {
     const { meta, inheritedEventCount, events } = readSession(VFS_EXAMPLE_SESSION_IDS.main)
     expect(meta).toMatchObject({
       id: VFS_EXAMPLE_SESSION_IDS.main,
-      cwd: '/dsh/workspace',
+      cwd: '/avn/workspace',
       delegationDepth: 0,
       agentPreset: 'standard',
     })
@@ -123,7 +123,7 @@ describe('WebWorker preview VFS example', () => {
       const { meta, inheritedEventCount, events } = readSession(id)
       expect(meta).toMatchObject({
         id,
-        cwd: '/dsh/workspace',
+        cwd: '/avn/workspace',
         parentSession: VFS_EXAMPLE_SESSION_IDS.main,
         origin: 'subagent',
         delegationDepth: 1,

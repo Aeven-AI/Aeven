@@ -19,7 +19,7 @@ One Lexical editor per session shell replaces the three layers and the draft hal
 - **One tree, three projections**: the detect projection (chip = one U+FFFC) feeds `detectTrigger` and TokenSpan coordinates, restoring the opaque-reference invariant #2769 broke; the clipboard projection (chip = clipboardText) feeds `InputState.draft`, persistence, and submit-plane decisions; the model form is produced per chip at submit through the owner codec. `span-map.ts` is the single place numeric spans map back to Lexical points.
 - **The machine slims to the submit plane** (phase/claim/attempt); it never holds the draft — events carry the clipboard projection (`enter`, `submit-settled`), and the claimed integrity watch runs on `draft-changed`. Draft clearing became the `commit-draft` effect the shell executes in the editor (suffix retention included), followed by `CLEAR_HISTORY_COMMAND`.
 - **Contract stability**: `TokenSpan {start, end, draftRev}`, `ReferenceInsert`, `CommandClaim`, the four `slash/input-*` bail events, every trigger source, the controller, and MenuView are unchanged. `draftRev` is now the editor update counter.
-- **Claim tokens stay literal text** with a transform-styled leading leaf (backspacing the token remains the exit gesture); plain-text references ride `registerLexicalTextEntity` (`TextRefNode`); the ghost hint is a CSS `--dsh-composer-hint` variable rendered as generated content.
+- **Claim tokens stay literal text** with a transform-styled leading leaf (backspacing the token remains the exit gesture); plain-text references ride `registerLexicalTextEntity` (`TextRefNode`); the ghost hint is a CSS `--avn-composer-hint` variable rendered as generated content.
 
 ## Retired with the rewrite
 

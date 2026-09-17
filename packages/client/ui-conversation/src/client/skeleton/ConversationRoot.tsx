@@ -16,7 +16,7 @@ import css from './ConversationRoot.module.css'
 export type ConversationRootProps = ConversationSlotProps
 
 /** localStorage key for the dragged transcript width preference (px). */
-const WIDTH_PREF_KEY = 'dsh.conversation.contentWidth'
+const WIDTH_PREF_KEY = 'avn.conversation.contentWidth'
 /** Floor for a dragged content width; matches the layout center-column minimum. */
 const CONTENT_MIN = 640
 /** Column budget the content must leave free: 88px per side keeps the width
@@ -83,7 +83,7 @@ function WidthHandle(props: {
   }, [])
   const onPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const box = e.currentTarget.getBoundingClientRect()
-    e.currentTarget.style.setProperty('--dsh-width-handle-pointer-y', `${e.clientY - box.top}px`)
+    e.currentTarget.style.setProperty('--avn-width-handle-pointer-y', `${e.clientY - box.top}px`)
     if (!e.currentTarget.hasPointerCapture(e.pointerId)) return
     latest.current = e.clientX
     frame.current ??= requestAnimationFrame(() => {
@@ -153,7 +153,7 @@ export function ConversationRoot({
   const pickerAnchor = useRef<HTMLButtonElement>(null)
 
   // Nothing measures the composer seat. A View that floats a composer over its
-  // own ledger clears it with the static `--dsh-composer-height` fallback in
+  // own ledger clears it with the static `--avn-composer-height` fallback in
   // that View's own stylesheet (ui-trajectory's `.ledger`), so a draft that
   // grows past the fallback is not cleared exactly.
 
@@ -183,7 +183,7 @@ export function ConversationRoot({
     /* v8 ignore next -- handles render inside the root, so the ref is always attached. */
     if (root === null) return
     const clamped = resolveContentWidth(root.offsetWidth, width)
-    root.style.setProperty('--dsh-chat-user-width', `${clamped}px`)
+    root.style.setProperty('--avn-chat-user-width', `${clamped}px`)
   }, [])
   const onHandleCommit = useCallback((width: number): void => {
     const root = rootEl.current
@@ -199,7 +199,7 @@ export function ConversationRoot({
     setUserWidth(stored)
     // An uncommitted press leaves the stored preference untouched: drop the
     // live style so the attribute-selected rule reads the stored value again.
-    if (root !== null && stored === null) root.style.removeProperty('--dsh-chat-user-width')
+    if (root !== null && stored === null) root.style.removeProperty('--avn-chat-user-width')
   }, [])
 
   const sessionWorkspace = sessionId === undefined
@@ -359,7 +359,7 @@ export function ConversationRoot({
       data-phase={phase}
       data-composer-overlay={composerOverlay || undefined}
       data-chat-user-width={userWidth === null ? undefined : ''}
-      style={userWidth === null ? undefined : { '--dsh-chat-user-width': `${String(userWidth)}px` } as CSSProperties}
+      style={userWidth === null ? undefined : { '--avn-chat-user-width': `${String(userWidth)}px` } as CSSProperties}
     >
       <ContentLoader
         active={loaderActive}

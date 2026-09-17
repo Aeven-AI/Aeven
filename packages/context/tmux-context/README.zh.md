@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-tmux-context` 告诉模型它的 agent（智能体）进程运行在哪里：在 tmux 状态发生变化的每一轮，它追加一条持久、带来源的读数，命名 tmux session、window 与 pane，以及该 window 的 pane 树布局。它在准备模型请求时每轮采样一次，且仅当进程确实位于所指名的 pane 内时——仅从 tmux 祖先进程继承了 `$TMUX`／`$TMUX_PANE` 的终端会被视为不在 tmux 中，不添加任何内容。位置未变化时不添加任何内容；查询失败是空操作，绝不导致轮次失败。本插件需主动启用，且不属于随附 Web／无头组合。
+`avn-tmux-context` 告诉模型它的 agent（智能体）进程运行在哪里：在 tmux 状态发生变化的每一轮，它追加一条持久、带来源的读数，命名 tmux session、window 与 pane，以及该 window 的 pane 树布局。它在准备模型请求时每轮采样一次，且仅当进程确实位于所指名的 pane 内时——仅从 tmux 祖先进程继承了 `$TMUX`／`$TMUX_PANE` 的终端会被视为不在 tmux 中，不添加任何内容。位置未变化时不添加任何内容；查询失败是空操作，绝不导致轮次失败。本插件需主动启用，且不属于随附 Web／无头组合。
 
 ## 目录
 

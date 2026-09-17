@@ -55,7 +55,7 @@ async function documentServer(
 
 /** A throwaway $AVN_HOME so the settings provider has a file to read. */
 async function home(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'dsh-deepseek-sync-'))
+  const dir = await mkdtemp(join(tmpdir(), 'avn-deepseek-sync-'))
   homes.push(dir)
   return dir
 }

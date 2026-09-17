@@ -46,7 +46,7 @@ describe('elevation tokens', () => {
     // body would bake in body's stroke color, making every
     // --dsw-elevation-stroke-color rebind a no-op. Per-element declarations
     // re-substitute against the color each element sees (the same contract
-    // scrollbar.css states for --dsh-scrollbar-thumb).
+    // scrollbar.css states for --avn-scrollbar-thumb).
     expect(perElement.get('--dsw-elevation-stroke')).toBe(`0 0 0 0.5px var(${STROKE_COLOR})`)
     for (const name of ['--dsw-elevation-panel', '--dsw-elevation-prominent', '--dsw-elevation-soft']) {
       expect(perElement.get(name), name).toMatch(/^var\(--dsw-elevation-stroke\), 0 /)

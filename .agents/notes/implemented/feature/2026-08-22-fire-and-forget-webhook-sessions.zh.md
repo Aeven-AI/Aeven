@@ -6,7 +6,7 @@ Status: implemented
 
 ## Problem
 
-外部仓库事件需要启动普通 DSH 工作，同时不能让每个提供方适配器都理解 Agent preset、Workspace 附加、标题、权限与回调 teardown。GitHub pull request 变为 ready for review 是第一个用途：签名事件可以创建一个评审 Session，用户能在仓库 Workspace 下浏览它。
+外部仓库事件需要启动普通 AVN 工作，同时不能让每个提供方适配器都理解 Agent preset、Workspace 附加、标题、权限与回调 teardown。GitHub pull request 变为 ready for review 是第一个用途：签名事件可以创建一个评审 Session，用户能在仓库 Workspace 下浏览它。
 
 如果把它变成持久自动化引擎，就会在 Session 旁引入第二套生命周期：交付记录、执行状态、重试与去重策略、崩溃恢复，以及 HTTP 接受、提示词接纳、Agent idle 或模型输出中究竟哪个表示完成。所请求能力不需要其中任何含义。
 
@@ -46,7 +46,7 @@ Patch 加载会把插入行中的相对插件名锚定到 patch 文件。因而�
 
 包级测试固定独立回调执行、fire-and-forget HTTP 时序、取消与静止态释放、请求验证、提示词接纳前的 Workspace 附加、rollback、GitHub HMAC 与 body 限制、凭据轮换和精确 Loader 组合。组装 Web 示例会向隔离的第二监听器发送签名 ready-for-review 交付，并记录所得普通 Workspace 对话。
 
-真实 API e2e 测试会通过带 webhook overlay 与隔离监听器的构建产物启动 `dsh web` CLI（命令行界面），只合成带签名的入站 GitHub 交付，通过公开 Web API 观察 Workspace 附加与持久来源信息，并等待真实 DeepSeek 响应。测试不会用 test double 替换任何 DSH 服务、模型适配器或提供方调用。
+真实 API e2e 测试会通过带 webhook overlay 与隔离监听器的构建产物启动 `avn web` CLI（命令行界面），只合成带签名的入站 GitHub 交付，通过公开 Web API 观察 Workspace 附加与持久来源信息，并等待真实 DeepSeek 响应。测试不会用 test double 替换任何 AVN 服务、模型适配器或提供方调用。
 
 源码审计会保持执行记录、重试 timer、去重 map、完成事件与 Agent 状态监听器不存在。
 

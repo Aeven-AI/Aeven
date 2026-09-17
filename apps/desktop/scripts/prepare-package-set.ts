@@ -1,4 +1,4 @@
-/** Select and copy the local npm tarball closures that supply Desktop dsh and its private Host. */
+/** Select and copy the local npm tarball closures that supply Desktop avn and its private Host. */
 
 import { createHash } from 'node:crypto'
 import {
@@ -49,7 +49,7 @@ function dependencyNames(manifest: Readonly<Record<string, unknown>>, section: s
 }
 
 /**
- * Select the complete available first-party dependency closures rooted at dsh and its private Host.
+ * Select the complete available first-party dependency closures rooted at avn and its private Host.
  * @param available - Packed packages indexed by package name.
  * @returns Selected packages sorted by name.
  */

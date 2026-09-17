@@ -10,13 +10,13 @@ Coding-subscription OAuth for Grok Build, ChatGPT Codex, and Claude Code lived i
 
 That separation cost more than it bought. The plugin pinned an exact 19-package `@aeven/*` bill of materials and re-verified it on every build, because a harness release could move underneath it. Every harness version bump therefore required a lockstep release there, and a drift between the two was only detectable through that hand-maintained manifest. The plugin also filled harness seams — `ctx.media` image and video providers, an LLM adapter, a Settings section — while being unable to use workspace resolution to reach them.
 
-Two defects followed directly from the split. The plugin's committed `lib/` is the artifact `dsh web` loads, and it had fallen behind `src/` without any gate noticing. Its release verifier asserted a client-bundle marker for a settings flag the product had already retired, so the build refused the very change that removed it.
+Two defects followed directly from the split. The plugin's committed `lib/` is the artifact `avn web` loads, and it had fallen behind `src/` without any gate noticing. Its release verifier asserted a client-bundle marker for a settings flag the product had already retired, so the build refused the very change that removed it.
 
 ## Decision
 
 The plugin lands as `packages/experimental/subscription-auth`, npm name `@aeven/experimental-subscription-auth`, `private: true`. It is a single package for now, and is expected to split along its product roles — OAuth sessions, LLM adapter, media providers, tools, client UI — before promotion out of `experimental/`.
 
-It keeps its `dsh.bundle` and `dsh.client` manifest declarations, because those are how a profile discovers a bundle and its browser half. It keeps `dsh-coding-oauth-core` as an exact external dependency: that package owns the route and path identifiers this one implements, and pinning it is what the ABI gate checks.
+It keeps its `avn.bundle` and `avn.client` manifest declarations, because those are how a profile discovers a bundle and its browser half. It keeps `dsh-coding-oauth-core` as an exact external dependency: that package owns the route and path identifiers this one implements, and pinning it is what the ABI gate checks.
 
 The move is a copy, not a fork. The standalone repository is retired rather than maintained in parallel; a second live copy would reintroduce exactly the drift this note removes.
 
@@ -24,7 +24,7 @@ The move is a copy, not a fork. The standalone repository is retired rather than
 
 The package compiles under two faces. `src/client/**` is a browser program and everything else is a Host program, so it carries `tsconfig.host.json` and `tsconfig.client.json` leaves plus a solution-only root, registered in the matching aggregates. Tests follow the same split: a spec that reaches into `src/client/**` is named `*.client.spec.ts`, which is how the root aggregates route it to the client program. A cross-face spec is split rather than named for one side.
 
-Three repository gates rejected the package as it arrived, and each was resolved by conforming rather than by exemption. `src/bin.ts` was deleted: only `dsh` profiles launch applications, and a package bin is forbidden. The three DNS-pinning `undici` agents in the Imagine SSRF guard carry the `proxy-exempt:` marker the dispatcher gate defines for a call site that owns per-request transport state. The generated tsconfig alias is hand-written, because the package name does not match its directory.
+Three repository gates rejected the package as it arrived, and each was resolved by conforming rather than by exemption. `src/bin.ts` was deleted: only `avn` profiles launch applications, and a package bin is forbidden. The three DNS-pinning `undici` agents in the Imagine SSRF guard carry the `proxy-exempt:` marker the dispatcher gate defines for a call site that owns per-request transport state. The generated tsconfig alias is hand-written, because the package name does not match its directory.
 
 ### Behaviour settled during the move
 

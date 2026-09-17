@@ -25,7 +25,7 @@ const projectGraphqlData = ({
   organization: {
     projectV2: {
       id: 'project-id',
-      title: 'DSH Issue Management',
+      title: 'AVN Issue Management',
       fields: {
         nodes: [
           { id: 'status-field-id', name: 'Status', dataType: 'SINGLE_SELECT', options: [] },
@@ -224,8 +224,8 @@ test('keeps terminal Status aligned with the native close reason', () => {
 test('separates resolving and informational references', () => {
   assert.deepEqual(
     parseReferences({
-      body: 'Fixes #12\nRelated to #4\nRefs deepseekharness/dsh-test#7',
-      repository: 'deepseekharness/dsh-test',
+      body: 'Fixes #12\nRelated to #4\nRefs deepseekharness/avn-test#7',
+      repository: 'deepseekharness/avn-test',
     }),
     { all: [4, 7, 12], resolving: [12], related: [4, 7] },
   )
@@ -434,7 +434,7 @@ test('toggles automation-owned work on request changes and repeated review reque
   let status = nextResolvingIssueStatus(
     'In review',
     'changes-requested',
-    'dsh-issue-management',
+    'avn-issue-management',
   )
   assert.equal(status, 'In progress')
   status = nextResolvingIssueStatus(status, 'review-requested')

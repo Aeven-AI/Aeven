@@ -1,5 +1,5 @@
 ---
-description: "dsh Web 客户端的持久化工作流运行 Conversation Node：把顶层工作流运行重建为带嵌套成员折叠的独立聊天节点。"
+description: "avn Web 客户端的持久化工作流运行 Conversation Node：把顶层工作流运行重建为带嵌套成员折叠的独立聊天节点。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-client-ui-workflow-run` 是浏览器插件，把持久化的顶层工作流运行重建为 dsh Web 客户端中的独立 Chat 节点。它消费由 `dsh-tool-workflow` 拥有的四类 `tool-workflow/*` Session 事件，注册一个 `ConversationNodeDefinition`，并通过 keyed `conversation.chat.node` slot 渲染，不改变现有工作流工具卡。运行与每个阶段都是受控 disclosure：挂载时运行中、失败、已取消与已中断层级默认展开，全部完成的层级默认折叠，用户可以点击整行或按 Enter、Space 切换任一层级。只有当所有实时事实同时成立时，成员才可打开子 Session；节点只显示运行、阶段、成员身份与状态。
+`avn-client-ui-workflow-run` 是浏览器插件，把持久化的顶层工作流运行重建为 avn Web 客户端中的独立 Chat 节点。它消费由 `avn-tool-workflow` 拥有的四类 `tool-workflow/*` Session 事件，注册一个 `ConversationNodeDefinition`，并通过 keyed `conversation.chat.node` slot 渲染，不改变现有工作流工具卡。运行与每个阶段都是受控 disclosure：挂载时运行中、失败、已取消与已中断层级默认展开，全部完成的层级默认折叠，用户可以点击整行或按 Enter、Space 切换任一层级。只有当所有实时事实同时成立时，成员才可打开子 Session；节点只显示运行、阶段、成员身份与状态。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-经 `dsh-tool-workflow` 发起的顶层工作流运行会在对话中显示为独立节点：展开运行查看其阶段，展开阶段查看其成员。阶段组只来自开始过的成员；成员结算只改变状态，不删除或重排成员。
+经 `avn-tool-workflow` 发起的顶层工作流运行会在对话中显示为独立节点：展开运行查看其阶段，展开阶段查看其成员。阶段组只来自开始过的成员；成员结算只改变状态，不删除或重排成员。
 
 ### 导航节点
 
@@ -85,7 +85,7 @@ kind: "package-reference"
 
 这些限制定义哪些运行会产生记录、节点暴露什么；它们是当前包约束。
 
-- **只有经 `dsh-tool-workflow` 发起的顶层调用会生成这些记录**：嵌套 PTC mode 调用和直接 `WorkflowEngine` 消费方不会生成。
+- **只有经 `avn-tool-workflow` 发起的顶层调用会生成这些记录**：嵌套 PTC mode 调用和直接 `WorkflowEngine` 消费方不会生成。
 - **导航刻意只面向实时运行**：终态成员继续保留供复盘，但本节点永不为其提供冷 Session 入口。
 - **节点只显示运行、阶段、成员身份与状态**：脚本、输出、错误、日志、用量、静态拓扑与控制操作都不属于本界面。
 

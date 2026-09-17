@@ -312,8 +312,8 @@ describe('createCodexUsageReader', () => {
         resolve: async () => ({ accessToken: jwtWithAccount('acct-usage') }),
         invalidate: async () => {},
       },
-      originator: 'dsh-usage-test',
-      userAgent: 'dsh-usage-test',
+      originator: 'avn-usage-test',
+      userAgent: 'avn-usage-test',
     })
     const first = await reader.read()
     const second = await reader.read()
@@ -321,8 +321,8 @@ describe('createCodexUsageReader', () => {
     expect(second.fetchedAt).toBe(first.fetchedAt)
     expect(fetchImpl).toHaveBeenCalledOnce()
     const headers = new Headers(fetchImpl.mock.calls[0]?.[1]?.headers)
-    expect(headers.get('originator')).toBe('dsh-usage-test')
-    expect(headers.get('user-agent')).toBe('dsh-usage-test')
+    expect(headers.get('originator')).toBe('avn-usage-test')
+    expect(headers.get('user-agent')).toBe('avn-usage-test')
     expect(fetchImpl.mock.calls[0]?.[0]).toBe(CODEX_USAGE_URL)
   })
 })

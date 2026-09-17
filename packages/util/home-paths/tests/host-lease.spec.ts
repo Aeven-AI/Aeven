@@ -20,7 +20,7 @@ const homes: string[] = []
 const servers: Server[] = []
 
 async function makeHome(): Promise<string> {
-  const home = await mkdtemp(join(tmpdir(), 'dsh-lease-'))
+  const home = await mkdtemp(join(tmpdir(), 'avn-lease-'))
   homes.push(home)
   return home
 }

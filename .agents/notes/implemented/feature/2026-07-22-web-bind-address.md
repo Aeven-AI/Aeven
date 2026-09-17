@@ -12,7 +12,7 @@ The HTTP carrier also hides the bind address inside `startWebServer()`, so alter
 
 ## Decision
 
-`dsh web` binds `127.0.0.1` and rejects `--host 0.0.0.0`; the CLI exposes no network mode. The process-token and browser-cookie authentication does not broaden that deployment contract ([decision](../architecture/2026-08-24-browser-token-authentication.md)).
+`avn web` binds `127.0.0.1` and rejects `--host 0.0.0.0`; the CLI exposes no network mode. The process-token and browser-cookie authentication does not broaden that deployment contract ([decision](../architecture/2026-08-24-browser-token-authentication.md)).
 
 `WebServer` still requires `host: '127.0.0.1' | '0.0.0.0'` and passes it to `node:http` without a fallback. The generic carrier leaves custom composition policy visible at its package interface; the product CLI owns the stricter loopback choice.
 
@@ -28,4 +28,4 @@ The HTTP carrier also hides the bind address inside `startWebServer()`, so alter
 
 ## Consequences
 
-Local `dsh web` starts remain reachable at `http://127.0.0.1:3080`. The CLI exposes no custom interface, all-interface, or IPv6 mode; custom WebServer compositions retain the carrier's two-address choice and own every consequence. Server tests pin both carrier values into Node listen, while CLI tests pin rejection of the all-interface flag.
+Local `avn web` starts remain reachable at `http://127.0.0.1:3080`. The CLI exposes no custom interface, all-interface, or IPv6 mode; custom WebServer compositions retain the carrier's two-address choice and own every consequence. Server tests pin both carrier values into Node listen, while CLI tests pin rejection of the all-interface flag.

@@ -36,7 +36,7 @@ import type {} from '@aeven/session-projection'
 import type {} from '@aeven/tools'
 import type SettingsService from '@aeven/settings'
 import type { SettingsScope } from '@aeven/settings'
-import { dshHomePath } from '@aeven/home-paths'
+import { avnHomePath } from '@aeven/home-paths'
 import { discoverPresets, SHIPPED_PRESET_ROOT, USER_PRESET_DIR } from './discovery.ts'
 import { copyComposition, deleteComposition, presetExists, readComposition } from './authoring.ts'
 import { livePresetMounts, mountPreset, serviceForAgent, standingMountFor } from './mount.ts'
@@ -178,7 +178,7 @@ export class AgentPresets extends TypertRemoteService {
     this.resolvedRoots = [
       ...config.includeShippedRoot ? [{ path: SHIPPED_PRESET_ROOT, trust: 'system' } satisfies PresetRoot] : [],
       ...config.roots,
-      ...config.includeUserRoot ? [{ path: dshHomePath(USER_PRESET_DIR), trust: 'user' } satisfies PresetRoot] : [],
+      ...config.includeUserRoot ? [{ path: avnHomePath(USER_PRESET_DIR), trust: 'user' } satisfies PresetRoot] : [],
     ]
     // Deliberately not `settings.installSection`: that method exists to re-judge
     // what a consumer DERIVED from the source — memoized resolutions,
@@ -392,7 +392,7 @@ export class AgentPresets extends TypertRemoteService {
 
   /**
    * Parent bindings of the agents this roster composed, keyed by the agent's
-   * scope key. The binding is dsh-scope's only re-link capability; holding it
+   * scope key. The binding is avn-scope's only re-link capability; holding it
    * here makes this service the sole authority that can move an agent between
    * standing compositions. WeakMap: entries die with their agents.
    */
@@ -637,7 +637,7 @@ export class AgentPresets extends TypertRemoteService {
    * new one is ensured BEFORE the link moves. An unknown or unusable preset
    * therefore throws with the agent exactly as it was — there is no torn-down
    * state to restore. The re-link runs through the binding this roster kept
-   * from the agent's mount — dsh-scope's only re-link authority. An agent
+   * from the agent's mount — avn-scope's only re-link authority. An agent
    * that never composed one has nothing to re-link: the switch is then the
    * agent's first bind, exactly a mount. A committed re-link emits
    * `tools/change` because changing the parent scope changes the Agent's
@@ -756,7 +756,7 @@ export class AgentPresets extends TypertRemoteService {
       const current = await compositionStamp(preset.path)
       if (current === undefined || sameStamp(mounted.stamp, current)) return mounted
       // TODO: reclaim the superseded generation once the last agent joined to
-      // it is gone. The subtree is not inert — `dsh-skill-filesystem` watches its
+      // it is gone. The subtree is not inert — `avn-skill-filesystem` watches its
       // roots — and the settings-page authoring flow turns "a composition
       // changed" into a per-save event. This needs a joined-agent count on
       // StandingMount, incremented in `mount`/`composeFrom`/`recompose` and

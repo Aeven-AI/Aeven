@@ -29,7 +29,7 @@ const INITIAL: SessionLogDownloadState = { bySession: {} }
  * @returns one safe browser download filename.
  */
 export function sessionLogZipFilename(sessionId: SessionId): string {
-  return `dsh-session-${String(sessionId).replace(/[^A-Za-z0-9_-]/g, '_')}.zip`
+  return `avn-session-${String(sessionId).replace(/[^A-Za-z0-9_-]/g, '_')}.zip`
 }
 
 /**
@@ -47,7 +47,7 @@ export function downloadUrl(url: string, filename: string): void {
 /** Resolve the browser's Host base with the connection carrier's null-origin fallback. */
 function hostBase(): string {
   const origin = (globalThis as { location?: { origin?: string } }).location?.origin
-  return origin !== undefined && origin !== 'null' ? origin : 'http://dsh.internal'
+  return origin !== undefined && origin !== 'null' ? origin : 'http://avn.internal'
 }
 
 function messageOf(error: unknown): string {

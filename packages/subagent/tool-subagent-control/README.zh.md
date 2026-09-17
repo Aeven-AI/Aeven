@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-tool-subagent-control` 为可继续子级添加全局控制工具：`send_message` 在直接 parent 与 child 之间 steer，`interrupt_agent` 停止 child 当前轮次但保留其 inbox 与后代，`list_agents`（来自可单独加载的 `list-agents` 插件）按持久化 id 与标签列出可继续 child。parent 与可继续 child 继承相同的 `send_message` 定义和顺序，因此模型通信不会增加 child 专属工具 schema。是否加载这些工具不会决定委派工具是否启动可继续工作。
+`avn-tool-subagent-control` 为可继续子级添加全局控制工具：`send_message` 在直接 parent 与 child 之间 steer，`interrupt_agent` 停止 child 当前轮次但保留其 inbox 与后代，`list_agents`（来自可单独加载的 `list-agents` 插件）按持久化 id 与标签列出可继续 child。parent 与可继续 child 继承相同的 `send_message` 定义和顺序，因此模型通信不会增加 child 专属工具 schema。是否加载这些工具不会决定委派工具是否启动可继续工作。
 
 ## 目录
 
@@ -96,7 +96,7 @@ kind: "package-reference"
 当包级约定不够用时阅读以下页面；它们从工具 schema 进入其背后的继续执行服务。
 
 - [Subagent 子系统](../../../docs/subsystems/subagent.zh.md)——可继续子级、Activation、inbox、中断与后续消息权限。
-- [dsh-tool-subagent](../tool-subagent/README.zh.md)——启动可继续子级的委派工具。
+- [avn-tool-subagent](../tool-subagent/README.zh.md)——启动可继续子级的委派工具。
 - [生成工具目录](../../../docs/tool-catalog.zh.md#aeven-tool-subagent-control)——三个工具的 schema。
 
 -----

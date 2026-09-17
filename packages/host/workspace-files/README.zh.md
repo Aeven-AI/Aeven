@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-在 Web GUI 中渲染的模型回复可以显示图片，但仅限 `http` 或 `https` URL —— 文件系统路径会被渲染器拒绝。`dsh-host-workspace-files` 正是为生成的文件提供这样一个 URL：它在 [webserver](../webserver/README.zh.md) 上注册一条前缀路由，从[工作区注册表](../../workspace/workspace/README.zh.md)中某个工作区的规范目录提供 `<mount>/<workspaceId>/<相对路径>`。在解析任何路径之前，每个请求都要通过 Connection 的 Host/Origin 围栏与浏览器认证；越出工作区目录的穿越返回 403，未知工作区 id 或文件缺失返回 404，非 GET/HEAD 返回 405。提供过程是只读的：该路由从不写入、列举或删除。
+在 Web GUI 中渲染的模型回复可以显示图片，但仅限 `http` 或 `https` URL —— 文件系统路径会被渲染器拒绝。`avn-host-workspace-files` 正是为生成的文件提供这样一个 URL：它在 [webserver](../webserver/README.zh.md) 上注册一条前缀路由，从[工作区注册表](../../workspace/workspace/README.zh.md)中某个工作区的规范目录提供 `<mount>/<workspaceId>/<相对路径>`。在解析任何路径之前，每个请求都要通过 Connection 的 Host/Origin 围栏与浏览器认证；越出工作区目录的穿越返回 403，未知工作区 id 或文件缺失返回 404，非 GET/HEAD 返回 405。提供过程是只读的：该路由从不写入、列举或删除。
 
 ## 目录
 
@@ -82,7 +82,7 @@ kind: "package-reference"
 
 - [Webserver](../webserver/README.zh.md) —— 本插件注册进入的具名路由表。
 - [工作区注册表](../../workspace/workspace/README.zh.md) —— `workspaceId` 及其规范目录的来源。
-- [dsh-web-app bundle](../../bundle/web-app/README.zh.md) —— 挂载该行并在界面提示词中陈述 URL 形式的编排。
+- [avn-web-app bundle](../../bundle/web-app/README.zh.md) —— 挂载该行并在界面提示词中陈述 URL 形式的编排。
 - [生成的配置目录](../../../docs/config-catalog.zh.md#aeven-host-workspace-files) —— 所有可接受的配置字段及其源声明。
 
 -----
@@ -90,7 +90,7 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-Indirectly, through the [dsh-web-app](../../bundle/web-app/README.zh.md) surface prompt: it states the URL form, so a model that produced a file can reference it as `![alt](<webUrl>/workspace/<workspaceId>/<path>)` and have the reply render the image instead of reporting a filesystem path the renderer refuses.
+Indirectly, through the [avn-web-app](../../bundle/web-app/README.zh.md) surface prompt: it states the URL form, so a model that produced a file can reference it as `![alt](<webUrl>/workspace/<workspaceId>/<path>)` and have the reply render the image instead of reporting a filesystem path the renderer refuses.
 
 #### KV Cache 影响
 

@@ -27,7 +27,7 @@ const SECTION_EXPECTED = join(SNAPSHOT_DIR, 'section.expected.md')
 const COPY_DIALOG_EXPECTED = join(SNAPSHOT_DIR, 'copy-dialog.expected.md')
 const CREATED_EXPECTED = join(SNAPSHOT_DIR, 'created.expected.md')
 const DAMAGED_EXPECTED = join(SNAPSHOT_DIR, 'damaged.expected.md')
-/** The shipped roster, bundled inside the `dsh-agent-presets` package. */
+/** The shipped roster, bundled inside the `avn-agent-presets` package. */
 const SHIPPED_PRESETS = fileURLToPath(new URL('../../../packages/preset/agent-presets/presets', import.meta.url))
 const OVERLAY = fileURLToPath(new URL('./agent-preset-authoring.overlay.yml', import.meta.url))
 const MODE = webSnapshotMode()
@@ -56,7 +56,7 @@ describe('web e2e: agent-preset authoring is a host-side copy', () => {
   }
 
   beforeAll(async () => {
-    userRoot = await realpath(await mkdtemp(join(tmpdir(), 'dsh-web-e2e-presets-')))
+    userRoot = await realpath(await mkdtemp(join(tmpdir(), 'avn-web-e2e-presets-')))
     scaffold = await launchWebScaffold({
       extraOverlayPath: OVERLAY,
       agentPresets: {

@@ -300,7 +300,7 @@ describe('ApiSession model selection', () => {
 describe('ApiSession create or adoption', () => {
   it('shares one in-flight creation between concurrent callers', async () => {
     const { ctx, agents } = await harness()
-    const cwd = mkdtempSync(join(tmpdir(), 'dsh-session-controller-concurrent-'))
+    const cwd = mkdtempSync(join(tmpdir(), 'avn-session-controller-concurrent-'))
     const meta = header('concurrent-create', cwd)
     const created = unpublishedAgent(ctx, meta)
     let release!: () => void
@@ -320,7 +320,7 @@ describe('ApiSession create or adoption', () => {
 
   it('accepts a raced ordinary creation and rejects a raced attached child', async () => {
     const ordinary = await harness()
-    const cwd = mkdtempSync(join(tmpdir(), 'dsh-session-controller-create-'))
+    const cwd = mkdtempSync(join(tmpdir(), 'avn-session-controller-create-'))
     const ordinaryMeta = header('create-race', cwd)
     const winner = agent(ordinary.ctx, ordinaryMeta)
     vi.spyOn(ordinary.ctx.agents, 'create').mockImplementation(async () => {
@@ -331,7 +331,7 @@ describe('ApiSession create or adoption', () => {
       .resolves.toBe(winner)
 
     const child = await harness()
-    const childCwd = mkdtempSync(join(tmpdir(), 'dsh-session-controller-child-'))
+    const childCwd = mkdtempSync(join(tmpdir(), 'avn-session-controller-child-'))
     const childId = SessionId('create-child-race')
     vi.spyOn(child.ctx.agents, 'create').mockImplementation(async () => {
       child.ctx.sessions.create(childId, {
@@ -345,7 +345,7 @@ describe('ApiSession create or adoption', () => {
 
   it('validates ownership and cwd on the Agent returned by creation', async () => {
     const child = await harness()
-    const childCwd = mkdtempSync(join(tmpdir(), 'dsh-session-controller-returned-child-'))
+    const childCwd = mkdtempSync(join(tmpdir(), 'avn-session-controller-returned-child-'))
     const childMeta = {
       ...header('returned-child', childCwd),
       parentSession: SessionId('parent'),
@@ -360,7 +360,7 @@ describe('ApiSession create or adoption', () => {
       .rejects.toBeInstanceOf(ApiSessionSubagentOwnership)
 
     const wrong = await harness()
-    const requestedCwd = mkdtempSync(join(tmpdir(), 'dsh-session-controller-wrong-cwd-'))
+    const requestedCwd = mkdtempSync(join(tmpdir(), 'avn-session-controller-wrong-cwd-'))
     const wrongAgent = unpublishedAgent(wrong.ctx, header('wrong-returned-cwd', '/other'))
     vi.spyOn(wrong.ctx.agents, 'create').mockResolvedValue({
       agent: wrongAgent,
@@ -440,7 +440,7 @@ describe('ApiSession create or adoption', () => {
 
   it('surfaces directory creation failure and rejects setup without a scoped Agent', async () => {
     const { agents } = await harness()
-    const parent = mkdtempSync(join(tmpdir(), 'dsh-session-controller-file-'))
+    const parent = mkdtempSync(join(tmpdir(), 'avn-session-controller-file-'))
     const file = join(parent, 'file')
     writeFileSync(file, 'not a directory')
     await expect(agents.ensureSession(SessionId('mkdir-failure'), join(file, 'child'), false))

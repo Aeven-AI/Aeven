@@ -238,23 +238,23 @@ describe('session reference URI and inline mentions', () => {
       { sessionId, label: sessionId },
     ])
 
-    expect(parseSessionReferenceText('what is a dsh-session: URI?')).toEqual({
-      text: 'what is a dsh-session: URI?',
+    expect(parseSessionReferenceText('what is a avn-session: URI?')).toEqual({
+      text: 'what is a avn-session: URI?',
       references: [],
     })
-    expect(parseSessionReferenceText('see dsh-session:%%%')).toEqual({
-      text: 'see dsh-session:%%%',
+    expect(parseSessionReferenceText('see avn-session:%%%')).toEqual({
+      text: 'see avn-session:%%%',
       references: [],
     })
   })
 
   it('rejects malformed explicit references and base64url-shaped bare candidates', () => {
     expect(() => decodeSessionReferenceUri('https://example.test')).toThrow(expectCode('SESSION_REFERENCE_INVALID_REFERENCE'))
-    expect(() => parseSessionReferenceText('see dsh-session:IiJ')).toThrow(expectCode('SESSION_REFERENCE_INVALID_REFERENCE'))
-    expect(() => parseSessionReferenceText('@[bad](dsh-session:%%%)')).toThrow(expectCode('SESSION_REFERENCE_INVALID_REFERENCE'))
-    const nonString = `dsh-session:${Buffer.from(JSON.stringify({ id: 'x' })).toString('base64url')}`
+    expect(() => parseSessionReferenceText('see avn-session:IiJ')).toThrow(expectCode('SESSION_REFERENCE_INVALID_REFERENCE'))
+    expect(() => parseSessionReferenceText('@[bad](avn-session:%%%)')).toThrow(expectCode('SESSION_REFERENCE_INVALID_REFERENCE'))
+    const nonString = `avn-session:${Buffer.from(JSON.stringify({ id: 'x' })).toString('base64url')}`
     expect(() => decodeSessionReferenceUri(nonString)).toThrow(expectCode('SESSION_REFERENCE_INVALID_REFERENCE'))
-    expect(() => decodeSessionReferenceUri('dsh-session:IiJ')).toThrow(expectCode('SESSION_REFERENCE_INVALID_REFERENCE'))
+    expect(() => decodeSessionReferenceUri('avn-session:IiJ')).toThrow(expectCode('SESSION_REFERENCE_INVALID_REFERENCE'))
   })
 })
 
@@ -455,7 +455,7 @@ describe('session reference discovery and preparation', () => {
     const target = ctx.sessions.create(SessionId('target'))
     const agent = fakeAgent(target)
     const malformed = createUserMessage({
-      content: [{ type: 'text', text: '@[bad](dsh-session:not-canonical)' }],
+      content: [{ type: 'text', text: '@[bad](avn-session:not-canonical)' }],
       source: { kind: 'user' },
     })
     const readSurface = vi.spyOn(ctx.sessionQuery, 'readSurface')

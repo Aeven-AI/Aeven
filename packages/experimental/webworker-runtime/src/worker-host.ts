@@ -231,7 +231,7 @@ export function createWorkerHost(options: WorkerHostOptions): WorkerHost {
       }
 
       const { patches, presetOverlay } = bootPatches(loader, mounted, configPath, root)
-      const ctx = await appBoot.boot('dsh-webworker', configPath, patches, (hostCtx) => {
+      const ctx = await appBoot.boot('avn-webworker', configPath, patches, (hostCtx) => {
         // Before any entry mounts: the Loader would otherwise fall back to the
         // runtime's own dynamic import for every row.
         hostCtx.loader.internal = loader.internal

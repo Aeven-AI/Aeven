@@ -1,5 +1,5 @@
 /**
- * Resolve the public SDK launch configuration to one dsh subprocess.
+ * Resolve the public SDK launch configuration to one avn subprocess.
  * @module @aeven/sdk-client/launch
  */
 
@@ -26,8 +26,8 @@ export interface RuntimeProcessOptions {
   disposeGraceMs?: number
 }
 
-/** Node argv plus internal profile patches required by one resolved dsh entry. */
-export interface DshNodeLaunch {
+/** Node argv plus internal profile patches required by one resolved avn entry. */
+export interface AvnNodeLaunch {
   /** Arguments before the profile selector. */
   nodeArgs: string[]
   /** Internal patches applied below caller-supplied patches. */
@@ -47,51 +47,51 @@ function manifest(url: string): PackageManifest {
 }
 
 /**
- * Resolve and version-check a dsh executable from package manifests.
- * @param dshManifestUrl - resolved URL of the dsh package manifest.
+ * Resolve and version-check a avn executable from package manifests.
+ * @param avnManifestUrl - resolved URL of the avn package manifest.
  * @param clientManifestUrl - resolved URL of the SDK client manifest.
- * @returns the absolute dsh executable path.
+ * @returns the absolute avn executable path.
  */
-export function resolveDshBinFromManifests(dshManifestUrl: string, clientManifestUrl: string): string {
-  const dshManifest = manifest(dshManifestUrl)
+export function resolveAvnBinFromManifests(avnManifestUrl: string, clientManifestUrl: string): string {
+  const avnManifest = manifest(avnManifestUrl)
   const clientManifest = manifest(clientManifestUrl)
-  if (typeof dshManifest.version !== 'string' || dshManifest.version !== clientManifest.version) {
-    throw new Error(`dsh SDK client ${String(clientManifest.version)} requires the same dsh version, got ${String(dshManifest.version)}`)
+  if (typeof avnManifest.version !== 'string' || avnManifest.version !== clientManifest.version) {
+    throw new Error(`avn SDK client ${String(clientManifest.version)} requires the same avn version, got ${String(avnManifest.version)}`)
   }
-  const bin = typeof dshManifest.bin === 'object' && dshManifest.bin !== null
-    ? (dshManifest.bin as Record<string, unknown>).dsh
-    : dshManifest.bin
-  if (typeof bin !== 'string' || bin === '') throw new Error('@aeven/cli declares no dsh executable')
-  return resolve(dirname(fileURLToPath(dshManifestUrl)), bin)
+  const bin = typeof avnManifest.bin === 'object' && avnManifest.bin !== null
+    ? (avnManifest.bin as Record<string, unknown>).avn
+    : avnManifest.bin
+  if (typeof bin !== 'string' || bin === '') throw new Error('@aeven/cli declares no avn executable')
+  return resolve(dirname(fileURLToPath(avnManifestUrl)), bin)
 }
 
 /**
- * Resolve and version-check the built dsh executable installed with this SDK.
+ * Resolve and version-check the built avn executable installed with this SDK.
  * @returns the absolute built executable path, whether or not it exists in a source checkout.
  */
-export function installedDshBin(): string {
-  return resolveDshBinFromManifests(
+export function installedAvnBin(): string {
+  return resolveAvnBinFromManifests(
     import.meta.resolve('@aeven/cli/package.json'),
     new URL('../package.json', import.meta.url).href,
   )
 }
 
 /**
- * Resolve the Node launch for one same-version dsh package.
- * @param dshManifestUrl - resolved URL of the dsh package manifest.
+ * Resolve the Node launch for one same-version avn package.
+ * @param avnManifestUrl - resolved URL of the avn package manifest.
  * @param clientManifestUrl - resolved URL of the SDK client manifest.
  * @param sourceLoaderUrl - optional absolute tsx loader URL for deterministic tests.
  * @returns built output, or the source entry plus its compatibility patch and tsx environment.
  */
-export function resolveDshNodeLaunchFromManifests(
-  dshManifestUrl: string,
+export function resolveAvnNodeLaunchFromManifests(
+  avnManifestUrl: string,
   clientManifestUrl: string,
   sourceLoaderUrl?: string,
-): DshNodeLaunch {
-  const bin = resolveDshBinFromManifests(dshManifestUrl, clientManifestUrl)
+): AvnNodeLaunch {
+  const bin = resolveAvnBinFromManifests(avnManifestUrl, clientManifestUrl)
   if (existsSync(bin)) return { nodeArgs: [bin], patches: [], environment: {} }
 
-  const packageDir = dirname(fileURLToPath(dshManifestUrl))
+  const packageDir = dirname(fileURLToPath(avnManifestUrl))
   const sourceBin = resolve(packageDir, 'src/bin.ts')
   const sourcePatch = resolve(packageDir, 'src/sdk-source.cordis.patch.yml')
   const sourceTsconfig = resolve(packageDir, 'tsconfig.json')
@@ -109,45 +109,45 @@ export function resolveDshNodeLaunchFromManifests(
 }
 
 /**
- * Resolve the installed dsh package to a built or source Node launch.
+ * Resolve the installed avn package to a built or source Node launch.
  * @returns the launch descriptor for the current checkout or installed package.
  */
-function installedDshNodeLaunch(): DshNodeLaunch {
-  return resolveDshNodeLaunchFromManifests(
+function installedAvnNodeLaunch(): AvnNodeLaunch {
+  return resolveAvnNodeLaunchFromManifests(
     import.meta.resolve('@aeven/cli/package.json'),
     new URL('../package.json', import.meta.url).href,
   )
 }
 
 /**
- * Resolve caller-relative filesystem inputs and construct canonical dsh argv.
+ * Resolve caller-relative filesystem inputs and construct canonical avn argv.
  * @param options - public SDK launch options.
  * @param callerCwd - parent-process directory used for lexical resolution.
  * @returns one generic subprocess spec for the JSON-RPC transport.
  */
-export function resolveDshLaunch(
+export function resolveAvnLaunch(
   options: HarnessClientOptions = {},
   callerCwd: string = process.cwd(),
 ): RuntimeProcessOptions {
   const profile = options.profile ?? 'sdk'
-  const dshLaunch = options.dshBin === undefined
-    ? installedDshNodeLaunch()
-    : { nodeArgs: [resolve(callerCwd, options.dshBin)], patches: [], environment: {} }
+  const avnLaunch = options.avnBin === undefined
+    ? installedAvnNodeLaunch()
+    : { nodeArgs: [resolve(callerCwd, options.avnBin)], patches: [], environment: {} }
   const patches = [
-    ...dshLaunch.patches,
+    ...avnLaunch.patches,
     ...(options.patches ?? []).map(path => resolve(callerCwd, path)),
   ]
-  const dshHome = options.dshHome === undefined ? undefined : resolve(callerCwd, options.dshHome)
+  const avnHome = options.avnHome === undefined ? undefined : resolve(callerCwd, options.avnHome)
   return {
     command: process.execPath,
-    args: [...dshLaunch.nodeArgs, '--profile', profile, ...patches.flatMap(path => ['--patch', path])],
+    args: [...avnLaunch.nodeArgs, '--profile', profile, ...patches.flatMap(path => ['--patch', path])],
     ...options.processCwd === undefined ? {} : { cwd: resolve(callerCwd, options.processCwd) },
     environment: () => ({
       ...(options.env ?? process.env),
-      ...dshLaunch.environment,
-      ...dshHome === undefined ? {} : { AVN_HOME: dshHome },
+      ...avnLaunch.environment,
+      ...avnHome === undefined ? {} : { AVN_HOME: avnHome },
     }),
-    description: `dsh profile ${JSON.stringify(profile)}`,
+    description: `avn profile ${JSON.stringify(profile)}`,
     initializeTimeoutMs: options.initializeTimeoutMs ?? DEFAULT_INITIALIZE_TIMEOUT_MS,
     ...options.requestTimeoutMs === undefined ? {} : { requestTimeoutMs: options.requestTimeoutMs },
     ...options.shutdownTimeoutMs === undefined ? {} : { shutdownTimeoutMs: options.shutdownTimeoutMs },

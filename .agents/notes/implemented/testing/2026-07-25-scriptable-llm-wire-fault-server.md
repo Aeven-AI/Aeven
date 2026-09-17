@@ -18,7 +18,7 @@ Request behaviors cover socket reset, post-header disconnect, partial disconnect
 
 The `random` script entry performs a new weighted selection for every request. The server exposes and logs its unsigned 32-bit seed, accepts caller-supplied relative weights, and ships a success-heavy stress profile that mixes transport, protocol, provider, timeout, and semantic-empty outcomes. The profile is configurable test pressure rather than an estimate of production incident frequency; `connection_refused` remains outside the request-level pool.
 
-The server reports wire facts only and does not classify retryability. Real-composition tests route it through `dsh-llm-deepseek`, `dsh-agent-loop`, and `dsh-llm-retry`: connection refusal, hard disconnect, partial reset, idle timeout, and a valid content-less completion recover under the existing default policy; clean partial EOF remains `STREAM_CLOSED` and is not retried by default. The package does not change those policies.
+The server reports wire facts only and does not classify retryability. Real-composition tests route it through `avn-llm-deepseek`, `avn-agent-loop`, and `avn-llm-retry`: connection refusal, hard disconnect, partial reset, idle timeout, and a valid content-less completion recover under the existing default policy; clean partial EOF remains `STREAM_CLOSED` and is not retried by default. The package does not change those policies.
 
 ## Verification
 

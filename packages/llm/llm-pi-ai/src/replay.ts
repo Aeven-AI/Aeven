@@ -5,7 +5,7 @@
  * module stores only the provider-native metadata needed to reconstruct a
  * pi-ai assistant message on a later request.
  *
- * @module dsh-llm-pi-ai/replay
+ * @module avn-llm-pi-ai/replay
  */
 
 import { LlmError } from '@aeven/llm'
@@ -166,9 +166,9 @@ function foreignAssistant(message: Message): AssistantMessage {
     content,
     // Deliberately never equals a catalog API: absent replay state is foreign
     // even if source names the same provider/model as this request.
-    api: 'dsh-foreign',
-    provider: source?.provider ?? 'dsh-foreign',
-    model: source?.model ?? 'dsh-foreign',
+    api: 'avn-foreign',
+    provider: source?.provider ?? 'avn-foreign',
+    model: source?.model ?? 'avn-foreign',
     usage: emptyPiUsage(),
     stopReason: content.some(piece => piece.type === 'toolCall') ? 'toolUse' : 'stop',
     timestamp: 0,

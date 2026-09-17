@@ -5,7 +5,7 @@
  * name nothing from this library, so another adapter family can arrive with a
  * different auth model and share the same two seams.
  *
- * @module dsh-llm-pi-ai/auth
+ * @module avn-llm-pi-ai/auth
  */
 
 import { homedir } from 'node:os'
@@ -114,7 +114,7 @@ function writableStore(ctx: Context): CredentialProvider {
   if (credentials === undefined) {
     throw new LlmError(
       'llm-pi-ai: this composition mounts no credentials service, so there is nowhere to store the'
-      + ' credential a sign-in produces; mount one (dsh-credentials-local) to sign in',
+      + ' credential a sign-in produces; mount one (avn-credentials-local) to sign in',
       'NO_CREDENTIAL_STORE',
     )
   }

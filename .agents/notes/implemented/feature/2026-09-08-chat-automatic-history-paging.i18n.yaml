@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-08-chat-automatic-history-paging.md
-2026-09-08-chat-automatic-history-paging.md: 0078cfd338063d654c1f44e04de97ce3c9f09ccd
-2026-09-08-chat-automatic-history-paging.zh.md: 708ec9d98b4f611dd673808365c3721222adbf57
+2026-09-08-chat-automatic-history-paging.md: eb2346aa6b14564fa51a94aa62f5c9cb70b30662
+2026-09-08-chat-automatic-history-paging.zh.md: aebae0208ddc424fb4457caef176f3a72d2d0244

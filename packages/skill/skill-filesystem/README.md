@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Agents can use local skills from the repository, a custom directory, or the user's agent configuration: author a skill as a directory bundle with a `SKILL.md` or a flat `<name>.md` file under any scanned root, and it appears in the session catalog. The provider discovers the project, custom, and user roots, parses each skill's YAML frontmatter, and watches the directories, so new, renamed, or deleted skills reach agents without a restart. Choose it when skills live on disk — the registry (`dsh-skill`) accepts any provider, and another provider can supply skills from elsewhere.
+Agents can use local skills from the repository, a custom directory, or the user's agent configuration: author a skill as a directory bundle with a `SKILL.md` or a flat `<name>.md` file under any scanned root, and it appears in the session catalog. The provider discovers the project, custom, and user roots, parses each skill's YAML frontmatter, and watches the directories, so new, renamed, or deleted skills reach agents without a restart. Choose it when skills live on disk — the registry (`avn-skill`) accepts any provider, and another provider can supply skills from elsewhere.
 
 ## Table of Contents
 
@@ -45,13 +45,13 @@ Default roots are scanned in this provider's rank order:
 
 | Rank | Source | Path |
 |---|---|---|
-| 100 | `project-dsh` | `<projectRoot>/.dsh/skills` |
+| 100 | `project-avn` | `<projectRoot>/.avn/skills` |
 | 200 | `project-agents` | `<projectRoot>/.agents/skills` |
 | 300 | `custom` | `Config.customSkillDirs` |
-| 400 | `user-dsh` | `<dshHome>/skills` |
+| 400 | `user-avn` | `<avnHome>/skills` |
 | 500 | `user-agents` | `<agentsHome>/skills` |
 
-The project root is the nearest ancestor containing `.git`; without one, the current cwd is used. The user DSH root skips its `.system` child. `includeDefaultRoots: false` omits the project and user rows plus the `$AVN_BUNDLED_SKILL_DIR` default so an isolated provider sees only its own configured roots; `bundledSkillDir` adds a bundled root at rank 600.
+The project root is the nearest ancestor containing `.git`; without one, the current cwd is used. The user AVN root skips its `.system` child. `includeDefaultRoots: false` omits the project and user rows plus the `$AVN_BUNDLED_SKILL_DIR` default so an isolated provider sees only its own configured roots; `bundledSkillDir` adds a bundled root at rank 600.
 
 ### Mount and configure
 
@@ -66,7 +66,7 @@ Load the plugin alongside the skill registry; it requires `ctx.skills`.
 |---|---|---|
 | `providerName` | `filesystem` | Unique provider name registered on `ctx.skills` |
 | `includeDefaultRoots` | `true` | Include project and user roots around `customSkillDirs` |
-| `dshHome` | `$AVN_HOME` or `~/.dsh` | Harness config root; its `skills` subdirectory is scanned |
+| `avnHome` | `$AVN_HOME` or `~/.avn` | Harness config root; its `skills` subdirectory is scanned |
 | `agentsHome` | `$AVN_AGENTS_HOME` or `~/.agents` | Shared agent config root scanned for compatible skills |
 | `customSkillDirs` | `[]` | Additional local skill roots, after project roots and before user roots |
 | `watch` | `true` | Watch local roots and invalidate the provider when the catalog may have changed |
@@ -123,14 +123,14 @@ Read these pages when the package-level contract is not enough. They move from t
 - [Skill subsystem reference](../../../docs/subsystems/skills.md) — the registry contract and the local discovery priority table.
 - [skill package](../skill/README.md) — the registry this provider registers on.
 - [tool-skill package](../tool-skill/README.md) — how discovered skills reach the session catalog and the model.
-- [home-paths package](../../util/home-paths/README.md) — how `dshHome` and `agentsHome` resolve.
+- [home-paths package](../../util/home-paths/README.md) — how `avnHome` and `agentsHome` resolve.
 
 -----
 
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through `dsh-tool-skill`, which renders this provider's invocable names and capped descriptions into the initial or replacement catalog and a selected current instruction body plus resource-base guidance into retained tool history while paths, provider ranks, and disabled skills remain hidden.
+Indirectly, through `avn-tool-skill`, which renders this provider's invocable names and capped descriptions into the initial or replacement catalog and a selected current instruction body plus resource-base guidance into retained tool history while paths, provider ranks, and disabled skills remain hidden.
 
 #### KV Cache effect
 

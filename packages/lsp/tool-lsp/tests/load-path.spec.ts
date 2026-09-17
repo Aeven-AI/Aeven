@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import * as toolLsp from '@aeven/tool-lsp'
 
-describe('dsh-tool-lsp Loader export-shape guard', () => {
+describe('avn-tool-lsp Loader export-shape guard', () => {
   it('has no default export and keeps name/inject/Config through unwrapExports', () => {
     expect('default' in toolLsp).toBe(false)
 

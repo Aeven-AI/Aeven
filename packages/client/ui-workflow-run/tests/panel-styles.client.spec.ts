@@ -2,9 +2,9 @@
  * WorkflowRunPanel's font-size-axis adoption as CSS text. jsdom has no
  * layout, so these read the declarations that make the run/phase headers and
  * the expanded member rows follow the Settings font-size preference: member
- * labels at the body size (--dsh-content-font-size / --dsh-content-font-delta),
+ * labels at the body size (--avn-content-font-size / --avn-content-font-delta),
  * the chrome around them on the secondary tier
- * (--dsh-content-font-size-secondary / --dsh-content-font-delta-secondary).
+ * (--avn-content-font-size-secondary / --avn-content-font-delta-secondary).
  */
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -25,26 +25,26 @@ function declarations(selector: string): string[] {
 describe('WorkflowRunPanel.module.css font-size axis', () => {
   it('member labels ride the axis at the body size with matching row geometry', () => {
     expect(declarations('.memberLabel')).toEqual(expect.arrayContaining([
-      'font-size: var(--dsh-content-font-size, 14px)',
-      'line-height: calc(24px + var(--dsh-content-font-delta, 0px))',
+      'font-size: var(--avn-content-font-size, 14px)',
+      'line-height: calc(24px + var(--avn-content-font-delta, 0px))',
     ]))
     expect(declarations('.memberLabelWrap')).toEqual(expect.arrayContaining([
-      'height: calc(24px + var(--dsh-content-font-delta, 0px))',
+      'height: calc(24px + var(--avn-content-font-delta, 0px))',
     ]))
   })
 
   it('member status and the empty placeholder read the secondary tier', () => {
     for (const selector of ['.memberStatus', '.empty']) {
       expect(declarations(selector)).toEqual(expect.arrayContaining([
-        'font-size: var(--dsh-content-font-size-secondary, 14px)',
-        'line-height: calc(20px + var(--dsh-content-font-delta-secondary, 0px))',
+        'font-size: var(--avn-content-font-size-secondary, 14px)',
+        'line-height: calc(20px + var(--avn-content-font-delta-secondary, 0px))',
       ]))
     }
   })
 
   it('the phase status column widens with the text so larger sizes do not truncate', () => {
     expect(declarations('.phaseStatus')).toEqual(expect.arrayContaining([
-      'width: calc(132px + var(--dsh-content-font-delta-secondary, 0px) * 10)',
+      'width: calc(132px + var(--avn-content-font-delta-secondary, 0px) * 10)',
     ]))
   })
 })

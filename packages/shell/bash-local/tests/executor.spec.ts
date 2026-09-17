@@ -8,7 +8,7 @@ import LocalSubprocessRuntime from '@aeven/subprocess-local'
 import { MAX_TIMER_DELAY_MS } from '@aeven/timeout'
 import type { ShellProcess } from '@aeven/shell'
 
-const spillDir = mkdtempSync(join(tmpdir(), 'dsh-bash-exec-spec-'))
+const spillDir = mkdtempSync(join(tmpdir(), 'avn-bash-exec-spec-'))
 
 async function setup(config: ConstructorParameters<typeof LocalBashExecutor>[1] = {}) {
   const ctx = new Context()
@@ -130,31 +130,31 @@ describe('LocalBashExecutor.run', () => {
 
   it('rejects on spawn failure (bad workdir)', async () => {
     const { bash } = await setup()
-    await expect(bash.run(bash.resolve({ command: 'true', workdir: '/nonexistent-dsh' }))).rejects.toThrow(/ENOENT/)
+    await expect(bash.run(bash.resolve({ command: 'true', workdir: '/nonexistent-avn' }))).rejects.toThrow(/ENOENT/)
   })
 
-  it('resolve() carries stdin/env/dshEnv onto the spec, and run() threads them to the command', async () => {
+  it('resolve() carries stdin/env/avnEnv onto the spec, and run() threads them to the command', async () => {
     const { bash } = await setup()
     const spec = bash.resolve({
       command: 'cat; echo "[$SEAM_VAR][$AVN_SEAM_VAR]"',
       stdin: 'piped\n',
       env: { SEAM_VAR: 'env-ok' },
-      dshEnv: { AVN_SEAM_VAR: 'dsh-ok' },
+      avnEnv: { AVN_SEAM_VAR: 'avn-ok' },
     })
     // resolve() keeps the optional input/environment fields verbatim.
     expect(spec.stdin).toBe('piped\n')
     expect(spec.env).toEqual({ SEAM_VAR: 'env-ok' })
-    expect(spec.dshEnv).toEqual({ AVN_SEAM_VAR: 'dsh-ok' })
+    expect(spec.avnEnv).toEqual({ AVN_SEAM_VAR: 'avn-ok' })
     const result = await bash.run(spec)
-    expect(result.stdout.text).toBe('piped\n[env-ok][dsh-ok]\n')
+    expect(result.stdout.text).toBe('piped\n[env-ok][avn-ok]\n')
   })
 
-  it('resolve() omits stdin/env/dshEnv when the request supplies none', async () => {
+  it('resolve() omits stdin/env/avnEnv when the request supplies none', async () => {
     const { bash } = await setup()
     const spec = bash.resolve({ command: 'true' })
     expect('stdin' in spec).toBe(false)
     expect('env' in spec).toBe(false)
-    expect('dshEnv' in spec).toBe(false)
+    expect('avnEnv' in spec).toBe(false)
   })
 })
 
@@ -176,9 +176,9 @@ describe('LocalBashExecutor.start (background process handles)', () => {
       command: 'cat; echo "[$BG_VAR][$AVN_BG_VAR]"',
       stdin: 'bg-stdin\n',
       env: { BG_VAR: 'bg-env' },
-      dshEnv: { AVN_BG_VAR: 'bg-dsh-env' },
+      avnEnv: { AVN_BG_VAR: 'bg-avn-env' },
     }))
-    const output = await readUntil(proc, '[bg-env][bg-dsh-env]')
+    const output = await readUntil(proc, '[bg-env][bg-avn-env]')
     expect(output).toContain('bg-stdin')
     await proc.done
     expect(proc.exitCode).toBe(0)
@@ -290,7 +290,7 @@ describe('LocalBashExecutor.start (background process handles)', () => {
 
   it('a background spawn failure settles as killed with the error readable on stderr', async () => {
     const { bash } = await setup()
-    const proc = bash.start(bash.resolve({ command: 'true', workdir: '/nonexistent-dsh' }))
+    const proc = bash.start(bash.resolve({ command: 'true', workdir: '/nonexistent-avn' }))
     // done resolves (never rejects) even though the process never ran.
     await expect(proc.done).resolves.toBeUndefined()
     expect(proc.status).toBe('killed')

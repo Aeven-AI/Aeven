@@ -60,7 +60,7 @@ export interface CodingOAuthStatus {
   uiOwner: 'standalone' | 'hub'
   compatibility: {
     coreAbi: string
-    dshVersion: string | null
+    avnVersion: string | null
     status: 'healthy' | 'degraded' | 'incompatible'
     diagnostics: readonly unknown[]
   }

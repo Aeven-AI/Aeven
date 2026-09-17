@@ -1,13 +1,13 @@
 /**
  * Generic-task adaptation for background pwsh process handles — the shell-agnostic
- * twin of `dsh-tool-bash`'s background adaptation.
+ * twin of `avn-tool-bash`'s background adaptation.
  *
  * @module @aeven/tool-pwsh/background
  */
 
 import type { ShellProcess } from '@aeven/shell'
 
-/* jscpd:ignore-start -- deliberate twin of dsh-tool-bash/background.ts (Agent Note). */
+/* jscpd:ignore-start -- deliberate twin of avn-tool-bash/background.ts (Agent Note). */
 
 /**
  * Map a settled background process onto the generic task-outcome vocabulary:

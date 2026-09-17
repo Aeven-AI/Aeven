@@ -31,7 +31,7 @@ declare module '@deepseek-ai/cordis' {
      * The agent association installed as an own property on `Agent.ctx`, or
      * `undefined` on a plain context. Contexts derived from `Agent.ctx` inherit
      * the association; a deliberately nested scope may carry a nearer
-     * `dsh-scope` tag while retaining it, so this field is DX context rather
+     * `avn-scope` tag while retaining it, so this field is DX context rather
      * than the scope resolver. {@link AgentRegistry} registers a root accessor
      * defaulting to `undefined`, and core packages below the agent layer use
      * `scopeOf()` for layer selection instead of reading this field.
@@ -76,7 +76,7 @@ export interface CreateAgentOptions {
    * fork lineage, the `isSeeded` fork marker, the coarse `origin`
    * classification, and the `delegationDepth` recursion budget. Mirrors the
    * `cwd`/`parentSession`/`isSeeded`/`origin`/`delegationDepth` fields of
-   * {@link CreateSessionOptions.meta} in dsh-session (the internal-only
+   * {@link CreateSessionOptions.meta} in avn-session (the internal-only
    * `createdAt`, used when reconstructing a persisted session, is deliberately
    * excluded — a factory caller never sets it). This is durable session data,
    * so the session boundary validates and snapshots it before asynchronous
@@ -169,9 +169,9 @@ export interface AgentHandle {
 
 /**
  * The agent-creation factory the loop implementation provides to the registry
- * via {@link AgentRegistry.setFactory}. Kept on the `dsh-agent` interface so
+ * via {@link AgentRegistry.setFactory}. Kept on the `avn-agent` interface so
  * consumers (e.g. the ACP bridge) program against `ctx.agents` without
- * depending on the concrete `dsh-agent-loop` package.
+ * depending on the concrete `avn-agent-loop` package.
  */
 export interface AgentFactory {
   /**

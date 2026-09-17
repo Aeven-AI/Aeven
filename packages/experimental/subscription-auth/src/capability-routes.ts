@@ -137,7 +137,7 @@ export function registerCapabilityRoutes(ctx: CapabilityRouteContext, options: C
       }
     })
     return dispose
-  }, 'dsh-subscription-auth: capability routes')
+  }, 'avn-subscription-auth: capability routes')
   return () =>{  dispose() }
 }
 

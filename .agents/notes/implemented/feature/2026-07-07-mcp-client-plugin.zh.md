@@ -8,7 +8,7 @@ Status: implemented
 
 harness 此前无法消费 MCP（Model Context Protocol）生态中的工具。MCP 是工具服务器的新兴标准——GitHub、文件系统、数据库、代码搜索以及数百个社区服务器都通过 MCP 暴露工具。用户希望将 harness 指向一个或多个 MCP 服务器，让其工具以原生的模型可见工具形式出现，而无需为每个服务器编写胶水代码。
 
-`ToolRuntime` 已经接受原始 JSON Schema 工具定义（`dsh-tools` README 中有记录：「Raw JSON-Schema tool definitions (from MCP servers) are still accepted by `ToolRuntime.register()` directly」），扩展实操手册（cookbook）也勾勒了预期模式（「MCP | one plugin per server: discover tools → `ctx.tools.register()`」）。基础设施已就绪，缺的是桥接插件。
+`ToolRuntime` 已经接受原始 JSON Schema 工具定义（`avn-tools` README 中有记录：「Raw JSON-Schema tool definitions (from MCP servers) are still accepted by `ToolRuntime.register()` directly」），扩展实操手册（cookbook）也勾勒了预期模式（「MCP | one plugin per server: discover tools → `ctx.tools.register()`」）。基础设施已就绪，缺的是桥接插件。
 
 ## 决策
 
@@ -26,7 +26,7 @@ harness 此前无法消费 MCP（Model Context Protocol）生态中的工具。M
 
 ### 插件形态
 
-命名空间插件（具名导出 `name`/`inject`/`Config`/`apply`，无 `export default`）。`inject: ['tools']`。每个 MCP 服务器对应 `cordis.yml` 中的一个插件实例——同一个包以不同配置加载 N 次，与 `dsh-tool-subagent` 相同。
+命名空间插件（具名导出 `name`/`inject`/`Config`/`apply`，无 `export default`）。`inject: ['tools']`。每个 MCP 服务器对应 `cordis.yml` 中的一个插件实例——同一个包以不同配置加载 N 次，与 `avn-tool-subagent` 相同。
 
 ### 配置
 

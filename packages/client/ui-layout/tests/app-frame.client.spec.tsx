@@ -108,7 +108,7 @@ function mountFrame() {
       useSessionPendingInteraction={useSessionPendingInteraction}
       useWorkspaces={((sel: (s: WorkspaceSnapshot) => unknown) => sel(workspaceState)) as never}
       SessionProvider={SessionProviderStub}
-      t={key => key === 'brand.localBuild' ? 'DSH Local Build' : key}
+      t={key => key === 'brand.localBuild' ? 'AVN Local Build' : key}
     />
   )
   const utils = render(element())
@@ -122,7 +122,7 @@ function tracks(frame: HTMLElement): number[] {
   if (sidebar === null || details === null) throw new Error('missing flex column')
   // The details column takes its width from the frame's custom property, not
   // an inline width on the column itself.
-  return [Number(sidebar.dataset.width), Number.parseFloat(frame.style.getPropertyValue('--dsh-frame-details-width'))]
+  return [Number(sidebar.dataset.width), Number.parseFloat(frame.style.getPropertyValue('--avn-frame-details-width'))]
 }
 
 function drag(handle: Element, fromX: number, toX: number): void {
@@ -180,7 +180,7 @@ afterEach(() => {
 describe('AppFrame', () => {
   it('localizes the product title when the build does not supply one', () => {
     mountFrame()
-    expect(document.title).toBe('DSH Local Build')
+    expect(document.title).toBe('AVN Local Build')
   })
 
   it('projects the selected durable Session title', () => {

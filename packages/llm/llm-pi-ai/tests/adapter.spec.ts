@@ -31,8 +31,8 @@ const IMAGE_REF: ImageAttachmentRef = {
   width: 1,
   height: 1,
 }
-const HOST_IMAGE_PATH = '/host/.dsh/attachments/objects/aa/object'
-const MODEL_IMAGE_PATH = '/model/.dsh/attachments/objects/aa/object'
+const HOST_IMAGE_PATH = '/host/.avn/attachments/objects/aa/object'
+const MODEL_IMAGE_PATH = '/model/.avn/attachments/objects/aa/object'
 
 class MappedFileSystem extends Service {
   constructor(ctx: Context) {
@@ -148,8 +148,8 @@ describe('PiAiAdapter provider routing', () => {
       thinking: { type: 'enabled' },
       reasoning_effort: 'max',
     })
-    expect(server.requests[0]).not.toHaveProperty('dsh_session_log')
-    expect(server.requests[0]).not.toHaveProperty('dsh_plugin_packages')
+    expect(server.requests[0]).not.toHaveProperty('avn_session_log')
+    expect(server.requests[0]).not.toHaveProperty('avn_plugin_packages')
   })
 
   it('uses a dynamic request effort and reports unsupported efforts before network I/O', async () => {

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-session` provides the append-only session log that records an agent's whole interaction history — the single source of truth every model-visible fact flows through. The LLM message history is *derived* from the log (`deriveMessages()`), never stored separately, so replay is re-derivation from the same events and compaction can shadow older surface entries without deleting history. The package also provides the in-memory store (`ctx.sessions`), the typed `SessionEvent` vocabulary that plugins extend by declaration merging, and the surface layer that orders message-producing events. Persistence is deliberately a separate concern: backends subscribe to `session/event` and flush on `session/flush`. Choose it as the foundation of any agent session; it runs no model calls itself.
+`avn-session` provides the append-only session log that records an agent's whole interaction history — the single source of truth every model-visible fact flows through. The LLM message history is *derived* from the log (`deriveMessages()`), never stored separately, so replay is re-derivation from the same events and compaction can shadow older surface entries without deleting history. The package also provides the in-memory store (`ctx.sessions`), the typed `SessionEvent` vocabulary that plugins extend by declaration merging, and the surface layer that orders message-producing events. Persistence is deliberately a separate concern: backends subscribe to `session/event` and flush on `session/flush`. Choose it as the foundation of any agent session; it runs no model calls itself.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount `dsh-session` wherever a session must exist. It creates and holds event-sourced `Session` instances in memory; durable storage is layered on by a persistence plugin that subscribes to the `session/event` feed.
+Mount `avn-session` wherever a session must exist. It creates and holds event-sourced `Session` instances in memory; durable storage is layered on by a persistence plugin that subscribes to the `session/event` feed.
 
 ### Create and inspect sessions
 
@@ -91,7 +91,7 @@ The package is built on event sourcing: a `Session` is an append-only log of typ
 | [`src/types.ts`](src/types.ts) | `SessionEventMap`, `SessionEvent`, `UserMessage`, `SessionHeader`, `TurnEndReasonMap` |
 | [`src/surface.ts`](src/surface.ts) | Ordered surface projection, replacement validation, `deriveEventMessage` |
 | [`src/request-header.ts`](src/request-header.ts) | `request/header` folding and reconstruction |
-| [`dsh-util-values`](../../util/values/README.md) | Shared lossless JSON validation and detached snapshots |
+| [`avn-util-values`](../../util/values/README.md) | Shared lossless JSON validation and detached snapshots |
 | [`src/chunk-rows.ts`](src/chunk-rows.ts) | Shared compact-row storage codec for persistence backends |
 | [`src/repair.ts`](src/repair.ts) | Cold repair of crash-orphaned logs |
 | [`src/invariant.ts`](src/invariant.ts) | Invariant companion: seq, turn/step enclosure, tool call/result pairing |

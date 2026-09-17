@@ -185,7 +185,7 @@ export function resolveInspectorOptions(options: InspectorOptions = {}): Inspect
 export async function startInspector(options: InspectorOptions = {}): Promise<InspectorHandle> {
   const spec = resolveInspectorOptions(options)
   const channel = new MessageChannel()
-  const clientProtocol = `dsh-inspector-v${String(INSPECTOR_PROTOCOL_VERSION)}-${randomBytes(32).toString('base64url')}`
+  const clientProtocol = `avn-inspector-v${String(INSPECTOR_PROTOCOL_VERSION)}-${randomBytes(32).toString('base64url')}`
   const config: InspectorWorkerConfig = {
     host: spec.host,
     startPort: spec.port,
@@ -266,12 +266,12 @@ export async function startInspector(options: InspectorOptions = {}): Promise<In
     try {
       source.close()
     } catch (closeError) {
-      console.error('dsh inspector: Host source cleanup after Worker failure failed', closeError)
+      console.error('avn inspector: Host source cleanup after Worker failure failed', closeError)
     }
     void fetchObserver?.stop().catch((stopError: unknown) => {
-      console.error('dsh inspector: fetch cleanup after Worker failure failed', stopError)
+      console.error('avn inspector: fetch cleanup after Worker failure failed', stopError)
     })
-    console.error('dsh inspector: Worker stopped unexpectedly', error)
+    console.error('avn inspector: Worker stopped unexpectedly', error)
   })
 
   let closing: Promise<void> | undefined

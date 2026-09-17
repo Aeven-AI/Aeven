@@ -13,7 +13,7 @@
  * @module @aeven/pwsh-local
  */
 
-/* jscpd:ignore-start -- this executor mirrors dsh-bash-local call-for-call by
+/* jscpd:ignore-start -- this executor mirrors avn-bash-local call-for-call by
    design (see this package's README), so the two import the same seam surface */
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
@@ -25,7 +25,7 @@ import { clampTimeout, deadline, MAX_TIMER_DELAY_MS, timeoutOf } from '@aeven/ti
 /* jscpd:ignore-end */
 import { resolvePwshPath } from './resolve.ts'
 
-/* jscpd:ignore-start -- deliberate call-for-call mirror of dsh-bash-local (Agent Note: pwsh-tool-and-executor). */
+/* jscpd:ignore-start -- deliberate call-for-call mirror of avn-bash-local (Agent Note: pwsh-tool-and-executor). */
 /**
  * Model-friendly environment overrides for PowerShell: disable colors and
  * pagers that would garble tool output. `TERM=dumb` is a POSIX concept and is
@@ -205,7 +205,7 @@ export class PwshLocalExecutor extends ShellExecutor {
       ...request.signal ? { signal: request.signal } : {},
       ...request.stdin !== undefined ? { stdin: request.stdin } : {},
       ...request.env !== undefined ? { env: request.env } : {},
-      ...request.dshEnv !== undefined ? { dshEnv: request.dshEnv } : {},
+      ...request.avnEnv !== undefined ? { avnEnv: request.avnEnv } : {},
       sandboxPolicy: request.sandboxPolicy,
     }
   }
@@ -213,7 +213,7 @@ export class PwshLocalExecutor extends ShellExecutor {
   /**
    * The pwsh invocation argv for one resolved spec — the argv-level seam a
    * confining subclass wraps through `ctx.sandbox.confine` (the pwsh twin of
-   * `dsh-bash-local`'s `runArgv`/`startArgv` hooks; see
+   * `avn-bash-local`'s `runArgv`/`startArgv` hooks; see
    * `@aeven/pwsh-sandbox`).
    */
   protected argv(spec: ShellExecSpec): string[] {
@@ -239,7 +239,7 @@ export class PwshLocalExecutor extends ShellExecutor {
       },
       graceMs: this.config.graceMs,
       signal,
-      env: { ...ENV_OVERRIDES, ...spec.env, ...spec.dshEnv },
+      env: { ...ENV_OVERRIDES, ...spec.env, ...spec.avnEnv },
     }
   }
 
@@ -351,7 +351,7 @@ export class PwshLocalExecutor extends ShellExecutor {
   /**
    * Settlement hook for subclasses that attach execution facts to a process.
    * The base implementation is intentionally empty. Mirrored from
-   * `dsh-bash-local` (whose sandboxing subclass consumes the same hook); the
+   * `avn-bash-local` (whose sandboxing subclass consumes the same hook); the
    * pwsh-confining consumer is `@aeven/pwsh-sandbox`.
    * @param _proc - the settled process handle.
    * @param _stderr - the process's retained stderr tail used by subclasses for settlement classification.

@@ -6,13 +6,13 @@ English | [中文](2026-08-24-session-log-snapshot-corpus.zh.md)
 
 ## Problem
 
-The keyless snapshot corpus uses ACP as the controller for many scenarios whose asserted behavior belongs to the assembled Agent, tools, persistence, or another product interface. This makes an automation protocol look like the owner of backend behavior, retains test-only application entrypoints beside the supported `dsh` launcher, and scatters recorded sessions among example, SDK, Web, and script directories.
+The keyless snapshot corpus uses ACP as the controller for many scenarios whose asserted behavior belongs to the assembled Agent, tools, persistence, or another product interface. This makes an automation protocol look like the owner of backend behavior, retains test-only application entrypoints beside the supported `avn` launcher, and scatters recorded sessions among example, SDK, Web, and script directories.
 
 The term snapshot also covers unrelated ARIA, geometry, generator, and package-unit expected output. Contributors cannot infer from a path whether a recorded session drives the test, whether the session is both replay input and expected output, or which command owns a refresh.
 
 ## Decision
 
-Reserve the top-level `snapshots/` tree and `*.snapshot.ts` suffix for scenarios that own or explicitly reference recorded session JSONL. Each process-level scenario launches a shipped profile through `dsh`; a small adapter controls headless, SDK, ACP, or Web behavior without becoming another application entrypoint. A declarative `snapshot.yml` holds only profile, patch, lifecycle-control, platform, header-pin, and workspace facts that the completed session cannot express.
+Reserve the top-level `snapshots/` tree and `*.snapshot.ts` suffix for scenarios that own or explicitly reference recorded session JSONL. Each process-level scenario launches a shipped profile through `avn`; a small adapter controls headless, SDK, ACP, or Web behavior without becoming another application entrypoint. A declarative `snapshot.yml` holds only profile, patch, lifecycle-control, platform, header-pin, and workspace facts that the completed session cannot express.
 
 This decision supersedes the ACP-specific placement and controller ownership in the [record-once/replay-deterministic decision](2026-06-19-acp-snapshot-tests.md), while that note remains authoritative for session-log replay, exceptional overrides, normalization, and ACP transcript comparison.
 
@@ -43,7 +43,7 @@ Workspace inputs remain scenario-local. A mutating scenario compares a complete 
 ## Invariants
 
 - Every existing recorded-session scenario has one passing replacement before its old owner is removed.
-- Every process-level snapshot starts through `dsh`, and the application-entrypoint inventory no longer allows the retired snapshot drivers.
+- Every process-level snapshot starts through `avn`, and the application-entrypoint inventory no longer allows the retired snapshot drivers.
 - Every top-level scenario owns or references session JSONL; non-session expected output remains owner-local.
 - Committed session fixtures are redaction fixed points, contain no system-prompt or tool-schema bulk, and retain exactly one pin per header class.
 - Mutating scenarios verify their final workspace externally.

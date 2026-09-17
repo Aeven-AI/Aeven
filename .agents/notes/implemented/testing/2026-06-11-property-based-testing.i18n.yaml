@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/testing/2026-06-11-property-based-testing.md
-2026-06-11-property-based-testing.md: 7ab6f2daeb65e603d055ad6127a91f6b76ebc26e
-2026-06-11-property-based-testing.zh.md: 36855c74f6de082b5307d4c1ed6e674410910003
+2026-06-11-property-based-testing.md: 1a1cbb324f3075d3ebf594027c096b3f1a5b3a6c
+2026-06-11-property-based-testing.zh.md: c6d52273b8ac4f2d1c5f2576dff2af297a7a0c47

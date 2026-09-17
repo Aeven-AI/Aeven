@@ -8,11 +8,11 @@ English | [中文](2026-09-03-generated-media-capability-seam.zh.md)
 
 Image generation existed in the harness only as vendor-specific tool code living outside it. A third-party plugin carried two independent implementations — one for Codex images, one for Grok Imagine — each with its own HTTP client, its own artifact store, its own retention policy, and its own tool surface. Adding a third provider meant a third copy of all four.
 
-Video had no implementation anywhere, and the providers a deployment would actually reach for were unreachable: `dsh-llm` speaks chat completions, and the DeepInfra chat route deliberately filters its catalog to `requireTags: ['chat']` because the same document lists image, video, speech, and embedding models the route cannot call. A user asking why DeepInfra's video models never appear in the model picker is asking for a capability the harness does not have, not for a filter to be relaxed.
+Video had no implementation anywhere, and the providers a deployment would actually reach for were unreachable: `avn-llm` speaks chat completions, and the DeepInfra chat route deliberately filters its catalog to `requireTags: ['chat']` because the same document lists image, video, speech, and embedding models the route cannot call. A user asking why DeepInfra's video models never appear in the model picker is asking for a capability the harness does not have, not for a filter to be relaxed.
 
 ## Decision
 
-**Generated media is a capability seam, not a tool.** `ctx.media` owns provider registries, selection, the job contract, and the error taxonomy; providers own protocols and credentials; a consumer owns whatever a model sees. Image and video share one seam for the reason search and fetch do in `dsh-web` — they share provider identity, credentials, cancellation, and errors, and splitting them would duplicate all four.
+**Generated media is a capability seam, not a tool.** `ctx.media` owns provider registries, selection, the job contract, and the error taxonomy; providers own protocols and credentials; a consumer owns whatever a model sees. Image and video share one seam for the reason search and fetch do in `avn-web` — they share provider identity, credentials, cancellation, and errors, and splitting them would duplicate all four.
 
 **The video status union is `running | succeeded | failed`, and providers map onto it.** The vocabulary follows OpenRouter's because it is the only surveyed provider that enumerates its own. The mapping is load-bearing rather than cosmetic: DeepInfra reports `queued` for a job that is actively rendering and publishes no running value at all — three observed jobs, including a 10-second clip taking 27.6s, went `queued` → `succeeded` directly under 200ms polling. An adapter that read `queued` as "not yet started" would mis-report every job it ever ran. The seam's states describe what a caller can do next, not what an upstream chose to call them.
 
@@ -36,7 +36,7 @@ Unit coverage is 100% on statements, branches, functions, and lines: duplicate r
 
 **Relax the DeepInfra chat catalog's `requireTags: ['chat']` filter.** Rejected: it would advertise video models on a route whose protocol cannot invoke them, so selecting one would fail at the transport. The filter is correct; the missing capability is elsewhere.
 
-**Extend `dsh-llm` with image and video methods.** Rejected because the shapes do not fit. Chat is a stream, image generation is a request/response, and video is a job with independent polling and retrieval. Widening the LLM adapter to hold all three would force every existing adapter to carry methods it cannot implement.
+**Extend `avn-llm` with image and video methods.** Rejected because the shapes do not fit. Chat is a stream, image generation is a request/response, and video is a job with independent polling and retrieval. Widening the LLM adapter to hold all three would force every existing adapter to carry methods it cannot implement.
 
 **One seam per medium.** Rejected: the two would share provider identity, credentials, selection, cancellation, and the error taxonomy, and both surveyed providers serve both media from one account and one base URL.
 

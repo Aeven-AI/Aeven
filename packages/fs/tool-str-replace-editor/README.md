@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-tool-str-replace-editor` provides a standalone model-facing `str_replace_editor` tool over `ctx.fs`: `view` shows numbered file content or a shallow directory listing, `create` makes a new file, `str_replace` applies a unique literal replacement, and `insert` adds lines at a chosen boundary. It is composable with persistent Bash, one-shot Bash, sandboxed Bash, or another terminal surface. Mutations obey the same read-before-edit policy and sandbox fence as the rest of the fs family, enforced by whichever backend and policy plugins are mounted. Choose it when a deployment wants the Claude-Code-style single editor tool with absolute paths; the `dsh-tool-fs` package provides the alternative `read`/`write`/`edit` suite.
+`avn-tool-str-replace-editor` provides a standalone model-facing `str_replace_editor` tool over `ctx.fs`: `view` shows numbered file content or a shallow directory listing, `create` makes a new file, `str_replace` applies a unique literal replacement, and `insert` adds lines at a chosen boundary. It is composable with persistent Bash, one-shot Bash, sandboxed Bash, or another terminal surface. Mutations obey the same read-before-edit policy and sandbox fence as the rest of the fs family, enforced by whichever backend and policy plugins are mounted. Choose it when a deployment wants the Claude-Code-style single editor tool with absolute paths; the `avn-tool-fs` package provides the alternative `read`/`write`/`edit` suite.
 
 ## Table of Contents
 
@@ -86,7 +86,7 @@ Every command resolves the absolute path first; mutations then follow one shared
 Read these pages when the package-level contract is not enough. They move from the tool to the contract, policy, and backends it composes with.
 
 - [Filesystem subsystem](../../../docs/subsystems/filesystem.md) — exhaustive provider contract, policy events, and error taxonomy.
-- [dsh-fs](../fs/README.md) — the `ctx.fs` contract this tool consumes.
+- [avn-fs](../fs/README.md) — the `ctx.fs` contract this tool consumes.
 - [tool-fs](../tool-fs/README.md) — the alternative `read`/`write`/`edit` tool suite.
 - [fs-observation-policy](../fs-observation-policy/README.md) — the policy plugin that guards mutations through the `fs/*` events.
 - [fs-sandbox](../fs-sandbox/README.md) — the sandbox-enforcing backend that fences mutations.

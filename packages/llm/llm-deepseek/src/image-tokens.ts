@@ -6,7 +6,7 @@
  * pad-to-4 alignment at its 3-token upper bound because request pricing has
  * no preceding-token position. Actual usage remains authoritative.
  *
- * @module dsh-llm-deepseek/image-tokens
+ * @module avn-llm-deepseek/image-tokens
  */
 
 /** Vision patch edge in pixels. */

@@ -63,7 +63,7 @@ function contains(root: string, path: string): boolean {
   return root === '/' || path === root || path.startsWith(`${root}/`)
 }
 
-/** Throw the denial dialect consumed by `dsh-bash-sandbox`. */
+/** Throw the denial dialect consumed by `avn-bash-sandbox`. */
 function deny(syscall: string, path: string): never {
   throw filesystemError('EACCES', syscall, path)
 }

@@ -17,7 +17,7 @@ A turn flows through the six packages in one loop: the driver in [`agent-loop`](
 | `agent-loop/` | The concrete driver implementing the public `Agent` contract (`ctx.agentLoop`) | this page |
 | `scope/` | The scoped-registration primitive the registries and loop build per-agent scoping on | [scope.md](scope.md) |
 
-`scope/` is the one non-service package: a dependency-free library (`createScope`/`scopeOf`/`scopeTarget`) that sits below `session/` and `system-prompt/` in the module graph precisely so they can consume it without a cycle. `agent-loop` is the one concrete implementation of the public `Agent` contract and lives here because it is the harness's default product loop; it runs each driver inside `ctx.agents.withInitiator()`. Extension plugins depend on `agent` — including when they need the initiating Agent — and never on `agent-loop` directly, so the loop stays swappable. [`dsh-base`](../../packages/bundle/base/README.md) is the default product composition, while [`dsh-sdk-minimal`](../../packages/bundle/sdk-minimal/README.md) declares a smaller standalone tree.
+`scope/` is the one non-service package: a dependency-free library (`createScope`/`scopeOf`/`scopeTarget`) that sits below `session/` and `system-prompt/` in the module graph precisely so they can consume it without a cycle. `agent-loop` is the one concrete implementation of the public `Agent` contract and lives here because it is the harness's default product loop; it runs each driver inside `ctx.agents.withInitiator()`. Extension plugins depend on `agent` — including when they need the initiating Agent — and never on `agent-loop` directly, so the loop stays swappable. [`avn-base`](../../packages/bundle/base/README.md) is the default product composition, while [`avn-sdk-minimal`](../../packages/bundle/sdk-minimal/README.md) declares a smaller standalone tree.
 
 ## Creation and ownership
 
@@ -52,7 +52,7 @@ interface AgentHandle {
 
 ## The agent handle
 
-`Agent` is the surface every plugin (UI, hooks, orchestrators) programs against; `ctx.agents.get(id)` returns it, and the [initiator scope](#initiating-agent) carries it. The concrete implementation is package-internal to dsh-agent-loop; nothing outside the loop depends on it. The unified `send` method exposes target and wakeup routing directly; `followup`, `steer`, and `inject` are fixed-preset aliases.
+`Agent` is the surface every plugin (UI, hooks, orchestrators) programs against; `ctx.agents.get(id)` returns it, and the [initiator scope](#initiating-agent) carries it. The concrete implementation is package-internal to avn-agent-loop; nothing outside the loop depends on it. The unified `send` method exposes target and wakeup routing directly; `followup`, `steer`, and `inject` are fixed-preset aliases.
 
 Source: [`packages/core/agent/src/types.ts`](../../packages/core/agent/src/types.ts)
 
@@ -291,11 +291,11 @@ Five canonical maps use this pattern; a plugin author extends these:
 
 | Map | Package | Derives | Catalog |
 |---|---|---|---|
-| `ContentBlockMap` | dsh-llm | `ContentBlock` | [llm-streaming.md](llm-streaming.md#content-blocks-and-messages) |
-| `MessageSourceMap` | dsh-llm | `MessageSource` | [llm-streaming.md](llm-streaming.md#content-blocks-and-messages) |
-| `FinishReasonMap` | dsh-llm | `FinishReason` | [llm-streaming.md](llm-streaming.md#the-model-request-and-result) |
-| `TurnEndReasonMap` | dsh-session | `TurnEndReason` | [session.md](session.md) |
-| `SessionEventMap` | dsh-session | `SessionEvent` | [session.md](session.md) |
+| `ContentBlockMap` | avn-llm | `ContentBlock` | [llm-streaming.md](llm-streaming.md#content-blocks-and-messages) |
+| `MessageSourceMap` | avn-llm | `MessageSource` | [llm-streaming.md](llm-streaming.md#content-blocks-and-messages) |
+| `FinishReasonMap` | avn-llm | `FinishReason` | [llm-streaming.md](llm-streaming.md#the-model-request-and-result) |
+| `TurnEndReasonMap` | avn-session | `TurnEndReason` | [session.md](session.md) |
+| `SessionEventMap` | avn-session | `SessionEvent` | [session.md](session.md) |
 
 Two large discriminated unions are the ones consumers `switch` over most: **`StreamChunk`** (the streaming protocol) and **`SessionEvent`** (the log entry). Per the repo convention, `switch` on the tag — don't chain `if`s — so each arm narrows and a typo'd tag fails to compile.
 
@@ -303,7 +303,7 @@ Two large discriminated unions are the ones consumers `switch` over most: **`Str
 
 IDs passed between packages are **branded** — structurally strings, but non-interchangeable at the type level (a `SessionId` cannot be passed where a `ToolCallId` is expected). Construction uses the shared `brandString<T>()` helper or an owner-defined validating factory; comparison, logging, and JSON behave as ordinary strings.
 
-The `Branded<B>` primitive and stateless constructor live in [dsh-brand](../../packages/util/brand), which has no harness capability dependency. `brandString<T>()` applies a compile-time-only string brand.
+The `Branded<B>` primitive and stateless constructor live in [avn-brand](../../packages/util/brand), which has no harness capability dependency. `brandString<T>()` applies a compile-time-only string brand.
 
 Source: [`packages/util/brand/src/index.ts`](../../packages/util/brand/src/index.ts)
 
@@ -312,7 +312,7 @@ Source: [`packages/util/brand/src/index.ts`](../../packages/util/brand/src/index
 type Branded<B extends string> = string & { readonly [BRAND]: B }
 ```
 
-The two core IDs are `ToolCallId` (correlates a tool call with its result; dsh-llm) and `SessionId` (the shared live agent and durable session identity; dsh-session). Capability packages brand their own ids too, such as `JobId` in [jobs.md](jobs.md).
+The two core IDs are `ToolCallId` (correlates a tool call with its result; avn-llm) and `SessionId` (the shared live agent and durable session identity; avn-session). Capability packages brand their own ids too, such as `JobId` in [jobs.md](jobs.md).
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -587,7 +587,7 @@ serviceFor<K extends string & keyof Context>(agent: { ctx: Context }, name: K): 
  * new one is ensured BEFORE the link moves. An unknown or unusable preset
  * therefore throws with the agent exactly as it was — there is no torn-down
  * state to restore. The re-link runs through the binding this roster kept
- * from the agent's mount — dsh-scope's only re-link authority. An agent
+ * from the agent's mount — avn-scope's only re-link authority. An agent
  * that never composed one has nothing to re-link: the switch is then the
  * agent's first bind, exactly a mount. A committed re-link emits
  * `tools/change` because changing the parent scope changes the Agent's

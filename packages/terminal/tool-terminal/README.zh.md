@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-tool-terminal` 基于持久终端会话为模型提供 6 个工具：`terminal_open`、`terminal_send`、`terminal_read`、`terminal_signal`、`terminal_close` 与 `terminal_list`。每次调用都被限制在打开该会话的那个确切 agent（智能体）内，因此即使模型获知另一个 agent 的 id，也无法操作其终端。发送可以前台运行（返回带等待原因的有界输出），也可以通过任务服务后台运行（返回 job id，用 `job_output` 收集、用 `job_kill` 停止）。结果受 `maxResultBytes` 限制，并保留在会话历史中直到压缩（compaction）。一段简短指引会告诉模型：除非确实需要终端的持久状态或交互式 stdin，否则优先使用单次工具。
+`avn-tool-terminal` 基于持久终端会话为模型提供 6 个工具：`terminal_open`、`terminal_send`、`terminal_read`、`terminal_signal`、`terminal_close` 与 `terminal_list`。每次调用都被限制在打开该会话的那个确切 agent（智能体）内，因此即使模型获知另一个 agent 的 id，也无法操作其终端。发送可以前台运行（返回带等待原因的有界输出），也可以通过任务服务后台运行（返回 job id，用 `job_output` 收集、用 `job_kill` 停止）。结果受 `maxResultBytes` 限制，并保留在会话历史中直到压缩（compaction）。一段简短指引会告诉模型：除非确实需要终端的持久状态或交互式 stdin，否则优先使用单次工具。
 
 ## 目录
 
@@ -139,7 +139,7 @@ Use a terminal session only when work needs persistent terminal state or interac
 
 #### 模型看到什么
 
-6 个生成的 schema 列在 [`dsh-tool-terminal` 目录章节](../../../docs/tool-catalog.zh.md#aeven-tool-terminal)中。此插件活跃时，请求中会包含它们的固定 schema token；按 agent 范围过滤工具时可能隐藏这些 schema。
+6 个生成的 schema 列在 [`avn-tool-terminal` 目录章节](../../../docs/tool-catalog.zh.md#aeven-tool-terminal)中。此插件活跃时，请求中会包含它们的固定 schema token；按 agent 范围过滤工具时可能隐藏这些 schema。
 
 #### Token 影响
 

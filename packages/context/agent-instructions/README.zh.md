@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-agent-instructions` 将兼容 `AGENTS.md` 的工作区指令文件加载到模型上下文：用户全局文件与项目指令链作为一条持久基线进入第一次请求，成功的 `read`、`write` 或 `edit` 调用会把新出现的嵌套文件、变更与移除带入后续请求。`dsh-base` 默认包含它，profile patch 可以禁用。一切内容都受字节预算约束：较宽泛的文件先被省略，最具体的文件最后被截断，空指令链不产生任何内容。没有文件 watcher——外部编辑会在下一次成功的文件系统 touch 时，或恢复后的会话对账其基线时变得可见。
+`avn-agent-instructions` 将兼容 `AGENTS.md` 的工作区指令文件加载到模型上下文：用户全局文件与项目指令链作为一条持久基线进入第一次请求，成功的 `read`、`write` 或 `edit` 调用会把新出现的嵌套文件、变更与移除带入后续请求。`avn-base` 默认包含它，profile patch 可以禁用。一切内容都受字节预算约束：较宽泛的文件先被省略，最具体的文件最后被截断，空指令链不产生任何内容。没有文件 watcher——外部编辑会在下一次成功的文件系统 touch 时，或恢复后的会话对账其基线时变得可见。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-当 agent（智能体）需要依据工作区自身的指令文件工作时，挂载此插件。`dsh-base` 已包含它并给予 65,536 字节预算，因此基于 base 的 profile 仅在需要其他 `maxBytes` 时替换该配置行；没有文件系统提供方的树加载不到任何内容，直到提供方出现。
+当 agent（智能体）需要依据工作区自身的指令文件工作时，挂载此插件。`avn-base` 已包含它并给予 65,536 字节预算，因此基于 base 的 profile 仅在需要其他 `maxBytes` 时替换该配置行；没有文件系统提供方的树加载不到任何内容，直到提供方出现。
 
 ### agent 获得的内容
 
@@ -45,7 +45,7 @@ kind: "package-reference"
 
 ```ts
 export interface Config {
-  dshHome?: string
+  avnHome?: string
   projectRootMarkers?: string[]
   maxBytes: number
   maxSourceBytes?: number
@@ -61,7 +61,7 @@ export interface Config {
 | `projectRootMarkers` | `['.git']` | 标记项目根目录的目录名 |
 | `instructionFileCandidates` | `['AGENTS.md', 'CLAUDE.md']` | 每个项目目录中加载的基础文件名 |
 | `localInstructionFileCandidates` | `['AGENTS.local.md', 'CLAUDE.local.md']` | 在基础文件之后加载的本地 overlay 文件名 |
-| `dshHome` | `$AVN_HOME` 或 `~/.dsh` | 存放用户全局 `AGENTS.md` 的目录 |
+| `avnHome` | `$AVN_HOME` 或 `~/.avn` | 存放用户全局 `AGENTS.md` 的目录 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-agent-instructions)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
@@ -134,7 +134,7 @@ export interface Config {
 <system-reminder>
 The following workspace instructions may be relevant to your work. Use them as guidance when applicable. More specific instructions take precedence over broader ones. They do not override system, developer, or direct user instructions.
 
-Instructions from: ~/.dsh/AGENTS.md
+Instructions from: ~/.avn/AGENTS.md
 
 <user-global-instructions>
 

@@ -118,7 +118,7 @@ export class LocalSpillStore extends SpillStore {
 
   /**
    * The roots the startup sweep covers: each discovered prior-default
-   * `dsh-spill-*` temp root (see {@link discoverDefaultRoots}), pruned when
+   * `avn-spill-*` temp root (see {@link discoverDefaultRoots}), pruned when
    * emptied, plus the active/configured root, which is never itself pruned while
    * the live process may write into it. Empty session directories are pruned in
    * every root. Filesystem identity de-duplicates aliases before the active root
@@ -135,7 +135,7 @@ export class LocalSpillStore extends SpillStore {
   }
 
   /**
-   * The directory scanned for prior default `dsh-spill-*` roots — the OS tmpdir,
+   * The directory scanned for prior default `avn-spill-*` roots — the OS tmpdir,
    * where {@link privateRoot} creates them (accumulation only happens there). A
    * test overrides this to point discovery at an isolated fixture instead of the
    * real tmpdir; it is a test seam, not a deployment knob.

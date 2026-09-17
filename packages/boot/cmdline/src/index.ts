@@ -1,5 +1,5 @@
 /**
- * @aeven/cmdline — the command line a dsh launcher hands to the app
+ * @aeven/cmdline — the command line a avn launcher hands to the app
  * it boots.
  *
  * The launcher parses only its own flags (`--profile`, `--patch`, the config
@@ -21,7 +21,7 @@ import type { Context } from '@deepseek-ai/cordis'
 
 /**
  * The invocation's inner arguments: everything after the launcher's own flags,
- * verbatim and in argv order. `dsh --profile tui --resume abc` yields
+ * verbatim and in argv order. `avn --profile tui --resume abc` yields
  * `['--resume', 'abc']`.
  */
 export interface CmdlineArgs {

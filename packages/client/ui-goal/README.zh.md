@@ -54,7 +54,7 @@ kind: "package-reference"
 
 当 goal 表面不够用时阅读以下页面。它们从浏览器条带进入 goal 领域与它所填充的槽位。
 
-- [dsh-goal](../../goal/goal/README.zh.md)——本表面读取并变更的 goal 领域、投影与 `/goal` 命令。
+- [avn-goal](../../goal/goal/README.zh.md)——本表面读取并变更的 goal 领域、投影与 `/goal` 命令。
 - [ui-conversation](../ui-conversation/README.zh.md)——声明 `conversation.input.dock` 槽位并拥有 composer。
 - [客户端包映射](../README.zh.md)——相邻的浏览器 UI 包。
 

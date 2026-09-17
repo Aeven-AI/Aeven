@@ -5,7 +5,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  height: calc(28px + var(--dsh-content-font-delta, 0px));
+  height: calc(28px + var(--avn-content-font-delta, 0px));
 }
 
 /* Clock before icons (user figma 388:20051) / after (assistant 43:32997).
@@ -13,8 +13,8 @@
    tail's meta line. */
 .timeStart {
   padding-right: 12px;
-  font-size: var(--dsh-content-font-size-secondary, 14px);
-  line-height: calc(24px + var(--dsh-content-font-delta, 0px));
+  font-size: var(--avn-content-font-size-secondary, 14px);
+  line-height: calc(24px + var(--avn-content-font-delta, 0px));
   color: var(--dsw-alias-label-tertiary);
   white-space: nowrap;
 }
@@ -23,8 +23,8 @@
    row's 8px flex gap spaces it, and it reads the secondary tier so it matches
    the pill labels beside it. */
 .timeEnd {
-  font-size: var(--dsh-content-font-size-secondary, 14px);
-  line-height: calc(24px + var(--dsh-content-font-delta, 0px));
+  font-size: var(--avn-content-font-size-secondary, 14px);
+  line-height: calc(24px + var(--avn-content-font-delta, 0px));
   color: var(--dsw-alias-label-tertiary);
   white-space: nowrap;
 }
@@ -33,8 +33,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: calc(28px + var(--dsh-content-font-delta, 0px));
-  height: calc(28px + var(--dsh-content-font-delta, 0px));
+  width: calc(28px + var(--avn-content-font-delta, 0px));
+  height: calc(28px + var(--avn-content-font-delta, 0px));
   padding: 6px;
   border: none;
   border-radius: 28px;
@@ -46,8 +46,8 @@
 /* The 15px action glyphs follow the same px delta as the text they serve;
    the CSS edge overrides each svg's own width/height attributes. */
 .action svg {
-  width: calc(15px + var(--dsh-content-font-delta, 0px));
-  height: calc(15px + var(--dsh-content-font-delta, 0px));
+  width: calc(15px + var(--avn-content-font-delta, 0px));
+  height: calc(15px + var(--avn-content-font-delta, 0px));
 }
 
 /* Unavailable stays focusable and hoverable so Tooltip can explain why. */

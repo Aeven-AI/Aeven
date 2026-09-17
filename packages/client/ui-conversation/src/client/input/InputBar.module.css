@@ -5,19 +5,19 @@
   align-items: center;
   /* Side pads ride the theme-owned page inset. The composer stack owns the
      space above; the bottom gradient mask belongs to the chat scroller. */
-  padding: 0 var(--dsh-composer-side-clearance) 16px;
+  padding: 0 var(--avn-composer-side-clearance) 16px;
 }
 
 .hero {
   /* No bottom pad in the centered hero, but the side clearance must survive:
      the hero wrapper is full-width on narrow viewports, so this padding is
      the only thing keeping the card off the edges there. */
-  padding: 0 var(--dsh-composer-side-clearance);
+  padding: 0 var(--avn-composer-side-clearance);
 }
 
 .notice {
   width: 100%;
-  max-width: var(--dsh-composer-card-max-width);
+  max-width: var(--avn-composer-card-max-width);
   margin-bottom: 6px;
   padding: 4px 8px;
   border-radius: 8px;
@@ -35,7 +35,7 @@
   /* Aeven composer spacing between the draft and B's control row. */
   gap: 12px;
   width: 100%;
-  max-width: var(--dsh-composer-card-max-width);
+  max-width: var(--avn-composer-card-max-width);
   min-height: 124px;
   padding-top: 14px;
   /* The Aeven composer is a flat surface; contrast comes from the canvas. */
@@ -48,15 +48,15 @@
      mirror, and backdrop all inherit from here, so the three layers stay in
      step); the line height keeps the default 10px leading via the shared px
      delta. */
-  font-size: var(--dsh-content-font-size, 14px);
-  line-height: calc(var(--dsw-aeven-reading-line-height) + var(--dsh-content-font-delta, 0px));
+  font-size: var(--avn-content-font-size, 14px);
+  line-height: calc(var(--dsw-aeven-reading-line-height) + var(--avn-content-font-delta, 0px));
   /* Elevated surface in dark, same as the menus: the draft scrollport inside
      scrolls once the composer hits its height cap, so the thumb takes the l2
      pair. Declared on the card because the elevation belongs to the surface,
      and the custom properties inherit down to the box that actually scrolls
      (see ui-theme styles/scrollbar.css for the rebinding contract). */
-  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
-  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 
 /* No-workspace trigger state: the card is a pick-a-workspace target, but it
@@ -97,7 +97,7 @@
 .scroll {
   flex: 1 1 auto;
   min-height: 30px;
-  max-height: var(--dsh-composer-text-max-height);
+  max-height: var(--avn-composer-text-max-height);
   overflow-y: auto;
   /* Keeps the bar off the card's right border; .input's right pad gives the
      4px back so the text column is unchanged. */
@@ -156,10 +156,10 @@
 }
 
 /* Claim ghost hint as generated content after the last paragraph: the bar
-   sets --dsh-composer-hint (a quoted string) while the claim's args are
+   sets --avn-composer-hint (a quoted string) while the claim's args are
    blank; without the variable the declaration is invalid and nothing shows. */
 .input p:last-child::after {
-  content: var(--dsh-composer-hint);
+  content: var(--avn-composer-hint);
   color: var(--dsw-alias-label-caption);
 }
 

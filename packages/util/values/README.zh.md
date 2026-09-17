@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-`dsh-util-values` 为运行时包提供统一的无损 JSON 值、不可变对象图、JSON 结构相等和封闭联合类型穷尽失败实现。调用方可以校验不受信任的值、分离 JSON 快照、冻结待发布值、比较 JSON 兼容数据，或终止不可达分支，而无需导入某个能力包。这些 helper 不持有共享注册表、constructor identity 或可变模块状态。
+`avn-util-values` 为运行时包提供统一的无损 JSON 值、不可变对象图、JSON 结构相等和封闭联合类型穷尽失败实现。调用方可以校验不受信任的值、分离 JSON 快照、冻结待发布值、比较 JSON 兼容数据，或终止不可达分支，而无需导入某个能力包。这些 helper 不持有共享注册表、constructor identity 或可变模块状态。
 
 ## 目录
 

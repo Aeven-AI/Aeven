@@ -26,7 +26,7 @@ Status: implemented
 
 **暴露仍是 Host 的白名单。** 这三个命名空间加入 `WEB_SETTINGS_NAMESPACES`；仅有注册依然不会跨越传输边界，而不在该名单中的命名空间会与未注册的命名空间得到完全相同的 `settings-not-exposed`。
 
-**“可配置”标签页不认识任何命名空间。** `dsh-client-ui-settings-plugins` 拥有“插件”分区，通过 `settings.plugins.tab` 贡献自己的 `configurable` 页面，并在其中声明嵌套的 `settings.plugin.item` slot。它渲染注册进这个嵌套 slot 的卡片，因此带浏览器半侧的插件拥有自己的卡片与控件。每张卡片通过客户端 settings scope 绑定其命名空间，而该 scope 补上了表单所需的两样东西：原始 `user` 层——键的**存在**才标记字段被覆盖——以及把单个字段清回组装层的 `unset`。命名空间不可用时卡片什么都不渲染，因此未组装该插件的部署不会显示它的任何痕迹。
+**“可配置”标签页不认识任何命名空间。** `avn-client-ui-settings-plugins` 拥有“插件”分区，通过 `settings.plugins.tab` 贡献自己的 `configurable` 页面，并在其中声明嵌套的 `settings.plugin.item` slot。它渲染注册进这个嵌套 slot 的卡片，因此带浏览器半侧的插件拥有自己的卡片与控件。每张卡片通过客户端 settings scope 绑定其命名空间，而该 scope 补上了表单所需的两样东西：原始 `user` 层——键的**存在**才标记字段被覆盖——以及把单个字段清回组装层的 `unset`。命名空间不可用时卡片什么都不渲染，因此未组装该插件的部署不会显示它的任何痕迹。
 
 **卡片暂存修改，保存时才写入。** 控件不持有自己的草稿：暂存文本归卡片的表单所有，所有控件渲染的都是它，只有**保存**才把它变成文档变更。settings 写入是持久且带 revision 栅栏的，因此「失焦即提交」的控件会为用户尚未决定存储、也无从预览的值花掉一个 revision；重置同样只是暂存组装默认值。schema 表达不了的约束归 Host 的校验器所有，所以表单在写入后回读分节、报告没有落盘的保存，而不是自行预测结果，并保留这些草稿供用户修改。密钥控件虽然经由 credentials 领域写入，也和其余字段一起暂存，因此一次保存覆盖卡片上的全部内容。
 
@@ -49,4 +49,4 @@ Status: implemented
 
 bash 与 pwsh 执行器现在把 `config` 暴露为 source thunk 之上的 getter，而不再是 readonly 字段。所有读取点本就是按次读取，因此别无变化；但若某个子类在构造期捕获 `this.config`，就会悄然把组装条目钉死。
 
-`verify-cordis-config` 要求每个 `packages/client` 包的 `./client` 导出与 `dsh.client` 声明双向一致。缺少这项检查时，陈旧的清单字段可能让组合行与空的 node 半侧保持激活，而浏览器 roster 会悄然漏掉该包。检查只限这一组，因为 Host 包的 `./client` 导出是供浏览器消费方 import 的类型化 wire face，不是 roster 要服务的插件。
+`verify-cordis-config` 要求每个 `packages/client` 包的 `./client` 导出与 `avn.client` 声明双向一致。缺少这项检查时，陈旧的清单字段可能让组合行与空的 node 半侧保持激活，而浏览器 roster 会悄然漏掉该包。检查只限这一组，因为 Host 包的 `./client` 导出是供浏览器消费方 import 的类型化 wire face，不是 roster 要服务的插件。

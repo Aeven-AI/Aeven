@@ -6,14 +6,14 @@ Status: implemented
 
 ## Problem
 
-`dsh web` 在打印自己的第一行之前先输出了八行，没有一行来自 Host：
+`avn web` 在打印自己的第一行之前先输出了八行，没有一行来自 Host：
 
 ```
 npm warn Unknown env config "manage-package-manager-versions". ...
 (node:38214) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
 chrome-devtools-mcp exposes content of the browser instance to the MCP clients ...
 [chrome-devtools-mcp] The connecting client did not negotiate the MCP roots capability. ...
-dsh web: http://127.0.0.1:3080/?token=...
+avn web: http://127.0.0.1:3080/?token=...
 ```
 
 它们出自两个彼此独立的来源。
@@ -30,7 +30,7 @@ dsh web: http://127.0.0.1:3080/?token=...
 
 ## Testing
 
-`dsh web --no-open --port 3199` 现在只打印一行，且是它自己的。转发有两处覆盖：一处经由真实派生的进程，其 stderr 含一个空行与一个未终止的末行；另一处经由插件生命周期，断言服务器的某行以其标签抵达 `ctx.logger.debug`，并断言行中途的 chunk 在补全之前不会出现。store 的浏览器分支由打桩的 `window` 覆盖，其 Host 分支由既有套件覆盖 —— 该套件本就不带 `window` 运行。
+`avn web --no-open --port 3199` 现在只打印一行，且是它自己的。转发有两处覆盖：一处经由真实派生的进程，其 stderr 含一个空行与一个未终止的末行；另一处经由插件生命周期，断言服务器的某行以其标签抵达 `ctx.logger.debug`，并断言行中途的 chunk 在补全之前不会出现。store 的浏览器分支由打桩的 `window` 覆盖，其 Host 分支由既有套件覆盖 —— 该套件本就不带 `window` 运行。
 
 `apply.spec.ts` 与 `reconnect.spec.ts` 中的 SDK 替身现在会暴露可读的 `stderr`，正如它们所替代的 transport 在 `stderr: 'pipe'` 下所做的那样。
 
@@ -38,7 +38,7 @@ dsh web: http://127.0.0.1:3080/?token=...
 
 **以 warn 或 info 级别记录服务器 stderr。** 否决：其中多数只是问候。把横幅当作警告上报，会训练读者跳过真正故障所在的级别；而连接路径本就以自己的信息上报失败。
 
-**在 `dsh` bin 脚本中传入 `--no-webstorage`。** 否决：它只为一个启动方消除症状，其余每个入口以及任何嵌入 client 树的场景仍会收到同一条警告；并且该 flag 并非在受支持的全部 engines 范围内都可用。
+**在 `avn` bin 脚本中传入 `--no-webstorage`。** 否决：它只为一个启动方消除症状，其余每个入口以及任何嵌入 client 树的场景仍会收到同一条警告；并且该 flag 并非在受支持的全部 engines 范围内都可用。
 
 **只要没有 `window` 就关闭持久化。** 依实测否决：store 自身的套件在 Node 上运行并通过 `vi.stubGlobal` 安装 Web Storage，因此仅凭 `window` 判断会关掉那些用例本就要检验的持久化。
 

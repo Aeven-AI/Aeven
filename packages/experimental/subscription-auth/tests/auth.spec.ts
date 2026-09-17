@@ -44,7 +44,7 @@ let home: string
 let previousHome: string | undefined
 
 beforeEach(async () => {
-  home = await mkdtemp(join(tmpdir(), 'dsh-auth-'))
+  home = await mkdtemp(join(tmpdir(), 'avn-auth-'))
   previousHome = process.env.AVN_HOME
   // Default-argument stores resolve below AVN_HOME; keep them in the sandbox.
   process.env.AVN_HOME = home

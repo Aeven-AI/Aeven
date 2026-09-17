@@ -1,9 +1,9 @@
-// Entry compiling the Aeven account-menu stylesheet for DSH.
+// Entry compiling the Aeven account-menu stylesheet for AVN.
 //
 // Imports Aeven's own partials from clients/client/src, then restates the
 // profile block Aeven nests under `.navigation` — its tippy content renders
-// inline in the header, so those rules reach the menu there, while DSH mounts
-// the menu under `.aeven-account`. Positioning DSH owns, because it carries no
+// inline in the header, so those rules reach the menu there, while AVN mounts
+// the menu under `.aeven-account`. Positioning AVN owns, because it carries no
 // tippy, lives in AccountMenu.module.css.
 //
 // Compile from the Aeven client checkout:

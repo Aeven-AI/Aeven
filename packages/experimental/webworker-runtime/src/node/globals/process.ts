@@ -87,9 +87,9 @@ export function installProcessGlobal(options: ProcessShimOptions): ProcessShim {
   }
   const shim: ProcessShim = {
     env: { ...options.env },
-    argv: [...(options.argv ?? ['node', 'dsh-webworker'])],
+    argv: [...(options.argv ?? ['node', 'avn-webworker'])],
     execArgv: [],
-    title: 'dsh-webworker',
+    title: 'avn-webworker',
     platform: 'linux',
     arch: 'x64',
     pid: 1,

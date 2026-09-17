@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-tool-ask-user` 为模型提供一个工具——`ask_user_question`——用于在需要确认、选择结果或缺失的信息才能继续时，向用户提出简明问题。工具会暂停，直到首个作用域 answerer 接受请求，然后把回答作为普通工具结果送回 agent loop（智能体循环），因此循环机制没有任何变化。工具返回规范的 `{ answers: [...] }` 结构，并以紧凑的 JSON 文本形式呈现。它自身不渲染 UI，也不了解输入的收集方式；Web Client 通过 Remote Events 提供 answerer。运行时中归属于其他 agent 的子级不能向用户提问；它必须在最终结果中包含尚未解决的问题。
+`avn-tool-ask-user` 为模型提供一个工具——`ask_user_question`——用于在需要确认、选择结果或缺失的信息才能继续时，向用户提出简明问题。工具会暂停，直到首个作用域 answerer 接受请求，然后把回答作为普通工具结果送回 agent loop（智能体循环），因此循环机制没有任何变化。工具返回规范的 `{ answers: [...] }` 结构，并以紧凑的 JSON 文本形式呈现。它自身不渲染 UI，也不了解输入的收集方式；Web Client 通过 Remote Events 提供 answerer。运行时中归属于其他 agent 的子级不能向用户提问；它必须在最终结果中包含尚未解决的问题。
 
 ## 目录
 

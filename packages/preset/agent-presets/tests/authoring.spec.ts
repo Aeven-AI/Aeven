@@ -48,7 +48,7 @@ async function seedPreset(
 }
 
 beforeEach(async () => {
-  userRoot = await mkdtemp(join(tmpdir(), 'dsh-preset-authoring-'))
+  userRoot = await mkdtemp(join(tmpdir(), 'avn-preset-authoring-'))
   ctx = new Context()
   ctx.baseUrl = pathToFileURL(FIXTURES).href + '/'
   await ctx.plugin(Loader)
@@ -200,7 +200,7 @@ describe('deleting a preset', () => {
 
 describe('a deployment with more than one user root', () => {
   it('refuses to delete a preset the writable root does not own', async () => {
-    const second = await mkdtemp(join(tmpdir(), 'dsh-preset-second-'))
+    const second = await mkdtemp(join(tmpdir(), 'avn-preset-second-'))
     await seedPreset(second, 'elsewhere')
     const layered = new Context()
     layered.baseUrl = pathToFileURL(FIXTURES).href + '/'
@@ -246,7 +246,7 @@ describe('a deployment with no writable root', () => {
 
 describe('a user root that does not exist yet', () => {
   it('is created by the first copy', async () => {
-    const absent = join(await mkdtemp(join(tmpdir(), 'dsh-preset-absent-')), 'nested', 'preset')
+    const absent = join(await mkdtemp(join(tmpdir(), 'avn-preset-absent-')), 'nested', 'preset')
     const fresh = new Context()
     fresh.baseUrl = pathToFileURL(FIXTURES).href + '/'
     await fresh.plugin(Loader)

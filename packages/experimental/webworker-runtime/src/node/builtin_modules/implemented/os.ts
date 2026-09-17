@@ -55,7 +55,7 @@ export function arch(): string {
  * @returns a synthetic release string.
  */
 export function release(): string {
-  return '0.0.0-dsh-worker'
+  return '0.0.0-avn-worker'
 }
 
 /**
@@ -63,7 +63,7 @@ export function release(): string {
  * @returns a synthetic name.
  */
 export function hostname(): string {
-  return 'dsh-worker'
+  return 'avn-worker'
 }
 
 /**

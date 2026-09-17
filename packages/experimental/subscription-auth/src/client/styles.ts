@@ -1,4 +1,4 @@
-/** Shared inline styles using DSH design tokens. */
+/** Shared inline styles using AVN design tokens. */
 
 import type { CSSProperties } from 'react'
 import type { ProviderStatus } from './types.ts'
@@ -188,7 +188,7 @@ const tipStyle: CSSProperties = {
 /** Notice style. */
 export const noticeStyle: CSSProperties = {
   ...tipStyle,
-  animation: 'dsh-coding-oauth-fade-in 0.2s ease',
+  animation: 'avn-coding-oauth-fade-in 0.2s ease',
 }
 /** Code style. */
 export const codeStyle: CSSProperties = {
@@ -258,7 +258,7 @@ export const skeletonStyle: CSSProperties = {
   background:
 		'linear-gradient(90deg, var(--dsw-alias-bg-layer-1) 0%, var(--dsw-alias-bg-module-platform) 50%, var(--dsw-alias-bg-layer-1) 100%)',
   backgroundSize: '200% 100%',
-  animation: 'dsh-coding-oauth-skeleton-pulse 1.4s ease-in-out infinite',
+  animation: 'avn-coding-oauth-skeleton-pulse 1.4s ease-in-out infinite',
 }
 /** Step row style. */
 export const stepRowStyle: CSSProperties = {
@@ -316,7 +316,7 @@ export function statusToneColor(tone: StatusTone): string {
     case 'error':
       return 'var(--dsw-alias-state-error-primary, #d92d20)'
     case 'warning':
-      // DSH token is `state-warn-*` (not `state-warning-*`).
+      // AVN token is `state-warn-*` (not `state-warning-*`).
       return 'var(--dsw-alias-state-warn-primary, #e06c00)'
     case 'info':
       // Accent/text color (not a solid fill + white text pair).

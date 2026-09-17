@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-terminal-bash` starts a persistent interactive shell under the deployment's sandbox policy: the session stays alive across tool calls, readiness for input is detected, and bounded line-oriented output is retained for reads. It provides the `shell` backend type and supports bash on POSIX and pwsh on Windows through a `shellDialect` setting. The same backend composes with local or remote execution worlds through the mounted subprocess provider. Full-screen terminal applications are outside its line-oriented contract.
+`avn-terminal-bash` starts a persistent interactive shell under the deployment's sandbox policy: the session stays alive across tool calls, readiness for input is detected, and bounded line-oriented output is retained for reads. It provides the `shell` backend type and supports bash on POSIX and pwsh on Windows through a `shellDialect` setting. The same backend composes with local or remote execution worlds through the mounted subprocess provider. Full-screen terminal applications are outside its line-oriented contract.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ Mount this backend when a composition needs persistent shell sessions — state 
 
 ### When to choose it
 
-Choose this backend when work needs an interactive shell or REPL whose state persists: stepping a debugger, exploring in a Python or Node REPL, or returning to a shell after interrupting a foreground command. Choose the one-shot bash tool for bounded commands that should start and end in one call. The bash dialect targets POSIX; the pwsh dialect targets Windows hosts where `dsh-pwsh-local` can resolve a pwsh executable.
+Choose this backend when work needs an interactive shell or REPL whose state persists: stepping a debugger, exploring in a Python or Node REPL, or returning to a shell after interrupting a foreground command. Choose the one-shot bash tool for bounded commands that should start and end in one call. The bash dialect targets POSIX; the pwsh dialect targets Windows hosts where `avn-pwsh-local` can resolve a pwsh executable.
 
 ### Composition
 

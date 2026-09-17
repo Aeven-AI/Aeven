@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-media-openrouter` 把 OpenRouter 的视频 API 注册为 `ctx.media` 的视频后端：提交任务、轮询任务、取回字节。撰写本文时 OpenRouter 中介了 28 个视频模型——Wan、Seedance、Hailuo 与 FLUX 视频系列——并且它是所调研 provider 中唯一枚举了自身任务状态的，这正是 seam 的状态联合类型沿用其词汇、而本适配器直接映射到它的原因。当部署希望通过 OpenRouter 账号生成视频时挂载它。
+`avn-media-openrouter` 把 OpenRouter 的视频 API 注册为 `ctx.media` 的视频后端：提交任务、轮询任务、取回字节。撰写本文时 OpenRouter 中介了 28 个视频模型——Wan、Seedance、Hailuo 与 FLUX 视频系列——并且它是所调研 provider 中唯一枚举了自身任务状态的，这正是 seam 的状态联合类型沿用其词汇、而本适配器直接映射到它的原因。当部署希望通过 OpenRouter 账号生成视频时挂载它。
 
 ## 目录
 
@@ -24,7 +24,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在已经加载 `dsh-media` 的组合中挂载本 provider；它默认以 `openrouter` 作为视频 provider 注册。调用方用 `ctx.media.startVideo()` 启动任务，按自己的节奏轮询 `ctx.media.videoStatus()`，待任务报告 `succeeded` 后用 `ctx.media.fetchVideo()` 取回片段。
+在已经加载 `avn-media` 的组合中挂载本 provider；它默认以 `openrouter` 作为视频 provider 注册。调用方用 `ctx.media.startVideo()` 启动任务，按自己的节奏轮询 `ctx.media.videoStatus()`，待任务报告 `succeeded` 后用 `ctx.media.fetchVideo()` 取回片段。
 
 ### 最小配置
 
@@ -73,7 +73,7 @@ kind: "package-reference"
 这些限制界定了本 provider 不适用的场景，均为当前包约束。
 
 - **无 invariant 伴随模块**——不发布运行时 invariant 伴随模块，因为本包不拥有任何两个独立观察者可能产生分歧的关系；它唯一的注册随调用方 fiber 释放，并由本包测试覆盖。
-- **两个包都能提供 OpenRouter 图像**——`dsh-media-pi-ai` 经 pi-ai 的 chat-modality 传输触达同一个账号，且以相同的默认 id 注册，因此同时挂载两者的组合必须给其中之一换一个 `id`。本包的专用路由才是接收新图像模型的那个。
+- **两个包都能提供 OpenRouter 图像**——`avn-media-pi-ai` 经 pi-ai 的 chat-modality 传输触达同一个账号，且以相同的默认 id 注册，因此同时挂载两者的组合必须给其中之一换一个 `id`。本包的专用路由才是接收新图像模型的那个。
 - **不支持流式**——图像路由接受 `stream` 以增量投递，本 Provider 不请求它；一次调用在所有图像就绪时一次性返回。
 - **不转发 `quality`、`output_format`、`background` 与 `output_compression`**——Seam 没有承载它们的字段，因此沿用模型自身的默认值。何况请求 SVG 会产生第一版附件路径无法存储的字节。
 - **无模型目录**——模型 id 原样传递，由 OpenRouter 而非本包校验，因此无效 id 会在上游失败而不是在调用之前。
@@ -91,6 +91,6 @@ kind: "package-reference"
 
 #### 退役 pi-ai 图像路径
 
-专用路由已在本包实现后，`dsh-media-pi-ai` 就成了以同一种类触达同一账号的第二条路，走的是 OpenRouter 视为遗留的传输层，且面对的是冻结在已安装 pi-ai 中的模型列表。该包是否还有存在理由尚待决定；将其退役会消除上文限制中提到的 id 冲突。
+专用路由已在本包实现后，`avn-media-pi-ai` 就成了以同一种类触达同一账号的第二条路，走的是 OpenRouter 视为遗留的传输层，且面对的是冻结在已安装 pi-ai 中的模型列表。该包是否还有存在理由尚待决定；将其退役会消除上文限制中提到的 id 冲突。
 
 </details>

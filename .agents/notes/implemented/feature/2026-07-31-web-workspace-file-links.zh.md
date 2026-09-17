@@ -8,7 +8,7 @@ Status: implemented
 
 ## 问题
 
-一个产出了文件的 web 会话，没有办法看到那个文件。agent（智能体）写出了 `deepseek-homepage.html` 并如实告知，而用户唯一的办法是把 `/private/tmp/dsh-client-hotplug.ygPvsm/workspaces/plugin-hotplug/deepseek-homepage.html` 这样的绝对路径复制进终端。
+一个产出了文件的 web 会话，没有办法看到那个文件。agent（智能体）写出了 `deepseek-homepage.html` 并如实告知，而用户唯一的办法是把 `/private/tmp/avn-client-hotplug.ygPvsm/workspaces/plugin-hotplug/deepseek-homepage.html` 这样的绝对路径复制进终端。
 
 这背后是两个不同的缺陷。transcript（文本记录）从不说明一个轮次产出了什么：`ToolCallView.locations`——文件工具早已填好的跟随文件词汇——在客户端没有任何消费方，因此读者对产出的唯一交代，就是收尾消息恰好拼出来的那点内容。而已经存在的那个交互是隐形的：`ToolRow` 早已把改写行或读取行的路径渲染成一个接到 `session/openWorkspacePath` 的真按钮，但它的样式与周围正文一模一样、只有悬停才有下划线，于是没人发现。所报告的「做完了打不开」，是一个可发现性失败叠在一项本就可用的能力之上。
 

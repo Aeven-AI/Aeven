@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-bash-sandbox` is the sandbox-consuming Bash executor: every command runs as a fresh `bash -c` process confined through the `ctx.sandbox` capability instead of with the harness process's full file authority. Each settled result carries the mode the command ran under, whether the sandbox denied a file operation, and how completely the selected runner enforced the requested mode. When no runner can enforce a confined mode, the call fails closed with a structured `SANDBOX_UNAVAILABLE` error rather than running unconfined. It is the confining sibling of `dsh-bash-local` — sharing its process mechanics — and the tool layer's escalation fields appear only while it is mounted.
+`avn-bash-sandbox` is the sandbox-consuming Bash executor: every command runs as a fresh `bash -c` process confined through the `ctx.sandbox` capability instead of with the harness process's full file authority. Each settled result carries the mode the command ran under, whether the sandbox denied a file operation, and how completely the selected runner enforced the requested mode. When no runner can enforce a confined mode, the call fails closed with a structured `SANDBOX_UNAVAILABLE` error rather than running unconfined. It is the confining sibling of `avn-bash-local` — sharing its process mechanics — and the tool layer's escalation fields appear only while it is mounted.
 
 ## Table of Contents
 
@@ -25,11 +25,11 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this executor instead of `dsh-bash-local` when commands must not run with the harness process's full file authority. It registers as `ctx.shell` and requires a `ctx.sandbox` provider plus `ctx.sandboxPolicy`; the model-facing `bash` tool works over it unchanged and advertises the `sandbox_permissions`/`justification` escalation fields.
+Mount this executor instead of `avn-bash-local` when commands must not run with the harness process's full file authority. It registers as `ctx.shell` and requires a `ctx.sandbox` provider plus `ctx.sandboxPolicy`; the model-facing `bash` tool works over it unchanged and advertises the `sandbox_permissions`/`justification` escalation fields.
 
 ### When to choose it
 
-Choose it when a deployment needs file-level confinement for Bash commands: the configured policy decides the default mode and workspace root, and each session can run under a different mode per call through the tool's escalation flow. The modes govern file effects only — network stays unrestricted and process visibility is backend-specific. For unconfined execution, or when no sandbox backend is available on the platform, mount `dsh-bash-local` instead.
+Choose it when a deployment needs file-level confinement for Bash commands: the configured policy decides the default mode and workspace root, and each session can run under a different mode per call through the tool's escalation flow. The modes govern file effects only — network stays unrestricted and process visibility is backend-specific. For unconfined execution, or when no sandbox backend is available on the platform, mount `avn-bash-local` instead.
 
 ### Modes and file effects
 
@@ -75,7 +75,7 @@ This section explains the design of the executor and points at the code that rea
 
 ### Design concept
 
-The executor is the sandboxing Service Provider for the `ctx.shell` seam: it inherits `dsh-bash-local`'s process mechanics and re-wraps each command's exact `['bash', '-c', command]` argv through `ctx.sandbox.confine()`, spawning the returned argv directly. Which platform runner confines the command — and whether one is usable at all — is the provider's concern; this package owns the bash side only: the selected mode, enforcement completeness, and denial classification on results.
+The executor is the sandboxing Service Provider for the `ctx.shell` seam: it inherits `avn-bash-local`'s process mechanics and re-wraps each command's exact `['bash', '-c', command]` argv through `ctx.sandbox.confine()`, spawning the returned argv directly. Which platform runner confines the command — and whether one is usable at all — is the provider's concern; this package owns the bash side only: the selected mode, enforcement completeness, and denial classification on results.
 
 ### Source map
 
@@ -123,11 +123,11 @@ Read these pages when the executor contract is not enough. They move from the se
 
 #### What the model sees
 
-The generated [`dsh-tool-bash` schemas](../../../docs/tool-catalog.md#aeven-tool-bash) are the baseline. By advertising a confining `sandboxMode`, this backend augments `bash` with `sandbox_permissions` (enum `workspace-write` | `danger-full-access`) and `justification`. The policy owner separately contributes the current capability-neutral `sandbox:policy` context.
+The generated [`avn-tool-bash` schemas](../../../docs/tool-catalog.md#aeven-tool-bash) are the baseline. By advertising a confining `sandboxMode`, this backend augments `bash` with `sandbox_permissions` (enum `workspace-write` | `danger-full-access`) and `justification`. The policy owner separately contributes the current capability-neutral `sandbox:policy` context.
 
 #### Token effect
 
-Small fixed schema increment on requests where `bash` is visible, plus the current-policy clause owned by `dsh-sandbox-policy`.
+Small fixed schema increment on requests where `bash` is visible, plus the current-policy clause owned by `avn-sandbox-policy`.
 
 #### KV Cache effect
 

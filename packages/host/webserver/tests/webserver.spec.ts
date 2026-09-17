@@ -29,7 +29,7 @@ afterEach(async () => {
 
 /** Write a cordis.yml with one webserver row, then boot it through the real Loader. */
 async function loadComposition(port = 0, gzip = false): Promise<Context> {
-  root = await mkdtemp(join(tmpdir(), 'dsh-webserver-loader-'))
+  root = await mkdtemp(join(tmpdir(), 'avn-webserver-loader-'))
   const configPath = join(root, 'cordis.yml')
   await writeFile(configPath, [
     "- name: '@aeven/host-webserver'",
@@ -87,7 +87,7 @@ async function upgrade(port: number, path: string): Promise<ReturnType<typeof co
     `GET ${path} HTTP/1.1`,
     `Host: 127.0.0.1:${String(port)}`,
     'Connection: Upgrade',
-    'Upgrade: dsh-test',
+    'Upgrade: avn-test',
     '',
     '',
   ].join('\r\n'))
@@ -263,7 +263,7 @@ describe('real Loader composition', () => {
       path: '/events',
       handler: (_req, socket) => {
         socket.once('close', () => { upgradedServerClosed = true })
-        socket.write('HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: dsh-test\r\n\r\n')
+        socket.write('HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: avn-test\r\n\r\n')
       },
     })
     expect(() => server.registerUpgrade({ path: '/events', handler: () => {} }))
@@ -289,7 +289,7 @@ describe('real Loader composition', () => {
       'GET /upgrade-error HTTP/1.1',
       `Host: 127.0.0.1:${String(port)}`,
       'Connection: Upgrade',
-      'Upgrade: dsh-test',
+      'Upgrade: avn-test',
       '',
       '',
     ].join('\r\n'))

@@ -20,7 +20,7 @@ import { MockAdapter, textResponse, toolCallResponse } from '../../../core/agent
 
 /**
  * Full-loop bridge tests: a scripted mock MODEL drives the REAL agent loop + REAL
- * bash executor, and the REAL `dsh-hooks-claude-code` bridge runs REAL shell hook
+ * bash executor, and the REAL `avn-hooks-claude-code` bridge runs REAL shell hook
  * scripts written to a temp dir — only the model is mocked (the "prefer the real
  * implementation" rule). Each test writes a `hooks.json` + executable scripts,
  * loads the bridge pointed at them, and asserts the hook's effect on the loop.
@@ -35,7 +35,7 @@ function subagentCarrier(ctx: Context) {
 
 /** Write a hooks.json + named executable scripts into a fresh temp dir. */
 function writeConfig(hooks: unknown, scripts: Record<string, string> = {}): string {
-  const dir = mkdtempSync(join(tmpdir(), 'dsh-hooks-claude-'))
+  const dir = mkdtempSync(join(tmpdir(), 'avn-hooks-claude-'))
   dirs.push(dir)
   writeFileSync(join(dir, 'hooks.json'), JSON.stringify({ hooks }))
   for (const [name, body] of Object.entries(scripts)) {
@@ -94,7 +94,7 @@ describe('hooks-claude-code bridge — UserPromptSubmit', () => {
   it('a UserPromptSubmit hook that exits 2 closes a blocked turn without a step', async () => {
     // UserPromptSubmit ignores its malformed matcher field, then exit 2 blocks
     // with the reason on stderr.
-    const dir = mkdtempSync(join(tmpdir(), 'dsh-hooks-claude-'))
+    const dir = mkdtempSync(join(tmpdir(), 'avn-hooks-claude-'))
     dirs.push(dir)
     const block = join(dir, 'block.sh')
     writeFileSync(block, '#!/usr/bin/env bash\necho "prompt denied by policy" >&2\nexit 2\n')
@@ -115,7 +115,7 @@ describe('hooks-claude-code bridge — UserPromptSubmit', () => {
   })
 
   it('a UserPromptSubmit hook printing additionalContext injects it for the model', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'dsh-hooks-claude-'))
+    const dir = mkdtempSync(join(tmpdir(), 'avn-hooks-claude-'))
     dirs.push(dir)
     const ctxScript = join(dir, 'ctx.sh')
     writeFileSync(ctxScript, '#!/usr/bin/env bash\necho \'{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalContext":"remember: be brief"}}\'\n')
@@ -137,7 +137,7 @@ describe('hooks-claude-code bridge — UserPromptSubmit', () => {
 
 describe('hooks-claude-code bridge — PreToolUse', () => {
   it('a matching PreToolUse hook that exits 2 denies the tool (isError result), tool never runs', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'dsh-hooks-claude-'))
+    const dir = mkdtempSync(join(tmpdir(), 'avn-hooks-claude-'))
     dirs.push(dir)
     const deny = join(dir, 'deny.sh')
     writeFileSync(deny, '#!/usr/bin/env bash\necho "danger tool blocked" >&2\nexit 2\n')
@@ -160,7 +160,7 @@ describe('hooks-claude-code bridge — PreToolUse', () => {
   })
 
   it('a PreToolUse hook whose matcher does NOT match leaves the tool alone', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'dsh-hooks-claude-'))
+    const dir = mkdtempSync(join(tmpdir(), 'avn-hooks-claude-'))
     dirs.push(dir)
     const deny = join(dir, 'deny.sh')
     writeFileSync(deny, '#!/usr/bin/env bash\nexit 2\n')
@@ -184,7 +184,7 @@ describe('hooks-claude-code bridge — PreToolUse', () => {
 
 describe('hooks-claude-code bridge — PostToolUse', () => {
   it('a PostToolUse hook that blocks (exit 2) turns the result into an isError with feedback', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'dsh-hooks-claude-'))
+    const dir = mkdtempSync(join(tmpdir(), 'avn-hooks-claude-'))
     dirs.push(dir)
     const block = join(dir, 'block.sh')
     writeFileSync(block, '#!/usr/bin/env bash\necho "output rejected, retry" >&2\nexit 2\n')
@@ -205,7 +205,7 @@ describe('hooks-claude-code bridge — PostToolUse', () => {
   })
 
   it('a PostToolUse hook printing additionalContext attaches it after the tool result', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'dsh-hooks-claude-'))
+    const dir = mkdtempSync(join(tmpdir(), 'avn-hooks-claude-'))
     dirs.push(dir)
     const s = join(dir, 'ctx.sh')
     writeFileSync(s, '#!/usr/bin/env bash\necho \'{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"note: tool was slow"}}\'\n')
@@ -228,7 +228,7 @@ describe('hooks-claude-code bridge — PostToolUse', () => {
   })
 
   it('a PreToolUse permissionDecision:ask fails closed without an approval service', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'dsh-hooks-claude-'))
+    const dir = mkdtempSync(join(tmpdir(), 'avn-hooks-claude-'))
     dirs.push(dir)
     const s = join(dir, 'ask.sh')
     writeFileSync(s, '#!/usr/bin/env bash\necho \'{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"needs approval"}}\'\n')
@@ -253,7 +253,7 @@ describe('hooks-claude-code bridge — PostToolUse', () => {
 
 describe('hooks-claude-code bridge — SessionStart', () => {
   it('a SessionStart hook injects additionalContext the first request sees', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'dsh-hooks-claude-'))
+    const dir = mkdtempSync(join(tmpdir(), 'avn-hooks-claude-'))
     dirs.push(dir)
     const s = join(dir, 'start.sh')
     writeFileSync(s, '#!/usr/bin/env bash\necho \'{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"project uses tabs"}}\'\n')
@@ -278,7 +278,7 @@ describe('hooks-claude-code bridge — SessionStart', () => {
 
 describe('hooks-claude-code bridge — SubagentStart / SubagentStop (observe)', () => {
   it('runs SubagentStart and SubagentStop hooks when the subagent lifecycle events fire', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'dsh-hooks-claude-'))
+    const dir = mkdtempSync(join(tmpdir(), 'avn-hooks-claude-'))
     dirs.push(dir)
     // Each hook touches a marker file so we can assert it ran (these events are
     // observe-only — there is no decision to assert, only the side effect).
@@ -317,7 +317,7 @@ describe('hooks-claude-code bridge — SubagentStart / SubagentStop (observe)', 
   })
 
   it('disposing the bridge aborts a still-running hook and drains to quiescence', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'dsh-hooks-claude-'))
+    const dir = mkdtempSync(join(tmpdir(), 'avn-hooks-claude-'))
     dirs.push(dir)
     const pidFile = join(dir, 'pid')
     const marker = join(dir, 'started')

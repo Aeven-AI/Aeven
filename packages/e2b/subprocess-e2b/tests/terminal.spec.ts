@@ -229,7 +229,7 @@ class FakeTerminalSandbox {
 function runtime(fake: FakeTerminalSandbox): E2BRuntime {
   return {
     cwd: '/workspace',
-    runtimeRoot: '/workspace/.dsh-e2b',
+    runtimeRoot: '/workspace/.avn-e2b',
     getSandbox: async () => fake.sandbox,
   } as unknown as E2BRuntime
 }
@@ -282,7 +282,7 @@ describe('E2B terminal allocation', () => {
     expect(output).not.toContain('runner.bash')
     expect(fake.createOptions).toMatchObject({ rows: 24, cols: 80, cwd: '/workspace', timeoutMs: 0 })
     const controlEnvs = fake.createOptions?.envs
-    expect(controlEnvs?.HOME).toMatch(/^\/\.dsh-e2b-control-/)
+    expect(controlEnvs?.HOME).toMatch(/^\/\.avn-e2b-control-/)
     expect(controlEnvs).toEqual({
       TERM: 'dumb',
       NPM_TOKEN: '',
@@ -297,12 +297,12 @@ describe('E2B terminal allocation', () => {
     expect(fake.writes.get('/runtime/terminal-one/environment')).not.toContain('AVN_STALE')
     expect(fake.writes.get('/runtime/terminal-one/argv')).toBe('/bin/bash\0--noprofile\0--norc\0')
     const marker = fake.writes.get('/runtime/terminal-one/output-marker') ?? ''
-    expect(marker).toMatch(/^dsh-e2b-bootstrap:/)
+    expect(marker).toMatch(/^avn-e2b-bootstrap:/)
     expect(fake.inputs[0]?.data.toString()).not.toContain(marker)
     const runner = fake.writes.get('/runtime/terminal-one/runner.bash') ?? ''
-    expect(runner).toContain('if (( ${#dsh_argv[@]} == 0 )); then')
-    expect(runner).toContain('printf \'%s\' "$dsh_output_marker"')
-    expect(runner).toContain('exec env -i -- "${dsh_env[@]}" "${dsh_argv[@]}"')
+    expect(runner).toContain('if (( ${#avn_argv[@]} == 0 )); then')
+    expect(runner).toContain('printf \'%s\' "$avn_output_marker"')
+    expect(runner).toContain('exec env -i -- "${avn_env[@]}" "${avn_argv[@]}"')
     expect(runner).not.toContain('\u007f')
     terminal.output.destroy()
     await fake.createOptions?.onData(Buffer.from('late bootstrap callback'))
@@ -795,7 +795,7 @@ describe('E2B subprocess terminal service', () => {
       .resolves.toBe('/workspace/tools/bin/node')
     const commandOptions = fake.commandOptions.at(-1)
     expect(commandOptions).toMatchObject({ cwd: '/workspace' })
-    expect(commandOptions?.envs?.HOME).toMatch(/^\/\.dsh-e2b-control-/)
+    expect(commandOptions?.envs?.HOME).toMatch(/^\/\.avn-e2b-control-/)
     expect(commandOptions?.envs).toEqual({ HOME: commandOptions?.envs?.HOME })
     expect((ctx.e2b)).toBeDefined()
   })

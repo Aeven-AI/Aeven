@@ -1,5 +1,5 @@
 ---
-description: "Shared React UI atoms for the dsh web client: controls, icons, markdown and math rendering, and the terminal/read/diff/search/web output cards (zero cordis)."
+description: "Shared React UI atoms for the avn web client: controls, icons, markdown and math rendering, and the terminal/read/diff/search/web output cards (zero cordis)."
 kind: "package-library"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-client-ui-primitives` is the web client's shared React component library: every feature plugin composes its UI from these atoms, and nothing here depends on Cordis or the slot system. It provides the control set (buttons, pills, inputs, menus, modals, toast banners, disclosure rows, hover cards, connection indicators), the icon glyphs and brand marks, positioning hooks for anchored overlays, and the content renderers for agent output: markdown with TeX math, terminal output, file reads, diffs, search results, web retrieval, and JSON inspection. The renderers are built for untrusted model output — raw HTML is dropped, links are neutralized or opened safely, and ANSI escape sequences are parsed rather than passed through. User-facing copy is supplied through label props; the feature plugin that composes an atom owns localization.
+`avn-client-ui-primitives` is the web client's shared React component library: every feature plugin composes its UI from these atoms, and nothing here depends on Cordis or the slot system. It provides the control set (buttons, pills, inputs, menus, modals, toast banners, disclosure rows, hover cards, connection indicators), the icon glyphs and brand marks, positioning hooks for anchored overlays, and the content renderers for agent output: markdown with TeX math, terminal output, file reads, diffs, search results, web retrieval, and JSON inspection. The renderers are built for untrusted model output — raw HTML is dropped, links are neutralized or opened safely, and ANSI escape sequences are parsed rather than passed through. User-facing copy is supplied through label props; the feature plugin that composes an atom owns localization.
 
 Controls, menus, modals, Markdown, and code blocks consume ui-theme's Aeven geometry and typography variables; this package's icon glyphs and brand marks remain unchanged.
 

@@ -26,7 +26,7 @@ const MAX_HEIGHT = 320
 
 /** DOM id of one option row (the aria-activedescendant target). */
 function optionId(source: string, index: number): string {
-  return `dsh-slash-option-${source}-${index}`
+  return `avn-slash-option-${source}-${index}`
 }
 
 /**

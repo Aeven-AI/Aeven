@@ -34,7 +34,7 @@ export const inject = ['deepseekLlmApiExtensions', 'sessions']
 
 /** Session-log request contribution configuration. */
 export interface Config {
-  /** Contribute `dsh_session_log` to official DeepSeek requests. Defaults to `false`. */
+  /** Contribute `avn_session_log` to official DeepSeek requests. Defaults to `false`. */
   enabled?: boolean
 }
 
@@ -121,13 +121,13 @@ export function acceptedThrough(session: Session): SessionSeqCursor {
 }
 
 /**
- * Register the incremental `dsh_session_log` request contribution when enabled.
+ * Register the incremental `avn_session_log` request contribution when enabled.
  * @param ctx - plugin context carrying Sessions and the DeepSeek request-extension registry.
  * @param config - validated opt-in configuration.
  */
 export function apply(ctx: Context, config: Config): void {
   if (config.enabled !== true) return
-  ctx.deepseekLlmApiExtensions.register('dsh_session_log', {
+  ctx.deepseekLlmApiExtensions.register('avn_session_log', {
     prepare: (request) => {
       // TODO: Define an explicit wire result for direct or stale-session calls if they become a supported product path.
       if (request.sessionId === undefined) return undefined

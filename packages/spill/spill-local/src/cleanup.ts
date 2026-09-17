@@ -6,10 +6,10 @@ import { tmpdir } from 'node:os'
 import { DEFAULT_ROOT_PREFIX, isErrno } from './store.ts'
 
 /**
- * A backend-generated default root name: `dsh-spill-` plus the 6-character
+ * A backend-generated default root name: `avn-spill-` plus the 6-character
  * suffix `mkdtemp` appends. Discovery matches this
- * EXACT shape, not the bare prefix, so an unrelated `dsh-spill-test-*` fixture
- * or a foreign tool's differently-shaped `dsh-spill-…` directory is never
+ * EXACT shape, not the bare prefix, so an unrelated `avn-spill-test-*` fixture
+ * or a foreign tool's differently-shaped `avn-spill-…` directory is never
  * mistaken for a backend root to sweep.
  */
 const DEFAULT_ROOT_RE = new RegExp(`^${DEFAULT_ROOT_PREFIX}[A-Za-z0-9]{6}$`)
@@ -161,7 +161,7 @@ export interface SweepRoot {
   path: string
   /**
    * When `true`, remove the root after its empty `session-*` children are
-   * pruned. Set for DISCOVERED prior-default `dsh-spill-*` roots (one per past
+   * pruned. Set for DISCOVERED prior-default `avn-spill-*` roots (one per past
    * process — otherwise they accumulate empty forever), never for the active
    * root the live process is still writing into. Every root prunes empty session
    * directories; writes retry if that races their removal.
@@ -362,13 +362,13 @@ export async function sweepSpillRoots(options: SweepOptions): Promise<void> {
 }
 
 /**
- * Discover prior default spill roots: the `dsh-spill-<6 chars>` directories
+ * Discover prior default spill roots: the `avn-spill-<6 chars>` directories
  * directly under `base` (the OS tmpdir) that earlier default-root runs created.
  * A long-lived deployment
  * with a configured root will find none; a series of default-root runs
  * accumulates one per process, so the startup sweep reclaims them all. Matching
  * is the EXACT `mkdtemp` shape (see {@link DEFAULT_ROOT_RE}), not the bare
- * prefix, so an unrelated `dsh-spill-test-*` fixture or a foreign
+ * prefix, so an unrelated `avn-spill-test-*` fixture or a foreign
  * differently-shaped directory is never swept; symlinks and non-directories are
  * excluded too — only real directories the backend could have created.
  *

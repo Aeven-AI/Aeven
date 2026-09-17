@@ -14,6 +14,6 @@ export interface DeepSeekPluginPackageInventoryExtension {
 
 declare module '@aeven/deepseek-llm-api-extensions/types' {
   interface DeepSeekLlmApiExtensionMap {
-    dsh_plugin_packages: DeepSeekPluginPackageInventoryExtension
+    avn_plugin_packages: DeepSeekPluginPackageInventoryExtension
   }
 }

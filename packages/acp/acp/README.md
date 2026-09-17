@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-acp` lets trusted programs drive persistent DeepSeek Harness agents over the standard [Agent Client Protocol](https://agentclientprotocol.com): create or resume sessions, list resumable sessions, attach standard MCP servers, select a model and reasoning effort, prompt or cancel work, receive semantic execution updates, and close one session without affecting others. It is built for automation — out-of-process subagents, test runners, and scripted controllers — rather than the DSH user interface: it emits standard ACP messages, thoughts, generic tool lifecycle, configuration, and context usage, never private DSH presentation data or methods. Session persistence enables list, resume, and close across process restarts, while deletion, fork, transcript replay, additional directories, and interactive UI surfaces remain unsupported. The repository's own ACP client is `dsh-subagent-acp`, and `pnpm dsh --profile acp` starts a ready-to-use server. Setup and usage come first; the implementation details live in a collapsible developer section below.
+`avn-acp` lets trusted programs drive persistent DeepSeek Harness agents over the standard [Agent Client Protocol](https://agentclientprotocol.com): create or resume sessions, list resumable sessions, attach standard MCP servers, select a model and reasoning effort, prompt or cancel work, receive semantic execution updates, and close one session without affecting others. It is built for automation — out-of-process subagents, test runners, and scripted controllers — rather than the AVN user interface: it emits standard ACP messages, thoughts, generic tool lifecycle, configuration, and context usage, never private AVN presentation data or methods. Session persistence enables list, resume, and close across process restarts, while deletion, fork, transcript replay, additional directories, and interactive UI surfaces remain unsupported. The repository's own ACP client is `avn-subagent-acp`, and `pnpm avn --profile acp` starts a ready-to-use server. Setup and usage come first; the implementation details live in a collapsible developer section below.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ Use this package when a script, test runner, or another harness needs to run age
 
 ### When to choose it
 
-Choose it when automation should own the interaction: an out-of-process subagent, test runner, or scripted controller that manages persistent sessions, tools, model selection, and permissions. Avoid it when a human needs DSH-specific presentation cards, plans, titles, todos, terminal views, or elicitation; this server intentionally exposes only the standard ACP v1 surface.
+Choose it when automation should own the interaction: an out-of-process subagent, test runner, or scripted controller that manages persistent sessions, tools, model selection, and permissions. Avoid it when a human needs AVN-specific presentation cards, plans, titles, todos, terminal views, or elicitation; this server intentionally exposes only the standard ACP v1 surface.
 
 ### Minimal configuration
 
@@ -52,7 +52,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#aeven-acp)
 
 ### Start a server
 
-`pnpm dsh --profile acp` starts the shipped stdio server. The `acp` profile mounts session persistence, so clients can list, resume, and close persistent sessions. [`@aeven/subagent-acp`](../../subagent/subagent-acp/README.md) starts the same profile for out-of-process delegation.
+`pnpm avn --profile acp` starts the shipped stdio server. The `acp` profile mounts session persistence, so clients can list, resume, and close persistent sessions. [`@aeven/subagent-acp`](../../subagent/subagent-acp/README.md) starts the same profile for out-of-process delegation.
 
 <a id="protocol-contract"></a><a id="standard-acp-v1-surface"></a>
 ### Protocol contract
@@ -89,7 +89,7 @@ This section explains how the server realizes the behavior above and points at t
 
 The server is an automation transport with an intentionally standard public protocol. Three commitments shape it:
 
-- **Standard semantic updates only.** The wire carries committed messages and thoughts, generic tool lifecycle, configuration, and context usage; raw provider deltas, retry attempts, DSH presentation data, and unsupported content stay off the wire.
+- **Standard semantic updates only.** The wire carries committed messages and thoughts, generic tool lifecycle, configuration, and context usage; raw provider deltas, retry attempts, AVN presentation data, and unsupported content stay off the wire.
 - **Truthful capability and configuration state.** `initialize` advertises only mounted support, topology changes publish complete configuration options, and a prompt pins the exact route it admitted.
 - **Quiescence before settlement.** Prompt and close operations settle only after their owned admission, Agent activity, ordered updates, descendants, persistence, and disposal have reached the required terminal state.
 
@@ -121,7 +121,7 @@ Each session module owns its Agent handle, MCP mounts, future and turn-pinned mo
 
 Read these pages when the package-level contract is not enough. They move from the matching client to the design records behind the automation contract.
 
-- [dsh-subagent-acp](../../subagent/subagent-acp/README.md) — the out-of-process ACP client that spawns and drives this server.
+- [avn-subagent-acp](../../subagent/subagent-acp/README.md) — the out-of-process ACP client that spawns and drives this server.
 - [ACP as an automation-only protocol](../../../.agents/notes/implemented/simplification/2026-07-23-acp-automation-only-protocol.md) — the design record for the automation contract and its wire boundaries.
 - [Multiplex concurrent ACP sessions over one connection](../../../.agents/notes/implemented/feature/2026-06-14-acp-multi-session.md) — per-session isolation, ownership, and teardown decisions.
 - [Extension cookbook](../../../docs/cookbook/extension-cookbook.md) — this package as the automation-only worked example for extension authors.
@@ -168,7 +168,7 @@ These limits define when this package is a poor fit or needs special operational
 
 - **One primary workspace** — additional directories remain unsupported.
 - **Raster prompt images only** — PNG, JPEG, WebP, and GIF require a durable attachment store and an exact image-capable route.
-- **MCP tools only** — MCP resources and prompts have no DSH consumer.
+- **MCP tools only** — MCP resources and prompts have no AVN consumer.
 - **No transcript replay or interactive extensions** — session deletion, fork, `session/load`, modes, commands, plans, terminals, client filesystem operations, and elicitation remain outside this automation surface.
 
 <a id="dev-note"></a>

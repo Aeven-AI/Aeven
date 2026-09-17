@@ -29,7 +29,7 @@ Mount this plugin when a composition streams DeepSeek models through the harness
 
 ### When to choose it
 
-Choose this adapter when the deployment targets DeepSeek's official API, optionally behind an OpenAI-compatible gateway named by `baseURL`. Choose `dsh-llm-pi-ai` when the same composition also routes other providers or hand-declared gateways through pi-ai's catalogs; the two adapters can be mounted together because their route names do not collide. Registering any other adapter for `deepseek-official` fails with `DUPLICATE_ADAPTER`.
+Choose this adapter when the deployment targets DeepSeek's official API, optionally behind an OpenAI-compatible gateway named by `baseURL`. Choose `avn-llm-pi-ai` when the same composition also routes other providers or hand-declared gateways through pi-ai's catalogs; the two adapters can be mounted together because their route names do not collide. Registering any other adapter for `deepseek-official` fails with `DUPLICATE_ADAPTER`.
 
 ### Minimal configuration
 
@@ -68,7 +68,7 @@ A request selects the route with `provider: deepseek-official`; the model id pas
 | `fileExpiresAfterSeconds` | `604,800` | Requested uploaded-image lifetime |
 | `fileRefreshMarginSeconds` | `3,600` | Remaining lifetime below which an id is replaced |
 | `fileQuotaCleanupBatch` | `100` | Oldest harness-owned files removed before one quota retry |
-| `retryPolicy` | normal, 5 retries | Provider-owned retry policy executed by `dsh-llm-retry` |
+| `retryPolicy` | normal, 5 retries | Provider-owned retry policy executed by `avn-llm-retry` |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aeven-llm-deepseek) is the exhaustive source for every accepted field and its JSDoc.
 
@@ -88,7 +88,7 @@ Connection facts are re-read once per operation through the optional settings an
 
 ### Provider-specific request fields
 
-When `ctx.deepseekLlmApiExtensions` is present, the adapter prepares its registered top-level fields from the exact serialized base request before `fetch`. Preparation or field collisions fail before HTTP; after a 2xx response, the adapter accepts every captured contribution before consuming SSE. Transport and non-2xx failures do not accept them. Shipped compositions use this for the optional incremental `dsh_session_log` field and the default-on active `dsh_plugin_packages` inventory; both stay outside model input.
+When `ctx.deepseekLlmApiExtensions` is present, the adapter prepares its registered top-level fields from the exact serialized base request before `fetch`. Preparation or field collisions fail before HTTP; after a 2xx response, the adapter accepts every captured contribution before consuming SSE. Transport and non-2xx failures do not accept them. Shipped compositions use this for the optional incremental `avn_session_log` field and the default-on active `avn_plugin_packages` inventory; both stay outside model input.
 
 ### Failures and recovery
 
@@ -133,13 +133,13 @@ One `stream()` call normally makes one chat request: resolve deterministic reque
 
 Read these pages when the package-level contract is not enough. They move from the service contract to the twin adapter, the retry executor, and the shared types.
 
-- [dsh-llm service](../llm/README.md) — the provider-neutral service this adapter registers on.
+- [avn-llm service](../llm/README.md) — the provider-neutral service this adapter registers on.
 - [llm-pi-ai adapter](../llm-pi-ai/README.md) — the library-backed twin serving other providers and gateways.
 - [LLM streaming subsystem](../../../docs/subsystems/llm-streaming.md) — the `StreamChunk` protocol and adapter contract.
 - [llm-retry](../llm-retry/README.md) — the retry executor that applies this adapter's `retryPolicy`.
 - [DeepSeek request extensions](../deepseek-llm-api-extensions/README.md) — lifecycle and acceptance semantics for provider-specific top-level fields.
-- [Session-log upload](../../session/session-log-deepseek/README.md) — the opt-in incremental `dsh_session_log` contribution.
-- [Plugin package inventory](../plugin-package-inventory-deepseek/README.md) — the default-on `dsh_plugin_packages` contribution.
+- [Session-log upload](../../session/session-log-deepseek/README.md) — the opt-in incremental `avn_session_log` contribution.
+- [Plugin package inventory](../plugin-package-inventory-deepseek/README.md) — the default-on `avn_plugin_packages` contribution.
 - [Twin LLM adapters](../../../.agents/notes/implemented/architecture/2026-06-13-twin-llm-adapters.md) — why DeepSeek ships two structurally different adapters.
 - [Mandatory app attribution headers](../../../.agents/notes/implemented/architecture/2026-06-21-mandatory-app-attribution-headers.md) — the identity every provider request carries.
 

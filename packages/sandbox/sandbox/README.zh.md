@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-sandbox` 将同世界子进程限制在文件效果策略之下：命令以 `read-only` 运行、只能写入会话工作区（`workspace-write`）或不受限制地运行（`danger-full-access`），每次受限执行都遵循一份逐调用策略。bash 与 pwsh 执行器直接消费它，因此命令及其派生的所有进程都在限制下运行，消费方无需知道背后是哪个平台 runner。无法强制执行所请求的模式时，调用以 `SANDBOX_UNAVAILABLE` 错误快速失败，绝不会不受限制地运行。被拒绝的调用可以请求一个由人类批准一次、严格更宽的模式。隔离仅限同世界——后端与宿主共享内核和文件系统，容器、microVM 与远程执行器会替换整个能力。
+`avn-sandbox` 将同世界子进程限制在文件效果策略之下：命令以 `read-only` 运行、只能写入会话工作区（`workspace-write`）或不受限制地运行（`danger-full-access`），每次受限执行都遵循一份逐调用策略。bash 与 pwsh 执行器直接消费它，因此命令及其派生的所有进程都在限制下运行，消费方无需知道背后是哪个平台 runner。无法强制执行所请求的模式时，调用以 `SANDBOX_UNAVAILABLE` 错误快速失败，绝不会不受限制地运行。被拒绝的调用可以请求一个由人类批准一次、严格更宽的模式。隔离仅限同世界——后端与宿主共享内核和文件系统，容器、microVM 与远程执行器会替换整个能力。
 
 ## 目录
 
@@ -127,7 +127,7 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-通过 [`dsh-bash-sandbox`](../../shell/bash-sandbox/README.zh.md) 和 [`dsh-tool-bash`](../../shell/tool-bash/README.zh.md)，请求的受限模式没有可用后端时会产生错误码 `SANDBOX_UNAVAILABLE` 及下方精确错误；执行期 runner 失败会追加 ` Runner failure: <detail>`。
+通过 [`avn-bash-sandbox`](../../shell/bash-sandbox/README.zh.md) 和 [`avn-tool-bash`](../../shell/tool-bash/README.zh.md)，请求的受限模式没有可用后端时会产生错误码 `SANDBOX_UNAVAILABLE` 及下方精确错误；执行期 runner 失败会追加 ` Runner failure: <detail>`。
 
 ##### 精确错误
 

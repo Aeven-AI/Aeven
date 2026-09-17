@@ -70,11 +70,11 @@ These four owners supplied the initial stateful checks. Later owners add compani
 
 ### Scoped-event semantic map
 
-The generated scoped-event subject resolver lives in `dsh-scope`, beside the contract and invariant that consume it. `gen-scoped-events` uses the root TypeScript Program to enumerate `this: Scoped<Base>` declarations, infer routing-key types from real `scopeTarget(base, key)` calls, and require one unambiguous payload subject or an explicit unsupported marker. The committed runtime map imports no event-owner package, so semantic completeness does not expand either the service or scope package's runtime closure.
+The generated scoped-event subject resolver lives in `avn-scope`, beside the contract and invariant that consume it. `gen-scoped-events` uses the root TypeScript Program to enumerate `this: Scoped<Base>` declarations, infer routing-key types from real `scopeTarget(base, key)` calls, and require one unambiguous payload subject or an explicit unsupported marker. The committed runtime map imports no event-owner package, so semantic completeness does not expand either the service or scope package's runtime closure.
 
 ### Example composition and SDK output
 
-The `dsh-sdk-minimal` patch mounts the service and all four stateful companion subpaths as explicit rows. A subpath entry adds its installable root npm package rather than treating the subpath as a package name. The shipped base-backed config trees omit the service and companions under the [shipped-config decision](../simplification/2026-08-03-omit-invariants-from-shipped-config.md).
+The `avn-sdk-minimal` patch mounts the service and all four stateful companion subpaths as explicit rows. A subpath entry adds its installable root npm package rather than treating the subpath as a package name. The shipped base-backed config trees omit the service and companions under the [shipped-config decision](../simplification/2026-08-03-omit-invariants-from-shipped-config.md).
 
 Workspace constraints recognize the separate invariant bundle, and package exports, project references, build configuration, dependency declarations, and the lockfile describe the same publication metadata. Generated config catalogs, module graphs, and API documentation derive from those sources.
 
@@ -88,7 +88,7 @@ Every Vitest configuration loads a test host that mounts an explicitly enabled s
 
 ## Alternatives considered
 
-- **Keep all checks in `dsh-invariants`.** Rejected because the registry would continue importing every checked product domain, owner changes would require central edits, and package tests would remain detached from the contracts they protect.
+- **Keep all checks in `avn-invariants`.** Rejected because the registry would continue importing every checked product domain, owner changes would require central edits, and package tests would remain detached from the contracts they protect.
 - **Let root package entrypoints register checks implicitly when `ctx.invariants` happens to exist.** Rejected because root behavior would depend on composition order and optional service presence, diagnostics could not be selected independently, and package loading would hide a registration effect outside an explicit companion.
 - **Discover every `invariant.ts` file automatically at runtime.** Rejected because filesystem/package discovery is not a runtime ownership contract, makes bundled publication ambiguous, and cannot express explicit Cordis load order or dependency installation. Build-time generation, verification, and the test host may enumerate the source tree because they validate repository completeness rather than composing a shipped deployment.
 - **Validate allow/block entries against the currently loaded package set.** Rejected because a zero-match pattern can intentionally target a later or HMR-loaded contribution; current load order must not determine config validity.

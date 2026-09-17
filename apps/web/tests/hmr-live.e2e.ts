@@ -1,4 +1,4 @@
-/** Published dsh web + pnpm dev:web → browser HMR, with no page reload. */
+/** Published avn web + pnpm dev:web → browser HMR, with no page reload. */
 
 import { existsSync, globSync } from 'node:fs'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
@@ -69,10 +69,10 @@ async function stopTree(child: SubprocessHandle): Promise<void> {
 }
 
 it('hot-reloads a real client-plugin source edit without refreshing the page', async () => {
-  const world = await mkdtemp(join(tmpdir(), 'dsh-web-hmr-world-'))
+  const world = await mkdtemp(join(tmpdir(), 'avn-web-hmr-world-'))
   const sourcePath = join(REPO_ROOT, 'packages/client/ui-conversation/src/client/locales.ts')
   const binPath = join(REPO_ROOT, 'apps/cli/lib/bin.js')
-  if (!existsSync(binPath)) throw new Error('HMR browser test needs the built dsh bin; run pnpm run build first')
+  if (!existsSync(binPath)) throw new Error('HMR browser test needs the built avn bin; run pnpm run build first')
   const clientBuildEnvironment = readClientBuildRecord(REPO_ROOT).environment
   const clientBundlePaths = globSync('packages/*/*/lib/client.js{,.map}', { cwd: REPO_ROOT })
     .map(path => join(REPO_ROOT, path))
@@ -103,10 +103,10 @@ it('hot-reloads a real client-plugin source edit without refreshing the page', a
       world,
       {
         DEEPSEEK_API_KEY: 'keyless-hmr-no-call',
-        AVN_HOME: join(world, '.dsh'),
+        AVN_HOME: join(world, '.avn'),
       },
     ))
-    const baseUrl = await waitForOutput(host, /dsh web: (http:\/\/[^\s]+)/, 'built dsh web')
+    const baseUrl = await waitForOutput(host, /avn web: (http:\/\/[^\s]+)/, 'built avn web')
     browser = await chromium.launch()
     const page = await browser.newPage()
     const pageErrors: string[] = []
@@ -117,13 +117,13 @@ it('hot-reloads a real client-plugin source edit without refreshing the page', a
       // In-page code: an import would not survive serialization, and the page
       // entropy source available in every context is getRandomValues.
       const identity = Array.from(crypto.getRandomValues(new Uint8Array(8)), byte => byte.toString(16).padStart(2, '0')).join('')
-      Object.defineProperty(window, '__dshHmrPageIdentity', { value: identity })
+      Object.defineProperty(window, '__avnHmrPageIdentity', { value: identity })
       return identity
     })
 
     await writeFile(sourcePath, updatedSource)
     await page.getByText(newText, { exact: true }).waitFor({ timeout: 30_000 })
-    expect(await page.evaluate(() => (window as Window & { __dshHmrPageIdentity?: string }).__dshHmrPageIdentity))
+    expect(await page.evaluate(() => (window as Window & { __avnHmrPageIdentity?: string }).__avnHmrPageIdentity))
       .toBe(pageIdentity)
     expect(pageErrors).toEqual([])
   } catch (error) {

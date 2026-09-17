@@ -8,7 +8,7 @@ import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import * as auth from '@aeven/client-ui-auth-aeven'
 import type {
-  BootManifest, ClientModuleCreateOptions, ClientModuleSystem, DshWindow,
+  BootManifest, ClientModuleCreateOptions, ClientModuleSystem, AvnWindow,
 } from '@aeven/client-modules/client'
 import type {} from '@aeven/client-ui-renderer/client'
 import { BootPage } from './boot-page.ts'
@@ -57,7 +57,7 @@ export class AppWebEntry {
       // row, or rejects it into the failure rendering below. An absent global
       // means no bootstrap owns the document and there is nothing to wait for.
       await (globalThis as { __DSH_BOOT_READY__?: { promise: Promise<void> } }).__DSH_BOOT_READY__?.promise
-      const win = globalThis as DshWindow
+      const win = globalThis as AvnWindow
       const moduleLoader = win.__ModuleLoader__
       if (moduleLoader === undefined) {
         throw new Error('web boot: window.__ModuleLoader__ bootstrap facade is missing')

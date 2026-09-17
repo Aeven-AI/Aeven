@@ -20,14 +20,14 @@
 }
 
 .frame[data-sidebar-collapsed] .centerCol {
-  --dsh-sidebar-overlay-clearance: var(--dsw-aeven-sidebar-toggle-width);
+  --avn-sidebar-overlay-clearance: var(--dsw-aeven-sidebar-toggle-width);
 }
 
 /* The centre column is `flex: 1`; sidebar width changes resize it once without
    a JavaScript column solver. */
 .detailsCol {
   flex: none;
-  width: var(--dsh-frame-details-width, 0px);
+  width: var(--avn-frame-details-width, 0px);
   min-width: 0;
   overflow: hidden;
   border-left: none;
@@ -72,7 +72,7 @@
 /* The handle sits on its column's edge by reading that column's width, so it
    never needs the frame's measured size. */
 .handle[data-side='details'] {
-  right: var(--dsh-frame-details-width, 0px);
+  right: var(--avn-frame-details-width, 0px);
   margin-right: -4px;
 }
 

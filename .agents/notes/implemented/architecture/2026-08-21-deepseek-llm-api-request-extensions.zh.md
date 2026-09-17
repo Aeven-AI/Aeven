@@ -20,7 +20,7 @@ Status: implemented
 
 ## 增量会话日志字段
 
-`@aeven/session-log-deepseek` 以显式选择启用的方式拥有 `dsh_session_log`。启用后，每个携带存活会话 id 的请求都会发送该确切会话身份最大持久 `session-log-deepseek/delivery-accepted` 水位之后的连续权威事件后缀。该字段包含不可变会话 header 与完整事件信封。2xx 会为已发送的 `throughSeq` 追加新水位；该事件会进入下一次请求的后缀。Fork 日志会保留父级水位 id，因此子会话会在自己的身份下从序列零开始。并发接受可能乱序到达，最大水位仍保持权威。进程内 fold 会让每条会话事件只被扫描一次，并增量消费后续追加；新的会话对象或 HMR generation 会从持久历史重建该 fold。
+`@aeven/session-log-deepseek` 以显式选择启用的方式拥有 `avn_session_log`。启用后，每个携带存活会话 id 的请求都会发送该确切会话身份最大持久 `session-log-deepseek/delivery-accepted` 水位之后的连续权威事件后缀。该字段包含不可变会话 header 与完整事件信封。2xx 会为已发送的 `throughSeq` 追加新水位；该事件会进入下一次请求的后缀。Fork 日志会保留父级水位 id，因此子会话会在自己的身份下从序列零开始。并发接受可能乱序到达，最大水位仍保持权威。进程内 fold 会让每条会话事件只被扫描一次，并增量消费后续追加；新的会话对象或 HMR generation 会从持久历史重建该 fold。
 
 失败方向为至少一次。传输失败或提供方拒绝不会记录水位。远端接受后、水位持久化前发生崩溃，会在恢复后触发重放，绝不会跳过序列。现有会话检查点会持久化该事件；上传插件不拥有第二份存储。
 
@@ -28,7 +28,7 @@ Status: implemented
 
 ## 插件包字段
 
-`@aeven/plugin-package-inventory-deepseek` 从 `llm` 包家族中拥有默认开启的 `dsh_plugin_packages` 字段。它会读取宿主 Loader 树的存活非 group 配置项，并为存活请求 Agent 读取其 standing preset 树。Node 包解析会定位所属 manifest，无需导出 `./package.json`。普通配置项从其所属树解析；standing preset 根会复现 Loader 对宿主基址的显式覆写，嵌套 include 则保留自身基址。最近的匿名 manifest 会标记松散模块；具名 manifest 必须带有版本。系统以确定性顺序按确切名称／版本对去重，同时存活的不同版本仍会分开保留。
+`@aeven/plugin-package-inventory-deepseek` 从 `llm` 包家族中拥有默认开启的 `avn_plugin_packages` 字段。它会读取宿主 Loader 树的存活非 group 配置项，并为存活请求 Agent 读取其 standing preset 树。Node 包解析会定位所属 manifest，无需导出 `./package.json`。普通配置项从其所属树解析；standing preset 根会复现 Loader 对宿主基址的显式覆写，嵌套 include 则保留自身基址。最近的匿名 manifest 会标记松散模块；具名 manifest 必须带有版本。系统以确定性顺序按确切名称／版本对去重，同时存活的不同版本仍会分开保留。
 
 禁用、pending、failed、unloading、disposed、结构性、松散非包、普通依赖、编程式子 fiber 与内存动态插件配置项都不属于该包清单。这个定义会报告运行时可以证明的包支撑组合事实，而不会为任意回调发明来源。
 

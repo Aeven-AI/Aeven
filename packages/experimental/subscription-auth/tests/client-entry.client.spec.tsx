@@ -2,7 +2,7 @@
  * @vitest-environment happy-dom
  *
  * The plugin's browser entry, driven the way the shell drives it: what it
- * publishes to the DSH client, and the self-contained settings entry it mounts
+ * publishes to the AVN client, and the self-contained settings entry it mounts
  * when the shell has no slot to offer.
  */
 
@@ -33,7 +33,7 @@ function statusBody(): unknown {
   return {
     accessMode: 'loopback',
     uiOwner: 'standalone',
-    compatibility: { coreAbi: 'test', dshVersion: null, status: 'healthy', diagnostics: [] },
+    compatibility: { coreAbi: 'test', avnVersion: null, status: 'healthy', diagnostics: [] },
     providers: {
       grok: { status: 'signed-out', grokImportAvailable: false },
       codex: {
@@ -118,7 +118,7 @@ afterEach(() => {
 
 describe('client plugin contract', () => {
   it('names itself for the shell and asks only for the locale service', () => {
-    expect(name).toBe('dsh-grok-build-client')
+    expect(name).toBe('avn-grok-build-client')
     expect(inject).toEqual(['locale'])
   })
 
@@ -195,7 +195,7 @@ describe('client plugin contract', () => {
     }).not.toThrow()
 
     vi.unstubAllGlobals()
-    expect(body.querySelector('[data-dsh-coding-oauth]')).toBeNull()
+    expect(body.querySelector('[data-avn-coding-oauth]')).toBeNull()
   })
 })
 
@@ -328,7 +328,7 @@ describe('independent settings entry', () => {
     for (const dispose of mounted.disposers) dispose()
     mounted = undefined
 
-    expect(document.querySelector('[data-dsh-coding-oauth]')).toBeNull()
+    expect(document.querySelector('[data-avn-coding-oauth]')).toBeNull()
     expect(document.activeElement).not.toBe(close)
     expect(document.activeElement === null || document.activeElement.isConnected).toBe(true)
   })

@@ -213,7 +213,7 @@ describe('scenario A: menu-pick /goal, type args, enter submits', () => {
     act(() => { b.shell.editor.update(() => {}, { discrete: true }) }) // flush the queued decoration refresh
     expect(b.view.container.querySelector('[data-lexical-text][style*="warn-label"]')?.textContent).toBe('/goal ')
     // The zh dictionary owns a hint.goal entry, which overrides the machine's raw hint (production behavior).
-    expect(b.textarea.style.getPropertyValue('--dsh-composer-hint')).toBe(JSON.stringify('输入目标，智能体将持续执行'))
+    expect(b.textarea.style.getPropertyValue('--avn-composer-hint')).toBe(JSON.stringify('输入目标，智能体将持续执行'))
     // Continue typing args; hint drops; claim holds.
     b.type('/goal 发布 v1')
     expect(b.shell.snapshot.phase).toBe('claimed')

@@ -13,7 +13,7 @@ import ToolRuntime from '@aeven/tools'
 import WebRuntime from '@aeven/web'
 import * as toolWeb from '@aeven/tool-web'
 
-describe('dsh-tool-web real-load-path guard', () => {
+describe('avn-tool-web real-load-path guard', () => {
   it('has no default export and keeps name/inject/Config through unwrapExports', () => {
     expect('default' in toolWeb).toBe(false)
 

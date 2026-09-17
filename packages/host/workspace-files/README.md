@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-A model reply rendered in the Web GUI can show an image, but only from an `http` or `https` URL — a filesystem path is refused by the renderer. `dsh-host-workspace-files` is what gives a produced file such a URL: it registers one prefix route on the [webserver](../webserver/README.md) that serves `<mount>/<workspaceId>/<relative path>` from the canonical directory of a workspace in the [workspace registry](../../workspace/workspace/README.md). Every request passes Connection's Host/Origin fence and browser authentication before any path is resolved; traversal outside the workspace directory is 403, an unknown workspace id or absent file is 404, and non-GET/HEAD is 405. Serving is read-only: the route never writes, lists, or deletes.
+A model reply rendered in the Web GUI can show an image, but only from an `http` or `https` URL — a filesystem path is refused by the renderer. `avn-host-workspace-files` is what gives a produced file such a URL: it registers one prefix route on the [webserver](../webserver/README.md) that serves `<mount>/<workspaceId>/<relative path>` from the canonical directory of a workspace in the [workspace registry](../../workspace/workspace/README.md). Every request passes Connection's Host/Origin fence and browser authentication before any path is resolved; traversal outside the workspace directory is 403, an unknown workspace id or absent file is 404, and non-GET/HEAD is 405. Serving is read-only: the route never writes, lists, or deletes.
 
 ## Table of Contents
 
@@ -82,7 +82,7 @@ Read these when the serving contract is not enough: the route seat, the id sourc
 
 - [Webserver](../webserver/README.md) — the named-route table this plugin registers into.
 - [Workspace registry](../../workspace/workspace/README.md) — where a `workspaceId` and its canonical directory come from.
-- [dsh-web-app bundle](../../bundle/web-app/README.md) — the composition that mounts this row and states the URL form in the surface prompt.
+- [avn-web-app bundle](../../bundle/web-app/README.md) — the composition that mounts this row and states the URL form in the surface prompt.
 - [Generated configuration catalog](../../../docs/config-catalog.md#aeven-host-workspace-files) — every accepted config field and its source declaration.
 
 -----
@@ -90,7 +90,7 @@ Read these when the serving contract is not enough: the route seat, the id sourc
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through the [dsh-web-app](../../bundle/web-app/README.md) surface prompt: it states the URL form, so a model that produced a file can reference it as `![alt](<webUrl>/workspace/<workspaceId>/<path>)` and have the reply render the image instead of reporting a filesystem path the renderer refuses.
+Indirectly, through the [avn-web-app](../../bundle/web-app/README.md) surface prompt: it states the URL form, so a model that produced a file can reference it as `![alt](<webUrl>/workspace/<workspaceId>/<path>)` and have the reply render the image instead of reporting a filesystem path the renderer refuses.
 
 #### KV Cache effect
 

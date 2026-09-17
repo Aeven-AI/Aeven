@@ -18,7 +18,7 @@ const make = (host?: StubSettingsScope<LocaleSettings>): {
 /**
  * Pin the browser environment a fresh service reads its initial locale from.
  * This package's own specs stub the globals directly instead of using
- * `usePinnedBrowserLanguages` (dsh-client-test-runtime): they need the shapes
+ * `usePinnedBrowserLanguages` (avn-client-test-runtime): they need the shapes
  * that helper deliberately cannot express — a missing `languages` list, a
  * list decoupled from `language`, and a non-browser run with no `window`.
  */
@@ -157,7 +157,7 @@ describe('LocaleRuntime', () => {
     expect(host.set).toHaveBeenLastCalledWith('preference', 'en')
   })
 
-  it('persists an explicit pick of the provisional locale, so a shared DSH home agrees', () => {
+  it('persists an explicit pick of the provisional locale, so a shared AVN home agrees', () => {
     // A browser naming no shipped language opens at FALLBACK_LOCALE with
     // nothing stored. Choosing that same language in the menu must become
     // durable, or a Chinese browser sharing the home still opens Chinese.

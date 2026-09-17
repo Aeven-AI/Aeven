@@ -22,7 +22,7 @@ afterEach(async () => {
 
 describe('real Loader composition', () => {
   it('registers on a real WebServer and dispatches a signed request', { timeout: 60_000 }, async () => {
-    root = await mkdtemp(join(tmpdir(), 'dsh-webhook-github-loader-'))
+    root = await mkdtemp(join(tmpdir(), 'avn-webhook-github-loader-'))
     const configPath = join(root, 'cordis.yml')
     await writeFile(configPath, [
       '- name: fixture-dependencies',

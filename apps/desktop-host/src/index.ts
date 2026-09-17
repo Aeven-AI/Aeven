@@ -43,7 +43,7 @@ import {
 
 export { DESKTOP_HOST_PROTOCOL_VERSION } from './wire.ts'
 
-/** One request forwarded from Electron's `dsh-app://` handler. */
+/** One request forwarded from Electron's `avn-app://` handler. */
 export interface DesktopHostFetchCommand {
   readonly streamId: number
   readonly request: {
@@ -62,7 +62,7 @@ export type DesktopHostCommand = {
 export type DesktopHostEvent = {
   readonly type: 'ready'
   readonly protocolVersion: typeof DESKTOP_HOST_PROTOCOL_VERSION
-  readonly dshVersion: string
+  readonly avnVersion: string
   readonly aevenSignIn?: DesktopAevenSignIn
 } | {
   readonly type: 'fatal'
@@ -71,8 +71,8 @@ export type DesktopHostEvent = {
 
 /** Controller returned to tests and the self-executing process entry. */
 export interface DesktopHostController {
-  /** Installed dsh version carried by this host. */
-  readonly dshVersion: string
+  /** Installed avn version carried by this host. */
+  readonly avnVersion: string
   /** Aeven sign-in endpoints, when the composition mounts the Aeven authority. */
   readonly aevenSignIn: DesktopAevenSignIn | undefined
   /** Dispatch one custom-protocol request and stream its response to the response pipe. */
@@ -100,7 +100,7 @@ interface PackageManifest {
 const DESKTOP_PATCH = fileURLToPath(new URL('../config/desktop.cordis.patch.yml', import.meta.url))
 const ROOT_CONFIG = '# Electron desktop composition root; package transactions own this file.\n[]\n'
 const ROOT_CONFIG_FILENAME = 'desktop.cordis.yml'
-const DESKTOP_STREAM_PATH = '/.dsh/remote-stream'
+const DESKTOP_STREAM_PATH = '/.avn/remote-stream'
 
 const DESKTOP_TRANSPORT_SCRIPT = `globalThis.__DSH_TRANSPORT__={
   ownsHost:true,
@@ -136,7 +136,7 @@ const MIME: Readonly<Record<string, string>> = {
 
 function readManifest(path: string): PackageManifest {
   const value: unknown = JSON.parse(readFileSync(path, 'utf8'))
-  if (!isRecord(value)) throw new Error(`dsh desktop: ${path} must contain a package manifest`)
+  if (!isRecord(value)) throw new Error(`avn desktop: ${path} must contain a package manifest`)
   return {
     ...(typeof value.name === 'string' ? { name: value.name } : {}),
     ...(typeof value.version === 'string' ? { version: value.version } : {}),
@@ -145,7 +145,7 @@ function readManifest(path: string): PackageManifest {
 
 function packageManifestPath(projectDir: string, packageName: string): string {
   const path = join(projectDir, 'node_modules', ...packageName.split('/'), 'package.json')
-  if (!existsSync(path)) throw new Error(`dsh desktop: installed package ${JSON.stringify(packageName)} has no manifest`)
+  if (!existsSync(path)) throw new Error(`avn desktop: installed package ${JSON.stringify(packageName)} has no manifest`)
   return path
 }
 
@@ -156,17 +156,17 @@ function isProjectPath(projectDir: string, target: string): boolean {
 }
 
 function desktopPatches(projectDir: string, allowLinkedPackages: boolean): PatchOptions[] {
-  const dshRoot = dirname(packageManifestPath(projectDir, '@aeven/cli'))
-  const profile = loadProfileDirectory('dsh desktop', projectDir, join(dshRoot, 'package.json'))
+  const avnRoot = dirname(packageManifestPath(projectDir, '@aeven/cli'))
+  const profile = loadProfileDirectory('avn desktop', projectDir, join(avnRoot, 'package.json'))
   for (const layer of profile.layers) {
     if (!allowLinkedPackages && !isProjectPath(projectDir, layer.packageDir)) {
-      throw new Error(`dsh desktop: profile bundle ${JSON.stringify(layer.packageName)} resolved outside the desktop profile`)
+      throw new Error(`avn desktop: profile bundle ${JSON.stringify(layer.packageName)} resolved outside the desktop profile`)
     }
   }
   const layers = [
     ...profile.layers.map(layer => layer.patches),
     profile.patches,
-    loadOverlayPatches('dsh desktop', DESKTOP_PATCH),
+    loadOverlayPatches('avn desktop', DESKTOP_PATCH),
   ]
   const rows = new Map(composeEntries(layers).flatMap(row => typeof row.id === 'string' ? [[row.id, row] as const] : []))
   const agentPresets = rows.get('agent-presets')
@@ -175,16 +175,16 @@ function desktopPatches(projectDir: string, allowLinkedPackages: boolean): Patch
       id: 'agent-presets',
       config: {
         ...(agentPresets.config ?? {}) as Record<string, unknown>,
-        roots: [{ path: join(dshRoot, 'config', 'agent-presets'), trust: 'system' }],
+        roots: [{ path: join(avnRoot, 'config', 'agent-presets'), trust: 'system' }],
       },
     }])
   }
   return layers.flat()
 }
 
-function dshVersion(projectDir: string): string {
+function avnVersion(projectDir: string): string {
   const manifest = readManifest(packageManifestPath(projectDir, '@aeven/cli'))
-  if (typeof manifest.version !== 'string') throw new Error('dsh desktop: installed dsh manifest has no version')
+  if (typeof manifest.version !== 'string') throw new Error('avn desktop: installed avn manifest has no version')
   return manifest.version
 }
 
@@ -194,7 +194,7 @@ function isAevenConfigRow(row: IndexInjection): row is Extract<IndexInjection, {
 
 /**
  * Point the page's Aeven API calls at the same-origin path Electron forwards.
- * The Aeven refresh cookie is set by a cross-site API, which a `dsh-app://`
+ * The Aeven refresh cookie is set by a cross-site API, which a `avn-app://`
  * page cannot keep; Electron's session keeps it for the forwarded requests.
  */
 function desktopIndexRows(rows: readonly IndexInjection[]): IndexInjection[] {
@@ -313,9 +313,9 @@ export async function runDesktopHost(
   mkdirSync(absoluteProject, { recursive: true })
   const rootConfig = join(absoluteProject, ROOT_CONFIG_FILENAME)
   writeFileSync(rootConfig, ROOT_CONFIG)
-  const environment = loadLayeredEnv('dsh desktop')
+  const environment = loadLayeredEnv('avn desktop')
   let current: Context | undefined
-  const ctx = await boot('dsh desktop', rootConfig, structuredClone(desktopPatches(
+  const ctx = await boot('avn desktop', rootConfig, structuredClone(desktopPatches(
     absoluteProject,
     options.allowLinkedPackages === true,
   )), (hostCtx) => {
@@ -329,7 +329,7 @@ export async function runDesktopHost(
   const gateway = ctx.get('typertGateway')
   if (connection === undefined || clientModules === undefined || gateway === undefined) {
     await ctx.fiber.dispose()
-    throw new Error('dsh desktop: composition did not provide connection, typertGateway, and clientModules')
+    throw new Error('avn desktop: composition did not provide connection, typertGateway, and clientModules')
   }
   const api = connection.createSharedFetchHandler('/api')
   const assets = assetHandler(ctx, absoluteProject)
@@ -348,13 +348,13 @@ export async function runDesktopHost(
   }
 
   return {
-    dshVersion: dshVersion(absoluteProject),
+    avnVersion: avnVersion(absoluteProject),
     aevenSignIn: aevenSignIn(ctx),
     cancel(streamId) {
       requests.get(streamId)?.abort()
     },
     async fetch(command, body) {
-      if (disposing !== undefined) throw new Error('dsh desktop: host is disposing')
+      if (disposing !== undefined) throw new Error('avn desktop: host is disposing')
       const controller = new AbortController()
       requests.set(command.streamId, controller)
       try {
@@ -406,18 +406,18 @@ export async function runDesktopHost(
 async function main(): Promise<void> {
   const projectDir = process.argv[2]
   if (projectDir === undefined || process.send === undefined) {
-    throw new Error('dsh desktop: expected project directory, byte pipes, and a Node IPC channel')
+    throw new Error('avn desktop: expected project directory, byte pipes, and a Node IPC channel')
   }
   const option = process.argv[3]
   if (option !== undefined && option !== '--allow-linked-profile') {
-    throw new Error(`dsh desktop: unsupported internal option ${JSON.stringify(option)}`)
+    throw new Error(`avn desktop: unsupported internal option ${JSON.stringify(option)}`)
   }
   const requestPipe = createReadStream('', { fd: DESKTOP_REQUEST_PIPE_FD, autoClose: false })
   const responsePipe = createWriteStream('', { fd: DESKTOP_RESPONSE_PIPE_FD, autoClose: false })
   let responseWriteTail: Promise<void> = Promise.resolve()
   const writeResponse = (frame: Buffer): Promise<void> => {
     const write = responseWriteTail.then(async () => {
-      if (responsePipe.destroyed) throw new Error('dsh desktop: Electron response pipe is unavailable')
+      if (responsePipe.destroyed) throw new Error('avn desktop: Electron response pipe is unavailable')
       if (!responsePipe.write(frame)) await once(responsePipe, 'drain')
     })
     responseWriteTail = write.catch(() => undefined)
@@ -437,7 +437,7 @@ async function main(): Promise<void> {
   send({
     type: 'ready',
     protocolVersion: DESKTOP_HOST_PROTOCOL_VERSION,
-    dshVersion: controller.dshVersion,
+    avnVersion: controller.avnVersion,
     ...(controller.aevenSignIn === undefined ? {} : { aevenSignIn: controller.aevenSignIn }),
   })
   const decoder = new DesktopHostRequestDecoder()
@@ -458,7 +458,7 @@ async function main(): Promise<void> {
     stopping ??= (async () => {
       requestPipe.pause()
       requestPipe.removeAllListeners('data')
-      const stopped = new Error('dsh desktop: Host is stopping')
+      const stopped = new Error('avn desktop: Host is stopping')
       for (const body of requestBodies.values()) body.error(stopped)
       requestBodies.clear()
       blockedRequests.clear()
@@ -487,7 +487,7 @@ async function main(): Promise<void> {
 
   const beginRequest = (frame: Extract<DesktopHostRequestFrame, { type: 'start' }>): void => {
     if (frame.streamId <= lastStreamId) {
-      throw new Error(`dsh desktop: Electron reused or reordered request stream ${String(frame.streamId)}`)
+      throw new Error(`avn desktop: Electron reused or reordered request stream ${String(frame.streamId)}`)
     }
     lastStreamId = frame.streamId
     let body: ReadableStream<Uint8Array> | null = null
@@ -521,7 +521,7 @@ async function main(): Promise<void> {
       runs.delete(run)
       const openBody = requestBodies.get(frame.streamId)
       if (openBody === undefined) return
-      openBody.error(new Error('dsh desktop: response completed before the request body ended'))
+      openBody.error(new Error('avn desktop: response completed before the request body ended'))
       requestBodies.delete(frame.streamId)
       blockedRequests.delete(frame.streamId)
       discardedRequestBodies.add(frame.streamId)
@@ -538,7 +538,7 @@ async function main(): Promise<void> {
         const body = requestBodies.get(frame.streamId)
         if (body === undefined) {
           if (discardedRequestBodies.has(frame.streamId)) return
-          throw new Error(`dsh desktop: Electron sent body data for inactive stream ${String(frame.streamId)}`)
+          throw new Error(`avn desktop: Electron sent body data for inactive stream ${String(frame.streamId)}`)
         }
         body.enqueue(frame.data)
         if ((body.desiredSize ?? 0) <= 0) {
@@ -551,7 +551,7 @@ async function main(): Promise<void> {
         const body = requestBodies.get(frame.streamId)
         if (body === undefined) {
           if (discardedRequestBodies.delete(frame.streamId)) return
-          throw new Error(`dsh desktop: Electron ended inactive body stream ${String(frame.streamId)}`)
+          throw new Error(`avn desktop: Electron ended inactive body stream ${String(frame.streamId)}`)
         }
         body.close()
         requestBodies.delete(frame.streamId)
@@ -561,10 +561,10 @@ async function main(): Promise<void> {
       }
       case 'cancel': {
         if (frame.streamId > lastStreamId) {
-          throw new Error(`dsh desktop: Electron canceled unknown stream ${String(frame.streamId)}`)
+          throw new Error(`avn desktop: Electron canceled unknown stream ${String(frame.streamId)}`)
         }
         const body = requestBodies.get(frame.streamId)
-        body?.error(new Error('dsh desktop: Electron canceled the request'))
+        body?.error(new Error('avn desktop: Electron canceled the request'))
         requestBodies.delete(frame.streamId)
         blockedRequests.delete(frame.streamId)
         discardedRequestBodies.delete(frame.streamId)
@@ -588,7 +588,7 @@ async function main(): Promise<void> {
     if (stopping !== undefined) return
     try {
       decoder.finish()
-      failTransport(new Error('dsh desktop: Electron request pipe ended'))
+      failTransport(new Error('avn desktop: Electron request pipe ended'))
     } catch (error) {
       failTransport(error)
     }
@@ -597,7 +597,7 @@ async function main(): Promise<void> {
   responsePipe.once('error', failTransport)
   process.on('message', (message: unknown) => {
     if (!isDesktopHostCommand(message)) {
-      send({ type: 'fatal', message: 'dsh desktop: invalid Electron IPC command' })
+      send({ type: 'fatal', message: 'avn desktop: invalid Electron IPC command' })
       void stop(1)
       return
     }
@@ -612,7 +612,7 @@ if (import.meta.main) {
   main().catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error)
     if (process.send !== undefined) process.send({ type: 'fatal', message } satisfies DesktopHostEvent)
-    else process.stderr.write(`dsh desktop: ${message}\n`)
+    else process.stderr.write(`avn desktop: ${message}\n`)
     process.exitCode = 1
   })
 }

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-With `dsh-agent` you can create or resume an agent, send a follow-up prompt, steer the current step, inject model-facing context, cancel an activity, and wait until the agent is idle — all through the `Agent` handle every plugin programs against and the live registry (`ctx.agents`) that tracks running agents. The package also carries the process-local initiator scope, which attributes asynchronous work to the agent that started it, and declares the `agent/*` event vocabulary plugins use to observe or intercept work in flight. It has zero loop dependency: concrete creation and driving live in `dsh-agent-loop`, which registers its factory here, so the driver stays swappable. Choose this package when you build UI, hooks, orchestrators, or extension plugins that touch live agents; the interface itself runs no model calls.
+With `avn-agent` you can create or resume an agent, send a follow-up prompt, steer the current step, inject model-facing context, cancel an activity, and wait until the agent is idle — all through the `Agent` handle every plugin programs against and the live registry (`ctx.agents`) that tracks running agents. The package also carries the process-local initiator scope, which attributes asynchronous work to the agent that started it, and declares the `agent/*` event vocabulary plugins use to observe or intercept work in flight. It has zero loop dependency: concrete creation and driving live in `avn-agent-loop`, which registers its factory here, so the driver stays swappable. Choose this package when you build UI, hooks, orchestrators, or extension plugins that touch live agents; the interface itself runs no model calls.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ With `dsh-agent` you can create or resume an agent, send a follow-up prompt, ste
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount `dsh-agent` wherever live agents exist: it provides `ctx.agents` and the `Agent` handle that plugins, UI, hooks, and orchestrators work against. The service is inert until a driver registers a factory — the shipped driver is `dsh-agent-loop`, so the smallest useful composition loads both.
+Mount `avn-agent` wherever live agents exist: it provides `ctx.agents` and the `Agent` handle that plugins, UI, hooks, and orchestrators work against. The service is inert until a driver registers a factory — the shipped driver is `avn-agent-loop`, so the smallest useful composition loads both.
 
 ### Create or resume an agent
 
@@ -78,7 +78,7 @@ This section explains how the package realizes the behavior above; the observabl
 
 ### Design concept
 
-The package is built on one separation: the public `Agent` surface and registry live here, while construction and driving live in the loop package behind a registered factory. Consumers therefore depend on `dsh-agent` and never on `dsh-agent-loop`, keeping the driver swappable. The second idea is the initiator scope: an `AsyncLocalStorage` chain that carries the exact live `Agent` through the asynchronous driver work it starts, so helpers below a driver can attribute their work without forwarding the agent through every call.
+The package is built on one separation: the public `Agent` surface and registry live here, while construction and driving live in the loop package behind a registered factory. Consumers therefore depend on `avn-agent` and never on `avn-agent-loop`, keeping the driver swappable. The second idea is the initiator scope: an `AsyncLocalStorage` chain that carries the exact live `Agent` through the asynchronous driver work it starts, so helpers below a driver can attribute their work without forwarding the agent through every call.
 
 ### Step admission
 

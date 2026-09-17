@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-挂载 `dsh-typert-loader` 后，Loader 组合中每个挂载的包都会自动把其生成的 Typert 反射与 schema 贡献给运行时注册表——并在包或本插件卸载时自动撤销。没有该导出的包会被跳过，因此在任何 Loader 组合中挂载它都是安全的。显式 `packages` 用于覆盖嵌套在另一 Loader 配置项之下的插件，这些插件的 fiber 不携带可解析的包说明符。它是仅支持 Node 的插件，需要配置树解析锚点才能解析包。
+挂载 `avn-typert-loader` 后，Loader 组合中每个挂载的包都会自动把其生成的 Typert 反射与 schema 贡献给运行时注册表——并在包或本插件卸载时自动撤销。没有该导出的包会被跳过，因此在任何 Loader 组合中挂载它都是安全的。显式 `packages` 用于覆盖嵌套在另一 Loader 配置项之下的插件，这些插件的 fiber 不携带可解析的包说明符。它是仅支持 Node 的插件，需要配置树解析锚点才能解析包。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在加载发布生成 Typert 产物的包的 Host Loader 组合中挂载本插件。注册表本身来自 `dsh-typert-registry`；本插件只负责发现与注册。
+在加载发布生成 Typert 产物的包的 Host Loader 组合中挂载本插件。注册表本身来自 `avn-typert-registry`；本插件只负责发现与注册。
 
 ### 最小配置
 

@@ -9,7 +9,7 @@ const created: string[] = []
 
 /** Build a scratch repository tree from a `path -> contents` map. */
 function scratchRepo(entries: Record<string, string>): string {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), 'dsh-repo-files-')))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'avn-repo-files-')))
   created.push(root)
   for (const [relativePath, contents] of Object.entries(entries)) {
     const abs = join(root, relativePath)
@@ -90,7 +90,7 @@ describe('uniqueRepoFiles', () => {
   // caller that hands over an unresolved root must still get in-tree paths.
   it('resolves its root before matching, so a symlinked root still reports in-tree paths', () => {
     const root = scratchRepo({ 'docs/a.md': 'a' })
-    const linkParent = realpathSync(mkdtempSync(join(tmpdir(), 'dsh-root-link-')))
+    const linkParent = realpathSync(mkdtempSync(join(tmpdir(), 'avn-root-link-')))
     created.push(linkParent)
     const viaLink = join(linkParent, 'root')
     symlinkSync(root, viaLink)

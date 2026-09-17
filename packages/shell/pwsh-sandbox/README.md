@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-pwsh-sandbox` is the sandbox-consuming PowerShell executor: every command runs as a fresh `pwsh -Command` process confined through the `ctx.sandbox` capability, with the selected mode, enforcement, and denial facts stamped on each settled result. On Windows the sandbox seam resolves to the ACL restricted-token runner chain; on Linux and macOS it uses bwrap, Landlock, or Seatbelt. When no runner can enforce a confined mode, the call fails closed with a structured `SANDBOX_UNAVAILABLE` error rather than running unconfined. It is the pwsh twin of `dsh-bash-sandbox`, mirroring it call-for-call.
+`avn-pwsh-sandbox` is the sandbox-consuming PowerShell executor: every command runs as a fresh `pwsh -Command` process confined through the `ctx.sandbox` capability, with the selected mode, enforcement, and denial facts stamped on each settled result. On Windows the sandbox seam resolves to the ACL restricted-token runner chain; on Linux and macOS it uses bwrap, Landlock, or Seatbelt. When no runner can enforce a confined mode, the call fails closed with a structured `SANDBOX_UNAVAILABLE` error rather than running unconfined. It is the pwsh twin of `avn-bash-sandbox`, mirroring it call-for-call.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this executor instead of `dsh-pwsh-local` when PowerShell commands must not run with the harness process's full file authority. It registers as `ctx.shell`, inherits `dsh-pwsh-local`'s process mechanics, and requires a `ctx.sandbox` provider plus `ctx.sandboxPolicy`.
+Mount this executor instead of `avn-pwsh-local` when PowerShell commands must not run with the harness process's full file authority. It registers as `ctx.shell`, inherits `avn-pwsh-local`'s process mechanics, and requires a `ctx.sandbox` provider plus `ctx.sandboxPolicy`.
 
 ### When to choose it
 
@@ -75,7 +75,7 @@ This section explains the design of the executor and points at the code that rea
 
 ### Design concept
 
-The executor is the pwsh twin of `dsh-bash-sandbox`: it inherits `dsh-pwsh-local`'s process mechanics, consumes its argv-level seam (`argv()`/`runArgv()`/`startArgv()`/`onProcessDone()`), and wraps the exact pwsh invocation through `ctx.sandbox.confine()` before spawning. The confinement substance is platform-neutral — the sandbox seam resolves to the platform's runner — while this package owns the pwsh side only: the selected mode, enforcement completeness, and denial classification on results.
+The executor is the pwsh twin of `avn-bash-sandbox`: it inherits `avn-pwsh-local`'s process mechanics, consumes its argv-level seam (`argv()`/`runArgv()`/`startArgv()`/`onProcessDone()`), and wraps the exact pwsh invocation through `ctx.sandbox.confine()` before spawning. The confinement substance is platform-neutral — the sandbox seam resolves to the platform's runner — while this package owns the pwsh side only: the selected mode, enforcement completeness, and denial classification on results.
 
 ### Source map
 

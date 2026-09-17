@@ -20,20 +20,20 @@ Ambient host state.
 }
 
 it('isolates replay skill discovery from every ambient host root', async () => {
-  const ambient = await mkdtemp(join(tmpdir(), 'dsh-web-ambient-skills-'))
-  const dshHome = join(ambient, 'dsh-home')
+  const ambient = await mkdtemp(join(tmpdir(), 'avn-web-ambient-skills-'))
+  const avnHome = join(ambient, 'avn-home')
   const agentsHome = join(ambient, 'agents-home')
   const bundled = join(ambient, 'bundled')
   await Promise.all([
-    writeSkill(join(dshHome, 'skills'), 'ambient-dsh'),
+    writeSkill(join(avnHome, 'skills'), 'ambient-avn'),
     writeSkill(join(agentsHome, 'skills'), 'ambient-agents'),
     writeSkill(bundled, 'ambient-bundled'),
   ])
 
-  const originalDshHome = process.env.AVN_HOME
+  const originalAvnHome = process.env.AVN_HOME
   const originalAgentsHome = process.env.AVN_AGENTS_HOME
   const originalBundled = process.env.AVN_BUNDLED_SKILL_DIR
-  process.env.AVN_HOME = dshHome
+  process.env.AVN_HOME = avnHome
   process.env.AVN_AGENTS_HOME = agentsHome
   process.env.AVN_BUNDLED_SKILL_DIR = bundled
   let scaffold: WebScaffold | undefined
@@ -52,7 +52,7 @@ it('isolates replay skill discovery from every ambient host root', async () => {
       const skills = ctx.get('skills')
       if (skills === undefined) throw new Error('the composition mounts no skill registry')
       const names = (await skills.list({ cwd: scaffold.workspaceCwd, scope: handle.agent })).map(skill => skill.name)
-      expect(names).not.toContain('ambient-dsh')
+      expect(names).not.toContain('ambient-avn')
       expect(names).not.toContain('ambient-agents')
       expect(names).not.toContain('ambient-bundled')
     } finally {
@@ -62,8 +62,8 @@ it('isolates replay skill discovery from every ambient host root', async () => {
     try {
       await scaffold?.close()
     } finally {
-      if (originalDshHome === undefined) delete process.env.AVN_HOME
-      else process.env.AVN_HOME = originalDshHome
+      if (originalAvnHome === undefined) delete process.env.AVN_HOME
+      else process.env.AVN_HOME = originalAvnHome
       if (originalAgentsHome === undefined) delete process.env.AVN_AGENTS_HOME
       else process.env.AVN_AGENTS_HOME = originalAgentsHome
       if (originalBundled === undefined) delete process.env.AVN_BUNDLED_SKILL_DIR

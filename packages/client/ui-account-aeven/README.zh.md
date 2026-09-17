@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-client-ui-account-aeven` 把已登录读者的头像放进 Web 会话头部，并从中打开账户菜单，使读者能看到自己以何身份登录、访问 Aeven 账户页、切换夜间模式并登出。它展示 Aeven authority 已经恢复的那个读者，自身不向 Aeven 请求任何内容，因此不产生自己的请求开销。无人登录时没有读者可展示，该座位保持为空。请与 Host authority 一同启用；单独启用时它不渲染任何内容。
+`avn-client-ui-account-aeven` 把已登录读者的头像放进 Web 会话头部，并从中打开账户菜单，使读者能看到自己以何身份登录、访问 Aeven 账户页、切换夜间模式并登出。它展示 Aeven authority 已经恢复的那个读者，自身不向 Aeven 请求任何内容，因此不产生自己的请求开销。无人登录时没有读者可展示，该座位保持为空。请与 Host authority 一同启用；单独启用时它不渲染任何内容。
 
 ## 目录
 
@@ -62,7 +62,7 @@ kind: "package-reference"
 
 ### 空的 host 侧
 
-该功能只存在于浏览器中，但仅限浏览器的行仍必须可从 host 持有的 Loader overlay 寻址。因此 node 侧是一个空的 `apply`，而 `dsh.client` 清单段携带名册条目、其 injects 与 `web` 平台。
+该功能只存在于浏览器中，但仅限浏览器的行仍必须可从 host 持有的 Loader overlay 寻址。因此 node 侧是一个空的 `apply`，而 `avn.client` 清单段携带名册条目、其 injects 与 `web` 平台。
 
 ### 源码地图
 
@@ -83,9 +83,9 @@ kind: "package-reference"
 
 当仅有该菜单还不够时阅读这些：建立会话的界面、校验它的 authority，以及为头像安排座位的 slot 系统。
 
-- [dsh-client-ui-auth-aeven](../ui-auth-aeven/README.zh.md)——声明本菜单所展示读者的登录界面。
-- [dsh-identity-user-aeven](../../identity/user-aeven/README.zh.md)——Host authority，以及决定账户链接是否出现的 `webUrl`。
-- [dsh-client-ui-slots](../ui-slots/README.zh.md)——为头像提供头部座位的 slot 映射。
+- [avn-client-ui-auth-aeven](../ui-auth-aeven/README.zh.md)——声明本菜单所展示读者的登录界面。
+- [avn-identity-user-aeven](../../identity/user-aeven/README.zh.md)——Host authority，以及决定账户链接是否出现的 `webUrl`。
+- [avn-client-ui-slots](../ui-slots/README.zh.md)——为头像提供头部座位的 slot 映射。
 - [client 组映射](../README.zh.md)——本包所属的浏览器家族。
 
 -----

@@ -103,7 +103,7 @@ export class InspectorEndpoint {
     }
     if (pathname === '/json/version') {
       this.json(response, {
-        Browser: 'dsh-experimental-inspector/0',
+        Browser: 'avn-experimental-inspector/0',
         'Protocol-Version': '1.3',
         webSocketDebuggerUrl: this.cdpUrl(),
       })
@@ -226,7 +226,7 @@ export class InspectorEndpoint {
       type: 'page',
       title: 'DeepSeek Harness Host',
       description: 'Experimental cross-realm Inspector target',
-      url: 'dsh://host',
+      url: 'avn://host',
       webSocketDebuggerUrl: this.cdpUrl(),
       devtoolsFrontendUrl: `devtools://devtools/bundled/devtools_app.html?ws=${this.config.host}:${this.boundPort()}/devtools/page/${this.config.targetId}&panel=elements&noJavaScriptCompletion=true`,
     }

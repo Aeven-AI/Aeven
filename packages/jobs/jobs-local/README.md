@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-jobs-local` runs background jobs inside the harness process: work keeps running while the agent moves on, and the owning agent can read, wait on, list, and cancel it, with completion delivered as an in-session notice when `dsh-tool-jobs` is also mounted. It implements the `dsh-jobs` contract with in-memory records handed out as fresh snapshots, never live state. A per-owner concurrency limit (default 10) bounds how many jobs one agent can have running or stopping at once; jobs die with the harness process and are not durable across restarts.
+`avn-jobs-local` runs background jobs inside the harness process: work keeps running while the agent moves on, and the owning agent can read, wait on, list, and cancel it, with completion delivered as an in-session notice when `avn-tool-jobs` is also mounted. It implements the `avn-jobs` contract with in-memory records handed out as fresh snapshots, never live state. A per-owner concurrency limit (default 10) bounds how many jobs one agent can have running or stopping at once; jobs die with the harness process and are not durable across restarts.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Load this plugin when a composition needs in-process background jobs: long-running tools register their work, and the owning agent reads, waits on, lists, and cancels it without blocking its own turn. It implements the [`dsh-jobs`](../jobs/README.md) contract; the model-facing `job_output`, `job_list`, and `job_kill` tools come from [`dsh-tool-jobs`](../tool-jobs/README.md).
+Load this plugin when a composition needs in-process background jobs: long-running tools register their work, and the owning agent reads, waits on, lists, and cancels it without blocking its own turn. It implements the [`avn-jobs`](../jobs/README.md) contract; the model-facing `job_output`, `job_list`, and `job_kill` tools come from [`avn-tool-jobs`](../tool-jobs/README.md).
 
 ### When to choose it
 
@@ -55,7 +55,7 @@ Jobs belong to their owner and backend, not to the producer tool, so producer or
 
 ### What can go wrong
 
-Starting work fails without a controller that serves the owner — loading `dsh-tool-jobs` attaches one, and `start()` otherwise refuses with a message naming it. A producer cancel that returns without settling `done` stays indistinguishable from a slow stop and can stall teardown while holding one capacity slot. Every record disappears when the harness process exits.
+Starting work fails without a controller that serves the owner — loading `avn-tool-jobs` attaches one, and `start()` otherwise refuses with a message naming it. A producer cancel that returns without settling `done` stays indistinguishable from a slow stop and can stall teardown while holding one capacity slot. Every record disappears when the harness process exits.
 
 -----
 
@@ -115,7 +115,7 @@ Read these pages when the package-level contract is not enough. They move from t
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through producer plugins and `dsh-tool-jobs`, to which the registry backend delegates all model rendering.
+Indirectly, through producer plugins and `avn-tool-jobs`, to which the registry backend delegates all model rendering.
 
 #### KV Cache effect
 

@@ -47,9 +47,9 @@ The Codex diagnostic retains `initialize`, `thread-start`, `turn-start`, `turn`,
 | --- | --- | --- |
 | Product error interpretation | Official product runtime | The Provider consumes only structured facts exposed by its pinned integration |
 | Action category and stage | One product Provider run | Derived at the failure site and discarded after result settlement |
-| Exit code and signal | `dsh-subprocess` handle | Displayed independently when observed, without inferring missing values |
+| Exit code and signal | `avn-subprocess` handle | Displayed independently when observed, without inferring missing values |
 | Permission decision | Product Provider permission callbacks or protocol | Appended only when it contributed to the failed run |
-| Diagnostic delivery and byte limit | `dsh-subagent` and its foreground or Job consumers | One bounded optional string remains separate from assistant output |
+| Diagnostic delivery and byte limit | `avn-subagent` and its foreground or Job consumers | One bounded optional string remains separate from assistant output |
 
 ## Verification
 

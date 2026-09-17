@@ -2,19 +2,19 @@
 
 English | [中文](identity.zh.md)
 
-The authenticated-user seam — a [capability seam](../glossary.md#capability-seam) on one `ctx.identityUsers` service: Service Definition ([dsh-identity-user](../../packages/identity/user), the resolver registry), Service Providers (authorities that know a real credential), and the request fence as its Consumer. Every subsystem that needs to know who is acting reads this one service and never sees a cookie, a bearer token, or an expiry. Identity is **one optional capability**: with no authority registered the service recognizes nobody and a stock harness stays single-user and unauthenticated.
+The authenticated-user seam — a [capability seam](../glossary.md#capability-seam) on one `ctx.identityUsers` service: Service Definition ([avn-identity-user](../../packages/identity/user), the resolver registry), Service Providers (authorities that know a real credential), and the request fence as its Consumer. Every subsystem that needs to know who is acting reads this one service and never sees a cookie, a bearer token, or an expiry. Identity is **one optional capability**: with no authority registered the service recognizes nobody and a stock harness stays single-user and unauthenticated.
 
 Source: [`packages/identity/user/src/types.ts`](../../packages/identity/user/src/types.ts)
 
 ## What an authority is given
 
-An authority receives headers and nothing else, because headers are what both DSH transports have in common. An HTTP request carries its credential in `authorization`; a WebSocket upgrade carries it in `cookie`, because a browser cannot set a header on the upgrade. Nothing is decoded for the authority — it reads whichever header it recognizes.
+An authority receives headers and nothing else, because headers are what both AVN transports have in common. An HTTP request carries its credential in `authorization`; a WebSocket upgrade carries it in `cookie`, because a browser cannot set a header on the upgrade. Nothing is decoded for the authority — it reads whichever header it recognizes.
 
 `User` guarantees only `id`. That is what a subsystem keys work on and the only field an authority must be able to produce; `email`, `displayName`, and `avatarUrl` are presentation an authority may or may not hold, so a consumer that wants a display name handles its absence rather than assuming a profile was fetched.
 
 ## Resolution is synchronous
 
-`resolve` is synchronous by contract. DSH consults the seam inside the request fence that already runs for every HTTP request and every WebSocket upgrade, and that fence answers before dispatch. An authority that had to call a network service could not be consulted there, so an authority verifies locally instead. That is what keeps identifying a caller free of an outbound request, and it is the constraint that shapes every authority: the cost is a revocation window, because a credential revoked before it expires still verifies until it does.
+`resolve` is synchronous by contract. AVN consults the seam inside the request fence that already runs for every HTTP request and every WebSocket upgrade, and that fence answers before dispatch. An authority that had to call a network service could not be consulted there, so an authority verifies locally instead. That is what keeps identifying a caller free of an outbound request, and it is the constraint that shapes every authority: the cost is a revocation window, because a credential revoked before it expires still verifies until it does.
 
 ## First match wins
 
@@ -22,7 +22,7 @@ An authority receives headers and nothing else, because headers are what both DS
 
 ## Failure carries no reason
 
-An authority reports a `User` or `undefined` — never why. DSH answers 401 either way, and naming the reason would describe the credential back to whoever supplied it. Consumers therefore handle one case, not three.
+An authority reports a `User` or `undefined` — never why. AVN answers 401 either way, and naming the reason would describe the credential back to whoever supplied it. Consumers therefore handle one case, not three.
 
 ## What mounting an authority changes
 
@@ -74,13 +74,13 @@ Source: [`packages/identity/user/src/index.ts`](../../packages/identity/user/src
 
 | Package | Role |
 |---|---|
-| [dsh-identity-user](../../packages/identity/user/README.md) | Service Definition: the resolver registry, `enforcing`, and first-match `resolve` |
-| [dsh-identity-user-aeven](../../packages/identity/user-aeven/README.md) | Service Provider: verifies the Aeven access bearer and refresh cookie against the API's own signing secrets |
-| [dsh-client-ui-auth-aeven](../../packages/client/ui-auth-aeven/README.md) | The browser surface that establishes the session an authority then recognizes |
-| [dsh-client-ui-account-aeven](../../packages/client/ui-account-aeven/README.md) | The account menu showing the reader an authority restored |
+| [avn-identity-user](../../packages/identity/user/README.md) | Service Definition: the resolver registry, `enforcing`, and first-match `resolve` |
+| [avn-identity-user-aeven](../../packages/identity/user-aeven/README.md) | Service Provider: verifies the Aeven access bearer and refresh cookie against the API's own signing secrets |
+| [avn-client-ui-auth-aeven](../../packages/client/ui-auth-aeven/README.md) | The browser surface that establishes the session an authority then recognizes |
+| [avn-client-ui-account-aeven](../../packages/client/ui-account-aeven/README.md) | The account menu showing the reader an authority restored |
 
 ## Related
 
 - [HTTP server](web-server.md) — the server whose request fence consults this seam.
 - [Web Client architecture](web-client.md) — the shell whose boot gates on session restore before the plugin graph.
-- [User credentials](credentials.md) — the unrelated outbound seam: secrets DSH presents to providers, not callers DSH identifies.
+- [User credentials](credentials.md) — the unrelated outbound seam: secrets AVN presents to providers, not callers AVN identifies.

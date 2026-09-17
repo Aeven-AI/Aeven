@@ -87,7 +87,7 @@ There is no monolithic Client `Runtime`, `HostFrame`, `events.mux`, `events.host
 
 Feature plugin packages may share declarations through `import type`; they do not runtime-import or re-export another feature plugin's values. Cross-package behavior uses injected Cordis services, and cross-package UI uses Slots. Target-specific Conversation Definitions, projection helpers, and final view data stay with their target package even when Chat and Trajectory intentionally implement parallel logic.
 
-Shared runtime values need a narrow static owner with no feature lifecycle, such as `client/store`, `ui-primitives`, or a browser-safe utility package. Transport and generated API assembly may import runtime contributions because assembling one protocol is their explicit responsibility. A feature package does not add `dsh.client.external` merely to bypass this rule.
+Shared runtime values need a narrow static owner with no feature lifecycle, such as `client/store`, `ui-primitives`, or a browser-safe utility package. Transport and generated API assembly may import runtime contributions because assembling one protocol is their explicit responsibility. A feature package does not add `avn.client.external` merely to bypass this rule.
 
 Use the four detailed references according to the extension being added:
 

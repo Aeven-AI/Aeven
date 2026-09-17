@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Command-line entry for dsh.
+ * Command-line entry for avn.
  * @module @aeven/cli/bin
  */
 
@@ -9,7 +9,7 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { loadLayeredEnv } from '@aeven/app-boot'
-import { parseDshArgs } from './args.ts'
+import { parseAvnArgs } from './args.ts'
 
 // Both the source tree (apps/cli/src) and the bundled bin (apps/cli/lib) sit
 // one directory under apps/cli, so the checked-in manifest resolves with the
@@ -21,13 +21,13 @@ function readVersion(): string {
   return typeof manifest.version === 'string' ? manifest.version : '0.0.0'
 }
 
-const invocation = parseDshArgs(process.argv.slice(2), readVersion())
+const invocation = parseAvnArgs(process.argv.slice(2), readVersion())
 
 switch (invocation.mode) {
   case 'profile': {
     const { runProfile } = await import('./profile-boot.ts')
     await runProfile({
-      environment: loadLayeredEnv('dsh'),
+      environment: loadLayeredEnv('avn'),
       profile: invocation.profile,
       patchFiles: invocation.patches,
       args: invocation.args,
@@ -46,5 +46,5 @@ switch (invocation.mode) {
   }
   default:
     invocation satisfies never
-    throw new Error(`dsh: unhandled invocation mode ${JSON.stringify(invocation)}`)
+    throw new Error(`avn: unhandled invocation mode ${JSON.stringify(invocation)}`)
 }

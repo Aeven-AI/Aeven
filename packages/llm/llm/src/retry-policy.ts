@@ -2,7 +2,7 @@
  * Provider-owned request-retry policy configuration and resolution.
  *
  * Adapters expose one resolved policy per registered provider route; the
- * optional dsh-llm-retry plugin executes it on the agent's failed-step extension point.
+ * optional avn-llm-retry plugin executes it on the agent's failed-step extension point.
  *
  * @module @aeven/llm/retry-policy
  */

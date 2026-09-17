@@ -18,11 +18,11 @@
 import { parse } from 'acorn'
 
 const HELPER_SOURCE: Record<string, string> = {
-  def: 'const __dsh$def=(t,k,get)=>Object.defineProperty(t,k,{enumerable:true,configurable:true,get});',
-  default: 'const __dsh$default=(m)=>(m&&m.__esModule?m.default:m);',
-  ns: 'const __dsh$ns=(m)=>(m&&m.__esModule?m:Object.assign({},m,{default:m}));',
-  exportAll: 'const __dsh$exportAll=(t,m)=>{for(const k of Object.keys(m))if(k!=="default"&&!(k in t))__dsh$def(t,k,()=>m[k]);};',
-  dynImport: 'const __dsh$dynImport=(s)=>Promise.resolve().then(()=>__dsh$ns(require(s)));',
+  def: 'const __avn$def=(t,k,get)=>Object.defineProperty(t,k,{enumerable:true,configurable:true,get});',
+  default: 'const __avn$default=(m)=>(m&&m.__esModule?m.default:m);',
+  ns: 'const __avn$ns=(m)=>(m&&m.__esModule?m:Object.assign({},m,{default:m}));',
+  exportAll: 'const __avn$exportAll=(t,m)=>{for(const k of Object.keys(m))if(k!=="default"&&!(k in t))__avn$def(t,k,()=>m[k]);};',
+  dynImport: 'const __avn$dynImport=(s)=>Promise.resolve().then(()=>__avn$ns(require(s)));',
 }
 
 const HELPER_DEPENDENCIES: Record<string, readonly string[]> = {
@@ -86,12 +86,12 @@ class Transformer {
   private helper(name: string): string {
     for (const dependency of HELPER_DEPENDENCIES[name] ?? []) this.helper(dependency)
     this.helpers.add(name)
-    return `__dsh$${name}`
+    return `__avn$${name}`
   }
 
   private moduleTemp(): string {
     this.modules += 1
-    return `__dsh$m${this.modules}`
+    return `__avn$m${this.modules}`
   }
 
   private alsTemp(): string {
@@ -375,7 +375,7 @@ class Transformer {
         const meta = record.meta as Node
         if (meta.name === 'import') {
           this.moduleSyntax = true
-          this.replace(record.start, record.end, '__dsh$meta')
+          this.replace(record.start, record.end, '__avn$meta')
         }
         break
       }
@@ -490,7 +490,7 @@ class Transformer {
       if (this.helpers.has(name)) prologue.push(source)
     }
     for (const { exported, local } of this.bindings) {
-      prologue.push(`__dsh$def(exports,${JSON.stringify(exported)},()=>${local});`)
+      prologue.push(`__avn$def(exports,${JSON.stringify(exported)},()=>${local});`)
     }
 
     const sorted = [...this.edits].sort((left, right) => left.start - right.start || left.end - right.end)

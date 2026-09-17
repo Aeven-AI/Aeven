@@ -108,7 +108,7 @@ describe('RemoteStream', () => {
     ], carrierFailed)
 
     await expect(stream[Symbol.asyncIterator]().next()).rejects.toMatchObject({
-      isDSHRemoteError: true,
+      isAvnRemoteError: true,
       code: 'gateway/internal',
       message: 'isolated retry failed',
       details: {},
@@ -130,7 +130,7 @@ describe('RemoteStream', () => {
     })
 
     await expect(stream[Symbol.asyncIterator]().next()).rejects.toMatchObject({
-      isDSHRemoteError: true,
+      isAvnRemoteError: true,
       code: 'gateway/internal',
       message: 'generation exploded',
     })

@@ -1,5 +1,5 @@
 ---
-description: "dsh Web 客户端的「插件」设置分区：功能拥有的标签页、可配置宿主平面插件卡片，以及 settings.plugin.item 扩展点。"
+description: "avn Web 客户端的「插件」设置分区：功能拥有的标签页、可配置宿主平面插件卡片，以及 settings.plugin.item 扩展点。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-client-ui-settings-plugins` 是 dsh Web 客户端的**插件**设置分区：用户在其**插件配置**标签页上编辑宿主平面插件配置，功能插件则通过 `settings.plugins.tab` 贡献自己的页面。本包自己的标签页为每个配置由用户拥有的 Host 插件展示一张可展开卡片：卡片展示插件名称及其管辖范围，展开后是绑定到该插件 settings 命名空间的手写控件，每个字段标注用户是否覆盖过它，并提供重置回部署组装值的入口。卡片暂存用户输入，只有用户保存时才写入，且每次写入都以表单读取时的命名空间 revision 设栅。
+`avn-client-ui-settings-plugins` 是 avn Web 客户端的**插件**设置分区：用户在其**插件配置**标签页上编辑宿主平面插件配置，功能插件则通过 `settings.plugins.tab` 贡献自己的页面。本包自己的标签页为每个配置由用户拥有的 Host 插件展示一张可展开卡片：卡片展示插件名称及其管辖范围，展开后是绑定到该插件 settings 命名空间的手写控件，每个字段标注用户是否覆盖过它，并提供重置回部署组装值的入口。卡片暂存用户输入，只有用户保存时才写入，且每次写入都以表单读取时的命名空间 revision 设栅。
 
 ## 目录
 
@@ -95,7 +95,7 @@ Subagent 卡会同时暂存其权限开关与精确模型复选框。启用时�
 这些限制定义哪些插件会出现、列表有多新鲜；它们是当前包约束。
 
 - **只有宿主平面的插件会出现**：由 agent preset 挂载的插件把配置内联在该 preset 的 `agent.cordis.yml` 中，且根本无法注册 settings 命名空间，因此本分区不会列出它。编辑那些值仍是 preset 编辑器的职责。
-- **卡片仍然需要一份浏览器 bundle**：浏览器半侧必须是按客户端模块系统的 lazy-CJS factory 格式构建的 `dsh.client` 包，而产出它的 `clientBundle` 预设位于 `../../../packages/client/tsdown.client.ts`，并非已发布的包，因此本仓库之外的插件得自行复刻该构建。
+- **卡片仍然需要一份浏览器 bundle**：浏览器半侧必须是按客户端模块系统的 lazy-CJS factory 格式构建的 `avn.client` 包，而产出它的 `clientBundle` 预设位于 `../../../packages/client/tsdown.client.ts`，并非已发布的包，因此本仓库之外的插件得自行复刻该构建。
 - **被服务的命名空间只在两种信号上重读**：协议通告的是 settings 文档提交与连接重置，而非注册行为，因此在标签页读取之后才被其拥有方注册的命名空间，要等下一次文档提交或重连才会加入列表。
 - **shell 卡片跟随被组装的执行器**：POSIX 与 PowerShell 两个执行器家族共用 `bash` 命名空间，因为一个宿主只组装其中之一，所以被服务的 schema 随平台不同（PowerShell 多出 `pwshPath`），尽管卡片在两者下编辑的都是同样两个字段。
 

@@ -23,7 +23,7 @@ import type { CodeBindingFunction, CodeJsonValue, CodeRunResult } from '@aeven/c
  * `stagedDirs` records every staging directory THIS test file creates, so the
  * leak assertions check the exact paths instead of a global tmpdir diff: a
  * parallel vitest worker running the same prefix could create or remove
- * `dsh-code-runtime-python-*` directories inside the sampling window, which a
+ * `avn-code-runtime-python-*` directories inside the sampling window, which a
  * readdir diff would misattribute to this test. `boot-write-failure.spec.ts`
  * records the same race and solves it with argv-based identity; recording the
  * mkdtempSync results is the fs-mock equivalent.
@@ -33,7 +33,7 @@ const { failNextCopyOf, stagedDirs, tempDirs, tempFiles } = vi.hoisted(() => ({
   stagedDirs: [] as string[],
   // Test-created temp dirs/files, registered by the helpers below and removed
   // after each test: a suite run over real python3 subprocesses must not
-  // permanently accumulate `dsh-*` fixtures in the shared tmpdir (the runtime
+  // permanently accumulate `avn-*` fixtures in the shared tmpdir (the runtime
   // cleans its own per-run staging dir; these are the stubs and wrappers the
   // tests themselves build).
   tempDirs: [] as string[],
@@ -52,7 +52,7 @@ vi.mock('node:fs', async (importOriginal) => {
     },
     mkdtempSync(prefix: string): string {
       const dir = actual.mkdtempSync(prefix)
-      if (basename(prefix).startsWith('dsh-code-runtime-python-')) stagedDirs.push(dir)
+      if (basename(prefix).startsWith('avn-code-runtime-python-')) stagedDirs.push(dir)
       return dir
     },
   }
@@ -91,7 +91,7 @@ function makeTempDirSync(prefix: string): string {
 }
 
 // Remove every fixture this file created, so repeated runs do not accumulate
-// `dsh-*` directories and wrappers in the shared tmpdir.
+// `avn-*` directories and wrappers in the shared tmpdir.
 afterEach(() => {
   for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true })
   for (const file of tempFiles.splice(0)) rmSync(file, { force: true })
@@ -260,7 +260,7 @@ describe('PythonCodeRuntime — seam descriptors and misuse', () => {
     // simply does not resolve on PATH.
     const nodePath = await import('node:path')
     const { writeFileSync, mkdirSync } = await import('node:fs')
-    const dir = makeTempDirSync('dsh-bad-bin-')
+    const dir = makeTempDirSync('avn-bad-bin-')
     const notExecutable = nodePath.join(dir, 'not-executable')
     writeFileSync(notExecutable, '#!/bin/sh\nexit 0\n') // Regular file, but no X bit.
     const directory = nodePath.join(dir, 'is-a-directory')
@@ -292,7 +292,7 @@ describe('PythonCodeRuntime — seam descriptors and misuse', () => {
     await expect(nonPython.plugin(PythonCodeRuntime, { pythonBin: '/bin/echo' }))
       .rejects.toThrow(/did not report a CPython version/)
 
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-python-probe-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-python-probe-'))
     const oldMajor = join(dir, 'python-old-major')
     const old = join(dir, 'python-old')
     const future = join(dir, 'python-future')
@@ -399,8 +399,8 @@ describe('PythonCodeRuntime — seam descriptors and misuse', () => {
   })
 
   it('resolves pythonBin once so a later PATH change cannot switch interpreters', async () => {
-    const firstDir = await mkdtemp(join(tmpdir(), 'dsh-python-first-'))
-    const secondDir = await mkdtemp(join(tmpdir(), 'dsh-python-second-'))
+    const firstDir = await mkdtemp(join(tmpdir(), 'avn-python-first-'))
+    const secondDir = await mkdtemp(join(tmpdir(), 'avn-python-second-'))
     const wrapper = (marker: string): string => `#!/bin/sh\nAVN_TEST_PYTHON=${marker}\nexport AVN_TEST_PYTHON\nexec "${PYABS}" "$@"\n`
     await writeFile(join(firstDir, 'python3'), wrapper('first'), { mode: 0o755 })
     await writeFile(join(secondDir, 'python3'), wrapper('second'), { mode: 0o755 })
@@ -477,7 +477,7 @@ describe('PythonCodeRuntime — seam descriptors and misuse', () => {
     const nodePath = await import('node:path')
     const { mkdirSync } = await import('node:fs')
     const realPythonDir = nodePath.dirname(cp.execFileSync('which', ['python3'], { encoding: 'utf8' }).trim())
-    const fakeDir = makeTempDirSync('dsh-fake-bin-')
+    const fakeDir = makeTempDirSync('avn-fake-bin-')
     mkdirSync(nodePath.join(fakeDir, 'python3')) // A directory named python3, executable by default.
     vi.stubEnv('PATH', `${fakeDir}:${realPythonDir}`)
     try {
@@ -601,7 +601,7 @@ describe('PythonCodeRuntime — seam descriptors and misuse', () => {
     expect(entry.endsWith('/bootstrap.py')).toBe(true)
     const dir = dirname(entry)
     expect(realpathSync(dirname(dir))).toBe(realpathSync(tmpdir()))
-    expect(basename(dir)).toMatch(/^dsh-code-runtime-python-/)
+    expect(basename(dir)).toMatch(/^avn-code-runtime-python-/)
     expect(dir).not.toContain('/packages/')
     // Staging is per RUN and removed at settlement, so by the time `run()`
     // resolved the directory is already gone — nothing survives to be rewritten
@@ -696,7 +696,7 @@ describe('PythonCodeRuntime — seam descriptors and misuse', () => {
     // `os.tmpdir()`, so pointing it at a path that is not a directory makes the
     // real call fail without stubbing the module under test.
     const previous = process.env.TMPDIR
-    const notADirectory = join(await makeTempDir('dsh-staging-'), 'file')
+    const notADirectory = join(await makeTempDir('avn-staging-'), 'file')
     await writeFile(notADirectory, '')
     process.env.TMPDIR = notADirectory
     try {
@@ -783,7 +783,7 @@ describe('PythonCodeRuntime — inherited resource limits', () => {
     // `pythonBin` is the honest lever: a wrapper that lowers RLIMIT_AS and then
     // execs the real interpreter reproduces the inherited-limit condition
     // without touching this test process's own limits.
-    const dir = await makeTempDir('dsh-rlimit-')
+    const dir = await makeTempDir('avn-rlimit-')
     const wrapper = join(dir, 'python3-capped')
     // 256 MiB, half the 512 MiB addressSpaceMb default, so the requested cap is
     // unambiguously above the inherited ceiling.
@@ -811,7 +811,7 @@ describe('PythonCodeRuntime — inherited resource limits', () => {
     // rejected. The rejection surfaces as an 'exception' (bootstrap's
     // setrlimit-phase failure class), not a mid-run OOM. The repro is Linux-only
     // (macOS ignores `ulimit -v`); there the run proceeds.
-    const dir = await makeTempDir('dsh-rlimit-')
+    const dir = await makeTempDir('avn-rlimit-')
     const wrapper = join(dir, 'python3-tight')
     await writeFile(wrapper, `#!/bin/sh\nulimit -v 131072\nexec "${PYABS}" "$@"\n`, { mode: 0o755 })
     const { runtime } = await setup({ pythonBin: wrapper, maxLogBytes: 32 * 1024 * 1024, addressSpaceMb: 512 })
@@ -862,7 +862,7 @@ describe('PythonCodeRuntime — inherited resource limits', () => {
     // requested soft (`cpuSeconds`) sits above the inherited soft — the case that
     // exposed the bug. RLIMIT_CPU is used because macOS ignores `ulimit -v`
     // (RLIMIT_AS), which is exactly why the backend skips address space there.
-    const dir = await makeTempDir('dsh-rlimit-soft-')
+    const dir = await makeTempDir('avn-rlimit-soft-')
     const wrapper = join(dir, 'python3-soft-capped')
     // Soft CPU 5 s, well below the configured 30 s, hard left unlimited.
     await writeFile(wrapper, `#!/bin/sh\nulimit -S -t 5\nexec "${PYABS}" "$@"\n`, { mode: 0o755 })
@@ -887,7 +887,7 @@ describe('PythonCodeRuntime — inherited resource limits', () => {
     // timeout. This uses `ulimit -t 2` (hard == 2, so the soft is lowered to 1)
     // and leaves SIGXCPU unhandled, so the kernel terminates the busy loop at
     // 1 s with SIGXCPU and the host classifies it as a timeout.
-    const dir = await makeTempDir('dsh-rlimit-dual-')
+    const dir = await makeTempDir('avn-rlimit-dual-')
     const wrapper = join(dir, 'python3-dual-capped')
     // Both soft and hard CPU 2 s; configured cpuSeconds 30 s.
     await writeFile(wrapper, `#!/bin/sh\nulimit -t 2\nexec "${PYABS}" "$@"\n`, { mode: 0o755 })
@@ -937,7 +937,7 @@ describe('PythonCodeRuntime — inherited resource limits', () => {
     // RLIMIT_CPU that cannot stop it. The bootstrap resets SIGXCPU to SIG_DFL
     // before model code runs, so a busy loop still ends as a timeout rather
     // than running to the hard limit and being misclassified as worker-exit.
-    const wrapper = join(tmpdir(), `dsh-xcpu-ignore-${process.pid}.sh`)
+    const wrapper = join(tmpdir(), `avn-xcpu-ignore-${process.pid}.sh`)
     tempFiles.push(wrapper)
     writeFileSync(wrapper, `#!/bin/sh\ntrap "" XCPU\nexec "${PYABS}" "$@"\n`, { mode: 0o755 })
     try {
@@ -991,7 +991,7 @@ describe('PythonCodeRuntime — inherited resource limits', () => {
     // the inherited limit. The wrapper sets a 1 s soft CPU limit; the program
     // traps SIGXCPU and busy-loops past it, then returns — the recheck must
     // re-deliver SIGXCPU so the host classifies the run as a timeout.
-    const dir = await makeTempDir('dsh-cpu-recheck-')
+    const dir = await makeTempDir('avn-cpu-recheck-')
     const wrapper = join(dir, 'python3-cpu-capped')
     await writeFile(wrapper, `#!/bin/sh\nulimit -S -t 1\nexec "${PYABS}" "$@"\n`, { mode: 0o755 })
     const { runtime } = await setup({ pythonBin: wrapper, cpuSeconds: 30, maxWallMs: 12_000 })
@@ -2756,7 +2756,7 @@ describe('PythonCodeRuntime — programs and bindings', () => {
   })
 
   it('rejects a namespace global colliding with a runtime-owned name at the seam', async () => {
-    // `__dsh_main__` passes the identifier check, but exec()ing the generated
+    // `__avn_main__` passes the identifier check, but exec()ing the generated
     // wrapper would silently overwrite the binding after injection. `console`
     // is the WORKER backend's slot — refused here too so a namespace list
     // valid on one backend is valid on all.
@@ -2765,7 +2765,7 @@ describe('PythonCodeRuntime — programs and bindings', () => {
     // compiles a bare `__debug__` reference to the constant True and refuses to
     // assign the name at compile time, so an injected global under it is
     // unreachable from the program — accepted by the seam, unusable here.
-    for (const global of ['__dsh_main__', 'console', '__debug__']) {
+    for (const global of ['__avn_main__', 'console', '__debug__']) {
       await expect(runtime.run({
         program: 'x = 1',
         bindings: [{ global, functions: {} }],
@@ -3168,7 +3168,7 @@ describe('PythonCodeRuntime — budgets, termination, disposal', () => {
   }, 5000)
 
   it('reports an interpreter removed after load as worker-exit', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-python-removed-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-python-removed-'))
     const pythonBin = join(dir, 'python3')
     await writeFile(pythonBin, `#!/bin/sh\nexec "${PYABS}" "$@"\n`, { mode: 0o755 })
     const { runtime, fiber } = await setup({ pythonBin, maxWallMs: 3000 })
@@ -3480,7 +3480,7 @@ describe('PythonCodeRuntime — budgets, termination, disposal', () => {
       program: [
         'import signal, sys, time',
         'signal.signal(signal.SIGXCPU, lambda *a: None)',
-        // Walk out of __dsh_main__ to _run's frame and take its local.
+        // Walk out of __avn_main__ to _run's frame and take its local.
         'die = None',
         'depth = 1',
         'while depth < 12:',
@@ -3678,7 +3678,7 @@ describe('PythonCodeRuntime — budgets, termination, disposal', () => {
     // means whether the killed descendant is reaped or lingers as a zombie (a
     // SIGKILL'd process runs no more code either way). It sleeps 30 s as a safety
     // net so a broken fix cannot leak it forever.
-    const handoff = await makeTempDir('dsh-samegroup-')
+    const handoff = await makeTempDir('avn-samegroup-')
     const readyMarker = join(handoff, 'ready')
     const heartbeat = join(handoff, 'heartbeat')
     const { runtime } = await setup({ maxWallMs: 10_000, graceMs: 300 })
@@ -3743,7 +3743,7 @@ describe('PythonCodeRuntime — budgets, termination, disposal', () => {
     // is called; the heartbeat must be stale BY THE TIME dispose() resolves —
     // proving teardown waited for the reap, not merely that the reap eventually
     // happened.
-    const handoff = await makeTempDir('dsh-dispose-quiesce-')
+    const handoff = await makeTempDir('avn-dispose-quiesce-')
     const readyMarker = join(handoff, 'ready')
     const heartbeat = join(handoff, 'heartbeat')
     const { runtime, fiber } = await setup({ maxWallMs: 10_000, graceMs: 300 })
@@ -3796,7 +3796,7 @@ describe('PythonCodeRuntime — budgets, termination, disposal', () => {
     // rather than cancel the unfired escalation — otherwise a SIGTERM-ignoring
     // same-group survivor is released for good. A synchronous busy-loop after
     // run() resolves reproduces the block deterministically.
-    const handoff = await makeTempDir('dsh-deadline-')
+    const handoff = await makeTempDir('avn-deadline-')
     const readyMarker = join(handoff, 'ready')
     const heartbeat = join(handoff, 'heartbeat')
     const graceMs = 300
@@ -4306,7 +4306,7 @@ describe('PythonCodeRuntime — hostile peer', () => {
     // _RuntimeError`. If that name were bound as a pump BODY local, it would be
     // captured at pump-start — but `_run` reaches the model's top-level
     // statements (which run before the pump's first step, since there is no
-    // suspension point between `create_task` and `await __dsh_main__`) with the
+    // suspension point between `create_task` and `await __avn_main__`) with the
     // rebind already applied, so `_RuntimeError` would capture the REBOUND class
     // and the closed-loop `RuntimeError` would escape, killing the pump. Binding
     // it as a DEF-TIME default argument captures the original before any model

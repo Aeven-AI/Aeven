@@ -9,7 +9,7 @@ import { homedir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 
 /** Directory name for the default DeepSeek Harness home under the OS home. */
-export const AVN_HOME_DIR_NAME = '.dsh'
+export const AVN_HOME_DIR_NAME = '.avn'
 
 /** Stable user-facing display form for the default DeepSeek Harness home. */
 export const DEFAULT_AVN_HOME_DISPLAY = `~/${AVN_HOME_DIR_NAME}`
@@ -58,7 +58,7 @@ export async function canonicalizeWatchPath(path: string): Promise<string> {
  * Resolve the default DeepSeek Harness home using Node's platform path rules.
  * @returns the absolute default harness home path.
  */
-export function defaultDshHome(): string {
+export function defaultAvnHome(): string {
   return join(homedir(), AVN_HOME_DIR_NAME)
 }
 
@@ -77,16 +77,16 @@ export function expandHomePath(path: string): string {
  * Resolve the single-root DeepSeek Harness home.
  *
  * Precedence, highest first: an explicit configured path, `$AVN_HOME`, then
- * `~/.dsh`. The harness keeps all user data under one root. An empty or
+ * `~/.avn`. The harness keeps all user data under one root. An empty or
  * whitespace-only `$AVN_HOME` is treated as unset, so a blank override never
  * resolves the home to the current working directory.
  * @param configured - explicit harness-home override, which has highest precedence.
  * @param env - environment mapping used to read `AVN_HOME`.
  * @returns the normalized absolute harness home path.
  */
-export function resolveDshHome(configured?: string, env: Record<string, string | undefined> = process.env): string {
+export function resolveAvnHome(configured?: string, env: Record<string, string | undefined> = process.env): string {
   const fromEnv = env[AVN_HOME_ENV]
-  const selected = configured ?? (fromEnv !== undefined && fromEnv.trim().length > 0 ? fromEnv : defaultDshHome())
+  const selected = configured ?? (fromEnv !== undefined && fromEnv.trim().length > 0 ? fromEnv : defaultAvnHome())
   return resolve(expandHomePath(selected))
 }
 
@@ -95,20 +95,20 @@ export function resolveDshHome(configured?: string, env: Record<string, string |
  * @param segments - path segments appended to the Harness home; an empty list returns the home itself.
  * @returns the normalized absolute joined path.
  */
-export function dshHomePath(...segments: string[]): string {
-  return join(resolveDshHome(), ...segments)
+export function avnHomePath(...segments: string[]): string {
+  return join(resolveAvnHome(), ...segments)
 }
 
 /**
  * Describe a resolved harness home symbolically for user-facing display.
  *
  * It never returns an absolute machine path: the default home is labelled
- * `~/.dsh`, and any configured home is labelled `$AVN_HOME`.
- * @param resolvedHome - the absolute path returned by {@link resolveDshHome}.
- * @returns `~/.dsh` for the default home, otherwise `$AVN_HOME`.
+ * `~/.avn`, and any configured home is labelled `$AVN_HOME`.
+ * @param resolvedHome - the absolute path returned by {@link resolveAvnHome}.
+ * @returns `~/.avn` for the default home, otherwise `$AVN_HOME`.
  */
-export function dshHomeDisplay(resolvedHome: string): string {
-  return resolvedHome === resolve(defaultDshHome()) ? DEFAULT_AVN_HOME_DISPLAY : `$${AVN_HOME_ENV}`
+export function avnHomeDisplay(resolvedHome: string): string {
+  return resolvedHome === resolve(defaultAvnHome()) ? DEFAULT_AVN_HOME_DISPLAY : `$${AVN_HOME_ENV}`
 }
 
 export * from './host-lease.ts'

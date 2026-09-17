@@ -119,7 +119,7 @@ describe('SidebarRoot shell', () => {
         options?.fallback ?? null) as SidebarRootComponentProps['renderSlot']}
     />)
 
-    expect(screen.queryByText('DSH Local Build')).toBeNull()
+    expect(screen.queryByText('AVN Local Build')).toBeNull()
     expect(screen.queryByText('1.2.3-rc.4-0123456-dirty')).toBeNull()
     // The mark keeps its own fallback, so the brand still renders something.
     expect(container.querySelector('svg')).not.toBeNull()

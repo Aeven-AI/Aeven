@@ -1,5 +1,5 @@
 ---
-description: "叠加在 dsh-base 上的私有 Agent Teams profile 层，供源码 checkout 用户使用 Team-scoped 协作工具，同时保留一次性 delegation。"
+description: "叠加在 avn-base 上的私有 Agent Teams profile 层，供源码 checkout 用户使用 Team-scoped 协作工具，同时保留一次性 delegation。"
 kind: "package-bundle"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-`dsh-experimental-agent-team-profile` 是在 `@aeven/base` 之上启用 [Agent Teams](../agent-team/README.zh.md) 的私有 profile 层。它的 patch 会插入 Team domain 与 Team-scoped 工具、禁用名称重叠的全局 continuable-child control，并保留普通的一次性 fresh 与 fork delegation 工具。必须将本包显式添加到已初始化的源码 checkout profile；正式发布会排除本包。
+`avn-experimental-agent-team-profile` 是在 `@aeven/base` 之上启用 [Agent Teams](../agent-team/README.zh.md) 的私有 profile 层。它的 patch 会插入 Team domain 与 Team-scoped 工具、禁用名称重叠的全局 continuable-child control，并保留普通的一次性 fresh 与 fork delegation 工具。必须将本包显式添加到已初始化的源码 checkout profile；正式发布会排除本包。
 
 ## 目录
 
@@ -30,11 +30,11 @@ kind: "package-bundle"
 在本仓库 checkout 中，将本包添加到已初始化的 profile，然后运行一个要求 Lead 委派工作的任务：
 
 ```sh
-pnpm dsh plugin --profile headless add ./packages/experimental/agent-team-profile
-pnpm dsh --profile headless "Use Agent Teams to split this task between two teammates, wait, and summarize."
+pnpm avn plugin --profile headless add ./packages/experimental/agent-team-profile
+pnpm avn --profile headless "Use Agent Teams to split this task between two teammates, wait, and summarize."
 ```
 
-profile 必须已经包含 `@aeven/base`，本层会使用其中的 Subagent service 与 provider 配置行。执行 `dsh plugin --profile <name> remove @aeven/experimental-agent-team-profile` 移除本包时，bundle 也会从 profile 的有序层列表中移除。
+profile 必须已经包含 `@aeven/base`，本层会使用其中的 Subagent service 与 provider 配置行。执行 `avn plugin --profile <name> remove @aeven/experimental-agent-team-profile` 移除本包时，bundle 也会从 profile 的有序层列表中移除。
 
 ### 获得的功能
 
@@ -48,11 +48,11 @@ profile 必须已经包含 `@aeven/base`，本层会使用其中的 Subagent ser
 <details>
 <summary>实现细节——点击展开</summary>
 
-本包的运行时内容是 [`cordis.patch.yml`](cordis.patch.yml)。在 `dsh-base` 之后应用时，patch 会禁用 `tool-subagent-control` 与 `tool-subagent-list-agents`，把 fresh 与 fork Subagent 行设置为 `one-shot`，并以显式 provider 和限制插入 Team service 与工具行。
+本包的运行时内容是 [`cordis.patch.yml`](cordis.patch.yml)。在 `avn-base` 之后应用时，patch 会禁用 `tool-subagent-control` 与 `tool-subagent-list-agents`，把 fresh 与 fork Subagent 行设置为 `one-shot`，并以显式 provider 和限制插入 Team service 与工具行。
 
 | 文件 | 职责 |
 |---|---|
-| [`cordis.patch.yml`](cordis.patch.yml) | 叠加在 `dsh-base` 之上的有序 patch |
+| [`cordis.patch.yml`](cordis.patch.yml) | 叠加在 `avn-base` 之上的有序 patch |
 | [`src/index.ts`](src/index.ts) | 空模块入口；patch 是运行时内容 |
 | — | 不发布运行时不变式伴生入口；本包是静态 bundle，不持有可独立观察的运行时关系。 |
 
@@ -81,7 +81,7 @@ Team 策略与 schema 由 [`@aeven/experimental-tool-agent-team`](../tool-agent-
 
 #### Token 影响
 
-本 bundle 会加入 `dsh-tool-team` 描述的 Team 策略与工具 schema；它自身不增加提示词文本。
+本 bundle 会加入 `avn-tool-team` 描述的 Team 策略与工具 schema；它自身不增加提示词文本。
 
 #### KV Cache 影响
 
@@ -93,7 +93,7 @@ Team 策略与 schema 由 [`@aeven/experimental-tool-agent-team`](../tool-agent-
 
 - **仅限源码 checkout**——正式 npm、CLI、Web 与 Python 发布产物都不包含这个私有包。
 - **共享 checkout**——所有 teammate 都观察同一个工作目录；本 bundle 不提供 worktree 隔离或文件系统锁。
-- **需要 base profile**——本 patch 依赖 `dsh-base` 提供的配置行 id 与 Subagent provider；它不是独立 profile。
+- **需要 base profile**——本 patch 依赖 `avn-base` 提供的配置行 id 与 Subagent provider；它不是独立 profile。
 
 <a id="dev-note"></a>
 ### 开发备注

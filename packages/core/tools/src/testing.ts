@@ -1,4 +1,4 @@
-/** Canonical tool-definition fixtures for repository tests. @module dsh-tools/testing */
+/** Canonical tool-definition fixtures for repository tests. @module avn-tools/testing */
 
 import type { ContentBlock } from '@aeven/llm'
 import type { JsonValue } from '@aeven/util-values'

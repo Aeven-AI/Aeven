@@ -1,5 +1,5 @@
 ---
-description: "dsh Web 客户端的主题与正文字号设置：--dsw-* token 样式表、ThemeRuntime 状态、「通用」设置行与插件前引导。"
+description: "avn Web 客户端的主题与正文字号设置：--dsw-* token 样式表、ThemeRuntime 状态、「通用」设置行与插件前引导。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-client-ui-theme` 让 Web GUI 用户在设置中选择 `light`、`dark` 或 `system`，并把会话正文字号设为 12 至 17 px。回环客户端把两个值存入 `ui-theme` 设置命名空间，本地提供方默认将其持久化到 `$AVN_HOME/settings.yaml`。插件通过 `prefers-color-scheme` 解析 `system` 并发布不可变的 `ThemeSnapshot`；ui-layout 把每份快照应用到 document。本包还提供 `--dsw-*` token 样式表，并注入同步引导，使所选调色板与字号在静态外壳预加载页绘制前生效。第三方主题可通过 `ctx.theme` 注册别名 token 覆盖。
+`avn-client-ui-theme` 让 Web GUI 用户在设置中选择 `light`、`dark` 或 `system`，并把会话正文字号设为 12 至 17 px。回环客户端把两个值存入 `ui-theme` 设置命名空间，本地提供方默认将其持久化到 `$AVN_HOME/settings.yaml`。插件通过 `prefers-color-scheme` 解析 `system` 并发布不可变的 `ThemeSnapshot`；ui-layout 把每份快照应用到 document。本包还提供 `--dsw-*` token 样式表，并注入同步引导，使所选调色板与字号在静态外壳预加载页绘制前生效。第三方主题可通过 `ctx.theme` 注册别名 token 覆盖。
 
 Aeven 基线集中位于 `aeven-language.css`：Google Sans Flex 字体角色、暖中性色彩别名、1024px 会话宽度、响应式页面与侧栏内边距、280px 侧栏宽度、400ms 侧栏过渡、间距、控件尺寸和圆角都是供组件 CSS 使用的单一来源变量。
 
@@ -39,13 +39,13 @@ Aeven 基线集中位于 `aeven-language.css`：Google Sans Flex 字体角色、
 
 ### 插件前调色板
 
-当主机组合包含 HTTP 服务器时，宿主侧会把已注册的 `ui-theme` 设置或 schema 默认值嵌入每份 index 响应。浏览器在加载页面渲染前设置 `color-scheme`、`body[data-ds-dark-theme]` 与 `--dsh-content-font-size`，因此首帧绘制就采用所选调色板与字号。
+当主机组合包含 HTTP 服务器时，宿主侧会把已注册的 `ui-theme` 设置或 schema 默认值嵌入每份 index 响应。浏览器在加载页面渲染前设置 `color-scheme`、`body[data-ds-dark-theme]` 与 `--avn-content-font-size`，因此首帧绘制就采用所选调色板与字号。
 
 ### 静态外壳预加载页
 
 品牌标识与转轮标记由 `apps/web/index.html` 而非 ui-theme 的 Host 插件拥有。生产构建会在 document head 中内联该样式表，因此该视觉在入口 module、module loader 或 React 运行前就已带样式。Host 注入的主题引导仍紧接 opening body tag，并在静态视觉绘制前选择其明色或暗色回退。
 
-关闭与失败呈现由 Web 启动内核拥有；参见 [dsh-client-web](../web/README.zh.md)。ui-theme 只拥有应用到该静态视觉的调色板状态。
+关闭与失败呈现由 Web 启动内核拥有；参见 [avn-client-web](../web/README.zh.md)。ui-theme 只拥有应用到该静态视觉的调色板状态。
 
 -----
 
@@ -62,11 +62,11 @@ Aeven 基线集中位于 `aeven-language.css`：Google Sans Flex 字体角色、
 `src/styles/` 下有六张样式表，由 ui-theme 的动态客户端 entry 依次导入：`base.css`、`design-platform.css`、`scrollbar.css`、`gradient-shadow-text.css`、`aeven-language.css` 与 `highlight.css`。客户端 bundle 将其编译并注入为插件持有的全局样式，因此卸载与 HMR 会随 ui-theme 一同移除。`scrollbar.css` 是 `--dsw-alias-scrollbar-*` token 的唯一消费方，必须排在声明这些 token 的 `design-platform.css` 之后。`aeven-language.css` 位于生成的排版样式表之后，因此其产品基线可以映射共享变量而无需复制组件规则。`highlight.css` 为 tool card 与 markdown fence 的 highlight.js token class 着色。
 
 
-`gradient-shadow-text.css` 从 `--dsh-content-font-size` 派生 `--dsh-content-font-delta`，并以该增量移动 Markdown 标题与基础文本阶梯。它同时持有低一档变量 `--dsh-content-font-size-secondary`，供表格变体与比正文低一档的流内行使用，配套的 `--dsh-content-font-delta-secondary` 承载该档的行高位移。该档的映射位于 `src/theme-settings.ts` 的 `secondaryFontSize`——低于 14 时取设置值 −1，14 与 15 时守住 14 下限（再降一级就会落到 13px），16 及以上取设置值 −2——因为任何基于正文字号的 `min`/`max` 组合都无法在阶梯中间跳过单一取值；样式表中声明的只是会被启动脚本与 presenter 覆写的回退值。紧凑的小号文本与代码变体保持固定字号——最小一档为导出的 14px/20px——且每个复合字体 token 都显式写出 450，因为省略字重的 `font` 简写会把它重置为 400。阶梯之外，用户气泡与 composer 草稿直接读取正文档变量对，流内行的标题及摘要读取低一档变量对。该表还持有阴影阶（`--dsw-shadow-lv*`）与 elevation token：`--dsw-elevation-stroke` 经可重绑的 `--dsw-elevation-stroke-color` 画 0.5px 发丝描边，`--dsw-elevation-panel`/`--dsw-elevation-prominent` 在描边之上叠两层极淡柔光，因此高层级表面设 `border: 0`，不再有占布局的轮廓；派生 token 逐元素重声明，使表面对描边色的重绑真实生效。Aeven composer 明确不使用这些投影（[elevation 笔记](../../../.agents/notes/implemented/feature/2026-09-01-web-elevation-stroke-shadows.zh.md)）。
+`gradient-shadow-text.css` 从 `--avn-content-font-size` 派生 `--avn-content-font-delta`，并以该增量移动 Markdown 标题与基础文本阶梯。它同时持有低一档变量 `--avn-content-font-size-secondary`，供表格变体与比正文低一档的流内行使用，配套的 `--avn-content-font-delta-secondary` 承载该档的行高位移。该档的映射位于 `src/theme-settings.ts` 的 `secondaryFontSize`——低于 14 时取设置值 −1，14 与 15 时守住 14 下限（再降一级就会落到 13px），16 及以上取设置值 −2——因为任何基于正文字号的 `min`/`max` 组合都无法在阶梯中间跳过单一取值；样式表中声明的只是会被启动脚本与 presenter 覆写的回退值。紧凑的小号文本与代码变体保持固定字号——最小一档为导出的 14px/20px——且每个复合字体 token 都显式写出 450，因为省略字重的 `font` 简写会把它重置为 400。阶梯之外，用户气泡与 composer 草稿直接读取正文档变量对，流内行的标题及摘要读取低一档变量对。该表还持有阴影阶（`--dsw-shadow-lv*`）与 elevation token：`--dsw-elevation-stroke` 经可重绑的 `--dsw-elevation-stroke-color` 画 0.5px 发丝描边，`--dsw-elevation-panel`/`--dsw-elevation-prominent` 在描边之上叠两层极淡柔光，因此高层级表面设 `border: 0`，不再有占布局的轮廓；派生 token 逐元素重声明，使表面对描边色的重绑真实生效。Aeven composer 明确不使用这些投影（[elevation 笔记](../../../.agents/notes/implemented/feature/2026-09-01-web-elevation-stroke-shadows.zh.md)）。
 
 ### 滚动条重新绑定
 
-`scrollbar.css` 在 `body` 上把 `--dsh-scrollbar-thumb` 与 `--dsh-scrollbar-thumb-hover` 绑定到 l1 基础表面 token；高层级表面（菜单、浮层、对话框）在自己的容器上把它们重新绑定为 l2 token；这组变量的另一个合法目标是 `transparent`（ui-trajectory 的摘要区域在既无 hover 也无 focus-within 时就这样重新绑定）。标准属性——`scrollbar-width: thin`——声明在 `body *` 上，供每一个实现了它的引擎使用，因为只有这条路径能给滚动盒子留下完整宽度：正是 `::-webkit-scrollbar` 皮肤把滚动条逼进槽位，并从盒子上切走那条带子。伪元素皮肤则是回退路径，位于 `@supports not (scrollbar-width: thin)` 之内，供无法遵循标准属性的引擎使用（chromium 121 之前、WebKit 在 Safari 26.2 之前），因此 hover token 只在这条路径上渲染。已经没有任何样式表再去补偿滚动条的宽度：会话滚动视口对称地预留自己的槽位，而在滚动条浮动之处则完全不预留（[滚动条笔记](../../../.agents/notes/implemented/bug-fix/2026-09-13-overlay-scrollbars-return-the-gutter.zh.md)）。
+`scrollbar.css` 在 `body` 上把 `--avn-scrollbar-thumb` 与 `--avn-scrollbar-thumb-hover` 绑定到 l1 基础表面 token；高层级表面（菜单、浮层、对话框）在自己的容器上把它们重新绑定为 l2 token；这组变量的另一个合法目标是 `transparent`（ui-trajectory 的摘要区域在既无 hover 也无 focus-within 时就这样重新绑定）。标准属性——`scrollbar-width: thin`——声明在 `body *` 上，供每一个实现了它的引擎使用，因为只有这条路径能给滚动盒子留下完整宽度：正是 `::-webkit-scrollbar` 皮肤把滚动条逼进槽位，并从盒子上切走那条带子。伪元素皮肤则是回退路径，位于 `@supports not (scrollbar-width: thin)` 之内，供无法遵循标准属性的引擎使用（chromium 121 之前、WebKit 在 Safari 26.2 之前），因此 hover token 只在这条路径上渲染。已经没有任何样式表再去补偿滚动条的宽度：会话滚动视口对称地预留自己的槽位，而在滚动条浮动之处则完全不预留（[滚动条笔记](../../../.agents/notes/implemented/bug-fix/2026-09-13-overlay-scrollbars-return-the-gutter.zh.md)）。
 
 ### 偏好持久化
 

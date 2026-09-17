@@ -5,7 +5,7 @@
  * while ensuring no chunk follows `finish`.
  *
  * Translate DeepSeek wire chunks into the harness `StreamChunk` protocol.
- * @module dsh-llm-deepseek/translate
+ * @module avn-llm-deepseek/translate
  */
 
 import { brandString } from '@aeven/brand'

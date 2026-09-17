@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-webhook-github` registers one exact HTTP route on the injected `ctx.webServer`. It bounds and verifies GitHub's raw JSON body, projects a provider-neutral delivery, calls `ctx.webhookRuntime.dispatch()`, and returns `202` without waiting for rules or Sessions. Use it when a deployment needs authenticated GitHub ingress for the generic webhook runtime.
+`avn-webhook-github` registers one exact HTTP route on the injected `ctx.webServer`. It bounds and verifies GitHub's raw JSON body, projects a provider-neutral delivery, calls `ctx.webhookRuntime.dispatch()`, and returns `202` without waiting for rules or Sessions. Use it when a deployment needs authenticated GitHub ingress for the generic webhook runtime.
 
 ## Table of Contents
 
@@ -54,12 +54,12 @@ Only `POST application/json` is accepted. The adapter reads a bounded UTF-8 body
 <a id="dedicated-listener-composition"></a>
 ## Dedicated listener composition
 
-The normal Web profile already owns `ctx.webServer`. Mount another `dsh-host-webserver` and this adapter inside a group that isolates only `webServer`; the adapter still inherits credentials and `webhookRuntime`. The [GitHub review guide](../../../docs/user/guide/github-review.md) uses `127.0.0.1:3081/github` behind a TLS reverse proxy while the UI remains on port 3080.
+The normal Web profile already owns `ctx.webServer`. Mount another `avn-host-webserver` and this adapter inside a group that isolates only `webServer`; the adapter still inherits credentials and `webhookRuntime`. The [GitHub review guide](../../../docs/user/guide/github-review.md) uses `127.0.0.1:3081/github` behind a TLS reverse proxy while the UI remains on port 3080.
 
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through `dsh-webhook`: this adapter contributes no prompt or tool schema; a matching rule owns the Session request and model-visible text.
+Indirectly, through `avn-webhook`: this adapter contributes no prompt or tool schema; a matching rule owns the Session request and model-visible text.
 
 #### KV Cache effect
 
@@ -85,4 +85,4 @@ None.
 
 </details>
 
-**Runtime invariant:** No companion is published. Authentication and input validation occur at the exact HTTP operation; dsh-host-webserver owns route/disposer symmetry.
+**Runtime invariant:** No companion is published. Authentication and input validation occur at the exact HTTP operation; avn-host-webserver owns route/disposer symmetry.

@@ -6,7 +6,7 @@ Status: implemented
 
 ## 问题
 
-切换会话后，对话记录会停在离底部还有一段距离的位置。在运行中的 Web 客户端上，从侧边栏选中另一个会话、再用浏览器历史在 `/c/2cc5bd5e…`（"Overview of new DSH changes since fork"）与 `/c/38c398db…`（"The current performance of this"）之间前进后退，每次都稳定复现，且两个方向都如此：
+切换会话后，对话记录会停在离底部还有一段距离的位置。在运行中的 Web 客户端上，从侧边栏选中另一个会话、再用浏览器历史在 `/c/2cc5bd5e…`（"Overview of new AVN changes since fork"）与 `/c/38c398db…`（"The current performance of this"）之间前进后退，每次都稳定复现，且两个方向都如此：
 
 | 切换动作 | 距底部距离 |
 |---|---|

@@ -6,7 +6,7 @@
  * synchronously by the token meter through `LlmAdapter.imageRequestPricing`;
  * provider usage remains the authoritative anchor for completed requests.
  *
- * @module dsh-llm-deepseek/request-pricing
+ * @module avn-llm-deepseek/request-pricing
  */
 
 import { offloadedImageText, offloadedImagePrefixCount, requestImageHandleText, textOnlyImageText } from '@aeven/llm'

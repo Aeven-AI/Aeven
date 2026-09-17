@@ -1,8 +1,8 @@
 /**
  * The writable root is this package's own, not an assembly fact each app must
  * remember: a roster configured with only a `system` root still discovers and
- * authors into `<dshHome>/.agent-presets`, the way `dsh-skill-filesystem` owns
- * `<dshHome>/skills`. `includeUserRoot: false` is how a deployment — or a test
+ * authors into `<avnHome>/.agent-presets`, the way `avn-skill-filesystem` owns
+ * `<avnHome>/skills`. `includeUserRoot: false` is how a deployment — or a test
  * pinning an exact roster — opts out.
  *
  * `$AVN_HOME` is repointed per test because the derived root is resolved in the
@@ -32,7 +32,7 @@ let home: string
 let previousHome: string | undefined
 
 beforeEach(async () => {
-  home = await mkdtemp(join(tmpdir(), 'dsh-preset-home-'))
+  home = await mkdtemp(join(tmpdir(), 'avn-preset-home-'))
   previousHome = process.env.AVN_HOME
   process.env.AVN_HOME = home
 })
@@ -119,7 +119,7 @@ describe('the harness-home preset root', () => {
   })
 
   it('yields to a configured user root for authoring, which writableRoot takes first', async () => {
-    const explicit = await mkdtemp(join(tmpdir(), 'dsh-preset-explicit-'))
+    const explicit = await mkdtemp(join(tmpdir(), 'avn-preset-explicit-'))
     const ctx = await roster({
       roots: [
         { path: SYSTEM_ROOT, trust: 'system' as const },

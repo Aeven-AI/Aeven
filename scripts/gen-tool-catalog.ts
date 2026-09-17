@@ -272,7 +272,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
       await ctx.plugin(ToolCordis)
     },
     note:
-      'Not in any shipped tree (a deliberate opt-in — dynamic package code reaches the real runtime, see .agents/notes/implemented/feature/2026-07-08-self-referential-cordis-toolset.md). The toolset injects `ctx.dynamicCordisRunner` from `@aeven/cordis-host-runner`, which owns the definition registry and the vm sandbox; a composition missing it never activates the tools. A running package may register ADDITIONAL model-visible tools until it is stopped, undefined, or DSH restarts; a full changed request header logs those tool-set changes.',
+      'Not in any shipped tree (a deliberate opt-in — dynamic package code reaches the real runtime, see .agents/notes/implemented/feature/2026-07-08-self-referential-cordis-toolset.md). The toolset injects `ctx.dynamicCordisRunner` from `@aeven/cordis-host-runner`, which owns the definition registry and the vm sandbox; a composition missing it never activates the tools. A running package may register ADDITIONAL model-visible tools until it is stopped, undefined, or AVN restarts; a full changed request header logs those tool-set changes.',
   },
   {
     pkg: '@aeven/tool-bash-persistent',
@@ -435,7 +435,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
       await ctx.plugin(AgentRegistry)
       await ctx.plugin(SkillRegistry)
       await ctx.plugin(SkillFileSystem, {
-        dshHome: resolve(root, '.tmp/tool-catalog/.dsh'),
+        avnHome: resolve(root, '.tmp/tool-catalog/.avn'),
         agentsHome: resolve(root, '.tmp/tool-catalog/.agents'),
       })
       await ctx.plugin(ToolSkill)
@@ -545,7 +545,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     scope: ctx => catalogChildScopes.get(ctx) as Agent,
     note:
-      'All ten tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names.',
+      'All ten tools are scoped to implicit Team Leads and durable teammates. The shipped avn-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names.',
   },
   {
     pkg: '@aeven/tool-media',

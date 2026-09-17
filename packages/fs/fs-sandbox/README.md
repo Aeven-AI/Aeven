@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-fs-sandbox` provides the sandbox-enforcing `ctx.fs` backend: it extends [`fs-local`](../fs-local/README.md) with every text-storage behavior intact and adds only a per-call mode fence on writes and edits, while reads always pass through. Under `read-only` every mutation is refused; under `workspace-write` a mutation is allowed only when the target sits under the session workspace or a platform temp root; under `danger-full-access` mutations run unfenced. Loading it instead of `fs-local`, together with the shared `ctx.sandboxPolicy` service, is the whole swap — the model-facing tools and the policy plugin are untouched. A denial is a structured `FS_SANDBOX_DENIED` error that the tools render as the familiar `[sandbox: file access denied under <mode> mode]` marker with a same-turn escalation hint. Choose it when a session's file mutations must be confined to its workspace.
+`avn-fs-sandbox` provides the sandbox-enforcing `ctx.fs` backend: it extends [`fs-local`](../fs-local/README.md) with every text-storage behavior intact and adds only a per-call mode fence on writes and edits, while reads always pass through. Under `read-only` every mutation is refused; under `workspace-write` a mutation is allowed only when the target sits under the session workspace or a platform temp root; under `danger-full-access` mutations run unfenced. Loading it instead of `fs-local`, together with the shared `ctx.sandboxPolicy` service, is the whole swap — the model-facing tools and the policy plugin are untouched. A denial is a structured `FS_SANDBOX_DENIED` error that the tools render as the familiar `[sandbox: file access denied under <mode> mode]` marker with a same-turn escalation hint. Choose it when a session's file mutations must be confined to its workspace.
 
 ## Table of Contents
 
@@ -88,7 +88,7 @@ The residual resolve-to-syscall TOCTOU is narrowed by re-canonicalizing immediat
 Read these pages when the package-level contract is not enough. They move from this backend to the shared policy home and the confinement decisions behind it.
 
 - [Filesystem subsystem](../../../docs/subsystems/filesystem.md) — exhaustive provider contract, policy events, and error taxonomy.
-- [dsh-fs](../fs/README.md) — the `ctx.fs` contract this backend implements.
+- [avn-fs](../fs/README.md) — the `ctx.fs` contract this backend implements.
 - [fs-local](../fs-local/README.md) — the local backend this one extends.
 - [sandbox-policy](../../sandbox/sandbox-policy/README.md) — the shared per-session policy resolver this backend requires.
 - [Process sandbox subsystem](../../../docs/subsystems/sandbox.md) — modes, per-call policy, and fail-closed errors.
@@ -103,7 +103,7 @@ Read these pages when the package-level contract is not enough. They move from t
 
 #### What the model sees
 
-The policy owner contributes capability-neutral `sandbox:policy` context. Indirectly, `dsh-tool-fs` renders this backend's `FS_SANDBOX_DENIED` refusals as the `[sandbox: file access denied under <mode> mode]` marker plus the same-turn escalation hint.
+The policy owner contributes capability-neutral `sandbox:policy` context. Indirectly, `avn-tool-fs` renders this backend's `FS_SANDBOX_DENIED` refusals as the `[sandbox: file access denied under <mode> mode]` marker plus the same-turn escalation hint.
 
 #### Token effect
 

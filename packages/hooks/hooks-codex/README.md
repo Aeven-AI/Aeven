@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-hooks-codex` runs the hooks from your existing Codex config — a `hooks.json` — during agent runs, so the behavior you already wrote keeps working without rewriting it. Five of Codex's hook points fire at the matching moments: when a session starts, when a prompt is submitted, before and after a tool runs, and when the run is about to stop. A hook can block a prompt or tool call with a message the model sees, attach extra context to the conversation, or force the run to continue. Choose it when you have Codex command hooks and want them to work in the harness as-is; behavior with no Codex equivalent belongs in a native plugin.
+`avn-hooks-codex` runs the hooks from your existing Codex config — a `hooks.json` — during agent runs, so the behavior you already wrote keeps working without rewriting it. Five of Codex's hook points fire at the matching moments: when a session starts, when a prompt is submitted, before and after a tool runs, and when the run is about to stop. A hook can block a prompt or tool call with a message the model sees, attach extra context to the conversation, or force the run to continue. Choose it when you have Codex command hooks and want them to work in the harness as-is; behavior with no Codex equivalent belongs in a native plugin.
 
 ## Table of Contents
 
@@ -92,7 +92,7 @@ The matcher subject is the tool name (`PreToolUse` / `PostToolUse`) or the sessi
 
 ### Detached runs and disposal
 
-`SessionStart` is the one emit point and runs detached — no extension point awaits it. Each run chain is tracked, and disposing the bridge aborts a still-running hook process, then drains the continuation before the dispose resolves (`createDetachedRuns` in `dsh-hook-protocol`).
+`SessionStart` is the one emit point and runs detached — no extension point awaits it. Each run chain is tracked, and disposing the bridge aborts a still-running hook process, then drains the continuation before the dispose resolves (`createDetachedRuns` in `avn-hook-protocol`).
 
 ### Design philosophy
 

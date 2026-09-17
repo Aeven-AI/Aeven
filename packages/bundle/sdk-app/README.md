@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The SDK stdio application as a `dsh` profile bundle over [`dsh-base`](../base/README.md). It inherits the base's disabled module-HMR policy; its patch sets the coding-agent persona, mounts an app-owned zero-option command provider, and starts [`dsh-sdk-jsonrpc-server`](../../sdk/server/README.md) only after that provider accepts the invocation. `dsh --profile sdk --help` therefore writes help and exits without claiming stdin or stdout. The standalone [`sdk-minimal`](../sdk-minimal/README.md) bundle reuses the same startup provider with its own profile name.
+The SDK stdio application as a `avn` profile bundle over [`avn-base`](../base/README.md). It inherits the base's disabled module-HMR policy; its patch sets the coding-agent persona, mounts an app-owned zero-option command provider, and starts [`avn-sdk-jsonrpc-server`](../../sdk/server/README.md) only after that provider accepts the invocation. `avn --profile sdk --help` therefore writes help and exits without claiming stdin or stdout. The standalone [`sdk-minimal`](../sdk-minimal/README.md) bundle reuses the same startup provider with its own profile name.
 
 ## Table of Contents
 
@@ -54,7 +54,7 @@ Stable for a fixed profile, provider, model, and tool roster. Profile changes ta
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **A profile can omit the SDK server** — a custom profile selected by the TypeScript client must retain this bundle or another `dsh-sdk-jsonrpc-server` row; client initialization fails when no peer answers.
+- **A profile can omit the SDK server** — a custom profile selected by the TypeScript client must retain this bundle or another `avn-sdk-jsonrpc-server` row; client initialization fails when no peer answers.
 - **User plugins can violate stdout purity** — profile and per-launch patches are trusted application composition. The shipped bundle writes no non-protocol stdout, but it cannot contain an arbitrary inserted plugin.
 - **Configuration changes require restart** — the shipped `sdk` profile uses `patchReload: startup` so one stdio connection never observes a replacement server or Agent dependency.
 

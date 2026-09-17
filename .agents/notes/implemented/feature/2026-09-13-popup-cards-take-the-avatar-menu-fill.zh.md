@@ -43,4 +43,4 @@ Web 客户端把下拉卡片画成不透明盒子：`background: var(--dsw-speci
 
 ## Testing
 
-没有任何样式表契约固定这些取值，我也没有新造一个：这是一处表面改动，覆盖这些包的测试套件——包括主题的 elevation 与 token 契约——原样通过（ui-theme、ui-primitives、ui-commands、ui-model-selection、ui-conversation、ui-account-aeven 共 1238 项测试）。机械核验的是运行中的应用确实在提供新规则：`backdrop-filter`、`color-mix` 填充与表面圆角 token 都出现在 `dsh web` 为 ui-commands、ui-model-selection 与 ui-conversation 提供的 bundle 中——后者也正是共享 `Menu` 改动触达那个弹窗的凭据。
+没有任何样式表契约固定这些取值，我也没有新造一个：这是一处表面改动，覆盖这些包的测试套件——包括主题的 elevation 与 token 契约——原样通过（ui-theme、ui-primitives、ui-commands、ui-model-selection、ui-conversation、ui-account-aeven 共 1238 项测试）。机械核验的是运行中的应用确实在提供新规则：`backdrop-filter`、`color-mix` 填充与表面圆角 token 都出现在 `avn web` 为 ui-commands、ui-model-selection 与 ui-conversation 提供的 bundle 中——后者也正是共享 `Menu` 改动触达那个弹窗的凭据。

@@ -78,7 +78,7 @@ function wrapCommand(command: string, marker: CommandMarkers): string {
   // Keep the wrapper on one physical line. An interactive bash prints PS2 for
   // embedded newlines before executing the buffer, which would leak terminal
   // prompts and marker source text into the model-facing result.
-  return `printf '%s\\n' ${quoteForBash(marker.start)}; eval -- ${quoteForBash(command)}; __dsh_persistent_bash_status=$?; printf '%s%s\\n' ${quoteForBash(marker.end)} "$__dsh_persistent_bash_status"`
+  return `printf '%s\\n' ${quoteForBash(marker.start)}; eval -- ${quoteForBash(command)}; __avn_persistent_bash_status=$?; printf '%s%s\\n' ${quoteForBash(marker.end)} "$__avn_persistent_bash_status"`
 }
 
 function trimTrailingNewline(text: string): string {

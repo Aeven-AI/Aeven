@@ -1,7 +1,7 @@
 /** Static shell-preloader control shared by the Web entry and worker preview. */
 
 /** Root element id hardcoded in apps/web/index.html. */
-export const PRELOADER_ELEMENT_ID = 'dsh-preloader'
+export const PRELOADER_ELEMENT_ID = 'avn-preloader'
 
 /** Fade duration shared with the index stylesheet. */
 export const FADE_MS = 400

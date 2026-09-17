@@ -5,8 +5,8 @@ import { inspectorId } from '../../shared/identity.ts'
 import type { InspectorSourceDescriptor } from '../../shared/bridge/messages/observation.ts'
 import { bridgeCapabilities } from '../cdp/index.ts'
 
-const CLIENT_SOURCE_STORAGE_KEY = 'dsh.experimental-inspector.client-source-id.v0'
-const CLIENT_SOURCE_LOCK_PREFIX = 'dsh.experimental-inspector.client-source:'
+const CLIENT_SOURCE_STORAGE_KEY = 'avn.experimental-inspector.client-source-id.v0'
+const CLIENT_SOURCE_LOCK_PREFIX = 'avn.experimental-inspector.client-source:'
 
 /** Owns one browser realm's stable source id across transport reconnects. */
 export class ClientRealmSource {

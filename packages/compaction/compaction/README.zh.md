@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-compaction` 让长时会话把较早历史压缩（compaction）成一条摘要消息、保持近期对话不变，并像摘要一直存在那样继续下去——配合 `dsh-compaction-basic` 之类的后端与可选的 `/compact` 命令即可实现。被压缩的内容仍保留在会话日志中，因此回放会话可以还原出完全相同的对话。当你实现压缩后端、构建触发压缩的组件，或需要识别压缩后的消息时，才需要本包——它本身不执行任何压缩。只想开箱即用地获得该功能时，请选择随附后端。
+`avn-compaction` 让长时会话把较早历史压缩（compaction）成一条摘要消息、保持近期对话不变，并像摘要一直存在那样继续下去——配合 `avn-compaction-basic` 之类的后端与可选的 `/compact` 命令即可实现。被压缩的内容仍保留在会话日志中，因此回放会话可以还原出完全相同的对话。当你实现压缩后端、构建触发压缩的组件，或需要识别压缩后的消息时，才需要本包——它本身不执行任何压缩。只想开箱即用地获得该功能时，请选择随附后端。
 
 ## 目录
 
@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 何时选择
 
-当模型撰写的摘要符合需求时，选择 `dsh-compaction-basic`：会话增长时自动压缩，并可通过 `dsh-command-compact` 按需压缩。当你需要不同的摘要方式——固定模板或远程服务——或构建以编程方式触发压缩的组件时，选择本包。不要单独挂载它：没有后端就什么都不会压缩。
+当模型撰写的摘要符合需求时，选择 `avn-compaction-basic`：会话增长时自动压缩，并可通过 `avn-command-compact` 按需压缩。当你需要不同的摘要方式——固定模板或远程服务——或构建以编程方式触发压缩的组件时，选择本包。不要单独挂载它：没有后端就什么都不会压缩。
 
 ### 压缩后会发生什么
 
@@ -37,7 +37,7 @@ kind: "package-reference"
 
 ### 启用压缩
 
-挂载随附后端以注册压缩服务，并添加 `dsh-command-compact` 获得按需命令：
+挂载随附后端以注册压缩服务，并添加 `avn-command-compact` 获得按需命令：
 
 ```yaml
 - name: '@aeven/compaction-basic'
@@ -69,7 +69,7 @@ kind: "package-reference"
 该 seam 建立在一个拆分与三项承诺之上：
 
 - **抽象约定，具体后端。** 接口规定压缩做什么；提供方拥有策略、保留与摘要，因此各角色可独立演进、独立替换。
-- **会话与 LLM 词汇是约定的一部分。** 操作作用于 `Session`，摘要使用 `ContentBlock`，因此尽管有通用的 cordis-only 指引，Service Definition 仍依赖 `dsh-session` 与 `dsh-llm`——这是一项有意的偏离，记录在[压缩能力 seam Agent Note](../../../.agents/notes/implemented/feature/2026-06-18-compaction-capability-seam.zh.md) 中。
+- **会话与 LLM 词汇是约定的一部分。** 操作作用于 `Session`，摘要使用 `ContentBlock`，因此尽管有通用的 cordis-only 指引，Service Definition 仍依赖 `avn-session` 与 `avn-llm`——这是一项有意的偏离，记录在[压缩能力 seam Agent Note](../../../.agents/notes/implemented/feature/2026-06-18-compaction-capability-seam.zh.md) 中。
 - **日志记录的标记对就是锁。** `compaction/start` 在摘要让出控制权之前追加，`compaction/end` 释放；每次失败都恰好进行一次闭合尝试，闭合失败会留下未匹配 start 作为有意的 busy 信号。
 - **表层只变更一次。** 摘要承载在标记对内的一条 `user/message` 替换上；所有 `compaction/*` 事件仅写入日志。
 

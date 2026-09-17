@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest'
 
 describe('Loader internal shape detection', () => {
   it('tags the running Node loader with the resolver signature that runtime accepts', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'dsh-loader-shape-'))
+    const dir = mkdtempSync(join(tmpdir(), 'avn-loader-shape-'))
     const baseUrl = pathToFileURL(dir).href + '/'
     const ctx = new Context()
     ctx.baseUrl = baseUrl

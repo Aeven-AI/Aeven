@@ -7,7 +7,7 @@ import { describe, expect, it, onTestFinished } from 'vitest'
 import { auditSubsystemPages } from './verify-subsystem-pages.ts'
 
 function fixture(): string {
-  const root = mkdtempSync(join(tmpdir(), 'dsh-subsystem-pages-'))
+  const root = mkdtempSync(join(tmpdir(), 'avn-subsystem-pages-'))
   onTestFinished(() => {
     rmSync(root, { recursive: true, force: true })
   })

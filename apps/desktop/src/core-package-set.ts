@@ -1,4 +1,4 @@
-/** Signed local npm package set that supplies the Desktop-owned dsh runtime and private Host. */
+/** Signed local npm package set that supplies the Desktop-owned avn runtime and private Host. */
 
 import { createHash } from 'node:crypto'
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
@@ -10,7 +10,7 @@ export const DESKTOP_PACKAGE_SET_FILE = 'desktop-packages.json'
 /** Profile-relative directory containing immutable core npm tarballs. */
 export const DESKTOP_PACKAGES_DIR = 'desktop-packages'
 
-/** Private package installed beside dsh to boot the Desktop Host process. */
+/** Private package installed beside avn to boot the Desktop Host process. */
 export const DESKTOP_HOST_PACKAGE = '@aeven/desktop-host'
 
 /** Package-relative Desktop Host files required before a profile can boot. */
@@ -28,7 +28,7 @@ export interface DesktopCorePackageRecord {
   readonly integrity: string
 }
 
-/** Complete union of the first-party package closures rooted at dsh and its private Desktop Host. */
+/** Complete union of the first-party package closures rooted at avn and its private Desktop Host. */
 export interface DesktopCorePackageSet {
   readonly schemaVersion: 1
   readonly packages: readonly DesktopCorePackageRecord[]
@@ -48,7 +48,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /**
  * Validate package-set data read from a release artifact or active profile.
  * @param value - Parsed descriptor JSON.
- * @param expectedReleaseVersion - Required dsh and Desktop Host version when validating one release.
+ * @param expectedReleaseVersion - Required avn and Desktop Host version when validating one release.
  * @returns The normalized package set in deterministic name order.
  */
 export function parseDesktopCorePackageSet(
@@ -115,8 +115,8 @@ export function desktopCorePackageOverrides(packageSet: DesktopCorePackageSet): 
   return Object.fromEntries(packageSet.packages.map(record => [record.name, desktopCorePackageSpec(record)]))
 }
 
-/** Return the local direct dependency spec for the dsh package. */
-export function desktopDshPackageSpec(packageSet: DesktopCorePackageSet): string {
+/** Return the local direct dependency spec for the avn package. */
+export function desktopAvnPackageSpec(packageSet: DesktopCorePackageSet): string {
   const record = packageSet.packages.find(entry => entry.name === AVN_PACKAGE)
   if (record === undefined) throw new Error(`desktop package set: missing ${AVN_PACKAGE}`)
   return desktopCorePackageSpec(record)
@@ -125,7 +125,7 @@ export function desktopDshPackageSpec(packageSet: DesktopCorePackageSet): string
 /**
  * Verify every local tarball and reject extra package files before pnpm executes them.
  * @param projectDir - Seed or profile directory containing the package set.
- * @param expectedReleaseVersion - Exact dsh and Desktop Host version bound to Electron.
+ * @param expectedReleaseVersion - Exact avn and Desktop Host version bound to Electron.
  * @returns The verified package set.
  */
 export function verifyDesktopCorePackageSet(

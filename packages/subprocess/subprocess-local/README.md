@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Mount `dsh-subprocess-local` in any composition that runs child processes on the host: it resolves local executables, spawns detached process trees with explicit stdio, and provides real terminal sessions through `node-pty`. It has no configuration, so every disposition, limit, terminal size, and grace arrives on the spawn request from the calling capability seam. Output collection keeps a bounded in-memory tail with optional spill files for full-stream recovery, children start from a scrubbed environment, and disposal terminates and joins every running tree.
+Mount `avn-subprocess-local` in any composition that runs child processes on the host: it resolves local executables, spawns detached process trees with explicit stdio, and provides real terminal sessions through `node-pty`. It has no configuration, so every disposition, limit, terminal size, and grace arrives on the spawn request from the calling capability seam. Output collection keeps a bounded in-memory tail with optional spill files for full-stream recovery, children start from a scrubbed environment, and disposal terminates and joins every running tree.
 
 ## Table of Contents
 
@@ -99,8 +99,8 @@ Spill files are opened `0600` with `O_EXCL` and random names under a `0700` per-
 Read these pages when the provider-level contract is not enough. They move from the exhaustive type reference to the abstract contract and the decisions behind the host mechanics.
 
 - [Subprocess subsystem](../../../docs/subsystems/subprocess.md) — spawn specs, output readers, outcomes, and the `AVN_*` environment in full.
-- [dsh-subprocess](../subprocess/README.md) — the abstract contract this provider implements.
-- [dsh-bash-local](../../shell/bash-local/README.md) — the largest consumer and the concrete stdio shapes it asks for.
+- [avn-subprocess](../subprocess/README.md) — the abstract contract this provider implements.
+- [avn-bash-local](../../shell/bash-local/README.md) — the largest consumer and the concrete stdio shapes it asks for.
 - [Subprocess seam Agent Note](../../../.agents/notes/implemented/architecture/2026-07-26-subprocess-seam.md) — why the process half became its own seam.
 - [Synchronous subprocess exit cleanup](../../../.agents/notes/implemented/bug-fix/2026-08-11-synchronous-subprocess-exit-cleanup.md) — the host-exit finalization decision and its failure modes.
 

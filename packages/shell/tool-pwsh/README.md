@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-tool-pwsh` gives the agent a `pwsh` tool that runs PowerShell commands through the mounted shell executor — the Windows counterpart of `dsh-tool-bash`, mirroring it call-for-call. Each call runs in a fresh pwsh process, so no state survives; `run_in_background` turns long-running commands into background jobs. Commands are PowerShell-dialect: native `C:\...` paths and `$env:NAME` variables, with no dialect translation. Every call runs with the managed `AVN_*` environment, and under a sandboxing executor the tool teaches and enforces the Windows-specific language-mode and named-pipe contracts. Mount it with a PowerShell executor such as `dsh-pwsh-local` and the `dsh-shell-env` plugin.
+`avn-tool-pwsh` gives the agent a `pwsh` tool that runs PowerShell commands through the mounted shell executor — the Windows counterpart of `avn-tool-bash`, mirroring it call-for-call. Each call runs in a fresh pwsh process, so no state survives; `run_in_background` turns long-running commands into background jobs. Commands are PowerShell-dialect: native `C:\...` paths and `$env:NAME` variables, with no dialect translation. Every call runs with the managed `AVN_*` environment, and under a sandboxing executor the tool teaches and enforces the Windows-specific language-mode and named-pipe contracts. Mount it with a PowerShell executor such as `avn-pwsh-local` and the `avn-shell-env` plugin.
 
 ## Table of Contents
 
@@ -25,11 +25,11 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Load this plugin in any composition where the agent should run PowerShell commands — typically a Windows composition whose `ctx.shell` is backed by a PowerShell executor. It registers the `pwsh` tool once the executor provider and the `dsh-shell-env` registry are mounted.
+Load this plugin in any composition where the agent should run PowerShell commands — typically a Windows composition whose `ctx.shell` is backed by a PowerShell executor. It registers the `pwsh` tool once the executor provider and the `avn-shell-env` registry are mounted.
 
 ### When to choose it
 
-Choose the pwsh tool when commands must be written in PowerShell — native paths and `$env:` variables — or when the deployment is Windows-native. Choose `dsh-tool-bash` when the command set is bash-dialect; there is no translation between the two. When work needs cross-call state (cwd, variables), the persistent counterpart [`dsh-tool-pwsh-persistent`](../tool-pwsh-persistent/README.md) keeps one owner-scoped shell alive.
+Choose the pwsh tool when commands must be written in PowerShell — native paths and `$env:` variables — or when the deployment is Windows-native. Choose `avn-tool-bash` when the command set is bash-dialect; there is no translation between the two. When work needs cross-call state (cwd, variables), the persistent counterpart [`avn-tool-pwsh-persistent`](../tool-pwsh-persistent/README.md) keeps one owner-scoped shell alive.
 
 ### Minimal configuration
 
@@ -51,7 +51,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#aeven-tool
 
 ### Running a command
 
-The tool executes `pwsh -Command <command>` and returns the combined output. Commands run in a fresh pwsh process every call, so state never persists — pass `workdir` instead of `cd`. Paths use native Windows form and environment variables are read with `$env:NAME`. A non-zero exit is reported as `[exit code: N]`; on Windows a force-killed command settles as `[exit code: 1]` without a signal marker, so the agent treats a bare exit 1 after an interruption as a termination, not a command failure. Background runs, output truncation, and the `description`/`timeoutMs`/`workdir` arguments behave exactly as in `dsh-tool-bash`.
+The tool executes `pwsh -Command <command>` and returns the combined output. Commands run in a fresh pwsh process every call, so state never persists — pass `workdir` instead of `cd`. Paths use native Windows form and environment variables are read with `$env:NAME`. A non-zero exit is reported as `[exit code: N]`; on Windows a force-killed command settles as `[exit code: 1]` without a signal marker, so the agent treats a bare exit 1 after an interruption as a termination, not a command failure. Background runs, output truncation, and the `description`/`timeoutMs`/`workdir` arguments behave exactly as in `avn-tool-bash`.
 
 ### Windows-specific sandbox behavior
 
@@ -73,7 +73,7 @@ This section explains the design decisions behind the tool and points at the cod
 
 ### Design philosophy
 
-- **A deliberate twin of `dsh-tool-bash`.** Foreground and background execution, the managed environment, the sandbox escalation surface, and the marker/truncation rendering mirror the bash tool call-for-call, so consumers of one accept the other's wire shape ([pwsh tool and executor Agent Note](../../../.agents/notes/implemented/feature/2026-08-01-pwsh-tool-and-executor.md)).
+- **A deliberate twin of `avn-tool-bash`.** Foreground and background execution, the managed environment, the sandbox escalation surface, and the marker/truncation rendering mirror the bash tool call-for-call, so consumers of one accept the other's wire shape ([pwsh tool and executor Agent Note](../../../.agents/notes/implemented/feature/2026-08-01-pwsh-tool-and-executor.md)).
 - **PowerShell-dialect contract.** The tool contract is PowerShell: native paths and `$env:` variables, executed via `pwsh -Command` with no intermediate shell.
 - **Windows sandbox facts taught in the description.** The ConstrainedLanguage and named-pipe contracts are Windows-restricted-token behavior; the gate for teaching them is "any confining executor is mounted", which is safe because every shipped pairing is win32-only.
 - **Non-zero exits are reported, not errored.** Only infrastructure failures (spawn errors, aborts) surface as tool errors, matching the bash story.
@@ -89,7 +89,7 @@ This section explains the design decisions behind the tool and points at the cod
 
 ### Rendering and exit markers
 
-The renderer shares the bash tool's structure and the `parseExitStatus` marker contract from `dsh-shell`: a clean exit (0, no signal) produces no marker; the UI card consumes the exit marker as its exit-status pill. Windows forced termination settles as exit 1 without a signal, so `[killed by signal: …]` is POSIX-only there. The `tool:pwsh` prompt section (first-party order 1010) teaches the exit-marker convention and the Windows exit-1-after-interruption reading.
+The renderer shares the bash tool's structure and the `parseExitStatus` marker contract from `avn-shell`: a clean exit (0, no signal) produces no marker; the UI card consumes the exit marker as its exit-status pill. Windows forced termination settles as exit 1 without a signal, so `[killed by signal: …]` is POSIX-only there. The `tool:pwsh` prompt section (first-party order 1010) teaches the exit-marker convention and the Windows exit-1-after-interruption reading.
 
 </details>
 

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Any plugin or tool can generate an image or a video clip through `dsh-media` (`ctx.media`) without binding to a vendor's API. Image and video providers plug in as backends, and the service resolves one provider per call, so callers never track which vendor ran behind a generation. Choose it when building media tooling or another backend. The service itself makes no network calls and registers no model-facing tool: a provider must be mounted before anything can be generated. Image and video share one selection policy, one cancellation and error vocabulary, and one configuration surface, so "how this harness generates media" has a single owner.
+Any plugin or tool can generate an image or a video clip through `avn-media` (`ctx.media`) without binding to a vendor's API. Image and video providers plug in as backends, and the service resolves one provider per call, so callers never track which vendor ran behind a generation. Choose it when building media tooling or another backend. The service itself makes no network calls and registers no model-facing tool: a provider must be mounted before anything can be generated. Image and video share one selection policy, one cancellation and error vocabulary, and one configuration surface, so "how this harness generates media" has a single owner.
 
 ## Table of Contents
 
@@ -24,7 +24,7 @@ Any plugin or tool can generate an image or a video clip through `dsh-media` (`c
 <a id="use-this-package"></a>
 ## Use this package
 
-A composition that needs generated media loads the `dsh-media` service and mounts at least one backend — an image provider, a video provider, or both — and plugin or tool authors then call `ctx.media.generateImage()`, `ctx.media.startVideo()`, `ctx.media.videoStatus()` and `ctx.media.fetchVideo()` directly.
+A composition that needs generated media loads the `avn-media` service and mounts at least one backend — an image provider, a video provider, or both — and plugin or tool authors then call `ctx.media.generateImage()`, `ctx.media.startVideo()`, `ctx.media.videoStatus()` and `ctx.media.fetchVideo()` directly.
 
 ### Images and video
 
@@ -45,7 +45,7 @@ Every failure is a `MediaError` carrying a `MediaErrorCode`. Selection failures 
 
 ### Design philosophy
 
-The seam owns selection, vocabulary, and the job contract; providers own protocols and credentials. Image and video share a seam for the same reason search and fetch do in `dsh-web`: they share provider identity, credentials, cancellation, and errors, and splitting them would duplicate all four.
+The seam owns selection, vocabulary, and the job contract; providers own protocols and credentials. Image and video share a seam for the same reason search and fetch do in `avn-web`: they share provider identity, credentials, cancellation, and errors, and splitting them would duplicate all four.
 
 ### The video status union
 
@@ -93,6 +93,6 @@ This Dev Note is working context for maintainers: open questions and undecided d
 
 #### Future: a model catalog
 
-Providers know which of their models generate images and which generate video, and both surveyed providers tag them. Whether that belongs here as a catalog method, or stays in each provider's own configuration the way `dsh-llm-pi-ai` handles chat catalogs, is undecided; the seam works without one because a caller already names its model.
+Providers know which of their models generate images and which generate video, and both surveyed providers tag them. Whether that belongs here as a catalog method, or stays in each provider's own configuration the way `avn-llm-pi-ai` handles chat catalogs, is undecided; the seam works without one because a caller already names its model.
 
 </details>

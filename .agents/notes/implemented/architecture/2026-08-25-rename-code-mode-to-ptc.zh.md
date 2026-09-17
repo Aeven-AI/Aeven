@@ -14,7 +14,7 @@ Status: implemented
 
 本 PR 完成的重命名包括：
 
-- 配置值 `tools.mode: 'code'` → `'ptc'`（`ToolPresentationMode` 以及 `dsh-tools`、`dsh-agent-tool-presentation` 中的 zod union）
+- 配置值 `tools.mode: 'code'` → `'ptc'`（`ToolPresentationMode` 以及 `avn-tools`、`avn-agent-tool-presentation` 中的 zod union）
 - 预设目录 `presets/code/` → `presets/ptc/`（预设 id 为 `ptc`）
 - 源文件与测试文件 `code-mode.ts` → `ptc.ts` 等；根 demo `demo:code-mode` → `demo:ptc`（`scripts/demo-ptc.mjs`）
 - 分发 waterfall `tools/code-dispatch-log` → `tools/ptc-dispatch-log`，类型 `CodeDispatch*` → `PtcDispatch*`
@@ -23,7 +23,7 @@ Status: implemented
 
 延后到堆叠的持久化 PR：会话持久词汇——持久事件类型 `tool/code-dispatch`／`tool/code-dispatch-start`、日志中的插件名 `tools-code-mode`、子调用 id 段 `:code:`。该 PR 被阻塞，直到 `SESSION_FORMAT_VERSION` v0→v1 迁移与其一同落地。
 
-保持不变：`run_code` 及其 `code` 参数（它们描述程序载荷，而非模式）、`CodeSdkLanguage`、`CodeRunFailedError`、`dsh-code-runtime*` 包族、第三方二进制名 `codex-code-mode-host`，以及所有冻结的 archived Note。
+保持不变：`run_code` 及其 `code` 参数（它们描述程序载荷，而非模式）、`CodeSdkLanguage`、`CodeRunFailedError`、`avn-code-runtime*` 包族、第三方二进制名 `codex-code-mode-host`，以及所有冻结的 archived Note。
 
 ## 备选方案
 

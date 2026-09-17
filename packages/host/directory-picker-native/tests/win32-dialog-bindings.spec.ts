@@ -1,6 +1,6 @@
 /**
  * The koffi-backed bindings against a mocked `koffi` module (the same
- * technique as dsh-session-persistence-jsonl's win32 suite): a small in-memory
+ * technique as avn-session-persistence-jsonl's win32 suite): a small in-memory
  * COM world stands in for ole32/user32/kernel32, keeping the vtable dispatch,
  * result extraction, memory hygiene, and the WM_CLOSE poster covered on every
  * host. The worker entry is exercised the same way with a mocked process

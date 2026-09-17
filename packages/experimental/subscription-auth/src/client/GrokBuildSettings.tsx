@@ -1,4 +1,4 @@
-/** Plugin-owned coding subscription account section inside the dsh Settings shell. */
+/** Plugin-owned coding subscription account section inside the avn Settings shell. */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { jsonRequest } from './api.ts'
@@ -29,7 +29,7 @@ import type {
 
 export type { GrokBuildSettingsInjected, GrokBuildSettingsProps } from './types.ts'
 
-const REMOTE_TIP_STORAGE_KEY = 'dsh-coding-oauth-remote-tip-dismissed'
+const REMOTE_TIP_STORAGE_KEY = 'avn-coding-oauth-remote-tip-dismissed'
 
 function readRemoteTipDismissed(): boolean {
   try {
@@ -267,7 +267,7 @@ export function GrokBuildSettings({ t }: GrokBuildSettingsProps) {
 
   if (status?.uiOwner === 'hub') {
     return (
-      <section data-dsh-coding-oauth="compact" style={pageStyle} aria-labelledby="coding-oauth-settings-title">
+      <section data-avn-coding-oauth="compact" style={pageStyle} aria-labelledby="coding-oauth-settings-title">
         <h2 id="coding-oauth-settings-title" style={titleStyle}>
           {t('coinstallTitle')}
         </h2>
@@ -284,7 +284,7 @@ export function GrokBuildSettings({ t }: GrokBuildSettingsProps) {
   }
 
   return (
-    <section data-dsh-coding-oauth="" style={pageStyle} aria-labelledby="coding-oauth-settings-title">
+    <section data-avn-coding-oauth="" style={pageStyle} aria-labelledby="coding-oauth-settings-title">
       <h2 id="coding-oauth-settings-title" style={titleStyle}>
         {t('title')}
       </h2>

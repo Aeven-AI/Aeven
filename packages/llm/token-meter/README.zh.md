@@ -57,7 +57,7 @@ const price = ctx.tokenMeter.estimateMessage(message)
 - name: '@aeven/compaction-basic'
 ```
 
-两个插件都有可用默认值。meter 只消费可选的 `llm` 服务，且仅用于解析路由声明的请求图片定价；压缩保持可选。部署会在 LLM（大语言模型）适配器上配置容量与图片定价，并在 `dsh-compaction-basic` 上配置压缩策略。
+两个插件都有可用默认值。meter 只消费可选的 `llm` 服务，且仅用于解析路由声明的请求图片定价；压缩保持可选。部署会在 LLM（大语言模型）适配器上配置容量与图片定价，并在 `avn-compaction-basic` 上配置压缩策略。
 
 ### 解读数字
 
@@ -108,7 +108,7 @@ const price = ctx.tokenMeter.estimateMessage(message)
 当包级约定不够用时阅读以下页面。它们从计量服务逐步进入压缩消费方与共享类型。
 
 - [Token 计量子系统](../../../docs/subsystems/token-meter.zh.md)——`ctx.tokenMeter` 背后的测量语义。
-- [dsh-llm 服务](../llm/README.zh.md)——其容量元数据由 `resolveModelInfo()` 提供的模型调用服务。
+- [avn-llm 服务](../llm/README.zh.md)——其容量元数据由 `resolveModelInfo()` 提供的模型调用服务。
 - [压缩能力](../../../docs/subsystems/compaction.zh.md)——读取 `measure()` 的压力敏感消费方。
 - [投影 token 用量](../../../.agents/notes/implemented/architecture/2026-07-29-projected-token-usage-and-request-context.zh.md)——`projectedTokens` 背后的设计与被否决的原子配对比较。
 - [LLM 流式子系统](../../../docs/subsystems/llm-streaming.zh.md)——本服务计价的消息与块类型。
@@ -118,7 +118,7 @@ const price = ctx.tokenMeter.estimateMessage(message)
 <a id="model-experience"></a>
 ## 模型体验
 
-间接地，通过 `dsh-compaction-basic` 等消费方；服务本身不添加任何提示词、消息、schema、工具或模型调用。
+间接地，通过 `avn-compaction-basic` 等消费方；服务本身不添加任何提示词、消息、schema、工具或模型调用。
 
 #### KV Cache 影响
 

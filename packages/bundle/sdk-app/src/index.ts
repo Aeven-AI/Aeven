@@ -37,12 +37,12 @@ export const Config: z<Config> = z.object({
  */
 function sdkCommand(profile: string): Command {
   return new Command()
-    .name(`dsh --profile ${profile}`)
+    .name(`avn --profile ${profile}`)
     .description('Serve DeepSeek Harness SDK clients over stdio JSON-RPC.')
     .helpOption('-h, --help', 'show this help')
     .addHelpText('after', `
 Example:
-  dsh --profile ${profile}     serve one SDK runtime until its client disconnects
+  avn --profile ${profile}     serve one SDK runtime until its client disconnects
 `)
 }
 

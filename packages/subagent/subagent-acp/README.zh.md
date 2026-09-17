@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-subagent-acp` 在全新的子进程中运行每个被委派的子 agent，并作为 Agent Client Protocol 客户端驱动它：子 agent（智能体）拥有自己的运行时、会话、模型配置和工具，可以是任何兼容 ACP 的 agent，而不只是 Harness。它是进程内 spawn 与 fork 后端的进程外替代方案，只与子 agent 共享父会话的工作目录。每次运行都会 spawn 全新进程、初始化 ACP 会话、发送任务并收集流式最终答案；权限提示由配置自动应答，因此无需人工参与。父级只收到子 agent 的最终答案或安全错误——中间消息与工具流量不会跨越边界。当子 agent 必须与父 harness 完全隔离且能说 ACP 时，选择它。
+`avn-subagent-acp` 在全新的子进程中运行每个被委派的子 agent，并作为 Agent Client Protocol 客户端驱动它：子 agent（智能体）拥有自己的运行时、会话、模型配置和工具，可以是任何兼容 ACP 的 agent，而不只是 Harness。它是进程内 spawn 与 fork 后端的进程外替代方案，只与子 agent 共享父会话的工作目录。每次运行都会 spawn 全新进程、初始化 ACP 会话、发送任务并收集流式最终答案；权限提示由配置自动应答，因此无需人工参与。父级只收到子 agent 的最终答案或安全错误——中间消息与工具流量不会跨越边界。当子 agent 必须与父 harness 完全隔离且能说 ACP 时，选择它。
 
 ## 目录
 
@@ -46,14 +46,14 @@ kind: "package-reference"
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-subagent-acp)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
-DeepSeek Harness 子进程使用产品启动器和一个显式的绝对路径 `AVN_HOME`。隔离 home 可防止嵌套 runtime 发现启动者个人的 profile 或凭据；通用 ACP provider 不会把这一要求强加给非 DSH agent。
+DeepSeek Harness 子进程使用产品启动器和一个显式的绝对路径 `AVN_HOME`。隔离 home 可防止嵌套 runtime 发现启动者个人的 profile 或凭据；通用 ACP provider 不会把这一要求强加给非 AVN agent。
 
 ```yaml
 - id: subagent-acp
   name: '@aeven/subagent-acp'
   config:
     providerName: acp
-    command: dsh
+    command: avn
     args: ['--profile', 'acp', '--patch', '/absolute/path/to/acp.patch.yml']
     permission: reject
     env:
@@ -111,9 +111,9 @@ spawn、初始化或新建会话失败会在发布前拒绝，通常先等待子
 当包级约定不够用时阅读以下页面。它们从本后端逐步进入它接入的 seam 与它驱动的协议。
 
 - [Subagent 子系统](../../../docs/subsystems/subagent.zh.md)——服务约定、提供方约定与终态结果语义。
-- [dsh-subagent seam](../subagent/README.zh.md)——本提供方注册于其上的注册表与启动 API。
+- [avn-subagent seam](../subagent/README.zh.md)——本提供方注册于其上的注册表与启动 API。
 - [Agent Client Protocol 自动化服务器](../../acp/acp/README.zh.md)——本提供方作为客户端驱动的仅自动化服务器。
-- [dsh-subprocess seam](../../subprocess/subprocess/README.zh.md)——每次运行背后的进程 spawn 与清理机制。
+- [avn-subprocess seam](../../subprocess/subprocess/README.zh.md)——每次运行背后的进程 spawn 与清理机制。
 - [生成配置目录](../../../docs/config-catalog.zh.md#aeven-subagent-acp)——每个受支持配置字段及其源声明。
 
 -----
@@ -139,7 +139,7 @@ spawn、初始化或新建会话失败会在发布前拒绝，通常先等待子
 
 #### 模型看到什么
 
-通过 `dsh-tool-subagent`，父级只接收子 agent 最终的流式 assistant 文本或该消费方给出的精确停止原因错误，不接收中间消息或工具流量。未完成的结果会先呈现安全诊断，再单独保留部分 assistant 输出。发布前已经取消的请求会精确变为 `Error: subagent request was aborted before the ACP child started`；其他启动失败只包含固定的 `Subagent failure (...)` 行。
+通过 `avn-tool-subagent`，父级只接收子 agent 最终的流式 assistant 文本或该消费方给出的精确停止原因错误，不接收中间消息或工具流量。未完成的结果会先呈现安全诊断，再单独保留部分 assistant 输出。发布前已经取消的请求会精确变为 `Error: subagent request was aborted before the ACP child started`；其他启动失败只包含固定的 `Subagent failure (...)` 行。
 
 #### Token 影响
 

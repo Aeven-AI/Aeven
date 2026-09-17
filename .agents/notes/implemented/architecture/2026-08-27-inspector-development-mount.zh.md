@@ -6,7 +6,7 @@ Status: implemented
 
 ## Problem
 
-`@aeven/experimental-inspector` 是任何已发布 dsh 安装都不携带的 private 包，但开发启动需要按需把它挂进随货 Web 组合。随货 bundle patch 里的一行表达不了这件事：`verify-cordis-config` 要求 bundle patch 中每个具名行都能从该 bundle 自己的 `dependencies` 解析——disabled 行也不豁免——而已发布的 manifest 不得依赖未发布的包。
+`@aeven/experimental-inspector` 是任何已发布 avn 安装都不携带的 private 包，但开发启动需要按需把它挂进随货 Web 组合。随货 bundle patch 里的一行表达不了这件事：`verify-cordis-config` 要求 bundle patch 中每个具名行都能从该 bundle 自己的 `dependencies` 解析——disabled 行也不豁免——而已发布的 manifest 不得依赖未发布的包。
 
 ## Decision
 
@@ -22,5 +22,5 @@ inspector 包自有两份开发 overlay。`packages/experimental/inspector/cordi
 
 - 随货 web-app patch 里放 `disabled: !!js` 行：依赖门禁与 npm 发布都会把 private 包逼进已发布 manifest。
 - `--inspector` launcher flag 把包挂成额外 bundle 层：launcher 既不拥有 app flag 也不拥有插件包名。
-- `dsh-web-app` 上加 optional `peerDependencies` 并由其 glue 插件动态 `ctx.loader.create`：向已发布 manifest 写入永不发布的名字，且挂载的行不在任何 config 层声明。
+- `avn-web-app` 上加 optional `peerDependencies` 并由其 glue 插件动态 `ctx.loader.create`：向已发布 manifest 写入永不发布的名字，且挂载的行不在任何 config 层声明。
 - 两种启动模式共用一份 bare-package overlay：源码解析可以使用 workspace 门面，但 built 解析会依赖与本次启动命令无关的持久 profile 安装状态。

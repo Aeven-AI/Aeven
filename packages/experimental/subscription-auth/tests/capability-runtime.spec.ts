@@ -338,11 +338,11 @@ describe('bindCapabilitySearch', () => {
     expect(registry.registerCount).toBe(1)
     const gated = registry.current
     expect(gated?.available()).toBe(true)
-    await gated?.search({ query: 'dsh', maxResults: 8 })
-    await gated?.search({ query: 'dsh' })
-    await gated?.search({ query: 'dsh', maxResults: 2 })
+    await gated?.search({ query: 'avn', maxResults: 8 })
+    await gated?.search({ query: 'avn' })
+    await gated?.search({ query: 'avn', maxResults: 2 })
     state.set(settings({ codexSearch: true, searchResults: 3 }))
-    await gated?.search({ query: 'dsh', maxResults: 8 })
+    await gated?.search({ query: 'avn', maxResults: 8 })
     expect(seen.map(request => request.maxResults)).toEqual([5, 5, 2, 3])
     dispose()
   })
@@ -359,11 +359,11 @@ describe('bindCapabilitySearch', () => {
     expect(registry.unregisterCount).toBe(1)
     expect(registry.providers).toEqual([])
     expect(gated?.available()).toBe(false)
-    await expect(gated?.search({ query: 'dsh' })).rejects.toMatchObject({
+    await expect(gated?.search({ query: 'avn' })).rejects.toMatchObject({
       code: 'INVALID_ARGS',
       message: 'Codex search is disabled',
     })
-    await expect(gated?.search({ query: 'dsh' })).rejects.toBeInstanceOf(LlmError)
+    await expect(gated?.search({ query: 'avn' })).rejects.toBeInstanceOf(LlmError)
     expect(innerSearch).not.toHaveBeenCalled()
     dispose()
   })

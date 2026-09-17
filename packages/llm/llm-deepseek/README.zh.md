@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 何时选择
 
-当部署面向 DeepSeek 官方 API（可选地通过 `baseURL` 指向的 OpenAI 兼容网关）时选择本适配器。当同一组合还要通过 pi-ai 目录路由其他提供方或手工声明的网关时，选择 `dsh-llm-pi-ai`；两个适配器可以同时挂载，因为它们的路由名不冲突。为 `deepseek-official` 注册任何其他适配器会以 `DUPLICATE_ADAPTER` 失败。
+当部署面向 DeepSeek 官方 API（可选地通过 `baseURL` 指向的 OpenAI 兼容网关）时选择本适配器。当同一组合还要通过 pi-ai 目录路由其他提供方或手工声明的网关时，选择 `avn-llm-pi-ai`；两个适配器可以同时挂载，因为它们的路由名不冲突。为 `deepseek-official` 注册任何其他适配器会以 `DUPLICATE_ADAPTER` 失败。
 
 ### 最小配置
 
@@ -68,7 +68,7 @@ kind: "package-reference"
 | `fileExpiresAfterSeconds` | `604,800` | 请求的上传图片生存期 |
 | `fileRefreshMarginSeconds` | `3,600` | 低于此剩余生存期时替换 id |
 | `fileQuotaCleanupBatch` | `100` | 配额重试前删除的最旧 harness 文件数 |
-| `retryPolicy` | normal，5 次重试 | 由 `dsh-llm-retry` 执行的提供方自有重试策略 |
+| `retryPolicy` | normal，5 次重试 | 由 `avn-llm-retry` 执行的提供方自有重试策略 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-llm-deepseek)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
@@ -88,7 +88,7 @@ Files 模式通过 `maxRequestFilesBytes` 与 `maxImagesPerRequest` 限制保留
 
 ### 提供方专用请求字段
 
-存在 `ctx.deepseekLlmApiExtensions` 时，适配器会在 `fetch` 前根据确切序列化基础请求准备已注册顶层字段。准备或字段冲突在 HTTP 前失败；2xx 响应后，适配器会在消费 SSE 前接受每项已捕获贡献。传输与非 2xx 失败不会接受它们。随产品交付的组合用它提供可选增量 `dsh_session_log` 字段和默认启用的活跃 `dsh_plugin_packages` 清单；两者都留在模型输入之外。
+存在 `ctx.deepseekLlmApiExtensions` 时，适配器会在 `fetch` 前根据确切序列化基础请求准备已注册顶层字段。准备或字段冲突在 HTTP 前失败；2xx 响应后，适配器会在消费 SSE 前接受每项已捕获贡献。传输与非 2xx 失败不会接受它们。随产品交付的组合用它提供可选增量 `avn_session_log` 字段和默认启用的活跃 `avn_plugin_packages` 清单；两者都留在模型输入之外。
 
 ### 失败与恢复
 
@@ -133,13 +133,13 @@ Files 模式通过 `maxRequestFilesBytes` 与 `maxImagesPerRequest` 限制保留
 
 当包级约定不够用时阅读以下页面。它们从服务约定逐步进入孪生适配器、重试执行器与共享类型。
 
-- [dsh-llm 服务](../llm/README.zh.md)——本适配器注册其上的提供方无关服务。
+- [avn-llm 服务](../llm/README.zh.md)——本适配器注册其上的提供方无关服务。
 - [llm-pi-ai 适配器](../llm-pi-ai/README.zh.md)——服务其他提供方与网关的库实现孪生。
 - [LLM 流式子系统](../../../docs/subsystems/llm-streaming.zh.md)——`StreamChunk` 协议与适配器约定。
 - [llm-retry](../llm-retry/README.zh.md)——应用本适配器 `retryPolicy` 的重试执行器。
 - [DeepSeek 请求扩展](../deepseek-llm-api-extensions/README.zh.md)——提供方专用顶层字段的生命周期与接受语义。
-- [会话日志上传](../../session/session-log-deepseek/README.zh.md)——可选的增量 `dsh_session_log` 贡献。
-- [插件包清单](../plugin-package-inventory-deepseek/README.zh.md)——默认启用的 `dsh_plugin_packages` 贡献。
+- [会话日志上传](../../session/session-log-deepseek/README.zh.md)——可选的增量 `avn_session_log` 贡献。
+- [插件包清单](../plugin-package-inventory-deepseek/README.zh.md)——默认启用的 `avn_plugin_packages` 贡献。
 - [孪生 LLM 适配器](../../../.agents/notes/implemented/architecture/2026-06-13-twin-llm-adapters.zh.md)——为什么 DeepSeek 交付两个结构不同的适配器。
 - [强制应用归因标头](../../../.agents/notes/implemented/architecture/2026-06-21-mandatory-app-attribution-headers.zh.md)——每个提供方请求携带的身份。
 

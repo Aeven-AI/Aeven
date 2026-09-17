@@ -54,7 +54,7 @@ One page per subsystem of the DeepSeek Harness: what it is, the data structures 
 | [storage.md](storage.md) | the storage subsystem: the backend contract (`StorageBackend`), `StorageForms`, `DomainSpec`/`Domain`, `domain/changed` |
 | [workspace.md](workspace.md) | the workspace registry: `Workspace`/`WorkspaceId`, registration and resolution, the session `cwd` relationship |
 | [web-client.md](web-client.md) | the browser architecture: boot, Remote communication, paired Client models, UI adapters, Conversation assembly, Slots, and reconnect semantics |
-| [client-modules.md](client-modules.md) | the web plugin table: `dsh.client` declarations, `WebBootGraph` wire composition, the bundle route and index tap |
+| [client-modules.md](client-modules.md) | the web plugin table: `avn.client` declarations, `WebBootGraph` wire composition, the bundle route and index tap |
 | [slots.md](slots.md) | typed Web UI composition: declaration ownership, cardinality and scope, framework and feature injection, props derivation, and the shipped hierarchy |
 | [conversation.md](conversation.md) | target-neutral Session-event assembly: Context identity, Location data, replay paths, view builders, and target-owned render nodes |
 | [session-projection.md](session-projection.md) | the projection seam: `SessionProjectionMap`, the pure `ProjectionDefinition` unit, `ProjectionSnapshot`'s consistent cut, the change feed |

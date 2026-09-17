@@ -14,7 +14,7 @@ The feature is renamed to PTC (programmatic tool calls). Code identifiers use `p
 
 Renamed in this PR:
 
-- config value `tools.mode: 'code'` → `'ptc'` (`ToolPresentationMode` and the zod unions in `dsh-tools` and `dsh-agent-tool-presentation`)
+- config value `tools.mode: 'code'` → `'ptc'` (`ToolPresentationMode` and the zod unions in `avn-tools` and `avn-agent-tool-presentation`)
 - preset directory `presets/code/` → `presets/ptc/` (preset id `ptc`)
 - source and test files `code-mode.ts` → `ptc.ts` and friends; root demo `demo:code-mode` → `demo:ptc` (`scripts/demo-ptc.mjs`)
 - the dispatch waterfall `tools/code-dispatch-log` → `tools/ptc-dispatch-log` and types `CodeDispatch*` → `PtcDispatch*`
@@ -23,7 +23,7 @@ Renamed in this PR:
 
 Deferred to the stacked persistence PR: the session-persistent vocabulary — the durable event types `tool/code-dispatch` / `tool/code-dispatch-start`, the logged plugin name `tools-code-mode`, and the sub-call id segment `:code:`. That PR is blocked until the `SESSION_FORMAT_VERSION` v0→v1 migration lands with it.
 
-Kept unchanged: `run_code` and its `code` parameter (they name the program payload, not the mode), `CodeSdkLanguage`, `CodeRunFailedError`, the `dsh-code-runtime*` package family, the third-party `codex-code-mode-host` binary name, and every frozen archived note.
+Kept unchanged: `run_code` and its `code` parameter (they name the program payload, not the mode), `CodeSdkLanguage`, `CodeRunFailedError`, the `avn-code-runtime*` package family, the third-party `codex-code-mode-host` binary name, and every frozen archived note.
 
 ## Alternatives considered
 

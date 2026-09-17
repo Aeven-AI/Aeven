@@ -50,13 +50,13 @@ async function setup(
 ) {
   const ctx = new Context()
   await mountAgentLoopTestDependencies(ctx)
-  const root = mkdtempSync(join(tmpdir(), 'dsh-subagent-list-'))
+  const root = mkdtempSync(join(tmpdir(), 'avn-subagent-list-'))
   roots.push(root)
   await ctx.plugin(JsonlSessionPersistence, { root })
   await ctx.plugin(AgentLoop, { agents: [] })
   if (options.sessionProjections !== false) await ctx.plugin(SessionProjectionRegistry)
   if (options.projectionCache === true) {
-    const root = mkdtempSync(join(tmpdir(), 'dsh-subagent-projcache-'))
+    const root = mkdtempSync(join(tmpdir(), 'avn-subagent-projcache-'))
     projCacheRoots.push(root)
     // The cache opens its domain through the storage stack; the json backend
     // lands it under this tmp root.

@@ -7,7 +7,7 @@ import { randomBytes } from 'node:crypto'
 import { mkdir, rm } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { withFileLock, writeFileAtomic } from '@aeven/atomic-write'
-import { resolveDshHome } from '@aeven/home-paths'
+import { resolveAvnHome } from '@aeven/home-paths'
 import type { Credential, CredentialInfo, CredentialStore, OAuthCredential } from '@earendil-works/pi-ai'
 import { GROK_BUILD_AUTH_FILENAME, XAI_PI_PROVIDER } from './ids.ts'
 import { CredentialFileError, readCredentialFile } from './credential-file.ts'
@@ -282,10 +282,10 @@ function validatedDocument(document: AuthDocumentV2, filename: string, label: st
 /**
  * Resolve one private OAuth document path beneath AVN_HOME.
  * @param basename - Basename value.
- * @param dshHome - Dsh home value.
+ * @param avnHome - Dsh home value.
  * @returns The resulting oauth credential path.
  */
-export function oauthCredentialPath(basename: string, dshHome?: string): string {
+export function oauthCredentialPath(basename: string, avnHome?: string): string {
   if (
     basename.length === 0 ||
 		basename.length > 128 ||
@@ -295,16 +295,16 @@ export function oauthCredentialPath(basename: string, dshHome?: string): string 
   ) {
     throw new TypeError('OAuth credential basename must be a safe local filename')
   }
-  return resolve(join(resolveDshHome(dshHome), basename))
+  return resolve(join(resolveAvnHome(avnHome), basename))
 }
 
 /**
  * Resolve the legacy Grok Build OAuth document path.
- * @param dshHome - Dsh home value.
+ * @param avnHome - Dsh home value.
  * @returns The resulting grok build auth path.
  */
-export function grokBuildAuthPath(dshHome?: string): string {
-  return oauthCredentialPath(GROK_BUILD_AUTH_FILENAME, dshHome)
+export function grokBuildAuthPath(avnHome?: string): string {
+  return oauthCredentialPath(GROK_BUILD_AUTH_FILENAME, avnHome)
 }
 
 /**

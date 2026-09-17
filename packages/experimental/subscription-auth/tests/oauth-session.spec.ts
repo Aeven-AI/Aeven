@@ -8,15 +8,15 @@ import { OAuthCredentialFileStore } from '../src/store.ts'
 
 describe('oauthModelsCachePath', () => {
   it('resolves the models cache below the harness home', () => {
-    expect(oauthModelsCachePath('claude-models.json', '/tmp/example-dsh-home')).toBe(
-      resolve('/tmp/example-dsh-home', 'claude-models.json'),
+    expect(oauthModelsCachePath('claude-models.json', '/tmp/example-avn-home')).toBe(
+      resolve('/tmp/example-avn-home', 'claude-models.json'),
     )
   })
 })
 
 describe('OAuthProviderSession', () => {
   it('exposes the whole catalogue and resolves the refreshed store token', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-oauth-session-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-oauth-session-'))
     const authFile = join(dir, 'auth.json')
     const cacheFile = join(dir, 'models.json')
     const store = new OAuthCredentialFileStore(
@@ -42,7 +42,7 @@ describe('OAuthProviderSession', () => {
   })
 
   it('notifies the LLM registry after a successful login', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-oauth-login-notify-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-oauth-login-notify-'))
     const notify = vi.fn()
     const session = new OAuthProviderSession(
       CLAUDE_CODE_OAUTH_PROVIDER,
@@ -65,7 +65,7 @@ describe('OAuthProviderSession', () => {
   })
 
   it('deletes only its credential and cache on logout', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-oauth-logout-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-oauth-logout-'))
     const store = new OAuthCredentialFileStore(
       CLAUDE_CODE_OAUTH_PROVIDER.nativeProviderId,
       join(dir, 'auth.json'),
@@ -85,7 +85,7 @@ describe('OAuthProviderSession', () => {
   })
 
   it('notifies discovery when cache cleanup fails after credential deletion', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-oauth-logout-cleanup-failure-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-oauth-logout-cleanup-failure-'))
     const store = new OAuthCredentialFileStore(
       CLAUDE_CODE_OAUTH_PROVIDER.nativeProviderId,
       join(dir, 'auth.json'),
@@ -112,7 +112,7 @@ describe('OAuthProviderSession', () => {
   })
 
   it('invalidateAccessToken backdates the stored credential expiry', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-oauth-invalidate-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-oauth-invalidate-'))
     const store = new OAuthCredentialFileStore(
       CLAUDE_CODE_OAUTH_PROVIDER.nativeProviderId,
       join(dir, 'auth.json'),
@@ -132,7 +132,7 @@ describe('OAuthProviderSession', () => {
   })
 
   it('notifies host discovery on an account switch without a logout', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-oauth-notify-change-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-oauth-notify-change-'))
     const notify = vi.fn()
     const session = new OAuthProviderSession(
       CLAUDE_CODE_OAUTH_PROVIDER,
@@ -149,7 +149,7 @@ describe('OAuthProviderSession', () => {
   })
 
   it('reports no access token when the provider resolves no credential', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-oauth-no-auth-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-oauth-no-auth-'))
     const session = new OAuthProviderSession(
       CLAUDE_CODE_OAUTH_PROVIDER,
       undefined,
@@ -165,7 +165,7 @@ describe('OAuthProviderSession', () => {
   })
 
   it('ignores a stored credential that is not an OAuth one', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-oauth-non-oauth-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-oauth-non-oauth-'))
     const store = new OAuthCredentialFileStore(
       CLAUDE_CODE_OAUTH_PROVIDER.nativeProviderId,
       join(dir, 'auth.json'),
@@ -184,7 +184,7 @@ describe('OAuthProviderSession', () => {
   })
 
   it('reads the stored OAuth credential and reports absence as undefined', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-oauth-stored-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-oauth-stored-'))
     const store = new OAuthCredentialFileStore(
       CLAUDE_CODE_OAUTH_PROVIDER.nativeProviderId,
       join(dir, 'auth.json'),

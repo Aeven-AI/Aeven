@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-subagent-fork-in-process` 是一个进程内 subagent 后端：它以父级已完成的对话轮次作为每个子 agent（智能体）的初始内容——子 agent 能看到所有已完成轮次，但看不到进行中的轮次，因此后续工作可以在对话基础上继续，而无需复制对话。委派工具以 `fork` 提供方名称找到它，其行为与 spawn 后端一致，唯一差异是会话初始内容。当子任务延续当前对话时选择它；当子 agent 必须独立运行时选择 spawn。初始内容是 fork 时的一次性快照：此后父级记录的任何内容都不会到达子 agent。
+`avn-subagent-fork-in-process` 是一个进程内 subagent 后端：它以父级已完成的对话轮次作为每个子 agent（智能体）的初始内容——子 agent 能看到所有已完成轮次，但看不到进行中的轮次，因此后续工作可以在对话基础上继续，而无需复制对话。委派工具以 `fork` 提供方名称找到它，其行为与 spawn 后端一致，唯一差异是会话初始内容。当子任务延续当前对话时选择它；当子 agent 必须独立运行时选择 spawn。初始内容是 fork 时的一次性快照：此后父级记录的任何内容都不会到达子 agent。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-当委派的工作必须建立在父级对话之上时，挂载此后端。常用路径与 spawn 相同：加载 subagent 服务与本后端，再把 `dsh-tool-subagent` 之类的委派工具指向 `fork` 提供方。
+当委派的工作必须建立在父级对话之上时，挂载此后端。常用路径与 spawn 相同：加载 subagent 服务与本后端，再把 `avn-tool-subagent` 之类的委派工具指向 `fork` 提供方。
 
 ### 何时选择
 
@@ -96,9 +96,9 @@ base bundle 与 ACP/headless 示例在委派工具上把本提供方绑定为 `b
 当包级约定不够用时阅读以下页面；它们从共享 subagent 模型进入兄弟后端，以及一次性绑定的设计证据。
 
 - [Subagent 子系统](../../../docs/subsystems/subagent.zh.md)——启动请求、结果、提供方约定与进程内深度和初始内容。
-- [dsh-subagent-in-process-driver](../subagent-in-process-driver/README.zh.md)——本后端调用的共享运行驱动器。
-- [dsh-subagent-spawn-in-process](../subagent-spawn-in-process/README.zh.md)——全新子级的兄弟后端。
-- [dsh-tool-subagent](../tool-subagent/README.zh.md)——指向该提供方的面向模型委派工具。
+- [avn-subagent-in-process-driver](../subagent-in-process-driver/README.zh.md)——本后端调用的共享运行驱动器。
+- [avn-subagent-spawn-in-process](../subagent-spawn-in-process/README.zh.md)——全新子级的兄弟后端。
+- [avn-tool-subagent](../tool-subagent/README.zh.md)——指向该提供方的面向模型委派工具。
 - [生成配置目录](../../../docs/config-catalog.zh.md#aeven-subagent-fork-in-process)——每个受支持配置字段及其源声明。
 - [fork 保持 one-shot](../../../.agents/notes/implemented/architecture/2026-08-10-fork-children-stay-one-shot.zh.md)——随附组合为何把 fork 绑定为 one-shot。
 
@@ -125,7 +125,7 @@ fork 会把保留的已完成历史复制到子 agent 的请求中，子 agent �
 
 #### 模型看到什么
 
-父级只通过 `dsh-tool-subagent` 接收子 agent 自身的最终输出，不接收继承的前缀或中间工作。
+父级只通过 `avn-tool-subagent` 接收子 agent 自身的最终输出，不接收继承的前缀或中间工作。
 
 #### Token 影响
 

@@ -7,7 +7,7 @@ import { ReasoningEffortId, type LlmCallConfig, type LlmRuntime } from '@aeven/l
 
 const MODEL_CONFIG_ID = 'model'
 const REASONING_CONFIG_ID = 'reasoning_effort'
-// DSH reasoning effort ids are non-empty, so the empty opaque ACP value is a disjoint provider-default choice.
+// AVN reasoning effort ids are non-empty, so the empty opaque ACP value is a disjoint provider-default choice.
 const PROVIDER_DEFAULT_REASONING_VALUE = ''
 
 interface ModelChoice {

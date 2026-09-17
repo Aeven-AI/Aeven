@@ -11,7 +11,7 @@
 # A service row here MUST sit inside a group carrying an `isolate` realm.
 # Without one it publishes into the root realm, where it is process-global —
 # another preset publishing the same name collides, and a host reader would
-# resolve one preset's instance for every session; `dsh-agent-presets` rejects
+# resolve one preset's instance for every session; `avn-agent-presets` rejects
 # that at mount. `true` means an entry-local realm: this standing mount's own
 # private instance, apart from every other preset's. (A shared label does NOT
 # pool instances — `provide()` throws on the second registration under the
@@ -196,7 +196,7 @@
         toolName: subagent_fork
         backgroundMode: continuable
 
-    # Production dsh does not install these optional providers. Install the
+    # Production avn does not install these optional providers. Install the
     # matching Bundle in this Profile and restart the Host, then copy this
     # preset and remove `disabled` from the matching tool row. Host availability
     # alone grants no tool.

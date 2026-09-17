@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-client-hmr` 会在浏览器客户端插件的 bundle 重建后原地重载该插件，让编辑插件源码的开发者无需整页刷新即可看到变更。如果没有重建 watcher，整条链路保持空闲：只有 `pnpm run dev:web` 之类的进程重写客户端 bundle 时才会产生它所响应的重建。每次重载只替换一个插件并携带全新组件状态，而数据层（connection、runtime 与 Session 对象）保持不变。这里的一切都是浏览器侧的开发机制；模型永远看不到它。
+`avn-client-hmr` 会在浏览器客户端插件的 bundle 重建后原地重载该插件，让编辑插件源码的开发者无需整页刷新即可看到变更。如果没有重建 watcher，整条链路保持空闲：只有 `pnpm run dev:web` 之类的进程重写客户端 bundle 时才会产生它所响应的重建。每次重载只替换一个插件并携带全新组件状态，而数据层（connection、runtime 与 Session 对象）保持不变。这里的一切都是浏览器侧的开发机制；模型永远看不到它。
 
 ## 目录
 

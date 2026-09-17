@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-command-goal` 为用户提供基于持久 goal 服务的 `/goal` 命令：用户可以直接在 UI 中创建、编辑、暂停、恢复、清除并查看当前 goal，无需模型参与。命令在其 Cordis scope 中注册，因此读取该 scope 的命令适配器能发现并执行它；命令文本与输出都留在 UI 中——绝不进入模型请求。每项被接受的变更都会通过 goal 服务的持久 `goal/change` 事件落盘。图片附件可以随 create 或 edit 一起提交，并以一条普通用户消息发出，供后续 Goal Round 读取。为挂载了命令适配器的交互式部署选择它；没有适配器的无头与自动化应用不需要它。
+`avn-command-goal` 为用户提供基于持久 goal 服务的 `/goal` 命令：用户可以直接在 UI 中创建、编辑、暂停、恢复、清除并查看当前 goal，无需模型参与。命令在其 Cordis scope 中注册，因此读取该 scope 的命令适配器能发现并执行它；命令文本与输出都留在 UI 中——绝不进入模型请求。每项被接受的变更都会通过 goal 服务的持久 `goal/change` 事件落盘。图片附件可以随 create 或 edit 一起提交，并以一条普通用户消息发出，供后续 Goal Round 读取。为挂载了命令适配器的交互式部署选择它；没有适配器的无头与自动化应用不需要它。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在挂载了命令适配器的交互式部署中使用 `dsh-command-goal`——随附的 Web 客户端是参考实现。它让用户无需模型轮次即可直接控制 goal 生命周期：命令在 UI 命令平面执行，适配器直接渲染其结果。
+在挂载了命令适配器的交互式部署中使用 `avn-command-goal`——随附的 Web 客户端是参考实现。它让用户无需模型轮次即可直接控制 goal 生命周期：命令在 UI 命令平面执行，适配器直接渲染其结果。
 
 ### 命令参考
 
@@ -61,7 +61,7 @@ kind: "package-reference"
   name: '@aeven/command-goal'
 ```
 
-随附的 `dsh` 基础配置启用持久 goal 栈与此命令。Web bundle 把 goal 服务与 driver 保留在 Host，禁用基础命令 producer，并在 `standard`、`code` 和 `cordis` agent preset 中挂载 producer；`minimal` 会省略它。ACP（Agent Client Protocol）自动化应用启用领域与模型工具，但不挂载命令适配器。独立的 `sdk-minimal` profile 省略完整 goal 栈，因此其结果 API 仍在一个关联的物理轮次后结束。
+随附的 `avn` 基础配置启用持久 goal 栈与此命令。Web bundle 把 goal 服务与 driver 保留在 Host，禁用基础命令 producer，并在 `standard`、`code` 和 `cordis` agent preset 中挂载 producer；`minimal` 会省略它。ACP（Agent Client Protocol）自动化应用启用领域与模型工具，但不挂载命令适配器。独立的 `sdk-minimal` profile 省略完整 goal 栈，因此其结果 API 仍在一个关联的物理轮次后结束。
 
 -----
 

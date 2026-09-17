@@ -27,7 +27,7 @@ The same-session hierarchy is **Goal → Goal Round → Turn → Step**. A goal 
 
 The fresh-agent hierarchy is **Ralph Run → Ralph Round → fresh child Turn → Step**. One Ralph round creates one child session. The parent transcript and prior child transcripts are not seed context; the shared workspace and one bounded structured report carry cross-round state.
 
-“Round” is therefore an outer policy iteration, not a synonym for every session turn. The concrete `dsh-agent-loop` remains the turn/step engine. The same-session driver uses public agent and session events; its only core addition is the generic observe-before-cancel `agent/cancel-requested` notification needed by any lifecycle policy that must settle cancellation safely.
+“Round” is therefore an outer policy iteration, not a synonym for every session turn. The concrete `avn-agent-loop` remains the turn/step engine. The same-session driver uses public agent and session events; its only core addition is the generic observe-before-cancel `agent/cancel-requested` notification needed by any lifecycle policy that must settle cancellation safely.
 
 Time-based `/loop` or scheduled execution is a third policy and is not implemented by this decision. It belongs with a scheduler rather than either goal family.
 
@@ -74,7 +74,7 @@ Base-backed profiles mount the shared command registry and complete goal stack b
 
 ### Fresh-agent Ralph execution
 
-Ralph is a first-class model tool in its own plugin, demonstrating that a sophisticated fixed execution policy can be composed without a new loop core. The plugin owns a fixed workflow script over `ctx.workflowEngine` and `ctx.subagents`; it does not create session-goal state or add a branch to `dsh-agent-loop`.
+Ralph is a first-class model tool in its own plugin, demonstrating that a sophisticated fixed execution policy can be composed without a new loop core. The plugin owns a fixed workflow script over `ctx.workflowEngine` and `ctx.subagents`; it does not create session-goal state or add a branch to `avn-agent-loop`.
 
 Each round uses an explicit `WorkflowStartRequest.subagentProvider`, defaulting to `spawn`. The provider must exist, support structured output, and declare that it does not inherit parent context. Ralph also passes its resolved round cap as `WorkflowStartRequest.maxTotalAgents`; the worker engine validates both per-run policies before publishing work, so provider misconfiguration or an engine ceiling below the requested Ralph scale fails before a run exists. The child inherits cwd and lineage but receives only the immutable objective, round/cap, workspace-as-authority instruction, and previous normalized report.
 

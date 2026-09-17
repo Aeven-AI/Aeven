@@ -462,10 +462,10 @@ export async function resolveNpmPackageLock(
   })
   const port = await listen(server)
   registry = `http://127.0.0.1:${String(port)}/`
-  const consumer = mkdtempSync(join(tmpdir(), 'dsh-npm-resolution-'))
+  const consumer = mkdtempSync(join(tmpdir(), 'avn-npm-resolution-'))
   try {
     writeFileSync(join(consumer, 'package.json'), `${JSON.stringify({
-      name: 'dsh-npm-resolution-benchmark',
+      name: 'avn-npm-resolution-benchmark',
       version: '0.0.0',
       private: true,
       dependencies,

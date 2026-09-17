@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-workflow` 运行一段纯 JavaScript 编排脚本，并交给调用方一个活动运行，其 result 在脚本结算时以脚本的最终 JSON 值兑现。脚本可以用 `agent()` 扇出 subagent，用 `parallel()` 和 `pipeline()` 组合独立工作，用 `phase()` 和 `log()` 叙述进度；agent 通常通过 `dsh-tool-workflow` 的 `workflow` 工具驱动这一切。运行由持有方负责：其 result 绝不拒绝，取消与 dispose（资源释放）有界，每个子 agent 都归属于调用它的 agent。本包不附带执行引擎——当前引擎是 `dsh-workflow-worker-thread`——因此可以用不同的隔离策略替换它，而不改变调用方或模型看到的内容。
+`avn-workflow` 运行一段纯 JavaScript 编排脚本，并交给调用方一个活动运行，其 result 在脚本结算时以脚本的最终 JSON 值兑现。脚本可以用 `agent()` 扇出 subagent，用 `parallel()` 和 `pipeline()` 组合独立工作，用 `phase()` 和 `log()` 叙述进度；agent 通常通过 `avn-tool-workflow` 的 `workflow` 工具驱动这一切。运行由持有方负责：其 result 绝不拒绝，取消与 dispose（资源释放）有界，每个子 agent 都归属于调用它的 agent。本包不附带执行引擎——当前引擎是 `avn-workflow-worker-thread`——因此可以用不同的隔离策略替换它，而不改变调用方或模型看到的内容。
 
 ## 目录
 
@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 模型侧路径
 
-模型通过 `dsh-tool-workflow` 的 `workflow` 工具触达该能力；该工具拥有调用 schema 与结果包络，引擎提供其下的执行。一次工具调用提交 `meta`、`script` 与可选 `args`，运行完成时返回 `{ runId, agentsStarted, result }`。工具会阻塞父级轮次直到整个工作流结算，因此模型只看到最终结果，永远不会看到中间子 agent 消息。
+模型通过 `avn-tool-workflow` 的 `workflow` 工具触达该能力；该工具拥有调用 schema 与结果包络，引擎提供其下的执行。一次工具调用提交 `meta`、`script` 与可选 `args`，运行完成时返回 `{ runId, agentsStarted, result }`。工具会阻塞父级轮次直到整个工作流结算，因此模型只看到最终结果，永远不会看到中间子 agent 消息。
 
 ### 运行工作流脚本
 
@@ -111,7 +111,7 @@ return { reviewed: reviews.length }
 <a id="model-experience"></a>
 ## 模型体验
 
-间接地，通过其消费方 `dsh-tool-workflow` 与一个工作流引擎，由它们渲染父级工具结果与子 agent 请求。
+间接地，通过其消费方 `avn-tool-workflow` 与一个工作流引擎，由它们渲染父级工具结果与子 agent 请求。
 
 #### KV Cache 影响
 

@@ -36,7 +36,7 @@ Chokidar 和 readdirp 作为普通镜像依赖运行，不属于模块 replaceme
 
 进程层持有按逻辑可执行文件名识别的 Worker 平台可执行文件表，而不依赖某一个包管理器路径。其 `landlock-run` provider 接受裸命令或绝对 launcher 路径，解析 native 包未经修改的 CLI、校验每个授权根，并把内部 argv 交给既有 shell 进程 runner。`node:child_process` 只负责通用的可执行文件查找、输出投递与结束处理。因此，原包的同步 `probe()` 会通过 `spawnSync` 观察到该 provider 并报告 `full`。用法错误、缺失的授权根或未知内部可执行文件只输出一行 `landlock-run: ...`，以 `125` 退出，并且绝不运行内部命令。bwrap 仍探测为不可用，因此未修改的 `sandbox-local` Linux 选择链会选中该 Landlock 后端。
 
-每个已启动进程分别获得一个 `ShellFileSystem` guard。`stat`、`list` 和 `readText` 需要只读或读写授权；`writeText`、`mkdir` 和 `remove` 需要读写授权；`rename` 要求源和目标都可写。Grant root 在 containment 检查前去除尾部分隔符。拒绝错误包含 `EACCES` 与 `permission denied`，从而保持 `bash-sandbox` 的拒绝分类。`/tmp` 映射到 VFS 的 `/dsh/tmp`，`/dev/null` 则是空读、丢弃写入且不保存任何字节的虚拟文件。
+每个已启动进程分别获得一个 `ShellFileSystem` guard。`stat`、`list` 和 `readText` 需要只读或读写授权；`writeText`、`mkdir` 和 `remove` 需要读写授权；`rename` 要求源和目标都可写。Grant root 在 containment 检查前去除尾部分隔符。拒绝错误包含 `EACCES` 与 `permission denied`，从而保持 `bash-sandbox` 的拒绝分类。`/tmp` 映射到 VFS 的 `/avn/tmp`，`/dev/null` 则是空读、丢弃写入且不保存任何字节的虚拟文件。
 
 Worker 的 `full` 结论覆盖 shell 命令表和 Host 服务 VFS 协议能够表达的全部文件操作。它不表示 Linux 内核 Landlock、不支持任意 native 可执行文件，也无法约束未来绕过 `ShellFileSystem` 的 shell 程序。
 

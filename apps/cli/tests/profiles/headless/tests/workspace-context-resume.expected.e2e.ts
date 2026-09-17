@@ -64,7 +64,7 @@ async function seedVisibleBaseline(
     content: file.content,
   })), { maxBytes: 65536 })
   const config = resolveConfig({
-    dshHome: join(cwd, '.dsh'),
+    avnHome: join(cwd, '.avn'),
     maxBytes: 65536,
     ...options.instructionFileCandidates === undefined
       ? {}
@@ -119,7 +119,7 @@ describe('agent-instructions resume snapshot', () => {
     let sessionPath = ''
     const result = await runLoaderSmoke({
       label: 'agent-instructions resume headless stream-json snapshot',
-      tempDirPrefix: 'dsh-workspace-context-resume-',
+      tempDirPrefix: 'avn-workspace-context-resume-',
       binScript,
       libBinScript: binScript,
       configPath,
@@ -176,7 +176,7 @@ describe('agent-instructions resume snapshot', () => {
     let sessionPath = ''
     const result = await runLoaderSmoke({
       label: 'agent-instructions precedence-change resume snapshot',
-      tempDirPrefix: 'dsh-workspace-context-precedence-',
+      tempDirPrefix: 'avn-workspace-context-precedence-',
       binScript,
       libBinScript: binScript,
       configPath,

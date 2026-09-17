@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-workflow-worker-thread` 以每次运行一个 Node worker thread 的方式实现工作流引擎：编排脚本在一个全新 worker 内执行，其 `agent()` 调用通过带类型的宿主／worker 协议触达宿主 subagent。同步脚本循环不会阻塞 harness 事件循环，忽略取消的脚本可以连同其 worker 一起终止。这种隔离只是 containment（隔离），不是安全边界——由模型编写的脚本与模型已有的 bash 访问具有相同的信任前提，逃逸 `node:vm` 上下文即可重新取得 worker 的进程权限。挂载本引擎即为 `ctx.workflowEngine` 提供具体实现；与 `dsh-tool-workflow` 一起加载的组合会把 `workflow` 工具交给模型。
+`avn-workflow-worker-thread` 以每次运行一个 Node worker thread 的方式实现工作流引擎：编排脚本在一个全新 worker 内执行，其 `agent()` 调用通过带类型的宿主／worker 协议触达宿主 subagent。同步脚本循环不会阻塞 harness 事件循环，忽略取消的脚本可以连同其 worker 一起终止。这种隔离只是 containment（隔离），不是安全边界——由模型编写的脚本与模型已有的 bash 访问具有相同的信任前提，逃逸 `node:vm` 上下文即可重新取得 worker 的进程权限。挂载本引擎即为 `ctx.workflowEngine` 提供具体实现；与 `avn-tool-workflow` 一起加载的组合会把 `workflow` 工具交给模型。
 
 ## 目录
 
@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 最小配置
 
-加载本引擎即注册 `ctx.workflowEngine`；在其上添加 `dsh-tool-workflow` 会把 `workflow` 工具交给模型。每个配置字段都是可选的：
+加载本引擎即注册 `ctx.workflowEngine`；在其上添加 `avn-tool-workflow` 会把 `workflow` 工具交给模型。每个配置字段都是可选的：
 
 ```yaml
 - name: '@aeven/workflow-worker-thread'
@@ -147,7 +147,7 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-通过 [`dsh-tool-workflow`](../tool-workflow/README.zh.md)，成功结果只会在该消费方的包装层中公开实体化的最终 JSON 值与子 agent 数量。本引擎提供稳定错误，包括 `workflow script does not parse: <error>`、`invalid meta: <violations>`、`agent() requires a non-empty prompt string`、`agent() could not start a child: <error>` 与 `child agent run failed: <error>`，以及其精确的 `parallel()`、`pipeline()`、`phase()`、选项、schema 与 JSON 边界校验消息。中间子 agent 输出可供脚本使用，但不提供给父模型。
+通过 [`avn-tool-workflow`](../tool-workflow/README.zh.md)，成功结果只会在该消费方的包装层中公开实体化的最终 JSON 值与子 agent 数量。本引擎提供稳定错误，包括 `workflow script does not parse: <error>`、`invalid meta: <violations>`、`agent() requires a non-empty prompt string`、`agent() could not start a child: <error>` 与 `child agent run failed: <error>`，以及其精确的 `parallel()`、`pipeline()`、`phase()`、选项、schema 与 JSON 边界校验消息。中间子 agent 输出可供脚本使用，但不提供给父模型。
 
 #### Token 影响
 

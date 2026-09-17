@@ -1,4 +1,4 @@
-/** Standard ACP updates derived from committed DSH session events. */
+/** Standard ACP updates derived from committed AVN session events. */
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { SessionUpdate, ToolCallContent } from '@agentclientprotocol/sdk'
@@ -46,7 +46,7 @@ export async function assistantUpdates(
 
 /**
  * Start one generic ACP tool lifecycle from the durable call fact.
- * @param event - committed DSH tool-call event.
+ * @param event - committed AVN tool-call event.
  * @returns the standard generic tool-call update.
  */
 export function toolCallUpdate(event: SessionEvent<'tool/call'>): SessionUpdate {
@@ -63,7 +63,7 @@ export function toolCallUpdate(event: SessionEvent<'tool/call'>): SessionUpdate 
 /**
  * Finish one generic ACP tool lifecycle from its committed model-facing result.
  * @param ctx - bridge context carrying the attachment store.
- * @param event - committed DSH tool-result event.
+ * @param event - committed AVN tool-result event.
  * @returns the standard completed or failed tool-call update.
  */
 export async function toolResultUpdate(
@@ -84,7 +84,7 @@ export async function toolResultUpdate(
   }
 }
 
-/** Report current context occupancy only when DSH has both usage and capacity facts. */
+/** Report current context occupancy only when AVN has both usage and capacity facts. */
 function usageUpdate(
   ctx: Context,
   session: Session,

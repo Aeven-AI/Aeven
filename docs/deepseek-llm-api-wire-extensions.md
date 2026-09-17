@@ -11,8 +11,8 @@ The adapter sends the additions to its resolved `baseURL`, including a configure
 | Location | Naming | Examples |
 |---|---|---|
 | HTTP field names | Lowercase kebab-case; HTTP matching remains case-insensitive | `user-agent`, `x-deepseek-harness-session-id` |
-| DeepSeek request-body extension fields | Snake case with the reserved `dsh_` prefix | `dsh_plugin_packages`, `dsh_session_log` |
-| DSH-owned nested JSON members | Camel case | `afterSeq`, `throughSeq`, `sessionId` |
+| DeepSeek request-body extension fields | Snake case with the reserved `avn_` prefix | `avn_plugin_packages`, `avn_session_log` |
+| AVN-owned nested JSON members | Camel case | `afterSeq`, `throughSeq`, `sessionId` |
 | Tagged values | Kebab-case strings; durable events use `domain/action` | `session-log-deepseek/delivery-accepted` |
 
 Each body extension owns its `version` independently. A version applies only to the object that contains it; no compatibility or ordering relationship exists between versions of different fields. JSON member order is not part of the protocol.
@@ -38,13 +38,13 @@ Prepared JSON values are detached from provider-owned state, merged as top-level
 
 After the configured endpoint returns HTTP 2xx, the adapter runs the prepared `accept()` transaction before reading the SSE response body. Transport failures and non-2xx responses do not accept any contribution. An acceptance failure fails the model request even though the endpoint returned 2xx. Acceptance records endpoint-level HTTP success; it does not assert that an SSE stream completed or that the endpoint persisted an extension.
 
-## `dsh_plugin_packages`
+## `avn_plugin_packages`
 
 [`@aeven/plugin-package-inventory-deepseek`](../packages/llm/plugin-package-inventory-deepseek/README.md) contributes the complete active Loader-backed plugin package inventory. The field is enabled by default.
 
 ```json
 {
-  "dsh_plugin_packages": {
+  "avn_plugin_packages": {
     "version": 1,
     "packages": [
       {
@@ -58,7 +58,7 @@ After the configured endpoint returns HTTP 2xx, the adapter runs the prepared `a
 
 | Member | Type | Meaning |
 |---|---|---|
-| `version` | `1` | Schema version for `dsh_plugin_packages` |
+| `version` | `1` | Schema version for `avn_plugin_packages` |
 | `packages` | array | Complete active set for this request |
 | `packages[].name` | string | Exact non-empty npm package name from the owning manifest |
 | `packages[].version` | string | Exact non-empty package version from the same manifest |
@@ -69,15 +69,15 @@ The sender deduplicates exact `(name, version)` pairs and sorts first by `name`,
 
 Disabled, pending, failed, unloading, disposed, and structural Loader entries are absent. Ordinary dependencies, loose modules without a named owning package, programmatically mounted child fibers, and in-memory dynamic plugins are also absent because they have no authoritative Loader package provenance.
 
-An enabled inventory with no qualifying entries sends `packages: []`; disabling the contributor omits the entire `dsh_plugin_packages` field. Package identities are provider metadata and never enter model input.
+An enabled inventory with no qualifying entries sends `packages: []`; disabling the contributor omits the entire `avn_plugin_packages` field. Package identities are provider metadata and never enter model input.
 
-## `dsh_session_log`
+## `avn_session_log`
 
 [`@aeven/session-log-deepseek`](../packages/session/session-log-deepseek/README.md) contributes one contiguous suffix of the canonical Session log. The field is disabled by default. When enabled, it applies to a request with a live Session and at least one event; a direct request, a stale Session id, or an empty log omits the field.
 
 ```json
 {
-  "dsh_session_log": {
+  "avn_session_log": {
     "version": 1,
     "session": {
       "version": 0,
@@ -102,7 +102,7 @@ An enabled inventory with no qualifying entries sends `packages: []`; disabling 
 
 | Member | Type | Meaning |
 |---|---|---|
-| `version` | `1` | Schema version for `dsh_session_log` |
+| `version` | `1` | Schema version for `avn_session_log` |
 | `session` | object | Immutable canonical `SessionHeader` |
 | `afterSeq` | integer | Greatest sequence recorded as accepted before this request, or `-1` |
 | `throughSeq` | non-negative integer | Greatest sequence represented by this request |
@@ -112,7 +112,7 @@ The first upload uses `afterSeq: -1` and carries the complete current log. Each 
 
 ### Session header
 
-The `session` member is the exact `Session.header`, not a complete runtime Session. The outer `dsh_session_log.version` selects this extension schema, while `session.version` selects the canonical on-disk Session format; the two version values evolve independently.
+The `session` member is the exact `Session.header`, not a complete runtime Session. The outer `avn_session_log.version` selects this extension schema, while `session.version` selects the canonical on-disk Session format; the two version values evolve independently.
 
 | Member | Presence | Meaning |
 |---|---|---|
@@ -154,6 +154,6 @@ Transport and non-2xx failures append no watermark. A crash after endpoint accep
 
 ## Exposure and receiver requirements
 
-The request headers expose the Harness application version, one anonymous Harness-home identity, and an optional Session identity. `dsh_plugin_packages` exposes active npm package names and versions. When enabled, `dsh_session_log` may expose the Session working directory, system-prompt snapshots, user and assistant content, raw assistant chunks, tool arguments and results, compaction summaries, feedback, and plugin-owned events. Adapter API keys are not Session events and therefore do not enter the field. A gateway selected through `baseURL` receives the same values as the official endpoint.
+The request headers expose the Harness application version, one anonymous Harness-home identity, and an optional Session identity. `avn_plugin_packages` exposes active npm package names and versions. When enabled, `avn_session_log` may expose the Session working directory, system-prompt snapshots, user and assistant content, raw assistant chunks, tool arguments and results, compaction summaries, feedback, and plugin-owned events. Adapter API keys are not Session events and therefore do not enter the field. A gateway selected through `baseURL` receives the same values as the official endpoint.
 
 Receivers address extension fields by name, dispatch each field by its own `version`, preserve distinct package versions, and ignore JSON member ordering. A session-log receiver validates the contiguous sequence range before interpreting event types. An unrecognized canonical event without `ignorable: true` prevents lossless reconstruction. The base request remains usable without either the registry or a particular contribution; field absence means that contribution did not apply to that request.

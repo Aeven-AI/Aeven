@@ -15,7 +15,7 @@ export type { ScopeLayer } from './store.ts'
 export type ScopeKey = object
 
 /** Context tag written by {@link createScope}. */
-const kScope = Symbol('dsh.scope')
+const kScope = Symbol('avn.scope')
 
 declare const ScopedBrand: unique symbol
 
@@ -53,7 +53,7 @@ export interface ScopeParentBinding {
 /** Cycle-checked write shared by the bind and every rebind. */
 function linkScopeParent(key: ScopeKey, parent: ScopeKey): void {
   for (let cursor: ScopeKey | undefined = parent; cursor !== undefined; cursor = scopeParents.get(cursor)) {
-    if (cursor === key) throw new Error('dsh-scope: scope parent link would form a cycle')
+    if (cursor === key) throw new Error('avn-scope: scope parent link would form a cycle')
   }
   scopeParents.set(key, parent)
 }
@@ -71,7 +71,7 @@ function linkScopeParent(key: ScopeKey, parent: ScopeKey): void {
  */
 export function bindScopeParent(key: ScopeKey, parent: ScopeKey): ScopeParentBinding {
   if (scopeParents.has(key)) {
-    throw new Error('dsh-scope: scope key is already bound to a parent; re-linking requires the binding returned by the original bind')
+    throw new Error('avn-scope: scope key is already bound to a parent; re-linking requires the binding returned by the original bind')
   }
   linkScopeParent(key, parent)
   return {

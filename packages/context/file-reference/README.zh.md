@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-宿主驱动 UI 使用 `dsh-file-reference` 提供 `@file` 补全：UI 为指定 agent 请求路径候选，模型输入 `@path` 或 `@"path with spaces"`，选中候选后，匹配的 mention 作为普通提示词文本插入。seam 本身不拥有文件系统访问——具体提供方（如 `@aeven/file-reference-local`）负责提供候选、排序、缓存与失效。选中候选绝不读取或附带文件内容；模型必须调用文件系统工具才能查看文件。Session Controller 通过 `fileReferences/list` Remote 向浏览器消费方暴露同一发现能力。
+宿主驱动 UI 使用 `avn-file-reference` 提供 `@file` 补全：UI 为指定 agent 请求路径候选，模型输入 `@path` 或 `@"path with spaces"`，选中候选后，匹配的 mention 作为普通提示词文本插入。seam 本身不拥有文件系统访问——具体提供方（如 `@aeven/file-reference-local`）负责提供候选、排序、缓存与失效。选中候选绝不读取或附带文件内容；模型必须调用文件系统工具才能查看文件。Session Controller 通过 `fileReferences/list` Remote 向浏览器消费方暴露同一发现能力。
 
 ## 目录
 
@@ -51,7 +51,7 @@ kind: "package-reference"
 
 ### 设计理念
 
-本包把抽象发现服务与共享、浏览器安全的 mention 语法分开，由提供方负责命名空间访问、排序、缓存与失效。该服务保持 wire 中立；`dsh-api-session-controller` 持有 `fileReferences/list` Remote adapter，并在解析 Agent 后委派给当前 provider。
+本包把抽象发现服务与共享、浏览器安全的 mention 语法分开，由提供方负责命名空间访问、排序、缓存与失效。该服务保持 wire 中立；`avn-api-session-controller` 持有 `fileReferences/list` Remote adapter，并在解析 Agent 后委派给当前 provider。
 
 ### 源码地图
 

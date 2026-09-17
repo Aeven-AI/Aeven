@@ -3,7 +3,7 @@ description: "Cross-runtime UUID generation for maintainers replacing secure-con
 kind: "package-library"
 ---
 
-# dsh-util-crypto
+# avn-util-crypto
 
 English | [中文](README.zh.md)
 

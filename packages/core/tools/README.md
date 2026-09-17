@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-With `dsh-tools`, tool plugins register schemas and executors, and every model tool call runs through a guarded pipeline — allow/deny/ask policy, monotonic guards, around-dispatch wrappers, result inspection, definition-owned content finalization, and a final observe-only notification. The package also controls how tools are presented to the model: its `mode` config selects native function calling, [PTC mode](#ptc-mode), or both, and one agent shadows that default for itself with `presentAs`. Tool authors use `defineTool` for typed parameter and output schemas, an optional cooperative timeout, parallel-safety classification, and optional UI presentation intents. Choose it as the registry for any capability you want the model to reach — schemas flow into prompt assembly automatically.
+With `avn-tools`, tool plugins register schemas and executors, and every model tool call runs through a guarded pipeline — allow/deny/ask policy, monotonic guards, around-dispatch wrappers, result inspection, definition-owned content finalization, and a final observe-only notification. The package also controls how tools are presented to the model: its `mode` config selects native function calling, [PTC mode](#ptc-mode), or both, and one agent shadows that default for itself with `presentAs`. Tool authors use `defineTool` for typed parameter and output schemas, an optional cooperative timeout, parallel-safety classification, and optional UI presentation intents. Choose it as the registry for any capability you want the model to reach — schemas flow into prompt assembly automatically.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ With `dsh-tools`, tool plugins register schemas and executors, and every model t
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount `dsh-tools` wherever agents call tools: it provides `ctx.tools`, the registry every tool plugin registers into and the loop dispatches through. Registering a tool is enough to make it visible — the registry feeds its schemas into the system-prompt assembly automatically.
+Mount `avn-tools` wherever agents call tools: it provides `ctx.tools`, the registry every tool plugin registers into and the loop dispatches through. Registering a tool is enough to make it visible — the registry feeds its schemas into the system-prompt assembly automatically.
 
 ### Register a tool
 
@@ -74,7 +74,7 @@ The `mode` config decides what the model sees: `native` (every visible schema), 
 | `mode` | `native` | How visible tools are presented to the model: `native`, `ptc`, or `both` |
 | `maxParallelSubCalls` | `10` | Concurrency cap for a `run_code` program's overlapping sub-calls; `1` restores strictly serial dispatch |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#aeven-tools) is the exhaustive source for every accepted field. Non-native modes require a composed `ctx.codeRuntime` whose language has a registered SDK renderer; an agent preset selects its own presentation with [`dsh-agent-tool-presentation`](../agent-tool-presentation/README.md), and one agent can shadow the default with `presentAs(mode)`.
+The generated [configuration catalog](../../../docs/config-catalog.md#aeven-tools) is the exhaustive source for every accepted field. Non-native modes require a composed `ctx.codeRuntime` whose language has a registered SDK renderer; an agent preset selects its own presentation with [`avn-agent-tool-presentation`](../agent-tool-presentation/README.md), and one agent can shadow the default with `presentAs(mode)`.
 
 ### Restrict tools per agent
 

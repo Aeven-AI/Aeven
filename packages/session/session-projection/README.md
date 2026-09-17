@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-session-projection` serves whole current values of log-derived per-session state to client carriers — the history tail page and the `session/projection` push frame — through a registry (`ctx.sessionProjections`) that folds every committed session event through registered projection units. A domain registers a pure computation unit (initial state, a fold over events, and an optional client view); the framework owns the subscription, the drive, and change notification, so domains hold no subscriptions and clients receive finished values, never fold events themselves. Every served value is plain JSON validated against a schema, and a per-unit `stateVersion` anchors persisted-cache invalidation. Choose it when a client needs derived per-session state — a todo list, a goal snapshot, conversation stats — without folding the raw log itself.
+`avn-session-projection` serves whole current values of log-derived per-session state to client carriers — the history tail page and the `session/projection` push frame — through a registry (`ctx.sessionProjections`) that folds every committed session event through registered projection units. A domain registers a pure computation unit (initial state, a fold over events, and an optional client view); the framework owns the subscription, the drive, and change notification, so domains hold no subscriptions and clients receive finished values, never fold events themselves. Every served value is plain JSON validated against a schema, and a per-unit `stateVersion` anchors persisted-cache invalidation. Choose it when a client needs derived per-session state — a todo list, a goal snapshot, conversation stats — without folding the raw log itself.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount `dsh-session-projection` wherever client carriers need current values of log-derived session state. Domain plugins register units; carriers read snapshots and subscribe to the change feed; neither knows the other.
+Mount `avn-session-projection` wherever client carriers need current values of log-derived session state. Domain plugins register units; carriers read snapshots and subscribe to the change feed; neither knows the other.
 
 ### When to choose it
 
@@ -128,7 +128,7 @@ These limits define where the projection registry needs care at scale. They are 
 - **Every tail page carries every client-visible key** — there is no per-key opt-out or lazy-key request shape yet; acceptable while values are UI-scale whole states, revisit if a domain's value grows large.
 - **The unit table is process-wide, so key presence is not a per-session capability signal** — a key registered by any agent preset appears in every session's snapshot; a client must read the value rather than treat an absent key as absence of the feature.
 - **Eager drive touches every unit per event** — cheap by construction (whole-value rule and state/view reference gates), but a hot path would justify per-unit event-type prefilters.
-- **Registry cells live in memory only** — a restart rebuilds by folding the log on first touch; compositions that mount `dsh-session-projection-cache` seed that fold from persisted rows instead.
+- **Registry cells live in memory only** — a restart rebuilds by folding the log on first touch; compositions that mount `avn-session-projection-cache` seed that fold from persisted rows instead.
 - **Synchronous unit discipline is only partially mechanical** — `wire.viewSchema.parse` rejects a Promise-returning view, but an `apply` that blocks or reads torn non-session state is a review concern.
 
 <a id="dev-note"></a>

@@ -10,13 +10,13 @@ Status: implemented
 
 这种分离的代价大于收益。该插件固定了一份精确的 19 个 `@aeven/*` 包的 BOM，并在每次构建时重新校验，因为一次 harness 发布可能在它脚下移动。于是每次 harness 版本提升都要求那边同步发布一次，而两者之间的漂移只能通过那份手工维护的清单发现。该插件同时填充着 harness 的 seam —— `ctx.media` 的图像与视频 provider、一个 LLM adapter、一个设置页分区 —— 却无法用 workspace 解析去够到它们。
 
-有两个缺陷直接源自这次分裂。插件提交进仓库的 `lib/` 才是 `dsh web` 实际加载的产物，而它已经落后于 `src/`，却没有任何门禁察觉。它的发布校验器断言客户端 bundle 中存在某个设置开关的标记，而产品早已把该开关退役，于是构建恰恰拒绝了移除它的那次改动。
+有两个缺陷直接源自这次分裂。插件提交进仓库的 `lib/` 才是 `avn web` 实际加载的产物，而它已经落后于 `src/`，却没有任何门禁察觉。它的发布校验器断言客户端 bundle 中存在某个设置开关的标记，而产品早已把该开关退役，于是构建恰恰拒绝了移除它的那次改动。
 
 ## Decision
 
 该插件落位为 `packages/experimental/subscription-auth`，npm 名为 `@aeven/experimental-subscription-auth`，`private: true`。目前它是单个包，预期在从 `experimental/` 提升之前按产品角色拆分 —— OAuth 会话、LLM adapter、媒体 provider、工具、客户端 UI。
 
-它保留 `dsh.bundle` 与 `dsh.client` 两处 manifest 声明，因为 profile 正是靠它们发现一个 bundle 及其浏览器半边。它保留 `dsh-coding-oauth-core` 作为精确版本的外部依赖：那个包拥有本包所实现的路由与路径标识符，而固定它正是 ABI 门禁所检查的内容。
+它保留 `avn.bundle` 与 `avn.client` 两处 manifest 声明，因为 profile 正是靠它们发现一个 bundle 及其浏览器半边。它保留 `dsh-coding-oauth-core` 作为精确版本的外部依赖：那个包拥有本包所实现的路由与路径标识符，而固定它正是 ABI 门禁所检查的内容。
 
 这次迁移是复制而非分叉。独立仓库就此退役，而不是并行维护；再留一份活跃副本只会重新引入本文所消除的那种漂移。
 
@@ -24,7 +24,7 @@ Status: implemented
 
 该包在两个编译面下编译。`src/client/**` 是浏览器程序，其余是 Host 程序，因此它带有 `tsconfig.host.json` 与 `tsconfig.client.json` 两个叶子配置以及一个仅作 solution 的根配置，并注册进相应的聚合配置。测试遵循同样的拆分：伸入 `src/client/**` 的 spec 命名为 `*.client.spec.ts`，根聚合配置正是据此把它路由到客户端程序。跨面的 spec 被拆开，而不是按其中一面命名。
 
-有三个仓库门禁拒绝了刚迁入的这个包，每一个都通过遵从而非豁免来解决。`src/bin.ts` 被删除：只有 `dsh` profile 才启动应用，包自带 bin 是被禁止的。Imagine SSRF 守卫中三处做 DNS 固定的 `undici` agent 带上了 dispatcher 门禁为「自己拥有按请求传输状态的调用点」所定义的 `proxy-exempt:` 标记。生成的 tsconfig 别名改为手写，因为包名与其目录名不一致。
+有三个仓库门禁拒绝了刚迁入的这个包，每一个都通过遵从而非豁免来解决。`src/bin.ts` 被删除：只有 `avn` profile 才启动应用，包自带 bin 是被禁止的。Imagine SSRF 守卫中三处做 DNS 固定的 `undici` agent 带上了 dispatcher 门禁为「自己拥有按请求传输状态的调用点」所定义的 `proxy-exempt:` 标记。生成的 tsconfig 别名改为手写，因为包名与其目录名不一致。
 
 ### 迁移过程中定下的行为
 

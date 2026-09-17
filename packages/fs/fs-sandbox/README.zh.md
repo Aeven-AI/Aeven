@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-fs-sandbox` 提供强制沙箱的 `ctx.fs` 后端：它扩展 [`fs-local`](../fs-local/README.zh.md)，完整保留全部文本存储行为，只为写入与编辑增加按调用的模式围栏，读取始终直接通过。`read-only` 下所有变更都会被拒绝；`workspace-write` 下只有当目标位于会话工作区或平台临时根目录之下时才允许变更；`danger-full-access` 下变更不加围栏。加载它来替代 `fs-local`，并同时加载共享的 `ctx.sandboxPolicy` 服务，即可完成替换——面向模型的工具与策略插件无需改动。拒绝是结构化 `FS_SANDBOX_DENIED` 错误，工具会把它渲染为熟悉的 `[sandbox: file access denied under <mode> mode]` 标记并附同轮次升级提示。当会话的文件变更必须限制在其工作区内时选择它。
+`avn-fs-sandbox` 提供强制沙箱的 `ctx.fs` 后端：它扩展 [`fs-local`](../fs-local/README.zh.md)，完整保留全部文本存储行为，只为写入与编辑增加按调用的模式围栏，读取始终直接通过。`read-only` 下所有变更都会被拒绝；`workspace-write` 下只有当目标位于会话工作区或平台临时根目录之下时才允许变更；`danger-full-access` 下变更不加围栏。加载它来替代 `fs-local`，并同时加载共享的 `ctx.sandboxPolicy` 服务，即可完成替换——面向模型的工具与策略插件无需改动。拒绝是结构化 `FS_SANDBOX_DENIED` 错误，工具会把它渲染为熟悉的 `[sandbox: file access denied under <mode> mode]` 标记并附同轮次升级提示。当会话的文件变更必须限制在其工作区内时选择它。
 
 ## 目录
 
@@ -88,7 +88,7 @@ kind: "package-reference"
 当包级约定不够用时阅读以下页面。它们从本后端逐步进入共享策略归属及其背后的隔离决策。
 
 - [文件系统子系统](../../../docs/subsystems/filesystem.zh.md)——穷尽式提供方约定、策略事件与错误分类体系。
-- [dsh-fs](../fs/README.zh.md)——本后端实现的 `ctx.fs` 约定。
+- [avn-fs](../fs/README.zh.md)——本后端实现的 `ctx.fs` 约定。
 - [fs-local](../fs-local/README.zh.md)——本后端扩展的本地后端。
 - [sandbox-policy](../../sandbox/sandbox-policy/README.zh.md)——本后端所需的共享逐会话策略解析器。
 - [进程沙箱子系统](../../../docs/subsystems/sandbox.zh.md)——模式、逐调用策略与故障关闭错误。
@@ -103,7 +103,7 @@ kind: "package-reference"
 
 #### 模型看到的内容
 
-策略归属方贡献与具体能力无关的 `sandbox:policy` 上下文。作为间接影响，`dsh-tool-fs` 会把本后端的 `FS_SANDBOX_DENIED` 拒绝渲染为 `[sandbox: file access denied under <mode> mode]` 标记和同轮次升级提示。
+策略归属方贡献与具体能力无关的 `sandbox:policy` 上下文。作为间接影响，`avn-tool-fs` 会把本后端的 `FS_SANDBOX_DENIED` 拒绝渲染为 `[sandbox: file access denied under <mode> mode]` 标记和同轮次升级提示。
 
 #### Token 影响
 

@@ -10,11 +10,11 @@ Status: implemented
 
 ## 决策
 
-仓库不存在顶层 `examples/` 树。具名 `dsh` profile 是唯一的 Node 应用组合。跨包 ACP、headless 与 SDK profile 测试位于 `apps/cli/tests/profiles/`；包专属 Loader 配置与 driver 位于该包的 `tests/fixtures/`。录制会话测试继续位于顶层 `snapshots/`，非会话预期输出继续归属方本地保存。
+仓库不存在顶层 `examples/` 树。具名 `avn` profile 是唯一的 Node 应用组合。跨包 ACP、headless 与 SDK profile 测试位于 `apps/cli/tests/profiles/`；包专属 Loader 配置与 driver 位于该包的 `tests/fixtures/`。录制会话测试继续位于顶层 `snapshots/`，非会话预期输出继续归属方本地保存。
 
 可选用户 overlay 作为交付资产位于 `apps/cli/config/examples/`，其中的裸插件名通过 CLI 应用 manifest 解析。GitHub 评审、Schedule、记忆 MCP 与运行时 Cordis 指南位于 `docs/user/` 并链接这些资产。可运行的 Python SDK 程序与极简 overlay 位于 `python/sdk/examples/`。
 
-仓库不存在 `demo:acp` 与 `demo:cordis` 脚本。ACP 通过 `dsh --profile acp` 启动；Cordis 指南使用显式 overlay 启动 `dsh web`。`demo:ptc` 继续作为薄 wrapper，以 `AVN_TOOLS_MODE=ptc` 运行 `dsh --profile headless`。
+仓库不存在 `demo:acp` 与 `demo:cordis` 脚本。ACP 通过 `avn --profile acp` 启动；Cordis 指南使用显式 overlay 启动 `avn web`。`demo:ptc` 继续作为薄 wrapper，以 `AVN_TOOLS_MODE=ptc` 运行 `avn --profile headless`。
 
 ## 考虑过的替代方案
 

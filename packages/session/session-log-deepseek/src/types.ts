@@ -47,7 +47,7 @@ export interface DeepSeekSessionLogExtension {
 
 declare module '@aeven/deepseek-llm-api-extensions/types' {
   interface DeepSeekLlmApiExtensionMap {
-    dsh_session_log: DeepSeekSessionLogExtension
+    avn_session_log: DeepSeekSessionLogExtension
   }
 }
 

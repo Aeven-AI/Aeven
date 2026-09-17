@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-client-ui-cordis` 给 web 客户端提供动态 Cordis 包的浏览器面：一个覆盖整个框架的面板，操作 host 持有的全部定义；会话里渲染 `cordis_define`、`cordis_run`、`cordis_stop` 与 `cordis_undefine` 调用的工具卡片；以及一个补全本会话已定义插件的 `@pluginId` 输入源。面板做成全局是刻意的——模型驱动的 run 阻塞在人的审批上，而无论当前在看哪个会话，这个审批都必须可达。本包不撰写任何模型可见的内容：它所操作的一切都来自浏览器 runner 与 host 的清单，卡片渲染的是会话已经记录下的 call 与 result 内容。
+`avn-client-ui-cordis` 给 web 客户端提供动态 Cordis 包的浏览器面：一个覆盖整个框架的面板，操作 host 持有的全部定义；会话里渲染 `cordis_define`、`cordis_run`、`cordis_stop` 与 `cordis_undefine` 调用的工具卡片；以及一个补全本会话已定义插件的 `@pluginId` 输入源。面板做成全局是刻意的——模型驱动的 run 阻塞在人的审批上，而无论当前在看哪个会话，这个审批都必须可达。本包不撰写任何模型可见的内容：它所操作的一切都来自浏览器 runner 与 host 的清单，卡片渲染的是会话已经记录下的 call 与 result 内容。
 
 ## 目录
 

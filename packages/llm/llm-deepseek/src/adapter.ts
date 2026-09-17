@@ -5,7 +5,7 @@
  * operation and the bearer token through a per-request resolver, so the
  * registering plugin owns validation, layering, and credential policy.
  *
- * @module dsh-llm-deepseek/adapter
+ * @module avn-llm-deepseek/adapter
  */
 
 import { attributionHeaders, contentHasImage, CONTEXT_WINDOW_EXCEEDED_CODE, isContextWindowExceededError, isQuotaExceededError, LlmAdapter, LlmError, offloadedImageText, offloadRequestImagesWithPolicy, ProviderRequestId, QUOTA_EXCEEDED_CODE, ReasoningEffortId } from '@aeven/llm'

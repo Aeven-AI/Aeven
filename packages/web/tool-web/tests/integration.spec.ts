@@ -1,7 +1,7 @@
 /**
- * Integration: the real fetch backend (`dsh-web-fetch-http`) + a real search provider
- * (`dsh-web-search-exa`) + the real seam (`dsh-web`) + the model tool (`dsh-tool-web`) + the
- * tool-call timeout policy (`dsh-tool-call-timeout-policy`), exercised through `ctx.tools.execute()` —
+ * Integration: the real fetch backend (`avn-web-fetch-http`) + a real search provider
+ * (`avn-web-search-exa`) + the real seam (`avn-web`) + the model tool (`avn-tool-web`) + the
+ * tool-call timeout policy (`avn-tool-call-timeout-policy`), exercised through `ctx.tools.execute()` —
  * nothing bypasses the tool registry. Fetch verifies world effects against loopback HTTP with
  * public-address resolution replaced by the fixture address; search uses the real Exa provider
  * with only its network boundary stubbed.
@@ -155,7 +155,7 @@ describe('tool-call timeout returns TOOL_TIMEOUT (deadline wins over a slow fetc
   it('returns a structured TOOL_TIMEOUT (not the provider WEB_FETCH_TIMEOUT) when the tool-call budget wins', async () => {
     const out = await tctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('slow-1'), name: 'web_fetch', arguments: { url: slowBase } })
     expect(out.isError).toBe(true)
-    // The outer tool-call deadline won: TOOL_TIMEOUT, owned by dsh-tool-call-timeout-policy,
+    // The outer tool-call deadline won: TOOL_TIMEOUT, owned by avn-tool-call-timeout-policy,
     // NOT the provider's own WEB_FETCH_TIMEOUT (its 30s backstop never fired).
     expect(out.error?.info?.code).toBe('TOOL_TIMEOUT')
     const text = out.content.map(b => (b.type === 'text' ? b.text : '')).join('')

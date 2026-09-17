@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-28-web-surface-render-capabilities-and-workspace-files.md
-2026-08-28-web-surface-render-capabilities-and-workspace-files.md: b4b6f3f4caa087bcce9a396b4781291f7915f240
-2026-08-28-web-surface-render-capabilities-and-workspace-files.zh.md: a14d3efeb51328e21bed292470883c8dc6d25a66
+2026-08-28-web-surface-render-capabilities-and-workspace-files.md: 23b48fd90a7be0fc742ff3bd9e3a5ea8dc553ecf
+2026-08-28-web-surface-render-capabilities-and-workspace-files.zh.md: 38805383aa776514abd65a1309af8a5fb9eb80a5

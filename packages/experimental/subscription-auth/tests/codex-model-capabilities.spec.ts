@@ -272,15 +272,15 @@ describe('createCodexModelCapabilities', () => {
         invalidate: async () => {},
       },
       fetchImpl,
-      originator: 'dsh-models-test',
-      userAgent: 'dsh-models-test',
+      originator: 'avn-models-test',
+      userAgent: 'avn-models-test',
       sleep: async () => {},
     })
     const controller = new AbortController()
     await caps.refresh(controller.signal)
     const headers = new Headers(fetchImpl.mock.calls[0]?.[1]?.headers)
-    expect(headers.get('originator')).toBe('dsh-models-test')
-    expect(headers.get('user-agent')).toBe('dsh-models-test')
+    expect(headers.get('originator')).toBe('avn-models-test')
+    expect(headers.get('user-agent')).toBe('avn-models-test')
     expect(fetchImpl.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal)
   })
 })

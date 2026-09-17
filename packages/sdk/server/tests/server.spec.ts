@@ -121,7 +121,7 @@ async function settleSubagent(
 
 describe('HarnessSdkJsonRpcServer', () => {
   it('creates a harness agent and calls the configured OpenAI-compatible endpoint', { timeout: 15_000 }, async () => {
-    const storageDir = await mkdtemp(join(tmpdir(), 'dsh-jsonrpc-'))
+    const storageDir = await mkdtemp(join(tmpdir(), 'avn-jsonrpc-'))
     const llmServer = await mockCompletionServer()
     vi.stubEnv('DEEPSEEK_API_KEY', 'test-key')
     vi.stubEnv('DEEPSEEK_BASE_URL', llmServer.url)
@@ -383,7 +383,7 @@ describe('HarnessSdkJsonRpcServer', () => {
   })
 
   it('notifies the host when a child session is created with parent lineage', async () => {
-    const storageDir = await mkdtemp(join(tmpdir(), 'dsh-jsonrpc-subagent-'))
+    const storageDir = await mkdtemp(join(tmpdir(), 'avn-jsonrpc-subagent-'))
     const ctx = await makeHarness(storageDir)
     try {
       const transport = new FakeTransport()
@@ -412,7 +412,7 @@ describe('HarnessSdkJsonRpcServer', () => {
   })
 
   it('creates an SDK session without an optional system prompt', { timeout: 15_000 }, async () => {
-    const storageDir = await mkdtemp(join(tmpdir(), 'dsh-jsonrpc-no-system-'))
+    const storageDir = await mkdtemp(join(tmpdir(), 'avn-jsonrpc-no-system-'))
     const llmServer = await mockCompletionServer()
     vi.stubEnv('DEEPSEEK_API_KEY', 'test-key')
     vi.stubEnv('DEEPSEEK_BASE_URL', llmServer.url)
@@ -435,7 +435,7 @@ describe('HarnessSdkJsonRpcServer', () => {
   })
 
   it('notifies the host when a subagent run settles', async () => {
-    const storageDir = await mkdtemp(join(tmpdir(), 'dsh-jsonrpc-subagent-end-'))
+    const storageDir = await mkdtemp(join(tmpdir(), 'avn-jsonrpc-subagent-end-'))
     const ctx = await makeHarness(storageDir)
     try {
       const transport = new FakeTransport()
@@ -506,7 +506,7 @@ describe('HarnessSdkJsonRpcServer', () => {
   })
 
   it('ignores a remote run id that collides with a local child of the same parent', async () => {
-    const storageDir = await mkdtemp(join(tmpdir(), 'dsh-jsonrpc-subagent-remote-collision-'))
+    const storageDir = await mkdtemp(join(tmpdir(), 'avn-jsonrpc-subagent-remote-collision-'))
     const ctx = await makeHarness(storageDir)
     try {
       const transport = new FakeTransport()
@@ -545,7 +545,7 @@ describe('HarnessSdkJsonRpcServer', () => {
   })
 
   it('retains locality across continuation runs on one live child', async () => {
-    const storageDir = await mkdtemp(join(tmpdir(), 'dsh-jsonrpc-subagent-continuation-'))
+    const storageDir = await mkdtemp(join(tmpdir(), 'avn-jsonrpc-subagent-continuation-'))
     const ctx = await makeHarness(storageDir)
     try {
       const transport = new FakeTransport()
@@ -590,7 +590,7 @@ describe('HarnessSdkJsonRpcServer', () => {
   })
 
   it('correlates reused local ids by parent scope when runs settle out of order', async () => {
-    const storageDir = await mkdtemp(join(tmpdir(), 'dsh-jsonrpc-subagent-reuse-'))
+    const storageDir = await mkdtemp(join(tmpdir(), 'avn-jsonrpc-subagent-reuse-'))
     const ctx = await makeHarness(storageDir)
     try {
       const transport = new FakeTransport()
@@ -689,7 +689,7 @@ describe('HarnessSdkJsonRpcServer', () => {
   })
 
   it('keeps locality bound to the accepted run across provider re-registration', async () => {
-    const storageDir = await mkdtemp(join(tmpdir(), 'dsh-jsonrpc-subagent-provider-reuse-'))
+    const storageDir = await mkdtemp(join(tmpdir(), 'avn-jsonrpc-subagent-provider-reuse-'))
     const ctx = await makeHarness(storageDir)
     try {
       const transport = new FakeTransport()
@@ -781,7 +781,7 @@ describe('HarnessSdkJsonRpcServer', () => {
   })
 
   it('uses the recorded local flag when start was missed and ignores remote runs', async () => {
-    const storageDir = await mkdtemp(join(tmpdir(), 'dsh-jsonrpc-subagent-fallback-'))
+    const storageDir = await mkdtemp(join(tmpdir(), 'avn-jsonrpc-subagent-fallback-'))
     const ctx = await makeHarness(storageDir)
     let parentHandle: AgentHandle | undefined
     let handle: AgentHandle | undefined
@@ -892,7 +892,7 @@ describe('HarnessSdkJsonRpcServer', () => {
   })
 
   it('does not re-register an LLM adapter whose provider already has an owner', async () => {
-    const storageDir = await mkdtemp(join(tmpdir(), 'dsh-jsonrpc-existing-llm-'))
+    const storageDir = await mkdtemp(join(tmpdir(), 'avn-jsonrpc-existing-llm-'))
     const ctx = await makeHarness(storageDir)
     vi.stubEnv('DEEPSEEK_API_KEY', 'test-key')
     await ctx.plugin(LlmDeepSeek)
@@ -913,7 +913,7 @@ describe('HarnessSdkJsonRpcServer', () => {
   })
 
   it('rejects a missing non-DeepSeek provider when an LLM service already exists', async () => {
-    const storageDir = await mkdtemp(join(tmpdir(), 'dsh-jsonrpc-new-llm-'))
+    const storageDir = await mkdtemp(join(tmpdir(), 'avn-jsonrpc-new-llm-'))
     const ctx = await makeHarness(storageDir)
     vi.stubEnv('DEEPSEEK_API_KEY', 'test-key')
     await ctx.plugin(LlmDeepSeek)
@@ -934,7 +934,7 @@ describe('HarnessSdkJsonRpcServer', () => {
   it.each([0, -1, 1.5, Number.NaN, Number.MAX_SAFE_INTEGER + 1])(
     'rejects invalid initialize maxTokens %s at the wire boundary',
     async (maxTokens) => {
-      const storageDir = await mkdtemp(join(tmpdir(), 'dsh-jsonrpc-invalid-max-tokens-'))
+      const storageDir = await mkdtemp(join(tmpdir(), 'avn-jsonrpc-invalid-max-tokens-'))
       const ctx = await makeHarness(storageDir)
       try {
         const server = new HarnessSdkJsonRpcServer(ctx, new FakeTransport())
@@ -971,7 +971,7 @@ describe('HarnessSdkJsonRpcServer', () => {
   })
 
   it('rejects an unavailable exact model during initialize', async () => {
-    const storageDir = await mkdtemp(join(tmpdir(), 'dsh-jsonrpc-invalid-route-'))
+    const storageDir = await mkdtemp(join(tmpdir(), 'avn-jsonrpc-invalid-route-'))
     const ctx = await makeHarness(storageDir)
     class RejectingAdapter extends LlmAdapter {
       override resolveModel(provider: string, model: string): Promise<LlmResolvedModelInfo> {
@@ -1001,7 +1001,7 @@ describe('HarnessSdkJsonRpcServer', () => {
   })
 
   it('rejects prompts while exact-route initialization is pending', async () => {
-    const storageDir = await mkdtemp(join(tmpdir(), 'dsh-jsonrpc-pending-route-'))
+    const storageDir = await mkdtemp(join(tmpdir(), 'avn-jsonrpc-pending-route-'))
     const ctx = await makeHarness(storageDir)
     const resolution = Promise.withResolvers<LlmResolvedModelInfo>()
     const resolvedModel = { provider: 'private', id: 'selected', name: 'Selected' }
@@ -1040,7 +1040,7 @@ describe('HarnessSdkJsonRpcServer', () => {
   })
 
   it('rejects an unsupported reasoning effort during initialize', async () => {
-    const storageDir = await mkdtemp(join(tmpdir(), 'dsh-jsonrpc-unsupported-reasoning-'))
+    const storageDir = await mkdtemp(join(tmpdir(), 'avn-jsonrpc-unsupported-reasoning-'))
     const ctx = await makeHarness(storageDir)
     vi.stubEnv('DEEPSEEK_API_KEY', 'test-key')
     try {
@@ -1075,7 +1075,7 @@ describe('HarnessSdkJsonRpcServer', () => {
   })
 
   it('rejects unknown JSON-RPC runtime methods', async () => {
-    const storageDir = await mkdtemp(join(tmpdir(), 'dsh-jsonrpc-unknown-'))
+    const storageDir = await mkdtemp(join(tmpdir(), 'avn-jsonrpc-unknown-'))
     const ctx = await makeHarness(storageDir)
     try {
       const server = new HarnessSdkJsonRpcServer(ctx, new FakeTransport())

@@ -4,7 +4,7 @@
  * any request was built under by taking the latest canonical snapshot; the
  * loop uses the same equality helper to avoid logging unchanged headers.
  *
- * @module dsh-session/request-header
+ * @module avn-session/request-header
  */
 
 import { callConfigEquals } from '@aeven/llm'

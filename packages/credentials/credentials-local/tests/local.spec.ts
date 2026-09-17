@@ -23,7 +23,7 @@ afterEach(async () => {
 })
 
 async function tempDir(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'dsh-credentials-local-'))
+  const dir = await mkdtemp(join(tmpdir(), 'avn-credentials-local-'))
   cleanups.push(() => rm(dir, { recursive: true, force: true }))
   return dir
 }
@@ -48,13 +48,13 @@ function updates(ctx: Context): CredentialRef[] {
 
 describe('resolveSpec', () => {
   it('defaults to .credentials.yaml under the harness home with watching on', () => {
-    const spec = resolveSpec({ dshHome: '/custom/home' })
+    const spec = resolveSpec({ avnHome: '/custom/home' })
     expect(spec).toEqual({ filename: resolve('/custom/home/.credentials.yaml'), watch: true, debounceMs: 100 })
   })
 
   it('lets an explicit path win over the home', () => {
-    const spec = resolveSpec({ path: '/etc/dsh/creds.yaml', dshHome: '/ignored', watch: false, debounceMs: 5 })
-    expect(spec).toEqual({ filename: resolve('/etc/dsh/creds.yaml'), watch: false, debounceMs: 5 })
+    const spec = resolveSpec({ path: '/etc/avn/creds.yaml', avnHome: '/ignored', watch: false, debounceMs: 5 })
+    expect(spec).toEqual({ filename: resolve('/etc/avn/creds.yaml'), watch: false, debounceMs: 5 })
   })
 })
 
@@ -126,7 +126,7 @@ describe('layer ladder', () => {
     await writeCredentials(path, 'version: 1\nrefs:\n  AVN_CRED_TEST: stored\n')
     const ctx = await bootLayered(path, [
       { source: 'process', values: {} },
-      { source: 'user-env', path: '/home/.dsh/.env', values: { AVN_CRED_TEST: 'older-user-env' } },
+      { source: 'user-env', path: '/home/.avn/.env', values: { AVN_CRED_TEST: 'older-user-env' } },
     ])
     expect(await ctx.credentials.resolve(KEY)).toEqual({ value: 'stored', source: 'file' })
     // A key sitting in the user's .env does not make the stored one
@@ -140,7 +140,7 @@ describe('layer ladder', () => {
     const dir = await tempDir()
     const ctx = await bootLayered(join(dir, '.credentials.yaml'), [
       { source: 'process', values: {} },
-      { source: 'user-env', path: '/home/.dsh/.env', values: { AVN_CRED_TEST: 'from-user-env' } },
+      { source: 'user-env', path: '/home/.avn/.env', values: { AVN_CRED_TEST: 'from-user-env' } },
     ])
     expect(await ctx.credentials.resolve(KEY)).toEqual({ value: 'from-user-env', source: 'user-env' })
     // Writable: storing a key replaces it as the effective one.
@@ -156,7 +156,7 @@ describe('layer ladder', () => {
     const layers = [
       { source: 'process' as const, values: {} },
       { source: 'project-env' as const, path: '/work/.env', values: { AVN_CRED_TEST: 'from-project' } },
-      { source: 'user-env' as const, path: '/home/.dsh/.env', values: { AVN_CRED_TEST: 'from-user' } },
+      { source: 'user-env' as const, path: '/home/.avn/.env', values: { AVN_CRED_TEST: 'from-user' } },
     ]
     const bare = await bootLayered(path, layers)
     expect(await bare.credentials.resolve(KEY)).toEqual({ value: 'from-project', source: 'project-env' })
@@ -214,7 +214,7 @@ describe('layer ladder', () => {
     await writeCredentials(path, 'version: 1\nrefs:\n  AVN_CRED_TEST: stored\n')
     const ctx = await bootLayered(path, [
       { source: 'process', values: { AVN_CRED_TEST: 'from-shell' } },
-      { source: 'user-env', path: '/home/.dsh/.env', values: { AVN_CRED_TEST: 'from-user-env' } },
+      { source: 'user-env', path: '/home/.avn/.env', values: { AVN_CRED_TEST: 'from-user-env' } },
     ])
     expect(await ctx.credentials.resolve(KEY)).toEqual({ value: 'from-shell', source: 'env' })
     expect(await ctx.credentials.describe(KEY)).toEqual({ configured: true, source: 'env', writable: false })

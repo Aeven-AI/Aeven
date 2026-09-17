@@ -12,7 +12,7 @@ Web Client 已经能够从持久 Session 事件组装由业务拥有的 Conversa
 
 ## 决策
 
-`dsh-tool-workflow` 把每个已接受的顶层运行投影到调用 Agent 的 Session。`tool-workflow/run-start` 记录稳定 `runId` 与已校验名称；匹配的工作流成员事件记录成员序号、精确标签、可选精确阶段、子 Session id 与结果；只有在结果已取得且 `run.dispose()` 完全停稳后，`tool-workflow/run-end` 才记录停止原因。嵌套 transport 执行照常运行，但不会写工作流记录，因为它不拥有独立 Chat 行。
+`avn-tool-workflow` 把每个已接受的顶层运行投影到调用 Agent 的 Session。`tool-workflow/run-start` 记录稳定 `runId` 与已校验名称；匹配的工作流成员事件记录成员序号、精确标签、可选精确阶段、子 Session id 与结果；只有在结果已取得且 `run.dispose()` 完全停稳后，`tool-workflow/run-end` 才记录停止原因。嵌套 transport 执行照常运行，但不会写工作流记录，因为它不拥有独立 Chat 行。
 
 记录只供观察。任一次 Session append 首次失败后，本运行会停止所有后续写入、只记录一次告警，并且绝不改变取消、结果映射或 dispose。每种失败位置都留下空记录或合法连续前缀：已开始运行可以缺少后续成员或运行终点，已开始成员也可以缺少成员终点。包 invariant 会在冷加载与实时 append 时拒绝重复运行 start、无效或复用的正成员序号、无配对或重复成员 end、仍有开放成员时结束运行，以及运行结束后的任何更新。
 

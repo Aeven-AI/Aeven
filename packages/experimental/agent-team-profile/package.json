@@ -1,6 +1,6 @@
 {
   "name": "@aeven/experimental-agent-team-profile",
-  "description": "Private profile bundle enabling Agent Teams over dsh-base",
+  "description": "Private profile bundle enabling Agent Teams over avn-base",
   "version": "0.1.2-alpha.5",
   "private": true,
   "repository": {
@@ -26,7 +26,7 @@
     "lib/types/**/*.d.ts"
   ],
   "license": "MIT",
-  "dsh": {
+  "avn": {
     "bundle": {
       "patch": "./cordis.patch.yml"
     }

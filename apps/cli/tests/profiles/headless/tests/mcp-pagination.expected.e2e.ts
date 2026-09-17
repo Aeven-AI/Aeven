@@ -11,7 +11,7 @@ const expectedPath = fileURLToPath(new URL('./expected/mcp-pagination/stderr-cau
 it('reports a repeated MCP discovery cursor and exits before starting a turn', async () => {
   const { stdout, stderr } = await runLoaderSmoke({
     label: 'MCP discovery pagination cycle',
-    tempDirPrefix: 'dsh-mcp-pagination-',
+    tempDirPrefix: 'avn-mcp-pagination-',
     binScript: fileURLToPath(new URL('../../../../src/bin.ts', import.meta.url)),
     libBinScript: fileURLToPath(new URL('../../../../lib/bin.js', import.meta.url)),
     configPath,

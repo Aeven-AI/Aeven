@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-11-refused-edit-presents-as-a-notice.md
-2026-09-11-refused-edit-presents-as-a-notice.md: 7d477ac255aa9869d5e09f45445e4c88aaec66b6
-2026-09-11-refused-edit-presents-as-a-notice.zh.md: 4aa01757eb1d8b42e7e215de6bda88c2abe44f2f
+2026-09-11-refused-edit-presents-as-a-notice.md: 729a2d19cf68310148890c4c3915292e4a7341c8
+2026-09-11-refused-edit-presents-as-a-notice.zh.md: 8e6f38ddf5e7115c6509d0a8c6cd26f35da2bbc3

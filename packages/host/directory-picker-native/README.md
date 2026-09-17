@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-An operator at the host's display picks a workspace directory through a native OS chooser: `dsh-host-directory-picker-native` opens one platform directory chooser per pick and resolves the chosen absolute path (`null` on cancel). macOS drives `osascript`, Linux uses Zenity with a KDialog fallback, and Windows opens the modern `IFileOpenDialog` in a spawned child process. Only viable when the operator sits at the host's display — remote deployments compose the [browse backend](../directory-picker-browse/README.md) instead. One composition row also registers the matching browser-side interaction in the workspace flow, so it selects both sides.
+An operator at the host's display picks a workspace directory through a native OS chooser: `avn-host-directory-picker-native` opens one platform directory chooser per pick and resolves the chosen absolute path (`null` on cancel). macOS drives `osascript`, Linux uses Zenity with a KDialog fallback, and Windows opens the modern `IFileOpenDialog` in a spawned child process. Only viable when the operator sits at the host's display — remote deployments compose the [browse backend](../directory-picker-browse/README.md) instead. One composition row also registers the matching browser-side interaction in the workspace flow, so it selects both sides.
 
 ## Table of Contents
 
@@ -49,7 +49,7 @@ A cancel returns `null`, not an error. Missing platform tooling, a failed choose
 
 ### Design concept
 
-The backend is a thin service over a platform chooser: `NativeDirectoryPicker` registers the `native` capability whose `pick` forwards to `pickNativeDirectory`, and the chooser runs as a subprocess so the host process never blocks on the dialog. The command boundary (`DirectoryPickerRunner`) and platform facts are injectable, and the shared no-shell subprocess runner lives in [`dsh-native-command`](../../util/native-command/README.md).
+The backend is a thin service over a platform chooser: `NativeDirectoryPicker` registers the `native` capability whose `pick` forwards to `pickNativeDirectory`, and the chooser runs as a subprocess so the host process never blocks on the dialog. The command boundary (`DirectoryPickerRunner`) and platform facts are injectable, and the shared no-shell subprocess runner lives in [`avn-native-command`](../../util/native-command/README.md).
 
 ### Platform mechanics
 

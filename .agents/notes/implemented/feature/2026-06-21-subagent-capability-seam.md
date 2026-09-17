@@ -4,7 +4,7 @@ Status: implemented
 
 English | [中文](2026-06-21-subagent-capability-seam.zh.md)
 
-> The full seam is shipped: the `dsh-subagent` interface and `dsh-tool-subagent` consumer; the two in-process backends (`dsh-subagent-spawn-in-process`, `dsh-subagent-fork-in-process`); the nested-agent snapshot infrastructure ([per-session snapshot replay](../testing/2026-06-22-subagent-snapshot-replay.md)); and the out-of-process ACP, Codex, and Claude Code backends ([ACP Agent Note](2026-06-22-acp-subagent-backend.md), [product-provider Agent Note](2026-08-04-claude-code-and-codex-subagent-backends.md)).
+> The full seam is shipped: the `avn-subagent` interface and `avn-tool-subagent` consumer; the two in-process backends (`avn-subagent-spawn-in-process`, `avn-subagent-fork-in-process`); the nested-agent snapshot infrastructure ([per-session snapshot replay](../testing/2026-06-22-subagent-snapshot-replay.md)); and the out-of-process ACP, Codex, and Claude Code backends ([ACP Agent Note](2026-06-22-acp-subagent-backend.md), [product-provider Agent Note](2026-08-04-claude-code-and-codex-subagent-backends.md)).
 
 ## Problem
 
@@ -50,7 +50,7 @@ A provider exposes `start(request) → Promise<SubagentRun>`. Fulfillment publis
 
 ### Fork vs. fresh are separate backends, not a flag
 
-Fresh and forked children are separate providers, not a request flag. `dsh-subagent-spawn-in-process` starts an isolated child; `dsh-subagent-fork-in-process` seeds a balanced prefix containing only completed parent turns. The in-flight turn is excluded because its subagent call has no result yet and cannot form valid replay history.
+Fresh and forked children are separate providers, not a request flag. `avn-subagent-spawn-in-process` starts an isolated child; `avn-subagent-fork-in-process` seeds a balanced prefix containing only completed parent turns. The in-flight turn is excluded because its subagent call has no result yet and cannot form valid replay history.
 
 ### Child isolation and the parent log
 
@@ -58,11 +58,11 @@ Each in-process subagent runs in its **own `Session`** (own id, `parentSession` 
 
 ### Synchronous collect (first cut)
 
-`dsh-tool-subagent` passes its execution signal to `start()`, awaits the child result, and disposes the run before reporting. Non-completed outcomes become error results rather than successful partial output; they present the optional safe diagnostic owned by the [non-interactive permissions decision](2026-08-15-product-subagent-noninteractive-permissions.md) separately from partial assistant text. Independent result and disposal rejections remain independently observable.
+`avn-tool-subagent` passes its execution signal to `start()`, awaits the child result, and disposes the run before reporting. Non-completed outcomes become error results rather than successful partial output; they present the optional safe diagnostic owned by the [non-interactive permissions decision](2026-08-15-product-subagent-noninteractive-permissions.md) separately from partial assistant text. Independent result and disposal rejections remain independently observable.
 
 ### Transport provider selection is config, not model-facing
 
-`dsh-tool-subagent` binds to exactly one subagent transport provider name (`Config.provider`). To expose more than one transport, load the tool plugin more than once, each bound to a different provider and a distinct `toolName` (the tool registry rejects a duplicate name). The *service* holds the multi-provider registry; the *tool* picks one — its schema carries no subagent transport/type parameter. A later opt-in adds child LLM provider/model fields without changing this transport decision; see [model-selected subagent routes](2026-08-18-model-selected-subagent-routes.md).
+`avn-tool-subagent` binds to exactly one subagent transport provider name (`Config.provider`). To expose more than one transport, load the tool plugin more than once, each bound to a different provider and a distinct `toolName` (the tool registry rejects a duplicate name). The *service* holds the multi-provider registry; the *tool* picks one — its schema carries no subagent transport/type parameter. A later opt-in adds child LLM provider/model fields without changing this transport decision; see [model-selected subagent routes](2026-08-18-model-selected-subagent-routes.md).
 
 ## Testing
 

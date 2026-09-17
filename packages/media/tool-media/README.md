@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-tool-media` publishes `generate_image`, the model-facing surface of the generated-media seam. It resolves a call's model and provider, generates through `ctx.media`, and stores each returned image with `ctx.attachments`, so the result carries durable image blocks rather than files or URLs. Mount it in a composition that already loads `dsh-media` and at least one image provider.
+`avn-tool-media` publishes `generate_image`, the model-facing surface of the generated-media seam. It resolves a call's model and provider, generates through `ctx.media`, and stores each returned image with `ctx.attachments`, so the result carries durable image blocks rather than files or URLs. Mount it in a composition that already loads `avn-media` and at least one image provider.
 
 ## Table of Contents
 
@@ -24,7 +24,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount the tool alongside `dsh-media` and one or more image providers. `model` names the model a call gets when it asks for none, verbatim in the provider's own spelling; `provider` pins which registered provider serves those calls. Both default to absent, which defers to the seam's own selection and requires every call to name its model.
+Mount the tool alongside `avn-media` and one or more image providers. `model` names the model a call gets when it asks for none, verbatim in the provider's own spelling; `provider` pins which registered provider serves those calls. Both default to absent, which defers to the seam's own selection and requires every call to name its model.
 
 A deployment mounting two image providers pins one, either here or as the seam's `imageProvider`: the seam reports ambiguous selection rather than guessing.
 

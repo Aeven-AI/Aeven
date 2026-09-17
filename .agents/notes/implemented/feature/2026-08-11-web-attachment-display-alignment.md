@@ -10,7 +10,7 @@ The web composer's image surfaces missed basic usability (user feedback, issue #
 
 The first multimodal ship recorded these surfaces in the [web multimodal note](2026-07-22-web-multimodal-image-input-and-durable-attachments.md); this note supersedes its display and interaction specifics (thumbnail geometry, click affordance, error presentation) while its attachment seam, admission, and durability decisions stand.
 
-All of this UI also lived inside `dsh-client-ui-conversation` — the rail inline in the 700-line `InputBar`, the history image and lightbox in `chat/` and `skeleton/` — with no seam that another surface could reuse and nothing enforcing the pure-props discipline the pieces already had.
+All of this UI also lived inside `avn-client-ui-conversation` — the rail inline in the 700-line `InputBar`, the history image and lightbox in `chat/` and `skeleton/` — with no seam that another surface could reuse and nothing enforcing the pure-props discipline the pieces already had.
 
 ## Decision
 

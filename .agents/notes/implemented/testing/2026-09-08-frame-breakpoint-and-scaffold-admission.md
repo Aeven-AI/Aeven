@@ -12,7 +12,7 @@ Two shipped changes left the repository's own lanes red on `main`, each because 
 
 The same change removed the sidebar drag handle, its pointer handlers, the viewport concession chain, and the `ResizeObserver` the frame used to observe. Twelve specs still drove `handles[0]` as a sidebar handle, read the details width from an inline `style.width` that had become a custom property, and drove resizes through a `fireResize` that was never assigned again — a call that silently did nothing rather than failing.
 
-Separately, the Aeven identity rows moved into the `dsh-web-app` bundle patch, so every composition built from it registers an authority. `identityUsers.enforcing` is true whenever one resolver is registered, and an enforcing authority replaces the launch token: `authenticatedUrl` returns the bare origin and `authorizeIndex` serves the index to anyone. The web e2e scaffold boots that real composition and requires the token handshake — a 303 to `/` carrying a session cookie — so its setup threw for every scenario that used it.
+Separately, the Aeven identity rows moved into the `avn-web-app` bundle patch, so every composition built from it registers an authority. `identityUsers.enforcing` is true whenever one resolver is registered, and an enforcing authority replaces the launch token: `authenticatedUrl` returns the bare origin and `authorizeIndex` serves the index to anyone. The web e2e scaffold boots that real composition and requires the token handshake — a 303 to `/` carrying a session cookie — so its setup threw for every scenario that used it.
 
 ## Decision
 

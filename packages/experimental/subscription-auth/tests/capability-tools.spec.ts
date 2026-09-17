@@ -122,11 +122,11 @@ function leakyImagineImage(): ImagineImageResult {
     images: [
       {
         attachment,
-        path: `/plugins/dsh-grok-build/imagine/images/${attachment.attachmentId}`,
+        path: `/plugins/avn-grok-build/imagine/images/${attachment.attachmentId}`,
       },
     ],
     attachment,
-    path: `/plugins/dsh-grok-build/imagine/images/${attachment.attachmentId}`,
+    path: `/plugins/avn-grok-build/imagine/images/${attachment.attachmentId}`,
     url: 'https://imgen.x.ai/signed?token=abc',
     token: 'sk-secret',
   } as ImagineImageResult & { url: string; token: string }
@@ -473,7 +473,7 @@ describe('createCapabilityTools', () => {
     expect(JSON.stringify(image)).not.toMatch(/imgen\.x\.ai|token|sk-secret/iu)
     expect(image).toMatchObject({
       model: GROK_IMAGINE_IMAGE_MODEL,
-      path: '/plugins/dsh-grok-build/imagine/images/img_local',
+      path: '/plugins/avn-grok-build/imagine/images/img_local',
       attachment: { attachmentId: 'img_local' },
     })
 
@@ -819,7 +819,7 @@ describe('createCapabilityTools', () => {
           model: GROK_IMAGINE_IMAGE_MODEL,
           images: [],
           attachment: single,
-          path: `/plugins/dsh-grok-build/imagine/images/${single.attachmentId}`,
+          path: `/plugins/avn-grok-build/imagine/images/${single.attachmentId}`,
         })),
       }),
     })
@@ -831,7 +831,7 @@ describe('createCapabilityTools', () => {
     }
     expect(value.images).toEqual([])
     expect(value.attachment.attachmentId).toBe(single.attachmentId)
-    expect(value.path).toBe(`/plugins/dsh-grok-build/imagine/images/${single.attachmentId}`)
+    expect(value.path).toBe(`/plugins/avn-grok-build/imagine/images/${single.attachmentId}`)
     expect(tool.output.render({ prompt: 'orbit' }, value as never)).toEqual([
       { type: 'text', text: 'Generated 0 Imagine image(s).' },
     ])
@@ -852,9 +852,9 @@ describe('createCapabilityTools', () => {
       imagine: fakeImagine({
         generateImage: vi.fn(async () => ({
           model: GROK_IMAGINE_IMAGE_MODEL,
-          images: [{ attachment: nameless, path: `/plugins/dsh-grok-build/imagine/images/${nameless.attachmentId}` }],
+          images: [{ attachment: nameless, path: `/plugins/avn-grok-build/imagine/images/${nameless.attachmentId}` }],
           attachment: nameless,
-          path: `/plugins/dsh-grok-build/imagine/images/${nameless.attachmentId}`,
+          path: `/plugins/avn-grok-build/imagine/images/${nameless.attachmentId}`,
         })),
       }),
     })
@@ -869,7 +869,7 @@ describe('createCapabilityTools', () => {
 
   it('recomputes a plugin path that does not sit under the Imagine prefix', async () => {
     const escaped = imagineRef('img_escaped')
-    const expected = `/plugins/dsh-grok-build/imagine/images/${escaped.attachmentId}`
+    const expected = `/plugins/avn-grok-build/imagine/images/${escaped.attachmentId}`
     const tools = await createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
@@ -1282,7 +1282,7 @@ describe('workspace copies', () => {
       path: string
     }
     expect(result.workspacePaths).toBeUndefined()
-    expect(result.path).toContain('/plugins/dsh-grok-build/imagine/images/')
+    expect(result.path).toContain('/plugins/avn-grok-build/imagine/images/')
 
     const unmounted = await createCapabilityTools({
       current: () => enabledSettings(),

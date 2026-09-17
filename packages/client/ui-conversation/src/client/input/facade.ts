@@ -172,7 +172,7 @@ export class SessionInputShell implements SessionInput {
 
   constructor(private readonly deps: SessionInputDeps) {
     this.editor = createEditor({
-      namespace: 'dsh-composer',
+      namespace: 'avn-composer',
       nodes: [ReferenceChipNode, TextRefNode],
       onError: (error) => { throw error },
     })

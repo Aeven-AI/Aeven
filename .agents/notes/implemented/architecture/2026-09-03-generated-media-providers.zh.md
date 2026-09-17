@@ -6,11 +6,11 @@ Status: implemented
 
 ## 问题
 
-[媒体 seam](2026-09-03-generated-media-capability-seam.zh.md) 交付时没有任何后端，因此什么也生成不了。部署方会去用的那两家 provider——DeepInfra 与 OpenRouter——各自用一个账号提供两种媒介，而两者都触达不到：`dsh-llm` 说的是 chat completions，pi-ai 为图片建了模但完全没有视频。
+[媒体 seam](2026-09-03-generated-media-capability-seam.zh.md) 交付时没有任何后端，因此什么也生成不了。部署方会去用的那两家 provider——DeepInfra 与 OpenRouter——各自用一个账号提供两种媒介，而两者都触达不到：`avn-llm` 说的是 chat completions，pi-ai 为图片建了模但完全没有视频。
 
 ## 决策
 
-**三个 provider 包，按传输层而非按厂商切分。** `dsh-media-pi-ai` 注册 pi-ai 的 images 注册表，从而无需手写客户端即可带来 OpenRouter 的图片目录。`dsh-media-openrouter` 与 `dsh-media-deepinfra` 直接对接视频 API，而 DeepInfra 还自带图片，因为它的 OpenAI 兼容路由与 pi-ai 的 chat-modality 路径是不同的传输层。这种切分保持每个协议一个包；由两种协议提供服务的厂商会出现在两个包中，OpenRouter 今天正是如此。
+**三个 provider 包，按传输层而非按厂商切分。** `avn-media-pi-ai` 注册 pi-ai 的 images 注册表，从而无需手写客户端即可带来 OpenRouter 的图片目录。`avn-media-openrouter` 与 `avn-media-deepinfra` 直接对接视频 API，而 DeepInfra 还自带图片，因为它的 OpenAI 兼容路由与 pi-ai 的 chat-modality 路径是不同的传输层。这种切分保持每个协议一个包；由两种协议提供服务的厂商会出现在两个包中，OpenRouter 今天正是如此。
 
 **每个 provider 都通过自身的内容路由取回字节。** 绝不使用任务体携带的 URL。DeepInfra 的任务体指向 `api.pruna.ai`——实际服务该模型的上游——因此针对这些主机的出口白名单是无界的。两家 provider 都自行代理字节，这让各自的出口保持在一个可固定的 origin 上，也正是 `fetchVideo` 存在于 seam 上、而非由调用方读取 `job.data[].url` 的原因。
 

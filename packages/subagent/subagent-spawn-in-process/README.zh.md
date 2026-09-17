@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-subagent-spawn-in-process` 是一个进程内 subagent 后端：它在当前进程中运行每个委派任务，子 agent（智能体）是一个全新子 `Agent`，复用宿主的 agent 工厂及 LLM（大语言模型）/工具服务。子 agent 以空对话开始，因此任务提示词必须自足；除非 `request.agentOptions` 覆盖，否则它继承父 agent 的工作目录、会话谱系、提供方、模型、推理等级与输出 token 上限。委派工具或 API 调用以 `spawn` 提供方名称找到它。需要成本最低的委派传输时选择它；需要子 agent 建立在父级已完成对话轮次之上时，请选择 fork 后端。
+`avn-subagent-spawn-in-process` 是一个进程内 subagent 后端：它在当前进程中运行每个委派任务，子 agent（智能体）是一个全新子 `Agent`，复用宿主的 agent 工厂及 LLM（大语言模型）/工具服务。子 agent 以空对话开始，因此任务提示词必须自足；除非 `request.agentOptions` 覆盖，否则它继承父 agent 的工作目录、会话谱系、提供方、模型、推理等级与输出 token 上限。委派工具或 API 调用以 `spawn` 提供方名称找到它。需要成本最低的委派传输时选择它；需要子 agent 建立在父级已完成对话轮次之上时，请选择 fork 后端。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在需要把工作委派给全新进程内子 agent 的组合中挂载此后端。常用路径是显式的：加载 subagent 服务与本后端，再把 `dsh-tool-subagent` 之类的委派工具指向 `spawn` 提供方。
+在需要把工作委派给全新进程内子 agent 的组合中挂载此后端。常用路径是显式的：加载 subagent 服务与本后端，再把 `avn-tool-subagent` 之类的委派工具指向 `spawn` 提供方。
 
 ### 何时选择
 
@@ -65,7 +65,7 @@ kind: "package-reference"
 
 ### 设计理念
 
-一个分离：本后端只贡献提供方注册与「全新开始」的决定，其余全部运行机制——深度检查、子 agent 创建、按子 agent 定制、结构化输出、取消、结果读取与 dispose——都在 `dsh-subagent-in-process-driver` 中。agent 工厂的创建事务拥有未发布设置窗口及其回滚；发布之后，调用方拥有该运行。
+一个分离：本后端只贡献提供方注册与「全新开始」的决定，其余全部运行机制——深度检查、子 agent 创建、按子 agent 定制、结构化输出、取消、结果读取与 dispose——都在 `avn-subagent-in-process-driver` 中。agent 工厂的创建事务拥有未发布设置窗口及其回滚；发布之后，调用方拥有该运行。
 
 ### 源码地图
 
@@ -92,9 +92,9 @@ kind: "package-reference"
 当包级约定不够用时阅读以下页面；它们从共享 subagent 模型进入兄弟后端与穷尽式配置。
 
 - [Subagent 子系统](../../../docs/subsystems/subagent.zh.md)——启动请求、结果、实时运行与提供方约定。
-- [dsh-subagent-in-process-driver](../subagent-in-process-driver/README.zh.md)——本后端调用的共享运行驱动器。
-- [dsh-subagent-fork-in-process](../subagent-fork-in-process/README.zh.md)——以已完成父级轮次作初始内容的兄弟后端。
-- [dsh-tool-subagent](../tool-subagent/README.zh.md)——指向该提供方的面向模型委派工具。
+- [avn-subagent-in-process-driver](../subagent-in-process-driver/README.zh.md)——本后端调用的共享运行驱动器。
+- [avn-subagent-fork-in-process](../subagent-fork-in-process/README.zh.md)——以已完成父级轮次作初始内容的兄弟后端。
+- [avn-tool-subagent](../tool-subagent/README.zh.md)——指向该提供方的面向模型委派工具。
 - [生成配置目录](../../../docs/config-catalog.zh.md#aeven-subagent-spawn-in-process)——每个受支持配置字段及其源声明。
 
 -----
@@ -120,7 +120,7 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-通过 `dsh-tool-subagent`，父级只接收子 agent 的最终输出，或非完成终止原因对应的出错结果；子 agent 的中间工作绝不会到达父级。
+通过 `avn-tool-subagent`，父级只接收子 agent 的最终输出，或非完成终止原因对应的出错结果；子 agent 的中间工作绝不会到达父级。
 
 #### Token 影响
 

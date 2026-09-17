@@ -35,7 +35,7 @@ const startupFailureConfigPath = fileURLToPath(new URL('./fixtures/startup-activ
 const startupFailurePluginUrl = new URL('./fixtures/startup-activation-error/activation-error.mjs', import.meta.url).href
 const startupFailureExpected = join(goldensDir, 'startup-activation-error', 'stderr.expected.txt')
 const binScript = fileURLToPath(new URL('../../../../../../packages/test-support/loader-smoke/tests/fixtures/headless-driver.ts', import.meta.url))
-const dshBinScript = fileURLToPath(new URL('../../../../src/bin.ts', import.meta.url))
+const avnBinScript = fileURLToPath(new URL('../../../../src/bin.ts', import.meta.url))
 const tsconfigPath = fileURLToPath(new URL('../../../../../../tsconfig.json', import.meta.url))
 const reasoningConfigPath = fileURLToPath(new URL('./fixtures/cli.patch.yml', import.meta.url))
 const deepseekDefaultsConfigPath = fileURLToPath(new URL('./fixtures/deepseek-defaults.patch.yml', import.meta.url))
@@ -201,7 +201,7 @@ describe('headless stream-json snapshots', () => {
     const result = await runLoaderSmoke({
       label: 'product headless profile snapshot',
       tempDirPrefix: 'headless-snapshot-profile-',
-      binScript: dshBinScript,
+      binScript: avnBinScript,
       configPath: headlessOverlayPath,
       binArgs: ['--profile', 'headless', '--patch', headlessOverlayPath, task],
       tsconfigPath,
@@ -211,7 +211,7 @@ describe('headless stream-json snapshots', () => {
         NODE_OPTIONS: [process.env.NODE_OPTIONS, '--disable-warning=ExperimentalWarning'].filter(Boolean).join(' '),
       },
       inspect: async (cwd) => {
-        const logs = await persistedLogs(cwd, join(cwd, '.dsh', 'sessions'))
+        const logs = await persistedLogs(cwd, join(cwd, '.avn', 'sessions'))
         expect(logs).toHaveLength(1)
         const actual = logs[0]
         if (actual === undefined) throw new Error('the headless profile did not persist its session')
@@ -233,7 +233,7 @@ describe('headless stream-json snapshots', () => {
     const result = await runLoaderSmoke({
       label: 'product headless profile model failure snapshot',
       tempDirPrefix: 'headless-snapshot-profile-failure-',
-      binScript: dshBinScript,
+      binScript: avnBinScript,
       configPath: headlessOverlayPath,
       binArgs: ['--profile', 'headless', '--patch', headlessOverlayPath, 'Trigger the keyless model failure.'],
       tsconfigPath,
@@ -318,7 +318,7 @@ describe('headless stream-json snapshots', () => {
       binArgs: [credentialsConfigPath, 'say pong'],
       tsconfigPath,
       env: {
-        // First-run posture: no key in the environment, none under ./.dsh.
+        // First-run posture: no key in the environment, none under ./.avn.
         DEEPSEEK_API_KEY: '',
         DEEPSEEK_BASE_URL: '',
         NODE_OPTIONS: [process.env.NODE_OPTIONS, '--disable-warning=ExperimentalWarning'].filter(Boolean).join(' '),

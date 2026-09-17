@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-bash-local` 是 POSIX 上的默认 Bash 执行器：每条命令都以全新的非登录 `bash -c` 进程运行，不读取 rc 文件，因此调用之间不会残留任何 shell 状态。它会为每条命令应用已配置的预算——工作目录、超时、输出上限——对超时与取消进行分类，并在流溢出时返回有界输出与 spill 文件恢复。命令以 harness 进程自身的权限运行：本执行器不做任何隔离，需要沙箱能力时请组合 `dsh-bash-sandbox`。挂载后，面向模型的 `bash` 工具会与它对接。
+`avn-bash-local` 是 POSIX 上的默认 Bash 执行器：每条命令都以全新的非登录 `bash -c` 进程运行，不读取 rc 文件，因此调用之间不会残留任何 shell 状态。它会为每条命令应用已配置的预算——工作目录、超时、输出上限——对超时与取消进行分类，并在流溢出时返回有界输出与 spill 文件恢复。命令以 harness 进程自身的权限运行：本执行器不做任何隔离，需要沙箱能力时请组合 `avn-bash-sandbox`。挂载后，面向模型的 `bash` 工具会与它对接。
 
 ## 目录
 
@@ -98,7 +98,7 @@ if (result.timedOut) console.log('timed out after', result.timeoutMs)
 ### 不变式与归属
 
 - `graceMs` 预算必须为正有限值且不大于 `MAX_TIMER_DELAY_MS`，这样 Node 就能用一个定时器表示它；无效值在写入处被拒绝。
-- 环境分层固定：先是终端覆盖值，然后是调用方的 `env`，最后才是受信任的 `dshEnv` 快照；subprocess 服务独立清除环境中的凭据与继承的 `AVN_*` 名称。
+- 环境分层固定：先是终端覆盖值，然后是调用方的 `env`，最后才是受信任的 `avnEnv` 快照；subprocess 服务独立清除环境中的凭据与继承的 `AVN_*` 名称。
 - 后台进程属于 subprocess 服务：它能在仅重载执行器后存活，并在服务 dispose 时被终止并 join。
 
 </details>
@@ -121,7 +121,7 @@ if (result.timedOut) console.log('timed out after', result.timeoutMs)
 <a id="model-experience"></a>
 ## 模型体验
 
-通过 `dsh-tool-bash` 间接影响；该工具会渲染本执行器有界的 stdout/stderr 尾部、后台进程增量、spill 文件路径与基础设施失败。
+通过 `avn-tool-bash` 间接影响；该工具会渲染本执行器有界的 stdout/stderr 尾部、后台进程增量、spill 文件路径与基础设施失败。
 
 #### KV Cache 影响
 
@@ -134,7 +134,7 @@ if (result.timedOut) console.log('timed out after', result.timeoutMs)
 
 这些限制说明本执行器何时不合适。它们是当前包约束，不是路线图。
 
-- **自身不提供隔离**——命令以 harness 进程的权限运行；需要隔离的部署组合 `dsh-bash-sandbox`，每次调用的 allow/deny/ask 策略则属于工具的 `pre-execute` waterfall。
+- **自身不提供隔离**——命令以 harness 进程的权限运行；需要隔离的部署组合 `avn-bash-sandbox`，每次调用的 allow/deny/ask 策略则属于工具的 `pre-execute` waterfall。
 - **没有持久 shell 或 PTY**——每次调用都启动全新的非登录 `bash -c`；仅持久化 cwd 与交互式终端会话均继续延期，直到真实工作流需要它们。
 - **仅支持 POSIX**——`bash` 二进制已硬编码，底层服务的进程组语义也是 POSIX 的；不支持 Windows。
 - **后台 spawn 失败提示只交付一次**——subprocess 服务不会为从未真正运行的进程缓冲任何输出，因此执行器把 `spawn failed: …` 注入恰好一个 `readOutput()` 增量；丢弃了该增量的读取方无法再恢复它。

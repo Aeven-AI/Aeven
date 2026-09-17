@@ -42,7 +42,7 @@ jobs:
       ${{ vars.AVN_CI_FAILOVER_LINUX == 'selfhosted'
           && github.event.pull_request.user.login != 'dependabot[bot]'
           && fromJSON('["self-hosted", "linux", "x64", "vm-backup"]')
-          || 'dsh-ubuntu-24-04-16core' }}
+          || 'avn-ubuntu-24-04-16core' }}
     name: node 24 / static
     env:
       AVN_GATE_CONCURRENCY: '8'
@@ -97,7 +97,7 @@ jobs:
       ${{ vars.AVN_CI_FAILOVER_LINUX == 'selfhosted'
           && github.event.pull_request.user.login != 'dependabot[bot]'
           && fromJSON('["self-hosted", "linux", "x64", "vm-backup"]')
-          || 'dsh-ubuntu-24-04-16core' }}
+          || 'avn-ubuntu-24-04-16core' }}
     name: node 24 / coverage
     env:
       # Partitioning replaces the instrumented share; this budget gives the
@@ -162,7 +162,7 @@ jobs:
       ${{ vars.AVN_CI_FAILOVER_LINUX == 'selfhosted'
           && github.event.pull_request.user.login != 'dependabot[bot]'
           && fromJSON('["self-hosted", "linux", "x64", "vm-backup"]')
-          || 'dsh-ubuntu-24-04-16core' }}
+          || 'avn-ubuntu-24-04-16core' }}
     name: node 24 / snapshots and artifacts
     env:
       AVN_GATE_CONCURRENCY: '10'
@@ -434,8 +434,8 @@ jobs:
     runs-on: >-
       ${{ vars.AVN_CI_FAILOVER_WINDOWS == 'selfhosted'
           && github.event.pull_request.user.login != 'dependabot[bot]'
-          && fromJSON('["self-hosted", "dsh-win-ci", "windows"]')
-          || 'dsh-windows-2025-16core' }}
+          && fromJSON('["self-hosted", "avn-win-ci", "windows"]')
+          || 'avn-windows-2025-16core' }}
     name: windows node 24 / build
     timeout-minutes: 60
     env:
@@ -478,8 +478,8 @@ jobs:
     runs-on: >-
       ${{ vars.AVN_CI_FAILOVER_WINDOWS == 'selfhosted'
           && github.event.pull_request.user.login != 'dependabot[bot]'
-          && fromJSON('["self-hosted", "dsh-win-ci", "windows"]')
-          || 'dsh-windows-2025-16core' }}
+          && fromJSON('["self-hosted", "avn-win-ci", "windows"]')
+          || 'avn-windows-2025-16core' }}
     name: windows node 24 / coverage
     timeout-minutes: 120
     env:
@@ -554,8 +554,8 @@ jobs:
     runs-on: >-
       ${{ vars.AVN_CI_FAILOVER_WINDOWS == 'selfhosted'
           && github.event.pull_request.user.login != 'dependabot[bot]'
-          && fromJSON('["self-hosted", "dsh-win-ci", "windows"]')
-          || 'dsh-windows-2025-16core' }}
+          && fromJSON('["self-hosted", "avn-win-ci", "windows"]')
+          || 'avn-windows-2025-16core' }}
     name: windows node 24 / native tests
     timeout-minutes: 60
     steps:
@@ -603,8 +603,8 @@ jobs:
     runs-on: >-
       ${{ vars.AVN_CI_FAILOVER_WINDOWS == 'selfhosted'
           && github.event.pull_request.user.login != 'dependabot[bot]'
-          && fromJSON('["self-hosted", "dsh-win-ci", "windows"]')
-          || 'dsh-windows-2025-16core' }}
+          && fromJSON('["self-hosted", "avn-win-ci", "windows"]')
+          || 'avn-windows-2025-16core' }}
     name: windows node 24 / observational
     timeout-minutes: 60
     env:

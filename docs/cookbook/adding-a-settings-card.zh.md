@@ -4,7 +4,7 @@
 
 插件如何把自己的配置放上 Web 设置页。这条路径上没有任何一步需要改动本仓库：Host 服务每一个已注册的 settings 命名空间，而**插件配置**分区以卡片所编辑的命名空间为键，因此同时注册了两个半侧的插件会被自动配对。
 
-两个半侧住在同一个包里——Host 半侧在 `src/`，浏览器半侧在 `src/client/`，以 `./client` 导出并用 `dsh.client` 声明。[`packages/client/ui-theme`](../../packages/client/ui-theme) 是这种打包方式的现成例子；本分区自带的卡片在 [`packages/client/ui-settings-plugins`](../../packages/client/ui-settings-plugins)。
+两个半侧住在同一个包里——Host 半侧在 `src/`，浏览器半侧在 `src/client/`，以 `./client` 导出并用 `avn.client` 声明。[`packages/client/ui-theme`](../../packages/client/ui-theme) 是这种打包方式的现成例子；本分区自带的卡片在 [`packages/client/ui-settings-plugins`](../../packages/client/ui-settings-plugins)。
 
 ## 1. 注册命名空间（Host 半侧）
 
@@ -79,7 +79,7 @@ scope 快照携带表单所需的一切：解析后的 `value`、组装层 `base
 
 ## 打包
 
-浏览器半侧由[客户端模块系统](../../packages/client/modules)提供给页面：它扫描已启用的 Loader entries 中声明了 `dsh.client` 的包，并提供每个包构建出的 `./client` 导出。因此只要 `cordis.yml` 挂载了该插件，它就会出现在页面上——无需重新构建 Web 应用。
+浏览器半侧由[客户端模块系统](../../packages/client/modules)提供给页面：它扫描已启用的 Loader entries 中声明了 `avn.client` 的包，并提供每个包构建出的 `./client` 导出。因此只要 `cordis.yml` 挂载了该插件，它就会出现在页面上——无需重新构建 Web 应用。
 
 ```jsonc
 {
@@ -87,7 +87,7 @@ scope 快照携带表单所需的一切：解析后的 `value`、组装层 `base
     ".": { "types": "./lib/types/index.d.ts", "default": "./lib/index.js" },
     "./client": { "types": "./lib/types/client/index.d.ts", "default": "./lib/client.js" }
   },
-  "dsh": { "client": { "platform": "web", "inject": ["@aeven/client-ui-settings-plugins"] } }
+  "avn": { "client": { "platform": "web", "inject": ["@aeven/client-ui-settings-plugins"] } }
 }
 ```
 

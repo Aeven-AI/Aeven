@@ -34,12 +34,12 @@ Status: proposed
 
 ### 分组辅助导出清单
 
-- `dsh-llm-deepseek`：`httpErrorCode`、`serializeMessages`、`serializeRequest`、`DONE`、`parseSse`、`mapFinishReason`、`mapUsage` 与 `translate`；`dsh-llm-pi-ai`：`buildModel`、`mapStopReason`、`mapUsage`、`toPiContext` 与 `toStreamChunks`。
-- `dsh-bash-local`：`DEFAULT_GRACE_MS`、`ENV_OVERRIDES`、`killGroup`、`OutputCollector` 与 `runBash`；`dsh-bash-sandbox`：`shellQuote`、`classifyDenial` 与 `classifyRunnerFailure`；`dsh-sandbox-local`：`bwrapProfileArgs`、`landlockProfileArgs` 与 `seatbeltProfileArgs`。公开的可变测试注入字段及其类型不在本提案范围内。
-- `dsh-fs-local`：`applyLiteralEdit`、`listDirectory`、`probe`、`readForEdit`、`readTextForDiff`、`readWholeText`、`resolveLocalTarget`、`restoreLineEndings`、`streamWholeText` 与 `writeFileAtomic`。
-- `dsh-web-fetch-http`：`classifyContentType`、`decoderForCharset`、`isSameOrigin`、`parseCharset` 与 `validateFetchUrl`；`dsh-web-search-exa`：`mapExaResponse` 与 `mapExaResult`；`dsh-web-search-deepseek`：`citationSnippets` 与 `mapAnthropicResponse`；`dsh-web-search-perplexity`：`mapPerplexityResponse` 与 `mapPerplexityResult`。
-- `dsh-tool-fs`：`READ_LIMIT`、`STREAM_MIN_SIZE`、`READ_MAX_BYTES`、`READ_MAX_LINE_LENGTH`、`DIFF_CONTEXT`、`applyReadTool`、`parseReadArgs`、`applyWriteTool`、`formatWriteOutput`、`parseWriteArgs`、`applyEditTool`、`formatEditOutput`、`parseEditArgs`、`buildWindow`、`formatReadOutput`、`computeHunkDiffs` 与 `diffsFromMeta`。
-- `dsh-tool-web`：`WEB_SEARCH_MAX_RESULTS`、`applyWebSearchTool`、`formatSearchOutput`、`parseSearchArgs`、`presentSearchCall`、`applyWebFetchTool`、`formatFetchOutput`、`parseFetchArgs`、`presentFetchCall`、`renderBody` 与 `htmlToMarkdown`；`dsh-tool-call-timeout-policy`：`toolTimeoutResult`；`dsh-compaction-basic`：`resolveConfig`；`dsh-tool-bash`：`renderResult`。
+- `avn-llm-deepseek`：`httpErrorCode`、`serializeMessages`、`serializeRequest`、`DONE`、`parseSse`、`mapFinishReason`、`mapUsage` 与 `translate`；`avn-llm-pi-ai`：`buildModel`、`mapStopReason`、`mapUsage`、`toPiContext` 与 `toStreamChunks`。
+- `avn-bash-local`：`DEFAULT_GRACE_MS`、`ENV_OVERRIDES`、`killGroup`、`OutputCollector` 与 `runBash`；`avn-bash-sandbox`：`shellQuote`、`classifyDenial` 与 `classifyRunnerFailure`；`avn-sandbox-local`：`bwrapProfileArgs`、`landlockProfileArgs` 与 `seatbeltProfileArgs`。公开的可变测试注入字段及其类型不在本提案范围内。
+- `avn-fs-local`：`applyLiteralEdit`、`listDirectory`、`probe`、`readForEdit`、`readTextForDiff`、`readWholeText`、`resolveLocalTarget`、`restoreLineEndings`、`streamWholeText` 与 `writeFileAtomic`。
+- `avn-web-fetch-http`：`classifyContentType`、`decoderForCharset`、`isSameOrigin`、`parseCharset` 与 `validateFetchUrl`；`avn-web-search-exa`：`mapExaResponse` 与 `mapExaResult`；`avn-web-search-deepseek`：`citationSnippets` 与 `mapAnthropicResponse`；`avn-web-search-perplexity`：`mapPerplexityResponse` 与 `mapPerplexityResult`。
+- `avn-tool-fs`：`READ_LIMIT`、`STREAM_MIN_SIZE`、`READ_MAX_BYTES`、`READ_MAX_LINE_LENGTH`、`DIFF_CONTEXT`、`applyReadTool`、`parseReadArgs`、`applyWriteTool`、`formatWriteOutput`、`parseWriteArgs`、`applyEditTool`、`formatEditOutput`、`parseEditArgs`、`buildWindow`、`formatReadOutput`、`computeHunkDiffs` 与 `diffsFromMeta`。
+- `avn-tool-web`：`WEB_SEARCH_MAX_RESULTS`、`applyWebSearchTool`、`formatSearchOutput`、`parseSearchArgs`、`presentSearchCall`、`applyWebFetchTool`、`formatFetchOutput`、`parseFetchArgs`、`presentFetchCall`、`renderBody` 与 `htmlToMarkdown`；`avn-tool-call-timeout-policy`：`toolTimeoutResult`；`avn-compaction-basic`：`resolveConfig`；`avn-tool-bash`：`renderResult`。
 
 ## 提案
 

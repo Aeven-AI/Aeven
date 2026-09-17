@@ -121,7 +121,7 @@ const RESERVED_NAMES = PORTABLE_RESERVED_WORDS
 
 /**
  * The seam's shared backend-owned globals (`console` is the worker's slot;
- * `__dsh_main__`/`__builtins__`/`__name__` are this bootstrap's wrapper and
+ * `__avn_main__`/`__builtins__`/`__name__` are this bootstrap's wrapper and
  * seeded module globals). Shared so a namespace list valid on one backend is
  * valid on all — colliding with an owned slot would be silently overwritten
  * (or overwrite builtins), so the seam rejects them up front.
@@ -185,7 +185,7 @@ const PY_SCRIPTS = ['bootstrap.py', 'protocol.py']
  * @returns the absolute path of the materialized entry script.
  */
 function materializePyScripts(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'dsh-code-runtime-python-'))
+  const dir = mkdtempSync(join(tmpdir(), 'avn-code-runtime-python-'))
   const source = fileURLToPath(new URL('../py/', import.meta.url))
   try {
     for (const name of PY_SCRIPTS) copyFileSync(join(source, name), join(dir, name))
@@ -256,8 +256,8 @@ const FRAME_ENVELOPE_BYTES = 64
  * Smallest `maxLogBytes` the backend can honor. The truncation marker alone
  * (`logTruncationMarker`) must serialize within the budget, or a marker-only
  * truncated run returns more than the configured cap: the marker text is
- * `[dsh-code-runtime-python] log capture truncated at <N> bytes` — 51 fixed
- * characters (the bracketed prefix `[dsh-code-runtime-python] log capture
+ * `[avn-code-runtime-python] log capture truncated at <N> bytes` — 51 fixed
+ * characters (the bracketed prefix `[avn-code-runtime-python] log capture
  * truncated at ` counts both square brackets) plus the digits of N plus 6 —
  * and its serialized form adds 4 (two quotes, two array brackets), so the
  * smallest N that admits its own marker is 63 (51 + 2 + 6 + 4 = 63); 64 is the
@@ -342,7 +342,7 @@ const INTERPRETER_BASELINE_BYTES = 64 * 1024 * 1024
 const HOST_PARSE_WORST_CASE_MULTIPLE = 16
 
 /**
- * Fixed host-heap headroom reserved for the application itself (the dsh
+ * Fixed host-heap headroom reserved for the application itself (the avn
  * fiber, plugins, and this runtime's own state) before the frame-parse
  * multiple claims the rest: the effective frame cap is derived from
  * `heap_size_limit - HOST_PARSE_BASELINE_BYTES`, so a constrained host's
@@ -495,20 +495,20 @@ function validatePythonBin(bin: string): void {
       maxBuffer: 1_024,
     }).trim()
   } catch (error: unknown) {
-    throw new Error(`dsh-code-runtime-python: config.pythonBin ${JSON.stringify(bin)} failed the CPython version probe: ${messageOf(error)}`)
+    throw new Error(`avn-code-runtime-python: config.pythonBin ${JSON.stringify(bin)} failed the CPython version probe: ${messageOf(error)}`)
   }
   const match = /^(\S+) (\d+) (\d+) (\d+)$/.exec(output)
   if (match === null) {
-    throw new Error(`dsh-code-runtime-python: config.pythonBin ${JSON.stringify(bin)} did not report a CPython version`)
+    throw new Error(`avn-code-runtime-python: config.pythonBin ${JSON.stringify(bin)} did not report a CPython version`)
   }
   const [, implementation, majorText, minorText, patchText] = match
   const major = Number(majorText)
   const minor = Number(minorText)
   if (implementation !== 'cpython') {
-    throw new Error(`dsh-code-runtime-python: config.pythonBin ${JSON.stringify(bin)} must be CPython, got ${implementation}`)
+    throw new Error(`avn-code-runtime-python: config.pythonBin ${JSON.stringify(bin)} must be CPython, got ${implementation}`)
   }
   if (major < MIN_CPYTHON.major || (major === MIN_CPYTHON.major && minor < MIN_CPYTHON.minor)) {
-    throw new Error(`dsh-code-runtime-python: config.pythonBin ${JSON.stringify(bin)} must be CPython ${MIN_CPYTHON.major}.${MIN_CPYTHON.minor} or newer, got ${implementation} ${majorText}.${minorText}.${patchText}`)
+    throw new Error(`avn-code-runtime-python: config.pythonBin ${JSON.stringify(bin)} must be CPython ${MIN_CPYTHON.major}.${MIN_CPYTHON.minor} or newer, got ${implementation} ${majorText}.${minorText}.${patchText}`)
   }
 }
 
@@ -809,12 +809,12 @@ export class PythonCodeRuntime extends CodeRuntime {
     // and defer the failure to the first run. The asymmetry with the worker
     // backend is intentional: that backend is cross-platform; this one is not.
     if (process.platform === 'win32') {
-      throw new Error('dsh-code-runtime-python: this backend requires a Unix platform (POSIX rlimits, fd-3 stdio, process-group signals); it cannot run on Windows')
+      throw new Error('avn-code-runtime-python: this backend requires a Unix platform (POSIX rlimits, fd-3 stdio, process-group signals); it cannot run on Windows')
     }
     this.config = config as ResolvedConfig
     for (const [key, value] of Object.entries(this.config)) {
       if (typeof value === 'number' && !(Number.isFinite(value) && value > 0)) {
-        throw new Error(`dsh-code-runtime-python: config.${key} must be a positive number, got ${String(value)}`)
+        throw new Error(`avn-code-runtime-python: config.${key} must be a positive number, got ${String(value)}`)
       }
     }
     // cpuSeconds crosses to the child's setrlimit(RLIMIT_CPU) raw; a float
@@ -824,7 +824,7 @@ export class PythonCodeRuntime extends CodeRuntime {
     // maxWallMs/graceMs/addressSpaceMb are consumed as numbers where a fraction
     // is harmless.
     if (!Number.isInteger(this.config.cpuSeconds)) {
-      throw new Error(`dsh-code-runtime-python: config.cpuSeconds must be a positive integer, got ${String(this.config.cpuSeconds)}`)
+      throw new Error(`avn-code-runtime-python: config.cpuSeconds must be a positive integer, got ${String(this.config.cpuSeconds)}`)
     }
     // Finite is not the same as representable as an rlimit. `cpuSeconds` and its
     // `+ 1` hard limit both cross to `setrlimit` as integers, and `1e100` clears
@@ -832,7 +832,7 @@ export class PythonCodeRuntime extends CodeRuntime {
     // -trip: the child sees a different number than was configured. The `+ 1` is
     // what gets checked because that is the larger of the two values sent.
     if (!Number.isSafeInteger(this.config.cpuSeconds + 1)) {
-      throw new Error(`dsh-code-runtime-python: config.cpuSeconds must be at most ${Number.MAX_SAFE_INTEGER - 1} (it and its +1 hard limit cross to setrlimit as exact integers), got ${String(this.config.cpuSeconds)}`)
+      throw new Error(`avn-code-runtime-python: config.cpuSeconds must be at most ${Number.MAX_SAFE_INTEGER - 1} (it and its +1 hard limit cross to setrlimit as exact integers), got ${String(this.config.cpuSeconds)}`)
     }
     // `addressSpaceMb` is multiplied by 1 MiB before it is framed, and a large
     // finite value overflows to `Infinity` there — which `encodeJsonPlain`
@@ -842,7 +842,7 @@ export class PythonCodeRuntime extends CodeRuntime {
     // ordinary. Safe-integer, not merely finite, since the value must survive
     // the JSON round trip exactly.
     if (!Number.isSafeInteger(this.config.addressSpaceMb * 1024 * 1024)) {
-      throw new Error(`dsh-code-runtime-python: config.addressSpaceMb must be at most ${Math.floor(Number.MAX_SAFE_INTEGER / (1024 * 1024))} (its byte count crosses the wire as an exact integer), got ${String(this.config.addressSpaceMb)}`)
+      throw new Error(`avn-code-runtime-python: config.addressSpaceMb must be at most ${Math.floor(Number.MAX_SAFE_INTEGER / (1024 * 1024))} (its byte count crosses the wire as an exact integer), got ${String(this.config.addressSpaceMb)}`)
     }
     // `pythonBin` reaches `spawn` as the executable path, where values the
     // string schema admits fail late and unhelpfully. An empty string makes
@@ -855,7 +855,7 @@ export class PythonCodeRuntime extends CodeRuntime {
     // too. All three are self-contained configuration errors that fail at
     // load.
     if (this.config.pythonBin === '' || this.config.pythonBin.includes('\0')) {
-      throw new Error(`dsh-code-runtime-python: config.pythonBin must be a non-empty path without NUL bytes, got ${JSON.stringify(this.config.pythonBin)}`)
+      throw new Error(`avn-code-runtime-python: config.pythonBin must be a non-empty path without NUL bytes, got ${JSON.stringify(this.config.pythonBin)}`)
     }
     // `maxWallMs` and `graceMs` are armed with setTimeout, which clamps any
     // delay past MAX_TIMER_DELAY_MS to 1 ms without a word — turning a
@@ -863,10 +863,10 @@ export class PythonCodeRuntime extends CodeRuntime {
     // an instant SIGKILL. `graceMs` is checked against the margin the
     // close-deadline adds on top, since that sum is what gets armed.
     if (this.config.maxWallMs > MAX_TIMER_DELAY_MS) {
-      throw new Error(`dsh-code-runtime-python: config.maxWallMs must not exceed ${MAX_TIMER_DELAY_MS} (setTimeout clamps a larger delay to 1ms), got ${String(this.config.maxWallMs)}`)
+      throw new Error(`avn-code-runtime-python: config.maxWallMs must not exceed ${MAX_TIMER_DELAY_MS} (setTimeout clamps a larger delay to 1ms), got ${String(this.config.maxWallMs)}`)
     }
     if (this.config.graceMs + CLOSE_REAP_MARGIN_MS > MAX_TIMER_DELAY_MS) {
-      throw new Error(`dsh-code-runtime-python: config.graceMs must not exceed ${MAX_TIMER_DELAY_MS - CLOSE_REAP_MARGIN_MS} (its close deadline adds ${CLOSE_REAP_MARGIN_MS}ms, and setTimeout clamps a larger delay to 1ms), got ${String(this.config.graceMs)}`)
+      throw new Error(`avn-code-runtime-python: config.graceMs must not exceed ${MAX_TIMER_DELAY_MS - CLOSE_REAP_MARGIN_MS} (its close deadline adds ${CLOSE_REAP_MARGIN_MS}ms, and setTimeout clamps a larger delay to 1ms), got ${String(this.config.graceMs)}`)
     }
     // The output caps are budgets for a payload that has to cross fd 3 inside
     // one frame, and the framing ceiling is fixed. A cap above what a frame can
@@ -899,7 +899,7 @@ export class PythonCodeRuntime extends CodeRuntime {
       // enforcing different public config. Reject the float at load, as the
       // worker backend does for its byte budgets.
       if (!Number.isInteger(this.config[key])) {
-        throw new Error(`dsh-code-runtime-python: config.${key} must be a positive integer (the child reads it as an int, so a float diverges from the host), got ${String(this.config[key])}`)
+        throw new Error(`avn-code-runtime-python: config.${key} must be a positive integer (the child reads it as an int, so a float diverges from the host), got ${String(this.config[key])}`)
       }
       const limit = this.frameParseCapBytes - FRAME_ENVELOPE_BYTES
       if (this.config[key] > limit) {
@@ -910,7 +910,7 @@ export class PythonCodeRuntime extends CodeRuntime {
         // instrumented suite (whose heap never binds).
         /* v8 ignore next -- the heap-constrained message arm needs a host heap below the protocol cap. */
         const heapNote = this.frameParseCapBytes < FRAME_PARSE_CAP_BYTES ? ` — this host's heap limits the parse to ${this.frameParseCapBytes} bytes, so the protocol cap of ${FRAME_PARSE_CAP_BYTES} would be unsafe` : ''
-        throw new Error(`dsh-code-runtime-python: config.${key} must not exceed ${limit} (a payload that large cannot cross the fd-3 frame PARSER, which rejects raw frames past ${this.frameParseCapBytes} bytes before decoding to bound host memory${heapNote} — a larger budget would admit a config whose honest child frames the host then rejects as a worker-exit), got ${String(this.config[key])}`)
+        throw new Error(`avn-code-runtime-python: config.${key} must not exceed ${limit} (a payload that large cannot cross the fd-3 frame PARSER, which rejects raw frames past ${this.frameParseCapBytes} bytes before decoding to bound host memory${heapNote} — a larger budget would admit a config whose honest child frames the host then rejects as a worker-exit), got ${String(this.config[key])}`)
       }
       // Reject a log budget too small to honor: the truncation marker alone
       // must serialize within the budget, or a marker-only truncated run
@@ -918,7 +918,7 @@ export class PythonCodeRuntime extends CodeRuntime {
       // marker is envelope, so the serialized logs run to
       // `maxLogBytes + marker + envelope`.)
       if (key === 'maxLogBytes' && this.config[key] < MIN_LOG_BYTES) {
-        throw new Error(`dsh-code-runtime-python: config.maxLogBytes must be at least ${MIN_LOG_BYTES} (a smaller budget cannot serialize the truncation marker itself, so a marker-only truncated run would return more than the configured cap), got ${String(this.config[key])}`)
+        throw new Error(`avn-code-runtime-python: config.maxLogBytes must be at least ${MIN_LOG_BYTES} (a smaller budget cannot serialize the truncation marker itself, so a marker-only truncated run would return more than the configured cap), got ${String(this.config[key])}`)
       }
     }
     // The child builds, charges, and frames a `maxLogBytes` log entry or a
@@ -958,12 +958,12 @@ export class PythonCodeRuntime extends CodeRuntime {
     // naming `maxLogBytes` -- pointing the operator at the knob that is not the
     // problem. The baseline is what `addressSpaceMb` must clear here.
     if (budgetableBytes <= 0) {
-      throw new Error(`dsh-code-runtime-python: config.addressSpaceMb must exceed the ${INTERPRETER_BASELINE_BYTES}-byte interpreter baseline with room for the output budgets, so the child has address space left to build and encode them; got ${String(this.config.addressSpaceMb)} MiB (${addressSpaceBytes} bytes)`)
+      throw new Error(`avn-code-runtime-python: config.addressSpaceMb must exceed the ${INTERPRETER_BASELINE_BYTES}-byte interpreter baseline with room for the output budgets, so the child has address space left to build and encode them; got ${String(this.config.addressSpaceMb)} MiB (${addressSpaceBytes} bytes)`)
     }
     const admissibleBudget = Math.ceil(budgetableBytes / OUTPUT_BUDGET_WORST_CASE_ADDRESS_SPACE_MULTIPLE) - 1
     for (const key of ['maxLogBytes', 'maxValueBytes'] as const) {
       if (this.config[key] * OUTPUT_BUDGET_WORST_CASE_ADDRESS_SPACE_MULTIPLE >= budgetableBytes) {
-        throw new Error(`dsh-code-runtime-python: config.${key} times the ${OUTPUT_BUDGET_WORST_CASE_ADDRESS_SPACE_MULTIPLE}x worst-case Unicode expansion must fit within the ${budgetableBytes} bytes left after the ${INTERPRETER_BASELINE_BYTES}-byte interpreter baseline within the ${addressSpaceBytes}-byte addressSpaceMb, so a near-budget output truncates rather than breaching RLIMIT_AS as worker-exit; got ${String(this.config[key])} against a limit of ${admissibleBudget}`)
+        throw new Error(`avn-code-runtime-python: config.${key} times the ${OUTPUT_BUDGET_WORST_CASE_ADDRESS_SPACE_MULTIPLE}x worst-case Unicode expansion must fit within the ${budgetableBytes} bytes left after the ${INTERPRETER_BASELINE_BYTES}-byte interpreter baseline within the ${addressSpaceBytes}-byte addressSpaceMb, so a near-budget output truncates rather than breaching RLIMIT_AS as worker-exit; got ${String(this.config[key])} against a limit of ${admissibleBudget}`)
       }
     }
     // Resolve and validate the executable ONCE, after the pure config checks.
@@ -975,7 +975,7 @@ export class PythonCodeRuntime extends CodeRuntime {
     const pythonBin = resolvePythonBin(this.config.pythonBin)
     if (pythonBin === undefined) {
       const explicit = isAbsolute(this.config.pythonBin) || this.config.pythonBin.includes('/')
-      throw new Error(`dsh-code-runtime-python: config.pythonBin ${JSON.stringify(this.config.pythonBin)} ${explicit ? 'is not an executable regular file' : 'does not resolve on PATH'}`)
+      throw new Error(`avn-code-runtime-python: config.pythonBin ${JSON.stringify(this.config.pythonBin)} ${explicit ? 'is not an executable regular file' : 'does not resolve on PATH'}`)
     }
     validatePythonBin(pythonBin)
     this.pythonBin = pythonBin
@@ -1010,7 +1010,7 @@ export class PythonCodeRuntime extends CodeRuntime {
    * `CodeRunFailure.kind`). The method rejects only for seam misuse.
    */
   async run(request: CodeRunRequest): Promise<CodeRunResult> {
-    if (this.disposed) throw new Error('dsh-code-runtime-python: run() after disposal')
+    if (this.disposed) throw new Error('avn-code-runtime-python: run() after disposal')
     const bindings = this.validateBindings(request)
     if (request.signal?.aborted) {
       return { logs: [], error: { kind: 'abort', message: messageOf(request.signal.reason) } }
@@ -1048,10 +1048,10 @@ export class PythonCodeRuntime extends CodeRuntime {
     const injectedGlobals = new Set<string>()
     const claimGlobal = (name: string, role: string): void => {
       if (RUNTIME_OWNED_GLOBALS.has(name)) {
-        throw new Error(`dsh-code-runtime-python: ${role} ${JSON.stringify(name)} collides with a runtime-owned global`)
+        throw new Error(`avn-code-runtime-python: ${role} ${JSON.stringify(name)} collides with a runtime-owned global`)
       }
       if (injectedGlobals.has(name)) {
-        throw new Error(`dsh-code-runtime-python: ${role} ${JSON.stringify(name)} collides with another injected global`)
+        throw new Error(`avn-code-runtime-python: ${role} ${JSON.stringify(name)} collides with another injected global`)
       }
       injectedGlobals.add(name)
     }
@@ -1067,10 +1067,10 @@ export class PythonCodeRuntime extends CodeRuntime {
       // the plain copy makes validation and the boot frame agree.
       const global = namespace.global
       if (!IDENTIFIER.test(global) || RESERVED_NAMES.has(global)) {
-        throw new Error(`dsh-code-runtime-python: binding global ${JSON.stringify(global)} is not a usable Python identifier`)
+        throw new Error(`avn-code-runtime-python: binding global ${JSON.stringify(global)} is not a usable Python identifier`)
       }
       if (bindings.has(global)) {
-        throw new Error(`dsh-code-runtime-python: duplicate binding global ${JSON.stringify(global)}`)
+        throw new Error(`avn-code-runtime-python: duplicate binding global ${JSON.stringify(global)}`)
       }
       claimGlobal(global, 'binding global')
       // The error class becomes a program global and its member property an
@@ -1082,17 +1082,17 @@ export class PythonCodeRuntime extends CodeRuntime {
         const name = errorClass.name
         const memberNameProperty = errorClass.memberNameProperty
         if (!IDENTIFIER.test(name) || RESERVED_NAMES.has(name)) {
-          throw new Error(`dsh-code-runtime-python: errorClass.name ${JSON.stringify(name)} is not a usable Python identifier`)
+          throw new Error(`avn-code-runtime-python: errorClass.name ${JSON.stringify(name)} is not a usable Python identifier`)
         }
         // Any non-empty own attribute name is settable via setattr (the
         // program reads exotic names like `tool-name` with getattr), matching
         // the seam contract and the worker backend — only the seam-excluded
         // and protocol-reserved members below are refused.
         if (memberNameProperty.length === 0) {
-          throw new Error('dsh-code-runtime-python: errorClass.memberNameProperty must be a non-empty attribute name')
+          throw new Error('avn-code-runtime-python: errorClass.memberNameProperty must be a non-empty attribute name')
         }
         if (EXCEPTION_RESERVED_MEMBERS.has(memberNameProperty) || DUNDER.test(memberNameProperty)) {
-          throw new Error(`dsh-code-runtime-python: errorClass.memberNameProperty ${JSON.stringify(memberNameProperty)} is a reserved error member and cannot be assigned`)
+          throw new Error(`avn-code-runtime-python: errorClass.memberNameProperty ${JSON.stringify(memberNameProperty)} is a reserved error member and cannot be assigned`)
         }
         claimGlobal(name, 'errorClass.name')
         validatedErrorClass = { name, memberNameProperty }
@@ -1169,7 +1169,7 @@ export class PythonCodeRuntime extends CodeRuntime {
       proto = child.stdio[3] as Duplex | null
       /* v8 ignore next 3 -- `'pipe'` stdio always populates fd 3; guarding Node's `Stream | null` typing widening. */
       if (proto === null) {
-        throw new Error('dsh-code-runtime-python: python subprocess spawned without a fd-3 pipe')
+        throw new Error('avn-code-runtime-python: python subprocess spawned without a fd-3 pipe')
       }
       // Close the host's stdin write handle immediately: the program is an
       // async body that reads nothing from fd 0, and a live pipe here would

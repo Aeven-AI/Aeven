@@ -6,13 +6,13 @@
 
 ## ① 架构叙述
 
-> This document describes the architecture of the DeepSeek Harness — the foundation of **DeepSeek Code**. The governing principle, from the microkernel design discussion: **everything is a plugin**. The core is deliberately tiny — a handful of abstract services plus one concrete loop plugin (`dsh-agent-loop`) — and every product feature is a plugin against the extension API described here, without modifying the loop.
+> This document describes the architecture of the DeepSeek Harness — the foundation of **DeepSeek Code**. The governing principle, from the microkernel design discussion: **everything is a plugin**. The core is deliberately tiny — a handful of abstract services plus one concrete loop plugin (`avn-agent-loop`) — and every product feature is a plugin against the extension API described here, without modifying the loop.
 
-本文介绍 DeepSeek Harness 整体架构，它是 **DeepSeek Code** 的底层基座。微内核设计讨论中确立了核心设计准则：**一切皆插件**。内核刻意做得极精简，仅包含少量抽象服务，外加一个实体循环插件 `dsh-agent-loop`。所有产品功能均基于本文定义的扩展接口开发为独立插件，无需改动主循环逻辑。
+本文介绍 DeepSeek Harness 整体架构，它是 **DeepSeek Code** 的底层基座。微内核设计讨论中确立了核心设计准则：**一切皆插件**。内核刻意做得极精简，仅包含少量抽象服务，外加一个实体循环插件 `avn-agent-loop`。所有产品功能均基于本文定义的扩展接口开发为独立插件，无需改动主循环逻辑。
 
-> Dependency rule: extension plugins depend on interfaces, never on `dsh-agent-loop` (the loop is swappable); composition bundles such as `dsh-base` and `dsh-sdk-minimal` may assemble the concrete loop.
+> Dependency rule: extension plugins depend on interfaces, never on `avn-agent-loop` (the loop is swappable); composition bundles such as `avn-base` and `avn-sdk-minimal` may assemble the concrete loop.
 
-依赖约束规范：各类扩展插件仅依赖抽象接口，严禁直接依赖 `dsh-agent-loop`（该主循环支持替换实现）；`dsh-base` 与 `dsh-sdk-minimal` 等组合包可以组装具体循环。
+依赖约束规范：各类扩展插件仅依赖抽象接口，严禁直接依赖 `avn-agent-loop`（该主循环支持替换实现）；`avn-base` 与 `avn-sdk-minimal` 等组合包可以组装具体循环。
 
 > This document covers **behavior**; type definitions live in [subsystems/](../subsystems/core.md), the per-event/service reference lives in the generated regions of [subsystems/](../subsystems/core.md), and package contracts in the package READMEs state each package's required configuration and behavior ([map](../../packages/README.md)).
 
@@ -84,4 +84,4 @@
 - 长段按语义单元拆段，一段一件事；名词短语展开为动词句。
 - 母语重写不等于删减：原文每个语义成分都要落地。
 - 样例与 [terminology.md](terminology.md) 冲突时，以术语表为准：收录样例前按表修正术语（例如 agent、mock、LLM 保留英文，cancellation 译「取消」）。
-- 代码体标识符（事件名 `agent/status`、状态值 `running`、包名 `dsh-bash-local` 等）在译文中保留 code span 原文，不得口语化改写；Pass 2 必须逐句核验。
+- 代码体标识符（事件名 `agent/status`、状态值 `running`、包名 `avn-bash-local` 等）在译文中保留 code span 原文，不得口语化改写；Pass 2 必须逐句核验。

@@ -869,7 +869,7 @@ describe('WorkspaceAnalyzer', { timeout: 60_000 }, () => {
       .toEqual(['@fixture/host'])
   })
 
-  it('keeps both runtime faces for an ordinary dsh.client project', () => {
+  it('keeps both runtime faces for an ordinary avn.client project', () => {
     const root = copyFixture('typert-dual-runtime-')
     configureDualRuntimeClient(root, false)
 
@@ -1227,10 +1227,10 @@ function configureDualRuntimeClient(root: string, splitProjects: boolean): void 
   const packageRoot = join(root, 'packages/client')
   const manifestPath = join(packageRoot, 'package.json')
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
-    dsh?: { client?: object }
+    avn?: { client?: object }
     exports: Record<string, unknown>
   }
-  manifest.dsh = { client: {} }
+  manifest.avn = { client: {} }
   manifest.exports['./client'] = {
     types: './lib/types/client.d.ts',
     default: './lib/client.js',

@@ -1,4 +1,4 @@
-# Keyless generic ACP v1 control-surface patch over `dsh --profile acp`.
+# Keyless generic ACP v1 control-surface patch over `avn --profile acp`.
 
 - id: llm-deepseek
   name: '@aeven/llm-deepseek'

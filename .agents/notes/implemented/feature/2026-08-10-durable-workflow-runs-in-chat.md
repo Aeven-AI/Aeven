@@ -12,7 +12,7 @@ The Web Client already assembles business-owned Conversation Nodes from durable 
 
 ## Decision
 
-`dsh-tool-workflow` projects every top-level accepted run into the calling Agent's Session. `tool-workflow/run-start` records the stable `runId` and validated name; matching workflow member events record the member sequence, exact label, optional exact phase, child Session id, and outcome; `tool-workflow/run-end` records the stop reason only after the result exists and `run.dispose()` has reached quiescence. Nested transport executions run normally but write no workflow record because they do not own an independent Chat row.
+`avn-tool-workflow` projects every top-level accepted run into the calling Agent's Session. `tool-workflow/run-start` records the stable `runId` and validated name; matching workflow member events record the member sequence, exact label, optional exact phase, child Session id, and outcome; `tool-workflow/run-end` records the stop reason only after the result exists and `run.dispose()` has reached quiescence. Nested transport executions run normally but write no workflow record because they do not own an independent Chat row.
 
 Recording is observational. The first failed Session append disables all later writes for that run, logs one warning, and never changes cancellation, result mapping, or disposal. Each possible failure leaves either no record or a legal continuous prefix: a started run may lack later members or its ending, and a started member may lack its ending. The package invariant rejects duplicate run starts, invalid or reused positive member sequences, unpaired or repeated member endings, a run ending while members remain open, and every update after a run ending on both cold load and live append.
 

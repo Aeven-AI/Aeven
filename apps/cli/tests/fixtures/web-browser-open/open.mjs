@@ -31,18 +31,18 @@ export default async function open(url) {
     throw new Error(`browser index request returned HTTP ${response.status}`)
   }
   const html = await response.text()
-  console.log(`dsh browser-open: ${JSON.stringify({
+  console.log(`avn browser-open: ${JSON.stringify({
     url,
     status: response.status,
     bootManifest: html.includes('__DSH_BOOT__'),
     apiKeyPresent: process.env.DEEPSEEK_API_KEY !== undefined,
-    dshHomePresent: process.env.AVN_HOME !== undefined,
+    avnHomePresent: process.env.AVN_HOME !== undefined,
   })}`)
   // The Windows launcher writes the server-exit marker only while its helper
   // remains alive, so the assembled test detects an early helper exit.
   const launcher = spawn(process.execPath, [
     '--eval', handoffProbe,
-    '--', join(process.cwd(), `.dsh-browser-open-${process.ppid}`), String(process.pid),
+    '--', join(process.cwd(), `.avn-browser-open-${process.ppid}`), String(process.pid),
   ], { stdio: 'ignore' })
   launcher.unref()
   return launcher

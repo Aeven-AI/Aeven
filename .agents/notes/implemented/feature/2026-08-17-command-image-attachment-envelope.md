@@ -40,7 +40,7 @@ Registry executor enforcement, admission failure settlement, and frozen invocati
 ## Consequences
 
 - No command route can consume a submission's text and strand its images: the contract forces whole-envelope consumption or a visible refusal, for current and future commands alike.
-- The commands package now depends on `dsh-attachment` and `dsh-llm`, and `commands/execute` carries a required `images` wire parameter — every caller states its envelope explicitly.
+- The commands package now depends on `avn-attachment` and `avn-llm`, and `commands/execute` carries a required `images` wire parameter — every caller states its envelope explicitly.
 - `/goal` and `/plan` gain reference-image input at the cost of one extra logged user message (goal) and image blocks in the steered message (plan), including an image-only message for bare `/plan`; all are billed like any image prompt.
 - Menu-pick popup flows do not consult the envelope: picking a popup command from the menu while images are attached leaves the images visibly in the rail rather than refusing the interaction. Enter-submission is the enforced envelope boundary.
 - "A rejected batch publishes no durable object" covers exactly the pre-admission settlements (declaration, missing store, batch limit). A handler-level grammar rejection (`/goal pause` with images) and a post-admission cancellation settle AFTER the batch committed, leaving content-addressed objects without a referencing session event — harmless under sha256 dedup and the attachment store's deferred reference-aware GC, but not "no object was written".

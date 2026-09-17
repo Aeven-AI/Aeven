@@ -5,7 +5,7 @@ packages:
   # its native build and publication scripts under native/landlock-run.
   - native/landlock-run
   - native/landlock-run/packages/*
-  # Product assemblies over the package tier; apps/cli owns the `dsh` bin.
+  # Product assemblies over the package tier; apps/cli owns the `avn` bin.
   - apps/*
   - website
   # Deploy root of the single-exe build: a pure dependency manifest whose

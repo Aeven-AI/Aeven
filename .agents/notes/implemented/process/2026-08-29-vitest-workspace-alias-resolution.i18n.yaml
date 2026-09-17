@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-08-29-vitest-workspace-alias-resolution.md
-2026-08-29-vitest-workspace-alias-resolution.md: 6db5b2b5b0b71d7c8004a1a64ea912a92afdba03
-2026-08-29-vitest-workspace-alias-resolution.zh.md: 5a36dcb948a95726237f079c1f433c31e1566b3b
+2026-08-29-vitest-workspace-alias-resolution.md: cd1f37b8b1cbb7bd23270a99672c869614fd3d75
+2026-08-29-vitest-workspace-alias-resolution.zh.md: 2dd00d3884b8198723462874964d8b6c64b1a17b

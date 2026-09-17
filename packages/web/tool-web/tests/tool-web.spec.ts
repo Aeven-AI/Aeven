@@ -734,7 +734,7 @@ describe('tool-web execution through the real registry', () => {
       truncated: false,
     })
     // The model schema exposes no timeout: the tool forwards only the url; the
-    // tool-call budget is owned by dsh-tool-call-timeout-policy over exec.signal.
+    // tool-call budget is owned by avn-tool-call-timeout-policy over exec.signal.
     expect(seen.request).toEqual({ url: 'https://a.test' })
     expect(seen.signal).toBe(controller.signal)
     await fiber.dispose()

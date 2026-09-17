@@ -31,7 +31,7 @@ export type InboxTarget = 'next-turn' | 'next-step'
 /**
  * Turn and step boundaries folded from one agent session log.
  *
- * Reader contract: the key is registered by `dsh-agent-loop` and absent
+ * Reader contract: the key is registered by `avn-agent-loop` and absent
  * otherwise. Without agent-loop no turn events exist, so readers treat an
  * absent key as "no open turn / no boundaries" — capability absence, not a
  * corrupt state. A reader whose behavior has no safe fallback for that

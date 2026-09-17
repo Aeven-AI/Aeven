@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-用于 DeepSeek 官方 LLM API 请求的增量权威会话日志上传。该函数插件注入 `ctx.sessions` 与 `ctx.deepseekLlmApiExtensions`，并拥有 `dsh_session_log` 请求字段以及用于派生接受水位的持久 `session-log-deepseek/delivery-accepted` 事件。仅当官方 API 需要接收 Session 日志后缀时才启用它。
+用于 DeepSeek 官方 LLM API 请求的增量权威会话日志上传。该函数插件注入 `ctx.sessions` 与 `ctx.deepseekLlmApiExtensions`，并拥有 `avn_session_log` 请求字段以及用于派生接受水位的持久 `session-log-deepseek/delivery-accepted` 事件。仅当官方 API 需要接收 Session 日志后缀时才启用它。
 
 ## 目录
 
@@ -27,7 +27,7 @@ kind: "package-reference"
 
 | 配置键 | 默认值 | 含义 |
 |---|---:|---|
-| `enabled` | `false` | 注册 `dsh_session_log` 贡献。将其设为 `true` 可选择启用会话日志上传。 |
+| `enabled` | `false` | 注册 `avn_session_log` 贡献。将其设为 `true` 可选择启用会话日志上传。 |
 
 随附 profile 会挂载该插件，让 overlay 可以启用它；默认配置不会注册请求字段，也不会追加接受水位。
 
@@ -43,7 +43,7 @@ DeepSeek 适配器会在 HTTP 2xx 后、消费 SSE（Server-Sent Events）正文
 
 服务端接受后、持久化水位前发生崩溃，可能让恢复后的进程重放已经接受的范围。这是至少一次交付的失败方向：不确定性会制造重复，绝不会跳过序列。普通会话检查点策略会在下一个语义检查点持久化水位；本插件不执行独立 I/O。
 
-缺少存活会话的直接请求会省略 `dsh_session_log`。普通 agent（智能体）、压缩（compaction）与会话标题调用都会携带存活会话 id。
+缺少存活会话的直接请求会省略 `avn_session_log`。普通 agent（智能体）、压缩（compaction）与会话标题调用都会携带存活会话 id。
 
 <a id="model-experience"></a>
 ## 模型体验
@@ -52,7 +52,7 @@ DeepSeek 适配器会在 HTTP 2xx 后、消费 SSE（Server-Sent Events）正文
 
 #### 模型看到的内容
 
-无。`dsh_session_log` 是 DeepSeek 请求中模型输入字段的同级字段，不会插入 `messages`、系统提示词或工具 schema。
+无。`avn_session_log` 是 DeepSeek 请求中模型输入字段的同级字段，不会插入 `messages`、系统提示词或工具 schema。
 
 #### Token 影响
 

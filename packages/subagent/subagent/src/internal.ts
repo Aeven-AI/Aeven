@@ -11,7 +11,7 @@ import type { ToolDefinition } from '@aeven/tools'
 import type SubagentRuntime from './index.ts'
 
 /** Process-stable identity carried only by the standard adjacent-Agent messaging tool. */
-export const adjacentAgentSendMessageTool = Symbol.for('dsh.subagent.adjacentAgentSendMessageTool')
+export const adjacentAgentSendMessageTool = Symbol.for('avn.subagent.adjacentAgentSendMessageTool')
 
 /**
  * Mark the standard adjacent-Agent messaging tool without changing its model-visible schema.
@@ -38,7 +38,7 @@ export function isAdjacentAgentSendMessageTool(definition: ToolDefinition | unde
  * entry and this unbundled internal subpath.
  * @internal
  */
-export const queueSubagentPrompt = Symbol.for('dsh.subagent.queuePrompt')
+export const queueSubagentPrompt = Symbol.for('avn.subagent.queuePrompt')
 
 /** Runtime face required by the host-only Queue adapter. */
 export interface HostPromptQueue {

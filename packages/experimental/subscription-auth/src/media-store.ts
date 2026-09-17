@@ -30,11 +30,11 @@ export const MEDIA_STORE_INDEX_MAX_BYTES = 16 * 1024
 export const MEDIA_ARTIFACT_ID_PATTERN = /^[a-f0-9]{32}$/
 
 /** Same-origin route prefix that serves a stored video by artifact id. */
-export const IMAGINE_MEDIA_ROUTE_PREFIX = '/plugins/dsh-grok-build/imagine/media/'
+export const IMAGINE_MEDIA_ROUTE_PREFIX = '/plugins/avn-grok-build/imagine/media/'
 
 // oxlint-disable-next-line typescript/no-unnecessary-condition -- Windows omits O_NOFOLLOW; a spec pins the mocked-fs fallback
 const NOFOLLOW = process.platform === 'win32' ? 0 : (fsConstants.O_NOFOLLOW ?? 0)
-const TRUSTED_IMAGINE = Symbol.for('dsh-subscription-auth.trusted-imagine')
+const TRUSTED_IMAGINE = Symbol.for('avn-subscription-auth.trusted-imagine')
 
 /** Video media types the store accepts. */
 export type MediaStoreVideoType = 'video/mp4' | 'video/webm'

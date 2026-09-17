@@ -1,4 +1,4 @@
-# Agent Note: 从交付的 dsh 配置中省略运行时不变式
+# Agent Note: 从交付的 avn 配置中省略运行时不变式
 
 Status: implemented
 
@@ -10,7 +10,7 @@ Status: implemented
 
 ## 决策
 
-`apps/cli/config/` 下交付的 `dsh` 配置树既不挂载 `@aeven/invariants`，也不挂载任何包拥有的 `./invariant` 伴随插件。因此，CLI 包不再直接依赖不变式服务。
+`apps/cli/config/` 下交付的 `avn` 配置树既不挂载 `@aeven/invariants`，也不挂载任何包拥有的 `./invariant` 伴随插件。因此，CLI 包不再直接依赖不变式服务。
 
 不变式支持仍可供聚焦测试、示例组合包、生成的 SDK 组合，以及显式选择诊断的自定义部署使用。会话验证、快照、冻结和来源事件引用验证始终启用，且不依赖可选服务，具体由[源端拥有的不可变性决策](../architecture/2026-06-11-dev-invariants-over-deep-readonly.zh.md)规定。
 
@@ -24,7 +24,7 @@ Status: implemented
 
 ## 后果
 
-- 普通的 `dsh` TUI 与 Web 运行不安装不变式监听器或 trace 状态，也不会因 `InvariantError` 失败。
+- 普通的 `avn` TUI 与 Web 运行不安装不变式监听器或 trace 状态，也不会因 `InvariantError` 失败。
 - 开发和自定义组合仍可显式使用不变式服务及伴随插件。
 - 构建后 CLI 的组合输出会验证两个 surface 的交付配置中均不存在这些条目。
 - 始终启用的会话完整性保持不变。

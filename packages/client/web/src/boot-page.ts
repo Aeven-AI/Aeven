@@ -20,7 +20,7 @@ function div(className: string | undefined, text?: string): HTMLDivElement {
  * failure report still renders after the boot kernel cuts the preloader away.
  */
 function preloaderOwnsLoading(): boolean {
-  return document.getElementById('dsh-preloader') !== null
+  return document.getElementById('avn-preloader') !== null
 }
 
 /** Kernel-owned page mounted below the application's root element. */
@@ -42,11 +42,11 @@ export class BootPage {
    */
   constructor(container: HTMLElement) {
     this.root = div(css.boot)
-    this.root.dataset.dshBoot = ''
+    this.root.dataset.avnBoot = ''
     this.card = div(css.card)
     this.wordmark = div(css.wordmark, 'HARNESS')
     this.spinner = div(css.spinner)
-    this.spinner.dataset.dshBootSpinner = ''
+    this.spinner.dataset.avnBootSpinner = ''
     this.hint = div(css.hint, 'Loading plugins…')
     if (!this.silent) this.card.append(this.wordmark, this.spinner, this.hint)
     this.root.append(this.card)
@@ -109,6 +109,6 @@ export class BootPage {
   /** Grow the rotating arc monotonically as loader entries activate. */
   private updateProgress(): void {
     const ratio = this.total === 0 ? 0 : Math.min(this.active.size / this.total, 1)
-    this.spinner.style.setProperty('--dsh-boot-arc', `${String(Math.round(72 + ratio * 216))}deg`)
+    this.spinner.style.setProperty('--avn-boot-arc', `${String(Math.round(72 + ratio * 216))}deg`)
   }
 }

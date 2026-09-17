@@ -21,7 +21,7 @@ const roots: string[] = []
 const releaseWorkers: Array<() => Promise<void>> = []
 
 function temporaryRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), 'dsh-desktop-test-'))
+  const root = mkdtempSync(join(tmpdir(), 'avn-desktop-test-'))
   roots.push(root)
   return root
 }
@@ -56,10 +56,10 @@ function archiveStore(seed: string): void {
 
 function writeCorePackageSet(seed: string, version: string): void {
   const packages = [
-    { name: '@aeven/cli', file: `deepseek-ai-dsh-${version}.tgz`, body: Buffer.from(`dsh-${version}`) },
+    { name: '@aeven/cli', file: `deepseek-ai-avn-${version}.tgz`, body: Buffer.from(`avn-${version}`) },
     {
       name: '@aeven/desktop-host',
-      file: `deepseek-ai-dsh-desktop-host-${version}.tgz`,
+      file: `deepseek-ai-avn-desktop-host-${version}.tgz`,
       body: Buffer.from(`desktop-host-${version}`),
     },
   ]
@@ -117,7 +117,7 @@ for (const [name, version] of Object.entries(manifest.dependencies)) {
     : JSON.parse(readFileSync(join(project, 'desktop-release.json'), 'utf8')).version
   writeFileSync(join(packageRoot, 'package.json'), JSON.stringify({
     name, version: installedVersion,
-    ...(plugin ? { dsh: { bundle: { patch: './bundle.yml' } } } : {}),
+    ...(plugin ? { avn: { bundle: { patch: './bundle.yml' } } } : {}),
   }))
   if (plugin) writeFileSync(join(packageRoot, 'bundle.yml'), '[]\n')
   else if (name === '@aeven/desktop-host') {
@@ -203,7 +203,7 @@ describe('desktop project transactions', () => {
     writeFileSync(join(seed, 'store', 'seed-entry'), 'content')
     archiveStore(seed)
     writeIntegrity(seed)
-    const paths = resolveDesktopPaths(join(root, '.dsh'))
+    const paths = resolveDesktopPaths(join(root, '.avn'))
     const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
     const previousLog = process.env.TEST_PNPM_LOG
     const previousRegistry = process.env.npm_config_registry
@@ -213,7 +213,7 @@ describe('desktop project transactions', () => {
       await expect(manager.applyRelease(seed, '2.0.0', hooks())).rejects.toThrow(/does not match Electron/u)
       await manager.applyRelease(seed, '1.0.0', hooks())
       writeFileSync(
-        join(paths.profile, 'node_modules', '@deepseek-ai', 'dsh-desktop-host', 'package.json'),
+        join(paths.profile, 'node_modules', '@deepseek-ai', 'avn-desktop-host', 'package.json'),
         '{"name":"@aeven/desktop-host","version":"0.9.0"}\n',
       )
       await expect(manager.applyRelease(seed, '1.0.0', hooks())).resolves.toBe(true)
@@ -223,12 +223,12 @@ describe('desktop project transactions', () => {
       if (previousRegistry === undefined) delete process.env.npm_config_registry
       else process.env.npm_config_registry = previousRegistry
     }
-    expect(manager.dshVersion()).toBe('1.0.0')
+    expect(manager.avnVersion()).toBe('1.0.0')
     expect(manager.releaseVersion()).toBe('1.0.0')
-    expect(paths.profile).toBe(join(root, '.dsh', 'profiles', 'desktop'))
-    expect(existsSync(join(paths.profile, 'node_modules', '@deepseek-ai', 'dsh'))).toBe(true)
+    expect(paths.profile).toBe(join(root, '.avn', 'profiles', 'desktop'))
+    expect(existsSync(join(paths.profile, 'node_modules', '@deepseek-ai', 'avn'))).toBe(true)
     const installedHost = JSON.parse(readFileSync(
-      join(paths.profile, 'node_modules', '@deepseek-ai', 'dsh-desktop-host', 'package.json'),
+      join(paths.profile, 'node_modules', '@deepseek-ai', 'avn-desktop-host', 'package.json'),
       'utf8',
     )) as { version: string }
     expect(installedHost.version).toBe('1.0.0')
@@ -253,7 +253,7 @@ describe('desktop project transactions', () => {
     writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
     archiveStore(seed)
     writeIntegrity(seed)
-    const paths = resolveDesktopPaths(join(root, '.dsh'))
+    const paths = resolveDesktopPaths(join(root, '.avn'))
     const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
     await manager.applyRelease(seed, '1.0.0', hooks())
     let starts = 0
@@ -264,7 +264,7 @@ describe('desktop project transactions', () => {
       },
     }))).rejects.toThrow(/backend rejected staged graph/u)
     expect(manager.listPlugins()).toEqual([])
-    expect(manager.dshVersion()).toBe('1.0.0')
+    expect(manager.avnVersion()).toBe('1.0.0')
     expect(starts).toBe(2)
   })
 
@@ -275,7 +275,7 @@ describe('desktop project transactions', () => {
     writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
     archiveStore(seed)
     writeIntegrity(seed)
-    const paths = resolveDesktopPaths(join(root, '.dsh'))
+    const paths = resolveDesktopPaths(join(root, '.avn'))
     const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
     await manager.applyRelease(seed, '1.0.0', hooks())
     await manager.mutate({ type: 'plugin-add', spec: '@scope/plugin@2.0.0' }, hooks())
@@ -308,7 +308,7 @@ describe('desktop project transactions', () => {
     writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
     archiveStore(seed)
     writeIntegrity(seed)
-    const paths = resolveDesktopPaths(join(root, '.dsh'))
+    const paths = resolveDesktopPaths(join(root, '.avn'))
     const runtime = { node: process.execPath, pnpm: writeBlockingFakePnpm(root, ready, releaseWorker) }
     const manager = new DesktopProjectManager(paths, runtime)
     const installing = manager.applyRelease(seed, '1.0.0', hooks())
@@ -342,7 +342,7 @@ describe('desktop project transactions', () => {
     writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
     archiveStore(seed)
     writeIntegrity(seed)
-    const paths = resolveDesktopPaths(join(root, '.dsh'))
+    const paths = resolveDesktopPaths(join(root, '.avn'))
     const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
     await manager.applyRelease(seed, '1.0.0', hooks())
     const previousLog = process.env.TEST_PNPM_LOG
@@ -369,9 +369,9 @@ describe('desktop project transactions', () => {
     expect(invocation.env.NPM_CONFIG_REGISTRY).toBe('https://registry.npmjs.org/')
   })
 
-  it('reconciles dsh to the packaged release without removing desktop plugins', async () => {
+  it('reconciles avn to the packaged release without removing desktop plugins', async () => {
     const root = temporaryRoot()
-    const paths = resolveDesktopPaths(join(root, '.dsh'))
+    const paths = resolveDesktopPaths(join(root, '.avn'))
     const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
     const firstSeed = join(root, 'seed-1')
     createTestSeedMetadata(firstSeed, release('1.0.0'))
@@ -393,12 +393,12 @@ describe('desktop project transactions', () => {
 
     await expect(manager.applyRelease(nextSeed, '1.1.0', hooks())).resolves.toBe(true)
     expect(manager.releaseVersion()).toBe('1.1.0')
-    expect(manager.dshVersion()).toBe('1.1.0')
+    expect(manager.avnVersion()).toBe('1.1.0')
     expect(manager.listPlugins()).toEqual([{ name: '@scope/plugin', version: '2.0.0' }])
     const profile = JSON.parse(readFileSync(join(paths.profile, 'package.json'), 'utf8')) as {
-      dsh: { profile: { bundles: string[] } }
+      avn: { profile: { bundles: string[] } }
     }
-    expect(profile.dsh.profile.bundles).toEqual([
+    expect(profile.avn.profile.bundles).toEqual([
       '@aeven/base',
       '@aeven/web-app',
       '@scope/plugin',

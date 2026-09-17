@@ -62,7 +62,7 @@ async function harness(roster: Config): Promise<Context> {
 
 describe('fileComposition', () => {
   it('flattens groups and keeps refused expressions conditional', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-composition-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-composition-'))
     const path = join(dir, COMPOSITION_FILE)
     await writeFile(path, [
       '- id: alpha',
@@ -123,7 +123,7 @@ describe('fileComposition', () => {
   })
 
   it('evaluates decidable gates the way a mount would', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-composition-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-composition-'))
     const path = join(dir, COMPOSITION_FILE)
     await writeFile(path, [
       '- id: off',
@@ -143,7 +143,7 @@ describe('fileComposition', () => {
   })
 
   it('answers broken for a file that stopped reading as a composition', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-composition-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-composition-'))
 
     const missing = await fileComposition(join(dir, COMPOSITION_FILE), refuseExpression)
     expect(missing).toHaveProperty('broken')
@@ -200,7 +200,7 @@ describe('mountedCompositionRows', () => {
 
 describe('AgentPresets.compositionInventory', () => {
   it('reads unmounted presets from their files, marking the default and metadata', async () => {
-    const userRoot = await mkdtemp(join(tmpdir(), 'dsh-composition-roster-'))
+    const userRoot = await mkdtemp(join(tmpdir(), 'avn-composition-roster-'))
     await mkdir(join(userRoot, 'documented'))
     await writeFile(join(userRoot, 'documented', COMPOSITION_FILE), [
       VALID.trimEnd(),
@@ -286,7 +286,7 @@ describe('AgentPresets.compositionInventory', () => {
   })
 
   it('prefers the standing mount over a file that broke after mounting', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dsh-composition-volatile-'))
+    const root = await mkdtemp(join(tmpdir(), 'avn-composition-volatile-'))
     await mkdir(join(root, 'volatile'))
     const plugin = join(FIXTURES, 'plugins', 'contribute.js')
     await writeFile(
@@ -343,7 +343,7 @@ describe('AgentPresets.compositionInventory', () => {
   })
 
   it('keeps a broken preset on the inventory with its discovery reason', async () => {
-    const userRoot = await mkdtemp(join(tmpdir(), 'dsh-composition-roster-'))
+    const userRoot = await mkdtemp(join(tmpdir(), 'avn-composition-roster-'))
     await mkdir(join(userRoot, 'damaged'))
     const ctx = await harness({
       default: 'minimal',

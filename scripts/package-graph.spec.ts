@@ -12,7 +12,7 @@ afterEach(() => {
 })
 
 function fixture(packages: Readonly<Record<string, readonly string[]>>): string {
-  const root = mkdtempSync(join(tmpdir(), 'dsh-package-graph-'))
+  const root = mkdtempSync(join(tmpdir(), 'avn-package-graph-'))
   roots.push(root)
   for (const [name, dependencies] of Object.entries(packages)) {
     const directory = join(root, 'packages', 'client', name)

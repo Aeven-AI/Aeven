@@ -12,7 +12,7 @@ Status: implemented
 
 ## 决策
 
-`dsh-llm-pi-ai` 按所选协议格式读取模型列表。`openai-completions` 与 `openai-responses` 以 bearer 认证使用 `GET {baseURL}/models`。`anthropic-messages` 以 `x-api-key` 和 `anthropic-version: 2023-06-01` 使用 `GET /v1/models?limit=1000`。Anthropic 页大小采用文档规定的最大值；模型发现不会继续跟随 `has_more`，因此公布超过 1,000 个模型的端点只会暴露第一页。
+`avn-llm-pi-ai` 按所选协议格式读取模型列表。`openai-completions` 与 `openai-responses` 以 bearer 认证使用 `GET {baseURL}/models`。`anthropic-messages` 以 `x-api-key` 和 `anthropic-version: 2023-06-01` 使用 `GET /v1/models?limit=1000`。Anthropic 页大小采用文档规定的最大值；模型发现不会继续跟随 `has_more`，因此公布超过 1,000 个模型的端点只会暴露第一页。
 
 Anthropic SDK 资源方法会自行追加 `/v1`，而网关文档会同时发布带与不带该后缀的 API 根地址。因此列表 URL 会把末尾为 `/v1` 的 Anthropic `baseURL` 草稿视为与不带该后缀的地址相同的 API 根地址，并且只有它会归一化这一段：模型请求收到的仍是配置原样的 `baseURL`，与 pi-ai 的处理完全一致。部署路径前缀会保留：`https://gateway.example/tenant/v1` 与 `https://gateway.example/tenant` 都在 `/tenant/v1/models` 列表。
 

@@ -1,10 +1,10 @@
 /**
  * A per-agent persona as a composable row.
  *
- * `dsh-system-prompt` owns the global persona as its own config, and registers
+ * `avn-system-prompt` owns the global persona as its own config, and registers
  * that section unconditionally — so this row is **scope-only**. Mounted inside
  * an agent preset it shadows the deployment persona for that one session,
- * exactly like the per-child persona `dsh-subagent` installs; mounted globally
+ * exactly like the per-child persona `avn-subagent` installs; mounted globally
  * it collides with the registry's own registration and fails loud.
  *
  * That constraint is the reason the row exists. An agent preset cannot mount

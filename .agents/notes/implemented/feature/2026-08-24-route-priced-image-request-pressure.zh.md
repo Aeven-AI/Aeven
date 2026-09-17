@@ -12,7 +12,7 @@ token 计量服务把 `ImageBlock` 按其持久引用的 JSON 结构计价，约
 
 compaction 压力现在按路由模型自身的请求投影定价。`LlmAdapter.imageRequestPricing(provider, model)` 是可选的同步钩子，为一条确切路由返回 `LlmImageRequestPricing`，经 `ctx.llm.imageRequestPricing()` 解析；基类不声明定价，未注册的 provider 降级为 `undefined` 而绝不抛出。每个按序的图片出现处解析为一个 `LlmImageRequestPrice`：保留图片的提供方视觉 token，加上线上实际携带的模型可见文本（请求预览句柄、offload 占位文本或纯文本替换），文本交由调用方自己的估算器计价，避免任何提供方固定一种文本 token 化。
 
-DeepSeek 适配器基于连接快照实现该钩子（`request-pricing.ts`）：未编目和纯文本模型把每个出现处按其 `textOnlyImageText` 替换计价；支持图片的模型通过共享的 `offloadedImagePrefixCount()` 复现序列化器第一阶段的最旧优先 offload，经序列化器同一套执行环境访问解析构建句柄与占位文本，并按 `requestImageDimensions` 投影尺寸用 `deepSeekImageTokens()` 为保留图片计价，后者是提供方公布的 v4 视觉计算器的逐句移植（14px patch、3:1 降采样、384 token 上限、最小像素放大、8:1 宽度钳制），按最坏的 pad-to-4 对齐计价。纯几何函数从 `attachment-local` 上移到 `dsh-attachment`，供提供方与定价共享。
+DeepSeek 适配器基于连接快照实现该钩子（`request-pricing.ts`）：未编目和纯文本模型把每个出现处按其 `textOnlyImageText` 替换计价；支持图片的模型通过共享的 `offloadedImagePrefixCount()` 复现序列化器第一阶段的最旧优先 offload，经序列化器同一套执行环境访问解析构建句柄与占位文本，并按 `requestImageDimensions` 投影尺寸用 `deepSeekImageTokens()` 为保留图片计价，后者是提供方公布的 v4 视觉计算器的逐句移植（14px patch、3:1 降采样、384 token 上限、最小像素放大、8:1 宽度钳制），按最坏的 pad-to-4 对齐计价。纯几何函数从 `attachment-local` 上移到 `avn-attachment`，供提供方与定价共享。
 
 token 计量服务的表层 fold 为每个节点存储与路由无关的事实：固定启发式价格、去图价格与持久图片出现处；`measure()` 在每次调用时按生效 envelope 的路由为表层定价。锚点保存原始材料（表层快照、提供方输出价格、usage）而非预先计算的基线，因此匹配的标头会把锚点与当前表层放在同一路由下重新定价，带符号 delta 的比较口径一致；usage 与估算的选择在每次计量时针对路由定价锚点做出。公开的 `TokenSurfaceNode` 同时携带 `tokens`（路由定价；触发、保留、选段与摘要收缩比较读取它）和 `heuristicTokens`（固定值；影子价协议的计量单位，使 `compaction/summary` 与 `compaction/prune` 与 O(1) 投影 fold 自身的追加保持一致）。`contextPressure` 与 `contextBreakdown` 投影有意保持固定启发式规则。
 

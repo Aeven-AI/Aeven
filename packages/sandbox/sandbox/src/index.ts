@@ -42,7 +42,7 @@ export interface SandboxExecutionPolicy {
   /** Absolute root directory `workspace-write` may write under. */
   workspaceRoot: string
   /**
-   * Opaque identity of the calling session (the branded `dsh-session`
+   * Opaque identity of the calling session (the branded `avn-session`
    * SessionId). Backends key per-session state off it (e.g. windows-acl gives
    * each live session/workspace pair a random private temp directory and SID,
    * while the workspace SID and standing grant remain per-workspace); absent

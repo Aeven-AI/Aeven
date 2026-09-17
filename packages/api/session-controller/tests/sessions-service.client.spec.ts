@@ -431,7 +431,7 @@ describe('current selection (migrated from ui-layout, arbitrated into the list s
     const b = bench()
     await feedList(b, [{ id: 's1' }])
     b.svc.open(sid('s1'))
-    expect(storage.get('dsh.sessions.current')).toContain('s1')
+    expect(storage.get('avn.sessions.current')).toContain('s1')
     b.svc.clear()
     expect(b.svc.list.getSnapshot().current).toBeUndefined()
     // Persisted wipe: a fresh service with the same storage stays on empty.
@@ -450,7 +450,7 @@ describe('current selection (migrated from ui-layout, arbitrated into the list s
     expect(b.svc.list.getSnapshot().current).toBe('s1')
   })
 
-  it('persists the selection under dsh.sessions.current and rehydrates it into a fresh service', async () => {
+  it('persists the selection under avn.sessions.current and rehydrates it into a fresh service', async () => {
     const storage = new Map<string, string>()
     vi.stubGlobal('localStorage', {
       getItem: (k: string) => storage.get(k) ?? null,
@@ -459,7 +459,7 @@ describe('current selection (migrated from ui-layout, arbitrated into the list s
     const first = bench()
     await feedList(first, [{ id: 's1' }])
     first.svc.open(sid('s1'))
-    expect(storage.get('dsh.sessions.current')).toContain('s1')
+    expect(storage.get('avn.sessions.current')).toContain('s1')
     // A fresh boot (same storage) recovers the selection once the list holds the session.
     const second = bench()
     await feedList(second, [{ id: 's1' }])
@@ -501,7 +501,7 @@ describe('binding and stage lifecycle', () => {
 
   it('startup restore: a persisted selection validated by the first projection opens its window unprompted', async () => {
     const storage = new Map<string, string>([
-      ['dsh.sessions.current', JSON.stringify({ sessionId: 's1' })],
+      ['avn.sessions.current', JSON.stringify({ sessionId: 's1' })],
     ])
     vi.stubGlobal('localStorage', {
       getItem: (k: string) => storage.get(k) ?? null,

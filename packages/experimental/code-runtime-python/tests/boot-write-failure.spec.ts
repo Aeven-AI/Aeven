@@ -172,7 +172,7 @@ describe('PythonCodeRuntime — boot-write failure', () => {
     // received (`['-I', <dir>/bootstrap.py]`) and assert only that path is gone.
     // A tmpdir scan — even a set difference against a pre-run snapshot — would
     // flake under vitest's forks pool: a sibling worker creating its own
-    // `dsh-code-runtime-python-*` dir in the window reads as a leak here. Keying
+    // `avn-code-runtime-python-*` dir in the window reads as a leak here. Keying
     // off our own argv is fully isolated from concurrent staging.
     let stagedBootstrap: string | undefined
     spawnMock.mockImplementation((_bin: string, args: string[]) => {

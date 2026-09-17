@@ -13,7 +13,7 @@
  * default model, and a listing is not a contract that an id has stopped
  * working.
  *
- * @module dsh-llm-deepseek/model-sync
+ * @module avn-llm-deepseek/model-sync
  */
 
 import type { DeepSeekCatalogModel } from './adapter.ts'

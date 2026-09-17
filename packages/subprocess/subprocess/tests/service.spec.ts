@@ -77,21 +77,21 @@ describe('SubprocessRuntime seam', () => {
 
   it('scrubbedParentEnv drops credential-shaped and AVN_ names (case-insensitively) but keeps PATH', () => {
     process.env.AVN_SCRUB_PROBE = 'stale'
-    process.env.dsh_scrub_probe_lower = 'stale'
+    process.env.avn_scrub_probe_lower = 'stale'
     process.env.SCRUB_PROBE_TOKEN = 'secret'
     process.env.SCRUB_PROBE_PASSWORD = 'secret'
     process.env.SCRUB_PROBE_PLAIN = 'visible'
     try {
       const env = scrubbedParentEnv()
       expect(env.AVN_SCRUB_PROBE).toBeUndefined()
-      expect(env.dsh_scrub_probe_lower).toBeUndefined()
+      expect(env.avn_scrub_probe_lower).toBeUndefined()
       expect(env.SCRUB_PROBE_TOKEN).toBeUndefined()
       expect(env.SCRUB_PROBE_PASSWORD).toBeUndefined()
       expect(env.SCRUB_PROBE_PLAIN).toBe('visible')
       expect(env.PATH).toBeDefined()
     } finally {
       delete process.env.AVN_SCRUB_PROBE
-      delete process.env.dsh_scrub_probe_lower
+      delete process.env.avn_scrub_probe_lower
       delete process.env.SCRUB_PROBE_TOKEN
       delete process.env.SCRUB_PROBE_PASSWORD
       delete process.env.SCRUB_PROBE_PLAIN

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/testing/2026-09-08-frame-breakpoint-and-scaffold-admission.md
-2026-09-08-frame-breakpoint-and-scaffold-admission.md: 3719320b4a0279ddf75b465f473a320c52ce9e68
-2026-09-08-frame-breakpoint-and-scaffold-admission.zh.md: 805cde67c2e2070c006724c1d90fe027f504aafc
+2026-09-08-frame-breakpoint-and-scaffold-admission.md: 2977a288a55488c7c726e9601ff1b794a606aeaa
+2026-09-08-frame-breakpoint-and-scaffold-admission.zh.md: 4058ae582729eec4c5024e310c204b69951db89f

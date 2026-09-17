@@ -8,7 +8,7 @@ import type { AuthEvent, AuthPrompt } from '@earendil-works/pi-ai'
 import { CODING_OAUTH_CORE_ABI } from 'dsh-coding-oauth-core'
 import { grokBuildAuthStatus, importGrokBuildSession, loginGrokBuildSession } from './auth.ts'
 import type { CatalogSource } from './catalog.ts'
-import type { DshCompatibility } from './compatibility.ts'
+import type { AvnCompatibility } from './compatibility.ts'
 import { probeGrokAuth } from './grok-import.ts'
 import { readJsonRequest, requestErrorStatus } from './http-json.ts'
 import {
@@ -657,7 +657,7 @@ export function registerGrokBuildAuthRoutes(
   const auth = existingAuth ?? new GrokBuildWebAuth(session)
   const ownsAuth = existingAuth === undefined
   if (ownsAuth) {
-    ctx.effect(() => () => auth.dispose(), 'dsh-subscription-auth: Grok OAuth auth lifetime')
+    ctx.effect(() => () => auth.dispose(), 'avn-subscription-auth: Grok OAuth auth lifetime')
   }
   ctx.effect(() => {
     const releaseRoutes = registerWebRouteSetupAtomically(ctx.webServer, webServer => [
@@ -729,14 +729,14 @@ export function registerGrokBuildAuthRoutes(
       }),
     ])
     return releaseRoutes
-  }, 'dsh-subscription-auth: Web OAuth routes')
+  }, 'avn-subscription-auth: Web OAuth routes')
 }
 
 /** Reported coding oauth web status. */
 export interface CodingOAuthWebStatus {
   accessMode: OwnerAccessMode
   uiOwner: 'standalone' | 'hub'
-  compatibility: DshCompatibility
+  compatibility: AvnCompatibility
   providers: {
     grok: GrokBuildWebAuthStatus
     codex: SubscriptionWebAuthStatus
@@ -830,7 +830,7 @@ export function registerCodingOAuthRoutes(
   grokSession: GrokBuildSession,
   subscriptionSessions: readonly OAuthProviderSession[],
   ownerRequestPolicy: OwnerRequestPolicy = LOOPBACK_OWNER_REQUEST_POLICY,
-  compatibility?: (accessMode: OwnerAccessMode) => DshCompatibility,
+  compatibility?: (accessMode: OwnerAccessMode) => AvnCompatibility,
 ): void {
   const grok = new GrokBuildWebAuth(grokSession)
   const subscriptions = new Map(
@@ -844,7 +844,7 @@ export function registerCodingOAuthRoutes(
   ctx.effect(
     () => () =>
       Promise.all([grok.dispose(), ...[...subscriptions.values()].map(auth => auth.dispose())]).then(() => undefined),
-    'dsh-subscription-auth: Coding OAuth auth lifetime',
+    'avn-subscription-auth: Coding OAuth auth lifetime',
   )
 
   registerGrokBuildAuthRoutes(ctx, grokSession, grok, ownerRequestPolicy)
@@ -963,13 +963,13 @@ export function registerCodingOAuthRoutes(
       }),
     ])
     return releaseRoutes
-  }, 'dsh-subscription-auth: Coding OAuth routes')
+  }, 'avn-subscription-auth: Coding OAuth routes')
 }
 
-function fallbackCompatibility(accessMode: OwnerAccessMode): DshCompatibility {
+function fallbackCompatibility(accessMode: OwnerAccessMode): AvnCompatibility {
   return {
     coreAbi: CODING_OAUTH_CORE_ABI,
-    dshVersion: null,
+    avnVersion: null,
     status: 'degraded',
     uiOwner: 'standalone',
     accessMode,

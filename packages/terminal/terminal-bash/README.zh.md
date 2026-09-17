@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-terminal-bash` 在部署的沙箱策略下启动持久交互式 shell：会话跨工具调用存活，检测 shell 何时可以接收输入，并保留有界的逐行输出供读取。它提供 `shell` 后端类型，并通过 `shellDialect` 设置在 POSIX 上支持 bash、在 Windows 上支持 pwsh。通过已挂载的子进程提供方，同一个后端既可以与本地执行世界组合，也可以与远程执行世界组合。全屏终端应用不在其逐行约定的范围内。
+`avn-terminal-bash` 在部署的沙箱策略下启动持久交互式 shell：会话跨工具调用存活，检测 shell 何时可以接收输入，并保留有界的逐行输出供读取。它提供 `shell` 后端类型，并通过 `shellDialect` 设置在 POSIX 上支持 bash、在 Windows 上支持 pwsh。通过已挂载的子进程提供方，同一个后端既可以与本地执行世界组合，也可以与远程执行世界组合。全屏终端应用不在其逐行约定的范围内。
 
 ## 目录
 
@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 何时选择
 
-当工作需要状态持续存在的交互式 shell 或 REPL 时选择此后端：逐步调试 gdb、在 Python 或 Node REPL 中探索，或中断前台命令后回到 shell。对于应当一次调用即开始并结束的有界命令，请选择单次 bash 工具。bash 方言面向 POSIX；pwsh 方言面向 `dsh-pwsh-local` 能解析出 pwsh 可执行文件的 Windows 主机。
+当工作需要状态持续存在的交互式 shell 或 REPL 时选择此后端：逐步调试 gdb、在 Python 或 Node REPL 中探索，或中断前台命令后回到 shell。对于应当一次调用即开始并结束的有界命令，请选择单次 bash 工具。bash 方言面向 POSIX；pwsh 方言面向 `avn-pwsh-local` 能解析出 pwsh 可执行文件的 Windows 主机。
 
 ### 组合方式
 

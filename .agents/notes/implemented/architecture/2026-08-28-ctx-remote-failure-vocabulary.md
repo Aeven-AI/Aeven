@@ -16,11 +16,11 @@ Fixed Host facts bypassed `ctx.remote` too: the Host home came from `(ctx.get('c
 
 ## Decision
 
-`@aeven/typert-protocol` exports one failure class, `RemoteError<Code>`: a real `Error` carrying readonly `code` and `details`, the structural marker `isDSHRemoteError`, and standard `ErrorOptions` (`cause` holds in-process only). The correspondence between codes and details lives in one merge-extensible `RemoteErrorDetailsMap`; `RemoteFailure` is the code-distributed union of instances, and `RemoteResult<T>` keeps its shape.
+`@aeven/typert-protocol` exports one failure class, `RemoteError<Code>`: a real `Error` carrying readonly `code` and `details`, the structural marker `isAvnRemoteError`, and standard `ErrorOptions` (`cause` holds in-process only). The correspondence between codes and details lives in one merge-extensible `RemoteErrorDetailsMap`; `RemoteFailure` is the code-distributed union of instances, and `RemoteResult<T>` keeps its shape.
 
 ```text
 export class RemoteError<Code extends RemoteErrorCode = RemoteErrorCode> extends Error {
-  readonly isDSHRemoteError: true = true
+  readonly isAvnRemoteError: true = true
   constructor(readonly code: Code, message: string,
     readonly details: RemoteErrorDetailsMap[Code], options?: ErrorOptions)
 }

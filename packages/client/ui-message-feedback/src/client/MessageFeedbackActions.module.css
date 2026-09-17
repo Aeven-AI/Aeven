@@ -5,8 +5,8 @@
   /* Rides the Settings font-size axis like the host row's own actions
      (ui-chat MessageIconActions), so slot-injected buttons match their
      siblings at every size. */
-  width: calc(28px + var(--dsh-content-font-delta, 0px));
-  height: calc(28px + var(--dsh-content-font-delta, 0px));
+  width: calc(28px + var(--avn-content-font-delta, 0px));
+  height: calc(28px + var(--avn-content-font-delta, 0px));
   padding: 6px;
   border: none;
   border-radius: 28px;
@@ -18,8 +18,8 @@
 /* The 15px glyphs follow the same px delta as the text they serve; the CSS
    edge overrides each svg's own width/height attributes. */
 .action svg {
-  width: calc(15px + var(--dsh-content-font-delta, 0px));
-  height: calc(15px + var(--dsh-content-font-delta, 0px));
+  width: calc(15px + var(--avn-content-font-delta, 0px));
+  height: calc(15px + var(--avn-content-font-delta, 0px));
 }
 
 .action:hover {
@@ -46,8 +46,8 @@
   border-radius: 14px;
   background: transparent;
   color: var(--dsw-alias-label-tertiary);
-  font-size: var(--dsh-content-font-size-secondary, 14px);
-  line-height: calc(28px + var(--dsh-content-font-delta, 0px));
+  font-size: var(--avn-content-font-size-secondary, 14px);
+  line-height: calc(28px + var(--avn-content-font-delta, 0px));
   white-space: nowrap;
   text-overflow: ellipsis;
   cursor: pointer;
@@ -83,8 +83,8 @@
   background: var(--dsw-specific-menu);
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
   box-shadow: var(--dsw-elevation-prominent);
-  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
-  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 
 .noteInput {

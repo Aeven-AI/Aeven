@@ -84,7 +84,7 @@ async function settleCurrentTasks(): Promise<void> {
 
 describe('Schedule production JSONL restart', () => {
   it('resumes one overdue reminder exactly once across fresh runtime mounts', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dsh-schedule-jsonl-'))
+    const root = await mkdtemp(join(tmpdir(), 'avn-schedule-jsonl-'))
     roots.push(root)
     const sessionId = SessionId('schedule-jsonl-restart')
     const first = await mountPersistence(root)

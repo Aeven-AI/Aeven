@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-subagent-claude-code` registers a Profile-named Claude Code subagent provider (default `claude-code`) that runs a real Claude Code CLI child in the delegating session's workspace through the official Agent SDK. Each accepted run submits one self-contained text task and returns the strict final answer — or a separate safe failure diagnostic — through the shared subagent result contract. The provider ships as an optional Profile Bundle: installing it brings the pinned Agent SDK and one compatible platform CLI payload, while the registered provider stays dormant until a bound tool calls it. Native Claude settings and authentication remain authoritative, and the Profile-selected `permissionMode` decides how the unattended query handles permission checks. Choose it when the child should be a genuine Claude Code product session, fully isolated from the parent harness.
+`avn-subagent-claude-code` registers a Profile-named Claude Code subagent provider (default `claude-code`) that runs a real Claude Code CLI child in the delegating session's workspace through the official Agent SDK. Each accepted run submits one self-contained text task and returns the strict final answer — or a separate safe failure diagnostic — through the shared subagent result contract. The provider ships as an optional Profile Bundle: installing it brings the pinned Agent SDK and one compatible platform CLI payload, while the registered provider stays dormant until a bound tool calls it. Native Claude settings and authentication remain authoritative, and the Profile-selected `permissionMode` decides how the unattended query handles permission checks. Choose it when the child should be a genuine Claude Code product session, fully isolated from the parent harness.
 
 ## Table of Contents
 
@@ -32,9 +32,9 @@ Mount this provider when a delegation should run as a real Claude Code session i
 Install the package into the target Profile, then restart that Profile. The installation brings the pinned Agent SDK and one compatible platform CLI payload into the Profile; the declared patch layer registers only the dormant provider and starts no Claude process.
 
 ```sh
-dsh plugin --profile <name> add @aeven/subagent-claude-code
-dsh plugin --profile <name> remove @aeven/subagent-claude-code
-dsh --profile <name>
+avn plugin --profile <name> add @aeven/subagent-claude-code
+avn plugin --profile <name> remove @aeven/subagent-claude-code
+avn --profile <name>
 ```
 
 Removing the package withdraws the provider and its private runtime closure on the next Profile start. Installation controls Host availability, not model permission: the model can only reach the provider through a delegation tool row you compose.
@@ -126,7 +126,7 @@ A start accepts only a non-empty sequence of text blocks and derives the child c
 Read these pages when the package-level contract is not enough. They move from this provider to the seam it plugs into and the sibling product provider.
 
 - [Subagent subsystem](../../../docs/subsystems/subagent.md) — the service contract, provider contract, and terminal result semantics.
-- [dsh-subagent seam](../subagent/README.md) — the registry and start API this provider registers on.
+- [avn-subagent seam](../subagent/README.md) — the registry and start API this provider registers on.
 - [Codex subagent provider](../subagent-codex/README.md) — the sibling product backend over the official app-server protocol.
 - [Claude Code and Codex backends](../../../.agents/notes/implemented/feature/2026-08-04-claude-code-and-codex-subagent-backends.md) — the design record for the product providers.
 - [Generated configuration catalog](../../../docs/config-catalog.md#aeven-subagent-claude-code) — every accepted config field and its source declaration.
@@ -154,7 +154,7 @@ Independent of the parent request cache. Reuse depends only on Claude Code's own
 
 #### What the model sees
 
-Through `dsh-tool-subagent`, a foreground call gives the parent the strict final Claude Code answer or an error containing the stop reason and optional safe diagnostic for a non-completed result. That diagnostic can distinguish a coarse action category, lifecycle stage, and observed process outcome without copying raw product text or version-specific subtype names. A background call first returns a Job id; the generic job controls later deliver a completion notice, expose the same final answer or failed status detail through `job_output`, and let `job_kill` request cancellation. Claude Code reasoning, tool activity, intermediate messages, stderr, workspace diffs, usage, product ids, tool inputs, and raw protocol payloads are not copied into the parent Session.
+Through `avn-tool-subagent`, a foreground call gives the parent the strict final Claude Code answer or an error containing the stop reason and optional safe diagnostic for a non-completed result. That diagnostic can distinguish a coarse action category, lifecycle stage, and observed process outcome without copying raw product text or version-specific subtype names. A background call first returns a Job id; the generic job controls later deliver a completion notice, expose the same final answer or failed status detail through `job_output`, and let `job_kill` request cancellation. Claude Code reasoning, tool activity, intermediate messages, stderr, workspace diffs, usage, product ids, tool inputs, and raw protocol payloads are not copied into the parent Session.
 
 #### Token effect
 

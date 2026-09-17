@@ -38,15 +38,15 @@ FS_SEARCH_TEXT = "filesystem search smoke ok"
 FS_SEARCH_MARKER = "PACKAGED_FS_SEARCH_OK"
 MCP_PROMPT = "Exercise the packaged MCP client with one external stdio server."
 MCP_TEXT = "MCP client smoke ok"
-PROFILE_PLUGIN_PROMPT = "Verify the Python-installed dsh profile plugin."
+PROFILE_PLUGIN_PROMPT = "Verify the Python-installed avn profile plugin."
 PROFILE_PLUGIN_TEXT = "profile plugin smoke ok"
 PROFILE_PLUGIN_MARKER = "PYTHON_INSTALLED_AVN_PROFILE_PLUGIN"
 IS_WINDOWS = sys.platform == "win32"
 MINIMAL_SHELL_TOOL = "pwsh" if IS_WINDOWS else "bash"
 MINIMAL_SHELL_COMMAND = (
-    "$global:dshSdkCounter = [int]$global:dshSdkCounter + 1; "
-    'Write-Output "COUNT=$global:dshSdkCounter CWD=$((Get-Location).Path)"; '
-    "if ($global:dshSdkCounter -eq 1) { Set-Location $env:TEMP }"
+    "$global:avnSdkCounter = [int]$global:avnSdkCounter + 1; "
+    'Write-Output "COUNT=$global:avnSdkCounter CWD=$((Get-Location).Path)"; '
+    "if ($global:avnSdkCounter -eq 1) { Set-Location $env:TEMP }"
     if IS_WINDOWS
     else (
         "counter=$(( ${counter:-0} + 1 )); export counter; "
@@ -207,7 +207,7 @@ def write_profile_patch(
     sessions: Path,
     patches: list[dict[str, object]],
 ) -> Path:
-    """Write one JSON-form dsh profile patch with deterministic persistence."""
+    """Write one JSON-form avn profile patch with deterministic persistence."""
     path = root / name
     path.write_text(json.dumps([
         {
@@ -835,10 +835,10 @@ def smoke_sdk_live() -> None:
     if not base_url:
         raise AssertionError("sdk-live requires an explicit DEEPSEEK_BASE_URL")
 
-    with tempfile.TemporaryDirectory(prefix="dsh-sdk-live-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="avn-sdk-live-") as temporary:
         root = Path(temporary).resolve()
-        dsh_home = root / "home"
-        sessions = dsh_home / "sessions"
+        avn_home = root / "home"
+        sessions = avn_home / "sessions"
         marker = root / "live-api-marker.txt"
         session_id = "installed-wheel-live-api"
         shell_tool = "pwsh" if IS_WINDOWS else "bash"
@@ -854,7 +854,7 @@ def smoke_sdk_live() -> None:
             provider="deepseek-official",
             model="deepseek-v4-flash",
             cwd=str(root),
-            dsh_home=str(dsh_home),
+            avn_home=str(avn_home),
             env={
                 "AVN_PERMISSION_MODE": "danger-full-access",
                 "AVN_TELEMETRY_DISABLED": "1",
@@ -919,15 +919,15 @@ def safe_turn_end(value: object) -> object:
 def smoke_sdk_default(base_url: str) -> None:
     from deepseek_harness import DeepSeekHarness
 
-    with tempfile.TemporaryDirectory(prefix="dsh-sdk-default-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="avn-sdk-default-") as temporary:
         root = Path(temporary).resolve()
-        dsh_home = root / "home"
-        sessions = dsh_home / "sessions"
+        avn_home = root / "home"
+        sessions = avn_home / "sessions"
         with DeepSeekHarness(
             provider="deepseek-official",
             model="smoke-model",
             cwd=str(root),
-            dsh_home=str(dsh_home),
+            avn_home=str(avn_home),
             env={
                 "AVN_PERMISSION_MODE": "danger-full-access",
                 "AVN_TELEMETRY_DISABLED": "1",
@@ -948,17 +948,17 @@ def smoke_sdk_default(base_url: str) -> None:
 def smoke_sdk_custom(base_url: str, executable: Path) -> None:
     from deepseek_harness import DeepSeekHarness
 
-    with tempfile.TemporaryDirectory(prefix="dsh-sdk-custom-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="avn-sdk-custom-") as temporary:
         root = Path(temporary).resolve()
-        dsh_home = root / "home"
-        sessions = dsh_home / "sessions"
+        avn_home = root / "home"
+        sessions = avn_home / "sessions"
         patch = write_advanced_profile_patch(root, "custom.patch.yml", sessions)
         with DeepSeekHarness(
             provider="deepseek-official",
             model="smoke-model",
             cwd=str(root),
-            dsh_bin=str(executable),
-            dsh_home=str(dsh_home),
+            avn_bin=str(executable),
+            avn_home=str(avn_home),
             patches=(str(patch),),
             env={
                 "AVN_PERMISSION_MODE": "danger-full-access",
@@ -983,18 +983,18 @@ def smoke_sdk_minimal(base_url: str, executable: Path, update_snapshots: bool) -
 
     # One mock model serves every scenario of a run, so the snapshot takes this turn's slice.
     first_request = len(MockModelHandler.requests)
-    with tempfile.TemporaryDirectory(prefix="dsh-sdk-minimal-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="avn-sdk-minimal-") as temporary:
         root = Path(temporary).resolve()
         editor_path = root / "created.txt"
         prompt = f"{MINIMAL_PROMPT}\n{MINIMAL_EDITOR_PATH_PREFIX}{editor_path}"
-        dsh_home = root / "home"
-        sessions = dsh_home / "sessions"
+        avn_home = root / "home"
+        sessions = avn_home / "sessions"
         with DeepSeekHarness(
             provider="deepseek-official",
             model="smoke-model",
             cwd=str(root),
-            dsh_bin=str(executable),
-            dsh_home=str(dsh_home),
+            avn_bin=str(executable),
+            avn_home=str(avn_home),
             profile="sdk-minimal",
             api_key="sk-keyless-smoke",
             base_url=base_url,
@@ -1019,11 +1019,11 @@ def smoke_sdk_fs_search(base_url: str, executable: Path) -> None:
     """Exercise real grep and glob spawns through the packaged executable."""
     from deepseek_harness import DeepSeekHarness
 
-    with tempfile.TemporaryDirectory(prefix="dsh-sdk-fs-search-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="avn-sdk-fs-search-") as temporary:
         root = Path(temporary).resolve()
         (root / "needle.txt").write_text(f"{FS_SEARCH_MARKER}\n")
-        dsh_home = root / "home"
-        sessions = dsh_home / "sessions"
+        avn_home = root / "home"
+        sessions = avn_home / "sessions"
         patch = write_profile_patch(root, "fs-search.patch.yml", sessions, [
             {"id": "skill-filesystem", "disabled": True},
             {"id": "tool-fs-search", "config": {"sampleOverCapGlobResults": False}},
@@ -1032,8 +1032,8 @@ def smoke_sdk_fs_search(base_url: str, executable: Path) -> None:
             provider="deepseek-official",
             model="smoke-model",
             cwd=str(root),
-            dsh_bin=str(executable),
-            dsh_home=str(dsh_home),
+            avn_bin=str(executable),
+            avn_home=str(avn_home),
             patches=(str(patch),),
             env={
                 "AVN_PERMISSION_MODE": "danger-full-access",
@@ -1053,10 +1053,10 @@ def smoke_sdk_mcp(base_url: str, executable: Path | None) -> None:
     """Discover and call an external stdio MCP tool through the packaged client."""
     from deepseek_harness import DeepSeekHarness
 
-    with tempfile.TemporaryDirectory(prefix="dsh-sdk-mcp-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="avn-sdk-mcp-") as temporary:
         root = Path(temporary).resolve()
-        dsh_home = root / "home"
-        sessions = dsh_home / "sessions"
+        avn_home = root / "home"
+        sessions = avn_home / "sessions"
         server_script = root / "mcp_server.py"
         server_script.write_text(MCP_SERVER_SCRIPT)
         patch = write_mcp_patch(root, sessions, server_script)
@@ -1065,8 +1065,8 @@ def smoke_sdk_mcp(base_url: str, executable: Path | None) -> None:
             provider="deepseek-official",
             model="smoke-model",
             cwd=str(root),
-            dsh_bin=None if executable is None else str(executable),
-            dsh_home=str(dsh_home),
+            avn_bin=None if executable is None else str(executable),
+            avn_home=str(avn_home),
             patches=(str(patch),),
             env={
                 "AVN_PERMISSION_MODE": "danger-full-access",
@@ -1089,22 +1089,22 @@ def smoke_sdk_mcp(base_url: str, executable: Path | None) -> None:
 
 
 def smoke_sdk_profile_plugin(base_url: str) -> None:
-    """Install an external bundle through Python's dsh command and load it in the SDK."""
+    """Install an external bundle through Python's avn command and load it in the SDK."""
     from deepseek_harness import DeepSeekHarness
 
-    with tempfile.TemporaryDirectory(prefix="dsh-sdk-profile-plugin-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="avn-sdk-profile-plugin-") as temporary:
         root = Path(temporary).resolve()
-        dsh_home = root / "home"
+        avn_home = root / "home"
         plugin = root / "plugin"
         plugin.mkdir()
         (plugin / "package.json").write_text(json.dumps({
-            "name": "dsh-python-blackbox-plugin",
+            "name": "avn-python-blackbox-plugin",
             "version": "1.0.0",
             "private": True,
             "type": "module",
             "exports": "./index.js",
             "peerDependencies": {"@deepseek-ai/cordis": "*"},
-            "dsh": {"bundle": {"patch": "./cordis.patch.yml"}},
+            "avn": {"bundle": {"patch": "./cordis.patch.yml"}},
         }, indent=2))
         (plugin / "index.js").write_text(
             "import { Context } from '@deepseek-ai/cordis'\n"
@@ -1120,13 +1120,13 @@ def smoke_sdk_profile_plugin(base_url: str) -> None:
             "}\n"
         )
         (plugin / "cordis.patch.yml").write_text(json.dumps([{
-            "insert": [{"id": "python-sdk-blackbox-plugin", "name": "dsh-python-blackbox-plugin"}],
+            "insert": [{"id": "python-sdk-blackbox-plugin", "name": "avn-python-blackbox-plugin"}],
         }], indent=2))
 
-        dsh = Path(sysconfig.get_path("scripts")) / ("dsh.exe" if IS_WINDOWS else "dsh")
-        environment = {**os.environ, "AVN_HOME": str(dsh_home)}
+        avn = Path(sysconfig.get_path("scripts")) / ("avn.exe" if IS_WINDOWS else "avn")
+        environment = {**os.environ, "AVN_HOME": str(avn_home)}
         installed = subprocess.run(
-            [str(dsh), "plugin", "--profile", "sdk", "add", f"file:{plugin}"],
+            [str(avn), "plugin", "--profile", "sdk", "add", f"file:{plugin}"],
             cwd=root,
             env=environment,
             text=True,
@@ -1135,20 +1135,20 @@ def smoke_sdk_profile_plugin(base_url: str) -> None:
         )
         if installed.returncode != 0:
             raise AssertionError(
-                f"Python-installed dsh could not add the external profile plugin: "
+                f"Python-installed avn could not add the external profile plugin: "
                 f"stdout={installed.stdout!r} stderr={installed.stderr!r}"
             )
-        manifest = json.loads((dsh_home / "profiles" / "sdk" / "package.json").read_text())
-        if "dsh-python-blackbox-plugin" not in manifest.get("dependencies", {}):
-            raise AssertionError(f"dsh plugin did not record the external dependency: {manifest}")
-        if "dsh-python-blackbox-plugin" not in manifest["dsh"]["profile"]["bundles"]:
-            raise AssertionError(f"dsh plugin did not activate the external bundle: {manifest}")
+        manifest = json.loads((avn_home / "profiles" / "sdk" / "package.json").read_text())
+        if "avn-python-blackbox-plugin" not in manifest.get("dependencies", {}):
+            raise AssertionError(f"avn plugin did not record the external dependency: {manifest}")
+        if "avn-python-blackbox-plugin" not in manifest["avn"]["profile"]["bundles"]:
+            raise AssertionError(f"avn plugin did not activate the external bundle: {manifest}")
 
         harness = DeepSeekHarness(
             provider="deepseek-official",
             model="smoke-model",
             cwd=str(root),
-            dsh_home=str(dsh_home),
+            avn_home=str(avn_home),
             env={
                 "AVN_PERMISSION_MODE": "danger-full-access",
                 "AVN_TELEMETRY_DISABLED": "1",
@@ -1166,24 +1166,24 @@ def smoke_sdk_profile_plugin(base_url: str) -> None:
             ) from error
 
         assert result.final_response == PROFILE_PLUGIN_TEXT, result.final_response
-        assert_zstd_session_log(dsh_home / "sessions")
+        assert_zstd_session_log(avn_home / "sessions")
 
 
 def smoke_sdk_snapshot(base_url: str, executable: Path, update_snapshots: bool) -> None:
     """Drive and compare the advanced SDK/executable behavioral snapshot."""
     from deepseek_harness import DeepSeekHarness
 
-    with tempfile.TemporaryDirectory(prefix="dsh-sdk-snapshot-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="avn-sdk-snapshot-") as temporary:
         root = Path(temporary).resolve()
-        dsh_home = root / "home"
-        sessions = dsh_home / "sessions"
+        avn_home = root / "home"
+        sessions = avn_home / "sessions"
         patch = write_advanced_profile_patch(root, "snapshot.patch.yml", sessions)
         with DeepSeekHarness(
             provider="deepseek-official",
             model="smoke-model",
             cwd=str(root),
-            dsh_bin=str(executable),
-            dsh_home=str(dsh_home),
+            avn_bin=str(executable),
+            avn_home=str(avn_home),
             patches=(str(patch),),
             env={
                 "AVN_PERMISSION_MODE": "danger-full-access",
@@ -1222,10 +1222,10 @@ def smoke_sdk_restart_snapshot(base_url: str, executable: Path, update_snapshots
     """Snapshot two isolated sessions across complete SDK runtime restarts."""
     from deepseek_harness import DeepSeekHarness
 
-    with tempfile.TemporaryDirectory(prefix="dsh-sdk-restart-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="avn-sdk-restart-") as temporary:
         root = Path(temporary).resolve()
-        dsh_home = root / "home"
-        sessions = dsh_home / "sessions"
+        avn_home = root / "home"
+        sessions = avn_home / "sessions"
         patch = write_advanced_profile_patch(root, "restart.patch.yml", sessions)
         first_request = len(MockModelHandler.requests)
 
@@ -1234,8 +1234,8 @@ def smoke_sdk_restart_snapshot(base_url: str, executable: Path, update_snapshots
                 provider="deepseek-official",
                 model="smoke-model",
                 cwd=str(root),
-                dsh_bin=str(executable),
-                dsh_home=str(dsh_home),
+                avn_bin=str(executable),
+                avn_home=str(avn_home),
                 patches=(str(patch),),
                 env={
                     "AVN_PERMISSION_MODE": "danger-full-access",
@@ -1278,14 +1278,14 @@ def smoke_sdk_restart_snapshot(base_url: str, executable: Path, update_snapshots
 
 
 def smoke_direct(base_url: str, executable: Path) -> None:
-    with tempfile.TemporaryDirectory(prefix="dsh-direct-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="avn-direct-") as temporary:
         root = Path(temporary).resolve()
-        dsh_home = root / "home"
-        sessions = dsh_home / "sessions"
+        avn_home = root / "home"
+        sessions = avn_home / "sessions"
         patch = write_profile_patch(root, "direct.patch.yml", sessions, [])
         environment = {
             **os.environ,
-            "AVN_HOME": str(dsh_home),
+            "AVN_HOME": str(avn_home),
             "AVN_PERMISSION_MODE": "danger-full-access",
             "AVN_TELEMETRY_DISABLED": "1",
             "DEEPSEEK_API_KEY": "sk-keyless-smoke",

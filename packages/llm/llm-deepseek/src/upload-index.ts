@@ -1,10 +1,10 @@
-/** Durable DeepSeek attachment-to-file-id index. @module dsh-llm-deepseek/upload-index */
+/** Durable DeepSeek attachment-to-file-id index. @module avn-llm-deepseek/upload-index */
 
 import { createHash } from 'node:crypto'
 import { readFile, mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { withFileLock, writeFileAtomic } from '@aeven/atomic-write'
-import { resolveDshHome } from '@aeven/home-paths'
+import { resolveAvnHome } from '@aeven/home-paths'
 import { ImageVariantId } from '@aeven/attachment'
 import type { AttachmentId, ImageVariantId as ImageVariantIdType } from '@aeven/attachment'
 import { DeepSeekFileId, DeepSeekFileScope } from './file-id.ts'
@@ -108,7 +108,7 @@ function reusable(record: DeepSeekUploadRecord, now: number, refreshMarginMs: nu
   return record.expiresAt - now > refreshMarginMs
 }
 
-/** Atomic local index shared by every DeepSeek session in this DSH home. */
+/** Atomic local index shared by every DeepSeek session in this AVN home. */
 export class DeepSeekUploadIndex {
   /** Absolute owner-private JSON index path. */
   readonly path: string
@@ -116,7 +116,7 @@ export class DeepSeekUploadIndex {
   /**
    * @param path - explicit test path; omission uses `AVN_HOME/llm-deepseek/files-v3.json`.
    */
-  constructor(path = join(resolveDshHome(), 'llm-deepseek', 'files-v3.json')) {
+  constructor(path = join(resolveAvnHome(), 'llm-deepseek', 'files-v3.json')) {
     this.path = path
   }
 

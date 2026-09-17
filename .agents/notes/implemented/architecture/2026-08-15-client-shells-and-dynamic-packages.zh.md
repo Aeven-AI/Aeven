@@ -21,10 +21,10 @@ Client npm 依赖区段描述安装和开发关系，但不能可靠描述 bundl
 | 层 | 成员 | 职责 | 构建与加载形态 |
 | --- | --- | --- | --- |
 | Web 编译壳 | `apps/web` | 拥有 `index.html`、Vite 配置、dist chunk 和静态资源 | 从已构建 package export 组装最终浏览器产物 |
-| 启动内核 | `packages/client/web` | 拥有纯 DOM 启动页、模块系统接线、Cordis settle 和 renderer handoff | `staticLinked` `lib/index.js`；无 `dsh.client` row |
+| 启动内核 | `packages/client/web` | 拥有纯 DOM 启动页、模块系统接线、Cordis settle 和 renderer handoff | `staticLinked` `lib/index.js`；无 `avn.client` row |
 | 静态装配库 | Cordis、`ui-primitives`、`ui-slots` | 提供共享模块身份和直接实体 API | ESM `lib/index.js`，由 Vite 合并拆分；不是 Loader entry |
 | 模块自举包 | `packages/client/modules` | 提供 client 模块表及其 Cordis wrapper | 带一个普通 `lib/client.js` 的动态包；host 提前送达其 factory |
-| 动态 client 包 | connection、`ui-renderer`、主题和功能插件 | 通过 Cordis service、slot 和 effect 参与应用 | 声明 `dsh.client`，产出自注册 `lib/client.js`，并保留 host graph entry |
+| 动态 client 包 | connection、`ui-renderer`、主题和功能插件 | 通过 Cordis service、slot 和 effect 参与应用 | 声明 `avn.client`，产出自注册 `lib/client.js`，并保留 host graph entry |
 
 `packages/client/web` 把 Cordis 保持为 matching peer 与开发依赖，并把 modules 和静态 UI 包作为开发期编译输入。`apps/web` 消费已构建 package export，不通过 alias 读取 workspace 源码。
 
@@ -32,14 +32,14 @@ Client npm 依赖区段描述安装和开发关系，但不能可靠描述 bundl
 
 ### 共享模块请求
 
-动态浏览器 bundle 会隐式 external 统一基座：`PLATFORM_MODULES` 命名由外壳播种的 React、Cordis 和静态 UI 身份，`PRELOADED_CLIENT_EXTERNALS` 则为必须先于 shell 启动到达的动态身份预留，当前为空。包只在精确请求基座外实体时使用 `dsh.client.external`。纯类型 import 会被擦除，不产生请求；允许的第三方实现库保留为 bundle 私有内容。
+动态浏览器 bundle 会隐式 external 统一基座：`PLATFORM_MODULES` 命名由外壳播种的 React、Cordis 和静态 UI 身份，`PRELOADED_CLIENT_EXTERNALS` 则为必须先于 shell 启动到达的动态身份预留，当前为空。包只在精确请求基座外实体时使用 `avn.client.external`。纯类型 import 会被擦除，不产生请求；允许的第三方实现库保留为 bundle 私有内容。
 
 请求只有两种提供方：
 
 1. 请求所命名的 dynamic package row；末尾 `/client` 会别名到该 package row。
 2. 外壳静态模块表中的精确 key。
 
-不存在通用 `dsh.client.provide` 别名机制。动态 row 和静态 key 已穷尽实际提供方，Cordis service provide 与此相互独立。图组合会拒绝畸形或缺失请求、自请求和同步请求环，并把动态提供方排在消费者之前。`ClientModuleSystem.import()` 与 `prefetch()` 会在消费者能够物化前递归登记这些动态提供方的 factory，因此网络时序无法破坏同步请求图。
+不存在通用 `avn.client.provide` 别名机制。动态 row 和静态 key 已穷尽实际提供方，Cordis service provide 与此相互独立。图组合会拒绝畸形或缺失请求、自请求和同步请求环，并把动态提供方排在消费者之前。`ClientModuleSystem.import()` 与 `prefetch()` 会在消费者能够物化前递归登记这些动态提供方的 factory，因此网络时序无法破坏同步请求图。
 
 ### Parser 预载与 React 移交
 
@@ -57,7 +57,7 @@ Bootstrap combo 当前只登记 modules factory。启动内核把原始图与外
 
 ### 依赖声明
 
-每个 Client 包都把 Cordis 保持为范围一致的 `peerDependencies` 和 `devDependencies`；Cordis 是唯一的 peer。Browser import、类型引用、模块扩充与 `dsh.client.inject` 都是开发输入，因为 Client 构建与发布 profile 会提供其运行期身份。同时发布 Host 入口的包把该入口的运行期 value import 放在 `dependencies`。[发布依赖门面](../process/2026-08-26-published-dependency-faces.zh.md)负责包发现、例外与显式 Host 名册。
+每个 Client 包都把 Cordis 保持为范围一致的 `peerDependencies` 和 `devDependencies`；Cordis 是唯一的 peer。Browser import、类型引用、模块扩充与 `avn.client.inject` 都是开发输入，因为 Client 构建与发布 profile 会提供其运行期身份。同时发布 Host 入口的包把该入口的运行期 value import 放在 `dependencies`。[发布依赖门面](../process/2026-08-26-published-dependency-faces.zh.md)负责包发现、例外与显式 Host 名册。
 
 普通安装库仍放在 `dependencies`：动态构建可以内联私有实现，而 `staticLinked` 库会保留 bare import 交给最终宿主。各构建 face 独立决定 external，不由 npm 区段推导。发布文件列表覆盖产物实际可达的每个运行期入口、相对资产和声明文件。
 
@@ -77,7 +77,7 @@ Bootstrap combo 当前只登记 modules factory。启动内核把原始图与外
 
 ## Consequences
 
-内部 DSH 关系仅放在开发区段时，bundle 内容仍保持稳定，因为每个构建 face 都直接声明 external。静态库继续由宿主装配，动态包则保留统一产物与生命周期治理。发布 profile 拥有完整 Client 包名册，因此各 Client 包不再要求 npm 通过 peer placement 重复求解同一张图。
+内部 AVN 关系仅放在开发区段时，bundle 内容仍保持稳定，因为每个构建 face 都直接声明 external。静态库继续由宿主装配，动态包则保留统一产物与生命周期治理。发布 profile 拥有完整 Client 包名册，因此各 Client 包不再要求 npm 通过 peer placement 重复求解同一张图。
 
 启动协议依赖 modules 的 package id，modules 还必须保持运行期自包含。Combo 生成保留其普通 package 产物，并为其他全部 row 提供一条共享初始传输；HMR 使用同一条路由，并只把该 row 作为资源。缺少 bootstrap registration 会在 Cordis 启动前失败；后续插件 import、apply 与 service 等待失败仍由启动页的 ACTIVE 扫描呈现。
 

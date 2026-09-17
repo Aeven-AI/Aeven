@@ -18,7 +18,7 @@ Status: implemented
 
 另外，任何需要保持不动的元素都不能待在滚动容器内部。弹性回弹会把滚动容器的内容整体移出任一端，而 `position: sticky` 并不能豁免——它随其所粘附的内容一起移动，这正是 composer seat、Turn rail、分页边界和回到底部都会跟着回弹、而 Session 头部从不跟随的原因。先尝试过用 `overscroll-behavior` 抑制回弹，已否决：那是为修一个定位缺陷而牺牲读者的滚动手感，且 `contain` 根本不消除本地回弹。
 
-composer seat 移出滚动容器，成为其下方的 flex 兄弟节点，按顺序停靠。ConversationRoot 在其旁发布一个不滚动的覆盖层（`[data-conversation-chrome]`），该层带有 transcript 自身的两侧内缩以及滚动容器预留的滚动条宽度，Chat 通过 portal 把浮动控件放入其中。Turn rail 另外采用 `position: fixed`：滚动容器内的每一层祖先都会被回弹平移，因此只有视口是稳定参照——它让出详情栏宽度（由 AppFrame 发布的 `--dsh-frame-details-width`）与滚动条宽度。回到底部的 composer 让位改为以覆盖层为作用域，而不再依赖它原先所在的滚动容器；其显隐也移到逐帧的活动轮次同步中——那里本就在做同一个触底比较，留在受节流的采样里会让控件延迟最多一个采样间隔才出现或消失。
+composer seat 移出滚动容器，成为其下方的 flex 兄弟节点，按顺序停靠。ConversationRoot 在其旁发布一个不滚动的覆盖层（`[data-conversation-chrome]`），该层带有 transcript 自身的两侧内缩以及滚动容器预留的滚动条宽度，Chat 通过 portal 把浮动控件放入其中。Turn rail 另外采用 `position: fixed`：滚动容器内的每一层祖先都会被回弹平移，因此只有视口是稳定参照——它让出详情栏宽度（由 AppFrame 发布的 `--avn-frame-details-width`）与滚动条宽度。回到底部的 composer 让位改为以覆盖层为作用域，而不再依赖它原先所在的滚动容器；其显隐也移到逐帧的活动轮次同步中——那里本就在做同一个触底比较，留在受节流的采样里会让控件延迟最多一个采样间隔才出现或消失。
 
 ChatView 有两处读取随座位一起迁出：分页锚点不再扣除覆盖在滚动容器上的 composer（滚动容器的底边就是最后一行可见内容），消息流 observer 以兄弟节点方式查找该座位。它绝不能观察滚动容器本身——该回调会写入 `scrollTop`，在滚动容器自身尺寸变化时这样做会压平本次改动所要保留的回弹。
 

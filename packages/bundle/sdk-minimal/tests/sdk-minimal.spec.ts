@@ -11,16 +11,16 @@ function packageName(specifier: string): string {
   return specifier.startsWith('@') ? specifier.split('/').slice(0, 2).join('/') : specifier.split('/')[0]!
 }
 
-describe('dsh-sdk-minimal bundle', () => {
+describe('avn-sdk-minimal bundle', () => {
   it('declares one standalone allowlisted tree with every row dependency', () => {
     const root = fileURLToPath(new URL('..', import.meta.url))
     const manifest = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as {
       dependencies?: Record<string, string>
-      dsh?: { bundle?: { patch?: string } }
+      avn?: { bundle?: { patch?: string } }
     }
-    expect(manifest.dsh?.bundle?.patch).toBe('./cordis.patch.yml')
+    expect(manifest.avn?.bundle?.patch).toBe('./cordis.patch.yml')
     const patches = yaml.load(
-      readFileSync(resolve(root, manifest.dsh!.bundle!.patch!), 'utf8'),
+      readFileSync(resolve(root, manifest.avn!.bundle!.patch!), 'utf8'),
       { schema: entryListSchema },
     ) as Array<{ insert?: Array<{ id?: string; inject?: string[]; name?: string; config?: Record<string, unknown>; disabled?: unknown }> }>
     expect(patches).toHaveLength(1)

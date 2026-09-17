@@ -44,7 +44,7 @@ export function buildExplicitAccess(sidPtr: NativePtr, mode: number, permissions
 }
 
 /**
- * One lock file per protected path: `<GetTempPathW()>\dsh-acl-locks\<first 16
+ * One lock file per protected path: `<GetTempPathW()>\avn-acl-locks\<first 16
  * hex of sha256(lowercased path)>.lock`. The lock root derives from
  * GetTempPathW (never from runner argv or AVN_HOME), and the lowercasing
  * maps Windows's case-insensitive path spellings onto one lock.
@@ -54,7 +54,7 @@ export function buildExplicitAccess(sidPtr: NativePtr, mode: number, permissions
  */
 export function lockFilePath(api: Win32Bindings, path: string): string {
   const digest = createHash('sha256').update(path.toLowerCase()).digest('hex').slice(0, 16)
-  return join(getTempPath(api), 'dsh-acl-locks', `${digest}.lock`)
+  return join(getTempPath(api), 'avn-acl-locks', `${digest}.lock`)
 }
 
 /**

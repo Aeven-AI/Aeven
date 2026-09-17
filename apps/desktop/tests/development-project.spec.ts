@@ -9,7 +9,7 @@ import type { DesktopRelease } from '../src/release.ts'
 const roots: string[] = []
 
 function temporaryRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), 'dsh-desktop-development-test-'))
+  const root = mkdtempSync(join(tmpdir(), 'avn-desktop-development-test-'))
   roots.push(root)
   return root
 }
@@ -29,7 +29,7 @@ afterEach(() => {
 })
 
 describe('desktop development project', () => {
-  it('projects the built dsh and Desktop Host applications with their dependency graph', () => {
+  it('projects the built avn and Desktop Host applications with their dependency graph', () => {
     const root = temporaryRoot()
     const cli = join(root, 'apps', 'cli')
     const host = join(root, 'apps', 'desktop-host')
@@ -37,11 +37,11 @@ describe('desktop development project', () => {
     mkdirSync(join(cli, 'lib'), { recursive: true })
     mkdirSync(join(host, 'lib'), { recursive: true })
     mkdirSync(join(dependencies, '@scope'), { recursive: true })
-    mkdirSync(join(dependencies, '@deepseek-ai', 'dsh'), { recursive: true })
+    mkdirSync(join(dependencies, '@deepseek-ai', 'avn'), { recursive: true })
     writeFileSync(join(cli, 'package.json'), '{"name":"@aeven/cli","version":"1.2.3"}\n')
     writeFileSync(join(host, 'package.json'), '{"name":"@aeven/desktop-host","version":"1.2.3"}\n')
     writeFileSync(join(host, 'lib', 'index.js'), '')
-    writeFileSync(join(dependencies, '@deepseek-ai', 'dsh', 'package.json'), '{}\n')
+    writeFileSync(join(dependencies, '@deepseek-ai', 'avn', 'package.json'), '{}\n')
     mkdirSync(join(dependencies, 'plain-dependency'))
     writeFileSync(join(dependencies, 'plain-dependency', 'package.json'), '{}\n')
     mkdirSync(join(dependencies, '@scope', 'dependency'))
@@ -54,8 +54,8 @@ describe('desktop development project', () => {
       dependencyDir: dependencies,
       release: release(),
     })
-    expect(realpathSync(join(project, 'node_modules', '@deepseek-ai', 'dsh'))).toBe(realpathSync(cli))
-    expect(realpathSync(join(project, 'node_modules', '@deepseek-ai', 'dsh-desktop-host'))).toBe(realpathSync(host))
+    expect(realpathSync(join(project, 'node_modules', '@deepseek-ai', 'avn'))).toBe(realpathSync(cli))
+    expect(realpathSync(join(project, 'node_modules', '@deepseek-ai', 'avn-desktop-host'))).toBe(realpathSync(host))
     expect(realpathSync(join(project, 'node_modules', 'plain-dependency')))
       .toBe(realpathSync(join(dependencies, 'plain-dependency')))
     expect(realpathSync(join(project, 'node_modules', '@scope', 'dependency')))
@@ -84,6 +84,6 @@ describe('desktop development project', () => {
       hostDir: host,
       dependencyDir: dependencies,
       release: release(),
-    })).toThrow(/must be @deepseek-ai\/dsh@1\.2\.3/u)
+    })).toThrow(/must be @deepseek-ai\/avn@1\.2\.3/u)
   })
 })

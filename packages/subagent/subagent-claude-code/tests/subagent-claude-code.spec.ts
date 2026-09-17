@@ -345,9 +345,9 @@ describe('task admission and package contracts', () => {
     const manifest = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as {
       dependencies?: Record<string, string>
       files?: string[]
-      dsh?: { bundle?: { patch?: string } }
+      avn?: { bundle?: { patch?: string } }
     }
-    expect(manifest.dsh?.bundle?.patch).toBe('./cordis.patch.yml')
+    expect(manifest.avn?.bundle?.patch).toBe('./cordis.patch.yml')
     expect(manifest.files).toContain('cordis.patch.yml')
     expect(manifest.dependencies).toHaveProperty(
       '@anthropic-ai/claude-agent-sdk',
@@ -389,7 +389,7 @@ describe('task admission and package contracts', () => {
       )
     }
 
-    const parsed = yaml.load(readFileSync(resolve(root, manifest.dsh!.bundle!.patch!), 'utf8'))
+    const parsed = yaml.load(readFileSync(resolve(root, manifest.avn!.bundle!.patch!), 'utf8'))
     const rows = Array.isArray(parsed)
       ? (parsed as Array<{ insert?: Array<{ id?: string; name?: string }> }>).flatMap(entry => entry.insert ?? [])
       : []
@@ -620,8 +620,8 @@ describe('task admission and package contracts', () => {
       model: 'claude-diagnostic-model',
       env: {
         ANTHROPIC_API_KEY: 'provider-fake-key',
-        CLAUDE_CONFIG_DIR: '/private/tmp/dsh-claude-code-unit-config',
-        HOME: '/private/tmp/dsh-claude-code-unit-home',
+        CLAUDE_CONFIG_DIR: '/private/tmp/avn-claude-code-unit-config',
+        HOME: '/private/tmp/avn-claude-code-unit-home',
       },
       permissionMode: 'auto',
       disposeGraceMs: 29,
@@ -861,12 +861,12 @@ describe('query options and result mapping', () => {
     expect(inherited.env).not.toHaveProperty('CLAUDE_AGENT_SDK_VERSION')
 
     const explicit = claudeQueryOptions(
-      { ...base, env: { CLAUDE_CODE_ENTRYPOINT: 'dsh-deployment' } },
+      { ...base, env: { CLAUDE_CODE_ENTRYPOINT: 'avn-deployment' } },
       new AbortController(),
       () => {},
       () => {},
     )
-    expect(explicit.env).toMatchObject({ CLAUDE_CODE_ENTRYPOINT: 'dsh-deployment' })
+    expect(explicit.env).toMatchObject({ CLAUDE_CODE_ENTRYPOINT: 'avn-deployment' })
   })
 
   it('builds the fixed unattended options over the scrubbed environment', async () => {

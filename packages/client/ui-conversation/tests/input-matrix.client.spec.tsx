@@ -136,12 +136,12 @@ describe('matrix row: claimed', () => {
     expect(shell.snapshot.claim).toEqual({ token: '/goal ', hint: '目标' })
     expect(view.container.querySelector('[data-lexical-text][style*="warn-label"]')?.textContent).toBe('/goal ')
     // The zh dictionary owns a hint.goal entry, which overrides the raw claim hint (production behavior).
-    expect(textarea.style.getPropertyValue('--dsh-composer-hint')).toBe(JSON.stringify('输入目标，智能体将持续执行'))
+    expect(textarea.style.getPropertyValue('--avn-composer-hint')).toBe(JSON.stringify('输入目标，智能体将持续执行'))
     expect(textarea.getAttribute('contenteditable')).toBe('true')
     // Free editing beyond the token: hint drops, claim holds.
     act(() => { shell.setDraft('/goal 发布版本') })
     expect(shell.snapshot.phase).toBe('claimed')
-    expect(textarea.style.getPropertyValue('--dsh-composer-hint')).toBe('')
+    expect(textarea.style.getPropertyValue('--avn-composer-hint')).toBe('')
   })
 
   it('enter routes to claim.submit (command lane, never the queue sink)', async () => {

@@ -1,4 +1,4 @@
-/** OpenAI-compatible DeepSeek Files API transport. @module dsh-llm-deepseek/files-api */
+/** OpenAI-compatible DeepSeek Files API transport. @module avn-llm-deepseek/files-api */
 
 import { attributionHeaders, LlmError } from '@aeven/llm'
 import type { ImageMediaType } from '@aeven/attachment'

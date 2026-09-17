@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-mcp-client` 把外部 MCP（Model Context Protocol）服务器挂载到 harness 上，让它们的工具像原生工具一样可用。每台服务器一条配置项，模型就能调用该服务器的工具——文件系统、GitHub、数据库或记忆服务器——名称稳定，例如 `mcp__github__create_issue`。当模型需要使用外部工具服务器时添加它；默认不启用任何服务器，因此由你开启。主要成本是这些工具定义给每次请求增加的 token，而且缓慢或崩溃的服务器可能延迟启动，或在恢复前让它的工具一直调用失败。只桥接工具能力：MCP resources 与 prompts 不受支持。
+`avn-mcp-client` 把外部 MCP（Model Context Protocol）服务器挂载到 harness 上，让它们的工具像原生工具一样可用。每台服务器一条配置项，模型就能调用该服务器的工具——文件系统、GitHub、数据库或记忆服务器——名称稳定，例如 `mcp__github__create_issue`。当模型需要使用外部工具服务器时添加它；默认不启用任何服务器，因此由你开启。主要成本是这些工具定义给每次请求增加的 token，而且缓慢或崩溃的服务器可能延迟启动，或在恢复前让它的工具一直调用失败。只桥接工具能力：MCP resources 与 prompts 不受支持。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-当模型需要把外部 MCP 服务器的工具当作原生工具调用时，添加 `dsh-mcp-client`。每台服务器一条配置项就是全部设置：给服务器一个简短的唯一名称和一种传输方式，它的工具就会以 `mcp__<serverName>__<tool>` 形式出现。服务器作为本地程序运行时选择 stdio，作为服务运行时选择 Streamable HTTP。如果你已经用其他客户端连接过 MCP 工具服务器，同样的配置行在这里也能用。
+当模型需要把外部 MCP 服务器的工具当作原生工具调用时，添加 `avn-mcp-client`。每台服务器一条配置项就是全部设置：给服务器一个简短的唯一名称和一种传输方式，它的工具就会以 `mcp__<serverName>__<tool>` 形式出现。服务器作为本地程序运行时选择 stdio，作为服务运行时选择 Streamable HTTP。如果你已经用其他客户端连接过 MCP 工具服务器，同样的配置行在这里也能用。
 
 ### 最小配置
 
@@ -207,7 +207,7 @@ kind: "package-reference"
 本开发备注是维护者的工作上下文：开放设计问题与尚未决定的探索方向。它明确不具权威性——已交付行为、限制与既定理由以上文、包代码与所链接的 Agent Note 为准。
 
 - 公开名称算法是由测试固定的 v1 约定；发布后更改会破坏会话历史与权限规则。
-- 由 DSH 显式拥有的连接与发现超时是开放的探索方向；SDK 的 60 秒默认值约束着启动与 teardown。
+- 由 AVN 显式拥有的连接与发现超时是开放的探索方向；SDK 的 60 秒默认值约束着启动与 teardown。
 - Streamable HTTP 的重连归属仍未决定：按请求重试是 SDK 行为，supervisor 也可以拥有 HTTP 世代。
 - 桥接 MCP Resources 需要 harness 侧的注入决策（系统提示词、按需或模型触发）；桥接 Prompts 需要 harness 缺少的提示词模板概念。
 - 固定的 MCP SDK 仍在演化；上游破坏性变更需要更新桥接。

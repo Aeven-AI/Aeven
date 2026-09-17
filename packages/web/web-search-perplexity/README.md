@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-With `dsh-web-search-perplexity`, the harness searches the web through Perplexity and gets a model-generated answer plus citeable sources in one call. Choose it when a deployment has a Perplexity API key and wants a generated answer. Perplexity has no result-count control, so the returned sources are truncated to the requested bound after the fact. When Perplexity omits structured result metadata, sources fall back to URL-only citations. The model-facing `web_search` tool lives in `dsh-tool-web`.
+With `avn-web-search-perplexity`, the harness searches the web through Perplexity and gets a model-generated answer plus citeable sources in one call. Choose it when a deployment has a Perplexity API key and wants a generated answer. Perplexity has no result-count control, so the returned sources are truncated to the requested bound after the fact. When Perplexity omits structured result metadata, sources fall back to URL-only citations. The model-facing `web_search` tool lives in `avn-tool-web`.
 
 ## Table of Contents
 
@@ -101,8 +101,8 @@ Read these pages when the package-level contract is not enough. They move from t
 
 - [Web subsystem](../../../docs/subsystems/web.md) — the exhaustive search request/result vocabulary and error codes.
 - [Web package map](../README.md) — the six-package family and each role.
-- [dsh-web](../web/README.md) — the web service this provider registers into.
-- [dsh-tool-web](../tool-web/README.md) — the model-facing `web_search` tool that renders this provider's sources.
+- [avn-web](../web/README.md) — the web service this provider registers into.
+- [avn-tool-web](../tool-web/README.md) — the model-facing `web_search` tool that renders this provider's sources.
 - [Generated configuration catalog](../../../docs/config-catalog.md#aeven-web-search-perplexity) — every accepted config field and its source declaration.
 - [Web capability seam decision](../../../.agents/notes/implemented/architecture/2026-06-24-web-capability-seam.md) — why search and fetch share one provider-selection service.
 
@@ -129,7 +129,7 @@ Independent of the conversation request cache. An identical query under the same
 
 #### What the model sees
 
-Through `dsh-tool-web`, the conversation model sees the generated answer plus structured result metadata or URL-only citations. This provider's exact failures are `Perplexity search aborted`, `Perplexity search request failed: <error>`, and `Perplexity returned an unprocessable response body: <error>`; HTTP failures preserve the provider message. The consumer owns the error wrapper.
+Through `avn-tool-web`, the conversation model sees the generated answer plus structured result metadata or URL-only citations. This provider's exact failures are `Perplexity search aborted`, `Perplexity search request failed: <error>`, and `Perplexity returned an unprocessable response body: <error>`; HTTP failures preserve the provider message. The consumer owns the error wrapper.
 
 #### Token effect
 
@@ -149,7 +149,7 @@ These limits define when the provider is a poor fit. They are current package co
 - **Citation-fallback sources are URL-only** — when Perplexity omits structured `search_results[]`, sources carry no `title`/`snippet`/`publishedAt`, so the tool renders bare hostname labels.
 - **Over-returned sources still cost tokens and latency** — with no result-count control on the wire, `maxResults` is enforced only post-hoc by service truncation.
 - **Only `model`/`maxTokens`/`searchRecency` are exposed** — Perplexity's other search controls (domain filters, `web_search_options` context size, images) wait on provider-neutral service fields ([seam Agent Note](../../../.agents/notes/implemented/architecture/2026-06-24-web-capability-seam.md)).
-- **Abort classification is error-shape-based** — only a `DOMException` named `AbortError` maps to `WEB_ABORTED`; an abort carrying a custom reason (such as `dsh-timeout`'s `TimeoutReason`) surfaces as `WEB_PROVIDER_ERROR`.
+- **Abort classification is error-shape-based** — only a `DOMException` named `AbortError` maps to `WEB_ABORTED`; an abort carrying a custom reason (such as `avn-timeout`'s `TimeoutReason`) surfaces as `WEB_PROVIDER_ERROR`.
 
 <a id="dev-note"></a>
 ### Dev Note

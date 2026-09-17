@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-typert-registry` 让生成的 Typert 产物在运行时可按需查询：每个包的反射——服务、事件与对象——其实时 Zod schema 与 Remote 调用描述符都保存在稳定键下，消费方可以按需查询或解析。注册是原子且按 fiber 作用域的：贡献要么整体落地要么完全不落地，并在注册组件卸载时自动撤销。同一服务还托管 Remote 调用所经由的 lookup 与作用域 Context 提供方注册表。它不执行 TypeScript 分析，也不生成 schema；这些由生成器与 loader 负责。
+`avn-typert-registry` 让生成的 Typert 产物在运行时可按需查询：每个包的反射——服务、事件与对象——其实时 Zod schema 与 Remote 调用描述符都保存在稳定键下，消费方可以按需查询或解析。注册是原子且按 fiber 作用域的：贡献要么整体落地要么完全不落地，并在注册组件卸载时自动撤销。同一服务还托管 Remote 调用所经由的 lookup 与作用域 Context 提供方注册表。它不执行 TypeScript 分析，也不生成 schema；这些由生成器与 loader 负责。
 
 ## 目录
 

@@ -58,7 +58,7 @@ export const SEARCH_GRACE_MS = 3_000
  * COUNT, but retained matches of a broad search (many long lines) can still
  * serialize to hundreds of kilobytes, and `meta` is persisted with the session
  * log and re-sent on every request. A deployment's final output budget
- * (`dsh-spill-policy`) only shrinks a result's `content`, never its `meta`, so the
+ * (`avn-spill-policy`) only shrinks a result's `content`, never its `meta`, so the
  * projection owns this cap. 64 KiB holds the full default-capped result of a
  * typical search while bounding the pathological one.
  */

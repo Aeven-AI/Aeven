@@ -1,5 +1,5 @@
 ---
-description: "dsh Web 客户端的 skill 引用与专属 skill 工具行：/ 触发的 skill source 与 skill 调用卡片。"
+description: "avn Web 客户端的 skill 引用与专属 skill 工具行：/ 触发的 skill source 与 skill 调用卡片。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-client-ui-skill` 让用户通过在编辑器中键入 `/name` 来调用 skill：建议菜单从 `skills/list` Remote 提供用户可调用的 skill 候选，选择一项会落下字面文本 `/name `，宿主随后将其加载为 skill 的指令。加载是确定性的：宿主的 pre-step 边界（`dsh-tool-skill`）识别发出消息中以空白为界的 `/name` token，并为每个入口注入渲染后的 `<skill_content>`，因此菜单 pick、手动键入的 token 与 TUI/ACP 提示词都以同一种方式加载 skill。已结算的 skill 调用在对话中渲染为可展开的 `Instructions` 卡片，只从冻结的调用/结果切片派生。
+`avn-client-ui-skill` 让用户通过在编辑器中键入 `/name` 来调用 skill：建议菜单从 `skills/list` Remote 提供用户可调用的 skill 候选，选择一项会落下字面文本 `/name `，宿主随后将其加载为 skill 的指令。加载是确定性的：宿主的 pre-step 边界（`avn-tool-skill`）识别发出消息中以空白为界的 `/name` token，并为每个入口注入渲染后的 `<skill_content>`，因此菜单 pick、手动键入的 token 与 TUI/ACP 提示词都以同一种方式加载 skill。已结算的 skill 调用在对话中渲染为可展开的 `Instructions` 卡片，只从冻结的调用/结果切片派生。
 
 ## 目录
 
@@ -76,7 +76,7 @@ source 不实现任何裁决钩子，也没有引用 codec：pick 落下字面�
 
 #### 模型看到的内容
 
-用户消息原样到达模型，字面文本 `/name` 也包含在内。随后宿主的 pre-step 边界（`dsh-tool-skill`）把规范的 `<skill_content>` 块——与 `skill` 工具返回的 `renderSkillContent` 输出相同——作为注入的指令上下文追加在该步骤各项注入的末尾，最贴近模型的回答。加载是确定性的：模型无需被要求调用 `skill` 工具就能收到完整正文，目录也会告诉它不要重新加载已内联注入的 skill。
+用户消息原样到达模型，字面文本 `/name` 也包含在内。随后宿主的 pre-step 边界（`avn-tool-skill`）把规范的 `<skill_content>` 块——与 `skill` 工具返回的 `renderSkillContent` 输出相同——作为注入的指令上下文追加在该步骤各项注入的末尾，最贴近模型的回答。加载是确定性的：模型无需被要求调用 `skill` 工具就能收到完整正文，目录也会告诉它不要重新加载已内联注入的 skill。
 
 #### Token 影响
 

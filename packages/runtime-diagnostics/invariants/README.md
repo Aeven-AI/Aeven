@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-invariants` runs package-owned runtime checks — invariants — inside a DeepSeek Harness composition: any package can ship a `./invariant` companion that verifies its own durable relationships (authoritative event streams and mutable snapshots) while the composition runs. Checks run automatically, and a failed check reports an `InvariantError` attributed to the package that owns the violated relationship. Choose it for compositions that want self-checking diagnostics with a global switch and package-name filters; the standard agent composition already mounts it with the four core companions, and loading the service alone installs no checks.
+`avn-invariants` runs package-owned runtime checks — invariants — inside a DeepSeek Harness composition: any package can ship a `./invariant` companion that verifies its own durable relationships (authoritative event streams and mutable snapshots) while the composition runs. Checks run automatically, and a failed check reports an `InvariantError` attributed to the package that owns the violated relationship. Choose it for compositions that want self-checking diagnostics with a global switch and package-name filters; the standard agent composition already mounts it with the four core companions, and loading the service alone installs no checks.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ Mount the registry when a composition should verify its own runtime contracts, t
 
 ### When to use it
 
-Use the registry for compositions that want live diagnostics. [`dsh-sdk-minimal`](../../bundle/sdk-minimal/README.md) mounts it with the four core stateful companions — `dsh-session`, `dsh-agent`, `dsh-scope`, and `dsh-agent-loop`; `dsh-base` deliberately omits runtime diagnostics. Custom compositions mount the registry and add companions for any other loaded package whose contracts they want checked. Loading the registry alone installs no checks: it ships no product checks of its own, so a composition that never mounts a companion observes no diagnostic behavior.
+Use the registry for compositions that want live diagnostics. [`avn-sdk-minimal`](../../bundle/sdk-minimal/README.md) mounts it with the four core stateful companions — `avn-session`, `avn-agent`, `avn-scope`, and `avn-agent-loop`; `avn-base` deliberately omits runtime diagnostics. Custom compositions mount the registry and add companions for any other loaded package whose contracts they want checked. Loading the registry alone installs no checks: it ships no product checks of its own, so a composition that never mounts a companion observes no diagnostic behavior.
 
 ### Enabling checks and selecting packages
 
@@ -57,16 +57,16 @@ Each companion protects relationships its package owns, and a companion installs
 
 | Companion | Checks |
 |---|---|
-| `dsh-session`, `dsh-agent`, `dsh-scope`, `dsh-agent-loop` | Session log enclosure and call/result trace, agent-status transitions, scope-filtered dispatch subjects, loop-built request reconstruction |
-| `dsh-llm`, `dsh-llm-retry`, `dsh-tools`, `dsh-system-prompt` | LLM stream grammar, retry-failure shape, tool-pipeline stage pairing and frozen results, prompt-assembly section names |
-| `dsh-compaction`, `dsh-hook-protocol`, `dsh-sandbox-policy` | Compaction stream pairing, hook invocation/result pairing, sandbox mode values |
-| `dsh-fs`, `dsh-subagent`, `dsh-workflow`, `dsh-tool-workflow` | Filesystem event identity, subagent provider and start/end pairing, workflow lifecycle identity, workflow record shape |
-| `dsh-goal`, `dsh-goal-round-driver` | Durable goal-stream folds and reconstructed continuation prompts |
-| `dsh-permission-presets`, `dsh-user-approval`, `dsh-commands` | Preset references to live presets, approval asked/decided pairing, command run/done pairing |
-| `dsh-jobs`, `dsh-tool-todo`, `dsh-time-context` | Job snapshot field relationships, whole-list todo shape, durable clock readings |
-| `dsh-credentials`, `dsh-settings`, `dsh-storage-domain`, `dsh-workspace` | Commit events against the live service or memory state, entity-cache mirroring |
-| `dsh-agent-presets`, `dsh-session-title`, `dsh-plan-mode`, `dsh-schedule` | Preset mount placement, title source citation, plan-mode payload, schedule stream |
-| `dsh-client-hmr`, `dsh-client-modules`, `dsh-client-runtime` | Browser/node-half stat-watcher lifecycle, boot entry graph, slot mutation versioning |
+| `avn-session`, `avn-agent`, `avn-scope`, `avn-agent-loop` | Session log enclosure and call/result trace, agent-status transitions, scope-filtered dispatch subjects, loop-built request reconstruction |
+| `avn-llm`, `avn-llm-retry`, `avn-tools`, `avn-system-prompt` | LLM stream grammar, retry-failure shape, tool-pipeline stage pairing and frozen results, prompt-assembly section names |
+| `avn-compaction`, `avn-hook-protocol`, `avn-sandbox-policy` | Compaction stream pairing, hook invocation/result pairing, sandbox mode values |
+| `avn-fs`, `avn-subagent`, `avn-workflow`, `avn-tool-workflow` | Filesystem event identity, subagent provider and start/end pairing, workflow lifecycle identity, workflow record shape |
+| `avn-goal`, `avn-goal-round-driver` | Durable goal-stream folds and reconstructed continuation prompts |
+| `avn-permission-presets`, `avn-user-approval`, `avn-commands` | Preset references to live presets, approval asked/decided pairing, command run/done pairing |
+| `avn-jobs`, `avn-tool-todo`, `avn-time-context` | Job snapshot field relationships, whole-list todo shape, durable clock readings |
+| `avn-credentials`, `avn-settings`, `avn-storage-domain`, `avn-workspace` | Commit events against the live service or memory state, entity-cache mirroring |
+| `avn-agent-presets`, `avn-session-title`, `avn-plan-mode`, `avn-schedule` | Preset mount placement, title source citation, plan-mode payload, schedule stream |
+| `avn-client-hmr`, `avn-client-modules`, `avn-client-runtime` | Browser/node-half stat-watcher lifecycle, boot entry graph, slot mutation versioning |
 
 Every other workspace package omits the companion and states the package-specific reason in its README.
 
@@ -152,7 +152,7 @@ These limits define when the registry is a poor fit or needs operational care. T
 
 - **Filters are fixed for the service lifetime** — `enabled`, `package_allowlist`, and `package_blocklist` are compiled once at startup; changing them requires a Cordis plugin reload.
 - **Live-only companions miss pre-reload operations** — a companion that only observes live operations cannot reconstruct operations that began before its own reload; session-backed companions rebuild their baseline from durable events.
-- **Request reconstruction covers loop-built requests only** — the `dsh-agent-loop` companion reconstructs requests explicitly built by the loop; direct one-shot LLM calls remain outside that contract even when callers freeze them or attach a session id.
+- **Request reconstruction covers loop-built requests only** — the `avn-agent-loop` companion reconstructs requests explicitly built by the loop; direct one-shot LLM calls remain outside that contract even when callers freeze them or attach a session id.
 - **No checks without a companion** — the registry ships no product checks; a composition that mounts the service alone observes nothing.
 
 <a id="dev-note"></a>

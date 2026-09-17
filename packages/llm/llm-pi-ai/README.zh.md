@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 何时选择
 
-当同一组合服务多个提供方、某条路由需要 pi-ai 目录默认值并修正少数字段、或必须通过自有端点与协议到达手工声明网关时，选择本适配器。当部署不需要其他提供方时，选择 `dsh-llm-deepseek` 直连 DeepSeek 路由。两个适配器可以同时挂载，因为它们的路由名不冲突；注册其他适配器已拥有的路由会导致插件加载失败。
+当同一组合服务多个提供方、某条路由需要 pi-ai 目录默认值并修正少数字段、或必须通过自有端点与协议到达手工声明网关时，选择本适配器。当部署不需要其他提供方时，选择 `avn-llm-deepseek` 直连 DeepSeek 路由。两个适配器可以同时挂载，因为它们的路由名不冲突；注册其他适配器已拥有的路由会导致插件加载失败。
 
 ### 配置提供方路由
 
@@ -85,7 +85,7 @@ kind: "package-reference"
 | `requestImagePixelBudget` | `4,194,304` | 每张确定性请求图片的总像素预算 |
 | `requestImageMaxBytes` | `1 MiB` | 每张请求图片在 base64 扩展前的编码字节目标 |
 | `maxRequestImageBytes` | `20 MiB` | 带最旧优先卸载的 base64 图片载荷总上限 |
-| `retryPolicy` | normal，5 次重试 | 由 `dsh-llm-retry` 执行的提供方自有重试策略 |
+| `retryPolicy` | normal，5 次重试 | 由 `avn-llm-retry` 执行的提供方自有重试策略 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aeven-llm-pi-ai)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
@@ -107,7 +107,7 @@ profile 的 `models` 列表会替换而非扩展路由的已安装目录；每�
 
 ### 已知路由
 
-有些提供方发布了可用的模型文档，却完全不在 pi-ai 的目录中。`dsh-llm-pi-ai` 维护了一张这类提供方的小表——目前是 **DeepInfra**——提供 profile 本来必须自行陈述的协议、端点、凭据引用与刷新配置。它们与 pi-ai 自身的路由并列出现在可配置提供方目录中，因此添加凭据就是全部步骤：
+有些提供方发布了可用的模型文档，却完全不在 pi-ai 的目录中。`avn-llm-pi-ai` 维护了一张这类提供方的小表——目前是 **DeepInfra**——提供 profile 本来必须自行陈述的协议、端点、凭据引用与刷新配置。它们与 pi-ai 自身的路由并列出现在可配置提供方目录中，因此添加凭据就是全部步骤：
 
 ```yaml
 llm-pi-ai:
@@ -186,7 +186,7 @@ pi-ai 不提供的路由需要 `api`、`baseURL` 与非空 `models` 列表；无
 
 当包级约定不够用时阅读以下页面。它们从服务约定逐步进入孪生适配器与共享类型。
 
-- [dsh-llm 服务](../llm/README.zh.md)——本适配器注册其上的提供方无关服务。
+- [avn-llm 服务](../llm/README.zh.md)——本适配器注册其上的提供方无关服务。
 - [llm-deepseek 适配器](../llm-deepseek/README.zh.md)——`deepseek-official` 路由的 DeepSeek 直连孪生。
 - [LLM 流式子系统](../../../docs/subsystems/llm-streaming.zh.md)——`StreamChunk` 协议与适配器约定。
 - [llm-retry](../llm-retry/README.zh.md)——应用每个 profile `retryPolicy` 的重试执行器。

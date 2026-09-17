@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-A tool call can hang for a long time — a slow web fetch, a search that never returns — and without a limit the model waits indefinitely, stalling the whole session. `dsh-tool-call-timeout-policy` arms a cooperative deadline for calls that declare a limit: it asks the tool to stop through `exec.signal`, then maps a settled cancellation to a clear `Error: tool call timed out after <ms>ms` result. A tool that ignores or slowly handles cancellation keeps the caller waiting until it settles; the plugin never hard-stops downstream work. The limit comes from each tool's own configuration, so the plugin itself is zero-config, and it ships enabled in the `dsh` base bundle.
+A tool call can hang for a long time — a slow web fetch, a search that never returns — and without a limit the model waits indefinitely, stalling the whole session. `avn-tool-call-timeout-policy` arms a cooperative deadline for calls that declare a limit: it asks the tool to stop through `exec.signal`, then maps a settled cancellation to a clear `Error: tool call timed out after <ms>ms` result. A tool that ignores or slowly handles cancellation keeps the caller waiting until it settles; the plugin never hard-stops downstream work. The limit comes from each tool's own configuration, so the plugin itself is zero-config, and it ships enabled in the `avn` base bundle.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ A tool call can hang for a long time — a slow web fetch, a search that never r
 <a id="use-this-package"></a>
 ## Use this package
 
-The common path is one line: add the plugin to the composition — the `dsh` base bundle already has it. Tools that have a limit configured are protected automatically; every other tool is untouched.
+The common path is one line: add the plugin to the composition — the `avn` base bundle already has it. Tools that have a limit configured are protected automatically; every other tool is untouched.
 
 ### When to choose it
 
@@ -39,7 +39,7 @@ Mount the plugin with no configuration:
 - name: '@aeven/tool-call-timeout-policy'
 ```
 
-The limit is set where the tool is configured. For example, `dsh-tool-web`'s `fetchTimeoutMs`/`searchTimeoutMs` settings (default 30,000 ms) put the limit on `web_fetch` and `web_search`. Tools without a limit — the shipped `bash`, `read`, `write`, and `edit` — are never cut off. The generated [configuration catalog](../../../docs/config-catalog.md#aeven-tool-web) lists the tool settings that produce limits.
+The limit is set where the tool is configured. For example, `avn-tool-web`'s `fetchTimeoutMs`/`searchTimeoutMs` settings (default 30,000 ms) put the limit on `web_fetch` and `web_search`. Tools without a limit — the shipped `bash`, `read`, `write`, and `edit` — are never cut off. The generated [configuration catalog](../../../docs/config-catalog.md#aeven-tool-web) lists the tool settings that produce limits.
 
 ### What you get
 
@@ -59,7 +59,7 @@ This section explains how the plugin arms a deadline around each dispatch and ma
 
 The wrapper is built on four commitments:
 
-- **Enforcement home, not a library.** `dsh-timeout` owns timing and classification (`deadline`, `timeoutOf`); this plugin owns the per-call wiring over `tools/execute`; each capability owns termination. The split is recorded in the [timeout-deadline-library Agent Note](../../../.agents/notes/implemented/architecture/2026-07-06-timeout-deadline-library.md).
+- **Enforcement home, not a library.** `avn-timeout` owns timing and classification (`deadline`, `timeoutOf`); this plugin owns the per-call wiring over `tools/execute`; each capability owns termination. The split is recorded in the [timeout-deadline-library Agent Note](../../../.agents/notes/implemented/architecture/2026-07-06-timeout-deadline-library.md).
 - **The tool declares its own budget.** `timeoutMs` lives on the tool's `ToolDefinition`, read from the registry (`ctx.tools.get(exec.name, exec.agent)?.timeoutMs`), so a mistyped tool name is impossible and undeclared tools delegate untouched.
 - **Scoped classification.** `TOOL_TIMEOUT` serves as both the internal `deadline` classification code and the structured error `code`; scoping `timeoutOf` to it keeps a nested outer deadline (another wrapper's timer that fired first) from being misread as this plugin's timeout — it reads as an ordinary upstream cancel.
 - **Signal swap, then restore.** Cordis `next()` ignores passed arguments, so the wrapper mutates the shared `exec` in place: it swaps the derived deadline signal onto `exec` for dispatch and restores the caller's signal in a `finally`, so `tools/post-execute` listeners never see this plugin's possibly-aborted signal.
@@ -90,7 +90,7 @@ Read these pages when the package-level contract is not enough. They move from t
 
 - [Tools subsystem reference](../../../docs/subsystems/tools.md) — the `tools/execute` waterfall and decision shapes this wrapper hooks.
 - [Timeout deadline library Agent Note](../../../.agents/notes/implemented/architecture/2026-07-06-timeout-deadline-library.md) — the timing/termination split and why the deadline only notifies.
-- [Generated configuration catalog](../../../docs/config-catalog.md#aeven-tool-web) — `dsh-tool-web`'s `fetchTimeoutMs`/`searchTimeoutMs` budgets the policy enforces.
+- [Generated configuration catalog](../../../docs/config-catalog.md#aeven-tool-web) — `avn-tool-web`'s `fetchTimeoutMs`/`searchTimeoutMs` budgets the policy enforces.
 - [guard group map](../README.md) — the sibling guard packages and the loop-hygiene family.
 
 -----

@@ -45,10 +45,10 @@ describe('plugin JSON requests', () => {
   it('reads an accepted route without inventing a payload to send', async () => {
     const calls = stubFetch(Response.json({ accessMode: 'loopback' }))
 
-    await expect(jsonRequest('/plugins/dsh-grok-build/status')).resolves.toEqual({ accessMode: 'loopback' })
+    await expect(jsonRequest('/plugins/avn-grok-build/status')).resolves.toEqual({ accessMode: 'loopback' })
 
     expect(calls).toHaveLength(1)
-    expect(calls[0]?.path).toBe('/plugins/dsh-grok-build/status')
+    expect(calls[0]?.path).toBe('/plugins/avn-grok-build/status')
     expect(calls[0]?.init?.method).toBe('GET')
     expect(calls[0]?.init?.credentials).toBe('same-origin')
     expect(calls[0]?.init?.body).toBeUndefined()

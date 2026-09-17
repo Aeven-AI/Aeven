@@ -1,4 +1,4 @@
-/** Generic keyless ACP v1 automation-control conformance over the real dsh profile. */
+/** Generic keyless ACP v1 automation-control conformance over the real avn profile. */
 
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -38,7 +38,7 @@ function selectValue(
 
 describe('standard ACP v1 control surface', () => {
   it('selects, mounts MCP, closes, restarts, resumes, and cancels through the SDK only', async () => {
-    const cwd = await mkdtemp(join(tmpdir(), 'dsh-acp-control-'))
+    const cwd = await mkdtemp(join(tmpdir(), 'avn-acp-control-'))
     const persistenceRoot = join(cwd, '.sessions')
     const env = { AVN_CONFORMANCE_PERSISTENCE_ROOT: persistenceRoot, AVN_TELEMETRY_DISABLED: '1' }
     const mcpServers = [{ name: 'fixture', command: process.execPath, args: [mcpServer], env: [] }]

@@ -124,9 +124,9 @@ function writeReleaseRecord(
   artifactsRoot: string,
 ): void {
   const desktopVersion = packageVersion(join(APP_ROOT, 'package.json'), 'desktop package')
-  const dshVersion = packageVersion(join(REPOSITORY_ROOT, 'package.json'), 'dsh package')
-  if (desktopVersion !== dshVersion) {
-    throw new Error(`desktop package: desktop version ${desktopVersion} does not match dsh version ${dshVersion}`)
+  const avnVersion = packageVersion(join(REPOSITORY_ROOT, 'package.json'), 'avn package')
+  if (desktopVersion !== avnVersion) {
+    throw new Error(`desktop package: desktop version ${desktopVersion} does not match avn version ${avnVersion}`)
   }
   const update = resolveDesktopAutoUpdateConfig(environment, target.platform, target.arch)
   const recordPath = join(artifactsRoot, desktopBuildRecordFilename(target.name))
@@ -134,7 +134,7 @@ function writeReleaseRecord(
   writeFileSync(temporaryPath, `${JSON.stringify({
     schemaVersion: 1,
     target: target.name,
-    version: dshVersion,
+    version: avnVersion,
     environment: update.environment,
     publicUrl: update.publicUrl,
   }, null, 2)}\n`)
@@ -286,7 +286,7 @@ async function main(): Promise<void> {
     if (process.env[name] !== undefined) electronBuilderEnv[name] = process.env[name]
   }
   await runPnpm(['run', 'build:official'], buildEnv, REPOSITORY_ROOT)
-  await runPnpm(['run', 'release:pack', '--family', 'dsh', '--out', buildPaths.packedDsh], buildEnv, REPOSITORY_ROOT)
+  await runPnpm(['run', 'release:pack', '--family', 'avn', '--out', buildPaths.packedDsh], buildEnv, REPOSITORY_ROOT)
   await runPnpm([
     '--dir',
     'apps/desktop-host',

@@ -39,7 +39,7 @@
   justify-content: flex-end;
   gap: 4px;
   height: var(--dsw-aeven-control-size);
-  padding: 0 var(--dsh-sidebar-inline-padding);
+  padding: 0 var(--avn-sidebar-inline-padding);
   margin: 0;
   box-sizing: border-box;
   border-radius: 0;

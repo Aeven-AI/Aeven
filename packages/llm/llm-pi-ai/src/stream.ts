@@ -5,7 +5,7 @@
  * raw JSON representation. pi-ai also reports failures as terminal stream
  * events, which this module maps into Harness finish chunks.
  *
- * @module dsh-llm-pi-ai/stream
+ * @module avn-llm-pi-ai/stream
  */
 
 import { brandString } from '@aeven/brand'

@@ -26,4 +26,4 @@ Admission failures name the offending path. An extension-less mismatch names the
 
 ## Consequences
 
-The model can read ordinary extension-less images and normalized attachment paths directly in native and PTC modes. Wrong extensions retain their pre-I/O refusal and mismatch repair. A non-image path without an extension is read up to the image byte cap before rejection, and a normalized object re-enters source admission instead of bypassing the current deployment limits. The behavior changes only `dsh-tool-fs`; the attachment Service Definition and local provider keep their existing APIs and storage behavior.
+The model can read ordinary extension-less images and normalized attachment paths directly in native and PTC modes. Wrong extensions retain their pre-I/O refusal and mismatch repair. A non-image path without an extension is read up to the image byte cap before rejection, and a normalized object re-enters source admission instead of bypassing the current deployment limits. The behavior changes only `avn-tool-fs`; the attachment Service Definition and local provider keep their existing APIs and storage behavior.

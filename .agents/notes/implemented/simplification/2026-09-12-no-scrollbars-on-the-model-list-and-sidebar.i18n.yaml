@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/simplification/2026-09-12-no-scrollbars-on-the-model-list-and-sidebar.md
-2026-09-12-no-scrollbars-on-the-model-list-and-sidebar.md: c44f7febc121564877f787de215ab2c05857dba6
-2026-09-12-no-scrollbars-on-the-model-list-and-sidebar.zh.md: 7a885f6263f91ba01d037301d66e8d8fa097cfbd
+2026-09-12-no-scrollbars-on-the-model-list-and-sidebar.md: ada39bfc502a82ec75e66990f618900f68474e9f
+2026-09-12-no-scrollbars-on-the-model-list-and-sidebar.zh.md: 562fae81d2d842b46bfe1726064d7df03fef4cb3

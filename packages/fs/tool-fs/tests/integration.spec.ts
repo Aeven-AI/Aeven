@@ -52,9 +52,9 @@ afterEach(async () => {
 // --------------------------------------------------------------------------
 // DEFAULT deployment: the policy gate plugin is loaded.
 // --------------------------------------------------------------------------
-describe('default deployment (with dsh-fs-observation-policy)', () => {
+describe('default deployment (with avn-fs-observation-policy)', () => {
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'dsh-tool-fs-'))
+    dir = await mkdtemp(join(tmpdir(), 'avn-tool-fs-'))
     ctx = new Context()
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
@@ -310,9 +310,9 @@ describe('default deployment (with dsh-fs-observation-policy)', () => {
 // --------------------------------------------------------------------------
 // BARE deployment: the tool suite WITHOUT the policy gate.
 // --------------------------------------------------------------------------
-describe('bare provider (no dsh-fs-observation-policy)', () => {
+describe('bare provider (no avn-fs-observation-policy)', () => {
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'dsh-tool-fs-bare-'))
+    dir = await mkdtemp(join(tmpdir(), 'avn-tool-fs-bare-'))
     ctx = new Context()
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
@@ -375,12 +375,12 @@ describe('bare provider (no dsh-fs-observation-policy)', () => {
 
 // Per-session cwd: a relative file_path resolves against the calling session's workspace
 // (`exec.agent.session.header.cwd`), not the backend's config.cwd, so the
-// caller-selected session workspace wins, matching dsh-tool-bash.
+// caller-selected session workspace wins, matching avn-tool-bash.
 describe('per-session cwd', () => {
   let sessionDir: string
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'dsh-tool-fs-cfg-'))
-    sessionDir = await mkdtemp(join(tmpdir(), 'dsh-tool-fs-session-'))
+    dir = await mkdtemp(join(tmpdir(), 'avn-tool-fs-cfg-'))
+    sessionDir = await mkdtemp(join(tmpdir(), 'avn-tool-fs-session-'))
     ctx = new Context()
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
@@ -425,7 +425,7 @@ describe('per-session cwd', () => {
 // --------------------------------------------------------------------------
 describe('signal, concurrency, and the fs/observed contract', () => {
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'dsh-tool-fs-'))
+    dir = await mkdtemp(join(tmpdir(), 'avn-tool-fs-'))
     ctx = new Context()
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)

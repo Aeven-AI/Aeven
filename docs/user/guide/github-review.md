@@ -2,18 +2,18 @@
 
 English | [中文](github-review.zh.md)
 
-This opt-in overlay adds a signed GitHub endpoint to `dsh web`. When a pull request in the configured repository changes from draft to ready for review, the rule creates a titled root Session under the repository's Web Workspace and starts a read-only review prompt.
+This opt-in overlay adds a signed GitHub endpoint to `avn web`. When a pull request in the configured repository changes from draft to ready for review, the rule creates a titled root Session under the repository's Web Workspace and starts a read-only review prompt.
 
 ## Prerequisites
 
-- A local checkout that DSH may register as a Web Workspace.
+- A local checkout that AVN may register as a Web Workspace.
 - A high-entropy GitHub webhook secret available through the `AVN_GITHUB_WEBHOOK_SECRET` credential reference.
 - A TLS reverse proxy or tunnel that can forward one public URL to the loopback listener.
 - GitHub webhook subscription to the Pull requests event with content type `application/json`.
 
 The overlay defaults the Workspace to the launch directory and the listener to `127.0.0.1:3081`. Override them with `AVN_GITHUB_REVIEW_WORKSPACE` and `AVN_GITHUB_WEBHOOK_PORT`.
 
-## Start DSH
+## Start AVN
 
 Generate a secret and retain the same value across restarts:
 
@@ -26,16 +26,16 @@ From a development checkout:
 
 ```sh
 export AVN_GITHUB_REVIEW_WORKSPACE=/path/to/deepseek-harness
-pnpm dsh web --patch apps/cli/config/examples/github-review/cordis.yml
+pnpm avn web --patch apps/cli/config/examples/github-review/cordis.yml
 ```
 
-An installed DSH uses the same overlay through an absolute path:
+An installed AVN uses the same overlay through an absolute path:
 
 ```sh
-dsh web --patch /absolute/path/to/github-review/cordis.yml
+avn web --patch /absolute/path/to/github-review/cordis.yml
 ```
 
-For a permanent profile, place `github-ready-review-rule.mjs` beside `$AVN_HOME/profiles/web/cordis.patch.yml`, append the rows from `cordis.yml` to that patch, and start with `dsh web`. The shipped CLI already contains both webhook packages; the overlay alone activates them.
+For a permanent profile, place `github-ready-review-rule.mjs` beside `$AVN_HOME/profiles/web/cordis.patch.yml`, append the rows from `cordis.yml` to that patch, and start with `avn web`. The shipped CLI already contains both webhook packages; the overlay alone activates them.
 
 ## Expose the dedicated endpoint
 
@@ -90,7 +90,7 @@ It can also map repositories to different local paths:
 ```js
 const workspacePath = {
   'deepseek-harness/deepseek-harness': '/path/to/deepseek-harness',
-  'deepseek-harness/dsh-sdk': '/path/to/dsh-sdk',
+  'deepseek-harness/avn-sdk': '/path/to/avn-sdk',
 }[payload.repository.full_name]
 if (workspacePath === undefined) return null
 ```

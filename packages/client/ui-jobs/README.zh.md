@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包渲染 Web GUI 的后台任务表面：一个会话头部动作，打开后以弹层列出本会话可见的任务。它经运行时提供的 `jobsBySession` 镜像读取宿主计算的注册表状态，自身不发任何 RPC。触发器只在会话至少有一个任务时出现，角标计数运行中与停止中的任务；终态行保持可见并弱化，直到注册表把它们丢弃。模型对同一批任务的视角属于 `dsh-tool-jobs`；本包是给人类看的只读投影。
+本包渲染 Web GUI 的后台任务表面：一个会话头部动作，打开后以弹层列出本会话可见的任务。它经运行时提供的 `jobsBySession` 镜像读取宿主计算的注册表状态，自身不发任何 RPC。触发器只在会话至少有一个任务时出现，角标计数运行中与停止中的任务；终态行保持可见并弱化，直到注册表把它们丢弃。模型对同一批任务的视角属于 `avn-tool-jobs`；本包是给人类看的只读投影。
 
 ## 目录
 
@@ -50,7 +50,7 @@ Escape 关闭列表并把焦点交还触发器，在其外部按下指针同理�
 
 当任务表面不够用时阅读以下页面。它们从浏览器列表进入注册表与面向模型的工具。
 
-- [dsh-tool-jobs](../../jobs/tool-jobs/README.zh.md)——同一注册表之上的面向模型任务工具。
+- [avn-tool-jobs](../../jobs/tool-jobs/README.zh.md)——同一注册表之上的面向模型任务工具。
 - [Session Controller](../../api/session-controller/README.zh.md)——折叠出本包读取的 `jobsBySession` 镜像。
 - [ui-subagent](../ui-subagent/README.zh.md)——subagent 目录，运行中的一次性后台 subagent 也会出现在那里。
 - [Web 客户端架构](../../../.agents/notes/implemented/architecture/2026-07-19-gui-web-client-architecture.zh.md)——浏览器插件行如何加载并注册槽位。

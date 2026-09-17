@@ -11,7 +11,7 @@ import type { RemoteErrorCode, RemoteErrorDetailsMap, RemoteFailure } from './ty
  */
 export class RemoteError<Code extends RemoteErrorCode = RemoteErrorCode> extends Error {
   /** Structural marker: cross-realm/bundle identification never uses instanceof. */
-  readonly isDSHRemoteError: true = true
+  readonly isAvnRemoteError: true = true
 
   /**
    * @param code - stable failure code declared in {@link RemoteErrorDetailsMap}.
@@ -41,7 +41,7 @@ export function remoteErrorOf(value: unknown): RemoteFailure | undefined {
   // Structural, not instanceof: an Error thrown in another realm (iframe, VM)
   // fails instanceof Error here, so the marker plus the code field is the test.
   if (typeof value === 'object' && value !== null
-    && (value as { isDSHRemoteError?: unknown }).isDSHRemoteError === true
+    && (value as { isAvnRemoteError?: unknown }).isAvnRemoteError === true
     && typeof (value as { code?: unknown }).code === 'string') {
     return value as unknown as RemoteFailure
   }

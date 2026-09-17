@@ -43,7 +43,7 @@ export interface StructuredAttachment {
  * its creation window. Child disposal removes every registration.
  * @param childCtx - the child agent's scope context (`setup`'s argument).
  * @param schema - the trusted, already-asserted schema subset to enforce (see
- *   `assertObjectJsonSchema` in dsh-tools).
+ *   `assertObjectJsonSchema` in avn-tools).
  * @returns the attachment handle (read `captured()` after the child settles).
  */
 export function attachStructuredRuntime(childCtx: Context, schema: ObjectJsonSchema): StructuredAttachment {

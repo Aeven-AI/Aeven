@@ -183,7 +183,7 @@ describe('turnOutline projection unit (registry drive)', () => {
     // An agent.inject() row is a user-role message that is not a human prompt.
     session.append('user/message', createUserMessage({
       content: [{ type: 'text', text: 'injected file-change notice' }],
-      source: { kind: 'plugin', plugin: 'dsh-fs-watch' },
+      source: { kind: 'plugin', plugin: 'avn-fs-watch' },
     }), { surfaceOp: 'append' })
     // A tool result is user-role too, and carries no text block at all.
     session.append('user/message', createUserMessage({

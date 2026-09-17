@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-tool-cordis` 给模型提供七个作用于当前 DSH 进程实时 Cordis 运行时的工具：检查已加载的内容与动态包可用之物，定义包含 host 半、浏览器半或两者的包，运行它、停止它并移除它。包带版本——插件持有若干不可变的包版本，模型在失败后可以追加修正版并更新过去。定义只存在于进程内存中，DSH 重启即消失；本包不写仓库文件、不安装任何包、不改 `cordis.yml`。它还增加一个教这套工作流的系统提示词章节；把它与 `@aeven/cordis-host-runner` 一同组合，后者负责沙箱与运行往返。
+`avn-tool-cordis` 给模型提供七个作用于当前 AVN 进程实时 Cordis 运行时的工具：检查已加载的内容与动态包可用之物，定义包含 host 半、浏览器半或两者的包，运行它、停止它并移除它。包带版本——插件持有若干不可变的包版本，模型在失败后可以追加修正版并更新过去。定义只存在于进程内存中，AVN 重启即消失；本包不写仓库文件、不安装任何包、不改 `cordis.yml`。它还增加一个教这套工作流的系统提示词章节；把它与 `@aeven/cordis-host-runner` 一同组合，后者负责沙箱与运行往返。
 
 ## 目录
 
@@ -56,7 +56,7 @@ CLI 示例 [`apps/cli/config/examples/cordis/cordis.yml`](../../../apps/cli/conf
 
 ### 需要规划的边界
 
-定义以会话为界、以进程为本：包只在定义它的会话里可见可控，可跨后续轮次保持活跃，运行时也可能影响同一进程中的其他会话。停止、移除、卸载工具集或重启 DSH 都会清除它。沙箱隔离全局变量，但不是安全边界——对待动态包要像对待 bash 访问一样，加载本插件时也要像授予 bash 工具那样慎重。
+定义以会话为界、以进程为本：包只在定义它的会话里可见可控，可跨后续轮次保持活跃，运行时也可能影响同一进程中的其他会话。停止、移除、卸载工具集或重启 AVN 都会清除它。沙箱隔离全局变量，但不是安全边界——对待动态包要像对待 bash 访问一样，加载本插件时也要像授予 bash 工具那样慎重。
 
 -----
 
@@ -133,7 +133,7 @@ CLI 示例 [`apps/cli/config/examples/cordis/cordis.yml`](../../../apps/cli/conf
 ```markdown
 # Dynamic Cordis Plugins
 
-Dynamic Cordis plugins temporarily extend the current DSH process. A Plugin uses apply(ctx) to consume Services, listen to Events, provide Services, register model Tools, or register browser UI in Slots.
+Dynamic Cordis plugins temporarily extend the current AVN process. A Plugin uses apply(ctx) to consume Services, listen to Events, provide Services, register model Tools, or register browser UI in Slots.
 ```
 
 #### Token 影响

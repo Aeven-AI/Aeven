@@ -24,7 +24,7 @@ afterEach(async () => {
 })
 
 async function tempDir(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'dsh-settings-local-'))
+  const dir = await mkdtemp(join(tmpdir(), 'avn-settings-local-'))
   cleanups.push(() => rm(dir, { recursive: true, force: true }))
   return dir
 }
@@ -101,7 +101,7 @@ describe('boot and reads', () => {
 
   it('defaults the file location under the configured harness home', async () => {
     const dir = await tempDir()
-    const ctx = await boot({ dshHome: dir, watch: false })
+    const ctx = await boot({ avnHome: dir, watch: false })
     expect(ctx.settings.documentPath).toBe(join(dir, 'settings.yaml'))
     const scope = ctx.settings.register('ui-theme', ThemeSchema)
     await scope.update({ theme: 'light' })

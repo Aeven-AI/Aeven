@@ -35,7 +35,7 @@ function authenticatedWeb(launchUrl: string): Promise<{ origin: string; cookie: 
     const response = await fetch(launchUrl, { redirect: 'manual' })
     const setCookie = response.headers.get('set-cookie')
     if (response.status !== 303 || setCookie === null) {
-      throw new Error(`dsh web authentication returned HTTP ${String(response.status)}`)
+      throw new Error(`avn web authentication returned HTTP ${String(response.status)}`)
     }
     return { origin: new URL(launchUrl).origin, cookie: setCookie.split(';', 1)[0]! }
   })()
@@ -97,12 +97,12 @@ function observeProcess(child: ChildProcess): ProcessObservation {
     rejectReady = reject
   })
   const timer = setTimeout(() => {
-    if (!settled) rejectReady(new Error(`dsh web did not become ready within 90s:\n${output}`))
+    if (!settled) rejectReady(new Error(`avn web did not become ready within 90s:\n${output}`))
   }, 90_000)
   timer.unref()
   const append = (chunk: Buffer | string): void => {
     output = `${output}${String(chunk)}`.slice(-100_000)
-    const match = /dsh web: (http:\/\/[^\s]+)/u.exec(output)
+    const match = /avn web: (http:\/\/[^\s]+)/u.exec(output)
     if (settled || match?.[1] === undefined) return
     settled = true
     clearTimeout(timer)
@@ -114,7 +114,7 @@ function observeProcess(child: ChildProcess): ProcessObservation {
     if (!settled) rejectReady(error)
   })
   child.once('exit', (code) => {
-    if (!settled) rejectReady(new Error(`dsh web exited before readiness (code ${String(code)}):\n${output}`))
+    if (!settled) rejectReady(new Error(`avn web exited before readiness (code ${String(code)}):\n${output}`))
   })
   return { ready, text: () => output }
 }
@@ -284,7 +284,7 @@ async function eventually<T>(
   let lastError: unknown
   while (Date.now() < deadline) {
     if (child.exitCode !== null) {
-      throw new Error(`dsh web exited while waiting for ${label} (code ${String(child.exitCode)}):\n${processOutput()}`)
+      throw new Error(`avn web exited while waiting for ${label} (code ${String(child.exitCode)}):\n${processOutput()}`)
     }
     try {
       lastValue = await probe()
@@ -366,10 +366,10 @@ async function sendGitHubDelivery(origin: string): Promise<Response> {
   })
 }
 
-describe.skipIf(!process.env.DEEPSEEK_API_KEY)('GitHub webhook through the real dsh CLI and model', () => {
+describe.skipIf(!process.env.DEEPSEEK_API_KEY)('GitHub webhook through the real avn CLI and model', () => {
   it('creates, attaches, prompts, and completes a Workspace Session', async () => {
     expect(existsSync(BUILT_BIN), `missing built CLI ${BUILT_BIN}; run pnpm run build:official`).toBe(true)
-    const root = await mkdtemp(join(tmpdir(), 'dsh-github-webhook-real-'))
+    const root = await mkdtemp(join(tmpdir(), 'avn-github-webhook-real-'))
     const workspacePath = join(root, 'workspace')
     await mkdir(workspacePath)
     const canonicalWorkspacePath = await realpath(workspacePath)
@@ -390,7 +390,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('GitHub webhook through the real 
         AVN_GITHUB_E2E_WORKSPACE: workspacePath,
         AVN_GITHUB_WEBHOOK_PORT: String(webhookPort),
         AVN_GITHUB_WEBHOOK_SECRET: SECRET,
-        AVN_HOME: join(root, '.dsh'),
+        AVN_HOME: join(root, '.avn'),
         AVN_TELEMETRY_DISABLED: '1',
       },
       stdio: ['ignore', 'pipe', 'pipe'],

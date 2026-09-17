@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-compaction-tool-result-pruner` keeps the context window from filling up with oversized tool output. When compaction is about to run, it trims each over-budget tool result to a bounded head, a short "middle pruned" marker, and a bounded tail, while the full original result stays in the session log for exact replay and inspection. Trimming makes no model call and can clear token pressure on its own, so compaction may skip the summary entirely. It only runs when a compaction trigger qualifies — a below-pressure conversation is never touched. Character budgets are a heuristic; the token meter decides whether pressure was actually relieved.
+`avn-compaction-tool-result-pruner` keeps the context window from filling up with oversized tool output. When compaction is about to run, it trims each over-budget tool result to a bounded head, a short "middle pruned" marker, and a bounded tail, while the full original result stays in the session log for exact replay and inspection. Trimming makes no model call and can clear token pressure on its own, so compaction may skip the summary entirely. It only runs when a compaction trigger qualifies — a below-pressure conversation is never touched. Character budgets are a heuristic; the token meter decides whether pressure was actually relieved.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this package next to `dsh-compaction-basic` when tool output regularly dominates the conversation window. Trimming changes what the model sees — shorter results — and gives compaction less history to condense.
+Mount this package next to `avn-compaction-basic` when tool output regularly dominates the conversation window. Trimming changes what the model sees — shorter results — and gives compaction less history to condense.
 
 ### Smallest working composition
 
@@ -57,7 +57,7 @@ Character counts are Unicode code points, so slicing never splits an emoji pair,
 
 ### When trimming runs
 
-Trimming only runs when a compaction trigger qualifies: `dsh-compaction-basic` invokes it after pressure or overflow is confirmed, before it selects what to condense. Below pressure nothing is trimmed, and trimming itself makes no model call.
+Trimming only runs when a compaction trigger qualifies: `avn-compaction-basic` invokes it after pressure or overflow is confirmed, before it selects what to condense. Below pressure nothing is trimmed, and trimming itself makes no model call.
 
 -----
 

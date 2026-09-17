@@ -15,9 +15,9 @@ const driver = join(fixtureDir, 'driver.ts')
 const configPath = join(fixtureDir, 'claude-code.patch.yml')
 const packageDir = fileURLToPath(new URL('..', import.meta.url))
 const manifest = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8')) as {
-  dsh?: { bundle?: { patch?: string } }
+  avn?: { bundle?: { patch?: string } }
 }
-const bundlePatch = manifest.dsh?.bundle?.patch
+const bundlePatch = manifest.avn?.bundle?.patch
 if (bundlePatch === undefined) throw new Error('Claude Code package must declare a Bundle patch')
 const bundlePatchPath = join(packageDir, bundlePatch)
 const repoTsconfig = fileURLToPath(new URL('../../../../tsconfig.json', import.meta.url))
@@ -26,7 +26,7 @@ describe('product-provider public Loader composition', () => {
   it('loads the Bundle default, two named Claude instances, their tools, and Codex without starting either product', async () => {
     const { stdout, stderr } = await runLoaderSmoke({
       label: 'product-provider Loader composition',
-      tempDirPrefix: 'dsh-product-provider-loader-',
+      tempDirPrefix: 'avn-product-provider-loader-',
       binScript: driver,
       libBinScript: driver,
       configPath,

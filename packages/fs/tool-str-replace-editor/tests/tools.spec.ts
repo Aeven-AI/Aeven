@@ -67,7 +67,7 @@ async function setup(
   config: ToolStrReplaceEditor.Config = {},
   options: { fsPolicy?: boolean; sandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access' } = {},
 ) {
-  const root = await mkdtemp(join(tmpdir(), 'dsh-tool-str-replace-editor-'))
+  const root = await mkdtemp(join(tmpdir(), 'avn-tool-str-replace-editor-'))
   roots.push(root)
   const ctx = new Context()
   contexts.push(ctx)
@@ -590,7 +590,7 @@ describe('tool-str-replace-editor', () => {
   })
 
   it('reports missing sandbox-policy composition during plugin startup', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dsh-tool-str-replace-editor-missing-policy-'))
+    const root = await mkdtemp(join(tmpdir(), 'avn-tool-str-replace-editor-missing-policy-'))
     roots.push(root)
     const ctx = new Context()
     contexts.push(ctx)

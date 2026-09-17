@@ -30,7 +30,7 @@ afterAll(async () => { await new Promise<void>((r) => { proxy.close(() => { r() 
 let home: string
 let previousHome: string | undefined
 beforeAll(() => {
-  home = mkdtempSync(join(tmpdir(), 'dsh-otel-egress-'))
+  home = mkdtempSync(join(tmpdir(), 'avn-otel-egress-'))
   previousHome = process.env.AVN_HOME
   process.env.AVN_HOME = home
 })

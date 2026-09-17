@@ -296,7 +296,7 @@ function ciSharedStaticGates(): Gate[] {
     pnpmScript('application-entrypoints', 'verify-application-entrypoints', { label: 'application entrypoints' }),
     pnpmScript('constraints', 'constraints'),
     pnpmScript('package-dependencies', 'verify-package-dependencies', { label: 'package dependencies' }),
-    pnpmScript('dsh-package-licenses', 'verify-dsh-package-licenses', { label: 'DSH package licenses' }),
+    pnpmScript('avn-package-licenses', 'verify-avn-package-licenses', { label: 'AVN package licenses' }),
     pnpmScript('package-invariants', 'verify-package-invariants', { label: 'package invariants' }),
     pnpmScript('cordis-config', 'verify-cordis-config', { label: 'Cordis config' }),
     pnpmScript('optional-dependency-imports', 'verify-optional-dependency-imports', {
@@ -371,11 +371,11 @@ function nodeCompatSmokeGates(options: { cliSmoke?: boolean } = {}): Gate[] {
       'run',
       'packages/session/session-persistence-jsonl/tests/zstd.compat.spec.ts',
     ], { label: 'JSONL Zstandard smoke' }),
-    pnpmExec('dsh-source-launch-smoke', [
+    pnpmExec('avn-source-launch-smoke', [
       'vitest',
       'run',
       'apps/cli/tests/source-launch.compat.spec.ts',
-    ], { label: 'dsh source-launch smoke' }),
+    ], { label: 'avn source-launch smoke' }),
     pnpmExec('vitest-jsdom-smoke', [
       'vitest',
       'run',
@@ -689,7 +689,7 @@ function hygieneLeafGates(options: { artifactNeeds?: string[] } = {}): Gate[] {
     pnpmScript('constraints', 'constraints'),
     pnpmScript('package-dependencies', 'verify-package-dependencies', { label: 'package dependencies' }),
     pnpmScript('application-entrypoints', 'verify-application-entrypoints', { label: 'application entrypoints' }),
-    pnpmScript('dsh-package-licenses', 'verify-dsh-package-licenses', { label: 'DSH package licenses' }),
+    pnpmScript('avn-package-licenses', 'verify-avn-package-licenses', { label: 'AVN package licenses' }),
     pnpmScript('package-invariants', 'verify-package-invariants', { label: 'package invariants' }),
     builtPackageInvariantsGate(options.artifactNeeds),
     pnpmScript('node-next-types', 'verify-node-next-types', {

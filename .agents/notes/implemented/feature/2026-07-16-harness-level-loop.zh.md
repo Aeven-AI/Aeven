@@ -27,7 +27,7 @@ Status: implemented
 
 全新 agent 层级是 **Ralph Run → Ralph Round → 全新子 agent 轮次 → 步骤**。一个 Ralph Round 创建一个子会话。父 transcript 和此前子 transcript 都不是种子上下文；共享工作区与一份有界结构化报告承载跨 Round 状态。
 
-因此，「Round」是外层策略迭代，不是每个会话轮次的同义词。具体 `dsh-agent-loop` 仍是轮次/步骤引擎。同会话驱动器使用公开 agent 与会话事件；它对核心唯一的新增项是通用的取消前观察通知 `agent/cancel-requested`，任何需要安全收敛取消的生命周期策略都可以使用它。
+因此，「Round」是外层策略迭代，不是每个会话轮次的同义词。具体 `avn-agent-loop` 仍是轮次/步骤引擎。同会话驱动器使用公开 agent 与会话事件；它对核心唯一的新增项是通用的取消前观察通知 `agent/cancel-requested`，任何需要安全收敛取消的生命周期策略都可以使用它。
 
 基于时间的 `/loop` 或定时执行是第三种策略，本决策不实现它。它应归属于调度器，而不是任一目标包族。
 
@@ -74,7 +74,7 @@ Goal Round 驱动器为每个特定的实时 agent 至多拥有一个待定预�
 
 ### 全新 agent Ralph 执行
 
-Ralph 是位于自有插件中的一等模型工具，展示了复杂固定执行策略可以在没有新 loop 核心的情况下组合完成。该插件拥有构建在 `ctx.workflowEngine` 与 `ctx.subagents` 之上的固定工作流脚本；它不会创建会话目标状态，也不会为 `dsh-agent-loop` 增加分支。
+Ralph 是位于自有插件中的一等模型工具，展示了复杂固定执行策略可以在没有新 loop 核心的情况下组合完成。该插件拥有构建在 `ctx.workflowEngine` 与 `ctx.subagents` 之上的固定工作流脚本；它不会创建会话目标状态，也不会为 `avn-agent-loop` 增加分支。
 
 每个 Round 都使用显式 `WorkflowStartRequest.subagentProvider`，默认为 `spawn`。该提供方必须存在、支持结构化输出，并声明不继承父上下文。Ralph 还会把解析后的 Round 上限作为 `WorkflowStartRequest.maxTotalAgents` 传递；工作线程引擎会在发布工作前验证两项每次运行策略，因此提供方配置错误或低于所请求 Ralph 规模的引擎上限会在运行创建前失败。子 agent 继承 cwd 与谱系，但只接收不可变目标、当前 Round/上限、以工作区为权威的指令和上一份规范化报告。
 

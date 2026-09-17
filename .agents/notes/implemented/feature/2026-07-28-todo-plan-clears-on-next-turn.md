@@ -16,7 +16,7 @@ This clearance was reversed on 2026-09-16: [todo plan survives the turn boundary
 
 ### Host projection (web)
 
-As decided here, `dsh-tool-todo`'s `todos` projection unit folded the rule: `apply` took the whole list from each `todo/write` and returned `null` on each `turn/start` (`stateVersion` 2, now 3 without the `turn/start` case). Session Controller serves that value on the history tail `projections` block and pushes `session/projection` frames; the web dock reads it through `useProjection('todos')`. The keyless fixture mirrors the same fold for assembled snapshots.
+As decided here, `avn-tool-todo`'s `todos` projection unit folded the rule: `apply` took the whole list from each `todo/write` and returned `null` on each `turn/start` (`stateVersion` 2, now 3 without the `turn/start` case). Session Controller serves that value on the history tail `projections` block and pushes `session/projection` frames; the web dock reads it through `useProjection('todos')`. The keyless fixture mirrors the same fold for assembled snapshots.
 
 ### TUI live path
 

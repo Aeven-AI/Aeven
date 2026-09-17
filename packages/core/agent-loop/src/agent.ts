@@ -1,7 +1,7 @@
 /**
  * Default Agent driver over queued turns and step-boundary input. Every request
  * is derived from the session log.
- * @module dsh-agent-loop/agent
+ * @module avn-agent-loop/agent
  */
 
 import type {

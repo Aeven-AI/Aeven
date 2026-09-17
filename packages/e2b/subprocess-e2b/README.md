@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-subprocess-e2b` runs the agent's shell commands and terminals inside the remote sandbox: the agent can execute Bash, open interactive terminals, and read their output exactly as with local execution, while nothing runs on the host machine. Existing command, terminal, and language-server features keep working unchanged — no E2B-specific tools are needed. Secrets and host environment variables never leak into the sandbox: only environment entries the agent explicitly requests are passed along. Use it together with `dsh-e2b` and `dsh-fs-e2b` so commands, terminals, and files share one remote world. The main cost is remote latency — each command starts with a short asynchronous setup instead of launching instantly.
+`avn-subprocess-e2b` runs the agent's shell commands and terminals inside the remote sandbox: the agent can execute Bash, open interactive terminals, and read their output exactly as with local execution, while nothing runs on the host machine. Existing command, terminal, and language-server features keep working unchanged — no E2B-specific tools are needed. Secrets and host environment variables never leak into the sandbox: only environment entries the agent explicitly requests are passed along. Use it together with `avn-e2b` and `avn-fs-e2b` so commands, terminals, and files share one remote world. The main cost is remote latency — each command starts with a short asynchronous setup instead of launching instantly.
 
 ## Table of Contents
 
@@ -143,8 +143,8 @@ These limits define when the provider is a poor fit or needs special operational
 
 - **The SDK still retains complete command output in host memory** — E2B `CommandHandle.stdout` and `.stderr` accumulate the base64 transport even when this adapter exposes bounded raw-byte tails, so the subprocess seam's normal host-memory bound is not achieved and transport retention is larger than the source stream.
 - **Synchronous-PID consumers are unsupported** — `pid` remains `-1` during remote startup; consumers that require a positive PID immediately, including the ACP child backend, cannot use this provider unchanged.
-- **Private state lives for the sandbox lifetime** — process directories and valid spill files remain under `.dsh-e2b` until the owner deletes the sandbox; this POC supplies no in-sandbox sweep.
-- **Control state shares the sandbox user's UID** — E2B runs every command as the same default user, so `0700`/`0600` modes cannot isolate `.dsh-e2b` control files from concurrently running sandbox processes; real isolation needs an E2B per-command user or an out-of-band control channel.
+- **Private state lives for the sandbox lifetime** — process directories and valid spill files remain under `.avn-e2b` until the owner deletes the sandbox; this POC supplies no in-sandbox sweep.
+- **Control state shares the sandbox user's UID** — E2B runs every command as the same default user, so `0700`/`0600` modes cannot isolate `.avn-e2b` control files from concurrently running sandbox processes; real isolation needs an E2B per-command user or an out-of-band control channel.
 - **Numeric process identities are not reuse-fenced** — E2B exposes numeric PID/PGID input, signalling, and cleanup operations but no atomic identity-bound alternative; replacement is deferred until E2B adds an identity primitive or a failure demonstrates a narrower protocol.
 - **The initial environment probe inherits sandbox defaults** — E2B merges command overrides with default environment entries, so the probe cannot blank unknown credential-shaped names before enumerating them; this POC therefore does not support secrets in sandbox-default environment variables.
 - **E2B exposes no signal fact** — an adapter-requested `SIGTERM` or `SIGKILL` is reported only when no wrapper-published direct exit code wins; every unrequested SDK exit remains an exit code, including values equal to `128 + signal`.

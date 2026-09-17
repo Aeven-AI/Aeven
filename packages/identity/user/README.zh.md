@@ -1,5 +1,5 @@
 ---
-description: "已认证用户 seam：ctx.identityUsers，每个 DSH 子系统据此了解当前是谁在操作，以及 authority 包注册进入的 resolver 契约。"
+description: "已认证用户 seam：ctx.identityUsers，每个 AVN 子系统据此了解当前是谁在操作，以及 authority 包注册进入的 resolver 契约。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-identity-user` 让一套组合有唯一的地方回答"是谁发起了这个请求"，因此需要操作者身份的子系统读取 `ctx.identityUsers`，而不必了解 cookie、bearer token 或过期时间。挂载它，然后挂载一个懂得真实凭据的 authority 包；没有 authority 时该服务不认得任何人，请求围栏保持既有行为，因此原装 harness 仍是单用户且未认证的。解析按契约是同步的，因为 DSH 在派发之前作答的那道围栏内部调用它。该服务不注册任何面向模型的内容。
+`avn-identity-user` 让一套组合有唯一的地方回答"是谁发起了这个请求"，因此需要操作者身份的子系统读取 `ctx.identityUsers`，而不必了解 cookie、bearer token 或过期时间。挂载它，然后挂载一个懂得真实凭据的 authority 包；没有 authority 时该服务不认得任何人，请求围栏保持既有行为，因此原装 harness 仍是单用户且未认证的。解析按契约是同步的，因为 AVN 在派发之前作答的那道围栏内部调用它。该服务不注册任何面向模型的内容。
 
 ## 目录
 
@@ -48,7 +48,7 @@ kind: "package-reference"
 
 ### 解析回答了什么
 
-`resolve` 按注册顺序把请求交给每个已注册的 authority，返回其中第一个认得的用户；都不认得时返回 `undefined`。组合完全通过挂载 authority 的顺序来控制优先级。凭据失败的原因刻意不上报——两种情况下 DSH 都回答 401，而说明原因等于把凭据的情况描述给提交它的人。
+`resolve` 按注册顺序把请求交给每个已注册的 authority，返回其中第一个认得的用户；都不认得时返回 `undefined`。组合完全通过挂载 authority 的顺序来控制优先级。凭据失败的原因刻意不上报——两种情况下 AVN 都回答 401，而说明原因等于把凭据的情况描述给提交它的人。
 
 -----
 
@@ -66,11 +66,11 @@ kind: "package-reference"
 
 ### 为什么解析是同步的
 
-DSH 在已经为每个 HTTP 请求和每次 WebSocket 升级运行的请求围栏内部调用该 seam，而这道围栏在派发之前作答。需要访问网络服务的 resolver 无法在那里被调用，因此契约禁止这样做：authority 在本地验证，这正是识别调用方无需发出站请求的原因。
+AVN 在已经为每个 HTTP 请求和每次 WebSocket 升级运行的请求围栏内部调用该 seam，而这道围栏在派发之前作答。需要访问网络服务的 resolver 无法在那里被调用，因此契约禁止这样做：authority 在本地验证，这正是识别调用方无需发出站请求的原因。
 
 ### 请求词汇
 
-authority 只拿到 header，因为这是两种 DSH 传输的共同点——HTTP 在 `authorization` 中携带凭据，而 WebSocket 升级在 `cookie` 中携带，因为浏览器无法在升级上设置 header。这里不为 authority 解码任何内容；它读取自己认得的那个 header。
+authority 只拿到 header，因为这是两种 AVN 传输的共同点——HTTP 在 `authorization` 中携带凭据，而 WebSocket 升级在 `cookie` 中携带，因为浏览器无法在升级上设置 header。这里不为 authority 解码任何内容；它读取自己认得的那个 header。
 
 ### 源码地图
 
@@ -88,9 +88,9 @@ authority 只拿到 header，因为这是两种 DSH 传输的共同点——HTTP
 
 当仅有该 seam 还不够时阅读这些：实现它的 authority、调用它的围栏，以及读者据以登录的浏览器界面。
 
-- [dsh-identity-user-aeven](../user-aeven/README.zh.md)——按本契约验证真实凭据的 Aeven authority。
-- [dsh-client-ui-auth-aeven](../../client/ui-auth-aeven/README.zh.md)——建立会话的浏览器登录界面，authority 随后认得该会话。
-- [dsh-client-connection](../../client/connection/README.zh.md)——读取本服务并决定 401 的请求围栏。
+- [avn-identity-user-aeven](../user-aeven/README.zh.md)——按本契约验证真实凭据的 Aeven authority。
+- [avn-client-ui-auth-aeven](../../client/ui-auth-aeven/README.zh.md)——建立会话的浏览器登录界面，authority 随后认得该会话。
+- [avn-client-connection](../../client/connection/README.zh.md)——读取本服务并决定 401 的请求围栏。
 - [identity 组映射](../README.zh.md)——本包所属的家族。
 
 -----

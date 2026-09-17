@@ -29,8 +29,8 @@ const IMAGE_REF: ImageAttachmentRef = {
   width: 1,
   height: 1,
 }
-const HOST_IMAGE_PATH = '/host/.dsh/attachments/objects/aa/object'
-const MODEL_IMAGE_PATH = '/model/.dsh/attachments/objects/aa/object'
+const HOST_IMAGE_PATH = '/host/.avn/attachments/objects/aa/object'
+const MODEL_IMAGE_PATH = '/model/.avn/attachments/objects/aa/object'
 
 class MappedFileSystem extends Service {
   constructor(ctx: Context) {
@@ -97,7 +97,7 @@ afterEach(async () => {
 })
 
 async function home(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'dsh-llm-dynamic-'))
+  const dir = await mkdtemp(join(tmpdir(), 'avn-llm-dynamic-'))
   cleanups.push(() => rm(dir, { recursive: true, force: true }))
   return dir
 }

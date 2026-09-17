@@ -1,15 +1,15 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
-import { createDshClientAdapter } from '../src/client/dshClientAdapter.ts'
+import { createAvnClientAdapter } from '../src/client/avnClientAdapter.ts'
 
-describe('DSH client compatibility contracts', () => {
+describe('AVN client compatibility contracts', () => {
   it('accepts the exact browser surface used by the settings participant', () => {
     const context = {
       effect() {},
       locale: { register() {}, bind() {} },
       slots: { inject() {}, register() {} },
     } as unknown as ClientContext
-    const adapter = createDshClientAdapter(context)
+    const adapter = createAvnClientAdapter(context)
     expect(adapter.diagnostics()).toEqual([])
     expect(() =>{  adapter.assertCompatible() }).not.toThrow()
   })
@@ -25,7 +25,7 @@ describe('DSH client compatibility contracts', () => {
     } as unknown as ClientContext
     const mountFallback = vi.fn(() => vi.fn())
     const register = vi.fn(() => vi.fn())
-    const adapter = createDshClientAdapter(context)
+    const adapter = createAvnClientAdapter(context)
 
     expect(adapter.diagnostics()).toContainEqual(
       expect.objectContaining({ id: 'client.slots.inject', level: 'warning' }),
@@ -52,7 +52,7 @@ describe('DSH client compatibility contracts', () => {
     const mountFallback = vi.fn(() => vi.fn())
     const register = vi.fn(() => vi.fn())
 
-    createDshClientAdapter(context).installSlots({ mountFallback, register })
+    createAvnClientAdapter(context).installSlots({ mountFallback, register })
 
     expect(register).toHaveBeenCalledOnce()
     expect(mountFallback).not.toHaveBeenCalled()
@@ -73,7 +73,7 @@ describe('DSH client compatibility contracts', () => {
     const disposeFallback = vi.fn()
     const mountFallback = vi.fn(() => disposeFallback)
     const register = vi.fn(() => vi.fn())
-    createDshClientAdapter(context).installSlots({ mountFallback, register })
+    createAvnClientAdapter(context).installSlots({ mountFallback, register })
 
     activateSlots?.({
       slots: { inject() {}, register() {} },
@@ -107,7 +107,7 @@ describe('DSH client compatibility contracts', () => {
     const mountFallback = vi.fn(() => vi.fn())
     const register = vi.fn(() => vi.fn())
 
-    const adapter = createDshClientAdapter(context)
+    const adapter = createAvnClientAdapter(context)
     expect(adapter.diagnostics()).toEqual([])
     adapter.installSlots({ mountFallback, register })
 
@@ -118,7 +118,7 @@ describe('DSH client compatibility contracts', () => {
 
   it('refuses a context that is not an object at all instead of pretending it is compatible', () => {
     // Nothing on a non-object context can carry a capability, so every check fails.
-    const adapter = createDshClientAdapter('not-a-context' as unknown as ClientContext)
+    const adapter = createAvnClientAdapter('not-a-context' as unknown as ClientContext)
 
     expect(adapter.diagnostics().map(item => item.id)).toEqual([
       'client.effect',
@@ -126,12 +126,12 @@ describe('DSH client compatibility contracts', () => {
       'client.locale.bind',
       'client.slots.inject',
     ])
-    expect(adapter.diagnostics()[0]?.message).toBe('client.effect is unavailable in the DSH client runtime')
+    expect(adapter.diagnostics()[0]?.message).toBe('client.effect is unavailable in the AVN client runtime')
     expect(adapter.diagnostics()[3]?.message).toBe(
       'client.slots.inject is unavailable; the independent settings entry remains active',
     )
     expect(() => {
       adapter.assertCompatible()
-    }).toThrow('incompatible DSH client API: client.effect, client.locale.register, client.locale.bind')
+    }).toThrow('incompatible AVN client API: client.effect, client.locale.register, client.locale.bind')
   })
 })

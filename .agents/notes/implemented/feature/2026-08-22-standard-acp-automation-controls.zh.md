@@ -8,7 +8,7 @@
 
 ## 问题
 
-纯自动化 ACP 桥接层可以创建新会话、一次提交一个提示词、取消提示词、接收已提交 assistant 消息，并回答一次性权限请求。通用外部自动化控制器仍需依赖私有进程知识，才能发现模型、挂载 MCP 服务器、在重启后找到持久会话、恢复会话、独立关闭一个会话，以及观察 reasoning、工具或上下文压力进度。如果在集成专用 runtime 中复制这些控制，ACP 只会名义上可互操作，而 DSH 自动化仍依赖私有旁路协议。
+纯自动化 ACP 桥接层可以创建新会话、一次提交一个提示词、取消提示词、接收已提交 assistant 消息，并回答一次性权限请求。通用外部自动化控制器仍需依赖私有进程知识，才能发现模型、挂载 MCP 服务器、在重启后找到持久会话、恢复会话、独立关闭一个会话，以及观察 reasoning、工具或上下文压力进度。如果在集成专用 runtime 中复制这些控制，ACP 只会名义上可互操作，而 AVN 自动化仍依赖私有旁路协议。
 
 稳定 ACP v1 协议已经定义所需的控制词汇。增加私有 `_meta`、自定义方法、用例专用环境处理或展示投影会割裂该词汇，并重新引入纯自动化决策已经移除的 UI 耦合。
 
@@ -16,7 +16,7 @@
 
 `@aeven/acp` 实现通用控制器需要的完整标准 ACP v1 自动化子集：`session/new`、`session/list`、`session/resume`、`session/close`、`session/prompt`、`session/cancel`、`session/set_config_option`、JSON-RPC `$/cancel_request`、`session/update` 和 `session/request_permission`。仓库内每条连接的两端都使用 `@agentclientprotocol/sdk` 1.4 的 app／context 接口。
 
-能力会省略未支持的方法和功能。DSH 不增加自定义方法、能力标记或 `_meta`，也不为客户端元数据赋予私有含义。`session/load`、`session/delete`、`session/fork`、附加目录、SSE 和 ACP 传输 MCP、模式、命令、计划、终端、客户端文件系统操作和 elicitation 仍不受支持。会话控制和语义更新是自动化协议数据；它们不会使 ACP 成为人工 UI。
+能力会省略未支持的方法和功能。AVN 不增加自定义方法、能力标记或 `_meta`，也不为客户端元数据赋予私有含义。`session/load`、`session/delete`、`session/fork`、附加目录、SSE 和 ACP 传输 MCP、模式、命令、计划、终端、客户端文件系统操作和 elicitation 仍不受支持。会话控制和语义更新是自动化协议数据；它们不会使 ACP 成为人工 UI。
 
 ## Per-session 所有权
 
@@ -40,19 +40,19 @@
 
 ## 标准 MCP 映射
 
-`session/new` 和 `session/resume` 接受标准 stdio 和 Streamable HTTP MCP 声明。Stdio 使用会话 `cwd`；HTTP 使用已声明 URL 和 header；两者都保留 `dsh-mcp-client` 的超时和重连默认值。名称、命令、URL、环境项、header 和重复的规范化 namespace 都会在 Agent 公布前校验。初始连接或发现失败会回滚尚未公布的 Agent。
+`session/new` 和 `session/resume` 接受标准 stdio 和 Streamable HTTP MCP 声明。Stdio 使用会话 `cwd`；HTTP 使用已声明 URL 和 header；两者都保留 `avn-mcp-client` 的超时和重连默认值。名称、命令、URL、环境项、header 和重复的规范化 namespace 都会在 Agent 公布前校验。初始连接或发现失败会回滚尚未公布的 Agent。
 
-MCP namespace reservation 跟随最近的 DSH registration scope，而不是进程 root。独立 Agent scope 可以使用同一服务器名，同一 Agent 内的重复名称仍会失败。Scoped disposal 会释放工具、传输和 reservation。
+MCP namespace reservation 跟随最近的 AVN registration scope，而不是进程 root。独立 Agent scope 可以使用同一服务器名，同一 Agent 内的重复名称仍会失败。Scoped disposal 会释放工具、传输和 reservation。
 
-ACP 客户端是受信任的控制器：stdio 声明授权执行进程，HTTP 声明授权携带其 header 发起请求。DSH 不增加每服务器私有 cwd 或超时字段。工具挂载后，普通 DSH 工具策略仍然约束调用。
+ACP 客户端是受信任的控制器：stdio 声明授权执行进程，HTTP 声明授权携带其 header 发起请求。AVN 不增加每服务器私有 cwd 或超时字段。工具挂载后，普通 AVN 工具策略仍然约束调用。
 
 ## 语义更新投影
 
-只有已提交的持久事实会进入 `session/update`。Assistant 文本／图片变成 `agent_message_chunk`；reasoning 变成 `agent_thought_chunk`；工具调用／结果变成通用 `tool_call` 和 `tool_call_update`；已知的测量上下文压力与容量变成 `usage_update`；adapter 拓扑变化变成 `config_option_update`。持久消息 id 和工具调用 id 保留关联。规范 DSH 工具名作为标准工具调用 title。
+只有已提交的持久事实会进入 `session/update`。Assistant 文本／图片变成 `agent_message_chunk`；reasoning 变成 `agent_thought_chunk`；工具调用／结果变成通用 `tool_call` 和 `tool_call_update`；已知的测量上下文压力与容量变成 `usage_update`；adapter 拓扑变化变成 `config_option_update`。持久消息 id 和工具调用 id 保留关联。规范 AVN 工具名作为标准工具调用 title。
 
 Per-session 链会串行处理所有更新，并在提示词完成前 drain。引用工具调用的权限请求只会在该工具调用通知 drain 后发送。原始模型 delta、重试尝试、卡片、终端状态、diff、位置、计划、标题、todo 和不受支持内容不会进入 wire。
 
-`session/cancel` 和 `$/cancel_request` 进入同一个提示词自有取消路径。关联结尾只映射到标准 stop reason 和 JSON-RPC error；模型输出达到上限时报告 `max_tokens`。ACP 不返回额外 DSH 结果结构。
+`session/cancel` 和 `$/cancel_request` 进入同一个提示词自有取消路径。关联结尾只映射到标准 stop reason 和 JSON-RPC error；模型输出达到上限时报告 `max_tokens`。ACP 不返回额外 AVN 结果结构。
 
 ## 考虑过的替代方案
 
@@ -64,7 +64,7 @@ Per-session 链会串行处理所有更新，并在提示词完成前 drain。�
 
 **使用不稳定 provider 方法发现模型。** 已拒绝，因为标准会话配置选项可以表达该选择，并保持会话 scope。
 
-**把每个 DSH runtime 字段复制到 ACP 元数据。** 已拒绝，因为精确 token 明细、私有结果状态、程序化展示名称和每 MCP tunable 没有稳定 ACP v1 对应项。
+**把每个 AVN runtime 字段复制到 ACP 元数据。** 已拒绝，因为精确 token 明细、私有结果状态、程序化展示名称和每 MCP tunable 没有稳定 ACP v1 对应项。
 
 ## 验证
 
@@ -74,6 +74,6 @@ Per-session 链会串行处理所有更新，并在提示词完成前 drain。�
 
 ## 后果
 
-外部自动化项目可以通过稳定 ACP v1 使用 DSH，而无需维护 DSH 专用 runtime 协议。桥接层的控制接口变大，但仍小于 UI：它拥有生命周期和语义互操作，而人工展示和交互仍属于产品客户端。
+外部自动化项目可以通过稳定 ACP v1 使用 AVN，而无需维护 AVN 专用 runtime 协议。桥接层的控制接口变大，但仍小于 UI：它拥有生命周期和语义互操作，而人工展示和交互仍属于产品客户端。
 
 持久生命周期和请求 MCP 挂载让会话创建更严格。配置错误和初始 MCP 失败会在公布前拒绝，关闭会等待真实完全停稳和持久化。这是避免部分 Agent、泄漏工具或孤儿进程所需的所有权证明。

@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-persona` 让单个 agent（智能体）拥有自己的人设：preset 挂载这一可组装的行来注册 `deployment:persona` 系统提示词段落，为该会话遮蔽部署级人设。它还可以把人设变成该会话的完整系统提示词、抑制所有其他段落，并可为该会话关闭动态 runtime-context 快照。请把它挂在 preset 组装内部——全局挂载会与提示词注册表自身的人设注册相撞并明确报错。没有这一行，preset 能改变 agent 的工具，却永远改不了它的身份。
+`avn-persona` 让单个 agent（智能体）拥有自己的人设：preset 挂载这一可组装的行来注册 `deployment:persona` 系统提示词段落，为该会话遮蔽部署级人设。它还可以把人设变成该会话的完整系统提示词、抑制所有其他段落，并可为该会话关闭动态 runtime-context 快照。请把它挂在 preset 组装内部——全局挂载会与提示词注册表自身的人设注册相撞并明确报错。没有这一行，preset 能改变 agent 的工具，却永远改不了它的身份。
 
 ## 目录
 
@@ -49,7 +49,7 @@ kind: "package-reference"
 
 ### 何时使用
 
-当 preset 必须改变 agent 的身份、而不只是工具时，使用本行。部署级人设本身配置在 `dsh-system-prompt` 行上，不在这里；本行只用于为某一个 agent 遮蔽或替换它。
+当 preset 必须改变 agent 的身份、而不只是工具时，使用本行。部署级人设本身配置在 `avn-system-prompt` 行上，不在这里；本行只用于为某一个 agent 遮蔽或替换它。
 
 -----
 
@@ -65,7 +65,7 @@ kind: "package-reference"
 
 ### 本行为何仅限 scope 内使用
 
-`dsh-system-prompt` 以自身配置持有全局人设并无条件注册 `deployment:persona`，因此一个进程只有一份。本行在 agent scope 之外与该项注册相撞，这是刻意的：本行的存在是因为 preset 无法自行挂载提示词注册表。
+`avn-system-prompt` 以自身配置持有全局人设并无条件注册 `deployment:persona`，因此一个进程只有一份。本行在 agent scope 之外与该项注册相撞，这是刻意的：本行的存在是因为 preset 无法自行挂载提示词注册表。
 
 ### 源码地图
 

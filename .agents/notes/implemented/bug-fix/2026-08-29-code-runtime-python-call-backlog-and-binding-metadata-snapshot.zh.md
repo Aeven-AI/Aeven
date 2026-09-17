@@ -46,7 +46,7 @@ Status: implemented
 - `tests/protocol.spec.ts`——`hostFrameParseCeiling` 从模拟堆推导有效解析上限：默认堆上协议上限约束，约 304 MiB 宿主上限得出 15 MiB 上限，极小堆几乎不留下解析空间。
 - `tests/runtime.spec.ts`——128 MiB old space 的子 node 在加载期拒绝 50 MiB 完成值预算（`maxValueBytes must not exceed`），而地址空间门单独会放行。已实测失败前置：忽略堆上限时该预算正常加载。
 - `tests/runtime.spec.ts`——128 MiB old space 的子 node 构造帧恰在推导上限处的宽唯一键字典并解析，存活。已实测失败前置：解析系数回退到 8 时推导上限翻倍，同一子进程在解析中 OOM。
-- 套件的临时 fixture（`dsh-bad-bin-`、`dsh-fake-bin-`、`dsh-rlimit-*`、`dsh-staging-`、heartbeat 目录、wrapper 脚本）现登记并在每个测试后移除，重复运行不再在共享 tmpdir 累积 `dsh-*` 工件。
+- 套件的临时 fixture（`avn-bad-bin-`、`avn-fake-bin-`、`avn-rlimit-*`、`avn-staging-`、heartbeat 目录、wrapper 脚本）现登记并在每个测试后移除，重复运行不再在共享 tmpdir 累积 `avn-*` 工件。
 - 两个 namespace 形态测试——`errorClass.name`/`errorClass.memberNameProperty` 与 `namespace.global` 经由第二次读取即抛错或改变的 getter 暴露；运行正常引导并完成，且每个字段恰好读取一次（已断言）。已实测失败前置：没有快照时，errorClass getter 在校验内抛错，global getter 注入不同名字，程序以 `NameError` 失败。
 - `tests/runtime.spec.ts`——子进程洪泛回复超过可写高水位线的调用，阻塞第一次排空写入；恢复的排空在第二波调用仍待发时消费超过压缩上限的积压，子进程直接读取 fd 3（阻塞回复泵）验证全部 1524 条回复送达。无固定睡眠：子进程的读取以排空的投递速率节流，宿主在毫秒内完成一波推送，因此压缩点队列必然已满；换行按块计数（每条回复恰好一个），绝不重扫累计总量——那会是 O(n²)。已实测失败前置：移除待发帧的 splice 会丢掉第二波回复，运行挂到墙钟。
 - `tests/protocol.spec.ts`——2,000,000 元素数组与 100,000 键对象以精确序列化大小计量、少一个字节即拒绝，并仍能发现尾部的 `-0`，钉住游标遍历的广度行为。

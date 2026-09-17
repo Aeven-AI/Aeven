@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-client-test-runtime` gives a browser feature spec a real jsdom test bench: it assembles a Cordis context, the renderer-owned slot registry, and the production `UiSession` adapter around typed Session and Workspace Controller doubles. Feature suites exercise declaration, registration, scoping, stores, injection, rendering, updates, and disposal without copying production renderer or adapter logic. Suites publish Session lifecycle state, Workspace state, projection values, and Conversation events through typed fixtures, then use local DOM snapshot roots, scoped Testing Library queries, and fail-loud service checks. It is not part of the product plugin graph (no `dsh.client`); feature packages depend on it in `devDependencies` only.
+`avn-client-test-runtime` gives a browser feature spec a real jsdom test bench: it assembles a Cordis context, the renderer-owned slot registry, and the production `UiSession` adapter around typed Session and Workspace Controller doubles. Feature suites exercise declaration, registration, scoping, stores, injection, rendering, updates, and disposal without copying production renderer or adapter logic. Suites publish Session lifecycle state, Workspace state, projection values, and Conversation events through typed fixtures, then use local DOM snapshot roots, scoped Testing Library queries, and fail-loud service checks. It is not part of the product plugin graph (no `avn.client`); feature packages depend on it in `devDependencies` only.
 
 ## Table of Contents
 
@@ -48,7 +48,7 @@ A registered snapshot serializer folds CSS-module class hashes (`_frame_a1b2c3` 
 
 ### Scripting Remote answers and failures
 
-`TestRemote` is the double for the `ctx.remote` face: it registers itself plus one service per scripted namespace so a plugin injecting `remote.<name>` unparks, drives `$on` subscriptions from an explicit test event driver, and exposes `$host` as a plain mutable field a spec assigns to script a homed or non-loopback Host. This package is also where a UI spec takes the `RemoteError` constructor as a value — the `dsh-api-remotes` facade cannot carry it, because a value import from a spec would pull that assembly's unbuilt `/remote` artifact chain.
+`TestRemote` is the double for the `ctx.remote` face: it registers itself plus one service per scripted namespace so a plugin injecting `remote.<name>` unparks, drives `$on` subscriptions from an explicit test event driver, and exposes `$host` as a plain mutable field a spec assigns to script a homed or non-loopback Host. This package is also where a UI spec takes the `RemoteError` constructor as a value — the `avn-api-remotes` facade cannot carry it, because a value import from a spec would pull that assembly's unbuilt `/remote` artifact chain.
 
 Script a failure by the code the Host would answer with, and assert the same way production code discriminates — on `code`, never on the class:
 

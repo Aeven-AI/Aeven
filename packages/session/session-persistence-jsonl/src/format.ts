@@ -5,7 +5,7 @@
  * per-project/session directory layout, header-line (de)serialization, and the
  * truncation-repair offset computation.
  *
- * @module dsh-session-persistence-jsonl/format
+ * @module avn-session-persistence-jsonl/format
  */
 
 import { join } from 'node:path'

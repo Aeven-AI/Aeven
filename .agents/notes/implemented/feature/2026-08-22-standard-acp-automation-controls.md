@@ -8,7 +8,7 @@ English | [中文](2026-08-22-standard-acp-automation-controls.zh.md)
 
 ## Problem
 
-The automation-only ACP bridge could create a fresh session, submit one prompt at a time, cancel it, receive committed assistant messages, and answer one-shot permission requests. A generic external automation controller still needed private process knowledge to discover models, attach MCP servers, find durable sessions after restart, resume them, close one session independently, and observe reasoning, tool, or context-pressure progress. Reproducing those controls in an integration-specific runtime would make ACP nominally interoperable while leaving DSH automation dependent on a private side protocol.
+The automation-only ACP bridge could create a fresh session, submit one prompt at a time, cancel it, receive committed assistant messages, and answer one-shot permission requests. A generic external automation controller still needed private process knowledge to discover models, attach MCP servers, find durable sessions after restart, resume them, close one session independently, and observe reasoning, tool, or context-pressure progress. Reproducing those controls in an integration-specific runtime would make ACP nominally interoperable while leaving AVN automation dependent on a private side protocol.
 
 The stable ACP v1 protocol already defines the required control vocabulary. Adding private `_meta`, custom methods, use-case-specific environment handling, or presentation projections would fragment that vocabulary and revive the UI coupling removed by the automation-only decision.
 
@@ -16,7 +16,7 @@ The stable ACP v1 protocol already defines the required control vocabulary. Addi
 
 `@aeven/acp` implements the complete standard ACP v1 automation subset needed by a generic controller: `session/new`, `session/list`, `session/resume`, `session/close`, `session/prompt`, `session/cancel`, `session/set_config_option`, JSON-RPC `$/cancel_request`, `session/update`, and `session/request_permission`. It uses `@agentclientprotocol/sdk` 1.4's app/context interface on both sides of every in-repository connection.
 
-Capabilities omit unsupported methods and features. DSH adds no custom method, capability flag, or `_meta`, and assigns no private meaning to client metadata. `session/load`, `session/delete`, `session/fork`, additional directories, SSE and ACP-transport MCP, modes, commands, plans, terminals, client filesystem operations, and elicitation remain unsupported. Session controls and semantic updates are protocol data for automation; they do not make ACP a human UI.
+Capabilities omit unsupported methods and features. AVN adds no custom method, capability flag, or `_meta`, and assigns no private meaning to client metadata. `session/load`, `session/delete`, `session/fork`, additional directories, SSE and ACP-transport MCP, modes, commands, plans, terminals, client filesystem operations, and elicitation remain unsupported. Session controls and semantic updates are protocol data for automation; they do not make ACP a human UI.
 
 ## Per-session ownership
 
@@ -40,19 +40,19 @@ The advisory LLM catalog now serves another automation consumer without becoming
 
 ## Standard MCP mapping
 
-`session/new` and `session/resume` accept standard stdio and Streamable HTTP MCP declarations. Stdio uses the session `cwd`; HTTP uses the declared URL and headers; both retain `dsh-mcp-client` timeout and reconnect defaults. Names, commands, URLs, environment entries, headers, and duplicate normalized namespaces are validated before Agent publication. Initial connection or discovery failure rolls the unpublished Agent back.
+`session/new` and `session/resume` accept standard stdio and Streamable HTTP MCP declarations. Stdio uses the session `cwd`; HTTP uses the declared URL and headers; both retain `avn-mcp-client` timeout and reconnect defaults. Names, commands, URLs, environment entries, headers, and duplicate normalized namespaces are validated before Agent publication. Initial connection or discovery failure rolls the unpublished Agent back.
 
-MCP namespace reservations follow the nearest DSH registration scope rather than the process root. Independent Agent scopes may use the same server name, while duplicate names inside one Agent still fail. Scoped disposal releases tools, transports, and reservations.
+MCP namespace reservations follow the nearest AVN registration scope rather than the process root. Independent Agent scopes may use the same server name, while duplicate names inside one Agent still fail. Scoped disposal releases tools, transports, and reservations.
 
-ACP clients are trusted controllers: a stdio declaration authorizes process execution and an HTTP declaration authorizes requests with its headers. DSH does not add per-server private cwd or timeout fields. Ordinary DSH tool policy still governs calls after tools are mounted.
+ACP clients are trusted controllers: a stdio declaration authorizes process execution and an HTTP declaration authorizes requests with its headers. AVN does not add per-server private cwd or timeout fields. Ordinary AVN tool policy still governs calls after tools are mounted.
 
 ## Semantic update projection
 
-Only committed durable facts reach `session/update`. Assistant text/images become `agent_message_chunk`; reasoning becomes `agent_thought_chunk`; tool calls/results become generic `tool_call` and `tool_call_update`; known measured context pressure and capacity become `usage_update`; adapter topology changes become `config_option_update`. Durable message ids and tool-call ids preserve correlation. The canonical DSH tool name is the standard tool-call title.
+Only committed durable facts reach `session/update`. Assistant text/images become `agent_message_chunk`; reasoning becomes `agent_thought_chunk`; tool calls/results become generic `tool_call` and `tool_call_update`; known measured context pressure and capacity become `usage_update`; adapter topology changes become `config_option_update`. Durable message ids and tool-call ids preserve correlation. The canonical AVN tool name is the standard tool-call title.
 
 The per-session chain serializes all updates and drains before prompt completion. A tool-call notification drains before a permission request refers to it. Raw model deltas, retry attempts, cards, terminal state, diffs, locations, plans, titles, todos, and unsupported content stay off the wire.
 
-`session/cancel` and `$/cancel_request` enter the same prompt-owned cancellation path. Correlated endings map only to standard stop reasons and JSON-RPC errors; a model output limit reports `max_tokens`. ACP returns no additional DSH result structure.
+`session/cancel` and `$/cancel_request` enter the same prompt-owned cancellation path. Correlated endings map only to standard stop reasons and JSON-RPC errors; a model output limit reports `max_tokens`. ACP returns no additional AVN result structure.
 
 ## Alternatives considered
 
@@ -64,7 +64,7 @@ The per-session chain serializes all updates and drains before prompt completion
 
 **Use unstable provider methods for model discovery.** Rejected because standard session configuration options express the choice and remain scoped to the session.
 
-**Copy every DSH runtime field to ACP metadata.** Rejected because exact token breakdowns, private result statuses, programmatic display names, and per-MCP tunables have no stable ACP v1 equivalent.
+**Copy every AVN runtime field to ACP metadata.** Rejected because exact token breakdowns, private result statuses, programmatic display names, and per-MCP tunables have no stable ACP v1 equivalent.
 
 ## Verification
 
@@ -74,6 +74,6 @@ A generic keyless conformance test boots the real ACP demo twice and uses only t
 
 ## Consequences
 
-External automation projects can use DSH through stable ACP v1 instead of maintaining a DSH-specific runtime protocol. The bridge is a larger control surface but remains smaller than a UI: it owns lifecycle and semantic interoperability, while human presentation and interaction stay in product clients.
+External automation projects can use AVN through stable ACP v1 instead of maintaining a AVN-specific runtime protocol. The bridge is a larger control surface but remains smaller than a UI: it owns lifecycle and semantic interoperability, while human presentation and interaction stay in product clients.
 
 Persistent lifecycle and request MCP mounting make session creation stricter. Misconfiguration and initial MCP failure reject before publication, and close waits for real quiescence and persistence. This cost is the ownership proof required to avoid partial Agents, leaked tools, or orphaned processes.

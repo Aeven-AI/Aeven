@@ -11,7 +11,7 @@
  * once, while the configuration key that made a route unserviceable can still be
  * named in the failure.
  *
- * @module dsh-llm-pi-ai/config
+ * @module avn-llm-pi-ai/config
  */
 
 import type {
@@ -427,7 +427,7 @@ function rejectRemovedFields(provider: string, source: PiAiProviderProfile): voi
   if ('maxRetries' in legacy || 'maxRetryDelayMs' in legacy) {
     throw new Error(
       `llm-pi-ai: provider "${provider}" sets maxRetries or maxRetryDelayMs, which were removed;`
-      + ' compose agent recovery with dsh-llm-retry',
+      + ' compose agent recovery with avn-llm-retry',
     )
   }
 }

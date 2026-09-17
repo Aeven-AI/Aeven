@@ -3,7 +3,7 @@ description: "面向替换仅安全上下文可用的 crypto.randomUUID 调用�
 kind: "package-library"
 ---
 
-# dsh-util-crypto
+# avn-util-crypto
 
 [English](README.md) | 中文
 

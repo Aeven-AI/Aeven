@@ -33,14 +33,14 @@ interface SessionPersistence {
 
 注册表会为每次前台和后台 bash `ToolExecution` 重新构建受信任的覆盖层：
 
-- `AVN_HOME` 始终是配置的 Harness home 绝对路径。独立的 [`@aeven/home-paths`](../../../../packages/util/home-paths/README.zh.md) 工具库规定其优先级：显式 `dshHome`，其次是环境中的 `$AVN_HOME`，最后是 `~/.dsh`。
+- `AVN_HOME` 始终是配置的 Harness home 绝对路径。独立的 [`@aeven/home-paths`](../../../../packages/util/home-paths/README.zh.md) 工具库规定其优先级：显式 `avnHome`，其次是环境中的 `$AVN_HOME`，最后是 `~/.avn`。
 - `AVN_SHELL=1` 始终存在，用于标识由 DeepSeek Harness 管理、面向模型的 bash 子进程。
 - 执行具有关联 agent 时，`AVN_SESSION_ID` 存在并等于 `agent.session.header.id`。
 - 内置的持久化转换层提供 `AVN_SESSION_JSONL` 的条件是 `ctx.sessionPersistence.locate(header)` 返回 `kind: 'jsonl'`。
 
 会话持久化仍然是事实所有者：JSONL 不依赖 tool-bash，也不会自行注册 shell 变量；钩子继续直接使用 `locate()`。tool-bash 是把持久化事实转换为 shell 约定的转换层。其他需要向 shell 公开事实的插件依赖该注册表，并注册各自的键；它们不修改 `process.env`。
 
-bash seam 导出 `AVN_ENV_PREFIX` 作为唯一的命名空间来源，并派生 `AvnEnvironmentKey`，其来源是该常量的 `typeof`。tool-bash 从该常量派生内置名称与模型指引，执行器则使用该常量过滤环境中已有的值。seam 通过 `ShellExecRequest.dshEnv`／`ShellExecSpec.dshEnv` 单独传递受管理的覆盖层：普通 `env` 仍是钩子所用的通用进程内插件接口，`dshEnv` 则以类型约束为受管理键。本地执行器移除环境中继承的全部受管理键，依次应用普通清理、终端环境和显式 `env`，最后合并受信任的 `dshEnv` 快照，因此 `env` 条目永远无法顶掉受管理的值。这保证了值缺失表示它当前确实不存在，而不是从外层或先前的 harness 继承而来。面向模型的工具仍忽略模型提供的 `env`／`stdin` 参数。
+bash seam 导出 `AVN_ENV_PREFIX` 作为唯一的命名空间来源，并派生 `AvnEnvironmentKey`，其来源是该常量的 `typeof`。tool-bash 从该常量派生内置名称与模型指引，执行器则使用该常量过滤环境中已有的值。seam 通过 `ShellExecRequest.avnEnv`／`ShellExecSpec.avnEnv` 单独传递受管理的覆盖层：普通 `env` 仍是钩子所用的通用进程内插件接口，`avnEnv` 则以类型约束为受管理键。本地执行器移除环境中继承的全部受管理键，依次应用普通清理、终端环境和显式 `env`，最后合并受信任的 `avnEnv` 快照，因此 `env` 条目永远无法顶掉受管理的值。这保证了值缺失表示它当前确实不存在，而不是从外层或先前的 harness 继承而来。面向模型的工具仍忽略模型提供的 `env`／`stdin` 参数。
 
 bash 工具说明只讲解持久约定：当前 harness 环境事实通过受管理的 `$AVN_*` 变量提供，可以在需要时查看。它不会枚举持久化专用键，也不会添加永久的系统提示词章节。工具 schema 已记录在请求 header 中，工具输出则记录为 `tool/result`，因此无需新增会话事件。
 
@@ -56,11 +56,11 @@ bash 工具说明只讲解持久约定：当前 harness 环境事实通过受管
 
 恢复操作复用已加载的 header，因此 id 和位置不变。fork 和 spawn 会创建新的会话 id 与位置。父子调用分别从自己的 `ToolExecution.agent` 解析事实；即使调用重叠，每条命令也会收到不可变快照。替换持久化服务会影响后续收集，因为转换层在执行时查询 `ctx.get('sessionPersistence')`；注册表本身受 effect 作用域约束，并且可安全用于 HMR（热模块替换）。
 
-`dshHome` 是与会话无关的部署上下文。agent-core 通过 `@aeven/home-paths` 解析出一个值，并将其同时传给 tool-bash 和本地 skill（技能）发现；独立消费方调用同一解析器。如果顶层 `dshHome` 与 `skills.local.dshHome` 均已提供但解析结果不同，组合会失败，而不会公开互相矛盾的 home。持久化可以独立变更，无需把其事实冻结到会话前缀中。
+`avnHome` 是与会话无关的部署上下文。agent-core 通过 `@aeven/home-paths` 解析出一个值，并将其同时传给 tool-bash 和本地 skill（技能）发现；独立消费方调用同一解析器。如果顶层 `avnHome` 与 `skills.local.avnHome` 均已提供但解析结果不同，组合会失败，而不会公开互相矛盾的 home。持久化可以独立变更，无需把其事实冻结到会话前缀中。
 
 ## 测试
 
-单元测试覆盖注册表声明校验、effect 释放、逐次执行收集、`dshHome` 优先级，以及本地执行器清理并重建 `AVN_*` 的顺序。请求录制测试覆盖前台／后台快照、无 agent 调用、持久化不存在或为 JSONL、忽略模型 `env`，以及父子隔离。JSONL 与无产物定位器约定测试、两套钩子桥接测试均固定 transcript 可用和不可用两种方言。
+单元测试覆盖注册表声明校验、effect 释放、逐次执行收集、`avnHome` 优先级，以及本地执行器清理并重建 `AVN_*` 的顺序。请求录制测试覆盖前台／后台快照、无 agent 调用、持久化不存在或为 JSONL、忽略模型 `env`，以及父子隔离。JSONL 与无产物定位器约定测试、两套钩子桥接测试均固定 transcript 可用和不可用两种方言。
 
 一项无密钥的完整循环集成测试会在第一个轮次驱动真实的 agent loop、JSONL 持久化、tool-bash 与 bash-local。子进程打印 `AVN_HOME`、`AVN_SHELL`、会话 id、JSONL 目标和继承的陈旧哨兵值；测试校验当前值、陈旧变量不存在、刷写前文件不存在，并最终检查持久化 header。快照测试会固定录制请求 header 中的通用 bash 说明。该约定属于确定性的本地执行，不涉及模型选择，因此无需带密钥测试。
 

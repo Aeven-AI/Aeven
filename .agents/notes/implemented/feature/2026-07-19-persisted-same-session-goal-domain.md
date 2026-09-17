@@ -32,7 +32,7 @@ A cache built from any seed starts disarmed, and every `agent/session-start` edg
 
 ### Service boundary
 
-The service accepts only the exact live `Agent` object registered under its id. A committed mutation emits the scoped `goal/changed` event with contained listener failures. Policy consumers use this service plus the public `Agent` interface and `agent/*` events; the goal domain does not import or modify `dsh-agent-loop`.
+The service accepts only the exact live `Agent` object registered under its id. A committed mutation emits the scoped `goal/changed` event with contained listener failures. Policy consumers use this service plus the public `Agent` interface and `agent/*` events; the goal domain does not import or modify `avn-agent-loop`.
 
 ## Testing
 
@@ -44,7 +44,7 @@ Unit coverage pins creation defaults, exact-live-agent checks, compare-and-set r
 - **Couple each durable mutation to queued model context** — rejected by the later [goal-owned durable event decision](../architecture/2026-07-31-goal-owned-durable-events.md): goal tools and scheduled continuation prompts expose state when needed, while domain persistence remains independent from queue outcomes.
 - **Persist activation and restart automatically** — rejected because opening or resuming a session must wait for human input; durable phase records status, not fresh authority to spend resources.
 - **Count all session turns as goal rounds** — rejected because one session can contain human clarification, inspection, and unrelated work; only goal-attributed continuation turns consume this budget.
-- **Add goal state or a generic loop abstraction to `dsh-agent-loop`** — rejected because state and continuation policy can compose through existing plugins, `Agent` verbs, and events without privileging the shipped loop implementation.
+- **Add goal state or a generic loop abstraction to `avn-agent-loop`** — rejected because state and continuation policy can compose through existing plugins, `Agent` verbs, and events without privileging the shipped loop implementation.
 
 ## Consequences
 

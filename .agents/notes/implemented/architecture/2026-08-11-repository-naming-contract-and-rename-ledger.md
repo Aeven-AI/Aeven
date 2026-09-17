@@ -72,7 +72,7 @@ Do not invent a `process sandbox` concept. The current `sandbox` family already 
 
 Use title case for initialisms inside PascalCase identifiers: `Ui`, `Llm`, `JsonRpc`, and `ApiProxy`. Use the conventional uppercase form in prose and package names where applicable: UI, LLM, JSON-RPC, and API. `Typert` is the exact product spelling in identifiers and prose; do not write `TypeRT`, `TypeRt`, or `Typert` with another internal split.
 
-Do not remove an intentional vendor qualifier to avoid repetition. `dsh-subagent-dsh-sdk` names the DeepSeek Harness SDK provider and avoids confusion with another SDK. Its private class becomes `SdkSubagentProvider` because the class also needs to say what it provides.
+Do not remove an intentional vendor qualifier to avoid repetition. `avn-subagent-avn-sdk` names the DeepSeek Harness SDK provider and avoids confusion with another SDK. Its private class becomes `SdkSubagentProvider` because the class also needs to say what it provides.
 
 ### Put the rule in project documentation
 
@@ -171,7 +171,7 @@ Keep `@aeven/tools` and `ctx.tools`. Keep `@aeven/api-gateway`, its `gateway/` f
 | `TelemetryBackend` | `SessionTelemetrySink` | This lower layer receives emitted records. `Sink` distinguishes it from the coordinating backend service. |
 | `TelemetryCoordinator`, `TelemetryRecord`, `TelemetrySeverity`, `TelemetrySharingStatus`, and `TelemetryCapture` | Corresponding `SessionTelemetry*` names | These public types belong only to session telemetry. |
 | `telemetry/record` | `session-telemetry/record` | The event name must state its owning domain. |
-| `TelemetryOtel`, `TelemetryMode`, plugin `telemetry-otel` | `OpenTelemetrySessionBackend`, `SessionTelemetryMode`, plugin `session-telemetry-otel` | The provider name states both the OpenTelemetry mechanism and session scope. Keep the package names `dsh-session-telemetry` and `dsh-session-telemetry-otel`. |
+| `TelemetryOtel`, `TelemetryMode`, plugin `telemetry-otel` | `OpenTelemetrySessionBackend`, `SessionTelemetryMode`, plugin `session-telemetry-otel` | The provider name states both the OpenTelemetry mechanism and session scope. Keep the package names `avn-session-telemetry` and `avn-session-telemetry-otel`. |
 | `docs/subsystems/telemetry.md` | `docs/subsystems/session-telemetry.md` | The page documents session telemetry, not repository-wide observability. |
 | `session/user-id/`, `@aeven/user-id` | `identity/anonymous-user-id/`, `@aeven/anonymous-user-id` | The value is a random correlation id shared by telemetry, feedback, and DeepSeek requests. It is neither a Session concern nor an authenticated user identity. |
 | `USER_ID_FILE_NAME`, `.userid`, feedback label `User` | `ANONYMOUS_USER_ID_FILE_NAME`, `.anonymous-user-id`, feedback label `Anonymous user` | The file and UI must not imply account identity. Keep the existing `AnonymousUserId` functions and the standard OTel attribute `user.id`. |
@@ -243,11 +243,11 @@ Keep the complete session projection family and `SessionProjection*` vocabulary.
 | `@aeven/subagent-spawn`, `SpawnProvider` | `@aeven/subagent-spawn-in-process`, `SpawnInProcessProvider` | This provider starts a child agent in the current process. The configured provider id remains `spawn`. |
 | `@aeven/subagent-fork`, `ForkProvider` | `@aeven/subagent-fork-in-process`, `ForkInProcessProvider` | This provider forks an agent in the current process. The configured provider id remains `fork`. |
 | `@aeven/subagent-inprocess`, `subagent-inprocess/` | `@aeven/subagent-in-process-driver`, `subagent-in-process-driver/` | The package contains common in-process driving logic, not a third provider. |
-| Private `SdkProvider` in `dsh-subagent-dsh-sdk` | `SdkSubagentProvider` | The repeated package qualifier is intentional, and the class must say that it provides subagents through the SDK. |
+| Private `SdkProvider` in `avn-subagent-avn-sdk` | `SdkSubagentProvider` | The repeated package qualifier is intentional, and the class must say that it provides subagents through the SDK. |
 | `WebService`, `WebServiceConfig` | `WebRuntime`, `WebRuntimeConfig` | The object selects providers and runs live search and fetch operations. Keep the package, key, provider packages, and model tool. |
 | `@aeven/web-fetch-local`, `LocalFetchProvider`, `LocalFetchLimits`, provider id `local-http` | `@aeven/web-fetch-http`, `HttpFetchProvider`, `HttpFetchLimits`, provider id `http` | This provider performs direct HTTP fetches. `local` says where code happens to run, not which mechanism it provides. |
 
-Keep `@aeven/subagent-dsh-sdk`, its provider id `dsh-sdk`, external ACP, Codex, and Claude Code provider families, the subagent tool package names, the main filesystem package and backends, filesystem tools and events, and the skill badge and tool packages.
+Keep `@aeven/subagent-avn-sdk`, its provider id `avn-sdk`, external ACP, Codex, and Claude Code provider families, the subagent tool package names, the main filesystem package and backends, filesystem tools and events, and the skill badge and tool packages.
 
 ### Hooks, guards, plan mode, extensions, and diagnostics
 
@@ -278,10 +278,10 @@ Keep MCP, Todo, and the Plan Mode package, key, events, and tool names. This dec
 | `packages/examples/jsonrpc-demo/`, `packages/sdk/python-runtime/` | removed | The Python runtime wheel's closure manifest owns packaging without a separate application package. |
 | `examples/jsonrpc-agent/` | `python/sdk/examples/` | The example demonstrates Python use of the `sdk` profile and ordered patches. |
 | `@aeven/acp-demo` | `@aeven/acp-app` | The package is the ACP profile's application bundle, not a standalone demo bin. |
-| Deploy-root manifests `dsh-jsonrpc-agent-pkg`, `dsh-sdk-python-runtime-closure` | `dsh-python-runtime-closure` | The zero-code manifest defines the Python runtime wheel's complete `dsh` dependency closure without naming a separate SDK application. |
+| Deploy-root manifests `avn-jsonrpc-agent-pkg`, `avn-sdk-python-runtime-closure` | `avn-python-runtime-closure` | The zero-code manifest defines the Python runtime wheel's complete `avn` dependency closure without naming a separate SDK application. |
 | `@aeven/frontend` | `@aeven/web-frontend` | The application is the web frontend. Keep its physical `apps/web/` folder. |
 
-Keep atomic-write, brand, native-command, timeout utility, directory-picker, `dsh-base`, `dsh-web-app`, `dsh-sdk-app`, `dsh-acp-app`, app boot, CLI names, and the `headless` package, bundle, and example identity. `headless` is the intended product essence and may later support more than one-shot execution.
+Keep atomic-write, brand, native-command, timeout utility, directory-picker, `avn-base`, `avn-web-app`, `avn-sdk-app`, `avn-acp-app`, app boot, CLI names, and the `headless` package, bundle, and example identity. `headless` is the intended product essence and may later support more than one-shot execution.
 
 ### Client runtime and UI
 
@@ -328,7 +328,7 @@ The following debated names stay unchanged because the current scope is accurate
 - Keep `PermissionPresetSettingsController` even though it is long. Every word limits the role.
 - Keep `ModelsSettingsStore`; its main contract is one settings data model with store operations.
 - Keep `InputHub`; it is the concrete hub that backs `SessionInputResolver`.
-- Keep `dsh-subagent-dsh-sdk` and provider id `dsh-sdk`; the repeated qualifier prevents ambiguity.
+- Keep `avn-subagent-avn-sdk` and provider id `avn-sdk`; the repeated qualifier prevents ambiguity.
 - Keep `headless`; the product identity is accurate even if the runtime later supports more than one-shot use.
 - Keep deprecated Host `ApiProxy` and client connection names until the API replacement removes them.
 - Keep `Web` for the Host server and the provider-neutral web capability. Use `HTTP` only for the direct fetch provider.
@@ -359,7 +359,7 @@ The following debated names stay unchanged because the current scope is accurate
 
 **Use broad names for possible future features.** Rejected. Name the stable current role. A future boundary change can rename the object again before release or use a new proposal after release. Vague names charge every current reader for an unbuilt future.
 
-**Rename `dsh-compact-basic` to `dsh-compaction-llm`.** Rejected. `LLM` adds no distinction in the current backend family. `basic` is less ambitious and does not claim an algorithm that does not exist.
+**Rename `avn-compact-basic` to `avn-compaction-llm`.** Rejected. `LLM` adds no distinction in the current backend family. `basic` is less ambitious and does not claim an algorithm that does not exist.
 
 **Rename session projections to reducers.** Rejected. Reduction is how a projection is built. The package also owns the read-model value, cache, and lookup contract.
 

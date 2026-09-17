@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-code-runtime-worker-thread` 为 [`dsh-code-runtime`](../code-runtime/README.zh.md) seam 执行 TypeScript 程序：每个程序都在一个全新的 Node Worker 线程中运行，宿主提供的绑定可作为普通异步函数调用，运行返回 `{ value, logs, error? }`。它是 `dsh-tools` 中 PTC mode 的已发布后端，因此挂载它正是让模型编写的 TypeScript 执行在组合中生效的方式。运行时「包含」程序，但不隔离它：信任立场与 bash 等价，并带有空环境、堆上限、实测忙碌时间与墙钟预算，以及强制终止。程序每次请求只运行一次，运行之间不保留状态；每个失败——语法错误、预算到期、中止、OOM 退出或输出溢出——都以结果字段返回。
+`avn-code-runtime-worker-thread` 为 [`avn-code-runtime`](../code-runtime/README.zh.md) seam 执行 TypeScript 程序：每个程序都在一个全新的 Node Worker 线程中运行，宿主提供的绑定可作为普通异步函数调用，运行返回 `{ value, logs, error? }`。它是 `avn-tools` 中 PTC mode 的已发布后端，因此挂载它正是让模型编写的 TypeScript 执行在组合中生效的方式。运行时「包含」程序，但不隔离它：信任立场与 bash 等价，并带有空环境、堆上限、实测忙碌时间与墙钟预算，以及强制终止。程序每次请求只运行一次，运行之间不保留状态；每个失败——语法错误、预算到期、中止、OOM 退出或输出溢出——都以结果字段返回。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-当组合需要执行模型编写的 TypeScript 程序时，连同 code-runtime seam 一起挂载此后端；只要模型调用 `run_code`，`dsh-tools` 中的 PTC mode 就会通过 `ctx.codeRuntime` 驱动它。每个执行上限都是已验证的配置，因此你可以从 `cordis.yml` 为部署调整运行时规模。
+当组合需要执行模型编写的 TypeScript 程序时，连同 code-runtime seam 一起挂载此后端；只要模型调用 `run_code`，`avn-tools` 中的 PTC mode 就会通过 `ctx.codeRuntime` 驱动它。每个执行上限都是已验证的配置，因此你可以从 `cordis.yml` 为部署调整运行时规模。
 
 ### 最小配置
 
@@ -116,7 +116,7 @@ kind: "package-reference"
 当后端约定不够用时阅读以下内容。它们从 seam 定义进入消费方与配置面。
 
 - [代码运行时 seam](../code-runtime/README.zh.md)——此后端实现的抽象约定。
-- [PTC mode Agent Note](../../../.agents/notes/implemented/feature/2026-06-15-ptc.zh.md)——`dsh-tools` 如何消费 `ctx.codeRuntime` 并呈现 `run_code`。
+- [PTC mode Agent Note](../../../.agents/notes/implemented/feature/2026-06-15-ptc.zh.md)——`avn-tools` 如何消费 `ctx.codeRuntime` 并呈现 `run_code`。
 - [代码运行时子系统参考](../../../docs/subsystems/code-runtime.zh.md)——请求／结果词汇、绑定与失败分类体系。
 - [生成配置目录](../../../docs/config-catalog.zh.md#aeven-code-runtime-worker-thread)——每个受支持配置字段及其源声明。
 
@@ -125,7 +125,7 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-通过 `dsh-tools` 中的 PTC mode 间接提供，如果外层值能容纳则原样渲染，否则返回明确的 `invalid-output`／`output-limit` 失败，且只有外层 `run_code` 结果在其普通落盘策略下进入模型上下文，绑定通信与中间值始终只存在于执行环境中。
+通过 `avn-tools` 中的 PTC mode 间接提供，如果外层值能容纳则原样渲染，否则返回明确的 `invalid-output`／`output-limit` 失败，且只有外层 `run_code` 结果在其普通落盘策略下进入模型上下文，绑定通信与中间值始终只存在于执行环境中。
 
 #### KV Cache 影响
 

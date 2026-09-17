@@ -40,7 +40,7 @@ That the catch is the base `next` — not something outside the waterfall — is
 
 ### The `timeout-policy` plugin
 
-The plugin is `@aeven/tool-call-timeout-policy`, a zero-config function/namespace plugin (`name` / `inject` / `apply`) in the `packages/guard/` group (originally its own `timeout/` group). The per-tool budget is DECLARED on the tool, not on this plugin: a `ToolDefinition` carries an optional `timeoutMs`, which the owning tool plugin sets from its own config. `dsh-tool-web`, for example, resolves `fetchTimeoutMs` / `searchTimeoutMs` (default 30000) onto the `web_fetch` / `web_search` definitions:
+The plugin is `@aeven/tool-call-timeout-policy`, a zero-config function/namespace plugin (`name` / `inject` / `apply`) in the `packages/guard/` group (originally its own `timeout/` group). The per-tool budget is DECLARED on the tool, not on this plugin: a `ToolDefinition` carries an optional `timeoutMs`, which the owning tool plugin sets from its own config. `avn-tool-web`, for example, resolves `fetchTimeoutMs` / `searchTimeoutMs` (default 30000) onto the `web_fetch` / `web_search` definitions:
 
 ```yaml
 - id: timeout-policy
@@ -77,11 +77,11 @@ No new session event is needed for reconstructability: `TOOL_TIMEOUT` is the fin
 
 ### Existing tool adaptation
 
-`web_fetch` and `web_search` are migrated. `dsh-tool-web` keeps ownership of their model-facing schemas, and those schemas expose no timeout knob: `web_fetch` has no `timeout_ms` parameter, while `web_search` accepts a required `queries` array without a timeout argument. The tool bodies do not import `@aeven/timeout`; they forward `exec.signal` to `ctx.web`.
+`web_fetch` and `web_search` are migrated. `avn-tool-web` keeps ownership of their model-facing schemas, and those schemas expose no timeout knob: `web_fetch` has no `timeout_ms` parameter, while `web_search` accepts a required `queries` array without a timeout argument. The tool bodies do not import `@aeven/timeout`; they forward `exec.signal` to `ctx.web`.
 
-`dsh-web-fetch-http` keeps one configured provider-level `timeoutMs` as a large resource backstop for direct `ctx.web.fetch()` callers and misconfigured deployments; it owns no model-facing timeout. When a `TOOL_TIMEOUT` signal reaches the fetch provider first, provider-scoped classification treats it as upstream `WEB_ABORTED`, and the outer `tools/execute` wrapper replaces the final tool result with `TOOL_TIMEOUT`. A shipped web-tool deployment configures the provider backstop above the `timeout-policy` budget so the tool-call policy normally wins for model calls.
+`avn-web-fetch-http` keeps one configured provider-level `timeoutMs` as a large resource backstop for direct `ctx.web.fetch()` callers and misconfigured deployments; it owns no model-facing timeout. When a `TOOL_TIMEOUT` signal reaches the fetch provider first, provider-scoped classification treats it as upstream `WEB_ABORTED`, and the outer `tools/execute` wrapper replaces the final tool result with `TOOL_TIMEOUT`. A shipped web-tool deployment configures the provider backstop above the `timeout-policy` budget so the tool-call policy normally wins for model calls.
 
-`bash` stays on the current backend timeout path. `dsh-tool-bash` continues to expose `timeoutMs` and `run_in_background`; `dsh-bash-local` continues to use `@aeven/timeout` for `BASH_TIMEOUT`; hook bridges continue to call `runHook()` and pass `timeoutMs` through `ctx.shell`. This keeps foreground/background/hook behavior stable.
+`bash` stays on the current backend timeout path. `avn-tool-bash` continues to expose `timeoutMs` and `run_in_background`; `avn-bash-local` continues to use `@aeven/timeout` for `BASH_TIMEOUT`; hook bridges continue to call `runHook()` and pass `timeoutMs` through `ctx.shell`. This keeps foreground/background/hook behavior stable.
 
 `read`, `write`, `edit`, `todo_write`, `job_list`, and `job_kill` do not opt into tool-call timeout. `job_output` owns its bounded wait because a wait timeout is a successful live-status result, not a tool failure.
 

@@ -12,7 +12,7 @@ HTTP 承载层还把绑定地址隐藏在 `startWebServer()` 内部，导致其�
 
 ## 决策
 
-`dsh web` 绑定 `127.0.0.1` 并拒绝 `--host 0.0.0.0`；CLI 不开放网络模式。进程令牌与浏览器 cookie 认证不扩大该部署约定（[决策](../architecture/2026-08-24-browser-token-authentication.zh.md)）。
+`avn web` 绑定 `127.0.0.1` 并拒绝 `--host 0.0.0.0`；CLI 不开放网络模式。进程令牌与浏览器 cookie 认证不扩大该部署约定（[决策](../architecture/2026-08-24-browser-token-authentication.zh.md)）。
 
 `WebServer` 仍要求 `host: '127.0.0.1' | '0.0.0.0'`，并在没有 fallback 的情况下传给 `node:http`。通用承载层让自定义组合策略显式留在包接口上；产品 CLI 持有更严格的 loopback 选择。
 
@@ -28,4 +28,4 @@ HTTP 承载层还把绑定地址隐藏在 `startWebServer()` 内部，导致其�
 
 ## 后果
 
-`dsh web` 的本地启动仍可通过 `http://127.0.0.1:3080` 访问。CLI 不开放自定义接口、全接口或 IPv6 模式；自定义 WebServer 组合保留承载层的两个地址选择并自行承担全部后果。服务器测试固定两个承载值都会进入 Node listen，CLI 测试则固定全接口 flag 被拒绝。
+`avn web` 的本地启动仍可通过 `http://127.0.0.1:3080` 访问。CLI 不开放自定义接口、全接口或 IPv6 模式；自定义 WebServer 组合保留承载层的两个地址选择并自行承担全部后果。服务器测试固定两个承载值都会进入 Node listen，CLI 测试则固定全接口 flag 被拒绝。

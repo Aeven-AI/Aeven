@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-session-projection` 向客户端载体提供日志派生的逐会话状态的完整当前值——历史尾页与 `session/projection` 推送帧：一个注册表（`ctx.sessionProjections`）把每个已提交会话事件折叠到已注册投影单元并对外提供所得值。领域注册一个纯计算单元（初始状态、对事件的折叠与可选客户端视图）；框架负责订阅、驱动与变更通知，因此领域不持有任何订阅，客户端收到的是成品值，绝不自行折叠事件。每个被提供的值都是经 schema 校验的纯 JSON，逐单元 `stateVersion` 锚定持久缓存的失效。当客户端需要派生的逐会话状态——todo 清单、goal 快照、对话统计——而不想自己折叠原始日志时，选择本包。
+`avn-session-projection` 向客户端载体提供日志派生的逐会话状态的完整当前值——历史尾页与 `session/projection` 推送帧：一个注册表（`ctx.sessionProjections`）把每个已提交会话事件折叠到已注册投影单元并对外提供所得值。领域注册一个纯计算单元（初始状态、对事件的折叠与可选客户端视图）；框架负责订阅、驱动与变更通知，因此领域不持有任何订阅，客户端收到的是成品值，绝不自行折叠事件。每个被提供的值都是经 schema 校验的纯 JSON，逐单元 `stateVersion` 锚定持久缓存的失效。当客户端需要派生的逐会话状态——todo 清单、goal 快照、对话统计——而不想自己折叠原始日志时，选择本包。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在客户端载体需要日志派生会话状态的当前值处挂载 `dsh-session-projection`。领域插件注册单元；载体读取快照并订阅变更流；两侧互不相识。
+在客户端载体需要日志派生会话状态的当前值处挂载 `avn-session-projection`。领域插件注册单元；载体读取快照并订阅变更流；两侧互不相识。
 
 ### 何时选择
 
@@ -128,7 +128,7 @@ const { asOfSeq, values } = ctx.sessionProjections.snapshot(session)
 - **每个尾页携带每个 client-visible key**——尚无逐 key 的 opt-out 或惰性 key 请求形状；在值都是 UI 量级的全量状态时可以接受，若某领域的值变大再重议。
 - **单元表是进程级的，因此 key 是否存在不能当作逐会话的能力信号**——任何 agent preset 注册的 key 都会出现在每个会话的快照里；客户端必须读值，不能把 key 缺席当作功能缺席。
 - **主动驱动逐事件触达每个单元**——按构造开销很低（全量值规则与 state/view 引用闸门），但若出现热点路径，可加按单元的事件类型预过滤。
-- **注册表 cell 只活在内存里**——重启后首次触达时靠折叠日志重建；挂载了 `dsh-session-projection-cache` 的组合改由持久行播种该折叠。
+- **注册表 cell 只活在内存里**——重启后首次触达时靠折叠日志重建；挂载了 `avn-session-projection-cache` 的组合改由持久行播种该折叠。
 - **单元同步纪律只有部分可机械把关**——`wire.viewSchema.parse` 能拒绝返回 Promise 的 view，但阻塞的 `apply`、或读取撕裂的非会话状态的 `apply`，只能靠评审把关。
 
 <a id="dev-note"></a>

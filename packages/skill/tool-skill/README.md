@@ -70,7 +70,7 @@ This section explains how the catalog and the invocation boundary are built; the
 
 ### Design concept
 
-The package is built on two ideas. First, the catalog is a durable projection, diffed by a digest over the published entries rather than the rendered prose, so the `<system-reminder>` framing can never force a republish and consumers never re-parse the `<available_skills>` block. Second, one canonical rendering serves both load paths — the tool result and the user-explicit injection — through `renderSkillContent` shared from `dsh-skill`, so the model sees the same `<skill_content>` shape regardless of who initiated the load.
+The package is built on two ideas. First, the catalog is a durable projection, diffed by a digest over the published entries rather than the rendered prose, so the `<system-reminder>` framing can never force a republish and consumers never re-parse the `<available_skills>` block. Second, one canonical rendering serves both load paths — the tool result and the user-explicit injection — through `renderSkillContent` shared from `avn-skill`, so the model sees the same `<skill_content>` shape regardless of who initiated the load.
 
 ### Source map
 

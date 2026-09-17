@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-tool-goal` gives the model three tools over the persisted goal service: `get_goal` reads the current goal, `create_goal` starts a new one, and `update_goal` edits, pauses, resumes, completes, or blocks it. The model may infer a long-running objective from a direct human request and create a goal; updates must carry the exact id and revision read beforehand. Authority is enforced at execution: create, edit, pause, and resume require a direct human turn on a top-level agent, while complete and blocked also accept the current goal round during automatic continuation. A configured threshold (default 3) bounds how soon an autonomous round may self-report `blocked`. Mount it with `dsh-goal` whenever the model should manage goals itself.
+`avn-tool-goal` gives the model three tools over the persisted goal service: `get_goal` reads the current goal, `create_goal` starts a new one, and `update_goal` edits, pauses, resumes, completes, or blocks it. The model may infer a long-running objective from a direct human request and create a goal; updates must carry the exact id and revision read beforehand. Authority is enforced at execution: create, edit, pause, and resume require a direct human turn on a top-level agent, while complete and blocked also accept the current goal round during automatic continuation. A configured threshold (default 3) bounds how soon an autonomous round may self-report `blocked`. Mount it with `avn-goal` whenever the model should manage goals itself.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount `dsh-tool-goal` beside the goal service when the model should create and update persisted goals itself. The tools are the model-facing half of the goal surface; the `/goal` command is the human-facing half, and the continuation driver uses the same tools to complete or block goals at the end of autonomous rounds.
+Mount `avn-tool-goal` beside the goal service when the model should create and update persisted goals itself. The tools are the model-facing half of the goal surface; the `/goal` command is the human-facing half, and the continuation driver uses the same tools to complete or block goals at the end of autonomous rounds.
 
 ### Tools
 
@@ -148,7 +148,7 @@ These limits define when the goal tools are a poor fit or need special care. The
 
 - **Semantic intent remains model judgment** — execution can prove that the current turn contains a direct human message, not whether the request is substantial enough to merit a goal.
 - **Same-condition blocking remains model judgment** — the runtime enforces distinct admitted-round count, not semantic equivalence of obstacles; an independent evaluator is deferred.
-- **No scheduling or direct human rendering** — these tools mutate state only; the same-session driver and `dsh-command-goal` are independent consumers of the same domain.
+- **No scheduling or direct human rendering** — these tools mutate state only; the same-session driver and `avn-command-goal` are independent consumers of the same domain.
 - **Goal-round authority requires a driver** — the autonomous `complete`/`blocked` path is dormant unless a continuation driver admits goal-sourced user turns; mounting this tool package alone does not create them.
 - **Prompt registration is independent of filtering** — a scope may hide the tools while retaining their guidance unless the deployment scopes both registrations together.
 

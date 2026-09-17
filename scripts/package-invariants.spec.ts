@@ -42,7 +42,7 @@ function fixture(options: {
   buildEntry?: boolean
   omissionReason?: boolean
 } = {}): string {
-  const root = mkdtempSync(join(tmpdir(), 'dsh-package-invariants-'))
+  const root = mkdtempSync(join(tmpdir(), 'avn-package-invariants-'))
   roots.push(root)
   const packageDirectory = options.packageDirectory ?? 'packages/core/probe'
   const dir = join(root, packageDirectory)
@@ -66,15 +66,15 @@ function fixture(options: {
       },
     } : {}),
   }
-  const dsh = options.clientDeclaration === true ? { client: {} } : undefined
+  const avn = options.clientDeclaration === true ? { client: {} } : undefined
   const developmentOnlyInvariant = usesFlattenedPackageDependencies(
     `${packageDirectory}/package.json`,
     packageName,
-    dsh,
+    avn,
   )
   const manifest = {
     name: packageName,
-    ...(dsh === undefined ? {} : { dsh }),
+    ...(avn === undefined ? {} : { avn }),
     exports,
     files: ['lib/index.js', ...invariantFile ? ['lib/invariant.js'] : []],
     peerDependencies: !invariantDependency || developmentOnlyInvariant ? {} : {
@@ -135,7 +135,7 @@ describe('package invariant gate', () => {
     }))).toEqual([])
   })
 
-  it('accepts development-only invariants for packages with a dsh.client entry', () => {
+  it('accepts development-only invariants for packages with a avn.client entry', () => {
     expect(collectPackageInvariantViolations(fixture({ clientDeclaration: true, clientExport: true }))).toEqual([])
   })
 
@@ -143,7 +143,7 @@ describe('package invariant gate', () => {
     expect(collectPackageInvariantViolations(fixture({ clientExport: true }))).toEqual([])
   })
 
-  it('keeps invariant peers for experimental packages with a dsh.client entry', () => {
+  it('keeps invariant peers for experimental packages with a avn.client entry', () => {
     expect(collectPackageInvariantViolations(fixture({
       packageDirectory: 'packages/experimental/probe',
       clientDeclaration: true,

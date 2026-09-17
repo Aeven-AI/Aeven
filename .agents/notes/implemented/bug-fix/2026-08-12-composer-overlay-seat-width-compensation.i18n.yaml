@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-12-composer-overlay-seat-width-compensation.md
-2026-08-12-composer-overlay-seat-width-compensation.md: 0e490f502674d02c14c47a76ad478b410f371c69
-2026-08-12-composer-overlay-seat-width-compensation.zh.md: c15b7501d7b8a871440bd03b8300305c7fc547d0
+2026-08-12-composer-overlay-seat-width-compensation.md: c1f7aadd17981df53f4c8670fc290d115d0675cf
+2026-08-12-composer-overlay-seat-width-compensation.zh.md: 5e73846ee4864b3a1723dd0d55f9a8eaa49e703d

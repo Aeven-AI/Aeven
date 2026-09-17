@@ -192,7 +192,7 @@ describe('gate graph validation', () => {
 
     expect(ids).toEqual([
       'rescope-vendor', 'publint', 'constraints', 'package-dependencies', 'application-entrypoints',
-      'dsh-package-licenses', 'package-invariants', 'built-package-invariants', 'node-next-types',
+      'avn-package-licenses', 'package-invariants', 'built-package-invariants', 'node-next-types',
       'optional-dependency-imports', 'client-packages', 'client-ui-i18n', 'css-baseline', 'no-bare-dispatcher',
       'cordis-config', 'runtime-closure', 'vendored-links',
     ])
@@ -222,11 +222,11 @@ describe('gate graph validation', () => {
   })
 
   it.each(['ci-primary', 'ci-static', 'check-all'] as const)(
-    'keeps the DSH package license policy in %s',
+    'keeps the AVN package license policy in %s',
     (mode) => {
       const ids = withPnpmEntrypoint(() => gatesForMode(mode).map(subject => subject.id))
 
-      expect(ids).toContain('dsh-package-licenses')
+      expect(ids).toContain('avn-package-licenses')
     },
   )
 

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-fs` defines the `ctx.fs` filesystem service: a compact, backend-neutral contract for one execution world that resolves paths to stable identities, maps shared host files when supported, reads text and raw bytes within bounds, lists directories, and applies atomic writes and literal edits. It deliberately leaves storage mechanics to the backends that implement it — `fs-local` for the host filesystem, `fs-sandbox` for policy-enforced confinement, and `fs-e2b` for a remote execution world. Both mutations take an optional version guard, so a backend mounted without the policy plugin still gives complete, unconstrained, atomic file operations. The package also owns the `fs/*` policy-event vocabulary that the tool package dispatches and the policy plugin decides. Choose it when you need a swappable filesystem surface; the model-facing tools themselves live in `dsh-tool-fs`.
+`avn-fs` defines the `ctx.fs` filesystem service: a compact, backend-neutral contract for one execution world that resolves paths to stable identities, maps shared host files when supported, reads text and raw bytes within bounds, lists directories, and applies atomic writes and literal edits. It deliberately leaves storage mechanics to the backends that implement it — `fs-local` for the host filesystem, `fs-sandbox` for policy-enforced confinement, and `fs-e2b` for a remote execution world. Both mutations take an optional version guard, so a backend mounted without the policy plugin still gives complete, unconstrained, atomic file operations. The package also owns the `fs/*` policy-event vocabulary that the tool package dispatches and the policy plugin decides. Choose it when you need a swappable filesystem surface; the model-facing tools themselves live in `avn-tool-fs`.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-You rarely load `dsh-fs` directly: you mount a backend that registers as `ctx.fs`, then either call the service from your own plugin or let the `dsh-tool-fs` tools call it for you. This page serves the two audiences that do touch it — deployments choosing a backend, and developers implementing or consuming the contract.
+You rarely load `avn-fs` directly: you mount a backend that registers as `ctx.fs`, then either call the service from your own plugin or let the `avn-tool-fs` tools call it for you. This page serves the two audiences that do touch it — deployments choosing a backend, and developers implementing or consuming the contract.
 
 ### Choosing and mounting a backend
 
@@ -50,7 +50,7 @@ This section explains the design decisions behind the contract and points at the
 The contract is built on one separation and three commitments:
 
 - **Contract over mechanism.** The service names what a storage layer can do — resolve, stat, read, list, write, edit — and never how it stores bytes. Backends own target identity, execution-world coordinates, decoding, binary rejection, and atomicity.
-- **Policy stays off the base class.** Observed-state, read-before-edit, and version-guarded mutations are a plugin's job (`dsh-fs-observation-policy`), added by supplying the optional guard — so a sandboxed or remote backend inherits no model-facing observation policy.
+- **Policy stays off the base class.** Observed-state, read-before-edit, and version-guarded mutations are a plugin's job (`avn-fs-observation-policy`), added by supplying the optional guard — so a sandboxed or remote backend inherits no model-facing observation policy.
 - **`editText` stays on the seam.** Version check, literal match, and atomic rewrite share one critical section, so error attribution and one-wins/one-stale concurrency stay correct; a remote backend may implement it as a native compare-and-edit.
 - **Bounds live at this seam.** `readBytes` requires `maxBytes` and fails with `FS_TOO_LARGE` rather than truncating, so no backend ever buffers an unbounded file.
 
@@ -67,7 +67,7 @@ Every ordinary operation starts with `resolve(path, { cwd })`, which produces a 
 
 ### The `fs/*` policy events
 
-The package declares three events so the emitter (`dsh-tool-fs`) and the policy listener (`dsh-fs-observation-policy`) share a vocabulary without the emitter depending on the policy plugin. `fs/write-intent` and `fs/edit-intent` are single-slot decision waterfalls: the first listener decides outright and never calls `next()`. `fs/observed` is a fire-and-forget recording event carrying an `FsObservation` — present with a version, or confirmed absent. The events carry only `dsh-fs` vocabulary plus an opaque `object` actor.
+The package declares three events so the emitter (`avn-tool-fs`) and the policy listener (`avn-fs-observation-policy`) share a vocabulary without the emitter depending on the policy plugin. `fs/write-intent` and `fs/edit-intent` are single-slot decision waterfalls: the first listener decides outright and never calls `next()`. `fs/observed` is a fire-and-forget recording event carrying an `FsObservation` — present with a version, or confirmed absent. The events carry only `avn-fs` vocabulary plus an opaque `object` actor.
 
 ### Invariants
 
@@ -96,7 +96,7 @@ Read these pages when the package-level contract is not enough. They move from t
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through `dsh-tool-fs`, which renders provider text and errors as bounded, retained filesystem tool results.
+Indirectly, through `avn-tool-fs`, which renders provider text and errors as bounded, retained filesystem tool results.
 
 #### KV Cache effect
 

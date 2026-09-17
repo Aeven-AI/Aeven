@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-agent-loop` creates agents — fresh or resumed from persisted history — and runs the turn and step lifecycle that claims prompts, assembles requests, streams model responses, dispatches tool calls, and appends every result back to the session log. As the default driver it implements the `Agent` interface from `dsh-agent` and registers its factory there, so plugins create and drive agents through `ctx.agents` without depending on this package. Declarative config entries start agents automatically at boot, and `maxParallelToolCalls` caps how many parallel-safe tool calls run at once. It is the harness's only concrete loop — everything beyond "call the model, run the tools, repeat" belongs to plugins listening on the event taxonomy. Choose it as the driver for standard compositions; swap it by implementing `Agent` and registering through `ctx.agents`.
+`avn-agent-loop` creates agents — fresh or resumed from persisted history — and runs the turn and step lifecycle that claims prompts, assembles requests, streams model responses, dispatches tool calls, and appends every result back to the session log. As the default driver it implements the `Agent` interface from `avn-agent` and registers its factory there, so plugins create and drive agents through `ctx.agents` without depending on this package. Declarative config entries start agents automatically at boot, and `maxParallelToolCalls` caps how many parallel-safe tool calls run at once. It is the harness's only concrete loop — everything beyond "call the model, run the tools, repeat" belongs to plugins listening on the event taxonomy. Choose it as the driver for standard compositions; swap it by implementing `Agent` and registering through `ctx.agents`.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount `dsh-agent-loop` in any composition that should run agents. It supplies the driver behind `ctx.agents` and starts any agents you declare in its config; both [`dsh-base`](../../bundle/base/README.md) and [`dsh-sdk-minimal`](../../bundle/sdk-minimal/README.md) mount it as an explicit row.
+Mount `avn-agent-loop` in any composition that should run agents. It supplies the driver behind `ctx.agents` and starts any agents you declare in its config; both [`avn-base`](../../bundle/base/README.md) and [`avn-sdk-minimal`](../../bundle/sdk-minimal/README.md) mount it as an explicit row.
 
 ### Configure declarative agents
 

@@ -21,7 +21,7 @@ afterAll(async () => {
 })
 
 async function freshUnitDir(): Promise<string> {
-  const root = await mkdtemp(join(tmpdir(), 'dsh-watch-'))
+  const root = await mkdtemp(join(tmpdir(), 'avn-watch-'))
   roots.push(root)
   const dir = join(root, 'recs')
   await mkdir(dir, { recursive: true })

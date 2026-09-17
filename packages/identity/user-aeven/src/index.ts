@@ -25,7 +25,7 @@ import { verifiedUserId } from './jwt.ts'
 /** Cordis plugin name. */
 export const name = 'identity-user-aeven'
 
-/** Page global carrying {@link AevenClientConfig}; `dsh-client-ui-auth-aeven` reads it. */
+/** Page global carrying {@link AevenClientConfig}; `avn-client-ui-auth-aeven` reads it. */
 export const AEVEN_CLIENT_CONFIG_GLOBAL = '__DSH_AEVEN__'
 
 /** Deployment endpoints the Host states in the served page; each is absent when unconfigured. */

@@ -470,7 +470,7 @@ describe('session.list projections column', () => {
   })
 
   it('keeps persisted host-only state out of a cold session.list response', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dsh-api-projcache-'))
+    const root = await mkdtemp(join(tmpdir(), 'avn-api-projcache-'))
     const ctx = new Context()
     try {
       await ctx.plugin(Storage)

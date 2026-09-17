@@ -31,7 +31,7 @@ async function writeBlob(command: CoverageCommand): Promise<void> {
 }
 
 async function temporaryRoot(): Promise<string> {
-  return await mkdtemp(join(tmpdir(), 'dsh-coverage-partitions-'))
+  return await mkdtemp(join(tmpdir(), 'avn-coverage-partitions-'))
 }
 
 /** Write a Vitest results cache under a temporary root. */

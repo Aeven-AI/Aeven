@@ -14,11 +14,11 @@ The image case had a second, real half. A file the agent produces has no URL, an
 
 ## Decision
 
-**The surface prompt states what the surface renders.** `webSurfacePrompt` now says replies render as GFM, that a mermaid fence becomes a diagram and math renders through KaTeX, that images display from absolute `http`/`https` URLs while filesystem paths and `data:` URIs are refused, and that the model must never claim it cannot display an image or diagram inline. The `WEB_SURFACE` section is the correct home because this is a property of the surface, not of an agent: it mounts only for `dsh web`, so the statement is absent on the CLI, where none of it renders.
+**The surface prompt states what the surface renders.** `webSurfacePrompt` now says replies render as GFM, that a mermaid fence becomes a diagram and math renders through KaTeX, that images display from absolute `http`/`https` URLs while filesystem paths and `data:` URIs are refused, and that the model must never claim it cannot display an image or diagram inline. The `WEB_SURFACE` section is the correct home because this is a property of the surface, not of an agent: it mounts only for `avn web`, so the statement is absent on the CLI, where none of it renders.
 
 This is deliberately not an agent-preset persona rule. A persona travels with the agent into surfaces where the claim is false, and a user preset forking a shipped preset to carry one sentence makes every upstream preset change a manual merge.
 
-**`dsh-host-workspace-files` gives a produced file a URL.** One authenticated prefix route serves `<mount>/<workspaceId>/<relative path>` from a workspace's canonical directory. `ctx.connection.requestRejection` runs before any path handling, so an unauthenticated caller cannot distinguish a real workspace id from an invented one. Traversal outside the directory is 403, unknown id and absent file are both an empty 404, non-GET/HEAD is 405.
+**`avn-host-workspace-files` gives a produced file a URL.** One authenticated prefix route serves `<mount>/<workspaceId>/<relative path>` from a workspace's canonical directory. `ctx.connection.requestRejection` runs before any path handling, so an unauthenticated caller cannot distinguish a real workspace id from an invented one. Traversal outside the directory is 403, unknown id and absent file are both an empty 404, non-GET/HEAD is 405.
 
 **The exposure is whole-directory and deliberate.** Every file under the workspace is readable by a holder of a browser session. A narrower published subtree was considered and rejected for now: it requires the agent to copy artifacts into a publish directory, which is the step models forget, and the failure would be silent — a broken image rather than an error. A deployment that cannot accept the exposure removes the row and the prompt's workspace-URL sentence with it.
 
@@ -34,7 +34,7 @@ The surface prompt's full text is pinned byte-for-byte in `web-app.spec.ts` agai
 
 The Web surface prompt grows by one paragraph, so every Web session's system prompt changes and its prefix cache is invalidated once on upgrade.
 
-`dsh web` now exposes workspace contents to an authenticated browser session. This is a real increase in what a leaked session cookie reaches, and it is the reason the exposure paragraph sits in the package README rather than only in this note.
+`avn web` now exposes workspace contents to an authenticated browser session. This is a real increase in what a leaked session cookie reaches, and it is the reason the exposure paragraph sits in the package README rather than only in this note.
 
 The prompt's workspace-URL sentence and the `workspace-files` row are one unit: removing the row without removing the sentence leaves the model building URLs that 404. Both live in `packages/bundle/web-app`, and the README states the pairing.
 

@@ -35,7 +35,7 @@ export async function loginGrokBuild(
 }
 
 /**
- * Copy ~/.grok/auth.json into the dsh store. Does not modify the Grok file.
+ * Copy ~/.grok/auth.json into the avn store. Does not modify the Grok file.
  * @param store - Credential store used by the operation.
  * @param filename - Source filename used in diagnostics.
  */

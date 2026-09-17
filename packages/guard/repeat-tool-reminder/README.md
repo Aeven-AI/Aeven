@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-A model can get stuck calling the same tool with the same arguments — re-running a failing command, re-reading an unchanged file — burning time and tokens without making progress. `dsh-repeat-tool-reminder` notices the pattern and tells the model to stop: at chosen repeat counts it delivers a reminder to analyze the last result and either try a different approach or finish. The reminder is advice, never a block: a legitimate repeated call is delayed by nothing, and the decision to continue, change approach, or stop stays with the model. It tracks each agent separately, so one agent's loop never disturbs another's work, and a new user message clears the count. It ships enabled in the `dsh` base bundle with reminders at 3, 5, and 8 repeats.
+A model can get stuck calling the same tool with the same arguments — re-running a failing command, re-reading an unchanged file — burning time and tokens without making progress. `avn-repeat-tool-reminder` notices the pattern and tells the model to stop: at chosen repeat counts it delivers a reminder to analyze the last result and either try a different approach or finish. The reminder is advice, never a block: a legitimate repeated call is delayed by nothing, and the decision to continue, change approach, or stop stays with the model. It tracks each agent separately, so one agent's loop never disturbs another's work, and a new user message clears the count. It ships enabled in the `avn` base bundle with reminders at 3, 5, and 8 repeats.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ A model can get stuck calling the same tool with the same arguments — re-runni
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin when the model should catch itself looping on identical tool calls. There is nothing to learn or wire: the `dsh` base bundle already runs it, and the defaults work for most sessions — tune the thresholds and tool scope below when you want the nudge sooner, later, or on fewer tools.
+Mount this plugin when the model should catch itself looping on identical tool calls. There is nothing to learn or wire: the `avn` base bundle already runs it, and the defaults work for most sessions — tune the thresholds and tool scope below when you want the nudge sooner, later, or on fewer tools.
 
 ### When to choose it
 

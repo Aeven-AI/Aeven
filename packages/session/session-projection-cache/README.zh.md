@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-session-projection-cache` 将每个已注册投影单元的状态检查点（`ctx.sessionProjectionCache`）存为 `session_projcache` 存储域 `per-record` 布局下的逐会话版本化文档。随附 JSON 后端将每条记录存于 `<root>/session_projcache/sessions/<id>.json`，缓存绝不读取会话持久化层。存储行是折叠捷径，绝不是权威：它可能陈旧——`seq` 精确说明陈旧到哪——但绝不会错。三个必写点（会话创建、`turn/end` 与会话释放）加上可配置的条数与间隔节流让缓存保持新鲜。当列表视图需要同步缓存值，或冷投影折叠应跳过已检查点化的前缀时，选择本包。
+`avn-session-projection-cache` 将每个已注册投影单元的状态检查点（`ctx.sessionProjectionCache`）存为 `session_projcache` 存储域 `per-record` 布局下的逐会话版本化文档。随附 JSON 后端将每条记录存于 `<root>/session_projcache/sessions/<id>.json`，缓存绝不读取会话持久化层。存储行是折叠捷径，绝不是权威：它可能陈旧——`seq` 精确说明陈旧到哪——但绝不会错。三个必写点（会话创建、`turn/end` 与会话释放）加上可配置的条数与间隔节流让缓存保持新鲜。当列表视图需要同步缓存值，或冷投影折叠应跳过已检查点化的前缀时，选择本包。
 
 ## 目录
 
@@ -35,7 +35,7 @@ kind: "package-reference"
 
 两个节流字段均必填——写入节奏是部署选择，没有普适正确值：
 
-缓存通过存储栈打开自己的域，因此 base 先挂 `storage`、`storage-json`（根 `dshHomePath('storages')`）与 `storage-domain`（`backend: json`）：
+缓存通过存储栈打开自己的域，因此 base 先挂 `storage`、`storage-json`（根 `avnHomePath('storages')`）与 `storage-domain`（`backend: json`）：
 
 ```yaml
 - id: session-projection-cache

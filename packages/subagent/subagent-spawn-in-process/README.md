@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-subagent-spawn-in-process` is an in-process subagent backend: it runs each delegated task in a fresh child agent that shares this process and its agent factory, LLM, and tool services. The child starts with an empty conversation, so a task prompt must stand alone; it inherits the parent's working directory, session lineage, provider, model, reasoning effort, and output-token limit unless `request.agentOptions` overrides them. A delegation tool or API call reaches it under the `spawn` provider name. Choose it for the cheapest delegation transport; choose the fork backend when the child must build on the parent's completed conversation turns.
+`avn-subagent-spawn-in-process` is an in-process subagent backend: it runs each delegated task in a fresh child agent that shares this process and its agent factory, LLM, and tool services. The child starts with an empty conversation, so a task prompt must stand alone; it inherits the parent's working directory, session lineage, provider, model, reasoning effort, and output-token limit unless `request.agentOptions` overrides them. A delegation tool or API call reaches it under the `spawn` provider name. Choose it for the cheapest delegation transport; choose the fork backend when the child must build on the parent's completed conversation turns.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this backend in a composition that delegates work to fresh in-process children. The common path is explicit: load the subagent service and this backend, then point a delegation tool such as `dsh-tool-subagent` at the `spawn` provider.
+Mount this backend in a composition that delegates work to fresh in-process children. The common path is explicit: load the subagent service and this backend, then point a delegation tool such as `avn-tool-subagent` at the `spawn` provider.
 
 ### When to choose it
 
@@ -65,7 +65,7 @@ This section explains how the backend is built and where the behavior in [Use th
 
 ### Design concept
 
-One separation: this backend contributes only the provider registration and the decision to start fresh, while every run mechanic — depth checking, child creation, per-child customization, structured output, cancellation, result reading, and disposal — lives in `dsh-subagent-in-process-driver`. The agent factory's creation transaction owns the unpublished setup window and its rollback; after publication the caller owns the run.
+One separation: this backend contributes only the provider registration and the decision to start fresh, while every run mechanic — depth checking, child creation, per-child customization, structured output, cancellation, result reading, and disposal — lives in `avn-subagent-in-process-driver`. The agent factory's creation transaction owns the unpublished setup window and its rollback; after publication the caller owns the run.
 
 ### Source map
 
@@ -92,9 +92,9 @@ The child gets a fresh flat registration scope: parent tool restrictions and aut
 Read these pages when the package-level contract is not enough; they move from the shared subagent model to the sibling backends and exhaustive configuration.
 
 - [Subagent subsystem](../../../docs/subsystems/subagent.md) — start requests, results, live runs, and the provider contract.
-- [dsh-subagent-in-process-driver](../subagent-in-process-driver/README.md) — the shared run driver this backend calls.
-- [dsh-subagent-fork-in-process](../subagent-fork-in-process/README.md) — the sibling backend that seeds completed parent turns.
-- [dsh-tool-subagent](../tool-subagent/README.md) — the model-facing delegation tool that reaches this provider.
+- [avn-subagent-in-process-driver](../subagent-in-process-driver/README.md) — the shared run driver this backend calls.
+- [avn-subagent-fork-in-process](../subagent-fork-in-process/README.md) — the sibling backend that seeds completed parent turns.
+- [avn-tool-subagent](../tool-subagent/README.md) — the model-facing delegation tool that reaches this provider.
 - [Generated configuration catalog](../../../docs/config-catalog.md#aeven-subagent-spawn-in-process) — every accepted config field and its source declaration.
 
 -----
@@ -120,7 +120,7 @@ The child's request cache is independent of the parent's. Child history grows ap
 
 #### What the model sees
 
-Through `dsh-tool-subagent`, the parent receives only the child's final output or an errored result for a non-completed stop reason; intermediate child work never reaches it.
+Through `avn-tool-subagent`, the parent receives only the child's final output or an errored result for a non-completed stop reason; intermediate child work never reaches it.
 
 #### Token effect
 

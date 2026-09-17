@@ -1670,7 +1670,7 @@ function backscanTodos(log: readonly SessionEvent[]): TodoItem[] | undefined {
   return undefined
 }
 
-/** Fixture-local mirror of the goal projection value (dsh-goal's GoalProjection shape). */
+/** Fixture-local mirror of the goal projection value (avn-goal's GoalProjection shape). */
 interface FxGoalProjection {
   goal: {
     id: string
@@ -2294,7 +2294,7 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
             label,
             ...item.cwd === undefined ? {} : { cwd: item.cwd },
             createdAt: item.updatedAt,
-            mention: `@[${label}](dsh-session:${encoded})`,
+            mention: `@[${label}](avn-session:${encoded})`,
           }
         })
       return { ok: true, value }
@@ -3008,7 +3008,7 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
       })
       // The host echoes the prompt's requestId as the user source's rpcId;
       // the Session object retires its local submission echo on it. The
-      // user-rpc source member is declared by dsh-api-session-controller,
+      // user-rpc source member is declared by avn-api-session-controller,
       // which this standalone fixture does not import — hence the assertion.
       const promptSource = { kind: 'user', rpcId: request.requestId } as MessageSource
       if (mode === 'steer' && replays.has(id)) {

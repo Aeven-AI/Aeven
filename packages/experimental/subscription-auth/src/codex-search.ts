@@ -93,7 +93,7 @@ export interface CodexSearchProviderOptions {
   readonly sleep?: (ms: number, signal?: AbortSignal) => Promise<void>
 }
 
-/** Structural `WebSearchProvider` so parent can register without this module importing dsh-web. */
+/** Structural `WebSearchProvider` so parent can register without this module importing avn-web. */
 export interface CodexSearchProvider {
   readonly id: typeof CODEX_SEARCH_PROVIDER_ID
   available(): boolean

@@ -15,7 +15,7 @@ export default class PartialLandlockSandboxProvider extends SandboxProvider {
   confine(argv: readonly string[], policy: SandboxPolicy): ConfinedArgv {
     if (process.env[MISSING_RUNNER_ENV] === '1') {
       return {
-        argv: [join(policy.workspaceRoot, '.dsh-missing-sandbox-runner'), ...argv],
+        argv: [join(policy.workspaceRoot, '.avn-missing-sandbox-runner'), ...argv],
         enforcement: 'full',
         denialSignatures: ['permission denied'],
         runnerFailureRules: [{ fatalSignatures: ['snapshot-runner: '] }],

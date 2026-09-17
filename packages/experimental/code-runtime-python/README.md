@@ -1,5 +1,5 @@
 ---
-description: "CPython-subprocess code runtime: the dsh-code-runtime seam implementation for Python model code, with the fd-3 wire protocol it speaks."
+description: "CPython-subprocess code runtime: the avn-code-runtime seam implementation for Python model code, with the fd-3 wire protocol it speaks."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-experimental-code-runtime-python` provides the private source-checkout `PythonCodeRuntime`, a CPython-subprocess implementation of the [`dsh-code-runtime`](../../code-runtime/code-runtime/README.md) seam. It registers as `codeRuntime` with `language: 'python'` and `isolation: 'process'`, spawning a fresh CPython 3.10+ child per `run()` and executing the program as an async function body over a versionless JSON-lines protocol on the child's fd 3 (stdout/stderr stay free for the program's own output). The host side (`src/protocol.ts`) treats every inbound frame as hostile and rebuilds it before reading; the Python side (`py/protocol.py`) mirrors the message vocabulary. Containment — not a security boundary, model code has bash-equivalent trust — comes from a tempdir-only environment, `RLIMIT_CPU`/`RLIMIT_AS`, a wall-clock ceiling, and `SIGTERM`→grace→`SIGKILL` process-group teardown, with all caps validated at plugin load.
+`avn-experimental-code-runtime-python` provides the private source-checkout `PythonCodeRuntime`, a CPython-subprocess implementation of the [`avn-code-runtime`](../../code-runtime/code-runtime/README.md) seam. It registers as `codeRuntime` with `language: 'python'` and `isolation: 'process'`, spawning a fresh CPython 3.10+ child per `run()` and executing the program as an async function body over a versionless JSON-lines protocol on the child's fd 3 (stdout/stderr stay free for the program's own output). The host side (`src/protocol.ts`) treats every inbound frame as hostile and rebuilds it before reading; the Python side (`py/protocol.py`) mirrors the message vocabulary. Containment — not a security boundary, model code has bash-equivalent trust — comes from a tempdir-only environment, `RLIMIT_CPU`/`RLIMIT_AS`, a wall-clock ceiling, and `SIGTERM`→grace→`SIGKILL` process-group teardown, with all caps validated at plugin load.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Choose this private experimental package only in an explicit source-checkout composition. Register `PythonCodeRuntime` beside `dsh-tools` and `run()` executes each program in a fresh CPython 3.10+ subprocess, resolving with `result.value` on success and `result.error` on failure (the orthogonal `CodeRunFailure.kind` taxonomy classifies parse failures, thrown exceptions, invalid completions, output overflows, budget expiry, aborts, and substrate death). It rejects only for seam misuse — a malformed binding namespace, or a call after disposal. Configuration is rejected at load: a non-Unix platform; an explicit `pythonBin` that is not an executable regular file or a bare name that does not resolve on `PATH`; a non-CPython, pre-3.10, or probe-failing interpreter; a non-positive or non-integer budget; a `maxLogBytes` below the truncation-marker floor (64); a timer value `setTimeout` would clamp; a budget larger than the effective fd-3 frame cap (lowered when the host heap cannot safely parse a near-cap frame); or an `addressSpaceMb`/output-budget pair whose worst-case peak would breach `RLIMIT_AS`.
+Choose this private experimental package only in an explicit source-checkout composition. Register `PythonCodeRuntime` beside `avn-tools` and `run()` executes each program in a fresh CPython 3.10+ subprocess, resolving with `result.value` on success and `result.error` on failure (the orthogonal `CodeRunFailure.kind` taxonomy classifies parse failures, thrown exceptions, invalid completions, output overflows, budget expiry, aborts, and substrate death). It rejects only for seam misuse — a malformed binding namespace, or a call after disposal. Configuration is rejected at load: a non-Unix platform; an explicit `pythonBin` that is not an executable regular file or a bare name that does not resolve on `PATH`; a non-CPython, pre-3.10, or probe-failing interpreter; a non-positive or non-integer budget; a `maxLogBytes` below the truncation-marker floor (64); a timer value `setTimeout` would clamp; a budget larger than the effective fd-3 frame cap (lowered when the host heap cannot safely parse a near-cap frame); or an `addressSpaceMb`/output-budget pair whose worst-case peak would breach `RLIMIT_AS`.
 
 ### What you get
 
@@ -98,7 +98,7 @@ Read these when the runtime contract is not enough. They move from the seam defi
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through PTC mode in `dsh-tools` when an explicit source-checkout composition mounts this provider; it renders the program's completion value or failure into a retained `run_code` result, and no shipped profile mounts this private package.
+Indirectly, through PTC mode in `avn-tools` when an explicit source-checkout composition mounts this provider; it renders the program's completion value or failure into a retained `run_code` result, and no shipped profile mounts this private package.
 
 #### KV Cache effect
 
@@ -118,7 +118,7 @@ These limits define what the package does and does not cover; they are current p
 - **No shipped profile mounts this provider** — the keyless `ptc-python-turn` snapshot replaces the headless PTC runtime through the real Loader; released profiles continue to use the worker-thread backend.
 - **Cross-channel log interleaving is backend-dependent** — Python stdout, stderr, and fd-3 log frames travel independently; each channel preserves its own order, while their total order in `result.logs` may differ.
 - **CPython 3.10 or newer is required** — the configured executable is resolved and version-probed at load; unsupported interpreters fail before `ctx.codeRuntime` is registered.
-- **The truncation-marker text and the tempdir prefix keep the pre-rename short names** — the marker `[dsh-code-runtime-python] log capture truncated at <N> bytes` and the `dsh-code-runtime-python-` tempdir prefix are byte-anchored by tests and are independent of the npm package name; promotion (dropping the `experimental-` prefix) does not rename them.
+- **The truncation-marker text and the tempdir prefix keep the pre-rename short names** — the marker `[avn-code-runtime-python] log capture truncated at <N> bytes` and the `avn-code-runtime-python-` tempdir prefix are byte-anchored by tests and are independent of the npm package name; promotion (dropping the `experimental-` prefix) does not rename them.
 - **`run()` is one-shot** — `logs` become available only after `CodeRunResult` resolves; there is no streaming-log or progress interface for output produced by a running program.
 - **No state persists across runs** — every request executes in a fresh subprocess; a persistent REPL-style kernel stays deferred until a backend brings its own logging scheme.
 - **An fd-3 frame whose raw length exceeds the effective frame parse cap settles the run as a worker-exit** — the cap is 64 MiB, or lower when the host's configured heap cannot safely parse a near-cap frame (`hostFrameParseCeiling`); `maxLogBytes`/`maxValueBytes` are load-bounded to the same cap so an honest child's frames always fit; a model-constructed binding ARGUMENT above the cap (a value with no seam-level budget) trips it too — an accepted residual of the OOM guard.

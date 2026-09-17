@@ -6,7 +6,7 @@ import type { SubprocessOutputRead, SubprocessOutputReader } from '@aeven/subpro
 const BASE64_TEXT = /^[A-Za-z0-9+/]+={0,2}$/u
 
 /** Reserved non-base64 frame proving that one remote encoder reached clean EOF. */
-export const E2B_OUTPUT_COMPLETE_FRAME = '!dsh-e2b-output-complete!'
+export const E2B_OUTPUT_COMPLETE_FRAME = '!avn-e2b-output-complete!'
 
 /** Incrementally decode newline-delimited base64 frames emitted by one remote encoder. */
 export class E2BBase64Decoder {

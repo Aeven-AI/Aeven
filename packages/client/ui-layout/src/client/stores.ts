@@ -52,7 +52,7 @@ type LayoutActions = {
 }
 
 /** localStorage key holding this store's durable fields. */
-const LAYOUT_STORE_KEY = 'dsh.layout.panels'
+const LAYOUT_STORE_KEY = 'avn.layout.panels'
 
 /**
  * Create the layout panel store handle. The preference IS the width, so

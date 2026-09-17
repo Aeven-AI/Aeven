@@ -81,21 +81,21 @@ describe('ThemePresenter', () => {
   it('publishes the content font size and follows changes', () => {
     const presenter = new ThemePresenter()
     presenter.apply(snapshot('light'))
-    expect(document.body.style.getPropertyValue('--dsh-content-font-size'))
+    expect(document.body.style.getPropertyValue('--avn-content-font-size'))
       .toBe(`${String(DEFAULT_FONT_SIZE)}px`)
     presenter.apply(snapshot('light', {}, 17))
-    expect(document.body.style.getPropertyValue('--dsh-content-font-size')).toBe('17px')
+    expect(document.body.style.getPropertyValue('--avn-content-font-size')).toBe('17px')
   })
 
   it('publishes the secondary size from the same snapshot, never landing on 13px', () => {
     const presenter = new ThemePresenter()
     presenter.apply(snapshot('light', {}, 16))
-    expect(document.body.style.getPropertyValue('--dsh-content-font-size-secondary')).toBe('14px')
+    expect(document.body.style.getPropertyValue('--avn-content-font-size-secondary')).toBe('14px')
     // 14 and 15 hold the floor: the tier's step under them would be 13px.
     presenter.apply(snapshot('light', {}, 14))
-    expect(document.body.style.getPropertyValue('--dsh-content-font-size-secondary')).toBe('14px')
+    expect(document.body.style.getPropertyValue('--avn-content-font-size-secondary')).toBe('14px')
     presenter.apply(snapshot('light', {}, 13))
-    expect(document.body.style.getPropertyValue('--dsh-content-font-size-secondary')).toBe('12px')
+    expect(document.body.style.getPropertyValue('--avn-content-font-size-secondary')).toBe('12px')
   })
 
   it('dispose removes color-scheme, the attribute, the font-size axis, and every applied variable, sparing foreign inline styles', () => {
@@ -107,8 +107,8 @@ describe('ThemePresenter', () => {
     expect(document.documentElement.style.colorScheme).toBe('')
     expect(document.body.hasAttribute(DARK_ATTRIBUTE)).toBe(false)
     expect(document.body.style.getPropertyValue('--dsw-alias-bg')).toBe('')
-    expect(document.body.style.getPropertyValue('--dsh-content-font-size')).toBe('')
-    expect(document.body.style.getPropertyValue('--dsh-content-font-size-secondary')).toBe('')
+    expect(document.body.style.getPropertyValue('--avn-content-font-size')).toBe('')
+    expect(document.body.style.getPropertyValue('--avn-content-font-size-secondary')).toBe('')
     expect(document.body.style.getPropertyValue('--foreign')).toBe('kept')
     expect(meta?.isConnected).toBe(false)
   })

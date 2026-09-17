@@ -60,7 +60,7 @@ dispatch 记录的是队列准入，而不是模型完成或用户收到提醒�
 
 ### 只读 Web 目录
 
-Schedule overlay 会把默认禁用的 [`dsh-client-ui-schedule`](../../../../packages/client/ui-schedule/README.zh.md) client 与 Host 服务一同启用。完整活动 projection 也会交给 [`dsh-client-ui-workspace`](../../../../packages/client/ui-workspace/README.zh.md)。本 Note 拥有这条 opt-in 只读呈现边界：该 projection 表示当前活动状态，而非 dispatch 或交付回执，因此普通 Assistant 轮次仍是交付呈现。目录是挂到 `document.body` 的 fixed portal；空间足够时左边缘跟随触发按钮，靠近视口右侧时向左避让并保留 16px 边距。`useAnchoredPosition` 拥有测量以及 resize、捕获阶段 scroll、面板 resize 与清理行为；Schedule 提供触发器与 portal ref、bottom 放置、5px 间距和既有内外 dismissal 边界，不增加通用 popover 抽象。
+Schedule overlay 会把默认禁用的 [`avn-client-ui-schedule`](../../../../packages/client/ui-schedule/README.zh.md) client 与 Host 服务一同启用。完整活动 projection 也会交给 [`avn-client-ui-workspace`](../../../../packages/client/ui-workspace/README.zh.md)。本 Note 拥有这条 opt-in 只读呈现边界：该 projection 表示当前活动状态，而非 dispatch 或交付回执，因此普通 Assistant 轮次仍是交付呈现。目录是挂到 `document.body` 的 fixed portal；空间足够时左边缘跟随触发按钮，靠近视口右侧时向左避让并保留 16px 边距。`useAnchoredPosition` 拥有测量以及 resize、捕获阶段 scroll、面板 resize 与清理行为；Schedule 提供触发器与 portal ref、bottom 放置、5px 间距和既有内外 dismissal 边界，不增加通用 popover 抽象。
 
 ## 已考虑的替代方案
 

@@ -40,7 +40,7 @@ target package 通过 declaration merge 扩展 snapshot 与 Location data map，
 
 本包注册 optional-Session `conversation` shell、strict Session header/body、View list、composer chain 与 bar、输入区域、Hero 区域、queue dock、草稿持久化和 phase 计算。`ctx.uiSession.provide()` 从同一个 Session binding 物化 Conversation 与 input source，并将 `inputActions` 作为稳定标准 prop 提供。
 
-View 选择规则固定：有效且已注册的持久化选择优先，其次是已注册的 `chat`，否则不渲染 View；绝不选择第一个已注册 View。Shell phase 只组合 Session lifecycle 与 active-target set，不读取任何 target-specific snapshot。会话栏在所选 Session 视图完成绘制前用转轮覆盖 transcript；session header 与 composer 不被覆盖，并保持原位，包括 `conversation.session` 在该 overlay 下重新挂载期间。`#dsh-preloader` 仍在且尚未 `.screen-hidden` 时不显示该 overlay。
+View 选择规则固定：有效且已注册的持久化选择优先，其次是已注册的 `chat`，否则不渲染 View；绝不选择第一个已注册 View。Shell phase 只组合 Session lifecycle 与 active-target set，不读取任何 target-specific snapshot。会话栏在所选 Session 视图完成绘制前用转轮覆盖 transcript；session header 与 composer 不被覆盖，并保持原位，包括 `conversation.session` 在该 overlay 下重新挂载期间。`#avn-preloader` 仍在且尚未 `.screen-hidden` 时不显示该 overlay。
 
 Session 首次绑定或缓存的 Session 成为 current 时，shell 会在渲染前读取持久化 View 偏好，激活已注册的偏好 View 或 Chat fallback，并在后续 tab 或 focus 选择写入 store 前先激活对应 target。Session 一旦存在，其标题栏会在 blank Hero 与活跃对话中始终可见；blank Session 仍不渲染 `conversation.view` slot，因此未选中的 target 不会激活。
 

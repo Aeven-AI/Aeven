@@ -1,4 +1,4 @@
-# The dsh-base bundle patch: the shared core of each base-backed profile, applied as
+# The avn-base bundle patch: the shared core of each base-backed profile, applied as
 # ONE insert over the empty profile root. Later bundle patches and the user's
 # profile cordis.patch.yml address these rows by id, with the last write
 # winning per row.
@@ -110,7 +110,7 @@
     - id: session-persistence-jsonl
       name: '@aeven/session-persistence-jsonl'
       config:
-        root: !!js dshHomePath('sessions')
+        root: !!js avnHomePath('sessions')
 
     # Durable image bytes live outside the append-only session log. Messages
     # keep content-addressed references that this shared backend resolves for
@@ -145,7 +145,7 @@
     - id: storage-json
       name: '@aeven/storage-json'
       config:
-        root: !!js dshHomePath('storages')
+        root: !!js avnHomePath('storages')
 
     - id: storage-domain
       name: '@aeven/storage-domain'

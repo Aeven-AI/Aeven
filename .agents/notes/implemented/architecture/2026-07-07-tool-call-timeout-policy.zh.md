@@ -40,7 +40,7 @@ catch 是基础 `next`（而非 waterfall 之外的东西）这一点至关重�
 
 ### `timeout-policy` 插件
 
-该插件是 `@aeven/tool-call-timeout-policy`，一个零配置的函数/命名空间插件（`name` / `inject` / `apply`），位于 `packages/guard/` 组。每个工具的预算声明在工具自身，而非本插件：`ToolDefinition` 携带一个可选的 `timeoutMs`，由拥有该工具的插件从自身配置中设置。例如 `dsh-tool-web` 将 `fetchTimeoutMs` / `searchTimeoutMs`（默认 30000）解析到 `web_fetch` / `web_search` 的定义上：
+该插件是 `@aeven/tool-call-timeout-policy`，一个零配置的函数/命名空间插件（`name` / `inject` / `apply`），位于 `packages/guard/` 组。每个工具的预算声明在工具自身，而非本插件：`ToolDefinition` 携带一个可选的 `timeoutMs`，由拥有该工具的插件从自身配置中设置。例如 `avn-tool-web` 将 `fetchTimeoutMs` / `searchTimeoutMs`（默认 30000）解析到 `web_fetch` / `web_search` 的定义上：
 
 ```yaml
 - id: timeout-policy
@@ -77,11 +77,11 @@ function toolTimeoutResult(timeoutMs: number): ToolExecutionResult {
 
 ### 现有工具适配
 
-`web_fetch` 和 `web_search` 已迁移。`dsh-tool-web` 保留对其面向模型 schema 的所有权，这些 schema 不暴露超时旋钮：`web_fetch` 没有 `timeout_ms` 参数，`web_search` 接受必填的 `queries` 数组，但不接受超时参数。工具体不导入 `@aeven/timeout`；它们将 `exec.signal` 转发给 `ctx.web`。
+`web_fetch` 和 `web_search` 已迁移。`avn-tool-web` 保留对其面向模型 schema 的所有权，这些 schema 不暴露超时旋钮：`web_fetch` 没有 `timeout_ms` 参数，`web_search` 接受必填的 `queries` 数组，但不接受超时参数。工具体不导入 `@aeven/timeout`；它们将 `exec.signal` 转发给 `ctx.web`。
 
-`dsh-web-fetch-http` 保留一个在提供方层面配置的 `timeoutMs`，作为较大的资源兜底值，服务于直接调用 `ctx.web.fetch()` 的调用方和配置错误的部署；它不拥有面向模型的超时。当 `TOOL_TIMEOUT` 信号先到达 fetch 提供方时，提供方作用域的分类将其视为上游 `WEB_ABORTED`，而外层 `tools/execute` 包装器将最终工具结果替换为 `TOOL_TIMEOUT`。一个已发布的 web 工具部署将提供方兜底配置为高于 `timeout-policy` 预算，使工具调用策略在模型调用中通常胜出。
+`avn-web-fetch-http` 保留一个在提供方层面配置的 `timeoutMs`，作为较大的资源兜底值，服务于直接调用 `ctx.web.fetch()` 的调用方和配置错误的部署；它不拥有面向模型的超时。当 `TOOL_TIMEOUT` 信号先到达 fetch 提供方时，提供方作用域的分类将其视为上游 `WEB_ABORTED`，而外层 `tools/execute` 包装器将最终工具结果替换为 `TOOL_TIMEOUT`。一个已发布的 web 工具部署将提供方兜底配置为高于 `timeout-policy` 预算，使工具调用策略在模型调用中通常胜出。
 
-`bash` 保持当前的后端超时路径。`dsh-tool-bash` 继续暴露 `timeoutMs` 和 `run_in_background`；`dsh-bash-local` 继续使用 `@aeven/timeout` 处理 `BASH_TIMEOUT`；钩子桥接继续调用 `runHook()` 并通过 `ctx.shell` 传递 `timeoutMs`。这保持了前台/后台/钩子行为的稳定。
+`bash` 保持当前的后端超时路径。`avn-tool-bash` 继续暴露 `timeoutMs` 和 `run_in_background`；`avn-bash-local` 继续使用 `@aeven/timeout` 处理 `BASH_TIMEOUT`；钩子桥接继续调用 `runHook()` 并通过 `ctx.shell` 传递 `timeoutMs`。这保持了前台/后台/钩子行为的稳定。
 
 `read`、`write`、`edit`、`todo_write`、`job_list` 和 `job_kill` 不加入工具调用超时。`job_output` 自己拥有有界等待，因为等待超时是成功的实时状态结果，而非工具失败。
 

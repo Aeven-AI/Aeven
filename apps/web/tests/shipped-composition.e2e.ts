@@ -61,7 +61,7 @@ const EXPECTED_TOOLS = [
 ]
 
 /**
- * `glob` and `grep` come from `dsh-tool-fs-search`, which spawns the PACKAGED
+ * `glob` and `grep` come from `avn-tool-fs-search`, which spawns the PACKAGED
  * ripgrep binary (`@vscode/ripgrep`) through the subprocess seam, so the pair
  * is always present on every host — asserted as fixed members, not a host
  * dependency.

@@ -112,7 +112,7 @@ function runTextMerge(
   current: Buffer | string,
   other: Buffer | string,
 ): { output: Buffer; status: number | null } {
-  const temporary = mkdtempSync(join(tmpdir(), 'dsh-translation-pairing-merge-'))
+  const temporary = mkdtempSync(join(tmpdir(), 'avn-translation-pairing-merge-'))
   try {
     const ancestorPath = join(temporary, 'ancestor')
     const currentPath = join(temporary, 'current')

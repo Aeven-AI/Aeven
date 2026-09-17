@@ -12,8 +12,8 @@
   overflow: hidden;
   /* Elevated surface: the scrollbar thumb takes the l2 elevation tokens
      (see ui-theme styles/scrollbar.css for the rebinding contract). */
-  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
-  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
   padding: 4px;
   display: flex;
   flex-direction: column;
@@ -176,10 +176,10 @@
   height: 20px;
   border-radius: 4px;
   background: var(--dsw-alias-bg-skeleton);
-  animation: dsh-menu-skeleton 2s cubic-bezier(0.36, 0, 0.64, 1) infinite;
+  animation: avn-menu-skeleton 2s cubic-bezier(0.36, 0, 0.64, 1) infinite;
 }
 
-@keyframes dsh-menu-skeleton {
+@keyframes avn-menu-skeleton {
   0% { opacity: 1; }
   40% { opacity: 0.6; }
   80%, 100% { opacity: 1; }

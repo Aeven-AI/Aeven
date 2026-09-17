@@ -1,7 +1,7 @@
 /**
  * Browser half of the Aeven account menu.
  *
- * The reader DSH already authenticated is the reader this shows: it reads the
+ * The reader AVN already authenticated is the reader this shows: it reads the
  * session the authentication library restored before the plugin graph booted,
  * and asks Aeven for nothing of its own.
  */

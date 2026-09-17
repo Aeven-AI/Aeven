@@ -52,7 +52,7 @@ function agent(ctx: Context): Agent {
 
 describe('/feedback real Loader composition through cordis.yml', () => {
   it('boots cordis.yml and records feedback without model-visible output', async () => {
-    root = await mkdtemp(join(tmpdir(), 'dsh-command-feedback-loader-'))
+    root = await mkdtemp(join(tmpdir(), 'avn-command-feedback-loader-'))
     vi.stubEnv('AVN_HOME', root)
     const configPath = join(root, 'cordis.yml')
     await writeFile(configPath, [

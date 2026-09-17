@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-commands` lets a user type `/command [input]` in an interactive Harness UI and run it directly against the receiving agent without creating a model message. Plugins register commands with a name, description, optional input hint and image-acceptance flag, and an abortable handler; interactive adapters discover and dispatch them per agent. A command-producing plugin mounted under an agent's context can register an exact agent-scoped command that shadows the global one of the same name. Each command run is recorded in the session log, and its result is rendered by the adapter, never entering model history. Slash commands ship with the `dsh` CLI and the Web client.
+`avn-commands` lets a user type `/command [input]` in an interactive Harness UI and run it directly against the receiving agent without creating a model message. Plugins register commands with a name, description, optional input hint and image-acceptance flag, and an abortable handler; interactive adapters discover and dispatch them per agent. A command-producing plugin mounted under an agent's context can register an exact agent-scoped command that shadows the global one of the same name. Each command run is recorded in the session log, and its result is rendered by the adapter, never entering model history. Slash commands ship with the `avn` CLI and the Web client.
 
 ## Table of Contents
 
@@ -119,7 +119,7 @@ Read these pages when the package-level contract is not enough. They move from t
 
 #### What the model sees
 
-The registry itself submits nothing. Known slash commands execute in the UI command plane, and their `CommandResult` text is not submitted as a user message. Unknown slash-command input is rejected by shipped adapters instead of becoming a model prompt. A command producer may explicitly use the receiving `Agent`; for example, [`dsh-plan-mode`](../../plan/plan-mode/README.md#model-and-human-interactions) submits the optional message in `/plan [message]` after selecting plan mode. Image attachments follow the same rule: the executor only admits them into durable attachment objects, and a declaring producer decides whether and how they become model-visible message content.
+The registry itself submits nothing. Known slash commands execute in the UI command plane, and their `CommandResult` text is not submitted as a user message. Unknown slash-command input is rejected by shipped adapters instead of becoming a model prompt. A command producer may explicitly use the receiving `Agent`; for example, [`avn-plan-mode`](../../plan/plan-mode/README.md#model-and-human-interactions) submits the optional message in `/plan [message]` after selecting plan mode. Image attachments follow the same rule: the executor only admits them into durable attachment objects, and a declaring producer decides whether and how they become model-visible message content.
 
 #### Token effect
 

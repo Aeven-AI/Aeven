@@ -24,7 +24,7 @@ This reverses the pointer-revealed affordance, and the reversal is complete: the
 
 **Rebind the thumb to `transparent` permanently**, which is the sidebar's own mechanism made unconditional. Rejected because it keeps the band: the visible result would match a hidden bar, but the strip would stay empty instead of going back to the rows. That rebind is still the right tool where a bar must be hidden WITHOUT giving up its space; it is not the tool for removing the bar.
 
-**Rely on the vendored sheet's class alone.** It is already loaded app-wide, already used by the markdown engine's code blocks and tables, and needs no new CSS. Rejected as the only definition: the behavior would then depend on an auth chunk remaining in the main graph, and nothing under DSH would state or test it. Stating it twice is the smaller risk, and the duplicate is called out in the sheet.
+**Rely on the vendored sheet's class alone.** It is already loaded app-wide, already used by the markdown engine's code blocks and tables, and needs no new CSS. Rejected as the only definition: the behavior would then depend on an auth chunk remaining in the main graph, and nothing under AVN would state or test it. Stating it twice is the smaller risk, and the duplicate is called out in the sheet.
 
 **Hide the bar in the model list only**, leaving the sidebar as designed. Rejected: the same furniture drew the same complaint on both surfaces, and answering them differently would make the sidebar's bar a special case again.
 
@@ -36,7 +36,7 @@ Both lists scroll without a bar and without a band. The sidebar's rows are a ban
 
 No reading depends on the pointer any more, and nothing tracks it: the sidebar shell's pointer linger, its `quietBars` state class, and the two specs that drove them were retired with the affordance they served, so no listener, timer, or DOM state class is left behind.
 
-The scrollbar skin is unchanged for every other surface: the `--dsw-alias-scrollbar-*` tokens, the `--dsh-scrollbar-*` rebind contract, and the elevated-surface pair all still govern what draws a thumb. Only the two opted-out regions sit outside it.
+The scrollbar skin is unchanged for every other surface: the `--dsw-alias-scrollbar-*` tokens, the `--avn-scrollbar-*` rebind contract, and the elevated-surface pair all still govern what draws a thumb. Only the two opted-out regions sit outside it.
 
 The capability given up is the hover affordance itself: a pointer over the sidebar no longer reveals where the session list ends and how far it can scroll. Reintroducing it means removing the opt-out class from that list and rebuilding the pointer machinery and its `transparent` rebind, which this change deleted.
 

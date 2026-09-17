@@ -106,7 +106,7 @@ function execute(ctx: Context, args: unknown, extra?: {
   })
 }
 
-describe('dsh-tool-workflow', () => {
+describe('avn-tool-workflow', () => {
   it('starts a run with the script/args/parent/signal and renders the completed value', async () => {
     const { ctx, engine, parent } = await setup()
     const controller = new AbortController()

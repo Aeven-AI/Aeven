@@ -7,13 +7,13 @@ const signIn = { apiUrl: 'https://api.aeven.test/v1/', oauthUrls: ['https://api.
 
 describe('Aeven desktop sign-in', () => {
   it('maps only sign-in routes onto the configured API URL', () => {
-    expect(aevenApiTarget('dsh-app://app/.aeven/api/refresh-token', signIn.apiUrl)?.href)
+    expect(aevenApiTarget('avn-app://app/.aeven/api/refresh-token', signIn.apiUrl)?.href)
       .toBe('https://api.aeven.test/v1/refresh-token')
-    expect(aevenApiTarget('dsh-app://app/.aeven/api/login?next=1', 'http://localhost:9000')?.href)
+    expect(aevenApiTarget('avn-app://app/.aeven/api/login?next=1', 'http://localhost:9000')?.href)
       .toBe('http://localhost:9000/login?next=1')
-    expect(aevenApiTarget('dsh-app://app/.aeven/api/chat', signIn.apiUrl)).toBeUndefined()
-    expect(aevenApiTarget('dsh-app://app/.aeven/api/login/extra', signIn.apiUrl)).toBeUndefined()
-    expect(aevenApiTarget('dsh-app://app/api/login', signIn.apiUrl)).toBeUndefined()
+    expect(aevenApiTarget('avn-app://app/.aeven/api/chat', signIn.apiUrl)).toBeUndefined()
+    expect(aevenApiTarget('avn-app://app/.aeven/api/login/extra', signIn.apiUrl)).toBeUndefined()
+    expect(aevenApiTarget('avn-app://app/api/login', signIn.apiUrl)).toBeUndefined()
   })
 
   it('forwards the request with session credentials and returns only the content type', async () => {
@@ -25,7 +25,7 @@ describe('Aeven desktop sign-in', () => {
         headers: { 'content-type': 'application/json', 'set-cookie': 'refreshToken=r; HttpOnly' },
       })
     }
-    const response = await forwardAevenApiRequest(new Request('dsh-app://app/.aeven/api/login', {
+    const response = await forwardAevenApiRequest(new Request('avn-app://app/.aeven/api/login', {
       method: 'POST',
       headers: { 'content-type': 'application/json', cookie: 'renderer=1', authorization: 'Bearer t' },
       body: '{"email":"a@b.c"}',
@@ -47,10 +47,10 @@ describe('Aeven desktop sign-in', () => {
 
   it('answers 404 without an Aeven authority or for other routes, and keeps null-body statuses empty', async () => {
     const fetcher = vi.fn<AevenApiFetch>(async () => new Response(null, { status: 204 }))
-    expect((await forwardAevenApiRequest(new Request('dsh-app://app/.aeven/api/login'), undefined, fetcher)).status).toBe(404)
-    expect((await forwardAevenApiRequest(new Request('dsh-app://app/.aeven/api/chat'), signIn, fetcher)).status).toBe(404)
+    expect((await forwardAevenApiRequest(new Request('avn-app://app/.aeven/api/login'), undefined, fetcher)).status).toBe(404)
+    expect((await forwardAevenApiRequest(new Request('avn-app://app/.aeven/api/chat'), signIn, fetcher)).status).toBe(404)
     expect(fetcher).not.toHaveBeenCalled()
-    const response = await forwardAevenApiRequest(new Request('dsh-app://app/.aeven/api/get-profile'), signIn, fetcher)
+    const response = await forwardAevenApiRequest(new Request('avn-app://app/.aeven/api/get-profile'), signIn, fetcher)
     expect(response.status).toBe(204)
     expect(fetcher.mock.calls[0]![1]).not.toHaveProperty('body')
   })
@@ -59,7 +59,7 @@ describe('Aeven desktop sign-in', () => {
     expect(oauthResultPath('http://localhost:3030/oauth-result/session/challenge')).toBe('/oauth-result/session/challenge')
     expect(oauthResultPath('https://aeven.test/oauth-result/error')).toBe('/oauth-result/error')
     expect(oauthResultPath('https://x.com/i/oauth2/authorize?redirect=/oauth-result/a/b')).toBeUndefined()
-    expect(oauthResultPath('dsh-app://app/oauth-result/a/b')).toBeUndefined()
+    expect(oauthResultPath('avn-app://app/oauth-result/a/b')).toBeUndefined()
     expect(oauthResultPath('not a url')).toBeUndefined()
   })
 })

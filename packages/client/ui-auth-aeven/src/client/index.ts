@@ -1,7 +1,7 @@
 /**
- * The Aeven authentication surface for the DSH web client.
+ * The Aeven authentication surface for the AVN web client.
  *
- * DSH does not authenticate anyone itself: Aeven owns the credential, and this
+ * AVN does not authenticate anyone itself: Aeven owns the credential, and this
  * presents Aeven's own screens so a reader signs in once, in one place. The
  * gate runs before the plugin graph, so no plugin ever sees an unauthenticated
  * context.
@@ -98,9 +98,9 @@ interface TransportHooks {
 }
 
 /**
- * Attach the Aeven bearer to every DSH RPC call, and keep the session alive.
+ * Attach the Aeven bearer to every AVN RPC call, and keep the session alive.
  *
- * DSH's own API is fenced by the same authority as Aeven's, and a browser
+ * AVN's own API is fenced by the same authority as Aeven's, and a browser
  * cannot set a header on a WebSocket upgrade — so the socket presents the
  * refresh cookie and HTTP presents this. Installed through the transport hook
  * the connection plugin already reads, rather than teaching that plugin about

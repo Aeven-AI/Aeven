@@ -32,7 +32,7 @@ describe('Toast', () => {
       // One value drives both, so a banner can never unmount mid-fade: the
       // timer waits the hold plus the fade, and the stylesheet delays the
       // fade by the same hold.
-      expect(view.getByRole('alert').style.getPropertyValue('--dsh-toast-hold')).toBe('6000ms')
+      expect(view.getByRole('alert').style.getPropertyValue('--avn-toast-hold')).toBe('6000ms')
       vi.advanceTimersByTime(6999)
       expect(onDone).not.toHaveBeenCalled()
       vi.advanceTimersByTime(1)

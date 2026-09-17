@@ -18,7 +18,7 @@ Aeven 是身份提供方，而不是可用性依赖。本地节点居先：Aeven
 
 `restoreSession` 区分拒绝与不可达。拒绝一如从前地结束会话。其他任何失败都用保存在 `aevenProfile` 下的 profile 恢复读者，并回答 `authenticated`，于是应用照常启动，并继续能够访问读者自己配置的模型与 OAuth 提供方——打包应用存在的意义正是运行这些提供方，而其中没有一个由 Aeven 提供。
 
-Host 无需改动，这正是该方案成立的原因。`identity-user-aeven` 的解析器（`packages/identity/user-aeven/src/index.ts`）先尝试 access bearer，再尝试 `refreshToken` cookie，而 `verifiedUserId` 把两者对照本地节点自身环境中持有的 secret 进行校验。`rpc-host.ts` 的请求围栏放行该解析器识别出的任何身份。因此失效的 bearer 会回落到有效期为一年的 cookie，在本地完成校验，而 `/api` 在 Aeven 停止服务时继续能够回答。部署本就被要求从与 API 相同的站点提供 DSH，因此无论本地节点监听哪个端口，cookie 都能抵达它。
+Host 无需改动，这正是该方案成立的原因。`identity-user-aeven` 的解析器（`packages/identity/user-aeven/src/index.ts`）先尝试 access bearer，再尝试 `refreshToken` cookie，而 `verifiedUserId` 把两者对照本地节点自身环境中持有的 secret 进行校验。`rpc-host.ts` 的请求围栏放行该解析器识别出的任何身份。因此失效的 bearer 会回落到有效期为一年的 cookie，在本地完成校验，而 `/api` 在 Aeven 停止服务时继续能够回答。部署本就被要求从与 API 相同的站点提供 AVN，因此无论本地节点监听哪个端口，cookie 都能抵达它。
 
 每条 `/get-profile` 回答都保存在 `localStorage` 中，因为 profile 正是账户菜单中为读者命名的依据，而它在故障期间无法读取。`signOut` 会把它连同 bearer 一起丢弃。
 

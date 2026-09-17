@@ -1767,7 +1767,7 @@ describe('per-agent presentation', () => {
     // `native` here, so a collapse predicate reading it instead of this
     // scope's effective mode would announce [run_code] and still execute the
     // native call — the bypass, reopened for exactly the preset composition
-    // `dsh-agent-tool-presentation` produces.
+    // `avn-agent-tool-presentation` produces.
     expect(ctx.tools.executionMode({
       signal: testToolSignal,
       callId: ToolCallId('preset-coded-schedule'),

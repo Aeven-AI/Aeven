@@ -16,7 +16,7 @@ const CLIENT_BUILD_ENV_PREFIX = 'AVN_CLIENT_'
 /** Non-public selector used by build orchestration to request a named client profile. */
 export const CLIENT_BUILD_PROFILE_SELECTOR = 'AVN_BUILD_CLIENT_PROFILE'
 
-/** Public client environment required by official DSH artifacts. */
+/** Public client environment required by official AVN artifacts. */
 const OFFICIAL_CLIENT_BUILD_ENVIRONMENT = {
   AVN_CLIENT_BUILD_PROFILE: 'official',
   AVN_CLIENT_TITLE: 'DeepSeek Harness',
@@ -29,7 +29,7 @@ const CLIENT_COMMIT_HASH_VARIABLE = 'AVN_CLIENT_COMMIT_HASH'
 const CLIENT_VERSION_VARIABLE = 'AVN_CLIENT_VERSION'
 
 /** Repository-relative path of the complete client build record. */
-export const CLIENT_BUILD_RECORD_PATH = '.dsh-build/client-build-environment.json'
+export const CLIENT_BUILD_RECORD_PATH = '.avn-build/client-build-environment.json'
 
 const CLIENT_BUILD_RECORD_FORMAT = 1
 const CLIENT_ARTIFACT_PATTERNS = [

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-With `dsh-tool-web`, the model can search the web and fetch pages through the `web_search` and `web_fetch` tools, backed by the harness web service (`ctx.web`). Choose it when the model should search the web or fetch pages; the two tools register independently, so a product disables either via config. Every successful result labels provider-controlled text as external and untrusted, and HTML conversion removes active or hidden content. Tools stay visible even when their selected provider is missing or unavailable: execution then fails with a structured error the model can read. Neither tool exposes a model-facing timeout; per-tool budgets are deployment config enforced by the timeout policy.
+With `avn-tool-web`, the model can search the web and fetch pages through the `web_search` and `web_fetch` tools, backed by the harness web service (`ctx.web`). Choose it when the model should search the web or fetch pages; the two tools register independently, so a product disables either via config. Every successful result labels provider-controlled text as external and untrusted, and HTML conversion removes active or hidden content. Tools stay visible even when their selected provider is missing or unavailable: execution then fails with a structured error the model can read. Neither tool exposes a model-facing timeout; per-tool budgets are deployment config enforced by the timeout policy.
 
 ## Table of Contents
 
@@ -128,9 +128,9 @@ Read these pages when the package-level contract is not enough. They move from t
 
 - [Web subsystem](../../../docs/subsystems/web.md) — the exhaustive search/fetch requests and results, provider availability, and error codes.
 - [Web package map](../README.md) — the six-package family and each role.
-- [dsh-web](../web/README.md) — the web service the tools execute through.
+- [avn-web](../web/README.md) — the web service the tools execute through.
 - [Generated tool catalog](../../../docs/tool-catalog.md#aeven-tool-web) — the exact `web_search` and `web_fetch` schemas.
-- [dsh-tool-call-timeout-policy](../../guard/timeout-policy/README.md) — the deployment policy that enforces each tool's timeout budget.
+- [avn-tool-call-timeout-policy](../../guard/timeout-policy/README.md) — the deployment policy that enforces each tool's timeout budget.
 - [Generated configuration catalog](../../../docs/config-catalog.md#aeven-tool-web) — every accepted config field and its source declaration.
 - [Web capability seam decision](../../../.agents/notes/implemented/architecture/2026-06-24-web-capability-seam.md) — why search and fetch share one provider-selection service.
 

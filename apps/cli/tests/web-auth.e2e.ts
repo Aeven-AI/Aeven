@@ -1,4 +1,4 @@
-/** Real `dsh web` authentication against a temporary Harness home. */
+/** Real `avn web` authentication against a temporary Harness home. */
 
 import type { ChildProcess } from 'node:child_process'
 import { spawn } from 'node:child_process'
@@ -49,13 +49,13 @@ async function freePort(): Promise<number> {
   return port
 }
 
-function cleanEnvironment(root: string, dshHome: string): NodeJS.ProcessEnv {
+function cleanEnvironment(root: string, avnHome: string): NodeJS.ProcessEnv {
   const env = Object.fromEntries(Object.entries(process.env).filter(([name]) =>
     !/(?:KEY|SECRET|TOKEN|PASSWORD)/iu.test(name)))
   return {
     ...env,
     AVN_AGENTS_HOME: join(root, '.agents'),
-    AVN_HOME: dshHome,
+    AVN_HOME: avnHome,
     AVN_TELEMETRY_DISABLED: '1',
     NODE_NO_WARNINGS: '1',
     SSH_CONNECTION: '',
@@ -65,7 +65,7 @@ function cleanEnvironment(root: string, dshHome: string): NodeJS.ProcessEnv {
 }
 
 /** Start the public source CLI and wait for its authenticated readiness URL. */
-async function startWeb(root: string, dshHome: string, port: number): Promise<RunningWeb> {
+async function startWeb(root: string, avnHome: string, port: number): Promise<RunningWeb> {
   const child = spawn(process.execPath, [
     '--import', TSX_LOADER,
     AVN_SOURCE_BIN,
@@ -74,7 +74,7 @@ async function startWeb(root: string, dshHome: string, port: number): Promise<Ru
     '--port', String(port),
   ], {
     cwd: root,
-    env: cleanEnvironment(root, dshHome),
+    env: cleanEnvironment(root, avnHome),
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   let output = ''
@@ -87,11 +87,11 @@ async function startWeb(root: string, dshHome: string, port: number): Promise<Ru
       reject(error)
     }
     const timer = setTimeout(() => {
-      fail(new Error(`dsh web did not become ready:\n${redact(output)}`))
+      fail(new Error(`avn web did not become ready:\n${redact(output)}`))
     }, 90_000)
     const append = (chunk: Buffer | string): void => {
       output = `${output}${String(chunk)}`.slice(-100_000)
-      const match = /dsh web: (http:\/\/[^\s]+)/u.exec(output)
+      const match = /avn web: (http:\/\/[^\s]+)/u.exec(output)
       if (settled || match?.[1] === undefined) return
       settled = true
       clearTimeout(timer)
@@ -103,7 +103,7 @@ async function startWeb(root: string, dshHome: string, port: number): Promise<Ru
       fail(error)
     })
     child.once('exit', (code) => {
-      fail(new Error(`dsh web exited before readiness (${String(code)}):\n${redact(output)}`))
+      fail(new Error(`avn web exited before readiness (${String(code)}):\n${redact(output)}`))
     })
   })
   return { child, launchUrl, output: () => output }
@@ -151,15 +151,15 @@ function describeSettings(port: number, host: string, cookie?: string): Promise<
   })
 }
 
-describe('dsh web authentication through the real CLI', () => {
+describe('avn web authentication through the real CLI', () => {
   it('rejects a forged loopback Host and preserves the browser cookie across restart', { timeout: 180_000 }, async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dsh-web-auth-real-cli-'))
-    const dshHome = join(root, '.dsh')
+    const root = await mkdtemp(join(tmpdir(), 'avn-web-auth-real-cli-'))
+    const avnHome = join(root, '.avn')
     const port = await freePort()
     let first: RunningWeb | undefined
     let second: RunningWeb | undefined
     try {
-      first = await startWeb(root, dshHome, port)
+      first = await startWeb(root, avnHome, port)
       const firstUrl = new URL(first.launchUrl)
       expect(firstUrl.origin).toBe(`http://127.0.0.1:${String(port)}`)
       expect(firstUrl.pathname).toBe('/')
@@ -191,12 +191,12 @@ describe('dsh web authentication through the real CLI', () => {
 
       await stopWeb(first)
       first = undefined
-      second = await startWeb(root, dshHome, port)
+      second = await startWeb(root, avnHome, port)
       const secondUrl = new URL(second.launchUrl)
       expect(secondUrl.searchParams.get('token')).not.toBe(firstUrl.searchParams.get('token'))
       expect((await describeSettings(port, secondUrl.host, cookie)).status).toBe(200)
 
-      const credentialMode = (await stat(join(dshHome, '.credentials.yaml'))).mode & 0o777
+      const credentialMode = (await stat(join(avnHome, '.credentials.yaml'))).mode & 0o777
       expect(credentialMode).toBe(0o600)
     } catch (error) {
       const evidence = [first?.output(), second?.output()].filter(value => value !== undefined).join('\n')

@@ -39,13 +39,13 @@ describe('ThemeRuntime', () => {
     // runs; the first snapshot must match it so activation never flashes the
     // default. The seeded size is deliberately not the default, or reading the
     // variable and ignoring it would look the same.
-    document.body.style.setProperty('--dsh-content-font-size', '14px')
+    document.body.style.setProperty('--avn-content-font-size', '14px')
     try {
       expect(make().theme.getTheme().fontSize).toBe(14)
-      document.body.style.setProperty('--dsh-content-font-size', '99px')
+      document.body.style.setProperty('--avn-content-font-size', '99px')
       expect(make().theme.getTheme().fontSize).toBe(DEFAULT_FONT_SIZE)
     } finally {
-      document.body.style.removeProperty('--dsh-content-font-size')
+      document.body.style.removeProperty('--avn-content-font-size')
     }
   })
 

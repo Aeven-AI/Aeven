@@ -106,8 +106,8 @@ describe('CI workflow', () => {
       expect(job['runs-on'], `${jobName} runs-on must use the Windows failover switch`).toContain('AVN_CI_FAILOVER_WINDOWS')
       expect(job['runs-on'], `${jobName} runs-on must not use the Linux failover switch`).not.toContain('AVN_CI_FAILOVER_LINUX')
       expect(job['runs-on']).toContain('self-hosted')
-      expect(job['runs-on']).toContain('dsh-win-ci')
-      expect(job['runs-on']).toContain('dsh-windows-2025-16core')
+      expect(job['runs-on']).toContain('avn-win-ci')
+      expect(job['runs-on']).toContain('avn-windows-2025-16core')
       expect(job.if).toBe("github.event_name == 'pull_request'")
     }
 
@@ -187,7 +187,7 @@ describe('CI workflow', () => {
 
     // serial-windows: master-only standby, self-hosted, non-blocking, lives in ci-master.
     expect(serialWindows.if).toBe("github.event_name == 'push' && github.ref == 'refs/heads/main'")
-    expect(serialWindows['runs-on']).toEqual(['self-hosted', 'dsh-win-ci', 'windows'])
+    expect(serialWindows['runs-on']).toEqual(['self-hosted', 'avn-win-ci', 'windows'])
     expect(serialWindows.name).toBe('serial / windows (self-hosted standby)')
     // Its store must share the ReFS workspace volume for clone; the install
     // must carry the same filesystem branch as the PR jobs.
@@ -707,11 +707,11 @@ describe('npm release workflows', () => {
     }
   })
 
-  it('runs dependency policy and npm layout checks in the DSH release workflow', () => {
+  it('runs dependency policy and npm layout checks in the AVN release workflow', () => {
     const workflow = loadWorkflow('.github/workflows/release.yml')
     const dependencies = workflowJob(workflow, 'dependencies')
     if (!isRecord(workflow.on) || !Array.isArray(dependencies.steps)) {
-      throw new TypeError('DSH release workflow must define triggers and dependency steps')
+      throw new TypeError('AVN release workflow must define triggers and dependency steps')
     }
     const commands = dependencies.steps.flatMap(step =>
       isRecord(step) && typeof step.run === 'string' ? [step.run] : [])
@@ -723,7 +723,7 @@ describe('npm release workflows', () => {
 })
 
 describe('Documentation site publication', () => {
-  it('keeps Pages deployment dispatch-only from a dsh-v* tag', () => {
+  it('keeps Pages deployment dispatch-only from a avn-v* tag', () => {
     const workflow = loadWorkflow('.github/workflows/docs-pages.yml')
     const build = workflowJob(workflow, 'build')
     const deploy = workflowJob(workflow, 'deploy')
@@ -735,7 +735,7 @@ describe('Documentation site publication', () => {
     // publication must never appear as a PR check.
     expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch'])
 
-    // RELEASE_PUBLISH makes release:verify reject every ref that is not a dsh-v*
+    // RELEASE_PUBLISH makes release:verify reject every ref that is not a avn-v*
     // tag naming this tree's version, so the site and the npm sequence share one
     // definition of a released version.
     const steps = build.steps.filter(isRecord)
@@ -745,7 +745,7 @@ describe('Documentation site publication', () => {
     )
     expect(verify).toMatchObject({
       env: { RELEASE_PUBLISH: 'true' },
-      run: 'pnpm run release:verify --family dsh',
+      run: 'pnpm run release:verify --family avn',
     })
     // Complete history: the release scripts read tags.
     expect(checkout).toMatchObject({ with: { 'fetch-depth': 0 } })

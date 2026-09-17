@@ -62,7 +62,7 @@ export function Toast({ text, icon, anchor, holdMs = HOLD_MS, onDone }: {
       role="alert"
       style={{
         ...left === null ? {} : { left },
-        '--dsh-toast-hold': `${String(holdMs)}ms`,
+        '--avn-toast-hold': `${String(holdMs)}ms`,
       } as CSSProperties}
     >
       {icon !== undefined && <span className={css.icon} aria-hidden>{icon}</span>}

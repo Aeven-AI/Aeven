@@ -20,7 +20,7 @@ afterEach(async () => {
 })
 
 async function tempStore(): Promise<GrokBuildCredentialStore> {
-  const dir = await mkdtemp(join(tmpdir(), 'dsh-grok-build-'))
+  const dir = await mkdtemp(join(tmpdir(), 'avn-grok-build-'))
   const filename = join(dir, 'auth.json')
   files.push(filename)
   return new GrokBuildCredentialStore(filename)
@@ -28,17 +28,17 @@ async function tempStore(): Promise<GrokBuildCredentialStore> {
 
 describe('oauthCredentialPath', () => {
   it('accepts only a local basename and cannot escape AVN_HOME', () => {
-    expect(oauthCredentialPath('codex-oauth.json', '/tmp/example-dsh-home')).toBe(
-      resolve('/tmp/example-dsh-home', 'codex-oauth.json'),
+    expect(oauthCredentialPath('codex-oauth.json', '/tmp/example-avn-home')).toBe(
+      resolve('/tmp/example-avn-home', 'codex-oauth.json'),
     )
     for (const basename of ['../outside.json', 'nested/auth.json', 'nested\\auth.json', '.', '..', '']) {
-      expect(() => oauthCredentialPath(basename, '/tmp/example-dsh-home')).toThrow(/safe local filename/)
+      expect(() => oauthCredentialPath(basename, '/tmp/example-avn-home')).toThrow(/safe local filename/)
     }
   })
 
   it('resolves the legacy Grok Build auth document below AVN_HOME', () => {
-    expect(grokBuildAuthPath('/tmp/example-dsh-home')).toBe(
-      resolve('/tmp/example-dsh-home', GROK_BUILD_AUTH_FILENAME),
+    expect(grokBuildAuthPath('/tmp/example-avn-home')).toBe(
+      resolve('/tmp/example-avn-home', GROK_BUILD_AUTH_FILENAME),
     )
   })
 })
@@ -91,7 +91,7 @@ describe('GrokBuildCredentialStore', () => {
 
   it('rejects a leaf symlink even when its target is owner-only', async () => {
     if (process.platform === 'win32') return
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-grok-build-symlink-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-grok-build-symlink-'))
     const target = join(dir, 'real-auth.json')
     const store = new GrokBuildCredentialStore(join(dir, 'auth.json'))
     await writeFile(
@@ -215,7 +215,7 @@ describe('GrokBuildCredentialStore', () => {
       ).rejects.toThrow(/owner-only no-follow validation/)
       expect(await readFile(wide.filename, 'utf8')).toBe('{not-json')
 
-      const dir = await mkdtemp(join(tmpdir(), 'dsh-grok-build-symlink-mod-'))
+      const dir = await mkdtemp(join(tmpdir(), 'avn-grok-build-symlink-mod-'))
       const target = join(dir, 'real-auth.json')
       const linked = new GrokBuildCredentialStore(join(dir, 'auth.json'))
       await writeFile(target, '{not-json', { mode: 0o600 })
@@ -248,7 +248,7 @@ describe('GrokBuildCredentialStore', () => {
     ).rejects.toThrow(/owner-only no-follow validation/)
     expect(await readFile(store.filename, 'utf8')).toBe('{not-json')
 
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-grok-build-revalidate-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-grok-build-revalidate-'))
     const store2 = new GrokBuildCredentialStore(join(dir, 'auth.json'))
     const target = join(dir, 'outside.json')
     await writeFile(store2.filename, '{not-json', { mode: 0o600 })
@@ -281,7 +281,7 @@ describe('GrokBuildCredentialStore', () => {
 
 describe('OAuthCredentialFileStore', () => {
   it('isolates provider ids and preserves Codex accountId', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-codex-store-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-codex-store-'))
     const store = new OAuthCredentialFileStore(CODEX_PI_PROVIDER, join(dir, 'codex.json'), 'codex-oauth')
     const credential = await store.modify(CODEX_PI_PROVIDER, async () => ({
       type: 'oauth',
@@ -296,7 +296,7 @@ describe('OAuthCredentialFileStore', () => {
   })
 
   it('keeps two provider files independent', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-oauth-stores-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-oauth-stores-'))
     const codex = new OAuthCredentialFileStore(CODEX_PI_PROVIDER, join(dir, 'codex.json'), 'codex-oauth')
     const other = new OAuthCredentialFileStore('anthropic', join(dir, 'claude.json'), 'claude-code-oauth')
     await codex.modify(CODEX_PI_PROVIDER, async () => ({
@@ -318,7 +318,7 @@ describe('OAuthCredentialFileStore', () => {
   })
 
   it('invalidate backdates expires while preserving the token pair', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-invalidate-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-invalidate-'))
     const store = new OAuthCredentialFileStore(CODEX_PI_PROVIDER, join(dir, 'codex.json'), 'codex-oauth')
     const future = Date.now() + 3_600_000
     await store.modify(CODEX_PI_PROVIDER, async () => ({
@@ -345,7 +345,7 @@ describe('OAuthCredentialFileStore', () => {
   })
 
   it('invalidate is a no-op without a stored credential and for foreign ids', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-invalidate-empty-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-invalidate-empty-'))
     const store = new OAuthCredentialFileStore(CODEX_PI_PROVIDER, join(dir, 'codex.json'), 'codex-oauth')
     expect(await store.invalidate(CODEX_PI_PROVIDER)).toBe(false)
     expect(await store.invalidate(XAI_PI_PROVIDER)).toBe(false)

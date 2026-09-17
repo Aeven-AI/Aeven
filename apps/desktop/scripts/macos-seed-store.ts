@@ -290,7 +290,7 @@ async function rewriteVersionStore(
     throw new Error(`desktop seed signing: pnpm store has no package index: ${databasePath}`)
   }
   const database = new DatabaseSync(databasePath)
-  const workRoot = mkdtempSync(join(tmpdir(), 'dsh-desktop-seed-signing-'))
+  const workRoot = mkdtempSync(join(tmpdir(), 'avn-desktop-seed-signing-'))
   const obsoleteFiles = new Set<string>()
   let prunedOrphans = 0
   let rows: readonly DecodedIndexRow[] = []

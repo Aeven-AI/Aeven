@@ -1,13 +1,13 @@
 /** Context-isolated renderer bridge for desktop package and update operations. */
 
 import { contextBridge, ipcRenderer } from 'electron'
-import { DESKTOP_IPC, type DshDesktopApi, type DesktopUpdateState } from './ipc.ts'
+import { DESKTOP_IPC, type AvnDesktopApi, type DesktopUpdateState } from './ipc.ts'
 
-const api: DshDesktopApi = {
+const api: AvnDesktopApi = {
   protocolVersion: 1,
-  locale: () => ipcRenderer.invoke(DESKTOP_IPC.localeGet) as Promise<ReturnType<DshDesktopApi['locale']> extends Promise<infer T> ? T : never>,
+  locale: () => ipcRenderer.invoke(DESKTOP_IPC.localeGet) as Promise<ReturnType<AvnDesktopApi['locale']> extends Promise<infer T> ? T : never>,
   plugins: {
-    list: () => ipcRenderer.invoke(DESKTOP_IPC.pluginsList) as Promise<ReturnType<DshDesktopApi['plugins']['list']> extends Promise<infer T> ? T : never>,
+    list: () => ipcRenderer.invoke(DESKTOP_IPC.pluginsList) as Promise<ReturnType<AvnDesktopApi['plugins']['list']> extends Promise<infer T> ? T : never>,
     add: spec => ipcRenderer.invoke(DESKTOP_IPC.pluginsAdd, spec) as Promise<void>,
     remove: name => ipcRenderer.invoke(DESKTOP_IPC.pluginsRemove, name) as Promise<void>,
     update: (name, version) => ipcRenderer.invoke(DESKTOP_IPC.pluginsUpdate, name, version) as Promise<void>,
@@ -23,4 +23,4 @@ const api: DshDesktopApi = {
   },
 }
 
-contextBridge.exposeInMainWorld('dshDesktop', api)
+contextBridge.exposeInMainWorld('avnDesktop', api)

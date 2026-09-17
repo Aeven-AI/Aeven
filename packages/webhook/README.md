@@ -1,9 +1,9 @@
 ---
-description: "Package map for verified external events, programmatic rules, and fire-and-forget DSH Session creation."
+description: "Package map for verified external events, programmatic rules, and fire-and-forget AVN Session creation."
 kind: "package-group"
 ---
 
-# webhook/ — verified external events to DSH Sessions
+# webhook/ — verified external events to AVN Sessions
 
 English | [中文](README.zh.md)
 

@@ -6,11 +6,11 @@ English | [中文](2026-08-11-remove-sdk-project-toolchain.zh.md)
 
 ## Problem
 
-The repository carried an unreleased developer-project product with no consumers. `@deepseek-ai/create-sdk` generated an editable Cordis project, `@aeven/scripts` supplied its `dsh-sdk` development, build, start, configuration, and plugin-install commands, `@aeven/helper` coordinated feature definitions and multi-file project edits, and `@aeven/telemetry` reported launcher activity. The design aimed to keep generated projects editable while giving creation and later configuration one definition of dependencies, Cordis entries, environment placeholders, and owned files.
+The repository carried an unreleased developer-project product with no consumers. `@deepseek-ai/create-sdk` generated an editable Cordis project, `@aeven/scripts` supplied its `avn-sdk` development, build, start, configuration, and plugin-install commands, `@aeven/helper` coordinated feature definitions and multi-file project edits, and `@aeven/telemetry` reported launcher activity. The design aimed to keep generated projects editable while giving creation and later configuration one definition of dependencies, Cordis entries, environment placeholders, and owned files.
 
 No project was created through a public release, and no current repository or external consumer requires that lifecycle. Keeping it meant maintaining four packages, two interactive command products, project templates, package-manager adapters, configuration reconciliation, launcher telemetry, a repository skill, and their tests and documentation without evidence that the product boundary should exist.
 
-The same `scaffold/` group also contained the independently used SDK protocol, TypeScript client, and JSON-RPC server. Those packages serve the Python SDK, the `dsh-sdk` subagent provider, and the JSON-RPC example; their runtime protocol does not depend on generated projects or the removed launcher.
+The same `scaffold/` group also contained the independently used SDK protocol, TypeScript client, and JSON-RPC server. Those packages serve the Python SDK, the `avn-sdk` subagent provider, and the JSON-RPC example; their runtime protocol does not depend on generated projects or the removed launcher.
 
 ## Decision
 
@@ -26,7 +26,7 @@ The workspace contains none of the four deleted package names or either removed 
 
 ## Alternatives considered
 
-**Delete only the initializer.** Rejected because `dsh-sdk`, the shared project model, and launcher telemetry existed to operate projects created by that initializer, and there are no existing projects that need them.
+**Delete only the initializer.** Rejected because `avn-sdk`, the shared project model, and launcher telemetry existed to operate projects created by that initializer, and there are no existing projects that need them.
 
 **Keep error-only packages or command aliases.** Rejected because none of the commands shipped publicly. A tombstone would preserve package and executable surface area without a compatibility obligation.
 

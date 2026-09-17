@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-command-feedback` 让用户告诉 harness 他们对会话的看法：输入 `/feedback` 加一条评价，评价即被记录并得到确认。记录是即时的，绝不会启动模型工作，因此在对话的任何时刻都是安全的——模型既看不到这条评价，也不会被打断。确认文本会点名会话与匿名用户，并报告部署的遥测策略下会话如何被共享。命令随 Web 客户端交付，无需任何配置；无头模式、ACP（Agent Client Protocol）与 JSON-RPC 入口不提供斜杠命令，因此无法运行它。
+`avn-command-feedback` 让用户告诉 harness 他们对会话的看法：输入 `/feedback` 加一条评价，评价即被记录并得到确认。记录是即时的，绝不会启动模型工作，因此在对话的任何时刻都是安全的——模型既看不到这条评价，也不会被打断。确认文本会点名会话与匿名用户，并报告部署的遥测策略下会话如何被共享。命令随 Web 客户端交付，无需任何配置；无头模式、ACP（Agent Client Protocol）与 JSON-RPC 入口不提供斜杠命令，因此无法运行它。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-用户可以直接在 Web 客户端中记录反馈：`/feedback` 命令随标准 `dsh` 基础组合交付，无需配置，可在任何对话中使用。自定义应用只需把命令注册表与本插件组合在一起，即可获得同样的命令。
+用户可以直接在 Web 客户端中记录反馈：`/feedback` 命令随标准 `avn` 基础组合交付，无需配置，可在任何对话中使用。自定义应用只需把命令注册表与本插件组合在一起，即可获得同样的命令。
 
 ### `/feedback` 命令
 
@@ -97,8 +97,8 @@ Web 客户端随附该命令。无头模式、ACP 自动化和 JSON-RPC 不提�
 当包级约定不够用时阅读以下页面。它们从这条采集路径背后的共享策略与命令注册表，逐步进入确认文本所依赖的持久化与身份事实。
 
 - [会话遥测子系统](../../../docs/subsystems/session-telemetry.zh.md)——披露背后的 `SessionTelemetrySharingStatus` 词汇与后端约定。
-- [dsh-session-telemetry](../../session/session-telemetry/README.zh.md)——其 `sharing` 成员决定确认文本句子的 seam。
-- [dsh-commands](../../interaction/commands/README.zh.md)——发现全局命令并定义 `recordInput` 语义的注册表。
+- [avn-session-telemetry](../../session/session-telemetry/README.zh.md)——其 `sharing` 成员决定确认文本句子的 seam。
+- [avn-commands](../../interaction/commands/README.zh.md)——发现全局命令并定义 `recordInput` 语义的注册表。
 - [会话持久化子系统](../../../docs/subsystems/persistence.zh.md)——追加事件如何持久化、flush 屏障的含义。
 - [匿名用户身份](../../identity/anonymous-user-id/README.zh.md)——确认文本报告的 id。
 - [反馈包映射](../README.zh.md)——仅写入日志的采集与逐消息反馈并存的组。

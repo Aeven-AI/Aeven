@@ -147,13 +147,13 @@ describe('parseGrokAuthDocument', () => {
 })
 
 describe('importGrokAuth', () => {
-  it('copies tokens into the dsh store and leaves the Grok file unchanged', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-grok-build-grok-'))
+  it('copies tokens into the avn store and leaves the Grok file unchanged', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'avn-grok-build-grok-'))
     const grokFile = join(dir, 'auth.json')
-    const dshFile = join(dir, 'dsh.json')
+    const avnFile = join(dir, 'avn.json')
     const original = `${JSON.stringify(grokShape, null, 2)}\n`
     await writeFile(grokFile, original)
-    const store = new GrokBuildCredentialStore(dshFile)
+    const store = new GrokBuildCredentialStore(avnFile)
     await importGrokAuth(store, grokFile)
     expect(await readFile(grokFile, 'utf8')).toBe(original)
     const stored = await store.read(XAI_PI_PROVIDER)
@@ -161,7 +161,7 @@ describe('importGrokAuth', () => {
   })
 
   it('probes availability without returning secrets', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-grok-build-probe-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-grok-build-probe-'))
     const missing = await probeGrokAuth(join(dir, 'missing.json'))
     expect(missing.available).toBe(false)
     const grokFile = join(dir, 'auth.json')
@@ -173,7 +173,7 @@ describe('importGrokAuth', () => {
   })
 
   it('reports an unreadable auth path as unavailable', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-grok-build-probe-broken-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-grok-build-probe-broken-'))
     const broken = join(dir, 'auth.json')
     await writeFile(broken, 'not json')
     expect(await probeGrokAuth(broken)).toEqual({ available: false, path: broken })
@@ -181,17 +181,17 @@ describe('importGrokAuth', () => {
   })
 
   it('reports a missing Grok CLI auth file by path', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-grok-build-absent-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-grok-build-absent-'))
     const missing = join(dir, 'absent.json')
-    const store = new GrokBuildCredentialStore(join(dir, 'dsh.json'))
+    const store = new GrokBuildCredentialStore(join(dir, 'avn.json'))
     await expect(importGrokAuth(store, missing)).rejects.toThrow(
       `grok-build: Grok CLI auth file not found at ${missing}`,
     )
   })
 
   it('propagates a read failure that is not a missing file', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-grok-build-unreadable-'))
-    const store = new GrokBuildCredentialStore(join(dir, 'dsh.json'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-grok-build-unreadable-'))
+    const store = new GrokBuildCredentialStore(join(dir, 'avn.json'))
     const failure = await importGrokAuth(store, dir).then(
       () => undefined,
       (error: unknown) => error as NodeJS.ErrnoException,
@@ -201,7 +201,7 @@ describe('importGrokAuth', () => {
   })
 
   it('refuses to report success when the store keeps no oauth credential', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-grok-build-persist-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-grok-build-persist-'))
     const grokFile = join(dir, 'auth.json')
     await writeFile(grokFile, JSON.stringify(grokShape))
     const dropped = { modify: async () => undefined } as unknown as GrokBuildCredentialStore

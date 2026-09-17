@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-tool-lsp` gives the model a single read-only `lsp` tool for precise code navigation over the LSP seam: go to a symbol's definition, find its references, jump to its implementations, or read hover documentation. The tool owns everything the model sees — name, schema, prompt guidance, result formatting, and UI presentation — and never depends on which language server backs a query. Positions are one-based UTF-16 cursor coordinates, which the tool converts to the seam's zero-based convention. Results are bounded location lists or normalized hover text with explicit no-result and truncation markers. Compose it with a provider such as `dsh-lsp-stdio` and the `dsh-lsp` seam to activate navigation.
+`avn-tool-lsp` gives the model a single read-only `lsp` tool for precise code navigation over the LSP seam: go to a symbol's definition, find its references, jump to its implementations, or read hover documentation. The tool owns everything the model sees — name, schema, prompt guidance, result formatting, and UI presentation — and never depends on which language server backs a query. Positions are one-based UTF-16 cursor coordinates, which the tool converts to the seam's zero-based convention. Results are bounded location lists or normalized hover text with explicit no-result and truncation markers. Compose it with a provider such as `avn-lsp-stdio` and the `avn-lsp` seam to activate navigation.
 
 ## Table of Contents
 
@@ -41,7 +41,7 @@ Navigation returns `path:line:character` locations grouped by file (one-based); 
 |---|---|---|
 | `maxLocations` | `100` | Largest number of rendered locations before an omission marker |
 | `maxResultChars` | `16000` | Largest complete rendered result, including truncation metadata |
-| `timeoutMs` | `60000` | Tool-call timeout budget enforced by `dsh-tool-call-timeout-policy`; covers the complete queued open/query/close lifecycle and is not model-configurable |
+| `timeoutMs` | `60000` | Tool-call timeout budget enforced by `avn-tool-call-timeout-policy`; covers the complete queued open/query/close lifecycle and is not model-configurable |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aeven-tool-lsp) is the exhaustive source for every accepted field.
 
@@ -88,8 +88,8 @@ Read these pages when the package-level contract is not enough. They move from t
 
 - [LSP navigation subsystem](../../../docs/subsystems/lsp.md) — operations, coordinates, requests and results, and `LspError` codes.
 - [LSP capability seam Agent Note](../../../.agents/notes/implemented/architecture/2026-07-15-lsp-capability-seam.md) — design rationale, alternatives, and deliberately deferred API.
-- [dsh-lsp](../lsp/README.md) — the seam this tool queries.
-- [dsh-lsp-stdio](../lsp-stdio/README.md) — the stdio provider that answers these queries.
+- [avn-lsp](../lsp/README.md) — the seam this tool queries.
+- [avn-lsp-stdio](../lsp-stdio/README.md) — the stdio provider that answers these queries.
 - [lsp group map](../README.md) — the three-package family and its related documentation.
 
 -----

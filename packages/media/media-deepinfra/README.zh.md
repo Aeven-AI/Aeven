@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-media-deepinfra` 把 DeepInfra 同时注册为 `ctx.media` 的图片与视频后端。图片走 DeepInfra 的 OpenAI 兼容路由并以 base64 返回；视频是一个任务——提交、轮询、取回——面向同一个账号与 origin。撰写本文时 DeepInfra 中介了 16 个带 `video-gen` 标签的模型，从 Wan、Seedance 到 Veo，按秒计价。当部署希望用一把 DeepInfra 密钥获得两种媒介时挂载它。
+`avn-media-deepinfra` 把 DeepInfra 同时注册为 `ctx.media` 的图片与视频后端。图片走 DeepInfra 的 OpenAI 兼容路由并以 base64 返回；视频是一个任务——提交、轮询、取回——面向同一个账号与 origin。撰写本文时 DeepInfra 中介了 16 个带 `video-gen` 标签的模型，从 Wan、Seedance 到 Veo，按秒计价。当部署希望用一把 DeepInfra 密钥获得两种媒介时挂载它。
 
 ## 目录
 
@@ -24,7 +24,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在已经加载 `dsh-media` 的组合中挂载本 provider；它以 `deepinfra` 为两种媒介注册，因此一次挂载即可服务 `ctx.media.generateImage()` 与各视频任务方法。
+在已经加载 `avn-media` 的组合中挂载本 provider；它以 `deepinfra` 为两种媒介注册，因此一次挂载即可服务 `ctx.media.generateImage()` 与各视频任务方法。
 
 ### 最小配置
 

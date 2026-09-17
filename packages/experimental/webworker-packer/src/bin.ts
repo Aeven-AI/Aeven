@@ -3,7 +3,7 @@
  * Pack a Preview deployment from this repository: compose and lower the base
  * image, then write each named fixture overlay and their manifest.
  *
- * Usage: dsh-pack-vfs-image --out <file> [--profile web] [--root /dsh]
+ * Usage: avn-pack-vfs-image --out <file> [--profile web] [--root /avn]
  *        node --import tsx/esm src/bin.ts --out ../../apps/web/dist/preview/vfs-image.tar.gz
  * @module @aeven/experimental-webworker-packer/src/bin
  */
@@ -31,11 +31,11 @@ function flag(name: string, fallback?: string): string {
   const index = process.argv.indexOf(`--${name}`)
   if (index === -1) {
     if (fallback !== undefined) return fallback
-    throw new Error(`dsh-pack-vfs-image: --${name} is required`)
+    throw new Error(`avn-pack-vfs-image: --${name} is required`)
   }
   const value = process.argv[index + 1]
   if (value === undefined || value.startsWith('--')) {
-    throw new Error(`dsh-pack-vfs-image: --${name} needs a value`)
+    throw new Error(`avn-pack-vfs-image: --${name} needs a value`)
   }
   return value
 }
@@ -48,7 +48,7 @@ const outputFile = isAbsolute(out) ? out : resolve(process.cwd(), out)
 const result = packVfsImage({
   config: composeProfile(repoRoot, profile),
   profile,
-  root: flag('root', '/dsh'),
+  root: flag('root', '/avn'),
   workspaces: indexWorkspacePackages(repoRoot),
   resolveFrom: repoRoot,
   configTrees: configTrees(repoRoot),

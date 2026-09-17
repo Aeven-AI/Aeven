@@ -25,7 +25,7 @@ const DARK_ATTRIBUTE = '[data-ds-dark-theme]'
 /** Alias tokens under test: the prefix the elevation pairs share. */
 const TOKEN_PREFIX = '--dsw-alias-scrollbar-'
 /** Prefix of the rebindable indirection scrollbar.css owns. */
-const INDIRECTION_PREFIX = '--dsh-scrollbar-'
+const INDIRECTION_PREFIX = '--avn-scrollbar-'
 /** The indirection both rendering paths read, and every elevated surface rebinds. */
 const THUMB_INDIRECTION = `${INDIRECTION_PREFIX}thumb`
 /** The one non-token rebind value: a surface that draws no thumb at all. */
@@ -34,8 +34,8 @@ const HIDDEN_THUMB = 'transparent'
 const OPT_OUT_SELECTOR = '.no-scrollbar'
 /** The elevation rebind, spelled per property: value-wholeness, not token shape. */
 const ELEVATED_REBIND = new Map([
-  ['--dsh-scrollbar-thumb', '--dsw-alias-scrollbar-bg-l2'],
-  ['--dsh-scrollbar-thumb-hover', '--dsw-alias-scrollbar-hover-l2'],
+  ['--avn-scrollbar-thumb', '--dsw-alias-scrollbar-bg-l2'],
+  ['--avn-scrollbar-thumb-hover', '--dsw-alias-scrollbar-hover-l2'],
 ].map(([property, token]) => [property!, `var(${token!})`]))
 
 /**

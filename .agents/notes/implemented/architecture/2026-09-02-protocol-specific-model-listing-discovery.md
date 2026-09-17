@@ -12,7 +12,7 @@ One gateway could be made to return an OpenAI-style array by sending an OpenAI S
 
 ## Decision
 
-`dsh-llm-pi-ai` reads model listings according to the selected protocol. `openai-completions` and `openai-responses` use `GET {baseURL}/models` with bearer authentication. `anthropic-messages` uses `GET /v1/models?limit=1000` with `x-api-key` and `anthropic-version: 2023-06-01`. The Anthropic page size is the documented maximum; discovery does not follow `has_more`, so an endpoint advertising more than 1,000 models exposes only its first page.
+`avn-llm-pi-ai` reads model listings according to the selected protocol. `openai-completions` and `openai-responses` use `GET {baseURL}/models` with bearer authentication. `anthropic-messages` uses `GET /v1/models?limit=1000` with `x-api-key` and `anthropic-version: 2023-06-01`. The Anthropic page size is the documented maximum; discovery does not follow `has_more`, so an endpoint advertising more than 1,000 models exposes only its first page.
 
 Anthropic SDK resource methods append `/v1` themselves, and gateway documentation publishes the API root both with and without that suffix. The listing URL therefore treats a drafted Anthropic `baseURL` ending in `/v1` as the same API root as the address without it, and it is the only place that segment is normalized: model requests receive the configured `baseURL` unchanged, exactly as pi-ai handles it. Deployment path prefixes remain intact: `https://gateway.example/tenant/v1` and `https://gateway.example/tenant` both list at `/tenant/v1/models`.
 

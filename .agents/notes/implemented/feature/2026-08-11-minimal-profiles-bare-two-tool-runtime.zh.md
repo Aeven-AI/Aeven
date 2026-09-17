@@ -12,9 +12,9 @@ Web `minimal` preset 与独立 JSON-RPC minimal 组合对外提供持久 `bash` 
 
 ## 决策
 
-随附 Web minimal preset 对外提供持久 `bash` 与 `str_replace_editor`；独立 profile 在 Linux／macOS 上提供持久 `bash`，在 Windows 上提供 `pwsh`，并提供相同 editor。两者都不挂载上下文压缩提供方，为新建会话抑制每个 `dsh-system-prompt` runtime-context 贡献，并让编辑器使用 `@aeven/fs-local`。Web preset 在 agent entry 内隔离 `ctx.fs`，将 `fs-local` 与编辑器一起挂载，因此其他 Web agent 仍使用宿主文件系统提供方。其 persona 继续采用较早的 [minimal preset 组合决策](../bug-fix/2026-08-10-minimal-preset-owns-rl-composition.zh.md)所拥有的固定 complete 提示词，并仅为该 agent 作用域实施 runtime-context 抑制。独立 spine 将同一设置转发给其进程拥有的 system-prompt 服务。Web 宿主保留沙箱与批准服务；独立 profile 挂载 danger-full-access 沙箱策略，不挂载批准服务。两者都不贡献面向模型的策略上下文。
+随附 Web minimal preset 对外提供持久 `bash` 与 `str_replace_editor`；独立 profile 在 Linux／macOS 上提供持久 `bash`，在 Windows 上提供 `pwsh`，并提供相同 editor。两者都不挂载上下文压缩提供方，为新建会话抑制每个 `avn-system-prompt` runtime-context 贡献，并让编辑器使用 `@aeven/fs-local`。Web preset 在 agent entry 内隔离 `ctx.fs`，将 `fs-local` 与编辑器一起挂载，因此其他 Web agent 仍使用宿主文件系统提供方。其 persona 继续采用较早的 [minimal preset 组合决策](../bug-fix/2026-08-10-minimal-preset-owns-rl-composition.zh.md)所拥有的固定 complete 提示词，并仅为该 agent 作用域实施 runtime-context 抑制。独立 spine 将同一设置转发给其进程拥有的 system-prompt 服务。Web 宿主保留沙箱与批准服务；独立 profile 挂载 danger-full-access 沙箱策略，不挂载批准服务。两者都不贡献面向模型的策略上下文。
 
-独立的 [`@aeven/sdk-minimal` 组合包](../../../../packages/bundle/sdk-minimal/README.zh.md)仍是 `dsh --profile sdk-minimal` 后面的完整 JSON-RPC 进程组合。它挂载 SDK 启动与 JSON-RPC 服务、按平台选择的持久 shell 所需的本地 PTY 和子进程服务、`fs-local`、该 shell 的工具消费方、editor，以及位于 `$AVN_HOME/sessions` 的未压缩 JSONL 持久化。它不挂载 `token-meter`、`compaction-basic`、`fs-sandbox` 或 `fs-observation-policy`。持久 shell 消费该 profile 的 danger-full-access 沙箱策略；编辑器不受该策略限制。[独立 profile 决策](../architecture/2026-08-24-standalone-sdk-minimal-profile.zh.md)负责该组合包的位置及其与 `dsh-base` 的分离。
+独立的 [`@aeven/sdk-minimal` 组合包](../../../../packages/bundle/sdk-minimal/README.zh.md)仍是 `avn --profile sdk-minimal` 后面的完整 JSON-RPC 进程组合。它挂载 SDK 启动与 JSON-RPC 服务、按平台选择的持久 shell 所需的本地 PTY 和子进程服务、`fs-local`、该 shell 的工具消费方、editor，以及位于 `$AVN_HOME/sessions` 的未压缩 JSONL 持久化。它不挂载 `token-meter`、`compaction-basic`、`fs-sandbox` 或 `fs-observation-policy`。持久 shell 消费该 profile 的 danger-full-access 沙箱策略；编辑器不受该策略限制。[独立 profile 决策](../architecture/2026-08-24-standalone-sdk-minimal-profile.zh.md)负责该组合包的位置及其与 `avn-base` 的分离。
 
 `AVN_SYSTEM_PROMPT` 选择独立组合的 persona，`AVN_CONTEXT_WINDOW` 为没有确切目录元数据的模型提供后备容量。SDK 客户端的 JSON-RPC `initialize` 请求是唯一运行时模型选择。[`minimal.py`](../../../../python/sdk/examples/minimal.py)可以只把 `AVN_MODEL` 读作命令的默认 `model` 参数；显式 `--model` 不需要匹配的子进程环境值。端点与凭据变量继续由 DeepSeek 适配器现有的环境解析路径持有。
 
@@ -22,7 +22,7 @@ Web `minimal` preset 与独立 JSON-RPC minimal 组合对外提供持久 `bash` 
 
 Web 回放会启动完整 Web 宿主，通过 preset 服务创建 agent，并断言作用域文件系统为裸后端、不存在作用域压缩服务、没有追加 system-prompt 拥有的 runtime-context 消息，而且组装请求只包含固定提示词与两个工具。随后，它通过真实作用域服务执行持久 Bash 和编辑器。
 
-SDK keyless 源码测试启动真实 `dsh --profile sdk-minimal`，使用环境选择的提示词完成一个回合，并断言生成的单组合包 manifest。Python SDK 打包运行时快照固定组装提示词、精确双工具目录，并固定不存在任何 system-prompt 所拥有的 runtime-context 消息。打包运行时覆盖会通过每种可用载体，使用环境选择的模型、模型容量和提示词值初始化独立 profile，然后执行所选持久 shell 与 editor。Cordis 校验会检查两份配置能否解析声明的插件和配置字段。
+SDK keyless 源码测试启动真实 `avn --profile sdk-minimal`，使用环境选择的提示词完成一个回合，并断言生成的单组合包 manifest。Python SDK 打包运行时快照固定组装提示词、精确双工具目录，并固定不存在任何 system-prompt 所拥有的 runtime-context 消息。打包运行时覆盖会通过每种可用载体，使用环境选择的模型、模型容量和提示词值初始化独立 profile，然后执行所选持久 shell 与 editor。Cordis 校验会检查两份配置能否解析声明的插件和配置字段。
 
 ## 考虑过的替代方案
 
@@ -36,4 +36,4 @@ SDK keyless 源码测试启动真实 `dsh --profile sdk-minimal`，使用环境�
 
 ## 后果
 
-Minimal 会话不会摘要或替换较早历史，也不会添加 runtime-context 快照；调用方必须让会话轮次保持在所选模型的上下文容量内，且不得依赖模型可见的常驻沙箱或批准策略说明。编辑器可以访问运行时进程可见的任何绝对路径，且不受持久 shell 沙箱策略影响。两条启动路径共享面向模型的工具、无上下文与无压缩保证，同时保留适合各自所有者的不同提示词和模型配置。Python SDK 路径只通过内置 `dsh` stdio JSON-RPC profile 通信。
+Minimal 会话不会摘要或替换较早历史，也不会添加 runtime-context 快照；调用方必须让会话轮次保持在所选模型的上下文容量内，且不得依赖模型可见的常驻沙箱或批准策略说明。编辑器可以访问运行时进程可见的任何绝对路径，且不受持久 shell 沙箱策略影响。两条启动路径共享面向模型的工具、无上下文与无压缩保证，同时保留适合各自所有者的不同提示词和模型配置。Python SDK 路径只通过内置 `avn` stdio JSON-RPC profile 通信。

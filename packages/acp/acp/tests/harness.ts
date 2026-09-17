@@ -230,7 +230,7 @@ export async function makeBridgeHarness(options: {
   const adapter = new MockAdapter(options.script ?? [], options.imageCapable === true)
   const ctx = new Context()
   const ownsPersistenceRoot = options.persistenceRoot === undefined
-  const persistenceRoot = options.persistenceRoot ?? await mkdtemp(join(tmpdir(), 'dsh-acp-test-'))
+  const persistenceRoot = options.persistenceRoot ?? await mkdtemp(join(tmpdir(), 'avn-acp-test-'))
   await mountAgentLoopTestDependencies(ctx, { systemPrompt: { persona: options.persona ?? '' } })
   // The agent loop and the composed approval/permission services declare
   // sessionProjections a required injection: mount the registry (and with it
@@ -277,7 +277,7 @@ export async function makeBridgeHarness(options: {
     },
   }
 
-  const clientApp = createAcpClientApp({ name: 'dsh-acp-test-client' })
+  const clientApp = createAcpClientApp({ name: 'avn-acp-test-client' })
     .onNotification(methods.client.session.update, ({ params }) => {
       updates.push(params.update)
       sessionUpdates.push({ sessionId: params.sessionId, update: params.update })

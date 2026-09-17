@@ -102,7 +102,7 @@ async function bootFixture(
   resolve: (program: Command) => unknown = resolveDemo,
   options: { objectInject?: boolean; withoutProvider?: boolean } = {},
 ): Promise<Fixture> {
-  const dir = mkdtempSync(join(tmpdir(), 'dsh-cmdline-'))
+  const dir = mkdtempSync(join(tmpdir(), 'avn-cmdline-'))
   const observed: Observed = { exits: [], out: '' }
   writeFileSync(join(dir, 'reader.mjs'), `
 export const name = 'reader'

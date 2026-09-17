@@ -137,7 +137,7 @@ export const zh: Record<AgentPresetSettingsKey, string> = {
   deleting: '正在删除…',
 }
 
-// The resolution itself is the shared fold in `dsh-agent-presets/display`,
+// The resolution itself is the shared fold in `avn-agent-presets/display`,
 // re-exported here so every surface in this plugin reads one path; the
 // Settings plugin list inlines the same fold over this plugin's dictionaries.
 export { presetDisplayText } from '@aeven/agent-presets/display'

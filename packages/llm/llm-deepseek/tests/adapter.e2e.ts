@@ -96,7 +96,7 @@ class E2eAttachmentStore extends AttachmentStore {
 }
 
 beforeEach(async () => {
-  identityHome = await mkdtemp(join(tmpdir(), 'dsh-e2e-user-id-'))
+  identityHome = await mkdtemp(join(tmpdir(), 'avn-e2e-user-id-'))
   vi.stubEnv('AVN_HOME', identityHome)
 })
 
@@ -214,7 +214,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('llm-deepseek e2e (real API)', ()
   it('serves a real request with the key held only by a credentials-local document', async () => {
     const key = process.env.DEEPSEEK_API_KEY
     if (key === undefined) throw new Error('e2e ran without DEEPSEEK_API_KEY')
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-e2e-credentials-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-e2e-credentials-'))
     try {
       // JSON.stringify quotes the value: YAML is a JSON superset, so a real
       // key survives whatever characters it happens to carry.

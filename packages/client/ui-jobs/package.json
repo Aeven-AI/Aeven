@@ -17,7 +17,7 @@
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },
-  "dsh": {
+  "avn": {
     "client": {
       "inject": [
         "@aeven/client-locale",

@@ -146,7 +146,7 @@ const mounts = new Set<PresetMount>()
  *
  * Pruning therefore has to happen on a path this module owns. Reading is one
  * such path, but not a reliable one: the only production reader is the
- * invariant companion's service listener, and `dsh-invariants` is a
+ * invariant companion's service listener, and `avn-invariants` is a
  * development composition — a shipped host never loads it. Mounting is the
  * other, and it is the one every session takes, which bounds the set at one
  * generation of dead records rather than one per session ever composed. Each

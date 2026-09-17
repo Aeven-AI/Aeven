@@ -95,7 +95,7 @@ function flushAnimationFrames(rounds = 1): void {
 
 afterEach(() => {
   cleanup()
-  document.getElementById('dsh-preloader')?.remove()
+  document.getElementById('avn-preloader')?.remove()
   vi.unstubAllGlobals()
   resizeObservers.length = 0
 })
@@ -705,7 +705,7 @@ describe('ConversationRoot resident composer', () => {
 
   it('does not show the content loader while the page preloader is still on screen', () => {
     const el = document.createElement('div')
-    el.id = 'dsh-preloader'
+    el.id = 'avn-preloader'
     el.className = 'hide animate'
     document.body.append(el)
     const b = mount(sessionSnapshotOf({ openState: 'loading' }))
@@ -715,7 +715,7 @@ describe('ConversationRoot resident composer', () => {
 
   it('shows the content loader once the page preloader is screen-hidden', async () => {
     const el = document.createElement('div')
-    el.id = 'dsh-preloader'
+    el.id = 'avn-preloader'
     document.body.append(el)
     const b = mount(sessionSnapshotOf({ openState: 'loading' }))
     expect(b.view.container.querySelector('[data-content-loader]')).toBeNull()
@@ -831,11 +831,11 @@ describe('ConversationRoot resident composer', () => {
     // from a resize observer wrote an inherited custom property on an ancestor
     // of the whole transcript once per animation frame, which invalidated style
     // for every element below it and stalled the sidebar's slide.
-    expect(root.style.getPropertyValue('--dsh-conversation-column-width')).toBe('')
+    expect(root.style.getPropertyValue('--avn-conversation-column-width')).toBe('')
     // No dragged preference: the attribute-selected clamp stays off, so the
     // baseline term applies.
     expect(root.getAttribute('data-chat-user-width')).toBeNull()
-    expect(root.style.getPropertyValue('--dsh-chat-user-width')).toBe('')
+    expect(root.style.getPropertyValue('--avn-chat-user-width')).toBe('')
   })
 
   it('drag → persist → window clamp round-trip on a width handle', () => {
@@ -861,8 +861,8 @@ describe('ConversationRoot resident composer', () => {
       // inside both bounds (max = 1600 − 176 = 1424 keeps the handles on-column).
       fireEvent.pointerDown(handle, { pointerId: 1, clientX: 800, clientY: 300 })
       fireEvent.pointerUp(handle, { pointerId: 1, clientX: 825, clientY: 300 })
-      expect(root.style.getPropertyValue('--dsh-chat-user-width')).toBe('1074px')
-      expect(localStorage.getItem('dsh.conversation.contentWidth')).toBe('1074')
+      expect(root.style.getPropertyValue('--avn-chat-user-width')).toBe('1074px')
+      expect(localStorage.getItem('avn.conversation.contentWidth')).toBe('1074')
       expect(root.getAttribute('data-chat-user-width')).toBe('')
       // Window shrinks: script publishes nothing. The preference rides the DOM
       // unchanged and CSS clamps what is displayed against the live column
@@ -870,18 +870,18 @@ describe('ConversationRoot resident composer', () => {
       // never rewrites the stored width.
       Object.defineProperty(root, 'offsetWidth', { value: 900, configurable: true })
       act(() => { fireResize(root) })
-      expect(root.style.getPropertyValue('--dsh-chat-user-width')).toBe('1074px')
-      expect(localStorage.getItem('dsh.conversation.contentWidth')).toBe('1074')
+      expect(root.style.getPropertyValue('--avn-chat-user-width')).toBe('1074px')
+      expect(localStorage.getItem('avn.conversation.contentWidth')).toBe('1074')
       // A press without travel (a real double-click delivers two such
       // press/release rounds) must not commit the clamped display value over
       // the stored preference.
       fireEvent.pointerDown(handle, { pointerId: 1, clientX: 800, clientY: 300 })
       fireEvent.pointerUp(handle, { pointerId: 1, clientX: 800, clientY: 300 })
-      expect(localStorage.getItem('dsh.conversation.contentWidth')).toBe('1074')
-      expect(root.style.getPropertyValue('--dsh-chat-user-width')).toBe('1074px')
+      expect(localStorage.getItem('avn.conversation.contentWidth')).toBe('1074')
+      expect(root.style.getPropertyValue('--avn-chat-user-width')).toBe('1074px')
       // No reset affordance on the handle: double-click leaves the preference alone.
       fireEvent.doubleClick(handle)
-      expect(localStorage.getItem('dsh.conversation.contentWidth')).toBe('1074')
+      expect(localStorage.getItem('avn.conversation.contentWidth')).toBe('1074')
     } finally {
       for (const [name, descriptor] of originals) {
         if (descriptor === undefined) Reflect.deleteProperty(Element.prototype, name)

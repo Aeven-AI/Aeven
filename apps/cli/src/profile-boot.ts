@@ -1,6 +1,6 @@
 /**
- * Shared profile boot for every `dsh` surface: resolve the profile, stack its
- * patch layers (bundle layers in `dsh.profile.bundles` order, the profile's
+ * Shared profile boot for every `avn` surface: resolve the profile, stack its
+ * patch layers (bundle layers in `avn.profile.bundles` order, the profile's
  * own `cordis.patch.yml`, `--patch` overlays, the telemetry switch), mount the
  * tree over the profile's empty root config, apply its selected patch-reload
  * lifecycle, and wire fail-loud plus bounded shutdown.
@@ -31,10 +31,10 @@ import {
 } from '@aeven/app-boot'
 import {
   clearHostLease,
-  dshHomeDisplay,
+  avnHomeDisplay,
   HOST_LEASE_VERSION,
   liveHostLease,
-  resolveDshHome,
+  resolveAvnHome,
   writeHostLease,
 } from '@aeven/home-paths'
 import { installProxyFromEnvironment } from '@aeven/http-proxy'
@@ -43,7 +43,7 @@ import { AVN_LAUNCH_ENVIRONMENT_KEY, type LaunchEnvironmentSnapshot } from '@aev
 import { provideCmdline, type AppReady } from '@aeven/cmdline'
 import { createProcessShutdown, type ProcessShutdown } from './process-shutdown.ts'
 
-const NAME = 'dsh'
+const NAME = 'avn'
 
 /** Launcher-owned readiness signal committed only after boot and host setup succeed. */
 function createAppReady(): { service: AppReady; commit(): void } {
@@ -76,18 +76,18 @@ function createAppReady(): { service: AppReady; commit(): void } {
  * @returns the absolute patch-file path.
  */
 export function homePatchPath(): string {
-  return join(resolveDshHome(), PROFILE_PATCH_FILENAME)
+  return join(resolveAvnHome(), PROFILE_PATCH_FILENAME)
 }
 
-/** Absolute path of this dsh installation's package.json (both anchors: src/ and lib/ sit one level under apps/cli). */
+/** Absolute path of this avn installation's package.json (both anchors: src/ and lib/ sit one level under apps/cli). */
 export const INSTALL_ANCHOR = fileURLToPath(new URL('../package.json', import.meta.url))
 
 /** The session-telemetry row id the AVN_TELEMETRY_DISABLED switch targets. */
 const TELEMETRY_ROW_ID = 'session-telemetry-otel'
 
 /** The empty root entry list every profile tree patches over. */
-const PROFILE_ROOT_CONFIG = `# dsh profile root — an empty entry list. The tree is composed as patches:
-# each bundle in package.json's dsh.profile.bundles, then cordis.patch.yml, then any
+const PROFILE_ROOT_CONFIG = `# avn profile root — an empty entry list. The tree is composed as patches:
+# each bundle in package.json's avn.profile.bundles, then cordis.patch.yml, then any
 # --patch overlays. Edit cordis.patch.yml, not this file.
 []
 `
@@ -153,7 +153,7 @@ function allPatches(composed: ComposedProfile): PatchOptions[] {
 
 /**
  * Load `name` and compose its effective patch stack: bundle layers in
- * `dsh.profile.bundles` order (a base-backed profile gets the base bundle's
+ * `avn.profile.bundles` order (a base-backed profile gets the base bundle's
  * platform-gated shell rows), the profile's user layer, the home-level user
  * layer (`$AVN_HOME/cordis.patch.yml` — machine-local preferences that apply
  * to every profile, so it outranks the per-profile layer), `--patch` overlays,
@@ -258,7 +258,7 @@ async function advertiseServingHost(ctx: Context): Promise<void> {
   if (webServer === undefined || urlSource === undefined) return
 
   try {
-    const home = resolveDshHome()
+    const home = resolveAvnHome()
     const existing = await liveHostLease(home)
     // The incumbent keeps the advertisement: it is a live serving Host, so its
     // record is the one a peer should attach to, and it is the only process
@@ -267,8 +267,8 @@ async function advertiseServingHost(ctx: Context): Promise<void> {
     // pointing at whichever Host started last.
     if (existing !== undefined && existing.pid !== process.pid) {
       console.error(
-        `dsh: another Host (pid ${String(existing.pid)}`
-        + `${existing.url === undefined ? '' : `, ${existing.url}`}) is already serving ${dshHomeDisplay(home)}. `
+        `avn: another Host (pid ${String(existing.pid)}`
+        + `${existing.url === undefined ? '' : `, ${existing.url}`}) is already serving ${avnHomeDisplay(home)}. `
         + 'Two Hosts on one home overwrite each other\'s domain state, including which '
         + 'Workspace a Session belongs to. Quit one of them.',
       )
@@ -289,7 +289,7 @@ async function advertiseServingHost(ctx: Context): Promise<void> {
   } catch (error) {
     // Advertising is how a peer discovers this Host; it is never a reason for
     // this one to fail to serve.
-    console.error(`dsh: could not advertise this Host: ${error instanceof Error ? error.message : String(error)}`)
+    console.error(`avn: could not advertise this Host: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
 
@@ -372,7 +372,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     && ctx.fiber.state === FiberState.ACTIVE
     && ctx.get('loader') !== undefined) {
     try {
-      // Config-only HMR for the live profile patch layer: dsh-base disables
+      // Config-only HMR for the live profile patch layer: avn-base disables
       // module reload by default, so when no profile explicitly enabled that
       // service, mount a watch-only instance with no module roots —
       // cordis.patch.yml edits stay live without replacing source modules. A

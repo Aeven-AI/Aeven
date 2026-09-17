@@ -77,7 +77,7 @@ def main() -> None:
 
     output_dir = args.output_dir.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="dsh-python-release-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="avn-python-release-") as temporary:
         staging = Path(temporary) / args.package
         if args.package == "sdk":
             stage_sdk(staging, wheel_version)

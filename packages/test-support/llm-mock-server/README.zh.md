@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-`dsh-llm-mock-server` 在测试期间以可编脚本的 OpenAI 兼容 HTTP／SSE（Server-Sent Events）服务器代替真实模型提供方：你脚本化一串协议行为——流重置、停滞、畸形分片、限流、服务器错误、成功补全、工具调用——每个已接受的 `/chat/completions` 请求依次消费下一个。它通过真实 HTTP 服务发布的 DeepSeek 适配器与 agent loop（智能体循环），因此重试、退避与超时等恢复策略会在真实协议边界上得到检验，且无需提供方密钥。CLI（`pnpm run mock:llm`）可独立运行服务器；库入口 `startMockLlmServer` 将其嵌入测试并返回捕获的请求。`random` 行为配合带种子的权重可混合故障，用于开放式压力运行。
+`avn-llm-mock-server` 在测试期间以可编脚本的 OpenAI 兼容 HTTP／SSE（Server-Sent Events）服务器代替真实模型提供方：你脚本化一串协议行为——流重置、停滞、畸形分片、限流、服务器错误、成功补全、工具调用——每个已接受的 `/chat/completions` 请求依次消费下一个。它通过真实 HTTP 服务发布的 DeepSeek 适配器与 agent loop（智能体循环），因此重试、退避与超时等恢复策略会在真实协议边界上得到检验，且无需提供方密钥。CLI（`pnpm run mock:llm`）可独立运行服务器；库入口 `startMockLlmServer` 将其嵌入测试并返回捕获的请求。`random` 行为配合带种子的权重可混合故障，用于开放式压力运行。
 
 ## 目录
 
@@ -44,7 +44,7 @@ pnpm run mock:llm \
 ```sh
 DEEPSEEK_BASE_URL=http://127.0.0.1:8000/v1 \
 DEEPSEEK_API_KEY=mock-key \
-pnpm dsh --profile headless "test provider recovery"
+pnpm avn --profile headless "test provider recovery"
 ```
 
 仓库脚本将 JSONL 写入 stdout：`ready` 记录携带以 `/v1` 结尾的 base URL 与随机种子，后续请求/结果记录同时命名脚本行为与实际选中的具体行为。本包不公开可安装的二进制命令。

@@ -4,7 +4,7 @@ import { ToolCallId, createUserMessage } from '@aeven/llm'
  * queued and steering work, while `keepInbox` preserves pending input for a
  * later wake after the active turn reaches quiescence. The suite
  * covers every landing window plus signal reset and `whenIdle()` quiescence.
- * @module dsh-agent-loop/tests/cancel
+ * @module avn-agent-loop/tests/cancel
  */
 
 import { describe, expect, it } from 'vitest'
@@ -572,7 +572,7 @@ describe('Agent.cancel()', () => {
     const ctx = await harness(adapter)
     const agent = ctx.agentLoop.create(SessionId('recovery-cancel'), { provider: 'mock', model: 'mock' })
     // Cancellation lands while agent/request-error is in flight — the window
-    // dsh-llm-retry opens when its backoff waits after appending llm/retry.
+    // avn-llm-retry opens when its backoff waits after appending llm/retry.
     ctx.on('agent/request-error', async ({ agent: subject }) => {
       if (subject === agent) subject.cancel({ kind: 'user' })
     })

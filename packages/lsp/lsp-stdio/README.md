@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-lsp-stdio` turns configured local language-server commands into providers on `ctx.lsp`: give it a table of server commands and extension-to-language mappings, and agents get semantic code navigation over the files in those languages — definitions, references, implementations, and hover — served by real language servers. One plugin instance registers one isolated provider per configured server; each provider lazily starts one server process per workspace and opens the queried document transiently, so no document state accumulates between queries. Servers and sources always live in the mounted filesystem and subprocess execution world. It is a generic host, not a language-server catalog or installer — deployments configure commands explicitly. This package trusts its configured servers and adds no sandbox of its own.
+`avn-lsp-stdio` turns configured local language-server commands into providers on `ctx.lsp`: give it a table of server commands and extension-to-language mappings, and agents get semantic code navigation over the files in those languages — definitions, references, implementations, and hover — served by real language servers. One plugin instance registers one isolated provider per configured server; each provider lazily starts one server process per workspace and opens the queried document transiently, so no document state accumulates between queries. Servers and sources always live in the mounted filesystem and subprocess execution world. It is a generic host, not a language-server catalog or installer — deployments configure commands explicitly. This package trusts its configured servers and adds no sandbox of its own.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this provider when a deployment has local language servers — for example `typescript-language-server` — and wants the harness to navigate code through them. It needs filesystem and subprocess providers for the same execution world, plus the `dsh-lsp` seam and, for model access, `dsh-tool-lsp`.
+Mount this provider when a deployment has local language servers — for example `typescript-language-server` — and wants the harness to navigate code through them. It needs filesystem and subprocess providers for the same execution world, plus the `avn-lsp` seam and, for model access, `avn-tool-lsp`.
 
 ### Minimal configuration
 
@@ -123,8 +123,8 @@ Read these pages when the package-level contract is not enough. They move from t
 
 - [LSP navigation subsystem](../../../docs/subsystems/lsp.md) — operations, coordinates, requests and results, and `LspError` codes.
 - [LSP capability seam Agent Note](../../../.agents/notes/implemented/architecture/2026-07-15-lsp-capability-seam.md) — design rationale, alternatives, and deliberately deferred API.
-- [dsh-lsp](../lsp/README.md) — the seam this provider registers against.
-- [dsh-tool-lsp](../tool-lsp/README.md) — the model-facing tool over the seam.
+- [avn-lsp](../lsp/README.md) — the seam this provider registers against.
+- [avn-tool-lsp](../tool-lsp/README.md) — the model-facing tool over the seam.
 - [lsp group map](../README.md) — the three-package family and its related documentation.
 
 -----
@@ -132,11 +132,11 @@ Read these pages when the package-level contract is not enough. They move from t
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through `dsh-tool-lsp`, which surfaces this provider's normalized results while this host contributes no prompt or schema itself.
+Indirectly, through `avn-tool-lsp`, which surfaces this provider's normalized results while this host contributes no prompt or schema itself.
 
 #### KV Cache effect
 
-No direct invalidation; `dsh-tool-lsp` owns request-prefix changes.
+No direct invalidation; `avn-tool-lsp` owns request-prefix changes.
 
 ## Known Limitations and Deferred Work
 

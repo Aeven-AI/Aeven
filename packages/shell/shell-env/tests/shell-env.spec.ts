@@ -35,32 +35,32 @@ function execution(sessionId?: string): ToolExecution {
 describe('ShellEnvRegistry', () => {
   it('collects unconditional shell facts and the current agent session id', () => {
     const ctx = new Context()
-    const registry = new ShellEnvRegistry(ctx, { dshHome: './test-dsh-home' })
+    const registry = new ShellEnvRegistry(ctx, { avnHome: './test-avn-home' })
 
     expect(registry.collect(execution())).toEqual({
-      AVN_HOME: resolve('./test-dsh-home'),
+      AVN_HOME: resolve('./test-avn-home'),
       AVN_SHELL: '1',
     })
     expect(registry.collect(execution('session-a'))).toEqual({
-      AVN_HOME: resolve('./test-dsh-home'),
+      AVN_HOME: resolve('./test-avn-home'),
       AVN_SESSION_ID: 'session-a',
       AVN_SHELL: '1',
     })
   })
 
   it('resolves AVN_HOME from the ambient override or the user-home default', () => {
-    vi.stubEnv('AVN_HOME', './ambient-dsh-home')
+    vi.stubEnv('AVN_HOME', './ambient-avn-home')
     const fromEnvironment = new ShellEnvRegistry(new Context())
-    expect(fromEnvironment.collect(execution()).AVN_HOME).toBe(resolve('./ambient-dsh-home'))
+    expect(fromEnvironment.collect(execution()).AVN_HOME).toBe(resolve('./ambient-avn-home'))
 
     vi.stubEnv('AVN_HOME', undefined)
     const fromDefault = new ShellEnvRegistry(new Context())
-    expect(fromDefault.collect(execution()).AVN_HOME).toBe(join(homedir(), '.dsh'))
+    expect(fromDefault.collect(execution()).AVN_HOME).toBe(join(homedir(), '.avn'))
   })
 
   it('collects declared contributor variables and omits unavailable values', () => {
     const ctx = new Context()
-    const registry = new ShellEnvRegistry(ctx, { dshHome: './test-dsh-home' })
+    const registry = new ShellEnvRegistry(ctx, { avnHome: './test-avn-home' })
     registry.register({
       name: 'optional-session-fact',
       variables: {
@@ -95,7 +95,7 @@ describe('ShellEnvRegistry', () => {
 
   it('rejects duplicate variable ownership at registration time', () => {
     const ctx = new Context()
-    const registry = new ShellEnvRegistry(ctx, { dshHome: './test-dsh-home' })
+    const registry = new ShellEnvRegistry(ctx, { avnHome: './test-avn-home' })
     registry.register({
       name: 'first',
       variables: { AVN_SHARED: { description: 'First owner.' } },
@@ -110,7 +110,7 @@ describe('ShellEnvRegistry', () => {
   })
 
   it('rejects duplicate contributor names and malformed declarations', () => {
-    const registry = new ShellEnvRegistry(new Context(), { dshHome: './test-dsh-home' })
+    const registry = new ShellEnvRegistry(new Context(), { avnHome: './test-avn-home' })
     registry.register({
       name: 'declared',
       variables: { AVN_DECLARED: { description: 'Declared fact.' } },
@@ -129,7 +129,7 @@ describe('ShellEnvRegistry', () => {
     })).toThrow(/name must be non-empty/)
     expect(() => registry.register({
       name: 'invalid-key',
-      variables: { dsh_invalid: { description: 'Invalid key.' } } as unknown as Record<'AVN_INVALID', { description: string }>,
+      variables: { avn_invalid: { description: 'Invalid key.' } } as unknown as Record<'AVN_INVALID', { description: string }>,
       resolve: () => ({}),
     })).toThrow(/invalid key/)
     expect(() => registry.register({
@@ -146,7 +146,7 @@ describe('ShellEnvRegistry', () => {
 
   it('rejects undeclared variables returned by a contributor', () => {
     const ctx = new Context()
-    const registry = new ShellEnvRegistry(ctx, { dshHome: './test-dsh-home' })
+    const registry = new ShellEnvRegistry(ctx, { avnHome: './test-avn-home' })
     registry.register({
       name: 'drifted-provider',
       variables: { AVN_DECLARED: { description: 'Declared fact.' } },
@@ -157,7 +157,7 @@ describe('ShellEnvRegistry', () => {
   })
 
   it('rejects non-string values returned by a contributor', () => {
-    const registry = new ShellEnvRegistry(new Context(), { dshHome: './test-dsh-home' })
+    const registry = new ShellEnvRegistry(new Context(), { avnHome: './test-avn-home' })
     registry.register({
       name: 'wrong-value-type',
       variables: { AVN_STRING: { description: 'String fact.' } },
@@ -169,7 +169,7 @@ describe('ShellEnvRegistry', () => {
 
   it('removes an effect-scoped contributor when its plugin is disposed', async () => {
     const ctx = new Context()
-    const registry = new ShellEnvRegistry(ctx, { dshHome: './test-dsh-home' })
+    const registry = new ShellEnvRegistry(ctx, { avnHome: './test-avn-home' })
     const fiber = await ctx.plugin({
       inject: ['shellEnv'],
       apply(inner: Context) {
@@ -187,7 +187,7 @@ describe('ShellEnvRegistry', () => {
   })
 
   it('returns an explicit contributor disposer', () => {
-    const registry = new ShellEnvRegistry(new Context(), { dshHome: './test-dsh-home' })
+    const registry = new ShellEnvRegistry(new Context(), { avnHome: './test-avn-home' })
     const dispose = registry.register({
       name: 'explicit-disposal',
       variables: { AVN_EXPLICIT_DISPOSAL: { description: 'Explicitly disposed fact.' } },

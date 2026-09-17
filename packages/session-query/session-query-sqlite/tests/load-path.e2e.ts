@@ -25,12 +25,12 @@ afterEach(async () => {
 })
 
 async function temporaryPath(name: string): Promise<string> {
-  const directory = await mkdtemp(join(tmpdir(), 'dsh-session-search-loader-'))
+  const directory = await mkdtemp(join(tmpdir(), 'avn-session-search-loader-'))
   temporaryDirectories.push(directory)
   return join(directory, name)
 }
 
-describe('dsh-session-query-sqlite real Loader path', () => {
+describe('avn-session-query-sqlite real Loader path', () => {
   it('unwraps, mounts, and searches the real persistence backend', async () => {
     const persistenceRoot = await temporaryPath('canonical')
     const searchPath = await temporaryPath('derived.db')

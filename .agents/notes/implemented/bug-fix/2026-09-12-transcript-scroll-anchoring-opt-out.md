@@ -6,7 +6,7 @@ English | [中文](2026-09-12-transcript-scroll-anchoring-opt-out.zh.md)
 
 ## Problem
 
-Switching Sessions left the transcript short of the tail. On the running Web client, selecting another Session from the sidebar and then walking browser history Back and Forward between `/c/2cc5bd5e…` ("Overview of new DSH changes since fork") and `/c/38c398db…` ("The current performance of this") produced, every time and in both directions:
+Switching Sessions left the transcript short of the tail. On the running Web client, selecting another Session from the sidebar and then walking browser history Back and Forward between `/c/2cc5bd5e…` ("Overview of new AVN changes since fork") and `/c/38c398db…` ("The current performance of this") produced, every time and in both directions:
 
 | transition | distance from the floor |
 |---|---|

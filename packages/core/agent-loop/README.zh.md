@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-agent-loop` 创建 agent——全新创建或从持久化历史恢复——并运行轮次与步骤生命周期：领取提示词、组装请求、流式接收模型响应、分发工具调用，并把每个结果追加回会话日志。作为默认驱动器，它实现 `dsh-agent` 的 `Agent` 接口并在此注册工厂，因此插件通过 `ctx.agents` 创建与驱动 agent，而不必依赖本包。声明式配置项会在启动时自动启动 agent，`maxParallelToolCalls` 限制同时运行的并行安全工具调用数量。它是 harness 唯一的具象循环——超出「调用模型、运行工具、重复」的所有内容都属于监听事件分类体系的插件。标准组合请选择它作为驱动器；如需替换，请实现 `Agent` 并通过 `ctx.agents` 注册。
+`avn-agent-loop` 创建 agent——全新创建或从持久化历史恢复——并运行轮次与步骤生命周期：领取提示词、组装请求、流式接收模型响应、分发工具调用，并把每个结果追加回会话日志。作为默认驱动器，它实现 `avn-agent` 的 `Agent` 接口并在此注册工厂，因此插件通过 `ctx.agents` 创建与驱动 agent，而不必依赖本包。声明式配置项会在启动时自动启动 agent，`maxParallelToolCalls` 限制同时运行的并行安全工具调用数量。它是 harness 唯一的具象循环——超出「调用模型、运行工具、重复」的所有内容都属于监听事件分类体系的插件。标准组合请选择它作为驱动器；如需替换，请实现 `Agent` 并通过 `ctx.agents` 注册。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在任何应运行 agent 的组合中挂载 `dsh-agent-loop`。它提供 `ctx.agents` 背后的驱动器，并启动你在配置中声明的 agent；[`dsh-base`](../../bundle/base/README.zh.md) 与 [`dsh-sdk-minimal`](../../bundle/sdk-minimal/README.zh.md) 都将它作为显式配置行挂载。
+在任何应运行 agent 的组合中挂载 `avn-agent-loop`。它提供 `ctx.agents` 背后的驱动器，并启动你在配置中声明的 agent；[`avn-base`](../../bundle/base/README.zh.md) 与 [`avn-sdk-minimal`](../../bundle/sdk-minimal/README.zh.md) 都将它作为显式配置行挂载。
 
 ### 配置声明式 agent
 

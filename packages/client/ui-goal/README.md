@@ -54,7 +54,7 @@ The strip is projection-mode: the live goal arrives through `useProjection('goal
 
 Read these pages when the goal surface is not enough. They move from the browser strip to the goal domain and the slots it fills.
 
-- [dsh-goal](../../goal/goal/README.md) — the goal domain, projection, and `/goal` command this surface reads and mutates.
+- [avn-goal](../../goal/goal/README.md) — the goal domain, projection, and `/goal` command this surface reads and mutates.
 - [ui-conversation](../ui-conversation/README.md) — declares the `conversation.input.dock` slot and owns the composer.
 - [Client package map](../README.md) — adjacent browser UI packages.
 

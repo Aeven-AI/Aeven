@@ -10,7 +10,7 @@ Web 输入框的图片界面缺乏基本可用性（用户反馈，issue #2248�
 
 首个多模态版本把这些界面记录在[Web 多模态 Note](2026-07-22-web-multimodal-image-input-and-durable-attachments.zh.md)中；本 Note 取代其中的展示与交互细节（缩略图几何、点击方式、错误呈现），其附件服务边界、准入与持久化决策继续有效。
 
-这些 UI 还全部住在 `dsh-client-ui-conversation` 里——附件栏内联在 700 行的 `InputBar` 中，历史图片和灯箱分散在 `chat/` 与 `skeleton/`——没有其他界面可复用的接缝，纯 props 的纪律也无从约束。
+这些 UI 还全部住在 `avn-client-ui-conversation` 里——附件栏内联在 700 行的 `InputBar` 中，历史图片和灯箱分散在 `chat/` 与 `skeleton/`——没有其他界面可复用的接缝，纯 props 的纪律也无从约束。
 
 ## 决定
 

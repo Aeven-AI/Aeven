@@ -39,8 +39,8 @@ export const COMPOSITION_FILE = 'agent.cordis.yml'
 /**
  * Harness-home directory holding locally authored presets.
  *
- * This package owns the writable root the way `dsh-skill-filesystem` owns
- * `<dshHome>/skills`: where a person's own presets go is the same place in
+ * This package owns the writable root the way `avn-skill-filesystem` owns
+ * `<avnHome>/skills`: where a person's own presets go is the same place in
  * every deployment that does not say otherwise, so a launcher that forgets to
  * configure one still finds them.
  *

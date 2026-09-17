@@ -28,7 +28,7 @@ afterEach(async () => {
 
 describe('spill-local real Loader composition through cordis.yml', () => {
   it('loads cleanupPeriodDays and prunes only expired session contents', async () => {
-    root = await mkdtemp(join(tmpdir(), 'dsh-spill-loader-'))
+    root = await mkdtemp(join(tmpdir(), 'avn-spill-loader-'))
     const oldDir = sessionDir(root, 'old-session')
     const freshDir = sessionDir(root, 'fresh-session')
     await mkdir(oldDir, { recursive: true })

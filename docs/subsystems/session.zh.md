@@ -2,7 +2,7 @@
 
 [English](session.md) | 中文
 
-[dsh-session](../../packages/core/session) 的内存事件溯源模型。`Session` 是一份由类型化 `SessionEvent` 组成的**仅追加日志**，是 agent（智能体）完整交互历史的唯一真源。LLM（大语言模型）消息历史从日志*派生*而来，从不单独存储；回放即从同一组事件重新派生。日志如何实现**持久化**（持久化 seam、后端、崩溃恢复）是兄弟文档 [persistence.md](persistence.zh.md) 的关注点。
+[avn-session](../../packages/core/session) 的内存事件溯源模型。`Session` 是一份由类型化 `SessionEvent` 组成的**仅追加日志**，是 agent（智能体）完整交互历史的唯一真源。LLM（大语言模型）消息历史从日志*派生*而来，从不单独存储；回放即从同一组事件重新派生。日志如何实现**持久化**（持久化 seam、后端、崩溃恢复）是兄弟文档 [persistence.md](persistence.zh.md) 的关注点。
 
 源码：[`packages/core/session/src/types.ts`](../../packages/core/session/src/types.ts)
 
@@ -35,7 +35,7 @@ interface SessionEventMap {
   /**
    * Closes turn `turn` with the {@link TurnEndReason} that ended it. A turn
    * with no entered step has no `step/start` or `step/end`. The loop does not await a
-   * flush at turn boundaries: `dsh-session-checkpoint-policy` owns the
+   * flush at turn boundaries: `avn-session-checkpoint-policy` owns the
    * per-request durability checkpoint, and consumers that read storage after
    * `whenIdle()` flush themselves. Success commits the turn; rejection is
    * reported live and does not prevent later work.
@@ -80,7 +80,7 @@ interface SessionEventMap {
    * runtime-validates all event data with `isJsonValue`, so a non-serializable
    * `meta` is rejected at the source, and the durable log reproduces the
    * identical card on replay. Absent
-   * unless the tool attaches one (e.g. `dsh-tool-fs` carries its result-time
+   * unless the tool attaches one (e.g. `avn-tool-fs` carries its result-time
    * contextual diff here).
    */
   'tool/result': {
@@ -316,7 +316,7 @@ interface SurfaceIntent {
 }
 ```
 
-对 `SurfaceEventType` 事件必填：每个产生消息的事件都必须声明它如何加入 surface（派生模型历史的唯一来源）。面向人类的 transcript（文本记录）是另一个投影，读取的是日志中追加来源的事件，因为 surface 会有意遮蔽替换所概括的范围（见 [dsh-session](../../packages/core/session/README.zh.md) 的 `isAppendSurfaceEvent`）。非 surface 类型在编译期拒绝此参数。
+对 `SurfaceEventType` 事件必填：每个产生消息的事件都必须声明它如何加入 surface（派生模型历史的唯一来源）。面向人类的 transcript（文本记录）是另一个投影，读取的是日志中追加来源的事件，因为 surface 会有意遮蔽替换所概括的范围（见 [avn-session](../../packages/core/session/README.zh.md) 的 `isAppendSurfaceEvent`）。非 surface 类型在编译期拒绝此参数。
 
 只有 `assistant/message` 可以携带存在但为空的 `sourceEventSeqs`；字段不存在时，该事件没有记录这条消息由哪些早期事件产生，但提供方仍可能发出过分片。
 
@@ -579,7 +579,7 @@ declare class Session {
 
 - `fork(source, boundary?, childSessionId?)` 接受一个活跃的 `Session` 对象或活跃的 `SessionId`，选取到 `SessionSeq` boundary（含）为止的源事件（默认为当前最后一个事件），要求所选前缀结束时没有开放轮次，然后创建一个活跃的子会话，包含深克隆的 seed event、`parentSession`、`isSeeded: true`、精确 `inheritedEventCount` 及继承的 `cwd`。
 
-显式 `boundary` 允许调用者从任意稳定的轮次间位置 fork，包括之前的 `turn/end` 或更晚的独立纯日志事件，即使源会话有更新的事件或正在进行的轮次。API 拒绝结束于开放轮次内的前缀，而不是静默截断。更广泛的执行关系健全性检查留在既有的 `dsh-invariants` 插件和持久化修复路径中，不在 `fork()` 中重复。`dsh-subagent-fork-in-process` 保留其已完成前缀截断逻辑，因为工具调用时的委托通常在父轮次仍然打开时启动；普通的会话分支应显式指定请求的 boundary。
+显式 `boundary` 允许调用者从任意稳定的轮次间位置 fork，包括之前的 `turn/end` 或更晚的独立纯日志事件，即使源会话有更新的事件或正在进行的轮次。API 拒绝结束于开放轮次内的前缀，而不是静默截断。更广泛的执行关系健全性检查留在既有的 `avn-invariants` 插件和持久化修复路径中，不在 `fork()` 中重复。`avn-subagent-fork-in-process` 保留其已完成前缀截断逻辑，因为工具调用时的委托通常在父轮次仍然打开时启动；普通的会话分支应显式指定请求的 boundary。
 
 <a id="why-a-turn-ended-turnendreasonmap"></a>
 
@@ -624,7 +624,7 @@ interface TurnEndReasonMap {
 
 一个轮次包围一次模型循环执行，而不是整个会话日志。AgentLoop 只会在轮次内进入 pre-step 批次时记录注入的 `user/message` 事件；插件所属的纯日志事件仍可出现在 `turn/end` 与下一个 `turn/start` 之间，占用事件 seq 但不递增轮次编号。持久化会将每个连续且已接受的事件纳入有界持久化批次，而崩溃修复只关闭确实仍处于开放状态的尾部轮次。需要即时持久性屏障的生产方会显式等待 `ctx.sessions.flush(session)`。
 
-可选的 `dsh-session/invariant` 配套插件会强制核心拥有的关系：轮次与步骤编号、执行事件封闭，以及同一步骤内的工具调用／结果配对。可合并扩展事件的关系由声明它的插件拥有，因此核心不会仅因没有开放轮次就拒绝未知事件。见[独立事件决策](../../.agents/notes/implemented/simplification/2026-07-28-remove-synthetic-log-only-turns.zh.md)。
+可选的 `avn-session/invariant` 配套插件会强制核心拥有的关系：轮次与步骤编号、执行事件封闭，以及同一步骤内的工具调用／结果配对。可合并扩展事件的关系由声明它的插件拥有，因此核心不会仅因没有开放轮次就拒绝未知事件。见[独立事件决策](../../.agents/notes/implemented/simplification/2026-07-28-remove-synthetic-log-only-turns.zh.md)。
 
 ## 种子结束边界：`session/end-seed`
 
@@ -835,7 +835,7 @@ Persistence is intentionally not implemented here — persistence plugins subscr
  * loop's final events are published before the store attachment ends), do NOT use this
  * — fold the session lifecycle into the agent's own effect via
  * {@link prepare} + {@link enter} + {@link announce} (see
- * `dsh-agent-loop`'s creation transaction).
+ * `avn-agent-loop`'s creation transaction).
  *
  * @param id - the session id; omitted, the store mints `session-<n>`.
  * @param options - seed events and/or creation metadata for the header.
@@ -1069,7 +1069,7 @@ Creation announcement during session publication. A synchronous throw vetoes and
  * Scope-filtered dispatch (`@aeven/scope`): agent-scoped listeners
  * receive only sessions entered through that agent's context.
  * @param session - the session just entered and announced.
- * @dshScopeScan unsupported
+ * @avnScopeScan unsupported
  * @mode emit
  */
 'session/created'(this: Scoped<Session>, session: Session): void
@@ -1092,7 +1092,7 @@ Emitted once when an announced session leaves the store, including publication r
  * did not begin. Listener failures are logged and contained.
  * Scope-filtered dispatch (`@aeven/scope`) reuses the owner scope.
  * @param session - the session that is no longer live in the store.
- * @dshScopeScan unsupported
+ * @avnScopeScan unsupported
  * @mode emit
  */
 'session/disposed'(this: Scoped<Session>, session: Session): void
@@ -1117,7 +1117,7 @@ Post-commit, fire-and-forget append feed. The listener snapshot resolves before 
  * receive only events from sessions entered through that agent's context.
  * @param session - the session whose log grew.
  * @param event - the appended event, exactly as recorded.
- * @dshScopeScan unsupported
+ * @avnScopeScan unsupported
  * @mode emit
  */
 'session/event'(this: Scoped<Session>, session: Session, event: SessionEvent): void
@@ -1139,7 +1139,7 @@ Awaited parallel durability checkpoint: every listener runs and the caller await
  * caller awaits all of them, with no waterfall veto. Scope-filtered dispatch
  * (`@aeven/scope`) reuses the session's owner scope.
  * @param session - the session whose buffered events must reach durable storage.
- * @dshScopeScan unsupported
+ * @avnScopeScan unsupported
  * @mode parallel
  */
 'session/flush'(this: Scoped<Session>, session: Session): Promise<void> | void

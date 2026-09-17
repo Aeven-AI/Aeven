@@ -6,11 +6,11 @@ English | [中文](2026-09-03-generated-media-providers.zh.md)
 
 ## Problem
 
-The [media seam](2026-09-03-generated-media-capability-seam.md) shipped with no backends, so nothing could generate anything. The two providers a deployment would reach for — DeepInfra and OpenRouter — each serve both media from one account, and neither was reachable: `dsh-llm` speaks chat completions, and pi-ai models images but no video at all.
+The [media seam](2026-09-03-generated-media-capability-seam.md) shipped with no backends, so nothing could generate anything. The two providers a deployment would reach for — DeepInfra and OpenRouter — each serve both media from one account, and neither was reachable: `avn-llm` speaks chat completions, and pi-ai models images but no video at all.
 
 ## Decision
 
-**Three provider packages, split by transport rather than by vendor.** `dsh-media-pi-ai` registers pi-ai's images registry, which brings OpenRouter's image catalog with no hand-written client. `dsh-media-openrouter` and `dsh-media-deepinfra` speak the video APIs directly, and DeepInfra also carries its own images because its OpenAI-compatible route is a different transport from pi-ai's chat-modality path. The split keeps one package per protocol; a vendor served by two protocols appears in two packages, which is what OpenRouter does today.
+**Three provider packages, split by transport rather than by vendor.** `avn-media-pi-ai` registers pi-ai's images registry, which brings OpenRouter's image catalog with no hand-written client. `avn-media-openrouter` and `avn-media-deepinfra` speak the video APIs directly, and DeepInfra also carries its own images because its OpenAI-compatible route is a different transport from pi-ai's chat-modality path. The split keeps one package per protocol; a vendor served by two protocols appears in two packages, which is what OpenRouter does today.
 
 **Every provider retrieves bytes through its own content route.** Never a URL a job body carries. DeepInfra's job body named `api.pruna.ai` — whichever upstream actually served the model — so an egress allowlist over those hosts is unbounded. Both providers proxy the bytes themselves, which keeps egress at one pinnable origin each and is why `fetchVideo` exists on the seam rather than callers reading `job.data[].url`.
 

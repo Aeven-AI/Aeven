@@ -17,7 +17,7 @@ afterEach(async () => {
 async function backend(): Promise<Context> {
   const ctx = new Context()
   await ctx.plugin(SessionStore)
-  const root = await mkdtemp(join(tmpdir(), 'dsh-llm-retry-jsonl-'))
+  const root = await mkdtemp(join(tmpdir(), 'avn-llm-retry-jsonl-'))
   dirs.push(root)
   await ctx.plugin(JsonlSessionPersistence, { root })
   return ctx

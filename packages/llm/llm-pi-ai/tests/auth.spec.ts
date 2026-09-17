@@ -13,7 +13,7 @@ const dirs: string[] = []
 
 /** A context whose credential records live in a throwaway `$AVN_HOME`. */
 async function stored(): Promise<Context> {
-  const dir = await mkdtemp(join(tmpdir(), 'dsh-pi-auth-'))
+  const dir = await mkdtemp(join(tmpdir(), 'avn-pi-auth-'))
   dirs.push(dir)
   const ctx = new Context()
   await ctx.plugin(LocalCredentialProvider, { path: join(dir, '.credentials.yaml'), watch: false })
@@ -196,7 +196,7 @@ describe('pi-ai ambient auth context', () => {
   })
 
   it('answers about the host filesystem, expanding a leading ~', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dsh-pi-home-'))
+    const dir = await mkdtemp(join(tmpdir(), 'avn-pi-home-'))
     dirs.push(dir)
     await writeFile(join(dir, 'creds'), 'x')
     // Both spellings of "home": os.homedir() reads HOME on POSIX and

@@ -8,7 +8,7 @@ English | [中文](2026-08-27-process-table-snapshots.zh.md)
 
 A terminal readiness poll asks the platform three questions: the shell's descendant tree, its POSIX session membership, and whether each tracked descendant is still running. When each question reads the process table independently, the poll's cost scales with the number of descendants the running command spawned.
 
-On macOS each read is a `/bin/ps -axo` fork that parses the entire table — 14.33 ms for 795 processes on the measured host. `LocalTerminalHandle.inspectForeground()` reads the tree once and then asks liveness once per tracked descendant, so one poll costs N+1 table reads for N descendants. `dsh-terminal-bash` polls every 50 ms for up to 30 s, and `ProcessInspectorInternals.exec` is `execFileSync`, so each poll blocks the event loop for its full duration.
+On macOS each read is a `/bin/ps -axo` fork that parses the entire table — 14.33 ms for 795 processes on the measured host. `LocalTerminalHandle.inspectForeground()` reads the tree once and then asks liveness once per tracked descendant, so one poll costs N+1 table reads for N descendants. `avn-terminal-bash` polls every 50 ms for up to 30 s, and `ProcessInspectorInternals.exec` is `execFileSync`, so each poll blocks the event loop for its full duration.
 
 Measured by driving the production `MacProcessInspector` against a real process tree:
 
@@ -66,6 +66,6 @@ Teardown keeps its previous per-signal cost: one narrow liveness read per target
 
 A snapshot is a point-in-time view, and the type's documentation says so. `waitForMembers` re-captures per iteration because observing change is its purpose, and no signal is ever decided from a captured view.
 
-Every `ProcessInspector` implementation and test fake carries the new shape, including the Windows inspector and the `dsh-terminal-bash` session fake. Test fakes that previously replaced `processTree`, `processSession`, or `isAlive` to stage a scan now replace the corresponding per-question read hook, which keeps their staging behavior and call-counting identical.
+Every `ProcessInspector` implementation and test fake carries the new shape, including the Windows inspector and the `avn-terminal-bash` session fake. Test fakes that previously replaced `processTree`, `processSession`, or `isAlive` to stage a scan now replace the corresponding per-question read hook, which keeps their staging behavior and call-counting identical.
 
 The synchronous `execFileSync` boundary and the fixed 50 ms poll interval are unchanged; both remain open follow-ups for the same readiness path.

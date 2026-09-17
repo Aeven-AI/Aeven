@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/hypermarkdown/README.md
-README.md: 15090e3a025cd18483564f95e620c2d2f5591a1b
-README.zh.md: f6cca1e69a140e2ec39b91725a5e85603c8d636f
+README.md: fa3fc9e90760c70690a5087da69fda2e2125d7a1
+README.zh.md: a5a327ab65d15aa9cb75a2f931e2d1f5455f51c2

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-fs-local` implements the `ctx.fs` filesystem contract ([`dsh-fs`](../fs/README.md)) on the host filesystem: loading it as a plugin populates `ctx.fs` with real file access — resolve, read, list, atomic write, and literal edit against the local machine's files. Relative paths resolve from a configurable base directory, and the same file reached through different paths or symlinks shares one identity. Because this backend shares the host filesystem, it can also map an absolute host path into the process path used by this execution world. Writes are atomic and preserve file permissions; the optional version guard makes stale overwrites fail instead of clobbering. Choose it when a process needs direct, unconfined access to host files; choose `fs-sandbox` when mutations must be confined, or `fs-e2b` when file state belongs in a remote execution world.
+`avn-fs-local` implements the `ctx.fs` filesystem contract ([`avn-fs`](../fs/README.md)) on the host filesystem: loading it as a plugin populates `ctx.fs` with real file access — resolve, read, list, atomic write, and literal edit against the local machine's files. Relative paths resolve from a configurable base directory, and the same file reached through different paths or symlinks shares one identity. Because this backend shares the host filesystem, it can also map an absolute host path into the process path used by this execution world. Writes are atomic and preserve file permissions; the optional version guard makes stale overwrites fail instead of clobbering. Choose it when a process needs direct, unconfined access to host files; choose `fs-sandbox` when mutations must be confined, or `fs-e2b` when file state belongs in a remote execution world.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this backend when a composition needs `ctx.fs` backed by the real host filesystem and accepts a process-local implementation. The common path is explicit: load the backend, give it a base directory, and the model-facing tools (`dsh-tool-fs`) or your own plugins can read, write, and edit files.
+Mount this backend when a composition needs `ctx.fs` backed by the real host filesystem and accepts a process-local implementation. The common path is explicit: load the backend, give it a base directory, and the model-facing tools (`avn-tool-fs`) or your own plugins can read, write, and edit files.
 
 ### When to choose it
 
@@ -102,7 +102,7 @@ Raw I/O is Cordis-free and independently unit-tested in `src/fsio.ts`; `src/inde
 Read these pages when the package-level contract is not enough. They move from the contract to the adjacent backends, tools, and policies.
 
 - [Filesystem subsystem](../../../docs/subsystems/filesystem.md) — exhaustive provider contract, policy events, and error taxonomy.
-- [dsh-fs](../fs/README.md) — the `ctx.fs` contract this backend implements.
+- [avn-fs](../fs/README.md) — the `ctx.fs` contract this backend implements.
 - [fs-sandbox](../fs-sandbox/README.md) — the sandbox-enforcing backend that extends this one.
 - [tool-fs](../tool-fs/README.md) — the model-facing tools that consume `ctx.fs`.
 - [fs-observation-policy](../fs-observation-policy/README.md) — the policy plugin that guards mutations through the `fs/*` events.
@@ -113,7 +113,7 @@ Read these pages when the package-level contract is not enough. They move from t
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through `dsh-tool-fs`, which renders this provider's line-windowed UTF-8 content, mutation acknowledgements, and exact provider messages in capped retained results while versions, atomic-write mechanics, and directory metadata remain internal.
+Indirectly, through `avn-tool-fs`, which renders this provider's line-windowed UTF-8 content, mutation acknowledgements, and exact provider messages in capped retained results while versions, atomic-write mechanics, and directory metadata remain internal.
 
 #### KV Cache effect
 

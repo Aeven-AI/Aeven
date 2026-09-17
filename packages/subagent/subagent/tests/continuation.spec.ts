@@ -79,7 +79,7 @@ async function setupWith(
   let disposePersistence: (() => Promise<void>) | undefined
   let root: string | undefined
   if (options.persistence !== false) {
-    root = mkdtempSync(join(tmpdir(), 'dsh-subagent-continuation-'))
+    root = mkdtempSync(join(tmpdir(), 'avn-subagent-continuation-'))
     const persistedRoot = root
     const persistenceFiber = await ctx.plugin(JsonlSessionPersistence, { root })
     disposePersistence = () => persistenceFiber.dispose()
@@ -2042,7 +2042,7 @@ describe('continuable settlement delivery', () => {
       { chunks: textResponse('parent ack') },
     ])
     const { ctx, parent } = await setupWith(adapter)
-    // The shipped durability checkpoint (`dsh-session-checkpoint-policy`) is
+    // The shipped durability checkpoint (`avn-session-checkpoint-policy`) is
     // fail-closed at the step boundary, so a rejected write ends the turn after
     // it claimed its messages and before it entered a step.
     ctx.on('agent/pre-step', async ({ agent: subject, turn }, next) => {
@@ -2741,7 +2741,7 @@ describe('continuable errors', () => {
     const ctx = new Context()
     await mountAgentLoopTestDependencies(ctx)
     await ctx.plugin(SessionProjectionRegistry)
-    const root = mkdtempSync(join(tmpdir(), 'dsh-subagent-continuation-'))
+    const root = mkdtempSync(join(tmpdir(), 'avn-subagent-continuation-'))
     const persistenceFiber = await ctx.plugin(JsonlSessionPersistence, { root })
     cleanups.push(async () => {
       await persistenceFiber.dispose()

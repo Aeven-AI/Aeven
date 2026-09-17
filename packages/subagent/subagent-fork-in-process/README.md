@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-subagent-fork-in-process` is an in-process subagent backend that seeds each child with the parent's completed conversation turns: the child sees every finished turn and none of the in-flight one, so follow-up work builds on the conversation without duplicating it. A delegation tool reaches it under the `fork` provider name, and its behavior matches the spawn backend except for the session seed. Choose it when a subtask continues this conversation; choose spawn when the child must stand alone. The seed is a one-time snapshot taken at fork time: later parent turns never reach the child.
+`avn-subagent-fork-in-process` is an in-process subagent backend that seeds each child with the parent's completed conversation turns: the child sees every finished turn and none of the in-flight one, so follow-up work builds on the conversation without duplicating it. A delegation tool reaches it under the `fork` provider name, and its behavior matches the spawn backend except for the session seed. Choose it when a subtask continues this conversation; choose spawn when the child must stand alone. The seed is a one-time snapshot taken at fork time: later parent turns never reach the child.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this backend when delegated work must build on the parent's conversation. The common path mirrors spawn: load the subagent service and this backend, then point a delegation tool such as `dsh-tool-subagent` at the `fork` provider.
+Mount this backend when delegated work must build on the parent's conversation. The common path mirrors spawn: load the subagent service and this backend, then point a delegation tool such as `avn-tool-subagent` at the `fork` provider.
 
 ### When to choose it
 
@@ -96,9 +96,9 @@ The base bundle and ACP/headless examples bind this provider to `backgroundMode:
 Read these pages when the package-level contract is not enough; they move from the shared subagent model to the sibling backends and the design evidence for the one-shot binding.
 
 - [Subagent subsystem](../../../docs/subsystems/subagent.md) — start requests, results, provider contract, and in-process depth and seed.
-- [dsh-subagent-in-process-driver](../subagent-in-process-driver/README.md) — the shared run driver this backend calls.
-- [dsh-subagent-spawn-in-process](../subagent-spawn-in-process/README.md) — the fresh-child sibling backend.
-- [dsh-tool-subagent](../tool-subagent/README.md) — the model-facing delegation tool that reaches this provider.
+- [avn-subagent-in-process-driver](../subagent-in-process-driver/README.md) — the shared run driver this backend calls.
+- [avn-subagent-spawn-in-process](../subagent-spawn-in-process/README.md) — the fresh-child sibling backend.
+- [avn-tool-subagent](../tool-subagent/README.md) — the model-facing delegation tool that reaches this provider.
 - [Generated configuration catalog](../../../docs/config-catalog.md#aeven-subagent-fork-in-process) — every accepted config field and its source declaration.
 - [Fork children stay one-shot](../../../.agents/notes/implemented/architecture/2026-08-10-fork-children-stay-one-shot.md) — why shipped compositions bind fork to one-shot.
 
@@ -125,7 +125,7 @@ The child may reuse the inherited byte-identical prefix under the same provider 
 
 #### What the model sees
 
-The parent receives only the child's own final output through `dsh-tool-subagent`, not the inherited prefix or intermediate work.
+The parent receives only the child's own final output through `avn-tool-subagent`, not the inherited prefix or intermediate work.
 
 #### Token effect
 

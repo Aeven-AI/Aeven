@@ -10,7 +10,7 @@ The JSONL provider needs correctness-heavy write orchestration around its storag
 
 ## Decision
 
-`dsh-session-persistence` exports a backend-agnostic `PersistenceCoordinator`. The JSONL provider composes one (`new PersistenceCoordinator(ctx, this)`), implements the small `PersistenceBackend` hook interface, and delegates its stateful public methods (`create`/`append`/`prepare`/`load`/`inspect`/`readFrom`) to it. Backend-owned metadata and revision listing bypass the coordinator.
+`avn-session-persistence` exports a backend-agnostic `PersistenceCoordinator`. The JSONL provider composes one (`new PersistenceCoordinator(ctx, this)`), implements the small `PersistenceBackend` hook interface, and delegates its stateful public methods (`create`/`append`/`prepare`/`load`/`inspect`/`readFrom`) to it. Backend-owned metadata and revision listing bypass the coordinator.
 
 Composition, not inheritance. The coordinator is a concrete class the backend holds, not a base class the backend extends. The risk that a coordinator makes unusual backends fight an inheritance hierarchy is avoided: a backend exposes only the hooks and cannot reach the coordinator's private orchestration state. A third-party backend MAY still implement the abstract service directly without the coordinator, including immutable logical inspection and the default preparation fallback through `load`.
 
@@ -36,7 +36,7 @@ Five required members plus optional empty-materialization and lifecycle hooks fo
 
 ### The opaque torn marker
 
-The single design choice that keeps the seam clean: the crash-repair "where is the torn tail" token is opaque to the coordinator. The coordinator computes the synthetic closers (it owns `interruptedTurnClosers` from `dsh-session`), but it only tests `tornMarker !== undefined` and passes the value straight back to `commitRepair`; it never inspects it. JSONL carries the byte offset to truncate to plus any complete events decoded from an incomplete final frame, while another provider may choose its own marker type. The coordinator therefore knows neither byte lengths nor frame recovery state.
+The single design choice that keeps the seam clean: the crash-repair "where is the torn tail" token is opaque to the coordinator. The coordinator computes the synthetic closers (it owns `interruptedTurnClosers` from `avn-session`), but it only tests `tornMarker !== undefined` and passes the value straight back to `commitRepair`; it never inspects it. JSONL carries the byte offset to truncate to plus any complete events decoded from an incomplete final frame, while another provider may choose its own marker type. The coordinator therefore knows neither byte lengths nor frame recovery state.
 
 ## Testing
 

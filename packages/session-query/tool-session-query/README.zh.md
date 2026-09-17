@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-tool-session-query` 给模型提供五个会话历史只读工具：`session_search`、`session_event_search`、`session_trace`、`session_event_trace` 与 `session_event_read`。工具经工作区授权——模型只能访问 `cwd` 与其自身调用方会话完全相同的会话——结果是无游标的纯文本，因此模型可以搜索既往工作，并顺着有用命中进入其血缘或精确事件数据。本包是 opt-in，已发布宿主组合默认不挂载：挂载后每次请求都会增加一个精简指引章节与五个 schema。配置与用法在前；实现内部细节放在下方可折叠的开发者章节中。
+`avn-tool-session-query` 给模型提供五个会话历史只读工具：`session_search`、`session_event_search`、`session_trace`、`session_event_trace` 与 `session_event_read`。工具经工作区授权——模型只能访问 `cwd` 与其自身调用方会话完全相同的会话——结果是无游标的纯文本，因此模型可以搜索既往工作，并顺着有用命中进入其血缘或精确事件数据。本包是 opt-in，已发布宿主组合默认不挂载：挂载后每次请求都会增加一个精简指引章节与五个 schema。配置与用法在前；实现内部细节放在下方可折叠的开发者章节中。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-当 agent 应该能搜索自己的既往会话并检查其关系与事件时挂载本包。常用路径是显式的：在 `ctx.sessionQuery`（由 `dsh-session-query-sqlite` 支撑）之上挂载插件，然后让模型调用这些工具。
+当 agent 应该能搜索自己的既往会话并检查其关系与事件时挂载本包。常用路径是显式的：在 `ctx.sessionQuery`（由 `avn-session-query-sqlite` 支撑）之上挂载插件，然后让模型调用这些工具。
 
 ### 何时选择
 
@@ -102,8 +102,8 @@ kind: "package-reference"
 当包级约定不够用时阅读以下页面。它们从工具表面逐步进入底层服务、schema 目录与设计证据。
 
 - [生成的工具目录](../../../docs/tool-catalog.zh.md#aeven-tool-session-query)——模型看到的五个工具 schema。
-- [dsh-session-query](../session-query/README.zh.md)——这些工具调用的服务。
-- [dsh-session-query-sqlite](../session-query-sqlite/README.zh.md)——两个搜索工具背后的全文后端。
+- [avn-session-query](../session-query/README.zh.md)——这些工具调用的服务。
+- [avn-session-query-sqlite](../session-query-sqlite/README.zh.md)——两个搜索工具背后的全文后端。
 - [会话查询子系统参考](../../../docs/subsystems/session-query.zh.md)——工具之下的类型级约定。
 - [面向模型的会话查询工具](../../../.agents/notes/implemented/feature/2026-07-24-model-facing-session-query-tools.zh.md)——工作区授权、无游标结果与 spill 决策。
 

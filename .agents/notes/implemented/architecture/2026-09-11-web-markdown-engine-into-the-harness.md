@@ -36,7 +36,7 @@ The engine and its suite keep upstream idioms the repository's type-aware lint r
 
 ## Consequences
 
-The engine is now edited here, and a source edit reaches the browser through `pnpm run dev:web`: the script discovers it as a static library package by its build preset, watches `tsc`, its own tsdown bundle, and the shell's dist build. What that gives is a rebuild-and-reload loop, not an in-place plugin swap — a statically linked library has no runtime fiber to replace; only a `dsh.client` plugin reloads without a page reload.
+The engine is now edited here, and a source edit reaches the browser through `pnpm run dev:web`: the script discovers it as a static library package by its build preset, watches `tsc`, its own tsdown bundle, and the shell's dist build. What that gives is a rebuild-and-reload loop, not an in-place plugin swap — a statically linked library has no runtime fiber to replace; only a `avn.client` plugin reloads without a page reload.
 
 `ui-primitives` was pinned to `0.4.2` and now consumes `0.4.4`, which is a behaviour change rather than only a version bump: a settled block renders through the plain shape, so its line numbers and markers carry no animation attributes. The three parity fixtures above record that.
 
@@ -48,6 +48,6 @@ The package is a publishable release member, not a private one: `ui-primitives` 
 
 **Keep the npm dependency and vendor a build.** Rejected. It preserves the drift — a version in this repository that trails a source in another — and leaves the engine uneditable in the checkout, which is the whole of the problem.
 
-**Make the engine a `dsh.client` plugin so it hot-swaps in place.** Rejected. The engine is a React component library consumed as a value by `ui-primitives`; a feature plugin may not runtime-import another feature plugin's values, and the repository's own rules put shared runtime code in a narrow static owner, which is what `ui-primitives` is. The development experience is not worth an architecture that contradicts the layering it would live in.
+**Make the engine a `avn.client` plugin so it hot-swaps in place.** Rejected. The engine is a React component library consumed as a value by `ui-primitives`; a feature plugin may not runtime-import another feature plugin's values, and the repository's own rules put shared runtime code in a narrow static owner, which is what `ui-primitives` is. The development experience is not worth an architecture that contradicts the layering it would live in.
 
 **Flatten the SCSS to CSS at build time.** Rejected. It would add a Sass step to a build that has no other use for one, and it would put the generated sheet where maintainers edit — the opposite of a source-of-truth stylesheet. Native nesting costs one browser-support constraint that the local client already satisfies.

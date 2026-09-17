@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-tool-bash-persistent` 为 agent 提供 `bash` 工具，其 shell 状态对拥有它的 agent 跨调用保留：cwd、导出的变量、函数与后台任务都会在命令之间存活。每个 agent 都有自己由 terminal 服务的按所有者隔离 PTY 会话支撑的 shell，同一 agent 的命令逐个串行执行。配置选择 PTY 后端与单条命令的墙钟上限；超时或显式 `exit` 会关闭 shell，下一次调用从全新状态开始。它补充一次性 `dsh-tool-bash` 工具——当工作依赖跨调用状态时选择它。请与 `dsh-terminal-bash` 等 terminal 后端以及 `ctx.terminals` 服务一起挂载。
+`avn-tool-bash-persistent` 为 agent 提供 `bash` 工具，其 shell 状态对拥有它的 agent 跨调用保留：cwd、导出的变量、函数与后台任务都会在命令之间存活。每个 agent 都有自己由 terminal 服务的按所有者隔离 PTY 会话支撑的 shell，同一 agent 的命令逐个串行执行。配置选择 PTY 后端与单条命令的墙钟上限；超时或显式 `exit` 会关闭 shell，下一次调用从全新状态开始。它补充一次性 `avn-tool-bash` 工具——当工作依赖跨调用状态时选择它。请与 `avn-terminal-bash` 等 terminal 后端以及 `ctx.terminals` 服务一起挂载。
 
 ## 目录
 
@@ -29,11 +29,11 @@ kind: "package-reference"
 
 ### 何时选择
 
-当工作依赖跨调用状态时选择持久工具：一次性 `dsh-tool-bash` 调用无法记住 `cd` 或导出的变量。当每条命令都应从已知、干净的环境开始，或命令又短又独立时，选择一次性工具。这里不支持需要交互 stdin 的命令——读取输入的前台子进程会一直阻塞到命令超时——因此交互工作属于 terminal 工具。
+当工作依赖跨调用状态时选择持久工具：一次性 `avn-tool-bash` 调用无法记住 `cd` 或导出的变量。当每条命令都应从已知、干净的环境开始，或命令又短又独立时，选择一次性工具。这里不支持需要交互 stdin 的命令——读取输入的前台子进程会一直阻塞到命令超时——因此交互工作属于 terminal 工具。
 
 ### 最小配置
 
-默认的 `shell` 后端通过 `dsh-terminal-bash` 启动交互式 bash；部署方可以注册其他 PTY 后端并按名称选择。
+默认的 `shell` 后端通过 `avn-terminal-bash` 启动交互式 bash；部署方可以注册其他 PTY 后端并按名称选择。
 
 ```yaml
 - name: '@aeven/terminal'

@@ -12,7 +12,7 @@ import {
   SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN,
 } from '@aeven/client-ui-layout/src/client/columns.ts'
 
-const PERSIST_KEY = 'dsh.layout.panels'
+const PERSIST_KEY = 'avn.layout.panels'
 
 beforeEach(() => { localStorage.clear() })
 

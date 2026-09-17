@@ -10,7 +10,7 @@ Status: implemented
 
 ## 决策
 
-`dsh-tool-fs` 拥有一个面向模型的错误包装层 `remediateFsError`（位于 `src/error.ts`），在 `write.ts` 与 `edit.ts` 中于沙箱拒绝映射之后应用。它为陈旧版本错误追加恢复指令，其余无关错误原样透传。[未读取变更的统一诊断](../bug-fix/2026-09-03-normalized-unread-fs-tool-diagnostic.zh.md)取代本记录最初对 `FS_NOT_OBSERVED` 文本的处理方式。
+`avn-tool-fs` 拥有一个面向模型的错误包装层 `remediateFsError`（位于 `src/error.ts`），在 `write.ts` 与 `edit.ts` 中于沙箱拒绝映射之后应用。它为陈旧版本错误追加恢复指令，其余无关错误原样透传。[未读取变更的统一诊断](../bug-fix/2026-09-03-normalized-unread-fs-tool-diagnostic.zh.md)取代本记录最初对 `FS_NOT_OBSERVED` 文本的处理方式。
 
 - `FS_STALE_VERSION`（包括缺失的编辑目标——它与陈旧错误共用同一错误码）追加 `— re-read the file, then retry`。
 
@@ -20,7 +20,7 @@ Status: implemented
 
 ## 考虑过的替代方案
 
-- **在 `dsh-fs` / `dsh-fs-local` 的提供方消息中追加恢复指令。** 被拒绝：这些消息是面向机器的 seam 词汇，被重试、权限、UI 和面向模型的各层消费；面向模型的措辞应位于模型边界，即 `dsh-tool-fs` 已经拥有结果格式化之处（[文件系统能力 seam](../architecture/2026-06-17-filesystem-capability-seam.zh.md)）。
+- **在 `avn-fs` / `avn-fs-local` 的提供方消息中追加恢复指令。** 被拒绝：这些消息是面向机器的 seam 词汇，被重试、权限、UI 和面向模型的各层消费；面向模型的措辞应位于模型边界，即 `avn-tool-fs` 已经拥有结果格式化之处（[文件系统能力 seam](../architecture/2026-06-17-filesystem-capability-seam.zh.md)）。
 - **改为在提示词引导中加入恢复方式。** 被拒绝：失败发生在任务中途；静态指令无法可靠地影响重试决策，而错误消息恰好在模型必须行动时出现。
 - **用新的 `FsError` 错误码表达恢复指令。** 被拒绝：这两种失败对应的条件，重试层本就已经处理；拆分错误码会使相同语义采用不同路由。
 

@@ -61,7 +61,7 @@ verify_sha256() {
   esac
 }
 
-scratch="$(mktemp -d "${TMPDIR:-/tmp}/dsh-wine-gates.XXXXXX")"
+scratch="$(mktemp -d "${TMPDIR:-/tmp}/avn-wine-gates.XXXXXX")"
 cleanup() {
   wineserver -k > /dev/null 2>&1 || true
   if [ "${AVN_WINE_GATE_KEEP:-0}" = '1' ]; then

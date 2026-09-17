@@ -29,7 +29,7 @@ let home: string
 let previousHome: string | undefined
 
 beforeEach(async () => {
-  home = await mkdtemp(join(tmpdir(), 'dsh-llm-registration-'))
+  home = await mkdtemp(join(tmpdir(), 'avn-llm-registration-'))
   previousHome = process.env.AVN_HOME
   // Every session's credential and model-cache files resolve below AVN_HOME.
   process.env.AVN_HOME = home

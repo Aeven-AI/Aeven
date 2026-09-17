@@ -1,4 +1,4 @@
-"""Locate and execute the bundled dsh CLI shipped with the Python SDK runtime.
+"""Locate and execute the bundled avn CLI shipped with the Python SDK runtime.
 
 Two runtime carriers coexist under ``runtime/``, both injected by the repo's
 ``scripts/build-exe-for-python-sdk.ts`` build (neither is checked into git):
@@ -14,8 +14,8 @@ Two runtime carriers coexist under ``runtime/``, both injected by the repo's
   system Node >= 22.19. It is the current checkout's source build, never
   selected automatically, and excluded from wheel/sdist distributions.
 
-Both carriers execute the same dsh command grammar. The Python SDK selects the
-``sdk`` profile and requires an explicit Harness home; the installed ``dsh``
+Both carriers execute the same avn command grammar. The Python SDK selects the
+``sdk`` profile and requires an explicit Harness home; the installed ``avn``
 console command requires ``AVN_HOME`` for the same reason.
 """
 
@@ -136,7 +136,7 @@ def _node_launch_args() -> tuple[str, str]:
         node_root
         / "node_modules"
         / "@deepseek-ai"
-        / "dsh"
+        / "avn"
         / "lib"
         / "bin.js"
     )
@@ -157,11 +157,11 @@ def _node_launch_args() -> tuple[str, str]:
 
 
 def main() -> None:
-    """Execute the bundled dsh CLI with an explicitly selected Harness home."""
+    """Execute the bundled avn CLI with an explicitly selected Harness home."""
     if not os.environ.get("AVN_HOME", "").strip():
         print(
-            "dsh: the Python runtime command requires an explicit AVN_HOME; "
-            "it never uses ~/.dsh implicitly",
+            "avn: the Python runtime command requires an explicit AVN_HOME; "
+            "it never uses ~/.avn implicitly",
             file=sys.stderr,
         )
         raise SystemExit(2)

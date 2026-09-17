@@ -95,7 +95,7 @@ export interface PackageManifest {
   devDependencies?: Record<string, string>
   dependencies?: Record<string, string>
   optionalDependencies?: Record<string, string>
-  dsh?: {
+  avn?: {
     bundle?: {
       patch?: string
     }
@@ -180,8 +180,8 @@ function sameStringList(actual: readonly string[] | undefined, expected: readonl
   return !!actual && actual.length === expected.length && actual.every((value, index) => value === expected[index])
 }
 
-export function expectedDshPackageFiles(manifest: PackageManifest): readonly string[] {
-  const declaredPatch = manifest.dsh?.bundle?.patch
+export function expectedAvnPackageFiles(manifest: PackageManifest): readonly string[] {
+  const declaredPatch = manifest.avn?.bundle?.patch
   const bundleFiles = declaredPatch === undefined ? [] : [declaredPatch.replace(/^\.\//, '')]
   const extras = [
     ...bundleFiles,
@@ -271,7 +271,7 @@ export function checkExperimentalManifest({ dir, manifest }: WorkspaceManifest):
 }
 
 /**
- * Check one workspace manifest against publication and dsh-package policy.
+ * Check one workspace manifest against publication and avn-package policy.
  * @param workspace - package directory and parsed manifest.
  * @returns path-qualified policy violations.
  */
@@ -303,7 +303,7 @@ export function checkWorkspaceManifest({ dir, manifest }: WorkspaceManifest): st
     //
     // Access is per release sequence, not per scope: the vendored framework and
     // the Landlock packages publish publicly because outside consumers install
-    // them, while the dsh family stays restricted until its own sequence goes
+    // them, while the avn family stays restricted until its own sequence goes
     // public. A mixed scope is why no publish path passes `--access` — one flag
     // cannot serve both, so each packed manifest decides
     // ([rationale](../.agents/notes/implemented/process/2026-08-13-public-vendor-and-native-sequences.md)).
@@ -393,7 +393,7 @@ export function checkWorkspaceManifest({ dir, manifest }: WorkspaceManifest): st
     if (invariantExport && (invariantExport.types === undefined || invariantExport.default === undefined)) {
       errors.push(`${label}: package.json exports["./invariant"] must declare both types and default targets`)
     }
-    const expectedFiles = expectedDshPackageFiles(manifest)
+    const expectedFiles = expectedAvnPackageFiles(manifest)
     if (!sameStringList(manifest.files, expectedFiles)) {
       errors.push(`${label}: package.json files must be ${JSON.stringify(expectedFiles)}`)
     }
@@ -429,8 +429,8 @@ function checkHierarchyShape(): string[] {
 }
 
 function checkRepositoryVersion(): string[] {
-  // The root carries the dsh release family's version, so a prerelease such as
-  // 0.0.1-rc.1 is a valid state between `release:dsh` and its publication.
+  // The root carries the avn release family's version, so a prerelease such as
+  // 0.0.1-rc.1 is a valid state between `release:avn` and its publication.
   if (repositoryVersion && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(repositoryVersion)) return []
   return ['package.json: version must be X.Y.Z with an optional prerelease segment']
 }

@@ -23,7 +23,7 @@ afterEach(async () => {
 
 describe('experimental Inspector through a real Loader composition', () => {
   it('loads the named-export Host face from cordis.yml and releases its endpoint', async () => {
-    root = await mkdtemp(join(tmpdir(), 'dsh-inspector-loader-'))
+    root = await mkdtemp(join(tmpdir(), 'avn-inspector-loader-'))
     const configPath = join(root, 'cordis.yml')
     await writeFile(configPath, [
       "- name: '@aeven/host-webserver'",

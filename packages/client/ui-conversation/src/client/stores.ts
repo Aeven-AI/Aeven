@@ -3,7 +3,7 @@ import { defineStore, type EngineStoreHandle } from '@aeven/client-store'
 import type { SessionId } from '@aeven/session/types'
 import type { ConversationStoreState } from './contract/views.ts'
 
-const CONVERSATION_STORE_KEY = 'dsh.conversation'
+const CONVERSATION_STORE_KEY = 'avn.conversation'
 
 /** Declared write set for the Conversation shell. */
 type ConversationActions = {

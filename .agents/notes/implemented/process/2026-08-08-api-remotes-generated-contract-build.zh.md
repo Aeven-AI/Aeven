@@ -53,7 +53,7 @@ packages/api/remotes/
 
 Host tsdown 在普通根配置中启用 `typertPlugin({ mode: 'workspace', faces: ['host'] })`。generator 只以 `tsconfig.host.json` 为 program 种子，生成 `typert.host.*` 以及 Host 约定投影出的 `typert.remote-client.*`；Client tsdown 不启动 Typert，也不分析 Client aggregate。
 
-TypeScript compiler face 与 Typert 运行时产物 face 是两层概念。普通 `dshClient` package 即使只有一个 compiler project，也可以按公开 subpath 同时贡献 Host 与 Client 运行时模型；aggregate 显式引用 `tsconfig.host.json` 或 `tsconfig.client.json` 时，analyzer 才把该 project 限定到对应 face。因此 `api-remotes` 的 Host 分析不会顺带注册其 Client 入口，普通双入口 package 的 Host 模型也不会丢失。
+TypeScript compiler face 与 Typert 运行时产物 face 是两层概念。普通 `avnClient` package 即使只有一个 compiler project，也可以按公开 subpath 同时贡献 Host 与 Client 运行时模型；aggregate 显式引用 `tsconfig.host.json` 或 `tsconfig.client.json` 时，analyzer 才把该 project 限定到对应 face。因此 `api-remotes` 的 Host 分析不会顺带注册其 Client 入口，普通双入口 package 的 Host 模型也不会丢失。
 
 Host 与 Client 两次 tsdown 都接收 `vendor/*`、`packages/*/*` 和 `apps/cli` 这组完整 workspace。根配置不扫描 `lib/types/client/index.js`，不维护 package 分类表，也不使用 tsdown filter；包内配置根据 `AVN_BUILD_FACE` 返回本阶段入口。
 

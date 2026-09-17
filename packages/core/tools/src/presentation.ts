@@ -309,7 +309,7 @@ export interface ReadResultView {
 
 /**
  * One citeable source in a completed {@link WebSearchResultView}, the faithful
- * projection of one web-search source. The presentation projection of `dsh-web`'s
+ * projection of one web-search source. The presentation projection of `avn-web`'s
  * `WebSearchSource`: that Service Definition type is authoritative (core cannot depend
  * on the web Service Definition, so the two are declared separately and MUST evolve together).
  * A web tool projects this shape through `output.presentationMeta` because the

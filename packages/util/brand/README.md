@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-brand` makes structurally identical strings or numbers non-interchangeable at the type level: a `SessionId` cannot be passed where a `ToolCallId` is expected, and an event sequence cannot be passed where a log offset is required. `brandString<T>()` and `brandNumber<T>()` apply nominal brands without shared runtime state, so owning packages can define domain types without importing an unrelated capability.
+`avn-brand` makes structurally identical strings or numbers non-interchangeable at the type level: a `SessionId` cannot be passed where a `ToolCallId` is expected, and an event sequence cannot be passed where a log offset is required. `brandString<T>()` and `brandNumber<T>()` apply nominal brands without shared runtime state, so owning packages can define domain types without importing an unrelated capability.
 
 ## Table of Contents
 
@@ -55,7 +55,7 @@ const seq = brandNumber<SessionSeq>(7)
 
 ### When to brand
 
-Brand values that cross package boundaries and could plausibly be confused — `ToolCallId` in `dsh-llm`, the shared agent/session `SessionId` in `dsh-session`, `JobId` in `dsh-jobs`, and `SessionSeq` versus `SessionLogOffset` in `dsh-session`. Values that stay local or cannot be confused do not need this abstraction.
+Brand values that cross package boundaries and could plausibly be confused — `ToolCallId` in `avn-llm`, the shared agent/session `SessionId` in `avn-session`, `JobId` in `avn-jobs`, and `SessionSeq` versus `SessionLogOffset` in `avn-session`. Values that stay local or cannot be confused do not need this abstraction.
 
 -----
 
@@ -80,7 +80,7 @@ The private symbol never exists at runtime: TypeScript erases it, so branded val
 
 ### Why it stays dependency-free
 
-Keeping these helpers in their own package means `dsh-jobs` can brand `JobId` without importing an unrelated capability package, while each capability still owns the meaning and validation of its concrete ids.
+Keeping these helpers in their own package means `avn-jobs` can brand `JobId` without importing an unrelated capability package, while each capability still owns the meaning and validation of its concrete ids.
 
 </details>
 

@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-`dsh-brand` 让结构相同的字符串或数字在类型层面不可互换：`SessionId` 无法传给期望 `ToolCallId` 的位置，事件序号也无法传给需要日志偏移量的位置。`brandString<T>()` 与 `brandNumber<T>()` 在不持有共享运行时状态的情况下应用名义品牌，让所属包可以定义领域类型，而无需导入不相关的能力。
+`avn-brand` 让结构相同的字符串或数字在类型层面不可互换：`SessionId` 无法传给期望 `ToolCallId` 的位置，事件序号也无法传给需要日志偏移量的位置。`brandString<T>()` 与 `brandNumber<T>()` 在不持有共享运行时状态的情况下应用名义品牌，让所属包可以定义领域类型，而无需导入不相关的能力。
 
 ## 目录
 
@@ -55,7 +55,7 @@ const seq = brandNumber<SessionSeq>(7)
 
 ### 何时添加品牌
 
-为跨包边界且可能被混淆的值添加品牌——`dsh-llm` 中的 `ToolCallId`、`dsh-session` 中共享的 agent/会话 `SessionId`、`dsh-jobs` 中的 `JobId`，以及 `dsh-session` 中的 `SessionSeq` 与 `SessionLogOffset`。保持局部或无法混淆的值不需要这种抽象。
+为跨包边界且可能被混淆的值添加品牌——`avn-llm` 中的 `ToolCallId`、`avn-session` 中共享的 agent/会话 `SessionId`、`avn-jobs` 中的 `JobId`，以及 `avn-session` 中的 `SessionSeq` 与 `SessionLogOffset`。保持局部或无法混淆的值不需要这种抽象。
 
 -----
 
@@ -80,7 +80,7 @@ const seq = brandNumber<SessionSeq>(7)
 
 ### 为何保持无依赖
 
-把这些 helper 放在独立包中，意味着 `dsh-jobs` 可以为 `JobId` 添加品牌，而无需导入不相关的能力包；每个能力仍然拥有其具体 id 的含义与校验。
+把这些 helper 放在独立包中，意味着 `avn-jobs` 可以为 `JobId` 添加品牌，而无需导入不相关的能力包；每个能力仍然拥有其具体 id 的含义与校验。
 
 </details>
 

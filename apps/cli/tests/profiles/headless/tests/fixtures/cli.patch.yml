@@ -18,14 +18,14 @@
 
 - id: shell-env
   config:
-    dshHome: './.dsh-home'
+    avnHome: './.avn-home'
 
 - id: agent-instructions
   disabled: true
 
 - id: skill-filesystem
   config:
-    dshHome: './.dsh-home'
+    avnHome: './.avn-home'
     agentsHome: './.agents-home'
 
 - id: session-persistence-jsonl

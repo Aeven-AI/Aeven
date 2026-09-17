@@ -26,7 +26,7 @@ import {
 const temporaryRoots: string[] = []
 
 function temporaryRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), 'dsh-desktop-store-'))
+  const root = mkdtempSync(join(tmpdir(), 'avn-desktop-store-'))
   temporaryRoots.push(root)
   return root
 }

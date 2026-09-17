@@ -1,5 +1,5 @@
 ---
-description: "Plugins settings section for the dsh web client: feature-owned tabs, the configurable host-plane plugin cards, and the settings.plugin.item extension point."
+description: "Plugins settings section for the avn web client: feature-owned tabs, the configurable host-plane plugin cards, and the settings.plugin.item extension point."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-client-ui-settings-plugins` is the **Plugins** settings section of the dsh web client: users edit host-plane plugin configuration on its **Plugin configuration** tab, and feature plugins contribute their own pages through `settings.plugins.tab`. This package's own tab shows one expandable card per Host plugin whose configuration a user owns: a card shows the plugin's name and what it governs, and expanding it reveals hand-written controls bound to that plugin's settings namespace, each field marking whether the user overrode it and offering a reset back to the value the deployment composed. Cards stage edits locally and write only on save, with every write fenced by the namespace revision the form read.
+`avn-client-ui-settings-plugins` is the **Plugins** settings section of the avn web client: users edit host-plane plugin configuration on its **Plugin configuration** tab, and feature plugins contribute their own pages through `settings.plugins.tab`. This package's own tab shows one expandable card per Host plugin whose configuration a user owns: a card shows the plugin's name and what it governs, and expanding it reveals hand-written controls bound to that plugin's settings namespace, each field marking whether the user overrode it and offering a reset back to the value the deployment composed. Cards stage edits locally and write only on save, with every write fenced by the namespace revision the form read.
 
 ## Table of Contents
 
@@ -95,7 +95,7 @@ None; this package neither assembles nor sends a provider request.
 These limits define which plugins appear and how fresh the list is; they are current package constraints.
 
 - **Only host-plane plugins appear** — a plugin an agent preset mounts carries its configuration inline in that preset's `agent.cordis.yml` and cannot register a settings namespace at all, so this section lists nothing for it. Editing those values remains the preset editor's job.
-- **A card still needs a browser bundle** — the browser half must be a `dsh.client` package built in the client module system's lazy-CJS factory format, and the `clientBundle` preset that emits it lives in `../../../packages/client/tsdown.client.ts` rather than a published package, so a plugin outside this repository has to reproduce that build itself.
+- **A card still needs a browser bundle** — the browser half must be a `avn.client` package built in the client module system's lazy-CJS factory format, and the `clientBundle` preset that emits it lives in `../../../packages/client/tsdown.client.ts` rather than a published package, so a plugin outside this repository has to reproduce that build itself.
 - **The served namespaces re-read on two signals only** — the wire announces settings-document commits and connection resets, not registrations, so a namespace whose owner registers after the tab's read joins the list on the next document commit or reconnect.
 - **The shell card follows the composed executor** — the POSIX and PowerShell executor families share the `bash` namespace because a host composes exactly one of them, so the served schema differs by platform (PowerShell adds `pwshPath`) even though the card edits the same two fields on both.
 

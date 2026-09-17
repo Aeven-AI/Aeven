@@ -67,7 +67,7 @@ ctx.slots.register({
 export function createChatStore() {
   return defineStore({
     init: () => ({ selection: null as SelectionTarget | null, draft: '' }),
-    persist: 'dsh.conversation.chat',
+    persist: 'avn.conversation.chat',
     actions: {
       select:    (d, t: SelectionTarget) => { d.selection = t },
       clearDraft:(d) => { d.draft = '' },

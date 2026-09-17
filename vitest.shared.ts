@@ -76,7 +76,7 @@ export function workspaceAliases(): Alias[] {
  */
 export function standardDecoratorPlugin() {
   return {
-    name: 'dsh-standard-decorators',
+    name: 'avn-standard-decorators',
     enforce: 'pre' as const,
     transform(code: string, id: string) {
       const file = id.split('?', 1)[0]!

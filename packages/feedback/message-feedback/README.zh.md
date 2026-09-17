@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-message-feedback` 让产品界面提供逐消息反馈：用户可以把一条 assistant 消息标记为好评或差评，并可附上简短备注，评分会与该消息绑定。评分与会话一起保存，重启后依然存在，并且绝不会进入模型历史或遥测。产品界面通过 `messageFeedback` 服务读取、创建和修改评分，其 `list`、`put`、`delete` 三个操作就是全部对外表面。唯一需要部署方设置的项是备注最大长度（`maxNoteBytes`），Web 组合将其设为 8192。浏览器控件位于独立的客户端包中；本包提供服务本身。
+`avn-message-feedback` 让产品界面提供逐消息反馈：用户可以把一条 assistant 消息标记为好评或差评，并可附上简短备注，评分会与该消息绑定。评分与会话一起保存，重启后依然存在，并且绝不会进入模型历史或遥测。产品界面通过 `messageFeedback` 服务读取、创建和修改评分，其 `list`、`put`、`delete` 三个操作就是全部对外表面。唯一需要部署方设置的项是备注最大长度（`maxNoteBytes`），Web 组合将其设为 8192。浏览器控件位于独立的客户端包中；本包提供服务本身。
 
 ## 目录
 
@@ -111,7 +111,7 @@ kind: "package-reference"
 - [反馈子系统](../../../docs/subsystems/feedback.zh.md)——公开类型、Remote 契约与 Web 消费方细节。
 - [消息反馈伴随记录决策](../../../.agents/notes/implemented/architecture/2026-08-10-message-feedback-sidecar.zh.md)——让此伴随记录不进入会话日志内容的设计边界。
 - [会话持久化子系统](../../../docs/subsystems/persistence.zh.md)——持久性屏障背后的 `inspect`、`readFrom` 与 `flush` 语义。
-- [dsh-client-ui-message-feedback](../../client/ui-message-feedback/README.zh.md)——驱动 Host Remote 契约的浏览器消费方。
+- [avn-client-ui-message-feedback](../../client/ui-message-feedback/README.zh.md)——驱动 Host Remote 契约的浏览器消费方。
 - [反馈包映射](../README.zh.md)——逐消息反馈与仅写入日志的采集命令并存的组。
 
 -----
@@ -155,7 +155,7 @@ kind: "package-reference"
 
 本开发备注是维护者的工作上下文，明确不具权威性。已交付的行为、限制与理由以上文、包代码与所链接的 Agent Note 为准。
 
-- 浏览器控件与客户端 Remote 挂载位于 `dsh-client-ui-message-feedback` 与 `dsh-api-remotes`；它们的开放事项属于这些包的备注。
+- 浏览器控件与客户端 Remote 挂载位于 `avn-client-ui-message-feedback` 与 `avn-api-remotes`；它们的开放事项属于这些包的备注。
 - 受信任调用方限制是开放的授权方向：Host gateway 不记录任何 actor 或审计身份，任何认证层都必须在部署边界落地，之后服务才能暴露按用户归属。
 - 按设计，备注校验早于 Session 查找，因此对不存在的 Session，`note-blank` 与 `note-too-large` 优先于 `session-not-found`；测试固定了这一顺序。
 

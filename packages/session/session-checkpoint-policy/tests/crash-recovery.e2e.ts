@@ -37,7 +37,7 @@ async function waitForMarker(path: string, expected: string): Promise<string> {
 }
 
 async function crashAt(mode: 'request' | 'tool'): Promise<{ root: string; markerText: string }> {
-  const root = await mkdtemp(join(tmpdir(), `dsh-semantic-${mode}-`))
+  const root = await mkdtemp(join(tmpdir(), `avn-semantic-${mode}-`))
   roots.push(root)
   const marker = join(root, 'failpoint')
   // Keep the open-before-write window deterministic: readiness is marker content, not path existence.

@@ -1,4 +1,4 @@
-/** One Electron release stream for the version-bound shell and dsh seed. */
+/** One Electron release stream for the version-bound shell and avn seed. */
 
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'

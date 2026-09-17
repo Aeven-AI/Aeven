@@ -794,7 +794,7 @@ describe('owner composition over a real Cordis context', () => {
   let workspaceRoot: string
 
   beforeEach(async () => {
-    home = await mkdtemp(join(tmpdir(), 'dsh-owner-startup-'))
+    home = await mkdtemp(join(tmpdir(), 'avn-owner-startup-'))
     previousHome = process.env.AVN_HOME
     process.env.AVN_HOME = home
     workspaceRoot = join(home, 'workspace')
@@ -945,7 +945,7 @@ describe('Imagine tool execution over the owner composition', () => {
   let workspaceRoot: string
 
   beforeEach(async () => {
-    home = await mkdtemp(join(tmpdir(), 'dsh-imagine-tool-'))
+    home = await mkdtemp(join(tmpdir(), 'avn-imagine-tool-'))
     previousHome = process.env.AVN_HOME
     process.env.AVN_HOME = home
     workspaceRoot = join(home, 'workspace')
@@ -1136,7 +1136,7 @@ describe('owner composition fault containment', () => {
   let workspaceRoot: string
 
   beforeEach(async () => {
-    home = await mkdtemp(join(tmpdir(), 'dsh-owner-faults-'))
+    home = await mkdtemp(join(tmpdir(), 'avn-owner-faults-'))
     previousHome = process.env.AVN_HOME
     process.env.AVN_HOME = home
     workspaceRoot = join(home, 'workspace')
@@ -1417,7 +1417,7 @@ describe('LLM child composition over a real Cordis context', () => {
   let previousHome: string | undefined
 
   beforeEach(async () => {
-    home = await mkdtemp(join(tmpdir(), 'dsh-llm-child-'))
+    home = await mkdtemp(join(tmpdir(), 'avn-llm-child-'))
     previousHome = process.env.AVN_HOME
     process.env.AVN_HOME = home
     await mkdir(join(home, 'workspace'), { recursive: true })
@@ -1566,7 +1566,7 @@ describe('owner composition runtime seams', () => {
   let workspaceRoot: string
 
   beforeEach(async () => {
-    home = await mkdtemp(join(tmpdir(), 'dsh-owner-seams-'))
+    home = await mkdtemp(join(tmpdir(), 'avn-owner-seams-'))
     previousHome = process.env.AVN_HOME
     process.env.AVN_HOME = home
     workspaceRoot = join(home, 'workspace')
@@ -1862,7 +1862,7 @@ describe('plugin startup invariants', () => {
       new OwnerAttachments(root)
       new OwnerCredentials(root, 'xai-api-key')
       new OwnerMedia(root)
-      new OwnerSandboxPolicy(root, join(tmpdir(), 'dsh-roster-guard'))
+      new OwnerSandboxPolicy(root, join(tmpdir(), 'avn-roster-guard'))
       const fiber = root.plugin({ name: mod.name, inject: mod.inject, apply: mod.apply })
       await fiber
       await new Promise(resolve => setTimeout(resolve, 20))

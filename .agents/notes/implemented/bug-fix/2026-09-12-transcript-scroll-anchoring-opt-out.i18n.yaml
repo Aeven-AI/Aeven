@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-12-transcript-scroll-anchoring-opt-out.md
-2026-09-12-transcript-scroll-anchoring-opt-out.md: 82e62002becaf05967b934ba45a039fc7d09d2e9
-2026-09-12-transcript-scroll-anchoring-opt-out.zh.md: cc76ec3cf4fa23db91c46da549ab1d12e8a83f18
+2026-09-12-transcript-scroll-anchoring-opt-out.md: 4be933b035a3e57d744184f83694721e9331eb38
+2026-09-12-transcript-scroll-anchoring-opt-out.zh.md: 9ca1356fc77cdeaed8c2d46c04d4aa818d45ef7c

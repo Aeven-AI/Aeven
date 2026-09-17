@@ -110,7 +110,7 @@ function toLibBin(srcBin: string): string {
 export function resolveExampleLaunch(options: ExampleLaunchOptions): ExampleLaunch {
   const mode = options.mode ?? resolveExampleMode()
   const configArgs = options.configArgs ?? []
-  // A smoke launches a real `dsh` against local fixtures, so it must not inherit the machine's
+  // A smoke launches a real `avn` against local fixtures, so it must not inherit the machine's
   // network policy: the harness honors the proxy environment, and a runner that exports one would
   // send a fixture-server request to a proxy that cannot resolve the fixture host. `undefined`
   // removes the name from the child rather than setting it empty.
@@ -150,7 +150,7 @@ export interface LoaderSmokeOptions {
   readonly tsconfigPath: string
   /** Boot from source via tsx (`src`) or built lib via plain Node (`lib`); defaults to the environment's mode. */
   readonly mode?: ExampleMode
-  /** Environment overrides layered over the parent and isolated DSH homes. */
+  /** Environment overrides layered over the parent and isolated AVN homes. */
   readonly env?: Readonly<NodeJS.ProcessEnv>
   /** Process deadline override for harness tests. */
   readonly processTimeoutMs?: number
@@ -194,7 +194,7 @@ export async function runLoaderSmoke(options: LoaderSmokeOptions): Promise<Loade
       ...options.mode !== undefined ? { mode: options.mode } : {},
       tsconfigPath: options.tsconfigPath,
       env: {
-        AVN_HOME: join(cwd, '.dsh'),
+        AVN_HOME: join(cwd, '.avn'),
         AVN_AGENTS_HOME: join(cwd, '.agents'),
         ...options.env,
       },

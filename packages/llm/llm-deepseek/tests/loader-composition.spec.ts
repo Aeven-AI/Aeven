@@ -51,7 +51,7 @@ async function loadComposition(
   // A reused root is the restart case: the same harness home, its documents
   // exactly as the previous process left them.
   const fresh = options.reuseRoot === undefined
-  root = options.reuseRoot ?? await mkdtemp(join(tmpdir(), 'dsh-llm-composition-'))
+  root = options.reuseRoot ?? await mkdtemp(join(tmpdir(), 'avn-llm-composition-'))
   vi.stubEnv('AVN_HOME', root)
   const settingsPath = join(root, 'settings.yaml')
   const credentialsPath = join(root, '.credentials.yaml')
@@ -149,14 +149,14 @@ describe('llm-deepseek real dynamic composition', () => {
     session.append('turn/start', { turn: 1 })
 
     await assemble(ctx, { model: 'deepseek-v4-flash', messages: [], sessionId: session.id })
-    const request = server.requests[0] as { dsh_plugin_packages: { version: number; packages: unknown[] } }
-    expect(request).not.toHaveProperty('dsh_session_log')
-    expect(request.dsh_plugin_packages.packages).toEqual(expect.arrayContaining([
+    const request = server.requests[0] as { avn_plugin_packages: { version: number; packages: unknown[] } }
+    expect(request).not.toHaveProperty('avn_session_log')
+    expect(request.avn_plugin_packages.packages).toEqual(expect.arrayContaining([
       { name: '@aeven/deepseek-llm-api-extensions', version: '0.1.0-rc.8' },
       { name: '@aeven/llm-deepseek', version: '0.1.0-rc.8' },
       { name: '@aeven/session-log-deepseek', version: '0.1.0-rc.8' },
     ]))
-    expect(request.dsh_plugin_packages.version).toBe(1)
+    expect(request.avn_plugin_packages.version).toBe(1)
     expect(SessionLogDeepSeek.acceptedThrough(session)).toBe(-1)
   })
 
@@ -173,7 +173,7 @@ describe('llm-deepseek real dynamic composition', () => {
 
     await assemble(ctx, { model: 'deepseek-v4-flash', messages: [], sessionId: session.id })
     const request = server.requests[0] as {
-      dsh_session_log?: {
+      avn_session_log?: {
         version: number
         session: { id: string }
         afterSeq: number
@@ -181,7 +181,7 @@ describe('llm-deepseek real dynamic composition', () => {
         events: Array<{ type: string; seq: number }>
       }
     }
-    expect(request.dsh_session_log).toMatchObject({
+    expect(request.avn_session_log).toMatchObject({
       version: 1,
       session: { id: 'extension-composition-enabled' },
       afterSeq: -1,

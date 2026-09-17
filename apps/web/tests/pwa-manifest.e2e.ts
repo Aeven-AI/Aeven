@@ -13,7 +13,7 @@ it('ships install metadata with the built web application', async () => {
   expect(manifest).toEqual({
     id: '/',
     name: 'DeepSeek Harness',
-    short_name: 'DSH',
+    short_name: 'AVN',
     start_url: '/',
     scope: '/',
     display: 'fullscreen',
@@ -38,7 +38,7 @@ it('inlines first-paint preloader CSS and destages remaining stylesheets', async
   const index = await readFile(join(DIST_ROOT, 'index.html'), 'utf8')
   const styleOpen = index.indexOf('<style>')
   const styleClose = index.indexOf('</style>')
-  const preloader = index.indexOf('id="dsh-preloader"')
+  const preloader = index.indexOf('id="avn-preloader"')
   const root = index.indexOf('id="root"')
   const moduleEntry = index.indexOf('<script type="module"')
   expect(styleOpen).toBeGreaterThan(-1)
@@ -48,8 +48,8 @@ it('inlines first-paint preloader CSS and destages remaining stylesheets', async
   expect(moduleEntry).toBeLessThan(preloader)
 
   const inline = index.slice(styleOpen, styleClose)
-  expect(inline).toContain('#dsh-preloader')
-  expect(inline).toContain('dsh-preloader-spin')
+  expect(inline).toContain('#avn-preloader')
+  expect(inline).toContain('avn-preloader-spin')
 
   const fonts = [...index.matchAll(/<link rel="preload" as="font"[^>]+>/g)]
   expect(fonts).toHaveLength(2)

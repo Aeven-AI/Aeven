@@ -2,32 +2,32 @@ import { readFile } from 'node:fs/promises'
 import type { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import { AVN_EXACT_BOM } from '../src/compatibility.ts'
-import { createDshHostAdapter } from '../src/dsh-host-adapter.ts'
+import { createAvnHostAdapter } from '../src/avn-host-adapter.ts'
 
-describe('DSH compatibility contracts', () => {
+describe('AVN compatibility contracts', () => {
   it('keeps the published BOM identical to the executable exact-version gate', async () => {
     const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')) as {
-      dsh: { compatibility: { bom: Record<string, string> } }
+      avn: { compatibility: { bom: Record<string, string> } }
     }
-    expect(manifest.dsh.compatibility.bom).toEqual(AVN_EXACT_BOM)
-    for (const version of Object.values(manifest.dsh.compatibility.bom)) {
+    expect(manifest.avn.compatibility.bom).toEqual(AVN_EXACT_BOM)
+    for (const version of Object.values(manifest.avn.compatibility.bom)) {
       expect(version).toMatch(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u)
     }
-    const matrix = JSON.parse(await readFile(new URL('../compatibility/dsh-bom.json', import.meta.url), 'utf8')) as {
+    const matrix = JSON.parse(await readFile(new URL('../compatibility/avn-bom.json', import.meta.url), 'utf8')) as {
       coreAbi: string
       verified: { packages: Record<string, string> }
       candidates: Array<{ status: string }>
     }
     expect(matrix.coreAbi).toBe('dsh-coding-oauth-core/v1')
-    expect(matrix.verified.packages).toEqual(manifest.dsh.compatibility.bom)
+    expect(matrix.verified.packages).toEqual(manifest.avn.compatibility.bom)
     expect(matrix.candidates.every(candidate => candidate.status === 'unverified')).toBe(true)
   })
 
   it('reports missing host APIs before participant activation', () => {
-    const adapter = createDshHostAdapter({} as Context)
+    const adapter = createAvnHostAdapter({} as Context)
     expect(adapter.participantId).toBe('coding-subscription-oauth')
     expect(adapter.diagnostics().map(item => item.id)).toContain('host.api.llm.registerAdapter')
-    expect(() =>{  adapter.assertCompatible() }).toThrow(/incompatible DSH host API/)
+    expect(() =>{  adapter.assertCompatible() }).toThrow(/incompatible AVN host API/)
   })
 
   it('reports a missing optional LLM registry as degraded while owner Web APIs remain usable', () => {
@@ -38,7 +38,7 @@ describe('DSH compatibility contracts', () => {
       logger() {},
     } as unknown as Context
     const unInjected = new Set<PropertyKey>(['webServer', 'settings', 'credentials', 'llm', 'ownerRequestPolicy'])
-    const adapter = createDshHostAdapter(
+    const adapter = createAvnHostAdapter(
       new Proxy(context, {
         get(target, property, receiver) {
           if (unInjected.has(property)) {
@@ -61,12 +61,12 @@ describe('DSH compatibility contracts', () => {
       logger() {},
       llm: { registerAdapter() {} },
     } as unknown as Context
-    const adapter = createDshHostAdapter(context)
+    const adapter = createAvnHostAdapter(context)
     expect(adapter.diagnostics()).toEqual([])
     expect(() =>{  adapter.assertCompatible() }).not.toThrow()
   })
 
-  it('discovers a DSH-native owner request policy without coupling it to activation', () => {
+  it('discovers a AVN-native owner request policy without coupling it to activation', () => {
     const policy = { authorize: vi.fn(), diagnostics: vi.fn(() => []) }
     const context = {
       effect() {},
@@ -77,7 +77,7 @@ describe('DSH compatibility contracts', () => {
       logger() {},
       llm: { registerAdapter() {} },
     } as unknown as Context
-    const adapter = createDshHostAdapter(context)
+    const adapter = createAvnHostAdapter(context)
 
     expect(adapter.ownerRequestPolicy()).toBe(policy)
     expect(adapter.compatibility().capabilities.ownerRequestPolicy).toEqual({
@@ -96,7 +96,7 @@ describe('DSH compatibility contracts', () => {
       // Present, but with none of the methods `exact-route-v1` verifies.
       webServer: {},
     } as unknown as Context
-    const adapter = createDshHostAdapter(context)
+    const adapter = createAvnHostAdapter(context)
 
     expect(adapter.compatibility().capabilities.webServer).toEqual({
       state: 'incompatible',
@@ -123,13 +123,13 @@ describe('DSH compatibility contracts', () => {
       llm: { registerAdapter() {} },
       ownerRequestPolicy: { authorize() {}, diagnostics() {} },
     } as unknown as Context
-    const adapter = createDshHostAdapter(context)
+    const adapter = createAvnHostAdapter(context)
     const compatibility = adapter.compatibility()
 
     expect(adapter.diagnostics()).toEqual([])
     expect(compatibility.status).toBe('healthy')
     expect(compatibility.diagnostics).toEqual([])
-    expect(compatibility.dshVersion).toMatch(/^\d+\.\d+\.\d+/u)
+    expect(compatibility.avnVersion).toMatch(/^\d+\.\d+\.\d+/u)
     expect(compatibility.uiOwner).toBe('standalone')
     expect(compatibility.accessMode).toBe('loopback')
     expect(() =>{  adapter.assertCompatible() }).not.toThrow()
@@ -143,13 +143,13 @@ describe('DSH compatibility contracts', () => {
       logger() {},
       llm: { registerAdapter() {} },
     }
-    const adapter = createDshHostAdapter({ ...root, root } as unknown as Context)
+    const adapter = createAvnHostAdapter({ ...root, root } as unknown as Context)
 
     expect(adapter.scope()).toBe(root)
   })
 
   it('reports no owner request policy when the host service is absent or partial', () => {
-    const bare = createDshHostAdapter({
+    const bare = createAvnHostAdapter({
       effect() {},
       inject() {},
       get() {},
@@ -158,7 +158,7 @@ describe('DSH compatibility contracts', () => {
     } as unknown as Context)
     expect(bare.ownerRequestPolicy()).toBeUndefined()
 
-    const partial = createDshHostAdapter({
+    const partial = createAvnHostAdapter({
       effect() {},
       inject() {},
       get() {},
@@ -171,18 +171,18 @@ describe('DSH compatibility contracts', () => {
     expect(partial.ownerRequestPolicy()).toBeUndefined()
   })
 
-  it('reports an unavailable DSH manifest as an unknown version', async () => {
+  it('reports an unavailable AVN manifest as an unknown version', async () => {
     vi.resetModules()
     vi.doMock('node:module', async (importOriginal) => {
       const actual = await importOriginal<typeof import('node:module')>()
       return Object.assign({}, actual, {
         createRequire: () => () => {
-          throw new Error('the installed DSH manifest is unreadable')
+          throw new Error('the installed AVN manifest is unreadable')
         },
       })
     })
     try {
-      const { createDshHostAdapter: create } = await import('../src/dsh-host-adapter.ts')
+      const { createAvnHostAdapter: create } = await import('../src/avn-host-adapter.ts')
       const adapter = create({
         effect() {},
         inject() {},
@@ -191,7 +191,7 @@ describe('DSH compatibility contracts', () => {
         llm: { registerAdapter() {} },
       } as unknown as Context)
 
-      expect(adapter.compatibility().dshVersion).toBeNull()
+      expect(adapter.compatibility().avnVersion).toBeNull()
       expect(adapter.compatibility().status).toBe('degraded')
     } finally {
       vi.doUnmock('node:module')
@@ -206,7 +206,7 @@ describe('DSH compatibility contracts', () => {
       return Object.assign({}, actual, { createRequire: () => () => ({ version: 4 }) })
     })
     try {
-      const { createDshHostAdapter: create } = await import('../src/dsh-host-adapter.ts')
+      const { createAvnHostAdapter: create } = await import('../src/avn-host-adapter.ts')
       const adapter = create({
         effect() {},
         inject() {},
@@ -215,7 +215,7 @@ describe('DSH compatibility contracts', () => {
         llm: { registerAdapter() {} },
       } as unknown as Context)
 
-      expect(adapter.compatibility().dshVersion).toBeNull()
+      expect(adapter.compatibility().avnVersion).toBeNull()
     } finally {
       vi.doUnmock('node:module')
       vi.resetModules()

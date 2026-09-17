@@ -741,7 +741,7 @@ ${vendored.map(row => `| \`${row.npmName}\` | \`${row.upstreamName}\` | [${row.u
 
 ## Runtime npm dependencies
 
-External packages that a workspace package resolves at runtime. The tier covers every plugin a user can mount from \`cordis.yml\` — not only what the \`dsh\` CLI, Web UI, and Python SDK runtime load by default.
+External packages that a workspace package resolves at runtime. The tier covers every plugin a user can mount from \`cordis.yml\` — not only what the \`avn\` CLI, Web UI, and Python SDK runtime load by default.
 
 ${renderNpmTable(runtimeDeps)}
 

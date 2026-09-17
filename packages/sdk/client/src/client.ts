@@ -6,7 +6,7 @@
  * quiescence through a private EOF → SIGTERM → SIGKILL ladder. The design
  * twin is the Python SDK's `HarnessClient` (`python/sdk`); both drive the
  * same runtime protocol. This client runs OUTSIDE any harness context, so it
- * spawns directly rather than through the `dsh-subprocess` service — the
+ * spawns directly rather than through the `avn-subprocess` service — the
  * seam's documented exception for SDK-managed transports.
  *
  * @module @aeven/sdk-client/client
@@ -22,7 +22,7 @@ import {
   type SdkPromptContentBlock,
 } from '@aeven/sdk-protocol'
 import { disposeRuntimeProcess } from './dispose.ts'
-import { resolveDshLaunch, type RuntimeProcessOptions } from './launch.ts'
+import { resolveAvnLaunch, type RuntimeProcessOptions } from './launch.ts'
 import type { HarnessClientOptions, HarnessNotification, NotificationFilter } from './types.ts'
 
 /** Retained stderr lines used to diagnose an unexpected runtime death. */
@@ -183,7 +183,7 @@ class NotificationSubscriptionImpl implements NotificationSubscription {
  * runtime is closed.
  */
 export class HarnessClient {
-  /** Original public dsh launch and timeout options for this client. */
+  /** Original public avn launch and timeout options for this client. */
   readonly options: HarnessClientOptions
   private readonly runtime: RuntimeProcessOptions
   private child: ChildProcess | undefined
@@ -197,11 +197,11 @@ export class HarnessClient {
   private streamsSettled: Promise<void> = Promise.resolve()
   private closeTask: Promise<void> | undefined
 
-  /** @param options - dsh profile, patch, home, process, environment, and timeout options. */
+  /** @param options - avn profile, patch, home, process, environment, and timeout options. */
   constructor(options?: HarnessClientOptions)
   constructor(options: HarnessClientOptions = {}, runtime?: RuntimeProcessOptions) {
     this.options = options
-    this.runtime = runtime ?? resolveDshLaunch(options)
+    this.runtime = runtime ?? resolveAvnLaunch(options)
   }
 
   /**

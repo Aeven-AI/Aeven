@@ -6,7 +6,7 @@ Status: implemented
 
 ## 问题
 
-本 note 所决定的补偿已被[覆盖式滚动条把槽位还给滚动视口](2026-09-13-overlay-scrollbars-return-the-gutter.zh.md)取代：`--dsh-scrollbar-width` 已删除，Chat 的滚动视口改为对称预留自己的滚动条槽，而不再只在末端一侧预留；两个座位都不再把滚动条的宽度让回去——在每一个实现了标准滚动条属性的引擎上，滚动条都浮在内容之上，而在仍会预留槽位的引擎上，对称预留让 transcript（文本记录）的轴线落在盒子的轴线上。覆盖分支的 `scrollbar-gutter: auto` 与下文跨标签页的卡片不变式仍然有效。测试一节中提到的那个几何对照所度量的，也正因如此，是一条被强行施加的占布局滚动条，而不是一次被去掉的补偿。
+本 note 所决定的补偿已被[覆盖式滚动条把槽位还给滚动视口](2026-09-13-overlay-scrollbars-return-the-gutter.zh.md)取代：`--avn-scrollbar-width` 已删除，Chat 的滚动视口改为对称预留自己的滚动条槽，而不再只在末端一侧预留；两个座位都不再把滚动条的宽度让回去——在每一个实现了标准滚动条属性的引擎上，滚动条都浮在内容之上，而在仍会预留槽位的引擎上，对称预留让 transcript（文本记录）的轴线落在盒子的轴线上。覆盖分支的 `scrollbar-gutter: auto` 与下文跨标签页的卡片不变式仍然有效。测试一节中提到的那个几何对照所度量的，也正因如此，是一条被强行施加的占布局滚动条，而不是一次被去掉的补偿。
 
 [composer 标签页滚动条槽预留](2026-08-04-composer-tab-gutter-reservation.zh.md) 让会话列滚动容器无条件预留一条滚动条槽，使 composer 座位在 Chat 与带 composer 覆盖的视图中测得相同宽度。代价由每个覆盖视图承担：视图内容列比列右边缘窄 8px，因为滚动容器为一条它从不绘制的滚动条预留了槽——trajectory 台账由视图内部自己的滚动容器滚动，外层盒子从不滚动。
 
@@ -14,9 +14,9 @@ trajectory 表格让这个代价显形：整行分隔线在面板右边缘前 8p
 
 ## 决策
 
-预留现在只属于 Chat。覆盖分支声明 `scrollbar-gutter: auto`，视图内容占满整列；覆盖分支的 composer 座位（相对 padding box 绝对定位）用 `right: var(--dsh-scrollbar-width)` 让出滚动条宽度，使输入卡仍与 Chat 座位测得相同宽度，切换标签页时不移动。
+预留现在只属于 Chat。覆盖分支声明 `scrollbar-gutter: auto`，视图内容占满整列；覆盖分支的 composer 座位（相对 padding box 绝对定位）用 `right: var(--avn-scrollbar-width)` 让出滚动条宽度，使输入卡仍与 Chat 座位测得相同宽度，切换标签页时不移动。
 
-补偿值不是字面量：ui-theme 的 scrollbar.css 在它镜像的 `::-webkit-scrollbar` 规则旁定义 `--dsh-scrollbar-width`（WebKit 路径 8px），座位读取该变量。scrollbar-styles 规格把该变量与其镜像规则、以及补偿消费者配对检查，因此样式表滚动条宽度一变却不同步变量——或变量一变却不同步消费者——都会让门禁失败，而不只是评审时发现。
+补偿值不是字面量：ui-theme 的 scrollbar.css 在它镜像的 `::-webkit-scrollbar` 规则旁定义 `--avn-scrollbar-width`（WebKit 路径 8px），座位读取该变量。scrollbar-styles 规格把该变量与其镜像规则、以及补偿消费者配对检查，因此样式表滚动条宽度一变却不同步变量——或变量一变却不同步消费者——都会让门禁失败，而不只是评审时发现。
 
 ## 备选方案
 
@@ -34,7 +34,7 @@ trajectory 表格让这个代价显形：整行分隔线在面板右边缘前 8p
 - 覆盖视图（trajectory）占满整列；trajectory 台账的分隔线到达面板右边缘。
 - 输入卡在 Chat 与 Trajectory 标签页间仍保持同一水平位置，现在由两种机制而非一种达成：Chat 预留，覆盖座位补偿。
 - Chat 预留引擎解析宽度，覆盖座位补偿固定的 8px。两者不等之处——Firefox 路径按平台解析 `scrollbar-width: thin`，而 e2e 只在 Chromium 上运行——卡片在切换标签页时会漂移半个差值。这是接受的残余代价，如实记录于此而不断言消除：本次改动并未提供目标平台 Firefox thin 宽度的实测。
-- `--dsh-scrollbar-width` 成为 ui-theme 对外、且被 ui-theme 之外读取的变量；scrollbar-styles 规格把它与镜像的 `::-webkit-scrollbar` 宽度规则、以及补偿消费者配对检查，补上了该变量本会留下的间接层门禁缺口。
+- `--avn-scrollbar-width` 成为 ui-theme 对外、且被 ui-theme 之外读取的变量；scrollbar-styles 规格把它与镜像的 `::-webkit-scrollbar` 宽度规则、以及补偿消费者配对检查，补上了该变量本会留下的间接层门禁缺口。
 
 ## 测试
 

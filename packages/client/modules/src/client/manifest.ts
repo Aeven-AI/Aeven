@@ -128,7 +128,7 @@ export interface BootManifest {
 }
 
 /**
- * Validate an optional string-array field read from a `dsh.client` declaration
+ * Validate an optional string-array field read from a `avn.client` declaration
  * or from the boot wire.
  * @param subject - diagnostic prefix naming the package or the wire row.
  * @param field - field name as it appears in the diagnostic.
@@ -298,7 +298,7 @@ export interface ClientModuleLoaderTarget {
 }
 
 /** Window API of the web boot protocol: the host-injected graph and registration facade. */
-export interface DshWindow {
+export interface AvnWindow {
   /** Host-composed entry graph, injected before the shell bundle runs; wire-boundary raw until {@link parseBootManifest}. */
   __DSH_BOOT__?: unknown
   /** HTML-installed facade: a pending registration queue, then the live module-system target. */

@@ -63,7 +63,7 @@ function status(claude: SubscriptionState): CodingOAuthStatus {
   return {
     accessMode: 'ssh-tunnel',
     uiOwner: 'standalone',
-    compatibility: { coreAbi: 'test', dshVersion: null, status: 'healthy', diagnostics: [] },
+    compatibility: { coreAbi: 'test', avnVersion: null, status: 'healthy', diagnostics: [] },
     providers: {
       grok: { status: 'signed-out', grokImportAvailable: false },
       codex: subscription('codex', { status: 'signed-out' }),
@@ -87,7 +87,7 @@ function site(
   return {
     accessMode: 'loopback',
     uiOwner: 'standalone',
-    compatibility: { coreAbi: 'test', dshVersion: null, status: 'healthy', diagnostics: [] },
+    compatibility: { coreAbi: 'test', avnVersion: null, status: 'healthy', diagnostics: [] },
     providers: {
       grok: { status: 'signed-out', grokImportAvailable: false },
       codex: subscription('codex', { status: 'signed-out' }),
@@ -353,7 +353,7 @@ describe('GrokBuildSettings wiring', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: en.remoteTipDismiss }))
 
-    expect(window.sessionStorage.getItem('dsh-coding-oauth-remote-tip-dismissed')).toBe('1')
+    expect(window.sessionStorage.getItem('avn-coding-oauth-remote-tip-dismissed')).toBe('1')
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: en.remoteTipDismiss })).toBeNull()
     })
@@ -373,7 +373,7 @@ describe('GrokBuildSettings wiring', () => {
   })
 
   it('keeps a tip the session already dismissed out of the page', async () => {
-    window.sessionStorage.setItem('dsh-coding-oauth-remote-tip-dismissed', '1')
+    window.sessionStorage.setItem('avn-coding-oauth-remote-tip-dismissed', '1')
     stubRoutes({ status: () => ({ body: SIGNING_IN }) })
     render(<GrokBuildSettings t={t} />)
 

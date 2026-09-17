@@ -8,7 +8,7 @@ Status: implemented
 
 一次终端就绪轮询要向平台问三个问题：shell 的子进程树、它的 POSIX 会话成员、以及每个被跟踪的子进程是否仍在运行。当每个问题各自去读一次进程表时，这次轮询的代价就随着当前命令派生出的子进程数量增长。
 
-在 macOS 上每一次读取都是一次 `/bin/ps -axo` fork，并解析整张表——在实测主机上 795 个进程需要 14.33 ms。`LocalTerminalHandle.inspectForeground()` 读一次树，然后按每个被跟踪的子进程各问一次存活，所以 N 个子进程的一次轮询要读 N+1 次表。`dsh-terminal-bash` 每 50 ms 轮询一次、最长 30 s，而 `ProcessInspectorInternals.exec` 是 `execFileSync`，因此每次轮询在其整个时长内阻塞事件循环。
+在 macOS 上每一次读取都是一次 `/bin/ps -axo` fork，并解析整张表——在实测主机上 795 个进程需要 14.33 ms。`LocalTerminalHandle.inspectForeground()` 读一次树，然后按每个被跟踪的子进程各问一次存活，所以 N 个子进程的一次轮询要读 N+1 次表。`avn-terminal-bash` 每 50 ms 轮询一次、最长 30 s，而 `ProcessInspectorInternals.exec` 是 `execFileSync`，因此每次轮询在其整个时长内阻塞事件循环。
 
 用生产环境的 `MacProcessInspector` 驱动真实进程树实测：
 
@@ -66,6 +66,6 @@ Status: implemented
 
 快照是一个时间点视图，该类型的文档也这样声明。`waitForMembers` 每轮重新捕获是因为观察变化正是它的用途；任何信号都不会从一份已捕获的视图上做决定。
 
-每个 `ProcessInspector` 实现与测试替身都采用新形态，包括 Windows 检查器和 `dsh-terminal-bash` 的会话替身。此前通过替换 `processTree`、`processSession` 或 `isAlive` 来编排扫描的测试替身，现在替换对应的按问题读取钩子，其编排行为与调用计数保持不变。
+每个 `ProcessInspector` 实现与测试替身都采用新形态，包括 Windows 检查器和 `avn-terminal-bash` 的会话替身。此前通过替换 `processTree`、`processSession` 或 `isAlive` 来编排扫描的测试替身，现在替换对应的按问题读取钩子，其编排行为与调用计数保持不变。
 
 同步的 `execFileSync` 边界与固定的 50 ms 轮询间隔未做改动；两者都仍是同一条就绪路径上待办的后续项。

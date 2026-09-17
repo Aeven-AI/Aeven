@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-session-persistence-jsonl` 把每个会话存为一份仅追加 JSONL 日志——默认以带校验和的 Zstandard 帧存储，禁用压缩时以换行分隔的原始文本行存储。它提供与任何持久化后端相同的逻辑 `SessionEvent` 流，因此选择它不会改变 agent loop、模型或回放的任何行为；压缩、打包与崩溃恢复都是存储内部细节。当消费方需要按会话的磁盘产物时选择它：`locate(meta)` 返回 transcript 路径，选择 `compression: 'none'` 后日志可作为纯文本按行读取。根目录是唯一必填配置；持久性、延迟实体化与中断轮次恢复都随后端提供。
+`avn-session-persistence-jsonl` 把每个会话存为一份仅追加 JSONL 日志——默认以带校验和的 Zstandard 帧存储，禁用压缩时以换行分隔的原始文本行存储。它提供与任何持久化后端相同的逻辑 `SessionEvent` 流，因此选择它不会改变 agent loop、模型或回放的任何行为；压缩、打包与崩溃恢复都是存储内部细节。当消费方需要按会话的磁盘产物时选择它：`locate(meta)` 返回 transcript 路径，选择 `compression: 'none'` 后日志可作为纯文本按行读取。根目录是唯一必填配置；持久性、延迟实体化与中断轮次恢复都随后端提供。
 
 ## 目录
 
@@ -90,7 +90,7 @@ kind: "package-reference"
 
 ### 物理编码
 
-默认产物是独立 [Zstandard 帧](../../../.agents/notes/implemented/architecture/2026-07-19-zstandard-jsonl-session-logs.zh.md) 的标准拼接：一个仅包含 header 行的带校验和帧，后跟每个持久 append 批次一个带校验和帧，使用 Node 内置 Zstandard API 的默认压缩级别（无级别开关）。`sourceEventSeqs` 使用无损存储形式：至少包含三个序列号的连续段会变成 `[start, end]` 区间对，其他列表原样保留；读取时会展开回精确的内存数组。列表只读取并验证 header 帧。`compression: 'none'` 保留相同的存储形式逻辑行，但不使用帧压缩。一个根只属于一种编码：启动发现与定向查找会拒绝相反后缀，且不提供格式或压缩迁移、混合根回退或双写。启用 `packChunks` 时，符合条件的 ≥3 个连续同 block `assistant/chunk` delta 事件连续段会变成一行打包行（`text-chunks`/`reasoning-chunks`/`tool-call-chunks`），其 `seq0`/`time0` 与各成员的 `dt` 间隔精确重建每个成员；无损 codec 位于 `dsh-session`，读取与布局无关，因此打包、非打包与混合文件加载结果一致。
+默认产物是独立 [Zstandard 帧](../../../.agents/notes/implemented/architecture/2026-07-19-zstandard-jsonl-session-logs.zh.md) 的标准拼接：一个仅包含 header 行的带校验和帧，后跟每个持久 append 批次一个带校验和帧，使用 Node 内置 Zstandard API 的默认压缩级别（无级别开关）。`sourceEventSeqs` 使用无损存储形式：至少包含三个序列号的连续段会变成 `[start, end]` 区间对，其他列表原样保留；读取时会展开回精确的内存数组。列表只读取并验证 header 帧。`compression: 'none'` 保留相同的存储形式逻辑行，但不使用帧压缩。一个根只属于一种编码：启动发现与定向查找会拒绝相反后缀，且不提供格式或压缩迁移、混合根回退或双写。启用 `packChunks` 时，符合条件的 ≥3 个连续同 block `assistant/chunk` delta 事件连续段会变成一行打包行（`text-chunks`/`reasoning-chunks`/`tool-call-chunks`），其 `seq0`/`time0` 与各成员的 `dt` 间隔精确重建每个成员；无损 codec 位于 `avn-session`，读取与布局无关，因此打包、非打包与混合文件加载结果一致。
 
 ### 源码地图
 

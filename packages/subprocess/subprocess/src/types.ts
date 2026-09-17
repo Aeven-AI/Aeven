@@ -4,7 +4,7 @@
  * recovery, raw piped streams, and tree-scoped termination. Command
  * defaulting, shell semantics, protocol framing, and presentation belong to
  * consumers such as the bash executor seam.
- * @module dsh-subprocess/types
+ * @module avn-subprocess/types
  */
 
 import type { Readable, Writable } from 'node:stream'
@@ -16,7 +16,7 @@ export const AVN_ENV_PREFIX = 'AVN_' as const
 export type AvnEnvironmentKey = `${typeof AVN_ENV_PREFIX}${string}`
 
 /** Trusted DeepSeek Harness variables for one child-process execution. */
-export type DshEnvironment = Readonly<Record<AvnEnvironmentKey, string>>
+export type AvnEnvironment = Readonly<Record<AvnEnvironmentKey, string>>
 
 /** One captured stream: the (possibly truncated) text plus recovery info. */
 export interface CollectedOutput {
@@ -69,7 +69,7 @@ export interface SubprocessStdio {
 /**
  * A fully-specified spawn request. This seam applies no defaults: every
  * disposition, limit, and directory is explicit, so the caller's own config —
- * not a hidden subprocess-service default — decides them (the `dsh-shell`
+ * not a hidden subprocess-service default — decides them (the `avn-shell`
  * request/spec split is the owning template).
  */
 export interface SubprocessSpawnSpec {

@@ -125,7 +125,7 @@ describe('gen-tool-catalog assertToolsHarvested', () => {
     // The failure this guards is silent by construction: the package is in the
     // manifest, its plugin merely stays PENDING on an unmounted service, and the
     // catalog would ship without its tools while every gate stays green.
-    expect(() => { assertToolsHarvested(entry, 0) }).toThrow(/@deepseek-ai\/dsh-tool-demo booted without registering a single tool/)
+    expect(() => { assertToolsHarvested(entry, 0) }).toThrow(/@deepseek-ai\/avn-tool-demo booted without registering a single tool/)
     expect(() => { assertToolsHarvested(entry, 0) }).toThrow(/ctx.somethingUnmounted/)
   })
 })

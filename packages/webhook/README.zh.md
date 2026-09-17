@@ -1,9 +1,9 @@
 ---
-description: "经验证的外部事件、程序化规则与即发即弃 DSH Session 创建的包映射。"
+description: "经验证的外部事件、程序化规则与即发即弃 AVN Session 创建的包映射。"
 kind: "package-group"
 ---
 
-# webhook/ — 从已验证外部事件到 DSH Session
+# webhook/ — 从已验证外部事件到 AVN Session
 
 [English](README.md) | 中文
 

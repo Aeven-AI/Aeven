@@ -1,5 +1,5 @@
 ---
-description: "dsh Web 客户端的 subagent 对话目录、续接路由 UI 与 '@' 引用 source。"
+description: "avn Web 客户端的 subagent 对话目录、续接路由 UI 与 '@' 引用 source。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-client-ui-subagent` 是 Web 客户端的 subagent 对话功能：用户从父会话的页头浏览并打开 subagent 对话，通过按原因区分的只读编辑器状态续接对话，并用 `@` source 引用运行中的 child。用户从父会话的页头浏览完整的 subagent 来源后代谱系——每一行显示 mode、运行活动、token 用量与活跃轮次耗时——并能以子会话的确切地址打开任意深度。one-shot child 始终打开一个把 transcript 说明为已完成执行记录的只读编辑器；可继续 child 在运行期间把后续提示词经其 FIFO inbox 路由。普通侧边栏会省略带 subagent origin 的会话行，因此父级页头目录是它们的导航入口。
+`avn-client-ui-subagent` 是 Web 客户端的 subagent 对话功能：用户从父会话的页头浏览并打开 subagent 对话，通过按原因区分的只读编辑器状态续接对话，并用 `@` source 引用运行中的 child。用户从父会话的页头浏览完整的 subagent 来源后代谱系——每一行显示 mode、运行活动、token 用量与活跃轮次耗时——并能以子会话的确切地址打开任意深度。one-shot child 始终打开一个把 transcript 说明为已完成执行记录的只读编辑器；可继续 child 在运行期间把后续提示词经其 FIFO inbox 路由。普通侧边栏会省略带 subagent origin 的会话行，因此父级页头目录是它们的导航入口。
 
 ## 目录
 

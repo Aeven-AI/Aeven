@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-tool-jobs` 为 agent 提供三个与 kind 无关的后台工作工具——`job_output`、`job_list` 与 `job_kill`——因此 agent 启动的任何任务，无论是后台命令、PTY 发送还是 subagent，都可以通过同一套控制读取、列出和取消。任务完成时，拥有它的 agent 会在会话内收到通知：繁忙的 agent 在下一步收到通知，空闲的 agent 则被一个 follow-up 轮次唤醒，两者均按所有者设限。加载插件还会附加让生产方能够启动后台工作的任务控制器。这些工具是基于 `ctx.jobs` 的通用 UI 卡片；配置用于调节等待超时与完成投递。
+`avn-tool-jobs` 为 agent 提供三个与 kind 无关的后台工作工具——`job_output`、`job_list` 与 `job_kill`——因此 agent 启动的任何任务，无论是后台命令、PTY 发送还是 subagent，都可以通过同一套控制读取、列出和取消。任务完成时，拥有它的 agent 会在会话内收到通知：繁忙的 agent 在下一步收到通知，空闲的 agent 则被一个 follow-up 轮次唤醒，两者均按所有者设限。加载插件还会附加让生产方能够启动后台工作的任务控制器。这些工具是基于 `ctx.jobs` 的通用 UI 卡片；配置用于调节等待超时与完成投递。
 
 ## 目录
 

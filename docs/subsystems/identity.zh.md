@@ -2,19 +2,19 @@
 
 [English](identity.md) | 中文
 
-已认证用户 seam——建立在单一 `ctx.identityUsers` 服务上的[能力 seam](../glossary.zh.md#capability-seam)：Service Definition（[dsh-identity-user](../../packages/identity/user)，resolver 注册表）、Service Provider（懂得真实凭据的 authority），以及作为 Consumer 的请求围栏。每个需要知道当前是谁在操作的子系统都读取这一个服务，从不接触 cookie、bearer token 或过期时间。身份是**一项可选能力**：没有注册任何 authority 时，该服务不认得任何人，原装 harness 保持单用户且未认证。
+已认证用户 seam——建立在单一 `ctx.identityUsers` 服务上的[能力 seam](../glossary.zh.md#capability-seam)：Service Definition（[avn-identity-user](../../packages/identity/user)，resolver 注册表）、Service Provider（懂得真实凭据的 authority），以及作为 Consumer 的请求围栏。每个需要知道当前是谁在操作的子系统都读取这一个服务，从不接触 cookie、bearer token 或过期时间。身份是**一项可选能力**：没有注册任何 authority 时，该服务不认得任何人，原装 harness 保持单用户且未认证。
 
 来源：[`packages/identity/user/src/types.ts`](../../packages/identity/user/src/types.ts)
 
 ## authority 拿到什么
 
-authority 只收到 header，别无其他，因为 header 是两种 DSH 传输的共同点。HTTP 请求在 `authorization` 中携带凭据；WebSocket 升级在 `cookie` 中携带，因为浏览器无法在升级上设置 header。这里不为 authority 解码任何内容——它读取自己认得的那个 header。
+authority 只收到 header，别无其他，因为 header 是两种 AVN 传输的共同点。HTTP 请求在 `authorization` 中携带凭据；WebSocket 升级在 `cookie` 中携带，因为浏览器无法在升级上设置 header。这里不为 authority 解码任何内容——它读取自己认得的那个 header。
 
 `User` 只保证 `id`。那是子系统据以关联工作的字段，也是 authority 必须能产出的唯一字段；`email`、`displayName` 与 `avatarUrl` 是 authority 可能持有也可能不持有的展示信息，因此需要显示名的消费方应处理其缺失，而不是假定已经拉取过资料。
 
 ## 解析是同步的
 
-`resolve` 按契约是同步的。DSH 在已经为每个 HTTP 请求和每次 WebSocket 升级运行的请求围栏内部调用该 seam，而这道围栏在派发之前作答。需要调用网络服务的 authority 无法在那里被调用，因此 authority 改为在本地校验。这正是识别调用方无需发出站请求的原因，也是塑造每个 authority 的约束：代价是一个吊销窗口，因为在过期前被吊销的凭据仍会校验通过，直到它过期。
+`resolve` 按契约是同步的。AVN 在已经为每个 HTTP 请求和每次 WebSocket 升级运行的请求围栏内部调用该 seam，而这道围栏在派发之前作答。需要调用网络服务的 authority 无法在那里被调用，因此 authority 改为在本地校验。这正是识别调用方无需发出站请求的原因，也是塑造每个 authority 的约束：代价是一个吊销窗口，因为在过期前被吊销的凭据仍会校验通过，直到它过期。
 
 ## 首个命中者胜出
 
@@ -22,7 +22,7 @@ authority 只收到 header，别无其他，因为 header 是两种 DSH 传输�
 
 ## 失败不携带原因
 
-authority 报告 `User` 或 `undefined`——从不说明原因。两种情况下 DSH 都回答 401，而说明原因等于把凭据的情况描述给提交它的人。因此消费方只需处理一种情况，而不是三种。
+authority 报告 `User` 或 `undefined`——从不说明原因。两种情况下 AVN 都回答 401，而说明原因等于把凭据的情况描述给提交它的人。因此消费方只需处理一种情况，而不是三种。
 
 ## 挂载 authority 会改变什么
 
@@ -74,13 +74,13 @@ Source: [`packages/identity/user/src/index.ts`](../../packages/identity/user/src
 
 | 包 | 职责 |
 |---|---|
-| [dsh-identity-user](../../packages/identity/user/README.zh.md) | Service Definition：resolver 注册表、`enforcing` 与首个命中的 `resolve` |
-| [dsh-identity-user-aeven](../../packages/identity/user-aeven/README.zh.md) | Service Provider：用 API 自身的签名密钥校验 Aeven access bearer 与 refresh cookie |
-| [dsh-client-ui-auth-aeven](../../packages/client/ui-auth-aeven/README.zh.md) | 建立会话的浏览器界面，authority 随后认得该会话 |
-| [dsh-client-ui-account-aeven](../../packages/client/ui-account-aeven/README.zh.md) | 展示 authority 所恢复读者的账户菜单 |
+| [avn-identity-user](../../packages/identity/user/README.zh.md) | Service Definition：resolver 注册表、`enforcing` 与首个命中的 `resolve` |
+| [avn-identity-user-aeven](../../packages/identity/user-aeven/README.zh.md) | Service Provider：用 API 自身的签名密钥校验 Aeven access bearer 与 refresh cookie |
+| [avn-client-ui-auth-aeven](../../packages/client/ui-auth-aeven/README.zh.md) | 建立会话的浏览器界面，authority 随后认得该会话 |
+| [avn-client-ui-account-aeven](../../packages/client/ui-account-aeven/README.zh.md) | 展示 authority 所恢复读者的账户菜单 |
 
 ## 相关
 
 - [HTTP 服务器](web-server.zh.md)——其请求围栏调用本 seam 的服务器。
 - [Web Client 架构](web-client.zh.md)——其启动在插件图之前以会话恢复为闸门的壳。
-- [用户凭据](credentials.zh.md)——无关的出站 seam：DSH 向提供方出示的密钥，而非 DSH 识别的调用方。
+- [用户凭据](credentials.zh.md)——无关的出站 seam：AVN 向提供方出示的密钥，而非 AVN 识别的调用方。

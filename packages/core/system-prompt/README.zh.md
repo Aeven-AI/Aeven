@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-system-prompt` 组装模型在每个步骤之前收到的系统提示词与工具 schema。插件贡献有序提示词段、动态 runtime 上下文、工具 schema 提供方与具名变量；循环每个步骤调用一次 `assemble()`，并把结果渲染为完整模型提示词。该包提供固定 harness 身份与全局部署 persona，而 agent 作用域的贡献会为单个 agent 遮蔽全局默认值。配置控制 harness 身份开场白、动态 runtime 上下文、部署 persona 与显式的面向模型工具顺序。需要添加提示词段、提示词变量或工具 schema 来源时请选择本包——它是所有面向模型文案流经的组装点。
+`avn-system-prompt` 组装模型在每个步骤之前收到的系统提示词与工具 schema。插件贡献有序提示词段、动态 runtime 上下文、工具 schema 提供方与具名变量；循环每个步骤调用一次 `assemble()`，并把结果渲染为完整模型提示词。该包提供固定 harness 身份与全局部署 persona，而 agent 作用域的贡献会为单个 agent 遮蔽全局默认值。配置控制 harness 身份开场白、动态 runtime 上下文、部署 persona 与显式的面向模型工具顺序。需要添加提示词段、提示词变量或工具 schema 来源时请选择本包——它是所有面向模型文案流经的组装点。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在任何运行 agent 的地方挂载 `dsh-system-prompt`：它提供 `ctx.systemPrompt`，即每个提示词贡献所落入的注册表。贡献带作用域——通过 `agent.ctx` 注册只影响该 agent，并遮蔽同名全局项。
+在任何运行 agent 的地方挂载 `avn-system-prompt`：它提供 `ctx.systemPrompt`，即每个提示词贡献所落入的注册表。贡献带作用域——通过 `agent.ctx` 注册只影响该 agent，并遮蔽同名全局项。
 
 ### 配置提示词
 

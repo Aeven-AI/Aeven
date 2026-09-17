@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-tool-subagent-control` adds the global control tools for continuable children: `send_message` steers between a direct parent and child, `interrupt_agent` stops a child's current turn while keeping its inbox and descendants intact, and `list_agents` (from the separately loadable `list-agents` plugin) lists continuable children by durable id and label. Parents and continuable children inherit the same `send_message` definition and ordering, so model communication adds no child-only tool schema. No tool's presence decides whether a delegation tool starts continuable work.
+`avn-tool-subagent-control` adds the global control tools for continuable children: `send_message` steers between a direct parent and child, `interrupt_agent` stops a child's current turn while keeping its inbox and descendants intact, and `list_agents` (from the separately loadable `list-agents` plugin) lists continuable children by durable id and label. Parents and continuable children inherit the same `send_message` definition and ordering, so model communication adds no child-only tool schema. No tool's presence decides whether a delegation tool starts continuable work.
 
 ## Table of Contents
 
@@ -96,7 +96,7 @@ The tool forwards its execution signal, which owns admission only until inbox ac
 Read these pages when the package-level contract is not enough; they move from the tool schemas to the continuation service behind them.
 
 - [Subagent subsystem](../../../docs/subsystems/subagent.md) — continuable children, activations, inbox, interrupt, and follow-up authority.
-- [dsh-tool-subagent](../tool-subagent/README.md) — the delegation tool that starts continuable children.
+- [avn-tool-subagent](../tool-subagent/README.md) — the delegation tool that starts continuable children.
 - [Generated tool catalog](../../../docs/tool-catalog.md#aeven-tool-subagent-control) — the three tool schemas.
 
 -----

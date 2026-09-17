@@ -16,11 +16,11 @@ Host 固定事实同样绕过了 `ctx.remote`：Host home 取自 `(ctx.get('conn
 
 ## Decision
 
-`@aeven/typert-protocol` 导出唯一的失败类 `RemoteError<Code>`：一个真 `Error`，带只读 `code` 与 `details`、结构标记 `isDSHRemoteError`，以及标准 `ErrorOptions`（`cause` 只在进程内有效）。码与 details 的对应关系收进一张 merge-extensible 的 `RemoteErrorDetailsMap`；`RemoteFailure` 是按码分布的实例 union，`RemoteResult<T>` 形状不变。
+`@aeven/typert-protocol` 导出唯一的失败类 `RemoteError<Code>`：一个真 `Error`，带只读 `code` 与 `details`、结构标记 `isAvnRemoteError`，以及标准 `ErrorOptions`（`cause` 只在进程内有效）。码与 details 的对应关系收进一张 merge-extensible 的 `RemoteErrorDetailsMap`；`RemoteFailure` 是按码分布的实例 union，`RemoteResult<T>` 形状不变。
 
 ```text
 export class RemoteError<Code extends RemoteErrorCode = RemoteErrorCode> extends Error {
-  readonly isDSHRemoteError: true = true
+  readonly isAvnRemoteError: true = true
   constructor(readonly code: Code, message: string,
     readonly details: RemoteErrorDetailsMap[Code], options?: ErrorOptions)
 }

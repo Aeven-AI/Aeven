@@ -10,7 +10,7 @@ import {
 const REF = { attachmentId: 'att-1', mediaType: 'image/png', bytes: 4, width: 8, height: 8 } as never
 
 /** An Imagine client that records its input and answers with one stored image. */
-function imagine(images = [{ attachment: REF, path: '/plugins/dsh-grok-build/imagine/att-1.png' }]) {
+function imagine(images = [{ attachment: REF, path: '/plugins/avn-grok-build/imagine/att-1.png' }]) {
   const seen: unknown[] = []
   return {
     seen,

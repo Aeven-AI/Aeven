@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-client-ui-account-aeven` puts the signed-in reader's avatar in the Web Session header and opens their account menu from it, so a reader can see who they are signed in as, reach their Aeven account page, switch night mode, and sign out. It shows whoever the Aeven authority already restored and asks Aeven for nothing of its own, so it costs no request of its own. With nobody signed in there is no reader to show and the seat stays empty. Enable it together with the Host authority; alone it renders nothing.
+`avn-client-ui-account-aeven` puts the signed-in reader's avatar in the Web Session header and opens their account menu from it, so a reader can see who they are signed in as, reach their Aeven account page, switch night mode, and sign out. It shows whoever the Aeven authority already restored and asks Aeven for nothing of its own, so it costs no request of its own. With nobody signed in there is no reader to show and the seat stays empty. Enable it together with the Host authority; alone it renders nothing.
 
 ## Table of Contents
 
@@ -62,7 +62,7 @@ The authentication gate is statically linked into the boot kernel, which no plug
 
 ### An empty host half
 
-The feature exists only in the browser, but a browser-only row still has to be addressable from the host-owned Loader overlay. The node half is therefore an empty `apply`, and the `dsh.client` manifest section carries the roster entry, its injects, and the `web` platform.
+The feature exists only in the browser, but a browser-only row still has to be addressable from the host-owned Loader overlay. The node half is therefore an empty `apply`, and the `avn.client` manifest section carries the roster entry, its injects, and the `web` platform.
 
 ### Source map
 
@@ -83,9 +83,9 @@ The feature exists only in the browser, but a browser-only row still has to be a
 
 Read these when the menu alone is not enough: the surface that establishes the session, the authority that verifies it, and the slot system that seats the avatar.
 
-- [dsh-client-ui-auth-aeven](../ui-auth-aeven/README.md) — the sign-in surface that publishes the reader this menu shows.
-- [dsh-identity-user-aeven](../../identity/user-aeven/README.md) — the Host authority, and the `webUrl` that decides whether the account link appears.
-- [dsh-client-ui-slots](../ui-slots/README.md) — the slot map that gives the avatar its header seat.
+- [avn-client-ui-auth-aeven](../ui-auth-aeven/README.md) — the sign-in surface that publishes the reader this menu shows.
+- [avn-identity-user-aeven](../../identity/user-aeven/README.md) — the Host authority, and the `webUrl` that decides whether the account link appears.
+- [avn-client-ui-slots](../ui-slots/README.md) — the slot map that gives the avatar its header seat.
 - [client group map](../README.md) — the browser family this package belongs to.
 
 -----

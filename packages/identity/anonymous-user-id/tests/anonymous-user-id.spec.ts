@@ -10,7 +10,7 @@ import {
 const dirs: string[] = []
 
 function tempHome(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'dsh-userid-'))
+  const dir = mkdtempSync(join(tmpdir(), 'avn-userid-'))
   dirs.push(dir)
   return dir
 }

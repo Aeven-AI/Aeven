@@ -1,21 +1,21 @@
 /* The Aeven loading mark: one glyph rotating at a steady rate. Every surface
    shares one drawing at one size, so the default IS the product standard; a
-   caller overrides `--dsh-spinner-size` only to opt out deliberately. */
+   caller overrides `--avn-spinner-size` only to opt out deliberately. */
 .spinner,
 .spinner svg {
   display: block;
-  width: var(--dsh-spinner-size, var(--dsw-aeven-loading-mark-size, 18px));
-  height: var(--dsh-spinner-size, var(--dsw-aeven-loading-mark-size, 18px));
+  width: var(--avn-spinner-size, var(--dsw-aeven-loading-mark-size, 18px));
+  height: var(--avn-spinner-size, var(--dsw-aeven-loading-mark-size, 18px));
 }
 
 .spinner {
   /* The loading mark is chrome, not content: it reads as primary ink, which
      inverts with the theme. */
-  color: var(--dsh-spinner-color, var(--dsw-alias-label-primary, rgb(10, 10, 10)));
-  animation: 900ms linear 0s infinite normal none running dsh-spinner-spin;
+  color: var(--avn-spinner-color, var(--dsw-alias-label-primary, rgb(10, 10, 10)));
+  animation: 900ms linear 0s infinite normal none running avn-spinner-spin;
 }
 
-@keyframes dsh-spinner-spin {
+@keyframes avn-spinner-spin {
   to { transform: rotate(360deg); }
 }
 

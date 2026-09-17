@@ -5,7 +5,7 @@
  */
 
 /** Virtual filesystem root; `process.cwd()` and every absolute path start here. */
-export const AVN_ROOT = '/dsh'
+export const AVN_ROOT = '/avn'
 
 /** `$AVN_HOME`: durable-state directory inside the image. */
 export const AVN_HOME = `${AVN_ROOT}/home`

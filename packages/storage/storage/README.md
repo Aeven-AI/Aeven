@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Mount `dsh-storage` to give a composition durable, non-session storage: it is the hub where backends and data forms connect, so host packages can read and write typed records through `ctx.storageDomain`. The hub performs no IO itself — backends own the medium (a file-tree root, a database file), and data forms own semantics — so a composition pairs it with one or more backends and the domain form. It is optional and host-side only: it registers no tools, injects no prompts, and writes no session events, so the model and the agent loop never see it. Choose it whenever any package in the composition needs durable data that is not a session event log; a composition with no such data can omit the whole group.
+Mount `avn-storage` to give a composition durable, non-session storage: it is the hub where backends and data forms connect, so host packages can read and write typed records through `ctx.storageDomain`. The hub performs no IO itself — backends own the medium (a file-tree root, a database file), and data forms own semantics — so a composition pairs it with one or more backends and the domain form. It is optional and host-side only: it registers no tools, injects no prompts, and writes no session events, so the model and the agent loop never see it. Choose it whenever any package in the composition needs durable data that is not a session event log; a composition with no such data can omit the whole group.
 
 ## Table of Contents
 
@@ -37,13 +37,13 @@ Mount the hub whenever any package in the composition persists data that is not 
 - name: '@aeven/storage'
 - name: '@aeven/storage-json'
   config:
-    root: /var/lib/dsh/data
+    root: /var/lib/avn/data
 - name: '@aeven/storage-domain'
   config:
     backend: json
 ```
 
-With these rows, the `json` backend registers itself and the `domain` data form mounts; a consumer such as `dsh-workspace` then opens its domain over the routed backend and reads and writes records through `ctx.storageDomain`. Several backends can stay mounted side by side; which backend serves which domain is the domain form's configuration, never a hub-wide choice.
+With these rows, the `json` backend registers itself and the `domain` data form mounts; a consumer such as `avn-workspace` then opens its domain over the routed backend and reads and writes records through `ctx.storageDomain`. Several backends can stay mounted side by side; which backend serves which domain is the domain form's configuration, never a hub-wide choice.
 
 ### What you get
 
@@ -54,7 +54,7 @@ With these rows, the `json` backend registers itself and the `domain` data form 
 ### Failures and recovery
 
 - `backend-not-found` — the domain form routes to a backend that is not mounted; add the backend package. The form waits for every configured backend to register, so row order is not a failure mode.
-- `form-not-mounted` — a consumer reads `ctx.storage.domain` before `dsh-storage-domain` loads; mount the domain row before the consumer.
+- `form-not-mounted` — a consumer reads `ctx.storage.domain` before `avn-storage-domain` loads; mount the domain row before the consumer.
 - `duplicate-backend` / `duplicate-mount` — the same name or form registers twice; that is a composition bug and fails loud.
 
 -----

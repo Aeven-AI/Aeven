@@ -23,7 +23,7 @@ afterEach(async () => {
 })
 
 async function tempDir(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'dsh-cred-migration-'))
+  const dir = await mkdtemp(join(tmpdir(), 'avn-cred-migration-'))
   cleanups.push(() => rm(dir, { recursive: true, force: true }))
   return dir
 }

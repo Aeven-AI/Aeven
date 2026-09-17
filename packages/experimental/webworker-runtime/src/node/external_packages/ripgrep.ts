@@ -6,7 +6,7 @@
  */
 
 /** Path the search plugins would spawn; nothing can execute it in a browser. */
-export const rgPath = '/dsh/bin/rg'
+export const rgPath = '/avn/bin/rg'
 
 /** CommonJS interop marker: the worker loader hands `default` to default imports (see ./builtins.ts). */
 export const __esModule = true

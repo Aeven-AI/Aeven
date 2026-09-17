@@ -12,7 +12,7 @@ Status: implemented
 
 ## 决策
 
-`@aeven/output-retention` 位于 `packages/util/` 下，与 `dsh-brand` 和 `dsh-timeout` 同级，负责有界的模型可见输出。它是一组纯类与函数构成的库，**不是** Cordis 服务或插件：不接收 `ctx`、不注册任何内容、不持有跨调用状态，也不发出事件。各工具包需要限制输出时直接导入它。
+`@aeven/output-retention` 位于 `packages/util/` 下，与 `avn-brand` 和 `avn-timeout` 同级，负责有界的模型可见输出。它是一组纯类与函数构成的库，**不是** Cordis 服务或插件：不接收 `ctx`、不注册任何内容、不持有跨调用状态，也不发出事件。各工具包需要限制输出时直接导入它。
 
 该库包含两个相互独立的 retainer：
 

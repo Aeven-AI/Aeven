@@ -21,7 +21,7 @@ Install dependencies from the repo root:
 pnpm install
 ```
 
-The install also configures worktree-local Lefthook hooks and the `dsh-translation-pairing` Git merge driver through `scripts/install-lefthook.mjs`. The [worktree-local hooks Agent Note](../.agents/notes/implemented/process/2026-07-27-worktree-local-lefthook.md) owns the hook-path safety contract; the [automatic pairing merges Agent Note](../.agents/notes/implemented/process/2026-08-08-automatic-translation-pairing-merges.md) owns the merge driver.
+The install also configures worktree-local Lefthook hooks and the `avn-translation-pairing` Git merge driver through `scripts/install-lefthook.mjs`. The [worktree-local hooks Agent Note](../.agents/notes/implemented/process/2026-07-27-worktree-local-lefthook.md) owns the hook-path safety contract; the [automatic pairing merges Agent Note](../.agents/notes/implemented/process/2026-08-08-automatic-translation-pairing-merges.md) owns the merge driver.
 
 If either integration is missing because dependencies were restored from cache or `postinstall` was skipped, install them manually:
 
@@ -137,7 +137,7 @@ pnpm run build
 The one-shot Headless coding agent needs `DEEPSEEK_API_KEY` in the environment or repo-root `.env`:
 
 ```sh
-pnpm dsh --profile headless "summarize this workspace"
+pnpm avn --profile headless "summarize this workspace"
 ```
 
 The PTC mode demo runs the same headless profile with code presentation enabled:

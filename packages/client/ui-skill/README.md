@@ -1,5 +1,5 @@
 ---
-description: "Web skill references and the dedicated skill tool row for the dsh web client: the /-triggered skill source and the skill call card."
+description: "Web skill references and the dedicated skill tool row for the avn web client: the /-triggered skill source and the skill call card."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-client-ui-skill` lets users invoke skills by typing `/name` in the composer: the suggestion menu offers user-invocable skills from the `skills/list` Remote, and a pick lands the literal `/name ` text that the host then loads as the skill's instructions. Loading is deterministic: the host's pre-step boundary (`dsh-tool-skill`) recognizes the whitespace-bounded `/name` token in the sent message and injects the rendered `<skill_content>` for every entry point, so a menu pick, a hand-typed token, and a TUI/ACP prompt all load the skill the same way. Settled skill calls render in the conversation as an expandable `Instructions` card, derived only from the frozen call/result slice.
+`avn-client-ui-skill` lets users invoke skills by typing `/name` in the composer: the suggestion menu offers user-invocable skills from the `skills/list` Remote, and a pick lands the literal `/name ` text that the host then loads as the skill's instructions. Loading is deterministic: the host's pre-step boundary (`avn-tool-skill`) recognizes the whitespace-bounded `/name` token in the sent message and injects the rendered `<skill_content>` for every entry point, so a menu pick, a hand-typed token, and a TUI/ACP prompt all load the skill the same way. Settled skill calls render in the conversation as an expandable `Instructions` card, derived only from the frozen call/result slice.
 
 ## Table of Contents
 
@@ -76,7 +76,7 @@ These pages cover the input machinery, the tool row host, and the host-side skil
 
 #### What the model sees
 
-The user's message reaches the model verbatim, `/name` literal included. The host's pre-step boundary (`dsh-tool-skill`) then appends the canonical `<skill_content>` block — the same `renderSkillContent` output the `skill` tool returns — as injected instructions context at the end of that step's injections, closest to the model's answer. Loading is deterministic: the model receives the full body without being asked to call the `skill` tool, and the catalog tells it not to re-load an inline-injected skill.
+The user's message reaches the model verbatim, `/name` literal included. The host's pre-step boundary (`avn-tool-skill`) then appends the canonical `<skill_content>` block — the same `renderSkillContent` output the `skill` tool returns — as injected instructions context at the end of that step's injections, closest to the model's answer. Loading is deterministic: the model receives the full body without being asked to call the `skill` tool, and the catalog tells it not to re-load an inline-injected skill.
 
 #### Token effect
 

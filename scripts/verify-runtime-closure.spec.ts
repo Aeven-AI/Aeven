@@ -7,7 +7,7 @@ import { verifyRuntimeClosure } from './verify-runtime-closure.ts'
 const roots: string[] = []
 
 function fixture(files: Record<string, string | Record<string, unknown>>): string {
-  const root = mkdtempSync(join(tmpdir(), 'dsh-runtime-closure-'))
+  const root = mkdtempSync(join(tmpdir(), 'avn-runtime-closure-'))
   roots.push(root)
   for (const [relative, value] of Object.entries(files)) {
     const path = join(root, relative)

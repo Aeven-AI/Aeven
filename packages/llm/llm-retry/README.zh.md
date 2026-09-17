@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 何时选择
 
-当组合运行 agent loop 并需要持久请求恢复时选择它。本插件是无配置的函数插件；`dsh-llm-deepseek` 与 `dsh-llm-pi-ai` 等提供方适配器拥有各自路由的 `retryPolicy`，多提供方适配器把它放进每个 provider profile。当调用不经 agent loop、直接走 `ctx.llm.stream()` 时跳过它：这些消费方仍是单次尝试，因为原始流无法持久地区分已发出的分片。
+当组合运行 agent loop 并需要持久请求恢复时选择它。本插件是无配置的函数插件；`avn-llm-deepseek` 与 `avn-llm-pi-ai` 等提供方适配器拥有各自路由的 `retryPolicy`，多提供方适配器把它放进每个 provider profile。当调用不经 agent loop、直接走 `ctx.llm.stream()` 时跳过它：这些消费方仍是单次尝试，因为原始流无法持久地区分已发出的分片。
 
 ### 最小配置
 
@@ -97,7 +97,7 @@ kind: "package-reference"
 
 当包级约定不够用时阅读以下页面。它们从服务约定逐步进入拥有重试策略的适配器。
 
-- [dsh-llm 服务](../llm/README.zh.md)——其适配器拥有 `retryPolicy` 的提供方无关服务。
+- [avn-llm 服务](../llm/README.zh.md)——其适配器拥有 `retryPolicy` 的提供方无关服务。
 - [llm-deepseek 适配器](../llm-deepseek/README.zh.md)——带路由级 `retryPolicy` 的提供方适配器。
 - [llm-pi-ai 适配器](../llm-pi-ai/README.zh.md)——带逐 profile `retryPolicy` 的多提供方适配器。
 - [LLM 流终止失败](../../../.agents/notes/implemented/architecture/2026-07-29-terminal-llm-stream-failures.zh.md)——失败如何以终止分片到达服务边界。

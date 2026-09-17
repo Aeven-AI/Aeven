@@ -97,7 +97,7 @@ try {
 
   const outputDrainStarted = Date.now()
   const outputDrainHandle = ctx.subprocess.spawn({
-    argv: ['bash', '-c', "bash -c 'exec -a dsh-output-drain-descendant sleep 30' & printf 'leader-done\\n'"],
+    argv: ['bash', '-c', "bash -c 'exec -a avn-output-drain-descendant sleep 30' & printf 'leader-done\\n'"],
     cwd: process.cwd(),
     stdio: { stdin: 'ignore', stdout: { maxBytes: 64 }, stderr: { maxBytes: 4_096 } },
     graceMs: 250,
@@ -110,7 +110,7 @@ try {
   const outputDrainExited = await outputDrainHandle.waitForExit(AbortSignal.timeout(5_000))
   const outputDrainProcesses = await sandbox.commands.list()
   const outputDrainClean = !outputDrainProcesses.some(processInfo =>
-    JSON.stringify([processInfo.cmd, processInfo.args]).includes('dsh-output-drain-descendant'),
+    JSON.stringify([processInfo.cmd, processInfo.args]).includes('avn-output-drain-descendant'),
   )
   if (outputDrainOutcome.exitCode !== 0 || outputDrainText !== 'leader-done\n'
     || outputDrainElapsedMs >= 10_000 || !outputDrainExited || !outputDrainClean) {

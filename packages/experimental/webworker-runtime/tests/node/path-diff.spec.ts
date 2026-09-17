@@ -20,23 +20,23 @@ const CASES = [
   '', '.', '..', '/', '//', '///', 'a', '/a', 'a/', '/a/', 'a/b', '/a/b/c', 'a//b', '/a//b/',
   './a', '../a', 'a/./b', 'a/../b', '/a/../..', '/../a', 'a/b/../../c', '.hidden', 'a.b.c',
   '/a/b/c.txt', 'c.txt', '.txt', 'a/.txt', 'a/b.', '/a/b/.', '/a/b/..', 'foo/bar/../baz/./qux',
-  '/dsh/node_modules/@aeven/session/lib/index.js', 'node_modules/.bin/x',
+  '/avn/node_modules/@aeven/session/lib/index.js', 'node_modules/.bin/x',
 ]
 
 const JOINS: string[][] = [
   ['a', 'b'], ['/a', 'b'], ['a', '/b'], ['a', '..'], ['a', '../..'], ['', 'b'], ['a', ''],
-  ['/dsh', 'config', 'cordis.yml'], ['/dsh/node_modules', '@scope/pkg', 'lib/index.js'],
+  ['/avn', 'config', 'cordis.yml'], ['/avn/node_modules', '@scope/pkg', 'lib/index.js'],
   ['a/', '/b'], ['.', 'a'], ['..', 'a'], ['/', 'a'], [],
 ]
 
 const RESOLVES: string[][] = [
-  ['a'], ['/a', 'b'], ['/a', '/b'], ['a', '..'], ['/dsh', './config/../config/cordis.yml'],
-  ['/a/b', '../c'], ['/'], ['', 'a'], ['/dsh/node_modules/pkg', './lib/../lib/index.js'],
+  ['a'], ['/a', 'b'], ['/a', '/b'], ['a', '..'], ['/avn', './config/../config/cordis.yml'],
+  ['/a/b', '../c'], ['/'], ['', 'a'], ['/avn/node_modules/pkg', './lib/../lib/index.js'],
 ]
 
 const RELATIVES: [string, string][] = [
   ['/a/b', '/a/b/c'], ['/a/b/c', '/a/b'], ['/a', '/b'], ['/a/b', '/a/b'], ['/', '/a'],
-  ['/dsh/node_modules/a', '/dsh/node_modules/b/lib/x.js'],
+  ['/avn/node_modules/a', '/avn/node_modules/b/lib/x.js'],
 ]
 
 const compare = (label: string, actual: unknown, expected: unknown): void => {

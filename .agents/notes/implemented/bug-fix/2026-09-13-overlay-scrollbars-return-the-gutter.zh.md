@@ -6,7 +6,7 @@ Status: implemented
 
 ## 问题
 
-Web 客户端里每个滚动盒子都把自己的 8px 宽度让给了滚动条，而 transcript（文本记录）恰恰在最显眼的地方丢掉它。`ConversationRoot` 的滚动视口用 `scrollbar-gutter: stable` 无条件预留了这条带子，消息列在收窄后的盒子里居中，composer 座位与 `.viewChrome` 则用 `--dsh-scrollbar-width` 把这条带子买了回来，好让输入卡片留在列的轴线上。本次改动之前在运行中的 GUI 上实测（chromium 151、macOS 26.5）：`.scrollBody` 报出 `offsetWidth - clientWidth` = 8、`scrollbar-gutter: stable`、`scrollbar-width: auto`。
+Web 客户端里每个滚动盒子都把自己的 8px 宽度让给了滚动条，而 transcript（文本记录）恰恰在最显眼的地方丢掉它。`ConversationRoot` 的滚动视口用 `scrollbar-gutter: stable` 无条件预留了这条带子，消息列在收窄后的盒子里居中，composer 座位与 `.viewChrome` 则用 `--avn-scrollbar-width` 把这条带子买了回来，好让输入卡片留在列的轴线上。本次改动之前在运行中的 GUI 上实测（chromium 151、macOS 26.5）：`.scrollBody` 报出 `offsetWidth - clientWidth` = 8、`scrollbar-gutter: stable`、`scrollbar-width: auto`。
 
 这条带子属于皮肤，而不属于调色板。[主题化滚动条与预留槽位](2026-07-28-themed-scrollbars-and-reserved-gutter.zh.md) 把同一份皮肤拆到两条渲染路径上并彼此加门禁隔开——标准属性给不实现 `::-webkit-scrollbar` 的引擎，伪元素给实现了它的引擎——因为 `scrollbar-color` 或 `scrollbar-width` 一旦取非 `auto` 值，chromium 与 Safari 就会丢弃该元素上的伪元素规则，`::-webkit-scrollbar-thumb:hover` 也在其中。这条分界还顺带决定了布局，而那并不是它声明的目的：chromium 之所以把滚动条画在槽位里而不是浮在内容之上，靠的正是 `::-webkit-scrollbar` 的宽度，于是走伪元素路径的引擎（chromium、Safari）每个滚动盒子都要付出 8px，走标准属性路径的引擎（Firefox）则不必。两条路径里只有一条有可能把这 8px 让回来，而它并不是多数读者所用的那一条。这条分界也正是侧边栏列表当初需要预留的原因。
 
@@ -20,7 +20,7 @@ hover token 只在这条回退路径上渲染。`--dsw-alias-scrollbar-hover-l1`
 
 `.no-scrollbar` 保留它的两半，且都放在门禁之外。`scrollbar-width: none` 服务能解析该属性的引擎，伪元素 `display: none` 服务不能解析的那些——正是回退皮肤所面向的引擎——因此不需要把任何一半与另一半用门禁隔开。vendored 样式表（`ui-auth-aeven/src/vendor/aeven-auth.css`）为自己的消费方声明了同一个类，且全应用加载，因此两处写法保持一致。
 
-`--dsh-scrollbar-width` 连同它的两个读取方一并删除。预留了槽位的滚动视口，已经没有任何数字可以交给座位：这条预留是对称的，`scrollbar-gutter: stable both-edges`，因此内容列的轴线就是滚动视口盒子自身的轴线，而座位——无论在 Chat 中还是在某个视图的 composer 覆盖之下，它都位于那个盒子之外——无需任何补偿就落在同一条轴线上。以经典 15px 滚动条实测：`stable` 会让居中的子元素偏离盒子中心 7.5px，`both-edges` 则让它正好落在中心；换成覆盖式滚动条时两者预留的都是 0。覆盖视图那条分支保持 `scrollbar-gutter: auto`，因为那个盒子从不滚动，在那里做对称预留只会把视图内容从两侧各收窄一次。
+`--avn-scrollbar-width` 连同它的两个读取方一并删除。预留了槽位的滚动视口，已经没有任何数字可以交给座位：这条预留是对称的，`scrollbar-gutter: stable both-edges`，因此内容列的轴线就是滚动视口盒子自身的轴线，而座位——无论在 Chat 中还是在某个视图的 composer 覆盖之下，它都位于那个盒子之外——无需任何补偿就落在同一条轴线上。以经典 15px 滚动条实测：`stable` 会让居中的子元素偏离盒子中心 7.5px，`both-edges` 则让它正好落在中心；换成覆盖式滚动条时两者预留的都是 0。覆盖视图那条分支保持 `scrollbar-gutter: auto`，因为那个盒子从不滚动，在那里做对称预留只会把视图内容从两侧各收窄一次。
 
 ## 曾考虑的替代方案
 

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-client-web` boots the web GUI: it loads the client module system from the Host-provided boot graph, then activates every client plugin before the application mounts, so the full UI appears only when every plugin is up. `apps/web` hardcodes a styled preloader in its HTML shell so the spinner paints before JavaScript, while a framework-free failure page reports a bundle or plugin that cannot activate. The package also defines the shared module table (`PLATFORM_MODULES`) that every dynamic bundle resolves its externals against. The model never sees this package.
+`avn-client-web` boots the web GUI: it loads the client module system from the Host-provided boot graph, then activates every client plugin before the application mounts, so the full UI appears only when every plugin is up. `apps/web` hardcodes a styled preloader in its HTML shell so the spinner paints before JavaScript, while a framework-free failure page reports a bundle or plugin that cannot activate. The package also defines the shared module table (`PLATFORM_MODULES`) that every dynamic bundle resolves its externals against. The model never sees this package.
 
 ## Table of Contents
 
@@ -37,13 +37,13 @@ Boot runs in two stages: the module stage adopts the parser-loaded bootstrap bat
 
 ### The boot page
 
-The normal Web shell carries `#dsh-preloader` before the application root. The production build inlines its stylesheet in the document head so the full-screen background, brand mark, and spinner paint from the document bytes; remaining stylesheets load without blocking that paint. `AppWebEntry` fades that visual after the plugin tree has activated, the application owns the mount point, and — when `uiWorkspace` is present — the first sidebar lists and selected conversation history have arrived.
+The normal Web shell carries `#avn-preloader` before the application root. The production build inlines its stylesheet in the document head so the full-screen background, brand mark, and spinner paint from the document bytes; remaining stylesheets load without blocking that paint. `AppWebEntry` fades that visual after the plugin tree has activated, the application owns the mount point, and — when `uiWorkspace` is present — the first sidebar lists and selected conversation history have arrived.
 
 `BootPage` uses plain DOM and local CSS as the failure fallback. It stays visually silent while the static preloader owns loading, then reports an import or activation failure by name and reason after the kernel immediately uncovers it. Documents without the static shell retain BootPage's progress spinner.
 
 ### The shared module table
 
-`PLATFORM_MODULES` (in `src/platform.ts`) names the shell-seeded shared modules — React, Cordis, and UI libraries — and together with `PRELOADED_CLIENT_EXTERNALS` (the parser-preloaded runtime row) defines the implicit external baseline every dynamic bundle resolves against. The shell seeds its immediate modules synchronously and adds eagerly requested UI primitives before module-system construction. `dsh.client.external` adds only exact non-baseline requests; see [shared modules and the module graph](../AGENTS.md#shared-modules-and-the-module-graph).
+`PLATFORM_MODULES` (in `src/platform.ts`) names the shell-seeded shared modules — React, Cordis, and UI libraries — and together with `PRELOADED_CLIENT_EXTERNALS` (the parser-preloaded runtime row) defines the implicit external baseline every dynamic bundle resolves against. The shell seeds its immediate modules synchronously and adds eagerly requested UI primitives before module-system construction. `avn.client.external` adds only exact non-baseline requests; see [shared modules and the module graph](../AGENTS.md#shared-modules-and-the-module-graph).
 
 ### Configuration
 
@@ -94,7 +94,7 @@ Read these when the boot contract is not enough: the module system it boots, the
 - [Client module system](../modules/README.md) — the lazy module table and boot graph this kernel consumes.
 - [UI renderer](../ui-renderer/README.md) — receives the mount point and binds slot data to React.
 - [Client modules subsystem](../../../docs/subsystems/client-modules.md) — the web plugin table, boot graph wire, and bundle route.
-- [Client authoring rules](../AGENTS.md#shared-modules-and-the-module-graph) — the shared-module baseline and `dsh.client.external` semantics.
+- [Client authoring rules](../AGENTS.md#shared-modules-and-the-module-graph) — the shared-module baseline and `avn.client.external` semantics.
 - [Client group map](../README.md) — the browser half this package belongs to.
 
 -----

@@ -16,7 +16,7 @@ A due reminder waits for the Agent's idle maintenance phase and calls `followup(
 
 `schedule/change` remains the only durable Schedule state. Its dispatch operation records that the follow-up was synchronously queued, which prevents ordinary restart replay after the dispatch is durable. Dispatch does not claim model success, user acknowledgement, or an external notification. The narrow crash interval between enqueue and durable dispatch remains at-least-once.
 
-Schedule exposes no delivery-receipt projection, Host sidecar, browser event node, keyed event slot, or receipt renderer. Session persistence retains its shared `flush()` contract and has no Schedule-driven success event. A separate Session projection may publish the complete currently active record set, and `dsh-client-ui-schedule` may render that set read-only; neither contains dispatch success, acknowledgement, or transcript history. The opt-in Web overlay loads the Host Schedule services and enables the Web bundle's default-disabled catalog row.
+Schedule exposes no delivery-receipt projection, Host sidecar, browser event node, keyed event slot, or receipt renderer. Session persistence retains its shared `flush()` contract and has no Schedule-driven success event. A separate Session projection may publish the complete currently active record set, and `avn-client-ui-schedule` may render that set read-only; neither contains dispatch success, acknowledgement, or transcript history. The opt-in Web overlay loads the Host Schedule services and enables the Web bundle's default-disabled catalog row.
 
 ## Alternatives considered
 

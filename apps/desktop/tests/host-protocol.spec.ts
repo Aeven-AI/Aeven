@@ -27,7 +27,7 @@ describe('desktop Host pipe protocol', () => {
     const decoder = new DesktopHostRequestDecoder()
     const bytes = Buffer.concat([
       encodeDesktopRequestStart(7, {
-        url: 'dsh-app://app/api/session',
+        url: 'avn-app://app/api/session',
         method: 'POST',
         headers: [['content-type', 'application/json']],
         hasBody: true,
@@ -41,7 +41,7 @@ describe('desktop Host pipe protocol', () => {
       {
         type: 'start',
         streamId: 7,
-        url: 'dsh-app://app/api/session',
+        url: 'avn-app://app/api/session',
         method: 'POST',
         headers: [['content-type', 'application/json']],
         hasBody: true,

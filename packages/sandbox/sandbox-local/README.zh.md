@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-sandbox-local` 提供 `ctx.sandbox` 背后的平台隔离后端：Linux 在 `bwrap` 可用时用其运行命令，否则使用 Landlock launcher；macOS 使用 Seatbelt（`sandbox-exec`）；Windows 使用 ACL 受限令牌 runner。它每台主机选择一个 runner，因此每条命令及其派生的所有进程都在限制下运行。没有可用 runner 时，提供方以 `SANDBOX_UNAVAILABLE` 快速失败——命令绝不会静默无限制运行。每次包装都会报告后端对模式的强制执行完整度（`full` 或 `partial`）及后端的拒绝签名，因此消费方可以区分损坏的沙箱与被拒绝的命令。在 `ctx.sandbox` 后挂载它并配一个受限执行器，即可让每次 bash 或 pwsh 调用都有受限默认值。
+`avn-sandbox-local` 提供 `ctx.sandbox` 背后的平台隔离后端：Linux 在 `bwrap` 可用时用其运行命令，否则使用 Landlock launcher；macOS 使用 Seatbelt（`sandbox-exec`）；Windows 使用 ACL 受限令牌 runner。它每台主机选择一个 runner，因此每条命令及其派生的所有进程都在限制下运行。没有可用 runner 时，提供方以 `SANDBOX_UNAVAILABLE` 快速失败——命令绝不会静默无限制运行。每次包装都会报告后端对模式的强制执行完整度（`full` 或 `partial`）及后端的拒绝签名，因此消费方可以区分损坏的沙箱与被拒绝的命令。在 `ctx.sandbox` 后挂载它并配一个受限执行器，即可让每次 bash 或 pwsh 调用都有受限默认值。
 
 ## 目录
 
@@ -112,7 +112,7 @@ Windows 档为每个工作区保留一个确定性写入 SID 和常驻 ACE，同
 <a id="model-experience"></a>
 ## 模型体验
 
-通过 [`dsh-bash-sandbox`](../../shell/bash-sandbox/README.zh.md) 和 [`dsh-tool-bash`](../../shell/tool-bash/README.zh.md) 间接影响；它们渲染此提供方的强制执行与拒绝事实，而 [`dsh-sandbox`](../sandbox/README.zh.md) seam 拥有 `SANDBOX_UNAVAILABLE` 文本、本提供方拥有 runner 选择，profile 不进入上下文。
+通过 [`avn-bash-sandbox`](../../shell/bash-sandbox/README.zh.md) 和 [`avn-tool-bash`](../../shell/tool-bash/README.zh.md) 间接影响；它们渲染此提供方的强制执行与拒绝事实，而 [`avn-sandbox`](../sandbox/README.zh.md) seam 拥有 `SANDBOX_UNAVAILABLE` 文本、本提供方拥有 runner 选择，profile 不进入上下文。
 
 #### KV Cache 影响
 
