@@ -59,29 +59,6 @@ function lastEngineBlock(blocks: readonly AssistantBlock[]): number {
 }
 
 /**
- * The blocks a step draws, given who owns its trace.
- *
- * A trace the Turn-level process disclosure carries is left out of the inline
- * source rather than drawn and hidden. Hiding is what the transcript used to do,
- * and it cannot work: a run merges every adjacent block into one engine source,
- * so withholding the run that holds the trace withholds the answer beside it —
- * the reply stayed invisible until the reader clicked the disclosure, and then
- * appeared all at once. Leaving the block out keeps the disclosure the trace's
- * one home and leaves the run behind it prose that nothing needs to withhold.
- *
- * @param blocks - the step's blocks, in authored order.
- * @param reasoningHidden - whether the disclosure owns this step's trace.
- * @returns The blocks to draw inline.
- */
-export function drawnBlocks(
-  blocks: readonly AssistantBlock[],
-  reasoningHidden: boolean | undefined,
-): readonly AssistantBlock[] {
-  if (reasoningHidden !== true) return blocks
-  return blocks.filter(block => block.kind !== 'reasoning')
-}
-
-/**
  * Split a step's blocks into ordered runs.
  *
  * React renders these; the function is exported because it is the whole of how
@@ -91,6 +68,7 @@ export function drawnBlocks(
 export function runsOf(
   blocks: readonly AssistantBlock[],
   streaming: boolean,
+  skipReasoning = false,
 ): StepRun[] {
   const runs: StepRun[] = []
   let open: StepRun | null = null
@@ -102,6 +80,14 @@ export function runsOf(
   for (let index = 0; index < blocks.length; index++) {
     const block = blocks[index]
     if (block === undefined) continue
+
+    // A trace the Turn-level disclosure carries is left out of the source, and it
+    // is skipped here rather than filtered out of the array first. One block
+    // leaving must not move any other block's index: a run is keyed by the index
+    // that opened it, so a shifted key remounts the engine mid-stream, and the
+    // standalone lookup below reads the array by the same index — filter first and
+    // an image after a trace renders whatever block took the trace's place.
+    if (skipReasoning && block.kind === 'reasoning') continue
 
     if (block.kind === 'tool-call') {
       // A tool head renders as its own Chat node row, never here — so it is not
@@ -165,8 +151,10 @@ export const AssistantMarkdown = memo(function AssistantMarkdown({
   // Stable per locale revision (t identity changes on switch): a fresh object
   // per render would rebuild MarkdownText's component table every chunk.
   const labels = useMemo(() => markdownLabels(t), [t])
-  const shown = useMemo(() => drawnBlocks(blocks, reasoningHidden), [blocks, reasoningHidden])
-  const runs = useMemo(() => runsOf(shown, streaming), [shown, streaming])
+  const runs = useMemo(
+    () => runsOf(blocks, streaming, reasoningHidden === true),
+    [blocks, streaming, reasoningHidden],
+  )
   // Tool-call heads render as tool rows in the chat view's grouping pass, so
   // a node that is only those heads (or empty) would paint an empty root
   // between tool groups — skip the shell unless something visible remains.

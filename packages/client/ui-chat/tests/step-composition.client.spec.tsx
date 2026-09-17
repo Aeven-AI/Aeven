@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from '@testing-library/react'
 import { AttachmentId } from '@aeven/attachment'
 import type { AssistantBlock } from '../src/client/contract/snapshot.ts'
-import { drawnBlocks, runsOf } from '../src/client/chat/AssistantMarkdown.tsx'
+import { runsOf } from '../src/client/chat/AssistantMarkdown.tsx'
 
 /** An attachment reference of the shape the projection carries. */
 const attachment = {
@@ -118,17 +118,23 @@ describe('a step becomes engine source', () => {
       { kind: 'text', text: 'Answer.' },
     ]
 
-    expect(sources(drawnBlocks(blocks, true), false)).toEqual(['Answer.'])
-    expect(sources(drawnBlocks(blocks, false), false)).toEqual(['<think>Hmm.</think>\n\nAnswer.'])
+    expect(runsOf(blocks, false, true).map(run => run.source)).toEqual(['Answer.'])
+    expect(runsOf(blocks, false).map(run => run.source)).toEqual(['<think>Hmm.</think>\n\nAnswer.'])
   })
 
-  it('keeps every other block while the disclosure owns the trace', () => {
-    expect(sources(drawnBlocks([
-      { kind: 'text', text: 'Before.' },
+  it('leaves a skipped trace no room in the indices, so nothing moves', () => {
+    // Keys and the standalone lookup both read a run's start as a position in the
+    // step's own blocks. Filtering the trace out first would shift every later
+    // block down by one: the engine would be remounted mid-stream under a changed
+    // key, and an image after a trace would render whatever block took its place.
+    const blocks: AssistantBlock[] = [
       { kind: 'reasoning', text: 'Hmm.' },
       { kind: 'image', attachment },
-      { kind: 'text', text: 'After.' },
-    ], true), false)).toEqual(['Before.', null, 'After.'])
+      { kind: 'text', text: 'Answer.' },
+    ]
+
+    expect(runsOf(blocks, false, true).map(run => run.start)).toEqual([1, 2])
+    expect(runsOf(blocks, false, true).map(run => run.source)).toEqual([null, 'Answer.'])
   })
 
   it('closes a trace that something else already follows', () => {
