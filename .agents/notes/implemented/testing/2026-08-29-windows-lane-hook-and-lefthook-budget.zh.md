@@ -14,7 +14,7 @@ Status: implemented
 
 ## 决定
 
-Lefthook 套件取 `{ timeout: 90_000 }`，与 [`.github/workflows/ci.yml`](../../../../.github/workflows/ci.yml) 里的 `AVN_COVERAGE_TEST_TIMEOUT_MS` 一致。逐用例常量被删除而不是被抬高：它只是重述了 `describe` 的取值，而 translation-pairing-merge 的 note 已经否决过逐用例余量——后续新增的用例若不带余量，就会静默继承另一个上限。
+Lefthook 套件取 `{ timeout: 90_000 }`，与 `.github/workflows/ci.yml` 里的 `AVN_COVERAGE_TEST_TIMEOUT_MS` 一致。逐用例常量被删除而不是被抬高：它只是重述了 `describe` 的取值，而 translation-pairing-merge 的 note 已经否决过逐用例余量——后续新增的用例若不带余量，就会静默继承另一个上限。
 
 `coverageTestTimeoutArgs` 在原有两个参数旁边发出 `--hookTimeout`。一个环境变量管一份预算，覆盖受争抢的 lane 必须完成的工作，无论这份工作位于用例内还是位于它的 setup 与 teardown。
 
@@ -24,7 +24,7 @@ Lefthook 套件取 `{ timeout: 90_000 }`，与 [`.github/workflows/ci.yml`](../.
 
 两份预算都放宽了「多长算可接受」，因此一个退化到几十秒的真实变慢现在会通过，而此前的上限会拦住它。这项检测能力是有意换掉的：那些上限触发的是宿主机争抢，不是回归。
 
-hook 的改动在所有设置了 `AVN_COVERAGE_TEST_TIMEOUT_MS` 的地方生效：[ci.yml](../../../../.github/workflows/ci.yml) 的 Windows 覆盖率 lane，以及 [ci-master.yml](../../../../.github/workflows/ci-master.yml) 的 `serial-windows` master standby（[serial-windows notices 超时 note](../process/2026-08-31-serial-windows-notices-timeout-budget.zh.md) 记录了第二个 lane 的采用）。不设置它的 lane 保持全部 Vitest 默认值，包括 10 秒的 hook 预算。
+hook 的改动在所有设置了 `AVN_COVERAGE_TEST_TIMEOUT_MS` 的地方生效：`ci.yml` 的 Windows 覆盖率 lane，以及 `ci-master.yml` 的 `serial-windows` master standby（[serial-windows notices 超时 note](../process/2026-08-31-serial-windows-notices-timeout-budget.zh.md) 记录了第二个 lane 的采用）。不设置它的 lane 保持全部 Vitest 默认值，包括 10 秒的 hook 预算。
 
 ## 备选方案
 

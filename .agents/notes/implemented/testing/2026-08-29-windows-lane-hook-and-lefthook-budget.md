@@ -14,7 +14,7 @@ Separately, `coverageTestTimeoutArgs` in [`scripts/coverage-partitions.ts`](../.
 
 ## Decision
 
-The Lefthook suite takes `{ timeout: 90_000 }`, matching `AVN_COVERAGE_TEST_TIMEOUT_MS` in [`.github/workflows/ci.yml`](../../../../.github/workflows/ci.yml). The per-case constant is deleted rather than raised: it restated the `describe` value, and the translation-pairing-merge note already rejected per-case allowances because a later case added without one silently inherits a different ceiling.
+The Lefthook suite takes `{ timeout: 90_000 }`, matching `AVN_COVERAGE_TEST_TIMEOUT_MS` in `.github/workflows/ci.yml`. The per-case constant is deleted rather than raised: it restated the `describe` value, and the translation-pairing-merge note already rejected per-case allowances because a later case added without one silently inherits a different ceiling.
 
 `coverageTestTimeoutArgs` emits `--hookTimeout` beside the other two arguments. One environment variable governs one budget for the work a contended lane must finish, whether that work sits in a case or in its setup and teardown.
 
@@ -24,7 +24,7 @@ A `git` or `node` spawn spike on the shared-volume runners no longer decides eit
 
 Both budgets widen what counts as an acceptable duration, so a real slowdown into tens of seconds now passes where the previous ceilings would have caught it. That detection is traded away deliberately: those ceilings were firing on host contention rather than on regressions.
 
-The hook change applies wherever `AVN_COVERAGE_TEST_TIMEOUT_MS` is set: the Windows coverage lane in [ci.yml](../../../../.github/workflows/ci.yml) and the `serial-windows` master standby in [ci-master.yml](../../../../.github/workflows/ci-master.yml) ([the serial-windows notices timeout note](../process/2026-08-31-serial-windows-notices-timeout-budget.md) records the second lane's adoption). Lanes that leave it unset keep every Vitest default, including the 10 s hook budget.
+The hook change applies wherever `AVN_COVERAGE_TEST_TIMEOUT_MS` is set: the Windows coverage lane in `ci.yml` and the `serial-windows` master standby in `ci-master.yml` ([the serial-windows notices timeout note](../process/2026-08-31-serial-windows-notices-timeout-budget.md) records the second lane's adoption). Lanes that leave it unset keep every Vitest default, including the 10 s hook budget.
 
 ## Alternatives considered
 

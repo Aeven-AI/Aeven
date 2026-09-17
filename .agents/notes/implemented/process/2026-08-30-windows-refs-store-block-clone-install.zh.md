@@ -16,7 +16,7 @@ pnpm store 也在 `F:` 上（`F:\.pnpm-store`），因此 pnpm 用硬链接把 n
 
 ## Decision
 
-[ci.yml](../../../../.github/workflows/ci.yml)（四个 pull-request 原生作业）和 [ci-master.yml](../../../../.github/workflows/ci-master.yml)（`serial-windows`）中的 Windows 安装步骤按工作区文件系统分支，仅在 ReFS 上使用 clone：
+`ci.yml`（四个 pull-request 原生作业）和 `ci-master.yml`（`serial-windows`）中的 Windows 安装步骤按工作区文件系统分支，仅在 ReFS 上使用 clone：
 
 ```pwsh
 $drive = (Split-Path -Qualifier $env:GITHUB_WORKSPACE).TrimEnd(':')

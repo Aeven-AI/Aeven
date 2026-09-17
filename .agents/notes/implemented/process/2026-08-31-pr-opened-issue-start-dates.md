@@ -20,7 +20,7 @@ The configuration names the Project field and time zone. Missing configuration f
 
 ## Verification
 
-[Issue-management tests](../../../../.github/issue-management/policy.test.mjs) cover the Shanghai date boundary, opened-only dispatch, all retained Issue references, empty-value writes, existing-value preservation, missing Project items, invalid field configuration, and the GraphQL mutation variables. [Workflow tests](../../../../scripts/ci-workflow.spec.ts) require the `pull_request.opened` subscription.
+[Issue-management tests](../../../../.github/issue-management/policy.test.mjs) cover the Shanghai date boundary, opened-only dispatch, all retained Issue references, empty-value writes, existing-value preservation, missing Project items, invalid field configuration, and the GraphQL mutation variables. Workflow tests (`scripts/ci-workflow.spec.ts`) require the `pull_request.opened` subscription.
 
 ## Alternatives considered
 

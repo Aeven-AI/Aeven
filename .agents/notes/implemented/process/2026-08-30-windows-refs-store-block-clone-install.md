@@ -16,7 +16,7 @@ The pnpm build that `pnpm/action-setup` installs into its `dest` omits the `@ref
 
 ## Decision
 
-The Windows install steps in [ci.yml](../../../../.github/workflows/ci.yml) (the four pull-request native jobs) and [ci-master.yml](../../../../.github/workflows/ci-master.yml) (`serial-windows`) branch on the workspace filesystem, using clone only on ReFS:
+The Windows install steps in `ci.yml` (the four pull-request native jobs) and `ci-master.yml` (`serial-windows`) branch on the workspace filesystem, using clone only on ReFS:
 
 ```pwsh
 $drive = (Split-Path -Qualifier $env:GITHUB_WORKSPACE).TrimEnd(':')

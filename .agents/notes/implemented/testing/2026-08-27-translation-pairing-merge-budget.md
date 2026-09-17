@@ -12,7 +12,7 @@ Every case builds a scratch repository and drives it through spawned `git` invoc
 
 ## Decision
 
-The suite takes `{ timeout: 90_000 }`, matching `AVN_COVERAGE_TEST_TIMEOUT_MS` in [`.github/workflows/ci.yml`](../../../../.github/workflows/ci.yml), which the Windows coverage lane passes as `--testTimeout`.
+The suite takes `{ timeout: 90_000 }`, matching `AVN_COVERAGE_TEST_TIMEOUT_MS` in `.github/workflows/ci.yml`, which the Windows coverage lane passes as `--testTimeout`.
 
 A `describe` value takes precedence over that flag rather than deferring to it. A smaller one therefore lowers what the lane already grants, and because no case here carries its own allowance, every one of the 23 was capped at 15 s while the lane offered 90 s.
 

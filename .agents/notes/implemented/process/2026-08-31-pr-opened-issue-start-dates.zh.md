@@ -20,7 +20,7 @@ Issue 生命周期工作流仅在 `pull_request.opened` 时初始化 `Start date
 
 ## 验证
 
-[Issue 管理测试](../../../../.github/issue-management/policy.test.mjs)覆盖上海时区日期边界、仅 opened 分派、全部保留的 Issue 引用、空值写入、已有值保留、Project item 缺失、字段配置无效和 GraphQL mutation 变量。[工作流测试](../../../../scripts/ci-workflow.spec.ts)要求保留 `pull_request.opened` 订阅。
+[Issue 管理测试](../../../../.github/issue-management/policy.test.mjs)覆盖上海时区日期边界、仅 opened 分派、全部保留的 Issue 引用、空值写入、已有值保留、Project item 缺失、字段配置无效和 GraphQL mutation 变量。工作流测试 (`scripts/ci-workflow.spec.ts`)要求保留 `pull_request.opened` 订阅。
 
 ## 考虑过的替代方案
 

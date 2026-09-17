@@ -10,7 +10,7 @@ The `serial / windows (self-hosted standby)` master lane failed its `test:covera
 
 The lane runs the complete unsharded Windows gate inventory serially with `AVN_COVERAGE_MAX_WORKERS=1`, so `render()` regenerates `THIRD_PARTY_NOTICES.md` from the workspace manifests and the installed pnpm store on a host shared by 32 runners. The cold path is dominated by `workspaceLinkedManifest`, which re-ran `loadWorkspaceManifests()` — a glob plus reads and JSON-parses of every workspace `package.json` — once per cache-missing external dependency name: 130 names × 270 manifests ≈ 35k file operations, on top of a `.pnpm` store scan per name. Under v8 coverage instrumentation and shared-host I/O contention that crossed the 5 s default.
 
-The lane also had no `AVN_COVERAGE_TEST_TIMEOUT_MS`, unlike the pull-request `windows-coverage` lane ([ci.yml](../../../../.github/workflows/ci.yml)) which grants 90000 ms, so the serial reference ran the same coverage inventory at the strictest budget of any lane.
+The lane also had no `AVN_COVERAGE_TEST_TIMEOUT_MS`, unlike the pull-request `windows-coverage` lane (`ci.yml`) which grants 90000 ms, so the serial reference ran the same coverage inventory at the strictest budget of any lane.
 
 ## Decision
 
@@ -18,7 +18,7 @@ Two changes:
 
 1. [scripts/gen-third-party-notices.ts](../../../../scripts/gen-third-party-notices.ts) loads the workspace manifests once in `render()` and threads the map through `collectNpmDeps` → `installedMetadata` → `installedManifest` → `workspaceLinkedManifest` instead of reloading it per external dependency name. The cold `render()` wall time on the same checkout fell from ~893 ms to ~86 ms with byte-identical output (verified by diffing the rendered documents before and after the change).
 
-2. [ci-master.yml](../../../../.github/workflows/ci-master.yml) `serial-windows` step "Run complete unsharded Windows gate inventory serially" gains `AVN_COVERAGE_TEST_TIMEOUT_MS: '90000'`, matching the pull-request `windows-coverage` lane budget. This extends the per-test, expect.poll, and hook budget mechanism defined by [the Windows lane hook and Lefthook budget note](../testing/2026-08-29-windows-lane-hook-and-lefthook-budget.md) to a second lane; that note records which lanes set the env. `scripts/ci-workflow.spec.ts` pins this env with a `toMatchObject` assertion; removing the env turns the spec red (negative control exercised).
+2. `ci-master.yml` `serial-windows` step "Run complete unsharded Windows gate inventory serially" gains `AVN_COVERAGE_TEST_TIMEOUT_MS: '90000'`, matching the pull-request `windows-coverage` lane budget. This extends the per-test, expect.poll, and hook budget mechanism defined by [the Windows lane hook and Lefthook budget note](../testing/2026-08-29-windows-lane-hook-and-lefthook-budget.md) to a second lane; that note records which lanes set the env. `scripts/ci-workflow.spec.ts` pins this env with a `toMatchObject` assertion; removing the env turns the spec red (negative control exercised).
 
 ## Alternatives considered
 

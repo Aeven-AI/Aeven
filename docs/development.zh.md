@@ -118,13 +118,13 @@ lefthook 在 `lefthook.yml` 中配置，作为快速的本地检查点：
 
 vendor manifest 守卫检查 `vendor/*/src` 下的改动是否连同对应的 `vendor/README.md` manifest 更新一起暂存。请在编辑 vendor 代码前先阅读 `vendor/README.md`。
 
-除限定范围的暂存记录校验外，这些钩子有意不运行测试、快照、文档检查、构建或 `hygiene`。贡献者只运行一次[与改动行为相关的检查](../AGENTS.md#run-relevant-checks-locally)；CI 负责全量覆盖率门禁、构建产物冒烟测试，以及 Node 22.19、24 和 26 兼容性矩阵。
+除限定范围的暂存记录校验外，这些钩子有意不运行测试、快照、文档检查、构建或 `hygiene`。贡献者只运行一次[与改动行为相关的检查](../AGENTS.md#run-relevant-checks-locally)；本地门禁矩阵负责全量覆盖率门禁、构建产物冒烟测试，以及 Node 22.19、24 和 26 兼容性矩阵。
 
 贡献者可以选择运行 `pnpm run check:all`，执行全面的本地门禁集。该命令独立于 Git 钩子，也不是对 agent 的指令。
 
-### CI 门禁
+### 门禁 lane
 
-keyless [CI 工作流](../.github/workflows/ci.yml) 将独立门禁分组到若干宽粒度 lane，并在受支持的 Node 版本上运行一组较小的兼容性检查。产物消费方在各自 lane 内等待一次 build。单独的真实 API 工作流按其配置的 worker 上限运行 `pnpm run test:e2e`。当前门禁和 job 清单以 [scripts/run-gates.ts](../scripts/run-gates.ts) 和工作流文件为准。
+本仓库不运行 GitHub Actions：整个门禁矩阵都在本地，由 [scripts/run-gates.ts](../scripts/run-gates.ts) 掌管。它的 lane profile（`pnpm run check:ci:static`、`check:ci:coverage`、`check:ci:snapshot`、`check:ci:artifacts` 以及各 Windows lane）把独立门禁分组到若干宽粒度 lane，`pnpm run check:node-compat` 在受支持的 Node 版本上运行较小的兼容性检查，`pnpm run check:all` 则是全面的聚合。产物消费方在各自 lane 内等待一次 build。真实 API 套件是 `pnpm run test:e2e`，无密钥时自动跳过，并按其配置的 worker 上限运行。
 
 ### 日常命令
 
