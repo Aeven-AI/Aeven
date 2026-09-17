@@ -307,6 +307,7 @@ function ciSharedStaticGates(): Gate[] {
     pnpmScript('css-baseline', 'verify-css-baseline', { label: 'client CSS baseline' }),
     pnpmScript('no-bare-dispatcher', 'verify-no-bare-dispatcher', { label: 'proxy-aware dispatchers' }),
     pnpmScript('issue-management', 'test:issue-management', { label: 'Issue management policy' }),
+    pnpmScript('brand', 'verify-brand', { label: 'brand tokens' }),
   ]
 }
 
@@ -690,6 +691,7 @@ function hygieneLeafGates(options: { artifactNeeds?: string[] } = {}): Gate[] {
     pnpmScript('package-dependencies', 'verify-package-dependencies', { label: 'package dependencies' }),
     pnpmScript('application-entrypoints', 'verify-application-entrypoints', { label: 'application entrypoints' }),
     pnpmScript('avn-package-licenses', 'verify-avn-package-licenses', { label: 'AVN package licenses' }),
+    pnpmScript('brand', 'verify-brand', { label: 'brand tokens' }),
     pnpmScript('package-invariants', 'verify-package-invariants', { label: 'package invariants' }),
     builtPackageInvariantsGate(options.artifactNeeds),
     pnpmScript('node-next-types', 'verify-node-next-types', {
