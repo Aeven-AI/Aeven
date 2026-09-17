@@ -41,9 +41,9 @@ uv run --project python/sdk python scripts/smoke-python-runtime.py \
 交互式冒烟测试需要环境变量或仓库根目录 `.env` 中存在 `DEEPSEEK_API_KEY`：
 
 ```python
-from deepseek_harness import DeepSeekHarness
+from aeven import Aeven
 
-with DeepSeekHarness(avn_home="/absolute/path/to/test-avn-home") as harness:
+with Aeven(avn_home="/absolute/path/to/test-avn-home") as harness:
     print(harness.run("say hi").final_response)
 ```
 
@@ -75,8 +75,8 @@ PY
 python scripts/build-python-release.py --package sdk --output-dir dist-python
 python scripts/build-python-release.py --package runtime --platform macos-arm64 --runtime-exe dist-exe/aeven-sdk-runtime-macos-arm64 --output-dir dist-python
 pip install \
-  "dist-python/deepseek_harness_sdk-$version-py3-none-any.whl" \
-  "dist-python/deepseek_harness_runtime_bin-$version-py3-none-macosx_14_0_arm64.whl"
+  "dist-python/aeven_sdk-$version-py3-none-any.whl" \
+  "dist-python/aeven_runtime_bin-$version-py3-none-macosx_14_0_arm64.whl"
 ```
 
 运行时分发包仅提供 wheel 包。发布流水线会连同纯 SDK wheel 包一起发布四个平台 wheel 包：Linux x64、Linux arm64、macOS 14 或更高版本的 arm64，以及 Windows x64（`win_amd64`）。只有与仓库版本匹配时，才接受 `python-v<repository-version>` 标签；`0.0.1-rc.1` 之类的仓库预发布版本在 wheel 包文件名和元数据中使用规范化的 PEP 440 写法，例如 `0.0.1rc1`。

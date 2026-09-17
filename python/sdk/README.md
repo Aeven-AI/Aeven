@@ -15,9 +15,9 @@ The Python SDK has no separate application entrypoint. It launches the bundled `
 Every launch requires an explicit Harness home. Pass `avn_home` or provide a non-empty `AVN_HOME` in the child environment. The SDK deliberately never discovers `~/.aeven`.
 
 ```py
-from deepseek_harness import DeepSeekHarness
+from aeven import Aeven
 
-with DeepSeekHarness(
+with Aeven(
     avn_home="/absolute/path/to/isolated-avn-home",
     cwd="/absolute/path/to/workspace",
     provider="deepseek-official",
@@ -30,7 +30,7 @@ with DeepSeekHarness(
 print(result.final_response)
 ```
 
-`DeepSeekHarness` starts lazily and reuses its runtime until `close()` or context-manager exit. The initial profile handshake has an independent 30-second default bound through `initialize_timeout_seconds`; ordinary turns remain unbounded unless `request_timeout_seconds` is set. A timeout names the selected profile and includes retained runtime diagnostics. `cwd` is the agent workspace; `runtime_cwd` independently selects the subprocess working directory. Both become absolute before launch. `provider`, `model`, optional `reasoning_effort`, and optional positive `max_tokens` are sent during JSON-RPC initialization. `base_url` and `api_key` explicitly override `DEEPSEEK_BASE_URL` and `DEEPSEEK_API_KEY` in the child environment.
+`Aeven` starts lazily and reuses its runtime until `close()` or context-manager exit. The initial profile handshake has an independent 30-second default bound through `initialize_timeout_seconds`; ordinary turns remain unbounded unless `request_timeout_seconds` is set. A timeout names the selected profile and includes retained runtime diagnostics. `cwd` is the agent workspace; `runtime_cwd` independently selects the subprocess working directory. Both become absolute before launch. `provider`, `model`, optional `reasoning_effort`, and optional positive `max_tokens` are sent during JSON-RPC initialization. `base_url` and `api_key` explicitly override `DEEPSEEK_BASE_URL` and `DEEPSEEK_API_KEY` in the child environment.
 
 ## Customize plugins
 
@@ -47,7 +47,7 @@ The `file:` form installs the local bundle into the profile package tree, where 
 For an invocation-specific change, pass one or more patch files. They become absolute and are forwarded in order after the profile and home patch layers:
 
 ```py
-with DeepSeekHarness(
+with Aeven(
     avn_home="/absolute/path/to/isolated-avn-home",
     profile="sdk",
     patches=("/absolute/path/to/first.patch.yml", "/absolute/path/to/last.patch.yml"),

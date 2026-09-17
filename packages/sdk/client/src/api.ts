@@ -1,5 +1,5 @@
 /**
- * High-level run API over {@link HarnessClient}: `DeepSeekHarness` owns one
+ * High-level run API over {@link HarnessClient}: `Aeven` owns one
  * runtime subprocess across many sessions; `HarnessSession.run` sends a
  * prompt and settles when the whole agent next becomes idle.
  *
@@ -11,7 +11,7 @@ import { resolve } from 'node:path'
 import type { SessionEvent, TurnEndReason } from '@aeven/session'
 import { createProcessHarnessClient, HarnessClient, isRecord, SdkProtocolError } from './client.ts'
 import type { RuntimeProcessOptions } from './launch.ts'
-import type { ContentBlock, DeepSeekHarnessOptions, HarnessNotification, RunResult, SdkPromptContentBlock } from './types.ts'
+import type { ContentBlock, AevenOptions, HarnessNotification, RunResult, SdkPromptContentBlock } from './types.ts'
 
 /**
  * Reusable SDK for running Aeven agent turns in a runtime
@@ -19,20 +19,20 @@ import type { ContentBlock, DeepSeekHarnessOptions, HarnessNotification, RunResu
  * this instance until {@link close}; always close (or `await using`) so the
  * child is reaped.
  */
-export class DeepSeekHarness implements AsyncDisposable {
+export class Aeven implements AsyncDisposable {
   private clientInstance: HarnessClient
   private readonly createClient: () => HarnessClient
   private readonly cwd: string
   private readonly provider: string
   private readonly model: string
-  private readonly reasoningEffort: DeepSeekHarnessOptions['reasoningEffort']
+  private readonly reasoningEffort: AevenOptions['reasoningEffort']
   private readonly maxTokens: number | undefined
   private initialized: Promise<void> | undefined
   private closed = false
 
   /** @param options - avn launch configuration plus the session route, effort, and output cap. */
-  constructor(options?: DeepSeekHarnessOptions)
-  constructor(options: DeepSeekHarnessOptions = {}, clientFactory?: () => HarnessClient) {
+  constructor(options?: AevenOptions)
+  constructor(options: AevenOptions = {}, clientFactory?: () => HarnessClient) {
     this.createClient = clientFactory ?? (() => new HarnessClient(options))
     this.clientInstance = this.createClient()
     // Absolute before the handshake: the child spawns relative to THIS
@@ -134,14 +134,14 @@ export class DeepSeekHarness implements AsyncDisposable {
 }
 
 /** Construct the high-level API against a generic process for package-local fake-runtime tests. */
-export function createProcessDeepSeekHarness(
+export function createProcessAeven(
   runtime: RuntimeProcessOptions,
-  options: DeepSeekHarnessOptions = {},
-): DeepSeekHarness {
-  const Constructor = DeepSeekHarness as unknown as new (
-    publicOptions: DeepSeekHarnessOptions,
+  options: AevenOptions = {},
+): Aeven {
+  const Constructor = Aeven as unknown as new (
+    publicOptions: AevenOptions,
     clientFactory: () => HarnessClient,
-  ) => DeepSeekHarness
+  ) => Aeven
   return new Constructor({
     ...runtime.cwd === undefined ? {} : { processCwd: runtime.cwd },
     ...options,
@@ -164,7 +164,7 @@ export class HarnessSession {
    * @param harness - the owning harness (supplies the client and handshake).
    * @param id - the wire session id this handle runs on.
    */
-  constructor(readonly harness: DeepSeekHarness, readonly id: string) {}
+  constructor(readonly harness: Aeven, readonly id: string) {}
 
   /**
    * Queue one prompt, then observe the whole session through its next idle.

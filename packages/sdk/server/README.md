@@ -1,5 +1,5 @@
 ---
-description: "The stdio JSON-RPC serving plugin for deployments that let out-of-process SDK clients open sessions and drive agents in a Aeven runtime."
+description: "The stdio JSON-RPC serving plugin for deployments that let out-of-process SDK clients open sessions and drive agents in an Aeven runtime."
 kind: "package-reference"
 ---
 

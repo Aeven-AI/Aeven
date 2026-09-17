@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from deepseek_harness import DeepSeekHarness, HarnessClient, HarnessConfig
-from deepseek_harness.errors import JsonRpcError, TransportClosedError
-from deepseek_harness_runtime import RUNTIME_MODE_ENV_VAR, resolve_bundled_launch_args
+from aeven import Aeven, HarnessClient, HarnessConfig
+from aeven.errors import JsonRpcError, TransportClosedError
+from aeven_runtime import RUNTIME_MODE_ENV_VAR, resolve_bundled_launch_args
 
 _MODES = ("exe", "node")
 
@@ -71,7 +71,7 @@ def test_python_sdk_applies_an_ordered_profile_patch(
         "id": "system-prompt",
         "config": {"persona": "Python SDK ordered patch marker."},
     }]))
-    harness = DeepSeekHarness(
+    harness = Aeven(
         model="deepseek-v4-pro",
         cwd=str(tmp_path),
         avn_home=str(tmp_path / "home"),

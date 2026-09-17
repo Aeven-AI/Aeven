@@ -13,8 +13,8 @@
 import { randomUUID } from 'node:crypto'
 import { brandString } from '@aeven/brand'
 import {
-  DeepSeekHarness,
-  type DeepSeekHarnessOptions,
+  Aeven,
+  type AevenOptions,
   type HarnessNotification,
   JsonRpcResponseError,
   SdkProtocolError,
@@ -115,8 +115,8 @@ class SdkRunFailure extends Error {
 }
 
 /** Runtime constructor seam replaced only by package-local fake-runtime tests. */
-export const internals: { createHarness(options: DeepSeekHarnessOptions): DeepSeekHarness } = {
-  createHarness: options => new DeepSeekHarness(options),
+export const internals: { createHarness(options: AevenOptions): Aeven } = {
+  createHarness: options => new Aeven(options),
 }
 
 /**

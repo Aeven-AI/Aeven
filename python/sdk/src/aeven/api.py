@@ -11,7 +11,7 @@ from .models import JsonObject, Notification
 
 
 @dataclass(slots=True)
-class DeepSeekHarnessConfig:
+class AevenConfig:
     """Configuration for launching the local Aeven SDK runtime.
 
     The runtime inherits the caller's environment by default, so existing
@@ -46,7 +46,7 @@ class RunResult:
     notifications: list[Notification]
 
 
-class DeepSeekHarness:
+class Aeven:
     """Reusable synchronous SDK for running Aeven agent turns.
 
     The runtime subprocess starts lazily and remains owned by this instance
@@ -56,14 +56,14 @@ class DeepSeekHarness:
 
     def __init__(
         self,
-        config: DeepSeekHarnessConfig | None = None,
+        config: AevenConfig | None = None,
         *,
         _launch_args: tuple[str, ...] | None = None,
         **kwargs: object,
     ) -> None:
         if config is not None and kwargs:
-            raise TypeError("pass either DeepSeekHarnessConfig or keyword options, not both")
-        self.config = config or DeepSeekHarnessConfig(**kwargs)
+            raise TypeError("pass either AevenConfig or keyword options, not both")
+        self.config = config or AevenConfig(**kwargs)
         cwd = str(Path(self.config.cwd or Path.cwd()).resolve())
         runtime_cwd = str(Path(self.config.runtime_cwd).resolve()) if self.config.runtime_cwd is not None else cwd
         self._cwd = cwd
@@ -89,7 +89,7 @@ class DeepSeekHarness:
         )
         self._initialized = False
 
-    def __enter__(self) -> "DeepSeekHarness":
+    def __enter__(self) -> "Aeven":
         self.start()
         return self
 
@@ -132,7 +132,7 @@ class DeepSeekHarness:
 
 
 class Session:
-    def __init__(self, harness: DeepSeekHarness, session_id: str) -> None:
+    def __init__(self, harness: Aeven, session_id: str) -> None:
         self.harness = harness
         self.id = session_id
 

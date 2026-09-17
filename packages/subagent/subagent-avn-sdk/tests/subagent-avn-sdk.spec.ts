@@ -16,14 +16,14 @@ import SubagentRuntime from '@aeven/subagent'
 import SessionProjectionRegistry from '@aeven/session-projection'
 import type { Agent, AgentOptions } from '@aeven/agent'
 import {
-  DeepSeekHarness,
+  Aeven,
   HarnessClient,
   HarnessSession,
   SdkProtocolError,
 } from '@aeven/sdk-client'
-import { createProcessDeepSeekHarness } from '../../../sdk/client/src/api.ts'
+import { createProcessAeven } from '../../../sdk/client/src/api.ts'
 import type { RuntimeProcessOptions } from '../../../sdk/client/src/launch.ts'
-import type { DeepSeekHarnessOptions } from '@aeven/sdk-client'
+import type { AevenOptions } from '@aeven/sdk-client'
 import { ReasoningEffortId } from '@aeven/llm'
 import * as sdk from '../src/index.ts'
 import {
@@ -42,7 +42,7 @@ const existingPatch = fileURLToPath(new URL(
   import.meta.url,
 ))
 const defaultCreateHarness = runInternals.createHarness.bind(runInternals)
-let createdHarnessOptions: DeepSeekHarnessOptions[] = []
+let createdHarnessOptions: AevenOptions[] = []
 
 beforeEach(() => {
   createdHarnessOptions = []
@@ -60,7 +60,7 @@ beforeEach(() => {
       ...options.disposeEofGraceMs === undefined ? {} : { disposeEofGraceMs: options.disposeEofGraceMs },
       ...options.disposeGraceMs === undefined ? {} : { disposeGraceMs: options.disposeGraceMs },
     }
-    return createProcessDeepSeekHarness(runtime, options)
+    return createProcessAeven(runtime, options)
   }
 })
 
@@ -155,7 +155,7 @@ describe('sdkChildOutcome', () => {
 describe('avn-subagent-avn-sdk provider', () => {
   it('constructs the production avn-backed harness lazily', async () => {
     const harness = defaultCreateHarness({})
-    expect(harness).toBeInstanceOf((await import('@aeven/sdk-client')).DeepSeekHarness)
+    expect(harness).toBeInstanceOf((await import('@aeven/sdk-client')).Aeven)
     await harness.close()
   })
 
@@ -414,7 +414,7 @@ describe('avn-subagent-avn-sdk provider', () => {
 
   it('reports only safe shutdown facts when cancelled startup rollback fails', async () => {
     const rawCleanup = 'cancelled shutdown leaked SECRET_TOKEN'
-    const spy = vi.spyOn(DeepSeekHarness.prototype, 'close').mockImplementation(async function (this: DeepSeekHarness) {
+    const spy = vi.spyOn(Aeven.prototype, 'close').mockImplementation(async function (this: Aeven) {
       spy.mockRestore()
       await this.close()
       throw new Error(rawCleanup)
@@ -448,8 +448,8 @@ describe('avn-subagent-avn-sdk provider', () => {
 
   it('keeps an initialize failure authoritative when a later abort flag is already set', async () => {
     const rawFailure = new SdkProtocolError('scripted initialize rejection')
-    const start = vi.spyOn(DeepSeekHarness.prototype, 'start').mockRejectedValue(rawFailure)
-    const close = vi.spyOn(DeepSeekHarness.prototype, 'close').mockResolvedValue()
+    const start = vi.spyOn(Aeven.prototype, 'start').mockRejectedValue(rawFailure)
+    const close = vi.spyOn(Aeven.prototype, 'close').mockResolvedValue()
     try {
       const controller = new AbortController()
       const pending = startSdkRun(request('p', controller.signal), {
@@ -780,7 +780,7 @@ describe('avn-subagent-avn-sdk provider', () => {
     const ctx = await setup()
     const run = await ctx.subagents.start('avn-sdk', request())
     await run.result
-    const spy = vi.spyOn(DeepSeekHarness.prototype, 'close').mockImplementation(async function (this: DeepSeekHarness) {
+    const spy = vi.spyOn(Aeven.prototype, 'close').mockImplementation(async function (this: Aeven) {
       spy.mockRestore()
       await this.close()
       throw new Error(rawCleanup)

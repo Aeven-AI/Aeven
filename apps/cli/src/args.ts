@@ -117,7 +117,7 @@ export function parseAvnArgs(argv: readonly string[], version: string): AvnInvoc
   program
     .name('avn')
     .version(version, '-V, --version', 'output the version number')
-    .description('avn: boot a Aeven profile — an ordered stack of plugin-bundle patch layers under your own overrides.')
+    .description('avn: boot an Aeven profile — an ordered stack of plugin-bundle patch layers under your own overrides.')
     .addHelpText('after', HELP_EXAMPLES)
     .exitOverride()
     // The launcher's flags come first and end at the first token it does not

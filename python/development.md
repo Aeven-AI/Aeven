@@ -41,9 +41,9 @@ Trusted pull requests also run `--scenario sdk-live --installed-wheel` on every 
 An interactive smoke test needs `DEEPSEEK_API_KEY` in the environment or repository-root `.env`:
 
 ```python
-from deepseek_harness import DeepSeekHarness
+from aeven import Aeven
 
-with DeepSeekHarness(avn_home="/absolute/path/to/test-avn-home") as harness:
+with Aeven(avn_home="/absolute/path/to/test-avn-home") as harness:
     print(harness.run("say hi").final_response)
 ```
 
@@ -75,8 +75,8 @@ PY
 python scripts/build-python-release.py --package sdk --output-dir dist-python
 python scripts/build-python-release.py --package runtime --platform macos-arm64 --runtime-exe dist-exe/aeven-sdk-runtime-macos-arm64 --output-dir dist-python
 pip install \
-  "dist-python/deepseek_harness_sdk-$version-py3-none-any.whl" \
-  "dist-python/deepseek_harness_runtime_bin-$version-py3-none-macosx_14_0_arm64.whl"
+  "dist-python/aeven_sdk-$version-py3-none-any.whl" \
+  "dist-python/aeven_runtime_bin-$version-py3-none-macosx_14_0_arm64.whl"
 ```
 
 The runtime distribution is wheel-only. The release pipeline publishes four platform wheels with the pure SDK wheel: Linux x64, Linux arm64, macOS 14 or newer on arm64, and Windows x64 (`win_amd64`). A `python-v<repository-version>` tag is accepted only when it matches the repository version; prerelease repository versions such as `0.0.1-rc.1` use their normalized PEP 440 spelling, such as `0.0.1rc1`, inside wheel filenames and metadata.

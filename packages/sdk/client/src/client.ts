@@ -1,5 +1,5 @@
 /**
- * Low-level JSON-RPC client for a Aeven SDK runtime subprocess.
+ * Low-level JSON-RPC client for an Aeven SDK runtime subprocess.
  * {@link HarnessClient} owns the child process: it spawns the runtime, speaks
  * the `@aeven/sdk-protocol` wire over the child's stdio, fans
  * server notifications out to subscriptions, and tears the child down to

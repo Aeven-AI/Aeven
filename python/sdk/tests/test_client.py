@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from deepseek_harness import DeepSeekHarness, HarnessClient, HarnessConfig, Notification, RunResult, SdkProtocolError
-from deepseek_harness.errors import JsonRpcError
+from aeven import Aeven, HarnessClient, HarnessConfig, Notification, RunResult, SdkProtocolError
+from aeven.errors import JsonRpcError
 
 
 def test_high_level_sdk_runs_turn_and_collects_final_response(tmp_path: Path) -> None:
@@ -92,7 +92,7 @@ for line in sys.stdin:
 """.strip()
     )
 
-    with DeepSeekHarness(
+    with Aeven(
         model="deepseek-v4-flash",
         reasoning_effort="max",
         max_tokens=4096,
@@ -150,7 +150,7 @@ for line in sys.stdin:
     )
 
     seen: list[str] = []
-    with DeepSeekHarness(
+    with Aeven(
         _launch_args=(sys.executable, str(script)),
         cwd=str(tmp_path),
     ) as harness:
@@ -188,7 +188,7 @@ for line in sys.stdin:
 """.strip()
     )
 
-    with DeepSeekHarness(
+    with Aeven(
         _launch_args=(sys.executable, str(script)),
         cwd=str(tmp_path),
     ) as harness:
@@ -222,7 +222,7 @@ for line in sys.stdin:
     )
     monkeypatch.chdir(tmp_path)
 
-    with DeepSeekHarness(
+    with Aeven(
         cwd=".",
         runtime_cwd=".",
         _launch_args=(sys.executable, str(script)),
@@ -263,7 +263,7 @@ for line in sys.stdin:
 """.strip()
     )
 
-    with DeepSeekHarness(
+    with Aeven(
         _launch_args=(sys.executable, str(script)),
         cwd=str(tmp_path),
     ) as harness:
@@ -312,7 +312,7 @@ for line in sys.stdin:
     )
 
     seen: list[str] = []
-    with DeepSeekHarness(
+    with Aeven(
         _launch_args=(sys.executable, str(script)),
         cwd=str(tmp_path),
     ) as harness:
@@ -367,7 +367,7 @@ for line in sys.stdin:
 """.strip()
     )
 
-    with DeepSeekHarness(
+    with Aeven(
         _launch_args=(sys.executable, str(script)),
         cwd=str(tmp_path),
     ) as harness:
@@ -402,7 +402,7 @@ for line in sys.stdin:
 """.strip()
     )
 
-    with DeepSeekHarness(_launch_args=(sys.executable, str(script)), cwd=str(tmp_path)) as harness:
+    with Aeven(_launch_args=(sys.executable, str(script)), cwd=str(tmp_path)) as harness:
         result = harness.run("one turn", session_id="main")
         assert harness.client._notifications.qsize() == 0
 
@@ -442,7 +442,7 @@ for line in sys.stdin:
 """.strip()
     )
 
-    with DeepSeekHarness(_launch_args=(sys.executable, str(script)), cwd=str(tmp_path)) as harness:
+    with Aeven(_launch_args=(sys.executable, str(script)), cwd=str(tmp_path)) as harness:
         first = harness.run("first turn", session_id="main")
         second = harness.run("second turn", session_id="main")
 
@@ -849,32 +849,32 @@ for line in sys.stdin:
 
 
 def test_public_signatures_omit_unsupported_wire_parameters() -> None:
-    from deepseek_harness import DeepSeekHarnessConfig, Session
+    from aeven import AevenConfig, Session
 
     assert "session_root" not in inspect.signature(HarnessClient.initialize).parameters
     assert "system_prompt" not in inspect.signature(HarnessClient.initialize).parameters
     assert "profile" not in inspect.signature(HarnessClient.session_prompt).parameters
-    assert "profile" not in inspect.signature(DeepSeekHarness.run).parameters
+    assert "profile" not in inspect.signature(Aeven.run).parameters
     assert "profile" not in inspect.signature(Session.run).parameters
-    assert "system_prompt" not in DeepSeekHarnessConfig.__dataclass_fields__
-    assert "max_tokens" in DeepSeekHarnessConfig.__dataclass_fields__
-    assert "reasoning_effort" in DeepSeekHarnessConfig.__dataclass_fields__
+    assert "system_prompt" not in AevenConfig.__dataclass_fields__
+    assert "max_tokens" in AevenConfig.__dataclass_fields__
+    assert "reasoning_effort" in AevenConfig.__dataclass_fields__
     assert "max_tokens" in inspect.signature(HarnessClient.initialize).parameters
     assert "reasoning_effort" in inspect.signature(HarnessClient.initialize).parameters
     assert "client_name" not in HarnessConfig.__dataclass_fields__
     assert "client_version" not in HarnessConfig.__dataclass_fields__
     assert {"avn_bin", "profile", "patches", "avn_home"} <= set(
-        DeepSeekHarnessConfig.__dataclass_fields__
+        AevenConfig.__dataclass_fields__
     )
     assert {"avn_bin", "profile", "patches", "avn_home"} <= set(
         HarnessConfig.__dataclass_fields__
     )
-    assert "initialize_timeout_seconds" in DeepSeekHarnessConfig.__dataclass_fields__
+    assert "initialize_timeout_seconds" in AevenConfig.__dataclass_fields__
     assert "initialize_timeout_seconds" in HarnessConfig.__dataclass_fields__
-    assert DeepSeekHarnessConfig().initialize_timeout_seconds == 30.0
+    assert AevenConfig().initialize_timeout_seconds == 30.0
     assert HarnessConfig().initialize_timeout_seconds == 30.0
     for removed in ("cordis", "session_root", "runtime_bin", "bridge_bin", "launch_args_override"):
-        assert removed not in DeepSeekHarnessConfig.__dataclass_fields__
+        assert removed not in AevenConfig.__dataclass_fields__
         assert removed not in HarnessConfig.__dataclass_fields__
     assert "_launch_args" not in HarnessConfig.__dataclass_fields__
     assert "session_root" not in RunResult.__dataclass_fields__
@@ -995,7 +995,7 @@ for line in sys.stdin:
 """.strip()
     )
 
-    module_dir = tmp_path / "deepseek_harness_runtime"
+    module_dir = tmp_path / "aeven_runtime"
     module_dir.mkdir()
     (module_dir / "__init__.py").write_text(
         f"""
@@ -1005,7 +1005,7 @@ def resolve_bundled_launch_args(mode=None):
     )
 
     monkeypatch.syspath_prepend(str(tmp_path))
-    monkeypatch.delitem(sys.modules, "deepseek_harness_runtime", raising=False)
+    monkeypatch.delitem(sys.modules, "aeven_runtime", raising=False)
 
 
 def test_client_default_launch_uses_bundled_avn_sdk_profile_and_explicit_home(
@@ -1066,7 +1066,7 @@ def test_client_rejects_an_implicit_default_avn_home(
 
 
 def test_client_reports_missing_bundled_runtime_dependency(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delitem(sys.modules, "deepseek_harness_runtime", raising=False)
+    monkeypatch.delitem(sys.modules, "aeven_runtime", raising=False)
     monkeypatch.setattr(sys, "path", [])
 
     with pytest.raises(FileNotFoundError, match="Install aeven-runtime-bin"):

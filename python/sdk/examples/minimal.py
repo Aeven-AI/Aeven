@@ -7,7 +7,7 @@ import argparse
 import os
 from pathlib import Path
 
-from deepseek_harness import DeepSeekHarness
+from aeven import Aeven
 
 
 def main() -> None:
@@ -32,7 +32,7 @@ def main() -> None:
 
     workspace = args.workspace.resolve()
     avn_home = args.avn_home.resolve()
-    with DeepSeekHarness(
+    with Aeven(
         provider=args.provider,
         model=args.model,
         max_tokens=args.max_tokens,

@@ -15,9 +15,9 @@ Python SDK 没有独立的应用入口。它以 `--profile sdk` 启动内置的 
 每次启动都必须显式指定 Harness home。请传入 `avn_home`，或在子进程环境中提供非空的 `AVN_HOME`。SDK 刻意不会发现 `~/.aeven`。
 
 ```py
-from deepseek_harness import DeepSeekHarness
+from aeven import Aeven
 
-with DeepSeekHarness(
+with Aeven(
     avn_home="/absolute/path/to/isolated-avn-home",
     cwd="/absolute/path/to/workspace",
     provider="deepseek-official",
@@ -30,7 +30,7 @@ with DeepSeekHarness(
 print(result.final_response)
 ```
 
-`DeepSeekHarness` 延迟启动运行时，并在调用 `close()` 或退出上下文管理器前复用该进程。首次 profile 握手通过 `initialize_timeout_seconds` 使用独立的 30 秒默认上限；普通轮次在未设置 `request_timeout_seconds` 时仍不设上限。超时诊断会指明所选 profile，并包含保留的运行时诊断。`cwd` 是 agent workspace；`runtime_cwd` 独立选择子进程工作目录。两者都会在启动前转成绝对路径。`provider`、`model`、可选的 `reasoning_effort` 和可选的正整数 `max_tokens` 通过 JSON-RPC 初始化发送。`base_url` 与 `api_key` 会显式覆盖子进程环境中的 `DEEPSEEK_BASE_URL` 与 `DEEPSEEK_API_KEY`。
+`Aeven` 延迟启动运行时，并在调用 `close()` 或退出上下文管理器前复用该进程。首次 profile 握手通过 `initialize_timeout_seconds` 使用独立的 30 秒默认上限；普通轮次在未设置 `request_timeout_seconds` 时仍不设上限。超时诊断会指明所选 profile，并包含保留的运行时诊断。`cwd` 是 agent workspace；`runtime_cwd` 独立选择子进程工作目录。两者都会在启动前转成绝对路径。`provider`、`model`、可选的 `reasoning_effort` 和可选的正整数 `max_tokens` 通过 JSON-RPC 初始化发送。`base_url` 与 `api_key` 会显式覆盖子进程环境中的 `DEEPSEEK_BASE_URL` 与 `DEEPSEEK_API_KEY`。
 
 ## 自定义插件
 
@@ -47,7 +47,7 @@ avn plugin --profile sdk add file:/absolute/path/to/my-plugin-bundle
 对于单次调用的变更，可传入一个或多个 patch 文件。它们会转成绝对路径，并在 profile 层与 home patch 层之后按顺序传给 CLI：
 
 ```py
-with DeepSeekHarness(
+with Aeven(
     avn_home="/absolute/path/to/isolated-avn-home",
     profile="sdk",
     patches=("/absolute/path/to/first.patch.yml", "/absolute/path/to/last.patch.yml"),

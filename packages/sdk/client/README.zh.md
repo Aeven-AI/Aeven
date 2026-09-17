@@ -1,5 +1,5 @@
 ---
-description: "面向以子进程方式启动 Aeven 运行时、并通过 stdio JSON-RPC 驱动 agent 轮次的调用方的 TypeScript SDK 客户端：DeepSeekHarness 运行 API 与低层 HarnessClient。"
+description: "面向以子进程方式启动 Aeven 运行时、并通过 stdio JSON-RPC 驱动 agent 轮次的调用方的 TypeScript SDK 客户端：Aeven 运行 API 与低层 HarnessClient。"
 kind: "package-library"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-`avn-sdk-client` 让 TypeScript 程序以子进程方式、通过 stdio JSON-RPC 驱动 Aeven 运行时。使用 `DeepSeekHarness` 你可以启动运行时、打开会话、发送提示词，并收集最终响应以及事件与通知流；`HarnessClient` 提供对协议层的显式控制。它是 [Python SDK](../../../python/README.zh.md) 的设计孪生，共享同一个运行时对端与协议。启动说明是显式的——调用方可通过 `avnBin` 指定运行时可执行文件，省略时解析同版本 `@aeven/cli` 包的 bin，参数由客户端构造——因此本客户端适合仓库近旁的 TypeScript 消费方，如 SDK subagent 后端和知道自己要启动哪个运行时的自动化。它是纯库：不在任何 Cordis 上下文注册，而且它启动的运行时是一个完整 harness，其组成由自己的 `cordis.yml` 决定。
+`avn-sdk-client` 让 TypeScript 程序以子进程方式、通过 stdio JSON-RPC 驱动 Aeven 运行时。使用 `Aeven` 你可以启动运行时、打开会话、发送提示词，并收集最终响应以及事件与通知流；`HarnessClient` 提供对协议层的显式控制。它是 [Python SDK](../../../python/README.zh.md) 的设计孪生，共享同一个运行时对端与协议。启动说明是显式的——调用方可通过 `avnBin` 指定运行时可执行文件，省略时解析同版本 `@aeven/cli` 包的 bin，参数由客户端构造——因此本客户端适合仓库近旁的 TypeScript 消费方，如 SDK subagent 后端和知道自己要启动哪个运行时的自动化。它是纯库：不在任何 Cordis 上下文注册，而且它启动的运行时是一个完整 harness，其组成由自己的 `cordis.yml` 决定。
 
 ## 目录
 
@@ -25,15 +25,15 @@ kind: "package-library"
 <a id="use-this-package"></a>
 ## 使用本包
 
-当 TypeScript 代码需要从另一进程驱动完整 Harness 运行时、且你能显式指名运行时可执行文件时，使用本客户端。常用路径极简：用启动规格构造 `DeepSeekHarness`，运行提示词，然后关闭它，使子进程总能被回收。
+当 TypeScript 代码需要从另一进程驱动完整 Harness 运行时、且你能显式指名运行时可执行文件时，使用本客户端。常用路径极简：用启动规格构造 `Aeven`，运行提示词，然后关闭它，使子进程总能被回收。
 
-### 用 DeepSeekHarness 运行 agent 轮次
+### 用 Aeven 运行 agent 轮次
 
 ```ts
-import { DeepSeekHarness } from '@aeven/sdk-client'
+import { Aeven } from '@aeven/sdk-client'
 import { ReasoningEffortId } from '@aeven/llm'
 
-await using harness = new DeepSeekHarness({
+await using harness = new Aeven({
   profile: 'sdk',
   patches: ['./automation.cordis.yml'],
   provider: 'deepseek-official',
@@ -65,13 +65,13 @@ console.log(result.finalResponse)
 
 ### 设计理念
 
-客户端是同一协议上的两层：`DeepSeekHarness`（自有运行）叠加在 `HarnessClient`（协议客户端）之上，与 Python SDK 的分层一致。它运行在任何 harness 上下文之外，因此直接 spawn 运行时而非经由 `avn-subprocess` 服务——即该 seam 记录的 SDK 托管传输例外——其关闭阶梯也位于本包。运行时对上下文内每个会话都发通知；会话树范围限定是客户端对 `subagent.started` 血缘边的过滤。
+客户端是同一协议上的两层：`Aeven`（自有运行）叠加在 `HarnessClient`（协议客户端）之上，与 Python SDK 的分层一致。它运行在任何 harness 上下文之外，因此直接 spawn 运行时而非经由 `avn-subprocess` 服务——即该 seam 记录的 SDK 托管传输例外——其关闭阶梯也位于本包。运行时对上下文内每个会话都发通知；会话树范围限定是客户端对 `subagent.started` 血缘边的过滤。
 
 ### 源码地图
 
 | 文件 | 职责 |
 |---|---|
-| [`src/api.ts`](src/api.ts) | `DeepSeekHarness` + `HarnessSession`：自有运行、回收到 idle 的收集、`finalResponse` |
+| [`src/api.ts`](src/api.ts) | `Aeven` + `HarnessSession`：自有运行、回收到 idle 的收集、`finalResponse` |
 | [`src/client.ts`](src/client.ts) | `HarnessClient`：spawn、握手、请求、订阅扇出、类型化错误 |
 | [`src/dispose.ts`](src/dispose.ts) | 私有关闭阶梯：stdin EOF → SIGTERM → SIGKILL 直到真正退出 |
 | [`src/types.ts`](src/types.ts) | 启动与超时选项、通知结构、`RunResult` |

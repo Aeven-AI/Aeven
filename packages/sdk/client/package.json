@@ -1,6 +1,6 @@
 {
   "name": "@aeven/sdk-client",
-  "description": "TypeScript client SDK for driving a Aeven runtime subprocess over stdio JSON-RPC: the DeepSeekHarness high-level turns API and the lower-level HarnessClient",
+  "description": "TypeScript client SDK for driving an Aeven runtime subprocess over stdio JSON-RPC: the Aeven high-level turns API and the lower-level HarnessClient",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

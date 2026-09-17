@@ -52,8 +52,8 @@ export interface HarnessClientOptions {
   disposeGraceMs?: number
 }
 
-/** Options for the high-level {@link DeepSeekHarness} wrapper. */
-export interface DeepSeekHarnessOptions extends HarnessClientOptions {
+/** Options for the high-level {@link Aeven} wrapper. */
+export interface AevenOptions extends HarnessClientOptions {
   /** Workspace cwd recorded on every SDK-created session (default: the process cwd, else `process.cwd()`). */
   cwd?: string
   /** Provider route for SDK-created agents (default `deepseek-official`). */

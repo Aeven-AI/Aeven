@@ -28,8 +28,8 @@ tmp/
 mise.toml
 dist-exe/
 apps/desktop/.desktop-build/
-python/sdk-runtime/src/deepseek_harness_runtime/runtime/aeven-sdk-runtime-*
-python/sdk-runtime/src/deepseek_harness_runtime/runtime/node/
+python/sdk-runtime/src/aeven_runtime/runtime/aeven-sdk-runtime-*
+python/sdk-runtime/src/aeven_runtime/runtime/node/
 python/**/__pycache__/
 python/**/.pytest_cache/
 packages/**/__pycache__/

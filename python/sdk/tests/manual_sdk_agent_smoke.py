@@ -15,7 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-from deepseek_harness import DeepSeekHarness
+from aeven import Aeven
 
 
 class MockCompletionHandler(BaseHTTPRequestHandler):
@@ -55,7 +55,7 @@ def run_smoke(repo_root: Path, keep_sessions: bool) -> None:
     print(f"mock_base_url={base_url}")
 
     try:
-        with DeepSeekHarness(
+        with Aeven(
             model="sdk-smoke-model",
             cwd=str(repo_root / "python/sdk"),
             runtime_cwd=str(repo_root),

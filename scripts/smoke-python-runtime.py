@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
-    from deepseek_harness import RunResult
+    from aeven import RunResult
 
 
 EXPECTED_TEXT = "runtime smoke ok"
@@ -801,7 +801,7 @@ def assert_installed_wheel_environment() -> Path:
 
     prefix = Path(sys.prefix).resolve()
     imported: dict[str, Path] = {}
-    for name in ("deepseek_harness", "deepseek_harness_runtime"):
+    for name in ("aeven", "aeven_runtime"):
         module = importlib.import_module(name)
         module_file = getattr(module, "__file__", None)
         if not isinstance(module_file, str):
@@ -813,9 +813,9 @@ def assert_installed_wheel_environment() -> Path:
             raise AssertionError(f"installed module {name} came from the repository checkout: {path}")
         imported[name] = path
 
-    runtime_module = sys.modules["deepseek_harness_runtime"]
+    runtime_module = sys.modules["aeven_runtime"]
     executable = runtime_module.bundled_runtime_path().resolve()
-    runtime_package = imported["deepseek_harness_runtime"].parent
+    runtime_package = imported["aeven_runtime"].parent
     if not executable.is_relative_to(runtime_package):
         raise AssertionError(f"bundled runtime came from outside the installed runtime wheel: {executable}")
     runtime_files = importlib.metadata.files("aeven-runtime-bin") or []
@@ -826,7 +826,7 @@ def assert_installed_wheel_environment() -> Path:
 
 def smoke_sdk_live() -> None:
     """Run a real-model, tool-using two-turn task through installed wheels."""
-    from deepseek_harness import DeepSeekHarness
+    from aeven import Aeven
 
     api_key = os.environ.get("DEEPSEEK_API_KEY")
     base_url = os.environ.get("DEEPSEEK_BASE_URL")
@@ -850,7 +850,7 @@ def smoke_sdk_live() -> None:
             "Use a tool to read the file created in the previous turn. "
             f"If its only line is {LIVE_API_SENTINEL}, reply with exactly {LIVE_API_SENTINEL}."
         )
-        with DeepSeekHarness(
+        with Aeven(
             provider="deepseek-official",
             model="deepseek-v4-flash",
             cwd=str(root),
@@ -917,13 +917,13 @@ def safe_turn_end(value: object) -> object:
 
 
 def smoke_sdk_default(base_url: str) -> None:
-    from deepseek_harness import DeepSeekHarness
+    from aeven import Aeven
 
     with tempfile.TemporaryDirectory(prefix="avn-sdk-default-") as temporary:
         root = Path(temporary).resolve()
         avn_home = root / "home"
         sessions = avn_home / "sessions"
-        with DeepSeekHarness(
+        with Aeven(
             provider="deepseek-official",
             model="smoke-model",
             cwd=str(root),
@@ -946,14 +946,14 @@ def smoke_sdk_default(base_url: str) -> None:
 
 
 def smoke_sdk_custom(base_url: str, executable: Path) -> None:
-    from deepseek_harness import DeepSeekHarness
+    from aeven import Aeven
 
     with tempfile.TemporaryDirectory(prefix="avn-sdk-custom-") as temporary:
         root = Path(temporary).resolve()
         avn_home = root / "home"
         sessions = avn_home / "sessions"
         patch = write_advanced_profile_patch(root, "custom.patch.yml", sessions)
-        with DeepSeekHarness(
+        with Aeven(
             provider="deepseek-official",
             model="smoke-model",
             cwd=str(root),
@@ -979,7 +979,7 @@ def smoke_sdk_custom(base_url: str, executable: Path) -> None:
 
 def smoke_sdk_minimal(base_url: str, executable: Path, update_snapshots: bool) -> None:
     """Exercise the shipped standalone minimal profile through the packaged executable."""
-    from deepseek_harness import DeepSeekHarness
+    from aeven import Aeven
 
     # One mock model serves every scenario of a run, so the snapshot takes this turn's slice.
     first_request = len(MockModelHandler.requests)
@@ -989,7 +989,7 @@ def smoke_sdk_minimal(base_url: str, executable: Path, update_snapshots: bool) -
         prompt = f"{MINIMAL_PROMPT}\n{MINIMAL_EDITOR_PATH_PREFIX}{editor_path}"
         avn_home = root / "home"
         sessions = avn_home / "sessions"
-        with DeepSeekHarness(
+        with Aeven(
             provider="deepseek-official",
             model="smoke-model",
             cwd=str(root),
@@ -1017,7 +1017,7 @@ def smoke_sdk_minimal(base_url: str, executable: Path, update_snapshots: bool) -
 
 def smoke_sdk_fs_search(base_url: str, executable: Path) -> None:
     """Exercise real grep and glob spawns through the packaged executable."""
-    from deepseek_harness import DeepSeekHarness
+    from aeven import Aeven
 
     with tempfile.TemporaryDirectory(prefix="avn-sdk-fs-search-") as temporary:
         root = Path(temporary).resolve()
@@ -1028,7 +1028,7 @@ def smoke_sdk_fs_search(base_url: str, executable: Path) -> None:
             {"id": "skill-filesystem", "disabled": True},
             {"id": "tool-fs-search", "config": {"sampleOverCapGlobResults": False}},
         ])
-        with DeepSeekHarness(
+        with Aeven(
             provider="deepseek-official",
             model="smoke-model",
             cwd=str(root),
@@ -1051,7 +1051,7 @@ def smoke_sdk_fs_search(base_url: str, executable: Path) -> None:
 
 def smoke_sdk_mcp(base_url: str, executable: Path | None) -> None:
     """Discover and call an external stdio MCP tool through the packaged client."""
-    from deepseek_harness import DeepSeekHarness
+    from aeven import Aeven
 
     with tempfile.TemporaryDirectory(prefix="avn-sdk-mcp-") as temporary:
         root = Path(temporary).resolve()
@@ -1061,7 +1061,7 @@ def smoke_sdk_mcp(base_url: str, executable: Path | None) -> None:
         server_script.write_text(MCP_SERVER_SCRIPT)
         patch = write_mcp_patch(root, sessions, server_script)
         discovery_log = server_script.with_suffix(".log")
-        with DeepSeekHarness(
+        with Aeven(
             provider="deepseek-official",
             model="smoke-model",
             cwd=str(root),
@@ -1090,7 +1090,7 @@ def smoke_sdk_mcp(base_url: str, executable: Path | None) -> None:
 
 def smoke_sdk_profile_plugin(base_url: str) -> None:
     """Install an external bundle through Python's avn command and load it in the SDK."""
-    from deepseek_harness import DeepSeekHarness
+    from aeven import Aeven
 
     with tempfile.TemporaryDirectory(prefix="avn-sdk-profile-plugin-") as temporary:
         root = Path(temporary).resolve()
@@ -1144,7 +1144,7 @@ def smoke_sdk_profile_plugin(base_url: str) -> None:
         if "avn-python-blackbox-plugin" not in manifest["avn"]["profile"]["bundles"]:
             raise AssertionError(f"avn plugin did not activate the external bundle: {manifest}")
 
-        harness = DeepSeekHarness(
+        harness = Aeven(
             provider="deepseek-official",
             model="smoke-model",
             cwd=str(root),
@@ -1171,14 +1171,14 @@ def smoke_sdk_profile_plugin(base_url: str) -> None:
 
 def smoke_sdk_snapshot(base_url: str, executable: Path, update_snapshots: bool) -> None:
     """Drive and compare the advanced SDK/executable behavioral snapshot."""
-    from deepseek_harness import DeepSeekHarness
+    from aeven import Aeven
 
     with tempfile.TemporaryDirectory(prefix="avn-sdk-snapshot-") as temporary:
         root = Path(temporary).resolve()
         avn_home = root / "home"
         sessions = avn_home / "sessions"
         patch = write_advanced_profile_patch(root, "snapshot.patch.yml", sessions)
-        with DeepSeekHarness(
+        with Aeven(
             provider="deepseek-official",
             model="smoke-model",
             cwd=str(root),
@@ -1220,7 +1220,7 @@ def smoke_sdk_snapshot(base_url: str, executable: Path, update_snapshots: bool) 
 
 def smoke_sdk_restart_snapshot(base_url: str, executable: Path, update_snapshots: bool) -> None:
     """Snapshot two isolated sessions across complete SDK runtime restarts."""
-    from deepseek_harness import DeepSeekHarness
+    from aeven import Aeven
 
     with tempfile.TemporaryDirectory(prefix="avn-sdk-restart-") as temporary:
         root = Path(temporary).resolve()
@@ -1230,7 +1230,7 @@ def smoke_sdk_restart_snapshot(base_url: str, executable: Path, update_snapshots
         first_request = len(MockModelHandler.requests)
 
         def run(prompt: str, session_id: str) -> "RunResult":
-            with DeepSeekHarness(
+            with Aeven(
                 provider="deepseek-official",
                 model="smoke-model",
                 cwd=str(root),

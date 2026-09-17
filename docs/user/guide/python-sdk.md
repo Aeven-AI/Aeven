@@ -83,11 +83,11 @@ The script prints the final assistant response. The selected home receives the g
 ```python
 from pathlib import Path
 
-from deepseek_harness import DeepSeekHarness
+from aeven import Aeven
 
 workspace = Path("/absolute/path/to/disposable-workspace").resolve()
 avn_home = Path("/absolute/path/to/example-avn-home").resolve()
-with DeepSeekHarness(
+with Aeven(
     provider="deepseek-official",
     model="deepseek-v4-flash",
     max_tokens=49_152,

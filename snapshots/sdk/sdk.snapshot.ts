@@ -45,7 +45,7 @@ import {
   type WorkspaceSnapshotEntry,
 } from '@aeven/session-snapshot'
 import {
-  DeepSeekHarness,
+  Aeven,
   type HarnessNotification,
   type NotificationSubscription,
   type RunResult,
@@ -538,7 +538,7 @@ async function runScenario(scenario: CorpusScenario): Promise<{
     ...childEnvironment,
   }
 
-  const harness = new DeepSeekHarness({
+  const harness = new Aeven({
     profile: 'sdk',
     patches,
     avnHome,

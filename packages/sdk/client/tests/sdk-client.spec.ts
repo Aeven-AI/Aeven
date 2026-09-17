@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ReasoningEffortId } from '@aeven/llm'
 import {
-  DeepSeekHarness,
+  Aeven,
   HarnessClient,
   HarnessSession,
   JsonRpcResponseError,
@@ -21,7 +21,7 @@ import {
   TransportClosedError,
   type HarnessNotification,
 } from '../src/index.ts'
-import { createProcessDeepSeekHarness, finalResponse, normalizeInput } from '../src/api.ts'
+import { createProcessAeven, finalResponse, normalizeInput } from '../src/api.ts'
 import { createProcessHarnessClient } from '../src/client.ts'
 import type { RuntimeProcessOptions } from '../src/launch.ts'
 
@@ -50,8 +50,8 @@ function processClient(options: RuntimeProcessOptions): HarnessClient {
   return createProcessHarnessClient(options)
 }
 
-function harnessWith(env: Record<string, string> = {}, extra: LaunchOverrides = {}): DeepSeekHarness {
-  const harness = createProcessDeepSeekHarness(fakeLaunch(env, extra))
+function harnessWith(env: Record<string, string> = {}, extra: LaunchOverrides = {}): Aeven {
+  const harness = createProcessAeven(fakeLaunch(env, extra))
   cleanups.push(() => harness.close())
   return harness
 }
@@ -62,7 +62,7 @@ async function tempDir(prefix: string): Promise<string> {
   return dir
 }
 
-describe('DeepSeekHarness', () => {
+describe('Aeven', () => {
   it('ignores notifications that precede the submitted message receipt', async () => {
     const notifications = [
       { method: 'session.status', params: { sessionId: 'owned', status: 'running' } },
@@ -111,7 +111,7 @@ describe('DeepSeekHarness', () => {
           async * [Symbol.asyncIterator]() {},
         }),
       },
-    } as unknown as DeepSeekHarness
+    } as unknown as Aeven
 
     const result = await new HarnessSession(harness, 'owned').run('go')
 
@@ -159,7 +159,7 @@ describe('DeepSeekHarness', () => {
   it('sends the configured cwd/provider/model/reasoningEffort/maxTokens in the handshake exactly once', async () => {
     const dir = await tempDir('sdk-client-init-')
     const recordFile = join(dir, 'init.jsonl')
-    const harness = createProcessDeepSeekHarness(fakeLaunch({ FAKE_RECORD_INIT: recordFile }), {
+    const harness = createProcessAeven(fakeLaunch({ FAKE_RECORD_INIT: recordFile }), {
       cwd: dir,
       provider: 'custom-provider',
       model: 'custom-model',
@@ -190,7 +190,7 @@ describe('DeepSeekHarness', () => {
     await mkdir(inner)
     const relativeCwd = relative(process.cwd(), inner)
     expect(isAbsolute(relativeCwd)).toBe(false)
-    const harness = createProcessDeepSeekHarness(
+    const harness = createProcessAeven(
       fakeLaunch({ FAKE_RECORD_INIT: recordFile, FAKE_ECHO_CWD_IN_INIT: '1' }, { cwd: relativeCwd }),
     )
     cleanups.push(() => harness.close())
@@ -225,7 +225,7 @@ describe('DeepSeekHarness', () => {
     const initialize = vi.spyOn(HarnessClient.prototype, 'initialize').mockRejectedValue(initializeError)
     const close = vi.spyOn(HarnessClient.prototype, 'close').mockRejectedValue(cleanupError)
     try {
-      const harness = createProcessDeepSeekHarness(fakeLaunch())
+      const harness = createProcessAeven(fakeLaunch())
       const failedClient = harness.client
       const failure = await harness.start().catch((error: unknown) => error)
       expect(failure).toBeInstanceOf(AggregateError)
@@ -246,7 +246,7 @@ describe('DeepSeekHarness', () => {
     const initialize = vi.spyOn(HarnessClient.prototype, 'initialize').mockReturnValue(initializeResult)
     const close = vi.spyOn(HarnessClient.prototype, 'close').mockResolvedValue()
     try {
-      const harness = createProcessDeepSeekHarness(fakeLaunch())
+      const harness = createProcessAeven(fakeLaunch())
       const original = harness.client
       const pending = harness.start()
       await harness.close()
@@ -282,9 +282,9 @@ describe('DeepSeekHarness', () => {
   })
 
   it('supports await using disposal', async () => {
-    let captured: DeepSeekHarness
+    let captured: Aeven
     {
-      await using harness = createProcessDeepSeekHarness(fakeLaunch())
+      await using harness = createProcessAeven(fakeLaunch())
       captured = harness
       const result = await harness.run('scoped')
       expect(result.finalResponse).toBe('hello from fake runtime')
@@ -294,7 +294,7 @@ describe('DeepSeekHarness', () => {
   })
 
   it('constructs the public avn-backed client lazily', async () => {
-    const harness = new DeepSeekHarness()
+    const harness = new Aeven()
     expect(harness.client).toBeInstanceOf(HarnessClient)
     await harness.close()
   })

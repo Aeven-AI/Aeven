@@ -458,7 +458,7 @@ class HarnessClient:
     def _default_launch_args(self, env: dict[str, str]) -> tuple[str, ...]:
         if self.config.avn_bin is None:
             try:
-                from deepseek_harness_runtime import resolve_bundled_launch_args
+                from aeven_runtime import resolve_bundled_launch_args
             except ImportError as exc:
                 raise FileNotFoundError(
                     "Unable to locate the bundled Aeven avn runtime. "

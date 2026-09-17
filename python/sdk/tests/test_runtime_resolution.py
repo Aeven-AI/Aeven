@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import deepseek_harness_runtime as runtime
+import aeven_runtime as runtime
 import pytest
 
-from deepseek_harness_runtime import (
+from aeven_runtime import (
     RUNTIME_MODE_ENV_VAR,
     bundled_package_dir,
     main,

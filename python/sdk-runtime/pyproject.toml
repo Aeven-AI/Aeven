@@ -18,15 +18,15 @@ Issues = "https://github.com/Aeven-AI/Harness/issues"
 Source = "https://github.com/Aeven-AI/Harness"
 
 [project.scripts]
-avn = "deepseek_harness_runtime:main"
+avn = "aeven_runtime:main"
 
 # Include the injected avn executable and sidecars; exclude the dev-only node closure.
 [tool.hatch.build]
-artifacts = ["src/deepseek_harness_runtime/runtime/aeven-sdk-runtime-*"]
-exclude = ["src/deepseek_harness_runtime/runtime/node"]
+artifacts = ["src/aeven_runtime/runtime/aeven-sdk-runtime-*"]
+exclude = ["src/aeven_runtime/runtime/node"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/deepseek_harness_runtime"]
+packages = ["src/aeven_runtime"]
 
 [tool.hatch.build.targets.wheel.hooks.custom]
 

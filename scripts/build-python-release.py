@@ -82,12 +82,12 @@ def main() -> None:
         if args.package == "sdk":
             stage_sdk(staging, wheel_version)
             environment = None
-            expected = output_dir / f"deepseek_harness_sdk-{wheel_version}-py3-none-any.whl"
+            expected = output_dir / f"aeven_sdk-{wheel_version}-py3-none-any.whl"
         else:
             platform_tag, executable_name = PLATFORMS[args.platform]
             stage_runtime(staging, wheel_version, args.runtime_exe.resolve(), executable_name)
             environment = {"AVN_RUNTIME_PLATFORM_TAG": platform_tag}
-            expected = output_dir / f"deepseek_harness_runtime_bin-{wheel_version}-py3-none-{platform_tag}.whl"
+            expected = output_dir / f"aeven_runtime_bin-{wheel_version}-py3-none-{platform_tag}.whl"
         command = ["uv", "build", "--wheel", "--out-dir", str(output_dir), str(staging)]
         subprocess.run(command, cwd=ROOT, env=None if environment is None else {**os.environ, **environment}, check=True)
     if not expected.is_file():
@@ -215,7 +215,7 @@ def stage_runtime(destination: Path, version: str, executable: Path, executable_
     copy_package(ROOT / "python" / "sdk-runtime", destination)
     stage_license_files(destination, include_notices=True)
     rewrite_version(destination / "pyproject.toml", version)
-    runtime_dir = destination / "src" / "deepseek_harness_runtime" / "runtime"
+    runtime_dir = destination / "src" / "aeven_runtime" / "runtime"
     runtime_dir.mkdir(parents=True, exist_ok=True)
     source_directory = executable.parent
     for filename in runtime_filenames(executable_name):

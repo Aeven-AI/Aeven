@@ -1,5 +1,5 @@
 ---
-description: "The TypeScript SDK client for callers that spawn a Aeven runtime subprocess and drive agent turns over stdio JSON-RPC: the DeepSeekHarness run API and the lower-level HarnessClient."
+description: "The TypeScript SDK client for callers that spawn an Aeven runtime subprocess and drive agent turns over stdio JSON-RPC: the Aeven run API and the lower-level HarnessClient."
 kind: "package-library"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-sdk-client` lets TypeScript programs drive a Aeven runtime as a subprocess over stdio JSON-RPC. With `DeepSeekHarness` you can spawn the runtime, open sessions, send prompts, and collect the final response plus the event and notification streams; `HarnessClient` gives explicit control over the protocol layer. It is the design twin of the [Python SDK](../../../python/README.md), which shares the same runtime peer and protocol. The launch spec is explicit — callers may name the runtime executable via `avnBin`, omitted resolves the same-version `@aeven/cli` package's bin, and the client constructs the arguments — so this client suits repository-adjacent TypeScript consumers such as the SDK subagent backend and automation that know which runtime they are launching. It is a pure library: it registers nothing on a Cordis context, and the runtime it spawns is a complete harness whose composition its own `cordis.yml` decides.
+`avn-sdk-client` lets TypeScript programs drive an Aeven runtime as a subprocess over stdio JSON-RPC. With `Aeven` you can spawn the runtime, open sessions, send prompts, and collect the final response plus the event and notification streams; `HarnessClient` gives explicit control over the protocol layer. It is the design twin of the [Python SDK](../../../python/README.md), which shares the same runtime peer and protocol. The launch spec is explicit — callers may name the runtime executable via `avnBin`, omitted resolves the same-version `@aeven/cli` package's bin, and the client constructs the arguments — so this client suits repository-adjacent TypeScript consumers such as the SDK subagent backend and automation that know which runtime they are launching. It is a pure library: it registers nothing on a Cordis context, and the runtime it spawns is a complete harness whose composition its own `cordis.yml` decides.
 
 ## Table of Contents
 
@@ -25,15 +25,15 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Use this client when TypeScript code must drive a complete Harness runtime from another process and you can name the runtime executable explicitly. The common path is minimal: construct a `DeepSeekHarness` with a launch spec, run prompts, and close it so the child process is always reaped.
+Use this client when TypeScript code must drive a complete Harness runtime from another process and you can name the runtime executable explicitly. The common path is minimal: construct a `Aeven` with a launch spec, run prompts, and close it so the child process is always reaped.
 
-### Running agent turns with DeepSeekHarness
+### Running agent turns with Aeven
 
 ```ts
-import { DeepSeekHarness } from '@aeven/sdk-client'
+import { Aeven } from '@aeven/sdk-client'
 import { ReasoningEffortId } from '@aeven/llm'
 
-await using harness = new DeepSeekHarness({
+await using harness = new Aeven({
   profile: 'sdk',
   patches: ['./automation.cordis.yml'],
   provider: 'deepseek-official',
@@ -65,13 +65,13 @@ This section explains the design behind the client; the observable behavior is f
 
 ### Design concept
 
-The client is two layers over one wire: `DeepSeekHarness` (owned runs) over `HarnessClient` (the protocol client), mirroring the Python SDK's layering. It runs outside any harness context, so it spawns the runtime directly rather than through the `avn-subprocess` service — the seam's documented exception for SDK-managed transports — and its teardown ladder lives in this package. The runtime notifies for every session in its context; session-tree scoping is a client-side filter over `subagent.started` lineage edges.
+The client is two layers over one wire: `Aeven` (owned runs) over `HarnessClient` (the protocol client), mirroring the Python SDK's layering. It runs outside any harness context, so it spawns the runtime directly rather than through the `avn-subprocess` service — the seam's documented exception for SDK-managed transports — and its teardown ladder lives in this package. The runtime notifies for every session in its context; session-tree scoping is a client-side filter over `subagent.started` lineage edges.
 
 ### Source map
 
 | File | Role |
 |---|---|
-| [`src/api.ts`](src/api.ts) | `DeepSeekHarness` + `HarnessSession`: owned runs, receipt-to-idle collection, `finalResponse` |
+| [`src/api.ts`](src/api.ts) | `Aeven` + `HarnessSession`: owned runs, receipt-to-idle collection, `finalResponse` |
 | [`src/client.ts`](src/client.ts) | `HarnessClient`: spawn, handshake, requests, subscription fan-out, typed errors |
 | [`src/dispose.ts`](src/dispose.ts) | Private teardown ladder: stdin EOF → SIGTERM → SIGKILL to actual exit |
 | [`src/types.ts`](src/types.ts) | Launch and timeout options, notification shapes, `RunResult` |
