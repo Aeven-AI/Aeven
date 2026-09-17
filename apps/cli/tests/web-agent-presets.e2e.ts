@@ -103,7 +103,7 @@ async function bootWeb(
     // document overrides — and repeats the web-app bundle's own value so the
     // shipped default is asserted rather than inherited. No `roots` entry:
     // the plugin bundles the shipped presets itself and prepends their root.
-    { id: 'agent-presets', config: { default: 'cordis-jobs', includeUserRoot: false } },
+    { id: 'agent-presets', config: { default: 'cordis', includeUserRoot: false } },
     ...extra,
   ]
   // The surface is patch layers over an empty preset root, so the root sits
@@ -216,9 +216,9 @@ describe('the shipped Web composition', () => {
   it('supplies the shipped presets, and only those, from the system root', async () => {
     const listed = await ctx.agentPresets.list()
 
-    expect(listed.map(preset => preset.id).sort()).toEqual(['cordis', 'cordis-jobs', 'minimal', 'ptc', 'standard'])
+    expect(listed.map(preset => preset.id).sort()).toEqual(['cordis', 'minimal', 'ptc', 'standard'])
     expect(listed.every(preset => preset.trust === 'system')).toBe(true)
-    expect(ctx.agentPresets.defaultId).toBe('cordis-jobs')
+    expect(ctx.agentPresets.defaultId).toBe('cordis')
   })
 
   it('composes the full agent from `standard`', async () => {
@@ -950,7 +950,7 @@ describe('a composition that configures its own preset roots', () => {
     ])
 
     const listed = await rootsCtx.agentPresets.list()
-    expect(listed.map(preset => preset.id).sort()).toEqual(['cordis', 'cordis-jobs', 'minimal', 'ptc', 'standard', 'team-spec'])
+    expect(listed.map(preset => preset.id).sort()).toEqual(['cordis', 'minimal', 'ptc', 'standard', 'team-spec'])
     expect(listed.every(preset => preset.broken === undefined)).toBe(true)
     // The shipped root comes first: a configured directory claiming a shipped
     // id is shadowed, never the other way around.
