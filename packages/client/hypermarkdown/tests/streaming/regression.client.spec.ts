@@ -403,7 +403,10 @@ describe('HyperMarkdown streaming dataset stress', () => {
         anchor => anchor.textContent === 'implicit reference link',
       ),
     ).toBe(true)
-  })
+    // Streams the whole dataset through a real renderer: ~450ms idle, but the
+    // coverage lane instruments both sides on every worker sharing the box, and
+    // the 5s default timed out there. The budget bounds a hang, not a speed claim.
+  }, 30_000)
 })
 
 // Text the reader actually sees. KaTeX subtrees are dropped because their

@@ -5186,18 +5186,22 @@ describe('PythonCodeRuntime — hostile peer', () => {
     // exception. Linux-only RLIMIT_AS repro; on macOS the value round-trips
     // either way, but the fixture stays within the address space so it is honest.
     //
-    // `maxWallMs` is 60s, not the 20s the memory assertion alone needs: the O(depth)
+    // `maxWallMs` is 150s, not the 20s the memory assertion alone needs: the O(depth)
     // cursor pulls 6M elements one at a time through Python-level frames, which costs
     // ~11s on an idle machine and more under the coverage lane's V8 instrumentation
     // with several workers sharing a box. This budget bounds the run without letting a
     // loaded runner's scheduling latency read as a `timeout` — what this test asserts
-    // is the O(depth) memory shape, not a speed claim.
-    const { runtime } = await setup({ maxValueBytes: 20 * 1024 * 1024, addressSpaceMb: 384, maxWallMs: 60_000 })
+    // is the O(depth) memory shape, not a speed claim. 60s proved too tight for that
+    // second reading: `check:ci:coverage` breached it on both of this host's runs, and
+    // because a failing test suppresses the coverage report the whole lane died before
+    // it could check a single threshold. The vitest timeout above it is a backstop for
+    // the case hanging outright, so it only has to outlast the ceiling.
+    const { runtime } = await setup({ maxValueBytes: 20 * 1024 * 1024, addressSpaceMb: 384, maxWallMs: 150_000 })
     const result = await runtime.run({ program: 'return [0] * 6_000_000', bindings: [] })
     expect(result.error).toBeUndefined()
     expect(Array.isArray(result.value)).toBe(true)
     expect((result.value as number[]).length).toBe(6_000_000)
-  }, 90_000)
+  }, 240_000)
 
   it('validates wide binding arguments in O(depth), not O(width)', async () => {
     // The completion-value walks are budgeted; this one is not. `dispatch` runs
