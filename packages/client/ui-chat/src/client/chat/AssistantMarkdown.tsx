@@ -5,7 +5,6 @@ import type { MarkdownFileMentions } from '@aeven/client-ui-primitives'
 import type { ChatNodeOwnerProps, ChatViewSlotProps } from '../contract/slots.ts'
 import type { AssistantBlock } from '../contract/snapshot.ts'
 import { markdownLabels } from '../markdown-labels.ts'
-import { useSearchableHidden } from './searchable-hidden.ts'
 import css from './AssistantMarkdown.module.css'
 
 export interface AssistantMarkdownProps {
@@ -17,8 +16,6 @@ export interface AssistantMarkdownProps {
   renderMessageImages: ChatNodeOwnerProps['renderMessageImages']
   /** Hide reasoning that belongs to the Turn-level process disclosure. */
   reasoningHidden?: boolean | undefined
-  /** Reveal the owning Turn-level process disclosure. */
-  revealProcess?: (() => void) | undefined
   /** Resolved prose file mentions for this Assistant's closing turn. */
   mentions?: MarkdownFileMentions | undefined
   /** Keep the transcript on its live tail after an engine render. */
@@ -140,15 +137,12 @@ export function runsOf(
  */
 export const AssistantMarkdown = memo(function AssistantMarkdown({
   blocks, streaming, interrupted, renderMessageImages,
-  reasoningHidden = false, revealProcess, mentions, scrollDown, onFullscreenChange, t,
+  reasoningHidden = false, mentions, scrollDown, onFullscreenChange, t,
 }: AssistantMarkdownProps) {
   // Stable per locale revision (t identity changes on switch): a fresh object
   // per render would rebuild MarkdownText's component table every chunk.
   const labels = useMemo(() => markdownLabels(t), [t])
   const runs = useMemo(() => runsOf(blocks, streaming), [blocks, streaming])
-  // Hook order is fixed: the hidden-reasoning attribute is attached to every
-  // prose run whether or not one is rendered on this pass.
-  const hidden = useSearchableHidden(reasoningHidden, revealProcess ?? NOOP)
   // Tool-call heads render as tool rows in the chat view's grouping pass, so
   // a node that is only those heads (or empty) would paint an empty root
   // between tool groups — skip the shell unless something visible remains.
@@ -158,15 +152,15 @@ export const AssistantMarkdown = memo(function AssistantMarkdown({
   if (!hasVisible) return null
 
   return (
-    <div className={css.root} data-streaming={streaming || undefined}>
+    <div
+      className={css.root}
+      data-streaming={streaming || undefined}
+      data-reasoning-hidden={reasoningHidden || undefined}
+    >
       <div className={css.body}>
         {runs.map(run => run.source !== null
           ? (
-            <div
-              key={`run-${run.start}`}
-              ref={hidden}
-              data-turn-process-inline={reasoningHidden || undefined}
-            >
+            <div key={`run-${run.start}`}>
               <MarkdownText
                 text={run.source}
                 streaming={streaming}
@@ -236,5 +230,3 @@ function renderStandalone(
     align: 'start',
   })
 }
-
-const NOOP = (): void => {}

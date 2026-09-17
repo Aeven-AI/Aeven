@@ -1901,17 +1901,23 @@ describe('ChatView', () => {
     const h = makeHarness({ nodes: [user(1, 'question'), final], turnEnds: new Map([[1, 4]]) })
     const view = render(<h.ChatView {...h.props} />)
     const toggle = view.getByRole('button', { name: '已思考' })
-    const reasoning = view.container.querySelector<HTMLElement>('[data-turn-process-inline]')
     expect(toggle.getAttribute('aria-expanded')).toBe('false')
-    expect(reasoning?.getAttribute('hidden')).toBe('until-found')
+
+    // The step marks that a disclosure owns its trace, and the stylesheet withholds
+    // the engine's own reasoning box. The reply beside it is never withheld: a run is
+    // one engine source holding both, so withholding the run took the answer with it,
+    // and a turn only reaches this state when it is foldable — which needs a tool
+    // call, so the replies that vanished were the ones that did real work.
+    const step = view.container.querySelector('[data-reasoning-hidden]')
+    expect(step).toBeTruthy()
     expect(view.getByText('final answer')).toBeTruthy()
-    // The fold keeps the trace off screen, and the engine mounts the settled
-    // block collapsed; the reader's second click opens the block itself.
-    expect(reasoning?.querySelector('.reasoning-wrapper')?.className).toContain('collapsed')
+    // The engine still draws the trace, collapsed: the stylesheet, not the
+    // projection, is what withholds it, so the source keeps the structure the
+    // incremental render depends on.
+    expect(step?.querySelector('.reasoning-wrapper')?.className).toContain('collapsed')
+
     fireEvent.click(toggle)
-    expect(view.getByText('思考了 0 秒')).toBeTruthy()
-    fireEvent.click(view.getByText('思考了 0 秒'))
-    expect(reasoning?.querySelector('.reasoning-wrapper')?.className).toContain('open')
+    expect(view.container.querySelector('[data-reasoning-hidden]')).toBeNull()
     expect(view.container.textContent).toContain('private analysis')
   })
 

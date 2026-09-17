@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import type { ChatNodeViewProps, TurnTailOwnerProps } from '../contract/slots.ts'
 import { AssistantMarkdown } from './AssistantMarkdown.tsx'
 
@@ -26,7 +26,6 @@ export const AssistantNodeView = memo(function AssistantNodeView({
     && turnProcess.spec.answerStep === data.step
     && turnProcess.spec.inlineReasoning
     && !turnProcess.open
-  const revealProcess = useCallback(() => { turnProcess?.setOpen(true) }, [turnProcess])
   return (
     <AssistantMarkdown
       blocks={data.blocks}
@@ -34,7 +33,6 @@ export const AssistantNodeView = memo(function AssistantNodeView({
       interrupted={data.status === 'interrupted'}
       renderMessageImages={renderMessageImages}
       reasoningHidden={reasoningHidden}
-      revealProcess={revealProcess}
       mentions={mentions}
       scrollDown={scrollDown}
       onFullscreenChange={onFullscreenChange}
