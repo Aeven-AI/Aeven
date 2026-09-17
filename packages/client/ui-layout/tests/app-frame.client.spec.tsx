@@ -108,7 +108,7 @@ function mountFrame() {
       useSessionPendingInteraction={useSessionPendingInteraction}
       useWorkspaces={((sel: (s: WorkspaceSnapshot) => unknown) => sel(workspaceState)) as never}
       SessionProvider={SessionProviderStub}
-      t={key => key === 'brand.localBuild' ? 'AVN Local Build' : key}
+      t={key => key === 'brand.localBuild' ? 'Æven' : key}
     />
   )
   const utils = render(element())
@@ -180,7 +180,7 @@ afterEach(() => {
 describe('AppFrame', () => {
   it('localizes the product title when the build does not supply one', () => {
     mountFrame()
-    expect(document.title).toBe('AVN Local Build')
+    expect(document.title).toBe('Æven')
   })
 
   it('projects the selected durable Session title', () => {

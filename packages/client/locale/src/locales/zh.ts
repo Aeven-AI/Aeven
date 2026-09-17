@@ -28,7 +28,8 @@ export const zh = {
   'collapse': '收起',
   'expand': '展开',
   'back': '返回',
-  'brand.localBuild': 'AVN 本地构建',
+  // A brand name: the same in every locale, so it is not translated.
+  'brand.localBuild': 'Æven',
   'unknown': '未知',
   'none': '无',
   'truncated': '已截断',

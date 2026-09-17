@@ -10,20 +10,30 @@ const src = (rel: string): string => fileURLToPath(new URL(rel, import.meta.url)
 const STANDALONE_ERROR = 'apps/web is not a standalone application: bare Vite cannot inject window.__AVN_BOOT__. '
   + 'From a repository checkout, run `pnpm avn web`; an installed package uses `avn web`. '
   + 'For client-plugin HMR, run `pnpm avn web` together with `pnpm run dev:web`.'
-const DEFAULT_CLIENT_TITLE = 'AVN Local Build'
+const DEFAULT_CLIENT_TITLE = 'Æven'
 
 /** Escape build-time text before placing it in the HTML title element. */
 function escapeHtmlText(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-/** Project the public build title into the initial HTML document. */
+/**
+ * Project the public build title into the initial HTML document.
+ *
+ * Matches the title element rather than the placeholder text it happens to
+ * carry: a literal here stops applying the moment `index.html`'s title is
+ * edited, and this is the only thing that makes `AVN_CLIENT_TITLE` and the
+ * default reach a reader before the client sets the document title.
+ */
 function clientDocumentTitle(): Plugin {
   const title = escapeHtmlText(process.env.AVN_CLIENT_TITLE ?? DEFAULT_CLIENT_TITLE)
   return {
     name: 'avn-client-document-title',
     transformIndexHtml(html) {
-      return html.replace('<title>AVN Local Build</title>', `<title>${title}</title>`)
+      if (!html.includes('<title>')) {
+        throw new Error('avn-client-document-title: apps/web/index.html must carry a <title> element')
+      }
+      return html.replace(/<title>[\s\S]*?<\/title>/, `<title>${title}</title>`)
     },
   }
 }

@@ -30,7 +30,7 @@ export const en = {
   'collapse': 'Collapse',
   'expand': 'Expand',
   'back': 'Back',
-  'brand.localBuild': 'AVN Local Build',
+  'brand.localBuild': 'Æven',
   'unknown': 'Unknown',
   'none': 'None',
   'truncated': 'Truncated',

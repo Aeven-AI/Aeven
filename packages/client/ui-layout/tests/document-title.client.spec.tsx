@@ -28,9 +28,9 @@ describe('DocumentTitle', () => {
   it('uses the generic title when the build provides no title', () => {
     vi.stubEnv('AVN_CLIENT_TITLE', '')
     delete process.env.AVN_CLIENT_TITLE
-    const mounted = render(<DocumentTitle title="First title" productTitle="AVN Local Build" />)
-    expect(document.title).toBe('First title — AVN Local Build')
+    const mounted = render(<DocumentTitle title="First title" productTitle="Æven" />)
+    expect(document.title).toBe('First title — Æven')
     mounted.unmount()
-    expect(document.title).toBe('AVN Local Build')
+    expect(document.title).toBe('Æven')
   })
 })

@@ -12,26 +12,49 @@ it('ships install metadata with the built web application', async () => {
   const manifest: unknown = JSON.parse(await readFile(join(DIST_ROOT, 'manifest.webmanifest'), 'utf8'))
   expect(manifest).toEqual({
     id: '/',
-    name: 'Aeven',
-    short_name: 'AVN',
+    name: 'Æven',
+    short_name: 'Æven',
     start_url: '/',
     scope: '/',
     display: 'fullscreen',
-    icons: [{
-      src: '/favicon.svg',
-      sizes: 'any',
-      type: 'image/svg+xml',
-      purpose: 'any',
-    }],
+    icons: [
+      // The vector mark carries the crisp small sizes and every desktop
+      // surface; the two rasters carry the install sizes, and are the
+      // safe-zone crops a launcher masks, so they are declared maskable only.
+      {
+        src: '/favicon.svg',
+        sizes: 'any',
+        type: 'image/svg+xml',
+        purpose: 'any',
+      },
+      {
+        src: '/web-app-manifest-192x192.png',
+        sizes: '192x192',
+        type: 'image/png',
+        purpose: 'maskable',
+      },
+      {
+        src: '/web-app-manifest-512x512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable',
+      },
+    ],
   })
 })
 
 it('ships a favicon that switches to a light mark under dark color scheme', async () => {
   const favicon = await readFile(join(DIST_ROOT, 'favicon.svg'), 'utf8')
-  // The light fill must live inside the dark-scheme media query, so the icon
-  // stays black in light mode and only turns white under a dark scheme.
-  expect(favicon).toMatch(/@media \(prefers-color-scheme: dark\)\s*{\s*path\s*{[^}]*fill:\s*#fff/i)
-  expect(favicon).toContain('fill="#000"')
+  // The mark paints with `currentColor`, so an inlined copy inherits the text
+  // colour around it and the standalone favicon is the only case that needs a
+  // flip of its own: dark by default, light under a dark scheme.
+  expect(favicon).toContain('fill="currentColor"')
+  const dark = /@media \(prefers-color-scheme: dark\)\s*{([\s\S]*?)\n\t*}/.exec(favicon)?.[1]
+  if (dark === undefined) throw new Error('favicon.svg carries no dark-scheme block')
+  expect(dark).toMatch(/color:\s*#fff/i)
+  // Scoped to the mark: a `:root` rule here would restyle the host document the
+  // moment this file is inlined rather than fetched as a favicon.
+  expect(dark).not.toContain(':root')
 })
 
 it('inlines first-paint preloader CSS and destages remaining stylesheets', async () => {
