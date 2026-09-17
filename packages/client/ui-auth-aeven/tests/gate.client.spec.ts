@@ -15,7 +15,8 @@ function token(userId: string, expiresInSeconds: number): string {
   return `header.${btoa(JSON.stringify(claims))}.signature`
 }
 
-const profile = { userId: 'u-1', email: 'a@b.c', displayName: 'Ollie' }
+/** The answer a reader who has chosen a name gets. */
+const profile = { userId: 'u-1', email: 'a@b.c', displayName: 'Ollie', displayNameSet: true }
 
 describe('restoring the session at boot', () => {
   beforeEach(() => {
@@ -98,6 +99,40 @@ describe('restoring the session at boot', () => {
 
     await signOut()
     expect(window.localStorage.getItem('aevenProfile')).toBeNull()
+  })
+
+  it('asks for a name when the API holds none for the reader', async () => {
+    const { restoreSession } = await load()
+    window.localStorage.setItem('userId', 'u-1')
+    window.localStorage.setItem('appBearers', JSON.stringify({ 'u-1': token('u-1', 7200) }))
+    // An account that never chose one answers no flag at all; a derived name
+    // answers false. Both are the naming step's state.
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ userId: 'u-1', displayName: 'u-1' })))
+
+    expect(await restoreSession()).toEqual({ state: 'unnamed', userId: 'u-1' })
+
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({
+      userId: 'u-1', displayName: 'Ollie', displayNameSet: false,
+    })))
+    expect(await restoreSession()).toEqual({ state: 'unnamed', userId: 'u-1' })
+  })
+
+  it('reads the kept profile by the same rule, so a named reader boots through an outage', async () => {
+    const { restoreSession } = await load()
+    window.localStorage.setItem('aevenProfile', JSON.stringify({ userId: 'u-1', displayName: 'Ollie' }))
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch') }))
+
+    // A profile kept before this client knew the flag cannot say the reader
+    // chose a name, and the step they would land on needs the API to save one.
+    expect(await restoreSession()).toEqual({ state: 'unnamed', userId: 'u-1' })
+  })
+
+  it('boots a reader who chose a name even when the API cannot be reached', async () => {
+    const { restoreSession } = await load()
+    window.localStorage.setItem('aevenProfile', JSON.stringify(profile))
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch') }))
+
+    expect(await restoreSession()).toEqual({ state: 'authenticated', userId: 'u-1' })
   })
 
   it('authenticates nobody when no Aeven API is configured', async () => {

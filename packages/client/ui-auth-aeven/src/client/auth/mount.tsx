@@ -5,7 +5,7 @@
  * renderer, after every client entry activates. The authentication screens are
  * React, and they have to be on screen before any of that happens, so the gate
  * brings React forward for this one purpose and releases it again once a
- * session exists.
+ * session exists. The naming step is mounted the same way, for the same reason.
  * @module
  */
 
@@ -13,14 +13,31 @@ import { createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 
 import { Authenticate } from './views/Authenticate.tsx'
+import { NameCheck } from './views/NameCheck.tsx'
 import { OauthResult } from './views/OauthResult.tsx'
 import { matchAuthRoute } from './route-match.ts'
+import { AUTH_ROUTES, isAuthRoute } from './services/routes.ts'
+import { storage } from './services/session.ts'
 import '../../vendor/aeven-auth.css'
 
 /** A mounted authentication screen, and how to take it down. */
 export interface MountedAuthScreen {
   /** Unmount and release the container back to the application. */
   unmount(): void
+}
+
+/**
+ * Where a reader goes once they have a name: the page they first asked for.
+ *
+ * An authentication path is not a destination — a reader sent to sign-in and
+ * then to the naming step did not ask for either — so it falls back to the
+ * application root.
+ * @returns the path to load.
+ */
+function destination(): string {
+  const referrer = storage.getItem('authReferrer')
+  if (referrer === null || referrer === '' || isAuthRoute(referrer)) return AUTH_ROUTES.home
+  return referrer
 }
 
 /**
@@ -78,4 +95,38 @@ export function mountAuthScreen(container: Element, pathname: string): MountedAu
       root.unmount()
     },
   }
+}
+
+/**
+ * Render the naming step, and load the application once the reader is named.
+ *
+ * The step has no route of its own: it owns whatever page the reader asked
+ * for, and that address is remembered here so naming them returns them to it.
+ * Giving the name is the last thing that happens before the application boots,
+ * so the load that follows is the ordinary one, and its gate finds a profile
+ * that carries a name.
+ * @param container - the element to render into.
+ * @param pathname - the browser path they asked for.
+ * @returns the mounted screen, and how to take it down.
+ */
+export function mountNameScreen(container: Element, pathname: string): MountedAuthScreen {
+  // An authentication path is where they already are, as for sign-in: recording
+  // it as the destination would return them to a screen they have finished.
+  if (!isAuthRoute(pathname) && pathname !== AUTH_ROUTES.home) {
+    storage.setItem('authReferrer', pathname)
+  }
+
+  const root: Root = createRoot(container)
+  root.render(
+    // The stylesheet is rooted at `#app-root > .view-container > .view`, so the
+    // step is given the ancestors its rules select on, exactly as the sign-in
+    // screens are.
+    createElement('div', { id: 'app-root', style: { height: '100%', width: '100%' } },
+      createElement('div', { className: 'view-container' },
+        createElement(NameCheck, {
+          onNamed: () => { window.location.assign(destination()) },
+        }))),
+  )
+
+  return { unmount: () => { root.unmount() } }
 }

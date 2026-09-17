@@ -1,5 +1,5 @@
 ---
-description: "The Aeven sign-in, sign-up, and OAuth-result screens for the AVN web client, plus the session restore, bearer refresh, and authenticated-transport helpers the boot kernel calls before the plugin graph exists."
+description: "The Aeven sign-in, sign-up, OAuth-result, and naming screens for the AVN web client, plus the session restore, bearer refresh, and authenticated-transport helpers the boot kernel calls before the plugin graph exists."
 kind: "package-library"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-client-ui-auth-aeven` gives the AVN web shell its Aeven authentication surface: it restores an existing Aeven session, presents the sign-in, sign-up, and OAuth-result screens when there is none, and attaches the Aeven bearer to every AVN RPC call afterwards. The web boot kernel calls it directly, before any plugin runs, so a reader either arrives at an authenticated application or at a sign-in screen and never at a half-booted one. A session started in the Aeven client is understood here and the reverse, because both use the same storage keys and the same `appBearers` shape. Nothing in this package is model-facing.
+`avn-client-ui-auth-aeven` gives the AVN web shell its Aeven authentication surface: it restores an existing Aeven session, presents the sign-in, sign-up, and OAuth-result screens when there is none, asks a reader Aeven holds no name for what to call them, and attaches the Aeven bearer to every AVN RPC call afterwards. The web boot kernel calls it directly, before any plugin runs, so a reader either arrives at an authenticated application or at a sign-in screen and never at a half-booted one. A session started in the Aeven client is understood here and the reverse, because both use the same storage keys and the same `appBearers` shape. Nothing in this package is model-facing.
 
 ## Table of Contents
 
@@ -38,16 +38,17 @@ import { restoreSession, mountAuthScreen, requireSignIn, installAuthenticatedTra
 
 const result = await restoreSession()
 if (result.state === 'authenticated') installAuthenticatedTransport()
+else if (result.state === 'unnamed') mountNameScreen(container, location.pathname)
 else if (result.state === 'unauthenticated') { requireSignIn(location.pathname); mountAuthScreen(container, location.pathname) }
 ```
 
-`restoreSession` answers `authenticated`, `unauthenticated`, or `disabled`. `disabled` means no Aeven API is configured in the served page, and the shell boots as it does without any authority. Success publishes the reader on the page, which is how a plugin bundle later reads it.
+`restoreSession` answers `authenticated`, `unnamed`, `unauthenticated`, or `disabled`. `unnamed` is a restored session whose profile has no chosen name: the naming step owns the page until the reader gives one, which the API stores against the account. `disabled` means no Aeven API is configured in the served page, and the shell boots as it does without any authority. Success publishes the reader on the page, which is how a plugin bundle later reads it.
 
 An Aeven that cannot be reached answers `authenticated` from the last profile it kept, rather than signing the reader out. The Host verifies the year-long refresh cookie against its own copy of the signing secret, so it still identifies the reader while Aeven is down and the application keeps reaching the model and OAuth providers the reader configured themselves. Only Aeven refusing the credential, or a sign-out, ends the session.
 
 ### What the screens do on success
 
-The screens report success by navigating away from the authentication surface — to the path the reader originally asked for, remembered in `authReferrer`. Leaving the surface triggers a document load, and the gate runs again and restores the session that was just established. Nothing hands control back in place, because the boot already returned when it decided there was no session.
+The screens report success by navigating away from the authentication surface — to the path the reader originally asked for, remembered in `authReferrer`. The naming step reports success the same way: it stores the name through `/set-display-name`, then loads the destination, and the gate finds a profile that carries a name. Leaving the surface triggers a document load, and the gate runs again and restores the session that was just established. Nothing hands control back in place, because the boot already returned when it decided there was no session.
 
 -----
 
@@ -79,7 +80,7 @@ While Aeven is unreachable the access token lapses and no renewal can replace it
 
 ### The kept profile
 
-Every `/get-profile` answer is kept under `aevenProfile`, and a boot that cannot reach Aeven restores the reader from it, so the account menu shows their name and picture instead of a bare user. A sign-out discards it along with the bearer; an unparsable entry, or one naming nobody, is treated as absent and the reader signs in.
+Every `/get-profile` answer is kept under `aevenProfile`, and a boot that cannot reach Aeven restores the reader from it, so the account menu shows their name and picture instead of a bare user. A name the reader chooses is written back into that kept entry, so the next load does not ask again. A sign-out discards it along with the bearer; an unparsable entry, or one naming nobody, is treated as absent and the reader signs in.
 
 ### Following the page's own loopback host
 
@@ -91,6 +92,7 @@ A configured `localhost` origin is rewritten to the page's own hostname when bot
 |---|---|
 | [`src/client/index.ts`](src/client/index.ts) | The gate: `restoreSession`, `requireSignIn`, and `installAuthenticatedTransport` |
 | [`src/client/auth/mount.tsx`](src/client/auth/mount.tsx) | Mounting a screen, following in-surface navigation, and handing over on success |
+| [`src/client/auth/views/NameCheck.tsx`](src/client/auth/views/NameCheck.tsx) | The naming step: the greeting, the name field, and Continue |
 | [`src/client/auth/services/tokens.ts`](src/client/auth/services/tokens.ts) | Held bearers, usability check, and the serialized refresh exchange |
 | [`src/client/auth/services/watch.ts`](src/client/auth/services/watch.ts) | Background renewal and leaving for the sign-in screen when the session ends |
 | [`src/client/auth/services/errors.ts`](src/client/auth/services/errors.ts) | `AevenApiError` and the session-refusal classification |

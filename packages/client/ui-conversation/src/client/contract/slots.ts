@@ -113,14 +113,25 @@ declare module '@aeven/client-ui-slots' {
       scope: 'session'
       owner: ConversationHeaderActionOwnerProps
     }
+    /**
+     * Right-aligned utilities in the resident navigation band, ascending.
+     *
+     * The band belongs to the column rather than to a Session, so this seat is
+     * rendered in the no-Session hero and beside a live Session alike — which
+     * is what an app-level control such as the signed-in reader's avatar
+     * needs. An entry here is given no Session at all: the root scope supplies
+     * no `sessionId` and no Session hooks, so it draws from its own inject
+     * face and the page the shell states. An entry that does need the current
+     * Session belongs in `conversation.session.header.utilities` instead,
+     * which exists while one is open.
+     */
+    'conversation.navigation.utilities': { kind: 'list'; scope: 'root' }
     /** Registered Conversation target Views, rendered one at a time. */
     'conversation.view': { kind: 'list'; scope: 'session'; owner: ConvViewOwnerProps }
     /** Selector-routed replacements for the resident composer. */
     'conversation.composer': { kind: 'chain'; scope: 'session-maybe'; owner: ComposerChainProps }
     /** Workspace picker shown by the blank-session Hero. */
     'conversation.hero.workspace': { kind: 'single'; scope: 'root'; owner: EmptyWorkspaceOwnerProps }
-    /** Brand mark shown before the blank-session headline. */
-    'conversation.hero.brand.mark': { kind: 'single'; scope: 'root'; owner: HeroBrandMarkOwnerProps }
     /** Agent-preset control staged for a New Session. */
     'conversation.hero.agentPreset': { kind: 'single'; scope: 'root'; owner: HeroAgentPresetOwnerProps }
     /** Full-width entries above the composer card. */
@@ -309,14 +320,6 @@ export interface ComposerChainProps {
   pendingInteraction: SessionPendingInteraction | undefined
 }
 
-/** Presentation props supplied to the blank-session brand mark. */
-export interface HeroBrandMarkOwnerProps {
-  /** Requested square edge in pixels. */
-  size: number
-  /** Host class preserving the surrounding mark geometry. */
-  className?: string | undefined
-}
-
 /** Full props of the resident optional-Session Conversation shell. */
 export type ConversationSlotProps =
   PropsRuntime<'conversation'>
@@ -324,9 +327,9 @@ export type ConversationSlotProps =
     | 'conversation.session' | 'conversation.session.header'
     | 'conversation.composer' | 'conversation.composer.bar'
     | 'conversation.input.dock'
-    | 'conversation.hero.brand.mark'
     | 'conversation.hero.workspace'
     | 'conversation.hero.agentPreset'
+    | 'conversation.navigation.utilities'
   >
   & InjectFace<ConversationInjected>
   & PropsLocale<'conversation'>

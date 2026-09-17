@@ -103,16 +103,37 @@ describe('the held session', () => {
   beforeEach(() => { session.reset(); window.localStorage.clear() })
 
   it('adopts a profile and reports the user every surface reads', () => {
-    session.adoptProfile({ userId: 'u-1', email: 'a@b.c', displayName: 'Ollie' })
+    session.adoptProfile({ userId: 'u-1', email: 'a@b.c', displayName: 'Ollie', displayNameSet: true })
     expect(session.userConfig).toEqual({
-      userId: 'u-1', email: 'a@b.c', displayName: 'Ollie', profile: undefined, userSignedIn: true,
+      userId: 'u-1', email: 'a@b.c', displayName: 'Ollie', displayNameSet: true,
+      profile: undefined, userSignedIn: true,
     })
   })
 
+  it('adopts the name the reader chose, and keeps it in the profile it holds', () => {
+    session.adoptProfile({ userId: 'u-1', displayName: 'u-1' })
+    expect(session.displayNameSet).toBeUndefined()
+    session.adoptDisplayName('Ollie')
+    expect(session.displayName).toBe('Ollie')
+    expect(session.displayNameSet).toBe(true)
+
+    // A load that cannot reach Aeven restores from this, so it has to carry
+    // the choice; a page that never cached one has nothing to rewrite.
+    session.adoptProfile({ userId: 'u-1', displayName: 'u-1' })
+    session.adoptDisplayName('Ollie')
+    expect(JSON.parse(window.localStorage.getItem('aevenProfile') ?? 'null') as unknown)
+      .toMatchObject({ userId: 'u-1', displayName: 'Ollie', displayNameSet: true })
+    window.localStorage.clear()
+    expect(() => { session.adoptDisplayName('Ollie') }).not.toThrow()
+  })
+
   it('forgets everything on reset, leaving the page signed out', () => {
-    session.adoptProfile({ userId: 'u-1', email: 'a@b.c' })
+    session.adoptProfile({ userId: 'u-1', email: 'a@b.c', displayName: 'Ollie', displayNameSet: true })
     session.reset()
-    expect(session.userConfig).toMatchObject({ userId: null, userSignedIn: false, email: undefined })
+    expect(session.userConfig).toMatchObject({
+      userId: null, userSignedIn: false, email: undefined,
+      displayName: undefined, displayNameSet: undefined,
+    })
   })
 
   it('reads and writes storage, and survives a browser that refuses it', () => {

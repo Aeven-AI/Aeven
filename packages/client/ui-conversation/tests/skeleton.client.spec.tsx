@@ -24,7 +24,7 @@ import { ConversationRoot } from '../src/client/skeleton/ConversationRoot.tsx'
 import { ConversationSession, ConversationSessionHeader } from '../src/client/skeleton/ConversationSession.tsx'
 import { conversationPhase } from '../src/client/contract/snapshot.ts'
 import { HeroShell } from '../src/client/skeleton/EmptyHero.tsx'
-import type { HeroShellProps } from '../src/client/skeleton/EmptyHero.tsx'
+import { greetingKeyOf } from '../src/client/skeleton/hero-greeting.ts'
 import { InputBar } from '../src/client/input/InputBar.tsx'
 import type { InputBarProps } from '../src/client/input/InputBar.tsx'
 import type {
@@ -93,9 +93,17 @@ function flushAnimationFrames(rounds = 1): void {
   })
 }
 
+/** The page global the authentication gate states the reader on. */
+interface ReaderScope {
+  __AVN_AEVEN_READER__?: { displayName?: string }
+}
+
+const scope = globalThis as ReaderScope
+
 afterEach(() => {
   cleanup()
   document.getElementById('avn-preloader')?.remove()
+  delete scope.__AVN_AEVEN_READER__
   vi.unstubAllGlobals()
   resizeObservers.length = 0
 })
@@ -353,20 +361,29 @@ function mount(
 }
 
 describe('Hero chrome', () => {
-  it('renders the English preview badge through the hero locale seat', () => {
-    const renderSlot = vi.fn<HeroShellProps['renderSlot']>(() => null)
-    const view = render(<HeroShell t={makeTranslate(en, commonEn)} renderSlot={renderSlot} />)
-    expect(view.getByText('Into the Unknown')).toBeTruthy()
-    expect(view.getByText('Preview')).toBeTruthy()
-    expect(renderSlot).toHaveBeenCalledOnce()
-    expect(renderSlot.mock.calls[0]?.[0]).toBe('conversation.hero.brand.mark')
-    const brandMarkOwner = renderSlot.mock.calls[0]?.[1]
-    if (brandMarkOwner === undefined || !('size' in brandMarkOwner) || !('className' in brandMarkOwner)) {
-      throw new Error('hero brand-mark owner must provide size and className')
-    }
-    expect(brandMarkOwner.size).toBe(34)
-    expect(brandMarkOwner.className).toBeTypeOf('string')
-    expect(renderSlot.mock.calls[0]?.[2]?.fallback).toBeTruthy()
+  it('greets the reader the page names, under the product name', () => {
+    scope.__AVN_AEVEN_READER__ = { displayName: 'Ollie' }
+    const view = render(<HeroShell t={makeTranslate(en, commonEn)} />)
+    expect(view.getByText('Æven')).toBeTruthy()
+    expect(view.getByText(/Ollie, what is on your mind\?$/)).toBeTruthy()
+  })
+
+  it('keeps the greeting whole for a reader nobody named', () => {
+    const view = render(<HeroShell t={makeTranslate(en, commonEn)} />)
+    expect(view.getByText(/^Good (morning|afternoon|evening|night), what is on your mind\?$/)).toBeTruthy()
+  })
+
+  it('reads the hour boundaries as the Aeven client draws them', () => {
+    expect(greetingKeyOf(0)).toBe('hero.greetingNight')
+    expect(greetingKeyOf(4)).toBe('hero.greetingNight')
+    expect(greetingKeyOf(5)).toBe('hero.greetingMorning')
+    expect(greetingKeyOf(11)).toBe('hero.greetingMorning')
+    expect(greetingKeyOf(12)).toBe('hero.greetingAfternoon')
+    expect(greetingKeyOf(16)).toBe('hero.greetingAfternoon')
+    expect(greetingKeyOf(17)).toBe('hero.greetingEvening')
+    expect(greetingKeyOf(21)).toBe('hero.greetingEvening')
+    expect(greetingKeyOf(22)).toBe('hero.greetingNight')
+    expect(greetingKeyOf(23)).toBe('hero.greetingNight')
   })
 })
 
@@ -484,6 +501,7 @@ describe('ConversationRoot resident composer', () => {
     expect(b.slotCalls).toContain('conversation.session.header.lineage')
     expect(b.slotCalls).toContain('conversation.session.header.actions')
     expect(b.slotCalls).toContain('conversation.session.header.utilities')
+    expect(b.slotCalls).toContain('conversation.navigation.utilities')
   })
 
   it('sticky composer seat wraps the whole overlay chain, not only the fallback stack', () => {
@@ -513,8 +531,8 @@ describe('ConversationRoot resident composer', () => {
     expect(b.view.getByRole('button', { name: 'Child' })).toBeTruthy()
     expect(b.slotCalls).toContain('conversation.session.header.actions')
     expect(b.slotCalls).toContain('conversation.session.header.utilities')
-    expect(b.view.getByText('探索未至之境')).toBeTruthy()
-    expect(b.view.getByText('预览版')).toBeTruthy()
+    expect(b.view.getByText('Æven')).toBeTruthy()
+    expect(b.view.getByText(/你在想些什么？/)).toBeTruthy()
     expect(b.view.queryByTestId('view-chat')).toBeNull()
     expect(b.view.container.querySelector('[data-transcript-hold]')).toBeNull()
     // The same machine-backed textarea is live in the hero, and the
@@ -551,7 +569,6 @@ describe('ConversationRoot resident composer', () => {
     expect(conversationPhase(failed, EMPTY_CONVERSATION_SNAPSHOT)).toBe('engaging')
     const b = mount(failed, undefined, undefined, { summaryBlank: true })
     expect(b.view.container.querySelector('[data-phase]')?.getAttribute('data-phase')).toBe('active')
-    expect(b.view.queryByText('探索未至之境')).toBeNull()
   })
 
   it('active phase: a list-proven non-blank session keeps the docked composer while history opens', () => {
@@ -565,7 +582,6 @@ describe('ConversationRoot resident composer', () => {
     const b = mount(sessionSnapshotOf({ blank: true, openState: 'open' }))
     const root = b.view.container.querySelector('[data-phase]')
     expect(root?.getAttribute('data-phase')).toBe('active')
-    expect(b.view.queryByTestId('hero-headline')).toBeNull()
     expect(b.view.getByRole('textbox')).toBeTruthy()
   })
 
@@ -593,7 +609,6 @@ describe('ConversationRoot resident composer', () => {
     )
     const root = b.view.container.querySelector('[data-phase]')
     expect(root?.getAttribute('data-phase')).toBe('settling')
-    expect(b.view.queryByTestId('hero-headline')).toBeNull()
   })
 
   it('hero phase: a ready list with nothing selected is the genuine cold start', () => {
@@ -605,6 +620,27 @@ describe('ConversationRoot resident composer', () => {
     )
     const root = b.view.container.querySelector('[data-phase]')
     expect(root?.getAttribute('data-phase')).toBe('hero')
+  })
+
+  it('cold start: the navigation band and its utilities seat outlive the absent Session', () => {
+    const b = mount(
+      sessionSnapshotOf({ blank: true, openState: 'cold' }),
+      undefined,
+      undefined,
+      { noSelection: true },
+    )
+    // The band belongs to the column rather than to a Session: a fresh install
+    // opens here, so gating the whole bar on a Session left the signed-in
+    // reader's account menu with nothing to render into.
+    const host = b.view.container.querySelector('[data-conversation-scroll]')
+    const header = b.view.container.querySelector('header')
+    expect(header).not.toBeNull()
+    expect(host?.contains(header)).toBe(true)
+    expect(b.slotCalls).toContain('conversation.navigation.utilities')
+    // The Session header's own content stays Session-gated.
+    expect(b.slotCalls).not.toContain('conversation.session.header')
+    expect(b.slotCalls).not.toContain('conversation.session.header.utilities')
+    expect(b.slotCalls).not.toContain('conversation.session')
   })
 
   it('covers the content column with a loader while history is opening', () => {
@@ -738,7 +774,7 @@ describe('ConversationRoot resident composer', () => {
     // blank the column for the history round-trip.
     const root = b.view.container.querySelector('[data-phase]')
     expect(root?.getAttribute('data-phase')).toBe('hero')
-    expect(b.view.getByText('探索未至之境')).toBeTruthy()
+    expect(b.view.getByText(/你在想些什么？/)).toBeTruthy()
     expect(b.view.getByRole('textbox')).toBeTruthy()
   })
 
@@ -761,7 +797,6 @@ describe('ConversationRoot resident composer', () => {
     expect(b.view.container.querySelector('[data-composer-seat]')).toBe(seat)
     expect(b.view.container.querySelector('[data-conversation-scroll]')?.contains(after)).toBe(true)
     expect(b.view.container.querySelector('[data-composer-seat]')?.contains(after)).toBe(true)
-    expect(b.view.queryByTestId('hero-headline')).toBeNull()
     expect(b.view.getByTestId('view-chat')).toBeTruthy()
   })
 

@@ -321,7 +321,7 @@ export function ConversationRoot({
 
   const composerBar = (
     <div className={clsx(css.composerStack, hero && css.composerHero)}>
-      {hero && <HeroShell t={t} renderSlot={renderSlot} />}
+      {hero && <HeroShell t={t} />}
       {hero && heroWorkspaceRow}
       {zone !== undefined && renderSlot('conversation.input.dock', zone)}
       {inputBar}
@@ -372,15 +372,22 @@ export function ConversationRoot({
           reservation that used to align them needed `scrollbar-gutter`, which
           the iOS/Safari 14.5 baseline bans ([gate](../../../../../../scripts/verify-css-baseline.ts)). */}
       <div className={css.scrollBody} data-conversation-scroll="">
-        {sessionId === undefined ? null : (
-          <header className={css.header}>
-            <div className={css.navBackground} aria-hidden="true">
-              <div className={css.navFade} />
-              <div className={css.navBlur} />
-            </div>
-            {renderSlot('conversation.session.header', {})}
-          </header>
-        )}
+        {/* The navigation band is resident, like the composer below it: the
+            bar, its blur background, and the right-aligned utilities row
+            belong to the column rather than to a Session, so a reader sees the
+            same chrome — the account avatar among it — whether or not one is
+            open. Only the Session header's own content (crumbs, View tabs,
+            Session actions) is gated on a Session. */}
+        <header className={css.header}>
+          <div className={css.navBackground} aria-hidden="true">
+            <div className={css.navFade} />
+            <div className={css.navBlur} />
+          </div>
+          {sessionId === undefined ? null : renderSlot('conversation.session.header', {})}
+          <div className={css.navigationUtilities}>
+            {renderSlot('conversation.navigation.utilities', {})}
+          </div>
+        </header>
         {/* This hold keeps the scrollport's growing item present while
             conversation.session is dropped so the overlay can present. */}
         {mountedSessionId === undefined

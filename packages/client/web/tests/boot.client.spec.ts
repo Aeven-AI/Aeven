@@ -23,6 +23,7 @@ afterEach(() => {
   delete win.__AVN_BOOT__
   delete win.__ModuleLoader__
   delete transportGlobal.__AVN_TRANSPORT__
+  delete (globalThis as { __AVN_AEVEN__?: unknown }).__AVN_AEVEN__
   document.body.innerHTML = ''
 })
 
@@ -55,6 +56,38 @@ async function expectBootFailure(setup: () => void, message: string): Promise<vo
   expect(error).toHaveBeenCalledOnce()
   await entry.dispose()
 }
+
+/** The grant the API signs a reader in with; only its payload is read. */
+const GRANT = { userId: 'u-1', accessToken: 'header.eyJ1c2VySWQiOiJ1LTEiLCJleHAiOjk5OTk5OTk5OTl9.sig' }
+
+describe('the naming step owns the page for an unnamed reader', () => {
+  it('mounts the step and boots nothing when the API holds no name', async () => {
+    ;(globalThis as { __AVN_AEVEN__?: unknown }).__AVN_AEVEN__ = { apiUrl: 'http://api.test' }
+    // The facade is installed and never used: the gate answers before the
+    // module system is created, which is the point of running it there.
+    installFacade()
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = input instanceof URL ? input.href : input
+      const route = new URL(url as string).pathname
+      // A bearer is refreshed through the cookie, and the profile answers no
+      // chosen name, which is what a fresh account reports.
+      return route === '/refresh-token'
+        ? Response.json(GRANT)
+        : Response.json({ userId: 'u-1', displayName: 'u-1' })
+    }))
+    const container = document.createElement('div')
+    document.body.append(container)
+
+    const entry = new AppWebEntry(container)
+    await entry.run()
+
+    await vi.waitFor(() => { expect(container.querySelector('.init-check')).not.toBeNull() })
+    expect(container.textContent).toContain('Hi there!')
+    // Nothing from the application booted behind it: the step is the page.
+    expect(container.querySelector('#root')).toBeNull()
+    await entry.dispose()
+  })
+})
 
 describe('bootstrap failure rendering', () => {
   it('renders a missing bootstrap facade', async () => {

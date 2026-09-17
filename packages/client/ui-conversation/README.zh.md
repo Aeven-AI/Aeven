@@ -11,7 +11,7 @@ kind: "package-reference"
 
 `ui-conversation` 拥有与 target 无关的 Conversation 组装和共享浏览器 shell。它消费 Session Controller 的 `SessionEventLikeEntry` feed，通过 `ctx.uiConversation` 暴露不依赖 React 的 registry 与逐 Session binding，并通过 `ctx.uiSession` 提供 `useConversation`、`useInput` 和 `inputActions` 标准 props。它还拥有按会话的持久化图片 URL 缓存：`ctx.uiConversation.imageUrl(sessionId, attachment)` 为每个附件解析一个经会话授权的浏览器 URL，并随 Session binding 释放而撤销，因此所有 Conversation target 共享一次 `session.attachment` 读取。Chat 等具体 target 位于独立 package，由各自 package 注册 Definition、snapshot builder、View 和 renderer。
 
-浏览器 shell 使用集中定义的 Aeven 1024px 阅读轴、响应式内边距和 30px 平面 composer 表面。blank Session 会让 Hero composer 组在对话栏中居中；active Session 则把同一个 composer 停靠在底部且不重新挂载，View tab 会保留选择。
+浏览器 shell 使用集中定义的 Aeven 1024px 阅读轴、响应式内边距和 30px 平面 composer 表面。blank Session 会让 Hero composer 组在对话栏中居中；active Session 则把同一个 composer 停靠在底部且不重新挂载，View tab 会保留选择。在该 composer 之上，Hero 指称产品名，并以 Aeven 自身的时段用语、按认证 gate 在页面上声明的名字问候读者。
 
 ## 目录
 
@@ -38,11 +38,11 @@ target package 通过 declaration merge 扩展 snapshot 与 Location data map，
 <a id="shell-and-standard-props"></a>
 ## Shell 与标准 props
 
-本包注册 optional-Session `conversation` shell、strict Session header/body、View list、composer chain 与 bar、输入区域、Hero 区域、queue dock、草稿持久化和 phase 计算。`ctx.uiSession.provide()` 从同一个 Session binding 物化 Conversation 与 input source，并将 `inputActions` 作为稳定标准 prop 提供。
+本包注册 optional-Session `conversation` shell、strict Session header/body、常驻导航条及其 utilities、View list、composer chain 与 bar、输入区域、Hero 区域、queue dock、草稿持久化和 phase 计算。`ctx.uiSession.provide()` 从同一个 Session binding 物化 Conversation 与 input source，并将 `inputActions` 作为稳定标准 prop 提供。
 
 View 选择规则固定：有效且已注册的持久化选择优先，其次是已注册的 `chat`，否则不渲染 View；绝不选择第一个已注册 View。Shell phase 只组合 Session lifecycle 与 active-target set，不读取任何 target-specific snapshot。会话栏在所选 Session 视图完成绘制前用转轮覆盖 transcript；session header 与 composer 不被覆盖，并保持原位，包括 `conversation.session` 在该 overlay 下重新挂载期间。`#avn-preloader` 仍在且尚未 `.screen-hidden` 时不显示该 overlay。
 
-Session 首次绑定或缓存的 Session 成为 current 时，shell 会在渲染前读取持久化 View 偏好，激活已注册的偏好 View 或 Chat fallback，并在后续 tab 或 focus 选择写入 store 前先激活对应 target。Session 一旦存在，其标题栏会在 blank Hero 与活跃对话中始终可见；blank Session 仍不渲染 `conversation.view` slot，因此未选中的 target 不会激活。
+Session 首次绑定或缓存的 Session 成为 current 时，shell 会在渲染前读取持久化 View 偏好，激活已注册的偏好 View 或 Chat fallback，并在后续 tab 或 focus 选择写入 store 前先激活对应 target。导航条——其栏体、背景与右对齐 utilities——是常驻而非 Session 所有的，因此冷启动时就在那里；Session 一旦存在才会出现标题栏自身的内容，此后它在 blank Hero 与活跃对话中始终可见。blank Session 仍不渲染 `conversation.view` slot，因此未选中的 target 不会激活。
 
 常驻 composer 在无 Session 与有 Session 之间保持挂载。无 Session 时，同一个编辑器表面保持 inert，Workspace picker 连接 blank Session。该表面是 shell 所有的 Lexical 编辑器：引用 chip 是携带 owner 序列化身份的原子 decorator 节点（提交时经 owner codec 展开），已认领的 slash command 保持为带样式的行首文本，文件夹文本引用以图标前缀携带文件夹图形，草稿的剪贴板投影镜像到逐 Session Conversation store。Queue 操作通过 scoped `ctx.conversation` service 寻址准确的 queue occurrence；queue 预览经 `ui-primitives` 的共享行内引用投影渲染已发送文本（wire 会话形式折叠为其标签），并把本地图片预览或持久化图片部分显示为缩略图，编辑态则展示字面发送文本。持久化缩略图通过会话图片 URL 缓存解析。繁忙时 Enter 行为保存在 Host-backed `ui-conversation` settings namespace。
 

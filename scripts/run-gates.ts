@@ -290,6 +290,24 @@ export function gatesForMode(selected: Mode): Gate[] {
   }
 }
 
+/**
+ * The client-surface and dispatcher gates both static aggregates carry, in the
+ * one order they run in: the browser packages' own rules, the app's localized
+ * copy, its CSS baseline, and the proxy-aware dispatchers.
+ * @returns the shared gates, in run order.
+ */
+function clientSurfaceGates(): Gate[] {
+  return [
+    pnpmScript('optional-dependency-imports', 'verify-optional-dependency-imports', {
+      label: 'optional dependency imports',
+    }),
+    pnpmScript('client-packages', 'verify-client-packages', { label: 'client packages' }),
+    pnpmScript('client-ui-i18n', 'verify-client-ui-i18n', { label: 'client UI i18n' }),
+    pnpmScript('css-baseline', 'verify-css-baseline', { label: 'client CSS baseline' }),
+    pnpmScript('no-bare-dispatcher', 'verify-no-bare-dispatcher', { label: 'proxy-aware dispatchers' }),
+  ]
+}
+
 function ciSharedStaticGates(): Gate[] {
   return [
     pnpmScript('runtime-closure', 'verify-runtime-closure', { label: 'runtime closure' }),
@@ -299,13 +317,7 @@ function ciSharedStaticGates(): Gate[] {
     pnpmScript('avn-package-licenses', 'verify-avn-package-licenses', { label: 'AVN package licenses' }),
     pnpmScript('package-invariants', 'verify-package-invariants', { label: 'package invariants' }),
     pnpmScript('cordis-config', 'verify-cordis-config', { label: 'Cordis config' }),
-    pnpmScript('optional-dependency-imports', 'verify-optional-dependency-imports', {
-      label: 'optional dependency imports',
-    }),
-    pnpmScript('client-packages', 'verify-client-packages', { label: 'client packages' }),
-    pnpmScript('client-ui-i18n', 'verify-client-ui-i18n', { label: 'client UI i18n' }),
-    pnpmScript('css-baseline', 'verify-css-baseline', { label: 'client CSS baseline' }),
-    pnpmScript('no-bare-dispatcher', 'verify-no-bare-dispatcher', { label: 'proxy-aware dispatchers' }),
+    ...clientSurfaceGates(),
     pnpmScript('issue-management', 'test:issue-management', { label: 'Issue management policy' }),
     pnpmScript('brand', 'verify-brand', { label: 'brand tokens' }),
   ]
@@ -698,13 +710,7 @@ function hygieneLeafGates(options: { artifactNeeds?: string[] } = {}): Gate[] {
       label: 'node-next types',
       ...artifactOptions,
     }),
-    pnpmScript('optional-dependency-imports', 'verify-optional-dependency-imports', {
-      label: 'optional dependency imports',
-    }),
-    pnpmScript('client-packages', 'verify-client-packages', { label: 'client packages' }),
-    pnpmScript('client-ui-i18n', 'verify-client-ui-i18n', { label: 'client UI i18n' }),
-    pnpmScript('css-baseline', 'verify-css-baseline', { label: 'client CSS baseline' }),
-    pnpmScript('no-bare-dispatcher', 'verify-no-bare-dispatcher', { label: 'proxy-aware dispatchers' }),
+    ...clientSurfaceGates(),
   ]
 }
 

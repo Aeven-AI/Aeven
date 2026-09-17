@@ -1,4 +1,4 @@
-import { BrandWordmark, FishLogo } from '@aeven/client-ui-primitives'
+import { AevenMark, BrandWordmark } from '@aeven/client-ui-primitives'
 import type { SidebarBrandMarkOwnerProps } from '@aeven/client-ui-sidebar/client'
 
 /**
@@ -7,7 +7,7 @@ import type { SidebarBrandMarkOwnerProps } from '@aeven/client-ui-sidebar/client
  * @returns the official whale mark.
  */
 export function OfficialBrandMark({ size }: SidebarBrandMarkOwnerProps) {
-  return <FishLogo size={size} />
+  return <AevenMark size={size} />
 }
 
 /**

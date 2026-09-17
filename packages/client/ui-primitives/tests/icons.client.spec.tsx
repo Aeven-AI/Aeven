@@ -57,16 +57,15 @@ describe('ic_ds_ icon set', () => {
   })
 })
 
-describe('FishLogo', () => {
-  it('renders the fish path in currentColor at the native ratio', () => {
-    const { container } = render(<primitives.FishLogo />)
+describe('AevenMark', () => {
+  it('renders the monogram in currentColor at the artwork ratio', () => {
+    const { container } = render(<primitives.AevenMark />)
     const svg = container.querySelector('svg')!
     expect(svg.getAttribute('width')).toBe('24')
-    expect(Number(svg.getAttribute('height'))).toBeCloseTo(17.66, 1)
-    expect(svg.getAttribute('viewBox')).toBe('0 0 23.16 17.04')
-    expect(container.querySelectorAll('path')).toHaveLength(1)
+    expect(Number(svg.getAttribute('height'))).toBeCloseTo(20.78, 1)
+    expect(svg.getAttribute('viewBox')).toBe('0 0 671 581')
+    expect(container.querySelectorAll('path')).toHaveLength(8)
     expect(container.innerHTML).toContain('currentColor')
-    expect(container.innerHTML).not.toContain('M0 0L23.16')
   })
 })
 

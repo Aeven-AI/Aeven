@@ -41,9 +41,8 @@ describe('web e2e: startup auto-selection', () => {
   it('keeps the resident Hero and composer nodes when the first Workspace session appears', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-first-workspace-stable-tree'))
     await page.locator(`${ROOT_PHASE}[data-phase="hero"]`).waitFor({ timeout: 15_000 })
-    const headline = page.getByText('Into the Unknown', { exact: true })
-    const fishHitbox = headline.locator('xpath=preceding-sibling::span[1]')
-    const fish = fishHitbox.locator('svg')
+    const heroText = page.getByTestId('hero-greeting')
+    await heroText.waitFor({ timeout: 15_000 })
     const alignment = await page.locator(`${ROOT_PHASE}[data-phase="hero"]`).evaluate((root) => {
       const seat = root.querySelector<HTMLElement>('[data-composer-seat]')
       const card = root.querySelector<HTMLElement>('[data-composer-card]')
@@ -58,10 +57,11 @@ describe('web e2e: startup auto-selection', () => {
     })
     expect(alignment.horizontal).toBeLessThanOrEqual(0.5)
     expect(alignment.vertical).toBeLessThanOrEqual(0.5)
-    expect(await fish.evaluate(node => getComputedStyle(node).color))
-      .toBe(await headline.evaluate(node => getComputedStyle(node).color))
-    await fishHitbox.hover()
-    expect(await fish.evaluate(node => getComputedStyle(node).animationName)).not.toBe('none')
+    // The name and the greeting are the hero's whole text: the product's own
+    // name over the reader's greeting.
+    const heroCopy = await heroText.textContent()
+    expect(heroCopy).toContain('Æven')
+    expect(heroCopy).toContain('what is on your mind?')
     await page.evaluate(() => {
       const refs = {
         root: document.querySelector('div[data-phase="hero"]'),
@@ -140,7 +140,7 @@ describe('web e2e: startup auto-selection', () => {
       // seat with `visibility:hidden`, which Playwright reports as not visible).
       await page.waitForSelector(ROOT_PHASE, { timeout: 15_000 })
       expect(await page.locator(ROOT_PHASE).first().getAttribute('data-phase')).toBe('hero')
-      expect(await page.getByText('Into the Unknown').isVisible()).toBe(true)
+      expect(await page.getByTestId('hero-greeting').isVisible()).toBe(true)
       expect(await page.locator('[data-composer-input]').first().isVisible()).toBe(true)
 
       releaseOpening()
