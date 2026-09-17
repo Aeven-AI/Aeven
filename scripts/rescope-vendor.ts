@@ -100,6 +100,9 @@ const GENERIC_SKIPS: readonly GenericSkip[] = [
   { file: 'packages/preset/agent-presets/presets/cordis/agent.cordis.yml', upstream: ['cordis'] },
   // The preset-roster loop names the `cordis` preset id, not a package.
   { file: 'apps/cli/tests/windows-shell.spec.ts', upstream: ['cordis'] },
+  // The web composition's comment names the default preset id it writes into
+  // `agent-presets`, so the scoped package name would describe the wrong thing.
+  { file: 'packages/bundle/web-app/cordis.patch.yml', upstream: ['cordis'] },
   // GROUP_ORDER holds `packages/<group>/` directory names, not package names.
   { file: 'scripts/gen-module-graph.ts', upstream: ['cordis'] },
   { file: 'scripts/gen-doc-graphs.ts', upstream: ['cordis'] },
