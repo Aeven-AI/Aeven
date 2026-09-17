@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write BRAND_GUIDELINES.md
-BRAND_GUIDELINES.md: bd865292aed928cb1eef6ebf4b9f41a0978a71aa
-BRAND_GUIDELINES.zh.md: cf5e83e19d896b37cd0907fd1dfb2386cce46729
+BRAND_GUIDELINES.md: def0b7733d016354910539b47c6e8b36ce3ed928
+BRAND_GUIDELINES.zh.md: 0c867c0cedf145fd309673918ef1790a8ad39f88

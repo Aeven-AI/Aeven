@@ -1,6 +1,6 @@
 {
   "name": "@aeven/acp",
-  "description": "Automation-only Agent Client Protocol server for driving DeepSeek Harness agents over JSON-RPC stdio",
+  "description": "Automation-only Agent Client Protocol server for driving Aeven agents over JSON-RPC stdio",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

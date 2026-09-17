@@ -42,7 +42,7 @@ The config owns the fixed opener, runtime context, deployment persona, and tool 
 
 | Field | Default | Meaning |
 |---|---|---|
-| `includeHarnessIdentity` | `true` | Include the fixed `You are an AI agent powered by DeepSeek Harness.` first-party opener at order −1000. Set false only when a compatibility deployment owns the complete system prompt. |
+| `includeHarnessIdentity` | `true` | Include the fixed `You are an AI agent powered by Aeven.` first-party opener at order −1000. Set false only when a compatibility deployment owns the complete system prompt. |
 | `includeRuntimeContext` | `true` | Include ordered dynamic runtime context in assembly |
 | `persona` | `''` | The global deployment-persona prompt fragment, rendered at order `0` |
 | `toolOrder` | — | Explicit model-facing tool order with one `'<unlisted-tools>'` rest entry |
@@ -136,7 +136,7 @@ By default every assembly starts with the harness identity below, then the confi
 ##### Harness identity
 
 ```markdown
-You are an AI agent powered by DeepSeek Harness.
+You are an AI agent powered by Aeven.
 ```
 
 #### Token effect

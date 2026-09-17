@@ -12,7 +12,7 @@ A blanket statement that the checkout is not the working directory would also be
 
 ## Decision
 
-The section identifies the path as the “DeepSeek Harness implementation checkout.” It says that the checkout location and current working directory are separate values that may differ, forbids inferring the working directory from the checkout path, directs the model to use `pwd`, and limits the checkout's purpose to inspecting or extending AVN itself.
+The section identifies the path as the “Aeven implementation checkout.” It says that the checkout location and current working directory are separate values that may differ, forbids inferring the working directory from the checkout path, directs the model to use `pwd`, and limits the checkout's purpose to inspecting or extending AVN itself.
 
 The path derivation and global `harness:source` ownership remain unchanged. The section uses first-party order −900, immediately after `harness:identity`. Describing the values as conceptually separate rather than always unequal keeps the instruction accurate in both ordinary project sessions and `avn meta`.
 

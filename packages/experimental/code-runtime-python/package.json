@@ -1,6 +1,6 @@
 {
   "name": "@aeven/experimental-code-runtime-python",
-  "description": "CPython subprocess implementation of the DeepSeek Harness code-execution seam",
+  "description": "CPython subprocess implementation of the Aeven code-execution seam",
   "version": "0.1.2-alpha.5",
   "repository": {
     "type": "git",

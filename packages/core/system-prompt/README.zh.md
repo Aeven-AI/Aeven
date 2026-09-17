@@ -42,7 +42,7 @@ kind: "package-reference"
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `includeHarnessIdentity` | `true` | 是否包含顺序为 −1000 的 first-party 固定开场白 `You are an AI agent powered by DeepSeek Harness.`。仅当兼容性部署拥有完整系统提示词时设为 false。 |
+| `includeHarnessIdentity` | `true` | 是否包含顺序为 −1000 的 first-party 固定开场白 `You are an AI agent powered by Aeven.`。仅当兼容性部署拥有完整系统提示词时设为 false。 |
 | `includeRuntimeContext` | `true` | 是否在组装中包含有序动态 runtime 上下文 |
 | `persona` | `''` | 全局部署 persona 提示词片段，渲染在顺序 `0` |
 | `toolOrder` | — | 显式面向模型工具顺序，含一个 `'<unlisted-tools>'` 其余项标记 |
@@ -136,7 +136,7 @@ ctx.systemPrompt.variable('cwd', ({ agent }) => agent?.session.header.cwd)
 ##### harness 身份
 
 ```markdown
-You are an AI agent powered by DeepSeek Harness.
+You are an AI agent powered by Aeven.
 ```
 
 #### Token 影响

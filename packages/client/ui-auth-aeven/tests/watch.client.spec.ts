@@ -32,14 +32,14 @@ const stops: (() => void)[] = []
 
 describe('renewing the Aeven session', () => {
   beforeEach(() => {
-    ;(globalThis as { __DSH_AEVEN__?: unknown }).__DSH_AEVEN__ = { apiUrl: 'http://api.test' }
+    ;(globalThis as { __AVN_AEVEN__?: unknown }).__AVN_AEVEN__ = { apiUrl: 'http://api.test' }
     window.localStorage.clear()
   })
   afterEach(() => {
     for (const stop of stops.splice(0)) stop()
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
-    delete (globalThis as { __DSH_AEVEN__?: unknown }).__DSH_AEVEN__
+    delete (globalThis as { __AVN_AEVEN__?: unknown }).__AVN_AEVEN__
   })
 
   it('exchanges the refresh cookie once for concurrent callers, because the API rotates it', async () => {
@@ -137,15 +137,15 @@ describe('renewing the Aeven session', () => {
       presented.push(authorization)
       return new Response(null, { status: authorization === `Bearer ${fresh}` ? 200 : 401 })
     })
-    const scope = globalThis as { __DSH_TRANSPORT__?: { fetch?: typeof host } }
-    scope.__DSH_TRANSPORT__ = { fetch: host }
+    const scope = globalThis as { __AVN_TRANSPORT__?: { fetch?: typeof host } }
+    scope.__AVN_TRANSPORT__ = { fetch: host }
     try {
       stops.push(installAuthenticatedTransport())
-      const response = await scope.__DSH_TRANSPORT__.fetch?.(new URL('http://host.test/api/x'), { method: 'POST', body: '{}' })
+      const response = await scope.__AVN_TRANSPORT__.fetch?.(new URL('http://host.test/api/x'), { method: 'POST', body: '{}' })
       expect(response?.status).toBe(200)
       expect(presented).toEqual([`Bearer ${refused}`, `Bearer ${fresh}`])
     } finally {
-      delete scope.__DSH_TRANSPORT__
+      delete scope.__AVN_TRANSPORT__
       vi.useRealTimers()
     }
   })

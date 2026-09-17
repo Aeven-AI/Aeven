@@ -1,5 +1,5 @@
 ---
-description: "面向以子进程方式启动 DeepSeek Harness 运行时、并通过 stdio JSON-RPC 驱动 agent 轮次的调用方的 TypeScript SDK 客户端：DeepSeekHarness 运行 API 与低层 HarnessClient。"
+description: "面向以子进程方式启动 Aeven 运行时、并通过 stdio JSON-RPC 驱动 agent 轮次的调用方的 TypeScript SDK 客户端：DeepSeekHarness 运行 API 与低层 HarnessClient。"
 kind: "package-library"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-`avn-sdk-client` 让 TypeScript 程序以子进程方式、通过 stdio JSON-RPC 驱动 DeepSeek Harness 运行时。使用 `DeepSeekHarness` 你可以启动运行时、打开会话、发送提示词，并收集最终响应以及事件与通知流；`HarnessClient` 提供对协议层的显式控制。它是 [Python SDK](../../../python/README.zh.md) 的设计孪生，共享同一个运行时对端与协议。启动说明是显式的——调用方可通过 `avnBin` 指定运行时可执行文件，省略时解析同版本 `@aeven/cli` 包的 bin，参数由客户端构造——因此本客户端适合仓库近旁的 TypeScript 消费方，如 SDK subagent 后端和知道自己要启动哪个运行时的自动化。它是纯库：不在任何 Cordis 上下文注册，而且它启动的运行时是一个完整 harness，其组成由自己的 `cordis.yml` 决定。
+`avn-sdk-client` 让 TypeScript 程序以子进程方式、通过 stdio JSON-RPC 驱动 Aeven 运行时。使用 `DeepSeekHarness` 你可以启动运行时、打开会话、发送提示词，并收集最终响应以及事件与通知流；`HarnessClient` 提供对协议层的显式控制。它是 [Python SDK](../../../python/README.zh.md) 的设计孪生，共享同一个运行时对端与协议。启动说明是显式的——调用方可通过 `avnBin` 指定运行时可执行文件，省略时解析同版本 `@aeven/cli` 包的 bin，参数由客户端构造——因此本客户端适合仓库近旁的 TypeScript 消费方，如 SDK subagent 后端和知道自己要启动哪个运行时的自动化。它是纯库：不在任何 Cordis 上下文注册，而且它启动的运行时是一个完整 harness，其组成由自己的 `cordis.yml` 决定。
 
 ## 目录
 

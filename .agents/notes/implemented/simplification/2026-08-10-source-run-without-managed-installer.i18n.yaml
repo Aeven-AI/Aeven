@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/simplification/2026-08-10-source-run-without-managed-installer.md
-2026-08-10-source-run-without-managed-installer.md: 5a4dd19bbfea50e58d3d135a24aebc29a9c0a8eb
-2026-08-10-source-run-without-managed-installer.zh.md: 3000cca9398980841e9aeba5f9ebf510e945365e
+2026-08-10-source-run-without-managed-installer.md: fa423b5b15f284b5882377493a2631fbf5db8d0e
+2026-08-10-source-run-without-managed-installer.zh.md: 779785aa400b2720ea1cea07c7c923124aead6e5

@@ -22,7 +22,7 @@ it('samples one local environment at startup without validating watcher outputs'
     writeClientBuildRecord(root, {
       AVN_CLIENT_BUILD_PROFILE: 'official',
       AVN_CLIENT_COMMIT_HASH: 'fffffff',
-      AVN_CLIENT_TITLE: 'DeepSeek Harness',
+      AVN_CLIENT_TITLE: 'Aeven',
       AVN_CLIENT_VERSION: '1.2.2',
     })
     await writeFile(join(root, 'packages/client/example/lib/client.js'), 'module.exports = { changed: true }\n')

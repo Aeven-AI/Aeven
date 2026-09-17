@@ -19,7 +19,7 @@ export const CLIENT_BUILD_PROFILE_SELECTOR = 'AVN_BUILD_CLIENT_PROFILE'
 /** Public client environment required by official AVN artifacts. */
 const OFFICIAL_CLIENT_BUILD_ENVIRONMENT = {
   AVN_CLIENT_BUILD_PROFILE: 'official',
-  AVN_CLIENT_TITLE: 'DeepSeek Harness',
+  AVN_CLIENT_TITLE: 'Aeven',
 } as const
 
 /** Public variable carrying the source commit embedded in client artifacts. */

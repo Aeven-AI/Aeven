@@ -1,6 +1,6 @@
 {
   "name": "@aeven/agent-presets",
-  "description": "Per-session agent composition from preset cordis.yml files for the DeepSeek Harness",
+  "description": "Per-session agent composition from preset cordis.yml files for the Aeven",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

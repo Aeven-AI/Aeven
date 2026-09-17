@@ -65,7 +65,7 @@ application combo 脚本在启动时注册插件 factory；模块主体仍保持
 
 ### 设计理念
 
-本包是双面孔：node 半侧是组合与服务端（`ctx.clientModules`，`ClientModuleRegistry`），浏览器半侧是加载端（`ctx.modules`，`ClientModuleSystem`）。两者之间的协议是启动图——以 `window.__DSH_BOOT__` 注入的 `WebBootEntry` 行，`<` 已转义，插件控制的字符串无法逃出 script 元素。vendored Loader 唯一的消费点是 `EntryTree.import`，因此模块系统就是「插件代码如何到达」的唯一可替换实现。
+本包是双面孔：node 半侧是组合与服务端（`ctx.clientModules`，`ClientModuleRegistry`），浏览器半侧是加载端（`ctx.modules`，`ClientModuleSystem`）。两者之间的协议是启动图——以 `window.__AVN_BOOT__` 注入的 `WebBootEntry` 行，`<` 已转义，插件控制的字符串无法逃出 script 元素。vendored Loader 唯一的消费点是 `EntryTree.import`，因此模块系统就是「插件代码如何到达」的唯一可替换实现。
 
 ### 惰性 CJS 模型
 

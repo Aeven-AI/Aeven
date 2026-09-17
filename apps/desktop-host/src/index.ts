@@ -102,7 +102,7 @@ const ROOT_CONFIG = '# Electron desktop composition root; package transactions o
 const ROOT_CONFIG_FILENAME = 'desktop.cordis.yml'
 const DESKTOP_STREAM_PATH = '/.aeven/remote-stream'
 
-const DESKTOP_TRANSPORT_SCRIPT = `globalThis.__DSH_TRANSPORT__={
+const DESKTOP_TRANSPORT_SCRIPT = `globalThis.__AVN_TRANSPORT__={
   ownsHost:true,
   async *openStream(endpoint,payload,signal){
     const response=await fetch(${JSON.stringify(DESKTOP_STREAM_PATH)},{

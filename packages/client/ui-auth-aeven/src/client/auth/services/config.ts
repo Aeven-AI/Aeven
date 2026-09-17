@@ -23,7 +23,7 @@ export interface AevenClientConfig {
  * @returns the configuration, or an empty one when nothing was injected.
  */
 export function aevenConfig(): AevenClientConfig {
-  return (globalThis as { __DSH_AEVEN__?: AevenClientConfig }).__DSH_AEVEN__ ?? {}
+  return (globalThis as { __AVN_AEVEN__?: AevenClientConfig }).__AVN_AEVEN__ ?? {}
 }
 
 /** Loopback names that address this machine but are different sites to a browser. */

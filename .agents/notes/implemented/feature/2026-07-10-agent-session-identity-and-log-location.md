@@ -34,7 +34,7 @@ The model-facing bash package owns a `ctx.shellEnv` registry. A contributor decl
 The registry rebuilds a trusted overlay for every foreground and background bash `ToolExecution`:
 
 - `AVN_HOME` is always the absolute configured Harness home. The standalone [`@aeven/home-paths`](../../../../packages/util/home-paths/README.md) utility owns its precedence: explicit `avnHome`, then ambient `$AVN_HOME`, then `~/.aeven`.
-- `AVN_SHELL=1` is always present and identifies a model bash child managed by DeepSeek Harness.
+- `AVN_SHELL=1` is always present and identifies a model bash child managed by Aeven.
 - `AVN_SESSION_ID` is present when the execution has an agent and equals `agent.session.header.id`.
 - The built-in persistence translator contributes `AVN_SESSION_JSONL` only when `ctx.sessionPersistence.locate(header)` returns `kind: 'jsonl'`.
 

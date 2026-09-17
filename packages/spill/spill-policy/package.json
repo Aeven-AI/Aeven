@@ -1,6 +1,6 @@
 {
   "name": "@aeven/spill-policy",
-  "description": "Tool-result spill policy for the DeepSeek Harness — replaces oversized plain-text tool results with a retained preview plus a spill-file path (no service API)",
+  "description": "Tool-result spill policy for the Aeven — replaces oversized plain-text tool results with a retained preview plus a spill-file path (no service API)",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

@@ -1,6 +1,6 @@
 {
   "name": "@aeven/invariants",
-  "description": "Registry service for package-owned DeepSeek Harness runtime invariants",
+  "description": "Registry service for package-owned Aeven runtime invariants",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

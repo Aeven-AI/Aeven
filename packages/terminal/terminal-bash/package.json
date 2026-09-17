@@ -1,6 +1,6 @@
 {
   "name": "@aeven/terminal-bash",
-  "description": "Persistent shell PTY backend over the DeepSeek Harness subprocess terminal primitive",
+  "description": "Persistent shell PTY backend over the Aeven subprocess terminal primitive",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

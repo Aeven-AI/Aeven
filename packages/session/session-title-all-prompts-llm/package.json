@@ -1,6 +1,6 @@
 {
   "name": "@aeven/session-title-all-prompts-llm",
-  "description": "All-user-messages LLM provider plugin for DeepSeek Harness session titles",
+  "description": "All-user-messages LLM provider plugin for Aeven session titles",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

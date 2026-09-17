@@ -6,7 +6,7 @@ English | [中文](2026-08-22-single-avn-application-launcher.zh.md)
 
 ## Problem
 
-DeepSeek Harness application processes need one owner for composition, plugin resolution, environment discovery, shutdown, and user customization. A dedicated app bin with a complete `cordis.yml` creates a second lifecycle beside profile launch: plugins installed into a profile do not reach it, behavior drifts from `avn-base`, and SDK callers learn arbitrary process argv instead of the product's composition model.
+Aeven application processes need one owner for composition, plugin resolution, environment discovery, shutdown, and user customization. A dedicated app bin with a complete `cordis.yml` creates a second lifecycle beside profile launch: plugins installed into a profile do not reach it, behavior drifts from `avn-base`, and SDK callers learn arbitrary process argv instead of the product's composition model.
 
 The Python SDK distributes a native executable through four platform wheels. Its packaged process uses the same profile launcher while preserving the closed VFS dependency tree, native sidecars, and installed-wheel evidence.
 

@@ -1,6 +1,6 @@
 {
   "name": "@aeven/media-pi-ai",
-  "description": "pi-ai image provider for the DeepSeek Harness media seam — registers pi-ai's images registry as a ctx.media image backend, owning credential resolution, request translation, and failure mapping",
+  "description": "pi-ai image provider for the Aeven media seam — registers pi-ai's images registry as a ctx.media image backend, owning credential resolution, request translation, and failure mapping",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

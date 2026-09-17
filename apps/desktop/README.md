@@ -1,4 +1,4 @@
-# DeepSeek Harness Desktop
+# Aeven Desktop
 
 English | [中文](README.zh.md)
 

@@ -172,7 +172,7 @@ function bundleTable(graph: WebBootGraph, plugins: readonly AssembledPlugin[]): 
 }
 
 interface FixtureWindow extends Window {
-  __DSH_BOOT__?: WebBootGraph
+  __AVN_BOOT__?: WebBootGraph
   __ModuleLoader__?: ClientModuleLoaderTarget
 }
 
@@ -219,7 +219,7 @@ export function installAssembledBootEnv(): void {
     // English here.
     Object.defineProperty(navigator, 'languages', { value: ['en-US'], configurable: true })
     Object.defineProperty(navigator, 'language', { value: 'en-US', configurable: true })
-    document.title = 'DeepSeek Harness'
+    document.title = 'Aeven'
     vi.stubGlobal('ResizeObserver', ResizeObserverStub)
     vi.stubGlobal('EventSource', EventSourceStub)
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
@@ -231,7 +231,7 @@ export function installAssembledBootEnv(): void {
     await act(async () => { await unmount?.() })
     unmount = undefined
     cleanup()
-    delete win.__DSH_BOOT__
+    delete win.__AVN_BOOT__
     delete win.__ModuleLoader__
     document.body.innerHTML = ''
     document.head.querySelectorAll('style[data-plugin]').forEach((style) => { style.remove() })
@@ -261,8 +261,8 @@ export function mountAssembledApp(search = '?fixture', options: AssembledBootOpt
   document.body.appendChild(root)
   const graph = bootGraph(plugins)
   const bundles = bundleTable(graph, plugins)
-  win.__DSH_BOOT__ = graph
-  const [facadeRow] = bootInjections(win.__DSH_BOOT__)
+  win.__AVN_BOOT__ = graph
+  const [facadeRow] = bootInjections(win.__AVN_BOOT__)
   if (facadeRow?.kind !== 'script') throw new Error('missing injected ModuleLoader facade row')
   ;(0, eval)(facadeRow.text)
   // Mirror the blocking Host-injected bootstrap batch before the Vite entry calls create().

@@ -19,13 +19,13 @@ const profile = { userId: 'u-1', email: 'a@b.c', displayName: 'Ollie' }
 
 describe('restoring the session at boot', () => {
   beforeEach(() => {
-    ;(globalThis as { __DSH_AEVEN__?: unknown }).__DSH_AEVEN__ = { apiUrl: 'http://api.test' }
+    ;(globalThis as { __AVN_AEVEN__?: unknown }).__AVN_AEVEN__ = { apiUrl: 'http://api.test' }
     window.localStorage.clear()
   })
   afterEach(() => {
     vi.unstubAllGlobals()
-    delete (globalThis as { __DSH_AEVEN__?: unknown }).__DSH_AEVEN__
-    delete (globalThis as { __DSH_AEVEN_READER__?: unknown }).__DSH_AEVEN_READER__
+    delete (globalThis as { __AVN_AEVEN__?: unknown }).__AVN_AEVEN__
+    delete (globalThis as { __AVN_AEVEN_READER__?: unknown }).__AVN_AEVEN_READER__
   })
 
   it('keeps the profile it read, so a later load that cannot ask still names the reader', async () => {
@@ -50,8 +50,8 @@ describe('restoring the session at boot', () => {
     expect(session.userSignedIn).toBe(true)
     expect(session.displayName).toBe('Ollie')
     // The account menu reads the reader from the page, not from Aeven.
-    expect((globalThis as { __DSH_AEVEN_READER__?: { userId: string } })
-      .__DSH_AEVEN_READER__?.userId).toBe('u-1')
+    expect((globalThis as { __AVN_AEVEN_READER__?: { userId: string } })
+      .__AVN_AEVEN_READER__?.userId).toBe('u-1')
   })
 
   it('boots the application when Aeven answers 5xx, which says nothing about the session', async () => {
@@ -71,7 +71,7 @@ describe('restoring the session at boot', () => {
 
     expect(await restoreSession()).toEqual({ state: 'unauthenticated' })
     expect(session.userSignedIn).toBe(false)
-    expect((globalThis as { __DSH_AEVEN_READER__?: unknown }).__DSH_AEVEN_READER__).toBeUndefined()
+    expect((globalThis as { __AVN_AEVEN_READER__?: unknown }).__AVN_AEVEN_READER__).toBeUndefined()
   })
 
   it('presents the sign-in screen when nothing was ever kept', async () => {
@@ -102,7 +102,7 @@ describe('restoring the session at boot', () => {
 
   it('authenticates nobody when no Aeven API is configured', async () => {
     const { restoreSession } = await load()
-    delete (globalThis as { __DSH_AEVEN__?: unknown }).__DSH_AEVEN__
+    delete (globalThis as { __AVN_AEVEN__?: unknown }).__AVN_AEVEN__
     expect(await restoreSession()).toEqual({ state: 'disabled' })
   })
 })

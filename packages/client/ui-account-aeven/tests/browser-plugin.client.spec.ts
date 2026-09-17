@@ -12,7 +12,7 @@ import type { AccountMenuInjected } from '../src/client/AccountMenu.tsx'
 const Empty = () => null
 
 interface Scope {
-  __DSH_AEVEN_READER__?: AevenReader
+  __AVN_AEVEN_READER__?: AevenReader
 }
 
 const scope = globalThis as Scope
@@ -52,7 +52,7 @@ function declareHeaderUtilities(ctx: Context): () => void {
 }
 
 afterEach(() => {
-  delete scope.__DSH_AEVEN_READER__
+  delete scope.__AVN_AEVEN_READER__
 })
 
 describe('ui-account-aeven browser half', () => {
@@ -91,7 +91,7 @@ describe('ui-account-aeven browser half', () => {
     expect(face.reader()).toBeUndefined()
     expect(face.accountUrl()).toBeUndefined()
 
-    scope.__DSH_AEVEN_READER__ = {
+    scope.__AVN_AEVEN_READER__ = {
       userId: 'u-1',
       displayName: 'Ollie',
       imageUrl: 'https://media.test/u-1.png',
@@ -110,7 +110,7 @@ describe('ui-account-aeven browser half', () => {
     const ctx = await baseContext({ scheme: 'light', setTheme: () => {} })
     await ctx.plugin({ inject: [...inject], apply }).await()
     declareHeaderUtilities(ctx)
-    scope.__DSH_AEVEN_READER__ = { userId: 'u-2', signOut: () => Promise.resolve() }
+    scope.__AVN_AEVEN_READER__ = { userId: 'u-2', signOut: () => Promise.resolve() }
     expect(injectedFace(ctx).reader()).toEqual({ userId: 'u-2' })
   })
 
@@ -138,7 +138,7 @@ describe('ui-account-aeven browser half', () => {
     injectedFace(ctx).signOut()
     expect(signOut).not.toHaveBeenCalled()
 
-    scope.__DSH_AEVEN_READER__ = { userId: 'u-3', signOut }
+    scope.__AVN_AEVEN_READER__ = { userId: 'u-3', signOut }
     injectedFace(ctx).signOut()
     await Promise.resolve()
     await Promise.resolve()

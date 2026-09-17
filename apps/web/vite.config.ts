@@ -7,7 +7,7 @@ import react from '@vitejs/plugin-react'
 import { clientBuildEnvironmentDefines } from '../../scripts/client-build-environment.ts'
 
 const src = (rel: string): string => fileURLToPath(new URL(rel, import.meta.url))
-const STANDALONE_ERROR = 'apps/web is not a standalone application: bare Vite cannot inject window.__DSH_BOOT__. '
+const STANDALONE_ERROR = 'apps/web is not a standalone application: bare Vite cannot inject window.__AVN_BOOT__. '
   + 'From a repository checkout, run `pnpm avn web`; an installed package uses `avn web`. '
   + 'For client-plugin HMR, run `pnpm avn web` together with `pnpm run dev:web`.'
 const DEFAULT_CLIENT_TITLE = 'AVN Local Build'

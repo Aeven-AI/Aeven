@@ -17,9 +17,9 @@ const later = (): number => Math.floor(Date.now() / 1000) + 3600
 
 describe('apiUrl', () => {
   const injected = (value: unknown): void => {
-    ;(globalThis as { __DSH_AEVEN__?: unknown }).__DSH_AEVEN__ = value
+    ;(globalThis as { __AVN_AEVEN__?: unknown }).__AVN_AEVEN__ = value
   }
-  afterEach(() => { delete (globalThis as { __DSH_AEVEN__?: unknown }).__DSH_AEVEN__ })
+  afterEach(() => { delete (globalThis as { __AVN_AEVEN__?: unknown }).__AVN_AEVEN__ })
 
   it('is empty when no Aeven is configured, which leaves the harness unauthenticated', () => {
     injected(undefined)
@@ -46,15 +46,15 @@ describe('apiUrl', () => {
 })
 
 describe('the provider buttons a deployment offers', () => {
-  afterEach(() => { delete (globalThis as { __DSH_AEVEN__?: unknown }).__DSH_AEVEN__ })
+  afterEach(() => { delete (globalThis as { __AVN_AEVEN__?: unknown }).__AVN_AEVEN__ })
 
   it('names only the providers configured, so an unconfigured one cannot be opened', () => {
-    ;(globalThis as { __DSH_AEVEN__?: unknown }).__DSH_AEVEN__ = { xOAuthUrl: 'https://x.test/o' }
+    ;(globalThis as { __AVN_AEVEN__?: unknown }).__AVN_AEVEN__ = { xOAuthUrl: 'https://x.test/o' }
     expect(oauthUrls()).toEqual({ x: 'https://x.test/o' })
   })
 
   it('names every provider a deployment configures', () => {
-    ;(globalThis as { __DSH_AEVEN__?: unknown }).__DSH_AEVEN__ = {
+    ;(globalThis as { __AVN_AEVEN__?: unknown }).__AVN_AEVEN__ = {
       xOAuthUrl: 'https://x.test/o',
       appleOAuthUrl: 'https://apple.test/o',
       googleOAuthUrl: 'https://google.test/o',
@@ -65,7 +65,7 @@ describe('the provider buttons a deployment offers', () => {
   })
 
   it('offers none when nothing is configured', () => {
-    ;(globalThis as { __DSH_AEVEN__?: unknown }).__DSH_AEVEN__ = {}
+    ;(globalThis as { __AVN_AEVEN__?: unknown }).__AVN_AEVEN__ = {}
     expect(oauthUrls()).toEqual({})
     // The celebration still has a palette, so sign-up does not fail for want
     // of one.
@@ -73,7 +73,7 @@ describe('the provider buttons a deployment offers', () => {
   })
 
   it('uses the palette a deployment states', () => {
-    ;(globalThis as { __DSH_AEVEN__?: unknown }).__DSH_AEVEN__ = { confettiColors: ['#fff'] }
+    ;(globalThis as { __AVN_AEVEN__?: unknown }).__AVN_AEVEN__ = { confettiColors: ['#fff'] }
     expect(confettiColors()).toEqual(['#fff'])
   })
 })

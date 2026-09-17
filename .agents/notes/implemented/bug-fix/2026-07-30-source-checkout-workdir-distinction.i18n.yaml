@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-07-30-source-checkout-workdir-distinction.md
-2026-07-30-source-checkout-workdir-distinction.md: 77416fa18a60fe769ec4eae2bed6bc5a7491e4a1
-2026-07-30-source-checkout-workdir-distinction.zh.md: e8200cc292ee0846030278dbfdf875e6c88fa5e5
+2026-07-30-source-checkout-workdir-distinction.md: b6e429eb36ff07e396916590f943b62777a9cdd8
+2026-07-30-source-checkout-workdir-distinction.zh.md: 6722353b7fad8b2ea769240b85e400154aa0edca

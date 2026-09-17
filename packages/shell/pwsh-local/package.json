@@ -1,6 +1,6 @@
 {
   "name": "@aeven/pwsh-local",
-  "description": "Local PowerShell implementation of the DeepSeek Harness bash executor seam",
+  "description": "Local PowerShell implementation of the Aeven bash executor seam",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

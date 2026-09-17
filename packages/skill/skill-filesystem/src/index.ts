@@ -51,7 +51,7 @@ export interface Config {
   providerName?: string
   /** Whether project and user roots are included around custom roots. */
   includeDefaultRoots?: boolean
-  /** DeepSeek Harness config root. Defaults to `$AVN_HOME` or `~/.aeven`. */
+  /** Aeven config root. Defaults to `$AVN_HOME` or `~/.aeven`. */
   avnHome?: string
   /** Shared agent config root. Defaults to `$AVN_AGENTS_HOME` or `~/.agents`. */
   agentsHome?: string

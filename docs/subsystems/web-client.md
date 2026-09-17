@@ -21,7 +21,7 @@ The dependency direction is Host state → Remote transport → Client model →
 
 `apps/web/index.html` owns a full-screen preloader before the application root. The production build inlines that stylesheet so first paint does not wait for application CSS or plugin bundles, and remaining stylesheets load without blocking that paint. The Host theme bootstrap selects its light or dark fallback immediately after the body opens.
 
-The Host writes the composed `WebBootGraph` to `window.__DSH_BOOT__` and installs the browser module-loader facade before parser-preloaded scripts execute. The module system is a lazy CommonJS table: loading a bundle registers its factory, while materializing an entry runs the factory with synchronous `require` over platform modules and declared dynamic dependencies.
+The Host writes the composed `WebBootGraph` to `window.__AVN_BOOT__` and installs the browser module-loader facade before parser-preloaded scripts execute. The module system is a lazy CommonJS table: loading a bundle registers its factory, while materializing an entry runs the factory with synchronous `require` over platform modules and declared dynamic dependencies.
 
 The Web boot kernel creates the module system, prefetches `immediately` entries, mounts the vendored Cordis Loader, and creates every graph entry. Cordis service injection determines activation; module graph order determines only whether synchronous imports can be materialized. After the complete roster reaches a settled state, `ui-renderer` mounts the application, and the kernel fades the static preloader once the first sidebar lists and selected conversation history have arrived. [Client Modules](client-modules.md) owns the graph, bundle route, cache revision, and loader details.
 

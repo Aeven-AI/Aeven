@@ -157,13 +157,13 @@ function webSurfacePrompt(webUrl: string): string {
     + 'Images reach the page through the tool that produced them, which displays them in its own result. '
     + 'Do not write image markdown and do not construct URLs for generated files: the image is already on the page, '
     + 'and repeating it shows the user the same picture twice. Refer to it in words instead. '
-  return `You are interacting with the user through the DeepSeek Harness Web GUI at ${webUrl}. `
+  return `You are interacting with the user through the Aeven Web GUI at ${webUrl}. `
     + 'When the user refers to "this page", "this GUI", or "this app" without naming another target, they mean this GUI. '
     + 'The browser provides no implicit DOM, route, or screenshot context. '
     + renderContract
     + updateContract
     + 'Starting another server does not update this GUI. '
-    + 'The apps/web Vite entry builds the shell but is not a standalone application because only avn web injects window.__DSH_BOOT__. '
+    + 'The apps/web Vite entry builds the shell but is not a standalone application because only avn web injects window.__AVN_BOOT__. '
     + 'Do not start a replacement server unless the user asks; if one is needed, use a managed background job and verify its exact URL.'
 }
 
@@ -265,7 +265,7 @@ export function apply(ctx: Context, config: Config): void {
       runtimeCtx.shellEnv.register({
         name: 'web-runtime',
         variables: {
-          [AVN_WEB_URL]: { description: 'Canonical local URL of the DeepSeek Harness Web GUI serving this session.' },
+          [AVN_WEB_URL]: { description: 'Canonical local URL of the Aeven Web GUI serving this session.' },
         },
         resolve: () => ({ [AVN_WEB_URL]: localWebUrl(runtimeCtx) }),
       })

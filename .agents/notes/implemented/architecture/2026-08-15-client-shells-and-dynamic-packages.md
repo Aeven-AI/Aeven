@@ -48,7 +48,7 @@ The modules Node half injects the startup protocol into the served HTML in this 
 1. Install `window.__ModuleLoader__` in queue mode with `pendingQueue`, `load()`, and `create()`.
 2. Start preloading every content-addressed application combo URL containing the rows other than modules.
 3. Execute every blocking bootstrap combo URL; these currently contain the ordinary modules factory registration.
-4. Assign `window.__DSH_BOOT__`, including all scheduling descriptors and every row's one-resource HMR combo URL.
+4. Assign `window.__AVN_BOOT__`, including all scheduling descriptors and every row's one-resource HMR combo URL.
 5. Execute the Vite main module.
 
 The bootstrap combo currently registers only the modules factory. The startup kernel passes the raw graph and shell seeds to `__ModuleLoader__.create()`. The facade removes the modules registration, materializes it with a `require` function that rejects every external, and invokes its `createClientModuleSystem` export. The modules bundle parses the graph, constructs `ClientModuleSystem`, caches its own exports as the modules row, retains the system in a module closure, and switches the same facade to live mode. The modules client face consequently has a zero-external bootstrap requirement.

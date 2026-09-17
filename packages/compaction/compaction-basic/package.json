@@ -1,6 +1,6 @@
 {
   "name": "@aeven/compaction-basic",
-  "description": "Token-meter-driven compaction policy and LLM summarization backend for the DeepSeek Harness",
+  "description": "Token-meter-driven compaction policy and LLM summarization backend for the Aeven",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

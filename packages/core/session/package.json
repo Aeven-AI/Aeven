@@ -1,6 +1,6 @@
 {
   "name": "@aeven/session",
-  "description": "Event-sourced session store for the DeepSeek Harness",
+  "description": "Event-sourced session store for the Aeven",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

@@ -11,18 +11,18 @@ afterEach(() => {
 
 describe('DocumentTitle', () => {
   it('projects a durable title and restores the product title', () => {
-    vi.stubEnv('AVN_CLIENT_TITLE', 'DeepSeek Harness')
+    vi.stubEnv('AVN_CLIENT_TITLE', 'Aeven')
     document.title = 'stale title'
-    const mounted = render(<DocumentTitle productTitle="DeepSeek Harness" />)
-    expect(document.title).toBe('DeepSeek Harness')
-    mounted.rerender(<DocumentTitle title="First title" productTitle="DeepSeek Harness" />)
-    expect(document.title).toBe('First title — DeepSeek Harness')
-    mounted.rerender(<DocumentTitle title="Revised title" productTitle="DeepSeek Harness" />)
-    expect(document.title).toBe('Revised title — DeepSeek Harness')
-    mounted.rerender(<DocumentTitle productTitle="DeepSeek Harness" />)
-    expect(document.title).toBe('DeepSeek Harness')
+    const mounted = render(<DocumentTitle productTitle="Aeven" />)
+    expect(document.title).toBe('Aeven')
+    mounted.rerender(<DocumentTitle title="First title" productTitle="Aeven" />)
+    expect(document.title).toBe('First title — Aeven')
+    mounted.rerender(<DocumentTitle title="Revised title" productTitle="Aeven" />)
+    expect(document.title).toBe('Revised title — Aeven')
+    mounted.rerender(<DocumentTitle productTitle="Aeven" />)
+    expect(document.title).toBe('Aeven')
     mounted.unmount()
-    expect(document.title).toBe('DeepSeek Harness')
+    expect(document.title).toBe('Aeven')
   })
 
   it('uses the generic title when the build provides no title', () => {

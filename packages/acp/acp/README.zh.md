@@ -1,5 +1,5 @@
 ---
-description: "面向程序化客户端与维护者的仅自动化 Agent Client Protocol 服务器，用于通过 JSON-RPC stdio 驱动 DeepSeek Harness agent。"
+description: "面向程序化客户端与维护者的仅自动化 Agent Client Protocol 服务器，用于通过 JSON-RPC stdio 驱动 Aeven agent。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-acp` 让受信程序可以通过标准 [Agent Client Protocol（ACP）](https://agentclientprotocol.com) 驱动持久 DeepSeek Harness agent：创建或恢复会话、列出可恢复会话、挂载标准 MCP 服务器、选择模型与推理强度、发送或取消工作、接收语义执行更新，并关闭一个会话而不影响其他会话。它是为自动化而生的——进程外 subagent、测试运行器与脚本化控制器——而不是 AVN 用户界面：它发送标准 ACP 消息、thought、通用工具生命周期、配置与上下文用量，绝不发送 AVN 私有呈现数据或方法。会话持久化支持跨进程重启的列出、恢复与关闭，而删除、fork、转录回放、附加目录与交互式 UI 界面仍不支持。仓库自带的 ACP 客户端是 `avn-subagent-acp`，`pnpm avn --profile acp` 会启动一个开箱即用的服务器。设置与用法在前；实现细节放在下方可折叠的开发者章节中。
+`avn-acp` 让受信程序可以通过标准 [Agent Client Protocol（ACP）](https://agentclientprotocol.com) 驱动持久 Aeven agent：创建或恢复会话、列出可恢复会话、挂载标准 MCP 服务器、选择模型与推理强度、发送或取消工作、接收语义执行更新，并关闭一个会话而不影响其他会话。它是为自动化而生的——进程外 subagent、测试运行器与脚本化控制器——而不是 AVN 用户界面：它发送标准 ACP 消息、thought、通用工具生命周期、配置与上下文用量，绝不发送 AVN 私有呈现数据或方法。会话持久化支持跨进程重启的列出、恢复与关闭，而删除、fork、转录回放、附加目录与交互式 UI 界面仍不支持。仓库自带的 ACP 客户端是 `avn-subagent-acp`，`pnpm avn --profile acp` 会启动一个开箱即用的服务器。设置与用法在前；实现细节放在下方可折叠的开发者章节中。
 
 ## 目录
 

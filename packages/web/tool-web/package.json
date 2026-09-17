@@ -1,6 +1,6 @@
 {
   "name": "@aeven/tool-web",
-  "description": "Model-facing web tools (web_search, web_fetch) over the DeepSeek Harness web capability seam (ctx.web)",
+  "description": "Model-facing web tools (web_search, web_fetch) over the Aeven web capability seam (ctx.web)",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

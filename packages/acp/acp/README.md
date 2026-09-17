@@ -1,5 +1,5 @@
 ---
-description: "Automation-only Agent Client Protocol server for programmatic clients and maintainers driving DeepSeek Harness agents over JSON-RPC stdio."
+description: "Automation-only Agent Client Protocol server for programmatic clients and maintainers driving Aeven agents over JSON-RPC stdio."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-acp` lets trusted programs drive persistent DeepSeek Harness agents over the standard [Agent Client Protocol](https://agentclientprotocol.com): create or resume sessions, list resumable sessions, attach standard MCP servers, select a model and reasoning effort, prompt or cancel work, receive semantic execution updates, and close one session without affecting others. It is built for automation — out-of-process subagents, test runners, and scripted controllers — rather than the AVN user interface: it emits standard ACP messages, thoughts, generic tool lifecycle, configuration, and context usage, never private AVN presentation data or methods. Session persistence enables list, resume, and close across process restarts, while deletion, fork, transcript replay, additional directories, and interactive UI surfaces remain unsupported. The repository's own ACP client is `avn-subagent-acp`, and `pnpm avn --profile acp` starts a ready-to-use server. Setup and usage come first; the implementation details live in a collapsible developer section below.
+`avn-acp` lets trusted programs drive persistent Aeven agents over the standard [Agent Client Protocol](https://agentclientprotocol.com): create or resume sessions, list resumable sessions, attach standard MCP servers, select a model and reasoning effort, prompt or cancel work, receive semantic execution updates, and close one session without affecting others. It is built for automation — out-of-process subagents, test runners, and scripted controllers — rather than the AVN user interface: it emits standard ACP messages, thoughts, generic tool lifecycle, configuration, and context usage, never private AVN presentation data or methods. Session persistence enables list, resume, and close across process restarts, while deletion, fork, transcript replay, additional directories, and interactive UI surfaces remain unsupported. The repository's own ACP client is `avn-subagent-acp`, and `pnpm avn --profile acp` starts a ready-to-use server. Setup and usage come first; the implementation details live in a collapsible developer section below.
 
 ## Table of Contents
 

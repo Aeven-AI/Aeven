@@ -20,7 +20,7 @@ type AvnEnvironmentKey = `${typeof AVN_ENV_PREFIX}${string}`
 ```
 
 ```ts type-equiv
-/** Trusted DeepSeek Harness variables for one child-process execution. */
+/** Trusted Aeven variables for one child-process execution. */
 type AvnEnvironment = Readonly<Record<AvnEnvironmentKey, string>>
 ```
 

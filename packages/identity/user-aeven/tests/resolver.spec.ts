@@ -137,7 +137,7 @@ describe('the endpoints the Host states in the page', () => {
     ctx.emit('webserver/index-inject', table)
     expect(table).toEqual([{
       kind: 'global',
-      name: '__DSH_AEVEN__',
+      name: '__AVN_AEVEN__',
       value: {
         apiUrl: 'http://api.test:9000',
         xOAuthUrl: 'https://x.test/o',
@@ -156,6 +156,6 @@ describe('the endpoints the Host states in the page', () => {
     apply(ctx, Config({}))
     const table: IndexInjection[] = []
     ctx.emit('webserver/index-inject', table)
-    expect(table[0]).toMatchObject({ name: '__DSH_AEVEN__', value: {} })
+    expect(table[0]).toMatchObject({ name: '__AVN_AEVEN__', value: {} })
   })
 })

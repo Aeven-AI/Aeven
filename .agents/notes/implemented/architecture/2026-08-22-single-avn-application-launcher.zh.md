@@ -6,7 +6,7 @@ Status: implemented
 
 ## Problem
 
-DeepSeek Harness 应用进程需要由同一个机制负责组合、插件解析、环境发现、关闭和用户自定义。带完整 `cordis.yml` 的专用应用 bin 会在 profile 启动之外形成第二套生命周期：安装到 profile 的插件无法到达它，行为会与 `avn-base` 偏离，SDK 调用方还需要学习任意进程 argv，而不是产品的组合模型。
+Aeven 应用进程需要由同一个机制负责组合、插件解析、环境发现、关闭和用户自定义。带完整 `cordis.yml` 的专用应用 bin 会在 profile 启动之外形成第二套生命周期：安装到 profile 的插件无法到达它，行为会与 `avn-base` 偏离，SDK 调用方还需要学习任意进程 argv，而不是产品的组合模型。
 
 Python SDK 通过四个平台 wheel 包分发原生可执行文件。其打包进程使用同一 profile 启动器，同时保留封闭的 VFS 依赖树、原生伴随文件与 installed-wheel 证据。
 

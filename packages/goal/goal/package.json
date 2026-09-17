@@ -1,6 +1,6 @@
 {
   "name": "@aeven/goal",
-  "description": "Event-sourced same-session goal state and lifecycle service for the DeepSeek Harness",
+  "description": "Event-sourced same-session goal state and lifecycle service for the Aeven",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

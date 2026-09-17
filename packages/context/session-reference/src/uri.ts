@@ -5,7 +5,7 @@ import type { SessionId as SessionIdType } from '@aeven/session'
 import { SessionReferenceError } from './config.ts'
 import type { SessionReferenceInput } from './types.ts'
 
-/** URI scheme reserved for DeepSeek Harness session snapshots. */
+/** URI scheme reserved for Aeven session snapshots. */
 export const SESSION_REFERENCE_SCHEME = 'avn-session:'
 
 /**

@@ -1,6 +1,6 @@
 {
   "name": "@aeven/tool-media",
-  "description": "Model-facing generate_image tool over the DeepSeek Harness generated-media seam",
+  "description": "Model-facing generate_image tool over the Aeven generated-media seam",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

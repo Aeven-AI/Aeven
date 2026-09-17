@@ -82,7 +82,7 @@ seam 同步解析，因此 authority 无法调用 Aeven。它改为用 API 的�
 
 ### 在页面中声明端点
 
-Aeven 的各 origin 是部署事实而非构建事实，因此由 Host 声明，而不是让浏览器 bundle 携带。该插件把 `__DSH_AEVEN__` 全局推入 `webserver/index-inject` 表；浏览器认证库读取它，并把缺失的 `apiUrl` 视为"未配置 Aeven authority"，这正是不含这一行的组合的行为。
+Aeven 的各 origin 是部署事实而非构建事实，因此由 Host 声明，而不是让浏览器 bundle 携带。该插件把 `__AVN_AEVEN__` 全局推入 `webserver/index-inject` 表；浏览器认证库读取它，并把缺失的 `apiUrl` 视为"未配置 Aeven authority"，这正是不含这一行的组合的行为。
 
 ### 源码地图
 

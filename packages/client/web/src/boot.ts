@@ -56,7 +56,7 @@ export class AppWebEntry {
       // next microtask; an asynchronous bootstrap resolves it after its last
       // row, or rejects it into the failure rendering below. An absent global
       // means no bootstrap owns the document and there is nothing to wait for.
-      await (globalThis as { __DSH_BOOT_READY__?: { promise: Promise<void> } }).__DSH_BOOT_READY__?.promise
+      await (globalThis as { __AVN_BOOT_READY__?: { promise: Promise<void> } }).__AVN_BOOT_READY__?.promise
       const win = globalThis as AvnWindow
       const moduleLoader = win.__ModuleLoader__
       if (moduleLoader === undefined) {
@@ -68,8 +68,8 @@ export class AppWebEntry {
       // this structural slice reads one optional member without adding a
       // package edge.
       const transport = (globalThis as {
-        __DSH_TRANSPORT__?: { loadBundle?: ClientModuleCreateOptions['loadBundle'] }
-      }).__DSH_TRANSPORT__
+        __AVN_TRANSPORT__?: { loadBundle?: ClientModuleCreateOptions['loadBundle'] }
+      }).__AVN_TRANSPORT__
       // Authentication decides whether there is an application to boot at all.
       // It runs here, before the plugin graph, so no client entry ever sees an
       // unauthenticated context — a plugin cannot be asked to check, because
@@ -86,7 +86,7 @@ export class AppWebEntry {
       // only after the eager rendering request has completed so every plugin
       // bundle sees the complete platform table during evaluation.
       this.modules = moduleLoader.create({
-        boot: win.__DSH_BOOT__,
+        boot: win.__AVN_BOOT__,
         staticModules,
         ...transport?.loadBundle === undefined ? {} : { loadBundle: transport.loadBundle },
         ...this.seams,

@@ -9,13 +9,13 @@
 
 import type { Readable, Writable } from 'node:stream'
 
-/** Namespace prefix reserved for DeepSeek Harness-managed child environment facts. */
+/** Namespace prefix reserved for Aeven-managed child environment facts. */
 export const AVN_ENV_PREFIX = 'AVN_' as const
 
 /** One environment key inside the managed {@link AVN_ENV_PREFIX} namespace. */
 export type AvnEnvironmentKey = `${typeof AVN_ENV_PREFIX}${string}`
 
-/** Trusted DeepSeek Harness variables for one child-process execution. */
+/** Trusted Aeven variables for one child-process execution. */
 export type AvnEnvironment = Readonly<Record<AvnEnvironmentKey, string>>
 
 /** One captured stream: the (possibly truncated) text plus recovery info. */

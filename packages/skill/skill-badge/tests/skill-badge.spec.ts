@@ -15,7 +15,7 @@ describe('avn-skill-badge', () => {
 
     expect(await ctx.skills.list()).toEqual([{
       name: 'avn-badge',
-      description: 'Add the official “powered by avn” badge to documents, pull requests, merge requests, and other content produced with DeepSeek Harness. Use whenever creating a pull request or merge request. Also use when the user asks for a avn badge, powered-by-avn attribution, or a reusable avn badge asset or snippet.',
+      description: 'Add the official “powered by avn” badge to documents, pull requests, merge requests, and other content produced with Aeven. Use whenever creating a pull request or merge request. Also use when the user asks for a avn badge, powered-by-avn attribution, or a reusable avn badge asset or snippet.',
       invocation: { modelInvocable: true, userInvocable: true },
       provider: 'avn-badge',
       source: 'bundled',

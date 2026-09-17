@@ -37,7 +37,7 @@ describe('Windows token signing', () => {
     }, {
       certificateFile: CERTIFICATE_FILE,
       signTool: 'C:\\tools\\signtool.exe',
-      path: 'C:\\release\\DeepSeek Harness.exe',
+      path: 'C:\\release\\Aeven.exe',
       isNest: false,
       tokenPin: 'token-secret!',
       keyContainer: 'te-container',
@@ -47,7 +47,7 @@ describe('Windows token signing', () => {
       AVN_DESKTOP_WINDOWS_CER_FILE: CERTIFICATE_FILE,
       AVN_DESKTOP_WINDOWS_TOKEN_PIN: 'token-secret!',
       AVN_DESKTOP_WINDOWS_KEY_CONTAINER: 'te-container',
-      AVN_DESKTOP_WINDOWS_SIGN_TARGET: 'C:\\release\\DeepSeek Harness.exe',
+      AVN_DESKTOP_WINDOWS_SIGN_TARGET: 'C:\\release\\Aeven.exe',
       AVN_DESKTOP_WINDOWS_SIGN_APPEND: '',
     })
   })

@@ -82,7 +82,7 @@ The seam resolves synchronously, so the authority cannot call Aeven. It checks t
 
 ### Stating the endpoints in the page
 
-The Aeven origins are deployment facts, not build facts, so the Host states them rather than the browser bundle carrying them. The plugin pushes a `__DSH_AEVEN__` global onto the `webserver/index-inject` table; the browser authentication library reads it and treats an absent `apiUrl` as "no Aeven authority configured", which is how a composition without this row behaves.
+The Aeven origins are deployment facts, not build facts, so the Host states them rather than the browser bundle carrying them. The plugin pushes a `__AVN_AEVEN__` global onto the `webserver/index-inject` table; the browser authentication library reads it and treats an absent `apiUrl` as "no Aeven authority configured", which is how a composition without this row behaves.
 
 ### Source map
 

@@ -26,7 +26,7 @@ import { verifiedUserId } from './jwt.ts'
 export const name = 'identity-user-aeven'
 
 /** Page global carrying {@link AevenClientConfig}; `avn-client-ui-auth-aeven` reads it. */
-export const AEVEN_CLIENT_CONFIG_GLOBAL = '__DSH_AEVEN__'
+export const AEVEN_CLIENT_CONFIG_GLOBAL = '__AVN_AEVEN__'
 
 /** Deployment endpoints the Host states in the served page; each is absent when unconfigured. */
 export interface AevenClientConfig {

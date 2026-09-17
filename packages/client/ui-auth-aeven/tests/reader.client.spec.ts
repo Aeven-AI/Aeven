@@ -3,16 +3,16 @@ import { publishReader, publishedReader } from '../src/client/auth/services/read
 import { session } from '../src/client/auth/services/session.ts'
 
 interface Scope {
-  __DSH_AEVEN__?: Record<string, string>
-  __DSH_AEVEN_READER__?: unknown
+  __AVN_AEVEN__?: Record<string, string>
+  __AVN_AEVEN_READER__?: unknown
 }
 
 const scope = globalThis as Scope
 
 afterEach(() => {
   session.reset()
-  delete scope.__DSH_AEVEN__
-  delete scope.__DSH_AEVEN_READER__
+  delete scope.__AVN_AEVEN__
+  delete scope.__AVN_AEVEN_READER__
   vi.unstubAllGlobals()
 })
 
@@ -39,7 +39,7 @@ describe('published Aeven reader', () => {
   })
 
   it('resolves the picture and account page against the configured origins', () => {
-    scope.__DSH_AEVEN__ = { webUrl: 'https://aeven.test', mediaUrl: 'https://media.aeven.test' }
+    scope.__AVN_AEVEN__ = { webUrl: 'https://aeven.test', mediaUrl: 'https://media.aeven.test' }
     session.adoptProfile({
       userId: 'u-2',
       displayName: 'Ollie',

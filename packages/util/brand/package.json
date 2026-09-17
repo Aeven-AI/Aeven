@@ -1,6 +1,6 @@
 {
   "name": "@aeven/brand",
-  "description": "Stateless branded primitive types for the DeepSeek Harness",
+  "description": "Stateless branded primitive types for the Aeven",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

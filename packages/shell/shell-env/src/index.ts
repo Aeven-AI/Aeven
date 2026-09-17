@@ -27,7 +27,7 @@ export const inject: string[] = []
 
 /** Plugin config (all optional — the built-in facts resolve without defaults). */
 export interface Config {
-  /** DeepSeek Harness home directory exposed as `AVN_HOME`; defaults to `$AVN_HOME` or `~/.aeven`. */
+  /** Aeven home directory exposed as `AVN_HOME`; defaults to `$AVN_HOME` or `~/.aeven`. */
   avnHome?: string
 }
 

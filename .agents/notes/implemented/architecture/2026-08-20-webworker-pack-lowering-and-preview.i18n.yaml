@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-20-webworker-pack-lowering-and-preview.md
-2026-08-20-webworker-pack-lowering-and-preview.md: 78cc7a13e359bdbd79108f25810f726b370282cc
-2026-08-20-webworker-pack-lowering-and-preview.zh.md: dda569c95c5df52de85d10ac522a6b28bd40d2d5
+2026-08-20-webworker-pack-lowering-and-preview.md: bfef3037c81175498de9906a50a8b46b902760e4
+2026-08-20-webworker-pack-lowering-and-preview.zh.md: 0371a6f7dcca36c2976b7fc071e0578bd6fe1356

@@ -12,7 +12,7 @@ The duplicate path also exposed less configuration than a bundle. Its `repositor
 
 ## Decision
 
-DeepSeek Harness has one standalone external-Plugin distribution path: installable profile bundles. `avn plugin --profile <name> add <package-or-git-spec>` records the dependency in the profile package, and the installed package declares `avn.bundle.patch` to contribute its patch layer. The package manager owns source acquisition, versions, dependencies, build lifecycles, and its lockfile. The bundle patch owns Cordis Plugin selection and complete Plugin config.
+Aeven has one standalone external-Plugin distribution path: installable profile bundles. `avn plugin --profile <name> add <package-or-git-spec>` records the dependency in the profile package, and the installed package declares `avn.bundle.patch` to contribute its patch layer. The package manager owns source acquisition, versions, dependencies, build lifecycles, and its lockfile. The bundle patch owns Cordis Plugin selection and complete Plugin config.
 
 The `@aeven/repository-plugin` package, `.aeven-plugin` authoring format, `avn-plugin-prepare` executable, generated wrapper, immutable repository cache, base `repository-plugins` row, and dedicated GitHub acceptance lane are removed. The unused vendored `@cordisjs/plugin-loader/repository` subpath and its bundled pnpm dependency are removed with their only consumer. Existing repository cache directories are inert user data; AVN neither reads nor deletes them.
 

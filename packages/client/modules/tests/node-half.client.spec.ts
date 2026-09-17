@@ -171,7 +171,7 @@ describe('HTML bootstrap facade', () => {
       `<link rel="preload" as="script" fetchpriority="low" href="${APPLICATION_URL.replaceAll('&', '&amp;')}">`,
     )
     const bootstrapAt = html.indexOf(`<script defer src="${BOOTSTRAP_URL.replaceAll('&', '&amp;')}"></script>`)
-    const graphAt = html.indexOf('globalThis["__DSH_BOOT__"] = ')
+    const graphAt = html.indexOf('globalThis["__AVN_BOOT__"] = ')
     const entryAt = html.indexOf('<script type="module" src="/index.js"></script>')
     expect([facadeAt, bootstrapAt, graphAt, entryAt, applicationAt]).toEqual([...new Set([
       facadeAt, bootstrapAt, graphAt, entryAt, applicationAt,

@@ -1,6 +1,6 @@
 {
   "name": "@aeven/llm-retry",
-  "description": "Provider-routed LLM request retry policy for the DeepSeek Harness",
+  "description": "Provider-routed LLM request retry policy for the Aeven",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

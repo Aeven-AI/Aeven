@@ -1,6 +1,6 @@
 {
   "name": "@aeven/util-values",
-  "description": "Duplicate-install-safe value primitives for the DeepSeek Harness",
+  "description": "Duplicate-install-safe value primitives for the Aeven",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

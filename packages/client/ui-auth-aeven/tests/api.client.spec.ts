@@ -34,13 +34,13 @@ const grant = { userId: 'u-1', accessToken: 'header.eyJ1c2VySWQiOiJ1LTEiLCJleHAi
 
 describe('the Aeven API calls', () => {
   beforeEach(() => {
-    ;(globalThis as { __DSH_AEVEN__?: unknown }).__DSH_AEVEN__ = { apiUrl: 'http://api.test' }
+    ;(globalThis as { __AVN_AEVEN__?: unknown }).__AVN_AEVEN__ = { apiUrl: 'http://api.test' }
     session.reset()
     window.localStorage.clear()
   })
   afterEach(() => {
     vi.unstubAllGlobals()
-    delete (globalThis as { __DSH_AEVEN__?: unknown }).__DSH_AEVEN__
+    delete (globalThis as { __AVN_AEVEN__?: unknown }).__AVN_AEVEN__
   })
 
   it('signs in with the cookie routes, and adopts the session it establishes', async () => {

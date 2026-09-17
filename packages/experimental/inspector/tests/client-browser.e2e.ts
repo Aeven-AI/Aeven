@@ -248,8 +248,8 @@ function browserFixture(bootstrap: InspectorHandle['endpoint']['client']): strin
   return `<!doctype html>
 <title>Inspector Browser Client</title>
 <script>
-globalThis.__DSH_INSPECTOR__ = ${JSON.stringify(bootstrap)};
-globalThis.__DSH_BOOT__ = ${JSON.stringify(boot)};
+globalThis.__AVN_INSPECTOR__ = ${JSON.stringify(bootstrap)};
+globalThis.__AVN_BOOT__ = ${JSON.stringify(boot)};
 globalThis.__ModuleLoader__ = { load(registration) { globalThis.__INSPECTOR_REGISTRATION__ = registration; } };
 </script>
 <script src="/client.js?rev=browser-test"></script>

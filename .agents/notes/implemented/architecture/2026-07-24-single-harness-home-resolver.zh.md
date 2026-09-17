@@ -6,7 +6,7 @@ Status: implemented
 
 ## 问题
 
-对于"DeepSeek Harness 用户数据存放在哪里"，harness 里存在两套互不一致的约定：
+对于"Aeven 用户数据存放在哪里"，harness 里存在两套互不一致的约定：
 
 - `@aeven/home` 按 `configured ?? $AVN_HOME ?? ~/.aeven` 解析。
 - `@aeven/home-paths` 又提供了**第二个** `resolveAvnHome`，优先级相同但额外做了波浪号展开——它几乎是 `avn-home` 的重复实现，却没有任何门禁发现，因为两者分属不同的包，而且早已漂移（只有一个会展开波浪号）。

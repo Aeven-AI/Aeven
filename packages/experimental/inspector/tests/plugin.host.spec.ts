@@ -33,8 +33,8 @@ describe('experimental Inspector Host plugin', () => {
 
     const rows: IndexInjection[] = []
     context.emit('webserver/index-inject', rows)
-    const bootstrap = rows.find(row => row.kind === 'global' && row.name === '__DSH_INSPECTOR__')
-    expect(bootstrap).toMatchObject({ kind: 'global', name: '__DSH_INSPECTOR__' })
+    const bootstrap = rows.find(row => row.kind === 'global' && row.name === '__AVN_INSPECTOR__')
+    expect(bootstrap).toMatchObject({ kind: 'global', name: '__AVN_INSPECTOR__' })
     expect(log).toHaveBeenCalledWith(expect.stringMatching(/^avn inspector: devtools:\/\//u))
     expect(context.inspector).toBeDefined()
     await vi.waitFor(async () => {

@@ -6,7 +6,7 @@ English | [中文](2026-07-24-single-harness-home-resolver.zh.md)
 
 ## Problem
 
-The harness had two inconsistent conventions for "where does DeepSeek Harness user data live":
+The harness had two inconsistent conventions for "where does Aeven user data live":
 
 - `@aeven/home` resolved `configured ?? $AVN_HOME ?? ~/.aeven`.
 - `@aeven/home-paths` shipped a **second** `resolveAvnHome` with the same precedence plus tilde expansion — a near-duplicate of `avn-home` that no gate flagged because the two lived in different packages and had already drifted (only one expanded tildes).

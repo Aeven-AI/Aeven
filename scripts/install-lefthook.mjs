@@ -28,7 +28,7 @@ const INSTALL_LOCK_POLL_MS = 50
 const ALLOW_HOOKS_PATH_OVERRIDE = 'AVN_LEFTHOOK_ALLOW_HOOKS_PATH_OVERRIDE'
 const REPOSITORY_EXTENSION_PATTERN = '^extensions\\.'
 const PAIRING_MERGE_DRIVER_CONFIG = [
-  ['merge.avn-translation-pairing.name', 'DeepSeek Harness bilingual pairing records'],
+  ['merge.avn-translation-pairing.name', 'Aeven bilingual pairing records'],
   [
     'merge.avn-translation-pairing.driver',
     'scripts/merge-translation-pairing-driver.sh %O %A %B %P',

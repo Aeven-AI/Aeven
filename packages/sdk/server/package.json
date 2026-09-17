@@ -1,6 +1,6 @@
 {
   "name": "@aeven/sdk-jsonrpc-server",
-  "description": "Stdio JSON-RPC server plugin for out-of-process DeepSeek Harness SDK clients",
+  "description": "Stdio JSON-RPC server plugin for out-of-process Aeven SDK clients",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

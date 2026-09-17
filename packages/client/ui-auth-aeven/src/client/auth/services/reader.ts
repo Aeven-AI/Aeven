@@ -28,7 +28,7 @@ export interface AevenReader {
 
 /** Page global carrying the reader. */
 interface ReaderScope {
-  __DSH_AEVEN_READER__?: AevenReader
+  __AVN_AEVEN_READER__?: AevenReader
 }
 
 /**
@@ -41,13 +41,13 @@ interface ReaderScope {
 export function publishReader(): void {
   const scope = globalThis as ReaderScope
   if (!session.userSignedIn || session.userId === null) {
-    delete scope.__DSH_AEVEN_READER__
+    delete scope.__AVN_AEVEN_READER__
     return
   }
   const path = session.profile?.avatar?.url
   const media = mediaUrl()
   const web = webUrl()
-  scope.__DSH_AEVEN_READER__ = {
+  scope.__AVN_AEVEN_READER__ = {
     userId: session.userId,
     ...session.displayName === undefined ? {} : { displayName: session.displayName },
     ...path === undefined || media === undefined ? {} : { imageUrl: `${media}${path}` },
@@ -61,5 +61,5 @@ export function publishReader(): void {
  * @returns the reader, or undefined when nobody is signed in.
  */
 export function publishedReader(): AevenReader | undefined {
-  return (globalThis as ReaderScope).__DSH_AEVEN_READER__
+  return (globalThis as ReaderScope).__AVN_AEVEN_READER__
 }

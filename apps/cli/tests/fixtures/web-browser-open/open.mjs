@@ -34,7 +34,7 @@ export default async function open(url) {
   console.log(`avn browser-open: ${JSON.stringify({
     url,
     status: response.status,
-    bootManifest: html.includes('__DSH_BOOT__'),
+    bootManifest: html.includes('__AVN_BOOT__'),
     apiKeyPresent: process.env.DEEPSEEK_API_KEY !== undefined,
     avnHomePresent: process.env.AVN_HOME !== undefined,
   })}`)

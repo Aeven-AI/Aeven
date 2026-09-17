@@ -30,7 +30,7 @@ export const inject = ['slots', 'locale', 'theme']
 
 /** Page global the authentication gate states the reader on. */
 interface ReaderScope {
-  __DSH_AEVEN_READER__?: AevenReader
+  __AVN_AEVEN_READER__?: AevenReader
 }
 
 /**
@@ -41,7 +41,7 @@ interface ReaderScope {
  * @returns the reader, or undefined when nobody is signed in.
  */
 function publishedReader(): AevenReader | undefined {
-  return (globalThis as ReaderScope).__DSH_AEVEN_READER__
+  return (globalThis as ReaderScope).__AVN_AEVEN_READER__
 }
 
 /**

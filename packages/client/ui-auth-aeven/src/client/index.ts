@@ -115,8 +115,8 @@ interface TransportHooks {
  * @returns disposer stopping the background renewal; the page keeps the transport hook.
  */
 export function installAuthenticatedTransport(): () => void {
-  const scope = globalThis as { __DSH_TRANSPORT__?: TransportHooks }
-  const existing = scope.__DSH_TRANSPORT__?.fetch
+  const scope = globalThis as { __AVN_TRANSPORT__?: TransportHooks }
+  const existing = scope.__AVN_TRANSPORT__?.fetch
   const send = existing ?? ((input: URL, init: RequestInit) => globalThis.fetch(input, init))
   const sendWith = (input: URL, init: RequestInit, bearer: string | undefined): Promise<Response> => {
     const headers = new Headers(init.headers)
@@ -124,8 +124,8 @@ export function installAuthenticatedTransport(): () => void {
     return send(input, { ...init, headers })
   }
 
-  scope.__DSH_TRANSPORT__ = {
-    ...scope.__DSH_TRANSPORT__,
+  scope.__AVN_TRANSPORT__ = {
+    ...scope.__AVN_TRANSPORT__,
     fetch: async (input: URL, init: RequestInit): Promise<Response> => {
       const bearer = await sessionBearer()
       const response = await sendWith(input, init, bearer)

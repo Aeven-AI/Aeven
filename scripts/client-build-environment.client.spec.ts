@@ -82,7 +82,7 @@ describe('client build environment', () => {
     const expected = {
       AVN_CLIENT_BUILD_PROFILE: 'official',
       AVN_CLIENT_COMMIT_HASH: COMMIT_HASH.slice(0, 7),
-      AVN_CLIENT_TITLE: 'DeepSeek Harness',
+      AVN_CLIENT_TITLE: 'Aeven',
       AVN_CLIENT_VERSION: '1.2.3',
     } as const
 
@@ -112,7 +112,7 @@ describe('client build environment', () => {
     expect(resolveClientBuildEnvironment(parent)).toEqual({
       AVN_CLIENT_BUILD_PROFILE: 'official',
       AVN_CLIENT_COMMIT_HASH: COMMIT_HASH.slice(0, 7),
-      AVN_CLIENT_TITLE: 'DeepSeek Harness',
+      AVN_CLIENT_TITLE: 'Aeven',
       AVN_CLIENT_VERSION: '1.2.3',
     })
     expect(() => {
@@ -128,13 +128,13 @@ describe('client build environment', () => {
     expect(clientBuildProcessEnvironment(parent, {
       AVN_CLIENT_BUILD_PROFILE: 'official',
       AVN_CLIENT_COMMIT_HASH: COMMIT_HASH.slice(0, 7),
-      AVN_CLIENT_TITLE: 'DeepSeek Harness',
+      AVN_CLIENT_TITLE: 'Aeven',
       AVN_CLIENT_VERSION: '1.2.3',
     })).toEqual({
       PATH: '/bin',
       AVN_CLIENT_BUILD_PROFILE: 'official',
       AVN_CLIENT_COMMIT_HASH: COMMIT_HASH.slice(0, 7),
-      AVN_CLIENT_TITLE: 'DeepSeek Harness',
+      AVN_CLIENT_TITLE: 'Aeven',
       AVN_CLIENT_VERSION: '1.2.3',
     })
     expect(repositoryCommitHash('/unused', { AVN_CLIENT_COMMIT_HASH: COMMIT_HASH })).toBe(COMMIT_HASH.slice(0, 7))
@@ -159,7 +159,7 @@ describe('client build environment', () => {
     expect(officialClientBuildEnvironment(fixtureRoot)).toEqual({
       AVN_CLIENT_BUILD_PROFILE: 'official',
       AVN_CLIENT_COMMIT_HASH: commit,
-      AVN_CLIENT_TITLE: 'DeepSeek Harness',
+      AVN_CLIENT_TITLE: 'Aeven',
       AVN_CLIENT_VERSION: '1.2.3-rc.4',
     })
 
@@ -263,7 +263,7 @@ describe('client build environment', () => {
     const officialEnvironment = {
       AVN_CLIENT_BUILD_PROFILE: 'official',
       AVN_CLIENT_COMMIT_HASH: COMMIT_HASH.slice(0, 7),
-      AVN_CLIENT_TITLE: 'DeepSeek Harness',
+      AVN_CLIENT_TITLE: 'Aeven',
       AVN_CLIENT_VERSION: '1.2.3',
     }
     const official = buildFixture(officialEnvironment)

@@ -1,6 +1,6 @@
 {
   "name": "@aeven/sandbox-windows-acl",
-  "description": "Windows ACL write-restriction sandbox backend (restricted-token spawn with capability-SID write allowlist) for the DeepSeek Harness sandbox seam",
+  "description": "Windows ACL write-restriction sandbox backend (restricted-token spawn with capability-SID write allowlist) for the Aeven sandbox seam",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

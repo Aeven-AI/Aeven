@@ -1,6 +1,6 @@
 {
   "name": "@aeven/client-ui-brand-official",
-  "description": "Official DeepSeek Harness brand occupants for the Web client's sidebar slots",
+  "description": "Official Aeven brand occupants for the Web client's sidebar slots",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

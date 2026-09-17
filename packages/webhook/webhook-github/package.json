@@ -1,6 +1,6 @@
 {
   "name": "@aeven/webhook-github",
-  "description": "Signed GitHub HTTP webhook adapter for the DeepSeek Harness webhook runtime",
+  "description": "Signed GitHub HTTP webhook adapter for the Aeven webhook runtime",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

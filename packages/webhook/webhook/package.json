@@ -1,6 +1,6 @@
 {
   "name": "@aeven/webhook",
-  "description": "Fire-and-forget webhook rule runtime that creates Workspace-backed DeepSeek Harness Sessions",
+  "description": "Fire-and-forget webhook rule runtime that creates Workspace-backed Aeven Sessions",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

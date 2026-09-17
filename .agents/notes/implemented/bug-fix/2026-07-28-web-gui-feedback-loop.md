@@ -6,7 +6,7 @@ English | [中文](2026-07-28-web-gui-feedback-loop.zh.md)
 
 ## Problem
 
-The Web agent could identify neither the GUI hosting its session nor the URL the user was viewing. The [runtime-context decision](2026-07-28-web-agent-runtime-context.md) supplies the first fact, but a GUI edit still had no executable acceptance target: source edits, artifact builds, a listening process, and the user's existing page were unrelated observations. Repository affordances made a wrong substitute look valid because `apps/web/package.json` exposed `vite` as its `dev` script and bare Vite returned HTTP 200 even though it could not inject `window.__DSH_BOOT__`.
+The Web agent could identify neither the GUI hosting its session nor the URL the user was viewing. The [runtime-context decision](2026-07-28-web-agent-runtime-context.md) supplies the first fact, but a GUI edit still had no executable acceptance target: source edits, artifact builds, a listening process, and the user's existing page were unrelated observations. Repository affordances made a wrong substitute look valid because `apps/web/package.json` exposed `vite` as its `dev` script and bare Vite returned HTTP 200 even though it could not inject `window.__AVN_BOOT__`.
 
 The [incident post-mortem](../../../../docs/postmortem/0003-web-agent-gui-feedback-loop.md) owns the event-log timeline and why the original checks accepted the wrong page, process, and port.
 
@@ -16,7 +16,7 @@ The ordinary `avn web` composition mounts the Web bundle's `web-runtime` plugin,
 
 The prompt makes the agent, rather than the user, own the hidden startup contract. The client-plugin HMR receiver is always mounted, but automatic client-plugin reload additionally requires a same-checkout `pnpm run dev:web` watcher, which the agent verifies before promising no-refresh updates. Shell and other plain-package changes still require rebuilding the affected artifacts and refreshing the existing URL. The agent does not launch a replacement GUI unless asked.
 
-The `apps/web` development script and Vite configuration reject serve mode before opening a port. Their diagnostics identify `apps/web` as a build-only shell, explain that only `avn web` injects `window.__DSH_BOOT__`, and name the production and HMR entry paths. Vite build mode remains unchanged.
+The `apps/web` development script and Vite configuration reject serve mode before opening a port. Their diagnostics identify `apps/web` as a build-only shell, explain that only `avn web` injects `window.__AVN_BOOT__`, and name the production and HMR entry paths. Vite build mode remains unchanged.
 
 No server restart or replacement is required merely because static artifacts changed. The host reads `index.html` and static assets on each request, while client bundles are also served from their current files with `no-cache`; a refresh of the existing URL is therefore the acceptance path after the relevant shell and plugin bundles are rebuilt. Starting a separate server proves only that a separate server works. If the user explicitly requests another long-running server, the existing managed background-job contract owns its lifecycle and completion notices; shell `&` is not an alternative lifecycle.
 

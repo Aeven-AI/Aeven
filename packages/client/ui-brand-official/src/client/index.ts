@@ -1,4 +1,4 @@
-/** Official DeepSeek Harness occupants for the generic browser-brand slots. */
+/** Official Aeven occupants for the generic browser-brand slots. */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@aeven/client-ui-renderer/client'
 import type {} from '@aeven/client-ui-sidebar/client'

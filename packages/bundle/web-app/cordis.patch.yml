@@ -37,7 +37,7 @@
 # ── web-only host rows, the transport layer, and the browser roster ─────────
 
 # `avn.client` rows are the browser roster the modules node half scans into
-# window.__DSH_BOOT__; the modules row is simultaneously a host row.
+# window.__AVN_BOOT__; the modules row is simultaneously a host row.
 - insert:
     # Host-owned opt-in sampled when a new Web session receives its preset
     # delegation tools. The Plugins page edits this settings namespace.
@@ -189,7 +189,7 @@
 
     # ── browser plugin roster (avn.client rows; node halves are layer-2 hosts) ──
 
-    # Dual-face: the node half scans this tree, composes window.__DSH_BOOT__,
+    # Dual-face: the node half scans this tree, composes window.__AVN_BOOT__,
     # and serves /plugins/<id>/client.js; the browser half is the module table
     # the shell kernel constructs before cordis exists (adopted as a plugin
     # entry by the kernel, never fetched).

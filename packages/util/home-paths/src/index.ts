@@ -1,5 +1,5 @@
 /**
- * Shared filesystem path helpers for DeepSeek Harness user data.
+ * Shared filesystem path helpers for Aeven user data.
  *
  * @module @aeven/home-paths
  */
@@ -8,13 +8,13 @@ import { opendir, realpath } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 
-/** Directory name for the default DeepSeek Harness home under the OS home. */
+/** Directory name for the default Aeven home under the OS home. */
 export const AVN_HOME_DIR_NAME = '.aeven'
 
-/** Stable user-facing display form for the default DeepSeek Harness home. */
+/** Stable user-facing display form for the default Aeven home. */
 export const DEFAULT_AVN_HOME_DISPLAY = `~/${AVN_HOME_DIR_NAME}`
 
-/** Environment variable that overrides the default DeepSeek Harness home. */
+/** Environment variable that overrides the default Aeven home. */
 export const AVN_HOME_ENV = 'AVN_HOME'
 
 /**
@@ -55,7 +55,7 @@ export async function canonicalizeWatchPath(path: string): Promise<string> {
 }
 
 /**
- * Resolve the default DeepSeek Harness home using Node's platform path rules.
+ * Resolve the default Aeven home using Node's platform path rules.
  * @returns the absolute default harness home path.
  */
 export function defaultAvnHome(): string {
@@ -74,7 +74,7 @@ export function expandHomePath(path: string): string {
 }
 
 /**
- * Resolve the single-root DeepSeek Harness home.
+ * Resolve the single-root Aeven home.
  *
  * Precedence, highest first: an explicit configured path, `$AVN_HOME`, then
  * `~/.aeven`. The harness keeps all user data under one root. An empty or
@@ -91,7 +91,7 @@ export function resolveAvnHome(configured?: string, env: Record<string, string |
 }
 
 /**
- * Join path segments onto the resolved DeepSeek Harness home.
+ * Join path segments onto the resolved Aeven home.
  * @param segments - path segments appended to the Harness home; an empty list returns the home itself.
  * @returns the normalized absolute joined path.
  */

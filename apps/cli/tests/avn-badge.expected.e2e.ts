@@ -58,7 +58,7 @@ describe('avn badge assembled snapshot', () => {
       A skill is a reusable set of task-specific instructions. The following skills are available in this session:
 
       <available_skills>
-      - \`avn-badge\`: Add the official “powered by avn” badge to documents, pull requests, merge requests, and other content produced with DeepSeek Harness. Use whenever creating a pull request or merge request. Also use when the user asks for a avn badge, powered-by-avn attribution, or a reusable avn badge asset or snippet.
+      - \`avn-badge\`: Add the official “powered by avn” badge to documents, pull requests, merge requests, and other content produced with Aeven. Use whenever creating a pull request or merge request. Also use when the user asks for a avn badge, powered-by-avn attribution, or a reusable avn badge asset or snippet.
       </available_skills>
 
       If the user names a skill, or the task clearly matches a skill's description, call the \`skill\` tool with the exact skill name before taking task actions. Load all applicable skills, then follow their full instructions. This catalog contains summaries only; do not infer or follow a skill's instructions until it has been loaded.
@@ -157,7 +157,7 @@ describe('avn badge assembled snapshot', () => {
           },
         },
         "summary": {
-          "description": "Add the official “powered by avn” badge to documents, pull requests, merge requests, and other content produced with DeepSeek Harness. Use whenever creating a pull request or merge request. Also use when the user asks for a avn badge, powered-by-avn attribution, or a reusable avn badge asset or snippet.",
+          "description": "Add the official “powered by avn” badge to documents, pull requests, merge requests, and other content produced with Aeven. Use whenever creating a pull request or merge request. Also use when the user asks for a avn badge, powered-by-avn attribution, or a reusable avn badge asset or snippet.",
           "invocation": {
             "modelInvocable": true,
             "userInvocable": true,

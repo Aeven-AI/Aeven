@@ -532,11 +532,11 @@ const READ_SAMPLE_TEXT = [
  * titled source without a snippet; `truncated` exercises the capped indicator.
  */
 const WEB_SEARCH_META = {
-  answer: 'DeepSeek Harness is a plugin-based agent harness on vendored Cordis where **every capability is a plugin**.',
+  answer: 'Aeven is a plugin-based agent harness on vendored Cordis where **every capability is a plugin**.',
   sources: [
     {
       url: 'https://github.com/deepseek-ai/deepseek-harness',
-      title: 'DeepSeek Harness — plugin-based agent harness',
+      title: 'Aeven — plugin-based agent harness',
       snippet: 'Everything is a plugin: session, tools, agent-loop, and LLM adapters all mount on the same Cordis context.',
       publishedAt: '2026-07-01',
     },

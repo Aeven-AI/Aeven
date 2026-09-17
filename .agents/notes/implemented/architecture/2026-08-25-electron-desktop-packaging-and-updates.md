@@ -6,7 +6,7 @@ English | [中文](2026-08-25-electron-desktop-packaging-and-updates.zh.md)
 
 ## Problem
 
-DeepSeek Harness needs an Electron desktop application that reuses the Web UI, works without system Node.js or pnpm, installs avn and desktop plugins through an application-bundled pnpm, and updates the complete desktop release through one user-facing flow.
+Aeven needs an Electron desktop application that reuses the Web UI, works without system Node.js or pnpm, installs avn and desktop plugins through an application-bundled pnpm, and updates the complete desktop release through one user-facing flow.
 
 The desktop application and an npm-installed avn share the `.aeven` data root, but they may have different avn and plugin versions. They must share supported product data without sharing executable packages, lockfiles, `node_modules`, plugin activation, or package-manager configuration.
 

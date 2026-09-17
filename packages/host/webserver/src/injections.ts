@@ -83,14 +83,14 @@ function splice(html: string, at: number, markup: string): string {
 }
 
 /**
- * Tail script settling the boot-readiness deferred (`__DSH_BOOT_READY__`):
+ * Tail script settling the boot-readiness deferred (`__AVN_BOOT_READY__`):
  * the client entry awaits its `.promise` before reading any injected state.
  * Whichever side runs first creates the deferred (`??=`), so a bootstrap that
  * applies the table asynchronously installs it ahead of the entry module and
  * settles it after the last row; the served form below creates and resolves
  * it in one statement, because every row is already in the document text.
  */
-const READY_MARKUP = '<script>(globalThis.__DSH_BOOT_READY__ ??= Promise.withResolvers()).resolve()</script>'
+const READY_MARKUP = '<script>(globalThis.__AVN_BOOT_READY__ ??= Promise.withResolvers()).resolve()</script>'
 
 /**
  * Render rows into an index.html body: head rows immediately after the
