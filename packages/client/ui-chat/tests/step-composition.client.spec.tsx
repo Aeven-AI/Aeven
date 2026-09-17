@@ -108,35 +108,6 @@ describe('a step becomes engine source', () => {
     ], false)).toEqual([{ source: 'Answer.', start: 0 }])
   })
 
-  it('draws a disclosure-owned trace nowhere inline, and the answer everywhere', () => {
-    // The disclosure owns the trace, so the inline source must not repeat it —
-    // and, above all, must not take the answer down with it. A run merges the
-    // trace and the prose into one engine source, so drawing the trace and
-    // hiding the run is what used to hide the reply behind a click.
-    const blocks: AssistantBlock[] = [
-      { kind: 'reasoning', text: 'Hmm.' },
-      { kind: 'text', text: 'Answer.' },
-    ]
-
-    expect(runsOf(blocks, false, true).map(run => run.source)).toEqual(['Answer.'])
-    expect(runsOf(blocks, false).map(run => run.source)).toEqual(['<think>Hmm.</think>\n\nAnswer.'])
-  })
-
-  it('leaves a skipped trace no room in the indices, so nothing moves', () => {
-    // Keys and the standalone lookup both read a run's start as a position in the
-    // step's own blocks. Filtering the trace out first would shift every later
-    // block down by one: the engine would be remounted mid-stream under a changed
-    // key, and an image after a trace would render whatever block took its place.
-    const blocks: AssistantBlock[] = [
-      { kind: 'reasoning', text: 'Hmm.' },
-      { kind: 'image', attachment },
-      { kind: 'text', text: 'Answer.' },
-    ]
-
-    expect(runsOf(blocks, false, true).map(run => run.start)).toEqual([1, 2])
-    expect(runsOf(blocks, false, true).map(run => run.source)).toEqual([null, 'Answer.'])
-  })
-
   it('closes a trace that something else already follows', () => {
     // The trace is no longer the step's last block, so its thinking is over —
     // and a tool head cannot keep it open, because an open block would be one

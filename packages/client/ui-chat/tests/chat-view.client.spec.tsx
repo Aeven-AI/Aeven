@@ -1890,7 +1890,7 @@ describe('ChatView', () => {
     expect(processRow.getAttribute('hidden')).toBe('until-found')
   })
 
-  it('shows a folded final step its answer, leaving the trace to the disclosure', () => {
+  it('folds final-step reasoning under the fallback title when every summary count is zero', () => {
     const final = {
       ...assistant(3, 'final answer', 1, 1),
       blocks: [
@@ -1901,19 +1901,17 @@ describe('ChatView', () => {
     const h = makeHarness({ nodes: [user(1, 'question'), final], turnEnds: new Map([[1, 4]]) })
     const view = render(<h.ChatView {...h.props} />)
     const toggle = view.getByRole('button', { name: '已思考' })
+    const reasoning = view.container.querySelector<HTMLElement>('[data-turn-process-inline]')
     expect(toggle.getAttribute('aria-expanded')).toBe('false')
-    // The reply is what a folded step still shows. The trace is the
-    // disclosure's to carry, so the step is not asked to draw it inline: one run
-    // is one engine source, so drawing the trace and hiding the run hid the
-    // answer beside it, and the reply only appeared once the reader clicked.
+    expect(reasoning?.getAttribute('hidden')).toBe('until-found')
     expect(view.getByText('final answer')).toBeTruthy()
-    expect(view.container.querySelector('.reasoning-wrapper')).toBeNull()
-
+    // The fold keeps the trace off screen, and the engine mounts the settled
+    // block collapsed; the reader's second click opens the block itself.
+    expect(reasoning?.querySelector('.reasoning-wrapper')?.className).toContain('collapsed')
     fireEvent.click(toggle)
-    // Open, the step draws the trace again — collapsed, and openable itself.
-    expect(view.container.querySelector('.reasoning-wrapper')?.className).toContain('collapsed')
+    expect(view.getByText('思考了 0 秒')).toBeTruthy()
     fireEvent.click(view.getByText('思考了 0 秒'))
-    expect(view.container.querySelector('.reasoning-wrapper')?.className).toContain('open')
+    expect(reasoning?.querySelector('.reasoning-wrapper')?.className).toContain('open')
     expect(view.container.textContent).toContain('private analysis')
   })
 
