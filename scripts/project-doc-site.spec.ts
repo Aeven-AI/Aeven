@@ -436,10 +436,14 @@ describe('docsPages locale routes', () => {
   })
 
   it('places the shared todo fragment alias on the translated todo section', () => {
+    // The alias is shared only if both locales spell the anchor the generated
+    // English catalog emits, which is `githubSlug` of the package name -- and
+    // `githubSlug` drops `@` and `/` instead of turning them into separators,
+    // so `@aeven/tool-todo` slugs to `aeventool-todo`, not `aeven-tool-todo`.
     const catalog = readFileSync(resolve(repositoryRoot, 'docs/tool-catalog.zh.md'), 'utf8')
-    expect(catalog.match(/<a id="aeven-tool-todo"><\/a>/g)).toHaveLength(1)
+    expect(catalog.match(/<a id="aeventool-todo"><\/a>/g)).toHaveLength(1)
     expect(catalog).toContain(
-      '<a id="aeven-tool-todo"></a>\n\n## `@aeven/tool-todo`',
+      '<a id="aeventool-todo"></a>\n\n## `@aeven/tool-todo`',
     )
   })
 
