@@ -502,16 +502,10 @@
 # composition. This row only names the default and any deployment-added
 # `roots`; no launcher patching is involved.
 #
-# `cordis-jobs` is the shipped `cordis` composition plus one persona
-# paragraph: a long foreground wait is a single step, so it parks every
-# steering message, subagent report, and job completion until the command
-# returns — the variant sends anything longer than ~10 seconds to
-# `run_in_background` and yields the turn instead. It is the default because a
-# session that starts deaf is the failure worth preventing by default, not a
-# mode a person must know to select. A user's own `agent-presets.default`
-# still outranks this value, as does the picker.
+# The default is the shipped `cordis` composition, Creator mode. A user's own
+# `agent-presets.default` still outranks this value, as does the picker.
 - insert:
     - id: agent-presets
       name: '@aeven/agent-presets'
       config:
-        default: cordis-jobs
+        default: cordis
