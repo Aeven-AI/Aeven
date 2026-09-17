@@ -59,7 +59,7 @@
     "@aeven/system-prompt": "workspace:^",
     "@aeven/tools": "workspace:^",
     "@aeven/workflow": "workspace:^",
-    "tsx": "^4.19.2",
+    "tsx": "^4.23.12",
     "@aeven/http-proxy": "workspace:^"
   }
 }

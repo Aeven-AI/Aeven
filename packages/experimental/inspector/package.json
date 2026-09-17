@@ -55,6 +55,6 @@
     "@aeven/host-webserver": "workspace:^",
     "@types/ws": "^8.18.1",
     "playwright": "^1.62.1",
-    "tsx": "^4.19.2"
+    "tsx": "^4.23.12"
   }
 }
