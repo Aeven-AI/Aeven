@@ -275,7 +275,17 @@ function fileLevelRules(wave) {
       // Property access never is -- `existing?.avn`, `manifest(...).avn` and
       // `manifest.avn` are all preceded by a value-ending character, and a
       // looser lookbehind silently rewrote them.
-      { name: 'home-dir-avn', from: /(?<=['`/])\.avn(?![A-Za-z0-9])/g, to: '.aeven' },
+      // The lookbehind set is every character a path literal can be preceded by:
+      // both quote styles, a backtick, or a separator. Leaving `"` out renamed
+      // single-quoted paths in `harness.ts` while missing the double-quoted ones
+      // in the fixtures, so the harness ignored `.aeven-snapshot-stream-ready`
+      // while the fixtures waited on `.avn-snapshot-stream-ready`.
+      // Preceded by a quote, backtick, separator, or space -- every character a
+      // path literal can follow. Space matters for bare YAML values and list
+      // items (`FAKE_INIT_GO: .dsh-x`, `- .dsh-project`). Property access is
+      // always preceded by an identifier character, `)`, or `?`, so it is never
+      // reached here.
+      { name: 'home-dir-avn', from: /(?<=['"`/ ])\.avn(?![A-Za-z0-9])/g, to: '.aeven' },
     ]
   }
   if (wave === 4) {
@@ -290,6 +300,8 @@ function fileLevelRules(wave) {
   }
   if (wave !== 2) return []
   return [
+    // Repair for `\nAvn` already written by the rule above before it was narrowed.
+    { name: 'repair-escaped-newline', from: /\\nAvn(?![A-Za-z0-9])/g, to: '\\navn' },
     // Repair wave for trees damaged by the escaped-unaware scope rule. Same
     // escape-preserving split as wave 3.
     { name: 'repair-scope-escaped', from: /@deepseek-ai\\\/avn-/g, to: '@aeven\\/' },
@@ -312,7 +324,11 @@ function fileLevelRules(wave) {
     // `packedDsh` -- a camelCase `Dsh` ending a word, which the wave-4 rule
     // misses because it requires an uppercase character to follow.
     { name: 'repair-trailing-Dsh', from: /(?<=[a-z0-9])Dsh(?![A-Za-z0-9])/g, to: 'Avn' },
-    { name: 'repair-trailing-dsh', from: /(?<=[a-z0-9])dsh(?![A-Za-z0-9])/g, to: 'Avn' },
+    // Lowercase in, lowercase out. This rule also sees the escaped-newline form:
+    // a JSON string writes `\ndsh`, so the run is `ndsh` and `dsh` *is* preceded
+    // by a lowercase letter. Emitting `Avn` there produced `\nAvn plugin`, which
+    // is neither the source's spelling nor valid shell.
+    { name: 'repair-trailing-dsh', from: /(?<=[a-z0-9])dsh(?![A-Za-z0-9])/g, to: 'avn' },
     // The hyphenated product name. Like `DeepSeek Harness` it contains no `dsh`,
     // so it is unreachable by the run matcher. The fork's own repository
     // metadata points at the real fork remote (git remote -v); upstream

@@ -22,7 +22,7 @@
     maxBytes: 65536
     avnHome: !!js process.cwd() + '/.aeven'
     projectRootMarkers:
-      - .avn-project
+      - .aeven-project
 
 - id: system-prompt
   name: '@aeven/system-prompt'

@@ -56,7 +56,7 @@
         env:
           AVN_TELEMETRY_DISABLED: '1'
           AVN_TEST_CHILD_FAILURE: '1'
-          FAKE_INIT_GO: .avn-sdk-background-release
+          FAKE_INIT_GO: .aeven-sdk-background-release
     - id: tool-subagent-avn-sdk-diagnostic-background
       name: '@aeven/tool-subagent'
       config:
