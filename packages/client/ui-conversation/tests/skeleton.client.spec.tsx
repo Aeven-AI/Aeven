@@ -385,6 +385,38 @@ describe('Hero chrome', () => {
     expect(greetingKeyOf(22)).toBe('hero.greetingNight')
     expect(greetingKeyOf(23)).toBe('hero.greetingNight')
   })
+
+  it('carries a mounted hero over the hour the reader reaches', () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date(2026, 8, 18, 11, 59))
+      const view = render(<HeroShell t={makeTranslate(en, commonEn)} />)
+      expect(view.getByText(/^Good morning, what is on your mind\?$/)).toBeTruthy()
+      act(() => {
+        vi.setSystemTime(new Date(2026, 8, 18, 12, 1))
+        vi.advanceTimersByTime(60_000)
+      })
+      expect(view.getByText(/^Good afternoon, what is on your mind\?$/)).toBeTruthy()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('re-reads the clock when the reader comes back to the tab', () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date(2026, 8, 18, 9, 0))
+      const view = render(<HeroShell t={makeTranslate(en, commonEn)} />)
+      expect(view.getByText(/^Good morning, what is on your mind\?$/)).toBeTruthy()
+      act(() => {
+        vi.setSystemTime(new Date(2026, 8, 18, 20, 0))
+        window.dispatchEvent(new Event('focus'))
+      })
+      expect(view.getByText(/^Good evening, what is on your mind\?$/)).toBeTruthy()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
 
 describe('ConversationRoot resident composer', () => {
