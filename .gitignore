@@ -46,3 +46,10 @@ worktrees/
 # Per-run model fixtures: mkdtempSync scratch under the test directory, removed
 # by afterEach. An interrupted run leaves one behind, and it is never source.
 packages/typert/generator/tests/.generated-model-*/
+
+# Compiled output that tsc emits beside a source when it is invoked without its
+# package tsconfig, which is what `tsc -b <package>` does for one of these
+# projects. Real output goes to lib/, and a hand-written .d.ts shim is tracked, so
+# the map files are the reliable signal here.
+packages/*/*/src/**/*.js.map
+packages/*/*/src/**/*.d.ts.map
