@@ -15,6 +15,7 @@ import * as api from '../services/api.ts'
 import { t } from '../../locales.ts'
 import * as events from '../services/events.ts'
 import { navigateRoute, AUTH_ROUTES } from '../services/routes.ts'
+import { isProviderLanding } from '../services/oauth.ts'
 import { href } from '../services/utility.ts'
 import { session, storage } from '../services/session.ts'
 
@@ -68,7 +69,16 @@ export function OauthResult(props: OauthResultProps): React.JSX.Element | null {
         await api.checkOauthToken(oAuthSession, oAuthChallenge)
         await api.getProfile()
         if (cancelled) return
-        navigateRoute(href(referrer.current))
+        // A landing in a window this application opened is where the sign-in
+        // finishes, not where the application belongs: the window that opened it
+        // is waiting on the session this call just established, and it boots the
+        // shell there. A landing the reader navigated to themselves goes on to
+        // the screen they came from.
+        if (isProviderLanding()) {
+          window.close()
+        } else {
+          navigateRoute(href(referrer.current))
+        }
         events.dispatchObjectEvent('hide:preloader', true)
       } catch {
         // Every failure here is the same to the reader: the provider did not

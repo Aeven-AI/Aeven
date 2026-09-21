@@ -48,7 +48,9 @@ An Aeven that cannot be reached answers `authenticated` from the last profile it
 
 ### What the screens do on success
 
-The screens report success by navigating away from the authentication surface — to the path the reader originally asked for, remembered in `authReferrer`. The naming step reports success the same way: it stores the name through `/set-display-name`, then loads the destination, and the gate finds a profile that carries a name. Leaving the surface triggers a document load, and the gate runs again and restores the session that was just established. Nothing hands control back in place, because the boot already returned when it decided there was no session.
+The screens report success by leaving the authentication surface, and the boot gate is waiting on exactly that: it boots the application in the document the reader is already in, so a reader who signs in is never sent through a document load. The destination is the path they originally asked for, remembered in `authReferrer`; the naming step reports success the same way after storing the name through `/set-display-name`, and the gate reads the profile again rather than trusting that the reader is done.
+
+A provider sign-in follows the flow the deployment states ([`oauthFlow`](../../identity/user-aeven/README.md#provider-sign-in-flow)). Under `redirect` this document goes to the provider and the provider returns it to `/oauth-result`, where the exchange runs. Under `window` a window of its own reaches the provider, exchanges the answer on its landing, and closes; this document keeps the page the reader asked for and picks the session up by reading it, so nothing about the application's document changes.
 
 -----
 

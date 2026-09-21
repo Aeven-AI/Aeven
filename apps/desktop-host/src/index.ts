@@ -196,10 +196,19 @@ function isAevenConfigRow(row: IndexInjection): row is Extract<IndexInjection, {
  * Point the page's Aeven API calls at the same-origin path Electron forwards.
  * The Aeven refresh cookie is set by a cross-site API, which a `avn-app://`
  * page cannot keep; Electron's session keeps it for the forwarded requests.
+ *
+ * The flow is stated here rather than inherited: this page's provider sign-in
+ * still leaves its document, which is the signal `apps/desktop` intercepts to
+ * reach the provider in a window of its own. Serving the provider in a window
+ * the renderer opens is what would let the flow be `window`, and the shell would
+ * have to hand that window's landing to the running page instead of loading it.
  */
 function desktopIndexRows(rows: readonly IndexInjection[]): IndexInjection[] {
   return rows.map(row => isAevenConfigRow(row)
-    ? { ...row, value: { ...(row.value as AevenClientConfig), apiUrl: DESKTOP_AEVEN_API_PATH } }
+    ? {
+      ...row,
+      value: { ...(row.value as AevenClientConfig), apiUrl: DESKTOP_AEVEN_API_PATH, oauthFlow: 'redirect' },
+    }
     : row)
 }
 

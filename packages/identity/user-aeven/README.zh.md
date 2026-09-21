@@ -55,8 +55,16 @@ kind: "package-reference"
 | `webUrl` | 无 | 账户菜单链接到的 Aeven web 客户端 origin |
 | `mediaUrl` | 无 | 提供已上传媒体的 origin，头像路径相对于它 |
 | `xOAuthUrl`、`appleOAuthUrl`、`googleOAuthUrl` | 无 | 各提供方的登录 URL；缺失某个会隐藏该提供方的按钮 |
+| `oauthFlow` | 无 | 提供方登录如何抵达提供方，配置了任一提供方 URL 时必须声明：`redirect` 让读者的文档前往提供方，`window` 从独立窗口抵达。配置了提供方却未声明时，插件拒绝加载 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aevenidentity-user-aeven)是所有可接受字段的详尽来源。
+
+<a id="provider-sign-in-flow"></a>
+### 声明提供方登录所走的形式
+
+抵达提供方，要么让读者的文档跳转过去，要么从一个独立窗口过去，而页面无法自行分辨部署要哪一种。公开部署声明 `redirect`：提供方注册就是按这种形式书写的，浏览器对 `window` 施加的弹窗拦截也不是它需要考虑的风险。若应用从自定义 scheme 或 loopback origin 提供自己的页面，则声明 `window`，因为在那种部署里，被跳转的文档意味着再启动一个外壳。
+
+该形式恰好在配置了提供方 URL 时成为必填。不提供任何提供方的部署不声明它；声明了却没有提供方可描述时，它被忽略而非拒绝。
 
 ### 让 AVN 与 API 处于同一站点
 

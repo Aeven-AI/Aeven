@@ -55,8 +55,16 @@ The row injects the seam and reads its secrets from the environment:
 | `webUrl` | none | Aeven web client origin the account menu links to |
 | `mediaUrl` | none | Origin serving uploaded media that profile-image paths are relative to |
 | `xOAuthUrl`, `appleOAuthUrl`, `googleOAuthUrl` | none | Provider sign-in URLs; an absent one hides that provider's button |
+| `oauthFlow` | none | How a provider sign-in reaches the provider, stated whenever a provider URL is: `redirect` leaves the reader's document for the provider, `window` reaches it from a window of its own. The plugin refuses to load when a provider is offered without one |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aevenidentity-user-aeven) is the exhaustive source for every accepted field.
+
+<a id="provider-sign-in-flow"></a>
+### State the flow a provider sign-in takes
+
+A provider is reached either by navigating the reader's document or from a window of its own, and the page cannot tell which a deployment means. A public deployment states `redirect`: provider registrations are written for that shape, and the popup blockers a browser applies to `window` are not a risk it has to reason about. An application serving its own page from a scheme or a loopback origin states `window`, because a redirected document there is a second shell to boot.
+
+The flow is required exactly when a provider URL is configured. A deployment that offers none states nothing, and a stated flow without a provider to describe is ignored rather than refused.
 
 ### Serve AVN from the same site as the API
 
