@@ -30,8 +30,19 @@ kind: "package-reference"
 
 ```ts
 import { ComputerUseSession } from '@aeven/computer-use-session'
+import { STARTER_BOOK } from '@aeven/computer-use-router'
+import type { DesktopAdapter } from '@aeven/computer-use-desktop'
+import type { MechanismHandler } from '@aeven/computer-use-executor'
 
-const session = new ComputerUseSession({ book, adapter, handlers })
+// Supplied by the caller: the adapter to observe through, and handlers for the
+// mechanisms this stack does not implement.
+declare const adapter: DesktopAdapter
+declare const handlers: Readonly<Record<string, MechanismHandler>>
+
+const path = '/Users/me/Desktop/story.pages'
+const text = 'The Cartographer of Small Hours'
+
+const session = new ComputerUseSession({ book: STARTER_BOOK, adapter, handlers })
 
 const batch = await session.run([
   { kind: 'execute', request: { task: 'document.createText', platform: 'darwin', app: 'com.apple.Pages', parameters: { path, text } } },

@@ -76,6 +76,7 @@ export function listJsonFiles(root: string): string[] {
  * accepted only when it carries both an instruction and an id; anything else is
  * reported as skipped rather than as a failure, because that is what it is.
  * @param path - the file to read.
+ * @param source - which benchmark the file came from, which selects its parser.
  * @returns the intent, or a reason it was not usable.
  */
 export function readTaskFile(path: string, source: TaskSource): { intent?: TaskIntent; skipped?: string; failure?: string } {

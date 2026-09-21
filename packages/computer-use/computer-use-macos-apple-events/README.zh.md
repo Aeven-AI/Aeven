@@ -31,7 +31,9 @@ macOS 的**语义**机制，注册到 [`@aeven/computer-use-executor`](../comput
 ```ts
 import { TaskExecutor } from '@aeven/computer-use-executor'
 import { STARTER_BOOK } from '@aeven/computer-use-router'
-import { createAppleEventsHandler } from '@aeven/computer-use-macos-apple-events'
+import { createAppleEventsHandler, type AppleEventsRunner } from '@aeven/computer-use-macos-apple-events'
+
+declare const runner: AppleEventsRunner
 
 const executor = new TaskExecutor({
   book: STARTER_BOOK,

@@ -33,7 +33,14 @@ The walk itself runs through AppleScriptObjC, so no native code is compiled. It 
 Construct the adapter with a command runner and verify an outcome independently of the action that produced it:
 
 ```ts
-import { MacDesktopAdapter } from '@aeven/computer-use-macos'
+import { MacDesktopAdapter, type MacCommandRunner } from '@aeven/computer-use-macos'
+
+declare const runner: MacCommandRunner
+
+const pid = 4711
+const windowId = 'w1'
+const output = '/Users/me/Desktop/story.pages'
+const startedAt = Date.now()
 
 const adapter = new MacDesktopAdapter({ runner, holder: { name: 'osascript', source: 'spawned-helper' } })
 const report = await adapter.readiness()

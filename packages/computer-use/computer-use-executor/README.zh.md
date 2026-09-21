@@ -29,8 +29,11 @@ kind: "package-reference"
 ## 使用本包
 
 ```ts
-import { TaskExecutor } from '@aeven/computer-use-executor'
+import { TaskExecutor, type MechanismHandler } from '@aeven/computer-use-executor'
 import { STARTER_BOOK } from '@aeven/computer-use-router'
+
+// Registered by a consumer: this package runs a mechanism, it does not implement one.
+declare const runAppleEvents: MechanismHandler
 
 const executor = new TaskExecutor({
   book: STARTER_BOOK,

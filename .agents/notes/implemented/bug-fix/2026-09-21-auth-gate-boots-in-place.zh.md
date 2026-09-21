@@ -10,7 +10,7 @@ Status: implemented
 
 这三个症状同出一因。`AppWebEntry` 把认证当作一次判断，而不是一次等待：
 
-```ts
+```ts ignore-check
 if (await this.gateOnAuthentication()) {
   hidePreloader()
   return            // the boot ends here, with no plugin graph behind it

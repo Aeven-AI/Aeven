@@ -39,7 +39,7 @@ const report = await runBenchmark({
   book: STARTER_BOOK,
   tasks: [
     { task: 'file.exists', platform: 'darwin', parameters: { path: '/tmp' } },
-    { task: 'document.createText', platform: 'darwin', app: 'com.apple.Pages', parameters: { path, text: 'x' } },
+    { task: 'document.createText', platform: 'darwin', app: 'com.apple.Pages', parameters: { path: '/Users/me/Desktop/story.pages', text: 'x' } },
     { task: 'spreadsheet.setCell', platform: 'win32', parameters: { cell: 'A1', value: '1' }, skip: 'no Windows host' },
   ],
 })

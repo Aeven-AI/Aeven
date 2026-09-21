@@ -31,10 +31,15 @@ kind: "package-reference"
 在平台包中实现 `DesktopAdapter`，并把它交给把工作路由到它的消费方：
 
 ```ts
-import type { DesktopAdapter } from '@aeven/computer-use-desktop'
+import { assertVerified, resolveNode, type DesktopAdapter } from '@aeven/computer-use-desktop'
 
-const result = await adapter.observe({ pid: 42, windowId: 'w1' })
-const node = resolveNode(result.snapshot!, result.snapshot!.nodes[0].token)
+// Supplied by whichever platform package implements the adapter.
+declare const adapter: DesktopAdapter
+
+const { snapshot } = await adapter.observe({ pid: 42, windowId: 'w1' })
+const [first] = snapshot?.nodes ?? []
+if (snapshot === undefined || first === undefined) throw new Error('the observation carried no node to click')
+const node = resolveNode(snapshot, first.token)
 await adapter.act({ kind: 'click', target: { kind: 'element', token: node.token } })
 await assertVerified(await adapter.verify([{ kind: 'fileExists', path: '/tmp/out.pages' }]), 'save document')
 ```

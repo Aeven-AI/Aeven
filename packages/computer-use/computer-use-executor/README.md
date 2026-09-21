@@ -29,8 +29,11 @@ The order is the whole point. The handler runs, and its own report is treated as
 ## Use this package
 
 ```ts
-import { TaskExecutor } from '@aeven/computer-use-executor'
+import { TaskExecutor, type MechanismHandler } from '@aeven/computer-use-executor'
 import { STARTER_BOOK } from '@aeven/computer-use-router'
+
+// Registered by a consumer: this package runs a mechanism, it does not implement one.
+declare const runAppleEvents: MechanismHandler
 
 const executor = new TaskExecutor({
   book: STARTER_BOOK,

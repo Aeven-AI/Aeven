@@ -47,6 +47,9 @@ resolved.verify      // expectations to check independently after it runs
 Pass `availableRungs` from a desktop adapter's readiness report to keep resolution honest about what this host can actually do:
 
 ```ts
+import { RecipeRouter, STARTER_BOOK } from '@aeven/computer-use-router'
+
+const router = new RecipeRouter(STARTER_BOOK)
 router.resolve({ task: 'document.setFont', platform: 'darwin', availableRungs: ['vision'] })
 ```
 

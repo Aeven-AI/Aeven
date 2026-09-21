@@ -89,7 +89,12 @@ export const DEFAULT_GRID: LayoutGrid = {
   baseUnit: 8,
 }
 
-/** The content width a grid leaves between its margins. */
+/**
+ * The content width a grid leaves between its margins.
+ * @param grid - the grid to measure.
+ * @param surface - the slide surface.
+ * @returns the width in slide units.
+ */
 export function contentWidth(grid: LayoutGrid, surface: SlideSurface = DEFAULT_SURFACE): number {
   return surface.width - grid.marginX * 2
 }

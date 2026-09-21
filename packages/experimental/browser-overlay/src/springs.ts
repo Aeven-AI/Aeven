@@ -73,7 +73,12 @@ const REST_VELOCITY = 0.001 * 60
  */
 const MAX_ADVANCE_SECONDS = 0.05
 
-/** Create a spring already at `value`, so nothing animates on first paint. */
+/**
+ * Create a spring already at `value`, so nothing animates on first paint.
+ * @param value - the starting value, which is also the spring's first target.
+ * @param config - the spring's feel.
+ * @returns a spring at rest on `value`.
+ */
 export function createSpring(value: number, config: SpringConfig): Spring {
   return {
     value,
@@ -143,7 +148,11 @@ function hasSettled(spring: Spring): boolean {
   return tolerance === 0 || remaining ** 2 <= tolerance ** 2
 }
 
-/** Whether a spring has arrived and stopped. */
+/**
+ * Whether a spring has arrived and stopped.
+ * @param spring - the spring to test.
+ * @returns true when its velocity and force are near zero and it sits within tolerance of its target.
+ */
 export function isAtRest(spring: Spring): boolean {
   return hasSettled(spring)
 }
@@ -153,12 +162,18 @@ export function isAtRest(spring: Spring): boolean {
  *
  * Only the target changes, so a spring already moving toward the new point keeps
  * its speed — which is what makes a redirected cursor look continuous.
+ * @param spring - the spring to redirect.
+ * @param target - the new target value.
  */
 export function retargetSpring(spring: Spring, target: number): void {
   spring.target = target
 }
 
-/** Move a spring without animating, as the reference does when it teleports. */
+/**
+ * Move a spring without animating, as the reference does when it teleports.
+ * @param spring - the spring to move.
+ * @param value - the value it takes immediately; velocity, force, and both clocks reset with it.
+ */
 export function jumpSpring(spring: Spring, value: number): void {
   spring.force = 0
   spring.simulationTime = 0

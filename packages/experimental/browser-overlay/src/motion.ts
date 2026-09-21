@@ -41,8 +41,9 @@ export const MIN_STRETCH = 0.65
 /** Peak curvature of a long move, as a fraction of the travel distance. */
 export const ARC_CURVATURE = 0.18
 
-/** Bounds on the arc's curvature, so a tiny or huge move does not over- or under-bend. */
+/** Lower bound on the arc's curvature, so a tiny move does not under-bend. */
 export const ARC_CURVATURE_MIN = 0.035
+/** Upper bound on the arc's curvature, so a huge move does not over-bend. */
 export const ARC_CURVATURE_MAX = 0.12
 
 /** Delay before the idle wobble starts, in seconds; the reference is 0. */
@@ -70,6 +71,9 @@ function clamp(value: number, min: number, max: number): number {
  *
  * Needed because a rotation spring must take the short way around: asking it to
  * go from 170deg to -170deg should move 20deg, not 340deg.
+ * @param from - the starting angle in degrees.
+ * @param to - the target angle in degrees.
+ * @returns the wrapped difference from `from` to `to`, in degrees.
  */
 export function shortestAngleDelta(from: number, to: number): number {
   let delta = to - from
@@ -83,6 +87,8 @@ export function shortestAngleDelta(from: number, to: number): number {
  *
  * The composition carries a negative base rotation, so this is what keeps the
  * emitted `rotate()` values comparable with the reference's.
+ * @param degrees - the angle to normalize, in degrees.
+ * @returns the equivalent angle in [0, 360).
  */
 export function normalizeDegrees(degrees: number): number {
   const wrapped = degrees % 360
@@ -107,7 +113,12 @@ export interface TravelPath {
   end: PathPoint
 }
 
-/** Build the arc for a long move: a quadratic Bézier bowed off the direct line. */
+/**
+ * Build the arc for a long move: a quadratic Bézier bowed off the direct line.
+ * @param start - the point the move begins at.
+ * @param end - the point the move ends at.
+ * @returns the path the cursor follows, with its control point offset perpendicular to the direct line.
+ */
 export function createArcPath(start: PathPoint, end: PathPoint): TravelPath {
   const dx = end.x - start.x
   const dy = end.y - start.y
@@ -124,7 +135,12 @@ export function createArcPath(start: PathPoint, end: PathPoint): TravelPath {
   }
 }
 
-/** Sample a quadratic Bézier at `t`, including its tangent direction. */
+/**
+ * Sample a quadratic Bézier at `t`, including its tangent direction.
+ * @param path - the path to sample.
+ * @param t - position along the path, in [0, 1].
+ * @returns the point at `t` and the direction of travel there, in degrees.
+ */
 export function samplePath(path: TravelPath, t: number): PathPoint {
   const u = 1 - t
   const x = u * u * path.start.x + 2 * u * t * path.control.x + t * t * path.end.x
@@ -142,14 +158,23 @@ export function samplePath(path: TravelPath, t: number): PathPoint {
  * target for the springs that are already running.
  */
 export class CursorMotion {
+  /** X position in viewport coordinates, in CSS pixels. */
   readonly positionX = createSpring(0, CURSOR_SPRINGS.position)
+  /** Y position in viewport coordinates, in CSS pixels. */
   readonly positionY = createSpring(0, CURSOR_SPRINGS.position)
+  /** Sprite rotation in degrees; it rests at {@link BASE_ROTATION_DEG} and banks toward a curve's tangent on a long move. */
   readonly rotation = createSpring(BASE_ROTATION_DEG, CURSOR_SPRINGS.rotation)
+  /** Scale a glide applies: 1 when the cursor is stopped, down to {@link MIN_STRETCH} at top speed. */
   readonly stretch = createSpring(1, CURSOR_SPRINGS.stretch)
+  /** Drives opacity and blur: 0 hidden, 1 fully shown. */
   readonly visibility = createSpring(0, CURSOR_SPRINGS.visibility)
+  /** Angle of the axis a short move travels along, in degrees. */
   readonly scootAxis = createSpring(0, CURSOR_SPRINGS.scootAxis)
+  /** Overshoot rotation a short move adds to {@link rotation}, in degrees. */
   readonly scootRotation = createSpring(0, CURSOR_SPRINGS.scootRotation)
+  /** Scale a short move applies perpendicular to its axis, dipping below 1 at mid-move. */
   readonly scootStretch = createSpring(1, CURSOR_SPRINGS.scootStretch)
+  /** Position along the current arc, spring-driven from 0 at its start to 1 at its end. */
   readonly progress = createSpring(0, CURSOR_SPRINGS.rotation)
 
   #path: TravelPath | undefined
@@ -173,7 +198,13 @@ export class CursorMotion {
       && isAtRest(this.stretch) && isAtRest(this.visibility) && isAtRest(this.scootStretch)
   }
 
-  /** Place the cursor without animating, as the reference does on a jump. */
+  /**
+   * Place the cursor without animating, as the reference does on a jump.
+   *
+   * Any move in flight is dropped.
+   * @param x - target x coordinate in CSS pixels.
+   * @param y - target y coordinate in CSS pixels.
+   */
   jumpTo(x: number, y: number): void {
     this.positionX.value = x
     this.positionX.target = x
@@ -197,7 +228,10 @@ export class CursorMotion {
     this.stretch.value = 1
   }
 
-  /** Set the visibility target; the caller hides the cursor by animating to 0. */
+  /**
+   * Set the visibility target; the caller hides the cursor by animating to 0.
+   * @param visible - whether the cursor should end up shown; showing also arms the idle wobble.
+   */
   setVisible(visible: boolean): void {
     this.visibility.target = visible ? 1 : 0
     if (visible) this.#thinkStartedAt = performance.now()
@@ -210,6 +244,7 @@ export class CursorMotion {
    * so anything that needs to measure where the cursor points has to turn it off
    * first: measuring mid-wobble reports a tip position that changes frame to frame,
    * which is a limit cycle rather than a calibration error.
+   * @param enabled - whether the wobble runs; disabling also discards a wobble in progress.
    */
   setThinkEnabled(enabled: boolean): void {
     this.#thinkEnabled = enabled
@@ -219,8 +254,10 @@ export class CursorMotion {
   /**
    * Aim the cursor at a point, choosing an arc or a scoot by distance.
    *
-   * Returns the number of milliseconds the move is expected to take, so a caller
-   * can decide whether to wait; the move itself is driven by {@link step}.
+   * The move itself is driven by {@link step}.
+   * @param x - target x coordinate in CSS pixels.
+   * @param y - target y coordinate in CSS pixels.
+   * @returns the move's expected duration in milliseconds, so a caller can decide whether to wait; 0 when already there.
    */
   travelTo(x: number, y: number): number {
     const from: PathPoint = { x: this.positionX.value, y: this.positionY.value, tangent: 0 }
@@ -258,8 +295,8 @@ export class CursorMotion {
 
   /**
    * Advance every spring by `seconds`.
-   *
-   * Returns true when the cursor still needs another frame.
+   * @param seconds - elapsed time since the previous step, in seconds.
+   * @returns true while the cursor still needs another frame.
    */
   step(seconds: number): boolean {
     stepSpring(this.visibility, seconds)
@@ -356,6 +393,7 @@ export class CursorMotion {
    * The wobble is a decaying oscillation added on top of the settled rotation, so
    * it never changes where the cursor points for more than a moment.
    * @param now - current time in milliseconds.
+   * @returns the rotation to draw in degrees, with the wobble folded in.
    */
   displayRotation(now: number): number {
     if (!this.#thinkEnabled || this.#thinkStartedAt === undefined) return this.rotation.value
@@ -377,6 +415,7 @@ export class CursorMotion {
  * ends at zero and never leaves a residue in the settled rotation.
  * @param elapsedSeconds - time since the wobble began.
  * @param progress - fraction of the window already elapsed, in [0, 1].
+ * @returns the offset in degrees, to be added to the settled rotation.
  */
 export function thinkWobble(elapsedSeconds: number, progress: number): number {
   const envelope = Math.sin(progress * Math.PI)
@@ -388,6 +427,9 @@ export function thinkWobble(elapsedSeconds: number, progress: number): number {
  *
  * Exists so a caller can read the composed angle in a test or a one-off draw
  * without owning the animation loop.
+ * @param motion - the motion model to read.
+ * @param now - current time in milliseconds.
+ * @returns the model's current rotation in degrees, including any idle wobble.
  */
 export function displayRotationFor(motion: CursorMotion, now: number): number {
   return motion.displayRotation(now)
@@ -400,6 +442,8 @@ export function displayRotationFor(motion: CursorMotion, now: number): number {
  * the point, then the axis-aligned scoot is applied as rotate/scale/unrotate, and
  * last the sprite's own rotation and lengthwise stretch. The nested rotate pair
  * is what keeps a stretched cursor pointing along its axis rather than shearing.
+ * @param input - the point to place, the rotations to compose, and the box and stretch scales.
+ * @returns the transform value, with every angle and offset rounded to three decimals.
  */
 export function cursorTransform(input: {
   point: { x: number; y: number }
@@ -430,7 +474,11 @@ function round(value: number): number {
   return Math.round(value * 1000) / 1000
 }
 
-/** Blur and opacity driven by the visibility spring: appear soft, fade in. */
+/**
+ * Blur and opacity driven by the visibility spring: appear soft, fade in.
+ * @param visibility - the spring's value, from 0 hidden to 1 shown.
+ * @returns the opacity to apply and a blur radius in CSS pixels, 0 when the cursor is fully shown.
+ */
 export function visibilityStyles(visibility: number): { opacity: number; blurPx: number } {
   const clamped = clamp(visibility, 0, 1)
   return { opacity: clamped, blurPx: (1 - clamped) * 5 }

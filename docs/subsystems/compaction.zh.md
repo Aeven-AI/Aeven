@@ -62,7 +62,14 @@ interface CompactionResult {
 自动调用方会说明策略为何运行；实现可以比普通压力更激进地处理已确认的溢出。
 
 ```ts type-equiv
-/** Why automatic policy is asking a backend to consider compaction. */
+/**
+ * Why automatic policy is asking a backend to consider compaction.
+ *
+ * `context-overflow` covers every provider rejection of a request that was
+ * admitted as shaped and then outgrew a ceiling — the model's token budget or
+ * the endpoint's count of message entries. Both call for the same reduction,
+ * so they share one trigger.
+ */
 type CompactionTrigger = 'pressure' | 'context-overflow'
 ```
 

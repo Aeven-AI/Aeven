@@ -62,7 +62,14 @@ interface CompactionResult {
 Automatic callers state why policy is running; implementations may treat confirmed overflow more aggressively than ordinary pressure.
 
 ```ts type-equiv
-/** Why automatic policy is asking a backend to consider compaction. */
+/**
+ * Why automatic policy is asking a backend to consider compaction.
+ *
+ * `context-overflow` covers every provider rejection of a request that was
+ * admitted as shaped and then outgrew a ceiling — the model's token budget or
+ * the endpoint's count of message entries. Both call for the same reduction,
+ * so they share one trigger.
+ */
 type CompactionTrigger = 'pressure' | 'context-overflow'
 ```
 

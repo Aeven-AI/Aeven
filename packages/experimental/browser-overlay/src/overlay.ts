@@ -325,6 +325,7 @@ export class BrowserOverlay {
    * Off is the state a screenshot or a coordinate measurement needs, because the
    * wobble moves the tip by a few degrees and would otherwise make the same
    * question return different answers on consecutive frames.
+   * @param enabled - whether the wobble runs; disabling also discards a wobble in progress.
    */
   setThinkEnabled(enabled: boolean): void {
     this.#motion?.setThinkEnabled(enabled)
