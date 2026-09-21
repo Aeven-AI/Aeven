@@ -159,29 +159,32 @@ const todoStaleSchema = zod.object({
 type TodoStale = zod.infer<typeof todoStaleSchema>
 
 /**
- * Tool calls other than `todo_write` before the first staleness reminder. Work, not steps, is the
- * measure: one step that reads a file and one that rewrites five let a plan go stale by different
- * amounts, and the plan's own call is not work at all.
+ * Tool calls other than `todo_write` between staleness reminders. Work, not steps, is the measure:
+ * one step that reads a file and one that rewrites five let a plan go stale by different amounts,
+ * and the plan's own call is not work at all. In the 27-write session this value is measured from,
+ * consecutive writes sat 5 to 19 tool calls apart (median 9), so a reminder at 12 lands after a
+ * stretch that usually ends in a write rather than on the plan's own write, and a stretch as long as
+ * that session's 29-call drift is challenged twice.
  */
-const STALE_FIRST_WORK = 3
-
-/** Further tool calls between reminders while a plan the model has already been shown stays stale. */
-const STALE_REPEAT_WORK = 12
+const STALE_WORK = 12
 
 /**
  * Render the staleness reminder. The read-back above makes a plan readable; this makes a stale one
  * salient. Measured on a real session, an agent held its own plan in runtime context for 96
  * consecutive steps and never wrote again, because a snapshot the model has already read reads as
- * background — so the nudge restates the plan where a fresh message lands.
+ * background — so the nudge restates the plan where a fresh message lands. The reminder states the
+ * reason it was raised, which is what lets the model tell a plan it wrote two steps ago from one it
+ * has carried for forty: without it the same words describe both, and the notice reads as routine.
  * @param todos - the folded `todoPlan`, already known non-empty and unfinished.
+ * @param reason - the model-facing clause naming why this plan is due for reconciliation.
  * @returns the reminder text.
  */
-function renderStaleReminder(todos: TodoItem[]): string {
+function renderStaleReminder(todos: TodoItem[], reason: string): string {
   const open = todos.filter(todo => todo.status !== 'completed').length
   const lines = todos.map(todo => `- [${todo.status}] ${todo.content}`)
-  return `Your todo list still shows ${open} of its ${todos.length} tasks open. Update it now with `
-    + 'todo_write: mark every task you have finished `completed`, and the one you are working on '
-    + '`in_progress`. Current list:\n'
+  return `Your todo list ${reason}, while ${open} of its ${todos.length} tasks are still open. `
+    + 'Update it now with todo_write: mark every task you have finished `completed`, and the one you '
+    + 'are working on `in_progress`. Current list:\n'
     + lines.join('\n')
 }
 
@@ -206,12 +209,13 @@ function openPlanOf(ctx: Context, agent: Agent): TodoItem[] | undefined {
  * One reconcile notice for a stale plan. `form: 'notice'` keeps it an ordinary appended message
  * rather than a runtime-context snapshot, so it never replaces one.
  * @param plan - the unfinished standing plan to restate.
+ * @param reason - the model-facing clause naming why this plan is due for reconciliation.
  * @param summary - the one-line reason this notice was raised, for the transcript.
  * @returns the plugin-sourced message to fold onto the next step.
  */
-function reconcileNotice(plan: TodoItem[], summary: string): UserMessage {
+function reconcileNotice(plan: TodoItem[], reason: string, summary: string): UserMessage {
   return createUserMessage({
-    content: [{ type: 'text', text: renderStaleReminder(plan) }],
+    content: [{ type: 'text', text: renderStaleReminder(plan, reason) }],
     source: { kind: 'plugin', plugin: name, form: 'notice', summary },
   })
 }
@@ -264,8 +268,7 @@ export function apply(ctx: Context, config: Config): void {
   // Staleness fold: `workSinceWrite` counts committed tool calls other than
   // this package's own, and `remindedAt` folds the work count at the last notice
   // this plugin injected — read back out of the log rather than held in memory,
-  // so a restart neither forgets the cadence nor re-nudges from the first
-  // threshold.
+  // so a restart neither forgets the cadence nor re-nudges early.
   ctx.sessionProjections.register<'todoStale', TodoStale>({
     key: 'todoStale',
     stateSchema: todoStaleSchema,
@@ -315,18 +318,22 @@ export function apply(ctx: Context, config: Config): void {
     settled.delete(agent)
     const { workSinceWrite, remindedAt } = ctx.sessionProjections
       .stateOf(agent.session, 'todoStale') as TodoStale
-    // A settlement is news; the cadence only decides when nothing settled.
-    if (label === undefined) {
-      if (workSinceWrite < STALE_FIRST_WORK) return decision
-      if (remindedAt !== null && workSinceWrite - remindedAt < STALE_REPEAT_WORK) return decision
-    }
+    // A settlement is news; the cadence only decides when nothing settled. `remindedAt`
+    // is null until this plugin's first notice, so the interval runs from the write.
+    if (label === undefined && workSinceWrite - (remindedAt ?? 0) < STALE_WORK) return decision
     const plan = openPlanOf(ctx, agent)
     if (plan === undefined) return decision
     return {
       ...decision,
-      messages: [...decision.messages, reconcileNotice(plan, label === undefined
-        ? `todo plan unchanged across ${String(workSinceWrite)} tool calls`
-        : `todo plan unreconciled since ${label} settled`)],
+      messages: [...decision.messages, reconcileNotice(
+        plan,
+        label === undefined
+          ? `has not changed for ${String(workSinceWrite)} tool calls`
+          : 'has not been updated since the background work you started settled',
+        label === undefined
+          ? `todo plan unchanged across ${String(workSinceWrite)} tool calls`
+          : `todo plan unreconciled since ${label} settled`,
+      )],
     }
   })
   // Read-back for the model. Without this contribution the only record an agent
