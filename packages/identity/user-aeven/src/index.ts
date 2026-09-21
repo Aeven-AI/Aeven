@@ -20,6 +20,7 @@ import z from '@deepseek-ai/schemastery'
 import type { IdentityRequest, User, UserResolver } from '@aeven/identity-user'
 import type {} from '@aeven/identity-user'
 import type {} from '@aeven/host-webserver'
+import { credentialRef } from '@aeven/credentials'
 import { verifiedUserId } from './jwt.ts'
 
 /** Cordis plugin name. */
@@ -74,6 +75,16 @@ export interface Config {
    * generated gradient.
    */
   mediaUrl?: string
+  /**
+   * Credential reference the access token this authority verifies answers to.
+   *
+   * The token is the caller's Aeven session, and `llm-aeven` presents one to
+   * Aeven's own `/v1` on the caller's behalf, so the two must name the same
+   * reference. Stated here as well as there because this authority is what
+   * proves the token, and a name only one side knows publishes nothing. An
+   * operator pointing a custom endpoint at Aeven sets both to the same value.
+   */
+  credentialRef?: string
 }
 
 export const Config: z<Config> = z.object({
@@ -81,6 +92,7 @@ export const Config: z<Config> = z.object({
   accessSecretEnv: z.string().default('AEVEN_JWT_SECRET'),
   refreshSecretEnv: z.string().default('AEVEN_REFRESH_SECRET'),
   refreshCookieName: z.string().default('refreshToken'),
+  credentialRef: z.string().default('AEVEN_TOKEN'),
   apiUrl: z.string(),
   xOAuthUrl: z.string(),
   appleOAuthUrl: z.string(),
@@ -133,6 +145,10 @@ export function apply(ctx: Context, config: Config): void {
 
   const resolver: UserResolver = {
     id,
+    // The access token this resolver verifies is the same bearer `llm-aeven`
+    // presents to Aeven's `/v1`, so the connection publishes each admitted one
+    // and the model route follows the caller's rotation with no stored copy.
+    credentialRef: credentialRef((config as ResolvedConfig).credentialRef),
     resolve(request: IdentityRequest): User | undefined {
       const nowSeconds = Math.floor(Date.now() / 1000)
 

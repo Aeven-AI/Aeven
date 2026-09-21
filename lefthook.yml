@@ -21,6 +21,19 @@ pre-commit:
       run: node_modules/.bin/tsx scripts/run-oxlint.ts --config .oxlintrc.staged.json --fix --no-error-on-unmatched-pattern {staged_files}
       stage_fixed: true
 
+    # The Typert Remote-boundary analysis runs inside tsdown's Host pass, which
+    # bundles the whole workspace in one process. A wire type it rejects used to
+    # surface only as an out-of-memory abort of that bundle, minutes later and
+    # several steps away from the declaration at fault. Running the same pass
+    # directly, from source, names the offending type in about five seconds. The
+    # generator builds its own programs from the face aggregate tsconfigs, so
+    # this needs neither tsc output nor a prior build.
+    - name: typert remote boundary
+      glob: '*.{ts,tsx}'
+      exclude:
+        - 'vendor/*/src/**'
+      run: node_modules/.bin/tsx scripts/verify-typert.ts
+
     # Regenerate rather than reject: a dependency edit that forgot the notices
     # would otherwise fail the test lane long after the commit. The glob matches
     # every input the generator reads, including the generator itself and the

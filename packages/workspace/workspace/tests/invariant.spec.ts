@@ -6,11 +6,12 @@ import * as WorkspaceInvariant from '../src/invariant.ts'
 import { WorkspaceId } from '../src/index.ts'
 
 /** Boot the invariant service plus the companion over a stubbed registry knowing exactly `ids`. */
-async function setup(ids: string[]): Promise<Context> {
+async function setup(ids: string[], entity?: { kind: string; path: string | undefined }): Promise<Context> {
   const ctx = new Context()
   await ctx.plugin(InvariantRegistry)
+  const shape = entity ?? { kind: 'folder', path: '/workspace' }
   ctx.provide('workspaceRegistry', {
-    get: (id: WorkspaceId) => (ids.includes(id) ? { id } : undefined),
+    get: (id: WorkspaceId) => (ids.includes(id) ? { id, ...shape } : undefined),
   })
   await ctx.plugin(WorkspaceInvariant)
   return ctx
@@ -57,5 +58,26 @@ describe('workspace cache/table invariant', () => {
   it('fails a put whose record the registry cache does not hold', async () => {
     const ctx = await setup([])
     expect(() => { ctx.emit('domain/changed', put()) }).toThrow(/diverged/)
+  })
+
+  it('fails a put whose kind and path disagree', async () => {
+    // A folder workspace is defined by its directory; publishing one without a
+    // path means a writer paired the two facts wrongly.
+    const folderless = await setup(['w1'], { kind: 'folder', path: undefined })
+    expect(() => { folderless.emit('domain/changed', put()) })
+      .toThrow(/kind 'folder' but records no path/)
+
+    // The inverse: a path on a pathless record is a machine-local fact inside a
+    // record that must stay portable.
+    const located = await setup(['w1'], { kind: 'virtual', path: '/workspace' })
+    expect(() => { located.emit('domain/changed', put()) })
+      .toThrow(/kind 'virtual' but records path/)
+  })
+
+  it('accepts a pathless record whose kind agrees and a folder record that has one', async () => {
+    const virtual = await setup(['w1'], { kind: 'virtual', path: undefined })
+    expect(() => { virtual.emit('domain/changed', put()) }).not.toThrow()
+    const folder = await setup(['w1'], { kind: 'folder', path: '/workspace' })
+    expect(() => { folder.emit('domain/changed', put()) }).not.toThrow()
   })
 })

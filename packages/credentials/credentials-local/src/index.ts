@@ -4,6 +4,7 @@
  *
  * ```text
  * inherited process environment      (read-only, wins)
+ * > session-published values         (in memory, never stored)
  * > $AVN_HOME/.credentials.yaml      (provider-managed, writable)
  * > <invocation cwd>/.env            (read-only fallback)
  * > $AVN_HOME/.env                   (read-only fallback)
@@ -15,6 +16,12 @@
  * shadow writes. Everything below it loses to the managed store, so a key the
  * Models page writes takes effect immediately even when an older key sits in
  * the user's `.env`.
+ *
+ * The session layer sits between them for a credential that belongs to a
+ * *session* rather than to the machine — the access token an authenticated
+ * browser presents to the Host. It is neither stored nor inherited, because
+ * either would outlive the token and because a value two clients each own must
+ * not have one shared home; see `setSession`.
  *
  * The invoking project may supply a key, because the product trusts the
  * project it is launched in. It ranks below the managed store, so a key stored
@@ -530,6 +537,12 @@ export class LocalCredentialProvider extends CredentialProvider {
   private text: string | undefined
   /** Parsed reference snapshot; replaced wholesale on every reload. */
   private values = new Map<string, string>()
+  /**
+   * Session-published references; never read from or written to the document.
+   * See {@link LocalCredentialProvider.setSession} for why this layer exists and
+   * where it ranks.
+   */
+  private readonly sessionValues = new Map<string, string>()
   /** Parsed record snapshot; replaced wholesale on every reload. */
   private records = new Map<string, CredentialRecord>()
   /**
@@ -617,6 +630,8 @@ export class LocalCredentialProvider extends CredentialProvider {
   override resolve(ref: CredentialRef): Promise<ResolvedCredential | undefined> {
     const inherited = this.inherited(ref)
     if (inherited !== undefined) return Promise.resolve({ value: inherited, source: 'env' })
+    const session = this.sessionValues.get(ref)
+    if (session !== undefined) return Promise.resolve({ value: session, source: 'session' })
     const stored = this.values.get(ref)
     if (stored !== undefined) return Promise.resolve({ value: stored, source: 'file' })
     const fallback = this.dotenvFallback(ref)
@@ -631,11 +646,45 @@ export class LocalCredentialProvider extends CredentialProvider {
     if (this.inherited(ref) !== undefined) {
       return Promise.resolve({ configured: true, source: 'env', writable: false })
     }
+    // A session value outranks the document without being stored in it, so it is
+    // configured and unwritable: `unset` cannot remove something no write created.
+    if (this.sessionValues.get(ref) !== undefined) {
+      return Promise.resolve({ configured: true, source: 'session', writable: false })
+    }
     const stored = this.values.get(ref)
     if (stored !== undefined) return Promise.resolve({ configured: true, source: 'file', writable: true })
     const fallback = this.dotenvFallback(ref)
     if (fallback !== undefined) return Promise.resolve({ configured: true, source: fallback.source, writable: true })
     return Promise.resolve({ configured: false, writable: true })
+  }
+
+  /**
+   * Publish a credential for this process's lifetime, without storing it.
+   *
+   * This exists for a credential that belongs to a *session* rather than to the
+   * machine: the Aeven access token an authenticated browser presents is the
+   * caller's own, it rotates every two hours, and it is already held by whoever
+   * issued it. Writing it to the managed document — which is what an earlier
+   * design did — made one shared file the meeting point for two clients that
+   * each own a different session, so they displaced each other, and left a
+   * two-hour credential on disk for a route that never needed one there.
+   *
+   * Deliberately not persisted and deliberately not in the launch environment:
+   * the document is read-only for this value by construction, the environment is
+   * where a deployment states *its* intent, and both would outlive the session
+   * that the value is valid for. It ranks directly under the environment so an
+   * operator's explicit `AEVEN_TOKEN` still wins, and above the document so a
+   * stale entry from an earlier design cannot shadow a live session.
+   * @param ref - the reference the value answers.
+   * @param value - the credential, or `undefined` to withdraw it.
+   */
+  override setSession(ref: CredentialRef, value: string | undefined): void {
+    if (this.isClosed()) return
+    if (value === undefined || value.length === 0) {
+      this.sessionValues.delete(ref)
+      return
+    }
+    this.sessionValues.set(ref, value)
   }
 
   override async set(ref: CredentialRef, value: string): Promise<void> {

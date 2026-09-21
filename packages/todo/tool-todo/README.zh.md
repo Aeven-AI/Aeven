@@ -169,11 +169,11 @@ token 用量随模型每次提交的完整列表增长，这些调用参数会�
 
 #### 模型看到什么
 
-只要有效计划中还存在未 `completed` 的任务，本包就会把它重新推到模型眼前：自上次 `todo_write` 起经过 8 个已提交步骤后——此后每 32 个步骤——该步骤的准备过程中会多出一条由插件发出的提醒：`Your todo list has not changed for <n> steps while <open> of its <total> tasks are still open. Update it now with todo_write: mark every task you have finished \`completed\`, and the one you are working on \`in_progress\`.`，其后是当前列表。该提醒携带 `form: 'notice'`，因此是一条普通追加消息，而非运行时上下文快照，也不会替换快照。当计划已完成、不存在或仍然新鲜时不注入任何内容。
+只要有效计划中还存在未 `completed` 的任务，本包就会把它重新推到模型眼前：自上次写入起经过三个除 `todo_write` 之外的工具调用后——此后每十二个——该步骤的准备过程中会多出一条由插件发出的提醒：`Your todo list still shows <open> of its <total> tasks open. Update it now with todo_write: mark every task you have finished \`completed\`, and the one you are working on \`in_progress\`.`，其后是当前列表。该 agent 所拥有的后台任务或已 fork 的子代理结算，是提前一步到来的同一条消息：`ctx.jobs.onJobDone` 标记该 agent，它的下一步就会发出这条提醒，无论已累积多少工作量——因为被委派的工作结束时不带自己的 `tool/call`，计数器看不到它。该提醒携带 `form: 'notice'`，因此是一条普通追加消息，而非运行时上下文快照，也不会替换快照。当计划已完成、不存在或仍然新鲜时不注入任何内容。
 
 #### Token 影响
 
-一条提醒的开销是提醒行加上当前列表，且仅在计划持续陈旧时每 32 个步骤重复一次——会更新或完成列表的 agent 不会再被提醒。
+一条提醒的开销是提醒行加上当前列表，且仅在计划持续陈旧时每十二个工具调用重复一次——会更新或完成列表的 agent 不会再被提醒。同时落地的多笔结算只在一个步骤上产生一条提醒，而非每条一条。
 
 #### KV Cache 影响
 

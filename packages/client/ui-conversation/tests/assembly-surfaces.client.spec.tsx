@@ -80,7 +80,7 @@ async function bench(opts?: { blank?: boolean }) {
 }
 
 describe('resident composer', () => {
-  it('renders the locked view state while no session exists at all', async () => {
+  it('renders the inert cold-start composer while no session exists at all', async () => {
     const runtime = await SlotTestRuntime.create()
     runtime.ctx.provide('uiWorkspace', { connectWorkspace: vi.fn(async () => SID) } as never)
     runtime.ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
@@ -89,21 +89,24 @@ describe('resident composer', () => {
     runtime.slots.installLocale(locale)
     await runtime.root.declare(LAYOUT_CHILDREN, AppRoot)
     await runtime.mount({ inject: [...inject], apply })
+    // The Hero carries no workspace row any more, so an entry registered for the
+    // slot the row used to fill has nowhere to render: the cold start is inert
+    // until the boot-time Workspace connect supplies a Session.
     runtime.slots.register({ name: 'conversation.hero.workspace' }, WorkspaceProbe)
     const view = runtime.renderRoot()
     const textarea = view.container.querySelector<HTMLDivElement>('[data-composer-input]')
     expect(textarea).not.toBeNull()
-    expect(textarea!.getAttribute('aria-disabled')).not.toBe('true')
+    expect(textarea!.getAttribute('aria-disabled')).toBe('true')
     expect(textarea!.getAttribute('contenteditable')).not.toBe('true')
-    expect(textarea!.getAttribute('aria-haspopup')).toBe('menu')
-    expect(view.getByTestId('workspace-probe').textContent).toBe('false:0')
+    expect(textarea!.getAttribute('aria-haspopup')).toBeNull()
+    expect(textarea!.getAttribute('data-placeholder'))
+      .toBe('描述你想要构建的内容… / 调用指令 @ 文件或对话')
+    expect(view.queryByTestId('workspace-probe')).toBeNull()
+    expect(view.queryByRole('button', { name: '选择工作区' })).toBeNull()
     fireEvent.click(textarea!)
-    expect(view.getByTestId('workspace-probe').textContent).toBe('true:0')
-    expect(textarea!.getAttribute('aria-expanded')).toBe('true')
-    fireEvent.click(view.getByRole('button', { name: '选择工作区' }))
     fireEvent.keyDown(textarea!, { key: 'Enter' })
-    expect(view.getByTestId('workspace-probe').textContent).toBe('true:0')
-    expect(view.getByRole('button', { name: '选择工作区' })).toBeTruthy()
+    expect(view.queryByTestId('workspace-probe')).toBeNull()
+    expect(view.queryByRole('button', { name: '选择工作区' })).toBeNull()
     await runtime.dispose()
   })
 
@@ -119,21 +122,14 @@ describe('resident composer', () => {
     })
     await runtime.root.declare(LAYOUT_CHILDREN, AppRoot)
     await runtime.mount({ inject: [...inject], apply })
-    runtime.slots.register({ name: 'conversation.hero.workspace' }, WorkspaceProbe)
     const view = runtime.renderRoot()
 
     const root = view.container.querySelector('[data-phase="hero"]')!
     const scrollBody = view.container.querySelector('[data-conversation-scroll]')!
     const composerSeat = view.container.querySelector('[data-composer-seat]')!
     const textarea = view.container.querySelector<HTMLDivElement>('[data-composer-input]')!
-    const workspaceChip = view.getByRole('button', { name: '选择工作区' })
-    const workspaceProbe = view.getByTestId('workspace-probe')
-    expect(textarea.getAttribute('aria-disabled')).not.toBe('true')
+    expect(textarea.getAttribute('aria-disabled')).toBe('true')
     expect(textarea.getAttribute('contenteditable')).not.toBe('true')
-
-    fireEvent.click(workspaceChip)
-    fireEvent.click(workspaceProbe)
-    expect(workspaceProbe.textContent).toBe('true:1')
 
     await runtime.sessions.add({
       id: SID,
@@ -145,9 +141,7 @@ describe('resident composer', () => {
     expect(view.container.querySelector('[data-conversation-scroll]')).toBe(scrollBody)
     expect(view.container.querySelector('[data-composer-seat]')).toBe(composerSeat)
     expect(view.container.querySelector<HTMLDivElement>('[data-composer-input]')).toBe(textarea)
-    expect(view.getByRole('button', { name: '选择工作区' })).toBe(workspaceChip)
-    expect(view.getByTestId('workspace-probe')).toBe(workspaceProbe)
-    expect(workspaceProbe.textContent).toBe('true:1')
+    // The session owns a Workspace now, so the same node accepts input.
     expect(textarea.getAttribute('aria-disabled')).not.toBe('true')
     expect(textarea.getAttribute('contenteditable')).toBe('true')
     await runtime.dispose()

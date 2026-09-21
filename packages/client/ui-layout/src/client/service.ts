@@ -33,6 +33,12 @@ export interface ILayout {
    * @param fullscreen - whether a full-screen surface is now showing.
    */
   setFullscreen(fullscreen: boolean): void
+  /**
+   * Toggle one session's right sidebar. The panel is per session, so this
+   * leaves every other session's where its reader left it.
+   * @param sessionId - session whose panel toggles.
+   */
+  toggleRightbar(sessionId: string): void
 }
 
 /** Cross-plugin panel-action face (ctx.layout). */
@@ -71,6 +77,20 @@ export class LayoutController implements ILayout {
    */
   setFullscreen(fullscreen: boolean): void {
     this.#require().setFullscreen(fullscreen)
+  }
+
+  /**
+   * Toggle one session's right sidebar.
+   * @param sessionId - session whose panel toggles.
+   */
+  toggleRightbar(sessionId: string): void {
+    // The frame width seeds a first opening and re-clamps a remembered one.
+    // Read here rather than tracked: only an opening needs it, so the frame
+    // carries no measurement loop and a drag stays a CSS-only write. The
+    // store clamps to its floor, so a DOM-less caller still opens a usable
+    // panel.
+    const viewport = typeof window === 'undefined' ? 0 : window.innerWidth
+    this.#require().toggleRightbar(sessionId, viewport)
   }
 
   #require(): PanelActions {

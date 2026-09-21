@@ -126,13 +126,16 @@ const useTrajectory: SessionSlotProps['useTrajectory'] = () => { throw new Error
 
 function workspace(id = 'w1'): WorkspaceView {
   return {
-    workspaceId: wid(id), path: `/projects/${id}`, title: id, sessionIds: [],
+    workspaceId: wid(id), kind: 'folder', isDefault: false, path: `/projects/${id}`, title: id, sessionIds: [],
     createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
   }
 }
 
-const workspaceState = (items: readonly WorkspaceView[]): WorkspaceSnapshot => ({
-  items, archivedSessionIds: [], state: 'idle', phase: 'ready', error: null,
+const workspaceState = (
+  items: readonly WorkspaceView[],
+  phase: WorkspaceSnapshot['phase'] = 'ready',
+): WorkspaceSnapshot => ({
+  items, archivedSessionIds: [], state: 'idle', phase, error: null,
 })
 
 function sessionSnapshotOf(overrides: Partial<SessionSnapshot> = {}): SessionSnapshot {
@@ -162,6 +165,8 @@ function mount(
     viewTabs?: ViewTab[]
     /** Boot posture: the list has not completed its first pull yet. */
     sessionListPending?: boolean
+    /** Workspace list posture: `pending` is the first pull still in flight. */
+    workspacePhase?: WorkspaceSnapshot['phase']
     /** No session selected — cold start, or the list has yet to restore one. */
     noSelection?: boolean
     /** Override the selected Session identity. */
@@ -194,7 +199,9 @@ function mount(
     phase: options.sessionListPending === true ? 'pending' : 'ready',
     subagentsByParent: {}, jobsBySession: {}, currentAddress: undefined,
   })
-  const workspaces = createSnapshotStore<WorkspaceSnapshot>(workspaceState(workspaceRows))
+  const workspaces = createSnapshotStore<WorkspaceSnapshot>(
+    workspaceState(workspaceRows, options.workspacePhase ?? 'ready'),
+  )
   const session = createSnapshotStore<SessionSnapshot>(snapshot)
   const useSession = bindSnapshotSelector(session)
   const conversation = createSnapshotStore<ConversationSnapshot>(EMPTY_CONVERSATION_SNAPSHOT)
@@ -385,6 +392,38 @@ describe('Hero chrome', () => {
     expect(greetingKeyOf(22)).toBe('hero.greetingNight')
     expect(greetingKeyOf(23)).toBe('hero.greetingNight')
   })
+
+  it('carries a mounted hero over the hour the reader reaches', () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date(2026, 8, 18, 11, 59))
+      const view = render(<HeroShell t={makeTranslate(en, commonEn)} />)
+      expect(view.getByText(/^Good morning, what is on your mind\?$/)).toBeTruthy()
+      act(() => {
+        vi.setSystemTime(new Date(2026, 8, 18, 12, 1))
+        vi.advanceTimersByTime(60_000)
+      })
+      expect(view.getByText(/^Good afternoon, what is on your mind\?$/)).toBeTruthy()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('re-reads the clock when the reader comes back to the tab', () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date(2026, 8, 18, 9, 0))
+      const view = render(<HeroShell t={makeTranslate(en, commonEn)} />)
+      expect(view.getByText(/^Good morning, what is on your mind\?$/)).toBeTruthy()
+      act(() => {
+        vi.setSystemTime(new Date(2026, 8, 18, 20, 0))
+        window.dispatchEvent(new Event('focus'))
+      })
+      expect(view.getByText(/^Good evening, what is on your mind\?$/)).toBeTruthy()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
 
 describe('ConversationRoot resident composer', () => {
@@ -427,17 +466,19 @@ describe('ConversationRoot resident composer', () => {
     expect(seat('conversation.input.plan')).toEqual({ locked: true })
   })
 
-  it('lets the no-workspace posture win over a block', () => {
-    // Picking a workspace is the earlier prerequisite; naming a model first
-    // would send the user somewhere they cannot act yet.
+  it('lets the inert posture win over a block', () => {
+    // A Session with no owning Workspace in a ready list is the settling
+    // posture, and it outranks a raised block: naming a model first would send
+    // the user somewhere they cannot act yet.
     const b = mount(sessionSnapshotOf({ blank: true }), [], undefined, {
       summaryBlank: true,
       composerBlock: { reason: 'select a model first' },
     })
     const box = b.view.getByRole('textbox')
-    expect(box.getAttribute('aria-disabled')).not.toBe('true')
+    expect(box.getAttribute('aria-disabled')).toBe('true')
     expect(box.getAttribute('contenteditable')).not.toBe('true')
-    expect(box.getAttribute('aria-haspopup')).toBe('menu')
+    expect(box.getAttribute('aria-haspopup')).toBeNull()
+    expect(box.getAttribute('data-placeholder')).toBe('描述你想要构建的内容… / 调用指令 @ 文件或对话')
     expect(box.getAttribute('data-placeholder')).not.toBe('select a model first')
     const modelSeat = b.seatOwners.filter(call => call.key === 'conversation.input.model').at(-1)?.owner
     expect(modelSeat).toEqual({ locked: true })
@@ -513,7 +554,7 @@ describe('ConversationRoot resident composer', () => {
     expect(seat?.contains(fallback)).toBe(true)
   })
 
-  it('hero phase: same textarea, hero chrome, visible Session header, picker switches the workspace', () => {
+  it('hero phase: same textarea, hero chrome, visible Session header', () => {
     const b = mount(
       sessionSnapshotOf({ blank: true }),
       [
@@ -545,14 +586,12 @@ describe('ConversationRoot resident composer', () => {
     expect(b.view.container.querySelector('[data-composer-seat]')?.contains(box)).toBe(true)
     act(() => { b.wiring.setDraft('draft in hero') })
     expect(b.store.store.getSnapshot().draft).toBe('draft in hero')
-    // Picker: open through the chip; a pick switches to the other
-    // workspace's blank session (draft carry is apply-layer wiring).
-    fireEvent.click(b.view.getByRole('button', { name: '选择工作区' }))
-    const owner = b.pickerOwner() as { open: boolean; onPick(id: WorkspaceId): void }
-    expect(owner.open).toBe(true)
-    act(() => { owner.onPick(wid('second')) })
-    expect(b.retargetWorkspace).toHaveBeenCalledWith(wid('second'))
-    expect(b.view.getByText('Selected Folder')).toBeTruthy()
+    // The blank Session owns a Workspace, so the Hero composer accepts input
+    // even though the Hero no longer offers a way to choose one.
+    expect(box.getAttribute('aria-disabled')).not.toBe('true')
+    expect(box.getAttribute('contenteditable')).toBe('true')
+    expect(box.getAttribute('data-placeholder')).toBe('描述你想要构建的内容… / 调用指令 @ 文件或对话')
+    expect(b.retargetWorkspace).not.toHaveBeenCalled()
   })
 
   it('keeps a rejected first prompt engaging instead of returning to the Hero', () => {
@@ -820,33 +859,31 @@ describe('ConversationRoot resident composer', () => {
     expect(b.view.getByRole('tab', { name: 'New view' }).getAttribute('aria-selected')).toBe('false')
   })
 
-  it('rolls the pending workspace label back when switching fails', async () => {
-    const selectWorkspace = vi.fn(async () => { throw new Error('connect failed') })
-    const b = mount(
-      sessionSnapshotOf({ blank: true }),
-      [
-        { ...workspace('one'), sessionIds: [SID] },
-        { ...workspace('second'), title: 'Selected Folder' },
-      ],
-      selectWorkspace,
-      { summaryBlank: true },
-    )
-    fireEvent.click(b.view.getByRole('button', { name: '选择工作区' }))
-    const owner = b.pickerOwner() as { onPick(id: WorkspaceId): void }
-    await act(async () => { owner.onPick(wid('second')); await Promise.resolve() })
-    expect(selectWorkspace).toHaveBeenCalledWith(wid('second'))
-    expect(b.view.queryByText('Selected Folder')).toBeNull()
-    expect(b.view.getByText('one')).toBeTruthy()
+  it('keeps the Hero composer usable while the workspace list has not settled', () => {
+    // The Hero no longer names a workspace, so the only thing the owning
+    // Workspace still answers is whether the composer is inert. While the list
+    // is still loading the cwd bridges the answer, so a reader whose workspace
+    // exists is not held at the inert posture for the length of the first pull.
+    const b = mount(sessionSnapshotOf({ blank: true }), [], undefined, {
+      summaryBlank: true,
+      workspacePhase: 'pending',
+    })
+    const box = b.view.getByRole('textbox')
+    expect(box.getAttribute('aria-disabled')).not.toBe('true')
+    expect(box.getAttribute('contenteditable')).toBe('true')
   })
 
-  it('blank session keeps the interactive picker chip (workspace switchable until the first message)', () => {
+  it('blank session keeps a plain composer: the Hero carries no workspace row', () => {
     const b = mount(sessionSnapshotOf({ blank: true }), undefined, undefined, { summaryBlank: true })
-    const chip = b.view.getByRole('button', { name: '选择工作区' })
-    expect((chip as HTMLButtonElement).disabled).toBe(false)
-    expect(b.slotCalls).toContain('conversation.hero.workspace')
-    // The agent-preset chip sits in the same row, for the same reason: both
-    // choices are only open before the first message.
-    expect(b.slotCalls).toContain('conversation.hero.agentPreset')
+    // The row that used to sit above the composer is gone, so neither of its
+    // two slots has a render site and the composer is never a picker trigger.
+    expect(b.slotCalls).not.toContain('conversation.hero.workspace')
+    expect(b.slotCalls).not.toContain('conversation.hero.agentPreset')
+    expect(b.view.queryByRole('button', { name: '选择工作区' })).toBeNull()
+    const box = b.view.getByRole('textbox')
+    expect(box.getAttribute('aria-haspopup')).toBeNull()
+    expect(box.getAttribute('contenteditable')).toBe('true')
+    expect(b.retargetWorkspace).not.toHaveBeenCalled()
   })
 
   it('prompt failure renders the promptError strip (ordinary failure, no transaction UI)', () => {

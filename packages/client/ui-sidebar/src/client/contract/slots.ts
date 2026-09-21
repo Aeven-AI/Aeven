@@ -9,6 +9,7 @@
  */
 import type { PropsLocale, PropsRenderSlots, PropsRuntime } from '@aeven/client-ui-slots'
 import type { WorkspaceId } from '@aeven/api-workspace-controller/client'
+import type { SessionId } from '@aeven/session/types'
 // Type-only: pulls ui-layout's SlotMap merge (the 'sidebar' entry) into every
 // program that sees this contract, so PropsRuntime<'sidebar'> resolves.
 import type {} from '@aeven/client-ui-layout/client'
@@ -88,15 +89,28 @@ export interface SidebarFooterActionOwnerProps {
 /**
  * Registrant-private injected share (arrives via the register inject
  * factory). The shell keeps only its own controls: starting a Session from
- * the New Session button and toggling the column.
+ * the New Session link and toggling the column.
  */
 export type SidebarRootInjected = {
   /**
-   * Start a New Session: with a workspace, reuse-or-create its blank session
-   * and open it; without one, inherit the current Session Workspace, then the
-   * recent Workspace, or clear into the New Session pure view when none exist.
+   * Start a New Session and open it.
+   *
+   * With a `sessionId`, the Session is created under exactly that id — the one
+   * the New Session link published, so the address that was opened and the chat
+   * that appears are the same. Without one, the Workspace's existing blank
+   * Session is reused when it has one. Either way, the Workspace is the
+   * explicit target, else the current Session's, else the most recent; with
+   * none at all, the selection clears into the New Session pure view.
+   * @param workspaceId - explicit target; absent inherits as described.
+   * @param sessionId - the id the New Session link named, when it had one.
    */
-  startSession: (workspaceId?: WorkspaceId) => void
+  startSession: (workspaceId?: WorkspaceId, sessionId?: SessionId) => void
+  /**
+   * Address for the New Session link, plus the id it names. The browser owns
+   * activation of a real anchor, so this answers before any Session exists;
+   * the id comes back to {@link startSession} when the link is activated here.
+   */
+  newSessionHref: () => { href: string; sessionId: SessionId }
   /** Toggle the sidebar column through the layout service. */
   toggleSidebar: () => void
 }

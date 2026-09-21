@@ -186,7 +186,12 @@ declare module '@aeven/typert-protocol' {
     'session/model-unavailable': { readonly provider: string; readonly model: string }
     'session/conflict': {
       readonly sessionId: SessionId
-      readonly requestedCwd: string
+      /**
+       * The cwd the request asked for, or `null` when it named a workspace that
+       * has no directory. `null` rather than an optional property because this
+       * is a Remote boundary detail and `undefined` is not JSON.
+       */
+      readonly requestedCwd: string | null
       readonly existingCwd?: string
     }
     'session/agent-busy': { readonly reason: string }

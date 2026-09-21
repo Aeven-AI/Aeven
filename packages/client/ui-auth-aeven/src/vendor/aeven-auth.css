@@ -863,20 +863,20 @@ body .content-block ol li p,
 body .content-block dl li p {
   margin-block-end: 0px;
 }
-body .content-block ul li::before {
+body .content-block ul > li::before {
   content: "•";
   position: absolute;
   left: 0;
   text-align: left;
 }
-body .content-block ol li::before {
+body .content-block ol > li::before {
   content: counter(item) ".";
   counter-increment: item;
   position: absolute;
   left: 0;
   text-align: left;
 }
-body .content-block dl dt::before {
+body .content-block dl > dt::before {
   content: attr(data-term) ": ";
   position: absolute;
   left: 0;

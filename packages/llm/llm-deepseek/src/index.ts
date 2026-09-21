@@ -163,6 +163,7 @@ export interface Config {
   retryPolicy?: RetryPolicyConfig
 }
 
+/* jscpd:ignore-start -- mirrors @aeven/llm-aeven's catalog-entry schema; the catalog gate needs a literal per route */
 const catalogModel: z<DeepSeekCatalogModel> = z.object({
   id: z.string().required(),
   name: z.string(),
@@ -173,7 +174,47 @@ const catalogModel: z<DeepSeekCatalogModel> = z.object({
   imagePixelBudget: z.union([z.number().step(1).min(1), 'low']),
   imageMaxBytes: z.number().step(1).min(1),
 })
+/* jscpd:ignore-end */
 
+/**
+ * Publish one route built on {@link DeepSeekAdapter} to the configuration
+ * surfaces, and answer their model listing from the catalog it ships.
+ *
+ * The two halves belong together, which is why one helper owns both: a route is
+ * only configurable because it announced a settings namespace, and the Models
+ * page's "fetch available models" action asks that same namespace to discover
+ * models. Answering from the shipped catalog — rather than calling the endpoint
+ * — is the decision this helper carries: a provider's listing is scoped to the
+ * entitlements of one account, so it would disclose strictly less than the
+ * entries the route already advertises, and it would fail exactly when a user
+ * is trying to configure a route for the first time.
+ * @param ctx - the registering plugin's context.
+ * @param route - provider key, display name, settings namespace, and the model source.
+ * @returns the discovery disposer, for a caller that wants to withdraw the answer.
+ */
+export function registerProviderRoute(
+  ctx: Context,
+  route: {
+    readonly provider: string
+    readonly displayName: string
+    readonly settingsNs: string
+    readonly models: () => readonly DeepSeekCatalogModel[]
+  },
+): () => void {
+  ctx.llm.registerConfigurableProviders([
+    { provider: route.provider, displayName: route.displayName, settingsNs: route.settingsNs, settingsPath: [] },
+  ])
+  return ctx.llm.registerModelDiscovery(route.settingsNs, () => Promise.resolve(
+    route.models().map(model => ({
+      id: model.id,
+      ...model.name === undefined ? {} : { name: model.name },
+      ...model.contextWindow === undefined ? {} : { contextWindow: model.contextWindow },
+      ...model.maxTokens === undefined ? {} : { maxTokens: model.maxTokens },
+    })),
+  ))
+}
+
+/* jscpd:ignore-start -- mirrors @aeven/llm-aeven's connection fields; each route owns its own defaults */
 export const Config: z<Config> = z.object({
   apiKeyEnv: z.string().role('credential-ref').default(DEFAULT_API_KEY_ENV),
   baseURL: z.string(),
@@ -195,6 +236,7 @@ export const Config: z<Config> = z.object({
   fileQuotaCleanupBatch: z.number().step(1).min(1).max(1_000).default(DEFAULT_FILE_QUOTA_CLEANUP_BATCH),
   retryPolicy: RetryPolicySchema,
 })
+/* jscpd:ignore-end */
 
 /** Public API default; the internal endpoint comes from $DEEPSEEK_BASE_URL. */
 export const PUBLIC_BASE_URL = 'https://api.deepseek.com'
@@ -472,20 +514,12 @@ export function apply(ctx: Context, config: Config): void {
         ?? Promise.resolve({ fields: {}, accept: () => Promise.resolve() })
     },
   })
-  ctx.llm.registerConfigurableProviders([
-    { provider: PROVIDER, displayName: 'DeepSeek', settingsNs: NS, settingsPath: [] },
-  ])
-  // The Models page's "fetch available models" action answers from the catalog
-  // this plugin already advertises — the platform publishes ids only, so a
-  // listing call would disclose strictly less than the entries here carry.
-  ctx.llm.registerModelDiscovery(NS, () => Promise.resolve(
-    options().models.map(model => ({
-      id: model.id,
-      ...model.name === undefined ? {} : { name: model.name },
-      ...model.contextWindow === undefined ? {} : { contextWindow: model.contextWindow },
-      ...model.maxTokens === undefined ? {} : { maxTokens: model.maxTokens },
-    })),
-  ))
+  registerProviderRoute(ctx, {
+    provider: PROVIDER,
+    displayName: 'DeepSeek',
+    settingsNs: NS,
+    models: () => options().models,
+  })
   // Route effects bind to this apply fiber via the stable `ctx` reference,
   // even when a swap runs inside the scoped settings callback below.
   const registration = ctx.llm.registerAdapter([PROVIDER], adapter)

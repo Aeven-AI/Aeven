@@ -56,9 +56,10 @@ export class SessionSkillCatalog extends TypertRemoteService {
         {},
       )
     }
-    if (cwd === undefined) {
-      throw new RemoteError('gateway/internal', `session "${sessionId}" has no project cwd`, {})
-    }
+    // No cwd guard: a Session in a workspace with no directory has no project
+    // to scan, which is a smaller catalog rather than an error. The registry
+    // already treats an absent cwd as "no project scope", so the same lookup
+    // answers with the global skills only.
 
     const live = this.ctx.agents.get(sessionId)
     const presets = this.ctx.get('agentPresets')

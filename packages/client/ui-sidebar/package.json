@@ -59,6 +59,7 @@
     "@aeven/client-ui-slots": "workspace:^",
     "@aeven/client-ui-session": "workspace:^",
     "@aeven/client-ui-workspace": "workspace:^",
+    "@aeven/session": "workspace:^",
     "@types/react": "~18.3.1",
     "@deepseek-ai/cordis": "workspace:^",
     "react": "^18.2.0"

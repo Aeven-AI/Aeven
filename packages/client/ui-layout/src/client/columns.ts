@@ -37,6 +37,17 @@ export const DETAILS_MIN = 300
 export const DETAILS_MAX = 520
 /** Details width before any user drag. */
 export const DETAILS_DEFAULT = 360
+/** Right sidebar drag clamp floor. */
+export const RIGHTBAR_MIN = 300
+/**
+ * Right sidebar ceiling as a fraction of the frame. A fraction rather than a
+ * fixed px ceiling: the panel is a reading column whose useful width scales
+ * with the display, where the details column inspects one tool call and does
+ * not.
+ */
+export const RIGHTBAR_MAX_RATIO = 0.7
+/** Right sidebar width on first opening, as a fraction of the frame. */
+export const RIGHTBAR_DEFAULT_RATIO = 0.45
 
 /**
  * Clamp a panel width into its contract range.
@@ -47,6 +58,28 @@ export const DETAILS_DEFAULT = 360
  */
 export function clampWidth(px: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Math.round(px)))
+}
+
+/**
+ * Clamp a right sidebar width against the frame it is drawn in. The ceiling is
+ * a fraction of the frame, so it is never below the floor on a narrow frame:
+ * the floor wins there and the center concedes, which keeps a dragged edge
+ * tracking the pointer instead of sticking at an inverted range.
+ * @param px - requested width.
+ * @param viewport - available frame width in px.
+ * @returns the clamped width.
+ */
+export function clampRightbar(px: number, viewport: number): number {
+  return clampWidth(px, RIGHTBAR_MIN, Math.max(RIGHTBAR_MIN, viewport * RIGHTBAR_MAX_RATIO))
+}
+
+/**
+ * The width a right sidebar opens at when it has no remembered preference.
+ * @param viewport - available frame width in px.
+ * @returns the first-open width in px, clamped into the frame's range.
+ */
+export function defaultRightbar(viewport: number): number {
+  return clampRightbar(viewport * RIGHTBAR_DEFAULT_RATIO, viewport)
 }
 
 /**

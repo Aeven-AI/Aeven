@@ -16,7 +16,7 @@ Source: [`packages/workspace/workspace/src/types.ts`](../../packages/workspace/w
 type WorkspaceId = Branded<'WorkspaceId'>
 ```
 
-`WorkspaceId` is a [branded id](core.md#branded-ids). Path identity is separate: `realpathNormalize` (`fs.realpath`; trailing slashes, `..`, and symlinks resolved) is the one uniqueness canon — workspace paths are stored canonicalized, uniqueness is string equality of canonical paths (a symlink to an owned directory collides), and attach-time session cwd checks go through the same canon.
+`WorkspaceId` is a [branded id](core.md#branded-ids). Path identity is separate: `realpathNormalize` (`fs.realpath`; trailing slashes, `..`, and symlinks resolved) is the one uniqueness canon — workspace paths are stored canonicalized, uniqueness is string equality of canonical paths (a symlink to an owned directory collides), and attach-time session cwd checks go through the same canon. That canon governs `kind: 'folder'` records only: a record with no directory binding has no path identity to canonicalize or to collide on, which is why uniqueness skips it rather than treating two pathless records as sharing a path neither of them has.
 
 ## The workspace entity
 
@@ -24,21 +24,42 @@ Consumers see only the `Workspace` interface; the implementation stays package-p
 
 ```ts type-equiv
 /**
- * One workspace: a stable id over an existing directory, a display title, and
- * an ordered candidate account of sessions. Membership requires both an id in
- * that account and a session header whose canonical cwd equals the workspace
- * path. Consumers only see this interface; the implementation stays private.
+ * One workspace: a stable id over a filesystem binding, a display title, and an
+ * ordered candidate account of sessions. Membership requires an id on that
+ * account, plus agreement between the session's location and the workspace's:
+ * a `folder` workspace also demands a session header whose canonical cwd equals
+ * the workspace path, while a workspace with no directory demands a session
+ * that records no cwd either. Consumers only see this interface; the
+ * implementation stays private.
  */
 interface Workspace {
   /** Stable record id (generated uuid). */
   readonly id: WorkspaceId
 
   /**
+   * Whether this is the registry's built-in workspace: the one registration the
+   * product guarantees a reader has, pinned at the head of the order and
+   * refusing delete, rename, and move. Consumers render it as a fixed part of
+   * the product rather than as a registration the reader owns, which is why the
+   * bit travels outward as a fact instead of being inferred from an id or title.
+   */
+  readonly isDefault: boolean
+
+  /**
+   * How this workspace binds to a filesystem location. Consumers that need a
+   * directory must narrow on `'folder'` (see `isFolderWorkspace`) rather than
+   * assume {@link path} is present.
+   */
+  readonly kind: WorkspaceKind
+
+  /**
    * Canonical directory path: the `fs.realpath` of the path given at create
-   * time (trailing slashes, `..`, and symlinks all resolved). Never rewritten
+   * time (trailing slashes, `..`, and symlinks all resolved). Present exactly
+   * when {@link kind} is `'folder'`; a `virtual` or `remote` workspace has no
+   * local directory and is always `undefined` here. Never rewritten
    * afterwards, even when the directory disappears (see {@link status}).
    */
-  readonly path: string
+  readonly path: string | undefined
 
   /** Display title. Defaults to the final path segment, or a filesystem root's own spelling; duplicates are allowed. */
   readonly title: string
@@ -53,9 +74,11 @@ interface Workspace {
    * Header-validated sessions in manually owned order: a new session is
    * prepended at attach, explicit reordering goes through
    * `insertSessionBefore`, and activity never reorders. The durable candidate
-   * account is filtered synchronously: missing headers, invalid cwd values,
-   * and canonical cwd mismatches are never returned. A subsequent workspace
-   * mutation prunes those filtered candidates durably.
+   * account is filtered synchronously for a folder workspace — missing
+   * headers, invalid cwd values, and canonical cwd mismatches are never
+   * returned — while a workspace with no directory binding has no such fact to
+   * check and returns its account verbatim. A subsequent workspace mutation
+   * prunes those filtered candidates durably.
    */
   readonly sessionIds: readonly SessionId[]
 
@@ -69,11 +92,13 @@ interface Workspace {
   /**
    * Prepend a session to this workspace's candidate account. An already
    * accounted id resolves without writing, aside from the durable
-   * filtered-candidate prune every accepted mutation performs. A new id's
-   * live or persisted
-   * header cwd must resolve to an existing directory equal to {@link path};
-   * unknown ids, missing or invalid cwd values, and mismatches reject without
-   * writing.
+   * filtered-candidate prune every accepted mutation performs. Otherwise the
+   * candidate must agree with the workspace's own location: for a folder
+   * workspace its live or persisted header cwd must resolve to an existing
+   * directory equal to {@link path}, and for a workspace with no directory it
+   * must record no cwd at all — a machine-local path inside a record expected
+   * to travel between machines is refused rather than tolerated. Unknown ids,
+   * missing or invalid cwd values, and mismatches reject without writing.
    * @param sessionId - The session to record.
    * @returns resolution after durability.
    */
@@ -106,20 +131,21 @@ interface Workspace {
   /**
    * Live directory check, uncached: whether {@link path} currently exists and
    * is a directory. A missing directory never mutates the record — the
-   * directory may only be temporarily moved.
+   * directory may only be temporarily moved. A workspace with no directory
+   * binding is always `'ok'`: it makes no filesystem claim to check.
    * @returns `'ok'` when the directory exists, `'missing-dir'` otherwise.
    */
   status(): Promise<'ok' | 'missing-dir'>
 }
 ```
 
-Ownership truth is the record's ordered `sessionIds`, never derived from session cwd — but membership requires both: an id on the account and a header whose canonical cwd equals the workspace path, so one session structurally belongs to at most one workspace. Failed writes reject (`insertSessionBefore` account errors as `WorkspaceMoveInvalidError`, storage failures as plain errors); every accepted mutation stamps `updatedAt` and durably prunes candidates that no longer pass the membership check.
+Ownership truth is the record's ordered `sessionIds`, never derived from session cwd. Membership then requires an id on that account *plus* agreement between the session's location and the workspace's, and what "agreement" means follows from the record's `kind`: a `folder` workspace additionally requires a header whose canonical cwd equals the workspace path, so one session structurally belongs to at most one folder workspace, while a workspace with no directory binding requires the opposite — a session that records no cwd — because a machine-local path inside a record expected to travel between machines would make that record unportable. Failed writes reject (`insertSessionBefore` account errors as `WorkspaceMoveInvalidError`, storage failures as plain errors); every accepted mutation stamps `updatedAt` and durably prunes candidates that no longer pass the membership check.
 
 ## The registry: `ctx.workspaceRegistry`
 
 `WorkspaceRegistry` ([signatures](#ctxworkspaceregistry--workspaceregistry)) owns registration and resolution. `create(path, title?)` requires a fully qualified path, canonicalizes it, rejects a nonexistent path (the original `ENOENT`) or a non-directory, returns the existing entity unchanged when the canonical path is already owned, and otherwise creates a record with `title ?? defaultWorkspaceTitle(path)` prepended to the durable registry order (different canonical paths may share a display title, and a path with no final segment uses its root spelling). `get(id)` and the ordered `list()` are synchronous cache reads; `resolveByPath(path)` applies the same fully qualified realpath canon without creating. `delete(id)` removes only the registration, order entry, and session account — the directory, user files, live sessions, and persisted logs are never touched, so those sessions become Ungrouped ([decision](../../.agents/notes/implemented/feature/2026-07-27-workspace-registration-deletion.md)); unknown ids return `false`. Create and delete persist a pending-mutation marker before their two writes (record + order) can diverge; startup resolves exactly the marked mutation — by deleting the marked table row, which completes an interrupted delete and rolls back an interrupted create (the registration is re-creatable, so rollback is the safe direction) — and an unmarked order/table mismatch fails loud as corruption.
 
-Sessions get their cwd at create time from whoever creates them, not from this registry — the API gateway resolves a new session's cwd from the chosen workspace's `path` (falling back to an explicit or default cwd), creates the session so the cwd lands in its immutable [`SessionHeader`](persistence.md#sessionheader--metadata-beside-the-log), then calls `attachSession`, which re-validates that stored header cwd against the workspace path. On the first successful start, the registry bootstraps history from persisted headers alone (`id`, `cwd`, `createdAt` — never event bodies), grouping sessions with a valid canonical cwd into per-directory workspaces, newest first; the initialized marker is written last so an interrupted bootstrap resumes safely. The bootstrap is one-time: cwd-less legacy sessions stay Ungrouped, and sessions created afterwards join a workspace only through `attachSession`.
+Sessions get their cwd at create time from whoever creates them, not from this registry — the API gateway resolves a new session's cwd from the chosen workspace's `path` (falling back to an explicit or default cwd), creates the session so the cwd lands in its immutable [`SessionHeader`](persistence.md#sessionheader--metadata-beside-the-log), then calls `attachSession`, which re-validates that stored header cwd against the workspace path. A workspace with no directory has no cwd to hand out, so that route does not apply to it. On the first successful start, the registry bootstraps history from persisted headers alone (`id`, `cwd`, `createdAt` — never event bodies), grouping sessions with a valid canonical cwd into per-directory workspaces, newest first; the initialized marker is written last so an interrupted bootstrap resumes safely. The bootstrap is one-time: cwd-less legacy sessions stay Ungrouped, and sessions created afterwards join a workspace only through `attachSession`. Bootstrap is also a folder-only mechanism by construction: it derives groups from header cwds, so a pathless record keeps the account it was stored with and is never re-derived from a header.
 
 ## Consumers
 
@@ -284,17 +310,29 @@ list(): Workspace[]
  * session log. The durable order is updated before the table deletion; a
  * failed table write restores the prior order and keeps the entity
  * published. Unknown ids are an idempotent no-op for domain callers.
+ *
+ * The built-in workspace refuses deletion. It is the one registration the
+ * product guarantees a reader has, and removing it would restore the state
+ * the registration exists to prevent — a first screen that demands a folder
+ * before it accepts a message. A deployment that does not want one turns
+ * seeding off in configuration rather than deleting it at runtime.
  * @param id - Workspace registration to remove.
  * @returns `true` when a record was deleted, `false` when it was unknown.
+ * @throws {WorkspaceDefaultImmutableError} when the id names the built-in workspace.
  */
 delete(id: WorkspaceId): Promise<boolean>
 
 /**
  * Move one workspace within the durable display order, DOM-insertBefore-like.
  * With an anchor it lands before that workspace; without one it appends.
+ *
+ * The built-in workspace is pinned at the head: it is where a reader lands
+ * when nothing is selected, so its position is part of what makes the first
+ * screen predictable rather than a preference a drag can reorder.
  * @param id - Workspace to move.
  * @param beforeId - Workspace anchor; omitted appends.
  * @returns the complete committed workspace order.
+ * @throws {WorkspaceDefaultImmutableError} when the move would displace the built-in workspace from the head.
  */
 insertBefore(id: WorkspaceId, beforeId?: WorkspaceId): Promise<readonly WorkspaceId[]>
 

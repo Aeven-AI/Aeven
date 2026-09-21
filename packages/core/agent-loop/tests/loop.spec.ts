@@ -6,7 +6,7 @@ import SystemPrompt from '@aeven/system-prompt'
 import ToolRuntime, { defineContentToolFixture } from '@aeven/tools'
 import AgentRegistry, { type Agent } from '@aeven/agent'
 
-import AgentLoop from '@aeven/agent-loop'
+import AgentLoop, { NO_WORKING_DIRECTORY } from '@aeven/agent-loop'
 import SessionProjectionRegistry from '@aeven/session-projection'
 import { MockAdapter, maxTokensResponse, textResponse, toolCallResponse } from './mock-adapter.ts'
 
@@ -303,9 +303,13 @@ describe('agent loop', () => {
   })
 
   it('contains a strict-variable render failure: the turn errors, the loop keeps serving turns', async () => {
-    // A missing cwd variable must fail one turn without preventing a later valid turn.
+    // A registered variable with no value must fail one turn without preventing
+    // a later valid turn. `{{cwd}}` cannot demonstrate this: a Session with no
+    // working directory now reports that absence instead of an undefined value,
+    // so the stimulus is a variable this test registers empty on purpose.
     const adapter = new MockAdapter([textResponse('ok after rescue')])
-    const ctx = await harness(adapter, 'In {{cwd}}.')
+    const ctx = await harness(adapter, 'In {{loose}}.')
+    ctx.systemPrompt.variable('loose', () => undefined)
     const errors: Error[] = []
     ctx.on('agent/error', ({ error }) => {
       if (error instanceof Error) errors.push(error)
@@ -317,7 +321,7 @@ describe('agent loop', () => {
 
     expect(adapter.requests).toHaveLength(0) // the request was never sent
     expect(errors.map(error => error.message)).toEqual([
-      'prompt variable "{{cwd}}" has no value for this assembly (section "deployment:persona")',
+      'prompt variable "{{loose}}" has no value for this assembly (section "deployment:persona")',
     ])
     const turnEnd = agent.session.snapshotEvents().find(e => e.type === 'turn/end')
     expect(turnEnd?.type === 'turn/end' && turnEnd.data.reason.kind).toBe('error')
@@ -325,10 +329,10 @@ describe('agent loop', () => {
       ? turnEnd.data.reason.error.message
       : '').toContain('no value for this assembly')
 
-    // The loop survived: a waterfall listener rescues {{cwd}} and the SAME
+    // The loop survived: a waterfall listener rescues {{loose}} and the SAME
     // agent completes a real model turn.
     ctx.on('system-prompt/assemble', async (assembly, _context, next) => {
-      assembly.variables['cwd'] = '/rescued'
+      assembly.variables['loose'] = '/rescued'
       return next()
     })
     send(agent, 'again')
@@ -339,6 +343,23 @@ describe('agent loop', () => {
     const turnEnds = agent.session.snapshotEvents().filter(e => e.type === 'turn/end')
     expect(turnEnds).toHaveLength(2)
     expect(turnEnds[1]?.type === 'turn/end' && turnEnds[1].data.reason.kind).toBe('completed')
+  })
+
+  it('renders an explicit absence for {{cwd}} in a Session with no working directory', async () => {
+    // The fact is absent by design, not merely unset: a workspace with no
+    // directory binding may not plant a machine-local path in its record. The
+    // persona references the fact, so the loop resolves the absence rather than
+    // failing every turn in that Session.
+    const adapter = new MockAdapter([textResponse('ok')])
+    const ctx = await harness(adapter, 'Working in {{cwd}}.')
+    const agent = ctx.agentLoop.create(SessionId('a-no-cwd'), { provider: 'mock', model: 'mock' })
+
+    send(agent, 'hi')
+    await waitForIdle(ctx, agent)
+
+    expect(adapter.requests[0]!.system).toBe(
+      `You are an AI agent powered by Aeven.\n\nWorking in ${NO_WORKING_DIRECTORY}.`,
+    )
   })
 
   it('supports the model-via-agent/request path with a {{model}} persona: the supplier states it via the assemble waterfall', async () => {

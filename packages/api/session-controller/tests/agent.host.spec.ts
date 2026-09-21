@@ -27,12 +27,17 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map(ctx => ctx.fiber.dispose()))
 })
 
-async function harness(): Promise<{ ctx: Context; agents: ApiSessionAgentController }> {
+async function harness(
+  options: { sessionQuery?: unknown } = {},
+): Promise<{ ctx: Context; agents: ApiSessionAgentController }> {
   const ctx = new Context()
   roots.push(ctx)
   await ctx.plugin(TypertRegistry)
   await ctx.plugin(SessionStore)
   await ctx.plugin(AgentRegistry)
+  // A case that needs its own point query installs it first; the shared test
+  // services only fill in what is absent.
+  if (options.sessionQuery !== undefined) ctx.provide('sessionQuery', options.sessionQuery as never)
   installSessionReadTestServices(ctx)
   ctx.sessionProjections.register(agentPresetProjectionDefinition)
   installModelSelectionProjection(ctx)
@@ -87,7 +92,7 @@ describe('ApiSession identity failures', () => {
       .toContain('belongs to "/existing"')
   })
 
-  it('maps absent and cwd-less point observations to not found', async () => {
+  it('maps absent point observations to not found and serves cwd-less ones', async () => {
     const ctx = new Context()
     roots.push(ctx)
     await ctx.plugin(SessionStore)
@@ -104,12 +109,16 @@ describe('ApiSession identity failures', () => {
     expect(inspect).toHaveBeenCalledOnce()
     disposeMissing()
 
+    // A point observation that records no cwd is a Session in a workspace with
+    // no directory, which is an ordinary Session: inspection is keyed by
+    // identity, and the absent cwd is not a reason to report it missing.
     const listed = header('cwd-less-catalog', null)
     const disposeListed = providePersistence(ctx, {
       list: () => Promise.resolve([listed]),
       inspect: () => Promise.resolve(unseededInspection(listed)),
     })
-    await expect(inspectApiSession(ctx, listed.id)).rejects.toBeInstanceOf(ApiSessionNotFound)
+    await expect(inspectApiSession(ctx, listed.id)).resolves.toMatchObject({ meta: { id: listed.id } })
+    expect((await inspectApiSession(ctx, listed.id)).meta).not.toHaveProperty('cwd')
     disposeListed()
 
     const catalog = header('cwd-less-inspect')
@@ -118,7 +127,7 @@ describe('ApiSession identity failures', () => {
       list: () => Promise.resolve([catalog]),
       inspect: () => Promise.resolve(unseededInspection(inspected)),
     })
-    await expect(inspectApiSession(ctx, catalog.id)).rejects.toBeInstanceOf(ApiSessionNotFound)
+    await expect(inspectApiSession(ctx, catalog.id)).resolves.toMatchObject({ meta: { id: catalog.id } })
   })
 
   it('forwards an explicit inspection signal', async () => {
@@ -137,7 +146,7 @@ describe('ApiSession identity failures', () => {
 })
 
 describe('ApiSession Agent lookup and recovery', () => {
-  it('resumes directly from a retained observation and rejects an invalid observed header', async () => {
+  it('resumes directly from a retained observation, including one that records no cwd', async () => {
     const { ctx, agents } = await harness()
     const meta = header('observed-resume')
     const resumed = unpublishedAgent(ctx, meta)
@@ -159,11 +168,41 @@ describe('ApiSession Agent lookup and recovery', () => {
     await expect(agents.resolveObservedAgent(observed)).resolves.toEqual({ agent: resumed })
     expect(resume).toHaveBeenCalledWith(expect.objectContaining({ resumeSessionId: meta.id }))
 
-    const invalid = {
+    // A retained observation with no cwd lives in a workspace that has no
+    // directory; the id is the identity, so it resumes like any other.
+    const cwdless = {
       ...observed,
       header: header('observed-without-cwd', null),
     } as SessionObservation
-    await expect(agents.resolveObservedAgent(invalid)).resolves.toMatchObject({
+    await expect(agents.resolveObservedAgent(cwdless)).resolves.toEqual({ agent: resumed })
+    expect(resume).toHaveBeenCalledWith(
+      expect.objectContaining({ resumeSessionId: SessionId('observed-without-cwd') }),
+    )
+  })
+
+  it('refuses to adopt an observation a provider answered under another identity', async () => {
+    // The point query is keyed by identity, so an observation whose header names
+    // a different Session is a provider defect. Adopting it would publish the
+    // wrong Session under the requested id.
+    const { ctx, agents } = await harness({
+      sessionQuery: {
+        observeSession: () => Promise.resolve({
+          source: 'prepared',
+          header: header('some-other-session'),
+          inheritedEventCount: SessionLogOffset(0),
+          events: [],
+          cursor: -1,
+          projections: { asOfSeq: -1, values: {} },
+          retain: vi.fn(),
+          [Symbol.dispose]: vi.fn(),
+        }),
+      },
+    })
+    providePersistence(ctx, {
+      list: () => Promise.resolve([header('requested-identity')]),
+      inspect: () => Promise.resolve(unseededInspection(header('requested-identity'))),
+    })
+    await expect(agents.resolveAgent(SessionId('requested-identity'))).resolves.toMatchObject({
       error: { code: 'session/not-found' },
     })
   })
@@ -436,6 +475,25 @@ describe('ApiSession create or adoption', () => {
     })
     await expect(conflict.agents.ensureSession(stored.id, '/requested', true))
       .rejects.toBeInstanceOf(ApiSessionCwdConflict)
+  })
+
+  it('creates a Session whose workspace has no directory without inventing one', async () => {
+    const { ctx, agents } = await harness()
+    const meta = header('built-in-chat', null)
+    const created = unpublishedAgent(ctx, meta)
+    const create = vi.spyOn(ctx.agents, 'create').mockResolvedValue({
+      agent: created,
+      dispose: () => Promise.resolve(),
+    })
+
+    // No cwd means there is nothing to materialize: creating a directory here
+    // would invent exactly the machine-local fact a pathless workspace is
+    // defined by not having. The old path called `mkdir(undefined)`, which is
+    // why resolving at all is the assertion.
+    await expect(agents.ensureSession(meta.id, undefined, false)).resolves.toBe(created)
+    expect(create).toHaveBeenCalledOnce()
+    const options = create.mock.calls[0]![0]
+    expect(options.meta).not.toHaveProperty('cwd')
   })
 
   it('surfaces directory creation failure and rejects setup without a scoped Agent', async () => {

@@ -38,6 +38,7 @@ const BASELINE_EXEMPT: ReadonlyMap<string, string> = new Map([
   ['packages/client/hypermarkdown/lib/index.js', 'imports .css, which bare Node cannot load'],
   ['packages/client/ui-primitives/lib/index.js', 'imports .css, which bare Node cannot load'],
   ['packages/client/web/lib/index.js', 'imports .css, which bare Node cannot load'],
+  ['packages/experimental/browser-overlay/lib/index.js', 'installs itself against `window` at module scope; it is injected into a page, not imported by a host'],
   ['packages/subprocess/win32-process/lib/index.js', 'koffi type-name collision on a second load'],
   ['packages/test-support/client-runtime/lib/index.js', "needs vitest's internal state"],
 ])

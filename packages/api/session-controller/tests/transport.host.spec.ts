@@ -553,7 +553,11 @@ describe('SessionHistoryController', () => {
     expect(inspect).toHaveBeenCalledTimes(2)
   })
 
-  it('rejects incomplete cold metadata before serving a source', async () => {
+  it('serves a cold ordinary source whose header records no directory', async () => {
+    // Neither a listed header nor an inspected meta lacking a cwd is incomplete
+    // metadata: it describes a Session in a workspace with no directory, and the
+    // address is satisfied by identity. Rejecting here is what made those chats
+    // open onto "not found" while the list still rendered their title.
     const first = await setup()
     const sessionId = SessionId('incomplete')
     const address = { kind: 'session' as const, sessionId }
@@ -567,7 +571,7 @@ describe('SessionHistoryController', () => {
       }),
     }) as never)
     await expect(first.transport.page({ address, throughSeq: -1 }, signal()))
-      .rejects.toMatchObject({ code: 'session/not-found' })
+      .resolves.toMatchObject({ records: [], hasMore: false })
 
     const second = await setup()
     const listed = { version: 0, id: sessionId, createdAt: 1, cwd: '/workspace', isSeeded: false }
@@ -581,7 +585,7 @@ describe('SessionHistoryController', () => {
       }),
     }) as never)
     await expect(second.transport.page({ address, throughSeq: -1 }, signal()))
-      .rejects.toMatchObject({ code: 'session/not-found' })
+      .resolves.toMatchObject({ records: [], hasMore: false })
   })
 
   it('serves cold ordinary history and validates every durable subagent descriptor state', async () => {

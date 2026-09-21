@@ -125,6 +125,9 @@ export async function apply(ctx: Context, config?: ConnectionConfig): Promise<vo
           res.end(rejection === 401 ? 'unauthorized' : 'forbidden')
           return
         }
+        // This is the route the web client actually calls, so it is the one that
+        // has to hand the caller's credential to whoever else presents it.
+        connection.publishCallerCredential(req)
         await bridge(req, res, fetchHandler, maxRequestBodyBytes)
       },
     }

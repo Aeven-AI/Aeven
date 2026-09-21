@@ -176,6 +176,8 @@ flowchart LR
   cfg --> plugin_avn_base_agent_loop
   plugin_avn_base_fs_sandbox["fs-sandbox<br/>@aeven/fs-sandbox"]
   cfg --> plugin_avn_base_fs_sandbox
+  plugin_avn_base_llm_aeven["llm-aeven<br/>@aeven/llm-aeven"]
+  cfg --> plugin_avn_base_llm_aeven
   plugin_avn_base_llm_deepseek["llm-deepseek<br/>@aeven/llm-deepseek"]
   cfg --> plugin_avn_base_llm_deepseek
 ```
@@ -266,6 +268,7 @@ flowchart LR
 | `system-prompt` | `@aeven/system-prompt` |
 | `agent-loop` | `@aeven/agent-loop` |
 | `fs-sandbox` | `@aeven/fs-sandbox` |
+| `llm-aeven` | `@aeven/llm-aeven` |
 | `llm-deepseek` | `@aeven/llm-deepseek` |
 
 Source config: [`packages/bundle/base/cordis.patch.yml`](../../packages/bundle/base/cordis.patch.yml).

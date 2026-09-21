@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aeven browser overlay — demo page</title>
+  <style>
+    /* A deliberately ordinary page: the overlay must read clearly over real content. */
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #0f172a;
+      background: #f8fafc;
+    }
+    header {
+      padding: 40px 32px 28px;
+      background: linear-gradient(160deg, #0b1220, #182338);
+      color: #e2e8f0;
+    }
+    header h1 { margin: 0 0 6px; font-size: 24px; letter-spacing: -0.01em; }
+    header p { margin: 0; color: #94a3b8; max-width: 60ch; }
+    main { padding: 28px 32px 64px; max-width: 900px; }
+    section { margin-bottom: 32px; }
+    h2 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; margin: 0 0 12px; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    button {
+      font: inherit; font-weight: 600; padding: 9px 16px; border-radius: 8px;
+      border: 1px solid #cbd5e1; background: #fff; color: #0f172a; cursor: pointer;
+    }
+    button:hover { border-color: #94a3b8; }
+    button.primary { background: #0069FB; border-color: #0069FB; color: #fff; }
+    .card {
+      border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; background: #fff;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+    .filler { color: #475569; }
+    input { font: inherit; padding: 9px 12px; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%; max-width: 340px; }
+    .dark { background: #0b1220; color: #e2e8f0; border-color: #1e293b; }
+    .dark h2 { color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Aeven browser overlay</h1>
+    <p>A demo page for verifying the agent pointer, target highlight, click feedback, and action label over ordinary content.</p>
+  </header>
+  <main>
+    <section>
+      <h2>Buttons — click target</h2>
+      <div class="row">
+        <button class="primary" id="save">Save changes</button>
+        <button id="cancel">Cancel</button>
+        <button id="danger">Delete</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Form — typing target</h2>
+      <div class="card">
+        <label for="email">Email address</label><br>
+        <input id="email" type="email" placeholder="you@example.com" value="already@filled.example">
+      </div>
+    </section>
+
+    <section>
+      <h2>Cards — hover target</h2>
+      <div class="grid">
+        <div class="card" id="card-a"><strong>Alpha</strong><p class="filler">A short description so the card has real height.</p></div>
+        <div class="card" id="card-b"><strong>Beta</strong><p class="filler">Another card, so a highlight has to pick one.</p></div>
+        <div class="card" id="card-c"><strong>Gamma</strong><p class="filler">A third, to check the box tracks the right element.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Scroll target</h2>
+      <div class="card" id="scroller" style="height: 150px; overflow: auto;">
+        <p>Line one of a scrollable region.</p><p>Line two.</p><p>Line three.</p>
+        <p>Line four.</p><p>Line five.</p><p>Line six.</p><p>Line seven.</p><p>Line eight.</p>
+      </div>
+    </section>
+
+    <section class="card dark">
+      <h2>Dark surface — contrast check</h2>
+      <p class="filler" style="color:#94a3b8">The bubble keeps its white outline so it stays legible on dark backgrounds.</p>
+      <button id="dark-button">Action on dark</button>
+    </section>
+  </main>
+</body>
+</html>

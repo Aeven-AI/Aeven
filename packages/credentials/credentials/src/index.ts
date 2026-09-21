@@ -118,7 +118,7 @@ export function credentialKeyId(key: CredentialKey): string {
 export interface ResolvedCredential {
   /** The non-empty secret value. */
   value: string
-  /** Provider-defined source layer id (the local provider uses `env`, `file`, `project-env`, and `user-env`). */
+  /** Provider-defined source layer id (the local provider uses `env`, `session`, `file`, `project-env`, and `user-env`). */
   source: string
 }
 
@@ -207,6 +207,20 @@ export abstract class CredentialProvider extends Service {
    * @param ref - the reference to remove.
    */
   abstract unset(ref: CredentialRef): Promise<void>
+
+  /**
+   * Publish a credential that belongs to a live session rather than to this
+   * machine, for as long as the process runs.
+   *
+   * Optional, because it is a capability only a provider with an in-memory
+   * layer can offer; a provider that implements it makes the value resolve
+   * above its durable sources so a stored entry cannot shadow a live session.
+   * A caller that needs it must handle absence, which is what makes the
+   * capability additive rather than a widening of every provider's contract.
+   * @param ref - the reference the value answers.
+   * @param value - the credential, or `undefined` to withdraw it.
+   */
+  setSession?(ref: CredentialRef, value: string | undefined): void
 
   /**
    * Read one stored record. The value is returned as its owner wrote it; a

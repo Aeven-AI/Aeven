@@ -70,8 +70,15 @@ export function typertPlugin(pluginOptions: TypertPluginOptions = {}): TypertPlu
       const root = workspaceRoot(bundleOptions.dir)
       if (emittedWorkspaces.has(root)) return
       if (pluginOptions.mode === 'workspace') {
-        emitWorkspace(root, pluginOptions.faces)
+        // Mark the root BEFORE emitting, not after. A workspace pass that throws
+        // must not be retried for every remaining bundle in the build: each
+        // retry constructs a whole TypeScript program, so a rejected Remote
+        // boundary would rebuild one per bundle until the heap is exhausted, and
+        // the process would die of allocation failure instead of reporting the
+        // declaration at fault. Claiming the root first makes the failure cost
+        // exactly one pass and surface as itself.
         emittedWorkspaces.add(root)
+        emitWorkspace(root, pluginOptions.faces)
         return
       }
       const packageDir = packageRoot(bundleOptions.dir, root)

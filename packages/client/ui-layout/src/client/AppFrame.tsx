@@ -1,6 +1,7 @@
 /**
- * Three-column shell frame, registered into the built-in 'root' slot (the web
- * shell renders only 'root'). Owns the flex row (sidebar | center | details),
+ * Four-column shell frame, registered into the built-in 'root' slot (the web
+ * shell renders only 'root'). Owns the flex row
+ * (sidebar | center | details | rightbar),
  * the drag handles (pointer capture + rAF throttle), and the child-slot render
  * decisions: the sidebar slot renders HERE with its stored width, and the
  * session-aware occupants render in fixed column positions; strict entries
@@ -41,7 +42,7 @@ function matchNarrow(): MediaQueryList | undefined {
 /** Full composed props: runtime share + child-slot render share + store share. */
 export type AppFrameProps =
   & PropsRuntime<'root'>
-  & PropsRenderSlots<'sidebar' | 'conversation' | 'details' | 'shell.overlay'>
+  & PropsRenderSlots<'sidebar' | 'conversation' | 'details' | 'rightbar' | 'shell.overlay'>
   & PropsStore<ReturnType<typeof createLayoutStore>>
   & PropsLocale<'common'>
 
@@ -55,11 +56,16 @@ function DetailsColumn(props: { children?: ReactNode }) {
   return <div className={css.detailsCol}>{props.children}</div>
 }
 
+/** Right sidebar column flex item; like details, it closes to zero width mounted. */
+function RightbarColumn(props: { children?: ReactNode }) {
+  return <div className={css.rightbarCol}>{props.children}</div>
+}
+
 /**
  * One drag handle: pointer capture, rAF-throttled dx reports against the drag-start origin.
  * `side` keys the hover-reveal CSS to the owning column.
  */
-function DragHandle(props: { side: 'sidebar' | 'details'; onStart: () => void; onDrag: (dx: number) => void; onEnd: () => void }) {
+function DragHandle(props: { side: 'sidebar' | 'details' | 'rightbar'; onStart: () => void; onDrag: (dx: number) => void; onEnd: () => void }) {
   const [dragging, setDragging] = useState(false)
   const origin = useRef(0)
   const latest = useRef(0)
@@ -91,6 +97,14 @@ function DragHandle(props: { side: 'sidebar' | 'details'; onStart: () => void; o
     setDragging(false)
     callbacks.current.onEnd()
   }, [])
+  // A gesture the browser takes away (a system drag, a lost capture) never
+  // reaches pointerup. Without this the column stays frozen in its dragging
+  // state, holding its transition suspended with no pointer down.
+  const onPointerCancel = useCallback(() => {
+    if (frame.current !== null) { cancelAnimationFrame(frame.current); frame.current = null }
+    setDragging(false)
+    callbacks.current.onEnd()
+  }, [])
 
   return (
     <div
@@ -100,6 +114,8 @@ function DragHandle(props: { side: 'sidebar' | 'details'; onStart: () => void; o
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
+      onLostPointerCapture={onPointerCancel}
     />
   )
 }
@@ -114,24 +130,30 @@ export function AppFrame({
   t,
 }: AppFrameProps) {
   const panels = useStore(s => s)
-  const detailsSession = useSessions((s) => {
+  const currentSession = useSessions((s) => {
     const current = s.current
     return current !== undefined && s.byId[current]?.blank === false ? current : undefined
   })
+  // The right sidebar follows the current session whether or not it has been
+  // written to. A blank session still has a header to open the panel from, and
+  // its control writes under this id; `currentSession` above is narrower
+  // because the details column needs a session with a transcript to inspect.
+  const rightbarSession = useSessions(s => s.current)
   const documentTitle = useSessions((s) => {
     const current = s.current
     return current === undefined ? undefined : s.byId[current]?.title
   })
   const [narrow, setNarrow] = useState(() => matchNarrow()?.matches ?? false)
+  const frameRef = useRef<HTMLDivElement | null>(null)
 
-  const lastSession = useRef(detailsSession)
+  const lastSession = useRef(currentSession)
   useLayoutEffect(() => {
-    if (detailsSession === undefined) return
-    if (lastSession.current !== undefined && lastSession.current !== detailsSession) {
+    if (currentSession === undefined) return
+    if (lastSession.current !== undefined && lastSession.current !== currentSession) {
       actions.closeDetails()
     }
-    lastSession.current = detailsSession
-  }, [actions, detailsSession])
+    lastSession.current = currentSession
+  }, [actions, currentSession])
 
   // The breakpoint is the only viewport fact the shell needs, and it changes
   // when it is crossed rather than while a column animates. A media query says
@@ -155,11 +177,20 @@ export function AppFrame({
   const sidebarWidth = sidebarCollapsed
     ? 0
     : panels.sidebar === 0 ? SIDEBAR_DEFAULT : clampWidth(panels.sidebar, SIDEBAR_MIN, SIDEBAR_MAX)
-  const detailsWidth = detailsSession === undefined || panels.details === 0
+  const detailsWidth = currentSession === undefined || panels.details === 0
     ? 0
     : clampWidth(panels.details, DETAILS_MIN, DETAILS_MAX)
   const detailsRef = useRef(detailsWidth)
   detailsRef.current = detailsWidth
+
+  // The right sidebar is this session's own surface: its width comes from the
+  // session's entry, so switching sessions redraws the column at whatever
+  // width that session was left at, with no transition of its own to run.
+  // Widths are clamped on the way into the store, so the frame only reads.
+  const rightbarSurface = rightbarSession === undefined ? undefined : panels.rightbar[rightbarSession]
+  const rightbarWidth = rightbarSurface?.shown === true ? rightbarSurface.width ?? 0 : 0
+  const rightbarRef = useRef(rightbarWidth)
+  rightbarRef.current = rightbarWidth
 
   // The drag base is the width in force at drag start, frozen for the whole
   // gesture so dx deltas do not compound.
@@ -172,16 +203,34 @@ export function AppFrame({
   const onDetailsDrag = useCallback((dx: number) => {
     actions.setDetails(detailsBase.current - dx)
   }, [actions])
+
+  // The clamp range depends on the frame width, which is read once per gesture
+  // rather than tracked: a resize cannot happen mid-drag, so re-measuring on
+  // every move would buy nothing and put a layout read on the pointer path.
+  const rightbarBase = useRef(0)
+  const rightbarFrame = useRef(0)
+  const onRightbarStart = useCallback(() => {
+    rightbarBase.current = rightbarRef.current
+    rightbarFrame.current = frameRef.current?.getBoundingClientRect().width ?? 0
+    setDragging(true)
+  }, [])
+  const onRightbarDrag = useCallback((dx: number) => {
+    if (rightbarSession === undefined) return
+    actions.setRightbar(rightbarSession, rightbarBase.current - dx, rightbarFrame.current)
+  }, [actions, rightbarSession])
   const productTitle = process.env.AVN_CLIENT_TITLE ?? t('brand.localBuild')
 
   return (
     <div
+      ref={frameRef}
       className={css.frame}
       style={{
         '--avn-frame-details-width': `${String(detailsWidth)}px`,
+        '--avn-frame-rightbar-width': `${String(rightbarWidth)}px`,
       } as CSSProperties}
       data-sidebar-collapsed={sidebarCollapsed || undefined}
       data-details-collapsed={detailsWidth === 0 || undefined}
+      data-rightbar-collapsed={rightbarWidth === 0 || undefined}
       data-dragging={dragging || undefined}
       data-fullscreen={panels.fullscreen || undefined}
     >
@@ -205,13 +254,19 @@ export function AppFrame({
         <DetailsColumn>
           <SessionProvider>{renderSlot('details', {})}</SessionProvider>
         </DetailsColumn>
+        <RightbarColumn>
+          <SessionProvider>
+            {renderSlot('rightbar', { collapsed: rightbarWidth === 0, width: rightbarWidth })}
+          </SessionProvider>
+        </RightbarColumn>
       </>
       <div className={css.overlayLayer} data-shell-overlay>
         {renderSlot('shell.overlay', {})}
       </div>
-      {/* Details is the only draggable column; the sidebar width is a stored
-          preference. */}
+      {/* The two right-hand columns carry handles; the sidebar width is a
+          stored preference with no gesture. */}
       {detailsWidth > 0 && <DragHandle side="details" onStart={onDetailsStart} onDrag={onDetailsDrag} onEnd={onDragEnd} />}
+      {rightbarWidth > 0 && <DragHandle side="rightbar" onStart={onRightbarStart} onDrag={onRightbarDrag} onEnd={onDragEnd} />}
     </div>
   )
 }

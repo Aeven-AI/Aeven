@@ -6,7 +6,7 @@
  */
 
 import type { SessionId } from '@aeven/session/types'
-import type { WorkspaceId } from '@aeven/workspace/types'
+import type { WorkspaceId, WorkspaceKind } from '@aeven/workspace/types'
 
 export type { WorkspaceId } from '@aeven/workspace/types'
 export type { DirectoryEntry, DirectoryListing } from '@aeven/host-directory-picker/types'
@@ -14,8 +14,29 @@ export type { DirectoryEntry, DirectoryListing } from '@aeven/host-directory-pic
 /** One durable Workspace projected for browser consumers. */
 export interface WorkspaceView {
   readonly workspaceId: WorkspaceId
-  /** Canonical host directory path. */
-  readonly path: string
+  /**
+   * Whether this is the built-in workspace, which is pinned and cannot be
+   * removed, renamed, or moved. A client renders it as a fixed part of the
+   * product rather than as a registration the reader owns — in particular it
+   * offers no row actions, because there are none to offer.
+   */
+  readonly isDefault: boolean
+  /**
+   * How this Workspace binds to a filesystem location. Browser consumers must
+   * narrow on `'folder'` before treating {@link path} as a directory.
+   */
+  readonly kind: WorkspaceKind
+  /**
+   * Canonical host directory path, present exactly when {@link kind} is
+   * `'folder'`. A `virtual` or `remote` Workspace has no local directory, so a
+   * consumer that renders or compares a path must handle its absence.
+   *
+   * `null`, not an optional/`undefined` property: this interface is a Remote
+   * boundary type, and the Typert generator rejects `undefined` as a non-JSON
+   * type on that boundary. Absence therefore travels as JSON `null` and is
+   * restored to `undefined` on the domain side of the projection.
+   */
+  readonly path: string | null
   /** User-visible title. */
   readonly title: string
   /** Sessions accounted to this Workspace in manual order. */

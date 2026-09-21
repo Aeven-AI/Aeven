@@ -174,6 +174,7 @@ export class AppWebEntry {
     await afterPaint()
   }
 
+
   /** Mount through a dependency fiber so replacing uiRenderer remounts the application. */
   private async mountApp(ctx: Context): Promise<void> {
     const mounted = ctx.inject(['uiRenderer'], (scope) => {

@@ -63,7 +63,7 @@ kind: "package-reference"
 
 ### 镜像对齐
 
-`tests/protocol-mirror.e2e.ts` 启动真实 `python3`，对照 `src/protocol.ts` 断言 `PROTOCOL_FD`／截断标记文本以及 `py/protocol.py` 中每个 `TypedDict` 的必填／可选 wire 字段集，因此字段改名、删除或一侧把另一侧必填的字段变成可选都会使测试失败。字段*类型*不跨语言边界比较；该残留由评审加后端的真实子进程套件（`tests/runtime.spec.ts`）负责。
+`tests/protocol-mirror.e2e.ts` 启动真实 `python3`，对照 `src/protocol.ts` 断言 `PROTOCOL_FD`／截断标记文本以及 `py/protocol.py` 中每个 `TypedDict` 的必填／可选 wire 字段集，因此字段改名、删除或一侧把另一侧必填的字段变成可选都会使测试失败。字段*类型*不跨语言边界比较；该残留由评审加后端的真实子进程套件（`tests/runtime-*.spec.ts`）负责；这些套件按 `describe` 拆分为同级文件，因为 Vitest 只并行文件、从不并行 `describe` 块，拆分后才能让各套件的负载重叠，而不是在一个 worker 后面排队。
 
 ### 源码地图
 
@@ -74,7 +74,12 @@ kind: "package-reference"
 | [`src/process-start.ts`](src/process-start.ts) | Linux `/proc` 启动时间探针，为拆除流程提供 (pid, started) 身份 |
 | [`py/bootstrap.py`](py/bootstrap.py) | 子进程侧：fd-3 通道、程序执行、binding 分发、账本与结算 |
 | [`py/protocol.py`](py/protocol.py) | Python 侧：`PROTOCOL_FD`、`TypedDict` 帧镜像、`log_truncation_marker` |
-| [`tests/runtime.spec.ts`](tests/runtime.spec.ts) | 真实子进程套件：预算、隔离、敌意帧、名称重绑 |
+| [`tests/harness.ts`](tests/harness.ts) | 下列套件的共享夹具：每个用例一个全新 runtime、临时目录与桩的归属 |
+| [`tests/runtime-seam.spec.ts`](tests/runtime-seam.spec.ts) | 真实子进程套件：seam 描述符、配置／`pythonBin`／binding 校验、暂存失败 |
+| [`tests/runtime-limits.spec.ts`](tests/runtime-limits.spec.ts) | 真实子进程套件：继承的 `RLIMIT_AS` 与 `RLIMIT_CPU` 限制 |
+| [`tests/runtime-programs.spec.ts`](tests/runtime-programs.spec.ts) | 真实子进程套件：程序执行、binding、原生输出解码 |
+| [`tests/runtime-budgets.spec.ts`](tests/runtime-budgets.spec.ts) | 真实子进程套件：预算、终止、拆卸、进程身份 |
+| [`tests/runtime-hostile-peer.spec.ts`](tests/runtime-hostile-peer.spec.ts) | 真实子进程套件：敌意帧、无损 JSON 计量器、名称重绑 |
 | [`tests/protocol-mirror.e2e.ts`](tests/protocol-mirror.e2e.ts) | 对照真实 `python3` 的跨语言镜像测试 |
 | — | 不发布运行时不变式伴生入口：帧顺序、预算计量与拆卸发生在 CPython 子进程或 fd 3 上，因此本包没有可供 Cordis listener 比较的同进程事件序列或独立维护的可变关系；协议镜像与真实子进程测试覆盖这些进程边界行为。 |
 

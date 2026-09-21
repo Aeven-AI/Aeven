@@ -111,7 +111,7 @@ export interface Config {
 
 Depends on: [`AgentOptions`](subsystems/core.md) · [`SessionId`](subsystems/core.md)
 
-Source: [`packages/core/agent-loop/src/index.ts:311`](../packages/core/agent-loop/src/index.ts)
+Source: [`packages/core/agent-loop/src/index.ts:330`](../packages/core/agent-loop/src/index.ts)
 
 <a id="aevenagent-presets"></a>
 
@@ -621,6 +621,30 @@ export interface Config {
 
 Source: [`packages/experimental/code-runtime-python/src/index.ts:47`](../packages/experimental/code-runtime-python/src/index.ts)
 
+<a id="aevenexperimental-computer-use-cua-driver-mcp"></a>
+
+## `@aeven/experimental-computer-use-cua-driver-mcp`
+
+Requires: `computerUse` · `tools`
+
+```ts config-catalog
+/** Installed executable and MCP connection overrides. */
+export interface Config {
+  /** Executable path or PATH command; defaults to `cua-driver`. */
+  command: string
+  /** Arguments passed without a shell; defaults to `['mcp']`. */
+  args: string[]
+  /** Per-call timeout in milliseconds; omission uses the MCP client's default. */
+  toolCallTimeoutMs?: number
+  /** Reconnection overrides; defaults to the MCP client's policy. */
+  reconnect: McpClient.ReconnectConfig
+}
+```
+
+Depends on: [`McpClient`](../packages/mcp/mcp-client/src/index.ts)
+
+Source: [`packages/experimental/computer-use-cua-driver-mcp/src/index.ts:20`](../packages/experimental/computer-use-cua-driver-mcp/src/index.ts)
+
 <a id="aevenexperimental-inspector"></a>
 
 ## `@aeven/experimental-inspector`
@@ -1097,6 +1121,74 @@ export interface Config {
 ```
 
 Source: [`packages/jobs/jobs-local/src/index.ts:31`](../packages/jobs/jobs-local/src/index.ts)
+
+<a id="aevenllm-aeven"></a>
+
+## `@aeven/llm-aeven`
+
+Requires: `llm`
+
+```ts config-catalog
+/**
+ * Entry and user-settings configuration.
+ *
+ * Declared rather than inferred, because schemastery's `z` is a callable generic
+ * rather than a namespace — the same shape `@aeven/llm-deepseek` uses.
+ */
+export interface Config {
+  /** Aeven API origin; `/v1` is appended. Defaults to the development gateway. */
+  apiUrl?: string
+  /** Credential holding the signed-in session; defaults to `AEVEN_TOKEN`. */
+  apiKeyEnv?: string
+  /** Advisory catalog shown to the picker; defaults to the shipped Aeven models. */
+  models?: DeepSeekCatalogModel[]
+  /** Forwarded to the gateway, which accepts both values. */
+  thinking?: 'enabled' | 'disabled'
+  /** Default thinking effort; `off` disables thinking per request. */
+  reasoningEffort?: 'off' | 'low' | 'high' | 'max'
+  /** Default per-request output cap; a model's own cap and explicit request values win. */
+  maxTokens?: number
+  /** Positive context capacity used when the selected model has no exact value. */
+  defaultContextWindow?: number
+  /** Maximum provider idle time while one stream read is outstanding. */
+  streamIdleTimeoutMs?: number
+  /**
+   * The image and Files knobs below are inert on this route: the gateway accepts
+   * images inline as `image_url` parts and has no files API to upload them to,
+   * so nothing here ever offloads, uploads, or expires. They are declared
+   * because {@link DeepSeekConnectionOptions} requires a complete set, and they
+   * are pinned to the adapter's own defaults so an upstream change is inherited
+   * rather than silently overridden here. Each is documented for what it does on
+   * the route that uses it, not for what it does on this one.
+   */
+  /** High watermark for retained request-image bytes before oldest-first offload. */
+  maxRequestFilesBytes?: number
+  /** Independent base64 fallback high watermark, applied when Files mode is unavailable. */
+  maxInlineRequestImageBytes?: number
+  /** High watermark for retained request-image count. */
+  maxImagesPerRequest?: number
+  /** Files-mode oldest-prefix removal quantum, in bytes. */
+  imageOffloadByteQuantum?: number
+  /** Inline-mode oldest-prefix removal quantum, in bytes. */
+  inlineImageOffloadByteQuantum?: number
+  /** Count-overflow removal quantum, in images. */
+  imageOffloadCountQuantum?: number
+  /** Per-image Files resolution deadline. */
+  filesApiTimeoutMs?: number
+  /** Requested uploaded-image lifetime; the provider clamps values outside its own range. */
+  fileExpiresAfterSeconds?: number
+  /** Remaining lifetime below which a cached upload id is replaced rather than reused. */
+  fileRefreshMarginSeconds?: number
+  /** Oldest harness-owned files removed before one upload retry after a quota refusal. */
+  fileQuotaCleanupBatch?: number
+  /** Transport retry policy, resolved once at registration. */
+  retryPolicy?: RetryPolicyConfig
+}
+```
+
+Depends on: [`DeepSeekCatalogModel`](../packages/llm/llm-deepseek/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
+
+Source: [`packages/llm/llm-aeven/src/index.ts:170`](../packages/llm/llm-aeven/src/index.ts)
 
 <a id="aevenllm-deepseek"></a>
 
@@ -3337,7 +3429,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/todo/tool-todo/src/index.ts:37`](../packages/todo/tool-todo/src/index.ts)
+Source: [`packages/todo/tool-todo/src/index.ts:43`](../packages/todo/tool-todo/src/index.ts)
 
 <a id="aeventool-web"></a>
 
@@ -3668,6 +3760,24 @@ export interface Config {
 
 Source: [`packages/workflow/workflow-worker-thread/src/index.ts:32`](../packages/workflow/workflow-worker-thread/src/index.ts)
 
+<a id="aevenworkspace"></a>
+
+## `@aeven/workspace`
+
+Requires: `storageDomain` · `sessionPersistence`
+
+```ts config-catalog
+/** Plugin configuration for the registry. */
+export interface Config {
+  /** Whether a registry without a built-in workspace seeds one at startup (default: true). */
+  seedDefaultWorkspace?: boolean
+  /** Display title given to a newly seeded workspace (default: `Chats`). */
+  defaultWorkspaceTitle?: string
+}
+```
+
+Source: [`packages/workspace/workspace/src/index.ts:43`](../packages/workspace/workspace/src/index.ts)
+
 ## Loadable plugins with no config
 
 These load from a `cordis.yml` entry with no `config:` block; they declare no configuration API.
@@ -3708,6 +3818,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/client-ui-settings-plugin-inventory` ([`packages/client/ui-settings-plugin-inventory/src/index.ts`](../packages/client/ui-settings-plugin-inventory/src/index.ts))
 - `@aeven/client-ui-settings-plugins` ([`packages/client/ui-settings-plugins/src/index.ts`](../packages/client/ui-settings-plugins/src/index.ts))
 - `@aeven/client-ui-sidebar` ([`packages/client/ui-sidebar/src/index.ts`](../packages/client/ui-sidebar/src/index.ts))
+- `@aeven/client-ui-sidebar-right` ([`packages/client/ui-sidebar-right/src/index.ts`](../packages/client/ui-sidebar-right/src/index.ts))
 - `@aeven/client-ui-skill` ([`packages/client/ui-skill/src/index.ts`](../packages/client/ui-skill/src/index.ts))
 - `@aeven/client-ui-subagent` ([`packages/client/ui-subagent/src/index.ts`](../packages/client/ui-subagent/src/index.ts))
 - `@aeven/client-ui-theme` ([`packages/client/ui-theme/src/index.ts`](../packages/client/ui-theme/src/index.ts))
@@ -3720,6 +3831,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/command-feedback` — requires `commands` ([`packages/feedback/command-feedback/src/index.ts`](../packages/feedback/command-feedback/src/index.ts))
 - `@aeven/command-goal` — requires `commands` · `goals` ([`packages/goal/command-goal/src/index.ts`](../packages/goal/command-goal/src/index.ts))
 - `@aeven/commands` ([`packages/interaction/commands/src/index.ts`](../packages/interaction/commands/src/index.ts))
+- `@aeven/computer-use` ([`packages/computer-use/computer-use/src/index.ts`](../packages/computer-use/computer-use/src/index.ts))
 - `@aeven/cordis-client-runner` ([`packages/extensions/cordis-client-runner/src/index.ts`](../packages/extensions/cordis-client-runner/src/index.ts))
 - `@aeven/deepseek-llm-api-extensions` ([`packages/llm/deepseek-llm-api-extensions/src/index.ts`](../packages/llm/deepseek-llm-api-extensions/src/index.ts))
 - `@aeven/experimental-client-ui-agent-team` ([`packages/experimental/client-ui-agent-team/src/index.ts`](../packages/experimental/client-ui-agent-team/src/index.ts))
@@ -3749,7 +3861,6 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/tool-subagent-control` — requires `tools` · `subagents` ([`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts))
 - `@aeven/user-questions` ([`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts))
 - `@aeven/webhook` — requires `agents` · `agentDefaultModel` · `agentPresets` · `permissionPresets` · `sessionTitle` · `workspaceRegistry` ([`packages/webhook/webhook/src/index.ts`](../packages/webhook/webhook/src/index.ts))
-- `@aeven/workspace` — requires `storageDomain` · `sessionPersistence` ([`packages/workspace/workspace/src/index.ts`](../packages/workspace/workspace/src/index.ts))
 
 ## Seam packages (not directly loadable)
 
@@ -3793,6 +3904,7 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 - `@aeven/deque` ([`packages/util/deque/src/index.ts`](../packages/util/deque/src/index.ts))
 - `@aeven/experimental-agent-team-profile` ([`packages/experimental/agent-team-profile/src/index.ts`](../packages/experimental/agent-team-profile/src/index.ts))
 - `@aeven/experimental-agent-team-web-profile` ([`packages/experimental/agent-team-web-profile/src/index.ts`](../packages/experimental/agent-team-web-profile/src/index.ts))
+- `@aeven/experimental-browser-overlay` ([`packages/experimental/browser-overlay/src/index.ts`](../packages/experimental/browser-overlay/src/index.ts))
 - `@aeven/experimental-webworker-packer` ([`packages/experimental/webworker-packer/src/index.ts`](../packages/experimental/webworker-packer/src/index.ts))
 - `@aeven/experimental-webworker-runtime` ([`packages/experimental/webworker-runtime/src/index.ts`](../packages/experimental/webworker-runtime/src/index.ts))
 - `@aeven/home-paths` ([`packages/util/home-paths/src/index.ts`](../packages/util/home-paths/src/index.ts))

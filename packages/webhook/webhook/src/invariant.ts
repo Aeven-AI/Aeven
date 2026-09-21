@@ -26,12 +26,25 @@ const install: InvariantInstaller = Object.assign(function installWebhookMessage
     const webhookMessages = event.data.inserted.filter(message => message.source.kind === 'webhook')
     if (webhookMessages.length === 0) return
     const cwd = session.header.cwd
-    if (cwd === undefined) return fail(`webhook Session "${session.id}" has no cwd`)
     const owners = ctx.workspaceRegistry.list().filter(workspace => workspace.sessionIds.includes(session.id))
     if (owners.length !== 1) {
       return fail(`webhook Session "${session.id}" belongs to ${owners.length} Workspaces at prompt admission`)
     }
-    if (owners[0]?.path !== cwd) {
+    // The location agreement is checked through the kind, not by comparing a
+    // path: a Workspace with no directory owns a Session that records no cwd,
+    // so equality against `owners[0].path` would compare two absences and pass
+    // for the wrong reason. Each kind states its own requirement instead.
+    const owner = owners[0]
+    if (owner?.kind !== 'folder') {
+      if (cwd !== undefined) {
+        fail(`webhook Session "${session.id}" records cwd ${JSON.stringify(cwd)} but its Workspace has no directory`)
+      }
+      return
+    }
+    if (cwd === undefined) {
+      return fail(`webhook Session "${session.id}" has no cwd but its Workspace is a directory`)
+    }
+    if (owner.path !== cwd) {
       fail(`webhook Session "${session.id}" cwd ${JSON.stringify(cwd)} differs from its Workspace path`)
     }
   }, { global: true })

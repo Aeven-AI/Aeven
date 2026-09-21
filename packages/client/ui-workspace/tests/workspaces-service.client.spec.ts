@@ -27,6 +27,8 @@ function workspace(
 ): WorkspaceView {
   return {
     workspaceId: wid(id),
+    isDefault: false,
+    kind: 'folder',
     path: `/w/${id}`,
     title: id,
     sessionIds,
@@ -309,6 +311,46 @@ describe('UiWorkspaceService', () => {
     expect(routed.sessions.open).toHaveBeenCalledTimes(3)
   })
 
+  it('creates the chat an opening address names before any Session has it', async () => {
+    // Following a New Session link in a new window is the case this serves: the
+    // address was published before the chat existed, so the id it names is not
+    // in the list yet and the window must claim it rather than fall back.
+    const existing = summary('existing')
+    const linked = sid('session-linked')
+    const b = bench({
+      sessions: sessionState([existing], existing.id),
+      workspaces: workspaceState([workspace('home', [existing.id])]),
+      sessionUrl: new FakeSessionUrl(linked),
+    })
+    b.sessions.create.mockImplementation(async options => options?.sessionId ?? sid('host-minted'))
+
+    await vi.waitFor(() => {
+      expect(b.sessions.open).toHaveBeenLastCalledWith(linked)
+    })
+    // The address's own id is the one created, so the new window shows the chat
+    // the link promised instead of the previously current Session.
+    expect(b.sessions.create).toHaveBeenCalledWith({
+      workspaceId: wid('home'),
+      sessionId: linked,
+    })
+    // Claimed outright: the URL is kept, never rewritten away.
+    expect(b.sessionUrl.replacements).toEqual([])
+  })
+
+  it('abandons an opening address it cannot claim', async () => {
+    // The lists have arrived but no Workspace exists to host the chat, so there
+    // is nothing to create and the window must not present a URL naming a
+    // Session that will never exist.
+    const b = bench({
+      sessions: sessionState([], undefined, 'ready'),
+      workspaces: workspaceState([], [], 'ready'),
+      sessionUrl: new FakeSessionUrl(sid('session-orphan')),
+    })
+    await flush()
+    expect(b.sessions.create).not.toHaveBeenCalled()
+    expect(b.sessionUrl.replacements).toEqual([undefined])
+  })
+
   it('leaves the selection alone when the opening address already names it', () => {
     // Reconciling the first address must not re-open the Session the shell
     // already restored: that would push a second history entry for it.
@@ -447,6 +489,51 @@ describe('UiWorkspaceService', () => {
     await vi.waitFor(() => {
       expect(warning).toHaveBeenCalledWith('new session failed:', expect.any(Error))
     })
+  })
+
+  it('creates a link-named Session under the id the link published', async () => {
+    // The New Session control is a real anchor, so the id has to exist before
+    // there is a Session to name: the address is minted up front and the Host
+    // is then asked to create exactly that chat.
+    const home = summary('home', { cwd: '/w/home', updatedAt: 1 })
+    const b = bench({
+      sessions: sessionState([home], home.id),
+      workspaces: workspaceState([workspace('home', [home.id])]),
+    })
+    b.sessions.create.mockImplementation(async options => options?.sessionId ?? sid('minted-by-host'))
+
+    const target = b.uiWorkspace.newSessionHref()
+    // A bare path for the address bar, and the prefixed id the client carries.
+    expect(target.href).toBe(`/c/${target.sessionId.slice('session-'.length)}`)
+    expect(target.sessionId.startsWith('session-')).toBe(true)
+
+    b.uiWorkspace.startSession(undefined, target.sessionId)
+    await vi.waitFor(() => {
+      expect(b.sessions.open).toHaveBeenLastCalledWith(target.sessionId)
+    })
+    // Created under the published id rather than a Host-minted one, so the
+    // address that was opened and the Session that appears are the same chat.
+    expect(b.sessions.create).toHaveBeenLastCalledWith({
+      workspaceId: wid('home'),
+      sessionId: target.sessionId,
+    })
+  })
+
+  it('re-arms the New Session address on every ask', async () => {
+    // A link nobody activates must not reserve an id, and a link that has been
+    // activated must stop naming a live Session, so each ask is a fresh chat.
+    const home = summary('home', { cwd: '/w/home', updatedAt: 1 })
+    const b = bench({
+      sessions: sessionState([home], home.id),
+      workspaces: workspaceState([workspace('home', [home.id])]),
+    })
+
+    const first = b.uiWorkspace.newSessionHref()
+    const second = b.uiWorkspace.newSessionHref()
+
+    expect(first.sessionId).not.toBe(second.sessionId)
+    expect(first.href).not.toBe(second.href)
+    expect(first.href).toMatch(/^\/c\/[0-9a-f-]{36}$/)
   })
 
   it('opens the recent Workspace after both baselines arrive', async () => {

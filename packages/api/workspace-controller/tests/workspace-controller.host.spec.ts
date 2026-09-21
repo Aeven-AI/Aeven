@@ -48,7 +48,11 @@ async function harness() {
   ctx.storage.mount('domain', storageDomain)
   ctx.provide('storageDomain', storageDomain)
   ctx.provide('sessionPersistence', { list: () => Promise.resolve([]) } as never)
-  await ctx.plugin(WorkspaceRegistry)
+  // Seeding is off: this suite asserts exact registry contents and domain
+  // increments, and an unasked-for built-in workspace would add a row and four
+  // writes to every expectation. The seeding behaviour has its own tests in
+  // @aeven/workspace.
+  await ctx.plugin(WorkspaceRegistry, { seedDefaultWorkspace: false })
   const dispose = (): void => {}
   ctx.provide('typert', {
     lookups: { configure: () => dispose },
@@ -62,6 +66,20 @@ function stageDir(root: string, name: string): string {
   const path = join(root, name)
   mkdirSync(path, { recursive: true })
   return path
+}
+
+/**
+ * The directory of a Workspace this suite created by path. `create` adopts an
+ * existing directory, so the projection it returns is always folder-backed;
+ * asserting that here keeps the fixture honest now that a Workspace may have
+ * no path at all. The projection is a Remote value, so absence arrives as
+ * `null` rather than `undefined`.
+ * @param workspace - projection returned by `create`.
+ * @returns the canonical directory path.
+ */
+function folderPathOf(workspace: { readonly path: string | null }): string {
+  if (workspace.path === null) throw new Error('fixture Workspace has no directory')
+  return workspace.path
 }
 
 async function nextFrame(
@@ -186,7 +204,7 @@ describe('WorkspaceController commands', () => {
       .rejects.toMatchObject({ code: 'workspace/not-found' })
 
     const session = ctx.sessions.create(SessionId('session-one'), {
-      meta: { cwd: first.workspace.path },
+      meta: { cwd: folderPathOf(first.workspace) },
     })
     const workspace = ctx.workspaceRegistry.get(first.workspace.workspaceId)
     if (workspace === undefined) throw new Error('fixture Workspace disappeared')
@@ -281,7 +299,7 @@ describe('WorkspaceController follow', () => {
     })
 
     const session = ctx.sessions.create(SessionId('archived'), {
-      meta: { cwd: first.workspace.path },
+      meta: { cwd: folderPathOf(first.workspace) },
     })
     await controller.archiveSession({ sessionId: session.id })
     await expect(nextFrame(iterator)).resolves.toEqual({

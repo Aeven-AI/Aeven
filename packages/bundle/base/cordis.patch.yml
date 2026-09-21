@@ -75,8 +75,8 @@
     - id: agent-default-model
       name: '@aeven/agent-default-model'
       config:
-        provider: deepseek-official
-        model: deepseek-v4-flash
+        provider: aeven-cloud
+        model: Aeven-1.0-Flash
 
     - id: jobs
       name: '@aeven/jobs-local'
@@ -486,6 +486,20 @@
     # overlay can pin another workspace.
     - id: fs-sandbox
       name: '@aeven/fs-sandbox'
+
+    # The Aeven cloud route: the same OpenAI-compatible transport as the DeepSeek
+    # adapter below, aimed at Aeven's own gateway. It exists because a sign-in
+    # already establishes what a provider key otherwise supplies, so a signed-in
+    # user needs no credential of their own to be served — and it is what makes
+    # the `agent-default-model` selection above reachable on a fresh install.
+    #
+    # `apiUrl` reads the same environment value the identity authority is
+    # configured with, so identity and inference are one origin rather than two
+    # settings that can drift.
+    - id: llm-aeven
+      name: '@aeven/llm-aeven'
+      config:
+        apiUrl: !!js process.env.AEVEN_API_URL ?? 'http://localhost:9000'
 
     # The native DeepSeek adapter. No key or endpoint is inlined: both resolve per
     # request from the `llm-deepseek:` settings section over this entry, with the

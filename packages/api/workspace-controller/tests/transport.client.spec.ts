@@ -65,6 +65,8 @@ const baseline = (id?: string): Extract<WorkspaceFollowFrame, { type: 'baseline'
   value: {
     items: id === undefined ? [] : [{
       workspaceId: id as never,
+      isDefault: false,
+      kind: 'folder',
       path: `/work/${id}`,
       title: id,
       sessionIds: [],
@@ -81,6 +83,8 @@ const sid = (id: string): SessionId => SessionId(id)
 function workspace(id: string, overrides: Partial<WorkspaceView> = {}): WorkspaceView {
   return {
     workspaceId: wid(id),
+    isDefault: false,
+    kind: 'folder',
     path: `/work/${id}`,
     title: id,
     sessionIds: [],

@@ -113,7 +113,7 @@ export interface Config {
 
 依赖：[`AgentOptions`](subsystems/core.zh.md) · [`SessionId`](subsystems/core.zh.md)
 
-来源：[`packages/core/agent-loop/src/index.ts:311`](../packages/core/agent-loop/src/index.ts)
+来源：[`packages/core/agent-loop/src/index.ts:330`](../packages/core/agent-loop/src/index.ts)
 
 <a id="aevenagent-presets"></a>
 ## `@aeven/agent-presets`
@@ -623,6 +623,29 @@ export interface Config {
 
 来源：[`packages/experimental/code-runtime-python/src/index.ts:47`](../packages/experimental/code-runtime-python/src/index.ts)
 
+<a id="aevenexperimental-computer-use-cua-driver-mcp"></a>
+## `@aeven/experimental-computer-use-cua-driver-mcp`
+
+需要：`computerUse` · `tools`
+
+```ts config-catalog
+/** Installed executable and MCP connection overrides. */
+export interface Config {
+  /** Executable path or PATH command; defaults to `cua-driver`. */
+  command: string
+  /** Arguments passed without a shell; defaults to `['mcp']`. */
+  args: string[]
+  /** Per-call timeout in milliseconds; omission uses the MCP client's default. */
+  toolCallTimeoutMs?: number
+  /** Reconnection overrides; defaults to the MCP client's policy. */
+  reconnect: McpClient.ReconnectConfig
+}
+```
+
+依赖：[`McpClient`](../packages/mcp/mcp-client/src/index.ts)
+
+来源：[`packages/experimental/computer-use-cua-driver-mcp/src/index.ts:20`](../packages/experimental/computer-use-cua-driver-mcp/src/index.ts)
+
 <a id="aevenexperimental-inspector"></a>
 ## `@aeven/experimental-inspector`
 
@@ -1099,6 +1122,74 @@ export interface Config {
 
 
 来源：[`packages/jobs/jobs-local/src/index.ts:31`](../packages/jobs/jobs-local/src/index.ts)
+
+<a id="aevenllm-aeven"></a>
+
+## `@aeven/llm-aeven`
+
+需要：`llm`
+
+```ts config-catalog
+/**
+ * Entry and user-settings configuration.
+ *
+ * Declared rather than inferred, because schemastery's `z` is a callable generic
+ * rather than a namespace — the same shape `@aeven/llm-deepseek` uses.
+ */
+export interface Config {
+  /** Aeven API origin; `/v1` is appended. Defaults to the development gateway. */
+  apiUrl?: string
+  /** Credential holding the signed-in session; defaults to `AEVEN_TOKEN`. */
+  apiKeyEnv?: string
+  /** Advisory catalog shown to the picker; defaults to the shipped Aeven models. */
+  models?: DeepSeekCatalogModel[]
+  /** Forwarded to the gateway, which accepts both values. */
+  thinking?: 'enabled' | 'disabled'
+  /** Default thinking effort; `off` disables thinking per request. */
+  reasoningEffort?: 'off' | 'low' | 'high' | 'max'
+  /** Default per-request output cap; a model's own cap and explicit request values win. */
+  maxTokens?: number
+  /** Positive context capacity used when the selected model has no exact value. */
+  defaultContextWindow?: number
+  /** Maximum provider idle time while one stream read is outstanding. */
+  streamIdleTimeoutMs?: number
+  /**
+   * The image and Files knobs below are inert on this route: the gateway accepts
+   * images inline as `image_url` parts and has no files API to upload them to,
+   * so nothing here ever offloads, uploads, or expires. They are declared
+   * because {@link DeepSeekConnectionOptions} requires a complete set, and they
+   * are pinned to the adapter's own defaults so an upstream change is inherited
+   * rather than silently overridden here. Each is documented for what it does on
+   * the route that uses it, not for what it does on this one.
+   */
+  /** High watermark for retained request-image bytes before oldest-first offload. */
+  maxRequestFilesBytes?: number
+  /** Independent base64 fallback high watermark, applied when Files mode is unavailable. */
+  maxInlineRequestImageBytes?: number
+  /** High watermark for retained request-image count. */
+  maxImagesPerRequest?: number
+  /** Files-mode oldest-prefix removal quantum, in bytes. */
+  imageOffloadByteQuantum?: number
+  /** Inline-mode oldest-prefix removal quantum, in bytes. */
+  inlineImageOffloadByteQuantum?: number
+  /** Count-overflow removal quantum, in images. */
+  imageOffloadCountQuantum?: number
+  /** Per-image Files resolution deadline. */
+  filesApiTimeoutMs?: number
+  /** Requested uploaded-image lifetime; the provider clamps values outside its own range. */
+  fileExpiresAfterSeconds?: number
+  /** Remaining lifetime below which a cached upload id is replaced rather than reused. */
+  fileRefreshMarginSeconds?: number
+  /** Oldest harness-owned files removed before one upload retry after a quota refusal. */
+  fileQuotaCleanupBatch?: number
+  /** Transport retry policy, resolved once at registration. */
+  retryPolicy?: RetryPolicyConfig
+}
+```
+
+依赖： [`DeepSeekCatalogModel`](../packages/llm/llm-deepseek/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
+
+源码：[`packages/llm/llm-aeven/src/index.ts:170`](../packages/llm/llm-aeven/src/index.ts)
 
 <a id="aevenllm-deepseek"></a>
 ## `@aeven/llm-deepseek`
@@ -3339,7 +3430,7 @@ export interface Config {
 ```
 
 
-来源：[`packages/todo/tool-todo/src/index.ts:37`](../packages/todo/tool-todo/src/index.ts)
+来源：[`packages/todo/tool-todo/src/index.ts:43`](../packages/todo/tool-todo/src/index.ts)
 
 <a id="aeventool-web"></a>
 ## `@aeven/tool-web`
@@ -3670,6 +3761,24 @@ export interface Config {
 
 来源：[`packages/workflow/workflow-worker-thread/src/index.ts:32`](../packages/workflow/workflow-worker-thread/src/index.ts)
 
+<a id="aevenworkspace"></a>
+
+## `@aeven/workspace`
+
+需要：`storageDomain` · `sessionPersistence`
+
+```ts config-catalog
+/** Plugin configuration for the registry. */
+export interface Config {
+  /** Whether a registry without a built-in workspace seeds one at startup (default: true). */
+  seedDefaultWorkspace?: boolean
+  /** Display title given to a newly seeded workspace (default: `Chats`). */
+  defaultWorkspaceTitle?: string
+}
+```
+
+源码：[`packages/workspace/workspace/src/index.ts:43`](../packages/workspace/workspace/src/index.ts)
+
 ## 无配置的可加载插件
 
 这些插件通过 `cordis.yml` 中不含 `config:` 块的条目加载；它们未声明任何配置接口。
@@ -3710,6 +3819,7 @@ export interface Config {
 - `@aeven/client-ui-settings-plugin-inventory`（[`packages/client/ui-settings-plugin-inventory/src/index.ts`](../packages/client/ui-settings-plugin-inventory/src/index.ts)）
 - `@aeven/client-ui-settings-plugins`（[`packages/client/ui-settings-plugins/src/index.ts`](../packages/client/ui-settings-plugins/src/index.ts)）
 - `@aeven/client-ui-sidebar`（[`packages/client/ui-sidebar/src/index.ts`](../packages/client/ui-sidebar/src/index.ts)）
+- `@aeven/client-ui-sidebar-right`（[`packages/client/ui-sidebar-right/src/index.ts`](../packages/client/ui-sidebar-right/src/index.ts)）
 - `@aeven/client-ui-skill`（[`packages/client/ui-skill/src/index.ts`](../packages/client/ui-skill/src/index.ts)）
 - `@aeven/client-ui-subagent`（[`packages/client/ui-subagent/src/index.ts`](../packages/client/ui-subagent/src/index.ts)）
 - `@aeven/client-ui-theme`（[`packages/client/ui-theme/src/index.ts`](../packages/client/ui-theme/src/index.ts)）
@@ -3722,6 +3832,7 @@ export interface Config {
 - `@aeven/command-feedback` — 需要 `commands`（[`packages/feedback/command-feedback/src/index.ts`](../packages/feedback/command-feedback/src/index.ts)）
 - `@aeven/command-goal` — 需要 `commands` · `goals`（[`packages/goal/command-goal/src/index.ts`](../packages/goal/command-goal/src/index.ts)）
 - `@aeven/commands`（[`packages/interaction/commands/src/index.ts`](../packages/interaction/commands/src/index.ts)）
+- `@aeven/computer-use`（[`packages/computer-use/computer-use/src/index.ts`](../packages/computer-use/computer-use/src/index.ts)）
 - `@aeven/cordis-client-runner`（[`packages/extensions/cordis-client-runner/src/index.ts`](../packages/extensions/cordis-client-runner/src/index.ts)）
 - `@aeven/deepseek-llm-api-extensions`（[`packages/llm/deepseek-llm-api-extensions/src/index.ts`](../packages/llm/deepseek-llm-api-extensions/src/index.ts)）
 - `@aeven/experimental-client-ui-agent-team`（[`packages/experimental/client-ui-agent-team/src/index.ts`](../packages/experimental/client-ui-agent-team/src/index.ts)）
@@ -3751,7 +3862,6 @@ export interface Config {
 - `@aeven/tool-subagent-control` — 需要 `tools` · `subagents`（[`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts)）
 - `@aeven/user-questions`（[`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts)）
 - `@aeven/webhook` — 需要 `agents` · `agentDefaultModel` · `agentPresets` · `permissionPresets` · `sessionTitle` · `workspaceRegistry`（[`packages/webhook/webhook/src/index.ts`](../packages/webhook/webhook/src/index.ts)）
-- `@aeven/workspace` — 需要 `storageDomain` · `sessionPersistence`（[`packages/workspace/workspace/src/index.ts`](../packages/workspace/workspace/src/index.ts)）
 
 ## Seam 包（不可直接加载）
 
@@ -3773,6 +3883,7 @@ export interface Config {
 - `@aeven/spill` — 抽象 `SpillStore`（[`packages/spill/spill/src/index.ts`](../packages/spill/spill/src/index.ts)）
 - `@aeven/subprocess` — 抽象 `SubprocessRuntime`（[`packages/subprocess/subprocess/src/index.ts`](../packages/subprocess/subprocess/src/index.ts)）
 - `@aeven/workflow` — 抽象 `WorkflowEngine`（[`packages/workflow/workflow/src/index.ts`](../packages/workflow/workflow/src/index.ts)）
+
 ## 库包（无插件入口）
 
 由其他包作为库导入；`cordis.yml` 无法加载它们。
@@ -3794,6 +3905,7 @@ export interface Config {
 - `@aeven/deque`（[`packages/util/deque/src/index.ts`](../packages/util/deque/src/index.ts)）
 - `@aeven/experimental-agent-team-profile`（[`packages/experimental/agent-team-profile/src/index.ts`](../packages/experimental/agent-team-profile/src/index.ts)）
 - `@aeven/experimental-agent-team-web-profile`（[`packages/experimental/agent-team-web-profile/src/index.ts`](../packages/experimental/agent-team-web-profile/src/index.ts)）
+- `@aeven/experimental-browser-overlay`（[`packages/experimental/browser-overlay/src/index.ts`](../packages/experimental/browser-overlay/src/index.ts)）
 - `@aeven/experimental-webworker-packer`（[`packages/experimental/webworker-packer/src/index.ts`](../packages/experimental/webworker-packer/src/index.ts)）
 - `@aeven/experimental-webworker-runtime`（[`packages/experimental/webworker-runtime/src/index.ts`](../packages/experimental/webworker-runtime/src/index.ts)）
 - `@aeven/home-paths`（[`packages/util/home-paths/src/index.ts`](../packages/util/home-paths/src/index.ts)）

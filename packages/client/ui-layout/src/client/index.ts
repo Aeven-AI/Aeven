@@ -25,6 +25,7 @@ import { ThemePresenter } from './theme-presenter.ts'
 // against; the frame components and the store factory are package-internal.
 export { LayoutController } from './service.ts'
 export type { ILayout } from './service.ts'
+export type { RightbarSurface } from './stores.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -74,6 +75,20 @@ declare module '@aeven/client-ui-slots' {
      */
     'details': { kind: 'single'; scope: 'session'; owner: DetailsOwnerProps }
     /**
+     * The right sidebar column, a per-session surface the reader opens and
+     * closes from the session header. OCCUPIED by ui-sidebar-right; absent an
+     * occupant the column renders nothing.
+     *
+     * Distinct from `details`, which inspects one selected tool call: this
+     * column's content does not follow the transcript. The two are separate
+     * columns with separate widths and may stand open together, each taking
+     * its own share from the center.
+     *
+     * No owner props: the framework injects the session id and hooks for the
+     * `session` scope, and `ctx.layout` owns whether the column is open.
+     */
+    'rightbar': { kind: 'single'; scope: 'session'; owner: RightbarOwnerProps }
+    /**
      * Frame-wide floating layer, above every column and outside their scroll
      * containers. Deliberately generic and unowned by any feature: a badge, a
      * toast stack or a status pill all belong here, and entries order among
@@ -107,6 +122,18 @@ export interface ConvOwnerProps {}
 /** Details owner share: empty — sessionId arrives as a framework-standard prop. */
 export interface DetailsOwnerProps {}
 
+/**
+ * Right sidebar owner share. The frame already resolves the column's width to
+ * place its handle, so it states the panel's geometry rather than making the
+ * occupant re-derive it from a store it does not own.
+ */
+export interface RightbarOwnerProps {
+  /** Whether the column is closed (zero width) for the current session. */
+  collapsed: boolean
+  /** Rendered column width in px; 0 while collapsed. */
+  width: number
+}
+
 /** Required services (cordis fiber inject — the loader passes all module exports as an object plugin). */
 export const inject = ['slots', 'theme', 'locale']
 
@@ -127,6 +154,7 @@ export function apply(ctx: ClientContext): void {
         'sidebar': { kind: 'single', scope: 'root' },
         'conversation': { kind: 'single', scope: 'session-maybe' },
         'details': { kind: 'single', scope: 'session' },
+        'rightbar': { kind: 'single', scope: 'session' },
         'shell.overlay': { kind: 'list', scope: 'root' },
       },
       // Exclusive store: the factory itself — the framework instantiates per
@@ -145,6 +173,7 @@ export function apply(ctx: ClientContext): void {
       void disposeService()
     }
   }, 'ui-layout: service + root registration')
+
 
   // Theme presentation: pure DOM writes from resolved snapshots — initial
   // state through the getter once, then event-driven only; no React path.

@@ -8,25 +8,60 @@
 import { randomUUID } from 'node:crypto'
 import { stat } from 'node:fs/promises'
 import { Context, Service } from '@deepseek-ai/cordis'
+import z from '@deepseek-ai/schemastery'
 import type { SessionHeader, SessionId } from '@aeven/session'
 import type {} from '@aeven/session-persistence'
 import type { DomainGlobal, KvTable } from '@aeven/storage-domain'
-import { WorkspaceEntity } from './entity.ts'
+import { WorkspaceDefaultImmutableError, WorkspaceEntity } from './entity.ts'
 import type { WorkspaceEntityHost } from './entity.ts'
 
-export { WorkspaceMoveInvalidError } from './entity.ts'
+export { WorkspaceDefaultImmutableError, WorkspaceMoveInvalidError } from './entity.ts'
 import { defaultWorkspaceTitle, realpathNormalize } from './paths.ts'
-import { workspaceDomainSpec } from './spec.ts'
+import { kindPathAgrees, workspaceDomainSpec } from './spec.ts'
 import type { WorkspaceDomainState, WorkspaceRecord } from './spec.ts'
-import type { Workspace, WorkspaceId as WorkspaceIdBrand } from './types.ts'
+import type { FolderWorkspace, Workspace, WorkspaceId as WorkspaceIdBrand } from './types.ts'
 
-export type { Workspace } from './types.ts'
-export { workspaceDomainState, workspaceRecord, workspaceDomainSpec } from './spec.ts'
+export type { FolderWorkspace, Workspace, WorkspaceKind } from './types.ts'
+export {
+  INITIAL_WORKSPACE_DOMAIN_STATE,
+  kindPathAgrees,
+  WORKSPACE_KINDS,
+  workspaceDomainSpec,
+  workspaceDomainState,
+  workspaceRecord,
+} from './spec.ts'
 export type { WorkspaceDomainState, WorkspaceRecord } from './spec.ts'
 export { realpathNormalize } from './paths.ts'
 
+/** Whether a registry without a built-in workspace seeds one (the schema default). */
+export const DEFAULT_SEED_DEFAULT_WORKSPACE = true
+
+/** Display title a newly seeded built-in workspace is given (the schema default). */
+export const DEFAULT_DEFAULT_WORKSPACE_TITLE = 'Chats'
+
+/** Plugin configuration for the registry. */
+export interface Config {
+  /** Whether a registry without a built-in workspace seeds one at startup (default: true). */
+  seedDefaultWorkspace?: boolean
+  /** Display title given to a newly seeded workspace (default: `Chats`). */
+  defaultWorkspaceTitle?: string
+}
+
 /** Identifies one workspace record (see `src/types.ts` for the brand rationale). */
 export type WorkspaceId = WorkspaceIdBrand
+
+/**
+ * Whether one workspace is folder-backed, narrowing {@link Workspace.path} to a
+ * present string. The registry's own `create` is the only producer of folder
+ * workspaces today, but consumers must not rely on that: the narrowing is how
+ * a caller that genuinely needs a directory states the requirement instead of
+ * asserting it.
+ * @param workspace - any workspace.
+ * @returns true when the workspace has a canonical directory path.
+ */
+export function isFolderWorkspace(workspace: Workspace): workspace is FolderWorkspace {
+  return workspace.kind === 'folder' && workspace.path !== undefined
+}
 
 /**
  * Brand a string as a {@link WorkspaceId}.
@@ -61,7 +96,6 @@ export class WorkspaceOrderInvalidError extends Error {
     this.name = 'WorkspaceOrderInvalidError'
   }
 }
-
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -98,6 +132,21 @@ const compareHeaders = (left: SessionHeader, right: SessionHeader): number =>
 export class WorkspaceRegistry extends Service {
   static inject = ['storageDomain', 'sessionPersistence']
 
+  // Inline schema call: the config catalog walks `static Config` statically.
+  static Config: z<Config> = z.object({
+    /**
+     * Whether a registry with no built-in workspace seeds one at startup. On by
+     * default: a first run must be able to accept a message without first
+     * demanding a folder, and an off deployment has to opt out explicitly.
+     */
+    seedDefaultWorkspace: z.boolean().default(DEFAULT_SEED_DEFAULT_WORKSPACE),
+    /**
+     * Display title of the seeded workspace. A durable record keeps the title it
+     * was seeded with; this only names one at creation time.
+     */
+    defaultWorkspaceTitle: z.string().default(DEFAULT_DEFAULT_WORKSPACE_TITLE),
+  })
+
   private table?: KvTable<WorkspaceId, WorkspaceRecord>
   private global?: DomainGlobal<WorkspaceDomainState>
   private state?: WorkspaceDomainState
@@ -115,16 +164,35 @@ export class WorkspaceRegistry extends Service {
       this.sessionPaths.set(id, path)
       this.invalidSessionPaths.delete(id)
     },
+    isDefault: id => this.requireState().defaultWorkspaceId === id,
   }
 
-  constructor(ctx: Context) {
+  /**
+   * @param ctx - Host context the registry publishes itself on.
+   * @param config - Seeding configuration. Optional so a direct
+   *   `ctx.plugin(WorkspaceRegistry)` mount stays valid; the defaults are stated
+   *   once as {@link DEFAULT_SEED_DEFAULT_WORKSPACE} and
+   *   {@link DEFAULT_DEFAULT_WORKSPACE_TITLE} and resolved at each use, so they
+   *   hold whether or not a loader applied `WorkspaceRegistry.Config`.
+   */
+  constructor(ctx: Context, private readonly config: Config = {}) {
     super(ctx, 'workspaceRegistry')
     // Every birth re-derives membership, so no creation path can strand a
     // Session outside the Workspace its own cwd names.
     ctx.on('session/created', (session) => { void this.adoptByCwd(session.header) })
   }
 
-  /** Open the domain, finish bootstrap when required, and rebuild the ordered cache. */
+  /**
+   * Open the domain, finish bootstrap when required, seed the built-in
+   * workspace, and rebuild the ordered cache.
+   *
+   * Seeding happens here, before the service becomes active, and never in a
+   * separate startup plugin. A consumer that observes the registry must never
+   * see a first run without its built-in workspace: the client's startup
+   * navigation resolves a workspace exactly once and latches, so a workspace
+   * that appeared after its first baseline would leave the reader on the
+   * blocked empty state for the rest of the session.
+   */
   protected async [Service.init](): Promise<void> {
     const domain = await this.ctx.storageDomain.open(workspaceDomainSpec)
     this.ctx.effect(() => () => domain.close(), 'workspace.domainClose')
@@ -143,6 +211,8 @@ export class WorkspaceRegistry extends Service {
     }
 
     await this.indexLiveSessions()
+    this.validateStoredState(this.requireState())
+    await this.ensureDefaultWorkspace()
     this.validateStoredState(this.requireState())
     this.rebuildEntities()
     await this.reconcileMembership()
@@ -203,23 +273,47 @@ export class WorkspaceRegistry extends Service {
    * session log. The durable order is updated before the table deletion; a
    * failed table write restores the prior order and keeps the entity
    * published. Unknown ids are an idempotent no-op for domain callers.
+   *
+   * The built-in workspace refuses deletion. It is the one registration the
+   * product guarantees a reader has, and removing it would restore the state
+   * the registration exists to prevent — a first screen that demands a folder
+   * before it accepts a message. A deployment that does not want one turns
+   * seeding off in configuration rather than deleting it at runtime.
    * @param id - Workspace registration to remove.
    * @returns `true` when a record was deleted, `false` when it was unknown.
+   * @throws {WorkspaceDefaultImmutableError} when the id names the built-in workspace.
    */
   delete(id: WorkspaceId): Promise<boolean> {
-    return this.enqueueOperation(() => this.deleteKnown(id))
+    return this.enqueueOperation(() => {
+      if (this.requireState().defaultWorkspaceId === id) {
+        throw new WorkspaceDefaultImmutableError(id, 'delete')
+      }
+      return this.deleteKnown(id)
+    })
   }
 
   /**
    * Move one workspace within the durable display order, DOM-insertBefore-like.
    * With an anchor it lands before that workspace; without one it appends.
+   *
+   * The built-in workspace is pinned at the head: it is where a reader lands
+   * when nothing is selected, so its position is part of what makes the first
+   * screen predictable rather than a preference a drag can reorder.
    * @param id - Workspace to move.
    * @param beforeId - Workspace anchor; omitted appends.
    * @returns the complete committed workspace order.
+   * @throws {WorkspaceDefaultImmutableError} when the move would displace the built-in workspace from the head.
    */
   insertBefore(id: WorkspaceId, beforeId?: WorkspaceId): Promise<readonly WorkspaceId[]> {
     return this.enqueueOperation(async () => {
       const state = this.requireState()
+      const pinned = state.defaultWorkspaceId
+      // Any move of the head-pinned workspace would displace it, including an
+      // append (a move with no anchor) — so the rule is "the built-in workspace
+      // does not move", not "it does not move before something".
+      if (pinned !== undefined && id === pinned && state.workspaceIds[0] === pinned) {
+        throw new WorkspaceDefaultImmutableError(id, 'move')
+      }
       if (!state.workspaceIds.includes(id)) throw new WorkspaceOrderInvalidError(id)
       if (beforeId !== undefined && !state.workspaceIds.includes(beforeId)) {
         throw new WorkspaceOrderInvalidError(beforeId)
@@ -303,6 +397,7 @@ export class WorkspaceRegistry extends Service {
     const id = WorkspaceId(randomUUID())
     const now = new Date().toISOString()
     const record: WorkspaceRecord = {
+      kind: 'folder',
       path: canonical,
       title: workspaceName,
       sessionIds: [],
@@ -311,37 +406,13 @@ export class WorkspaceRegistry extends Service {
     }
     const entity = new WorkspaceEntity(this.host, id, record)
     this.entities.set(id, entity)
-    const pendingState: WorkspaceDomainState = {
-      ...state,
-      pendingMutation: { operation: 'create', workspaceId: id },
-    }
-    try {
-      await this.setState(pendingState)
-    } catch (error) {
-      this.entities.delete(id)
-      throw error
-    }
-    try {
-      await table.put(id, record)
-    } catch (error) {
-      this.entities.delete(id)
-      try {
-        await this.setState(state)
-      } catch (rollbackError) {
-        throw new AggregateError(
-          [error, rollbackError],
-          `workspace '${id}' record write and pending-marker rollback both failed`,
-        )
-      }
-      throw error
-    }
+    await this.writePendingCreate(id, state, record, `workspace '${id}' record write and pending-marker rollback both failed`)
 
     try {
-      await this.setState({
+      await this.setState(this.carryState(state, {
         initialized: true,
         workspaceIds: [id, ...state.workspaceIds],
-        archivedSessionIds: state.archivedSessionIds,
-      })
+      }))
     } catch (error) {
       this.entities.delete(id)
       try {
@@ -365,15 +436,126 @@ export class WorkspaceRegistry extends Service {
     return entity
   }
 
+  /**
+   * Create the one workspace that has no directory, using the same three-write
+   * choreography as {@link createCanonical} — pending marker, record, then
+   * order — so an interrupted seeding is recovered exactly like any other
+   * create, and the new registration lands at the head of the order.
+   * @param title - display title for the new registration.
+   * @returns the newly durable pathless entity, already cached.
+   */
+  private async createVirtualCanonical(title: string): Promise<WorkspaceEntity> {
+    const table = this.requireTable()
+    const state = this.requireState()
+    const id = WorkspaceId(randomUUID())
+    const now = new Date().toISOString()
+    // No `path` key at all, not an explicit `undefined`: the record schema is
+    // the shape that reaches durable storage, and `kind`/`path` agreement is
+    // exactly what the domain refuses to violate.
+    const record: WorkspaceRecord = {
+      kind: 'virtual',
+      title,
+      sessionIds: [],
+      createdAt: now,
+      updatedAt: now,
+    }
+    const entity = new WorkspaceEntity(this.host, id, record)
+    this.entities.set(id, entity)
+    const pendingState: WorkspaceDomainState = {
+      ...state,
+      pendingMutation: { operation: 'create', workspaceId: id },
+    }
+    await this.writePendingCreate(
+      id,
+      state,
+      record,
+      `default workspace '${id}' record write and pending-marker rollback both failed`,
+      pendingState,
+    )
+
+    try {
+      await this.setState({
+        ...this.carryState(state, { initialized: true, workspaceIds: [id, ...state.workspaceIds] }),
+        defaultWorkspaceId: id,
+      })
+    } catch (error) {
+      this.entities.delete(id)
+      try {
+        await table.delete(id)
+      } catch (rollbackError) {
+        throw new AggregateError(
+          [error, rollbackError],
+          `default workspace '${id}' order write and record rollback both failed; the pending marker remains recoverable`,
+        )
+      }
+      try {
+        await this.setState(state)
+      } catch (rollbackError) {
+        throw new AggregateError(
+          [error, rollbackError],
+          `default workspace '${id}' order write and pending-marker rollback both failed`,
+        )
+      }
+      throw error
+    }
+    return entity
+  }
+
+  /**
+   * Ensure the registry publishes its built-in workspace, creating it when the
+   * deployment asks for one and this registry has none.
+   *
+   * This runs inside startup, before the service becomes active, because the
+   * built-in workspace is a precondition of the product's first screen rather
+   * than a convenience: a consumer that resolves "the workspace to start in"
+   * does so once and latches, so a registration that appeared a moment later
+   * would leave the reader on the blocked empty state for the rest of the
+   * session.
+   *
+   * The recorded id is the fast path: when it names a registration, startup
+   * performs no write at all — `validateStoredState` has already proved the
+   * record exists and is ordered, and a marker naming a missing record fails
+   * loud there rather than being silently repaired, exactly as every other
+   * order/table divergence does.
+   *
+   * A registry with no marker adopts a pathless registration it already holds
+   * before seeding a new one: the durable global and the table are written
+   * separately, so another process sharing this storage root can republish a
+   * snapshot that predates the marker while the record itself survives, and
+   * creating a second built-in workspace would be the wrong answer to that.
+   */
+  private async ensureDefaultWorkspace(): Promise<void> {
+    if (!(this.config.seedDefaultWorkspace ?? DEFAULT_SEED_DEFAULT_WORKSPACE)) return
+    const state = this.requireState()
+    if (state.defaultWorkspaceId !== undefined) return
+    const table = this.requireTable()
+    const adoptable = state.workspaceIds.find((id) => {
+      const record = table.get(id)
+      return record !== undefined && record.kind !== 'folder'
+    })
+    if (adoptable !== undefined) {
+      await this.setState({ ...state, defaultWorkspaceId: adoptable })
+      return
+    }
+    await this.createVirtualCanonical(this.config.defaultWorkspaceTitle ?? DEFAULT_DEFAULT_WORKSPACE_TITLE)
+  }
+
+  /**
+   * The id of the built-in workspace, when this registry has one.
+   * @returns the durable default workspace id, or `undefined`.
+   */
+  get defaultWorkspaceId(): WorkspaceId | undefined {
+    return this.requireState().defaultWorkspaceId
+  }
+
   private async deleteKnown(id: WorkspaceId): Promise<boolean> {
     const entity = this.entities.get(id)
     if (entity === undefined) return false
     const state = this.requireState()
-    const nextState = {
+    const nextState = this.carryState(state, {
       initialized: true,
       workspaceIds: state.workspaceIds.filter(workspaceId => workspaceId !== id),
-      archivedSessionIds: state.archivedSessionIds,
-    }
+    })
     await this.setState({
       ...nextState,
       pendingMutation: { operation: 'delete', workspaceId: id },
@@ -426,11 +608,10 @@ export class WorkspaceRegistry extends Service {
       )
     }
     await this.requireTable().delete(pending.workspaceId)
-    await this.setState({
+    await this.setState(this.carryState(state, {
       initialized: state.initialized,
       workspaceIds: state.workspaceIds,
-      archivedSessionIds: state.archivedSessionIds,
-    })
+    }))
   }
 
   private async bootstrap(headers: readonly SessionHeader[]): Promise<void> {
@@ -454,7 +635,9 @@ export class WorkspaceRegistry extends Service {
     const byPath = new Map<string, WorkspaceId>()
     const accounted = new Map<SessionId, WorkspaceId>()
     for (const [id, record] of table.entries()) {
-      byPath.set(record.path, id)
+      // A pathless record owns no directory, so it can never be the group a
+      // header-derived path resolves to; its account stays intact below.
+      if (record.path !== undefined) byPath.set(record.path, id)
       for (const sessionId of record.sessionIds) accounted.set(sessionId, id)
     }
 
@@ -468,6 +651,7 @@ export class WorkspaceRegistry extends Service {
         id = WorkspaceId(randomUUID())
         const createdAt = new Date(group.newestAt).toISOString()
         const record: WorkspaceRecord = {
+          kind: 'folder',
           path: group.path,
           title: defaultWorkspaceTitle(group.path),
           sessionIds,
@@ -500,10 +684,15 @@ export class WorkspaceRegistry extends Service {
 
     const groupRank = new Map(groups.map(group => [group.path, group.newestAt]))
     const priorRank = new Map(state.workspaceIds.map((id, index) => [id, index]))
+    // Time rank, falling back to the record's own creation instant. A pathless
+    // record has no header group to rank by, so its `createdAt` is the answer.
+    const rankOf = (record: WorkspaceRecord): number => (
+      record.path === undefined ? Date.parse(record.createdAt) : groupRank.get(record.path) ?? Date.parse(record.createdAt)
+    )
     const workspaceIds = [...table.entries()]
       .sort(([leftId, left], [rightId, right]) => {
-        const leftTime = groupRank.get(left.path) ?? Date.parse(left.createdAt)
-        const rightTime = groupRank.get(right.path) ?? Date.parse(right.createdAt)
+        const leftTime = rankOf(left)
+        const rightTime = rankOf(right)
         return rightTime - leftTime
           || (priorRank.get(leftId) ?? Number.MAX_SAFE_INTEGER)
             - (priorRank.get(rightId) ?? Number.MAX_SAFE_INTEGER)
@@ -512,9 +701,9 @@ export class WorkspaceRegistry extends Service {
       .map(([id]) => id)
 
     if (!sameIds(state.workspaceIds, workspaceIds)) {
-      await this.setState({ initialized: false, workspaceIds, archivedSessionIds: state.archivedSessionIds })
+      await this.setState(this.carryState(state, { initialized: false, workspaceIds }))
     }
-    await this.setState({ initialized: true, workspaceIds, archivedSessionIds: state.archivedSessionIds })
+    await this.setState(this.carryState(state, { initialized: true, workspaceIds }))
   }
 
   private validateStoredState(state: WorkspaceDomainState): void {
@@ -535,18 +724,42 @@ export class WorkspaceRegistry extends Service {
         `workspace domain is inconsistent: workspace '${orphan as WorkspaceId}' is absent from registry order`,
       )
     }
+    // The built-in marker names a registration that must exist. A marker left
+    // pointing at a vanished record is exactly the state seeding exists to
+    // repair, so it is checked here and repaired in `ensureDefaultWorkspace`
+    // rather than tolerated as an ordinary absence.
+    if (state.defaultWorkspaceId !== undefined && !order.has(state.defaultWorkspaceId)) {
+      throw new Error(
+        `workspace domain is inconsistent: default workspace '${state.defaultWorkspaceId}' `
+        + 'is absent from registry order',
+      )
+    }
 
     const paths = new Map<string, WorkspaceId>()
     const accounted = new Map<SessionId, WorkspaceId>()
     for (const [id, record] of table.entries()) {
-      const pathHolder = paths.get(record.path)
-      if (pathHolder !== undefined) {
+      if (!kindPathAgrees(record.kind, record.path)) {
         throw new Error(
-          `workspace domain is inconsistent: path '${record.path}' is claimed `
-          + `by both workspace '${pathHolder}' and workspace '${id}'`,
+          `workspace domain is inconsistent: workspace '${id}' is kind '${record.kind}' `
+          + (record.path === undefined
+            ? 'but records no path'
+            : `but records path '${record.path}'`),
         )
       }
-      paths.set(record.path, id)
+      // Only a folder workspace claims a directory, so only it can collide on
+      // one. Pathless records are deliberately excluded: keying the uniqueness
+      // map on `undefined` would report two virtual workspaces as sharing a
+      // path neither of them has.
+      if (record.path !== undefined) {
+        const pathHolder = paths.get(record.path)
+        if (pathHolder !== undefined) {
+          throw new Error(
+            `workspace domain is inconsistent: path '${record.path}' is claimed `
+            + `by both workspace '${pathHolder}' and workspace '${id}'`,
+          )
+        }
+        paths.set(record.path, id)
+      }
       for (const sessionId of record.sessionIds) {
         const holder = accounted.get(sessionId)
         if (holder !== undefined) {
@@ -617,7 +830,9 @@ export class WorkspaceRegistry extends Service {
     const byPath = new Map<string, Workspace>()
     const accounted = new Set<SessionId>()
     for (const workspace of this.list()) {
-      byPath.set(workspace.path, workspace)
+      // Only a folder workspace can be re-admitted to by a header cwd; a
+      // pathless workspace's members are already accounted by its record.
+      if (isFolderWorkspace(workspace)) byPath.set(workspace.path, workspace)
       for (const sessionId of workspace.sessionIds) accounted.add(sessionId)
     }
     if (byPath.size === 0) return
@@ -664,7 +879,13 @@ export class WorkspaceRegistry extends Service {
       await this.indexHeader(header)
       const path = this.sessionPaths.get(header.id)
       if (path === undefined) return
-      const owner = this.list().find(workspace => workspace.path === path)
+      // Adoption is a folder-workspace mechanism only: it exists to recover a
+      // membership the durable record lost, keyed on a cwd match. A pathless
+      // workspace has no cwd to match and its record is the sole authority, so
+      // there is nothing to adopt from a header.
+      const owner = this.list().find(
+        workspace => isFolderWorkspace(workspace) && workspace.path === path,
+      )
       if (owner === undefined || owner.sessionIds.includes(header.id)) return
       await owner.attachSession(header.id)
     } catch (error) {
@@ -677,6 +898,9 @@ export class WorkspaceRegistry extends Service {
   private reportFilteredCandidates(): void {
     for (const entity of this.entities.values()) {
       const record = this.requireTable().get(entity.id) as WorkspaceRecord
+      // A workspace with no directory filters nothing: every accounted session
+      // is a member by definition, so reporting one would be a false alarm.
+      if (record.kind !== 'folder' || record.path === undefined) continue
       for (const sessionId of record.sessionIds) {
         const path = this.sessionPaths.get(sessionId)
         if (path === record.path) continue
@@ -719,9 +943,84 @@ export class WorkspaceRegistry extends Service {
     return this.state
   }
 
+  /**
+   * Publish the first two writes of one create: the pending-create marker, then
+   * the record itself, rolling the published entity back when either fails.
+   *
+   * The two create paths — a folder-backed registration and the built-in
+   * pathless one — differ only in the state they finally commit and in the
+   * wording of their failure, so the marker/record/rollback choreography lives
+   * here once. Marker before record is what makes an interrupted create
+   * recoverable: a record without a marker is invisible to recovery, while a
+   * marker without a record is exactly the state {@link recoverPendingMutation}
+   * completes.
+   * @param id - id of the record being written, and the entity to unpublish on failure.
+   * @param state - the state the create is derived from, restored if the record write fails.
+   * @param record - the record itself.
+   * @param recordWriteMessage - failure text naming the caller's registration kind.
+   * @param pendingState - complete marker state; defaults to the caller's state plus the marker.
+   */
+  private async writePendingCreate(
+    id: WorkspaceId,
+    state: WorkspaceDomainState,
+    record: WorkspaceRecord,
+    recordWriteMessage: string,
+    pendingState: WorkspaceDomainState = {
+      ...state,
+      pendingMutation: { operation: 'create', workspaceId: id },
+    },
+  ): Promise<void> {
+    const table = this.requireTable()
+    try {
+      await this.setState(pendingState)
+    } catch (error) {
+      this.entities.delete(id)
+      throw error
+    }
+    try {
+      await table.put(id, record)
+    } catch (error) {
+      this.entities.delete(id)
+      try {
+        await this.setState(state)
+      } catch (rollbackError) {
+        throw new AggregateError([error, rollbackError], recordWriteMessage)
+      }
+      throw error
+    }
+  }
+
   private async setState(state: WorkspaceDomainState): Promise<void> {
     await (this.global as DomainGlobal<WorkspaceDomainState>).set(state)
     this.state = state
+  }
+
+  /**
+   * Build the next global state for a write that changes only the initialized
+   * marker and the workspace order, carrying every other field over from the
+   * state it was derived from.
+   *
+   * Reconstructing the global from a fresh object literal is how a field
+   * silently disappears: an optional field left out of the literal is dropped
+   * from durable storage without a type error, and nothing else in the registry
+   * would notice. Funnelling those five writes through one helper keeps the
+   * carried fields in a single place, and the `pendingMutation` marker is
+   * deliberately never carried — every caller here is either clearing it
+   * because its operation settled, or re-adding one afterwards.
+   * @param state - the state the change is derived from.
+   * @param changes - the marker and order this write establishes.
+   * @returns complete state for this write.
+   */
+  private carryState(
+    state: WorkspaceDomainState,
+    changes: { readonly initialized: boolean; readonly workspaceIds: readonly WorkspaceId[] },
+  ): WorkspaceDomainState {
+    return {
+      initialized: changes.initialized,
+      workspaceIds: [...changes.workspaceIds],
+      archivedSessionIds: state.archivedSessionIds,
+      ...state.defaultWorkspaceId === undefined ? {} : { defaultWorkspaceId: state.defaultWorkspaceId },
+    }
   }
 
   private enqueueOperation<T>(operation: () => Promise<T>): Promise<T> {

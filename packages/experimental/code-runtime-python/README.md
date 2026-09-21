@@ -63,7 +63,7 @@ Completion values and binding arguments cross as exact JSON: values serialize wi
 
 ### Mirror alignment
 
-`tests/protocol-mirror.e2e.ts` spawns a real `python3` and asserts, against `src/protocol.ts`, both `PROTOCOL_FD` / the truncation-marker text and each `TypedDict`'s required/optional wire field set in `py/protocol.py`, so a renamed or dropped field — or one side making a field optional the other requires — fails the test. Field *types* are not compared across the language boundary; that residue stays with review plus the backend's real-subprocess suite (`tests/runtime.spec.ts`).
+`tests/protocol-mirror.e2e.ts` spawns a real `python3` and asserts, against `src/protocol.ts`, both `PROTOCOL_FD` / the truncation-marker text and each `TypedDict`'s required/optional wire field set in `py/protocol.py`, so a renamed or dropped field — or one side making a field optional the other requires — fails the test. Field *types* are not compared across the language boundary; that residue stays with review plus the backend's real-subprocess suites (`tests/runtime-*.spec.ts`), which are split by `describe` across sibling files so Vitest — which parallelizes files, never `describe` blocks — can overlap their workloads instead of serializing them behind one worker.
 
 ### Source map
 
@@ -74,7 +74,12 @@ Completion values and binding arguments cross as exact JSON: values serialize wi
 | [`src/process-start.ts`](src/process-start.ts) | The Linux `/proc` start-time probe that gives teardown its (pid, started) identity |
 | [`py/bootstrap.py`](py/bootstrap.py) | Child side: fd-3 channel, program execution, binding dispatch, ledger and settlement |
 | [`py/protocol.py`](py/protocol.py) | Python side: `PROTOCOL_FD`, `TypedDict` frame mirrors, `log_truncation_marker` |
-| [`tests/runtime.spec.ts`](tests/runtime.spec.ts) | Real-subprocess suite: budgets, containment, hostile frames, name rebinding |
+| [`tests/harness.ts`](tests/harness.ts) | Shared fixtures for the suites below: a fresh runtime per case, temp-dir and stub ownership |
+| [`tests/runtime-seam.spec.ts`](tests/runtime-seam.spec.ts) | Real-subprocess suite: seam descriptors, config/`pythonBin`/binding validation, staging failures |
+| [`tests/runtime-limits.spec.ts`](tests/runtime-limits.spec.ts) | Real-subprocess suite: inherited `RLIMIT_AS` and `RLIMIT_CPU` limits |
+| [`tests/runtime-programs.spec.ts`](tests/runtime-programs.spec.ts) | Real-subprocess suite: program execution, bindings, native-output decoding |
+| [`tests/runtime-budgets.spec.ts`](tests/runtime-budgets.spec.ts) | Real-subprocess suite: budgets, termination, disposal, process identity |
+| [`tests/runtime-hostile-peer.spec.ts`](tests/runtime-hostile-peer.spec.ts) | Real-subprocess suite: hostile frames, lossless-JSON meters, name rebinding |
 | [`tests/protocol-mirror.e2e.ts`](tests/protocol-mirror.e2e.ts) | Cross-language mirror test against a real `python3` |
 | — | No runtime invariant companion is published: frame ordering, budget accounting, and teardown live in the CPython child or on fd 3, so this package exposes no same-process event sequence or independently maintained mutable relation for a Cordis listener to compare; the protocol mirror and real-subprocess tests cover those process-boundary behaviors. |
 

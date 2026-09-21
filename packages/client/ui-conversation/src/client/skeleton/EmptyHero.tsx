@@ -7,7 +7,7 @@ import {
 } from '@aeven/client-ui-primitives'
 import { workspaceTitleOf } from '@aeven/util-workspace-path'
 import type { ConversationSlotProps } from '../contract/slots.ts'
-import { heroGreeting } from './hero-greeting.ts'
+import { useHeroGreeting } from './hero-greeting.ts'
 import css from './HeroShell.module.css'
 
 /** The owner's locale seat type, passed to hero chrome as a plain prop. */
@@ -76,6 +76,7 @@ export interface HeroShellProps {
  * @returns the centered hero element tree.
  */
 export function HeroShell({ t, children }: HeroShellProps) {
+  const greeting = useHeroGreeting(t)
   return (
     <div className={css.root}>
       <div className={css.stack}>
@@ -83,7 +84,7 @@ export function HeroShell({ t, children }: HeroShellProps) {
           {/* Aeven's New Session screen: the product's name over the greeting,
               the two sharing one line box pair with no gap between them. */}
           <span className={css.wordmark}>{t('brand.localBuild')}</span>
-          <span className={css.greeting}>{heroGreeting(t)}</span>
+          <span className={css.greeting}>{greeting}</span>
         </div>
         <div className={css.body}>
           {/* The composer remains mounted outside this component. */}

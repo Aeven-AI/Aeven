@@ -63,10 +63,12 @@ ctx.systemPrompt.section({
 
 ### Contribute a prompt variable
 
-Variables are referenced from section text as `{{name}}` and resolved at each assembly; scoped variables shadow a same-named global for that agent. The loop supplies `model` and `cwd`; any plugin can register the facts it owns.
+Variables are referenced from section text as `{{name}}` and resolved at each assembly; scoped variables shadow a same-named global for that agent. The loop supplies `model` and `cwd`; any plugin can register the facts it owns. A name used by deployment prose must always resolve: a Session in a workspace with no directory binding has no working directory by design, because a machine-independent record may not carry a local path, so the loop renders that absence (`NO_WORKING_DIRECTORY`) instead of leaving `{{cwd}}` valueless and failing every turn. An assembly with no agent still yields an undefined `cwd`, because prose referencing the variable there is a real misconfiguration.
 
 ```text
-ctx.systemPrompt.variable('cwd', ({ agent }) => agent?.session.header.cwd)
+ctx.systemPrompt.variable('cwd', ({ agent }) => agent === undefined
+  ? undefined
+  : agent.session.header.cwd ?? NO_WORKING_DIRECTORY)
 ```
 
 ### Contribute tool schemas

@@ -12,6 +12,22 @@ const SESSION_PATH_PREFIX = '/c/'
  */
 const SESSION_ID_PREFIX = 'session-'
 
+/**
+ * Session address for one Session id, as `/c/<uuid>`.
+ *
+ * Shared by the History projection and by the New Session link, so a real
+ * `href` and a `pushState` can never disagree about the shape of a Session
+ * address. Accepts the id with or without its `session-` prefix.
+ * @param sessionId - the Session to address.
+ * @returns the absolute path naming that Session.
+ */
+export function sessionPathOf(sessionId: string): string {
+  const bare = sessionId.startsWith(SESSION_ID_PREFIX)
+    ? sessionId.slice(SESSION_ID_PREFIX.length)
+    : sessionId
+  return `${SESSION_PATH_PREFIX}${encodeURIComponent(bare)}`
+}
+
 /** Address-bar operations consumed by Workspace navigation policy. */
 export interface SessionUrlNavigation {
   /** Read the Session requested by the current URL, or the empty view. */
@@ -89,11 +105,7 @@ export class BrowserSessionUrlNavigation implements SessionUrlNavigation {
   ): void {
     if (this.read() === sessionId) return
     const next = new URL(this.browser.location.href)
-    next.pathname = sessionId === undefined
-      ? '/'
-      : `${SESSION_PATH_PREFIX}${encodeURIComponent(
-        sessionId.startsWith(SESSION_ID_PREFIX) ? sessionId.slice(SESSION_ID_PREFIX.length) : sessionId,
-      )}`
+    next.pathname = sessionId === undefined ? '/' : sessionPathOf(sessionId)
     this.browser.history[method](null, '', `${next.pathname}${next.search}${next.hash}`)
   }
 }

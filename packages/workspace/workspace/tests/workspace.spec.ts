@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
-import { Context } from '@deepseek-ai/cordis'
+import { Context, Service } from '@deepseek-ai/cordis'
 import Storage from '@aeven/storage'
 import type { StorageBackend } from '@aeven/storage'
 import { DomainFacility } from '@aeven/storage-domain'
@@ -11,6 +11,8 @@ import SessionStore, { SessionId } from '@aeven/session'
 import type { SessionHeader } from '@aeven/session'
 import { MemoryMediaPool, MemoryStorageBackend } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
 import WorkspaceRegistry, {
+  DEFAULT_DEFAULT_WORKSPACE_TITLE,
+  WorkspaceDefaultImmutableError,
   WorkspaceId,
   WorkspaceMoveInvalidError,
   WorkspaceOrderInvalidError,
@@ -34,6 +36,13 @@ interface HarnessOptions {
   liveSessions?: SessionHeader[]
   sessionStore?: boolean
   backend?: StorageBackend
+  /**
+   * Registry configuration. Seeding is off by default here: these cases assert
+   * the registry's own semantics, and an unasked-for built-in workspace would
+   * add a row and four durable writes to every expectation. The seeding
+   * behaviour has its own suite below and asks for it explicitly.
+   */
+  config?: { seedDefaultWorkspace?: boolean; defaultWorkspaceTitle?: string }
   /** Runs on the assembled context immediately before the registry mounts. */
   beforeRegistry?: (ctx: Context) => void
 }
@@ -67,7 +76,10 @@ async function harness(options: HarnessOptions = {}) {
   const changes: DomainChanged[] = []
   ctx.on('domain/changed', (change) => { changes.push(change) })
   options.beforeRegistry?.(ctx)
-  const fiber = await ctx.plugin(WorkspaceRegistry)
+  const fiber = await ctx.plugin(WorkspaceRegistry, {
+    seedDefaultWorkspace: false,
+    ...options.config,
+  })
   const initChanges = [...changes]
   changes.length = 0
   return {
@@ -136,8 +148,25 @@ function selectiveFailureBackend(
 
 function record(path: string, sessionIds: string[], createdAt = '2026-07-24T00:00:00.000Z'): WorkspaceRecord {
   return {
+    kind: 'folder',
     path,
     title: basename(path),
+    sessionIds: sessionIds.map(SessionId),
+    createdAt,
+    updatedAt: createdAt,
+  }
+}
+
+/**
+ * A durable record with no directory binding — the shape the built-in Chats
+ * workspace will use. Written without `path` at all rather than with an
+ * explicit `undefined`, so the fixture proves the optional field parses when
+ * the key is absent, exactly as a synced or freshly seeded record would.
+ */
+function virtualRecord(title: string, sessionIds: string[], createdAt = '2026-07-24T00:00:00.000Z'): WorkspaceRecord {
+  return {
+    kind: 'virtual',
+    title,
     sessionIds: sessionIds.map(SessionId),
     createdAt,
     updatedAt: createdAt,
@@ -192,7 +221,7 @@ describe('WorkspaceRegistry lifecycle and bootstrap', () => {
   it('stays pending without sessionPersistence and never opens or marks the domain', async () => {
     const pool = new MemoryMediaPool()
     const ctx = await storageContext(pool)
-    const fiber = await ctx.plugin(WorkspaceRegistry)
+    const fiber = await ctx.plugin(WorkspaceRegistry, { seedDefaultWorkspace: false })
     expect(ctx.get('workspaceRegistry')).toBeUndefined()
     expect(pool.media.has('workspace')).toBe(false)
 
@@ -350,7 +379,7 @@ describe('WorkspaceRegistry lifecycle and bootstrap', () => {
     const result = await harness()
     const first = await result.registry.create(dir)
     await result.fiber.dispose()
-    const nextFiber = await result.ctx.plugin(WorkspaceRegistry)
+    const nextFiber = await result.ctx.plugin(WorkspaceRegistry, { seedDefaultWorkspace: false })
     expect(result.ctx.workspaceRegistry.list().map(workspace => workspace.id)).toEqual([first.id])
     await nextFiber.dispose()
   })
@@ -1157,5 +1186,376 @@ describe('membership re-derived from cwd', () => {
     expect(result.registry.list()[0]!.sessionIds).toEqual([])
     expect(warnings.join('\n')).toContain(`workspace '${id}' filtered session 'ghost' from membership: session header is missing`)
     await result.fiber.dispose()
+  })
+})
+
+describe('workspace kind and its pathless records', () => {
+  it('defaults a stored record written before the field to folder kind', async () => {
+    const owned = await makeDir('legacy-kind')
+    const id = WorkspaceId('00000000-0000-4000-8000-000000000060')
+    // The exact stored shape an older writer produced: no `kind` key at all.
+    // The default must reconstruct the only thing such a deployment could have
+    // created — a directory workspace.
+    const legacy = {
+      path: owned,
+      title: basename(owned),
+      sessionIds: [],
+      createdAt: '2026-07-24T00:00:00.000Z',
+      updatedAt: '2026-07-24T00:00:00.000Z',
+    } as unknown as WorkspaceRecord
+    const result = await harness({
+      pool: storedPool([[id, legacy]], { initialized: true, workspaceIds: [id] }),
+    })
+    expect(result.registry.list()[0]!.kind).toBe('folder')
+    expect(result.registry.list()[0]!.path).toBe(owned)
+  })
+
+  it('stamps a newly created workspace as folder kind', async () => {
+    const dir = await makeDir('created-kind')
+    const result = await harness()
+    const workspace = await result.registry.create(dir)
+    expect(workspace.kind).toBe('folder')
+    expect(workspace.path).toBe(dir)
+  })
+
+  it('refuses a folder record with no path, and a pathless record carrying one', async () => {
+    const owned = await makeDir('kind-path-mismatch')
+    const id = WorkspaceId('00000000-0000-4000-8000-000000000061')
+    const order = { initialized: true, workspaceIds: [id] }
+
+    // `folder` is defined by its directory: without one the record cannot say
+    // which sessions belong to it.
+    const { path: _omitted, ...folderWithoutPath } = record(owned, [])
+    await expect(harness({
+      pool: storedPool([[id, folderWithoutPath]], order),
+    })).rejects.toThrow(/kind 'folder' but records no path/)
+
+    // The inverse: a path on a pathless record would be a machine-local fact
+    // sitting inside a record that is expected to travel between machines.
+    await expect(harness({
+      pool: storedPool([[id, { ...virtualRecord('Chats', []), path: owned }]], order),
+    })).rejects.toThrow(/kind 'virtual' but records path/)
+  })
+
+  it('keeps a pathless workspace members without any cwd match', async () => {
+    const elsewhere = await makeDir('kind-elsewhere')
+    const id = WorkspaceId('00000000-0000-4000-8000-000000000062')
+    const result = await harness({
+      pool: storedPool([[id, virtualRecord('Chats', ['chat-one', 'chat-two'])]], {
+        initialized: true,
+        workspaceIds: [id],
+      }),
+      // Neither session names this workspace, and one carries a cwd belonging
+      // to no workspace at all. Membership must come from the record alone —
+      // that is what makes a pathless workspace survive a restart and a sync.
+      sessions: [header('chat-one'), header('chat-two', elsewhere)],
+    })
+    const workspace = result.registry.list()[0]!
+    expect(workspace.kind).toBe('virtual')
+    expect(workspace.path).toBeUndefined()
+    expect(workspace.sessionIds).toEqual(['chat-one', 'chat-two'])
+  })
+
+  it('lets two pathless workspaces coexist without claiming a shared path', async () => {
+    const first = WorkspaceId('00000000-0000-4000-8000-000000000063')
+    const second = WorkspaceId('00000000-0000-4000-8000-000000000064')
+    // Keying uniqueness on `undefined` would report these as colliding on a
+    // path neither of them has.
+    const result = await harness({
+      pool: storedPool(
+        [[first, virtualRecord('Chats', [])], [second, virtualRecord('Archive', [])]],
+        { initialized: true, workspaceIds: [first, second] },
+      ),
+    })
+    expect(result.registry.list().map(workspace => workspace.kind)).toEqual(['virtual', 'virtual'])
+  })
+
+  it('admits a cwd-less session into a pathless workspace and refuses one carrying a cwd', async () => {
+    const elsewhere = await makeDir('kind-admit-elsewhere')
+    const id = WorkspaceId('00000000-0000-4000-8000-000000000065')
+    const result = await harness({
+      pool: storedPool([[id, virtualRecord('Chats', [])]], { initialized: true, workspaceIds: [id] }),
+      sessions: [header('cwdless'), header('carries-cwd', elsewhere)],
+    })
+    const workspace = result.registry.get(id)!
+
+    await expect(workspace.attachSession(SessionId('carries-cwd')))
+      .rejects.toThrow(/has no directory, but the session records cwd/)
+    expect(workspace.sessionIds).toEqual([])
+
+    await workspace.attachSession(SessionId('cwdless'))
+    expect(workspace.sessionIds).toEqual(['cwdless'])
+  })
+
+  it('reports a pathless workspace as ok rather than missing-dir', async () => {
+    const id = WorkspaceId('00000000-0000-4000-8000-000000000066')
+    const result = await harness({
+      pool: storedPool([[id, virtualRecord('Chats', [])]], { initialized: true, workspaceIds: [id] }),
+    })
+    // There is no directory to lose, so the check can never fail.
+    await expect(result.registry.get(id)!.status()).resolves.toBe('ok')
+  })
+
+  it('reports no filtered candidates for a pathless workspace', async () => {
+    const id = WorkspaceId('00000000-0000-4000-8000-000000000067')
+    const warnings: string[] = []
+    const result = await harness({
+      pool: storedPool([[id, virtualRecord('Chats', ['chat-one'])]], {
+        initialized: true,
+        workspaceIds: [id],
+      }),
+      sessions: [header('chat-one')],
+      beforeRegistry: (ctx) => {
+        ctx.logger.warn = ((value: unknown) => { warnings.push(String(value)) }) as typeof ctx.logger.warn
+      },
+    })
+    expect(result.registry.list()[0]!.sessionIds).toEqual(['chat-one'])
+    expect(warnings.join('\n')).not.toContain('filtered session')
+  })
+})
+
+describe('built-in workspace seeding', () => {
+  it('seeds one durable pathless workspace and publishes it as the built-in', async () => {
+    const result = await harness({ config: { seedDefaultWorkspace: true } })
+    const builtIn = result.registry.list()[0]!
+    expect(result.registry.list()).toHaveLength(1)
+    expect(builtIn.kind).toBe('virtual')
+    expect(builtIn.path).toBeUndefined()
+    expect(builtIn.title).toBe('Chats')
+    expect(builtIn.isDefault).toBe(true)
+    expect(result.registry.defaultWorkspaceId).toBe(builtIn.id)
+
+    // Durable in the same three writes as any other create: the marker names the
+    // built-in, the record carries no `path` key at all, and the order holds it.
+    const state = storedState(result.pool)
+    expect(state.defaultWorkspaceId).toBe(builtIn.id)
+    expect(state.workspaceIds).toEqual([builtIn.id])
+    expect(state.pendingMutation).toBeUndefined()
+    expect(storedRecord(result.pool, builtIn.id)).toEqual({
+      kind: 'virtual',
+      title: 'Chats',
+      sessionIds: [],
+      createdAt: expect.any(String) as string,
+      updatedAt: expect.any(String) as string,
+    })
+
+    // Three global writes and one table write reached the medium during startup:
+    // the bootstrap marker, the pending marker, the record itself, and the order
+    // that names it as the built-in. Nothing re-derives membership afterwards.
+    expect(result.initChanges.map(change => change.table)).toEqual(['', '', 'workspaces', ''])
+  })
+
+  it('honours a configured title and keeps the recorded marker on a later mount', async () => {
+    const first = await harness({
+      config: { seedDefaultWorkspace: true, defaultWorkspaceTitle: 'Conversations' },
+    })
+    const seeded = first.registry.list()[0]!
+    expect(seeded.title).toBe('Conversations')
+
+    // A registry that already carries a marker performs no seeding write at all:
+    // the recorded id is the fast path, and the durable title is not retitled to
+    // a later configuration.
+    const remounted = await harness({
+      pool: first.pool,
+      config: { seedDefaultWorkspace: true, defaultWorkspaceTitle: 'Renamed' },
+    })
+    expect(remounted.registry.defaultWorkspaceId).toBe(seeded.id)
+    expect(remounted.registry.list()).toHaveLength(1)
+    expect(remounted.registry.list()[0]!.title).toBe('Conversations')
+    expect(remounted.changes).toEqual([])
+  })
+
+  it('adopts an existing pathless registration instead of seeding a second one', async () => {
+    const id = WorkspaceId('00000000-0000-4000-8000-000000000070')
+    const pool = storedPool([[id, virtualRecord('Archive', [])]], { initialized: true, workspaceIds: [id] })
+    const result = await harness({ pool, config: { seedDefaultWorkspace: true } })
+
+    // A registry with no marker adopts before it seeds: the global and the table
+    // are written separately, so a peer can republish a snapshot that predates
+    // the marker while the record itself survives. Creating a second built-in
+    // workspace would be the wrong answer to that.
+    expect(result.registry.defaultWorkspaceId).toBe(id)
+    expect(result.registry.list().map(workspace => workspace.id)).toEqual([id])
+    expect(result.registry.list()[0]!.title).toBe('Archive')
+    expect(pool.media.get('workspace')!.tables.get('workspaces')!.size).toBe(1)
+    // One write: the adopted marker. No record and no order change.
+    expect(storedState(pool).workspaceIds).toEqual([id])
+  })
+
+  it('falls back to a folder registration it cannot adopt, and seeds a fresh one', async () => {
+    const dir = await makeDir('seed-with-folder')
+    const id = WorkspaceId('00000000-0000-4000-8000-000000000071')
+    // A folder record is not adoptable: the built-in is defined by having no
+    // directory, so a directory-backed registration cannot become it.
+    const result = await harness({
+      pool: storedPool([[id, record(dir, [])]], { initialized: true, workspaceIds: [id] }),
+      config: { seedDefaultWorkspace: true },
+    })
+    expect(result.registry.list()).toHaveLength(2)
+    const builtIn = result.registry.list()[0]!
+    expect(builtIn.kind).toBe('virtual')
+    expect(builtIn.title).toBe('Chats')
+    expect(result.registry.defaultWorkspaceId).toBe(builtIn.id)
+    expect(result.registry.get(id)!.isDefault).toBe(false)
+  })
+
+  it('bootstraps an uninitialized registry that already holds a pathless record', async () => {
+    const first = WorkspaceId('00000000-0000-4000-8000-000000000072')
+    const second = WorkspaceId('00000000-0000-4000-8000-000000000076')
+    // A pathless record claims no directory, so bootstrap can neither group it
+    // under a header cwd nor rank it by one; its own account and creation
+    // instant are the whole answer, which is also how the two are ordered.
+    const result = await harness({
+      pool: storedPool(
+        [
+          [first, virtualRecord('Older', ['kept'], '2026-07-23T00:00:00.000Z')],
+          [second, virtualRecord('Newer', [], '2026-07-25T00:00:00.000Z')],
+        ],
+        { initialized: false, workspaceIds: [] },
+      ),
+    })
+    expect(result.registry.list().map(workspace => workspace.id)).toEqual([second, first])
+    expect(result.registry.get(first)!.sessionIds).toEqual(['kept'])
+    expect(result.registry.defaultWorkspaceId).toBeUndefined()
+    expect(storedState(result.pool).workspaceIds).toEqual([second, first])
+  })
+
+  it('reports a stored marker that names no ordered registration', async () => {
+    const id = WorkspaceId('00000000-0000-4000-8000-000000000073')
+    const gone = WorkspaceId('00000000-0000-4000-8000-000000000074')
+    await expect(harness({
+      pool: storedPool([[id, virtualRecord('Chats', [])]], {
+        initialized: true,
+        workspaceIds: [id],
+        defaultWorkspaceId: gone,
+      }),
+      config: { seedDefaultWorkspace: true },
+    })).rejects.toThrow(/default workspace .* is absent from registry order/)
+  })
+
+  it('pins the built-in workspace against deletion, renaming, and a move off the head', async () => {
+    const result = await harness({ config: { seedDefaultWorkspace: true } })
+    const builtIn = result.registry.list()[0]!
+
+    const deletion = result.registry.delete(builtIn.id)
+    await expect(deletion).rejects.toThrow(WorkspaceDefaultImmutableError)
+    await expect(result.registry.delete(builtIn.id)).rejects.toThrow(/cannot delete the built-in workspace/)
+    await expect(builtIn.setTitle('Conversations')).rejects.toThrow(/cannot rename the built-in workspace/)
+    await expect(result.registry.insertBefore(builtIn.id)).rejects.toThrow(/cannot move the built-in workspace/)
+
+    // The refusals left the registration exactly as it was.
+    expect(result.registry.get(builtIn.id)).toBe(builtIn)
+    expect(builtIn.title).toBe('Chats')
+    expect(storedState(result.pool).workspaceIds).toEqual([builtIn.id])
+  })
+
+  it('lets an ordinary workspace be renamed, moved, and deleted around the built-in', async () => {
+    const dir = await makeDir('seed-ordinary')
+    const result = await harness({ config: { seedDefaultWorkspace: true } })
+    const builtIn = result.registry.list()[0]!
+    const ordinary = await result.registry.create(dir)
+    expect(ordinary.kind).toBe('folder')
+    expect(ordinary.isDefault).toBe(false)
+
+    // `create` prepends, so the newest registration is the head from here on and
+    // the pin — which guards the head position, not the id — no longer refuses a
+    // move of the built-in.
+    expect(result.registry.list().map(workspace => workspace.id)).toEqual([ordinary.id, builtIn.id])
+    await ordinary.setTitle('Renamed')
+    expect(ordinary.title).toBe('Renamed')
+    await result.registry.insertBefore(builtIn.id)
+    expect(result.registry.list().map(workspace => workspace.id)).toEqual([ordinary.id, builtIn.id])
+    await expect(result.registry.delete(ordinary.id)).resolves.toBe(true)
+    expect(result.registry.list().map(workspace => workspace.id)).toEqual([builtIn.id])
+  })
+
+  it('rolls the seeding back when its order write fails, and republishes nothing', async () => {
+    const pool = new MemoryMediaPool()
+    await expect(harness({
+      pool,
+      backend: selectiveFailureBackend(pool, { globalAt: 3 }),
+      config: { seedDefaultWorkspace: true },
+    })).rejects.toThrow(/selected bootstrap marker failure/)
+    // The marker wrote, so the record and the order rolled back to the empty
+    // registry bootstrap left: no built-in is published and none is durable.
+    expect(storedState(pool).defaultWorkspaceId).toBeUndefined()
+    expect(storedState(pool).workspaceIds).toEqual([])
+    expect(pool.media.get('workspace')!.tables.get('workspaces')!.size).toBe(0)
+
+    // Recovery is the ordinary pending-marker path: the next mount resolves it
+    // and seeds once.
+    const retried = await harness({ pool, config: { seedDefaultWorkspace: true } })
+    expect(retried.registry.list()).toHaveLength(1)
+    expect(retried.registry.list()[0]!.isDefault).toBe(true)
+  })
+
+  it('reports both the seeding order failure and its record rollback failure', async () => {
+    const pool = new MemoryMediaPool()
+    await expect(harness({
+      pool,
+      backend: selectiveFailureBackend(pool, { globalAt: 3, deleteAt: 1 }),
+      config: { seedDefaultWorkspace: true },
+    })).rejects.toThrow(/default workspace .* order write and record rollback both failed/)
+  })
+
+  it('reports both the seeding order failure and its marker rollback failure', async () => {
+    const pool = new MemoryMediaPool()
+    await expect(harness({
+      pool,
+      backend: selectiveFailureBackend(pool, { globalAt: [3, 4] }),
+      config: { seedDefaultWorkspace: true },
+    })).rejects.toThrow(/default workspace .* order write and pending-marker rollback both failed/)
+  })
+
+  it('carries the built-in marker across every later write', async () => {
+    const dir = await makeDir('seed-carry')
+    const result = await harness({
+      sessions: [header('carried', dir)],
+      config: { seedDefaultWorkspace: true },
+    })
+    const builtIn = result.registry.list()[0]!
+    const created = await result.registry.create(dir)
+    expect(storedState(result.pool).defaultWorkspaceId).toBe(builtIn.id)
+
+    // A Session attach write, a detach, and the delete of the ordinary
+    // registration all funnel through `carryState`, which must republish the
+    // marker rather than drop it on the way past.
+    await created.attachSession(SessionId('carried'))
+    expect(created.sessionIds).toEqual(['carried'])
+    await created.detachSession(SessionId('carried'))
+    await result.registry.delete(created.id)
+    expect(storedState(result.pool).defaultWorkspaceId).toBe(builtIn.id)
+    expect(result.registry.defaultWorkspaceId).toBe(builtIn.id)
+  })
+
+  it('reports a pathless workspace by id when an insertSessionBefore move is invalid', async () => {
+    const id = WorkspaceId('00000000-0000-4000-8000-000000000075')
+    const result = await harness({
+      pool: storedPool([[id, virtualRecord('Chats', [])]], { initialized: true, workspaceIds: [id] }),
+    })
+    const workspace = result.registry.get(id)!
+    // A pathless record has no directory to be named by, so the id is the label.
+    await expect(workspace.insertSessionBefore(SessionId('unaccounted')))
+      .rejects.toThrow(new RegExp(`in workspace '${id}': the session is not accounted`))
+    await expect(workspace.insertSessionBefore(SessionId('unaccounted'), SessionId('anchor')))
+      .rejects.toThrow(/the session is not accounted/)
+  })
+
+  it('applies the documented defaults when no loader resolved a configuration', async () => {
+    // A directly constructed registry carries the raw config object: nothing
+    // applied `static Config`, which is the case the fallbacks exist for, so the
+    // two exported constants are the single statement of the defaults. Startup
+    // is driven by hand because `ctx.plugin` is precisely the path that would
+    // have resolved the schema.
+    const pool = new MemoryMediaPool()
+    const ctx = await storageContext(pool)
+    ctx.provide('sessionPersistence', { list: () => Promise.resolve([]) } as never)
+    const registry = new WorkspaceRegistry(ctx, {})
+    await (registry as unknown as { [Service.init](): Promise<void> })[Service.init]()
+
+    expect(registry.list()).toHaveLength(1)
+    expect(registry.list()[0]!.title).toBe(DEFAULT_DEFAULT_WORKSPACE_TITLE)
+    expect(registry.list()[0]!.isDefault).toBe(true)
+    expect(registry.defaultWorkspaceId).toBeDefined()
   })
 })

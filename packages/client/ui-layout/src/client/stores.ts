@@ -12,9 +12,21 @@
  */
 import { defineStore, type EngineStoreHandle } from '@aeven/client-store'
 import {
-  clampWidth, DETAILS_DEFAULT, DETAILS_MAX, DETAILS_MIN,
+  clampRightbar, clampWidth, defaultRightbar, DETAILS_DEFAULT, DETAILS_MAX, DETAILS_MIN,
   SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN,
 } from './columns.ts'
+
+/** One session's right sidebar state. */
+export type RightbarSurface = {
+  /** Whether the panel is drawn for this session. */
+  shown: boolean
+  /**
+   * Remembered width in px, or null before this session first opened the
+   * panel. Closing keeps it, so reopening returns to the width the reader
+   * left rather than to the first-open fraction.
+   */
+  width: number | null
+}
 
 /**
  * Layout store state: panel width preferences in px (0 = closed), plus the
@@ -28,6 +40,17 @@ type LayoutState = {
   details: number
   narrow: boolean
   narrowExpanded: boolean
+  /**
+   * Right sidebar state per session id. Switching sessions leaves each
+   * surface where its reader left it, so the panel is a property of the
+   * session being read rather than of the window. Memory-only: a reload
+   * constructs the closed default for every session.
+   *
+   * Frame width is not kept here. It is read in CSS from one custom property
+   * on the frame, which is what keeps a drag off the transcript's style
+   * invalidation path (AppFrame.module.css).
+   */
+  rightbar: Record<string, RightbarSurface>
   /**
    * A surface has taken over the viewport — a transcript block opened full
    * screen, today. The shell's own chrome yields its stacking order while
@@ -49,10 +72,32 @@ type LayoutActions = {
   openDetails: (draft: LayoutState) => void
   closeDetails: (draft: LayoutState) => void
   setFullscreen: (draft: LayoutState, fullscreen: boolean) => void
+  setRightbar: (draft: LayoutState, sessionId: string, px: number, viewport: number) => void
+  toggleRightbar: (draft: LayoutState, sessionId: string, viewport: number) => void
 }
 
 /** localStorage key holding this store's durable fields. */
 const LAYOUT_STORE_KEY = 'avn.layout.panels'
+
+/**
+ * Show one session's right sidebar, seeding or re-clamping its width. Shared
+ * by the open and toggle actions rather than one calling the other: actions
+ * are pure draft mutators, not a callable set.
+ * @param draft - layout draft being mutated.
+ * @param sessionId - session whose surface opens.
+ * @param viewport - current frame width in px.
+ */
+function showRightbar(draft: LayoutState, sessionId: string, viewport: number): void {
+  const surface = draft.rightbar[sessionId]
+  if (surface === undefined) {
+    draft.rightbar[sessionId] = { shown: true, width: defaultRightbar(viewport) }
+    return
+  }
+  surface.shown = true
+  // A width remembered from a wider frame is re-clamped on reopening, so the
+  // panel cannot come back wider than the current frame allows.
+  surface.width = surface.width === null ? defaultRightbar(viewport) : clampRightbar(surface.width, viewport)
+}
 
 /**
  * Create the layout panel store handle. The preference IS the width, so
@@ -62,12 +107,17 @@ const LAYOUT_STORE_KEY = 'avn.layout.panels'
  * open/close transitions write 0 / the default explicitly. Below the
  * auto-collapse breakpoint (AppFrame feeds setNarrow) the sidebar toggle
  * flips the narrowExpanded override instead of the preference.
+ *
+ * The right sidebar departs from that rule: its width is keyed by session and
+ * survives closing, so reopening returns to the width that session's reader
+ * left. It is memory-only, so a reload opens every session closed.
  * @returns the store handle (spec + type + identity + factory in one).
  */
 export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutActions>  {
   const handle = defineStore({
     init: (): LayoutState => ({
       sidebar: SIDEBAR_DEFAULT, details: 0, narrow: false, narrowExpanded: false, fullscreen: false,
+      rightbar: {},
     }),
     // Reload restores the sidebar column the user left, including a closed
     // one (0). Details stays out: its archived default is closed, and it
@@ -94,6 +144,19 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
       // Not persisted: a reload has no full-screen surface to restore, and a
       // stored `true` would leave the chrome yielded with nothing over it.
       setFullscreen: (d, fullscreen: boolean) => { d.fullscreen = fullscreen },
+      // A drag writes the width without touching `shown`: the handle only
+      // exists while the panel is open, and a gesture must not be able to
+      // close the panel it is resizing.
+      setRightbar: (d, sessionId: string, px: number, viewport: number) => {
+        const surface = d.rightbar[sessionId]
+        if (surface === undefined) return
+        surface.width = clampRightbar(px, viewport)
+      },
+      toggleRightbar: (d, sessionId: string, viewport: number) => {
+        const surface = d.rightbar[sessionId]
+        if (surface?.shown === true) surface.shown = false
+        else showRightbar(d, sessionId, viewport)
+      },
     },
   })
   return handle

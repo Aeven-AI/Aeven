@@ -79,6 +79,7 @@
     "@aeven/client-ui-settings-plugin-inventory": "workspace:^",
     "@aeven/client-ui-settings-plugins": "workspace:^",
     "@aeven/client-ui-sidebar": "workspace:^",
+    "@aeven/client-ui-sidebar-right": "workspace:^",
     "@aeven/client-ui-skill": "workspace:^",
     "@aeven/client-ui-subagent": "workspace:^",
     "@aeven/client-ui-theme": "workspace:^",

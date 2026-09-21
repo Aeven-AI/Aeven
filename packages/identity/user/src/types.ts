@@ -3,6 +3,8 @@
  * @module @aeven/identity-user/types
  */
 
+import type { CredentialRef } from '@aeven/credentials'
+
 /**
  * One authenticated person, as the resolving authority reports them.
  *
@@ -51,4 +53,21 @@ export interface UserResolver {
    * failed to authenticate describes the credential to whoever supplied it.
    */
   resolve(request: IdentityRequest): User | undefined
+  /**
+   * The credential reference this authority's credential answers to, when
+   * something in this process must present it a second time.
+   *
+   * Absent for an authority whose credential is not a re-presentable secret —
+   * the launch token, for instance, exists only to admit one browser and opens
+   * nothing else. Present when the credential is a bearer for an upstream
+   * service this process also calls on the caller's behalf, as Aeven's access
+   * token is: the connection publishes it on every authenticated request, so
+   * the model route holds the caller's live session instead of a copy kept
+   * somewhere and left to go stale.
+   *
+   * Declared by the authority rather than inferred from it, because knowing
+   * which reference to name is the same fact as knowing which upstream the
+   * credential opens.
+   */
+  readonly credentialRef?: CredentialRef
 }

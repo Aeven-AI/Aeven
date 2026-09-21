@@ -11,6 +11,7 @@ import { boundContextSummary, createUserMessage, errorChain, type LlmCallConfig 
 import type {} from '@aeven/permission-presets'
 import type { SessionId } from '@aeven/session'
 import type {} from '@aeven/session-title'
+import { isFolderWorkspace } from '@aeven/workspace'
 import type {} from '@aeven/workspace'
 import type { WebhookRuleId } from './brand.ts'
 import type { VerifiedWebhookDelivery, WebhookSessionRequest } from './types.ts'
@@ -132,6 +133,15 @@ export async function createWebhookSession(
 
   const workspace = await ctx.workspaceRegistry.create(resolved.workspacePath)
   signal.throwIfAborted()
+  // `create` adopts an existing directory, so its result is always a folder
+  // workspace. Asserted rather than assumed because a webhook delivery is
+  // defined by the directory it runs in: a pathless workspace would leave the
+  // session with no cwd to validate against its owner.
+  if (!isFolderWorkspace(workspace)) {
+    throw new Error(
+      `webhook workspace '${String(workspace.id)}' has no directory to run a Session in`,
+    )
+  }
   const sessionId = brandString<SessionId>(`webhook-${randomUUID()}`)
   const handle = await ctx.agents.create({
     sessionId,

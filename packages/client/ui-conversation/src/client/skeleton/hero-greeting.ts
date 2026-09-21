@@ -10,6 +10,7 @@
  * @module
  */
 
+import { useEffect, useState } from 'react'
 import type { ConversationSlotProps } from '../contract/slots.ts'
 
 /** The owner's locale seat, which the greeting copy is read through. */
@@ -58,4 +59,45 @@ export function heroGreeting(t: HeroTranslate, now: Date = new Date()): string {
   return name === undefined
     ? t('hero.greeting', { greeting })
     : t('hero.greetingNamed', { greeting, name })
+}
+
+/** How often a mounted hero re-reads the reader's clock — finer than the
+ * hourly wording it decides, coarse enough to cost nothing while it waits. */
+const GREETING_TICK_MS = 60_000
+
+/**
+ * The hero's greeting, level with the reader's own clock.
+ *
+ * The hour is always the browser's: a render reads the clock, a minute tick
+ * carries a page left open across a boundary to its next wording, and coming
+ * back to the tab re-reads it — so a machine woken from sleep or moved to
+ * another timezone greets by the hour the reader is in, not the one the page
+ * opened with.
+ * @param t - the owner's locale seat.
+ * @returns the greeting, naming the reader when the page states one.
+ */
+export function useHeroGreeting(t: HeroTranslate): string {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    // Only a changed hour is news; handing back the previous Date leaves the
+    // render untouched (React bails out of an unchanged state reference).
+    const sync = (): void => {
+      const current = new Date()
+      setNow(previous => (
+        greetingKeyOf(previous.getHours()) === greetingKeyOf(current.getHours()) ? previous : current
+      ))
+    }
+    const onVisibility = (): void => {
+      if (document.visibilityState === 'visible') sync()
+    }
+    const timer = window.setInterval(sync, GREETING_TICK_MS)
+    window.addEventListener('focus', sync)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', sync)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [])
+  return heroGreeting(t, now)
 }

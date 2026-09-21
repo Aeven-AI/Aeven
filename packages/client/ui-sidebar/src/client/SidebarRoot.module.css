@@ -249,6 +249,10 @@
   overflow: hidden;
   /* Aeven `.side-content-button`: no reflow while the body narrows. */
   white-space: nowrap;
+  /* A UA sheet underlines a link and does not underline a button. The control
+     is now an anchor so the browser can open it in a new window, and this is
+     the one declaration that keeps its rendering identical to the button's. */
+  text-decoration: none;
 }
 
 .newSession:hover {

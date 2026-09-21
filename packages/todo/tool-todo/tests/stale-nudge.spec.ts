@@ -2,24 +2,47 @@
  * The staleness nudge. Reading a plan back (the `todo:plan` runtime context) makes it readable; a
  * real session showed that is not enough — an agent held its own plan in context for 96 consecutive
  * steps and never wrote again, because a snapshot it has already read reads as background. This
- * covers the salience half: a fresh notice, at a step threshold, only while the plan is unfinished.
+ * covers the salience half: a fresh notice, only while the plan is unfinished, raised when work has
+ * accumulated past the cadence or the moment a background job the agent owns settles — the one unit
+ * of work the log cannot count.
  *
  * The fold is exercised through real session events, and the listener through the real agent loop,
  * so both the counting and the injection run the same paths production does.
  */
 
 import { defineTool } from '@aeven/tools'
-import { createUserMessage } from '@aeven/llm'
+import { createUserMessage, ToolCallId } from '@aeven/llm'
 import { describe, expect, it } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
+import { Context, Service } from '@deepseek-ai/cordis'
 import { SessionId, type Session, type SessionEvent } from '@aeven/session'
 import type { Agent } from '@aeven/agent'
+import type { JobDoneListener, JobSnapshot } from '@aeven/jobs'
 import AgentLoop from '@aeven/agent-loop'
 import { mountAgentLoopTestDependencies } from '@aeven/agent-loop-testkit'
 import SessionProjectionRegistry from '@aeven/session-projection'
 import type { TodoItem } from '@aeven/tool-todo'
 import * as ToolTodo from '@aeven/tool-todo'
 import { MockAdapter, textResponse, toolCallResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
+
+/** The settlement seam this package reads, driven by hand: the only member of `ctx.jobs` it uses. */
+class SettleProbe extends Service {
+  private readonly listeners = new Set<JobDoneListener>()
+
+  constructor(ctx: Context) {
+    super(ctx, 'jobs')
+  }
+
+  onJobDone(listener: JobDoneListener): () => void {
+    this.listeners.add(listener)
+    return () => { this.listeners.delete(listener) }
+  }
+
+  /** Deliver one settlement exactly as the registry would, owner and all. */
+  settle(owner: Agent | undefined, label = 'read the ledger'): void {
+    const snapshot = { label } as JobSnapshot
+    for (const listener of this.listeners) listener(snapshot, owner)
+  }
+}
 
 /** Keeps one turn alive for a step without touching any todo state. */
 const PING = defineTool({
@@ -35,6 +58,23 @@ const PING = defineTool({
   },
 })
 
+/** Settles one background job for the calling agent — `own: false` settles an unowned one. */
+function delegate(probe: SettleProbe) {
+  return defineTool({
+    name: 'delegate',
+    description: 'settles one background job for the calling agent',
+    parameters: { own: { type: 'boolean', required: true } },
+    output: {
+      schema: { type: 'string' },
+      render: (_args, value) => [{ type: 'text', text: value }],
+    },
+    async execute(args, exec) {
+      probe.settle(args.own ? exec.agent : undefined)
+      return 'settled'
+    },
+  })
+}
+
 /** Steps each scenario lets pass without a write (one ping per step after the first). */
 function pings(count: number): ReturnType<typeof toolCallResponse>[] {
   return Array.from({ length: count }, (_, index) => toolCallResponse(`p${String(index)}`, 'ping', { text: 'tick' }))
@@ -44,9 +84,11 @@ async function harness(adapter: MockAdapter): Promise<Context> {
   const ctx = new Context()
   await mountAgentLoopTestDependencies(ctx)
   await ctx.plugin(SessionProjectionRegistry)
+  await ctx.plugin(SettleProbe)
   await ctx.plugin(AgentLoop, { agents: [] })
   await ctx.plugin(ToolTodo, { allowParallelInProgress: true })
   ctx.tools.register(PING)
+  ctx.tools.register(delegate(ctx.get('jobs') as unknown as SettleProbe))
   ctx.llm.registerAdapter(['mock'], adapter)
   return ctx
 }
@@ -59,12 +101,17 @@ function nudges(agent: Agent): SessionEvent[] {
     && event.data.source.plugin === 'tool-todo')
 }
 
-/** The text of the single injected notice. */
-function nudgeText(agent: Agent): string {
+/** The notice's model-facing text and its transcript summary. */
+function notice(agent: Agent): { text: string; summary: string } {
   const found = nudges(agent)
   expect(found).toHaveLength(1)
-  const [block] = (found[0] as Extract<SessionEvent, { type: 'user/message' }>).data.content
-  return block?.type === 'text' ? block.text : ''
+  const message = (found[0] as Extract<SessionEvent, { type: 'user/message' }>).data
+  const [block] = message.content
+  const source = message.source
+  return {
+    text: block?.type === 'text' ? block.text : '',
+    summary: source.kind === 'plugin' && source.form === 'notice' ? source.summary ?? '' : '',
+  }
 }
 
 async function run(adapter: MockAdapter, id: string): Promise<Agent> {
@@ -85,18 +132,18 @@ async function run(adapter: MockAdapter, id: string): Promise<Agent> {
 const OPEN_PLAN: TodoItem[] = [{ content: 'keep going', status: 'in_progress' }]
 
 describe('todo staleness nudge', () => {
-  it('stays silent until the first threshold, then names the step count and the open plan', async () => {
-    // One write, then eight more steps: the ninth step after the write is the first that is due.
+  it('stays silent until the first threshold, then restates the open plan', async () => {
+    // One write, then three more completed calls: the step after the third is the first that is due.
     const agent = await run(new MockAdapter([
       toolCallResponse('c1', 'todo_write', { todos: OPEN_PLAN }),
-      ...pings(9),
+      ...pings(3),
       textResponse('done'),
     ]), 'nudge-fires')
 
-    const text = nudgeText(agent)
-    expect(text).toContain('has not changed for 8 steps')
-    expect(text).toContain('1 of its 1 tasks are still open')
-    expect(text).toContain('- [in_progress] keep going')
+    const found = notice(agent)
+    expect(found.text).toContain('still shows 1 of its 1 tasks open')
+    expect(found.text).toContain('- [in_progress] keep going')
+    expect(found.summary).toBe('todo plan unchanged across 3 tool calls')
   })
 
   it('injects nothing while the plan is still fresh', async () => {
@@ -111,22 +158,22 @@ describe('todo staleness nudge', () => {
   it('injects nothing once every task is completed', async () => {
     const agent = await run(new MockAdapter([
       toolCallResponse('c1', 'todo_write', { todos: [{ content: 'shipped', status: 'completed' }] }),
-      ...pings(9),
+      ...pings(3),
       textResponse('done'),
     ]), 'nudge-complete')
     expect(nudges(agent)).toHaveLength(0)
   })
 
   it('injects nothing when no plan was ever written', async () => {
-    const agent = await run(new MockAdapter([...pings(9), textResponse('done')]), 'nudge-noplan')
+    const agent = await run(new MockAdapter([...pings(3), textResponse('done')]), 'nudge-noplan')
     expect(nudges(agent)).toHaveLength(0)
   })
 
   it('does not repeat before the repeat interval has passed', async () => {
-    // Firing once at step 9 leaves the cadence at 32, so 40 further steps stay quiet.
+    // Firing once at three leaves the cadence at twelve, so fourteen calls stay quiet.
     const agent = await run(new MockAdapter([
       toolCallResponse('c1', 'todo_write', { todos: OPEN_PLAN }),
-      ...pings(40),
+      ...pings(14),
       textResponse('done'),
     ]), 'nudge-norepeat')
     expect(nudges(agent)).toHaveLength(1)
@@ -135,10 +182,33 @@ describe('todo staleness nudge', () => {
   it('repeats once the interval has passed again', async () => {
     const agent = await run(new MockAdapter([
       toolCallResponse('c1', 'todo_write', { todos: OPEN_PLAN }),
-      ...pings(42),
+      ...pings(15),
       textResponse('done'),
     ]), 'nudge-repeat')
     expect(nudges(agent)).toHaveLength(2)
+  })
+
+  it('nudges the step after a background job settles, ahead of the cadence', async () => {
+    // One delegated call is one unit of work, far short of the cadence: only the
+    // settlement can raise this notice, and it lands on the very next step.
+    const agent = await run(new MockAdapter([
+      toolCallResponse('c1', 'todo_write', { todos: OPEN_PLAN }),
+      toolCallResponse('c2', 'delegate', { own: true }),
+      textResponse('done'),
+    ]), 'nudge-settled')
+
+    const found = notice(agent)
+    expect(found.summary).toBe('todo plan unreconciled since read the ledger settled')
+    expect(found.text).toContain('- [in_progress] keep going')
+  })
+
+  it('ignores a settlement no agent owns', async () => {
+    const agent = await run(new MockAdapter([
+      toolCallResponse('c1', 'todo_write', { todos: OPEN_PLAN }),
+      toolCallResponse('c2', 'delegate', { own: false }),
+      textResponse('done'),
+    ]), 'nudge-unowned')
+    expect(nudges(agent)).toHaveLength(0)
   })
 })
 
@@ -153,6 +223,16 @@ describe('todoStale fold', () => {
   const stateOf = (ctx: Context, session: Session): unknown =>
     ctx.sessionProjections.stateOf(session, 'todoStale')
 
+  const call = (session: Session, tool: string, index: number): void => {
+    session.append('tool/call', {
+      turn: 1,
+      step: index,
+      callId: ToolCallId(`call-${String(index)}`),
+      name: tool,
+      arguments: '{}',
+    })
+  }
+
   const mark = (session: Session, plugin: string): void => {
     session.append('user/message', createUserMessage({
       content: [{ type: 'text', text: 'mark' }],
@@ -160,27 +240,31 @@ describe('todoStale fold', () => {
     }), { surfaceOp: 'append' })
   }
 
-  it('counts committed step boundaries and resets on a write', async () => {
+  it('counts completed tool calls other than its own, and resets on a write', async () => {
     const { ctx, session } = await foldBench('fold-count')
     session.append('turn/start', { turn: 1 })
-    session.append('step/start', { turn: 1, step: 1 })
-    session.append('step/start', { turn: 1, step: 2 })
-    expect(stateOf(ctx, session)).toEqual({ stepsSinceWrite: 2, remindedAt: null })
+    call(session, 'bash', 1)
+    call(session, 'edit', 2)
+    expect(stateOf(ctx, session)).toEqual({ workSinceWrite: 2, remindedAt: null })
+
+    // The plan's own call is not work: a write must not age the plan it wrote.
+    call(session, 'todo_write', 3)
+    expect(stateOf(ctx, session)).toEqual({ workSinceWrite: 2, remindedAt: null })
 
     session.append('todo/write', { todos: OPEN_PLAN })
-    expect(stateOf(ctx, session)).toEqual({ stepsSinceWrite: 0, remindedAt: null })
+    expect(stateOf(ctx, session)).toEqual({ workSinceWrite: 0, remindedAt: null })
 
-    session.append('step/start', { turn: 1, step: 3 })
-    expect(stateOf(ctx, session)).toEqual({ stepsSinceWrite: 1, remindedAt: null })
+    call(session, 'bash', 4)
+    expect(stateOf(ctx, session)).toEqual({ workSinceWrite: 1, remindedAt: null })
   })
 
   it('folds its own notice as the cadence mark, so a restart does not re-nudge', async () => {
     const { ctx, session } = await foldBench('fold-mark')
     session.append('turn/start', { turn: 1 })
-    session.append('step/start', { turn: 1, step: 1 })
-    session.append('step/start', { turn: 1, step: 2 })
+    call(session, 'bash', 1)
+    call(session, 'edit', 2)
     mark(session, 'tool-todo')
-    expect(stateOf(ctx, session)).toEqual({ stepsSinceWrite: 2, remindedAt: 2 })
+    expect(stateOf(ctx, session)).toEqual({ workSinceWrite: 2, remindedAt: 2 })
   })
 
   it("ignores another plugin's message and leaves unrelated events alone", async () => {

@@ -45,6 +45,11 @@ const ORDINARY_WORD_PREFIXES = [
   'SecondSharedService',
   'isSpilledShellCall',
   '_unidentifiedShellExitedDuringHostExit',
+  // `spreadsheet` is sprea + dsh + eet: an ordinary word that happens to carry the
+  // letters, so a blind pass would corrupt it into `spreaavneet`. It reaches this
+  // gate as `spreadsheet.setCell`, `SPREADSHEET_RECIPES` and bare `Spreadsheet`,
+  // which is why the prefix covers the whole family rather than one spelling.
+  'spreadsheet',
 ]
 
 /**
@@ -153,7 +158,11 @@ function isAllowed(token: string): boolean {
   // for paths, so a fixture reference reads `/handshake-abort/`. Classify the
   // word inside it, not the raw run, or ordinary prose slips through.
   const word = token.replace(/^[/.]+/, '').replace(/[/.]+$/, '')
-  return ORDINARY_WORD_PREFIXES.some(prefix => word.startsWith(prefix))
+  // Case-insensitively, because the same ordinary word arrives as `spreadsheet`,
+  // `Spreadsheet` and `SPREADSHEET_RECIPES`, and enumerating spellings would make
+  // each new capitalisation a fresh gate failure.
+  const lowered = word.toLowerCase()
+  return ORDINARY_WORD_PREFIXES.some(prefix => lowered.startsWith(prefix.toLowerCase()))
 }
 
 /**
