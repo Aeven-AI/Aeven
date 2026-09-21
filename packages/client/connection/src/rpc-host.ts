@@ -168,7 +168,7 @@ export class HostConnectionService extends Service implements HostConnectionHand
    * published anywhere.
    * @param request - a request {@link requestRejection} already admitted.
    */
-  private publishCallerCredential(request: ConnectionTrustRequest): void {
+  publishCallerCredential(request: ConnectionTrustRequest): void {
     const identity = this.ctx.get('identityUsers')
     if (identity === undefined) return
     // The authority declares whether its credential is re-presentable at all, so
@@ -180,7 +180,9 @@ export class HostConnectionService extends Service implements HostConnectionHand
     if (credentials === undefined) return
     const bearer = bearerOf(request)
     if (bearer === undefined) return
-    credentials.setSession(ref, bearer)
+    // Optional capability: a provider without an in-memory layer simply cannot
+    // hold a session credential, and says so by not implementing this.
+    credentials.setSession?.(ref, bearer)
   }
 
   /**
