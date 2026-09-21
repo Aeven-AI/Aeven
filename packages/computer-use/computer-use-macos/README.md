@@ -11,9 +11,11 @@ English | [中文](README.zh.md)
 
 Implements the [`@aeven/computer-use-desktop`](../computer-use-desktop/README.md) contract for macOS using the operating system's own facilities — no MCP server, no third-party service, and no bundled native code.
 
-Three things are implemented and tested. `verify()` reads the real filesystem, which is the strongest and most portable evidence that work actually happened. `readiness()` probes Accessibility, Screen Recording, and per-target Automation, and reports **which OS identity holds each grant**, because on macOS a spawned helper carries its own grants rather than inheriting Æven's. Input is always scoped to an exact window, since an unscoped keystroke can reach a sibling window of the same process.
+Implemented and tested: `verify()` reads the real filesystem, which is the strongest and most portable evidence that work actually happened; `readiness()` probes Accessibility, Screen Recording, and per-target Automation and reports **which OS identity holds each grant**, because on macOS a spawned helper carries its own grants rather than inheriting Æven's; `observe()` walks the accessibility tree and mints snapshot-scoped element tokens; and the element-addressed actions (`AXPress`, `AXSetValue`, and advertised secondary actions) go through `AXUIElement`. Input is always scoped to an exact window, since an unscoped keystroke can reach a sibling window of the same process.
 
-Observation and the accessibility actions are deliberately **not** implemented yet. They need an AX tree walker, which requires the Accessibility grant held by the calling process; a spawned helper does not have it and is measured to receive `-25201 kAXErrorAPIDisabled`. Those paths refuse with `not-implemented` and name the missing piece, rather than returning an empty tree that would be indistinguishable from an application with no UI.
+The tree walk needs the **Accessibility grant held by the process that runs it**. A spawned helper does not hold Æven's grant and is measured to receive `-25201 kAXErrorAPIDisabled`, so that case is reported as a capability failure naming the grant — never as an empty node list, which would be indistinguishable from an application with no accessibility surface.
+
+The walk itself runs through AppleScriptObjC, so no native code is compiled. It emits a flat roster and TypeScript does the indexing, which keeps token assignment and bounds computation in ordinary tested code.
 
 ## Table of Contents
 
@@ -54,6 +56,10 @@ Automation is probed **per target application**, because macOS grants it per (co
 
 Named keys map to virtual key codes, because `keystroke` cannot express keys like Return. An unrecognised modifier is refused rather than dropped, so a chord never silently loses a modifier.
 
+### Tokens are snapshot-scoped and replayed
+
+A token is `<snapshotId>:<walkIndex>`, and the snapshot id carries the owning pid and window, so a token is self-describing. An action replays the **same depth-first walk** the snapshot used and stops at that index, so it resolves the same element or fails — never a different one. The node's advertised actions are checked before the call, and a refusal lists what the node does advertise.
+
 ### Verification never trusts an action
 
 `verify()` re-reads the observable from the operating system. A file that cannot be read is `satisfied: false` with the reason, never a pass, and a check that threw reports the error instead of assuming the best.
@@ -66,15 +72,18 @@ Named keys map to virtual key codes, because `keystroke` cannot express keys lik
 <a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
 
-- **Observation is not implemented.** `observe()` refuses with `not-implemented` until an AX tree walker lands, so no snapshot or element token can be produced yet.
-- **Click, setValue, and performAction are not implemented**, for the same reason: they address elements, which requires a snapshot.
-- **The AX walk needs an in-process caller.** Routing it through `osascript` cannot work, because the Accessibility grant belongs to the spawned binary.
+- **The AX walk only goes as far as the grant allows.** Routing it through `osascript` cannot read a tree on a host that has not granted Accessibility to that binary (`-25201`); moving the walk in-process is what makes Æven's own grant apply.
+- **Coordinate clicks are not implemented.** macOS has no single point to press on a window, and a pointer path through CGEvent is not built yet, so `click` must address an element.
+- **The walk visits the frontmost application.** Multi-window applications are observed by their front window, and a window id is its title, because System Events exposes no stable window identifier.
+- **The walk is not verified against a live desktop here.** Every parser, refusal, and action path is covered by tests, but the `-25201` result is the only behaviour observed on a real host.
 - **The runner shells out.** Today every command runs as a spawned helper, so it carries its own grants rather than Æven's. Moving AX and input in-process is what collapses that to a single grant.
 - **Automation prompts cannot be collapsed.** macOS grants Apple Events per target application, so each newly scripted app costs one consent dialog the first time.
 
 <a id="dev-note"></a>
 ## Dev Note
 
-The unimplemented paths are the point of the design, not an oversight. An adapter that returned an empty tree would be worse than one that refuses: the empty tree is indistinguishable from an application with no accessibility surface, which cost a measured twenty-plus calls before the difference was understood.
+The refusal path is the point of the design, not an oversight. An adapter that returned an empty tree would be worse than one that names the missing grant: the empty tree is indistinguishable from an application with no accessibility surface, which cost a measured twenty-plus calls before the difference was understood.
+
+The walk script is the one part that cannot be unit tested here, since it requires a granted process to run. Its failure mode was found by executing it for real: `$.exit` is not a function in osascript, so the script now emits its envelope and then throws, which produces the non-zero status without losing the machine-readable reason.
 
 Readiness and verification were built first because they are what make an action trustworthy. Both are fully testable without a Mac — the runner is injected, so every branch, including each failure mode, is covered.

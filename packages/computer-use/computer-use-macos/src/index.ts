@@ -24,6 +24,8 @@ import {
   ComputerUseError,
   type ActionReceipt,
   type ActionTarget,
+  type DesktopSnapshot,
+  type DesktopWindow,
   type DesktopAction,
   type DesktopPlatform,
   type Expectation,
@@ -33,7 +35,17 @@ import {
   type VerificationOutcome,
   type WindowTarget,
 } from '@aeven/computer-use-desktop'
+import {
+  axActionScript,
+  axSnapshotId,
+  axWalkScript,
+  DEFAULT_AX_NODE_CAP,
+  indexAxNodes,
+  parseAxEnvelope,
+} from './ax.ts'
+import type { RawAxNode } from './ax.ts'
 import type { MacCommandRunner } from './runner.ts'
+import { listWindowsScript, parseWindowList } from './windows.ts'
 import { probeMacReadiness, type GrantHolder, type ReadinessOptions } from './readiness.ts'
 import { checkExpectations, type VerificationReaders } from '@aeven/computer-use-desktop'
 
@@ -114,6 +126,9 @@ export class MacDesktopAdapter {
 
   private readonly options: MacAdapterOptions
 
+  /** Makes each snapshot id unique within this adapter's lifetime. */
+  private sequence = 0
+
   /**
    * @param options - the runner, the grant holder, and the verifier's readers.
    */
@@ -150,20 +165,148 @@ export class MacDesktopAdapter {
   }
 
   /**
-   * Observation requires the accessibility tree.
-   * @param scope - the requested scope; echoed in the failure so a caller can see
-   * which observation was refused.
-   * @returns never.
-   * @throws {ComputerUseError} `not-implemented` naming the missing piece.
+   * Capture one coherent view: the desktop's windows, and the accessibility tree
+   * of the scoped window.
+   *
+   * The tree walk needs the Accessibility grant held by the process that runs it,
+   * so an unpermitted caller is told exactly that instead of receiving an empty
+   * node list — an empty list is indistinguishable from an application that
+   * publishes no accessibility surface.
+   * @param scope - what to observe.
+   * @returns the observation, noting which window was walked.
+   * @throws {ComputerUseError} `capability-unavailable` when the AX API is not
+   * permitted; `invalid-target` when a named window is not present.
    */
-  observe(scope: ObserveScope): Promise<ObserveResult> {
-    return Promise.reject(
-      new ComputerUseError(
-        'not-implemented',
-        'macOS observation needs an AX tree walker, which requires the Accessibility grant held by the calling process; a spawned helper does not have it, so no tree can be produced yet',
-        { scope },
-      ),
+  async observe(scope: ObserveScope): Promise<ObserveResult> {
+    const windows = await this.listWindows()
+    const scoped = scope.windowId === undefined
+      ? windows
+      : windows.filter(window => window.windowId === scope.windowId)
+    if (scope.windowId !== undefined && scoped.length === 0) {
+      throw new ComputerUseError('invalid-target', `no window titled ${scope.windowId} is present`, { windowId: scope.windowId })
+    }
+    const notes: string[] = []
+    const window = scope.pid === undefined
+      ? scoped[0]
+      : scoped.find(candidate => candidate.pid === scope.pid) ?? scoped[0]
+    const snapshot: DesktopSnapshot = {
+      snapshotId: 'ax:pending:0',
+      platform: 'darwin',
+      windows: scoped,
+      nodes: [],
+    }
+    if (window === undefined) {
+      notes.push('no window is present, so there is no accessibility tree to read')
+      return { snapshot, notes }
+    }
+    const id = axSnapshotId(window, this.sequence++)
+    snapshot.snapshotId = id
+    if (scope.tree === false) {
+      notes.push(`walked no tree; snapshot ${id} covers window "${String(window.title)}"`)
+      return { snapshot, notes }
+    }
+    const walked = await this.walkTree(scope.maxNodes ?? DEFAULT_AX_NODE_CAP)
+    snapshot.nodes = indexAxNodes(walked.nodes, id)
+    notes.push(`the accessibility tree covers the frontmost application (${String(walked.nodes.length)} nodes)`)
+    if (walked.truncated) {
+      snapshot.truncated = true
+      notes.push(`the walk stopped at the ${String(DEFAULT_AX_NODE_CAP)} node cap`)
+    }
+    return { snapshot, notes }
+  }
+
+  /**
+   * List the desktop's windows through System Events.
+   * @returns the windows, or an empty list when the listing cannot be read.
+   */
+  async listWindows(): Promise<DesktopWindow[]> {
+    const result = await this.options.runner.run('osascript', ['-e', listWindowsScript()], this.options.signal)
+    if (result.code !== 0) {
+      return []
+    }
+    return parseWindowList(result.stdout)
+  }
+
+  /**
+   * Run the accessibility walk once.
+   * @param cap - the node cap.
+   * @returns the walked roster and whether it was cut short.
+   */
+  private async walkTree(cap: number): Promise<{ nodes: RawAxNode[], truncated: boolean }> {
+    const result = await this.options.runner.run('osascript', ['-l', 'JavaScript', '-e', axWalkScript(String(cap))], this.options.signal)
+    // The walk emits its envelope before throwing, so stdout is authoritative and
+    // the exit code only distinguishes success from a reported failure.
+    const envelope = parseAxEnvelope(result.stdout, 'walking the accessibility tree')
+    return { nodes: envelope.nodes ?? [], truncated: envelope.truncated === true }
+  }
+
+  /**
+   * Run one accessibility action against the node at a walk index.
+   *
+   * `AXSetValue` is expressed as an action name here so the value path and the
+   * press path share one script and one failure vocabulary.
+   * @param token - the snapshot-scoped token naming the node.
+   * @param action - the AX action name, or `AXSetValue` for the value path.
+   * @param value - the value to write, for `AXSetValue`.
+   * @returns the receipt describing the attempt and what the script observed.
+   * @throws {ComputerUseError} `capability-unavailable` when the action fails.
+   */
+  private async performAxAction(token: string, action: string, value?: string): Promise<ActionReceipt> {
+    const index = this.indexFromToken(token)
+    const script = axActionScript(
+      String(index),
+      `'${action.replace(/'/g, "\\'")}'`,
+      `'${(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`,
+      'AXSetValue',
     )
+    const result = await this.options.runner.run('osascript', ['-l', 'JavaScript', '-e', script], this.options.signal)
+    const envelope = parseAxEnvelope(result.stdout, `performing ${action}`)
+    const receipt: ActionReceipt = {
+      route: 'accessibility',
+      notes: [`${action} on the node at walk index ${String(index)}`],
+    }
+    if (envelope.ok) {
+      receipt.observed = 'accessibility action completed'
+    }
+    return receipt
+  }
+
+  /**
+   * The token of an element target, refusing anything else.
+   * @param target - the action target.
+   * @returns the token.
+   * @throws {ComputerUseError} `invalid-target` when the target is not an element,
+   * `not-implemented` for coordinate clicks, which need a pointer path.
+   */
+  private tokenOf(target: ActionTarget): string {
+    if (target.kind === 'element') {
+      return target.token
+    }
+    throw new ComputerUseError(
+      'not-implemented',
+      target.kind === 'point'
+        ? 'a macOS coordinate click needs a pointer path; use performAction on an element instead'
+        : 'a macOS click must address an element, because a window has no single point to press',
+      { kind: target.kind },
+    )
+  }
+
+  /**
+   * Recover the walk index encoded in a snapshot token.
+   *
+   * Tokens are `<snapshotId>:<index>`; the snapshot id itself carries the pid and
+   * window, so a token is self-describing and an unreadable one fails here rather
+   * than reaching the walk.
+   * @param token - the token.
+   * @returns the walk index.
+   * @throws {ComputerUseError} `invalid-target` when the token carries no index.
+   */
+  private indexFromToken(token: string): number {
+    const index = Number(token.split(':').at(-1))
+    if (!Number.isInteger(index) || index < 0) {
+      throw new ComputerUseError('invalid-target', `the token "${token}" carries no usable walk index`, { token })
+    }
+    return index
   }
 
   /**
@@ -188,12 +331,12 @@ export class MacDesktopAdapter {
           route: 'accessibility',
           notes: [`focus requested for window ${action.target.windowId} of pid ${String(action.target.pid)}`],
         }
-      case 'click':
       case 'setValue':
+        return this.performAxAction(action.target.token, 'AXSetValue', action.value)
       case 'performAction':
-        throw new ComputerUseError('not-implemented', `the "${action.kind}" action needs the accessibility tree, which this adapter cannot produce yet`, {
-          kind: action.kind,
-        })
+        return this.performAxAction(action.target.token, action.action)
+      case 'click':
+        return this.performAxAction(this.tokenOf(action.target), 'AXPress')
     }
   }
 

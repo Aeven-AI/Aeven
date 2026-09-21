@@ -231,23 +231,123 @@ describe('macOS input is always window-scoped', () => {
     expect(receipt.notes?.[0]).toContain('w7')
   })
 
-  it('refuses the accessibility actions with the missing piece named, not with a silent no-op', async () => {
+  it('refuses a coordinate or window click, which has no single point to press', async () => {
     const runner = runnerReturning({})
-    for (const action of [
-      { kind: 'click', target: { kind: 'window', pid: 1, windowId: 'w' } },
-      { kind: 'setValue', target: { kind: 'element', token: 's1:0' }, value: 'x' },
-      { kind: 'performAction', target: { kind: 'element', token: 's1:0' }, action: 'press' },
-    ] as const) {
-      await expect(adapter(runner).act(action)).rejects.toMatchObject({ code: 'not-implemented' })
-    }
+    await expect(adapter(runner).act({ kind: 'click', target: { kind: 'window', pid: 1, windowId: 'w' } }))
+      .rejects.toMatchObject({ code: 'not-implemented' })
+    await expect(
+      adapter(runner).act({ kind: 'click', target: { kind: 'point', x: 1, y: 2, window: { kind: 'window', pid: 1, windowId: 'w' } } }),
+    ).rejects.toThrow(/pointer path/)
+    expect(runner.calls).toHaveLength(0)
+  })
+
+  it('presses an element through the accessibility action', async () => {
+    const runner = runnerReturning({ AXPress: { code: 0, stdout: '{"ok":true,"acted":"AXPress"}', stderr: '' } })
+    const receipt = await adapter(runner).act({ kind: 'click', target: { kind: 'element', token: 'ax:1:w:0:3' } })
+    expect(receipt.route).toBe('accessibility')
+    expect(receipt.notes?.[0]).toContain('walk index 3')
+    expect(runner.calls[0]?.args.join(' ')).toContain('-l JavaScript')
+  })
+
+  it('writes a value through the accessibility API and reports what it did', async () => {
+    const runner = runnerReturning({ AXSetValue: { code: 0, stdout: '{"ok":true,"acted":"setValue"}', stderr: '' } })
+    const receipt = await adapter(runner).act({ kind: 'setValue', target: { kind: 'element', token: 'ax:1:w:0:0' }, value: 'the story' })
+    expect(receipt.observed).toBe('accessibility action completed')
+  })
+
+  it('invokes an advertised secondary action by name', async () => {
+    const runner = runnerReturning({ AXShowMenu: { code: 0, stdout: '{"ok":true,"acted":"AXShowMenu"}', stderr: '' } })
+    const receipt = await adapter(runner).act({ kind: 'performAction', target: { kind: 'element', token: 'ax:1:w:0:1' }, action: 'AXShowMenu' })
+    expect(receipt.notes?.[0]).toContain('AXShowMenu')
+  })
+
+  it('reports a refused accessibility action with the advertised list attached', async () => {
+    const runner = runnerReturning({ AXPress: { code: 1, stdout: '{"ok":false,"error":"the element does not advertise AXPress; it advertises: AXShowMenu","axError":0}', stderr: '' } })
+    await expect(adapter(runner).act({ kind: 'click', target: { kind: 'element', token: 'ax:1:w:0:0' } }))
+      .rejects.toThrow(/does not advertise AXPress/)
+  })
+
+  it('refuses a token that carries no walk index before running anything', async () => {
+    const runner = runnerReturning({})
+    await expect(adapter(runner).act({ kind: 'click', target: { kind: 'element', token: 'ax:broken' } }))
+      .rejects.toMatchObject({ code: 'invalid-target' })
     expect(runner.calls).toHaveLength(0)
   })
 })
 
-describe('observation refuses instead of reporting an empty tree', () => {
-  it('rejects with the missing piece named, so an empty tree is never mistaken for an empty app', async () => {
-    const adapter = new MacDesktopAdapter({ runner: runnerReturning({}) })
-    await expect(adapter.observe({ pid: 1 })).rejects.toMatchObject({ code: 'not-implemented' })
-    await expect(adapter.observe({ pid: 1 })).rejects.toThrow(/Accessibility grant/)
+describe('observation walks the accessibility tree', () => {
+  const WINDOWS = JSON.stringify([
+    { pid: 42, app: 'Pages', title: 'Agent Story.pages', position: '10, 20', size: '800, 600' },
+  ])
+  const TREE = JSON.stringify({
+    ok: true,
+    truncated: false,
+    nodes: [
+      { depth: 0, role: 'AXWindow', title: 'Agent Story', description: '', value: '', actions: [], x: 0, y: 0, width: 800, height: 600 },
+      { depth: 1, role: 'AXTextArea', title: 'Body', description: '', value: 'existing text', actions: ['AXSetValue'], x: 10, y: 10, width: 700, height: 500 },
+    ],
+  })
+
+  it('mints snapshot-scoped tokens that carry their window', async () => {
+    const runner = runnerReturning({ 'System Events': { code: 0, stdout: WINDOWS, stderr: '' }, kAXFocusedApplicationAttribute: { code: 0, stdout: TREE, stderr: '' } })
+    const result = await new MacDesktopAdapter({ runner }).observe({})
+    const id = result.snapshot?.snapshotId ?? ''
+    expect(id).toContain('ax:42:Agent Story.pages')
+    expect(result.snapshot?.nodes.map(node => node.token)).toEqual([`${id}:0`, `${id}:1`])
+  })
+
+  it('falls back to the description when a node carries no title', async () => {
+    const tree = JSON.stringify({ ok: true, nodes: [{ depth: 0, role: 'AXButton', title: '', description: 'Close', value: '', actions: [], x: 0, y: 0, width: 1, height: 1 }] })
+    const runner = runnerReturning({ 'System Events': { code: 0, stdout: WINDOWS, stderr: '' }, kAXFocusedApplicationAttribute: { code: 0, stdout: tree, stderr: '' } })
+    const result = await new MacDesktopAdapter({ runner }).observe({})
+    expect(result.snapshot?.nodes[0]?.title).toBe('Close')
+  })
+
+  it('marks a text area editable even when it advertises no set-value action', async () => {
+    const runner = runnerReturning({ 'System Events': { code: 0, stdout: WINDOWS, stderr: '' }, kAXFocusedApplicationAttribute: { code: 0, stdout: TREE, stderr: '' } })
+    const result = await new MacDesktopAdapter({ runner }).observe({})
+    expect(result.snapshot?.nodes[1]?.editable).toBe(true)
+  })
+
+  it('reports truncation when the walk hit its cap', async () => {
+    const tree = JSON.stringify({ ok: true, truncated: true, nodes: [{ depth: 0, role: 'AXWindow', title: '', description: '', value: '', actions: [], x: 0, y: 0, width: 1, height: 1 }] })
+    const runner = runnerReturning({ 'System Events': { code: 0, stdout: WINDOWS, stderr: '' }, kAXFocusedApplicationAttribute: { code: 0, stdout: tree, stderr: '' } })
+    const result = await new MacDesktopAdapter({ runner }).observe({})
+    expect(result.snapshot?.truncated).toBe(true)
+    expect(result.notes?.join(' ')).toContain('node cap')
+  })
+
+  it('skips the walk when the tree is not wanted, and says which window the snapshot covers', async () => {
+    const runner = runnerReturning({ 'System Events': { code: 0, stdout: WINDOWS, stderr: '' } })
+    const result = await new MacDesktopAdapter({ runner }).observe({ tree: false })
+    expect(result.snapshot?.nodes).toEqual([])
+    expect(result.notes?.[0]).toContain('walked no tree')
+    expect(runner.calls).toHaveLength(1)
+  })
+
+  it('refuses a named window that is not present', async () => {
+    const runner = runnerReturning({ 'System Events': { code: 0, stdout: WINDOWS, stderr: '' } })
+    await expect(new MacDesktopAdapter({ runner }).observe({ windowId: 'Absent' }))
+      .rejects.toMatchObject({ code: 'invalid-target' })
+  })
+
+  it('observes an empty desktop without walking anything', async () => {
+    const runner = runnerReturning({ 'System Events': { code: 0, stdout: '[]', stderr: '' } })
+    const result = await new MacDesktopAdapter({ runner }).observe({})
+    expect(result.snapshot?.windows).toEqual([])
+    expect(result.notes?.[0]).toContain('no window is present')
+  })
+
+  it('reports a missing Accessibility grant as a capability failure, never as an empty tree', async () => {
+    const runner = runnerReturning({
+      'System Events': { code: 0, stdout: WINDOWS, stderr: '' },
+      kAXFocusedApplicationAttribute: { code: 1, stdout: '{"ok":false,"error":"the accessibility API did not return a focused application","axError":-25201}', stderr: 'boom' },
+    })
+    await expect(new MacDesktopAdapter({ runner }).observe({})).rejects.toThrow(/not permitted/)
+  })
+
+  it('returns no windows when the listing itself fails, rather than throwing', async () => {
+    const runner = runnerReturning({ 'System Events': { code: 1, stdout: '', stderr: 'denied' } })
+    await expect(new MacDesktopAdapter({ runner }).listWindows()).resolves.toEqual([])
   })
 })
