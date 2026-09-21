@@ -338,6 +338,7 @@
     { "path": "./packages/computer-use/computer-use-session" },
     { "path": "./packages/computer-use/computer-use-benchmark" },
     { "path": "./packages/computer-use/computer-use-tasks" },
+    { "path": "./packages/computer-use/computer-use-formats" },
     { "path": "./packages/experimental/computer-use-cua-driver-mcp" },
     { "path": "./packages/experimental/browser-overlay" },
     { "path": "./packages/host/directory-picker" },

@@ -42,6 +42,7 @@ const NO_MODEL_EXPERIENCE_SECTION: Readonly<Record<string, string>> = {
   'packages/computer-use/computer-use-session': 'The package is the host-side session a consumer drives; it registers no tool, schema, or prompt section, and the consumer that exposes it owns every model-visible effect.',
   'packages/computer-use/computer-use-benchmark': 'The package measures step counts on the host and registers no tool, schema, or prompt section; the consumer that exposes a session owns every model-visible effect.',
   'packages/computer-use/computer-use-tasks': 'The package reads benchmark task sets and renders a catalog; it registers no tool, schema, or prompt section, and the recipes curated from it own every model-visible effect.',
+  'packages/computer-use/computer-use-formats': 'The package declares file-format recipes and their tool readiness; it registers no tool, schema, or prompt section, and the consumer that runs them owns every model-visible effect.',
   'packages/core/scope': 'The package is a model-agnostic registration and lifecycle primitive; model-facing consumers own any context selection.',
   'packages/util/brand': 'The package only constructs plain string values and registers nothing model-facing.',
   'packages/util/home-paths': 'The package only resolves harness-owned host paths; model-facing consumers own any rendered use.',
