@@ -4374,6 +4374,77 @@ importers:
         specifier: workspace:^
         version: link:../../../vendor/cordis
 
+  packages/computer-use/computer-use-benchmark:
+    dependencies:
+      '@aeven/computer-use-desktop':
+        specifier: workspace:^
+        version: link:../computer-use-desktop
+      '@aeven/computer-use-executor':
+        specifier: workspace:^
+        version: link:../computer-use-executor
+      '@aeven/computer-use-router':
+        specifier: workspace:^
+        version: link:../computer-use-router
+      '@aeven/computer-use-session':
+        specifier: workspace:^
+        version: link:../computer-use-session
+
+  packages/computer-use/computer-use-desktop:
+    devDependencies:
+      '@aeven/brand':
+        specifier: workspace:^
+        version: link:../../util/brand
+
+  packages/computer-use/computer-use-executor:
+    dependencies:
+      '@aeven/computer-use-desktop':
+        specifier: workspace:^
+        version: link:../computer-use-desktop
+      '@aeven/computer-use-router':
+        specifier: workspace:^
+        version: link:../computer-use-router
+
+  packages/computer-use/computer-use-linux:
+    dependencies:
+      '@aeven/computer-use-desktop':
+        specifier: workspace:^
+        version: link:../computer-use-desktop
+
+  packages/computer-use/computer-use-macos:
+    dependencies:
+      '@aeven/computer-use-desktop':
+        specifier: workspace:^
+        version: link:../computer-use-desktop
+
+  packages/computer-use/computer-use-macos-apple-events:
+    dependencies:
+      '@aeven/computer-use-executor':
+        specifier: workspace:^
+        version: link:../computer-use-executor
+
+  packages/computer-use/computer-use-router:
+    dependencies:
+      '@aeven/computer-use-desktop':
+        specifier: workspace:^
+        version: link:../computer-use-desktop
+
+  packages/computer-use/computer-use-session:
+    dependencies:
+      '@aeven/computer-use-desktop':
+        specifier: workspace:^
+        version: link:../computer-use-desktop
+      '@aeven/computer-use-executor':
+        specifier: workspace:^
+        version: link:../computer-use-executor
+
+  packages/computer-use/computer-use-tasks: {}
+
+  packages/computer-use/computer-use-windows:
+    dependencies:
+      '@aeven/computer-use-desktop':
+        specifier: workspace:^
+        version: link:../computer-use-desktop
+
   packages/context/agent-instructions:
     dependencies:
       '@aeven/util-values':
@@ -6388,6 +6459,9 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
     devDependencies:
+      '@aeven/credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -6398,6 +6472,9 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
     devDependencies:
+      '@aeven/credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
       '@aeven/host-webserver':
         specifier: workspace:^
         version: link:../../host/webserver

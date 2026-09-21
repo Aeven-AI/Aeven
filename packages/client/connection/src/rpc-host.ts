@@ -34,6 +34,31 @@ const INVALID_REQUEST_RPC_ID = RpcId('invalid-request')
 const CHANNEL_PATTERN = /^\/[A-Za-z0-9._~-]+$/
 const ENDPOINT_SEGMENT_PATTERN = /^[A-Za-z0-9_$.-]+$/
 
+/** Bearer scheme name, matched case-insensitively as RFC 7235 requires. */
+const BEARER_PREFIX = /^bearer /iu
+
+/**
+ * The bearer a request presents, when it presents exactly one.
+ *
+ * Read here rather than inside the authority because the authority is handed
+ * headers and answers a user; this answers "what string was presented", which
+ * is a different question and only the caller that must re-present it asks. A
+ * repeated header names no credential, matching the authority's own reading.
+ * @param request - the incoming HTTP request or WebSocket upgrade.
+ * @returns the token, or undefined when absent or ambiguous.
+ */
+function bearerOf(request: ConnectionTrustRequest): string | undefined {
+  const headers = request.headers
+  const raw = typeof (headers as Headers).get === 'function'
+    ? (headers as Headers).get('authorization') ?? undefined
+    : (headers as Record<string, string | readonly string[] | undefined>)['authorization']
+  if (typeof raw !== 'string') return undefined
+  const match = BEARER_PREFIX.exec(raw)
+  if (match === null) return undefined
+  const token = raw.slice(match[0].length).trim()
+  return token.length > 0 ? token : undefined
+}
+
 interface ConnectionRpcInterceptor {
   readonly matches: ConnectionRpcEndpointMatcher
   readonly fetchHandler: FetchHandler
@@ -125,6 +150,37 @@ export class HostConnectionService extends Service implements HostConnectionHand
   private enforcingIdentity(): { resolve: (request: ConnectionTrustRequest) => unknown } | undefined {
     const identity = this.ctx.get('identityUsers')
     return identity !== undefined && identity.enforcing ? identity : undefined
+  }
+
+  /**
+   * Hand the admitted caller's own credential to whatever else must present it.
+   *
+   * A credential that is a *session* — Aeven's access token — is verified here
+   * on every request and then needed a second time by a different subsystem:
+   * the model route calls Aeven's own API on this caller's behalf. The caller is
+   * the only holder of it, so the only way across is to publish it as it passes.
+   * Doing that per request is also what keeps it fresh: the token rotates every
+   * two hours and the browser re-sends the new one immediately, so nothing here
+   * tracks expiry, schedules a refresh, or stores a copy that can go stale.
+   *
+   * An authority declares whether its credential is re-presentable at all, so a
+   * launch token — which admits one browser and opens nothing else — is never
+   * published anywhere.
+   * @param request - a request {@link requestRejection} already admitted.
+   */
+  private publishCallerCredential(request: ConnectionTrustRequest): void {
+    const identity = this.ctx.get('identityUsers')
+    if (identity === undefined) return
+    // The authority declares whether its credential is re-presentable at all, so
+    // a launch token — which admits one browser and opens nothing else — is never
+    // published anywhere. One resolution per request decides both questions.
+    const ref = identity.credentialRefFor(request)
+    if (ref === undefined) return
+    const credentials = this.ctx.get('credentials')
+    if (credentials === undefined) return
+    const bearer = bearerOf(request)
+    if (bearer === undefined) return
+    credentials.setSession(ref, bearer)
   }
 
   /**
@@ -225,6 +281,10 @@ export class HostConnectionService extends Service implements HostConnectionHand
           res.end(rejection === 401 ? 'unauthorized' : 'forbidden')
           return
         }
+        // Admitted, so whoever else needs this caller's credential can have the
+        // one they just presented. Publishing before dispatch means the model
+        // route reads the same token the request was authenticated with.
+        this.publishCallerCredential(req)
         await bridge(req, res, fetchHandler)
       },
     }

@@ -22,14 +22,10 @@ export { currentBearer } from './auth/services/tokens.ts'
 export { signOut, getProfile, AevenApiError } from './auth/services/api.ts'
 export { publishReader, publishedReader, type AevenReader } from './auth/services/reader.ts'
 export { aevenConfig, mediaUrl, webUrl, type AevenClientConfig } from './auth/services/config.ts'
-export {
-  INFERENCE_CREDENTIAL_REF, installInferenceCredentialMirror, mirrorSessionBearer,
-} from './auth/services/inference-credential.ts'
 
 import { getProfile } from './auth/services/api.ts'
 import { aevenConfig } from './auth/services/config.ts'
 import { isSessionRefusal } from './auth/services/errors.ts'
-import { mirrorSessionBearer } from './auth/services/inference-credential.ts'
 import { AUTH_ROUTES, isAuthRoute, navigateRoute } from './auth/services/routes.ts'
 import { publishReader } from './auth/services/reader.ts'
 import { cachedProfile, session, storage, type AevenProfile } from './auth/services/session.ts'
@@ -145,10 +141,6 @@ export function installAuthenticatedTransport(): () => void {
   const existing = scope.__AVN_TRANSPORT__?.fetch
   const send = existing ?? ((input: URL, init: RequestInit) => globalThis.fetch(input, init))
   const sendWith = (input: URL, init: RequestInit, bearer: string | undefined): Promise<Response> => {
-    // The one place a bearer is known before it is sent, which makes it the place
-    // to publish it: every renewal re-sends, so the Host's copy of the session
-    // credential follows the rotation without refresh logic of its own.
-    mirrorSessionBearer(bearer)
     const headers = new Headers(init.headers)
     if (bearer !== undefined) headers.set('Authorization', `Bearer ${bearer}`)
     return send(input, { ...init, headers })

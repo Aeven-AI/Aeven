@@ -13,6 +13,7 @@
  */
 
 import { Service, type Context } from '@deepseek-ai/cordis'
+import type { CredentialRef } from '@aeven/credentials'
 import type { IdentityRequest, User, UserResolver } from './types.ts'
 
 export type { IdentityRequest, User, UserResolver } from './types.ts'
@@ -68,6 +69,24 @@ export class IdentityUsers extends Service {
     for (const resolver of this.resolvers.values()) {
       const user = resolver.resolve(request)
       if (user !== undefined) return user
+    }
+    return undefined
+  }
+
+  /**
+   * The credential reference the resolver that recognizes this request named.
+   *
+   * Answers which reference the presented credential opens, so a caller that
+   * must present the same credential elsewhere does not have to guess a name
+   * from the authority's id. Resolution happens exactly once per request, which
+   * is why this identifies rather than asking the authority again.
+   * @param request - the credential-bearing headers.
+   * @returns the reference, or undefined when nobody recognized the request or
+   * the authority declared none.
+   */
+  credentialRefFor(request: IdentityRequest): CredentialRef | undefined {
+    for (const resolver of this.resolvers.values()) {
+      if (resolver.resolve(request) !== undefined) return resolver.credentialRef
     }
     return undefined
   }

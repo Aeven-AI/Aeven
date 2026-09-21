@@ -97,7 +97,6 @@ export class AppWebEntry {
       this.ctx = ctx
       await this.runPluginBoot(ctx, prefetching)
       await facesReady
-      await this.publishSessionCredential(ctx)
       await this.mountApp(ctx)
       await this.awaitInitialShellData(ctx)
       hidePreloader()
@@ -175,48 +174,6 @@ export class AppWebEntry {
     await afterPaint()
   }
 
-  /**
-   * Let the authentication transport publish the session bearer as the Æven
-   * provider's credential.
-   *
-   * Inference runs in the Host's own process, which never sees this token, and the
-   * browser is where both the token and the rotation that keeps it fresh live.
-   * Installed here because it is the first point the graph is up and the credential
-   * face exists; the mirror holds the newest token it has seen, so calls that
-   * already flowed before this are published now rather than at the next one.
-   * @param ctx - boot context after plugin activation.
-   */
-  private async publishSessionCredential(ctx: Context): Promise<void> {
-    // The injection names the whole chain. Cordis guards `remote` and
-    // `remote.credentials` separately, so injecting only the leaf still refuses the
-    // tree it hangs from — and reading through a type cast satisfies the compiler
-    // while the runtime guard refuses it, which is what broke plugin loading on a
-    // clean install. `ui-settings-models` declares the same pair for the same read.
-    const owner = ctx as unknown as {
-      inject(
-        names: readonly string[],
-        register: (scope: {
-          remote: {
-            credentials: {
-              set(ref: string, value: string): Promise<{ ok: boolean; error?: { message: string } }>
-            }
-          }
-        }) => void,
-      ): Promise<unknown>
-    }
-
-    await owner.inject(['remote', 'remote.credentials'], (scope) => {
-      const credentials = scope.remote.credentials
-
-      auth.installInferenceCredentialMirror(async (ref, value) => {
-        const response = await credentials.set(ref, value)
-        // Raised so the mirror forgets the token and tries again on the next call:
-        // a store that is briefly unwritable must not pin the session to a
-        // credential that never landed.
-        if (!response.ok) throw new Error(response.error?.message ?? 'the credential store refused it')
-      })
-    })
-  }
 
   /** Mount through a dependency fiber so replacing uiRenderer remounts the application. */
   private async mountApp(ctx: Context): Promise<void> {
