@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-21-auth-gate-boots-in-place.md
-2026-09-21-auth-gate-boots-in-place.md: befb6174cec2c40093c2e00eeac846aa42357b6e
-2026-09-21-auth-gate-boots-in-place.zh.md: 9c9551c2e22f93864f77a9582bc998107da51124
+2026-09-21-auth-gate-boots-in-place.md: c75378f2be240574910ce8ac2b4c73bf5293473e
+2026-09-21-auth-gate-boots-in-place.zh.md: d30e57620bd36dc2cb524d64974700afe3c986b9

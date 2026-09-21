@@ -6,6 +6,9 @@ import type {
   WebBootEntry,
 } from '@aeven/client-modules/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+// The trigger a refused RPC reaches, from the same module instance the kernel
+// subscribes through at the `/client` entry.
+import { leaveForSignIn } from '@aeven/client-ui-auth-aeven/src/client/auth/services/watch.ts'
 import { AppWebEntry } from '../src/boot.ts'
 import { PRELOADER_ELEMENT_ID } from '../src/preloader.ts'
 
@@ -98,7 +101,7 @@ function installBootPage(workspace?: { whenInitialDataReady?: () => Promise<void
           ctx.reflect.provide('uiRenderer', {
             mount: (element: HTMLElement) => {
               element.textContent = 'mounted'
-              return () => {}
+              return () => { element.textContent = '' }
             },
           })
         },
@@ -156,6 +159,31 @@ describe('the boot gate waits the reader out', () => {
     // The cover came back for the boot and is dismissed over the mounted shell,
     // rather than being repainted by a document load.
     expect(preloader.classList.contains('animate') || preloader.classList.contains('hide')).toBe(true)
+    await entry.dispose()
+  })
+
+  it('hands the page back to the sign-in screen when the session ends after the boot', async () => {
+    // The reader is signed in, so the first pass boots the application.
+    let signedIn = true
+    installAevenApi(async (route) => {
+      if (!signedIn) return new Response(null, { status: 401 })
+      return route === '/refresh-token' ? Response.json(GRANT) : Response.json(NAMED_PROFILE)
+    })
+    const { container, entry, booting } = installBootPage()
+    await booting
+    expect(container.textContent).toContain('mounted')
+
+    // A page of their own, which is where signing in again should return them.
+    window.history.pushState(null, '', '/session/abc')
+    signedIn = false
+    leaveForSignIn()
+
+    // The kernel hears it: the tree is disposed, the gate runs again in the same
+    // container, and the reader is back at the sign-in screen — no document load.
+    await vi.waitFor(() => { expect(container.querySelector('.authenticate')).not.toBeNull() })
+    expect(container.textContent).not.toContain('mounted')
+    expect(window.location.pathname).toBe('/sign-in')
+    expect(window.localStorage.getItem('authReferrer')).toBe('/session/abc')
     await entry.dispose()
   })
 

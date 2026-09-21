@@ -51,7 +51,7 @@ gate 是一次等待。`AppWebEntry.gateOnAuthentication()` 循环直到会话�
 仍有两处，均为有意保留，且都不在邮件登录路径上：
 
 - provider 登录以 `Authenticate.signInOauth` 中的 `location.href = oauthUrl` 开始，它离开该 origin 前往 provider 自己的授权界面。provider 把读者送回本部署的 `/oauth-result/...`，那是 kernel 的一次全新启动，并到达 `OauthResult`。返回段现在是一次加载而不是两次：`OauthResult` 通过 `navigateRoute` 报告成功，该调用使已挂载的界面落定，并在那份文档中启动应用。起始段是否根本不需要该文档，以及桌面部署是否应让应用窗口完全不参与其中，仍是未决问题——桌面外壳已经在独立窗口中抵达 provider，随后又用 `loadURL` 丢弃了自己的应用窗口。
-- 应用启动之后会话结束时，`leaveForSignIn()` 会加载 `AUTH_ROUTES.signIn`（[会话结束之时](../../implemented/bug-fix/2026-09-14-aeven-session-survives-and-ends-visibly.zh.md)）。要在原位完成这一点，需要正在运行的应用把页面交还给 gate，而目前没有任何界面这样做。
+- 应用启动之后会话结束时，`leaveForSignIn()` 上报会话已结束（[会话结束之时](../../implemented/bug-fix/2026-09-14-aeven-session-survives-and-ends-visibly.zh.md)）：正在运行的应用 dispose 它的插件树，gate 随即再次运行——也就是[本 gate 所引入的同一次交还](2026-09-22-session-end-hands-the-page-back.zh.md)，经由 `packages/client/ui-auth-aeven/src/client/auth/services/watch.ts` 的 `onSessionEnded`。
 
 ## Alternatives considered
 

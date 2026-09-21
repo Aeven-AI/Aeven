@@ -92,9 +92,11 @@ describe('renewing the Aeven session', () => {
     expect(await currentBearer(refused)).toBe(fresh)
   })
 
-  it('loads the sign-in screen and drops the held bearer when the API refuses the cookie', async () => {
-    const { sessionBearer, session } = await load()
+  it('discards the held bearer and reports the end of the session when the API refuses the cookie', async () => {
+    const { sessionBearer, session, onSessionEnded } = await load()
     const assign = stubNavigation('/sessions/abc')
+    const ended = vi.fn()
+    const stop = onSessionEnded(ended)
     window.localStorage.setItem('userId', 'u-1')
     const refused = token('u-1', 7200)
     window.localStorage.setItem('appBearers', JSON.stringify({ 'u-1': refused }))
@@ -105,12 +107,16 @@ describe('renewing the Aeven session', () => {
     // The bearer would still verify locally; a gate that found it would boot
     // straight back into the refusal.
     expect(held()).toEqual({})
-    expect(window.localStorage.getItem('authReferrer')).toBe('/sessions/abc')
-    expect(assign).toHaveBeenCalledOnce()
-    expect(assign).toHaveBeenCalledWith('/sign-in')
+    expect(ended).toHaveBeenCalledOnce()
+    // The address belongs to whoever owns the page: the kernel presents the
+    // sign-in screen in the document the reader is in, and records where they
+    // were as the referrer when it does.
+    expect(assign).not.toHaveBeenCalled()
+    expect(window.localStorage.getItem('authReferrer')).toBeNull()
 
     await sessionBearer(refused)
-    expect(assign).toHaveBeenCalledOnce()
+    expect(ended).toHaveBeenCalledOnce()
+    stop()
   })
 
   it('keeps the session when the renewal fails for a reason that says nothing about it', async () => {
@@ -150,9 +156,11 @@ describe('renewing the Aeven session', () => {
     }
   })
 
-  it('leaves when another tab signs out', async () => {
-    const { watchSession, session } = await load()
+  it('reports the end of the session when another tab signs out', async () => {
+    const { watchSession, session, onSessionEnded } = await load()
     const assign = stubNavigation('/')
+    const ended = vi.fn()
+    const stop = onSessionEnded(ended)
     window.localStorage.setItem('userId', 'u-1')
     window.localStorage.setItem('appBearers', JSON.stringify({ 'u-1': token('u-1', 7200) }))
     vi.stubGlobal('fetch', vi.fn())
@@ -162,9 +170,11 @@ describe('renewing the Aeven session', () => {
       await vi.waitFor(() => { expect(session.userId).toBe('u-1') })
       window.localStorage.setItem('appBearers', '{}')
       window.dispatchEvent(new StorageEvent('storage', { key: 'appBearers' }))
-      expect(assign).toHaveBeenCalledWith('/sign-in')
+      expect(ended).toHaveBeenCalledOnce()
+      expect(assign).not.toHaveBeenCalled()
     } finally {
       vi.useRealTimers()
+      stop()
     }
   })
 

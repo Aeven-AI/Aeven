@@ -51,7 +51,7 @@ The cover spans the wait and nothing else. `hidePreloader()` runs while a screen
 Two remain, both deliberate and neither on the email path:
 
 - A provider sign-in starts with `location.href = oauthUrl` in `Authenticate.signInOauth`, which leaves the origin for the provider's own consent screen. The provider returns the reader to this deployment's `/oauth-result/...`, which is a fresh boot of the kernel and reaches `OauthResult`. The return leg is now one load rather than two: `OauthResult` reports success through `navigateRoute`, which settles the mounted screen and boots the application in that document. Whether the start leg needs the document at all, and whether a desktop deployment should keep the application window out of it, is open — the desktop shell already reaches providers in a separate window and then throws its own application window away with `loadURL`.
-- `leaveForSignIn()` loads `AUTH_ROUTES.signIn` when a session ends after the application has booted ([when a session ends](../../implemented/bug-fix/2026-09-14-aeven-session-survives-and-ends-visibly.md)). Doing that in place needs the running application to hand the page back to the gate, which no surface does today.
+- `leaveForSignIn()` reports a session that ends after the application has booted ([when a session ends](../../implemented/bug-fix/2026-09-14-aeven-session-survives-and-ends-visibly.md)): the running application disposes its plugin tree and the gate runs again, which is [the same hand-back this gate introduced](2026-09-22-session-end-hands-the-page-back.md) through `onSessionEnded` in `packages/client/ui-auth-aeven/src/client/auth/services/watch.ts`.
 
 ## Alternatives considered
 

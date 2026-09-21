@@ -21,6 +21,23 @@ import './base.css'
 /** Module transport hook replaced by jsdom tests. */
 export type BootSeams = Pick<ClientModuleCreateOptions, 'loadBundle'>
 
+/** A pass's session-end latch: the wait it holds, and what ends it. */
+interface SessionEnd {
+  readonly promise: Promise<void>
+  /** Release the pass that is waiting for this session to end. */
+  end(): void
+}
+
+/**
+ * Build the latch a pass holds until its session ends.
+ * @returns the wait, and the call that releases it.
+ */
+function sessionEndLatch(): SessionEnd {
+  let end: () => void = () => {}
+  const promise = new Promise<void>((resolve) => { end = resolve })
+  return { promise, end }
+}
+
 /** Browser boot entry consumed by `apps/web`. */
 export class AppWebEntry {
   private readonly container: HTMLElement
@@ -29,6 +46,10 @@ export class AppWebEntry {
   private ctx: Context | undefined
   private modules!: ClientModuleSystem
   private manifest!: BootManifest
+  /** The pass that owns the page, while it owns it. */
+  private sessionEnd: SessionEnd | undefined
+  /** The subscription that hears a session end. */
+  private stopFollowingSession: (() => void) | undefined
 
   /**
    * Draw the boot page; {@link run} starts the loader.
@@ -44,11 +65,54 @@ export class AppWebEntry {
   /**
    * Load and activate every client entry, then hand the mount point to the
    * UI renderer. Plugin failures remain visible on the boot page.
+   *
+   * The call resolves once the pass it started has settled. The document lives
+   * on: a session that ends later disposes the plugin tree and runs the gate
+   * again, so the reader reaches the sign-in screen without leaving the page
+   * they are on.
    * @returns Resolves after application mount or failure rendering.
    */
   async run(): Promise<void> {
     const { table: staticModules, rendering: renderingReady } = startStaticModules()
     const facesReady = fontsReady()
+    this.stopFollowingSession = auth.onSessionEnded(() => { this.sessionEnd?.end() })
+    await this.enterOnce(staticModules, renderingReady, facesReady)
+    void this.followSessionEnds(staticModules, renderingReady, facesReady)
+  }
+
+  /**
+   * Run the gate again for every session that ends, while the document lives.
+   *
+   * A pass that failed leaves no latch, which ends the following: the failure
+   * stays on the page and there is nothing left to present over it.
+   * @param staticModules - the platform module table the entries import.
+   * @param renderingReady - the eagerly requested rendering primitives.
+   * @param facesReady - the web fonts the first paint waits for.
+   */
+  private async followSessionEnds(
+    staticModules: Record<string, unknown>,
+    renderingReady: ReturnType<typeof startStaticModules>['rendering'],
+    facesReady: Promise<unknown>,
+  ): Promise<void> {
+    while (await this.nextSessionEnd()) await this.enterOnce(staticModules, renderingReady, facesReady)
+  }
+
+  /**
+   * Run the gate once and, if a session exists, boot the application.
+   *
+   * A pass ends when the session it presented ends, which the caller decides by
+   * awaiting {@link nextSessionEnd}; every pass after the first therefore starts
+   * at the gate again, on the container the previous pass's tree released.
+   * @param staticModules - the platform module table the entries import.
+   * @param renderingReady - the eagerly requested rendering primitives.
+   * @param facesReady - the web fonts the first paint waits for.
+   */
+  private async enterOnce(
+    staticModules: Record<string, unknown>,
+    renderingReady: ReturnType<typeof startStaticModules>['rendering'],
+    facesReady: Promise<unknown>,
+  ): Promise<void> {
+    this.sessionEnd = sessionEndLatch()
     try {
       // Boot-readiness gate: whichever bootstrap applies the injection table
       // settles this deferred once every row has taken effect — the served
@@ -109,7 +173,33 @@ export class AppWebEntry {
       // failure report for its whole duration.
       hidePreloader(false)
       this.page.fail(reason instanceof Error ? reason.message : String(reason))
+      // A failed pass is not one to wait on: the failure stays on the page.
+      this.sessionEnd = undefined
     }
+  }
+
+  /**
+   * Wait for the pass that owns the page to lose its session.
+   * @returns true when a session ended and the gate is to run again.
+   */
+  private async nextSessionEnd(): Promise<boolean> {
+    const end = this.sessionEnd
+    if (end === undefined) return false
+    await end.promise
+    await this.leavePage()
+    return true
+  }
+
+  /**
+   * Release the running application, so the next pass owns a free container.
+   *
+   * Disposing the tree runs every effect's disposer, which is what takes the
+   * mounted renderer off the page; the boot page keeps its own disposal.
+   */
+  private async leavePage(): Promise<void> {
+    const ctx = this.ctx
+    this.ctx = undefined
+    if (ctx !== undefined) await ctx.fiber.dispose()
   }
 
   /**
@@ -129,6 +219,9 @@ export class AppWebEntry {
    * then happens behind an opaque cover instead of in front of a reader.
    */
   private async gateOnAuthentication(): Promise<void> {
+    // A session that ends while a screen is up stops that screen's wait: the
+    // loop re-reads the session, finds none, and mounts the sign-in screen.
+    const ended = this.sessionEnd?.promise ?? new Promise<void>(() => {})
     for (;;) {
       const result = await auth.restoreSession()
       if (result.state === 'disabled') return
@@ -148,7 +241,7 @@ export class AppWebEntry {
         // the reader by, and the API holds none for them yet: the step stands
         // between them and the application, as it does in the Aeven client.
         const step = auth.mountNameScreen(this.container, window.location.pathname)
-        await step.authenticated
+        await Promise.race([step.authenticated, ended])
         step.unmount()
       } else {
         const pathname = window.location.pathname
@@ -160,7 +253,7 @@ export class AppWebEntry {
           screen = auth.mountAuthScreen(this.container, window.location.pathname)
         }
         if (screen === undefined) throw new Error('web boot: no authentication screen owns the page')
-        await screen.authenticated
+        await Promise.race([screen.authenticated, ended])
         screen.unmount()
       }
       // The reader has committed, so the cover comes back here rather than after
@@ -172,9 +265,11 @@ export class AppWebEntry {
 
   /** Dispose the client plugin tree and whichever page owns the mount point. */
   async dispose(): Promise<void> {
-    const ctx = this.ctx
-    this.ctx = undefined
-    if (ctx !== undefined) await ctx.fiber.dispose()
+    // Nothing left to present over: the following loop stops at this pass.
+    this.sessionEnd = undefined
+    this.stopFollowingSession?.()
+    this.stopFollowingSession = undefined
+    await this.leavePage()
     this.page.dispose()
   }
 
