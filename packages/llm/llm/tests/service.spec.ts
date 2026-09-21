@@ -129,6 +129,37 @@ describe('LlmRuntime', () => {
     expect(isQuotaExceededError('quota resets in one minute')).toBe(false)
   })
 
+  it('recognizes the exhausted-balance body Æven’s own gateway sends', () => {
+    // The wording and the underscore-joined `code`/`type` are copied from a real 402
+    // the local gateway sent, and this recognizer missed all of it: `\b` does not fire
+    // before `BALANCE` inside `AEVEN_INFERENCE_BALANCE_EXHAUSTED`, and "balance is used
+    // up" was not in the vocabulary. The failure therefore reached the caller as an
+    // unknown `HTTP_402`, which nothing treats as terminal — on the one failure whose
+    // remedy the gateway had already named.
+    expect(isQuotaExceededError(
+      'AEVEN_INFERENCE_BALANCE_EXHAUSTED insufficient_inference_balance '
+      + 'your Æven inference balance is used up; add credit or upgrade your plan to continue',
+    )).toBe(true)
+    expect(isQuotaExceededError('AEVEN_INFERENCE_BALANCE_EXHAUSTED')).toBe(true)
+    expect(isQuotaExceededError('insufficient_inference_balance')).toBe(true)
+    expect(isQuotaExceededError('your Æven inference balance is used up; add credit to continue')).toBe(true)
+    // The refusal the balance ceiling now sends, whose figures changed but whose
+    // terminal meaning did not.
+    expect(isQuotaExceededError(
+      'insufficient balance: $1.27 of your $1.45 is already held by requests in flight, '
+      + 'leaving $0.17 free for this one. upgrade to Pro or add credit to continue',
+    )).toBe(true)
+  })
+
+  it('does not mistake a healthy balance for an exhausted one', () => {
+    // The other direction, which matters more: a failure misread as terminal is never
+    // retried, so an over-eager pattern turns a transient problem into a permanent one.
+    expect(isQuotaExceededError('balance: $4.20 available')).toBe(false)
+    expect(isQuotaExceededError('credits added successfully')).toBe(false)
+    expect(isQuotaExceededError('insufficient permissions for this model')).toBe(false)
+    expect(isQuotaExceededError('invalid balance parameter')).toBe(false)
+  })
+
   it('errorChain renders the full cause chain of a wrapped transport failure', () => {
     const chain = new TypeError('fetch failed', { cause: new Error('connect ECONNREFUSED 127.0.0.1:443') })
     expect(errorChain(chain)).toBe('fetch failed: connect ECONNREFUSED 127.0.0.1:443')

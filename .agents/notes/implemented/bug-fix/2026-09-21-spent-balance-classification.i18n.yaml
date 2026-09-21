@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-21-spent-balance-classification.md
+2026-09-21-spent-balance-classification.md: b2708e83d8b02b465c42736e3242cdacf898fce9
+2026-09-21-spent-balance-classification.zh.md: 0ed7bacf763f03fd79bdcb18233dcac0286a974e
