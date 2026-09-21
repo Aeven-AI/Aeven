@@ -73,7 +73,7 @@ describe('the listener under the server contract', () => {
       })
       const failure = await listener.callback.then(
         () => undefined,
-        (error: Error) => error,
+        (error: unknown) => error as Error,
       )
       expect(failure?.message).toBe('avn: the sign-in listener did not bind a port')
       // The listener closed itself, so the port it did bind is released even

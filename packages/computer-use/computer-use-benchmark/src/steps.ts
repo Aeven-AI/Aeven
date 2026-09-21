@@ -96,8 +96,10 @@ export function buildReport(comparisons: readonly StepComparison[]): BenchmarkRe
   const compared = measured.filter(entry => entry.recordedVisionCalls !== undefined)
   return {
     comparisons: [...comparisons],
+    /* v8 ignore next -- unreachable: the filter above keeps only entries that carry this figure. */
     measuredTotal: measured.reduce((total, entry) => total + (entry.measuredCalls ?? 0), 0),
     skipped: comparisons.filter(entry => entry.skipped !== undefined).length,
+    /* v8 ignore next -- unreachable: the filter above keeps only entries that carry this figure. */
     comparedBaselineTotal: compared.reduce((total, entry) => total + (entry.recordedVisionCalls ?? 0), 0),
   }
 }

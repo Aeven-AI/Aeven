@@ -539,8 +539,8 @@ describe('BrowserOverlay hover box', () => {
 
     const registered = add.mock.calls.filter(([type]) => type === 'scroll' || type === 'resize')
     expect(registered.map(([type]) => type)).toEqual(['scroll', 'resize'])
-    const [, , scrollOptions] = registered[0]!
-    const [, , resizeOptions] = registered[1]!
+    const [, , scrollOptions] = registered[0]
+    const [, , resizeOptions] = registered[1]
     expect((scrollOptions as AddEventListenerOptions).capture).toBe(true)
     expect((scrollOptions as AddEventListenerOptions).passive).toBe(true)
     const scrollSignal = (scrollOptions as AddEventListenerOptions).signal!

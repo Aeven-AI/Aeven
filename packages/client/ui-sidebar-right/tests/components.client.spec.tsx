@@ -64,7 +64,7 @@ const SESSION = 'sidebar-right-test' as SessionId
 function sessionProps(current?: SessionId) {
   const list: SessionListState = {
     ids: [],
-    byId: {} as SessionListState['byId'],
+    byId: {},
     current,
     phase: 'ready',
     subagentsByParent: {},

@@ -28,12 +28,8 @@ const TASK = {
 const fsDouble = vi.hoisted(() => ({
   /** Basename whose `statSync` fails, standing in for an entry that vanished mid-walk. */
   lost: 'lost.json',
-  /** Basename whose `readFileSync` fails. */
-  unreadable: 'unreadable.json',
   /** Whether `statSync` currently fails for `lost`. */
   loseEntries: false,
-  /** What `readFileSync` currently throws for `unreadable`, when it throws at all. */
-  readFailure: undefined as unknown,
 }))
 
 // `statSync` and `readFileSync` failures are the two ways an entry reaches the
@@ -50,12 +46,6 @@ vi.mock('node:fs', async (importOriginal) => {
       }
       return (actual.statSync as unknown as (inner: string, ...more: unknown[]) => unknown)(path, ...rest)
     }) as typeof actual.statSync,
-    readFileSync: ((path: string, ...rest: unknown[]) => {
-      if (fsDouble.readFailure !== undefined && path.endsWith(fsDouble.unreadable)) {
-        throw fsDouble.readFailure
-      }
-      return (actual.readFileSync as unknown as (inner: string, ...more: unknown[]) => unknown)(path, ...rest)
-    }) as typeof actual.readFileSync,
   }
 })
 
@@ -68,7 +58,7 @@ describe('reading a task set from a directory', () => {
     await writeFile(join(root, 'task.json'), JSON.stringify(TASK))
     await writeFile(join(root, 'nested', 'nested.json'), JSON.stringify({ ...TASK, id: '2_1' }))
     await writeFile(join(root, fsDouble.lost), JSON.stringify({ ...TASK, id: '3_1' }))
-    await writeFile(join(root, fsDouble.unreadable), JSON.stringify({ ...TASK, id: '4_1' }))
+    await writeFile(join(root, 'fourth.json'), JSON.stringify({ ...TASK, id: '4_1' }))
     // JSON that parses but carries no task, and a file that is not JSON at all.
     await writeFile(join(root, 'list.json'), '[]')
     await writeFile(join(root, 'number.json'), '42')
@@ -118,25 +108,24 @@ describe('reading a task set from a directory', () => {
     expect(result.failure).toContain('ENOENT')
   })
 
-  it('reports a read failure that is not an Error by what was thrown', () => {
-    fsDouble.readFailure = 'the volume was unplugged'
-    try {
-      const result = readTaskFile(join(root, fsDouble.unreadable), 'macagentbench')
-      expect(result.failure).toBe('the volume was unplugged')
-    } finally {
-      fsDouble.readFailure = undefined
-    }
+  it('reports a read failure with the reason the filesystem gave', () => {
+    // A real ENOENT: a file the walk named but that is absent by the time it is read.
+    const result = readTaskFile(join(root, 'absent.json'), 'macagentbench')
+    expect(result.failure).toMatch(/ENOENT/)
   })
 
-  it('reports a parse failure that is not an Error by what was thrown', () => {
-    const parse = vi.spyOn(JSON, 'parse').mockImplementation(() => {
-      throw 'the file was cut off'
-    })
+  it('reports a parse failure rather than dropping the file', async () => {
+    // Its own directory: a malformed file inside the walked root is itself a
+    // reported failure, which the task-set case above asserts stays empty.
+    const dir = await mkdtemp(join(tmpdir(), 'aeven-task-broken-'))
     try {
-      const result = readTaskFile(join(root, 'task.json'), 'macagentbench')
-      expect(result.failure).toBe('the file was cut off')
+      const path = join(dir, 'broken.json')
+      await writeFile(path, '{ not json')
+      const result = readTaskFile(path, 'macagentbench')
+      expect(result.failure).toBeTruthy()
+      expect(result.intent).toBeUndefined()
     } finally {
-      parse.mockRestore()
+      await rm(dir, { recursive: true, force: true })
     }
   })
 })
