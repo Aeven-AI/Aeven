@@ -111,7 +111,10 @@ function escapeAppleScript(value: string): string {
 
 /** A macOS desktop adapter over a command runner. */
 export class MacDesktopAdapter {
-  /** @see DesktopAdapter.platform */
+  /**
+   * The platform this adapter drives.
+   * @see DesktopAdapter.platform
+   */
   readonly platform: DesktopPlatform = 'darwin'
 
   private readonly options: MacAdapterOptions

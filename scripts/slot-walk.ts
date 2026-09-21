@@ -83,6 +83,21 @@ export interface ScannedFile {
 }
 
 /**
+ * Whether a scanned file is the transient probe a lint-contract spec writes.
+ *
+ * `scripts/oxlint-contract.spec.ts` writes a probe into a package's `src` to
+ * prove the aggregate lint configuration catches it, and removes it again. A
+ * scan that runs beside that spec can enumerate the probe and then find it gone,
+ * and the probe is not product source either way; the per-file coverage gate
+ * excludes the same name for the same reason.
+ * @param rel - repository-relative path a scan enumerated.
+ * @returns true when the file is a lint-contract probe.
+ */
+function isTransientProbe(rel: string): boolean {
+  return /(?:^|\/)oxlint-contract-[^/]+\.tsx?$/.test(rel)
+}
+
+/**
  * Parse every file matching `patterns`, keeping the ones that carry a slot
  * contract merge or a registration call. Files without either are skipped so
  * the scan stays cheap over the whole workspace.
@@ -94,7 +109,7 @@ export function scanSlotFiles(scanRoot: string, patterns: readonly string[]): Sc
   const out: ScannedFile[] = []
   const names = new Map<string, string>()
   const rels = [...new Set(globSync(patterns as string[], { cwd: scanRoot })
-    .map(path => path.split(sep).join('/')))].sort()
+    .map(path => path.split(sep).join('/')))].filter(rel => !isTransientProbe(rel)).sort()
   for (const rel of rels) {
     const abs = resolve(scanRoot, rel)
     const text = readFileSync(abs, 'utf8')
@@ -121,7 +136,7 @@ export function indexExportedTypes(scanRoot: string, patterns: readonly string[]
   const index = new Map<string, TypeDeclaration>()
   const ambiguous = new Set<string>()
   const rels = [...new Set(globSync(patterns as string[], { cwd: scanRoot })
-    .map(path => path.split(sep).join('/')))].sort()
+    .map(path => path.split(sep).join('/')))].filter(rel => !isTransientProbe(rel)).sort()
   for (const rel of rels) {
     const abs = resolve(scanRoot, rel)
     const sf = ts.createSourceFile(abs, readFileSync(abs, 'utf8'), ts.ScriptTarget.Latest, true, scriptKindOf(rel))

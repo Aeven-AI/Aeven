@@ -50,7 +50,10 @@ export interface LinuxAdapterOptions {
 
 /** A Linux desktop adapter over a command runner. */
 export class LinuxDesktopAdapter {
-  /** @see DesktopAdapter.platform */
+  /**
+   * The platform this adapter drives.
+   * @see DesktopAdapter.platform
+   */
   readonly platform: DesktopPlatform = 'linux'
 
   private readonly options: LinuxAdapterOptions
@@ -75,15 +78,28 @@ export class LinuxDesktopAdapter {
   }
 
   /* jscpd:ignore-start -- the three adapters verify through one shared helper; only the window source differs. */
-  /** Verify by independent read-back. */
+  /**
+   * Verify by independent read-back against the window list this adapter reads.
+   * @param e - the expectations to check.
+   * @returns one outcome per expectation, in the same order.
+   */
   async verify(e: readonly Expectation[]): Promise<readonly VerificationOutcome[]> {
     return verify(e, this.options.readers, async () => await this.listWindows())
   }
   /* jscpd:ignore-end */
 
-  // Documented on DesktopAdapter.observe: the contract owns the promise about what a
-  // scope means, and this adapter differs only in which backend answers. That
-  // difference is reported in the result, not restated here.
+  /**
+   * Capture one coherent view of the desktop, or of the window the scope names.
+   *
+   * {@link DesktopAdapter.observe} owns what a scope means; this adapter differs
+   * only in which backend answers, which the returned notes name. The AT-SPI tree
+   * is not implemented yet, so no accessibility nodes are returned, and a note
+   * says so rather than leaving an empty list to read as an application that
+   * publishes no tree.
+   * @param scope - what to observe; `windowId` narrows the result to that window.
+   * @returns the observation and the notes explaining how it was narrowed.
+   * @throws {ComputerUseError} `invalid-target` when the named window is absent.
+   */
   async observe(scope: ObserveScope): Promise<ObserveResult> {
     const { windows, backend } = await this.listWindowsWithBackend()
     const scoped = scope.windowId === undefined ? windows : windows.filter(window => window.windowId === scope.windowId)

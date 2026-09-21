@@ -124,6 +124,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'The registry holds one optional provider slot for the shared computer-use service; the Cua Driver MCP adapter reserves it and exposes the driver\'s own tools through the shared tool runtime, releasing the slot with them.',
   },
   {
+    key: 'computerUseProvider',
+    pkg: 'computer-use',
+    title: 'Loaded computer-use provider',
+    mode: 'core',
+    implementations: ['computer-use-macos-provider'],
+    note: 'The provider a platform adapter published, addressed as `ctx.computerUseProvider` by the surfaces that run its tasks. The slot on that seam is what keeps it single: the adapter claims the slot before publishing, so a second provider fails with the name of the one already registered.',
+  },
+  {
     key: 'attachments',
     pkg: 'attachment',
     title: 'Durable binary attachment storage',

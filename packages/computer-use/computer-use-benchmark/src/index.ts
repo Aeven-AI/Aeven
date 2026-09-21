@@ -79,8 +79,9 @@ async function countingHandlers(
 
 /**
  * Measure one task by running it and counting the mechanism invocations it makes.
- * @param options - the book, the task, and the call observer.
- * @returns the comparison for this task.
+ * @param options - the book, the tasks, and the call observer.
+ * @param task - the task to run, and the skip reason when this host cannot run it.
+ * @returns the comparison for this task, marked skipped when the run failed here.
  */
 export async function measureTask(options: BenchmarkOptions, task: BenchmarkTask): Promise<StepComparison> {
   const baseline = RECORDED_VISION_BASELINES[task.task]

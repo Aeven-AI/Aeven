@@ -160,7 +160,10 @@ function assertOk(envelope: Envelope, what: string): void {
 
 /** A Windows desktop adapter over a PowerShell command runner. */
 export class WindowsDesktopAdapter {
-  /** @see DesktopAdapter.platform */
+  /**
+   * The platform this adapter drives.
+   * @see DesktopAdapter.platform
+   */
   readonly platform: DesktopPlatform = 'win32'
 
   private readonly options: WindowsAdapterOptions
@@ -186,7 +189,11 @@ export class WindowsDesktopAdapter {
   }
 
   /* jscpd:ignore-start -- the three adapters verify through one shared helper; only the window source differs. */
-  /** Verify by independent read-back. */
+  /**
+   * Verify by independent read-back against the window list this adapter reads.
+   * @param e - the expectations to check.
+   * @returns one outcome per expectation, in the same order.
+   */
   async verify(e: readonly Expectation[]): Promise<readonly VerificationOutcome[]> {
     return verify(e, this.options.readers, async () => await this.listWindows())
   }

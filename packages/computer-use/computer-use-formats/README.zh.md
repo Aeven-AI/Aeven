@@ -29,7 +29,9 @@ kind: "package-reference"
 ## 使用本包
 
 ```ts
-import { probeFormatReadiness, missingTools, FORMAT_RECIPES } from '@aeven/computer-use-formats'
+import { probeFormatReadiness, missingTools, FORMAT_RECIPES, type FormatProbeRunner } from '@aeven/computer-use-formats'
+
+declare const runner: FormatProbeRunner
 
 const report = await probeFormatReadiness(runner)
 // format.soffice       ready

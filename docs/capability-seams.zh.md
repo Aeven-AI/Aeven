@@ -21,6 +21,8 @@ flowchart LR
   pkg_computer_use["computer-use"]
   svc_computerUse["ctx.computerUse<br/>Computer-use provider registry"]
   pkg_experimental_computer_use_cua_driver_mcp["experimental-computer-use-cua-driver-mcp"]
+  svc_computerUseProvider["ctx.computerUseProvider<br/>Loaded computer-use provider"]
+  pkg_computer_use_macos_provider["computer-use-macos-provider"]
   pkg_attachment["attachment"]
   svc_attachments["ctx.attachments<br/>Durable binary attachment storage"]
   pkg_attachment_local["attachment-local"]
@@ -256,6 +258,8 @@ flowchart LR
   pkg_compaction_basic --> svc_compaction
   pkg_compaction_tool_result_pruner --> svc_toolResultPruner
   pkg_computer_use --> svc_computerUse
+  pkg_computer_use --> svc_computerUseProvider
+  pkg_computer_use_macos_provider --> svc_computerUseProvider
   pkg_cordis_host_runner --> svc_cordisInspect
   pkg_cordis_host_runner --> svc_dynamicCordisRunner
   pkg_credentials --> svc_credentials
@@ -489,6 +493,7 @@ flowchart LR
 | `ctx.identityUsers` | `seam` | [`identity-user`](../packages/identity/user) | [`identity-user-aeven`](../packages/identity/user-aeven) | [`client-connection`](../packages/client/connection) | - | authority 会同步地把请求的凭据 header 解析为用户；请求围栏在派发之前调用该 seam，无人被认得时回答 401。 |
 | `ctx.media` | `seam` | [`media`](../packages/media/media) | [`media-deepinfra`](../packages/media/media-deepinfra), [`media-openrouter`](../packages/media/media-openrouter), [`media-pi-ai`](../packages/media/media-pi-ai) | - | - | 一个服务横跨两种媒体：图像直接返回字节，而视频是调用方启动、轮询并取回的任务。模型看到的每个名称与 schema 都由 Consumer 负责。 |
 | `ctx.computerUse` | `seam` | [`computer-use`](../packages/computer-use/computer-use) | [`experimental-computer-use-cua-driver-mcp`](../packages/experimental/computer-use-cua-driver-mcp) | - | - | 注册表为共享的 computer-use 服务保留唯一的可选提供方槽位；Cua Driver MCP 适配器占用该槽位，并通过共享工具运行时暴露驱动自身的工具，释放时一并注销。 |
+| `ctx.computerUseProvider` | `core` | [`computer-use`](../packages/computer-use/computer-use) | [`computer-use-macos-provider`](../packages/computer-use/computer-use-macos-provider) | - | - | 平台适配器发布的提供方，由运行其任务的表层以 `ctx.computerUseProvider` 寻址。该 seam 上的槽位保证它只有一个：适配器在发布前先占用槽位，因此第二个提供方会带着已注册者的名字失败。 |
 | `ctx.attachments` | `seam` | [`attachment`](../packages/attachment/attachment) | [`attachment-local`](../packages/attachment/attachment-local) | [`api-session-controller`](../packages/api/session-controller), [`tool-fs`](../packages/fs/tool-fs), [`llm-pi-ai`](../packages/llm/llm-pi-ai), [`llm-deepseek`](../packages/llm/llm-deepseek) | - | 宿主会在会话事件之前提交已接受的图片；提供方适配器将已授权的持久引用解析为提供方原生内容。 |
 | `ctx.llm` | `seam` | [`llm`](../packages/llm/llm) | [`llm-deepseek`](../packages/llm/llm-deepseek), [`llm-pi-ai`](../packages/llm/llm-pi-ai), [`llm-replay`](../packages/test-support/llm-replay) | [`agent-loop`](../packages/core/agent-loop), [`compaction-basic`](../packages/compaction/compaction-basic) | - | 适配器注册提供方实现；agent loop（智能体循环）与压缩功能调用提供方无关的流服务。 |
 | `ctx.deepseekLlmApiExtensions` | `seam` | [`deepseek-llm-api-extensions`](../packages/llm/deepseek-llm-api-extensions) | [`session-log-deepseek`](../packages/session/session-log-deepseek), [`plugin-package-inventory-deepseek`](../packages/llm/plugin-package-inventory-deepseek) | [`llm-deepseek`](../packages/llm/llm-deepseek) | - | 插件准备彼此独立的顶层字段；官方适配器会合并这些字段，并在 HTTP 接受后提交其交付状态。 |

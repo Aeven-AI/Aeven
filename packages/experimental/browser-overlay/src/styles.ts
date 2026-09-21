@@ -74,7 +74,11 @@ export const CURSOR_LONG_MOVE_PX = 196
  */
 export const CLASS_PREFIX = 'aeven-browser-overlay'
 
-/** Deterministic class name for a suffix. */
+/**
+ * Deterministic class name for a suffix.
+ * @param suffix - the element's role, such as `cursor` or `ripple`.
+ * @returns the prefixed class name.
+ */
 export function cls(suffix: string): string {
   return `${CLASS_PREFIX}-${suffix}`
 }
@@ -87,6 +91,7 @@ export function cls(suffix: string): string {
  * Selection boxes use the same blue family as the cursor's glow so a hover, a
  * click, and the pointer read as one system rather than three unrelated
  * highlights.
+ * @returns the stylesheet text, ready for a `<style>` element's `textContent`.
  */
 export function overlayStyles(): string {
   const root = `.${CLASS_PREFIX}`

@@ -46,7 +46,10 @@ function attachWhenReady(overlay: BrowserOverlay): BrowserOverlay {
   return overlay
 }
 
-/** The installed overlay, attaching it if this is the first evaluation. */
+/**
+ * The installed overlay, attaching it if this is the first evaluation.
+ * @returns the page's overlay instance; every later call returns that same one.
+ */
 export function installOverlay(): BrowserOverlay {
   window.__aevenOverlay ??= attachWhenReady(new BrowserOverlay())
   return window.__aevenOverlay

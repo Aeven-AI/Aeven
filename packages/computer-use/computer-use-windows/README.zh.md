@@ -29,11 +29,15 @@ Windows 是三个平台中权限门控最少的平台，适配器正围绕这一
 ## 使用本包
 
 ```ts
-import { WindowsDesktopAdapter } from '@aeven/computer-use-windows'
+import { WindowsDesktopAdapter, type WindowsAdapterOptions } from '@aeven/computer-use-windows'
+
+// The command runner is the caller's: this package owns the adapter, not the seam.
+declare const runner: WindowsAdapterOptions['runner']
 
 const adapter = new WindowsDesktopAdapter({ runner })
 const { snapshot } = await adapter.observe({ windowId: '100' })
-const body = snapshot.nodes.find(node => node.role.includes('Edit'))
+const body = snapshot?.nodes.find(node => node.role.includes('Edit'))
+if (body === undefined) throw new Error('the window published no editable node')
 await adapter.act({ kind: 'setValue', target: { kind: 'element', token: body.token }, value: 'the story' })
 const [written] = await adapter.verify([{ kind: 'nodeValueEquals', token: body.token, value: 'the story' }])
 ```

@@ -47,6 +47,9 @@ resolved.verify      // expectations to check independently after it runs
 从桌面适配器的就绪报告中取得 `availableRungs` 并传入，可让解析对宿主实际能做什么保持诚实：
 
 ```ts
+import { RecipeRouter, STARTER_BOOK } from '@aeven/computer-use-router'
+
+const router = new RecipeRouter(STARTER_BOOK)
 router.resolve({ task: 'document.setFont', platform: 'darwin', availableRungs: ['vision'] })
 ```
 

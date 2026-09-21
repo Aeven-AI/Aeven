@@ -29,13 +29,16 @@ Implemented and covered by tests: `verify()`, `readiness()`, window observation,
 ## Use this package
 
 ```ts
-import { LinuxDesktopAdapter } from '@aeven/computer-use-linux'
+import { LinuxDesktopAdapter, type LinuxAdapterOptions } from '@aeven/computer-use-linux'
+
+// The command runner is the caller's: this package owns the adapter, not the seam.
+declare const runner: LinuxAdapterOptions['runner']
 
 const adapter = new LinuxDesktopAdapter({ runner })
 const report = await adapter.readiness()
 const { snapshot, notes } = await adapter.observe({})
 console.log(notes) // which backend answered, and what is not implemented
-await adapter.act({ kind: 'type', target: { kind: 'window', pid, windowId }, text: 'the story' })
+await adapter.act({ kind: 'type', target: { kind: 'window', pid: 4711, windowId: 'w1' }, text: 'the story' })
 ```
 
 ## Understand the implementation

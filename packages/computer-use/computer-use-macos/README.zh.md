@@ -33,7 +33,14 @@ kind: "package-reference"
 用命令运行器构造适配器，并独立于产生结果的操作去校验结果：
 
 ```ts
-import { MacDesktopAdapter } from '@aeven/computer-use-macos'
+import { MacDesktopAdapter, type MacCommandRunner } from '@aeven/computer-use-macos'
+
+declare const runner: MacCommandRunner
+
+const pid = 4711
+const windowId = 'w1'
+const output = '/Users/me/Desktop/story.pages'
+const startedAt = Date.now()
 
 const adapter = new MacDesktopAdapter({ runner, holder: { name: 'osascript', source: 'spawned-helper' } })
 const report = await adapter.readiness()

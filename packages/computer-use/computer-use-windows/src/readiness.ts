@@ -20,7 +20,7 @@ import {
   type ReadinessReport,
 } from '@aeven/computer-use-desktop'
 import { probeUiaScript } from './scripts.ts'
-import type { WinCommandRunner } from './runner.ts'
+import type { WinCommandResult, WinCommandRunner } from './runner.ts'
 
 /** Inputs to a readiness probe run. */
 export interface WinReadinessOptions {
@@ -40,6 +40,23 @@ export interface WinReadinessOptions {
 const PROBE_NODE_CAP = 1
 
 /**
+ * Run the UI Automation probe script through the shell the caller configured.
+ *
+ * Both automation probes ask the same script the same question; sharing the
+ * invocation keeps the shell they run under stated once, so a probe cannot drift
+ * from the executable the adapter itself drives.
+ * @param options - the runner, the shell to probe with, and the caller lifetime.
+ * @returns what the script answered.
+ */
+function runUiaProbe(options: WinReadinessOptions): Promise<WinCommandResult> {
+  return options.runner.run(
+    options.powershell ?? 'powershell',
+    ['-NoProfile', '-NonInteractive', '-Command', probeUiaScript(String(PROBE_NODE_CAP))],
+    options.signal,
+  )
+}
+
+/**
  * Probe whether UI Automation can read the desktop.
  *
  * No grant is involved: this reports `ready` as soon as the assemblies load and
@@ -50,11 +67,7 @@ const PROBE_NODE_CAP = 1
  * @returns the probe for `uia.tree`.
  */
 export async function probeUia(options: WinReadinessOptions): Promise<ReadinessProbe> {
-  const result = await options.runner.run(
-    options.powershell ?? 'powershell',
-    ['-NoProfile', '-NonInteractive', '-Command', probeUiaScript(String(PROBE_NODE_CAP))],
-    options.signal,
-  )
+  const result = await runUiaProbe(options)
   if (result.code !== 0) {
     return {
       name: 'uia.tree',
@@ -77,11 +90,7 @@ export async function probeUia(options: WinReadinessOptions): Promise<ReadinessP
  * @returns the probe for `uia.patterns`.
  */
 export async function probeUiaPatterns(options: WinReadinessOptions): Promise<ReadinessProbe> {
-  const result = await options.runner.run(
-    options.powershell ?? 'powershell',
-    ['-NoProfile', '-NonInteractive', '-Command', probeUiaScript(String(PROBE_NODE_CAP))],
-    options.signal,
-  )
+  const result = await runUiaProbe(options)
   if (result.code !== 0) {
     return {
       name: 'uia.patterns',

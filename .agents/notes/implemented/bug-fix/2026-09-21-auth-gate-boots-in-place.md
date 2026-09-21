@@ -10,7 +10,7 @@ Email sign-in showed a transition that read as a failure: the button spun, the b
 
 The three symptoms had one cause. `AppWebEntry` treated authentication as a decision rather than a wait:
 
-```ts
+```ts ignore-check
 if (await this.gateOnAuthentication()) {
   hidePreloader()
   return            // the boot ends here, with no plugin graph behind it

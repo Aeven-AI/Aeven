@@ -24,7 +24,7 @@ type CredentialRef = Branded<'CredentialRef'>
 interface ResolvedCredential {
   /** The non-empty secret value. */
   value: string
-  /** Provider-defined source layer id (the local provider uses `env`, `file`, `project-env`, and `user-env`). */
+  /** Provider-defined source layer id (the local provider uses `env`, `session`, `file`, `project-env`, and `user-env`). */
   source: string
 }
 ```
