@@ -270,6 +270,7 @@
       "@aeven/compaction-basic": ["./packages/compaction/compaction-basic/src"],
       "@aeven/compaction-tool-result-pruner": ["./packages/compaction/compaction-tool-result-pruner/src"],
       "@aeven/computer-use": ["./packages/computer-use/computer-use/src"],
+      "@aeven/computer-use-benchmark": ["./packages/computer-use/computer-use-benchmark/src"],
       "@aeven/computer-use-desktop": ["./packages/computer-use/computer-use-desktop/src"],
       "@aeven/computer-use-executor": ["./packages/computer-use/computer-use-executor/src"],
       "@aeven/computer-use-linux": ["./packages/computer-use/computer-use-linux/src"],

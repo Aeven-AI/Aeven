@@ -40,6 +40,7 @@ const NO_MODEL_EXPERIENCE_SECTION: Readonly<Record<string, string>> = {
   'packages/computer-use/computer-use-executor': 'The package performs a resolved task and verifies it; it registers no tool, schema, or prompt section, and the consumer that exposes a session owns every model-visible effect.',
   'packages/computer-use/computer-use-macos-apple-events': 'The package implements one host-side mechanism handler behind the executor; it registers no tool, schema, or prompt section, and the consumer that exposes a session owns every model-visible effect.',
   'packages/computer-use/computer-use-session': 'The package is the host-side session a consumer drives; it registers no tool, schema, or prompt section, and the consumer that exposes it owns every model-visible effect.',
+  'packages/computer-use/computer-use-benchmark': 'The package measures step counts on the host and registers no tool, schema, or prompt section; the consumer that exposes a session owns every model-visible effect.',
   'packages/core/scope': 'The package is a model-agnostic registration and lifecycle primitive; model-facing consumers own any context selection.',
   'packages/util/brand': 'The package only constructs plain string values and registers nothing model-facing.',
   'packages/util/home-paths': 'The package only resolves harness-owned host paths; model-facing consumers own any rendered use.',
