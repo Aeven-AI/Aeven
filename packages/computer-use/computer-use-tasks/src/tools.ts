@@ -72,6 +72,7 @@ export function readToolCatalog(file: string, json: unknown): { catalog?: ToolCa
       continue
     }
     const [prefix, operation] = name.split('.')
+    /* v8 ignore next 3 -- unreachable: the dot above is required, and splitting a dotted name always yields both halves. */
     if (prefix === undefined || operation === undefined) {
       continue
     }

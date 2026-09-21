@@ -127,6 +127,7 @@ describe('verification reads the real filesystem', () => {
     // The string is the point of the test: a rejection reason need not be an Error,
     // and the failure it carries must survive into `outcome.error`. Rejecting with an
     // Error here would test the case that already works and leave this one uncovered.
+    // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- the non-Error rejection reason is the subject under test.
     const failing: VerificationReaders = { ...readers, nodeValue: { read: () => Promise.reject('plain string failure') } }
     const [outcome] = await checkExpectations([{ kind: 'nodeValueEquals', token: 's1:0', value: 'x' }], failing)
     expect(outcome?.satisfied).toBe(false)

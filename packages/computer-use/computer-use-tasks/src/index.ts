@@ -83,12 +83,14 @@ export function readTaskFile(path: string, source: TaskSource): { intent?: TaskI
   try {
     text = readFileSync(path, 'utf8')
   } catch (error) {
+    /* v8 ignore next -- unreachable: readFileSync throws Error instances, so the fallback arm cannot be taken. */
     return { failure: error instanceof Error ? error.message : String(error) }
   }
   let raw: unknown
   try {
     raw = JSON.parse(text)
   } catch (error) {
+    /* v8 ignore next -- unreachable: JSON.parse throws SyntaxError, so the fallback arm cannot be taken. */
     return { failure: error instanceof Error ? error.message : String(error) }
   }
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {

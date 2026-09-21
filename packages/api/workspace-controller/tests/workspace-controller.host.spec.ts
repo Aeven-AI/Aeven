@@ -406,8 +406,8 @@ describe('WorkspaceController follow', () => {
           path: null,
           title: DEFAULT_DEFAULT_WORKSPACE_TITLE,
           sessionIds: [],
-          createdAt: expect.any(String),
-          updatedAt: expect.any(String),
+          createdAt: expect.any(String) as string,
+          updatedAt: expect.any(String) as string,
         }],
         archivedSessionIds: [],
       },
@@ -429,8 +429,8 @@ describe('WorkspaceController follow', () => {
         path: null,
         title: DEFAULT_DEFAULT_WORKSPACE_TITLE,
         sessionIds: [session.id],
-        createdAt: expect.any(String),
-        updatedAt: expect.any(String),
+        createdAt: expect.any(String) as string,
+        updatedAt: expect.any(String) as string,
       },
     })
 

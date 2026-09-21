@@ -146,7 +146,7 @@ describe('the loopback listener', () => {
     try {
       const failure = await listener.callback.then(
         () => undefined,
-        (error: NodeJS.ErrnoException) => error,
+        (error: unknown) => error as NodeJS.ErrnoException,
       )
       expect(failure?.code).toBe('EADDRINUSE')
       expect(failure?.message).toContain(String((held.address() as AddressInfo).port))
