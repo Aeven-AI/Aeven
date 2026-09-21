@@ -179,6 +179,7 @@ export class WindowsDesktopAdapter {
   async readiness(): Promise<ReadinessReport> {
     const options: WinReadinessOptions = {
       runner: this.options.runner,
+      ...this.options.powershell === undefined ? {} : { powershell: this.options.powershell },
       ...this.options.signal === undefined ? {} : { signal: this.options.signal },
     }
     return probeWindowsReadiness(options)
