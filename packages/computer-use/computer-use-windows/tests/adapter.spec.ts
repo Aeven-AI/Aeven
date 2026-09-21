@@ -5,22 +5,24 @@
  * the envelope parsing that turns a PowerShell failure into a real error.
  */
 
-import { join } from 'node:path'
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { ComputerUseError } from '@aeven/computer-use-desktop'
 import { WindowsDesktopAdapter } from '../src/index.ts'
 import { candidatePowerShellPaths, quotePowerShellLiteral, resolvePowerShellPath, type WinCommandResult, type WinCommandRunner } from '../src/runner.ts'
 import { probeElevation, probeUia, probeUiaPatterns, probeWindowsReadiness } from '../src/readiness.ts'
 
-/** A runner answering from a table, recording every call. */
+/** A runner answering from a table, recording every call, including its lifetime. */
 function runnerReturning(
   answers: Readonly<Record<string, WinCommandResult>>,
-): WinCommandRunner & { calls: Array<{ command: string; args: readonly string[] }> } {
-  const calls: Array<{ command: string; args: readonly string[] }> = []
+): WinCommandRunner & { calls: Array<{ command: string; args: readonly string[]; signal: AbortSignal | undefined }> } {
+  const calls: Array<{ command: string; args: readonly string[]; signal: AbortSignal | undefined }> = []
   return {
     calls,
-    run: (command, args) => {
-      calls.push({ command, args })
+    run: (command, args, signal) => {
+      calls.push({ command, args, signal })
       const joined = args.join(' ')
       for (const [needle, result] of Object.entries(answers)) {
         if (joined.includes(needle)) {
@@ -81,6 +83,28 @@ describe('PowerShell resolution', () => {
   it('names every candidate it tried when none exists, since "pwsh not found" is not actionable', () => {
     expect(() => resolvePowerShellPath({ PATH: '', ProgramFiles: 'P', SystemRoot: 'S' }))
       .toThrow(/tried:/)
+  })
+
+  it('resolves the newest candidate that exists, so a host with any PowerShell is never told it has none', () => {
+    // A real install laid out on disk: the PATH copy answers first, and a
+    // PowerShell 7 install under ProgramFiles then outranks it.
+    const root = mkdtempSync(join(tmpdir(), 'aeven-powershell-'))
+    try {
+      const onPath = join(root, 'bin', 'pwsh.exe')
+      const declared = join(root, 'Program Files', 'PowerShell', '7', 'pwsh.exe')
+      const install = (path: string): void => {
+        mkdirSync(dirname(path), { recursive: true })
+        writeFileSync(path, '')
+        chmodSync(path, 0o755)
+      }
+      const env = { PATH: join(root, 'bin'), ProgramFiles: join(root, 'Program Files'), SystemRoot: join(root, 'Windows') }
+      install(onPath)
+      expect(resolvePowerShellPath(env)).toBe(onPath)
+      install(declared)
+      expect(resolvePowerShellPath(env)).toBe(declared)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 
   it('doubles single quotes so a value cannot break out of its literal', () => {
@@ -152,6 +176,30 @@ describe('Windows readiness', () => {
   })
 })
 
+describe('the adapter reports its own readiness', () => {
+  it('probes the host through the runner it was given, with no caller lifetime by default', async () => {
+    const runner = runnerReturning({
+      UIAutomation: json({ ok: true, windows: 2, cap: 1 }),
+      IsInRole: json({ ok: true, elevated: false }),
+    })
+    const report = await new WindowsDesktopAdapter({ runner }).readiness()
+    expect(report.platform).toBe('win32')
+    expect(report.probes.map(probe => probe.name)).toEqual(['uia.tree', 'uia.patterns', 'integrity.elevation'])
+    expect(report.blockers).toEqual([])
+    expect(runner.calls.map(call => call.signal)).toEqual([undefined, undefined, undefined])
+  })
+
+  it('hands the caller lifetime to every probe, so a cancelled check stops probing', async () => {
+    const controller = new AbortController()
+    const runner = runnerReturning({
+      UIAutomation: json({ ok: true, windows: 1, cap: 1 }),
+      IsInRole: json({ ok: true, elevated: true }),
+    })
+    await new WindowsDesktopAdapter({ runner, signal: controller.signal }).readiness()
+    expect(runner.calls.map(call => call.signal)).toEqual([controller.signal, controller.signal, controller.signal])
+  })
+})
+
 describe('observation', () => {
   const adapter = (runner: WinCommandRunner) => new WindowsDesktopAdapter({ runner, powershell: 'powershell' })
 
@@ -216,6 +264,21 @@ describe('observation', () => {
     const result = await adapter(runner).observe({})
     expect(result.snapshot?.windows).toEqual([])
     expect(result.snapshot?.nodes).toEqual([])
+  })
+
+  it('reports no windows when the fragment omits the list rather than failing the call', async () => {
+    const runner = runnerReturning({ RootElement: json({ ok: true }) })
+    await expect(adapter(runner).listWindows()).resolves.toEqual([])
+  })
+
+  it('reports an unwalked tree as no nodes rather than failing the observation', async () => {
+    const runner = runnerReturning({
+      RootElement: json(WINDOWS_PAYLOAD),
+      BoundingRectangle: json({ ok: true, truncated: false }),
+    })
+    const result = await adapter(runner).observe({ windowId: '100' })
+    expect(result.snapshot?.nodes).toEqual([])
+    expect(result.snapshot?.truncated).toBeUndefined()
   })
 })
 
@@ -330,14 +393,17 @@ describe('synthesised input is the fallback and always names its window', () => 
     const runner = runnerReturning({})
     // 'cmd'/'command' and 'control'/'ctrl' are the same modifier, as are
     // 'alt'/'option', so each alias pair is checked on its own.
-    await adapter(runner).act({ kind: 'key', target: { kind: 'window', pid: 1, windowId: '100' }, key: 'a', modifiers: ['command', 'option'] })
-    expect(runner.calls[0]?.args.join(' ')).toContain("SendWait('^%a')")
+    await adapter(runner).act({ kind: 'key', target: { kind: 'window', pid: 1, windowId: '100' }, key: 'a', modifiers: ['cmd'] })
+    expect(runner.calls[0]?.args.join(' ')).toContain("SendWait('^a')")
 
-    await adapter(runner).act({ kind: 'key', target: { kind: 'window', pid: 1, windowId: '100' }, key: 'a', modifiers: ['control', 'alt'] })
+    await adapter(runner).act({ kind: 'key', target: { kind: 'window', pid: 1, windowId: '100' }, key: 'a', modifiers: ['command', 'option'] })
     expect(runner.calls[1]?.args.join(' ')).toContain("SendWait('^%a')")
 
+    await adapter(runner).act({ kind: 'key', target: { kind: 'window', pid: 1, windowId: '100' }, key: 'a', modifiers: ['control', 'alt'] })
+    expect(runner.calls[2]?.args.join(' ')).toContain("SendWait('^%a')")
+
     await adapter(runner).act({ kind: 'key', target: { kind: 'window', pid: 1, windowId: '100' }, key: 'a', modifiers: ['ctrl'] })
-    expect(runner.calls[2]?.args.join(' ')).toContain("SendWait('^a')")
+    expect(runner.calls[3]?.args.join(' ')).toContain("SendWait('^a')")
   })
 
   it('sends an unmapped key as its literal character', async () => {
@@ -442,5 +508,31 @@ describe('token resolution', () => {
     const runner = runnerReturning({})
     await expect(new WindowsDesktopAdapter({ runner, powershell: 'powershell' }).resolveToken('nope'))
       .rejects.toBeInstanceOf(ComputerUseError)
+  })
+
+  it('resolves an element the fragment left unnamed without inventing an identity', async () => {
+    const runner = runnerReturning({ '$wanted': json({ ok: true }) })
+    await expect(new WindowsDesktopAdapter({ runner, powershell: 'powershell' }).resolveToken('100:1'))
+      .resolves.toEqual({ role: '', name: '' })
+  })
+})
+
+describe('the adapter defaults what a deployment does not state', () => {
+  it('invokes powershell from PATH when no executable is configured', async () => {
+    // `powershell` on PATH is the documented default, so an adapter built without
+    // an executable must still reach every fragment it sends.
+    const runner = runnerReturning({
+      RootElement: json(WINDOWS_PAYLOAD),
+      BoundingRectangle: json(TREE_PAYLOAD),
+      '$wanted': json({ ok: true, role: 'EditControlIdentifiers.Edit', name: 'Body' }),
+    })
+    const bare = new WindowsDesktopAdapter({ runner })
+    await bare.listWindows()
+    await bare.observe({ windowId: '100' })
+    await bare.resolveToken('100:1')
+    await bare.act({ kind: 'focusWindow', target: { kind: 'window', pid: 1, windowId: '100' } })
+    // The explicit list, the observation's own list and tree walk, resolution, and the action.
+    expect(runner.calls.map(call => call.command))
+      .toEqual(['powershell', 'powershell', 'powershell', 'powershell', 'powershell'])
   })
 })

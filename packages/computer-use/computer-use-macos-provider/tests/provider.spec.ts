@@ -7,10 +7,13 @@
  * first, which is the whole reason the seam exists.
  */
 
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import ComputerUseRegistry from '@aeven/computer-use'
-import { MacComputerUseProvider, apply, createOsascriptRunner, providerName } from '../src/index.ts'
+import { MacComputerUseProvider, apply, createMacCommandRunner, createOsascriptRunner, providerName } from '../src/index.ts'
 
 describe('the provider joins the layers', () => {
   const provider = new MacComputerUseProvider()
@@ -65,6 +68,49 @@ describe('the provider joins the layers', () => {
     expect(() => new MacComputerUseProvider({ automationTargets: [] })).not.toThrow()
   })
 
+  it('performs a task and establishes that it worked', async () => {
+    const outcome = await provider.execute({
+      task: 'file.exists',
+      platform: 'darwin',
+      parameters: { path: import.meta.filename },
+    })
+    expect(outcome.mechanism).toBe('filesystem')
+    expect(outcome.verified).toBe(true)
+    expect(outcome.outcomes.map(entry => entry.satisfied)).toEqual([true])
+  })
+
+  it('reports a task whose evidence did not hold as unverified, never as done', async () => {
+    // The recipe's own operation succeeds — the file is there — while its evidence
+    // does not, which is the distinction the executor exists to report.
+    const dir = mkdtempSync(join(tmpdir(), 'aeven-evidence-'))
+    try {
+      const written = join(dir, 'report.txt')
+      writeFileSync(written, 'the report says this')
+      const deployment = new MacComputerUseProvider({
+        recipes: [{
+          task: 'deployment.evidence',
+          summary: 'A task whose evidence a deployment has to supply.',
+          deliverable: 'open-application',
+          on: [{
+            platform: 'darwin', rung: 'semantic', apps: [], evidence: 'documented',
+            invocation: { mechanism: 'filesystem', operation: 'stat' },
+          }],
+          verify: [{ kind: 'fileContains', path: '{path}', text: 'text the file does not carry' }],
+        }],
+      })
+      const outcome = await deployment.execute({
+        task: 'deployment.evidence',
+        platform: 'darwin',
+        parameters: { path: written },
+      })
+      expect(outcome.observed).toBe('present')
+      expect(outcome.verified).toBe(false)
+      expect(outcome.outcomes.map(entry => entry.satisfied)).toEqual([false])
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('builds an osascript runner that resolves rather than rejects on failure', async () => {
     const runner = createOsascriptRunner()
     // A script that fails: the runner must hand back a status, not throw, because
@@ -79,6 +125,37 @@ describe('the provider joins the layers', () => {
     const result = await runner.run('JSON.stringify({ ok: true })')
     expect(result.code).toBe(0)
     expect(result.stdout).toContain('ok')
+  })
+})
+
+describe('the macOS command runner reports a status rather than throwing', () => {
+  const runner = createMacCommandRunner()
+
+  it('captures both streams of a command that succeeds', async () => {
+    const result = await runner.run(process.execPath, ['-e', 'process.stdout.write("observed")'])
+    expect(result).toEqual({ code: 0, stdout: 'observed', stderr: '' })
+  })
+
+  it('carries the caller lifetime without treating it as a failure', async () => {
+    const result = await runner.run(
+      process.execPath,
+      ['-e', 'process.stdout.write("observed")'],
+      new AbortController().signal,
+    )
+    expect(result).toEqual({ code: 0, stdout: 'observed', stderr: '' })
+  })
+
+  it('resolves a non-zero exit with its status and message, because the adapter branches on the code', async () => {
+    const result = await runner.run(process.execPath, ['-e', 'process.stderr.write("boom"); process.exit(7)'])
+    expect(result).toEqual({ code: 7, stdout: '', stderr: 'boom' })
+  })
+
+  it('reports a cancelled command as a failure, since cancellation is an answer the caller needs', async () => {
+    const controller = new AbortController()
+    controller.abort()
+    const result = await runner.run(process.execPath, ['-e', 'setTimeout(() => {}, 5000)'], controller.signal)
+    expect(result.code).toBe(1)
+    expect(result.stdout).toBe('')
   })
 })
 

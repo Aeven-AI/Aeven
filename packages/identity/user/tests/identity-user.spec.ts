@@ -1,13 +1,17 @@
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
+import { credentialRef, type CredentialRef } from '@aeven/credentials'
 import { IdentityUsers, type IdentityRequest, type User, type UserResolver } from '../src/index.ts'
 
-/** A resolver that recognizes one fixed header value. */
-function resolverFor(id: string, token: string, user: User): UserResolver {
+/** A resolver that recognizes one fixed header value, optionally naming the credential it opens. */
+function resolverFor(id: string, token: string, user: User, opens?: CredentialRef): UserResolver {
   return {
     id,
     resolve: (request: IdentityRequest) =>
       (request.headers as Record<string, string>)['authorization'] === token ? user : undefined,
+    // A launch-token authority declares nothing, so the property is absent rather
+    // than present-and-undefined.
+    ...(opens === undefined ? {} : { credentialRef: opens }),
   }
 }
 
@@ -60,5 +64,35 @@ describe('IdentityUsers', () => {
     // order rather than on the composition.
     expect(() => users.registerResolver(resolverFor('a', 'other', { id: 'u-2' })))
       .toThrow(/already registered/)
+  })
+})
+
+describe('IdentityUsers.credentialRefFor', () => {
+  const session = credentialRef('AEVEN_TOKEN')
+  function seam() {
+    return new IdentityUsers(new Context())
+  }
+
+  it('names the reference the authority that recognizes the request declared', () => {
+    const users = seam()
+    users.registerResolver(resolverFor('aeven', 'tok', { id: 'u-1' }, session))
+    expect(users.credentialRefFor(request('tok'))).toBe(session)
+  })
+
+  it('takes the reference from the first authority that recognizes the credential', () => {
+    const users = seam()
+    users.registerResolver(resolverFor('launch', 'other', { id: 'from-launch' }, credentialRef('LAUNCH_TOKEN')))
+    users.registerResolver(resolverFor('aeven', 'tok', { id: 'from-aeven' }, session))
+    expect(users.credentialRefFor(request('tok'))).toBe(session)
+  })
+
+  it('names nothing for an unrecognized request or an authority that declared none', () => {
+    const users = seam()
+    // A launch-token authority admits a browser and opens nothing upstream, so
+    // it declares no reference: there is nothing to re-present anywhere.
+    users.registerResolver(resolverFor('launch', 'tok', { id: 'u-1' }))
+    expect(users.credentialRefFor(request('tok'))).toBeUndefined()
+    expect(users.credentialRefFor(request('wrong'))).toBeUndefined()
+    expect(users.credentialRefFor(request())).toBeUndefined()
   })
 })

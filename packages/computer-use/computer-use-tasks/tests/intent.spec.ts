@@ -99,6 +99,12 @@ describe('reading the OSWorld shape', () => {
   it('drops non-string entries from a string array', () => {
     expect(fromOsworld({ id: 'x', instruction: 'y', related_apps: ['calc', 7, null] }).apps).toEqual(['calc'])
   })
+
+  it('reads an empty string field as no value rather than as a one-item list', () => {
+    const intent = fromOsworld({ id: 'x', instruction: 'y', related_apps: '', evaluator: { func: '' } })
+    expect(intent.apps).toEqual([])
+    expect(intent.checks).toEqual([])
+  })
 })
 
 describe('reading the MacAgentBench shape', () => {
@@ -124,6 +130,10 @@ describe('reading the MacAgentBench shape', () => {
 
   it('tolerates an evaluator whose expected field is not an array', () => {
     expect(fromMacAgentBench({ id: 'x', instruction: 'y', evaluator: { expected: 'nope' } }).checks).toEqual([])
+  })
+
+  it('tolerates a task with no evaluator at all', () => {
+    expect(fromMacAgentBench({ id: 'x', instruction: 'y' }).checks).toEqual([])
   })
 })
 
@@ -243,6 +253,13 @@ describe('catalog reporting', () => {
     }))
     const markdown = renderCatalog(many, 'Many')
     expect(markdown).toContain('…and 5 more')
+  })
+
+  it('renders an intent that named no end-state check without a check list', () => {
+    const noChecks = { ...fromOsworld({ id: 'no-check', instruction: 'do it' }), apps: ['pages'] }
+    const markdown = renderCatalog([noChecks], 'No checks')
+    expect(markdown).toContain('- `osworld/no-check` do it\n')
+    expect(markdown).not.toContain('— checks:')
   })
 })
 

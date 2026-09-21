@@ -61,6 +61,16 @@ describe('deriveGroups', () => {
     expect(groups[0]!.sessions.map(session => session.id)).toEqual([sid('older'), sid('newer')])
   })
 
+  it('reads a directory-less Workspace as no directory rather than as a literal null', () => {
+    // The wire states "no directory" as JSON `null`, and the grouping vocabulary
+    // states it as `undefined`; the translation happens once, so absence must not
+    // survive as a value a consumer could mistake for a real path.
+    const sessions = list(summary('member', 10))
+    const workspaces = [{ ...workspace('plain', ['member']), path: null }]
+    const groups = deriveGroups(sessions, workspaces, noArchive, noAttention, view(['plain']))
+    expect(groups[0]!.cwd).toBeUndefined()
+  })
+
   it('projects pending-interaction state into grouped and flat rows', () => {
     const awaiting = { ...summary('awaiting', 10), running: true }
     const sessions = list(awaiting)

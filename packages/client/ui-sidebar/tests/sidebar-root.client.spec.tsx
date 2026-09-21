@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import type { ReactNode } from 'react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
 import type {
   SidebarFooterActionOwnerProps, SidebarRootComponentProps, SidebarSectionOwnerProps,
   SidebarSettingsOwnerProps,
@@ -92,6 +92,34 @@ function mountShell({ collapsed = false, width = 300 }: { collapsed?: boolean; w
   }
 }
 
+// React's own node-to-props pointer, which is what the event system reads a
+// listener from. A dispatched `keydown` cannot reach the activation arm of the
+// New Session link: React builds a SyntheticKeyboardEvent from the `keydown`
+// interface list, that list carries no `button`, and the link's guard rejects
+// every event without one. Calling the captured prop is the only route to the
+// arm with the event the guard describes.
+function keyDownHandler(node: Element): (event: ReactKeyboardEvent) => void {
+  const key = Object.keys(node).find(name => name.startsWith('__reactProps$'))
+  const props = key === undefined ? undefined : (node as unknown as Record<string, { onKeyDown?: unknown }>)[key]
+  const handler = props?.onKeyDown
+  if (typeof handler !== 'function') throw new Error('the New Session link has no keydown handler')
+  return handler as (event: ReactKeyboardEvent) => void
+}
+
+// An activation event of the shape the link's guard accepts: Enter, the primary
+// pointer button, no modifier. `preventDefault` is the recorder the handler is
+// expected to call when it claims the activation for the shell.
+function enterActivation(
+  preventDefault: () => void,
+  overrides: Record<string, unknown> = {},
+): ReactKeyboardEvent {
+  return {
+    key: 'Enter', button: 0, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false,
+    preventDefault,
+    ...overrides,
+  } as unknown as ReactKeyboardEvent
+}
+
 describe('SidebarRoot shell', () => {
   it('routes New Session (capsule + wordmark) and the column toggle', () => {
     const b = mountShell()
@@ -169,5 +197,56 @@ describe('SidebarRoot shell', () => {
     const b = mountShell({ collapsed: true })
     expect(b.regionOwner().wide).toBe(true)
     expect(screen.getByRole('button', { name: 'Open sidebar' })).toBeTruthy()
+  })
+})
+
+describe('SidebarRoot New Session activation', () => {
+  it('claims the navigation only for an unmodified primary click', () => {
+    const b = mountShell()
+    const link = screen.getByRole('link', { name: 'Chat' })
+    // Middle click, "Open link in new window", and every modified click mean
+    // "somewhere else": the guard hands all of them to the browser, so the
+    // default is never prevented and no Session is created.
+    for (const init of [
+      { button: 1 }, { button: 2 }, { metaKey: true }, { ctrlKey: true }, { shiftKey: true }, { altKey: true },
+    ]) {
+      expect(fireEvent.click(link, init)).toBe(true)
+      expect(b.startSession).not.toHaveBeenCalled()
+    }
+
+    // A plain primary click is the shell's: the browser's own navigation is
+    // cancelled and the Session the address names is created in its place.
+    expect(fireEvent.click(link)).toBe(false)
+    expect(b.startSession).toHaveBeenCalledWith(undefined, 'session-test-1')
+  })
+
+  it('applies the same guard to Enter on the link', () => {
+    const b = mountShell()
+    const link = screen.getByRole('link', { name: 'Chat' })
+    const handler = keyDownHandler(link)
+
+    // Shift+Enter is a modified activation, so it stays with the browser
+    // exactly as a modified click does.
+    const modified = vi.fn()
+    act(() => { handler(enterActivation(modified, { shiftKey: true })) })
+    expect(modified).not.toHaveBeenCalled()
+    expect(b.startSession).not.toHaveBeenCalled()
+
+    // Plain Enter is intercepted: the shell creates the named Session and the
+    // link then names the fresh one.
+    const intercepted = vi.fn()
+    act(() => { handler(enterActivation(intercepted)) })
+    expect(intercepted).toHaveBeenCalledOnce()
+    expect(b.startSession).toHaveBeenCalledWith(undefined, 'session-test-1')
+    expect(screen.getByRole('link', { name: 'Chat' }).getAttribute('href')).toBe('/c/test-2')
+  })
+
+  it('leaves a dispatched Enter keydown unintercepted', () => {
+    const b = mountShell()
+    const link = screen.getByRole('link', { name: 'Chat' })
+    // React's SyntheticKeyboardEvent reports no `button`, so the guard rejects
+    // the event and the handler never prevents the navigation or activates.
+    expect(fireEvent.keyDown(link, { key: 'Enter' })).toBe(true)
+    expect(b.startSession).not.toHaveBeenCalled()
   })
 })

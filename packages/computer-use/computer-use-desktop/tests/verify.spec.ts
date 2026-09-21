@@ -10,7 +10,7 @@ import { mkdtemp, writeFile, rm, utimes } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { checkExpectations, type VerificationReaders } from '../src/verify.ts'
+import { checkExpectations, verifyWithDefaults, type VerificationReaders } from '../src/verify.ts'
 
 // Module scope rather than inside one `describe`: both suites below drive the same
 // verifier, and the semantic suite needs the same inert readers the filesystem suite
@@ -127,7 +127,6 @@ describe('verification reads the real filesystem', () => {
     // The string is the point of the test: a rejection reason need not be an Error,
     // and the failure it carries must survive into `outcome.error`. Rejecting with an
     // Error here would test the case that already works and leave this one uncovered.
-    // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- the non-Error rejection reason is the subject under test.
     const failing: VerificationReaders = { ...readers, nodeValue: { read: () => Promise.reject('plain string failure') } }
     const [outcome] = await checkExpectations([{ kind: 'nodeValueEquals', token: 's1:0', value: 'x' }], failing)
     expect(outcome?.satisfied).toBe(false)
@@ -229,5 +228,46 @@ describe('the semantic kinds answer through an application-object reader', () =>
       'no application-object reader is configured',
       'no application-object reader is configured',
     ])
+  })
+})
+
+describe('an adapter verifies through its own readers or the shared defaults', () => {
+  it('answers every kind pessimistically when the adapter supplies no readers', async () => {
+    // The defaults exist so a check that cannot be answered reports unsatisfied rather
+    // than passing: an unreadable node value is `undefined`, an application-object
+    // question has no reader, and only the windows the platform enumerates are listed.
+    const outcomes = await verifyWithDefaults(
+      [
+        { kind: 'nodeValueEquals', token: 's1:0', value: 'typed text' },
+        { kind: 'windowTitled', title: 'Untitled' },
+        { kind: 'appObject', app: 'com.apple.Calendar', collection: 'events', match: { summary: 'Standup' } },
+      ],
+      undefined,
+      () => Promise.resolve([{ title: 'Untitled' }, {}]),
+    )
+    expect(outcomes.map(outcome => outcome.satisfied)).toEqual([false, true, false])
+    expect(outcomes[0]?.observed).toBe('node not found')
+    expect(outcomes[1]?.observed).toBe('matched among 2 windows')
+    expect(outcomes[2]?.observed).toBe('no application-object reader is configured')
+  })
+
+  it('prefers the readers the adapter supplies and then needs no window enumeration', async () => {
+    const listWindows = vi.fn(() => Promise.resolve([{ title: 'Ignored' }]))
+    const outcomes = await verifyWithDefaults(
+      [
+        { kind: 'nodeValueEquals', token: 's1:0', value: 'typed text' },
+        { kind: 'windowTitled', title: 'Agent Story' },
+        { kind: 'appObject', app: 'com.apple.Calendar', collection: 'events', match: { summary: 'Standup' } },
+      ],
+      {
+        nodeValue: { read: () => Promise.resolve('typed text') },
+        windowTitles: { list: () => Promise.resolve(['Agent Story.pages']) },
+        appObjects: { find: () => Promise.resolve({ matched: true, observed: 'one match' }) },
+      },
+      listWindows,
+    )
+    expect(outcomes.map(outcome => outcome.satisfied)).toEqual([true, true, true])
+    expect(outcomes[2]?.observed).toBe('one match')
+    expect(listWindows).not.toHaveBeenCalled()
   })
 })

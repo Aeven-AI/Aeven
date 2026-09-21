@@ -31,6 +31,22 @@ const comparison = (overrides: Partial<StepComparison> = {}): StepComparison => 
   ...overrides,
 })
 
+/**
+ * A comparison whose counts are held by cells that carry a figure for the first
+ * read and are empty afterwards, so `buildReport` sees both figures while it
+ * filters and neither while it sums.
+ * @param figures - the figures the cells carry on their first read.
+ * @returns the comparison.
+ */
+function clearedCounters(figures: { measuredCalls: number; recordedVisionCalls: number }): StepComparison {
+  let measuredReads = 0
+  let recordedReads = 0
+  return Object.defineProperties(comparison({ task: 'live.counter' }), {
+    measuredCalls: { get: () => (measuredReads++ === 0 ? figures.measuredCalls : undefined), enumerable: true },
+    recordedVisionCalls: { get: () => (recordedReads++ === 0 ? figures.recordedVisionCalls : undefined), enumerable: true },
+  })
+}
+
 describe('step ratios', () => {
   it('reports how many times fewer steps the measured path needed', () => {
     expect(stepRatio(comparison({ measuredCalls: 1, recordedVisionCalls: 20 }))).toBe(20)
@@ -81,6 +97,18 @@ describe('report assembly', () => {
   it('states the ratio and both figures for a compared task', () => {
     const text = formatReport(buildReport([comparison({ task: 'document.createText', measuredCalls: 1, recordedVisionCalls: 20 })]))
     expect(text).toContain('20 recorded vs 1 measured = 20x fewer steps')
+  })
+
+  it('states no ratio for a task that ran without invoking a mechanism', () => {
+    const text = formatReport(buildReport([comparison({ task: 'spreadsheet.setCell', measuredCalls: 0, recordedVisionCalls: 20 })]))
+    expect(text).toContain('spreadsheet.setCell')
+    expect(text).not.toContain('fewer steps')
+  })
+
+  it('counts a figure that can no longer be read as zero rather than poisoning the totals', () => {
+    const report = buildReport([clearedCounters({ measuredCalls: 3, recordedVisionCalls: 20 })])
+    expect(report.measuredTotal).toBe(0)
+    expect(report.comparedBaselineTotal).toBe(0)
   })
 })
 

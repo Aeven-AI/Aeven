@@ -7,7 +7,7 @@ import SessionStore, { SessionId } from '@aeven/session'
 import Storage from '@aeven/storage'
 import { DomainFacility } from '@aeven/storage-domain'
 import { RemoteError } from '@aeven/typert-protocol'
-import WorkspaceRegistry from '@aeven/workspace'
+import WorkspaceRegistry, { DEFAULT_DEFAULT_WORKSPACE_TITLE } from '@aeven/workspace'
 import type { WorkspaceId } from '@aeven/workspace/types'
 import WorkspaceController from '../src/index.ts'
 import { WorkspaceFeed } from '../src/feed.ts'
@@ -37,7 +37,14 @@ function deferred<T>(): Deferred<T> {
   return { promise, resolve }
 }
 
-async function harness() {
+/**
+ * Mount the controller over a fresh Host context and an empty staging root.
+ * @param options - `seedDefaultWorkspace` mounts a registry that publishes its
+ *   built-in, directory-less Workspace; the registry pins that one
+ *   registration against rename, delete, and move.
+ * @returns the controller, its context, the staging root, and the domain facility.
+ */
+async function harness(options: { seedDefaultWorkspace?: boolean } = {}) {
   const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'avn-workspace-controller-')))
   const ctx = new Context()
   roots.push(ctx)
@@ -48,11 +55,11 @@ async function harness() {
   ctx.storage.mount('domain', storageDomain)
   ctx.provide('storageDomain', storageDomain)
   ctx.provide('sessionPersistence', { list: () => Promise.resolve([]) } as never)
-  // Seeding is off: this suite asserts exact registry contents and domain
-  // increments, and an unasked-for built-in workspace would add a row and four
-  // writes to every expectation. The seeding behaviour has its own tests in
-  // @aeven/workspace.
-  await ctx.plugin(WorkspaceRegistry, { seedDefaultWorkspace: false })
+  // Seeding is off unless a test opts in: this suite asserts exact registry
+  // contents and domain increments, and an unasked-for built-in workspace would
+  // add a row and four writes to every expectation. The seeding behaviour has
+  // its own tests in @aeven/workspace.
+  await ctx.plugin(WorkspaceRegistry, { seedDefaultWorkspace: options.seedDefaultWorkspace ?? false })
   const dispose = (): void => {}
   ctx.provide('typert', {
     lookups: { configure: () => dispose },
@@ -235,6 +242,41 @@ describe('WorkspaceController commands', () => {
     await expect(controller.archiveSession({ sessionId: SessionId('unknown') }))
       .rejects.toMatchObject({ code: 'session/not-found' })
   })
+
+  it('refuses to rename, delete, or move the built-in Workspace', async () => {
+    const { controller, ctx } = await harness({ seedDefaultWorkspace: true })
+    const pinned = ctx.workspaceRegistry.defaultWorkspaceId
+    if (pinned === undefined) throw new Error('fixture registry seeded no built-in Workspace')
+
+    const rename = controller.rename({ workspaceId: pinned, title: 'elsewhere' })
+    await expect(rename).rejects.toMatchObject({
+      code: 'workspace/default-immutable',
+      details: { workspaceId: pinned, operation: 'rename' },
+    })
+    await expect(rename).rejects.toThrow('the built-in workspace cannot be renamed')
+
+    const deletion = controller.delete({ workspaceId: pinned })
+    await expect(deletion).rejects.toMatchObject({
+      code: 'workspace/default-immutable',
+      details: { workspaceId: pinned, operation: 'delete' },
+    })
+    await expect(deletion).rejects.toThrow('the built-in workspace cannot be deleted')
+
+    const move = controller.insertBefore({ workspaceId: pinned })
+    await expect(move).rejects.toMatchObject({
+      code: 'workspace/default-immutable',
+      details: { workspaceId: pinned, operation: 'move' },
+    })
+    await expect(move).rejects.toThrow('the built-in workspace cannot be moved')
+
+    // The pinning refusals are the whole effect: the registration survives all
+    // three with its seeded identity, still alone in the durable order.
+    const builtIn = ctx.workspaceRegistry.get(pinned)
+    if (builtIn === undefined) throw new Error('fixture built-in Workspace disappeared')
+    expect(builtIn.path).toBeUndefined()
+    expect(builtIn.title).toBe(DEFAULT_DEFAULT_WORKSPACE_TITLE)
+    expect(ctx.workspaceRegistry.list().map(workspace => workspace.id)).toEqual([pinned])
+  })
 })
 
 describe('WorkspaceController follow', () => {
@@ -346,5 +388,53 @@ describe('WorkspaceController follow', () => {
     await ctx.fiber.dispose()
     roots.splice(roots.indexOf(ctx), 1)
     await expect(closing).resolves.toEqual({ done: true, value: undefined })
+  })
+
+  it('crosses the wire with null for the built-in Workspace that has no directory', async () => {
+    const { controller, ctx } = await harness({ seedDefaultWorkspace: true })
+    const pinned = ctx.workspaceRegistry.defaultWorkspaceId
+    if (pinned === undefined) throw new Error('fixture registry seeded no built-in Workspace')
+    const abort = new AbortController()
+    const iterator = controller.follow(abort.signal)[Symbol.asyncIterator]()
+    await expect(nextFrame(iterator)).resolves.toEqual({
+      type: 'baseline',
+      value: {
+        items: [{
+          workspaceId: pinned,
+          isDefault: true,
+          kind: 'virtual',
+          path: null,
+          title: DEFAULT_DEFAULT_WORKSPACE_TITLE,
+          sessionIds: [],
+          createdAt: expect.any(String),
+          updatedAt: expect.any(String),
+        }],
+        archivedSessionIds: [],
+      },
+    })
+
+    // The cwd-less Session is the one shape the built-in workspace admits, and
+    // accounting it rewrites the record durably — so the increment arrives as a
+    // committed domain change of a record that carries no directory at all.
+    const session = ctx.sessions.create(SessionId('unbound'))
+    const builtIn = ctx.workspaceRegistry.get(pinned)
+    if (builtIn === undefined) throw new Error('fixture built-in Workspace disappeared')
+    await builtIn.attachSession(session.id)
+    await expect(nextFrame(iterator)).resolves.toEqual({
+      type: 'upsert',
+      workspace: {
+        workspaceId: pinned,
+        isDefault: true,
+        kind: 'virtual',
+        path: null,
+        title: DEFAULT_DEFAULT_WORKSPACE_TITLE,
+        sessionIds: [session.id],
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String),
+      },
+    })
+
+    abort.abort()
+    await expect(iterator.next()).resolves.toEqual({ done: true, value: undefined })
   })
 })

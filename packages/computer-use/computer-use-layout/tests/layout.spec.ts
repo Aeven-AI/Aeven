@@ -22,10 +22,12 @@ import {
   metricsLayout,
   overlapping,
   overflowing,
+  quoteLayout,
   snap,
   spanWidth,
   twoColumnLayout,
   type LayoutGrid,
+  type LayoutShape,
   type SlideSpec,
 } from '../src/index.ts'
 
@@ -130,6 +132,13 @@ describe('each layout produces what its slide needs', () => {
     expect(layout.filter(shape => shape.role === 'label')).toHaveLength(2)
   })
 
+  it('gives a quote its attribution as a label, and omits it when the slide names none', () => {
+    const attributed = quoteLayout({ kind: 'quote', title: 'A promise', subtitle: 'Mara' }).filter(shape => shape.role === 'label')
+    expect(attributed).toHaveLength(1)
+    expect(attributed[0]?.text).toBe('Mara')
+    expect(quoteLayout({ kind: 'quote', title: 'A promise' }).map(shape => shape.role)).not.toContain('label')
+  })
+
   it('gives a two-column slide exactly two body columns', () => {
     expect(twoColumnLayout(twoColumn).filter(shape => shape.role === 'body')).toHaveLength(2)
   })
@@ -204,6 +213,16 @@ describe('overlap is reported, not judged', () => {
 
   it('reports nothing for a single shape', () => {
     expect(overlapping([{ role: 'body', box: { left: 0, top: 0, width: 1, height: 1 }, style: {} }])).toEqual([])
+  })
+
+  it('skips a position holding no shape instead of reading a box off it', () => {
+    // A sparse array is a list whose length runs past its filled positions, and this
+    // is a public function over any `Layout` a caller holds. Reading `box` from a hole
+    // would throw, so the pair is skipped and the shapes that are there still compared.
+    const shapes: LayoutShape[] = []
+    shapes[0] = { role: 'background', box: { left: 0, top: 0, width: 10, height: 10 }, style: {} }
+    shapes[2] = { role: 'title', box: { left: 2, top: 2, width: 4, height: 4 }, style: {} }
+    expect(overlapping(shapes)).toEqual([['background', 'title']])
   })
 })
 
