@@ -83,10 +83,7 @@ Benchmark instructions for Pages are specific: *"Create a new document using the
 
 ### A sibling package covers the file layer
 
-`@aeven/computer-use-formats` holds the recipes whose deliverable is a file —
-spreadsheets, documents, presentations, PDFs — which need no application at all. They
-are declared `file`; every recipe in this book is `open-application`, and a test
-asserts both.
+`@aeven/computer-use-formats` holds the recipes whose deliverable is a file — spreadsheets, documents, presentations, PDFs — which need no application at all. They are declared `file`; every recipe in this book is `open-application`, and a test asserts both.
 
 ### Office and LibreOffice are semantic on purpose
 
@@ -96,22 +93,11 @@ The one exception is macOS formatting: the Pages scripting bridge cannot reach p
 
 ### The deliverable decides between two otherwise equal layers
 
-A recipe can state what it must affect: a **file** on disk, or the state of an
-**open application**. This is not a rung — a rung says *how* work is done, this says
-*what the work must affect*, and it settles the one case where two layers look equally
-plausible.
+A recipe can state what it must affect: a **file** on disk, or the state of an **open application**. This is not a rung — a rung says *how* work is done, this says *what the work must affect*, and it settles the one case where two layers look equally plausible.
 
-The file layer needs nothing installed, nothing running, and no permission grant,
-works identically on every platform, and verifies by reading the result back. The
-application layer is the only one that can reach a user's **unsaved** edits, because a
-file-level tool cannot see them at all.
+The file layer needs nothing installed, nothing running, and no permission grant, works identically on every platform, and verifies by reading the result back. The application layer is the only one that can reach a user's **unsaved** edits, because a file-level tool cannot see them at all.
 
-Passing `deliverable` filters to recipes that agree, so a caller needing a live
-document is never handed a file-level recipe and a caller wanting a verifiable file is
-never handed one that would need Office installed. Omitting it **skips the check
-rather than assuming a default**, and a recipe that never states its deliverable is
-refused when a caller requires one — because guessing there is exactly the decision
-the caller was asking to make.
+Passing `deliverable` filters to recipes that agree, so a caller needing a live document is never handed a file-level recipe and a caller wanting a verifiable file is never handed one that would need Office installed. Omitting it **skips the check rather than assuming a default**, and a recipe that never states its deliverable is refused when a caller requires one — because guessing there is exactly the decision the caller was asking to make.
 
 ### Refusals list what was searched
 

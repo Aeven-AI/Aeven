@@ -65,21 +65,11 @@ for (const [app, tasks] of groupByApp(normalizeIntents(intents))) {
 
 ### A fourth source: semantic tool catalogs
 
-`X-PLUG/OSWorld-MCP` publishes, per application, a list of validated semantic
-operations in OpenAI function-calling shape — a name, a description, and a
-parameter schema. That is a different kind of evidence from a task: a task says
-what a *user wanted*, a tool says what an *application can be asked to do*, with the
-argument names already decided. So it is read as its own source rather than folded
-into the task records.
+`X-PLUG/OSWorld-MCP` publishes, per application, a list of validated semantic operations in OpenAI function-calling shape — a name, a description, and a parameter schema. That is a different kind of evidence from a task: a task says what a *user wanted*, a tool says what an *application can be asked to do*, with the argument names already decided. So it is read as its own source rather than folded into the task records.
 
-Measured on the published catalogs: **132 operations** across LibreOffice Calc (26),
-Impress (21), Writer (15), Chrome (12), VLC (12), VS Code (20), and OS utilities.
+Measured on the published catalogs: **132 operations** across LibreOffice Calc (26), Impress (21), Writer (15), Chrome (12), VLC (12), VS Code (20), and OS utilities.
 
-A name-overlap heuristic that tried to report which operations a recipe book failed
-to cover was written and then **removed**: it flagged `save` as uncovered because
-the recipe is named `spreadsheet.saveAs`. A coverage report that invents gaps is
-worse than none, so coverage is stated explicitly instead, in
-`@aeven/computer-use-router`'s capability model.
+A name-overlap heuristic that tried to report which operations a recipe book failed to cover was written and then **removed**: it flagged `save` as uncovered because the recipe is named `spreadsheet.saveAs`. A coverage report that invents gaps is worse than none, so coverage is stated explicitly instead, in `@aeven/computer-use-router`'s capability model.
 
 ### The end-state check vocabulary is the valuable part
 
