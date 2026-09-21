@@ -122,6 +122,18 @@ export interface WireChunk {
   usage?: WireUsage | null
 }
 
+/**
+ * One decoded SSE `data:` frame: the next chunk, or the error body that replaces
+ * it when a gateway fails after the response has begun.
+ *
+ * A 200 whose headers are already sent cannot be restated as a 4xx/5xx, so an
+ * OpenAI-compatible gateway reports such a failure inside the stream as an
+ * `error` object and then closes without `[DONE]`. A frame is one or the other —
+ * never both — which is why both wire shapes are read together here instead of
+ * the error body being skipped as a chunk that happened to carry no choices.
+ */
+export interface WireFrame extends WireChunk, WireError {}
+
 /** One streamed choice (requests always ask for a single one); `finish_reason` is non-null only on its terminal chunk. */
 export interface WireChoice {
   delta?: WireDelta
@@ -177,7 +189,13 @@ export interface WireUsage {
   completion_tokens_details?: { reasoning_tokens?: number }
 }
 
-/** Non-2xx error body. */
+/**
+ * Error body: a non-2xx response, or the in-band frame that replaced a chunk.
+ *
+ * Every member is nullable because the wire spells "nothing here" as an explicit
+ * `null` — the same convention `content` and `finish_reason` already follow — and
+ * this body is composed by a remote encoder rather than by us.
+ */
 export interface WireError {
-  error?: { message?: string; type?: string; code?: string }
+  error?: { message?: string | null; type?: string | null; code?: string | null } | null
 }

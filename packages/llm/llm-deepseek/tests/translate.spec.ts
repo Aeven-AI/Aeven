@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { BlockAssembler, EMPTY_RESPONSE_CODE, LlmError } from '@aeven/llm'
+import {
+  BlockAssembler,
+  CONTEXT_WINDOW_EXCEEDED_CODE,
+  EMPTY_RESPONSE_CODE,
+  LlmError,
+  QUOTA_EXCEEDED_CODE,
+} from '@aeven/llm'
 import type { StreamChunk } from '@aeven/llm'
 import { DONE } from '../src/sse.ts'
-import { mapFinishReason, mapUsage, translate } from '../src/translate.ts'
+import { mapFinishReason, mapStreamError, mapUsage, translate } from '../src/translate.ts'
 
 async function* feed(...payloads: (string | object)[]): AsyncGenerator<string> {
   for (const payload of payloads) {
@@ -258,6 +264,83 @@ describe('translate: errors', () => {
 
   it('throws STREAM_CLOSED when the payload source ends without DONE', async () => {
     await expect(collect(translate(feed(firstChunk)))).rejects.toThrow(/without \[DONE\]/)
+  })
+
+  it('surfaces an in-band error frame instead of the truncation it causes', async () => {
+    // The observed shape: the gateway admitted the request, streamed part of the
+    // answer, then reported an upstream failure in place of the next chunk and
+    // closed without [DONE]. Reading only `choices` dropped that body, so the
+    // caller saw "SSE stream ended without [DONE]" and never the reason.
+    const upstream = {
+      message: 'the upstream provider is unavailable',
+      type: 'server_error',
+      param: null,
+      code: 'provider_unavailable',
+    }
+    const seen: StreamChunk[] = []
+    await expect((async () => {
+      for await (const chunk of translate(feed(
+        firstChunk,
+        { choices: [{ delta: { content: 'Second-wave recon is done' } }] },
+        { error: upstream },
+      ))) {
+        seen.push(chunk)
+      }
+    })()).rejects.toMatchObject({
+      message: 'the provider failed after the response began: the upstream provider is unavailable',
+      code: 'PROVIDER_UNAVAILABLE',
+    })
+    // The deltas that already arrived stay delivered: what a reader is left with
+    // is an answer that stopped mid-sentence, which is why the message says the
+    // failure came after the response began.
+    expect(seen).toEqual([
+      { type: 'block-start', index: 0, blockType: 'text' },
+      { type: 'text-delta', index: 0, text: 'Second-wave recon is done' },
+    ])
+  })
+
+  it.each([
+    ['an exhausted quota', { message: 'insufficient balance for this request', code: 'AEVEN_INFERENCE_BALANCE_EXHAUSTED' }, QUOTA_EXCEEDED_CODE],
+    ['an outgrown context', { message: "this model's maximum context length is 128000 tokens", code: 'context_length_exceeded' }, CONTEXT_WINDOW_EXCEEDED_CODE],
+    ['a bare upstream failure', { message: 'upstream connect error', code: 'provider_error' }, 'PROVIDER_ERROR'],
+    ['a failure the gateway left unnamed', { message: 'something went wrong' }, 'SERVER'],
+  ])('classifies %s through the shared recognizers', async (_label, error, code) => {
+    await expect(collect(translate(feed({ error })))).rejects.toMatchObject({ code })
+  })
+
+  it('keeps a stream with no error frame a truncation', async () => {
+    // Absent an error body, the end of the stream is still exactly that: a
+    // connection that broke, which is not the provider saying anything.
+    await expect(collect(translate(feed(firstChunk, { usage: null }))))
+      .rejects.toMatchObject({ code: 'STREAM_CLOSED' })
+  })
+})
+
+describe('mapStreamError', () => {
+  it('names the delivery in the message a reader is shown', () => {
+    expect(mapStreamError({ message: 'upstream connect error', code: 'provider_error' })).toEqual({
+      message: 'the provider failed after the response began: upstream connect error',
+      code: 'PROVIDER_ERROR',
+    })
+  })
+
+  it('stays informative when the gateway sends a code and no message', () => {
+    // Without a message the detail string is the only thing left to show, and an
+    // empty one would leave the reader with a code and a colon.
+    expect(mapStreamError({ code: 'provider_timeout', type: 'server_error' })).toEqual({
+      message: 'the provider failed after the response began: provider_timeout server_error',
+      code: 'PROVIDER_TIMEOUT',
+    })
+  })
+
+  it.each([
+    ['an absent body', undefined],
+    ['an empty body', {}],
+  ])('says a body with nothing to show sent no reason (%s)', (_label, error) => {
+    expect(mapStreamError(error)).toEqual({
+      message: 'the provider failed after the response began, and sent no reason',
+      code: 'SERVER',
+    })
   })
 })
 

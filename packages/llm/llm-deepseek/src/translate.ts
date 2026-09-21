@@ -4,15 +4,25 @@
  * usage are deferred until `[DONE]`, covering both finish-attached and trailing usage-only shapes
  * while ensuring no chunk follows `finish`.
  *
+ * A gateway that fails after the response began sends an `error` frame instead of a chunk and then
+ * closes without `[DONE]`; that frame becomes a named failure rather than being skipped.
+ *
  * Translate DeepSeek wire chunks into the harness `StreamChunk` protocol.
  * @module avn-llm-deepseek/translate
  */
 
 import { brandString } from '@aeven/brand'
-import { EMPTY_RESPONSE_CODE, LlmError } from '@aeven/llm'
+import {
+  CONTEXT_WINDOW_EXCEEDED_CODE,
+  EMPTY_RESPONSE_CODE,
+  isContextWindowExceededError,
+  isQuotaExceededError,
+  LlmError,
+  QUOTA_EXCEEDED_CODE,
+} from '@aeven/llm'
 import type { ContentBlock, FinishReason, StreamChunk, TokenUsage, ToolCallId } from '@aeven/llm'
 import { DONE } from './sse.ts'
-import type { WireChunk, WireUsage } from './types.ts'
+import type { WireFrame, WireUsage, WireError } from './types.ts'
 
 /** One open block under assembly. */
 interface OpenBlock {
@@ -101,12 +111,53 @@ function closeBlock(block: OpenBlock): ContentBlock {
 }
 
 /**
+ * Classify an in-band error body into a harness failure.
+ *
+ * The gateway's own vocabulary is what a caller routes on, so its code is passed
+ * through upper-cased rather than flattened into `SERVER` — except for the two
+ * classes the harness already recognizes by wording: an exhausted account quota
+ * and a request that outgrew the model context are terminal on every route, and
+ * neither arrives here with a status code to say so. Those two run through the
+ * same recognizers the non-2xx path uses, so one failure classifies identically
+ * however it was delivered.
+ * @param error - the parsed `error` member of an in-band error frame.
+ * @returns the message a reader is shown and the stable code shown beside it.
+ */
+export function mapStreamError(error: WireError['error']): { message: string; code: string } {
+  const detail = [error?.code, error?.type, error?.message]
+    .filter(part => typeof part === 'string' && part.length > 0)
+    .join(' ')
+  const code = isQuotaExceededError(detail)
+    ? QUOTA_EXCEEDED_CODE
+    : isContextWindowExceededError(detail)
+      ? CONTEXT_WINDOW_EXCEEDED_CODE
+      // The provider's own code, when it gave one. The wire type is a claim about
+      // a remote encoder, so anything but a non-empty string is treated as absent
+      // rather than read as a string that happens to be there.
+      : typeof error?.code === 'string' && error.code.length > 0 ? error.code.toUpperCase() : 'SERVER'
+  // The provider's own wording wins; when it sent none, the code and type it did
+  // send are the only thing left to show, and a body carrying neither is said to
+  // be exactly that rather than left dangling after a colon.
+  const stated = typeof error?.message === 'string' && error.message.length > 0 ? error.message : detail
+  // Named as a failure *after the response began*, because that is what the
+  // reader is looking at: an answer that stopped, not a request that never started.
+  return {
+    message: stated.length > 0
+      ? `the provider failed after the response began: ${stated}`
+      : 'the provider failed after the response began, and sent no reason',
+    code,
+  }
+}
+
+/**
  * Consume SSE data payloads (ending with `[DONE]`) and yield StreamChunks.
  * Malformed JSON payloads abort the stream with `MALFORMED_RESPONSE`.
  * @param payloads - SSE data payloads from {@link parseSse}, `[DONE]`-terminated.
  * @returns deltas as they arrive; `block-end`s, `usage`, and `finish` are all deferred to the `[DONE]` sentinel.
  *   A `stop` (or absent) finish with no opened blocks is a degenerate provider completion and maps to an
  *   `EMPTY_RESPONSE` error finish instead of a successful empty message.
+ * @throws {LlmError} `MALFORMED_RESPONSE` for an unparsable payload, and whatever {@link mapStreamError}
+ *   makes of an in-band `error` frame — the failure the gateway could no longer report as a status.
  */
 export async function* translate(payloads: AsyncIterable<string>): AsyncGenerator<StreamChunk> {
   let nextIndex = 0
@@ -142,11 +193,21 @@ export async function* translate(payloads: AsyncIterable<string>): AsyncGenerato
       return
     }
 
-    let chunk: WireChunk
+    let chunk: WireFrame
     try {
-      chunk = JSON.parse(payload) as WireChunk
+      chunk = JSON.parse(payload) as WireFrame
     } catch {
       throw new LlmError(`malformed SSE payload: ${payload.slice(0, 120)}`, 'MALFORMED_RESPONSE')
+    }
+
+    // A failure the gateway could no longer report as a status arrives in place
+    // of the next chunk. Skipping it — which reading only `choices` amounts to —
+    // turns a named provider failure into the truncation error the end of the
+    // stream would have raised anyway, so the caller cannot tell an upstream
+    // outage from a connection that simply broke.
+    if (chunk.error !== undefined && chunk.error !== null) {
+      const failure = mapStreamError(chunk.error)
+      throw new LlmError(failure.message, failure.code)
     }
 
     for (const choice of chunk.choices ?? []) {
