@@ -92,7 +92,16 @@ export class SessionCommandController {
         })
       }
     }
-    const cwd = workspace?.path ?? request.cwd ?? this.defaultCwd
+    // A named workspace supplies the session's location, including the case
+    // where it has none: a workspace with no directory binding hands out no
+    // cwd, so its sessions are located by the record alone. Falling through to
+    // the default cwd there would plant a machine-local path inside a record
+    // that is expected to travel between machines, which is the one thing a
+    // pathless workspace exists to avoid. Only a request that names no
+    // workspace at all falls back to an explicit or deployment-default cwd.
+    const cwd = workspace !== undefined
+      ? workspace.path
+      : request.cwd ?? this.defaultCwd
     let adopted: Agent
     try {
       adopted = await this.agents.ensureSession(
@@ -488,7 +497,7 @@ export class SessionCommandController {
     if (error instanceof ApiSessionCwdConflict) {
       throw new RemoteError('session/conflict', error.message, {
         sessionId: error.sessionId,
-        requestedCwd: error.requestedCwd,
+        requestedCwd: error.requestedCwd ?? null,
         ...(error.existingCwd === undefined ? {} : { existingCwd: error.existingCwd }),
       })
     }

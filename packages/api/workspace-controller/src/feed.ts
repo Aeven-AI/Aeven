@@ -17,13 +17,19 @@ import type {
 
 /**
  * Project one authoritative Workspace entity into its Remote value.
+ *
+ * The domain expresses "no directory" as an absent (`undefined`) path, but a
+ * Remote boundary carries JSON only, so absence crosses the wire as `null`.
+ * This mapping is the single place that conversion happens.
  * @param workspace - authoritative registry entity.
  * @returns detached Workspace projection for Remote consumers.
  */
 export function workspaceView(workspace: Workspace): WorkspaceView {
   return {
     workspaceId: workspace.id,
-    path: workspace.path,
+    isDefault: workspace.isDefault,
+    kind: workspace.kind,
+    path: workspace.path ?? null,
     title: workspace.title,
     sessionIds: [...workspace.sessionIds],
     createdAt: workspace.createdAt,
@@ -31,11 +37,28 @@ export function workspaceView(workspace: Workspace): WorkspaceView {
   }
 }
 
-function changedWorkspaceView(workspaceId: string, value: unknown): WorkspaceView {
+/**
+ * Project one durable record that arrived as a domain change.
+ *
+ * The built-in bit is not in the record — it lives in the domain global — so it
+ * is decided by comparing the changed id against the registry's current answer
+ * rather than by reading the changed value.
+ * @param workspaceId - id the change names.
+ * @param value - the changed record value.
+ * @param defaultWorkspaceId - the registry's built-in id, when it has one.
+ * @returns detached Workspace projection for Remote consumers.
+ */
+function changedWorkspaceView(
+  workspaceId: string,
+  value: unknown,
+  defaultWorkspaceId: string | undefined,
+): WorkspaceView {
   const record: WorkspaceRecord = workspaceRecord.parse(value)
   return {
     workspaceId: WorkspaceId(workspaceId),
-    path: record.path,
+    isDefault: defaultWorkspaceId === workspaceId,
+    kind: record.kind,
+    path: record.path ?? null,
     title: record.title,
     sessionIds: [...record.sessionIds],
     createdAt: record.createdAt,
@@ -126,7 +149,11 @@ export class WorkspaceFeed {
     if (!this.knownIds.has(change.key)) return
     this.publish({
       type: 'upsert',
-      workspace: changedWorkspaceView(change.key, change.value),
+      workspace: changedWorkspaceView(
+        change.key,
+        change.value,
+        this.ctx.workspaceRegistry.defaultWorkspaceId,
+      ),
     })
   }
 

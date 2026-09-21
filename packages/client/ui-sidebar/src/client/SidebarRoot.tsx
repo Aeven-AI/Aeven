@@ -4,7 +4,7 @@
  * snaps to its new width while its clipped content transitions; below it the
  * column overlays. The shell repositions and remounts nothing.
  *
- * The workspace/session browsing region between the New Session button and the
+ * The workspace/session browsing region between the New Session link and the
  * foot is the `sidebar.workspaces` registrant's, and the foot holds
  * `sidebar.settings` plus `sidebar.footer.action`; the shell hands them the
  * wide flag (plus an expand request callback for the browser). That flag stays
@@ -15,11 +15,28 @@
  * entirely (ui-theme's `no-scrollbar`), so nothing here tracks the pointer.
  */
 import clsx from 'clsx'
+import { useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react'
 import {
   AevenMark, IconChevronsLeftOutline14, IconMenuOutline16, IconNewChatOutline16, Tooltip,
 } from '@aeven/client-ui-primitives'
 import type { SidebarRootComponentProps } from './contract/slots.ts'
 import css from './SidebarRoot.module.css'
+
+/**
+ * Whether an activation is the browser's own navigation, and so ours to handle.
+ *
+ * Only an unmodified primary pointer click is. Middle click, the context menu's
+ * "Open link in new window", and Cmd/Ctrl/Shift/Alt-click each mean "somewhere
+ * else", and swallowing them would leave a link that behaves like a button.
+ * @param event - the React activation event on the link.
+ * @returns true when the shell should open the Session in place instead.
+ */
+function isPlainActivation(event: ReactMouseEvent | ReactKeyboardEvent): boolean {
+  // React's MouseEvent does not carry `button`, so this both narrows the union
+  // and rejects a synthetic click; a real primary click reports 0.
+  if (!('button' in event) || event.button !== 0) return false
+  return !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
+}
 
 /**
  * Render the sidebar column shell.
@@ -29,6 +46,7 @@ import css from './SidebarRoot.module.css'
 export function SidebarRoot({
   collapsed,
   startSession,
+  newSessionHref,
   toggleSidebar,
   t,
   renderSlot,
@@ -36,6 +54,23 @@ export function SidebarRoot({
   // The open width is the theme's Aeven token, exactly as the client's
   // `$widthSidebar` is. Nothing measures or publishes it: collapsing is the
   // `.visible` class alone, so no render writes a width during the transition.
+
+  /**
+   * The chat the New Session link names, as its address and the id to create
+   * under if that address is opened here.
+   *
+   * Asked once and held in state, not re-asked every render: the address has to
+   * hold still while the reader looks at it, or it could not be copied or
+   * opened deliberately. Re-asked after activation, because that id then
+   * belongs to a live Session and the link must name a fresh chat.
+   */
+  const [target, setTarget] = useState(newSessionHref)
+
+  /** Create the Session this link already names, and open it in place. */
+  const activate = (): void => {
+    startSession(undefined, target.sessionId)
+    setTarget(newSessionHref())
+  }
 
   return (
     <div className={clsx(css.root, !collapsed && css.visible)}>
@@ -78,15 +113,29 @@ export function SidebarRoot({
           {/* Fixed at the open width so nothing inside re-lays-out mid-slide. */}
           <div className={css.sideContentInner}>
             <Tooltip label={t('session.new.label')} delayMs={500} disabled>
-              <button
-                type="button"
+              {/* A real anchor, not a button with a click handler: the browser
+                  then owns middle-click, "Open link in new window" and the
+                  status-bar address, which no scripted `window.open` gives
+                  back. Plain activation is intercepted so the SPA still
+                  creates the Session, opens it and pushes history in place;
+                  every modified activation is left to the browser. */}
+              <a
                 className={css.newSession}
+                href={target.href}
                 aria-label={t('session.new.label')}
-                onClick={() => { startSession() }}
+                onClick={(event) => { if (!isPlainActivation(event)) return; event.preventDefault(); activate() }}
+                onKeyDown={(event) => {
+                  // Enter is a real navigation for a link, so it needs the same
+                  // interception a plain click gets; Space already scrolls
+                  // rather than activating, and this does not add it.
+                  if (!isPlainActivation(event)) return
+                  event.preventDefault()
+                  activate()
+                }}
               >
                 <IconNewChatOutline16 size={14} />
                 <span className={css.newSessionLabel}>{t('session.new')}</span>
-              </button>
+              </a>
             </Tooltip>
 
             {/* The browsing region fills the column between the controls and

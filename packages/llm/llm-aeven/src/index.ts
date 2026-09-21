@@ -181,16 +181,34 @@ export interface Config {
   defaultContextWindow?: number
   /** Maximum provider idle time while one stream read is outstanding. */
   streamIdleTimeoutMs?: number
-  /** Unused by this route; present because the adapter's connection facts require them. */
+  /**
+   * The image and Files knobs below are inert on this route: the gateway accepts
+   * images inline as `image_url` parts and has no files API to upload them to,
+   * so nothing here ever offloads, uploads, or expires. They are declared
+   * because {@link DeepSeekConnectionOptions} requires a complete set, and they
+   * are pinned to the adapter's own defaults so an upstream change is inherited
+   * rather than silently overridden here. Each is documented for what it does on
+   * the route that uses it, not for what it does on this one.
+   */
+  /** High watermark for retained request-image bytes before oldest-first offload. */
   maxRequestFilesBytes?: number
+  /** Independent base64 fallback high watermark, applied when Files mode is unavailable. */
   maxInlineRequestImageBytes?: number
+  /** High watermark for retained request-image count. */
   maxImagesPerRequest?: number
+  /** Files-mode oldest-prefix removal quantum, in bytes. */
   imageOffloadByteQuantum?: number
+  /** Inline-mode oldest-prefix removal quantum, in bytes. */
   inlineImageOffloadByteQuantum?: number
+  /** Count-overflow removal quantum, in images. */
   imageOffloadCountQuantum?: number
+  /** Per-image Files resolution deadline. */
   filesApiTimeoutMs?: number
+  /** Requested uploaded-image lifetime; the provider clamps values outside its own range. */
   fileExpiresAfterSeconds?: number
+  /** Remaining lifetime below which a cached upload id is replaced rather than reused. */
   fileRefreshMarginSeconds?: number
+  /** Oldest harness-owned files removed before one upload retry after a quota refusal. */
   fileQuotaCleanupBatch?: number
   /** Transport retry policy, resolved once at registration. */
   retryPolicy?: RetryPolicyConfig

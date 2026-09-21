@@ -18,13 +18,13 @@ CI 从未发现：覆盖率通道只有 Linux 与 Windows，而 Windows 因该�
 
 `readProcessStart` 迁至 `packages/experimental/code-runtime-python/src/process-start.ts`，`linuxOnlyCoverageExclusions` 在 `process.platform !== 'linux'` 时排除该路径。`src/index.ts` 重新导出该函数，因此本包的公开表面与其调用方均未改变。
 
-以模块为单位，是因为 vitest 覆盖率的 `exclude` 接受的正是模块。若改为扩大既有的 `v8 ignore` 以覆盖这段读取，则会连 Linux 通道一并抑制，而 `tests/runtime.spec.ts` 在那里确实覆盖了它们——那是拿一道生效的闸门去换本地的便利。
+以模块为单位，是因为 vitest 覆盖率的 `exclude` 接受的正是模块。若改为扩大既有的 `v8 ignore` 以覆盖这段读取，则会连 Linux 通道一并抑制，而 `tests/runtime-budgets.spec.ts` 在那里确实覆盖了它们——那是拿一道生效的闸门去换本地的便利。
 
 ## 影响
 
 `pnpm run test:coverage` 现在能在干净工作树的 Darwin 上通过，因此该闸门在三个开发平台上都可用作本地推送前检查。
 
-在非 Linux 宿主上，`process-start.ts` 整体不被度量，包括在该平台确实会执行的 Darwin 分支。该分支只有一条 `return undefined`，并由 `runtime.spec.ts` 的非 Linux 分支断言，因此失去的是一个覆盖率数字，而不是一项测试。
+在非 Linux 宿主上，`process-start.ts` 整体不被度量，包括在该平台确实会执行的 Darwin 分支。该分支只有一条 `return undefined`，并由 `runtime-budgets.spec.ts` 的非 Linux 分支断言，因此失去的是一个覆盖率数字，而不是一项测试。
 
 排除模式如今在两个方向上都成立；第三个平台特定的源码同样应当独立成模块，而不是套上一条宽泛的 ignore 注释。这条规则的代价是每个此类源码多出一个模块；这正是让其周围文件保持在完整标准之下所要付的价。
 

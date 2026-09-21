@@ -31,6 +31,8 @@ function workspace(
 ): WorkspaceView {
   return {
     workspaceId: wid(id),
+    isDefault: false,
+    kind: 'folder',
     path: `/w/${id}`,
     title: id,
     sessionIds,

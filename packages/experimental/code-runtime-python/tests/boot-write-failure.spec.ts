@@ -234,7 +234,10 @@ describe('PythonCodeRuntime — boot-write failure', () => {
     // call, so the host is mid-drain when the pipe dies. No `done` frame ever
     // arrives, so the run settles on the wall clock — the drain wait must have
     // removed its listeners by then (a `once('drain')` wait would leave one
-    // attached to the destroyed pipe forever).
+    // attached to the destroyed pipe forever). The wall is the whole cost here
+    // and there is no real child to start, so it is sized to the in-process work
+    // (resolve, snapshot and write a 4 MiB reply against a backpressured pipe)
+    // rather than to the 3 s a spawned interpreter would have needed.
     let proto: PassThrough | undefined
     spawnMock.mockImplementation(() => {
       const fake = fakeChildBackpressuredThenDestroyed()
@@ -242,7 +245,7 @@ describe('PythonCodeRuntime — boot-write failure', () => {
       return fake.child
     })
     const ctx = new Context()
-    const fiber = await ctx.plugin(PythonCodeRuntime, { maxWallMs: 3000 })
+    const fiber = await ctx.plugin(PythonCodeRuntime, { maxWallMs: 1000 })
     const runtime = ctx.codeRuntime as InstanceType<typeof PythonCodeRuntime>
 
     const result = await runtime.run({

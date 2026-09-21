@@ -62,6 +62,7 @@ function harness(options: HarnessOptions = {}): SessionHarness {
     },
   }
   const workspace = {
+    kind: 'folder',
     path: '/workspace',
     async attachSession() {
       calls.push('attach')

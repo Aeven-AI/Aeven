@@ -136,8 +136,25 @@ function selectiveFailureBackend(
 
 function record(path: string, sessionIds: string[], createdAt = '2026-07-24T00:00:00.000Z'): WorkspaceRecord {
   return {
+    kind: 'folder',
     path,
     title: basename(path),
+    sessionIds: sessionIds.map(SessionId),
+    createdAt,
+    updatedAt: createdAt,
+  }
+}
+
+/**
+ * A durable record with no directory binding — the shape the built-in Chats
+ * workspace will use. Written without `path` at all rather than with an
+ * explicit `undefined`, so the fixture proves the optional field parses when
+ * the key is absent, exactly as a synced or freshly seeded record would.
+ */
+function virtualRecord(title: string, sessionIds: string[], createdAt = '2026-07-24T00:00:00.000Z'): WorkspaceRecord {
+  return {
+    kind: 'virtual',
+    title,
     sessionIds: sessionIds.map(SessionId),
     createdAt,
     updatedAt: createdAt,
@@ -1157,5 +1174,130 @@ describe('membership re-derived from cwd', () => {
     expect(result.registry.list()[0]!.sessionIds).toEqual([])
     expect(warnings.join('\n')).toContain(`workspace '${id}' filtered session 'ghost' from membership: session header is missing`)
     await result.fiber.dispose()
+  })
+})
+
+describe('workspace kind and its pathless records', () => {
+  it('defaults a stored record written before the field to folder kind', async () => {
+    const owned = await makeDir('legacy-kind')
+    const id = WorkspaceId('00000000-0000-4000-8000-000000000060')
+    // The exact stored shape an older writer produced: no `kind` key at all.
+    // The default must reconstruct the only thing such a deployment could have
+    // created — a directory workspace.
+    const legacy = {
+      path: owned,
+      title: basename(owned),
+      sessionIds: [],
+      createdAt: '2026-07-24T00:00:00.000Z',
+      updatedAt: '2026-07-24T00:00:00.000Z',
+    } as unknown as WorkspaceRecord
+    const result = await harness({
+      pool: storedPool([[id, legacy]], { initialized: true, workspaceIds: [id] }),
+    })
+    expect(result.registry.list()[0]!.kind).toBe('folder')
+    expect(result.registry.list()[0]!.path).toBe(owned)
+  })
+
+  it('stamps a newly created workspace as folder kind', async () => {
+    const dir = await makeDir('created-kind')
+    const result = await harness()
+    const workspace = await result.registry.create(dir)
+    expect(workspace.kind).toBe('folder')
+    expect(workspace.path).toBe(dir)
+  })
+
+  it('refuses a folder record with no path, and a pathless record carrying one', async () => {
+    const owned = await makeDir('kind-path-mismatch')
+    const id = WorkspaceId('00000000-0000-4000-8000-000000000061')
+    const order = { initialized: true, workspaceIds: [id] }
+
+    // `folder` is defined by its directory: without one the record cannot say
+    // which sessions belong to it.
+    const { path: _omitted, ...folderWithoutPath } = record(owned, [])
+    await expect(harness({
+      pool: storedPool([[id, folderWithoutPath]], order),
+    })).rejects.toThrow(/kind 'folder' but records no path/)
+
+    // The inverse: a path on a pathless record would be a machine-local fact
+    // sitting inside a record that is expected to travel between machines.
+    await expect(harness({
+      pool: storedPool([[id, { ...virtualRecord('Chats', []), path: owned }]], order),
+    })).rejects.toThrow(/kind 'virtual' but records path/)
+  })
+
+  it('keeps a pathless workspace members without any cwd match', async () => {
+    const elsewhere = await makeDir('kind-elsewhere')
+    const id = WorkspaceId('00000000-0000-4000-8000-000000000062')
+    const result = await harness({
+      pool: storedPool([[id, virtualRecord('Chats', ['chat-one', 'chat-two'])]], {
+        initialized: true,
+        workspaceIds: [id],
+      }),
+      // Neither session names this workspace, and one carries a cwd belonging
+      // to no workspace at all. Membership must come from the record alone —
+      // that is what makes a pathless workspace survive a restart and a sync.
+      sessions: [header('chat-one'), header('chat-two', elsewhere)],
+    })
+    const workspace = result.registry.list()[0]!
+    expect(workspace.kind).toBe('virtual')
+    expect(workspace.path).toBeUndefined()
+    expect(workspace.sessionIds).toEqual(['chat-one', 'chat-two'])
+  })
+
+  it('lets two pathless workspaces coexist without claiming a shared path', async () => {
+    const first = WorkspaceId('00000000-0000-4000-8000-000000000063')
+    const second = WorkspaceId('00000000-0000-4000-8000-000000000064')
+    // Keying uniqueness on `undefined` would report these as colliding on a
+    // path neither of them has.
+    const result = await harness({
+      pool: storedPool(
+        [[first, virtualRecord('Chats', [])], [second, virtualRecord('Archive', [])]],
+        { initialized: true, workspaceIds: [first, second] },
+      ),
+    })
+    expect(result.registry.list().map(workspace => workspace.kind)).toEqual(['virtual', 'virtual'])
+  })
+
+  it('admits a cwd-less session into a pathless workspace and refuses one carrying a cwd', async () => {
+    const elsewhere = await makeDir('kind-admit-elsewhere')
+    const id = WorkspaceId('00000000-0000-4000-8000-000000000065')
+    const result = await harness({
+      pool: storedPool([[id, virtualRecord('Chats', [])]], { initialized: true, workspaceIds: [id] }),
+      sessions: [header('cwdless'), header('carries-cwd', elsewhere)],
+    })
+    const workspace = result.registry.get(id)!
+
+    await expect(workspace.attachSession(SessionId('carries-cwd')))
+      .rejects.toThrow(/has no directory, but the session records cwd/)
+    expect(workspace.sessionIds).toEqual([])
+
+    await workspace.attachSession(SessionId('cwdless'))
+    expect(workspace.sessionIds).toEqual(['cwdless'])
+  })
+
+  it('reports a pathless workspace as ok rather than missing-dir', async () => {
+    const id = WorkspaceId('00000000-0000-4000-8000-000000000066')
+    const result = await harness({
+      pool: storedPool([[id, virtualRecord('Chats', [])]], { initialized: true, workspaceIds: [id] }),
+    })
+    // There is no directory to lose, so the check can never fail.
+    await expect(result.registry.get(id)!.status()).resolves.toBe('ok')
+  })
+
+  it('reports no filtered candidates for a pathless workspace', async () => {
+    const id = WorkspaceId('00000000-0000-4000-8000-000000000067')
+    const warnings: string[] = []
+    const result = await harness({
+      pool: storedPool([[id, virtualRecord('Chats', ['chat-one'])]], {
+        initialized: true,
+        workspaceIds: [id],
+      }),
+      sessions: [header('chat-one')],
+      beforeRegistry: (ctx) => {
+        ctx.logger.warn = ((value: unknown) => { warnings.push(String(value)) }) as typeof ctx.logger.warn
+      },
+    })
+    expect(result.registry.list()[0]!.sessionIds).toEqual(['chat-one'])
+    expect(warnings.join('\n')).not.toContain('filtered session')
   })
 })

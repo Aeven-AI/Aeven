@@ -11,7 +11,8 @@ import type {
   IWorkspaces, WorkspaceId, WorkspaceView,
 } from '@aeven/api-workspace-controller/client'
 import type { SessionId } from '@aeven/session/types'
-import type { SessionUrlNavigation } from './session-url.ts'
+import { randomUUID } from '@aeven/util-crypto'
+import { sessionPathOf, type SessionUrlNavigation } from './session-url.ts'
 
 type InitialNavigation = 'waiting' | 'connecting' | 'done'
 
@@ -20,14 +21,31 @@ export interface UiWorkspace {
   /**
    * Resolve the reusable or newly created blank Session for a Workspace.
    * @param workspaceId - target Workspace.
+   * @param sessionId - preallocated id to create under; when present the
+   * Workspace's reusable blank is skipped, because the caller already
+   * published that id as the address it is about to open.
    * @returns a Session already addressable through the Session Controller.
    */
-  connectWorkspace(workspaceId: WorkspaceId): Promise<SessionId>
+  connectWorkspace(workspaceId: WorkspaceId, sessionId?: SessionId): Promise<SessionId>
   /**
    * Start a New Session flow and navigate to its Session.
    * @param workspaceId - explicit target; absent inherits the current or most recent Workspace.
+   * @param sessionId - the id the New Session link named. The Host creates the
+   * Session under exactly this id, so the address that was opened and the
+   * Session that appears are the same chat.
    */
-  startSession(workspaceId?: WorkspaceId): void
+  startSession(workspaceId?: WorkspaceId, sessionId?: SessionId): void
+  /**
+   * Address for a New Session that does not exist yet, with the id it names.
+   *
+   * A link's target has to be known before there is a Session to name, because
+   * the browser — not this client — owns activation. The id is minted here,
+   * under the Host's `session-<uuid>` scheme, and the caller hands it back to
+   * {@link startSession}. Every call mints a fresh id, which is what re-arms
+   * the link once a chat has been started from it.
+   * @returns the absolute `/c/<uuid>` path, and the Session id it addresses.
+   */
+  newSessionHref(): { href: string; sessionId: SessionId }
   /**
    * Archive a Session and clear it when it is the current selection.
    * @param sessionId - Session to archive.
@@ -81,7 +99,7 @@ export class DirectoryBrowseError extends Error {
 
 /** Implements Workspace archive and directory UI operations. */
 class UiWorkspaceService extends Service implements UiWorkspace {
-  private readonly connecting = new Map<WorkspaceId, Promise<SessionId>>()
+  private readonly connecting = new Map<WorkspaceId | SessionId, Promise<SessionId>>()
   private initialNav: InitialNavigation = 'waiting'
   private initialDataReady: Promise<void> | undefined
   private initialDataCheck: (() => void) | undefined
@@ -107,31 +125,17 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     ctx.effect(() => this.watchNavigation(), 'ui-workspace: Workspace navigation policy')
   }
 
-  async connectWorkspace(workspaceId: WorkspaceId): Promise<SessionId> {
-    const workspace = this.workspaces.list.getSnapshot().items
-      .find(item => item.workspaceId === workspaceId)
-    if (workspace === undefined) {
-      throw new Error(`uiWorkspace.connectWorkspace: unknown workspace ${workspaceId}`)
-    }
-    const inflight = this.connecting.get(workspaceId)
-    if (inflight !== undefined) return inflight
-
-    const archived = this.workspaces.list.getSnapshot().archivedSessionIds
-    const sessions = this.sessions.list.getSnapshot()
-    for (const id of sessions.ids) {
-      const summary = sessions.byId[id]
-      if (summary !== undefined && summary.blank && summary.cwd === workspace.path
-        && workspace.sessionIds.includes(summary.id)
-        && !archived.includes(summary.id)) return summary.id
-    }
-
-    const attempt = this.sessions.create({ workspaceId })
-      .finally(() => { this.connecting.delete(workspaceId) })
-    this.connecting.set(workspaceId, attempt)
-    return attempt
-  }
-
-  startSession(workspaceId?: WorkspaceId): void {
+  /**
+   * Resolve which Workspace a New Session belongs to.
+   *
+   * One policy for both the link's target and the click that creates it: an
+   * explicit Workspace wins, then the current Session's, then the most
+   * recently touched. They must agree, or the address a reader opened would
+   * name a chat in a different Workspace than the one where it is created.
+   * @param workspaceId - explicit target, when the caller has one.
+   * @returns the Workspace id, or undefined when nothing can host a chat yet.
+   */
+  private targetWorkspace(workspaceId?: WorkspaceId): WorkspaceId | undefined {
     const workspace = this.workspaces.list.getSnapshot()
     const sessions = this.sessions.list.getSnapshot()
     const current = sessions.current
@@ -141,15 +145,56 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     const recent = workspace.phase === 'ready' && sessions.phase === 'ready'
       ? recentWorkspace(workspace.items, sessions.byId)
       : undefined
-    const target = workspaceId ?? currentWorkspaceId ?? recent
+    return workspaceId ?? currentWorkspaceId ?? recent
+  }
+
+  async connectWorkspace(workspaceId: WorkspaceId, sessionId?: SessionId): Promise<SessionId> {
+    const workspace = this.workspaces.list.getSnapshot().items
+      .find(item => item.workspaceId === workspaceId)
+    if (workspace === undefined) {
+      throw new Error(`uiWorkspace.connectWorkspace: unknown workspace ${workspaceId}`)
+    }
+    // A named id IS the identity, so the in-flight map keys on it. The
+    // workspace key would collide two different chats in one Workspace and
+    // hand the second caller the first one's Session.
+    const key = sessionId ?? workspaceId
+    const inflight = this.connecting.get(key)
+    if (inflight !== undefined) return inflight
+
+    if (sessionId === undefined) {
+      const archived = this.workspaces.list.getSnapshot().archivedSessionIds
+      const sessions = this.sessions.list.getSnapshot()
+      for (const id of sessions.ids) {
+        const summary = sessions.byId[id]
+        if (summary !== undefined && summary.blank && summary.cwd === workspace.path
+          && workspace.sessionIds.includes(summary.id)
+          && !archived.includes(summary.id)) return summary.id
+      }
+    }
+
+    const attempt = this.sessions.create({ workspaceId, ...(sessionId === undefined ? {} : { sessionId }) })
+      .finally(() => { this.connecting.delete(key) })
+    this.connecting.set(key, attempt)
+    return attempt
+  }
+
+  startSession(workspaceId?: WorkspaceId, sessionId?: SessionId): void {
+    const target = this.targetWorkspace(workspaceId)
     if (target === undefined) {
       this.sessions.clear()
       return
     }
-    void this.connectWorkspace(target).then(
-      (sessionId) => { this.sessions.open(sessionId) },
+    void this.connectWorkspace(target, sessionId).then(
+      (opened) => { this.sessions.open(opened) },
       (reason: unknown) => { console.warn('new session failed:', reason) },
     )
+  }
+
+  newSessionHref(): { href: string; sessionId: SessionId } {
+    // Deliberately not remembered: a link nobody activates must not reserve an
+    // id, so every call names a chat that can still be created.
+    const sessionId = `session-${randomUUID()}` as SessionId
+    return { href: sessionPathOf(sessionId), sessionId }
   }
 
   async archiveSession(sessionId: SessionId): Promise<void> {
@@ -264,7 +309,15 @@ class UiWorkspaceService extends Service implements UiWorkspace {
           if (sessions.current !== requested) this.sessions.open(requested)
           return
         }
-        if (requested !== undefined) this.sessionUrl.replace(undefined)
+        if (requested !== undefined && this.adoptRequestedSession(requested, () => { urlInitialized = true })) return
+        if (requested !== undefined) {
+          // The address named nothing this client can open. Dropping it settles
+          // this pass: the blank-view fallback below would otherwise rewrite the
+          // very same entry a second time before the pass ended.
+          this.sessionUrl.replace(undefined)
+          urlInitialized = true
+          return
+        }
         if (sessions.current !== undefined) {
           urlInitialized = true
           this.markInitialNav('done')
@@ -334,9 +387,42 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     }
   }
 
+  /**
+   * Create the Session an address already names.
+   *
+   * The New Session link publishes its `/c/<uuid>` address before the chat
+   * exists, because the browser — not this client — decides when a link opens.
+   * Following that link in a new window therefore lands on an id no Session has
+   * yet, and this is where the promise is kept: the address that named the chat
+   * is the id the Host is asked to create, so a fresh window yields the same
+   * chat the link offered rather than an arbitrary recent one.
+   * @param requested - the Session id the address names.
+   * @param claim - marks the address as initialised. Called synchronously, so a
+   * reconcile triggered by the creation itself cannot adopt it a second time.
+   * @returns true when the address was claimed, so the caller keeps the URL.
+   */
+  private adoptRequestedSession(requested: SessionId, claim: () => void): boolean {
+    const workspace = this.targetWorkspace()
+    if (workspace === undefined) return false
+    claim()
+    this.markInitialNav('connecting')
+    void this.connectWorkspace(workspace, requested).then(
+      (opened) => {
+        this.sessions.open(opened)
+        this.markInitialNav('done')
+      },
+      (reason: unknown) => {
+        // The id could not be claimed, so it is not an address this client can
+        // honour; drop it rather than presenting a browser URL naming nothing.
+        this.markInitialNav('waiting')
+        console.warn('address-named session failed:', reason)
+      },
+    )
+    return true
+  }
+
   /** @returns true when an archived current selection was cleared. */
-  private clearArchivedCurrent(): boolean {
-    const current = this.sessions.list.getSnapshot().current
+  private clearArchivedCurrent(): boolean {    const current = this.sessions.list.getSnapshot().current
     if (current === undefined
       || !this.workspaces.list.getSnapshot().archivedSessionIds.includes(current)) return false
     this.sessions.clear()

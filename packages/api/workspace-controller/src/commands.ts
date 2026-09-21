@@ -3,6 +3,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Workspace } from '@aeven/workspace'
 import {
+  WorkspaceDefaultImmutableError,
   WorkspaceId,
   WorkspaceMoveInvalidError,
   WorkspaceOrderInvalidError,
@@ -113,6 +114,9 @@ export class WorkspaceCommands {
       )
       return { workspaceIds: [...workspaceIds] }
     } catch (error) {
+      // `insertBefore` is the one mutating verb that does not ride `enqueue`.
+      const pinned = pinnedWorkspaceError(error)
+      if (pinned !== undefined) throw pinned
       if (!(error instanceof WorkspaceOrderInvalidError)) throw error
       throw workspaceNotFound(error.workspaceId)
     }
@@ -167,10 +171,28 @@ export class WorkspaceCommands {
   }
 
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
-    const result = this.operationTail.then(operation)
+    const result = this.operationTail
+      .then(operation)
+      // The one funnel every mutating command shares, so the pinned-workspace
+      // refusal becomes its typed wire failure once instead of at each verb.
+      .catch((error: unknown) => { throw pinnedWorkspaceError(error) ?? error })
     this.operationTail = result.then(() => undefined, () => undefined)
     return result
   }
+}
+
+/**
+ * Translate the registry's pinned-workspace refusal into its Remote failure.
+ * @param error - the error a registry mutation raised.
+ * @returns the mapped failure, or `undefined` when this is not that refusal.
+ */
+function pinnedWorkspaceError(error: unknown): RemoteError<'workspace/default-immutable'> | undefined {
+  if (!(error instanceof WorkspaceDefaultImmutableError)) return undefined
+  return new RemoteError(
+    'workspace/default-immutable',
+    `the built-in workspace cannot be ${error.operation === 'rename' ? 'renamed' : error.operation === 'delete' ? 'deleted' : 'moved'}`,
+    { workspaceId: error.workspaceId, operation: error.operation },
+  )
 }
 
 function workspaceNotFound(workspaceId: WorkspaceId): RemoteError<'workspace/not-found'> {

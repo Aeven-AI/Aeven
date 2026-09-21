@@ -40,6 +40,8 @@ const AVAILABLE_STREAM_CONNECTION = {
 function fakeWorkspace(id: string, over: Partial<WorkspaceView> = {}): WorkspaceView {
   return {
     workspaceId: id as WorkspaceId,
+    isDefault: false,
+    kind: 'folder',
     path: '/f/ws',
     title: 'ws',
     sessionIds: [],

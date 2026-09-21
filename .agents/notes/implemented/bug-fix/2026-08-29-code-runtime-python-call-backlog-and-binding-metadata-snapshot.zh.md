@@ -36,19 +36,19 @@ Status: implemented
 
 ## Testing
 
-- `tests/runtime.spec.ts`——敌意子进程向永不结算的 binding（`await new Promise(() => {})`）洪泛 5000 个连续调用；运行在远早于 `maxWallMs` 时以带 call-backlog 消息的 `worker-exit` 结算。已实测失败前置：没有该上限时运行在墙钟处超时。
-- `tests/runtime.spec.ts`——合法的 `asyncio.gather` 并发 1025 个即时调用并全部完成：批后检查看到的是 `finally` 排空后的计数，而逐帧检查可能被单次 64 KiB 读取中的第 1025 帧误触发。
-- `tests/runtime.spec.ts`——程序调度 1024 个慢 binding（仍未结算）并返回 `"done"` 时以其值正常完成：done 帧结算运行后检查为空操作，且严格阈值允许恰好 1024 个在途调用。已实测失败前置：无条件的事件边界检查恰好在该用例上失败。
-- `tests/runtime.spec.ts`——单次 62 KiB 写入的 1025 个紧凑调用对抗永不结算的 binding，在远早于 `maxWallMs` 时以 `worker-exit` 结算，即使之后不再有帧到达：每宏任务检查在该批之后触发。已实测失败前置：按事件刷新的接纳快照在没有后续帧时永不复查，运行等到墙钟。
-- `tests/runtime.spec.ts`——单次写入的 1025 个紧凑调用**外加同批 done 帧**以 `worker-exit` 结算：done 处理器在接受帧之前复查计数，而批后检查会在 done 结算运行后空操作。已实测失败前置：没有 done 复查时运行成功完成并留下未结算闭包。
-- `tests/runtime.spec.ts`——1300 个即时调用的突发（帧跨管道读取拆分）全部完成：检查在该宏任务的所有 `finally` 之后运行，而按事件快照在 flowing 模式同宏任务内多个事件、微任务未排空时会看到过期的在途计数。
-- `tests/runtime.spec.ts`——字典同时含 `"\ud83d\ude00"` 与 `"\U0001f600"` 两个键的完成值与 binding 参数按非 lossless 拒绝（invalid-output / lossless-JSON 调用拒绝）：两种拼写折叠为一个 JSON 成员，宿主的 JSON.parse 会静默折叠。已实测失败前置：没有碰撞检查时两者都以丢键 round-trip。
+- `tests/runtime-hostile-peer.spec.ts`——敌意子进程向永不结算的 binding（`await new Promise(() => {})`）洪泛 5000 个连续调用；运行在远早于 `maxWallMs` 时以带 call-backlog 消息的 `worker-exit` 结算。已实测失败前置：没有该上限时运行在墙钟处超时。
+- `tests/runtime-hostile-peer.spec.ts`——合法的 `asyncio.gather` 并发 1025 个即时调用并全部完成：批后检查看到的是 `finally` 排空后的计数，而逐帧检查可能被单次 64 KiB 读取中的第 1025 帧误触发。
+- `tests/runtime-hostile-peer.spec.ts`——程序调度 1024 个慢 binding（仍未结算）并返回 `"done"` 时以其值正常完成：done 帧结算运行后检查为空操作，且严格阈值允许恰好 1024 个在途调用。已实测失败前置：无条件的事件边界检查恰好在该用例上失败。
+- `tests/runtime-hostile-peer.spec.ts`——单次 62 KiB 写入的 1025 个紧凑调用对抗永不结算的 binding，在远早于 `maxWallMs` 时以 `worker-exit` 结算，即使之后不再有帧到达：每宏任务检查在该批之后触发。已实测失败前置：按事件刷新的接纳快照在没有后续帧时永不复查，运行等到墙钟。
+- `tests/runtime-hostile-peer.spec.ts`——单次写入的 1025 个紧凑调用**外加同批 done 帧**以 `worker-exit` 结算：done 处理器在接受帧之前复查计数，而批后检查会在 done 结算运行后空操作。已实测失败前置：没有 done 复查时运行成功完成并留下未结算闭包。
+- `tests/runtime-hostile-peer.spec.ts`——1300 个即时调用的突发（帧跨管道读取拆分）全部完成：检查在该宏任务的所有 `finally` 之后运行，而按事件快照在 flowing 模式同宏任务内多个事件、微任务未排空时会看到过期的在途计数。
+- `tests/runtime-hostile-peer.spec.ts`——字典同时含 `"\ud83d\ude00"` 与 `"\U0001f600"` 两个键的完成值与 binding 参数按非 lossless 拒绝（invalid-output / lossless-JSON 调用拒绝）：两种拼写折叠为一个 JSON 成员，宿主的 JSON.parse 会静默折叠。已实测失败前置：没有碰撞检查时两者都以丢键 round-trip。
 - `tests/protocol.spec.ts`——`hostFrameParseCeiling` 从模拟堆推导有效解析上限：默认堆上协议上限约束，约 304 MiB 宿主上限得出 15 MiB 上限，极小堆几乎不留下解析空间。
-- `tests/runtime.spec.ts`——128 MiB old space 的子 node 在加载期拒绝 50 MiB 完成值预算（`maxValueBytes must not exceed`），而地址空间门单独会放行。已实测失败前置：忽略堆上限时该预算正常加载。
-- `tests/runtime.spec.ts`——128 MiB old space 的子 node 构造帧恰在推导上限处的宽唯一键字典并解析，存活。已实测失败前置：解析系数回退到 8 时推导上限翻倍，同一子进程在解析中 OOM。
+- `tests/runtime-seam.spec.ts`——128 MiB old space 的子 node 在加载期拒绝 50 MiB 完成值预算（`maxValueBytes must not exceed`），而地址空间门单独会放行。已实测失败前置：忽略堆上限时该预算正常加载。
+- `tests/runtime-seam.spec.ts`——128 MiB old space 的子 node 构造帧恰在推导上限处的宽唯一键字典并解析，存活。已实测失败前置：解析系数回退到 8 时推导上限翻倍，同一子进程在解析中 OOM。
 - 套件的临时 fixture（`avn-bad-bin-`、`avn-fake-bin-`、`avn-rlimit-*`、`avn-staging-`、heartbeat 目录、wrapper 脚本）现登记并在每个测试后移除，重复运行不再在共享 tmpdir 累积 `avn-*` 工件。
 - 两个 namespace 形态测试——`errorClass.name`/`errorClass.memberNameProperty` 与 `namespace.global` 经由第二次读取即抛错或改变的 getter 暴露；运行正常引导并完成，且每个字段恰好读取一次（已断言）。已实测失败前置：没有快照时，errorClass getter 在校验内抛错，global getter 注入不同名字，程序以 `NameError` 失败。
-- `tests/runtime.spec.ts`——子进程洪泛回复超过可写高水位线的调用，阻塞第一次排空写入；恢复的排空在第二波调用仍待发时消费超过压缩上限的积压，子进程直接读取 fd 3（阻塞回复泵）验证全部 1524 条回复送达。无固定睡眠：子进程的读取以排空的投递速率节流，宿主在毫秒内完成一波推送，因此压缩点队列必然已满；换行按块计数（每条回复恰好一个），绝不重扫累计总量——那会是 O(n²)。已实测失败前置：移除待发帧的 splice 会丢掉第二波回复，运行挂到墙钟。
+- `tests/runtime-hostile-peer.spec.ts`——子进程洪泛回复超过可写高水位线的调用，阻塞第一次排空写入；恢复的排空在第二波调用仍待发时消费超过压缩上限的积压，子进程直接读取 fd 3（阻塞回复泵）验证全部 1524 条回复送达。无固定睡眠：子进程的读取以排空的投递速率节流，宿主在毫秒内完成一波推送，因此压缩点队列必然已满；换行按块计数（每条回复恰好一个），绝不重扫累计总量——那会是 O(n²)。已实测失败前置：移除待发帧的 splice 会丢掉第二波回复，运行挂到墙钟。
 - `tests/protocol.spec.ts`——2,000,000 元素数组与 100,000 键对象以精确序列化大小计量、少一个字节即拒绝，并仍能发现尾部的 `-0`，钉住游标遍历的广度行为。
 
 ## Alternatives considered

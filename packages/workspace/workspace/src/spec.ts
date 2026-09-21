@@ -9,18 +9,26 @@ import { z } from 'zod'
 import { brandString } from '@aeven/brand'
 import type { SessionId } from '@aeven/session'
 import { defineDomain, domainTable } from '@aeven/storage-domain'
-import type { WorkspaceId } from './types.ts'
+import type { WorkspaceId, WorkspaceKind } from './types.ts'
 
 /** Workspace id schema at the durable boundary; branding has no runtime representation. */
 const workspaceId = z.string().transform(value => value as WorkspaceId)
 
 /**
- * Durable shape of one workspace record. `path` is the `fs.realpath` canon
- * stamped at create; `sessionIds` is the ordered ownership account (array
- * order is display order); timestamps are ISO-8601 strings.
+ * Durable shape of one workspace record. `kind` decides how the record binds
+ * to a filesystem location and therefore whether `path` is present: a `folder`
+ * record names an existing directory through its `fs.realpath` canon, while
+ * `virtual` and `remote` records have no local directory at all and must omit
+ * `path`. `sessionIds` is the ordered ownership account (array order is
+ * display order); timestamps are ISO-8601 strings.
+ *
+ * `kind` defaults to `'folder'` so every record written before the field
+ * existed parses unchanged — those deployments only ever created directory
+ * workspaces, which is exactly what the default asserts.
  */
 export const workspaceRecord = z.object({
-  path: z.string(),
+  kind: z.enum(['folder', 'virtual', 'remote']).default('folder'),
+  path: z.string().optional(),
   title: z.string(),
   sessionIds: z.array(z.string().transform(value => brandString<SessionId>(value))),
   createdAt: z.string(),
@@ -29,6 +37,26 @@ export const workspaceRecord = z.object({
 
 /** One stored workspace record, inferred from {@link workspaceRecord}. */
 export type WorkspaceRecord = z.infer<typeof workspaceRecord>
+
+/** Durable workspace kinds, in the schema's own order. */
+export const WORKSPACE_KINDS: readonly WorkspaceKind[] = ['folder', 'virtual', 'remote']
+
+/**
+ * Whether a record's `kind` and `path` agree. `folder` requires a directory
+ * canon; every other kind forbids one — a pathless record that nonetheless
+ * carries a path would make membership checks and sync ambiguous about which
+ * fact is authoritative, so the registry refuses it at both the durable and
+ * the in-memory boundary.
+ * @param kind - the record's durable kind.
+ * @param path - the record's directory canon, when it has one.
+ * @returns whether the pair is consistent.
+ */
+export function kindPathAgrees(
+  kind: WorkspaceKind,
+  path: string | undefined,
+): boolean {
+  return kind === 'folder' ? path !== undefined : path === undefined
+}
 
 /**
  * Recoverable two-write mutation marker. The marker is persisted before the
@@ -47,17 +75,30 @@ const workspacePendingMutation = z.discriminatedUnion('operation', [
  * the registry-global archive set layered over workspace accounting: an
  * archived session keeps its `sessionIds` slot (unarchiving must restore the
  * position), so the set never participates in the one-owner accounting
- * invariant. Defaulted so records written before the field parse unchanged.
+ * invariant. `defaultWorkspaceId` names the built-in Chats registration — the
+ * one workspace a reader always has, so a first run never opens on a state that
+ * demands a folder before it accepts a message. It is optional because every
+ * registry written before the field existed simply has no built-in workspace,
+ * and the absence is what a seeding pass fills. Defaulted or optional fields
+ * parse unchanged from earlier records.
  */
 export const workspaceDomainState = z.object({
   initialized: z.boolean(),
   workspaceIds: z.array(workspaceId),
   archivedSessionIds: z.array(z.string().transform(value => brandString<SessionId>(value))).default([]),
+  defaultWorkspaceId: workspaceId.optional(),
   pendingMutation: workspacePendingMutation.optional(),
 })
 
 /** Durable registry state inferred from {@link workspaceDomainState}. */
 export type WorkspaceDomainState = z.infer<typeof workspaceDomainState>
+
+/** The global state a never-initialized domain starts from. */
+export const INITIAL_WORKSPACE_DOMAIN_STATE: WorkspaceDomainState = {
+  initialized: false,
+  workspaceIds: [],
+  archivedSessionIds: [],
+}
 
 /**
  * The workspace domain spec: one `workspaces` table keyed by
@@ -83,7 +124,7 @@ export const workspaceDomainSpec = defineDomain({
   layout: 'per-record',
   global: {
     schema: workspaceDomainState,
-    initial: { initialized: false, workspaceIds: [], archivedSessionIds: [] },
+    initial: INITIAL_WORKSPACE_DOMAIN_STATE,
   },
   tables: { workspaces: domainTable<WorkspaceId, WorkspaceRecord>(workspaceRecord) },
 })

@@ -42,3 +42,7 @@ apps/web/dist/
 worktrees/
 .agents/worktrees/
 .typert-*/
+
+# Per-run model fixtures: mkdtempSync scratch under the test directory, removed
+# by afterEach. An interrupted run leaves one behind, and it is never source.
+packages/typert/generator/tests/.generated-model-*/

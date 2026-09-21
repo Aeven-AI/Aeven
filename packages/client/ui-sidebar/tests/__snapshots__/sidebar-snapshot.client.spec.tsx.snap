@@ -12,7 +12,7 @@ exports[`sidebar shell snapshots > keeps the expanded contents mounted behind th
       class="content"
     >
       <button
-        aria-label="New session"
+        aria-label="Chat"
         class="brand"
         type="button"
       >
@@ -78,10 +78,10 @@ exports[`sidebar shell snapshots > keeps the expanded contents mounted behind th
         <div
           class="sideContentInner"
         >
-          <button
-            aria-label="New session"
+          <a
+            aria-label="Chat"
             class="newSession"
-            type="button"
+            href="/c/snapshot-1"
           >
             <svg
               data-content="c0ce4dcc"
@@ -94,9 +94,9 @@ exports[`sidebar shell snapshots > keeps the expanded contents mounted behind th
             <span
               class="newSessionLabel"
             >
-              New Session
+              Chat
             </span>
-          </button>
+          </a>
           <div
             class="regionArea"
           >
@@ -152,7 +152,7 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
       class="content"
     >
       <button
-        aria-label="New session"
+        aria-label="Chat"
         class="brand"
         type="button"
       >
@@ -218,10 +218,10 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
         <div
           class="sideContentInner"
         >
-          <button
-            aria-label="New session"
+          <a
+            aria-label="Chat"
             class="newSession"
-            type="button"
+            href="/c/snapshot-1"
           >
             <svg
               data-content="c0ce4dcc"
@@ -234,9 +234,9 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
             <span
               class="newSessionLabel"
             >
-              New Session
+              Chat
             </span>
-          </button>
+          </a>
           <div
             class="regionArea"
           >
@@ -292,7 +292,7 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
       class="content"
     >
       <button
-        aria-label="新建会话"
+        aria-label="对话"
         class="brand"
         type="button"
       >
@@ -358,10 +358,10 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
         <div
           class="sideContentInner"
         >
-          <button
-            aria-label="新建会话"
+          <a
+            aria-label="对话"
             class="newSession"
-            type="button"
+            href="/c/snapshot-1"
           >
             <svg
               data-content="c0ce4dcc"
@@ -374,9 +374,9 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
             <span
               class="newSessionLabel"
             >
-              新会话
+              对话
             </span>
-          </button>
+          </a>
           <div
             class="regionArea"
           >

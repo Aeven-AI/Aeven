@@ -27,7 +27,12 @@ declare module '@aeven/client-ui-slots' {
 const NS = 'sidebar'
 
 interface WorkspaceNavigation {
-  startSession(workspaceId?: Parameters<SidebarRootInjected['startSession']>[0]): void
+  startSession(
+    workspaceId?: Parameters<SidebarRootInjected['startSession']>[0],
+    sessionId?: Parameters<SidebarRootInjected['startSession']>[1],
+  ): void
+  /** Addresses a New Session link (see UiWorkspace). */
+  newSessionHref(): { href: string; sessionId: Parameters<SidebarRootInjected['startSession']>[1] & string }
 }
 
 /** Services required by the sidebar plugin. */
@@ -41,9 +46,12 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-sidebar: dictionaries')
 
   const injectProps = (): SidebarRootInjected => ({
-    // The shell's New Session button rides the Workspace UI's shared action
+    // The shell's New Session link rides the Workspace UI's shared action
     // (current Session Workspace, then recent Workspace).
-    startSession: (workspaceId) => { workspaceNavigation.startSession(workspaceId) },
+    startSession: (workspaceId, sessionId) => {
+      workspaceNavigation.startSession(workspaceId, sessionId)
+    },
+    newSessionHref: () => workspaceNavigation.newSessionHref(),
     toggleSidebar: () => { ctx.layout.toggleSidebar() },
   })
   ctx.effect(

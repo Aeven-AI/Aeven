@@ -24,7 +24,7 @@ Status: implemented
 
 ## Testing
 
-- `tests/runtime.spec.ts`——加载拒绝用例覆盖不存在的绝对路径、不可执行的普通文件、目录与含斜杠的相对路径，各自断言 `is not an executable regular file` 消息；一个正向用例让绝对解释器路径通过加载并运行。一个 getter 在读取时抛错的用例断言 `run()` 以 seam misuse 拒绝；一个配套用例用计数 getter 断言访问器恰好被读取一次（快照），证明分发与 boot 帧共享快照。spawn 失败用例现在先暂存一个可执行 wrapper、加载 runtime、删除 wrapper，再断言运行仍 resolve 为 `worker-exit`（加载期合法的路径仍可能在运行期失败；旧 fixture 用的路径现在在加载期就被拒绝）。
+- `tests/runtime-seam.spec.ts`——加载拒绝用例覆盖不存在的绝对路径、不可执行的普通文件、目录与含斜杠的相对路径，各自断言 `is not an executable regular file` 消息；一个正向用例让绝对解释器路径通过加载并运行。一个 getter 在读取时抛错的用例断言 `run()` 以 seam misuse 拒绝；一个配套用例用计数 getter 断言访问器恰好被读取一次（快照），证明分发与 boot 帧共享快照。spawn 失败用例现在先暂存一个可执行 wrapper、加载 runtime、删除 wrapper，再断言运行仍 resolve 为 `worker-exit`（加载期合法的路径仍可能在运行期失败；旧 fixture 用的路径现在在加载期就被拒绝）。
 - `tests/boot-write-failure.spec.ts`——一个 fake child 让每次 fd-3 写入都背压，并在宿主等待 `drain` 时销毁管道；运行在墙钟上结算，而不是挂在排空等待上。
 - 两处暂存泄漏用例断言本测试文件暂存的确切路径（由被 mock 的 `mkdtempSync` 记录）已消失，而不是对可能被同级 worker 扰动的全局 tmpdir 做差集。
 

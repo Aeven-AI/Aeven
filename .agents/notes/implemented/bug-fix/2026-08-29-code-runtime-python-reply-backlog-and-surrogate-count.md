@@ -20,7 +20,7 @@ A further review round on the CPython subprocess backend (packages/experimental/
 
 ## Testing
 
-- `tests/runtime.spec.ts` — a hostile child floods 5000 sequential valid call frames and never reads fd 3; the run settles as `worker-exit` with the reply-queue message long before `maxWallMs`, proving the backlog cap fires instead of a wall-clock timeout. A surrogate-dense completion of 3,000,000 lone surrogates pins the boundary at scale: 18,000,002 serialized bytes succeed at an 18,000,002 budget and report `output-limit` one byte under, proving the meter counts every surrogate exactly (the len-diff is verified equal to the old findall count across lone-high, lone-low, paired, astral, and mixed cases).
+- `tests/runtime-hostile-peer.spec.ts` — a hostile child floods 5000 sequential valid call frames and never reads fd 3; the run settles as `worker-exit` with the reply-queue message long before `maxWallMs`, proving the backlog cap fires instead of a wall-clock timeout. A surrogate-dense completion of 3,000,000 lone surrogates pins the boundary at scale: 18,000,002 serialized bytes succeed at an 18,000,002 budget and report `output-limit` one byte under, proving the meter counts every surrogate exactly (the len-diff is verified equal to the old findall count across lone-high, lone-low, paired, astral, and mixed cases).
 
 ## Alternatives considered
 

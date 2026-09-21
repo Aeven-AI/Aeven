@@ -235,6 +235,7 @@ describe('WebhookRuntime', () => {
     } as never)
     ctx.provide('workspaceRegistry', {
       create: async () => ({
+        kind: 'folder',
         path: '/workspace',
         attachSession,
         detachSession: async () => {},

@@ -11,7 +11,10 @@ async function bench(declare = true) {
   const ctx = new Context()
   await ctx.plugin(SlotRegistry).await()
   const layout = { toggleSidebar: vi.fn() }
-  const uiWorkspace = { startSession: vi.fn() }
+  const uiWorkspace = {
+    startSession: vi.fn(),
+    newSessionHref: () => ({ href: '/c/pinned', sessionId: 'session-pinned' }),
+  }
   ctx.provide('layout', layout)
   ctx.provide('uiWorkspace', uiWorkspace as never)
   ctx.provide('locale', new LocaleRuntime(ctx))
@@ -46,12 +49,16 @@ describe('ui-sidebar apply', () => {
     // Copy rides the standard locale seat, not the inject face.
     expect(b.slots.entries('sidebar')[0]!.locale).toBe('sidebar')
     const injected = (b.slots.entries('sidebar')[0]!.inject as () => SidebarRootInjected)()
-    expect(Object.keys(injected)).toEqual(['startSession', 'toggleSidebar'])
-    // Both arms delegate to the Workspace UI's shared New Session action.
+    expect(Object.keys(injected)).toEqual(['startSession', 'newSessionHref', 'toggleSidebar'])
+    // Both arms delegate to the Workspace UI's shared New Session action. The
+    // id seat is always forwarded, so an id-less call reads as an explicit
+    // undefined in second position rather than a shorter argument list.
     injected.startSession('workspace' as never)
-    expect(b.uiWorkspace.startSession).toHaveBeenCalledWith('workspace')
+    expect(b.uiWorkspace.startSession).toHaveBeenCalledWith('workspace', undefined)
+    injected.startSession(undefined, 'session-x' as never)
+    expect(b.uiWorkspace.startSession).toHaveBeenLastCalledWith(undefined, 'session-x')
     injected.startSession()
-    expect(b.uiWorkspace.startSession).toHaveBeenLastCalledWith(undefined)
+    expect(b.uiWorkspace.startSession).toHaveBeenLastCalledWith(undefined, undefined)
     injected.toggleSidebar()
     expect(b.layout.toggleSidebar).toHaveBeenCalledOnce()
   })

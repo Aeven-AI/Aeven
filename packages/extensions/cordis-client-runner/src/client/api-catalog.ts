@@ -315,15 +315,21 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Workspace archive and directory operations consumed by Client UI domains.',
     methods: [
       {
-        signature: 'connectWorkspace(workspaceId: WorkspaceId): Promise<SessionId>',
+        signature: 'connectWorkspace(workspaceId: WorkspaceId, sessionId?: SessionId): Promise<SessionId>',
         description: 'Resolve the reusable or newly created blank Session for a Workspace.',
-        parameters: [{ name: 'workspaceId', description: 'target Workspace.' }],
+        parameters: [{ name: 'workspaceId', description: 'target Workspace.' }, { name: 'sessionId', description: 'preallocated id to create under; when present the Workspace\'s reusable blank is skipped, because the caller already published that id as the address it is about to open.' }],
         returns: 'a Session already addressable through the Session Controller.',
       },
       {
-        signature: 'startSession(workspaceId?: WorkspaceId): void',
+        signature: 'startSession(workspaceId?: WorkspaceId, sessionId?: SessionId): void',
         description: 'Start a New Session flow and navigate to its Session.',
-        parameters: [{ name: 'workspaceId', description: 'explicit target; absent inherits the current or most recent Workspace.' }],
+        parameters: [{ name: 'workspaceId', description: 'explicit target; absent inherits the current or most recent Workspace.' }, { name: 'sessionId', description: 'the id the New Session link named. The Host creates the Session under exactly this id, so the address that was opened and the Session that appears are the same chat.' }],
+      },
+      {
+        signature: 'newSessionHref(): { href: string; sessionId: SessionId }',
+        description: 'Address for a New Session that does not exist yet, with the id it names.\n\nA link\'s target has to be known before there is a Session to name, because the browser — not this client — owns activation. The id is minted here, under the Host\'s `session-<uuid>` scheme, and the caller hands it back to startSession. Every call mints a fresh id, which is what re-arms the link once a chat has been started from it.',
+        parameters: [],
+        returns: 'the absolute `/c/<uuid>` path, and the Session id it addresses.',
       },
       {
         signature: 'archiveSession(sessionId: SessionId): Promise<void>',
@@ -875,7 +881,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WorkspaceView',
-    declaration: 'export interface WorkspaceView {\n    readonly workspaceId: WorkspaceId;\n    readonly path: string;\n    readonly title: string;\n    readonly sessionIds: readonly SessionId[];\n    readonly createdAt: string;\n    readonly updatedAt: string;\n}',
+    declaration: 'export interface WorkspaceView {\n    readonly workspaceId: WorkspaceId;\n    readonly isDefault: boolean;\n    readonly kind: WorkspaceKind;\n    readonly path: string | null;\n    readonly title: string;\n    readonly sessionIds: readonly SessionId[];\n    readonly createdAt: string;\n    readonly updatedAt: string;\n}',
   },
 ]
 

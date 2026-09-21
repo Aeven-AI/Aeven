@@ -1,4 +1,5 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, unlinkSync, unwatchFile, watchFile, writeFileSync } from 'node:fs'
+import type { Stats } from 'node:fs'
 import { realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -56,6 +57,43 @@ async function eventuallyObserved(
     if (Date.now() >= deadline) throw new Error(message)
     await new Promise(resolve => setTimeout(resolve, 250))
     if (!test()) stimulus()
+  }
+}
+
+/** Chokidar's default polling cadence, which the oracle below also runs at. */
+const POLL_INTERVAL_MS = 100
+
+/**
+ * Apply one edit and resolve once it is on disk and the registration's poller
+ * has had its tick.
+ *
+ * Both sides poll rather than consume the native event queue, and that is the
+ * whole point of this helper. Under the full suite's fork fan-out the native
+ * queue is starved long enough that a change delivered through it is not seen at
+ * all: this case used to write the file from the test body and sleep 250 ms
+ * "past Chokidar's atomic-write window", which left it flaky under load and
+ * stranded it at its 120 s timeout in a full run. `fs.watchFile` runs off its
+ * own timer, so it can prove the edit reached the disk; the wait after it is one
+ * cadence for the registration's own `usePolling` watcher, which is what turns
+ * that on-disk edit into a queued refresh.
+ */
+async function deliverChange(filename: string, edit: () => void): Promise<void> {
+  const before = statSync(filename)
+  const reported = Promise.withResolvers<undefined>()
+  const listener = (curr: Stats): void => {
+    if (curr.mtimeMs !== before.mtimeMs || curr.size !== before.size) reported.resolve(undefined)
+  }
+  watchFile(filename, { interval: POLL_INTERVAL_MS }, listener)
+  const expiry = setTimeout(() => {
+    reported.reject(new Error(`the edit to ${filename} never reached the disk within 30 s`))
+  }, 30_000)
+  try {
+    edit()
+    await reported.promise
+    await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS + 50))
+  } finally {
+    clearTimeout(expiry)
+    unwatchFile(filename, listener)
   }
 }
 
@@ -176,7 +214,10 @@ describe('HMR exact config paths', () => {
     const dir = mkdtempSync(join(tmpdir(), 'avn-hmr-config-'))
     const filename = join(dir, 'plugins.yml')
     writeFileSync(filename, 'one')
-    const ctx = await bootHmr(dir)
+    // Polling, like the alias case above: this test's delivery has to survive the
+    // full suite's fork fan-out, where the native event queue is starved enough
+    // that a change delivered through it is never seen. A poller runs on a timer.
+    const ctx = await bootHmr(dir, [], true)
     const started = Promise.withResolvers<undefined>()
     const release = Promise.withResolvers<undefined>()
     const observed: string[] = []
@@ -188,16 +229,22 @@ describe('HMR exact config paths', () => {
         maxActive = Math.max(maxActive, active)
         observed.push(readFileSync(filename, 'utf8'))
         if (observed.length === 1) {
-          started.resolve(undefined)
+          // Deliver the second edit from INSIDE the running refresh, so it is
+          // coalesced while this one is still in flight, and do not signal the
+          // test until it is queued: `dispose()` closes the registration's
+          // watcher, so an edit that has not landed yet would be dropped.
+          try {
+            await deliverChange(filename, () => { writeFileSync(filename, 'two') })
+          } finally {
+            // Never strand the test body here: a delivery failure must surface as
+            // the assertion below, not as this case's 120 s timeout.
+            started.resolve(undefined)
+          }
           await release.promise
         }
         active -= 1
       })
       await started.promise
-      writeFileSync(filename, 'two')
-      // Chokidar coalesces atomic writes for 100 ms by default. Wait beyond
-      // that window so this edit is queued before registration disposal.
-      await new Promise(resolve => setTimeout(resolve, 250))
 
       let disposed = false
       const disposal = dispose().then(() => { disposed = true })

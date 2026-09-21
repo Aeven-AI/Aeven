@@ -73,6 +73,13 @@ export interface GroupNode {
   key: string
   /** Backing Workspace id; absent only for the ungrouped bucket. */
   workspaceId: WorkspaceId | undefined
+  /**
+   * Whether the backing Workspace is the built-in one. Such a row is part of
+   * the product rather than a registration the reader owns, so the renderer
+   * offers it no actions and no drag — there are none to offer, and the
+   * registry refuses every one of them.
+   */
+  isDefault: boolean
   cwd: string | undefined
   /** Workspace creation time (epoch ms); absent only for the ungrouped bucket. */
   createdAt: number | undefined
@@ -121,6 +128,7 @@ export interface TreeView {
 interface Group {
   key: string
   workspaceId: WorkspaceId | undefined
+  isDefault: boolean
   cwd: string | undefined
   createdAt: number | undefined
   label: string
@@ -175,6 +183,7 @@ function hasActiveSchedule(session: SessionSummary): boolean {
 function buildGroup(
   key: string,
   workspaceId: WorkspaceId | undefined,
+  isDefault: boolean,
   cwd: string | undefined,
   createdAt: number | undefined,
   label: string,
@@ -185,7 +194,7 @@ function buildGroup(
   // Real Workspace order comes from sessionIds. Ungrouped falls back to
   // recency until the browser supplies its persisted local order.
   if (order === 'recency') sessions.sort(byRecency)
-  return { key, workspaceId, cwd, createdAt, label, sessions }
+  return { key, workspaceId, isDefault, cwd, createdAt, label, sessions }
 }
 
 /** Apply a stored Ungrouped order and append newly loose Sessions by recency. */
@@ -230,7 +239,9 @@ function groupByWorkspace(
       members.push(summary)
     }
     groups.push(buildGroup(
-      workspace.workspaceId, workspace.workspaceId, workspace.path,
+      // The wire carries "no directory" as JSON `null`; the grouping vocabulary
+      // speaks `undefined`, so absence is translated once, here.
+      workspace.workspaceId, workspace.workspaceId, workspace.isDefault, workspace.path ?? undefined,
       Date.parse(workspace.createdAt), workspace.title, members, 'account',
     ))
   }
@@ -242,6 +253,9 @@ function groupByWorkspace(
     groups.push(buildGroup(
       UNGROUPED_KEY,
       undefined,
+      // The ungrouped bucket has no backing Workspace at all, so it is never
+      // the built-in one; it already renders without row actions.
+      false,
       undefined,
       undefined,
       '',
@@ -318,6 +332,7 @@ export function deriveGroups(
     groups.push({
       key: g.key,
       workspaceId: g.workspaceId,
+      isDefault: g.isDefault,
       cwd: g.cwd,
       createdAt: g.createdAt,
       label: g.label,

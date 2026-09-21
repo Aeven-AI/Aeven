@@ -18,13 +18,13 @@ CI never saw it: the coverage lanes are Linux and Windows, and Windows excludes 
 
 `readProcessStart` moved to `packages/experimental/code-runtime-python/src/process-start.ts`, and `linuxOnlyCoverageExclusions` drops that path when `process.platform !== 'linux'`. `src/index.ts` re-exports the function, so the package's public surface and its callers are unchanged.
 
-The module is the unit because the module is what vitest's coverage `exclude` accepts. Widening the existing `v8 ignore` to span the read would suppress those lines on the Linux lane too, where `tests/runtime.spec.ts` genuinely covers them — that trades an enforced gate for local convenience.
+The module is the unit because the module is what vitest's coverage `exclude` accepts. Widening the existing `v8 ignore` to span the read would suppress those lines on the Linux lane too, where `tests/runtime-budgets.spec.ts` genuinely covers them — that trades an enforced gate for local convenience.
 
 ## Consequences
 
 `pnpm run test:coverage` now passes on Darwin on a clean tree, so the gate is usable as a local pre-push check on all three development platforms.
 
-On a non-Linux host the whole of `process-start.ts` goes unmeasured, including the Darwin arm that does run there. That arm is a single `return undefined`, asserted by `runtime.spec.ts`'s non-Linux branch, so what is lost is a coverage number and not a test.
+On a non-Linux host the whole of `process-start.ts` goes unmeasured, including the Darwin arm that does run there. That arm is a single `return undefined`, asserted by `runtime-budgets.spec.ts`'s non-Linux branch, so what is lost is a coverage number and not a test.
 
 The exclusion pattern now runs in both directions, and a third platform-specific source belongs in its own module rather than under a broad ignore comment. The cost of the rule is a module per such source; that is the price of keeping the surrounding file under the full bar.
 

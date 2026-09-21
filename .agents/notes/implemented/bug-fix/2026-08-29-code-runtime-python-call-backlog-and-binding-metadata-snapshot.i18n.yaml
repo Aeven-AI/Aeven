@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-29-code-runtime-python-call-backlog-and-binding-metadata-snapshot.md
-2026-08-29-code-runtime-python-call-backlog-and-binding-metadata-snapshot.md: 98b8f28cd0e9b8b2248e607ce42c56e0a40bf013
-2026-08-29-code-runtime-python-call-backlog-and-binding-metadata-snapshot.zh.md: e4dcfa7db1e46ac1cfff5d24507d0275252794c5
+2026-08-29-code-runtime-python-call-backlog-and-binding-metadata-snapshot.md: 164f4dccbb8db36014c3446b6969f9eb14cffaf1
+2026-08-29-code-runtime-python-call-backlog-and-binding-metadata-snapshot.zh.md: 65fd9ae57ed94bc02d95c8b1dc07183505207d17

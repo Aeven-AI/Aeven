@@ -2932,15 +2932,17 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'delete(id: WorkspaceId): Promise<boolean>',
-        description: 'Delete one workspace registration while retaining its directory and every session log. The durable order is updated before the table deletion; a failed table write restores the prior order and keeps the entity published. Unknown ids are an idempotent no-op for domain callers.',
+        description: 'Delete one workspace registration while retaining its directory and every session log. The durable order is updated before the table deletion; a failed table write restores the prior order and keeps the entity published. Unknown ids are an idempotent no-op for domain callers.\n\nThe built-in workspace refuses deletion. It is the one registration the product guarantees a reader has, and removing it would restore the state the registration exists to prevent — a first screen that demands a folder before it accepts a message. A deployment that does not want one turns seeding off in configuration rather than deleting it at runtime.',
         parameters: [{ name: 'id', description: 'Workspace registration to remove.' }],
         returns: '`true` when a record was deleted, `false` when it was unknown.',
+        throws: ['{WorkspaceDefaultImmutableError} when the id names the built-in workspace.'],
       },
       {
         signature: 'insertBefore(id: WorkspaceId, beforeId?: WorkspaceId): Promise<readonly WorkspaceId[]>',
-        description: 'Move one workspace within the durable display order, DOM-insertBefore-like. With an anchor it lands before that workspace; without one it appends.',
+        description: 'Move one workspace within the durable display order, DOM-insertBefore-like. With an anchor it lands before that workspace; without one it appends.\n\nThe built-in workspace is pinned at the head: it is where a reader lands when nothing is selected, so its position is part of what makes the first screen predictable rather than a preference a drag can reorder.',
         parameters: [{ name: 'id', description: 'Workspace to move.' }, { name: 'beforeId', description: 'Workspace anchor; omitted appends.' }],
         returns: 'the complete committed workspace order.',
+        throws: ['{WorkspaceDefaultImmutableError} when the move would displace the built-in workspace from the head.'],
       },
       {
         signature: 'archiveSession(sessionId: SessionId): Promise<void>',
@@ -6274,7 +6276,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'Workspace',
-    declaration: 'export interface Workspace {\n    readonly id: WorkspaceId;\n    readonly path: string;\n    readonly title: string;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n    readonly sessionIds: readonly SessionId[];\n    setTitle(title: string): Promise<void>;\n    attachSession(sessionId: SessionId): Promise<void>;\n    insertSessionBefore(sessionId: SessionId, beforeSessionId?: SessionId): Promise<void>;\n    detachSession(sessionId: SessionId): Promise<void>;\n    status(): Promise<\'ok\' | \'missing-dir\'>;\n}',
+    declaration: 'export interface Workspace {\n    readonly id: WorkspaceId;\n    readonly isDefault: boolean;\n    readonly kind: WorkspaceKind;\n    readonly path: string | undefined;\n    readonly title: string;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n    readonly sessionIds: readonly SessionId[];\n    setTitle(title: string): Promise<void>;\n    attachSession(sessionId: SessionId): Promise<void>;\n    insertSessionBefore(sessionId: SessionId, beforeSessionId?: SessionId): Promise<void>;\n    detachSession(sessionId: SessionId): Promise<void>;\n    status(): Promise<\'ok\' | \'missing-dir\'>;\n}',
   },
   {
     name: 'WorkspaceArchiveSessionRequest',
@@ -6321,6 +6323,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface WorkspaceInsertSessionBeforeRequest {\n    readonly workspaceId: WorkspaceId;\n    readonly sessionId: SessionId;\n    readonly beforeSessionId?: SessionId;\n}',
   },
   {
+    name: 'WorkspaceKind',
+    declaration: 'export type WorkspaceKind = \'folder\' | \'virtual\' | \'remote\';',
+  },
+  {
     name: 'WorkspaceOrderValue',
     declaration: 'export interface WorkspaceOrderValue {\n    readonly workspaceIds: readonly WorkspaceId[];\n}',
   },
@@ -6334,7 +6340,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WorkspaceView',
-    declaration: 'export interface WorkspaceView {\n    readonly workspaceId: WorkspaceId;\n    readonly path: string;\n    readonly title: string;\n    readonly sessionIds: readonly SessionId[];\n    readonly createdAt: string;\n    readonly updatedAt: string;\n}',
+    declaration: 'export interface WorkspaceView {\n    readonly workspaceId: WorkspaceId;\n    readonly isDefault: boolean;\n    readonly kind: WorkspaceKind;\n    readonly path: string | null;\n    readonly title: string;\n    readonly sessionIds: readonly SessionId[];\n    readonly createdAt: string;\n    readonly updatedAt: string;\n}',
   },
 ]
 

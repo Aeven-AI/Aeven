@@ -64,6 +64,20 @@ function stageDir(root: string, name: string): string {
   return path
 }
 
+/**
+ * The directory of a Workspace this suite created by path. `create` adopts an
+ * existing directory, so the projection it returns is always folder-backed;
+ * asserting that here keeps the fixture honest now that a Workspace may have
+ * no path at all. The projection is a Remote value, so absence arrives as
+ * `null` rather than `undefined`.
+ * @param workspace - projection returned by `create`.
+ * @returns the canonical directory path.
+ */
+function folderPathOf(workspace: { readonly path: string | null }): string {
+  if (workspace.path === null) throw new Error('fixture Workspace has no directory')
+  return workspace.path
+}
+
 async function nextFrame(
   iterator: AsyncIterator<WorkspaceFollowFrame>,
 ): Promise<WorkspaceFollowFrame> {
@@ -186,7 +200,7 @@ describe('WorkspaceController commands', () => {
       .rejects.toMatchObject({ code: 'workspace/not-found' })
 
     const session = ctx.sessions.create(SessionId('session-one'), {
-      meta: { cwd: first.workspace.path },
+      meta: { cwd: folderPathOf(first.workspace) },
     })
     const workspace = ctx.workspaceRegistry.get(first.workspace.workspaceId)
     if (workspace === undefined) throw new Error('fixture Workspace disappeared')
@@ -281,7 +295,7 @@ describe('WorkspaceController follow', () => {
     })
 
     const session = ctx.sessions.create(SessionId('archived'), {
-      meta: { cwd: first.workspace.path },
+      meta: { cwd: folderPathOf(first.workspace) },
     })
     await controller.archiveSession({ sessionId: session.id })
     await expect(nextFrame(iterator)).resolves.toEqual({

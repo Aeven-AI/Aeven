@@ -1098,6 +1098,74 @@ export interface Config {
 
 Source: [`packages/jobs/jobs-local/src/index.ts:31`](../packages/jobs/jobs-local/src/index.ts)
 
+<a id="aevenllm-aeven"></a>
+
+## `@aeven/llm-aeven`
+
+Requires: `llm`
+
+```ts config-catalog
+/**
+ * Entry and user-settings configuration.
+ *
+ * Declared rather than inferred, because schemastery's `z` is a callable generic
+ * rather than a namespace — the same shape `@aeven/llm-deepseek` uses.
+ */
+export interface Config {
+  /** Aeven API origin; `/v1` is appended. Defaults to the development gateway. */
+  apiUrl?: string
+  /** Credential holding the signed-in session; defaults to `AEVEN_TOKEN`. */
+  apiKeyEnv?: string
+  /** Advisory catalog shown to the picker; defaults to the shipped Aeven models. */
+  models?: DeepSeekCatalogModel[]
+  /** Forwarded to the gateway, which accepts both values. */
+  thinking?: 'enabled' | 'disabled'
+  /** Default thinking effort; `off` disables thinking per request. */
+  reasoningEffort?: 'off' | 'low' | 'high' | 'max'
+  /** Default per-request output cap; a model's own cap and explicit request values win. */
+  maxTokens?: number
+  /** Positive context capacity used when the selected model has no exact value. */
+  defaultContextWindow?: number
+  /** Maximum provider idle time while one stream read is outstanding. */
+  streamIdleTimeoutMs?: number
+  /**
+   * The image and Files knobs below are inert on this route: the gateway accepts
+   * images inline as `image_url` parts and has no files API to upload them to,
+   * so nothing here ever offloads, uploads, or expires. They are declared
+   * because {@link DeepSeekConnectionOptions} requires a complete set, and they
+   * are pinned to the adapter's own defaults so an upstream change is inherited
+   * rather than silently overridden here. Each is documented for what it does on
+   * the route that uses it, not for what it does on this one.
+   */
+  /** High watermark for retained request-image bytes before oldest-first offload. */
+  maxRequestFilesBytes?: number
+  /** Independent base64 fallback high watermark, applied when Files mode is unavailable. */
+  maxInlineRequestImageBytes?: number
+  /** High watermark for retained request-image count. */
+  maxImagesPerRequest?: number
+  /** Files-mode oldest-prefix removal quantum, in bytes. */
+  imageOffloadByteQuantum?: number
+  /** Inline-mode oldest-prefix removal quantum, in bytes. */
+  inlineImageOffloadByteQuantum?: number
+  /** Count-overflow removal quantum, in images. */
+  imageOffloadCountQuantum?: number
+  /** Per-image Files resolution deadline. */
+  filesApiTimeoutMs?: number
+  /** Requested uploaded-image lifetime; the provider clamps values outside its own range. */
+  fileExpiresAfterSeconds?: number
+  /** Remaining lifetime below which a cached upload id is replaced rather than reused. */
+  fileRefreshMarginSeconds?: number
+  /** Oldest harness-owned files removed before one upload retry after a quota refusal. */
+  fileQuotaCleanupBatch?: number
+  /** Transport retry policy, resolved once at registration. */
+  retryPolicy?: RetryPolicyConfig
+}
+```
+
+Depends on: [`DeepSeekCatalogModel`](../packages/llm/llm-deepseek/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
+
+Source: [`packages/llm/llm-aeven/src/index.ts:167`](../packages/llm/llm-aeven/src/index.ts)
+
 <a id="aevenllm-deepseek"></a>
 
 ## `@aeven/llm-deepseek`
@@ -3668,6 +3736,24 @@ export interface Config {
 
 Source: [`packages/workflow/workflow-worker-thread/src/index.ts:32`](../packages/workflow/workflow-worker-thread/src/index.ts)
 
+<a id="aevenworkspace"></a>
+
+## `@aeven/workspace`
+
+Requires: `storageDomain` · `sessionPersistence`
+
+```ts config-catalog
+/** Plugin configuration for the registry. */
+export interface Config {
+  /** Whether a registry without a built-in workspace seeds one at startup (default: true). */
+  seedDefaultWorkspace?: boolean
+  /** Display title given to a newly seeded workspace (default: `Chats`). */
+  defaultWorkspaceTitle?: string
+}
+```
+
+Source: [`packages/workspace/workspace/src/index.ts:43`](../packages/workspace/workspace/src/index.ts)
+
 ## Loadable plugins with no config
 
 These load from a `cordis.yml` entry with no `config:` block; they declare no configuration API.
@@ -3749,7 +3835,6 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/tool-subagent-control` — requires `tools` · `subagents` ([`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts))
 - `@aeven/user-questions` ([`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts))
 - `@aeven/webhook` — requires `agents` · `agentDefaultModel` · `agentPresets` · `permissionPresets` · `sessionTitle` · `workspaceRegistry` ([`packages/webhook/webhook/src/index.ts`](../packages/webhook/webhook/src/index.ts))
-- `@aeven/workspace` — requires `storageDomain` · `sessionPersistence` ([`packages/workspace/workspace/src/index.ts`](../packages/workspace/workspace/src/index.ts))
 
 ## Seam packages (not directly loadable)
 

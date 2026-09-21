@@ -31,13 +31,13 @@ export class ApiSessionSubagentOwnership extends Error {
 export class ApiSessionCwdConflict extends Error {
   constructor(
     readonly sessionId: SessionId,
-    readonly requestedCwd: string,
+    readonly requestedCwd: string | undefined,
     readonly existingCwd: string | undefined,
   ) {
     super(
       existingCwd === undefined
-        ? `session "${sessionId}" records no cwd and cannot be adopted for "${requestedCwd}"`
-        : `session "${sessionId}" belongs to "${existingCwd}", not "${requestedCwd}"`,
+        ? `session "${sessionId}" records no cwd, so it cannot be adopted for "${String(requestedCwd)}"`
+        : `session "${sessionId}" belongs to "${existingCwd}", not "${String(requestedCwd)}"`,
     )
   }
 }
@@ -119,9 +119,8 @@ export async function inspectApiSession(
       ...(signal === undefined ? {} : { signal }),
       projectionMode: 'none',
     })
-    if (observation.header.cwd === undefined) {
-      throw new ApiSessionNotFound(`session "${sessionId}" not found`)
-    }
+    // No cwd check: a Session in a workspace with no directory legitimately
+    // records none, and inspection is keyed by identity.
     return {
       meta: observation.header,
       inheritedEventCount: observation.inheritedEventCount,
@@ -224,14 +223,14 @@ export class ApiSessionAgentController {
   /**
    * Resolve one requested identity, creating or resuming it once.
    * @param sessionId - requested Session identity.
-   * @param cwd - directory the Session must own.
+   * @param cwd - directory the Session must own, or `undefined` when its workspace has none.
    * @param checkPersistedIdentity - whether to inspect a cold identity before creation.
    * @param presetId - optional Agent preset the Session must own.
    * @returns the matching live ordinary Agent.
    */
   async ensureSession(
     sessionId: SessionId,
-    cwd: string,
+    cwd: string | undefined,
     checkPersistedIdentity: boolean,
     presetId?: string,
   ): Promise<Agent> {
@@ -413,7 +412,11 @@ export class ApiSessionAgentController {
     sessionId: SessionId,
     observation: SessionObservation,
   ): Promise<Agent> {
-    if (observation.header.id !== sessionId || observation.header.cwd === undefined) {
+    // A stored header with no cwd is a Session in a workspace that has no
+    // directory, which is an ordinary Session now: the id is the identity, and
+    // the absent cwd is a fact about where it lives rather than a reason to
+    // treat it as missing.
+    if (observation.header.id !== sessionId) {
       throw new ApiSessionNotFound(`session "${sessionId}" not found`)
     }
     if (hasApiSessionSubagentOwner(this.ctx, { header: observation.header }, undefined)) {
@@ -432,9 +435,17 @@ export class ApiSessionAgentController {
     })).agent
   }
 
+  /**
+   * @param sessionId - requested Session identity.
+   * @param cwd - directory the Session must own, or `undefined` for a Session
+   *   whose workspace has no directory binding.
+   * @param checkPersistedIdentity - whether to inspect a cold identity before creation.
+   * @param presetId - optional Agent preset the Session must own.
+   * @returns the matching live ordinary Agent.
+   */
   private async createOrAdopt(
     sessionId: SessionId,
-    cwd: string,
+    cwd: string | undefined,
     checkPersistedIdentity: boolean,
     presetId: string | undefined,
   ): Promise<Agent> {
@@ -468,17 +479,22 @@ export class ApiSessionAgentController {
       }
     }
 
-    try {
-      await mkdir(cwd, { recursive: true })
-    } catch (error: unknown) {
-      throw new Error(`failed to ensure project directory "${cwd}": ${String(error)}`, { cause: error })
+    // A Session whose workspace has no directory has nothing to materialize:
+    // creating a directory for it would invent exactly the machine-local fact
+    // the workspace is defined by not having.
+    if (cwd !== undefined) {
+      try {
+        await mkdir(cwd, { recursive: true })
+      } catch (error: unknown) {
+        throw new Error(`failed to ensure project directory "${cwd}": ${String(error)}`, { cause: error })
+      }
     }
     const composition = await this.composeAgent(presetId)
     return (await this.ctx.agents.create({
       sessionId,
       agentOptions: this.agentOptions(),
       meta: {
-        cwd,
+        ...cwd === undefined ? {} : { cwd },
         ...(composition.agentPreset === undefined ? {} : { agentPreset: composition.agentPreset }),
       },
       setup: composition.setup,

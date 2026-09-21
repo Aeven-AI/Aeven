@@ -534,8 +534,11 @@ function SessionTree({
                     startSession(group.workspaceId)
                   }
                 }}
-                drag={workspaceDragProps}
-                actions={group.workspaceId === undefined
+                drag={group.isDefault ? undefined : workspaceDragProps}
+                // The built-in workspace offers no actions: it cannot be renamed,
+                // deleted, or moved, so a menu would present only choices that
+                // fail. Its row is part of the product, not a reader-owned entry.
+                actions={group.workspaceId === undefined || group.isDefault
                   ? undefined
                   : {
                     rename: () => {

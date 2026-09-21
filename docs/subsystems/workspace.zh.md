@@ -24,21 +24,42 @@ type WorkspaceId = Branded<'WorkspaceId'>
 
 ```ts type-equiv
 /**
- * One workspace: a stable id over an existing directory, a display title, and
- * an ordered candidate account of sessions. Membership requires both an id in
- * that account and a session header whose canonical cwd equals the workspace
- * path. Consumers only see this interface; the implementation stays private.
+ * One workspace: a stable id over a filesystem binding, a display title, and an
+ * ordered candidate account of sessions. Membership requires an id on that
+ * account, plus agreement between the session's location and the workspace's:
+ * a `folder` workspace also demands a session header whose canonical cwd equals
+ * the workspace path, while a workspace with no directory demands a session
+ * that records no cwd either. Consumers only see this interface; the
+ * implementation stays private.
  */
 interface Workspace {
   /** Stable record id (generated uuid). */
   readonly id: WorkspaceId
 
   /**
+   * Whether this is the registry's built-in workspace: the one registration the
+   * product guarantees a reader has, pinned at the head of the order and
+   * refusing delete, rename, and move. Consumers render it as a fixed part of
+   * the product rather than as a registration the reader owns, which is why the
+   * bit travels outward as a fact instead of being inferred from an id or title.
+   */
+  readonly isDefault: boolean
+
+  /**
+   * How this workspace binds to a filesystem location. Consumers that need a
+   * directory must narrow on `'folder'` (see `isFolderWorkspace`) rather than
+   * assume {@link path} is present.
+   */
+  readonly kind: WorkspaceKind
+
+  /**
    * Canonical directory path: the `fs.realpath` of the path given at create
-   * time (trailing slashes, `..`, and symlinks all resolved). Never rewritten
+   * time (trailing slashes, `..`, and symlinks all resolved). Present exactly
+   * when {@link kind} is `'folder'`; a `virtual` or `remote` workspace has no
+   * local directory and is always `undefined` here. Never rewritten
    * afterwards, even when the directory disappears (see {@link status}).
    */
-  readonly path: string
+  readonly path: string | undefined
 
   /** Display title. Defaults to the final path segment, or a filesystem root's own spelling; duplicates are allowed. */
   readonly title: string
@@ -53,9 +74,11 @@ interface Workspace {
    * Header-validated sessions in manually owned order: a new session is
    * prepended at attach, explicit reordering goes through
    * `insertSessionBefore`, and activity never reorders. The durable candidate
-   * account is filtered synchronously: missing headers, invalid cwd values,
-   * and canonical cwd mismatches are never returned. A subsequent workspace
-   * mutation prunes those filtered candidates durably.
+   * account is filtered synchronously for a folder workspace — missing
+   * headers, invalid cwd values, and canonical cwd mismatches are never
+   * returned — while a workspace with no directory binding has no such fact to
+   * check and returns its account verbatim. A subsequent workspace mutation
+   * prunes those filtered candidates durably.
    */
   readonly sessionIds: readonly SessionId[]
 
@@ -69,11 +92,13 @@ interface Workspace {
   /**
    * Prepend a session to this workspace's candidate account. An already
    * accounted id resolves without writing, aside from the durable
-   * filtered-candidate prune every accepted mutation performs. A new id's
-   * live or persisted
-   * header cwd must resolve to an existing directory equal to {@link path};
-   * unknown ids, missing or invalid cwd values, and mismatches reject without
-   * writing.
+   * filtered-candidate prune every accepted mutation performs. Otherwise the
+   * candidate must agree with the workspace's own location: for a folder
+   * workspace its live or persisted header cwd must resolve to an existing
+   * directory equal to {@link path}, and for a workspace with no directory it
+   * must record no cwd at all — a machine-local path inside a record expected
+   * to travel between machines is refused rather than tolerated. Unknown ids,
+   * missing or invalid cwd values, and mismatches reject without writing.
    * @param sessionId - The session to record.
    * @returns resolution after durability.
    */
@@ -106,7 +131,8 @@ interface Workspace {
   /**
    * Live directory check, uncached: whether {@link path} currently exists and
    * is a directory. A missing directory never mutates the record — the
-   * directory may only be temporarily moved.
+   * directory may only be temporarily moved. A workspace with no directory
+   * binding is always `'ok'`: it makes no filesystem claim to check.
    * @returns `'ok'` when the directory exists, `'missing-dir'` otherwise.
    */
   status(): Promise<'ok' | 'missing-dir'>
@@ -284,17 +310,29 @@ list(): Workspace[]
  * session log. The durable order is updated before the table deletion; a
  * failed table write restores the prior order and keeps the entity
  * published. Unknown ids are an idempotent no-op for domain callers.
+ *
+ * The built-in workspace refuses deletion. It is the one registration the
+ * product guarantees a reader has, and removing it would restore the state
+ * the registration exists to prevent — a first screen that demands a folder
+ * before it accepts a message. A deployment that does not want one turns
+ * seeding off in configuration rather than deleting it at runtime.
  * @param id - Workspace registration to remove.
  * @returns `true` when a record was deleted, `false` when it was unknown.
+ * @throws {WorkspaceDefaultImmutableError} when the id names the built-in workspace.
  */
 delete(id: WorkspaceId): Promise<boolean>
 
 /**
  * Move one workspace within the durable display order, DOM-insertBefore-like.
  * With an anchor it lands before that workspace; without one it appends.
+ *
+ * The built-in workspace is pinned at the head: it is where a reader lands
+ * when nothing is selected, so its position is part of what makes the first
+ * screen predictable rather than a preference a drag can reorder.
  * @param id - Workspace to move.
  * @param beforeId - Workspace anchor; omitted appends.
  * @returns the complete committed workspace order.
+ * @throws {WorkspaceDefaultImmutableError} when the move would displace the built-in workspace from the head.
  */
 insertBefore(id: WorkspaceId, beforeId?: WorkspaceId): Promise<readonly WorkspaceId[]>
 

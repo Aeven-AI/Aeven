@@ -15,29 +15,71 @@ import type {} from '@aeven/typert-protocol'
  */
 export type WorkspaceId = Branded<'WorkspaceId'>
 
+/**
+ * How a workspace binds to a filesystem location.
+ *
+ * - `folder` — backed by an existing local directory; {@link Workspace.path} is
+ *   present and is the workspace's whole identity, so sessions join it by
+ *   having that exact canonical cwd.
+ * - `virtual` — no filesystem binding at all. The built-in Chats workspace is
+ *   the first instance. Sessions carry no cwd and join through the record's own
+ *   account, which is what lets such a workspace exist where there is no
+ *   directory to point at — a hosted deployment, or a record that must sync
+ *   between machines whose filesystems are unrelated.
+ * - `remote` — content owned by a provider elsewhere. RESERVED: no composition
+ *   produces this kind yet, and nothing may assume it is absent forever.
+ */
+export type WorkspaceKind = 'folder' | 'virtual' | 'remote'
+
 declare module '@aeven/typert-protocol' {
   interface RemoteErrorDetailsMap {
     /** No registration carries that Workspace identity. */
     'workspace/not-found': { readonly workspaceId: WorkspaceId }
+    /** The built-in workspace refuses the named mutation because it is pinned. */
+    'workspace/default-immutable': {
+      readonly workspaceId: WorkspaceId
+      readonly operation: 'delete' | 'move' | 'rename'
+    }
   }
 }
 
 /**
- * One workspace: a stable id over an existing directory, a display title, and
- * an ordered candidate account of sessions. Membership requires both an id in
- * that account and a session header whose canonical cwd equals the workspace
- * path. Consumers only see this interface; the implementation stays private.
+ * One workspace: a stable id over a filesystem binding, a display title, and an
+ * ordered candidate account of sessions. Membership requires an id on that
+ * account, plus agreement between the session's location and the workspace's:
+ * a `folder` workspace also demands a session header whose canonical cwd equals
+ * the workspace path, while a workspace with no directory demands a session
+ * that records no cwd either. Consumers only see this interface; the
+ * implementation stays private.
  */
 export interface Workspace {
   /** Stable record id (generated uuid). */
   readonly id: WorkspaceId
 
   /**
+   * Whether this is the registry's built-in workspace: the one registration the
+   * product guarantees a reader has, pinned at the head of the order and
+   * refusing delete, rename, and move. Consumers render it as a fixed part of
+   * the product rather than as a registration the reader owns, which is why the
+   * bit travels outward as a fact instead of being inferred from an id or title.
+   */
+  readonly isDefault: boolean
+
+  /**
+   * How this workspace binds to a filesystem location. Consumers that need a
+   * directory must narrow on `'folder'` (see `isFolderWorkspace`) rather than
+   * assume {@link path} is present.
+   */
+  readonly kind: WorkspaceKind
+
+  /**
    * Canonical directory path: the `fs.realpath` of the path given at create
-   * time (trailing slashes, `..`, and symlinks all resolved). Never rewritten
+   * time (trailing slashes, `..`, and symlinks all resolved). Present exactly
+   * when {@link kind} is `'folder'`; a `virtual` or `remote` workspace has no
+   * local directory and is always `undefined` here. Never rewritten
    * afterwards, even when the directory disappears (see {@link status}).
    */
-  readonly path: string
+  readonly path: string | undefined
 
   /** Display title. Defaults to the final path segment, or a filesystem root's own spelling; duplicates are allowed. */
   readonly title: string
@@ -52,9 +94,11 @@ export interface Workspace {
    * Header-validated sessions in manually owned order: a new session is
    * prepended at attach, explicit reordering goes through
    * `insertSessionBefore`, and activity never reorders. The durable candidate
-   * account is filtered synchronously: missing headers, invalid cwd values,
-   * and canonical cwd mismatches are never returned. A subsequent workspace
-   * mutation prunes those filtered candidates durably.
+   * account is filtered synchronously for a folder workspace — missing
+   * headers, invalid cwd values, and canonical cwd mismatches are never
+   * returned — while a workspace with no directory binding has no such fact to
+   * check and returns its account verbatim. A subsequent workspace mutation
+   * prunes those filtered candidates durably.
    */
   readonly sessionIds: readonly SessionId[]
 
@@ -68,11 +112,13 @@ export interface Workspace {
   /**
    * Prepend a session to this workspace's candidate account. An already
    * accounted id resolves without writing, aside from the durable
-   * filtered-candidate prune every accepted mutation performs. A new id's
-   * live or persisted
-   * header cwd must resolve to an existing directory equal to {@link path};
-   * unknown ids, missing or invalid cwd values, and mismatches reject without
-   * writing.
+   * filtered-candidate prune every accepted mutation performs. Otherwise the
+   * candidate must agree with the workspace's own location: for a folder
+   * workspace its live or persisted header cwd must resolve to an existing
+   * directory equal to {@link path}, and for a workspace with no directory it
+   * must record no cwd at all — a machine-local path inside a record expected
+   * to travel between machines is refused rather than tolerated. Unknown ids,
+   * missing or invalid cwd values, and mismatches reject without writing.
    * @param sessionId - The session to record.
    * @returns resolution after durability.
    */
@@ -105,8 +151,17 @@ export interface Workspace {
   /**
    * Live directory check, uncached: whether {@link path} currently exists and
    * is a directory. A missing directory never mutates the record — the
-   * directory may only be temporarily moved.
+   * directory may only be temporarily moved. A workspace with no directory
+   * binding is always `'ok'`: it makes no filesystem claim to check.
    * @returns `'ok'` when the directory exists, `'missing-dir'` otherwise.
    */
   status(): Promise<'ok' | 'missing-dir'>
 }
+
+/**
+ * A {@link Workspace} known to be folder-backed, so {@link Workspace.path} is
+ * a present string. Produced only by the `isFolderWorkspace` guard — the
+ * narrowing is what lets a consumer that genuinely needs a directory treat the
+ * path as authoritative instead of re-checking it.
+ */
+export type FolderWorkspace = Workspace & { readonly kind: 'folder'; readonly path: string }

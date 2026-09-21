@@ -30,7 +30,7 @@ Frames are JSON-lines on fd 3, one object per line, leaving stdout/stderr free f
 
 ## Mirror alignment
 
-`py/protocol.py` and `src/protocol.ts` agree that `LogMessage` carries `truncated`, `DoneMessage.error` carries `kind`, and `Namespace` may carry `errorClass`. `tests/protocol-mirror.e2e.ts` spawns a real `python3` and asserts `PROTOCOL_FD`, `log_truncation_marker`, and each `TypedDict`'s required and optional wire field sets against `src/protocol.ts`. A renamed or dropped field, or a required/optional mismatch, fails the test. Field *types* are not compared across the language boundary; review and the runtime's real-subprocess suite (`runtime.spec.ts`) own that gap.
+`py/protocol.py` and `src/protocol.ts` agree that `LogMessage` carries `truncated`, `DoneMessage.error` carries `kind`, and `Namespace` may carry `errorClass`. `tests/protocol-mirror.e2e.ts` spawns a real `python3` and asserts `PROTOCOL_FD`, `log_truncation_marker`, and each `TypedDict`'s required and optional wire field sets against `src/protocol.ts`. A renamed or dropped field, or a required/optional mismatch, fails the test. Field *types* are not compared across the language boundary; review and the runtime's real-subprocess suite (`runtime-*.spec.ts`) own that gap.
 
 ## Alternatives considered
 
