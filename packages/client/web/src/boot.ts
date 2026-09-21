@@ -15,7 +15,7 @@ import { BootPage } from './boot-page.ts'
 import { startStaticModules } from './seed.ts'
 import { STATE_LABELS } from './loader-status.ts'
 import { fontsReady } from './fonts.ts'
-import { hidePreloader } from './preloader.ts'
+import { hidePreloader, showPreloader } from './preloader.ts'
 import './base.css'
 
 /** Module transport hook replaced by jsdom tests. */
@@ -70,14 +70,17 @@ export class AppWebEntry {
       const transport = (globalThis as {
         __AVN_TRANSPORT__?: { loadBundle?: ClientModuleCreateOptions['loadBundle'] }
       }).__AVN_TRANSPORT__
-      // Authentication decides whether there is an application to boot at all.
-      // It runs here, before the plugin graph, so no client entry ever sees an
-      // unauthenticated context — a plugin cannot be asked to check, because
-      // by the time it could, it would already be running.
-      if (await this.gateOnAuthentication()) {
-        hidePreloader()
-        return
-      }
+      // Authentication runs here, before the plugin graph, so no client entry
+      // ever sees an unauthenticated context — a plugin cannot be asked to
+      // check, because by the time it could, it would already be running. It
+      // waits the reader out rather than abandoning the boot: a session
+      // established on a screen boots this document, where a document load
+      // would restart the whole kernel to arrive at the same place.
+      // Returns once a session exists. The gate restores the cover itself the
+      // moment a screen settles — before the session re-read and the boot that
+      // follow it — so the wait is covered from the point the reader commits,
+      // not from the end of another round trip.
+      await this.gateOnAuthentication()
 
       const rendering = await renderingReady
       if ('error' in rendering) throw rendering.error
@@ -110,43 +113,61 @@ export class AppWebEntry {
   }
 
   /**
-   * Present the authentication surface when nobody is signed in, and the
-   * naming step when the reader Aeven restored has no name yet.
+   * Present the authentication surface until a session exists, and the naming
+   * step when the reader Aeven restored has no name yet.
    *
    * The screens and the session they restore belong to whichever authority the
    * deployment configured; a harness with none configured reports `disabled`
-   * and boots as it always has.
-   * @returns true when one of those screens owns the page, so the application
-   * must not boot over it.
+   * and boots as it always has. Each screen settles once the reader has left it,
+   * and the gate re-reads the session rather than trusting that the reader is
+   * done — a session without a name lands on the step rather than the
+   * application.
+   *
+   * The cover is restored the moment a screen settles, which is the earliest
+   * point at which the sign-in button has stopped meaning anything: everything
+   * after it — the session re-read, the plugin graph, the first shell data —
+   * then happens behind an opaque cover instead of in front of a reader.
    */
-  private async gateOnAuthentication(): Promise<boolean> {
-    const result = await auth.restoreSession()
-    if (result.state === 'disabled') return false
-    if (result.state === 'authenticated') {
-      // Before the graph boots: the connection builds its caller once, from
-      // whatever the transport hook holds at that moment.
-      auth.installAuthenticatedTransport()
-      return false
-    }
-    if (result.state === 'unnamed') {
-      // The name is what the account menu and every session that follows call
-      // the reader by, and the API holds none for them yet: the step stands
-      // between them and the application, as it does in the Aeven client.
-      auth.mountNameScreen(this.container, window.location.pathname)
+  private async gateOnAuthentication(): Promise<void> {
+    for (;;) {
+      const result = await auth.restoreSession()
+      if (result.state === 'disabled') return
+      if (result.state === 'authenticated') {
+        // Before the graph boots: the connection builds its caller once, from
+        // whatever the transport hook holds at that moment.
+        auth.installAuthenticatedTransport()
+        return
+      }
+      // A screen is the page now, so the boot's cover comes off it.
+      hidePreloader()
+      // Whatever was rendered into the mount point has to let go of it before
+      // the next screen — or the application — renders there.
       this.page.dispose()
-      return true
+      if (result.state === 'unnamed') {
+        // The name is what the account menu and every session that follows call
+        // the reader by, and the API holds none for them yet: the step stands
+        // between them and the application, as it does in the Aeven client.
+        const step = auth.mountNameScreen(this.container, window.location.pathname)
+        await step.authenticated
+        step.unmount()
+      } else {
+        const pathname = window.location.pathname
+        // An address that is not itself an authentication screen is remembered,
+        // so signing in returns the reader to what they asked for.
+        let screen = auth.mountAuthScreen(this.container, pathname)
+        if (screen === undefined) {
+          auth.requireSignIn(pathname)
+          screen = auth.mountAuthScreen(this.container, window.location.pathname)
+        }
+        if (screen === undefined) throw new Error('web boot: no authentication screen owns the page')
+        await screen.authenticated
+        screen.unmount()
+      }
+      // The reader has committed, so the cover comes back here rather than after
+      // the re-read — the button has stopped reading as progress, and the rest of
+      // the boot is not something they can watch anyway.
+      showPreloader()
     }
-
-    const { mountAuthScreen } = auth
-    const pathname = window.location.pathname
-    // An address that is not itself an authentication screen is remembered, so
-    // signing in returns the reader to what they asked for.
-    if (mountAuthScreen(this.container, pathname) === undefined) {
-      auth.requireSignIn(pathname)
-      mountAuthScreen(this.container, window.location.pathname)
-    }
-    this.page.dispose()
-    return true
   }
 
   /** Dispose the client plugin tree and whichever page owns the mount point. */

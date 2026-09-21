@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-21-auth-gate-boots-in-place.md
+2026-09-21-auth-gate-boots-in-place.md: b10ac466945a220488a8b8f01282d33845ff8705
+2026-09-21-auth-gate-boots-in-place.zh.md: c51b20d8130fa3c427a2dda9b9ac1caa07274f63

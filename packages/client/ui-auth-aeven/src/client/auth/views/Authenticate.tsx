@@ -334,8 +334,10 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
       appService
         .getInitData()
         .then(() => {
-          signInButton.current?.loadingStatus(false)
-
+          // The button keeps its progress state. The boot gate takes over from
+          // here and covers the screen, so clearing it here showed the reader an
+          // idle button between the wait and the transition — which reads as a
+          // failure that quietly restarted.
           if (!referrer) {
             routeService.navigateRoute(utilityService.href('/', false))
           } else {

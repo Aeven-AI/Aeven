@@ -16,13 +16,13 @@ AVN 既不读该标记，也不读该路由。profile 中的 `displayNameSet` �
 
 名字是识别读者的一部分，因此 boot kernel 的 gate 会询问它，与它已经挂载的登录界面并列。
 
-`restoreSession` 增加第四种状态 `unnamed`：只要恢复出的 profile 不带 `displayNameSet === true` 就如此回答——无论 API 回答 `false`、对从未选择过的账号省略该字段，还是在中断期间从保留的 profile 恢复而来。`AppWebEntry` 在该状态下挂载命名界面且不启动应用，与面对未认证读者时完全一致。
+`restoreSession` 增加第四种状态 `unnamed`：只要恢复出的 profile 不带 `displayNameSet === true` 就如此回答——无论 API 回答 `false`、对从未选择过的账号省略该字段，还是在中断期间从保留的 profile 恢复而来。`AppWebEntry` 在该状态下挂载命名界面并把应用挡在它之后，与面对未认证读者时完全一致。
 
 `packages/client/ui-auth-aeven/src/client/auth/views/NameCheck.tsx` 就是该界面，从 Aeven 客户端的 `initCheck` 移植而来：问候语、原版对空输入的那句话（"You don't have to be anonymous with me ;)"）、由 `session.displayName` 预填的名字输入框，以及 Continue。其提交在发送前先剥离读者看不见的字符，对空名字不发请求就直接拒绝，并在原位报告被拒绝的保存。
 
 `setDisplayName` 携带 bearer 提交 `/set-display-name`，随后通过 `session.adoptDisplayName` 采纳回答：它同时移动 `displayName` 与 `displayNameSet`，并把两者写回保留的 `aevenProfile`——若保留的 profile 仍写着 `false`，下次加载会再次回到该界面。bearer 被拒绝时会把读者送到登录界面，而不是把他留在一个无法成功的界面上。
 
-成功后的加载方式与登录界面相同：读者自己请求过路径时用 `authReferrer`，否则用应用根路径。那次加载会再次运行 gate，并找到一份带有名字的 profile。
+成功后的去向与登录界面相同：读者自己请求过路径时用 `authReferrer`，否则用应用根路径。gate 随后再次读取 profile，找到一份带有名字的 profile，应用随即在挂载该界面的那份文档中启动。
 
 该界面的样式表是 Aeven 的 `_initCheck.scss` 在本应用作用域下的版本，外加该界面在源头从 `_home.scss` 继承的那一条规则——首页栏的 `.content-container`，正是它的 flex 纵向布局与满高让 `.form-container` 得以居中。68px 的问候语使用本应用自带的 Google Sans Flex 字族，因为 Aeven 样式表的 vendored 副本已丢弃其声明过却从未使用的 Bodoni 字体。
 
@@ -50,4 +50,4 @@ AVN 既不读该标记，也不读该路由。profile 中的 `displayNameSet` �
 
 ## Testing
 
-`packages/client/ui-auth-aeven/tests/gate.client.spec.ts` 覆盖在线 profile 缺少该标记、标记为 false、标记为 true，以及中断期间保留 profile 的两种读法。`api.client.spec.ts` 覆盖 `/set-display-name` 所带的 bearer 与请求体、被采纳的名字、它所重写的保留 profile，以及被拒绝的名字。`session.client.spec.ts` 覆盖 `adoptDisplayName` 同时移动两半，以及未保留 profile 的页面。`packages/client/web/tests/boot.client.spec.ts` 端到端驱动 kernel 的 `unnamed` 分支：界面被挂载、文案被渲染，且背后没有启动应用的任何部分。
+`packages/client/ui-auth-aeven/tests/gate.client.spec.ts` 覆盖在线 profile 缺少该标记、标记为 false、标记为 true，以及中断期间保留 profile 的两种读法。`api.client.spec.ts` 覆盖 `/set-display-name` 所带的 bearer 与请求体、被采纳的名字、它所重写的保留 profile，以及被拒绝的名字。`session.client.spec.ts` 覆盖 `adoptDisplayName` 同时移动两半，以及未保留 profile 的页面。`packages/client/web/tests/boot.client.spec.ts` 端到端驱动 kernel 的 `unnamed` 分支：界面被挂载、文案被渲染，背后没有启动应用的任何部分，而读者在此命名之后，应用就在那份文档中启动。
