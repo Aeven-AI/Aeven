@@ -12,7 +12,7 @@ import {
   protocol,
   type IpcMainInvokeEvent,
 } from 'electron'
-import { forwardAevenApiRequest, openAevenOAuthWindow } from './aeven-sign-in.ts'
+import { completeOAuthLanding, forwardAevenApiRequest, openAevenOAuthWindow } from './aeven-sign-in.ts'
 import { planDesktopBackend } from './attached-host.ts'
 import { resolveDesktopPaths } from './paths.ts'
 import { DesktopProjectManager, type DesktopProjectHooks } from './project-manager.ts'
@@ -381,6 +381,17 @@ async function main(): Promise<void> {
   const createMainWindow = (): BrowserWindow => {
     const window = createWindow(appPreload)
     mainWindow = window
+    // Either way the page reaches a provider, it gets this shell's own hardened
+    // window rather than one it made itself, and every other window stays denied.
+    // A page whose flow is a window opens the provider here; a page whose flow is
+    // a redirect navigates to it, and the landing it expects is loaded back into
+    // the window it came from.
+    window.webContents.setWindowOpenHandler(({ url }) => {
+      if (aevenSignIn?.oauthUrls.includes(url) === true) {
+        openAevenOAuthWindow(window, url, (path) => { void completeOAuthLanding(path, aevenSignIn) })
+      }
+      return { action: 'deny' }
+    })
     window.webContents.on('will-navigate', (event, url) => {
       if (aevenSignIn?.oauthUrls.includes(url) !== true) return
       event.preventDefault()

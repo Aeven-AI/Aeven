@@ -16,7 +16,9 @@ Status: implemented
 
 **形式是部署事实，由 Host 声明，并在提供提供方时为必填。** `identity-user-aeven` 新增经过校验的 `oauthFlow: 'redirect' | 'window'` 字段，并与各提供方 URL 一起写入 `__AVN_AEVEN__`。`apply()` 在加载时解析它，并在配置了提供方 URL 却未声明该字段时抛错：默认为某一种，会把一个无法离开自身文档的页面交给那种会离开文档的形式，而声明该提供方的部署才是唯一知道它服务哪一种的一方。声明了形式却没有提供方 URL 时，它被忽略而非拒绝——没有任何登录可供它描述。
 
-`packages/bundle/web-app/cordis.patch.yml` 声明 `redirect`（公开页面），可由 `AEVEN_OAUTH_FLOW` 覆盖。`apps/desktop-host` 目前声明 `redirect`，理由记录在其声明之处：桌面端的提供方窗口仍通过拦截页面导航抵达，而 `redirect` 产生的正是那个信号。让页面自己打开窗口来抵达提供方，才是该部署可以声明 `window` 的前提，而那是外壳自身的改动（[issue #24](https://github.com/Aeven-AI/Aeven/issues/24)）。
+`packages/bundle/web-app/cordis.patch.yml` 声明 `redirect`（公开页面），可由 `AEVEN_OAUTH_FLOW` 覆盖。`apps/desktop-host` 声明 `window`，因为外壳的页面从 `avn-app://` 提供自身，而在那里，被跳转的文档会替换 Electron 正持有的外壳。
+
+**外壳不必被告知它渲染的是哪一种形式，就能服务两者。** 打开提供方的页面会得到外壳自己加固过的窗口——清理过的 user agent、无 preload、沙箱内——而该窗口返回时的落地在那里完成交换，经由持有 API refresh cookie 的那个会话，而不是被加载进应用窗口。改为导航到提供方的页面则保留原本就在服务它的拦截，其落地被载回它来自的那个窗口，也就是该页面所期望的形式。被接管的 Host 是一个外壳并不声明其形式的部署，而它的两种情况都能工作。
 
 **在 `window` 下，提供方由独立窗口抵达，页面本身永不移动。** `openProviderSignIn(url)` 以固定名称打开该窗口，因此读者第二次按下提供方按钮时替换第一个窗口，而不是在其后叠出第二个。
 
@@ -53,4 +55,4 @@ Status: implemented
 
 ## Deferred
 
-桌面外壳声明 `redirect`，并继续在读者从提供方返回时重新加载它的应用窗口。要把它切换为 `window`，需要外壳允许页面打开的那个提供方窗口，并把该窗口的落地交给正在运行的页面，而不是把它加载进应用窗口；两者都属于外壳的改动，而部署开关已经就位。
+`redirect` 部署所经历的那些文档加载是该形式自身所声明的，并非缺口，而为它们保留的外壳拦截继续存在。真正剩下的、既非提供方也非部署所选择的那一次加载，是[启动 gate 的改动](../bug-fix/2026-09-21-auth-gate-boots-in-place.zh.md)所描述的会话结束加载：它需要正在运行的应用把页面交还给 gate。

@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
-import { aevenApiTarget, forwardAevenApiRequest, oauthResultPath, type AevenApiFetch } from '../src/aeven-sign-in.ts'
+import {
+  aevenApiTarget, completeOAuthLanding, forwardAevenApiRequest, oauthCallbackPair, oauthResultPath,
+  type AevenApiFetch,
+} from '../src/aeven-sign-in.ts'
 
 vi.mock('electron', () => ({}))
 
@@ -61,5 +64,39 @@ describe('Aeven desktop sign-in', () => {
     expect(oauthResultPath('https://x.com/i/oauth2/authorize?redirect=/oauth-result/a/b')).toBeUndefined()
     expect(oauthResultPath('avn-app://app/oauth-result/a/b')).toBeUndefined()
     expect(oauthResultPath('not a url')).toBeUndefined()
+  })
+
+  it('reads the pair out of a landing path, and nothing out of one that carries none', () => {
+    expect(oauthCallbackPair('/oauth-result/sess-1/chal-2')).toEqual({ session: 'sess-1', challenge: 'chal-2' })
+    expect(oauthCallbackPair('/oauth-result/sess-1/chal-2/')).toEqual({ session: 'sess-1', challenge: 'chal-2' })
+    for (const path of ['/oauth-result/error', '/oauth-result', '/oauth-result/a/b/c', '/', '']) {
+      expect(oauthCallbackPair(path)).toBeUndefined()
+    }
+  })
+
+  it('exchanges a landing in the session that holds the cookie, rather than loading it', async () => {
+    const calls: [string, RequestInit][] = []
+    const fetcher: AevenApiFetch = async (url, init) => {
+      calls.push([url, init])
+      return new Response(null, { status: 200 })
+    }
+
+    await expect(completeOAuthLanding('/oauth-result/sess-1/chal-2', signIn, fetcher)).resolves.toBe(true)
+
+    const [url, init] = calls[0]!
+    expect(url).toBe('https://api.aeven.test/v1/check-oauth-token')
+    expect(init.credentials).toBe('include')
+    expect(init.method).toBe('POST')
+    expect(init.body).toBe('{"session":"sess-1","challenge":"chal-2"}')
+  })
+
+  it('leaves the reader where they were when the exchange is refused or the path carries no pair', async () => {
+    const refused: AevenApiFetch = async () => new Response(null, { status: 401 })
+    expect(await completeOAuthLanding('/oauth-result/sess-1/chal-2', signIn, refused)).toBe(false)
+
+    const fetcher = vi.fn<AevenApiFetch>(async () => new Response(null, { status: 200 }))
+    expect(await completeOAuthLanding('/oauth-result/error', signIn, fetcher)).toBe(false)
+    expect(await completeOAuthLanding('/oauth-result/sess-1/chal-2', undefined, fetcher)).toBe(false)
+    expect(fetcher).not.toHaveBeenCalled()
   })
 })
