@@ -16,8 +16,10 @@ import {
   CONTEXT_WINDOW_EXCEEDED_CODE,
   EMPTY_RESPONSE_CODE,
   isContextWindowExceededError,
+  isMessageCountExceededError,
   isQuotaExceededError,
   LlmError,
+  MESSAGE_COUNT_EXCEEDED_CODE,
   QUOTA_EXCEEDED_CODE,
 } from '@aeven/llm'
 import type { ContentBlock, FinishReason, StreamChunk, TokenUsage, ToolCallId } from '@aeven/llm'
@@ -114,12 +116,12 @@ function closeBlock(block: OpenBlock): ContentBlock {
  * Classify an in-band error body into a harness failure.
  *
  * The gateway's own vocabulary is what a caller routes on, so its code is passed
- * through upper-cased rather than flattened into `SERVER` — except for the two
- * classes the harness already recognizes by wording: an exhausted account quota
- * and a request that outgrew the model context are terminal on every route, and
- * neither arrives here with a status code to say so. Those two run through the
- * same recognizers the non-2xx path uses, so one failure classifies identically
- * however it was delivered.
+ * through upper-cased rather than flattened into `SERVER` — except for the classes
+ * the harness already recognizes by wording: an exhausted account quota, a request
+ * that outgrew the model context, and a request carrying more message entries than
+ * the endpoint admits are bounds on every route, and none of them arrives here with
+ * a status code to say so. Those run through the same recognizers the non-2xx path
+ * uses, so one failure classifies identically however it was delivered.
  * @param error - the parsed `error` member of an in-band error frame.
  * @returns the message a reader is shown and the stable code shown beside it.
  */
@@ -129,12 +131,14 @@ export function mapStreamError(error: WireError['error']): { message: string; co
     .join(' ')
   const code = isQuotaExceededError(detail)
     ? QUOTA_EXCEEDED_CODE
-    : isContextWindowExceededError(detail)
-      ? CONTEXT_WINDOW_EXCEEDED_CODE
-      // The provider's own code, when it gave one. The wire type is a claim about
-      // a remote encoder, so anything but a non-empty string is treated as absent
-      // rather than read as a string that happens to be there.
-      : typeof error?.code === 'string' && error.code.length > 0 ? error.code.toUpperCase() : 'SERVER'
+    : isMessageCountExceededError(detail)
+      ? MESSAGE_COUNT_EXCEEDED_CODE
+      : isContextWindowExceededError(detail)
+        ? CONTEXT_WINDOW_EXCEEDED_CODE
+        // The provider's own code, when it gave one. The wire type is a claim about
+        // a remote encoder, so anything but a non-empty string is treated as absent
+        // rather than read as a string that happens to be there.
+        : typeof error?.code === 'string' && error.code.length > 0 ? error.code.toUpperCase() : 'SERVER'
   // The provider's own wording wins; when it sent none, the code and type it did
   // send are the only thing left to show, and a body carrying neither is said to
   // be exactly that rather than left dangling after a colon.

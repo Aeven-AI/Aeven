@@ -9,6 +9,7 @@ import { createLaunchEnvironmentSnapshot } from '@aeven/launch-environment'
 import LlmRuntime, { ToolCallId, createUserMessage,
   CONTEXT_WINDOW_EXCEEDED_CODE,
   LlmError,
+  MESSAGE_COUNT_EXCEEDED_CODE,
   ProviderRequestId,
   QUOTA_EXCEEDED_CODE,
   ReasoningEffortId,
@@ -1420,6 +1421,24 @@ describe('DeepSeekAdapter against a mock server', () => {
     expect(httpErrorCode(400, { message: 'invalid input: temperature exceeds maximum allowed value' }))
       .toBe('INVALID_REQUEST')
     expect(httpErrorCode(413, { code: 'context_length_exceeded' })).toBe('INVALID_REQUEST')
+  })
+
+  it('reads a message-entry ceiling as its own recoverable rejection', () => {
+    // The gateway's own wording, verbatim, on a turn that died with the
+    // conversation intact. It classified as INVALID_REQUEST, which no retry
+    // policy accepts and no compaction listener triggers on, so the session
+    // could not be continued at all.
+    expect(httpErrorCode(400, {
+      message: '`messages` may contain at most 400 entries',
+      type: 'invalid_request_error',
+    })).toBe(MESSAGE_COUNT_EXCEEDED_CODE)
+
+    // A count ceiling is not a token ceiling, and a rejection that never names
+    // `messages` must not be read as one.
+    expect(httpErrorCode(400, { message: 'too many entries in the request body' }))
+      .toBe('INVALID_REQUEST')
+    expect(httpErrorCode(400, { message: "this model's maximum context length is 128000 tokens" }))
+      .toBe(CONTEXT_WINDOW_EXCEEDED_CODE)
   })
 
   it('distinguishes terminal quota exhaustion from transient HTTP 429 throttling', () => {

@@ -4,7 +4,8 @@
  *
  * The exchange's success path needs a real single-use challenge, which only the
  * deployment can mint, so it is exercised against a running API by
- * `scripts/verify-sign-in.ts` rather than from a unit test.
+ * `scripts/verify-sign-in.ts` rather than from a unit test; a stand-in for that
+ * route covers what the exchange makes of a reply.
  */
 
 import { describe, expect, it } from 'vitest'
@@ -31,6 +32,12 @@ describe('callback parsing', () => {
   it('reports a refused sign-in as no callback rather than as a pair', () => {
     // The provider error path redirects to the same prefix with one segment.
     expect(callbackFrom('/oauth-result/error')).toBeUndefined()
+  })
+
+  it('refuses a pair-shaped refusal, whose session segment is the error marker', () => {
+    // A refusal may arrive with the segments a success would carry, and the
+    // session it names is the one thing that tells the two apart.
+    expect(callbackFrom('/oauth-result/error/challenge-xyz')).toBeUndefined()
   })
 
   it('rejects an unrelated path and a bare prefix', () => {

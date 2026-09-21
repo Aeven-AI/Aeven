@@ -228,6 +228,33 @@ describe('observation reports a delta', () => {
     expect(second.diff.added.map(entry => entry.title)).toEqual(['C'])
   })
 
+  it('reports an observation carrying no snapshot as an empty desktop, not as the last one', async () => {
+    // `snapshot` is absent when the caller disabled the tree, so this observation
+    // covers no windows and no nodes. Reporting the previous tree again would present
+    // a stale interface as the current one, so the previous nodes read as removed.
+    let calls = 0
+    const session = new ComputerUseSession({
+      book: [],
+      adapter: {
+        platform: 'darwin',
+        observe: () => {
+          calls++
+          return Promise.resolve(calls === 1
+            ? { snapshot: { snapshotId: 's1', platform: 'darwin' as const, windows: [], nodes: [node('s1:0')] } }
+            : {})
+        },
+        act: () => Promise.reject(new Error('unused')),
+        verify: () => Promise.resolve([]),
+        readiness: () => Promise.resolve({ platform: 'darwin', probes: [], blockers: [] }),
+      },
+    })
+    expect((await session.observe()).diff.complete).toBe(true)
+    const second = await session.observe()
+    expect(second.observation.snapshot).toBeUndefined()
+    expect(second.diff.complete).toBe(false)
+    expect(second.diff.removed).toEqual([0])
+  })
+
   it('makes the delta meaningful again after a reset', async () => {
     const adapter = scriptedAdapter([[node('s1:0')], [node('s2:0')]])
     const session = new ComputerUseSession({ book: [], adapter })

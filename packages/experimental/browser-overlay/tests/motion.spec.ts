@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createSpring, isAtRest, stepSpring, CURSOR_SPRINGS } from '../src/springs.ts'
 import { BASE_ROTATION_DEG } from '../src/styles.ts'
 import {
+  ARRIVAL_EPSILON_PX,
   createArcPath,
   CursorMotion,
   cursorTransform,
@@ -227,6 +228,87 @@ describe('cursor motion', () => {
     expect(new Set(displayed.map(value => value.toFixed(3))).size).toBeGreaterThan(1)
     // Past the window it must return to exactly the settled rotation.
     expect(displayRotationFor(motion, performance.now() + 5000)).toBeCloseTo(BASE_ROTATION_DEG, 6)
+  })
+})
+
+describe('arrival epsilon boundary', () => {
+  it('moves for a displacement of exactly the arrival epsilon', () => {
+    // The epsilon check runs before the arc/scoot split, so the shortest move
+    // that is still a move is exactly ARRIVAL_EPSILON_PX long.
+    const motion = new CursorMotion()
+    motion.jumpTo(0, 0)
+    expect(motion.travelTo(ARRIVAL_EPSILON_PX, 0)).toBe(420)
+    runMotion(motion, 2400)
+    expect(motion.point.x).toBeCloseTo(ARRIVAL_EPSILON_PX, 3)
+  })
+
+  it('treats a displacement just inside the epsilon as an instant jump', () => {
+    const motion = new CursorMotion()
+    motion.jumpTo(0, 0)
+    expect(motion.travelTo(ARRIVAL_EPSILON_PX / 2, 0)).toBe(0)
+    // The target still moves, so the next frame's spring carries the cursor the
+    // sub-epsilon distance without a travel path.
+    expect(motion.positionX.target).toBe(ARRIVAL_EPSILON_PX / 2)
+    expect(motion.isResting).toBe(false)
+  })
+
+  it('reports a wait budget for each travel regime', () => {
+    // The budget is the caller's only signal for how long to wait, so each
+    // regime is pinned at its own boundary: at or below the arrival epsilon the
+    // move is instant, the scoot regime runs from that epsilon up to
+    // LONG_MOVE_PX, and the arc regime from LONG_MOVE_PX on. Every scooter the
+    // model builds therefore spans at least ARRIVAL_EPSILON_PX.
+    const budget = (x: number): number => {
+      const motion = new CursorMotion()
+      motion.jumpTo(0, 0)
+      return motion.travelTo(x, 0)
+    }
+    expect(budget(ARRIVAL_EPSILON_PX / 2)).toBe(0)
+    expect(budget(ARRIVAL_EPSILON_PX)).toBe(420)
+    expect(budget(LONG_MOVE_PX - 1)).toBe(420)
+    expect(budget(LONG_MOVE_PX)).toBe(700)
+  })
+})
+
+describe('idle wobble control', () => {
+  it('draws the settled rotation until the cursor is first shown', () => {
+    // Nothing arms the wobble before the first show, so the composed rotation is
+    // the spring's own value rather than a value displaced by an offset.
+    const motion = new CursorMotion()
+    motion.jumpTo(12, 34)
+    expect(displayRotationFor(motion, performance.now())).toBe(motion.rotation.value)
+  })
+
+  it('ignores a timestamp that predates the wobble', () => {
+    // The window is measured from the show, so a `now` before it cannot be
+    // inside the window.
+    const motion = new CursorMotion()
+    motion.setVisible(true)
+    const armed = performance.now()
+    expect(displayRotationFor(motion, armed - 1000)).toBe(motion.rotation.value)
+  })
+
+  it('stops drawing the wobble once it is disabled', () => {
+    const motion = new CursorMotion()
+    motion.setVisible(true)
+    const armed = performance.now()
+    // Mid-window the wobble displaces the drawn rotation from the settled value.
+    expect(displayRotationFor(motion, armed + 200)).not.toBe(motion.rotation.value)
+    motion.setThinkEnabled(false)
+    expect(displayRotationFor(motion, armed + 200)).toBe(motion.rotation.value)
+  })
+
+  it('re-arms the wobble only on the next show', () => {
+    // Disabling clears the window instead of pausing it, and enabling does not
+    // reopen one: only a show does, so a re-enable under an already-visible
+    // cursor draws nothing.
+    const motion = new CursorMotion()
+    motion.setVisible(true)
+    motion.setThinkEnabled(false)
+    motion.setThinkEnabled(true)
+    expect(displayRotationFor(motion, performance.now() + 200)).toBe(motion.rotation.value)
+    motion.setVisible(true)
+    expect(Math.abs(displayRotationFor(motion, performance.now() + 200) - motion.rotation.value)).toBeGreaterThan(1)
   })
 })
 

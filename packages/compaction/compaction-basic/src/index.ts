@@ -10,7 +10,7 @@ import { CompactionEngine, ManualCompactionError } from '@aeven/compaction'
 import type { CompactionResult, CompactionTrigger } from '@aeven/compaction'
 import type { TokenMeter } from '@aeven/token-meter'
 import type { Session, SessionSeq } from '@aeven/session'
-import { CONTEXT_WINDOW_EXCEEDED_CODE } from '@aeven/llm'
+import { CONTEXT_WINDOW_EXCEEDED_CODE, MESSAGE_COUNT_EXCEEDED_CODE } from '@aeven/llm'
 import type { LlmCallConfig } from '@aeven/llm'
 import { assertNever } from '@aeven/util-values'
 import type { Agent, PreStepDecision } from '@aeven/agent'
@@ -79,6 +79,20 @@ const summarizationModelSchema = z.string()
 const maxTokensSchema = z.number().step(1).min(1)
 const compactionRetriesSchema = z.number().step(1).min(0)
 const maxOverflowRetriesSchema = z.number().step(1).min(0)
+
+/**
+ * Failures a summary reduction can resolve. Both are the same event from a
+ * caller's side — the endpoint rejected a request that was admitted as shaped —
+ * so both route through one recovery path and share its retry budget. The
+ * bound each names differs: a token budget in the model's context, or a count
+ * of message entries the endpoint accepts. Compaction selects its range by
+ * tokens and replaces that range with a single checkpoint, so a reduction that
+ * satisfies one bound reduces the other.
+ */
+const SHRINK_RECOVERABLE_CODES: ReadonlySet<string> = new Set([
+  CONTEXT_WINDOW_EXCEEDED_CODE,
+  MESSAGE_COUNT_EXCEEDED_CODE,
+])
 
 const modelPolicy: z<ModelCompactPolicyConfig> = z.object({
   provider: z.string().required(),
@@ -181,7 +195,14 @@ export class BasicCompactionEngine extends CompactionEngine {
       { agent, failure, signal },
       next,
     ) => {
-      if (failure.code !== CONTEXT_WINDOW_EXCEEDED_CODE || signal.aborted) return next()
+      if (!SHRINK_RECOVERABLE_CODES.has(failure.code) || signal.aborted) return next()
+      // Named from the failure, not the handler: the two recoverable rejections
+      // differ in what the endpoint measured — a token budget or a count of
+      // message entries — and an operator reading the log needs to know which
+      // ceiling the conversation reached.
+      const bound = failure.code === MESSAGE_COUNT_EXCEEDED_CODE
+        ? 'message-count'
+        : 'context-overflow'
       this.overflowAgents.set(agent.session, agent)
       const target = routedTarget(agent.session)
       if (target === undefined) return next()
@@ -201,7 +222,7 @@ export class BasicCompactionEngine extends CompactionEngine {
         // oxlint-disable-next-line typescript/no-unnecessary-condition -- the signal can abort while recovery is awaited.
         if (!signal.aborted && agent.session.surface.replaceGeneration > generation) {
           ctx.logger.warn(
-            `context-overflow compaction failed after durable surface progress: ${message}; `
+            `${bound} compaction failed after durable surface progress: ${message}; `
             + 'retrying from the replacement surface',
           )
           this.overflowRetries.set(agent, retries + 1)
@@ -209,7 +230,7 @@ export class BasicCompactionEngine extends CompactionEngine {
         }
         ctx.logger.warn(
           // oxlint-disable-next-line typescript/no-unnecessary-condition -- the signal can abort while recovery is awaited.
-          `context-overflow compaction failed: ${message}; ${signal.aborted
+          `${bound} compaction failed: ${message}; ${signal.aborted
             ? 'cancellation prevents retry'
             : 'preserving the original request error'}`,
         )
@@ -218,7 +239,7 @@ export class BasicCompactionEngine extends CompactionEngine {
       // oxlint-disable-next-line typescript/no-unnecessary-condition -- the signal can abort while compaction is awaited.
       if (signal.aborted
         || agent.session.surface.replaceGeneration <= generation) return next()
-      if (result !== null) logResult(result, 'context overflow recovery')
+      if (result !== null) logResult(result, `${bound} recovery`)
       this.overflowRetries.set(agent, retries + 1)
       return { kind: 'retry' }
     })
@@ -247,12 +268,14 @@ export class BasicCompactionEngine extends CompactionEngine {
   }
 
   /**
-   * Compact for replayed step-boundary pressure or one provider-confirmed context
-   * overflow. Both triggers price the latest durable routed request envelope;
-   * overflow bypasses the normal threshold and retained-tail policy so it can
-   * force one useful balanced reduction.
+   * Compact for replayed step-boundary pressure or one provider-confirmed
+   * rejection of a request that outgrew a ceiling — the model's context window
+   * or the endpoint's admitted count of message entries. Both triggers price
+   * the latest durable routed request envelope; overflow bypasses the normal
+   * threshold and retained-tail policy so it can force one useful balanced
+   * reduction.
    * @param agent - agent whose latest durable routed request is measured.
-   * @param trigger - normal step-boundary pressure or context-overflow recovery.
+   * @param trigger - normal step-boundary pressure or overflow recovery.
    * @param signal - live turn cancellation signal forwarded to summarization.
    * @returns the latest summary compaction result, or `null` when no summary ran.
    */

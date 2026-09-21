@@ -98,9 +98,9 @@ export function callbackFrom(path: string, resultPath: string = OAUTH_RESULT_PAT
   const prefix = resultPath.split('/').filter(segment => segment.length > 0)
   if (segments.length !== prefix.length + 2) return undefined
   if (!prefix.every((segment, index) => segments[index] === segment)) return undefined
-  const sessionId = segments[prefix.length]
-  const challenge = segments[prefix.length + 1]
-  if (sessionId === undefined || challenge === undefined) return undefined
+  // Line 99 fixes this tail at exactly two segments, so the defaults below
+  // exist only to read as `string` under noUncheckedIndexedAccess.
+  const [sessionId = '', challenge = ''] = segments.slice(prefix.length)
   if (sessionId === 'error' || sessionId.length === 0 || challenge.length === 0) return undefined
   return { sessionId, challenge }
 }

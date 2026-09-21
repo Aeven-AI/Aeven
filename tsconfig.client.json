@@ -25,6 +25,11 @@
     "packages/*/*/tests/**/*.client.ts",
     // Client package outside packages/client with a local CSS module face.
     "packages/extensions/ui-cordis/src/css-modules.d.ts",
+    // The overlay is a browser-effects package whose specs the glob below
+    // pulls in; its source is listed here because no leaf project of this
+    // program owns it, and a file reached by import but absent from the file
+    // list is the TS6307 this program refuses.
+    "packages/experimental/browser-overlay/src/*.ts",
     "packages/client/tsdown.client.ts",
     "scripts/client-build-environment.ts",
     "scripts/*.client.spec.ts",
@@ -35,7 +40,11 @@
   // belongs to the host aggregate, which excludes this program's `*.client.*`
   // in turn. `exclude` wins over `include`, so the test glob above stays broad.
   "exclude": [
-    "packages/client/*/tests/**/*.host.spec.ts"
+    "packages/client/*/tests/**/*.host.spec.ts",
+    // The overlay's browser face is its own leaf project, source and the specs
+    // that drive it together; the broad `*.client.spec.ts` glob above would
+    // otherwise pull those specs in without the source they import.
+    "packages/experimental/browser-overlay/tests/**"
   ],
   "references": [
     // Producer-to-UI spill tests execute the real nested dispatch worker.

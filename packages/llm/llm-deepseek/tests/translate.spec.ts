@@ -4,6 +4,7 @@ import {
   CONTEXT_WINDOW_EXCEEDED_CODE,
   EMPTY_RESPONSE_CODE,
   LlmError,
+  MESSAGE_COUNT_EXCEEDED_CODE,
   QUOTA_EXCEEDED_CODE,
 } from '@aeven/llm'
 import type { StreamChunk } from '@aeven/llm'
@@ -302,6 +303,7 @@ describe('translate: errors', () => {
   it.each([
     ['an exhausted quota', { message: 'insufficient balance for this request', code: 'AEVEN_INFERENCE_BALANCE_EXHAUSTED' }, QUOTA_EXCEEDED_CODE],
     ['an outgrown context', { message: "this model's maximum context length is 128000 tokens", code: 'context_length_exceeded' }, CONTEXT_WINDOW_EXCEEDED_CODE],
+    ['a message-entry ceiling', { message: '`messages` may contain at most 400 entries', code: 'invalid_request_error' }, MESSAGE_COUNT_EXCEEDED_CODE],
     ['a bare upstream failure', { message: 'upstream connect error', code: 'provider_error' }, 'PROVIDER_ERROR'],
     ['a failure the gateway left unnamed', { message: 'something went wrong' }, 'SERVER'],
   ])('classifies %s through the shared recognizers', async (_label, error, code) => {

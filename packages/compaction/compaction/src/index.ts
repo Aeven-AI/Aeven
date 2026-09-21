@@ -21,7 +21,14 @@ export { toolPairingBalancedAfter, toolPairingBalancedBefore } from './tool-pair
 export { compactCheckpointSource, isCompactCheckpointSource } from './checkpoint.ts'
 export type { CompactionCheckpointSource } from './checkpoint.ts'
 
-/** Why automatic policy is asking a backend to consider compaction. */
+/**
+ * Why automatic policy is asking a backend to consider compaction.
+ *
+ * `context-overflow` covers every provider rejection of a request that was
+ * admitted as shaped and then outgrew a ceiling — the model's token budget or
+ * the endpoint's count of message entries. Both call for the same reduction,
+ * so they share one trigger.
+ */
 export type CompactionTrigger = 'pressure' | 'context-overflow'
 
 /** Expected failure classes for an explicit idle-session compaction request. */

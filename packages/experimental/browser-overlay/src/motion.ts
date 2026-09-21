@@ -243,6 +243,7 @@ export class CursorMotion {
       this.#path = undefined
       this.#scootFrom = from
       this.#scootTo = { x, y, tangent: 0 }
+      /* v8 ignore next -- unreachable: the ARRIVAL_EPSILON_PX early return above already holds distance >= 0.5. */
       const axis = distance < 0.001 ? 0 : Math.atan2(y - from.y, x - from.x) * 180 / Math.PI
       this.#scootAxisTarget = axis
       // Small overshoot whose direction depends on which way the move leans.
@@ -280,6 +281,7 @@ export class CursorMotion {
 
   #stepArc(seconds: number): void {
     const path = this.#path
+    /* v8 ignore next -- narrows for the compiler only: the sole call site tests #path !== undefined, and nothing writes it in between. */
     if (path === undefined) return
     stepSpring(this.progress, seconds)
     const t = clamp(this.progress.value, 0, 1)
@@ -314,6 +316,7 @@ export class CursorMotion {
   #stepScoot(seconds: number): void {
     const from = this.#scootFrom
     const to = this.#scootTo
+    /* v8 ignore next -- narrowing only: the sole call site tests #scootFrom, and the pair is written and cleared together. */
     if (from === undefined || to === undefined) return
     this.rotation.target = this.rotation.value + shortestAngleDelta(this.rotation.value, BASE_ROTATION_DEG)
     stepSpring(this.positionX, seconds)
@@ -326,6 +329,7 @@ export class CursorMotion {
     const spanX = to.x - from.x
     const spanY = to.y - from.y
     const lengthSquared = spanX * spanX + spanY * spanY
+    /* v8 ignore next 3 -- unreachable: lengthSquared is the square of a move distance the epsilon early return holds to >= 0.5. */
     const travelled = lengthSquared < 0.001
       ? 1
       : clamp(((at.x - from.x) * spanX + (at.y - from.y) * spanY) / lengthSquared, 0, 1)

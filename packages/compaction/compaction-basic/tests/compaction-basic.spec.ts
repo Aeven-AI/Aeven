@@ -13,7 +13,7 @@ import {
   resolveTargetPolicy,
 } from '@aeven/compaction-basic/src/config.ts'
 import type { CompactionResult } from '@aeven/compaction'
-import LlmRuntime, { createUserMessage, ToolCallId, CONTEXT_WINDOW_EXCEEDED_CODE, createToolResultMessage, LlmAdapter , createMessage } from '@aeven/llm'
+import LlmRuntime, { createUserMessage, ToolCallId, CONTEXT_WINDOW_EXCEEDED_CODE, MESSAGE_COUNT_EXCEEDED_CODE, createToolResultMessage, LlmAdapter , createMessage } from '@aeven/llm'
 import type {
   ContentBlock,
   GenerateOptions,
@@ -1471,6 +1471,10 @@ describe('automatic listener and loader composition', () => {
     return Object.assign(new Error(message), { code: CONTEXT_WINDOW_EXCEEDED_CODE })
   }
 
+  function entryOverflow(message = 'messages may contain at most 400 entries'): Error & { code: string } {
+    return Object.assign(new Error(message), { code: MESSAGE_COUNT_EXCEEDED_CODE })
+  }
+
   it('compacts before a step above threshold using the durable routed model and remains idle below it', async () => {
     const ctx = createContext()
     const compact = new TestCompactionEngine(ctx, {
@@ -1577,6 +1581,48 @@ describe('automatic listener and loader composition', () => {
     expect(session.surface.replaceGeneration).toBe(beforeGeneration + 1)
     expect(session.snapshotEvents().some(event => event.type === 'compaction/summary')).toBe(true)
     expect(session.surface.nodes).toContain(retainedSeq)
+  })
+
+  it('force-compacts and retries when the endpoint rejects the message count', async () => {
+    // A gateway that caps `messages` entries refuses a conversation the model's
+    // window would have held. The turn must survive it the way it survives a
+    // token overflow: reduce the replaced region, then retry once.
+    const ctx = createContext(10_000)
+    void new TestCompactionEngine(ctx, {
+      thresholdRatio: 1,
+      retainTokens: 900,
+    })
+    const session = conversation(3)
+    const beforeGeneration = session.surface.replaceGeneration
+    const retainedSeq = session.surface.nodes.at(-1)!
+    expect(ctx.tokenMeter.measure(session).totalTokens).toBeLessThan(10_000)
+
+    expect(await recover(ctx, agent(session, 'unconfigured-agent-fallback'), entryOverflow())).toBe(true)
+    expect(session.surface.replaceGeneration).toBe(beforeGeneration + 1)
+    expect(session.snapshotEvents().some(event => event.type === 'compaction/summary')).toBe(true)
+    expect(session.surface.nodes).toContain(retainedSeq)
+  })
+
+  it('names the bound it recovered from in the log', async () => {
+    const ctx = createContext(10_000)
+    const infos: string[] = []
+    ctx.logger.info = ((message: string) => void infos.push(message)) as typeof ctx.logger.info
+    void new TestCompactionEngine(ctx, { thresholdRatio: 1, retainTokens: 900 })
+
+    expect(await recover(ctx, agent(conversation(3), MODEL), entryOverflow())).toBe(true)
+    expect(infos.some(message => message.includes('message-count recovery'))).toBe(true)
+  })
+
+  it('delegates an entry-count rejection when the retry budget is spent', async () => {
+    const ctx = createContext(10_000)
+    const session = conversation(3)
+    const owner = agent(session, MODEL)
+    void new TestCompactionEngine(ctx, { thresholdRatio: 1, retainTokens: 900, maxOverflowRetries: 1 })
+
+    expect(await recover(ctx, owner, entryOverflow())).toBe(true)
+    // The surface was already reduced once; a second rejection has nothing left
+    // to compact and must not spin.
+    expect(await recover(ctx, owner, entryOverflow())).toBe(false)
   })
 
   it('authorizes overflow retry when pruning alone advances an indivisible surface', async () => {
