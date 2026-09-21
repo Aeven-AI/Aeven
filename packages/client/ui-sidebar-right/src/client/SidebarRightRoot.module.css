@@ -1,0 +1,154 @@
+/* Right sidebar column, mirrored from the left sidebar's shell.
+
+   One difference throughout: the left sidebar's open width is a fixed token
+   (`--dsw-aeven-sidebar-width`), while this column is resizable, so its open
+   width is the frame's own `--avn-frame-rightbar-width` — the variable the
+   drag handle writes. Reading it here rather than publishing a width per frame
+   is what keeps a drag off the transcript's style invalidation path
+   (ui-layout AppFrame.module.css). */
+
+/* The column clips nothing, so the collapsed toggle can stand in the
+   conversation's right margin: the column itself reaches zero width, and the
+   control is the only thing left of the panel. */
+.root {
+  display: flex;
+  position: relative;
+  z-index: 50;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  box-sizing: border-box;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  /* Elevated above the conversation surface, so a scroll region nested in it
+     takes the l2 pair, as the left sidebar's does. */
+  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  --avn-rightbar-open-width: 0px;
+}
+
+.root.visible {
+  --avn-rightbar-open-width: var(--avn-frame-rightbar-width, 0px);
+}
+
+/* Absolute so it survives the column reaching zero width, anchored to the
+   column's outer edge (the frame's, which never moves). */
+.content {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  width: var(--avn-rightbar-open-width);
+  height: 100%;
+  padding-top: 8px;
+  box-sizing: border-box;
+}
+
+/* The translucent panel is its own layer so its width can animate while the
+   button above it stays opaque. Last in the DOM and below the z-indexed button
+   and content, as the left sidebar has it. The 2px bottom overhang hides the
+   panel's edge against the viewport floor. */
+.panel {
+  position: absolute;
+  top: 0;
+  bottom: -2px;
+  right: 0;
+  width: var(--avn-rightbar-open-width);
+  opacity: 0;
+  /* Mirrored corner: the left sidebar rounds its top-right. */
+  border-top-left-radius: var(--dsw-aeven-sidebar-panel-radius);
+  background: var(--dsw-specific-sidebar-fill);
+  /* Unprefixed only: the CSS pipeline adds the -webkit- form per its targets,
+     and writing both here makes it drop the standard property. */
+  backdrop-filter: blur(4px);
+  box-shadow: inset 1px 1px 0 0 rgb(255, 255, 255);
+  pointer-events: none;
+  transition: opacity var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
+}
+
+.visible .panel {
+  opacity: 1;
+}
+
+/* Anchored to the panel's own edge rather than laid out in the content flow,
+   so it keeps its place while the body below it fades. Collapsed there is no
+   panel to collapse, and the header's control is the way back in, so this one
+   goes with the rest of the chrome. */
+.toggle {
+  position: absolute;
+  top: 8px;
+  right: 0;
+  /* Above `.sideContent` (10): the body is a full-height layer, so a lower
+     toggle is painted over by it and cannot be clicked. */
+  z-index: 15;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dsw-aeven-sidebar-transition-duration) linear;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--dsw-aeven-sidebar-toggle-width);
+  height: var(--dsw-aeven-control-size);
+  padding: 0 var(--dsw-aeven-sidebar-row-inset);
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.visible .toggle {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.toggle > svg {
+  flex: none;
+}
+
+/* Points at the edge whose panel it moves: the left sidebar's glyph reversed
+   rather than a second icon. */
+.toggleGlyph {
+  transform: scaleX(-1);
+}
+
+/* Everything below the control narrows and fades as one body. */
+.sideContent {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  width: var(--avn-rightbar-open-width);
+  height: 100%;
+  opacity: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  transition: opacity var(--dsw-aeven-sidebar-transition-duration) linear;
+}
+
+.visible .sideContent {
+  opacity: 1;
+}
+
+/* Fixed at the open width so nothing inside re-lays-out mid-slide. */
+.sideContentInner {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: var(--avn-rightbar-open-width);
+  box-sizing: border-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .sideContent,
+  .toggle {
+    transition: none;
+  }
+}

@@ -1,0 +1,26 @@
+/* The header control that opens the panel. Geometry follows the navigation
+   band's other utilities, so it sits in their row without a rule of its own
+   about where the row is. */
+
+.toggle {
+  /* Above the navigation band's fade and blur scrims, which are absolutely
+     positioned later in the header and would otherwise paint over a control
+     that takes part in the static flow. */
+  position: relative;
+  z-index: 11;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--dsw-aeven-control-size);
+  height: var(--dsw-aeven-control-size);
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.toggle:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}

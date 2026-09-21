@@ -11,6 +11,8 @@ function fakePanels(): PanelActions {
     openDetails: vi.fn(),
     closeDetails: vi.fn(),
     setFullscreen: vi.fn(),
+    setRightbar: vi.fn(),
+    toggleRightbar: vi.fn(),
   }
 }
 
@@ -49,5 +51,15 @@ describe('LayoutController', () => {
 
     expect(stale.toggleSidebar).not.toHaveBeenCalled()
     expect(fresh.toggleSidebar).toHaveBeenCalledTimes(1)
+  })
+
+  it('names the session and the frame width on a right sidebar toggle', () => {
+    const service = new LayoutController()
+    const panels = fakePanels()
+    service.attachPanels(panels)
+
+    service.toggleRightbar('s1')
+
+    expect(panels.toggleRightbar).toHaveBeenCalledWith('s1', expect.any(Number))
   })
 })

@@ -138,7 +138,7 @@ const handle = await ctx.agents.create({
 
 #### 模型看到什么
 
-每个步骤中，循环会发送针对该 agent 渲染的系统提示词、可见工具 schema 与会话的派生消息。它提供 `provider`、`model` 与 `cwd` 变量值，但不添加固定文案。
+每个步骤中，循环会发送针对该 agent 渲染的系统提示词、可见工具 schema 与会话的派生消息。它提供 `provider`、`model` 与 `cwd` 变量值，但不添加固定文案。`cwd` 解析为该会话的工作目录；当会话没有工作目录时，解析为导出的 `NO_WORKING_DIRECTORY` 文案——无目录绑定的工作区中的会话按设计没有工作目录，而引用 `{{cwd}}` 的部署提示词仍须渲染。
 
 #### Token 影响
 

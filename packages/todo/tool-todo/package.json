@@ -43,6 +43,7 @@
   "peerDependencies": {
     "@aeven/agent": "workspace:^",
     "@aeven/invariants": "workspace:^",
+    "@aeven/jobs": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/session-projection": "workspace:^",
@@ -57,6 +58,7 @@
     "@aeven/agent-loop": "workspace:^",
     "@aeven/agent-loop-testkit": "workspace:^",
     "@aeven/invariants": "workspace:^",
+    "@aeven/jobs": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/session-projection": "workspace:^",

@@ -51,6 +51,7 @@ import {
   DEFAULT_MAX_TOKENS,
   DEFAULT_STREAM_IDLE_TIMEOUT_MS,
   DeepSeekAdapter,
+  registerProviderRoute,
 } from '@aeven/llm-deepseek'
 import type { DeepSeekCatalogModel, DeepSeekConnectionOptions } from '@aeven/llm-deepseek'
 
@@ -108,6 +109,7 @@ export const DEFAULT_MODELS: readonly DeepSeekCatalogModel[] = [
 /** Accepted request modalities; mirrors the adapter's own catalog schema. */
 const MODEL_MODALITIES = ['text', 'image'] as const
 
+/* jscpd:ignore-start -- mirrors @aeven/llm-deepseek's catalog and connection fields; each route owns its own defaults */
 const catalogModel: z<DeepSeekCatalogModel> = z.object({
   id: z.string().required(),
   name: z.string(),
@@ -157,6 +159,7 @@ export const Config: z<Config> = z.object({
   fileQuotaCleanupBatch: z.number().step(1).min(1).max(1_000).default(DEFAULT_FILE_QUOTA_CLEANUP_BATCH),
   retryPolicy: RetryPolicySchema,
 })
+/* jscpd:ignore-end */
 
 /**
  * Entry and user-settings configuration.
@@ -319,23 +322,12 @@ export function apply(ctx: Context, config: Config): void {
     prepareExtensions: () => Promise.resolve({ fields: {}, accept: () => Promise.resolve() }),
   })
 
-  ctx.llm.registerConfigurableProviders([
-    { provider: PROVIDER, displayName: 'Aeven', settingsNs: NS, settingsPath: [] },
-  ])
-
-  // Answers the Models page's "fetch available models" from the catalog already
-  // advertised. A live listing would be entitlement-scoped and so disclose less
-  // than these entries carry.
-  ctx.llm.registerModelDiscovery(NS, () =>
-    Promise.resolve(
-      options().models.map(model => ({
-        id: model.id,
-        ...model.name === undefined ? {} : { name: model.name },
-        ...model.contextWindow === undefined ? {} : { contextWindow: model.contextWindow },
-        ...model.maxTokens === undefined ? {} : { maxTokens: model.maxTokens },
-      })),
-    ),
-  )
+  registerProviderRoute(ctx, {
+    provider: PROVIDER,
+    displayName: 'Aeven',
+    settingsNs: NS,
+    models: () => options().models,
+  })
 
   ctx.llm.registerAdapter([PROVIDER], adapter)
 }

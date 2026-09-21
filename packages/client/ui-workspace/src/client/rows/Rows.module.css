@@ -118,6 +118,22 @@
   margin: 0 6px 0 4px;
 }
 
+/* The Session row's own address: everything but the trailing actions cell,
+   stretched to the row's full height so the browser's link menu is reachable
+   anywhere on an entry. The row keeps the rendering it had as a plain row — a
+   UA sheet underlines a link and paints it browser blue, and neither belongs on
+   a sidebar cell — so both are reset, exactly as ui-sidebar resets them on the
+   New Session link. */
+.sessionLink {
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  color: inherit;
+  text-decoration: none;
+}
+
 .flatSessionRowWithoutStatus .title {
   margin-left: 0;
 }

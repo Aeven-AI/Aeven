@@ -50,6 +50,14 @@ export const IconChevronsLeftOutline14 = ({ size = 14, className }: IconProps) =
   </svg>
 )
 
+/** Panel-right glyph: the frame with its right column, used to open the right sidebar. */
+export const IconPanelRightOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg aria-hidden="true" width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="18" height="18" x="3" y="3" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M15 3v18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
 /** ic_ds_new_chat_outline_16 */
 export const IconNewChatOutline16 = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">

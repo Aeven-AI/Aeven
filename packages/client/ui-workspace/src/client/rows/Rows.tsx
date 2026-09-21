@@ -5,7 +5,7 @@
  * except workspace Rename/Delete and session Rename/Fork/Archive; the session
  * and workspace hover cards are suppressed while a menu is open.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import clsx from 'clsx'
 import {
   HoverCard, IconAlarmClockOutline16, IconArchiveOutline20, IconBranchOutline16,
@@ -16,11 +16,35 @@ import {
 import type { StateDotState } from '@aeven/client-ui-primitives'
 import { abbreviateHomePath } from '@aeven/util-workspace-path'
 import type { WorkspaceBrowserProps } from '../contract/slots.ts'
+import { sessionPathOf } from '../session-url.ts'
 import type { GroupNode, SearchResultNode, SessionNode } from '../tree.ts'
 import css from './Rows.module.css'
 
 /** The standard locale seat, prop-passed from the browser root. */
 type RowTranslate = WorkspaceBrowserProps['t']
+
+/**
+ * Modifier keys whose meaning is "open this link somewhere else": a new window,
+ * a new tab, or a download the browser owns. Holding one must reach the browser
+ * untouched, exactly as it does on the sidebar's New Session link.
+ */
+const NAVIGATION_MODIFIER_KEYS = ['metaKey', 'ctrlKey', 'shiftKey', 'altKey'] as const
+
+/**
+ * Whether an activation is the browser's own navigation, and so ours to handle.
+ *
+ * Only an unmodified primary pointer click is. Middle click, the context menu's
+ * "Open link in new window", and Cmd/Ctrl/Shift/Alt-click each mean "somewhere
+ * else", and swallowing them would leave a link that behaves like a button.
+ * @param event - the React activation event on the Session row link.
+ * @returns true when the row should open the Session in place instead.
+ */
+function isPlainActivation(event: ReactMouseEvent): boolean {
+  // A real primary click reports 0, and so does the click a link synthesizes
+  // for Enter, which is the keyboard's own navigation and takes this path too.
+  if (event.button !== 0) return false
+  return !NAVIGATION_MODIFIER_KEYS.some(key => event[key])
+}
 
 /**
  * Row display title: the blank placeholder shows the localized New Session
@@ -367,10 +391,13 @@ export function SearchResultItem({ result, currentId, onOpen, t }: {
 /**
  * One top-level 34px session row: status dot (pending user interaction outranks
  * own or descendant activity), title, relative time, and the row actions menu.
+ * The row's content is an anchor on the Session's `/c/<id>` address, so the
+ * browser can open the chat in a new window; the row keeps the hit area and the
+ * actions cell around it.
  * @param props.node - derived session node.
  * @param props.currentId - selected session id (row highlight).
  * @param props.now - epoch ms for relative-time formatting.
- * @param props.onOpen - open a session by id.
+ * @param props.onOpen - open a session by id (a plain click on the row).
  * @param props.onRename - open the session rename dialog (id + current title).
  * @param props.onFork - fork a session at its last completed turn.
  * @param props.onArchive - archive a session by id.
@@ -434,7 +461,15 @@ export function SessionNodeItem({
       )}
       role="treeitem"
       aria-selected={selected}
-      onClick={() => { onOpen(node.id) }}
+      onClick={(event) => {
+        if (!isPlainActivation(event)) return
+        // A plain click is ours: the SPA opens the Session and pushes history,
+        // and cancelling the default action is what keeps the browser from
+        // following the href out of the page. Every other activation is left
+        // to the browser, which owns the new window this link can be opened in.
+        event.preventDefault()
+        onOpen(node.id)
+      }}
       draggable={drag !== undefined}
       onDragStart={drag === undefined
         ? undefined
@@ -460,21 +495,34 @@ export function SessionNodeItem({
           drag.drop(rowHalf(e))
         }}
     >
-      {/* Pending interaction and own or descendant activity outrank the
-          finished-but-unviewed reminder, which returns after activity stops
-          and is cleared by opening the session. */}
-      {(!flat || showStatus) && (
-        <span className={css.slot}>
-          {showStatus && <SessionStatusDots statuses={statuses} />}
-        </span>
-      )}
-      <span className={css.title}>{title}</span>
-      {row.hasActiveSchedule && <ActiveScheduleIndicator t={t} />}
-      {/* A blank New Session row is a provisional placeholder: nothing has
-          happened in it yet, so a "now" timestamp and the row verbs
-          (rename/fork/archive) would all act on content that does not
-          exist — both trailing cells stay off until the first prompt. */}
-      {!row.blank && <span className={css.time}>{timeLabel(row.updatedAt, now, t)}</span>}
+      {/* A real anchor, not a click handler on a row: the browser then owns
+          middle-click, "Open link in new window" and the status-bar address,
+          which no scripted `window.open` gives back. The row's own handler
+          above still opens a plain click in place, and the trailing actions
+          cell stays OUTSIDE this link because interactive content may not
+          nest inside one. `draggable` is off so a press here starts the row's
+          own reorder drag rather than the browser's link drag. */}
+      <a
+        className={css.sessionLink}
+        href={sessionPathOf(node.id)}
+        draggable={false}
+      >
+        {/* Pending interaction and own or descendant activity outrank the
+            finished-but-unviewed reminder, which returns after activity stops
+            and is cleared by opening the session. */}
+        {(!flat || showStatus) && (
+          <span className={css.slot}>
+            {showStatus && <SessionStatusDots statuses={statuses} />}
+          </span>
+        )}
+        <span className={css.title}>{title}</span>
+        {row.hasActiveSchedule && <ActiveScheduleIndicator t={t} />}
+        {/* A blank New Session row is a provisional placeholder: nothing has
+            happened in it yet, so a "now" timestamp and the row verbs
+            (rename/fork/archive) would all act on content that does not
+            exist — both trailing cells stay off until the first prompt. */}
+        {!row.blank && <span className={css.time}>{timeLabel(row.updatedAt, now, t)}</span>}
+      </a>
       {!row.blank && (
         <span className={css.rowActions}>
           <Menu

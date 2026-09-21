@@ -20,7 +20,7 @@ kind: "package-reference"
 - [进一步探索](#further-exploration)
 - [模型体验](#model-experience)
 - [已知限制与延期工作](#known-limitations-and-deferred-work)
-- [开发笔记](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -40,10 +40,10 @@ kind: "package-reference"
 ```yaml
 - name: '@aeven/llm-aeven'
   config:
-    apiUrl: http://localhost:9000   # Aeven API 来源；会追加 /v1
-    apiKeyEnv: AEVEN_TOKEN          # 持有已登录会话的凭据
+    apiUrl: http://localhost:9000   # Aeven API origin; /v1 is appended
+    apiKeyEnv: AEVEN_TOKEN          # credential holding the signed-in session
     reasoningEffort: max            # off | low | high | max
-    maxTokens: 384000               # 可选的单请求输出上限
+    maxTokens: 384000               # optional per-request output cap
 ```
 
 只有 `apiUrl` 与 `apiKeyEnv` 描述请求发往何处、由什么认证。其余各项都有与网关一致的随包默认值。
@@ -160,12 +160,12 @@ kind: "package-reference"
 - **`thinking` 与 `reasoningEffort` 只转发、不强制** —— 网关接受这两个值；它如何处理属于其自身契约，而忽略某强度的模型会相应地报告用量。
 
 <a id="dev-note"></a>
-### 开发笔记
+### 开发备注
 
 <details>
 <summary>维护者工作上下文——点击展开</summary>
 
-本开发笔记是非权威的工作上下文：未决方向与维护者笔记。已发布行为与已采纳的理由位于上述各节、包代码与所链接的 Agent Notes 中。
+本开发备注是非权威的工作上下文：未决方向与维护者笔记。已发布行为与已采纳的理由位于上述各节、包代码与所链接的 Agent Notes 中。
 
 - `DEFAULT_API_URL` 指向本地开发网关，与身份权威及 Web 包已解析的值一致。网关运行在别处的部署需覆盖 `apiUrl`。
 - 本路由复用而非组合 `DeepSeekAdapter`，因此该适配器协议行为的变化会自动到达本路由。这是有意保留的耦合；另一方案——再写一个适配器——被否决，因为它会是一份带着自己那份缺陷的副本。

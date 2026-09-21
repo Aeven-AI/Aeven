@@ -45,6 +45,31 @@
   border-left: none;
 }
 
+/* The right sidebar column: same width mechanism as details, so a drag writes
+   one custom property on the frame and flex resizes the centre once. The
+   occupant's panel keeps its own rounded edge, so the column paints nothing.
+
+   It does not clip: collapsed it reaches zero width, and its occupant's
+   reopen control has to stand in the conversation's right margin to stay
+   reachable — the mirror of the left sidebar's hamburger at zero width. */
+.rightbarCol {
+  flex: none;
+  width: var(--avn-frame-rightbar-width, 0px);
+  min-width: 0;
+  overflow: visible;
+  transition: width var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
+}
+
+.frame[data-dragging] .rightbarCol {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rightbarCol {
+    transition: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .detailsCol {
     transition: none;
@@ -60,7 +85,10 @@
   bottom: 0;
   width: 8px;
   cursor: col-resize;
-  z-index: 2;
+  /* Above the side columns, which raise themselves over the conversation
+     (both sidebars sit at 50). A handle beneath its own column is painted
+     over by that column's content and cannot be grabbed at all. */
+  z-index: 51;
   touch-action: none;
   /* Rides the same curve as the columns so the pill stays on the moving
      border during collapse/expand; paused while dragging (frame rule). */
@@ -70,9 +98,15 @@
 }
 
 /* The handle sits on its column's edge by reading that column's width, so it
-   never needs the frame's measured size. */
+   never needs the frame's measured size. Details is the inner column, so its
+   edge stands past the right sidebar's width as well as its own. */
 .handle[data-side='details'] {
-  right: var(--avn-frame-details-width, 0px);
+  right: calc(var(--avn-frame-details-width, 0px) + var(--avn-frame-rightbar-width, 0px));
+  margin-right: -4px;
+}
+
+.handle[data-side='rightbar'] {
+  right: var(--avn-frame-rightbar-width, 0px);
   margin-right: -4px;
 }
 
@@ -118,10 +152,12 @@
   border-color: var(--dsw-alias-border-l3);
 }
 
+/* Above the drag handles and both side columns: a toast or dialog belongs over
+   the whole frame, including a column edge. */
 .overlayLayer {
   position: absolute;
   inset: 0;
-  z-index: 20;
+  z-index: 55;
   pointer-events: none;
 }
 

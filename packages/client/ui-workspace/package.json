@@ -69,6 +69,7 @@
     "@aeven/schedule": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
     "@aeven/session": "workspace:^",
+    "@aeven/util-crypto": "workspace:^",
     "@aeven/util-workspace-path": "workspace:^",
     "@types/react": "~18.3.1",
     "@deepseek-ai/cordis": "workspace:^",

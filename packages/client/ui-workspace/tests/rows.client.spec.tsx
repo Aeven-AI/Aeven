@@ -186,6 +186,61 @@ describe('workspace browser rows', () => {
     expect(onOpen).toHaveBeenCalledWith(node.id)
   })
 
+  it('addresses a Session row as a link the browser can open in a new window', () => {
+    const node: SessionNode = {
+      id: sid('session-abc-123'), title: 'Story', blank: false, untitled: false, running: false,
+      runningSubagentCount: 0, completed: false, hasActiveSchedule: false, updatedAt: 0,
+    }
+    const onOpen = vi.fn()
+    const view = render(
+      <SessionNodeItem node={node} currentId={undefined} now={0} onOpen={onOpen}
+        onRename={vi.fn()} onFork={vi.fn()} onArchive={vi.fn()} t={t} />,
+    )
+
+    // The row's content is a real anchor on the Session's own address, in the
+    // same shape the address bar uses (the leading `session-` dropped), because
+    // a real href is the only thing that gives the browser's context menu an
+    // "Open link in new window" to offer.
+    const link = screen.getByRole('link', { name: /Story/ })
+    expect(link.getAttribute('href')).toBe('/c/abc-123')
+    // A press on the link is not the browser's navigation to make: the SPA
+    // opens the Session in place, and cancelling the default action is what
+    // keeps the page from following the href.
+    const press = createEvent.click(link)
+    fireEvent(link, press)
+    expect(press.defaultPrevented).toBe(true)
+    expect(onOpen).toHaveBeenCalledWith(node.id)
+    // The actions menu stays outside the link: interactive content may not
+    // nest inside an anchor, and its own press already stops there.
+    expect(link.contains(view.getByRole('button', { name: '会话“Story”的操作' }))).toBe(false)
+  })
+
+  it('leaves every non-plain press on a Session row to the browser', () => {
+    const node: SessionNode = {
+      id: sid('session-abc-123'), title: 'Story', blank: false, untitled: false, running: false,
+      runningSubagentCount: 0, completed: false, hasActiveSchedule: false, updatedAt: 0,
+    }
+    const onOpen = vi.fn()
+    render(
+      <SessionNodeItem node={node} currentId={undefined} now={0} onOpen={onOpen}
+        onRename={vi.fn()} onFork={vi.fn()} onArchive={vi.fn()} t={t} />,
+    )
+
+    // Middle click, Cmd/Ctrl/Shift/Alt-click and the context menu's own items
+    // each mean "somewhere else". Intercepting them would open the Session in
+    // place as well as in the window the reader asked for, and would cancel the
+    // navigation that window depends on.
+    const row = screen.getByRole('treeitem')
+    for (const modifier of [
+      { button: 1 }, { metaKey: true }, { ctrlKey: true }, { shiftKey: true }, { altKey: true },
+    ]) {
+      const press = createEvent.click(row, modifier)
+      fireEvent(row, press)
+      expect(press.defaultPrevented).toBe(false)
+    }
+    expect(onOpen).not.toHaveBeenCalled()
+  })
+
   it('keeps the active-Schedule marker between the title and time in grouped and flat rows', () => {
     const onOpen = vi.fn()
     const node: SessionNode = {

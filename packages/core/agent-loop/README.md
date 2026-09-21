@@ -138,7 +138,7 @@ The package-level contract is enough for most consumers; read these when you nee
 
 #### What the model sees
 
-For each step, the loop sends the rendered per-agent system prompt, the visible tool schemas, and the session's derived messages. It supplies `provider`, `model`, and `cwd` variable values but no additional fixed prose.
+For each step, the loop sends the rendered per-agent system prompt, the visible tool schemas, and the session's derived messages. It supplies `provider`, `model`, and `cwd` variable values but no additional fixed prose. `cwd` resolves to the Session's working directory, or to the exported `NO_WORKING_DIRECTORY` text when the Session has none — a Session in a workspace with no directory binding has no working directory by design, and deployment prose that references `{{cwd}}` must still render.
 
 #### Token effect
 

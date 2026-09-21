@@ -63,10 +63,12 @@ ctx.systemPrompt.section({
 
 ### 贡献提示词变量
 
-变量在段文本中以 `{{name}}` 引用，并在每次组装时解析；带作用域变量会为该 agent 遮蔽同名全局变量。循环提供 `model` 与 `cwd`；任何插件都可以注册自己拥有的事实。
+变量在段文本中以 `{{name}}` 引用，并在每次组装时解析；带作用域变量会为该 agent 遮蔽同名全局变量。循环提供 `model` 与 `cwd`；任何插件都可以注册自己拥有的事实。部署提示词使用的名称必须始终可解析：无目录绑定的工作区中的会话按设计没有工作目录，因为与机器无关的记录不得携带本地路径，因此循环渲染这一缺失（`NO_WORKING_DIRECTORY`），而不是让 `{{cwd}}` 无值并让每一轮都失败。没有 agent 的组装仍然得到未定义的 `cwd`，因为在那里引用该变量的提示词是真正的配置错误。
 
 ```text
-ctx.systemPrompt.variable('cwd', ({ agent }) => agent?.session.header.cwd)
+ctx.systemPrompt.variable('cwd', ({ agent }) => agent === undefined
+  ? undefined
+  : agent.session.header.cwd ?? NO_WORKING_DIRECTORY)
 ```
 
 ### 贡献工具 schema

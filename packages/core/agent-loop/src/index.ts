@@ -41,6 +41,25 @@ const INACTIVE_STATES: ReadonlySet<FiberState> = new Set([
   FiberState.FAILED,
 ])
 
+/**
+ * What `{{cwd}}` renders as for a Session that has no working directory.
+ *
+ * A Session in a workspace with no directory binding is located by its record
+ * alone: no local path may be planted in a machine-independent record, so
+ * `header.cwd` is genuinely absent rather than merely unset yet. Deployment
+ * persona prose is static and references `{{cwd}}`, and the prompt registry
+ * correctly rejects a registered-but-valueless reference, so without a value
+ * here every turn in such a Session fails before the model is called.
+ *
+ * The loop owns this fact — it registers `cwd` alongside `model` and
+ * `provider` — so the loop reports the absence. This mirrors the sandbox
+ * stack's existing "sessions without a cwd" fallback rather than adding a
+ * second, conditional persona for the same agent. An assembly with no agent at
+ * all still yields an undefined `cwd`, because prose that references the
+ * variable there is a real misconfiguration and must keep failing loud.
+ */
+export const NO_WORKING_DIRECTORY = 'not set — this session has no folder'
+
 const turnBoundaryProjectionSchema: zod.ZodType<TurnBoundaryProjection> = zod.object({
   openTurnStartSeq: zod.number().int().nonnegative().transform(SessionSeq).nullable(),
   lastStepStartSeq: zod.number().int().nonnegative().transform(SessionSeq).nullable(),
@@ -413,7 +432,13 @@ export class AgentLoop extends Service implements AgentFactory {
     ctx.effect(() => ctx.agents.setFactory(this), 'agentLoop.setFactory()')
     ctx.systemPrompt.variable('provider', context => context.agent?.options.provider)
     ctx.systemPrompt.variable('model', context => context.agent?.options.model)
-    ctx.systemPrompt.variable('cwd', context => context.agent?.session.header.cwd)
+    // A Session with no working directory reports that absence rather than an
+    // undefined value; see {@link NO_WORKING_DIRECTORY} for why.
+    ctx.systemPrompt.variable('cwd', (context) => {
+      const agent = context.agent
+      if (agent === undefined) return undefined
+      return agent.session.header.cwd ?? NO_WORKING_DIRECTORY
+    })
 
     for (const { id, sessionId, cwd, resumeSessionId, ...options } of this.config.agents) {
       const meta = cwd === undefined ? {} : { cwd }

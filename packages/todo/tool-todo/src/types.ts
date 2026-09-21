@@ -43,12 +43,12 @@ declare module '@aeven/session-projection/types' {
      */
     todoPlan: TodoItem[] | null
     /**
-     * Host-only staleness reading: how many steps have committed since the last
-     * `todo/write`, and the step count at the last reminder this package
-     * injected. Folded from events rather than held in memory, so a restart
-     * neither forgets the cadence nor re-nudges.
+     * Host-only staleness reading: how many tool calls other than this package's
+     * own have committed since the last `todo/write`, and that count at the last
+     * reminder this package injected. Folded from events rather than held in
+     * memory, so a restart neither forgets the cadence nor re-nudges.
      */
-    todoStale: { stepsSinceWrite: number; remindedAt: number | null }
+    todoStale: { workSinceWrite: number; remindedAt: number | null }
   }
   interface SessionProjectionMap {
     /**

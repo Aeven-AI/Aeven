@@ -406,30 +406,7 @@ export class WorkspaceRegistry extends Service {
     }
     const entity = new WorkspaceEntity(this.host, id, record)
     this.entities.set(id, entity)
-    const pendingState: WorkspaceDomainState = {
-      ...state,
-      pendingMutation: { operation: 'create', workspaceId: id },
-    }
-    try {
-      await this.setState(pendingState)
-    } catch (error) {
-      this.entities.delete(id)
-      throw error
-    }
-    try {
-      await table.put(id, record)
-    } catch (error) {
-      this.entities.delete(id)
-      try {
-        await this.setState(state)
-      } catch (rollbackError) {
-        throw new AggregateError(
-          [error, rollbackError],
-          `workspace '${id}' record write and pending-marker rollback both failed`,
-        )
-      }
-      throw error
-    }
+    await this.writePendingCreate(id, state, record, `workspace '${id}' record write and pending-marker rollback both failed`)
 
     try {
       await this.setState(this.carryState(state, {
@@ -484,26 +461,17 @@ export class WorkspaceRegistry extends Service {
     }
     const entity = new WorkspaceEntity(this.host, id, record)
     this.entities.set(id, entity)
-    try {
-      await this.setState({ ...state, pendingMutation: { operation: 'create', workspaceId: id } })
-    } catch (error) {
-      this.entities.delete(id)
-      throw error
+    const pendingState: WorkspaceDomainState = {
+      ...state,
+      pendingMutation: { operation: 'create', workspaceId: id },
     }
-    try {
-      await table.put(id, record)
-    } catch (error) {
-      this.entities.delete(id)
-      try {
-        await this.setState(state)
-      } catch (rollbackError) {
-        throw new AggregateError(
-          [error, rollbackError],
-          `default workspace '${id}' record write and pending-marker rollback both failed`,
-        )
-      }
-      throw error
-    }
+    await this.writePendingCreate(
+      id,
+      state,
+      record,
+      `default workspace '${id}' record write and pending-marker rollback both failed`,
+      pendingState,
+    )
 
     try {
       await this.setState({
@@ -973,6 +941,53 @@ export class WorkspaceRegistry extends Service {
   private requireState(): WorkspaceDomainState {
     if (this.state === undefined) throw new Error('workspace registry is not started yet')
     return this.state
+  }
+
+  /**
+   * Publish the first two writes of one create: the pending-create marker, then
+   * the record itself, rolling the published entity back when either fails.
+   *
+   * The two create paths — a folder-backed registration and the built-in
+   * pathless one — differ only in the state they finally commit and in the
+   * wording of their failure, so the marker/record/rollback choreography lives
+   * here once. Marker before record is what makes an interrupted create
+   * recoverable: a record without a marker is invisible to recovery, while a
+   * marker without a record is exactly the state {@link recoverPendingMutation}
+   * completes.
+   * @param id - id of the record being written, and the entity to unpublish on failure.
+   * @param state - the state the create is derived from, restored if the record write fails.
+   * @param record - the record itself.
+   * @param recordWriteMessage - failure text naming the caller's registration kind.
+   * @param pendingState - complete marker state; defaults to the caller's state plus the marker.
+   */
+  private async writePendingCreate(
+    id: WorkspaceId,
+    state: WorkspaceDomainState,
+    record: WorkspaceRecord,
+    recordWriteMessage: string,
+    pendingState: WorkspaceDomainState = {
+      ...state,
+      pendingMutation: { operation: 'create', workspaceId: id },
+    },
+  ): Promise<void> {
+    const table = this.requireTable()
+    try {
+      await this.setState(pendingState)
+    } catch (error) {
+      this.entities.delete(id)
+      throw error
+    }
+    try {
+      await table.put(id, record)
+    } catch (error) {
+      this.entities.delete(id)
+      try {
+        await this.setState(state)
+      } catch (rollbackError) {
+        throw new AggregateError([error, rollbackError], recordWriteMessage)
+      }
+      throw error
+    }
   }
 
   private async setState(state: WorkspaceDomainState): Promise<void> {

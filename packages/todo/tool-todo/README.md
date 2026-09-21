@@ -169,11 +169,11 @@ Each snapshot is a replacement surface message rather than an accumulation, so t
 
 #### What the model sees
 
-While a standing plan exists with at least one task not `completed`, the package nudges it back into view. Once 8 committed steps have passed since the last `todo_write` — and every 32 steps after that — the step is prepared with one extra plugin-sourced notice: `Your todo list has not changed for <n> steps while <open> of its <total> tasks are still open. Update it now with todo_write: mark every task you have finished \`completed\`, and the one you are working on \`in_progress\`.` followed by the current list. The notice carries `form: 'notice'`, so it is an ordinary appended message rather than a runtime-context snapshot, and it never replaces one. Nothing is injected while the plan is complete, absent, or still fresh.
+While a standing plan exists with at least one task not `completed`, the package nudges it back into view. Once three tool calls other than `todo_write` have passed since the last write — and every twelve after that — the step is prepared with one extra plugin-sourced notice: `Your todo list still shows <open> of its <total> tasks open. Update it now with todo_write: mark every task you have finished \`completed\`, and the one you are working on \`in_progress\`.` followed by the current list. A background job or a forked subagent the agent owns settling is the same news one step earlier: `ctx.jobs.onJobDone` marks the agent, and its next step raises the notice however little work has accumulated, because delegated work changes state with no `tool/call` of its own for the counter to see. The notice carries `form: 'notice'`, so it is an ordinary appended message rather than a runtime-context snapshot, and it never replaces one. Nothing is injected while the plan is complete, absent, or still fresh.
 
 #### Token effect
 
-One notice costs the reminder line plus the current list, and it repeats only every 32 steps while the plan stays stale — an agent that updates its list, or finishes it, is never nudged again.
+One notice costs the reminder line plus the current list, and it repeats only every twelve tool calls while the plan stays stale — an agent that updates its list, or finishes it, is never nudged again. Settlements that land together raise one notice on one step, not one each.
 
 #### KV Cache effect
 

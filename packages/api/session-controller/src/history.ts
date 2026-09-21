@@ -207,10 +207,12 @@ export class SessionHistoryController {
         signal,
         projectionMode: withProjections || address.kind === 'subagent' ? 'all' : 'none',
       })
-      if (observation.header.cwd === undefined) {
-        observation[Symbol.dispose]()
-        rejectNotFound(address)
-      }
+      // No cwd check. A Session whose workspace has no directory records no
+      // cwd, which is a fact about where it lives rather than a reason to treat
+      // it as missing: rejecting here is what made every chat in the built-in
+      // workspace open onto "Failed to load history ... not found" while its
+      // title and turn count still rendered from the list. What the address
+      // must actually satisfy is checked next.
       try {
         validateAddress(
           address,

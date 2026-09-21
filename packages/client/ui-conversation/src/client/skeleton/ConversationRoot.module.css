@@ -528,6 +528,29 @@
      floor loses nothing: ChatView re-anchors itself on every reflow
      ([decision](../../../../../../.agents/notes/implemented/bug-fix/2026-09-12-transcript-scroll-anchoring-opt-out.md)). */
   overflow-anchor: none;
+  /* Native bar with a transparent gutter: only the thumb is painted. `auto` is
+     what lets the pseudo-elements through, since chromium and Safari discard
+     every `::-webkit-scrollbar*` rule for an element whose `scrollbar-width` is
+     not `auto` — the theme's `thin` default would suppress this skin. */
+  scrollbar-width: auto;
+}
+
+.scrollBody::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scrollBody::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollBody::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: var(--avn-scrollbar-thumb);
+}
+
+.scrollBody::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Holds the column open so the sticky composer rests at the reader's floor
