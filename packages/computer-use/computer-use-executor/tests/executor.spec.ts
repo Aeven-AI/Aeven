@@ -188,6 +188,28 @@ describe('the filesystem mechanism is real, not mocked', () => {
     expect(result.observed).toBe('present')
   })
 
+  it('reports a missing path as absent rather than failing the run', async () => {
+    // The `fileExists` verifier reads absence as `satisfied: false`, so the
+    // action has to hand it that observation instead of rejecting first —
+    // otherwise `file.exists` cannot answer the question its own summary asks.
+    const result = await handler({
+      invocation: { mechanism: 'filesystem', operation: 'stat' },
+      parameters: { path: join(dir, 'never-written.txt') },
+    })
+    expect(result.observed).toBe('absent')
+  })
+
+  it('still propagates a stat failure that is not absence', async () => {
+    // A path beneath a regular file cannot be resolved (ENOTDIR), which is a
+    // real failure rather than an answer about whether something exists.
+    const filePath = join(dir, 'a-file.txt')
+    await writeFile(filePath, 'x')
+    await expect(handler({
+      invocation: { mechanism: 'filesystem', operation: 'stat' },
+      parameters: { path: join(filePath, 'child') },
+    })).rejects.toMatchObject({ code: 'ENOTDIR' })
+  })
+
   it('refuses a missing path rather than acting on one', async () => {
     await expect(handler({ invocation: { mechanism: 'filesystem', operation: 'readFile' }, parameters: {} }))
       .rejects.toMatchObject({ code: 'invalid-target' })
@@ -213,6 +235,34 @@ describe('execution verifies independently of what the handler reported', () => 
 
   afterAll(async () => {
     await rm(dir, { recursive: true, force: true })
+  })
+
+  it('answers that a missing path does not exist rather than rejecting', async () => {
+    // The recipe's own summary is "Report whether a path exists", so absence is
+    // an answer. The run reaches verification and returns unverified; letting
+    // ENOENT escape the action rejected it before the check ever ran.
+    const executor = new TaskExecutor({
+      book: [{
+        task: 'file.exists',
+        summary: 'Report whether a path exists.',
+        deliverable: 'open-application',
+        on: [{
+          platform: 'darwin',
+          rung: 'semantic',
+          apps: [],
+          evidence: 'verified',
+          invocation: { mechanism: 'filesystem', operation: 'stat' },
+        }],
+        verify: [{ kind: 'fileExists', path: '{path}' }],
+      }],
+    })
+    const outcome = await executor.execute({
+      task: 'file.exists',
+      platform: 'darwin',
+      parameters: { path: join(dir, 'absent.txt') },
+    })
+    expect(outcome.verified).toBe(false)
+    expect(outcome.observed).toBe('absent')
   })
 
   it('writes a file and confirms it from disk', async () => {
