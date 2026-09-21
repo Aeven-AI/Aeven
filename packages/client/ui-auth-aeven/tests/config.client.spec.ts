@@ -91,6 +91,14 @@ describe('Aeven deployment configuration', () => {
     expect(oauthUrls()).toEqual({ x: 'https://x.com/i/oauth2/authorize' })
   })
 
+  it('passes an unparseable provider URL through, so the button reports the failure', () => {
+    // A deployment that stated something this cannot reason about is addressed as
+    // stated: the reader reaches the provider's own error rather than a blank page.
+    servedFrom('localhost')
+    scope.__AVN_AEVEN__ = { googleOAuthUrl: 'not a url' }
+    expect(oauthUrls()).toEqual({ google: 'not a url' })
+  })
+
   it('reaches a provider by the flow the deployment states', () => {
     servedFrom('localhost')
     expect(oauthFlow()).toBe('redirect')

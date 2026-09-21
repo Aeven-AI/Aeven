@@ -215,18 +215,24 @@ describe('the naming step', () => {
     expect(session.displayNameSet).toBeUndefined()
   })
 
-  it('leaves for the sign-in screen when the credential is refused', async () => {
+  it('reports a refused credential to the page owner, which is what leaves the step', async () => {
     const { NameCheck, session, t } = await load()
+    const { onSessionEnded } = await import('../src/client/auth/services/watch.ts')
     const assign = stubNavigation('/')
+    const ended = vi.fn()
+    const stop = onSessionEnded(ended)
     namedApi({ '/set-display-name': { status: 401, body: { error: 'invalid-access-token' } } })
     const { onNamed, field, submit } = mountStep(NameCheck, t)
 
     fireEvent.change(field, { target: { value: 'Ollie' } })
     fireEvent.click(submit)
 
-    // The step is not somewhere to leave a reader whose credential has lapsed.
-    await vi.waitFor(() => { expect(assign).toHaveBeenCalledWith('/sign-in') })
+    // The step is not somewhere to leave a reader whose credential has lapsed:
+    // the boot kernel hears this and presents the sign-in screen in place.
+    await vi.waitFor(() => { expect(ended).toHaveBeenCalledOnce() })
+    expect(assign).not.toHaveBeenCalled()
     expect(onNamed).not.toHaveBeenCalled()
     expect(session.displayNameSet).toBeUndefined()
+    stop()
   })
 })

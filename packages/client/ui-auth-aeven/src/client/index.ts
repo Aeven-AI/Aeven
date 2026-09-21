@@ -19,6 +19,7 @@ export {
   type AevenProfile, type UserConfig,
 } from './auth/services/session.ts'
 export { currentBearer } from './auth/services/tokens.ts'
+export { onSessionEnded } from './auth/services/watch.ts'
 export { signOut, getProfile, AevenApiError } from './auth/services/api.ts'
 export { publishReader, publishedReader, type AevenReader } from './auth/services/reader.ts'
 export { aevenConfig, mediaUrl, webUrl, type AevenClientConfig } from './auth/services/config.ts'
@@ -136,6 +137,9 @@ interface TransportHooks {
  * caller once, from whatever the hook holds at that moment.
  * @returns disposer stopping the background renewal; the page keeps the transport hook.
  */
+/** The watcher the last install started, so a second install replaces rather than stacks it. */
+let stopWatching: (() => void) | undefined
+
 export function installAuthenticatedTransport(): () => void {
   const scope = globalThis as { __AVN_TRANSPORT__?: TransportHooks }
   const existing = scope.__AVN_TRANSPORT__?.fetch
@@ -156,5 +160,9 @@ export function installAuthenticatedTransport(): () => void {
       return renewed === undefined ? response : sendWith(input, init, renewed)
     },
   }
-  return watchSession()
+  // A page that boots again after an ended session installs the transport a
+  // second time; the watcher that served the previous session stops here.
+  stopWatching?.()
+  stopWatching = watchSession()
+  return stopWatching
 }

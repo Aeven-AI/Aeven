@@ -76,7 +76,7 @@ API 每次交换都会轮换 refresh token，拒绝被替换的旧 token，并�
 
 ### 启动后的会话生命周期
 
-`installAuthenticatedTransport` 还会在 access token 过期前不久续期，并在页面重新可见或网络恢复时再次续期；每次续期都会轮换有效期一年的 refresh token，因此打开的页面保持登录。Host 返回 401 时会续期 bearer 并重试该调用一次。当 API 以 400 或 401 拒绝续期，或另一个标签页的登出移除了已存储的 bearer 时，页面删除持有的 bearer，把当前路径记入 `authReferrer`，并加载登录界面。传输失败或 5xx 不影响会话，稍后重试。
+`installAuthenticatedTransport` 还会在 access token 过期前不久续期，并在页面重新可见或网络恢复时再次续期；每次续期都会轮换有效期一年的 refresh token，因此打开的页面保持登录。Host 返回 401 时会续期 bearer 并重试该调用一次。当 API 以 400 或 401 拒绝续期，或另一个标签页的登出移除了已存储的 bearer 时，页面丢弃持有的 bearer，并通过 `onSessionEnded` 告知拥有该页面的那一方——也就是 boot kernel：它 dispose 客户端插件树并再次运行 gate，于是读者在**当前这份文档**里回到登录界面，而不是被送进新的一份。因再次 boot 而第二次安装传输时，会替换此前的 watcher 而不是叠加。传输失败或 5xx 不影响会话，稍后重试。
 
 Aeven 无法抵达期间，access token 会过期而没有续期能替换它，因此调用会在不带 `Authorization` header 的情况下发出，Host 仅凭 refresh cookie 完成认证。请求会继续成功，Aeven 恢复后的第一次续期就会恢复 bearer。
 

@@ -55,4 +55,4 @@ Status: implemented
 
 ## Deferred
 
-`redirect` 部署所经历的那些文档加载是该形式自身所声明的，并非缺口，而为它们保留的外壳拦截继续存在。真正剩下的、既非提供方也非部署所选择的那一次加载，是[启动 gate 的改动](../bug-fix/2026-09-21-auth-gate-boots-in-place.zh.md)所描述的会话结束加载：它需要正在运行的应用把页面交还给 gate。
+`redirect` 部署所经历的那些文档加载是该形式自身所声明的，并非缺口，而为它们保留的外壳拦截继续存在。既非提供方也非部署所选择的加载已不再存在：[会话结束会把页面交还给 gate](../bug-fix/2026-09-22-session-end-hands-the-page-back.zh.md)，且就在读者身处的文档中完成。

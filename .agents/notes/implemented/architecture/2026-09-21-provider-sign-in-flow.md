@@ -55,4 +55,4 @@ The landing `<title>` and window sizing are the provider's own; the application 
 
 ## Deferred
 
-The document loads a `redirect` deployment takes are the flow's own statement, not a gap, and the shell's intercept for them stays. The one load left that neither a provider nor a deployment chose is the session-ended load described in [the boot gate's change](../bug-fix/2026-09-21-auth-gate-boots-in-place.md): it needs a running application to hand the page back to the gate.
+The document loads a `redirect` deployment takes are the flow's own statement, not a gap, and the shell's intercept for them stays. No load is left that neither a provider nor a deployment chose: [a session that ends hands the page back to the gate](../bug-fix/2026-09-22-session-end-hands-the-page-back.md) in the document the reader is in.
