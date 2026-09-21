@@ -120,6 +120,9 @@ interface TransportHooks {
   fetch?: (input: URL, init: RequestInit) => Promise<Response>
 }
 
+/** The watcher the last install started, so a second install replaces rather than stacks it. */
+let stopWatching: (() => void) | undefined
+
 /**
  * Attach the Aeven bearer to every AVN RPC call, and keep the session alive.
  *
@@ -137,9 +140,6 @@ interface TransportHooks {
  * caller once, from whatever the hook holds at that moment.
  * @returns disposer stopping the background renewal; the page keeps the transport hook.
  */
-/** The watcher the last install started, so a second install replaces rather than stacks it. */
-let stopWatching: (() => void) | undefined
-
 export function installAuthenticatedTransport(): () => void {
   const scope = globalThis as { __AVN_TRANSPORT__?: TransportHooks }
   const existing = scope.__AVN_TRANSPORT__?.fetch
