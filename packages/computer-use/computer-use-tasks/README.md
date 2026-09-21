@@ -63,6 +63,24 @@ for (const [app, tasks] of groupByApp(normalizeIntents(intents))) {
 | MacAgentBench | 676 | macOS breadth across 25+ applications, with checks that name the semantic end state |
 | WindowsAgentArena | 154 | Windows application coverage, in OSWorld's shape |
 
+### A fourth source: semantic tool catalogs
+
+`X-PLUG/OSWorld-MCP` publishes, per application, a list of validated semantic
+operations in OpenAI function-calling shape — a name, a description, and a
+parameter schema. That is a different kind of evidence from a task: a task says
+what a *user wanted*, a tool says what an *application can be asked to do*, with the
+argument names already decided. So it is read as its own source rather than folded
+into the task records.
+
+Measured on the published catalogs: **132 operations** across LibreOffice Calc (26),
+Impress (21), Writer (15), Chrome (12), VLC (12), VS Code (20), and OS utilities.
+
+A name-overlap heuristic that tried to report which operations a recipe book failed
+to cover was written and then **removed**: it flagged `save` as uncovered because
+the recipe is named `spreadsheet.saveAs`. A coverage report that invents gaps is
+worse than none, so coverage is stated explicitly instead, in
+`@aeven/computer-use-router`'s capability model.
+
 ### The end-state check vocabulary is the valuable part
 
 A check named `calendar_check_weekly_event` states the semantic end state directly — an event with a given name, hour, and weekday — which is exactly the vocabulary a recipe's verification needs. So the catalog records every check name, and the set of them shows which end states these sources collectively know how to verify, and therefore which recipes could carry a real assertion rather than a file-exists stand-in.
@@ -93,6 +111,7 @@ A JSON file that is not a task (no id and instruction pair) is *skipped*; a file
 - **Two-thirds of the intents have no recipe and may never get one.** Many are Chrome, GIMP, VLC, or harness tasks outside this stack's current scope, and 265 concern no application at all.
 - **Some checks are harness-internal.** `sleep`, `execute`, and `activate_window` appear as checks because sources reuse the evaluator array for setup; the catalog reports them, and a reader has to know they are not end-state assertions.
 - **No deduplication across sources.** The same LibreOffice task may appear in more than one benchmark, so total counts are not distinct task counts.
+- **Tool catalogs are capabilities, not tasks.** They say an operation exists and what it is called; they do not say a user asked for it, and they carry no end-state check.
 
 <a id="dev-note"></a>
 ## Dev Note

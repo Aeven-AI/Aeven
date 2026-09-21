@@ -25,6 +25,7 @@ import {
   renderCatalog,
   type TaskIntent,
 } from '../src/index.ts'
+import { allTools, groupByFamily, readToolCatalog } from '../src/tools.ts'
 import {
   canonicalDomain,
   harnessOnlyCount,
@@ -309,5 +310,77 @@ describe('domain normalization', () => {
       { ...fromMacAgentBench(MAC_CALENDAR), apps: ['terminal_no_reset'] },
       { ...fromMacAgentBench(MAC_CALENDAR), apps: ['pages'] },
     ])).toBe(1)
+  })
+})
+
+describe('reading semantic tool catalogs', () => {
+  const CATALOG = [
+    {
+      type: 'function',
+      function: {
+        name: 'CalcTools.set_cell_value',
+        description: 'Set the value of a cell.',
+        parameters: { type: 'object', properties: { cell: {}, value: {} }, required: ['cell', 'value'] },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'CalcTools.save',
+        description: 'Save the workbook.',
+        parameters: { type: 'object', properties: {}, required: [] },
+      },
+    },
+  ]
+
+  it('reads operation names, families, parameters and required fields', () => {
+    const { catalog } = readToolCatalog('libreoffice_calc.json', CATALOG)
+    expect(catalog?.family).toBe('CalcTools')
+    expect(catalog?.tools.map(tool => tool.operation)).toEqual(['set_cell_value', 'save'])
+    expect(catalog?.tools[0]?.parameters).toEqual(['cell', 'value'])
+    expect(catalog?.tools[0]?.required).toEqual(['cell', 'value'])
+    expect(catalog?.tools[0]?.description).toBe('Set the value of a cell.')
+  })
+
+  it('keeps the description verbatim, since it is evidence of the declared behaviour', () => {
+    const { catalog } = readToolCatalog('x.json', CATALOG)
+    expect(catalog?.tools[1]?.description).toBe('Save the workbook.')
+  })
+
+  it('refuses a JSON array that is not a tool catalog rather than returning an empty one', () => {
+    const result = readToolCatalog('x.json', [{ not: 'a tool' }])
+    expect(result.catalog).toBeUndefined()
+    expect(result.reason).toContain('not a tool catalog')
+  })
+
+  it('refuses a non-array without throwing', () => {
+    expect(readToolCatalog('x.json', { tools: [] }).reason).toBe('not a JSON array of tool definitions')
+  })
+
+  it('tolerates an entry with no parameters object', () => {
+    const { catalog } = readToolCatalog('x.json', [{ function: { name: 'A.b' } }])
+    expect(catalog?.tools[0]?.parameters).toEqual([])
+  })
+
+  it('tolerates a required field that is not an array', () => {
+    const { catalog } = readToolCatalog('x.json', [{ function: { name: 'A.b', parameters: { properties: {}, required: 'nope' } } }])
+    expect(catalog?.tools[0]?.required).toEqual([])
+  })
+
+  it('skips an entry whose name is not dotted, since it names no family', () => {
+    const { catalog } = readToolCatalog('x.json', [{ function: { name: 'plain' } }, { function: { name: 'A.b' } }])
+    expect(catalog?.tools).toHaveLength(1)
+  })
+
+  it('groups operations by family, sorted', () => {
+    const a = readToolCatalog('a.json', CATALOG).catalog
+    const b = readToolCatalog('b.json', [{ function: { name: 'WriterTools.write_text' } }]).catalog
+    const groups = groupByFamily([a!, b!])
+    expect([...groups.keys()]).toEqual(['CalcTools', 'WriterTools'])
+  })
+
+  it('flattens every catalog in order', () => {
+    const a = readToolCatalog('a.json', CATALOG).catalog
+    expect(allTools([a!])).toHaveLength(2)
   })
 })

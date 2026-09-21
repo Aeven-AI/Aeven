@@ -8,6 +8,7 @@
 export * from './recipe.ts'
 export * from './router.ts'
 export { STARTER_BOOK } from './book.ts'
+export * from './capabilities.ts'
 export {
   CALCULATOR_RECIPES,
   CALENDAR_EVENT_RECIPES,

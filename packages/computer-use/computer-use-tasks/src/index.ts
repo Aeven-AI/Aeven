@@ -25,6 +25,7 @@ import {
 
 export * from './intent.ts'
 export * from './normalize.ts'
+export * from './tools.ts'
 
 /** The result of reading one source. */
 export interface ReadResult {
