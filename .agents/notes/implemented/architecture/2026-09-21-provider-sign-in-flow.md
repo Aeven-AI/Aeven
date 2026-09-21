@@ -16,7 +16,9 @@ Nothing in the page said which shape the deployment wanted, so the client could 
 
 **The flow is a deployment fact, stated by the Host and required when a provider is offered.** `identity-user-aeven` gains a validated `oauthFlow: 'redirect' | 'window'` field and states it in `__AVN_AEVEN__` beside the provider URLs. `apply()` resolves it at load and throws when a provider URL is configured without one: defaulting would give a page that cannot leave its document the shape that leaves it, and the deployment that stated the provider is the only party that knows which it serves. A stated flow with no provider URL is ignored rather than refused — there is no sign-in for it to describe.
 
-`packages/bundle/web-app/cordis.patch.yml` states `redirect` (a public page), overridable with `AEVEN_OAUTH_FLOW`. `apps/desktop-host` states `redirect` for now, with the reason recorded where it is stated: the desktop's provider window is still reached by intercepting the page's navigation, which is the signal `redirect` produces. Serving the provider from a window the page opens itself is what would let that deployment state `window`, and that is the shell's own change ([issue #24](https://github.com/Aeven-AI/Aeven/issues/24)).
+`packages/bundle/web-app/cordis.patch.yml` states `redirect` (a public page), overridable with `AEVEN_OAUTH_FLOW`. `apps/desktop-host` states `window`, because the shell's page serves itself from `avn-app://`, where a redirected document would replace the shell Electron is holding.
+
+**The shell serves either shape without being told which one it is rendering.** A page that opens the provider gets the shell's own hardened window — scrubbed user agent, no preload, sandboxed — and the landing that window comes back on is exchanged there, through the session that holds the API's refresh cookie, rather than loaded into the application window. A page that navigates to the provider instead keeps the intercept that already served it, and its landing is loaded back into the window it came from, which is the shape that page expects. An adopted Host is a deployment whose flow the shell does not state, and both its cases work.
 
 **Under `window`, the provider is reached from a window of its own and the page never moves.** `openProviderSignIn(url)` opens it under a fixed name, so a second provider button replaces the first window instead of stacking another behind it.
 
@@ -53,4 +55,4 @@ The landing `<title>` and window sizing are the provider's own; the application 
 
 ## Deferred
 
-The desktop shell states `redirect` and goes on reloading its application window when a reader comes back from a provider. Flipping it to `window` requires the shell to allow the provider window the page opens and to hand that window's landing to the running page instead of loading it into the application window; both are the shell's to change, and the deployment flag is already in place for it.
+The document loads a `redirect` deployment takes are the flow's own statement, not a gap, and the shell's intercept for them stays. The one load left that neither a provider nor a deployment chose is the session-ended load described in [the boot gate's change](../bug-fix/2026-09-21-auth-gate-boots-in-place.md): it needs a running application to hand the page back to the gate.

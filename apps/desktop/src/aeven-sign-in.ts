@@ -2,8 +2,12 @@
  * Aeven sign-in for the desktop renderer. The renderer addresses the Aeven API
  * at a same-origin `avn-app://` path; this module forwards only the sign-in
  * routes through Electron's persistent session, which keeps the API's refresh
- * cookie that a cross-site `avn-app://` page cannot. Provider sign-in runs in a
- * separate window whose landing URL is handed back to the application.
+ * cookie that a cross-site `avn-app://` page cannot.
+ *
+ * Provider sign-in runs in a separate window whose landing this module
+ * exchanges: the pair is spent here, where the cookie lives, so the page that
+ * opened the window finds the session by reading its profile rather than by
+ * loading the landing document into the application window.
  */
 
 import { app, BrowserWindow, session } from 'electron'
@@ -38,6 +42,21 @@ export function aevenApiTarget(requestUrl: string, apiUrl: string): URL | undefi
   if (!pathname.startsWith(`${DESKTOP_AEVEN_API_PATH}/`)) return undefined
   const route = pathname.slice(DESKTOP_AEVEN_API_PATH.length)
   if (!SIGN_IN_ROUTES.has(route)) return undefined
+  return signInRouteUrl(apiUrl, route, search)
+}
+
+/**
+ * Address one Aeven sign-in route on the configured API.
+ *
+ * The configured URL keeps whatever path prefix the deployment states, as the
+ * forwarded requests do: a deployment that serves the API under a prefix serves
+ * every route under it.
+ * @param apiUrl - Aeven API URL reported by the Host.
+ * @param route - the route, starting with `/`.
+ * @param search - query string to keep, including its `?`.
+ * @returns the URL to reach.
+ */
+function signInRouteUrl(apiUrl: string, route: string, search = ''): URL {
   const base = new URL(apiUrl)
   return new URL(`${base.pathname.replace(/\/+$/u, '')}${route}${search}`, base)
 }
@@ -117,4 +136,48 @@ export function openAevenOAuthWindow(parent: BrowserWindow, url: string, land: (
   window.webContents.on('will-redirect', intercept)
   window.webContents.on('will-navigate', intercept)
   void window.loadURL(url)
+}
+
+/** The pair a provider landing carries in its path. */
+const OAUTH_CALLBACK_PATH = /^\/oauth-result\/([^/]+)\/([^/]+)\/?$/u
+
+/**
+ * Read the session and challenge out of a provider landing path.
+ * @param path - the path the provider's window landed on.
+ * @returns the pair, or undefined when the path carries none.
+ */
+export function oauthCallbackPair(path: string): { session: string; challenge: string } | undefined {
+  const match = OAUTH_CALLBACK_PATH.exec(path)
+  if (match === null) return undefined
+  const [, session, challenge] = match
+  return session === undefined || challenge === undefined ? undefined : { session, challenge }
+}
+
+/**
+ * Finish a provider sign-in on the path its window landed.
+ *
+ * The landing document is never loaded into the application window: the pair is
+ * exchanged here, through the session that holds the API's refresh cookie, so
+ * the page that opened the window picks the session up the way it picks up
+ * every other sign-in — by reading its profile. A path that carries an error,
+ * or an exchange the API refuses, leaves the reader where they were.
+ * @param path - the `/oauth-result/...` path a provider window landed on.
+ * @param signIn - endpoints reported by the running Host, or undefined without an Aeven authority.
+ * @param fetcher - request sender that stores and presents session cookies.
+ * @returns true when the exchange established a session.
+ */
+export async function completeOAuthLanding(
+  path: string,
+  signIn: DesktopAevenSignIn | undefined,
+  fetcher: AevenApiFetch = (url, init) => session.defaultSession.fetch(url, init),
+): Promise<boolean> {
+  const pair = signIn === undefined ? undefined : oauthCallbackPair(path)
+  if (pair === undefined || signIn === undefined) return false
+  const response = await fetcher(signInRouteUrl(signIn.apiUrl, '/check-oauth-token').href, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(pair),
+  })
+  return response.ok
 }
