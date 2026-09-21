@@ -25,6 +25,13 @@ import type { WinCommandRunner } from './runner.ts'
 /** Inputs to a readiness probe run. */
 export interface WinReadinessOptions {
   runner: WinCommandRunner
+  /**
+   * PowerShell executable to probe with; defaults to `powershell` on PATH, as
+   * the adapter fragments do. A probe that invoked a different executable from
+   * the one the adapter drives would report readiness for a binary the caller
+   * never uses.
+   */
+  powershell?: string
   /** Caller lifetime. */
   signal?: AbortSignal
 }
@@ -44,7 +51,7 @@ const PROBE_NODE_CAP = 1
  */
 export async function probeUia(options: WinReadinessOptions): Promise<ReadinessProbe> {
   const result = await options.runner.run(
-    'powershell',
+    options.powershell ?? 'powershell',
     ['-NoProfile', '-NonInteractive', '-Command', probeUiaScript(String(PROBE_NODE_CAP))],
     options.signal,
   )
@@ -71,7 +78,7 @@ export async function probeUia(options: WinReadinessOptions): Promise<ReadinessP
  */
 export async function probeUiaPatterns(options: WinReadinessOptions): Promise<ReadinessProbe> {
   const result = await options.runner.run(
-    'powershell',
+    options.powershell ?? 'powershell',
     ['-NoProfile', '-NonInteractive', '-Command', probeUiaScript(String(PROBE_NODE_CAP))],
     options.signal,
   )
@@ -97,7 +104,7 @@ export async function probeUiaPatterns(options: WinReadinessOptions): Promise<Re
  */
 export async function probeElevation(options: WinReadinessOptions): Promise<ReadinessProbe> {
   const script = 'Write-Output (@{ ok = $true; elevated = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) } | ConvertTo-Json -Compress)'
-  const result = await options.runner.run('powershell', ['-NoProfile', '-NonInteractive', '-Command', script], options.signal)
+  const result = await options.runner.run(options.powershell ?? 'powershell', ['-NoProfile', '-NonInteractive', '-Command', script], options.signal)
   if (result.code !== 0) {
     return {
       name: 'integrity.elevation',

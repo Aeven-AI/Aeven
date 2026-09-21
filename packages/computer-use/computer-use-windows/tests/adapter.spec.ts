@@ -198,6 +198,18 @@ describe('the adapter reports its own readiness', () => {
     await new WindowsDesktopAdapter({ runner, signal: controller.signal }).readiness()
     expect(runner.calls.map(call => call.signal)).toEqual([controller.signal, controller.signal, controller.signal])
   })
+
+  it('probes with the configured PowerShell rather than a fixed one', async () => {
+    // Readiness has to test the executable the adapter actually drives: an
+    // adapter given `pwsh` that probed `powershell` would report the state of a
+    // binary its caller never invokes.
+    const runner = runnerReturning({
+      UIAutomation: json({ ok: true, windows: 1, cap: 1 }),
+      IsInRole: json({ ok: true, elevated: false }),
+    })
+    await new WindowsDesktopAdapter({ runner, powershell: 'pwsh' }).readiness()
+    expect(runner.calls.map(call => call.command)).toEqual(['pwsh', 'pwsh', 'pwsh'])
+  })
 })
 
 describe('observation', () => {
