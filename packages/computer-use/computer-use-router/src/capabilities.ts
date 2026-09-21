@@ -41,7 +41,7 @@ export const CALC_COVERAGE: readonly CapabilityCoverage[] = [
   { operation: 'CalcTools.create_chart', task: 'spreadsheet.createChart' },
   { operation: 'CalcTools.create_pivot_table', task: 'spreadsheet.createPivotTable' },
   { operation: 'CalcTools.sort_column', task: 'spreadsheet.sortColumn' },
-  { operation: 'CalcTools.create_sheet' },
+  { operation: 'CalcTools.create_sheet', task: 'spreadsheet.createSheet' },
   { operation: 'CalcTools.rename_sheet', uncoveredBecause: 'the operation is one line on the same UNO surface as spreadsheet.createSheet, so it is deferred rather than duplicated' },
   { operation: 'CalcTools.merge_cells', uncoveredBecause: 'deferred: needs a range address parsed into UNO cell coordinates, which spreadsheet.selectRange does not yet do' },
   { operation: 'CalcTools.format_range', uncoveredBecause: 'deferred: formatting is the rung this stack is weakest at, and a half-measure would mislead' },
@@ -123,7 +123,7 @@ export const CAPABILITY_COVERAGE: readonly CapabilityCoverage[] = [
  * @param coverage - the records to count.
  * @returns covered and total counts.
  */
-export function coverageSummary(coverage: readonly CapabilityCoverage[]): { covered: number, total: number } {
+export function coverageSummary(coverage: readonly CapabilityCoverage[]): { covered: number; total: number } {
   return {
     covered: coverage.filter(entry => entry.task !== undefined).length,
     total: coverage.length,

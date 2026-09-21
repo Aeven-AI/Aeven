@@ -156,12 +156,19 @@ export function assertVerified(outcomes: readonly VerificationOutcome[], expecta
   if (verificationSatisfied(outcomes)) {
     return
   }
+  // The detail carries every outcome, satisfied or not, so a caller reading the error
+  // can see which expectation failed and what the read-back actually observed.
+  const summary = outcomes.map(outcome => ({
+    expectation: outcome.expectation.kind,
+    satisfied: outcome.satisfied,
+    observed: outcome.observed,
+  }))
   throw new ComputerUseError(
     'unverified',
     expectation === undefined
       ? 'the operation could not be verified by an independent read-back'
       : `"${expectation}" could not be verified by an independent read-back`,
-    { outcomes: outcomes.map(outcome => ({ expectation: outcome.expectation.kind, satisfied: outcome.satisfied, observed: outcome.observed })) },
+    { outcomes: summary },
   )
 }
 

@@ -16,7 +16,7 @@ export interface BackendWindow {
   windowId: string
   pid: number
   title: string
-  bounds: { x: number, y: number, width: number, height: number }
+  bounds: { x: number; y: number; width: number; height: number }
 }
 
 /** What a backend can do. */
@@ -29,10 +29,15 @@ export interface WindowBackend {
   listArgs: readonly string[]
   /**
    * Parse the backend's own listing format.
+   *
+   * `this: void` because every implementation is a plain function over its argument
+   * that reads nothing off the backend: a caller may keep the parser and call it
+   * later without rebinding, and saying so here is what makes that safe rather than
+   * merely conventional.
    * @param stdout - the command's captured output.
    * @returns the windows it reported.
    */
-  parse(stdout: string): BackendWindow[]
+  parse(this: void, stdout: string): BackendWindow[]
   /**
    * Arguments that focus one window.
    * @param windowId - the backend's own window identifier.
@@ -73,7 +78,7 @@ interface I3Node {
   pid?: number
   name?: string
   window?: number
-  rect: { x: number, y: number, width: number, height: number }
+  rect: { x: number; y: number; width: number; height: number }
   nodes: I3Node[]
   floating_nodes: I3Node[]
 }
@@ -104,7 +109,7 @@ const I3: WindowBackend = {
   name: 'i3',
   command: 'i3-msg',
   listArgs: ['-t', 'get_tree'],
-  parse: (stdout) => flattenI3(JSON.parse(stdout) as I3Node),
+  parse: stdout => flattenI3(JSON.parse(stdout) as I3Node),
   focusArgs: windowId => [`[id=${windowId}]`, 'focus'],
 }
 

@@ -149,6 +149,29 @@ describe('Session creation failures', () => {
     await ctx.fiber.dispose()
   })
 
+  it('reports a pathless-workspace adoption conflict with a null requested cwd', async () => {
+    const ctx = await baseContext()
+    ctx.provide('workspaceRegistry', { get: () => undefined, list: () => [] } as never)
+    // Adopting a Session that records a cwd into a workspace with no directory
+    // asks for no location at all, so the conflict has to report `null` rather
+    // than the string "undefined" a caller would have to parse.
+    const controller = new SessionCommandController(
+      ctx,
+      controllerAgents({
+        ensureSession: () => Promise.reject(
+          new ApiSessionCwdConflict(SessionId('into-pathless'), undefined, '/stored'),
+        ),
+      }),
+      '/default',
+    )
+
+    await expect(controller.create({ sessionId: SessionId('into-pathless') })).rejects.toMatchObject({
+      code: 'session/conflict',
+      details: { sessionId: 'into-pathless', requestedCwd: null, existingCwd: '/stored' },
+    })
+    await ctx.fiber.dispose()
+  })
+
 })
 
 function completedSession(

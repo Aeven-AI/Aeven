@@ -1,0 +1,17 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "lib/types" },
+  "include": ["src"],
+  "references": [
+    { "path": "../computer-use" },
+    { "path": "../computer-use-desktop" },
+    { "path": "../computer-use-executor" },
+    { "path": "../computer-use-macos" },
+    { "path": "../computer-use-macos-apple-events" },
+    { "path": "../computer-use-router" },
+    { "path": "../computer-use-session" },
+    { "path": "../../util/brand" },
+    { "path": "../../../vendor/cordis" },
+    { "path": "../../../vendor/cosmokit" }
+  ]
+}

@@ -87,3 +87,5 @@ The refusal path is the point of the design, not an oversight. An adapter that r
 The walk script is the one part that cannot be unit tested here, since it requires a granted process to run. Its failure mode was found by executing it for real: `$.exit` is not a function in osascript, so the script now emits its envelope and then throws, which produces the non-zero status without losing the machine-readable reason.
 
 Readiness and verification were built first because they are what make an action trustworthy. Both are fully testable without a Mac — the runner is injected, so every branch, including each failure mode, is covered.
+
+**Runtime invariant:** No companion is published because The package is a host-side adapter driven by its caller, so it holds no same-process state across calls and emits no sequence a listener could observe.

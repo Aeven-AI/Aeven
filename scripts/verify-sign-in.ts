@@ -45,6 +45,46 @@ const OAUTH = valueOf('--oauth', 'http://localhost:9020')
 const EXCHANGE = valueOf('--exchange', API)
 const USER_ID = valueOf('--user', 'f9e75299b80645d496b5bb12f6980bd9')
 
+/**
+ * The shapes this script needs from the API's own modules.
+ *
+ * `createRequire` returns `any` because it loads JavaScript the TypeScript program
+ * never sees, so every member access through it was untyped. Naming only the fields
+ * actually used keeps the runtime coupling visible and makes a field that moves in
+ * the API a compile error here rather than a silent `undefined` at the call site.
+ */
+interface ApiModuleAliasing {
+  addAliases(aliases: Record<string, string>): void
+}
+interface ApiDotenv {
+  config(options: { path: string }): unknown
+}
+interface ApiMongoConfig {
+  mongoDB: { host: string; port: string | number; database: string }
+}
+interface ApiMongoose {
+  connect(uri: string): Promise<unknown>
+  disconnect(): Promise<unknown>
+}
+interface ApiChallengeModel {
+  create(document: Record<string, unknown>): Promise<unknown>
+}
+interface ApiSessionModelRow {
+  sessionId: string
+}
+interface ApiSessionModel {
+  findOne(query: Record<string, unknown>): Promise<ApiSessionModelRow | null>
+}
+
+/**
+ * A `require` rooted at the API, returning the untyped JavaScript it loads.
+ *
+ * The return is `unknown` rather than `any` on purpose: a caller must name the shape
+ * it expects before touching a member, which turns a field that moves in the API into
+ * a compile error here instead of a silent `undefined` at the call site.
+ */
+type ApiRequire = (id: string) => unknown
+
 function step(label: string, detail: string): void {
   console.log(`  ${label.padEnd(34)} ${detail}`)
 }
@@ -101,19 +141,21 @@ if (sessionCookie === undefined) {
 //    the deployment's, not a guess.
 const here = dirname(fileURLToPath(import.meta.url))
 const apiRoot = resolve(here, '../../servers/node')
-const requireFromApi = createRequire(join(apiRoot, 'apps', 'api.js'))
-requireFromApi('module-alias').addAliases({ '@': apiRoot })
-process.env.NODE_ENV = 'development'
+// The trailing semicolon is load-bearing: the next statement begins with `(`, so
+// without it the two lines would parse as one call expression.
+const requireFromApi = createRequire(join(apiRoot, 'apps', 'api.js')) as unknown as ApiRequire;
+(requireFromApi('module-alias') as ApiModuleAliasing).addAliases({ '@': apiRoot })
+process.env.NODE_ENV = 'development';
 // `.env.dev` is loaded here, before `config.js` pulls in `@/env`, because that
 // loader resolves its filename against the process cwd and exits when it is
 // absent. Changing into the API's root satisfies it; loading the file first
 // means the values are already in place either way.
-requireFromApi(join(apiRoot, 'node_modules', 'dotenv')).config({ path: join(apiRoot, '.env.dev') })
+(requireFromApi(join(apiRoot, 'node_modules', 'dotenv')) as ApiDotenv).config({ path: join(apiRoot, '.env.dev') })
 process.chdir(apiRoot)
-const mongoose = requireFromApi('mongoose')
-const apiConfig = requireFromApi(join(apiRoot, 'config.js'))
-const UserAuthChallenge = requireFromApi(join(apiRoot, 'db', 'models', 'UserAuthChallenge.js'))
-const Session = requireFromApi(join(apiRoot, 'db', 'models', 'Session.js'))
+const mongoose = requireFromApi('mongoose') as ApiMongoose
+const apiConfig = requireFromApi(join(apiRoot, 'config.js')) as ApiMongoConfig
+const UserAuthChallenge = requireFromApi(join(apiRoot, 'db', 'models', 'UserAuthChallenge.js')) as ApiChallengeModel
+const Session = requireFromApi(join(apiRoot, 'db', 'models', 'Session.js')) as ApiSessionModel
 
 await mongoose.connect(
   `mongodb://${apiConfig.mongoDB.host}:${apiConfig.mongoDB.port}/${apiConfig.mongoDB.database}`,

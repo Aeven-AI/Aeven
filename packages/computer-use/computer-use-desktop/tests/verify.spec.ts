@@ -10,7 +10,15 @@ import { mkdtemp, writeFile, rm, utimes } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { checkExpectations } from '../src/verify.ts'
+import { checkExpectations, type VerificationReaders } from '../src/verify.ts'
+
+// Module scope rather than inside one `describe`: both suites below drive the same
+// verifier, and the semantic suite needs the same inert readers the filesystem suite
+// uses so it isolates the application-object behaviour instead of re-stubbing them.
+const readers: VerificationReaders = {
+  nodeValue: { read: vi.fn<(token: string) => Promise<string | undefined>>(() => Promise.resolve(undefined)) },
+  windowTitles: { list: vi.fn<() => Promise<readonly string[]>>(() => Promise.resolve([])) },
+}
 
 describe('verification reads the real filesystem', () => {
   let dir: string
@@ -22,11 +30,6 @@ describe('verification reads the real filesystem', () => {
   afterAll(async () => {
     await rm(dir, { recursive: true, force: true })
   })
-
-  const readers = {
-    nodeValue: { read: vi.fn<(token: string) => Promise<string | undefined>>(() => Promise.resolve(undefined)) },
-    windowTitles: { list: vi.fn<() => Promise<readonly string[]>>(() => Promise.resolve([])) },
-  }
 
   it('proves a file exists', async () => {
     const path = join(dir, 'exists.txt')
@@ -120,7 +123,12 @@ describe('verification reads the real filesystem', () => {
   })
 
   it('handles a non-Error rejection without losing the failure', async () => {
-    const failing = { ...readers, nodeValue: { read: () => Promise.reject('plain string failure') } }
+    // Annotated as VerificationReaders so the rejected value's type is known here.
+    // The string is the point of the test: a rejection reason need not be an Error,
+    // and the failure it carries must survive into `outcome.error`. Rejecting with an
+    // Error here would test the case that already works and leave this one uncovered.
+    // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- the non-Error rejection reason is the subject under test.
+    const failing: VerificationReaders = { ...readers, nodeValue: { read: () => Promise.reject('plain string failure') } }
     const [outcome] = await checkExpectations([{ kind: 'nodeValueEquals', token: 's1:0', value: 'x' }], failing)
     expect(outcome?.satisfied).toBe(false)
     expect(outcome?.error).toBe('plain string failure')
@@ -138,5 +146,88 @@ describe('verification reads the real filesystem', () => {
       readers,
     )
     expect(outcomes.map(outcome => outcome.satisfied)).toEqual([true, false, true])
+  })
+})
+
+/** The reader's signature, named so the inline type does not run past the line limit. */
+type AppObjectFind = (
+  app: string,
+  collection: string,
+  match: Readonly<Record<string, string>>,
+) => Promise<AppObjectAnswer>
+
+/** What an application-object read reports back. */
+interface AppObjectAnswer {
+  matched: boolean
+  observed: string
+}
+
+describe('the semantic kinds answer through an application-object reader', () => {
+  /** Records what was asked, so the query the verifier builds is itself observable. */
+  const appObjects = {
+    find: vi.fn<AppObjectFind>(() => Promise.resolve({ matched: true, observed: 'one match' })),
+  }
+
+  it('answers appObject from the reader and passes the match through', async () => {
+    appObjects.find.mockClear()
+    const [outcome] = await checkExpectations(
+      [{ kind: 'appObject', app: 'com.apple.Calendar', collection: 'events', match: { summary: 'Standup' } }],
+      { ...readers, appObjects },
+    )
+    expect(outcome?.satisfied).toBe(true)
+    expect(outcome?.observed).toBe('one match')
+    expect(appObjects.find).toHaveBeenCalledWith('com.apple.Calendar', 'events', { summary: 'Standup' })
+  })
+
+  it('turns a calendar count into an at-least match rather than dropping it', async () => {
+    // `count` is a lower bound, not an exact number: the recipe asks that the event
+    // was created, and a second one already in the calendar must not fail the check.
+    appObjects.find.mockClear()
+    await checkExpectations(
+      [{ kind: 'calendarHasEvent', calendar: 'Work', count: 1, match: { summary: 'Standup' } }],
+      { ...readers, appObjects },
+    )
+    expect(appObjects.find).toHaveBeenCalledWith('Calendar', 'Work', { summary: 'Standup', atLeast: '1' })
+  })
+
+  it('falls back to the generic calendar when the recipe names none', async () => {
+    appObjects.find.mockClear()
+    await checkExpectations([{ kind: 'calendarHasEvent' }], { ...readers, appObjects })
+    expect(appObjects.find).toHaveBeenCalledWith('Calendar', 'calendar', {})
+  })
+
+  it('builds a note query from only the fields the recipe supplied', async () => {
+    // An omitted folder means "any folder", so adding an empty one would narrow the
+    // check to a folder that does not exist and report a false miss.
+    appObjects.find.mockClear()
+    await checkExpectations([{ kind: 'noteExists', name: 'Groceries' }], { ...readers, appObjects })
+    expect(appObjects.find).toHaveBeenLastCalledWith('Notes', 'notes', { name: 'Groceries' })
+
+    appObjects.find.mockClear()
+    await checkExpectations(
+      [{ kind: 'noteExists', name: 'Groceries', folder: 'Home', contains: 'milk' }],
+      { ...readers, appObjects },
+    )
+    expect(appObjects.find).toHaveBeenLastCalledWith('Notes', 'notes', { name: 'Groceries', folder: 'Home', contains: 'milk' })
+  })
+
+  it('reports every semantic kind unsatisfied when no reader is configured', async () => {
+    // The honest answer when nothing can read the application's objects. Reporting
+    // satisfied here would be the exact failure this package exists to prevent: a
+    // check that cannot fail.
+    const outcomes = await checkExpectations(
+      [
+        { kind: 'appObject', app: 'com.apple.Calendar', collection: 'events', match: {} },
+        { kind: 'calendarHasEvent' },
+        { kind: 'noteExists', name: 'Groceries' },
+      ],
+      readers,
+    )
+    expect(outcomes.map(outcome => outcome.satisfied)).toEqual([false, false, false])
+    expect(outcomes.map(outcome => outcome.observed)).toEqual([
+      'no application-object reader is configured',
+      'no application-object reader is configured',
+      'no application-object reader is configured',
+    ])
   })
 })

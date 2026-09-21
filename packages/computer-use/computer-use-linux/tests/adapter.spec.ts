@@ -21,8 +21,8 @@ import { commandAnswers, describeLinuxHost, type LinuxCommandResult, type LinuxC
 /** A runner answering from a table, recording every call. */
 function runnerReturning(
   answers: Readonly<Record<string, LinuxCommandResult>>,
-): LinuxCommandRunner & { calls: Array<{ command: string, args: readonly string[] }> } {
-  const calls: Array<{ command: string, args: readonly string[] }> = []
+): LinuxCommandRunner & { calls: Array<{ command: string; args: readonly string[] }> } {
+  const calls: Array<{ command: string; args: readonly string[] }> = []
   return {
     calls,
     run: (command, args) => {
@@ -39,6 +39,26 @@ function runnerReturning(
 }
 
 const found: LinuxCommandResult = { code: 0, stdout: '', stderr: '' }
+
+/**
+ * A runner that answers 0 only for the commands named, and reports every other
+ * command as missing.
+ *
+ * Distinct from {@link runnerReturning}, which falls back to a failed result for
+ * unknown commands but still succeeds for a partial match. Readiness walks a ladder
+ * of alternatives and stops at the first that answers, so a test needs to decide
+ * exactly which rung is present.
+ */
+function answersOnly(
+  answers: Readonly<Record<string, LinuxCommandResult>>,
+): LinuxCommandRunner {
+  return {
+    run: (command) => {
+      const result = answers[command]
+      return Promise.resolve(result ?? { code: 127, stdout: '', stderr: 'command not found' })
+    },
+  }
+}
 
 /** wmctrl output with a title containing spaces. */
 const WMCTRL = `0x04600003  0 1234  100 200 800 600 host Agent Story.pages
@@ -59,22 +79,22 @@ const I3TREE = JSON.stringify({
 
 describe('session facts', () => {
   it('detects X11 and Wayland from their display variables', () => {
-    expect(describeLinuxHost({ DISPLAY: ':0' } as NodeJS.ProcessEnv).hasX11).toBe(true)
-    expect(describeLinuxHost({ WAYLAND_DISPLAY: 'wayland-0' } as NodeJS.ProcessEnv).hasWayland).toBe(true)
+    expect(describeLinuxHost({ DISPLAY: ':0' }).hasX11).toBe(true)
+    expect(describeLinuxHost({ WAYLAND_DISPLAY: 'wayland-0' }).hasWayland).toBe(true)
   })
 
   it('records the desktop identifier, preferring XDG_CURRENT_DESKTOP', () => {
-    expect(describeLinuxHost({ XDG_CURRENT_DESKTOP: 'GNOME', DESKTOP_SESSION: 'gnome' } as NodeJS.ProcessEnv).desktop).toBe('GNOME')
-    expect(describeLinuxHost({ DESKTOP_SESSION: 'plasma' } as NodeJS.ProcessEnv).desktop).toBe('plasma')
+    expect(describeLinuxHost({ XDG_CURRENT_DESKTOP: 'GNOME', DESKTOP_SESSION: 'gnome' }).desktop).toBe('GNOME')
+    expect(describeLinuxHost({ DESKTOP_SESSION: 'plasma' }).desktop).toBe('plasma')
   })
 
   it('omits the desktop when neither variable is set, rather than reporting an empty name', () => {
-    expect(describeLinuxHost({} as NodeJS.ProcessEnv).desktop).toBeUndefined()
-    expect(describeLinuxHost({ XDG_CURRENT_DESKTOP: '' } as NodeJS.ProcessEnv).desktop).toBeUndefined()
+    expect(describeLinuxHost({}).desktop).toBeUndefined()
+    expect(describeLinuxHost({ XDG_CURRENT_DESKTOP: '' }).desktop).toBeUndefined()
   })
 
   it('treats an empty display value as absent', () => {
-    const host = describeLinuxHost({ DISPLAY: '', WAYLAND_DISPLAY: '' } as NodeJS.ProcessEnv)
+    const host = describeLinuxHost({ DISPLAY: '', WAYLAND_DISPLAY: '' })
     expect(host.hasX11).toBe(false)
     expect(host.hasWayland).toBe(false)
   })
@@ -375,5 +395,357 @@ describe('verification on Linux', () => {
     const adapter = new LinuxDesktopAdapter({ runner: runnerReturning({}), host: { hasX11: true, hasWayland: false } })
     const [outcome] = await adapter.verify([{ kind: 'fileExists', path: import.meta.filename }])
     expect(outcome?.satisfied).toBe(true)
+  })
+})
+
+/**
+ * A tree whose windows are not at the top level.
+ *
+ * The real i3 tree nests every X11 window under workspace and container nodes, so
+ * walking only the root's own children would report an empty desktop on a machine
+ * with windows open. The floating list is walked too, because a dialog floated over
+ * a tiled workspace is still a window a caller may need to focus.
+ */
+const NESTED_I3TREE = JSON.stringify({
+  id: 1,
+  rect: { x: 0, y: 0, width: 1920, height: 1080 },
+  nodes: [
+    {
+      id: 2,
+      name: 'workspace 1',
+      rect: { x: 0, y: 0, width: 1920, height: 1080 },
+      // A container with no window of its own, holding the real window.
+      nodes: [
+        {
+          id: 3,
+          window: 77,
+          rect: { x: 10, y: 20, width: 640, height: 480 },
+          nodes: [],
+          floating_nodes: [
+            {
+              id: 4,
+              window: 88,
+              name: 'Floating dialog',
+              rect: { x: 30, y: 40, width: 320, height: 200 },
+              nodes: [],
+              floating_nodes: [],
+            },
+          ],
+        },
+      ],
+      floating_nodes: [],
+    },
+  ],
+  floating_nodes: [],
+})
+
+describe('the i3 tree is walked to its leaves', () => {
+  it('finds windows nested under containers and in the floating list', () => {
+    const windows = WINDOW_BACKENDS.find(backend => backend.name === 'i3')!.parse(NESTED_I3TREE)
+    expect(windows.map(window => window.windowId)).toEqual(['77', '88'])
+    // A node without a name and without a pid still reports, because i3 omits both
+    // for container nodes and for windows whose process has not been resolved.
+    expect(windows[0]).toEqual({
+      windowId: '77',
+      pid: 0,
+      title: '',
+      bounds: { x: 10, y: 20, width: 640, height: 480 },
+    })
+    expect(windows[1]?.title).toBe('Floating dialog')
+  })
+})
+
+describe('a backend that cannot parse its own output falls through to the next', () => {
+  it('names the parse failure and keeps trying rather than reporting no windows', async () => {
+    // hyprctl answers with exit 0 but sends something that is not JSON. Reporting an
+    // empty desktop here would be a lie: the compositor is present and the window
+    // list is simply unreadable, so the ladder must move on and say what happened.
+    const runner = runnerReturning({ hyprctl: { code: 0, stdout: 'not json at all', stderr: '' } })
+    const probe = await probeWindowBackend({ runner, host: { hasX11: true, hasWayland: true } })
+    expect(probe.state).toBe('blocked')
+    expect(probe.reason).toContain('hyprland')
+  })
+
+  it('reports the backend ready when a later one answers after an earlier parse failure', async () => {
+    const runner = answersOnly({
+      hyprctl: { code: 0, stdout: 'not json at all', stderr: '' },
+      wmctrl: { code: 0, stdout: WMCTRL, stderr: '' },
+    })
+    const probe = await probeWindowBackend({ runner, host: { hasX11: true, hasWayland: true } })
+    expect(probe.state).toBe('ready')
+    expect(probe.reason).toContain('ewmh')
+  })
+})
+
+describe('the AT-SPI probe distinguishes a missing bus from disabled accessibility', () => {
+  it('names the remedy and keeps the tool’s own words when the address cannot be read', async () => {
+    const runner = runnerReturning({ gdbus: { code: 1, stdout: '', stderr: 'No such name org.a11y.Bus' } })
+    const probe = await probeAtspi({ runner, host: { hasX11: true, hasWayland: false } })
+    expect(probe.state).toBe('blocked')
+    expect(probe.code).toBe('atspi-unavailable')
+    expect(probe.reason).toContain('No such name')
+    expect(probe.remedy).toContain('toolkit-accessibility')
+  })
+
+  it('substitutes its own explanation when the tool failed silently', async () => {
+    const runner = runnerReturning({ gdbus: { code: 1, stdout: '', stderr: '   ' } })
+    const probe = await probeAtspi({ runner, host: { hasX11: true, hasWayland: false } })
+    expect(probe.reason).toBe('the AT-SPI bus address could not be read')
+  })
+})
+
+describe('input falls through X11 to Wayland when xdotool is absent', () => {
+  it('reports wtype ready on an X11 session that has no xdotool', async () => {
+    // An X11 session without xdotool still has wtype on some installations, and the
+    // ladder exists so that combination is not reported as having no input at all.
+    const runner = answersOnly({ wtype: { code: 0, stdout: '', stderr: '' } })
+    const probe = await probeInput({ runner, host: { hasX11: true, hasWayland: false } })
+    expect(probe.state).toBe('ready')
+    expect(probe.reason).toContain('wtype')
+  })
+
+  it('reports ydotool ready only after xdotool and wtype both decline', async () => {
+    const runner = answersOnly({ ydotool: { code: 0, stdout: '', stderr: '' } })
+    const probe = await probeInput({ runner, host: { hasX11: true, hasWayland: true } })
+    expect(probe.state).toBe('ready')
+    expect(probe.reason).toContain('ydotool')
+  })
+
+  it('points at uinput tooling on Wayland and at XTEST on X11', async () => {
+    const wayland = await probeInput({ runner: runnerReturning({}), host: { hasX11: false, hasWayland: true } })
+    expect(wayland.state).toBe('blocked')
+    expect(wayland.remedy).toContain('ydotoold')
+
+    const x11 = await probeInput({ runner: runnerReturning({}), host: { hasX11: true, hasWayland: false } })
+    expect(x11.remedy).toContain('XTEST')
+  })
+})
+
+describe('the adapter answers for itself without injected readers', () => {
+  it('reports readiness through its own options rather than a caller-supplied object', async () => {
+    const runner = answersOnly({
+      busctl: { code: 0, stdout: '', stderr: '' },
+      gdbus: { code: 0, stdout: '', stderr: '' },
+      wmctrl: { code: 0, stdout: WMCTRL, stderr: '' },
+      xdotool: { code: 0, stdout: '', stderr: '' },
+    })
+    const adapter = new LinuxDesktopAdapter({ runner, host: { hasX11: true, hasWayland: false } })
+    const report = await adapter.readiness()
+    expect(report.platform).toBe('linux')
+    expect(report.blockers).toEqual([])
+  })
+
+  it('reads a node value as unknown when no reader was injected, instead of claiming a match', async () => {
+    // The default has to be "cannot observe", never a value that happens to equal
+    // what was expected — a verification that cannot fail is worse than none.
+    const adapter = new LinuxDesktopAdapter({
+      runner: runnerReturning({}),
+      host: { hasX11: true, hasWayland: false },
+    })
+    const [outcome] = await adapter.verify([{ kind: 'nodeValueEquals', token: 's1:0', value: 'anything' }])
+    expect(outcome?.satisfied).toBe(false)
+  })
+
+  it('names the backend whose output it could not read when every backend fails to parse', async () => {
+    // hyprctl is up and answers with something that is not a client list, and no
+    // other backend is installed. That is a capability failure, not a desktop with
+    // no windows, so the report has to name hyprland and what it could not read
+    // rather than presenting an empty window list as an observation.
+    const runner = answersOnly({ hyprctl: { code: 0, stdout: '{}', stderr: '' } })
+    const adapter = new LinuxDesktopAdapter({ runner, host: { hasX11: true, hasWayland: true } })
+    const probe = await probeWindowBackend({ runner, host: { hasX11: true, hasWayland: true } })
+    expect(probe.state).toBe('blocked')
+    expect(probe.reason).toContain('hyprland')
+    await expect(adapter.observe({})).rejects.toThrow(ComputerUseError)
+  })
+})
+
+describe('the adapter falls back where a caller supplied nothing', () => {
+  it('describes the host itself when the options name no session facts', () => {
+    // Constructed without `host`, the adapter reads the live process environment.
+    // That is the path a deployment takes; a test that always injects the facts
+    // would never exercise it.
+    const adapter = new LinuxDesktopAdapter({ runner: runnerReturning({}) })
+    expect(adapter).toBeInstanceOf(LinuxDesktopAdapter)
+  })
+
+  it('cannot observe a node value when no reader was injected, so it refuses to match', async () => {
+    // The default reader reports `undefined`, which cannot equal any expected value.
+    // Returning a match here would be a verification that cannot fail.
+    const adapter = new LinuxDesktopAdapter({ runner: runnerReturning({}), host: { hasX11: true, hasWayland: false } })
+    const [outcome] = await adapter.verify([{ kind: 'nodeValueEquals', token: 's1:0', value: 'x' }])
+    expect(outcome?.satisfied).toBe(false)
+  })
+
+  it('describes an exit code when a backend failed without saying anything', async () => {
+    const runner = answersOnly({ wmctrl: { code: 3, stdout: '', stderr: '   ' } })
+    const adapter = new LinuxDesktopAdapter({ runner, host: { hasX11: true, hasWayland: false } })
+    // `act` returns a receipt on success and throws a ComputerUseError on failure, so
+    // the failed call is captured by narrowing the caught value rather than casting:
+    // a cast would leave the success type in play and hide a call that did not throw.
+    const failing = await adapter.act({ kind: 'focusWindow', target: { kind: 'window', pid: 1, windowId: '0x1' } })
+      .then(
+        receipt => expect.unreachable(`act should have failed, got ${JSON.stringify(receipt)}`),
+        (error: unknown) => {
+          expect(error).toBeInstanceOf(ComputerUseError)
+          return error as ComputerUseError
+        },
+      )
+    // The exit code stands in for the tool's own words, so the report still names
+    // which backend failed and how — a bare "no backend could focus it" would hide
+    // that wmctrl was present and refused.
+    expect(JSON.stringify(failing.detail)).toContain('exit 3')
+  })
+
+  it('sends a key with no modifiers rather than requiring a modifier list', async () => {
+    const runner = answersOnly({
+      wmctrl: { code: 0, stdout: '', stderr: '' },
+      xdotool: { code: 0, stdout: '', stderr: '' },
+    })
+    const adapter = new LinuxDesktopAdapter({ runner, host: { hasX11: true, hasWayland: false } })
+    const receipt = await adapter.act({
+      kind: 'key',
+      key: 'Return',
+      target: { kind: 'window', pid: 1, windowId: '0x1' },
+    })
+    expect(receipt.route).toBe('native-input')
+  })
+
+  it('describes an unparseable backend by its exit code when its stderr is blank', async () => {
+    const runner = answersOnly({ wmctrl: { code: 2, stdout: '', stderr: '' } })
+    const adapter = new LinuxDesktopAdapter({ runner, host: { hasX11: true, hasWayland: false } })
+    const [outcome] = await adapter.verify([{ kind: 'windowTitled', title: 'Anything' }])
+    expect(outcome?.satisfied).toBe(false)
+    expect(outcome?.observed).toContain('not among 0 windows')
+  })
+
+  it('reports a backend that threw a non-Error as a failed backend', async () => {
+    // A parser that throws something other than an Error still has to be described,
+    // because the ladder continues and the report names what it tried.
+    const runner = answersOnly({
+      hyprctl: { code: 0, stdout: '{}', stderr: '' },
+      'i3-msg': { code: 0, stdout: JSON.stringify({ id: 1, rect: { x: 0, y: 0, width: 1, height: 1 }, nodes: null, floating_nodes: [] }), stderr: '' },
+    })
+    const probe = await probeWindowBackend({ runner, host: { hasX11: true, hasWayland: false } })
+    expect(probe.state).toBe('blocked')
+    expect(probe.reason).toContain('i3')
+  })
+
+  it('explains a session bus failure with its own words when the tool said nothing', async () => {
+    // busctl is absent, so its stderr is our own "command not found" rather than
+    // the bus refusing; the probe has to explain the failure either way.
+    const absent = await probeSessionBus({ runner: answersOnly({}), host: { hasX11: false, hasWayland: false } })
+    expect(absent.state).toBe('unknown')
+    expect(absent.code).toBe('no-session-bus')
+
+    const silent = await probeSessionBus({
+      runner: answersOnly({ busctl: { code: 1, stdout: '', stderr: '   ' } }),
+      host: { hasX11: false, hasWayland: false },
+    })
+    expect(silent.reason).toBe('the D-Bus session bus could not be reached')
+  })
+})
+
+describe('the remaining observation paths', () => {
+  it('omits the accessibility note when the caller asks for no tree', async () => {
+    // `tree: false` is how a caller says it only wants the window list. Emitting the
+    // "no accessibility nodes" note anyway would misreport what was asked for.
+    const runner = answersOnly({ wmctrl: { code: 0, stdout: WMCTRL, stderr: '' } })
+    const adapter = new LinuxDesktopAdapter({ runner, host: { hasX11: true, hasWayland: false } })
+    const withTree = await adapter.observe({})
+    const withoutTree = await adapter.observe({ tree: false })
+    // `?? []` keeps the "any note mentions it" reading while typing the optional
+    // field; a missing list then fails these rather than matching vacuously.
+    expect(withTree.notes ?? []).toContainEqual(expect.stringContaining('AT-SPI'))
+    expect(withoutTree.notes ?? []).not.toContainEqual(expect.stringContaining('AT-SPI'))
+  })
+
+  it('refuses a window id that is not present instead of returning an empty snapshot', async () => {
+    const runner = answersOnly({ wmctrl: { code: 0, stdout: WMCTRL, stderr: '' } })
+    const adapter = new LinuxDesktopAdapter({ runner, host: { hasX11: true, hasWayland: false } })
+    await expect(adapter.observe({ windowId: '0xdead' })).rejects.toThrow(/is present/)
+  })
+
+  it('reads window titles through the adapter when no reader is injected', async () => {
+    // The fallback reader derives titles from the window list, so a titled window
+    // matches without a caller supplying a reader of its own.
+    const runner = answersOnly({ wmctrl: { code: 0, stdout: WMCTRL, stderr: '' } })
+    const adapter = new LinuxDesktopAdapter({ runner, host: { hasX11: true, hasWayland: false } })
+    const [outcome] = await adapter.verify([{ kind: 'windowTitled', title: 'Agent Story' }])
+    expect(outcome?.satisfied).toBe(true)
+  })
+
+  it('describes a backend that threw something which is not an Error', async () => {
+    // i3-msg answers 0 but the tree's child lists are null, so walking it throws a
+    // TypeError from the spread rather than an Error we constructed. The report has
+    // to describe that too, because the ladder keeps going and names what it tried.
+    const runner = answersOnly({
+      hyprctl: { code: 0, stdout: '{}', stderr: '' },
+      'i3-msg': {
+        code: 0,
+        stdout: JSON.stringify({ id: 1, rect: { x: 0, y: 0, width: 1, height: 1 }, nodes: null, floating_nodes: [] }),
+        stderr: '',
+      },
+      wmctrl: { code: 1, stdout: '', stderr: '' },
+    })
+    const probe = await probeWindowBackend({ runner, host: { hasX11: true, hasWayland: false } })
+    expect(probe.state).toBe('blocked')
+    expect(probe.reason).toContain('i3')
+  })
+
+  it('names a backend that succeeded but could not be parsed, in the adapter path as well', async () => {
+    const runner = answersOnly({
+      hyprctl: { code: 0, stdout: '{}', stderr: '' },
+      'i3-msg': { code: 1, stdout: '', stderr: 'i3 not running' },
+      wmctrl: { code: 1, stdout: '', stderr: '' },
+    })
+    const adapter = new LinuxDesktopAdapter({ runner, host: { hasX11: true, hasWayland: false } })
+    await expect(adapter.observe({})).rejects.toThrow(ComputerUseError)
+  })
+})
+
+describe('a backend that throws something other than an Error is still described', () => {
+  /**
+   * Run `body` with one backend's parser replaced, restoring it afterwards.
+   *
+   * The shipped parsers only ever throw `SyntaxError` or `TypeError`, so the
+   * non-Error arm of the ladder's reporting cannot be reached through their own
+   * behaviour. The ladder's contract is wider than that: it catches whatever a
+   * backend throws, and a third-party or future backend may throw a plain value.
+   * Swapping the parser for the duration of the test is what lets that arm be
+   * asserted rather than assumed.
+   */
+  const withThrowingParser = async (
+    backendName: string,
+    thrown: unknown,
+    body: () => Promise<void>,
+  ): Promise<void> => {
+    const backend = WINDOW_BACKENDS.find(candidate => candidate.name === backendName)!
+    const original = backend.parse
+    backend.parse = () => { throw thrown }
+    try {
+      await body()
+    } finally {
+      backend.parse = original
+    }
+  }
+
+  it('reports a plain value thrown by a parser, in the readiness ladder', async () => {
+    // hyprctl has to answer 0, or the ladder records the command as missing and
+    // never reaches the parser at all.
+    const runner = answersOnly({ hyprctl: { code: 0, stdout: '[]', stderr: '' } })
+    await withThrowingParser('hyprland', 'a bare string failure', async () => {
+      const probe = await probeWindowBackend({ runner, host: { hasX11: true, hasWayland: false } })
+      expect(probe.state).toBe('blocked')
+      expect(probe.reason).toContain('a bare string failure')
+    })
+  })
+
+  it('reports a plain value thrown by a parser, in the adapter window listing', async () => {
+    const runner = answersOnly({ hyprctl: { code: 0, stdout: '[]', stderr: '' } })
+    await withThrowingParser('hyprland', 'a bare string failure', async () => {
+      const adapter = new LinuxDesktopAdapter({ runner, host: { hasX11: true, hasWayland: false } })
+      await expect(adapter.observe({})).rejects.toThrow(ComputerUseError)
+    })
   })
 })

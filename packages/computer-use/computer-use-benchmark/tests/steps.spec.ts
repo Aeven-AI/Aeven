@@ -107,7 +107,7 @@ describe('measuring for real', () => {
   it('counts one call for the Pages document task, which is the claim being tested', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'aeven-bench2-'))
     const path = join(dir, 'story.pages')
-    const result = await measureTask({ book: STARTER_BOOK }, {
+    const result = await measureTask({ book: STARTER_BOOK, tasks: [] }, {
       task: 'document.createText',
       platform: 'darwin',
       app: 'com.apple.Pages',
@@ -122,7 +122,7 @@ describe('measuring for real', () => {
   })
 
   it('reports a task it cannot run with the reason, never as zero calls', async () => {
-    const result = await measureTask({ book: STARTER_BOOK }, {
+    const result = await measureTask({ book: STARTER_BOOK, tasks: [] }, {
       task: 'document.createText',
       platform: 'darwin',
       app: 'com.apple.Pages',
@@ -134,7 +134,7 @@ describe('measuring for real', () => {
   })
 
   it('reports a task whose resolution fails as skipped with the failure', async () => {
-    const result = await measureTask({ book: STARTER_BOOK }, {
+    const result = await measureTask({ book: STARTER_BOOK, tasks: [] }, {
       task: 'spreadsheet.setCell',
       platform: 'linux',
       parameters: { cell: 'A1', value: '1' },

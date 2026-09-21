@@ -23,12 +23,25 @@ import {
 import { RecipeRouter } from '../src/router.ts'
 
 describe('the Office set is honest about its evidence', () => {
-  it('marks every entry documented, because none has been run on a real host', () => {
+  it('marks an entry verified only where a run on a real host backs it', () => {
+    // The point of this gate is that `verified` cannot be claimed by writing it
+    // down. Exactly one entry earns it: Keynote on macOS, whose create, fill, save
+    // and read-back were run against live Keynote. Every other platform stays
+    // `documented` until someone runs it on that host — Windows and Linux included,
+    // which is the whole reason this test exists.
+    const verified: string[] = []
     for (const recipe of OFFICE_RECIPES) {
       for (const entry of recipe.on) {
+        if (entry.evidence === 'verified') {
+          verified.push(`${recipe.task} on ${entry.platform}`)
+          expect(entry.platform, `${recipe.task} claims verified off macOS`).toBe('darwin')
+          expect(entry.apps, `${recipe.task} claims verified without Keynote`).toContain('com.apple.Keynote')
+          continue
+        }
         expect(entry.evidence, `${recipe.task} on ${entry.platform}`).toBe('documented')
       }
     }
+    expect(verified).toEqual(['slide.setText on darwin'])
   })
 
   it('gives every task at least one verification expectation', () => {
@@ -90,10 +103,21 @@ describe('each platform gets the mechanism that fits it', () => {
     expect(linux.invocation.operation).toContain('UNO')
   })
 
-  it('refuses a cell write on macOS Numbers only when the app is not covered', () => {
-    // Numbers is covered, so this resolves; PowerPoint on macOS is not.
+  it('resolves a slide text write to Keynote on macOS and to PowerPoint elsewhere', () => {
+    // Keynote is covered now, so macOS resolves instead of throwing. The operand is
+    // the one the apple-events handler implements, which is what makes the row more
+    // than documentation.
+    const mac = router.resolve({ task: 'slide.setText', platform: 'darwin', app: 'com.apple.Keynote' })
+    expect(mac.rung).toBe('semantic')
+    expect(mac.invocation.operation).toBe('keynote.setSlideText')
+    expect(mac.invocation.mechanism).toBe('apple-events')
+
+    const windows = router.resolve({ task: 'slide.setText', platform: 'win32', app: 'PowerPoint.Application' })
+    expect(windows.invocation.mechanism).toBe('com')
+
+    // An application the book does not cover is still refused, on every platform.
+    expect(() => router.resolve({ task: 'slide.setText', platform: 'darwin', app: 'com.microsoft.Powerpoint' })).toThrow()
     expect(() => router.resolve({ task: 'spreadsheet.setCell', platform: 'darwin', app: 'com.apple.Numbers' })).not.toThrow()
-    expect(() => router.resolve({ task: 'slide.setText', platform: 'darwin', app: 'com.apple.Keynote' })).toThrow()
   })
 })
 

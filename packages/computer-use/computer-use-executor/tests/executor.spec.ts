@@ -91,6 +91,67 @@ describe('placeholder substitution', () => {
   it('refuses a batch with an unfilled placeholder rather than resolving what it can', () => {
     expect(() => resolveExpectations([{ kind: 'fileExists', path: '{p}' }], {})).toThrow(/has no value/)
   })
+
+  it('resolves the optional semantic fields only when the recipe names them', () => {
+    // Both arms matter. Naming `folder`/`contains`/`match` must substitute them, and
+    // omitting them must leave them omitted: filling an absent field with an empty
+    // string would silently narrow the check to "the folder named nothing", which is
+    // the opposite of what an omitted field asks for.
+    const named = resolveExpectations([
+      { kind: 'noteExists', name: '{s}', folder: '{f}', contains: '{c}' },
+      { kind: 'calendarHasEvent', calendar: '{f}', match: { summary: '{s}' } },
+    ], { s: 'Standup', f: 'Work', c: 'agenda' })
+    expect(named[0]).toEqual({ kind: 'noteExists', name: 'Standup', folder: 'Work', contains: 'agenda' })
+    expect(named[1]).toEqual({ kind: 'calendarHasEvent', calendar: 'Work', match: { summary: 'Standup' } })
+
+    const omitted = resolveExpectations([{ kind: 'noteExists', name: '{s}' }], { s: 'Standup' })
+    expect(omitted[0]).toEqual({ kind: 'noteExists', name: 'Standup' })
+    expect(omitted[0]).not.toHaveProperty('contains')
+  })
+
+  it('resolves the semantic kinds, whose values are caller arguments too', () => {
+    // These three are what a PIM recipe actually declares — `calendar.createEvent`
+    // verifies with `calendarHasEvent` — and each carries caller values, so leaving
+    // them unresolved would hand the verifier a placeholder to match against. The
+    // resolver threw on all three before this test existed.
+    const resolved = resolveExpectations([
+      { kind: 'appObject', app: 'com.apple.Calendar', collection: 'events', match: { summary: '{s}' } },
+      { kind: 'calendarHasEvent', calendar: '{c}', count: 1, match: { summary: '{s}' } },
+      { kind: 'noteExists', name: '{s}', folder: '{c}', contains: '{t}' },
+    ], { s: 'Standup', c: 'Work', t: 'agenda' })
+    expect(resolved[0]).toEqual({
+      kind: 'appObject',
+      app: 'com.apple.Calendar',
+      collection: 'events',
+      match: { summary: 'Standup' },
+    })
+    expect(resolved[1]).toEqual({
+      kind: 'calendarHasEvent',
+      calendar: 'Work',
+      count: 1,
+      match: { summary: 'Standup' },
+    })
+    expect(resolved[2]).toEqual({ kind: 'noteExists', name: 'Standup', folder: 'Work', contains: 'agenda' })
+  })
+
+  it('applies the unfilled-placeholder rule inside a match record, not just to top-level strings', () => {
+    // A match record is a set of fields to compare, so a field left as `{s}` would
+    // be compared literally and match nothing — or worse, be loosened to a wildcard.
+    // Either way it stops being a check, so it has to fail here like any other.
+    const expectations: Expectation[] = [
+      { kind: 'calendarHasEvent', match: { summary: '{s}' } },
+    ]
+    expect(() => resolveExpectations(expectations, {})).toThrow(/has no value/)
+  })
+
+  it('leaves an absent optional field absent rather than inventing a value', () => {
+    // `calendarHasEvent` matches on any calendar when none is named. Filling that in
+    // with an empty string would silently narrow the check to the empty-named
+    // calendar, which is the opposite of what an omitted field asks for.
+    const resolved = resolveExpectations([{ kind: 'calendarHasEvent', count: 2 }], {})
+    expect(resolved[0]).toEqual({ kind: 'calendarHasEvent', count: 2 })
+    expect(resolved[0]).not.toHaveProperty('match')
+  })
 })
 
 describe('the filesystem mechanism is real, not mocked', () => {
@@ -292,5 +353,95 @@ describe('execution verifies independently of what the handler reported', () => 
     const outcome = await executor.execute({ task: 'file.readText', platform: 'darwin', parameters: { path } })
     expect(verify).toHaveBeenCalledOnce()
     expect(outcome.verified).toBe(true)
+  })
+
+  it('checks without an adapter through built-in readers that can only report nothing', async () => {
+    // With no adapter there is no accessibility tree and no window list to consult,
+    // so those readers resolve to "nothing observed". That still has to be a real
+    // check: a filesystem expectation must pass or fail on its own merits, and an
+    // unanswerable one must report unsatisfied rather than quietly passing.
+    const path = join(dir, 'no-adapter.txt')
+    await writeFile(path, 'needle')
+    const executor = new TaskExecutor({ book: WRITE_BOOK })
+    const outcome = await executor.execute({ task: 'file.readText', platform: 'darwin', parameters: { path } })
+    expect(outcome.verified).toBe(true)
+    expect(outcome.outcomes.map(entry => entry.satisfied)).toEqual([true])
+  })
+
+  it('reports a window expectation as unsatisfied without an adapter, rather than passing it', async () => {
+    // The built-in window reader can only answer "no windows", because with no
+    // adapter there is no desktop to ask. A window expectation is therefore
+    // unanswerable here, and unanswerable must read as unsatisfied: passing it would
+    // be the verification-that-cannot-fail this stack exists to avoid.
+    const path = join(dir, 'window-check.txt')
+    await writeFile(path, 'needle')
+    const book: RecipeBook = [
+      {
+        task: 'file.checkWindow',
+        summary: 'Read a file and expect a window to exist.',
+        on: [{
+          platform: 'darwin',
+          rung: 'semantic',
+          apps: [],
+          evidence: 'verified',
+          invocation: { mechanism: 'filesystem', operation: 'readFile', parameters: { path: '' } },
+        }],
+        verify: [
+          { kind: 'windowTitled', title: 'Anything' },
+          { kind: 'nodeValueEquals', token: 's1:0', value: 'anything' },
+        ],
+      },
+    ]
+    const executor = new TaskExecutor({ book })
+    const outcome = await executor.execute({ task: 'file.checkWindow', platform: 'darwin', parameters: { path } })
+    expect(outcome.verified).toBe(false)
+    expect(outcome.outcomes.map(entry => entry.satisfied)).toEqual([false, false])
+    expect(outcome.outcomes[0]?.observed).toMatch(/not among 0 windows/)
+    // With no adapter there is no tree either, so the node reader answers `undefined`,
+    // which reads as "node not found" and fails rather than matching a missing value.
+    expect(outcome.outcomes[1]?.observed).toMatch(/node not found/)
+  })
+
+  it('passes an application and an available-rung list through to resolution', async () => {
+    // Both are optional, and both change what the router may pick. Spreading them
+    // conditionally is what keeps an omitted value omitted *by absence* rather than
+    // present-and-undefined, which the router treats differently when it decides
+    // whether a host can run a rung at all.
+    const path = join(dir, 'app-scoped.txt')
+    await writeFile(path, 'needle')
+    const book: RecipeBook = [
+      {
+        task: 'file.readText',
+        summary: 'Read a file.',
+        on: [
+          {
+            platform: 'darwin',
+            rung: 'semantic',
+            apps: ['com.apple.Notes'],
+            evidence: 'verified',
+            invocation: { mechanism: 'filesystem', operation: 'readFile', parameters: { path: '' } },
+          },
+        ],
+        verify: [{ kind: 'fileContains', path: '{path}', text: 'needle' }],
+      },
+    ]
+    const executor = new TaskExecutor({ book })
+    const outcome = await executor.execute({
+      task: 'file.readText',
+      platform: 'darwin',
+      app: 'com.apple.Notes',
+      availableRungs: ['semantic'],
+      parameters: { path },
+    })
+    expect(outcome.verified).toBe(true)
+
+    // The same task with the rung withheld must refuse instead of running anyway.
+    await expect(executor.execute({
+      task: 'file.readText',
+      platform: 'darwin',
+      app: 'com.apple.Notes',
+      availableRungs: ['vision'],
+      parameters: { path },
+    })).rejects.toThrow()
   })
 })

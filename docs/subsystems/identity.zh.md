@@ -65,7 +65,22 @@ registerResolver(resolver: UserResolver): () => void
  * @returns the authenticated user, or undefined when none recognized it.
  */
 resolve(request: IdentityRequest): User | undefined
+
+/**
+ * The credential reference the resolver that recognizes this request named.
+ *
+ * Answers which reference the presented credential opens, so a caller that
+ * must present the same credential elsewhere does not have to guess a name
+ * from the authority's id. Resolution happens exactly once per request, which
+ * is why this identifies rather than asking the authority again.
+ * @param request - the credential-bearing headers.
+ * @returns the reference, or undefined when nobody recognized the request or
+ * the authority declared none.
+ */
+credentialRefFor(request: IdentityRequest): CredentialRef | undefined
 ```
+
+Types: [CredentialRef](credentials.zh.md)
 
 Source: [`packages/identity/user/src/index.ts`](../../packages/identity/user/src/index.ts)
 <!-- END GENERATED cordis-surface -->

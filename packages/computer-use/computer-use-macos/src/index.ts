@@ -47,7 +47,7 @@ import type { RawAxNode } from './ax.ts'
 import type { MacCommandRunner } from './runner.ts'
 import { listWindowsScript, parseWindowList } from './windows.ts'
 import { probeMacReadiness, type GrantHolder, type ReadinessOptions } from './readiness.ts'
-import { checkExpectations, type VerificationReaders } from '@aeven/computer-use-desktop'
+import { verifyWithDefaults, type VerificationReaders } from '@aeven/computer-use-desktop'
 
 /** Options for constructing the adapter. */
 export interface MacAdapterOptions {
@@ -68,16 +68,6 @@ export interface MacAdapterOptions {
 
 /** The default holder: a spawned OS tool carries its own grants. */
 const DEFAULT_HOLDER: GrantHolder = { name: 'osascript', source: 'spawned-helper' }
-
-/** A reader that reports the observable as unavailable rather than guessing. */
-const ABSENT_NODE_VALUES: VerificationReaders['nodeValue'] = {
-  read: () => Promise.resolve(undefined),
-}
-
-/** A reader that reports no windows rather than inventing titles. */
-const NO_WINDOWS: VerificationReaders['windowTitles'] = {
-  list: () => Promise.resolve([]),
-}
 
 /**
  * Translate the contract's modifier names into the AppleScript `using` terms.
@@ -144,10 +134,7 @@ export class MacDesktopAdapter {
    * @throws {ComputerUseError} `not-implemented` when an expectation needs the AX tree.
    */
   async verify(expectations: readonly Expectation[]): Promise<readonly VerificationOutcome[]> {
-    return checkExpectations(expectations, {
-      nodeValue: this.options.readers?.nodeValue ?? ABSENT_NODE_VALUES,
-      windowTitles: this.options.readers?.windowTitles ?? NO_WINDOWS,
-    })
+    return verifyWithDefaults(expectations, this.options.readers, () => Promise.resolve([]))
   }
 
   /**
@@ -232,7 +219,7 @@ export class MacDesktopAdapter {
    * @param cap - the node cap.
    * @returns the walked roster and whether it was cut short.
    */
-  private async walkTree(cap: number): Promise<{ nodes: RawAxNode[], truncated: boolean }> {
+  private async walkTree(cap: number): Promise<{ nodes: RawAxNode[]; truncated: boolean }> {
     const result = await this.options.runner.run('osascript', ['-l', 'JavaScript', '-e', axWalkScript(String(cap))], this.options.signal)
     // The walk emits its envelope before throwing, so stdout is authoritative and
     // the exit code only distinguishes success from a reported failure.
@@ -429,3 +416,6 @@ const NAMED_KEY_CODES: Readonly<Record<string, number>> = {
 
 /** Snapshot type re-exported so callers can type an observation without a second import. */
 export type { DesktopSnapshot } from '@aeven/computer-use-desktop'
+// The adapter is constructed from outside this package, so its runner contract is
+// part of the public surface: a consumer supplies the runner.
+export type { MacCommandResult, MacCommandRunner } from './runner.ts'

@@ -119,3 +119,5 @@ A JSON file that is not a task (no id and instruction pair) is *skipped*; a file
 The importer found a real disagreement between the sources on the first run: OSWorld writes the evaluator's `func` as a **string**, MacAgentBench writes it as an **array**. One adapter tolerant of both reads them identically, and a test pins it.
 
 The most useful output is not the 1,199 figure but the two correction figures: 265 intents set aside as harness-only, and the renames that turn a split `libreoffice-calc` count of 22 + 11 + 67 into an honest 100. Both exist because a raw count would have been misleading in the direction that costs work — understating where to invest, and overstating where not to.
+
+**Runtime invariant:** No companion is published because The package imports benchmark task sets and normalizes them into intents as pure functions, so it has no runtime sequence to compare and no mutable relation to maintain.

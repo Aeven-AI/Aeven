@@ -77,3 +77,5 @@ This shape exists because action acknowledgements are unreliable in practice: a 
 The contract deliberately has no "did it work" return value anywhere. Every failure mode this package guards against was observed in practice: unscoped input reaching the wrong window, a stale element index resolving to a different control, and an action acknowledging delivery while the observable never changed.
 
 The types module carries no runtime code, so the contract costs nothing to depend on; `guard.ts` holds the runtime validation and is covered by its own suite.
+
+**Runtime invariant:** No companion is published because The package declares the desktop contract and its guards as pure data, so it emits no event sequence and maintains no mutable relation; a consumer that drives an adapter owns those.

@@ -79,3 +79,5 @@ That distinction is the reason this layer is worth having: an operation sequence
 `exactOptionalPropertyTypes` caught a real looseness here: resolved fills were `string | undefined`, which would have forced every layout to invent a fallback for a value `resolve()` always provides. The type now says a resolved option is resolved.
 
 Writing the tests caught a second thing worth recording. Two helper names were imported that had never been written, and the suite passed anyway — vitest does not typecheck. The names were removed and the exports checked against the imports directly, because a green run is not evidence that the code refers to anything.
+
+**Runtime invariant:** No companion is published because The package computes slide geometry as pure functions from a spec, so its output is total and comparable by value; there is no sequence of effects to observe.

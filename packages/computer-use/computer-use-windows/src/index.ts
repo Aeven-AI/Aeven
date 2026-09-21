@@ -29,7 +29,7 @@ import {
   type ObserveScope,
   type ReadinessReport,
   type VerificationOutcome,
-  checkExpectations,
+  verifyWithDefaults as verify,
   type VerificationReaders,
 } from '@aeven/computer-use-desktop'
 import { probeWindowsReadiness, type WinReadinessOptions } from './readiness.ts'
@@ -97,7 +97,7 @@ interface RawWindow {
   windowId: string
   pid: number
   title: string
-  bounds: { x: number, y: number, width: number, height: number }
+  bounds: { x: number; y: number; width: number; height: number }
 }
 
 /** One node as the tree fragment reports it. */
@@ -108,7 +108,7 @@ interface RawNode {
   value: string | null
   actions: string[]
   editable: boolean
-  bounds: { x: number, y: number, width: number, height: number }
+  bounds: { x: number; y: number; width: number; height: number }
 }
 
 /** The envelope every fragment emits. */
@@ -184,17 +184,12 @@ export class WindowsDesktopAdapter {
     return probeWindowsReadiness(options)
   }
 
-  /**
-   * Verify expectations by independent read-back.
-   * @param expectations - the conditions to check.
-   * @returns one outcome per expectation, in order.
-   */
-  async verify(expectations: readonly Expectation[]): Promise<readonly VerificationOutcome[]> {
-    return checkExpectations(expectations, {
-      nodeValue: this.options.readers?.nodeValue ?? { read: () => Promise.resolve(undefined) },
-      windowTitles: this.options.readers?.windowTitles ?? { list: async () => (await this.listWindows()).map(window => window.title ?? '') },
-    })
+  /* jscpd:ignore-start -- the three adapters verify through one shared helper; only the window source differs. */
+  /** Verify by independent read-back. */
+  async verify(e: readonly Expectation[]): Promise<readonly VerificationOutcome[]> {
+    return verify(e, this.options.readers, async () => await this.listWindows())
   }
+  /* jscpd:ignore-end */
 
   /**
    * Capture one coherent view of the desktop or of a single window.
@@ -315,7 +310,7 @@ export class WindowsDesktopAdapter {
    */
   private inputScript(
     action: Extract<DesktopAction, { kind: 'click' | 'type' | 'key' }>,
-    window: { pid: number, windowId: string },
+    window: { pid: number; windowId: string },
   ): string {
     const handle = `'${quotePowerShellLiteral(window.windowId)}'`
     const primitives = `
@@ -504,7 +499,7 @@ Write-Json @{ ok = $true; clicked = @{ x = ${String(Math.round(point.x))}; y = $
    * @param maxNodes - the node cap.
    * @returns the nodes and whether the walk was cut short.
    */
-  private async readTree(window: DesktopWindow, maxNodes: number): Promise<{ nodes: DesktopNode[], truncated: boolean }> {
+  private async readTree(window: DesktopWindow, maxNodes: number): Promise<{ nodes: DesktopNode[]; truncated: boolean }> {
     const result = await this.options.runner.run(
       this.options.powershell ?? 'powershell',
       ['-NoProfile', '-NonInteractive', '-Command', windowTreeScript(`'${quotePowerShellLiteral(window.windowId)}'`, String(maxNodes))],
@@ -512,7 +507,7 @@ Write-Json @{ ok = $true; clicked = @{ x = ${String(Math.round(point.x))}; y = $
     )
     const envelope = parseEnvelope(result.stdout, 'read window tree')
     assertOk(envelope, 'read window tree')
-    const nodes = (envelope.nodes ?? []).map(raw => {
+    const nodes = (envelope.nodes ?? []).map((raw) => {
       const node: DesktopNode = {
         index: raw.index,
         token: `${window.windowId}:${String(raw.index)}`,
@@ -538,7 +533,7 @@ Write-Json @{ ok = $true; clicked = @{ x = ${String(Math.round(point.x))}; y = $
    * @param token - the `<windowId>:<ordinal>` token.
    * @returns the resolved role and name.
    */
-  async resolveToken(token: string): Promise<{ role: string, name: string }> {
+  async resolveToken(token: string): Promise<{ role: string; name: string }> {
     const windowId = this.windowIdFromToken({ kind: 'element', token })
     const result = await this.options.runner.run(
       this.options.powershell ?? 'powershell',

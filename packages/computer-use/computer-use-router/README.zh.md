@@ -25,7 +25,7 @@ kind: "package-reference"
 - [理解实现](#understand-the-implementation)
 - [延伸阅读](#further-exploration)
 - [已知限制与后续工作](#known-limitations-and-deferred-work)
-- [开发者说明](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -50,6 +50,7 @@ resolved.verify      // expectations to check independently after it runs
 router.resolve({ task: 'document.setFont', platform: 'darwin', availableRungs: ['vision'] })
 ```
 
+<a id="understand-the-implementation"></a>
 ## 理解实现
 
 ### 阶梯，以及顺序为何重要
@@ -103,6 +104,7 @@ router.resolve({ task: 'document.setFont', platform: 'darwin', availableRungs: [
 
 未知任务会报告本书已知的任务。没有配方的平台会报告该任务确实覆盖的平台。未被覆盖的应用程序会报告它确实覆盖的应用程序。覆盖列表已去重，因此拥有多个调用的平台只被列名一次。
 
+<a id="further-exploration"></a>
 ## 延伸阅读
 
 - [`@aeven/computer-use-desktop`](../computer-use-desktop/README.zh.md) —— 配方的 `verify` 所使用期望所属的契约。
@@ -120,8 +122,10 @@ router.resolve({ task: 'document.setFont', platform: 'darwin', availableRungs: [
 - **期望中的占位符不会被替换。** 配方使用 `{path}` 形式的参数，填入它们是消费方的职责。
 
 <a id="dev-note"></a>
-## 开发者说明
+## 开发备注
 
 配方承载着本技术栈其余部分所依赖的实测结论，这正是它们位于包中而不是文档中的原因：Pages 的内容写入是一次调用且回读逐字节一致，Pages 脚本桥接完全丢失段落处理能力，而 Mail 必须按邮箱读取未读数，因为应用级调用会抛出异常。这些事实作为数据是可测试的，测试也对其作出断言。
 
 拒绝消息是在测试发现某个平台因每个调用而重复一次之后去重的。那份失败输出值得细读，而不是放宽断言。
+
+**运行时不变式：** 不发布伴随插件，因为本包把任务解析为某个梯级时给出的是纯数据，自身不产生任何效应，因此没有事件次序或可变关系可供比较；解析之后发生的事情由执行器拥有。

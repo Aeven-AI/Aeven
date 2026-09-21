@@ -117,9 +117,13 @@ export class RecipeRouter {
       ? forPlatform
       : forPlatform.filter(entry => entry.apps.includes(request.app as string))
     if (applicable.length === 0) {
+      // Reached only when a caller named an application, because with no application
+      // `applicable` is every entry for the platform, and an empty list would have
+      // been refused above as "no recipe on this platform". So `request.app` is
+      // present here and needs no fallback.
       throw new ComputerUseError(
         'capability-unavailable',
-        `no recipe for "${request.task}" covers the application "${request.app ?? ''}" on ${request.platform}`,
+        `no recipe for "${request.task}" covers the application "${request.app as string}" on ${request.platform}`,
         { task: request.task, app: request.app, covered: [...new Set(forPlatform.flatMap(entry => [...entry.apps]))] },
       )
     }
@@ -204,7 +208,10 @@ export class RecipeRouter {
     throw new ComputerUseError(
       'capability-unavailable',
       'none of the recipe\'s rungs is available on this host, so the task cannot be performed here',
-      { candidateRungs: candidates.map(entry => entry.rung), availableRungs: [...(available ?? [])] },
+      // `available` is defined here: when the caller did not state its rungs the loop
+      // above accepts the first candidate and returns, so only an explicit list that
+      // excludes every rung can reach this throw.
+      { candidateRungs: candidates.map(entry => entry.rung), availableRungs: [...(available as readonly RecipeRung[])] },
     )
   }
 

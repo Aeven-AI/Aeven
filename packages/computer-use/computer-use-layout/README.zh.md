@@ -21,7 +21,7 @@ kind: "package-reference"
 - [理解实现](#understand-the-implementation)
 - [延伸阅读](#further-exploration)
 - [已知限制与后续工作](#known-limited-work)
-- [开发者说明](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -41,6 +41,7 @@ overflowing(deck[0]!)   // [] — no shape falls outside the slide
 overlapping(deck[1]!)   // role pairs that coincide, which the caller judges
 ```
 
+<a id="understand-the-implementation"></a>
 ## 理解实现
 
 ### 网格是声明的，而不是按布局硬编码的
@@ -59,6 +60,7 @@ overlapping(deck[1]!)   // role pairs that coincide, which the caller judges
 
 `LayoutFills` 只解析一次且完全必需，因此读取 `fills.accent` 的布局总能拿到字符串，而不必在每个使用点自行发明兜底值。传入 `{ fills: { band: 'slate-900' } }` 会改变色带，其余保持默认。
 
+<a id="further-exploration"></a>
 ## 延伸阅读
 
 - [`@aeven/computer-use-formats`](../computer-use-formats/README.zh.md) —— 把布局渲染为文件，工具要求就在那里。
@@ -74,8 +76,10 @@ overlapping(deck[1]!)   // role pairs that coincide, which the caller judges
 - **没有任何东西回读演示文稿。** 布局由其自身几何来校验；确认渲染出的文件实际包含什么，需要格式层的读取器。
 
 <a id="dev-note"></a>
-## 开发者说明
+## 开发备注
 
 `exactOptionalPropertyTypes` 在此发现了一处真实的松散之处：解析后的填色是 `string | undefined`，这会迫使每个布局为 `resolve()` 总会提供的值发明兜底。现在的类型表明，已解析的选项就是已解析的。
 
 编写测试还发现了第二件值得记录的事。有两个辅助函数名被导入，却从未被实现，而测试套件仍然通过了——vitest 不做类型检查。这两个名字已被移除，并直接核对导出与导入，因为一次绿色的运行并不能证明代码引用了任何东西。
+
+**运行时不变式：** 不发布伴随插件，因为本包以纯函数从规格计算幻灯片几何，其输出是全定义的，并可按值比较；这里不存在可观察的效应序列。

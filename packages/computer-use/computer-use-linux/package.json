@@ -28,5 +28,11 @@
   "license": "MIT",
   "dependencies": {
     "@aeven/computer-use-desktop": "workspace:^"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
   }
 }

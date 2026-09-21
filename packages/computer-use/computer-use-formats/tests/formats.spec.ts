@@ -7,7 +7,7 @@
  * makes its tasks refusable *before* they run rather than failing inside one.
  */
 
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   FORMAT_RECIPES,
   FORMAT_TOOLS,
@@ -60,6 +60,23 @@ describe('readiness names every missing tool with a remedy', () => {
     expect(report.blockers).not.toContain('format.soffice')
     expect(report.blockers).toContain('format.pandoc')
   })
+
+  it('reports the platform it was measured on for every platform the layer supports', async () => {
+    // The remedy text differs per platform, so a report that named the wrong one
+    // would send an operator to the wrong install instructions. Each supported
+    // platform is asserted from the same probe, because the mapping is a fixed
+    // table rather than something this host's own platform can stand in for.
+    for (const platform of ['darwin', 'win32', 'linux'] as const) {
+      vi.spyOn(process, 'platform', 'get').mockReturnValue(platform)
+      const report = await probeFormatReadiness(everything)
+      expect(report.platform).toBe(platform)
+      expect(report.blockers).toEqual([])
+    }
+  })
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
 describe('a task declares the tools it needs, read from its own operation', () => {

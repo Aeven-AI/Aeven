@@ -43,7 +43,7 @@ export interface AppObjectReader {
    * @param match - field names to expected values.
    * @returns `matched` with what was observed, or a reason it could not be asked.
    */
-  find(app: string, collection: string, match: Readonly<Record<string, string>>): Promise<{ matched: boolean, observed: string }>
+  find(app: string, collection: string, match: Readonly<Record<string, string>>): Promise<{ matched: boolean; observed: string }>
 }
 
 /** How the adapter lists window titles for `windowTitled`. */
@@ -221,4 +221,37 @@ export async function checkExpectations(
     outcomes.push(await checkExpectation(expectation, readers))
   }
   return outcomes
+}
+
+/**
+ * Check a batch using a caller's readers where it has them and safe defaults where
+ * it does not.
+ *
+ * Every adapter's `verify` needs the same two fallbacks, and writing them out per
+ * platform made the same twenty lines appear three times — once per adapter — where
+ * a divergence would have been invisible. The fallbacks are deliberately pessimistic:
+ * an unreadable node value is `undefined` and an unlistable window set is empty, so a
+ * check that cannot be answered reports unsatisfied rather than passing. The one thing
+ * that genuinely differs per platform is how to enumerate open windows, which is why
+ * that arrives as a callback rather than being guessed here — and the callback returns
+ * the windows rather than their titles so the projection from window to title is shared
+ * too, instead of being copied into every adapter's `verify`.
+ * @param expectations - the conditions to check.
+ * @param supplied - readers the caller has, which take precedence over the defaults.
+ * @param listWindows - how this platform enumerates open windows.
+ * @returns one outcome per expectation, in the same order.
+ */
+export async function verifyWithDefaults(
+  expectations: readonly Expectation[],
+  supplied: Partial<VerificationReaders> | undefined,
+  listWindows: () => Promise<readonly { title?: string }[]>,
+): Promise<readonly VerificationOutcome[]> {
+  const readers: VerificationReaders = {
+    nodeValue: supplied?.nodeValue ?? { read: () => Promise.resolve(undefined) },
+    windowTitles: supplied?.windowTitles ?? {
+      list: async () => (await listWindows()).map(window => window.title ?? ''),
+    },
+    ...supplied?.appObjects === undefined ? {} : { appObjects: supplied.appObjects },
+  }
+  return checkExpectations(expectations, readers)
 }

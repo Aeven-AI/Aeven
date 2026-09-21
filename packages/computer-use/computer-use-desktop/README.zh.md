@@ -21,7 +21,7 @@ kind: "package-reference"
 - [理解实现](#understand-the-implementation)
 - [延伸阅读](#further-exploration)
 - [已知限制与后续工作](#known-limitations-and-deferred-work)
-- [开发者说明](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -39,6 +39,7 @@ await adapter.act({ kind: 'click', target: { kind: 'element', token: node.token 
 await assertVerified(await adapter.verify([{ kind: 'fileExists', path: '/tmp/out.pages' }]), 'save document')
 ```
 
+<a id="understand-the-implementation"></a>
 ## 理解实现
 
 ### 观察是有作用域的
@@ -59,6 +60,7 @@ await assertVerified(await adapter.verify([{ kind: 'fileExists', path: '/tmp/out
 
 `ReadinessReport` 为每项能力携带一个探测结果，状态为 `ready`、`blocked` 或 `unknown`，并附带每项授权所属的操作系统身份。`unknown` 与 `blocked` 刻意区分：未能运行的探测并不等于缺少权限。`composeReadinessReport()` 从探测结果推导阻塞项列表，因此报告不会自相矛盾。
 
+<a id="further-exploration"></a>
 ## 延伸阅读
 
 - [`@aeven/computer-use`](../computer-use/README.zh.md) —— 部署中独占的提供方注册。
@@ -72,8 +74,10 @@ await assertVerified(await adapter.verify([{ kind: 'fileExists', path: '/tmp/out
 - **不保证能力对等。** Linux 无法在每个桌面上都承诺窗口后端，因此调用方必须查阅 `readiness()`，而不能假定某项操作可用。
 
 <a id="dev-note"></a>
-## 开发者说明
+## 开发备注
 
 契约刻意在任何地方都没有"是否成功"的返回值。本包所防护的每一种失败模式都在实践中被观察到：无作用域的输入到达了错误的窗口、过期的元素索引解析到了另一个控件、以及操作声称已投递而可观察对象从未改变。
 
 类型模块不包含运行时代码，因此依赖该契约没有成本；`guard.ts` 与 `verify.ts` 保存运行时校验，并有各自的测试套件覆盖。
+
+**运行时不变式：** 不发布伴随插件，因为本包以纯数据的形式声明桌面契约及其守卫，因此它不发出任何事件序列，也不维护任何可变关系；驱动适配器的消费者才拥有这些。

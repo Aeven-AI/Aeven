@@ -32,8 +32,8 @@ export interface FormatTool {
   /** Stable name, as the readiness report and failures refer to it. */
   name: string
   /** How to check for it: an executable, or a Python module that must import. */
-  probe: { kind: 'executable', command: string, versionArgs: readonly string[] }
-    | { kind: 'pythonModule', module: string }
+  probe: { kind: 'executable'; command: string; versionArgs: readonly string[] }
+    | { kind: 'pythonModule'; module: string }
   /** The action that installs it, shown only when it is missing. */
   remedy: string
 }
@@ -88,7 +88,7 @@ export interface FormatProbeRunner {
    * @param tool - the tool to probe.
    * @returns whether it answered, and what it said when it did not.
    */
-  probe(tool: FormatTool): Promise<{ available: boolean, reason?: string }>
+  probe(tool: FormatTool): Promise<{ available: boolean; reason?: string }>
 }
 
 /**

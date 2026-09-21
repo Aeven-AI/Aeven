@@ -4388,12 +4388,19 @@ importers:
       '@aeven/computer-use-session':
         specifier: workspace:^
         version: link:../computer-use-session
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
 
   packages/computer-use/computer-use-desktop:
     devDependencies:
       '@aeven/brand':
         specifier: workspace:^
         version: link:../../util/brand
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
 
   packages/computer-use/computer-use-executor:
     dependencies:
@@ -4403,30 +4410,97 @@ importers:
       '@aeven/computer-use-router':
         specifier: workspace:^
         version: link:../computer-use-router
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/computer-use/computer-use-formats:
+    dependencies:
+      '@aeven/computer-use-desktop':
+        specifier: workspace:^
+        version: link:../computer-use-desktop
+      '@aeven/computer-use-router':
+        specifier: workspace:^
+        version: link:../computer-use-router
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/computer-use/computer-use-layout:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
 
   packages/computer-use/computer-use-linux:
     dependencies:
       '@aeven/computer-use-desktop':
         specifier: workspace:^
         version: link:../computer-use-desktop
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
 
   packages/computer-use/computer-use-macos:
     dependencies:
       '@aeven/computer-use-desktop':
         specifier: workspace:^
         version: link:../computer-use-desktop
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
 
   packages/computer-use/computer-use-macos-apple-events:
     dependencies:
       '@aeven/computer-use-executor':
         specifier: workspace:^
         version: link:../computer-use-executor
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/computer-use/computer-use-macos-provider:
+    dependencies:
+      '@aeven/computer-use':
+        specifier: workspace:^
+        version: link:../computer-use
+      '@aeven/computer-use-desktop':
+        specifier: workspace:^
+        version: link:../computer-use-desktop
+      '@aeven/computer-use-executor':
+        specifier: workspace:^
+        version: link:../computer-use-executor
+      '@aeven/computer-use-macos':
+        specifier: workspace:^
+        version: link:../computer-use-macos
+      '@aeven/computer-use-macos-apple-events':
+        specifier: workspace:^
+        version: link:../computer-use-macos-apple-events
+      '@aeven/computer-use-router':
+        specifier: workspace:^
+        version: link:../computer-use-router
+      '@aeven/computer-use-session':
+        specifier: workspace:^
+        version: link:../computer-use-session
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
 
   packages/computer-use/computer-use-router:
     dependencies:
       '@aeven/computer-use-desktop':
         specifier: workspace:^
         version: link:../computer-use-desktop
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
 
   packages/computer-use/computer-use-session:
     dependencies:
@@ -4436,14 +4510,26 @@ importers:
       '@aeven/computer-use-executor':
         specifier: workspace:^
         version: link:../computer-use-executor
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
 
-  packages/computer-use/computer-use-tasks: {}
+  packages/computer-use/computer-use-tasks:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
 
   packages/computer-use/computer-use-windows:
     dependencies:
       '@aeven/computer-use-desktop':
         specifier: workspace:^
         version: link:../computer-use-desktop
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
 
   packages/context/agent-instructions:
     dependencies:

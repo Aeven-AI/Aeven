@@ -356,6 +356,13 @@ export default defineConfig({
         'packages/interaction/commands/src/index.ts',
         'packages/interaction/commands/src/invariant.ts',
         'packages/session/session-projection/src/index.ts',
+        // Computer-use entry modules that only re-export their siblings and declare
+        // types. There is no runtime logic to exercise, so measuring them would mean
+        // asserting that an import statement ran. The siblings they re-export are
+        // gated in full, and every computer-use `index.ts` that carries behaviour —
+        // including the registry in `computer-use` itself — stays measured.
+        'packages/computer-use/computer-use-desktop/src/index.ts',
+        'packages/computer-use/computer-use-router/src/index.ts',
         ...windowsUnsupportedCoveragePackages.map(path => `${path}/src/**/*.ts`),
         ...windowsOnlyCoverageExclusions,
         ...windowsRunnerCoverageExclusions,

@@ -12,9 +12,24 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { DesktopAdapter, DesktopNode, DesktopSnapshot, ObserveResult } from '@aeven/computer-use-desktop'
+import type { DesktopAdapter, DesktopNode, DesktopSnapshot, DesktopWindow, ObserveResult } from '@aeven/computer-use-desktop'
 import type { RecipeBook } from '@aeven/computer-use-router'
 import { ComputerUseSession, diffNodes, diffSize, isQuiet, type SessionStep } from '../src/index.ts'
+
+/**
+ * One window in the scripted fixture.
+ *
+ * `DesktopWindow` requires an owning `pid` and `app`, but this fixture varies only
+ * window *identity*, and the session reads nothing else off a window: it maps
+ * `window.windowId`, sorts, and compares the set (see `ComputerUseSession.observe`).
+ * So these are fixed, honest stand-ins rather than values any assertion depends on —
+ * a window list distinguished by pid or app would need a different fixture.
+ */
+const windowFixture = (windowId: string): DesktopWindow => ({
+  windowId,
+  pid: 1,
+  app: { id: 'com.apple.Finder', displayName: 'Finder' },
+})
 
 const node = (token: string, overrides: Partial<DesktopNode> = {}): DesktopNode => ({
   index: Number(token.split(':').at(-1)),
@@ -35,6 +50,30 @@ function scriptedAdapter(snapshots: readonly DesktopNode[][]): DesktopAdapter & 
       const nodes = snapshots[Math.min(state.observations, snapshots.length - 1)] ?? []
       state.observations++
       const snapshot: DesktopSnapshot = { snapshotId: `s${String(state.observations)}`, platform: 'darwin', windows: [], nodes }
+      return Promise.resolve({ snapshot })
+    },
+    act: () => Promise.reject(new Error('unused')),
+    verify: () => Promise.resolve([]),
+    readiness: () => Promise.resolve({ platform: 'darwin', probes: [], blockers: [] }),
+  }
+}
+
+/** An adapter returning scripted windows and nodes, so window identity can vary. */
+function windowedAdapter(
+  observations: readonly { windows: readonly string[]; nodes: readonly DesktopNode[] }[],
+): DesktopAdapter {
+  const state = { observations: 0 }
+  return {
+    platform: 'darwin',
+    observe: (): Promise<ObserveResult> => {
+      const scripted = observations[Math.min(state.observations, observations.length - 1)]
+      state.observations++
+      const snapshot: DesktopSnapshot = {
+        snapshotId: `s${String(state.observations)}`,
+        platform: 'darwin',
+        windows: (scripted?.windows ?? []).map(windowId => windowFixture(windowId)),
+        nodes: [...scripted?.nodes ?? []],
+      }
       return Promise.resolve({ snapshot })
     },
     act: () => Promise.reject(new Error('unused')),
@@ -201,6 +240,34 @@ describe('observation reports a delta', () => {
   it('refuses to observe without an adapter instead of reporting an empty desktop', async () => {
     const session = new ComputerUseSession({ book: [] })
     await expect(session.observe()).rejects.toThrow(/cannot observe without an adapter/)
+  })
+
+  it('reports a delta only while both observations cover the same windows', async () => {
+    // Node positions are per-window, so a position held across a window change means
+    // nothing: `s1:0` in one window is not the node `s1:0` was in another. Comparing
+    // them anyway would report an unchanged node where the tree actually moved, which
+    // is the false-quiet this check exists to prevent.
+    const session = new ComputerUseSession({ book: [], adapter: windowedAdapter([
+      { windows: ['w1'], nodes: [node('s1:0'), node('s1:1')] },
+      { windows: ['w1'], nodes: [node('s1:0'), node('s1:1'), node('s1:2')] },
+      { windows: ['w1', 'w2'], nodes: [node('s1:0'), node('s1:1'), node('s1:2')] },
+      { windows: ['w2', 'w1'], nodes: [node('s1:0'), node('s1:1'), node('s1:2')] },
+    ]) })
+
+    const first = await session.observe()
+    expect(first.diff.complete).toBe(true)
+
+    // Same window, one more node: a real delta, so the `every` comparison ran and agreed.
+    const second = await session.observe()
+    expect(second.diff.complete).toBe(false)
+    expect(second.diff.added.map(entry => entry.index)).toEqual([2])
+
+    // A window appeared, so there is nothing to compare against.
+    expect((await session.observe()).diff.complete).toBe(true)
+
+    // The same windows, listed in a different order: still the same set, because the
+    // ids are sorted before comparison, so this is a delta again rather than churn.
+    expect((await session.observe()).diff.complete).toBe(false)
   })
 
   it('refuses readiness without an adapter, naming what is missing', async () => {

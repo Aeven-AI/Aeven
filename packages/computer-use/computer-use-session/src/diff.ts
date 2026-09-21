@@ -33,7 +33,7 @@ export interface NodeChange {
   /** Position in the window's walk. */
   index: number
   /** Changed fields, as `previous → next`. */
-  fields: Readonly<Record<string, { from: string | boolean | undefined, to: string | boolean | undefined }>>
+  fields: Readonly<Record<string, { from: string | boolean | undefined; to: string | boolean | undefined }>>
 }
 
 /** What changed between two observations. */
@@ -92,7 +92,7 @@ export function diffNodes(
       added.push(node)
       continue
     }
-    const fields: Record<string, { from: string | boolean | undefined, to: string | boolean | undefined }> = {}
+    const fields: Record<string, { from: string | boolean | undefined; to: string | boolean | undefined }> = {}
     for (const field of COMPARED_FIELDS) {
       const from = prior[field]
       const to = node[field]

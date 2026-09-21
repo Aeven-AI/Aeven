@@ -21,7 +21,7 @@ kind: "package-reference"
 - [理解实现](#understand-the-implementation)
 - [延伸阅读](#further-exploration)
 - [已知限制与后续工作](#known-limitations-and-deferred-work)
-- [开发者说明](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -53,6 +53,7 @@ for (const [app, tasks] of groupByApp(normalizeIntents(intents))) {
 }
 ```
 
+<a id="understand-the-implementation"></a>
 ## 理解实现
 
 ### 每个数据源贡献什么
@@ -87,6 +88,7 @@ for (const [app, tasks] of groupByApp(normalizeIntents(intents))) {
 
 不是任务的 JSON 文件（没有 id 与指令对）会被*跳过*；无法解析的文件则是*失败*，连同路径与原因一并报告。静默省略无法读取内容的目录会低估数据源，而计数正是读者用来判断目录是否值得信任的依据。在真实数据集上：零失败。
 
+<a id="further-exploration"></a>
 ## 延伸阅读
 
 - [`@aeven/computer-use-router`](../computer-use-router/README.zh.md) —— 由本目录整理而成的配方。
@@ -104,8 +106,10 @@ for (const [app, tasks] of groupByApp(normalizeIntents(intents))) {
 - **工具目录是能力，而不是任务。** 它们说明某个操作存在以及它的名称；它们不说明有用户提出过该需求，也不携带终态检查。
 
 <a id="dev-note"></a>
-## 开发者说明
+## 开发备注
 
 导入器在首次运行时发现了一个数据源之间真实的不一致：OSWorld 把评测器的 `func` 写成**字符串**，MacAgentBench 则写成**数组**。一个同时容忍两者的适配器把它们读作同样的东西，并由一个测试固定下来。
 
 最有用的产出不是 1,199 这个数字，而是两个修正数字：265 条被作为仅含框架标记而排除的意图，以及把被拆分的 `libreoffice-calc` 计数 22 + 11 + 67 变成诚实的 100 的那些重命名。两者之所以存在，是因为原始计数会在代价高昂的方向上误导——低估该投入之处，高估不该投入之处。
+
+**运行时不变式：** 不发布伴随插件，因为本包以纯函数导入基准任务集并把它规范化为意图，因此它没有可比较的运行时序列，也没有需要维护的可变关系。

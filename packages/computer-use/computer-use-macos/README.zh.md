@@ -23,7 +23,7 @@ kind: "package-reference"
 - [理解实现](#understand-the-implementation)
 - [延伸阅读](#further-exploration)
 - [已知限制与后续工作](#known-limitations-and-deferred-work)
-- [开发者说明](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -42,6 +42,7 @@ const [saved] = await adapter.verify([{ kind: 'fileNewerThan', path: output, sin
 if (!saved?.satisfied) throw new Error('the save did not reach disk')
 ```
 
+<a id="understand-the-implementation"></a>
 ## 理解实现
 
 ### 就绪状态指明身份，而不只是状态
@@ -64,6 +65,7 @@ if (!saved?.satisfied) throw new Error('the save did not reach disk')
 
 `verify()` 从操作系统重新读取可观察对象。无法读取的文件是 `satisfied: false` 并附带原因，绝不会是通过；抛出异常的检查会报告该错误，而不是假设结果良好。
 
+<a id="further-exploration"></a>
 ## 延伸阅读
 
 - [`@aeven/computer-use-desktop`](../computer-use-desktop/README.zh.md) —— 本包所实现的契约，以及与之共享的校验器。
@@ -80,10 +82,12 @@ if (!saved?.satisfied) throw new Error('the save did not reach disk')
 - **自动化授权提示无法合并。** macOS 按目标应用程序授予 Apple 事件权限，因此每个新脚本化的应用首次都会带来一次确认对话框。
 
 <a id="dev-note"></a>
-## 开发者说明
+## 开发备注
 
 拒绝路径是设计的要点，而非疏漏。返回空树的适配器比指明缺失授权的适配器更糟：空树与一个没有辅助功能界面的应用程序无法区分，而在理解这一差别之前，实测代价是二十余次调用。
 
 遍历脚本是此处唯一无法做单元测试的部分，因为运行它需要已获授权的进程。它的失败模式是通过真实执行发现的：`osascript` 中没有 `$.exit` 函数，因此脚本现在先输出响应包再抛出异常，从而在不丢失机器可读原因的前提下产生非零状态。
 
 先构建就绪探测与校验，是因为它们让操作变得可信。两者都完全无需 Mac 即可测试——运行器是注入的，因此每个分支（包括每一种失败模式）都有覆盖。
+
+**运行时不变式：** 不发布伴随插件，因为本包是由调用方驱动的宿主侧适配器，它不在调用之间保留同进程状态，也不发出任何监听器可观察的序列。

@@ -4,6 +4,12 @@
  * and so the permission story stays visible — every command runs as a **spawned
  * helper**, which on macOS means it carries its own grants rather than Æven's.
  *
+ * This module is types only: it declares the seam and implements none of it, so
+ * there is no statement here for a test to reach. It cannot be added to the shared
+ * coverage `exclude` the way `types.ts` is, because the exclusion is keyed on the
+ * filename and other packages' `runner.ts` files *do* carry runtime code — the
+ * Windows and Linux runners resolve an executable path and describe the host.
+ *
  * @module @aeven/computer-use-macos/runner
  */
 

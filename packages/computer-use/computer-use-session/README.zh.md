@@ -21,7 +21,7 @@ kind: "package-reference"
 - [理解实现](#understand-the-implementation)
 - [延伸阅读](#further-exploration)
 - [已知限制与后续工作](#known-limitations-and-deferred-work)
-- [开发者说明](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -43,6 +43,7 @@ batch.verified  // every executed task verified, so the batch is trustworthy
 batch.results   // one entry per step, tagged by kind
 ```
 
+<a id="understand-the-implementation"></a>
 ## 理解实现
 
 ### 一次调用，多个步骤
@@ -59,6 +60,7 @@ batch.results   // one entry per step, tagged by kind
 
 未变化的节点上没有可操作的内容，而且它会携带调用方已经持有的令牌。差分把它们报告为索引，而**已变化**的节点会携带其当前令牌，也就是操作现在必须使用的那个。
 
+<a id="further-exploration"></a>
 ## 延伸阅读
 
 - [`@aeven/computer-use-executor`](../computer-use-executor/README.zh.md) —— `execute` 步骤所经过的执行器。
@@ -74,8 +76,10 @@ batch.results   // one entry per step, tagged by kind
 - **刻意没有桌面独占性**：会话是调用方的上下文，而不是对机器的占用声明。
 
 <a id="dev-note"></a>
-## 开发者说明
+## 开发备注
 
 第一版差分实现按令牌比较，其错误方式看起来却是对的：测试失败的原因是每次重新观察都把整棵树报告为新增。这正是那种会静默上线的缺陷——增量非空、形态合理、却毫无用处。改为按位置比较修复了它，而不同窗口的检查则避免在不相关的遍历之间比较位置。
 
 `isQuiet` 的存在，是因为空的增量比固定睡眠更廉价也更可靠的就绪信号，而实测运行中大部分挂钟时间正花在固定睡眠上。
+
+**运行时不变式：** 不发布伴随插件，因为本包把步骤批量执行、把观测结果求差，都以返回值的形式给出，而调用方会等待每一批；这一步等待承载了次序，而不是由监听器必须重新拼装的事件承载。

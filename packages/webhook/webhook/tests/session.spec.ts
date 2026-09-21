@@ -15,6 +15,8 @@ interface HarnessOptions {
   failDetach?: boolean
   failDispose?: boolean
   abortAt?: 'workspace' | 'agent'
+  /** Answer `workspaceRegistry.create` with a Workspace that has no directory. */
+  pathlessWorkspace?: boolean
 }
 
 interface SessionHarness {
@@ -113,7 +115,7 @@ function harness(options: HarnessOptions = {}): SessionHarness {
         calls.push(`workspace:${path}`)
         if (options.failAt === 'workspace') throw new Error('workspace failed')
         if (options.abortAt === 'workspace') controller.abort(new Error('abort after workspace'))
-        return workspace
+        return options.pathlessWorkspace === true ? { ...workspace, kind: 'virtual', path: undefined } : workspace
       },
     },
     agents: {
@@ -216,6 +218,17 @@ describe('webhook Session creation', () => {
         kind: 'webhook', provider: 'github', source: 'primary', deliveryId: 'delivery', ruleId: 'review',
       },
     })
+  })
+
+  it('refuses to run a Session in a Workspace that has no directory', async () => {
+    // A delivery is defined by the directory it runs in, so a pathless
+    // Workspace would leave the Session with no cwd to validate against its
+    // owner. `create` adopts an existing directory and therefore always answers
+    // with a folder workspace, which is why this guard is asserted directly.
+    const test = harness({ pathlessWorkspace: true })
+    await expect(create(test)).rejects.toThrow(/has no directory to run a Session in/)
+    expect(test.calls).not.toContain('agent-create')
+    expect(test.calls).not.toContain('followup')
   })
 
   it('uses a complete explicit model without consulting the default', async () => {

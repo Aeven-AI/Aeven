@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest'
 import { ComputerUseError } from '@aeven/computer-use-desktop'
 import { STARTER_BOOK } from '../src/book.ts'
+import { CAPABILITY_COVERAGE, coverageSummary } from '../src/capabilities.ts'
 import type { RecipeBook } from '../src/recipe.ts'
 import { RecipeRouter } from '../src/router.ts'
 
@@ -61,6 +62,12 @@ const BOOK: RecipeBook = [
     verify: [{ kind: 'windowTitled', title: 'Pages' }],
   },
 ]
+
+/** The refusal detail a rung mismatch carries; named rather than repeated inline. */
+interface RungListDetail {
+  availableRungs: string[]
+  candidateRungs: string[]
+}
 
 describe('rung preference', () => {
   const router = new RecipeRouter(BOOK)
@@ -312,5 +319,77 @@ describe('every shipped recipe answers the deliverable question', () => {
     for (const recipe of STARTER_BOOK) {
       expect(recipe.deliverable, recipe.task).toBe('open-application')
     }
+  })
+})
+
+describe('capability coverage accounting', () => {
+  it('counts an operation as covered only when a recipe implements it', () => {
+    // The distinction is the point of the record: an operation that has a reason for
+    // being uncovered is still uncovered, and counting it as covered would let the
+    // summary claim a catalog is handled when nothing implements it.
+    const summary = coverageSummary([
+      { operation: 'CalcTools.set_cell_value', task: 'spreadsheet.setCell' },
+      { operation: 'CalcTools.unknown_op', uncoveredBecause: 'no recipe yet' },
+      { operation: 'CalcTools.sort_range', task: 'spreadsheet.sortColumn' },
+    ])
+    expect(summary).toEqual({ covered: 2, total: 3 })
+  })
+
+  it('reports zero of zero rather than dividing by an empty catalog', () => {
+    expect(coverageSummary([])).toEqual({ covered: 0, total: 0 })
+  })
+
+  it('publishes a coverage record for every shipped Office catalog', () => {
+    // The three families are concatenated into one list, so an empty array would be a
+    // silently missing catalog rather than an empty one.
+    expect(CAPABILITY_COVERAGE.length).toBeGreaterThan(0)
+    expect(coverageSummary(CAPABILITY_COVERAGE).total).toBe(CAPABILITY_COVERAGE.length)
+    for (const entry of CAPABILITY_COVERAGE) {
+      // Every record must say something: either which task implements it, or why not.
+      expect(entry.task ?? entry.uncoveredBecause).toBeDefined()
+    }
+  })
+})
+
+describe('refusals name what was searched, not just that it failed', () => {
+  it('refuses an uncovered application and lists the applications that are covered', () => {
+    // A caller that asked for the wrong app needs to know which apps are covered;
+    // "no recipe" alone sends them looking in the recipe book for a mistake that is
+    // actually in the request.
+    const router = new RecipeRouter(STARTER_BOOK)
+    let error: unknown
+    try {
+      router.resolve({ task: 'document.createText', platform: 'darwin', app: 'com.example.NotAnEditor' })
+    } catch (caught) {
+      error = caught
+    }
+    expect(error).toBeInstanceOf(ComputerUseError)
+    const failure = error as ComputerUseError
+    expect(failure.code).toBe('capability-unavailable')
+    expect(failure.message).toContain('com.example.NotAnEditor')
+    expect(failure.detail).toHaveProperty('covered')
+    expect((failure.detail as { covered: string[] }).covered).toContain('com.apple.Pages')
+  })
+
+  it('refuses when no rung the recipe declares is available on this host', () => {
+    // `availableRungs: []` is a host that can do none of them — distinct from
+    // `undefined`, which means the caller did not say and every rung is a candidate.
+    const router = new RecipeRouter(STARTER_BOOK)
+    let error: unknown
+    try {
+      router.resolve({ task: 'document.createText', platform: 'darwin', app: 'com.apple.Pages', availableRungs: [] })
+    } catch (caught) {
+      error = caught
+    }
+    expect(error).toBeInstanceOf(ComputerUseError)
+    const failure = error as ComputerUseError
+    expect(failure.code).toBe('capability-unavailable')
+    expect(failure.message).toContain('none of the recipe')
+    // `detail` is a readonly record on the error contract; the assertion narrows it to
+    // the shape this refusal actually carries, through `unknown` because the two types
+    // do not overlap structurally.
+    const detail = failure.detail as unknown as RungListDetail
+    expect(detail.availableRungs).toEqual([])
+    expect(detail.candidateRungs.length).toBeGreaterThan(0)
   })
 })

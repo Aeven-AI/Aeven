@@ -85,3 +85,5 @@ An unfilled placeholder is an **error, not a wildcard**. Resolving it to an empt
 The tests run the filesystem mechanism against the **real** filesystem rather than a mock, because a mocked write proves nothing about whether a write lands. The most valuable test in the suite is the one whose handler reports success while writing something else — it is the shape of the failure that motivated this package, and it asserts that the verdict comes out false even though the handler was happy.
 
 A test that supplied an adapter for verification originally passed a path that did not exist, so the handler failed before verification ever ran. It was rewritten to write a real file first: a verification test that passes because the step before it threw is not testing verification.
+
+**Runtime invariant:** No companion is published because The package runs one task and then verifies it by re-reading an independent observable, which is a sequencing the caller already awaits, so publishing a companion sequence would restate the return value.

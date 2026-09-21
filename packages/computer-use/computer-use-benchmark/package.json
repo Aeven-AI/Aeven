@@ -31,5 +31,11 @@
     "@aeven/computer-use-executor": "workspace:^",
     "@aeven/computer-use-router": "workspace:^",
     "@aeven/computer-use-session": "workspace:^"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
   }
 }

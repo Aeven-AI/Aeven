@@ -24,7 +24,7 @@ kind: "package-reference"
 - [理解实现](#understand-the-implementation)
 - [延伸阅读](#further-exploration)
 - [已知限制与后续工作](#known-limitations-and-deferred-work)
-- [开发者说明](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -63,6 +63,7 @@ skipped: 1 task(s), each with its reason above
 document.createText: 20 recorded vs 1 measured = 20x fewer steps
 ```
 
+<a id="understand-the-implementation"></a>
 ## 理解实现
 
 ### 计数取自接缝
@@ -77,6 +78,7 @@ document.createText: 20 recorded vs 1 measured = 20x fewer steps
 
 当任一数字缺失时 `stepRatio` 返回 `undefined`，并拒绝除以零而不是报告无穷大。只有当任务同时具备实测值与记录基线时才会打印比值。
 
+<a id="further-exploration"></a>
 ## 延伸阅读
 
 - [`@aeven/computer-use-session`](../computer-use-session/README.zh.md) —— 测量所经过的批量会话层。
@@ -92,8 +94,10 @@ document.createText: 20 recorded vs 1 measured = 20x fewer steps
 - **计数的是机制调用，而不是模型轮次。** 模型轮次数取决于会话层，而该层尚未接入工具。
 
 <a id="dev-note"></a>
-## 开发者说明
+## 开发备注
 
 这个基准刻意无法自我美化。它最有用的性质不是 20 倍这个比值，而是"已跳过，附原因"那一行：它无法触及的两个平台，正是适配器验证最少的两个，而省略它们的基准会用更少的覆盖换一个更漂亮的数字。
 
 基线常量被标注为 `recorded` 而不是 `measured`，因为本包无法复现它。这一区分正是证据字段存在的全部理由：读者能够分辨哪个数字来自运行、哪个来自更早的工作。
+
+**运行时不变式：** 不发布伴随插件，因为本包在测量时统计机制调用次数，并把该次数写入结果，因此伴随插件所要断言的那个数字，正是已经返回的数字。

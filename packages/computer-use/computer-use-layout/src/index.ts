@@ -146,7 +146,7 @@ export interface SlideSpec {
   title: string
   subtitle?: string
   items?: readonly string[]
-  metrics?: readonly { value: string, label: string }[]
+  metrics?: readonly { value: string; label: string }[]
   left?: readonly string[]
   right?: readonly string[]
 }
@@ -185,6 +185,62 @@ export interface ResolvedLayoutOptions {
  * @param options - the caller's options.
  * @returns every option resolved.
  */
+/**
+ * The background shape every layout starts with.
+ *
+ * Extracted because it was written out identically in five layouts, which is the kind
+ * of repetition that hides a real divergence: a change meant for one layout would have
+ * landed in whichever copies its author happened to find.
+ * @param surface - the slide surface to cover.
+ * @param fills - the resolved fills.
+ * @returns the background shape.
+ */
+function backgroundShape(surface: SlideSurface, fills: LayoutFills): LayoutShape {
+  return { role: 'background', box: { left: 0, top: 0, ...surface }, style: { fill: fills.background } }
+}
+
+/**
+ * The standard left-aligned title.
+ *
+ * Three layouts place a title at the same box with the same style, so the geometry and
+ * the typography are stated once rather than three times.
+ * @param title - the title text.
+ * @param grid - the resolved grid.
+ * @param surface - the slide surface.
+ * @returns the title shape.
+ */
+function titleShape(title: string, grid: LayoutGrid, surface: SlideSurface): LayoutShape {
+  return {
+    role: 'title',
+    text: title,
+    box: { left: grid.marginX, top: grid.marginY, width: contentWidth(grid, surface), height: grid.rowHeight },
+    style: { fontSize: 32, bold: true, align: 'left', verticalAlign: 'middle' },
+  }
+}
+
+/**
+ * The full-width band two layouts share.
+ * @param top - the band's top edge.
+ * @param height - the band's height.
+ * @param grid - the resolved grid.
+ * @param surface - the slide surface.
+ * @param fills - the resolved fills.
+ * @returns the band shape.
+ */
+function bandShape(
+  top: number,
+  height: number,
+  grid: LayoutGrid,
+  surface: SlideSurface,
+  fills: LayoutFills,
+): LayoutShape {
+  return {
+    role: 'band',
+    box: { left: grid.marginX, top, width: contentWidth(grid, surface), height },
+    style: { fill: fills.band },
+  }
+}
+
 function resolve(options: LayoutOptions): ResolvedLayoutOptions {
   return {
     grid: options.grid ?? DEFAULT_GRID,
@@ -208,12 +264,8 @@ export function coverLayout(slide: SlideSpec, options: LayoutOptions = {}): Layo
   const bandHeight = snap(grid, surface.height * 0.3)
   const bandTop = snap(grid, (surface.height - bandHeight) / 2)
   return [
-    { role: 'background', box: { left: 0, top: 0, ...surface }, style: { fill: fills.background } },
-    {
-      role: 'band',
-      box: { left: grid.marginX, top: bandTop, width: contentWidth(grid, surface), height: bandHeight },
-      style: { fill: fills.band },
-    },
+    backgroundShape(surface, fills),
+    bandShape(bandTop, bandHeight, grid, surface, fills),
     {
       role: 'title',
       text: slide.title,
@@ -239,7 +291,7 @@ export function sectionLayout(slide: SlideSpec, options: LayoutOptions = {}): La
   const { grid, surface, fills } = resolve(options)
   const railWidth = snap(grid, grid.baseUnit * 4)
   return [
-    { role: 'background', box: { left: 0, top: 0, ...surface }, style: { fill: fills.background } },
+    backgroundShape(surface, fills),
     { role: 'accent', box: { left: grid.marginX, top: grid.marginY, width: railWidth, height: surface.height - grid.marginY * 2 }, style: { fill: fills.accent } },
     {
       role: 'title',
@@ -270,13 +322,8 @@ export function bulletsLayout(slide: SlideSpec, options: LayoutOptions = {}): La
   const listTop = snap(grid, grid.marginY + grid.rowHeight + grid.rowGap * 2)
   const railWidth = snap(grid, grid.baseUnit * 2)
   return [
-    { role: 'background', box: { left: 0, top: 0, ...surface }, style: { fill: fills.background } },
-    {
-      role: 'title',
-      text: slide.title,
-      box: { left: grid.marginX, top: grid.marginY, width: contentWidth(grid, surface), height: grid.rowHeight },
-      style: { fontSize: 32, bold: true, align: 'left', verticalAlign: 'middle' },
-    },
+    backgroundShape(surface, fills),
+    titleShape(slide.title, grid, surface),
     { role: 'accent', box: { left: grid.marginX, top: listTop, width: railWidth, height: snap(grid, items.length * (grid.rowHeight * 0.6 + grid.rowGap)) }, style: { fill: fills.accent } },
     ...items.map((item, index) => ({
       role: 'bullet' as const,
@@ -305,13 +352,8 @@ export function metricsLayout(slide: SlideSpec, options: LayoutOptions = {}): La
   const span = Math.floor(grid.columns / count)
   const stripTop = snap(grid, surface.height / 2 - grid.rowHeight)
   return [
-    { role: 'background', box: { left: 0, top: 0, ...surface }, style: { fill: fills.background } },
-    {
-      role: 'title',
-      text: slide.title,
-      box: { left: grid.marginX, top: grid.marginY, width: contentWidth(grid, surface), height: grid.rowHeight },
-      style: { fontSize: 32, bold: true, align: 'left', verticalAlign: 'middle' },
-    },
+    backgroundShape(surface, fills),
+    titleShape(slide.title, grid, surface),
     ...metrics.flatMap((metric, index) => [
       {
         role: 'metric' as const,
@@ -347,17 +389,19 @@ export function metricsLayout(slide: SlideSpec, options: LayoutOptions = {}): La
  */
 export function quoteLayout(slide: SlideSpec, options: LayoutOptions = {}): Layout {
   const { grid, surface, fills } = resolve(options)
+  // The quote geometry is derived once and named, so the band and the body cannot
+  // drift apart: the body starts exactly where the band ends.
+  const bandTop = snap(grid, surface.height * 0.3)
+  const bandHeight = snap(grid, surface.height * 0.34)
+  const bodyTop = snap(grid, surface.height * 0.34)
+  const bodyHeight = snap(grid, surface.height * 0.2)
   return [
-    { role: 'background', box: { left: 0, top: 0, ...surface }, style: { fill: fills.background } },
-    {
-      role: 'band',
-      box: { left: grid.marginX, top: snap(grid, surface.height * 0.3), width: contentWidth(grid, surface), height: snap(grid, surface.height * 0.34) },
-      style: { fill: fills.band },
-    },
+    backgroundShape(surface, fills),
+    bandShape(bandTop, bandHeight, grid, surface, fills),
     {
       role: 'body',
       text: slide.title,
-      box: { left: grid.marginX, top: snap(grid, surface.height * 0.34), width: contentWidth(grid, surface), height: snap(grid, surface.height * 0.2) },
+      box: { left: grid.marginX, top: bodyTop, width: contentWidth(grid, surface), height: bodyHeight },
       style: { fontSize: 36, align: 'center', verticalAlign: 'middle', color: 'white' },
     },
     ...slide.subtitle === undefined ? [] : [{
@@ -382,13 +426,8 @@ export function twoColumnLayout(slide: SlideSpec, options: LayoutOptions = {}): 
   const top = snap(grid, grid.marginY + grid.rowHeight + grid.rowGap)
   const height = snap(grid, surface.height - top - grid.marginY)
   return [
-    { role: 'background', box: { left: 0, top: 0, ...surface }, style: { fill: fills.background } },
-    {
-      role: 'title',
-      text: slide.title,
-      box: { left: grid.marginX, top: grid.marginY, width: contentWidth(grid, surface), height: grid.rowHeight },
-      style: { fontSize: 32, bold: true, align: 'left', verticalAlign: 'middle' },
-    },
+    backgroundShape(surface, fills),
+    titleShape(slide.title, grid, surface),
     { role: 'body', text: left.join('\n'), box: { left: columnLeft(grid, 0, surface), top, width: spanWidth(grid, 5, surface), height }, style: { fontSize: 20, align: 'left', verticalAlign: 'top' } },
     { role: 'body', text: right.join('\n'), box: { left: columnLeft(grid, 6, surface), top, width: spanWidth(grid, 6, surface), height }, style: { fontSize: 20, align: 'left', verticalAlign: 'top' } },
   ]

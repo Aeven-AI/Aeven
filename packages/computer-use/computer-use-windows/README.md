@@ -78,3 +78,5 @@ The report states plainly that UI Automation requires no grant. A failure to rea
 The verifier is not implemented here: it lives in `@aeven/computer-use-desktop`, because the filesystem checks are identical on every platform and three copies would drift.
 
 Everything is written against an injected command runner, which is why the suite covers each failure mode — an unreachable desktop, an unreadable envelope, a failed pattern, a malformed token — without a Windows machine.
+
+**Runtime invariant:** No companion is published because The package is a host-side adapter driven by its caller, so it holds no same-process state across calls and emits no sequence a listener could observe.

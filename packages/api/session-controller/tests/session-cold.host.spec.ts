@@ -75,7 +75,7 @@ describe('sessions.list cold merge', () => {
       header('cached-blank', 100),
       header('cached-conversation', 200),
       header('uncached', 300, { parentSession: sid('session-parent'), origin: 'subagent' }),
-      header('missing-cwd', 800, {}),
+      header('cwd-less', 800, {}),
     ]
     delete (metas[3] as { cwd?: string }).cwd
     const inspect = vi.fn()
@@ -112,7 +112,11 @@ describe('sessions.list cold merge', () => {
       parentSessionId: 'session-parent',
       origin: 'subagent',
     })
-    expect(byId['missing-cwd']).toBeUndefined()
+    // A cold Session with no cwd lives in a workspace with no directory, so it
+    // lists like any other row. Dropping it would make it appear while live and
+    // vanish from the navigation at the next restart.
+    expect(byId['cwd-less']).toMatchObject({ blank: false, updatedAt: 800, running: false })
+    expect(byId['cwd-less']).not.toHaveProperty('cwd')
     // No body read of any kind happened while listing.
     expect(inspect).not.toHaveBeenCalled()
     expect(observe).not.toHaveBeenCalled()

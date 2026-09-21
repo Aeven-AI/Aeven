@@ -126,3 +126,5 @@ This overlay draws what a host tells it and verifies nothing about the page.
 The two demo scripts are the regression suite. `measure-tip.mjs` guards the one invariant that is invisible in code review — that the arrow points where the host said — and `run.mjs` guards the visual states plus teardown.
 
 </details>
+
+**Runtime invariant:** No companion is published because the overlay is a browser client half that reacts to pointer state handed to it by the host, so it owns no host-side ordering and keeps no cross-call state a listener could compare; the demo scripts listed above are its regression surface.

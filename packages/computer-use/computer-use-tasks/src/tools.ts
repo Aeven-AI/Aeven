@@ -46,7 +46,7 @@ interface RawTool {
   function?: {
     name?: unknown
     description?: unknown
-    parameters?: { properties?: unknown, required?: unknown }
+    parameters?: { properties?: unknown; required?: unknown }
   }
 }
 
@@ -60,7 +60,7 @@ interface RawTool {
  * @param json - the parsed file contents.
  * @returns the catalog, or a reason it is not one.
  */
-export function readToolCatalog(file: string, json: unknown): { catalog?: ToolCatalog, reason?: string } {
+export function readToolCatalog(file: string, json: unknown): { catalog?: ToolCatalog; reason?: string } {
   if (!Array.isArray(json)) {
     return { reason: 'not a JSON array of tool definitions' }
   }

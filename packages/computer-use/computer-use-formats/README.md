@@ -80,3 +80,5 @@ A PDF is checkable by its own bytes, so `document.convertToPdf` asserts `%PDF`. 
 The `PlatformInvocation` type prohibits a top-level `mechanism` field, and it earned its place here: adding eighteen recipes produced eighteen type errors in one pass, each pointing at the redundant field, instead of eighteen silent duplications that a reviewer would have had to notice.
 
 The readiness probe is the part worth keeping even when the tools are missing. A recipe that failed inside a task with "command not found" would be exactly the illegible failure this stack exists to eliminate; instead the report says `format.pdfplumber` is blocked and what installs it.
+
+**Runtime invariant:** No companion is published because The package declares file-format recipes and reports which tools are present, both as returned data, so there is no effect ordering for a listener to assert.

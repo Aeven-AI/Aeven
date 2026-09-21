@@ -48,7 +48,11 @@ async function harness() {
   ctx.storage.mount('domain', storageDomain)
   ctx.provide('storageDomain', storageDomain)
   ctx.provide('sessionPersistence', { list: () => Promise.resolve([]) } as never)
-  await ctx.plugin(WorkspaceRegistry)
+  // Seeding is off: this suite asserts exact registry contents and domain
+  // increments, and an unasked-for built-in workspace would add a row and four
+  // writes to every expectation. The seeding behaviour has its own tests in
+  // @aeven/workspace.
+  await ctx.plugin(WorkspaceRegistry, { seedDefaultWorkspace: false })
   const dispose = (): void => {}
   ctx.provide('typert', {
     lookups: { configure: () => dispose },

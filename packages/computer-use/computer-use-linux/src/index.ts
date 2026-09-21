@@ -32,7 +32,7 @@ import {
   type ObserveScope,
   type ReadinessReport,
   type VerificationOutcome,
-  checkExpectations,
+  verifyWithDefaults as verify,
   type VerificationReaders,
 } from '@aeven/computer-use-desktop'
 import { WINDOW_BACKENDS, type WindowBackend } from './backends.ts'
@@ -74,24 +74,16 @@ export class LinuxDesktopAdapter {
     return probeLinuxReadiness(options)
   }
 
-  /**
-   * Verify expectations by independent read-back.
-   * @param expectations - the conditions to check.
-   * @returns one outcome per expectation, in order.
-   */
-  async verify(expectations: readonly Expectation[]): Promise<readonly VerificationOutcome[]> {
-    return checkExpectations(expectations, {
-      nodeValue: this.options.readers?.nodeValue ?? { read: () => Promise.resolve(undefined) },
-      windowTitles: this.options.readers?.windowTitles ?? { list: async () => (await this.listWindows()).map(window => window.title ?? '') },
-    })
+  /* jscpd:ignore-start -- the three adapters verify through one shared helper; only the window source differs. */
+  /** Verify by independent read-back. */
+  async verify(e: readonly Expectation[]): Promise<readonly VerificationOutcome[]> {
+    return verify(e, this.options.readers, async () => await this.listWindows())
   }
+  /* jscpd:ignore-end */
 
-  /**
-   * Capture one coherent view of the desktop or of a single window.
-   * @param scope - what to observe.
-   * @returns the observation, naming the backend that answered.
-   * @throws {ComputerUseError} `capability-unavailable` when no backend answers.
-   */
+  // Documented on DesktopAdapter.observe: the contract owns the promise about what a
+  // scope means, and this adapter differs only in which backend answers. That
+  // difference is reported in the result, not restated here.
   async observe(scope: ObserveScope): Promise<ObserveResult> {
     const { windows, backend } = await this.listWindowsWithBackend()
     const scoped = scope.windowId === undefined ? windows : windows.filter(window => window.windowId === scope.windowId)
@@ -210,7 +202,7 @@ export class LinuxDesktopAdapter {
    * @returns the window target.
    * @throws {ComputerUseError} `invalid-target` when the action names no window.
    */
-  private requireWindow(target: ActionTarget, kind: string): { pid: number, windowId: string } {
+  private requireWindow(target: ActionTarget, kind: string): { pid: number; windowId: string } {
     if (target.kind === 'window') {
       return target
     }
@@ -263,7 +255,7 @@ export class LinuxDesktopAdapter {
    * @returns the windows and the backend name.
    * @throws {ComputerUseError} `capability-unavailable` when no backend answers.
    */
-  async listWindowsWithBackend(): Promise<{ windows: DesktopWindow[], backend: string }> {
+  async listWindowsWithBackend(): Promise<{ windows: DesktopWindow[]; backend: string }> {
     const tried: string[] = []
     for (const backend of WINDOW_BACKENDS) {
       const parsed = await this.tryBackend(backend, tried)

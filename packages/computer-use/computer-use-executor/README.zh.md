@@ -21,7 +21,7 @@ kind: "package-reference"
 - [理解实现](#understand-the-implementation)
 - [延伸阅读](#further-exploration)
 - [已知限制与后续工作](#known-limitations-and-deferred-work)
-- [开发者说明](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -48,6 +48,7 @@ outcome.verified   // true only because the file was re-read from disk
 outcome.outcomes   // one result per expectation, with what was actually observed
 ```
 
+<a id="understand-the-implementation"></a>
 ## 理解实现
 
 ### 只内置一种机制，其余由外部注册
@@ -66,6 +67,7 @@ outcome.outcomes   // one result per expectation, with what was actually observe
 
 未填充的占位符是**错误，而不是通配符**。把它解析为空字符串会产生一个几乎对任何内容都通过的检查，而一个无法失败的校验比没有校验更糟，因为它会报告成功。
 
+<a id="further-exploration"></a>
 ## 延伸阅读
 
 - [`@aeven/computer-use-router`](../computer-use-router/README.zh.md) —— 本包所执行的解析结果。
@@ -80,8 +82,10 @@ outcome.outcomes   // one result per expectation, with what was actually observe
 - **没有执行日志。** 结果只是被返回而不被持久化，因此批量会话除调用方自留之外没有记录。
 
 <a id="dev-note"></a>
-## 开发者说明
+## 开发备注
 
 测试针对**真实**文件系统运行文件系统机制而非使用 mock，因为被 mock 的写入无法证明写入是否真的落盘。测试套件中最有价值的一个，其处理程序在报告成功的同时写入了别的内容——这正是促成本包的那种失败形态，而它断言即使处理程序很乐观，判定也必须为假。
 
 一个为校验提供适配器的测试最初传入了一个不存在的路径，因此处理程序在校验运行之前就失败了。它被改写为先写入一个真实文件：一个因为前一步抛错而通过的校验测试，并没有在测试校验。
+
+**运行时不变式：** 不发布伴随插件，因为本包执行一个任务，再通过复读一个独立的可观察量来验证它，而这一先后次序正是调用方已经等待的；发布伴随序列只会复述返回值。

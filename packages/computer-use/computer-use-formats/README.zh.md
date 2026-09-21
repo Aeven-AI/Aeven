@@ -21,7 +21,7 @@ kind: "package-reference"
 - [理解实现](#understand-the-implementation)
 - [延伸阅读](#further-exploration)
 - [已知限制与后续工作](#known-limitations-and-deferred-work)
-- [开发者说明](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -42,6 +42,7 @@ missingTools('spreadsheet.createWorkbook', report)  // ['soffice', 'openpyxl']
 
 报告是一个 `ReadinessReport`，因此它与适配器契约的形态一致，且每个缺失的工具都携带自己的补救方式。
 
+<a id="understand-the-implementation"></a>
 ## 理解实现
 
 ### 格式层与应用层并存
@@ -60,6 +61,7 @@ missingTools('spreadsheet.createWorkbook', report)  // ['soffice', 'openpyxl']
 
 PDF 可以通过其自身字节来检查，因此 `document.convertToPdf` 断言 `%PDF`。其余配方断言**容器部件名**——`xl/workbook.xml`、`word/document.xml`——因为 OOXML 文件是 zip，对其字节做文本搜索会因错误的原因而通过。有测试确保不会发布空字符串检查，因为一个无法失败的校验比没有更糟。
 
+<a id="further-exploration"></a>
 ## 延伸阅读
 
 - [`@aeven/computer-use-router`](../computer-use-router/README.zh.md) —— 本层所补充的应用操作配方。
@@ -75,8 +77,10 @@ PDF 可以通过其自身字节来检查，因此 `document.convertToPdf` 断言
 - **`presentation.readText` 是只读的。** 从布局创建演示文稿属于布局层，而不是这里。
 
 <a id="dev-note"></a>
-## 开发者说明
+## 开发备注
 
 `PlatformInvocation` 类型禁止顶层 `mechanism` 字段，这一点在此处得到了回报：新增十八条配方一次性产生十八个类型错误，每个都指向那个冗余字段，而不是十八处需要评审者自行发现的静默重复。
 
 即使工具缺失，就绪探测这一部分也值得保留。一条在任务内部以"command not found"失败的配方，正是本技术栈致力于消除的那种不可读失败；取而代之的是，报告会说明 `format.pdfplumber` 被阻塞以及如何安装它。
+
+**运行时不变式：** 不发布伴随插件，因为本包声明文件格式配方并报告哪些工具存在，两者都是返回的数据，因此没有任何效应次序可供监听器断言。

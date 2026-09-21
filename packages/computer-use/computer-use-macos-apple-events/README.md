@@ -82,3 +82,5 @@ A non-zero exit reports `stderr` verbatim, and a failure that explained nothing 
 The end-to-end path was run for real before being committed: recipe → router → executor → this handler → verification, producing a 92,896-byte Pages document that Pages then read back as exactly `The Cartographer of Small Hours`, 31 characters, with both expectations satisfied from disk.
 
 The hostile-literal test is not decoration. Generated script source with caller-supplied text is a place where a quote in a document could become executable code, and `JSON.stringify` is the specific defence that makes it impossible rather than unlikely.
+
+**Runtime invariant:** No companion is published because The package builds script text and runs it, returning the streams, so the only ordering is one call to one runner, which the caller already awaits.

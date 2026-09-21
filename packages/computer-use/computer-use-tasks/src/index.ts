@@ -32,7 +32,7 @@ export interface ReadResult {
   /** Every task successfully normalized. */
   intents: TaskIntent[]
   /** Files that could not be read, with the reason, so a gap is never silent. */
-  failures: Array<{ path: string, reason: string }>
+  failures: Array<{ path: string; reason: string }>
 }
 
 /**
@@ -78,7 +78,7 @@ export function listJsonFiles(root: string): string[] {
  * @param path - the file to read.
  * @returns the intent, or a reason it was not usable.
  */
-export function readTaskFile(path: string, source: TaskSource): { intent?: TaskIntent, skipped?: string, failure?: string } {
+export function readTaskFile(path: string, source: TaskSource): { intent?: TaskIntent; skipped?: string; failure?: string } {
   let text: string
   try {
     text = readFileSync(path, 'utf8')
@@ -94,13 +94,13 @@ export function readTaskFile(path: string, source: TaskSource): { intent?: TaskI
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     return { skipped: 'not a JSON object' }
   }
-  const record = raw as { id?: unknown, instruction?: unknown }
+  const record = raw as { id?: unknown; instruction?: unknown }
   if (typeof record.id !== 'string' || typeof record.instruction !== 'string' || record.instruction.length === 0) {
     return { skipped: 'no id and instruction pair, so not a task file' }
   }
   const intent = source === 'macagentbench'
-    ? fromMacAgentBench(raw as Parameters<typeof fromMacAgentBench>[0])
-    : fromOsworld(raw as Parameters<typeof fromOsworld>[0], source)
+    ? fromMacAgentBench(raw)
+    : fromOsworld(raw, source)
   return { intent }
 }
 
@@ -112,7 +112,7 @@ export function readTaskFile(path: string, source: TaskSource): { intent?: TaskI
  */
 export function readTaskSet(root: string, source: TaskSource): ReadResult {
   const intents: TaskIntent[] = []
-  const failures: Array<{ path: string, reason: string }> = []
+  const failures: Array<{ path: string; reason: string }> = []
   for (const path of listJsonFiles(root)) {
     const result = readTaskFile(path, source)
     if (result.intent !== undefined) {
@@ -131,9 +131,9 @@ export function readTaskSet(root: string, source: TaskSource): ReadResult {
  * @param sources - each source's directory and kind.
  * @returns every intent found, plus every failure across the sources.
  */
-export function readTaskSets(sources: readonly { root: string, source: TaskSource }[]): ReadResult {
+export function readTaskSets(sources: readonly { root: string; source: TaskSource }[]): ReadResult {
   const intents: TaskIntent[] = []
-  const failures: Array<{ path: string, reason: string }> = []
+  const failures: Array<{ path: string; reason: string }> = []
   for (const entry of sources) {
     const result = readTaskSet(entry.root, entry.source)
     intents.push(...result.intents)

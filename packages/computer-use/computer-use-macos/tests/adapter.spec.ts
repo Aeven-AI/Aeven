@@ -13,8 +13,9 @@ import type { MacCommandResult, MacCommandRunner } from '../src/runner.ts'
 
 
 /** A runner that answers from a table keyed by the command's first argument after the binary. */
-function runnerReturning(answers: Readonly<Record<string, MacCommandResult>>): MacCommandRunner & { calls: Array<{ command: string, args: readonly string[] }> } {
-  const calls: Array<{ command: string, args: readonly string[] }> = []
+function runnerReturning(answers: Readonly<Record<string, MacCommandResult>>): MacCommandRunner
+  & { calls: Array<{ command: string; args: readonly string[] }> } {
+  const calls: Array<{ command: string; args: readonly string[] }> = []
   return {
     calls,
     run: (command, args) => {
@@ -349,5 +350,172 @@ describe('observation walks the accessibility tree', () => {
   it('returns no windows when the listing itself fails, rather than throwing', async () => {
     const runner = runnerReturning({ 'System Events': { code: 1, stdout: '', stderr: 'denied' } })
     await expect(new MacDesktopAdapter({ runner }).listWindows()).resolves.toEqual([])
+  })
+})
+
+describe('the adapter owns no default observable, and says so instead of guessing', () => {
+  const runner = runnerReturning({})
+
+  it('answers a window expectation from an empty list rather than inventing a title', async () => {
+    // No reader is configured by default and snapshots are not produced yet, so the
+    // only honest answer to "is a window titled X present" is no. A reader that threw
+    // would look like a capability failure; one that answered yes would be a check
+    // that cannot fail.
+    const outcomes = await new MacDesktopAdapter({ runner }).verify([{ kind: 'windowTitled', title: 'Untitled' }])
+    expect(outcomes).toHaveLength(1)
+    expect(outcomes[0]?.satisfied).toBe(false)
+    expect(outcomes[0]?.observed).toContain('not among 0 windows')
+  })
+
+  it('reports a node expectation as unavailable rather than as a value', async () => {
+    // An absent node value must not read as an equality failure on a real value:
+    // the caller needs to tell "the tree says otherwise" from "nothing was read".
+    const outcomes = await new MacDesktopAdapter({ runner }).verify([{ kind: 'nodeValueEquals', token: 's1:0', value: 'x' }])
+    expect(outcomes[0]?.satisfied).toBe(false)
+  })
+
+  it('uses a caller-supplied reader when one is configured, so the default is a fallback and not a limit', async () => {
+    const adapter = new MacDesktopAdapter({
+      runner,
+      readers: { windowTitles: { list: () => Promise.resolve(['Untitled — Pages']) } },
+    })
+    const outcomes = await adapter.verify([{ kind: 'windowTitled', title: 'Untitled' }])
+    expect(outcomes[0]?.satisfied).toBe(true)
+  })
+
+  it('passes a caller lifetime through to the readiness probes', async () => {
+    // The signal has to reach the runner, or a cancelled readiness check would keep
+    // spawning probes after its caller gave up.
+    const signals: Array<AbortSignal | undefined> = []
+    const recording: MacCommandRunner = {
+      // The first two parameters are unused but kept in place: the third is the
+      // signal under test, and a parameter cannot be skipped. Underscored the way
+      // this repo marks an intentionally unused binding.
+      run: (_command, _args, signal) => {
+        signals.push(signal)
+        return Promise.resolve({ code: 0, stdout: '', stderr: '' })
+      },
+    }
+    const controller = new AbortController()
+    await new MacDesktopAdapter({
+      runner: recording,
+      automationTargets: ['com.apple.Mail'],
+      signal: controller.signal,
+    }).readiness()
+    expect(signals.length).toBeGreaterThan(0)
+    expect(signals.every(signal => signal === controller.signal)).toBe(true)
+  })
+
+  it('probes the Automation targets a deployment names, and no others', async () => {
+    const runnerNamingTargets = runnerReturning({})
+    const adapter = new MacDesktopAdapter({ runner: runnerNamingTargets, automationTargets: ['com.apple.Pages'] })
+    const report = await adapter.readiness()
+    const probed = report.probes.map(probe => probe.name).filter(name => name.startsWith('automation.'))
+    expect(probed).toEqual(['automation.com.apple.Pages'])
+  })
+})
+
+describe('a denied Automation probe with nothing on stderr still explains itself', () => {
+  it('names the target in the reason instead of reporting an empty string', async () => {
+    // osascript exits 1 when Automation is denied, and a denial can arrive with an
+    // empty stderr. An empty reason would read as "blocked for no reason", which is
+    // the least actionable thing a readiness report can say.
+    const runner = runnerReturning({ 'com.apple.Pages': { code: 1, stdout: '', stderr: '' } })
+    const probe = await probeAutomation({ runner, holder: { name: 'Aeven', source: 'in-process' } }, 'com.apple.Pages')
+    expect(probe.state).toBe('blocked')
+    expect(probe.reason).toBe('Apple Events to "com.apple.Pages" are not permitted')
+    // Read once, asserting it is a string on the way, so the checks below cannot
+    // silently pass on an absent reason: a denial explained by nothing is exactly
+    // the failure this test exists to catch.
+    const reason = probe.reason
+    expect(typeof reason).toBe('string')
+    expect(reason).toHaveLength('Apple Events to "com.apple.Pages" are not permitted'.length)
+    expect(reason).not.toBe('')
+  })
+})
+
+describe('scoping by process id picks that process, and falls back rather than refusing', () => {
+  const runner = runnerReturning({
+    'System Events': {
+      code: 0,
+      stdout: JSON.stringify([
+        { pid: 42, app: 'Pages', title: 'Agent Story.pages', position: '10, 20', size: '800, 600' },
+        { pid: 77, app: 'Notes', title: 'Notes', position: '30, 40', size: '500, 400' },
+      ]),
+      stderr: '',
+    },
+  })
+
+  it('covers the window belonging to the named process, not merely the first one', async () => {
+    const result = await new MacDesktopAdapter({ runner }).observe({ pid: 77, tree: false })
+    expect(result.notes?.[0]).toContain('Notes')
+  })
+
+  it('falls back to the first window when no window carries the named process', async () => {
+    // A pid can vanish between listing and scoping — the application quit. Refusing
+    // would turn a race into a failure, so the observation covers the first window
+    // and the caller still gets a snapshot to act on.
+    const result = await new MacDesktopAdapter({ runner }).observe({ pid: 999, tree: false })
+    expect(result.notes?.[0]).toContain('Agent Story.pages')
+  })
+})
+
+describe('the adapter omits what a deployment did not ask for, so probes are not sent unasked', () => {
+  it('probes no Automation target through readiness() when the config names none', async () => {
+    // The first Apple Event to an application raises a consent dialog, so an
+    // unconfigured adapter must send none. This asserts the config path end to end:
+    // an omitted option has to stay omitted rather than becoming an empty list that
+    // some later reader treats as "probe everything".
+    const runner = runnerReturning({
+      AXIsProcessTrusted: { code: 0, stdout: 'true\n', stderr: '' },
+      '0,0,1,1': { code: 0, stdout: '', stderr: '' },
+    })
+    const report = await new MacDesktopAdapter({ runner }).readiness()
+    expect(report.probes.map(probe => probe.name)).toEqual(['accessibility.read', 'screenRecording.capture'])
+    expect(runner.calls.every(call => !call.args.join(' ').includes('automation.'))).toBe(true)
+  })
+
+  it('carries a caller lifetime into the accessibility walk, not only the readiness probes', async () => {
+    // A tree walk shells out too, and it is the longest-running command here: a
+    // cancelled observation that left the walk running would keep spawning probes
+    // for a caller that has gone away.
+    const signals: Array<AbortSignal | undefined> = []
+    const runner: MacCommandRunner = {
+      // `command` is unused but kept in place because `args` and `signal` follow it,
+      // and a parameter cannot be skipped; this repo underscores an unused binding.
+      run: (_command, args, signal) => {
+        signals.push(signal)
+        const joined = args.join(' ')
+        if (joined.includes('kAXFocusedApplicationAttribute')) {
+          return Promise.resolve({ code: 0, stdout: '{"ok":true,"truncated":false,"nodes":[]}', stderr: '' })
+        }
+        return Promise.resolve({ code: 0, stdout: JSON.stringify([
+          { pid: 42, app: 'Pages', title: 'Story.pages', position: '0, 0', size: '800, 600' },
+        ]), stderr: '' })
+      },
+    }
+    const controller = new AbortController()
+    await new MacDesktopAdapter({ runner, signal: controller.signal }).observe({})
+    expect(signals.length).toBeGreaterThan(1)
+    expect(signals.every(signal => signal === controller.signal)).toBe(true)
+  })
+})
+
+describe('a walk that returns no node list yields an empty tree, not a missing one', () => {
+  it('reports zero nodes when the envelope omits the key entirely', async () => {
+    // The envelope's `nodes` is optional, so an application whose tree is empty can
+    // answer without the key. Treating that as undefined would put `undefined` into
+    // `snapshot.nodes` and break every consumer that walks it.
+    const runner = runnerReturning({
+      'System Events': {
+        code: 0,
+        stdout: JSON.stringify([{ pid: 42, app: 'Pages', title: 'Story.pages', position: '0, 0', size: '800, 600' }]),
+        stderr: '',
+      },
+      kAXFocusedApplicationAttribute: { code: 0, stdout: '{"ok":true,"truncated":false}', stderr: '' },
+    })
+    const result = await new MacDesktopAdapter({ runner }).observe({})
+    expect(result.snapshot?.nodes).toEqual([])
+    expect(result.snapshot?.truncated).toBeUndefined()
   })
 })

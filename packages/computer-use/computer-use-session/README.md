@@ -79,3 +79,5 @@ There is nothing to act on in an unchanged node, and it would carry a token the 
 The first diff implementation compared by token and was wrong in a way that looked right: the tests failed because every re-observation reported the entire tree as new. That is exactly the kind of bug that ships silently — the delta is non-empty, plausibly shaped, and useless. Comparing by position fixed it, and a different-window check keeps positions from being compared across unrelated walks.
 
 `isQuiet` exists because an empty delta is a cheaper and more reliable readiness signal than a fixed sleep, which is what the measured runs spent most of their wall-clock on.
+
+**Runtime invariant:** No companion is published because The package batches steps and diffs observations as returned values, and a caller awaits each batch, so the ordering is carried by the await rather than by an event a listener would have to reassemble.

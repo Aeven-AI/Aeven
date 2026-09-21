@@ -97,3 +97,5 @@ document.createText: 20 recorded vs 1 measured = 20x fewer steps
 The benchmark deliberately cannot flatter itself. Its most useful property is not the 20× ratio but the "skipped, with reason" line: the two platforms it cannot reach are the two whose adapters are least verified, and a benchmark that omitted them would report a cleaner number for less coverage.
 
 The baseline constant is labelled `recorded` rather than `measured` because this package cannot reproduce it. That distinction is the whole reason the evidence field exists: a reader can tell which number came from a run and which came from earlier work.
+
+**Runtime invariant:** No companion is published because The package counts mechanism invocations while measuring and reports the count in its result, so the number a companion would assert is the number already returned.

@@ -139,3 +139,5 @@ An unknown task reports the tasks the book knows. A platform with no recipe repo
 The recipes carry the measurements the rest of this stack is built on, which is why they live in a package rather than in documentation: a Pages content write is one call and reads back byte-exact, the Pages scripting bridge loses paragraph handling entirely, and Mail needs unread read per mailbox because the application-wide call throws. Those facts are testable as data, and the tests assert them.
 
 The refusal messages were deduplicated after the tests caught a platform repeated once per invocation. The failure output was worth reading rather than loosening the assertion.
+
+**Runtime invariant:** No companion is published because The package resolves a task to a rung as plain data and performs no effect of its own, so there is no event ordering or mutable relation to compare; the executor owns what happens after a resolution.

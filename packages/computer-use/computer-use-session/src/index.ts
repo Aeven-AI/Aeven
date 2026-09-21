@@ -34,16 +34,16 @@ export * from './diff.ts'
 
 /** One step in a batch. */
 export type SessionStep =
-  | { kind: 'execute', request: ExecuteRequest }
-  | { kind: 'observe', scope?: ObserveScope }
+  | { kind: 'execute'; request: ExecuteRequest }
+  | { kind: 'observe'; scope?: ObserveScope }
   | { kind: 'readiness' }
 
 /** What one step produced, tagged by kind so a caller can match them up. */
 export type SessionStepResult =
-  | { kind: 'execute', outcome: ExecutionOutcome }
-  | { kind: 'observe', observation: ObserveResult, diff: TreeDiff }
-  | { kind: 'readiness', readiness: ReadinessReport }
-  | { kind: 'failed', error: string, step: SessionStep }
+  | { kind: 'execute'; outcome: ExecutionOutcome }
+  | { kind: 'observe'; observation: ObserveResult; diff: TreeDiff }
+  | { kind: 'readiness'; readiness: ReadinessReport }
+  | { kind: 'failed'; error: string; step: SessionStep }
 
 /** The result of one batch. */
 export interface BatchResult {
@@ -80,7 +80,7 @@ export class ComputerUseSession {
    * @param options - the recipe book, handlers, and the adapter to use.
    */
   constructor(options: SessionOptions) {
-    this.executor = new TaskExecutor(options as ExecutorOptions)
+    this.executor = new TaskExecutor(options)
     this.adapter = options.adapter
   }
 
@@ -134,7 +134,7 @@ export class ComputerUseSession {
    * @returns the observation and its diff.
    * @throws {ComputerUseError} `capability-unavailable` when there is no adapter.
    */
-  async observe(scope?: ObserveScope): Promise<{ observation: ObserveResult, diff: TreeDiff }> {
+  async observe(scope?: ObserveScope): Promise<{ observation: ObserveResult; diff: TreeDiff }> {
     const adapter = this.requireAdapter('observe')
     const observation = await adapter.observe(scope ?? {})
     const nodes = observation.snapshot?.nodes ?? []

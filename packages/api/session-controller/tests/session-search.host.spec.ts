@@ -112,9 +112,13 @@ describe('session.search', () => {
       source: { kind: 'user' },
     }), { surfaceOp: 'append' })
     const cold = header('cold', '/cold')
-    const legacy = header('legacy', null)
+    // A Session the listing does not carry: the provider can still return a hit
+    // for it (a stale index, a session outside this deployment's visibility), and
+    // authorization is what drops that hit. A cwd-less header would not do: it is
+    // an ordinary list-visible Session in a workspace with no directory.
+    const unlisted = header('unlisted', '/unlisted')
     ctx.provide('sessionPersistence', {
-      list: () => Promise.resolve([cold, legacy]),
+      list: () => Promise.resolve([cold]),
       locate: () => undefined,
     } as never)
 
@@ -124,11 +128,11 @@ describe('session.search', () => {
     ) => Promise.resolve({
       items: [
         {
-          header: legacy,
+          header: unlisted,
           live: false,
           persisted: true,
           bestMatch: {
-            sessionId: legacy.id,
+            sessionId: unlisted.id,
             seq: 3,
             type: 'user/message' as const,
             time: 190,

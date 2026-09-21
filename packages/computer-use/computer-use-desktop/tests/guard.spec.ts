@@ -168,7 +168,11 @@ describe('platform resolution', () => {
 })
 
 describe('readiness composition', () => {
-  const probe = (name: string, state: ReadinessProbe['state'], remedy?: string): ReadinessProbe => ({ name, state, remedy })
+  // `remedy` is spread conditionally, not passed as possibly-undefined: under
+  // exactOptionalPropertyTypes an explicit undefined is a present property of the
+  // wrong type, and the report distinguishes "no remedy" from "remedy: undefined".
+  const probe = (name: string, state: ReadinessProbe['state'], remedy?: string): ReadinessProbe =>
+    ({ name, state, ...(remedy === undefined ? {} : { remedy }) })
 
   it('derives blockers from the probes so a report cannot contradict itself', () => {
     const report = composeReadinessReport('darwin', [
@@ -219,5 +223,19 @@ describe('expectation descriptions', () => {
     expect(describeExpectation({ kind: 'fileNewerThan', path: '/tmp/a', sinceMs: 5 })).toBe('file modified after 5: /tmp/a')
     expect(describeExpectation({ kind: 'nodeValueEquals', token: 's1:0', value: 'x' })).toBe('element value equals "x"')
     expect(describeExpectation({ kind: 'windowTitled', title: 'Doc' })).toBe('a window is titled "Doc"')
+  })
+
+  it('describes the semantic kinds, including both sides of each optional field', () => {
+    // The two-sided checks are the point: an omitted calendar and a named one are
+    // different claims, and a description that read the same for both would tell a
+    // caller nothing about what was actually verified.
+    expect(describeExpectation({ kind: 'appObject', app: 'Calendar', collection: 'events', match: { summary: 'Standup' } }))
+      .toBe('Calendar has a events matching {"summary":"Standup"}')
+    expect(describeExpectation({ kind: 'calendarHasEvent' })).toBe('a calendar holds the expected event')
+    expect(describeExpectation({ kind: 'calendarHasEvent', calendar: 'Work' }))
+      .toBe('the calendar "Work" holds the expected event')
+    expect(describeExpectation({ kind: 'noteExists', name: 'Groceries' })).toBe('a note named "Groceries" exists')
+    expect(describeExpectation({ kind: 'noteExists', name: 'Groceries', folder: 'Home' }))
+      .toBe('a note named "Groceries" exists in "Home"')
   })
 })

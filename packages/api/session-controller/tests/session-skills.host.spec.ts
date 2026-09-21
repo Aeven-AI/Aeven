@@ -190,22 +190,41 @@ describe('SessionSkillCatalog', () => {
     await expect(failed).rejects.toThrow('skill registry is absent')
   })
 
-  it('rejects observations without projections or a project cwd', async () => {
+  it('rejects an observation with no projections', async () => {
     const ctx = await context()
     const sessionId = SessionId('incomplete-skills')
     const withoutProjections = { ...observation(sessionId, { cwd: '/project' }), projections: undefined }
-    const observeSession = vi.fn()
-      .mockResolvedValueOnce(withoutProjections)
-      .mockResolvedValueOnce(observation(sessionId))
-    ctx.provide('sessionQuery', { observeSession } as never)
+    ctx.provide('sessionQuery', {
+      observeSession: vi.fn(() => Promise.resolve(withoutProjections)),
+    } as never)
     const catalog = new SessionSkillCatalog(ctx)
 
     const unprojected = catalog.list({ sessionId }, new AbortController().signal)
     await expect(unprojected).rejects.toMatchObject({ code: 'gateway/internal' })
     await expect(unprojected).rejects.toThrow('projected Session observation')
-    const cwdless = catalog.list({ sessionId }, new AbortController().signal)
-    await expect(cwdless).rejects.toMatchObject({ code: 'gateway/internal' })
-    await expect(cwdless).rejects.toThrow('has no project cwd')
+  })
+
+  it('serves the global catalog to a Session whose workspace has no directory', async () => {
+    const ctx = await context()
+    const sessionId = SessionId('cwdless-skills')
+    // A Session with no cwd is not an incomplete observation: it lives in a
+    // workspace with no directory, and the registry already reads an absent cwd
+    // as "no project scope", so the answer is the global skills, not an error.
+    ctx.provide('sessionQuery', {
+      observeSession: () => Promise.resolve(observation(sessionId)),
+    } as never)
+    const list = vi.fn(() => Promise.resolve([{
+      name: 'review',
+      description: 'Review the current change.',
+      invocation: { modelInvocable: true, userInvocable: true },
+    }]))
+    ctx.provide('skills', { list } as never)
+    const catalog = new SessionSkillCatalog(ctx)
+
+    await expect(catalog.list({ sessionId }, new AbortController().signal)).resolves.toEqual({
+      skills: [{ name: 'review', description: 'Review the current change.', modelInvocable: true }],
+    })
+    expect(list).toHaveBeenCalledWith({ cwd: undefined, scope: undefined })
   })
 
   it('classifies a provider listing failure', async () => {

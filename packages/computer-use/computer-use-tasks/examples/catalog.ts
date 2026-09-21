@@ -46,7 +46,7 @@ if (osworld === undefined || macagentbench === undefined || windowsagentarena ==
 }
 const out = process.argv[5] ?? 'task-intent-catalog.md'
 
-const sources: Array<{ root: string, source: TaskSource }> = [
+const sources: Array<{ root: string; source: TaskSource }> = [
   { root: osworld, source: 'osworld' },
   { root: macagentbench, source: 'macagentbench' },
   { root: windowsagentarena, source: 'windowsagentarena' },

@@ -16,7 +16,7 @@ import { ComputerUseError, type DesktopWindow } from '@aeven/computer-use-deskto
 interface RawProcess {
   pid: number
   name: string
-  windows: Array<{ name: string, position: string, size: string }>
+  windows: Array<{ name: string; position: string; size: string }>
 }
 
 /**
@@ -98,7 +98,7 @@ interface RawWindowRow {
  * @param text - the rendered pair.
  * @returns the two numbers, defaulting to zero when unreadable.
  */
-export function parsePair(text: string): { a: number, b: number } {
+export function parsePair(text: string): { a: number; b: number } {
   const [first, second] = text.split(',').map(part => Number(part.trim()))
   return {
     a: Number.isFinite(first) ? (first as number) : 0,
@@ -129,7 +129,7 @@ export function parseWindowList(stdout: string): DesktopWindow[] {
     return {
       // System Events exposes no stable window id, so the title and owning pid
       // together are the identity; the adapter matches by title within a process.
-      windowId: `${row.title}`,
+      windowId: row.title,
       pid: row.pid,
       app: { id: row.app, displayName: row.app },
       title: row.title,

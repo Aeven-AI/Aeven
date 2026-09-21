@@ -75,3 +75,5 @@ Text and key input require a window target. The adapter focuses that window thro
 The refusal paths carry as much weight as the working ones. An adapter that returned an empty tree when it could not read one would be worse than one that refuses, because the empty tree is indistinguishable from an application that publishes no accessibility surface.
 
 The ladder ordering is deliberately explicit data rather than a chain of conditionals, which is what makes "which backend will be tried, and in what order" a thing a test can state.
+
+**Runtime invariant:** No companion is published because The package is a host-side adapter driven by its caller, so it holds no same-process state across calls and emits no sequence a listener could observe.

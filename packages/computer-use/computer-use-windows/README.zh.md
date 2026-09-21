@@ -21,7 +21,7 @@ Windows 是三个平台中权限门控最少的平台，适配器正围绕这一
 - [理解实现](#understand-the-implementation)
 - [延伸阅读](#further-exploration)
 - [已知限制与后续工作](#known-limitations-and-deferred-work)
-- [开发者说明](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -38,6 +38,7 @@ await adapter.act({ kind: 'setValue', target: { kind: 'element', token: body.tok
 const [written] = await adapter.verify([{ kind: 'nodeValueEquals', token: body.token, value: 'the story' }])
 ```
 
+<a id="understand-the-implementation"></a>
 ## 理解实现
 
 ### 令牌指明其所属窗口
@@ -58,6 +59,7 @@ const [written] = await adapter.verify([{ kind: 'nodeValueEquals', token: body.t
 
 报告明确说明 UI Automation 不需要任何授权。无法访问桌面被报告为 `unknown` 而不是 `blocked`，因为原因是不可达的会话，而不是操作者可以去授予的权限。提权被单独探测：未提权的进程可以列出提权应用程序的窗口但无法驱动它，这与缺少授权是不同的问题。
 
+<a id="further-exploration"></a>
 ## 延伸阅读
 
 - [`@aeven/computer-use-desktop`](../computer-use-desktop/README.zh.md) —— 本包所实现的契约，包括共享的校验器。
@@ -73,8 +75,10 @@ const [written] = await adapter.verify([{ kind: 'nodeValueEquals', token: body.t
 - **数十个进程与很长的树可能较慢。** 节点上限约束了单次遍历，但尚无对连续快照的缓存或差分。
 
 <a id="dev-note"></a>
-## 开发者说明
+## 开发备注
 
 校验器不在此实现：它位于 `@aeven/computer-use-desktop`，因为文件系统检查在每个平台上完全相同，三份副本必然产生偏离。
 
 所有内容都针对注入的命令运行器编写，因此测试套件无需 Windows 机器即可覆盖每一种失败模式——不可达的桌面、无法读取的响应包、失败的模式、格式错误的令牌。
+
+**运行时不变式：** 不发布伴随插件，因为本包是由调用方驱动的宿主侧适配器，它不在调用之间保留同进程状态，也不发出任何监听器可观察的序列。

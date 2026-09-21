@@ -324,6 +324,21 @@ export const PRESENTATION_RECIPES: RecipeBook = [
     deliverable: 'open-application',
     on: [
       {
+        // macOS is listed first because this is the one operand a handler in this
+        // repository actually implements, and it was measured against live Keynote.
+        // Rows below are the documented target vocabulary for platforms whose
+        // adapters have not been verified on a real host.
+        platform: 'darwin',
+        rung: 'semantic',
+        apps: ['com.apple.Keynote'],
+        evidence: 'verified',
+        invocation: {
+          mechanism: 'apple-events',
+          operation: 'keynote.setSlideText',
+          parameters: { path: '{path}', slideIndex: '{index}', textItem: '{shape}', text: '{text}' },
+        },
+      },
+      {
         platform: 'win32',
         rung: 'semantic',
         apps: ['PowerPoint.Application'],

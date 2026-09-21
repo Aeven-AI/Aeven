@@ -32,9 +32,11 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "@aeven/brand": "workspace:^"
+    "@aeven/brand": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
-    "@aeven/brand": "workspace:^"
+    "@aeven/brand": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
   }
 }

@@ -692,6 +692,52 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'computerUseProvider',
+    summary: 'The macOS computer-use provider.',
+    description: 'The macOS computer-use provider.\n\nExposes the pieces a consumer needs rather than hiding them behind one method, because the useful questions differ: a settings surface wants `readiness()`, a router wants `routing`, and a tool wants `session`.',
+    methods: [
+      {
+        signature: 'readonly adapter: DesktopAdapter',
+        description: 'The adapter every observation and verification goes through.',
+        parameters: [],
+      },
+      {
+        signature: 'readonly session: ComputerUseSession',
+        description: 'The session a consumer drives.',
+        parameters: [],
+      },
+      {
+        signature: 'readonly executor: TaskExecutor',
+        description: 'The executor, exposed so a caller can run a single task without a session.',
+        parameters: [],
+      },
+      {
+        signature: 'readiness(): Promise<ReadinessReport>',
+        description: 'The host\'s readiness: which grants are held, by which identity, and by what.',
+        parameters: [],
+        returns: 'the readiness report for this adapter.',
+      },
+      {
+        signature: 'execute(request: Parameters<TaskExecutor[\'execute\']>[0]): Promise<ExecutionOutcome>',
+        description: 'Perform one task and establish whether it worked.',
+        parameters: [{ name: 'request', description: 'the task, its application, and its parameters.' }],
+        returns: 'the outcome, with per-expectation results.',
+      },
+      {
+        signature: 'resolve(request: Parameters<TaskExecutor[\'routing\'][\'resolve\']>[0]): ResolvedRecipe',
+        description: 'Resolve a task without running it, for a caller that wants to show the plan.',
+        parameters: [{ name: 'request', description: 'the task, platform, application and available rungs.' }],
+        returns: 'the resolved recipe.',
+      },
+      {
+        signature: 'tasks(): string[]',
+        description: 'The recipe book this provider serves, so a caller can list what is available.',
+        parameters: [],
+        returns: 'the task names.',
+      },
+    ],
+  },
+  {
     key: 'credentials',
     summary: 'Abstract credential service over two key spaces that answer two questions.',
     description: 'Abstract credential service over two key spaces that answer two questions.\n\nA CredentialRef answers "what is behind this environment-variable name", layered over the process environment, the provider-managed store, and `.env` files. One seam-wide rule binds that half: an empty stored value is absent everywhere — `resolve` skips it, `describe` reports it unconfigured — so a blank never masquerades as a configured secret.\n\nA CredentialKey answers "what credential does this plugin hold for this id". Nothing can layer here — an authorization grant has no environment to be read from — so presence of the record is the whole fact, and modifyRecord is the only write path because a correct write depends on the current value (a token refresh is read-decide-replace under one lock).',
@@ -717,6 +763,11 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: 'abstract unset(ref: CredentialRef): Promise<void>',
         description: 'Remove one reference from the provider-managed writable source; removing an absent reference is a no-op. Rejects while a read-only source shadows the reference, like set.',
         parameters: [{ name: 'ref', description: 'the reference to remove.' }],
+      },
+      {
+        signature: 'setSession?(ref: CredentialRef, value: string | undefined): void',
+        description: 'Publish a credential that belongs to a live session rather than to this machine, for as long as the process runs.\n\nOptional, because it is a capability only a provider with an in-memory layer can offer; a provider that implements it makes the value resolve above its durable sources so a stored entry cannot shadow a live session. A caller that needs it must handle absence, which is what makes the capability additive rather than a widening of every provider\'s contract.',
+        parameters: [{ name: 'ref', description: 'the reference the value answers.' }, { name: 'value', description: 'the credential, or `undefined` to withdraw it.' }],
       },
       {
         signature: 'abstract readRecord(key: CredentialKey): Promise<CredentialRecord | undefined>',
@@ -1038,6 +1089,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Identify the caller through the registered authorities.\n\nThe first authority that recognizes the credential answers. Order is registration order, which a composition controls by the order it mounts them; nothing here ranks authorities, because a deployment with two that disagree about one credential has a composition problem, not a resolution problem.',
         parameters: [{ name: 'request', description: 'the credential-bearing headers.' }],
         returns: 'the authenticated user, or undefined when none recognized it.',
+      },
+      {
+        signature: 'credentialRefFor(request: IdentityRequest): CredentialRef | undefined',
+        description: 'The credential reference the resolver that recognizes this request named.\n\nAnswers which reference the presented credential opens, so a caller that must present the same credential elsewhere does not have to guess a name from the authority\'s id. Resolution happens exactly once per request, which is why this identifies rather than asking the authority again.',
+        parameters: [{ name: 'request', description: 'the credential-bearing headers.' }],
+        returns: 'the reference, or undefined when nobody recognized the request or the authority declared none.',
       },
     ],
   },
@@ -3500,6 +3557,18 @@ export const EVENT_API: readonly EventApiEntry[] = [
 /** Shapes of every exported type the Service and Event signatures reference (transitively), sorted by name. */
 export const TYPE_API: readonly TypeApiEntry[] = [
   {
+    name: 'ActionReceipt',
+    declaration: 'export interface ActionReceipt {\n    route: ActionRoute;\n    observed?: string;\n    notes?: readonly string[];\n}',
+  },
+  {
+    name: 'ActionRoute',
+    declaration: 'export type ActionRoute = \'accessibility\' | \'native-input\';',
+  },
+  {
+    name: 'ActionTarget',
+    declaration: 'export type ActionTarget = WindowTarget | ElementTarget | PointTarget;',
+  },
+  {
     name: 'AdapterRegistrationHandle',
     declaration: 'export interface AdapterRegistrationHandle {\n    (): void;\n    replace(providers: string[]): void;\n}',
   },
@@ -3574,6 +3643,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ApiSessionAgentResult',
     declaration: 'export type ApiSessionAgentResult = {\n    readonly agent: Agent;\n} | {\n    readonly error: ApiSessionAgentError;\n};',
+  },
+  {
+    name: 'AppObjectReader',
+    declaration: 'export interface AppObjectReader {\n    find(app: string, collection: string, match: Readonly<Record<string, string>>): Promise<{\n        matched: boolean;\n        observed: string;\n    }>;\n}',
   },
   {
     name: 'ApprovalOutcome',
@@ -3716,6 +3789,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface BashEnvVariableInfo extends BashEnvVariable {\n    contributor: string;\n    key: AvnEnvironmentKey;\n}',
   },
   {
+    name: 'BatchResult',
+    declaration: 'export interface BatchResult {\n    results: readonly SessionStepResult[];\n    verified: boolean;\n    steps: number;\n}',
+  },
+  {
     name: 'BorrowedSessionSource',
     declaration: 'export type BorrowedSessionSource = Disposable & ({\n    readonly source: \'prepared\';\n    readonly inspection: SessionInspection;\n    readonly revision: SessionPersistenceRevision;\n    readonly preparedSession: Session;\n} | {\n    readonly source: \'live\';\n    readonly inspection: SessionInspection;\n});',
   },
@@ -3734,6 +3811,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ChunkRowEvent',
     declaration: 'export type ChunkRowEvent = {\n    [Kind in ChunkRow[\'type\']]: {\n        readonly type: `chunkrow/${Kind}`;\n        readonly seq: number;\n        readonly time: number;\n        readonly data: Extract<ChunkRow, {\n            readonly type: Kind;\n        }>[\'data\'];\n    };\n}[ChunkRow[\'type\']];',
+  },
+  {
+    name: 'ClickAction',
+    declaration: 'export interface ClickAction {\n    kind: \'click\';\n    target: ActionTarget;\n    button?: \'left\' | \'right\' | \'middle\';\n    count?: number;\n}',
   },
   {
     name: 'ClientArtifactBaseline',
@@ -3822,6 +3903,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ComputerUseProviderName',
     declaration: 'export type ComputerUseProviderName = Branded<\'ComputerUseProviderName\'>;',
+  },
+  {
+    name: 'ComputerUseSession',
+    declaration: 'export class ComputerUseSession {\n    constructor(options: SessionOptions);\n    async run(steps: readonly SessionStep[]): Promise<BatchResult>;\n    async observe(scope?: ObserveScope): Promise<{\n        observation: ObserveResult;\n        diff: TreeDiff;\n    }>;\n    resetObservation(): void;\n    get routing(): TaskExecutor[\'routing\'];\n}',
   },
   {
     name: 'ConfinedArgv',
@@ -3996,6 +4081,46 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type DeepSeekLlmApiJson = null | boolean | number | string | DeepSeekLlmApiJson[] | {\n    [key: string]: DeepSeekLlmApiJson;\n};',
   },
   {
+    name: 'Deliverable',
+    declaration: 'export type Deliverable = \'file\' | \'open-application\';',
+  },
+  {
+    name: 'DesktopAction',
+    declaration: 'export type DesktopAction = ClickAction | TypeTextAction | PressKeyAction | SetValueAction | PerformActionAction | FocusWindowAction;',
+  },
+  {
+    name: 'DesktopAdapter',
+    declaration: 'export interface DesktopAdapter {\n    readonly platform: DesktopPlatform;\n    observe(scope: ObserveScope): Promise<ObserveResult>;\n    act(action: DesktopAction): Promise<ActionReceipt>;\n    verify(expectations: readonly Expectation[]): Promise<readonly VerificationOutcome[]>;\n    readiness(): Promise<ReadinessReport>;\n}',
+  },
+  {
+    name: 'DesktopAppId',
+    declaration: 'export interface DesktopAppId {\n    id: string;\n    displayName?: string;\n}',
+  },
+  {
+    name: 'DesktopNode',
+    declaration: 'export interface DesktopNode {\n    index: number;\n    token: string;\n    role: string;\n    title?: string;\n    value?: string;\n    actions?: readonly string[];\n    editable?: boolean;\n    bounds?: DesktopRect;\n}',
+  },
+  {
+    name: 'DesktopPlatform',
+    declaration: 'export type DesktopPlatform = \'darwin\' | \'win32\' | \'linux\';',
+  },
+  {
+    name: 'DesktopRect',
+    declaration: 'export interface DesktopRect {\n    x: number;\n    y: number;\n    width: number;\n    height: number;\n}',
+  },
+  {
+    name: 'DesktopScreenshot',
+    declaration: 'export interface DesktopScreenshot {\n    path: string;\n    mimeType: string;\n    width: number;\n    height: number;\n    scale: number;\n    origin?: DesktopRect;\n}',
+  },
+  {
+    name: 'DesktopSnapshot',
+    declaration: 'export interface DesktopSnapshot {\n    snapshotId: string;\n    platform: DesktopPlatform;\n    windows: readonly DesktopWindow[];\n    nodes: readonly DesktopNode[];\n    focusedToken?: string;\n    truncated?: boolean;\n}',
+  },
+  {
+    name: 'DesktopWindow',
+    declaration: 'export interface DesktopWindow {\n    windowId: string;\n    pid: number;\n    app: DesktopAppId;\n    title?: string;\n    bounds?: DesktopRect;\n    onScreen?: boolean;\n}',
+  },
+  {
     name: 'DiffCallView',
     declaration: 'export interface DiffCallView {\n    card: \'diff\';\n    title: string;\n    diffs: FileDiff[];\n    locations?: FileLocation[];\n}',
   },
@@ -4096,12 +4221,32 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface EditGoalRequest {\n    readonly objective?: string;\n    readonly maxGoalRounds?: number;\n}',
   },
   {
+    name: 'ElementTarget',
+    declaration: 'export interface ElementTarget {\n    kind: \'element\';\n    token: string;\n}',
+  },
+  {
     name: 'EncodedImageAttachment',
     declaration: 'export interface EncodedImageAttachment {\n    mediaType: ImageMediaType;\n    data: string;\n    name?: string;\n}',
   },
   {
     name: 'EpochHeader',
     declaration: 'export interface EpochHeader {\n    config: LlmCallConfig;\n    adapterDefaults?: LlmCallConfigAdapterDefaults;\n    system?: string;\n    tools?: ToolSchema[];\n}',
+  },
+  {
+    name: 'ExecuteRequest',
+    declaration: 'export interface ExecuteRequest {\n    task: string;\n    platform: DesktopPlatform;\n    app?: string;\n    parameters?: Readonly<Record<string, string>>;\n    availableRungs?: ResolvedRecipe[\'rung\'][];\n    verify?: boolean;\n}',
+  },
+  {
+    name: 'ExecutionOutcome',
+    declaration: 'export interface ExecutionOutcome {\n    task: string;\n    rung: ResolvedRecipe[\'rung\'];\n    mechanism: string;\n    verified: boolean;\n    outcomes: readonly VerificationOutcome[];\n    observed?: string;\n    notes: readonly string[];\n}',
+  },
+  {
+    name: 'ExecutorOptions',
+    declaration: 'export interface ExecutorOptions {\n    book: RecipeBook;\n    adapter?: DesktopAdapter;\n    handlers?: Readonly<Record<string, MechanismHandler>>;\n    readers?: Partial<VerificationReaders>;\n}',
+  },
+  {
+    name: 'Expectation',
+    declaration: 'export type Expectation = {\n    kind: \'fileExists\';\n    path: string;\n} | {\n    kind: \'fileContains\';\n    path: string;\n    text: string;\n} | {\n    kind: \'fileEquals\';\n    path: string;\n    text: string;\n} | {\n    kind: \'fileNewerThan\';\n    path: string;\n    sinceMs: number;\n} | {\n    kind: \'nodeValueEquals\';\n    token: string;\n    value: string;\n} | {\n    kind: \'windowTitled\';\n    title: string;\n} | {\n    kind: \'appObject\';\n    app: string;\n    collection: string;\n    match: Readonly<Record<string, string>>;\n} | {\n    kind: \'calendarHasEvent\';\n    calendar?: string;\n    count?: number;\n    match?: Readonly<Record<string, string>>;\n} | {\n    kind: \'noteExists\';\n    name: string;\n    folder?: string;\n    contains?: string;\n};',
   },
   {
     name: 'ExternalChange',
@@ -4130,6 +4275,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'FinishReasonMap',
     declaration: 'export interface FinishReasonMap {\n    \'stop\': {\n        kind: \'stop\';\n    };\n    \'tool-calls\': {\n        kind: \'tool-calls\';\n    };\n    \'max-tokens\': {\n        kind: \'max-tokens\';\n    };\n    \'aborted\': {\n        kind: \'aborted\';\n        failure: LlmFailure;\n    };\n    \'error\': {\n        kind: \'error\';\n        failure: LlmFailure;\n    };\n}',
+  },
+  {
+    name: 'FocusWindowAction',
+    declaration: 'export interface FocusWindowAction {\n    kind: \'focusWindow\';\n    target: WindowTarget;\n}',
   },
   {
     name: 'FsDirEntry',
@@ -4230,6 +4379,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'GoalView',
     declaration: 'export interface GoalView extends GoalSnapshot {\n    readonly roundsStarted: number;\n    readonly createdAt: number;\n    readonly updatedAt: number;\n    readonly activation: GoalActivation;\n}',
+  },
+  {
+    name: 'GrantIdentity',
+    declaration: 'export interface GrantIdentity {\n    name: string;\n    source?: \'in-process\' | \'spawned-helper\' | \'driver-daemon\';\n}',
   },
   {
     name: 'GrantRecord',
@@ -4508,6 +4661,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ManualCompactAgentContext extends CompactionAgentContext {\n    runMaintenance<T>(task: (signal: AbortSignal) => Promise<T>): Promise<T>;\n}',
   },
   {
+    name: 'MechanismHandler',
+    declaration: 'export type MechanismHandler = (request: MechanismRequest) => Promise<MechanismResult>;',
+  },
+  {
+    name: 'MechanismRequest',
+    declaration: 'export interface MechanismRequest {\n    invocation: RecipeInvocation;\n    parameters: Readonly<Record<string, string>>;\n    app?: string;\n    signal?: AbortSignal;\n}',
+  },
+  {
+    name: 'MechanismResult',
+    declaration: 'export interface MechanismResult {\n    observed?: string;\n    notes?: readonly string[];\n}',
+  },
+  {
     name: 'MediaImageModel',
     declaration: 'export interface MediaImageModel {\n    readonly provider: string;\n    readonly id: string;\n    readonly label?: string;\n    readonly description?: string;\n}',
   },
@@ -4676,8 +4841,24 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ModelReasoningEffort {\n    readonly id: string;\n    readonly name: string;\n    readonly description?: string;\n}',
   },
   {
+    name: 'NodeChange',
+    declaration: 'export interface NodeChange {\n    token: string;\n    index: number;\n    fields: Readonly<Record<string, {\n        from: string | boolean | undefined;\n        to: string | boolean | undefined;\n    }>>;\n}',
+  },
+  {
+    name: 'NodeValueReader',
+    declaration: 'export interface NodeValueReader {\n    read(token: string): Promise<string | undefined>;\n}',
+  },
+  {
     name: 'ObjectJsonSchema',
     declaration: 'export type ObjectJsonSchema = JsonSchemaNode & {\n    type: \'object\';\n};',
+  },
+  {
+    name: 'ObserveResult',
+    declaration: 'export interface ObserveResult {\n    snapshot?: DesktopSnapshot;\n    screenshot?: DesktopScreenshot;\n    notes?: readonly string[];\n}',
+  },
+  {
+    name: 'ObserveScope',
+    declaration: 'export interface ObserveScope {\n    pid?: number;\n    windowId?: string;\n    screenshot?: boolean;\n    tree?: boolean;\n    maxNodes?: number;\n}',
   },
   {
     name: 'OneShotSubagentDescriptorData',
@@ -4688,8 +4869,20 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type OptionalSessionSeq = SessionSeq | null;',
   },
   {
+    name: 'PerformActionAction',
+    declaration: 'export interface PerformActionAction {\n    kind: \'performAction\';\n    target: ElementTarget;\n    action: string;\n}',
+  },
+  {
     name: 'PermissionSelect',
     declaration: 'export interface PermissionSelect {\n    options: PresetOption[];\n    currentValue: string;\n}',
+  },
+  {
+    name: 'PlatformInvocation',
+    declaration: 'export interface PlatformInvocation {\n    platform: DesktopPlatform;\n    rung: RecipeRung;\n    invocation: RecipeInvocation;\n    mechanism?: never;\n    apps: readonly string[];\n    evidence: \'verified\' | \'documented\';\n    knownBlind?: readonly string[];\n}',
+  },
+  {
+    name: 'PointTarget',
+    declaration: 'export interface PointTarget {\n    kind: \'point\';\n    x: number;\n    y: number;\n    window?: WindowTarget;\n}',
   },
   {
     name: 'PostToolDecision',
@@ -4730,6 +4923,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PresetTrust',
     declaration: 'export type PresetTrust = \'system\' | \'user\';',
+  },
+  {
+    name: 'PressKeyAction',
+    declaration: 'export interface PressKeyAction {\n    kind: \'key\';\n    target: ActionTarget;\n    key: string;\n    modifiers?: readonly string[];\n}',
   },
   {
     name: 'PreStepDecision',
@@ -4800,6 +4997,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ReadFileLine {\n    number: number;\n    text: string;\n}',
   },
   {
+    name: 'ReadinessProbe',
+    declaration: 'export interface ReadinessProbe {\n    name: string;\n    state: ReadinessState;\n    code?: string;\n    reason?: string;\n    grantee?: GrantIdentity;\n    remedy?: string;\n}',
+  },
+  {
+    name: 'ReadinessReport',
+    declaration: 'export interface ReadinessReport {\n    platform: DesktopPlatform;\n    probes: readonly ReadinessProbe[];\n    blockers: readonly string[];\n    recommendedNextStep?: string;\n}',
+  },
+  {
+    name: 'ReadinessState',
+    declaration: 'export type ReadinessState = \'ready\' | \'blocked\' | \'unknown\';',
+  },
+  {
     name: 'ReadResultView',
     declaration: 'export interface ReadResultView {\n    card: \'read\';\n    title?: string;\n    path: string;\n    offset: number;\n    lines: ReadFileLine[];\n    totalLines: number;\n    lang?: string;\n    content?: ContentBlock[];\n}',
   },
@@ -4810,6 +5019,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ReasoningEffortId',
     declaration: 'export type ReasoningEffortId = Branded<\'ReasoningEffortId\'>;',
+  },
+  {
+    name: 'RecipeBook',
+    declaration: 'export type RecipeBook = readonly TaskRecipe[];',
+  },
+  {
+    name: 'RecipeInvocation',
+    declaration: 'export interface RecipeInvocation {\n    mechanism: \'apple-events\' | \'com\' | \'dbus\' | \'ax\' | \'uia\' | \'atspi\' | \'filesystem\' | \'pixels\';\n    operation: string;\n    parameters?: Readonly<Record<string, string>>;\n}',
+  },
+  {
+    name: 'RecipeRouter',
+    declaration: 'export class RecipeRouter {\n    constructor(book: RecipeBook);\n    tasks(): string[];\n    resolve(request: ResolveRequest): ResolvedRecipe;\n    blindSpots(request: ResolveRequest): readonly string[];\n}',
+  },
+  {
+    name: 'RecipeRung',
+    declaration: 'export type RecipeRung = \'semantic\' | \'accessibility\' | \'vision\';',
   },
   {
     name: 'RedactedSecret',
@@ -4868,6 +5093,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ResolvedNormalRetryPolicy extends ResolvedRetryBackoff {\n    readonly mode: \'normal\';\n    readonly maxRetries: number;\n    readonly retryableCodes: readonly string[];\n}',
   },
   {
+    name: 'ResolvedRecipe',
+    declaration: 'export interface ResolvedRecipe {\n    task: string;\n    summary: string;\n    platform: DesktopPlatform;\n    app: string;\n    deliverable?: Deliverable;\n    rung: RecipeRung;\n    invocation: RecipeInvocation;\n    evidence: \'verified\' | \'documented\';\n    knownBlind: readonly string[];\n    verify: readonly Expectation[];\n}',
+  },
+  {
     name: 'ResolvedRetryBackoff',
     declaration: 'export interface ResolvedRetryBackoff {\n    readonly initialDelayMs: number;\n    readonly maxDelayMs: number;\n    readonly jitterRatio: number;\n}',
   },
@@ -4878,6 +5107,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ResolvedSubagentStartRequest',
     declaration: 'export interface ResolvedSubagentStartRequest extends SubagentStartRequest {\n    readonly descriptor: SubagentDescriptorData;\n}',
+  },
+  {
+    name: 'ResolveRequest',
+    declaration: 'export interface ResolveRequest {\n    task: string;\n    platform: DesktopPlatform;\n    app?: string;\n    availableRungs?: readonly RecipeRung[];\n    deliverable?: Deliverable;\n}',
   },
   {
     name: 'RestoredSessionOptions',
@@ -5168,6 +5401,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SessionOpenWorkspacePathValue {\n    readonly opened: true;\n}',
   },
   {
+    name: 'SessionOptions',
+    declaration: 'export interface SessionOptions extends ExecutorOptions {\n    adapter?: DesktopAdapter;\n}',
+  },
+  {
     name: 'SessionPage',
     declaration: 'export interface SessionPage {\n    readonly records: readonly SessionHistoryRecord[];\n    readonly hasMore: boolean;\n}',
   },
@@ -5316,6 +5553,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type SessionStartSource = \'startup\' | \'resume\' | \'clear\' | \'compact\';',
   },
   {
+    name: 'SessionStep',
+    declaration: 'export type SessionStep = {\n    kind: \'execute\';\n    request: ExecuteRequest;\n} | {\n    kind: \'observe\';\n    scope?: ObserveScope;\n} | {\n    kind: \'readiness\';\n};',
+  },
+  {
+    name: 'SessionStepResult',
+    declaration: 'export type SessionStepResult = {\n    kind: \'execute\';\n    outcome: ExecutionOutcome;\n} | {\n    kind: \'observe\';\n    observation: ObserveResult;\n    diff: TreeDiff;\n} | {\n    kind: \'readiness\';\n    readiness: ReadinessReport;\n} | {\n    kind: \'failed\';\n    error: string;\n    step: SessionStep;\n};',
+  },
+  {
     name: 'SessionStorageMetadata',
     declaration: 'export interface SessionStorageMetadata {\n    readonly meta: SessionHeader;\n    readonly inheritedEventCount: SessionLogOffset;\n}',
   },
@@ -5458,6 +5703,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SettingsUpdateSource',
     declaration: 'export type SettingsUpdateSource = \'update\' | \'provider\';',
+  },
+  {
+    name: 'SetValueAction',
+    declaration: 'export interface SetValueAction {\n    kind: \'setValue\';\n    target: ElementTarget;\n    value: string;\n}',
   },
   {
     name: 'ShellExecRequest',
@@ -5760,6 +6009,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type TableValueOf<S extends DomainSpec, N extends keyof S[\'tables\']> = S[\'tables\'][N] extends DomainTableSpec<string, infer V> ? V : never;',
   },
   {
+    name: 'TaskExecutor',
+    declaration: 'export class TaskExecutor {\n    constructor(options: ExecutorOptions);\n    get routing(): RecipeRouter;\n    async execute(request: ExecuteRequest): Promise<ExecutionOutcome>;\n    async executeOrThrow(request: ExecuteRequest): Promise<ExecutionOutcome>;\n}',
+  },
+  {
+    name: 'TaskRecipe',
+    declaration: 'export interface TaskRecipe {\n    task: string;\n    summary: string;\n    on: readonly PlatformInvocation[];\n    deliverable?: Deliverable;\n    verify: readonly Expectation[];\n}',
+  },
+  {
     name: 'TeamId',
     declaration: 'export type TeamId = Branded<\'TeamId\'>;',
   },
@@ -6008,6 +6265,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ToolSchema {\n    name: string;\n    description: string;\n    parameters: Record<string, unknown>;\n}',
   },
   {
+    name: 'TreeDiff',
+    declaration: 'export interface TreeDiff {\n    complete: boolean;\n    added: readonly DesktopNode[];\n    removed: readonly number[];\n    changed: readonly NodeChange[];\n    unchanged: readonly number[];\n}',
+  },
+  {
     name: 'TurnEndCancelCause',
     declaration: 'export type TurnEndCancelCause = AgentCancelCause | {\n    readonly kind: \'legacy\';\n};',
   },
@@ -6116,6 +6377,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface TypertTypeModel {\n    readonly name: string;\n    readonly declaration: string;\n}',
   },
   {
+    name: 'TypeTextAction',
+    declaration: 'export interface TypeTextAction {\n    kind: \'type\';\n    target: ActionTarget;\n    text: string;\n}',
+  },
+  {
     name: 'UpdateTeamTaskRequest',
     declaration: 'export interface UpdateTeamTaskRequest {\n    readonly taskId: TeamTaskId;\n    readonly expectedRevision: number;\n    readonly action: TeamTaskAction;\n    readonly subject?: string;\n    readonly description?: string;\n    readonly blockedBy?: readonly TeamTaskId[];\n    readonly writeScopes?: readonly string[];\n    readonly owner?: string;\n}',
   },
@@ -6129,7 +6394,15 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'UserResolver',
-    declaration: 'export interface UserResolver {\n    readonly id: string;\n    resolve(request: IdentityRequest): User | undefined;\n}',
+    declaration: 'export interface UserResolver {\n    readonly id: string;\n    resolve(request: IdentityRequest): User | undefined;\n    readonly credentialRef?: CredentialRef;\n}',
+  },
+  {
+    name: 'VerificationOutcome',
+    declaration: 'export interface VerificationOutcome {\n    expectation: Expectation;\n    satisfied: boolean;\n    observed?: string;\n    error?: string;\n}',
+  },
+  {
+    name: 'VerificationReaders',
+    declaration: 'export interface VerificationReaders {\n    nodeValue: NodeValueReader;\n    windowTitles: WindowTitleReader;\n    appObjects?: AppObjectReader;\n}',
   },
   {
     name: 'VerifiedWebhookDelivery',
@@ -6242,6 +6515,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WebUpgradeRoute',
     declaration: 'export interface WebUpgradeRoute {\n    path: string;\n    handler: (req: IncomingMessage, socket: Duplex, head: Buffer) => void | Promise<void>;\n}',
+  },
+  {
+    name: 'WindowTarget',
+    declaration: 'export interface WindowTarget {\n    kind: \'window\';\n    pid: number;\n    windowId: string;\n}',
+  },
+  {
+    name: 'WindowTitleReader',
+    declaration: 'export interface WindowTitleReader {\n    list(): Promise<readonly string[]>;\n}',
   },
   {
     name: 'WorkflowAgentEndInfo',

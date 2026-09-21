@@ -45,4 +45,6 @@ export class ComputerUseRegistry extends Service {
   }
 }
 
+export { ComputerUseProviderName } from './brand.ts'
+export type { ComputerUseProviderName as ComputerUseProviderNameType } from './brand.ts'
 export default ComputerUseRegistry

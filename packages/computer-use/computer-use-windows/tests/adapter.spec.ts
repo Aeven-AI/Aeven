@@ -15,8 +15,8 @@ import { probeElevation, probeUia, probeUiaPatterns, probeWindowsReadiness } fro
 /** A runner answering from a table, recording every call. */
 function runnerReturning(
   answers: Readonly<Record<string, WinCommandResult>>,
-): WinCommandRunner & { calls: Array<{ command: string, args: readonly string[] }> } {
-  const calls: Array<{ command: string, args: readonly string[] }> = []
+): WinCommandRunner & { calls: Array<{ command: string; args: readonly string[] }> } {
+  const calls: Array<{ command: string; args: readonly string[] }> = []
   return {
     calls,
     run: (command, args) => {
@@ -59,7 +59,7 @@ describe('PowerShell resolution', () => {
       ProgramFiles: 'C:\\Program Files',
       SystemRoot: 'C:\\Windows',
       PATH: 'C:\\tools;"C:\\quoted dir"',
-    } as NodeJS.ProcessEnv)
+    })
     expect(candidates[0]).toBe(join('C:\\Program Files', 'PowerShell', '7', 'pwsh.exe'))
     expect(candidates).toContain(join('C:\\tools', 'pwsh.exe'))
     expect(candidates).toContain(join('C:\\quoted dir', 'pwsh.exe'))
@@ -67,19 +67,19 @@ describe('PowerShell resolution', () => {
   })
 
   it('falls back to the documented defaults when the environment omits them', () => {
-    const candidates = candidatePowerShellPaths({} as NodeJS.ProcessEnv)
+    const candidates = candidatePowerShellPaths({})
     expect(candidates[0]).toBe(join('C:\\Program Files', 'PowerShell', '7', 'pwsh.exe'))
     expect(candidates.at(-1)).toBe(join('C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'))
   })
 
   it('skips empty PATH entries rather than resolving them to a directory', () => {
-    const candidates = candidatePowerShellPaths({ PATH: ';;C:\\bin;', ProgramFiles: 'P', SystemRoot: 'S' } as NodeJS.ProcessEnv)
+    const candidates = candidatePowerShellPaths({ PATH: ';;C:\\bin;', ProgramFiles: 'P', SystemRoot: 'S' })
     expect(candidates).not.toContain('pwsh.exe')
     expect(candidates).toContain(join('C:\\bin', 'pwsh.exe'))
   })
 
   it('names every candidate it tried when none exists, since "pwsh not found" is not actionable', () => {
-    expect(() => resolvePowerShellPath({ PATH: '', ProgramFiles: 'P', SystemRoot: 'S' } as NodeJS.ProcessEnv))
+    expect(() => resolvePowerShellPath({ PATH: '', ProgramFiles: 'P', SystemRoot: 'S' }))
       .toThrow(/tried:/)
   })
 

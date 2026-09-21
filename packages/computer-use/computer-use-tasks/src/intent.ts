@@ -119,7 +119,7 @@ interface RawTask {
  * @returns the normalized intent.
  */
 export function fromOsworld(raw: RawTask, source: TaskSource = 'osworld'): TaskIntent {
-  const evaluator = (raw.evaluator ?? {}) as { func?: unknown, postconfig?: unknown }
+  const evaluator = (raw.evaluator ?? {}) as { func?: unknown; postconfig?: unknown }
   const checks = [...asStringArray(evaluator.func), ...setupTypesOf(evaluator.postconfig)]
   return {
     source,
@@ -143,7 +143,7 @@ export function fromOsworld(raw: RawTask, source: TaskSource = 'osworld'): TaskI
  * @returns the normalized intent.
  */
 export function fromMacAgentBench(raw: RawTask): TaskIntent {
-  const evaluator = (raw.evaluator ?? {}) as { func?: unknown, expected?: unknown }
+  const evaluator = (raw.evaluator ?? {}) as { func?: unknown; expected?: unknown }
   const expectedRules = Array.isArray(evaluator.expected)
     ? evaluator.expected.flatMap((entry) => {
       const rules = (entry as { rules?: { func?: unknown } }).rules

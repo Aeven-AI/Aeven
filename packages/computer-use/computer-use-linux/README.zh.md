@@ -21,7 +21,7 @@ Linux 是能力真正存在差异的平台，因此本适配器围绕**报告而
 - [理解实现](#understand-the-implementation)
 - [延伸阅读](#further-exploration)
 - [已知限制与后续工作](#known-limitations-and-deferred-work)
-- [开发者说明](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -38,6 +38,7 @@ console.log(notes) // which backend answered, and what is not implemented
 await adapter.act({ kind: 'type', target: { kind: 'window', pid, windowId }, text: 'the story' })
 ```
 
+<a id="understand-the-implementation"></a>
 ## 理解实现
 
 ### 后端是数据，按顺序尝试
@@ -54,6 +55,7 @@ await adapter.act({ kind: 'type', target: { kind: 'window', pid, windowId }, tex
 
 文本与按键输入需要窗口目标。适配器先通过某个后端聚焦该窗口，再经由阶梯发送——X11 上用 `xdotool`，然后是 `wtype`，再是 `ydotool`——因此发送失败会被报告为能力失败，而不是静默地发往当前持有焦点的窗口。无法识别的修饰键会被拒绝，绝不会被丢弃。
 
+<a id="further-exploration"></a>
 ## 延伸阅读
 
 - [`@aeven/computer-use-desktop`](../computer-use-desktop/README.zh.md) —— 本包所实现的契约，包括共享的校验器。
@@ -70,8 +72,10 @@ await adapter.act({ kind: 'type', target: { kind: 'window', pid, windowId }, tex
 - **每条命令一个进程**，因此批量会话会为每个操作付出进程启动成本。
 
 <a id="dev-note"></a>
-## 开发者说明
+## 开发备注
 
 拒绝路径与可用路径同样重要。在无法读取树时返回空树的适配器，比直接拒绝的适配器更糟，因为空树与一个不发布辅助功能界面的应用程序无法区分。
 
 阶梯顺序是刻意显式的数据，而不是一连串条件分支，这正是让"将尝试哪个后端、以什么顺序"成为测试可以断言之物的原因。
+
+**运行时不变式：** 不发布伴随插件，因为本包是由调用方驱动的宿主侧适配器，它不在调用之间保留同进程状态，也不发出任何监听器可观察的序列。

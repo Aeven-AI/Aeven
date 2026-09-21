@@ -50,4 +50,42 @@ register(name: ComputerUseProviderName): () => Promise<void>
 ```
 
 Source: [`packages/computer-use/computer-use/src/index.ts`](../../packages/computer-use/computer-use/src/index.ts)
+
+<a id="ctxcomputeruseprovider--maccomputeruseprovider"></a>
+
+### `ctx.computerUseProvider` — `MacComputerUseProvider`
+
+The macOS computer-use provider.
+
+Exposes the pieces a consumer needs rather than hiding them behind one method, because the useful questions differ: a settings surface wants `readiness()`, a router wants `routing`, and a tool wants `session`.
+
+```ts cordis-catalog
+/**
+ * The host's readiness: which grants are held, by which identity, and by what.
+ * @returns the readiness report for this adapter.
+ */
+readiness(): Promise<ReadinessReport>
+
+/**
+ * Perform one task and establish whether it worked.
+ * @param request - the task, its application, and its parameters.
+ * @returns the outcome, with per-expectation results.
+ */
+execute(request: Parameters<TaskExecutor['execute']>[0]): Promise<ExecutionOutcome>
+
+/**
+ * Resolve a task without running it, for a caller that wants to show the plan.
+ * @param request - the task, platform, application and available rungs.
+ * @returns the resolved recipe.
+ */
+resolve(request: Parameters<TaskExecutor['routing']['resolve']>[0]): ResolvedRecipe
+
+/**
+ * The recipe book this provider serves, so a caller can list what is available.
+ * @returns the task names.
+ */
+tasks(): string[]
+```
+
+Source: [`packages/computer-use/computer-use-macos-provider/src/index.ts`](../../packages/computer-use/computer-use-macos-provider/src/index.ts)
 <!-- END GENERATED cordis-surface -->

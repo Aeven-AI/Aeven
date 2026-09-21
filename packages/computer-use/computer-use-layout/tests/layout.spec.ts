@@ -22,8 +22,6 @@ import {
   metricsLayout,
   overlapping,
   overflowing,
-  quoteLayout,
-  sectionLayout,
   snap,
   spanWidth,
   twoColumnLayout,
@@ -157,6 +155,15 @@ describe('geometry responds to its parameters rather than ignoring them', () => 
   it('spreads metric columns across the slide', () => {
     const shapes = metricsLayout(metrics).filter(shape => shape.role === 'metric')
     expect(shapes[1]!.box.left).toBeGreaterThan(shapes[0]!.box.left)
+  })
+
+  it('lays out a metric strip of no metrics as nothing, rather than dividing by zero', () => {
+    // The count floors at one so the column span stays defined, and the strip is
+    // then empty: a slide with no figures gets an empty strip, not NaN geometry.
+    const layout = metricsLayout({ kind: 'metrics', title: 'No figures' })
+    expect(layout.filter(shape => shape.role === 'metric')).toEqual([])
+    expect(layout.filter(shape => shape.role === 'label')).toEqual([])
+    expect(overflowing(layout)).toEqual([])
   })
 
   it('places the second column to the right of the first', () => {

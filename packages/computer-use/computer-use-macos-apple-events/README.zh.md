@@ -21,7 +21,7 @@ macOS 的**语义**机制，注册到 [`@aeven/computer-use-executor`](../comput
 - [理解实现](#understand-the-implementation)
 - [延伸阅读](#further-exploration)
 - [已知限制与后续工作](#known-limitations-and-deferred-work)
-- [开发者说明](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -48,6 +48,7 @@ await executor.executeOrThrow({
 
 运行器是注入的，因此处理程序自身不需要进程访问权限，且每种失败模式都可测试。请提供一个外壳调用 `osascript -l JavaScript` 的运行器。
 
+<a id="understand-the-implementation"></a>
 ## 理解实现
 
 ### 取值以字面量嵌入，绝不插值
@@ -62,6 +63,7 @@ await executor.executeOrThrow({
 
 非零退出会原样报告 `stderr`，而没有给出任何说明的失败会如实说明，而不是产生一条空消息。无法识别的操作会在任何脚本运行之前被拒绝，因为一个配方命名了无人实现的操作是值得暴露的缺陷。
 
+<a id="further-exploration"></a>
 ## 延伸阅读
 
 - [`@aeven/computer-use-executor`](../computer-use-executor/README.zh.md) —— 本处理程序注册到的执行器，以及它自身不做的校验。
@@ -77,8 +79,10 @@ await executor.executeOrThrow({
 - **自身没有超时。** 挂起的脚本需要由运行器来设定边界。
 
 <a id="dev-note"></a>
-## 开发者说明
+## 开发备注
 
 端到端路径在提交之前已被真实运行：配方 → 路由器 → 执行器 → 本处理程序 → 校验，产出了一个 92,896 字节的 Pages 文档，随后由 Pages 回读为恰好 `The Cartographer of Small Hours`，31 个字符，两个期望都从磁盘得到满足。
 
 恶意字面量测试不是装饰。用调用方提供的文本生成脚本源码，正是文档中的一个引号可能变成可执行代码的地方，而 `JSON.stringify` 是把这种可能变为不可能的具体防线。
+
+**运行时不变式：** 不发布伴随插件，因为本包构造脚本文本并运行它，随后返回其输出流，因此唯一的次序就是对同一个运行器的一次调用，而调用方已经会等待它。
