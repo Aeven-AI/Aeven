@@ -64,6 +64,14 @@ router.resolve({ task: 'document.setFont', platform: 'darwin', availableRungs: [
 
 每个调用都被标记为 `verified`（在本机运行并回读）或 `documented`（来自已发布的 API，此处尚未运行）。消费方不得将两者等同呈现。macOS 的 Pages、Mail 与 Calendar 条目为已验证；Windows 的 COM 与 Linux 的 UNO 条目仅为已记录。
 
+这一区分对 Office 集合尤为关键。它是此处最大的一组配方，也是最容易被不加检查就信任的一组，正因如此每个条目都带有 `documented`，并且有测试断言其中没有任何一个声称相反。
+
+### Office 与 LibreOffice 刻意走语义路径
+
+在 Windows 上一次单元格写入是一次 COM 成员调用，在 Linux 上是一次 UNO 调用，而在功能区完成同一操作则是一连串点击、按键与对话框。任务词汇已与 `microsoft/cua_skill` 按应用程序划分的动作模块交叉核对，那些模块从 UI 侧枚举了相同的操作——但此处的配方通过应用程序自身的 API 实现它们，而不是组合 UI 步骤，因为步骤节省正来自于此。
+
+唯一的例外是 macOS 的格式设置：Pages 脚本桥接完全无法触及段落与字体属性，因此 `document.setFont` 在那里解析到辅助功能层级，并在 `knownBlind` 中说明这一点。
+
 ### 拒绝会列出已搜索的内容
 
 未知任务会报告本书已知的任务。没有配方的平台会报告该任务确实覆盖的平台。未被覆盖的应用程序会报告它确实覆盖的应用程序。覆盖列表已去重，因此拥有多个调用的平台只被列名一次。
@@ -77,8 +85,10 @@ router.resolve({ task: 'document.setFont', platform: 'darwin', availableRungs: [
 ## 已知限制与后续工作
 
 - **路由器只做选择，不做执行。** 解析结果只指明机制与操作，由拥有该机制的消费方执行。尚无执行器接入。
-- **本书是起始集合**，涵盖文件系统任务、Pages、Mail、Calendar，以及 Office 的电子表格、文档与幻灯片。其它一切都会拒绝。
-- **Windows 与 Linux 条目未经验证。** COM 与 UNO 稳定且文档完备，但此处尚未驱动过任何一方，因此其 `evidence` 为 `documented`。
+- **本书是起始集合**——20 个任务，涵盖文件系统操作、Pages、Mail 与 Calendar，另加 13 个 Office 与 LibreOffice 任务，覆盖 Excel、Word、PowerPoint、Calc、Writer 与 Impress。其它一切都会拒绝。
+- **Windows 与 Linux 条目未经验证。** COM 与 UNO 稳定且文档完备，其操作也是它们的标准入口，但此处尚未驱动过真实的 Office 或 LibreOffice，因此其 `evidence` 为 `documented`。在真实宿主上验证被刻意推迟到后续阶段，而不是现在声称已完成。
+- **Office 任务的校验刻意较粗。** OOXML 与 ODF 都是容器，因此对其字节做文本搜索会因错误的原因而通过；这些配方只断言文件已写入，内容检查留给消费方自己的语义回读。只有 PDF 导出会断言内容，因为 PDF 可以通过自身字节来检查。
+- **不随包提供任何 Office 或 LibreOffice 机制处理程序。** 这些配方解析到 `com` 与 `dbus`，而执行器会拒绝没有处理程序的机制，因此当前运行它们需要消费方注册该处理程序。
 - **没有层级降级图。** 配方列出它提供的层级，但尚无法表达"先试辅助功能，若元素不存在则降到视觉"。这需要数据模型所不具备的按任务条件逻辑。
 - **期望中的占位符不会被替换。** 配方使用 `{path}` 形式的参数，填入它们是消费方的职责。
 

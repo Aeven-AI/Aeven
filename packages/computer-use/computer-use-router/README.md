@@ -64,6 +64,14 @@ It carries as much weight as `rung`. It is what stops the router discovering a b
 
 Every invocation is marked `verified` (run on this machine and read back) or `documented` (from a published API, not run here). A consumer must not present them as the same thing. The macOS Pages, Mail, and Calendar entries are verified; the Windows COM and Linux UNO entries are documented only.
 
+That distinction is load-bearing for the Office set specifically. It is the largest group of recipes here and the one most likely to be trusted without checking, which is exactly why every entry carries `documented` and a test asserts that none of them claims otherwise.
+
+### Office and LibreOffice are semantic on purpose
+
+A cell write is one COM member call on Windows and one UNO call on Linux, where the same operation through the ribbon is a sequence of clicks, keystrokes, and dialogs. The task vocabulary was cross-checked against `microsoft/cua_skill`'s per-application action modules, which enumerate the same operations from the UI side — but the recipes here implement them through the application's own API rather than by composing UI steps, because that is where the step saving is.
+
+The one exception is macOS formatting: the Pages scripting bridge cannot reach paragraph or font attributes at all, so `document.setFont` resolves to the accessibility rung there and says so in `knownBlind`.
+
 ### Refusals list what was searched
 
 An unknown task reports the tasks the book knows. A platform with no recipe reports the platforms that task does cover. An uncovered application reports the applications it does cover. Coverage lists are deduplicated, so a platform with several invocations is named once.
@@ -77,8 +85,10 @@ An unknown task reports the tasks the book knows. A platform with no recipe repo
 ## Known Limitations and Deferred Work
 
 - **The router selects; it does not execute.** A resolved invocation names a mechanism and an operation, and the consumer that owns that mechanism runs it. No executor is wired up yet.
-- **The book is a starter set**, covering filesystem tasks, Pages, Mail, Calendar, and Office spreadsheets, documents, and slides. Everything else refuses.
-- **Windows and Linux entries are unverified.** COM and UNO are stable and well documented, but nothing here has driven either, so their `evidence` is `documented`.
+- **The book is a starter set** — 20 tasks across filesystem work, Pages, Mail, and Calendar, plus 13 Office and LibreOffice tasks covering Excel, Word, PowerPoint, Calc, Writer, and Impress. Everything else refuses.
+- **Windows and Linux entries are unverified.** COM and UNO are stable and well documented and the operations are their canonical entry points, but nothing here has driven a live Office or LibreOffice, so their `evidence` is `documented`. Verifying them on real hosts is deliberately deferred to a later stage rather than being claimed now.
+- **Office-task verification is deliberately coarse.** OOXML and ODF are containers, so a text search of their bytes would pass for the wrong reason; those recipes assert that the file was written and leave content checking to the consumer's own semantic read-back. Only the PDF exports assert content, because a PDF is checkable by its own bytes.
+- **No Office or LibreOffice mechanism handler ships.** These recipes resolve to `com` and `dbus`, and the executor refuses a mechanism it has no handler for, so running one currently needs a consumer to register that handler.
 - **No rung downgrade graph.** A recipe lists the rungs it offers; it cannot yet express "try accessibility, and if the element is absent fall to vision". That needs per-task conditional logic the data model does not have.
 - **Expectation placeholders are not substituted.** Recipes use `{path}`-style parameters, and filling them in is the consumer's job.
 

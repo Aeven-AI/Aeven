@@ -8,3 +8,9 @@
 export * from './recipe.ts'
 export * from './router.ts'
 export { STARTER_BOOK } from './book.ts'
+export {
+  DOCUMENT_RECIPES,
+  OFFICE_RECIPES,
+  PRESENTATION_RECIPES,
+  SPREADSHEET_RECIPES,
+} from './office.ts'

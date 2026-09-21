@@ -186,7 +186,7 @@ describe('the starter book', () => {
   it('keeps Office entries documented rather than presenting them as verified', () => {
     for (const [task, platform, app] of [
       ['spreadsheet.setCell', 'win32', 'Excel.Application'],
-      ['document.insertText', 'win32', 'Word.Application'],
+      ['document.appendText', 'win32', 'Word.Application'],
       ['slide.setText', 'win32', 'PowerPoint.Application'],
     ] as const) {
       expect(router.resolve({ task, platform, app }).evidence).toBe('documented')

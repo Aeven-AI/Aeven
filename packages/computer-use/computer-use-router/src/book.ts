@@ -15,6 +15,7 @@
  * @module @aeven/computer-use-router/book
  */
 
+import { OFFICE_RECIPES } from './office.ts'
 import type { RecipeBook } from './recipe.ts'
 
 /**
@@ -201,121 +202,12 @@ const CALENDAR: RecipeBook = [
 ]
 
 /**
- * Word, Excel, and PowerPoint on Windows through COM.
- *
- * Documented only: COM is the strongest semantic surface of the three platforms
- * and needs no permission grant, but nothing here has driven a live Office
- * installation. The value write is the clearest illustration of why this layer
- * exists — setting a cell or a slide's text is one member call, where the UI
- * route is a sequence of clicks and keystrokes.
- */
-const OFFICE: RecipeBook = [
-  {
-    task: 'spreadsheet.setCell',
-    summary: 'Set one cell of a spreadsheet to a value.',
-    on: [
-      {
-        platform: 'win32',
-        rung: 'semantic',
-        apps: ['Excel.Application'],
-        evidence: 'documented',
-        invocation: {
-          mechanism: 'com',
-          operation: 'Workbooks(sheet).Worksheets(sheet).Range(cell).Value = value',
-          parameters: { cell: '{cell}', value: '{value}' },
-        },
-      },
-      {
-        platform: 'darwin',
-        rung: 'semantic',
-        apps: ['com.apple.Numbers'],
-        evidence: 'documented',
-        invocation: {
-          mechanism: 'apple-events',
-          operation: 'body cells value',
-          parameters: { cell: '{cell}', value: '{value}' },
-        },
-      },
-      {
-        platform: 'linux',
-        rung: 'semantic',
-        apps: ['libreoffice'],
-        evidence: 'documented',
-        invocation: {
-          mechanism: 'dbus',
-          operation: 'UNO sheet.getCellByPosition(row, column).setValue(value)',
-          parameters: { cell: '{cell}', value: '{value}' },
-        },
-      },
-    ],
-    verify: [{ kind: 'fileContains', path: '{path}', text: '' }],
-  },
-  {
-    task: 'document.insertText',
-    summary: 'Insert text into the open document.',
-    on: [
-      {
-        platform: 'win32',
-        rung: 'semantic',
-        apps: ['Word.Application'],
-        evidence: 'documented',
-        invocation: {
-          mechanism: 'com',
-          operation: 'ActiveDocument.Content.InsertAfter(text)',
-          parameters: { text: '{text}' },
-        },
-      },
-      {
-        platform: 'linux',
-        rung: 'semantic',
-        apps: ['libreoffice'],
-        evidence: 'documented',
-        invocation: {
-          mechanism: 'dbus',
-          operation: 'UNO text.insertString(cursor, text, false)',
-          parameters: { text: '{text}' },
-        },
-      },
-    ],
-    verify: [{ kind: 'fileContains', path: '{path}', text: '' }],
-  },
-  {
-    task: 'slide.setText',
-    summary: 'Set the text of a shape on a slide.',
-    on: [
-      {
-        platform: 'win32',
-        rung: 'semantic',
-        apps: ['PowerPoint.Application'],
-        evidence: 'documented',
-        invocation: {
-          mechanism: 'com',
-          operation: 'ActivePresentation.Slides(index).Shapes(name).TextFrame.TextRange.Text = text',
-          parameters: { index: '{index}', name: '{shape}', text: '{text}' },
-        },
-      },
-      {
-        platform: 'linux',
-        rung: 'semantic',
-        apps: ['libreoffice'],
-        evidence: 'documented',
-        invocation: {
-          mechanism: 'dbus',
-          operation: 'UNO slide.getByIndex(index).setText(text)',
-          parameters: { index: '{index}', text: '{text}' },
-        },
-      },
-    ],
-    verify: [{ kind: 'fileContains', path: '{path}', text: '' }],
-  },
-]
-
-/**
  * The starter book.
  *
- * Ordered by expected frequency of use, which is also the order the work should
- * be verified in: files first because they are cheapest and most used, then the
- * document, mail, and calendar surfaces that were measured, then the Office set
- * that is documented but unproven here.
+ * Ordered by expected frequency of use, which is also the order the work was
+ * verified in: files first because they are cheapest and most used, then the
+ * document, mail, and calendar surfaces that were measured on macOS, then the
+ * Office and LibreOffice set that is documented and awaits verification on a
+ * Windows and a Linux host.
  */
-export const STARTER_BOOK: RecipeBook = [...FILES, ...PAGES, ...MAIL, ...CALENDAR, ...OFFICE]
+export const STARTER_BOOK: RecipeBook = [...FILES, ...PAGES, ...MAIL, ...CALENDAR, ...OFFICE_RECIPES]
