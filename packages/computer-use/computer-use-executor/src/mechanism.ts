@@ -67,8 +67,17 @@ export async function filesystemHandler(request: MechanismRequest): Promise<Mech
     return { observed: `read ${String(content.length)} characters`, notes: [path] }
   }
   if (request.invocation.operation === 'stat') {
-    await stat(path)
-    return { observed: 'present', notes: [path] }
+    // Absence is what this operation exists to report, and the `fileExists`
+    // verifier already reads it as `satisfied: false`. Letting ENOENT escape
+    // here rejected the run before that verification ever ran, so a missing path
+    // is an observation; any other failure still propagates.
+    try {
+      await stat(path)
+      return { observed: 'present', notes: [path] }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+      return { observed: 'absent', notes: [path] }
+    }
   }
   if (request.invocation.operation === 'writeFile') {
     const text = request.parameters.text
