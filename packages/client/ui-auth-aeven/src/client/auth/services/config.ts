@@ -94,18 +94,51 @@ export function mediaUrl(): string | undefined {
 }
 
 /**
+ * The same override, for a URL that carries a path.
+ *
+ * {@link sameSiteOrigin} answers an *origin*, which is right for a host and wrong for
+ * a provider URL, whose path is the endpoint: `http://localhost:9020/oauth/x` must
+ * come back as `http://127.0.0.1:9020/oauth/x`, not as the host it was addressed to.
+ * So this swaps the loopback name and leaves the rest of the URL as the deployment
+ * wrote it.
+ * @param configured - the configured URL.
+ * @returns the URL to address.
+ */
+function followingPage(configured: string): string {
+  try {
+    const url = new URL(configured)
+    if (LOOPBACK.has(url.hostname) && LOOPBACK.has(window.location.hostname)) {
+      url.hostname = window.location.hostname
+    }
+    return url.toString()
+  } catch {
+    return configured
+  }
+}
+
+/**
  * The provider sign-in URLs.
  *
- * A provider with no URL configured is one this deployment does not offer, and
- * its button does nothing rather than navigating to `undefined`.
+ * Through {@link sameSiteOrigin} for the same reason as the origins above, and this
+ * is the one that was missing it. A provider sign-in lands on *our* web client, which
+ * exchanges the provider's answer into this origin's session — and a session cookie is
+ * host-scoped, so a deployment whose loopback name differs from the one the reader
+ * typed puts the session somewhere this page can never read it. The reader is then
+ * signed in on `localhost` while the application runs on `127.0.0.1`: the refresh
+ * cookie is absent from every request made here, the two-hour access token expires,
+ * and every request afterwards is refused as an invalid credential — which the reader
+ * sees as "API key is invalid" with nothing they can do but sign in again.
+ *
+ * A provider with no URL configured is one this deployment does not offer, and its
+ * button does nothing rather than navigating to `undefined`.
  * @returns the URL per provider, each absent when unconfigured.
  */
 export function oauthUrls(): { x?: string; apple?: string; google?: string } {
   const config = aevenConfig()
   return {
-    ...config.xOAuthUrl === undefined ? {} : { x: config.xOAuthUrl },
-    ...config.appleOAuthUrl === undefined ? {} : { apple: config.appleOAuthUrl },
-    ...config.googleOAuthUrl === undefined ? {} : { google: config.googleOAuthUrl },
+    ...config.xOAuthUrl === undefined ? {} : { x: followingPage(config.xOAuthUrl) },
+    ...config.appleOAuthUrl === undefined ? {} : { apple: followingPage(config.appleOAuthUrl) },
+    ...config.googleOAuthUrl === undefined ? {} : { google: followingPage(config.googleOAuthUrl) },
   }
 }
 
