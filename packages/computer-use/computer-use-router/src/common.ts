@@ -39,6 +39,7 @@ export const CALCULATOR_RECIPES: RecipeBook = [
   {
     task: 'calculator.compute',
     summary: 'Compute an arithmetic expression and report the result.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'darwin',
@@ -75,6 +76,7 @@ export const CLOCK_RECIPES: RecipeBook = [
   {
     task: 'clock.createAlarm',
     summary: 'Create an alarm at a given time for named weekdays.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'darwin',
@@ -94,6 +96,7 @@ export const CLOCK_RECIPES: RecipeBook = [
   {
     task: 'clock.listAlarms',
     summary: 'List the configured alarms.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'darwin',
@@ -111,6 +114,7 @@ export const CLOCK_RECIPES: RecipeBook = [
   {
     task: 'clock.startTimer',
     summary: 'Start a timer for a duration.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'darwin',
@@ -140,6 +144,7 @@ export const CALENDAR_EVENT_RECIPES: RecipeBook = [
   {
     task: 'calendar.createEvent',
     summary: 'Create a calendar event, optionally recurring on named weekdays.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'darwin',
@@ -164,6 +169,7 @@ export const CALENDAR_EVENT_RECIPES: RecipeBook = [
   {
     task: 'calendar.createEventInNewCalendar',
     summary: 'Create a named calendar and add at least one event to it.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'darwin',
@@ -185,6 +191,7 @@ export const CALENDAR_EVENT_RECIPES: RecipeBook = [
   {
     task: 'calendar.listEvents',
     summary: 'List the events in a calendar within a date range.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'darwin',
@@ -213,6 +220,7 @@ export const NOTES_RECIPES: RecipeBook = [
   {
     task: 'notes.createNote',
     summary: 'Create a note with the given body, optionally inside a named folder.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'darwin',
@@ -231,6 +239,7 @@ export const NOTES_RECIPES: RecipeBook = [
   {
     task: 'notes.readNote',
     summary: 'Read a note body by name.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'darwin',
@@ -250,6 +259,7 @@ export const NOTES_RECIPES: RecipeBook = [
   {
     task: 'notes.listNotes',
     summary: 'List the names of the notes in a folder.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'darwin',
@@ -281,6 +291,7 @@ export const PAGES_TEMPLATE_RECIPES: RecipeBook = [
   {
     task: 'document.createFromTemplate',
     summary: 'Create a named document from a named template and write its body text.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'darwin',
@@ -302,6 +313,7 @@ export const PAGES_TEMPLATE_RECIPES: RecipeBook = [
   {
     task: 'document.findAndReplace',
     summary: 'Replace every occurrence of one string with another in the open document.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'darwin',

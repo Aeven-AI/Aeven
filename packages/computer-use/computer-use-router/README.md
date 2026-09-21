@@ -81,11 +81,37 @@ A test also refuses any check that would pass for almost anything: no empty-stri
 
 Benchmark instructions for Pages are specific: *"Create a new document using the template 'Blank Black' and name it …"*. That resolves a problem measured directly on this machine, where the Creator Studio template chooser exposes two accessibility elements and document creation treated as a single call never gets past it. `document.createFromTemplate` takes the template as a parameter, so the step is named instead of being a surprise.
 
+### A sibling package covers the file layer
+
+`@aeven/computer-use-formats` holds the recipes whose deliverable is a file —
+spreadsheets, documents, presentations, PDFs — which need no application at all. They
+are declared `file`; every recipe in this book is `open-application`, and a test
+asserts both.
+
 ### Office and LibreOffice are semantic on purpose
 
 A cell write is one COM member call on Windows and one UNO call on Linux, where the same operation through the ribbon is a sequence of clicks, keystrokes, and dialogs. The task vocabulary was cross-checked against `microsoft/cua_skill`'s per-application action modules, which enumerate the same operations from the UI side — but the recipes here implement them through the application's own API rather than by composing UI steps, because that is where the step saving is.
 
 The one exception is macOS formatting: the Pages scripting bridge cannot reach paragraph or font attributes at all, so `document.setFont` resolves to the accessibility rung there and says so in `knownBlind`.
+
+### The deliverable decides between two otherwise equal layers
+
+A recipe can state what it must affect: a **file** on disk, or the state of an
+**open application**. This is not a rung — a rung says *how* work is done, this says
+*what the work must affect*, and it settles the one case where two layers look equally
+plausible.
+
+The file layer needs nothing installed, nothing running, and no permission grant,
+works identically on every platform, and verifies by reading the result back. The
+application layer is the only one that can reach a user's **unsaved** edits, because a
+file-level tool cannot see them at all.
+
+Passing `deliverable` filters to recipes that agree, so a caller needing a live
+document is never handed a file-level recipe and a caller wanting a verifiable file is
+never handed one that would need Office installed. Omitting it **skips the check
+rather than assuming a default**, and a recipe that never states its deliverable is
+refused when a caller requires one — because guessing there is exactly the decision
+the caller was asking to make.
 
 ### Refusals list what was searched
 

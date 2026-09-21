@@ -133,6 +133,7 @@ export const FORMAT_RECIPES: RecipeBook = [
   {
     task: 'spreadsheet.createWorkbook',
     summary: 'Create a workbook and write values and formulas into it, then recalculate.',
+    deliverable: 'file',
     on: [
       {
         platform: 'darwin',
@@ -180,6 +181,7 @@ export const FORMAT_RECIPES: RecipeBook = [
   {
     task: 'document.createFromText',
     summary: 'Create a Word document from text.',
+    deliverable: 'file',
     on: [
       {
         platform: 'darwin',
@@ -225,6 +227,7 @@ export const FORMAT_RECIPES: RecipeBook = [
   {
     task: 'document.readText',
     summary: "Read a document's text without launching an editor.",
+    deliverable: 'file',
     on: [
       {
         platform: 'darwin',
@@ -253,6 +256,7 @@ export const FORMAT_RECIPES: RecipeBook = [
   {
     task: 'presentation.readText',
     summary: 'Extract the text of a presentation.',
+    deliverable: 'file',
     on: [
       {
         platform: 'darwin',
@@ -286,6 +290,7 @@ export const FORMAT_RECIPES: RecipeBook = [
   {
     task: 'pdf.extractText',
     summary: 'Extract text from a PDF.',
+    deliverable: 'file',
     on: [
       {
         platform: 'darwin',
@@ -315,6 +320,7 @@ export const FORMAT_RECIPES: RecipeBook = [
   {
     task: 'document.convertToPdf',
     summary: 'Convert a document to PDF through a headless office engine.',
+    deliverable: 'file',
     on: [
       {
         platform: 'darwin',

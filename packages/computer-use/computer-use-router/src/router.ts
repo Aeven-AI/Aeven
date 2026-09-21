@@ -20,7 +20,15 @@
  */
 
 import { ComputerUseError, type DesktopPlatform } from '@aeven/computer-use-desktop'
-import { RUNG_ORDER, type PlatformInvocation, type RecipeBook, type RecipeRung, type ResolvedRecipe, type TaskRecipe } from './recipe.ts'
+import {
+  RUNG_ORDER,
+  type Deliverable,
+  type PlatformInvocation,
+  type RecipeBook,
+  type RecipeRung,
+  type ResolvedRecipe,
+  type TaskRecipe,
+} from './recipe.ts'
 
 export * from './recipe.ts'
 
@@ -41,6 +49,15 @@ export interface ResolveRequest {
    * so an unpermitted host is told why instead of failing later.
    */
   availableRungs?: readonly RecipeRung[]
+  /**
+   * What the task must affect.
+   *
+   * Supplying it filters to recipes that agree, so a caller needing the user's live
+   * unsaved document is never served a file-level recipe, and a caller wanting a
+   * file is never served one that would need an application installed. Omitting it
+   * skips the check rather than assuming a default.
+   */
+  deliverable?: Deliverable
 }
 
 /** The router over a recipe book. */
@@ -106,18 +123,58 @@ export class RecipeRouter {
         { task: request.task, app: request.app, covered: [...new Set(forPlatform.flatMap(entry => [...entry.apps]))] },
       )
     }
-    const chosen = this.preferHighestRung(applicable, request.availableRungs)
+    const byDeliverable = this.filterByDeliverable(applicable, recipe, request)
+    const chosen = this.preferHighestRung(byDeliverable, request.availableRungs)
     return {
       task: recipe.task,
       summary: recipe.summary,
       platform: request.platform,
       app: request.app ?? chosen.apps[0] ?? '',
+      ...recipe.deliverable === undefined ? {} : { deliverable: recipe.deliverable },
       rung: chosen.rung,
       invocation: chosen.invocation,
       evidence: chosen.evidence,
       knownBlind: chosen.knownBlind ?? [],
       verify: recipe.verify,
     }
+  }
+
+  /**
+   * Keep only the invocations whose deliverable matches what the caller needs.
+   *
+   * The check is on the **recipe**, because that is where the deliverable is
+   * declared: a task either affects a file or affects an open application, and that
+   * is a property of the task rather than of one platform's implementation of it.
+   * @param candidates - the invocations that could serve the request.
+   * @param recipe - the task recipe, which carries the declared deliverable.
+   * @param request - the caller's request.
+   * @returns the candidates to choose from.
+   * @throws {ComputerUseError} `capability-unavailable` when the caller needs a
+   * deliverable this task does not produce, or needs one the task never states.
+   */
+  private filterByDeliverable(
+    candidates: readonly PlatformInvocation[],
+    recipe: TaskRecipe,
+    request: ResolveRequest,
+  ): readonly PlatformInvocation[] {
+    if (request.deliverable === undefined) {
+      return candidates
+    }
+    if (recipe.deliverable === undefined) {
+      throw new ComputerUseError(
+        'capability-unavailable',
+        `the recipe for "${recipe.task}" does not state what it affects, so it cannot be confirmed to produce a "${request.deliverable}" outcome`,
+        { task: recipe.task, requested: request.deliverable },
+      )
+    }
+    if (recipe.deliverable !== request.deliverable) {
+      throw new ComputerUseError(
+        'capability-unavailable',
+        `"${recipe.task}" affects the ${recipe.deliverable === 'file' ? 'file on disk' : 'state of an open application'}, not a "${request.deliverable}" outcome`,
+        { task: recipe.task, requested: request.deliverable, declared: recipe.deliverable },
+      )
+    }
+    return candidates
   }
 
   /**

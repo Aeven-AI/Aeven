@@ -30,6 +30,7 @@ const FILES: RecipeBook = [
   {
     task: 'file.readText',
     summary: 'Read a text file from disk.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'darwin',
@@ -58,6 +59,7 @@ const FILES: RecipeBook = [
   {
     task: 'file.exists',
     summary: 'Report whether a path exists.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'darwin',
@@ -98,6 +100,7 @@ const PAGES: RecipeBook = [
   {
     task: 'document.createText',
     summary: 'Create a document containing the given text and save it.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'darwin',
@@ -120,6 +123,7 @@ const PAGES: RecipeBook = [
   {
     task: 'document.applyFont',
     summary: 'Apply a font to document body text.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'darwin',
@@ -151,6 +155,7 @@ const MAIL: RecipeBook = [
   {
     task: 'mail.listAccounts',
     summary: 'List the configured mail accounts.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'darwin',
@@ -166,6 +171,7 @@ const MAIL: RecipeBook = [
   {
     task: 'mail.readRecent',
     summary: 'Read the most recent inbox subject lines.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'darwin',
@@ -189,6 +195,7 @@ const CALENDAR: RecipeBook = [
   {
     task: 'calendar.list',
     summary: 'List the calendars available to the user.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'darwin',

@@ -87,6 +87,25 @@ export interface PlatformInvocation {
   knownBlind?: readonly string[]
 }
 
+/**
+ * What the task is actually for.
+ *
+ * This is the question that decides between two layers which are otherwise equally
+ * plausible, and it is not a rung: a rung says *how* work is done, this says *what
+ * the work must affect*.
+ *
+ * - `file` — the outcome is a file on disk. Nothing needs to be installed or
+ *   running, the layer works identically on every platform, and the result is
+ *   verified by reading it back.
+ * - `open-application` — the outcome is the state of an application the user is
+ *   working in. Unsaved edits are only reachable this way, and a file-level tool
+ *   cannot see them at all.
+ *
+ * Skipped when unset, rather than assuming one: a caller who states no intent is
+ * not asking to be routed by a guess.
+ */
+export type Deliverable = 'file' | 'open-application'
+
 /** One task, as performed across platforms. */
 export interface TaskRecipe {
   /**
@@ -98,6 +117,11 @@ export interface TaskRecipe {
   summary: string
   /** How each platform performs it. A platform absent here has no recipe yet. */
   on: readonly PlatformInvocation[]
+  /**
+   * What the task must affect. Unset means the recipe is agnostic, and a caller
+   * that requires a specific deliverable is refused rather than served by a guess.
+   */
+  deliverable?: Deliverable
   /**
    * What must be independently true after the task succeeded. Every recipe has at
    * least one, because a recipe that cannot be verified cannot be trusted.
@@ -114,6 +138,8 @@ export interface ResolvedRecipe {
   summary: string
   platform: DesktopPlatform
   app: string
+  /** What the task must affect, when the recipe states it. */
+  deliverable?: Deliverable
   rung: RecipeRung
   invocation: RecipeInvocation
   evidence: 'verified' | 'documented'

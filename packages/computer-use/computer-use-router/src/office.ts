@@ -35,6 +35,7 @@ export const SPREADSHEET_RECIPES: RecipeBook = [
   {
     task: 'spreadsheet.setCell',
     summary: 'Set one cell of a spreadsheet to a value.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'win32',
@@ -75,6 +76,7 @@ export const SPREADSHEET_RECIPES: RecipeBook = [
   {
     task: 'spreadsheet.setFormula',
     summary: 'Set a cell to a formula.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'win32',
@@ -104,6 +106,7 @@ export const SPREADSHEET_RECIPES: RecipeBook = [
   {
     task: 'spreadsheet.selectRange',
     summary: 'Select a range of cells as the current selection.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'win32',
@@ -129,6 +132,7 @@ export const SPREADSHEET_RECIPES: RecipeBook = [
   {
     task: 'spreadsheet.createSheet',
     summary: 'Add a sheet to the workbook.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'win32',
@@ -150,6 +154,7 @@ export const SPREADSHEET_RECIPES: RecipeBook = [
   {
     task: 'spreadsheet.saveAs',
     summary: 'Save the workbook to a path.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'win32',
@@ -171,6 +176,7 @@ export const SPREADSHEET_RECIPES: RecipeBook = [
   {
     task: 'spreadsheet.createChart',
     summary: 'Create a chart from a range.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'win32',
@@ -207,6 +213,7 @@ export const DOCUMENT_RECIPES: RecipeBook = [
   {
     task: 'document.appendText',
     summary: 'Append text to the open document.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'win32',
@@ -236,6 +243,7 @@ export const DOCUMENT_RECIPES: RecipeBook = [
   {
     task: 'document.setFont',
     summary: 'Set the font family and size of the document text.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'win32',
@@ -275,6 +283,7 @@ export const DOCUMENT_RECIPES: RecipeBook = [
   {
     task: 'document.exportPdf',
     summary: 'Export the document to PDF.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'win32',
@@ -312,6 +321,7 @@ export const PRESENTATION_RECIPES: RecipeBook = [
   {
     task: 'slide.setText',
     summary: 'Set the text of a shape on a slide.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'win32',
@@ -341,6 +351,7 @@ export const PRESENTATION_RECIPES: RecipeBook = [
   {
     task: 'slide.addSlide',
     summary: 'Add a slide to the presentation.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'win32',
@@ -362,6 +373,7 @@ export const PRESENTATION_RECIPES: RecipeBook = [
   {
     task: 'slide.addSpeakerNote',
     summary: 'Set the speaker notes for a slide.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'win32',
@@ -391,6 +403,7 @@ export const PRESENTATION_RECIPES: RecipeBook = [
   {
     task: 'presentation.exportPdf',
     summary: 'Export the presentation to PDF.',
+    deliverable: 'open-application',
     on: [
       {
         platform: 'win32',

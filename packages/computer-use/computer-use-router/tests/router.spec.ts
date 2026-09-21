@@ -208,3 +208,109 @@ describe('the starter book', () => {
     }
   })
 })
+
+describe('the deliverable decides between two otherwise equal layers', () => {
+  const BOOK_WITH_BOTH: RecipeBook = [
+    {
+      task: 'sheet.write',
+      summary: 'Write a cell, as a file.',
+      deliverable: 'file',
+      on: [{
+        platform: 'darwin', rung: 'semantic', apps: [],
+        evidence: 'documented',
+        invocation: { mechanism: 'filesystem', operation: 'openpyxl writes the cell' },
+      }],
+      verify: [{ kind: 'fileExists', path: '/tmp/x' }],
+    },
+    {
+      task: 'sheet.setOpenCell',
+      summary: 'Write a cell in the open workbook.',
+      deliverable: 'open-application',
+      on: [{
+        platform: 'darwin', rung: 'semantic', apps: ['Excel.Application'],
+        evidence: 'documented',
+        invocation: { mechanism: 'com', operation: 'Range(cell).Value2 = value' },
+      }],
+      verify: [{ kind: 'appObject', app: 'Excel', collection: 'cells', match: { address: 'A1' } }],
+    },
+    {
+      task: 'sheet.agnostic',
+      summary: 'A recipe that never says what it affects.',
+      on: [{
+        platform: 'darwin', rung: 'semantic', apps: [],
+        evidence: 'documented',
+        invocation: { mechanism: 'filesystem', operation: 'something' },
+      }],
+      verify: [{ kind: 'fileExists', path: '/tmp/x' }],
+    },
+  ]
+  const router = new RecipeRouter(BOOK_WITH_BOTH)
+
+  it('serves a file deliverable from the file recipe', () => {
+    const resolved = router.resolve({ task: 'sheet.write', platform: 'darwin', deliverable: 'file' })
+    expect(resolved.deliverable).toBe('file')
+    expect(resolved.invocation.mechanism).toBe('filesystem')
+  })
+
+  it('refuses a file-level recipe when the user needs their open document changed', () => {
+    try {
+      router.resolve({ task: 'sheet.write', platform: 'darwin', deliverable: 'open-application' })
+      throw new Error('expected a throw')
+    } catch (error) {
+      expect((error as ComputerUseError).code).toBe('capability-unavailable')
+      expect((error as ComputerUseError).message).toContain('file on disk')
+      expect((error as ComputerUseError).detail).toMatchObject({ requested: 'open-application', declared: 'file' })
+    }
+  })
+
+  it('refuses an application recipe when the caller wants a file it can verify', () => {
+    try {
+      router.resolve({ task: 'sheet.setOpenCell', platform: 'darwin', deliverable: 'file' })
+      throw new Error('expected a throw')
+    } catch (error) {
+      expect((error as ComputerUseError).message).toContain('open application')
+      expect((error as ComputerUseError).detail).toMatchObject({ declared: 'open-application' })
+    }
+  })
+
+  it('refuses a recipe that never states its deliverable rather than guessing one', () => {
+    try {
+      router.resolve({ task: 'sheet.agnostic', platform: 'darwin', deliverable: 'file' })
+      throw new Error('expected a throw')
+    } catch (error) {
+      expect((error as ComputerUseError).message).toContain('does not state what it affects')
+      expect((error as ComputerUseError).detail).toMatchObject({ requested: 'file' })
+    }
+  })
+
+  it('skips the check entirely when the caller states no deliverable', () => {
+    expect(() => router.resolve({ task: 'sheet.write', platform: 'darwin' })).not.toThrow()
+    expect(() => router.resolve({ task: 'sheet.agnostic', platform: 'darwin' })).not.toThrow()
+  })
+
+  it('carries the declared deliverable onto a resolved recipe', () => {
+    expect(router.resolve({ task: 'sheet.setOpenCell', platform: 'darwin' }).deliverable).toBe('open-application')
+  })
+
+  it('omits the field when the recipe does not declare one', () => {
+    expect(router.resolve({ task: 'sheet.agnostic', platform: 'darwin' }).deliverable).toBeUndefined()
+  })
+})
+
+describe('every shipped recipe answers the deliverable question', () => {
+  it('declares a deliverable on every starter-book recipe', () => {
+    for (const recipe of STARTER_BOOK) {
+      expect(recipe.deliverable, recipe.task).toBeDefined()
+    }
+  })
+
+  it('declares the format recipes as files and the application recipes as open applications', async () => {
+    const { FORMAT_RECIPES } = await import('@aeven/computer-use-formats')
+    for (const recipe of FORMAT_RECIPES) {
+      expect(recipe.deliverable, recipe.task).toBe('file')
+    }
+    for (const recipe of STARTER_BOOK) {
+      expect(recipe.deliverable, recipe.task).toBe('open-application')
+    }
+  })
+})
