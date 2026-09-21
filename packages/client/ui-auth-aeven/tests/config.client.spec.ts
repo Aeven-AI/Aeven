@@ -63,6 +63,34 @@ describe('Aeven deployment configuration', () => {
     expect(oauthUrls()).toEqual({ google: 'https://aeven.test/google' })
   })
 
+  it('sends a provider sign-in to the page own loopback name, so the session lands where this page can read it', () => {
+    // The failure this pins, seen in production: the deployment states its provider
+    // URLs on `localhost` while the reader is on `127.0.0.1`. Those are different
+    // sites to a browser, so the session the sign-in creates is written as a cookie
+    // for `localhost` — which this page never sends. The refresh cookie is then absent,
+    // the two-hour access token expires, and every request after that is refused as an
+    // invalid credential, reported to the reader as "API key is invalid".
+    servedFrom('127.0.0.1')
+    scope.__AVN_AEVEN__ = {
+      xOAuthUrl: 'http://localhost:9020/oauth/x',
+      appleOAuthUrl: 'http://localhost:9020/oauth/apple',
+      googleOAuthUrl: 'http://localhost:9020/oauth/google',
+    }
+    expect(oauthUrls()).toEqual({
+      x: 'http://127.0.0.1:9020/oauth/x',
+      apple: 'http://127.0.0.1:9020/oauth/apple',
+      google: 'http://127.0.0.1:9020/oauth/google',
+    })
+  })
+
+  it('leaves a provider addressed by its own name alone', () => {
+    // The other half: a URL that is not loopback is the deployment's or the provider's
+    // deliberate address, and following the page there would send the reader elsewhere.
+    servedFrom('127.0.0.1')
+    scope.__AVN_AEVEN__ = { xOAuthUrl: 'https://x.com/i/oauth2/authorize' }
+    expect(oauthUrls()).toEqual({ x: 'https://x.com/i/oauth2/authorize' })
+  })
+
   it('reaches a provider by the flow the deployment states', () => {
     servedFrom('localhost')
     expect(oauthFlow()).toBe('redirect')
