@@ -6,6 +6,7 @@ import LlmRuntime, {
   GenerateOptions,
   HarnessError,
   isContextWindowExceededError,
+  isMessageCountExceededError,
   isQuotaExceededError,
   LlmAdapter,
   LlmError,
@@ -99,6 +100,24 @@ async function collect(stream: AsyncIterable<StreamChunk>): Promise<StreamChunk[
   for await (const chunk of stream) chunks.push(chunk)
   return chunks
 }
+
+describe('message-count overflow recognition', () => {
+  it('recognizes each wording a gateway uses for more entries than the endpoint accepts', () => {
+    // The classifier is a three-way alternation, so each branch is pinned by an
+    // input that matches only it: the bounded-ceiling phrasing reaches the first,
+    // a named maximum the second, and a plain count overflow the third.
+    expect(isMessageCountExceededError('messages may contain at most 100 entries')).toBe(true)
+    expect(isMessageCountExceededError('messages: maximum number of entries reached')).toBe(true)
+    expect(isMessageCountExceededError('messages: too many entries')).toBe(true)
+  })
+
+  it('requires the messages parameter, so a count overflow alone is not this failure', () => {
+    // Without the guard a token overflow phrased around entries would be read as
+    // a count overflow instead of reaching the context-window classifier.
+    expect(isMessageCountExceededError('maximum number of entries reached')).toBe(false)
+    expect(isMessageCountExceededError('messages: invalid role')).toBe(false)
+  })
+})
 
 describe('LlmRuntime', () => {
   it('recognizes structured and model-capacity context-window overflow details', () => {

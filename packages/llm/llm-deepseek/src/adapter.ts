@@ -8,7 +8,7 @@
  * @module avn-llm-deepseek/adapter
  */
 
-import { attributionHeaders, contentHasImage, CONTEXT_WINDOW_EXCEEDED_CODE, isContextWindowExceededError, isQuotaExceededError, LlmAdapter, LlmError, offloadedImageText, offloadRequestImagesWithPolicy, ProviderRequestId, QUOTA_EXCEEDED_CODE, ReasoningEffortId } from '@aeven/llm'
+import { attributionHeaders, contentHasImage, CONTEXT_WINDOW_EXCEEDED_CODE, isContextWindowExceededError, isMessageCountExceededError, isQuotaExceededError, LlmAdapter, LlmError, MESSAGE_COUNT_EXCEEDED_CODE, offloadedImageText, offloadRequestImagesWithPolicy, ProviderRequestId, QUOTA_EXCEEDED_CODE, ReasoningEffortId } from '@aeven/llm'
 import type {
   ContentBlock,
   GenerateOptions,
@@ -336,6 +336,11 @@ export function httpErrorCode(status: number, error?: WireError['error']): strin
   if (isQuotaExceededError(detail)) return QUOTA_EXCEEDED_CODE
   if (status === 429) return 'RATE_LIMIT'
   if (status === 400) {
+    // A count ceiling is checked before the token ceiling because a gateway
+    // names both on the request it rejected: `messages` is the parameter it
+    // measured, and the model's context is what the caller will otherwise be
+    // told to shorten. Recovery is identical either way.
+    if (isMessageCountExceededError(detail)) return MESSAGE_COUNT_EXCEEDED_CODE
     if (isContextWindowExceededError(detail)) return CONTEXT_WINDOW_EXCEEDED_CODE
     return 'INVALID_REQUEST'
   }

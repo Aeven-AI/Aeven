@@ -24,6 +24,18 @@ export class HarnessError extends Error {
 /** Canonical provider-neutral code for a model request rejected because its context window was exceeded. */
 export const CONTEXT_WINDOW_EXCEEDED_CODE = 'CONTEXT_WINDOW_EXCEEDED'
 
+/**
+ * Canonical provider-neutral code for a model request rejected because it
+ * carried more message entries than the endpoint admits. Distinct from
+ * {@link CONTEXT_WINDOW_EXCEEDED_CODE} because the bound counts entries rather
+ * than tokens: a conversation well inside the model's window still reaches it,
+ * and gateways name it on the `messages` parameter instead of reporting a
+ * context length. Both mean the same thing to a caller — a request that was
+ * admitted as shaped and then grew past a ceiling — so compaction recovery
+ * treats them alike.
+ */
+export const MESSAGE_COUNT_EXCEEDED_CODE = 'MESSAGE_COUNT_EXCEEDED'
+
 /** Canonical provider-neutral code for an exhausted account quota or balance. */
 export const QUOTA_EXCEEDED_CODE = 'QUOTA'
 
@@ -83,6 +95,57 @@ export function isContextWindowExceededError(detail: string): boolean {
     || TOO_LARGE_FOR_CONTEXT.test(detail)
     || /\b(?:input|prompt|request)\s+(?:is\s+)?too\s+(?:long|large)\s+for\s+(?:this|the)\s+model\b/i.test(detail)
     || EXCEEDS_MODEL_CONTEXT.test(detail)
+}
+
+/**
+ * Message-entry ceiling wording, bound to the `messages` parameter by
+ * `MESSAGES_PARAMETER`. A number and the word "entries" appear in plenty of
+ * other rejections, so the parameter named beside them is what makes the match
+ * specific enough to route on.
+ */
+const MESSAGES_PARAMETER = new RegExp(
+  String.raw`(?:^|[^a-z0-9_])messages(?:$|[^a-z0-9_])`,
+  'i',
+)
+
+/** A count of entries bounded by a ceiling, i.e. an array admitted up to a limit. */
+const ENTRIES_CEILING = new RegExp(
+  String.raw`(?:may|must|can|cannot|can't)\s+(?:only\s+)?`
+  + String.raw`(?:contain|hold|include|carry)\s+(?:at\s+most|no\s+more\s+than|up\s+to|fewer\s+than)\s+`
+  + String.raw`\d+\s+entr(?:y|ies)`,
+  'i',
+)
+
+/** The same ceiling stated as a maximum, which is how typed errors usually phrase it. */
+const ENTRIES_MAXIMUM = new RegExp(
+  String.raw`\b(?:maximum|max)\s+(?:number\s+of\s+)?(?:allowed\s+)?entr(?:y|ies)`,
+  'i',
+)
+
+/** A count of entries compared against an unnamed bound. */
+const ENTRIES_OVER_LIMIT = new RegExp(
+  String.raw`\b(?:too\s+many\s+|exceed(?:s|ed|ing)?\s+(?:the\s+)?(?:allowed\s+|maximum\s+)?)entr(?:y|ies)\b`,
+  'i',
+)
+
+/**
+ * Recognize the wording a gateway uses when a request carries more message
+ * entries than its endpoint accepts. Adapters pass all available provider code,
+ * type, and message text, so both thrown and in-band delivery styles share one
+ * classifier — and a route whose ceiling is lower than the provider's own is
+ * recognized the same way as one the provider enforces.
+ *
+ * The match deliberately requires the `messages` parameter: a rejection that
+ * never names it is left to {@link isContextWindowExceededError}, so a token
+ * overflow phrased around entries is not mistaken for a count overflow.
+ * @param detail - provider error code/type/message text joined into one string.
+ * @returns true when the detail identifies a request carrying more messages than allowed.
+ */
+export function isMessageCountExceededError(detail: string): boolean {
+  if (!MESSAGES_PARAMETER.test(detail)) return false
+  return ENTRIES_CEILING.test(detail)
+    || ENTRIES_MAXIMUM.test(detail)
+    || ENTRIES_OVER_LIMIT.test(detail)
 }
 
 /**

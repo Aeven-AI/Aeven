@@ -22,7 +22,11 @@ export interface CompactionPolicyConfig {
   maxTokens?: number
   /** Extra attempts after the first compaction when pressure remains above threshold. Defaults to `1`. */
   compactionRetries?: number
-  /** Maximum retries after canonical context overflow; `0` disables recovery. Defaults to `1`. */
+  /**
+   * Maximum retries after a provider rejection compaction can resolve — an
+   * outgrown context window or more message entries than the endpoint accepts;
+   * `0` disables recovery. Defaults to `1`.
+   */
   maxOverflowRetries?: number
 }
 
