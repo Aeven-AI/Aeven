@@ -9,6 +9,14 @@ export * from './recipe.ts'
 export * from './router.ts'
 export { STARTER_BOOK } from './book.ts'
 export {
+  CALCULATOR_RECIPES,
+  CALENDAR_EVENT_RECIPES,
+  CLOCK_RECIPES,
+  COMMON_APP_RECIPES,
+  NOTES_RECIPES,
+  PAGES_TEMPLATE_RECIPES,
+} from './common.ts'
+export {
   DOCUMENT_RECIPES,
   OFFICE_RECIPES,
   PRESENTATION_RECIPES,

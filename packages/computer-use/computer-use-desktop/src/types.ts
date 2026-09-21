@@ -310,6 +310,19 @@ export type Expectation =
   | { kind: 'nodeValueEquals'; token: string; value: string }
   /** A window with this title exists. */
   | { kind: 'windowTitled'; title: string }
+  /**
+   * An application object exists and matches the named fields.
+   *
+   * This is the assertion the curated recipes need: a benchmark's end-state check
+   * names a semantic fact — a calendar holding an event, a note existing in a
+   * folder — and a file-existence check cannot express it. The adapter asks the
+   * application itself, so the answer comes from the same authority the user sees.
+   */
+  | { kind: 'appObject'; app: string, collection: string, match: Readonly<Record<string, string>> }
+  /** A named calendar holds at least `count` events, and one matching `match` when given. */
+  | { kind: 'calendarHasEvent'; calendar?: string, count?: number, match?: Readonly<Record<string, string>> }
+  /** A note with this name exists, in this folder when one is named. */
+  | { kind: 'noteExists'; name: string, folder?: string, contains?: string }
 
 /** Outcome of one expectation. */
 export interface VerificationOutcome {

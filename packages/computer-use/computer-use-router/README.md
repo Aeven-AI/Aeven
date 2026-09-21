@@ -66,6 +66,21 @@ Every invocation is marked `verified` (run on this machine and read back) or `do
 
 That distinction is load-bearing for the Office set specifically. It is the largest group of recipes here and the one most likely to be trusted without checking, which is exactly why every entry carries `documented` and a test asserts that none of them claims otherwise.
 
+### The common-application set was curated from public task sets
+
+Those recipes were not invented; each traces to a **named end-state check** in a public benchmark, which is what makes a real assertion possible. `calendar_check_weekly_event_advanced` names an event, a time and a weekday; `new_apple_notes_check_note_exists_in_folder` names a note and its folder; `clock_check_clock_timer_value` names a timer. So `calendar.createEvent` verifies a `calendarHasEvent`, `notes.createNote` verifies a `noteExists`, and `clock.createAlarm` verifies an `appObject` in the alarm collection.
+
+Two boundaries are stated rather than hidden, and the tests enforce that neither is a convenience:
+
+- **Calculator publishes no scripting dictionary**, so its display cannot be read programmatically. The recipe computes the expression exactly through the standard library and declares `calculator.readDisplay` blind, because a recipe that claimed to read a display it cannot read would be worse than one that admits the gap — a caller would trust the answer.
+- **A Pages document is a package**, so its body text cannot be asserted by searching the container. That recipe checks the written bytes and leaves the semantic read-back to the consumer.
+
+A test also refuses any check that would pass for almost anything: no empty-string substring assertion ships, because a verification that cannot fail is worse than none.
+
+### The Pages template step is explicit because the sources revealed it
+
+Benchmark instructions for Pages are specific: *"Create a new document using the template 'Blank Black' and name it …"*. That resolves a problem measured directly on this machine, where the Creator Studio template chooser exposes two accessibility elements and document creation treated as a single call never gets past it. `document.createFromTemplate` takes the template as a parameter, so the step is named instead of being a surprise.
+
 ### Office and LibreOffice are semantic on purpose
 
 A cell write is one COM member call on Windows and one UNO call on Linux, where the same operation through the ribbon is a sequence of clicks, keystrokes, and dialogs. The task vocabulary was cross-checked against `microsoft/cua_skill`'s per-application action modules, which enumerate the same operations from the UI side — but the recipes here implement them through the application's own API rather than by composing UI steps, because that is where the step saving is.
@@ -85,7 +100,7 @@ An unknown task reports the tasks the book knows. A platform with no recipe repo
 ## Known Limitations and Deferred Work
 
 - **The router selects; it does not execute.** A resolved invocation names a mechanism and an operation, and the consumer that owns that mechanism runs it. No executor is wired up yet.
-- **The book is a starter set** — 20 tasks across filesystem work, Pages, Mail, and Calendar, plus 13 Office and LibreOffice tasks covering Excel, Word, PowerPoint, Calc, Writer, and Impress. Everything else refuses.
+- **The book is a starter set** — 32 tasks: filesystem work, Pages, Mail and Calendar; 13 Office and LibreOffice tasks covering Excel, Word, PowerPoint, Calc, Writer and Impress; and 12 curated common-application tasks for Calculator, Clock, Calendar, Notes and Pages. Everything else refuses.
 - **Windows and Linux entries are unverified.** COM and UNO are stable and well documented and the operations are their canonical entry points, but nothing here has driven a live Office or LibreOffice, so their `evidence` is `documented`. Verifying them on real hosts is deliberately deferred to a later stage rather than being claimed now.
 - **Office-task verification is deliberately coarse.** OOXML and ODF are containers, so a text search of their bytes would pass for the wrong reason; those recipes assert that the file was written and leave content checking to the consumer's own semantic read-back. Only the PDF exports assert content, because a PDF is checkable by its own bytes.
 - **No Office or LibreOffice mechanism handler ships.** These recipes resolve to `com` and `dbus`, and the executor refuses a mechanism it has no handler for, so running one currently needs a consumer to register that handler.

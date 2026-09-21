@@ -15,6 +15,7 @@
  * @module @aeven/computer-use-router/book
  */
 
+import { COMMON_APP_RECIPES } from './common.ts'
 import { OFFICE_RECIPES } from './office.ts'
 import type { RecipeBook } from './recipe.ts'
 
@@ -210,4 +211,11 @@ const CALENDAR: RecipeBook = [
  * Office and LibreOffice set that is documented and awaits verification on a
  * Windows and a Linux host.
  */
-export const STARTER_BOOK: RecipeBook = [...FILES, ...PAGES, ...MAIL, ...CALENDAR, ...OFFICE_RECIPES]
+export const STARTER_BOOK: RecipeBook = [
+  ...FILES,
+  ...PAGES,
+  ...MAIL,
+  ...CALENDAR,
+  ...OFFICE_RECIPES,
+  ...COMMON_APP_RECIPES,
+]

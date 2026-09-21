@@ -54,11 +54,20 @@ export interface RecipeInvocation {
   parameters?: Readonly<Record<string, string>>
 }
 
-/** One platform's implementation of a task. */
+/**
+ * One platform's implementation of a task.
+ *
+ * `mechanism` lives on the invocation, not here — an entry chooses a *rung*, and
+ * the invocation it points at names the mechanism. The field is prohibited rather
+ * than merely absent because it was added here by mistake three times, and a type
+ * that rejects it is what stops the fourth.
+ */
 export interface PlatformInvocation {
   platform: DesktopPlatform
   rung: RecipeRung
   invocation: RecipeInvocation
+  /** Not a field: see this interface's note. */
+  mechanism?: never
   /**
    * Applications this invocation applies to, by bundle id, executable name, or
    * desktop-entry id. A list rather than a single id, because the same mechanism

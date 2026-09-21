@@ -66,6 +66,21 @@ router.resolve({ task: 'document.setFont', platform: 'darwin', availableRungs: [
 
 这一区分对 Office 集合尤为关键。它是此处最大的一组配方，也是最容易被不加检查就信任的一组，正因如此每个条目都带有 `documented`，并且有测试断言其中没有任何一个声称相反。
 
+### 常用应用程序集合来自对公开任务集的整理
+
+这些配方不是凭空发明的；每一条都可追溯到某个公开基准中**具名的终态检查**，这正是它们能够拥有真正断言的原因。`calendar_check_weekly_event_advanced` 指明事件、时间与星期；`new_apple_notes_check_note_exists_in_folder` 指明笔记及其文件夹；`clock_check_clock_timer_value` 指明计时器。因此 `calendar.createEvent` 校验 `calendarHasEvent`，`notes.createNote` 校验 `noteExists`，`clock.createAlarm` 校验告警集合中的 `appObject`。
+
+有两处边界被明确说明而非隐藏，且测试确保二者都不是图方便：
+
+- **Calculator 不提供脚本字典**，因此其显示内容无法以编程方式读取。该配方通过标准库精确计算表达式，并把 `calculator.readDisplay` 声明为盲点，因为一个声称能读取自己读不到的显示内容的配方，比一个承认该缺口的配方更糟——调用方会信任那个答案。
+- **Pages 文档是一个包**，因此无法通过搜索容器来断言其正文文本。该配方检查写入的字节，并把语义回读留给消费方。
+
+测试还会拒绝任何几乎对一切都通过的检查：不会发布空字符串的子串断言，因为一个无法失败的校验比没有校验更糟。
+
+### Pages 的模板步骤是显式的，因为数据源揭示了它
+
+基准中关于 Pages 的指令很具体：*"Create a new document using the template 'Blank Black' and name it …"*。这解决了一个在本机直接测得的问题：Creator Studio 的模板选择器只暴露两个辅助功能元素，而把文档创建当作单次调用的做法永远无法越过它。`document.createFromTemplate` 把模板作为参数，因此该步骤是被命名的，而不是一个意外。
+
 ### Office 与 LibreOffice 刻意走语义路径
 
 在 Windows 上一次单元格写入是一次 COM 成员调用，在 Linux 上是一次 UNO 调用，而在功能区完成同一操作则是一连串点击、按键与对话框。任务词汇已与 `microsoft/cua_skill` 按应用程序划分的动作模块交叉核对，那些模块从 UI 侧枚举了相同的操作——但此处的配方通过应用程序自身的 API 实现它们，而不是组合 UI 步骤，因为步骤节省正来自于此。
@@ -85,7 +100,7 @@ router.resolve({ task: 'document.setFont', platform: 'darwin', availableRungs: [
 ## 已知限制与后续工作
 
 - **路由器只做选择，不做执行。** 解析结果只指明机制与操作，由拥有该机制的消费方执行。尚无执行器接入。
-- **本书是起始集合**——20 个任务，涵盖文件系统操作、Pages、Mail 与 Calendar，另加 13 个 Office 与 LibreOffice 任务，覆盖 Excel、Word、PowerPoint、Calc、Writer 与 Impress。其它一切都会拒绝。
+- **本书是起始集合**——32 个任务：文件系统操作、Pages、Mail 与 Calendar；13 个 Office 与 LibreOffice 任务，覆盖 Excel、Word、PowerPoint、Calc、Writer 与 Impress；以及 12 个经过整理的通用的应用程序任务，覆盖 Calculator、Clock、Calendar、Notes 与 Pages。其它一切都会拒绝。
 - **Windows 与 Linux 条目未经验证。** COM 与 UNO 稳定且文档完备，其操作也是它们的标准入口，但此处尚未驱动过真实的 Office 或 LibreOffice，因此其 `evidence` 为 `documented`。在真实宿主上验证被刻意推迟到后续阶段，而不是现在声称已完成。
 - **Office 任务的校验刻意较粗。** OOXML 与 ODF 都是容器，因此对其字节做文本搜索会因错误的原因而通过；这些配方只断言文件已写入，内容检查留给消费方自己的语义回读。只有 PDF 导出会断言内容，因为 PDF 可以通过自身字节来检查。
 - **不随包提供任何 Office 或 LibreOffice 机制处理程序。** 这些配方解析到 `com` 与 `dbus`，而执行器会拒绝没有处理程序的机制，因此当前运行它们需要消费方注册该处理程序。

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/computer-use/computer-use-router/README.md
-README.md: 8dbc0d389e4747a1490e807cf9bf03efd86066b8
-README.zh.md: 0af760e4e509381bfeb85fd14a22242dc11ae5d8
+README.md: 99a9c8dbeae8c1fac9a7703a3049160d4819a8c4
+README.zh.md: 7b91f77f7ca0e9d7d58e061fc00b06f54797947e

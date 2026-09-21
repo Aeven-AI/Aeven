@@ -225,5 +225,15 @@ export function describeExpectation(expectation: Expectation): string {
       return `element value equals ${JSON.stringify(expectation.value)}`
     case 'windowTitled':
       return `a window is titled ${JSON.stringify(expectation.title)}`
+    case 'appObject':
+      return `${expectation.app} has a ${expectation.collection} matching ${JSON.stringify(expectation.match)}`
+    case 'calendarHasEvent':
+      return expectation.calendar === undefined
+        ? 'a calendar holds the expected event'
+        : `the calendar ${JSON.stringify(expectation.calendar)} holds the expected event`
+    case 'noteExists':
+      return expectation.folder === undefined
+        ? `a note named ${JSON.stringify(expectation.name)} exists`
+        : `a note named ${JSON.stringify(expectation.name)} exists in ${JSON.stringify(expectation.folder)}`
   }
 }

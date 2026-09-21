@@ -28,6 +28,24 @@ export interface NodeValueReader {
   read(token: string): Promise<string | undefined>
 }
 
+/**
+ * How the adapter answers an application-object question.
+ *
+ * Exists so the semantic expectations do not force every adapter to grow an
+ * application-specific surface: a caller that can answer them supplies a reader,
+ * and one that cannot reports the expectation as unsatisfied rather than guessing.
+ */
+export interface AppObjectReader {
+  /**
+   * Ask an application whether a collection holds an object matching the fields.
+   * @param app - the application to ask, as the recipe names it.
+   * @param collection - the collection to search.
+   * @param match - field names to expected values.
+   * @returns `matched` with what was observed, or a reason it could not be asked.
+   */
+  find(app: string, collection: string, match: Readonly<Record<string, string>>): Promise<{ matched: boolean, observed: string }>
+}
+
 /** How the adapter lists window titles for `windowTitled`. */
 export interface WindowTitleReader {
   /**
@@ -41,6 +59,11 @@ export interface WindowTitleReader {
 export interface VerificationReaders {
   nodeValue: NodeValueReader
   windowTitles: WindowTitleReader
+  /**
+   * Answers the semantic expectations. Optional: without it those expectations
+   * report as unsatisfied, because an unanswerable check must never read as a pass.
+   */
+  appObjects?: AppObjectReader
 }
 
 /**
@@ -133,6 +156,41 @@ export async function checkExpectation(
           satisfied: found,
           observed: found ? `matched among ${String(titles.length)} windows` : `not among ${String(titles.length)} windows`,
         }
+      }
+      case 'appObject': {
+        const reader = readers.appObjects
+        if (reader === undefined) {
+          return { expectation, satisfied: false, observed: 'no application-object reader is configured' }
+        }
+        const answer = await reader.find(expectation.app, expectation.collection, expectation.match)
+        return { expectation, satisfied: answer.matched, observed: answer.observed }
+      }
+      case 'calendarHasEvent': {
+        const reader = readers.appObjects
+        if (reader === undefined) {
+          return { expectation, satisfied: false, observed: 'no application-object reader is configured' }
+        }
+        const match = { ...expectation.match }
+        if (expectation.count !== undefined) {
+          match.atLeast = String(expectation.count)
+        }
+        const answer = await reader.find('Calendar', expectation.calendar ?? 'calendar', match)
+        return { expectation, satisfied: answer.matched, observed: answer.observed }
+      }
+      case 'noteExists': {
+        const reader = readers.appObjects
+        if (reader === undefined) {
+          return { expectation, satisfied: false, observed: 'no application-object reader is configured' }
+        }
+        const match: Record<string, string> = { name: expectation.name }
+        if (expectation.folder !== undefined) {
+          match.folder = expectation.folder
+        }
+        if (expectation.contains !== undefined) {
+          match.contains = expectation.contains
+        }
+        const answer = await reader.find('Notes', 'notes', match)
+        return { expectation, satisfied: answer.matched, observed: answer.observed }
       }
     }
   }
