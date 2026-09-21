@@ -195,12 +195,24 @@ export function startCallbackListener(options: {
   let settleCallback: (value: SignInCallback) => void
   let failCallback: (error: Error) => void
   let settleOrigin: (value: string) => void
+  let failOrigin: (error: Error) => void
 
   const callback = new Promise<SignInCallback>((resolve, reject) => {
     settleCallback = resolve
     failCallback = reject
   })
-  const origin = new Promise<string>((resolve) => { settleOrigin = resolve })
+  const origin = new Promise<string>((resolve, reject) => {
+    settleOrigin = resolve
+    failOrigin = reject
+  })
+  // A listener that never binds has to reject both: `signIn` awaits the origin
+  // before the callback, so a callback-only rejection would leave it waiting on
+  // a listener that never came up. Each caller observes only one of the two,
+  // though — `signIn` never reads the callback on that path, and the listener's
+  // own tests await the callback rather than the origin — so the unobserved one
+  // is marked handled here instead of surfacing as an unhandled rejection.
+  void callback.catch(() => {})
+  void origin.catch(() => {})
 
   let done = false
   const server: Server = createServer((request: IncomingMessage, response: ServerResponse) => {
@@ -232,18 +244,23 @@ export function startCallbackListener(options: {
 
   const timer = setTimeout(() => {
     close()
-    failCallback(new Error('avn: the sign-in was not completed in time'))
+    const failure = new Error('avn: the sign-in was not completed in time')
+    failOrigin(failure)
+    failCallback(failure)
   }, timeoutMs)
 
   server.on('error', (error: Error) => {
     close()
+    failOrigin(error)
     failCallback(error)
   })
   server.listen(options.port ?? 0, '127.0.0.1', () => {
     const address = server.address() as AddressInfo | null
     if (address === null) {
       close()
-      failCallback(new Error('avn: the sign-in listener did not bind a port'))
+      const failure = new Error('avn: the sign-in listener did not bind a port')
+      failOrigin(failure)
+      failCallback(failure)
       return
     }
     settleOrigin(loopbackOrigin(address.port))
