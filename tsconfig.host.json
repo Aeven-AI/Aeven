@@ -332,6 +332,7 @@
     { "path": "./packages/computer-use/computer-use-macos" },
     { "path": "./packages/computer-use/computer-use-windows" },
     { "path": "./packages/computer-use/computer-use-linux" },
+    { "path": "./packages/computer-use/computer-use-router" },
     { "path": "./packages/experimental/computer-use-cua-driver-mcp" },
     { "path": "./packages/experimental/browser-overlay" },
     { "path": "./packages/host/directory-picker" },

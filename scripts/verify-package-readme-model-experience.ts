@@ -36,6 +36,7 @@ const NO_MODEL_EXPERIENCE_SECTION: Readonly<Record<string, string>> = {
   'packages/computer-use/computer-use-macos': 'The package is a host-side desktop adapter behind the contract; it registers no tool, schema, or prompt section, and the consumer that exposes a session owns every model-visible effect.',
   'packages/computer-use/computer-use-windows': 'The package is a host-side desktop adapter behind the contract; it registers no tool, schema, or prompt section, and the consumer that exposes a session owns every model-visible effect.',
   'packages/computer-use/computer-use-linux': 'The package is a host-side desktop adapter behind the contract; it registers no tool, schema, or prompt section, and the consumer that exposes a session owns every model-visible effect.',
+  'packages/computer-use/computer-use-router': 'The package resolves a task to a mechanism and a rung as plain data; it registers no tool, schema, or prompt section, and the consumer that exposes a session owns every model-visible effect.',
   'packages/core/scope': 'The package is a model-agnostic registration and lifecycle primitive; model-facing consumers own any context selection.',
   'packages/util/brand': 'The package only constructs plain string values and registers nothing model-facing.',
   'packages/util/home-paths': 'The package only resolves harness-owned host paths; model-facing consumers own any rendered use.',
