@@ -132,24 +132,25 @@ async function run(adapter: MockAdapter, id: string): Promise<Agent> {
 const OPEN_PLAN: TodoItem[] = [{ content: 'keep going', status: 'in_progress' }]
 
 describe('todo staleness nudge', () => {
-  it('stays silent until the first threshold, then restates the open plan', async () => {
-    // One write, then three more completed calls: the step after the third is the first that is due.
+  it('stays silent until the interval has passed, then restates the open plan with its age', async () => {
+    // One write, then twelve more completed calls: the step after the twelfth is the first that is due.
     const agent = await run(new MockAdapter([
       toolCallResponse('c1', 'todo_write', { todos: OPEN_PLAN }),
-      ...pings(3),
+      ...pings(12),
       textResponse('done'),
     ]), 'nudge-fires')
 
     const found = notice(agent)
-    expect(found.text).toContain('still shows 1 of its 1 tasks open')
+    expect(found.text).toContain('has not changed for 12 tool calls')
+    expect(found.text).toContain('while 1 of its 1 tasks are still open')
     expect(found.text).toContain('- [in_progress] keep going')
-    expect(found.summary).toBe('todo plan unchanged across 3 tool calls')
+    expect(found.summary).toBe('todo plan unchanged across 12 tool calls')
   })
 
   it('injects nothing while the plan is still fresh', async () => {
     const agent = await run(new MockAdapter([
       toolCallResponse('c1', 'todo_write', { todos: OPEN_PLAN }),
-      ...pings(2),
+      ...pings(11),
       textResponse('done'),
     ]), 'nudge-fresh')
     expect(nudges(agent)).toHaveLength(0)
@@ -158,34 +159,38 @@ describe('todo staleness nudge', () => {
   it('injects nothing once every task is completed', async () => {
     const agent = await run(new MockAdapter([
       toolCallResponse('c1', 'todo_write', { todos: [{ content: 'shipped', status: 'completed' }] }),
-      ...pings(3),
+      ...pings(12),
       textResponse('done'),
     ]), 'nudge-complete')
     expect(nudges(agent)).toHaveLength(0)
   })
 
   it('injects nothing when no plan was ever written', async () => {
-    const agent = await run(new MockAdapter([...pings(3), textResponse('done')]), 'nudge-noplan')
+    const agent = await run(new MockAdapter([...pings(12), textResponse('done')]), 'nudge-noplan')
     expect(nudges(agent)).toHaveLength(0)
   })
 
-  it('does not repeat before the repeat interval has passed', async () => {
-    // Firing once at three leaves the cadence at twelve, so fourteen calls stay quiet.
+  it('does not repeat before the interval has passed again', async () => {
+    // Firing once at twelve leaves the cadence at twelve, so twenty-three calls stay quiet.
     const agent = await run(new MockAdapter([
       toolCallResponse('c1', 'todo_write', { todos: OPEN_PLAN }),
-      ...pings(14),
+      ...pings(23),
       textResponse('done'),
     ]), 'nudge-norepeat')
     expect(nudges(agent)).toHaveLength(1)
   })
 
-  it('repeats once the interval has passed again', async () => {
+  it('repeats once the interval has passed again, carrying the new age', async () => {
     const agent = await run(new MockAdapter([
       toolCallResponse('c1', 'todo_write', { todos: OPEN_PLAN }),
-      ...pings(15),
+      ...pings(24),
       textResponse('done'),
     ]), 'nudge-repeat')
-    expect(nudges(agent)).toHaveLength(2)
+    const found = nudges(agent)
+    expect(found).toHaveLength(2)
+    const second = (found[1] as Extract<SessionEvent, { type: 'user/message' }>).data
+    const block = second.content[0]
+    expect(block?.type === 'text' ? block.text : '').toContain('has not changed for 24 tool calls')
   })
 
   it('nudges the step after a background job settles, ahead of the cadence', async () => {
@@ -199,6 +204,7 @@ describe('todo staleness nudge', () => {
 
     const found = notice(agent)
     expect(found.summary).toBe('todo plan unreconciled since read the ledger settled')
+    expect(found.text).toContain('has not been updated since the background work you started settled')
     expect(found.text).toContain('- [in_progress] keep going')
   })
 

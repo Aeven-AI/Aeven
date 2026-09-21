@@ -117,6 +117,7 @@ Read these pages when the package-level contract is not enough. They move from t
 - [todo_write tool Agent Note](../../../.agents/notes/implemented/feature/2026-06-29-todo-write-tool.md) — the original design, alternatives, and dropped fields.
 - [parallel in-progress Agent Note](../../../.agents/notes/implemented/feature/2026-07-26-todo-parallel-in-progress.md) — why the active-count cap is a deployment policy.
 - [todo plan survives the turn boundary Agent Note](../../../.agents/notes/implemented/bug-fix/2026-09-16-todo-plan-survives-the-turn-boundary.md) — the projection's standing-plan lifetime, and the reversal of the clear-on-next-turn rule.
+- [stale nudge cadence Agent Note](../../../.agents/notes/implemented/bug-fix/2026-09-21-todo-stale-nudge-cadence.md) — why the reminder interval is measured in tool calls and what the notice states about itself.
 
 -----
 
@@ -169,7 +170,7 @@ Each snapshot is a replacement surface message rather than an accumulation, so t
 
 #### What the model sees
 
-While a standing plan exists with at least one task not `completed`, the package nudges it back into view. Once three tool calls other than `todo_write` have passed since the last write — and every twelve after that — the step is prepared with one extra plugin-sourced notice: `Your todo list still shows <open> of its <total> tasks open. Update it now with todo_write: mark every task you have finished \`completed\`, and the one you are working on \`in_progress\`.` followed by the current list. A background job or a forked subagent the agent owns settling is the same news one step earlier: `ctx.jobs.onJobDone` marks the agent, and its next step raises the notice however little work has accumulated, because delegated work changes state with no `tool/call` of its own for the counter to see. The notice carries `form: 'notice'`, so it is an ordinary appended message rather than a runtime-context snapshot, and it never replaces one. Nothing is injected while the plan is complete, absent, or still fresh.
+While a standing plan exists with at least one task not `completed`, the package nudges it back into view. Every twelve tool calls other than `todo_write` since the last write, the step is prepared with one extra plugin-sourced notice: `Your todo list has not changed for <N> tool calls, while <open> of its <total> tasks are still open. Update it now with todo_write: mark every task you have finished \`completed\`, and the one you are working on \`in_progress\`.` followed by the current list. A background job or a forked subagent the agent owns settling is the same news one step earlier: `ctx.jobs.onJobDone` marks the agent, and its next step raises the notice however little work has accumulated, reading `Your todo list has not been updated since the background work you started settled, …` instead of a count, because delegated work changes state with no `tool/call` of its own for the counter to see. The notice carries `form: 'notice'`, so it is an ordinary appended message rather than a runtime-context snapshot, and it never replaces one. Nothing is injected while the plan is complete, absent, or still fresh.
 
 #### Token effect
 
@@ -189,6 +190,7 @@ These limits define when the tool is a poor fit. They are current package constr
 - **Single-owner scope only** — the list belongs to the one calling agent session; subagent, shared, and swarm scopes are a deliberate cut, and a non-agent caller is rejected.
 - **The item shape is deliberately minimal** — `content` plus three-state `status`; whole-list replacement needs no stable id, priority, or active-form fields.
 - **Whole-list replacement is the only operation** — no partial updates, no read-back *tool*, and no per-item edits; the model reads the current plan from its runtime context and must resend the entire list each call.
+- **The staleness nudge is advisory** — nothing gates a step or a final answer on reconciliation, so a model that defers bookkeeping while it finishes work can leave a reader looking at a plan that is behind the work; the notice states how old the plan is so that deferral is a decision rather than an oversight ([cadence Agent Note](../../../.agents/notes/implemented/bug-fix/2026-09-21-todo-stale-nudge-cadence.md)).
 
 <a id="dev-note"></a>
 ### Dev Note

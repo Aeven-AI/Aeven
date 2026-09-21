@@ -117,6 +117,7 @@ agent 每次更新都发送完整列表；新列表替换旧列表，因此没�
 - [todo_write 工具 Agent Note](../../../.agents/notes/implemented/feature/2026-06-29-todo-write-tool.zh.md)——原始设计、备选方案与砍掉的字段。
 - [并行 in-progress Agent Note](../../../.agents/notes/implemented/feature/2026-07-26-todo-parallel-in-progress.zh.md)——为何活跃计数上限成为部署策略。
 - [todo 计划跨轮次边界存续 Agent Note](../../../.agents/notes/implemented/bug-fix/2026-09-16-todo-plan-survives-the-turn-boundary.zh.md)——投影的有效计划生命周期，以及下一轮次清空规则的反转。
+- [陈旧提醒节奏 Agent Note](../../../.agents/notes/implemented/bug-fix/2026-09-21-todo-stale-nudge-cadence.zh.md)——为何提醒区间以工具调用计量，以及该提醒如何陈述自身。
 
 -----
 
@@ -169,7 +170,7 @@ token 用量随模型每次提交的完整列表增长，这些调用参数会�
 
 #### 模型看到什么
 
-只要有效计划中还存在未 `completed` 的任务，本包就会把它重新推到模型眼前：自上次写入起经过三个除 `todo_write` 之外的工具调用后——此后每十二个——该步骤的准备过程中会多出一条由插件发出的提醒：`Your todo list still shows <open> of its <total> tasks open. Update it now with todo_write: mark every task you have finished \`completed\`, and the one you are working on \`in_progress\`.`，其后是当前列表。该 agent 所拥有的后台任务或已 fork 的子代理结算，是提前一步到来的同一条消息：`ctx.jobs.onJobDone` 标记该 agent，它的下一步就会发出这条提醒，无论已累积多少工作量——因为被委派的工作结束时不带自己的 `tool/call`，计数器看不到它。该提醒携带 `form: 'notice'`，因此是一条普通追加消息，而非运行时上下文快照，也不会替换快照。当计划已完成、不存在或仍然新鲜时不注入任何内容。
+只要有效计划中还存在未 `completed` 的任务，本包就会把它重新推到模型眼前：自上次写入起，每经过十二个除 `todo_write` 之外的工具调用，该步骤的准备过程中就会多出一条由插件发出的提醒：`Your todo list has not changed for <N> tool calls, while <open> of its <total> tasks are still open. Update it now with todo_write: mark every task you have finished \`completed\`, and the one you are working on \`in_progress\`.`，其后是当前列表。该 agent 所拥有的后台任务或已 fork 的子代理结算，是提前一步到来的同一条消息：`ctx.jobs.onJobDone` 标记该 agent，它的下一步就会发出这条提醒，无论已累积多少工作量，此时读到的是 `Your todo list has not been updated since the background work you started settled, …` 而非计数——因为被委派的工作结束时不带自己的 `tool/call`，计数器看不到它。该提醒携带 `form: 'notice'`，因此是一条普通追加消息，而非运行时上下文快照，也不会替换快照。当计划已完成、不存在或仍然新鲜时不注入任何内容。
 
 #### Token 影响
 
@@ -189,6 +190,7 @@ token 用量随模型每次提交的完整列表增长，这些调用参数会�
 - **仅单一所有者作用域**——列表属于唯一调用 agent 会话；subagent、共享与 swarm 作用域是有意砍掉的部分，非 agent 调用方会被拒绝。
 - **条目形状刻意保持最小**——`content` 加三态 `status`；整表替换不需要稳定 id、优先级或 active-form 字段。
 - **整表替换是唯一操作**——没有部分更新、没有回读*工具*、没有逐项编辑；模型从运行时上下文读取当前计划，且每次调用都必须重新发送完整列表。
+- **陈旧提醒只是建议性的**——没有任何东西以和解为条件来阻止某个步骤或最终答复，因此一边完成工作、一边推迟记账的模型可能让读者看到落后于工作的计划；提醒会说明计划有多旧，使推迟成为决定而非疏漏（[节奏 Agent Note](../../../.agents/notes/implemented/bug-fix/2026-09-21-todo-stale-nudge-cadence.zh.md)）。
 
 <a id="dev-note"></a>
 ### 开发备注
