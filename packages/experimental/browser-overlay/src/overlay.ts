@@ -45,15 +45,6 @@ export interface Rect {
 }
 
 /**
- * How long the pointer takes to travel between two actions, in milliseconds.
- *
- * Zero disables the glide and snaps instead. The reference app animates this
- * travel; a snap reads as a teleport and makes it hard to follow which point was
- * touched, so the default is a short glide rather than none.
- */
-export const GLIDE_DURATION_MS = 420
-
-/**
  * Idle time after which the pointer hides itself, in milliseconds.
  *
  * The pointer is meaningless when nothing is happening, and leaving it parked
@@ -75,8 +66,6 @@ export interface AttachOptions {
    * with its own audio should not have to compete with the overlay.
    */
   sound?: boolean
-  /** Travel duration between actions; defaults to {@link GLIDE_DURATION_MS}. */
-  glideDurationMs?: number
   /** Idle-hide timeout; defaults to {@link IDLE_HIDE_MS}. `0` keeps it visible. */
   idleHideMs?: number
 }
@@ -109,7 +98,6 @@ export class BrowserOverlay {
   constructor(options: AttachOptions = {}) {
     this.#options = {
       sound: options.sound ?? false,
-      glideDurationMs: options.glideDurationMs ?? GLIDE_DURATION_MS,
       idleHideMs: options.idleHideMs ?? IDLE_HIDE_MS,
     }
   }
