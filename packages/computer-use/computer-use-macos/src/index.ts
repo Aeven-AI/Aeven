@@ -35,7 +35,7 @@ import {
 } from '@aeven/computer-use-desktop'
 import type { MacCommandRunner } from './runner.ts'
 import { probeMacReadiness, type GrantHolder, type ReadinessOptions } from './readiness.ts'
-import { checkExpectations, type VerificationReaders } from './verify.ts'
+import { checkExpectations, type VerificationReaders } from '@aeven/computer-use-desktop'
 
 /** Options for constructing the adapter. */
 export interface MacAdapterOptions {

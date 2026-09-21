@@ -1,5 +1,5 @@
 /**
- * Independent verification for the macOS adapter.
+ * Independent verification for every desktop adapter.
  *
  * Every check here re-reads the observable from the operating system rather than
  * trusting whatever an action reported. That is the whole point: measured
@@ -11,11 +11,11 @@
  * permission prompt, and is the strongest evidence available for "did the work
  * actually happen".
  *
- * @module @aeven/computer-use-macos/verify
+ * @module @aeven/computer-use-desktop/verify
  */
 
 import { stat, readFile } from 'node:fs/promises'
-import type { Expectation, VerificationOutcome } from '@aeven/computer-use-desktop'
+import type { Expectation, VerificationOutcome } from './types.ts'
 
 /** How the adapter reads an element's value back for `nodeValueEquals`. */
 export interface NodeValueReader {

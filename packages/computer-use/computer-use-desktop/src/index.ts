@@ -28,6 +28,7 @@ import type {
 
 export * from './types.ts'
 export * from './guard.ts'
+export * from './verify.ts'
 
 /**
  * One platform's implementation of the desktop contract.
