@@ -158,6 +158,31 @@ describe('the loopback listener', () => {
 })
 
 describe('the whole sign-in', () => {
+  it('rejects instead of waiting forever when the listener cannot bind', async () => {
+    const held: Server = createServer()
+    await new Promise<void>((resolve) => { held.listen(0, '127.0.0.1', () => { resolve() }) })
+    try {
+      // The origin is awaited before the callback, so a bind failure that
+      // rejected only the callback would leave this waiting on a listener that
+      // never came up. Racing a timer is what distinguishes the two.
+      const outcome = await Promise.race([
+        signIn({
+          apiUrl: 'http://localhost:9000',
+          provider: 'google',
+          port: (held.address() as AddressInfo).port,
+          openBrowser: async () => {},
+        }).then(
+          () => 'settled',
+          (error: unknown) => (error as NodeJS.ErrnoException).code,
+        ),
+        new Promise<string>((resolve) => { setTimeout(() => { resolve('timed-out') }, 2_000) }),
+      ])
+      expect(outcome).toBe('EADDRINUSE')
+    } finally {
+      await new Promise<void>((resolve) => { held.close(() => { resolve() }) })
+    }
+  })
+
   it('opens the browser at the listener and returns the credential to store', async () => {
     await withFakeApi(() => ({ status: 200, body: GRANT }), async (apiUrl, requests) => {
       const opened: string[] = []
