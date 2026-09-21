@@ -678,7 +678,7 @@ export class LocalCredentialProvider extends CredentialProvider {
    * @param ref - the reference the value answers.
    * @param value - the credential, or `undefined` to withdraw it.
    */
-  setSession(ref: CredentialRef, value: string | undefined): void {
+  override setSession(ref: CredentialRef, value: string | undefined): void {
     if (this.isClosed()) return
     if (value === undefined || value.length === 0) {
       this.sessionValues.delete(ref)
