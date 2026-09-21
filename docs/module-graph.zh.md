@@ -195,6 +195,19 @@ flowchart TD
   end
   subgraph group_computer_use["packages/computer-use"]
     pkg_computer_use["computer-use"]
+    pkg_computer_use_benchmark["computer-use-benchmark"]
+    pkg_computer_use_desktop["computer-use-desktop"]
+    pkg_computer_use_executor["computer-use-executor"]
+    pkg_computer_use_formats["computer-use-formats"]
+    pkg_computer_use_layout["computer-use-layout"]
+    pkg_computer_use_linux["computer-use-linux"]
+    pkg_computer_use_macos["computer-use-macos"]
+    pkg_computer_use_macos_apple_events["computer-use-macos-apple-events"]
+    pkg_computer_use_macos_provider["computer-use-macos-provider"]
+    pkg_computer_use_router["computer-use-router"]
+    pkg_computer_use_session["computer-use-session"]
+    pkg_computer_use_tasks["computer-use-tasks"]
+    pkg_computer_use_windows["computer-use-windows"]
   end
   subgraph group_context["packages/context"]
     pkg_agent_instructions["agent-instructions"]
@@ -384,6 +397,7 @@ flowchart TD
   pkg_web --> pkg_llm
   pkg_attachment --> pkg_brand
   pkg_computer_use --> pkg_brand
+  pkg_computer_use_desktop --> pkg_brand
   pkg_credentials --> pkg_invariants
   pkg_e2b --> pkg_http_proxy
   pkg_experimental_code_runtime_python --> pkg_code_runtime
@@ -403,8 +417,6 @@ flowchart TD
   pkg_host_frontend_static --> pkg_host_webserver
   pkg_anonymous_user_id --> pkg_brand
   pkg_anonymous_user_id --> pkg_home_paths
-  pkg_identity_user_aeven --> pkg_host_webserver
-  pkg_identity_user_aeven --> pkg_identity_user
   pkg_lsp --> pkg_brand
   pkg_lsp --> pkg_llm
   pkg_storage_domain --> pkg_invariants
@@ -440,6 +452,7 @@ flowchart TD
   pkg_subprocess_e2b --> pkg_subprocess
   pkg_subprocess_e2b --> pkg_timeout
   pkg_experimental_computer_use_cua_driver_mcp --> pkg_computer_use
+  pkg_identity_user --> pkg_credentials
   pkg_media --> pkg_attachment
   pkg_media --> pkg_credentials
   pkg_media --> pkg_llm
@@ -455,6 +468,9 @@ flowchart TD
   pkg_code_runtime_worker_thread --> pkg_code_runtime
   pkg_code_runtime_worker_thread --> pkg_session
   pkg_code_runtime_worker_thread --> pkg_timeout
+  pkg_identity_user_aeven --> pkg_credentials
+  pkg_identity_user_aeven --> pkg_host_webserver
+  pkg_identity_user_aeven --> pkg_identity_user
   pkg_media_deepinfra --> pkg_credentials
   pkg_media_deepinfra --> pkg_media
   pkg_media_openrouter --> pkg_credentials
@@ -1285,6 +1301,18 @@ flowchart TD
 | [`client-ui-workspace`](../packages/client/ui-workspace) | `client` | — |
 | [`client-web`](../packages/client/web) | `client` | — |
 | [`code-runtime`](../packages/code-runtime/code-runtime) | `code-runtime` | — |
+| [`computer-use-benchmark`](../packages/computer-use/computer-use-benchmark) | `computer-use` | — |
+| [`computer-use-executor`](../packages/computer-use/computer-use-executor) | `computer-use` | — |
+| [`computer-use-formats`](../packages/computer-use/computer-use-formats) | `computer-use` | — |
+| [`computer-use-layout`](../packages/computer-use/computer-use-layout) | `computer-use` | — |
+| [`computer-use-linux`](../packages/computer-use/computer-use-linux) | `computer-use` | — |
+| [`computer-use-macos`](../packages/computer-use/computer-use-macos) | `computer-use` | — |
+| [`computer-use-macos-apple-events`](../packages/computer-use/computer-use-macos-apple-events) | `computer-use` | — |
+| [`computer-use-macos-provider`](../packages/computer-use/computer-use-macos-provider) | `computer-use` | — |
+| [`computer-use-router`](../packages/computer-use/computer-use-router) | `computer-use` | — |
+| [`computer-use-session`](../packages/computer-use/computer-use-session) | `computer-use` | — |
+| [`computer-use-tasks`](../packages/computer-use/computer-use-tasks) | `computer-use` | — |
+| [`computer-use-windows`](../packages/computer-use/computer-use-windows) | `computer-use` | — |
 | [`experimental-agent-team-profile`](../packages/experimental/agent-team-profile) | `experimental` | — |
 | [`experimental-agent-team-web-profile`](../packages/experimental/agent-team-web-profile) | `experimental` | — |
 | [`experimental-browser-overlay`](../packages/experimental/browser-overlay) | `experimental` | — |
@@ -1295,7 +1323,6 @@ flowchart TD
 | [`host-directory-picker-browse`](../packages/host/directory-picker-browse) | `host` | — |
 | [`host-directory-picker-native`](../packages/host/directory-picker-native) | `host` | — |
 | [`host-webserver`](../packages/host/webserver) | `host` | — |
-| [`identity-user`](../packages/identity/user) | `identity` | — |
 | [`invariants`](../packages/runtime-diagnostics/invariants) | `runtime-diagnostics` | — |
 | [`sandbox-windows-acl`](../packages/sandbox/sandbox-windows-acl) | `sandbox` | — |
 | [`storage`](../packages/storage/storage) | `storage` | — |
@@ -1308,6 +1335,7 @@ flowchart TD
 | [`web`](../packages/web/web) | `web` | [`llm`](../packages/llm/llm) |
 | [`attachment`](../packages/attachment/attachment) | `attachment` | [`brand`](../packages/util/brand) |
 | [`computer-use`](../packages/computer-use/computer-use) | `computer-use` | [`brand`](../packages/util/brand) |
+| [`computer-use-desktop`](../packages/computer-use/computer-use-desktop) | `computer-use` | [`brand`](../packages/util/brand) |
 | [`credentials`](../packages/credentials/credentials) | `credentials` | [`invariants`](../packages/runtime-diagnostics/invariants) |
 | [`e2b`](../packages/e2b/e2b) | `e2b` | [`http-proxy`](../packages/util/http-proxy) |
 | [`experimental-code-runtime-python`](../packages/experimental/code-runtime-python) | `experimental` | [`code-runtime`](../packages/code-runtime/code-runtime), [`timeout`](../packages/util/timeout), [`util-values`](../packages/util/values) |
@@ -1316,7 +1344,6 @@ flowchart TD
 | [`host-directory-picker-auto`](../packages/host/directory-picker-auto) | `host` | [`client-ui-directory-picker-browse`](../packages/client/ui-directory-picker-browse), [`client-ui-directory-picker-native`](../packages/client/ui-directory-picker-native), [`host-directory-picker-browse`](../packages/host/directory-picker-browse), [`host-directory-picker-native`](../packages/host/directory-picker-native), [`host-webserver`](../packages/host/webserver) |
 | [`host-frontend-static`](../packages/host/frontend-static) | `host` | [`client-connection`](../packages/client/connection), [`host-webserver`](../packages/host/webserver) |
 | [`anonymous-user-id`](../packages/identity/anonymous-user-id) | `identity` | [`brand`](../packages/util/brand), [`home-paths`](../packages/util/home-paths) |
-| [`identity-user-aeven`](../packages/identity/user-aeven) | `identity` | [`host-webserver`](../packages/host/webserver), [`identity-user`](../packages/identity/user) |
 | [`lsp`](../packages/lsp/lsp) | `lsp` | [`brand`](../packages/util/brand), [`llm`](../packages/llm/llm) |
 | [`storage-domain`](../packages/storage/storage-domain) | `storage` | [`invariants`](../packages/runtime-diagnostics/invariants), [`storage`](../packages/storage/storage) |
 | [`storage-json`](../packages/storage/storage-json) | `storage` | [`storage`](../packages/storage/storage) |
@@ -1335,12 +1362,14 @@ flowchart TD
 | [`credentials-local`](../packages/credentials/credentials-local) | `credentials` | [`atomic-write`](../packages/util/atomic-write), [`credentials`](../packages/credentials/credentials), [`home-paths`](../packages/util/home-paths), [`launch-environment`](../packages/util/launch-environment) |
 | [`subprocess-e2b`](../packages/e2b/subprocess-e2b) | `e2b` | [`e2b`](../packages/e2b/e2b), [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout) |
 | [`experimental-computer-use-cua-driver-mcp`](../packages/experimental/computer-use-cua-driver-mcp) | `experimental` | [`computer-use`](../packages/computer-use/computer-use) |
+| [`identity-user`](../packages/identity/user) | `identity` | [`credentials`](../packages/credentials/credentials) |
 | [`media`](../packages/media/media) | `media` | [`attachment`](../packages/attachment/attachment), [`credentials`](../packages/credentials/credentials), [`llm`](../packages/llm/llm) |
 | [`subprocess-local`](../packages/subprocess/subprocess-local) | `subprocess` | [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout) |
 | [`skill-badge`](../packages/skill/skill-badge) | `skill` | [`skill`](../packages/skill/skill) |
 | [`spill`](../packages/spill/spill) | `spill` | [`brand`](../packages/util/brand), [`llm`](../packages/llm/llm), [`session`](../packages/core/session) |
 | [`app-boot`](../packages/boot/app-boot) | `boot` | [`home-paths`](../packages/util/home-paths), [`launch-environment`](../packages/util/launch-environment), [`system-prompt`](../packages/core/system-prompt) |
 | [`code-runtime-worker-thread`](../packages/code-runtime/code-runtime-worker-thread) | `code-runtime` | [`code-runtime`](../packages/code-runtime/code-runtime), [`session`](../packages/core/session), [`timeout`](../packages/util/timeout) |
+| [`identity-user-aeven`](../packages/identity/user-aeven) | `identity` | [`credentials`](../packages/credentials/credentials), [`host-webserver`](../packages/host/webserver), [`identity-user`](../packages/identity/user) |
 | [`media-deepinfra`](../packages/media/media-deepinfra) | `media` | [`credentials`](../packages/credentials/credentials), [`media`](../packages/media/media) |
 | [`media-openrouter`](../packages/media/media-openrouter) | `media` | [`credentials`](../packages/credentials/credentials), [`media`](../packages/media/media) |
 | [`media-pi-ai`](../packages/media/media-pi-ai) | `media` | [`credentials`](../packages/credentials/credentials), [`media`](../packages/media/media) |

@@ -39,6 +39,10 @@ const ORDINARY_WORD_PREFIXES = [
   'addShapes',
   'insertedShapes',
   'confettiGroup.addShapes',
+  // The slide layout names its shapes: `backgroundShape` is backgrou + dSh + ape,
+  // `bandShape` is ban + dSh + ape. Both are ordinary compounds, as `cardShape` is.
+  'backgroundShape',
+  'bandShape',
   'headSha',
   'MatchedShare',
   'secondShared',
