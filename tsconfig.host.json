@@ -334,6 +334,7 @@
     { "path": "./packages/computer-use/computer-use-linux" },
     { "path": "./packages/computer-use/computer-use-router" },
     { "path": "./packages/computer-use/computer-use-executor" },
+    { "path": "./packages/computer-use/computer-use-macos-apple-events" },
     { "path": "./packages/experimental/computer-use-cua-driver-mcp" },
     { "path": "./packages/experimental/browser-overlay" },
     { "path": "./packages/host/directory-picker" },
