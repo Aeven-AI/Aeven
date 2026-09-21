@@ -7,6 +7,16 @@
  * @module
  */
 
+/**
+ * How a provider sign-in reaches its provider.
+ *
+ * `redirect` takes the reader's document to the provider and returns it to this
+ * origin. `window` reaches the provider from a window of its own and leaves
+ * that document alone. The Host resolves this for its deployment and states it
+ * in the page; this client only reads it.
+ */
+export type OAuthFlow = 'redirect' | 'window'
+
 /** What the Host injects; absent in a harness with no Aeven authority. */
 export interface AevenClientConfig {
   readonly apiUrl?: string
@@ -16,6 +26,7 @@ export interface AevenClientConfig {
   readonly webUrl?: string
   readonly mediaUrl?: string
   readonly confettiColors?: readonly string[]
+  readonly oauthFlow?: OAuthFlow
 }
 
 /**
@@ -96,6 +107,22 @@ export function oauthUrls(): { x?: string; apple?: string; google?: string } {
     ...config.appleOAuthUrl === undefined ? {} : { apple: config.appleOAuthUrl },
     ...config.googleOAuthUrl === undefined ? {} : { google: config.googleOAuthUrl },
   }
+}
+
+/**
+ * How a provider sign-in reaches its provider on this deployment.
+ *
+ * A deployment that offers a provider states the flow and the Host refuses to
+ * load without one, so the absent case is a page served by a Host that offers
+ * no provider: there is no sign-in to route, and the value is read only by
+ * code a provider button reaches. `redirect` is what the fallthrough answers so
+ * that a provider configured without a flow takes the shape a provider
+ * registration is written for, which is also the shape this client had before
+ * the flow was a deployment's to state.
+ * @returns the flow to reach a provider by.
+ */
+export function oauthFlow(): OAuthFlow {
+  return aevenConfig().oauthFlow ?? 'redirect'
 }
 
 /**

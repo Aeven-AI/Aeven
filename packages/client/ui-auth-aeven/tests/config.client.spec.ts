@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { apiUrl, confettiColors, mediaUrl, oauthUrls, webUrl } from '../src/client/auth/services/config.ts'
+import { apiUrl, confettiColors, mediaUrl, oauthFlow, oauthUrls, webUrl } from '../src/client/auth/services/config.ts'
 
 interface Scope {
   __AVN_AEVEN__?: Record<string, unknown>
@@ -61,6 +61,15 @@ describe('Aeven deployment configuration', () => {
     servedFrom('localhost')
     scope.__AVN_AEVEN__ = { googleOAuthUrl: 'https://aeven.test/google' }
     expect(oauthUrls()).toEqual({ google: 'https://aeven.test/google' })
+  })
+
+  it('reaches a provider by the flow the deployment states', () => {
+    servedFrom('localhost')
+    expect(oauthFlow()).toBe('redirect')
+    scope.__AVN_AEVEN__ = { oauthFlow: 'window' }
+    expect(oauthFlow()).toBe('window')
+    scope.__AVN_AEVEN__ = { oauthFlow: 'redirect' }
+    expect(oauthFlow()).toBe('redirect')
   })
 
   it('defaults the celebration palette and accepts a configured one', () => {

@@ -129,6 +129,7 @@ describe('the endpoints the Host states in the page', () => {
       xOAuthUrl: 'https://x.test/o',
       appleOAuthUrl: 'https://apple.test/o',
       googleOAuthUrl: 'https://google.test/o',
+      oauthFlow: 'redirect',
       webUrl: 'https://web.test',
       mediaUrl: 'https://media.test',
     }))
@@ -143,10 +144,31 @@ describe('the endpoints the Host states in the page', () => {
         xOAuthUrl: 'https://x.test/o',
         appleOAuthUrl: 'https://apple.test/o',
         googleOAuthUrl: 'https://google.test/o',
+        oauthFlow: 'redirect',
         webUrl: 'https://web.test',
         mediaUrl: 'https://media.test',
       },
     }])
+  })
+
+  it('carries the flow a deployment states for its own page', () => {
+    const ctx = new Context()
+    const users = new IdentityUsers(ctx)
+    ;(ctx as unknown as { identityUsers: IdentityUsers }).identityUsers = users
+    apply(ctx, Config({ googleOAuthUrl: 'https://google.test/o', oauthFlow: 'window' }))
+
+    const table: IndexInjection[] = []
+    ctx.emit('webserver/index-inject', table)
+    expect(table[0]).toMatchObject({ value: { googleOAuthUrl: 'https://google.test/o', oauthFlow: 'window' } })
+  })
+
+  it('refuses to load when a provider is offered without a stated flow', () => {
+    const ctx = new Context()
+    const users = new IdentityUsers(ctx)
+    ;(ctx as unknown as { identityUsers: IdentityUsers }).identityUsers = users
+    // Whichever flow a deployment means, it means one of them: defaulting here
+    // would give a page that cannot leave its document the shape that leaves it.
+    expect(() => { apply(ctx, Config({ xOAuthUrl: 'https://x.test/o' })) }).toThrow(/oauthFlow is required/u)
   })
 
   it('states nothing when no Aeven is configured', () => {
@@ -154,6 +176,18 @@ describe('the endpoints the Host states in the page', () => {
     const users = new IdentityUsers(ctx)
     ;(ctx as unknown as { identityUsers: IdentityUsers }).identityUsers = users
     apply(ctx, Config({}))
+    const table: IndexInjection[] = []
+    ctx.emit('webserver/index-inject', table)
+    expect(table[0]).toMatchObject({ name: '__AVN_AEVEN__', value: {} })
+  })
+
+  it('ignores a stated flow when no provider is offered', () => {
+    const ctx = new Context()
+    const users = new IdentityUsers(ctx)
+    ;(ctx as unknown as { identityUsers: IdentityUsers }).identityUsers = users
+    // Nothing reads it: there is no provider sign-in for it to describe, and an
+    // unconfigured authority must not fail over a field that describes nothing.
+    apply(ctx, Config({ oauthFlow: 'window' }))
     const table: IndexInjection[] = []
     ctx.emit('webserver/index-inject', table)
     expect(table[0]).toMatchObject({ name: '__AVN_AEVEN__', value: {} })

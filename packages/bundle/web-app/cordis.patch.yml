@@ -123,6 +123,11 @@
         xOAuthUrl: !!js process.env.AEVEN_OAUTH_X_URL
         appleOAuthUrl: !!js process.env.AEVEN_OAUTH_APPLE_URL
         googleOAuthUrl: !!js process.env.AEVEN_OAUTH_GOOGLE_URL
+        # This bundle serves a public page, so a provider sign-in may take the
+        # reader's document to the provider and back. A deployment that serves
+        # its own page from a scheme or a loopback origin states `window`
+        # instead: there, a redirected document is a second shell to boot.
+        oauthFlow: !!js process.env.AEVEN_OAUTH_FLOW ?? 'redirect'
         webUrl: !!js process.env.AEVEN_WEB_URL
         mediaUrl: !!js process.env.AEVEN_MEDIA_URL ?? 'http://localhost:9020'
 

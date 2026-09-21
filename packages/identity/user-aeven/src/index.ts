@@ -37,7 +37,25 @@ export interface AevenClientConfig {
   readonly googleOAuthUrl?: string
   readonly webUrl?: string
   readonly mediaUrl?: string
+  readonly oauthFlow?: OAuthFlow
 }
+
+/**
+ * How a provider sign-in reaches the provider's consent screen.
+ *
+ * `redirect` navigates the page's own document: the reader leaves this origin,
+ * the provider returns them to `<this origin>/oauth-result/<session>/<challenge>`,
+ * and the kernel boots again on that document. A public deployment wants this —
+ * it is the shape provider registrations and popup blockers both expect.
+ *
+ * `window` reaches the provider from a separate window and never moves the
+ * application's document, so a reader who signs in keeps the page they were on.
+ * An installed application serves its own page from a scheme or a loopback
+ * origin, where a redirected document would be a second shell to boot and, on
+ * the desktop, a new window to open. The landing document reports its result
+ * back to the window that opened it and closes.
+ */
+export type OAuthFlow = 'redirect' | 'window'
 /** The seam must exist before this authority can register into it. */
 export const inject = ['identityUsers']
 
@@ -63,6 +81,15 @@ export interface Config {
   appleOAuthUrl?: string
   /** Provider sign-in URL; absent hides that provider's button. */
   googleOAuthUrl?: string
+  /**
+   * How a provider sign-in reaches the provider, once any `*OAuthUrl` is set.
+   *
+   * Required with an oauth URL and meaningless without one, so a deployment
+   * that offers a provider states which shape it serves rather than inheriting
+   * one that suits a different deployment. A public site states `redirect`; an
+   * installed application serving its own page states `window`.
+   */
+  oauthFlow?: OAuthFlow
   /**
    * Origin of the Aeven web client, such as `http://localhost:3030`. The
    * account menu links there; absent leaves the menu with no account rows,
@@ -97,6 +124,7 @@ export const Config: z<Config> = z.object({
   xOAuthUrl: z.string(),
   appleOAuthUrl: z.string(),
   googleOAuthUrl: z.string(),
+  oauthFlow: z.union(['redirect', 'window']),
   webUrl: z.string(),
   mediaUrl: z.string(),
 })
@@ -135,6 +163,32 @@ function cookieValue(header: string, name: string): string | undefined {
 }
 
 /**
+ * Resolve how provider sign-ins reach their providers.
+ *
+ * Required exactly when the deployment offers one. A flow statement of its own
+ * is ignored when no provider URL is configured: there is no sign-in for it to
+ * describe, so an unconfigured authority stays unconfigured rather than
+ * failing over a field nothing reads.
+ * @param config - the authority's configured endpoints.
+ * @returns the flow to state in the page, or undefined when no provider is offered.
+ * @throws {Error} when a provider is offered without stating a flow.
+ */
+function resolveOAuthFlow(config: Config): OAuthFlow | undefined {
+  const offers = config.xOAuthUrl !== undefined
+    || config.appleOAuthUrl !== undefined
+    || config.googleOAuthUrl !== undefined
+  if (config.oauthFlow !== undefined) {
+    if (!offers) return undefined
+    return config.oauthFlow
+  }
+  if (!offers) return undefined
+  throw new Error(
+    'identity-user-aeven: oauthFlow is required when a provider URL is configured; '
+    + "state 'redirect' for a page that may leave its document, or 'window' for one that may not",
+  )
+}
+
+/**
  * Register the Aeven authority on the identity seam.
  * @param ctx - context carrying the seam.
  * @param config - registry key, secret references, and the cookie name.
@@ -142,6 +196,10 @@ function cookieValue(header: string, name: string): string | undefined {
 export function apply(ctx: Context, config: Config): void {
   // schemastery (Config) has already filled every defaulted field.
   const { id, accessSecretEnv, refreshSecretEnv, refreshCookieName } = config as ResolvedConfig
+  // Read at load: an offered provider with no stated flow is self-contained
+  // misconfiguration, and failing when the page is served would report it hours
+  // after the deployment that stated it.
+  const oauthFlow = resolveOAuthFlow(config)
 
   const resolver: UserResolver = {
     id,
@@ -190,6 +248,7 @@ export function apply(ctx: Context, config: Config): void {
       ...config.xOAuthUrl === undefined ? {} : { xOAuthUrl: config.xOAuthUrl },
       ...config.appleOAuthUrl === undefined ? {} : { appleOAuthUrl: config.appleOAuthUrl },
       ...config.googleOAuthUrl === undefined ? {} : { googleOAuthUrl: config.googleOAuthUrl },
+      ...oauthFlow === undefined ? {} : { oauthFlow },
       ...config.webUrl === undefined ? {} : { webUrl: config.webUrl },
       ...config.mediaUrl === undefined ? {} : { mediaUrl: config.mediaUrl },
     }

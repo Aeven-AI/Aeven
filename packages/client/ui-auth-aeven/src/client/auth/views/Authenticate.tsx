@@ -11,6 +11,7 @@ import * as events from '../services/events.ts'
 import * as routes from '../services/routes.ts'
 import * as config from '../services/config.ts'
 import * as utility from '../services/utility.ts'
+import * as oauth from '../services/oauth.ts'
 import { storage } from '../services/session.ts'
 import { t } from '../../locales.ts'
 
@@ -37,6 +38,11 @@ const configService = {
     const urls = config.oauthUrls()
     return { xOAuth: urls.x, appleOAuth: urls.apple, googleOAuth: urls.google }
   },
+  oauthFlow: config.oauthFlow,
+}
+const oauthService = {
+  open: oauth.openProviderSignIn,
+  awaitSession: oauth.awaitProviderSession,
 }
 const utilityService = utility
 const storageService = storage
@@ -351,6 +357,37 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
     }
   }
 
+  /**
+   * Reach a provider by whichever flow the deployment states.
+   *
+   * A `redirect` deployment takes this document to the provider, which returns
+   * it to `/oauth-result`. A `window` deployment opens a separate window and
+   * leaves this document where it is, so the reader keeps the page they asked
+   * for; that window finishes the sign-in and this one picks the session up as
+   * it does after the email form.
+   * @param url - the provider's sign-in URL, absent when the deployment offers that provider.
+   */
+  const beginProviderSignIn = (url: string | undefined): void => {
+    if (url === undefined) return
+    if (configService.oauthFlow() === 'redirect') {
+      location.href = url
+      return
+    }
+    oauthService.open(url)
+    void oauthService.awaitSession().then(() => {
+      appService
+        .getInitData()
+        .then(() => {
+          routeService.navigateRoute(utilityService.href(referrer, false))
+        })
+        .catch(() => {
+          // A profile read that fails after the provider finished leaves the
+          // reader on this screen. The exchange and the read are one step to
+          // them, and the step is the button they just pressed.
+        })
+    })
+  }
+
   const signInOauth = (provider: string) => {
     switch (provider) {
       default:
@@ -358,22 +395,19 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
 
       case 'x':
         {
-          const url = configService.oauth.xOAuth
-          if (url !== undefined) location.href = url
+          beginProviderSignIn(configService.oauth.xOAuth)
         }
         break
 
       case 'apple':
         {
-          const url = configService.oauth.appleOAuth
-          if (url !== undefined) location.href = url
+          beginProviderSignIn(configService.oauth.appleOAuth)
         }
         break
 
       case 'google':
         {
-          const url = configService.oauth.googleOAuth
-          if (url !== undefined) location.href = url
+          beginProviderSignIn(configService.oauth.googleOAuth)
         }
         break
     }

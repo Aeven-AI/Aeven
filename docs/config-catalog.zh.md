@@ -442,7 +442,11 @@ export interface CompactionPolicyConfig {
   maxTokens?: number
   /** Extra attempts after the first compaction when pressure remains above threshold. Defaults to `1`. */
   compactionRetries?: number
-  /** Maximum retries after canonical context overflow; `0` disables recovery. Defaults to `1`. */
+  /**
+   * Maximum retries after a provider rejection compaction can resolve — an
+   * outgrown context window or more message entries than the endpoint accepts;
+   * `0` disables recovery. Defaults to `1`.
+   */
   maxOverflowRetries?: number
 }
 
@@ -456,7 +460,7 @@ export interface ModelCompactPolicyConfig extends CompactionPolicyConfig {
 ```
 
 
-来源：[`packages/compaction/compaction-basic/src/types.ts:38`](../packages/compaction/compaction-basic/src/types.ts)
+来源：[`packages/compaction/compaction-basic/src/types.ts:42`](../packages/compaction/compaction-basic/src/types.ts)
 
 <a id="aevencompaction-tool-result-pruner"></a>
 ## `@aeven/compaction-tool-result-pruner`
@@ -477,6 +481,42 @@ export interface ToolResultPruneConfig {
 
 
 来源：[`packages/compaction/compaction-tool-result-pruner/src/types.ts:5`](../packages/compaction/compaction-tool-result-pruner/src/types.ts)
+
+<a id="aevencomputer-use-macos-provider"></a>
+
+## `@aeven/computer-use-macos-provider`
+
+需要：`computerUse`
+
+```ts config-catalog
+/** Configuration a composition may supply. */
+export interface Config {
+  /**
+   * Bundle ids whose Automation permission the readiness report should probe.
+   *
+   * Empty by default: probing sends an Apple Event, and on macOS the first event to an
+   * application raises a consent prompt. Prompting for applications the user has not
+   * asked for is exactly the behaviour this stack set out to remove, so a deployment
+   * names its applications deliberately.
+   */
+  automationTargets?: string[]
+  /**
+   * Extra recipes merged over the starter book, so a deployment can add its own
+   * without this package knowing about them.
+   */
+  recipes?: RecipeBook
+  /**
+   * Whether to claim the exclusive slot. Present so a deployment can load this row for
+   * its readiness reporting while another provider drives, which is how a migration off
+   * the MCP wrapper is staged rather than cut over.
+   */
+  register?: boolean
+}
+```
+
+Depends on: [`RecipeBook`](../packages/computer-use/computer-use-router/src/index.ts)
+
+Source: [`packages/computer-use/computer-use-macos-provider/src/index.ts:54`](../packages/computer-use/computer-use-macos-provider/src/index.ts)
 
 <a id="aevencordis-host-runner"></a>
 ## `@aeven/cordis-host-runner`
@@ -512,7 +552,7 @@ export interface Config {
 ```
 
 
-来源：[`packages/credentials/credentials-local/src/index.ts:64`](../packages/credentials/credentials-local/src/index.ts)
+来源：[`packages/credentials/credentials-local/src/index.ts:71`](../packages/credentials/credentials-local/src/index.ts)
 
 <a id="aevene2b"></a>
 ## `@aeven/e2b`
@@ -1071,6 +1111,15 @@ export interface Config {
   /** Provider sign-in URL; absent hides that provider's button. */
   googleOAuthUrl?: string
   /**
+   * How a provider sign-in reaches the provider, once any `*OAuthUrl` is set.
+   *
+   * Required with an oauth URL and meaningless without one, so a deployment
+   * that offers a provider states which shape it serves rather than inheriting
+   * one that suits a different deployment. A public site states `redirect`; an
+   * installed application serving its own page states `window`.
+   */
+  oauthFlow?: OAuthFlow
+  /**
    * Origin of the Aeven web client, such as `http://localhost:3030`. The
    * account menu links there; absent leaves the menu with no account rows,
    * because a harness that cannot name the account page must not invent one.
@@ -1082,11 +1131,38 @@ export interface Config {
    * generated gradient.
    */
   mediaUrl?: string
+  /**
+   * Credential reference the access token this authority verifies answers to.
+   *
+   * The token is the caller's Aeven session, and `llm-aeven` presents one to
+   * Aeven's own `/v1` on the caller's behalf, so the two must name the same
+   * reference. Stated here as well as there because this authority is what
+   * proves the token, and a name only one side knows publishes nothing. An
+   * operator pointing a custom endpoint at Aeven sets both to the same value.
+   */
+  credentialRef?: string
 }
+
+/**
+ * How a provider sign-in reaches the provider's consent screen.
+ *
+ * `redirect` navigates the page's own document: the reader leaves this origin,
+ * the provider returns them to `<this origin>/oauth-result/<session>/<challenge>`,
+ * and the kernel boots again on that document. A public deployment wants this —
+ * it is the shape provider registrations and popup blockers both expect.
+ *
+ * `window` reaches the provider from a separate window and never moves the
+ * application's document, so a reader who signs in keeps the page they were on.
+ * An installed application serves its own page from a scheme or a loopback
+ * origin, where a redirected document would be a second shell to boot and, on
+ * the desktop, a new window to open. The landing document reports its result
+ * back to the window that opened it and closes.
+ */
+export type OAuthFlow = 'redirect' | 'window'
 ```
 
 
-来源：[`packages/identity/user-aeven/src/index.ts:44`](../packages/identity/user-aeven/src/index.ts)
+来源：[`packages/identity/user-aeven/src/index.ts:63`](../packages/identity/user-aeven/src/index.ts)
 
 <a id="aeveninvariants"></a>
 ## `@aeven/invariants`
@@ -1189,7 +1265,7 @@ export interface Config {
 
 依赖： [`DeepSeekCatalogModel`](../packages/llm/llm-deepseek/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
 
-源码：[`packages/llm/llm-aeven/src/index.ts:170`](../packages/llm/llm-aeven/src/index.ts)
+来源：[`packages/llm/llm-aeven/src/index.ts:170`](../packages/llm/llm-aeven/src/index.ts)
 
 <a id="aevenllm-deepseek"></a>
 ## `@aeven/llm-deepseek`
@@ -3208,7 +3284,7 @@ export interface ImageModelChoice {
 ```
 
 
-源码：[`packages/media/tool-media/src/index.ts:34`](../packages/media/tool-media/src/index.ts)
+来源：[`packages/media/tool-media/src/index.ts:62`](../packages/media/tool-media/src/index.ts)
 
 <a id="aeventool-pwsh"></a>
 ## `@aeven/tool-pwsh`
@@ -3777,7 +3853,7 @@ export interface Config {
 }
 ```
 
-源码：[`packages/workspace/workspace/src/index.ts:43`](../packages/workspace/workspace/src/index.ts)
+来源：[`packages/workspace/workspace/src/index.ts:43`](../packages/workspace/workspace/src/index.ts)
 
 ## 无配置的可加载插件
 
@@ -3902,6 +3978,18 @@ export interface Config {
 - `@aeven/client-ui-slots`（[`packages/client/ui-slots/src/index.ts`](../packages/client/ui-slots/src/index.ts)）
 - `@aeven/client-web`（[`packages/client/web/src/index.ts`](../packages/client/web/src/index.ts)）
 - `@aeven/cmdline`（[`packages/boot/cmdline/src/index.ts`](../packages/boot/cmdline/src/index.ts)）
+- `@aeven/computer-use-benchmark` ([`packages/computer-use/computer-use-benchmark/src/index.ts`](../packages/computer-use/computer-use-benchmark/src/index.ts))
+- `@aeven/computer-use-desktop` ([`packages/computer-use/computer-use-desktop/src/index.ts`](../packages/computer-use/computer-use-desktop/src/index.ts))
+- `@aeven/computer-use-executor` ([`packages/computer-use/computer-use-executor/src/index.ts`](../packages/computer-use/computer-use-executor/src/index.ts))
+- `@aeven/computer-use-formats` ([`packages/computer-use/computer-use-formats/src/index.ts`](../packages/computer-use/computer-use-formats/src/index.ts))
+- `@aeven/computer-use-layout` ([`packages/computer-use/computer-use-layout/src/index.ts`](../packages/computer-use/computer-use-layout/src/index.ts))
+- `@aeven/computer-use-linux` ([`packages/computer-use/computer-use-linux/src/index.ts`](../packages/computer-use/computer-use-linux/src/index.ts))
+- `@aeven/computer-use-macos` ([`packages/computer-use/computer-use-macos/src/index.ts`](../packages/computer-use/computer-use-macos/src/index.ts))
+- `@aeven/computer-use-macos-apple-events` ([`packages/computer-use/computer-use-macos-apple-events/src/index.ts`](../packages/computer-use/computer-use-macos-apple-events/src/index.ts))
+- `@aeven/computer-use-router` ([`packages/computer-use/computer-use-router/src/index.ts`](../packages/computer-use/computer-use-router/src/index.ts))
+- `@aeven/computer-use-session` ([`packages/computer-use/computer-use-session/src/index.ts`](../packages/computer-use/computer-use-session/src/index.ts))
+- `@aeven/computer-use-tasks` ([`packages/computer-use/computer-use-tasks/src/index.ts`](../packages/computer-use/computer-use-tasks/src/index.ts))
+- `@aeven/computer-use-windows` ([`packages/computer-use/computer-use-windows/src/index.ts`](../packages/computer-use/computer-use-windows/src/index.ts))
 - `@aeven/deque`（[`packages/util/deque/src/index.ts`](../packages/util/deque/src/index.ts)）
 - `@aeven/experimental-agent-team-profile`（[`packages/experimental/agent-team-profile/src/index.ts`](../packages/experimental/agent-team-profile/src/index.ts)）
 - `@aeven/experimental-agent-team-web-profile`（[`packages/experimental/agent-team-web-profile/src/index.ts`](../packages/experimental/agent-team-web-profile/src/index.ts)）
