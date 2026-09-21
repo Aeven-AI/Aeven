@@ -16,13 +16,13 @@ AVN read neither the flag nor the route. The profile's `displayNameSet` was drop
 
 The name is part of identifying the reader, so the boot kernel's gate asks for it, beside the sign-in screens it already mounts.
 
-`restoreSession` answers a fourth state, `unnamed`, whenever the restored profile does not carry `displayNameSet === true` — whether the API answered it `false`, omitted it for an account that never chose, or restored it from the kept profile during an outage. `AppWebEntry` mounts the naming step for that state and does not boot the application, exactly as it does for an unauthenticated reader.
+`restoreSession` answers a fourth state, `unnamed`, whenever the restored profile does not carry `displayNameSet === true` — whether the API answered it `false`, omitted it for an account that never chose, or restored it from the kept profile during an outage. `AppWebEntry` mounts the naming step for that state and holds the application behind it, exactly as it does for an unauthenticated reader.
 
 `packages/client/ui-auth-aeven/src/client/auth/views/NameCheck.tsx` is the step, ported from the Aeven client's `initCheck`: the greeting, the reference's own line for an empty field ("You don't have to be anonymous with me ;)"), the name field pre-filled from `session.displayName`, and Continue. Its submit strips what a reader cannot see before it sends anything, refuses an empty name without a round trip, and reports a refused save in place.
 
 `setDisplayName` posts `/set-display-name` with the bearer, then adopts the answer through `session.adoptDisplayName`, which moves `displayName` and `displayNameSet` together and writes them back into the kept `aevenProfile` — a kept profile that still said `false` would send the next load back to the step. A refused bearer sends the reader to the sign-in screen rather than leaving them on a step that cannot succeed.
 
-Success loads the destination the same way the sign-in screens do: `authReferrer` when the reader asked for a path of their own, the application root otherwise. The gate runs again on that load and finds a profile that carries a name.
+Success moves to the destination the same way the sign-in screens do: `authReferrer` when the reader asked for a path of their own, the application root otherwise. The gate then reads the profile again and finds one that carries a name, and the application boots in the document the step was mounted in.
 
 The step's stylesheet is Aeven's `_initCheck.scss` under this app's scope, with the one rule the step inherited from `_home.scss` at the origin — the home column's `.content-container`, whose flex column and full height are what let `.form-container` centre. The 68px greeting names the Google Sans Flex stack this app ships, because the vendored copy of Aeven's sheet drops the Bodoni faces it declared and never used.
 
@@ -50,4 +50,4 @@ A profile kept before this client knew the flag cannot claim a name, so a first 
 
 ## Testing
 
-`packages/client/ui-auth-aeven/tests/gate.client.spec.ts` covers the flag absent from a live profile, the flag false, the flag true, and both readings of a kept profile during an outage. `api.client.spec.ts` covers the bearer and body `/set-display-name` is sent, the adopted name, the kept profile it rewrites, and a refused name. `session.client.spec.ts` covers `adoptDisplayName` moving both halves and a page that kept no profile. `packages/client/web/tests/boot.client.spec.ts` drives the kernel's `unnamed` branch end to end: the step mounts, its copy renders, and nothing of the application boots behind it.
+`packages/client/ui-auth-aeven/tests/gate.client.spec.ts` covers the flag absent from a live profile, the flag false, the flag true, and both readings of a kept profile during an outage. `api.client.spec.ts` covers the bearer and body `/set-display-name` is sent, the adopted name, the kept profile it rewrites, and a refused name. `session.client.spec.ts` covers `adoptDisplayName` moving both halves and a page that kept no profile. `packages/client/web/tests/boot.client.spec.ts` drives the kernel's `unnamed` branch end to end: the step mounts, its copy renders, nothing of the application boots behind it, and naming the reader there boots the application in that document.

@@ -20,10 +20,14 @@ const moduleFace = modulesClient as unknown as Record<string, unknown>
 
 afterEach(() => {
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
   delete win.__AVN_BOOT__
   delete win.__ModuleLoader__
   delete transportGlobal.__AVN_TRANSPORT__
   delete (globalThis as { __AVN_AEVEN__?: unknown }).__AVN_AEVEN__
+  // The gate mounts the real session services, and what they store outlives a
+  // test: a token kept here would sign the next test's reader in.
+  window.localStorage.clear()
   document.body.innerHTML = ''
 })
 
@@ -57,34 +61,138 @@ async function expectBootFailure(setup: () => void, message: string): Promise<vo
   await entry.dispose()
 }
 
+/**
+ * Install a bootable page: the facade, a one-row graph whose plugin supplies a
+ * `uiRenderer`, the static preloader the served index carries, and the entry
+ * over them.
+ * @param workspace - the shell-data service that row provides, when the case needs one.
+ * @returns the mount point, the preloader element, the entry, and the boot it started.
+ */
+function installBootPage(workspace?: { whenInitialDataReady?: () => Promise<void> }): {
+  container: HTMLElement
+  preloader: HTMLElement
+  entry: AppWebEntry
+  booting: Promise<void>
+} {
+  const container = document.createElement('div')
+  const preloader = document.createElement('div')
+  preloader.id = PRELOADER_ELEMENT_ID
+  document.body.append(preloader, container)
+  const target = installFacade()
+  win.__AVN_BOOT__ = {
+    rev: 'graph',
+    entries: [{ id: 'renderer', url: '/renderer.js', rev: '1' }],
+    batches: [{
+      phase: 'application',
+      url: '/application.js',
+      rev: 'batch',
+      entries: ['renderer'],
+    }],
+  }
+  const registrations = new Map<string, ClientBundleRegistration>([
+    ['/renderer.js', {
+      id: 'renderer',
+      factory: () => ({
+        apply: (ctx: Context) => {
+          if (workspace !== undefined) ctx.reflect.provide('uiWorkspace', workspace)
+          ctx.reflect.provide('uiRenderer', {
+            mount: (element: HTMLElement) => {
+              element.textContent = 'mounted'
+              return () => {}
+            },
+          })
+        },
+      }),
+    }],
+  ])
+  const entry = new AppWebEntry(container, {
+    loadBundle: async (url) => {
+      if (url !== '/application.js') throw new Error(`missing fixture batch ${url}`)
+      for (const registration of registrations.values()) target.load(registration)
+    },
+  })
+  return { container, preloader, entry, booting: entry.run() }
+}
+
 /** The grant the API signs a reader in with; only its payload is read. */
 const GRANT = { userId: 'u-1', accessToken: 'header.eyJ1c2VySWQiOiJ1LTEiLCJleHAiOjk5OTk5OTk5OTl9.sig' }
 
-describe('the naming step owns the page for an unnamed reader', () => {
-  it('mounts the step and boots nothing when the API holds no name', async () => {
-    ;(globalThis as { __AVN_AEVEN__?: unknown }).__AVN_AEVEN__ = { apiUrl: 'http://api.test' }
-    // The facade is installed and never used: the gate answers before the
-    // module system is created, which is the point of running it there.
-    installFacade()
-    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
-      const url = input instanceof URL ? input.href : input
-      const route = new URL(url as string).pathname
-      // A bearer is refreshed through the cookie, and the profile answers no
-      // chosen name, which is what a fresh account reports.
-      return route === '/refresh-token'
-        ? Response.json(GRANT)
-        : Response.json({ userId: 'u-1', displayName: 'u-1' })
-    }))
-    const container = document.createElement('div')
-    document.body.append(container)
+/** The profile the API answers for a reader who signed in and then chose a name. */
+const NAMED_PROFILE = { userId: 'u-1', displayName: 'Ollie', displayNameSet: true }
 
-    const entry = new AppWebEntry(container)
-    await entry.run()
+/** Configure the Aeven authority and stub `fetch` with a route-answering function. */
+function installAevenApi(answer: (route: string) => Promise<Response>): void {
+  ;(globalThis as { __AVN_AEVEN__?: unknown }).__AVN_AEVEN__ = { apiUrl: 'http://api.test' }
+  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+    const url = input instanceof URL ? input.href : input
+    return answer(new URL(url as string).pathname)
+  }))
+}
+
+describe('the boot gate waits the reader out', () => {
+  it('boots the application in the same document once the reader signs in', async () => {
+    // Nobody has a session until the reader's own request succeeds, which is
+    // what the gate's next read of the profile reports.
+    let signedIn = false
+    installAevenApi(async (route) => {
+      if (!signedIn) return new Response(null, { status: 401 })
+      return route === '/refresh-token' ? Response.json(GRANT) : Response.json(NAMED_PROFILE)
+    })
+    const { container, preloader, entry, booting } = installBootPage()
+
+    // The gate stops on the sign-in screen, and the application is not behind it.
+    await vi.waitFor(() => { expect(container.querySelector('.authenticate')).not.toBeNull() })
+    expect(container.textContent).not.toContain('mounted')
+
+    // What the screen's success path does once the API answers: move to the
+    // application's own address, which raises the event the gate waits for. The
+    // handlers above that call are the ported view's own and stay as they are.
+    signedIn = true
+    window.history.pushState(null, '', '/')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    await booting
+
+    expect(container.textContent).toContain('mounted')
+    // The cover came back for the boot and is dismissed over the mounted shell,
+    // rather than being repainted by a document load.
+    expect(preloader.classList.contains('animate') || preloader.classList.contains('hide')).toBe(true)
+    await entry.dispose()
+  })
+
+  it('holds the naming step over an unnamed reader, then boots behind them', async () => {
+    let named = false
+    installAevenApi(async (route) => {
+      if (route === '/refresh-token') return Response.json(GRANT)
+      if (route === '/set-display-name') {
+        named = true
+        return Response.json({ result: 'display-name-set', displayName: 'Ollie', displayNameSet: true })
+      }
+      // A fresh account reports the id the API derived a name from and no chosen
+      // name of its own; the step is what gives it one.
+      return named ? Response.json(NAMED_PROFILE) : Response.json({ userId: 'u-1', displayName: 'u-1' })
+    })
+    const { container, entry, booting } = installBootPage()
 
     await vi.waitFor(() => { expect(container.querySelector('.init-check')).not.toBeNull() })
     expect(container.textContent).toContain('Hi there!')
-    // Nothing from the application booted behind it: the step is the page.
-    expect(container.querySelector('#root')).toBeNull()
+    // Nothing from the application is behind it: the step is the page.
+    expect(container.textContent).not.toContain('mounted')
+
+    // The reader types a name and presses Continue. `Input` holds the field's
+    // value in React state, and React tracks each node it renders: the value is
+    // set through the prototype setter, which the tracker cannot see, and then
+    // announced with the `input` event the screen listens for. A plain
+    // assignment would be a tracked write, and the screen would read no change.
+    const field = container.querySelector('input')
+    if (field === null) throw new Error('the naming step rendered no field')
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.bind(field)
+    if (setValue === undefined) throw new Error('the field has no value setter')
+    setValue('Ollie')
+    field.dispatchEvent(new Event('input', { bubbles: true }))
+    container.querySelector('button')?.click()
+    await booting
+
+    expect(container.textContent).toContain('mounted')
     await entry.dispose()
   })
 })
@@ -260,52 +368,9 @@ describe('plugin activation', () => {
 })
 
 describe('preloader reveal after mount', () => {
-  async function bootWithWorkspace(
-    workspace?: { whenInitialDataReady?: () => Promise<void> },
-  ): Promise<{ entry: AppWebEntry; preloader: HTMLElement; mounted: Promise<void> }> {
-    const container = document.createElement('div')
-    const preloader = document.createElement('div')
-    preloader.id = PRELOADER_ELEMENT_ID
-    document.body.append(preloader, container)
-    const target = installFacade()
-    win.__AVN_BOOT__ = {
-      rev: 'graph',
-      entries: [{ id: 'renderer', url: '/renderer.js', rev: '1' }],
-      batches: [{
-        phase: 'application',
-        url: '/application.js',
-        rev: 'batch',
-        entries: ['renderer'],
-      }],
-    }
-    const registrations = new Map<string, ClientBundleRegistration>([
-      ['/renderer.js', {
-        id: 'renderer',
-        factory: () => ({
-          apply: (ctx: Context) => {
-            if (workspace !== undefined) ctx.reflect.provide('uiWorkspace', workspace)
-            ctx.reflect.provide('uiRenderer', {
-              mount: (element: HTMLElement) => {
-                element.textContent = 'mounted'
-                return () => {}
-              },
-            })
-          },
-        }),
-      }],
-    ])
-    const entry = new AppWebEntry(container, {
-      loadBundle: async (url) => {
-        if (url !== '/application.js') throw new Error(`missing fixture batch ${url}`)
-        for (const registration of registrations.values()) target.load(registration)
-      },
-    })
-    return { entry, preloader, mounted: entry.run() }
-  }
-
   it('holds the static preloader until initial shell data is ready', async () => {
     const gate = Promise.withResolvers<undefined>()
-    const { entry, preloader, mounted } = await bootWithWorkspace({
+    const { entry, preloader, booting } = installBootPage({
       whenInitialDataReady: () => gate.promise,
     })
     await vi.waitFor(() => {
@@ -314,14 +379,14 @@ describe('preloader reveal after mount', () => {
     expect(preloader.classList.contains('hide')).toBe(false)
     expect(preloader.classList.contains('screen-hidden')).toBe(false)
     gate.resolve(undefined)
-    await mounted
+    await booting
     expect(preloader.classList.contains('animate') || preloader.classList.contains('hide')).toBe(true)
     await entry.dispose()
   })
 
   it('reveals immediately when uiWorkspace does not wait', async () => {
-    const { entry, preloader, mounted } = await bootWithWorkspace({})
-    await mounted
+    const { entry, preloader, booting } = installBootPage()
+    await booting
     expect(preloader.classList.contains('animate') || preloader.classList.contains('hide')).toBe(true)
     await entry.dispose()
   })

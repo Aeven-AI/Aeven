@@ -22,6 +22,13 @@ import '../../vendor/aeven-auth.css'
 
 /** A mounted authentication screen, and how to take it down. */
 export interface MountedAuthScreen {
+  /**
+   * Resolves once the reader has left this screen with a session established.
+   *
+   * The boot gate waits on this and then boots the application in the same
+   * document, so a reader who signs in is never sent through a document load.
+   */
+  readonly authenticated: Promise<void>
   /** Unmount and release the container back to the application. */
   unmount(): void
 }
@@ -71,6 +78,13 @@ export function mountAuthScreen(container: Element, pathname: string): MountedAu
   }
   render(match)
 
+  // The screens report success by leaving the authentication surface, which is
+  // what this settles. The boot gate is waiting on it and boots the application
+  // in this document; a document load would re-run the whole kernel to reach the
+  // same place, and would repaint the cover from the served HTML on the way.
+  let settle: () => void = () => {}
+  const authenticated = new Promise<void>((resolve) => { settle = resolve })
+
   // The screens navigate between themselves — sign-in to sign-up, and on to the
   // verification step — so the mounted screen follows the address rather than
   // the gate remounting a root per transition.
@@ -80,16 +94,12 @@ export function mountAuthScreen(container: Element, pathname: string): MountedAu
       render(next)
       return
     }
-    // Leaving the authentication surface is how these screens report success:
-    // they navigate to wherever the reader was headed. The boot decided there
-    // was no session and returned, so nothing here can start the application —
-    // a document load runs the gate again, which now restores the session it
-    // just established.
-    window.location.assign(window.location.pathname + window.location.search)
+    settle()
   }
   window.addEventListener('popstate', followRoute)
 
   return {
+    authenticated,
     unmount: () => {
       window.removeEventListener('popstate', followRoute)
       root.unmount()
@@ -98,13 +108,12 @@ export function mountAuthScreen(container: Element, pathname: string): MountedAu
 }
 
 /**
- * Render the naming step, and load the application once the reader is named.
+ * Render the naming step, and hand the application its boot once the reader is named.
  *
  * The step has no route of its own: it owns whatever page the reader asked
  * for, and that address is remembered here so naming them returns them to it.
  * Giving the name is the last thing that happens before the application boots,
- * so the load that follows is the ordinary one, and its gate finds a profile
- * that carries a name.
+ * so the gate that waits on this finds a profile carrying a name.
  * @param container - the element to render into.
  * @param pathname - the browser path they asked for.
  * @returns the mounted screen, and how to take it down.
@@ -116,6 +125,9 @@ export function mountNameScreen(container: Element, pathname: string): MountedAu
     storage.setItem('authReferrer', pathname)
   }
 
+  let settle: () => void = () => {}
+  const authenticated = new Promise<void>((resolve) => { settle = resolve })
+
   const root: Root = createRoot(container)
   root.render(
     // The stylesheet is rooted at `#app-root > .view-container > .view`, so the
@@ -124,9 +136,16 @@ export function mountNameScreen(container: Element, pathname: string): MountedAu
     createElement('div', { id: 'app-root', style: { height: '100%', width: '100%' } },
       createElement('div', { className: 'view-container' },
         createElement(NameCheck, {
-          onNamed: () => { window.location.assign(destination()) },
+          onNamed: () => {
+            // The gate boots the application in this document once this settles,
+            // so the reader is moved to where they were headed first. A plain
+            // `pushState`: the application reads the address as it boots, and
+            // there is no mounted application yet to hear a navigation.
+            window.history.pushState(null, '', destination())
+            settle()
+          },
         }))),
   )
 
-  return { unmount: () => { root.unmount() } }
+  return { authenticated, unmount: () => { root.unmount() } }
 }
