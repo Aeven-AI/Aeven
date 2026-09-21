@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import type { Fiber } from '@deepseek-ai/cordis'
-import LlmRuntime, { createUserMessage, ToolCallId, EMPTY_RESPONSE_CODE, LlmAdapter, LlmError, resolveRetryPolicy  } from '@aeven/llm'
+import LlmRuntime, { createUserMessage, ToolCallId, EMPTY_RESPONSE_CODE, LlmAdapter, LlmError, QUOTA_EXCEEDED_CODE, resolveRetryPolicy  } from '@aeven/llm'
 import type {
   AlwaysRetryPolicyConfig,
   BackoffConfig,
@@ -434,6 +434,35 @@ describe('provider-routed retry policy', () => {
     expect(adapter.requests).toHaveLength(1)
     expect(agent.session.snapshotEvents().some(event => event.type === 'llm/retry')).toBe(false)
     expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('never retries an exhausted balance, so no agent can spin against a spent account', async () => {
+    // The client half of a live incident: a session was refused
+    // `AEVEN_INFERENCE_BALANCE_EXHAUSTED` while its siblings kept being served, and the
+    // question was whether the refused side kept trying. It must not — the failure is
+    // terminal by contract, and a retry would bill a fresh attempt against money the
+    // account does not have, at the cadence of the backoff. This pins the property at
+    // the layer that decides: the default policy delegates it without scheduling a
+    // timer, and the turn ends on the failure rather than on a retry event.
+    vi.useFakeTimers()
+    const adapter = new ScriptedAdapter([
+      new LlmError('insufficient balance: $0.17 free for this request', QUOTA_EXCEEDED_CODE),
+    ])
+    ;({ ctx: context } = await harness(adapter))
+    const agent = context.agentLoop.create(SessionId('retry-quota'), { provider: 'mock', model: 'mock' })
+    const idle = waitForIdle(context, agent)
+
+    agent.followup(createUserMessage({ content: [{ type: 'text', text: 'go' }], source: { kind: 'user' } }))
+    await idle
+
+    expect(adapter.requests).toHaveLength(1)
+    expect(agent.session.snapshotEvents().some(event => event.type === 'llm/retry')).toBe(false)
+    expect(vi.getTimerCount()).toBe(0)
+    const end = agent.session.snapshotEvents().at(-1)
+    expect(end).toMatchObject({
+      type: 'turn/end',
+      data: { reason: { kind: 'error', error: { code: QUOTA_EXCEEDED_CODE } } },
+    })
   })
 
   it('delegates when no final adapter served the failed request', async () => {

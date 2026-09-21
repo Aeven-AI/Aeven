@@ -1428,6 +1428,29 @@ describe('DeepSeekAdapter against a mock server', () => {
     expect(httpErrorCode(429, { message: 'request rate limit exceeded' })).toBe('RATE_LIMIT')
   })
 
+  it('reads Æven’s own exhausted-balance 402 as a terminal quota failure', () => {
+    // The body a local gateway sent, verbatim, on a turn that failed while the account
+    // still held money. It classified as `HTTP_402`, so nothing downstream read it as
+    // terminal and the top-up the gateway had already named was never offered. The
+    // underscore-joined `code` and `type` are why: `\b` does not fire before `BALANCE`
+    // in `AEVEN_INFERENCE_BALANCE_EXHAUSTED`.
+    expect(httpErrorCode(402, {
+      code: 'AEVEN_INFERENCE_BALANCE_EXHAUSTED',
+      type: 'insufficient_inference_balance',
+      message: 'your Æven inference balance is used up; add credit or upgrade your plan to continue',
+    })).toBe(QUOTA_EXCEEDED_CODE)
+
+    // Each field alone has to be enough, because they arrive separately.
+    expect(httpErrorCode(402, { code: 'AEVEN_INFERENCE_BALANCE_EXHAUSTED' })).toBe(QUOTA_EXCEEDED_CODE)
+    expect(httpErrorCode(402, { message: 'insufficient balance: $0.17 free for this request' }))
+      .toBe(QUOTA_EXCEEDED_CODE)
+
+    // And a 402 that says nothing about funds stays what it is: an unknown status is
+    // not a licence to call every 402 a spent balance.
+    expect(httpErrorCode(402)).toBe('HTTP_402')
+    expect(httpErrorCode(402, { message: 'payment required' })).toBe('HTTP_402')
+  })
+
   it('keeps the status-line message for JSON error bodies without a message', async () => {
     const server = await mockServer([{ kind: 'http-error', status: 500, body: '{"error":{"type":"x"}}' }])
     const ctx = await harness(server.url)

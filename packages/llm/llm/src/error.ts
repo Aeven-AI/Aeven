@@ -86,16 +86,45 @@ export function isContextWindowExceededError(detail: string): boolean {
 }
 
 /**
+ * Funding-exhausted wording, in the spelling gateways and adapters actually send.
+ *
+ * The `(?:^|[^a-z0-9])` boundaries are load-bearing rather than decorative, because
+ * `\b` does not fire inside an underscore-joined `code` or `type`: the character
+ * before `BALANCE` in `AEVEN_INFERENCE_BALANCE_EXHAUSTED` is `_`, which counts as a
+ * word character, and the same is true of `insufficient_inference_balance`. Æven's own
+ * `/v1` gateway sends exactly those two strings, so a `\b`-anchored pattern read a
+ * spent balance as an unknown `HTTP_402` — a code nothing treats as terminal, on the
+ * one failure whose remedy the gateway had already named.
+ */
+const INSUFFICIENT_FUNDS = new RegExp(
+  String.raw`(?:^|[^a-z0-9])insufficient[\s_-]+(?:[a-z0-9]+[\s_-]+)*`
+  + String.raw`(?:quota|balances?|credits?)(?:$|[^a-z0-9])`,
+  'i',
+)
+
+/**
+ * A balance or credit described as gone: `BALANCE_EXHAUSTED`, "balance is used up",
+ * "credits depleted". The description is matched as well as the label because the two
+ * reach us separately — the code in one field, the sentence in another — and either
+ * one alone has to be enough.
+ */
+const EXHAUSTED_FUNDS = new RegExp(
+  String.raw`(?:^|[^a-z0-9])(?:balances?|credits?)[\s_-]+(?:is[\s_-]+)?`
+  + String.raw`(?:exhausted|depleted|used[\s_-]+up|spent|empty)(?:$|[^a-z0-9])`,
+  'i',
+)
+
+/**
  * Recognize provider wording that identifies an exhausted account quota rather
  * than a transient request-rate limit.
  * @param detail - provider error code/type/message text joined into one string.
  * @returns true only for terminal quota, balance, credit, budget, or usage-limit wording.
  */
 export function isQuotaExceededError(detail: string): boolean {
-  return /\binsufficient[\s_-]+(?:quota|balance|credits?)\b/i.test(detail)
+  return INSUFFICIENT_FUNDS.test(detail)
+    || EXHAUSTED_FUNDS.test(detail)
     || /\b(?:quota|usage[\s_-]+limit)[\s_-]+(?:exceeded|exhausted|reached)\b/i.test(detail)
     || /\bexceed(?:ed|s)?[\s_-]+(?:(?:your|the)[\s_-]+)?(?:current[\s_-]+)?quota\b/i.test(detail)
-    || /\b(?:balance|credits?)[\s_-]+(?:exhausted|depleted)\b/i.test(detail)
     || /\bout[\s_-]+of[\s_-]+(?:credits?|budget)\b/i.test(detail)
 }
 
