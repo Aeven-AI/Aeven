@@ -69,7 +69,8 @@ async function deepseekDefaultsServer(): Promise<DeepSeekDefaultsServer> {
     request.setEncoding('utf8')
     request.on('data', (chunk: string) => { body += chunk })
     request.on('end', () => {
-      requests.push(JSON.parse(body) as JsonObject)
+      // Model listing probes arrive without a body; only chat completions carry one.
+      if (body.length > 0) requests.push(JSON.parse(body) as JsonObject)
       response.writeHead(200, { 'content-type': 'text/event-stream' })
       let keepAlives = 3
       const write = (): void => {
@@ -447,7 +448,7 @@ describe('headless stream-json snapshots', () => {
 
       expect(result.stderr).toBe('')
       expect(server.requests).toHaveLength(2)
-      const agentRequest = server.requests.find(request => request.max_tokens === 256_000)
+      const agentRequest = server.requests.find(request => request.max_tokens === 384_000)
       const titleRequest = server.requests.find(request => request.max_tokens === 64)
       expect(agentRequest?.reasoning_effort).toBe('low')
       expect(titleRequest).toBeDefined()
@@ -462,7 +463,7 @@ describe('headless stream-json snapshots', () => {
         ))?.data as JsonObject | undefined)?.header as JsonObject | undefined
       expect(header?.config).toMatchInlineSnapshot(`
         {
-          "maxTokens": 256000,
+          "maxTokens": 384000,
           "model": "deepseek-v4-flash",
           "provider": "deepseek-official",
           "reasoningEffort": "low",
