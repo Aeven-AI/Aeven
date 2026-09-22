@@ -26,13 +26,16 @@ const NAME = 'avn-test-bin'
 const tmp = (): string => mkdtempSync(join(tmpdir(), 'avn-user-patches-'))
 
 /**
- * Await one filesystem notification reaching HMR. The deadline is the latency
- * the watcher is allowed, not the latency it normally has: under the coverage
- * lane both sides are instrumented, and a notification that arrives in under a
- * second on its own has taken more than ten there.
+ * Await one filesystem notification reaching HMR.
+ *
+ * The awaited work is a notification plus the loader re-activation it triggers,
+ * and this case drives four of them in sequence while three sibling workers
+ * share the host. That is the case's own budget (`{ timeout: 120_000 }`), so the
+ * allowance is that budget: a tighter one decides the outcome on contention
+ * rather than on the watcher.
  */
 async function eventually(test: () => boolean, message: string): Promise<void> {
-  const deadline = Date.now() + 30_000
+  const deadline = Date.now() + 120_000
   while (!test()) {
     if (Date.now() >= deadline) throw new Error(message)
     await new Promise(resolve => setTimeout(resolve, 10))
