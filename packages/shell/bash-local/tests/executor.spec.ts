@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -56,7 +56,12 @@ describe('LocalBashExecutor.run', () => {
   it('defaults cwd to process.cwd()', async () => {
     const { bash } = await setup()
     const result = await bash.run(bash.resolve({ command: 'pwd' }))
-    expect(result.stdout.text.trim()).toBe(process.cwd())
+    // pwd prints the logical path and process.cwd() the physical one; the two
+    // can be spelled differently (an inherited PWD under a case-insensitive
+    // parent) while naming the same directory, so compare the directory itself.
+    const shellCwd = statSync(result.stdout.text.trim())
+    const processCwd = statSync(process.cwd())
+    expect({ dev: shellCwd.dev, ino: shellCwd.ino }).toEqual({ dev: processCwd.dev, ino: processCwd.ino })
   })
 
   it('caps per-call timeouts at maxTimeoutMs', async () => {
