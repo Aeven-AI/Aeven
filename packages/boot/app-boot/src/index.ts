@@ -246,9 +246,15 @@ export interface UserPatchWatchOptions {
 
 /**
  * Watch the user patch layer through Cordis HMR and transactionally reapply it to the boot include.
+ *
+ * `hmr.registerConfig` resolves when the watcher's initial scan finishes, which is not the same as
+ * its notification stream delivering: a write landing between the two is announced by nothing, and
+ * the layer booted with then stays stale for the rest of the process with no diagnostic. One
+ * reconciliation read after readiness closes that window, so the file as it stands when this
+ * resolves is the layer that is applied and every later write is announced.
  * @param ctx - settled app context containing the root Include and an active HMR service.
  * @param options - diagnostic, file, and patch-composition inputs.
- * @returns an asynchronous disposer after the exact-path watcher is ready.
+ * @returns an asynchronous disposer after the exact-path watcher is ready and the layer on disk is applied.
  * @throws when HMR or the root Include is absent, watcher setup fails, or initial path resolution fails.
  */
 export async function watchUserPatches(
@@ -260,21 +266,51 @@ export async function watchUserPatches(
   if (hmr === undefined) throw new Error(`${binName}: user patch-layer watching requires the Cordis HMR service`)
   const entry = bootstrapIncludes.get(ctx)
   if (entry === undefined) throw new Error(`${binName}: user patch-layer watching requires the root Include entry`)
-  const register = hmr.registerConfig(filename, async () => {
+
+  /** Apply the user layer the patch file composes to now. */
+  const refresh = async (): Promise<void> => {
     // Re-read the include's non-patch options per refresh so a writer that
     // updates another option between refreshes is not silently reverted.
     const { patches: _previousPatches, ...includeConfig } = entry.options.config as Include.Config
     const userPatches = loadOptionalPatches(binName, filename) ?? []
-    const patches = compose(userPatches)
     await entry.update({
       config: {
         ...includeConfig,
-        patches,
+        patches: compose(userPatches),
       },
     })
-  })
+  }
+
+  /**
+   * Apply the layer on disk once the watcher reports ready, and contain a failure the way the
+   * watcher contains the refreshes it announces. The include's `update` does no work when the
+   * composed generation deep-equals the mounted one, so an unchanged file costs this one read.
+   */
+  const reconcile = async (): Promise<void> => {
+    try {
+      await refresh()
+    } catch (reason) {
+      // Readiness is not a patch-layer failure: the app is live and keeps the layer it booted
+      // with, so this reports like an announced refresh that failed instead of rejecting the
+      // registration the caller is holding.
+      const error = reason instanceof Error ? reason : new Error(String(reason), { cause: reason })
+      ctx.logger.warn(`${binName}: failed to apply the user patch layer ${filename} after the watcher became ready`)
+      ctx.logger.warn(error)
+      try {
+        await ctx.parallel('hmr/config-update-failed', filename, error)
+      } catch (rejection) {
+        ctx.logger.warn(rejection)
+      }
+    }
+  }
+
+  const register = hmr.registerConfig(filename, refresh)
   try {
-    return await register
+    const dispose = await register
+    // Every later write is announced; the write that raced the watcher's own startup may not
+    // be, so the layer on disk is reconciled once before the caller can rely on readiness.
+    await reconcile()
+    return dispose
   } catch (error) {
     // A surface can dispose the whole tree while the watcher is still opening;
     // the HMR effect registration then fails with INACTIVE_EFFECT. That is the
