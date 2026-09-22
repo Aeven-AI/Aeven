@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-22-two-golden-lane-repairs.md
+2026-09-22-two-golden-lane-repairs.md: 06265f89da7f7adb8c06fdd10a326396fc432779
+2026-09-22-two-golden-lane-repairs.zh.md: db1b085aed6563ab5aa8b51ef74a17767305fa4f

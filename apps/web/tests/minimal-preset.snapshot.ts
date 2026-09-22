@@ -18,13 +18,14 @@ import {
   webSnapshotMode,
   type WebScaffold,
 } from './scaffold.ts'
-import { newEnglishPage, saveFailureShot } from './support.ts'
+import { RENDER_WAIT_MS, newEnglishPage, saveFailureShot } from './support.ts'
 
 const SNAPSHOT_DIR = fileURLToPath(new URL('../../../snapshots/web/minimal-preset', import.meta.url))
 const FIXTURE = join(SNAPSHOT_DIR, 'session.jsonl')
 const UI_EXPECTED = join(SNAPSHOT_DIR, 'ui.expected.md')
 const MODE = webSnapshotMode()
 const PROMPT = "Use the bash tool to run exactly: printf 'MINIMAL_BASH_CARD_OK\\n'. Then reply exactly MINIMAL_PRESET_REQUEST_OK and stop."
+const SESSION_ID = 'minimal-preset-smoke'
 
 describe('minimal agent preset', () => {
   let scaffold: WebScaffold
@@ -42,7 +43,7 @@ describe('minimal agent preset', () => {
       text: 'THIS TEXT MUST NOT REACH THE MODEL.',
     })
     agentHandle = await scaffold.ctx.agents.create({
-      sessionId: SessionId('minimal-preset-smoke'),
+      sessionId: SessionId(SESSION_ID),
       meta: { cwd: scaffold.workspaceCwd, agentPreset: 'minimal' },
       agentOptions: { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
       setup: agentCtx => scaffold.ctx.agentPresets.mount(agentCtx, 'minimal').then(() => undefined),
@@ -146,22 +147,27 @@ describe('minimal agent preset', () => {
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
 
-    const groupRow = page.locator('[role="treeitem"]').first()
-    await groupRow.waitFor({ timeout: 15_000 })
-    await groupRow.click()
-    const sessionRow = page.locator('[role="treeitem"]').nth(1)
-    await sessionRow.waitFor({ timeout: 10_000 })
-    await sessionRow.click()
-    await page.getByText('MINIMAL_PRESET_REQUEST_OK', { exact: true }).waitFor({ timeout: 15_000 })
+    // The sidebar lists the app's own starting session, and it sorts first, so a
+    // positional row opens an empty conversation. Recorded history is reached by
+    // searching for what it contains — the same first search that opens the lazy
+    // `session-query-sqlite` index (`openAt: 'first-search'`).
+    const searchButton = page.getByRole('button', { name: 'Search sessions' })
+    if (await searchButton.getAttribute('aria-expanded') !== 'true') await searchButton.click()
+    const search = page.getByRole('textbox', { name: 'Search sessions...', exact: true })
+    await search.fill('MINIMAL_BASH_CARD_OK')
+    const results = page.getByRole('tree', { name: 'Search results' }).getByRole('treeitem')
+    await results.first().waitFor({ timeout: RENDER_WAIT_MS })
+    await results.click()
+    await page.getByText('MINIMAL_PRESET_REQUEST_OK', { exact: true }).waitFor({ timeout: RENDER_WAIT_MS })
 
     const process = page.locator('[data-turn-process]')
-    await process.waitFor({ timeout: 15_000 })
+    await process.waitFor({ timeout: RENDER_WAIT_MS })
     await expect.poll(() => process.getAttribute('aria-expanded')).toBe('false')
     await process.click()
     await expect.poll(() => process.getAttribute('aria-expanded')).toBe('true')
 
     const row = page.locator('[data-sample="bash"]').first()
-    await row.waitFor({ timeout: 15_000 })
+    await row.waitFor({ timeout: RENDER_WAIT_MS })
     await expect.poll(() => row.getAttribute('aria-expanded')).toBe('false')
     await row.click()
 
@@ -176,7 +182,10 @@ describe('minimal agent preset', () => {
     await compareOrRefreshGolden(UI_EXPECTED, snapshot, MODE)
     expect(tripwire.pageErrors).toEqual([])
     expect(tripwire.warnings).toEqual([])
-  }, 60_000)
+    // No case-level budget: the lane grants 180 s (`vitest.web.config.ts`) and a
+    // narrower one here expires before the waits it contains, so a contended
+    // render reports as a case timeout instead of the state that never arrived.
+  })
 
   it('keeps its snapshot inventory closed', async () => {
     await assertFixtureInventory(SNAPSHOT_DIR, [
