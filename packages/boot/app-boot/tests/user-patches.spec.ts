@@ -143,6 +143,40 @@ function entryConfig(ctx: Context, id: string): unknown {
   return [...ctx.loader.entries()].find(entry => entry.options.id === id)?.options.config
 }
 
+/**
+ * Register the user-layer watcher against an HMR service whose registration reports ready
+ * without ever announcing the path, with `write` landing inside that window.
+ *
+ * The stub models the reported loss in the shape the runs recorded it: the registration's
+ * initial scan ends, `registerConfig` resolves, and the write that landed between the scan
+ * and the armed notification stream reaches no callback — an independent `node:fs` watch
+ * armed before registration saw nothing either. Driving the window through the stub keeps the
+ * case about what readiness must mean rather than about how often the race is won.
+ * @param ctx - the booted context the stub HMR service is provided on.
+ * @param filename - the patch path registered for watching.
+ * @param compose - the caller's layer recomposition.
+ * @param write - the write that lands after registration and before readiness.
+ * @returns the registration's disposer.
+ */
+async function watchWithLostDelivery(
+  ctx: Context,
+  filename: string,
+  compose: (userPatches: PatchOptions[]) => PatchOptions[],
+  write: () => void,
+): Promise<() => Promise<void>> {
+  const scanEnded = Promise.withResolvers<undefined>()
+  ctx.provide('hmr', {
+    registerConfig: async () => {
+      await scanEnded.promise
+      return async () => {}
+    },
+  })
+  const watching = watchUserPatches(ctx, { binName: NAME, filename, compose })
+  write()
+  scanEnded.resolve(undefined)
+  return watching
+}
+
 describe('Loader config interpolation', () => {
   it("keeps Include's config literal — a nested row's !!js belongs to that row's fiber", async () => {
     const dir = tmp()
@@ -398,11 +432,10 @@ describe('boot with user patches', () => {
       // Default compose: the user layer IS the whole patch list, so a
       // fresh generation replaces the app-owned layer instead of stacking on it.
       // The file is written BEFORE the second watcher opens: chokidar reports a
-      // file that is already on disk as an `add` during its initial scan, which
-      // is the path a patch layer present at boot takes and is deterministic. A
-      // write in the same tick as watcher startup races the notification — under
-      // gate load the same assertion failed after the full 30s deadline — and
-      // live add, change, and unlink are already covered above.
+      // file that is already on disk as an `add` during its initial scan, which is
+      // the path a patch layer present at boot takes, and the watcher reconciles
+      // the file on disk whatever that scan announced. Live add, change, and
+      // unlink are already covered above.
       await dispose()
       writeFileSync(filename, '- id: noop\n  config:\n    value: identity\n')
       const disposeDefault = await watchUserPatches(ctx, { binName: NAME, filename })
@@ -413,6 +446,53 @@ describe('boot with user patches', () => {
       }
     } finally {
       await dispose()
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('applies the write the watcher never announced by the time the exact watch is ready', async () => {
+    const dir = tmp()
+    const filename = join(tmp(), PROFILE_PATCH_FILENAME)
+    const basePatches = [{ id: 'noop', config: { value: 'generated' } }]
+    const ctx = await boot(NAME, writeTree(dir), basePatches)
+    try {
+      const dispose = await watchWithLostDelivery(
+        ctx,
+        filename,
+        userPatches => [...basePatches, ...userPatches],
+        () => writeFileSync(filename, '- id: noop\n  config:\n    value: live\n'),
+      )
+      // Nothing was delivered for that write, so readiness itself has to mean the
+      // layer on disk when the promise resolves is the layer that is applied.
+      expect(entryConfig(ctx, 'noop')).toEqual({ value: 'live' })
+      await dispose()
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('keeps the last applied layer and broadcasts when the missed write cannot be applied', async () => {
+    const dir = tmp()
+    const filename = join(tmp(), PROFILE_PATCH_FILENAME)
+    const basePatches = [{ id: 'noop', config: { value: 'generated' } }]
+    const ctx = await boot(NAME, writeTree(dir), basePatches)
+    const failures: Array<{ filename: string; error: Error }> = []
+    ctx.on('hmr/config-update-failed', (failedFilename, error) => {
+      failures.push({ filename: failedFilename, error })
+    })
+    try {
+      const dispose = await watchWithLostDelivery(
+        ctx,
+        filename,
+        userPatches => [...basePatches, ...userPatches],
+        () => writeFileSync(filename, 'invalid: [unclosed\n'),
+      )
+      expect(failures).toHaveLength(1)
+      expect(failures[0]).toMatchObject({ filename })
+      expect(failures[0]?.error).toBeInstanceOf(Error)
+      expect(entryConfig(ctx, 'noop')).toEqual({ value: 'generated' })
+      await dispose()
+    } finally {
       await ctx.fiber.dispose()
     }
   })
