@@ -129,3 +129,11 @@ Run the smallest focused regression for the affected behavior. Add topology-spec
 - a new guard needs a negative control.
 
 Before a push, use [avn-pre-push-checks](../avn-pre-push-checks/SKILL.md). Report exact commands and observed results; do not describe retries, skipped tests, or pending CI as passing.
+
+## Diagnosing a lost input
+
+- **Check whether the mechanism is armed asynchronously before calling a loss contention.** Chokidar emits `ready` when its directory scan finishes, not when the per-file `fs.watchFile` StatWatcher has taken its baseline, so a write in that window produces no tick at all and is never reported later (measured: 5 of 480 lost under twelve-way contention, 0 of 480 idle, 0 of the lost writes recovered within 30 s). The same question applies wherever one mechanism reports readiness and a different one reports delivery.
+- **Probe the dependency instead of repeating the aggregate.** A targeted probe of the dependency's own API answers "what does this mechanism do" in seconds; another full-suite sweep answers "how often does the symptom appear" and costs minutes per round. Run the first before the second.
+- **Carry a root cause across the file.** Siblings in one file usually share a mechanism. When a case fails because a watcher missed a write, check the neighbouring cases in that file before recording their failures as unrelated starvation.
+- **Never record a hypothesis as an observation.** A plausible mechanism written into an issue, a PR body, or an Agent Note without a test becomes a fact the next agent builds on. Label it unverified, or measure it.
+- **Prefer excluding a transient path over serialising readers.** A lock that makes every reader of a tree wait behind every probe writer and compiler run is the expensive fix; a filename pattern no shipped source can legitimately match removes the race outright.

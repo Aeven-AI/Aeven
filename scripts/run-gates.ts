@@ -730,7 +730,7 @@ function docSyncLeafGates(options: {
       ? []
       : [pnpmScript('doc-typecheck', options.docTypecheckScript ?? 'doc-typecheck', docTypecheckOptions)],
     pnpmScript('docs-site-build', options.docsBuildScript ?? 'docs:build', { label: 'documentation build' }),
-    pnpmScript('doc-graphs', 'verify-doc-graphs', { label: 'doc graphs' }),
+    pnpmScript('doc-graphs', 'verify-doc-graphs', { label: 'doc graphs', quick: true }),
     pnpmScript('markdown-links', 'verify-md-links', { label: 'markdown links', quick: true }),
     pnpmScript('type-equivalence', 'verify-type-equiv', { label: 'type equivalence', quick: true }),
     pnpmScript('cordis-catalog', 'verify-cordis-catalog', { label: 'cordis catalog' }),
@@ -742,7 +742,7 @@ function docSyncLeafGates(options: {
     pnpmScript('client-catalog', 'verify-client-catalog', { label: 'client catalog' }),
     pnpmScript('export-jsdoc', 'verify-export-jsdoc', { label: 'export jsdoc' }),
     pnpmScript('tool-catalog', 'verify-tool-catalog', { label: 'tool catalog' }),
-    pnpmScript('config-catalog', 'verify-config-catalog', { label: 'config catalog' }),
+    pnpmScript('config-catalog', 'verify-config-catalog', { label: 'config catalog', quick: true }),
     pnpmScript('persistence-catalog', 'verify-persistence-catalog', { label: 'persistence catalog' }),
     pnpmScript('public-repository-links', 'verify-public-repository-links', { label: 'public repository links', quick: true }),
     pnpmScript('doc-refs', 'verify-doc-refs', { label: 'doc refs', quick: true }),
@@ -774,7 +774,14 @@ function docSyncLeafGates(options: {
  * without builds, generator regeneration, or the VitePress site build.
  */
 function docQuickLeafGates(): Gate[] {
-  return docSyncLeafGates({ includeDocTypecheck: false }).filter(gate => gate.quick === true)
+  return [
+    ...docSyncLeafGates({ includeDocTypecheck: false }).filter(gate => gate.quick === true),
+    // Generated references encode source line numbers and declarations, so any
+    // change under a package `src` makes them stale. Without these two leaves a
+    // stale reference passes every prose gate and surfaces only in a full
+    // aggregate run, after the change has already merged.
+    pnpmScript('module-graph', 'verify-module-graph', { label: 'module graph', quick: true }),
+  ]
 }
 
 function builtBinSmokeGate(needs: string[] = ['build']): Gate {

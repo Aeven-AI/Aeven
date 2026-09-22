@@ -125,3 +125,11 @@ gh pr view <number> --json mergeable,mergeStateStatus
 GitHub creates no `pull_request` workflow runs while a PR is `CONFLICTING`/`DIRTY`, so the absent signal is the conflict, not infrastructure. Resolving the conflict is the only fix; empty commits, `--allow-empty` pushes, draft/ready toggles, and revert-and-restore bounces all leave `total_count` at zero and add junk history. Confirm the conflicting paths with `git merge-tree --write-tree HEAD origin/<base>` when the branch cannot be merged locally yet.
 
 For `gh stack sync`, use the post-sync validation sequence instead of pretending the ordinary order was possible.
+
+## Generated-document freshness
+
+A change under any `packages/*/*/src` file, or to a package manifest, makes the generated references stale. `docs/event-producer-consumer.md`, `docs/config-catalog.md`, and `docs/module-graph.md` encode source line numbers, declarations, and the workspace import graph, so each has a Chinese counterpart to update with it. `pnpm run test:docs` runs `verify-doc-graphs`, `verify-config-catalog`, and `verify-module-graph`, so run it before pushing such a change and commit the regenerated documents with their re-recorded pairs.
+
+`doc-typecheck` is deliberately outside that aggregate because it builds the Host library first. Run `pnpm run doc-typecheck` before pushing a change that adds or edits an Agent Note, or any other Markdown carrying a `ts` fence: a fence that cannot compile fails that gate later, and a fence that is deliberately unchecked carries `ts ignore-check`.
+
+Running focused gates instead of the full suite never exempts generated-document freshness. Staleness is a property of the whole reference set, not of the file that moved, so a focused run reports the touched package green while the aggregate is already red.
