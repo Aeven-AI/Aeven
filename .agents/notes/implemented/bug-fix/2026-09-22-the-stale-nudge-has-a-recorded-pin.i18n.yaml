@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-22-the-stale-nudge-has-a-recorded-pin.md
+2026-09-22-the-stale-nudge-has-a-recorded-pin.md: e50bddd0a2ad81f4f0308bc11fa9d64dd622a9cf
+2026-09-22-the-stale-nudge-has-a-recorded-pin.zh.md: 0b87e32f4e60a8e77c4e01b9a93d2b3152db51b1
