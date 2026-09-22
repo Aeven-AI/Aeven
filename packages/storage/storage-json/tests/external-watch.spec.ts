@@ -350,28 +350,22 @@ describe('ExternalWatcher stamping and teardown', () => {
     }
   })
 
-  it('reports a foreign write the sweep finds, and stays silent on a self-write the sweep sees', async () => {
+  it('reports only the foreign write when one pass sees a stamped and a foreign document', async () => {
     const dir = await freshUnitDir()
     const reported: ExternalChange[] = []
-    // The sweep is the floor a dropped event falls back on. Its `schedule(0)`
-    // means "the next tick, with no debounce", so a dropped event costs at
-    // most one sweep interval — and a write this unit stamped stays silent
-    // whether the watch or the sweep is what runs the pass.
-    const watcher = new ExternalWatcher(
-      descriptor, dir,
-      { debounceMs: 0, sweepIntervalMs: 30 },
-      changes => reported.push(...changes),
-    )
+    // Both documents are in place before the pass runs, because the stamp is
+    // what decides: the unit stamps a write after it lands, and a live sweep
+    // tick between those two steps reports the self-write. The unit tolerates
+    // that redundant report (the domain diffs it away), so a spec that asserts
+    // the stamp must place the pass after the stamp rather than race it.
+    const watcher = new ExternalWatcher(descriptor, dir, OPTIONS, changes => reported.push(...changes))
     await watcher.start()
     try {
       await writeDocument(dir, 't', 'mine', { v: 1 })
       await watcher.record(join(dir, 't', 'mine.json'))
       await writeDocument(dir, 't', 'foreign', { v: 1 })
-      await until(reported, changes => changes.some(change => change.key === 'foreign'), 5_000)
-      // The stamped self-write never appears, however many passes the sweep
-      // runs; the foreign document does.
-      expect(reported.filter(change => change.key === 'mine')).toEqual([])
-      expect(reported).toContainEqual({ table: 't', key: 'foreign' })
+      await drivePass(watcher)
+      expect(reported).toEqual([{ table: 't', key: 'foreign' }])
     } finally {
       watcher.stop()
     }

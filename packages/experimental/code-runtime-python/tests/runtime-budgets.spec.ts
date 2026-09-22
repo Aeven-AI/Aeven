@@ -214,7 +214,12 @@ describe('PythonCodeRuntime — budgets, termination, disposal', () => {
       program: [
         'import subprocess, sys',
         'for _ in range(2):',
-        '    subprocess.run([sys.executable, "-c", "import time\\nt=time.time()\\nwhile time.time()-t<1.2: pass"])',
+        // The child spins on the CPU rather than on the clock, and its own
+        // inherited soft RLIMIT_CPU is what stops it: a wall-clock loop's
+        // contribution depends on how the host schedules it, so a busy host
+        // could let a child exit before it had burned the second this case
+        // charges.
+        '    subprocess.run([sys.executable, "-c", "while True: pass"])',
         'return "escaped the cpu budget"',
       ].join('\n'),
       bindings: [],
