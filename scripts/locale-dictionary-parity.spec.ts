@@ -66,11 +66,28 @@ function readEntries(dir: string): Dirent[] {
   }
 }
 
+/**
+ * Transient probe files the contract specs create inside real `src` trees and
+ * delete again.
+ *
+ * `scripts/oxlint-contract.spec.ts` proves which TypeScript project owns each
+ * file class, so its probes must sit at the exact paths it asserts on, inside
+ * package `src` trees this sweep also enumerates. `withTransientProbeWindow`
+ * serializes those writers against the compiler, not against readers, so a
+ * probe created after this sweep lists a directory and deleted before it reads
+ * the file surfaces as `ENOENT` for a path that was never a dictionary source.
+ *
+ * Excluding them by name keeps a genuinely absent dictionary an error: no
+ * shipped source is named this way, so nothing this gate exists to check can
+ * hide behind the pattern.
+ */
+const TRANSIENT_PROBE = /^(oxlint-contract|staged-lint-probe)-[0-9a-f-]+\./
+
 function walk(dir: string, out: string[]): void {
   for (const entry of readEntries(dir)) {
     const full = resolve(dir, entry.name)
     if (entry.isDirectory()) walk(full, out)
-    else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts')) out.push(full)
+    else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts') && !TRANSIENT_PROBE.test(entry.name)) out.push(full)
   }
 }
 
