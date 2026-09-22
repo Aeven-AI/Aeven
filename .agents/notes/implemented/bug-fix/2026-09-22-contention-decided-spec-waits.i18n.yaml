@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-22-contention-decided-spec-waits.md
-2026-09-22-contention-decided-spec-waits.md: fa466361ed19d696c64d2a6d8874314f5aee5858
-2026-09-22-contention-decided-spec-waits.zh.md: 50a1c3b6b0b33a70d868e054d3195da179510c5b
+2026-09-22-contention-decided-spec-waits.md: 8a3d7f64b79de891c0315f5ccedf38392229232c
+2026-09-22-contention-decided-spec-waits.zh.md: f579585c830a1385f5b5af5c255d39e2ce4165b2

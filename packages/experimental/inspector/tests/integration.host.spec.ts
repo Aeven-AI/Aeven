@@ -85,6 +85,12 @@ function waitForCdp(assertion: () => void): Promise<void> {
   return vi.waitFor(assertion, { timeout: 15_000 })
 }
 
+// The case and hook budgets move together. A `describe`-level `timeout` does not
+// govern hooks, and vitest's suite options carry no `hookTimeout`, so a raised
+// case budget beside the runner's default 10s hook budget leaves teardown to
+// decide the run: the `afterEach` below closes the client, two CDP sockets, the
+// inspector Worker, and one HTTP server, and the last of those alone costs about
+// 3s in this lane while the aborted SSE socket settles.
 describe('experimental Inspector real Worker', { timeout: 60_000 }, () => {
   let inspector: InspectorHandle | undefined
   let cdp: TestCdpClient | undefined
@@ -103,7 +109,7 @@ describe('experimental Inspector real Worker', { timeout: 60_000 }, () => {
     inspector = undefined
     if (server !== undefined) await new Promise<void>((resolve) => { server!.close(() => { resolve() }) })
     server = undefined
-  })
+  }, 60_000)
 
   it('switches between Host and Client contexts and routes Client RemoteObjects', async () => {
     inspector = await startInspector({ port: 0, captureFetch: false, clientReconnectBaseMs: 10, clientReconnectMaxMs: 20 })
