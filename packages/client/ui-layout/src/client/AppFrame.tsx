@@ -16,7 +16,8 @@ import type {
   PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
 } from '@aeven/client-ui-slots'
 import {
-  clampWidth, DETAILS_MAX, DETAILS_MIN, SIDEBAR_AUTO_COLLAPSE, SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN,
+  clampRightbar, clampWidth, DETAILS_MAX, DETAILS_MIN, SIDEBAR_AUTO_COLLAPSE,
+  SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN,
 } from './columns.ts'
 import { DocumentTitle } from './DocumentTitle.tsx'
 import type { createLayoutStore } from './stores.ts'
@@ -201,9 +202,16 @@ export function AppFrame({
   // The right sidebar is this session's own surface: its width comes from the
   // session's entry, so switching sessions redraws the column at whatever
   // width that session was left at, with no transition of its own to run.
-  // Widths are clamped on the way into the store, so the frame only reads.
+  //
+  // The width is re-clamped here rather than trusted: the store's actions
+  // clamp every write, but a restored one entered the state without passing
+  // through them, and the window it was stored from may have been wider than
+  // this one. Clamping on the way out keeps a reload from opening a panel
+  // wider than the frame it reopens in.
   const rightbarSurface = rightbarSession === undefined ? undefined : panels.rightbar[rightbarSession]
-  const rightbarWidth = rightbarSurface?.shown === true ? rightbarSurface.width ?? 0 : 0
+  const rightbarWidth = rightbarSurface?.shown === true
+    ? clampRightbar(rightbarSurface.width ?? 0, typeof window === 'undefined' ? 0 : window.innerWidth)
+    : 0
   const rightbarRef = useRef(rightbarWidth)
   rightbarRef.current = rightbarWidth
 

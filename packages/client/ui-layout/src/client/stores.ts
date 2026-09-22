@@ -1,9 +1,9 @@
 /**
  * The root entry's layout store: panel geometry as plain widths in px
- * (0 = closed). The sidebar width is the one durable field — a column the
- * user closed or dragged stays that way across a reload — while details and
- * the narrow pair start fresh each page (details defaults closed, and the
- * narrow pair is a reading of the current viewport). Module level exports the
+ * (0 = closed). The sidebar width and the per-session right sidebar are the
+ * durable fields — a column the user closed or dragged stays that way across
+ * a reload — while details and the narrow pair start fresh each page (details
+ * defaults closed, and the narrow pair is a reading of the current viewport). Module level exports the
  * factory only — a module-level handle would pin the store's identity in the
  * module cache (a de-facto singleton surviving plugin reloads). register()
  * receives the factory (exclusive use: the framework instantiates per entry),
@@ -43,8 +43,9 @@ type LayoutState = {
   /**
    * Right sidebar state per session id. Switching sessions leaves each
    * surface where its reader left it, so the panel is a property of the
-   * session being read rather than of the window. Memory-only: a reload
-   * constructs the closed default for every session.
+   * session being read rather than of the window. Persisted, so a reload
+   * restores each session's panel as its reader left it; a session absent
+   * from the stored map opens closed.
    *
    * Frame width is not kept here. It is read in CSS from one custom property
    * on the frame, which is what keeps a drag off the transcript's style
@@ -110,7 +111,8 @@ function showRightbar(draft: LayoutState, sessionId: string, viewport: number): 
  *
  * The right sidebar departs from that rule: its width is keyed by session and
  * survives closing, so reopening returns to the width that session's reader
- * left. It is memory-only, so a reload opens every session closed.
+ * left. It persists, so a reload restores each session's panel where its
+ * reader left it.
  * @returns the store handle (spec + type + identity + factory in one).
  */
 export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutActions>  {
@@ -119,10 +121,11 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
       sidebar: SIDEBAR_DEFAULT, details: 0, narrow: false, narrowExpanded: false, fullscreen: false,
       rightbar: {},
     }),
-    // Reload restores the sidebar column the user left, including a closed
-    // one (0). Details stays out: its archived default is closed, and it
-    // reopens from an explicit selection, not from the last page's geometry.
-    persist: { key: LAYOUT_STORE_KEY, fields: ['sidebar'] },
+    // Reload restores the columns the reader left: the sidebar's width,
+    // including a closed one (0), and each session's right sidebar. Details
+    // stays out — its archived default is closed, and it reopens from an
+    // explicit selection, not from the last page's geometry.
+    persist: { key: LAYOUT_STORE_KEY, fields: ['sidebar', 'rightbar'] },
     actions: {
       setSidebar: (d, px: number) => { d.sidebar = clampWidth(px, SIDEBAR_MIN, SIDEBAR_MAX) },
       setDetails: (d, px: number) => { d.details = clampWidth(px, DETAILS_MIN, DETAILS_MAX) },
