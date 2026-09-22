@@ -2090,9 +2090,9 @@ importers:
       '@aeven/client-ui-auth-aeven':
         specifier: workspace:^
         version: link:../ui-auth-aeven
-      '@aeven/client-ui-conversation':
+      '@aeven/client-ui-layout':
         specifier: workspace:^
-        version: link:../ui-conversation
+        version: link:../ui-layout
       '@aeven/client-ui-primitives':
         specifier: workspace:^
         version: link:../ui-primitives
@@ -3612,9 +3612,6 @@ importers:
       '@aeven/client-test-runtime':
         specifier: workspace:^
         version: link:../../test-support/client-runtime
-      '@aeven/client-ui-conversation':
-        specifier: workspace:^
-        version: link:../ui-conversation
       '@aeven/client-ui-layout':
         specifier: workspace:^
         version: link:../ui-layout

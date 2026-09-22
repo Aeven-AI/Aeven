@@ -98,14 +98,15 @@ afterEach(() => {
   cleanup()
 })
 
-/** Mount the header toggle against a session list holding `current`. */
-function mountToggle(current?: string) {
+/** Mount the corner toggle against a session list holding `current`. */
+function mountToggle(current?: string, { rightbarCollapsed = true }: { rightbarCollapsed?: boolean } = {}) {
   const toggleRightbar = vi.fn()
   const useSessions = sessionProps(current as SessionId | undefined).useSessions
   const view = render(
     <ToggleButton
       {...globalProps}
       useSessions={useSessions}
+      rightbarCollapsed={rightbarCollapsed}
       toggleRightbar={toggleRightbar}
       t={t}
     />,
@@ -115,19 +116,17 @@ function mountToggle(current?: string) {
 
 /** Mount the panel shell in a given collapsed state. */
 function mountShell({ collapsed = false }: { collapsed?: boolean } = {}) {
-  const toggleRightbar = vi.fn()
   const renderSlot = vi.fn(() => null)
   const view = render(
     <SidebarRightRoot
       {...sessionProps(SESSION)}
       collapsed={collapsed}
       width={collapsed ? 0 : 320}
-      toggleRightbar={toggleRightbar}
       t={t}
       renderSlot={renderSlot as unknown as SidebarRightRootComponentProps['renderSlot']}
     />,
   )
-  return { toggleRightbar, renderSlot, view }
+  return { renderSlot, view }
 }
 
 describe('ToggleButton', () => {
@@ -144,28 +143,30 @@ describe('ToggleButton', () => {
     // The panel is per session, so the toggle carries the id it read.
     expect(b.toggleRightbar).toHaveBeenCalledWith('session-7')
   })
+
+  it('names the direction it moves the panel', () => {
+    // One control serves both directions from the frame's corner, so its copy
+    // and state follow the column rather than naming only the way in.
+    mountToggle('session-7', { rightbarCollapsed: false })
+    const button = screen.getByRole('button', { name: 'Collapse right sidebar' })
+    expect(button.getAttribute('aria-expanded')).toBe('true')
+  })
 })
 
 describe('SidebarRightRoot', () => {
-  it('folds the column and takes its own control out of the tab order', () => {
-    const b = mountShell({ collapsed: true })
-    const button = screen.getByRole('button', { name: 'Collapse right sidebar' })
-    // A folded column cannot be reached by keyboard, so neither can its control.
-    expect(button.getAttribute('aria-expanded')).toBe('false')
-    expect(button.getAttribute('tabindex')).toBe('-1')
-    fireEvent.click(button)
-    expect(b.toggleRightbar).toHaveBeenCalledOnce()
+  it('draws the occupant seat whether or not the column is folded', () => {
     // The occupant's seat is drawn either way, so the panel is usable before
     // any content plugin registers.
-    expect(b.renderSlot).toHaveBeenCalledWith('sidebar.right.body', {})
+    expect(mountShell({ collapsed: true }).renderSlot).toHaveBeenCalledWith('sidebar.right.body', {})
+    cleanup()
+    expect(mountShell({ collapsed: false }).renderSlot).toHaveBeenCalledWith('sidebar.right.body', {})
   })
 
-  it('leaves the control reachable while the column is open', () => {
-    const b = mountShell({ collapsed: false })
-    const button = screen.getByRole('button', { name: 'Collapse right sidebar' })
-    expect(button.getAttribute('aria-expanded')).toBe('true')
-    expect(button.hasAttribute('tabindex')).toBe(false)
-    fireEvent.click(button)
-    expect(b.toggleRightbar).toHaveBeenCalledOnce()
+  it('carries no control of its own', () => {
+    // The way out of the panel is the frame's corner toggle. A second control
+    // inside the column would be the same affordance in the same corner, and
+    // the column has no width to hold one while folded.
+    mountShell({ collapsed: false })
+    expect(screen.queryByRole('button')).toBeNull()
   })
 })

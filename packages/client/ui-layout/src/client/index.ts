@@ -99,6 +99,19 @@ declare module '@aeven/client-ui-slots' {
      * `id` is added beside the shipped entries instead of replacing them.
      */
     'shell.overlay': { kind: 'list'; scope: 'root' }
+    /**
+     * The frame's top-right corner: chrome that holds one place on screen
+     * whatever the columns do. It is laid out against the frame rather than
+     * inside a column, so a column opening or closing beneath it moves
+     * nothing here, and it paints above both side columns.
+     *
+     * For controls that belong to the window rather than to what is being
+     * read — the account avatar, the right sidebar's own toggle. Anything
+     * that should travel with the conversation belongs in
+     * `conversation.navigation.utilities`, which is laid out in the
+     * transcript's own column.
+     */
+    'shell.corner': { kind: 'list'; scope: 'root'; owner: ShellCornerOwnerProps }
   }
 }
 
@@ -134,6 +147,16 @@ export interface RightbarOwnerProps {
   width: number
 }
 
+/**
+ * Corner owner share: the right sidebar's state, so a control there can show
+ * which direction it moves the panel. The frame already solves this for the
+ * column, so the corner reads it rather than re-deriving it from a store.
+ */
+export interface ShellCornerOwnerProps {
+  /** Whether the right sidebar is closed for the current session. */
+  rightbarCollapsed: boolean
+}
+
 /** Required services (cordis fiber inject — the loader passes all module exports as an object plugin). */
 export const inject = ['slots', 'theme', 'locale']
 
@@ -156,6 +179,7 @@ export function apply(ctx: ClientContext): void {
         'details': { kind: 'single', scope: 'session' },
         'rightbar': { kind: 'single', scope: 'session' },
         'shell.overlay': { kind: 'list', scope: 'root' },
+        'shell.corner': { kind: 'list', scope: 'root' },
       },
       // Exclusive store: the factory itself — the framework instantiates per
       // entry and delivers useStore/actions to AppFrame as standard props.

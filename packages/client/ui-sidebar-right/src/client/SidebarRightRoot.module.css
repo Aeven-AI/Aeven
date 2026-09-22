@@ -7,9 +7,9 @@
    is what keeps a drag off the transcript's style invalidation path
    (ui-layout AppFrame.module.css). */
 
-/* The column clips nothing, so the collapsed toggle can stand in the
-   conversation's right margin: the column itself reaches zero width, and the
-   control is the only thing left of the panel. */
+/* The column clips nothing and reaches zero width when collapsed: the way
+   back in is the frame's corner toggle, which is laid out against the frame
+   and so keeps its place with no width here to hold it. */
 .root {
   display: flex;
   position: relative;
@@ -32,7 +32,16 @@
 }
 
 /* Absolute so it survives the column reaching zero width, anchored to the
-   column's outer edge (the frame's, which never moves). */
+   column's outer edge (the frame's, which never moves).
+
+   Each layer below animates `width` itself rather than inheriting the slide
+   from `--avn-rightbar-open-width`. That property is unregistered, and an
+   unregistered custom property cannot be transitioned — it flips between its
+   two values in one frame, which left the whole panel body snapping to its
+   open width while only the frame's column eased. Registering it with
+   `@property` is not open either: the baseline gate bans that at the
+   iOS/Safari 14.5 floor ([gate](../../../../../scripts/verify-css-baseline.ts)).
+   So the widths ride the same curve as the column, as the left sidebar's do. */
 .content {
   position: absolute;
   z-index: 5;
@@ -44,11 +53,12 @@
   height: 100%;
   padding-top: 8px;
   box-sizing: border-box;
+  transition: width var(--dsw-aeven-rightbar-transition-duration) var(--dsw-aeven-rightbar-transition-timing);
 }
 
-/* The translucent panel is its own layer so its width can animate while the
-   button above it stays opaque. Last in the DOM and below the z-indexed button
-   and content, as the left sidebar has it. The 2px bottom overhang hides the
+/* The translucent panel is its own layer so its width can animate
+   independently of the body above it. Last in the DOM and below the z-indexed
+   content, as the left sidebar has it. The 2px bottom overhang hides the
    panel's edge against the viewport floor. */
 .panel {
   position: absolute;
@@ -65,58 +75,16 @@
   backdrop-filter: blur(4px);
   box-shadow: inset 1px 1px 0 0 rgb(255, 255, 255);
   pointer-events: none;
-  transition: opacity var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
+  transition:
+    width var(--dsw-aeven-rightbar-transition-duration) var(--dsw-aeven-rightbar-transition-timing),
+    opacity var(--dsw-aeven-rightbar-transition-duration) var(--dsw-aeven-rightbar-transition-timing);
 }
 
 .visible .panel {
   opacity: 1;
 }
 
-/* Anchored to the panel's own edge rather than laid out in the content flow,
-   so it keeps its place while the body below it fades. Collapsed there is no
-   panel to collapse, and the header's control is the way back in, so this one
-   goes with the rest of the chrome. */
-.toggle {
-  position: absolute;
-  top: 8px;
-  right: 0;
-  /* Above `.sideContent` (10): the body is a full-height layer, so a lower
-     toggle is painted over by it and cannot be clicked. */
-  z-index: 15;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--dsw-aeven-sidebar-transition-duration) linear;
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--dsw-aeven-sidebar-toggle-width);
-  height: var(--dsw-aeven-control-size);
-  padding: 0 var(--dsw-aeven-sidebar-row-inset);
-  border: none;
-  background: transparent;
-  color: var(--dsw-alias-label-primary);
-  cursor: pointer;
-  white-space: nowrap;
-  box-sizing: border-box;
-}
-
-.visible .toggle {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.toggle > svg {
-  flex: none;
-}
-
-/* Points at the edge whose panel it moves: the left sidebar's glyph reversed
-   rather than a second icon. */
-.toggleGlyph {
-  transform: scaleX(-1);
-}
-
-/* Everything below the control narrows and fades as one body. */
+/* The panel's whole body narrows and fades as one. */
 .sideContent {
   position: relative;
   z-index: 10;
@@ -128,11 +96,26 @@
   overflow-y: auto;
   overflow-x: hidden;
   box-sizing: border-box;
-  transition: opacity var(--dsw-aeven-sidebar-transition-duration) linear;
+  /* Opacity stays linear against the eased width, the left sidebar's own
+     pairing: it keeps the fade perceptually even through the accelerating
+     slide. */
+  transition:
+    width var(--dsw-aeven-rightbar-transition-duration) var(--dsw-aeven-rightbar-transition-timing),
+    opacity var(--dsw-aeven-rightbar-transition-duration) linear;
 }
 
 .visible .sideContent {
   opacity: 1;
+}
+
+/* A drag writes width at pointer cadence, so every eased layer drops its
+   transition for the gesture: an eased width here would detach the panel from
+   the handle the reader is holding. The frame suspends the column and the
+   handle under the same attribute (ui-layout AppFrame.module.css). */
+:global([data-dragging]) .content,
+:global([data-dragging]) .panel,
+:global([data-dragging]) .sideContent {
+  transition: none;
 }
 
 /* Fixed at the open width so nothing inside re-lays-out mid-slide. */
@@ -146,9 +129,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .content,
   .panel,
-  .sideContent,
-  .toggle {
+  .sideContent {
     transition: none;
   }
 }

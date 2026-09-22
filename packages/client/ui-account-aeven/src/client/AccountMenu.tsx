@@ -9,8 +9,8 @@
 import { useCallback, useRef, useState, type KeyboardEvent } from 'react'
 import { useDismissOnOutsidePointer } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
-// Type-only: pulls the ui-conversation SlotMap merge (the header utilities seat).
-import type {} from '@aeven/client-ui-conversation/client'
+// Type-only: pulls the ui-layout SlotMap merge (the frame's corner seat).
+import type {} from '@aeven/client-ui-layout/client'
 import { Avatar } from './Avatar.tsx'
 import { ACCOUNT_ICON, LOGOUT_ICON, MOON_ICON, SETTINGS_ICON } from './icons.ts'
 import { NS } from './locales.ts'
@@ -43,7 +43,7 @@ export interface AccountMenuInjected {
 
 /** Full component props. */
 export type AccountMenuProps =
-  PropsRuntime<'conversation.navigation.utilities'>
+  PropsRuntime<'shell.corner'>
   & PropsLocale<typeof NS>
   & InjectFace<AccountMenuInjected>
 

@@ -21,7 +21,7 @@
     "client": {
       "inject": [
         "@aeven/client-locale",
-        "@aeven/client-ui-conversation"
+        "@aeven/client-ui-layout"
       ],
       "platform": "web"
     }
@@ -46,7 +46,7 @@
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/client-locale": "workspace:^",
     "@aeven/client-ui-auth-aeven": "workspace:^",
-    "@aeven/client-ui-conversation": "workspace:^",
+    "@aeven/client-ui-layout": "workspace:^",
     "@aeven/client-ui-primitives": "workspace:^",
     "@aeven/client-ui-renderer": "workspace:^",
     "@aeven/client-ui-session": "workspace:^",

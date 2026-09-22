@@ -23,6 +23,28 @@
   --avn-sidebar-overlay-clearance: var(--dsw-aeven-sidebar-toggle-width);
 }
 
+/* The corner dock floats above the frame's right edge rather than taking part
+   in any column's layout, so this column publishes how much of its own right
+   edge the dock actually covers. The conversation header reserves that much,
+   keeping its crumbs, tabs and session controls clear of the dock instead of
+   running under it (ui-conversation ConversationRoot.module.css).
+
+   The right sidebar sits between this column and the frame's edge, so it
+   takes the overlap with it: once that column is wider than the dock, the
+   dock is entirely over the sidebar and this column reserves nothing. `max`
+   floors the term at zero rather than letting a wider sidebar subtract from
+   the page inset.
+
+   The dock sizes itself to its occupants and writes the measured width here,
+   so neither this rule nor the header restates what the dock contains. */
+.centerCol {
+  --avn-shell-corner-clearance: max(
+    0px,
+    calc(var(--avn-frame-corner-width, 0px) - var(--avn-frame-rightbar-width, 0px))
+  );
+}
+
+
 /* The centre column is `flex: 1`; sidebar width changes resize it once without
    a JavaScript column solver. */
 .detailsCol {
@@ -57,7 +79,7 @@
   width: var(--avn-frame-rightbar-width, 0px);
   min-width: 0;
   overflow: visible;
-  transition: width var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
+  transition: width var(--dsw-aeven-rightbar-transition-duration) var(--dsw-aeven-rightbar-transition-timing);
 }
 
 .frame[data-dragging] .rightbarCol {
@@ -105,6 +127,17 @@
   margin-right: -4px;
 }
 
+/* Both right-hand handles stand on an edge the right sidebar moves — the
+   rightbar's own, and the details edge, which is offset past it — so both
+   follow that column's curve rather than the shared one. A handle left on the
+   shared pair drifts off the border it marks for the whole slide. */
+.handle[data-side='rightbar'],
+.handle[data-side='details'] {
+  transition:
+    left var(--dsw-aeven-rightbar-transition-duration) var(--dsw-aeven-rightbar-transition-timing),
+    right var(--dsw-aeven-rightbar-transition-duration) var(--dsw-aeven-rightbar-transition-timing);
+}
+
 .handle[data-side='rightbar'] {
   right: var(--avn-frame-rightbar-width, 0px);
   margin-right: -4px;
@@ -150,6 +183,43 @@
 .handle[data-side='details'][data-dragging='true']::after {
   background: var(--dsw-alias-button-floating-hover);
   border-color: var(--dsw-alias-border-l3);
+}
+
+/* The frame's top-right corner, holding chrome that belongs to the window
+   rather than to a column: the account avatar and the right sidebar's toggle.
+   Positioned against the frame, so a column opening underneath moves nothing
+   here and there is no width to animate — the occupants are simply never in
+   the moving box.
+
+   Above both side columns (50) and the handles (51) so the right sidebar
+   cannot paint over it, and matched to the conversation header's own band:
+   the same 56px row, the same page inset, so a control here lands level with
+   the crumbs and tabs that scroll beneath it.
+
+   The row is `fit-content` and click-through, leaving the rest of the band to
+   the conversation's own header underneath. */
+.cornerDock {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 52;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 56px;
+  padding: 0 var(--dsw-aeven-page-inset);
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.cornerDock > * {
+  pointer-events: auto;
+}
+
+/* A full-screen surface owns the viewport, so this band yields with the rest
+   of the frame's chrome (see the overlay layer's note below). */
+.frame[data-fullscreen] .cornerDock {
+  display: none;
 }
 
 /* Above the drag handles and both side columns: a toast or dialog belongs over

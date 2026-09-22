@@ -8,15 +8,13 @@ import type {} from '@aeven/client-ui-renderer/client'
 import type {} from '@aeven/client-ui-layout/client'
 // Type-only: pulls the Session root standard-props merge (useSessions).
 import type {} from '@aeven/client-ui-session/client'
-// Type-only: pulls the conversation header seat declarations.
-import type {} from '@aeven/client-ui-conversation/client'
-import type { SidebarRightRootInjected, ToggleButtonInjected } from './contract/slots.ts'
+import type { ToggleButtonInjected } from './contract/slots.ts'
 import { SidebarRightRoot } from './SidebarRightRoot.tsx'
 import { ToggleButton } from './ToggleButton.tsx'
 import { en, zh, type SidebarRightKey } from './locales.ts'
 
 export type {
-  SidebarRightBodyOwnerProps, SidebarRightRootComponentProps, SidebarRightRootInjected,
+  SidebarRightBodyOwnerProps, SidebarRightRootComponentProps,
   ToggleButtonComponentProps, ToggleButtonInjected,
 } from './contract/slots.ts'
 export type { SidebarRightKey } from './locales.ts'
@@ -41,13 +39,6 @@ export const inject = ['slots', 'layout', 'locale']
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-sidebar-right: dictionaries')
 
-  // The panel is per session, so the toggle names the session it belongs to.
-  // The framework supplies that id to the inject hook for a session-scoped
-  // seat, which is the same id the frame reads the column's width under.
-  const injectProps = (sessionId: string): SidebarRightRootInjected => ({
-    toggleRightbar: () => { ctx.layout.toggleRightbar(sessionId) },
-  })
-
   ctx.effect(
     () => ctx.slots.register({
       name: 'rightbar',
@@ -56,16 +47,19 @@ export function apply(ctx: ClientContext): void {
       children: {
         'sidebar.right.body': { kind: 'single', scope: 'session' },
       },
-      inject: injectProps,
     }, SidebarRightRoot),
     'ui-sidebar-right: slot registration',
   )
 
-  // Reopening lives in the navigation band, ahead of the account avatar
-  // (order 100): a collapsed column has no width to hold a control of its own.
-  ctx.slots.inject('conversation.navigation.utilities', () =>
+  // The toggle lives in the frame's corner, ahead of the account avatar
+  // (order 100), rather than in the conversation's navigation band: the band
+  // is laid out inside the centre column, which this panel takes width from,
+  // so a control there travels left as the panel opens and ends up under the
+  // panel itself. The corner is laid out against the frame, so the one control
+  // serves both directions from one place — it opens the panel and closes it.
+  ctx.slots.inject('shell.corner', () =>
     ctx.slots.register({
-      name: 'conversation.navigation.utilities',
+      name: 'shell.corner',
       id: 'rightbar-toggle',
       order: 90,
       locale: NS,

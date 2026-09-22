@@ -42,7 +42,7 @@ function matchNarrow(): MediaQueryList | undefined {
 /** Full composed props: runtime share + child-slot render share + store share. */
 export type AppFrameProps =
   & PropsRuntime<'root'>
-  & PropsRenderSlots<'sidebar' | 'conversation' | 'details' | 'rightbar' | 'shell.overlay'>
+  & PropsRenderSlots<'sidebar' | 'conversation' | 'details' | 'rightbar' | 'shell.overlay' | 'shell.corner'>
   & PropsStore<ReturnType<typeof createLayoutStore>>
   & PropsLocale<'common'>
 
@@ -145,6 +145,21 @@ export function AppFrame({
   })
   const [narrow, setNarrow] = useState(() => matchNarrow()?.matches ?? false)
   const frameRef = useRef<HTMLDivElement | null>(null)
+  const cornerRef = useRef<HTMLDivElement | null>(null)
+  // The corner dock floats above the centre column, so the column has to
+  // reserve its width to keep the conversation header's own content out from
+  // under it. The dock is laid out from its occupants — which plugins
+  // register — so its width is measured rather than restated in CSS. It
+  // changes when an occupant mounts or its copy does, not while a column
+  // animates, so this observer is off the slide's path entirely.
+  const [cornerWidth, setCornerWidth] = useState(0)
+  useLayoutEffect(() => {
+    const dock = cornerRef.current
+    if (dock === null || typeof ResizeObserver !== 'function') return
+    const observer = new ResizeObserver(() => { setCornerWidth(dock.getBoundingClientRect().width) })
+    observer.observe(dock)
+    return () => { observer.disconnect() }
+  }, [])
 
   const lastSession = useRef(currentSession)
   useLayoutEffect(() => {
@@ -227,6 +242,7 @@ export function AppFrame({
       style={{
         '--avn-frame-details-width': `${String(detailsWidth)}px`,
         '--avn-frame-rightbar-width': `${String(rightbarWidth)}px`,
+        '--avn-frame-corner-width': `${String(cornerWidth)}px`,
       } as CSSProperties}
       data-sidebar-collapsed={sidebarCollapsed || undefined}
       data-details-collapsed={detailsWidth === 0 || undefined}
@@ -260,6 +276,13 @@ export function AppFrame({
           </SessionProvider>
         </RightbarColumn>
       </>
+      {/* The corner is laid out against the frame, so the columns move under
+          it and its occupants hold one place on screen. It reserves the right
+          sidebar's own toggle width when that column is closed, which is the
+          gutter the panel's chrome occupies once it is open. */}
+      <div ref={cornerRef} className={css.cornerDock} data-shell-corner>
+        {renderSlot('shell.corner', { rightbarCollapsed: rightbarWidth === 0 })}
+      </div>
       <div className={css.overlayLayer} data-shell-overlay>
         {renderSlot('shell.overlay', {})}
       </div>

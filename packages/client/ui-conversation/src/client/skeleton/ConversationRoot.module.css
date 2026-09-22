@@ -81,14 +81,32 @@
   align-items: center;
   justify-content: flex-end;
   box-sizing: border-box;
-  padding: 0 var(--dsw-aeven-page-inset) 0
+  /* The right inset clears the frame's corner dock, which floats above this
+     column and holds the account avatar and the right sidebar's toggle. The
+     dock publishes its own measured width, so the bar reserves exactly what
+     the dock covers and its own content stops short of it rather than running
+     underneath. */
+  padding: 0
+    max(var(--dsw-aeven-page-inset), var(--avn-shell-corner-clearance, 0px)) 0
     max(var(--dsw-aeven-page-inset), var(--avn-sidebar-overlay-clearance, 0px));
   background: transparent;
   border: none;
-  /* Same duration and curve as the sidebar column, so hamburger clearance
-     eases with the slide instead of snapping when collapsed flips. */
-  transition: padding var(--dsw-aeven-sidebar-transition-duration)
-    var(--dsw-aeven-sidebar-transition-timing);
+  /* Each side eases on the curve of the column that moves it: the hamburger
+     clearance with the left sidebar, the corner clearance with the right,
+     which takes over the dock's overlap as it widens. Neither snaps when its
+     column's collapsed state flips. */
+  transition:
+    padding-left var(--dsw-aeven-sidebar-transition-duration)
+      var(--dsw-aeven-sidebar-transition-timing),
+    padding-right var(--dsw-aeven-rightbar-transition-duration)
+      var(--dsw-aeven-rightbar-transition-timing);
+}
+
+/* A right sidebar drag rewrites that overlap at pointer cadence (the frame
+   marks the gesture on itself), so the bar follows it directly rather than
+   trailing the handle the reader is holding. */
+:global([data-dragging]) .header {
+  transition: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

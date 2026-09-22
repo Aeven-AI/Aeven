@@ -9,7 +9,7 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { AevenReader } from '@aeven/client-ui-auth-aeven'
 import type {} from '@aeven/client-locale/client'
-import type {} from '@aeven/client-ui-conversation/client'
+import type {} from '@aeven/client-ui-layout/client'
 import type {} from '@aeven/client-ui-renderer/client'
 import type {} from '@aeven/client-ui-session/client'
 import type {} from '@aeven/client-ui-theme/client'
@@ -84,15 +84,16 @@ export function apply(ctx: ClientContext): void {
     },
   })
 
-  // The resident navigation band, not the Session header's utilities: whether
-  // a reader is signed in is a fact about the app, not about a Session, and a
-  // fresh install opens on the no-Session hero where that header never
-  // renders. The Session seat would hide the avatar exactly when a new
-  // deployment first needs to show who is signed in.
+  // The frame's corner, not a Session header seat: whether a reader is signed
+  // in is a fact about the app, not about a Session, and a fresh install opens
+  // on the no-Session hero where that header never renders. The corner is also
+  // laid out against the frame rather than inside the centre column, so the
+  // avatar holds one place on screen while the right sidebar takes width from
+  // that column.
   ctx.slots.inject(
-    'conversation.navigation.utilities',
+    'shell.corner',
     () => ctx.slots.register({
-      name: 'conversation.navigation.utilities',
+      name: 'shell.corner',
       id: 'aeven-account',
       order: 100,
       locale: NS,

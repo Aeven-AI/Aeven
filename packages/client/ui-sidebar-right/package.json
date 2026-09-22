@@ -31,7 +31,6 @@
         "@aeven/client-ui-renderer",
         "@aeven/client-ui-layout",
         "@aeven/client-ui-session",
-        "@aeven/client-ui-conversation",
         "@aeven/client-locale"
       ],
       "platform": "web"
@@ -51,7 +50,6 @@
   "devDependencies": {
     "@aeven/client-locale": "workspace:^",
     "@aeven/client-test-runtime": "workspace:^",
-    "@aeven/client-ui-conversation": "workspace:^",
     "@aeven/client-ui-layout": "workspace:^",
     "@aeven/client-ui-primitives": "workspace:^",
     "@aeven/client-ui-renderer": "workspace:^",

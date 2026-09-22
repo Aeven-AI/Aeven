@@ -13,7 +13,6 @@
  * column has any width.
  */
 import clsx from 'clsx'
-import { IconChevronsLeftOutline14, Tooltip } from '@aeven/client-ui-primitives'
 import type { SidebarRightRootComponentProps } from './contract/slots.ts'
 import css from './SidebarRightRoot.module.css'
 
@@ -24,32 +23,15 @@ import css from './SidebarRightRoot.module.css'
  */
 export function SidebarRightRoot({
   collapsed,
-  toggleRightbar,
-  t,
   renderSlot,
 }: SidebarRightRootComponentProps) {
   return (
     <div className={clsx(css.root, !collapsed && css.visible)}>
       <div className={css.content}>
-        {/* The panel's own collapse control. Reopening is the header's, whose
-            corner stays put whether or not this column has any width. */}
-        <Tooltip label={t('toggle.collapse')} delayMs={500}>
-          <button
-            type="button"
-            className={css.toggle}
-            aria-label={t('toggle.collapse')}
-            aria-expanded={!collapsed}
-            tabIndex={collapsed ? -1 : undefined}
-            onClick={() => { toggleRightbar() }}
-          >
-            {/* The left sidebar's collapse chevrons mirrored, pointing at the
-                edge they move the panel toward. */}
-            <IconChevronsLeftOutline14 className={css.toggleGlyph} size={14} />
-          </button>
-        </Tooltip>
-
-        {/* Everything below the control narrows and fades as one body, as the
-            left sidebar's `.side-content` does. */}
+        {/* Everything below the frame's corner narrows and fades as one body,
+            as the left sidebar's `.side-content` does. The panel carries no
+            collapse control of its own: the corner's toggle closes it from the
+            one place that holds still whether or not this column has width. */}
         <div className={css.sideContent}>
           <div className={css.sideContentInner}>
             {renderSlot('sidebar.right.body', {})}

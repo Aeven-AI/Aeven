@@ -52,6 +52,7 @@
     "build:lib:host": "tsx scripts/run-tsc.ts tsconfig.host.json --max-old-space-size=4096 && tsdown --env.AVN_BUILD_FACE host",
     "build:lib:client": "tsx scripts/run-tsc.ts tsconfig.client.json && tsdown --env.AVN_BUILD_FACE client",
     "build:web": "pnpm --filter @aeven/web-frontend run build",
+    "build:client": "npm run build:lib:client && npm run build:web",
     "clean": "tsx scripts/clean.ts",
     "change-scope": "tsx scripts/change-scope.ts",
     "typecheck": "npm run verify-typert && npm run build:lib:host && npm run typecheck:contracts-ready",

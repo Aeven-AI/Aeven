@@ -20,23 +20,18 @@ declare module '@aeven/client-ui-slots' {
 /** Body owner share: empty — sessionId arrives as a framework-standard prop. */
 export interface SidebarRightBodyOwnerProps {}
 
-/** What the plugin body hands the root component. */
-export interface SidebarRightRootInjected {
-  /** Open this session's panel, or close it when it is open. */
-  toggleRightbar: () => void
-}
-
 /**
  * Full composed props of the right sidebar root. `collapsed` and `width`
- * arrive as the column's owner share from the frame.
+ * arrive as the column's owner share from the frame. The panel carries no
+ * control of its own, so it needs no injected face: the frame's corner owns
+ * both directions of the toggle.
  */
 export type SidebarRightRootComponentProps =
   & PropsRuntime<'rightbar'>
   & PropsRenderSlots<'sidebar.right.body'>
   & PropsLocale<'sidebarRight'>
-  & SidebarRightRootInjected
 
-/** What the plugin body hands the header toggle. */
+/** What the plugin body hands the corner toggle. */
 export interface ToggleButtonInjected {
   /**
    * Open one session's panel, or close it when it is open.
@@ -46,10 +41,10 @@ export interface ToggleButtonInjected {
 }
 
 /**
- * Full composed props of the header toggle. The seat is root-scoped, so the
+ * Full composed props of the corner toggle. The seat is root-scoped, so the
  * session comes from the global `useSessions` rather than a standard prop.
  */
 export type ToggleButtonComponentProps =
-  & PropsRuntime<'conversation.navigation.utilities'>
+  & PropsRuntime<'shell.corner'>
   & PropsLocale<'sidebarRight'>
   & ToggleButtonInjected

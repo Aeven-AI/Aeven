@@ -24,6 +24,15 @@ body {
   --dsw-aeven-sidebar-panel-radius: 20px;
   --dsw-aeven-sidebar-transition-duration: 400ms;
   --dsw-aeven-sidebar-transition-timing: cubic-bezier(0.23, 1, 0.32, 1);
+  /* The right sidebar travels on its own pair. The shared curve above is
+     easeOutQuint, which spends 74% of its travel in its first quarter: over
+     the left sidebar's fixed 300px that reads as a brisk slide, but the right
+     column opens to a frame fraction (45% on first open, up to 70%), and the
+     same curve over ~540px finishes visibly before the duration ends. This
+     curve holds a near-constant rate through the middle of the travel, so the
+     wider column stays legible for the whole slide. */
+  --dsw-aeven-rightbar-transition-duration: 460ms;
+  --dsw-aeven-rightbar-transition-timing: cubic-bezier(0.32, 0.72, 0, 1);
   --dsw-aeven-control-size: 40px;
   --dsw-aeven-radius-surface: 30px;
   --dsw-aeven-radius-content: 20px;
