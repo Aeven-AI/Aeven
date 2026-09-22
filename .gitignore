@@ -53,3 +53,4 @@ packages/typert/generator/tests/.generated-model-*/
 # the map files are the reliable signal here.
 packages/*/*/src/**/*.js.map
 packages/*/*/src/**/*.d.ts.map
+/.avn-transient-probes.lock

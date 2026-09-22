@@ -6,6 +6,7 @@ import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { flattenDiagnosticMessageText, parseConfigFileTextToJson } from 'typescript'
 import { describe, expect, it } from 'vitest'
+import { withTransientProbeWindow } from './transient-probe-window.ts'
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
 const oxlintCli = fileURLToPath(new URL('../node_modules/oxlint/bin/oxlint', import.meta.url))
@@ -46,7 +47,7 @@ async function writeContractConfig(suffix: string): Promise<string> {
 }
 
 describe('Oxlint executable contract', () => {
-  it('discovers the owning TypeScript project for every file class', async () => {
+  it('discovers the owning TypeScript project for every file class', () => withTransientProbeWindow(async () => {
     const suffix = randomUUID()
     const configPath = await writeContractConfig(suffix)
     const probes = [
@@ -105,9 +106,9 @@ probePromise()
         rm(configPath, { force: true }),
       ])
     }
-  }, 90_000)
+  }), 90_000)
 
-  it('runs JavaScript compatibility and nursery rules', async () => {
+  it('runs JavaScript compatibility and nursery rules', () => withTransientProbeWindow(async () => {
     const suffix = randomUUID()
     const configPath = await writeContractConfig(suffix)
     const path = join(repositoryRoot, 'scripts', `oxlint-contract-${suffix}.ts`)
@@ -152,7 +153,7 @@ export const longProbe = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 +
         rm(configPath, { force: true }),
       ])
     }
-  }, 90_000)
+  }), 90_000)
 
   it('keeps the complete stylistic contract in Oxlint', async () => {
     const oxlintPath = join(repositoryRoot, '.oxlintrc.json')
@@ -227,7 +228,7 @@ export const longProbe = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 +
     expect(lefthook).not.toContain('eslint.format.config.mjs')
   })
 
-  it('reports an unused suppression', async () => {
+  it('reports an unused suppression', () => withTransientProbeWindow(async () => {
     const suffix = randomUUID()
     const configPath = await writeContractConfig(suffix)
     const path = join(repositoryRoot, 'scripts', `oxlint-contract-${suffix}.ts`)
@@ -252,7 +253,7 @@ export const longProbe = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 +
         rm(configPath, { force: true }),
       ])
     }
-  }, 90_000)
+  }), 90_000)
 
   it('accepts an ignored-only staged selection', () => {
     const result = runOxlint([
@@ -265,7 +266,7 @@ export const longProbe = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 +
     expect(result.status, normalizedOutput(result)).toBe(0)
   })
 
-  it('keeps staged validation project-free while preserving source rules', async () => {
+  it('keeps staged validation project-free while preserving source rules', () => withTransientProbeWindow(async () => {
     const configPath = join(repositoryRoot, '.oxlintrc.staged.json')
     const result = parseConfigFileTextToJson(configPath, await readFile(configPath, 'utf8'))
     if (result.error !== undefined) {
@@ -299,9 +300,9 @@ export const longProbe = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 +
     } finally {
       await rm(path, { force: true })
     }
-  })
+  }))
 
-  it('preserves successful fix output channels', async () => {
+  it('preserves successful fix output channels', () => withTransientProbeWindow(async () => {
     const suffix = randomUUID()
     const path = join(repositoryRoot, 'scripts', `staged-lint-probe-${suffix}.ts`)
 
@@ -323,9 +324,9 @@ export const longProbe = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 +
     } finally {
       await rm(path, { force: true })
     }
-  })
+  }))
 
-  it('prints only the final diagnostics when a fix retry still fails', async () => {
+  it('prints only the final diagnostics when a fix retry still fails', () => withTransientProbeWindow(async () => {
     const suffix = randomUUID()
     const path = join(repositoryRoot, 'scripts', `staged-lint-probe-${suffix}.ts`)
 
@@ -347,11 +348,11 @@ export const longProbe = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 +
     } finally {
       await rm(path, { force: true })
     }
-  })
+  }))
 
   it.each(['--fix', '--fix-suggestions', '--fix-dangerously'])(
     'converges overlapping staged stylistic fixes through Oxlint under %s',
-    async (fixFlag) => {
+    fixFlag => withTransientProbeWindow(async () => {
       const suffix = randomUUID()
       const directory = join(repositoryRoot, 'scripts', `.oxlint-contract-${suffix}`)
       const path = join(directory, 'fix.ts')
@@ -370,7 +371,7 @@ export const longProbe = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 +
       } finally {
         await rm(directory, { recursive: true, force: true })
       }
-    },
+    }),
     90_000,
   )
 })
