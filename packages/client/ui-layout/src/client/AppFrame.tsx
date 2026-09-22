@@ -183,18 +183,18 @@ export function AppFrame({
   const detailsRef = useRef(detailsWidth)
   detailsRef.current = detailsWidth
 
-  // The right sidebar is this session's own surface: its width comes from the
-  // session's entry, so switching sessions redraws the column at whatever
-  // width that session was left at, with no transition of its own to run.
+  // Whether this session shows the panel is the session's own; how wide it is
+  // is the reader's, shared by every session. So switching sessions opens or
+  // closes the column, and never resizes it.
   //
   // The width is re-clamped here rather than trusted: the store's actions
   // clamp every write, but a restored one entered the state without passing
   // through them, and the window it was stored from may have been wider than
   // this one. Clamping on the way out keeps a reload from opening a panel
   // wider than the frame it reopens in.
-  const rightbarSurface = rightbarSession === undefined ? undefined : panels.rightbar[rightbarSession]
-  const rightbarWidth = rightbarSurface?.shown === true
-    ? clampRightbar(rightbarSurface.width ?? 0, typeof window === 'undefined' ? 0 : window.innerWidth)
+  const rightbarShown = rightbarSession !== undefined && panels.rightbar[rightbarSession]?.shown === true
+  const rightbarWidth = rightbarShown
+    ? clampRightbar(panels.rightbarWidth, typeof window === 'undefined' ? 0 : window.innerWidth)
     : 0
   const rightbarRef = useRef(rightbarWidth)
   rightbarRef.current = rightbarWidth
@@ -241,10 +241,11 @@ export function AppFrame({
     rightbarFrame.current = frameRef.current?.getBoundingClientRect().width ?? 0
     setDragging(true)
   }, [])
+  // The drag names no session: the width it writes is the reader's, and every
+  // session's panel opens at it.
   const onRightbarDrag = useCallback((dx: number) => {
-    if (rightbarSession === undefined) return
-    actions.setRightbar(rightbarSession, rightbarBase.current - dx, rightbarFrame.current)
-  }, [actions, rightbarSession])
+    actions.setRightbar(rightbarBase.current - dx, rightbarFrame.current)
+  }, [actions])
   const productTitle = process.env.AVN_CLIENT_TITLE ?? t('brand.localBuild')
 
   return (

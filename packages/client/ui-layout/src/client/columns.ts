@@ -46,8 +46,14 @@ export const RIGHTBAR_MIN = 300
  * not.
  */
 export const RIGHTBAR_MAX_RATIO = 0.7
-/** Right sidebar width on first opening, as a fraction of the frame. */
-export const RIGHTBAR_DEFAULT_RATIO = 0.45
+/**
+ * Right sidebar width on first opening. A fixed width rather than a fraction:
+ * the panel is a reading column, so what it should open at is a width that
+ * reads well, not a share of whatever display it lands on. Frames too narrow
+ * to give it this scale it back through {@link clampRightbar}, whose ceiling
+ * is a fraction of the frame.
+ */
+export const RIGHTBAR_DEFAULT = 600
 
 /**
  * Clamp a panel width into its contract range.
@@ -79,7 +85,7 @@ export function clampRightbar(px: number, viewport: number): number {
  * @returns the first-open width in px, clamped into the frame's range.
  */
 export function defaultRightbar(viewport: number): number {
-  return clampRightbar(viewport * RIGHTBAR_DEFAULT_RATIO, viewport)
+  return clampRightbar(RIGHTBAR_DEFAULT, viewport)
 }
 
 /**

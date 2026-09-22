@@ -1,9 +1,10 @@
 /**
  * The root entry's layout store: panel geometry as plain widths in px
- * (0 = closed). The sidebar width and the per-session right sidebar are the
- * durable fields — a column the user closed or dragged stays that way across
- * a reload — while details and the narrow pair start fresh each page (details
- * defaults closed, and the narrow pair is a reading of the current viewport). Module level exports the
+ * (0 = closed). The sidebar width, the right sidebar's width, and which
+ * sessions have that panel open are the durable fields — a column the user
+ * closed or dragged stays that way across a reload — while details and the
+ * narrow pair start fresh each page (details defaults closed, and the narrow
+ * pair is a reading of the current viewport). Module level exports the
  * factory only — a module-level handle would pin the store's identity in the
  * module cache (a de-facto singleton surviving plugin reloads). register()
  * receives the factory (exclusive use: the framework instantiates per entry),
@@ -20,12 +21,6 @@ import {
 export type RightbarSurface = {
   /** Whether the panel is drawn for this session. */
   shown: boolean
-  /**
-   * Remembered width in px, or null before this session first opened the
-   * panel. Closing keeps it, so reopening returns to the width the reader
-   * left rather than to the first-open fraction.
-   */
-  width: number | null
 }
 
 /**
@@ -41,17 +36,32 @@ type LayoutState = {
   narrow: boolean
   narrowExpanded: boolean
   /**
-   * Right sidebar state per session id. Switching sessions leaves each
-   * surface where its reader left it, so the panel is a property of the
-   * session being read rather than of the window. Persisted, so a reload
-   * restores each session's panel as its reader left it; a session absent
-   * from the stored map opens closed.
+   * Whether the right sidebar is drawn, per session id. Switching sessions
+   * leaves each panel open or closed as its reader left it, so being open is
+   * a property of the session being read. Persisted, so a reload restores
+   * that; a session absent from the map opens closed.
    *
-   * Frame width is not kept here. It is read in CSS from one custom property
-   * on the frame, which is what keeps a drag off the transcript's style
-   * invalidation path (AppFrame.module.css).
+   * The width is not here — it is one preference for every session
+   * ({@link LayoutState.rightbarWidth}).
+   *
+   * Frame width is not kept here either. It is read in CSS from one custom
+   * property on the frame, which is what keeps a drag off the transcript's
+   * style invalidation path (AppFrame.module.css).
    */
   rightbar: Record<string, RightbarSurface>
+  /**
+   * The right sidebar's width in px, shared by every session; 0 before the
+   * panel has first opened anywhere. Dragging the panel sets how wide this
+   * reader wants it, which is a preference about the window rather than about
+   * the session being read: a width dragged in one session is the width every
+   * other session's panel opens at. Which sessions are open stays per session,
+   * above.
+   *
+   * 0 rather than null for the unset state: persistence adopts a stored field
+   * only when it carries the same `typeof` as the initial value, so a null
+   * seed would drop every restored width on the floor.
+   */
+  rightbarWidth: number
   /**
    * A surface has taken over the viewport — a transcript block opened full
    * screen, today. The shell's own chrome yields its stacking order while
@@ -73,7 +83,7 @@ type LayoutActions = {
   openDetails: (draft: LayoutState) => void
   closeDetails: (draft: LayoutState) => void
   setFullscreen: (draft: LayoutState, fullscreen: boolean) => void
-  setRightbar: (draft: LayoutState, sessionId: string, px: number, viewport: number) => void
+  setRightbar: (draft: LayoutState, px: number, viewport: number) => void
   toggleRightbar: (draft: LayoutState, sessionId: string, viewport: number) => void
 }
 
@@ -81,23 +91,20 @@ type LayoutActions = {
 const LAYOUT_STORE_KEY = 'avn.layout.panels'
 
 /**
- * Show one session's right sidebar, seeding or re-clamping its width. Shared
- * by the open and toggle actions rather than one calling the other: actions
- * are pure draft mutators, not a callable set.
+ * Show one session's right sidebar, seeding the shared width on the first
+ * opening anywhere. Shared by the open and toggle actions rather than one
+ * calling the other: actions are pure draft mutators, not a callable set.
  * @param draft - layout draft being mutated.
  * @param sessionId - session whose surface opens.
  * @param viewport - current frame width in px.
  */
 function showRightbar(draft: LayoutState, sessionId: string, viewport: number): void {
-  const surface = draft.rightbar[sessionId]
-  if (surface === undefined) {
-    draft.rightbar[sessionId] = { shown: true, width: defaultRightbar(viewport) }
-    return
-  }
-  surface.shown = true
+  draft.rightbar[sessionId] = { shown: true }
   // A width remembered from a wider frame is re-clamped on reopening, so the
   // panel cannot come back wider than the current frame allows.
-  surface.width = surface.width === null ? defaultRightbar(viewport) : clampRightbar(surface.width, viewport)
+  draft.rightbarWidth = draft.rightbarWidth === 0
+    ? defaultRightbar(viewport)
+    : clampRightbar(draft.rightbarWidth, viewport)
 }
 
 /**
@@ -109,23 +116,23 @@ function showRightbar(draft: LayoutState, sessionId: string, viewport: number): 
  * auto-collapse breakpoint (AppFrame feeds setNarrow) the sidebar toggle
  * flips the narrowExpanded override instead of the preference.
  *
- * The right sidebar departs from that rule: its width is keyed by session and
- * survives closing, so reopening returns to the width that session's reader
- * left. It persists, so a reload restores each session's panel where its
- * reader left it.
+ * The right sidebar splits the two: being open is per session, while the width
+ * is one preference for every session, because how wide the reader wants the
+ * panel is a fact about the window rather than about what is being read. Both
+ * persist, so a reload restores each session's panel at the shared width.
  * @returns the store handle (spec + type + identity + factory in one).
  */
 export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutActions>  {
   const handle = defineStore({
     init: (): LayoutState => ({
       sidebar: SIDEBAR_DEFAULT, details: 0, narrow: false, narrowExpanded: false, fullscreen: false,
-      rightbar: {},
+      rightbar: {}, rightbarWidth: 0,
     }),
     // Reload restores the columns the reader left: the sidebar's width,
     // including a closed one (0), and each session's right sidebar. Details
     // stays out — its archived default is closed, and it reopens from an
     // explicit selection, not from the last page's geometry.
-    persist: { key: LAYOUT_STORE_KEY, fields: ['sidebar', 'rightbar'] },
+    persist: { key: LAYOUT_STORE_KEY, fields: ['sidebar', 'rightbar', 'rightbarWidth'] },
     actions: {
       setSidebar: (d, px: number) => { d.sidebar = clampWidth(px, SIDEBAR_MIN, SIDEBAR_MAX) },
       setDetails: (d, px: number) => { d.details = clampWidth(px, DETAILS_MIN, DETAILS_MAX) },
@@ -147,17 +154,16 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
       // Not persisted: a reload has no full-screen surface to restore, and a
       // stored `true` would leave the chrome yielded with nothing over it.
       setFullscreen: (d, fullscreen: boolean) => { d.fullscreen = fullscreen },
-      // A drag writes the width without touching `shown`: the handle only
-      // exists while the panel is open, and a gesture must not be able to
-      // close the panel it is resizing.
-      setRightbar: (d, sessionId: string, px: number, viewport: number) => {
-        const surface = d.rightbar[sessionId]
-        if (surface === undefined) return
-        surface.width = clampRightbar(px, viewport)
+      // A drag writes the shared width and names no session: how wide the
+      // reader wants the panel is a preference about the window, so a width
+      // dragged in one session is the width every other session opens at. It
+      // does not touch `shown` either — the handle only exists while the panel
+      // is open, and a gesture must not close the panel it is resizing.
+      setRightbar: (d, px: number, viewport: number) => {
+        d.rightbarWidth = clampRightbar(px, viewport)
       },
       toggleRightbar: (d, sessionId: string, viewport: number) => {
-        const surface = d.rightbar[sessionId]
-        if (surface?.shown === true) surface.shown = false
+        if (d.rightbar[sessionId]?.shown === true) d.rightbar[sessionId] = { shown: false }
         else showRightbar(d, sessionId, viewport)
       },
     },

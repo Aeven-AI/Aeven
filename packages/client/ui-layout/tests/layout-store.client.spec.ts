@@ -8,7 +8,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createLayoutStore } from '@aeven/client-ui-layout/src/client/stores.ts'
 import {
-  DETAILS_DEFAULT, DETAILS_MAX, DETAILS_MIN, RIGHTBAR_DEFAULT_RATIO, RIGHTBAR_MIN,
+  DETAILS_DEFAULT, DETAILS_MAX, DETAILS_MIN, RIGHTBAR_DEFAULT, RIGHTBAR_MIN,
   SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN,
 } from '@aeven/client-ui-layout/src/client/columns.ts'
 
@@ -128,47 +128,59 @@ describe('the right sidebar is one surface per session', () => {
   it('opens at the default fraction of the frame', () => {
     const { store, actions } = createLayoutStore().create()
     actions.toggleRightbar('s1', FRAME)
-    expect(store.getSnapshot().rightbar['s1']).toEqual({ shown: true, width: FRAME * RIGHTBAR_DEFAULT_RATIO })
+    expect(store.getSnapshot().rightbar['s1']).toEqual({ shown: true })
+    expect(store.getSnapshot().rightbarWidth).toBe(RIGHTBAR_DEFAULT)
   })
 
-  it('keeps each session where its reader left it', () => {
+  it('keeps each session open or closed as its reader left it', () => {
     const { store, actions } = createLayoutStore().create()
     actions.toggleRightbar('s1', FRAME)
-    actions.setRightbar('s1', 500, FRAME)
     actions.toggleRightbar('s2', FRAME)
     actions.toggleRightbar('s2', FRAME)
 
     const { rightbar } = store.getSnapshot()
-    expect(rightbar['s1']).toEqual({ shown: true, width: 500 })
+    expect(rightbar['s1']?.shown).toBe(true)
     expect(rightbar['s2']?.shown).toBe(false)
+  })
+
+  it('carries a dragged width to every other session', () => {
+    const { store, actions } = createLayoutStore().create()
+    actions.toggleRightbar('s1', FRAME)
+    actions.setRightbar(500, FRAME)
+    // A session that has never been opened still opens at the reader's width:
+    // how wide the panel is belongs to the window, not to what is being read.
+    actions.toggleRightbar('s2', FRAME)
+    expect(store.getSnapshot().rightbarWidth).toBe(500)
   })
 
   it('closing keeps the width, so reopening returns to it', () => {
     const { store, actions } = createLayoutStore().create()
     actions.toggleRightbar('s1', FRAME)
-    actions.setRightbar('s1', 480, FRAME)
+    actions.setRightbar(480, FRAME)
     actions.toggleRightbar('s1', FRAME)
-    expect(store.getSnapshot().rightbar['s1']).toEqual({ shown: false, width: 480 })
+    expect(store.getSnapshot().rightbar['s1']?.shown).toBe(false)
+    expect(store.getSnapshot().rightbarWidth).toBe(480)
 
     actions.toggleRightbar('s1', FRAME)
-    expect(store.getSnapshot().rightbar['s1']).toEqual({ shown: true, width: 480 })
+    expect(store.getSnapshot().rightbar['s1']?.shown).toBe(true)
+    expect(store.getSnapshot().rightbarWidth).toBe(480)
   })
 
   it('re-clamps a width remembered from a wider frame', () => {
     const { store, actions } = createLayoutStore().create()
     actions.toggleRightbar('s1', FRAME)
-    actions.setRightbar('s1', 1000, FRAME)
+    actions.setRightbar(1000, FRAME)
     actions.toggleRightbar('s1', FRAME)
 
     // 800 * 0.7 = 560 is the ceiling in the narrower frame.
     actions.toggleRightbar('s1', 800)
-    expect(store.getSnapshot().rightbar['s1']?.width).toBe(560)
+    expect(store.getSnapshot().rightbarWidth).toBe(560)
   })
 
   it('never opens below the floor, however narrow the frame', () => {
     const { store, actions } = createLayoutStore().create()
     actions.toggleRightbar('s1', 200)
-    expect(store.getSnapshot().rightbar['s1']?.width).toBe(RIGHTBAR_MIN)
+    expect(store.getSnapshot().rightbarWidth).toBe(RIGHTBAR_MIN)
   })
 
   it('toggles the named session alone', () => {
@@ -184,21 +196,18 @@ describe('the right sidebar is one surface per session', () => {
   it('a drag cannot close the panel it resizes', () => {
     const { store, actions } = createLayoutStore().create()
     actions.toggleRightbar('s1', FRAME)
-    actions.setRightbar('s1', 0, FRAME)
-    const surface = store.getSnapshot().rightbar['s1']
-    expect(surface?.shown).toBe(true)
-    expect(surface?.width).toBe(RIGHTBAR_MIN)
+    actions.setRightbar(0, FRAME)
+    expect(store.getSnapshot().rightbar['s1']?.shown).toBe(true)
+    expect(store.getSnapshot().rightbarWidth).toBe(RIGHTBAR_MIN)
   })
 
-  it('a width written for an unopened session is ignored', () => {
-    const { store, actions } = createLayoutStore().create()
-    actions.setRightbar('ghost', 400, FRAME)
-    expect(store.getSnapshot().rightbar['ghost']).toBeUndefined()
-  })
-
-  it('stays out of localStorage: a reload opens every session closed', () => {
+  it('restores which sessions were open, and the shared width, across a reload', () => {
     const first = createLayoutStore().create()
     first.actions.toggleRightbar('s1', FRAME)
-    expect(createLayoutStore().create().store.getSnapshot().rightbar).toEqual({})
+    first.actions.setRightbar(460, FRAME)
+
+    const reloaded = createLayoutStore().create().store.getSnapshot()
+    expect(reloaded.rightbar['s1']?.shown).toBe(true)
+    expect(reloaded.rightbarWidth).toBe(460)
   })
 })
