@@ -8,6 +8,7 @@ import { parseArgs } from 'node:util'
 import { pnpmInvocation } from '../../../scripts/pnpm-invocation.ts'
 import { DESKTOP_HOST_PROTOCOL_VERSION } from '../src/host-protocol.ts'
 import type { DesktopRelease } from '../src/release.ts'
+import { prepareDevelopmentApp } from './development-app.ts'
 import { prepareDevelopmentProject } from './development-project.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
@@ -71,6 +72,26 @@ async function launchElectron(projectDir: string): Promise<void> {
   }
   console.log(`desktop development: AVN_HOME=${home}`)
   console.log(`desktop development: inspectors main=${String(mainPort)}, renderer=${String(rendererPort)}, host=${String(hostPort)}`)
+  // The macOS Electron executable rejects `--remote-debugging-port` and
+  // `--user-data-dir` as command-line arguments, so darwin launches a
+  // generated bundle that carries them in its own launcher instead.
+  if (process.platform === 'darwin') {
+    const executable = prepareDevelopmentApp({
+      electron,
+      appRoot: APP_ROOT,
+      directory: DEVELOPMENT_ROOT,
+      home,
+      userData,
+      projectDir,
+      nodeBinary: process.execPath,
+      mainPort,
+      rendererPort,
+      hostPort,
+      openDevtools: environment.AVN_DESKTOP_OPEN_DEVTOOLS ?? '1',
+    })
+    await run(executable, [], APP_ROOT, environment)
+    return
+  }
   await run(electron, [
     `--inspect=127.0.0.1:${String(mainPort)}`,
     `--remote-debugging-port=${String(rendererPort)}`,
