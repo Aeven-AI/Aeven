@@ -193,6 +193,20 @@ function isBrowserBundleFormatFalsePositive(message: Message): boolean {
     || /(^|\/)\.\/(client|worker)$/.test(exportKey)
 }
 
+/**
+ * Every package declares `./src/*` so repository-internal callers — tests, and
+ * the `./src/*` import contract the client rules state — can reach a module that
+ * is not part of the published payload: `files` lists the built entries and
+ * `lib/types` only, so the glob matches nothing inside the packed view by
+ * construction. Exactly that verdict on exactly that export key is suppressed;
+ * a glob export that matches nothing for any other reason stays fatal, and the
+ * `exports` map is still checked against every file the payload does contain.
+ */
+function isRepositoryInternalSourceExport(message: Message): boolean {
+  if (message.code !== 'EXPORTS_GLOB_NO_MATCHED_FILES') return false
+  return Array.isArray(message.path) && message.path.length === 2 && message.path[1] === './src/*'
+}
+
 async function runPublint(target: PackageTarget): Promise<PublintResult> {
   try {
     const files = publicationFiles(target)
@@ -202,7 +216,8 @@ async function runPublint(target: PackageTarget): Promise<PublintResult> {
       pack: { files },
     })
     const manifest = result.pkg as Record<string, unknown>
-    const messages = result.messages.filter(message => !isBrowserBundleFormatFalsePositive(message))
+    const messages = result.messages.filter(message =>
+      !isBrowserBundleFormatFalsePositive(message) && !isRepositoryInternalSourceExport(message))
     return messages.some(message => message.type === 'error') || closureViolations.length > 0
       ? { path: target.path, status: 'failed', messages, closureViolations, manifest }
       : { path: target.path, status: 'passed', messages, closureViolations, manifest }
