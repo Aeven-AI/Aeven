@@ -5224,6 +5224,8 @@ importers:
         specifier: ^4.2.0
         version: 4.3.1
 
+  packages/experimental/browser-devtools: {}
+
   packages/experimental/browser-overlay:
     devDependencies:
       '@deepseek-ai/cordis':
@@ -6846,6 +6848,12 @@ importers:
 
   packages/llm/llm-aeven:
     dependencies:
+      '@aeven/attachment':
+        specifier: workspace:^
+        version: link:../../attachment/attachment
+      '@aeven/fs':
+        specifier: workspace:^
+        version: link:../../fs/fs
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery

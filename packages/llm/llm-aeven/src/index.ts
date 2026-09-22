@@ -8,9 +8,15 @@
  * adapter would be a copy of the same wire behaviour with its own bugs. What
  * differs between the two routes is not the transport but the authority behind
  * it: DeepSeek's platform, against Aeven's, which the registering plugin owns.
- * The DeepSeek-only paths (file upload, image offload) stay unconfigured here,
- * because the gateway accepts images inline as `image_url` parts and has no
- * files API to upload them to.
+ * Two of the adapter's hooks are wired here and one is not. The durable
+ * attachment store is, because an image in the conversation is a content-
+ * addressed reference that only that store can turn into bytes; without it every
+ * image-bearing request on this route is refused before anything is serialized,
+ * which is what `read_image` and a pasted screenshot both hit. So is the
+ * read-only access bridge, which is what tells a model where the normalized copy
+ * of that image sits on disk. The Files API stays unconfigured: the gateway has
+ * none to upload to, so the adapter's file attempt fails over to the inline
+ * `image_url` form the gateway does accept.
  *
  * **Why this route exists.** A key is what a user must produce to talk to a
  * provider directly; an Aeven sign-in already establishes the same thing. So the
@@ -31,8 +37,10 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { LlmError, resolveRetryPolicy, RetryPolicySchema } from '@aeven/llm'
+import { LlmError, resolveImageAttachmentAccess, resolveRetryPolicy, RetryPolicySchema } from '@aeven/llm'
 import type { LlmProviderInfo, RetryPolicyConfig } from '@aeven/llm'
+import type {} from '@aeven/attachment'
+import type {} from '@aeven/fs'
 import { credentialRef } from '@aeven/credentials'
 import { MAX_TIMER_DELAY_MS } from '@aeven/timeout'
 import { getOrCreateAnonymousUserId, type AnonymousUserId } from '@aeven/anonymous-user-id'
@@ -317,6 +325,15 @@ export function apply(ctx: Context, config: Config): void {
     options,
     resolveApiKey,
     resolveUserId,
+    // Resolved per request, never captured: the store is mounted by the base
+    // composition beside this row, and a request that carries no image never
+    // touches it.
+    resolveAttachments: () => ctx.get('attachments'),
+    resolveImageAccess: (attachments, ref) => resolveImageAttachmentAccess(
+      attachments,
+      hostPath => ctx.get('fs')?.processPathFromHostPath(hostPath),
+      ref,
+    ),
     // Aeven's gateway carries no plugin-contributed top-level fields, so every
     // request contributes none and acceptance is a no-op.
     prepareExtensions: () => Promise.resolve({ fields: {}, accept: () => Promise.resolve() }),

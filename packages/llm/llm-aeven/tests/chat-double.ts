@@ -46,15 +46,60 @@ function decodeBody(body: BodyInit | null | undefined): Record<string, unknown> 
 export function stubChatCompletions(): ChatCall[] {
   const calls: ChatCall[] = []
   vi.stubGlobal('fetch', (input: string | URL, init: RequestInit = {}): Promise<Response> => {
-    calls.push({
-      url: String(input),
-      headers: Object.fromEntries(new Headers(init.headers).entries()),
-      body: decodeBody(init.body),
-    })
-    return Promise.resolve(new Response(
-      TEXT_GENERATION.map(event => `data: ${event}\n\n`).join(''),
-      { status: 200, headers: { 'content-type': 'text/event-stream' } },
-    ))
+    calls.push(record(input, init))
+    return Promise.resolve(textGeneration())
   })
   return calls
+}
+
+/** The recorded chat calls and the URLs a files-less gateway refused. */
+export interface GatewayCalls {
+  /** Chat-completions calls, in request order. */
+  chat: ChatCall[]
+  /** URLs the adapter addressed and this gateway does not serve, such as `/files`. */
+  refused: string[]
+}
+
+/**
+ * Replace `fetch` with the whole surface this route addresses: the
+ * chat-completions stand-in above, plus a `/files` path that answers 404.
+ *
+ * That refusal is the real gateway's shape — it is an inference gateway with no
+ * Files API — and it is why an image reaches it inline: the adapter's file
+ * representation fails over to the base64 one. The caller restores the real
+ * `fetch` with `vi.unstubAllGlobals()`.
+ * @returns the chat calls, and the URLs refused.
+ */
+export function stubGatewayWithoutFilesApi(): GatewayCalls {
+  const calls: GatewayCalls = { chat: [], refused: [] }
+  vi.stubGlobal('fetch', (input: string | URL, init: RequestInit = {}): Promise<Response> => {
+    const url = String(input)
+    if (url.endsWith('/files')) {
+      calls.refused.push(url)
+      return Promise.resolve(new Response('{"error":{"message":"no Files API on this gateway"}}', {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      }))
+    }
+    calls.chat.push(record(input, init))
+    return Promise.resolve(textGeneration())
+  })
+  return calls
+}
+
+/** Record one call: endpoint, lowercased headers, and decoded JSON body. */
+function record(input: string | URL, init: RequestInit): ChatCall {
+  return {
+    url: String(input),
+    headers: Object.fromEntries(new Headers(init.headers).entries()),
+    body: decodeBody(init.body),
+  }
+}
+
+/** One complete text generation as a server-sent-events response. */
+function textGeneration(): Response {
+  return new Response(
+    TEXT_GENERATION.map(event => `data: ${event}\n\n`).join(''),
+    { status: 200, headers: { 'content-type': 'text/event-stream' } },
+  )
 }
