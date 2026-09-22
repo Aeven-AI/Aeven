@@ -1,0 +1,10 @@
+version: 1
+scenario: todo-stale-reminder
+profile: headless
+composition: todo-stale-reminder
+recording: authored
+header:
+  class: todo-stale-reminder
+  pin: true
+  systemPromptSource: text-turn
+  toolSchemasSource: text-turn
