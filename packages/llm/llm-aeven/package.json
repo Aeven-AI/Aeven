@@ -28,7 +28,9 @@
   "license": "MIT",
   "peerDependencies": {
     "@aeven/anonymous-user-id": "workspace:^",
+    "@aeven/attachment": "workspace:^",
     "@aeven/credentials": "workspace:^",
+    "@aeven/fs": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/llm-deepseek": "workspace:^",
     "@aeven/settings": "workspace:^",
