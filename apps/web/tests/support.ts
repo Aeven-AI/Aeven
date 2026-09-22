@@ -5,6 +5,17 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Browser, Locator, Page } from 'playwright'
 
+/**
+ * Budget for a wait on rendered conversation content.
+ *
+ * The lane grants `testTimeout: 180_000` (`vitest.web.config.ts`) and runs
+ * several browser files beside the other gates, so each render follows a real
+ * host's SSE round trip while the runner is busy: a locator default of a few
+ * seconds decides the outcome on contention rather than on the page. Sizing a
+ * wait to this budget names the state it waits for instead of shortening it.
+ */
+export const RENDER_WAIT_MS = 60_000
+
 /** The built page under test; `pnpm run test:web` rebuilds it before running. */
 export const DIST_INDEX = fileURLToPath(new URL('../dist/index.html', import.meta.url))
 
