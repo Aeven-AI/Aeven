@@ -1042,7 +1042,7 @@ export interface Config {
 ```
 
 
-来源：[`packages/host/frontend-static/src/index.ts:31`](../packages/host/frontend-static/src/index.ts)
+来源：[`packages/host/frontend-static/src/index.ts:32`](../packages/host/frontend-static/src/index.ts)
 
 <a id="aevenhost-webserver"></a>
 ## `@aeven/host-webserver`
@@ -1064,7 +1064,7 @@ export interface Config {
 ```
 
 
-来源：[`packages/host/webserver/src/index.ts:59`](../packages/host/webserver/src/index.ts)
+来源：[`packages/host/webserver/src/index.ts:62`](../packages/host/webserver/src/index.ts)
 
 <a id="aevenhost-workspace-files"></a>
 ## `@aeven/host-workspace-files`
@@ -1162,7 +1162,7 @@ export type OAuthFlow = 'redirect' | 'window'
 ```
 
 
-来源：[`packages/identity/user-aeven/src/index.ts:63`](../packages/identity/user-aeven/src/index.ts)
+来源：[`packages/identity/user-aeven/src/index.ts:64`](../packages/identity/user-aeven/src/index.ts)
 
 <a id="aeveninvariants"></a>
 ## `@aeven/invariants`
@@ -1265,7 +1265,7 @@ export interface Config {
 
 依赖： [`DeepSeekCatalogModel`](../packages/llm/llm-deepseek/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
 
-来源：[`packages/llm/llm-aeven/src/index.ts:170`](../packages/llm/llm-aeven/src/index.ts)
+来源：[`packages/llm/llm-aeven/src/index.ts:178`](../packages/llm/llm-aeven/src/index.ts)
 
 <a id="aevenllm-deepseek"></a>
 ## `@aeven/llm-deepseek`
