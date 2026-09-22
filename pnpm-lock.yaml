@@ -15,6 +15,9 @@ importers:
 
   .:
     devDependencies:
+      '@aeven/atomic-write':
+        specifier: workspace:^
+        version: link:packages/util/atomic-write
       '@aeven/media':
         specifier: workspace:^
         version: link:packages/media/media
