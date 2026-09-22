@@ -146,22 +146,6 @@ export function AppFrame({
   })
   const [narrow, setNarrow] = useState(() => matchNarrow()?.matches ?? false)
   const frameRef = useRef<HTMLDivElement | null>(null)
-  const cornerRef = useRef<HTMLDivElement | null>(null)
-  // The corner dock floats above the centre column, so the column has to
-  // reserve its width to keep the conversation header's own content out from
-  // under it. The dock is laid out from its occupants — which plugins
-  // register — so its width is measured rather than restated in CSS. It
-  // changes when an occupant mounts or its copy does, not while a column
-  // animates, so this observer is off the slide's path entirely.
-  const [cornerWidth, setCornerWidth] = useState(0)
-  useLayoutEffect(() => {
-    const dock = cornerRef.current
-    if (dock === null || typeof ResizeObserver !== 'function') return
-    const observer = new ResizeObserver(() => { setCornerWidth(dock.getBoundingClientRect().width) })
-    observer.observe(dock)
-    return () => { observer.disconnect() }
-  }, [])
-
   const lastSession = useRef(currentSession)
   useLayoutEffect(() => {
     if (currentSession === undefined) return
@@ -215,6 +199,26 @@ export function AppFrame({
   const rightbarRef = useRef(rightbarWidth)
   rightbarRef.current = rightbarWidth
 
+  // A Session switch redraws the side columns at the geometry that Session was
+  // left at. That is a different layout, not a movement within one, so the
+  // columns take it without a transition: eased, the panel slides between two
+  // readers' widths and the transcript reflows behind it for the whole curve.
+  // The flag lasts one commit — cleared in the effect below, after the frame
+  // that carried the new widths has been painted with transitions suppressed.
+  const [switching, setSwitching] = useState(false)
+  const lastRightbarSession = useRef(rightbarSession)
+  if (lastRightbarSession.current !== rightbarSession) {
+    lastRightbarSession.current = rightbarSession
+    if (!switching) setSwitching(true)
+  }
+  useLayoutEffect(() => {
+    if (!switching) return
+    // Two frames: the first paints the new widths under the suppression, the
+    // second restores easing for the reader's own subsequent gestures.
+    const frame = requestAnimationFrame(() => { setSwitching(false) })
+    return () => { cancelAnimationFrame(frame) }
+  }, [switching])
+
   // The drag base is the width in force at drag start, frozen for the whole
   // gesture so dx deltas do not compound.
   const detailsBase = useRef(0)
@@ -250,12 +254,12 @@ export function AppFrame({
       style={{
         '--avn-frame-details-width': `${String(detailsWidth)}px`,
         '--avn-frame-rightbar-width': `${String(rightbarWidth)}px`,
-        '--avn-frame-corner-width': `${String(cornerWidth)}px`,
       } as CSSProperties}
       data-sidebar-collapsed={sidebarCollapsed || undefined}
       data-details-collapsed={detailsWidth === 0 || undefined}
       data-rightbar-collapsed={rightbarWidth === 0 || undefined}
       data-dragging={dragging || undefined}
+      data-switching={switching || undefined}
       data-fullscreen={panels.fullscreen || undefined}
     >
       <DocumentTitle
@@ -284,11 +288,15 @@ export function AppFrame({
           </SessionProvider>
         </RightbarColumn>
       </>
+      {/* The Session cover's box, laid out against the frame so it spans every
+          column right of the sidebar. ui-conversation owns when it is covered
+          and renders into this node; the frame owns only where it sits. */}
+      <div className={css.coverLayer} data-shell-cover />
       {/* The corner is laid out against the frame, so the columns move under
           it and its occupants hold one place on screen. It reserves the right
           sidebar's own toggle width when that column is closed, which is the
           gutter the panel's chrome occupies once it is open. */}
-      <div ref={cornerRef} className={css.cornerDock} data-shell-corner>
+      <div className={css.cornerDock} data-shell-corner>
         {renderSlot('shell.corner', { rightbarCollapsed: rightbarWidth === 0 })}
       </div>
       <div className={css.overlayLayer} data-shell-overlay>

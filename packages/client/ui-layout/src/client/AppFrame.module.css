@@ -4,6 +4,23 @@
   height: 100%;
   overflow: hidden;
   background: var(--dsw-alias-bg-base);
+  /* The corner dock's geometry, stated once and read by both the dock and the
+     spacer the conversation header reserves for it, so the two cannot drift.
+     `seats` is the dock's content width — its occupants plus the gaps between
+     them — and a seat added to the corner is added here. Stating it beats
+     measuring the dock: a width published from JavaScript per layout is what
+     the column rules above exist to avoid. */
+  --avn-shell-corner-gap: 8px;
+  --avn-shell-corner-seats: calc(
+    /* the right sidebar's toggle */
+    var(--dsw-aeven-control-size)
+    + var(--avn-shell-corner-gap)
+    /* the account avatar */
+    + 30px
+    /* the dock's own inset from the frame's edge */
+    + var(--dsw-aeven-page-inset)
+    + var(--dsw-aeven-page-inset)
+  );
 }
 
 /* Inline-size query container for the conversation's width axis. The column
@@ -24,24 +41,22 @@
 }
 
 /* The corner dock floats above the frame's right edge rather than taking part
-   in any column's layout, so this column publishes how much of its own right
-   edge the dock actually covers. The conversation header reserves that much,
-   keeping its crumbs, tabs and session controls clear of the dock instead of
-   running under it (ui-conversation ConversationRoot.module.css).
+   in any column's layout, so this column states how much of its own right edge
+   the dock covers. The conversation header reserves that much, keeping its
+   crumbs, tabs and session controls clear of the dock instead of running under
+   it (ui-conversation ConversationRoot.module.css).
 
-   The right sidebar sits between this column and the frame's edge, so it
-   takes the overlap with it: once that column is wider than the dock, the
-   dock is entirely over the sidebar and this column reserves nothing. `max`
-   floors the term at zero rather than letting a wider sidebar subtract from
-   the page inset.
+   The right sidebar sits between this column and the frame's edge and takes
+   the overlap with it: once that column is wider than the dock, the dock is
+   entirely over the sidebar and this column reserves nothing.
 
-   The dock sizes itself to its occupants and writes the measured width here,
-   so neither this rule nor the header restates what the dock contains. */
+   The dock's width is not stated here. The conversation header reserves it in
+   its own flow, from a spacer that mirrors the dock's seats
+   (ui-conversation ConversationRoot.module.css), so adding a corner seat
+   widens the reservation without anything measuring the dock. This term is
+   only how much of that reservation the right sidebar has taken over. */
 .centerCol {
-  --avn-shell-corner-clearance: max(
-    0px,
-    calc(var(--avn-frame-corner-width, 0px) - var(--avn-frame-rightbar-width, 0px))
-  );
+  --avn-shell-corner-overlap: var(--avn-frame-rightbar-width, 0px);
 }
 
 
@@ -147,6 +162,17 @@
   transition: none;
 }
 
+/* A Session switch redraws the side columns at the geometry that Session was
+   left at. That is a different layout, not a movement within one, so every
+   layer that eases a column takes it in one frame: eased, the panel would
+   slide between two readers' widths while the transcript reflows behind it. */
+.frame[data-switching] .detailsCol,
+.frame[data-switching] .rightbarCol,
+.frame[data-switching] .handle,
+.frame[data-switching] .coverLayer {
+  transition: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .handle {
     transition: none;
@@ -185,6 +211,50 @@
   border-color: var(--dsw-alias-border-l3);
 }
 
+/* The frame-wide cover a Session switch paints over everything it is about to
+   replace. It clears the left sidebar, whose column keeps its own geometry
+   through the switch, and spans every column right of it — conversation,
+   details, right sidebar — plus the chrome laid out over them, so the reader
+   sees one surface settle rather than a transcript blanking inside a frame
+   that stayed put.
+
+   Collapsed, the sidebar's term is its toggle width, so the cover stops clear
+   of the hamburger: the one control that has to stay reachable while the
+   column it opens is hidden. The corner dock outranks this layer for the same
+   reason, keeping the avatar and the panel toggle visible throughout.
+
+   Occupants come from ui-conversation, which owns when a Session is covered;
+   this states only where the cover sits. */
+.coverLayer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  /* The sidebar's own open width, the token its panel is drawn from — not the
+     store's width preference, which the panel does not paint at. Reading the
+     preference here left the cover overlapping the panel by the difference. */
+  left: var(--dsw-aeven-sidebar-width);
+  z-index: 51;
+  pointer-events: none;
+  transition: left var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
+}
+
+/* Collapsed the column has no width, but its toggle still stands in the
+   margin: the cover stops clear of that one control. */
+.frame[data-sidebar-collapsed] .coverLayer {
+  left: var(--dsw-aeven-sidebar-toggle-width);
+}
+
+.coverLayer > * {
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coverLayer {
+    transition: none;
+  }
+}
+
 /* The frame's top-right corner, holding chrome that belongs to the window
    rather than to a column: the account avatar and the right sidebar's toggle.
    Positioned against the frame, so a column opening underneath moves nothing
@@ -205,7 +275,8 @@
   z-index: 52;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: var(--avn-shell-corner-gap);
   height: 56px;
   padding: 0 var(--dsw-aeven-page-inset);
   box-sizing: border-box;

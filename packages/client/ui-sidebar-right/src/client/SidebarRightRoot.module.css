@@ -118,6 +118,16 @@
   transition: none;
 }
 
+/* A Session switch redraws this panel at the width that Session was left at.
+   That is a different layout, not a movement within one, so the layers take
+   it in one frame rather than sliding between two readers' widths. The frame
+   marks the switch on itself (ui-layout AppFrame.module.css). */
+:global([data-switching]) .content,
+:global([data-switching]) .panel,
+:global([data-switching]) .sideContent {
+  transition: none;
+}
+
 /* Fixed at the open width so nothing inside re-lays-out mid-slide. */
 .sideContentInner {
   flex: 1 1 auto;

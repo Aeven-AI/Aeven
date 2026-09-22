@@ -81,13 +81,7 @@
   align-items: center;
   justify-content: flex-end;
   box-sizing: border-box;
-  /* The right inset clears the frame's corner dock, which floats above this
-     column and holds the account avatar and the right sidebar's toggle. The
-     dock publishes its own measured width, so the bar reserves exactly what
-     the dock covers and its own content stops short of it rather than running
-     underneath. */
-  padding: 0
-    max(var(--dsw-aeven-page-inset), var(--avn-shell-corner-clearance, 0px)) 0
+  padding: 0 var(--dsw-aeven-page-inset) 0
     max(var(--dsw-aeven-page-inset), var(--avn-sidebar-overlay-clearance, 0px));
   background: transparent;
   border: none;
@@ -250,16 +244,42 @@
    gap that separates entries inside them, so the two read as the one row they
    have always looked like; the title's own 20px separation stays on
    `.headerUtilities`, which is absent without a Session. */
+/* Reserves the frame's corner dock in the bar's own flow. The dock holds the
+   account avatar and the right sidebar's toggle, and is laid out against the
+   frame rather than in this column, so without a box here the bar's crumbs and
+   tabs run underneath it.
+
+   The reservation is the dock's seats mirrored, not a measured width: each
+   seat states its own size, so a seat added to the corner widens this the same
+   way it widens the dock. The right sidebar takes the overlap over as it
+   opens — once that column is wider than the dock, the dock is entirely over
+   the sidebar and this reserves nothing. */
 .navigationUtilities {
   display: flex;
   flex: none;
   align-items: center;
-  gap: 8px;
+  gap: var(--avn-shell-corner-gap, 8px);
   margin-left: 8px;
+  width: max(
+    0px,
+    calc(var(--avn-shell-corner-seats) - var(--avn-shell-corner-overlap, 0px))
+  );
+  /* Eases with the column that takes it over, on that column's own curve. */
+  transition: width var(--dsw-aeven-rightbar-transition-duration)
+    var(--dsw-aeven-rightbar-transition-timing);
 }
 
-.navigationUtilities:empty {
-  display: none;
+/* A drag rewrites the overlap at pointer cadence, so the reservation follows
+   it directly rather than trailing the handle the reader is holding. */
+:global([data-dragging]) .navigationUtilities,
+:global([data-switching]) .navigationUtilities {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navigationUtilities {
+    transition: none;
+  }
 }
 
 /* Tabs sit in the 56px overlay row with the title, matching Aeven's single
@@ -490,10 +510,12 @@
    usage panel (1100), paints above the plate while the body is mounted under it.
    `.scrollArea` capped that group at 5 and went with the one-scroller box tree
    ([decision](../../../../../../.agents/notes/implemented/bug-fix/2026-09-09-content-cover-behind-composer.md)). */
+/* Fills the frame's cover layer, which states the box (ui-layout
+   AppFrame.module.css): every column right of the sidebar, and the chrome laid
+   over them. The layer carries the stacking order, so this needs none. */
 .contentLoader {
   position: absolute;
   inset: 0;
-  z-index: 6;
   display: flex;
   align-items: center;
   justify-content: center;
