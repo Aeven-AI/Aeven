@@ -1041,7 +1041,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/host/frontend-static/src/index.ts:31`](../packages/host/frontend-static/src/index.ts)
+Source: [`packages/host/frontend-static/src/index.ts:32`](../packages/host/frontend-static/src/index.ts)
 
 <a id="aevenhost-webserver"></a>
 
@@ -1063,7 +1063,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/host/webserver/src/index.ts:59`](../packages/host/webserver/src/index.ts)
+Source: [`packages/host/webserver/src/index.ts:62`](../packages/host/webserver/src/index.ts)
 
 <a id="aevenhost-workspace-files"></a>
 
@@ -1161,7 +1161,7 @@ export interface Config {
 export type OAuthFlow = 'redirect' | 'window'
 ```
 
-Source: [`packages/identity/user-aeven/src/index.ts:63`](../packages/identity/user-aeven/src/index.ts)
+Source: [`packages/identity/user-aeven/src/index.ts:64`](../packages/identity/user-aeven/src/index.ts)
 
 <a id="aeveninvariants"></a>
 
@@ -1264,7 +1264,7 @@ export interface Config {
 
 Depends on: [`DeepSeekCatalogModel`](../packages/llm/llm-deepseek/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
 
-Source: [`packages/llm/llm-aeven/src/index.ts:170`](../packages/llm/llm-aeven/src/index.ts)
+Source: [`packages/llm/llm-aeven/src/index.ts:178`](../packages/llm/llm-aeven/src/index.ts)
 
 <a id="aevenllm-deepseek"></a>
 
