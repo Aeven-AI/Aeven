@@ -2,6 +2,11 @@
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "extends": ["./.oxlintrc.json"],
   "options": {
+    // This pass cannot see the type-aware rules, so it cannot tell a directive
+    // that suppresses one from a directive nothing uses: every such suppression
+    // reads as unused here. The full lint keeps the base config's "warn" and is
+    // the gate that reports a genuinely dead directive.
+    "reportUnusedDisableDirectives": "off",
     "typeAware": false
   },
   "ignorePatterns": [
