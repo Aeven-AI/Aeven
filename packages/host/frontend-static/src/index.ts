@@ -17,6 +17,7 @@ import type { ServerResponse } from 'node:http'
 import { readFile } from 'node:fs/promises'
 import { dirname, extname, join, normalize, resolve, sep } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
+import { requestOrigin } from '@aeven/host-webserver'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@aeven/client-connection'
 import type {} from '@aeven/host-webserver'
@@ -70,12 +71,16 @@ const SPA_ROUTE_PREFIXES = ['/c/', '/sign-in', '/sign-up', '/oauth-result'] as c
  * @param distIndex - absolute path of index.html inside distRoot.
  * @param authorizeIndex - authenticates an index response before its bytes are read.
  * @param renderIndex - produces the index.html body (structured injection
- * rendering) for the dist root and configured index path.
+ * rendering) for the dist root and configured index path; the origin is the one
+ * the request was addressed to, absent when it stated no host.
+ * @param origin - the origin the request was addressed to, or undefined when it
+ * stated no host; handed to `renderIndex`.
  */
 export async function serveStatic(
   pathname: string, res: ServerResponse, distRoot: string, distIndex: string,
   authorizeIndex: () => boolean,
-  renderIndex: () => Promise<string>,
+  renderIndex: (origin?: string) => Promise<string>,
+  origin?: string,
 ): Promise<void> {
   const target = resolve(normalize(join(distRoot, pathname)))
   // Traversal rejection: the target must be distRoot itself (`/`) or stay under
@@ -91,7 +96,7 @@ export async function serveStatic(
   try {
     if (target === distRoot || target === distIndex) {
       if (!authorizeIndex()) return
-      body = await renderIndex()
+      body = await renderIndex(origin)
       type = HTML_MIME
     } else {
       body = await readFile(target)
@@ -104,7 +109,7 @@ export async function serveStatic(
     const spaRoute = SPA_ROUTE_PREFIXES.some(prefix => pathname.startsWith(prefix))
     if (code === 'ENOENT' && spaRoute && extname(target) === '') {
       if (!authorizeIndex()) return
-      body = await renderIndex()
+      body = await renderIndex(origin)
       type = HTML_MIME
       res.writeHead(200, { 'content-type': type })
       res.end(body)
@@ -133,8 +138,8 @@ export function apply(ctx: Context, config: Config): void {
   // static directory; served pages also answer deep SPA-fallback paths, where
   // relative asset URLs would resolve under the request directory, so the
   // served form anchors them at the site root ahead of every URL-bearing tag.
-  const renderIndex = async (): Promise<string> => {
-    const body = ctx.webServer.renderIndex(await readFile(distIndex, 'utf8'))
+  const renderIndex = async (origin?: string): Promise<string> => {
+    const body = ctx.webServer.renderIndex(await readFile(distIndex, 'utf8'), origin)
     return body.replace(/<head(?:\s[^>]*)?>/i, open => `${open}<base href="/">`)
   }
   ctx.effect(() => ctx.webServer.registerFallback(async (req, res) => {
@@ -154,6 +159,10 @@ export function apply(ctx: Context, config: Config): void {
       distIndex,
       () => ctx.connection.authorizeIndex(req, res),
       renderIndex,
+      // The Host knows which spelling the page arrived on; handing it to the
+      // injection table is what lets a subscriber state deployment URLs under
+      // that spelling instead of the client repairing them afterwards.
+      requestOrigin(req),
     )
   }), 'frontend-static: fallback seat')
 }

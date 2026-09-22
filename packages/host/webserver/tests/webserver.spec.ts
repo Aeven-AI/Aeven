@@ -15,7 +15,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
-import HttpServer, { renderIndexInjections } from '../src/index.ts'
+import type { IncomingMessage } from 'node:http'
+import HttpServer, { renderIndexInjections, requestOrigin } from '../src/index.ts'
 
 let root: string | undefined
 let context: Context | undefined
@@ -381,4 +382,28 @@ describe('real Loader composition', () => {
       root = firstRoot
     }
   })
+})
+
+/** A node:http request reduced to what an origin is read from. */
+function incoming(headers: Record<string, string>, encrypted = false): IncomingMessage {
+  return { headers, socket: { encrypted } } as unknown as IncomingMessage
+}
+
+describe('request origins', () => {
+  it('states the origin from the Host header and the socket', () => {
+    expect(requestOrigin(incoming({ host: 'localhost:3060' }))).toBe('http://localhost:3060')
+    expect(requestOrigin(incoming({ host: '127.0.0.1:3060' }, true))).toBe('https://127.0.0.1:3060')
+  })
+
+  it('trusts a proxy that states the scheme', () => {
+    // Behind a TLS-terminating proxy the socket is unencrypted, so the header
+    // is the only statement of the scheme the reader actually used.
+    expect(requestOrigin(incoming({ host: 'aeven.ai', 'x-forwarded-proto': 'https' }))).toBe('https://aeven.ai')
+    expect(requestOrigin(incoming({ host: 'aeven.ai', 'x-forwarded-proto': 'https, http' }))).toBe('https://aeven.ai')
+  })
+
+  it('states no origin for a request without a host', () => {
+    expect(requestOrigin(incoming({}))).toBeUndefined()
+  })
+
 })

@@ -17,6 +17,7 @@ import Include from '@deepseek-ai/cordis-plugin-include'
 import * as Connection from '@aeven/client-connection'
 import LocalCredentials from '@aeven/credentials-local'
 import HttpServer from '@aeven/host-webserver'
+import { ServerResponse } from 'node:http'
 import * as FrontendStatic from '../src/index.ts'
 
 let root: string | undefined
@@ -213,5 +214,39 @@ describe('real Loader composition', () => {
     await frontendEntry!.fiber?.dispose()
     expect((await request(port, '/no/such/route')).status).toBe(404)
     expect(() => server.registerFallback(() => {})).not.toThrow()
+  })
+})
+
+describe('index renders carry the request origin', () => {
+  it('hands it to the injection table the composed server emits', async () => {
+    const composed = await loadComposition()
+    try {
+      const seen: (string | undefined)[] = []
+      composed.on('webserver/index-inject', (_table, origin) => { seen.push(origin) })
+      composed.webServer.renderIndex('<html><head></head><body></body></html>', 'http://localhost:3060')
+
+      expect(seen).toEqual(['http://localhost:3060'])
+    } finally {
+      await composed.fiber.dispose()
+    }
+  })
+
+  it('forwards the origin into the renderer', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'avn-frontend-origin-'))
+    try {
+      const distIndex = join(dir, 'index.html')
+      await writeFile(distIndex, '<html><head></head><body></body></html>')
+      const seen: (string | undefined)[] = []
+      const response = new ServerResponse({ method: 'GET', headers: {} } as never)
+      response.writeHead = () => response
+      response.end = () => response
+
+      await FrontendStatic.serveStatic('/', response, dir, distIndex, () => true,
+        async (origin) => { seen.push(origin); return '<html></html>' }, 'http://localhost:3060')
+
+      expect(seen).toEqual(['http://localhost:3060'])
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
   })
 })

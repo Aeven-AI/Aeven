@@ -17,6 +17,7 @@ import Negotiator from 'negotiator'
 import { renderIndexInjections, type IndexInjection } from './injections.ts'
 
 export { renderIndexInjections } from './injections.ts'
+export { isLoopbackHost, requestOrigin, sameHostLoopbackUrl } from './origin.ts'
 export type { IndexInjection, IndexInjectionPlacement } from './injections.ts'
 
 declare module '@deepseek-ai/cordis' {
@@ -29,9 +30,11 @@ declare module '@deepseek-ai/cordis' {
      * render and every worker boot-payload request; listeners push their
      * current rows, so a row's data is read fresh at emit time.
      * @param table - Mutable row table; listeners append in activation order.
+     * @param origin - Origin the request was addressed to, absent when the
+     * emission has no request (a worker boot payload) or it states no host.
      * @mode emit
      */
-    'webserver/index-inject'(table: IndexInjection[]): void
+    'webserver/index-inject'(table: IndexInjection[], origin?: string): void
   }
 }
 
@@ -342,11 +345,13 @@ export class WebServer extends Service {
    * Gather the structured injection table: one `webserver/index-inject` emit,
    * every subscriber pushes its current rows. Fresh per call, so subscribers
    * read live state (module graph, theme preference) at emit time.
+   * @param origin - Origin the request was addressed to, so a subscriber can
+   * state deployment URLs under the spelling the reader arrived on.
    * @returns rows in subscriber activation order.
    */
-  collectIndexInjections(): IndexInjection[] {
+  collectIndexInjections(origin?: string): IndexInjection[] {
     const table: IndexInjection[] = []
-    this.ctx.emit('webserver/index-inject', table)
+    this.ctx.emit('webserver/index-inject', table, origin)
     return table
   }
 
@@ -354,10 +359,12 @@ export class WebServer extends Service {
    * Render one index.html body: the structured injection table first, then
    * the raw `tapIndex` transforms over the result.
    * @param html - the raw index.html body.
+   * @param origin - Origin the request was addressed to, forwarded to the
+   * injection table; absent for renders with no request behind them.
    * @returns the transformed body.
    */
-  renderIndex(html: string): string {
-    return this.applyIndexTaps(renderIndexInjections(html, this.collectIndexInjections()))
+  renderIndex(html: string, origin?: string): string {
+    return this.applyIndexTaps(renderIndexInjections(html, this.collectIndexInjections(origin)))
   }
 }
 

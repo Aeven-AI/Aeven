@@ -19,6 +19,7 @@ import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { IdentityRequest, User, UserResolver } from '@aeven/identity-user'
 import type {} from '@aeven/identity-user'
+import { sameHostLoopbackUrl } from '@aeven/host-webserver'
 import type {} from '@aeven/host-webserver'
 import { credentialRef } from '@aeven/credentials'
 import { verifiedUserId } from './jwt.ts'
@@ -241,16 +242,27 @@ export function apply(ctx: Context, config: Config): void {
   ctx.effect(() => ctx.identityUsers.registerResolver(resolver), 'identity-user-aeven: resolver')
 
   // The endpoints are deployment facts, not build facts, so the Host states
-  // them in the page rather than the browser bundle carrying them.
-  ctx.on('webserver/index-inject', (table) => {
+  // them in the page rather than the browser bundle carrying them. Each is
+  // stated under the spelling *this request* arrived on: a page reached over
+  // `localhost` is handed `http://localhost:9000`, not the configured
+  // `127.0.0.1:9000`, so page and API stay one origin whichever arrival path the
+  // reader used. A non-loopback deployment, and a provider's own domain, pass
+  // through as configured.
+  ctx.on('webserver/index-inject', (table, origin) => {
+    const apiUrl = sameHostLoopbackUrl(config.apiUrl, origin)
+    const xOAuthUrl = sameHostLoopbackUrl(config.xOAuthUrl, origin)
+    const appleOAuthUrl = sameHostLoopbackUrl(config.appleOAuthUrl, origin)
+    const googleOAuthUrl = sameHostLoopbackUrl(config.googleOAuthUrl, origin)
+    const webUrl = sameHostLoopbackUrl(config.webUrl, origin)
+    const mediaUrl = sameHostLoopbackUrl(config.mediaUrl, origin)
     const value: AevenClientConfig = {
-      ...config.apiUrl === undefined ? {} : { apiUrl: config.apiUrl },
-      ...config.xOAuthUrl === undefined ? {} : { xOAuthUrl: config.xOAuthUrl },
-      ...config.appleOAuthUrl === undefined ? {} : { appleOAuthUrl: config.appleOAuthUrl },
-      ...config.googleOAuthUrl === undefined ? {} : { googleOAuthUrl: config.googleOAuthUrl },
+      ...apiUrl === undefined ? {} : { apiUrl },
+      ...xOAuthUrl === undefined ? {} : { xOAuthUrl },
+      ...appleOAuthUrl === undefined ? {} : { appleOAuthUrl },
+      ...googleOAuthUrl === undefined ? {} : { googleOAuthUrl },
       ...oauthFlow === undefined ? {} : { oauthFlow },
-      ...config.webUrl === undefined ? {} : { webUrl: config.webUrl },
-      ...config.mediaUrl === undefined ? {} : { mediaUrl: config.mediaUrl },
+      ...webUrl === undefined ? {} : { webUrl },
+      ...mediaUrl === undefined ? {} : { mediaUrl },
     }
     table.push({ kind: 'global', name: AEVEN_CLIENT_CONFIG_GLOBAL, value })
   })

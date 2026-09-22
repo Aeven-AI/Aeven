@@ -114,17 +114,21 @@ applyIndexTaps(html: string): string
  * Gather the structured injection table: one `webserver/index-inject` emit,
  * every subscriber pushes its current rows. Fresh per call, so subscribers
  * read live state (module graph, theme preference) at emit time.
+ * @param origin - Origin the request was addressed to, so a subscriber can
+ * state deployment URLs under the spelling the reader arrived on.
  * @returns rows in subscriber activation order.
  */
-collectIndexInjections(): IndexInjection[]
+collectIndexInjections(origin?: string): IndexInjection[]
 
 /**
  * Render one index.html body: the structured injection table first, then
  * the raw `tapIndex` transforms over the result.
  * @param html - the raw index.html body.
+ * @param origin - Origin the request was addressed to, forwarded to the
+ * injection table; absent for renders with no request behind them.
  * @returns the transformed body.
  */
-renderIndex(html: string): string
+renderIndex(html: string, origin?: string): string
 ```
 
 Source: [`packages/host/webserver/src/index.ts`](../../packages/host/webserver/src/index.ts)
@@ -145,9 +149,11 @@ Collect the structured index injection table. Emitted on every index render and 
  * render and every worker boot-payload request; listeners push their
  * current rows, so a row's data is read fresh at emit time.
  * @param table - Mutable row table; listeners append in activation order.
+ * @param origin - Origin the request was addressed to, absent when the
+ * emission has no request (a worker boot payload) or it states no host.
  * @mode emit
  */
-'webserver/index-inject'(table: IndexInjection[]): void
+'webserver/index-inject'(table: IndexInjection[], origin?: string): void
 ```
 
 Source: [`packages/host/webserver/src/index.ts`](../../packages/host/webserver/src/index.ts)
