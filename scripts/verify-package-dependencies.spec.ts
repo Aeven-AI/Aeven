@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   PACKAGE_DEPENDENCY_POLICY,
@@ -8,17 +8,21 @@ import {
 } from './package-dependency-policy.ts'
 import {
   collectHostDependencyExportPolicyViolations,
+  collectLockfileWorkspaceViolations,
   collectPackageDependencyViolations,
   collectRuntimeSourceExportUses,
   discoverPackageDependencyScope,
   fixPackageDependencies,
   formatManagedRuntimeDependencies,
   formatPeerRequiredRuntimeDependencies,
+  lockfileImporterDirectories,
+  readLockfileWorkspaceDirectories,
   readPackageDependencyFacts,
   repairPackageDependencyManifest,
   type PackageDependencyFacts,
   type PackageDependencyManifest,
   type WorkspacePackageManifest,
+  workspacePackageDirectories,
 } from './verify-package-dependencies.ts'
 
 const CORDIS = '@deepseek-ai/cordis'
@@ -559,5 +563,118 @@ describe('dependency sections', () => {
     repairPackageDependencyManifest(facts(manifest))
     expect(manifest.dependencies).toEqual({ '@aeven/runtime': 'workspace:^' })
     expect(manifest.peerDependencies).toEqual({ [CORDIS]: 'workspace:^' })
+  })
+})
+
+describe('lockfile workspace importers', () => {
+  const repositoryRoot = resolve(import.meta.dirname, '..')
+  const ALPHA = 'packages/core/alpha'
+
+  /** A repository-shaped tree: the two files the check reads plus whatever it points at. */
+  function repositoryTree(options: {
+    members?: readonly string[]
+    packageDirs?: readonly string[]
+    importerDirs?: readonly string[]
+  }): string {
+    const root = mkdtempSync(join(tmpdir(), 'avn-lockfile-workspace-'))
+    roots.push(root)
+    const files: Record<string, string> = {
+      // A leading `!` is a YAML tag unless quoted, which is how pnpm's own
+      // workspace files write a negated member.
+      'pnpm-workspace.yaml': `packages:\n${(options.members ?? ['packages/*/*'])
+        .map(member => `  - ${member.startsWith('!') ? `'${member}'` : member}`).join('\n')}\n`,
+      'pnpm-lock.yaml': `lockfileVersion: '9.0'\nimporters:\n${(options.importerDirs ?? ['.', ALPHA]).map(dir => `  ${dir}: {}\n`).join('')}`,
+    }
+    for (const dir of options.packageDirs ?? [ALPHA]) {
+      files[`${dir}/package.json`] = '{ "name": "@f/probe", "version": "0.0.1" }\n'
+    }
+    for (const [path, contents] of Object.entries(files)) {
+      mkdirSync(dirname(join(root, path)), { recursive: true })
+      writeFileSync(join(root, path), contents)
+    }
+    return root
+  }
+
+  it('derives the workspace package set from the member globs, without a hardcoded list', () => {
+    const root = repositoryTree({})
+    // A directory a glob matches without a manifest is not a workspace package:
+    // pnpm records an importer only for the directories that hold one.
+    mkdirSync(join(root, 'packages/util/empty'), { recursive: true })
+    mkdirSync(join(root, 'packages/util/beta'), { recursive: true })
+    writeFileSync(join(root, 'packages/util/beta/package.json'), '{ "name": "@f/beta", "version": "0.0.1" }\n')
+
+    expect(workspacePackageDirectories(root)).toEqual(['.', ALPHA, 'packages/util/beta'])
+    expect(lockfileImporterDirectories(root)).toEqual(['.', ALPHA])
+  })
+
+  it('honours a negated member glob', () => {
+    const root = repositoryTree({
+      members: ['packages/*/*', '!packages/experimental/*'],
+      packageDirs: [ALPHA, 'packages/experimental/prototype'],
+      importerDirs: ['.', ALPHA],
+    })
+
+    expect(workspacePackageDirectories(root)).toEqual(['.', ALPHA])
+  })
+
+  it('rejects a lockfile importer with no workspace package directory', () => {
+    const root = repositoryTree({
+      importerDirs: ['.', ALPHA, 'packages/experimental/browser-devtools'],
+    })
+
+    expect(collectLockfileWorkspaceViolations(readLockfileWorkspaceDirectories(root))).toEqual([
+      'packages/experimental/browser-devtools: pnpm-lock.yaml names this directory as a workspace importer, '
+      + 'but no workspace package exists here; remove the importer entry or commit the package',
+    ])
+  })
+
+  it('rejects a workspace package with no lockfile importer', () => {
+    const root = repositoryTree({
+      packageDirs: [ALPHA, 'packages/util/beta'],
+      importerDirs: ['.', ALPHA],
+    })
+
+    expect(collectLockfileWorkspaceViolations(readLockfileWorkspaceDirectories(root))).toEqual([
+      'packages/util/beta: workspace package has no pnpm-lock.yaml importer; '
+      + 'run pnpm install --lockfile-only so a fresh clone can install with --frozen-lockfile',
+    ])
+  })
+
+  it('names every offending directory, in both directions, in one report', () => {
+    const root = repositoryTree({
+      packageDirs: [ALPHA, 'packages/util/beta'],
+      importerDirs: ['.', ALPHA, 'packages/experimental/browser-devtools'],
+    })
+
+    expect(collectLockfileWorkspaceViolations(readLockfileWorkspaceDirectories(root))).toEqual([
+      'packages/experimental/browser-devtools: pnpm-lock.yaml names this directory as a workspace importer, '
+      + 'but no workspace package exists here; remove the importer entry or commit the package',
+      'packages/util/beta: workspace package has no pnpm-lock.yaml importer; '
+      + 'run pnpm install --lockfile-only so a fresh clone can install with --frozen-lockfile',
+    ])
+  })
+
+  it('accepts a lockfile that names exactly the workspace packages', () => {
+    expect(collectLockfileWorkspaceViolations(readLockfileWorkspaceDirectories(repositoryTree({}))))
+      .toEqual([])
+  })
+
+  it('accepts the repository lockfile as committed', () => {
+    const directories = readLockfileWorkspaceDirectories(repositoryRoot)
+
+    expect(directories.importerDirs).toHaveLength(directories.packageDirs.length)
+    expect(directories.importerDirs.length).toBeGreaterThan(100)
+    expect(collectLockfileWorkspaceViolations(directories)).toEqual([])
+  })
+
+  it('fails loud when the workspace file or the lockfile cannot supply a set', () => {
+    expect(() => workspacePackageDirectories(repositoryTree({ members: [] })))
+      .toThrow('pnpm-workspace.yaml declares no workspace members')
+    expect(() => workspacePackageDirectories(repositoryTree({
+      members: ['tools/*'],
+      packageDirs: [],
+    }))).toThrow('member globs matched no package manifest')
+    expect(() => lockfileImporterDirectories(repositoryTree({ importerDirs: [] })))
+      .toThrow('pnpm-lock.yaml declares no workspace importers')
   })
 })

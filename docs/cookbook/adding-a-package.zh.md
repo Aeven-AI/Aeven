@@ -110,7 +110,7 @@ Append-only, prefix-stable, replacing, or independent behavior, including the ex
 ## 5. 验证
 
 ```sh
-pnpm install        # registers the workspace
+pnpm install        # registers the workspace package and its pnpm-lock.yaml importer
 pnpm run doc-sync
 pnpm run constraints && pnpm run typecheck && pnpm run lint
 pnpm run build && pnpm run hygiene

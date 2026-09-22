@@ -1,8 +1,13 @@
-/** Verify and repair npm dependency sections from published Client and Host faces. */
+/**
+ * Verify and repair npm dependency sections from published Client and Host
+ * faces, and require `pnpm-lock.yaml` to name exactly the workspace packages
+ * `pnpm-workspace.yaml` declares.
+ */
 
 import { spawnSync } from 'node:child_process'
 import { existsSync, globSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, extname, join, normalize, relative, resolve, sep } from 'node:path'
+import { dirname, extname, join, normalize, posix, relative, resolve, sep } from 'node:path'
+import * as yaml from 'js-yaml'
 import ts from 'typescript'
 import { writeModuleGraph } from './gen-module-graph.ts'
 import {
@@ -24,6 +29,10 @@ const WORKSPACE_MANIFEST_GLOBS = [
   'packages/*/*/package.json',
   'vendor/*/package.json',
 ]
+/** Name of the lockfile/workspace agreement check this gate reports. */
+const LOCKFILE_IMPORTERS_CHECK = 'lockfile workspace importers'
+const WORKSPACE_FILE = 'pnpm-workspace.yaml'
+const LOCKFILE_FILE = 'pnpm-lock.yaml'
 
 type DependencySection = 'dependencies' | 'devDependencies' | 'optionalDependencies' | 'peerDependencies'
 export type PackageDependencyRole = 'client-only' | 'client-host' | 'configured-host'
@@ -705,6 +714,108 @@ function refreshPnpmLockfile(root: string): void {
   if (result.status !== 0) throw new Error(`pnpm lockfile refresh exited with status ${String(result.status)}`)
 }
 
+/** The `packages:` member globs one pnpm workspace file declares. */
+function workspaceMemberGlobs(root: string): string[] {
+  const declared = (yaml.load(readFileSync(resolve(root, WORKSPACE_FILE), 'utf8')) as { packages?: unknown }).packages
+  if (!Array.isArray(declared) || declared.length === 0) {
+    throw new Error(`${GATE}: ${WORKSPACE_FILE} declares no workspace members; the workspace package set cannot be derived.`)
+  }
+  return declared.map(member => String(member))
+}
+
+/**
+ * Workspace package directories, derived from the member globs rather than
+ * listed here, so a member area joins the check the day it is declared.
+ *
+ * A member is a directory a glob matches *and* that holds a manifest, which is
+ * pnpm's own rule; a matched directory without one is not a workspace package
+ * and gets no importer. The root is a member too, named by no glob, so `.` is
+ * always part of the set.
+ * @param root - repository root holding the workspace and lock files.
+ * @returns repository-relative member directories, `/`-separated and sorted.
+ */
+export function workspacePackageDirectories(root: string): string[] {
+  const declared = workspaceMemberGlobs(root)
+  const members = declared.filter(pattern => !pattern.startsWith('!'))
+  const excluded = declared
+    .filter(pattern => pattern.startsWith('!'))
+    .map(pattern => `${pattern.slice(1)}/package.json`)
+  const dirs = new Set(['.'])
+  for (const manifestPath of globSync(members.map(member => `${member}/package.json`), {
+    cwd: root,
+    ...excluded.length === 0 ? {} : { exclude: excluded },
+  })) {
+    dirs.add(posix.dirname(normalizePath(manifestPath)))
+  }
+  if (dirs.size < 2) {
+    throw new Error(`${GATE}: ${WORKSPACE_FILE} member globs matched no package manifest; the workspace package set is stale.`)
+  }
+  return [...dirs].sort()
+}
+
+/** Importer directories one pnpm lockfile records, `.` for the repository root. */
+export function lockfileImporterDirectories(root: string): string[] {
+  const lockfile = yaml.load(readFileSync(resolve(root, LOCKFILE_FILE), 'utf8')) as
+    | { importers?: Record<string, unknown> }
+    | undefined
+  const importers = Object.keys(lockfile?.importers ?? {})
+  if (importers.length === 0) {
+    throw new Error(`${GATE}: ${LOCKFILE_FILE} declares no workspace importers; the importer set cannot be compared.`)
+  }
+  return importers.sort()
+}
+
+/** The two directory sets the lockfile/workspace agreement check compares. */
+export interface LockfileWorkspaceDirectories {
+  /** Workspace package directories pnpm-workspace.yaml declares. */
+  readonly packageDirs: readonly string[]
+  /** Importer directories pnpm-lock.yaml records. */
+  readonly importerDirs: readonly string[]
+}
+
+/** Read both directory sets from one repository root. */
+export function readLockfileWorkspaceDirectories(root: string): LockfileWorkspaceDirectories {
+  return {
+    packageDirs: workspacePackageDirectories(root),
+    importerDirs: lockfileImporterDirectories(root),
+  }
+}
+
+/**
+ * Reject a lockfile whose importer set is not the workspace package set.
+ *
+ * An importer with no workspace package directory is a foreign entry — a
+ * partial `pnpm install` in a shared checkout records one for an untracked
+ * directory, and committing that lockfile publishes it. A workspace package
+ * with no importer leaves the lockfile stale, so `pnpm install
+ * --frozen-lockfile` fails on a fresh clone. Each violation names its
+ * directory and the direction it violates.
+ * @param directories - workspace package directories and lockfile importer directories.
+ * @returns one violation per offending directory, sorted.
+ */
+export function collectLockfileWorkspaceViolations(
+  directories: LockfileWorkspaceDirectories,
+): string[] {
+  const packageDirs = new Set(directories.packageDirs)
+  const importerDirs = new Set(directories.importerDirs)
+  const violations: string[] = []
+  for (const dir of importerDirs) {
+    if (packageDirs.has(dir)) continue
+    violations.push(
+      `${dir}: pnpm-lock.yaml names this directory as a workspace importer, but no workspace package exists here; `
+      + 'remove the importer entry or commit the package',
+    )
+  }
+  for (const dir of packageDirs) {
+    if (importerDirs.has(dir)) continue
+    violations.push(
+      `${dir}: workspace package has no pnpm-lock.yaml importer; `
+      + 'run pnpm install --lockfile-only so a fresh clone can install with --frozen-lockfile',
+    )
+  }
+  return violations.sort()
+}
+
 function main(): void {
   const root = resolve(import.meta.dirname, '..')
   let state = readPackageDependencyState(root)
@@ -728,14 +839,31 @@ function main(): void {
     console.error(`${GATE}: ${String(violations.length)} violation(s):`)
     for (const violation of violations) console.error(`  ${violation}`)
     process.exitCode = 1
-    return
   }
+  // The lockfile check runs whatever the dependency policy reported, so one run
+  // names every failing check instead of stopping at the first. `--fix` has
+  // already refreshed the lockfile by this point, so it reports the repaired
+  // state rather than the input one.
+  const directories = readLockfileWorkspaceDirectories(root)
+  const lockfileViolations = collectLockfileWorkspaceViolations(directories)
+  if (lockfileViolations.length > 0) {
+    console.error(
+      `${GATE}: ${LOCKFILE_IMPORTERS_CHECK} disagree with the workspace (${String(lockfileViolations.length)}):`,
+    )
+    for (const violation of lockfileViolations) console.error(`  ${violation}`)
+    process.exitCode = 1
+  }
+  if (violations.length > 0 || lockfileViolations.length > 0) return
   const roles = Object.groupBy(state.facts, fact => fact.role)
   console.log(
     `${GATE}: ${String(state.facts.length)} package(s) match the published dependency policy`
     + ` (${String(roles['client-only']?.length ?? 0)} Client-only,`
     + ` ${String(roles['client-host']?.length ?? 0)} Client/Host,`
     + ` ${String(roles['configured-host']?.length ?? 0)} configured Host).`,
+  )
+  console.log(
+    `${GATE}: ${LOCKFILE_IMPORTERS_CHECK} name every one of the`
+    + ` ${String(directories.packageDirs.length)} workspace package directories.`,
   )
   if (fix) {
     for (const line of formatManagedRuntimeDependencies(state)) console.log(line)

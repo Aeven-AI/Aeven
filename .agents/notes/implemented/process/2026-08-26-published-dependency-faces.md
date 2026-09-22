@@ -36,7 +36,7 @@ The verifier reads source manifests and source files, so it runs on a clean tree
 
 ### Maintainer workflow
 
-Run the verifier without `--fix` for a read-only check of package selection, export classifications, dependency sections, workspace ranges, and peer metadata. An unclassified runtime import reports one clickable `path:line:column` diagnostic per imported export.
+Run the verifier without `--fix` for a read-only check of package selection, export classifications, dependency sections, workspace ranges, peer metadata, and the lockfile's workspace importers: the `packages` member globs in `pnpm-workspace.yaml` and the importers in `pnpm-lock.yaml` must name the same directories, in both directions ([note](../bug-fix/2026-09-22-lockfile-importers-match-the-workspace.md)). An unclassified runtime import reports one clickable `path:line:column` diagnostic per imported export.
 
 ```sh
 pnpm run verify-package-dependencies
