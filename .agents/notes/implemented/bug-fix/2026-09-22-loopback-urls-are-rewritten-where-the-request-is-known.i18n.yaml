@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-22-loopback-urls-are-rewritten-where-the-request-is-known.md
-2026-09-22-loopback-urls-are-rewritten-where-the-request-is-known.md: 0c53769da8f87f47cbb6eeedf3e6a9bdd2f49197
-2026-09-22-loopback-urls-are-rewritten-where-the-request-is-known.zh.md: ebb2b487910a2e9b87cada131157557efd2e2099
+2026-09-22-loopback-urls-are-rewritten-where-the-request-is-known.md: 31f5b5b81a7c20ae5e6fdc37af76053e34425896
+2026-09-22-loopback-urls-are-rewritten-where-the-request-is-known.zh.md: b62bf49079673f22f43880bfc4c55d03c192b5d0
