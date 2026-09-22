@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, unlinkSync, unwatchFile, utimesSync, watchFile, writeFileSync } from 'node:fs'
 import { realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -63,23 +63,36 @@ async function eventuallyObserved(
 const POLL_INTERVAL_MS = 100
 
 /**
- * Apply one edit, prove it is on disk, and resolve once the registration's
- * poller has had its tick.
+ * Apply one edit, prove it is on disk, and resolve once the registration has
+ * reported it.
  *
- * The registration is watched with `usePolling`, and that is the whole point of
- * this helper: under the full suite's fork fan-out the native event queue is
- * starved long enough that a change delivered through it is not seen at all.
  * The edit is proved from the file's own size and modification time immediately
- * before and after it, which needs no timer and cannot be starved. A second
- * `fs.watchFile` cannot prove it: the first stat that watcher takes is its
- * baseline, and a write issued from this process can land before it, after which
- * the change is never reported. The wait after the proof is one cadence for the
- * registration's own poller, which turns the on-disk edit into a queued refresh.
+ * before and after it, which needs no timer and cannot be starved. Proving the
+ * edit is not enough to rely on it, though: Chokidar emits `ready` when its
+ * directory scan completes, which does not say the per-file `fs.watchFile`
+ * StatWatcher that reports changes has taken its baseline yet. A write landing
+ * in that window produces no tick at all and is lost for good, not delayed — 5
+ * of 480 deliveries under twelve-way contention, none of 480 idle, and none of
+ * the lost ones recovered within 30 s. Waiting a fixed cadence cannot close
+ * that window, so the caller passes `observed`, a reading of what the
+ * registration has actually seen, and this helper re-applies the edit until one
+ * of them is reported.
  *
+ * Re-applying is sound here where it would not be for the first edit of a case:
+ * the registration's refresh reads the file rather than counting notifications,
+ * so re-touching the file delivers the same content the case asserts on. The
+ * edit itself runs once, and each repeat only advances the modification time,
+ * which leaves those asserted bytes untouched.
+ *
+ * @param filename - Config path being edited.
+ * @param edit - Applies the edit; re-run while the registration has not reported it.
+ * @param observed - Reads what the registration has reported so far.
  * @throws when the edit left both the size and the modification time unchanged,
- * so no watcher can report it.
+ * so no watcher can report it, or when nothing arrives within the budget.
  */
-async function deliverChange(filename: string, edit: () => void): Promise<void> {
+async function deliverChange(filename: string, edit: () => void, observed: () => number): Promise<void> {
+  const seen = observed()
+  const deadline = Date.now() + 30_000
   const before = statSync(filename)
   edit()
   const after = statSync(filename)
@@ -88,7 +101,19 @@ async function deliverChange(filename: string, edit: () => void): Promise<void> 
       `the edit to ${filename} left its size (${after.size} bytes) and modification time (${after.mtimeMs}) unchanged, so no watcher can report it`,
     )
   }
-  await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS + 50))
+  while (observed() === seen) {
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `the registration did not report the edit to ${filename} within 30 s, though it is on disk (${after.size} bytes, modified ${after.mtimeMs})`,
+      )
+    }
+    await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS + 50))
+    // A repeat must leave the file's content exactly as the edit left it, so it
+    // cannot grow the file to force a distinct size. Advance the modification
+    // time instead, which is the other half of what a polling watcher compares.
+    const now = new Date()
+    utimesSync(filename, now, now)
+  }
 }
 
 describe('HMR exact config paths', () => {
@@ -218,6 +243,25 @@ describe('HMR exact config paths', () => {
     let refreshFailure: Error | undefined
     let active = 0
     let maxActive = 0
+    // A second poller on the config file, on the same cadence and the same
+    // `fs.watchFile` StatWatcher that Chokidar's polling mode uses. The second
+    // edit is written from inside the running refresh, where the registration
+    // cannot report anything — HMR serializes the callback, so its next run is
+    // what the case is waiting for. This witness reports the same file on the
+    // same mechanism, which is the reading `deliverChange` needs to tell a
+    // delivered edit from a lost one. It is proven live below, before the first
+    // refresh, so its own baseline window is closed before anything relies on it.
+    let witnessed = 0
+    watchFile(filename, { interval: POLL_INTERVAL_MS }, () => { witnessed += 1 })
+    // A StatWatcher takes its first stat asynchronously, so drive one change
+    // through it before anything depends on it. `plugins.yml` still reads
+    // `'one'` afterwards, which is the content the first refresh asserts on.
+    await eventuallyObserved(
+      () => witnessed > 0,
+      () => { writeFileSync(filename, 'one') },
+      'the witness poller never reported a change, so it cannot prove a delivery',
+    )
+    witnessed = 0
     try {
       const dispose = await ctx.hmr.registerConfig(filename, async () => {
         try {
@@ -230,7 +274,7 @@ describe('HMR exact config paths', () => {
             // test until it is queued: `dispose()` closes the registration's
             // watcher, so an edit that has not landed yet would be dropped.
             try {
-              await deliverChange(filename, () => { writeFileSync(filename, 'two') })
+              await deliverChange(filename, () => { writeFileSync(filename, 'two') }, () => witnessed)
             } finally {
               // Never strand the test body here: a delivery failure must surface as
               // this case's failure below, not as this case's 120 s timeout.
@@ -261,6 +305,7 @@ describe('HMR exact config paths', () => {
       expect(observed).toEqual(['one', 'two'])
     } finally {
       release.resolve(undefined)
+      unwatchFile(filename)
       await ctx.fiber.dispose()
     }
   })
@@ -268,8 +313,12 @@ describe('HMR exact config paths', () => {
   it('normalizes refresh failures and broadcasts them without escaping the watcher', { timeout: 120_000 }, async () => {
     const dir = mkdtempSync(join(tmpdir(), 'avn-hmr-config-'))
     const filename = join(dir, 'plugins.yml')
-    const ctx = await bootHmr(dir)
-    const failure = Promise.withResolvers<{ filename: string; error: Error }>()
+    // Polling, like the cases above: under the full suite's fork fan-out the
+    // native event queue is starved enough that this case's first broadcast is
+    // never delivered, and the case then spends its whole 120 s budget waiting
+    // for it. A poller runs on a timer.
+    const ctx = await bootHmr(dir, [], true)
+    let observed: { filename: string; error: Error } | undefined
     let failureCount = 0
     try {
       ctx.on('hmr/config-update-failed', () => {
@@ -277,21 +326,36 @@ describe('HMR exact config paths', () => {
       })
       ctx.on('hmr/config-update-failed', (failedFilename, error) => {
         failureCount += 1
-        failure.resolve({ filename: failedFilename, error })
+        observed ??= { filename: failedFilename, error }
       })
       await ctx.hmr.registerConfig(filename, () => { throw 42 })
+      let stimulus = 0
       writeFileSync(filename, 'invalid')
-
-      const observed = await failure.promise
-      expect(observed.filename).toBe(filename)
-      expect(observed.error).toBeInstanceOf(Error)
-      expect(observed.error.message).toBe('42')
+      // A StatWatcher takes its first stat asynchronously, so a write issued
+      // right after registration can become its baseline and never be reported.
+      // Re-apply until the first broadcast proves the watcher live, growing the
+      // file each time: a rewrite of identical content leaves the size equal and
+      // can land inside one filesystem timestamp tick, which a poller comparing
+      // stats cannot distinguish from no write at all.
+      await eventuallyObserved(
+        () => observed !== undefined,
+        () => { writeFileSync(filename, `invalid${' '.repeat(stimulus += 1)}`) },
+        'HMR did not broadcast the refresh failure',
+      )
+      expect(observed!.filename).toBe(filename)
+      expect(observed!.error).toBeInstanceOf(Error)
+      expect(observed!.error.message).toBe('42')
 
       // Let Chokidar's atomic-write window close before requiring a distinct
       // second notification from the same path.
       await new Promise(resolve => setTimeout(resolve, 250))
+      const seen = failureCount
       writeFileSync(filename, 'invalid again')
-      await eventually(() => failureCount === 2, 'HMR stopped broadcasting after an observer rejected')
+      await eventuallyObserved(
+        () => failureCount > seen,
+        () => { writeFileSync(filename, `invalid again${' '.repeat(stimulus += 1)}`) },
+        'HMR stopped broadcasting after an observer rejected',
+      )
     } finally {
       await ctx.fiber.dispose()
     }
