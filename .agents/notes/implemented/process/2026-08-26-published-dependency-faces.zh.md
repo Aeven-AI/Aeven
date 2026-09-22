@@ -36,7 +36,7 @@ Client bundle 使用的 workspace import、纯类型 import、模块扩充、`av
 
 ### 维护流程
 
-不带 `--fix` 运行验证器，会以只读方式检查选包范围、导出分类、依赖区段、workspace range 与 peer metadata。未分类的运行期 import 会按每个导出分别报告可点击的 `path:line:column` 诊断。
+不带 `--fix` 运行验证器，会以只读方式检查选包范围、导出分类、依赖区段、workspace range、peer metadata 以及锁文件的工作区 importer：`pnpm-workspace.yaml` 的 `packages` 成员 glob 与 `pnpm-lock.yaml` 的 importer 必须在两个方向上都指向同一批目录（[笔记](../bug-fix/2026-09-22-lockfile-importers-match-the-workspace.zh.md)）。未分类的运行期 import 会按每个导出分别报告可点击的 `path:line:column` 诊断。
 
 ```sh
 pnpm run verify-package-dependencies
