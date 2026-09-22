@@ -41,3 +41,5 @@ Agents receive the reliability rules while designing or diagnosing the tests tha
 The skill is advisory, so it cannot mechanically prevent every resource collision. A repeated, statically identifiable defect can still justify an executed repository check. The repository also retains one additional active Skill and reference whose links and statements must remain current with the actual CI topology.
 
 The existing deterministic-and-stress proposal remains open, and this change does not audit or rewrite the current test corpus.
+
+The skill carries the diagnosis rules the two 2026-09-22 contention failures earned — asynchronous arming before load, probing the dependency instead of repeating the aggregate, carrying a root cause across sibling cases, and never recording an untested hypothesis as an observation. [Freshness gates join the cheap document aggregate](../process/2026-09-22-freshness-gates-join-the-cheap-document-aggregate.md) records the other half of that session's follow-up: the documentation aggregate a change must pass before it lands.
