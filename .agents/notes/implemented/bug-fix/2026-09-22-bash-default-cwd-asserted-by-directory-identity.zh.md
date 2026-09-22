@@ -16,7 +16,7 @@ Status: implemented
 
 用例改为断言两个路径所指的目录本身：对 shell 的 `pwd` 输出与 `process.cwd()` 分别 stat，然后比较 `dev` 与 `ino`。
 
-```ts
+```ts ignore-check
 expect({ dev: shellCwd.dev, ino: shellCwd.ino }).toEqual({ dev: processCwd.dev, ino: processCwd.ino })
 ```
 

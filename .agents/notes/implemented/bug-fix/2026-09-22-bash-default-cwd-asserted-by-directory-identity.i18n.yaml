@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-22-bash-default-cwd-asserted-by-directory-identity.md
-2026-09-22-bash-default-cwd-asserted-by-directory-identity.md: a5f84ece9fef46cec019fe206ad414a82279d11f
-2026-09-22-bash-default-cwd-asserted-by-directory-identity.zh.md: 20948aaa9cb06a5afae9eaf46ad054d114bcbf47
+2026-09-22-bash-default-cwd-asserted-by-directory-identity.md: b7af6184851cd00044334ca69dc451b4c0b47592
+2026-09-22-bash-default-cwd-asserted-by-directory-identity.zh.md: 76ab3f36594cced87d8b379acf573383e8db4ca8

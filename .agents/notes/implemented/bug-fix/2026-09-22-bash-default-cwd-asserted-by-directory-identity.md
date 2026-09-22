@@ -16,7 +16,7 @@ English | [中文](2026-09-22-bash-default-cwd-asserted-by-directory-identity.zh
 
 The case asserts the directory the two paths name: it stats the shell's `pwd` output and `process.cwd()`, then compares `dev` and `ino`.
 
-```ts
+```ts ignore-check
 expect({ dev: shellCwd.dev, ino: shellCwd.ino }).toEqual({ dev: processCwd.dev, ino: processCwd.ino })
 ```
 
