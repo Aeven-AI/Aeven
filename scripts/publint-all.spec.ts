@@ -17,6 +17,8 @@ function fixture(options: {
   exportPath?: string
   indexSource?: string
   files?: Record<string, string>
+  extraExports?: Record<string, unknown>
+  extraSources?: Record<string, string>
 } = {}): string {
   const root = mkdtempSync(join(tmpdir(), 'avn-publint-all-'))
   roots.push(root)
@@ -30,10 +32,14 @@ function fixture(options: {
     engines: { node: '>=22.19' },
     sideEffects: false,
     files: ['lib'],
-    exports: { '.': { default: options.exportPath ?? './lib/index.js' } },
+    exports: { '.': { default: options.exportPath ?? './lib/index.js' }, ...options.extraExports ?? {} },
   }, null, 2)}\n`)
   writeFileSync(join(packageDir, 'README.md'), '# Probe\n')
   writeFileSync(join(packageDir, 'lib/index.js'), options.indexSource ?? 'export const probe = true\n')
+  for (const [path, source] of Object.entries(options.extraSources ?? {})) {
+    mkdirSync(join(packageDir, path, '..'), { recursive: true })
+    writeFileSync(join(packageDir, path), source)
+  }
   for (const [path, source] of Object.entries(options.files ?? {})) {
     mkdirSync(join(packageDir, path, '..'), { recursive: true })
     writeFileSync(join(packageDir, path), source)
@@ -82,6 +88,30 @@ describe('publint package runner', () => {
       },
     }))
     expect(result.status, result.stderr).toBe(0)
+  })
+
+  it('keeps the repository-internal ./src/* export out of the publication warnings', () => {
+    // `files` never carries sources, so the glob matches nothing inside the
+    // packed view by construction; the export exists so repository callers can
+    // reach internals, and repeating the verdict for every package is noise.
+    const result = run(fixture({
+      extraExports: { './src/*': './src/*' },
+      extraSources: { 'src/index.ts': 'export const probe = true\n' },
+    }))
+
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stdout).not.toContain('./src/*')
+  })
+
+  it('still reports another glob export that matches nothing', () => {
+    const result = run(fixture({
+      extraExports: { './generated/*': './generated/*' },
+      extraSources: { 'generated/index.ts': 'export const probe = true\n' },
+    }))
+
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stdout).toContain('./generated/*')
+    expect(result.stdout).toContain('does not match any files')
   })
 
   it('rejects unpublished relative JavaScript and CSS targets', () => {
