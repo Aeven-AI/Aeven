@@ -1,5 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, unlinkSync, unwatchFile, watchFile, writeFileSync } from 'node:fs'
-import type { Stats } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -64,37 +63,32 @@ async function eventuallyObserved(
 const POLL_INTERVAL_MS = 100
 
 /**
- * Apply one edit and resolve once it is on disk and the registration's poller
- * has had its tick.
+ * Apply one edit, prove it is on disk, and resolve once the registration's
+ * poller has had its tick.
  *
- * Both sides poll rather than consume the native event queue, and that is the
- * whole point of this helper. Under the full suite's fork fan-out the native
- * queue is starved long enough that a change delivered through it is not seen at
- * all: this case used to write the file from the test body and sleep 250 ms
- * "past Chokidar's atomic-write window", which left it flaky under load and
- * stranded it at its 120 s timeout in a full run. `fs.watchFile` runs off its
- * own timer, so it can prove the edit reached the disk; the wait after it is one
- * cadence for the registration's own `usePolling` watcher, which is what turns
- * that on-disk edit into a queued refresh.
+ * The registration is watched with `usePolling`, and that is the whole point of
+ * this helper: under the full suite's fork fan-out the native event queue is
+ * starved long enough that a change delivered through it is not seen at all.
+ * The edit is proved from the file's own size and modification time immediately
+ * before and after it, which needs no timer and cannot be starved. A second
+ * `fs.watchFile` cannot prove it: the first stat that watcher takes is its
+ * baseline, and a write issued from this process can land before it, after which
+ * the change is never reported. The wait after the proof is one cadence for the
+ * registration's own poller, which turns the on-disk edit into a queued refresh.
+ *
+ * @throws when the edit left both the size and the modification time unchanged,
+ * so no watcher can report it.
  */
 async function deliverChange(filename: string, edit: () => void): Promise<void> {
   const before = statSync(filename)
-  const reported = Promise.withResolvers<undefined>()
-  const listener = (curr: Stats): void => {
-    if (curr.mtimeMs !== before.mtimeMs || curr.size !== before.size) reported.resolve(undefined)
+  edit()
+  const after = statSync(filename)
+  if (after.mtimeMs === before.mtimeMs && after.size === before.size) {
+    throw new Error(
+      `the edit to ${filename} left its size (${after.size} bytes) and modification time (${after.mtimeMs}) unchanged, so no watcher can report it`,
+    )
   }
-  watchFile(filename, { interval: POLL_INTERVAL_MS }, listener)
-  const expiry = setTimeout(() => {
-    reported.reject(new Error(`the edit to ${filename} never reached the disk within 30 s`))
-  }, 30_000)
-  try {
-    edit()
-    await reported.promise
-    await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS + 50))
-  } finally {
-    clearTimeout(expiry)
-    unwatchFile(filename, listener)
-  }
+  await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS + 50))
 }
 
 describe('HMR exact config paths', () => {
@@ -221,28 +215,38 @@ describe('HMR exact config paths', () => {
     const started = Promise.withResolvers<undefined>()
     const release = Promise.withResolvers<undefined>()
     const observed: string[] = []
+    let refreshFailure: Error | undefined
     let active = 0
     let maxActive = 0
     try {
       const dispose = await ctx.hmr.registerConfig(filename, async () => {
-        active += 1
-        maxActive = Math.max(maxActive, active)
-        observed.push(readFileSync(filename, 'utf8'))
-        if (observed.length === 1) {
-          // Deliver the second edit from INSIDE the running refresh, so it is
-          // coalesced while this one is still in flight, and do not signal the
-          // test until it is queued: `dispose()` closes the registration's
-          // watcher, so an edit that has not landed yet would be dropped.
-          try {
-            await deliverChange(filename, () => { writeFileSync(filename, 'two') })
-          } finally {
-            // Never strand the test body here: a delivery failure must surface as
-            // the assertion below, not as this case's 120 s timeout.
-            started.resolve(undefined)
+        try {
+          active += 1
+          maxActive = Math.max(maxActive, active)
+          observed.push(readFileSync(filename, 'utf8'))
+          if (observed.length === 1) {
+            // Deliver the second edit from INSIDE the running refresh, so it is
+            // coalesced while this one is still in flight, and do not signal the
+            // test until it is queued: `dispose()` closes the registration's
+            // watcher, so an edit that has not landed yet would be dropped.
+            try {
+              await deliverChange(filename, () => { writeFileSync(filename, 'two') })
+            } finally {
+              // Never strand the test body here: a delivery failure must surface as
+              // this case's failure below, not as this case's 120 s timeout.
+              started.resolve(undefined)
+            }
+            await release.promise
           }
-          await release.promise
+        } catch (error) {
+          // The registration stays registered after a rejected refresh and runs it
+          // again once the queued edit arrives, so a failure left here would raise
+          // `active` a second time and read as an overlap that never happened.
+          refreshFailure ??= error instanceof Error ? error : new Error(String(error), { cause: error })
+          throw error
+        } finally {
+          active -= 1
         }
-        active -= 1
       })
       await started.promise
 
@@ -252,6 +256,7 @@ describe('HMR exact config paths', () => {
       expect(disposed).toBe(false)
       release.resolve(undefined)
       await disposal
+      if (refreshFailure !== undefined) throw refreshFailure
       expect(maxActive).toBe(1)
       expect(observed).toEqual(['one', 'two'])
     } finally {
