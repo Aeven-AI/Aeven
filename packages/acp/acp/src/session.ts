@@ -71,6 +71,23 @@ function internalError(detail: string): RequestError {
   return RequestError.internalError(undefined, detail)
 }
 
+/**
+ * Whether a topology change resolved to the options the client already holds.
+ *
+ * Both lists come from the one producer (`AcpModelControl.options()`), so their
+ * key order is fixed and a serialized comparison is exact.
+ * @param published - the options last sent to this client.
+ * @param resolved - the options a topology change just resolved.
+ * @returns true when the client already holds this state.
+ */
+function sameConfigOptions(
+  published: readonly SessionConfigOption[],
+  resolved: readonly SessionConfigOption[],
+): boolean {
+  return published.length === resolved.length
+    && published.every((option, index) => JSON.stringify(option) === JSON.stringify(resolved[index]))
+}
+
 /** Restore the latest logged route before falling back to deployment config. */
 function selectionFor(
   logged: {
@@ -103,6 +120,15 @@ export class AcpSession {
   private inflight: InflightPrompt | undefined
   private closing: Promise<void> | undefined
   private readonly pendingSelections = new Map<string, ModelSelection>()
+
+  /**
+   * The options this client was last sent, so a topology change that resolves to
+   * the same list stays silent. A client that connected before every provider
+   * row finished activating already has the settled list from its `session/new`
+   * result, and announcing it again would make the transcript depend on which
+   * side won that race.
+   */
+  private published: readonly SessionConfigOption[] = []
 
   private constructor(
     private readonly ctx: Context,
@@ -190,17 +216,22 @@ export class AcpSession {
   }
 
   /**
-   * Return the complete standard model configuration state.
+   * Return the complete standard model configuration state, and record it as
+   * what this client holds.
    * @param signal - optional request cancellation.
    * @returns provider-grouped model and exact-model reasoning options.
    */
   configOptions(signal?: AbortSignal): Promise<SessionConfigOption[]> {
     this.assertActive()
-    return this.modelControl.options(signal)
+    return this.modelControl.options(signal).then((options) => {
+      this.published = options
+      return options
+    })
   }
 
   /**
-   * Apply one standard configuration option to later ACP turns.
+   * Apply one standard configuration option to later ACP turns, and record the
+   * result as what this client holds.
    * @param configId - advertised standard option id.
    * @param value - selected standard option value.
    * @param signal - optional request cancellation.
@@ -208,15 +239,23 @@ export class AcpSession {
    */
   setConfig(configId: string, value: unknown, signal?: AbortSignal): Promise<SessionConfigOption[]> {
     this.assertActive()
-    return this.modelControl.set(configId, value, signal)
+    return this.modelControl.set(configId, value, signal).then((options) => {
+      this.published = options
+      return options
+    })
   }
 
-  /** Resolve topology state off-chain, then serialize its notification without blocking execution updates. */
+  /**
+   * Resolve topology state off-chain and announce it, unless the client already
+   * holds that exact state.
+   */
   topologyChanged(): void {
     if (this.closing !== undefined) return
     void this.modelControl.options()
       .then((configOptions) => {
         if (this.closing !== undefined) return
+        if (sameConfigOptions(this.published, configOptions)) return
+        this.published = configOptions
         const previous = this.outputTail
         this.outputTail = previous
           .then(() => this.notify({

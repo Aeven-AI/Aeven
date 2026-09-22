@@ -529,6 +529,32 @@ describe('automation-only ACP bridge', () => {
     expect(harness.sessionUpdates.at(-1)?.sessionId).toBe(created.sessionId)
   })
 
+  it('stays silent when a topology change resolves to the options already published', async () => {
+    harness = await makeBridgeHarness()
+    await harness.client.initialize({ protocolVersion: PROTOCOL_VERSION, clientCapabilities: {} })
+    await harness.client.newSession({ cwd: process.cwd(), mcpServers: [] })
+
+    // Every provider row that activates publishes `llm/adapters-updated`, so a
+    // client that connected before the last one did receives an announcement for
+    // a list its `session/new` result already carried. That announcement is what
+    // made the ACP output depend on which side won the activation race.
+    harness.ctx.emit('llm/adapters-updated')
+
+    // The next change really does move the catalog, so one announcement is due.
+    harness.registerCatalogProvider('other')
+    await vi.waitFor(() => {
+      const update = harness!.updates.find(item => item.sessionUpdate === 'config_option_update')
+      expect(update).toBeDefined()
+      if (update?.sessionUpdate !== 'config_option_update') throw new Error('expected a config update')
+      const select = update.configOptions.find(option => option.id === 'model')
+      if (select?.type !== 'select') throw new Error('expected a model select option')
+      expect(select.options.some(option => 'group' in option && option.group === 'other')).toBe(true)
+    })
+
+    const announcements = harness.updates.filter(item => item.sessionUpdate === 'config_option_update')
+    expect(announcements).toHaveLength(1)
+  })
+
   it('does not let hung topology discovery block prompt completion or close', async () => {
     harness = await makeBridgeHarness({ script: [textResponse('still responsive')] })
     await harness.client.initialize({ protocolVersion: PROTOCOL_VERSION, clientCapabilities: {} })
