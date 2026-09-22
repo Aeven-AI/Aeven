@@ -164,6 +164,8 @@
       "@aeven/client-ui-sidebar": ["./packages/client/ui-sidebar/src"],
       "@aeven/client-ui-sidebar-right": ["./packages/client/ui-sidebar-right/src"],
       "@aeven/client-ui-sidebar-right/client": ["./packages/client/ui-sidebar-right/src/client/index.ts"],
+      "@aeven/client-ui-sidebar-select": ["./packages/client/ui-sidebar-select/src"],
+      "@aeven/client-ui-sidebar-select/client": ["./packages/client/ui-sidebar-select/src/client/index.ts"],
       "@aeven/client-ui-brand-official": ["./packages/client/ui-brand-official/src"],
       "@aeven/client-ui-approval": ["./packages/client/ui-approval/src"],
       "@aeven/client-ui-approval/client": ["./packages/client/ui-approval/src/client/index.ts"],

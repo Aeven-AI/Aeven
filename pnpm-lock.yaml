@@ -1699,6 +1699,9 @@ importers:
       '@aeven/client-ui-sidebar-right':
         specifier: workspace:^
         version: link:../../client/ui-sidebar-right
+      '@aeven/client-ui-sidebar-select':
+        specifier: workspace:^
+        version: link:../../client/ui-sidebar-select
       '@aeven/client-ui-skill':
         specifier: workspace:^
         version: link:../../client/ui-skill
@@ -3624,6 +3627,43 @@ importers:
       '@aeven/client-ui-session':
         specifier: workspace:^
         version: link:../ui-session
+      '@aeven/client-ui-slots':
+        specifier: workspace:^
+        version: link:../ui-slots
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+
+  packages/client/ui-sidebar-select:
+    dependencies:
+      clsx:
+        specifier: ^2.0.0
+        version: 2.1.1
+    devDependencies:
+      '@aeven/client-locale':
+        specifier: workspace:^
+        version: link:../locale
+      '@aeven/client-test-runtime':
+        specifier: workspace:^
+        version: link:../../test-support/client-runtime
+      '@aeven/client-ui-primitives':
+        specifier: workspace:^
+        version: link:../ui-primitives
+      '@aeven/client-ui-renderer':
+        specifier: workspace:^
+        version: link:../ui-renderer
+      '@aeven/client-ui-session':
+        specifier: workspace:^
+        version: link:../ui-session
+      '@aeven/client-ui-sidebar-right':
+        specifier: workspace:^
+        version: link:../ui-sidebar-right
       '@aeven/client-ui-slots':
         specifier: workspace:^
         version: link:../ui-slots

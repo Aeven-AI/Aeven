@@ -239,6 +239,9 @@
     - id: ui-sidebar-right
       name: '@aeven/client-ui-sidebar-right'
 
+    - id: ui-sidebar-select
+      name: '@aeven/client-ui-sidebar-select'
+
     - id: ui-settings
       name: '@aeven/client-ui-settings'
 

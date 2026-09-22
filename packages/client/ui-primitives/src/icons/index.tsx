@@ -50,6 +50,23 @@ export const IconChevronsLeftOutline14 = ({ size = 14, className }: IconProps) =
   </svg>
 )
 
+/** Terminal glyph: a prompt caret above an input rule. */
+export const IconTerminalOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg aria-hidden="true" width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="m7 11 3-3-3-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M13 15h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <rect width="18" height="18" x="3" y="3" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+/** Panel-left glyph: the panel-right frame mirrored, used to open the left sidebar. */
+export const IconPanelLeftFrameOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg aria-hidden="true" width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="18" height="18" x="3" y="3" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M9 3v18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
 /** Panel-right glyph: the frame with its right column, used to open the right sidebar. */
 export const IconPanelRightOutline16 = ({ size = 16, className }: IconProps) => (
   <svg aria-hidden="true" width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

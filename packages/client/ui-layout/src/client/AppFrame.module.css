@@ -323,3 +323,25 @@
     display: none;
   }
 }
+
+/* The desktop shell hides its title bar, so the page supplies the strip that
+   drags the window and answers a double-click with zoom.
+
+   It covers only the gutter the window controls sit in — from the frame's left
+   edge to where the sidebar's toggle begins — because everything further right
+   is the conversation's own header, whose tabs and controls must keep their
+   clicks. A band across the full width takes those clicks even with
+   `pointer-events: none`, since a drag rectangle is applied by the window
+   rather than by hit testing. */
+:global(html[data-avn-desktop]) .frame::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* Up to the toggle: the lights' own inset plus their span. */
+  width: calc(var(--dsw-aeven-page-inset) + 3 * 12px + 2 * 8px);
+  /* The sidebar's toggle row: its top padding plus one control. */
+  height: calc(8px + var(--dsw-aeven-control-size));
+  z-index: 60;
+  -webkit-app-region: drag;
+}

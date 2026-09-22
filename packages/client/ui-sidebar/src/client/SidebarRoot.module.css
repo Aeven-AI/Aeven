@@ -91,10 +91,13 @@
   flex: none;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: var(--dsw-aeven-sidebar-toggle-width);
+  justify-content: flex-start;
+  /* Sized to its glyph rather than to the column: the row inset before it, the
+     18px icon, and a narrower inset after, so the button ends just past what
+     it draws instead of reaching the column's edge. */
+  width: calc(var(--avn-sidebar-inline-padding) + 18px + 8px);
   height: var(--dsw-aeven-control-size);
-  padding: 0 var(--avn-sidebar-inline-padding);
+  padding: 0 8px 0 var(--avn-sidebar-inline-padding);
   border: none;
   background: transparent;
   color: var(--dsw-alias-label-primary);
@@ -102,11 +105,30 @@
   overflow: hidden;
   white-space: nowrap;
   box-sizing: border-box;
-  transition: width var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
+  /* Cleared by the desktop rule below; zero in a browser tab. */
+  margin-left: var(--avn-sidebar-window-controls, 0px);
 }
 
-.visible .toggle {
-  width: var(--avn-sidebar-open-width);
+
+/* The desktop shell hides its title bar and insets the window controls over the
+   page's top-left (desktop main.ts `trafficLightPosition`), so this one control
+   stands to their right rather than under them.
+
+   The shell insets the lights by `--dsw-aeven-page-inset`, and they span three
+   12px buttons with 8px between them. Clearing that span leaves the row's own
+   inset as the gap after them, which matches the gap before them. Only the
+   toggle moves, since nothing else in the column reaches that corner. The
+   desktop carrier marks the document (desktop preload-app.ts), which is what
+   keeps the same client unmoved when it is served over HTTP. */
+:global(html[data-avn-desktop]) .toggle {
+  --avn-sidebar-window-controls: calc(
+    /* the lights' inset, then three 12px buttons with 8px between them */
+    var(--dsw-aeven-page-inset) + 3 * 12px + 2 * 8px
+    /* the gap after them, matching their own inset, less the glyph's own
+       centring inside the square control */
+    + var(--dsw-aeven-page-inset)
+    - (var(--dsw-aeven-control-size) - 18px) / 2
+  );
 }
 
 /* Neither glyph shrinks when the button is narrower than its contents. Aeven
@@ -116,19 +138,6 @@
    clips the chevron past the collapsed edge, which is what Aeven does. */
 .toggle > svg {
   flex: none;
-}
-
-/* Always mounted, as Aeven has it: the chevron crossfades rather than popping
-   in, which is what a mount/unmount would do mid-slide. */
-.toggleEnd {
-  flex: none;
-  opacity: 0;
-  color: var(--dsw-alias-label-primary);
-  transition: opacity var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
-}
-
-.visible .toggleEnd {
-  opacity: 1;
 }
 
 /* Aeven `.side-content`: the scrolling body. Its opacity rides a linear curve
@@ -301,7 +310,6 @@
   .content,
   .panel,
   .toggle,
-  .toggleEnd,
   .sideContent {
     transition: none;
   }

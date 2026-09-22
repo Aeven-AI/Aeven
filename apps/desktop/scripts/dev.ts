@@ -8,6 +8,7 @@ import { parseArgs } from 'node:util'
 import { pnpmInvocation } from '../../../scripts/pnpm-invocation.ts'
 import { DESKTOP_HOST_PROTOCOL_VERSION } from '../src/host-protocol.ts'
 import type { DesktopRelease } from '../src/release.ts'
+import { resolveAvnHome } from '@aeven/home-paths'
 import { prepareDevelopmentApp } from './development-app.ts'
 import { prepareDevelopmentProject } from './development-project.ts'
 
@@ -59,10 +60,28 @@ async function launchElectron(projectDir: string): Promise<void> {
   const mainPort = debugPort('AVN_DESKTOP_MAIN_INSPECT_PORT', 9229)
   const rendererPort = debugPort('AVN_DESKTOP_RENDERER_DEBUG_PORT', 9222)
   const hostPort = debugPort('AVN_DESKTOP_HOST_INSPECT_PORT', 9230)
-  const home = resolve(process.env.AVN_HOME ?? join(DEVELOPMENT_ROOT, 'home'))
+  // The repository `.env` holds the deployment secrets the profile's identity
+  // and provider rows read (`AEVEN_JWT_SECRET`, the OAuth URLs). A shell that
+  // exported them already wins, since `loadEnvFile` does not overwrite.
+  try {
+    process.loadEnvFile(join(REPOSITORY_ROOT, '.env'))
+  } catch (error) {
+    // ENOENT is the ordinary case: a checkout without a `.env` relies on the
+    // ambient environment, and every other read failure is worth naming.
+    if ((error as NodeJS.ErrnoException | null)?.code !== 'ENOENT') {
+      console.warn(`desktop development: failed to load .env: ${String(error)}`)
+    }
+  }
+  // A private home starts signed out and empty, so development defaults to the
+  // home the reader already uses; `AVN_HOME` still selects a throwaway one.
+  const home = resolveAvnHome()
   const userData = join(DEVELOPMENT_ROOT, 'electron-user-data')
   const environment: NodeJS.ProcessEnv = {
     ...process.env,
+    // Electron runs as plain Node when this is set, which rejects every
+    // Chromium flag below. Tooling that spawns Node through Electron leaves it
+    // in the environment, so the shell clears it rather than inheriting it.
+    ELECTRON_RUN_AS_NODE: undefined,
     AVN_HOME: home,
     AVN_DESKTOP_DEV_PROJECT_DIR: projectDir,
     AVN_DESKTOP_HOST_INSPECT_PORT: String(hostPort),

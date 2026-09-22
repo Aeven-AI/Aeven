@@ -17,7 +17,7 @@
 import clsx from 'clsx'
 import { useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react'
 import {
-  AevenMark, IconChevronsLeftOutline14, IconMenuOutline16, IconNewChatOutline16, Tooltip,
+  AevenMark, IconNewChatOutline16, IconPanelLeftFrameOutline16, Tooltip,
 } from '@aeven/client-ui-primitives'
 import type { SidebarRootComponentProps } from './contract/slots.ts'
 import css from './SidebarRoot.module.css'
@@ -102,8 +102,7 @@ export function SidebarRoot({
             aria-label={collapsed ? t('toggle.open') : t('toggle.collapse')}
             onClick={() => { toggleSidebar() }}
           >
-            <IconMenuOutline16 size={18} />
-            <IconChevronsLeftOutline14 className={css.toggleEnd} size={14} />
+            <IconPanelLeftFrameOutline16 size={18} />
           </button>
         </Tooltip>
 

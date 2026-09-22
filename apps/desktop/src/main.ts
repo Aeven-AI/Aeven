@@ -11,6 +11,7 @@ import {
   Menu,
   protocol,
   type IpcMainInvokeEvent,
+  type MenuItemConstructorOptions,
 } from 'electron'
 import { completeOAuthLanding, forwardAevenApiRequest, openAevenOAuthWindow } from './aeven-sign-in.ts'
 import { planDesktopBackend } from './attached-host.ts'
@@ -100,6 +101,35 @@ function developmentHostInspectPort(enabled: boolean): number | undefined {
   return port
 }
 
+/**
+ * Top padding above the client's sidebar toggle row
+ * (client ui-sidebar SidebarRoot.module.css).
+ */
+const SIDEBAR_ROW_PADDING = 8
+
+/** `--dsw-aeven-control-size`, the height of the toggle beside the controls. */
+const CONTROL_SIZE = 40
+
+/** Diameter of a macOS window button. */
+const WINDOW_BUTTON_SIZE = 12
+
+/**
+ * Left inset of the traffic lights: `--dsw-aeven-page-inset`, so the gutter
+ * they sit in matches the page's own edge inset.
+ */
+const TRAFFIC_LIGHT_INSET_X = 24
+
+/**
+ * Top inset of the traffic lights.
+ *
+ * The sidebar's toggle glyph is 18px in a 40px control below the row's
+ * padding, so its centre line is `SIDEBAR_ROW_PADDING + CONTROL_SIZE / 2`.
+ * Centring the buttons on that line is a pixel low in practice, because macOS
+ * measures the inset against the button group's box rather than the painted
+ * circles, so the value is taken from the rendered result.
+ */
+const TRAFFIC_LIGHT_INSET_Y = SIDEBAR_ROW_PADDING + (CONTROL_SIZE - WINDOW_BUTTON_SIZE) / 2 - 1
+
 function createWindow(preload: string): BrowserWindow {
   const window = new BrowserWindow({
     width: 1280,
@@ -107,6 +137,13 @@ function createWindow(preload: string): BrowserWindow {
     minWidth: 880,
     minHeight: 600,
     show: false,
+    // The page draws its own header, so the window contributes no title strip
+    // of its own. macOS keeps the traffic lights and insets them over the
+    // page's top-left; every other platform hides the bar outright, since it
+    // has no equivalent control to leave behind.
+    ...process.platform === 'darwin'
+      ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: TRAFFIC_LIGHT_INSET_X, y: TRAFFIC_LIGHT_INSET_Y } }
+      : { titleBarStyle: 'hidden' as const },
     webPreferences: {
       preload,
       nodeIntegration: false,
@@ -363,6 +400,14 @@ async function main(): Promise<void> {
     void pluginWindow.loadURL(`${SCHEME}://shell/plugin-manager.html`)
   }
 
+  // The edit menu carries the clipboard and selection accelerators: macOS binds
+  // Cmd+C, Cmd+V and Cmd+A through these roles, so a window without it cannot
+  // copy or paste however the page is focused. The window menu is listed for
+  // the same reason, and both sit after the application menu the shell owns.
+  const platformMenus: MenuItemConstructorOptions[] = process.platform === 'darwin'
+    ? [{ role: 'editMenu' }, { role: 'windowMenu' }]
+    : [{ role: 'editMenu' }]
+
   Menu.setApplicationMenu(Menu.buildFromTemplate([{
     label: process.platform === 'darwin' ? app.name : messages.application,
     submenu: [
@@ -376,7 +421,7 @@ async function main(): Promise<void> {
       { type: 'separator' },
       { role: 'quit' },
     ],
-  }]))
+  }, ...platformMenus]))
 
   const createMainWindow = (): BrowserWindow => {
     const window = createWindow(appPreload)
