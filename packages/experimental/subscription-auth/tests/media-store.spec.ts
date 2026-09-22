@@ -5,6 +5,7 @@ import {
   appendFile,
   chmod,
   lstat,
+  lutimes,
   mkdir,
   mkdtemp,
   readFile,
@@ -25,6 +26,7 @@ import {
   isTrustedImaginePeer,
   MEDIA_STORE_MAX_BYTES,
   MEDIA_STORE_RETENTION_MS,
+  MEDIA_STORE_TEMP_GRACE_MS,
   MediaStore,
   MediaStoreError,
   migrateLegacyMediaStoreDir,
@@ -94,6 +96,16 @@ async function plantIndexLeaf(root: string, artifactId: string, contents: string
   const leaf = indexLeaf(root, artifactId)
   await writeFile(leaf, contents, { mode: 0o600 })
   return leaf
+}
+
+/**
+ * Backdate `.tmp-` entries past the sweep's grace period so they read as stale.
+ * `lutimes` so a dangling symlink temp is aged without following it.
+ * @param paths - temporary entries to backdate.
+ */
+async function ageTemporariesPastGrace(paths: readonly string[]): Promise<void> {
+  const stale = new Date(Date.now() - MEDIA_STORE_TEMP_GRACE_MS - 60_000)
+  for (const path of paths) await lutimes(path, stale, stale)
 }
 
 async function exists(path: string): Promise<boolean> {
@@ -710,6 +722,21 @@ describe('MediaStore', () => {
     })
   })
 
+  it('leaves a fresh temporary alone so a concurrent write can still publish it', async () => {
+    const store = await tempStore()
+    const objects = join(store.root, 'objects')
+    await mkdir(objects, { mode: 0o700, recursive: true })
+    // A second store on the same root publishes through this name. The per-store
+    // lock does not exclude it, so reaping the file here made its link() fail
+    // with ENOENT and surfaced as a rejected save that had been proceeding.
+    const inFlight = join(objects, '.tmp-inflight')
+    await writeFile(inFlight, 'x', { mode: 0o600 })
+
+    await store.cleanup()
+
+    expect(await exists(inFlight)).toBe(true)
+  })
+
   it('reclaims stale temporaries and strays while keeping live leaves', async () => {
     const store = await tempStore({ randomId: () => '0f'.repeat(16) })
     const meta = await store.save({ data: sampleVideo('tree'), mediaType: 'video/mp4' })
@@ -741,6 +768,11 @@ describe('MediaStore', () => {
     await symlink(dangling, join(index, bucket, '.tmp-dangling'))
     await mkdir(join(index, bucket, '.tmp-closed'))
     await writeFile(join(index, bucket, 'notes.txt'), 'x', { mode: 0o600 })
+
+    // A temporary belongs to an in-flight write until its publish finishes, so
+    // only one older than the grace period is stale. Age these past it rather
+    // than reaching for the store's clock: the sweep reads the file's own mtime.
+    await ageTemporariesPastGrace(temps)
 
     await expect(store.cleanup()).resolves.toEqual({ expiredArtifacts: 0, removedObjects: 0 })
     for (const path of temps) expect(await exists(path), path).toBe(false)
@@ -1234,6 +1266,8 @@ describe('MediaStore filesystem-race tolerance', () => {
     await writeFile(leftovers[0]!, 'x', { mode: 0o600 })
     await writeFile(leftovers[1]!, 'x', { mode: 0o600 })
     await symlink(join(store.root, 'missing-target'), dead)
+    // Stale, so the sweep reaches the unlink these faults then refuse.
+    await ageTemporariesPastGrace(leftovers)
 
     const racing = await importWithFaults([
       { op: 'unlink', path: path => path.includes('.tmp-') || path === dead, code: 'EACCES' },

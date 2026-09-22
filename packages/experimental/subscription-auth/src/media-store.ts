@@ -7,6 +7,7 @@
 
 import { createHash, randomBytes } from 'node:crypto'
 import { constants as fsConstants } from 'node:fs'
+import type { Stats } from 'node:fs'
 import { chmod, link, lstat, mkdir, open, readdir, rename, unlink } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { writeFileAtomic } from '@aeven/atomic-write'
@@ -25,6 +26,19 @@ export const MEDIA_STORE_FILE_MODE = 0o600
 export const MEDIA_STORE_INDEX_VERSION = 1
 /** Ceiling for one index document, in bytes. */
 export const MEDIA_STORE_INDEX_MAX_BYTES = 16 * 1024
+
+/**
+ * How long a `.tmp-` file is left alone before a sweep may reap it.
+ *
+ * `writeExclusiveFile` publishes through a `.tmp-` file that it links onto the
+ * final name and then unlinks, so a temporary name belongs to an in-flight
+ * write until that sequence finishes. The per-store lock does not exclude a
+ * second store opened on the same root, and reaping another writer's temporary
+ * makes its `link()` fail with `ENOENT` — a write that was proceeding normally
+ * reported as a missing file. Only a temporary older than this can no longer
+ * belong to a live write, because no single publish sequence spans it.
+ */
+export const MEDIA_STORE_TEMP_GRACE_MS = 60 * 1000
 
 /** Opaque public id: 32 lowercase hex characters. */
 export const MEDIA_ARTIFACT_ID_PATTERN = /^[a-f0-9]{32}$/
@@ -557,6 +571,19 @@ async function storedObjectBytes(root: string): Promise<number> {
   return total
 }
 
+/**
+ * Report whether a `.tmp-` entry is old enough that no live write owns it.
+ *
+ * Measured against wall time rather than the store's injected clock: the
+ * question is how long ago this file was written by some process, which a test
+ * clock does not describe.
+ * @param stat - `lstat` of the temporary entry.
+ * @returns true when the entry predates {@link MEDIA_STORE_TEMP_GRACE_MS}.
+ */
+function isReapableTemporary(stat: Stats): boolean {
+  return Date.now() - stat.mtimeMs >= MEDIA_STORE_TEMP_GRACE_MS
+}
+
 async function listRegularFiles(root: string, kind: 'index' | 'objects'): Promise<string[]> {
   const base = join(root, kind)
   const rootStat = await lstatOrUndefined(base)
@@ -576,7 +603,8 @@ async function listRegularFiles(root: string, kind: 'index' | 'objects'): Promis
     if (bucket.startsWith('.tmp-')) {
       const leftover = join(base, bucket)
       const leftoverStat = await lstatOrUndefined(leftover)
-      if (leftoverStat?.isSymbolicLink() === true || leftoverStat?.isFile() === true) {
+      if ((leftoverStat?.isSymbolicLink() === true || leftoverStat?.isFile() === true)
+        && isReapableTemporary(leftoverStat)) {
         await unlink(leftover).catch(() => undefined)
       }
       continue
@@ -600,7 +628,9 @@ async function listRegularFiles(root: string, kind: 'index' | 'objects'): Promis
       const stat = await lstatOrUndefined(full)
       if (stat === undefined) continue
       if (entry.startsWith('.tmp-')) {
-        if (stat.isSymbolicLink() || stat.isFile()) await unlink(full).catch(() => undefined)
+        if ((stat.isSymbolicLink() || stat.isFile()) && isReapableTemporary(stat)) {
+          await unlink(full).catch(() => undefined)
+        }
         continue
       }
       if (stat.isSymbolicLink()) {
