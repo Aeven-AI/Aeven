@@ -21,7 +21,7 @@ body {
   --dsw-aeven-sidebar-row-inset: 24px;
   --dsw-aeven-sidebar-bottom-inset: 40px;
   --dsw-aeven-sidebar-toggle-width: 68px;
-  --dsw-aeven-sidebar-panel-radius: 20px;
+  --dsw-aeven-sidebar-panel-radius: 30px;
   --dsw-aeven-sidebar-transition-duration: 400ms;
   --dsw-aeven-sidebar-transition-timing: cubic-bezier(0.23, 1, 0.32, 1);
   /* The right sidebar travels on its own pair. The shared curve above is

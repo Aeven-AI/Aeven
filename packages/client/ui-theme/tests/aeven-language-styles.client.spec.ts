@@ -45,7 +45,7 @@ describe('Aeven visual language', () => {
     expect(css).toContain('--dsw-aeven-sidebar-row-inset: 24px')
     expect(css).toContain('--dsw-aeven-sidebar-bottom-inset: 40px')
     expect(css).toContain('--dsw-aeven-sidebar-toggle-width: 68px')
-    expect(css).toContain('--dsw-aeven-sidebar-panel-radius: 20px')
+    expect(css).toContain('--dsw-aeven-sidebar-panel-radius: 30px')
     expect(css).toContain('--dsw-aeven-sidebar-transition-duration: 400ms')
     expect(css).toContain('--dsw-aeven-control-size: 40px')
     expect(css).toContain('--dsw-aeven-radius-surface: 30px')
