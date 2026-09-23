@@ -1,23 +1,26 @@
 /**
- * ui-workspace contracts. Two registrations share this package:
+ * ui-workspace contracts. Three registrations share this package:
  *
- * - WorkspaceBrowser fills the sidebar shell's `sidebar.workspaces` hole —
- *   the whole browsing region (section header, search, grouped/flat session
- *   list, workspace dialogs). It registers this package's viewing store and
- *   consumes the shell's two-fact owner share (wide / expandSidebar).
+ * - WorkspaceHeaderActions fills the sidebar shell's `sidebar.header.action`
+ *   seat: the browsing region's search field, view-options menu, and add
+ *   workspace control.
+ * - WorkspaceBrowser fills the shell's `sidebar.workspaces` hole — the list
+ *   body (grouped or flat session rows, or the search results) plus the
+ *   workspace dialogs. It shares the header registration's viewing store, so
+ *   one search query reaches both.
  * - WorkspacePicker fills the conversation empty-state hole (menu + error
  *   dialog shared with the browser).
  *
- * Each registration also declares one **directory-flow hole** (`single`
- * kind): the slot a composed picker package's client half fills with its
- * picking interaction — a renderless native-chooser driver or an in-app
- * browsing dialog. ui-workspace owns the trigger (the "Add workspace…"
- * entry, present only while the hole is occupied) and the adoption
- * semantics (`createWorkspace({ path })`, the retryable error dialog,
- * Choose again); the occupant owns everything between `open` and the picked path,
- * including creating a new directory to hand back. That occupant-owned
- * creation is why adding a workspace has a single route: an unoccupied hole
- * leaves the surface with no add affordance at all.
+ * Each registration that offers adding also declares one **directory-flow
+ * hole** (`single` kind): the slot a composed picker package's client half
+ * fills with its picking interaction — a renderless native-chooser driver or
+ * an in-app browsing dialog. ui-workspace owns the trigger (the "Add
+ * workspace…" entry, present only while the hole is occupied) and the
+ * adoption semantics (`createWorkspace({ path })`, the retryable error
+ * dialog, Choose again); the occupant owns everything between `open` and the
+ * picked path, including creating a new directory to hand back. That
+ * occupant-owned creation is why adding a workspace has a single route: an
+ * unoccupied hole leaves the surface with no add affordance at all.
  * Two holes exist because the two menu surfaces are independent slot entries
  * and a hole has exactly one declaring entry — they carry the same owner
  * contract and the same occupant.
@@ -55,15 +58,15 @@ declare module '@aeven/client-ui-slots' {
   interface SlotMap {
     /** Directory-flow hole under the conversation empty-state picker (declared by the WorkspacePicker entry). */
     'conversation.hero.workspace.directoryFlow': { kind: 'single'; scope: 'root'; owner: DirectoryFlowOwnerProps }
-    /** Directory-flow hole under the sidebar browsing region (declared by the WorkspaceBrowser entry). */
-    'sidebar.workspaces.directoryFlow': { kind: 'single'; scope: 'root'; owner: DirectoryFlowOwnerProps }
+    /** Directory-flow hole under the sidebar header's add control (declared by the WorkspaceHeaderActions entry). */
+    'sidebar.header.action.directoryFlow': { kind: 'single'; scope: 'root'; owner: DirectoryFlowOwnerProps }
   }
 }
 
 /** The two directory-flow holes; a flow package's client half registers its one component into both. */
 export type DirectoryFlowSlotName =
   | 'conversation.hero.workspace.directoryFlow'
-  | 'sidebar.workspaces.directoryFlow'
+  | 'sidebar.header.action.directoryFlow'
 
 /**
  * Directory-picking share both trigger surfaces consume. Occupancy rides the
@@ -85,10 +88,10 @@ export type DirectoryPickingHooks = PropsHooks<DirectoryPickingInjected['hooks']
 /**
  * Browser-private injected share (arrives via the register inject factory).
  * Data reads use the global framework hooks; these are the Host actions the
- * browsing region drives.
+ * region drives.
  */
 export type WorkspaceBrowserInjected = {
-  hooks: DirectoryPickingInjected['hooks'] & {
+  hooks: {
     /**
      * Fixed Host facts, reached through a hook rather than injected as values:
      * the renderer memoizes an entry's inject result for the registration's
@@ -140,17 +143,44 @@ export type WorkspaceBrowserInjected = {
    * the Host response/changed frame; failures leave the order unchanged.
    */
   insertSessionBefore: (workspaceId: WorkspaceId, sessionId: SessionId, beforeSessionId?: SessionId) => Promise<void>
+}
+
+/**
+ * Full browser props: shell owner share + the shared viewing store + injected
+ * actions + the locale seat.
+ */
+export type WorkspaceBrowserProps =
+  PropsRuntime<'sidebar.workspaces'>
+  & PropsStore<ReturnType<typeof createWorkspaceViewStore>>
+  & Omit<WorkspaceBrowserInjected, 'hooks'>
+  & PropsHooks<WorkspaceBrowserInjected['hooks']>
+  & PropsLocale<'workspace'>
+
+/**
+ * Header-controls injected share (arrives via the register inject factory):
+ * the two Host actions the cluster drives plus this surface's picking
+ * occupancy.
+ */
+export type WorkspaceHeaderActionsInjected = DirectoryPickingInjected & {
+  /**
+   * Start a New Session in a Workspace: reuse-or-create its blank session and
+   * open it.
+   */
+  startSession: (workspaceId?: WorkspaceId) => void
   /** Adopt a picked host directory as a real Workspace before targeting a Session. */
   createWorkspace: (input: { path: string }) => Promise<WorkspaceView>
 }
 
-/** Full browser props: shell owner share + viewing store + injected actions + the locale seat. */
-export type WorkspaceBrowserProps =
-  PropsRuntime<'sidebar.workspaces'>
-  & PropsRenderSlots<'sidebar.workspaces.directoryFlow'>
+/**
+ * Full header slot props: the shell's empty owner share + the shared viewing
+ * store + injected actions + the locale seat.
+ */
+export type WorkspaceHeaderActionsProps =
+  PropsRuntime<'sidebar.header.action'>
+  & PropsRenderSlots<'sidebar.header.action.directoryFlow'>
   & PropsStore<ReturnType<typeof createWorkspaceViewStore>>
-  & Omit<WorkspaceBrowserInjected, 'hooks'>
-  & PropsHooks<WorkspaceBrowserInjected['hooks']>
+  & Omit<WorkspaceHeaderActionsInjected, 'hooks'>
+  & PropsHooks<WorkspaceHeaderActionsInjected['hooks']>
   & PropsLocale<'workspace'>
 
 /**

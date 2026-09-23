@@ -1,4 +1,4 @@
-// Latency/throughput folds shared by the settled turn footer and StatsLine.
+// Latency/throughput folds for the settled turn footer.
 
 import type { AssistantMessageNode, ConversationNode } from './snapshot.ts'
 
@@ -60,9 +60,8 @@ interface TurnFold {
  * Fold assistant nodes into per-turn footer metrics.
  *
  * TTFT is the turn's lowest-step request-dispatch-to-first-token reading, so
- * it is only meaningful when the turn's start is inside
- * the loaded window (the caller gates on `turnTimings`, which shares that
- * window). Throughput divides summed output tokens by summed decode wall time,
+ * it is only meaningful when the turn's start is inside the nodes passed in.
+ * Throughput divides summed output tokens by summed decode wall time,
  * counting only steps that carry both.
  * @param nodes - Snapshot nodes of the loaded window.
  * @returns Turn number → available metrics; turns with none are absent.

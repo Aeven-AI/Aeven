@@ -3,6 +3,7 @@
 
 import { cloneElement, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { FocusEventHandler, MouseEventHandler, MutableRefObject, ReactElement, Ref } from 'react'
+import { pointerMovedRecently, watchPointerIntent } from '@aeven/client-hypermarkdown'
 import css from './Tooltip.module.css'
 
 /** Bubble placement relative to the anchor. */
@@ -13,6 +14,7 @@ interface AnchorProps {
   ref?: Ref<HTMLElement> | undefined
   onMouseEnter?: MouseEventHandler | undefined
   onMouseLeave?: MouseEventHandler | undefined
+  onMouseMove?: MouseEventHandler | undefined
   onFocus?: FocusEventHandler | undefined
   onBlur?: FocusEventHandler | undefined
 }
@@ -100,6 +102,7 @@ export function Tooltip({ label, side = 'right', delayMs = 0, disabled = false, 
     clearTimeout(showTimer.current)
     showTimer.current = null
   }, [])
+  useEffect(() => { watchPointerIntent() }, [])
   useEffect(() => {
     if (disabled) {
       cancelShow()
@@ -140,7 +143,20 @@ export function Tooltip({ label, side = 'right', delayMs = 0, disabled = false, 
     <>
       {cloneElement(children, {
         ref: mergedRef,
-        onMouseEnter: (e) => { children.props.onMouseEnter?.(e); triggers.current.hover = true; showAfterHoverDelay() },
+        // Content moving under a resting pointer (a streaming transcript)
+        // enters anchors with no pointer movement; only the reader's own
+        // hover, on entering or on moving within the anchor, opens the bubble.
+        onMouseEnter: (e) => {
+          children.props.onMouseEnter?.(e)
+          triggers.current.hover = true
+          if (pointerMovedRecently(e.timeStamp)) showAfterHoverDelay()
+        },
+        onMouseMove: (e) => {
+          children.props.onMouseMove?.(e)
+          if (triggers.current.hover && pos === null && showTimer.current === null && pointerMovedRecently(e.timeStamp)) {
+            showAfterHoverDelay()
+          }
+        },
         onMouseLeave: (e) => { children.props.onMouseLeave?.(e); triggers.current.hover = false; cancelShow(); setPos(null) },
         onFocus: (e) => { children.props.onFocus?.(e); triggers.current.focus = true; cancelShow(); show() },
         onBlur: (e) => { children.props.onBlur?.(e); triggers.current.focus = false; hide() },

@@ -6,6 +6,10 @@ export { StateDot } from './StateDot.tsx'
 export type { StateDotState } from './StateDot.tsx'
 export { DisclosureRow } from './DisclosureRow.tsx'
 export type { DisclosureRowProps } from './DisclosureRow.tsx'
+export { TextShimmer } from './TextShimmer.tsx'
+export { ImageLightbox } from './ImageLightbox.tsx'
+export type { ImageLightboxLabels } from './ImageLightbox.tsx'
+export type { TextShimmerProps } from './TextShimmer.tsx'
 export { Button } from './Button.tsx'
 export type { ButtonVariant } from './Button.tsx'
 export { Pill } from './Pill.tsx'
@@ -58,6 +62,7 @@ export { CodeBlock } from './markdown/CodeBlock.tsx'
 export type { CodeBlockProps } from './markdown/CodeBlock.tsx'
 export { JsonBlock } from './markdown/JsonBlock.tsx'
 export { MarkdownText, reasoningSource } from './markdown/MarkdownText.tsx'
+export { TextAnimationContext, useTextAnimation } from './markdown/animation.ts'
 export type {
   MarkdownCodeLabels,
   MarkdownFileMentions,

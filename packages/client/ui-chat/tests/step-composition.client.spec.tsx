@@ -20,13 +20,13 @@ const attachment = {
 }
 
 /** The engine-rendered sources of a step, in authored order. */
-function sources(blocks: readonly AssistantBlock[], streaming: boolean): (string | null)[] {
-  return runsOf(blocks, streaming).map(run => run.source)
+function sources(blocks: readonly AssistantBlock[], _streaming: boolean): (string | null)[] {
+  return runsOf(blocks).map(run => run.source)
 }
 
 /** Where each run starts, which is what React keys it by. */
-function starts(blocks: readonly AssistantBlock[], streaming: boolean): number[] {
-  return runsOf(blocks, streaming).map(run => run.start)
+function starts(blocks: readonly AssistantBlock[], _streaming: boolean): number[] {
+  return runsOf(blocks).map(run => run.start)
 }
 
 describe('a step becomes engine source', () => {
@@ -105,7 +105,7 @@ describe('a step becomes engine source', () => {
     expect(runsOf([
       { kind: 'text', text: 'Answer.' },
       { kind: 'tool-call', callId: 'c', name: 'bash', argsRaw: '{}' },
-    ], false)).toEqual([{ source: 'Answer.', start: 0 }])
+    ])).toEqual([{ source: 'Answer.', start: 0 }])
   })
 
   it('closes a trace that something else already follows', () => {
@@ -134,7 +134,7 @@ describe('a step becomes engine source', () => {
   })
 
   it('is empty for a step with nothing in it', () => {
-    expect(runsOf([], true)).toEqual([])
+    expect(runsOf([])).toEqual([])
   })
 
   it('defuses a trace that spells the closing tag', () => {

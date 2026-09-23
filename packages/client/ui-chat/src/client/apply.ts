@@ -23,13 +23,14 @@ import { EMPTY_CHAT_SNAPSHOT } from './contract/snapshot.ts'
 import { ApprovalCommand } from './chat/ApprovalCommand.tsx'
 import { ChatView } from './chat/ChatView.tsx'
 import { registerChatNodeRenderers } from './chat/register-node-renderers.ts'
-import { StatsLine } from './chat/StatsLine.tsx'
 import { registerConversationNodes } from './conversation-nodes/register.ts'
 import { DetailsPanel } from './details/DetailsPanel.tsx'
 import { en, NS, zh } from './locale.ts'
 import { TranscriptViewRow, type TranscriptViewRowInjected } from './settings/TranscriptViewRow.tsx'
 import { createChatStore } from './stores.ts'
 import { TranscriptViewPolicy } from './transcript-view.ts'
+import { TextAnimationPolicy } from './text-animation.ts'
+import { TextAnimationRow, type TextAnimationRowInjected } from './settings/TextAnimationRow.tsx'
 import { CHAT_SETTINGS_NAMESPACE, type ChatSettings } from '../chat-settings.ts'
 import { useTurnDataValue } from './chat/use-turn-data.ts'
 
@@ -91,9 +92,9 @@ export function apply(ctx: Context): void {
       }
     })
   }, 'ui-chat: Session activation scroll policy')
-  const transcriptView = new TranscriptViewPolicy(
-    ctx.settingsScope.bind<ChatSettings>({ namespace: CHAT_SETTINGS_NAMESPACE }),
-  )
+  const chatSettings = ctx.settingsScope.bind<ChatSettings>({ namespace: CHAT_SETTINGS_NAMESPACE })
+  const transcriptView = new TranscriptViewPolicy(chatSettings)
+  const textAnimation = new TextAnimationPolicy(chatSettings)
 
   ctx.slots.inject('settings.general.item', () => ctx.slots.register({
     name: 'settings.general.item',
@@ -105,6 +106,17 @@ export function apply(ctx: Context): void {
       setTranscriptView: (mode) => { transcriptView.setMode(mode) },
     }),
   }, TranscriptViewRow))
+
+  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+    name: 'settings.general.item',
+    id: 'text-animation',
+    order: 13,
+    locale: NS,
+    inject: (): TextAnimationRowInjected => ({
+      hooks: { textAnimationSetting: textAnimation.enabled },
+      setTextAnimation: (enabled) => { textAnimation.setEnabled(enabled) },
+    }),
+  }, TextAnimationRow))
 
   ctx.slots.inject('conversation.view', () => {
     const disposeView = ctx.slots.register({
@@ -126,6 +138,7 @@ export function apply(ctx: Context): void {
         return {
           hooks: {
             transcriptView: transcriptView.mode,
+            textAnimationPreference: textAnimation.enabled,
             eventNavigation: ctx.uiConversation.eventNavigation(sessionId),
           },
           keyedHooks: {
@@ -178,11 +191,6 @@ export function apply(ctx: Context): void {
     }, ChatView)
     return disposeView
   })
-
-  ctx.slots.inject('conversation.composer.dock', () =>
-    ctx.slots.register({
-      name: 'conversation.composer.dock', id: 'stats', order: 0, locale: NS,
-    }, StatsLine))
 
   ctx.slots.inject('conversation.approval.detail', () =>
     ctx.slots.register({ name: 'conversation.approval.detail' }, ApprovalCommand))

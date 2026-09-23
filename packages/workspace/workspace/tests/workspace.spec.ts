@@ -1449,24 +1449,51 @@ describe('built-in workspace seeding', () => {
     expect(storedState(result.pool).workspaceIds).toEqual([builtIn.id])
   })
 
-  it('lets an ordinary workspace be renamed, moved, and deleted around the built-in', async () => {
+  it('lets an ordinary workspace be renamed, moved, and deleted below the built-in', async () => {
     const dir = await makeDir('seed-ordinary')
+    const secondDir = await makeDir('seed-ordinary-second')
     const result = await harness({ config: { seedDefaultWorkspace: true } })
     const builtIn = result.registry.list()[0]!
     const ordinary = await result.registry.create(dir)
     expect(ordinary.kind).toBe('folder')
     expect(ordinary.isDefault).toBe(false)
 
-    // `create` prepends, so the newest registration is the head from here on and
-    // the pin — which guards the head position, not the id — no longer refuses a
-    // move of the built-in.
-    expect(result.registry.list().map(workspace => workspace.id)).toEqual([ordinary.id, builtIn.id])
+    // `create` places the new registration directly below the built-in, which
+    // keeps the head — and with it the first screen — where the reader left it.
+    expect(result.registry.list().map(workspace => workspace.id)).toEqual([builtIn.id, ordinary.id])
     await ordinary.setTitle('Renamed')
     expect(ordinary.title).toBe('Renamed')
-    await result.registry.insertBefore(builtIn.id)
-    expect(result.registry.list().map(workspace => workspace.id)).toEqual([ordinary.id, builtIn.id])
+
+    // The built-in refuses a move from any position, and an anchor of it lands
+    // the moved workspace directly below rather than above.
+    const second = await result.registry.create(secondDir)
+    expect(result.registry.list().map(workspace => workspace.id)).toEqual([builtIn.id, second.id, ordinary.id])
+    await expect(result.registry.insertBefore(ordinary.id, builtIn.id))
+      .resolves.toEqual([builtIn.id, ordinary.id, second.id])
+    await expect(result.registry.insertBefore(builtIn.id)).rejects.toThrow(/cannot move the built-in workspace/)
+    expect(result.registry.list().map(workspace => workspace.id)).toEqual([builtIn.id, ordinary.id, second.id])
+
     await expect(result.registry.delete(ordinary.id)).resolves.toBe(true)
-    expect(result.registry.list().map(workspace => workspace.id)).toEqual([builtIn.id])
+    expect(result.registry.list().map(workspace => workspace.id)).toEqual([builtIn.id, second.id])
+  })
+
+  it('repairs a stored order that a pre-pin create left above the built-in', async () => {
+    const dir = await makeDir('seed-repair')
+    const pool = new MemoryMediaPool()
+    const seeding = await harness({ pool, config: { seedDefaultWorkspace: true } })
+    const builtIn = seeding.registry.list()[0]!
+    const ordinary = await seeding.registry.create(dir)
+    expect(ordinary.isDefault).toBe(false)
+    // The order a create used to write: the new registration ahead of the
+    // head-pinned one, which the next mount has to put back.
+    pool.media.get('workspace')!.global = {
+      ...storedState(pool),
+      workspaceIds: [ordinary.id, builtIn.id],
+    }
+
+    const restarted = await harness({ pool, config: { seedDefaultWorkspace: true } })
+    expect(restarted.registry.list().map(workspace => workspace.id)).toEqual([builtIn.id, ordinary.id])
+    expect(storedState(pool).workspaceIds).toEqual([builtIn.id, ordinary.id])
   })
 
   it('rolls the seeding back when its order write fails, and republishes nothing', async () => {

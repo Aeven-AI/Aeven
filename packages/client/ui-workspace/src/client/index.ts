@@ -1,12 +1,14 @@
 /**
- * Workspace plugin, browser half. Two registrations: WorkspaceBrowser fills
- * the sidebar shell's `sidebar.workspaces` hole (the whole browsing region),
- * and WorkspacePicker fills the conversation hero's picker hole
- * (`conversation.hero.workspace` — both hero forms). Both read real Host
- * Workspaces through the global useWorkspaces hook, and each declares its
- * own `single` directory-flow child hole for the composed picker package's
- * client half (see the contract module doc). Export discipline:
- * packages/client/AGENTS.md.
+ * Workspace plugin, browser half. Three registrations: WorkspaceHeaderActions
+ * fills the sidebar shell's header cluster (search, view options, add
+ * workspace), WorkspaceBrowser fills the shell's `sidebar.workspaces` hole
+ * (the list body and the workspace dialogs), and WorkspacePicker fills the
+ * conversation hero's picker hole (`conversation.hero.workspace` — both hero
+ * forms). All three read real Host Workspaces through the global
+ * useWorkspaces hook; the two sidebar entries share one viewing store, and
+ * each add surface declares its own `single` directory-flow child hole for
+ * the composed picker package's client half (see the contract module doc).
+ * Export discipline: packages/client/AGENTS.md.
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type { RemoteHostFacts } from '@aeven/api-remotes/client'
@@ -22,10 +24,13 @@ import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-renderer/client'
 // Type-only: pulls the Session root standard-hook merge.
 import type {} from '@aeven/client-ui-session/client'
-import type { WorkspaceBrowserInjected, WorkspacePickerInjected } from './contract/slots.ts'
+import type {
+  WorkspaceBrowserInjected, WorkspaceHeaderActionsInjected, WorkspacePickerInjected,
+} from './contract/slots.ts'
 import { UiWorkspaceService } from './navigation.ts'
 import { BrowserSessionUrlNavigation } from './session-url.ts'
 import { createWorkspaceViewStore } from './stores.ts'
+import { WorkspaceHeaderActions } from './HeaderActions.tsx'
 import { WorkspaceBrowser } from './rows/WorkspaceBrowser.tsx'
 import { WorkspacePicker } from './WorkspacePicker.tsx'
 import { en, zh, type WorkspaceKey } from './locales.ts'
@@ -33,7 +38,8 @@ import { en, zh, type WorkspaceKey } from './locales.ts'
 export type { UiWorkspace } from './navigation.ts'
 export type {
   DirectoryFlowOwnerProps, DirectoryFlowSlotName, DirectoryPickingHooks, DirectoryPickingInjected,
-  WorkspaceBrowserInjected, WorkspaceBrowserProps, WorkspacePickerInjected, WorkspacePickerProps,
+  WorkspaceBrowserInjected, WorkspaceBrowserProps, WorkspaceHeaderActionsInjected,
+  WorkspaceHeaderActionsProps, WorkspacePickerInjected, WorkspacePickerProps,
 } from './contract/slots.ts'
 export type { WorkspaceKey } from './locales.ts'
 
@@ -87,16 +93,21 @@ export function apply(ctx: Context): void {
 
   // Stable per-surface occupancy sources (the renderer's hook cache keys by
   // source identity): true while the surface's directory-flow hole is filled.
-  const flowSource = (hole: 'sidebar.workspaces.directoryFlow' | 'conversation.hero.workspace.directoryFlow'): HostObservable<boolean> => ({
+  const flowSource = (hole: 'sidebar.header.action.directoryFlow' | 'conversation.hero.workspace.directoryFlow'): HostObservable<boolean> => ({
     getSnapshot: () => ctx.slots.entries(hole).length > 0,
     subscribe: listener => ctx.slots.subscribe(hole, listener),
   })
-  const browserFlowSource = flowSource('sidebar.workspaces.directoryFlow')
+  const headerFlowSource = flowSource('sidebar.header.action.directoryFlow')
   const hostInfo: HostObservable<RemoteHostFacts> = {
     getSnapshot: () => ctx.remote.$host,
     subscribe: listener => ctx.on('connection/reset', listener),
   }
   const pickerFlowSource = flowSource('conversation.hero.workspace.directoryFlow')
+  const headerInjected = (): WorkspaceHeaderActionsInjected => ({
+    startSession: (workspaceId) => { uiWorkspace.startSession(workspaceId) },
+    createWorkspace: input => workspaces.create(input),
+    hooks: { directoryFlow: headerFlowSource },
+  })
   const browserInjected = (): WorkspaceBrowserInjected => ({
     // Explicit group actions keep their target; unscoped New Session inherits
     // the current Session Workspace before the recent-Workspace fallback.
@@ -136,20 +147,32 @@ export function apply(ctx: Context): void {
     insertSessionBefore: async (workspaceId, sessionId, beforeSessionId) => {
       await workspaces.insertSessionBefore(workspaceId, sessionId, beforeSessionId)
     },
-    createWorkspace: input => workspaces.create(input),
-    hooks: { directoryFlow: browserFlowSource, hostInfo },
+    hooks: { hostInfo },
   })
   const pickerInjected = (): WorkspacePickerInjected => ({
     createWorkspace: input => workspaces.create(input),
     hooks: { directoryFlow: pickerFlowSource },
   })
+  // One viewing store for the two sidebar entries: the header's search field
+  // writes the query the list below reads.
+  const viewStore = createWorkspaceViewStore()
   // Each registration declares its directory-flow child in the same call;
   // slot injection follows both the owner and declaration HMR lifetimes.
+  ctx.slots.inject('sidebar.header.action', () => ctx.slots.register(
+    {
+      name: 'sidebar.header.action',
+      id: 'workspace-controls',
+      children: { 'sidebar.header.action.directoryFlow': { kind: 'single', scope: 'root' } },
+      store: viewStore,
+      inject: headerInjected,
+      locale: NS,
+    },
+    WorkspaceHeaderActions,
+  ))
   ctx.slots.inject('sidebar.workspaces', () => ctx.slots.register(
     {
       name: 'sidebar.workspaces',
-      children: { 'sidebar.workspaces.directoryFlow': { kind: 'single', scope: 'root' } },
-      store: createWorkspaceViewStore(),
+      store: viewStore,
       inject: browserInjected,
       locale: NS,
     },

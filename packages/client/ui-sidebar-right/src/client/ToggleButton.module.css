@@ -24,3 +24,9 @@
 .toggle:hover {
   background: var(--dsw-alias-interactive-bg-hover);
 }
+
+/* The panel glyph: a CSS-sized lucide panel at its own 18px grapheme. */
+.toggleIcon {
+  width: 18px;
+  height: 18px;
+}

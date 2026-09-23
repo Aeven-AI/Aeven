@@ -209,11 +209,11 @@ svg:not(:root) {
   overflow: hidden;
 }
 
-[role=button],
+[role="button"],
 a,
 area,
 button,
-input:not([type=range]),
+input:not([type="range"]),
 label,
 select,
 summary,
@@ -273,31 +273,31 @@ select {
   text-transform: none;
 }
 
-[type=reset],
-[type=submit],
+[type="reset"],
+[type="submit"],
 button,
-html [type=button] {
+html [type="button"] {
   -webkit-appearance: button;
 }
 
-[type=button]::-moz-focus-inner,
-[type=reset]::-moz-focus-inner,
-[type=submit]::-moz-focus-inner,
+[type="button"]::-moz-focus-inner,
+[type="reset"]::-moz-focus-inner,
+[type="submit"]::-moz-focus-inner,
 button::-moz-focus-inner {
   padding: 0;
   border-style: none;
 }
 
-input[type=checkbox],
-input[type=radio] {
+input[type="checkbox"],
+input[type="radio"] {
   box-sizing: border-box;
   padding: 0;
 }
 
-input[type=date],
-input[type=datetime-local],
-input[type=month],
-input[type=time] {
+input[type="date"],
+input[type="datetime-local"],
+input[type="month"],
+input[type="time"] {
   -webkit-appearance: listbox;
 }
 
@@ -328,19 +328,19 @@ progress {
   vertical-align: baseline;
 }
 
-[type=number]::-webkit-inner-spin-button,
-[type=number]::-webkit-outer-spin-button {
+[type="number"]::-webkit-inner-spin-button,
+[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
 
-[type=search] {
+[type="search"] {
   outline-offset: -2px;
   -webkit-appearance: none;
 }
 
-[type=search]::-webkit-search-cancel-button,
-[type=search]::-webkit-search-decoration {
+[type="search"]::-webkit-search-cancel-button,
+[type="search"]::-webkit-search-decoration {
   -webkit-appearance: none;
 }
 
@@ -413,9 +413,9 @@ Remove inner border and padding from Firefox
 Source: https://github.com/twbs/bootstrap/blob/v4-dev/scss/_reboot.scss
 */
 button::-moz-focus-inner,
-[type=button]::-moz-focus-inner,
-[type=reset]::-moz-focus-inner,
-[type=submit]::-moz-focus-inner {
+[type="button"]::-moz-focus-inner,
+[type="reset"]::-moz-focus-inner,
+[type="submit"]::-moz-focus-inner {
   padding: 0;
   border-style: none;
 }
@@ -424,8 +424,8 @@ button::-moz-focus-inner,
 Remove padding in IE 10-
 Source: https://github.com/twbs/bootstrap/blob/v4-dev/scss/_reboot.scss
 */
-input[type=radio],
-input[type=checkbox] {
+input[type="radio"],
+input[type="checkbox"] {
   padding: 0;
 }
 
@@ -434,10 +434,10 @@ Remove the default appearance of temporal inputs to avoid a Mobile Safari bug wh
 Source: https://github.com/twbs/bootstrap/blob/v4-dev/scss/_reboot.scss
 See https://bugs.webkit.org/show_bug.cgi?id=139848
 */
-input[type=date],
-input[type=time],
-input[type=datetime-local],
-input[type=month] {
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="month"] {
   -webkit-appearance: listbox;
 }
 
@@ -454,12 +454,12 @@ textarea {
 Correct cursor style of increment and decrement buttons in Chrome
 Source: https://github.com/twbs/bootstrap/blob/v4-dev/scss/_reboot.scss
 */
-[type=number]::-webkit-inner-spin-button,
-[type=number]::-webkit-outer-spin-button {
+[type="number"]::-webkit-inner-spin-button,
+[type="number"]::-webkit-outer-spin-button {
   height: auto;
 }
 
-input[type=number] {
+input[type="number"] {
   -moz-appearance: textfield;
 }
 
@@ -467,7 +467,7 @@ input[type=number] {
 Overrides extra rounded corners on search inputs in iOS
 Source: https://github.com/twbs/bootstrap/blob/v4-dev/scss/_reboot.scss
 */
-[type=search] {
+[type="search"] {
   outline-offset: -2px;
   -webkit-appearance: textfield;
   -webkit-box-sizing: content-box;
@@ -477,8 +477,8 @@ Source: https://github.com/twbs/bootstrap/blob/v4-dev/scss/_reboot.scss
 Remove inner padding and cancel buttons in Chrome and Safari on macOS
 Source: https://github.com/twbs/bootstrap/blob/v4-dev/scss/_reboot.scss
 */
-[type=search]::-webkit-search-cancel-button,
-[type=search]::-webkit-search-decoration {
+[type="search"]::-webkit-search-cancel-button,
+[type="search"]::-webkit-search-decoration {
   -webkit-appearance: none;
 }
 
@@ -506,8 +506,8 @@ input::-webkit-contacts-auto-fill-button {
 }
 
 /* Remove Safari password & caps lock icons */
-input[type=password]::-webkit-credentials-auto-fill-button,
-input[type=password]::-webkit-caps-lock-indicator {
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-webkit-caps-lock-indicator {
   display: none;
 }
 
@@ -605,41 +605,41 @@ input::-webkit-credentials-auto-fill-button {
 }
 
 /* date input */
-input[type=date]:-moz-placeholder {
+input[type="date"]:-moz-placeholder {
   color: #fff !important;
 }
 
-input[type=date]:-moz-placeholder {
+input[type="date"]:-moz-placeholder {
   color: #fff !important;
 }
 
-input[type=date]::-moz-placeholder {
+input[type="date"]::-moz-placeholder {
   color: #fff !important;
 }
 
-input[type=date]:-ms-input-placeholder {
+input[type="date"]:-ms-input-placeholder {
   color: #fff !important;
 }
 
-input[type=date]::-webkit-input-placeholder {
+input[type="date"]::-webkit-input-placeholder {
   color: #fff !important;
 }
 
-input[type=date]::-webkit-inner-spin-button {
+input[type="date"]::-webkit-inner-spin-button {
   display: none !important;
   -webkit-appearance: none !important;
 }
 
 @-moz-document url-prefix() {
-  input[type=date] {
+  input[type="date"] {
     text-indent: -3px !important;
   }
 }
 @media all and (-webkit-min-device-pixel-ratio: 0) and (min-resolution: 0.001dpcm) {
-  input[type=date] {
+  input[type="date"] {
     margin-left: -1px !important;
   }
-  input[type=date].mobile {
+  input[type="date"].mobile {
     margin-left: -4px !important;
   }
 }
@@ -696,7 +696,8 @@ html {
 body {
   overflow: hidden;
   font-size: 1rem;
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   font-weight: 450;
   color: rgb(10, 10, 10);
   line-height: 30px;
@@ -710,13 +711,7 @@ body a {
 body a:hover {
   color: rgb(10, 10, 10);
 }
-body .no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-body .no-scrollbar {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
+
 body .content-block {
   word-wrap: break-word;
   /*
@@ -731,7 +726,8 @@ body .content-block p {
   white-space: pre-wrap;
 }
 body .content-block h1 {
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
   font-size: 36px;
@@ -743,7 +739,8 @@ body .content-block h1:first-child {
   margin-top: 0px;
 }
 body .content-block h2 {
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
   font-size: 28px;
@@ -755,7 +752,8 @@ body .content-block h2:first-child {
   margin-top: 0px;
 }
 body .content-block h3 {
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
   font-size: 22px;
@@ -767,7 +765,8 @@ body .content-block h3:first-child {
   margin-top: 0px;
 }
 body .content-block h4 {
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
   font-size: 16px;
@@ -779,7 +778,8 @@ body .content-block h4:first-child {
   margin-top: 0px;
 }
 body .content-block h5 {
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
   font-size: 14px;
@@ -791,7 +791,8 @@ body .content-block h5:first-child {
   margin-top: 0px;
 }
 body .content-block h6 {
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
   font-size: 14px;
@@ -882,9 +883,9 @@ body .content-block dl > dt::before {
   left: 0;
   text-align: left;
 }
-body .content-block ul li[data-animate-marker=true]::before,
-body .content-block ol li[data-animate-marker=true]::before,
-body .content-block dl dt[data-animate-marker=true]::before {
+body .content-block ul li[data-animate-marker="true"]::before,
+body .content-block ol li[data-animate-marker="true"]::before,
+body .content-block dl dt[data-animate-marker="true"]::before {
   will-change: opacity;
   opacity: 0;
   animation: word-fade-in 1s linear forwards;
@@ -894,13 +895,15 @@ body .content-block blockquote {
   padding-left: 24px;
 }
 body .content-block blockquote p {
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   font-size: 16px;
   font-weight: 450;
   letter-spacing: 0px;
 }
 body .content-block blockquote h1 {
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
   font-size: 36px;
@@ -909,7 +912,8 @@ body .content-block blockquote h1 {
   margin-bottom: 24px;
 }
 body .content-block blockquote h2 {
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
   font-size: 28px;
@@ -926,7 +930,8 @@ body .content-block blockquote h2 {
   }
 }
 body .content-block blockquote h3 {
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
   font-size: 22px;
@@ -935,7 +940,8 @@ body .content-block blockquote h3 {
   margin-bottom: 16px;
 }
 body .content-block blockquote h4 {
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
   font-size: 16px;
@@ -944,7 +950,8 @@ body .content-block blockquote h4 {
   margin-bottom: 12px;
 }
 body .content-block blockquote h5 {
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
   font-size: 14px;
@@ -953,7 +960,8 @@ body .content-block blockquote h5 {
   margin-bottom: 12px;
 }
 body .content-block blockquote h6 {
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
   font-size: 14px;
@@ -984,7 +992,15 @@ body .content-block code {
   padding-top: 2px;
   padding-bottom: 2px;
   border-radius: 8px;
-  font-family: "Google Sans Code", ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  font-family:
+    "Google Sans Code",
+    ui-monospace,
+    SFMono-Regular,
+    SF Mono,
+    Menlo,
+    Consolas,
+    Liberation Mono,
+    monospace;
   color: rgb(100, 100, 100);
   background-color: rgb(235, 235, 235);
 }
@@ -993,8 +1009,8 @@ body .content-block code {
     font-size: 14px;
   }
 }
-body .content-block a[data-animate-word=true],
-body .content-block span[data-animate-word=true] {
+body .content-block a[data-animate-word="true"],
+body .content-block span[data-animate-word="true"] {
   will-change: opacity;
   opacity: 0;
   animation: word-fade-in 1s linear forwards;
@@ -1033,7 +1049,12 @@ body .content-block .table-wrapper .table-container .table-header {
   user-select: none;
   pointer-events: none;
 }
-body .content-block .table-wrapper .table-container .table-header .table-header-content {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-header
+  .table-header-content {
   display: flex;
   position: relative;
   z-index: 5;
@@ -1043,7 +1064,13 @@ body .content-block .table-wrapper .table-container .table-header .table-header-
   padding-right: 8px;
   align-items: center;
 }
-body .content-block .table-wrapper .table-container .table-header .table-header-content .table-title-container {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-header
+  .table-header-content
+  .table-title-container {
   display: flex;
   position: relative;
   height: 30px;
@@ -1056,9 +1083,19 @@ body .content-block .table-wrapper .table-container .table-header .table-header-
   backdrop-filter: blur(0px);
   -webkit-backdrop-filter: blur(0px);
   background-color: rgba(255, 255, 255, 0);
-  transition: background-color 0.4s cubic-bezier(0.23, 1, 0.32, 1), backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1), -webkit-backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  transition:
+    background-color 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+    backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+    -webkit-backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1);
 }
-body .content-block .table-wrapper .table-container .table-header .table-header-content .table-title-container .table-title {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-header
+  .table-header-content
+  .table-title-container
+  .table-title {
   display: flex;
   position: relative;
   opacity: 1;
@@ -1069,13 +1106,25 @@ body .content-block .table-wrapper .table-container .table-header .table-header-
   line-height: 16px;
   text-transform: capitalize;
 }
-body .content-block .table-wrapper .table-container .table-header .table-header-content .table-spacer {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-header
+  .table-header-content
+  .table-spacer {
   display: flex;
   position: relative;
   width: 100%;
   flex-grow: 1;
 }
-body .content-block .table-wrapper .table-container .table-header .table-header-content .table-button {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-header
+  .table-header-content
+  .table-button {
   display: flex;
   position: relative;
   appearance: none;
@@ -1085,25 +1134,55 @@ body .content-block .table-wrapper .table-container .table-header .table-header-
   padding-right: 8px;
   align-items: center;
 }
-body .content-block .table-wrapper .table-container .table-header .table-header-content .table-button .button-content {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-header
+  .table-header-content
+  .table-button
+  .button-content {
   display: flex;
   position: relative;
   opacity: 1;
   align-items: center;
 }
-body .content-block .table-wrapper .table-container .table-header .table-header-content .table-button .button-content .button-icon {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-header
+  .table-header-content
+  .table-button
+  .button-content
+  .button-icon {
   display: flex;
   width: 14px;
   height: 14px;
   align-items: center;
   justify-content: center;
 }
-body .content-block .table-wrapper .table-container .table-header .table-header-content .table-button .button-content .button-icon svg {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-header
+  .table-header-content
+  .table-button
+  .button-content
+  .button-icon
+  svg {
   width: 100%;
   height: 100%;
   color: rgb(80, 80, 80);
 }
-body .content-block .table-wrapper .table-container .table-header .table-header-content .table-button-container {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-header
+  .table-header-content
+  .table-button-container {
   display: flex;
   position: relative;
   height: 30px;
@@ -1111,9 +1190,19 @@ body .content-block .table-wrapper .table-container .table-header .table-header-
   backdrop-filter: blur(0px);
   -webkit-backdrop-filter: blur(0px);
   background-color: rgba(255, 255, 255, 0);
-  transition: background-color 0.4s cubic-bezier(0.23, 1, 0.32, 1), backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1), -webkit-backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  transition:
+    background-color 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+    backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+    -webkit-backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1);
 }
-body .content-block .table-wrapper .table-container .table-header .table-header-content .table-button-container .table-icon-button {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-header
+  .table-header-content
+  .table-button-container
+  .table-icon-button {
   display: flex;
   position: relative;
   appearance: none;
@@ -1123,31 +1212,77 @@ body .content-block .table-wrapper .table-container .table-header .table-header-
   padding-right: 8px;
   align-items: center;
 }
-body .content-block .table-wrapper .table-container .table-header .table-header-content .table-button-container .table-icon-button .button-content {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-header
+  .table-header-content
+  .table-button-container
+  .table-icon-button
+  .button-content {
   display: flex;
   position: relative;
   opacity: 1;
   align-items: center;
 }
-body .content-block .table-wrapper .table-container .table-header .table-header-content .table-button-container .table-icon-button .button-content .button-icon {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-header
+  .table-header-content
+  .table-button-container
+  .table-icon-button
+  .button-content
+  .button-icon {
   display: flex;
   width: 14px;
   height: 14px;
   align-items: center;
   justify-content: center;
 }
-body .content-block .table-wrapper .table-container .table-header .table-header-content .table-button-container .table-icon-button .button-content .button-icon svg {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-header
+  .table-header-content
+  .table-button-container
+  .table-icon-button
+  .button-content
+  .button-icon
+  svg {
   width: 100%;
   height: 100%;
   color: rgb(80, 80, 80);
 }
-body .content-block .table-wrapper .table-container .table-header .table-header-content .table-button-container .table-icon-button.first {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-header
+  .table-header-content
+  .table-button-container
+  .table-icon-button.first {
   padding-left: 8px;
 }
-body .content-block .table-wrapper .table-container .table-header .table-header-content .table-button-container .table-icon-button.last {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-header
+  .table-header-content
+  .table-button-container
+  .table-icon-button.last {
   padding-right: 8px;
 }
-body .content-block .table-wrapper .table-container .table-header .table-header-background {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-header
+  .table-header-background {
   display: none;
   position: absolute;
   width: 100%;
@@ -1155,16 +1290,32 @@ body .content-block .table-wrapper .table-container .table-header .table-header-
   top: 0px;
   left: 0px;
 }
-body .content-block .table-wrapper .table-container .table-header .table-header-background .table-header-fade {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-header
+  .table-header-background
+  .table-header-fade {
   display: block;
   position: absolute;
   top: 0px;
   left: 0px;
   width: 100%;
   height: 50px;
-  background: linear-gradient(180deg, rgb(255, 255, 255) 0px, rgba(255, 255, 255, 0) 50px);
+  background: linear-gradient(
+    180deg,
+    rgb(255, 255, 255) 0px,
+    rgba(255, 255, 255, 0) 50px
+  );
 }
-body .content-block .table-wrapper .table-container .table-header .table-header-background .table-header-blur {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-header
+  .table-header-background
+  .table-header-blur {
   display: block;
   position: absolute;
   top: 0px;
@@ -1176,12 +1327,24 @@ body .content-block .table-wrapper .table-container .table-header .table-header-
   mask-image: linear-gradient(to bottom, #000 10px, transparent 50px);
   -webkit-mask-image: linear-gradient(to bottom, #000 10px, transparent 50px);
 }
-body .content-block .table-wrapper .table-container .table-header.scroll .table-header-content .table-title-container {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-header.scroll
+  .table-header-content
+  .table-title-container {
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
   background-color: rgba(255, 255, 255, 0.4);
 }
-body .content-block .table-wrapper .table-container .table-header.scroll .table-header-content .table-button-container {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-header.scroll
+  .table-header-content
+  .table-button-container {
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
   background-color: rgba(255, 255, 255, 0.4);
@@ -1199,7 +1362,12 @@ body .content-block .table-wrapper .table-container .table-content {
   margin-block-start: -50px;
   border-radius: 30px;
 }
-body .content-block .table-wrapper .table-container .table-content .table-scroll {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-content
+  .table-scroll {
   display: flex;
   position: relative;
   width: 100%;
@@ -1233,7 +1401,13 @@ body .content-block .table-wrapper .table-container .table-content table {
   }
 }
 body .content-block .table-wrapper .table-container .table-content table b,
-body .content-block .table-wrapper .table-container .table-content table strong {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-content
+  table
+  strong {
   font-weight: 600;
 }
 body .content-block .table-wrapper .table-container .table-content table code {
@@ -1259,10 +1433,24 @@ body .content-block .table-wrapper .table-container .table-content table th {
   border-top: 1px solid rgb(242, 242, 242);
   border-bottom: 1px solid rgb(242, 242, 242);
 }
-body .content-block .table-wrapper .table-container .table-content table td + td {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-content
+  table
+  td
+  + td {
   padding-left: 36px;
 }
-body .content-block .table-wrapper .table-container .table-content table th + th {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-content
+  table
+  th
+  + th {
   padding-left: 36px;
 }
 body .content-block .table-wrapper .table-container .table-content table tr td {
@@ -1273,7 +1461,14 @@ body .content-block .table-wrapper .table-container .table-content table tr th {
   padding-top: 10px;
   padding-bottom: 10px;
 }
-body .content-block .table-wrapper .table-container .table-content table[data-headless=true] thead th {
+body
+  .content-block
+  .table-wrapper
+  .table-container
+  .table-content
+  table[data-headless="true"]
+  thead
+  th {
   height: 1px;
   padding: 0;
   font-size: 0;
@@ -1309,36 +1504,75 @@ body .content-block .table-wrapper.fullscreen .table-container .table-header {
   top: 0px;
   border: none;
 }
-body .content-block .table-wrapper.fullscreen .table-container .table-header .table-header-content {
+body
+  .content-block
+  .table-wrapper.fullscreen
+  .table-container
+  .table-header
+  .table-header-content {
   border-radius: 0px;
   padding-left: 16px;
   padding-right: 16px;
 }
 @media screen and (max-width: 640px) {
-  body .content-block .table-wrapper.fullscreen .table-container .table-header .table-header-content {
+  body
+    .content-block
+    .table-wrapper.fullscreen
+    .table-container
+    .table-header
+    .table-header-content {
     padding-left: 8px;
     padding-right: 8px;
   }
 }
-body .content-block .table-wrapper.fullscreen .table-container .table-header .table-header-content .table-title-container {
+body
+  .content-block
+  .table-wrapper.fullscreen
+  .table-container
+  .table-header
+  .table-header-content
+  .table-title-container {
   backdrop-filter: blur(0px);
   -webkit-backdrop-filter: blur(0px);
   background-color: rgba(255, 255, 255, 0);
 }
-body .content-block .table-wrapper.fullscreen .table-container .table-header .table-header-content .table-button-container {
+body
+  .content-block
+  .table-wrapper.fullscreen
+  .table-container
+  .table-header
+  .table-header-content
+  .table-button-container {
   backdrop-filter: blur(0px);
   -webkit-backdrop-filter: blur(0px);
   background-color: rgba(255, 255, 255, 0);
 }
-body .content-block .table-wrapper.fullscreen .table-container .table-header .table-header-background {
+body
+  .content-block
+  .table-wrapper.fullscreen
+  .table-container
+  .table-header
+  .table-header-background {
   display: flex;
 }
-body .content-block .table-wrapper.fullscreen .table-container .table-header.scroll .table-header-content .table-title-container {
+body
+  .content-block
+  .table-wrapper.fullscreen
+  .table-container
+  .table-header.scroll
+  .table-header-content
+  .table-title-container {
   backdrop-filter: blur(0px);
   -webkit-backdrop-filter: blur(0px);
   background-color: rgba(255, 255, 255, 0);
 }
-body .content-block .table-wrapper.fullscreen .table-container .table-header.scroll .table-header-content .table-button-container {
+body
+  .content-block
+  .table-wrapper.fullscreen
+  .table-container
+  .table-header.scroll
+  .table-header-content
+  .table-button-container {
   backdrop-filter: blur(0px);
   -webkit-backdrop-filter: blur(0px);
   background-color: rgba(255, 255, 255, 0);
@@ -1351,12 +1585,21 @@ body .content-block .table-wrapper.fullscreen .table-container .table-content {
   border-radius: 0px;
 }
 @media screen and (max-width: 640px) {
-  body .content-block .table-wrapper.fullscreen .table-container .table-content {
+  body
+    .content-block
+    .table-wrapper.fullscreen
+    .table-container
+    .table-content {
     padding-left: 16px;
     padding-right: 16px;
   }
 }
-body .content-block .table-wrapper.fullscreen .table-container .table-content .table-scroll {
+body
+  .content-block
+  .table-wrapper.fullscreen
+  .table-container
+  .table-content
+  .table-scroll {
   height: fit-content;
 }
 body .content-block .mermaid-wrapper {
@@ -1386,7 +1629,12 @@ body .content-block .mermaid-wrapper .mermaid-container .mermaid-header {
   user-select: none;
   pointer-events: none;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid-header-content {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-header
+  .mermaid-header-content {
   display: flex;
   position: relative;
   z-index: 5;
@@ -1396,7 +1644,13 @@ body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid
   padding-right: 8px;
   align-items: center;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid-header-content .mermaid-title-container {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-header
+  .mermaid-header-content
+  .mermaid-title-container {
   display: flex;
   position: relative;
   height: 30px;
@@ -1409,9 +1663,19 @@ body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid
   backdrop-filter: blur(0px);
   -webkit-backdrop-filter: blur(0px);
   background-color: rgba(255, 255, 255, 0);
-  transition: background-color 0.4s cubic-bezier(0.23, 1, 0.32, 1), backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1), -webkit-backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  transition:
+    background-color 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+    backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+    -webkit-backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1);
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid-header-content .mermaid-title-container .mermaid-title {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-header
+  .mermaid-header-content
+  .mermaid-title-container
+  .mermaid-title {
   display: flex;
   position: relative;
   opacity: 1;
@@ -1422,13 +1686,25 @@ body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid
   font-weight: 450;
   line-height: 16px;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid-header-content .mermaid-spacer {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-header
+  .mermaid-header-content
+  .mermaid-spacer {
   display: flex;
   position: relative;
   width: 100%;
   flex-grow: 1;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid-header-content .mermaid-button {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-header
+  .mermaid-header-content
+  .mermaid-button {
   display: flex;
   position: relative;
   appearance: none;
@@ -1438,25 +1714,55 @@ body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid
   padding-right: 8px;
   align-items: center;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid-header-content .mermaid-button .button-content {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-header
+  .mermaid-header-content
+  .mermaid-button
+  .button-content {
   display: flex;
   position: relative;
   opacity: 1;
   align-items: center;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid-header-content .mermaid-button .button-content .button-icon {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-header
+  .mermaid-header-content
+  .mermaid-button
+  .button-content
+  .button-icon {
   display: flex;
   width: 14px;
   height: 14px;
   align-items: center;
   justify-content: center;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid-header-content .mermaid-button .button-content .button-icon svg {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-header
+  .mermaid-header-content
+  .mermaid-button
+  .button-content
+  .button-icon
+  svg {
   width: 100%;
   height: 100%;
   color: rgb(80, 80, 80);
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid-header-content .mermaid-button-container {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-header
+  .mermaid-header-content
+  .mermaid-button-container {
   display: flex;
   position: relative;
   height: 30px;
@@ -1464,9 +1770,19 @@ body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid
   backdrop-filter: blur(0px);
   -webkit-backdrop-filter: blur(0px);
   background-color: rgba(255, 255, 255, 0);
-  transition: background-color 0.4s cubic-bezier(0.23, 1, 0.32, 1), backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1), -webkit-backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  transition:
+    background-color 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+    backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+    -webkit-backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1);
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid-header-content .mermaid-button-container .mermaid-icon-button {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-header
+  .mermaid-header-content
+  .mermaid-button-container
+  .mermaid-icon-button {
   display: flex;
   position: relative;
   appearance: none;
@@ -1476,31 +1792,77 @@ body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid
   padding-right: 8px;
   align-items: center;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid-header-content .mermaid-button-container .mermaid-icon-button .button-content {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-header
+  .mermaid-header-content
+  .mermaid-button-container
+  .mermaid-icon-button
+  .button-content {
   display: flex;
   position: relative;
   opacity: 1;
   align-items: center;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid-header-content .mermaid-button-container .mermaid-icon-button .button-content .button-icon {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-header
+  .mermaid-header-content
+  .mermaid-button-container
+  .mermaid-icon-button
+  .button-content
+  .button-icon {
   display: flex;
   width: 14px;
   height: 14px;
   align-items: center;
   justify-content: center;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid-header-content .mermaid-button-container .mermaid-icon-button .button-content .button-icon svg {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-header
+  .mermaid-header-content
+  .mermaid-button-container
+  .mermaid-icon-button
+  .button-content
+  .button-icon
+  svg {
   width: 100%;
   height: 100%;
   color: rgb(80, 80, 80);
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid-header-content .mermaid-button-container .mermaid-icon-button.first {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-header
+  .mermaid-header-content
+  .mermaid-button-container
+  .mermaid-icon-button.first {
   padding-left: 8px;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid-header-content .mermaid-button-container .mermaid-icon-button.last {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-header
+  .mermaid-header-content
+  .mermaid-button-container
+  .mermaid-icon-button.last {
   padding-right: 8px;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid-header-background {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-header
+  .mermaid-header-background {
   display: none;
   position: absolute;
   width: 100%;
@@ -1508,16 +1870,32 @@ body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid
   top: 0px;
   left: 0px;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid-header-background .mermaid-header-fade {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-header
+  .mermaid-header-background
+  .mermaid-header-fade {
   display: block;
   position: absolute;
   top: 0px;
   left: 0px;
   width: 100%;
   height: 50px;
-  background: linear-gradient(180deg, rgb(255, 255, 255) 0px, rgba(255, 255, 255, 0) 50px);
+  background: linear-gradient(
+    180deg,
+    rgb(255, 255, 255) 0px,
+    rgba(255, 255, 255, 0) 50px
+  );
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid-header-background .mermaid-header-blur {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-header
+  .mermaid-header-background
+  .mermaid-header-blur {
   display: block;
   position: absolute;
   top: 0px;
@@ -1529,12 +1907,24 @@ body .content-block .mermaid-wrapper .mermaid-container .mermaid-header .mermaid
   mask-image: linear-gradient(to bottom, #000 10px, transparent 50px);
   -webkit-mask-image: linear-gradient(to bottom, #000 10px, transparent 50px);
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-header.scroll .mermaid-header-content .mermaid-title-container {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-header.scroll
+  .mermaid-header-content
+  .mermaid-title-container {
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
   background-color: rgba(255, 255, 255, 0.4);
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-header.scroll .mermaid-header-content .mermaid-button-container {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-header.scroll
+  .mermaid-header-content
+  .mermaid-button-container {
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
   background-color: rgba(255, 255, 255, 0.4);
@@ -1552,13 +1942,24 @@ body .content-block .mermaid-wrapper .mermaid-container .mermaid-content {
   margin-block-start: -50px;
   border-radius: 30px;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content .mermaid-scroll {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll {
   display: flex;
   position: relative;
   width: 100%;
   overflow-x: auto;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content .mermaid-scroll .mermaid-pan-zoom {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll
+  .mermaid-pan-zoom {
   display: flex;
   position: relative;
   width: 100%;
@@ -1577,7 +1978,14 @@ body .content-block .mermaid-wrapper .mermaid-container .mermaid-content .mermai
    * pan-zoom box directly, so the diagram stays centred.
    */
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content .mermaid-scroll .mermaid-pan-zoom .mermaid-pan-zoom-controls {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll
+  .mermaid-pan-zoom
+  .mermaid-pan-zoom-controls {
   display: flex;
   position: absolute;
   z-index: 4;
@@ -1591,7 +1999,15 @@ body .content-block .mermaid-wrapper .mermaid-container .mermaid-content .mermai
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content .mermaid-scroll .mermaid-pan-zoom .mermaid-pan-zoom-controls .mermaid-pan-zoom-button {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll
+  .mermaid-pan-zoom
+  .mermaid-pan-zoom-controls
+  .mermaid-pan-zoom-button {
   display: flex;
   position: relative;
   width: 28px;
@@ -1600,47 +2016,142 @@ body .content-block .mermaid-wrapper .mermaid-container .mermaid-content .mermai
   align-items: center;
   justify-content: center;
   color: rgb(80, 80, 80);
-  transition: color 0.15s ease-out, background-color 0.15s ease-out, opacity 0.15s ease-out;
+  transition:
+    color 0.15s ease-out,
+    background-color 0.15s ease-out,
+    opacity 0.15s ease-out;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content .mermaid-scroll .mermaid-pan-zoom .mermaid-pan-zoom-controls .mermaid-pan-zoom-button .button-icon {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll
+  .mermaid-pan-zoom
+  .mermaid-pan-zoom-controls
+  .mermaid-pan-zoom-button
+  .button-icon {
   display: flex;
   width: 15px;
   height: 15px;
   align-items: center;
   justify-content: center;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content .mermaid-scroll .mermaid-pan-zoom .mermaid-pan-zoom-controls .mermaid-pan-zoom-button .button-icon svg {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll
+  .mermaid-pan-zoom
+  .mermaid-pan-zoom-controls
+  .mermaid-pan-zoom-button
+  .button-icon
+  svg {
   width: 100%;
   height: 100%;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content .mermaid-scroll .mermaid-pan-zoom .mermaid-pan-zoom-controls .mermaid-pan-zoom-button:hover {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll
+  .mermaid-pan-zoom
+  .mermaid-pan-zoom-controls
+  .mermaid-pan-zoom-button:hover {
   color: rgb(10, 10, 10);
   background-color: rgb(242, 242, 242);
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content .mermaid-scroll .mermaid-pan-zoom .mermaid-pan-zoom-controls .mermaid-pan-zoom-button:disabled {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll
+  .mermaid-pan-zoom
+  .mermaid-pan-zoom-controls
+  .mermaid-pan-zoom-button:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content .mermaid-scroll .mermaid-pan-zoom .mermaid-pan-zoom-controls .mermaid-pan-zoom-button:disabled:hover {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll
+  .mermaid-pan-zoom
+  .mermaid-pan-zoom-controls
+  .mermaid-pan-zoom-button:disabled:hover {
   color: rgb(80, 80, 80);
   background-color: transparent;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content .mermaid-scroll .mermaid-pan-zoom .mermaid-pan-zoom-viewport {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll
+  .mermaid-pan-zoom
+  .mermaid-pan-zoom-viewport {
   display: flex;
   position: relative;
   width: 100%;
   min-width: 0;
   --hm-diagram-fade: 10px;
 }
-body .content-block .mermaid-wrapper.drawn .mermaid-container .mermaid-content .mermaid-scroll .mermaid-pan-zoom .mermaid-pan-zoom-viewport {
-  mask-image: linear-gradient(to right, transparent, #000 var(--hm-diagram-fade), #000 calc(100% - var(--hm-diagram-fade)), transparent), linear-gradient(to bottom, transparent, #000 var(--hm-diagram-fade), #000 calc(100% - var(--hm-diagram-fade)), transparent);
+body
+  .content-block
+  .mermaid-wrapper.drawn
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll
+  .mermaid-pan-zoom
+  .mermaid-pan-zoom-viewport {
+  mask-image:
+    linear-gradient(
+      to right,
+      transparent,
+      #000 var(--hm-diagram-fade),
+      #000 calc(100% - var(--hm-diagram-fade)),
+      transparent
+    ),
+    linear-gradient(
+      to bottom,
+      transparent,
+      #000 var(--hm-diagram-fade),
+      #000 calc(100% - var(--hm-diagram-fade)),
+      transparent
+    );
   mask-repeat: no-repeat;
   mask-composite: intersect;
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--hm-diagram-fade), #000 calc(100% - var(--hm-diagram-fade)), transparent), linear-gradient(to bottom, transparent, #000 var(--hm-diagram-fade), #000 calc(100% - var(--hm-diagram-fade)), transparent);
+  -webkit-mask-image:
+    linear-gradient(
+      to right,
+      transparent,
+      #000 var(--hm-diagram-fade),
+      #000 calc(100% - var(--hm-diagram-fade)),
+      transparent
+    ),
+    linear-gradient(
+      to bottom,
+      transparent,
+      #000 var(--hm-diagram-fade),
+      #000 calc(100% - var(--hm-diagram-fade)),
+      transparent
+    );
   -webkit-mask-repeat: no-repeat;
   -webkit-mask-composite: source-in;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content .mermaid-scroll .mermaid-pan-zoom .mermaid-pan-zoom-content {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll
+  .mermaid-pan-zoom
+  .mermaid-pan-zoom-content {
   display: flex;
   position: relative;
   width: 100%;
@@ -1648,21 +2159,62 @@ body .content-block .mermaid-wrapper .mermaid-container .mermaid-content .mermai
   justify-content: center;
   transition: transform 0.15s ease-out;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content .mermaid-scroll .mermaid-pan-zoom[data-pan-zoom=true] .mermaid-pan-zoom-content {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll
+  .mermaid-pan-zoom[data-pan-zoom="true"]
+  .mermaid-pan-zoom-content {
   cursor: grab;
   touch-action: none;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content .mermaid-scroll .mermaid-pan-zoom[data-pan-zoom=true]:hover .mermaid-pan-zoom-content,
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content .mermaid-scroll .mermaid-pan-zoom[data-pan-zoom=true]:focus-within .mermaid-pan-zoom-content,
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content .mermaid-scroll .mermaid-pan-zoom.panning .mermaid-pan-zoom-content {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll
+  .mermaid-pan-zoom[data-pan-zoom="true"]:hover
+  .mermaid-pan-zoom-content,
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll
+  .mermaid-pan-zoom[data-pan-zoom="true"]:focus-within
+  .mermaid-pan-zoom-content,
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll
+  .mermaid-pan-zoom.panning
+  .mermaid-pan-zoom-content {
   will-change: transform;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content .mermaid-scroll .mermaid-pan-zoom.panning .mermaid-pan-zoom-content {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll
+  .mermaid-pan-zoom.panning
+  .mermaid-pan-zoom-content {
   cursor: grabbing;
   user-select: none;
   transition: none;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content .mermaid-scroll .mermaid-svg {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll
+  .mermaid-svg {
   display: flex;
   position: relative;
   width: 100%;
@@ -1691,15 +2243,38 @@ body .content-block .mermaid-wrapper .mermaid-container .mermaid-content table {
      for. */
 }
 @media screen and (max-width: 640px) {
-  body .content-block .mermaid-wrapper .mermaid-container .mermaid-content table {
+  body
+    .content-block
+    .mermaid-wrapper
+    .mermaid-container
+    .mermaid-content
+    table {
     font-size: 14px;
   }
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content table b,
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content table strong {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  table
+  b,
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  table
+  strong {
   font-weight: 600;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content table code {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  table
+  code {
   font-size: 12px;
   padding-left: 5px;
   padding-right: 5px;
@@ -1707,8 +2282,20 @@ body .content-block .mermaid-wrapper .mermaid-container .mermaid-content table c
   padding-bottom: 1px;
   border-radius: 6px;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content table th,
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content table td {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  table
+  th,
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  table
+  td {
   white-space: normal;
   overflow-wrap: break-word;
   /* content-box so $maxWidthCell counts characters of text rather
@@ -1717,26 +2304,67 @@ body .content-block .mermaid-wrapper .mermaid-container .mermaid-content table t
   max-width: 32ch;
   vertical-align: top;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content table th {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  table
+  th {
   font-weight: 600;
   border-top: 1px solid rgb(242, 242, 242);
   border-bottom: 1px solid rgb(242, 242, 242);
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content table td + td {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  table
+  td
+  + td {
   padding-left: 36px;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content table th + th {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  table
+  th
+  + th {
   padding-left: 36px;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content table tr td {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  table
+  tr
+  td {
   padding-top: 10px;
   padding-bottom: 10px;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content table tr th {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  table
+  tr
+  th {
   padding-top: 10px;
   padding-bottom: 10px;
 }
-body .content-block .mermaid-wrapper .mermaid-container .mermaid-content table[data-headless=true] thead th {
+body
+  .content-block
+  .mermaid-wrapper
+  .mermaid-container
+  .mermaid-content
+  table[data-headless="true"]
+  thead
+  th {
   height: 1px;
   padding: 0;
   font-size: 0;
@@ -1774,45 +2402,92 @@ body .content-block .mermaid-wrapper.fullscreen .mermaid-container {
   height: 100%;
   min-height: 0;
 }
-body .content-block .mermaid-wrapper.fullscreen .mermaid-container .mermaid-header {
+body
+  .content-block
+  .mermaid-wrapper.fullscreen
+  .mermaid-container
+  .mermaid-header {
   top: 0px;
   border: none;
 }
-body .content-block .mermaid-wrapper.fullscreen .mermaid-container .mermaid-header .mermaid-header-content {
+body
+  .content-block
+  .mermaid-wrapper.fullscreen
+  .mermaid-container
+  .mermaid-header
+  .mermaid-header-content {
   border-radius: 0px;
   padding-left: 16px;
   padding-right: 16px;
 }
 @media screen and (max-width: 640px) {
-  body .content-block .mermaid-wrapper.fullscreen .mermaid-container .mermaid-header .mermaid-header-content {
+  body
+    .content-block
+    .mermaid-wrapper.fullscreen
+    .mermaid-container
+    .mermaid-header
+    .mermaid-header-content {
     padding-left: 8px;
     padding-right: 8px;
   }
 }
-body .content-block .mermaid-wrapper.fullscreen .mermaid-container .mermaid-header .mermaid-header-content .mermaid-title-container {
+body
+  .content-block
+  .mermaid-wrapper.fullscreen
+  .mermaid-container
+  .mermaid-header
+  .mermaid-header-content
+  .mermaid-title-container {
   backdrop-filter: blur(0px);
   -webkit-backdrop-filter: blur(0px);
   background-color: rgba(255, 255, 255, 0);
 }
-body .content-block .mermaid-wrapper.fullscreen .mermaid-container .mermaid-header .mermaid-header-content .mermaid-button-container {
+body
+  .content-block
+  .mermaid-wrapper.fullscreen
+  .mermaid-container
+  .mermaid-header
+  .mermaid-header-content
+  .mermaid-button-container {
   backdrop-filter: blur(0px);
   -webkit-backdrop-filter: blur(0px);
   background-color: rgba(255, 255, 255, 0);
 }
-body .content-block .mermaid-wrapper.fullscreen .mermaid-container .mermaid-header .mermaid-header-background {
+body
+  .content-block
+  .mermaid-wrapper.fullscreen
+  .mermaid-container
+  .mermaid-header
+  .mermaid-header-background {
   display: flex;
 }
-body .content-block .mermaid-wrapper.fullscreen .mermaid-container .mermaid-header.scroll .mermaid-header-content .mermaid-title-container {
+body
+  .content-block
+  .mermaid-wrapper.fullscreen
+  .mermaid-container
+  .mermaid-header.scroll
+  .mermaid-header-content
+  .mermaid-title-container {
   backdrop-filter: blur(0px);
   -webkit-backdrop-filter: blur(0px);
   background-color: rgba(255, 255, 255, 0);
 }
-body .content-block .mermaid-wrapper.fullscreen .mermaid-container .mermaid-header.scroll .mermaid-header-content .mermaid-button-container {
+body
+  .content-block
+  .mermaid-wrapper.fullscreen
+  .mermaid-container
+  .mermaid-header.scroll
+  .mermaid-header-content
+  .mermaid-button-container {
   backdrop-filter: blur(0px);
   -webkit-backdrop-filter: blur(0px);
   background-color: rgba(255, 255, 255, 0);
 }
-body .content-block .mermaid-wrapper.fullscreen .mermaid-container .mermaid-content {
+body
+  .content-block
+  .mermaid-wrapper.fullscreen
+  .mermaid-container
+  .mermaid-content {
   flex-grow: 1;
   min-height: 0;
   overflow: hidden;
@@ -1822,27 +2497,73 @@ body .content-block .mermaid-wrapper.fullscreen .mermaid-container .mermaid-cont
   border-radius: 0px;
 }
 @media screen and (max-width: 640px) {
-  body .content-block .mermaid-wrapper.fullscreen .mermaid-container .mermaid-content {
+  body
+    .content-block
+    .mermaid-wrapper.fullscreen
+    .mermaid-container
+    .mermaid-content {
     padding-left: 16px;
     padding-right: 16px;
   }
 }
-body .content-block .mermaid-wrapper.fullscreen .mermaid-container .mermaid-content .mermaid-scroll {
+body
+  .content-block
+  .mermaid-wrapper.fullscreen
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll {
   height: 100%;
   min-height: 0;
   overflow: hidden;
   flex-grow: 1;
 }
-body .content-block .mermaid-wrapper.fullscreen .mermaid-container .mermaid-content .mermaid-scroll .mermaid-pan-zoom,
-body .content-block .mermaid-wrapper.fullscreen .mermaid-container .mermaid-content .mermaid-scroll .mermaid-pan-zoom-content,
-body .content-block .mermaid-wrapper.fullscreen .mermaid-container .mermaid-content .mermaid-scroll .mermaid-svg {
+body
+  .content-block
+  .mermaid-wrapper.fullscreen
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll
+  .mermaid-pan-zoom,
+body
+  .content-block
+  .mermaid-wrapper.fullscreen
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll
+  .mermaid-pan-zoom-content,
+body
+  .content-block
+  .mermaid-wrapper.fullscreen
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll
+  .mermaid-svg {
   height: 100%;
 }
-body .content-block .mermaid-wrapper.fullscreen .mermaid-container .mermaid-content .mermaid-scroll .mermaid-pan-zoom-content,
-body .content-block .mermaid-wrapper.fullscreen .mermaid-container .mermaid-content .mermaid-scroll .mermaid-svg {
+body
+  .content-block
+  .mermaid-wrapper.fullscreen
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll
+  .mermaid-pan-zoom-content,
+body
+  .content-block
+  .mermaid-wrapper.fullscreen
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll
+  .mermaid-svg {
   align-items: center;
 }
-body .content-block .mermaid-wrapper.fullscreen .mermaid-container .mermaid-content .mermaid-scroll .mermaid-svg > svg {
+body
+  .content-block
+  .mermaid-wrapper.fullscreen
+  .mermaid-container
+  .mermaid-content
+  .mermaid-scroll
+  .mermaid-svg
+  > svg {
   max-height: 100%;
 }
 body .content-block .codeblock-wrapper {
@@ -1870,7 +2591,12 @@ body .content-block .codeblock-wrapper .code-container .codeblock-header {
   user-select: none;
   pointer-events: none;
 }
-body .content-block .codeblock-wrapper .code-container .codeblock-header .codeblock-header-content {
+body
+  .content-block
+  .codeblock-wrapper
+  .code-container
+  .codeblock-header
+  .codeblock-header-content {
   display: flex;
   position: relative;
   z-index: 5;
@@ -1880,7 +2606,13 @@ body .content-block .codeblock-wrapper .code-container .codeblock-header .codebl
   padding-right: 8px;
   align-items: center;
 }
-body .content-block .codeblock-wrapper .code-container .codeblock-header .codeblock-header-content .codeblock-title-container {
+body
+  .content-block
+  .codeblock-wrapper
+  .code-container
+  .codeblock-header
+  .codeblock-header-content
+  .codeblock-title-container {
   display: flex;
   position: relative;
   height: 30px;
@@ -1893,9 +2625,19 @@ body .content-block .codeblock-wrapper .code-container .codeblock-header .codebl
   backdrop-filter: blur(0px);
   -webkit-backdrop-filter: blur(0px);
   background-color: rgba(255, 255, 255, 0);
-  transition: background-color 0.4s cubic-bezier(0.23, 1, 0.32, 1), backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1), -webkit-backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  transition:
+    background-color 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+    backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+    -webkit-backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1);
 }
-body .content-block .codeblock-wrapper .code-container .codeblock-header .codeblock-header-content .codeblock-title-container .codeblock-title {
+body
+  .content-block
+  .codeblock-wrapper
+  .code-container
+  .codeblock-header
+  .codeblock-header-content
+  .codeblock-title-container
+  .codeblock-title {
   display: flex;
   position: relative;
   align-items: center;
@@ -1905,13 +2647,25 @@ body .content-block .codeblock-wrapper .code-container .codeblock-header .codebl
   line-height: 16px;
   text-transform: capitalize;
 }
-body .content-block .codeblock-wrapper .code-container .codeblock-header .codeblock-header-content .codeblock-spacer {
+body
+  .content-block
+  .codeblock-wrapper
+  .code-container
+  .codeblock-header
+  .codeblock-header-content
+  .codeblock-spacer {
   display: flex;
   position: relative;
   width: 100%;
   flex-grow: 1;
 }
-body .content-block .codeblock-wrapper .code-container .codeblock-header .codeblock-header-content .codeblock-button-container {
+body
+  .content-block
+  .codeblock-wrapper
+  .code-container
+  .codeblock-header
+  .codeblock-header-content
+  .codeblock-button-container {
   display: flex;
   position: relative;
   height: 30px;
@@ -1919,9 +2673,19 @@ body .content-block .codeblock-wrapper .code-container .codeblock-header .codebl
   backdrop-filter: blur(0px);
   -webkit-backdrop-filter: blur(0px);
   background-color: rgba(255, 255, 255, 0);
-  transition: background-color 0.4s cubic-bezier(0.23, 1, 0.32, 1), backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1), -webkit-backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  transition:
+    background-color 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+    backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+    -webkit-backdrop-filter 0.4s cubic-bezier(0.23, 1, 0.32, 1);
 }
-body .content-block .codeblock-wrapper .code-container .codeblock-header .codeblock-header-content .codeblock-button-container .codeblock-icon-button {
+body
+  .content-block
+  .codeblock-wrapper
+  .code-container
+  .codeblock-header
+  .codeblock-header-content
+  .codeblock-button-container
+  .codeblock-icon-button {
   display: flex;
   position: relative;
   appearance: none;
@@ -1931,35 +2695,90 @@ body .content-block .codeblock-wrapper .code-container .codeblock-header .codebl
   padding-right: 8px;
   align-items: center;
 }
-body .content-block .codeblock-wrapper .code-container .codeblock-header .codeblock-header-content .codeblock-button-container .codeblock-icon-button .button-content {
+body
+  .content-block
+  .codeblock-wrapper
+  .code-container
+  .codeblock-header
+  .codeblock-header-content
+  .codeblock-button-container
+  .codeblock-icon-button
+  .button-content {
   display: flex;
   position: relative;
   opacity: 1;
   align-items: center;
 }
-body .content-block .codeblock-wrapper .code-container .codeblock-header .codeblock-header-content .codeblock-button-container .codeblock-icon-button .button-content .button-icon {
+body
+  .content-block
+  .codeblock-wrapper
+  .code-container
+  .codeblock-header
+  .codeblock-header-content
+  .codeblock-button-container
+  .codeblock-icon-button
+  .button-content
+  .button-icon {
   display: flex;
   width: 14px;
   height: 14px;
   align-items: center;
   justify-content: center;
 }
-body .content-block .codeblock-wrapper .code-container .codeblock-header .codeblock-header-content .codeblock-button-container .codeblock-icon-button .button-content .button-icon svg {
+body
+  .content-block
+  .codeblock-wrapper
+  .code-container
+  .codeblock-header
+  .codeblock-header-content
+  .codeblock-button-container
+  .codeblock-icon-button
+  .button-content
+  .button-icon
+  svg {
   width: 100%;
   height: 100%;
   color: rgb(80, 80, 80);
 }
-body .content-block .codeblock-wrapper .code-container .codeblock-header .codeblock-header-content .codeblock-button-container .codeblock-icon-button .button-content .button-icon.play {
+body
+  .content-block
+  .codeblock-wrapper
+  .code-container
+  .codeblock-header
+  .codeblock-header-content
+  .codeblock-button-container
+  .codeblock-icon-button
+  .button-content
+  .button-icon.play {
   width: 17px;
   height: 17px;
 }
-body .content-block .codeblock-wrapper .code-container .codeblock-header .codeblock-header-content .codeblock-button-container .codeblock-icon-button.first {
+body
+  .content-block
+  .codeblock-wrapper
+  .code-container
+  .codeblock-header
+  .codeblock-header-content
+  .codeblock-button-container
+  .codeblock-icon-button.first {
   padding-left: 8px;
 }
-body .content-block .codeblock-wrapper .code-container .codeblock-header .codeblock-header-content .codeblock-button-container .codeblock-icon-button.last {
+body
+  .content-block
+  .codeblock-wrapper
+  .code-container
+  .codeblock-header
+  .codeblock-header-content
+  .codeblock-button-container
+  .codeblock-icon-button.last {
   padding-right: 8px;
 }
-body .content-block .codeblock-wrapper .code-container .codeblock-header .codeblock-header-background {
+body
+  .content-block
+  .codeblock-wrapper
+  .code-container
+  .codeblock-header
+  .codeblock-header-background {
   display: none;
   position: absolute;
   width: 100%;
@@ -1967,16 +2786,32 @@ body .content-block .codeblock-wrapper .code-container .codeblock-header .codebl
   top: 0px;
   left: 0px;
 }
-body .content-block .codeblock-wrapper .code-container .codeblock-header .codeblock-header-background .codeblock-header-fade {
+body
+  .content-block
+  .codeblock-wrapper
+  .code-container
+  .codeblock-header
+  .codeblock-header-background
+  .codeblock-header-fade {
   display: block;
   position: absolute;
   top: 0px;
   left: 0px;
   width: 100%;
   height: 50px;
-  background: linear-gradient(180deg, rgb(255, 255, 255) 0px, rgba(255, 255, 255, 0) 50px);
+  background: linear-gradient(
+    180deg,
+    rgb(255, 255, 255) 0px,
+    rgba(255, 255, 255, 0) 50px
+  );
 }
-body .content-block .codeblock-wrapper .code-container .codeblock-header .codeblock-header-background .codeblock-header-blur {
+body
+  .content-block
+  .codeblock-wrapper
+  .code-container
+  .codeblock-header
+  .codeblock-header-background
+  .codeblock-header-blur {
   display: block;
   position: absolute;
   top: 0px;
@@ -1988,22 +2823,43 @@ body .content-block .codeblock-wrapper .code-container .codeblock-header .codebl
   mask-image: linear-gradient(to bottom, #000 10px, transparent 50px);
   -webkit-mask-image: linear-gradient(to bottom, #000 10px, transparent 50px);
 }
-body .content-block .codeblock-wrapper .code-container .codeblock-header.scroll .codeblock-header-content .codeblock-title-container {
+body
+  .content-block
+  .codeblock-wrapper
+  .code-container
+  .codeblock-header.scroll
+  .codeblock-header-content
+  .codeblock-title-container {
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
   background-color: rgba(255, 255, 255, 0.4);
 }
-body .content-block .codeblock-wrapper .code-container .codeblock-header.scroll .codeblock-header-content .codeblock-button-container {
+body
+  .content-block
+  .codeblock-wrapper
+  .code-container
+  .codeblock-header.scroll
+  .codeblock-header-content
+  .codeblock-button-container {
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
   background-color: rgba(255, 255, 255, 0.4);
 }
-body .content-block .codeblock-wrapper .code-container .codeblock-pre-code-content {
+body
+  .content-block
+  .codeblock-wrapper
+  .code-container
+  .codeblock-pre-code-content {
   display: flex;
   position: relative;
   flex-direction: column;
 }
-body .content-block .codeblock-wrapper .code-container .codeblock-pre-code-content pre {
+body
+  .content-block
+  .codeblock-wrapper
+  .code-container
+  .codeblock-pre-code-content
+  pre {
   display: grid;
   grid-template-columns: auto 1fr;
   position: relative;
@@ -2018,7 +2874,13 @@ body .content-block .codeblock-wrapper .code-container .codeblock-pre-code-conte
   margin-block-start: -50px;
   border-radius: 30px;
 }
-body .content-block .codeblock-wrapper .code-container .codeblock-pre-code-content pre .line-numbers {
+body
+  .content-block
+  .codeblock-wrapper
+  .code-container
+  .codeblock-pre-code-content
+  pre
+  .line-numbers {
   display: flex;
   position: relative;
   user-select: none;
@@ -2031,26 +2893,60 @@ body .content-block .codeblock-wrapper .code-container .codeblock-pre-code-conte
   letter-spacing: normal;
   color: rgb(205, 205, 205);
   line-height: 24px;
-  font-family: "Google Sans Code", ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  font-family:
+    "Google Sans Code",
+    ui-monospace,
+    SFMono-Regular,
+    SF Mono,
+    Menlo,
+    Consolas,
+    Liberation Mono,
+    monospace;
   flex-direction: column;
 }
 @media screen and (max-width: 640px) {
-  body .content-block .codeblock-wrapper .code-container .codeblock-pre-code-content pre .line-numbers {
+  body
+    .content-block
+    .codeblock-wrapper
+    .code-container
+    .codeblock-pre-code-content
+    pre
+    .line-numbers {
     display: none;
     font-size: 14px;
   }
 }
-body .content-block .codeblock-wrapper .code-container .codeblock-pre-code-content pre .line-numbers .line-number {
+body
+  .content-block
+  .codeblock-wrapper
+  .code-container
+  .codeblock-pre-code-content
+  pre
+  .line-numbers
+  .line-number {
   user-select: none;
   pointer-events: none;
 }
-body .content-block .codeblock-wrapper .code-container .codeblock-pre-code-content pre .code-content {
+body
+  .content-block
+  .codeblock-wrapper
+  .code-container
+  .codeblock-pre-code-content
+  pre
+  .code-content {
   display: block;
   overflow-x: scroll;
   padding-top: 8px;
   border-top: 1px solid rgb(242, 242, 242);
 }
-body .content-block .codeblock-wrapper .code-container .codeblock-pre-code-content pre .code-content code {
+body
+  .content-block
+  .codeblock-wrapper
+  .code-container
+  .codeblock-pre-code-content
+  pre
+  .code-content
+  code {
   display: block;
   cursor: text;
   padding-left: 0px;
@@ -2063,15 +2959,35 @@ body .content-block .codeblock-wrapper .code-container .codeblock-pre-code-conte
   letter-spacing: normal;
   color: rgb(105, 105, 105);
   line-height: 24px;
-  font-family: "Google Sans Code", ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  font-family:
+    "Google Sans Code",
+    ui-monospace,
+    SFMono-Regular,
+    SF Mono,
+    Menlo,
+    Consolas,
+    Liberation Mono,
+    monospace;
   background-color: #fff;
 }
 @media screen and (max-width: 640px) {
-  body .content-block .codeblock-wrapper .code-container .codeblock-pre-code-content pre .code-content code {
+  body
+    .content-block
+    .codeblock-wrapper
+    .code-container
+    .codeblock-pre-code-content
+    pre
+    .code-content
+    code {
     font-size: 14px;
   }
 }
-body .content-block .codeblock-wrapper.stream-active .code-container .codeblock-header .codeblock-header-content {
+body
+  .content-block
+  .codeblock-wrapper.stream-active
+  .code-container
+  .codeblock-header
+  .codeblock-header-content {
   /*
    * Only preview is held back. Copy and fullscreen work on a block
    * that is still being written — copying what has arrived, or
@@ -2080,10 +2996,23 @@ body .content-block .codeblock-wrapper.stream-active .code-container .codeblock-
    * fence closes.
    */
 }
-body .content-block .codeblock-wrapper.stream-active .code-container .codeblock-header .codeblock-header-content .codeblock-title-container {
+body
+  .content-block
+  .codeblock-wrapper.stream-active
+  .code-container
+  .codeblock-header
+  .codeblock-header-content
+  .codeblock-title-container {
   opacity: 0.3;
 }
-body .content-block .codeblock-wrapper.stream-active .code-container .codeblock-header .codeblock-header-content .codeblock-button-container .codeblock-icon-button.preview {
+body
+  .content-block
+  .codeblock-wrapper.stream-active
+  .code-container
+  .codeblock-header
+  .codeblock-header-content
+  .codeblock-button-container
+  .codeblock-icon-button.preview {
   opacity: 0.3;
 }
 body .content-block .codeblock-wrapper.fullscreen,
@@ -2107,48 +3036,100 @@ body .hypermarkdown .codeblock-wrapper.fullscreen {
     padding: 0px;
   }
 }
-body .content-block .codeblock-wrapper.fullscreen .code-container .codeblock-header {
+body
+  .content-block
+  .codeblock-wrapper.fullscreen
+  .code-container
+  .codeblock-header {
   top: 0px;
   border: none;
 }
-body .content-block .codeblock-wrapper.fullscreen .code-container .codeblock-header .codeblock-header-content {
+body
+  .content-block
+  .codeblock-wrapper.fullscreen
+  .code-container
+  .codeblock-header
+  .codeblock-header-content {
   border-radius: 0px;
   padding-left: 16px;
   padding-right: 16px;
 }
 @media screen and (max-width: 640px) {
-  body .content-block .codeblock-wrapper.fullscreen .code-container .codeblock-header .codeblock-header-content {
+  body
+    .content-block
+    .codeblock-wrapper.fullscreen
+    .code-container
+    .codeblock-header
+    .codeblock-header-content {
     padding-left: 8px;
     padding-right: 8px;
   }
 }
-body .content-block .codeblock-wrapper.fullscreen .code-container .codeblock-header .codeblock-header-content .codeblock-title-container {
+body
+  .content-block
+  .codeblock-wrapper.fullscreen
+  .code-container
+  .codeblock-header
+  .codeblock-header-content
+  .codeblock-title-container {
   backdrop-filter: blur(0px);
   -webkit-backdrop-filter: blur(0px);
   background-color: rgba(255, 255, 255, 0);
 }
-body .content-block .codeblock-wrapper.fullscreen .code-container .codeblock-header .codeblock-header-content .codeblock-button-container {
+body
+  .content-block
+  .codeblock-wrapper.fullscreen
+  .code-container
+  .codeblock-header
+  .codeblock-header-content
+  .codeblock-button-container {
   backdrop-filter: blur(0px);
   -webkit-backdrop-filter: blur(0px);
   background-color: rgba(255, 255, 255, 0);
 }
-body .content-block .codeblock-wrapper.fullscreen .code-container .codeblock-header .codeblock-header-background {
+body
+  .content-block
+  .codeblock-wrapper.fullscreen
+  .code-container
+  .codeblock-header
+  .codeblock-header-background {
   display: flex;
 }
-body .content-block .codeblock-wrapper.fullscreen .code-container .codeblock-header.scroll .codeblock-header-content .codeblock-title-container {
+body
+  .content-block
+  .codeblock-wrapper.fullscreen
+  .code-container
+  .codeblock-header.scroll
+  .codeblock-header-content
+  .codeblock-title-container {
   backdrop-filter: blur(0px);
   -webkit-backdrop-filter: blur(0px);
   background-color: rgba(255, 255, 255, 0);
 }
-body .content-block .codeblock-wrapper.fullscreen .code-container .codeblock-header.scroll .codeblock-header-content .codeblock-button-container {
+body
+  .content-block
+  .codeblock-wrapper.fullscreen
+  .code-container
+  .codeblock-header.scroll
+  .codeblock-header-content
+  .codeblock-button-container {
   backdrop-filter: blur(0px);
   -webkit-backdrop-filter: blur(0px);
   background-color: rgba(255, 255, 255, 0);
 }
-body .content-block .codeblock-wrapper.fullscreen .code-container .codeblock-pre-code-content {
+body
+  .content-block
+  .codeblock-wrapper.fullscreen
+  .code-container
+  .codeblock-pre-code-content {
   flex-grow: 1;
 }
-body .content-block .codeblock-wrapper.fullscreen .code-container .codeblock-pre-code-content pre {
+body
+  .content-block
+  .codeblock-wrapper.fullscreen
+  .code-container
+  .codeblock-pre-code-content
+  pre {
   flex-grow: 1;
   border-radius: 0px;
   padding-left: 24px;
@@ -2156,7 +3137,12 @@ body .content-block .codeblock-wrapper.fullscreen .code-container .codeblock-pre
   padding-bottom: 24px;
 }
 @media screen and (max-width: 640px) {
-  body .content-block .codeblock-wrapper.fullscreen .code-container .codeblock-pre-code-content pre {
+  body
+    .content-block
+    .codeblock-wrapper.fullscreen
+    .code-container
+    .codeblock-pre-code-content
+    pre {
     padding-left: 16px;
     padding-right: 16px;
   }
@@ -2318,7 +3304,7 @@ body .mermaid-render-sandbox {
   font-size: 0.875rem;
   letter-spacing: normal;
 }
-.input-text input[type=time] {
+.input-text input[type="time"] {
   padding-right: 7px;
 }
 .input-text input::placeholder {
@@ -2615,7 +3601,7 @@ body .mermaid-render-sandbox {
   letter-spacing: normal;
   background-color: #fff;
 }
-.input-numbers input[type=time] {
+.input-numbers input[type="time"] {
   padding-right: 7px;
 }
 .input-numbers input::placeholder {
@@ -2755,7 +3741,7 @@ body .mermaid-render-sandbox {
 .input-number-select .PlusButton:hover {
   opacity: 0.3;
 }
-.input-number-select input[type=time] {
+.input-number-select input[type="time"] {
   padding-right: 7px;
 }
 .input-number-select input::placeholder {
@@ -2774,7 +3760,7 @@ body .mermaid-render-sandbox {
 .input-number-select.light input {
   color: #000;
 }
-.input-number-select.light input[type=time] {
+.input-number-select.light input[type="time"] {
   padding-right: 7px;
 }
 .input-number-select.light input::placeholder {
@@ -3294,17 +4280,26 @@ body .mermaid-render-sandbox {
   }
 }
 
-.checkbox-button.checked .checkbox-icon .checkbox-circle .checkbox-circle-inner {
+.checkbox-button.checked
+  .checkbox-icon
+  .checkbox-circle
+  .checkbox-circle-inner {
   background-color: #fff;
 }
 
 @media screen and (max-width: 768px) {
-  .checkbox-button.filter.checked .checkbox-icon .checkbox-circle .checkbox-circle-inner {
+  .checkbox-button.filter.checked
+    .checkbox-icon
+    .checkbox-circle
+    .checkbox-circle-inner {
     background-color: #fff;
   }
 }
 @media screen and (max-width: 640px) {
-  .checkbox-button.filter.checked .checkbox-icon .checkbox-circle .checkbox-circle-inner {
+  .checkbox-button.filter.checked
+    .checkbox-icon
+    .checkbox-circle
+    .checkbox-circle-inner {
     background-color: #fff;
   }
 }
@@ -3453,7 +4448,8 @@ body .mermaid-render-sandbox {
   height: 40px;
   padding-left: 16px;
   padding-right: 16px;
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
 }
 .menu-button .txt {
   display: flex;
@@ -3465,7 +4461,8 @@ body .mermaid-render-sandbox {
   font-weight: 450;
   letter-spacing: normal;
   white-space: nowrap;
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   padding-left: 8px;
 }
 .menu-button .icon {
@@ -3843,7 +4840,8 @@ body .mermaid-render-sandbox {
   position: relative;
   width: auto;
   height: 40px;
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   padding-left: 6px;
   padding-right: 6px;
   flex-direction: row;
@@ -3861,7 +4859,8 @@ body .mermaid-render-sandbox {
   white-space: nowrap;
   color: rgb(10, 10, 10);
   font-size: 0.875rem;
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
 }
 .navigation-button .icon {
   display: flex;
@@ -3910,7 +4909,8 @@ body .mermaid-render-sandbox {
   height: 40px;
   padding-left: 6px;
   padding-right: 6px;
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
 }
 .navigation-button-action .txt {
   display: flex;
@@ -3929,7 +4929,8 @@ body .mermaid-render-sandbox {
   letter-spacing: 0px;
   white-space: nowrap;
   font-size: 0.875rem;
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
 }
 
 .chat-input-button {
@@ -4145,13 +5146,18 @@ body .mermaid-render-sandbox {
 #app-root .view-container .oauth-result.view .main-content .content-container {
   display: flex;
   position: absolute;
-  overflow-y: scroll;
+  overflow-y: auto;
   top: 0px;
   width: 100%;
   height: 100%;
   flex-direction: column;
 }
-#app-root .view-container .oauth-result.view .main-content .content-container .message-container {
+#app-root
+  .view-container
+  .oauth-result.view
+  .main-content
+  .content-container
+  .message-container {
   display: flex;
   position: relative;
   width: 100%;
@@ -4164,7 +5170,13 @@ body .mermaid-render-sandbox {
   align-items: center;
   justify-content: center;
 }
-#app-root .view-container .oauth-result.view .main-content .content-container .message-container .message {
+#app-root
+  .view-container
+  .oauth-result.view
+  .main-content
+  .content-container
+  .message-container
+  .message {
   display: flex;
   position: relative;
   width: 100%;
@@ -4172,20 +5184,36 @@ body .mermaid-render-sandbox {
   align-items: center;
   flex-direction: column;
 }
-#app-root .view-container .oauth-result.view .main-content .content-container .message-container .message .txt-header {
+#app-root
+  .view-container
+  .oauth-result.view
+  .main-content
+  .content-container
+  .message-container
+  .message
+  .txt-header {
   display: flex;
   position: relative;
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   font-size: 120px;
   line-height: normal;
   letter-spacing: 0px;
   color: rgb(10, 10, 10);
 }
-#app-root .view-container .oauth-result.view .main-content .content-container .message-container .message .txt-content {
+#app-root
+  .view-container
+  .oauth-result.view
+  .main-content
+  .content-container
+  .message-container
+  .message
+  .txt-content {
   display: flex;
   position: relative;
   text-align: center;
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   font-size: 16px;
   line-height: 16px;
   color: rgb(10, 10, 10);
@@ -4213,7 +5241,12 @@ body .mermaid-render-sandbox {
   height: 100%;
   flex-direction: row;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container {
   display: flex;
   position: relative;
   overflow-y: auto;
@@ -4228,17 +5261,33 @@ body .mermaid-render-sandbox {
   justify-content: center;
 }
 @media screen and (max-width: 1024px) {
-  #app-root .view-container .authenticate.view .main-content .content-container .form-container {
+  #app-root
+    .view-container
+    .authenticate.view
+    .main-content
+    .content-container
+    .form-container {
     width: 100%;
   }
 }
 @media screen and (max-width: 640px) {
-  #app-root .view-container .authenticate.view .main-content .content-container .form-container {
+  #app-root
+    .view-container
+    .authenticate.view
+    .main-content
+    .content-container
+    .form-container {
     padding-left: 16px;
     padding-right: 16px;
   }
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form {
   display: flex;
   position: relative;
   width: 100%;
@@ -4246,7 +5295,14 @@ body .mermaid-render-sandbox {
   align-items: center;
   flex-direction: column;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .form-title {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .form-title {
   display: flex;
   position: relative;
   z-index: 10;
@@ -4256,16 +5312,32 @@ body .mermaid-render-sandbox {
   line-height: 30px;
   letter-spacing: normal;
   color: rgb(10, 10, 10);
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .action-container {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .action-container {
   display: flex;
   position: relative;
   width: 100%;
   align-items: center;
   flex-direction: column;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .action-container .button-container {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .action-container
+  .button-container {
   display: flex;
   position: relative;
   gap: 16px;
@@ -4275,7 +5347,15 @@ body .mermaid-render-sandbox {
   padding-bottom: 16px;
   flex-direction: column;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .action-container .separator {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .action-container
+  .separator {
   display: flex;
   position: relative;
   height: 32px;
@@ -4283,24 +5363,50 @@ body .mermaid-render-sandbox {
   max-width: 380px;
   align-items: center;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .action-container .separator .txt {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .action-container
+  .separator
+  .txt {
   display: flex;
   position: relative;
   padding-left: 12px;
   padding-right: 12px;
   font-size: 0.875rem;
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   font-weight: 600;
   color: rgb(10, 10, 10);
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .action-container .separator .line {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .action-container
+  .separator
+  .line {
   display: flex;
   position: relative;
   height: 1px;
   flex-grow: 1;
   background-color: rgb(205, 205, 205);
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .signin-container {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .signin-container {
   display: flex;
   position: relative;
   width: 100%;
@@ -4310,7 +5416,15 @@ body .mermaid-render-sandbox {
   flex-direction: column;
   background-color: rgb(242, 242, 242);
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .signin-container .input-items {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .signin-container
+  .input-items {
   display: flex;
   position: relative;
   width: 100%;
@@ -4318,14 +5432,33 @@ body .mermaid-render-sandbox {
   gap: 36px;
   flex-direction: column;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .signin-container .input-items .input-item {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .signin-container
+  .input-items
+  .input-item {
   display: flex;
   position: relative;
   width: 100%;
   max-width: 400px;
   flex-direction: column;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .signin-container .input-items .input-item .title-container {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .signin-container
+  .input-items
+  .input-item
+  .title-container {
   display: flex;
   position: absolute;
   top: -22px;
@@ -4333,21 +5466,48 @@ body .mermaid-render-sandbox {
   width: 100%;
   letter-spacing: normal;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .signin-container .input-items .input-item .title-container .title {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .signin-container
+  .input-items
+  .input-item
+  .title-container
+  .title {
   display: flex;
   position: relative;
   width: 100%;
   line-height: normal;
   font-size: 12px;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .signin-container .form-spacer {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .signin-container
+  .form-spacer {
   display: flex;
   position: relative;
   flex-grow: 1;
   width: 100%;
   max-width: 400px;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .signin-container .button-container {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .signin-container
+  .button-container {
   display: flex;
   position: relative;
   gap: 16px;
@@ -4355,7 +5515,14 @@ body .mermaid-render-sandbox {
   max-width: 400px;
   flex-direction: column;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .register-container {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .register-container {
   display: flex;
   position: relative;
   width: 100%;
@@ -4365,7 +5532,15 @@ body .mermaid-render-sandbox {
   flex-direction: column;
   background-color: rgb(242, 242, 242);
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .register-container .input-items {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .register-container
+  .input-items {
   display: flex;
   position: relative;
   width: 100%;
@@ -4373,14 +5548,33 @@ body .mermaid-render-sandbox {
   gap: 36px;
   flex-direction: column;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .register-container .input-items .input-item {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .register-container
+  .input-items
+  .input-item {
   display: flex;
   position: relative;
   width: 100%;
   max-width: 400px;
   flex-direction: column;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .register-container .input-items .input-item .title-container {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .register-container
+  .input-items
+  .input-item
+  .title-container {
   display: flex;
   position: absolute;
   top: -22px;
@@ -4388,27 +5582,61 @@ body .mermaid-render-sandbox {
   width: 100%;
   letter-spacing: normal;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .register-container .input-items .input-item .title-container .title {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .register-container
+  .input-items
+  .input-item
+  .title-container
+  .title {
   display: flex;
   position: relative;
   width: 100%;
   line-height: normal;
   font-size: 12px;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .register-container .form-spacer {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .register-container
+  .form-spacer {
   display: flex;
   position: relative;
   flex-grow: 1;
   width: 100%;
   max-width: 400px;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .register-container .button-container {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .register-container
+  .button-container {
   display: flex;
   position: relative;
   width: 100%;
   max-width: 400px;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .verification-container {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .verification-container {
   display: flex;
   position: relative;
   width: 100%;
@@ -4418,7 +5646,15 @@ body .mermaid-render-sandbox {
   flex-direction: column;
   background-color: rgb(242, 242, 242);
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .verification-container .input-items {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .verification-container
+  .input-items {
   display: flex;
   position: relative;
   width: 100%;
@@ -4426,14 +5662,33 @@ body .mermaid-render-sandbox {
   gap: 36px;
   flex-direction: column;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .verification-container .input-items .input-item {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .verification-container
+  .input-items
+  .input-item {
   display: flex;
   position: relative;
   width: 100%;
   max-width: 400px;
   flex-direction: column;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .verification-container .input-items .input-item .title-container {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .verification-container
+  .input-items
+  .input-item
+  .title-container {
   display: flex;
   position: absolute;
   top: -22px;
@@ -4441,34 +5696,78 @@ body .mermaid-render-sandbox {
   width: 100%;
   letter-spacing: normal;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .verification-container .input-items .input-item .title-container .title {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .verification-container
+  .input-items
+  .input-item
+  .title-container
+  .title {
   display: flex;
   position: relative;
   width: 100%;
   line-height: normal;
   font-size: 12px;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .verification-container .info-txt {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .verification-container
+  .info-txt {
   display: flex;
   position: relative;
   padding-top: 16px;
   width: 100%;
   max-width: 400px;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .verification-container .info-txt .txt {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .verification-container
+  .info-txt
+  .txt {
   font-size: 15px;
   text-align: center;
   line-height: 20px;
   letter-spacing: normal;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .verification-container .form-spacer {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .verification-container
+  .form-spacer {
   display: flex;
   position: relative;
   flex-grow: 1;
   width: 100%;
   max-width: 400px;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .verification-container .button-container {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .verification-container
+  .button-container {
   display: flex;
   position: relative;
   gap: 16px;
@@ -4476,7 +5775,14 @@ body .mermaid-render-sandbox {
   max-width: 400px;
   flex-direction: column;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .subtext {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .subtext {
   display: flex;
   position: relative;
   padding-top: 16px;
@@ -4486,7 +5792,13 @@ body .mermaid-render-sandbox {
   font-size: 16px;
   justify-content: center;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form-footer {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form-footer {
   display: block;
   position: absolute;
   width: 100%;
@@ -4501,13 +5813,24 @@ body .mermaid-render-sandbox {
   background-color: rgb(242, 242, 242);
 }
 @media screen and (max-width: 640px) {
-  #app-root .view-container .authenticate.view .main-content .content-container .form-container .form-footer {
+  #app-root
+    .view-container
+    .authenticate.view
+    .main-content
+    .content-container
+    .form-container
+    .form-footer {
     padding-left: 16px;
     padding-right: 16px;
     font-size: 0.875rem;
   }
 }
-#app-root .view-container .authenticate.view .main-content .content-container .graphics-container {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .graphics-container {
   display: flex;
   position: relative;
   width: 50%;
@@ -4515,7 +5838,12 @@ body .mermaid-render-sandbox {
   background-color: rgb(10, 10, 10);
 }
 @media screen and (max-width: 1024px) {
-  #app-root .view-container .authenticate.view .main-content .content-container .graphics-container {
+  #app-root
+    .view-container
+    .authenticate.view
+    .main-content
+    .content-container
+    .graphics-container {
     display: none;
   }
 }
@@ -4541,7 +5869,7 @@ body .mermaid-render-sandbox {
 #app-root .view-container .init-check .content-container {
   display: flex;
   position: relative;
-  overflow-y: scroll;
+  overflow-y: auto;
   top: 0px;
   width: 100%;
   height: 100%;
@@ -4562,17 +5890,28 @@ body .mermaid-render-sandbox {
   align-items: center;
   justify-content: center;
 }
-#app-root .view-container .init-check .content-container .form-container .header-text {
+#app-root
+  .view-container
+  .init-check
+  .content-container
+  .form-container
+  .header-text {
   display: flex;
   position: relative;
   padding-bottom: 16px;
-  font-family: "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
+  font-family:
+    "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   font-size: 68px;
   font-weight: 600;
   line-height: 68px;
   letter-spacing: 0px;
 }
-#app-root .view-container .init-check .content-container .form-container .content-text {
+#app-root
+  .view-container
+  .init-check
+  .content-container
+  .form-container
+  .content-text {
   display: flex;
   position: relative;
   padding-bottom: 12px;
@@ -4588,7 +5927,13 @@ body .mermaid-render-sandbox {
   align-items: center;
   flex-direction: column;
 }
-#app-root .view-container .init-check .content-container .form-container .form .input-container {
+#app-root
+  .view-container
+  .init-check
+  .content-container
+  .form-container
+  .form
+  .input-container {
   display: flex;
   position: relative;
   width: 100%;
@@ -4596,7 +5941,13 @@ body .mermaid-render-sandbox {
   justify-content: center;
   padding-bottom: 24px;
 }
-#app-root .view-container .init-check .content-container .form-container .form .button-container {
+#app-root
+  .view-container
+  .init-check
+  .content-container
+  .form-container
+  .form
+  .button-container {
   display: flex;
   position: relative;
   width: 100%;

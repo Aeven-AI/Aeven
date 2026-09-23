@@ -32,9 +32,9 @@ function takesLevel(selector: string): boolean {
 describe('conversation composer seat styles', () => {
   it('sticks the seat to the floor of the column\'s one scroller', () => {
     // The seat is a child of the scroller now, laid out in the same content box
-    // as the transcript and the header: a scrollbar shortens all three by the
-    // same width, and the wheel over the footer moves the flow for free because
-    // the footer is part of the scrolling surface. `.composerSeat` keeps
+    // as the transcript and the header: the column hides its bar, so the three
+    // share one box without a gutter, and the wheel over the footer moves the
+    // flow for free because the footer is part of the scrolling surface. `.composerSeat` keeps
     // `flex: none` for the two phases that lay the seat out in a flex column —
     // the hero's centring box and a view's composer overlay.
     expect(declarationsFrom(ACTIVE_SEAT)).toContain('position: sticky')
@@ -47,9 +47,9 @@ describe('conversation composer seat styles', () => {
     // Safari release implements and the iOS 14.5 baseline bans: the declaration
     // is dropped whole, so the axis it was holding is left to whatever the bar
     // does ([gate](../../../../scripts/verify-css-baseline.ts)). One scroller
-    // holding the header, the transcript, and the seat needs no reservation — a
-    // bar that takes width shortens all three identically — and the seat has no
-    // band to give back either.
+    // holding the header, the transcript, and the seat needs no reservation —
+    // the scroller carries `no-scrollbar`, so no bar takes width — and the seat
+    // has no band to give back either.
     const body = declarationsFrom('.scrollBody')
     expect(body.some(part => part.startsWith('scrollbar-gutter:'))).toBe(false)
     expect(body).toContain('overflow-y: scroll')

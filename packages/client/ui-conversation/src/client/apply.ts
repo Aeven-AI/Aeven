@@ -372,14 +372,33 @@ export function apply(ctx: Context): void {
     },
   }, InputBar)
 
+  // The service is provided before anything that can render asks for it: a
+  // class-plugin fiber would have provided it a microtask after `apply`
+  // returned. Constructing the controller here registers it through
+  // `ctx.reflect.provide` synchronously, in this plugin's own fiber.
+  new ConversationController(ctx, { input: inputHub, blocks: composerBlocks })
+
   slots.inject('conversation', function* () {
     yield registerConversationRoot()
     yield registerConversationSession()
     yield registerConversationHeader()
-    yield registerComposerBar()
   })
 
-  ctx.plugin(ConversationController, { input: inputHub, blocks: composerBlocks })
+  // The composer bar reads the root `conversation` service from its inject
+  // factory, which runs during React's render. A client reload swaps the fiber
+  // that provides that service while React stays mounted, so the registration
+  // is owned by a fiber that declares the dependency: cordis installs it only
+  // while the service exists and drops it with the service, and no render can
+  // run that inject face without it. (Its crash is permanent, not transient:
+  // the slot error boundary latches and a single-entry cell then goes dry.)
+  ctx.plugin({
+    name: 'conversation-composer-bar',
+    inject: ['conversation'],
+    apply(bar: Context): void {
+      bar.slots.inject('conversation', registerComposerBar)
+    },
+  })
+
   ctx.plugin(todoDockEntry)
   ctx.plugin(queueDockEntry)
 }

@@ -11,6 +11,8 @@ import {
 
 import type { Instance, Placement, Props } from 'tippy.js'
 
+import { pointerMovedRecently, watchPointerIntent } from './pointer-intent.ts'
+
 /** The callable tippy default export, however a resolver hands it over. */
 type TippyFactory = (reference: Element, props: Partial<Props>) => Instance
 
@@ -126,7 +128,21 @@ const Tooltip = forwardRef<TooltipHandle, TooltipProps>(
         return
       }
 
+      watchPointerIntent()
+
       let disposed = false
+      let unintended = false
+
+      // An enter the content made is ignored, so the reader's first real move
+      // over the control is what opens it; tippy itself listens only for enter.
+      const onMove = (event: Event) => {
+        const instance = instanceRef.current
+        if (!instance || latest.current.manual || instance.state.isVisible) return
+        if (!pointerMovedRecently(event.timeStamp)) return
+        unintended = false
+        instance.show()
+      }
+      reference.addEventListener('mousemove', onMove)
 
       void loadTippy().then((create) => {
         if (disposed || !create) {
@@ -145,11 +161,27 @@ const Tooltip = forwardRef<TooltipHandle, TooltipProps>(
             : (current.trigger ?? 'mouseenter'),
           appendTo: () => document.body,
           zIndex: 99999,
+          // Set by an enter the reader did not make; cancels the show it schedules.
+          // Streaming content moving under a resting pointer fires enters with
+          // no pointer movement; only a hover the reader made opens the bubble.
+          // Imperative show() (the manual "copied" confirmation) is no trigger.
+          onTrigger: (_instance, event) => {
+            unintended = event.type === 'mouseenter' && !pointerMovedRecently(event.timeStamp)
+          },
+          onUntrigger: () => {
+            unintended = false
+          },
+          onShow: () => {
+            if (!unintended) return undefined
+            unintended = false
+            return false
+          },
         })
       })
 
       return () => {
         disposed = true
+        reference.removeEventListener('mousemove', onMove)
         instanceRef.current?.destroy()
         instanceRef.current = null
       }

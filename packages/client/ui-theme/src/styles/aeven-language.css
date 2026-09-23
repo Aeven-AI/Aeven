@@ -133,7 +133,7 @@ body {
      neutral stroke would read as a shadow. */
   --dsw-specific-popup-highlight: rgba(255, 255, 255, 0.8);
   --dsw-specific-selector: rgb(242, 242, 242);
-  --dsw-specific-sidebar-fill: rgba(255, 255, 255, 0.95);
+  --dsw-specific-sidebar-fill: rgb(255, 255, 255);
   --dsw-specific-sidebar-nav-item-active-accent: transparent;
   --dsw-specific-sidebar-nav-item-active: transparent;
   --dsw-specific-sidebar-nav-item-hover: transparent;
@@ -241,7 +241,7 @@ body[data-ds-dark-theme] {
   /* The same rim on the dark palette, at the alpha its hairlines use. */
   --dsw-specific-popup-highlight: rgba(255, 255, 255, 0.08);
   --dsw-specific-selector: rgb(36, 36, 36);
-  --dsw-specific-sidebar-fill: rgba(18, 18, 18, 0.95);
+  --dsw-specific-sidebar-fill: rgb(18, 18, 18);
   --dsw-specific-sidebar-nav-item-active-accent: transparent;
   --dsw-specific-sidebar-nav-item-active: transparent;
   --dsw-alias-markdown-code-block-banner: rgb(36, 36, 36);

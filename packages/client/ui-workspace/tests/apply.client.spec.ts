@@ -5,7 +5,9 @@ import { SlotRegistry } from '@aeven/client-ui-renderer/client'
 import { RemoteError, TestRemote } from '@aeven/client-test-runtime'
 import { LocaleRuntime } from '@aeven/client-locale/client'
 import { apply, inject } from '@aeven/client-ui-workspace/client'
-import type { WorkspaceBrowserInjected, WorkspacePickerInjected } from '@aeven/client-ui-workspace/client'
+import type {
+  WorkspaceBrowserInjected, WorkspaceHeaderActionsInjected, WorkspacePickerInjected,
+} from '@aeven/client-ui-workspace/client'
 import { WorkspaceBrowser } from '../src/client/rows/WorkspaceBrowser.tsx'
 import { WorkspacePicker } from '../src/client/WorkspacePicker.tsx'
 import { apply as hostApply } from '../src/index.ts'
@@ -76,11 +78,18 @@ async function bench() {
   }
 }
 
-type HoleName = 'sidebar.workspaces' | 'conversation.hero.workspace' | 'conversation.empty.workspace'
+type HoleName =
+  | 'sidebar.header.action'
+  | 'sidebar.workspaces'
+  | 'conversation.hero.workspace'
+  | 'conversation.empty.workspace'
 
 /** Declare any subset of the holes with a single root registration ('root' is a single slot). */
 function declare(slots: SlotRegistry, ...names: HoleName[]): () => void {
-  const children = Object.fromEntries(names.map(name => [name, { kind: 'single', scope: 'root' }]))
+  const children = Object.fromEntries(names.map(name => [
+    name,
+    name === 'sidebar.header.action' ? { kind: 'list', scope: 'root' } : { kind: 'single', scope: 'root' },
+  ]))
   return slots.register({ name: 'root', children } as never, () => null)
 }
 
@@ -115,7 +124,7 @@ describe('ui-workspace apply', () => {
 
   it('routes browser actions and picker creation to the services', async () => {
     const b = await bench()
-    declare(b.slots, 'sidebar.workspaces', 'conversation.hero.workspace')
+    declare(b.slots, 'sidebar.header.action', 'sidebar.workspaces', 'conversation.hero.workspace')
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     const startSession = vi.spyOn(b.ctx.uiWorkspace, 'startSession').mockImplementation(() => undefined)
 
@@ -146,9 +155,6 @@ describe('ui-workspace apply', () => {
     expect(b.rename).toHaveBeenCalledWith('ws', 'renamed')
     await browser.insertSessionBefore('ws' as never, 's1' as never, 's2' as never)
     expect(b.insertSessionBefore).toHaveBeenCalledWith('ws', 's1', 's2')
-    await browser.createWorkspace({ path: '/tmp/browser-project' })
-    expect(b.create).toHaveBeenCalledWith({ path: '/tmp/browser-project' })
-
     const picker = (b.slots.entries('conversation.hero.workspace')[0]!.inject as () => WorkspacePickerInjected)()
     await picker.createWorkspace({ path: '/tmp/project' })
     expect(b.create).toHaveBeenCalledWith({ path: '/tmp/project' })
@@ -159,24 +165,25 @@ describe('ui-workspace apply', () => {
     declare(b.slots, 'sidebar.workspaces', 'conversation.hero.workspace')
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     // Registration declared the child holes (declaration = render authorization).
-    expect(b.slots.spec('sidebar.workspaces.directoryFlow')).toMatchObject({ kind: 'single' })
+    expect(b.slots.spec('sidebar.header.action.directoryFlow')).toMatchObject({ kind: 'single' })
     expect(b.slots.spec('conversation.hero.workspace.directoryFlow')).toMatchObject({ kind: 'single' })
 
+    const header = (b.slots.entries('sidebar.header.action')[0]!.inject as () => WorkspaceHeaderActionsInjected)()
     const browser = (b.slots.entries('sidebar.workspaces')[0]!.inject as () => WorkspaceBrowserInjected)()
     const picker = (b.slots.entries('conversation.hero.workspace')[0]!.inject as () => WorkspacePickerInjected)()
-    expect(browser.hooks.directoryFlow.getSnapshot()).toBe(false)
+    expect(header.hooks.directoryFlow.getSnapshot()).toBe(false)
     expect(browser.hooks.hostInfo.getSnapshot()).toMatchObject({ home: undefined })
     expect(picker.hooks.directoryFlow.getSnapshot()).toBe(false)
     // A flow occupant flips exactly its own surface, and the source notifies.
     const notified = vi.fn()
-    const unsubscribe = browser.hooks.directoryFlow.subscribe(notified)
-    const dispose = b.slots.register({ name: 'sidebar.workspaces.directoryFlow' } as never, () => null)
-    expect(browser.hooks.directoryFlow.getSnapshot()).toBe(true)
+    const unsubscribe = header.hooks.directoryFlow.subscribe(notified)
+    const dispose = b.slots.register({ name: 'sidebar.header.action.directoryFlow' } as never, () => null)
+    expect(header.hooks.directoryFlow.getSnapshot()).toBe(true)
     expect(picker.hooks.directoryFlow.getSnapshot()).toBe(false)
     await Promise.resolve()
     expect(notified).toHaveBeenCalled()
     dispose()
-    expect(browser.hooks.directoryFlow.getSnapshot()).toBe(false)
+    expect(header.hooks.directoryFlow.getSnapshot()).toBe(false)
     unsubscribe()
   })
 

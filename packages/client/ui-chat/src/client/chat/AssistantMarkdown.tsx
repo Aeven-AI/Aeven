@@ -1,10 +1,12 @@
 import { Fragment, memo, useMemo } from 'react'
 import type { ReactNode } from 'react'
-import { JsonBlock, MarkdownText, reasoningSource } from '@aeven/client-ui-primitives'
+import { JsonBlock, MarkdownText } from '@aeven/client-ui-primitives'
 import type { MarkdownFileMentions } from '@aeven/client-ui-primitives'
 import type { ChatNodeOwnerProps, ChatViewSlotProps } from '../contract/slots.ts'
 import type { AssistantBlock } from '../contract/snapshot.ts'
 import { markdownLabels } from '../markdown-labels.ts'
+import { ReasoningRow } from './ReasoningRow.tsx'
+import { useSearchableHidden } from './searchable-hidden.ts'
 import css from './AssistantMarkdown.module.css'
 
 export interface AssistantMarkdownProps {
@@ -16,6 +18,8 @@ export interface AssistantMarkdownProps {
   renderMessageImages: ChatNodeOwnerProps['renderMessageImages']
   /** Hide reasoning that belongs to the Turn-level process disclosure. */
   reasoningHidden?: boolean | undefined
+  /** Reveal the disclosure that hides this reasoning. */
+  revealProcess?: (() => void) | undefined
   /** Resolved prose file mentions for this Assistant's closing turn. */
   mentions?: MarkdownFileMentions | undefined
   /** Keep the transcript on its live tail after an engine render. */
@@ -29,10 +33,9 @@ export interface AssistantMarkdownProps {
 /**
  * One run of the step's content, in the order the model produced it.
  *
- * Prose and reasoning are what the Markdown engine renders, and they travel to
- * it as one source so it owns their order, their block boundaries and its own
- * caches. Everything it cannot render — an image gallery, an unrecognized block
- * — ends the run in progress and is emitted between the runs.
+ * Consecutive prose blocks travel to the Markdown engine as one source so it
+ * owns their block boundaries and caches. Reasoning, image galleries and
+ * unrecognized blocks end the run in progress and render between the runs.
  */
 export interface StepRun {
   /** The run's accumulated markdown, for a run the engine renders. */
@@ -42,66 +45,33 @@ export interface StepRun {
 }
 
 /**
- * Index of the block the step ends on.
- *
- * Reasoning stays open only as the step's *last* block, because that is the
- * block still being written. Anything after it — prose, an image, a tool head —
- * means this trace is finished, and an image or a tool head keeps it closed too
- * rather than leaving a block that nothing left in the source could close. A
- * step ending in tool heads alone has no such block, and opens nothing.
- * @param blocks - Assistant content blocks in authored order.
- * @returns The index of the last block, or -1 for an empty step.
- */
-function lastEngineBlock(blocks: readonly AssistantBlock[]): number {
-  const last = blocks.length - 1
-
-  return blocks[last]?.kind === 'tool-call' ? -1 : last
-}
-
-/**
  * Split a step's blocks into ordered runs.
  *
  * React renders these; the function is exported because it is the whole of how
  * a step becomes Markdown, and a step's source is worth asserting on directly
  * rather than only through the DOM it produces.
  */
-export function runsOf(
-  blocks: readonly AssistantBlock[],
-  streaming: boolean,
-): StepRun[] {
+export function runsOf(blocks: readonly AssistantBlock[]): StepRun[] {
   const runs: StepRun[] = []
   let open: StepRun | null = null
-
-  // The last block the engine draws decides which reasoning is still running;
-  // a tool head after it belongs to another node and never closes a block here.
-  const tail = lastEngineBlock(blocks)
 
   for (let index = 0; index < blocks.length; index++) {
     const block = blocks[index]
     if (block === undefined) continue
 
-    if (block.kind === 'tool-call') {
-      // A tool head renders as its own Chat node row, never here — so it is not
-      // a split. It puts nothing between the two halves of the prose, and
-      // treating it as one costs an engine instance for every call in the step
-      // while drawing exactly the same thing.
+    if (block.kind === 'tool-call' || (block.kind === 'reasoning' && block.text.trim() === '')) {
+      // A tool head renders as its own Chat node row, and an empty trace has
+      // nothing to show, so neither splits the prose around it.
       continue
     }
 
-    if (block.kind === 'text' || block.kind === 'reasoning') {
-      // Reasoning is left open while the step runs and closed once it settles:
-      // an open block is the engine's "still thinking", and a step's thinking
-      // is over when its answer is, not when the trace stops arriving.
-      const source = block.kind === 'text'
-        ? block.text
-        : reasoningSource(block.text, streaming && index === tail)
-
+    if (block.kind === 'text') {
       if (open !== null && open.source !== null) {
-        open.source += source
+        open.source += block.text
         continue
       }
 
-      open = { source, start: index }
+      open = { source: block.text, start: index }
       runs.push(open)
       continue
     }
@@ -109,7 +79,7 @@ export function runsOf(
     open = { source: null, start: index }
     runs.push(open)
 
-    while (blocks[index + 1]?.kind === 'image') {
+    while (block.kind === 'image' && blocks[index + 1]?.kind === 'image') {
       // One gallery covers the whole run of images, so no second run is opened
       // for images this one already holds.
       index += 1
@@ -120,42 +90,33 @@ export function runsOf(
 }
 
 /**
- * Render one Assistant step: its reasoning and its prose, as one engine source.
+ * Render one Assistant step: prose through the Markdown engine and each
+ * reasoning block as a Think row between the prose runs.
  *
- * The step used to render each block with a renderer of its own — prose through
- * the Markdown engine, reasoning through a disclosure component beside it — so
- * a step had as many renderers as it had blocks and the engine's reasoning
- * pipeline went unused. Now the step's content is one source, and the engine
- * draws all of it.
- *
- * Reasoning reaches the engine as the `<think>` block it already implements,
- * which is what a model's own inline reasoning produces; a block that is neither
- * prose nor reasoning ends the run in progress, so the authored order survives
- * the split. Keys are the index of the block that opened each run, so an append
- * extends a run instead of remounting everything after it — the engine keys its
- * rendered blocks by identity, and a shifted key throws that work away.
+ * Runs are keyed by the index of the block that opened them, so a streaming
+ * append extends the tail run instead of remounting the runs before it.
  */
 export const AssistantMarkdown = memo(function AssistantMarkdown({
   blocks, streaming, interrupted, renderMessageImages,
-  reasoningHidden = false, mentions, scrollDown, onFullscreenChange, t,
+  reasoningHidden = false, revealProcess, mentions, scrollDown, onFullscreenChange, t,
 }: AssistantMarkdownProps) {
   // Stable per locale revision (t identity changes on switch): a fresh object
   // per render would rebuild MarkdownText's component table every chunk.
   const labels = useMemo(() => markdownLabels(t), [t])
-  const runs = useMemo(() => runsOf(blocks, streaming), [blocks, streaming])
+  const runs = useMemo(() => runsOf(blocks), [blocks])
   // Tool-call heads render as tool rows in the chat view's grouping pass, so
   // a node that is only those heads (or empty) would paint an empty root
   // between tool groups — skip the shell unless something visible remains.
   const hasVisible = streaming
     || interrupted === true
-    || blocks.some(block => block.kind !== 'tool-call')
+    || blocks.some(block => block.kind !== 'tool-call'
+      && !(block.kind === 'reasoning' && block.text.trim() === ''))
   if (!hasVisible) return null
 
   return (
     <div
       className={css.root}
       data-streaming={streaming || undefined}
-      data-reasoning-hidden={reasoningHidden || undefined}
     >
       <div className={css.body}>
         {runs.map(run => run.source !== null
@@ -173,7 +134,9 @@ export const AssistantMarkdown = memo(function AssistantMarkdown({
           )
           : (
             <Fragment key={`block-${run.start}`}>
-              {renderStandalone(blocks, run.start, renderMessageImages, t)}
+              {renderStandalone(blocks, run.start, {
+                streaming, reasoningHidden, revealProcess, mentions, renderMessageImages, t,
+              })}
             </Fragment>
           ))}
         {interrupted && <span className={css.stopped}>{t('message.stopped')}</span>}
@@ -182,28 +145,50 @@ export const AssistantMarkdown = memo(function AssistantMarkdown({
   )
 })
 
+/** What a standalone block needs from its step. */
+interface StandaloneContext {
+  streaming: boolean
+  reasoningHidden: boolean
+  revealProcess: (() => void) | undefined
+  mentions: MarkdownFileMentions | undefined
+  renderMessageImages: ChatNodeOwnerProps['renderMessageImages']
+  t: ChatViewSlotProps['t']
+}
+
 /**
  * Render one block the engine does not handle.
  *
- * Consecutive image blocks share one gallery so several images tile into rows
- * instead of each opening a one-image group of its own; the run's start index
- * is what keeps that group's key stable as the group grows.
+ * Reasoning renders as a Think row, running only while it is the step's last
+ * block. Consecutive image blocks share one gallery so several images tile
+ * into rows; the run's start index keeps that group's key stable as it grows.
  * @param blocks - Assistant content blocks in authored order.
  * @param start - Index of the block that opened the run.
- * @param renderMessageImages - The owning view's attachment gallery slot.
- * @param t - Chat locale seat.
- * @returns The gallery for an image run, or the unknown-block fallback.
+ * @param context - The step's streaming state, disclosure ownership and slots.
+ * @returns The Think row, the gallery for an image run, or the unknown-block fallback.
  */
 function renderStandalone(
   blocks: readonly AssistantBlock[],
   start: number,
-  renderMessageImages: ChatNodeOwnerProps['renderMessageImages'],
-  t: ChatViewSlotProps['t'],
+  context: StandaloneContext,
 ): ReactNode {
   const block = blocks[start]
+  const { t } = context
 
   /* v8 ignore next -- a run is only opened by a block that exists. */
   if (block === undefined) return null
+
+  if (block.kind === 'reasoning') {
+    return (
+      <ProcessReasoning hidden={context.reasoningHidden} reveal={context.revealProcess}>
+        <ReasoningRow
+          text={block.text}
+          running={context.streaming && start === blocks.length - 1}
+          mentions={context.mentions}
+          t={t}
+        />
+      </ProcessReasoning>
+    )
+  }
 
   if (block.kind === 'other') {
     return (
@@ -215,7 +200,7 @@ function renderStandalone(
     )
   }
 
-  /* v8 ignore next -- text, reasoning and tool calls never open this kind of run. */
+  /* v8 ignore next -- text and tool calls never open this kind of run. */
   if (block.kind !== 'image') return null
 
   const images = [block]
@@ -225,8 +210,20 @@ function renderStandalone(
     images.push(next)
   }
 
-  return renderMessageImages({
+  return context.renderMessageImages({
     images: images.map(({ attachment }) => ({ attachment })),
     align: 'start',
   })
 }
+
+/** Keep a Turn-process-owned trace mounted but searchable-hidden while the disclosure is closed. */
+function ProcessReasoning({ hidden, reveal, children }: {
+  hidden: boolean
+  reveal: (() => void) | undefined
+  children: ReactNode
+}) {
+  const ref = useSearchableHidden(hidden, reveal ?? NOOP)
+  return <div ref={ref} data-turn-process-inline={hidden || undefined}>{children}</div>
+}
+
+const NOOP = (): void => {}

@@ -154,6 +154,49 @@ function byRecency(a: SessionSummary, b: SessionSummary): number {
 }
 
 /**
+ * A group's last update: the newest `updatedAt` among the sessions the list
+ * accounts to it, falling back to the Workspace record's own last-mutation
+ * instant. A Workspace with nothing in it therefore ranks by when it was
+ * created or last touched, which is the figure that puts one just added
+ * directly below the built-in workspace.
+ */
+function groupRecency(workspace: WorkspaceView, byId: SessionListState['byId']): number {
+  let newest: number | undefined
+  for (const id of workspace.sessionIds) {
+    const updatedAt = byId[id]?.updatedAt
+    if (updatedAt === undefined || (newest !== undefined && updatedAt <= newest)) continue
+    newest = updatedAt
+  }
+  return newest ?? Date.parse(workspace.updatedAt)
+}
+
+/**
+ * Order the workspace groups: the built-in Workspace first, then the rest by
+ * last update, newest first.
+ *
+ * The built-in Workspace holds the head whatever the durable registry order
+ * says (the registry pins it there); every other group ranks by activity, so
+ * the Workspace being worked in sits directly under it. Ties keep the incoming
+ * order, which is the durable registry order — the arrangement a reader made by
+ * dragging, and the one that shows while the order mode is manual.
+ * @param workspaces - Workspaces in durable order, with their session order already applied.
+ * @param list - sessions list snapshot supplying each group's last update.
+ * @returns Workspaces in render order.
+ */
+export function orderGroupsByRecency(
+  workspaces: readonly WorkspaceView[],
+  list: SessionListState,
+): WorkspaceView[] {
+  return workspaces
+    .map((workspace, index) => ({ workspace, index, recency: groupRecency(workspace, list.byId) }))
+    .sort((left, right) =>
+      Number(right.workspace.isDefault) - Number(left.workspace.isDefault)
+      || right.recency - left.recency
+      || left.index - right.index)
+    .map(entry => entry.workspace)
+}
+
+/**
  * Ordinary sessions are visible; among blank sessions, only the current one
  * is visible. Subagent children use their parent header catalog; archived
  * sessions are visible nowhere, while their accounting slots remain so

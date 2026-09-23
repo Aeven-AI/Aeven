@@ -3,15 +3,12 @@
 
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import type {
-  ConversationTimelineSnapshot, RenderMessageImages,
-} from '@aeven/client-ui-conversation/client'
-import { Button, IconChevronDownOutline14, Modal, Spinner } from '@aeven/client-ui-primitives'
+import type { RenderMessageImages } from '@aeven/client-ui-conversation/client'
+import { Button, IconChevronDownOutline14, Modal, Spinner, TextAnimationContext } from '@aeven/client-ui-primitives'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
 import type { ChatSnapshot } from '../contract/snapshot.ts'
 import { PendingSteeringBubble, PendingSubmissionBubble } from './MessageItem.tsx'
 import { ChatNodeSeat } from './ChatNodeSeat.tsx'
-import { formatRunDuration } from './message-chrome.ts'
 import { TurnRail } from './TurnRail.tsx'
 import { turnRailMarks, type TurnRailMark } from './turn-rail-marks.ts'
 import a11yCss from './accessibility.module.css'
@@ -172,50 +169,6 @@ function observedRpcIds(
   return observed
 }
 
-function runningTurnStartTime(timeline: ConversationTimelineSnapshot): number | null {
-  let latest: number | null = null
-  for (const turn of timeline.turns.values()) {
-    if (turn.status === 'open') latest = turn.start?.time ?? null
-  }
-  return latest
-}
-
-/** Turn-level model activity label retained across first-token, tool, and streaming phases. */
-function TurnStatus({ startTime, t }: {
-  /** The running turn's logged `turn/start` time; null falls back to mount
-   *  time when that boundary is outside the window. */
-  startTime: number | null
-  /** The owning view's locale seat. */
-  t: ChatViewSlotProps['t']
-}) {
-  const [mountedAt] = useState(() => Date.now())
-  // Anchored to turn/start so a mid-turn reload keeps the real
-  // elapsed time and the final footer's Ran-for label matches this clock.
-  const anchor = startTime ?? mountedAt
-  const [elapsedMs, setElapsedMs] = useState(() => Math.max(0, Date.now() - anchor))
-  useEffect(() => {
-    const tick = (): void => {
-      setElapsedMs(Math.max(0, Date.now() - anchor))
-    }
-    tick()
-    const id = setInterval(tick, 1000)
-    return () => { clearInterval(id) }
-  }, [anchor])
-  // Short turns keep the plain label; the clock only appears once the turn
-  // has clearly been running for a while.
-  const showClock = elapsedMs >= 15_000
-  return (
-    <div className={css.turnStatus} role="status" aria-live="polite">
-      {t('chat.deepDiving')}
-      {showClock && (
-        <span className={css.turnStatusClock} aria-hidden>
-          {formatRunDuration(elapsedMs, t)}
-        </span>
-      )}
-    </div>
-  )
-}
-
 type ChatNodeListProps = Omit<ComponentProps<typeof ChatNodeSeat>, 'nodeKey'> & {
   readonly order: readonly string[]
 }
@@ -233,7 +186,8 @@ const ChatNodeList = memo(function ChatNodeList({ order, ...seatProps }: ChatNod
 export function ChatView({
   useSession, useChat, useChatNode, useChatNodeProcess, useSessions, useStore, actions, renderSlot,
   sessionId, openFile, loadOlder, loadNewer, returnToLive, loadThrough, navigateToEvent, completeEventNavigation, loadImage, openView,
-  chatScroll, forkAt, fileMentions, onFullscreenChange, useTranscriptView, useEventNavigation, useProjection, t,
+  chatScroll, forkAt, fileMentions, onFullscreenChange, useTranscriptView, useTextAnimationPreference,
+  useEventNavigation, useProjection, t,
 }: ChatViewSlotProps) {
   const order = useChat(s => s.order)
   const nodeStore = useChat(s => s.nodes)
@@ -256,6 +210,7 @@ export function ChatView({
   const turnNavigationRef = useRef<TurnRailMark | null>(null)
   const selectedCallId = useStore(s => s.selection?.callId)
   const compactTranscript = useTranscriptView(mode => mode === 'compact')
+  const textAnimation = useTextAnimationPreference(enabled => enabled)
   const eventNavigation = useEventNavigation(request => request)
   const inspectCall = useCallback((callId: string) => {
     openView('trajectory', callId)
@@ -314,7 +269,6 @@ export function ChatView({
     owner => renderSlot('conversation.message.images', { ...owner, loadImage }),
     [loadImage, renderSlot],
   )
-  const runningTurnStart = useMemo(() => runningTurnStartTime(timeline), [timeline])
 
   const listRef = useRef<HTMLDivElement | null>(null)
   const columnRef = useRef<HTMLDivElement | null>(null)
@@ -1073,86 +1027,87 @@ export function ChatView({
   )
 
   return (
-    <div className={css.root}>
-      <div ref={listRef} className={css.scroll}>
-        {/* Inside the scroller, before the flow: the rail is sticky and
-            zero-height, so it holds its line while the transcript travels
-            under it and adds nothing to the scrollable range. */}
-        <TurnRail
-          marks={railMarks}
-          activeTurn={activeTurn}
-          onNavigate={navigateToTurn}
-          t={t}
-        />
-        <div ref={columnRef} className={css.column} data-chat-flow="">
-          {openState === 'error' && openError !== null && (
-            <div className={css.openError}>
-              {t('chat.loadError', { message: openError.message, code: openError.code })}
-            </div>
-          )}
-          <ChatNodeList
-            order={order}
-            highlightedNodeKey={highlightedNodeKey}
-            useChatNode={useChatNode}
-            useChatNodeProcess={useChatNodeProcess}
-            historyIncomplete={hasMore}
-            compactTranscript={compactTranscript}
-            useStore={useStore}
-            actions={actions}
-            selectedCallId={selectedCallId}
-            cwd={cwd}
-            openFile={requestOpenFile}
-            inspectCall={inspectCall}
-            forkAt={forkAt}
-            renderMessageImages={renderMessageImages}
-            fileMentions={fileMentions}
-            scrollDown={scrollDown}
-            onFullscreenChange={onFullscreenChange}
-            renderSlot={renderSlot}
+    <TextAnimationContext.Provider value={textAnimation}>
+      <div className={css.root}>
+        <div ref={listRef} className={css.scroll}>
+          {/* Inside the scroller, before the flow: the rail is sticky and
+              zero-height, so it holds its line while the transcript travels
+              under it and adds nothing to the scrollable range. */}
+          <TurnRail
+            marks={railMarks}
+            activeTurn={activeTurn}
+            onNavigate={navigateToTurn}
             t={t}
           />
-          {/* No pending placeholders: questions (ui-user-questions) and approvals
-              (ApprovalPanel) both take over the composer, so a flow card would
-              double-render the same wait. */}
-          {/* Turn-level loading signal: rides the whole running turn (first-token
-              wait, tool execution, streaming) so it never flickers per step. */}
-          {running && <TurnStatus startTime={runningTurnStart} t={t} />}
-          {pendingSteering.map(item => (
-            <PendingSteeringBubble
-              key={item.id}
-              content={item.content}
+          <div ref={columnRef} className={css.column} data-chat-flow="">
+            {openState === 'error' && openError !== null && (
+              <div className={css.openError}>
+                {t('chat.loadError', { message: openError.message, code: openError.code })}
+              </div>
+            )}
+            <ChatNodeList
+              order={order}
+              highlightedNodeKey={highlightedNodeKey}
+              useChatNode={useChatNode}
+              useChatNodeProcess={useChatNodeProcess}
+              historyIncomplete={hasMore}
+              compactTranscript={compactTranscript}
+              useStore={useStore}
+              actions={actions}
+              selectedCallId={selectedCallId}
+              cwd={cwd}
+              openFile={requestOpenFile}
+              inspectCall={inspectCall}
+              forkAt={forkAt}
               renderMessageImages={renderMessageImages}
+              fileMentions={fileMentions}
+              scrollDown={scrollDown}
+              onFullscreenChange={onFullscreenChange}
+              renderSlot={renderSlot}
               t={t}
             />
-          ))}
-          {visibleSubmissions.map(submission => (
-            <PendingSubmissionBubble
-              key={submission.requestId}
-              submission={submission}
-              renderMessageImages={renderMessageImages}
-              t={t}
-            />
-          ))}
-          {/* Floor sentinel: zero-height, last in the flow, so intersecting the
-              scrollport means the tail is on screen. It carries no margin of
-              its own — the observer's rootMargin owns the threshold — and adds
-              nothing to scrollHeight, so no anchoring or paging math moves. */}
-          <div ref={floorSentinelRef} className={css.floorSentinel} aria-hidden />
+            {/* No pending placeholders: questions (ui-user-questions) and approvals
+                (ApprovalPanel) both take over the composer, so a flow card would
+                double-render the same wait. */}
+            {/* Turn-level loading signal: rides the whole running turn (first-token
+                wait, tool execution, streaming) so it never flickers per step. */}
+            {pendingSteering.map(item => (
+              <PendingSteeringBubble
+                key={item.id}
+                content={item.content}
+                renderMessageImages={renderMessageImages}
+                t={t}
+              />
+            ))}
+            {visibleSubmissions.map(submission => (
+              <PendingSubmissionBubble
+                key={submission.requestId}
+                submission={submission}
+                renderMessageImages={renderMessageImages}
+                t={t}
+              />
+            ))}
+            {/* Floor sentinel: zero-height, last in the flow, so intersecting the
+                scrollport means the tail is on screen. It carries no margin of
+                its own — the observer's rootMargin owns the threshold — and adds
+                nothing to scrollHeight, so no anchoring or paging math moves. */}
+            <div ref={floorSentinelRef} className={css.floorSentinel} aria-hidden />
+          </div>
         </div>
+        {chromeLayer === null ? floatingChrome : createPortal(floatingChrome, chromeLayer)}
+        {seatChromeLayer === null ? seatChrome : createPortal(seatChrome, seatChromeLayer)}
+        {fileOpenError !== null && (
+          <FileOpenErrorDialog
+            path={fileOpenError.path}
+            message={fileOpenError.message}
+            busy={fileOpenBusy}
+            onClose={closeFileOpenError}
+            onRetry={() => { requestOpenFile(fileOpenError.path) }}
+            t={t}
+          />
+        )}
       </div>
-      {chromeLayer === null ? floatingChrome : createPortal(floatingChrome, chromeLayer)}
-      {seatChromeLayer === null ? seatChrome : createPortal(seatChrome, seatChromeLayer)}
-      {fileOpenError !== null && (
-        <FileOpenErrorDialog
-          path={fileOpenError.path}
-          message={fileOpenError.message}
-          busy={fileOpenBusy}
-          onClose={closeFileOpenError}
-          onRetry={() => { requestOpenFile(fileOpenError.path) }}
-          t={t}
-        />
-      )}
-    </div>
+    </TextAnimationContext.Provider>
   )
 }
 

@@ -28,10 +28,17 @@
   --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
   --avn-sidebar-inline-padding: var(--dsw-aeven-sidebar-row-inset);
   --avn-sidebar-open-width: 0px;
+  /* The fold toggle's own box: its row inset, the 18px glyph, and a narrower
+     inset after it, so the button ends just past what it draws instead of
+     reaching the column's edge. */
+  --avn-sidebar-toggle-width: calc(
+    var(--avn-sidebar-inline-padding) + 18px + 8px
+  );
   /* The column travels with its own content: Aeven animates `.sidebar` width
      on the same curve as everything inside it, so the conversation edge stays
      attached to the panel for the whole slide. */
-  transition: width var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
+  transition: width var(--dsw-aeven-sidebar-transition-duration)
+    var(--dsw-aeven-sidebar-transition-timing);
 }
 
 .root.visible {
@@ -51,11 +58,14 @@
   height: 100%;
   padding-top: 8px;
   box-sizing: border-box;
-  transition: width var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
+  transition: width var(--dsw-aeven-sidebar-transition-duration)
+    var(--dsw-aeven-sidebar-transition-timing);
 }
 
-/* Aeven `.side-content-background`: the translucent panel is its own layer so
-   its width can animate while the button above it stays opaque.
+/* Aeven `.side-content-background`: the panel is its own layer so its width
+   can animate while the button above it stays opaque. It paints an opaque fill
+   — the working surface behind the column never shows through — and carries the
+   column's own drop shadow.
    Last in the DOM and below the z-indexed button and content, as Aeven has it.
    The 2px bottom overhang hides the panel's edge against the viewport floor. */
 .panel {
@@ -67,20 +77,36 @@
   opacity: 0;
   border-top-right-radius: var(--dsw-aeven-sidebar-panel-radius);
   background: var(--dsw-specific-sidebar-fill);
-  /* Unprefixed only: the CSS pipeline adds the -webkit- form per its targets,
-     and writing both here makes it drop the standard property. */
-  backdrop-filter: blur(4px);
+  filter: drop-shadow(0px 5px 10px rgba(0, 0, 0, 0.05));
   box-shadow: inset -1px 1px 0 0 rgb(255, 255, 255);
   pointer-events: none;
   transition:
-    width var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing),
-    opacity var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
+    width var(--dsw-aeven-sidebar-transition-duration)
+      var(--dsw-aeven-sidebar-transition-timing),
+    opacity var(--dsw-aeven-sidebar-transition-duration)
+      var(--dsw-aeven-sidebar-transition-timing);
 }
 
 .visible .panel {
   opacity: 1;
 }
 
+/* Header row: the fold toggle at one end and the browsing controls at the
+   other. The cluster takes whatever room is left, so nothing here measures the
+   column or the toggle; the trailing inset is the row's own, which puts the
+   last glyph's edge on the same line the rows below inset to. */
+.header {
+  position: relative;
+  z-index: 5;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: var(--dsw-aeven-control-size);
+  padding-right: var(--avn-sidebar-inline-padding);
+  box-sizing: border-box;
+}
 
 /* Aeven `.sidebar-button`: 24px inset + 20px glyph box + 24px inset collapsed,
    widening to the full column. `overflow: hidden` is what lets the chevron sit
@@ -95,7 +121,7 @@
   /* Sized to its glyph rather than to the column: the row inset before it, the
      18px icon, and a narrower inset after, so the button ends just past what
      it draws instead of reaching the column's edge. */
-  width: calc(var(--avn-sidebar-inline-padding) + 18px + 8px);
+  width: var(--avn-sidebar-toggle-width);
   height: var(--dsw-aeven-control-size);
   padding: 0 8px 0 var(--avn-sidebar-inline-padding);
   border: none;
@@ -109,6 +135,27 @@
   margin-left: var(--avn-sidebar-window-controls, 0px);
 }
 
+/* The cluster takes the room the toggle leaves and clips its own controls, so
+   the collapsing column carries them out with the body instead of leaving them
+   over the conversation. It fades on the body's own linear curve, and its
+   controls stay on one line while the column narrows. */
+.headerActions {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  opacity: 0;
+  transition: opacity var(--dsw-aeven-sidebar-transition-duration) linear;
+}
+
+.visible .headerActions {
+  opacity: 1;
+}
 
 /* The desktop shell hides its title bar and insets the window controls over the
    page's top-left (desktop main.ts `trafficLightPosition`), so this one control
@@ -120,14 +167,13 @@
    toggle moves, since nothing else in the column reaches that corner. The
    desktop carrier marks the document (desktop preload-app.ts), which is what
    keeps the same client unmoved when it is served over HTTP. */
-:global(html[data-avn-desktop]) .toggle {
+:global(html[data-avn-desktop]) .root {
   --avn-sidebar-window-controls: calc(
     /* the lights' inset, then three 12px buttons with 8px between them */
     var(--dsw-aeven-page-inset) + 3 * 12px + 2 * 8px
-    /* the gap after them, matching their own inset, less the glyph's own
-       centring inside the square control */
-    + var(--dsw-aeven-page-inset)
-    - (var(--dsw-aeven-control-size) - 18px) / 2
+      /* the gap after them, matching their own inset, less the glyph's own
+       centring inside the square control */ +
+      var(--dsw-aeven-page-inset) - (var(--dsw-aeven-control-size) - 18px) / 2
   );
 }
 
@@ -135,9 +181,15 @@
    gets this from the wrappers it puts around each icon, whose auto minimum
    size floors them at the glyph width; here the icons are direct flex
    children, so they say it themselves. `overflow: hidden` on the button then
-   clips the chevron past the collapsed edge, which is what Aeven does. */
+   clips the glyph past the collapsed edge, which is what Aeven does. */
 .toggle > svg {
   flex: none;
+}
+
+/* The fold glyph: a CSS-sized lucide panel at its own 18px grapheme. */
+.toggleIcon {
+  width: 18px;
+  height: 18px;
 }
 
 /* Aeven `.side-content`: the scrolling body. Its opacity rides a linear curve
@@ -155,7 +207,8 @@
   overflow-x: hidden;
   box-sizing: border-box;
   transition:
-    width var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing),
+    width var(--dsw-aeven-sidebar-transition-duration)
+      var(--dsw-aeven-sidebar-transition-timing),
     opacity var(--dsw-aeven-sidebar-transition-duration) linear;
 }
 
@@ -232,9 +285,6 @@
   letter-spacing: 0.04em;
 }
 
-
-
-
 /* New Session uses Aeven's full-width sidebar row and is absent when closed. */
 .newSession {
   flex: none;
@@ -245,7 +295,7 @@
   width: 100%;
   height: var(--dsw-aeven-control-size);
   padding: 0 var(--avn-sidebar-inline-padding);
-  margin: 0 0 16px;
+  margin: 0;
   box-sizing: border-box;
   border: none;
   border-radius: 0;
@@ -268,10 +318,33 @@
   color: var(--dsw-alias-label-primary);
 }
 
+/* The row's leading glyph: an 18px lucide grapheme, matching the header
+   controls' own. */
+.newSessionIcon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+/* The Imagine row: the New Session row's geometry without its affordances —
+   nothing to activate until the destination exists. */
+.imagine {
+  cursor: default;
+}
+
 .newSessionLabel {
   max-width: 200px;
   overflow: hidden;
   white-space: nowrap;
+}
+
+/* The controls and the browsing region are separated by a spacer of its own
+   rather than by a margin on either neighbour: the gap then belongs to no row,
+   and a row's own height or hover chrome cannot move it. */
+.spacer {
+  flex: none;
+  width: 100%;
+  height: 16px;
 }
 
 /* Region seat stays full-width so every browser row owns the same inset. */
@@ -310,6 +383,7 @@
   .content,
   .panel,
   .toggle,
+  .headerActions,
   .sideContent {
     transition: none;
   }
@@ -330,8 +404,10 @@
   /* Unprefixed only: the CSS pipeline adds the -webkit- form per its targets. */
   backdrop-filter: blur(0);
   transition:
-    opacity var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing),
-    backdrop-filter var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
+    opacity var(--dsw-aeven-sidebar-transition-duration)
+      var(--dsw-aeven-sidebar-transition-timing),
+    backdrop-filter var(--dsw-aeven-sidebar-transition-duration)
+      var(--dsw-aeven-sidebar-transition-timing);
 }
 
 /* Below the breakpoint the column leaves flow and overlays the conversation.

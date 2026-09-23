@@ -4,6 +4,7 @@ import type { ConversationLocationDataStore, ConversationTurnDataMap } from '@ae
 import type { ChatNodeOwnerProps, ChatViewSlotProps } from '../contract/slots.ts'
 import type { ChatNode } from '../contract/chat-nodes.ts'
 import { TURN_PROCESS_INDEPENDENT_KINDS } from '../contract/turn-process.ts'
+import { hasAssistantReplyContent } from '../contract/assistant-content.ts'
 import { storedTurnProcessEntry } from '../stores.ts'
 import { useSearchableHidden } from './searchable-hidden.ts'
 import css from './ChatView.module.css'
@@ -28,6 +29,17 @@ type RoutedChatNodeOwner = {
 function turnDataOf(node: ChatNode | undefined): ConversationLocationDataStore<ConversationTurnDataMap> | undefined {
   const location = node?.location
   return location?.kind === 'turn' || location?.kind === 'step' ? location.turn.data : undefined
+}
+
+/**
+ * Whether a node renders as a one-line work row (a tool call, a command, or a
+ * step that holds only reasoning) rather than prose.
+ * @param node - routed Chat node.
+ * @returns whether the node takes the compact work-row gap.
+ */
+function isWorkRow(node: ChatNode): boolean {
+  return node.kind === 'tool-call' || node.kind === 'command'
+    || (node.kind === 'assistant-step' && !hasAssistantReplyContent(node.data.blocks))
 }
 
 function turnOf(node: ChatNode | undefined): number | undefined {
@@ -66,7 +78,7 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
     && processSpec.answerAnchorSeq !== null
     && processPresentation.turn === processSpec.turn
     && processPresentation.turnClosed
-    && !historyIncomplete
+    && (!historyIncomplete || processPresentation.turnStarted)
   const processMember = routedNode !== undefined
     && processWindowReady
     && !TURN_PROCESS_INDEPENDENT_KINDS.has(routedNode.kind)
@@ -77,21 +89,32 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
     && routedNode.kind === 'assistant-step'
     && routedNode.data.step === processSpec.answerStep
   const ownsDisclosure = routedNode?.kind === 'turn-process' || processAnswer
-  const foldable = processWindowReady
-    && (processMember || (ownsDisclosure
-      && (processPresentation.hasExternalProcess || processSpec.inlineReasoning)))
+  // Every settled Turn shows its header; only a Turn with work or reasoning
+  // before its answer can fold.
+  const hasContent = processPresentation?.hasExternalProcess === true
+    || processSpec?.inlineReasoning === true
+  const foldable = processWindowReady && (processMember || ownsDisclosure)
+  // A running Turn shows its header above its work (the live clock) and keeps
+  // everything open: it cannot fold until it closes.
+  const liveProcess = processSpec !== undefined
+    && processPresentation !== undefined
+    && processPresentation.turn === processSpec.turn
+    && !processPresentation.turnClosed
+  const liveHeader = liveProcess && routedNode?.kind === 'turn-process'
   const turnProcess = useMemo(() => processSpec === undefined
     ? undefined
     : {
       spec: processSpec,
-      foldable,
-      open: processOpen,
+      foldable: foldable || liveHeader,
+      hasContent: hasContent && !liveProcess,
+      open: processOpen || liveProcess,
       setOpen,
     }, [
-    foldable, processOpen, processSpec, setOpen,
+    foldable, hasContent, liveHeader, liveProcess, processOpen, processSpec, setOpen,
   ])
   const controllerInactive = routedNode?.kind === 'turn-process'
     && !foldable
+    && !liveHeader
   const compactAnswer = processAnswer
     && foldable
     && processPresentation.compactAnswer
@@ -136,6 +159,8 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
       data-turn-process-member={processMember || undefined}
       data-turn-process-hidden={processHidden || undefined}
       data-turn-process-answer={compactAnswer || undefined}
+      data-chat-work-row={isWorkRow(routedNode) || undefined}
+      data-turn-process-answer-step={(processAnswer && foldable) || undefined}
     >
       {renderSlot('conversation.chat.node', routedOwner, {
         entryKey: routedNode.kind,

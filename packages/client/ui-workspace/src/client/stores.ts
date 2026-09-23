@@ -1,9 +1,10 @@
 /**
  * The workspace browser's viewing store: the session-list grouping mode,
- * persisted across reloads. Module level exports the factory only (a
- * module-level handle would pin the store identity across plugin reloads);
- * register() receives the factory and the browser derives its PropsStore
- * share from the return type.
+ * persisted across reloads, plus the live search query the header's control
+ * and the session list share (per page, never persisted). Module level exports
+ * the factory only (a module-level handle would pin the store identity across
+ * plugin reloads); register() receives the handle and each component derives
+ * its PropsStore share from the return type.
  */
 import { defineStore, type EngineStoreHandle } from '@aeven/client-store'
 
@@ -25,6 +26,13 @@ type WorkspaceViewState = {
   sessionOrderByAccount: Record<string, string[]>
   /** Last observed update timestamps per order account for one-time promotion events. */
   sessionUpdatedAtByAccount: Record<string, Record<string, number>>
+  /**
+   * Header search control text. The header owns the field and the list renders
+   * its results, so the query lives between them; a reload starts empty.
+   */
+  searchQuery: string
+  /** Whether the header shows the search field in place of its icon cluster. */
+  searchExpanded: boolean
 }
 
 /**
@@ -43,6 +51,8 @@ type WorkspaceViewActions = {
     updatedAt: Record<string, number>,
   ) => void
   setSessionOrder: (draft: WorkspaceViewState, accountKey: string, order: string[]) => void
+  setSearchQuery: (draft: WorkspaceViewState, query: string) => void
+  setSearchExpanded: (draft: WorkspaceViewState, expanded: boolean) => void
 }
 
 /**
@@ -57,12 +67,21 @@ export function createWorkspaceViewStore(): EngineStoreHandle<WorkspaceViewState
       groupExpansion: {},
       sessionOrderByAccount: {},
       sessionUpdatedAtByAccount: {},
+      searchQuery: '',
+      searchExpanded: false,
     }),
-    persist: 'avn.workspace.view.v5',
+    persist: {
+      key: 'avn.workspace.view.v5',
+      fields: [
+        'groupBy', 'orderBy', 'groupExpansion', 'sessionOrderByAccount', 'sessionUpdatedAtByAccount',
+      ],
+    },
     actions: {
       setGroupBy: (d, mode: SessionGroupBy) => { d.groupBy = mode },
       setOrderBy: (d, mode: SessionOrderBy) => { d.orderBy = mode },
       setGroupExpanded: (d, key: string, expanded: boolean) => { d.groupExpansion[key] = expanded },
+      setSearchQuery: (d, query: string) => { d.searchQuery = query },
+      setSearchExpanded: (d, expanded: boolean) => { d.searchExpanded = expanded },
       retainAccountKeys: (d, workspaceKeys: readonly string[]) => {
         const retained = new Set(workspaceKeys)
         d.groupExpansion = Object.fromEntries(

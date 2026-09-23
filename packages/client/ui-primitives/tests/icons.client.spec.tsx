@@ -17,8 +17,8 @@ const icons = Object.fromEntries(
 const iconNames = Object.keys(icons)
 
 describe('ic_ds_ icon set', () => {
-  it('exports the full icon set (46 deepsuite + 21 figma extracts + fourteen product glyphs outside those sets)', () => {
-    expect(iconNames.length).toBe(81)
+  it('exports the complete icon set (84 drawn glyphs plus twelve lucide transcriptions)', () => {
+    expect(iconNames.length).toBe(96)
   })
 
   it.each(iconNames)('%s renders an svg with currentColor fills and no hardcoded palette', (name) => {
@@ -30,6 +30,26 @@ describe('ic_ds_ icon set', () => {
     expect(markup).not.toMatch(/#[0-9a-fA-F]{3,8}"/)
     expect(markup).toContain('currentColor')
   })
+
+  it.each([
+    'IconLucideSearch', 'IconLucideSettings', 'IconLucideSettings2', 'IconLucideFolder',
+    'IconLucideFolderOpen', 'IconLucideFolderPlus', 'IconLucideSquarePen',
+    'IconLucidePanelLeft', 'IconLucidePanelRight', 'IconLucideImages', 'IconLucideListClock',
+    'IconLucideEllipsis',
+  ])(
+    '%s leaves sizing to CSS: viewBox only, no width or height attribute',
+    (name) => {
+      const Icon = icons[name]!
+      const { container } = render(<Icon className="x" />)
+      const svg = container.querySelector('svg')!
+      // Stock lucide canvas: the CSS size is the box, the artwork keeps its padding.
+      expect(svg.getAttribute('viewBox')).toBe('0 0 24 24')
+      expect(svg.getAttribute('stroke-width')).toBe('1.75')
+      expect(svg.getAttribute('width')).toBeNull()
+      expect(svg.getAttribute('height')).toBeNull()
+      expect(svg.classList.contains('x')).toBe(true)
+    },
+  )
 
   it('size and className props land on the root svg', () => {
     const { container } = render(<IconSendOutline16 size={20} className="x" />)

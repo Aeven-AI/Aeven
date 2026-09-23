@@ -1,19 +1,14 @@
 /**
  * The workspace/session browsing region filling the sidebar shell's
- * `sidebar.workspaces` hole: section header (title + view options + add
- * workspace), search, the grouped tree or flat list, and the workspace
- * dialogs. Wide state renders the full browser; closed state prepares the two
- * region icons (search / add workspace) as 36px controls on the shell's shared
- * compact controls, each requesting expansion through the owner share. Adding
- * is the header button's one action, so it raises the directory flow with no
- * menu in between; the flow and its error dialog live in WorkspacePicker
- * (same package — direct composition, no slot between them).
+ * `sidebar.workspaces` hole: the grouped tree or flat list, the search
+ * results, and the workspace dialogs. The region's controls (search, view
+ * options, add workspace) are the header cluster's, and the query they write
+ * arrives through the shared viewing store.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
-  Button, IconCloseFill14, IconPersonalizationOutline16,
-  IconProjectAddOutline16, IconSearchOutline16, Menu, Modal, Tooltip,
+  Button, Modal,
 } from '@aeven/client-ui-primitives'
 import type {
   SessionListState, SessionSearchResultItem,
@@ -23,22 +18,14 @@ import type { SessionId } from '@aeven/session/types'
 import type { WorkspaceBrowserProps } from '../contract/slots.ts'
 import type { SessionNode, SessionOrderBy } from '../tree.ts'
 import {
-  deriveFlat, deriveGroups, deriveSearchResults, owningGroupKey, UNGROUPED_KEY,
+  deriveFlat, deriveGroups, deriveSearchResults, orderGroupsByRecency, owningGroupKey, UNGROUPED_KEY,
 } from '../tree.ts'
 import { ProjectRowItem, SearchResultItem, SessionNodeItem } from './Rows.tsx'
 import { FLAT_SESSION_ORDER_KEY } from '../stores.ts'
-import { WorkspacePickFlow } from '../WorkspacePicker.tsx'
 import css from './WorkspaceBrowser.module.css'
 
-/**
- * Sidebar slide length: closed-state search focus waits it out —
- * focus() forces a synchronous layout and would jank the slide.
- */
-const EXPAND_SLIDE_MS = 400
 /** Pause between the latest keystroke and a Host content-search request. */
 const SEARCH_DEBOUNCE_MS = 250
-/** `session.search` wire bound, measured in JavaScript UTF-16 code units. */
-const SEARCH_QUERY_MAX_CODE_UNITS = 500
 /** Session rows visible per Workspace before the local overflow control. */
 const COLLAPSED_SESSION_LIMIT = 5
 
@@ -55,17 +42,6 @@ function collapsedSessionRows(sessions: readonly SessionNode[]): {
     return true
   })
   return { rows, hiddenCount: sessions.length - rows.length }
-}
-
-/** Keep controlled input and RPC payload inside the session.search wire contract. */
-function sanitizeSearchQuery(value: string): string {
-  const withoutNul = value.replaceAll('\0', '')
-  if (withoutNul.length <= SEARCH_QUERY_MAX_CODE_UNITS) return withoutNul
-  let end = SEARCH_QUERY_MAX_CODE_UNITS
-  const last = withoutNul.charCodeAt(end - 1)
-  const next = withoutNul.charCodeAt(end)
-  if (last >= 0xD800 && last <= 0xDBFF && next >= 0xDC00 && next <= 0xDFFF) end--
-  return withoutNul.slice(0, end)
 }
 
 /** Immutable membership toggle for the local expand-all array. */
@@ -160,55 +136,6 @@ function nextSessionOrderAccount({
   const timestampsChanged = Object.keys(updatedAt).length !== Object.keys(previousUpdatedAt).length
     || Object.entries(updatedAt).some(([id, timestamp]) => previousUpdatedAt[id] !== timestamp)
   return { order, updatedAt, changed: orderChanged || timestampsChanged }
-}
-
-/** Grouping and ordering menu; own open state so it resets with the wide chrome. */
-function ViewOptionsMenu({ groupBy, orderBy, onGroupPick, onOrderPick, t }: {
-  groupBy: 'workspace' | 'flat'
-  orderBy: SessionOrderBy
-  onGroupPick: (mode: 'workspace' | 'flat') => void
-  onOrderPick: (mode: SessionOrderBy) => void
-  t: WorkspaceBrowserProps['t']
-}) {
-  const [open, setOpen] = useState(false)
-  return (
-    <Menu
-      open={open}
-      onClose={() => { setOpen(false) }}
-      items={[
-        { type: 'label' as const, id: 'group-by', text: t('groupBy.label') },
-        { id: 'workspace', label: t('groupBy.workspace') },
-        { id: 'flat', label: t('groupBy.flat') },
-        { type: 'separator' as const, id: 'order-by-separator' },
-        { type: 'label' as const, id: 'order-by', text: t('orderBy.label') },
-        { id: 'manual', label: t('orderBy.manual') },
-        { id: 'updated', label: t('orderBy.updated') },
-      ]}
-      selectedIds={[groupBy, orderBy]}
-      onSelect={(id) => {
-        if (id === 'workspace' || id === 'flat') onGroupPick(id)
-        else if (id === 'manual' || id === 'updated') onOrderPick(id)
-        setOpen(false)
-      }}
-      align="end"
-      dense
-      // Portal: the section header clips overflow, so an in-place list would
-      // be cut off at the header's bounds.
-      portal
-      anchor={(
-        <Tooltip label={t('viewOptions.label')} side="bottom" delayMs={500}>
-          <button
-            type="button"
-            className={clsx(css.iconButton, css.wide)}
-            aria-label={t('viewOptions.label')}
-            onClick={() => { setOpen(v => !v) }}
-          >
-            <IconPersonalizationOutline16 />
-          </button>
-        </Tooltip>
-      )}
-    />
-  )
 }
 
 /** In-flight root-row drag: source identity plus the current insert marker. */
@@ -350,14 +277,21 @@ function SessionTree({
     () => reconciledSessionOrder(ungroupedSessionIds, sessionOrderByAccount[UNGROUPED_KEY]),
     [sessionOrderByAccount, ungroupedSessionIds],
   )
+  // Group order follows the session order mode: activity ranks the groups while
+  // the list is ordered by last update, and the durable registry order — what a
+  // drag writes — stands while it is ordered manually.
+  const groupOrder = useMemo(
+    () => (orderBy === 'updated' ? orderGroupsByRecency(orderedWorkspaces, list) : orderedWorkspaces),
+    [orderBy, orderedWorkspaces, list],
+  )
   const groups = useMemo(
-    () => deriveGroups(list, orderedWorkspaces, archivedSessionIds, pendingInteractions, {
+    () => deriveGroups(list, groupOrder, archivedSessionIds, pendingInteractions, {
       expandedGroups,
       ...(sessionOrderByAccount[UNGROUPED_KEY] === undefined
         ? {}
         : { ungroupedOrder: sessionOrderByAccount[UNGROUPED_KEY] }),
     }),
-    [list, orderedWorkspaces, archivedSessionIds, pendingInteractions, expandedGroups, sessionOrderByAccount],
+    [list, groupOrder, archivedSessionIds, pendingInteractions, expandedGroups, sessionOrderByAccount],
   )
   useEffect(() => {
     if (revealGroup === undefined || groupExpansion[revealGroup] === true) return
@@ -718,7 +652,6 @@ function FlatList({
               onReveal={node.id === revealSessionId
                 ? () => { onSessionRevealed(node.id) }
                 : undefined}
-              flat
               drag={{
                 start: () => {
                   dropCommitted.current = false
@@ -836,7 +769,6 @@ function SearchResults({
  */
 export function WorkspaceBrowser({
   wide,
-  expandSidebar,
   useSessions,
   useSessionPendingInteraction,
   useWorkspaces,
@@ -851,12 +783,9 @@ export function WorkspaceBrowser({
   insertWorkspaceBefore,
   archiveSession,
   insertSessionBefore,
-  createWorkspace,
   searchSessions,
   searchResultLimit,
-  useDirectoryFlow,
   useHostInfo,
-  renderSlot,
   t,
 }: WorkspaceBrowserProps) {
   const home = useHostInfo(info => info.home)
@@ -864,9 +793,6 @@ export function WorkspaceBrowser({
   const workspacePhase = useWorkspaces(state => state.phase)
   const workspaceStreamState = useWorkspaces(state => state.state)
   const archivedSessionIds = useWorkspaces(state => state.archivedSessionIds)
-  // Live occupancy of this surface's directory-flow hole (the same source the
-  // flow reads): a composition without a picking affordance can add nothing.
-  const directoryFlowAvailable = useDirectoryFlow(occupied => occupied)
   const groupBy = useStore(s => s.groupBy)
   const orderBy = useStore(s => s.orderBy)
   const groupExpansion = useStore(s => s.groupExpansion)
@@ -906,30 +832,23 @@ export function WorkspaceBrowser({
       ...workspaces.map(workspace => workspace.workspaceId as string),
     ])
   }, [actions.retainAccountKeys, workspacePhase, workspaces])
-  // The query outlives the tree and the input (both wide-only) so collapsing
-  // does not silently drop an in-progress filter.
-  const [query, setQuery] = useState('')
-  const [searchExpanded, setSearchExpanded] = useState(false)
+  // The query lives in the shared store, written by the header's search field:
+  // it outlives the tree so collapsing does not drop an in-progress filter.
+  const query = useStore(s => s.searchQuery)
   const [revealSessionId, setRevealSessionId] = useState<SessionId | undefined>(undefined)
-  const normalizedQuery = sanitizeSearchQuery(query).trim()
+  const normalizedQuery = query.trim()
   const [remoteSearch, setRemoteSearch] = useState<RemoteSearchState>({
     query: '',
     status: 'idle',
     items: [],
     hasMore: false,
   })
-  const searchRoot = useRef<HTMLDivElement | null>(null)
-  const searchInput = useRef<HTMLInputElement | null>(null)
-  // Section-header ＋ opens the picker menu (same popover in wide and rail
-  // states; the menu anchors on this button).
-  const [wsPickerOpen, setWsPickerOpen] = useState(false)
-  const wsPlusRef = useRef<HTMLButtonElement>(null)
   const composingRef = useRef(false)
 
   const openSearchResult: typeof open = (sessionId, matchSeq) => {
     setRevealSessionId(sessionId)
-    setQuery('')
-    setSearchExpanded(false)
+    actions.setSearchQuery('')
+    actions.setSearchExpanded(false)
     open(sessionId, matchSeq)
   }
   const acknowledgeSessionReveal = (sessionId: SessionId): void => {
@@ -949,41 +868,6 @@ export function WorkspaceBrowser({
     if (currentSessionId === undefined) return
     setRevealSessionId(currentSessionId)
   }, [currentSessionId])
-
-  // Rail search = expand + land in the search box: the flag arms before the
-  // expand request; once the shell flips wide the input mounts and takes focus.
-  const [searchOnExpand, setSearchOnExpand] = useState(false)
-  useEffect(() => {
-    if (wide && searchOnExpand) {
-      const timer = window.setTimeout(() => {
-        searchInput.current?.focus({ preventScroll: true })
-        setSearchOnExpand(false)
-      }, EXPAND_SLIDE_MS)
-      return () => { window.clearTimeout(timer) }
-    }
-  }, [wide, searchOnExpand])
-
-  useEffect(() => {
-    if (!wide || !searchExpanded || searchOnExpand) return
-    searchInput.current?.focus({ preventScroll: true })
-  }, [wide, searchExpanded, searchOnExpand])
-
-  // Outside-click dismissal stays off while the rail gesture is in flight
-  // (searchOnExpand): the rail click flips the shell wide and mounts this
-  // listener during its own dispatch, then keeps bubbling to document with
-  // the now-unmounted rail button as its target — outside searchRoot, so the
-  // listener would dismiss the search that click just opened.
-  useEffect(() => {
-    if (!wide || !searchExpanded || searchOnExpand) return
-    const onClick = (event: MouseEvent): void => {
-      if (!(event.target instanceof Node) || searchRoot.current?.contains(event.target) === true) return
-      searchInput.current?.blur()
-      if (normalizedQuery !== '') return
-      setSearchExpanded(false)
-    }
-    document.addEventListener('click', onClick)
-    return () => { document.removeEventListener('click', onClick) }
-  }, [normalizedQuery, wide, searchExpanded, searchOnExpand])
 
   useEffect(() => {
     if (normalizedQuery === '') {
@@ -1133,135 +1017,6 @@ export function WorkspaceBrowser({
 
   return (
     <div className={clsx(css.root, !wide && css.rail)}>
-      <div className={css.sectionHeader}>
-        {wide && (
-          <span className={clsx(css.sectionLabel, css.wide, searchExpanded && css.sectionLabelHidden)}>
-            {groupBy === 'flat' ? t('section.sessions') : t('section.workspaces')}
-          </span>
-        )}
-        {wide && (
-          <div className={clsx(css.searchSlot, searchExpanded && css.searchSlotExpanded)}>
-            <div
-              ref={searchRoot}
-              className={clsx(css.search, searchExpanded && css.searchExpanded)}
-              onClick={() => {
-                setWsPickerOpen(false)
-                setSearchExpanded(true)
-                searchInput.current?.focus()
-              }}
-            >
-              <Tooltip label={t('search')} side="bottom" delayMs={500} disabled={searchExpanded}>
-                <button
-                  type="button"
-                  className={css.searchButton}
-                  aria-label={t('search.sessions.aria')}
-                  aria-expanded={searchExpanded}
-                  onClick={() => {
-                    setWsPickerOpen(false)
-                    setSearchExpanded(true)
-                  }}
-                >
-                  <IconSearchOutline16 size={searchExpanded ? 11 : 14} />
-                </button>
-              </Tooltip>
-              <input
-                ref={searchInput}
-                className={css.searchInput}
-                type="text"
-                placeholder={t('search.placeholder')}
-                maxLength={SEARCH_QUERY_MAX_CODE_UNITS}
-                value={query}
-                tabIndex={searchExpanded ? 0 : -1}
-                onChange={(e) => { setQuery(sanitizeSearchQuery(e.target.value)) }}
-                onKeyDown={(e) => {
-                  if (e.key !== 'Escape') return
-                  setQuery('')
-                  setSearchExpanded(false)
-                }}
-              />
-              {searchExpanded && (
-                <button
-                  type="button"
-                  className={css.clearButton}
-                  aria-label={t('search.clear')}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setQuery('')
-                    setSearchExpanded(false)
-                  }}
-                >
-                  <IconCloseFill14 />
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-        <div className={clsx(css.headerActions, wide && searchExpanded && css.headerActionsHidden)}>
-          {wide && (
-            <ViewOptionsMenu
-              groupBy={groupBy}
-              orderBy={orderBy}
-              onGroupPick={(mode) => { actions.setGroupBy(mode) }}
-              onOrderPick={(mode) => { actions.setOrderBy(mode) }}
-              t={t}
-            />
-          )}
-          {/* Adding is the button's one action, so a composition with no
-              picking affordance has nothing to offer here: the region hides the
-              button rather than leaving a dead one in the header. */}
-          {directoryFlowAvailable && (
-            <Tooltip label={t('workspace.add')} side="bottom" delayMs={500}>
-              <button
-                ref={wsPlusRef}
-                type="button"
-                className={css.iconButton}
-                aria-label={t('workspace.add')}
-                onClick={() => {
-                  setWsPickerOpen(v => !v)
-                }}
-              >
-                <IconProjectAddOutline16 size={wide ? 16 : 18} />
-              </button>
-            </Tooltip>
-          )}
-        </div>
-        {/* Add flow + its error dialog (same package — direct composition). */}
-        <WorkspacePickFlow
-          t={t}
-          open={wsPickerOpen}
-          anchorRef={wsPlusRef}
-          useWorkspaces={useWorkspaces}
-          createWorkspace={createWorkspace}
-          useDirectoryFlow={useDirectoryFlow}
-          renderDirectoryFlow={owner => renderSlot('sidebar.workspaces.directoryFlow', owner)}
-          addOnly
-          side="right"
-          onPick={(workspaceId) => {
-            setWsPickerOpen(false)
-            startSession(workspaceId)
-          }}
-          onClose={() => { setWsPickerOpen(false) }}
-        />
-      </div>
-
-      {/* Closed-state search remains available to alternate sidebar shells. */}
-      {!wide && <div className={css.search}>
-        <Tooltip label={t('search')}>
-          <button
-            type="button"
-            className={css.searchButton}
-            aria-label={t('search.sessions.aria')}
-            onClick={() => {
-              setSearchExpanded(true)
-              setSearchOnExpand(true)
-              expandSidebar()
-            }}
-          >
-            <IconSearchOutline16 size={18} />
-          </button>
-        </Tooltip>
-      </div>}
-
       {/* Always-mounted seat keeps the region's flex slot while the list
           itself is wide-only. */}
       <div className={css.listArea}>

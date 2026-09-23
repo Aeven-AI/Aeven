@@ -52,12 +52,14 @@ export interface ChatLocationNodeIndex {
 export interface ChatTurnProcessPresentation {
   readonly turn: number
   readonly spec: TurnProcessSpec
+  /** Whether the loaded window contains this Turn's `turn/start`; folding is decided per Turn on this fact. */
+  readonly turnStarted: boolean
   readonly turnClosed: boolean
   readonly hasExternalProcess: boolean
   readonly compactAnswer: boolean
 }
 
-/** Compatibility projection backing StatsLine and the legacy top-level snapshot fields. */
+/** Compatibility projection backing the legacy top-level snapshot fields. */
 export interface LegacyConversationSlice {
   readonly nodes: readonly ConversationNode[]
   readonly turnTimings: ReadonlyMap<number, { readonly startTime: number; readonly endTime?: number }>

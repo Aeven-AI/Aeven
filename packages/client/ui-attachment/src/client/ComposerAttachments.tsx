@@ -5,7 +5,7 @@ import type {
 import { AttachmentRail } from '../AttachmentRail.tsx'
 import type { AttachmentRailItem } from '../AttachmentRail.tsx'
 import { DropOverlay } from '../DropOverlay.tsx'
-import { ImageLightbox } from '../ImageLightbox.tsx'
+import { ImageLightbox } from '@aeven/client-ui-primitives'
 import { attachmentRailLabels, dropOverlayLabels, lightboxLabels } from './labels.ts'
 import css from './ComposerAttachments.module.css'
 

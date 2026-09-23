@@ -1,19 +1,3 @@
-/* Scrollbar skin: the sole consumer of the four --dsw-alias-scrollbar-*
- * tokens. Without it every scrolling region renders the UA scrollbar, which
- * ignores the theme — a light native bar over the dark palette.
- *
- * The rules sit on `body`, not `html`: design-platform.css declares the
- * --dsw-alias-* tokens on `body` (and the dark overrides on
- * `body[data-ds-dark-theme]`), and custom properties only inherit downward,
- * so an `html` rule resolves them to the guaranteed-invalid value and
- * `scrollbar-color` falls back to `auto`.
- *
- * Surfaces pick their elevation by rebinding --avn-scrollbar-thumb{,-hover}:
- * the l1 pair here is the base-surface default, and an elevated surface
- * (menu, popover, dialog) rebinds to the l2 pair on its own container. Both
- * rendering paths below read the indirection, so one rebind reaches whichever
- * path the engine took. */
-
 body {
   --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l1);
   --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l1);
@@ -53,7 +37,6 @@ body {
    no scrollbar, and `scrollbar-width` is not inherited, so a declaration there
    would be one no element reads. */
 body * {
-  scrollbar-width: thin;
 }
 
 /* Opt-out utility for a scrolling element that must draw no bar and reserve no

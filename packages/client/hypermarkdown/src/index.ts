@@ -6,6 +6,7 @@
  * is the package entry every consumer and the build's single lib entry resolve.
  */
 export { default, HyperMarkdown } from './HyperMarkdown.tsx'
+export { pointerMovedRecently, watchPointerIntent } from './engine/pointer-intent.ts'
 export type {
   HyperMarkdownAlert,
   HyperMarkdownHandle,

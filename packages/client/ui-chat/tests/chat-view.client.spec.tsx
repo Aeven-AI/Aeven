@@ -429,6 +429,7 @@ function makeHarness(
     useStore: bindSnapshotSelector(chat),
     actions: chat.actions,
     useTranscriptView: bindSnapshotSelector(transcriptView),
+    useTextAnimationPreference: bindSnapshotSelector(createSnapshotStore(true)),
     useEventNavigation: bindSnapshotSelector(eventNavigation),
     renderSlot,
     SessionProvider: SessionProviderStub,

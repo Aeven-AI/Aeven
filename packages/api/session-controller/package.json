@@ -71,6 +71,7 @@
     "@aeven/brand": "workspace:^",
     "@aeven/deque": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^",
+    "mime-types": "^3.0.2",
     "zod": "^4.4.3"
   },
   "peerDependencies": {
@@ -82,6 +83,7 @@
     "@aeven/attachment": "workspace:^",
     "@aeven/client-connection": "workspace:^",
     "@aeven/file-reference": "workspace:^",
+    "@aeven/fs": "workspace:^",
     "@aeven/jobs": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/native-command": "workspace:^",
@@ -109,6 +111,9 @@
     },
     "@aeven/session-projection-cache": {
       "optional": true
+    },
+    "@aeven/fs": {
+      "optional": true
     }
   },
   "devDependencies": {
@@ -122,6 +127,7 @@
     "@aeven/client-store": "workspace:^",
     "@aeven/commands": "workspace:^",
     "@aeven/file-reference": "workspace:^",
+    "@aeven/fs": "workspace:^",
     "@aeven/jobs": "workspace:^",
     "@aeven/jobs-local": "workspace:^",
     "@aeven/llm": "workspace:^",
@@ -145,6 +151,7 @@
     "@aeven/util-crypto": "workspace:^",
     "@aeven/util-time": "workspace:^",
     "@aeven/util-workspace-path": "workspace:^",
-    "@aeven/workspace": "workspace:^"
+    "@aeven/workspace": "workspace:^",
+    "@types/mime-types": "^3.0.1"
   }
 }

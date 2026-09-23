@@ -55,14 +55,3 @@
   /* Optical align with 28px icon hit targets that pad 6px past the glyph. */
   margin-left: -6px;
 }
-
-/* A trace the Turn-level disclosure already carries is not drawn here as well,
-   and what is withheld is the engine's own reasoning box rather than the run
-   around it. A run is one engine source holding the trace *and* the prose beside
-   it, so withholding the run took the answer with it — and a turn only reaches
-   this state when it is foldable, which needs a tool call, so the reply vanished
-   on exactly the turns that did real work. Hiding the box leaves the source, and
-   therefore the incremental render, exactly as it was. */
-.root[data-reasoning-hidden] :global(.reasoning-wrapper) {
-  display: none;
-}

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from '@testing-library/react'
 import { bindSnapshotSelector, makeTranslate } from '@aeven/client-test-runtime'
 import { createSnapshotStore } from '@aeven/client-store'
@@ -18,7 +18,6 @@ import type {
 import { zh as commonZh } from '@aeven/client-locale/src/locales/zh.ts'
 import { createChatStore } from '../src/client/stores.ts'
 import { AssistantMarkdown, type AssistantMarkdownProps } from '../src/client/chat/AssistantMarkdown.tsx'
-import { StatsLine } from '../src/client/chat/StatsLine.tsx'
 import { DetailsPanel } from '../src/client/details/DetailsPanel.tsx'
 import { zh } from '../src/client/locale.ts'
 import { chatSnapshotFixture } from './chat-snapshot-fixture.client.ts'
@@ -26,14 +25,6 @@ import { chatSnapshotFixture } from './chat-snapshot-fixture.client.ts'
 const t: AssistantMarkdownProps['t'] = makeTranslate(zh, commonZh)
 const renderMessageImages: AssistantMarkdownProps['renderMessageImages'] = () => null
 
-/** jsdom has no ResizeObserver; StatsLine watches its row for ellipsis truncation through one. */
-class ResizeObserverStub {
-  observe(): void {}
-  unobserve(): void {}
-  disconnect(): void {}
-}
-
-beforeEach(() => { vi.stubGlobal('ResizeObserver', ResizeObserverStub) })
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
@@ -95,28 +86,6 @@ describe('render branch tails', () => {
     const wrapper = view.container.querySelector('.reasoning-wrapper')
     expect(wrapper?.className).not.toContain('stream-active')
     expect(view.container.textContent).toContain('answer')
-  })
-
-  it('StatsLine falls back to window-node counts and drops every token group without projections', () => {
-    // No sessionStats key → the window fold supplies the counts (the
-    // assembly-without-the-unit fallback). Node `usage` is deliberately
-    // ignored: billing rides the durable tokenUsage projection, so an absent
-    // projection leaves counts only.
-    const nodes = [
-      { kind: 'assistant', seq: 1, time: 1, turn: 1, step: 1, blocks: [] },
-      { kind: 'assistant', seq: 2, time: 2, turn: 1, step: 2, blocks: [], usage: { inputTokens: 4, outputTokens: 6 } },
-      { kind: 'assistant', seq: 3, time: 3, turn: 2, step: 1, blocks: [], usage: { inputTokens: 5 } },
-    ] as const
-    const snap = chatSnapshotFixture({ nodes })
-    const source = { getSnapshot: () => snap, subscribe: () => () => {} }
-    const view = render(
-      <StatsLine
-        t={t}
-        useChat={bindSnapshotSelector(source)}
-        useProjection={() => undefined}
-      />,
-    )
-    expect(view.container.textContent).toBe('2 轮 · 3 步')
   })
 
   it('AssistantMarkdown reasoning as the streaming tail renders an open block', () => {

@@ -1,16 +1,33 @@
 import { memo, type ImgHTMLAttributes } from 'react'
 
+import type { RendererHost } from './components.tsx'
+
 interface ImageProps extends ImgHTMLAttributes<HTMLImageElement> {
-  renderer?: unknown
+  renderer?: RendererHost | undefined
   scrollDown?: unknown
 }
 
 /**
  * Images rendered from markdown, wrapped so a host can style loading and error
- * states around them.
+ * states around them. The host's `resolveImage` maps the authored source to
+ * the URL that loads (an unresolvable source shows the alt text), and its
+ * `onImageOpen` makes the image a control that opens it enlarged.
  */
 function MarkdownImage(props: ImageProps) {
-  const { src, alt, title } = props
+  const { src, alt, title, renderer } = props
+  const options = renderer?.options
+  const resolved = src === undefined || options?.resolveImage === undefined
+    ? src
+    : options.resolveImage(src)
+
+  if (resolved === undefined) {
+    return <span className="markdown-image-alt">{alt ?? ''}</span>
+  }
+
+  const open = options?.onImageOpen
+  const onOpen = open === undefined
+    ? undefined
+    : () => { open({ src: resolved, alt: alt ?? '' }) }
 
   return (
     <span className="markdown-image-container">
@@ -25,12 +42,21 @@ function MarkdownImage(props: ImageProps) {
         */}
         <img
           className="image"
-          src={src}
+          src={resolved}
           alt={alt ?? ''}
           title={title}
           loading="lazy"
           decoding="async"
           referrerPolicy="no-referrer"
+          data-openable={onOpen === undefined ? undefined : true}
+          role={onOpen === undefined ? undefined : 'button'}
+          tabIndex={onOpen === undefined ? undefined : 0}
+          onClick={onOpen}
+          onKeyDown={onOpen === undefined ? undefined : (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return
+            event.preventDefault()
+            onOpen()
+          }}
         />
       </span>
     </span>

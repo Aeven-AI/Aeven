@@ -20,7 +20,7 @@
  * point a rendering engine at assistant-authored source.
  */
 
-import { memo, useLayoutEffect, useMemo, useRef } from 'react'
+import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import HyperMarkdown, {
   cjkPlugin, highlightPlugin, katexPlugin, mermaidPlugin,
 } from '@aeven/client-hypermarkdown'
@@ -29,6 +29,8 @@ import type {
 } from '@aeven/client-hypermarkdown'
 import type { StrictFunction } from 'katex'
 import 'katex/dist/katex.min.css'
+import { useTextAnimation } from './animation.ts'
+import { ImageLightbox, type ImageLightboxLabels } from '../ImageLightbox.tsx'
 import css from './MarkdownText.module.css'
 
 /**
@@ -43,6 +45,8 @@ export interface MarkdownLabels {
   footnotes: string
   /** Reasoning block chrome, for a caller that renders reasoning at all. */
   reasoning?: MarkdownReasoningLabels | undefined
+  /** Enlarged-image dialog copy; images open enlarged on click when present. */
+  image?: ImageLightboxLabels | undefined
 }
 
 /**
@@ -118,13 +122,37 @@ const PLUGINS = {
 const LINK_SAFETY = {
   allowedProtocols: ['http', 'https', 'mailto'],
   allowedLinkPrefixes: ['*'],
-  // Remote `https:` images only. A file this app serves — a workspace path or a
-  // plugin media route — is already on the page in the result card of whatever
-  // tool produced it, so rendering model-authored markdown for it shows the
-  // user the same picture twice. Excluding `http:` excludes this app's own
-  // loopback origin, which is the only thing those duplicates point at.
-  allowedImagePrefixes: ['https://'],
+  // Remote `https:` images, and absolute local paths, which `resolveImage`
+  // turns into this app's authenticated file route. A tool's result card
+  // folds away with its turn, so the reply is where a produced image stays
+  // visible. Plain `http:` stays out: it is only ever this app's own origin.
+  allowedImagePrefixes: ['https://', '/'],
   allowDataImages: false,
+}
+
+/**
+ * The URL an authored image loads from: a remote `https:` source as written,
+ * and an absolute local path through this app's authenticated `/api/file`
+ * route. Anything else shows the image's alt text.
+ * @param src - the image source as the markdown author wrote it.
+ * @returns the URL to load, or undefined when the source is not displayable.
+ */
+function resolveImage(src: string): string | undefined {
+  if (src.startsWith('https://')) return src
+  if (!src.startsWith('/') || src.startsWith('//')) return undefined
+  const base = document.baseURI
+  if (!base.startsWith('http:') && !base.startsWith('https:')) return undefined
+  return new URL(`api/file?path=${encodeURIComponent(safeDecode(src))}`, base).href
+}
+
+/** Markdown percent-encodes spaces and non-ASCII in a destination; the file route wants the path. */
+function safeDecode(value: string): string {
+  try {
+    return decodeURI(value)
+  } catch {
+    // A lone `%` that is not an escape: the authored path is already literal.
+    return value
+  }
 }
 
 /** What the store was last told, so an unchanged render writes nothing. */
@@ -236,6 +264,10 @@ interface MarkdownTextCommonProps {
    * which has to yield its stacking order for as long as the block is up.
    */
   onFullscreenChange?: ((fullscreen: boolean) => void) | undefined
+  /** Fade newly streamed words in; defaults to the enclosing {@link useTextAnimation} preference. */
+  animation?: boolean | undefined
+  /** `compact` sets secondary typography for reasoning bodies and other flow-row details. */
+  variant?: 'default' | 'compact' | undefined
 }
 
 /**
@@ -310,8 +342,11 @@ export function defuseClosingTag(text: string): string {
  * and diagram fences stay code blocks.
  */
 export const MarkdownText = memo(function MarkdownText({
-  text, streaming = false, labels, fileMentions, scrollDown, onFullscreenChange,
+  text, streaming = false, labels, fileMentions, scrollDown, onFullscreenChange, variant = 'default',
+  animation: animationProp,
 }: MarkdownTextProps) {
+  const preferredAnimation = useTextAnimation()
+  const animation = animationProp ?? preferredAnimation
   const handleRef = useRef<HyperMarkdownHandle>(null)
   // A ref, not state: the write must survive StrictMode's double effect
   // invocation without scheduling a render of its own.
@@ -335,6 +370,11 @@ export const MarkdownText = memo(function MarkdownText({
     [fileMentions, streaming],
   )
 
+  // A clicked image opens enlarged in the same dialog tool-result images use.
+  const [enlarged, setEnlarged] = useState<{ src: string; alt: string } | null>(null)
+  const openImage = useCallback((image: { src: string; alt: string }) => { setEnlarged(image) }, [])
+  const closeImage = useCallback(() => { setEnlarged(null) }, [])
+
   // Writes belong in an effect, never in the render body: the store mutates in
   // place, so a render React discards would corrupt it.
   // Layout effect: settled text lands before the first paint, so the row never
@@ -356,9 +396,10 @@ export const MarkdownText = memo(function MarkdownText({
           handle.write(text.slice(last.text.length), true)
         } else {
           // The terminal projection replaced the last streaming snapshot.
-          // Rebuild and finalize it so its final words receive the same fade.
+          // Rebuild and finalize it without the fade: the reader already saw
+          // these words, and fading them again would flash the whole reply.
           handle.reset()
-          handle.write(text, true)
+          handle.store.streamMd(text, true, false, true)
         }
         applied.current = { text, streaming }
         return
@@ -378,8 +419,11 @@ export const MarkdownText = memo(function MarkdownText({
     if (last === null || !last.streaming || !text.startsWith(last.text)) {
       // Mounted partway through a reply, or the source was rewritten rather
       // than appended to: drop the stream and reseed from the whole text.
+      // The seed is text the reader already saw (or is opening onto), so it
+      // lands without the fade; the engine keeps the block it leaves open
+      // quiet too, and only words in later blocks fade in.
       handle.reset()
-      if (text !== '') handle.write(text)
+      if (text !== '') handle.store.streamMd(text, true, false, false)
     } else {
       handle.write(text.slice(last.text.length))
     }
@@ -387,19 +431,26 @@ export const MarkdownText = memo(function MarkdownText({
   }, [text, streaming])
 
   return (
-    <HyperMarkdown
-      ref={handleRef}
-      md={applied.current === null && !streaming ? text : undefined}
-      streaming
-      animation
-      html="literal"
-      linkSafety={LINK_SAFETY}
-      plugins={PLUGINS}
-      translations={translations}
-      components={components}
-      className={css.markdown}
-      {...scrollDown === undefined ? {} : { scrollDown }}
-      {...onFullscreenChange === undefined ? {} : { onFullscreenChange }}
-    />
+    <>
+      <HyperMarkdown
+        ref={handleRef}
+        md={applied.current === null && !streaming ? text : undefined}
+        streaming
+        animation={animation}
+        html="literal"
+        linkSafety={LINK_SAFETY}
+        plugins={PLUGINS}
+        translations={translations}
+        components={components}
+        className={variant === 'compact' ? `${css.markdown} ${css.compact}` : css.markdown}
+        {...scrollDown === undefined ? {} : { scrollDown }}
+        {...onFullscreenChange === undefined ? {} : { onFullscreenChange }}
+        resolveImage={resolveImage}
+        {...labels.image === undefined ? {} : { onImageOpen: openImage }}
+      />
+      {enlarged !== null && labels.image !== undefined && (
+        <ImageLightbox src={enlarged.src} alt={enlarged.alt} labels={labels.image} onClose={closeImage} />
+      )}
+    </>
   )
 })

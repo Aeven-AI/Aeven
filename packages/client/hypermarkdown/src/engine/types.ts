@@ -101,6 +101,17 @@ export interface RendererOptions extends UiOptions {
   /** Where links and images are allowed to point. */
   linkSafety?: LinkSafetyConfig | undefined
   /**
+   * Map an image's authored source to the URL it loads from. Called for every
+   * image that passed link safety; returning undefined shows the image's alt
+   * text instead. Absent, sources load as authored.
+   */
+  resolveImage?: ((src: string) => string | undefined) | undefined
+  /**
+   * Open an image the reader clicked, for a host that shows it enlarged.
+   * Absent, images are not clickable.
+   */
+  onImageOpen?: ((image: { src: string; alt: string }) => void) | undefined
+  /**
    * Somewhere else to put reasoning blocks.
    *
    * By default a model's reasoning renders where it appeared, inside this

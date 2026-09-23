@@ -143,7 +143,7 @@ Ownership truth is the record's ordered `sessionIds`, never derived from session
 
 ## The registry: `ctx.workspaceRegistry`
 
-`WorkspaceRegistry` ([signatures](#ctxworkspaceregistry--workspaceregistry)) owns registration and resolution. `create(path, title?)` requires a fully qualified path, canonicalizes it, rejects a nonexistent path (the original `ENOENT`) or a non-directory, returns the existing entity unchanged when the canonical path is already owned, and otherwise creates a record with `title ?? defaultWorkspaceTitle(path)` prepended to the durable registry order (different canonical paths may share a display title, and a path with no final segment uses its root spelling). `get(id)` and the ordered `list()` are synchronous cache reads; `resolveByPath(path)` applies the same fully qualified realpath canon without creating. `delete(id)` removes only the registration, order entry, and session account — the directory, user files, live sessions, and persisted logs are never touched, so those sessions become Ungrouped ([decision](../../.agents/notes/implemented/feature/2026-07-27-workspace-registration-deletion.md)); unknown ids return `false`. Create and delete persist a pending-mutation marker before their two writes (record + order) can diverge; startup resolves exactly the marked mutation — by deleting the marked table row, which completes an interrupted delete and rolls back an interrupted create (the registration is re-creatable, so rollback is the safe direction) — and an unmarked order/table mismatch fails loud as corruption.
+`WorkspaceRegistry` ([signatures](#ctxworkspaceregistry--workspaceregistry)) owns registration and resolution. `create(path, title?)` requires a fully qualified path, canonicalizes it, rejects a nonexistent path (the original `ENOENT`) or a non-directory, returns the existing entity unchanged when the canonical path is already owned, and otherwise creates a record with `title ?? defaultWorkspaceTitle(path)` placed directly below the built-in workspace in the durable registry order, which the built-in holds against every move (different canonical paths may share a display title, and a path with no final segment uses its root spelling). `get(id)` and the ordered `list()` are synchronous cache reads; `resolveByPath(path)` applies the same fully qualified realpath canon without creating. `delete(id)` removes only the registration, order entry, and session account — the directory, user files, live sessions, and persisted logs are never touched, and the deleted workspace's sessions join the archive set in the same state write that drops it from the order ([decision](../../.agents/notes/implemented/feature/2026-07-27-workspace-registration-deletion.md)); unknown ids return `false`. Create and delete persist a pending-mutation marker before their two writes (record + order) can diverge; startup resolves exactly the marked mutation — by deleting the marked table row, which completes an interrupted delete and rolls back an interrupted create (the registration is re-creatable, so rollback is the safe direction) — and an unmarked order/table mismatch fails loud as corruption.
 
 Sessions get their cwd at create time from whoever creates them, not from this registry — the API gateway resolves a new session's cwd from the chosen workspace's `path` (falling back to an explicit or default cwd), creates the session so the cwd lands in its immutable [`SessionHeader`](persistence.md#sessionheader--metadata-beside-the-log), then calls `attachSession`, which re-validates that stored header cwd against the workspace path. A workspace with no directory has no cwd to hand out, so that route does not apply to it. On the first successful start, the registry bootstraps history from persisted headers alone (`id`, `cwd`, `createdAt` — never event bodies), grouping sessions with a valid canonical cwd into per-directory workspaces, newest first; the initialized marker is written last so an interrupted bootstrap resumes safely. The bootstrap is one-time: cwd-less legacy sessions stay Ungrouped, and sessions created afterwards join a workspace only through `attachSession`. Bootstrap is also a folder-only mechanism by construction: it derives groups from header cwds, so a pathless record keeps the account it was stored with and is never re-derived from a header.
 
@@ -282,7 +282,9 @@ Membership is re-derived rather than trusted because the durable record is not s
  * path is canonicalized through `fs.realpath`; a relative, nonexistent, or
  * non-directory path rejects. Repeated calls for the same canonical path
  * return the existing entity without changing its title.
- * A newly created workspace is prepended to the durable registry order.
+ * A newly created workspace lands directly below the built-in one, which
+ * keeps the head of the order — and so the first screen — where the reader
+ * left it instead of handing it to whichever registration was created last.
  * Different canonical paths may share a display title.
  * @param path - Existing directory to own, in a fully qualified path spelling.
  * @param title - Display title used only when a new record is created.
@@ -326,13 +328,15 @@ delete(id: WorkspaceId): Promise<boolean>
  * Move one workspace within the durable display order, DOM-insertBefore-like.
  * With an anchor it lands before that workspace; without one it appends.
  *
- * The built-in workspace is pinned at the head: it is where a reader lands
- * when nothing is selected, so its position is part of what makes the first
- * screen predictable rather than a preference a drag can reorder.
+ * The built-in workspace holds the head of the order: it is where a reader
+ * lands when nothing is selected, so its position is part of what makes the
+ * first screen predictable rather than a preference a drag can reorder. An
+ * anchor of the built-in therefore lands the moved workspace directly below
+ * it, the same place a new registration takes.
  * @param id - Workspace to move.
  * @param beforeId - Workspace anchor; omitted appends.
  * @returns the complete committed workspace order.
- * @throws {WorkspaceDefaultImmutableError} when the move would displace the built-in workspace from the head.
+ * @throws {WorkspaceDefaultImmutableError} when the id names the built-in workspace.
  */
 insertBefore(id: WorkspaceId, beforeId?: WorkspaceId): Promise<readonly WorkspaceId[]>
 

@@ -2,7 +2,9 @@
 .sessionRow {
   display: flex;
   align-items: center;
-  gap: 6px;
+  /* One 8px spacing after the leading 18px cell, so the group row's label and
+     the Session rows' titles below it start on the same line. */
+  gap: 8px;
   border-radius: 0;
   padding: 0 var(--avn-sidebar-inline-padding);
   cursor: pointer;
@@ -114,8 +116,10 @@
   animation: row-in 150ms var(--ds-ease-in-out);
 }
 
+/* The title's own insets are padding, not margin: the row's text keeps its
+   room inside the cell it fills, so nothing else in the row can move it. */
 .sessionRow .title {
-  margin: 0 6px 0 4px;
+  padding: 0 16px 0 8px;
 }
 
 /* The Session row's own address: everything but the trailing actions cell,
@@ -134,22 +138,48 @@
   text-decoration: none;
 }
 
-.flatSessionRowWithoutStatus .title {
-  margin-left: 0;
-}
-
 @keyframes row-in {
   from { opacity: 0; }
 }
 
+/* The row's leading cell: one 18px square, the grapheme size every icon in
+   this sidebar draws at. It holds the 10px status dot, the group folder, or the
+   18px running mark, so the cell is the mark's box rather than a narrower slot
+   the mark overflows. */
 .slot {
   flex: none;
-  width: 16px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--dsw-alias-label-tertiary);
+}
+
+/* Running mark: the shared loading glyph takes the leading cell; its own 18px
+   box is the product standard, so it is left to the primitive and only the
+   slot's centring is added here. */
+.runningMark {
+  flex: none;
+  color: var(--dsw-alias-label-primary);
+}
+
+/* Idle mark: the group folder's own grapheme one level down, held well back so
+   a resting Session reads as a list entry; hovering its row brings it up to the
+   row's own ink. */
+.idleMark {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--dsw-alias-label-primary);
+  opacity: 0.2;
+  transition: opacity 150ms var(--ds-ease-in-out);
+}
+
+.sessionRow:hover .idleMark,
+.sessionRow.menuOpen .idleMark,
+.searchResultRow:hover .idleMark {
+  opacity: 1;
 }
 
 .visuallyHidden {
@@ -161,25 +191,19 @@
   white-space: nowrap;
 }
 
-.folderActive {
-  color: var(--dsw-alias-state-business-primary);
+/* The group's folder glyph: a CSS-sized lucide glyph in the slot's 18px box,
+   the same grapheme the sidebar's header controls draw. Both fold states ride
+   the row's own ink rather than the slot's tertiary grey, so the open and
+   closed folder read as one control. */
+.folder {
+  color: var(--dsw-alias-label-primary);
 }
 
-
-/* Project leading slot: folder by default, expand arrow on row hover. */
-.projectRow .chevron { display: none; }
-.projectRow:hover .chevron { display: inline-flex; }
-.projectRow:hover .folder { display: none; }
-
-/* Expand arrow (filled triangle): points right closed, rotates to point down
-   open, on Aeven's foldout-chevron timing (`.icon-drop-down`, 0.1s easeOutQuint). */
-.arrow {
-  transition: transform 100ms var(--dsw-aeven-sidebar-transition-timing);
+.folder svg {
+  width: 18px;
+  height: 18px;
 }
 
-.arrowOpen {
-  transform: rotate(90deg);
-}
 
 .projectText {
   flex: 1;
@@ -223,13 +247,6 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
-.time {
-  flex: none;
-  font-size: 12px;
-  line-height: 20px;
-  color: var(--dsw-alias-label-tertiary);
-}
-
 .scheduleIndicator {
   display: inline-flex;
   flex: none;
@@ -251,24 +268,23 @@
 }
 
 /* Trailing action buttons surface on hover only (figma 27:4668 / 27:4656):
-   bare 16px glyphs, gap 12, tertiary grey. */
+   bare 16px glyphs, gap 12, tertiary grey. The cell holds its room in every
+   state and only fades in, so hovering never re-measures the title beside it. */
 .rowActions {
   flex: none;
-  display: none;
+  display: inline-flex;
   align-items: center;
   gap: 12px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .projectRow:hover .rowActions,
 .sessionRow:hover .rowActions,
 .projectRow.menuOpen .rowActions,
 .sessionRow.menuOpen .rowActions {
-  display: inline-flex;
-}
-
-.sessionRow:hover .time,
-.sessionRow.menuOpen .time {
-  display: none;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* An open row menu pins the hover affordances (figma: the row keeps its
@@ -356,35 +372,39 @@
   color: #ADB2B8;
 }
 
+/* A row action button: an 18px cell on the sidebar's own grapheme size, in the
+   row's ink, with no hover tint of its own. */
 .iconButton {
   flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   border: none;
   border-radius: 4px;
   padding: 0;
   background: transparent;
   cursor: pointer;
-  color: var(--dsw-alias-label-tertiary);
-}
-
-.iconButton:hover {
   color: var(--dsw-alias-label-primary);
 }
 
-/* Chevrons ride the caption grey (#ADB2B8); the folder glyph stays one step
-   darker (tertiary, #81858C) per the cell spec. */
-.chevron {
-  color: var(--dsw-alias-label-caption);
+/* A row action's lucide glyph: the sidebar's own 18px grapheme, drawn at the
+   full box the 18px button gives it. `flex: none` keeps the button from
+   shrinking it back to its own width. */
+.actionIcon {
+  flex: none;
+  width: 18px;
+  height: 18px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sessionRow,
-  .arrow {
+  .sessionRow {
     animation: none;
+    transition: none;
+  }
+
+  .idleMark {
     transition: none;
   }
 }

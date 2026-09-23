@@ -2,10 +2,18 @@
  * ic_ds_* icon set for the avn web UI. All glyphs render fill="currentColor"
  * and take {size, className}. Batch A mirrors the deepsuite icon library
  * (same figma source); batch B glyphs are harness-only figma extracts.
+ *
+ * The `IconLucide*` glyphs at the end of this module are a second family,
+ * transcribed from [lucide](https://lucide.dev) and drawn as 2-unit strokes.
+ * They take {@link LucideGlyphProps} — no size prop — and are sized entirely by
+ * the CSS rule at their use site, exactly as lucide ships them: the stock
+ * 24-unit canvas (whose padding is part of the artwork's optical size) drawn at
+ * a lighter 1.75 stroke, the weight the Aeven product client uses for its own
+ * 18px icons.
  */
-import type { IconProps } from './props.ts'
+import type { IconProps, LucideGlyphProps } from './props.ts'
 
-export type { IconProps } from './props.ts'
+export type { IconProps, LucideGlyphProps } from './props.ts'
 
 /** Three-line menu glyph used by the Aeven sidebar toggle. */
 export const IconMenuOutline16 = ({ size = 16, className }: IconProps) => (
@@ -1006,5 +1014,232 @@ export const IconArchiveOutline20 = ({ size = 20, className }: IconProps) => (
       fill="currentColor"
     />
     <path d="M12.7962 12.5661V11.0832H7.20548V12.5661L12.7962 12.5661Z" fill="currentColor" />
+  </svg>
+)
+
+/* ---------------------------------------------------------------------------
+ * IconLucide* family (lucide.dev transcriptions, CSS-sized: no width/height).
+ * ------------------------------------------------------------------------- */
+
+/** lucide `images`: stacked pictures (Imagine row). */
+export const IconLucideImages = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="m22 11-1.296-1.296a2.4 2.4 0 0 0-3.408 0L11 16" />
+    <path d="M4 8a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2" />
+    <circle cx="13" cy="7" r="1" fill="currentColor" />
+    <rect x="8" y="2" width="14" height="14" rx="2" />
+  </svg>
+)
+
+/** lucide `list-clock`: rows beside a clock (idle Session row). */
+export const IconLucideListClock = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M16 13v2.2l1.6 1" />
+    <path d="M3 12h3.458" />
+    <path d="M3 19h3.832" />
+    <path d="M3 5h18" />
+    <circle cx="16" cy="15" r="6" />
+  </svg>
+)
+
+/** lucide `panel-left`: frame with a left rail (sidebar toggle). */
+export const IconLucidePanelLeft = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <rect width="18" height="18" x="3" y="3" rx="2" />
+    <path d="M9 3v18" />
+  </svg>
+)
+
+/** lucide `panel-right`: frame with a right rail (right sidebar toggle). */
+export const IconLucidePanelRight = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <rect width="18" height="18" x="3" y="3" rx="2" />
+    <path d="M15 3v18" />
+  </svg>
+)
+
+/** lucide `square-pen`: square with a pen (New Session). */
+export const IconLucideSquarePen = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+    <path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z" />
+  </svg>
+)
+
+/** lucide `search`: magnifier (sidebar search control). */
+export const IconLucideSearch = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="m21 21-4.34-4.34" />
+    <circle cx="11" cy="11" r="8" />
+  </svg>
+)
+
+/** lucide `settings-2`: two knurled rails (sidebar view options). */
+export const IconLucideSettings2 = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M14 17H5" />
+    <path d="M19 7h-9" />
+    <circle cx="17" cy="17" r="3" />
+    <circle cx="7" cy="7" r="3" />
+  </svg>
+)
+
+/** lucide `folder-plus`: folder with a plus (add workspace). */
+export const IconLucideFolderPlus = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M12 10v6" />
+    <path d="M9 13h6" />
+    <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+  </svg>
+)
+
+/** lucide `folder`: closed folder (collapsed workspace group). */
+export const IconLucideFolder = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+  </svg>
+)
+
+/** lucide `folder-open`: open folder (expanded workspace group). */
+export const IconLucideFolderOpen = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" />
+  </svg>
+)
+
+/** lucide `settings`: cog (settings trigger). */
+export const IconLucideSettings = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+)
+
+/** lucide `ellipsis`: three dots (row actions). */
+export const IconLucideEllipsis = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <circle cx="12" cy="12" r="1" />
+    <circle cx="19" cy="12" r="1" />
+    <circle cx="5" cy="12" r="1" />
   </svg>
 )

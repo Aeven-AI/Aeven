@@ -17,6 +17,7 @@
     "src/file-references.ts",
     "src/history.ts",
     "src/list.ts",
+    "src/media-references.ts",
     "src/model-selection-projection.ts",
     "src/skill-catalog.ts"
   ],
@@ -29,6 +30,8 @@
     { "path": "../../core/session" },
     { "path": "../../context/file-reference" },
     { "path": "../../attachment/attachment" },
+    { "path": "../../fs/fs" },
+    { "path": "../../client/connection/tsconfig.host.json" },
     { "path": "../../interaction/permission-presets" },
     { "path": "../../jobs/jobs" },
     { "path": "../../llm/llm" },

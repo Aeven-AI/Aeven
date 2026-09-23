@@ -91,6 +91,8 @@ export interface ChatNodeOwnerProps {
 export interface TurnProcessOwnerProps {
   readonly spec: TurnProcessSpec
   readonly foldable: boolean
+  /** Whether the Turn holds work or reasoning the disclosure can fold. */
+  readonly hasContent: boolean
   readonly open: boolean
   setOpen(open: boolean): void
 }
@@ -129,6 +131,8 @@ export interface ChatViewInjected {
   hooks: {
     /** Persisted completed-Turn transcript presentation. */
     transcriptView: SnapshotStore<TranscriptViewMode>
+    /** Persisted word fade-in preference for streamed text. */
+    textAnimationPreference: SnapshotStore<boolean>
     /** Pending exact-event destination selected outside the Conversation view. */
     eventNavigation: ObservableSnapshot<ConversationEventNavigation | null>
   }

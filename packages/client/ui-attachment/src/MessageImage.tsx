@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ImageAttachmentRef } from '@aeven/attachment'
-import { ImageLightbox } from './ImageLightbox.tsx'
-import type { ImageLightboxLabels } from './ImageLightbox.tsx'
+import { ImageLightbox, type ImageLightboxLabels } from '@aeven/client-ui-primitives'
 import css from './MessageImage.module.css'
 
 /** Loads a session-authorized durable image URL and may expose a cached URL synchronously. */

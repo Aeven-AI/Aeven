@@ -4,8 +4,10 @@
  * snaps to its new width while its clipped content transitions; below it the
  * column overlays. The shell repositions and remounts nothing.
  *
- * The workspace/session browsing region between the New Session link and the
- * foot is the `sidebar.workspaces` registrant's, and the foot holds
+ * The header row pairs the fold toggle with the `sidebar.header.action`
+ * cluster (ui-workspace's search, view options, and add workspace), and the
+ * workspace/session browsing region between the New Session link and the foot
+ * is the `sidebar.workspaces` registrant's, while the foot holds
  * `sidebar.settings` plus `sidebar.footer.action`; the shell hands them the
  * wide flag (plus an expand request callback for the browser). That flag stays
  * true for the whole collapse so occupants never re-lay-out mid-slide.
@@ -17,7 +19,7 @@
 import clsx from 'clsx'
 import { useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react'
 import {
-  AevenMark, IconNewChatOutline16, IconPanelLeftFrameOutline16, Tooltip,
+  AevenMark, IconLucideImages, IconLucidePanelLeft, IconLucideSquarePen, Tooltip,
 } from '@aeven/client-ui-primitives'
 import type { SidebarRootComponentProps } from './contract/slots.ts'
 import css from './SidebarRoot.module.css'
@@ -95,16 +97,24 @@ export function SidebarRoot({
           </span>
         </button>
 
-        <Tooltip label={collapsed ? t('toggle.open') : t('toggle.collapse')} delayMs={500}>
-          <button
-            type="button"
-            className={css.toggle}
-            aria-label={collapsed ? t('toggle.open') : t('toggle.collapse')}
-            onClick={() => { toggleSidebar() }}
-          >
-            <IconPanelLeftFrameOutline16 size={18} />
-          </button>
-        </Tooltip>
+        <div className={css.header}>
+          <Tooltip label={collapsed ? t('toggle.open') : t('toggle.collapse')} delayMs={500}>
+            <button
+              type="button"
+              className={css.toggle}
+              aria-label={collapsed ? t('toggle.open') : t('toggle.collapse')}
+              onClick={() => { toggleSidebar() }}
+            >
+              <IconLucidePanelLeft className={css.toggleIcon} />
+            </button>
+          </Tooltip>
+
+          {/* The browsing region's controls ride the header row, clipped by the
+              collapsing column exactly as the body is. */}
+          <div className={css.headerActions}>
+            {renderSlot('sidebar.header.action', {})}
+          </div>
+        </div>
 
         {/* Aeven `.side-content`: everything below the menu button narrows and
             fades as one body. */}
@@ -132,10 +142,23 @@ export function SidebarRoot({
                   activate()
                 }}
               >
-                <IconNewChatOutline16 size={14} />
+                <IconLucideSquarePen className={css.newSessionIcon} />
                 <span className={css.newSessionLabel}>{t('session.new')}</span>
               </a>
             </Tooltip>
+
+            {/* Imagine sits under the New Session link on the same row
+                geometry. It has no destination yet, so it is a static row
+                rather than a control that would do nothing when activated. */}
+            <div className={clsx(css.newSession, css.imagine)}>
+              <IconLucideImages className={css.newSessionIcon} />
+              <span className={css.newSessionLabel}>{t('imagine')}</span>
+            </div>
+
+            {/* The gap above the browsing region is its own box: neither the
+                Imagine row nor the region's first row carries the other's
+                spacing, so either can change height without moving the gap. */}
+            <div className={css.spacer} aria-hidden="true" />
 
             {/* The browsing region fills the column between the controls and
                 the foot; its occupant rides the same slot. */}

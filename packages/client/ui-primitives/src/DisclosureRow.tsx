@@ -1,6 +1,7 @@
-import { type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
+import { memo, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import clsx from 'clsx'
-import { IconChevronDownOutline14 } from './icons/index.tsx'
+import { IconChevronDownOutline14, IconChevronUpOutline14 } from './icons/index.tsx'
+import { TextShimmer } from './TextShimmer.tsx'
 import css from './DisclosureRow.module.css'
 
 /** Shared 24px disclosure chrome for compact flow rows. */
@@ -23,14 +24,17 @@ export interface DisclosureRowProps {
   leadingClassName?: string | undefined
   chevronClassName?: string | undefined
   titleClassName?: string | undefined
+  /** Animate the title while its owning operation is running. */
+  running?: boolean | undefined
 }
 
 /**
  * Render one disclosure header and its controlled expanded content.
  * @param props - Visual content, controlled state, and interaction policy.
+ * Shallow prop comparison requires stable callbacks and React nodes to skip unchanged renders.
  * @returns the disclosure row.
  */
-export function DisclosureRow({
+export const DisclosureRow = memo(function DisclosureRow({
   icon,
   title,
   open,
@@ -46,6 +50,7 @@ export function DisclosureRow({
   leadingClassName,
   chevronClassName,
   titleClassName,
+  running = false,
 }: DisclosureRowProps) {
   const rowExpands = expandable && expandOnRowClick
   const toggleFromLeading = (event: MouseEvent<HTMLButtonElement>) => {
@@ -66,7 +71,7 @@ export function DisclosureRow({
     )
     : icon
   const leading = open
-    ? <IconChevronDownOutline14 className={chevronClassName} />
+    ? <IconChevronUpOutline14 className={chevronClassName} />
     : collapsedLeading
 
   return (
@@ -95,10 +100,10 @@ export function DisclosureRow({
             {leading}
           </span>
         )}
-        <span className={clsx(css.title, titleClassName)}>{title}</span>
+        <TextShimmer className={clsx(css.title, titleClassName)} active={running}>{title}</TextShimmer>
         {(keepContentWhenOpen || !open) && collapsedContent}
       </div>
       {open && children}
     </div>
   )
-}
+})

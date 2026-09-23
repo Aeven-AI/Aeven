@@ -1,16 +1,20 @@
 /**
  * Workspace browser tree row components (figma Cell set 14:3080): pure presentational —
- * all data and callbacks arrive via props. Hover swaps (folder->chevron,
- * time->ellipsis, action buttons) are CSS-only. Row ... menus are visual-only
- * except workspace Rename/Delete and session Rename/Fork/Archive; the session
- * and workspace hover cards are suppressed while a menu is open.
+ * all data and callbacks arrive via props. Hover swaps (time->ellipsis, action
+ * buttons) are CSS-only. Row ... menus are visual-only except workspace
+ * Rename/Delete and session Rename/Fork/Archive; the session and workspace
+ * hover cards are suppressed while a menu is open.
+ *
+ * A Workspace row's leading glyph has exactly two states — the open folder
+ * while the group is expanded, the closed folder while it is folded — and the
+ * row's own click owns the toggle.
  */
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import clsx from 'clsx'
 import {
   HoverCard, IconAlarmClockOutline16, IconArchiveOutline20, IconBranchOutline16,
-  IconEditOutline16, IconEllipsisOutline16, IconFolderClose16, IconFolderOpen16,
-  IconPlusOutline16, IconTrashOutline16, IconTriangleRightFill14, Menu, relativeTime,
+  IconEditOutline16, IconLucideEllipsis, IconLucideFolder, IconLucideFolderOpen,
+  IconLucideListClock, IconLucideSquarePen, IconTrashOutline16, Menu, relativeTime, Spinner,
   StateDot,
 } from '@aeven/client-ui-primitives'
 import type { StateDotState } from '@aeven/client-ui-primitives'
@@ -54,12 +58,6 @@ function isPlainActivation(event: ReactMouseEvent): boolean {
 function displayTitle(node: SessionNode, t: RowTranslate): string {
   if (node.blank) return t('session.new')
   return node.untitled ? t('session.untitled') : node.title
-}
-
-/** Localized compact relative time ("刚刚"/"5分钟" in zh, "now"/"5min" in en). */
-function timeLabel(updatedAt: number, now: number, t: RowTranslate): string {
-  const { unit, n } = relativeTime(updatedAt, now)
-  return unit === 'now' ? t('time.now') : t(`time.${unit}`, { n })
 }
 
 /** Hover-card variant: distances wrap in the ago template; the now bucket stays bare (no "now ago"). */
@@ -126,8 +124,9 @@ function rowHalf(e: { clientY: number; currentTarget: HTMLElement }): 'before' |
 }
 
 /**
- * Project (workspace) header row: folder + title;
- * hover reveals the chevron and create button, and dwelling on a real
+ * Project (workspace) header row: folder + title, where the folder itself is
+ * the fold state (open while the group is expanded, closed while it is
+ * folded); row hover reveals the create button, and dwelling on a real
  * Workspace shows its hover card (the ungrouped bucket has none).
  * `containsCurrent` arrives on the node (derivation fact, no renderer scan).
  * @param props.group - derived group node.
@@ -153,7 +152,6 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
   const row = group
   // The ungrouped bucket has no workspace title: its label is dictionary copy.
   const label = row.workspaceId === undefined ? t('group.ungrouped') : row.label
-  const active = group.expanded && group.containsCurrent
   const [menuOpen, setMenuOpen] = useState(false)
   const workspaceMenuItems = [
     { id: 'rename', label: t('rename'), icon: <IconEditOutline16 /> },
@@ -175,11 +173,8 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
         }}
       onDragEnd={drag?.end}
     >
-      <span className={clsx(css.slot, css.folder, active && css.folderActive)}>
-        {row.expanded ? <IconFolderOpen16 /> : <IconFolderClose16 />}
-      </span>
-      <span className={clsx(css.slot, css.chevron)}>
-        <IconTriangleRightFill14 className={clsx(css.arrow, row.expanded && css.arrowOpen)} />
+      <span className={clsx(css.slot, css.folder)}>
+        {row.expanded ? <IconLucideFolderOpen /> : <IconLucideFolder />}
       </span>
       <span className={css.projectText}>
         <span className={css.title}>{label}</span>
@@ -208,7 +203,7 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
                 aria-label={t('actions.workspace.aria', { name: label })}
                 onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v) }}
               >
-                <IconEllipsisOutline16 />
+                <IconLucideEllipsis className={css.actionIcon} />
               </button>
             )}
           />
@@ -219,7 +214,9 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
           aria-label={t('actions.newSession.aria', { name: label })}
           onClick={(e) => { e.stopPropagation(); onCreate() }}
         >
-          <IconPlusOutline16 />
+          {/* The New Session mark itself, so the row's add affordance and the
+              Chat row above it read as the same action. */}
+          <IconLucideSquarePen className={css.actionIcon} />
         </button>
       </span>
     </div>
@@ -297,11 +294,24 @@ function sessionStatuses(
   return [{ state: 'done', label: t('status.idle') }]
 }
 
-/** Primary status dot plus every status's screen-reader label, shared by the search and session rows. */
+/**
+ * The status mark itself: work in flight is the shared Aeven loading glyph —
+ * one 18px 10,10,10 mark rotating — rather than a state dot, so a running
+ * Session reads the same in the list as every other in-flight surface; an idle
+ * Session carries the faint list-clock, the leading mark the group's folder
+ * reserves for itself a level up.
+ */
+function StatusMark({ state }: { state: StateDotState }) {
+  if (state === 'ongoing') return <Spinner className={css.runningMark} />
+  if (state === 'done') return <IconLucideListClock className={css.idleMark} />
+  return <StateDot state={state} />
+}
+
+/** Primary status mark plus every status's screen-reader label, shared by the search and session rows. */
 function SessionStatusDots({ statuses }: { statuses: readonly [SessionStatus, ...SessionStatus[]] }) {
   return (
     <>
-      <StateDot state={statuses[0].state} />
+      <StatusMark state={statuses[0].state} />
       {statuses.map(status => (
         <span className={css.visuallyHidden} key={status.label}>{status.label}</span>
       ))}
@@ -335,7 +345,7 @@ function SessionHoverContent({ node, now, t }: { node: SessionNode; now: number;
       {!node.blank && <div className={css.hoverTime}>{hoverTimeLabel(node.updatedAt, now, t)}</div>}
       {statuses.map(status => (
         <div className={css.hoverStatus} key={status.label}>
-          <StateDot state={status.state} />
+          <StatusMark state={status.state} />
           <span>{status.label}</span>
         </div>
       ))}
@@ -360,7 +370,6 @@ export function SearchResultItem({ result, currentId, onOpen, t }: {
 }) {
   const selected = result.id === currentId
   const statuses = sessionStatuses(result, t)
-  const primaryStatus = statuses[0]
   return (
     <button
       type="button"
@@ -371,9 +380,7 @@ export function SearchResultItem({ result, currentId, onOpen, t }: {
     >
       <span className={css.searchResultHeading}>
         <span className={css.slot}>
-          {(primaryStatus.state !== 'done' || result.completed) && (
-            <SessionStatusDots statuses={statuses} />
-          )}
+          <SessionStatusDots statuses={statuses} />
         </span>
         <span className={css.searchResultTitle}>{result.title}</span>
         {result.hasActiveSchedule && <ActiveScheduleIndicator t={t} search />}
@@ -403,12 +410,11 @@ export function SearchResultItem({ result, currentId, onOpen, t }: {
  * @param props.onArchive - archive a session by id.
  * @param props.onReveal - scroll this row into view after search navigation, then acknowledge it.
  * @param props.drag - optional draggable-row wiring.
- * @param props.flat - omit the empty status slot in the hierarchy-free flat list.
  * @param props.t - the browser root's locale seat.
  * @returns the session row.
  */
 export function SessionNodeItem({
-  node, currentId, now, onOpen, onRename, onFork, onArchive, onReveal, drag, flat = false, t,
+  node, currentId, now, onOpen, onRename, onFork, onArchive, onReveal, drag, t,
 }: {
   node: SessionNode
   currentId: string | undefined
@@ -424,16 +430,12 @@ export function SessionNodeItem({
   onReveal?: (() => void) | undefined
   /** Present only on draggable rows (workspace-group sessions outside search). */
   drag?: RowDragProps | undefined
-  /** The row is rendered without a parent Workspace header. */
-  flat?: boolean | undefined
   t: RowTranslate
 }) {
   const row = node
   const title = displayTitle(node, t)
   const selected = node.id === currentId
   const statuses = sessionStatuses(node, t)
-  const primaryStatus = statuses[0]
-  const showStatus = primaryStatus.state !== 'done' || row.completed
   const [menuOpen, setMenuOpen] = useState(false)
   const rowRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -456,7 +458,6 @@ export function SessionNodeItem({
       ref={rowRef}
       className={clsx(
         css.sessionRow, selected && css.selected, menuOpen && css.menuOpen,
-        flat && !showStatus && css.flatSessionRowWithoutStatus,
         drag?.marker === 'before' && css.dropBefore, drag?.marker === 'after' && css.dropAfter,
       )}
       role="treeitem"
@@ -510,18 +511,11 @@ export function SessionNodeItem({
         {/* Pending interaction and own or descendant activity outrank the
             finished-but-unviewed reminder, which returns after activity stops
             and is cleared by opening the session. */}
-        {(!flat || showStatus) && (
-          <span className={css.slot}>
-            {showStatus && <SessionStatusDots statuses={statuses} />}
-          </span>
-        )}
+        <span className={css.slot}>
+          <SessionStatusDots statuses={statuses} />
+        </span>
         <span className={css.title}>{title}</span>
         {row.hasActiveSchedule && <ActiveScheduleIndicator t={t} />}
-        {/* A blank New Session row is a provisional placeholder: nothing has
-            happened in it yet, so a "now" timestamp and the row verbs
-            (rename/fork/archive) would all act on content that does not
-            exist — both trailing cells stay off until the first prompt. */}
-        {!row.blank && <span className={css.time}>{timeLabel(row.updatedAt, now, t)}</span>}
       </a>
       {!row.blank && (
         <span className={css.rowActions}>
@@ -544,7 +538,7 @@ export function SessionNodeItem({
                 aria-label={t('actions.session.aria', { name: title })}
                 onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v) }}
               >
-                <IconEllipsisOutline16 />
+                <IconLucideEllipsis className={css.actionIcon} />
               </button>
             )}
           />

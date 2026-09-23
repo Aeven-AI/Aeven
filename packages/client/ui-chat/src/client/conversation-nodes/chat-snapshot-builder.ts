@@ -6,6 +6,7 @@ import type {
 } from '@aeven/client-ui-conversation/client'
 import type { ChatConversationViewNode, ChatNode } from '../contract/chat-nodes.ts'
 import { isRunningTool } from '../contract/chat-nodes.ts'
+import { isVisibleChatNode } from '../contract/chat-visibility.ts'
 import type {
   ChatLocationNodeIndex, ChatNodeProcessSource, ChatNodeSource, ChatNodeStore, ChatSnapshot,
   ChatTurnProcessPresentation, ConversationNode, LegacyConversationSlice, PartialAssistant, RunningToolCall,
@@ -343,7 +344,7 @@ function presentationPosition(
 export function orderedVisibleChatNodes(
   nodes: readonly ChatConversationViewNode[],
 ): ChatConversationViewNode[] {
-  const visible = nodes.filter(node => node.visibility === 'visible')
+  const visible = nodes.filter(node => isVisibleChatNode(node as ChatNode))
   const presentations = turnProcessPresentations(visible)
   return visible.sort((left, right) => {
     const leftPosition = presentationPosition(left, presentations)
@@ -673,7 +674,7 @@ const EMPTY_CONTRIBUTION: LegacyContribution = {
 function legacyContribution(raw: ChatConversationViewNode): LegacyContribution {
   const node = raw as ChatNode
   // Content-free settled Assistants remain in the finalized compatibility
-  // stream so StatsLine preserves its pre-assembly step counts; hidden running
+  // stream so its pre-assembly step counts stay complete; hidden running
   // attempts have no final Node to contribute.
   if (raw.visibility !== 'visible' && node.kind !== 'assistant-step') return EMPTY_CONTRIBUTION
   switch (node.kind) {
@@ -745,7 +746,7 @@ function sameContribution(left: LegacyContribution | undefined, right: LegacyCon
     && sameReferences(left.nodes, right.nodes)
 }
 
-/** Incremental compatibility projection for StatsLine and legacy top-level snapshot fields. */
+/** Incremental compatibility projection for the legacy top-level snapshot fields. */
 class LegacySliceBuilder {
   private readonly contributions = new Map<string, LegacyContribution>()
   private readonly finalizedContributions = new Map<string, LegacyContribution>()

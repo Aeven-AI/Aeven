@@ -213,6 +213,7 @@ export class WorkspaceRegistry extends Service {
     await this.indexLiveSessions()
     this.validateStoredState(this.requireState())
     await this.ensureDefaultWorkspace()
+    await this.pinDefaultWorkspaceHead()
     this.validateStoredState(this.requireState())
     this.rebuildEntities()
     await this.reconcileMembership()
@@ -220,11 +221,29 @@ export class WorkspaceRegistry extends Service {
   }
 
   /**
+   * Restore the built-in workspace to the head of the durable order.
+   *
+   * A registration created before the head was held was prepended above it, so
+   * an order read back from storage can hold the head lower than the product
+   * puts it. The repair is one write, made only when the order disagrees and
+   * before any consumer reads the order, so a stored arrangement converges on
+   * the pinned one at the next mount instead of waiting for a drag.
+   */
+  private async pinDefaultWorkspaceHead(): Promise<void> {
+    const state = this.requireState()
+    const workspaceIds = this.pinnedHead(state, state.workspaceIds)
+    if (workspaceIds === state.workspaceIds) return
+    await this.setState(this.carryState(state, { initialized: state.initialized, workspaceIds }))
+  }
+
+  /**
    * Create or reuse a workspace for an existing directory. The fully qualified
    * path is canonicalized through `fs.realpath`; a relative, nonexistent, or
    * non-directory path rejects. Repeated calls for the same canonical path
    * return the existing entity without changing its title.
-   * A newly created workspace is prepended to the durable registry order.
+   * A newly created workspace lands directly below the built-in one, which
+   * keeps the head of the order — and so the first screen — where the reader
+   * left it instead of handing it to whichever registration was created last.
    * Different canonical paths may share a display title.
    * @param path - Existing directory to own, in a fully qualified path spelling.
    * @param title - Display title used only when a new record is created.
@@ -270,9 +289,12 @@ export class WorkspaceRegistry extends Service {
 
   /**
    * Delete one workspace registration while retaining its directory and every
-   * session log. The durable order is updated before the table deletion; a
-   * failed table write restores the prior order and keeps the entity
-   * published. Unknown ids are an idempotent no-op for domain callers.
+   * session log. The workspace's sessions join the archive set in the same
+   * write that removes it from the durable order, so no session is left
+   * without a group. The order and archive write precedes the table deletion;
+   * a failed table write restores the prior order and archive set and keeps
+   * the entity published. Unknown ids are an idempotent no-op for domain
+   * callers.
    *
    * The built-in workspace refuses deletion. It is the one registration the
    * product guarantees a reader has, and removing it would restore the state
@@ -296,22 +318,24 @@ export class WorkspaceRegistry extends Service {
    * Move one workspace within the durable display order, DOM-insertBefore-like.
    * With an anchor it lands before that workspace; without one it appends.
    *
-   * The built-in workspace is pinned at the head: it is where a reader lands
-   * when nothing is selected, so its position is part of what makes the first
-   * screen predictable rather than a preference a drag can reorder.
+   * The built-in workspace holds the head of the order: it is where a reader
+   * lands when nothing is selected, so its position is part of what makes the
+   * first screen predictable rather than a preference a drag can reorder. An
+   * anchor of the built-in therefore lands the moved workspace directly below
+   * it, the same place a new registration takes.
    * @param id - Workspace to move.
    * @param beforeId - Workspace anchor; omitted appends.
    * @returns the complete committed workspace order.
-   * @throws {WorkspaceDefaultImmutableError} when the move would displace the built-in workspace from the head.
+   * @throws {WorkspaceDefaultImmutableError} when the id names the built-in workspace.
    */
   insertBefore(id: WorkspaceId, beforeId?: WorkspaceId): Promise<readonly WorkspaceId[]> {
     return this.enqueueOperation(async () => {
       const state = this.requireState()
       const pinned = state.defaultWorkspaceId
-      // Any move of the head-pinned workspace would displace it, including an
-      // append (a move with no anchor) — so the rule is "the built-in workspace
-      // does not move", not "it does not move before something".
-      if (pinned !== undefined && id === pinned && state.workspaceIds[0] === pinned) {
+      // The built-in workspace does not move at all — not by an anchor, not by
+      // an append: the head is where the product puts it, so the registry
+      // refuses the move instead of computing one and undoing it afterwards.
+      if (pinned !== undefined && id === pinned) {
         throw new WorkspaceDefaultImmutableError(id, 'move')
       }
       if (!state.workspaceIds.includes(id)) throw new WorkspaceOrderInvalidError(id)
@@ -321,9 +345,9 @@ export class WorkspaceRegistry extends Service {
       if (beforeId === id) return state.workspaceIds
       const without = state.workspaceIds.filter(workspaceId => workspaceId !== id)
       const at = beforeId === undefined ? without.length : without.indexOf(beforeId)
-      const workspaceIds = [...without.slice(0, at), id, ...without.slice(at)]
+      const workspaceIds = this.pinnedHead(state, [...without.slice(0, at), id, ...without.slice(at)])
       if (sameIds(workspaceIds, state.workspaceIds)) return state.workspaceIds
-      await this.setState({ ...state, workspaceIds })
+      await this.setState({ ...state, workspaceIds: [...workspaceIds] })
       return workspaceIds
     })
   }
@@ -411,7 +435,7 @@ export class WorkspaceRegistry extends Service {
     try {
       await this.setState(this.carryState(state, {
         initialized: true,
-        workspaceIds: [id, ...state.workspaceIds],
+        workspaceIds: this.withNewWorkspace(state, id),
       }))
     } catch (error) {
       this.entities.delete(id)
@@ -552,10 +576,17 @@ export class WorkspaceRegistry extends Service {
     const entity = this.entities.get(id)
     if (entity === undefined) return false
     const state = this.requireState()
-    const nextState = this.carryState(state, {
-      initialized: true,
-      workspaceIds: state.workspaceIds.filter(workspaceId => workspaceId !== id),
-    })
+    const archived = new Set(state.archivedSessionIds)
+    const nextState = {
+      ...this.carryState(state, {
+        initialized: true,
+        workspaceIds: state.workspaceIds.filter(workspaceId => workspaceId !== id),
+      }),
+      archivedSessionIds: [
+        ...state.archivedSessionIds,
+        ...entity.sessionIds.filter(sessionId => !archived.has(sessionId)),
+      ],
+    }
     await this.setState({
       ...nextState,
       pendingMutation: { operation: 'delete', workspaceId: id },
@@ -686,10 +717,11 @@ export class WorkspaceRegistry extends Service {
     const priorRank = new Map(state.workspaceIds.map((id, index) => [id, index]))
     // Time rank, falling back to the record's own creation instant. A pathless
     // record has no header group to rank by, so its `createdAt` is the answer.
+    // Ranking orders the registrations; it never decides the head (pinnedHead).
     const rankOf = (record: WorkspaceRecord): number => (
       record.path === undefined ? Date.parse(record.createdAt) : groupRank.get(record.path) ?? Date.parse(record.createdAt)
     )
-    const workspaceIds = [...table.entries()]
+    const workspaceIds = this.pinnedHead(state, [...table.entries()]
       .sort(([leftId, left], [rightId, right]) => {
         const leftTime = rankOf(left)
         const rightTime = rankOf(right)
@@ -698,7 +730,7 @@ export class WorkspaceRegistry extends Service {
             - (priorRank.get(rightId) ?? Number.MAX_SAFE_INTEGER)
           || String(leftId).localeCompare(String(rightId))
       })
-      .map(([id]) => id)
+      .map(([id]) => id))
 
     if (!sameIds(state.workspaceIds, workspaceIds)) {
       await this.setState(this.carryState(state, { initialized: false, workspaceIds }))
@@ -993,6 +1025,36 @@ export class WorkspaceRegistry extends Service {
   private async setState(state: WorkspaceDomainState): Promise<void> {
     await (this.global as DomainGlobal<WorkspaceDomainState>).set(state)
     this.state = state
+  }
+
+  /**
+   * Force the built-in workspace to the head of an order derived without it.
+   *
+   * The built-in workspace is the one entry no order write may displace: it is
+   * where a reader lands when nothing is selected, so its position is part of
+   * what makes the first screen predictable rather than a preference. Ranking,
+   * insertion, and load-time repair all end here, which keeps that promise in
+   * one place instead of at each writer.
+   * @param state - state whose built-in id applies.
+   * @param workspaceIds - derived order.
+   * @returns the order with the built-in first, or the input when it already is.
+   */
+  private pinnedHead(state: WorkspaceDomainState, workspaceIds: readonly WorkspaceId[]): readonly WorkspaceId[] {
+    const pinned = state.defaultWorkspaceId
+    if (pinned === undefined || workspaceIds[0] === pinned) return workspaceIds
+    return [pinned, ...workspaceIds.filter(id => id !== pinned)]
+  }
+
+  /**
+   * Place a newly created workspace in the durable order: directly below the
+   * built-in one, or at the head while no built-in exists.
+   * @param state - state the create is derived from.
+   * @param id - the newly durable workspace.
+   * @returns complete order for the create write.
+   */
+  private withNewWorkspace(state: WorkspaceDomainState, id: WorkspaceId): readonly WorkspaceId[] {
+    const at = state.defaultWorkspaceId !== undefined && state.workspaceIds[0] === state.defaultWorkspaceId ? 1 : 0
+    return [...state.workspaceIds.slice(0, at), id, ...state.workspaceIds.slice(at)]
   }
 
   /**

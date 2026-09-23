@@ -307,11 +307,12 @@ export function ConversationRoot({
       />
       {/* One scroller for the whole column. Header, transcript and composer are
           all its children, so each is laid out inside the same content box and
-          a scrollbar shortens all three by the same width: the three centre on
-          one axis by construction, with nothing to compensate. The gutter
-          reservation that used to align them needed `scrollbar-gutter`, which
-          the iOS/Safari 14.5 baseline bans ([gate](../../../../../../scripts/verify-css-baseline.ts)). */}
-      <div className={css.scrollBody} data-conversation-scroll="">
+          the three centre on one axis by construction, with nothing to
+          compensate. The bar is hidden (ui-theme's `no-scrollbar`), so no
+          gutter is reserved either; the reservation that used to align them
+          needed `scrollbar-gutter`, which the iOS/Safari 14.5 baseline bans
+          ([gate](../../../../../../scripts/verify-css-baseline.ts)). */}
+      <div className={clsx(css.scrollBody, 'no-scrollbar')} data-conversation-scroll="">
         {/* The navigation band is resident, like the composer below it: the
             bar, its blur background, and the right-aligned utilities row
             belong to the column rather than to a Session, so a reader sees the

@@ -13,6 +13,7 @@ export function markdownLabels(t: ChatViewSlotProps['t']): MarkdownLabels {
   return {
     code: { copyLabel: t('copy'), copiedLabel: t('copied') },
     footnotes: t('markdown.footnotes'),
+    image: { dialog: t('markdown.imagePreview'), close: t('markdown.closeImagePreview') },
     // The engine replaces the placeholder itself, with a duration it measured,
     // so the template travels with its own `{seconds}` and neither language has
     // to guess where the figure goes in the sentence.

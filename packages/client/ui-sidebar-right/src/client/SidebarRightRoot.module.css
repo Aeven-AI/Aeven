@@ -53,13 +53,15 @@
   height: 100%;
   padding-top: 8px;
   box-sizing: border-box;
-  transition: width var(--dsw-aeven-rightbar-transition-duration) var(--dsw-aeven-rightbar-transition-timing);
+  transition: width var(--dsw-aeven-rightbar-transition-duration)
+    var(--dsw-aeven-rightbar-transition-timing);
 }
 
-/* The translucent panel is its own layer so its width can animate
-   independently of the body above it. Last in the DOM and below the z-indexed
-   content, as the left sidebar has it. The 2px bottom overhang hides the
-   panel's edge against the viewport floor. */
+/* The panel is its own layer so its width can animate independently of the
+   body above it, and it paints the same opaque fill and drop shadow the left
+   sidebar's does. Last in the DOM and below the z-indexed content, as the left
+   sidebar has it. The 2px bottom overhang hides the panel's edge against the
+   viewport floor. */
 .panel {
   position: absolute;
   top: 0;
@@ -70,14 +72,14 @@
   /* Mirrored corner: the left sidebar rounds its top-right. */
   border-top-left-radius: var(--dsw-aeven-sidebar-panel-radius);
   background: var(--dsw-specific-sidebar-fill);
-  /* Unprefixed only: the CSS pipeline adds the -webkit- form per its targets,
-     and writing both here makes it drop the standard property. */
-  backdrop-filter: blur(4px);
+  filter: drop-shadow(0px 5px 10px rgba(0, 0, 0, 0.05));
   box-shadow: inset 1px 1px 0 0 rgb(255, 255, 255);
   pointer-events: none;
   transition:
-    width var(--dsw-aeven-rightbar-transition-duration) var(--dsw-aeven-rightbar-transition-timing),
-    opacity var(--dsw-aeven-rightbar-transition-duration) var(--dsw-aeven-rightbar-transition-timing);
+    width var(--dsw-aeven-rightbar-transition-duration)
+      var(--dsw-aeven-rightbar-transition-timing),
+    opacity var(--dsw-aeven-rightbar-transition-duration)
+      var(--dsw-aeven-rightbar-transition-timing);
 }
 
 .visible .panel {
@@ -100,7 +102,8 @@
      pairing: it keeps the fade perceptually even through the accelerating
      slide. */
   transition:
-    width var(--dsw-aeven-rightbar-transition-duration) var(--dsw-aeven-rightbar-transition-timing),
+    width var(--dsw-aeven-rightbar-transition-duration)
+      var(--dsw-aeven-rightbar-transition-timing),
     opacity var(--dsw-aeven-rightbar-transition-duration) linear;
 }
 

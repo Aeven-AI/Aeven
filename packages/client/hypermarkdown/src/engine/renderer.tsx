@@ -75,6 +75,13 @@ class Renderer {
   private mdState: string[] | null
   private blockType: BlockType | null
   private buffering: boolean | null
+  /**
+   * Whether the block being written fades its words in. Fixed when the block
+   * opens: a block first drawn without the fade (text seeded into a view that
+   * mounted mid-stream) keeps it off until it closes, so later chunks cannot
+   * turn its visible words into fading spans and flash them.
+   */
+  private blockAnimation = true
   private cachedFootnotes: ReactElement | null
   private mdBuffer: string
   private footnoteBuffer: string
@@ -281,6 +288,7 @@ class Renderer {
     this.blockId = 0
     this.blockType = null
     this.buffering = null
+    this.blockAnimation = true
     this.mdState = null
 
     this.mdExtra = new Map()
@@ -538,9 +546,12 @@ class Renderer {
     if (!buffering) {
       vm.blockId++
       vm.buffering = true
+      vm.blockAnimation = animation
 
       vm.resetLineCache()
     }
+
+    animation = animation && vm.blockAnimation
 
     mdBuffer = closeObject?.md || vm.mdBuffer
 

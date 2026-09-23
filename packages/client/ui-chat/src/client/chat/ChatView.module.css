@@ -81,6 +81,23 @@
 
 /* A closed process reads as one summary immediately followed by its answer.
    Expanded process rows return to the ordinary 16px rhythm. */
+
+/* A turn's work reads as a tight list: one-line work rows (tool calls,
+   commands, reasoning-only steps) sit 8px apart, and prose between them keeps
+   a 12px step instead of the message gap. */
+.flowItem[data-turn-process-member] {
+  --avn-chat-flow-gap: 12px;
+}
+
+.flowItem[data-chat-work-row] {
+  --avn-chat-flow-gap: 8px;
+}
+
+/* The answer step opens with its own Think row while the process is open. */
+.flowItem[data-turn-process-answer-step] {
+  --avn-chat-flow-gap: 8px;
+}
+
 .flowItem[data-turn-process-answer] {
   --avn-chat-flow-gap: 16px;
 }
@@ -98,65 +115,6 @@
 
 /* Selection still sets data-selected for details linkage; no outline —
    tool rows match Think chrome (no selected ring). */
-
-/* Turn activity keeps the former loader's one-line footprint. A pale
-   brand-blue band sweeps from left to right; reduced-motion keeps it static. */
-.turnStatus {
-  align-self: flex-start;
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  height: calc(26px + var(--avn-content-font-delta, 0px));
-  font: var(--dsw-font-s-strong-14);
-  /* The status line reads at the body size: the fixed 14 token supplies the
-     family/weight, the axis supplies the size. At default that is 14px text
-     on a 22px line inside a 26px row; both box heights shift by the same
-     delta, preserving the 8px (22 − 14) leading and the 4px (26 − 22) row
-     padding at every size. */
-  font-size: var(--avn-content-font-size, 14px);
-  line-height: calc(22px + var(--avn-content-font-delta, 0px));
-  white-space: nowrap;
-  background: linear-gradient(
-    90deg,
-    var(--dsw-static-deepseek-500) 0%,
-    var(--dsw-static-deepseek-500) 40%,
-    var(--dsw-static-deepseek-200) 50%,
-    var(--dsw-static-deepseek-500) 60%,
-    var(--dsw-static-deepseek-500) 100%
-  );
-  background-position: 100% 0;
-  background-size: 250% 100%;
-  background-clip: text;
-  color: transparent;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: avn-turn-status-shimmer 1.8s linear infinite;
-}
-
-.turnStatusClock {
-  margin-left: 8px;
-  font: var(--dsw-font-xs-14);
-  font-size: var(--avn-content-font-size-secondary, 14px);
-  line-height: calc(20px + var(--avn-content-font-delta-secondary, 0px));
-  font-weight: 450;
-  font-variant-numeric: tabular-nums;
-  color: var(--dsw-alias-label-caption);
-  -webkit-text-fill-color: var(--dsw-alias-label-caption);
-}
-
-@keyframes avn-turn-status-shimmer {
-  to {
-    background-position: 0 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .turnStatus {
-    background-position: 0 0;
-    background-size: 100% 100%;
-    animation: none;
-  }
-}
 
 .openError {
   color: var(--dsw-alias-state-error-primary);

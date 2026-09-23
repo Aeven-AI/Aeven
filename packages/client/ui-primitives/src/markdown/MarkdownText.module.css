@@ -257,6 +257,27 @@
   object-fit: contain;
 }
 
+/* The engine's own image element (loader and error states around it) takes
+   the same presentation; an openable image shows the enlarge cursor. */
+.markdown :global(img.image) {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-base);
+  object-fit: contain;
+}
+
+.markdown :global(img.image[data-openable]) {
+  cursor: zoom-in;
+}
+
+.markdown :global(.markdown-image-alt) {
+  color: var(--dsw-alias-label-tertiary);
+  font-style: italic;
+}
+
 /* Inline file mention: the same link language this sheet gives anchors (and
    thereby URL-promoted inline code) — link-blue at rest, underline only on
    hover/focus. An underline at rest reads badly inside the code chip, where
@@ -277,4 +298,79 @@
   outline: none;
   text-decoration: underline var(--dsw-alias-state-business-primary);
   text-underline-offset: 3px;
+}
+
+/* Compact variant: reasoning bodies and flow-row details read in the tertiary
+   label colour at the conversation's body size, with block rhythm tightened
+   so an expanded trace stays visually subordinate to the reply. Every rule
+   doubles the class so it outranks the reading-rhythm rules above. */
+.markdown.compact {
+  max-width: 100%;
+  font-size: var(--avn-content-font-size, 16px);
+  line-height: calc(28px + var(--avn-content-font-delta, 0px));
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.markdown.compact :is(h1, h2, h3, h4, h5, h6) {
+  margin: 8px 0 4px;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+}
+
+.markdown.compact :is(p, ul, ol, blockquote, pre) {
+  margin: 4px 0;
+}
+
+.markdown.compact li:not(:first-child) {
+  margin-top: 2px;
+}
+
+.markdown.compact li > p {
+  margin: 4px 0;
+}
+
+.markdown.compact li::marker {
+  line-height: inherit;
+  color: inherit;
+}
+
+.markdown.compact blockquote {
+  padding-left: 8px;
+}
+
+.markdown.compact hr {
+  margin: 8px 0;
+}
+
+.markdown.compact a,
+.markdown.compact .fileMention {
+  font-weight: inherit;
+  color: inherit;
+  text-decoration: underline dotted;
+}
+
+.markdown.compact a:hover,
+.markdown.compact a:focus,
+.markdown.compact .fileMention:hover,
+.markdown.compact .fileMention:focus {
+  text-decoration-color: currentColor;
+}
+
+.markdown.compact :not(pre) > code {
+  display: inline;
+  font: inherit;
+  font-family: var(--ds-font-family-code);
+  font-size: 0.875em !important;
+  border-radius: 4px;
+  padding: 0 3px;
+  box-decoration-break: clone;
+}
+
+.markdown.compact > *:first-child {
+  margin-top: 0;
+}
+
+.markdown.compact > *:last-child {
+  margin-bottom: 0;
 }

@@ -30,18 +30,18 @@ describe('TranscriptViewPolicy', () => {
     const host = stubSettingsScope<ChatSettings>()
     const policy = new TranscriptViewPolicy(host.scope)
 
-    host.publish({ status: 'ready', value: { transcriptView: 'normal' }, revision: 1, writable: true })
+    host.publish({ status: 'ready', value: { transcriptView: 'normal', textAnimation: true }, revision: 1, writable: true })
     expect(policy.mode.getSnapshot()).toBe('normal')
     policy.setMode('normal')
     expect(host.set).not.toHaveBeenCalled()
 
-    host.publish({ value: { transcriptView: 'compact' }, revision: 2 })
+    host.publish({ value: { transcriptView: 'compact', textAnimation: true }, revision: 2 })
     expect(policy.mode.getSnapshot()).toBe('compact')
   })
 
   it('adopts an accepted section standing at construction', () => {
     const host = stubSettingsScope<ChatSettings>()
-    host.publish({ status: 'ready', value: { transcriptView: 'normal' }, revision: 1, writable: true })
+    host.publish({ status: 'ready', value: { transcriptView: 'normal', textAnimation: true }, revision: 1, writable: true })
     expect(new TranscriptViewPolicy(host.scope).mode.getSnapshot()).toBe('normal')
   })
 })

@@ -16,18 +16,8 @@ import {
   UserMessageNodeView,
 } from '../src/client/chat/MessageItem.tsx'
 import { AssistantMarkdown, type AssistantMarkdownProps } from '../src/client/chat/AssistantMarkdown.tsx'
-import { StatsLine } from '../src/client/chat/StatsLine.tsx'
 import { zh } from '../src/client/locale.ts'
-import { chatSnapshotFixture } from './chat-snapshot-fixture.client.ts'
 
-/** jsdom has no ResizeObserver; StatsLine watches its row for ellipsis truncation through one. */
-class ResizeObserverStub {
-  observe(): void {}
-  unobserve(): void {}
-  disconnect(): void {}
-}
-
-beforeEach(() => { vi.stubGlobal('ResizeObserver', ResizeObserverStub) })
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
@@ -1045,25 +1035,5 @@ describe('small branch tails', () => {
 
     fireEvent.click(header)
     expect(view.getByText('one-liner')).toBeTruthy()
-  })
-
-  it('StatsLine omits the cache-hit segment when no input accounting exists at all', () => {
-    // Cache hit is null only when all three prompt buckets are zero (pure
-    // output accounting) — any billed input makes it a real 0%.
-    const nodes = [{
-      kind: 'assistant', seq: 1, time: 1_000, turn: 1, step: 1, blocks: [], usage: { outputTokens: 10 },
-    }] as const
-    const snap = chatSnapshotFixture({ nodes })
-    const source = { getSnapshot: () => snap, subscribe: () => () => {} }
-    const view = render(
-      <StatsLine
-        t={t}
-        useChat={bindSnapshotSelector(source)}
-        useProjection={(key: string) => key === 'tokenUsage'
-          ? { uncachedInputTokens: 0, outputTokens: 10, cacheReadTokens: 0, cacheWriteTokens: 0 }
-          : undefined}
-      />,
-    )
-    expect(view.container.textContent).toBe('1 轮 · 1 步| 输入 0 tok · 输出 10 tok')
   })
 })

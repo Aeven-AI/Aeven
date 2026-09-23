@@ -548,49 +548,13 @@
   }
 }
 
-/* The column's one scrolling box. Header, transcript and composer are all its
-   children, so a scrollbar shortens the three identically and they share one
-   axis with nothing to compensate — which is why no gutter is reserved here.
-   The reservation this box used to carry needed `scrollbar-gutter`, a property
-   no Safari release implements and the iOS 14.5 baseline bans
-   ([gate](../../../../../../scripts/verify-css-baseline.ts)). */
+/* The column's one scroller. It draws no bar of its own: the element also
+   carries ui-theme's `no-scrollbar`, so the wheel and the keyboard still move
+   the flow while nothing reserves a gutter or paints a thumb over the
+   transcript's edge. */
 .scrollBody {
   height: 100%;
-  overflow-y: scroll;
-  /* ChatView owns this box's offset through a ledger of its own writes: an
-     offset that moved on its own is reader input, and input away from the floor
-     releases bottom-follow. Browser scroll anchoring moves the offset without
-     any write — holding a content node still while rows above the viewport
-     finish laying out — so the ledger reads that adjustment as a gesture. A
-     Session switch lands on the tail while its transcript is still laying out,
-     which is exactly when anchoring steps in, so the released follow left the
-     reader short of the floor and nothing corrected it. A reader away from the
-     floor loses nothing: ChatView re-anchors itself on every reflow
-     ([decision](../../../../../../.agents/notes/implemented/bug-fix/2026-09-12-transcript-scroll-anchoring-opt-out.md)). */
-  overflow-anchor: none;
-  /* Native bar with a transparent gutter: only the thumb is painted. `auto` is
-     what lets the pseudo-elements through, since chromium and Safari discard
-     every `::-webkit-scrollbar*` rule for an element whose `scrollbar-width` is
-     not `auto` — the theme's `thin` default would suppress this skin. */
-  scrollbar-width: auto;
-}
-
-.scrollBody::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.scrollBody::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.scrollBody::-webkit-scrollbar-thumb {
-  border-radius: 4px;
-  background: var(--avn-scrollbar-thumb);
-}
-
-.scrollBody::-webkit-scrollbar-corner {
-  background: transparent;
+  overflow-y: auto;
 }
 
 /* Holds the column open so the sticky composer rests at the reader's floor
