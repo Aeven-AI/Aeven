@@ -37,7 +37,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { LlmError, resolveImageAttachmentAccess, resolveRetryPolicy, RetryPolicySchema } from '@aeven/llm'
+import { EMPTY_RESPONSE_CODE, LlmError, resolveImageAttachmentAccess, resolveRetryPolicy, RetryPolicySchema } from '@aeven/llm'
 import type { LlmProviderInfo, RetryPolicyConfig } from '@aeven/llm'
 import type {} from '@aeven/attachment'
 import type {} from '@aeven/fs'
@@ -84,6 +84,47 @@ export const DEFAULT_API_URL = 'http://localhost:9000'
 
 /** Credential holding the signed-in session; see {@link DEFAULT_API_KEY_ENV}. */
 export const DEFAULT_API_KEY_ENV = 'AEVEN_TOKEN'
+
+/**
+ * The transient failures the gateway names in its own contract.
+ *
+ * The gateway is a second boundary in front of DeepSeek, and a failure it can no
+ * longer report as a status arrives *inside* the stream carrying its own code —
+ * `provider_unavailable` with the upstream's transport detail, for instance. The
+ * adapter passes that vocabulary through upper-cased rather than flattening it
+ * into `SERVER`, so the shared retryable set, which knows only the harness's
+ * canonical codes, matches none of these and a transient upstream outage ends
+ * the turn instead of being repeated. These are exactly the codes the gateway
+ * itself considers worth resending, so the route carries the gateway's verdict
+ * rather than second-guessing it.
+ */
+const GATEWAY_TRANSIENT_CODES = [
+  'PROVIDER_UNAVAILABLE',
+  'PROVIDER_TIMEOUT',
+  'PROVIDER_ERROR',
+  'RATE_LIMITED',
+  'CONCURRENCY_LIMITED',
+  'INTERNAL',
+] as const
+
+/**
+ * The retry policy this route resolves when the composition configures none.
+ *
+ * Only the code set departs from the shared default. `maxRetries` and `backoff`
+ * are deliberately left unstated so the resolver fills them from the shared
+ * budget, which stays the one place that budget is decided for every route.
+ */
+const AEVEN_ROUTE_RETRY_POLICY: RetryPolicyConfig = {
+  mode: 'normal',
+  retryableCodes: [
+    EMPTY_RESPONSE_CODE,
+    'RATE_LIMIT',
+    'SERVER',
+    'TIMEOUT',
+    'TRANSPORT',
+    ...GATEWAY_TRANSIENT_CODES,
+  ],
+}
 
 /**
  * What the gateway serves, at the capabilities it advertises.
@@ -286,7 +327,7 @@ export function apply(ctx: Context, config: Config): void {
       refreshMarginSeconds: config.fileRefreshMarginSeconds ?? DEFAULT_FILE_REFRESH_MARGIN_SECONDS,
       quotaCleanupBatch: config.fileQuotaCleanupBatch ?? DEFAULT_FILE_QUOTA_CLEANUP_BATCH,
     },
-    retryPolicy: resolveRetryPolicy(config.retryPolicy, 'llm-aeven: retryPolicy'),
+    retryPolicy: resolveRetryPolicy(config.retryPolicy ?? AEVEN_ROUTE_RETRY_POLICY, 'llm-aeven: retryPolicy'),
   })
 
   /**

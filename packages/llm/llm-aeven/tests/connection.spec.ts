@@ -133,4 +133,47 @@ describe('connection resolution', () => {
       jitterRatio: 0.2,
     })
   })
+
+  it('retries the failures the gateway can only report inside the stream', async () => {
+    await tempHome()
+    vi.stubEnv(DEFAULT_API_KEY_ENV, 'ambient-token')
+    const calls = stubChatCompletions()
+
+    ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    // No `retryPolicy`: this is what a composition that configures none gets,
+    // and the gateway route is the one that has to know the vocabulary its own
+    // upstream reports failures in.
+    apply(ctx, {})
+    await generate(ctx, 'Aeven-1.0-Flash')
+    expect(calls).toHaveLength(1)
+
+    const policy = ctx.llm.providerRetryPolicy(PROVIDER)
+    // The route resolves the shared normal budget when the composition
+    // configures no policy of its own.
+    if (policy.mode !== 'normal') throw new Error(`expected a normal retry policy, got ${policy.mode}`)
+    expect(policy.maxRetries).toBe(5)
+    expect(policy.initialDelayMs).toBe(500)
+    expect(policy.maxDelayMs).toBe(10_000)
+    expect(policy.jitterRatio).toBe(0.1)
+    // A failure the gateway could not send as a status arrives as an in-band
+    // error frame carrying the gateway's own code, which the adapter passes
+    // through upper-cased. Without the six codes below a transient upstream
+    // outage — `deepseek is unavailable: fetch failed: other side closed` —
+    // matched no entry in the shared set and ended the turn on its first
+    // attempt; the canonical five are extended rather than replaced.
+    expect(policy.retryableCodes).toEqual([
+      'EMPTY_RESPONSE',
+      'RATE_LIMIT',
+      'SERVER',
+      'TIMEOUT',
+      'TRANSPORT',
+      'PROVIDER_UNAVAILABLE',
+      'PROVIDER_TIMEOUT',
+      'PROVIDER_ERROR',
+      'RATE_LIMITED',
+      'CONCURRENCY_LIMITED',
+      'INTERNAL',
+    ])
+  })
 })
