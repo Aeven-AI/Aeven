@@ -10,6 +10,7 @@ import type { ChunkRow } from '@aeven/session/chunk-rows'
 import type { SessionId, SessionSeq } from '@aeven/session/types'
 import type { SessionProjectionMap } from '@aeven/session-projection/types'
 import type { JobId } from '@aeven/jobs/brand'
+import type { NativeFileApplication } from '@aeven/native-command/types'
 import type { JsonValue } from '@aeven/util-values'
 import type { WorkspaceId } from '@aeven/workspace/types'
 
@@ -362,6 +363,10 @@ export interface SessionCancelValue {
 
 /** Request to open one path prepared by a Session-aware caller on the Host desktop. */
 export interface SessionOpenWorkspacePathRequest {
+  /** File-manager navigation when requested; omission uses the default application. */
+  readonly action?: 'reveal'
+  /** Registered application identifier; ignored for reveal. Omission preserves the operating system default. */
+  readonly application?: string
   /** Path after best-effort Session workspace resolution, in Host filesystem syntax. */
   readonly path: string
 }
@@ -590,3 +595,6 @@ export interface ImageModelCatalog {
   /** The models, in provider registration order; empty where no media seam is composed. */
   models: ImageModelEntry[]
 }
+
+/** Application metadata returned by the serving desktop for one file. */
+export type SessionWorkspacePathApplication = NativeFileApplication

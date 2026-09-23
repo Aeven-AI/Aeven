@@ -82,6 +82,7 @@
     { "path": "./packages/client/ui-sidebar-right" },
     { "path": "./packages/client/ui-sidebar-select" },
     { "path": "./packages/client/ui-sidebar-browser" },
+    { "path": "./packages/client/ui-sidebar-files" },
     { "path": "./packages/client/ui-brand-official" },
     { "path": "./packages/client/ui-approval" },
     { "path": "./packages/client/ui-chat" },

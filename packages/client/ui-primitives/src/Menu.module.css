@@ -250,3 +250,14 @@
   left: -10px;
   width: 10px;
 }
+
+/* Flipped to the parent's left when the right side would leave the viewport. */
+.submenu[data-flip] {
+  left: auto;
+  right: calc(100% + 10px);
+}
+
+.submenu[data-flip]::before {
+  left: auto;
+  right: -10px;
+}

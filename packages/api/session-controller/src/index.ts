@@ -3,7 +3,10 @@
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { errorChain } from '@aeven/llm'
-import { canOpenNativePath, openNativePath } from '@aeven/native-command'
+import { resolve } from 'node:path'
+import {
+  canOpenNativePath, nativeFileApplications, openNativeFileApplication, openNativePath, revealNativePath,
+} from '@aeven/native-command'
 import type { SessionId } from '@aeven/session'
 import type { SessionInspection } from '@aeven/session-persistence'
 import type { SessionObservation } from '@aeven/session-query'
@@ -40,6 +43,7 @@ import type {
   SessionListValue,
   SessionOpenWorkspacePathRequest,
   SessionOpenWorkspacePathValue,
+  SessionWorkspacePathApplication,
   SessionPage,
   SessionPageRequest,
   SessionPromptRequest,
@@ -78,6 +82,12 @@ export interface SessionControllerInternals {
   readonly openPath?: (path: string, signal: AbortSignal) => Promise<void>
   /** Native handoff availability probe. */
   readonly canOpenPath?: () => boolean
+  /** Native file-handler discovery. */
+  readonly fileApplications?: typeof nativeFileApplications
+  /** Native handoff to one registered file handler. */
+  readonly openFileApplication?: typeof openNativeFileApplication
+  /** Native file-manager navigation. */
+  readonly revealPath?: (path: string, signal: AbortSignal) => Promise<void>
 }
 
 /** Host service backing the generated `ctx.remote.session` namespace. */
@@ -105,6 +115,9 @@ export class SessionController extends TypertRemoteService {
   private readonly listState: ApiSessionList
   private readonly openPath: (path: string, signal: AbortSignal) => Promise<void>
   private readonly canOpenPath: () => boolean
+  private readonly fileApplications: typeof nativeFileApplications
+  private readonly openFileApplication: typeof openNativeFileApplication
+  private readonly revealPath: (path: string, signal: AbortSignal) => Promise<void>
   private readonly promotions = new Set<Promise<void>>()
 
   /**
@@ -127,6 +140,9 @@ export class SessionController extends TypertRemoteService {
     this.openPath = internals.openPath ?? openNativePath
     this.canOpenPath = internals.canOpenPath
       ?? (() => config.nativeOpen ?? (internals.openPath !== undefined || canOpenNativePath()))
+    this.fileApplications = internals.fileApplications ?? nativeFileApplications
+    this.openFileApplication = internals.openFileApplication ?? openNativeFileApplication
+    this.revealPath = internals.revealPath ?? revealNativePath
     ctx.plugin(SessionFileReferences)
     ctx.plugin(SessionSkillCatalog)
     ctx.plugin(SessionMediaReferences)
@@ -271,8 +287,10 @@ export class SessionController extends TypertRemoteService {
   }
 
   /**
-   * Open one path prepared by a Session-aware caller on the Host desktop.
-   * @param request - path after best-effort Session workspace resolution.
+   * Open one path prepared by a Session-aware caller on the Host desktop: in
+   * its default application, in one registered application, or revealed in
+   * the file manager.
+   * @param request - path after best-effort Session workspace resolution, and the requested handoff.
    * @param signal - caller lifetime; abort terminates the native command.
    * @returns confirmation after the native opener accepts the path.
    * @throws RemoteError when the request is invalid, cancelled, or the opener fails.
@@ -282,16 +300,11 @@ export class SessionController extends TypertRemoteService {
     request: SessionOpenWorkspacePathRequest,
     signal: AbortSignal,
   ): Promise<SessionOpenWorkspacePathValue> {
-    if (request.path.length === 0) {
-      throw new RemoteError(
-        'gateway/bad-request',
-        'session.openWorkspacePath requires a non-empty path',
-        {},
-      )
-    }
-    signal.throwIfAborted()
+    const path = this.desktopPath(request.path, signal)
     try {
-      await this.openPath(request.path, signal)
+      if (request.action === 'reveal') await this.revealPath(path, signal)
+      else if (request.application !== undefined) await this.openFileApplication(path, request.application, signal)
+      else await this.openPath(path, signal)
       return { opened: true }
     } catch (error: unknown) {
       if (signal.aborted) throw new RemoteError('gateway/cancelled', 'path open was aborted', {})
@@ -301,6 +314,40 @@ export class SessionController extends TypertRemoteService {
         {},
       )
     }
+  }
+
+  /**
+   * Query the serving desktop's current handlers for one file.
+   * @param request - file path in Host filesystem syntax.
+   * @param signal - caller lifetime, propagated to the desktop query.
+   * @returns application names, icons, and default selection; empty when desktop opening is unavailable.
+   * @throws RemoteError when the path is invalid, the query is cancelled, or native discovery fails.
+   */
+  @Remote('workspacePathApplications')
+  async workspacePathApplications(
+    request: { readonly path: string },
+    signal: AbortSignal,
+  ): Promise<readonly SessionWorkspacePathApplication[]> {
+    if (!this.canOpenPath()) return []
+    const path = this.desktopPath(request.path, signal)
+    try {
+      return await this.fileApplications(path, signal)
+    } catch (error: unknown) {
+      if (signal.aborted) throw new RemoteError('gateway/cancelled', 'application query was aborted', {})
+      throw new RemoteError(
+        'gateway/internal',
+        `file application query failed: ${error instanceof Error ? error.message : String(error)}`,
+        {},
+      )
+    }
+  }
+
+  private desktopPath(path: string, signal: AbortSignal): string {
+    if (path.length === 0) {
+      throw new RemoteError('gateway/bad-request', 'a non-empty workspace path is required', {})
+    }
+    signal.throwIfAborted()
+    return resolve(path)
   }
 
   /**

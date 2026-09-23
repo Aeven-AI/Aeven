@@ -43,6 +43,16 @@ function isLabel(entry: MenuEntry): entry is MenuLabel {
   return 'type' in entry && entry.type === 'label'
 }
 
+/**
+ * Open a submenu card to the parent's left when the right would overflow the
+ * viewport. Runs in the commit phase, so the first painted frame is placed.
+ * @param card - the mounted submenu card, or null on unmount.
+ */
+function flipSubmenu(card: HTMLDivElement | null): void {
+  if (card === null) return
+  if (card.getBoundingClientRect().right > window.innerWidth - 8) card.dataset.flip = ''
+}
+
 /** Unplaced portal list: hidden but laid out at a fixed origin so offsetWidth/offsetHeight are real. */
 const MEASURE_STYLE: CSSProperties = { visibility: 'hidden', left: 0, top: 0 }
 
@@ -228,7 +238,7 @@ export function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, o
           {selected && <IconCheckOutline16 className={css.check} />}
         </button>
         {subOpen && entry.submenu !== undefined && (
-          <div className={clsx(css.submenu, compact && css.compactList)} role="menu">
+          <div className={clsx(css.submenu, compact && css.compactList)} role="menu" ref={flipSubmenu}>
             {entry.submenu.map(sub => (
               <button
                 key={sub.id}

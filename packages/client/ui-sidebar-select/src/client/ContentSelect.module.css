@@ -1,74 +1,243 @@
-/* The selection that fills the right sidebar's body until a kind is chosen.
-   It lays out against the body's own width, which the shell animates, so
-   nothing here states a width of its own. */
+/* The surface column fills the right sidebar's body: a pill strip on top, the
+   shown pane below. It lays out against the body's own width, which the shell
+   animates, so nothing here states a width of its own. */
 
 .root {
+  /* The explorer's glass recipe: faint tint, double inset highlight, hairline. */
+  --surfaces-glass-fill: var(--dsw-alias-interactive-bg-hover);
+  --surfaces-glass-edge:
+    inset 1px 1px 0 0 var(--dsw-specific-popup-highlight),
+    inset 0 0 1px 1px var(--dsw-specific-popup-highlight),
+    var(--dsw-elevation-stroke);
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  gap: 4px;
+  min-width: 0;
   min-height: 0;
-  padding: 8px;
+}
+
+/* Full screen: the column covers the frame in place. It stays a descendant of
+   the right sidebar, which sits above the left one, and below the frame's
+   corner controls, which the strip's right padding still clears. Hidden while
+   the column is collapsed, since the corner toggle is then the way back. */
+.root[data-fullscreen] {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  padding-top: 8px;
+  background: var(--dsw-specific-sidebar-fill);
+}
+
+:global([data-rightbar-collapsed]) .root[data-fullscreen] {
+  visibility: hidden;
+}
+
+/* The strip shares its row with the frame's corner controls (the column
+   toggle and the account), so it stops short of them. */
+.tabbar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 48px;
+  padding: 0 104px 0 12px;
   box-sizing: border-box;
 }
 
-/* One door out of the column: glyph, title, and the line under it. */
-.entry {
+.strip {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--dsw-alias-label-primary);
-  font: inherit;
-  text-align: start;
+  gap: 6px;
+  min-width: 0;
+  height: 100%;
+  padding: 0 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.strip::-webkit-scrollbar {
+  display: none;
+}
+
+.fadeLeft {
+  mask-image: linear-gradient(to right, transparent, black 24px);
+}
+
+.fadeRight {
+  mask-image: linear-gradient(to left, transparent, black 24px);
+}
+
+.fadeLeft.fadeRight {
+  mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
+}
+
+/* One pill: glyph (a close button on hover) and title. */
+.pill {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  max-width: 180px;
+  height: 32px;
+  padding: 0 14px 0 6px;
+  box-sizing: border-box;
+  border-radius: 16px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 14px;
+  line-height: 20px;
   cursor: pointer;
+  transition: background-color 150ms ease, box-shadow 150ms ease, color 150ms ease;
 }
 
-.entry:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-hover);
+.pill:hover {
+  background: var(--surfaces-glass-fill);
+  color: var(--dsw-alias-label-primary);
 }
 
-/* A kind with nothing behind it still lists, so the column states what it will
-   hold; it reads as unavailable rather than as a control that does nothing. */
-.entry:disabled {
-  cursor: default;
-  opacity: 0.5;
+.pill[data-active] {
+  background: var(--surfaces-glass-fill);
+  box-shadow: var(--surfaces-glass-edge);
+  color: var(--dsw-alias-label-primary);
+  font-weight: 500;
 }
 
-.entryIcon {
+.pillClose {
+  position: relative;
   display: flex;
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  color: var(--dsw-alias-label-secondary);
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 11px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
 }
 
-.entryText {
+.pillClose:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.pillGlyph,
+.pillX {
   display: flex;
-  flex-direction: column;
-  gap: 1px;
+  align-items: center;
+  justify-content: center;
+}
+
+.pillGlyph svg,
+.pillX svg,
+.fullscreen svg,
+.menuGlyph svg,
+.launcherGlyph svg,
+.add svg {
+  width: 16px;
+  height: 16px;
+}
+
+.pillX {
+  display: none;
+}
+
+.pill:hover .pillGlyph {
+  display: none;
+}
+
+.pill:hover .pillX {
+  display: flex;
+}
+
+.pillTitle {
   min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
-.entryTitle {
-  font-size: 14px;
-  line-height: 18px;
-}
-
-.entryDescription {
+.add {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 16px;
+  background: transparent;
   color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
-  line-height: 16px;
+  cursor: pointer;
+  transition: background-color 150ms ease, box-shadow 150ms ease, color 150ms ease;
 }
 
-/* The chosen pane fills the body below the one control that returns to the
-   selection. The pane keeps every other pixel of the column, so the bar states
-   no width and the pane owns the remaining height. */
+.add:hover,
+.add[aria-expanded='true'] {
+  background: var(--surfaces-glass-fill);
+  box-shadow: var(--surfaces-glass-edge);
+  color: var(--dsw-alias-label-primary);
+}
+
+.fullscreen {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+  padding: 0;
+  border: none;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+  transition: background-color 150ms ease, box-shadow 150ms ease, color 150ms ease;
+}
+
+.fullscreen:hover,
+.fullscreen[aria-pressed='true'] {
+  background: var(--surfaces-glass-fill);
+  box-shadow: var(--surfaces-glass-edge);
+  color: var(--dsw-alias-label-primary);
+}
+
+.menuGlyph {
+  display: flex;
+  align-items: center;
+}
+
+.menuLabel {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.shortcut {
+  color: var(--dsw-alias-label-caption);
+  font: inherit;
+  font-size: 12px;
+}
+
+/* The shown pane fills everything under the strip; hidden panes stay mounted. */
+.body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .pane {
   display: flex;
   flex: 1 1 auto;
@@ -76,36 +245,72 @@
   min-height: 0;
 }
 
-.paneBar {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  box-sizing: border-box;
+.pane[hidden] {
+  display: none;
 }
 
-.paneBack {
+.unavailable {
+  padding: 16px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+}
+
+/* The empty column: "Open a surface" and one row per kind with its key. */
+.launcher {
   display: flex;
-  flex: none;
-  align-items: center;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: stretch;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
+  gap: 2px;
+  width: min(300px, 100% - 32px);
+  margin: 0 auto;
+  padding-bottom: 48px;
+  outline: none;
+}
+
+.launcherTitle {
+  margin-bottom: 12px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  text-align: center;
+}
+
+.launcherRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 14px;
   border: none;
-  border-radius: 6px;
+  border-radius: 20px;
   background: transparent;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  text-align: start;
   cursor: pointer;
 }
 
-.paneBack:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+.launcherRow:hover:not(:disabled) {
+  background: var(--surfaces-glass-fill);
+  box-shadow: var(--surfaces-glass-edge);
 }
 
-.paneTitle {
+.launcherRow:disabled {
+  color: var(--dsw-alias-label-tertiary);
+  cursor: default;
+}
+
+.launcherGlyph {
+  display: flex;
+  flex: none;
+  align-items: center;
   color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
-  line-height: 16px;
+}
+
+.launcherLabel {
+  flex: 1 1 auto;
 }

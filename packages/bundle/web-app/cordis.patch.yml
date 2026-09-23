@@ -135,6 +135,11 @@
     - id: session-controller
       name: '@aeven/api-session-controller'
 
+    # Workspace listings, text previews and name search for the right
+    # sidebar's file explorer.
+    - id: api-workspace-files
+      name: '@aeven/api-workspace-files'
+
     # Configuration-surface reads and writes over Typert Remote. Each method
     # reports an actionable error when its settings-domain provider is absent.
     - id: settings-controller
@@ -244,6 +249,9 @@
 
     - id: ui-sidebar-browser
       name: '@aeven/client-ui-sidebar-browser'
+
+    - id: ui-sidebar-files
+      name: '@aeven/client-ui-sidebar-files'
 
     - id: ui-settings
       name: '@aeven/client-ui-settings'

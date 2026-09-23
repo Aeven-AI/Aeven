@@ -64,6 +64,7 @@
     "@aeven/api-session-controller": "workspace:^",
     "@aeven/api-settings-controller": "workspace:^",
     "@aeven/api-workspace-controller": "workspace:^",
+    "@aeven/api-workspace-files": "workspace:^",
     "@aeven/browser-chromium": "workspace:^",
     "@aeven/client-connection": "workspace:^",
     "@aeven/commands": "workspace:^",

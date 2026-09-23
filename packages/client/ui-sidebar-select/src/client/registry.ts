@@ -1,14 +1,34 @@
 /** The registry a content kind joins to become pickable in the right sidebar. */
 import { Service, type Context as ClientContext } from '@deepseek-ai/cordis'
-import type { ComponentType } from 'react'
+import type { ComponentType, ReactNode } from 'react'
 import type { SidebarContentKind } from './selection.ts'
 
+/** How a pane names its pill while it shows something more specific than its kind. */
+export interface SidebarSurfaceTab {
+  /** The pill's label, such as the file a Files surface has open. */
+  readonly title: string
+  /** The pill's glyph; the kind's own glyph when omitted. */
+  readonly icon?: ReactNode
+}
+
+/** What the column hands each open surface's pane. */
+export interface SidebarContentPaneProps {
+  /** The session the column belongs to. */
+  readonly sessionId: string
+  /** The pill this pane renders; stable while the pill stays open. */
+  readonly surfaceId: string
+  /** Whether this pane's pill is the one shown; hidden panes stay mounted. */
+  readonly active: boolean
+  /** Rename the pill, or return it to its kind's name with `undefined`. */
+  readonly setTab: (tab: SidebarSurfaceTab | undefined) => void
+}
+
 /**
- * What a content provider hands the selection: a pane rendered for one
- * session. It receives only the session; a pane translates through its own
- * plugin's dictionary, since the selection's `t` addresses the selection's.
+ * What a content provider hands the column: a pane rendered for one open pill
+ * of its kind. A pane translates through its own plugin's dictionary, since
+ * the column's `t` addresses the column's.
  */
-export type SidebarContentComponent = ComponentType<{ readonly sessionId: string }>
+export type SidebarContentComponent = ComponentType<SidebarContentPaneProps>
 
 /**
  * Registry of the content kinds that have a provider behind them.

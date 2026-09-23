@@ -11,6 +11,7 @@ import pluginInventoryRemote from '@aeven/host-plugin-inventory/remote'
 import messageFeedbackRemote from '@aeven/message-feedback/remote'
 import sessionReferencesRemote from '@aeven/session-reference/remote'
 import browserChromiumRemote from '@aeven/browser-chromium/remote'
+import workspaceFilesRemote from '@aeven/api-workspace-files/remote'
 import subagentsRemote from '@aeven/subagent/remote'
 import sessionRemote from '@aeven/api-session-controller/remote'
 import workspaceRemote from '@aeven/api-workspace-controller/remote'
@@ -149,7 +150,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
     for (const contribution of [
       agentPresetsRemote, commandsRemote, settingsControllerRemote, goalsRemote, llmRemote, dynamicRemote,
       pluginInventoryRemote, messageFeedbackRemote, sessionReferencesRemote,
-      subagentsRemote, sessionRemote, workspaceRemote, browserChromiumRemote,
+      subagentsRemote, sessionRemote, workspaceRemote, browserChromiumRemote, workspaceFilesRemote,
     ]) {
       disposers.push(await ctx.remote.$mount(contribution))
     }

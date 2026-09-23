@@ -12,7 +12,10 @@ import { SidebarContentRegistry } from './registry.ts'
 import { en, zh, type SidebarSelectKey } from './locales.ts'
 
 export type { ContentSelectComponentProps, ContentSelectInjected } from './contract/slots.ts'
-export { SidebarContentRegistry, type SidebarContentComponent } from './registry.ts'
+export {
+  SidebarContentRegistry, type SidebarContentComponent, type SidebarContentPaneProps, type SidebarSurfaceTab,
+} from './registry.ts'
+export type { SidebarSurface, SurfaceState } from './surfaces.ts'
 export type { SidebarSelectKey } from './locales.ts'
 export {
   AVAILABLE_CONTENT_KINDS, SIDEBAR_CONTENT_KINDS,
