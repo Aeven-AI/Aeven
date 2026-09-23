@@ -54,6 +54,9 @@
       "path": "../../interaction/user-questions"
     },
     {
+      "path": "../../web/tool-browser"
+    },
+    {
       "path": "../session-controller/tsconfig.host.json"
     },
     {

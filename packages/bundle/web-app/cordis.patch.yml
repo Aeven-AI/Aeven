@@ -242,6 +242,9 @@
     - id: ui-sidebar-select
       name: '@aeven/client-ui-sidebar-select'
 
+    - id: ui-sidebar-browser
+      name: '@aeven/client-ui-sidebar-browser'
+
     - id: ui-settings
       name: '@aeven/client-ui-settings'
 

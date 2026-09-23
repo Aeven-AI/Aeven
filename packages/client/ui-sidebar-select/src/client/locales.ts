@@ -8,7 +8,10 @@ export const en = {
   'terminal.description': 'Run a shell in this workspace',
   'files.title': 'Workspace files',
   'files.description': 'Browse the files this session works on',
+  'device.title': 'Device simulator',
+  'device.description': 'Run an iOS simulator or Android emulator',
   'entry.unavailable': 'Not available yet',
+  'back.label': 'Choose content',
 }
 
 /** Dictionary key union owned by this plugin. */
@@ -22,5 +25,8 @@ export const zh: Record<SidebarSelectKey, string> = {
   'terminal.description': '在此工作区运行 Shell',
   'files.title': '工作区文件',
   'files.description': '浏览此会话处理的文件',
+  'device.title': '设备模拟器',
+  'device.description': '运行 iOS 模拟器或 Android 模拟器',
   'entry.unavailable': '尚不可用',
+  'back.label': '选择内容',
 }

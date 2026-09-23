@@ -16,6 +16,7 @@ import type { TypertForwardableEventEntry } from '@aeven/typert-protocol'
 export const API_REMOTE_FORWARDED_EVENTS = [
   { event: 'agent-preset/selected', mode: 'emit' },
   { event: 'approval/request', mode: 'waterfall' },
+  { event: 'browser/automation', mode: 'waterfall' },
   { event: 'api-session/activity', mode: 'emit' },
   { event: 'api-session/added', mode: 'emit' },
   { event: 'api-session/error', mode: 'emit' },

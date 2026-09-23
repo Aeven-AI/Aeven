@@ -48,8 +48,8 @@
     "semver": "^7.8.5"
   },
   "devDependencies": {
-    "@aws-sdk/client-s3": "3.1067.0",
     "@aeven/home-paths": "workspace:^",
+    "@aws-sdk/client-s3": "3.1067.0",
     "@electron/notarize": "2.5.0",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.20.0",

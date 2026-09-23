@@ -14,6 +14,7 @@ import {
   type MenuItemConstructorOptions,
 } from 'electron'
 import { completeOAuthLanding, forwardAevenApiRequest, openAevenOAuthWindow } from './aeven-sign-in.ts'
+import { hardenBrowserGuests, registerBrowserIpc } from './browser-guests.ts'
 import { planDesktopBackend } from './attached-host.ts'
 import { resolveDesktopPaths } from './paths.ts'
 import { DesktopProjectManager, type DesktopProjectHooks } from './project-manager.ts'
@@ -150,8 +151,14 @@ function createWindow(preload: string): BrowserWindow {
       contextIsolation: true,
       sandbox: true,
       webSecurity: true,
+      // The right sidebar's browser renders visited pages in a `<webview>`.
+      // The tag alone grants nothing: `hardenBrowserGuests` refuses every
+      // guest outside the browser partition and fixes the rest of its
+      // preferences in this process, where the renderer cannot reach them.
+      webviewTag: true,
     },
   })
+  hardenBrowserGuests(window.webContents)
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   window.webContents.on('will-navigate', (event, url) => {
     const target = new URL(url)
@@ -344,6 +351,12 @@ async function main(): Promise<void> {
     assertDesktopSender(event, ['shell'])
     await updates.install()
   })
+  // The app window may render an adopted Host's origin rather than this
+  // shell's scheme, so the browser operations admit the window's own top frame
+  // instead of a hostname.
+  registerBrowserIpc(event => mainWindow !== undefined
+    && event.sender === mainWindow.webContents
+    && event.senderFrame === event.sender.mainFrame)
 
   const checkAndPrompt = async (manual: boolean): Promise<void> => {
     const state = await updates.check()

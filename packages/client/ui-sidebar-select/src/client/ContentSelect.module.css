@@ -65,3 +65,47 @@
   font-size: 12px;
   line-height: 16px;
 }
+
+/* The chosen pane fills the body below the one control that returns to the
+   selection. The pane keeps every other pixel of the column, so the bar states
+   no width and the pane owns the remaining height. */
+.pane {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.paneBar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  box-sizing: border-box;
+}
+
+.paneBack {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.paneBack:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.paneTitle {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 16px;
+}

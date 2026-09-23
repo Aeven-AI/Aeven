@@ -10,6 +10,7 @@ import dynamicRemote from '@aeven/cordis-host-runner/remote'
 import pluginInventoryRemote from '@aeven/host-plugin-inventory/remote'
 import messageFeedbackRemote from '@aeven/message-feedback/remote'
 import sessionReferencesRemote from '@aeven/session-reference/remote'
+import browserChromiumRemote from '@aeven/browser-chromium/remote'
 import subagentsRemote from '@aeven/subagent/remote'
 import sessionRemote from '@aeven/api-session-controller/remote'
 import workspaceRemote from '@aeven/api-workspace-controller/remote'
@@ -25,6 +26,7 @@ export type {} from '@aeven/llm/remote'
 export type {} from '@aeven/host-plugin-inventory/remote'
 export type {} from '@aeven/message-feedback/remote'
 export type {} from '@aeven/session-reference/remote'
+export type {} from '@aeven/browser-chromium/remote'
 export type {} from '@aeven/subagent/remote'
 export type * from '@aeven/subagent/client'
 export type {} from '@aeven/api-session-controller/remote'
@@ -45,6 +47,7 @@ export type {} from '@aeven/llm/types'
 export type {} from '@aeven/agent-presets/types'
 export type {} from '@aeven/settings/types'
 export type {} from '@aeven/user-approval/types'
+export type {} from '@aeven/tool-browser/types'
 export type {} from '@aeven/user-questions/types'
 export type {} from '@aeven/api-session-controller/types'
 
@@ -146,7 +149,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
     for (const contribution of [
       agentPresetsRemote, commandsRemote, settingsControllerRemote, goalsRemote, llmRemote, dynamicRemote,
       pluginInventoryRemote, messageFeedbackRemote, sessionReferencesRemote,
-      subagentsRemote, sessionRemote, workspaceRemote,
+      subagentsRemote, sessionRemote, workspaceRemote, browserChromiumRemote,
     ]) {
       disposers.push(await ctx.remote.$mount(contribution))
     }

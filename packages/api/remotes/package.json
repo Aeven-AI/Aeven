@@ -59,11 +59,13 @@
     "@aeven/scope": "workspace:^"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:^",
     "@aeven/agent-presets": "workspace:^",
     "@aeven/api-gateway": "workspace:^",
+    "@aeven/api-session-controller": "workspace:^",
     "@aeven/api-settings-controller": "workspace:^",
     "@aeven/api-workspace-controller": "workspace:^",
+    "@aeven/browser-chromium": "workspace:^",
+    "@aeven/client-connection": "workspace:^",
     "@aeven/commands": "workspace:^",
     "@aeven/cordis-host-runner": "workspace:^",
     "@aeven/credentials": "workspace:^",
@@ -72,14 +74,14 @@
     "@aeven/host-plugin-inventory": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/message-feedback": "workspace:^",
+    "@aeven/scope": "workspace:^",
     "@aeven/session-reference": "workspace:^",
     "@aeven/settings": "workspace:^",
     "@aeven/subagent": "workspace:^",
+    "@aeven/tool-browser": "workspace:^",
+    "@aeven/typert-protocol": "workspace:^",
     "@aeven/user-approval": "workspace:^",
     "@aeven/user-questions": "workspace:^",
-    "@aeven/client-connection": "workspace:^",
-    "@aeven/typert-protocol": "workspace:^",
-    "@aeven/scope": "workspace:^",
-    "@aeven/api-session-controller": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^"
   }
 }

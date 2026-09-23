@@ -1,0 +1,139 @@
+/**
+ * Model-facing `browser_*` tools over the `browser/automation` waterfall: the
+ * model reads and drives the page the user sees in the browser beside its
+ * session, ported from t3code's `preview_*` toolkit.
+ *
+ * The tools perform nothing themselves. The client holding the session's
+ * browser answers the waterfall; without one, every call fails with an
+ * instruction to open the browser.
+ *
+ * @module @aeven/tool-browser
+ */
+
+import type { Context } from '@deepseek-ai/cordis'
+import type { PreStepDecision } from '@aeven/agent'
+import { createUserMessage, HarnessError } from '@aeven/llm'
+import { scopeTarget } from '@aeven/scope'
+import { defineTool, type ParameterSchemaSpec, type ToolRunContext } from '@aeven/tools'
+import type { JsonValue } from '@aeven/util-values'
+import type { BrowserAutomationOperation } from './types.ts'
+
+export type { BrowserAutomationOperation, BrowserAutomationRequestEvent } from './types.ts'
+
+export const name = 'tool-browser'
+export const inject = ['tools', 'agents']
+
+/**
+ * t3code's browser instructions (`CodexDeveloperInstructions.ts`
+ * `T3_CODE_BROWSER_TOOL_INSTRUCTIONS`), sent only while a browser is open, as
+ * t3code omits them when its tools are not attached.
+ */
+const BROWSER_INSTRUCTIONS = [
+  'This browser is the collaborative browser shared with the user. Prefer the preview_* tools for browser navigation, inspection, and interaction on it.',
+  'For browser work, first call preview_status. Then use preview_navigate, preview_snapshot, and the focused interaction tools. Prefer snapshot-provided selectors over coordinates.',
+  'Do not switch to Chrome, computer use, or standalone browser automation merely because a first call fails. A failed preview tool call should be inspected and retried with corrected arguments when the error is actionable.',
+].join('\n')
+
+/**
+ * The in-app browser context ChatGPT gives its model each turn: which page is
+ * open beside the chat. It is ambient UI state, not an instruction to use it.
+ * @param page - the browser's status.
+ * @returns the context text.
+ */
+function renderBrowserContext(page: { readonly url?: unknown; readonly title?: unknown }): string {
+  return `The user has the in-app browser open beside this chat, showing: ${String(page.title)} — ${String(page.url)}\n\n${BROWSER_INSTRUCTIONS}`
+}
+
+const selector = { type: 'string', description: "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements." } as const
+const text = { render: (_args: unknown, value: string) => [{ type: 'text' as const, text: value }] }
+
+export function apply(ctx: Context): void {
+  const run = async (operation: BrowserAutomationOperation, input: { [key: string]: JsonValue }, exec: ToolRunContext): Promise<JsonValue> => {
+    const agent = exec.agent
+    if (agent === undefined) throw new HarnessError('browser tools need a calling agent', 'BROWSER_NO_AGENT')
+    const unavailable = () => Promise.reject(new HarnessError(
+      'No automation-capable browser is open beside this session. Ask the user to open it from the right sidebar (Browser).',
+      'BROWSER_UNAVAILABLE',
+    ))
+    return ctx.waterfall(
+      scopeTarget(agent, agent),
+      'browser/automation',
+      { operation, input, agent, signal: exec.signal },
+      unavailable,
+    )
+  }
+
+  // The first step of each turn carries the open page, so the model knows what
+  // the user is looking at before it decides whether a request is about it.
+  // The context is an ordinary plugin user message, so it is logged.
+  ctx.on('agent/pre-step', async ({ agent, step, signal }, next): Promise<PreStepDecision> => {
+    const decision = await next()
+    if (decision.kind === 'reject' || step !== 1 || signal.aborted) return decision
+    const page = await ctx.waterfall(
+      scopeTarget(agent, agent),
+      'browser/automation',
+      { operation: 'status', input: {}, agent, signal },
+      () => Promise.resolve(null),
+    ).catch(() => null) as { url?: unknown; title?: unknown } | null
+    if (page === null || typeof page.url !== 'string' || page.url === '' || page.url === 'about:blank') return decision
+    const text = renderBrowserContext(page)
+    return {
+      ...decision,
+      messages: [
+        ...decision.messages,
+        createUserMessage({
+          content: [{ type: 'text', text }],
+          source: { kind: 'plugin', plugin: name, form: 'snapshot', sections: [{ name, text }] },
+        }),
+      ],
+    }
+  }, { prepend: true })
+
+  const action = <S extends ParameterSchemaSpec>(
+    toolName: string,
+    operation: BrowserAutomationOperation,
+    description: string,
+    parameters: S,
+  ) => defineTool({
+    name: toolName,
+    description,
+    parameters,
+    output: { schema: { type: 'string' }, ...text },
+    async execute(args, exec) {
+      return JSON.stringify(await run(operation, args as { [key: string]: JsonValue }, exec))
+    },
+  })
+
+  // Names and descriptions are t3code's `preview_*` toolkit
+  // (`apps/server/src/mcp/toolkits/preview/tools.ts`), narrowed to the
+  // parameters this browser implements.
+  for (const tool of [
+    action('preview_status', 'status',
+      'Report whether the collaborative browser tab beside this session is automation-capable, including its URL, title, and loading state.',
+      {}),
+    action('preview_navigate', 'navigate',
+      "Navigate the collaborative browser tab. Pass {url:'https://t3.chat'} for a website or a local dev server URL.",
+      { url: { type: 'string', required: true, description: 'Website URL. Use this for public pages and directly reachable URLs.' } }),
+    action('preview_snapshot', 'snapshot',
+      'Inspect a page before interacting. Returns page state: URL, title, visible text, and interactive elements with CSS selectors.',
+      {}),
+    action('preview_click', 'click',
+      'Click exactly one target in the collaborative browser tab. Prefer a selector from preview_snapshot; x and y must be supplied together.',
+      { selector, x: { type: 'number', description: 'Viewport-relative X coordinate in CSS pixels. Must be paired with y.' }, y: { type: 'number', description: 'Viewport-relative Y coordinate in CSS pixels. Must be paired with x.' } }),
+    action('preview_type', 'type',
+      'Insert literal text into one input in the collaborative browser tab. Types into selector, or into the currently focused element when omitted; set clear=true to replace existing text.',
+      { text: { type: 'string', required: true, description: 'Literal text to insert.' }, selector, clear: { type: 'boolean', description: 'Clear the existing input value before inserting text. Defaults to false.' } }),
+    action('preview_press', 'press',
+      "Press one keyboard key in the collaborative browser tab. Examples: {key:'Enter'}, {key:'Escape'}, or {key:'a',modifiers:['Meta']}.",
+      {
+        key: { type: 'string', required: true, description: 'Keyboard key name such as Enter, Escape, Tab, ArrowDown, Backspace, or a single character.' },
+        modifiers: { type: 'array', items: { type: 'string', enum: ['Alt', 'Control', 'Meta', 'Shift'] }, description: 'Modifier keys held while pressing key.' },
+      }),
+    action('preview_scroll', 'scroll',
+      'Scroll the collaborative browser tab. Positive deltaY scrolls down and positive deltaX scrolls right; a selector targets a container.',
+      { deltaX: { type: 'number', description: 'Horizontal scroll delta in CSS pixels. Positive scrolls right. Defaults to 0.' }, deltaY: { type: 'number', description: 'Vertical scroll delta in CSS pixels. Positive scrolls down. Defaults to 0.' }, selector }),
+    action('preview_evaluate', 'evaluate',
+      'Evaluate JavaScript in the collaborative browser tab. Returns {value} with a serializable result up to 64 KB; the expression may mutate page state.',
+      { expression: { type: 'string', required: true, description: "JavaScript expression evaluated in the page's main frame, for example document.title or (() => ({href: location.href}))()." } }),
+  ]) ctx.tools.register(tool)
+}

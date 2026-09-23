@@ -1,0 +1,261 @@
+/* The browser pane: t3code's chrome row over the guest that fills the rest.
+   Sizes follow t3code's `icon-xs` ghost button and `sm` ghost input group. */
+
+.root {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.chrome {
+  position: relative;
+  flex: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 40px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--dsw-alias-border-secondary);
+}
+
+.group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.control {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.control svg {
+  width: 14px;
+  height: 14px;
+}
+
+.control:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.control:disabled {
+  cursor: default;
+  opacity: 0.64;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.address {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-width: 0;
+  height: 28px;
+  border-radius: 6px;
+}
+
+.address:hover,
+.address:focus-within {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.addressInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0 8px;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 13px;
+  text-overflow: ellipsis;
+}
+
+.addressInput:focus {
+  outline: none;
+}
+
+/* The open-in-browser control appears over the address's end on hover, and
+   the text makes room for it rather than running under it. */
+.addressAddon {
+  position: absolute;
+  inset: 0 2px 0 auto;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease-out;
+}
+
+.address:hover .addressAddon {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.address:hover .addressInput {
+  padding-right: 28px;
+}
+
+/* t3code's `preview-loading-progress`: a bar that eases towards the end while a
+   load runs and fades once it stops. */
+.progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  border-radius: 0 999px 999px 0;
+  background: var(--dsw-alias-brand-primary);
+  opacity: 0;
+  pointer-events: none;
+  transform: scaleX(1);
+  transform-origin: left;
+  transition: transform 150ms ease-out, opacity 150ms ease-out 220ms;
+}
+
+.progress[data-loading='true'] {
+  opacity: 1;
+  animation: progress 5.3s cubic-bezier(0.1, 0.5, 0.2, 1) forwards;
+}
+
+@keyframes progress {
+  from {
+    transform: scaleX(0.04);
+  }
+
+  to {
+    transform: scaleX(0.9);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin,
+  .progress,
+  .progress[data-loading='true'] {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* The guest fills what the toolbar leaves: a visited page scrolls inside its
+   own frame. */
+.stage {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.guest {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  background: #fff;
+}
+
+/* Menu: keeps unchecked appearance rows aligned with the checked one. */
+.checkSpacer {
+  display: inline-block;
+  width: 14px;
+}
+
+.zoomRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.zoomControls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.zoomStep,
+.zoomReset {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.zoomStep {
+  border: 1px solid var(--dsw-alias-border-secondary);
+}
+
+.zoomStep:hover,
+.zoomReset:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.zoomValue {
+  min-width: 48px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* The web pane's link to the Host's Chromium. */
+.webOpen {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--dsw-alias-border-secondary);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.webOpen svg {
+  width: 14px;
+  height: 14px;
+}
+
+.webOpen:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.webOpen:disabled {
+  cursor: default;
+  opacity: 0.64;
+}
+
+.webNote {
+  margin: 12px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}

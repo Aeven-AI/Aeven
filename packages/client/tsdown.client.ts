@@ -58,7 +58,7 @@ function styleInjectionModule(
  * Everything else under @deepseek-ai/* is either a module-table entry
  * (external) or a leak the purity gate rejects.
  */
-export const INLINE_SAFE = /^(?:@aeven\/(?:file-reference|session|llm|tools|brand|deque|output-retention|typert-protocol|util-crypto|util-values|util-workspace-path)(?:\/|$)|@aeven\/token-meter\/client$|@aeven\/agent-presets\/display$|@aeven\/spill-policy\/notice$)/
+export const INLINE_SAFE = /^(?:@aeven\/(?:experimental-browser-overlay\/src\/overlay\.ts$|file-reference|session|llm|tools|brand|deque|output-retention|typert-protocol|util-crypto|util-values|util-workspace-path)(?:\/|$)|@aeven\/token-meter\/client$|@aeven\/agent-presets\/display$|@aeven\/spill-policy\/notice$)/
 
 /**
  * Vendored framework libraries: rescoped into @deepseek-ai, so the gate below

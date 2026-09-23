@@ -225,6 +225,11 @@
 - id: tool-ask-user
   name: '@aeven/tool-ask-user'
 
+# The browser beside the session in the desktop app's right sidebar; without
+# one open, every call reports the browser closed.
+- id: tool-browser
+  name: '@aeven/tool-browser'
+
 - id: tool-todo
   name: '@aeven/tool-todo'
   config:

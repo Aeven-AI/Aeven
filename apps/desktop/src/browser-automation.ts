@@ -1,0 +1,263 @@
+/**
+ * Agent actions on a right sidebar browser guest, ported from t3code's preview
+ * automation (`apps/desktop/src/preview/Manager.ts`, `PreviewKeyboard.ts`).
+ *
+ * Reading and editing run in the page over the guest's CDP debugger; clicks are
+ * CDP mouse input at the target's centre. Keys are native input events on the
+ * guest itself, because CDP keyboard dispatch follows the embedder's focused
+ * renderer and could land in the app's own composer.
+ *
+ * Each pointer action is shown by the agent pointer, which the app window draws
+ * over the guest as ChatGPT's in-app browser does
+ * (`browser-sidebar-browser-use-cursor-state`): it survives the guest's
+ * navigations, and the input lands once the pointer has had time to arrive.
+ */
+
+import type { WebContents } from 'electron'
+import { DESKTOP_IPC, type DesktopBrowserCursor } from './ipc.ts'
+
+/** Interactive elements a snapshot lists (t3code `MAX_INTERACTIVE_ELEMENTS`). */
+const MAX_INTERACTIVE_ELEMENTS = 200
+/** Characters kept of each element's name. */
+const MAX_INTERACTIVE_ELEMENT_NAME_LENGTH = 120
+/** Characters kept of the page's visible text. */
+const MAX_VISIBLE_TEXT_LENGTH = 40_000
+/** Bytes an evaluated value may serialize to (t3code `MAX_EVALUATION_BYTES`). */
+const MAX_EVALUATION_BYTES = 64_000
+/** How long the pointer glides to a target before the click lands, in ms. */
+const AGENT_CURSOR_MOVE_MS = 350
+
+/** An action's arguments, as the tool validated them. */
+export type BrowserAutomationInput = { readonly [key: string]: unknown }
+
+/**
+ * Evaluate an expression in the guest's page (t3code `evaluateWithDebugger`).
+ * @param guest - the guest whose debugger is attached.
+ * @param expression - JavaScript evaluated in the page's main frame.
+ * @returns the JSON value the expression produced.
+ * @throws {Error} when the expression throws.
+ */
+async function evaluate(guest: WebContents, expression: string): Promise<unknown> {
+  const response = await guest.debugger.sendCommand('Runtime.evaluate', {
+    expression, returnByValue: true, awaitPromise: true, userGesture: true,
+  }) as { result?: { value?: unknown }; exceptionDetails?: { exception?: { description?: string }; text?: string } }
+  if (response.exceptionDetails !== undefined) {
+    throw new Error(response.exceptionDetails.exception?.description ?? response.exceptionDetails.text ?? 'evaluation failed')
+  }
+  return response.result?.value
+}
+
+/** t3code `captureAutomationSnapshot`'s page expression. */
+const SNAPSHOT = `(() => {
+  const selectorFor = (element) => {
+    if (element.id) return "#" + CSS.escape(element.id);
+    for (const attribute of ["data-testid", "name"]) {
+      const value = element.getAttribute(attribute);
+      if (value) return element.tagName.toLowerCase() + "[" + attribute + "=" + JSON.stringify(value) + "]";
+    }
+    const buildParts = (current, parts = []) => {
+      if (!current || current.nodeType !== Node.ELEMENT_NODE || parts.length >= 8) return parts;
+      const parent = current.parentElement;
+      const siblings = parent ? Array.from(parent.children).filter((child) => child.tagName === current.tagName) : [];
+      const base = current.tagName.toLowerCase();
+      const part = siblings.length > 1 ? base + ":nth-of-type(" + (siblings.indexOf(current) + 1) + ")" : base;
+      return buildParts(parent, [part, ...parts]);
+    };
+    return buildParts(element).join(" > ");
+  };
+  const visible = (element) => {
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    return style.visibility !== "hidden" && style.display !== "none" && rect.width > 0 && rect.height > 0;
+  };
+  const elements = Array.from(document.querySelectorAll(
+    "a[href],button,input,textarea,select,[role],[tabindex]"
+  )).filter(visible).slice(0, ${String(MAX_INTERACTIVE_ELEMENTS)}).map((element) => {
+    const rect = element.getBoundingClientRect();
+    return {
+      tag: element.tagName.toLowerCase(),
+      role: element.getAttribute("role"),
+      name: (element.getAttribute("aria-label") || element.innerText || element.getAttribute("name") || "").slice(0, ${String(MAX_INTERACTIVE_ELEMENT_NAME_LENGTH)}),
+      selector: selectorFor(element),
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height
+    };
+  });
+  return {
+    url: location.href,
+    title: document.title,
+    loading: document.readyState !== "complete",
+    visibleText: (document.body?.innerText || "").slice(0, ${String(MAX_VISIBLE_TEXT_LENGTH)}),
+    interactiveElements: elements
+  };
+})()`
+
+/**
+ * Resolve a click target to a viewport point (t3code `resolveClickPoint`).
+ * @param guest - the guest to act on.
+ * @param input - `selector`, or `x` and `y`.
+ * @returns the target's centre, scrolled into view.
+ * @throws {Error} when the selector matches nothing.
+ */
+async function resolveClickPoint(guest: WebContents, input: BrowserAutomationInput): Promise<{ x: number; y: number }> {
+  if (typeof input.selector !== 'string') return { x: Number(input.x), y: Number(input.y) }
+  const point = await evaluate(guest, `(() => {
+    const element = document.querySelector(${JSON.stringify(input.selector)});
+    if (!element) return null;
+    element.scrollIntoView({ block: "center", inline: "center" });
+    const rect = element.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  })()`) as { x: number; y: number } | null
+  if (point === null) throw new Error(`no element matches ${input.selector}; call preview_snapshot for current selectors`)
+  return point
+}
+
+/**
+ * Where the pointer shows an action on a target: its centre, or the viewport's
+ * centre when the action has no target element.
+ * @param guest - the guest to act on.
+ * @param target - page expression for the element, or `window`.
+ * @returns viewport CSS coordinates.
+ */
+async function centreOf(guest: WebContents, target: string): Promise<{ x: number; y: number }> {
+  return await evaluate(guest, `(() => {
+    const element = ${target};
+    if (!element || element === window) return { x: innerWidth / 2, y: innerHeight / 2 };
+    const rect = element.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  })()`) as { x: number; y: number }
+}
+
+/** t3code `typeIntoAutomationTarget`'s page expression. */
+function typeExpression(input: BrowserAutomationInput): string {
+  const target = typeof input.selector === 'string'
+    ? `document.querySelector(${JSON.stringify(input.selector)})`
+    : 'document.activeElement'
+  return `(() => {
+    const element = ${target};
+    if (!element) return { notFound: true };
+    const textControl =
+      element instanceof HTMLTextAreaElement ||
+      (element instanceof HTMLInputElement &&
+        !new Set(["button", "checkbox", "color", "file", "hidden", "image", "radio", "range", "reset", "submit"]).has(element.type));
+    const editable = textControl || element.isContentEditable;
+    if (!editable || element.disabled || element.readOnly) return { notEditable: true };
+    element.focus();
+    if (document.activeElement !== element) return { notEditable: true };
+    if (${String(input.clear === true)}) {
+      if (textControl) {
+        element.select();
+      } else {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        const selection = document.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      }
+    }
+    const text = ${JSON.stringify(String(input.text ?? ''))};
+    const inserted = text.length > 0 ? document.execCommand("insertText", false, text) : document.execCommand("delete", false);
+    if (!inserted) return { notEditable: true };
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+    return { ok: true };
+  })()`
+}
+
+/** t3code `NAMED_KEYS`, reduced to the key names the native event needs. */
+const NAMED_KEYS: Readonly<Record<string, { readonly key: string; readonly text?: string }>> = {
+  Escape: { key: 'Escape' }, Backspace: { key: 'Backspace' }, Tab: { key: 'Tab' }, Enter: { key: 'Enter', text: '\r' },
+  Space: { key: ' ', text: ' ' }, PageUp: { key: 'PageUp' }, PageDown: { key: 'PageDown' }, End: { key: 'End' },
+  Home: { key: 'Home' }, ArrowLeft: { key: 'ArrowLeft' }, ArrowUp: { key: 'ArrowUp' }, ArrowRight: { key: 'ArrowRight' },
+  ArrowDown: { key: 'ArrowDown' }, Insert: { key: 'Insert' }, Delete: { key: 'Delete' },
+}
+
+/**
+ * Press one key on the guest's own widget (t3code `makePreviewAutomationNativeKeySequence`).
+ * @param guest - the guest to type into.
+ * @param input - `key` and optional `modifiers`.
+ */
+function press(guest: WebContents, input: BrowserAutomationInput): void {
+  const named = NAMED_KEYS[input.key === ' ' ? 'Space' : String(input.key)]
+  const requested = (Array.isArray(input.modifiers) ? input.modifiers : []).map(String)
+  const shifted = requested.includes('Shift')
+  const key = named?.key ?? (/^[a-z]$/i.test(String(input.key)) && shifted ? String(input.key).toUpperCase() : String(input.key))
+  // Modifiers other than Shift make a key a command, which inserts no text.
+  const text = requested.some(modifier => modifier !== 'Shift') ? '' : named?.text ?? (key.length === 1 ? key : '')
+  const modifiers = requested.map(modifier => modifier.toLowerCase()) as Array<'alt' | 'control' | 'meta' | 'shift'>
+  const keyCode = key.startsWith('Arrow') ? key.slice(5) : key
+  guest.sendInputEvent({ type: 'keyDown', keyCode, modifiers })
+  try {
+    if (text !== '') guest.sendInputEvent({ type: 'char', keyCode: text, modifiers })
+  } finally {
+    guest.sendInputEvent({ type: 'keyUp', keyCode, modifiers })
+  }
+}
+
+/**
+ * Perform one agent action on a guest.
+ * @param guest - the browser guest; its debugger is attached here when needed.
+ * @param operation - `snapshot`, `click`, `type`, `press`, `scroll`, or `evaluate`.
+ * @param input - the tool's arguments.
+ * @returns the action's JSON result.
+ * @throws {Error} when the operation is unknown or the page refuses the action.
+ */
+export async function automate(guest: WebContents, operation: string, input: BrowserAutomationInput): Promise<unknown> {
+  if (!guest.debugger.isAttached()) guest.debugger.attach('1.3')
+  const send = (method: string, params?: object) => guest.debugger.sendCommand(method, params)
+  /** Show the pointer acting at a guest viewport point, then let it arrive. */
+  const pointer = async (cursor: Omit<DesktopBrowserCursor, 'webContentsId'>): Promise<void> => {
+    guest.hostWebContents?.send(DESKTOP_IPC.browserCursor, { webContentsId: guest.id, ...cursor } satisfies DesktopBrowserCursor)
+    await new Promise(resolve => setTimeout(resolve, AGENT_CURSOR_MOVE_MS))
+  }
+  switch (operation) {
+    case 'snapshot':
+      return evaluate(guest, SNAPSHOT)
+    case 'click': {
+      // ChatGPT's in-app browser enables focus emulation before every `Input.*`
+      // command, so input reaches a guest the window has not focused.
+      await send('Emulation.setFocusEmulationEnabled', { enabled: true })
+      const point = await resolveClickPoint(guest, input)
+      await pointer({ action: 'click', ...point })
+      await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...point, button: 'left', clickCount: 1 })
+      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point, button: 'left', clickCount: 1 })
+      return { ok: true }
+    }
+    case 'type': {
+      const target = typeof input.selector === 'string' ? `document.querySelector(${JSON.stringify(input.selector)})` : 'document.activeElement'
+      await pointer({ action: 'type', ...await centreOf(guest, target) })
+      const result = await evaluate(guest, typeExpression(input)) as { ok?: true; notFound?: true; notEditable?: true }
+      if (result.notFound === true) throw new Error('no element matches the target; call preview_snapshot for current selectors')
+      if (result.notEditable === true) throw new Error('the target is not an editable element')
+      return { ok: true }
+    }
+    case 'press':
+      await send('Emulation.setFocusEmulationEnabled', { enabled: true })
+      press(guest, input)
+      return { ok: true }
+    case 'scroll': {
+      const target = typeof input.selector === 'string' ? `document.querySelector(${JSON.stringify(input.selector)})` : 'window'
+      const deltaX = Number(input.deltaX ?? 0)
+      const deltaY = Number(input.deltaY ?? 0)
+      await pointer({ action: 'scroll', ...await centreOf(guest, target), deltaY })
+      const result = await evaluate(guest, `(() => {
+        const target = ${target};
+        if (!target) return { notFound: true };
+        target.scrollBy({ left: ${String(deltaX)}, top: ${String(deltaY)}, behavior: "instant" });
+        return { ok: true };
+      })()`) as { ok?: true; notFound?: true }
+      if (result.notFound === true) throw new Error('no element matches the target; call preview_snapshot for current selectors')
+      return { ok: true }
+    }
+    case 'evaluate': {
+      const value = await evaluate(guest, String(input.expression))
+      if (Buffer.byteLength(JSON.stringify(value ?? null), 'utf8') > MAX_EVALUATION_BYTES) {
+        throw new Error(`the result is larger than ${String(MAX_EVALUATION_BYTES)} bytes`)
+      }
+      return { value: value ?? null }
+    }
+    default:
+      throw new Error(`unknown browser operation ${operation}`)
+  }
+}

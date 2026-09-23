@@ -50,6 +50,14 @@ export const IconChevronsLeftOutline14 = ({ size = 14, className }: IconProps) =
   </svg>
 )
 
+/** Smartphone glyph (lucide `smartphone`): the right sidebar's device simulator. */
+export const IconSmartphoneOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg aria-hidden="true" width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+    <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
+    <path d="M12 18h.01" />
+  </svg>
+)
+
 /** Terminal glyph: a prompt caret above an input rule. */
 export const IconTerminalOutline16 = ({ size = 16, className }: IconProps) => (
   <svg aria-hidden="true" width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

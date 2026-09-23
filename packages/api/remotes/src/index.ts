@@ -24,6 +24,7 @@ import type {} from '@aeven/llm/types'
 import type {} from '@aeven/agent-presets/types'
 import type {} from '@aeven/settings/types'
 import type {} from '@aeven/user-approval'
+import type {} from '@aeven/tool-browser/types'
 import type {} from '@aeven/user-questions'
 export type {} from '@aeven/api-session-controller/types'
 

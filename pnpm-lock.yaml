@@ -144,6 +144,9 @@ importers:
       '@aeven/base':
         specifier: workspace:^
         version: link:../../packages/bundle/base
+      '@aeven/browser-chromium':
+        specifier: workspace:^
+        version: link:../../packages/web/browser-chromium
       '@aeven/client-ui-agent-preset':
         specifier: workspace:^
         version: link:../../packages/client/ui-agent-preset
@@ -261,6 +264,9 @@ importers:
       '@aeven/tool-bash-persistent':
         specifier: workspace:^
         version: link:../../packages/shell/tool-bash-persistent
+      '@aeven/tool-browser':
+        specifier: workspace:^
+        version: link:../../packages/web/tool-browser
       '@aeven/tool-cordis':
         specifier: workspace:^
         version: link:../../packages/extensions/tool-cordis
@@ -810,6 +816,9 @@ importers:
       '@aeven/api-workspace-controller':
         specifier: workspace:^
         version: link:../workspace-controller
+      '@aeven/browser-chromium':
+        specifier: workspace:^
+        version: link:../../web/browser-chromium
       '@aeven/client-connection':
         specifier: workspace:^
         version: link:../../client/connection
@@ -849,6 +858,9 @@ importers:
       '@aeven/subagent':
         specifier: workspace:^
         version: link:../../subagent/subagent
+      '@aeven/tool-browser':
+        specifier: workspace:^
+        version: link:../../web/tool-browser
       '@aeven/typert-protocol':
         specifier: workspace:^
         version: link:../../typert/protocol
@@ -1696,6 +1708,9 @@ importers:
       '@aeven/client-ui-sidebar':
         specifier: workspace:^
         version: link:../../client/ui-sidebar
+      '@aeven/client-ui-sidebar-browser':
+        specifier: workspace:^
+        version: link:../../client/ui-sidebar-browser
       '@aeven/client-ui-sidebar-right':
         specifier: workspace:^
         version: link:../../client/ui-sidebar-right
@@ -3593,6 +3608,64 @@ importers:
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+
+  packages/client/ui-sidebar-browser:
+    dependencies:
+      clsx:
+        specifier: ^2.0.0
+        version: 2.1.1
+    devDependencies:
+      '@aeven/api-remotes':
+        specifier: workspace:^
+        version: link:../../api/remotes
+      '@aeven/api-session-controller':
+        specifier: workspace:^
+        version: link:../../api/session-controller
+      '@aeven/browser-chromium':
+        specifier: workspace:^
+        version: link:../../web/browser-chromium
+      '@aeven/client-locale':
+        specifier: workspace:^
+        version: link:../locale
+      '@aeven/client-test-runtime':
+        specifier: workspace:^
+        version: link:../../test-support/client-runtime
+      '@aeven/client-ui-primitives':
+        specifier: workspace:^
+        version: link:../ui-primitives
+      '@aeven/client-ui-renderer':
+        specifier: workspace:^
+        version: link:../ui-renderer
+      '@aeven/client-ui-session':
+        specifier: workspace:^
+        version: link:../ui-session
+      '@aeven/client-ui-sidebar-right':
+        specifier: workspace:^
+        version: link:../ui-sidebar-right
+      '@aeven/client-ui-sidebar-select':
+        specifier: workspace:^
+        version: link:../ui-sidebar-select
+      '@aeven/client-ui-slots':
+        specifier: workspace:^
+        version: link:../ui-slots
+      '@aeven/experimental-browser-overlay':
+        specifier: workspace:^
+        version: link:../../experimental/browser-overlay
+      '@aeven/tool-browser':
+        specifier: workspace:^
+        version: link:../../web/tool-browser
+      '@aeven/typert-protocol':
+        specifier: workspace:^
+        version: link:../../typert/protocol
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -10218,6 +10291,46 @@ importers:
 
   packages/util/workspace-path:
     devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/web/browser-chromium:
+    dependencies:
+      '@aeven/home-paths':
+        specifier: workspace:^
+        version: link:../../util/home-paths
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@aeven/typert-protocol':
+        specifier: workspace:^
+        version: link:../../typert/protocol
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/web/tool-browser:
+    devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@aeven/llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@aeven/scope':
+        specifier: workspace:^
+        version: link:../../core/scope
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+      '@aeven/util-values':
+        specifier: workspace:^
+        version: link:../../util/values
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis

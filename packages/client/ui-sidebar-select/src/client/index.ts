@@ -7,9 +7,12 @@ import type {} from '@aeven/client-ui-renderer/client'
 // Type-only: pulls the right sidebar's `sidebar.right.body` declaration.
 import type {} from '@aeven/client-ui-sidebar-right/client'
 import { ContentSelect } from './ContentSelect.tsx'
+import type { ContentSelectInjected } from './contract/slots.ts'
+import { SidebarContentRegistry } from './registry.ts'
 import { en, zh, type SidebarSelectKey } from './locales.ts'
 
-export type { ContentSelectComponentProps } from './contract/slots.ts'
+export type { ContentSelectComponentProps, ContentSelectInjected } from './contract/slots.ts'
+export { SidebarContentRegistry, type SidebarContentComponent } from './registry.ts'
 export type { SidebarSelectKey } from './locales.ts'
 export {
   AVAILABLE_CONTENT_KINDS, SIDEBAR_CONTENT_KINDS,
@@ -34,6 +37,7 @@ export const inject = ['slots', 'locale']
  * @param ctx - Client root context.
  */
 export function apply(ctx: ClientContext): void {
+  ctx.plugin(SidebarContentRegistry)
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-sidebar-select: dictionaries')
 
   // The body is a single-occupant slot, so the selection waits for the shell to
@@ -42,5 +46,10 @@ export function apply(ctx: ClientContext): void {
     ctx.slots.register({
       name: 'sidebar.right.body',
       locale: NS,
+      // Resolved per render rather than captured: `ctx.plugin` publishes the
+      // registry, and the same published instance is what a provider reaches
+      // through `ctx.get`. A copy held here would leave the two sides
+      // registering into different maps.
+      inject: (): ContentSelectInjected => ({ registry: ctx.get('sidebarContent')! }),
     }, ContentSelect))
 }

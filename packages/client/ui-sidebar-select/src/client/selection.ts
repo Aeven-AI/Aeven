@@ -1,10 +1,10 @@
 /** The right sidebar's per-session content choice and where it is remembered. */
 
 /** A content kind the right sidebar can hold. */
-export type SidebarContentKind = 'browser' | 'terminal' | 'files'
+export type SidebarContentKind = 'browser' | 'terminal' | 'files' | 'device'
 
 /** The kinds, in the order the selection lists them. */
-export const SIDEBAR_CONTENT_KINDS: readonly SidebarContentKind[] = ['browser', 'terminal', 'files']
+export const SIDEBAR_CONTENT_KINDS: readonly SidebarContentKind[] = ['browser', 'terminal', 'files', 'device']
 
 /**
  * Kinds with an implementation behind them.

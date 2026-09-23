@@ -215,6 +215,8 @@
     { "path": "./packages/skill/skill-filesystem" },
     { "path": "./packages/skill/tool-skill" },
     { "path": "./packages/interaction/tool-ask-user" },
+    { "path": "./packages/web/tool-browser" },
+    { "path": "./packages/web/browser-chromium" },
     { "path": "./packages/context/agent-instructions" },
     { "path": "./packages/core/agent-loop" },
     { "path": "./packages/llm/llm-retry" },
