@@ -10316,6 +10316,9 @@ importers:
       '@aeven/agent':
         specifier: workspace:^
         version: link:../../core/agent
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../../core/tools
       '@aeven/typert-protocol':
         specifier: workspace:^
         version: link:../../typert/protocol

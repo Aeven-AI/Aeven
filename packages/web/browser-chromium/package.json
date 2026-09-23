@@ -49,11 +49,13 @@
   },
   "peerDependencies": {
     "@aeven/agent": "workspace:^",
+    "@aeven/tools": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
     "@aeven/agent": "workspace:^",
+    "@aeven/tools": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   }

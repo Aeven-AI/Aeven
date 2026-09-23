@@ -14,8 +14,8 @@ import clsx from 'clsx'
 import {
   HoverCard, IconAlarmClockOutline16, IconArchiveOutline20, IconBranchOutline16,
   IconEditOutline16, IconLucideEllipsis, IconLucideFolder, IconLucideFolderOpen,
-  IconLucideListClock, IconLucideSquarePen, IconTrashOutline16, Menu, relativeTime, Spinner,
-  StateDot,
+  IconLucideMessageCircle, IconLucideMessageCirclePlus, IconTrashOutline16, Menu, relativeTime,
+  Spinner, StateDot,
 } from '@aeven/client-ui-primitives'
 import type { StateDotState } from '@aeven/client-ui-primitives'
 import { abbreviateHomePath } from '@aeven/util-workspace-path'
@@ -216,7 +216,7 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
         >
           {/* The New Session mark itself, so the row's add affordance and the
               Chat row above it read as the same action. */}
-          <IconLucideSquarePen className={css.actionIcon} />
+          <IconLucideMessageCirclePlus className={css.actionIcon} />
         </button>
       </span>
     </div>
@@ -297,13 +297,12 @@ function sessionStatuses(
 /**
  * The status mark itself: work in flight is the shared Aeven loading glyph —
  * one 18px 10,10,10 mark rotating — rather than a state dot, so a running
- * Session reads the same in the list as every other in-flight surface; an idle
- * Session carries the faint list-clock, the leading mark the group's folder
- * reserves for itself a level up.
+ * Session reads the same in the list as every other in-flight surface; a
+ * Session at rest carries the faint speech bubble that marks a chat.
  */
 function StatusMark({ state }: { state: StateDotState }) {
   if (state === 'ongoing') return <Spinner className={css.runningMark} />
-  if (state === 'done') return <IconLucideListClock className={css.idleMark} />
+  if (state === 'done') return <IconLucideMessageCircle className={css.idleMark} />
   return <StateDot state={state} />
 }
 

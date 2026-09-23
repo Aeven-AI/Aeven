@@ -24,7 +24,7 @@ export function ToggleButton({ useSessions, rightbarCollapsed, toggleRightbar, t
   if (sessionId === undefined) return null
   const label = rightbarCollapsed ? t('toggle.open') : t('toggle.collapse')
   return (
-    <Tooltip label={label} delayMs={500}>
+    <Tooltip label={label} side="bottom-end">
       <button
         type="button"
         className={css.toggle}

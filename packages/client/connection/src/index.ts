@@ -5,7 +5,7 @@ import type {} from '@aeven/attachment'
 import type {} from '@aeven/credentials'
 // Activates the webServer Context merge used below.
 import type { WebRoute } from '@aeven/host-webserver'
-import { API_PATH } from './api-path.ts'
+import { API_PATH, CREDENTIAL_HANDOVER_PATH } from './api-path.ts'
 import { bridge, DEFAULT_MAX_REQUEST_BODY_BYTES } from './http-bridge.ts'
 import { assertTrustedAuthority } from './api-request-trust.ts'
 import { BrowserAuth } from './browser-auth.ts'
@@ -41,7 +41,7 @@ export {
 } from './rpc-schema.ts'
 export { HostConnectionService } from './rpc-host.ts'
 
-export { API_PATH } from './api-path.ts'
+export { API_PATH, CREDENTIAL_HANDOVER_PATH } from './api-path.ts'
 
 /** Stable Cordis plugin name. */
 export const name = 'client-connection'
@@ -113,6 +113,12 @@ export async function apply(ctx: Context, config?: ConnectionConfig): Promise<vo
     trustedHosts,
     await BrowserAuth.create(ctx.root, ctx.credentials, cookieMaxAgeDays),
   )
+  // The route's whole effect is the admission in front of it (see the constant).
+  ctx.effect(() => connection.fetch.register({
+    path: CREDENTIAL_HANDOVER_PATH,
+    methods: ['HEAD'],
+    fetch: () => Promise.resolve(new Response(null, { status: 204 })),
+  }), 'client-connection: credential handover route')
   ctx.inject(['webServer'], (webCtx) => {
     const fetchHandler = connection.createSharedFetchHandler(API_PATH)
     const route: WebRoute = {

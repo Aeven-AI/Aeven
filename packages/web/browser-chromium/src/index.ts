@@ -12,6 +12,12 @@
  * in. A browser already answering on the port is brought to the front at its
  * current tab rather than started again, which would add an empty tab.
  *
+ * The model's browser tools attach to the same port, so a call to one of them
+ * (the `mcpServerName` server's tools) first makes sure the browser answers,
+ * launching it here on the Host when it does not. The launch never goes through
+ * the model's shell: a sandboxed shell cannot write the profile a browser
+ * needs, which left the tools failing under every mode short of full access.
+ *
  * @module @aeven/browser-chromium
  */
 
@@ -20,6 +26,7 @@ import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent } from '@aeven/agent'
+import type {} from '@aeven/tools'
 import { resolveAvnHome } from '@aeven/home-paths'
 import { Remote, TypertRemoteService } from '@aeven/typert-protocol'
 import type { BrowserChromiumOpened } from './types.ts'
@@ -49,6 +56,12 @@ export interface Config {
   port: number
   /** Profile directory. Omit for `<AVN_HOME>/runtime/chrome-profile`. */
   userDataDir?: string
+  /**
+   * MCP server whose tools drive this browser (chrome-devtools-mcp attached with
+   * `--browserUrl` to `port`); a call to one of them launches the browser first
+   * when it is not answering. Empty disables the launch-on-call.
+   */
+  mcpServerName: string
 }
 
 /** Launches and addresses the Host's Chromium. */
@@ -57,11 +70,14 @@ export class BrowserChromium extends TypertRemoteService {
     executablePath: z.string().required(),
     port: z.number().step(1).min(1).max(65_535).required(),
     userDataDir: z.string(),
+    mcpServerName: z.string().default('chrome_devtools'),
   })
 
   private readonly executablePath: string
   private readonly port: number
   private readonly userDataDir: string
+  /** The launch in progress, which concurrent tool calls wait on instead of starting their own. */
+  private launching: Promise<BrowserChromiumOpened> | undefined
 
   /**
    * @param ctx - owning context.
@@ -72,6 +88,19 @@ export class BrowserChromium extends TypertRemoteService {
     this.executablePath = config.executablePath
     this.port = config.port
     this.userDataDir = config.userDataDir ?? join(resolveAvnHome(), 'runtime', 'chrome-profile')
+    const toolPrefix = config.mcpServerName === '' ? undefined : `mcp__${config.mcpServerName}__`
+    if (toolPrefix !== undefined) {
+      ctx.on('tools/execute', async (exec, next) => {
+        if (exec.name.startsWith(toolPrefix)) {
+          // A browser that cannot be started is the tool's to report: it then
+          // fails as it would have, naming the unreachable port.
+          this.launching ??= this.ensureRunning('', exec.signal)
+            .finally(() => { this.launching = undefined })
+          await this.launching.catch(() => undefined)
+        }
+        return next()
+      })
+    }
   }
 
   /**
@@ -97,6 +126,20 @@ export class BrowserChromium extends TypertRemoteService {
       if (url !== '') await fetch(`${browserUrl}/json/new?${encodeURI(url)}`, { method: 'PUT', signal })
       return { browserUrl }
     }
+    return this.ensureRunning(url, signal)
+  }
+
+  /**
+   * Make the browser answer on its debugging port, launching it when nothing does.
+   * @param url - address a fresh launch opens, or empty for the start page.
+   * @param signal - caller cancellation.
+   * @returns the debugging endpoint.
+   * @throws {Error} when the browser does not come up in time.
+   */
+  private async ensureRunning(url: string, signal: AbortSignal): Promise<BrowserChromiumOpened> {
+    const browserUrl = `http://127.0.0.1:${String(this.port)}`
+    const answering = await fetch(`${browserUrl}/json/version`, { signal }).then(response => response.ok, () => false)
+    if (answering) return { browserUrl }
     const child = spawn(this.executablePath, [
       `--remote-debugging-port=${String(this.port)}`,
       `--user-data-dir=${this.userDataDir}`,

@@ -85,7 +85,7 @@ function RowAction({ label, children, ...props }: {
   children: ReactNode
 } & ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <Tooltip label={label} side="bottom" delayMs={500}>
+    <Tooltip label={label} side="bottom">
       <button type="button" className={css.actionButton} aria-label={label} {...props}>
         {children}
       </button>

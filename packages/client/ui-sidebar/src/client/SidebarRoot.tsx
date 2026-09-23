@@ -19,7 +19,7 @@
 import clsx from 'clsx'
 import { useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react'
 import {
-  AevenMark, IconLucideImages, IconLucidePanelLeft, IconLucideSquarePen, Tooltip,
+  AevenMark, IconLucideImages, IconLucideMessageCirclePlus, IconLucidePanelLeft, Tooltip,
 } from '@aeven/client-ui-primitives'
 import type { SidebarRootComponentProps } from './contract/slots.ts'
 import css from './SidebarRoot.module.css'
@@ -98,7 +98,7 @@ export function SidebarRoot({
         </button>
 
         <div className={css.header}>
-          <Tooltip label={collapsed ? t('toggle.open') : t('toggle.collapse')} delayMs={500}>
+          <Tooltip label={collapsed ? t('toggle.open') : t('toggle.collapse')} side="bottom-start">
             <button
               type="button"
               className={css.toggle}
@@ -121,7 +121,7 @@ export function SidebarRoot({
         <div className={css.sideContent}>
           {/* Fixed at the open width so nothing inside re-lays-out mid-slide. */}
           <div className={css.sideContentInner}>
-            <Tooltip label={t('session.new.label')} delayMs={500} disabled>
+            <Tooltip label={t('session.new.label')} disabled>
               {/* A real anchor, not a button with a click handler: the browser
                   then owns middle-click, "Open link in new window" and the
                   status-bar address, which no scripted `window.open` gives
@@ -142,7 +142,7 @@ export function SidebarRoot({
                   activate()
                 }}
               >
-                <IconLucideSquarePen className={css.newSessionIcon} />
+                <IconLucideMessageCirclePlus className={css.newSessionIcon} />
                 <span className={css.newSessionLabel}>{t('session.new')}</span>
               </a>
             </Tooltip>

@@ -38,7 +38,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { EMPTY_RESPONSE_CODE, LlmError, resolveImageAttachmentAccess, resolveRetryPolicy, RetryPolicySchema } from '@aeven/llm'
-import type { LlmProviderInfo, RetryPolicyConfig } from '@aeven/llm'
+import type { GenerateOptions, LlmProviderInfo, PreparedAdapterCall, RetryPolicyConfig, StreamChunk } from '@aeven/llm'
 import type {} from '@aeven/attachment'
 import type {} from '@aeven/fs'
 import { credentialRef } from '@aeven/credentials'
@@ -61,7 +61,7 @@ import {
   DeepSeekAdapter,
   registerProviderRoute,
 } from '@aeven/llm-deepseek'
-import type { DeepSeekCatalogModel, DeepSeekConnectionOptions } from '@aeven/llm-deepseek'
+import type { DeepSeekAdapterOptions, DeepSeekCatalogModel, DeepSeekConnectionOptions } from '@aeven/llm-deepseek'
 
 export const name = 'llm-aeven'
 
@@ -273,8 +273,54 @@ export interface Config {
  * {@link DeepSeekAdapter} answers every route it owns with its own brand.
  */
 class AevenAdapter extends DeepSeekAdapter {
+  /**
+   * @param options - the DeepSeek transport's options for this route.
+   * @param currentCredential - the credential a request would present now.
+   */
+  constructor(
+    options: DeepSeekAdapterOptions,
+    private readonly currentCredential: () => Promise<string>,
+  ) {
+    super(options)
+  }
+
   override providerInfo(provider: string): LlmProviderInfo {
     return { id: provider, name: 'Aeven' }
+  }
+
+  override async prepareCall(provider: string, model: string, signal?: AbortSignal): Promise<PreparedAdapterCall> {
+    const call = await super.prepareCall(provider, model, signal)
+    return { ...call, stream: options => this.renewing(() => call.stream(options)) }
+  }
+
+  override stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
+    return this.renewing(() => super.stream(options))
+  }
+
+  /**
+   * Run one request, and run it once more when Aeven refused a credential that
+   * has since been replaced. The credential is the caller's two-hour session
+   * token, which the Host learns from the caller's own requests; one that lapsed
+   * while a long turn ran is refused before anything streams, and the page's
+   * renewal may already have handed the Host its successor. A refusal of the
+   * credential that is still current is the caller's to see.
+   * @param start - opens the request.
+   * @returns the request's chunks.
+   */
+  private async * renewing(start: () => AsyncIterable<StreamChunk>): AsyncIterable<StreamChunk> {
+    const presented = await this.currentCredential().catch(() => undefined)
+    let streamed = false
+    try {
+      for await (const chunk of start()) {
+        streamed = true
+        yield chunk
+      }
+    } catch (error: unknown) {
+      if (streamed || !(error instanceof LlmError) || error.code !== 'AUTH') throw error
+      const current = await this.currentCredential().catch(() => undefined)
+      if (current === undefined || current === presented) throw error
+      yield * start()
+    }
   }
 }
 
@@ -378,7 +424,7 @@ export function apply(ctx: Context, config: Config): void {
     // Aeven's gateway carries no plugin-contributed top-level fields, so every
     // request contributes none and acceptance is a no-op.
     prepareExtensions: () => Promise.resolve({ fields: {}, accept: () => Promise.resolve() }),
-  })
+  }, () => resolveApiKey(options()))
 
   registerProviderRoute(ctx, {
     provider: PROVIDER,

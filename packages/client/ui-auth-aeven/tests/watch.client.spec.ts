@@ -166,7 +166,7 @@ describe('renewing the Aeven session', () => {
     vi.stubGlobal('fetch', vi.fn())
     vi.useFakeTimers()
     try {
-      stops.push(watchSession())
+      stops.push(watchSession(() => {}))
       await vi.waitFor(() => { expect(session.userId).toBe('u-1') })
       window.localStorage.setItem('appBearers', '{}')
       window.dispatchEvent(new StorageEvent('storage', { key: 'appBearers' }))
@@ -184,7 +184,7 @@ describe('renewing the Aeven session', () => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({}, { status: 500 })))
     vi.useFakeTimers()
     try {
-      stops.push(watchSession())
+      stops.push(watchSession(() => {}))
       window.dispatchEvent(new StorageEvent('storage', { key: 'appBearers' }))
       session.userId = 'u-1'
       window.localStorage.setItem('appBearers', JSON.stringify({ 'u-1': token('u-1', 7200) }))
@@ -203,7 +203,7 @@ describe('renewing the Aeven session', () => {
       const fetchMock = vi.fn(async () => Response.json({ error: 'db-error' }, { status: 500 }))
       vi.stubGlobal('fetch', fetchMock)
 
-      stops.push(watchSession())
+      stops.push(watchSession(() => {}))
       await vi.advanceTimersByTimeAsync(0)
       expect(fetchMock).toHaveBeenCalledTimes(1)
       await vi.advanceTimersByTimeAsync(30_000)
@@ -232,7 +232,7 @@ describe('renewing the Aeven session', () => {
       stubNavigation('/')
       const fetchMock = vi.fn(async () => Response.json({ error: 'no-token' }, { status: 400 }))
       vi.stubGlobal('fetch', fetchMock)
-      stops.push(watchSession())
+      stops.push(watchSession(() => {}))
       await vi.advanceTimersByTimeAsync(3_600_000)
       expect(fetchMock).toHaveBeenCalledOnce()
     } finally {
@@ -249,7 +249,7 @@ describe('renewing the Aeven session', () => {
       const fetchMock = vi.fn(async () => Response.json({ userId: 'u-1', accessToken: token('u-1', 7200, 'new') }))
       vi.stubGlobal('fetch', fetchMock)
 
-      stops.push(watchSession())
+      stops.push(watchSession(() => {}))
       await vi.advanceTimersByTimeAsync(0)
       expect(fetchMock).not.toHaveBeenCalled()
       // The token stops being worth sending two minutes before its expiry.

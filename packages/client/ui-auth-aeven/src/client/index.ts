@@ -163,6 +163,12 @@ export function installAuthenticatedTransport(): () => void {
   // A page that boots again after an ended session installs the transport a
   // second time; the watcher that served the previous session stops here.
   stopWatching?.()
-  stopWatching = watchSession()
+  // The connection plugin's credential handover route; a failed handover is
+  // retried by the next renewal check or the next API call, which also carries it.
+  const handOver = (token: string): void => {
+    sendWith(new URL('api/credential', document.baseURI), { method: 'HEAD' }, token)
+      .catch(() => { /* transport failure: the next check or API call hands the token over */ })
+  }
+  stopWatching = watchSession(handOver)
   return stopWatching
 }

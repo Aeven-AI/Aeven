@@ -21,7 +21,6 @@ const MINIMUM_ZOOM_OPERATIONS = 4
 const EDGE_PAN_ZONE_FRACTION = 0.08
 const EDGE_PAN_STEP_FRACTION = 0.025
 const MAXIMUM_EDGE_PAN_PX = 32
-const TIMELINE_TOOLTIP_DELAY_MS = 500
 
 interface TimelineRecordDetail {
   decodingMs?: number
@@ -214,7 +213,6 @@ function EarlierHistoryBoundary({
     <Tooltip
       label={loading ? t('history.loadingEarlier') : t('history.clickToLoadEarlier')}
       side="right"
-      delayMs={TIMELINE_TOOLTIP_DELAY_MS}
     >
       <button
         type="button"
@@ -698,7 +696,6 @@ export const TrajectoryTimeline = memo(function TrajectoryTimeline({
                     key={span.index}
                     label={() => timelineTooltipLabel(span.kind, detail, t)}
                     side="bottom"
-                    delayMs={TIMELINE_TOOLTIP_DELAY_MS}
                   >
                     <span
                       aria-hidden="true"

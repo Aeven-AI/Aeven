@@ -7,6 +7,9 @@
  */
 export { default, HyperMarkdown } from './HyperMarkdown.tsx'
 export { pointerMovedRecently, watchPointerIntent } from './engine/pointer-intent.ts'
+/** The engine's tippy.js tooltip, for hosts that want their controls' tips identical to its toolbars'. */
+export { default as TippyTooltip } from './engine/tooltip.tsx'
+export type { TooltipHandle as TippyTooltipHandle, TooltipProps as TippyTooltipProps } from './engine/tooltip.tsx'
 export type {
   HyperMarkdownAlert,
   HyperMarkdownHandle,

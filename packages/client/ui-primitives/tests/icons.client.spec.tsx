@@ -33,9 +33,9 @@ describe('ic_ds_ icon set', () => {
 
   it.each([
     'IconLucideSearch', 'IconLucideSettings', 'IconLucideSettings2', 'IconLucideFolder',
-    'IconLucideFolderOpen', 'IconLucideFolderPlus', 'IconLucideSquarePen',
-    'IconLucidePanelLeft', 'IconLucidePanelRight', 'IconLucideImages', 'IconLucideListClock',
-    'IconLucideEllipsis',
+    'IconLucideFolderOpen', 'IconLucideFolderPlus',
+    'IconLucidePanelLeft', 'IconLucidePanelRight', 'IconLucideImages', 'IconLucideMessageCircle',
+    'IconLucideMessageCirclePlus', 'IconLucideEllipsis',
   ])(
     '%s leaves sizing to CSS: viewBox only, no width or height attribute',
     (name) => {

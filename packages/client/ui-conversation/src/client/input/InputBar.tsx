@@ -438,7 +438,7 @@ export const InputBar = memo(function InputBar({
         </div>
         <div className={css.row}>
           <div className={css.tools}>
-            <Tooltip label={t('input.commands')} side="top" delayMs={500}>
+            <Tooltip label={t('input.commands')} side="top">
               <button
                 type="button"
                 className={css.add}
@@ -467,7 +467,7 @@ export const InputBar = memo(function InputBar({
             {sessionId === undefined ? null : renderSlot('conversation.input.model', { locked: modelSeatLocked })}
             <ContextMeter useProjection={useProjection} t={t} />
             {interruptible && (
-              <Tooltip label={t('input.stop')} side="top" delayMs={500}>
+              <Tooltip label={t('input.stop')} side="top">
                 <button
                   type="button"
                   className={css.primary}
@@ -480,7 +480,7 @@ export const InputBar = memo(function InputBar({
                 </button>
               </Tooltip>
             )}
-            <Tooltip label={primaryLabel} side="top" delayMs={500}>
+            <Tooltip label={primaryLabel} side="top">
               <button
                 type="button"
                 className={css.primary}

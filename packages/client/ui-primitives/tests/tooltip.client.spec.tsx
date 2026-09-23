@@ -11,7 +11,7 @@ describe('Tooltip', () => {
     try {
       const label = vi.fn(() => 'Timing details')
       render(
-        <Tooltip label={label} delayMs={500}>
+        <Tooltip label={label}>
           <button type="button">anchor</button>
         </Tooltip>,
       )
@@ -31,7 +31,7 @@ describe('Tooltip', () => {
     vi.useFakeTimers()
     try {
       render(
-        <Tooltip label="Timing details" delayMs={500}>
+        <Tooltip label="Timing details">
           <button type="button">anchor</button>
         </Tooltip>,
       )
@@ -97,7 +97,7 @@ describe('Tooltip', () => {
 
   it('caps the bubble width where the label would otherwise slab across the surface', () => {
     render(
-      <Tooltip label="A description long enough to need a cap" side="bottom" maxWidth={360}>
+      <Tooltip label="A description long enough to need a cap" side="bottom">
         <button type="button">anchor</button>
       </Tooltip>,
     )

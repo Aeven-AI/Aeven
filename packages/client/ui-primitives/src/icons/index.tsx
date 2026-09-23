@@ -1041,8 +1041,8 @@ export const IconLucideImages = ({ className }: LucideGlyphProps) => (
   </svg>
 )
 
-/** lucide `list-clock`: rows beside a clock (idle Session row). */
-export const IconLucideListClock = ({ className }: LucideGlyphProps) => (
+/** lucide `message-circle`: speech bubble (Session row mark). */
+export const IconLucideMessageCircle = ({ className }: LucideGlyphProps) => (
   <svg
     aria-hidden="true"
     className={className}
@@ -1054,11 +1054,7 @@ export const IconLucideListClock = ({ className }: LucideGlyphProps) => (
     strokeLinejoin="round"
     xmlns="http://www.w3.org/2000/svg"
   >
-    <path d="M16 13v2.2l1.6 1" />
-    <path d="M3 12h3.458" />
-    <path d="M3 19h3.832" />
-    <path d="M3 5h18" />
-    <circle cx="16" cy="15" r="6" />
+    <path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" />
   </svg>
 )
 
@@ -1098,8 +1094,8 @@ export const IconLucidePanelRight = ({ className }: LucideGlyphProps) => (
   </svg>
 )
 
-/** lucide `square-pen`: square with a pen (New Session). */
-export const IconLucideSquarePen = ({ className }: LucideGlyphProps) => (
+/** lucide `message-circle-plus`: bubble with a plus (New Session). */
+export const IconLucideMessageCirclePlus = ({ className }: LucideGlyphProps) => (
   <svg
     aria-hidden="true"
     className={className}
@@ -1111,8 +1107,9 @@ export const IconLucideSquarePen = ({ className }: LucideGlyphProps) => (
     strokeLinejoin="round"
     xmlns="http://www.w3.org/2000/svg"
   >
-    <path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-    <path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z" />
+    <path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" />
+    <path d="M8 12h8" />
+    <path d="M12 8v8" />
   </svg>
 )
 

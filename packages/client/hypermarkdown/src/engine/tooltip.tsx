@@ -22,6 +22,11 @@ export interface TooltipProps {
   trigger?: string | undefined
   touch?: boolean | undefined
   arrow?: boolean | undefined
+  /**
+   * The box the bubble is placed against, when it is not the trigger's own —
+   * e.g. the icon inside a wider button. The trigger stays the element.
+   */
+  placementRect?: ((reference: Element) => DOMRect) | undefined
   children?: ReactElement<{ ref?: Ref<Element> }> | undefined
 }
 
@@ -29,6 +34,11 @@ export interface TooltipHandle {
   show(): void
   hide(): void
 }
+
+/** Tippy's arrow padding (3px) plus half its 16px arrow: the closest the arrow's centre gets to the bubble's edge. */
+const ARROW_REACH = 11
+/** Tippy's default gap between reference and bubble. */
+const ARROW_DISTANCE = 10
 
 let factory: TippyFactory | null = null
 let pending: Promise<TippyFactory | null> | null = null
@@ -107,19 +117,23 @@ function loadTippy(): Promise<TippyFactory | null> {
  */
 const Tooltip = forwardRef<TooltipHandle, TooltipProps>(
   function Tooltip(props, ref) {
-    const { content, placement, trigger, touch, arrow, children } = props
+    const { content, placement, trigger, touch, arrow, placementRect, children } = props
 
     const manual = trigger === 'manual'
     const instanceRef = useRef<Instance | null>(null)
     const referenceRef = useRef<Element | null>(null)
     // tippy arrives a microtask late, so creation reads the current props
     // rather than the ones captured when the effect was scheduled.
-    const latest = useRef({ content, placement, touch, arrow, manual, trigger })
-    latest.current = { content, placement, touch, arrow, manual, trigger }
+    const latest = useRef({ content, placement, touch, arrow, manual, trigger, placementRect })
+    latest.current = { content, placement, touch, arrow, manual, trigger, placementRect }
 
+    // The anchor may carry a ref of its own; it keeps receiving the element.
+    const childRef = (children as { ref?: Ref<Element> } | undefined)?.ref
     const setReference = useCallback((element: Element | null) => {
       referenceRef.current = element
-    }, [])
+      if (typeof childRef === 'function') childRef(element)
+      else if (childRef != null) (childRef as { current: Element | null }).current = element
+    }, [childRef])
 
     useEffect(() => {
       const reference = referenceRef.current
@@ -161,6 +175,17 @@ const Tooltip = forwardRef<TooltipHandle, TooltipProps>(
             : (current.trigger ?? 'mouseenter'),
           appendTo: () => document.body,
           zIndex: 99999,
+          getReferenceClientRect: () => latest.current.placementRect?.(reference)
+            ?? reference.getBoundingClientRect(),
+          // An edge-aligned bubble (`-start`/`-end`) keeps its arrow at least
+          // ARROW_REACH from its own edge; slide the bubble outward just enough
+          // that the arrow can sit on the centre of a narrow reference.
+          offset: ({ placement: current, reference: box }) => {
+            const shortfall = Math.max(0, ARROW_REACH - box.width / 2)
+            const skidding = current.endsWith('-start') ? -shortfall
+              : current.endsWith('-end') ? shortfall : 0
+            return [skidding, ARROW_DISTANCE]
+          },
           // Set by an enter the reader did not make; cancels the show it schedules.
           // Streaming content moving under a resting pointer fires enters with
           // no pointer movement; only a hover the reader made opens the bubble.

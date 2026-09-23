@@ -63,7 +63,7 @@ function ViewOptionsMenu({ groupBy, orderBy, onGroupPick, onOrderPick, t }: {
       dense
       portal
       anchor={(
-        <Tooltip label={t('viewOptions.label')} side="bottom" delayMs={500}>
+        <Tooltip label={t('viewOptions.label')} side="bottom">
           <button
             type="button"
             className={css.action}
@@ -131,7 +131,7 @@ export function WorkspaceHeaderActions({
         className={clsx(css.search, searchExpanded && css.searchExpanded)}
         onClick={() => { setWsPickerOpen(false); actions.setSearchExpanded(true) }}
       >
-        <Tooltip label={t('search')} side="bottom" delayMs={500} disabled={searchExpanded}>
+        <Tooltip label={t('search')} side="bottom" disabled={searchExpanded}>
           <button
             type="button"
             className={css.action}
@@ -186,7 +186,7 @@ export function WorkspaceHeaderActions({
               picking affordance has nothing to offer here: the cluster hides
               the button rather than leaving a dead one in the header. */}
           {directoryFlowAvailable && (
-            <Tooltip label={t('workspace.add')} side="bottom" delayMs={500}>
+            <Tooltip label={t('workspace.add')} side="bottom">
               <button
                 ref={wsPlusRef}
                 type="button"

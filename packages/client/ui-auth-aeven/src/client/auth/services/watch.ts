@@ -72,12 +72,17 @@ export async function sessionBearer(rejected?: string): Promise<string | undefin
  *
  * Timers stall while a machine sleeps, so becoming visible and regaining the
  * network check again. A bearer removed by another tab's sign-out ends this
- * tab's session too.
+ * tab's session too. Every token this page holds that the Host has not been
+ * handed yet goes to `handOver` at once: the Host presents the caller's token
+ * to Aeven on the caller's behalf (the model route), and only learns a renewed
+ * one from a request that carries it.
+ * @param handOver - sends a token the Host has not seen to the Host.
  * @returns disposer cancelling the renewal timer and removing the listeners.
  */
-export function watchSession(): () => void {
+export function watchSession(handOver: (token: string) => void): () => void {
   let timer: ReturnType<typeof setTimeout> | undefined
   let stopped = false
+  let handedOver: string | undefined
   // Watching a session is what says this page is not leaving one: a reader who
   // signs in again after an ended session is renewed, not left standing.
   leaving = false
@@ -90,6 +95,10 @@ export function watchSession(): () => void {
   const check = async (): Promise<void> => {
     const token = await sessionBearer()
     if (leaving || stopped) return
+    if (token !== undefined && token !== handedOver) {
+      handedOver = token
+      handOver(token)
+    }
     const renewal = token === undefined ? undefined : bearerRenewalTime(token)
     schedule(renewal === undefined ? TRANSIENT_RETRY_MILLISECONDS : renewal - Date.now())
   }
