@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-schedule` gives your session durable reminders: ask the model to remind you later, and the reminder comes back as an ordinary follow-up message in the same conversation. You can schedule a one-time reminder after a delay or at an absolute time, or a repeating reminder on a fixed interval, and you can list what is still pending or cancel a reminder. Reminders survive restarts: an already-live idle agent can deliver due work immediately, while a closed or cold session keeps it overdue until a future live root agent resumes the session. Delivery stays inside the session, with no email, SMS, or push notification. It is an opt-in Web capability; load the Schedule overlay to enable the reminder tools and read-only active-reminder catalog. Ordinary and search sidebar rows also show a non-interactive alarm when their best-effort list projection is known to be non-empty; the alarm does not promise a live runtime.
+`avn-schedule` gives your session durable reminders: ask the model to remind you later, and the reminder comes back as an ordinary follow-up message in the same conversation. You can schedule a one-time reminder after a delay or at an absolute time, or a repeating reminder on a fixed interval, and you can list what is still pending or cancel a reminder. Reminders survive restarts: an already-live idle agent can deliver due work immediately, while a closed or cold session keeps it overdue until a future live root agent resumes the session. Delivery stays inside the session, with no email, SMS, or push notification. It is an opt-in Web capability; load the Schedule overlay to enable the reminder tools. Ordinary and search sidebar rows also show a non-interactive alarm when their best-effort list projection is known to be non-empty; the alarm does not promise a live runtime.
 
 ## Table of Contents
 
@@ -53,7 +53,7 @@ Input that cannot become a reminder — an empty prompt, more than one selector,
 
 ### When reminders fire
 
-Due reminders appear as ordinary follow-up messages after the conversation becomes idle; the agent never interrupts a running turn. An already-live idle agent can claim maintenance and deliver immediately without another resume. One-time reminders fire before any repeating batch, and several repeating reminders due at once arrive together in one message ordered by time. If the session is closed or cold when a reminder comes due, it stays overdue until a future live root agent resumes the session — nothing is sent outside the session. A repeating reminder that missed intervals while the session was away presents only its latest due occurrence, not a backlog. The optional Web catalog shows only active records and is not a delivery receipt; dispatch means the follow-up was queued and recorded, not that the model succeeded or the user read the answer.
+Due reminders appear as ordinary follow-up messages after the conversation becomes idle; the agent never interrupts a running turn. An already-live idle agent can claim maintenance and deliver immediately without another resume. One-time reminders fire before any repeating batch, and several repeating reminders due at once arrive together in one message ordered by time. If the session is closed or cold when a reminder comes due, it stays overdue until a future live root agent resumes the session — nothing is sent outside the session. A repeating reminder that missed intervals while the session was away presents only its latest due occurrence, not a backlog. Dispatch means the follow-up was queued and recorded, not that the model succeeded or the user read the answer.
 
 -----
 
@@ -71,7 +71,7 @@ The plugin declares `inject = ['agents', 'sessions', 'tools', 'sessionPersistenc
 
 Time-context is not a Schedule dependency. The official Web overlay mounts `@aeven/time-context` so the model can interpret natural language in the browser's request-local zone, but the model must still pass an explicit offset or `time_zone` to `schedule_create`; Schedule never imports or infers from model context.
 
-Session projection is optional. When `ctx.sessionProjections` exists, the plugin registers the strict `schedule` unit and exposes the complete active `ScheduleRecord[]`; a headless composition without the registry keeps the same tools and runtime. The browser-safe record vocabulary is available from the type-only `@aeven/schedule/client` export. The shipped Web bundle resolves `ui-schedule` through a disabled row, and the explicit Schedule overlay enables that row alongside the Host Schedule services.
+Session projection is optional. When `ctx.sessionProjections` exists, the plugin registers the strict `schedule` unit and exposes the complete active `ScheduleRecord[]`; a headless composition without the registry keeps the same tools and runtime. The browser-safe record vocabulary is available from the type-only `@aeven/schedule/client` export.
 
 ### Design philosophy
 
@@ -102,9 +102,9 @@ A normal Session folds its complete event stream. A fork folds only `session.own
 
 ### Client projection
 
-The optional `schedule` projection checkpoints `{ inheritedEventCount, active, seenIds }` as strict plain JSON and publishes only the complete `active` array. Its schema reuses the durable Schedule decoder, rejects duplicate or inconsistent ids, and propagates corrupt durable events through the existing Session read failure instead of publishing a partial catalog. Live lazy build, event-driven build, cold restore, history reads, and detached Subagent reads all use the exact Session cut and the same owned-suffix transition.
+The optional `schedule` projection checkpoints `{ inheritedEventCount, active, seenIds }` as strict plain JSON and publishes only the complete `active` array. Its schema reuses the durable Schedule decoder, rejects duplicate or inconsistent ids, and propagates corrupt durable events through the existing Session read failure instead of publishing a partial value. Live lazy build, event-driven build, cold restore, history reads, and detached Subagent reads all use the exact Session cut and the same owned-suffix transition.
 
-The projection carries durable records only. It does not persist or transmit scheduled-versus-overdue status, localized text, relative time, browser-local time, sorting state, popover state, runtime liveness, or delivery receipts. [`avn-client-ui-schedule`](../../client/ui-schedule/README.md) derives catalog presentation from the complete array and the viewing browser's clock. [`avn-client-ui-workspace`](../../client/ui-workspace/README.md) derives only whether the list value is a non-empty array, so ordinary and search rows may briefly omit or retain the alarm when the durable projection cache is missing or stale.
+The projection carries durable records only. It does not persist or transmit scheduled-versus-overdue status, localized text, relative time, browser-local time, sorting state, popover state, runtime liveness, or delivery receipts. [`avn-client-ui-workspace`](../../client/ui-workspace/README.md) derives only whether the list value is a non-empty array, so ordinary and search rows may briefly omit or retain the alarm when the durable projection cache is missing or stale.
 
 ### Time validation
 
@@ -218,7 +218,6 @@ These limits describe when Schedule does not fit your use case or needs special 
 - **Latest-only catch-up** — an overdue Every record contributes only its latest due occurrence, so Schedule never replays a missed backlog.
 - **Narrow crash duplicate window** — a crash after synchronous follow-up admission but before the dispatch checkpoint can repeat the reminder; the package does not claim model completion, user acknowledgement, or exactly-once effects.
 - **Load-order boundary** — the plugin does not scan or adopt Agents that were already live when it loaded.
-- **Catalog is read-only current state** — the optional Web surface has no history, mutation, retry, or acknowledgement semantics; terminal records disappear and delivery remains ordinary conversation output.
 
 <a id="dev-note"></a>
 ### Dev Note

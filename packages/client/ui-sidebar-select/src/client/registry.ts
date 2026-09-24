@@ -21,6 +21,8 @@ export interface SidebarContentPaneProps {
   readonly active: boolean
   /** Rename the pill, or return it to its kind's name with `undefined`. */
   readonly setTab: (tab: SidebarSurfaceTab | undefined) => void
+  /** Close this pill when its own flow is dismissed. */
+  readonly closeSurface: () => void
 }
 
 /**
@@ -31,6 +33,19 @@ export interface SidebarContentPaneProps {
 export type SidebarContentComponent = ComponentType<SidebarContentPaneProps>
 
 /**
+ * Called when the user closes one pill of a kind, as opposed to its pane
+ * unmounting because the column switched sessions. A kind that owns a
+ * resource outliving the pane, such as a shell process, releases it here.
+ */
+export type SidebarSurfaceCloseHandler = (sessionId: string, surfaceId: string) => void
+
+/**
+ * What a kind runs when picked, in place of opening a pill: for content that
+ * lives outside the column, such as the Host's own browser window.
+ */
+export type SidebarContentLauncher = (sessionId: string) => void
+
+/**
  * Registry of the content kinds that have a provider behind them.
  *
  * A kind with no entry still lists in the selection, disabled, so the column
@@ -39,6 +54,9 @@ export type SidebarContentComponent = ComponentType<SidebarContentPaneProps>
  */
 export class SidebarContentRegistry extends Service {
   private readonly entries = new Map<SidebarContentKind, SidebarContentComponent>()
+  private readonly closeHandlers = new Map<SidebarContentKind, SidebarSurfaceCloseHandler>()
+  private readonly launchers = new Map<SidebarContentKind, SidebarContentLauncher>()
+  private readonly pendingOpens = new Map<string, SidebarContentKind>()
   private readonly listeners = new Set<() => void>()
   /** Bumped on every add or removal, so a reader can compare snapshots. */
   version = 0
@@ -68,6 +86,67 @@ export class SidebarContentRegistry extends Service {
   }
 
   /**
+   * Make one kind a launcher: picking it runs `launch` and opens no pill.
+   * @param kind - the content kind this launcher answers.
+   * @param launch - receives the column's session when the kind is picked.
+   * @returns disposer removing the launcher.
+   */
+  registerLauncher(kind: SidebarContentKind, launch: SidebarContentLauncher): () => void {
+    this.launchers.set(kind, launch)
+    this.emit()
+    return () => {
+      if (this.launchers.get(kind) === launch) {
+        this.launchers.delete(kind)
+        this.emit()
+      }
+    }
+  }
+
+  /**
+   * The launcher for a kind, when one has registered.
+   * @param kind - the content kind to resolve.
+   * @returns its launch action, or undefined while the kind has none.
+   */
+  launcher(kind: SidebarContentKind): SidebarContentLauncher | undefined {
+    return this.launchers.get(kind)
+  }
+
+  /** Ask the column to show a kind for a session, including when that session mounts later. */
+  requestOpen(sessionId: string, kind: SidebarContentKind): void {
+    this.pendingOpens.set(sessionId, kind)
+    this.emit()
+  }
+
+  /** Consume a pending open after the column has handled it. */
+  takeOpenRequest(sessionId: string): SidebarContentKind | undefined {
+    const kind = this.pendingOpens.get(sessionId)
+    this.pendingOpens.delete(sessionId)
+    return kind
+  }
+
+  /**
+   * Handle the user closing a pill of one kind.
+   * @param kind - the content kind whose closes this handles.
+   * @param handler - receives the closed pill's session and surface id.
+   * @returns disposer removing the handler.
+   */
+  registerCloseHandler(kind: SidebarContentKind, handler: SidebarSurfaceCloseHandler): () => void {
+    this.closeHandlers.set(kind, handler)
+    return () => {
+      if (this.closeHandlers.get(kind) === handler) this.closeHandlers.delete(kind)
+    }
+  }
+
+  /**
+   * Report closed pills to their kinds' close handlers.
+   * @param sessionId - the column's session.
+   * @param surfaces - the closed pills.
+   */
+  closed(sessionId: string, surfaces: readonly { readonly id: string; readonly kind: SidebarContentKind }[]): void {
+    for (const surface of surfaces) this.closeHandlers.get(surface.kind)?.(sessionId, surface.id)
+  }
+
+  /**
    * The provider for a kind, when one has registered.
    * @param kind - the content kind to resolve.
    * @returns its component, or undefined while no provider holds it.
@@ -76,9 +155,9 @@ export class SidebarContentRegistry extends Service {
     return this.entries.get(kind)
   }
 
-  /** The kinds a provider currently answers. */
+  /** The kinds a pane or a launcher currently answers. */
   available(): ReadonlySet<SidebarContentKind> {
-    return new Set(this.entries.keys())
+    return new Set([...this.entries.keys(), ...this.launchers.keys()])
   }
 
   /**

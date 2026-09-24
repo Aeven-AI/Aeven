@@ -121,9 +121,14 @@ export class BrowserChromium extends TypertRemoteService {
     const targets = await fetch(`${browserUrl}/json/list`, { signal })
       .then(async response => response.ok ? await response.json() as Array<{ id: string; type: string }> : undefined, () => undefined)
     if (targets !== undefined) {
-      const page = targets.find(target => target.type === 'page')
+      // A running browser whose last window was closed still answers with no
+      // page, so a new one is opened for it: the reader asked to see a browser.
+      const opened = url !== '' || !targets.some(target => target.type === 'page')
+        ? await fetch(`${browserUrl}/json/new${url === '' ? '' : `?${encodeURI(url)}`}`, { method: 'PUT', signal })
+          .then(async response => response.ok ? await response.json() as { id: string } : undefined, () => undefined)
+        : undefined
+      const page = opened ?? targets.find(target => target.type === 'page')
       if (page !== undefined) await fetch(`${browserUrl}/json/activate/${page.id}`, { signal })
-      if (url !== '') await fetch(`${browserUrl}/json/new?${encodeURI(url)}`, { method: 'PUT', signal })
       return { browserUrl }
     }
     return this.ensureRunning(url, signal)

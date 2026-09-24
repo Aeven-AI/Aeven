@@ -17,8 +17,8 @@ const icons = Object.fromEntries(
 const iconNames = Object.keys(icons)
 
 describe('ic_ds_ icon set', () => {
-  it('exports the complete icon set (84 drawn glyphs plus twelve lucide transcriptions)', () => {
-    expect(iconNames.length).toBe(96)
+  it('exports the complete icon set (84 drawn glyphs plus thirty-five lucide transcriptions)', () => {
+    expect(iconNames.length).toBe(119)
   })
 
   it.each(iconNames)('%s renders an svg with currentColor fills and no hardcoded palette', (name) => {
@@ -35,7 +35,7 @@ describe('ic_ds_ icon set', () => {
     'IconLucideSearch', 'IconLucideSettings', 'IconLucideSettings2', 'IconLucideFolder',
     'IconLucideFolderOpen', 'IconLucideFolderPlus',
     'IconLucidePanelLeft', 'IconLucidePanelRight', 'IconLucideImages', 'IconLucideMessageCircle',
-    'IconLucideMessageCirclePlus', 'IconLucideEllipsis',
+    'IconLucideMessageCirclePlus', 'IconLucideCircle', 'IconLucideEllipsis',
   ])(
     '%s leaves sizing to CSS: viewBox only, no width or height attribute',
     (name) => {

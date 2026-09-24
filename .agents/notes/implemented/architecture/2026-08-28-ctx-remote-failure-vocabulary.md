@@ -55,7 +55,7 @@ The client plane does not construct `RemoteError`; the one exception is the Gate
 
 `ctx.remote.$host` exposes two fixed facts: `home: string | undefined` and `isLoopback: boolean`. It is a getter on the Client Remote service reading the connection handle captured at service construction — `home` comes from the ready frame in the generation snapshot (`undefined` before ready), `isLoopback` from the carrier. There is no store, no subscription, and no generation counter.
 
-Refresh after a reconnect rides the existing signal: the Client Remote emits `connection/reset` when it connects, and a consumer that must re-read listens for that or for its own domain's remote event rather than turning `$host` into a subscribable object. Consumers therefore no longer inject `connection`: the `@aeven/client-connection` consumer allowlist shrinks to hmr, frontend-static, bundle/web-app, session-log-export, webworker-runtime, and the gateway and api-remotes assemblies.
+Refresh after a reconnect rides the existing signal: the Client Remote emits `connection/reset` when it connects, and a consumer that must re-read listens for that or for its own domain's remote event rather than turning `$host` into a subscribable object. Consumers therefore no longer inject `connection`: the `@aeven/client-connection` consumer allowlist shrinks to hmr, frontend-static, bundle/web-app, webworker-runtime, and the gateway and api-remotes assemblies.
 
 ## What the wire carries
 

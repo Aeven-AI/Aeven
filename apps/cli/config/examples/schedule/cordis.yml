@@ -7,6 +7,3 @@
 
     - id: schedule
       name: '@aeven/schedule'
-
-- id: ui-schedule
-  disabled: false

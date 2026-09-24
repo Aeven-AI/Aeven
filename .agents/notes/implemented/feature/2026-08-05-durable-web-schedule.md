@@ -12,7 +12,7 @@ Busy Agents, long waits, wall-clock changes, cold Sessions, forks, persistence f
 
 ## Decision
 
-The [Schedule guide](../../../../docs/user/guide/schedule.md) uses an overlay that explicitly loads `@aeven/time-context` and `@aeven/schedule`, and enables the Web bundle's otherwise-disabled `ui-schedule` row. The default Web startup graph remains inactive for Schedule. Schedule observes only root Agents published after the plugin loads and installs its three tools plus one disposable owner in that Agent scope. Cold history reads, already-published roots, child Agents, and other hosts do not activate the runtime.
+The [Schedule guide](../../../../docs/user/guide/schedule.md) uses an overlay that explicitly loads `@aeven/time-context` and `@aeven/schedule`. The default Web startup graph remains inactive for Schedule. Schedule observes only root Agents published after the plugin loads and installs its three tools plus one disposable owner in that Agent scope. Cold history reads, already-published roots, child Agents, and other hosts do not activate the runtime.
 
 The user-visible boundary is `session-local`: the original Session runs an on-time reminder only while live, does no external notification while cold, and processes an overdue reminder after it becomes live again. Due work waits until the Agent is fully idle, then enters the ordinary next-turn queue through `followup()`; it never steers the current turn and has no independent Web receipt ([conversational delivery](../simplification/2026-08-09-conversational-schedule-delivery.md)).
 
@@ -58,9 +58,9 @@ The accepted path clears pending persistence and claims the true idle phase. It 
 
 Dispatch records queue admission, not model completion or user receipt. Framing or synchronous enqueue failure appends no dispatch. An append failure faults that owner because the message may already be queued. Agent or plugin disposal cancels timers, stops new work, unwinds tool registrations, and awaits in-flight work without deleting durable records. A crash after follow-up admission but before durable dispatch can repeat the reminder after recovery; the design makes no exactly-once promise.
 
-### Read-only Web catalog
+### Projection consumer
 
-The Schedule overlay enables the otherwise-disabled [`avn-client-ui-schedule`](../../../../packages/client/ui-schedule/README.md) client together with the Host service. The complete active projection also feeds [`avn-client-ui-workspace`](../../../../packages/client/ui-workspace/README.md). This note owns that opt-in read-only presentation boundary: the projection is current active state, not a dispatch or delivery receipt, so ordinary Assistant turns remain the delivery presentation. The catalog is a fixed `document.body` portal whose left edge follows the trigger when space permits and shifts left to retain a 16px viewport margin near the right edge. `useAnchoredPosition` owns measurement and resize, captured-scroll, panel-resize, and cleanup behavior; Schedule supplies the trigger and portal refs, bottom placement, a 5px gap, and the existing inside/outside dismissal boundary without adding a general popover abstraction.
+The complete active projection feeds [`avn-client-ui-workspace`](../../../../packages/client/ui-workspace/README.md), which derives only whether a grouped, flat, or search row's best-effort list value is non-empty and marks that row with an alarm. This note owns that presentation boundary: the projection is current active state, not a dispatch or delivery receipt, so ordinary Assistant turns remain the delivery presentation. The read-only header catalog that read the same projection is deleted with its package ([title-row utilities removal](../simplification/2026-09-24-remove-the-title-row-utilities-and-their-packages.md)).
 
 ## Alternatives considered
 
@@ -80,7 +80,7 @@ The Schedule overlay enables the otherwise-disabled [`avn-client-ui-schedule`](.
 
 ## Verification
 
-Package tests pin strict replay, one-shot and Every transitions, creation-anchor arithmetic, latest-only catch-up, multi-record batching, fork suffixes, id reuse, offset and local-calendar profiles, IANA validation, daylight-saving gaps and overlaps, time bounds, timer segmentation, wall-clock movement, overdue admission, fixed framing, enqueue and append failures, barrier recovery, projection registration and restoration, registration rollback, and quiescent disposal at per-file 100% coverage. A property test compares Every calculation and replay across varied intervals and skipped spans. A production JSONL restart test proves one overdue reminder dispatches through the real Agent lifecycle and does not redispatch after another restart. Focused client suites own catalog and sidebar behavior, including the body portal, spacious left alignment, portal-inside pointer handling, outside dismissal, Escape, live empty, and timer cleanup. The shared primitive suite owns the positioning hook's resize, captured-scroll, panel-resize, and cleanup lifecycle. Keyless assembled Web scenarios retain ordinary After/At/Every delivery evidence plus one 900×900 Schedule-catalog smoke for overlay reachability, fixed portal placement, right-edge clamping, width and overflow, ordinary/search alarms, narrow dark layout, a light-theme browser screenshot, and one live empty update.
+Package tests pin strict replay, one-shot and Every transitions, creation-anchor arithmetic, latest-only catch-up, multi-record batching, fork suffixes, id reuse, offset and local-calendar profiles, IANA validation, daylight-saving gaps and overlaps, time bounds, timer segmentation, wall-clock movement, overdue admission, fixed framing, enqueue and append failures, barrier recovery, projection registration and restoration, registration rollback, and quiescent disposal at per-file 100% coverage. A property test compares Every calculation and replay across varied intervals and skipped spans. A production JSONL restart test proves one overdue reminder dispatches through the real Agent lifecycle and does not redispatch after another restart. Focused client suites own the sidebar's alarm marker. Keyless assembled Web scenarios retain ordinary After/At/Every delivery evidence plus ordinary and search alarm rows.
 
 ## Consequences
 
@@ -88,6 +88,6 @@ Package tests pin strict replay, one-shot and Every transitions, creation-anchor
 - Cold Sessions do no work and send no external notification; reopening one may deliver overdue work.
 - Absolute input is deterministic without persistent Session-zone state or a dependency from Schedule to time-context.
 - Users see normal conversation output; dispatch never overstates model success or acknowledgement.
-- Opt-in Web users can inspect the complete active set and recognize cache-known active Sessions in ordinary or search rows without creating a second durable state, runtime signal, or delivery meaning.
+- Readers recognize cache-known active Sessions in ordinary or search rows without creating a second durable state, runtime signal, or delivery meaning.
 - Each live root adds only fold-derived timers, an optional idle wait, and one in-flight operation.
 - Fixed-rate recurrence is bounded by a five-minute minimum, latest-only catch-up, and one batched occurrence per overdue record; calendar recurrence remains outside this product boundary.

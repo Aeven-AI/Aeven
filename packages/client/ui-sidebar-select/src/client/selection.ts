@@ -4,7 +4,7 @@
 export type SidebarContentKind = 'browser' | 'terminal' | 'files' | 'device'
 
 /** The kinds, in the order the selection lists them. */
-export const SIDEBAR_CONTENT_KINDS: readonly SidebarContentKind[] = ['browser', 'terminal', 'files', 'device']
+export const SIDEBAR_CONTENT_KINDS: readonly SidebarContentKind[] = ['files', 'browser', 'terminal', 'device']
 
 /**
  * Kinds with an implementation behind them.

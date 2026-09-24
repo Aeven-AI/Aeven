@@ -76,6 +76,12 @@
       "path": "../session-controller/tsconfig.client.json"
     },
     {
+      "path": "../terminal-controller/tsconfig.client.json"
+    },
+    {
+      "path": "../../device/device"
+    },
+    {
       "path": "../settings-controller"
     },
     {

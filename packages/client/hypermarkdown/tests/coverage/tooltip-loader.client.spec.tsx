@@ -299,6 +299,59 @@ describe('tooltip tippy loader', () => {
     act(() =>{  root.unmount() })
   })
 
+  it('keeps the host gutter from the viewport edge when the host states one', async () => {
+    const instance = fakeInstance()
+    const tippy = vi.fn(
+      (_reference: Element, _props: Record<string, unknown>) => instance,
+    )
+    vi.doMock('tippy.js', () => ({ default: tippy }))
+
+    const { default: Tooltip } = await import('../../src/engine/tooltip.tsx')
+    const { root } = mount(
+      <Tooltip content="inset" overflowPadding={() => 24}>
+        <button type="button">m</button>
+      </Tooltip>,
+    )
+    await settle()
+
+    // Popper appends the host's modifier to tippy's own, and the later one
+    // wins: the bubble stops 24px short of the edge it is clamped against.
+    expect(tippy.mock.calls[0]![1].popperOptions).toEqual({
+      modifiers: [{ name: 'preventOverflow', options: { padding: 24 } }],
+    })
+
+    act(() =>{  root.unmount() })
+  })
+
+  it('leaves tippy its own gutter when the host states none', async () => {
+    const instance = fakeInstance()
+    const tippy = vi.fn(
+      (_reference: Element, _props: Record<string, unknown>) => instance,
+    )
+    vi.doMock('tippy.js', () => ({ default: tippy }))
+
+    const { default: Tooltip } = await import('../../src/engine/tooltip.tsx')
+
+    // No resolver at all, then one that reports no inset: both keep tippy's.
+    const none = mount(
+      <Tooltip content="default">
+        <button type="button">n</button>
+      </Tooltip>,
+    )
+    await settle()
+    expect(tippy.mock.calls[0]![1].popperOptions).toEqual({})
+    act(() =>{  none.root.unmount() })
+
+    const unresolved = mount(
+      <Tooltip content="unresolved" overflowPadding={() => undefined}>
+        <button type="button">o</button>
+      </Tooltip>,
+    )
+    await settle()
+    expect(tippy.mock.calls[1]![1].popperOptions).toEqual({})
+    act(() =>{  unresolved.root.unmount() })
+  })
+
   it('forwards show and hide to the instance and ignores them without one', async () => {
     const instance = fakeInstance()
     vi.doMock('tippy.js', () => ({ default: vi.fn(() => instance) }))

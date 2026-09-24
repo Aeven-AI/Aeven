@@ -19,7 +19,7 @@ export interface ExplorerMemory {
 }
 
 /** A surface the explorer has not shown before. */
-export const FRESH_MEMORY: ExplorerMemory = { expanded: new Set(), openFile: null, treeVisible: true, query: '' }
+export const FRESH_MEMORY: ExplorerMemory = { expanded: new Set(), openFile: null, treeVisible: false, query: '' }
 
 const memories = new Map<string, ExplorerMemory>()
 

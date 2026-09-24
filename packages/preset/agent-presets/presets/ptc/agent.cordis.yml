@@ -252,6 +252,11 @@
 - id: tool-browser
   name: '@aeven/tool-browser'
 
+# The simulators and emulators beside the session in the right sidebar. Each
+# call reports device support or model access that the user has not enabled.
+- id: tool-device
+  name: '@aeven/tool-device'
+
 - id: tool-todo
   name: '@aeven/tool-todo'
   config:

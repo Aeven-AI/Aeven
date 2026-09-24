@@ -148,7 +148,7 @@ export class AppWebEntry {
 
       const rendering = await renderingReady
       if ('error' in rendering) throw rendering.error
-      staticModules['@aeven/client-ui-primitives'] = rendering.module
+      Object.assign(staticModules, rendering.modules)
       // ClientModuleSystem snapshots staticModules into its seed Map. Create it
       // only after the eager rendering request has completed so every plugin
       // bundle sees the complete platform table during evaluation.
@@ -213,8 +213,8 @@ export class AppWebEntry {
    * done — a session without a name lands on the step rather than the
    * application.
    *
-   * The cover is restored the moment a screen settles, which is the earliest
-   * point at which the sign-in button has stopped meaning anything: everything
+   * The cover fades back in the moment a screen settles, over that screen and its
+   * busy button, and the screen is removed once the cover is opaque: everything
    * after it — the session re-read, the plugin graph, the first shell data —
    * then happens behind an opaque cover instead of in front of a reader.
    */
@@ -242,6 +242,7 @@ export class AppWebEntry {
         // between them and the application, as it does in the Aeven client.
         const step = auth.mountNameScreen(this.container, window.location.pathname)
         await Promise.race([step.authenticated, ended])
+        await showPreloader()
         step.unmount()
       } else {
         const pathname = window.location.pathname
@@ -254,12 +255,12 @@ export class AppWebEntry {
         }
         if (screen === undefined) throw new Error('web boot: no authentication screen owns the page')
         await Promise.race([screen.authenticated, ended])
+        // The reader has committed and the button still shows its progress: the
+        // cover fades in over that screen, which comes off only once the cover
+        // is opaque, so the page never shows empty between the two.
+        await showPreloader()
         screen.unmount()
       }
-      // The reader has committed, so the cover comes back here rather than after
-      // the re-read — the button has stopped reading as progress, and the rest of
-      // the boot is not something they can watch anyway.
-      showPreloader()
     }
   }
 

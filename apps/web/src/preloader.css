@@ -16,7 +16,7 @@ body[data-ds-dark-theme] #root {
 
 #avn-preloader {
   --avn-preloader-bg: rgb(242, 242, 242);
-  --avn-preloader-fg: rgb(10, 10, 10);
+  --avn-preloader-fg: #000000;
 
   display: flex;
   position: fixed;
@@ -99,7 +99,7 @@ body[data-ds-dark-theme] #avn-preloader {
   filter: blur(1px);
 }
 
-/* Both fades wait 500ms before they start, which holds the opaque cover over
+/* The fade out waits 500ms before it starts, which holds the opaque cover over
    the shell after boot reveals it. `FADE_DELAY_MS` in
    `packages/client/web/src/preloader.ts` repeats this delay, and
    `preloader.client.spec.ts` fails if the two drift apart. */
@@ -109,6 +109,17 @@ body[data-ds-dark-theme] #avn-preloader {
 
 #avn-preloader.animate .logo {
   transition: filter 400ms ease-out 500ms;
+}
+
+/* Fading back in starts at once: the reader has just committed, so the cover
+   rises over the screen they are leaving instead of after it has gone.
+   `FADE_IN_MS` in `packages/client/web/src/preloader.ts` repeats this length. */
+#avn-preloader.animate.entering {
+  transition: opacity 300ms ease-out 0ms;
+}
+
+#avn-preloader.animate.entering .logo {
+  transition: filter 300ms ease-out 0ms;
 }
 
 #avn-preloader.screen-hidden {

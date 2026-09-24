@@ -12,6 +12,8 @@ import messageFeedbackRemote from '@aeven/message-feedback/remote'
 import sessionReferencesRemote from '@aeven/session-reference/remote'
 import browserChromiumRemote from '@aeven/browser-chromium/remote'
 import workspaceFilesRemote from '@aeven/api-workspace-files/remote'
+import terminalRemote from '@aeven/api-terminal-controller/remote'
+import deviceRemote from '@aeven/device/remote'
 import subagentsRemote from '@aeven/subagent/remote'
 import sessionRemote from '@aeven/api-session-controller/remote'
 import workspaceRemote from '@aeven/api-workspace-controller/remote'
@@ -28,6 +30,8 @@ export type {} from '@aeven/host-plugin-inventory/remote'
 export type {} from '@aeven/message-feedback/remote'
 export type {} from '@aeven/session-reference/remote'
 export type {} from '@aeven/browser-chromium/remote'
+export type {} from '@aeven/api-terminal-controller/remote'
+export type {} from '@aeven/device/remote'
 export type {} from '@aeven/subagent/remote'
 export type * from '@aeven/subagent/client'
 export type {} from '@aeven/api-session-controller/remote'
@@ -151,6 +155,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       agentPresetsRemote, commandsRemote, settingsControllerRemote, goalsRemote, llmRemote, dynamicRemote,
       pluginInventoryRemote, messageFeedbackRemote, sessionReferencesRemote,
       subagentsRemote, sessionRemote, workspaceRemote, browserChromiumRemote, workspaceFilesRemote,
+      terminalRemote, deviceRemote,
     ]) {
       disposers.push(await ctx.remote.$mount(contribution))
     }

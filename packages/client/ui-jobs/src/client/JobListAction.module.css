@@ -38,43 +38,55 @@
   margin: 0 5px;
 }
 
+/* The popup surface of the dropdown family (ui-primitives Menu.module.css and
+   the composer's model chooser): surface radius, translucent blurred fill, the
+   two inset highlights over the prominent elevation, and the 8px card pad that
+   puts a row's own 8px cell 16px from the edge. */
 .menu {
   position: absolute;
-  top: calc(100% + 5px);
+  top: calc(100% + 4px);
   left: 0;
   z-index: 100;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 0;
   width: 336px;
   max-width: min(400px, calc(100vw - 32px));
-  max-height: min(420px, calc(100vh - 140px));
+  max-height: calc(100vh - 24px);
   margin: 0;
-  padding: 4px;
+  padding: 8px;
   overflow: auto;
   list-style: none;
   border: 0;
-  border-radius: 20px;
-  background: var(--dsw-specific-menu);
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-tint-menu);
+  backdrop-filter: blur(4px);
   --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
-  box-shadow: var(--dsw-elevation-prominent);
+  box-shadow:
+    inset 1px 1px 0 0 var(--dsw-specific-popup-highlight),
+    inset 0 0 1px 1px var(--dsw-specific-popup-highlight),
+    var(--dsw-elevation-prominent);
 }
 
+/* Menu cell geometry (figma .Menu_cell): 40px row, 8px cell pad, control
+   radius, 14/22 primary. A job row reports rather than acts, so it carries no
+   hover fill — the one deliberate departure from the clickable cells this
+   matches. */
 .row {
   display: flex;
   align-items: center;
   gap: 8px;
   box-sizing: border-box;
   width: 100%;
-  min-height: 32px;
-  padding: 6px 8px;
-  border-radius: 8px;
+  min-height: var(--dsw-aeven-control-size);
+  padding: 8px;
+  border-radius: var(--dsw-aeven-radius-control);
   color: var(--dsw-alias-label-primary);
   font-size: 14px;
-  line-height: 18px;
+  line-height: 22px;
 }
 
 .rowSettled {

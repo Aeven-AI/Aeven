@@ -43,8 +43,13 @@
   --dsw-elevation-stroke-color: transparent;
   border-radius: var(--dsw-aeven-radius-surface);
   background: var(--dsw-specific-input-major);
-  box-shadow: none;
-  filter: drop-shadow(0px 5px 15px rgba(0, 0, 0, 0.1));
+  /* The card's lift is a box-shadow, not a drop-shadow filter. An element with
+     a filter forms a backdrop root, and every popup the composer anchors — the
+     model chooser and the popupSelect card — paints with backdrop-filter: held
+     inside that root, they could sample the composer alone and never the
+     conversation painted behind it, so the blur stopped at the card's own edge.
+     The filter also cast this shadow over those popups; a box-shadow does not. */
+  box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
   /* The draft text follows the Settings font-size preference (the textarea,
      mirror, and backdrop all inherit from here, so the three layers stay in
      step); the line height keeps the default 10px leading via the shared px

@@ -1041,7 +1041,24 @@ export const IconLucideImages = ({ className }: LucideGlyphProps) => (
   </svg>
 )
 
-/** lucide `message-circle`: speech bubble (Session row mark). */
+/** lucide `circle`: plain outline (Session row's resting mark). */
+export const IconLucideCircle = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <circle cx="12" cy="12" r="10" />
+  </svg>
+)
+
+/** lucide `message-circle`: speech bubble. */
 export const IconLucideMessageCircle = ({ className }: LucideGlyphProps) => (
   <svg
     aria-hidden="true"
@@ -1604,7 +1621,7 @@ export const IconLucideSquareArrowOutUpRight = ({ className }: LucideGlyphProps)
   </svg>
 )
 
-/** lucide `maximize-2`: enter full screen (hypermarkdown's table glyph). */
+/** lucide `maximize-2`: enter full screen. */
 export const IconLucideMaximize2 = ({ className }: LucideGlyphProps) => (
   <svg
     aria-hidden="true"
@@ -1612,7 +1629,7 @@ export const IconLucideMaximize2 = ({ className }: LucideGlyphProps) => (
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    strokeWidth="2"
+    strokeWidth="1.75"
     strokeLinecap="round"
     strokeLinejoin="round"
     xmlns="http://www.w3.org/2000/svg"
@@ -1624,7 +1641,7 @@ export const IconLucideMaximize2 = ({ className }: LucideGlyphProps) => (
   </svg>
 )
 
-/** lucide `minimize-2`: exit full screen (hypermarkdown's table glyph). */
+/** lucide `minimize-2`: exit full screen. */
 export const IconLucideMinimize2 = ({ className }: LucideGlyphProps) => (
   <svg
     aria-hidden="true"
@@ -1632,7 +1649,7 @@ export const IconLucideMinimize2 = ({ className }: LucideGlyphProps) => (
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    strokeWidth="2"
+    strokeWidth="1.75"
     strokeLinecap="round"
     strokeLinejoin="round"
     xmlns="http://www.w3.org/2000/svg"
@@ -1641,5 +1658,24 @@ export const IconLucideMinimize2 = ({ className }: LucideGlyphProps) => (
     <path d="M20 10h-6V4" />
     <path d="m3 21 7-7" />
     <path d="M4 14h6v6" />
+  </svg>
+)
+
+/** lucide `tablet-smartphone`: the device emulator. */
+export const IconLucideTabletSmartphone = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <rect width="10" height="14" x="3" y="8" rx="2" />
+    <path d="M5 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2h-2.4" />
+    <path d="M8 18h.01" />
   </svg>
 )

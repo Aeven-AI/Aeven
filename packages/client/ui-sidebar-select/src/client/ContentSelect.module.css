@@ -3,12 +3,6 @@
    animates, so nothing here states a width of its own. */
 
 .root {
-  /* The explorer's glass recipe: faint tint, double inset highlight, hairline. */
-  --surfaces-glass-fill: var(--dsw-alias-interactive-bg-hover);
-  --surfaces-glass-edge:
-    inset 1px 1px 0 0 var(--dsw-specific-popup-highlight),
-    inset 0 0 1px 1px var(--dsw-specific-popup-highlight),
-    var(--dsw-elevation-stroke);
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
@@ -32,15 +26,17 @@
   visibility: hidden;
 }
 
-/* The strip shares its row with the frame's corner controls (the column
-   toggle and the account), so it stops short of them. */
+/* The strip shares its row with the frame's corner controls (full screen,
+   the column toggle and the account), so it stops short of them. The row is
+   40px under the column's 8px top inset, which centres a 30px pill on the
+   corner's 56px band, level with those controls. */
 .tabbar {
   display: flex;
   flex: none;
   align-items: center;
   gap: 6px;
-  height: 48px;
-  padding: 0 104px 0 12px;
+  height: 40px;
+  padding: 0 148px 0 24px;
   box-sizing: border-box;
 }
 
@@ -50,7 +46,6 @@
   gap: 6px;
   min-width: 0;
   height: 100%;
-  padding: 0 2px;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -72,54 +67,54 @@
   mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
 }
 
-/* One pill: glyph (a close button on hover) and title. */
+/* One pill: glyph (a close button on hover) and title. A pill states no fill of
+   its own in any state — the strip is flat content, and the title alone
+   distinguishes the shown entry: full strength, against half for the rest. */
 .pill {
   display: flex;
   flex: none;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   max-width: 180px;
-  height: 32px;
-  padding: 0 14px 0 6px;
+  height: 30px;
+  padding: 0;
   box-sizing: border-box;
-  border-radius: 16px;
-  color: var(--dsw-alias-label-secondary);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
   font-size: 14px;
   line-height: 20px;
   cursor: pointer;
-  transition: background-color 150ms ease, box-shadow 150ms ease, color 150ms ease;
 }
 
-.pill:hover {
-  background: var(--surfaces-glass-fill);
-  color: var(--dsw-alias-label-primary);
+/* An unselected pill states its title at half strength and keeps its glyph at
+   full, so every surface's mark reads at one weight along the strip. */
+.pillTitle {
+  opacity: 0.5;
 }
 
 .pill[data-active] {
-  background: var(--surfaces-glass-fill);
-  box-shadow: var(--surfaces-glass-edge);
-  color: var(--dsw-alias-label-primary);
   font-weight: 500;
 }
 
+.pill[data-active] .pillTitle {
+  opacity: 1;
+}
+
+/* The glyph's seat; on hover it becomes the close button. The seat states no
+   fill of its own, so the cross takes the pill's ink and nothing else. */
 .pillClose {
   position: relative;
   display: flex;
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   padding: 0;
   border: none;
-  border-radius: 11px;
   background: transparent;
   color: inherit;
   cursor: pointer;
-}
-
-.pillClose:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
 }
 
 .pillGlyph,
@@ -129,12 +124,23 @@
   justify-content: center;
 }
 
+/* The strip's marks carry the column toggle's own metric: an 18px box on the
+   lucide family's 1.75 stroke. The launcher's plus is the one exception — its
+   glyph is drawn at 14 of the canvas's 24 units, so it needs the larger box to
+   reach the same mark as the framed glyphs beside it. */
 .pillGlyph svg,
-.pillX svg,
-.fullscreen svg,
-.menuGlyph svg,
-.launcherGlyph svg,
+.pillX svg {
+  width: 18px;
+  height: 18px;
+}
+
 .add svg {
+  width: 20px;
+  height: 20px;
+}
+
+.menuGlyph svg,
+.launcherGlyph svg {
   width: 16px;
   height: 16px;
 }
@@ -164,70 +170,26 @@
   cursor: pointer;
 }
 
+/* The launcher beside the strip: a bare glyph in the primary label's ink, so
+   the one action that adds a surface does not outweigh the surfaces it adds.
+   Its 30px box is kept for the hit area, and no state paints it. */
 .add {
   display: flex;
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   border: none;
-  border-radius: 16px;
   background: transparent;
-  color: var(--dsw-alias-label-secondary);
-  cursor: pointer;
-  transition: background-color 150ms ease, box-shadow 150ms ease, color 150ms ease;
-}
-
-.add:hover,
-.add[aria-expanded='true'] {
-  background: var(--surfaces-glass-fill);
-  box-shadow: var(--surfaces-glass-edge);
   color: var(--dsw-alias-label-primary);
-}
-
-.fullscreen {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  margin-left: auto;
-  padding: 0;
-  border: none;
-  border-radius: 16px;
-  background: transparent;
-  color: var(--dsw-alias-label-secondary);
   cursor: pointer;
-  transition: background-color 150ms ease, box-shadow 150ms ease, color 150ms ease;
-}
-
-.fullscreen:hover,
-.fullscreen[aria-pressed='true'] {
-  background: var(--surfaces-glass-fill);
-  box-shadow: var(--surfaces-glass-edge);
-  color: var(--dsw-alias-label-primary);
 }
 
 .menuGlyph {
   display: flex;
   align-items: center;
-}
-
-.menuLabel {
-  display: flex;
-  flex: 1 1 auto;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-}
-
-.shortcut {
-  color: var(--dsw-alias-label-caption);
-  font: inherit;
-  font-size: 12px;
 }
 
 /* The shown pane fills everything under the strip; hidden panes stay mounted. */
@@ -255,29 +217,22 @@
   font-size: 13px;
 }
 
-/* The empty column: "Open a surface" and one row per kind with its key. */
+/* The empty column: one row per kind. */
 .launcher {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
   align-items: stretch;
   justify-content: center;
-  gap: 2px;
-  width: min(300px, 100% - 32px);
+  gap: 8px;
+  width: min(300px, 100% - 48px);
   margin: 0 auto;
   padding-bottom: 48px;
   outline: none;
 }
 
-.launcherTitle {
-  margin-bottom: 12px;
-  color: var(--dsw-alias-label-primary);
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 20px;
-  text-align: center;
-}
-
+/* One kind row: the primary button the sign-in screen states — black fill,
+   white label and glyph — and no hover state of its own. */
 .launcherRow {
   display: flex;
   align-items: center;
@@ -286,21 +241,22 @@
   padding: 0 14px;
   border: none;
   border-radius: 20px;
-  background: transparent;
-  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
   font: inherit;
   font-size: 14px;
   text-align: start;
   cursor: pointer;
 }
 
-.launcherRow:hover:not(:disabled) {
-  background: var(--surfaces-glass-fill);
-  box-shadow: var(--surfaces-glass-edge);
+/* A kind with no implementation behind it keeps its place in the list: same
+   fill, with its label and glyph at half strength. */
+.launcherRow:disabled .launcherGlyph,
+.launcherRow:disabled .launcherLabel {
+  opacity: 0.5;
 }
 
 .launcherRow:disabled {
-  color: var(--dsw-alias-label-tertiary);
   cursor: default;
 }
 
@@ -308,7 +264,6 @@
   display: flex;
   flex: none;
   align-items: center;
-  color: var(--dsw-alias-label-secondary);
 }
 
 .launcherLabel {

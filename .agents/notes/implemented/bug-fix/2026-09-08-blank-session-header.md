@@ -6,7 +6,7 @@ English | [中文](2026-09-08-blank-session-header.zh.md)
 
 ## Problem
 
-`ConversationSessionHeader` hid all header chrome while a selected Session was blank. A newly created Session therefore showed the Hero without its title, header actions, or header utilities, even though the strict Session entry and its contributions were already available. The header appeared only after the first prompt moved the conversation out of the blank phase.
+`ConversationSessionHeader` hid all header chrome while a selected Session was blank. A newly created Session therefore showed the Hero without its title or header actions, even though the strict Session entry and its contributions were already available. The header appeared only after the first prompt moved the conversation out of the blank phase.
 
 ## Decision
 
@@ -22,7 +22,7 @@ The `ConversationRoot` skeleton test mounts a blank Session, requires an accessi
 
 **Keep the blank header hidden.** This preserves the uninterrupted Hero canvas, but it removes Session-level navigation and actions at the moment the selected Session first exists.
 
-**Render only selected header actions on the Hero.** This keeps individual controls available but creates a second header composition path whose title, lineage, utilities, spacing, and accessibility can diverge from the active conversation.
+**Render only selected header actions on the Hero.** This keeps individual controls available but creates a second header composition path whose title, lineage, spacing, and accessibility can diverge from the active conversation.
 
 **Move the header to the optional-Session root.** The header's data and contributions are strict-Session state. Giving the no-Session shell a parallel placeholder header would weaken that scope guarantee without helping a selected blank Session.
 

@@ -44,8 +44,8 @@ describe('ui-sidebar-right apply', () => {
     expect(b.slots.spec('sidebar.right.body')).toEqual({ kind: 'single', scope: 'session' })
     // Copy rides the standard locale seat, not the inject face.
     expect(b.slots.entries('rightbar')[0]!.locale).toBe('sidebarRight')
-    expect(b.ctx.locale.bind('sidebarRight')('toggle.open')).toBe('Open right sidebar')
-    expect(b.ctx.locale.bind('sidebarRight')('toggle.collapse')).toBe('Collapse right sidebar')
+    expect(b.ctx.locale.bind('sidebarRight')('toggle.open')).toBe('Open sidebar')
+    expect(b.ctx.locale.bind('sidebarRight')('toggle.collapse')).toBe('Close sidebar')
   })
 
   it("seats the toggle in the frame's corner ahead of the account avatar", async () => {

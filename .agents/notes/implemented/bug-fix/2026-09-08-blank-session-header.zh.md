@@ -6,7 +6,7 @@ Status: implemented
 
 ## 问题
 
-`ConversationSessionHeader` 会在已选 Session 仍为空白时隐藏全部标题栏 chrome。因此，新建 Session 会显示 Hero，却不显示标题、标题栏 action 或标题栏 utility，尽管严格 Session entry 及其贡献已经可用。只有首条提示词让对话离开 blank phase 后，标题栏才会出现。
+`ConversationSessionHeader` 会在已选 Session 仍为空白时隐藏全部标题栏 chrome。因此，新建 Session 会显示 Hero，却不显示标题、标题栏 action，尽管严格 Session entry 及其贡献已经可用。只有首条提示词让对话离开 blank phase 后，标题栏才会出现。
 
 ## 决策
 
@@ -22,7 +22,7 @@ Status: implemented
 
 **继续隐藏 blank 标题栏。** 这会保留不间断的 Hero 画布，但也会在已选 Session 刚出现时移除 Session 级导航与 action。
 
-**只在 Hero 上渲染选定的标题栏 action。** 这能保留个别控件，但会建立第二条标题栏组合路径，其标题、lineage、utility、间距和无障碍行为可能与活跃对话分歧。
+**只在 Hero 上渲染选定的标题栏 action。** 这能保留个别控件，但会建立第二条标题栏组合路径，其标题、lineage、间距和无障碍行为可能与活跃对话分歧。
 
 **把标题栏移到 optional-Session root。** 标题栏的数据与贡献属于严格 Session 状态。给无 Session shell 增加一条平行的占位标题栏会削弱该作用域保证，却无法进一步帮助已选 blank Session。
 

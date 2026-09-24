@@ -3,7 +3,8 @@
  * shares into the module table — fetch bundles resolve their externals against
  * exactly this set through the loader's require. Keys come from the platform
  * constant module ({@link ./platform.ts}, the single source of truth with the
- * tsdown client externals). Immediate values are static imports; UI primitives
+ * tsdown client externals). Immediate values are static imports; the rendering
+ * family (UI primitives, and the xterm terminal emulator with its stylesheet)
  * resolves once before the module system snapshots the completed table.
  */
 import * as React from 'react'
@@ -15,18 +16,26 @@ import * as ClientStore from '@aeven/client-store'
 import * as UiSlots from '@aeven/client-ui-slots'
 import type { PlatformModule } from './platform.ts'
 
-type UiPrimitivesModule = typeof import('@aeven/client-ui-primitives')
-type ImmediatePlatformModule = Exclude<PlatformModule, '@aeven/client-ui-primitives'>
+/** Platform modules the rendering family supplies once its background request settles. */
+type RenderingModule = '@aeven/client-ui-primitives' | '@xterm/xterm' | '@xterm/addon-fit'
+type ImmediatePlatformModule = Exclude<PlatformModule, RenderingModule>
+/** The settled rendering family, keyed by platform module specifier. */
+type RenderingModules = Record<RenderingModule, unknown>
 
 /**
  * Start the rendering family with the shell without placing it on the shell's
  * execution path. The rejection is captured immediately so an unauthenticated
  * page can keep presenting sign-in even when an application-only chunk fails.
  */
-const uiPrimitivesLoad: Promise<{ module: UiPrimitivesModule } | { error: unknown }> = import(
-  '@aeven/client-ui-primitives',
-).then(
-  module => ({ module }),
+const renderingLoad: Promise<{ modules: RenderingModules } | { error: unknown }> = Promise.all([
+  import('@aeven/client-ui-primitives'),
+  import('@xterm/xterm'),
+  import('@xterm/addon-fit'),
+  import('@xterm/xterm/css/xterm.css'),
+]).then(
+  ([primitives, xterm, xtermFit]) => ({
+    modules: { '@aeven/client-ui-primitives': primitives, '@xterm/xterm': xterm, '@xterm/addon-fit': xtermFit },
+  }),
   (error: unknown) => ({ error }),
 )
 
@@ -36,7 +45,7 @@ const uiPrimitivesLoad: Promise<{ module: UiPrimitivesModule } | { error: unknow
  */
 export function startStaticModules(): {
   table: Record<string, unknown>
-  rendering: Promise<{ module: UiPrimitivesModule } | { error: unknown }>
+  rendering: Promise<{ modules: RenderingModules } | { error: unknown }>
 } {
   // The satisfies pin is the projection contract: a word added to
   // PLATFORM_MODULES without a static import here (or vice versa) fails to
@@ -50,5 +59,5 @@ export function startStaticModules(): {
     '@aeven/client-store': ClientStore,
     '@aeven/client-ui-slots': UiSlots,
   } satisfies Record<ImmediatePlatformModule, unknown>
-  return { table, rendering: uiPrimitivesLoad }
+  return { table, rendering: renderingLoad }
 }

@@ -193,9 +193,10 @@ export function AppFrame({
   // this one. Clamping on the way out keeps a reload from opening a panel
   // wider than the frame it reopens in.
   const rightbarShown = rightbarSession !== undefined && panels.rightbar[rightbarSession]?.shown === true
-  const rightbarWidth = rightbarShown
-    ? clampRightbar(panels.rightbarWidth, typeof window === 'undefined' ? 0 : window.innerWidth)
-    : 0
+  // The width the column opens at, published even while it is collapsed, so
+  // its content keeps that layout through the slide instead of re-wrapping.
+  const rightbarOpenWidth = clampRightbar(panels.rightbarWidth, typeof window === 'undefined' ? 0 : window.innerWidth)
+  const rightbarWidth = rightbarShown ? rightbarOpenWidth : 0
   const rightbarRef = useRef(rightbarWidth)
   rightbarRef.current = rightbarWidth
 
@@ -255,6 +256,7 @@ export function AppFrame({
       style={{
         '--avn-frame-details-width': `${String(detailsWidth)}px`,
         '--avn-frame-rightbar-width': `${String(rightbarWidth)}px`,
+        '--avn-frame-rightbar-open-width': `${String(rightbarOpenWidth)}px`,
       } as CSSProperties}
       data-sidebar-collapsed={sidebarCollapsed || undefined}
       data-details-collapsed={detailsWidth === 0 || undefined}

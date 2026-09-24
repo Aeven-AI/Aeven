@@ -86,29 +86,44 @@
   opacity: 1;
 }
 
-/* The panel's whole body narrows and fades as one. */
+/* The panel's whole body narrows and fades as one. Its fixed-width content is
+   pinned to the column's moving left edge, so it slides out to the right with
+   that edge and is clipped by the frame, the left sidebar's mirror. */
 .sideContent {
   position: relative;
   z-index: 10;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   width: var(--avn-rightbar-open-width);
   height: 100%;
   opacity: 0;
   overflow-y: auto;
   overflow-x: hidden;
   box-sizing: border-box;
-  /* Opacity stays linear against the eased width, the left sidebar's own
-     pairing: it keeps the fade perceptually even through the accelerating
-     slide. */
+  /* Folding: gone in half the theme's fast duration on an ease-out, so the
+     panel finishes its travel empty rather than trailing a half-faded body. A
+     transition belongs to the state it moves into, so this rule times the
+     fold; the reveal below states its own, longer fade. */
   transition:
     width var(--dsw-aeven-rightbar-transition-duration)
       var(--dsw-aeven-rightbar-transition-timing),
-    opacity var(--dsw-aeven-rightbar-transition-duration) linear;
+    opacity calc(var(--ds-transition-duration-fast) / 2) ease-out 0s;
 }
 
+/* Showing: the panel does the first 40% of its travel before any fade starts,
+   then the content fades up over half again as long as the whole slide. The
+   fade outlasting the movement is deliberate — one that ends with the slide is
+   over before the eye catches it, which reads as a blink — and the symmetric
+   curve states half of that fade at its own midpoint. */
 .visible .sideContent {
   opacity: 1;
+  transition:
+    width var(--dsw-aeven-rightbar-transition-duration)
+      var(--dsw-aeven-rightbar-transition-timing),
+    opacity calc(var(--dsw-aeven-rightbar-transition-duration) * 1.5)
+      ease-in-out
+      calc(var(--dsw-aeven-rightbar-transition-duration) * 0.4);
 }
 
 /* A drag writes width at pointer cadence, so every eased layer drops its
@@ -131,20 +146,22 @@
   transition: none;
 }
 
-/* Fixed at the open width so nothing inside re-lays-out mid-slide. */
+/* Fixed at the width the column opens at, in both directions of the slide,
+   so nothing inside re-lays-out mid-slide. */
 .sideContentInner {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  width: var(--avn-rightbar-open-width);
+  width: var(--avn-frame-rightbar-open-width);
   box-sizing: border-box;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .content,
   .panel,
-  .sideContent {
+  .sideContent,
+  .visible .sideContent {
     transition: none;
   }
 }

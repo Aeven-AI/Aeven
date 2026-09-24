@@ -902,7 +902,7 @@ describe('web e2e: long Chat scroll contract', () => {
       await nextPaint(world.page)
       await expectSameFlowTop(world.page, sessionAnchor, RESPONSIVE_REFLOW_TOLERANCE)
       const narrowSessionAnchor = await visibleFlowAnchor(world.page)
-      await world.page.getByRole('button', { name: 'Open sidebar', exact: true }).click()
+      await world.page.locator('[data-slot="sidebar"]').getByRole('button', { name: 'Open sidebar', exact: true }).click()
 
       await openSeed(
         world.page,

@@ -1,6 +1,6 @@
-/** Keyless assembled-Web evidence for conversational Schedule delivery. */
+/** Keyless assembled-Web evidence for conversational delivery and the active Schedule marker. */
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Browser, Page } from 'playwright'
@@ -29,7 +29,6 @@ import {
   type WebScaffold,
 } from './scaffold.ts'
 import {
-  REPO_ROOT,
   connectFreshWorkspace,
   conversationContextKey,
   saveFailureShot,
@@ -57,21 +56,14 @@ const EVERY_PROMPTS = ['Check primary metrics', 'Check secondary metrics'] as co
 const EVERY_REPLY = 'Reminders: Check primary metrics; Check secondary metrics.'
 const EVERY_INTERVAL_SECONDS = 60 * 60
 const EVERY_FIXTURE_AGE_MS = 90 * 60 * 1_000
-const CATALOG_SNAPSHOT_DIR = fileURLToPath(new URL('../../../snapshots/web/schedule-catalog', import.meta.url))
-const CATALOG_FIXTURE = join(CATALOG_SNAPSHOT_DIR, 'session.jsonl')
-const CATALOG_EXPECTED = join(CATALOG_SNAPSHOT_DIR, 'catalog.expected.md')
+const SCHEDULE_SNAPSHOT_DIR = fileURLToPath(new URL('../../../snapshots/web/schedule-catalog', import.meta.url))
+const SCHEDULE_FIXTURE = join(SCHEDULE_SNAPSHOT_DIR, 'session.jsonl')
 const BASE_PATCH = fileURLToPath(new URL('../../../packages/bundle/base/cordis.patch.yml', import.meta.url))
 const WEB_PATCH = fileURLToPath(new URL('../../../packages/bundle/web-app/cordis.patch.yml', import.meta.url))
-const CATALOG_NOW = Date.parse('2099-08-25T12:00:00.000Z')
-const CATALOG_SESSION_ID = SessionId('schedule-catalog-web-e2e')
-const CATALOG_TITLE = 'Active schedule catalog'
-const REMINDER_TRIGGER_NAME = /^\d+ reminders?$/
+const SCHEDULE_SESSION_ID = SessionId('schedule-marker-web-e2e')
+// The scenario fixture's committed session title, which its list rows carry.
+const SCHEDULE_TITLE = 'Active schedule catalog'
 const ACTIVE_SCHEDULE_LABEL = 'Has active scheduled task'
-const CATALOG_IDS = {
-  after: ScheduleId('catalog-after'),
-  at: ScheduleId('catalog-at'),
-  every: ScheduleId('catalog-every'),
-} as const
 
 /** Emit one complete assistant text response. */
 function textResponse(text: string): StreamChunk[] {
@@ -449,7 +441,6 @@ describe.skipIf(MODE === 'record')('web e2e: conversational reminders', () => {
       await captureStableAria(page, selector, scaffold.workspaceCwd),
       MODE,
     )
-    expect(await page.getByRole('button', { name: REMINDER_TRIGGER_NAME }).count()).toBe(0)
   }, 60_000)
 
   it('batches one latest occurrence per overdue Every record into an ordinary follow-up', async () => {
@@ -510,8 +501,6 @@ describe.skipIf(MODE === 'record')('web e2e: conversational reminders', () => {
       await captureStableAria(page, selector, scaffold.workspaceCwd),
       MODE,
     )
-    await page.getByRole('button', { name: '2 reminders', exact: true }).waitFor({ timeout: 15_000 })
-    expect(await page.getByRole('list', { name: 'Active reminders' }).count()).toBe(0)
   }, 60_000)
 
   it('uses request-local browser context to create an explicit local At reminder', async () => {
@@ -583,7 +572,6 @@ describe.skipIf(MODE === 'record')('web e2e: conversational reminders', () => {
       await captureStableAria(page, selector, scaffold.workspaceCwd),
       MODE,
     )
-    expect(await page.getByRole('button', { name: REMINDER_TRIGGER_NAME }).count()).toBe(0)
     expect(tripwire.pageErrors).toEqual([])
     expect(tripwire.warnings).toEqual([])
   }, 60_000)
@@ -597,47 +585,47 @@ describe.skipIf(MODE === 'record')('web e2e: conversational reminders', () => {
   })
 })
 
-describe.skipIf(MODE === 'record')('web e2e: active Schedule catalog', () => {
+describe.skipIf(MODE === 'record')('web e2e: active Schedule marker', () => {
   let scaffold: WebScaffold
   let browser: Browser
   let page: Page
   let tripwire: ReturnType<typeof watchConsole>
 
   beforeAll(async () => {
-    const fixture = await readFile(CATALOG_FIXTURE, 'utf8')
+    const fixture = await readFile(SCHEDULE_FIXTURE, 'utf8')
     scaffold = await launchWebScaffold({
       extraOverlayPath: OVERLAY,
-      replayFixture: CATALOG_FIXTURE,
+      replayFixture: SCHEDULE_FIXTURE,
       replayProvidersOnly: true,
     })
-    await seedSession(scaffold, fixture, CATALOG_SESSION_ID, 'standard')
+    await seedSession(scaffold, fixture, SCHEDULE_SESSION_ID, 'standard')
     const workspace = await scaffold.ctx.workspaceRegistry.create(scaffold.workspaceCwd)
-    await workspace.attachSession(CATALOG_SESSION_ID)
+    await workspace.attachSession(SCHEDULE_SESSION_ID)
 
     // Seed the zero-I/O list view before the Session is opened.
-    const catalog = await scaffold.ctx.sessionPersistence.readFrom(CATALOG_SESSION_ID, SessionLogOffset(0))
+    const stored = await scaffold.ctx.sessionPersistence.readFrom(SCHEDULE_SESSION_ID, SessionLogOffset(0))
     scaffold.ctx.sessionProjectionCache.coldSnapshot(
-      catalog.meta,
-      catalog.inheritedEventCount,
-      catalog.events,
+      stored.meta,
+      stored.inheritedEventCount,
+      stored.events,
     )
 
     browser = await chromium.launch()
     page = await browser.newPage({
       viewport: { width: 900, height: 900 },
       locale: 'en-US',
-      timezoneId: AT_BROWSER_ZONE,
     })
-    await page.clock.setFixedTime(new Date(CATALOG_NOW))
     await page.addInitScript(() => { localStorage.setItem('avn.locale', 'en') })
     tripwire = watchConsole(page)
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
-    await page.evaluate(() => { document.body.removeAttribute('data-ds-dark-theme') })
-    const openSidebar = page.getByRole('button', { name: 'Open sidebar' })
+    // Both corner toggles read "Open sidebar" / "Close sidebar", so the
+    // locator names its column: this one is the left sidebar's.
+    const sidebar = page.locator('[data-slot="sidebar"]')
+    const openSidebar = sidebar.getByRole('button', { name: 'Open sidebar' })
     if (await openSidebar.isVisible()) {
       await openSidebar.click()
-      await page.getByRole('button', { name: 'Collapse sidebar' }).waitFor({ timeout: 10_000 })
+      await sidebar.getByRole('button', { name: 'Close sidebar' }).waitFor({ timeout: 10_000 })
     }
     const workspaceRow = page.locator('[role="treeitem"]').first()
     await workspaceRow.waitFor({ timeout: 15_000 })
@@ -647,7 +635,7 @@ describe.skipIf(MODE === 'record')('web e2e: active Schedule catalog', () => {
       await workspaceRow.click()
       await new Promise<void>(resolve => setTimeout(resolve, 50))
     }
-    await page.getByRole('treeitem', { name: new RegExp(CATALOG_TITLE) }).waitFor({ timeout: 15_000 })
+    await page.getByRole('treeitem', { name: new RegExp(SCHEDULE_TITLE) }).waitFor({ timeout: 15_000 })
   }, 120_000)
 
   afterAll(async () => {
@@ -655,168 +643,73 @@ describe.skipIf(MODE === 'record')('web e2e: active Schedule catalog', () => {
     await browser?.close().catch((error: unknown) => failures.push(error))
     await scaffold?.close().catch((error: unknown) => failures.push(error))
     if (failures.length === 1) throw failures[0]
-    if (failures.length > 1) throw new AggregateError(failures, 'Schedule catalog teardown failed')
+    if (failures.length > 1) throw new AggregateError(failures, 'Schedule marker teardown failed')
   })
 
-  it('replays the overlay-only catalog and sidebar marker, then removes both live', async () => {
-    onTestFailed(() => saveFailureShot(page, 'web-e2e-schedule-catalog'))
+  it('marks the schedule projection in grouped, search, and flat rows, then clears the marker live', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-schedule-marker'))
     const base = composeEntries([
-      loadOverlayPatches('Schedule catalog base roster', BASE_PATCH),
-      loadOverlayPatches('Schedule catalog base roster', WEB_PATCH),
+      loadOverlayPatches('Schedule base roster', BASE_PATCH),
+      loadOverlayPatches('Schedule base roster', WEB_PATCH),
     ])
     const scheduled = composeEntries([
-      loadOverlayPatches('Schedule catalog overlay roster', BASE_PATCH),
-      loadOverlayPatches('Schedule catalog overlay roster', WEB_PATCH),
-      loadOverlayPatches('Schedule catalog overlay roster', OVERLAY),
+      loadOverlayPatches('Schedule overlay roster', BASE_PATCH),
+      loadOverlayPatches('Schedule overlay roster', WEB_PATCH),
+      loadOverlayPatches('Schedule overlay roster', OVERLAY),
     ])
-    expect(base.find(entry => entry.id === 'ui-schedule')).toMatchObject({
-      name: '@aeven/client-ui-schedule',
-      disabled: true,
+    expect(base.find(entry => entry.id === 'time-context')).toBeUndefined()
+    expect(base.find(entry => entry.id === 'schedule')).toBeUndefined()
+    expect(scheduled.find(entry => entry.id === 'time-context')).toMatchObject({
+      name: '@aeven/time-context',
     })
-    expect(scheduled.find(entry => entry.id === 'ui-schedule')).toMatchObject({
-      name: '@aeven/client-ui-schedule',
-      disabled: false,
+    expect(scheduled.find(entry => entry.id === 'schedule')).toMatchObject({
+      name: '@aeven/schedule',
     })
 
-    const catalogRow = page.getByRole('treeitem', { name: new RegExp(CATALOG_TITLE) })
-    expect(await catalogRow.getByRole('img', { name: ACTIVE_SCHEDULE_LABEL }).count()).toBe(1)
+    const sessionRow = page.getByRole('treeitem', { name: new RegExp(SCHEDULE_TITLE) })
+    expect(await sessionRow.getByRole('img', { name: ACTIVE_SCHEDULE_LABEL }).count()).toBe(1)
 
     await page.getByRole('button', { name: 'Search sessions' }).click()
     const search = page.getByPlaceholder('Search sessions', { exact: false })
-    await search.fill(CATALOG_TITLE)
+    await search.fill(SCHEDULE_TITLE)
     const result = page.getByRole('tree', { name: 'Search results' })
-      .getByRole('treeitem', { name: new RegExp(CATALOG_TITLE) })
+      .getByRole('treeitem', { name: new RegExp(SCHEDULE_TITLE) })
     await result.waitFor({ timeout: 15_000 })
     expect(await result.getByRole('img', { name: ACTIVE_SCHEDULE_LABEL }).count()).toBe(1)
     expect(await result.getByRole('button').count()).toBe(0)
 
     await page.getByRole('button', { name: 'Clear search' }).click()
-    await catalogRow.waitFor({ timeout: 15_000 })
+    await sessionRow.waitFor({ timeout: 15_000 })
 
     await page.getByRole('button', { name: 'View options' }).click()
     await page.getByRole('menuitem', { name: 'In one list' }).click()
-    const flatRow = page.getByRole('treeitem', { name: new RegExp(CATALOG_TITLE) })
+    const flatRow = page.getByRole('treeitem', { name: new RegExp(SCHEDULE_TITLE) })
     await flatRow.waitFor({ timeout: 15_000 })
     expect(await flatRow.getByRole('img', { name: ACTIVE_SCHEDULE_LABEL }).count()).toBe(1)
 
     await page.getByRole('button', { name: 'View options' }).click()
     await page.getByRole('menuitem', { name: 'WorkSpace' }).click()
-    await catalogRow.waitFor({ timeout: 15_000 })
-    expect(await catalogRow.getByRole('img', { name: ACTIVE_SCHEDULE_LABEL }).count()).toBe(1)
-
-    await openSession(page, CATALOG_TITLE)
-    const parentAgent = await liveAgent(scaffold, CATALOG_SESSION_ID)
-
-    const trigger = page.getByRole('button', { name: '3 reminders' })
-    await trigger.waitFor({ timeout: 15_000 })
-    await trigger.click()
-    const catalog = page.getByRole('list', { name: 'Active reminders' })
-    await catalog.waitFor({ timeout: 10_000 })
-    expect(await catalog.getByRole('listitem').count()).toBe(3)
-    const lightLayout = await page.evaluate(() => {
-      const triggerElement = document.querySelector('button[aria-label="3 reminders"]')
-      const catalogElement = document.querySelector('[aria-label="Active reminders"]')
-      if (!(triggerElement instanceof HTMLElement) || !(catalogElement instanceof HTMLElement)) {
-        throw new Error('active reminder trigger or catalog is not mounted')
-      }
-      const triggerBox = triggerElement.getBoundingClientRect()
-      const catalogBox = catalogElement.getBoundingClientRect()
-      const viewport = window.innerWidth
-      return {
-        bodyPortal: catalogElement.parentElement === document.body,
-        position: getComputedStyle(catalogElement).position,
-        triggerLeft: triggerBox.left,
-        catalogLeft: catalogBox.left,
-        catalogRight: catalogBox.right,
-        width: catalogBox.width,
-        viewport,
-        expectedLeft: Math.min(Math.max(16, triggerBox.left), viewport - catalogBox.width - 16),
-        scrollWidth: document.documentElement.scrollWidth,
-        background: getComputedStyle(catalogElement).backgroundColor,
-      }
-    })
-    expect(lightLayout.bodyPortal).toBe(true)
-    expect(lightLayout.position).toBe('fixed')
-    expect(lightLayout.width).toBe(336)
-    expect(lightLayout.catalogLeft).toBe(lightLayout.expectedLeft)
-    expect(lightLayout.catalogLeft).toBeLessThan(lightLayout.triggerLeft)
-    expect(lightLayout.catalogRight).toBeLessThanOrEqual(lightLayout.viewport - 16)
-    expect(lightLayout.scrollWidth).toBeLessThanOrEqual(lightLayout.viewport)
-    expect(lightLayout.background).not.toBe('rgba(0, 0, 0, 0)')
-    const longRow = catalog.getByRole('listitem').filter({ hasText: 'Join release review' })
-    const cadenceRow = catalog.getByRole('listitem').filter({ hasText: 'Check exact cadence' })
-    const longPrompt = longRow.locator(':scope > span').nth(1)
-    const promptLayout = await longPrompt.evaluate(element => ({
-      height: element.getBoundingClientRect().height,
-      clientWidth: element.clientWidth,
-      scrollWidth: element.scrollWidth,
-    }))
-    expect(promptLayout.height).toBeGreaterThan(18)
-    expect(promptLayout.scrollWidth).toBeLessThanOrEqual(promptLayout.clientWidth)
-    const [longRowLayout, cadenceRowLayout] = await Promise.all([
-      longRow.evaluate((element) => {
-        const box = element.getBoundingClientRect()
-        return {
-          bottom: box.bottom,
-          clientHeight: element.clientHeight,
-          scrollHeight: element.scrollHeight,
-          childBottoms: [...element.children].map(child => child.getBoundingClientRect().bottom),
-        }
-      }),
-      cadenceRow.evaluate((element) => {
-        const box = element.getBoundingClientRect()
-        return { top: box.top, bottom: box.bottom }
-      }),
-    ])
-    expect(longRowLayout.scrollHeight).toBeLessThanOrEqual(longRowLayout.clientHeight)
-    expect(longRowLayout.childBottoms).not.toHaveLength(0)
-    for (const childBottom of longRowLayout.childBottoms) {
-      expect(childBottom).toBeLessThanOrEqual(longRowLayout.bottom)
-    }
-    expect(longRowLayout.bottom).toBeLessThanOrEqual(cadenceRowLayout.top)
-    expect(cadenceRowLayout.bottom).toBeGreaterThan(cadenceRowLayout.top)
-    const scrollLayout = await catalog.evaluate(element => ({
-      clientHeight: element.clientHeight,
-      scrollHeight: element.scrollHeight,
-    }))
-    expect(scrollLayout.scrollHeight).toBeGreaterThan(scrollLayout.clientHeight)
-
-    const evidenceDir = join(REPO_ROOT, '.artifacts')
-    await mkdir(evidenceDir, { recursive: true })
-    await writeFile(
-      join(evidenceDir, 'web-e2e-schedule-catalog-left-alignment.json'),
-      `${JSON.stringify(lightLayout, null, 2)}\n`,
-    )
-    await page.screenshot({
-      path: join(evidenceDir, 'web-e2e-schedule-catalog-left-alignment.png'),
-      fullPage: true,
-    })
-
-    await page.evaluate(() => { document.body.setAttribute('data-ds-dark-theme', '') })
-    const darkBackground = await catalog.evaluate(element => getComputedStyle(element).backgroundColor)
-    expect(darkBackground).not.toBe('rgba(0, 0, 0, 0)')
-    expect(darkBackground).not.toBe(lightLayout.background)
-    await compareOrRefreshGolden(
-      CATALOG_EXPECTED,
-      await captureStableAria(page, '[aria-label="Active reminders"]', scaffold.workspaceCwd),
-      MODE,
-    )
-
-    const sessionRow = page.getByRole('treeitem', { name: new RegExp(CATALOG_TITLE) })
+    await sessionRow.waitFor({ timeout: 15_000 })
     expect(await sessionRow.getByRole('img', { name: ACTIVE_SCHEDULE_LABEL }).count()).toBe(1)
-    for (const id of Object.values(CATALOG_IDS)) {
-      parentAgent.session.append('schedule/change', { version: 1, operation: 'delete', id })
+
+    await openSession(page, SCHEDULE_TITLE)
+    await expect.poll(() => sessionRow.getByRole('img', { name: ACTIVE_SCHEDULE_LABEL }).count(), {
+      timeout: 15_000,
+    }).toBe(1)
+    const parentAgent = await liveAgent(scaffold, SCHEDULE_SESSION_ID)
+
+    // The seeded log carries one after, one at, and one every record; the
+    // projected value is those records until each one is deleted.
+    const active = foldScheduleEvents(parentAgent.session.snapshotEvents()).active
+    expect(active.map(record => record.kind).sort()).toEqual(['after', 'at', 'every'])
+    for (const record of active) {
+      parentAgent.session.append('schedule/change', { version: 1, operation: 'delete', id: record.id })
     }
     await expect(scaffold.ctx.sessions.flush(parentAgent.session)).resolves.toBe(true)
-    await expect.poll(() => page.getByRole('button', { name: REMINDER_TRIGGER_NAME }).count(), {
-      timeout: 15_000,
-    }).toBe(0)
-    expect(await page.getByRole('list', { name: 'Active reminders' }).count()).toBe(0)
     await expect.poll(() => sessionRow.getByRole('img', { name: ACTIVE_SCHEDULE_LABEL }).count(), {
       timeout: 15_000,
     }).toBe(0)
-    await assertFixtureInventory(CATALOG_SNAPSHOT_DIR, [
-      'catalog.expected.md',
+    await assertFixtureInventory(SCHEDULE_SNAPSHOT_DIR, [
       'session.jsonl',
       'system-prompt.expected.md',
       'tool-schemas.expected.json',

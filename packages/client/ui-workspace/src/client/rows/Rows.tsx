@@ -13,8 +13,8 @@ import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 
 import clsx from 'clsx'
 import {
   HoverCard, IconAlarmClockOutline16, IconArchiveOutline20, IconBranchOutline16,
-  IconEditOutline16, IconLucideEllipsis, IconLucideFolder, IconLucideFolderOpen,
-  IconLucideMessageCircle, IconLucideMessageCirclePlus, IconTrashOutline16, Menu, relativeTime,
+  IconEditOutline16, IconLucideCircle, IconLucideEllipsis, IconLucideFolder, IconLucideFolderOpen,
+  IconLucideMessageCirclePlus, IconTrashOutline16, Menu, relativeTime,
   Spinner, StateDot,
 } from '@aeven/client-ui-primitives'
 import type { StateDotState } from '@aeven/client-ui-primitives'
@@ -296,13 +296,13 @@ function sessionStatuses(
 
 /**
  * The status mark itself: work in flight is the shared Aeven loading glyph —
- * one 18px 10,10,10 mark rotating — rather than a state dot, so a running
+ * one 18px #000000 mark rotating — rather than a state dot, so a running
  * Session reads the same in the list as every other in-flight surface; a
- * Session at rest carries the faint speech bubble that marks a chat.
+ * Session at rest carries the faint circle that marks a chat.
  */
 function StatusMark({ state }: { state: StateDotState }) {
   if (state === 'ongoing') return <Spinner className={css.runningMark} />
-  if (state === 'done') return <IconLucideMessageCircle className={css.idleMark} />
+  if (state === 'done') return <IconLucideCircle className={css.idleMark} />
   return <StateDot state={state} />
 }
 

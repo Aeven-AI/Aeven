@@ -208,8 +208,6 @@ PascalCase 标识符中的首字母缩略词使用首字母大写格式：`Ui`�
 | `AgentDefaultModelService` | `AgentDefaultModelConfig` | 该对象存储一项默认模型选择。它不运行服务，也不是通用注册表。保留其包、键、设置命名空间和类型。 |
 | `SessionReferenceService`, `ctx.sessionReferences` | `SessionReferenceResolver`, `ctx.sessionReferenceResolver` | 它从 URI 或输入解析一个会话引用，并不拥有引用集合。 |
 | `SessionQueryService`, `SessionQuerySqlite` | `SessionQueryEngine`, `SqliteSessionQueryEngine` | 这些类执行查询模型及其 SQLite 实现。保留包名、键和工具。 |
-| `@aeven/session-export`, `session-export/`, Loader id `session-export`, `ctx.sessionExport` | `@aeven/session-log-export`, `session-log-export/`, Loader id `session-log-download`, `ctx.sessionLogDownload` | npm 包名使用 Session 日志导出语义，因为 npm 禁止包名包含 `download`。Loader id 与浏览器 API 保留 `download`，因为它们描述浏览器副作用。 |
-| `SessionExportDownloadController`, 其他 `SessionExport*` 浏览器类型、`useSessionExport`、`SessionExportHeader` | `SessionLogDownloadController`, 对应的 `SessionLogDownload*` 类型、`useSessionLogDownload`、`SessionLogDownloadHeaderAction` | 该 controller 拥有预检、重复请求合并、弹窗状态和浏览器保存。`ExportDownload` 重复表达同一动作，该组件贡献的是一个 Header action，不是整个 Header。 |
 | 宿主命令包中的 `CommandService` | `CommandRuntime` | 该对象跨实时调用注册并执行宿主命令。保留其包、键、类型和事件。 |
 | `TokenMeterService` | `TokenMeter` | 该对象测量 token 用量。`Service` 没有补充作用域信息。 |
 | `LlmService` | `LlmRuntime` | 该对象选择提供方并运行实时模型请求。保留包、键、适配器和事件。 |
@@ -340,7 +338,6 @@ PascalCase 标识符内部使用 `Ui`，不要使用 `UI`。除非清单明确�
 - 保留共享的 `settings.plugins.tab` slot。它属于 Plugins 设置分区。清单包只把自己的 locale namespace 改为 `settings.pluginInventory`，不会创建独立的 tab slot。
 - 保留 `@aeven/message-feedback` 能力、`messageFeedback` Remote、assistant-action entry id `feedback`、hook key `feedback` 和 locale namespace `feedback`。它们所在的接口已经把作用域限定为消息反馈或本地 assistant-message slot。只修改作用域过宽的 Client 包名和导出的 UI 名称。
 - 保留 `RemoteFailure`、`RemoteResult` 和 `SessionRemotes`。前两者是 Typert 载体结果值，后者是客户端 Session 集群使用的一组 Remote 命名空间。它们都不是 store、controller、registry 或 runtime。
-- 保留用户命令 `/export`、Host 路由 `/api/session.export`、`DownloadsApi` 及其 `sessionLog` 操作。命令说明用户动作，Host 路由导出归档，API 则归类直接 HTTP 下载。重命名的 Client controller 拥有独立的浏览器下载步骤。
 - 测试文件名保留 `.client` 和 `.host`。它们标识测试进入的编译端面，不声称产品职责。
 
 ## 考虑过的替代方案

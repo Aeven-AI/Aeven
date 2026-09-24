@@ -208,8 +208,6 @@ Keep `/compact`, the command package, and the separate compaction definition and
 | `AgentDefaultModelService` | `AgentDefaultModelConfig` | The object stores one default model selection. It does not run a service or general registry. Keep its package, key, settings namespace, and type. |
 | `SessionReferenceService`, `ctx.sessionReferences` | `SessionReferenceResolver`, `ctx.sessionReferenceResolver` | It resolves one session reference from a URI or input. It does not own a reference collection. |
 | `SessionQueryService`, `SessionQuerySqlite` | `SessionQueryEngine`, `SqliteSessionQueryEngine` | The classes execute a query model and its SQLite implementation. Keep package names, key, and tool. |
-| `@aeven/session-export`, `session-export/`, Loader id `session-export`, `ctx.sessionExport` | `@aeven/session-log-export`, `session-log-export/`, Loader id `session-log-download`, `ctx.sessionLogDownload` | The npm package names the Session-log export because npm rejects `download` in package names. The Loader id and browser API retain `download` because they describe the browser side effect. |
-| `SessionExportDownloadController`, other `SessionExport*` browser types, `useSessionExport`, `SessionExportHeader` | `SessionLogDownloadController`, corresponding `SessionLogDownload*` types, `useSessionLogDownload`, `SessionLogDownloadHeaderAction` | The controller owns preflight, duplicate-request collapse, modal state, and browser save. `ExportDownload` repeats the action, and the component contributes one Header action rather than the Header. |
 | `CommandService` in the host command package | `CommandRuntime` | The object registers and executes host commands across live calls. Keep its package, key, types, and events. |
 | `TokenMeterService` | `TokenMeter` | The object measures token use. `Service` adds no scope. |
 | `LlmService` | `LlmRuntime` | The object selects providers and runs live model requests. Keep the package, key, adapters, and events. |
@@ -340,7 +338,6 @@ The following debated names stay unchanged because the current scope is accurate
 - Keep the shared `settings.plugins.tab` slot. It belongs to the Plugins settings section. The inventory package changes its own locale namespace to `settings.pluginInventory`; it does not create a separate tab slot.
 - Keep the `@aeven/message-feedback` capability, `messageFeedback` Remote, assistant-action entry id `feedback`, hook key `feedback`, and locale namespace `feedback`. Their surrounding interfaces already limit them to message feedback or to the local assistant-message slot. Only the broad Client package and exported UI names change.
 - Keep `RemoteFailure`, `RemoteResult`, and `SessionRemotes`. The first two are Typert carrier-result values, while the last is the set of Remote namespaces used by the Client Session cluster. None is a store, controller, registry, or runtime.
-- Keep the `/export` human command, `/api/session.export` Host route, `DownloadsApi`, and its `sessionLog` operation. The command names the user action, the Host route exports the archive, and the API groups direct HTTP downloads. The renamed Client controller owns the separate browser-download step.
 - Keep `.client` and `.host` in test filenames. They identify the compiler face each test enters and do not claim a product role.
 
 ## Alternatives considered

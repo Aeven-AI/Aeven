@@ -541,7 +541,6 @@ describe('ConversationRoot resident composer', () => {
     expect(host?.contains(b.view.container.querySelector('[data-conversation-chrome-top]'))).toBe(false)
     expect(b.slotCalls).toContain('conversation.session.header.lineage')
     expect(b.slotCalls).toContain('conversation.session.header.actions')
-    expect(b.slotCalls).toContain('conversation.session.header.utilities')
     expect(b.slotCalls).toContain('conversation.navigation.utilities')
   })
 
@@ -571,7 +570,6 @@ describe('ConversationRoot resident composer', () => {
     expect(header?.getAttribute('aria-hidden')).toBeNull()
     expect(b.view.getByRole('button', { name: 'Child' })).toBeTruthy()
     expect(b.slotCalls).toContain('conversation.session.header.actions')
-    expect(b.slotCalls).toContain('conversation.session.header.utilities')
     expect(b.view.getByText('Æven')).toBeTruthy()
     expect(b.view.getByText(/你在想些什么？/)).toBeTruthy()
     expect(b.view.queryByTestId('view-chat')).toBeNull()
@@ -678,7 +676,6 @@ describe('ConversationRoot resident composer', () => {
     expect(b.slotCalls).toContain('conversation.navigation.utilities')
     // The Session header's own content stays Session-gated.
     expect(b.slotCalls).not.toContain('conversation.session.header')
-    expect(b.slotCalls).not.toContain('conversation.session.header.utilities')
     expect(b.slotCalls).not.toContain('conversation.session')
   })
 

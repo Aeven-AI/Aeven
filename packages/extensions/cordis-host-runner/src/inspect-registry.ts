@@ -3,7 +3,7 @@
 import { Service } from '@deepseek-ai/cordis'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@aeven/agent'
-import { snapshotJsonValue, type JsonValue } from '@aeven/util-values'
+import { deepEqualJson, snapshotJsonValue, type JsonValue } from '@aeven/util-values'
 import { assertSupportedJsonSchema, validateJsonSchemaValue } from '@aeven/tools'
 import type { JsonSchemaNode } from '@aeven/tools'
 import type {
@@ -43,7 +43,8 @@ declare module '@deepseek-ai/cordis' {
 
 /** Registry and cross-page router behind the two model-facing inspect tools. */
 export class CordisInspectRegistryService extends Service {
-  private readonly providers = new Map<string, HostCordisInspectProviderRegistration>()
+  /** Live registrations per provider id, oldest first; the newest answers. */
+  private readonly providers = new Map<string, HostCordisInspectProviderRegistration[]>()
   private readonly pending = new Map<CordisInspectRequestId, PendingClientQuery>()
   private clientManifest: readonly CordisInspectProviderManifest[] | undefined
   private nextRequest = 1
@@ -55,16 +56,31 @@ export class CordisInspectRegistryService extends Service {
 
   /**
    * Register one Host provider.
+   *
+   * A registration whose manifest equals the live one under the same id joins
+   * it instead of conflicting: each generation of an agent-preset mount
+   * registers the same providers while earlier generations still serve their
+   * sessions. The newest registration answers queries; disposing it restores
+   * the one before it.
    * @param registration - manifest and local query handler.
    * @returns idempotent disposer.
+   * @throws when a provider with the same id but a different manifest is live.
    */
   register(registration: HostCordisInspectProviderRegistration): () => void {
     const manifest = validateManifest(registration.manifest)
-    if (this.providers.has(manifest.id)) throw new Error(`Host Cordis inspect provider "${manifest.id}" is already registered`)
+    const live = this.providers.get(manifest.id)
+    if (live !== undefined && !deepEqualJson(live[0]?.manifest, manifest)) {
+      throw new Error(`Host Cordis inspect provider "${manifest.id}" is already registered with a different manifest`)
+    }
     const stored = { ...registration, manifest }
-    this.providers.set(manifest.id, stored)
+    if (live === undefined) this.providers.set(manifest.id, [stored])
+    else live.push(stored)
     return () => {
-      if (this.providers.get(manifest.id) === stored) this.providers.delete(manifest.id)
+      const stack = this.providers.get(manifest.id)
+      const index = stack?.indexOf(stored) ?? -1
+      if (stack === undefined || index === -1) return
+      stack.splice(index, 1)
+      if (stack.length === 0) this.providers.delete(manifest.id)
     }
   }
 
@@ -89,7 +105,7 @@ export class CordisInspectRegistryService extends Service {
    */
   list(): CordisInspectProviderView[] {
     return [
-      ...[...this.providers.values()].map(provider => view('host', provider.manifest)),
+      ...[...this.providers.values()].map(([provider]) => view('host', (provider as HostCordisInspectProviderRegistration).manifest)),
       ...(this.clientManifest ?? []).map(provider => view('client', provider)),
     ]
   }
@@ -113,7 +129,7 @@ export class CordisInspectRegistryService extends Service {
     signal: AbortSignal,
   ): Promise<JsonValue> {
     if (platform === 'host') {
-      const registration = this.providers.get(providerId)
+      const registration = this.providers.get(providerId)?.at(-1)
       if (registration === undefined) throw new Error(`Host Cordis inspect provider "${providerId}" is not registered`)
       const method = findMethod(registration.manifest, methodName)
       validateInput('Host', providerId, method, input)

@@ -213,7 +213,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/api/session-controller/src/index.ts:69`](../packages/api/session-controller/src/index.ts)
+Source: [`packages/api/session-controller/src/index.ts:74`](../packages/api/session-controller/src/index.ts)
 
 <a id="aevenapi-settings-controller"></a>
 
@@ -228,6 +228,77 @@ export interface Config {
 ```
 
 Source: [`packages/api/settings-controller/src/index.ts:36`](../packages/api/settings-controller/src/index.ts)
+
+<a id="aevenapi-terminal-controller"></a>
+
+## `@aeven/api-terminal-controller`
+
+Requires: `subprocess` · `sandboxPolicy` · `typert`
+
+```ts config-catalog
+/** Deployment limits and an optional shell profile. */
+export interface Config {
+  /** Explicit shell profile; omission uses the execution environment's default shell. */
+  readonly shell?: {
+    /** Executable path or PATH name, verified by the subprocess provider. */
+    path: string
+    /** User-visible profile name. */
+    name: string
+    /** Arguments passed to the interactive shell. */
+    args: string[]
+  } | undefined
+  /** Executable names or paths checked for the new-terminal shell selector. */
+  readonly shellCandidates: string[]
+  /** Maximum retained terminals and pending allocations per Session. */
+  readonly maxTerminals: number
+  /** Maximum terminal width in columns. */
+  readonly maxCols: number
+  /** Maximum terminal height in rows. */
+  readonly maxRows: number
+  /** Screen history rows retained for reconnecting clients. */
+  readonly scrollback: number
+  /** Maximum queued UTF-8 frame bytes per output follower before disconnection. */
+  readonly maxBufferedBytes: number
+  /** Maximum UTF-8 bytes in one input request. */
+  readonly maxInputBytes: number
+  /** Provider process-termination grace period in milliseconds. */
+  readonly disposeGraceMs: number
+  /** Continuous confirmed idle time without window holds before reclamation; zero disables reclamation. */
+  readonly unattendedTimeoutMs: number
+  /** Interval between unattended shell and process observations. */
+  readonly activityPollIntervalMs: number
+  /** Delay before retrying failed owned terminal cleanup. */
+  readonly cleanupRetryMs: number
+}
+```
+
+Source: [`packages/api/terminal-controller/src/index.ts:26`](../packages/api/terminal-controller/src/index.ts)
+
+<a id="aevenapi-workspace-files"></a>
+
+## `@aeven/api-workspace-files`
+
+Requires: `fs` · `sandboxPolicy` · `typert`
+
+```ts config-catalog
+/** Deployment caps on one listing, one preview page and one search. */
+export interface Config {
+  /** Cap on returned directory entries; the rest is dropped and reported cut. */
+  readonly maxEntries: number
+  /** Lines in one preview page; a longer file is reported not at EOF. */
+  readonly maxLines: number
+  /** Inclusive byte cap on one preview page; a page above it is refused. */
+  readonly maxBytes: number
+  /** Cap on the hits one search returns. */
+  readonly searchMaxHits: number
+  /** Cap on the directories one search lists before it stops. */
+  readonly searchMaxDirectories: number
+  /** Directory names a search never descends into. */
+  readonly searchSkip: string[]
+}
+```
+
+Source: [`packages/api/workspace-files/src/index.ts:40`](../packages/api/workspace-files/src/index.ts)
 
 <a id="aevenattachment-local"></a>
 
@@ -310,6 +381,30 @@ export type Config = LocalConfig
 Depends on: [`LocalConfig`](#aevenbash-local)
 
 Source: [`packages/shell/bash-sandbox/src/index.ts:35`](../packages/shell/bash-sandbox/src/index.ts)
+
+<a id="aevenbrowser-chromium"></a>
+
+## `@aeven/browser-chromium`
+
+```ts config-catalog
+/** Where the browser runs and what it stores. */
+export interface Config {
+  /** Chromium or Chrome executable to launch. */
+  executablePath: string
+  /** Remote debugging port; chrome-devtools-mcp's `--browserUrl` names the same one. */
+  port: number
+  /** Profile directory. Omit for `<AVN_HOME>/runtime/chrome-profile`. */
+  userDataDir?: string
+  /**
+   * MCP server whose tools drive this browser (chrome-devtools-mcp attached with
+   * `--browserUrl` to `port`); a call to one of them launches the browser first
+   * when it is not answering. Empty disables the launch-on-call.
+   */
+  mcpServerName: string
+}
+```
+
+Source: [`packages/web/browser-chromium/src/index.ts:52`](../packages/web/browser-chromium/src/index.ts)
 
 <a id="aevenclient-connection"></a>
 
@@ -551,6 +646,74 @@ export interface Config {
 ```
 
 Source: [`packages/credentials/credentials-local/src/index.ts:71`](../packages/credentials/credentials-local/src/index.ts)
+
+<a id="aevendevice"></a>
+
+## `@aeven/device`
+
+```ts config-catalog
+/** Deployment timeouts, the hub route mount, and the consent defaults. */
+export interface Config extends DeviceConsent {
+  /** Origin-relative path the hub proxy (hub-proxy.ts) serves the hub under. */
+  hubMount: string
+  /** Hub JSON request deadline, in ms. */
+  requestTimeoutMs: number
+  /** Simulator or emulator boot deadline, in ms. */
+  bootTimeoutMs: number
+  /** Screenshot deadline, in ms. */
+  screenshotTimeoutMs: number
+  /** Where agent-device endpoint files and the launcher live. Omit for `<AVN_HOME>/runtime/device`. */
+  stateDir?: string
+}
+
+/** The user's consent switches; defaults are the composed starting point. */
+export interface DeviceConsent {
+  /** Install and start the streaming hub on demand. */
+  enabled: boolean
+  /** Let the model start and drive devices. */
+  agentAccessEnabled: boolean
+  /** The setup flow was finished once. */
+  onboardingCompleted: boolean
+}
+```
+
+Source: [`packages/device/device/src/index.ts:56`](../packages/device/device/src/index.ts)
+
+<a id="aevendevice-local"></a>
+
+## `@aeven/device-local`
+
+Requires: `devices`
+
+```ts config-catalog
+/** Pinned tools, install location, and process deadlines. */
+export interface Config {
+  /** expo-device-hub version to install and run. */
+  hubVersion: string
+  /** agent-device version to install and run; `device_open`'s instructions are written for it. */
+  agentVersion: string
+  /** Root of the pinned installs. Omit for `<AVN_HOME>/runtime/device-tools`. */
+  toolsDir?: string
+  /** Node executable the tools run with. */
+  nodePath: string
+  /** npm executable used to install the tools. */
+  npmPath: string
+  /** Deadline for one tool install, in ms. */
+  installTimeoutMs: number
+  /** Deadline for the hub to answer after spawning, in ms. */
+  hubReadyTimeoutMs: number
+  /** Deadline for the agent-device daemon to answer, in ms. */
+  agentReadyTimeoutMs: number
+  /** Hub uptime after which a crash restarts it without backoff, in ms. */
+  hubStableUptimeMs: number
+  /** Longest backoff before restarting a crashing hub, in ms. */
+  hubRestartMaxDelayMs: number
+  /** Default deadline for one device command, in ms. */
+  commandTimeoutMs: number
+}
+```
+
+Source: [`packages/device/device-local/src/index.ts:38`](../packages/device/device-local/src/index.ts)
 
 <a id="aevene2b"></a>
 
@@ -1264,7 +1427,7 @@ export interface Config {
 
 Depends on: [`DeepSeekCatalogModel`](../packages/llm/llm-deepseek/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
 
-Source: [`packages/llm/llm-aeven/src/index.ts:178`](../packages/llm/llm-aeven/src/index.ts)
+Source: [`packages/llm/llm-aeven/src/index.ts:219`](../packages/llm/llm-aeven/src/index.ts)
 
 <a id="aevenllm-deepseek"></a>
 
@@ -2258,25 +2421,6 @@ export interface Config {
 
 Source: [`packages/session/session-log-deepseek/src/index.ts:36`](../packages/session/session-log-deepseek/src/index.ts)
 
-<a id="aevensession-log-export"></a>
-
-## `@aeven/session-log-export`
-
-Requires: `commands` · `connection`
-
-```ts config-catalog
-/** Session-log archive policy. */
-export interface Config {
-  /** DEFLATE level for each ZIP entry. @default 6 */
-  readonly compressionLevel?: SessionLogCompressionLevel
-}
-
-/** Valid fflate DEFLATE levels accepted by session-log export. */
-export type SessionLogCompressionLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
-```
-
-Source: [`packages/session-query/session-log-export/src/index.ts:42`](../packages/session-query/session-log-export/src/index.ts)
-
 <a id="aevensession-persistence-jsonl"></a>
 
 ## `@aeven/session-persistence-jsonl`
@@ -3108,6 +3252,24 @@ export interface Config {
 
 Source: [`packages/shell/tool-bash-persistent/src/index.ts:432`](../packages/shell/tool-bash-persistent/src/index.ts)
 
+<a id="aeventool-browser"></a>
+
+## `@aeven/tool-browser`
+
+Requires: `tools` · `agents`
+
+```ts config-catalog
+/** How long the browser beside a session is given to answer. Invalid values fail plugin load. */
+export interface Config {
+  /** Milliseconds the first step of a turn waits for the open page before it proceeds without the browser context. */
+  statusTimeoutMs?: number
+  /** Milliseconds a `preview_*` call waits for the browser before it fails as timed out. */
+  actionTimeoutMs?: number
+}
+```
+
+Source: [`packages/web/tool-browser/src/index.ts:35`](../packages/web/tool-browser/src/index.ts)
+
 <a id="aeventool-fs"></a>
 
 ## `@aeven/tool-fs`
@@ -3344,6 +3506,24 @@ export interface Config {
 ```
 
 Source: [`packages/workflow/tool-ralph/src/index.ts:21`](../packages/workflow/tool-ralph/src/index.ts)
+
+<a id="aeventool-search"></a>
+
+## `@aeven/tool-search`
+
+Requires: `tools` · `systemPrompt`
+
+```ts config-catalog
+/** Which tools wait for `tool_search` and how many schemas one search returns. */
+export interface Config {
+  /** Tool name patterns to defer; `*` matches any run of characters. */
+  defer: string[]
+  /** Schemas one keyword search returns at most. */
+  maxResults: number
+}
+```
+
+Source: [`packages/core/tool-search/src/index.ts:32`](../packages/core/tool-search/src/index.ts)
 
 <a id="aeventool-session-query"></a>
 
@@ -3886,7 +4066,6 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/client-ui-plan` ([`packages/client/ui-plan/src/index.ts`](../packages/client/ui-plan/src/index.ts))
 - `@aeven/client-ui-reference` ([`packages/client/ui-reference/src/index.ts`](../packages/client/ui-reference/src/index.ts))
 - `@aeven/client-ui-renderer` ([`packages/client/ui-renderer/src/index.ts`](../packages/client/ui-renderer/src/index.ts))
-- `@aeven/client-ui-schedule` ([`packages/client/ui-schedule/src/index.ts`](../packages/client/ui-schedule/src/index.ts))
 - `@aeven/client-ui-session` ([`packages/client/ui-session/src/index.ts`](../packages/client/ui-session/src/index.ts))
 - `@aeven/client-ui-settings` ([`packages/client/ui-settings/src/index.ts`](../packages/client/ui-settings/src/index.ts))
 - `@aeven/client-ui-settings-general` ([`packages/client/ui-settings-general/src/index.ts`](../packages/client/ui-settings-general/src/index.ts))
@@ -3894,7 +4073,12 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/client-ui-settings-plugin-inventory` ([`packages/client/ui-settings-plugin-inventory/src/index.ts`](../packages/client/ui-settings-plugin-inventory/src/index.ts))
 - `@aeven/client-ui-settings-plugins` ([`packages/client/ui-settings-plugins/src/index.ts`](../packages/client/ui-settings-plugins/src/index.ts))
 - `@aeven/client-ui-sidebar` ([`packages/client/ui-sidebar/src/index.ts`](../packages/client/ui-sidebar/src/index.ts))
+- `@aeven/client-ui-sidebar-browser` ([`packages/client/ui-sidebar-browser/src/index.ts`](../packages/client/ui-sidebar-browser/src/index.ts))
+- `@aeven/client-ui-sidebar-device` ([`packages/client/ui-sidebar-device/src/index.ts`](../packages/client/ui-sidebar-device/src/index.ts))
+- `@aeven/client-ui-sidebar-files` ([`packages/client/ui-sidebar-files/src/index.ts`](../packages/client/ui-sidebar-files/src/index.ts))
 - `@aeven/client-ui-sidebar-right` ([`packages/client/ui-sidebar-right/src/index.ts`](../packages/client/ui-sidebar-right/src/index.ts))
+- `@aeven/client-ui-sidebar-select` ([`packages/client/ui-sidebar-select/src/index.ts`](../packages/client/ui-sidebar-select/src/index.ts))
+- `@aeven/client-ui-sidebar-terminal` ([`packages/client/ui-sidebar-terminal/src/index.ts`](../packages/client/ui-sidebar-terminal/src/index.ts))
 - `@aeven/client-ui-skill` ([`packages/client/ui-skill/src/index.ts`](../packages/client/ui-skill/src/index.ts))
 - `@aeven/client-ui-subagent` ([`packages/client/ui-subagent/src/index.ts`](../packages/client/ui-subagent/src/index.ts))
 - `@aeven/client-ui-theme` ([`packages/client/ui-theme/src/index.ts`](../packages/client/ui-theme/src/index.ts))
@@ -3934,6 +4118,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/tool-ask-user` — requires `tools` · `userQuestions` ([`packages/interaction/tool-ask-user/src/index.ts`](../packages/interaction/tool-ask-user/src/index.ts))
 - `@aeven/tool-call-timeout-policy` — requires `tools` ([`packages/guard/timeout-policy/src/index.ts`](../packages/guard/timeout-policy/src/index.ts))
 - `@aeven/tool-cordis` — requires `tools` · `systemPrompt` · `dynamicCordisRunner` · `cordisInspect` ([`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts))
+- `@aeven/tool-device` — requires `tools` ([`packages/device/tool-device/src/index.ts`](../packages/device/tool-device/src/index.ts))
 - `@aeven/tool-subagent-control` — requires `tools` · `subagents` ([`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts))
 - `@aeven/user-questions` ([`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts))
 - `@aeven/webhook` — requires `agents` · `agentDefaultModel` · `agentPresets` · `permissionPresets` · `sessionTitle` · `workspaceRegistry` ([`packages/webhook/webhook/src/index.ts`](../packages/webhook/webhook/src/index.ts))

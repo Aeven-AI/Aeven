@@ -140,8 +140,7 @@ root
 │  │     └─ conversation.trajectory.images
 │  ├─ conversation.session.header
 │  │  ├─ conversation.session.header.lineage
-│  │  ├─ conversation.session.header.actions
-│  │  └─ conversation.session.header.utilities
+│  │  └─ conversation.session.header.actions
 │  ├─ conversation.composer
 │  │  └─ conversation.approval.detail
 │  ├─ conversation.composer.bar

@@ -11,18 +11,16 @@
   display: grid;
   flex: none;
   place-items: center;
-  width: var(--dsw-aeven-control-size);
+  /* Narrower than the shared control square: only the glyph reads here, and a
+     30px box sets this control's distance from the avatar beside it. The height
+     stays the token's, so the corner row keeps one height. */
+  width: 30px;
   height: var(--dsw-aeven-control-size);
   padding: 0;
   border: none;
-  border-radius: 8px;
   background: transparent;
   color: var(--dsw-alias-label-primary);
   cursor: pointer;
-}
-
-.toggle:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
 }
 
 /* The panel glyph: a CSS-sized lucide panel at its own 18px grapheme. */

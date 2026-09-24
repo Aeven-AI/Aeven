@@ -92,6 +92,10 @@
   transform: rotate(180deg);
 }
 
+/* The popup surface of the dropdown family (ui-primitives Menu.module.css and
+   the composer's model chooser): surface radius, translucent blurred fill, the
+   two inset highlights over the prominent elevation, and the 8px card pad that
+   puts a row's own 8px cell 16px from the edge. */
 .menu {
   position: fixed;
   z-index: 100;
@@ -100,15 +104,20 @@
   flex-direction: column;
   width: 336px;
   max-width: min(400px, calc(100vw - 32px));
-  max-height: min(560px, calc(100vh - 140px));
-  padding: 4px;
+  max-height: min(560px, calc(100vh - 24px));
+  padding: 8px;
   overflow: auto;
-  border-radius: 20px;
-  background: var(--dsw-specific-menu);
+  border: 0;
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-tint-menu);
+  backdrop-filter: blur(4px);
   --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
-  box-shadow: var(--dsw-elevation-prominent);
+  box-shadow:
+    inset 1px 1px 0 0 var(--dsw-specific-popup-highlight),
+    inset 0 0 1px 1px var(--dsw-specific-popup-highlight),
+    var(--dsw-elevation-prominent);
 }
 
 .node {
@@ -127,9 +136,13 @@
   box-sizing: border-box;
   width: 100%;
   min-height: 50px;
+  /* Block pad stays 7px: the tree's connector rails are pinned to this row's
+     height (see .children below), and the family's 8px cell would move them.
+     The cell radius is the family's, so the hover fill reads as the same
+     material as the composer's dropdown cells. */
   padding: 7px 8px 7px 11px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--dsw-aeven-radius-control);
   background: transparent;
   color: var(--dsw-alias-label-primary);
   font-size: 14px;
@@ -154,7 +167,7 @@
   min-width: 0;
   margin: -7px -8px -7px;
   padding: 7px 8px;
-  border-radius: 8px;
+  border-radius: var(--dsw-aeven-radius-control);
 }
 
 .row > :global([data-state]),

@@ -85,6 +85,7 @@ type LayoutActions = {
   setFullscreen: (draft: LayoutState, fullscreen: boolean) => void
   setRightbar: (draft: LayoutState, px: number, viewport: number) => void
   toggleRightbar: (draft: LayoutState, sessionId: string, viewport: number) => void
+  openRightbar: (draft: LayoutState, sessionId: string, viewport: number) => void
 }
 
 /** localStorage key holding this store's durable fields. */
@@ -165,6 +166,9 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
       toggleRightbar: (d, sessionId: string, viewport: number) => {
         if (d.rightbar[sessionId]?.shown === true) d.rightbar[sessionId] = { shown: false }
         else showRightbar(d, sessionId, viewport)
+      },
+      openRightbar: (d, sessionId: string, viewport: number) => {
+        if (d.rightbar[sessionId]?.shown !== true) showRightbar(d, sessionId, viewport)
       },
     },
   })

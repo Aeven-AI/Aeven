@@ -242,6 +242,17 @@
 - id: tool-browser
   name: '@aeven/tool-browser'
 
+# The simulators and emulators beside the session in the right sidebar. Each
+# call reports device support or model access that the user has not enabled.
+- id: tool-device
+  name: '@aeven/tool-device'
+
+# MCP tool schemas stay out of the request until the model loads them with
+# tool_search: a computer-use driver and browser DevTools alone carry close to
+# a hundred tools, past the providers' 128-tool request limit.
+- id: tool-search
+  name: '@aeven/tool-search'
+
 - id: tool-todo
   name: '@aeven/tool-todo'
   config:

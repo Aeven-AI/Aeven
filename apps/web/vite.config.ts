@@ -187,20 +187,22 @@ function emitPreviewPage(): Plugin {
  * index. The React side of markdown/math rendering is workspace code and
  * rides index.
  */
-const RENDER_CHUNKS: Readonly<Record<string, 'katex' | 'hljs'>> = {
+const RENDER_CHUNKS: Readonly<Record<string, 'katex' | 'hljs' | 'xterm'>> = {
   katex: 'katex',
   'highlight.js': 'hljs',
   lowlight: 'hljs',
+  '@xterm/xterm': 'xterm',
+  '@xterm/addon-fit': 'xterm',
 }
 
 /** Render-family chunk for one npm package, when it has an explicit owner. */
-function renderChunkForPackage(pkg: string): 'katex' | 'hljs' | 'mdast' | undefined {
+function renderChunkForPackage(pkg: string): 'katex' | 'hljs' | 'xterm' | 'mdast' | undefined {
   if (pkg === 'micromark' || pkg.startsWith('micromark-') || pkg.startsWith('mdast-util-')) return 'mdast'
   return RENDER_CHUNKS[pkg]
 }
 
 const NAMED_RENDER_CHUNKS: ReadonlySet<string> = new Set([
-  'index', 'auth', 'react', 'primitives', 'hypermarkdown', 'katex', 'hljs', 'mdast',
+  'index', 'auth', 'react', 'primitives', 'hypermarkdown', 'katex', 'hljs', 'xterm', 'mdast',
 ])
 
 /**

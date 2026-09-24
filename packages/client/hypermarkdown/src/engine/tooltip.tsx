@@ -27,6 +27,12 @@ export interface TooltipProps {
    * e.g. the icon inside a wider button. The trigger stays the element.
    */
   placementRect?: ((reference: Element) => DOMRect) | undefined
+  /**
+   * Space the bubble keeps from the viewport edge it is clamped against,
+   * resolved once when the tooltip is created. Returning undefined leaves
+   * tippy's own gutter in place.
+   */
+  overflowPadding?: (() => number | undefined) | undefined
   children?: ReactElement<{ ref?: Ref<Element> }> | undefined
 }
 
@@ -117,15 +123,15 @@ function loadTippy(): Promise<TippyFactory | null> {
  */
 const Tooltip = forwardRef<TooltipHandle, TooltipProps>(
   function Tooltip(props, ref) {
-    const { content, placement, trigger, touch, arrow, placementRect, children } = props
+    const { content, placement, trigger, touch, arrow, placementRect, overflowPadding, children } = props
 
     const manual = trigger === 'manual'
     const instanceRef = useRef<Instance | null>(null)
     const referenceRef = useRef<Element | null>(null)
     // tippy arrives a microtask late, so creation reads the current props
     // rather than the ones captured when the effect was scheduled.
-    const latest = useRef({ content, placement, touch, arrow, manual, trigger, placementRect })
-    latest.current = { content, placement, touch, arrow, manual, trigger, placementRect }
+    const latest = useRef({ content, placement, touch, arrow, manual, trigger, placementRect, overflowPadding })
+    latest.current = { content, placement, touch, arrow, manual, trigger, placementRect, overflowPadding }
 
     // The anchor may carry a ref of its own; it keeps receiving the element.
     const childRef = (children as { ref?: Ref<Element> } | undefined)?.ref
@@ -164,6 +170,7 @@ const Tooltip = forwardRef<TooltipHandle, TooltipProps>(
         }
 
         const current = latest.current
+        const overflowPadding = current.overflowPadding?.()
 
         instanceRef.current = create(reference, {
           content: current.content ?? '',
@@ -177,6 +184,12 @@ const Tooltip = forwardRef<TooltipHandle, TooltipProps>(
           zIndex: 99999,
           getReferenceClientRect: () => latest.current.placementRect?.(reference)
             ?? reference.getBoundingClientRect(),
+          // Popper appends these to tippy's own modifiers, so the host's gutter
+          // replaces tippy's 5px one on the axis the bubble is clamped against.
+          // A host without a gutter keeps tippy's.
+          popperOptions: overflowPadding === undefined ? {} : {
+            modifiers: [{ name: 'preventOverflow', options: { padding: overflowPadding } }],
+          },
           // An edge-aligned bubble (`-start`/`-end`) keeps its arrow at least
           // ARROW_REACH from its own edge; slide the bubble outward just enough
           // that the arrow can sit on the centre of a narrow reference.

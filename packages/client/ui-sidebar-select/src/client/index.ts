@@ -2,18 +2,25 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@aeven/client-locale/client'
+import type {} from '@aeven/client-ui-layout/client'
 // Type-only: pulls the SlotRegistry service merge (ctx.slots).
 import type {} from '@aeven/client-ui-renderer/client'
 // Type-only: pulls the right sidebar's `sidebar.right.body` declaration.
 import type {} from '@aeven/client-ui-sidebar-right/client'
 import { ContentSelect } from './ContentSelect.tsx'
-import type { ContentSelectInjected } from './contract/slots.ts'
+import type { ContentSelectInjected, FullscreenButtonInjected } from './contract/slots.ts'
+import { FullscreenButton } from './FullscreenButton.tsx'
+import { SurfaceFullscreen } from './fullscreen.ts'
 import { SidebarContentRegistry } from './registry.ts'
 import { en, zh, type SidebarSelectKey } from './locales.ts'
 
-export type { ContentSelectComponentProps, ContentSelectInjected } from './contract/slots.ts'
+export type {
+  ContentSelectComponentProps, ContentSelectInjected, FullscreenButtonComponentProps, FullscreenButtonInjected,
+} from './contract/slots.ts'
+export { SurfaceFullscreen } from './fullscreen.ts'
 export {
-  SidebarContentRegistry, type SidebarContentComponent, type SidebarContentPaneProps, type SidebarSurfaceTab,
+  SidebarContentRegistry, type SidebarContentComponent, type SidebarContentPaneProps, type SidebarSurfaceCloseHandler,
+  type SidebarContentLauncher, type SidebarSurfaceTab,
 } from './registry.ts'
 export type { SidebarSurface, SurfaceState } from './surfaces.ts'
 export type { SidebarSelectKey } from './locales.ts'
@@ -33,7 +40,7 @@ declare module '@aeven/client-ui-slots' {
 const NS = 'sidebarSelect'
 
 /** Services required by the selection plugin. */
-export const inject = ['slots', 'locale']
+export const inject = ['slots', 'locale', 'layout']
 
 /**
  * Registers the selection as the right sidebar's body.
@@ -42,6 +49,7 @@ export const inject = ['slots', 'locale']
 export function apply(ctx: ClientContext): void {
   ctx.plugin(SidebarContentRegistry)
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-sidebar-select: dictionaries')
+  const fullscreen = new SurfaceFullscreen()
 
   // The body is a single-occupant slot, so the selection waits for the shell to
   // declare it rather than racing the panel's own registration.
@@ -53,6 +61,16 @@ export function apply(ctx: ClientContext): void {
       // registry, and the same published instance is what a provider reaches
       // through `ctx.get`. A copy held here would leave the two sides
       // registering into different maps.
-      inject: (): ContentSelectInjected => ({ registry: ctx.get('sidebarContent')! }),
+      inject: (): ContentSelectInjected => ({ registry: ctx.get('sidebarContent')!, fullscreen, openRightbar: (sessionId) => { ctx.layout.openRightbar(sessionId) } }),
     }, ContentSelect))
+
+  // Ahead of the right sidebar's own toggle (order 90) in the frame's corner.
+  ctx.slots.inject('shell.corner', () =>
+    ctx.slots.register({
+      name: 'shell.corner',
+      id: 'rightbar-fullscreen',
+      order: 80,
+      locale: NS,
+      inject: (): FullscreenButtonInjected => ({ fullscreen }),
+    }, FullscreenButton))
 }

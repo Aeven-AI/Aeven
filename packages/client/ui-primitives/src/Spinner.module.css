@@ -11,7 +11,7 @@
 .spinner {
   /* The loading mark is chrome, not content: it reads as primary ink, which
      inverts with the theme. */
-  color: var(--avn-spinner-color, var(--dsw-alias-label-primary, rgb(10, 10, 10)));
+  color: var(--avn-spinner-color, var(--dsw-alias-label-primary, #000000));
   animation: 900ms linear 0s infinite normal none running avn-spinner-spin;
 }
 

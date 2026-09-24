@@ -74,12 +74,14 @@ textarea {
    it has ignored `user-scalable=no` since iOS 10 — the only way to stop the
    zoom is to leave no field under the threshold. A touch pointer selects the
    rule, so pointer devices keep the smaller sizes the design states, and
-   pinch-zoom stays available everywhere. */
+   pinch-zoom stays available everywhere. `!important` holds the floor against
+   component selectors, such as the vendored Aeven auth sheet's
+   `.input-text.large input`, which drops to 0.875rem under 640px. */
 @media (pointer: coarse) {
   input,
   select,
   textarea,
   [contenteditable] {
-    font-size: max(16px, 1em);
+    font-size: max(16px, 1em) !important;
   }
 }

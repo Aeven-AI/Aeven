@@ -1,15 +1,14 @@
 /**
- * Agent-preset surface plugin, browser half — three surfaces over one roster:
- * a chip on the new-session screen for the session about to start, a
- * read-only label in the session header, and a settings section that manages
- * the roster (copy, delete, default, and the way into a preset's own files).
+ * Agent-preset surface plugin, browser half — two surfaces over one roster: a
+ * chip on the new-session screen for the session about to start, and a settings
+ * section that manages the roster (copy, delete, default, and the way into a
+ * preset's own files).
  *
  * A running session keeps the composition it began with (the host refuses to
- * adopt an existing session under a different preset). That is what splits
- * the choice from the display: the hero chip is before-the-fact, while the
- * header only reports what a session already runs. The default preset is
- * edited where the roster is visible — the settings section's "make default"
- * — so General settings carries no duplicate control for the same field.
+ * adopt an existing session under a different preset), so the choice belongs to
+ * the screen that starts one. The default preset is edited where the roster is
+ * visible — the settings section's "make default" — so General settings carries
+ * no duplicate control for the same field.
  */
 
 // Type-only: pulls the Session Controller service merge (ctx.sessions).
@@ -25,8 +24,6 @@ import type {} from '@aeven/client-ui-renderer/client'
 // Type-only: pulls the Workspace UI navigation service merge (ctx.uiWorkspace).
 import type {} from '@aeven/client-ui-workspace/client'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import { AgentPresetLabel } from './AgentPresetLabel.tsx'
-import type { AgentPresetLabelInjected } from './AgentPresetLabel.tsx'
 import { AgentPresetSeat } from './AgentPresetSeat.tsx'
 import type { AgentPresetSeatInjected } from './AgentPresetSeat.tsx'
 import { AgentPresetSection } from './AgentPresetSection.tsx'
@@ -45,7 +42,6 @@ declare module '@aeven/client-ui-slots' {
   }
 }
 
-export type { AgentPresetLabelInjected, AgentPresetLabelProps } from './AgentPresetLabel.tsx'
 export type { AgentPresetSeatInjected, AgentPresetSeatProps } from './AgentPresetSeat.tsx'
 export type { AgentPresetSectionInjected, AgentPresetSectionProps } from './AgentPresetSection.tsx'
 export type { AgentPresetSeatState } from './seat-store.ts'
@@ -122,11 +118,6 @@ export function apply(ctx: ClientContext): void {
       introduced: () => { seat.introduced() },
     })
 
-    const labelInjected = (): AgentPresetLabelInjected => ({
-      hooks: { agentPresets: controller.store },
-      load: () => controller.load(),
-    })
-
     scope.effect(() => {
       // Connecting a workspace either creates a blank session or reuses one,
       // and either way the chip's pick predates it — so the stage is applied
@@ -162,21 +153,12 @@ export function apply(ctx: ClientContext): void {
         locale: 'settings.agentPreset',
         inject: seatInjected,
       }, AgentPresetSeat)
-      const label = scope.slots.register({
-        name: 'conversation.session.header.actions',
-        id: 'agent-preset',
-        // Static session context occupies the header's leading negative-order band.
-        order: -10,
-        locale: 'settings.agentPreset',
-        inject: labelInjected,
-      }, AgentPresetLabel)
       return () => {
         stop()
         settingsMoved()
         rosterReaders.delete(readRoster)
         creatorDraft = undefined
         chip()
-        label()
       }
     }, 'ui-agent-preset: new-session chip and header label')
   })

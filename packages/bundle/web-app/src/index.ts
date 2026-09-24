@@ -151,12 +151,14 @@ function webSurfacePrompt(webUrl: string): string {
   const renderContract = 'Your replies render as GitHub-Flavored Markdown in this GUI, not as plain text. '
     + 'A ```mermaid fence renders as a diagram and TeX math renders through KaTeX. '
     + 'Never tell the user you are unable to show a diagram or an image — this surface does both. '
-    // Image tools render their own output in the result card. A reply that also
-    // embeds the file shows it twice, so the reply never carries image markdown
-    // and this prompt deliberately teaches no URL for workspace files.
-    + 'Images reach the page through the tool that produced them, which displays them in its own result. '
-    + 'Do not write image markdown and do not construct URLs for generated files: the image is already on the page, '
-    + 'and repeating it shows the user the same picture twice. Refer to it in words instead. '
+    // A tool's result card folds away with its turn, so the reply is where an
+    // image stays visible. The GUI serves an absolute local path itself, so the
+    // prompt teaches the path rather than any server URL.
+    + 'Tool results, including images a tool returned, fold away when the turn ends; only your reply stays in view. '
+    + 'To show the user an image, embed it in your reply as Markdown image syntax with its absolute local file path, '
+    + 'for example `![Site plan](/path/to/site-plan.png)`, or with its `https://` URL. '
+    + 'The GUI loads local paths itself, so do not construct a server URL for a file. '
+    + 'Embed each image you want the user to see once, and never write that an image is shown above unless your reply embeds it. '
   return `You are interacting with the user through the Aeven Web GUI at ${webUrl}. `
     + 'When the user refers to "this page", "this GUI", or "this app" without naming another target, they mean this GUI. '
     + 'The browser provides no implicit DOM, route, or screenshot context. '

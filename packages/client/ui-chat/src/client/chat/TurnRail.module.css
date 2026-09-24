@@ -51,8 +51,8 @@
   border-radius: 1px;
   /* Tick colours are variables so a state rebinds one name rather than
      restating the whole background declaration. */
-  --turn-tick-rest: rgb(10, 10, 10);
-  --turn-tick-active: rgb(10, 10, 10);
+  --turn-tick-rest: #000000;
+  --turn-tick-active: #000000;
   background: var(--turn-tick-rest);
   content: '';
   transform: translateY(-50%);
@@ -69,7 +69,7 @@
      color-mix(): the client's iOS/Safari 14.5 floor drops a value-level
      function it cannot parse, which would leave the unloaded tick painting at
      full strength. */
-  --turn-tick-rest: rgba(10, 10, 10, 0.35);
+  --turn-tick-rest: rgba(0, 0, 0, 0.35);
 }
 
 /* The selected Turn and the mark the pointer (or focus) is on paint the same
@@ -85,11 +85,11 @@
 
 .tick:focus-visible::before {
   width: 8px;
-  background: var(--dsw-alias-state-business-primary, rgb(10, 10, 10));
+  background: var(--dsw-alias-state-business-primary, #000000);
 }
 
 .tick:focus-visible {
-  outline: 1px solid var(--dsw-alias-state-business-primary, rgb(10, 10, 10));
+  outline: 1px solid var(--dsw-alias-state-business-primary, #000000);
   outline-offset: 2px;
 }
 
@@ -113,7 +113,7 @@
     inset 1px 1px 0 0 rgb(255 255 255 / 80%),
     inset 0 0 1px 1px rgb(255 255 255 / 80%),
     0 2px 20px rgb(0 0 0 / 10%);
-  color: var(--dsw-alias-label-primary, rgb(10, 10, 10));
+  color: var(--dsw-alias-label-primary, #000000);
   pointer-events: none;
   transform: translateY(-50%);
   animation: avn-turn-preview-enter 120ms ease-out;
@@ -143,7 +143,7 @@
    size as the prompt and told apart by weight and colour. */
 .previewResponse {
   margin-top: 4px;
-  color: var(--dsw-alias-label-caption, rgb(10 10 10 / 60%));
+  color: var(--dsw-alias-label-caption, rgb(0 0 0 / 60%));
   font: var(--dsw-font-s-14);
   font-size: 14px;
   font-weight: 450;

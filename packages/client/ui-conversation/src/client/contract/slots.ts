@@ -107,12 +107,6 @@ declare module '@aeven/client-ui-slots' {
       scope: 'session'
       owner: ConversationHeaderActionOwnerProps
     }
-    /** Right-aligned Session utilities in ascending order. */
-    'conversation.session.header.utilities': {
-      kind: 'list'
-      scope: 'session'
-      owner: ConversationHeaderActionOwnerProps
-    }
     /**
      * Right-aligned utilities in the resident navigation band, ascending.
      *
@@ -122,8 +116,8 @@ declare module '@aeven/client-ui-slots' {
      * needs. An entry here is given no Session at all: the root scope supplies
      * no `sessionId` and no Session hooks, so it draws from its own inject
      * face and the page the shell states. An entry that does need the current
-     * Session belongs in `conversation.session.header.utilities` instead,
-     * which exists while one is open.
+     * Session belongs in `conversation.session.header.actions` instead, which
+     * exists while one is open.
      */
     'conversation.navigation.utilities': { kind: 'list'; scope: 'root' }
     /** Registered Conversation target Views, rendered one at a time. */
@@ -350,7 +344,6 @@ export type ConversationSessionHeaderSlotProps =
   & PropsRenderSlots<
     'conversation.session.header.lineage'
     | 'conversation.session.header.actions'
-    | 'conversation.session.header.utilities'
   >
   & PropsStore<ConversationStore>
   & InjectFace<ConversationSessionHeaderInjected>

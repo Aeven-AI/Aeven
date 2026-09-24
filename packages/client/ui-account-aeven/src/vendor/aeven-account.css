@@ -38,7 +38,7 @@
   height: 100%;
   object-fit: cover;
   object-position: center;
-  background-color: rgb(10, 10, 10);
+  background-color: #000000;
 }
 .avatar .image-container .gradient {
   display: flex;
@@ -62,7 +62,7 @@
   height: 100%;
   align-items: center;
   justify-content: center;
-  background-color: rgb(10, 10, 10);
+  background-color: #000000;
   transition: opacity 0.4s cubic-bezier(0.23, 1, 0.32, 1);
 }
 .avatar .image-container .image-loader .spinner {
@@ -119,7 +119,7 @@
   line-height: 1.4;
   white-space: normal;
   outline: none;
-  background-color: rgb(10, 10, 10);
+  background-color: #000000;
 }
 .tippy-box .tippy-content {
   position: relative;
@@ -130,7 +130,7 @@
 .tippy-box .tippy-arrow {
   width: 16px;
   height: 16px;
-  color: rgb(10, 10, 10);
+  color: #000000;
 }
 .tippy-box .tippy-arrow:before {
   content: "";
@@ -598,7 +598,7 @@
   appearance: none;
   width: 100%;
   padding-bottom: 16px;
-  color: rgb(10, 10, 10);
+  color: #000000;
   padding-left: 16px;
   padding-right: 16px;
   flex-direction: column;

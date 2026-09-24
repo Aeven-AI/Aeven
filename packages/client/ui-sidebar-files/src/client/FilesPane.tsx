@@ -7,7 +7,7 @@
  * files carry a glyph for their kind. Everything the explorer asks for goes
  * through the `workspaceFiles` Remote; everything it remembers is per session
  * and surface (memory.ts). While a file is open, the surface's pill carries the
- * file's name and glyph.
+ * file's name beside the Files glyph.
  */
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -17,7 +17,7 @@ import type { ClientRemote, SessionId } from '@aeven/api-remotes/client'
 import type {} from '@aeven/api-workspace-files/remote'
 import type { WorkspaceDirectoryEntry, WorkspaceFileText, WorkspaceSearchHit } from '@aeven/api-workspace-files/types'
 import {
-  CodeBlock, IconLucideChevronsDownUp, IconLucideFolder, IconLucideFolderOpen, IconLucideListTree,
+  CodeBlock, IconLucideChevronsDownUp, IconLucideFiles, IconLucideFolder, IconLucideFolderOpen,
   IconLucideRefreshCw, IconLucideSearch, IconLucideX, MarkdownText, Menu, writeClipboard,
   type MarkdownLabels, type MenuEntry,
 } from '@aeven/client-ui-primitives'
@@ -177,10 +177,10 @@ export function FilesPane({ sessionId, surfaceId, setTab, t, remote }: FilesPane
     setFocus(path)
   }, [load, update])
 
-  // The pill names the open file.
+  // The pill names the open file and keeps the Files glyph.
   useEffect(() => {
     if (memory.openFile === null) setTab(undefined)
-    else setTab({ title: basename(memory.openFile), icon: fileGlyph(basename(memory.openFile)) })
+    else setTab({ title: basename(memory.openFile) })
   }, [memory.openFile, setTab])
   useEffect(() => () => { setTab(undefined) }, [setTab])
 
@@ -313,38 +313,40 @@ export function FilesPane({ sessionId, surfaceId, setTab, t, remote }: FilesPane
           <span className={css.rootName}>{basename(root.replace(/\/+$/, ''))}</span>
         </div>
       )}
-      <div className={css.rows} role="tree" tabIndex={0} onKeyDown={onTreeKey}>
-        {memory.query.trim() !== ''
-          ? <SearchRows search={search} focus={focus} t={t} onOpen={(hit) => {
-            if (hit.type === 'directory') reveal(hit.path, 'directory')
-            else { openFile(hit.path); reveal(hit.path, 'file') }
-          }} onMenu={onRowMenu} />
-          : rows.map(row => row.kind === 'note'
-            ? <div key={row.key} className={css.note} style={{ paddingLeft: indent(row.depth) }}>{row.text}</div>
-            : (
-              <div
-                key={row.path}
-                role="treeitem"
-                aria-expanded={row.type === 'directory' ? memory.expanded.has(row.path) : undefined}
-                aria-selected={row.path === memory.openFile}
-                data-path={row.path}
-                className={css.row}
-                data-focused={row.path === focus || undefined}
-                data-selected={row.path === memory.openFile || undefined}
-                data-kind={row.type}
-                style={{ paddingLeft: indent(row.depth) }}
-                title={row.path}
-                onClick={() => { setFocus(row.path); activate(row.path, row.type) }}
-                onContextMenu={(event) => { onRowMenu(event, row.path, row.type) }}
-              >
-                <span className={css.glyph} data-folder={row.type === 'directory' || undefined}>
-                  {row.type === 'directory'
-                    ? memory.expanded.has(row.path) ? <IconLucideFolderOpen /> : <IconLucideFolder />
-                    : fileGlyph(row.name)}
-                </span>
-                <span className={css.name}>{row.name}</span>
-              </div>
-            ))}
+      <div className={css.scrollFrame}>
+        <div className={css.rows} role="tree" tabIndex={0} onKeyDown={onTreeKey}>
+          {memory.query.trim() !== ''
+            ? <SearchRows search={search} focus={focus} t={t} onOpen={(hit) => {
+              if (hit.type === 'directory') reveal(hit.path, 'directory')
+              else { openFile(hit.path); reveal(hit.path, 'file') }
+            }} onMenu={onRowMenu} />
+            : rows.map(row => row.kind === 'note'
+              ? <div key={row.key} className={css.note} style={{ paddingLeft: indent(row.depth) }}>{row.text}</div>
+              : (
+                <div
+                  key={row.path}
+                  role="treeitem"
+                  aria-expanded={row.type === 'directory' ? memory.expanded.has(row.path) : undefined}
+                  aria-selected={row.path === memory.openFile}
+                  data-path={row.path}
+                  className={css.row}
+                  data-focused={row.path === focus || undefined}
+                  data-selected={row.path === memory.openFile || undefined}
+                  data-kind={row.type}
+                  style={{ paddingLeft: indent(row.depth) }}
+                  title={row.path}
+                  onClick={() => { setFocus(row.path); activate(row.path, row.type) }}
+                  onContextMenu={(event) => { onRowMenu(event, row.path, row.type) }}
+                >
+                  <span className={css.glyph} data-folder={row.type === 'directory' || undefined}>
+                    {row.type === 'directory'
+                      ? memory.expanded.has(row.path) ? <IconLucideFolderOpen /> : <IconLucideFolder />
+                      : fileGlyph(row.name)}
+                  </span>
+                  <span className={css.name}>{row.name}</span>
+                </div>
+              ))}
+        </div>
       </div>
     </div>
   )
@@ -559,27 +561,29 @@ function FileView({ path, root, canOpenNative, treeVisible, remote, sessionId, t
           title={treeVisible ? t('tree.hide') : t('tree.show')}
           onClick={onToggleTree}
         >
-          <IconLucideListTree />
+          <IconLucideFiles />
         </button>
         <button type="button" className={css.iconButton} aria-label={t('file.close')} title={t('file.close')} onClick={onClose}>
           <IconLucideX />
         </button>
       </div>
-      <div className={clsx(css.fileBody, kind === 'markdown' && css.fileBodyProse)}>
-        {kind === 'image'
-          ? <img className={css.image} src={new URL(`api/file?path=${encodeURIComponent(absolute)}`, document.baseURI).href} alt={name} />
-          : content.status === 'loading'
-            ? <div className={css.note}>{t('loading')}</div>
-            : content.status === 'error'
-              ? <div className={css.note}>{content.message}</div>
-              : (
-                <>
-                  {kind === 'markdown'
-                    ? <MarkdownText text={content.file.text} labels={labels} animation={false} />
-                    : <CodeBlock code={content.file.text} lang={extensionOf(name)} copyLabel={t('code.copy')} copiedLabel={t('code.copied')} className={css.code} />}
-                  {!content.file.eof && <div className={css.note}>{t('file.truncated')}</div>}
-                </>
-              )}
+      <div className={css.scrollFrame}>
+        <div className={clsx(css.fileBody, kind === 'markdown' && css.fileBodyProse)}>
+          {kind === 'image'
+            ? <img className={css.image} src={new URL(`api/file?path=${encodeURIComponent(absolute)}`, document.baseURI).href} alt={name} />
+            : content.status === 'loading'
+              ? <div className={css.note}>{t('loading')}</div>
+              : content.status === 'error'
+                ? <div className={css.note}>{content.message}</div>
+                : (
+                  <>
+                    {kind === 'markdown'
+                      ? <MarkdownText text={content.file.text} labels={labels} animation={false} />
+                      : <CodeBlock code={content.file.text} lang={extensionOf(name)} copyLabel={t('code.copy')} copiedLabel={t('code.copied')} className={css.code} />}
+                    {!content.file.eof && <div className={css.note}>{t('file.truncated')}</div>}
+                  </>
+                )}
+        </div>
       </div>
     </div>
   )

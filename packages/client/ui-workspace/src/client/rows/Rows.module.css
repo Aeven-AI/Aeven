@@ -103,10 +103,6 @@
   box-sizing: border-box;
 }
 
-.projectRow .rowActions {
-  height: 20px;
-}
-
 /* Session cell (figma): pad 8, a 16px status slot, then a 4px title gap. */
 .sessionRow {
   height: var(--dsw-aeven-control-size);
@@ -164,20 +160,21 @@
   color: var(--dsw-alias-label-primary);
 }
 
-/* Idle mark: the group folder's own grapheme one level down, held well back so
-   a resting Session reads as a list entry; hovering its row brings it up to the
-   row's own ink. */
+/* Idle mark: a bare circle at the group folder's own size, held well back so a
+   resting Session reads as a list entry; hovering its row, or the row being the
+   selected Session, brings it up to the row's own ink. */
 .idleMark {
   flex: none;
   width: 18px;
   height: 18px;
   color: var(--dsw-alias-label-primary);
-  opacity: 0.2;
+  opacity: 0.1;
   transition: opacity 150ms var(--ds-ease-in-out);
 }
 
 .sessionRow:hover .idleMark,
 .sessionRow.menuOpen .idleMark,
+.sessionRow.selected .idleMark,
 .searchResultRow:hover .idleMark {
   opacity: 1;
 }
@@ -267,9 +264,9 @@
   flex: none;
 }
 
-/* Trailing action buttons surface on hover only (figma 27:4668 / 27:4656):
-   bare 16px glyphs, gap 12, tertiary grey. The cell holds its room in every
-   state and only fades in, so hovering never re-measures the title beside it. */
+/* Trailing action buttons (figma 27:4668 / 27:4656): bare 16px glyphs, gap 12,
+   tertiary grey. The cell holds its room in every state and only fades, so a
+   reveal never re-measures the title beside it. */
 .rowActions {
   flex: none;
   display: inline-flex;
@@ -277,12 +274,20 @@
   gap: 12px;
   opacity: 0;
   pointer-events: none;
+  transition: opacity 150ms var(--ds-ease-in-out);
 }
 
+/* One reveal for both row kinds: a folder's New Session button and a Session's
+   menu stay hidden until the pointer is on the row, and a selected Session row
+   reveals nothing on its own — its inked circle already names it. An open row
+   menu keeps its own anchor up, and the focused action reveals its own cell so a
+   keyboard reader never lands on an invisible button. A blank New Session row
+   renders no actions cell, so no reveal applies there. */
 .projectRow:hover .rowActions,
-.sessionRow:hover .rowActions,
 .projectRow.menuOpen .rowActions,
-.sessionRow.menuOpen .rowActions {
+.sessionRow:hover .rowActions,
+.sessionRow.menuOpen .rowActions,
+.rowActions:focus-within {
   opacity: 1;
   pointer-events: auto;
 }

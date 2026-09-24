@@ -10,12 +10,16 @@
      them — and a seat added to the corner is added here. Stating it beats
      measuring the dock: a width published from JavaScript per layout is what
      the column rules above exist to avoid. */
-  --avn-shell-corner-gap: 8px;
+  --avn-shell-corner-gap: 0px;
+  /* The controls sit edge to edge, so their centres are one control apart;
+     the 30px avatar takes this offset to land at that same spacing. */
+  --avn-shell-corner-avatar-offset: calc(var(--dsw-aeven-control-size) / 2 - 15px);
   --avn-shell-corner-seats: calc(
-    /* the right sidebar's toggle */
+    /* the right sidebar's full screen toggle and its column toggle */
     var(--dsw-aeven-control-size)
-    + var(--avn-shell-corner-gap)
+    + var(--dsw-aeven-control-size)
     /* the account avatar */
+    + var(--avn-shell-corner-avatar-offset)
     + 30px
     /* the dock's own inset from the frame's edge */
     + var(--dsw-aeven-page-inset)
@@ -285,6 +289,12 @@
 
 .cornerDock > * {
   pointer-events: auto;
+}
+
+/* The account avatar, last in the row, at the controls' centre spacing. The
+   entries render inside the slot's `display: contents` wrapper. */
+.cornerDock > * > :last-child {
+  margin-left: var(--avn-shell-corner-avatar-offset);
 }
 
 /* A full-screen surface owns the viewport, so this band yields with the rest

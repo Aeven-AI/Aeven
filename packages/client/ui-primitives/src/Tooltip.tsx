@@ -1,6 +1,8 @@
 // Host controls' tooltips are the Markdown engine's own tippy.js tooltip, so
 // every tip in the app shares one placement engine, trigger, fade, arrow and
-// skin with the engine's toolbar tips (copy, full screen).
+// skin with the engine's toolbar tips (copy, full screen). A bubble clamped
+// against a viewport edge stops at the frame's page inset, the same gutter the
+// frame's own controls keep.
 
 import { useEffect, useRef } from 'react'
 import type { ReactElement, Ref } from 'react'
@@ -13,6 +15,19 @@ export type TooltipSide =
   | 'right' | 'left'
 
 type TooltipLabel = string | (() => string)
+
+/**
+ * The frame's page inset, which the bubble keeps from the viewport edge as the
+ * frame's own chrome does. Read from the token when a tooltip is created
+ * rather than during render, so no render forces a style flush; a page without
+ * the theme sheet reports none and leaves tippy's gutter in place.
+ * @returns the inset in pixels, or undefined when no token is mounted.
+ */
+function pageInset(): number | undefined {
+  const raw = getComputedStyle(document.body).getPropertyValue('--dsw-aeven-page-inset')
+  const parsed = Number.parseFloat(raw)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
 
 /**
  * The box a bubble points at: the icon of an icon-only control, so the arrow
@@ -55,6 +70,7 @@ export function Tooltip({ label, side = 'right', disabled = false, children }: {
       trigger={disabled ? 'manual' : 'mouseenter'}
       touch={false}
       placementRect={iconRect}
+      overflowPadding={pageInset}
     >
       {children}
     </TippyTooltip>

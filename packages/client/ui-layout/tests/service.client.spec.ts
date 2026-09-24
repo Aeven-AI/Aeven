@@ -13,6 +13,7 @@ function fakePanels(): PanelActions {
     setFullscreen: vi.fn(),
     setRightbar: vi.fn(),
     toggleRightbar: vi.fn(),
+    openRightbar: vi.fn(),
   }
 }
 
@@ -62,4 +63,5 @@ describe('LayoutController', () => {
 
     expect(panels.toggleRightbar).toHaveBeenCalledWith('s1', expect.any(Number))
   })
+
 })

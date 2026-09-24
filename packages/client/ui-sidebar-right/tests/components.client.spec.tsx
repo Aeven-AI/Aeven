@@ -139,7 +139,7 @@ describe('ToggleButton', () => {
 
   it('opens the panel of the session the list reports as current', () => {
     const b = mountToggle('session-7')
-    fireEvent.click(screen.getByRole('button', { name: 'Open right sidebar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open sidebar' }))
     // The panel is per session, so the toggle carries the id it read.
     expect(b.toggleRightbar).toHaveBeenCalledWith('session-7')
   })
@@ -148,7 +148,7 @@ describe('ToggleButton', () => {
     // One control serves both directions from the frame's corner, so its copy
     // and state follow the column rather than naming only the way in.
     mountToggle('session-7', { rightbarCollapsed: false })
-    const button = screen.getByRole('button', { name: 'Collapse right sidebar' })
+    const button = screen.getByRole('button', { name: 'Close sidebar' })
     expect(button.getAttribute('aria-expanded')).toBe('true')
   })
 })

@@ -12,7 +12,7 @@ Status: implemented
 
 ## 决策
 
-[Schedule 指南](../../../../docs/user/guide/schedule.zh.md)使用显式加载 `@aeven/time-context` 与 `@aeven/schedule`，并启用 Web bundle 中默认 disabled 的 `ui-schedule` row 的 overlay。默认 Web 启动图不会激活 Schedule。Schedule 只观察插件加载后发布的根 Agent，并在该 Agent scope 中安装三个工具和一个可丢弃 owner。cold history 读取、已发布的根、child Agent 与其他 host 都不会激活 runtime。
+[Schedule 指南](../../../../docs/user/guide/schedule.zh.md)使用显式加载 `@aeven/time-context` 与 `@aeven/schedule` 的 overlay。默认 Web 启动图不会激活 Schedule。Schedule 只观察插件加载后发布的根 Agent，并在该 Agent scope 中安装三个工具和一个可丢弃 owner。cold history 读取、已发布的根、child Agent 与其他 host 都不会激活 runtime。
 
 用户可见边界是 `session-local`：原 Session 只有在 live 时才会准时运行提醒，cold 期间不发送任何外部通知；该 Session 再次 live 后才会处理 overdue 提醒。到期工作会等待 Agent 完全 idle，再通过 `followup()` 进入普通的下一轮队列；它绝不会中途引导当前轮次，也没有独立 Web 回执（[对话式交付](../simplification/2026-08-09-conversational-schedule-delivery.zh.md)）。
 
@@ -58,9 +58,9 @@ Agent-scoped owner 从持久 fold 派生最早目标。超长目标使用有界 
 
 dispatch 记录的是队列准入，而不是模型完成或用户收到提醒。framing 构造或同步入队失败不会追加 dispatch。append 失败会使该 owner fault，因为消息可能已经入队。Agent 或插件 dispose 会取消 timer、停止新工作、撤销工具注册，并等待进行中的工作，且不会删除持久记录。follow-up 获得准入后、持久 dispatch 前发生崩溃，可能使提醒在恢复后重复；本设计不作 exactly-once 承诺。
 
-### 只读 Web 目录
+### Projection 消费方
 
-Schedule overlay 会把默认禁用的 [`avn-client-ui-schedule`](../../../../packages/client/ui-schedule/README.zh.md) client 与 Host 服务一同启用。完整活动 projection 也会交给 [`avn-client-ui-workspace`](../../../../packages/client/ui-workspace/README.zh.md)。本 Note 拥有这条 opt-in 只读呈现边界：该 projection 表示当前活动状态，而非 dispatch 或交付回执，因此普通 Assistant 轮次仍是交付呈现。目录是挂到 `document.body` 的 fixed portal；空间足够时左边缘跟随触发按钮，靠近视口右侧时向左避让并保留 16px 边距。`useAnchoredPosition` 拥有测量以及 resize、捕获阶段 scroll、面板 resize 与清理行为；Schedule 提供触发器与 portal ref、bottom 放置、5px 间距和既有内外 dismissal 边界，不增加通用 popover 抽象。
+完整活动 projection 交给 [`avn-client-ui-workspace`](../../../../packages/client/ui-workspace/README.zh.md)，后者只派生分组行、平铺行或搜索行的尽力而为列表值是否为非空，并为该行标上闹钟。本 Note 拥有这条呈现边界：该 projection 表示当前活动状态，而非 dispatch 或交付回执，因此普通 Assistant 轮次仍是交付呈现。同样读取该 projection 的只读 header 目录已随其包删除（[标题行 utilities 移除](../simplification/2026-09-24-remove-the-title-row-utilities-and-their-packages.zh.md)）。
 
 ## 已考虑的替代方案
 
@@ -80,7 +80,7 @@ Schedule overlay 会把默认禁用的 [`avn-client-ui-schedule`](../../../../pa
 
 ## 验证
 
-包测试以逐文件 100% coverage 固定严格回放、一次性与 Every 状态转换、创建锚点运算、只追赶最新一次、多记录批处理、fork 后缀、id 复用、偏移量与本地日历 profile、IANA 校验、夏令时缺口与重叠、时间边界、timer 分段、墙钟变化、overdue 准入、固定 framing、入队与 append 失败、barrier 恢复、projection 注册与恢复、注册 rollback 和完全停稳的 dispose。属性测试会在不同间隔与跳过跨度下比较 Every 计算与回放。production JSONL restart 测试证明一条 overdue 提醒会经过真实 Agent 生命周期 dispatch，并且再次 restart 后不会重复 dispatch。聚焦 client suite 拥有目录与侧边栏行为，包括 body portal、空间充足时的左对齐、portal 内指针处理、外部 dismissal、Escape、live empty 与 timer 清理。共享 primitive suite 拥有定位 hook 的 resize、捕获阶段 scroll、面板 resize 与清理生命周期。无密钥组装 Web 场景保留普通 After／At／Every 交付证据，再由一个 900×900 Schedule 目录 smoke 覆盖 overlay 可达性、fixed portal 定位、右侧钳制、宽度与 overflow、普通／搜索闹钟、窄屏暗色布局、浅色主题浏览器截图与一次 live empty 更新。
+包测试以逐文件 100% coverage 固定严格回放、一次性与 Every 状态转换、创建锚点运算、只追赶最新一次、多记录批处理、fork 后缀、id 复用、偏移量与本地日历 profile、IANA 校验、夏令时缺口与重叠、时间边界、timer 分段、墙钟变化、overdue 准入、固定 framing、入队与 append 失败、barrier 恢复、projection 注册与恢复、注册 rollback 和完全停稳的 dispose。属性测试会在不同间隔与跳过跨度下比较 Every 计算与回放。production JSONL restart 测试证明一条 overdue 提醒会经过真实 Agent 生命周期 dispatch，并且再次 restart 后不会重复 dispatch。聚焦 client suite 拥有侧边栏闹钟标记。无密钥组装 Web 场景保留普通 After／At／Every 交付证据，以及普通行与搜索行的闹钟。
 
 ## 后果
 
@@ -88,6 +88,6 @@ Schedule overlay 会把默认禁用的 [`avn-client-ui-schedule`](../../../../pa
 - cold Session 不工作、不发送外部通知；重新打开后可能交付 overdue 工作。
 - 无需持久 Session 时区状态或从 Schedule 到 time-context 的依赖，绝对时间输入仍然具有确定性。
 - 用户看到普通对话输出；dispatch 绝不会夸大模型成功或 acknowledgement。
-- 显式启用 Schedule 的 Web 用户可以查看完整活动集合，并在普通行或搜索结果中辨认 cache 已知的活动 Session，而不会引入第二份持久状态、runtime 信号或第二种交付含义。
+- 读者能在普通行或搜索结果中辨认 cache 已知的活动 Session，而不会引入第二份持久状态、runtime 信号或第二种交付含义。
 - 每个 live 根只增加从 fold 派生的 timer、可选 idle wait 与一个 in-flight operation。
 - 固定速率周期性受到至少 5 分钟、只追赶最新一次，以及每条逾期记录只在一个批次中贡献一个发生时点的约束；日历周期性仍在此产品边界之外。

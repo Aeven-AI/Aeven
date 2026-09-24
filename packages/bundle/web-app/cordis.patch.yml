@@ -26,6 +26,16 @@
     path: ':memory:'
     openAt: first-search
 
+# Web search runs through the Aeven gateway's Messages route, which forwards to
+# DeepSeek's search and bills the signed-in reader, so no DeepSeek key is held
+# here. The credential is the Aeven session the client hands to the Host, the
+# same one `llm-aeven` presents.
+- id: web-search-deepseek
+  config:
+    apiKeyEnv: AEVEN_TOKEN
+    baseURL: !!js (process.env.AEVEN_API_URL ?? 'http://localhost:9000') + '/v1'
+    model: Aeven-1.0-Flash
+
 - id: tools
   config:
     # TEMPORARY workaround: AVN_TOOLS_MODE (native|ptc|both) opts a whole avn
@@ -51,10 +61,6 @@
       name: '@aeven/message-feedback'
       config:
         maxNoteBytes: 8192
-
-    # Browser Session export: `/export` command plus the shared download dialog.
-    - id: session-log-download
-      name: '@aeven/session-log-export'
 
     - id: workspace
       name: '@aeven/workspace'
@@ -139,6 +145,20 @@
     # sidebar's file explorer.
     - id: api-workspace-files
       name: '@aeven/api-workspace-files'
+
+    # Interactive shells the right sidebar's terminal pills attach to.
+    - id: terminal-controller
+      name: '@aeven/api-terminal-controller'
+
+    # iOS Simulators and Android Emulators for the right sidebar's device
+    # pane: sessions, consent, and the authenticated hub proxy. Nothing
+    # installs or starts until the reader enables device support in the pane.
+    - id: device
+      name: '@aeven/device'
+
+    # This machine as a device host: expo-device-hub and agent-device.
+    - id: device-local
+      name: '@aeven/device-local'
 
     # Configuration-surface reads and writes over Typert Remote. Each method
     # reports an actionable error when its settings-domain provider is absent.
@@ -253,6 +273,12 @@
     - id: ui-sidebar-files
       name: '@aeven/client-ui-sidebar-files'
 
+    - id: ui-sidebar-terminal
+      name: '@aeven/client-ui-sidebar-terminal'
+
+    - id: ui-sidebar-device
+      name: '@aeven/client-ui-sidebar-device'
+
     - id: ui-settings
       name: '@aeven/client-ui-settings'
 
@@ -318,13 +344,6 @@
 
     - id: ui-reference
       name: '@aeven/client-ui-reference'
-
-    # Read-only active Schedule catalog. The shipped Web graph resolves the
-    # client package but leaves it disabled; the explicit Schedule overlay
-    # enables this same row together with the host Schedule services.
-    - id: ui-schedule
-      name: '@aeven/client-ui-schedule'
-      disabled: true
 
     # The signed-in Aeven reader's avatar and account menu, showing whoever the
     # `identity-user-aeven` authority above restored. A deployment that

@@ -32,7 +32,7 @@
   flex: none;
   align-items: center;
   gap: 6px;
-  padding: 4px 16px 12px;
+  padding: 4px 24px 12px 13px;
 }
 
 .search {
@@ -41,21 +41,16 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
-  height: 40px;
-  padding: 0 6px 0 14px;
+  height: 30px;
+  /* The search is a label: clear the global label spacing so it centres with the buttons. */
+  margin: 0;
+  padding: 0 3px 0 12px;
   box-sizing: border-box;
-  border-radius: 20px;
-  background: var(--files-glass-fill);
-  box-shadow: var(--files-glass-edge);
-  backdrop-filter: blur(12px) saturate(160%);
-  color: var(--dsw-alias-label-tertiary);
-  transition: background-color 150ms ease, box-shadow 150ms ease;
-}
-
-.search:focus-within {
-  background: var(--dsw-tint-menu);
-  box-shadow: var(--files-glass-edge), var(--dsw-elevation-soft);
-  color: var(--dsw-alias-label-secondary);
+  border-radius: 15px;
+  /* Page grey with the primary label's ink: the same flat ground the refresh
+     and collapse buttons take on hover. */
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
 }
 
 .searchGlyph {
@@ -64,8 +59,8 @@
 }
 
 .searchGlyph svg {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
 }
 
 .iconButton svg {
@@ -80,52 +75,56 @@
   border: none;
   outline: none;
   background: transparent;
-  color: var(--dsw-alias-label-primary);
+  color: inherit;
   font: inherit;
   font-size: 14px;
 }
 
 .searchInput::placeholder {
-  color: var(--dsw-alias-label-tertiary);
+  color: inherit;
+  opacity: 1;
+}
+
+.search .iconButton,
+.search .iconButton:hover:not(:disabled) {
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
 }
 
 .searchInput::-webkit-search-cancel-button {
   display: none;
 }
 
-/* Round glass buttons, level with the search pill. */
+/* Round 30px buttons, like the search pill and the column's pills. Hover and
+   the pressed state are the flat page grey: a raised glass disc next to the
+   search's own fill would read as a second, lighter control. */
 .iconButton {
   display: flex;
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   border: none;
-  border-radius: 16px;
+  border-radius: 15px;
   background: transparent;
   color: var(--dsw-alias-label-secondary);
   cursor: pointer;
   transition: background-color 150ms ease, box-shadow 150ms ease, color 150ms ease;
 }
 
-.toolbar > .iconButton {
-  width: 40px;
-  height: 40px;
-  border-radius: 20px;
-}
-
 .search .iconButton {
-  width: 28px;
-  height: 28px;
-  border-radius: 14px;
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
 }
 
 .iconButton:hover:not(:disabled),
 .iconButton[aria-pressed='true'] {
-  background: var(--files-glass-fill);
-  box-shadow: var(--files-glass-edge);
+  background: var(--dsw-alias-bg-base);
+  box-shadow: none;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -137,7 +136,7 @@
 .rootLine {
   flex: none;
   overflow: hidden;
-  padding: 0 22px;
+  padding: 0 24px;
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
   line-height: 16px;
@@ -154,8 +153,43 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  padding: 20px 12px 40px;
+  padding: 20px 12px 40px 14px;
   outline: none;
+}
+
+/* Holds one scroll area and the blur over its two edges. The blur layers are
+   the frame's own, so they stay put while the content scrolls under them. */
+.scrollFrame {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Blur over the faded edges: the conversation header's `.navBlur` exactly
+   (ui-conversation ConversationRoot.module.css), mirrored for the bottom edge.
+   Unprefixed only: the CSS pipeline adds the -webkit- form per its targets. */
+.scrollFrame::before,
+.scrollFrame::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  left: 0;
+  z-index: 1;
+  height: 56px;
+  backdrop-filter: blur(1px);
+  pointer-events: none;
+}
+
+.scrollFrame::before {
+  top: 0;
+  mask-image: linear-gradient(to bottom, #000 10px, transparent 56px);
+}
+
+.scrollFrame::after {
+  bottom: 0;
+  mask-image: linear-gradient(to top, #000 10px, transparent 56px);
 }
 
 /* Scroll areas scroll without drawing a bar, and fade their content out at
@@ -246,14 +280,12 @@
   line-height: 20px;
 }
 
-/* An open file with the tree docked on its right as an inset glass card. */
+/* An open file with the tree docked on its right. */
 .split {
   display: flex;
   flex: 1 1 auto;
   gap: 4px;
   min-height: 0;
-  padding-right: 12px;
-  padding-bottom: 12px;
 }
 
 .file {
@@ -272,26 +304,19 @@
   min-height: 0;
   padding-top: 16px;
   overflow: hidden;
-  border-radius: var(--dsw-aeven-radius-surface);
-  background: var(--files-glass-fill);
-  box-shadow: var(--files-glass-edge);
-  backdrop-filter: blur(16px) saturate(160%);
+  /* A solid page-grey pane rounded only at its top-left corner. */
+  border-radius: var(--dsw-aeven-radius-surface) 0 0 0;
+  background: var(--dsw-alias-bg-base);
 }
 
 .dock .toolbar {
   padding: 0 14px 12px;
 }
 
+/* On the dock's grey the search is white with black text. */
 .dock .search {
-  height: 36px;
-  border-radius: 18px;
-  background: var(--dsw-tint-menu);
-}
-
-.dock .toolbar > .iconButton {
-  width: 32px;
-  height: 32px;
-  border-radius: 16px;
+  background: var(--dsw-alias-button-elevated-fill);
+  color: var(--dsw-alias-label-primary);
 }
 
 .dock .rootLine {
@@ -308,7 +333,7 @@
   align-items: center;
   gap: 4px;
   height: 44px;
-  padding: 0 8px 0 20px;
+  padding: 0 8px 0 18px;
 }
 
 .crumbs {
@@ -362,7 +387,7 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  padding: 20px 16px 40px 20px;
+  padding: 20px 16px 40px 24px;
 }
 
 .fileBodyProse {
@@ -387,9 +412,9 @@
   display: flex;
   flex: none;
   align-items: center;
-  height: 32px;
+  height: 30px;
   margin-right: 2px;
-  border-radius: 16px;
+  border-radius: 15px;
   transition: background-color 150ms ease, box-shadow 150ms ease;
 }
 
@@ -403,7 +428,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 32px;
+  height: 30px;
   padding: 0;
   border: none;
   background: transparent;
@@ -412,15 +437,15 @@
 }
 
 .openWithMain {
-  width: 34px;
+  width: 32px;
   padding-left: 4px;
-  border-radius: 16px 0 0 16px;
+  border-radius: 15px 0 0 15px;
 }
 
 .openWithMore {
-  width: 22px;
+  width: 20px;
   padding-right: 4px;
-  border-radius: 0 16px 16px 0;
+  border-radius: 0 15px 15px 0;
 }
 
 .openWithMain:hover,

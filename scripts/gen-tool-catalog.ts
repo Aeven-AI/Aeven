@@ -66,6 +66,7 @@ import * as ToolTodo from '@aeven/tool-todo'
 import * as ToolSubagent from '@aeven/tool-subagent'
 import { registerListSubagentModels } from '../packages/subagent/tool-subagent/src/list-models.ts'
 import * as ToolWeb from '@aeven/tool-web'
+import * as ToolBrowser from '@aeven/tool-browser'
 import VmWorkflowEngine from '@aeven/workflow-worker-thread'
 import * as ToolRalph from '@aeven/tool-ralph'
 import * as ToolWorkflow from '@aeven/tool-workflow'
@@ -605,6 +606,19 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps.',
+  },
+  {
+    pkg: '@aeven/tool-browser',
+    dir: 'tool-browser',
+    source: 'packages/web/tool-browser/src/index.ts',
+    requires: ['ctx.tools', 'ctx.agents', 'a browser/automation listener (execution time)'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(AgentRegistry)
+      await ctx.plugin(ToolBrowser)
+    },
+    note:
+      'preview_* calls are answered by the Client holding the session\'s browser; each call is bounded by the tool timeout.',
   },
 ]
 

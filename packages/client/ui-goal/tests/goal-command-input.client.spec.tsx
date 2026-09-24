@@ -90,7 +90,7 @@ describe('goal command input projection', () => {
       commandId: 'command-goal', name: 'goal', args: '\nfirst line\nsecond line \n', source: { kind: 'user' },
     })
 
-    expect(goalCommandInputDefinition.match(plan.event)).toBeNull()
+    expect(goalCommandInputDefinition.match(plan.event, { kind: 'unresolved' })).toBeNull()
     expect(goalCommandText(goal.event as SessionEvent<'command/run'>))
       .toBe('/goal\nfirst line\nsecond line')
   })

@@ -6,7 +6,7 @@ export const zh = {
   'session.new.label': '对话',
   'imagine': '想象',
   'toggle.open': '打开侧边栏',
-  'toggle.collapse': '收起侧边栏',
+  'toggle.collapse': '关闭侧边栏',
 } satisfies Record<string, string>
 
 /** The sidebar namespace key union. */
@@ -18,5 +18,5 @@ export const en = {
   'session.new.label': 'Chat',
   'imagine': 'Imagine',
   'toggle.open': 'Open sidebar',
-  'toggle.collapse': 'Collapse sidebar',
+  'toggle.collapse': 'Close sidebar',
 } satisfies Record<SidebarKey, string>

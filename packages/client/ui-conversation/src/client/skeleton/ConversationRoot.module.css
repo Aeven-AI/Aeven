@@ -153,16 +153,8 @@
   display: flex;
   flex: 1;
   align-items: center;
-  gap: 0;
-  height: 56px;
-  min-width: 0;
-}
-
-.titleCluster {
-  display: flex;
-  flex: 1;
-  align-items: center;
   gap: 10px;
+  height: 56px;
   min-width: 0;
 }
 
@@ -226,24 +218,6 @@
   gap: 8px;
 }
 
-.headerUtilities {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 8px;
-  margin-left: 20px;
-}
-
-.headerUtilities:empty {
-  display: none;
-}
-
-/* Resident navigation-band utilities: the row the bar keeps whether or not a
-   Session is open, which is where an app-level control (the signed-in reader's
-   account avatar) lives. It follows the Session utilities at exactly the 8px
-   gap that separates entries inside them, so the two read as the one row they
-   have always looked like; the title's own 20px separation stays on
-   `.headerUtilities`, which is absent without a Session. */
 /* Reserves the frame's corner dock in the bar's own flow. The dock holds the
    account avatar and the right sidebar's toggle, and is laid out against the
    frame rather than in this column, so without a box here the bar's crumbs and

@@ -10,6 +10,8 @@ export const PLATFORM_MODULES = [
   '@aeven/client-store',
   '@aeven/client-ui-slots',
   '@aeven/client-ui-primitives',
+  '@xterm/xterm',
+  '@xterm/addon-fit',
 ] as const
 
 /** Client-bundle specifiers whose factories the parser preloads before the shell starts. */

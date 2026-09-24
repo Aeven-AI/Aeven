@@ -26,10 +26,6 @@ export const en = {
   'zoom.in': 'Zoom in',
   'zoom.out': 'Zoom out',
   'zoom.reset': 'Reset zoom',
-  'web.open': 'Open browser',
-  'web.note': 'Opening the browser on this computer…',
-  'web.opened': 'The browser is open on this computer. The agent reads and drives it through Chrome DevTools.',
-  'web.failed': 'The browser could not be opened on this computer.',
 }
 
 /** Dictionary key union owned by this plugin. */
@@ -61,8 +57,4 @@ export const zh: Record<SidebarBrowserKey, string> = {
   'zoom.in': '放大',
   'zoom.out': '缩小',
   'zoom.reset': '重置缩放',
-  'web.open': '打开浏览器',
-  'web.note': '正在此电脑上打开浏览器…',
-  'web.opened': '浏览器已在此电脑上打开。智能体通过 Chrome DevTools 读取并操作它。',
-  'web.failed': '无法在此电脑上打开浏览器。',
 }

@@ -55,7 +55,7 @@ client 面不构造 `RemoteError`：唯一例外是 Gateway 的 client face 本�
 
 `ctx.remote.$host` 暴露两条固定事实：`home: string | undefined` 与 `isLoopback: boolean`。它是 Client Remote service 上的 getter，读的是 service 构造期取得的 connection 句柄——`home` 来自 generation 快照的 ready frame（ready 之前是 `undefined`），`isLoopback` 来自载体。没有 store、没有订阅、没有 generation 计数器。
 
-重连后的刷新走既有信号：Client Remote 在连上时 emit `connection/reset`，需要重取的消费方监听它或各域自己的 remote event，而不是让 `$host` 变成一个可订阅对象。因此消费方不再注入 `connection`：`@aeven/client-connection` 的消费白名单收缩到 hmr、frontend-static、bundle/web-app、session-log-export、webworker-runtime、gateway 与 api-remotes 装配。
+重连后的刷新走既有信号：Client Remote 在连上时 emit `connection/reset`，需要重取的消费方监听它或各域自己的 remote event，而不是让 `$host` 变成一个可订阅对象。因此消费方不再注入 `connection`：`@aeven/client-connection` 的消费白名单收缩到 hmr、frontend-static、bundle/web-app、webworker-runtime、gateway 与 api-remotes 装配。
 
 ## What the wire carries
 

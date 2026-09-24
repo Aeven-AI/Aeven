@@ -30,6 +30,7 @@
       "inject": [
         "@aeven/client-ui-renderer",
         "@aeven/client-ui-sidebar-right",
+        "@aeven/client-ui-layout",
         "@aeven/client-locale"
       ],
       "platform": "web"
@@ -49,6 +50,7 @@
   "devDependencies": {
     "@aeven/client-locale": "workspace:^",
     "@aeven/client-test-runtime": "workspace:^",
+    "@aeven/client-ui-layout": "workspace:^",
     "@aeven/client-ui-primitives": "workspace:^",
     "@aeven/client-ui-renderer": "workspace:^",
     "@aeven/client-ui-session": "workspace:^",

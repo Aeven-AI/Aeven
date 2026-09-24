@@ -138,7 +138,7 @@ describe('SidebarRoot shell', () => {
     expect(b.startSession).toHaveBeenLastCalledWith(undefined, 'session-test-1')
     // ...and the next render names a fresh one, because that id is now live.
     expect(screen.getByRole('link', { name: 'Chat' }).getAttribute('href')).toBe('/c/test-2')
-    fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close sidebar' }))
     expect(b.toggleSidebar).toHaveBeenCalledOnce()
 
     // Below the med breakpoint the column overlays the conversation, and the

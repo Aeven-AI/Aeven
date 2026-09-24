@@ -35,6 +35,7 @@
     "@aeven/agent": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/scope": "workspace:^",
+    "@aeven/timeout": "workspace:^",
     "@aeven/tools": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
@@ -42,6 +43,9 @@
     "@aeven/agent": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/scope": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/timeout": "workspace:^",
     "@aeven/tools": "workspace:^",
     "@aeven/util-values": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"

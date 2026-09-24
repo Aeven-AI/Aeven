@@ -276,7 +276,7 @@ describe('web e2e: markdown tables scroll inside the message column', () => {
     // With both out of the equation the transcript follows the viewport
     // identically on every platform, which is what keeps one committed
     // golden true for all lanes.
-    await page.getByRole('button', { name: 'Collapse sidebar', exact: true }).click()
+    await page.locator('[data-slot="sidebar"]').getByRole('button', { name: 'Close sidebar', exact: true }).click()
     // JS click: after the transcript scrolled to its tail, the pane's close
     // button can sit under the sticky header where a pointer click is
     // intercepted; the pane itself is scaffolding, not the behavior under
@@ -436,7 +436,7 @@ describe('web e2e: markdown tables scroll inside the message column', () => {
       await sessionRow.waitFor({ timeout: 10_000 })
       await sessionRow.click()
       await hidpiPage.getByText(TAIL_MARKER, { exact: true }).waitFor({ timeout: 15_000 })
-      await hidpiPage.getByRole('button', { name: 'Collapse sidebar', exact: true }).click()
+      await hidpiPage.locator('[data-slot="sidebar"]').getByRole('button', { name: 'Close sidebar', exact: true }).click()
       await closeDetailsPane(hidpiPage)
       // The pane collapses ease over the layout transition: compare only a
       // settled reading (two consecutive equal wide-wrapper widths).

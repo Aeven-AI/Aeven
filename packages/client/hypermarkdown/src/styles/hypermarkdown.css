@@ -27,7 +27,7 @@
   font-family: inherit;
   line-height: 1.4;
   color: #fff;
-  background-color: rgb(10, 10, 10);
+  background-color: #000000;
   white-space: normal;
   outline: none;
 
@@ -41,7 +41,7 @@
   .tippy-arrow {
     width: 16px;
     height: 16px;
-    color: rgb(10, 10, 10);
+    color: #000000;
   }
 }
 
@@ -76,11 +76,11 @@
     ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
     monospace;
 
-  --hm-color: rgb(10, 10, 10);
+  --hm-color: #000000;
   --hm-background: rgb(242, 242, 242);
   --hm-link-color: rgb(160, 160, 160);
   --hm-link-color-inverted: #fff;
-  --hm-button-color: rgb(10, 10, 10);
+  --hm-button-color: #000000;
   --hm-toolbar-color: rgb(80, 80, 80);
   --hm-code-color: rgb(105, 105, 105);
   --hm-line-number-color: rgb(205, 205, 205);

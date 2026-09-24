@@ -699,7 +699,7 @@ body {
   font-family:
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   font-weight: 450;
-  color: rgb(10, 10, 10);
+  color: #000000;
   line-height: 30px;
   letter-spacing: normal;
   background-color: rgb(242, 242, 242);
@@ -709,7 +709,7 @@ body a {
   text-decoration: none;
 }
 body a:hover {
-  color: rgb(10, 10, 10);
+  color: #000000;
 }
 
 body .content-block {
@@ -808,7 +808,7 @@ body .content-block a {
   text-decoration: none;
 }
 body .content-block a:hover {
-  color: rgb(10, 10, 10);
+  color: #000000;
 }
 body .content-block b,
 body .content-block strong {
@@ -832,7 +832,7 @@ body .content-block sup a[data-footnote-ref] {
   border-radius: 8px;
   font-size: 8px;
   color: #fff;
-  background-color: rgb(10, 10, 10);
+  background-color: #000000;
   align-items: center;
   justify-content: center;
 }
@@ -2060,7 +2060,7 @@ body
   .mermaid-pan-zoom
   .mermaid-pan-zoom-controls
   .mermaid-pan-zoom-button:hover {
-  color: rgb(10, 10, 10);
+  color: #000000;
   background-color: rgb(242, 242, 242);
 }
 body
@@ -3297,7 +3297,7 @@ body .mermaid-render-sandbox {
   margin: 0;
   padding: 0;
   border-radius: 0;
-  color: rgb(10, 10, 10);
+  color: #000000;
   outline: none;
   appearance: none;
   font-weight: 450;
@@ -3593,7 +3593,7 @@ body .mermaid-render-sandbox {
   margin: 0;
   padding: 0;
   border-radius: 0;
-  color: rgb(10, 10, 10);
+  color: #000000;
   outline: none;
   appearance: none;
   font-weight: 450;
@@ -4022,14 +4022,14 @@ body .mermaid-render-sandbox {
   position: relative;
   width: 100%;
   height: 100%;
-  color: rgb(10, 10, 10);
+  color: #000000;
 }
 .switch-button-icon .switch-content .switch-button-txt {
   display: block;
   position: static;
   text-align: center;
   user-select: none;
-  color: rgb(10, 10, 10);
+  color: #000000;
   font-size: 0.875rem;
   font-weight: 450;
   letter-spacing: normal;
@@ -4043,7 +4043,7 @@ body .mermaid-render-sandbox {
   width: 40px;
   height: 20px;
   border-radius: 10px;
-  background-color: rgb(10, 10, 10);
+  background-color: #000000;
   transition: background-color 0.1s ease-out;
 }
 .switch-button-icon .switch-display .switch-circle {
@@ -4329,7 +4329,7 @@ body .mermaid-render-sandbox {
   padding-left: 16px;
   padding-right: 16px;
   line-height: 28px;
-  color: rgb(10, 10, 10);
+  color: #000000;
   font-weight: 450;
   font-size: 16px;
 }
@@ -4431,7 +4431,7 @@ body .mermaid-render-sandbox {
   background-color: #fff;
 }
 .icon-button.light .icon svg {
-  color: rgb(10, 10, 10);
+  color: #000000;
 }
 
 .icon-button.transparent {
@@ -4524,7 +4524,7 @@ body .mermaid-render-sandbox {
   align-items: center;
   justify-content: space-between;
   font-family: "Google Sans Flex", sans-serif;
-  background-color: rgb(10, 10, 10);
+  background-color: #000000;
 }
 .loader-button .container {
   display: flex;
@@ -4660,7 +4660,7 @@ body .mermaid-render-sandbox {
   align-items: center;
   justify-content: space-between;
   font-family: "Google Sans Flex", sans-serif;
-  background-color: rgb(10, 10, 10);
+  background-color: #000000;
 }
 .loader-button-icon .container {
   display: flex;
@@ -4717,13 +4717,13 @@ body .mermaid-render-sandbox {
   background-color: #fff;
 }
 .loader-button-icon.light .container .txt {
-  color: rgb(10, 10, 10);
+  color: #000000;
 }
 .loader-button-icon.light .container .icon svg {
-  color: rgb(10, 10, 10);
+  color: #000000;
 }
 .loader-button-icon.light .loader svg {
-  color: rgb(10, 10, 10);
+  color: #000000;
 }
 
 .loader-button-icon.large {
@@ -4767,7 +4767,7 @@ body .mermaid-render-sandbox {
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  background-color: rgb(10, 10, 10);
+  background-color: #000000;
 }
 .loader-icon-button .container {
   display: flex;
@@ -4815,13 +4815,13 @@ body .mermaid-render-sandbox {
 
 .loader-icon-button.outline {
   background-color: transparent;
-  border: 1.5px solid rgb(10, 10, 10);
+  border: 1.5px solid #000000;
 }
 .loader-icon-button.outline .container .icon svg {
-  color: rgb(10, 10, 10);
+  color: #000000;
 }
 .loader-icon-button.outline .loader svg {
-  color: rgb(10, 10, 10);
+  color: #000000;
 }
 
 .loader-icon-button.transparent {
@@ -4829,10 +4829,10 @@ body .mermaid-render-sandbox {
   border: none;
 }
 .loader-icon-button.transparent .container .icon svg {
-  color: rgb(10, 10, 10);
+  color: #000000;
 }
 .loader-icon-button.transparent .loader svg {
-  color: rgb(10, 10, 10);
+  color: #000000;
 }
 
 .navigation-button {
@@ -4857,7 +4857,7 @@ body .mermaid-render-sandbox {
   letter-spacing: normal;
   letter-spacing: 0px;
   white-space: nowrap;
-  color: rgb(10, 10, 10);
+  color: #000000;
   font-size: 0.875rem;
   font-family:
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
@@ -4923,7 +4923,7 @@ body .mermaid-render-sandbox {
   border-radius: 15px;
   text-align: left;
   color: #fff;
-  background-color: rgb(10, 10, 10);
+  background-color: #000000;
   font-weight: 450;
   letter-spacing: normal;
   letter-spacing: 0px;
@@ -4943,7 +4943,7 @@ body .mermaid-render-sandbox {
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  background-color: rgb(10, 10, 10);
+  background-color: #000000;
 }
 .chat-input-button .container {
   display: flex;
@@ -5000,13 +5000,13 @@ body .mermaid-render-sandbox {
 
 .chat-input-button.outline {
   background-color: transparent;
-  border: 1.5px solid rgb(10, 10, 10);
+  border: 1.5px solid #000000;
 }
 .chat-input-button.outline .container .icon svg {
-  color: rgb(10, 10, 10);
+  color: #000000;
 }
 .chat-input-button.outline .loader svg {
-  color: rgb(10, 10, 10);
+  color: #000000;
 }
 
 #loader {
@@ -5029,7 +5029,7 @@ body .mermaid-render-sandbox {
   height: var(--dsw-aeven-loading-mark-size, 18px);
 }
 #loader .spinner svg {
-  color: var(--dsw-aeven-loading-mark-color, rgb(10, 10, 10));
+  color: var(--dsw-aeven-loading-mark-color, #000000);
   display: block;
   position: relative;
   width: var(--dsw-aeven-loading-mark-size, 18px);
@@ -5082,7 +5082,7 @@ body .mermaid-render-sandbox {
   position: relative;
   width: 50px;
   height: 50px;
-  color: rgb(10, 10, 10);
+  color: #000000;
   margin-bottom: 4px;
   filter: blur(0px);
 }
@@ -5098,7 +5098,7 @@ body .mermaid-render-sandbox {
   height: var(--dsw-aeven-loading-mark-size, 18px);
 }
 #preloader .container .spinner svg {
-  color: var(--dsw-aeven-loading-mark-color, rgb(10, 10, 10));
+  color: var(--dsw-aeven-loading-mark-color, #000000);
   display: block;
   position: relative;
   width: var(--dsw-aeven-loading-mark-size, 18px);
@@ -5199,7 +5199,7 @@ body .mermaid-render-sandbox {
   font-size: 120px;
   line-height: normal;
   letter-spacing: 0px;
-  color: rgb(10, 10, 10);
+  color: #000000;
 }
 #app-root
   .view-container
@@ -5216,7 +5216,7 @@ body .mermaid-render-sandbox {
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   font-size: 16px;
   line-height: 16px;
-  color: rgb(10, 10, 10);
+  color: #000000;
   padding-top: 16px;
   padding-bottom: 24px;
   justify-content: center;
@@ -5311,7 +5311,7 @@ body .mermaid-render-sandbox {
   font-weight: 600;
   line-height: 30px;
   letter-spacing: normal;
-  color: rgb(10, 10, 10);
+  color: #000000;
   font-family:
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
 }
@@ -5381,7 +5381,7 @@ body .mermaid-render-sandbox {
   font-family:
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   font-weight: 600;
-  color: rgb(10, 10, 10);
+  color: #000000;
 }
 #app-root
   .view-container
@@ -5835,7 +5835,7 @@ body .mermaid-render-sandbox {
   position: relative;
   width: 50%;
   height: 100%;
-  background-color: rgb(10, 10, 10);
+  background-color: #000000;
 }
 @media screen and (max-width: 1024px) {
   #app-root

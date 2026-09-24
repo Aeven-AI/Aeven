@@ -104,4 +104,31 @@ describe('WorkspaceBrowser.module.css list', () => {
     expect(declarations('.rail .iconButton')?.get('width')).toBe('36px')
     expect(declarations('.rail .search')?.get('width')).toBe('36px')
   })
+
+  it('inks the resting mark of the selected Session row', () => {
+    // Selection paints no row fill, so the leading circle is what says which
+    // Session the pane is showing; it must not stay at its resting 0.1.
+    expect(rowDeclarations('.idleMark')?.get('opacity')).toBe('0.1')
+    expect(rowDeclarations('.sessionRow.selected .idleMark')?.get('opacity')).toBe('1')
+  })
+
+  it('reveals a row\'s actions on hover or focus, never on selection', () => {
+    // The actions cell holds its room and only fades, so revealing it costs no
+    // re-measure. Blank New Session rows render no cell at all.
+    expect(rowDeclarations('.rowActions')?.get('opacity')).toBe('0')
+    expect(rowDeclarations('.rowActions')?.get('pointer-events')).toBe('none')
+    for (const row of ['.projectRow', '.sessionRow']) {
+      for (const state of [':hover', '.menuOpen']) {
+        const reveal = rowDeclarations(`${row}${state} .rowActions`)
+        expect(reveal?.get('opacity')).toBe('1')
+        expect(reveal?.get('pointer-events')).toBe('auto')
+      }
+    }
+    // The focused action reveals its own cell: a keyboard reader must not land
+    // on an invisible button.
+    expect(rowDeclarations('.rowActions:focus-within')?.get('opacity')).toBe('1')
+    expect(rowDeclarations('.rowActions:focus-within')?.get('pointer-events')).toBe('auto')
+    // Selection inks the row's leading circle; it does not pin its actions.
+    expect(rowDeclarations('.sessionRow.selected .rowActions')).toBeUndefined()
+  })
 })

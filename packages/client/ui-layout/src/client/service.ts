@@ -39,6 +39,8 @@ export interface ILayout {
    * @param sessionId - session whose panel toggles.
    */
   toggleRightbar(sessionId: string): void
+  /** Show one session's right sidebar without closing an already open panel. */
+  openRightbar(sessionId: string): void
 }
 
 /** Cross-plugin panel-action face (ctx.layout). */
@@ -91,6 +93,12 @@ export class LayoutController implements ILayout {
     // panel.
     const viewport = typeof window === 'undefined' ? 0 : window.innerWidth
     this.#require().toggleRightbar(sessionId, viewport)
+  }
+
+  /** Show one session's right sidebar. */
+  openRightbar(sessionId: string): void {
+    const viewport = typeof window === 'undefined' ? 0 : window.innerWidth
+    this.#require().openRightbar(sessionId, viewport)
   }
 
   #require(): PanelActions {

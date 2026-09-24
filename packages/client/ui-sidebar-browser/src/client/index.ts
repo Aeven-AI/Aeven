@@ -2,6 +2,7 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the Remote event merge (ctx.remote, `browser/automation`).
 import type {} from '@aeven/api-remotes/client'
+import type { SessionId } from '@aeven/api-remotes/client'
 import type { ISessions } from '@aeven/api-session-controller/client'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@aeven/client-locale/client'
@@ -13,7 +14,6 @@ import type {} from '@aeven/client-ui-sidebar-right/client'
 import type {} from '@aeven/client-ui-sidebar-select/client'
 import { createElement } from 'react'
 import { BrowserPane } from './BrowserPane.tsx'
-import { WebBrowserPane } from './WebBrowserPane.tsx'
 import { automate } from './automation.ts'
 import { isDesktopShell, liveGuests } from './guest.ts'
 import { en, zh, type SidebarBrowserKey } from './locales.ts'
@@ -50,14 +50,18 @@ export function apply(ctx: ClientContext): void {
   // after this one, so the contribution waits for the service rather than
   // reading it once. A profile without the selection never fires the callback
   // and simply has no column to register into.
-  // A browser tab has no guest to embed, so the pane opens the Host's Chromium
-  // instead, which the model drives through chrome-devtools-mcp.
+  // A browser tab has no guest to embed, so picking the browser opens the
+  // Host's Chromium window, which the model drives through
+  // chrome-devtools-mcp, and adds no pill.
   if (!isDesktopShell()) {
-    const t = ctx.locale.bind(NS)
     ctx.inject(['sidebarContent', 'remote', 'remote.browserChromium'], (scoped) => {
       const remote = scoped.remote
-      const Pane = ({ sessionId }: { readonly sessionId: string }) => createElement(WebBrowserPane, { sessionId, t, remote })
-      scoped.effect(() => scoped.sidebarContent.register('browser', Pane), 'ui-sidebar-browser: web content kind')
+      const launch = (sessionId: string): void => {
+        void remote.browserChromium.open(sessionId as SessionId, '').then((result) => {
+          if (!result.ok) console.error('ui-sidebar-browser: opening Chromium failed', result.error)
+        }, (error: unknown) => { console.error('ui-sidebar-browser: opening Chromium failed', error) })
+      }
+      scoped.effect(() => scoped.sidebarContent.registerLauncher('browser', launch), 'ui-sidebar-browser: web launcher')
     })
     return
   }

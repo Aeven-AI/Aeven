@@ -270,6 +270,9 @@ importers:
       '@aeven/tool-cordis':
         specifier: workspace:^
         version: link:../../packages/extensions/tool-cordis
+      '@aeven/tool-device':
+        specifier: workspace:^
+        version: link:../../packages/device/tool-device
       '@aeven/tool-fs':
         specifier: workspace:^
         version: link:../../packages/fs/tool-fs
@@ -291,6 +294,9 @@ importers:
       '@aeven/tool-ralph':
         specifier: workspace:^
         version: link:../../packages/workflow/tool-ralph
+      '@aeven/tool-search':
+        specifier: workspace:^
+        version: link:../../packages/core/tool-search
       '@aeven/tool-skill':
         specifier: workspace:^
         version: link:../../packages/skill/tool-skill
@@ -632,6 +638,12 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^4.0.0
         version: 4.7.0(vite@6.4.3(@types/node@22.20.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0))
+      '@xterm/addon-fit':
+        specifier: ^0.11.0
+        version: 0.11.0
+      '@xterm/xterm':
+        specifier: ^6.0.0
+        version: 6.0.0
       fflate:
         specifier: ^0.8.2
         version: 0.8.3
@@ -813,6 +825,9 @@ importers:
       '@aeven/api-settings-controller':
         specifier: workspace:^
         version: link:../settings-controller
+      '@aeven/api-terminal-controller':
+        specifier: workspace:^
+        version: link:../terminal-controller
       '@aeven/api-workspace-controller':
         specifier: workspace:^
         version: link:../workspace-controller
@@ -834,6 +849,9 @@ importers:
       '@aeven/credentials':
         specifier: workspace:^
         version: link:../../credentials/credentials
+      '@aeven/device':
+        specifier: workspace:^
+        version: link:../../device/device
       '@aeven/file-reference':
         specifier: workspace:^
         version: link:../../context/file-reference
@@ -1031,6 +1049,55 @@ importers:
       '@aeven/typert-protocol':
         specifier: workspace:^
         version: link:../../typert/protocol
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/api/terminal-controller:
+    dependencies:
+      '@aeven/deque':
+        specifier: workspace:^
+        version: link:../../util/deque
+      '@aeven/typert-protocol':
+        specifier: workspace:^
+        version: link:../../typert/protocol
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      '@xterm/addon-serialize':
+        specifier: ^0.14.0
+        version: 0.14.0
+      '@xterm/headless':
+        specifier: ^6.0.0
+        version: 6.0.0
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@aeven/api-gateway':
+        specifier: workspace:^
+        version: link:../gateway
+      '@aeven/brand':
+        specifier: workspace:^
+        version: link:../../util/brand
+      '@aeven/client-store':
+        specifier: workspace:^
+        version: link:../../client/store
+      '@aeven/sandbox-policy':
+        specifier: workspace:^
+        version: link:../../sandbox/sandbox-policy
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@aeven/util-crypto':
+        specifier: workspace:^
+        version: link:../../util/crypto
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -1637,6 +1704,9 @@ importers:
       '@aeven/api-settings-controller':
         specifier: workspace:^
         version: link:../../api/settings-controller
+      '@aeven/api-terminal-controller':
+        specifier: workspace:^
+        version: link:../../api/terminal-controller
       '@aeven/api-workspace-controller':
         specifier: workspace:^
         version: link:../../api/workspace-controller
@@ -1724,9 +1794,6 @@ importers:
       '@aeven/client-ui-renderer':
         specifier: workspace:^
         version: link:../../client/ui-renderer
-      '@aeven/client-ui-schedule':
-        specifier: workspace:^
-        version: link:../../client/ui-schedule
       '@aeven/client-ui-session':
         specifier: workspace:^
         version: link:../../client/ui-session
@@ -1751,6 +1818,9 @@ importers:
       '@aeven/client-ui-sidebar-browser':
         specifier: workspace:^
         version: link:../../client/ui-sidebar-browser
+      '@aeven/client-ui-sidebar-device':
+        specifier: workspace:^
+        version: link:../../client/ui-sidebar-device
       '@aeven/client-ui-sidebar-files':
         specifier: workspace:^
         version: link:../../client/ui-sidebar-files
@@ -1760,6 +1830,9 @@ importers:
       '@aeven/client-ui-sidebar-select':
         specifier: workspace:^
         version: link:../../client/ui-sidebar-select
+      '@aeven/client-ui-sidebar-terminal':
+        specifier: workspace:^
+        version: link:../../client/ui-sidebar-terminal
       '@aeven/client-ui-skill':
         specifier: workspace:^
         version: link:../../client/ui-skill
@@ -1796,6 +1869,12 @@ importers:
       '@aeven/cordis-host-runner':
         specifier: workspace:^
         version: link:../../extensions/cordis-host-runner
+      '@aeven/device':
+        specifier: workspace:^
+        version: link:../../device/device
+      '@aeven/device-local':
+        specifier: workspace:^
+        version: link:../../device/device-local
       '@aeven/file-reference':
         specifier: workspace:^
         version: link:../../context/file-reference
@@ -1844,9 +1923,6 @@ importers:
       '@aeven/message-feedback':
         specifier: workspace:^
         version: link:../../feedback/message-feedback
-      '@aeven/session-log-export':
-        specifier: workspace:^
-        version: link:../../session-query/session-log-export
       '@aeven/session-reference':
         specifier: workspace:^
         version: link:../../context/session-reference
@@ -1859,6 +1935,9 @@ importers:
       '@aeven/subprocess':
         specifier: workspace:^
         version: link:../../subprocess/subprocess
+      '@aeven/tool-device':
+        specifier: workspace:^
+        version: link:../../device/tool-device
       '@aeven/tool-media':
         specifier: workspace:^
         version: link:../../media/tool-media
@@ -3325,57 +3404,6 @@ importers:
         specifier: ^18.2.0
         version: 18.3.1(react@18.3.1)
 
-  packages/client/ui-schedule:
-    devDependencies:
-      '@aeven/api-session-controller':
-        specifier: workspace:^
-        version: link:../../api/session-controller
-      '@aeven/client-locale':
-        specifier: workspace:^
-        version: link:../locale
-      '@aeven/client-test-runtime':
-        specifier: workspace:^
-        version: link:../../test-support/client-runtime
-      '@aeven/client-ui-conversation':
-        specifier: workspace:^
-        version: link:../ui-conversation
-      '@aeven/client-ui-primitives':
-        specifier: workspace:^
-        version: link:../ui-primitives
-      '@aeven/client-ui-renderer':
-        specifier: workspace:^
-        version: link:../ui-renderer
-      '@aeven/client-ui-session':
-        specifier: workspace:^
-        version: link:../ui-session
-      '@aeven/client-ui-slots':
-        specifier: workspace:^
-        version: link:../ui-slots
-      '@aeven/schedule':
-        specifier: workspace:^
-        version: link:../../schedule/schedule
-      '@aeven/session':
-        specifier: workspace:^
-        version: link:../../core/session
-      '@deepseek-ai/cordis':
-        specifier: workspace:^
-        version: link:../../../vendor/cordis
-      '@testing-library/react':
-        specifier: ^16.1.0
-        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@types/react':
-        specifier: ~18.3.1
-        version: 18.3.31
-      '@types/react-dom':
-        specifier: ~18.3.0
-        version: 18.3.7(@types/react@18.3.31)
-      react:
-        specifier: ^18.2.0
-        version: 18.3.1
-      react-dom:
-        specifier: ^18.2.0
-        version: 18.3.1(react@18.3.1)
-
   packages/client/ui-session:
     devDependencies:
       '@aeven/api-session-controller':
@@ -3719,6 +3747,42 @@ importers:
         specifier: ^18.2.0
         version: 18.3.1
 
+  packages/client/ui-sidebar-device:
+    devDependencies:
+      '@aeven/api-remotes':
+        specifier: workspace:^
+        version: link:../../api/remotes
+      '@aeven/client-locale':
+        specifier: workspace:^
+        version: link:../locale
+      '@aeven/client-ui-primitives':
+        specifier: workspace:^
+        version: link:../ui-primitives
+      '@aeven/client-ui-sidebar-select':
+        specifier: workspace:^
+        version: link:../ui-sidebar-select
+      '@aeven/client-ui-slots':
+        specifier: workspace:^
+        version: link:../ui-slots
+      '@aeven/device':
+        specifier: workspace:^
+        version: link:../../device/device
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/typert-protocol':
+        specifier: workspace:^
+        version: link:../../typert/protocol
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+
   packages/client/ui-sidebar-files:
     dependencies:
       clsx:
@@ -3808,6 +3872,9 @@ importers:
       '@aeven/client-test-runtime':
         specifier: workspace:^
         version: link:../../test-support/client-runtime
+      '@aeven/client-ui-layout':
+        specifier: workspace:^
+        version: link:../ui-layout
       '@aeven/client-ui-primitives':
         specifier: workspace:^
         version: link:../ui-primitives
@@ -3823,6 +3890,49 @@ importers:
       '@aeven/client-ui-slots':
         specifier: workspace:^
         version: link:../ui-slots
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+
+  packages/client/ui-sidebar-terminal:
+    dependencies:
+      '@xterm/addon-fit':
+        specifier: ^0.11.0
+        version: 0.11.0
+      '@xterm/xterm':
+        specifier: ^6.0.0
+        version: 6.0.0
+    devDependencies:
+      '@aeven/api-remotes':
+        specifier: workspace:^
+        version: link:../../api/remotes
+      '@aeven/api-terminal-controller':
+        specifier: workspace:^
+        version: link:../../api/terminal-controller
+      '@aeven/client-locale':
+        specifier: workspace:^
+        version: link:../locale
+      '@aeven/client-ui-primitives':
+        specifier: workspace:^
+        version: link:../ui-primitives
+      '@aeven/client-ui-sidebar-select':
+        specifier: workspace:^
+        version: link:../ui-sidebar-select
+      '@aeven/client-ui-slots':
+        specifier: workspace:^
+        version: link:../ui-slots
+      '@aeven/client-ui-theme':
+        specifier: workspace:^
+        version: link:../ui-theme
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -4380,6 +4490,12 @@ importers:
       '@types/react-dom':
         specifier: ~18.3.0
         version: 18.3.7(@types/react@18.3.31)
+      '@xterm/addon-fit':
+        specifier: ^0.11.0
+        version: 0.11.0
+      '@xterm/xterm':
+        specifier: ^6.0.0
+        version: 6.0.0
       react:
         specifier: ^18.2.0
         version: 18.3.1
@@ -5136,6 +5252,28 @@ importers:
         specifier: workspace:^
         version: link:../../../vendor/cordis
 
+  packages/core/tool-search:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../agent
+      '@aeven/llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@aeven/system-prompt':
+        specifier: workspace:^
+        version: link:../system-prompt
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../tools
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
   packages/core/tools:
     dependencies:
       '@aeven/brand':
@@ -5231,6 +5369,77 @@ importers:
       '@aeven/launch-environment':
         specifier: workspace:^
         version: link:../../util/launch-environment
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/device/device:
+    dependencies:
+      '@aeven/home-paths':
+        specifier: workspace:^
+        version: link:../../util/home-paths
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@aeven/brand':
+        specifier: workspace:^
+        version: link:../../util/brand
+      '@aeven/client-connection':
+        specifier: workspace:^
+        version: link:../../client/connection
+      '@aeven/host-webserver':
+        specifier: workspace:^
+        version: link:../../host/webserver
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/settings':
+        specifier: workspace:^
+        version: link:../../settings/settings
+      '@aeven/typert-protocol':
+        specifier: workspace:^
+        version: link:../../typert/protocol
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/device/device-local:
+    dependencies:
+      '@aeven/home-paths':
+        specifier: workspace:^
+        version: link:../../util/home-paths
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@aeven/device':
+        specifier: workspace:^
+        version: link:../device
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/device/tool-device:
+    devDependencies:
+      '@aeven/attachment':
+        specifier: workspace:^
+        version: link:../../attachment/attachment
+      '@aeven/device':
+        specifier: workspace:^
+        version: link:../device
+      '@aeven/llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+      '@aeven/util-values':
+        specifier: workspace:^
+        version: link:../../util/values
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -7941,79 +8150,6 @@ importers:
         specifier: workspace:^
         version: link:../../../vendor/loader
 
-  packages/session-query/session-log-export:
-    dependencies:
-      '@aeven/brand':
-        specifier: workspace:^
-        version: link:../../util/brand
-      '@deepseek-ai/schemastery':
-        specifier: link:../../../vendor/schemastery
-        version: link:../../../vendor/schemastery
-      fflate:
-        specifier: ^0.8.2
-        version: 0.8.3
-    devDependencies:
-      '@aeven/agent':
-        specifier: workspace:^
-        version: link:../../core/agent
-      '@aeven/attachment':
-        specifier: workspace:^
-        version: link:../../attachment/attachment
-      '@aeven/client-connection':
-        specifier: workspace:^
-        version: link:../../client/connection
-      '@aeven/client-locale':
-        specifier: workspace:^
-        version: link:../../client/locale
-      '@aeven/client-store':
-        specifier: workspace:^
-        version: link:../../client/store
-      '@aeven/client-ui-commands':
-        specifier: workspace:^
-        version: link:../../client/ui-commands
-      '@aeven/client-ui-conversation':
-        specifier: workspace:^
-        version: link:../../client/ui-conversation
-      '@aeven/client-ui-primitives':
-        specifier: workspace:^
-        version: link:../../client/ui-primitives
-      '@aeven/client-ui-renderer':
-        specifier: workspace:^
-        version: link:../../client/ui-renderer
-      '@aeven/client-ui-session':
-        specifier: workspace:^
-        version: link:../../client/ui-session
-      '@aeven/client-ui-slots':
-        specifier: workspace:^
-        version: link:../../client/ui-slots
-      '@aeven/commands':
-        specifier: workspace:^
-        version: link:../../interaction/commands
-      '@aeven/session':
-        specifier: workspace:^
-        version: link:../../core/session
-      '@aeven/session-persistence':
-        specifier: workspace:^
-        version: link:../../session/session-persistence
-      '@aeven/session-query':
-        specifier: workspace:^
-        version: link:../session-query
-      '@deepseek-ai/cordis':
-        specifier: workspace:^
-        version: link:../../../vendor/cordis
-      '@deepseek-ai/cordis-plugin-include':
-        specifier: workspace:^
-        version: link:../../../vendor/include
-      '@deepseek-ai/cordis-plugin-loader':
-        specifier: workspace:^
-        version: link:../../../vendor/loader
-      '@types/react':
-        specifier: ~18.3.1
-        version: 18.3.31
-      react:
-        specifier: ^18.2.0
-        version: 18.3.1
-
   packages/session-query/session-query:
     devDependencies:
       '@aeven/brand':
@@ -10411,6 +10547,15 @@ importers:
       '@aeven/scope':
         specifier: workspace:^
         version: link:../../core/scope
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/system-prompt':
+        specifier: workspace:^
+        version: link:../../core/system-prompt
+      '@aeven/timeout':
+        specifier: workspace:^
+        version: link:../../util/timeout
       '@aeven/tools':
         specifier: workspace:^
         version: link:../../core/tools
@@ -14406,8 +14551,17 @@ packages:
     resolution: {integrity: sha512-/5NV/vDALVFDXgLmfsy9TRCBlKwO2LNBFzpzvb9iIj+jR+eSc6DLYYvVOdivT/jm7MtU6TebYuRmzEOI7w40UA==}
     engines: {node: '>=10.0.0'}
 
+  '@xterm/addon-fit@0.11.0':
+    resolution: {integrity: sha512-jYcgT6xtVYhnhgxh3QgYDnnNMYTcf8ElbxxFzX0IZo+vabQqSPAjC3c1wJrKB5E19VwQei89QCiZZP86DCPF7g==}
+
+  '@xterm/addon-serialize@0.14.0':
+    resolution: {integrity: sha512-uteyTU1EkrQa2Ux6P/uFl2fzmXI46jy5uoQMKEOM0fKTyiW7cSn0WrFenHm5vO5uEXX/GpwW/FgILvv3r0WbkA==}
+
   '@xterm/headless@6.0.0':
     resolution: {integrity: sha512-5Yj1QINYCyzrZtf8OFIHi47iQtI+0qYFPHmouEfG8dHNxbZ9Tb9YGSuLcsEwj9Z+OL75GJqPyJbyoFer80a2Hw==}
+
+  '@xterm/xterm@6.0.0':
+    resolution: {integrity: sha512-TQwDdQGtwwDt+2cgKDLn0IRaSxYu1tSUjgKarSDkUM0ZNiSRXFpjxEsvc/Zgc5kq5omJ+V0a8/kIM2WD3sMOYg==}
 
   '@yarnpkg/cli-dist@4.18.0':
     resolution: {integrity: sha512-WV9H+/O8BPElO7GKzrKipTtCNt8/gBCUJaNAEOw4U/x2k17aZjseYzll4QhpZE4xIsEvo8bK6KvjhsXuHrclPg==}
@@ -21182,7 +21336,13 @@ snapshots:
 
   '@xmldom/xmldom@0.8.15': {}
 
+  '@xterm/addon-fit@0.11.0': {}
+
+  '@xterm/addon-serialize@0.14.0': {}
+
   '@xterm/headless@6.0.0': {}
+
+  '@xterm/xterm@6.0.0': {}
 
   '@yarnpkg/cli-dist@4.18.0': {}
 

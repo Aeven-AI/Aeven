@@ -34,6 +34,8 @@ interface TurnProcessState {
   readonly messageCountByStep: ReadonlyMap<number, number>
   readonly otherStartSeq?: number
   readonly controlAnchorSeq?: number
+  /** Just after the Turn's last first-Step input message: the open Turn's header place before any process. */
+  readonly inputAnchorSeq?: number
   readonly messageCount: number
   readonly toolCallCount: number
   readonly subagentCount: number
@@ -131,8 +133,20 @@ function latestAnswer(turn: TurnLocation): Readonly<FinalAssistantChatData> | nu
   return data.blocks.some(block => block.kind === 'tool-call') ? null : data
 }
 
+/**
+ * Where the header sits: at the first process evidence, or, while the Turn is
+ * still open and nothing is visible yet, just after its input, so the running
+ * header appears as soon as the Turn starts rather than at the first token.
+ * @param state - the Turn's process state.
+ * @param turn - the Turn's Location.
+ * @returns the anchor seq, or undefined when the header has no place yet.
+ */
+function controlAnchor(state: TurnProcessState, turn: TurnLocation): number | undefined {
+  return state.controlAnchorSeq ?? (turn.status === 'open' ? state.inputAnchorSeq : undefined)
+}
+
 function processSpec(state: TurnProcessState, turn: TurnLocation): TurnProcessSpec | null {
-  const controlAnchorSeq = state.controlAnchorSeq
+  const controlAnchorSeq = controlAnchor(state, turn)
   if (controlAnchorSeq === undefined) return null
   const answer = latestAnswer(turn)
   const counts = {
@@ -179,6 +193,9 @@ function processSpec(state: TurnProcessState, turn: TurnLocation): TurnProcessSp
 
 function updateProcessState(state: TurnProcessState, event: ConversationEvent): TurnProcessState {
   let current = state
+  // Only first-Step input reaches here as a user message (see `match`); the
+  // header's provisional place is after the last of them.
+  if (event.type === 'user/message') return { ...current, inputAnchorSeq: event.seq + 1 }
   if (event.type === 'assistant/message'
     && isAppendSurfaceEvent(event)
     && hasAssistantReplyContent(toAssistantBlocks(event.data.message.content))) {
@@ -219,8 +236,14 @@ function updateProcessState(state: TurnProcessState, event: ConversationEvent): 
 export const turnProcessDefinition: ConversationNodeDefinition<TurnProcessState> = {
   kind: 'turn-process',
   target: 'chat',
-  match: (event) => {
+  match: (event, location) => {
     if (event.type === 'turn/start') return { id: String(event.data.turn), role: 'start' }
+    // The Turn's input names no Turn itself; its Step does.
+    if (event.type === 'user/message') {
+      return location.kind === 'step' && location.step.step === 1
+        ? { id: String(location.turn.turn), role: 'update' }
+        : null
+    }
     const turn = eventTurn(event)
     if (turn === undefined) return null
     if (event.type === 'assistant/chunk'
@@ -268,7 +291,7 @@ export const turnProcessDefinition: ConversationNodeDefinition<TurnProcessState>
       && previous.key === 'turn-process'
       && current?.kind === 'turn-process'
       && current.data.answerAnchorSeq === null
-      && current.data.controlAnchorSeq === state.controlAnchorSeq
+      && current.data.controlAnchorSeq === controlAnchor(state, turn)
       && current.data.messageCount === state.messageCount
       && current.data.toolCallCount === state.toolCallCount
       && current.data.subagentCount === state.subagentCount
@@ -296,7 +319,7 @@ export const turnProcessDefinition: ConversationNodeDefinition<TurnProcessState>
     if (current?.kind === 'turn-process'
       && state !== undefined
       && current.data.answerAnchorSeq === null
-      && current.data.controlAnchorSeq === state.controlAnchorSeq
+      && current.data.controlAnchorSeq === controlAnchor(state, turn)
       && current.data.messageCount === state.messageCount
       && current.data.toolCallCount === state.toolCallCount
       && current.data.subagentCount === state.subagentCount

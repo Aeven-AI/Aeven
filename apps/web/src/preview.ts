@@ -13,5 +13,5 @@ import { hidePreloader, showPreloader } from '@aeven/client-web/src/preloader.ts
 const image = `preview/${IMAGE_FILE_NAME}`
 hidePreloader(false)
 const source = await chooseWorkerHostSource({ image })
-showPreloader(false)
+void showPreloader(false)
 await connectWorkerHost(new AvnWorker({ name: 'avn-host' }), { image, overlays: source.overlays })
