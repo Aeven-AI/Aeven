@@ -19,7 +19,7 @@
 import clsx from 'clsx'
 import { useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react'
 import {
-  AevenMark, IconLucideImages, IconLucideMessageCirclePlus, IconLucidePanelLeft, Tooltip,
+  AevenMark, IconLucideChevronRight, IconLucideImages, IconLucideMessageCirclePlus, Tooltip,
 } from '@aeven/client-ui-primitives'
 import type { SidebarRootComponentProps } from './contract/slots.ts'
 import css from './SidebarRoot.module.css'
@@ -105,7 +105,23 @@ export function SidebarRoot({
               aria-label={collapsed ? t('toggle.open') : t('toggle.collapse')}
               onClick={() => { toggleSidebar() }}
             >
-              <IconLucidePanelLeft className={css.toggleIcon} />
+              {/* The product client's own sidebar toggle glyph, pasted from its
+                  markup: lucide `text-align-start` at a 2-stroke weight. */}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+                className={css.toggleIcon}
+              >
+                <path d="M21 5H3" />
+                <path d="M15 12H3" />
+                <path d="M17 19H3" />
+              </svg>
             </button>
           </Tooltip>
 
@@ -144,6 +160,7 @@ export function SidebarRoot({
               >
                 <IconLucideMessageCirclePlus className={css.newSessionIcon} />
                 <span className={css.newSessionLabel}>{t('session.new')}</span>
+                <IconLucideChevronRight className={css.newSessionChevron} />
               </a>
             </Tooltip>
 

@@ -57,6 +57,9 @@
       "path": "../../web/tool-browser"
     },
     {
+      "path": "../../interaction/tool-location"
+    },
+    {
       "path": "../session-controller/tsconfig.host.json"
     },
     {

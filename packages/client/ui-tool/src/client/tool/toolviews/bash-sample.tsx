@@ -122,7 +122,7 @@ export function BashRow({ toolName, block, sessionId, useSessions, inspect, t }:
             : (
               <div className={css.ioCard}>
                 {body !== null && (
-                  <div className={css.ioSection}>
+                  <div className={clsx(css.ioSection, 'no-scrollbar')}>
                     <span className={css.ioLabel}>{t('row.input')}</span>
                     <span className={css.ioText}>{body}</span>
                   </div>
@@ -131,7 +131,7 @@ export function BashRow({ toolName, block, sessionId, useSessions, inspect, t }:
                   <span className={css.ioDivider} aria-hidden />
                 )}
                 {model.output !== null && (
-                  <div className={css.ioSection}>
+                  <div className={clsx(css.ioSection, 'no-scrollbar')}>
                     <span className={css.ioLabel}>{t('row.output')}</span>
                     <span className={css.ioText} data-error={state === 'error' || undefined}>
                       {model.output}

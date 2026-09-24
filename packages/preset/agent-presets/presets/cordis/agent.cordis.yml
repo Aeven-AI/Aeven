@@ -230,6 +230,11 @@
 - id: tool-browser
   name: '@aeven/tool-browser'
 
+# Asks the reader for their location when a task needs it; they share their
+# device location, type a place, or decline in the client beside the session.
+- id: tool-location
+  name: '@aeven/tool-location'
+
 # The simulators and emulators beside the session in the right sidebar. Each
 # call reports device support or model access that the user has not enabled.
 - id: tool-device

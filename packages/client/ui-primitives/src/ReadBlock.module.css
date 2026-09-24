@@ -1,5 +1,5 @@
 .block {
-  --dsl-read-radius: 12px;
+  --dsl-read-radius: var(--dsw-aeven-radius-surface);
   --dsl-read-line-height: 22px;
   /* Fixed-width gutter column for the line numbers, so the content edge stays
      put down the whole window regardless of how wide the numbers grow. */
@@ -51,16 +51,6 @@
   font-family: var(--ds-font-family-code);
   font-size: 12px;
   line-height: 18px;
-}
-
-.copyButton {
-  background-color: transparent;
-  border: none;
-  padding: 0;
-  margin: 0;
-  color: var(--dsw-alias-label-secondary);
-  cursor: pointer;
-  font: var(--dsw-font-xs-14);
 }
 
 .body {

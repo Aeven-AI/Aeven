@@ -22,7 +22,6 @@
     },
     {
       "path": "../../credentials/credentials"
-
     },
     {
       "path": "../../context/file-reference"
@@ -71,6 +70,9 @@
     },
     {
       "path": "../../web/tool-browser"
+    },
+    {
+      "path": "../../interaction/tool-location"
     },
     {
       "path": "../session-controller/tsconfig.client.json"

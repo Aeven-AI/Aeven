@@ -67,6 +67,7 @@
     "@aeven/client-ui-input-trigger": "workspace:^",
     "@aeven/client-ui-jobs": "workspace:^",
     "@aeven/client-ui-layout": "workspace:^",
+    "@aeven/client-ui-location": "workspace:^",
     "@aeven/client-ui-message-feedback": "workspace:^",
     "@aeven/client-ui-model-selection": "workspace:^",
     "@aeven/client-ui-permission-presets": "workspace:^",

@@ -41,6 +41,7 @@ export const searchBlockLabels: SearchBlockLabels = {
 }
 
 export const terminalBlockLabels: TerminalBlockLabels = {
+  title: '终端',
   signal: signal => `信号 ${signal}`,
   exitCode: code => `退出码 ${code}`,
   running: '运行中', failed: '失败', done: '已完成',
@@ -60,5 +61,7 @@ export const jsonTreeLabels: JsonTreeLabels = {
 
 export const webBlockLabels: WebBlockLabels = {
   noResults: '未找到结果', sourcesTruncated: '来源列表已截断',
-  http: 'HTTP', contentTruncated: '内容已截断', markdown: markdownLabels,
+  http: 'HTTP', contentTruncated: '内容已截断',
+  fetchTitle: '抓取', searchTitle: '搜索', copy: '复制', copied: '复制成功',
+  markdown: markdownLabels,
 }

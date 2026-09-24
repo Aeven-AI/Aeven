@@ -18,11 +18,10 @@ export type ConversationRootProps = ConversationSlotProps
 const WIDTH_PREF_KEY = 'avn.conversation.contentWidth'
 /** Floor for a dragged content width; matches the layout center-column minimum. */
 const CONTENT_MIN = 640
-/** Column budget the content must leave free: 88px per side keeps the width
- * handles fully placeable (24px inset + 40px strip + 24px safe zone) — a
- * larger dragged width would push its own handles off the column and leave no
- * way to drag back. */
-const CONTENT_EDGE_BUDGET = 176
+/** Column budget the content must leave free: the 24px page inset per side,
+ * which is where the width handles sit at the widest drag. Mirrors the CSS
+ * clamp's `100%`, resolved inside that inset. */
+const CONTENT_EDGE_BUDGET = 48
 
 /** Reads the persisted width preference; durable-storage boundary, so a
  * missing or corrupt value resolves to "no preference".
@@ -34,14 +33,25 @@ function readWidthPreference(): number | null {
   return Number.isFinite(value) && value > 0 ? value : null
 }
 
-/** Resolves the content width the CSS axis would show for a column width.
+/** Clamps a dragged width the way the CSS clamp shows it.
  * @param columnWidth - the conversation column's rendered width in px.
- * @param preference - the dragged preference, or null for the adaptive clamp.
- * @returns the resolved content width in px (mirrors the CSS clamp). */
-function resolveContentWidth(columnWidth: number, preference: number | null): number {
+ * @param width - the dragged width.
+ * @returns the width in px between the floor and the column less its insets. */
+function clampContentWidth(columnWidth: number, width: number): number {
   const max = Math.max(CONTENT_MIN, columnWidth - CONTENT_EDGE_BUDGET)
-  if (preference !== null) return Math.min(Math.max(preference, CONTENT_MIN), max)
-  return Math.max(CONTENT_MIN, Math.min(columnWidth - 48, 1024))
+  return Math.min(Math.max(width, CONTENT_MIN), max)
+}
+
+/** The content width on screen now: the gap between the two handles, which
+ * sit on the content's edges in the same frame the content resolves in.
+ * @param root - the conversation root holding the handles.
+ * @returns the rendered content width in px. */
+function renderedContentWidth(root: HTMLElement): number {
+  const left = root.querySelector('[data-width-handle="left"]')?.getBoundingClientRect()
+  const right = root.querySelector('[data-width-handle="right"]')?.getBoundingClientRect()
+  /* v8 ignore next -- both handles render with the root, so the lookup always resolves. */
+  if (left === undefined || right === undefined) return CONTENT_MIN
+  return right.left - left.right
 }
 
 /** One transcript width handle: pointer capture + rAF-throttled symmetric
@@ -102,6 +112,23 @@ function WidthHandle(props: {
     setDragging(false)
     callbacks.current.onEnd()
   }, [])
+  // The strips sit outside the scroller, so the wheel over them would scroll
+  // nothing. It is handed to the transcript's scroller: re-dispatched first so
+  // the scroller's own wheel listeners see the reader's intent, then applied,
+  // because a synthetic wheel event never scrolls by itself.
+  const onWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    // The handle's frame is a child of the conversation root, beside the scroller.
+    const scroller = e.currentTarget.parentElement?.parentElement
+      ?.querySelector<HTMLElement>('[data-conversation-scroll]')
+    if (scroller === null || scroller === undefined) return
+    const unit = e.deltaMode === WheelEvent.DOM_DELTA_LINE
+      ? 16
+      : e.deltaMode === WheelEvent.DOM_DELTA_PAGE ? scroller.clientHeight : 1
+    scroller.dispatchEvent(new WheelEvent('wheel', {
+      deltaX: e.deltaX, deltaY: e.deltaY, deltaMode: e.deltaMode, bubbles: true,
+    }))
+    scroller.scrollBy({ top: e.deltaY * unit, left: 0 })
+  }, [])
   // Releasing the button outside the window delivers pointercancel (or drops
   // the capture silently) instead of pointerup; without this the glow's
   // data-dragging state sticks on. The gesture is abandoned uncommitted —
@@ -125,6 +152,7 @@ function WidthHandle(props: {
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
       onLostPointerCapture={onPointerCancel}
+      onWheel={onWheel}
     />
   )
 }
@@ -172,20 +200,20 @@ export function ConversationRoot({
     const root = rootEl.current
     /* v8 ignore next -- handles render inside the root, so the ref is always attached. */
     if (root === null) return CONTENT_MIN
-    return resolveContentWidth(root.offsetWidth, readWidthPreference())
+    return clampContentWidth(root.offsetWidth, renderedContentWidth(root))
   }, [])
   const onHandleDrag = useCallback((width: number): void => {
     const root = rootEl.current
     /* v8 ignore next -- handles render inside the root, so the ref is always attached. */
     if (root === null) return
-    const clamped = resolveContentWidth(root.offsetWidth, width)
+    const clamped = clampContentWidth(root.offsetWidth, width)
     root.style.setProperty('--avn-chat-user-width', `${clamped}px`)
   }, [])
   const onHandleCommit = useCallback((width: number): void => {
     const root = rootEl.current
     /* v8 ignore next -- handles render inside the root, so the ref is always attached. */
     if (root === null) return
-    const committed = resolveContentWidth(root.offsetWidth, width)
+    const committed = clampContentWidth(root.offsetWidth, width)
     localStorage.setItem(WIDTH_PREF_KEY, `${committed}`)
     setUserWidth(committed)
   }, [])
@@ -350,16 +378,20 @@ export function ConversationRoot({
       {/* Width handles only while a transcript is on screen; the hero has no
           content column to size. Outside the scroller: inside it they would
           extend the scrollable range and ride the rubber-band. */}
-      {phase === 'active' && (['left', 'right'] as const).map(side => (
-        <WidthHandle
-          key={side}
-          side={side}
-          onStart={onHandleStart}
-          onDrag={onHandleDrag}
-          onCommit={onHandleCommit}
-          onEnd={onHandleEnd}
-        />
-      ))}
+      {phase === 'active' && (
+        <div className={css.widthHandles}>
+          {(['left', 'right'] as const).map(side => (
+            <WidthHandle
+              key={side}
+              side={side}
+              onStart={onHandleStart}
+              onDrag={onHandleDrag}
+              onCommit={onHandleCommit}
+              onEnd={onHandleEnd}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import clsx from 'clsx'
 import { FoldToggle } from './FoldToggle.tsx'
-import { writeClipboard } from './clipboard.ts'
+import { CopyIconButton } from './BlockHeader.tsx'
 import {
   grammarLoadCount,
   highlightLines,
@@ -87,16 +87,6 @@ export function ReadBlock({
     [highlighting, raw, lang, loaded],
   )
   const [expanded, setExpanded] = useState(false)
-  const [copied, setCopied] = useState(false)
-
-  const onCopy = useCallback(() => {
-    if (copied) return
-    void writeClipboard(raw).then((ok) => {
-      if (!ok) return
-      setCopied(true)
-      window.setTimeout(() => { setCopied(false) }, 1000)
-    })
-  }, [copied, raw])
 
   const onToggle = useCallback(() => { setExpanded(value => !value) }, [])
 
@@ -130,13 +120,11 @@ export function ReadBlock({
           <span className={css.lang}>{lang ?? ''}</span>
           {/* Empty files omit Copy to avoid replacing the clipboard with an empty string. */}
           {lines.length > 0 && (
-            <button type="button" className={css.copyButton} onClick={onCopy}>
-              {copied ? labels.copied : labels.copy}
-            </button>
+            <CopyIconButton text={raw} label={labels.copy} copiedLabel={labels.copied} />
           )}
         </div>
       </div>
-      <div className={css.body}>
+      <div className={clsx(css.body, 'no-scrollbar')}>
         {rows(capped ? paired.slice(0, headLines) : paired)}
         {hidden > 0 && (
           <FoldToggle

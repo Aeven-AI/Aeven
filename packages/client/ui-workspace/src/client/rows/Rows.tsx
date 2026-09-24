@@ -13,7 +13,8 @@ import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 
 import clsx from 'clsx'
 import {
   HoverCard, IconAlarmClockOutline16, IconArchiveOutline20, IconBranchOutline16,
-  IconEditOutline16, IconLucideCircle, IconLucideEllipsis, IconLucideFolder, IconLucideFolderOpen,
+  IconEditOutline16, IconLucideCircle, IconLucideEllipsis, IconLucideEllipsisVertical,
+  IconLucideFolder, IconLucideFolderOpen,
   IconLucideMessageCirclePlus, IconTrashOutline16, Menu, relativeTime,
   Spinner, StateDot,
 } from '@aeven/client-ui-primitives'
@@ -537,7 +538,7 @@ export function SessionNodeItem({
                 aria-label={t('actions.session.aria', { name: title })}
                 onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v) }}
               >
-                <IconLucideEllipsis className={css.actionIcon} />
+                <IconLucideEllipsisVertical className={css.actionIcon} />
               </button>
             )}
           />

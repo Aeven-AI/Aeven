@@ -6,20 +6,29 @@
 .slot {
   position: sticky;
   top: 50%;
-  z-index: 7;
+  /* Above the composer seat (7) and the fade band it paints above itself: a
+     tall draft grows the seat upward, and the rail must stay whole over it.
+     Above the conversation width handles (8) too: at the widest column the
+     right handle fills the same 24px edge band, and inside the rail's own
+     band the rail takes the pointer. */
+  z-index: 9;
   float: right;
   height: 0;
-  margin-right: 24px;
+  /* Out through the transcript's side inset to the scroller's own edge, so the
+     pointer column reaches the window edge and the ticks' 24px is measured
+     from it. */
+  margin-right: calc(-1 * var(--avn-composer-side-clearance, 0px));
   pointer-events: none;
 }
 
 /* The ladder's own box, centred on the sticky line. Its width is a pointer
-   column rather than the tick width: a 2px line is not a mouse target, so the
-   rail takes the pointer for a band wide enough to hit without aiming, and the
-   ticks paint inside it. */
+   column rather than the tick width: a 1px line is not a mouse target, so the
+   rail takes the pointer from 24px left of the longest line all the way to the
+   scroller's edge, including the empty 24px gutter right of the ticks. */
 .rail {
+  --avn-turn-edge: 24px;
   position: relative;
-  width: 44px;
+  width: calc(var(--avn-turn-edge) + 12px + 24px);
   height: var(--avn-turn-band);
   transform: translateY(-50%);
   cursor: pointer;
@@ -33,22 +42,24 @@
   position: absolute;
   right: 0;
   left: 0;
-  height: 16px;
+  height: 8px;
   padding: 0;
   border: 0;
   background: transparent;
   cursor: pointer;
   pointer-events: none;
   transform: translateY(-50%);
+  /* The hover magnifier moves ticks as the pointer moves; a short ease keeps
+     the lens smooth without trailing the pointer. */
+  transition: top 80ms ease-out;
 }
 
 .tick::before {
   position: absolute;
   top: 50%;
-  right: 0;
-  width: 4px;
-  height: 2px;
-  border-radius: 1px;
+  right: var(--avn-turn-edge);
+  width: 6px;
+  height: 1px;
   /* Tick colours are variables so a state rebinds one name rather than
      restating the whole background declaration. */
   --turn-tick-rest: #000000;
@@ -78,13 +89,13 @@
    selection, not by how loud the line is. */
 .tickActive::before,
 .tickPreview::before {
-  width: 8px;
+  width: 12px;
   background: var(--turn-tick-active);
   opacity: 1;
 }
 
 .tick:focus-visible::before {
-  width: 8px;
+  width: 12px;
   background: var(--dsw-alias-state-business-primary, #000000);
 }
 
@@ -97,7 +108,8 @@
    the scroller's end gutter. */
 .preview {
   position: absolute;
-  right: calc(100% + 10px);
+  /* 12px left of the widest line: the column's 24px left slack less 12px. */
+  right: calc(100% - 12px);
   box-sizing: border-box;
   width: min(300px, calc(100cqw - 120px));
   overflow: hidden;
@@ -165,6 +177,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .tick,
   .tick::before,
   .preview {
     transition: none;

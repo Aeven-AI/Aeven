@@ -42,6 +42,19 @@
   flex-direction: column;
 }
 
+/* Block toolbars float just below this column's navigation band instead of
+   behind it. The band is sticky at the scroller's top edge (56px tall,
+   z-index 30) and the engine's toolbars stick at -16px, which parks them under
+   the band's opaque background; 40px is that 56px band less the engine's own
+   16px tuck, so a stuck toolbar hangs under the band the way the product client
+   draws it. The engine's own rules reach four class selectors, so each override
+   names the flow row above the renderer root to outrank them. */
+.column .flowItem :global(.hypermarkdown) :global(.codeblock-wrapper) :global(.codeblock-header),
+.column .flowItem :global(.hypermarkdown) :global(.table-wrapper) :global(.table-header),
+.column .flowItem :global(.hypermarkdown) :global(.mermaid-wrapper) :global(.mermaid-header) {
+  top: 40px;
+}
+
 /* `hidden="until-found"` retains a zero-height box so browser find can reveal
    its subtree. Direct Chat Node Seats and auxiliary rows share one flow;
    hidden and empty Seats do not contribute spacing. */

@@ -13,6 +13,13 @@ const SESSION_PATH_PREFIX = '/c/'
 const SESSION_ID_PREFIX = 'session-'
 
 /**
+ * A Session address names a Host-minted id, whose part after the prefix is a
+ * UUID. Anything else is not a chat: accepting it would create a Session under
+ * whatever the address happened to say.
+ */
+const SESSION_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
  * Session address for one Session id, as `/c/<uuid>`.
  *
  * Shared by the History projection and by the New Session link, so a real
@@ -30,7 +37,7 @@ export function sessionPathOf(sessionId: string): string {
 
 /** Address-bar operations consumed by Workspace navigation policy. */
 export interface SessionUrlNavigation {
-  /** Read the Session requested by the current URL, or the empty view. */
+  /** Read the Session requested by the current URL; an address without a Host-minted `<uuid>` id requests none. */
   read(): SessionId | undefined
   /** Add a user-visible Session transition to browser history. */
   push(sessionId: SessionId | undefined): void
@@ -80,7 +87,9 @@ export class BrowserSessionUrlNavigation implements SessionUrlNavigation {
       if (value.length === 0) return undefined
       // An address written before the prefix was dropped still names its
       // session, so it is accepted as it stands rather than prefixed twice.
-      return (value.startsWith(SESSION_ID_PREFIX) ? value : `${SESSION_ID_PREFIX}${value}`) as SessionId
+      const bare = value.startsWith(SESSION_ID_PREFIX) ? value.slice(SESSION_ID_PREFIX.length) : value
+      if (!SESSION_UUID.test(bare)) return undefined
+      return `${SESSION_ID_PREFIX}${bare.toLowerCase()}` as SessionId
     } catch {
       return undefined
     }

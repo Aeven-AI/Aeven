@@ -93,6 +93,10 @@ export function webBlockLabels(t: T): WebBlockLabels {
     sourcesTruncated: t('web.sourcesTruncated'),
     http: t('web.http'),
     contentTruncated: t('web.contentTruncated'),
+    fetchTitle: t('web.fetchTitle'),
+    searchTitle: t('web.searchTitle'),
+    copy: t('copy'),
+    copied: t('copied'),
     markdown: markdownLabels(t),
   }
 }

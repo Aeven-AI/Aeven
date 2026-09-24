@@ -1,5 +1,5 @@
 .block {
-  --dsl-search-radius: 12px;
+  --dsl-search-radius: var(--dsw-aeven-radius-surface);
   --dsl-search-line-height: 22px;
 
   position: relative;
@@ -27,17 +27,6 @@
   white-space: nowrap;
   font: var(--dsw-font-xs-14);
   color: var(--dsw-alias-label-secondary);
-}
-
-.copyButton {
-  flex: none;
-  background-color: transparent;
-  border: none;
-  padding: 0;
-  margin: 0;
-  color: var(--dsw-alias-label-secondary);
-  cursor: pointer;
-  font: var(--dsw-font-xs-14);
 }
 
 .body {

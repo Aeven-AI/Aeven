@@ -1,11 +1,16 @@
 .block {
-  --dsl-web-radius: 12px;
+  --dsl-web-radius: var(--dsw-aeven-radius-surface);
 
   margin: 16px 0;
-  padding: 12px 14px;
+  overflow: hidden;
   color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-markdown-code-block);
   border-radius: var(--dsl-web-radius);
+}
+
+/* The card's content under its header, inset like a table's rows. */
+.body {
+  padding: 0 16px 16px;
 }
 
 /* The provider answer reads as body prose above the citation list; its own

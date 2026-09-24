@@ -1258,6 +1258,25 @@ export const IconLucideEllipsis = ({ className }: LucideGlyphProps) => (
   </svg>
 )
 
+/** lucide `ellipsis-vertical`: a row's menu, standing on the row's own axis. */
+export const IconLucideEllipsisVertical = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <circle cx="12" cy="12" r="1" />
+    <circle cx="12" cy="5" r="1" />
+    <circle cx="12" cy="19" r="1" />
+  </svg>
+)
+
 /** lucide `files`: stacked files (the file explorer surface). */
 export const IconLucideFiles = ({ className }: LucideGlyphProps) => (
   <svg
@@ -1599,6 +1618,23 @@ export const IconLucideChevronDown = ({ className }: LucideGlyphProps) => (
     xmlns="http://www.w3.org/2000/svg"
   >
     <path d="m6 9 6 6 6-6" />
+  </svg>
+)
+
+/** lucide `chevron-right`: the trailing mark on a row's forward action. */
+export const IconLucideChevronRight = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="m9 18 6-6-6-6" />
   </svg>
 )
 

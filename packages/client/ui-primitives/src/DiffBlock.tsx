@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import clsx from 'clsx'
 import { FoldToggle } from './FoldToggle.tsx'
-import { writeClipboard } from './clipboard.ts'
+import { CopyIconButton } from './BlockHeader.tsx'
 import css from './DiffBlock.module.css'
 
 /** Output lines shown before the height cap collapses the middle. */
@@ -154,16 +154,7 @@ function copyText(rows: DiffRow[]): string {
 export function DiffBlock({ diffs, labels, maxLines = DEFAULT_DIFF_MAX_LINES, className }: DiffBlockProps) {
   const { rows, added, removed, files } = useMemo(() => buildRows(diffs), [diffs])
   const [expanded, setExpanded] = useState(false)
-  const [copied, setCopied] = useState(false)
-
-  const onCopy = useCallback(() => {
-    if (copied) return
-    void writeClipboard(copyText(rows)).then((ok) => {
-      if (!ok) return
-      setCopied(true)
-      window.setTimeout(() => { setCopied(false) }, 1000)
-    })
-  }, [copied, rows])
+  const text = useMemo(() => copyText(rows), [rows])
 
   const onToggle = useCallback(() => { setExpanded(value => !value) }, [])
 
@@ -180,10 +171,10 @@ export function DiffBlock({ diffs, labels, maxLines = DEFAULT_DIFF_MAX_LINES, cl
 
   return (
     <div className={clsx(css.block, className)} data-diff="">
-      <button type="button" className={css.copyButton} onClick={onCopy}>
-        {copied ? labels.copied : labels.copy}
-      </button>
-      <div className={css.body}>
+      <span className={css.copyButton}>
+        <CopyIconButton text={text} label={labels.copy} copiedLabel={labels.copied} />
+      </span>
+      <div className={clsx(css.body, 'no-scrollbar')}>
         {head.map((row, index) => (
           <div key={index} className={clsx(css.line, ROW_CLASS[row.kind])}>{row.text}</div>
         ))}

@@ -16,6 +16,7 @@ import { parsedToolCall, singleResultText, validEscalationFields } from './raw-t
  */
 export function terminalBlockLabels(t: TranslateNS<'conversation'>): TerminalBlockLabels {
   return {
+    title: t('terminal.title'),
     signal: signal => t('terminal.signal', { signal }),
     exitCode: code => t('terminal.exitCode', { code }),
     running: t('terminal.running'),

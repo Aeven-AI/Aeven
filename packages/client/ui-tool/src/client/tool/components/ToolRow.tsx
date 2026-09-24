@@ -271,7 +271,7 @@ export function ToolRow({
                           {(cardBody !== null || outputText !== null) && (
                             <div className={css.ioCard}>
                               {cardBody !== null && (
-                                <div className={css.ioSection}>
+                                <div className={clsx(css.ioSection, 'no-scrollbar')}>
                                   <span className={css.ioLabel}>{t('row.input')}</span>
                                   <span className={css.ioText}>{cardBody}</span>
                                 </div>
@@ -280,7 +280,7 @@ export function ToolRow({
                                 <span className={css.ioDivider} aria-hidden />
                               )}
                               {outputText !== null && (
-                                <div className={css.ioSection}>
+                                <div className={clsx(css.ioSection, 'no-scrollbar')}>
                                   <span className={css.ioLabel}>{t('row.output')}</span>
                                   <span className={css.ioText} data-error={state === 'error' || undefined}>
                                     {outputText}

@@ -1,4 +1,4 @@
-import { memo, useId, useState, type CSSProperties, type MouseEvent, type PointerEvent } from 'react'
+import { memo, useId, useMemo, useState, type CSSProperties, type MouseEvent, type PointerEvent } from 'react'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
 import type { TurnRailMark } from './turn-rail-marks.ts'
 import css from './TurnRail.module.css'
@@ -16,8 +16,15 @@ interface TurnRailProps {
 const BAND_PX = 420
 /** Comfortable spacing, used until the ladder would outgrow the band. */
 const MAX_PITCH_PX = 10
-/** Floor: one tick's own height, where neighbouring ticks just touch. */
+/** Floor: a 1px line and a 1px gap, where neighbouring ticks stay distinct. */
 const MIN_PITCH_PX = 2
+/**
+ * Spacing the hover magnifier restores around the pointer when the ladder is
+ * packed tighter: enough for a 1px line to read as one turn under the pointer.
+ */
+const LENS_PITCH_PX = 8
+/** Largest magnification the lens applies, so a sparse ladder is never distorted. */
+const MAX_LENS_GAIN = 8
 
 type RailStyle = CSSProperties & {
   readonly '--avn-turn-pitch': string
@@ -37,38 +44,76 @@ function pitchFor(count: number): number {
 }
 
 /**
- * Mark under a pointer position.
- *
- * The rail owns pointer input for its whole column: a 2px line is not a
- * pointer target, so the index is computed from the pointer's offset rather
- * than hit-tested against the ticks, which stay `pointer-events: none`. The
- * column is wider than the longest line for the same reason — the reader aims
- * at the rail, not at a hairline. One rect read per gesture, never per frame.
- * @param marks - the rendered ladder.
+ * The pointer's place along the band, as a fraction from first to last mark.
  * @param rail - the element the pointer event landed on.
  * @param clientY - the pointer's viewport y.
+ * @returns a fraction clamped to `[0, 1]`.
+ */
+function pointerFraction(rail: HTMLElement, clientY: number): number {
+  const rect = rail.getBoundingClientRect()
+  return rect.height <= 0 ? 0 : Math.max(0, Math.min(1, (clientY - rect.top) / rect.height))
+}
+
+/**
+ * Mark at a band fraction.
+ *
+ * The rail owns pointer input for its whole column: a 1px line is not a
+ * pointer target, so the mark comes from the pointer's place along the band
+ * rather than from hit-testing the ticks, which stay `pointer-events: none`.
+ * The magnifier keeps the band point under the pointer fixed, so this is also
+ * the tick drawn under the pointer.
+ * @param marks - the rendered ladder.
+ * @param fraction - the pointer's band fraction.
  * @returns the nearest mark, or undefined when the ladder is empty.
  */
-function markAtPointer(
-  marks: readonly TurnRailMark[],
-  rail: HTMLElement,
-  clientY: number,
-): TurnRailMark | undefined {
-  const rect = rail.getBoundingClientRect()
-  // The same pitch the ticks are placed with, so a click resolves to the tick
-  // under the pointer rather than to a neighbour.
-  const index = Math.round((clientY - rect.top) / pitchFor(marks.length))
-  return marks[Math.max(0, Math.min(marks.length - 1, index))]
+function markAtFraction(marks: readonly TurnRailMark[], fraction: number): TurnRailMark | undefined {
+  return marks[Math.round(fraction * (marks.length - 1))]
+}
+
+/**
+ * Sarkar–Brown fisheye over `[0, 1]`: the focus stays put, both ends stay put,
+ * and the neighbourhood of the focus is stretched by `gain`.
+ * @param x - the undistorted position.
+ * @param focus - the fixed point, the pointer's band fraction.
+ * @param gain - the extra magnification at the focus (0 is none).
+ * @returns the distorted position.
+ */
+function fisheye(x: number, focus: number, gain: number): number {
+  const stretch = (t: number): number => ((gain + 1) * t) / (gain * t + 1)
+  if (x >= focus) return focus + (1 - focus) * (focus === 1 ? 0 : stretch((x - focus) / (1 - focus)))
+  return focus - focus * stretch((focus - x) / focus)
+}
+
+/**
+ * Tick offsets for the ladder: an even pitch at rest, and around the pointer a
+ * magnifier that restores {@link LENS_PITCH_PX} when the ladder is packed
+ * tighter, so a session with hundreds of turns still reads under the pointer.
+ * @param count - marks the rail renders.
+ * @param pitch - the resting pitch.
+ * @param focus - the pointer's band fraction, or null when it is off the rail.
+ * @returns each mark's offset from the top of the band, in pixels.
+ */
+function tickOffsets(count: number, pitch: number, focus: number | null): number[] {
+  const band = (count - 1) * pitch
+  const gain = focus === null || pitch >= LENS_PITCH_PX
+    ? 0
+    : Math.min(MAX_LENS_GAIN, LENS_PITCH_PX / pitch - 1)
+  return Array.from({ length: count }, (_, index) => {
+    const at = count < 2 ? 0 : index / (count - 1)
+    return band * (gain === 0 || focus === null ? at : fisheye(at, focus, gain))
+  })
 }
 
 function TurnRailLadder({ marks, activeTurn, onNavigate, t }: TurnRailProps) {
   const [previewTurn, setPreviewTurn] = useState<number | null>(null)
+  const [focus, setFocus] = useState<number | null>(null)
   const previewId = useId()
+  const pitch = pitchFor(marks.length)
+  const offsets = useMemo(() => tickOffsets(marks.length, pitch, focus), [marks.length, pitch, focus])
 
   // One mark is the whole session: there is nothing to navigate between.
   if (marks.length < 2) return null
 
-  const pitch = pitchFor(marks.length)
   const style: RailStyle = {
     '--avn-turn-pitch': `${String(pitch)}px`,
     '--avn-turn-band': `${String((marks.length - 1) * pitch)}px`,
@@ -83,14 +128,18 @@ function TurnRailLadder({ marks, activeTurn, onNavigate, t }: TurnRailProps) {
         style={style}
         aria-label={t('chat.turnNavigation.label')}
         onClick={(event: MouseEvent<HTMLElement>) => {
-          const mark = markAtPointer(marks, event.currentTarget, event.clientY)
+          const mark = markAtFraction(marks, pointerFraction(event.currentTarget, event.clientY))
           if (mark !== undefined) onNavigate(mark)
         }}
         onPointerMove={(event: PointerEvent<HTMLElement>) => {
-          const mark = markAtPointer(marks, event.currentTarget, event.clientY)
-          setPreviewTurn(mark?.turn ?? null)
+          const fraction = pointerFraction(event.currentTarget, event.clientY)
+          setFocus(fraction)
+          setPreviewTurn(markAtFraction(marks, fraction)?.turn ?? null)
         }}
-        onPointerLeave={() => { setPreviewTurn(null) }}
+        onPointerLeave={() => {
+          setFocus(null)
+          setPreviewTurn(null)
+        }}
       >
         {marks.map((mark, index) => {
           const active = mark.turn === activeTurn
@@ -103,7 +152,7 @@ function TurnRailLadder({ marks, activeTurn, onNavigate, t }: TurnRailProps) {
               key={mark.seq}
               type="button"
               className={classes.join(' ')}
-              style={{ top: `${String(index * pitch)}px` }}
+              style={{ top: `${String(offsets[index] ?? 0)}px` }}
               aria-label={t(mark.loaded ? 'chat.turnNavigation.jump' : 'chat.turnNavigation.jumpLoad', { turn: mark.turn })}
               aria-current={active ? 'true' : undefined}
               aria-describedby={mark.turn === previewTurn ? previewId : undefined}
@@ -121,7 +170,7 @@ function TurnRailLadder({ marks, activeTurn, onNavigate, t }: TurnRailProps) {
             id={previewId}
             role="tooltip"
             className={css.preview}
-            style={{ top: `${String(previewIndex * pitch)}px` }}
+            style={{ top: `${String(offsets[previewIndex] ?? 0)}px` }}
           >
             <div className={css.previewPrompt}>
               {preview.prompt === ''

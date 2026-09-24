@@ -80,6 +80,7 @@
     "@aeven/tool-fs-search": "workspace:^",
     "@aeven/tool-goal": "workspace:^",
     "@aeven/tool-jobs": "workspace:^",
+    "@aeven/tool-location": "workspace:^",
     "@aeven/tool-pwsh": "workspace:^",
     "@aeven/tool-pwsh-persistent": "workspace:^",
     "@aeven/tool-ralph": "workspace:^",

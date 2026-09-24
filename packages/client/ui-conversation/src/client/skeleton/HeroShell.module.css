@@ -16,8 +16,10 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  /* figma 75:8208: 12 between title block / workspace / card. */
-  gap: 12px;
+  /* Nothing separates the rows here: the composer is mounted outside this
+     component, so `.body` holds no content and the greeting's own 24px bottom
+     pad is the whole distance between the hero text and the card. */
+  gap: 0;
   width: 100%;
   max-width: var(--avn-composer-card-max-width);
   overflow: visible;

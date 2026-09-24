@@ -1,5 +1,5 @@
 .block {
-  --dsl-diff-radius: 12px;
+  --dsl-diff-radius: var(--dsw-aeven-radius-surface);
   --dsl-diff-line-height: 22px;
 
   position: relative;
@@ -13,18 +13,13 @@
    has no empty banner row above its first diff line (the TUI diff card has no
    banner either — only the footer). The block is position: relative, so this
    anchors to the card. */
+/* The copy icon floats over the diff's top-right corner, 8px from the edges
+   like a card header's controls. */
 .copyButton {
   position: absolute;
   top: 8px;
-  right: 12px;
+  right: 8px;
   z-index: 1;
-  background-color: transparent;
-  border: none;
-  padding: 0;
-  margin: 0;
-  color: var(--dsw-alias-label-secondary);
-  cursor: pointer;
-  font: var(--dsw-font-xs-14);
 }
 
 .body {

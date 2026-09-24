@@ -82,6 +82,7 @@
     "@aeven/settings": "workspace:^",
     "@aeven/subagent": "workspace:^",
     "@aeven/tool-browser": "workspace:^",
+    "@aeven/tool-location": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
     "@aeven/user-approval": "workspace:^",
     "@aeven/user-questions": "workspace:^",

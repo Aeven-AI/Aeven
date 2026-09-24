@@ -19,7 +19,7 @@
 .code {
   margin: 0;
   padding: 16px;
-  border-radius: 12px;
+  border-radius: var(--dsw-aeven-radius-surface);
   background: var(--dsw-alias-markdown-code-block);
   font-family: var(--ds-font-family-code);
   font-size: 14px;

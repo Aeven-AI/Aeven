@@ -30,12 +30,13 @@ export interface TurnRailMark {
  * Most marks the rail will render.
  *
  * The band is a fixed height and a mark needs its own pixels, so past this
- * count the rail samples instead of showing every turn: 100 marks in a ~420px
- * band sit ~4px apart, which is the tick size itself. Sampling above it keeps
+ * count the rail samples instead of showing every turn: 200 marks in a ~420px
+ * band sit ~2px apart, a 1px line and a 1px gap, and the rail's hover
+ * magnifier spreads the ones under the pointer apart. Sampling above it keeps
  * the rail a scrubber over the whole session rather than an unreadable comb,
  * and keeps the rendered node count flat however long the session runs.
  */
-export const MAX_RAIL_MARKS = 100
+export const MAX_RAIL_MARKS = 200
 
 const EMPTY_MARKS: readonly TurnRailMark[] = []
 

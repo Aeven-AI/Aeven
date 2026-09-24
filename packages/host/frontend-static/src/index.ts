@@ -60,8 +60,20 @@ const STATIC_MISS_CODES: ReadonlySet<string | undefined> = new Set([
   'ENOTDIR',
 ])
 
-/** Client-owned path prefixes that resolve to the SPA index. */
-const SPA_ROUTE_PREFIXES = ['/c/', '/sign-in', '/sign-up', '/oauth-result'] as const
+/**
+ * Client-owned route roots that resolve to the SPA index: the root itself, as
+ * in `/c`, and every path beneath it, as in `/c/<session>`.
+ */
+const SPA_ROUTE_ROOTS = ['/c', '/sign-in', '/sign-up', '/oauth-result'] as const
+
+/**
+ * Whether a pathname is one of the client's own routes.
+ * @param pathname - decoded URL pathname of the request.
+ * @returns true when a route root owns it.
+ */
+function isSpaRoute(pathname: string): boolean {
+  return SPA_ROUTE_ROOTS.some(root => pathname === root || pathname.startsWith(`${root}/`))
+}
 
 /**
  * Serve one GET/HEAD static request from the dist root.
@@ -106,7 +118,7 @@ export async function serveStatic(
     const code = (error as NodeJS.ErrnoException).code
     // A missing extensionless path is a client-side route. Existing
     // directories and asset-like misses remain real 404s.
-    const spaRoute = SPA_ROUTE_PREFIXES.some(prefix => pathname.startsWith(prefix))
+    const spaRoute = isSpaRoute(pathname)
     if (code === 'ENOENT' && spaRoute && extname(target) === '') {
       if (!authorizeIndex()) return
       body = await renderIndex(origin)

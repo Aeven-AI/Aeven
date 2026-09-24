@@ -297,6 +297,10 @@
     - id: ui-approval
       name: '@aeven/client-ui-approval'
 
+    # Asks the reader for their location when the model calls get_location.
+    - id: ui-location
+      name: '@aeven/client-ui-location'
+
     - id: ui-chat
       name: '@aeven/client-ui-chat'
 

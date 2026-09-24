@@ -1,4 +1,5 @@
 import clsx from 'clsx'
+import { BlockHeader } from './BlockHeader.tsx'
 import { MarkdownText, type MarkdownLabels } from './markdown/MarkdownText.tsx'
 import css from './WebBlock.module.css'
 
@@ -57,6 +58,14 @@ export interface WebBlockLabels {
   sourcesTruncated: string
   http: string
   contentTruncated: string
+  /** The fetch card's name in its header. */
+  fetchTitle: string
+  /** The search card's name in its header. */
+  searchTitle: string
+  /** Copy control's idle tooltip and accessible name. */
+  copy: string
+  /** Copy control's tooltip and accessible name during the post-copy confirmation window. */
+  copied: string
   markdown: MarkdownLabels
 }
 
@@ -150,19 +159,28 @@ function WebSearchBlock({ answer, sources, truncated, labels, className }: WebSe
   // does not show the raw result content, so without this the user would see an
   // empty card. Mirror the backend's `No results found.` render text.
   const empty = (answer === undefined || answer === '') && sources.length === 0
+  // The answer, then one numbered source URL per line: what the card shows,
+  // as text that pastes back into a message or a note.
+  const copyText = [
+    answer ?? '',
+    sources.map((source, index) => `${String(index + 1)}. ${source.url}`).join('\n'),
+  ].filter(part => part !== '').join('\n\n')
   return (
     <div className={clsx(css.block, className)} data-web="search">
-      {answer !== undefined && answer !== '' && (
-        <div className={css.answer}><MarkdownText text={answer} labels={labels.markdown} /></div>
-      )}
-      {empty ? (
-        <div className={css.empty}>{labels.noResults}</div>
-      ) : (
-        <ol className={css.sources}>
-          {sources.map((source, index) => <SourceItem key={index} source={source} ordinal={index + 1} />)}
-        </ol>
-      )}
-      {truncated && <div className={css.truncated}>{labels.sourcesTruncated}</div>}
+      <BlockHeader title={labels.searchTitle} copy={{ text: copyText, label: labels.copy, copiedLabel: labels.copied }} />
+      <div className={css.body}>
+        {answer !== undefined && answer !== '' && (
+          <div className={css.answer}><MarkdownText text={answer} labels={labels.markdown} /></div>
+        )}
+        {empty ? (
+          <div className={css.empty}>{labels.noResults}</div>
+        ) : (
+          <ol className={clsx(css.sources, 'no-scrollbar')}>
+            {sources.map((source, index) => <SourceItem key={index} source={source} ordinal={index + 1} />)}
+          </ol>
+        )}
+        {truncated && <div className={css.truncated}>{labels.sourcesTruncated}</div>}
+      </div>
     </div>
   )
 }
@@ -174,11 +192,14 @@ function WebSearchBlock({ answer, sources, truncated, labels, className }: WebSe
  */
 function WebFetchBlock({ url, statusCode, truncated, labels, className }: WebFetchBlockProps) {
   return (
-    <div className={clsx(css.block, css.fetch, className)} data-web="fetch">
-      <SafeLink url={url} label={url} className={css.fetchUrl} />
-      <div className={css.fetchMeta}>
-        <span className={css.status}>{labels.http} {statusCode}</span>
-        {truncated && <span className={css.truncated}>{labels.contentTruncated}</span>}
+    <div className={clsx(css.block, className)} data-web="fetch">
+      <BlockHeader title={labels.fetchTitle} copy={{ text: url, label: labels.copy, copiedLabel: labels.copied }} />
+      <div className={clsx(css.body, css.fetch)}>
+        <SafeLink url={url} label={url} className={css.fetchUrl} />
+        <div className={css.fetchMeta}>
+          <span className={css.status}>{labels.http} {statusCode}</span>
+          {truncated && <span className={css.truncated}>{labels.contentTruncated}</span>}
+        </div>
       </div>
     </div>
   )

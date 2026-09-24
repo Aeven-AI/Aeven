@@ -67,6 +67,7 @@ import * as ToolSubagent from '@aeven/tool-subagent'
 import { registerListSubagentModels } from '../packages/subagent/tool-subagent/src/list-models.ts'
 import * as ToolWeb from '@aeven/tool-web'
 import * as ToolBrowser from '@aeven/tool-browser'
+import * as ToolLocation from '@aeven/tool-location'
 import VmWorkflowEngine from '@aeven/workflow-worker-thread'
 import * as ToolRalph from '@aeven/tool-ralph'
 import * as ToolWorkflow from '@aeven/tool-workflow'
@@ -619,6 +620,19 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'preview_* calls are answered by the Client holding the session\'s browser; each call is bounded by the tool timeout.',
+  },
+  {
+    pkg: '@aeven/tool-location',
+    dir: 'tool-location',
+    source: 'packages/interaction/tool-location/src/index.ts',
+    requires: ['ctx.tools', 'ctx.agents', 'a location/request listener (execution time)'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(AgentRegistry)
+      await ctx.plugin(ToolLocation)
+    },
+    note:
+      'get_location is answered by the Client showing the session, after the reader chooses; the call is bounded by the tool timeout.',
   },
 ]
 

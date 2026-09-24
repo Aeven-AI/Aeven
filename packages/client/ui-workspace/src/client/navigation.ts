@@ -29,7 +29,8 @@ export interface UiWorkspace {
   connectWorkspace(workspaceId: WorkspaceId, sessionId?: SessionId): Promise<SessionId>
   /**
    * Start a New Session flow and navigate to its Session.
-   * @param workspaceId - explicit target; absent inherits the current or most recent Workspace.
+   * @param workspaceId - explicit target; absent inherits the current or most recent Workspace, and
+   * without any Workspace the chat is created outside one.
    * @param sessionId - the id the New Session link named. The Host creates the
    * Session under exactly this id, so the address that was opened and the
    * Session that appears are the same chat.
@@ -100,6 +101,8 @@ export class DirectoryBrowseError extends Error {
 /** Implements Workspace archive and directory UI operations. */
 class UiWorkspaceService extends Service implements UiWorkspace {
   private readonly connecting = new Map<WorkspaceId | SessionId, Promise<SessionId>>()
+  /** The archived current Session a new chat is being opened in place of, so the reconciler starts one only. */
+  private replacingArchived: SessionId | undefined
   private initialNav: InitialNavigation = 'waiting'
   private initialDataReady: Promise<void> | undefined
   private initialDataCheck: (() => void) | undefined
@@ -180,14 +183,30 @@ class UiWorkspaceService extends Service implements UiWorkspace {
 
   startSession(workspaceId?: WorkspaceId, sessionId?: SessionId): void {
     const target = this.targetWorkspace(workspaceId)
-    if (target === undefined) {
-      this.sessions.clear()
-      return
-    }
-    void this.connectWorkspace(target, sessionId).then(
+    // Without a Workspace to put it in, the chat is created without one:
+    // clearing the selection instead would leave a page with no composer.
+    const opening = target === undefined
+      ? this.createChat(sessionId)
+      : this.connectWorkspace(target, sessionId)
+    void opening.then(
       (opened) => { this.sessions.open(opened) },
       (reason: unknown) => { console.warn('new session failed:', reason) },
     )
+  }
+
+  /**
+   * Create a chat that belongs to no Workspace, sharing one in-flight creation.
+   * @param sessionId - the id to create under, when a link already names one.
+   * @returns the created Session id.
+   */
+  private createChat(sessionId?: SessionId): Promise<SessionId> {
+    const key = sessionId ?? ('' as SessionId)
+    const inflight = this.connecting.get(key)
+    if (inflight !== undefined) return inflight
+    const attempt = this.sessions.create(sessionId === undefined ? {} : { sessionId })
+      .finally(() => { this.connecting.delete(key) })
+    this.connecting.set(key, attempt)
+    return attempt
   }
 
   newSessionHref(): { href: string; sessionId: SessionId } {
@@ -337,14 +356,10 @@ class UiWorkspaceService extends Service implements UiWorkspace {
         return
       }
       const target = recentWorkspace(workspace.items, sessions.byId)
-      if (target === undefined) {
-        this.markInitialNav('done')
-        urlInitialized = true
-        this.sessionUrl.replace(undefined)
-        return
-      }
+      // No Workspace yet: open a chat outside one rather than an empty page.
+      if (target === undefined) urlInitialized = true
       this.markInitialNav('connecting')
-      void this.connectWorkspace(target).then(
+      void (target === undefined ? this.createChat() : this.connectWorkspace(target)).then(
         (sessionId) => {
           if (disposed) return
           if (this.sessions.list.getSnapshot().current === undefined) {
@@ -365,8 +380,10 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       if (sessions.phase !== 'ready') return
       const requested = this.sessionUrl.read()
       if (requested === sessions.current) return
+      // An address naming no chat opens one, as the New Session action does;
+      // an empty selection has no composer to continue from.
       if (requested === undefined) {
-        this.sessions.clear()
+        this.startSession()
         return
       }
       if (sessions.byId[requested] !== undefined) {
@@ -421,11 +438,19 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     return true
   }
 
-  /** @returns true when an archived current selection was cleared. */
-  private clearArchivedCurrent(): boolean {    const current = this.sessions.list.getSnapshot().current
+  /**
+   * Replace an archived current selection with a new chat, as the New Session
+   * action does: an empty selection has no composer to continue from.
+   * @returns true while the current selection is archived.
+   */
+  private clearArchivedCurrent(): boolean {
+    const current = this.sessions.list.getSnapshot().current
     if (current === undefined
       || !this.workspaces.list.getSnapshot().archivedSessionIds.includes(current)) return false
-    this.sessions.clear()
+    if (this.replacingArchived !== current) {
+      this.replacingArchived = current
+      this.startSession()
+    }
     return true
   }
 

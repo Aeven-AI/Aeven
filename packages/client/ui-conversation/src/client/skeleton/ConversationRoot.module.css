@@ -48,15 +48,19 @@
 
 /* A dragged preference replaces the baseline term, clamped in CSS against the
    live column so a stored width narrower than the column survives a resize
-   without JS rewriting it. CONTENT_EDGE_BUDGET (176px) keeps both width
-   handles placeable; the 640px floor matches the layout centre-column minimum.
+   without JS rewriting it. Every use site of the width (the transcript list,
+   the composer card, the takeovers) and the width handles' frame sits inside
+   the page inset, so `100%` there is already the column less 24px per side:
+   that is the widest a drag reaches, and CONTENT_EDGE_BUDGET (48px) is the
+   same bound in pixels. The 640px floor matches the layout centre-column
+   minimum.
    The attribute, not the variable's presence, selects this branch: it changes
    only when the reader commits a drag. */
 .root[data-chat-user-width] {
   --avn-chat-content-width: clamp(
     640px,
     var(--avn-chat-user-width),
-    max(640px, calc(100% - 176px))
+    max(640px, 100%)
   );
 }
 
@@ -313,74 +317,68 @@
   min-height: 0;
 }
 
-/* Width handles: 40px col-resize strips beside the transcript, absolute in
-   `.root` (NOT the scroller: an absolute strip there would extend the
-   scrollable range and ride the rubber-band). They start below the header bar
-   so their glow does not paint through its transparent background. Inner edge
-   sits 24px outside the content column — the
-   same offset the glow line paints at — and the strip extends 40px outward
-   from there; the outer edge is clamped to keep a 24px safe zone against the
-   column edges (sidebar side and scrollbar side stay drag-free). When the
-   margin cannot fit inset + strip + safe zone the computed width goes
-   negative and the strip resolves to zero — no mispositioned hit area on
-   narrow columns. Known half-scrollbar (~4px) centering offset against the
-   scroller's content box, where a bar still takes width, is accepted: it stays
-   well inside the strip. */
-.widthHandle {
+/* Width handles: 24px col-resize strips on the content column's outer edges.
+   Their frame is absolute in `.root` (NOT the scroller: an absolute strip there
+   would extend the scrollable range and ride the rubber-band) and inset by the
+   page inset, the same box the width's use sites resolve `100%` in, so a strip
+   lands exactly at the content edge. At the widest drag the content fills the
+   frame and the strips sit in the 24px padding outside it. They start below
+   the header bar so their glow does not paint through its transparent
+   background. The wheel over a strip is handed to the transcript's scroller
+   (see WidthHandle). */
+.widthHandles {
   position: absolute;
   top: var(--avn-session-header-height);
+  right: var(--avn-composer-side-clearance);
   bottom: 0;
+  left: var(--avn-composer-side-clearance);
   z-index: 8;
-  width: min(
-    40px,
-    calc((100% - var(--avn-chat-content-width)) / 2 - 24px - 24px)
-  );
+  pointer-events: none;
+}
+
+.widthHandle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--dsw-aeven-page-inset);
   cursor: col-resize;
+  pointer-events: auto;
 }
 
 .widthHandle[data-side="left"] {
-  right: calc(50% + var(--avn-chat-content-width) / 2 + 24px);
+  right: calc(50% + var(--avn-chat-content-width) / 2);
 }
 
 .widthHandle[data-side="right"] {
-  left: calc(50% + var(--avn-chat-content-width) / 2 + 24px);
+  left: calc(50% + var(--avn-chat-content-width) / 2);
 }
 
-/* The glow: a short 3px bar riding the pointer's Y, inset 16px outward from
-   the strip's inner edge (40px from the content column),
+/* The glow: a short 2px line riding the pointer's Y, centred in the strip,
    not a full-height rule — a 24px solid core centered on the pointer
    (published by pointermove as --avn-width-handle-pointer-y), fading to
    transparent over 40px each side (~104px total). A solid CORE, not a single
-   solid stop: a lone peak washes out over the fade. The scrollbar hover tint,
-   not a border token: this is a draggable bar and the border alphas (4-16%)
-   disappear against the base fill. Before the first move the fallback centers
-   the glow at 50% height. */
+   solid stop: a lone peak washes out over the fade. The primary label colour,
+   black in the light theme and white in the dark one. Before the first move
+   the fallback centers the glow at 50% height. */
 .widthHandle::after {
   content: "";
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 3px;
-  border-radius: 3px;
+  width: 2px;
+  border-radius: 1px;
   background: linear-gradient(
     to bottom,
     transparent calc(var(--avn-width-handle-pointer-y, 50%) - 52px),
-    var(--dsw-alias-scrollbar-hover-l1)
+    var(--dsw-alias-label-primary)
       calc(var(--avn-width-handle-pointer-y, 50%) - 12px),
-    var(--dsw-alias-scrollbar-hover-l1)
+    var(--dsw-alias-label-primary)
       calc(var(--avn-width-handle-pointer-y, 50%) + 12px),
     transparent calc(var(--avn-width-handle-pointer-y, 50%) + 52px)
   );
+  left: calc(50% - 1px);
   opacity: 0;
   pointer-events: none;
-}
-
-.widthHandle[data-side="left"]::after {
-  right: 16px;
-}
-
-.widthHandle[data-side="right"]::after {
-  left: 16px;
 }
 
 .widthHandle:hover::after,
@@ -390,7 +388,7 @@
 
 /* Views that elect a composer overlay (trajectory etc.) own their full-bleed
    scrollers; the strips would sit over their content and steal clicks. */
-.root[data-composer-overlay] .widthHandle {
+.root[data-composer-overlay] .widthHandles {
   display: none;
 }
 
@@ -676,9 +674,11 @@
 
 .composerHero {
   align-self: center;
-  /* figma 75:8208 drew 12 between all three rows; the workspace row now sits
-     8 above the card (its margin-top restores 12 under the hero chrome). */
-  gap: 8px;
+  /* The hero chrome carries its own spacing under the greeting, so the stack
+     separates nothing: the card sits directly under the hero text. Stated
+     rather than dropped, because `.composerStack`'s own gap would otherwise
+     take over. */
+  gap: 0;
   /* Foot inside the centered box floats the stack a bit above true center. */
   padding-bottom: 32px;
   /* Card cap + both clearances: the hero input card lands at exactly the same

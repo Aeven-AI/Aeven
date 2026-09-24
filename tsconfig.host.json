@@ -217,6 +217,7 @@
     { "path": "./packages/skill/tool-skill" },
     { "path": "./packages/interaction/tool-ask-user" },
     { "path": "./packages/web/tool-browser" },
+    { "path": "./packages/interaction/tool-location" },
     { "path": "./packages/web/browser-chromium" },
     { "path": "./packages/device/device" },
     { "path": "./packages/device/device-local" },

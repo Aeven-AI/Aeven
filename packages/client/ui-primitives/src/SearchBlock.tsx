@@ -1,7 +1,7 @@
 import { useCallback, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
 import { headTailCap } from './head-tail-cap.ts'
-import { useCopyFeedback } from './use-copy-feedback.ts'
+import { CopyIconButton } from './BlockHeader.tsx'
 import css from './SearchBlock.module.css'
 
 /**
@@ -184,7 +184,6 @@ export function SearchBlock(props: SearchBlockProps) {
   const rows = toRows(props, collapsed)
   const shown = shownCount(props)
   const empty = rows.length === 0
-  const { copied, onCopy } = useCopyFeedback(copyText(props))
 
   const onToggle = useCallback(() => { setExpanded(value => !value) }, [])
 
@@ -245,15 +244,13 @@ export function SearchBlock(props: SearchBlockProps) {
       <div className={css.header}>
         <span className={css.summary}>{summaryText(props, shown, truncated, total)}</span>
         {!empty && (
-          <button type="button" className={css.copyButton} onClick={onCopy}>
-            {copied ? props.labels.copied : props.labels.copy}
-          </button>
+          <CopyIconButton text={copyText(props)} label={props.labels.copy} copiedLabel={props.labels.copied} />
         )}
       </div>
       {empty
         ? <div className={css.empty}>{props.labels.noResults}</div>
         : (
-          <div className={css.body}>
+          <div className={clsx(css.body, 'no-scrollbar')}>
             {head.map(row => (
               <div key={rowKey(row)}>{renderRow(row)}</div>
             ))}

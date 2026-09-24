@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import clsx from 'clsx'
 import { parseAnsiLines, type AnsiLine } from './ansi.ts'
 import { headTailCap } from './head-tail-cap.ts'
-import { useCopyFeedback } from './use-copy-feedback.ts'
+import { BlockHeader } from './BlockHeader.tsx'
 import { Pill } from './Pill.tsx'
 import { StateDot, type StateDotState } from './StateDot.tsx'
 import css from './TerminalBlock.module.css'
@@ -15,6 +15,8 @@ export const DEFAULT_TERMINAL_MAX_LINES = 16
  * (this package is cordis-free, so copy arrives via props).
  */
 export interface TerminalBlockLabels {
+  /** The card's name in its header, as a table's header names "Table". */
+  title: string
   /** Status pill text for a signal-terminated command. */
   signal: (signal: string) => string
   /** Status pill text for a non-zero exit code. */
@@ -25,9 +27,9 @@ export interface TerminalBlockLabels {
   failed: string
   /** Run-state text for a clean settle. */
   done: string
-  /** Copy-button idle label. */
+  /** Copy control's idle tooltip and accessible name. */
   copy: string
-  /** Copy-button label during the post-copy confirmation window. */
+  /** Copy control's tooltip and accessible name during the post-copy confirmation window. */
   copied: string
   /** Placeholder when a settled command produced no visible output. */
   noOutput: string
@@ -172,9 +174,6 @@ export function TerminalBlock({
     return terminated ? parsed.slice(0, -1) : parsed
   }, [text])
   const [expanded, setExpanded] = useState(false)
-  // The raw output, never the rendered tree: the prompt line and the status pill
-  // are chrome the user did not run.
-  const { copied, onCopy } = useCopyFeedback(text)
 
   const onToggle = useCallback(() => { setExpanded(value => !value) }, [])
 
@@ -197,7 +196,16 @@ export function TerminalBlock({
 
   return (
     <div className={clsx(css.block, className)} data-terminal="" data-running={running ? '' : undefined}>
-      <div className={css.header}>
+      {/* The raw output, never the rendered tree: the prompt line and the
+          status pill are chrome the user did not run. */}
+      <BlockHeader
+        title={copy.title}
+        className={css.titleBar}
+        copy={running || empty ? undefined : { text, label: copy.copy, copiedLabel: copy.copied }}
+      >
+        {status !== undefined && <Pill className={css.status}>{status}</Pill>}
+      </BlockHeader>
+      <div className={clsx(css.header, 'no-scrollbar')}>
         <div className={css.prompt}>
           <span className={css.runStateLabel}>{state.label}</span>
           {commandLines.map((line, index) => (
@@ -220,17 +228,11 @@ export function TerminalBlock({
             </div>
           ))}
         </div>
-        {status !== undefined && <Pill className={css.status}>{status}</Pill>}
-        {!running && !empty && (
-          <button type="button" className={css.copyButton} onClick={onCopy}>
-            {copied ? copy.copied : copy.copy}
-          </button>
-        )}
       </div>
       {!running && (empty
         ? <div className={css.empty}>{copy.noOutput}</div>
         : (
-          <div className={css.output}>
+          <div className={clsx(css.output, 'no-scrollbar')}>
             {(capped ? lines.slice(0, headLines) : lines).map((line, index) => (
               <div key={index} className={css.line}>{renderLine(line)}</div>
             ))}

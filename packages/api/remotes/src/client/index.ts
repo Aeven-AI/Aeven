@@ -53,6 +53,7 @@ export type {} from '@aeven/agent-presets/types'
 export type {} from '@aeven/settings/types'
 export type {} from '@aeven/user-approval/types'
 export type {} from '@aeven/tool-browser/types'
+export type {} from '@aeven/tool-location/types'
 export type {} from '@aeven/user-questions/types'
 export type {} from '@aeven/api-session-controller/types'
 
