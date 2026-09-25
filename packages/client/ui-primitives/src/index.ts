@@ -14,6 +14,15 @@ export { Button } from './Button.tsx'
 export type { ButtonVariant } from './Button.tsx'
 export { Pill } from './Pill.tsx'
 export { Spinner } from './Spinner.tsx'
+export {
+  ActivityCard, ActivityCode, ActivityDetails, ActivityItem, ActivityLink, ActivityMenu, ActivityMessage, ActivityNote,
+  ActivityPill,
+  ActivityRowButton, ActivitySection,
+} from './ActivityMenu.tsx'
+export type {
+  ActivityCardProps, ActivityFact, ActivityItemProps, ActivityMenuProps, ActivityRowButtonProps, ActivitySectionProps,
+  ActivityState,
+} from './ActivityMenu.tsx'
 export { Input } from './Input.tsx'
 export { Menu } from './Menu.tsx'
 export type { MenuEntry, MenuItem, MenuSeparator, MenuLabel } from './Menu.tsx'

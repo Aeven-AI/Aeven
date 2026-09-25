@@ -12,7 +12,10 @@ import { RemoteStreamCarrierError, type ClientRemote } from '@aeven/api-gateway/
 import type { RemoteResult } from '@aeven/typert-protocol'
 import type { JobId } from '@aeven/jobs/brand'
 import type { SessionId } from '@aeven/session/types'
-import type { JobKillRequest, JobKillValue, JobFollowFrame, JobFollowRequest, JobListFrame, JobListRequest } from '../types.ts'
+import type {
+  JobKillRequest, JobKillValue, JobFollowFrame, JobFollowRequest, JobListFrame, JobListRequest, JobDismissRequest,
+  JobDismissValue,
+} from '../types.ts'
 import type { ClientJobsModel, JobsSource } from './model.ts'
 
 /** The generated `job` namespace face the stream runners drive. */
@@ -37,6 +40,12 @@ export interface JobRemote {
    * @returns the registry's admission, or the business/transport failure.
    */
   kill(request: JobKillRequest): Promise<RemoteResult<JobKillValue>>
+  /**
+   * Dismiss one finished job on the human's behalf.
+   * @param request - the session whose list carries the job, and the job id.
+   * @returns the removal receipt, or the business/transport failure.
+   */
+  dismiss(request: JobDismissRequest): Promise<RemoteResult<JobDismissValue>>
 }
 
 /** Remote faces the runners drive: the Gateway stream factory and the `job` namespace. */
@@ -73,6 +82,14 @@ export interface IJobs {
    * @returns the registry's admission, or the business/transport failure.
    */
   kill(sessionId: SessionId, id: JobId): Promise<RemoteResult<JobKillValue>>
+  /**
+   * Dismiss one finished job from a session's job list. Pure RPC passthrough:
+   * the row leaves through the roster stream.
+   * @param sessionId - session whose job list carries the job.
+   * @param id - the job row's registry id.
+   * @returns the removal receipt, or the business/transport failure.
+   */
+  dismiss(sessionId: SessionId, id: JobId): Promise<RemoteResult<JobDismissValue>>
 }
 
 /** One reference-counted stream. */
@@ -122,6 +139,10 @@ export class ClientJobs extends Service implements IJobs {
 
   kill(sessionId: SessionId, id: JobId): Promise<RemoteResult<JobKillValue>> {
     return this.remote.job.kill({ sessionId, jobId: id })
+  }
+
+  dismiss(sessionId: SessionId, id: JobId): Promise<RemoteResult<JobDismissValue>> {
+    return this.remote.job.dismiss({ sessionId, jobId: id })
   }
 
   watchRows(sessionId: SessionId): () => void {

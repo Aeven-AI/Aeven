@@ -35,6 +35,12 @@ export interface JobListInjected {
    * state itself converges through the jobs control frames.
    */
   killJob: (sessionId: SessionId, jobId: string) => Promise<boolean>
+  /**
+   * Remove one finished job from the session's list for good (Clear).
+   * Resolves `true` when the registry dropped it; the row leaves through the
+   * roster stream.
+   */
+  removeJob: (sessionId: SessionId, jobId: string) => Promise<boolean>
 }
 
 /** Full props for the session-header job-list action. */
@@ -443,7 +449,7 @@ function JobItem({ job, view, expanded, now, onToggle, kill, t }: {
  *   observation, and kill controls, and the namespace translator.
  * @returns the trigger and its popover list, or null when there is nothing to show.
  */
-export function JobListAction({ sessionId, useJobs, watchRows, observe, killJob, t }: JobListActionProps) {
+export function JobListAction({ sessionId, useJobs, watchRows, observe, killJob, removeJob, t }: JobListActionProps) {
   const jobs = useJobs(state => state.rows[sessionId]) ?? NO_JOBS
   const observedViews = useJobs(state => state.observed)
   const [open, setOpen] = useState(false)
@@ -452,8 +458,8 @@ export function JobListAction({ sessionId, useJobs, watchRows, observe, killJob,
   // Settled-section fold: an explicit user toggle wins; before one, the tail
   // folds only while live work exists (a settled-only list opens expanded).
   const [settledOpen, setSettledOpen] = useState<boolean | undefined>(undefined)
-  // Rows the user cleared from the settled tail (client-side hide only; the
-  // registry keeps its records and a later settlement reappears normally).
+  // Rows the user cleared, hidden until the roster stream confirms their
+  // removal from the registry.
   const [clearedKeys, setClearedKeys] = useState<ReadonlySet<string>>(() => new Set())
   // The running job whose stop waits for the dialog's confirmation.
   const [confirmJob, setConfirmJob] = useState<JobView | undefined>(undefined)
@@ -462,9 +468,6 @@ export function JobListAction({ sessionId, useJobs, watchRows, observe, killJob,
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLUListElement>(null)
-  // Horizontal shift applied to the trigger-anchored popover so it stays
-  // inside the viewport (the stylesheet alone cannot see the anchor offset).
-  const [menuShift, setMenuShift] = useState(0)
 
   const rows = useMemo(() => ordered(jobs), [jobs])
   const liveRows = useMemo(() => rows.filter(isLive), [rows])
@@ -492,26 +495,22 @@ export function JobListAction({ sessionId, useJobs, watchRows, observe, killJob,
     return () => { clearInterval(timer) }
   }, [open, liveRows.length])
 
-  // Fit the open popover to the viewport: shift left when the anchored width
-  // would cross the right edge, never past the left margin.
+  // Fit the open popover to the viewport: measure where the stylesheet
+  // anchors it (start or end of the trigger), then shift it back inside the
+  // window if it crosses an edge.
   useLayoutEffect(() => {
-    if (!open) {
-      setMenuShift(0)
-      return
-    }
+    if (!open) return
     const fit = (): void => {
-      const root = rootRef.current
       const menu = menuRef.current
-      /* v8 ignore next -- both refs are attached while the open popover renders. */
-      if (root === null || menu === null) return
-      const width = menu.offsetWidth
+      /* v8 ignore next -- the ref is attached while the open popover renders. */
+      if (menu === null) return
+      menu.style.setProperty('--activity-shift', '0px')
+      const rect = menu.getBoundingClientRect()
       // Unlaid-out nodes (and jsdom) measure 0: keep the pure CSS anchor.
-      if (width === 0) return
-      const anchorLeft = root.getBoundingClientRect().left
-      setMenuShift(Math.max(
-        VIEWPORT_MARGIN - anchorLeft,
-        Math.min(0, window.innerWidth - VIEWPORT_MARGIN - width - anchorLeft),
-      ))
+      if (rect.width === 0) return
+      const overLeft = VIEWPORT_MARGIN - rect.left
+      const overRight = rect.right - (window.innerWidth - VIEWPORT_MARGIN)
+      menu.style.setProperty('--activity-shift', `${overLeft > 0 ? overLeft : overRight > 0 ? -overRight : 0}px`)
     }
     fit()
     window.addEventListener('resize', fit)
@@ -591,12 +590,15 @@ export function JobListAction({ sessionId, useJobs, watchRows, observe, killJob,
     : (visibleCount === 1 ? 'count.idle.one' : 'count.idle.other')
   const countLabel = t(countKey, { count: liveRows.length > 0 ? liveRows.length : visibleCount })
 
+  // Clear removes the finished jobs from the registry for good; the rows hide
+  // at once and leave for real when the roster stream drops them.
   const clearSettled = (): void => {
     setClearedKeys((current) => {
       const next = new Set(current)
       for (const job of settledRows) next.add(String(job.id))
       return next
     })
+    for (const job of settledRows) void removeJob(sessionId, String(job.id))
     if (expandedKey !== undefined && settledRows.some(job => String(job.id) === expandedKey)) {
       setExpandedKey(undefined)
     }
@@ -657,7 +659,7 @@ export function JobListAction({ sessionId, useJobs, watchRows, observe, killJob,
       </button>
       {open
         ? (
-          <ul ref={menuRef} className={css.menu} style={{ left: menuShift }} aria-label={t('list.aria')}>
+          <ul ref={menuRef} className={css.menu} aria-label={t('list.aria')}>
             {liveRows.map(item)}
             {settledRows.length > 0
               ? (

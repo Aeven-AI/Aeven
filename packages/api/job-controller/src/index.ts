@@ -14,7 +14,10 @@ import type {} from '@aeven/jobs'
 import { Remote, RemoteError, TypertRemoteService } from '@aeven/typert-protocol'
 import { observeJobOutput } from './observe.ts'
 import { streamJobRows } from './rows.ts'
-import type { JobKillRequest, JobKillValue, JobFollowFrame, JobFollowRequest, JobListFrame, JobListRequest } from './types.ts'
+import type {
+  JobKillRequest, JobKillValue, JobFollowFrame, JobFollowRequest, JobListFrame, JobListRequest, JobDismissRequest,
+  JobDismissValue,
+} from './types.ts'
 
 export type * from './types.ts'
 
@@ -124,6 +127,30 @@ export class JobController extends TypertRemoteService {
     // contract (job state unchanged) instead of masquerading as job-not-found.
     const outcome = jobs.kill(request.jobId, request.sessionId, 'cancelled by the user')
     return { outcome }
+  }
+
+  /**
+   * Dismiss one finished job from a session's list on a human's behalf (the
+   * list's Clear). The registry drops the record and announces `removed`, so
+   * every roster stream loses the row and a reload does not bring it back;
+   * its retained output goes with it. The owner fence is the access rule, as
+   * for {@link kill}; a job that is still live is refused by the registry.
+   * @param request - Session whose job list carries the job, and the job id.
+   * @returns the removal receipt.
+   */
+  @Remote('dismiss')
+  dismiss(request: JobDismissRequest): JobDismissValue {
+    const jobs = this.ctx.jobs
+    try {
+      jobs.get(request.jobId, request.sessionId)
+    } catch (error) {
+      throw new RemoteError('job/not-found', String(error), {
+        sessionId: request.sessionId,
+        jobId: request.jobId,
+      })
+    }
+    jobs.remove(request.jobId, request.sessionId)
+    return { outcome: 'dismissed' }
   }
 }
 

@@ -55,6 +55,12 @@ export function apply(ctx: ClientContext): void {
     openChild(address: SubagentAddress) {
       sessions.openSubagent(address)
     },
+    openSession(sessionId: SessionId) {
+      // A parent that is itself an agent opens through its own address.
+      const address = sessions.subagentAddress(sessionId)
+      if (address === undefined) sessions.open(sessionId)
+      else sessions.openSubagent(address)
+    },
     refresh(parentSessionId: SessionId) {
       void sessions.refreshSubagents(parentSessionId)
     },

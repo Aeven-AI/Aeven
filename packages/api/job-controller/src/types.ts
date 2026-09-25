@@ -38,6 +38,18 @@ export interface JobKillValue {
   readonly outcome: 'requested' | 'already-finished'
 }
 
+/** Human-initiated dismissal of one finished job from a session's job list. */
+export interface JobDismissRequest {
+  /** Session whose job list carries the job; the fenced lookup reads as it. */
+  readonly sessionId: SessionId
+  readonly jobId: JobId
+}
+
+/** Receipt after the registry dropped the finished job's record. */
+export interface JobDismissValue {
+  readonly outcome: 'dismissed'
+}
+
 declare module '@aeven/typert-protocol' {
   interface RemoteErrorDetailsMap {
     /** The session's job list no longer carries a killable row under that id. */

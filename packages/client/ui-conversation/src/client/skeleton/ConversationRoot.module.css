@@ -230,14 +230,16 @@
   box-sizing: border-box;
   width: var(--avn-chat-content-width);
   margin: 0 auto;
-  /* On a narrow column the left edge can fall under the collapsed sidebar's
-     hamburger; start the actions past it (padding and width both resolve
-     against this row's width, as the column's own left edge does). */
+  /* When the column's left edge falls under the collapsed sidebar's toggle,
+     start the actions 8px (their own gap) past its glyph: the clearance is
+     inset + glyph + inset, so the glyph ends one inset short of it. Padding
+     and width both resolve against this row's width, as the column's own left
+     edge does; the row itself starts one inset in from the bar. */
   padding-left: max(
     0px,
     calc(
-      var(--avn-sidebar-overlay-clearance, 0px) - var(--dsw-aeven-page-inset)
-        - (100% - var(--avn-chat-content-width)) / 2
+      var(--avn-sidebar-overlay-clearance, 0px) - var(--dsw-aeven-page-inset) + 8px
+        - var(--dsw-aeven-page-inset) - (100% - var(--avn-chat-content-width)) / 2
     )
   );
 }

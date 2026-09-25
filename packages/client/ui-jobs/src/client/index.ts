@@ -47,6 +47,7 @@ export function apply(ctx: ClientContext): void {
         // The brand is nominal typing only; the row key is the registry id the
         // roster stream delivered, so the wire boundary stamps it back here.
         killJob: async (sessionId, jobId) => (await ctx.jobs.kill(sessionId, jobId as JobId)).ok,
+        removeJob: async (sessionId, jobId) => (await ctx.jobs.dismiss(sessionId, jobId as JobId)).ok,
       }),
     }, JobListAction),
   )

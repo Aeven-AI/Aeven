@@ -63,6 +63,8 @@
 .menu {
   position: absolute;
   left: 0;
+  /* The viewport fit shifts it back inside the window. */
+  translate: var(--activity-shift, 0px) 0;
   top: calc(100% + 8px);
   z-index: 20;
   display: flex;
