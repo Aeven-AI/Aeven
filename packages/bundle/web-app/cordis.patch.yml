@@ -141,6 +141,10 @@
     - id: session-controller
       name: '@aeven/api-session-controller'
 
+    # Browser observation and human control of background jobs.
+    - id: job-controller
+      name: '@aeven/api-job-controller'
+
     # Workspace listings, text previews and name search for the right
     # sidebar's file explorer.
     - id: api-workspace-files
@@ -356,7 +360,8 @@
     - id: ui-account-aeven
       name: '@aeven/client-ui-account-aeven'
 
-    # Background jobs: the session-header list over the jobsBySession mirror.
+    # Background jobs: the session-header list. The client half of
+    # `@aeven/api-job-controller` (the host row above) provides `ctx.jobs`.
     - id: ui-jobs
       name: '@aeven/client-ui-jobs'
 

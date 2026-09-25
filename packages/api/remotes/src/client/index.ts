@@ -16,6 +16,7 @@ import terminalRemote from '@aeven/api-terminal-controller/remote'
 import deviceRemote from '@aeven/device/remote'
 import subagentsRemote from '@aeven/subagent/remote'
 import sessionRemote from '@aeven/api-session-controller/remote'
+import jobRemote from '@aeven/api-job-controller/remote'
 import workspaceRemote from '@aeven/api-workspace-controller/remote'
 import type { ClientRemote } from '@aeven/api-gateway/client'
 
@@ -35,6 +36,8 @@ export type {} from '@aeven/device/remote'
 export type {} from '@aeven/subagent/remote'
 export type * from '@aeven/subagent/client'
 export type {} from '@aeven/api-session-controller/remote'
+export type {} from '@aeven/api-job-controller/remote'
+export type * from '@aeven/api-job-controller/types'
 export type * from '@aeven/api-session-controller/types'
 export type {} from '@aeven/api-workspace-controller/remote'
 export type * from '@aeven/api-workspace-controller/types'
@@ -155,7 +158,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
     for (const contribution of [
       agentPresetsRemote, commandsRemote, settingsControllerRemote, goalsRemote, llmRemote, dynamicRemote,
       pluginInventoryRemote, messageFeedbackRemote, sessionReferencesRemote,
-      subagentsRemote, sessionRemote, workspaceRemote, browserChromiumRemote, workspaceFilesRemote,
+      subagentsRemote, sessionRemote, jobRemote, workspaceRemote, browserChromiumRemote, workspaceFilesRemote,
       terminalRemote, deviceRemote,
     ]) {
       disposers.push(await ctx.remote.$mount(contribution))

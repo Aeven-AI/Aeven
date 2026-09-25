@@ -78,6 +78,9 @@
       "path": "../session-controller/tsconfig.client.json"
     },
     {
+      "path": "../job-controller/tsconfig.client.json"
+    },
+    {
       "path": "../terminal-controller/tsconfig.client.json"
     },
     {

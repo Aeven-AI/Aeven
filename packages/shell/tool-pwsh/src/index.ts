@@ -32,10 +32,10 @@ import type {} from '@aeven/user-approval'
 import type { SandboxExecutionPolicy, SandboxMode } from '@aeven/sandbox'
 import { ESCALATION_TARGETS, approveEscalation, validateEscalationArgs } from '@aeven/sandbox'
 import type { SandboxPolicyService } from '@aeven/sandbox-policy'
-import type { ShellRunResult } from '@aeven/shell'
+import type { ShellProcess, ShellRunResult } from '@aeven/shell'
 import { parseExitStatus } from '@aeven/shell'
-import { processOutcome } from './background.ts'
-import { renderPwshProcessRead, renderPwshResult } from './render.ts'
+import { processOutcome, processSources } from './background.ts'
+import { renderPwshResult } from './render.ts'
 import type { RenderablePwshResult } from './render.ts'
 
 declare module '@aeven/jobs' {
@@ -377,16 +377,19 @@ export function apply(ctx: Context, config: Config = {}): void {
           throw error
         }
         // Task preflight finishes before the starter can spawn a process.
+        let proc: ShellProcess | undefined
         const id = jobs.start({
           kind: 'pwsh',
           label: args.command,
-          ...exec.agent ? { owner: exec.agent } : {},
+          title: args.description,
+          ...exec.agent ? { owner: exec.agent.id } : {},
+          output: processSources(() => proc),
           run: () => {
-            const proc = ctx.shell.start(ctx.shell.resolve(request))
+            const started = ctx.shell.start(ctx.shell.resolve(request))
+            proc = started
             return {
-              cancel: () => void proc.kill(),
-              done: proc.done.then(() => processOutcome(proc)),
-              readOutput: () => renderPwshProcessRead(proc.readOutput(), proc.sandbox, escalationModes),
+              cancel: () => void started.kill(),
+              done: started.done.then(() => processOutcome(started)),
             }
           },
         })

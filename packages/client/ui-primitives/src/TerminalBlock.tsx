@@ -56,10 +56,25 @@ export interface TerminalBlockProps {
   exitCode?: number | undefined
   /** Settled terminating signal name; any value renders the status pill, taking precedence over the exit code. */
   signal?: string | undefined
-  /** The command is still running: the block shows the prompt line alone. */
+  /**
+   * The command is still running: with no `output` the block shows the prompt
+   * line alone; with output it renders the live text under the running state.
+   */
   running?: boolean | undefined
   /** Height cap in output lines before the middle collapses (default {@link DEFAULT_TERMINAL_MAX_LINES}); Infinity disables the cap. */
   maxLines?: number | undefined
+  /**
+   * Copy-control payload override; the control copies the raw output when
+   * absent. Supplying it also keeps the control rendered before any output
+   * exists — a command is copyable before it prints.
+   */
+  copyText?: string | undefined
+  /**
+   * Draw the run-state dot and its assistive label in the card gutter
+   * (default true). Hosts whose surrounding row already carries the same
+   * state omit both, and the gutter narrows to the header's inset.
+   */
+  runStateDot?: boolean | undefined
   /** Extra class merged onto the wrapper (callers position; this component draws). */
   className?: string | undefined
   /** Localized display copy supplied by the owning render site. */
@@ -154,6 +169,8 @@ export function TerminalBlock({
   signal,
   running = false,
   maxLines = DEFAULT_TERMINAL_MAX_LINES,
+  copyText,
+  runStateDot = true,
   className,
   labels,
 }: TerminalBlockProps) {
@@ -193,28 +210,39 @@ export function TerminalBlock({
   // for invisible bytes, and hide the placeholder that belongs there.
   const empty = lines.every(line => line.every(span => span.text.trim() === ''))
   const { hidden, capped, headLines, tailLines } = headTailCap(lines.length, maxLines, expanded)
+  // A running command with nothing printed yet is banner-only; once it has
+  // printed, the output streams in under the banner as it would in a terminal.
+  const body = !running || !empty
 
   return (
-    <div className={clsx(css.block, className)} data-terminal="" data-running={running ? '' : undefined}>
-      {/* The raw output, never the rendered tree: the prompt line and the
-          status pill are chrome the user did not run. */}
+    <div
+      className={clsx(css.block, className)}
+      data-terminal=""
+      data-running={running ? '' : undefined}
+      data-body={body ? '' : undefined}
+      data-dotless={runStateDot ? undefined : ''}
+    >
+      {/* The raw output by default, never the rendered tree: the prompt line
+          and the status pill are chrome the user did not run. */}
       <BlockHeader
         title={copy.title}
         className={css.titleBar}
-        copy={running || empty ? undefined : { text, label: copy.copy, copiedLabel: copy.copied }}
+        copy={copyText !== undefined || (!running && !empty)
+          ? { text: copyText ?? text, label: copy.copy, copiedLabel: copy.copied }
+          : undefined}
       >
         {status !== undefined && <Pill className={css.status}>{status}</Pill>}
       </BlockHeader>
       <div className={clsx(css.header, 'no-scrollbar')}>
         <div className={css.prompt}>
-          <span className={css.runStateLabel}>{state.label}</span>
+          {runStateDot && <span className={css.runStateLabel}>{state.label}</span>}
           {commandLines.map((line, index) => (
             <div key={index} className={css.promptLine}>
               {/* One dot for the card, on the first row: the exit status the
                   view carries is the whole call's, and bash reports no
                   per-command status, so a dot per row would assert a
                   per-line outcome nothing here knows. */}
-              {index === 0 && <StateDot state={state.state} className={css.runState} />}
+              {index === 0 && runStateDot && <StateDot state={state.state} className={css.runState} />}
               {/* The cwd labels the CALL, so only its first row carries it. The
                   view knows one working directory — where the call started —
                   and a later line may well run somewhere else (a `cd` in the
@@ -229,7 +257,7 @@ export function TerminalBlock({
           ))}
         </div>
       </div>
-      {!running && (empty
+      {body && (empty
         ? <div className={css.empty}>{copy.noOutput}</div>
         : (
           <div className={clsx(css.output, 'no-scrollbar')}>

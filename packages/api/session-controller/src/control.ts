@@ -3,7 +3,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@aeven/agent'
 import { Deque } from '@aeven/deque'
-import type { JobSnapshot } from '@aeven/jobs'
+import type { JobView, JobEvent } from '@aeven/jobs'
 import type {
   Session, SessionEvent, SessionEventMap, SessionId, UserMessage,
 } from '@aeven/session'
@@ -34,7 +34,7 @@ export class SessionControlController {
       })
     })
     ctx.inject(['jobs'], (jobsCtx) => {
-      jobsCtx.jobs.onJobsChanged((owner) => { this.onJobsChanged(owner) })
+      jobsCtx.jobs.events.subscribe({ owners: 'all' }, (event) => { this.onJobsChanged(event) })
     })
     ctx.on('session/created', (session) => {
       const jobs = this.jobsFor(this.ctx.agents.get(session.id))
@@ -106,9 +106,11 @@ export class SessionControlController {
     })
   }
 
-  private onJobsChanged(owner: Agent | undefined): void {
+  private onJobsChanged(event: JobEvent): void {
+    if (event.type === 'output') return
+    const owner = event.job.owner
     if (owner !== undefined) {
-      this.broadcast({ type: 'jobs', sessionId: owner.id, jobs: this.jobsFor(owner) })
+      this.broadcast({ type: 'jobs', sessionId: owner, jobs: this.jobsFor(this.ctx.agents.get(owner)) })
       return
     }
     for (const session of this.ctx.sessions.list()) {
@@ -122,7 +124,7 @@ export class SessionControlController {
 
   private jobsFor(agent: Agent | undefined): SessionJob[] {
     const jobs = this.ctx.get('jobs')
-    return jobs === undefined ? [] : jobs.list(agent).map(jobView)
+    return jobs === undefined ? [] : jobs.list(agent?.id).map(jobView)
   }
 
   private broadcast(frame: SessionControlFrame): void {
@@ -203,7 +205,7 @@ function promptRpcId(message: UserMessage): Pick<SessionQueuedItem, 'rpcId'> {
   return source.kind === 'user' && 'rpcId' in source ? { rpcId: source.rpcId } : {}
 }
 
-function jobView(job: JobSnapshot): SessionJob {
+function jobView(job: JobView): SessionJob {
   return {
     id: job.id,
     kind: job.kind,

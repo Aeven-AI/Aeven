@@ -22,9 +22,9 @@ import type { SandboxExecutionPolicy, SandboxMode } from '@aeven/sandbox'
 import { ESCALATION_TARGETS, approveEscalation, canonicalPath, validateEscalationArgs } from '@aeven/sandbox'
 import type { SandboxPolicyService } from '@aeven/sandbox-policy'
 import { AVN_ENV_PREFIX } from '@aeven/shell'
-import type { ShellRunResult } from '@aeven/shell'
-import { processOutcome } from './background.ts'
-import { parseExitStatus, renderProcessRead, renderResult } from './render.ts'
+import type { ShellProcess, ShellRunResult } from '@aeven/shell'
+import { processOutcome, processSources } from './background.ts'
+import { parseExitStatus, renderResult } from './render.ts'
 
 export const name = 'tool-bash'
 export const inject = ['tools', 'shell', 'systemPrompt', 'shellEnv']
@@ -361,16 +361,19 @@ export function apply(ctx: Context, config: Config = {}): void {
           throw error
         }
         // Task preflight finishes before the starter can spawn a process.
+        let proc: ShellProcess | undefined
         const id = jobs.start({
           kind: 'bash',
           label: args.command,
-          ...exec.agent ? { owner: exec.agent } : {},
+          title: args.description,
+          ...exec.agent ? { owner: exec.agent.id } : {},
+          output: processSources(() => proc),
           run: () => {
-            const proc = ctx.shell.start(ctx.shell.resolve(request))
+            const started = ctx.shell.start(ctx.shell.resolve(request))
+            proc = started
             return {
-              cancel: () => void proc.kill(),
-              done: proc.done.then(() => processOutcome(proc)),
-              readOutput: () => renderProcessRead(proc.readOutput(), proc.sandbox, escalationModes),
+              cancel: () => void started.kill(),
+              done: started.done.then(() => processOutcome(started)),
             }
           },
         })

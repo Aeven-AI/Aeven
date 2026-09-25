@@ -89,7 +89,7 @@ describe('Session control jobs baseline', () => {
 
   it('carries the visible set when the stream opens', async () => {
     const { ctx, session, agent, control } = await harness(true)
-    ctx.jobs.start({ ...producer('pnpm run build').spec, owner: agent })
+    ctx.jobs.start({ ...producer('pnpm run build').spec, owner: agent.id })
     const frame = await baseline(control)
     const jobs = frame.value.jobs[session.id]
     expect(jobs).toHaveLength(1)
@@ -135,8 +135,8 @@ describe('Session control jobs updates', () => {
     const collected = collectJobs(control.control(abort.signal), 3, abort)
 
     const task = producer()
-    const id = ctx.jobs.start({ ...task.spec, owner: agent })
-    ctx.jobs.kill(id, agent, 'test')
+    const id = ctx.jobs.start({ ...task.spec, owner: agent.id })
+    ctx.jobs.kill(id, agent.id, 'test')
     task.settle({ status: 'killed', detail: 'signal: SIGTERM' })
 
     const frames = await collected
@@ -150,7 +150,7 @@ describe('Session control jobs updates', () => {
     const { ctx, agent, control } = await harness(true)
     const abort = new AbortController()
     const collected = collectJobs(control.control(abort.signal), 1, abort)
-    ctx.jobs.start({ ...producer().spec, owner: agent, outputLimitBytes: 1_024 })
+    ctx.jobs.start({ ...producer().spec, owner: agent.id, outputLimitBytes: 1_024 })
 
     const [frame] = await collected
     expect(Object.keys(frame?.jobs[0] ?? {}).sort()).toEqual([
@@ -206,8 +206,8 @@ describe('Session control jobs updates', () => {
     const collected = collectJobs(control.control(abort.signal), 3, abort)
 
     const task = producer()
-    const id = ctx.jobs.start({ ...task.spec, owner: agent })
-    ctx.jobs.kill(id, agent, 'test')
+    const id = ctx.jobs.start({ ...task.spec, owner: agent.id })
+    ctx.jobs.kill(id, agent.id, 'test')
     task.settle({ status: 'killed', detail: 'signal: SIGTERM' })
     await collected
 
@@ -217,7 +217,7 @@ describe('Session control jobs updates', () => {
   it('never consumes model output while producing a baseline', async () => {
     const { ctx, agent, control } = await harness(true)
     const task = producer()
-    ctx.jobs.start({ ...task.spec, owner: agent })
+    ctx.jobs.start({ ...task.spec, owner: agent.id })
 
     const frame = await baseline(control)
 

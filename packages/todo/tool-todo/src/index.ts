@@ -299,8 +299,10 @@ export function apply(ctx: Context, config: Config): void {
   // of settlements, at the step where the model reads their results.
   const settled = new WeakMap<Agent, string>()
   ctx.inject(['jobs'], (scope: Context) => {
-    scope.jobs.onJobDone((snapshot, owner) => {
-      if (owner !== undefined) settled.set(owner, snapshot.label)
+    scope.jobs.events.subscribe({ owners: 'scope' }, (event) => {
+      if (event.type !== 'settled' || event.job.owner === undefined) return
+      const owner = scope.agents.get(event.job.owner)
+      if (owner !== undefined) settled.set(owner, event.job.label)
     })
   })
   // Staleness nudge. The read-back above is the information half; this is the

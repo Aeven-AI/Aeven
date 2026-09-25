@@ -41,6 +41,7 @@
   "dependencies": {
     "@aeven/agent-presets": "workspace:^",
     "@aeven/api-remotes": "workspace:^",
+    "@aeven/api-job-controller": "workspace:^",
     "@aeven/api-session-controller": "workspace:^",
     "@aeven/api-settings-controller": "workspace:^",
     "@aeven/api-terminal-controller": "workspace:^",

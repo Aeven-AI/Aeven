@@ -804,6 +804,46 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
 
+  packages/api/job-controller:
+    dependencies:
+      '@aeven/typert-protocol':
+        specifier: workspace:^
+        version: link:../../typert/protocol
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@aeven/api-gateway':
+        specifier: workspace:^
+        version: link:../gateway
+      '@aeven/client-connection':
+        specifier: workspace:^
+        version: link:../../client/connection
+      '@aeven/client-store':
+        specifier: workspace:^
+        version: link:../../client/store
+      '@aeven/jobs':
+        specifier: workspace:^
+        version: link:../../jobs/jobs
+      '@aeven/jobs-local':
+        specifier: workspace:^
+        version: link:../../jobs/jobs-local
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/typert-registry':
+        specifier: workspace:^
+        version: link:../../typert/registry
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
   packages/api/remotes:
     dependencies:
       '@aeven/deque':
@@ -822,6 +862,9 @@ importers:
       '@aeven/api-gateway':
         specifier: workspace:^
         version: link:../gateway
+      '@aeven/api-job-controller':
+        specifier: workspace:^
+        version: link:../job-controller
       '@aeven/api-session-controller':
         specifier: workspace:^
         version: link:../session-controller
@@ -1701,6 +1744,9 @@ importers:
       '@aeven/agent-presets':
         specifier: workspace:^
         version: link:../../preset/agent-presets
+      '@aeven/api-job-controller':
+        specifier: workspace:^
+        version: link:../../api/job-controller
       '@aeven/api-remotes':
         specifier: workspace:^
         version: link:../../api/remotes
@@ -2983,6 +3029,9 @@ importers:
 
   packages/client/ui-jobs:
     devDependencies:
+      '@aeven/api-job-controller':
+        specifier: workspace:^
+        version: link:../../api/job-controller
       '@aeven/api-session-controller':
         specifier: workspace:^
         version: link:../../api/session-controller
@@ -3007,15 +3056,27 @@ importers:
       '@aeven/client-ui-slots':
         specifier: workspace:^
         version: link:../ui-slots
+      '@aeven/jobs':
+        specifier: workspace:^
+        version: link:../../jobs/jobs
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
       '@types/react':
         specifier: ~18.3.1
         version: 18.3.31
+      '@types/react-dom':
+        specifier: ~18.3.1
+        version: 18.3.7(@types/react@18.3.31)
       react:
         specifier: ^18.2.0
         version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
 
   packages/client/ui-layout:
     devDependencies:

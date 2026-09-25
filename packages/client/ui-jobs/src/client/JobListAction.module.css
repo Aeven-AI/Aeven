@@ -1,138 +1,441 @@
+/* The background-job control in the session header: a glass pill whose
+   popup copies the composer's model selector (ui-model-selection
+   ModelSelect.module.css: .menu, .cell), so the list is the same material as
+   the composer's access and model popups. */
 .root {
   position: relative;
+  display: inline-flex;
 }
 
+/* The trigger reads over whatever scrolls under the transparent header, so it
+   carries an opaque surface rather than a hover fill only. */
 .trigger {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  min-height: 28px;
-  padding: 3px 2px;
+  gap: 8px;
+  height: 30px;
+  padding: 0 10px 0 12px;
   border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
-  line-height: 18px;
+  border-radius: 15px;
+  /* The composer card's plain white: opaque over the transcript scrolling
+     under the transparent header, with no shadow of its own. */
+  background: var(--dsw-specific-input-major);
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 450;
+  line-height: 20px;
+  white-space: nowrap;
   cursor: pointer;
 }
 
 .trigger:hover,
+.trigger[aria-expanded='true'] {
+  color: var(--dsw-alias-label-primary);
+}
+
 .trigger:focus-visible {
-  color: var(--dsw-alias-label-secondary);
+  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
 }
 
-.trigger svg {
-  transition: transform 120ms ease;
-}
-
-.triggerOpen {
-  transform: rotate(180deg);
-}
-
-.triggerDot {
+.triggerSpinner {
+  --avn-spinner-size: 14px;
   flex: none;
 }
 
 .count {
-  margin: 0 5px;
+  min-width: 0;
 }
 
-/* The popup surface of the dropdown family (ui-primitives Menu.module.css and
-   the composer's model chooser): surface radius, translucent blurred fill, the
-   two inset highlights over the prominent elevation, and the 8px card pad that
-   puts a row's own 8px cell 16px from the edge. */
+.triggerChevron {
+  display: inline-flex;
+  flex: none;
+  transition: transform 150ms ease;
+}
+
+.triggerChevronOpen {
+  transform: rotate(180deg);
+}
+
+/* ModelSelect .menu, opening below the header trigger instead of above the
+   composer one. */
 .menu {
   position: absolute;
-  top: calc(100% + 4px);
   left: 0;
-  z-index: 100;
-  box-sizing: border-box;
+  top: calc(100% + 8px);
+  z-index: 20;
   display: flex;
   flex-direction: column;
-  gap: 0;
-  width: 336px;
-  max-width: min(400px, calc(100vw - 32px));
-  max-height: calc(100vh - 24px);
+  /* One steady width (ModelSelect's 420px ceiling), so unfolding a job
+     reveals its details in place instead of resizing the card. */
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
   margin: 0;
-  padding: 8px;
-  overflow: auto;
   list-style: none;
+  padding: 8px;
+  gap: 0;
   border: 0;
   border-radius: var(--dsw-aeven-radius-surface);
   background: var(--dsw-tint-menu);
   backdrop-filter: blur(4px);
-  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
-  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
   box-shadow:
     inset 1px 1px 0 0 var(--dsw-specific-popup-highlight),
     inset 0 0 1px 1px var(--dsw-specific-popup-highlight),
     var(--dsw-elevation-prominent);
+  color: var(--dsw-alias-label-primary);
 }
 
-/* Menu cell geometry (figma .Menu_cell): 40px row, 8px cell pad, control
-   radius, 14/22 primary. A job row reports rather than acts, so it carries no
-   hover fill — the one deliberate departure from the clickable cells this
-   matches. */
-.row {
+/* A heading after rows opens a new group: extra air instead of a rule. */
+.item + .sectionHeader {
+  margin-top: 6px;
+}
+
+/* Section heading: the Menu primitive's .label row. */
+.sectionHeader {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  box-sizing: border-box;
-  width: 100%;
-  min-height: var(--dsw-aeven-control-size);
   padding: 8px;
-  border-radius: var(--dsw-aeven-radius-control);
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 14px;
+  line-height: 22px;
+  list-style: none;
+}
+
+.sectionToggle,
+.sectionClear {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.sectionToggle:hover,
+.sectionClear:hover {
   color: var(--dsw-alias-label-primary);
+}
+
+.sectionChevron {
+  transform: rotate(-90deg);
+  transition: transform 120ms ease;
+}
+
+.sectionChevronOpen {
+  transform: rotate(0deg);
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+}
+
+/* The cell and its stop control share one hover fill, as a single cell. An
+   opened job's group carries the fill itself, so only closed rows take it. */
+.rowLine {
+  display: flex;
+  align-items: flex-start;
+  border-radius: var(--dsw-aeven-radius-control);
+}
+
+.item:not(.itemOpen) > .rowLine:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* ModelSelect .cell. */
+.row {
+  box-sizing: border-box;
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+  /* Top-aligned so an opened row can wrap its full name: 9px + one 22px line
+     + 9px keeps a closed row at the 40px control height. */
+  align-items: flex-start;
+  min-height: var(--dsw-aeven-control-size);
+  padding: 9px 8px;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-control);
+  outline: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  cursor: pointer;
+  text-align: left;
+}
+
+/* Keyboard focus draws the composer's focus ring (ModelSelect .trigger); a
+   pointer click never matches :focus-visible, so nothing stays behind. */
+.row:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--dsw-alias-border-l3);
+}
+
+/* A running row hands its end padding to the stop button, whose 8px icon
+   inset then repeats the 8px gap between the time and the chevron. */
+.rowWithStop {
+  padding-right: 0;
+}
+
+.rowStatic {
+  cursor: default;
+}
+
+.rowSpinner {
+  --avn-spinner-size: 16px;
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+
+.rowDot {
+  flex: 0 0 auto;
+  margin: 6px 3px 0;
+}
+
+/* A job stopped on purpose: a quiet grey dot instead of the warning tone. */
+.rowDot.rowDotNeutral[data-state] {
+  color: var(--dsw-alias-label-dimmed);
+}
+
+/* ModelSelect .cellLabel, ellipsized: the job's name. The foldout carries
+   the full name. */
+.label {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+/* How a settled job ended, right after its name. */
+.status {
+  flex: 0 0 auto;
+  color: var(--dsw-alias-label-tertiary);
+  white-space: nowrap;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+/* ModelSelect .cellValue: the run time or the time since it ended. */
+.duration {
+  flex: 0 0 auto;
+  color: var(--dsw-alias-label-tertiary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ModelSelect .cellChevron. */
+.chevron {
+  display: inline-flex;
+  flex: 0 0 auto;
+  margin-top: 4px;
+  color: var(--dsw-alias-label-tertiary);
+  transition: transform 120ms ease;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+/* Centred on the stop icon's column (28px button, 6px end margin): the row's
+   8px pad plus 5px puts the 14px glyph's centre 20px from the edge. */
+.chevronEnd {
+  margin-right: 5px;
+}
+
+/* Stop: a round icon at a running row's end; one press stops. The 28px
+   button insets its 12px icon by 8px, the row's gap. */
+.stop {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  margin: 6px 6px 0 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+}
+
+.stop:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover-danger);
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.stop:disabled {
+  color: var(--dsw-alias-label-dimmed);
+  cursor: default;
+}
+
+.stopFailed {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+/* An opened job: its row and details read as one light group at the rows'
+   radius, set apart from its neighbours by a little air. */
+.itemOpen {
+  margin: 0 0 8px;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* The details, on a 4px grid and flush with the row's 8px inner edge, under
+   the opened row that titles them: the facts, then the cards. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 8px 8px;
+}
+
+/* The opened row's full name, as the details' title. */
+.label.labelOpen {
+  font-weight: 450;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Two columns: tertiary labels, primary values. */
+.facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 16px;
+  row-gap: 4px;
+  margin: 0;
+}
+
+.fact {
+  display: contents;
+}
+
+/* Scoped past the app's global definition-list styles (bold dt). */
+.facts .fact dt {
+  margin: 0;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+}
+
+.facts .fact dd {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 22px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.noticeError {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Output and Command: white cards whose header opens them, at the rows'
+   control radius. */
+.card {
+  overflow: hidden;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: var(--dsw-alias-markdown-code-block);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding-right: 4px;
+}
+
+.cardToggle {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+  padding: 0 12px;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cardToggle:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--dsw-alias-border-l3);
+  border-radius: var(--dsw-aeven-radius-control);
+}
+
+.cardToggle > svg {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.cardBody {
+  box-sizing: border-box;
+  max-height: 220px;
+  margin: 0;
+  padding: 0 12px 12px;
+  overflow-y: auto;
+  color: var(--dsw-alias-label-primary);
+  font: var(--dsw-font-markdown-code-block-small);
+  line-height: 18px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.commandBody {
+  max-height: 180px;
+}
+
+.cardGap {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.cardEmpty {
+  padding: 0 12px 12px;
+  color: var(--dsw-alias-label-tertiary);
   font-size: 14px;
   line-height: 22px;
 }
 
-.rowSettled {
-  color: var(--dsw-alias-label-tertiary);
+@media (prefers-reduced-motion: reduce) {
+  .triggerChevron,
+  .sectionChevron,
+  .chevron {
+    transition: none;
+  }
 }
 
-.rowDot {
-  flex: none;
+/* The stop confirmation: the RiskConfirmation dialog's width and actions. */
+.confirm {
+  width: min(400px, 100%);
 }
 
-.kind {
-  flex: none;
-  padding: 0 6px;
-  border-radius: 5px;
-  background: var(--dsw-alias-fill-l2);
-  color: var(--dsw-alias-label-secondary);
-  font-size: 11px;
-  line-height: 18px;
-}
-
-.label {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  font-family: var(--dsw-font-mono);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.status,
-.duration {
-  flex: none;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 11px;
-  line-height: 18px;
-}
-
-/* A failed job's detail is the producer's raw error text, so it has no bound;
-   without this it widens the row past the menu instead of eliding like .label. */
-.status {
-  max-width: 40%;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.duration {
-  font-variant-numeric: tabular-nums;
+.confirmAction {
+  min-width: 96px;
 }

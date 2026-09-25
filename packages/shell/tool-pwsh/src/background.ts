@@ -6,6 +6,7 @@
  */
 
 import type { ShellProcess } from '@aeven/shell'
+import type { JobOutputSource } from '@aeven/jobs'
 
 /* jscpd:ignore-start -- deliberate twin of avn-tool-bash/background.ts (Agent Note). */
 
@@ -29,3 +30,12 @@ export function processOutcome(proc: ShellProcess): { status: 'completed' | 'kil
   return { status: 'completed', detail: `exit code: ${proc.exitCode ?? 0}` }
 }
 /* jscpd:ignore-end */
+
+/** Non-consuming process channels pumped by the job registry. */
+export function processSources(proc: () => Pick<ShellProcess, 'observed'> | undefined): JobOutputSource[] {
+  return (['stdout', 'stderr'] as const).map(channel => ({
+    channel,
+    read: (fromByte: number) => proc()?.observed?.[channel].readFrom(fromByte)
+      ?? { text: '', nextOffset: fromByte, lossy: false },
+  }))
+}

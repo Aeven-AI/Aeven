@@ -72,6 +72,7 @@
     { "path": "./packages/typert/registry" },
     { "path": "./packages/api/gateway/tsconfig.client.json" },
     { "path": "./packages/api/session-controller/tsconfig.client.json" },
+    { "path": "./packages/api/job-controller/tsconfig.client.json" },
     { "path": "./packages/api/terminal-controller/tsconfig.client.json" },
     { "path": "./packages/api/workspace-controller/tsconfig.client.json" },
     { "path": "./packages/api/remotes/tsconfig.client.json" },

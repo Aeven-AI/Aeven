@@ -49,10 +49,16 @@
   overflow-y: auto;
 }
 
+/* A card whose host row already shows the run state draws no dot, so its
+   gutter narrows to the header's own 16px inset. */
+.block[data-dotless] {
+  --dsl-terminal-gutter: 16px;
+}
+
 /* Full-width l2 hairline between the command banner and the body — the same
-   divider the IN/OUT card draws between its sections. A running card is
-   banner-only, so it draws none. */
-.block:not([data-running]) .header {
+   divider the IN/OUT card draws between its sections. A card with no body yet
+   (running, nothing printed) is banner-only, so it draws none. */
+.block[data-body] .header {
   border-bottom: 0.5px solid var(--dsw-alias-border-l2);
 }
 
@@ -108,7 +114,8 @@
   color: var(--dsw-alias-label-primary);
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: pre;
+  white-space: var(--dsl-terminal-command-whitespace, pre);
+  overflow-wrap: anywhere;
 }
 
 /* The failed-exit pill in the header, before the copy control. */
@@ -131,7 +138,8 @@
 /* No wrapping, no word-break: alignment is the payload of terminal output. */
 .line {
   min-height: var(--dsl-terminal-line-height);
-  white-space: pre;
+  white-space: var(--dsl-terminal-line-whitespace, pre);
+  overflow-wrap: anywhere;
 }
 
 .expand {

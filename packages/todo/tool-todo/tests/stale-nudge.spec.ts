@@ -16,7 +16,8 @@ import { describe, expect, it } from 'vitest'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { SessionId, type Session, type SessionEvent } from '@aeven/session'
 import type { Agent } from '@aeven/agent'
-import type { JobDoneListener, JobSnapshot } from '@aeven/jobs'
+import { JobId } from '@aeven/jobs'
+import type { JobEvent, JobEventListener, JobEvents, JobView } from '@aeven/jobs'
 import AgentLoop from '@aeven/agent-loop'
 import { mountAgentLoopTestDependencies } from '@aeven/agent-loop-testkit'
 import SessionProjectionRegistry from '@aeven/session-projection'
@@ -26,21 +27,33 @@ import { MockAdapter, textResponse, toolCallResponse } from '../../../core/agent
 
 /** The settlement seam this package reads, driven by hand: the only member of `ctx.jobs` it uses. */
 class SettleProbe extends Service {
-  private readonly listeners = new Set<JobDoneListener>()
+  private readonly listeners = new Set<JobEventListener>()
+  readonly events: JobEvents
 
   constructor(ctx: Context) {
     super(ctx, 'jobs')
+    this.events = {
+      subscribe: (_filter, listener) => {
+        this.listeners.add(listener)
+        return () => { this.listeners.delete(listener) }
+      },
+    }
   }
 
-  onJobDone(listener: JobDoneListener): () => void {
-    this.listeners.add(listener)
-    return () => { this.listeners.delete(listener) }
-  }
-
-  /** Deliver one settlement exactly as the registry would, owner and all. */
+  /** Deliver one settlement the way the registry's `settled` event does. */
   settle(owner: Agent | undefined, label = 'read the ledger'): void {
-    const snapshot = { label } as JobSnapshot
-    for (const listener of this.listeners) listener(snapshot, owner)
+    const job: JobView = {
+      id: JobId('bash-1'),
+      kind: 'bash',
+      label,
+      ...(owner === undefined ? {} : { owner: owner.id }),
+      status: 'completed',
+      startedAt: 0,
+      finishedAt: 1,
+      output: { total: 0, earliest: 0 },
+    }
+    const event: JobEvent = { type: 'settled', job, cause: 'producer', awaited: false }
+    for (const listener of this.listeners) listener(event)
   }
 }
 

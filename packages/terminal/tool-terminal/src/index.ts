@@ -13,7 +13,8 @@ import type { TerminalSendResult, TerminalSessionId as TerminalSessionIdType, Te
 import type {} from '@aeven/jobs'
 import { defineTool } from '@aeven/tools'
 import type { ToolDefinition } from '@aeven/tools'
-import { boundTerminalText, renderList, renderRead, renderSend, renderSendRead, renderSpawn } from './render.ts'
+import { boundTerminalText, renderList, renderRead, renderSend, renderSpawn } from './render.ts'
+import { sendSource } from './background.ts'
 
 declare module '@aeven/jobs' {
   interface JobKindMap {
@@ -252,23 +253,25 @@ export function apply(ctx: Context, config: Config = {}): void {
         const jobs = ctx.get('jobs')
         if (jobs === undefined) throw new Error('background terminal sends require @aeven/jobs and @aeven/tool-jobs')
         let cancelRequested = false
+        let operation: ReturnType<typeof ctx.terminals.startSend> | undefined
         const jobId = jobs.start({
           kind: 'pty-send',
           label: `${id}: ${args.text || '(input)'}`,
-          owner,
+          owner: owner.id,
+          output: [sendSource(() => operation)],
           outputLimitBytes: maxResultBytes,
           run: () => {
-            const operation = ctx.terminals.startSend(owner, id, request)
+            const started = ctx.terminals.startSend(owner, id, request)
+            operation = started
             return {
               cancel: () => {
                 cancelRequested = true
-                operation.cancel()
+                started.cancel()
               },
-              done: operation.done.then(
+              done: started.done.then(
                 result => ({ status: cancelRequested ? 'killed' as const : 'completed' as const, detail: sendDetail(result) }),
                 (error: unknown) => ({ status: 'failed' as const, detail: String(error) }),
               ),
-              readOutput: () => renderSendRead(operation.readOutput()),
             }
           },
         })

@@ -152,14 +152,21 @@
 }
 
 .titleRow {
-  position: relative;
+  /* Laid over the bar in the box every width use site resolves `100%` in:
+     the scroller less one page inset per side (the header is sticky, so it is
+     this row's containing block). Its actions then centre at the transcript's
+     own width and start on the conversation's left edge, following it through
+     window resizes and width-handle drags. It passes pointer events through,
+     so the corner utilities under it stay reachable. */
+  position: absolute;
+  top: 0;
+  right: var(--dsw-aeven-page-inset);
+  left: var(--dsw-aeven-page-inset);
   z-index: 11;
   display: flex;
-  flex: 1;
   align-items: center;
-  gap: 10px;
-  height: 56px;
-  min-width: 0;
+  height: var(--avn-session-header-height);
+  pointer-events: none;
 }
 
 .crumbs {
@@ -220,6 +227,23 @@
   flex: none;
   align-items: center;
   gap: 8px;
+  box-sizing: border-box;
+  width: var(--avn-chat-content-width);
+  margin: 0 auto;
+  /* On a narrow column the left edge can fall under the collapsed sidebar's
+     hamburger; start the actions past it (padding and width both resolve
+     against this row's width, as the column's own left edge does). */
+  padding-left: max(
+    0px,
+    calc(
+      var(--avn-sidebar-overlay-clearance, 0px) - var(--dsw-aeven-page-inset)
+        - (100% - var(--avn-chat-content-width)) / 2
+    )
+  );
+}
+
+.headerActions > * {
+  pointer-events: auto;
 }
 
 /* Reserves the frame's corner dock in the bar's own flow. The dock holds the

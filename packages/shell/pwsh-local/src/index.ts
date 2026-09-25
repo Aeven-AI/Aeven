@@ -297,12 +297,20 @@ export class PwshLocalExecutor extends ShellExecutor {
       return note
     }
 
+    const observedStderr: SubprocessOutputReader = {
+      readFrom: (fromByte) => {
+        if (spawnFailureNote === undefined) return collected.stderr.readFrom(fromByte)
+        const note = Buffer.from(spawnFailureNote, 'utf8')
+        return { text: note.subarray(Math.min(fromByte, note.length)).toString('utf8'), nextOffset: note.length, lossy: false }
+      },
+    }
     let stdoutOffset = 0
     let stderrOffset = 0
     const proc: ShellProcess = {
       status: 'running',
       exitCode: null,
       signal: null,
+      observed: { stdout: collected.stdout, stderr: observedStderr },
       done: running.done.then((outcome) => {
         // Any signal termination is killed, including a command signaling itself.
         if (proc.status === 'running') {

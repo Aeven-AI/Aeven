@@ -109,7 +109,7 @@ describe.skipIf(MODE === 'record')('web e2e: background job list', () => {
 
   it('flips the open list to the cancelled outcome when the registry settles it', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-background-job-settled'))
-    expect(scaffold.ctx.jobs.kill(jobId, agent, 'web e2e cancellation')).toBe('requested')
+    expect(scaffold.ctx.jobs.kill(jobId, agent.id, 'web e2e cancellation')).toBe('requested')
 
     const idle = page.getByRole('button', { name: '1 background job', exact: true })
     await idle.waitFor({ timeout: 20_000 })

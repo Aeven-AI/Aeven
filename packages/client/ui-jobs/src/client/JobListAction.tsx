@@ -1,21 +1,73 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import type { SessionJob as JobView } from '@aeven/api-session-controller/types'
-import { IconChevronDownOutline14, StateDot, useDismissOnOutsidePointer, type StateDotState } from '@aeven/client-ui-primitives'
-import type { PropsLocale, PropsRuntime, TranslateNS } from '@aeven/client-ui-slots'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import type { JobsSnapshot, JobView, ObservedJob } from '@aeven/api-job-controller/client'
+import type { SessionId } from '@aeven/session/types'
+import {
+  Button, CopyIconButton, IconChevronDownOutline14, IconStopFill16, Modal, Spinner, StateDot, useDismissOnOutsidePointer,
+  type StateDotState,
+} from '@aeven/client-ui-primitives'
+import type { InjectFace, PropsLocale, PropsRuntime, TranslateNS } from '@aeven/client-ui-slots'
 import { NS } from './locales.ts'
 import type {} from '@aeven/client-ui-conversation/client'
 import css from './JobListAction.module.css'
 
-/** Full props for the session-header background-job action. */
+/** Registration-side business face for the job list. */
+export interface JobListInjected {
+  hooks: {
+    /** Client jobs snapshot (rosters and observations) bound by the renderer as useJobs. */
+    jobs: {
+      getSnapshot(): JobsSnapshot
+      subscribe(listener: () => void): () => void
+    }
+  }
+  /**
+   * Keep one session's roster current while the list is mounted; returns the
+   * stop function. Reference-counted by the client service.
+   */
+  watchRows: (sessionId: SessionId) => () => void
+  /**
+   * Start observing one job's live output; returns the stop function.
+   * Reference-counted by the client service, so panels can overlap safely.
+   */
+  observe: (sessionId: SessionId | undefined, id: JobView['id']) => () => void
+  /**
+   * Kill one background job on the human's behalf. Resolves `true` when the
+   * registry admitted the request (`requested` or `already-finished`); row
+   * state itself converges through the jobs control frames.
+   */
+  killJob: (sessionId: SessionId, jobId: string) => Promise<boolean>
+}
+
+/** Full props for the session-header job-list action. */
 export type JobListActionProps =
-  PropsRuntime<'conversation.session.header.actions'> & PropsLocale<typeof NS>
+  PropsRuntime<'conversation.session.header.actions'>
+  & PropsLocale<typeof NS>
+  & InjectFace<JobListInjected>
 
 /** Stable empty list so a session with no jobs keeps one array identity. */
-const NO_TASKS: readonly JobView[] = []
+const NO_JOBS: readonly JobView[] = []
 
-/** A job the registry still holds open, and whose duration therefore ticks. */
+/** Minimum gap kept between the popover and the viewport edges (the Menu primitive's portal margin). */
+const VIEWPORT_MARGIN = 12
+
+/** How long a failed kill keeps its hint before the button resets. */
+const KILL_FAILED_MS = 4_000
+
+
 function isLive(job: JobView): boolean {
   return job.status === 'running' || job.status === 'stopping'
+}
+
+/**
+ * Whether the row offers an output panel: every live job (its output may
+ * still arrive) and a settled one that left retained output behind.
+ */
+function isObservable(job: JobView): boolean {
+  return isLive(job) || job.output.total > 0
+}
+
+/** The one-line qualifier beside the status: live progress while running, the terminal reason once settled. */
+function jobDetail(job: JobView): string | undefined {
+  return job.progress ?? job.detail
 }
 
 /** Closed-union exhaustiveness fence for the wire status set. */
@@ -40,7 +92,6 @@ function dotState(status: JobView['status']): StateDotState {
   }
 }
 
-/** Human status word for the row and its accessible name. */
 function statusLabel(status: JobView['status'], t: TranslateNS<typeof NS>): string {
   switch (status) {
     case 'running': return t('status.running')
@@ -54,9 +105,54 @@ function statusLabel(status: JobView['status'], t: TranslateNS<typeof NS>): stri
 }
 
 /**
- * Elapsed time in at most two adjacent units. A background job that outlives
- * an hour is already exceptional, so hours is the widest unit — beyond that the
- * figure stays in hours rather than growing a day/month vocabulary no producer
+ * The job's everyday name: the known producer kinds read as product words;
+ * a kind this build does not know (the map is merge-extensible) shows its id
+ * capitalized.
+ */
+function kindName(kind: string, t: TranslateNS<typeof NS>): string {
+  switch (kind) {
+    case 'bash': return t('kind.bash')
+    case 'pwsh': return t('kind.pwsh')
+    case 'subagent': return t('kind.subagent')
+    case 'workflow': return t('kind.workflow')
+    default: return kind.charAt(0).toUpperCase() + kind.slice(1)
+  }
+}
+
+/** The row's name: the producer's everyday title, else the kind's name. */
+function jobName(job: JobView, t: TranslateNS<typeof NS>): string {
+  return job.title ?? kindName(job.kind, t)
+}
+
+/**
+ * How long ago a settled job ended, in the coarse words a person uses: under
+ * a minute reads as "just now", then minutes, hours, and days.
+ */
+function formatAgo(elapsedMs: number, t: TranslateNS<typeof NS>): string {
+  const minutes = Math.floor(Math.max(0, elapsedMs) / 60_000)
+  if (minutes < 1) return t('ago.now')
+  if (minutes < 60) return t('ago.minutes', { n: pad(minutes) })
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return t(hours === 1 ? 'ago.hour' : 'ago.hours', { n: pad(hours) })
+  const days = Math.floor(hours / 24)
+  return t(days === 1 ? 'ago.day' : 'ago.days', { n: pad(days) })
+}
+
+/** The stop button's words for each step of its two-press confirmation. */
+function killKey(state: KillState): 'kill.stop' | 'kill.pending' | 'kill.failed' {
+  switch (state) {
+    case 'idle': return 'kill.stop'
+    case 'pending': return 'kill.pending'
+    case 'failed': return 'kill.failed'
+    /* v8 ignore next -- closed kill-state union */
+    default: return assertNever(state)
+  }
+}
+
+/**
+ * Elapsed time in at most two adjacent units. A job that outlives an hour is
+ * already exceptional, so hours is the widest unit — beyond that the figure
+ * stays in hours rather than growing a day/month vocabulary no producer
  * currently reaches.
  */
 function formatDuration(elapsedMs: number, t: TranslateNS<typeof NS>): string {
@@ -64,72 +160,477 @@ function formatDuration(elapsedMs: number, t: TranslateNS<typeof NS>): string {
   const seconds = total % 60
   const minutes = Math.floor(total / 60) % 60
   const hours = Math.floor(total / 3_600)
-  if (hours > 0) return t('duration.hours', { hours, minutes })
-  if (minutes > 0) return t('duration.minutes', { minutes, seconds })
-  return t('duration.seconds', { seconds })
+  if (hours > 0) return t('duration.hours', { hours: pad(hours), minutes: pad(minutes) })
+  if (minutes > 0) return t('duration.minutes', { minutes: pad(minutes), seconds: pad(seconds) })
+  return t('duration.seconds', { seconds: pad(seconds) })
+}
+
+/** Two-digit zero padding, so figures keep one width as they tick. */
+function pad(value: number): string {
+  return String(value).padStart(2, '0')
 }
 
 /**
- * Live rows first in start order, then settled rows newest-first. Two jobs
- * that settled in the same millisecond fall back to start order, so the sort
- * never depends on the host's map iteration.
+ * Live rows first, newest start first; then settled rows, newest finish
+ * first. Two rows that settled in the same millisecond fall back to newest
+ * start, so the sort never depends on the host's map iteration.
  */
 function ordered(jobs: readonly JobView[]): JobView[] {
   return [...jobs].sort((left, right) => {
     const liveLeft = isLive(left)
     if (liveLeft !== isLive(right)) return liveLeft ? -1 : 1
-    if (liveLeft) return left.startedAt - right.startedAt
+    if (liveLeft) return right.startedAt - left.startedAt
     const finished = (right.finishedAt ?? right.startedAt) - (left.finishedAt ?? left.startedAt)
-    return finished !== 0 ? finished : left.startedAt - right.startedAt
+    return finished !== 0 ? finished : right.startedAt - left.startedAt
   })
 }
 
 /**
- * Session-header entry point for this session's background jobs. It renders
- * nothing at all until the session has at least one job, so an ordinary
- * conversation never grows a control for a capability it is not using.
- * @param props - runtime slot currency plus the namespace translator.
+ * Stop button state: `pending` covers the in-flight RPC until the row's own
+ * status flip removes the button, `failed` shows briefly after a rejected kill.
+ */
+type KillState = 'idle' | 'pending' | 'failed'
+
+/** Wall-clock time of day in the reader's locale, to the minute, on the 24-hour clock Aeven uses. */
+function clockTime(epochMs: number): string {
+  return new Date(epochMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+}
+
+/** One labelled fact in a job's details list. */
+interface JobFact {
+  readonly label: string
+  readonly value: string
+}
+
+/**
+ * A disclosure card in a job's details: its header toggles the body and,
+ * once open, offers a copy of the card's text.
+ */
+function DetailCard({ title, open, onToggle, copyText, t, children }: {
+  title: string
+  open: boolean
+  onToggle: () => void
+  /** The text the header copies while the card is open; empty offers no copy. */
+  copyText: string
+  t: TranslateNS<typeof NS>
+  children: ReactNode
+}) {
+  return (
+    <div className={css.card}>
+      <div className={css.cardHeader}>
+        <button type="button" className={css.cardToggle} aria-expanded={open} onClick={onToggle}>
+          {title}
+          <IconChevronDownOutline14 className={open ? `${css.sectionChevron} ${css.sectionChevronOpen}` : css.sectionChevron} />
+        </button>
+        {open && copyText !== ''
+          ? <CopyIconButton text={copyText} label={t('terminal.copy')} copiedLabel={t('terminal.copied')} />
+          : null}
+      </div>
+      {open ? children : null}
+    </div>
+  )
+}
+
+/**
+ * A job's details, revealed step by step inside the opened row's group: the
+ * full name, a two-column list of plain facts, then what the job printed and
+ * the command, each in a card that opens on request. The output follows the
+ * newest line while the reader stays at the bottom.
+ */
+function JobDetails({ job, view, live, facts, t }: {
+  job: JobView
+  view: ObservedJob | undefined
+  live: boolean
+  facts: readonly JobFact[]
+  t: TranslateNS<typeof NS>
+}) {
+  const [showOutput, setShowOutput] = useState(false)
+  const [showCommand, setShowCommand] = useState(false)
+  const outputRef = useRef<HTMLPreElement>(null)
+  const followRef = useRef(true)
+  const text = view?.text ?? ''
+  useLayoutEffect(() => {
+    const output = outputRef.current
+    if (output !== null && followRef.current) output.scrollTop = output.scrollHeight
+  }, [text, showOutput])
+  return (
+    <div className={css.panel}>
+      <dl className={css.facts}>
+        {facts.map(fact => (
+          <div key={fact.label} className={css.fact}>
+            <dt>{fact.label}</dt>
+            <dd>{fact.value}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className={css.cards}>
+        <DetailCard
+          title={t('panel.output')}
+          open={showOutput}
+          onToggle={() => { setShowOutput(current => !current) }}
+          copyText={text}
+          t={t}
+        >
+          {view?.error !== undefined
+            ? <div className={`${css.cardEmpty} ${css.noticeError}`}>{t('output.error', { error: view.error })}</div>
+            : null}
+          {text !== ''
+            ? (
+              <pre
+                ref={outputRef}
+                className={`${css.cardBody} no-scrollbar`}
+                onScroll={(event) => {
+                  const output = event.currentTarget
+                  followRef.current = output.scrollHeight - output.scrollTop - output.clientHeight < 8
+                }}
+              >
+                {view?.gapBefore === true ? <span className={css.cardGap}>{t('output.gap')}{'\n'}</span> : null}
+                {text}
+              </pre>
+            )
+            : <div className={css.cardEmpty}>{t(live ? 'panel.waiting' : 'panel.noOutput')}</div>}
+        </DetailCard>
+        <DetailCard
+          title={t('panel.command')}
+          open={showCommand}
+          onToggle={() => { setShowCommand(current => !current) }}
+          copyText={job.label}
+          t={t}
+        >
+          <pre className={`${css.cardBody} ${css.commandBody} no-scrollbar`}>{job.label}</pre>
+        </DetailCard>
+      </div>
+    </div>
+  )
+}
+
+/** One job row plus, when observable and expanded, its details. */
+function JobItem({ job, view, expanded, now, onToggle, kill, t }: {
+  job: JobView
+  view: ObservedJob | undefined
+  expanded: boolean
+  /** Clock sample live rows derive their running duration from. */
+  now: number
+  onToggle: () => void
+  /** Present on running rows: the human-kill button state and press handler. */
+  kill?: { state: KillState; onPress: () => void }
+  t: TranslateNS<typeof NS>
+}) {
+  const live = isLive(job)
+  const status = statusLabel(job.status, t)
+  const detail = jobDetail(job)
+  const observable = isObservable(job)
+  const finishedAt = job.finishedAt ?? job.startedAt
+  const duration = formatDuration((live ? now : finishedAt) - job.startedAt, t)
+  // A live row counts up its run time; a settled one says when it ended, and
+  // its run time moves into the foldout.
+  const timeCell = live
+    ? <span className={css.duration} title={t('duration.title.live', { duration })}>{duration}</span>
+    : (
+      <span className={css.duration} title={new Date(finishedAt).toLocaleString()}>
+        {formatAgo(now - finishedAt, t)}
+      </span>
+    )
+  const facts: JobFact[] = [
+    { label: t('facts.started'), value: clockTime(job.startedAt) },
+    ...live
+      ? [{ label: t('facts.runningFor'), value: duration }]
+      : [
+        { label: t('facts.ended'), value: `${clockTime(finishedAt)} · ${formatAgo(now - finishedAt, t)}` },
+        { label: t('facts.ranFor'), value: duration },
+        { label: t('facts.result'), value: status },
+      ],
+    ...detail !== undefined ? [{ label: t(live ? 'facts.progress' : 'facts.details'), value: detail }] : [],
+  ]
+  // A running job turns the Aeven loading mark, as a running chat does in the
+  // sidebar; every other state is a still dot.
+  const marker = job.status === 'running'
+    ? <Spinner className={css.rowSpinner} />
+    : (
+      <StateDot
+        state={dotState(job.status)}
+        // Stopping a job on purpose is ordinary, not a warning.
+        className={job.status === 'killed' ? `${css.rowDot} ${css.rowDotNeutral}` : css.rowDot}
+      />
+    )
+  // Without a stop control the chevron takes the stop icon's column.
+  const chevron = [css.chevron, kill === undefined ? css.chevronEnd : '', expanded ? css.chevronOpen : '']
+    .filter(Boolean).join(' ')
+  const name = jobName(job, t)
+  // One Menu cell in plain words: what the job does, and for how long (a
+  // settled one says how and when it ended). The command, output, and
+  // technical detail wait in the foldout. A live row is always observable:
+  // its output may still arrive.
+  // Opened, the row becomes the details' title: the full name alone, since
+  // the state and the time are listed in the facts below it.
+  const body = expanded
+    ? (
+      <>
+        <span className={`${css.label} ${css.labelOpen}`}>{name}</span>
+        <span className={css.spacer} />
+        <span className={chevron} aria-hidden><IconChevronDownOutline14 /></span>
+      </>
+    )
+    : (
+      <>
+        {marker}
+        <span className={css.label} title={name}>{name}</span>
+        {live ? null : <span className={css.status}>{status}</span>}
+        <span className={css.spacer} />
+        {timeCell}
+        {observable
+          ? <span className={chevron} aria-hidden><IconChevronDownOutline14 /></span>
+          : null}
+      </>
+    )
+  return (
+    <li className={expanded && observable ? `${css.item} ${css.itemOpen}` : css.item}>
+      <div className={css.rowLine}>
+        {observable
+          ? (
+            <button
+              type="button"
+              className={kill === undefined ? css.row : `${css.row} ${css.rowWithStop}`}
+              aria-expanded={expanded}
+              aria-label={t(expanded ? 'row.collapseAria' : 'row.expandAria', { label: name })}
+              onClick={onToggle}
+            >
+              {body}
+            </button>
+          )
+          : (
+            <span className={`${css.row} ${css.rowStatic}`}>
+              {body}
+            </span>
+          )}
+        {kill !== undefined
+          ? (
+            // Icon only; the press asks for confirmation in a dialog.
+            <button
+              type="button"
+              className={
+                kill.state === 'failed' ? `${css.stop} ${css.stopFailed}` : css.stop
+              }
+              data-kill-state={kill.state}
+              disabled={kill.state === 'pending'}
+              aria-label={t(killKey(kill.state))}
+              title={t(killKey(kill.state))}
+              onClick={kill.onPress}
+            >
+              <IconStopFill16 size={12} />
+            </button>
+          )
+          : null}
+      </div>
+      {/* The foldout opens at once; output fills in when the observation
+          stream delivers it. */}
+      {expanded && observable
+        ? <JobDetails job={job} view={view} live={live} facts={facts} t={t} />
+        : null}
+    </li>
+  )
+}
+
+/**
+ * Session-header entry point for this session's background jobs. Mounting it
+ * keeps the session's roster stream open; it renders nothing at all until the
+ * session can see at least one job. Expanding an observable row (a live job,
+ * or a settled one with retained output) starts its observation stream, and
+ * collapsing (or closing the popover) stops it — output only flows while
+ * someone is watching. A running row carries a two-press stop button that
+ * requests a human kill through the job controller.
+ * @param props - runtime slot currency, the jobs snapshot hook, the roster,
+ *   observation, and kill controls, and the namespace translator.
  * @returns the trigger and its popover list, or null when there is nothing to show.
  */
-export function JobListAction({ sessionId, useSessions, t }: JobListActionProps) {
-  const jobs = useSessions(state => state.jobsBySession[sessionId]) ?? NO_TASKS
+export function JobListAction({ sessionId, useJobs, watchRows, observe, killJob, t }: JobListActionProps) {
+  const jobs = useJobs(state => state.rows[sessionId]) ?? NO_JOBS
+  const observedViews = useJobs(state => state.observed)
   const [open, setOpen] = useState(false)
+  const [expandedKey, setExpandedKey] = useState<string | undefined>(undefined)
   const [now, setNow] = useState(() => Date.now())
+  // Settled-section fold: an explicit user toggle wins; before one, the tail
+  // folds only while live work exists (a settled-only list opens expanded).
+  const [settledOpen, setSettledOpen] = useState<boolean | undefined>(undefined)
+  // Rows the user cleared from the settled tail (client-side hide only; the
+  // registry keeps its records and a later settlement reappears normally).
+  const [clearedKeys, setClearedKeys] = useState<ReadonlySet<string>>(() => new Set())
+  // The running job whose stop waits for the dialog's confirmation.
+  const [confirmJob, setConfirmJob] = useState<JobView | undefined>(undefined)
+  // The one row whose stop is in flight or just failed.
+  const [killPhase, setKillPhase] = useState<{ key: string; state: Exclude<KillState, 'idle'> } | undefined>(undefined)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLUListElement>(null)
+  // Horizontal shift applied to the trigger-anchored popover so it stays
+  // inside the viewport (the stylesheet alone cannot see the anchor offset).
+  const [menuShift, setMenuShift] = useState(0)
 
   const rows = useMemo(() => ordered(jobs), [jobs])
-  const liveCount = useMemo(() => jobs.filter(isLive).length, [jobs])
+  const liveRows = useMemo(() => rows.filter(isLive), [rows])
+  const settledRows = useMemo(
+    () => rows.filter(job => !isLive(job) && !clearedKeys.has(String(job.id))),
+    [rows, clearedKeys],
+  )
+  const settledExpanded = settledOpen ?? liveRows.length === 0
+  const visibleCount = liveRows.length + settledRows.length
 
-  useDismissOnOutsidePointer(rootRef, open, setOpen)
+  // The body-portaled confirmation sits outside the root; while it shows, a
+  // press in it must not close the list behind it.
+  useDismissOnOutsidePointer(rootRef, open && confirmJob === undefined, setOpen)
 
-  // The clock only runs while an open list is showing something that moves.
+  // The roster follows the mounted session: one stream while this control
+  // lives, released with it.
+  useEffect(() => watchRows(sessionId), [sessionId, watchRows])
+
+  // The clock only runs while the list is open: every second while a run
+  // time counts up, otherwise often enough for "5 min ago" to stay true.
   useEffect(() => {
-    if (!open || liveCount === 0) return
+    if (!open) return
     setNow(Date.now())
-    const timer = setInterval(() => { setNow(Date.now()) }, 1_000)
+    const timer = setInterval(() => { setNow(Date.now()) }, liveRows.length > 0 ? 1_000 : 30_000)
     return () => { clearInterval(timer) }
-  }, [open, liveCount])
+  }, [open, liveRows.length])
 
-  // The last job disappearing removes this control; close first so focus does
-  // not vanish from an unmounting node.
+  // Fit the open popover to the viewport: shift left when the anchored width
+  // would cross the right edge, never past the left margin.
+  useLayoutEffect(() => {
+    if (!open) {
+      setMenuShift(0)
+      return
+    }
+    const fit = (): void => {
+      const root = rootRef.current
+      const menu = menuRef.current
+      /* v8 ignore next -- both refs are attached while the open popover renders. */
+      if (root === null || menu === null) return
+      const width = menu.offsetWidth
+      // Unlaid-out nodes (and jsdom) measure 0: keep the pure CSS anchor.
+      if (width === 0) return
+      const anchorLeft = root.getBoundingClientRect().left
+      setMenuShift(Math.max(
+        VIEWPORT_MARGIN - anchorLeft,
+        Math.min(0, window.innerWidth - VIEWPORT_MARGIN - width - anchorLeft),
+      ))
+    }
+    fit()
+    window.addEventListener('resize', fit)
+    return () => { window.removeEventListener('resize', fit) }
+  }, [open])
+
+  // Observation follows visibility: the stream opens when an observable panel
+  // expands and closes when it collapses, unmounts, or the popover closes.
+  const expandedRow = open && expandedKey !== undefined
+    ? rows.find(job => String(job.id) === expandedKey)
+    : undefined
+  const activeJob = expandedRow !== undefined && isObservable(expandedRow) ? expandedRow.id : undefined
   useEffect(() => {
-    if (jobs.length === 0 && open) setOpen(false)
-  }, [jobs.length, open])
+    if (activeJob === undefined) return
+    return observe(sessionId, activeJob)
+  }, [sessionId, activeJob, observe])
 
-  if (jobs.length === 0) return null
+  // The last visible job disappearing removes this control; close first so
+  // focus does not vanish from an unmounting node.
+  useEffect(() => {
+    if (visibleCount === 0 && open) setOpen(false)
+  }, [visibleCount, open])
 
-  const countKey = liveCount > 0
-    ? (liveCount === 1 ? 'count.live.one' : 'count.live.other')
-    : (jobs.length === 1 ? 'count.idle.one' : 'count.idle.other')
-  const countLabel = t(countKey, { count: liveCount > 0 ? liveCount : jobs.length })
+  // An expanded row that left the list (owner disposal) folds its panel.
+  useEffect(() => {
+    if (expandedKey !== undefined && !rows.some(job => String(job.id) === expandedKey)) {
+      setExpandedKey(undefined)
+    }
+  }, [rows, expandedKey])
+
+  // A failed kill clears its hint on a timer; the pending phase instead waits
+  // for the RPC (or the row's own status flip). The cleanup clears the timer
+  // on every phase change, so a firing timer always describes the current
+  // phase and may reset unconditionally.
+  useEffect(() => {
+    if (killPhase === undefined || killPhase.state === 'pending') return
+    const timer = setTimeout(() => { setKillPhase(undefined) }, KILL_FAILED_MS)
+    return () => { clearTimeout(timer) }
+  }, [killPhase])
+
+  // A phase whose row stopped being killable (settled, stopping, removed)
+  // has no button to describe any more.
+  useEffect(() => {
+    if (killPhase !== undefined
+      && !rows.some(job => String(job.id) === killPhase.key && job.status === 'running')) {
+      setKillPhase(undefined)
+    }
+  }, [rows, killPhase])
+
+  const confirmKill = (): void => {
+    if (confirmJob === undefined) return
+    const job = confirmJob
+    setConfirmJob(undefined)
+    // The row may have settled while the dialog was open.
+    if (rows.some(row => row.id === job.id && row.status === 'running')) pressKill(job)
+  }
+
+  const pressKill = (job: JobView): void => {
+    const key = String(job.id)
+    setKillPhase({ key, state: 'pending' })
+    void killJob(sessionId, key).then((ok) => {
+      // An admitted kill stays pending: the unary response (HTTP) and the jobs
+      // frames (control stream) have no cross-carrier ordering, so re-enabling
+      // here could offer a duplicate kill while the row still reads `running`.
+      // The authoritative jobs frame flips the row to `stopping`, which removes
+      // the button and clears the phase through the killable-set effect above.
+      setKillPhase(current => current?.key === key && !ok
+        ? { key, state: 'failed' }
+        : current)
+    })
+  }
+
+  if (visibleCount === 0) return null
+
+  const countKey = liveRows.length > 0
+    ? (liveRows.length === 1 ? 'count.live.one' : 'count.live.other')
+    : (visibleCount === 1 ? 'count.idle.one' : 'count.idle.other')
+  const countLabel = t(countKey, { count: liveRows.length > 0 ? liveRows.length : visibleCount })
+
+  const clearSettled = (): void => {
+    setClearedKeys((current) => {
+      const next = new Set(current)
+      for (const job of settledRows) next.add(String(job.id))
+      return next
+    })
+    if (expandedKey !== undefined && settledRows.some(job => String(job.id) === expandedKey)) {
+      setExpandedKey(undefined)
+    }
+  }
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
-    if (event.key !== 'Escape' || !open) return
+    // The dialog handles its own Escape; its React events bubble here.
+    if (event.key !== 'Escape' || !open || confirmJob !== undefined) return
     event.preventDefault()
     setOpen(false)
     triggerRef.current?.focus()
   }
+
+  const item = (job: JobView) => (
+    <JobItem
+      key={String(job.id)}
+      job={job}
+      view={isObservable(job) ? observedViews[String(job.id)] : undefined}
+      expanded={expandedKey === String(job.id)}
+      now={now}
+      onToggle={() => {
+        setExpandedKey(current => current === String(job.id) ? undefined : String(job.id))
+      }}
+      {...job.status === 'running'
+        ? {
+          kill: {
+            state: killPhase?.key === String(job.id) ? killPhase.state : 'idle' as const,
+            onPress: () => { setConfirmJob(job) },
+          },
+        }
+        : {}}
+      t={t}
+    />
+  )
 
   return (
     <div ref={rootRef} className={css.root} onKeyDown={onKeyDown}>
@@ -148,36 +649,56 @@ export function JobListAction({ sessionId, useSessions, t }: JobListActionProps)
           setOpen(current => !current)
         }}
       >
-        {liveCount > 0 ? <StateDot state="ongoing" className={css.triggerDot} /> : null}
+        {liveRows.length > 0 ? <Spinner className={css.triggerSpinner} /> : null}
         <span className={css.count}>{countLabel}</span>
-        <IconChevronDownOutline14 className={open ? css.triggerOpen : undefined} />
+        <span className={open ? `${css.triggerChevron} ${css.triggerChevronOpen}` : css.triggerChevron} aria-hidden>
+          <IconChevronDownOutline14 size={12} />
+        </span>
       </button>
       {open
         ? (
-          <ul className={css.menu} aria-label={t('list.aria')}>
-            {rows.map((job) => {
-              const live = isLive(job)
-              const elapsed = live ? now - job.startedAt : (job.finishedAt ?? job.startedAt) - job.startedAt
-              const duration = formatDuration(elapsed, t)
-              const status = statusLabel(job.status, t)
-              return (
-                <li key={job.id} className={live ? css.row : `${css.row} ${css.rowSettled}`}>
-                  <StateDot state={dotState(job.status)} className={css.rowDot} />
-                  <span className={css.kind}>{job.kind}</span>
-                  <span className={css.label} title={job.label}>{job.label}</span>
-                  <span className={css.status} title={job.detail ?? status}>{job.detail ?? status}</span>
-                  <span
-                    className={css.duration}
-                    title={t(live ? 'duration.title.live' : 'duration.title.done', { duration })}
+          <ul ref={menuRef} className={css.menu} style={{ left: menuShift }} aria-label={t('list.aria')}>
+            {liveRows.map(item)}
+            {settledRows.length > 0
+              ? (
+                <li className={css.sectionHeader}>
+                  <button
+                    type="button"
+                    className={css.sectionToggle}
+                    aria-expanded={settledExpanded}
+                    onClick={() => { setSettledOpen(!settledExpanded) }}
                   >
-                    {duration}
-                  </span>
+                    {t('section.settledCount', { count: settledRows.length })}
+                    <IconChevronDownOutline14 className={settledExpanded ? `${css.sectionChevron} ${css.sectionChevronOpen}` : css.sectionChevron} />
+                  </button>
+                  <button type="button" className={css.sectionClear} onClick={clearSettled}>
+                    {t('section.clear')}
+                  </button>
                 </li>
               )
-            })}
+              : null}
+            {settledExpanded ? settledRows.map(item) : null}
           </ul>
         )
         : null}
+      <Modal
+        open={confirmJob !== undefined}
+        onClose={() => { setConfirmJob(undefined) }}
+        title={t('confirm.title', { name: confirmJob !== undefined ? jobName(confirmJob, t) : '' })}
+        description={t('confirm.description')}
+        closeLabel={t('confirm.close')}
+        className={css.confirm ?? ''}
+        footer={(
+          <>
+            <Button variant="outline" className={css.confirmAction} onClick={() => { setConfirmJob(undefined) }}>
+              {t('confirm.cancel')}
+            </Button>
+            <Button variant="primary" className={css.confirmAction} autoFocus onClick={confirmKill}>
+              {t('confirm.stop')}
+            </Button>
+          </>
+        )}
+      />
     </div>
   )
 }

@@ -1,6 +1,6 @@
 {
   "name": "@aeven/client-ui-jobs",
-  "description": "Session-header background-job list: live registry state mirrored from session/jobs frames",
+  "description": "Session-header background-job list with on-demand streaming output panels",
   "version": "0.1.2-alpha.5",
   "type": "module",
   "main": "lib/index.js",
@@ -20,6 +20,7 @@
   "avn": {
     "client": {
       "inject": [
+        "@aeven/api-job-controller",
         "@aeven/client-locale",
         "@aeven/client-ui-conversation",
         "@aeven/client-ui-primitives"
@@ -54,7 +55,12 @@
     "react": "^18.2.0",
     "@aeven/api-session-controller": "workspace:^",
     "@aeven/client-ui-renderer": "workspace:^",
-    "@aeven/client-ui-session": "workspace:^"
+    "@aeven/client-ui-session": "workspace:^",
+    "@aeven/api-job-controller": "workspace:^",
+    "@aeven/jobs": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@types/react-dom": "~18.3.1",
+    "react-dom": "^18.2.0"
   },
   "files": [
     "lib/index.js",

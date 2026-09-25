@@ -86,6 +86,7 @@
     "@aeven/typert-protocol": "workspace:^",
     "@aeven/user-approval": "workspace:^",
     "@aeven/user-questions": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/api-job-controller": "workspace:^"
   }
 }
