@@ -5,10 +5,11 @@
 import { useCallback, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import clsx from 'clsx'
+import { HeroShell } from '@aeven/client-ui-primitives'
 import type { ConversationSlotProps, InputZone } from '../contract/slots.ts'
 import { useContentCover } from './content-cover.ts'
 import { ContentLoader } from './ContentLoader.tsx'
-import { HeroShell, workspaceLabel } from './EmptyHero.tsx'
+import { workspaceLabel } from './EmptyHero.tsx'
 import css from './ConversationRoot.module.css'
 
 /** Full props composed from the slot contract. */

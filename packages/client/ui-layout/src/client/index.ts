@@ -1,7 +1,7 @@
 /**
  * Layout plugin, browser half: one register() call contributes AppFrame into
  * the runtime's built-in 'root' slot and, in the same breath, declares the
- * four child slots (declaration = exclusive render authority), seats the
+ * frame's child slots (declaration = exclusive render authority), seats the
  * layout store (panel geometry), and wires the panel-action service face.
  * ctx.layout is the cross-plugin panel-action contract; navigation state lives
  * with the runtime sessions service. A second effect seats the theme
@@ -13,9 +13,10 @@ import type {} from '@aeven/client-ui-renderer/client'
 import type {} from '@aeven/client-ui-session/client'
 import type {} from '@aeven/client-ui-theme/client'
 import type { PanelActions } from './service.ts'
-import { AppFrame } from './AppFrame.tsx'
+import { AppFrame, type AppFrameInjected } from './AppFrame.tsx'
 import { createLayoutStore } from './stores.ts'
 import { LayoutController } from './service.ts'
+import { Surfaces } from './surfaces.ts'
 import { ThemePresenter } from './theme-presenter.ts'
 
 // Contract exports only (export-convergence rule: cross-package consumers
@@ -26,6 +27,7 @@ import { ThemePresenter } from './theme-presenter.ts'
 export { LayoutController } from './service.ts'
 export type { ILayout } from './service.ts'
 export type { RightbarSurface } from './stores.ts'
+export type { ISurfaces, SurfaceRoute } from './surfaces.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -37,7 +39,7 @@ declare module '@deepseek-ai/cordis' {
 declare module '@aeven/client-ui-slots' {
   interface SlotMap {
     // The 'root' entry itself is the runtime's built-in slot (declared
-    // there); these four are the frame's children, declared by the same
+    // there); these are the frame's children, declared by the same
     // register() call that contributes AppFrame. Session owners never pass
     // sessionId: the framework injects it as a standard prop.
     /**
@@ -64,6 +66,17 @@ declare module '@aeven/client-ui-slots' {
      * framework hooks of the `session-maybe` scope.
      */
     'conversation': { kind: 'single'; scope: 'session-maybe'; owner: ConvOwnerProps }
+    /**
+     * A full-page surface that takes the center column in place of
+     * `conversation`, keyed by surface id. The page renders while the address
+     * bar is under the root its surface claimed through
+     * `ctx.layout.surfaces.register`; the conversation unmounts meanwhile,
+     * and the `details` and `rightbar` columns stay closed because they
+     * belong to the current chat Session.
+     *
+     * Root-scoped: a surface is independent of the current Session.
+     */
+    'surface': { kind: 'keyed'; scope: 'root'; owner: SurfaceOwnerProps }
     /**
      * The right details column, shown when the layout opens it. OCCUPIED by
      * ui-conversation's DetailsPanel, which declares the tool-details seat
@@ -132,6 +145,9 @@ export interface SidebarOwnerProps {
 /** Conversation owner share: business state and actions belong to the registrant. */
 export interface ConvOwnerProps {}
 
+/** Surface owner share: empty — a surface page reads its own state. */
+export interface SurfaceOwnerProps {}
+
 /** Details owner share: empty — sessionId arrives as a framework-standard prop. */
 export interface DetailsOwnerProps {}
 
@@ -162,12 +178,12 @@ export const inject = ['slots', 'theme', 'locale']
 
 /**
  * Client plugin body: provide ctx.layout, then one register() call — AppFrame
- * into 'root' with the four child-slot declarations, the layout store seat,
+ * into 'root' with the frame's child-slot declarations, the layout store seat,
  * and the inject hook that hands the store's bound actions to the service.
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  const layout = new LayoutController()
+  const layout = new LayoutController(new Surfaces(() => window))
   ctx.effect(() => {
     const disposeService = ctx.reflect.provide('layout', layout)
     const disposeRegistration = ctx.slots.register({
@@ -176,6 +192,7 @@ export function apply(ctx: ClientContext): void {
       children: {
         'sidebar': { kind: 'single', scope: 'root' },
         'conversation': { kind: 'single', scope: 'session-maybe' },
+        'surface': { kind: 'keyed', scope: 'root' },
         'details': { kind: 'single', scope: 'session' },
         'rightbar': { kind: 'single', scope: 'session' },
         'shell.overlay': { kind: 'list', scope: 'root' },
@@ -184,11 +201,12 @@ export function apply(ctx: ClientContext): void {
       // Exclusive store: the factory itself — the framework instantiates per
       // entry and delivers useStore/actions to AppFrame as standard props.
       store: createLayoutStore,
-      // The hook's only side effect connects the root store to ctx.layout;
-      // conversation business actions belong to their registrants.
-      inject: (actions: PanelActions) => {
+      // The hook connects the root store to ctx.layout and hands the frame
+      // the surface router; conversation business actions belong to their
+      // registrants.
+      inject: (actions: PanelActions): AppFrameInjected => {
         layout.attachPanels(actions)
-        return {}
+        return { hooks: { surface: layout.surfaces.current } }
       },
     }, AppFrame)
     return () => {

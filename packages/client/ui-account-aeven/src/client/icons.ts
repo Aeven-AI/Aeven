@@ -24,10 +24,3 @@ export const LOGOUT_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0
   + ' width="24" height="24"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 22C6.477 22 2'
   + ' 17.523 2 12S6.477 2 12 2a9.985 9.985 0 0 1 8 4h-2.71a8 8 0 1 0 .001 12h2.71A9.985 9.985 0'
   + ' 0 1 12 22zm7-6v-3h-8v-2h8V8l5 4-5 4z" fill="currentColor"/></svg>'
-
-/** Lucide `moon`, on the Night mode row. */
-export const MOON_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"'
-  + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"'
-  + ' stroke-linecap="round" stroke-linejoin="round" class="moon-icon moon">'
-  + '<path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268'
-  + ' 8.268c.344-.215.825-.004.803.401"/></svg>'

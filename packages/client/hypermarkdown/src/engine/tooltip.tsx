@@ -23,8 +23,9 @@ export interface TooltipProps {
   touch?: boolean | undefined
   arrow?: boolean | undefined
   /**
-   * The box the bubble is placed against, when it is not the trigger's own —
-   * e.g. the icon inside a wider button. The trigger stays the element.
+   * The box the bubble is placed against, when it is not the trigger's own
+   * (the icon of a padded control). Read on every placement update; the
+   * trigger stays the element that shows and hides the bubble.
    */
   placementRect?: ((reference: Element) => DOMRect) | undefined
   /**

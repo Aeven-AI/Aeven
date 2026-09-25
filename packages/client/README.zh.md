@@ -45,6 +45,7 @@ kind: "package-group"
 | [`ui-workspace/`](ui-workspace/README.zh.md) | 提供工作区选择与创建界面 | — |
 | [`ui-conversation/`](ui-conversation/README.zh.md) | 展示当前对话及其输入界面 | — |
 | [`ui-chat/`](ui-chat/README.zh.md) | 投影并渲染 Chat 对话 target | — |
+| [`ui-imagine/`](ui-imagine/README.zh.md) | 在 `/i/<id>` 以 Imagine 页面取代对话 | — |
 | [`ui-auth-aeven/`](ui-auth-aeven/README.zh.md) | 展示 Aeven 登录界面，并在插件图启动前恢复会话 | — |
 | [`ui-account-aeven/`](ui-account-aeven/README.zh.md) | 在会话头部展示已登录 Aeven 读者的头像与账户菜单 | — |
 | [`ui-approval/`](ui-approval/README.zh.md) | 展示批准请求并返回用户决策 | — |

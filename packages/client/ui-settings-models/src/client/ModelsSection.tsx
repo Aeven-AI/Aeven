@@ -14,7 +14,7 @@
 
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { Button, IconPlusOutline16, Modal } from '@aeven/client-ui-primitives'
+import { Button, IconPlusOutline16, Modal, SectionHeader } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsRenderSlots } from '@aeven/client-ui-slots'
 // Type-only: pulls this package's SlotMap merge (the two Models child slots).
 import type {} from './slot-contract.ts'
@@ -267,6 +267,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
     const errorText = state.error ?? ''
     return (
       <div className={styles['section']}>
+        <SectionHeader title={t('title')} description={t('intro')} />
         <p className={styles['error']}>{`${t('loadFailed')}: ${errorText}`}</p>
         <button type="button" className={styles['secondaryButton']} onClick={() => { void controller.load() }}>
           {t('retry')}
@@ -306,8 +307,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
 
   return (
     <div className={styles['section']}>
-      <h2 className={styles['title']}>{t('title')}</h2>
-      <p className={styles['intro']}>{t('intro')}</p>
+      <SectionHeader title={t('title')} description={t('intro')} />
       {!state.writable && state.status === 'ready' ? <p className={styles['notice']}>{t('readOnly')}</p> : null}
       {savedIdentity === undefined
         ? null

@@ -1,5 +1,5 @@
 ---
-description: "Web 客户端常驻导航条中已登录 Aeven 读者的头像与账户菜单：他们的图片或首字母、通往 Aeven 账户页的链接、夜间模式与登出。"
+description: "Web 客户端常驻导航条中已登录 Aeven 读者的头像与账户菜单：他们的图片或首字母、通往 Aeven 账户页的链接、应用设置与登出。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-client-ui-account-aeven` 把已登录读者的头像放进 Web 客户端的常驻导航条，并从中打开账户菜单，使读者能看到自己以何身份登录、访问 Aeven 账户页、切换夜间模式并登出。该导航条属于会话列而非某个会话，因此无论是否打开会话——包括冷启动的 hero 界面——头像都在那里：是否有人登录是应用层面的事实，而全新部署正是从该 hero 界面开始的。它展示 Aeven authority 已经恢复的那个读者，自身不向 Aeven 请求任何内容，因此不产生自己的请求开销。无人登录时没有读者可展示，该座位保持为空。请与 Host authority 一同启用；单独启用时它不渲染任何内容。
+`avn-client-ui-account-aeven` 把已登录读者的头像放进 Web 客户端的常驻导航条，并从中打开账户菜单，使读者能看到自己以何身份登录、访问 Aeven 账户页、打开应用设置并登出。该导航条属于会话列而非某个会话，因此无论是否打开会话——包括冷启动的 hero 界面——头像都在那里：是否有人登录是应用层面的事实，而全新部署正是从该 hero 界面开始的。它展示 Aeven authority 已经恢复的那个读者，自身不向 Aeven 请求任何内容，因此不产生自己的请求开销。无人登录时没有读者可展示，该座位保持为空。请与 Host authority 一同启用；单独启用时它不渲染任何内容。
 
 ## 目录
 
@@ -40,11 +40,11 @@ kind: "package-reference"
   name: '@aeven/client-ui-account-aeven'
 ```
 
-浏览器侧注入 `slots`、`locale` 与 `theme`，因此缺少其中任何一个的组合会让该行处于等待而非已挂载状态。
+浏览器侧注入 `slots` 与 `locale`，因此缺少其中任何一个的组合会让该行处于等待而非已挂载状态。
 
 ### 菜单提供什么
 
-头像展示读者上传的图片；若未设置，则展示带其首字母的生成渐变。菜单包含夜间模式开关与登出。仅当部署通过 `webUrl` 指明了 web 客户端时，它才链接到 Aeven 账户页：无法指明该页面的 harness 不会杜撰一个，因此该项直接不存在。
+头像展示读者上传的图片；若未设置，则展示带其首字母的生成渐变。菜单包含设置与登出：设置会关闭菜单并发出 `settings/open`，由设置外壳打开其面板。主题选择位于外观设置中，该设置也提供跟随系统。仅当部署通过 `webUrl` 指明了 web 客户端时，它才链接到 Aeven 账户页：无法指明该页面的 harness 不会杜撰一个，因此该项直接不存在。
 
 -----
 
@@ -70,7 +70,7 @@ kind: "package-reference"
 |---|---|
 | [`src/index.ts`](src/index.ts) | 让仅限浏览器的行保持可寻址的空 host 侧 |
 | [`src/client/index.ts`](src/client/index.ts) | 读取已声明的读者、注册 locale 并占据导航条座位 |
-| [`src/client/AccountMenu.tsx`](src/client/AccountMenu.tsx) | 菜单：账户链接、夜间模式、登出 |
+| [`src/client/AccountMenu.tsx`](src/client/AccountMenu.tsx) | 菜单：账户链接、设置、登出 |
 | [`src/client/Avatar.tsx`](src/client/Avatar.tsx) | 上传的图片，或生成的渐变与首字母 |
 | [`src/client/locales.ts`](src/client/locales.ts) | `account.aeven` locale 命名空间及其键 |
 

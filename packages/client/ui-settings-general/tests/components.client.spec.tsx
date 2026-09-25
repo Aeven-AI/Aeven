@@ -1,20 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { bindSnapshotSelector, RemoteError } from '@aeven/client-test-runtime'
+import { cleanup, render, screen } from '@testing-library/react'
 import type { GeneralSectionComponentProps } from '../src/client/GeneralSection.tsx'
 import { GeneralSection } from '../src/client/GeneralSection.tsx'
 import { CloseLabel, HeaderContent, TriggerContent } from '../src/client/chrome.tsx'
 import type { TriggerContentProps } from '../src/client/chrome.tsx'
-import { SettingsDocumentAction } from '../src/client/SettingsDocumentAction.tsx'
-import { SettingsDescribeMirror } from '@aeven/client-ui-settings/src/client/settings-mirror.ts'
-import { SettingsDocumentStore } from '../src/client/settings-document-store.ts'
 
-/** Store over a real mirror derived from the same scripted context. */
-function derivedDocumentStore(remote: object) {
-  const ctx = { remote } as never
-  return new SettingsDocumentStore(ctx, new SettingsDescribeMirror(ctx))
-}
 import { en } from '../src/client/locales.ts'
 
 afterEach(cleanup)
@@ -56,95 +47,20 @@ describe('GeneralSection', () => {
     const renderSlot = vi.fn(
       ((key: string) => <div data-testid={`slot-${key}`} />) as GeneralSectionComponentProps['renderSlot'],
     )
-    const props: GeneralSectionComponentProps = { ...kit, renderSlot, close: vi.fn() }
+    const props: GeneralSectionComponentProps = { ...kit, renderSlot, close: vi.fn(), t }
     const view = render(<GeneralSection {...props} />)
     return { view, renderSlot }
   }
+
+  it('opens with the General heading and intro above the item slot', () => {
+    mount()
+    expect(screen.getByRole('heading', { level: 2, name: 'General' })).toBeTruthy()
+    expect(screen.getByText(en['general.intro'])).toBeTruthy()
+  })
 
   it('renders the item slot as the section body', () => {
     const { renderSlot } = mount()
     expect(renderSlot).toHaveBeenCalledWith('settings.general.item', {})
     expect(screen.getByTestId('slot-settings.general.item')).toBeTruthy()
-  })
-})
-
-describe('SettingsDocumentAction', () => {
-  it('appears only for a file-backed provider and requests its Host-owned document', async () => {
-    const openDocument = vi.fn(() => Promise.resolve({
-      ok: true as const, value: { opened: true as const },
-    }))
-    const controller = derivedDocumentStore({
-      settings: {
-        describe: vi.fn(() => Promise.resolve({
-          ok: true as const,
-          value: { writable: true, hasDocument: true, namespaces: [] },
-        })),
-        openSettingsDocument: openDocument,
-      },
-    })
-    render(<SettingsDocumentAction
-      {...kit}
-      t={t}
-      controller={controller}
-      useSnapshot={bindSnapshotSelector(controller.store)}
-    />)
-    const action = await screen.findByRole('button', { name: 'Open configuration file' })
-    fireEvent.click(action)
-    await waitFor(() => { expect(openDocument).toHaveBeenCalledWith() })
-  })
-
-  it('stays absent without a document and follows a mirror refresh to available', async () => {
-    const describe = vi.fn()
-      .mockResolvedValueOnce({ ok: true as const, value: { writable: true, hasDocument: false, namespaces: [] } })
-      .mockResolvedValueOnce({ ok: true as const, value: { writable: true, hasDocument: true, namespaces: [] } })
-    const ctx = { remote: { settings: { describe, openSettingsDocument: vi.fn() } } } as never
-    const mirror = new SettingsDescribeMirror(ctx)
-    const controller = new SettingsDocumentStore(ctx, mirror)
-    const first = render(<SettingsDocumentAction
-      {...kit}
-      t={t}
-      controller={controller}
-      useSnapshot={bindSnapshotSelector(controller.store)}
-    />)
-    await waitFor(() => { expect(controller.store.getSnapshot().status).toBe('unavailable') })
-    expect(screen.queryByRole('button', { name: 'Open configuration file' })).toBeNull()
-    first.unmount()
-    render(<SettingsDocumentAction
-      {...kit}
-      t={t}
-      controller={controller}
-      useSnapshot={bindSnapshotSelector(controller.store)}
-    />)
-    // A remount alone re-reads nothing; availability moves with the mirror's
-    // own refresh (a document commit or reconnect in production).
-    await waitFor(() => { expect(controller.store.getSnapshot().status).toBe('unavailable') })
-    expect(describe).toHaveBeenCalledTimes(1)
-    await mirror.load()
-    expect(await screen.findByRole('button', { name: 'Open configuration file' })).toBeTruthy()
-    expect(describe).toHaveBeenCalledTimes(2)
-  })
-
-  it('keeps the action available and reports a native-open failure', async () => {
-    const controller = derivedDocumentStore({
-      settings: {
-        describe: vi.fn(() => Promise.resolve({
-          ok: true as const,
-          value: { writable: true, hasDocument: true, namespaces: [] },
-        })),
-        openSettingsDocument: vi.fn(() => Promise.resolve({
-          ok: false as const,
-          error: new RemoteError('gateway/internal', 'xdg-open missing', {}),
-        })),
-      },
-    })
-    render(<SettingsDocumentAction
-      {...kit}
-      t={t}
-      controller={controller}
-      useSnapshot={bindSnapshotSelector(controller.store)}
-    />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Open configuration file' }))
-    expect((await screen.findByRole('alert')).textContent).toBe('Could not open configuration file')
-    expect(screen.getByRole('button', { name: 'Open configuration file' })).toBeTruthy()
   })
 })

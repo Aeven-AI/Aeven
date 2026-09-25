@@ -2,7 +2,7 @@ import { useMemo, useState, type KeyboardEvent } from 'react'
 import type { Context } from '@deepseek-ai/cordis'
 import clsx from 'clsx'
 import {
-  IconApiOutline14, IconChevronDownOutline14, IconInspectOutline12, StateDot, TerminalBlock,
+  FailMark, IconApiOutline14, IconChevronDownOutline14, IconInspectOutline12, TerminalBlock,
 } from '@aeven/client-ui-primitives'
 import type { PropsLocale } from '@aeven/client-ui-slots'
 import type { ToolCallViewProps } from '../../contract/slots.ts'
@@ -22,14 +22,14 @@ type BashRowProps = ToolCallViewProps & PropsLocale<'conversation'>
 
 function leadingFor(state: ToolRowState) {
   switch (state) {
-    case 'error': return <StateDot state="error" />
-    case 'stopped': return <StateDot state="warning" />
+    case 'error':
+    case 'stopped': return <FailMark />
     // Running keeps the icon — the row sweep carries the in-flight signal.
     default: return <IconApiOutline14 size={14} />
   }
 }
 
-/** Visually hidden status — StateDot is aria-hidden; AT needs a text label. */
+/** Visually hidden status — the failure mark is aria-hidden; AT needs a text label. */
 function stateStatus(state: ToolRowState, t: BashRowProps['t']): string | null {
   switch (state) {
     case 'running': return t('bash.running')
@@ -104,7 +104,7 @@ export function BashRow({ toolName, block, sessionId, useSessions, inspect, t }:
         {status !== null && <span className={css.visuallyHidden}>{status}</span>}
         <span className={css.title}>{t(model.titleKey)}</span>
         <span className={css.sep} aria-hidden />
-        <span className={clsx(css.summary, failureLine !== null && css.errorSummary)}>
+        <span className={css.summary}>
           {failureLine ?? terminal?.description ?? model.summary}
         </span>
       </div>

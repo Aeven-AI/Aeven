@@ -1,5 +1,5 @@
 ---
-description: "The signed-in Aeven reader's avatar and account menu in the Web Client's resident navigation band: their picture or initial, a link to the Aeven account page, night mode, and sign out."
+description: "The signed-in Aeven reader's avatar and account menu in the Web Client's resident navigation band: their picture or initial, a link to the Aeven account page, app settings, and sign out."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-client-ui-account-aeven` puts the signed-in reader's avatar in the Web Client's resident navigation band and opens their account menu from it, so a reader can see who they are signed in as, reach their Aeven account page, switch night mode, and sign out. The band belongs to the conversation column rather than to a Session, so the avatar is there in the no-Session hero and beside a live Session alike: whether anyone is signed in is a fact about the app, and a fresh deployment opens on that hero. It shows whoever the Aeven authority already restored and asks Aeven for nothing of its own, so it costs no request of its own. With nobody signed in there is no reader to show and the seat stays empty. Enable it together with the Host authority; alone it renders nothing.
+`avn-client-ui-account-aeven` puts the signed-in reader's avatar in the Web Client's resident navigation band and opens their account menu from it, so a reader can see who they are signed in as, reach their Aeven account page, open the app settings, and sign out. The band belongs to the conversation column rather than to a Session, so the avatar is there in the no-Session hero and beside a live Session alike: whether anyone is signed in is a fact about the app, and a fresh deployment opens on that hero. It shows whoever the Aeven authority already restored and asks Aeven for nothing of its own, so it costs no request of its own. With nobody signed in there is no reader to show and the seat stays empty. Enable it together with the Host authority; alone it renders nothing.
 
 ## Table of Contents
 
@@ -40,11 +40,11 @@ The row takes no configuration; it is a browser plugin whose host half is empty:
   name: '@aeven/client-ui-account-aeven'
 ```
 
-The browser half injects `slots`, `locale`, and `theme`, so a composition that omits any of them leaves the row waiting rather than mounted.
+The browser half injects `slots` and `locale`, so a composition that omits either of them leaves the row waiting rather than mounted.
 
 ### What the menu offers
 
-The avatar shows the reader's uploaded picture, or a generated gradient with their initial when they have set none. The menu carries a night-mode toggle and sign out. It links to the Aeven account page only when the deployment named a web client through `webUrl`: a harness that cannot name that page does not invent one, so the row is simply absent.
+The avatar shows the reader's uploaded picture, or a generated gradient with their initial when they have set none. The menu carries Settings, which closes the menu and emits `settings/open` so the settings shell opens its panel, and sign out. Theme selection lives in the Appearance setting, which also offers following the system. It links to the Aeven account page only when the deployment named a web client through `webUrl`: a harness that cannot name that page does not invent one, so the row is simply absent.
 
 -----
 
@@ -70,7 +70,7 @@ The feature exists only in the browser, but a browser-only row still has to be a
 |---|---|
 | [`src/index.ts`](src/index.ts) | Empty host half keeping the browser-only row addressable |
 | [`src/client/index.ts`](src/client/index.ts) | Reads the published reader, registers locales, and claims the navigation-band seat |
-| [`src/client/AccountMenu.tsx`](src/client/AccountMenu.tsx) | The menu: account link, night mode, sign out |
+| [`src/client/AccountMenu.tsx`](src/client/AccountMenu.tsx) | The menu: account link, settings, sign out |
 | [`src/client/Avatar.tsx`](src/client/Avatar.tsx) | Uploaded picture, or the generated gradient and initial |
 | [`src/client/locales.ts`](src/client/locales.ts) | The `account.aeven` locale namespace and its keys |
 

@@ -31,7 +31,7 @@ Use the sidebar to browse Workspaces and their Sessions, reorder them, and start
 
 ### Session navigation
 
-Every selected Session has a URL-safe `/c/<id>` path, the Host's `session-` id prefix dropped on the way out and restored on the way in. An ordinary selection pushes one browser-history entry, initial baseline reconciliation replaces the launch entry, and Back or Forward reopens the Session named by the restored path. Loading a valid Session path directly selects it after the Session and Workspace baselines are ready. An unknown Session id is removed from the address bar before the existing recent-Workspace fallback runs. Every selection reveals its row, so a Session reached by address is exposed and scrolled into view exactly as a search result is.
+Every selected Session has a URL-safe `/c/<id>` path, the Host's `session-` id prefix dropped on the way out and restored on the way in. An ordinary selection pushes one browser-history entry, initial baseline reconciliation replaces the launch entry, and Back or Forward reopens the Session named by the restored path. Loading a valid Session path directly selects it after the Session and Workspace baselines are ready. An unknown Session id is removed from the address bar before the existing recent-Workspace fallback runs. Every selection reveals its row, so a Session reached by address is exposed and scrolled into view exactly as a search result is. The chat owns only `/`, `/c`, and `/c/…`: on another surface's address, such as Imagine's `/i/<id>`, it reads no Session, writes no address, and Back or Forward onto it starts no New Session.
 
 ### Reordering and view options
 

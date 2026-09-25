@@ -10,6 +10,7 @@
  */
 import type { BoundActions } from '@aeven/client-ui-slots'
 import type { createLayoutStore } from './stores.ts'
+import type { ISurfaces } from './surfaces.ts'
 
 /** The layout store's bound action set (framework-baked, draft params peeled). */
 export type PanelActions = BoundActions<ReturnType<typeof createLayoutStore>>
@@ -21,6 +22,8 @@ export type PanelActions = BoundActions<ReturnType<typeof createLayoutStore>>
  * only).
  */
 export interface ILayout {
+  /** Surface routing: which full-page surface owns the center column. */
+  readonly surfaces: ISurfaces
   /** Toggle the sidebar panel (closed ⟷ contract default width). */
   toggleSidebar(): void
   /** Open the details panel (no-op when already open). */
@@ -46,6 +49,9 @@ export interface ILayout {
 /** Cross-plugin panel-action face (ctx.layout). */
 export class LayoutController implements ILayout {
   #panels: PanelActions | undefined
+
+  /** @param surfaces - the surface router this face publishes. */
+  constructor(readonly surfaces: ISurfaces) {}
 
   /**
    * Adopt the root entry's bound store actions. Called from the root

@@ -1,0 +1,10 @@
+.mark {
+  box-sizing: border-box;
+  display: block;
+  flex: none;
+  width: calc(14px + var(--avn-content-font-delta, 0px));
+  height: calc(14px + var(--avn-content-font-delta, 0px));
+  border: 1.5px solid var(--dsw-alias-label-tertiary);
+  border-radius: 50%;
+  background: var(--dsw-alias-label-dimmed);
+}

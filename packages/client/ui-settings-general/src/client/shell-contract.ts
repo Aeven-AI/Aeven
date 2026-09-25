@@ -37,6 +37,12 @@ export interface SettingsOnboardingStep {
 export type SettingsRootInjected = {
   /** Request a fresh logical generation and physical WebSocket immediately. */
   reconnect: () => void
+  /**
+   * Subscribe to `settings/open` requests from other surfaces.
+   * @param listener - called once per request.
+   * @returns the unsubscribe function.
+   */
+  onOpenRequest: (listener: () => void) => () => void
   hooks: {
     /** Connection-owned state for the current Host connection. */
     connectionState: HostObservable<ConnectionState | undefined>

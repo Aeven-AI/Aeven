@@ -18,28 +18,21 @@ interface Scope {
 const scope = globalThis as Scope
 
 function utilityIds(ctx: Context): (string | undefined)[] {
-  return ctx.slots.entries('conversation.navigation.utilities').map(entry => entry.options.id)
+  return ctx.slots.entries('shell.corner').map(entry => entry.options.id)
 }
 
 function injectedFace(ctx: Context): AccountMenuInjected {
-  const entry = ctx.slots.entries('conversation.navigation.utilities')
+  const entry = ctx.slots.entries('shell.corner')
     .find(e => e.options.id === 'aeven-account')
   return entry?.inject?.() as unknown as AccountMenuInjected
 }
 
-async function baseContext(theme: {
-  scheme: 'light' | 'dark'
-  setTheme: (id: string) => void
-}): Promise<Context> {
+async function baseContext(): Promise<Context> {
   const ctx = new Context()
   await ctx.plugin(SlotRegistry).await()
   ctx.provide('connection', { api: { settings: {} }, isLoopback: false } as never)
   ctx.provide('remote', { $on: () => () => {} } as never)
   ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
-  ctx.provide('theme', {
-    getTheme: () => ({ active: { colorScheme: theme.scheme } }),
-    setTheme: theme.setTheme,
-  } as never)
   await ctx.plugin({ inject: localeInject, apply: applyLocale }).await()
   return ctx
 }
@@ -47,7 +40,7 @@ async function baseContext(theme: {
 function declareNavigationUtilities(ctx: Context): () => void {
   return ctx.slots.register({
     name: 'root',
-    children: { 'conversation.navigation.utilities': { kind: 'list', scope: 'root' } },
+    children: { 'shell.corner': { kind: 'list', scope: 'root' } },
   } as never, Empty)
 }
 
@@ -57,7 +50,7 @@ afterEach(() => {
 
 describe('ui-account-aeven browser half', () => {
   it('declares only the services used by registration', () => {
-    expect(inject).toEqual(['slots', 'locale', 'theme'])
+    expect(inject).toEqual(['slots', 'locale'])
   })
 
   it('keeps the node half empty, so the Loader can address the browser feature', () => {
@@ -70,7 +63,7 @@ describe('ui-account-aeven browser half', () => {
   })
 
   it('waits for the navigation-band declaration and tears its entry down', async () => {
-    const ctx = await baseContext({ scheme: 'light', setTheme: () => {} })
+    const ctx = await baseContext()
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     expect(utilityIds(ctx)).toEqual([])
@@ -84,7 +77,7 @@ describe('ui-account-aeven browser half', () => {
   })
 
   it('reports no reader until the gate states one', async () => {
-    const ctx = await baseContext({ scheme: 'light', setTheme: () => {} })
+    const ctx = await baseContext()
     await ctx.plugin({ inject: [...inject], apply }).await()
     declareNavigationUtilities(ctx)
     const face = injectedFace(ctx)
@@ -107,31 +100,28 @@ describe('ui-account-aeven browser half', () => {
   })
 
   it('carries only the facts the deployment stated', async () => {
-    const ctx = await baseContext({ scheme: 'light', setTheme: () => {} })
+    const ctx = await baseContext()
     await ctx.plugin({ inject: [...inject], apply }).await()
     declareNavigationUtilities(ctx)
     scope.__AVN_AEVEN_READER__ = { userId: 'u-2', signOut: () => Promise.resolve() }
     expect(injectedFace(ctx).reader()).toEqual({ userId: 'u-2' })
   })
 
-  it('reads and writes the app theme', async () => {
-    const setTheme = vi.fn()
-    const ctx = await baseContext({ scheme: 'dark', setTheme })
+  it('asks the settings shell to open', async () => {
+    const ctx = await baseContext()
     await ctx.plugin({ inject: [...inject], apply }).await()
     declareNavigationUtilities(ctx)
-    const face = injectedFace(ctx)
-    expect(face.nightMode()).toBe(true)
-    face.setNightMode(false)
-    expect(setTheme).toHaveBeenCalledWith('light')
-    face.setNightMode(true)
-    expect(setTheme).toHaveBeenLastCalledWith('dark')
+    const listener = vi.fn()
+    ctx.on('settings/open', listener)
+    injectedFace(ctx).openSettings()
+    expect(listener).toHaveBeenCalledOnce()
   })
 
   it('signs out and reloads the page onto the gate', async () => {
     const assign = vi.fn()
     vi.stubGlobal('window', { location: { assign } })
     const signOut = vi.fn(() => Promise.resolve())
-    const ctx = await baseContext({ scheme: 'light', setTheme: () => {} })
+    const ctx = await baseContext()
     await ctx.plugin({ inject: [...inject], apply }).await()
     declareNavigationUtilities(ctx)
 

@@ -31,7 +31,7 @@ Workspace 与 Session 行遵循 Aeven 菜单的整行 40px 几何、响应式 24
 
 ### Session 导航
 
-每个选中的 Session 都有一个 URL 安全的 `/c/<id>` 路径，Host 的 `session-` id 前缀在生成时去掉、解析时补回。普通选择会压入一条浏览器历史记录，初始 baseline 协调会替换启动记录，后退或前进则重新打开恢复路径所指的 Session。直接加载有效 Session 路径时，会在 Session 与 Workspace baseline 就绪后选中它。若 Session id 未知，现有最近 Workspace 回退运行前会先从地址栏移除它。每次选择都会展现其行，因此通过地址到达的 Session 会像搜索结果一样被展开并滚动到可见区域。
+每个选中的 Session 都有一个 URL 安全的 `/c/<id>` 路径，Host 的 `session-` id 前缀在生成时去掉、解析时补回。普通选择会压入一条浏览器历史记录，初始 baseline 协调会替换启动记录，后退或前进则重新打开恢复路径所指的 Session。直接加载有效 Session 路径时，会在 Session 与 Workspace baseline 就绪后选中它。若 Session id 未知，现有最近 Workspace 回退运行前会先从地址栏移除它。每次选择都会展现其行，因此通过地址到达的 Session 会像搜索结果一样被展开并滚动到可见区域。对话只拥有 `/`、`/c` 与 `/c/…`：在其他界面的地址上（例如 Imagine 的 `/i/<id>`），它不读取 Session、不写入地址，后退或前进到该地址也不会开启新会话。
 
 ### 重排序与视图选项
 

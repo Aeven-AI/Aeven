@@ -12,7 +12,7 @@ import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slo
 // Type-only: pulls the ui-layout SlotMap merge (the frame's corner seat).
 import type {} from '@aeven/client-ui-layout/client'
 import { Avatar } from './Avatar.tsx'
-import { ACCOUNT_ICON, LOGOUT_ICON, MOON_ICON, SETTINGS_ICON } from './icons.ts'
+import { ACCOUNT_ICON, LOGOUT_ICON, SETTINGS_ICON } from './icons.ts'
 import { NS } from './locales.ts'
 import css from './AccountMenu.module.css'
 import '../vendor/aeven-account.css'
@@ -33,10 +33,8 @@ export interface AccountMenuInjected {
   reader: () => AccountReader | undefined
   /** The Aeven account page, or undefined when no web client is configured. */
   accountUrl: () => string | undefined
-  /** Whether the app is currently drawn dark. */
-  nightMode: () => boolean
-  /** Switch the app between its light and dark themes. */
-  setNightMode: (night: boolean) => void
+  /** Open the app's settings panel. */
+  openSettings: () => void
   /** End the Aeven session and return the reader to the sign-in screen. */
   signOut: () => void
 }
@@ -53,11 +51,10 @@ export type AccountMenuProps =
  * @returns the menu, or null when nobody is signed in.
  */
 export function AccountMenu({
-  reader, accountUrl, nightMode, setNightMode, signOut, t,
+  reader, accountUrl, openSettings, signOut, t,
 }: AccountMenuProps) {
   const person = reader()
   const [open, setOpen] = useState(false)
-  const [night, setNight] = useState(nightMode)
   const root = useRef<HTMLDivElement | null>(null)
   const trigger = useRef<HTMLButtonElement | null>(null)
   useDismissOnOutsidePointer(root, open, setOpen)
@@ -71,12 +68,10 @@ export function AccountMenu({
     if (event.key === 'Escape') close()
   }, [close])
 
-  const toggleNight = useCallback(() => {
-    setNight((previous) => {
-      setNightMode(!previous)
-      return !previous
-    })
-  }, [setNightMode])
+  const settings = useCallback(() => {
+    setOpen(false)
+    openSettings()
+  }, [openSettings])
 
   // Nobody signed in means no Aeven authority on this page at all; the shell
   // keeps the shape it has without this plugin.
@@ -127,38 +122,22 @@ export function AccountMenu({
                   : <a className="profile-overview" href={account}>{profile}</a>}
 
                 {account !== undefined && (
-                  <>
-                    <a href={account} className="menu-button" role="menuitem">
-                      <span className="icon" dangerouslySetInnerHTML={{ __html: ACCOUNT_ICON }} />
-                      <span className="txt">{t('account')}</span>
-                    </a>
-                    <a href={account} className="menu-button" role="menuitem">
-                      <span className="icon" dangerouslySetInnerHTML={{ __html: SETTINGS_ICON }} />
-                      <span className="txt">{t('settings')}</span>
-                    </a>
-                  </>
+                  <a href={account} className="menu-button" role="menuitem">
+                    <span className="icon" dangerouslySetInnerHTML={{ __html: ACCOUNT_ICON }} />
+                    <span className="txt">{t('account')}</span>
+                  </a>
                 )}
+
+                <button type="button" className="menu-button" role="menuitem" onClick={settings}>
+                  <span className="icon" dangerouslySetInnerHTML={{ __html: SETTINGS_ICON }} />
+                  <span className="txt">{t('settings')}</span>
+                </button>
 
                 <button type="button" className="menu-button" role="menuitem" onClick={signOut}>
                   <span className="icon" dangerouslySetInnerHTML={{ __html: LOGOUT_ICON }} />
                   <span className="txt">{t('logout')}</span>
                 </button>
 
-                <button
-                  type="button"
-                  className={night ? 'switch-button-icon checked' : 'switch-button-icon'}
-                  role="menuitemcheckbox"
-                  aria-checked={night}
-                  onClick={toggleNight}
-                >
-                  <span className="switch-content">
-                    <span className="icon" dangerouslySetInnerHTML={{ __html: MOON_ICON }} />
-                    <span className="switch-button-txt">{t('nightMode')}</span>
-                  </span>
-                  <span className="switch-display" style={{ backgroundColor: '#000' }}>
-                    <span className="switch-circle" />
-                  </span>
-                </button>
               </div>
             </div>
           </div>

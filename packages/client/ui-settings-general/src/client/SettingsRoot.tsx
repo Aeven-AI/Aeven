@@ -1,6 +1,7 @@
 /**
  * Settings shell root: the sidebar-foot trigger row plus the centered modal
- * panel (figma 501:29947, 1080x700) with the section nav rail. The shell is
+ * panel (figma 501:29947, 1080x700) with the section nav rail, which becomes
+ * a horizontal tab strip under the title row on narrow viewports. The shell is
  * a pure composition face — every piece of text (trigger label, panel title,
  * close label, sections) arrives from registrants through slots; accessible
  * names resolve to that content (trigger: its own text; dialog:
@@ -11,6 +12,7 @@
  * to the step, so a mounted-but-deciding step paints nothing here.
  */
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import clsx from 'clsx'
 import {
   ConnectionIndicator,
@@ -41,9 +43,11 @@ type PanelProps = {
 }
 
 /**
- * The modal layer: full-viewport mask + centered panel. Close paths: the
- * header button, a mask click, and document-level Escape (mounted only while
- * open, so the listener lifetime is the panel's).
+ * The modal layer: full-viewport mask + centered panel, portaled to
+ * `document.body` so it paints above the shell's corner controls and stays
+ * visible while the sidebar that hosts the trigger is collapsed. Close paths:
+ * the header button, a mask click, and document-level Escape (mounted only
+ * while open, so the listener lifetime is the panel's).
  */
 function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelProps) {
   // Entries can unmount underneath the requested id, so the render-time
@@ -63,13 +67,38 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelP
   const closeButton = useRef<HTMLButtonElement | null>(null)
   useEffect(() => { closeButton.current?.focus() }, [])
 
-  return (
+  // The narrow-viewport tab strip scrolls horizontally, so a section opened
+  // by id (onboarding's openSection) can start outside it.
+  const navList = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    navList.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [active])
+
+  // A classic scrollbar takes its width out of the section's right inset; the
+  // padding gives that width back, so the section's controls stay flush with
+  // the close glyph whether or not the section scrolls. The body's width is
+  // the same either way, so the adjustment cannot toggle overflow. Overlay
+  // scrollbars measure 0.
+  const options = useRef<HTMLDivElement | null>(null)
+  const optionsBody = useRef<HTMLDivElement | null>(null)
+  useLayoutEffect(() => {
+    const scroller = options.current!
+    const sync = () => {
+      scroller.style.setProperty('--avn-settings-scrollbar', `${scroller.offsetWidth - scroller.clientWidth}px`)
+    }
+    const observer = new ResizeObserver(sync)
+    observer.observe(scroller)
+    observer.observe(optionsBody.current!)
+    return () => { observer.disconnect() }
+  }, [])
+
+  return createPortal((
     <div className={css.overlay} role="presentation">
       <div className={css.mask} aria-hidden="true" onClick={onClose} />
       <div className={css.panel} role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <nav className={css.nav}>
           <div className={css.navTitle} id={titleId}>{renderSlot('settings.header', {})}</div>
-          <div className={css.navList}>
+          <div ref={navList} className={css.navList}>
             {rows.map(row => (
               <button
                 key={row.id}
@@ -92,13 +121,15 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelP
               <span className={css.hiddenLabel}>{renderSlot('settings.close', {})}</span>
             </button>
           </div>
-          <div className={css.options}>
-            {active !== undefined && renderSlot('settings.section', { close: onClose }, { only: active })}
+          <div ref={options} className={css.options}>
+            <div ref={optionsBody}>
+              {active !== undefined && renderSlot('settings.section', { close: onClose }, { only: active })}
+            </div>
           </div>
         </div>
       </div>
     </div>
-  )
+  ), document.body)
 }
 
 /**
@@ -108,7 +139,8 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelP
  */
 export function SettingsRoot(props: SettingsRootComponentProps) {
   const {
-    wide, reconnect, useConnectionState, useSections, useOnboardingSteps, useSessions, renderSlot, t,
+    wide, reconnect, onOpenRequest, useConnectionState, useSections, useOnboardingSteps, useSessions,
+    renderSlot, t,
   } = props
   const [open, setOpen] = useState(false)
   const [activeId, setActiveId] = useState<string | undefined>(undefined)
@@ -129,6 +161,7 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
     setActiveId(id)
     setOpen(true)
   }, [])
+  useEffect(() => onOpenRequest(() => { setOpen(true) }), [onOpenRequest])
 
   // The ledger tick keeps the nav rows fresh: registrants re-register with
   // freshly localized text on locale change, and the trigger/header/close

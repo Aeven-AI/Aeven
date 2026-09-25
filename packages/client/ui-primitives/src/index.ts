@@ -13,7 +13,13 @@ export type { TextShimmerProps } from './TextShimmer.tsx'
 export { Button } from './Button.tsx'
 export type { ButtonVariant } from './Button.tsx'
 export { Pill } from './Pill.tsx'
+export { SectionHeader } from './SectionHeader.tsx'
+export { HeroShell } from './HeroShell.tsx'
+export type { HeroShellProps } from './HeroShell.tsx'
+export { greetingKeyOf, heroGreeting, readerDisplayName, useHeroGreeting } from './hero-greeting.ts'
+export type { HeroCopyKey, HeroGreetingKey, HeroTranslate } from './hero-greeting.ts'
 export { Spinner } from './Spinner.tsx'
+export { FailMark } from './FailMark.tsx'
 export {
   ActivityCard, ActivityCode, ActivityDetails, ActivityItem, ActivityLink, ActivityMenu, ActivityMessage, ActivityNote,
   ActivityPill,

@@ -10,7 +10,6 @@ export const zh = {
   'account': '账户',
   'settings': '设置',
   'logout': '退出登录',
-  'nightMode': '夜间模式',
 } as const
 
 /** English dictionary, key-identical to the Chinese source of truth. */
@@ -20,7 +19,6 @@ export const en: Record<AccountAevenKey, string> = {
   'account': 'Account',
   'settings': 'Settings',
   'logout': 'Log out',
-  'nightMode': 'Night mode',
 }
 
 /** Key domain of the Aeven account namespace. */

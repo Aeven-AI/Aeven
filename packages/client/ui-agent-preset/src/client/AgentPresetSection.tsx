@@ -14,6 +14,7 @@ import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 import {
   Button, IconBrowseOutline16, IconCopyOutline16, IconFolderOpenOutline16, IconPlusOutline16, IconTrashOutline16, Modal,
+  SectionHeader,
 } from '@aeven/client-ui-primitives'
 import type { SnapshotStore } from '@aeven/client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
@@ -173,6 +174,7 @@ export function AgentPresetSection(props: AgentPresetSectionProps): ReactNode {
     const detail = state.error ?? ''
     return (
       <div className={css.section}>
+        <SectionHeader title={t('nav')} description={t('sectionIntro')} />
         <p className={css.error} role="alert">{`${t('error')} ${detail}`}</p>
         <button type="button" className={css.secondaryButton} onClick={() => { void load() }}>
           {t('retry')}
@@ -206,8 +208,7 @@ export function AgentPresetSection(props: AgentPresetSectionProps): ReactNode {
 
   return (
     <div className={css.section}>
-      <h2 className={css.title}>{t('nav')}</h2>
-      <p className={css.intro}>{t('sectionIntro')}</p>
+      <SectionHeader title={t('nav')} description={t('sectionIntro')} />
       {state.error === null ? null : <p className={css.error} role="alert">{state.error}</p>}
       {([['system', t('builtInGroup')], ['user', t('customGroup')]] as const).map(([trust, heading]) => {
         const group = state.rows

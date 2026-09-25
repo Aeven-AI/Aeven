@@ -43,6 +43,8 @@ The presenter consumes resolved theme snapshots and projects them onto the docum
 
 One `register()` call contributes `AppFrame` into the runtime's built-in `'root'` slot and, in the same breath, declares the four child slots (`sidebar`, `conversation`, `details`, `shell.overlay`), seats the layout store (panel geometry), and wires the `ctx.layout` panel-action service. The layout store starts the sidebar at its default width and details closed, and persists the sidebar width alone under `avn.layout.panels` — a closed sidebar (width 0) reloads closed, while details and the narrow-viewport pair start fresh. AppFrame always mounts the conversation and details columns; a connected Session renders through `SessionProvider`. It projects the selected Session title over the build-configured product title or the localized `common.brand.localBuild` fallback, so locale revisions update document metadata with the root entry. The theme presenter is a second effect: pure DOM writes from resolved snapshots — initial state through the getter once, then event-driven only, with no React path. It applies palette, font-size, and token variables before measuring the rendered background as the single color authority.
 
+`ctx.layout.surfaces` routes full-page surfaces: a surface registers the one-segment path root it owns (Imagine registers `/i`), and while the address is under that root AppFrame renders the keyed `surface` slot under the surface's id in place of `conversation`, with the Session-owned `details` and `rightbar` columns read as closed. A malformed root or a colliding id or root throws at registration.
+
 </details>
 
 -----

@@ -45,6 +45,7 @@ The kernel packages boot and serve the page; the UI feature packages present it.
 | [`ui-workspace/`](ui-workspace/README.md) | Provides workspace selection and creation surfaces | — |
 | [`ui-conversation/`](ui-conversation/README.md) | Presents the active conversation and its input surface | — |
 | [`ui-chat/`](ui-chat/README.md) | Projects and renders the Chat conversation target | — |
+| [`ui-imagine/`](ui-imagine/README.md) | Shows the Imagine page at `/i/<id>` in place of the chat | — |
 | [`ui-auth-aeven/`](ui-auth-aeven/README.md) | Presents the Aeven sign-in screens and restores the session before the plugin graph boots | — |
 | [`ui-account-aeven/`](ui-account-aeven/README.md) | Shows the signed-in Aeven reader's avatar and account menu in the Session header | — |
 | [`ui-approval/`](ui-approval/README.md) | Presents approval requests and returns user decisions | — |

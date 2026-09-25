@@ -98,7 +98,7 @@ export function SidebarRoot({
         </button>
 
         <div className={css.header}>
-          <Tooltip label={collapsed ? t('toggle.open') : t('toggle.collapse')} side="bottom-start">
+          <Tooltip label={collapsed ? t('toggle.open') : t('toggle.collapse')} side="bottom" anchor="icon">
             <button
               type="button"
               className={css.toggle}

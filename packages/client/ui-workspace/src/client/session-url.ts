@@ -5,6 +5,17 @@ import type { SessionId } from '@aeven/session/types'
 const SESSION_PATH_PREFIX = '/c/'
 
 /**
+ * The chat's address space: the root and `/c` with every path beneath it.
+ * Every other client route belongs to another surface (Imagine's `/i`), whose
+ * address the chat neither reads a Session from nor rewrites.
+ * @param pathname - the address bar's pathname.
+ * @returns true when the chat owns the address.
+ */
+function chatOwns(pathname: string): boolean {
+  return pathname === '/' || pathname === '/c' || pathname.startsWith(SESSION_PATH_PREFIX)
+}
+
+/**
  * The Host mints every Session id as `session-<uuid>`, and repeating that word
  * in a path already meaning "conversation" makes the address twice as long as
  * it reads. The prefix is dropped on the way out and restored on the way in,
@@ -37,11 +48,13 @@ export function sessionPathOf(sessionId: string): string {
 
 /** Address-bar operations consumed by Workspace navigation policy. */
 export interface SessionUrlNavigation {
+  /** Whether the current address is the chat's (`/`, `/c/…`) rather than another surface's. */
+  ownsAddress(): boolean
   /** Read the Session requested by the current URL; an address without a Host-minted `<uuid>` id requests none. */
   read(): SessionId | undefined
-  /** Add a user-visible Session transition to browser history. */
+  /** Add a user-visible Session transition to browser history; a no-op on another surface's address. */
   push(sessionId: SessionId | undefined): void
-  /** Rewrite the current history entry during initial reconciliation. */
+  /** Rewrite the current history entry during initial reconciliation; a no-op on another surface's address. */
   replace(sessionId: SessionId | undefined): void
   /** Observe browser Back and Forward navigation. */
   subscribe(listener: () => void): () => void
@@ -73,6 +86,10 @@ export class BrowserSessionUrlNavigation implements SessionUrlNavigation {
   /** The browser face for this operation. */
   private get browser(): SessionUrlWindow {
     return this.window()
+  }
+
+  ownsAddress(): boolean {
+    return chatOwns(new URL(this.browser.location.href).pathname)
   }
 
   read(): SessionId | undefined {
@@ -112,7 +129,7 @@ export class BrowserSessionUrlNavigation implements SessionUrlNavigation {
     method: 'pushState' | 'replaceState',
     sessionId: SessionId | undefined,
   ): void {
-    if (this.read() === sessionId) return
+    if (!this.ownsAddress() || this.read() === sessionId) return
     const next = new URL(this.browser.location.href)
     next.pathname = sessionId === undefined ? '/' : sessionPathOf(sessionId)
     this.browser.history[method](null, '', `${next.pathname}${next.search}${next.hash}`)

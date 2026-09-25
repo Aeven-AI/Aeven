@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import type {
-  PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
+  HostObservable, InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
 } from '@aeven/client-ui-slots'
 import {
   clampRightbar, clampWidth, DETAILS_MAX, DETAILS_MIN, SIDEBAR_AUTO_COLLAPSE,
@@ -40,12 +40,21 @@ function matchNarrow(): MediaQueryList | undefined {
   return typeof window.matchMedia === 'function' ? window.matchMedia(NARROW_QUERY) : undefined
 }
 
-/** Full composed props: runtime share + child-slot render share + store share. */
+/** The root entry's injected share: the surface router as a hook source. */
+export type AppFrameInjected = {
+  hooks: {
+    /** Id of the surface owning the current path; undefined leaves the column to the conversation. */
+    surface: HostObservable<string | undefined>
+  }
+}
+
+/** Full composed props: runtime share + child-slot render share + store share + injected share. */
 export type AppFrameProps =
   & PropsRuntime<'root'>
-  & PropsRenderSlots<'sidebar' | 'conversation' | 'details' | 'rightbar' | 'shell.overlay' | 'shell.corner'>
+  & PropsRenderSlots<'sidebar' | 'conversation' | 'surface' | 'details' | 'rightbar' | 'shell.overlay' | 'shell.corner'>
   & PropsStore<ReturnType<typeof createLayoutStore>>
   & PropsLocale<'common'>
+  & InjectFace<AppFrameInjected>
 
 /** Center column grid item (session-body building block). */
 function CenterColumn(props: { children?: ReactNode }) {
@@ -128,9 +137,16 @@ export function AppFrame({
   actions,
   renderSlot,
   SessionProvider,
+  useSurface,
   t,
 }: AppFrameProps) {
   const panels = useStore(s => s)
+  // A surface page replaces the conversation; the details and right sidebar
+  // columns belong to the current chat Session, so they read as closed
+  // while it shows, and reopen at their stored state when the reader
+  // returns to the chat.
+  const surface = useSurface(s => s)
+  const onSurface = surface !== undefined
   const currentSession = useSessions((s) => {
     const current = s.current
     return current !== undefined && s.byId[current]?.blank === false ? current : undefined
@@ -140,10 +156,11 @@ export function AppFrame({
   // its control writes under this id; `currentSession` above is narrower
   // because the details column needs a session with a transcript to inspect.
   const rightbarSession = useSessions(s => s.current)
-  const documentTitle = useSessions((s) => {
+  const sessionTitle = useSessions((s) => {
     const current = s.current
     return current === undefined ? undefined : s.byId[current]?.title
   })
+  const documentTitle = onSurface ? undefined : sessionTitle
   const [narrow, setNarrow] = useState(() => matchNarrow()?.matches ?? false)
   const frameRef = useRef<HTMLDivElement | null>(null)
   const lastSession = useRef(currentSession)
@@ -177,7 +194,7 @@ export function AppFrame({
   const sidebarWidth = sidebarCollapsed
     ? 0
     : panels.sidebar === 0 ? SIDEBAR_DEFAULT : clampWidth(panels.sidebar, SIDEBAR_MIN, SIDEBAR_MAX)
-  const detailsWidth = currentSession === undefined || panels.details === 0
+  const detailsWidth = onSurface || currentSession === undefined || panels.details === 0
     ? 0
     : clampWidth(panels.details, DETAILS_MIN, DETAILS_MAX)
   const detailsRef = useRef(detailsWidth)
@@ -192,7 +209,7 @@ export function AppFrame({
   // through them, and the window it was stored from may have been wider than
   // this one. Clamping on the way out keeps a reload from opening a panel
   // wider than the frame it reopens in.
-  const rightbarShown = rightbarSession !== undefined && panels.rightbar[rightbarSession]?.shown === true
+  const rightbarShown = !onSurface && rightbarSession !== undefined && panels.rightbar[rightbarSession]?.shown === true
   // The width the column opens at, published even while it is collapsed, so
   // its content keeps that layout through the slide instead of re-wrapping.
   const rightbarOpenWidth = clampRightbar(panels.rightbarWidth, typeof window === 'undefined' ? 0 : window.innerWidth)
@@ -281,7 +298,9 @@ export function AppFrame({
             the shell's own pending rendering. The conversation
             is session-maybe; SessionProvider withholds the strict details
             entry while no session is current. */}
-        <CenterColumn>{renderSlot('conversation', {})}</CenterColumn>
+        <CenterColumn>
+          {surface === undefined ? renderSlot('conversation', {}) : renderSlot('surface', {}, { entryKey: surface })}
+        </CenterColumn>
         <DetailsColumn>
           <SessionProvider>{renderSlot('details', {})}</SessionProvider>
         </DetailsColumn>

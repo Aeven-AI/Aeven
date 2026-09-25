@@ -46,6 +46,7 @@
   flex-shrink: 0;
 }
 
+
 /* Cordis lifecycle tools retain their generic row mechanics while carrying a
    shared product accent and tool-owned action title. */
 .root[data-tool^='cordis_'] .leading,
@@ -107,10 +108,10 @@
 }
 
 /* Hovering a row lifts its title and summary to the primary label colour,
-   the cue that the whole row is the disclosure target. Error and notice
-   summaries keep their state colour. */
+   the cue that the whole row is the disclosure target. A notice summary
+   keeps its secondary tone. */
 .row:hover .title,
-.row:hover .summary:not(.errorSummary):not(.noticeSummary),
+.row:hover .summary:not(.noticeSummary),
 .row:hover .summarySuffix,
 .row:hover .fileLink {
   color: var(--dsw-alias-label-primary);
@@ -162,11 +163,6 @@
 .fileLink:hover {
   color: var(--dsw-alias-label-primary);
   text-decoration-color: currentColor;
-}
-
-/* Error row's collapsed summary: the failure's first line in the error color. */
-.errorSummary {
-  color: var(--dsw-alias-state-error-primary);
 }
 
 /* Notice row's collapsed summary: the same failure line in secondary label
@@ -278,11 +274,6 @@
   white-space: pre-wrap;
   word-break: break-word;
   color: var(--dsw-alias-label-secondary);
-}
-
-/* A failed call's OUT text shares the collapsed summary's error color. */
-.ioText[data-error] {
-  color: var(--dsw-alias-state-error-primary);
 }
 
 /* The block-shaped expanded bodies: the code variant's run_code program

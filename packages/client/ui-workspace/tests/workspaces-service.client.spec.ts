@@ -166,21 +166,36 @@ class FakeSessionUrl implements SessionUrlNavigation {
   readonly pushes: Array<SessionId | undefined> = []
   readonly replacements: Array<SessionId | undefined> = []
   private readonly listeners = new Set<() => void>()
+  /** False while the address is another surface's, as `/i/<id>` is. */
+  private owned = true
 
   constructor(private current?: SessionId) {}
 
-  read(): SessionId | undefined {
-    return this.current
+  ownsAddress(): boolean {
+    return this.owned
   }
 
+  read(): SessionId | undefined {
+    return this.owned ? this.current : undefined
+  }
+
+  // Like the browser projection, writes leave another surface's address alone.
   push(sessionId: SessionId | undefined): void {
+    if (!this.owned) return
     this.current = sessionId
     this.pushes.push(sessionId)
   }
 
   replace(sessionId: SessionId | undefined): void {
+    if (!this.owned) return
     this.current = sessionId
     this.replacements.push(sessionId)
+  }
+
+  /** Browser Back/Forward onto another surface's address. */
+  leave(): void {
+    this.owned = false
+    for (const listener of [...this.listeners]) listener()
   }
 
   subscribe(listener: () => void): () => void {
@@ -189,6 +204,7 @@ class FakeSessionUrl implements SessionUrlNavigation {
   }
 
   navigate(sessionId: SessionId | undefined): void {
+    this.owned = true
     this.current = sessionId
     for (const listener of [...this.listeners]) listener()
   }
@@ -309,6 +325,27 @@ describe('UiWorkspaceService', () => {
     await routed.ctx.fiber.dispose()
     routed.sessionUrl.navigate(first.id)
     expect(routed.sessions.open).toHaveBeenCalledTimes(3)
+  })
+
+  it('leaves another surface\'s address alone and resumes on the chat\'s', () => {
+    const first = summary('first')
+    const second = summary('second')
+    const routed = bench({
+      sessions: sessionState([first, second], first.id),
+      workspaces: workspaceState([workspace('one', [first.id, second.id])]),
+    })
+    expect(routed.sessionUrl.replacements).toEqual([first.id])
+
+    // Back into Imagine: no New Session starts, and a selection change made
+    // meanwhile writes no chat address over it.
+    routed.sessionUrl.leave()
+    routed.sessions.open(second.id)
+    expect(routed.sessions.create).not.toHaveBeenCalled()
+    expect(routed.sessionUrl.pushes).toEqual([])
+
+    // Forward to a chat address: navigation follows it again.
+    routed.sessionUrl.navigate(first.id)
+    expect(routed.sessions.open).toHaveBeenLastCalledWith(first.id)
   })
 
   it('creates the chat an opening address names before any Session has it', async () => {

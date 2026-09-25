@@ -308,6 +308,10 @@
     - id: ui-chat
       name: '@aeven/client-ui-chat'
 
+    # Imagine: the /i/<id> page that takes the center column in place of the chat.
+    - id: ui-imagine
+      name: '@aeven/client-ui-imagine'
+
     # Official occupants for the generic sidebar and conversation brand slots.
     - id: ui-brand-official
       name: '@aeven/client-ui-brand-official'

@@ -62,6 +62,23 @@ describe('BrowserSessionUrlNavigation', () => {
     expect(browser.calls.at(-1)).toEqual({ method: 'replace', url: '/?fixture#turn' })
   })
 
+  it('owns only the root and /c paths, and writes nothing over another surface\'s address', () => {
+    const browser = new FakeWindow()
+    const navigation = new BrowserSessionUrlNavigation(() => browser)
+    for (const [path, owned] of [
+      ['/', true], ['/c', true], ['/c/one', true], ['/i', false], ['/i/one', false], ['/cx', false],
+    ] as const) {
+      browser.navigate(path)
+      expect(navigation.ownsAddress()).toBe(owned)
+    }
+
+    browser.navigate('/i/one')
+    navigation.push(SessionId('session-two'))
+    navigation.replace(undefined)
+    expect(browser.calls).toEqual([])
+    expect(navigation.read()).toBeUndefined()
+  })
+
   it('follows Popstate and ignores malformed or nested Session paths', () => {
     const browser = new FakeWindow()
     const navigation = new BrowserSessionUrlNavigation(() => browser)

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useEffect, useState } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { makeTranslate } from '@aeven/client-test-runtime'
@@ -7,9 +7,33 @@ import type { SettingsRootComponentProps } from '../src/client/shell-contract.ts
 import { SettingsRoot } from '../src/client/SettingsRoot.tsx'
 import { en } from '../src/client/locales.ts'
 
+// jsdom has no scrollIntoView; the panel calls it on the active nav cell.
+const scrollIntoView = vi.fn()
+
+/** jsdom has no ResizeObserver; the panel measures its scrollbar from one. */
+const resizeObservers: { callback: ResizeObserverCallback; targets: Element[]; disconnected: boolean }[] = []
+class ResizeObserverStub {
+  private readonly record: (typeof resizeObservers)[number]
+  constructor(callback: ResizeObserverCallback) {
+    this.record = { callback, targets: [], disconnected: false }
+    resizeObservers.push(this.record)
+  }
+
+  observe(target: Element) { this.record.targets.push(target) }
+  disconnect() { this.record.disconnected = true }
+}
+
+beforeEach(() => {
+  Element.prototype.scrollIntoView = scrollIntoView
+  scrollIntoView.mockClear()
+  resizeObservers.length = 0
+  vi.stubGlobal('ResizeObserver', ResizeObserverStub)
+})
+
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
+  vi.unstubAllGlobals()
 })
 
 type Row = { id: string; order: number; label: string }
@@ -55,6 +79,14 @@ function mount({
   const listeners = new Set<() => void>()
   const connectionListeners = new Set<() => void>()
   const reconnect = vi.fn()
+  const openListeners = new Set<() => void>()
+  const onOpenRequest = (listener: () => void) => {
+    openListeners.add(listener)
+    return () => { openListeners.delete(listener) }
+  }
+  const requestOpen = () => {
+    act(() => { for (const fn of [...openListeners]) fn() })
+  }
   const renderSlot = vi.fn(
     ((key: string, _owner: unknown, opts?: { only?: string }) => {
       if (key === 'settings.section') return <div data-testid={`section-${opts?.only ?? 'all'}`} />
@@ -75,6 +107,7 @@ function mount({
     useWorkspaces: unusedHook,
     wide,
     reconnect,
+    onOpenRequest,
     t: makeTranslate(en),
     useConnectionState: (select) => {
       const [, force] = useState(0)
@@ -110,7 +143,7 @@ function mount({
       for (const fn of [...connectionListeners]) fn()
     })
   }
-  return { view, renderSlot, bump, listeners, reconnect, setConnectionState }
+  return { view, renderSlot, bump, listeners, reconnect, setConnectionState, requestOpen, openListeners }
 }
 
 function openPanel() {
@@ -130,6 +163,16 @@ describe('SettingsRoot trigger', () => {
     fireEvent.click(trigger)
     expect(screen.getByRole('dialog')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Settings', expanded: true })).toBeTruthy()
+  })
+
+  it('opens the panel on a settings/open request and stops listening on unmount', () => {
+    const { view, requestOpen, openListeners } = mount()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    requestOpen()
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(screen.getByTestId('section-general')).toBeTruthy()
+    view.unmount()
+    expect(openListeners.size).toBe(0)
   })
 
   it('hands the closed state to the trigger seat', () => {
@@ -242,6 +285,30 @@ describe('SettingsPanel navigation', () => {
     expect(screen.getByRole('button', { name: 'General' }).getAttribute('aria-current')).toBe('true')
     expect(screen.getByRole('button', { name: 'Models' }).getAttribute('aria-current')).toBeNull()
     expect(screen.getByTestId('section-general')).toBeTruthy()
+  })
+
+  it('scrolls the active nav cell into view on open and on selection', () => {
+    mount()
+    openPanel()
+    expect(scrollIntoView.mock.contexts).toEqual([screen.getByRole('button', { name: 'General' })])
+    fireEvent.click(screen.getByRole('button', { name: 'Agent presets' }))
+    expect(scrollIntoView.mock.contexts.at(-1)).toBe(screen.getByRole('button', { name: 'Agent presets' }))
+    expect(scrollIntoView).toHaveBeenLastCalledWith({ block: 'nearest', inline: 'nearest' })
+  })
+
+  it('returns a classic scrollbar\'s width to the section\'s right inset', () => {
+    mount()
+    openPanel()
+    const [observer] = resizeObservers
+    const [scroller, body] = observer!.targets
+    expect(body!.parentElement).toBe(scroller)
+    expect(body!.contains(screen.getByTestId('section-general'))).toBe(true)
+    Object.defineProperty(scroller, 'offsetWidth', { value: 600 })
+    Object.defineProperty(scroller, 'clientWidth', { value: 585, configurable: true })
+    act(() => { observer!.callback([], observer as unknown as ResizeObserver) })
+    expect((scroller as HTMLElement).style.getPropertyValue('--avn-settings-scrollbar')).toBe('15px')
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(observer!.disconnected).toBe(true)
   })
 
   it('gives every section a nav glyph, distinct for the ids the shell knows', () => {

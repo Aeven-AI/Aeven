@@ -375,7 +375,9 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       )
     }
     const navigateFromUrl = (): void => {
-      if (disposed || !urlInitialized) return
+      // Another surface's address selects no chat: Back into Imagine must
+      // not start a New Session.
+      if (disposed || !urlInitialized || !this.sessionUrl.ownsAddress()) return
       const sessions = this.sessions.list.getSnapshot()
       if (sessions.phase !== 'ready') return
       const requested = this.sessionUrl.read()

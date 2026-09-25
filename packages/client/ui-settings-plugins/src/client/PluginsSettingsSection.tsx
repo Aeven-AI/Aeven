@@ -1,6 +1,7 @@
 /** Plugins settings section: localized tabs around feature-owned pages. */
 
 import { useEffect, useId, useRef, useState } from 'react'
+import { SectionHeader } from '@aeven/client-ui-primitives'
 import type {
   HostObservable, InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime,
 } from '@aeven/client-ui-slots'
@@ -51,8 +52,7 @@ export function PluginsSettingsSection({ t, renderSlot, useTabs }: PluginsSettin
 
   return (
     <div className={css.section}>
-      <h2 className={css.heading}>{t('title')}</h2>
-      <p className={css.intro}>{t('intro')}</p>
+      <SectionHeader title={t('title')} description={t('intro')} />
       {rows.length === 0 ? <p className={css.empty}>{t('empty')}</p> : (
         <>
           <div className={css.tabs} role="tablist" aria-label={t('tabs')}>

@@ -61,11 +61,6 @@
   white-space: nowrap;
 }
 
-.summary[data-error],
-.body[data-error] {
-  color: var(--dsw-alias-state-error-primary);
-}
-
 .body {
   max-height: 260px;
   margin: 4px 0 4px 4px;

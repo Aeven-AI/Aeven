@@ -1,7 +1,7 @@
 import { useMemo, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  CodeBlock, DiffBlock, DisclosureRow, IconInspectOutline12, ReadBlock, SearchBlock, StateDot, TerminalBlock, WebBlock,
+  CodeBlock, DiffBlock, DisclosureRow, FailMark, IconInspectOutline12, ReadBlock, SearchBlock, TerminalBlock, WebBlock,
   diffTotals,
 } from '@aeven/client-ui-primitives'
 import type { TranslateNS } from '@aeven/client-ui-slots'
@@ -47,11 +47,11 @@ export interface ToolRowProps {
   /** Error first line shown as the collapsed summary on an error row; null/absent = keep `summary`. */
   errorSummary?: string | null | undefined
   /**
-   * Present the failure as a muted notice instead of the error alarm: a
-   * refusal whose remedy is a documented next step the session performs
-   * itself. The row keeps its `error` state, its summary text, and its
-   * expanded output; only the leading dot and the collapsed line soften.
-   * Absent/false = the ordinary error row.
+   * Present the failure as a muted notice: a refusal whose remedy is a
+   * documented next step the session performs itself. The row keeps its
+   * `error` state, its grey failure mark, and its expanded output; only the
+   * collapsed line steps down to the secondary tone. Absent/false = the
+   * ordinary error row.
    */
   notice?: boolean | undefined
   /** Terminal card; card fields are mutually exclusive and replace text sections. */
@@ -81,15 +81,17 @@ export interface ToolRowProps {
   images?: ReactNode | null | undefined
 }
 
-function leadingFor(state: ToolRowState, icon: ReactNode, notice: boolean): ReactNode {
+/** A failed or interrupted call's leading mark: a quiet grey ring at the tool
+ *  glyphs' size; the visually hidden status names which state it is. */
+function leadingFor(state: ToolRowState, icon: ReactNode): ReactNode {
   switch (state) {
-    case 'error': return <StateDot state={notice ? 'warning' : 'error'} />
-    case 'stopped': return <StateDot state="warning" />
+    case 'error':
+    case 'stopped': return <FailMark />
     default: return icon
   }
 }
 
-/** Visually hidden run-state label: the StateDot and the CSS sweep are both
+/** Visually hidden run-state label: the failure mark and the CSS sweep are both
  *  aria-hidden / colour-only, so assistive technology needs this text to know a
  *  row is running, failed, or interrupted. null in the ok state (the icon and
  *  summary already describe a settled row). */
@@ -193,7 +195,7 @@ export function ToolRow({
         leadingClassName={css.leading}
         titleClassName={css.title}
         chevronClassName={css.chevron}
-        icon={leadingFor(state, icon, notice)}
+        icon={leadingFor(state, icon)}
         title={title}
         open={open}
         expandable={expandable}
@@ -216,7 +218,7 @@ export function ToolRow({
               </button>
             ) : (
               <span
-                className={clsx(css.summary, failureLine !== null && (notice ? css.noticeSummary : css.errorSummary))}
+                className={clsx(css.summary, failureLine !== null && notice && css.noticeSummary)}
               >
                 {summaryText}
               </span>

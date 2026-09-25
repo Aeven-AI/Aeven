@@ -26,6 +26,8 @@ const selectedSession = { current: 's-test' as SessionId | undefined }
 const selectedSessionBlank = { current: false }
 const selectedSessionTitle = { current: undefined as string | undefined }
 const workspacesReady = { current: true }
+// The surface owning the current path; undefined leaves the center to the conversation.
+const currentSurface = { current: undefined as string | undefined }
 type AttentionSnapshot = Parameters<Parameters<AppFrameProps['useSessionPendingInteraction']>[0]>[0]
 const noAttention: AttentionSnapshot = new Map()
 const useSessionPendingInteraction: AppFrameProps['useSessionPendingInteraction'] = selector => selector(noAttention)
@@ -63,8 +65,9 @@ function mountFrame() {
   window.innerWidth = frameWidth // first-render viewport source before the observer fires
   const instance = createLayoutStore().create()
   const slotCalls: { key: string; props: unknown }[] = []
-  const renderSlot = ((key: string, owner: object) => {
+  const renderSlot = ((key: string, owner: object, opts?: { entryKey?: string }) => {
     slotCalls.push({ key, props: owner })
+    if (key === 'surface') return <div data-testid="surface-content" data-surface={opts?.entryKey} />
     if (key === 'sidebar') {
       const sidebar = owner as { width: number }
       return <div data-testid="sidebar-content" data-width={sidebar.width} />
@@ -108,6 +111,7 @@ function mountFrame() {
       useSessionPendingInteraction={useSessionPendingInteraction}
       useWorkspaces={((sel: (s: WorkspaceSnapshot) => unknown) => sel(workspaceState)) as never}
       SessionProvider={SessionProviderStub}
+      useSurface={sel => sel(currentSurface.current)}
       t={key => key === 'brand.localBuild' ? 'Æven' : key}
     />
   )
@@ -143,6 +147,7 @@ beforeEach(() => {
   selectedSessionBlank.current = false
   selectedSessionTitle.current = undefined
   workspacesReady.current = true
+  currentSurface.current = undefined
   vi.useFakeTimers()
   // jsdom implements no matchMedia; the frame reads the narrow breakpoint from
   // it. `matches` is a getter so a frameWidth change is visible to the next
@@ -178,6 +183,34 @@ afterEach(() => {
 })
 
 describe('AppFrame', () => {
+  it('gives the center column to the surface owning the path and closes the Session columns', () => {
+    vi.stubEnv('AVN_CLIENT_TITLE', 'Product')
+    selectedSessionTitle.current = 'Chat'
+    const { instance, frame, rerenderFrame } = mountFrame()
+    act(() => {
+      instance.actions.openDetails()
+      instance.actions.openRightbar('s-test', frameWidth)
+    })
+    expect(frame.querySelector('[data-testid="center-content"]')).not.toBeNull()
+    expect(document.title).toBe('Chat — Product')
+
+    currentSurface.current = 'imagine'
+    act(() => { rerenderFrame() })
+    expect(frame.querySelector('[data-testid="center-content"]')).toBeNull()
+    expect(frame.querySelector<HTMLElement>('[data-testid="surface-content"]')?.dataset.surface).toBe('imagine')
+    expect(frame.style.getPropertyValue('--avn-frame-details-width')).toBe('0px')
+    expect(frame.style.getPropertyValue('--avn-frame-rightbar-width')).toBe('0px')
+    expect(frame.querySelector('[data-side="details"]')).toBeNull()
+    expect(frame.querySelector('[data-side="rightbar"]')).toBeNull()
+    expect(document.title).toBe('Product')
+
+    // Back on the chat, the Session's columns reopen as the reader left them.
+    currentSurface.current = undefined
+    act(() => { rerenderFrame() })
+    expect(Number.parseFloat(frame.style.getPropertyValue('--avn-frame-details-width'))).toBeGreaterThan(0)
+    expect(Number.parseFloat(frame.style.getPropertyValue('--avn-frame-rightbar-width'))).toBeGreaterThan(0)
+  })
+
   it('localizes the product title when the build does not supply one', () => {
     mountFrame()
     expect(document.title).toBe('Æven')

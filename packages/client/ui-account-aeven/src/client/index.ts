@@ -12,7 +12,7 @@ import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-layout/client'
 import type {} from '@aeven/client-ui-renderer/client'
 import type {} from '@aeven/client-ui-session/client'
-import type {} from '@aeven/client-ui-theme/client'
+import type {} from '@aeven/client-ui-settings/client'
 import { AccountMenu, type AccountMenuInjected, type AccountReader } from './AccountMenu.tsx'
 import { en, NS, zh, type AccountAevenKey } from './locales.ts'
 
@@ -25,8 +25,8 @@ declare module '@aeven/client-ui-slots' {
   }
 }
 
-/** Required services for locale registration, theme reads, and the header seat. */
-export const inject = ['slots', 'locale', 'theme']
+/** Required services for locale registration and the header seat. */
+export const inject = ['slots', 'locale']
 
 /** Page global the authentication gate states the reader on. */
 interface ReaderScope {
@@ -73,8 +73,7 @@ export function apply(ctx: ClientContext): void {
   const injected = (): AccountMenuInjected => ({
     reader: currentReader,
     accountUrl,
-    nightMode: () => ctx.theme.getTheme().active.colorScheme === 'dark',
-    setNightMode: (night) => { ctx.theme.setTheme(night ? 'dark' : 'light') },
+    openSettings: () => { ctx.emit('settings/open') },
     // A full load, not a route change: signing out invalidates the credential
     // every plugin was booted with, so the page starts again at the gate.
     signOut: () => {

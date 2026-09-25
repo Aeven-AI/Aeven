@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { LayoutController } from '@aeven/client-ui-layout/src/client/service.ts'
 import type { PanelActions } from '@aeven/client-ui-layout/src/client/service.ts'
+import type { ISurfaces } from '@aeven/client-ui-layout/src/client/surfaces.ts'
+
+const surfaces = {} as ISurfaces
 
 function fakePanels(): PanelActions {
   return {
@@ -19,7 +22,7 @@ function fakePanels(): PanelActions {
 
 describe('LayoutController', () => {
   it('forwards the three panel actions to the attached set', () => {
-    const service = new LayoutController()
+    const service = new LayoutController(surfaces)
     const panels = fakePanels()
     service.attachPanels(panels)
 
@@ -35,14 +38,14 @@ describe('LayoutController', () => {
   })
 
   it('fails loud before the root entry wired its actions', () => {
-    const service = new LayoutController()
+    const service = new LayoutController(surfaces)
     expect(() => { service.toggleSidebar() }).toThrow(/panel actions not wired/)
     expect(() => { service.openDetails() }).toThrow(/panel actions not wired/)
     expect(() => { service.closeDetails() }).toThrow(/panel actions not wired/)
   })
 
   it('re-attach overwrites the stale action set (entry re-register)', () => {
-    const service = new LayoutController()
+    const service = new LayoutController(surfaces)
     const stale = fakePanels()
     const fresh = fakePanels()
     service.attachPanels(stale)
@@ -55,7 +58,7 @@ describe('LayoutController', () => {
   })
 
   it('names the session and the frame width on a right sidebar toggle', () => {
-    const service = new LayoutController()
+    const service = new LayoutController(surfaces)
     const panels = fakePanels()
     service.attachPanels(panels)
 

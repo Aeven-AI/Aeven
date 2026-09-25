@@ -11,14 +11,20 @@
  */
 
 import { useEffect, useState } from 'react'
-import type { ConversationSlotProps } from '../contract/slots.ts'
-
-/** The owner's locale seat, which the greeting copy is read through. */
-type HeroTranslate = ConversationSlotProps['t']
 
 /** The four hour-bounded greetings, in the Aeven client's own order. */
 export type HeroGreetingKey =
   | 'hero.greetingMorning' | 'hero.greetingAfternoon' | 'hero.greetingEvening' | 'hero.greetingNight'
+
+/** Every key the hero reads: the product name and the greeting templates. */
+export type HeroCopyKey = 'brand.localBuild' | 'hero.greeting' | 'hero.greetingNamed' | HeroGreetingKey
+
+/**
+ * The hero's copy seat. The keys live in the chat's `conversation` namespace
+ * (and `common` for the product name); a caller passes a translate function
+ * bound there, such as its own `t` seat or `ctx.locale.bind('conversation')`.
+ */
+export type HeroTranslate = (key: HeroCopyKey, params?: Record<string, unknown>) => string
 
 /** The part of the page-stated reader the greeting reads. */
 interface ReaderScope {
@@ -49,7 +55,7 @@ export function readerDisplayName(): string | undefined {
 
 /**
  * Compose the hero's greeting line.
- * @param t - the owner's locale seat.
+ * @param t - the hero's copy seat.
  * @param now - the clock to read; a test pins the boundaries with it.
  * @returns the greeting, naming the reader when the page states one.
  */
@@ -73,7 +79,7 @@ const GREETING_TICK_MS = 60_000
  * back to the tab re-reads it — so a machine woken from sleep or moved to
  * another timezone greets by the hour the reader is in, not the one the page
  * opened with.
- * @param t - the owner's locale seat.
+ * @param t - the hero's copy seat.
  * @returns the greeting, naming the reader when the page states one.
  */
 export function useHeroGreeting(t: HeroTranslate): string {

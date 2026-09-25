@@ -20,7 +20,7 @@ export function FullscreenButton({ useSessions, rightbarCollapsed, fullscreen, t
   if (sessionId === undefined) return null
   const label = active ? t('fullscreen.exit') : t('fullscreen.enter')
   return (
-    <Tooltip label={label} side="bottom" disabled={rightbarCollapsed}>
+    <Tooltip label={label} side="bottom" anchor="icon" disabled={rightbarCollapsed}>
       <button
         type="button"
         className={css.toggle}

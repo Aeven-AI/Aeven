@@ -7,8 +7,7 @@ function props(overrides: Partial<AccountMenuProps> = {}): AccountMenuProps {
   return {
     reader: () => ({ userId: 'u-1', displayName: 'Ollie' }),
     accountUrl: () => 'https://aeven.test/account/',
-    nightMode: () => false,
-    setNightMode: () => {},
+    openSettings: () => {},
     signOut: () => {},
     t: (key: string) => key,
     ...overrides,
@@ -36,12 +35,11 @@ describe('Aeven account menu', () => {
     expect(screen.queryByText('Ollie')).toBeNull()
   })
 
-  it('links the reader, Account, and Settings at the configured account page', () => {
+  it('links the reader and Account at the configured account page', () => {
     render(<AccountMenu {...props()} />)
     fireEvent.click(screen.getByLabelText('trigger.aria'))
     const links = [...document.querySelectorAll('a')].map(a => a.getAttribute('href'))
     expect(links).toEqual([
-      'https://aeven.test/account/',
       'https://aeven.test/account/',
       'https://aeven.test/account/',
     ])
@@ -52,6 +50,7 @@ describe('Aeven account menu', () => {
     fireEvent.click(screen.getByLabelText('trigger.aria'))
     expect(document.querySelectorAll('a')).toHaveLength(0)
     expect(screen.getByText('Ollie')).toBeDefined()
+    expect(screen.getByText('settings')).toBeDefined()
     expect(screen.getByText('logout')).toBeDefined()
   })
 
@@ -63,23 +62,19 @@ describe('Aeven account menu', () => {
     expect(signOut).toHaveBeenCalledOnce()
   })
 
-  it('switches the app theme from the night-mode row and reports its state', () => {
-    const setNightMode = vi.fn()
-    render(<AccountMenu {...props({ setNightMode })} />)
+  it('closes itself and opens the app settings from its Settings row', () => {
+    const openSettings = vi.fn()
+    render(<AccountMenu {...props({ openSettings })} />)
     fireEvent.click(screen.getByLabelText('trigger.aria'))
-    const toggle = screen.getByText('nightMode').closest('button')
-    expect(toggle?.getAttribute('aria-checked')).toBe('false')
-    fireEvent.click(toggle as HTMLElement)
-    expect(setNightMode).toHaveBeenCalledWith(true)
-    expect(toggle?.getAttribute('aria-checked')).toBe('true')
-    fireEvent.click(toggle as HTMLElement)
-    expect(setNightMode).toHaveBeenLastCalledWith(false)
+    fireEvent.click(screen.getByText('settings'))
+    expect(openSettings).toHaveBeenCalledOnce()
+    expect(screen.queryByText('Ollie')).toBeNull()
   })
 
-  it('opens already checked for a reader whose app is dark', () => {
-    render(<AccountMenu {...props({ nightMode: () => true })} />)
+  it('offers no theme switch', () => {
+    render(<AccountMenu {...props()} />)
     fireEvent.click(screen.getByLabelText('trigger.aria'))
-    expect(screen.getByText('nightMode').closest('button')?.className).toContain('checked')
+    expect(screen.queryByRole('menuitemcheckbox')).toBeNull()
   })
 
   it('closes on Escape and returns focus to the avatar', () => {

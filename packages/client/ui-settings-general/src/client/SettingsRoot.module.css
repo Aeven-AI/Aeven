@@ -78,14 +78,19 @@
    One height for every section, taken from the viewport rather than the
    content: sections differ by hundreds of pixels (a settings list against the
    composition editor), and a content-sized panel would resize under the
-   pointer on every nav click. Whatever does not fit scrolls in `.options`. */
+   pointer on every nav click. Whatever does not fit scrolls in `.options`.
+   The page inset (24px, 16px at ≤640) is both the margin around the panel
+   and the panel's content inset: the section's right edge, and the close
+   glyph's top and right edges. `dvh` tracks the visible height under mobile
+   browser toolbars; engines without it keep the `vh` height. */
 .panel {
   position: relative;
   z-index: 1;
   display: flex;
   width: 800px;
-  height: min(800px, calc(100vh - 48px));
-  max-width: calc(100vw - 48px);
+  height: min(800px, calc(100vh - 2 * var(--dsw-aeven-page-inset)));
+  height: min(800px, calc(100dvh - 2 * var(--dsw-aeven-page-inset)));
+  max-width: calc(100vw - 2 * var(--dsw-aeven-page-inset));
   border-radius: var(--dsw-aeven-radius-surface);
   overflow: hidden;
   background: var(--dsw-alias-bg-layer-2);
@@ -97,17 +102,21 @@
      styles/scrollbar.css for the rebinding contract). */
   --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  /* Center line of the close button (see `.close`): the header's 24px top
+     padding plus half its 28px box. The nav title centres on the same line. */
+  --avn-settings-close-center: calc(var(--dsw-aeven-page-inset) + 14px);
 }
 
-/* Nav rail (figma .Setting-nav 501:29958): 188 wide, pad (12,22,12,0),
-   gap 18, no own fill — the panel white shows through. */
+/* Nav rail (figma .Setting-nav 501:29958): 188 wide, 12px sides, gap 18,
+   no own fill — the panel white shows through. The top padding centers the
+   title's 24px line on the close glyph. */
 .nav {
   flex: none;
   display: flex;
   flex-direction: column;
   gap: 18px;
   width: 188px;
-  padding: 22px 12px 0;
+  padding: calc(var(--avn-settings-close-center) - 12px) 12px 0;
   box-sizing: border-box;
 }
 
@@ -128,7 +137,9 @@
 }
 
 /* Nav cell (figma .Setting-nav-cell 501:29962): 164x40, r12, pad
-   (12,9,16,9), gap 8; label 14/400 lh22; selected fill #EBEEF2. */
+   (12,9,16,9), gap 8; label 14/400 lh22. The fills use the panel's
+   interactive tokens rather than the sidebar nav tokens, which the Aeven theme
+   sets transparent; selected matches the settings selected-option fill. */
 .navCell {
   display: flex;
   align-items: center;
@@ -149,11 +160,11 @@
 }
 
 .navCell:hover {
-  background: var(--dsw-specific-sidebar-nav-item-hover);
+  background: var(--dsw-alias-interactive-bg-hover);
 }
 
 .navCell.active {
-  background: var(--dsw-specific-sidebar-nav-item-active);
+  background: var(--dsw-specific-selector);
 }
 
 .navIcon {
@@ -176,15 +187,18 @@
   flex-direction: column;
 }
 
-/* Header (figma .Header 501:29981): h54, pad (10,20,14,8), close right. */
+/* Header (figma .Header 501:29981): the actions row and the close button on one
+   line, inside the panel's own page inset. The close button is a row item, not
+   an overlay, so it ends on the header's right padding like every other control
+   in the panel — the row reserves nothing for it and the button carries no
+   offset of its own. */
 .header {
   flex: none;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
-  height: 54px;
-  padding: 20px 14px 8px 10px;
+  padding: var(--dsw-aeven-page-inset) var(--dsw-aeven-page-inset) 0 10px;
   box-sizing: border-box;
 }
 
@@ -197,11 +211,15 @@
   margin-left: auto;
 }
 
-/* Close button (figma .Icon_container 501:29982): 28x28, r28, 14px glyph. */
+/* Close button (figma .Icon_container 501:29982): 28x28, r28, 14px glyph, the
+   header row's last item. Its box takes the header's 24px top and right
+   padding, which puts its centre on `--avn-settings-close-center` — the line
+   the nav title centres on too. */
 .close {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: none;
   width: 28px;
   height: 28px;
   padding: 0;
@@ -216,11 +234,14 @@
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
-/* Options area (figma Options 501:29983): pad (24,0,24,24), scrolls. */
+/* Options area (figma Options 501:29983): page-inset sides and bottom, scrolls.
+   The right padding returns the width a classic scrollbar takes
+   (`--avn-settings-scrollbar`, measured by SettingsPanel), so the section's
+   right edge stays one page inset from the panel edge. */
 .options {
   flex: 1;
   min-height: 0;
-  padding: 0 24px 24px;
+  padding: 0 max(0px, calc(var(--dsw-aeven-page-inset) - var(--avn-settings-scrollbar, 0px))) var(--dsw-aeven-page-inset) var(--dsw-aeven-page-inset);
   overflow-y: auto;
 }
 
@@ -232,4 +253,61 @@
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+/* Narrow viewports: a 188px rail would leave the section too little width, so
+   the panel regrids with the same DOM. `display: contents` lifts the title,
+   cell stack, header, and options into one grid: title and header share the
+   top row, the cells run as a horizontally scrolling tab strip beneath them,
+   and the section takes the full panel width. */
+@media (max-width: 768px) {
+  .panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-areas:
+      "title header"
+      "tabs tabs"
+      "options options";
+  }
+
+  .nav,
+  .content {
+    display: contents;
+  }
+
+  .navTitle {
+    grid-area: title;
+    align-self: center;
+    min-width: 0;
+    padding: 0 0 0 var(--dsw-aeven-page-inset);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .header {
+    grid-area: header;
+  }
+
+  .navList {
+    grid-area: tabs;
+    flex-direction: row;
+    padding: 12px var(--dsw-aeven-page-inset);
+    border-bottom: 1px solid var(--dsw-alias-border-l1);
+    overflow-x: auto;
+    scroll-padding-inline: var(--dsw-aeven-page-inset);
+    scrollbar-width: none;
+  }
+
+  .navCell {
+    flex: none;
+    height: 36px;
+    padding: 7px 14px 7px 10px;
+  }
+
+  .options {
+    grid-area: options;
+    padding-top: 20px;
+  }
 }

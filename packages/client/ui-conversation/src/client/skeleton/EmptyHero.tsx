@@ -1,16 +1,14 @@
-// The composer remains in ConversationRoot so switching out of the blank-draft
-// phase does not remount its textarea.
+/** The New Session hero's workspace chip; the hero chrome itself is ui-primitives' HeroShell. */
 
-import type { ReactNode, RefObject } from 'react'
+import type { RefObject } from 'react'
 import {
   IconChevronDownOutline14, IconFolderClose16, IconFolderOpen16,
 } from '@aeven/client-ui-primitives'
 import { workspaceTitleOf } from '@aeven/util-workspace-path'
 import type { ConversationSlotProps } from '../contract/slots.ts'
-import { useHeroGreeting } from './hero-greeting.ts'
 import css from './HeroShell.module.css'
 
-/** The owner's locale seat type, passed to hero chrome as a plain prop. */
+/** The owner's locale seat type, passed to the chip as a plain prop. */
 type HeroTranslate = ConversationSlotProps['t']
 
 /**
@@ -58,39 +56,5 @@ export function WorkspaceChip({ buttonRef, label, menuOpen = false, onClick, t }
       <span className={css.workspaceLabel}>{label ?? t('hero.chooseWorkspace')}</span>
       <IconChevronDownOutline14 className={css.chevron} size={12} />
     </button>
-  )
-}
-
-/** Hero chrome props. The workspace row rides the InputBar accessory hole, not here. */
-export interface HeroShellProps {
-  /** The owner's locale seat, passed down as a plain prop. */
-  t: HeroTranslate
-  /** Overlay content after the stack (modals). */
-  children?: ReactNode
-}
-
-/**
- * Render the hero chrome: the product's name and the reader's greeting, above
- * the composer the caller mounts outside this component.
- * @param props - see {@link HeroShellProps}.
- * @returns the centered hero element tree.
- */
-export function HeroShell({ t, children }: HeroShellProps) {
-  const greeting = useHeroGreeting(t)
-  return (
-    <div className={css.root}>
-      <div className={css.stack}>
-        <div className={css.text} data-testid="hero-greeting">
-          {/* Aeven's New Session screen: the product's name over the greeting,
-              the two sharing one line box pair with no gap between them. */}
-          <span className={css.wordmark}>{t('brand.localBuild')}</span>
-          <span className={css.greeting}>{greeting}</span>
-        </div>
-        <div className={css.body}>
-          {/* The composer remains mounted outside this component. */}
-        </div>
-      </div>
-      {children}
-    </div>
   )
 }

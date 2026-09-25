@@ -36,6 +36,18 @@ export type {
   SettingsDescribeFace, SettingsDescribeView, SettingsMirrorSnapshot,
 } from './settings-mirror.ts'
 
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /**
+     * Ask the settings shell to open its panel. Any surface may emit it; the
+     * `sidebar.settings` occupant opens on its first section, and a
+     * composition without that occupant ignores it.
+     * @mode emit
+     */
+    'settings/open'(): void
+  }
+}
+
 /**
  * Required services: the Remote namespace the mirror reads through and the
  * forwarded settings invalidation it refreshes on.

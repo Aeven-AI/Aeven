@@ -89,6 +89,7 @@
     { "path": "./packages/client/ui-sidebar-device" },
     { "path": "./packages/client/ui-brand-official" },
     { "path": "./packages/client/ui-approval" },
+    { "path": "./packages/client/ui-imagine" },
     { "path": "./packages/client/ui-location" },
     { "path": "./packages/client/ui-chat" },
     { "path": "./packages/client/ui-conversation" },

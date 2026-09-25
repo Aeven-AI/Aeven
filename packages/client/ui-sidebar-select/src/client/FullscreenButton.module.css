@@ -1,12 +1,12 @@
 /* Geometry follows the right sidebar's own corner toggle, so the two sit as a
-   pair in the corner row. */
+   pair in the corner row: the same 30px box and the token's height. */
 .toggle {
   position: relative;
   z-index: 11;
   display: grid;
   flex: none;
   place-items: center;
-  width: var(--dsw-aeven-control-size);
+  width: 30px;
   height: var(--dsw-aeven-control-size);
   padding: 0;
   border: none;

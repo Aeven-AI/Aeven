@@ -199,6 +199,24 @@ export interface Config {
 
 Source: [`packages/api/gateway/src/index.ts:119`](../packages/api/gateway/src/index.ts)
 
+<a id="aevenapi-job-controller"></a>
+
+## `@aeven/api-job-controller`
+
+Requires: `jobs` · `typert`
+
+```ts config-catalog
+/** Job Controller deployment policy. */
+export interface Config {
+  /** Coalescing window after a registry commit before the next rows or output read, in milliseconds (default 100). */
+  readonly observeFlushMs?: number
+  /** Soft byte budget per observation output frame (default 65536); one larger chunk ships whole. */
+  readonly observeMaxFrameBytes?: number
+}
+```
+
+Source: [`packages/api/job-controller/src/index.ts:38`](../packages/api/job-controller/src/index.ts)
+
 <a id="aevenapi-session-controller"></a>
 
 ## `@aeven/api-session-controller`
@@ -1356,10 +1374,20 @@ export interface Config {
    * omission defaults to 10.
    */
   maxConcurrentJobsPerOwner?: number
+  /** Live ring retention per job in UTF-8 bytes; omission defaults to 262144. */
+  retainBytes?: number
+  /**
+   * Ring retention kept after a job settles, in UTF-8 bytes; omission defaults to 16384.
+   * Settlement keeps every byte the model cursor has not consumed on top of
+   * this cap; the first terminal model read then trims to it.
+   */
+  settledRetainBytes?: number
+  /** Poll interval for a job's pull sources, in milliseconds; omission defaults to 150. */
+  pumpPollMs?: number
 }
 ```
 
-Source: [`packages/jobs/jobs-local/src/index.ts:31`](../packages/jobs/jobs-local/src/index.ts)
+Source: [`packages/jobs/jobs-local/src/index.ts:45`](../packages/jobs/jobs-local/src/index.ts)
 
 <a id="aevenllm-aeven"></a>
 
@@ -3360,22 +3388,42 @@ export interface Config {
   completionDelivery?: CompletionDelivery
   /**
    * Turns one owner may have opened by completion wakes before the next
-   * notice degrades to injection, reset by any user-authored input (default 3).
-   * Bounds the self-exciting chain where a woken turn starts the job whose
-   * completion wakes it again.
+   * notice degrades to injection, reset by any user-authored input. Absent by
+   * default: every idle completion wakes its owner. Set it to bound the
+   * self-exciting chain where a woken turn starts the job whose completion
+   * wakes it again, at the cost of notices past the cap waiting silently for
+   * the next user input.
    */
   maxConsecutiveWakes?: number
 }
 
 /**
- * How an unreported completion reaches an owner that is already idle: `wakeup`
+ * How an uncollected completion reaches an owner that is already idle: `wakeup`
  * opens a turn for it, `quiet` leaves it pending until something else wakes the
  * owner. A busy owner is injected either way.
  */
 export type CompletionDelivery = 'quiet' | 'wakeup'
 ```
 
-Source: [`packages/jobs/tool-jobs/src/index.ts:31`](../packages/jobs/tool-jobs/src/index.ts)
+Source: [`packages/jobs/tool-jobs/src/index.ts:41`](../packages/jobs/tool-jobs/src/index.ts)
+
+<a id="aeventool-location"></a>
+
+## `@aeven/tool-location`
+
+Requires: `tools` · `agents`
+
+```ts config-catalog
+/** How precisely a shared location reaches the model, and how long the reader is given. Invalid values fail plugin load. */
+export interface Config {
+  /** `precise` passes the device reading through; `approximate` rounds it to about a kilometre. */
+  precision?: 'precise' | 'approximate'
+  /** Milliseconds the reader has to choose before the call fails as timed out. */
+  consentTimeoutMs?: number
+}
+```
+
+Source: [`packages/interaction/tool-location/src/index.ts:31`](../packages/interaction/tool-location/src/index.ts)
 
 <a id="aeventool-lsp"></a>
 
@@ -3663,7 +3711,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/terminal/tool-terminal/src/index.ts:35`](../packages/terminal/tool-terminal/src/index.ts)
+Source: [`packages/terminal/tool-terminal/src/index.ts:36`](../packages/terminal/tool-terminal/src/index.ts)
 
 <a id="aeventool-todo"></a>
 
@@ -4057,9 +4105,11 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/client-ui-directory-picker-browse` ([`packages/client/ui-directory-picker-browse/src/index.ts`](../packages/client/ui-directory-picker-browse/src/index.ts))
 - `@aeven/client-ui-directory-picker-native` ([`packages/client/ui-directory-picker-native/src/index.ts`](../packages/client/ui-directory-picker-native/src/index.ts))
 - `@aeven/client-ui-goal` ([`packages/client/ui-goal/src/index.ts`](../packages/client/ui-goal/src/index.ts))
+- `@aeven/client-ui-imagine` ([`packages/client/ui-imagine/src/index.ts`](../packages/client/ui-imagine/src/index.ts))
 - `@aeven/client-ui-input-trigger` ([`packages/client/ui-input-trigger/src/index.ts`](../packages/client/ui-input-trigger/src/index.ts))
 - `@aeven/client-ui-jobs` ([`packages/client/ui-jobs/src/index.ts`](../packages/client/ui-jobs/src/index.ts))
 - `@aeven/client-ui-layout` ([`packages/client/ui-layout/src/index.ts`](../packages/client/ui-layout/src/index.ts))
+- `@aeven/client-ui-location` ([`packages/client/ui-location/src/index.ts`](../packages/client/ui-location/src/index.ts))
 - `@aeven/client-ui-message-feedback` ([`packages/client/ui-message-feedback/src/index.ts`](../packages/client/ui-message-feedback/src/index.ts))
 - `@aeven/client-ui-model-selection` ([`packages/client/ui-model-selection/src/index.ts`](../packages/client/ui-model-selection/src/index.ts))
 - `@aeven/client-ui-permission-presets` ([`packages/client/ui-permission-presets/src/index.ts`](../packages/client/ui-permission-presets/src/index.ts))

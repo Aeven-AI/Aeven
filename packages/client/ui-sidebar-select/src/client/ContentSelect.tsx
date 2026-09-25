@@ -15,7 +15,7 @@ import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import clsx from 'clsx'
 import {
-  IconLucideFiles, IconLucideGlobe, IconLucidePlus, IconLucideSquareTerminal, IconLucideTabletSmartphone, IconLucideX,
+  IconLucideFolderSearch2, IconLucideGlobe, IconLucidePlus, IconLucideSquareTerminal, IconLucideTabletSmartphone, IconLucideX,
   Menu, type MenuEntry,
 } from '@aeven/client-ui-primitives'
 import type { ContentSelectComponentProps } from './contract/slots.ts'
@@ -31,7 +31,7 @@ import css from './ContentSelect.module.css'
 const GLYPHS: Record<SidebarContentKind, () => ReactNode> = {
   browser: () => <IconLucideGlobe />,
   terminal: () => <IconLucideSquareTerminal />,
-  files: () => <IconLucideFiles />,
+  files: () => <IconLucideFolderSearch2 />,
   device: () => <IconLucideTabletSmartphone />,
 }
 

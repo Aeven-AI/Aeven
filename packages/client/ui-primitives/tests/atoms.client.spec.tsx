@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Button, ConnectionIndicator, Input, Menu, Modal, Pill } from '@aeven/client-ui-primitives'
+import { Button, ConnectionIndicator, Input, Menu, Modal, Pill, SectionHeader } from '@aeven/client-ui-primitives'
 import { POINTER_GRACE_MS } from '../src/pointer-grace.ts'
 
 afterEach(cleanup)
@@ -26,6 +26,16 @@ describe('Button', () => {
   it('outline variant renders a bordered cancel-style button', () => {
     render(<Button variant="outline">Cancel</Button>)
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeDefined()
+  })
+})
+
+describe('SectionHeader', () => {
+  it('renders the title as a heading and the description only when given', () => {
+    const { container, rerender } = render(<SectionHeader title="Models" description="Enter your API keys." />)
+    expect(screen.getByRole('heading', { level: 2, name: 'Models' })).toBeTruthy()
+    expect(screen.getByText('Enter your API keys.').tagName).toBe('P')
+    rerender(<SectionHeader title="General" />)
+    expect(container.querySelector('p')).toBeNull()
   })
 })
 

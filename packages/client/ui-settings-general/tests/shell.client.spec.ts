@@ -127,6 +127,19 @@ describe('ui-settings apply', () => {
     expect(b.reconnect).toHaveBeenCalledOnce()
   })
 
+  it('forwards settings/open requests until unsubscribed', async () => {
+    const b = await bench()
+    declare(b.slots)
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    const listener = vi.fn()
+    const off = injectedOf(b.slots).onOpenRequest(listener)
+    b.ctx.emit('settings/open')
+    expect(listener).toHaveBeenCalledOnce()
+    off()
+    b.ctx.emit('settings/open')
+    expect(listener).toHaveBeenCalledOnce()
+  })
+
   it('projects onboarding entries into stable coordinator order', async () => {
     const b = await bench()
     declare(b.slots)

@@ -46,7 +46,7 @@ describe('ui-layout client apply', () => {
     expect(slots.spec('details')).toEqual({ kind: 'single', scope: 'session' })
   })
 
-  it('injects no business face and attaches the layout actions', async () => {
+  it('injects the surface router as a hook source and attaches the layout actions', async () => {
     const { ctx, slots } = await bench()
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
@@ -55,8 +55,10 @@ describe('ui-layout client apply', () => {
       toggleRightbar: vi.fn(),
     }
     const injected = (slots.entries('root')[0]!.inject as (actions: never) => object)(actions as never)
-    expect(injected).toEqual({})
     const layout = ctx.get('layout') as LayoutController
+    expect(injected).toEqual({ hooks: { surface: layout.surfaces.current } })
+    // The browser router reads the live window: the test page owns no surface.
+    expect(layout.surfaces.current.getSnapshot()).toBeUndefined()
     layout.toggleSidebar()
     expect(actions.toggleSidebar).toHaveBeenCalledOnce()
     layout.toggleRightbar('s1')
