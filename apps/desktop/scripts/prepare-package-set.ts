@@ -158,6 +158,7 @@ function main(): void {
     buildPaths.packedAvn,
     buildPaths.packedVendor,
     buildPaths.packedLandlock,
+    buildPaths.packedWhisper,
   ]
   const { values } = parseArgs({
     options: { from: { type: 'string', multiple: true }, out: { type: 'string' } },

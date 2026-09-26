@@ -12,6 +12,7 @@ export interface DesktopTargetBuildPaths {
   readonly packedAvn: string
   readonly packedVendor: string
   readonly packedLandlock: string
+  readonly packedWhisper: string
   readonly downloads: string
 }
 

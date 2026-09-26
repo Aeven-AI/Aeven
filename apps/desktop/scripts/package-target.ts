@@ -263,6 +263,23 @@ function runPnpm(
   })
 }
 
+function runNpm(args: readonly string[], env: NodeJS.ProcessEnv): Promise<void> {
+  return new Promise((resolvePromise, reject) => {
+    // npm is a .cmd shim on Windows, which Node only spawns through a shell.
+    const child = spawn(process.platform === 'win32' ? 'npm.cmd' : 'npm', args, {
+      cwd: REPOSITORY_ROOT,
+      env,
+      stdio: 'inherit',
+      shell: process.platform === 'win32',
+    })
+    child.once('error', reject)
+    child.once('close', (code, signal) => {
+      if (code === 0) resolvePromise()
+      else reject(new Error(`desktop package: npm ${args.join(' ')} exited with ${String(code ?? signal)}`))
+    })
+  })
+}
+
 async function main(): Promise<void> {
   loadDesktopPackagingEnvironment(join(REPOSITORY_ROOT, '.env'))
   const invocation = parseDesktopPackageInvocation(process.argv.slice(2))
@@ -295,6 +312,14 @@ async function main(): Promise<void> {
     buildPaths.packedAvn,
   ], buildEnv, REPOSITORY_ROOT)
   await runPnpm(['run', 'release:pack', '--family', 'vendor', '--out', buildPaths.packedVendor], buildEnv, REPOSITORY_ROOT)
+  // The speech worker is native code built for this target, then packed as the one platform package the
+  // Whisper provider resolves from its optional dependencies.
+  const whisperPlatform = `${target.platform}-${target.arch}`
+  rmSync(buildPaths.packedWhisper, { recursive: true, force: true })
+  mkdirSync(buildPaths.packedWhisper, { recursive: true })
+  await runPnpm(['--dir', 'native/whisper-cpp', 'run', 'build:native', '--target', whisperPlatform], buildEnv, REPOSITORY_ROOT)
+  // npm, not pnpm: pnpm pack strips the executable bit, which would ship a worker no Host can spawn.
+  await runNpm(['pack', `./native/whisper-cpp/packages/${whisperPlatform}`, '--pack-destination', buildPaths.packedWhisper], buildEnv)
   rmSync(buildPaths.packedLandlock, { recursive: true, force: true })
   mkdirSync(buildPaths.packedLandlock, { recursive: true })
   await runPnpm(['--dir', 'native/landlock-run', 'run', 'build:ts'], buildEnv, REPOSITORY_ROOT)

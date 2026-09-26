@@ -19,5 +19,8 @@
   "license": "MIT",
   "publishConfig": {
     "access": "public"
+  },
+  "scripts": {
+    "prepack": "node ../../scripts/verify-worker-binary.mjs"
   }
 }

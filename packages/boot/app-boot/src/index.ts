@@ -130,6 +130,13 @@ const BOOTSTRAP_PREFIXES = ['AVN_', 'XDG_', 'DYLD_', 'BASH_FUNC_']
 const HOME_LAYER_PROXY_NAMES = new Set(['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY'])
 
 /**
+ * Desktop packaging settings (`AVN_DESKTOP_APP_ID`, …) that the repository `.env` supplies to
+ * `apps/desktop/scripts`, which read that file themselves. An avn process skips them instead of
+ * applying them, so a project file carrying them still starts avn without changing how it runs.
+ */
+const DESKTOP_PACKAGING_PREFIX = 'AVN_DESKTOP_'
+
+/**
  * Whether a variable may come only from the inherited process environment
  * because it changes process, runtime, VCS, or network bootstrap. The Harness-home
  * file is additionally allowed {@link HOME_LAYER_PROXY_NAMES}.
@@ -148,7 +155,7 @@ function isBootstrapOnly(name: string): boolean {
  * @param dir - the directory whose `.env` to read.
  * @param warn - sink for the one-line unreadable-file diagnostic.
  * @param home - the resolved Aeven home; when `dir` is it, {@link HOME_LAYER_PROXY_NAMES} are accepted.
- * @returns the parsed entries, or `undefined` when the file is absent or unreadable.
+ * @returns the parsed entries without Desktop packaging settings, or `undefined` when the file is absent or unreadable.
  * @throws when the file declares a name {@link isBootstrapOnly} rejects and this layer may not set.
  */
 function readEnvLayer(
@@ -169,6 +176,10 @@ function readEnvLayer(
   // Parse once so validation and materialization use exactly the same entries.
   const values = parseEnv(content) as Record<string, string>
   for (const name of Object.keys(values)) {
+    if (name.toUpperCase().startsWith(DESKTOP_PACKAGING_PREFIX)) {
+      Reflect.deleteProperty(values, name)
+      continue
+    }
     if (!isBootstrapOnly(name)) continue
     const proxyName = HOME_LAYER_PROXY_NAMES.has(name.toUpperCase())
     if (isHome && proxyName) continue
