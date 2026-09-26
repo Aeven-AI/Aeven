@@ -181,6 +181,12 @@ export interface InputTarget {
 export interface SessionInput extends InputTarget {
   /** Replace the whole draft (persisted-draft seed and programmatic writes). */
   setDraft(text: string): void
+  /**
+   * Append plain text at the end of the draft as one undoable edit, separated from existing text by a space.
+   * @param text - text to append, such as a dictation transcript.
+   * @returns whether the text was appended; busy admission phases refuse.
+   */
+  appendText(text: string): boolean
   /** Append ordered browser-owned image ids; busy admission phases refuse. */
   addImages(ids: readonly DraftAttachmentId[]): boolean
   /** Remove one browser-owned image id; busy admission phases refuse. */
@@ -221,6 +227,12 @@ export interface SessionInputResolver {
 export interface InputActions {
   /** Replace the whole draft (persisted-draft seed and programmatic writes). */
   setDraft(text: string): void
+  /**
+   * Append plain text at the end of the draft as one undoable edit, separated from existing text by a space.
+   * @param text - text to append, such as a dictation transcript.
+   * @returns whether the text was appended; busy admission phases refuse.
+   */
+  appendText(text: string): boolean
   /** Append ordered browser-owned image ids; busy admission phases refuse. */
   addImages(ids: readonly DraftAttachmentId[]): boolean
   /** Remove one browser-owned image id; busy admission phases refuse. */

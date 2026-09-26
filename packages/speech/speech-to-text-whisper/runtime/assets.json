@@ -1,0 +1,14 @@
+{
+  "model": {
+    "name": "ggml-small-q5_1.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-small-q5_1.bin",
+    "bytes": 190085487,
+    "sha256": "ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb"
+  },
+  "vad": {
+    "name": "ggml-silero-v5.1.2.bin",
+    "url": "https://huggingface.co/ggml-org/whisper-vad/resolve/9ffd54a1e1ee413ddf265af9913beaf518d1639b/ggml-silero-v5.1.2.bin",
+    "bytes": 885098,
+    "sha256": "29940d98d42b91fbd05ce489f3ecf7c72f0a42f027e4875919a28fb4c04ea2cf"
+  }
+}

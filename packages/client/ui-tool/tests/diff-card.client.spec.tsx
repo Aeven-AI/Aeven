@@ -432,6 +432,7 @@ describe('DetailsPanel diff Output section', () => {
         useInput={(() => { throw new Error('unused') })}
         inputActions={{
           setDraft: () => {},
+          appendText: () => true,
           addImages: () => true,
           removeImage: () => {},
           pruneImages: () => {},

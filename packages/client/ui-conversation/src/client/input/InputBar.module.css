@@ -220,6 +220,36 @@
   min-width: 0;
 }
 
+/* A claimed activity (dictation) replaces the control row: the tool group and
+   every trailing control except the activity itself are hidden, and the
+   activity stretches across the row. The activity stays at one tree position,
+   so claiming the row never remounts its occupant. */
+.activity {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.row[data-activity] .tools {
+  display: none;
+}
+
+.row[data-activity] .trailing {
+  flex: 1;
+  margin-left: 0;
+}
+
+/* Slot outlets are inline `display: contents` wrappers, so their rendered
+   children are hidden as well. */
+.row[data-activity] .trailing > :not(.activity),
+.row[data-activity] .trailing > :not(.activity) > * {
+  display: none;
+}
+
+.row[data-activity] .activity {
+  flex: 1;
+}
+
 /* figma 75:8208 drew 16 between + and the mode chips and 4 between Plan /
    Read-only; the chip gap widened to 12 so the pill chips read as separate
    controls. */

@@ -40,11 +40,13 @@ declare module '@deepseek-ai/cordis' {
   interface Events {
     /**
      * Ask the settings shell to open its panel. Any surface may emit it; the
-     * `sidebar.settings` occupant opens on its first section, and a
-     * composition without that occupant ignores it.
+     * `sidebar.settings` occupant opens on the named section, or on its first
+     * section when none is named, and a composition without that occupant
+     * ignores it.
      * @mode emit
+     * @param section - optional `settings.section` entry id to show.
      */
-    'settings/open'(): void
+    'settings/open'(section?: string): void
   }
 }
 

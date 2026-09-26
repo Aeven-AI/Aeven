@@ -703,6 +703,30 @@ importers:
 
   native/landlock-run/packages/linux-x64: {}
 
+  native/whisper-cpp:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.20.0
+        version: 22.20.1
+      tar:
+        specifier: ^7.5.0
+        version: 7.5.22
+      tsx:
+        specifier: ^4.22.4
+        version: 4.22.4
+
+  native/whisper-cpp/packages/darwin-arm64: {}
+
+  native/whisper-cpp/packages/darwin-x64: {}
+
+  native/whisper-cpp/packages/linux-arm64: {}
+
+  native/whisper-cpp/packages/linux-x64: {}
+
+  native/whisper-cpp/packages/win32-arm64: {}
+
+  native/whisper-cpp/packages/win32-x64: {}
+
   packages/acp/acp:
     dependencies:
       '@aeven/brand':
@@ -871,6 +895,9 @@ importers:
       '@aeven/api-settings-controller':
         specifier: workspace:^
         version: link:../settings-controller
+      '@aeven/api-speech-to-text':
+        specifier: workspace:^
+        version: link:../../speech/api-speech-to-text
       '@aeven/api-terminal-controller':
         specifier: workspace:^
         version: link:../terminal-controller
@@ -1756,6 +1783,9 @@ importers:
       '@aeven/api-settings-controller':
         specifier: workspace:^
         version: link:../../api/settings-controller
+      '@aeven/api-speech-to-text':
+        specifier: workspace:^
+        version: link:../../speech/api-speech-to-text
       '@aeven/api-terminal-controller':
         specifier: workspace:^
         version: link:../../api/terminal-controller
@@ -1909,6 +1939,9 @@ importers:
       '@aeven/client-ui-user-questions':
         specifier: workspace:^
         version: link:../../client/ui-user-questions
+      '@aeven/client-ui-voice-input':
+        specifier: workspace:^
+        version: link:../../client/ui-voice-input
       '@aeven/client-ui-workflow-run':
         specifier: workspace:^
         version: link:../../client/ui-workflow-run
@@ -1990,6 +2023,12 @@ importers:
       '@aeven/session-turn-outline':
         specifier: workspace:^
         version: link:../../session/session-turn-outline
+      '@aeven/speech-to-text':
+        specifier: workspace:^
+        version: link:../../speech/speech-to-text
+      '@aeven/speech-to-text-whisper':
+        specifier: workspace:^
+        version: link:../../speech/speech-to-text-whisper
       '@aeven/subprocess':
         specifier: workspace:^
         version: link:../../subprocess/subprocess
@@ -4497,6 +4536,54 @@ importers:
       '@aeven/user-questions':
         specifier: workspace:^
         version: link:../../interaction/user-questions
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+
+  packages/client/ui-voice-input:
+    devDependencies:
+      '@aeven/api-gateway':
+        specifier: workspace:^
+        version: link:../../api/gateway
+      '@aeven/api-remotes':
+        specifier: workspace:^
+        version: link:../../api/remotes
+      '@aeven/api-speech-to-text':
+        specifier: workspace:^
+        version: link:../../speech/api-speech-to-text
+      '@aeven/client-locale':
+        specifier: workspace:^
+        version: link:../locale
+      '@aeven/client-store':
+        specifier: workspace:^
+        version: link:../store
+      '@aeven/client-ui-conversation':
+        specifier: workspace:^
+        version: link:../ui-conversation
+      '@aeven/client-ui-primitives':
+        specifier: workspace:^
+        version: link:../ui-primitives
+      '@aeven/client-ui-renderer':
+        specifier: workspace:^
+        version: link:../ui-renderer
+      '@aeven/client-ui-settings':
+        specifier: workspace:^
+        version: link:../ui-settings
+      '@aeven/client-ui-slots':
+        specifier: workspace:^
+        version: link:../ui-slots
+      '@aeven/speech-to-text':
+        specifier: workspace:^
+        version: link:../../speech/speech-to-text
+      '@aeven/typert-protocol':
+        specifier: workspace:^
+        version: link:../../typert/protocol
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -9389,6 +9476,94 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
+
+  packages/speech/api-speech-to-text:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@aeven/speech-to-text':
+        specifier: workspace:^
+        version: link:../speech-to-text
+      '@aeven/typert-protocol':
+        specifier: workspace:^
+        version: link:../../typert/protocol
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/speech/speech-to-text:
+    dependencies:
+      '@aeven/brand':
+        specifier: workspace:^
+        version: link:../../util/brand
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@aeven/settings':
+        specifier: workspace:^
+        version: link:../../settings/settings
+      '@aeven/settings-file':
+        specifier: workspace:^
+        version: link:../../settings/settings-file
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/cordis-plugin-include':
+        specifier: workspace:^
+        version: link:../../../vendor/include
+      '@deepseek-ai/cordis-plugin-loader':
+        specifier: workspace:^
+        version: link:../../../vendor/loader
+
+  packages/speech/speech-to-text-whisper:
+    dependencies:
+      '@aeven/timeout':
+        specifier: workspace:^
+        version: link:../../util/timeout
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@aeven/speech-to-text':
+        specifier: workspace:^
+        version: link:../speech-to-text
+      '@aeven/subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@aeven/subprocess-local':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess-local
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+    optionalDependencies:
+      '@aeven/whisper-cpp-darwin-arm64':
+        specifier: workspace:^
+        version: link:../../../native/whisper-cpp/packages/darwin-arm64
+      '@aeven/whisper-cpp-darwin-x64':
+        specifier: workspace:^
+        version: link:../../../native/whisper-cpp/packages/darwin-x64
+      '@aeven/whisper-cpp-linux-arm64':
+        specifier: workspace:^
+        version: link:../../../native/whisper-cpp/packages/linux-arm64
+      '@aeven/whisper-cpp-linux-x64':
+        specifier: workspace:^
+        version: link:../../../native/whisper-cpp/packages/linux-x64
+      '@aeven/whisper-cpp-win32-arm64':
+        specifier: workspace:^
+        version: link:../../../native/whisper-cpp/packages/win32-arm64
+      '@aeven/whisper-cpp-win32-x64':
+        specifier: workspace:^
+        version: link:../../../native/whisper-cpp/packages/win32-x64
 
   packages/spill/spill:
     devDependencies:

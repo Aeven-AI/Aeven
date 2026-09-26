@@ -76,7 +76,7 @@ export function apply(ctx: ClientContext): void {
   let rows: readonly SettingsSectionRow[] = []
   let onboardingVersion = -1
   let onboardingSteps: readonly SettingsOnboardingStep[] = []
-  const onOpenRequest = (listener: () => void) => ctx.on('settings/open', listener)
+  const onOpenRequest = (listener: (section?: string) => void) => ctx.on('settings/open', listener)
   const shellInjected = (): SettingsRootInjected => ({
     reconnect: () => { connection.reconnect() },
     onOpenRequest,

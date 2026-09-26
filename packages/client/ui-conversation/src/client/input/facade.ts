@@ -135,6 +135,7 @@ export class SessionInputShell implements SessionInput {
   /** The public provide-channel action face (one stable identity per session). */
   readonly actions: InputActions = {
     setDraft: (text) => { this.setDraft(text) },
+    appendText: text => this.appendText(text),
     addImages: ids => this.addImages(ids),
     removeImage: (id) => { this.removeImage(id) },
     pruneImages: (ids) => { this.pruneImages(ids) },
@@ -279,6 +280,24 @@ export class SessionInputShell implements SessionInput {
       }
       root.selectEnd()
     }, { discrete: true, tag: HISTORY_MERGE_TAG })
+  }
+
+  /**
+   * Append plain text at the draft end, separated from existing text by one space (placeholder-sanitized).
+   * @param text - text to append, such as a dictation transcript.
+   * @returns whether the edit applied; busy admission phases refuse, like {@link addImages}.
+   */
+  appendText(text: string): boolean {
+    if (this.snapshot.phase === 'adjudicating' || this.snapshot.phase === 'submitting') return false
+    const clean = text.replace(REFERENCE_PLACEHOLDER_RE, '').trim()
+    if (clean === '') return true
+    const separator = this.projection.clipboardText === '' || /\s$/u.test(this.projection.clipboardText) ? '' : ' '
+    this.applyEdit(() => {
+      const root = $getRoot()
+      if (root.getChildrenSize() === 0) root.append($createParagraphNode())
+      root.selectEnd().insertText(separator + clean)
+    })
+    return true
   }
 
   /** Append ordered image ids unless an admission transaction is locked. */

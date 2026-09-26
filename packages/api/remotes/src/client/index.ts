@@ -18,6 +18,7 @@ import subagentsRemote from '@aeven/subagent/remote'
 import sessionRemote from '@aeven/api-session-controller/remote'
 import jobRemote from '@aeven/api-job-controller/remote'
 import workspaceRemote from '@aeven/api-workspace-controller/remote'
+import speechRemote from '@aeven/api-speech-to-text/remote'
 import type { ClientRemote } from '@aeven/api-gateway/client'
 
 export type { ClientRemote } from '@aeven/api-gateway/client'
@@ -41,6 +42,8 @@ export type * from '@aeven/api-job-controller/types'
 export type * from '@aeven/api-session-controller/types'
 export type {} from '@aeven/api-workspace-controller/remote'
 export type * from '@aeven/api-workspace-controller/types'
+export type {} from '@aeven/api-speech-to-text/remote'
+export type * from '@aeven/api-speech-to-text/types'
 export type { SessionJob as JobView } from '@aeven/api-session-controller/types'
 // The forwarded-event allowlist's selection seat: without it in the consumer's
 // compilation face `TypertRemoteEvent` is `never` and every `$on` call fails.
@@ -159,7 +162,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       agentPresetsRemote, commandsRemote, settingsControllerRemote, goalsRemote, llmRemote, dynamicRemote,
       pluginInventoryRemote, messageFeedbackRemote, sessionReferencesRemote,
       subagentsRemote, sessionRemote, jobRemote, workspaceRemote, browserChromiumRemote, workspaceFilesRemote,
-      terminalRemote, deviceRemote,
+      terminalRemote, deviceRemote, speechRemote,
     ]) {
       disposers.push(await ctx.remote.$mount(contribution))
     }

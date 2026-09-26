@@ -293,6 +293,7 @@ export function apply(ctx: Context): void {
       'conversation.input.plan': { kind: 'single', scope: 'session' },
       'conversation.input.right': { kind: 'list', scope: 'session' },
       'conversation.input.model': { kind: 'single', scope: 'session' },
+      'conversation.input.activity': { kind: 'single', scope: 'session' },
       'conversation.composer.dock': { kind: 'list', scope: 'session' },
     },
     inject: (sessionId: SessionId | undefined): ComposerBarInjected => {

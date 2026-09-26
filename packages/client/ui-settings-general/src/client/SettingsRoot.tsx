@@ -161,7 +161,10 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
     setActiveId(id)
     setOpen(true)
   }, [])
-  useEffect(() => onOpenRequest(() => { setOpen(true) }), [onOpenRequest])
+  useEffect(() => onOpenRequest((section) => {
+    if (section === undefined) setOpen(true)
+    else openSection(section)
+  }), [onOpenRequest, openSection])
 
   // The ledger tick keeps the nav rows fresh: registrants re-register with
   // freshly localized text on locale change, and the trigger/header/close

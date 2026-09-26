@@ -73,6 +73,8 @@ export const InputBar = memo(function InputBar({
   // Transient error banner (machine notices, image-intake rejections, and
   // prompt failures): the seq keys the Toast so an identical repeated message
   // restarts the hold-then-fade cycle instead of reusing the faded one.
+  // A composer activity (dictation) claims the whole control row while it records or transcribes.
+  const [activity, setActivity] = useState(false)
   const [toast, setToast] = useState<{ seq: number; text: string } | null>(null)
   const toastSeq = useRef(0)
   const showToast = useCallback((text: string) => {
@@ -130,7 +132,8 @@ export const InputBar = memo(function InputBar({
   // and keyboard users can reach the recovery action.
   const workspaceTrigger = inert && !removed && onRequestWorkspace !== undefined
   const editorDisabled = removed || (locked && !workspaceTrigger)
-  const editable = live && !locked && !machineBusy
+  // A claimed composer activity (dictation) keeps the draft read-only until it releases the row.
+  const editable = live && !locked && !machineBusy && !activity
   const canSteerQueue = !locked && !machineBusy && !commandMenuOpen && empty && running && subagent === null
     && input.queue.some(row => row.placement === 'queued')
 
@@ -436,7 +439,7 @@ export const InputBar = memo(function InputBar({
             <DecoratorPortals editor={workspaceTrigger ? null : editor} />
           </div>
         </div>
-        <div className={css.row}>
+        <div className={css.row} data-activity={activity ? '' : undefined}>
           <div className={css.tools}>
             <Tooltip label={t('input.commands')} side="top">
               <button
@@ -466,6 +469,9 @@ export const InputBar = memo(function InputBar({
               : renderSlot('conversation.input.right', {})}
             {sessionId === undefined ? null : renderSlot('conversation.input.model', { locked: modelSeatLocked })}
             <ContextMeter useProjection={useProjection} t={t} />
+            {sessionId === undefined ? null : (
+              <div className={css.activity}>{renderSlot('conversation.input.activity', { locked, onActiveChange: setActivity })}</div>
+            )}
             {interruptible && (
               <Tooltip label={t('input.stop')} side="top">
                 <button

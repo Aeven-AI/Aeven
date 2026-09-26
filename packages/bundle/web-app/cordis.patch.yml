@@ -145,6 +145,22 @@
     - id: job-controller
       name: '@aeven/api-job-controller'
 
+    # Dictation: the recognizer registry, the local Whisper provider, and the
+    # browser's `speech` Remote. The provider checks its cache on activation and
+    # downloads its model only when the reader prepares it in Settings.
+    - id: speech-to-text
+      name: '@aeven/speech-to-text'
+      config:
+        defaultProvider: whisper-local
+
+    - id: speech-to-text-whisper
+      name: '@aeven/speech-to-text-whisper'
+      config:
+        dataRoot: !!js avnHomePath('speech-to-text', 'whisper')
+
+    - id: api-speech-to-text
+      name: '@aeven/api-speech-to-text'
+
     # Workspace listings, text previews and name search for the right
     # sidebar's file explorer.
     - id: api-workspace-files
@@ -368,6 +384,11 @@
     # `@aeven/api-job-controller` (the host row above) provides `ctx.jobs`.
     - id: ui-jobs
       name: '@aeven/client-ui-jobs'
+
+    # Dictation: the composer mic and recorder pill, and Settings → Voice. The
+    # host half is the `speech-to-text` rows above; audio stays on this Host.
+    - id: ui-voice-input
+      name: '@aeven/client-ui-voice-input'
 
     # Goal surface: GoalBar in the input dock over the goal session projection.
     - id: ui-goal

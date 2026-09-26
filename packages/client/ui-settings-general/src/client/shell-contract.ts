@@ -39,10 +39,10 @@ export type SettingsRootInjected = {
   reconnect: () => void
   /**
    * Subscribe to `settings/open` requests from other surfaces.
-   * @param listener - called once per request.
+   * @param listener - called once per request with the requested section id, if any.
    * @returns the unsubscribe function.
    */
-  onOpenRequest: (listener: () => void) => () => void
+  onOpenRequest: (listener: (section?: string) => void) => () => void
   hooks: {
     /** Connection-owned state for the current Host connection. */
     connectionState: HostObservable<ConnectionState | undefined>

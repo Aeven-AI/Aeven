@@ -86,6 +86,7 @@ function sessionProps(current?: SessionId) {
     useTrajectory: unreadHook('the trajectory snapshot') as SidebarRightRootComponentProps['useTrajectory'],
     inputActions: {
       setDraft: vi.fn(),
+      appendText: vi.fn(() => true),
       addImages: vi.fn(() => true),
       removeImage: vi.fn(),
       pruneImages: vi.fn(),

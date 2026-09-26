@@ -1492,6 +1492,42 @@ export const IconLucideX = ({ className }: LucideGlyphProps) => (
   </svg>
 )
 
+/** lucide `mic`: dictate. */
+export const IconLucideMic = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M12 19v3" />
+    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+    <rect x="9" y="2" width="6" height="13" rx="3" />
+  </svg>
+)
+
+/** lucide `check`: confirm. */
+export const IconLucideCheck = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M20 6 9 17l-5-5" />
+  </svg>
+)
+
 /** lucide `plus`: add. */
 export const IconLucidePlus = ({ className }: LucideGlyphProps) => (
   <svg

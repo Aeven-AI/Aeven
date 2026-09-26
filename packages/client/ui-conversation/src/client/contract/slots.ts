@@ -150,6 +150,8 @@ declare module '@aeven/client-ui-slots' {
     'conversation.input.plan': { kind: 'single'; scope: 'session'; owner: InputControlOwnerProps }
     /** Model selector inside the composer tool row. */
     'conversation.input.model': { kind: 'single'; scope: 'session'; owner: InputControlOwnerProps }
+    /** One composer activity, such as dictation, placed before Stop and Send; while active it occupies the whole control row. */
+    'conversation.input.activity': { kind: 'single'; scope: 'session'; owner: InputActivityOwnerProps }
   }
 
   interface GlobalStandardProps {
@@ -292,6 +294,16 @@ export interface InputControlOwnerProps {
   locked: boolean
 }
 
+/** Owner share of the composer activity occupant. */
+export interface InputActivityOwnerProps extends InputControlOwnerProps {
+  /**
+   * Claim or release the whole control row; the bar hides its other controls while claimed.
+   * The occupant releases the row before it unmounts.
+   * @param active - whether the activity occupies the row.
+   */
+  onActiveChange: (active: boolean) => void
+}
+
 /** Full props of the resident composer bar. */
 export type ComposerBarProps =
   PropsRuntime<'conversation.composer.bar'>
@@ -299,7 +311,7 @@ export type ComposerBarProps =
     | 'conversation.input.attachments' | 'conversation.input.overlay'
     | 'conversation.input.left' | 'conversation.input.plan'
     | 'conversation.input.right' | 'conversation.input.model'
-    | 'conversation.composer.dock'
+    | 'conversation.input.activity' | 'conversation.composer.dock'
   >
   & InjectFace<ComposerBarInjected>
   & PropsLocale<'conversation'>

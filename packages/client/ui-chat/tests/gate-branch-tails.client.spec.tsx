@@ -131,6 +131,7 @@ describe('render branch tails', () => {
         useInput={(() => { throw new Error('unused') })}
         inputActions={{
           setDraft: () => {},
+          appendText: () => true,
           addImages: () => true,
           removeImage: () => {},
           pruneImages: () => {},
@@ -193,6 +194,7 @@ describe('render branch tails', () => {
         useInput={(() => { throw new Error('unused') })}
         inputActions={{
           setDraft: () => {},
+          appendText: () => true,
           addImages: () => true,
           removeImage: () => {},
           pruneImages: () => {},

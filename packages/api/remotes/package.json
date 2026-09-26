@@ -87,6 +87,7 @@
     "@aeven/user-approval": "workspace:^",
     "@aeven/user-questions": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
-    "@aeven/api-job-controller": "workspace:^"
+    "@aeven/api-job-controller": "workspace:^",
+    "@aeven/api-speech-to-text": "workspace:^"
   }
 }

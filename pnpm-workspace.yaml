@@ -5,6 +5,9 @@ packages:
   # its native build and publication scripts under native/landlock-run.
   - native/landlock-run
   - native/landlock-run/packages/*
+  # The whisper.cpp speech worker keeps its pinned source and native build under native/whisper-cpp.
+  - native/whisper-cpp
+  - native/whisper-cpp/packages/*
   # Product assemblies over the package tier; apps/cli owns the `avn` bin.
   - apps/*
   - website

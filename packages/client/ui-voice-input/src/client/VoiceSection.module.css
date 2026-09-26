@@ -1,0 +1,151 @@
+/* Voice settings: one row per recognizer (title and status, then its action), with progress, estimate,
+   steps, and download diagnostics stacked under the row. */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rowText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 48px;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 450;
+  line-height: 22px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.desc {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 450;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.meta {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-error, var(--dsw-alias-label-primary));
+}
+
+.progress {
+  width: 100%;
+  height: 4px;
+  accent-color: var(--dsw-alias-button-primary-fill);
+}
+
+.estimate {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.estimate div {
+  display: flex;
+  gap: 8px;
+}
+
+.estimate dt {
+  min-width: 96px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.estimate dd {
+  margin: 0;
+}
+
+.steps {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stepMark {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  border: 1px solid var(--dsw-alias-label-tertiary);
+}
+
+.steps li[data-step-state='complete'] .stepMark {
+  border-color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-label-primary);
+}
+
+.steps li[data-step-state='running'] .stepMark {
+  border-color: var(--dsw-alias-label-primary);
+}
+
+.steps li[data-step-state='failed'] .stepMark {
+  border-color: var(--dsw-alias-label-error, var(--dsw-alias-label-primary));
+}
+
+.failure {
+  display: grid;
+  gap: 4px;
+}
+
+.source {
+  display: grid;
+  gap: 4px;
+}
+
+.source select {
+  justify-self: start;
+  height: 36px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 18px;
+  background: var(--dsw-alias-bg-module-platform);
+  font: inherit;
+  font-size: 14px;
+  color: var(--dsw-alias-label-primary);
+}

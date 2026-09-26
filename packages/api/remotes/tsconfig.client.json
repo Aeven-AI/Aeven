@@ -94,6 +94,12 @@
     },
     {
       "path": "../../typert/protocol"
+    },
+    {
+      "path": "../../speech/api-speech-to-text"
+    },
+    {
+      "path": "../../speech/speech-to-text"
     }
   ]
 }
