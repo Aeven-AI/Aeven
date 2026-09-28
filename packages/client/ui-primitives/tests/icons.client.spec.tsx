@@ -17,8 +17,8 @@ const icons = Object.fromEntries(
 const iconNames = Object.keys(icons)
 
 describe('ic_ds_ icon set', () => {
-  it('exports the complete icon set (84 drawn glyphs plus thirty-seven lucide transcriptions)', () => {
-    expect(iconNames.length).toBe(121)
+  it('exports the complete icon set (87 drawn glyphs plus thirty-seven lucide transcriptions)', () => {
+    expect(iconNames.length).toBe(124)
   })
 
   it.each(iconNames)('%s renders an svg with currentColor fills and no hardcoded palette', (name) => {

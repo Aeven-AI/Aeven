@@ -4,13 +4,19 @@
  * snaps to its new width while its clipped content transitions; below it the
  * column overlays. The shell repositions and remounts nothing.
  *
- * The header row pairs the fold toggle with the `sidebar.header.action`
- * cluster (ui-workspace's search, view options, and add workspace), and the
+ * The header row holds the `sidebar.header.leading` seat at its leading edge —
+ * the browsing region's search field (ui-workspace) — and the
+ * `sidebar.header.action` cluster at its trailing one (ui-workspace's view
+ * options and add workspace), and the
  * workspace/session browsing region between the New Session link and the foot
  * is the `sidebar.workspaces` registrant's, while the foot holds
  * `sidebar.settings` plus `sidebar.footer.action`; the shell hands them the
  * wide flag (plus an expand request callback for the browser). That flag stays
  * true for the whole collapse so occupants never re-lay-out mid-slide.
+ *
+ * The fold control is not here: it sits in the conversation's navigation band
+ * (ui-conversation's ConversationRoot), where it travels with the column it
+ * folds instead of leaving the column with no way back in.
  *
  * The column no longer decides whether scroll regions nested in it draw a bar:
  * each region owns its own treatment, and the session list opts out of the bar
@@ -98,35 +104,12 @@ export function SidebarRoot({
         </button>
 
         <div className={css.header}>
-          <Tooltip label={collapsed ? t('toggle.open') : t('toggle.collapse')} side="bottom" anchor="icon">
-            <button
-              type="button"
-              className={css.toggle}
-              aria-label={collapsed ? t('toggle.open') : t('toggle.collapse')}
-              onClick={() => { toggleSidebar() }}
-            >
-              {/* The product client's own sidebar toggle glyph, pasted from its
-                  markup: lucide `text-align-start` at a 2-stroke weight. */}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-                className={css.toggleIcon}
-              >
-                <path d="M21 5H3" />
-                <path d="M15 12H3" />
-                <path d="M17 19H3" />
-              </svg>
-            </button>
-          </Tooltip>
-
-          {/* The browsing region's controls ride the header row, clipped by the
-              collapsing column exactly as the body is. */}
+          {/* The row's leading seat takes the room the trailing cluster leaves:
+              the browsing region's search field opens across it. Both are
+              clipped by the collapsing column exactly as the body is. */}
+          <div className={css.headerLeading}>
+            {renderSlot('sidebar.header.leading', {})}
+          </div>
           <div className={css.headerActions}>
             {renderSlot('sidebar.header.action', {})}
           </div>

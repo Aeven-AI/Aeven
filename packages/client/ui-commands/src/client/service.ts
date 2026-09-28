@@ -21,7 +21,7 @@ import type { TranslateNS } from '@aeven/client-locale/client'
 import { rankByName } from '@aeven/client-ui-primitives'
 import type {
   CandidateRequest, ClientSessionContext, CommandClaim, PickOutcome, InputTriggerCandidate, InputTriggerPick,
-  SubmitEnvelope, SubmitImageAttachment, SubmitOutcome,
+  SubmitEnvelope, SubmitImageAttachment, SubmitOutcome, TokenSpan,
 } from '@aeven/client-ui-input-trigger/client'
 import type { CommandContribution, CommandDecoration, CommandUiContract, CommandUiSpec } from './contract.ts'
 import type { CommandDescriptor } from './directory.ts'
@@ -58,11 +58,16 @@ interface LiveState {
   readonly popups: Map<SessionId, PopupSelectController<ClientSessionContext>>
 }
 
+/** Commands namespace, captured where `remote.commands` is injected. */
+type CommandsRemote = Context['remote']['commands']
+
 /** Command surface: session-keyed directory + '/' source + contribution registry + per-session popups. */
 export class CommandUiRuntime extends Service implements CommandUiContract {
   static inject = ['inputTriggers', 'sessions', 'remote', 'remote.commands']
 
   private readonly directory: CommandDirectory
+  /** Resolved on this fiber. Callers that only hold `commandUi` do not inject it. */
+  private readonly commandsRemote: CommandsRemote
   private readonly live: LiveState = { contributions: new Map(), decorations: new Map(), popups: new Map() }
   /** `command`-namespace translator (composer refusal notices). */
   private readonly t: TranslateNS<'command'>
@@ -75,10 +80,13 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
     super(ctx, 'commandUi')
     const locale = ctx.get('locale')
     if (locale === undefined) throw new Error('ui-commands: locale service unavailable')
+    const commandsRemote = ctx.get('remote.commands') as CommandsRemote | undefined
+    if (commandsRemote === undefined) throw new Error('ui-commands: commands remote unavailable')
+    this.commandsRemote = commandsRemote
     this.t = locale.bind('command')
     this.directory = new CommandDirectory(async (sessionId) => {
       if (this.sessions().subagentAddress(sessionId) !== undefined) return []
-      const result = await ctx.remote.commands.list(sessionId)
+      const result = await commandsRemote.list(sessionId)
       if (!result.ok) throw new Error(`command.list failed: ${result.error.code}: ${result.error.message}`)
       return result.value
     })
@@ -211,6 +219,33 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
     const actx = this.scopeFor(sessionId)
     if (actx === undefined) return false
     this.popupFor(actx).open(command, spec, { sessionId }, { via: 'button' }, anchor)
+    return true
+  }
+
+  /** Run the same command decision as a slash-menu pick, without replacing draft text. */
+  async invokeFromButton(sessionId: SessionId, name: string, span: TokenSpan): Promise<boolean> {
+    const actx = this.scopeFor(sessionId)
+    if (actx === undefined) return false
+    const session = { sessionId }
+    const contribution = this.live.contributions.get(name)
+    if (contribution !== undefined && contribution.available(session)) {
+      this.openPopup(name, contribution.ui, session, { via: 'button' })
+      return true
+    }
+    await this.directory.ensureReady(sessionId, new AbortController().signal)
+    const desc = this.directory.resolve(sessionId, name)
+    if (desc === undefined) return false
+    const decoration = this.live.decorations.get(name)
+    if (decoration !== undefined && decoration.available(session)) {
+      this.openPopup(name, decoration.ui, session, { via: 'button' })
+      return true
+    }
+    if (desc.input !== undefined) {
+      return actx.bail(actx, 'slash/input-begin-command', {
+        claim: this.leadingClaim(desc, session), span,
+      }) === true
+    }
+    this.runDetached(desc, session, `/${name}`)
     return true
   }
 
@@ -370,7 +405,7 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
     line: string,
     images: readonly SubmitImageAttachment[] = [],
   ): Promise<SubmitOutcome> {
-    const result = await this.ctx.remote.commands.execute(session.sessionId, line, images)
+    const result = await this.commandsRemote.execute(session.sessionId, line, images)
     if (!result.ok) throw new Error(`command.execute failed: ${result.error.code}: ${result.error.message}`)
     if (result.value === undefined) return { kind: 'error', text: `unknown or malformed command: ${line}` }
     this.notifyExecuted(session.sessionId, submittedCommandName(line), result.value.result)

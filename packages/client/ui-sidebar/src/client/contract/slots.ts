@@ -2,8 +2,9 @@
  * Sidebar slot contract: the registrant-side props composition for the
  * layout-owned `sidebar` slot, plus the holes this shell declares. The shell
  * owns the column geometry (fold state machine, brand row, header row, New
- * Session); the header's action cluster is the `sidebar.header.action`
- * registrant's (ui-workspace), everything between the New Session link and the
+ * Session); the header row's leading seat and its trailing action cluster are
+ * the `sidebar.header.leading` and `sidebar.header.action` registrants'
+ * (ui-workspace), everything between the New Session link and the
  * list bottom is the `sidebar.workspaces` registrant's, and the foot is the
  * `sidebar.settings` registrant's (ui-settings), followed by optional footer
  * actions in `sidebar.footer.action`.
@@ -29,8 +30,16 @@ declare module '@aeven/client-ui-slots' {
      */
     'sidebar.brand.name': { kind: 'single'; scope: 'root'; owner: SidebarBrandNameOwnerProps }
     /**
-     * The action cluster beside the header toggle: the browsing region's
-     * search, view-options, and add-workspace controls. Declared by this
+     * The header row's leading seat: the browsing region's search control.
+     * Declared by this package's 'sidebar' entry; ui-workspace registers the
+     * field here, so the panel's own leading edge holds the control that opens
+     * the region's search. The seat takes the room the row's trailing cluster
+     * leaves, which is what lets an expanded field grow across the header.
+     */
+    'sidebar.header.leading': { kind: 'single'; scope: 'root'; owner: SidebarHeaderLeadingOwnerProps }
+    /**
+     * The action cluster at the header row's trailing edge: the browsing
+     * region's view-options and add-workspace controls. Declared by this
      * package's 'sidebar' entry; ui-workspace registers the cluster. Each
      * occupant owns its own buttons, labels, and spacing, and the shell clips
      * the cluster as the column collapses.
@@ -66,6 +75,16 @@ export interface SidebarBrandMarkOwnerProps {
 /** Empty owner share for the sidebar brand-name occupant. */
 export interface SidebarBrandNameOwnerProps {
   /** Marker field: the occupant owns its own content and width. */
+  children?: never
+}
+
+/**
+ * Empty owner share for the header's leading seat: the occupant owns its own
+ * control, labels, and width, and reads whatever else it needs through its own
+ * registration.
+ */
+export interface SidebarHeaderLeadingOwnerProps {
+  /** Marker field: the occupant owns its own control and width. */
   children?: never
 }
 
@@ -144,6 +163,7 @@ export type SidebarRootComponentProps =
   & PropsRenderSlots<
     | 'sidebar.brand.mark'
     | 'sidebar.brand.name'
+    | 'sidebar.header.leading'
     | 'sidebar.header.action'
     | 'sidebar.workspaces'
     | 'sidebar.settings'

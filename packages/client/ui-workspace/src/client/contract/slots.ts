@@ -1,13 +1,14 @@
 /**
- * ui-workspace contracts. Three registrations share this package:
+ * ui-workspace contracts. Four registrations share this package:
  *
- * - WorkspaceHeaderActions fills the sidebar shell's `sidebar.header.action`
- *   seat: the browsing region's search field, view-options menu, and add
- *   workspace control.
+ * - WorkspaceHeaderSearch fills the sidebar shell's `sidebar.header.leading`
+ *   seat: the search control leading the shell's header row, which opens the
+ *   Session search popup.
+ * - WorkspaceHeaderActions fills the shell's `sidebar.header.action` seat: the
+ *   view-options menu and add-workspace control at that row's trailing edge.
  * - WorkspaceBrowser fills the shell's `sidebar.workspaces` hole — the list
- *   body (grouped or flat session rows, or the search results) plus the
- *   workspace dialogs. It shares the header registration's viewing store, so
- *   one search query reaches both.
+ *   body (grouped or flat session rows) plus the workspace dialogs. It shares
+ *   the header actions' viewing store, so the view options reach it.
  * - WorkspacePicker fills the conversation empty-state hole (menu + error
  *   dialog shared with the browser).
  *
@@ -106,18 +107,8 @@ export type WorkspaceBrowserInjected = {
    * Workspace, then the recent Workspace, or clear into the New Session view.
    */
   startSession: (workspaceId?: WorkspaceId) => void
-  /** Open a real Session, optionally revealing an exact matched event. */
-  open: (sessionId: SessionId, matchSeq?: SessionSeq) => void
-  /**
-   * Search current visible conversation messages. The Host fixes the result
-   * bound; `hasMore` means the query needs narrowing.
-   */
-  searchSessions: (
-    query: string,
-    signal: AbortSignal,
-  ) => Promise<{ items: readonly SessionSearchResultItem[]; hasMore: boolean }>
-  /** Maximum number of merged rows rendered for one search. */
-  searchResultLimit: number
+  /** Open a real Session. */
+  open: (sessionId: SessionId) => void
   /** Rename a Session (explicit user title; resolves on host acceptance). */
   renameSession: (sessionId: SessionId, title: string) => Promise<void>
   /** Fork a Session at its last completed turn and open the child. */
@@ -154,6 +145,35 @@ export type WorkspaceBrowserProps =
   & PropsStore<ReturnType<typeof createWorkspaceViewStore>>
   & Omit<WorkspaceBrowserInjected, 'hooks'>
   & PropsHooks<WorkspaceBrowserInjected['hooks']>
+  & PropsLocale<'workspace'>
+
+/**
+ * Search-control injected share (arrives via the register inject factory):
+ * the Host search the popup runs and the Session it opens.
+ */
+export type WorkspaceHeaderSearchInjected = {
+  /** Open a real Session, optionally revealing an exact matched event. */
+  open: (sessionId: SessionId, matchSeq?: SessionSeq) => void
+  /**
+   * Search current visible conversation messages. The Host fixes the result
+   * bound; `hasMore` means the query needs narrowing.
+   */
+  searchSessions: (
+    query: string,
+    signal: AbortSignal,
+  ) => Promise<{ items: readonly SessionSearchResultItem[]; hasMore: boolean }>
+  /** Maximum number of rows the popup renders, for recent Sessions and for one search. */
+  searchResultLimit: number
+}
+
+/**
+ * Full search-control props: the shell's empty owner share + injected search
+ * actions + the locale seat. The popup reads Sessions and Workspaces through
+ * the global hooks the owner share carries.
+ */
+export type WorkspaceHeaderSearchProps =
+  PropsRuntime<'sidebar.header.leading'>
+  & WorkspaceHeaderSearchInjected
   & PropsLocale<'workspace'>
 
 /**

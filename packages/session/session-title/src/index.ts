@@ -127,7 +127,7 @@ export interface SessionTitleProvider {
   generate(request: SessionTitleProviderRequest): Promise<SessionTitleProviderResult>
 }
 
-/** Extract one eligible human text message from a session event. */
+/** Extract title input from one human message, including image-only prompts. */
 function sessionTitleUserMessageOf(event: SessionEvent): SessionTitleUserMessage | undefined {
   if (event.type !== 'user/message' || event.data.source.kind !== 'user') return undefined
   const content = event.data.content
@@ -135,8 +135,9 @@ function sessionTitleUserMessageOf(event: SessionEvent): SessionTitleUserMessage
     .filter((block): block is Extract<(typeof content)[number], { type: 'text' }> => block.type === 'text')
     .map(block => block.text)
     .join('\n')
-  if (normalizeSessionTitle(text, Number.MAX_SAFE_INTEGER).length === 0) return undefined
-  return { seq: event.seq, text }
+  if (normalizeSessionTitle(text, Number.MAX_SAFE_INTEGER).length > 0) return { seq: event.seq, text }
+  if (content.some(block => block.type === 'image')) return { seq: event.seq, text: 'Image' }
+  return undefined
 }
 /** Defensive copy of a logged title source (the snapshot must not alias log-owned objects). */
 function copySessionTitleSource(source: SessionTitleSource): SessionTitleSource {
@@ -236,7 +237,7 @@ const titleInputStateSchema: ZodType<TitleInputState> = zod.object({
 })
 
 /**
- * Collect eligible human text messages from a session log, in seq order.
+ * Collect eligible human title inputs from a session log, in seq order.
  * The full eligible prefix is only materialized for one provider generation,
  * so it is scanned from the log at execution time rather than retained by
  * the O(1) `titleInput` projection.
@@ -339,7 +340,7 @@ export class SessionTitleService extends Service {
 
     ctx.sessionProjections.register<'titleInput', TitleInputState>({
       key: 'titleInput',
-      stateVersion: 3,
+      stateVersion: 4,
       stateSchema: titleInputStateSchema,
       init: () => EMPTY_TITLE_INPUT,
       apply: (state, event) => {
@@ -369,11 +370,25 @@ export class SessionTitleService extends Service {
       this.onMainRequest(options)
       return next()
     }, { global: true, prepend: true })
+    ctx.on('session/created', session => this.ensureExistingTitle(session))
     ctx.on('session/disposed', (session) => {
       const state = this.work.get(session)
       if (state === undefined) return
       state.active?.controller.abort(new Error('session disposed during title generation'))
       this.work.delete(session)
+    })
+  }
+
+  /** Materialize a fallback for resumed sessions whose earlier prompts lacked one. */
+  private ensureExistingTitle(session: Session): void {
+    if (this.get(session) !== undefined || this.titleInputOf(session).first === null) return
+    this.defer(async () => {
+      try {
+        await this.ensureFallback(session)
+      } catch (error: unknown) {
+        if (!this.serviceActive()) return
+        this.ctx.logger.warn(`session "${session.id}": fallback title update failed: ${String(error)}`)
+      }
     })
   }
 
@@ -424,7 +439,7 @@ export class SessionTitleService extends Service {
    * fallback when no provider is registered.
    * @param session - exact live session to refresh.
    * @param signal - optional caller cancellation.
-   * @returns latest accepted title, or `undefined` when no eligible text exists.
+   * @returns latest accepted title, or `undefined` when no eligible input exists.
    */
   async refresh(session: Session, signal?: AbortSignal): Promise<SessionTitleSnapshot | undefined> {
     signal?.throwIfAborted()

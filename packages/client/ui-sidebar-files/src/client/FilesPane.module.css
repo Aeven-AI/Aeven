@@ -9,6 +9,10 @@
     inset 1px 1px 0 0 var(--dsw-specific-popup-highlight),
     inset 0 0 1px 1px var(--dsw-specific-popup-highlight),
     var(--dsw-elevation-stroke);
+  /* How far each scroll area fades and blurs at its ends. Every scroll padding
+     below is at least its own end's band, so nothing fades or blurs at rest. */
+  --files-fade-top: 20px;
+  --files-fade-bottom: 40px;
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
@@ -32,7 +36,7 @@
   flex: none;
   align-items: center;
   gap: 6px;
-  padding: 4px 24px 12px 13px;
+  padding: 4px 24px 12px;
 }
 
 .search {
@@ -167,8 +171,9 @@
   min-height: 0;
 }
 
-/* Blur over the faded edges: the conversation header's `.navBlur` exactly
-   (ui-conversation ConversationRoot.module.css), mirrored for the bottom edge.
+/* Blur over the faded edges: the conversation header's `.navBlur` recipe
+   (ui-conversation ConversationRoot.module.css), confined to each end's own
+   fade band so the blur reaches no row the padding is meant to keep clear.
    Unprefixed only: the CSS pipeline adds the -webkit- form per its targets. */
 .scrollFrame::before,
 .scrollFrame::after {
@@ -177,19 +182,20 @@
   right: 0;
   left: 0;
   z-index: 1;
-  height: 56px;
   backdrop-filter: blur(1px);
   pointer-events: none;
 }
 
 .scrollFrame::before {
   top: 0;
-  mask-image: linear-gradient(to bottom, #000 10px, transparent 56px);
+  height: var(--files-fade-top);
+  mask-image: linear-gradient(to bottom, #000 0, transparent var(--files-fade-top));
 }
 
 .scrollFrame::after {
   bottom: 0;
-  mask-image: linear-gradient(to top, #000 10px, transparent 56px);
+  height: var(--files-fade-bottom);
+  mask-image: linear-gradient(to top, #000 0, transparent var(--files-fade-bottom));
 }
 
 /* Scroll areas scroll without drawing a bar, and fade their content out at
@@ -201,8 +207,8 @@
   mask-image: linear-gradient(
     to bottom,
     transparent 0,
-    #000 20px,
-    #000 calc(100% - 40px),
+    #000 var(--files-fade-top),
+    #000 calc(100% - var(--files-fade-bottom)),
     transparent 100%
   );
 }
@@ -396,6 +402,29 @@
 
 .code {
   margin: 0;
+}
+
+/* The file body already insets 24px from the sidebar. The code block's banner
+   and source add no further left padding, so the language name and the text
+   start on that line. */
+.code > :first-child > :first-child,
+.code :global(pre) {
+  padding-left: 0;
+}
+
+/* The copy control keeps its accessible name and draws the copy glyph. */
+.code :global(button) {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  overflow: hidden;
+  font-size: 0;
+  line-height: 0;
+  background-color: currentColor;
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='14' height='14' x='8' y='8' rx='2' ry='2'/%3E%3Cpath d='M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2'/%3E%3C/svg%3E");
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: 16px 16px;
 }
 
 .image {

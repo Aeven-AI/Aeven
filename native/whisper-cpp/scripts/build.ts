@@ -8,7 +8,8 @@
  * other. Every other target builds on its own native runner, so no cross toolchain is involved.
  *
  * Run: `pnpm run build:native [--target <platform>-<arch>]` (CMake 3.21+ and a C++17 compiler; Xcode on macOS,
- * Visual Studio Build Tools on Windows).
+ * Visual Studio Build Tools on Windows, plus its "C++ Clang tools" and "MSBuild support for LLVM" components on
+ * Windows ARM64).
  */
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -83,6 +84,8 @@ export function cmakeOptions(target: Target): string[] {
   if (target.endsWith('-x64')) options.push('-DGGML_AVX=ON', '-DGGML_AVX2=ON', '-DGGML_FMA=ON', '-DGGML_F16C=ON')
   if (target.startsWith('linux-')) options.push('-DCMAKE_EXE_LINKER_FLAGS=-static-libstdc++ -static-libgcc')
   if (target.startsWith('win32-')) options.push('-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded')
+  // ggml's ARM CPU backend rejects MSVC's cl.exe; the Visual Studio ClangCL toolset compiles it.
+  if (target === 'win32-arm64') options.push('-A', 'ARM64', '-T', 'ClangCL')
   return options
 }
 

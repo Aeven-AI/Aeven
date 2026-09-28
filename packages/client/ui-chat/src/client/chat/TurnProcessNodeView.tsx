@@ -65,3 +65,18 @@ export const TurnProcessNodeView = memo(function TurnProcessNodeView({
     </button>
   )
 })
+
+/**
+ * Local stand-in for the running Turn header, shown under a sent message until
+ * the Host opens the Turn and its own header row renders.
+ * @param props - the Chat view's translator.
+ * @returns the shimmering "Ævening…" row.
+ */
+export function TurnPendingRow({ t }: Pick<ChatNodeViewProps<'turn-process'>, 't'>) {
+  return (
+    <div className={css.root} data-running="" data-turn-pending="">
+      <TextShimmer className={css.label} active>{t('chat.deepDiving')}</TextShimmer>
+      <span className={css.srOnly} role="status" aria-live="polite">{t('chat.deepDiving')}</span>
+    </div>
+  )
+}

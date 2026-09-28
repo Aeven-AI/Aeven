@@ -1,31 +1,27 @@
 /**
  * The workspace/session browsing region filling the sidebar shell's
- * `sidebar.workspaces` hole: the grouped tree or flat list, the search
- * results, and the workspace dialogs. The region's controls (search, view
- * options, add workspace) are the header cluster's, and the query they write
- * arrives through the shared viewing store.
+ * `sidebar.workspaces` hole: the grouped tree or flat list and the workspace
+ * dialogs. The region's controls (view options, add workspace) are the header
+ * cluster's, and the view preferences they write arrive through the shared
+ * viewing store; search runs in the header's own popup (SearchDialog.tsx).
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
   Button, Modal,
 } from '@aeven/client-ui-primitives'
-import type {
-  SessionListState, SessionSearchResultItem,
-} from '@aeven/api-session-controller/client'
+import type { SessionListState } from '@aeven/api-session-controller/client'
 import type { WorkspaceId, WorkspaceView } from '@aeven/api-workspace-controller/client'
 import type { SessionId } from '@aeven/session/types'
 import type { WorkspaceBrowserProps } from '../contract/slots.ts'
 import type { SessionNode, SessionOrderBy } from '../tree.ts'
 import {
-  deriveFlat, deriveGroups, deriveSearchResults, orderGroupsByRecency, owningGroupKey, UNGROUPED_KEY,
+  deriveFlat, deriveGroups, orderGroupsByRecency, owningGroupKey, UNGROUPED_KEY,
 } from '../tree.ts'
-import { ProjectRowItem, SearchResultItem, SessionNodeItem } from './Rows.tsx'
+import { ProjectRowItem, SessionNodeItem } from './Rows.tsx'
 import { FLAT_SESSION_ORDER_KEY } from '../stores.ts'
 import css from './WorkspaceBrowser.module.css'
 
-/** Pause between the latest keystroke and a Host content-search request. */
-const SEARCH_DEBOUNCE_MS = 250
 /** Session rows visible per Workspace before the local overflow control. */
 const COLLAPSED_SESSION_LIMIT = 5
 
@@ -681,87 +677,6 @@ function FlatList({
   )
 }
 
-interface RemoteSearchState {
-  query: string
-  status: 'idle' | 'loading' | 'ready' | 'disabled' | 'error'
-  items: readonly SessionSearchResultItem[]
-  hasMore: boolean
-}
-
-/** Flat search body: local metadata matches plus the current Host result page. */
-function SearchResults({
-  useSessions,
-  useSessionPendingInteraction,
-  open,
-  workspaces,
-  archivedSessionIds,
-  query,
-  remote,
-  resultLimit,
-  t,
-}: Pick<SessionTreeProps, 'useSessions' | 'useSessionPendingInteraction' | 'open' | 't'> & {
-  workspaces: readonly WorkspaceView[]
-  archivedSessionIds: readonly SessionNode['id'][]
-  query: string
-  remote: RemoteSearchState
-  resultLimit: number
-}) {
-  const list = useSessions(s => s)
-  const pendingInteractions = useSessionPendingInteraction(s => s)
-  const currentRemote = remote.query === query
-    ? remote
-    : { query, status: 'loading' as const, items: [], hasMore: false }
-  const results = useMemo(
-    () => deriveSearchResults(
-      list,
-      workspaces,
-      query,
-      archivedSessionIds,
-      pendingInteractions,
-      currentRemote,
-      resultLimit,
-    ),
-    [list, workspaces, query, archivedSessionIds, pendingInteractions, currentRemote, resultLimit],
-  )
-  const pending = currentRemote.status === 'loading'
-  const unavailable = currentRemote.status === 'disabled' || currentRemote.status === 'error'
-
-  return (
-    <div className={clsx(css.treeBody, css.wide)}>
-      <div className={clsx(css.list, 'no-scrollbar')}>
-        <div className={css.searchTree} role="tree" aria-label={t('search.results.aria')}>
-          {results.items.map(result => (
-            <SearchResultItem
-              key={result.id}
-              result={result}
-              currentId={list.current}
-              onOpen={open}
-              t={t}
-            />
-          ))}
-        </div>
-        {pending && (
-          <div className={css.searchStatus} role="status">{t('search.pending')}</div>
-        )}
-        {unavailable && (
-          <div className={css.searchWarning} role="status">
-            {t(currentRemote.status === 'disabled' ? 'search.disabled' : 'search.unavailable')}
-          </div>
-        )}
-        {!pending && results.items.length === 0 && (
-          <div className={css.empty}>{t('search.noMatches')}</div>
-        )}
-        {results.hasMore && (
-          <div className={css.searchStatus}>
-            {t('search.hasMore', { n: resultLimit })}
-          </div>
-        )}
-      </div>
-      <span className={css.fade} />
-    </div>
-  )
-}
-
 /**
  * Render the browsing region.
  * @param props - composed slot props (shell owner share + store + injected actions).
@@ -783,8 +698,6 @@ export function WorkspaceBrowser({
   insertWorkspaceBefore,
   archiveSession,
   insertSessionBefore,
-  searchSessions,
-  searchResultLimit,
   useHostInfo,
   t,
 }: WorkspaceBrowserProps) {
@@ -832,82 +745,22 @@ export function WorkspaceBrowser({
       ...workspaces.map(workspace => workspace.workspaceId as string),
     ])
   }, [actions.retainAccountKeys, workspacePhase, workspaces])
-  // The query lives in the shared store, written by the header's search field:
-  // it outlives the tree so collapsing does not drop an in-progress filter.
-  const query = useStore(s => s.searchQuery)
   const [revealSessionId, setRevealSessionId] = useState<SessionId | undefined>(undefined)
-  const normalizedQuery = query.trim()
-  const [remoteSearch, setRemoteSearch] = useState<RemoteSearchState>({
-    query: '',
-    status: 'idle',
-    items: [],
-    hasMore: false,
-  })
   const composingRef = useRef(false)
 
-  const openSearchResult: typeof open = (sessionId, matchSeq) => {
-    setRevealSessionId(sessionId)
-    actions.setSearchQuery('')
-    actions.setSearchExpanded(false)
-    open(sessionId, matchSeq)
-  }
   const acknowledgeSessionReveal = (sessionId: SessionId): void => {
     setRevealSessionId(current => current === sessionId ? undefined : current)
   }
-  useEffect(() => {
-    if (normalizedQuery !== '') setRevealSessionId(undefined)
-  }, [normalizedQuery])
-  // Search is not the only way to select a Session the tree never scrolled to:
-  // a pasted `/c/<id>` address, Back, and Forward all arrive the same way, and
-  // the reader asks the same question about where the conversation sits. Every
-  // selection reveals rather than only the addressed ones, because a row the
-  // reader can already see costs nothing: an expanded group stays expanded, and
-  // `block: 'nearest'` scrolls only a row that is actually out of view.
+  // A selection can land on a row the tree never scrolled to: a search popup
+  // pick, a pasted `/c/<id>` address, Back, and Forward all arrive this way.
+  // Every selection reveals, because a row the reader can already see costs
+  // nothing: an expanded group stays expanded, and `block: 'nearest'` scrolls
+  // only a row that is actually out of view.
   const currentSessionId = useSessions(state => state.current)
   useEffect(() => {
     if (currentSessionId === undefined) return
     setRevealSessionId(currentSessionId)
   }, [currentSessionId])
-
-  useEffect(() => {
-    if (normalizedQuery === '') {
-      setRemoteSearch({ query: '', status: 'idle', items: [], hasMore: false })
-      return
-    }
-    const controller = new AbortController()
-    setRemoteSearch({
-      query: normalizedQuery,
-      status: 'loading',
-      items: [],
-      hasMore: false,
-    })
-    const timer = window.setTimeout(() => {
-      searchSessions(normalizedQuery, controller.signal).then((result) => {
-        if (controller.signal.aborted) return
-        setRemoteSearch({
-          query: normalizedQuery,
-          status: 'ready',
-          items: result.items,
-          hasMore: result.hasMore,
-        })
-      }).catch((error: unknown) => {
-        if (controller.signal.aborted) return
-        setRemoteSearch({
-          query: normalizedQuery,
-          status: typeof error === 'object' && error !== null
-            && Reflect.get(error, 'code') === 'session/search-disabled'
-            ? 'disabled'
-            : 'error',
-          items: [],
-          hasMore: false,
-        })
-      })
-    }, SEARCH_DEBOUNCE_MS)
-    return () => {
-      window.clearTimeout(timer)
-      controller.abort()
-    }
-  }, [normalizedQuery, searchSessions])
 
   // Rename dialog (browser-owned so it outlives row unmounts during collapse).
   const [renameTarget, setRenameTarget] = useState<{ workspaceId: WorkspaceId; currentTitle: string } | null>(null)
@@ -1020,21 +873,7 @@ export function WorkspaceBrowser({
       {/* Always-mounted seat keeps the region's flex slot while the list
           itself is wide-only. */}
       <div className={css.listArea}>
-        {wide && (normalizedQuery !== ''
-          ? (
-            <SearchResults
-              useSessions={useSessions}
-              useSessionPendingInteraction={useSessionPendingInteraction}
-              open={openSearchResult}
-              workspaces={workspaces}
-              archivedSessionIds={archivedSessionIds}
-              query={normalizedQuery}
-              remote={remoteSearch}
-              resultLimit={searchResultLimit}
-              t={t}
-            />
-          )
-          : groupBy === 'flat'
+        {wide && (groupBy === 'flat'
             ? (
               <FlatList
                 useSessions={useSessions} useSessionPendingInteraction={useSessionPendingInteraction}

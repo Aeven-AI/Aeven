@@ -77,21 +77,8 @@
 }
 
 .flatList > * + *,
-.searchTree > [role='treeitem'] + [role='treeitem'],
 .groupSection > * + * {
   margin-top: 0;
-}
-
-.searchStatus,
-.searchWarning {
-  padding: 10px 12px;
-  font-size: 12px;
-  line-height: 18px;
-  color: var(--dsw-alias-label-tertiary);
-}
-
-.searchWarning {
-  color: var(--dsw-alias-label-secondary);
 }
 
 /* One workspace section: header row + a compact expanded session run. */

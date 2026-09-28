@@ -13,6 +13,8 @@ export interface MenuItem {
   disabled?: boolean
   /** Leading icon (figma .Menu_cell gap 8). */
   icon?: ReactNode
+  /** Right-aligned secondary text, used by the composer command rows. */
+  description?: string
   /** Destructive row: error-colored text/icon and danger hover fill. */
   danger?: boolean
   /** Nested card opened to the right on hover/focus. */
@@ -234,6 +236,7 @@ export function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, o
         >
           {entry.icon !== undefined && <span className={css.itemIcon}>{entry.icon}</span>}
           <span className={css.itemLabel}>{entry.label}</span>
+          {entry.description !== undefined && <span className={css.itemDescription}>{entry.description}</span>}
           {/* Selection marker is a trailing check (figma .Menu_cell), not a fill. */}
           {selected && <IconCheckOutline16 className={css.check} />}
         </button>
@@ -250,6 +253,7 @@ export function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, o
               >
                 {sub.icon !== undefined && <span className={css.itemIcon}>{sub.icon}</span>}
                 <span className={css.itemLabel}>{sub.label}</span>
+                {sub.description !== undefined && <span className={css.itemDescription}>{sub.description}</span>}
               </button>
             ))}
           </div>

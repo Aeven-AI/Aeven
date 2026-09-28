@@ -4,6 +4,7 @@ import type { ISessions } from '@aeven/api-session-controller/client'
 import { createSnapshotStore, type BoundActions } from '@aeven/client-store'
 import { resolveSlotLabel } from '@aeven/client-ui-slots'
 import type { SessionId } from '@aeven/session/types'
+import type {} from '@aeven/api-remotes/client'
 // Type-only service and declaration merges used by this assembly.
 import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-renderer/client'
@@ -23,12 +24,12 @@ import { ComposerBlockRegistry } from './input/blocks.ts'
 import type { ComposerBlock } from './contract/composer-blocks.ts'
 import { InputHub } from './input/hub.ts'
 import { ComposerSubmissionPolicy } from './input/submission-policy.ts'
-import { queueDockEntry } from './queue/QueueDock.tsx'
 import { EnterBehaviorRow } from './settings/EnterBehaviorRow.tsx'
 import type { EnterBehaviorRowInjected } from './settings/EnterBehaviorRow.tsx'
 import { ConversationRoot } from './skeleton/ConversationRoot.tsx'
 import { ConversationSession, ConversationSessionHeader } from './skeleton/ConversationSession.tsx'
 import { InputBar } from './input/InputBar.tsx'
+import { exportSessionLog } from './input/export-session.ts'
 import { todoDockEntry } from './skeleton/TodoPanel.tsx'
 import { resolveActiveView } from './view-selection.ts'
 import { en, NS, zh, type ConversationKey } from './locales.ts'
@@ -43,7 +44,7 @@ declare module '@aeven/client-ui-slots' {
 
 /** Services required by the Conversation plugin. */
 export const inject = [
-  'slots', 'sessions', 'uiSession', 'uiWorkspace', 'locale', 'settingsScope',
+  'slots', 'sessions', 'uiSession', 'uiWorkspace', 'locale', 'settingsScope', 'remote', 'remote.session',
 ]
 
 // Stable no-session sources keep the renderer's observable-hook cache and
@@ -92,6 +93,19 @@ function concreteConversation(ctx: Context): ConversationController {
   const conversation = ctx.get('conversation') as ConversationController | undefined
   if (conversation === undefined) throw new Error('ui-conversation: conversation service unavailable')
   return conversation
+}
+
+/**
+ * The navigation band's fold action, or undefined when no layout frame owns the
+ * column to fold. Resolved per render: the frame provides its layout service
+ * and renders this assembly in the same registration, so the control appears
+ * with the column it folds and never as a button with nothing behind it.
+ * @param ctx - the Conversation plugin's context.
+ * @returns the sidebar fold action, or undefined without a layout service.
+ */
+function foldAction(ctx: Context): (() => void) | undefined {
+  const layout = ctx.get('layout')
+  return layout === undefined ? undefined : () => { layout.toggleSidebar() }
 }
 
 /**
@@ -227,6 +241,9 @@ export function apply(ctx: Context): void {
         composerBlock: sessionId === undefined ? ABSENT_BLOCK : composerBlocks.storeFor(sessionId),
         selectedView: sessionId === undefined ? ABSENT_SELECTED_VIEW : uiConversation.binding(sessionId).selectedView,
       },
+      // The fold control is chrome for the frame's own column, so its action is
+      // read rather than declared as a hard dependency.
+      toggleSidebar: foldAction(ctx),
       selectWorkspace: async (workspaceId) => {
         const nextId = await workspaceNavigation.connectWorkspace(workspaceId)
         if (sessionId !== undefined && nextId !== sessionId) {
@@ -301,11 +318,15 @@ export function apply(ctx: Context): void {
         return {
           keyboard: undefined,
           addImages: undefined,
+          addFiles: undefined,
           removeImage: undefined,
           draftImages: undefined,
+          subscribeDrafts: undefined,
           resolveSubmitMode: (running, gesture, steeringAvailable) =>
             submissionPolicy.resolve(running, gesture, steeringAvailable),
           toggleCommandMenu: undefined,
+          invokeCommand: undefined,
+          exportSession: undefined,
           stop: undefined,
           command: undefined,
           hooks: {
@@ -332,11 +353,20 @@ export function apply(ctx: Context): void {
             return error instanceof Error ? error.message : String(error)
           }
         },
+        addFiles: (files) => {
+          const drafts = conversation.createDraftFiles(files)
+          if (!shell.addImages(drafts.map(draft => draft.id))) {
+            conversation.releaseDraftImages(drafts)
+            return t('file.busy')
+          }
+          return null
+        },
         removeImage: (id) => {
           conversation.releaseDraftImage(id)
           shell.removeImage(id)
         },
         draftImages: ids => conversation.draftImages(ids),
+        subscribeDrafts: listener => conversation.subscribeDrafts(listener),
         resolveSubmitMode: (running, gesture, steeringAvailable) =>
           submissionPolicy.resolve(running, gesture, steeringAvailable),
         toggleCommandMenu: inputTriggers === undefined
@@ -352,6 +382,17 @@ export function apply(ctx: Context): void {
               span: { ...selection, draftRev: snapshot.draftRev },
             })
           },
+        invokeCommand: (name, selection) => {
+          // Property access throws unless commandUi is injected. This bar only
+          // calls it, so resolve the service from the store.
+          const commandUi = ctx.get('commandUi') as {
+            invokeFromButton(id: SessionId, command: string, span: { start: number; end: number; draftRev: number }): Promise<boolean>
+          } | undefined
+          if (commandUi === undefined) return Promise.resolve(false)
+          const snapshot = shell.snapshot
+          return commandUi.invokeFromButton(sessionId, name, { ...selection, draftRev: snapshot.draftRev })
+        },
+        exportSession: () => exportSessionLog(ctx.remote.session, sessionId),
         stop: () => {
           scopedConversation(sessions, sessionId).cancel().catch(() => {
             // Stop failure is published through Session promptError.
@@ -400,5 +441,4 @@ export function apply(ctx: Context): void {
   })
 
   ctx.plugin(todoDockEntry)
-  ctx.plugin(queueDockEntry)
 }

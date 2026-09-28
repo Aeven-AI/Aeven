@@ -20,6 +20,8 @@ declare module '@aeven/session-projection/types' {
     sessionListMetadata: SessionListMetadata
     /** Host state for the boot-constant image-limit view. */
     imageLimits: null
+    /** Host state for the file-intake view, computed from current reader readiness. */
+    fileIntake: null
     /** Durable model selection already used by a request and still pending for a later request. */
     modelSelection: ModelSelectionProjectionState
   }
@@ -28,6 +30,8 @@ declare module '@aeven/session-projection/types' {
     sessionListMetadata: SessionListMetadata
     /** Image-intake limits enforced by the Session prompt endpoint. */
     imageLimits: ImageAttachmentLimits
+    /** File-intake limits and accepted formats enforced by the upload route. */
+    fileIntake: FileIntake
     /** Durable model selection already used and selected for the next request. */
     modelSelection: ModelSelectionProjection
   }
@@ -69,7 +73,7 @@ export interface SessionProjectionBaseline {
 export type SessionProjectionValues = Partial<SessionProjectionMap>
   & Readonly<Record<string, SessionProjectionValue>>
 
-/** Browser-submitted prompt content; the Host promotes image bytes to durable references. */
+/** Browser-submitted prompt content; the Host promotes image bytes and staged file uploads to durable references. */
 export type PromptContentPart =
   | { readonly type: 'text'; readonly text: string }
   | {
@@ -78,6 +82,41 @@ export type PromptContentPart =
     readonly data: string
     readonly name?: string
   }
+  | {
+    readonly type: 'file'
+    /** Single-use identifier returned by the Host upload route. */
+    readonly uploadId: string
+  }
+
+/** File-intake limits and formats the upload route and prompt admission enforce. */
+export interface FileIntake {
+  readonly maxFileBytes: number
+  readonly maxFilesPerMessage: number
+  readonly maxMessageFileBytes: number
+  /** Lowercase extensions without the dot accepted by a ready reader. */
+  readonly extensions: readonly string[]
+  /** Media types accepted by a ready reader. */
+  readonly mediaTypes: readonly string[]
+}
+
+/** Upload route response after the file and its text are durable and staged. */
+export interface FileUploadValue {
+  readonly uploadId: string
+  readonly name: string
+  readonly mediaType: string
+  readonly bytes: number
+  /** Characters of extracted text. */
+  readonly chars: number
+  readonly truncated: boolean
+  readonly pages?: number
+}
+
+/** Upload route failure body. */
+export interface FileUploadFailure {
+  /** Stable attachment or extraction failure code. */
+  readonly code: string
+  readonly message: string
+}
 
 /** Complete model selection for one Session. */
 export interface ModelSelection {

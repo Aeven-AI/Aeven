@@ -89,11 +89,11 @@ interface SessionTitleLlmRequestEventData {
 The service snapshots eligible messages through one revision. A provider returns only seqs from that request; service-owned acceptance verifies ordering, normalizes the title, enforces the byte limit, and appends the title with its source-message seqs and source kind.
 
 ```ts type-equiv
-/** One eligible human text message exposed to title providers. */
+/** One eligible human title input exposed to title providers. */
 interface SessionTitleUserMessage {
   /** Source `user/message` event seq. */
   readonly seq: SessionSeq
-  /** Exact concatenated text-block content. */
+  /** Concatenated text blocks, or `Image` for an image-only prompt. */
   readonly text: string
 }
 ```
@@ -185,7 +185,7 @@ rename(session: Session, title: string): SessionTitleSnapshot
  * fallback when no provider is registered.
  * @param session - exact live session to refresh.
  * @param signal - optional caller cancellation.
- * @returns latest accepted title, or `undefined` when no eligible text exists.
+ * @returns latest accepted title, or `undefined` when no eligible input exists.
  */
 async refresh(session: Session, signal?: AbortSignal): Promise<SessionTitleSnapshot | undefined>
 

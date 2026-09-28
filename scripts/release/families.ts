@@ -104,6 +104,9 @@ export abstract class ReleaseFamily {
   /** Repository-relative glob patterns selecting this family's manifests. */
   abstract readonly patterns: readonly string[]
 
+  /** Required npm scope for this family's members. */
+  abstract readonly packageScope: string
+
   /** Git tag prefix this family publishes from. */
   abstract readonly tagPrefix: string
 
@@ -132,7 +135,9 @@ export abstract class ReleaseFamily {
       const name = requireString(manifest, 'name', normalized)
       const version = requireString(manifest, 'version', normalized)
       if (name === WORKSPACE_ROOT_PACKAGE) throw new Error(`${normalized} selected the workspace root`)
-      if (!name.startsWith('@aeven/')) throw new Error(`${normalized} must name an @aeven package`)
+      if (!name.startsWith(`${this.packageScope}/`)) {
+        throw new Error(`${normalized} must name an ${this.packageScope} package`)
+      }
       if (seen.has(name)) throw new Error(`${name} appears twice in release family ${this.id}`)
       seen.add(name)
       members.push({
@@ -322,6 +327,7 @@ export abstract class ReleaseFamily {
 class AvnFamily extends ReleaseFamily {
   readonly id = 'avn'
   readonly patterns = ['packages/!(experimental)/*/package.json', 'apps/*/package.json'] as const
+  readonly packageScope = '@aeven'
   readonly tagPrefix = 'avn-v'
 
   /** Require current artifacts from a complete official client build. */
@@ -373,6 +379,7 @@ class AvnFamily extends ReleaseFamily {
 class VendorFamily extends ReleaseFamily {
   readonly id = 'vendor'
   readonly patterns = ['vendor/*/package.json'] as const
+  readonly packageScope = '@deepseek-ai'
   readonly tagPrefix = 'vendor-'
 
   /**

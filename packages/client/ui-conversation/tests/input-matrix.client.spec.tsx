@@ -65,6 +65,8 @@ function mountBar(shell: SessionInputShell, over?: { running?: boolean; disabled
     keyboard: shell,
     addImages: () => null,
     removeImage: () => {},
+    addFiles: undefined,
+    subscribeDrafts: undefined,
     // Every id resolves so the bar's registry prune never drops a test image.
     draftImages: ids => ids.map(id => ({
       kind: 'image' as const, id,
@@ -73,6 +75,8 @@ function mountBar(shell: SessionInputShell, over?: { running?: boolean; disabled
     })),
     resolveSubmitMode: () => 'queue',
     toggleCommandMenu: vi.fn(),
+    invokeCommand: undefined,
+    exportSession: undefined,
     useNotices: bindSnapshotSelector(shell.notices),
     useLexicon: bindSnapshotSelector(shell.lexicon),
     useMenuLauncher: bindSnapshotSelector(createSnapshotStore<string | null>(null)),

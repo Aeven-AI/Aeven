@@ -5,7 +5,7 @@
 import { useCallback, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import clsx from 'clsx'
-import { HeroShell } from '@aeven/client-ui-primitives'
+import { HeroShell, Tooltip } from '@aeven/client-ui-primitives'
 import type { ConversationSlotProps, InputZone } from '../contract/slots.ts'
 import { useContentCover } from './content-cover.ts'
 import { ContentLoader } from './ContentLoader.tsx'
@@ -53,6 +53,50 @@ function renderedContentWidth(root: HTMLElement): number {
   /* v8 ignore next -- both handles render with the root, so the lookup always resolves. */
   if (left === undefined || right === undefined) return CONTENT_MIN
   return right.left - left.right
+}
+
+/**
+ * The navigation band's leading control: the left navigation column's fold
+ * toggle. It is a child of the conversation's own bar rather than of the column
+ * it folds, so it travels with the conversation — out as that column opens,
+ * back as it closes — instead of leaving the column with no way back in.
+ *
+ * The label names the direction the control moves the column, which the frame
+ * states as the owner share's fold state, so the reader reads what the press
+ * will do rather than which column it is about.
+ */
+function NavFold(props: { label: string; expanded: boolean; onToggle: () => void }) {
+  return (
+    <div className={css.navFold}>
+      <Tooltip label={props.label} side="bottom" anchor="icon">
+        <button
+          type="button"
+          className={css.foldButton}
+          aria-label={props.label}
+          aria-expanded={props.expanded}
+          onClick={props.onToggle}
+        >
+          {/* The product client's own sidebar toggle glyph, pasted from its
+              markup: lucide `text-align-start` at a 2-stroke weight. */}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            className={css.foldIcon}
+          >
+            <path d="M21 5H3" />
+            <path d="M15 12H3" />
+            <path d="M17 19H3" />
+          </svg>
+        </button>
+      </Tooltip>
+    </div>
+  )
 }
 
 /** One transcript width handle: pointer capture + rAF-throttled symmetric
@@ -161,7 +205,7 @@ function WidthHandle(props: {
 export function ConversationRoot({
   sessionId, useSession, useSessions, useSessionPendingInteraction,
   useWorkspaces, useInput, useComposerBlock, useSelectedView,
-  renderSlot, renderSlotChain, t,
+  renderSlot, renderSlotChain, t, sidebarCollapsed, toggleSidebar,
 }: ConversationRootProps) {
   const session = useSession(s => s)
   const pendingInteraction = useSessionPendingInteraction(snapshot =>
@@ -348,11 +392,18 @@ export function ConversationRoot({
             same chrome — the account avatar among it — whether or not one is
             open. Only the Session header's own content (crumbs, View tabs,
             Session actions) is gated on a Session. */}
-        <header className={css.header}>
+        <header className={css.header} data-nav-fold={toggleSidebar !== undefined || undefined}>
           <div className={css.navBackground} aria-hidden="true">
             <div className={css.navFade} />
             <div className={css.navBlur} />
           </div>
+          {toggleSidebar === undefined ? null : (
+            <NavFold
+              label={t(sidebarCollapsed ? 'nav.open' : 'nav.close')}
+              expanded={!sidebarCollapsed}
+              onToggle={toggleSidebar}
+            />
+          )}
           {sessionId === undefined ? null : renderSlot('conversation.session.header', {})}
           <div className={css.navigationUtilities}>
             {renderSlot('conversation.navigation.utilities', {})}
@@ -376,10 +427,11 @@ export function ConversationRoot({
           so both keep the transcript's axis. */}
       <div className={css.viewChrome} data-conversation-chrome="" />
       <div className={css.viewChromeTop} data-conversation-chrome-top="" />
-      {/* Width handles only while a transcript is on screen; the hero has no
-          content column to size. Outside the scroller: inside it they would
-          extend the scrollable range and ride the rubber-band. */}
-      {phase === 'active' && (
+      {/* Width handles whenever a Session is settled, the hero included: a new
+          chat sizes the same column its composer and later transcript use.
+          Outside the scroller: inside it they would extend the scrollable
+          range and ride the rubber-band. */}
+      {phase !== 'settling' && (
         <div className={css.widthHandles}>
           {(['left', 'right'] as const).map(side => (
             <WidthHandle

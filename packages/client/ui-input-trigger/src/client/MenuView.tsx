@@ -101,7 +101,7 @@ export function MenuView({ menu, headers, onPick, onCrumb, onHover, onDismiss, t
         )
       })}
       <div
-        className={css.viewport}
+        className={clsx(css.viewport, 'no-scrollbar')}
         role="listbox"
         aria-label={t('suggestions.aria')}
         aria-activedescendant={highlight !== null ? optionId(highlight.source, highlight.index) : undefined}

@@ -188,6 +188,23 @@
   white-space: nowrap;
 }
 
+.item:has(.itemDescription) .itemLabel {
+  flex: none;
+  max-width: 40%;
+}
+
+.itemDescription {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
 .check {
   flex: none;
   color: var(--dsw-alias-label-primary);

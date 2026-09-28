@@ -17,8 +17,11 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  IconArrowUpOutline20, IconPlusOutline20, IconStopFill20, IconWarningOutline16, Toast, Tooltip,
+  IconArrowUpOutline20, IconCompactOutline16, IconDataOutline16, IconDownloadOutline16, IconGoalOutline16,
+  IconListPenOutline16, IconPaperPlaneOutline16, IconPaperclipOutline16, IconPermissionOutline16,
+  IconPlusOutline20, IconStopFill20, IconWarningOutline16, Menu, Toast, Tooltip,
 } from '@aeven/client-ui-primitives'
+import type { MenuEntry } from '@aeven/client-ui-primitives'
 // Type-only: the `plan` projection key merge (the TodoDock posture — the
 // composer reads a host-computed value; the domain owns the key).
 import type {} from '@aeven/plan-mode/client'
@@ -40,8 +43,8 @@ import css from './InputBar.module.css'
 export type InputBarProps = ComposerBarProps
 
 export const InputBar = memo(function InputBar({
-  useSession, useInput, inputActions, keyboard, addImages, removeImage, draftImages,
-  resolveSubmitMode, toggleCommandMenu, stop, command, t,
+  useSession, useInput, inputActions, keyboard, addImages, addFiles, removeImage, draftImages, subscribeDrafts,
+  resolveSubmitMode, invokeCommand, exportSession, stop, command, t,
   renderSlot, useNotices, useLexicon, useMenuLauncher,
   useProjection, sessionId, variant, disabled: inert = false, blocked,
   workspacePickerOpen = false, onRequestWorkspace,
@@ -65,16 +68,25 @@ export const InputBar = memo(function InputBar({
   const live = input !== undefined && keyboard !== undefined && inputActions !== undefined
   const draft = input?.draft ?? ''
   const editor = keyboard?.editor ?? null
+  // Upload progress mutates draft files outside the input machine; the tick
+  // re-reads the registry on each change.
+  const [draftTick, setDraftTick] = useState(0)
+  useEffect(() => subscribeDrafts?.(() => { setDraftTick(tick => tick + 1) }), [subscribeDrafts])
   const attachments = useMemo(
     () => input === undefined || draftImages === undefined ? [] : draftImages(input.imageIds),
-    [draftImages, input?.imageIds],
+    [draftImages, input?.imageIds, draftTick],
   )
+  const filesUploading = attachments.some(attachment => attachment.kind === 'file' && attachment.status === 'uploading')
+  const filesFailed = attachments.some(attachment => attachment.kind === 'file' && attachment.status === 'error')
   const empty = draft.trim() === '' && attachments.length === 0
   // Transient error banner (machine notices, image-intake rejections, and
   // prompt failures): the seq keys the Toast so an identical repeated message
   // restarts the hold-then-fade cycle instead of reusing the faded one.
   // A composer activity (dictation) claims the whole control row while it records or transcribes.
   const [activity, setActivity] = useState(false)
+  const [addOpen, setAddOpen] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const addSelection = useRef<ReturnType<NonNullable<typeof keyboard>['caretSpan']> | null>(null)
   const [toast, setToast] = useState<{ seq: number; text: string } | null>(null)
   const toastSeq = useRef(0)
   const showToast = useCallback((text: string) => {
@@ -85,6 +97,9 @@ export const InputBar = memo(function InputBar({
   // The deployment's image-intake limits (absent while no attachment service
   // is composed — the pre-check below then defers entirely to the host).
   const imageLimits = useProjection('imageLimits')
+  // File-intake limits and the formats a ready Host reader accepts (absent
+  // while the Host composes no document extraction).
+  const fileIntake = useProjection('fileIntake')
   // Prompt failures are ordinary failures (no create/attach transaction exists
   // anymore): the toast announces promptError, the draft stays in the machine,
   // and the user resubmits. A remount over a session whose machine still holds
@@ -230,13 +245,14 @@ export const InputBar = memo(function InputBar({
         if (files.some(file => !(imageLimits.mediaTypes as readonly string[]).includes(file.type))) {
           return addImages(files)
         }
-        if (attachments.length + files.length > imageLimits.maxImagesPerMessage) {
+        const images = attachments.filter(attachment => attachment.kind === 'image')
+        if (images.length + files.length > imageLimits.maxImagesPerMessage) {
           return t('image.tooMany', { count: imageLimits.maxImagesPerMessage })
         }
         if (files.some(file => file.size > imageLimits.maxImageBytes)) {
           return t('image.fileTooLarge', { size: imageSizeText(imageLimits.maxImageBytes) })
         }
-        const total = attachments.reduce((sum, attachment) => sum + attachment.file.size, 0)
+        const total = images.reduce((sum, attachment) => sum + attachment.file.size, 0)
           + files.reduce((sum, file) => sum + file.size, 0)
         if (total > imageLimits.maxMessageImageBytes) {
           return t('image.totalTooLarge', { size: imageSizeText(imageLimits.maxMessageImageBytes) })
@@ -247,14 +263,88 @@ export const InputBar = memo(function InputBar({
     if (rejected !== null) showToast(rejected)
   }, [addImages, attachments, imageLimits, showToast, t])
 
+  // Non-image intake: duplicates are skipped silently, unsupported and
+  // oversized files are announced by name, the per-message file count admits
+  // the first files that fit, and every accepted file starts uploading at once.
+  const intakeOtherFiles = useCallback((files: readonly File[]): void => {
+    if (addFiles === undefined || fileIntake === undefined) {
+      intakeImages(files)
+      return
+    }
+    const key = (file: File): string => `${file.name}|${file.size}|${file.type}`
+    const seen = new Set(attachments.map(attachment => key(attachment.file)))
+    const fresh: File[] = []
+    for (const file of files) {
+      if (seen.has(key(file))) continue
+      seen.add(key(file))
+      fresh.push(file)
+    }
+    const accepts = (file: File): boolean => {
+      const dot = file.name.lastIndexOf('.')
+      const extension = dot > 0 ? file.name.slice(dot + 1).toLowerCase() : ''
+      return extension !== ''
+        ? fileIntake.extensions.includes(extension)
+        : fileIntake.mediaTypes.includes(file.type)
+    }
+    const unsupported = fresh.filter(file => !accepts(file))
+    const oversized = fresh.filter(file => accepts(file) && file.size > fileIntake.maxFileBytes)
+    let accepted = fresh.filter(file => accepts(file) && file.size <= fileIntake.maxFileBytes)
+    const messages: string[] = []
+    if (unsupported.length > 0) {
+      messages.push(t('file.unsupported', { names: unsupported.map(file => file.name).join(', ') }))
+    }
+    if (oversized.length > 0) {
+      messages.push(t('file.tooLarge', {
+        size: imageSizeText(fileIntake.maxFileBytes),
+        names: oversized.map(file => file.name).join(', '),
+      }))
+    }
+    const drafts = attachments.filter(attachment => attachment.kind === 'file')
+    const available = Math.max(0, fileIntake.maxFilesPerMessage - drafts.length)
+    if (accepted.length > 0 && available === 0) {
+      messages.push(t('file.tooMany', { count: fileIntake.maxFilesPerMessage }))
+      accepted = []
+    } else if (accepted.length > available) {
+      messages.push(t('file.partial', { available, max: fileIntake.maxFilesPerMessage }))
+      accepted = accepted.slice(0, available)
+    }
+    const total = drafts.reduce((sum, attachment) => sum + attachment.file.size, 0)
+      + accepted.reduce((sum, file) => sum + file.size, 0)
+    if (accepted.length > 0 && total > fileIntake.maxMessageFileBytes) {
+      messages.push(t('file.totalTooLarge', { size: imageSizeText(fileIntake.maxMessageFileBytes) }))
+      accepted = []
+    }
+    if (accepted.length > 0) {
+      const rejected = addFiles(accepted)
+      if (rejected !== null) messages.push(rejected)
+    }
+    if (messages.length > 0) showToast(messages.join(' '))
+  }, [addFiles, attachments, fileIntake, intakeImages, showToast, t])
+
+  // One drop, paste, or pick: raster images keep the image pipeline; every
+  // other file takes the upload path.
+  const intakeAttachments = useCallback((files: readonly File[]): void => {
+    if (files.length === 0) return
+    const imageTypes: readonly string[] = imageLimits?.mediaTypes ?? ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
+    const images = files.filter(file => imageTypes.includes(file.type))
+    const others = files.filter(file => !imageTypes.includes(file.type))
+    if (images.length > 0) intakeImages(images)
+    if (others.length > 0) intakeOtherFiles(others)
+  }, [imageLimits, intakeImages, intakeOtherFiles])
+
+  // Files upload before sending; a draft cannot leave while one is in flight or failed.
+  const filesBlockText = filesUploading ? t('file.waitUpload') : filesFailed ? t('file.failedUpload') : null
+
   const canAcceptDrop = !locked && !machineBusy && addImages !== undefined
 
   // The keymap handlers read live bar state through this ref so the editor
   // registration survives re-renders without re-arming per keystroke.
   const gate = useRef({
-    locked, machineBusy, canSteerQueue, running, subagent, resolveSubmitMode, intakeImages,
+    locked, machineBusy, canSteerQueue, running, subagent, resolveSubmitMode, intakeAttachments, filesBlockText, showToast,
   })
-  gate.current = { locked, machineBusy, canSteerQueue, running, subagent, resolveSubmitMode, intakeImages }
+  gate.current = {
+    locked, machineBusy, canSteerQueue, running, subagent, resolveSubmitMode, intakeAttachments, filesBlockText, showToast,
+  }
 
   useEffect(() => {
     if (editor === null || keyboard === undefined) return
@@ -275,13 +365,17 @@ export const InputBar = memo(function InputBar({
           keyboard.steerQueue()
           return
         }
+        if (g.filesBlockText !== null) {
+          g.showToast(g.filesBlockText)
+          return
+        }
         keyboard.submit(g.resolveSubmitMode(
           g.running,
           accelerated ? 'accelerated' : 'enter',
           g.subagent === null,
         ))
       },
-      intakeFiles: (files) => { gate.current.intakeImages(files) },
+      intakeFiles: (files) => { gate.current.intakeAttachments(files) },
       pasteText: (text) => {
         if (gate.current.machineBusy || gate.current.locked) return
         keyboard.paste(text)
@@ -298,8 +392,38 @@ export const InputBar = memo(function InputBar({
     editor?.getRootElement()?.focus({ preventScroll: true })
   }
 
-  const onToggleCommandMenu = (): void => {
-    if (keyboard !== undefined) toggleCommandMenu?.(keyboard.caretSpan())
+  const addItems: MenuEntry[] = [
+    { type: 'label', id: 'add', text: t('add.group') },
+    { id: 'file', label: t('add.file'), icon: <IconPaperclipOutline16 size={14} />, disabled: addImages === undefined && addFiles === undefined },
+    { id: 'goal', label: t('add.goal'), description: t('add.goal.description'), icon: <IconGoalOutline16 size={14} /> },
+    { id: 'plan', label: t('add.plan'), description: t('add.plan.description'), icon: <IconListPenOutline16 size={14} /> },
+    { id: 'feedback', label: t('add.feedback'), description: t('add.feedback.description'), icon: <IconPaperPlaneOutline16 size={14} /> },
+    { type: 'separator', id: 'commands-separator' },
+    { type: 'label', id: 'commands', text: t('add.commands') },
+    { id: 'compact', label: t('add.compact'), description: t('add.compact.description'), icon: <IconCompactOutline16 size={14} /> },
+    { id: 'permission', label: t('add.permission'), description: t('add.permission.description'), icon: <IconPermissionOutline16 size={14} /> },
+    { id: 'model', label: t('add.model'), description: t('add.model.description'), icon: <IconDataOutline16 size={14} /> },
+    { id: 'export', label: t('add.export'), description: t('add.export.description'), icon: <IconDownloadOutline16 size={14} />, disabled: exportSession === undefined },
+  ]
+
+  const selectAddItem = (id: string): void => {
+    setAddOpen(false)
+    if (id === 'file') {
+      fileInputRef.current?.click()
+      return
+    }
+    if (id === 'export') {
+      void exportSession?.().catch((error: unknown) => {
+        showToast(error instanceof Error ? error.message : String(error))
+      })
+      return
+    }
+    if (sessionId === undefined || invokeCommand === undefined || addSelection.current === null) return
+    void invokeCommand(id, addSelection.current).then((handled) => {
+      if (!handled) showToast(t('add.unavailable'))
+    }).catch((error: unknown) => {
+      showToast(error instanceof Error ? error.message : String(error))
+    })
   }
 
   // The no-session Workspace trigger: the resident editable div acts as the
@@ -324,6 +448,10 @@ export const InputBar = memo(function InputBar({
       return
     }
     if (inputActions === undefined) return // absent machine: the button is disabled
+    if (filesBlockText !== null) {
+      showToast(filesBlockText)
+      return
+    }
     /* v8 ignore next -- defensive: the primary button is disabled while empty||disabled, so a click cannot reach the false arm. */
     if (!empty && !disabled && !machineBusy) inputActions.submit()
   }
@@ -401,12 +529,14 @@ export const InputBar = memo(function InputBar({
         {renderSlot('conversation.input.attachments', {
           attachments,
           canAcceptDrop,
-          onAddImages: intakeImages,
-          onRemoveImage: (id) => { removeImage?.(id) },
-          dropLimits: imageLimits === undefined ? undefined : {
-            count: imageLimits.maxImagesPerMessage,
-            size: imageSizeText(imageLimits.maxImageBytes),
-          },
+          onAddFiles: intakeAttachments,
+          onRemoveAttachment: (id) => { removeImage?.(id) },
+          dropLimits: fileIntake !== undefined
+            ? { count: fileIntake.maxFilesPerMessage, size: imageSizeText(fileIntake.maxFileBytes) }
+            : imageLimits === undefined ? undefined : {
+              count: imageLimits.maxImagesPerMessage,
+              size: imageSizeText(imageLimits.maxImageBytes),
+            },
         })}
         {/* One scrollport, one text surface: the contenteditable grows with
             its content and .scroll — capped at 14 lines in CSS — is the only
@@ -441,20 +571,41 @@ export const InputBar = memo(function InputBar({
         </div>
         <div className={css.row} data-activity={activity ? '' : undefined}>
           <div className={css.tools}>
-            <Tooltip label={t('input.commands')} side="top">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className={css.fileInput}
+              onChange={(event) => {
+                intakeAttachments(Array.from(event.currentTarget.files ?? []))
+                event.currentTarget.value = ''
+              }}
+            />
+            <Menu
+              open={addOpen}
+              items={addItems}
+              onSelect={selectAddItem}
+              onClose={() => { setAddOpen(false) }}
+              side="top"
+              portal
+              anchor={<Tooltip label={t('add.aria')} side="top">
               <button
                 type="button"
                 className={css.add}
-                aria-label={t('input.commands')}
-                aria-haspopup="listbox"
-                aria-expanded={commandMenuOpen}
-                disabled={locked || toggleCommandMenu === undefined}
+                aria-label={t('add.aria')}
+                aria-haspopup="menu"
+                aria-expanded={addOpen}
+                disabled={locked || invokeCommand === undefined}
                 onMouseDown={keepFocus}
-                onClick={onToggleCommandMenu}
+                onClick={() => {
+                  addSelection.current = keyboard?.caretSpan() ?? null
+                  setAddOpen(!addOpen)
+                }}
               >
                 <IconPlusOutline20 />
               </button>
-            </Tooltip>
+              </Tooltip>}
+            />
             <div className={css.modes}>
               {accessSelect}
               {sessionId === undefined ? null : renderSlot('conversation.input.plan', { locked })}

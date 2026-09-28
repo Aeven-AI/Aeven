@@ -5,6 +5,10 @@ import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { AttachmentStore } from '@aeven/attachment'
 import type {
+  FileAttachmentLimits,
+  FileAttachmentRef,
+  SaveFileAttachment,
+  StoredFileAttachment,
   ImageAttachmentLimits,
   ImageAttachmentRef,
   ImageRequestPolicy,
@@ -17,6 +21,7 @@ import type { NormalizationPolicy } from './normalization.ts'
 import { CompressionLimiter } from './compression-limiter.ts'
 import { commitPreparedImageFile, normalizedImagePath, prepareImageFile, readImageFile, validateImageFile } from './store.ts'
 import { readRequestImageFile, requestImageVariantId } from './request-image.ts'
+import { fileObjectPath, readFileObject, readFileTextObject, saveFileObjects } from './files.ts'
 
 export { canPassThroughNormalization, normalizeImage } from './normalization.ts'
 export type { NormalizedImage, NormalizationPolicy } from './normalization.ts'
@@ -50,6 +55,14 @@ export const DEFAULT_NORMALIZED_IMAGE_MAX_BYTES = 4 * 1024 * 1024
 export const DEFAULT_IMAGE_COMPRESSION_CONCURRENCY = 2
 /** Maximum configurable native image transformations per store. */
 export const MAX_IMAGE_COMPRESSION_CONCURRENCY = 8
+/** Default maximum original bytes of one uploaded file. */
+export const DEFAULT_MAX_FILE_BYTES = 50 * 1024 * 1024
+/** Default maximum files in one prompt. */
+export const DEFAULT_MAX_FILES_PER_MESSAGE = 10
+/** Default maximum aggregate file bytes in one prompt. */
+export const DEFAULT_MAX_MESSAGE_FILE_BYTES = 200 * 1024 * 1024
+/** Default lifetime of an unclaimed file upload. */
+export const DEFAULT_UPLOAD_TTL_MS = 60 * 60 * 1000
 
 /** Local attachment backend configuration. */
 export interface Config {
@@ -76,6 +89,14 @@ export interface Config {
   normalizedImageMaxBytes?: number
   /** Maximum simultaneous normalization or request-image transformations in this service instance. */
   imageCompressionConcurrency?: number
+  /** Maximum original bytes of one uploaded file. Default: 50 MiB. */
+  maxFileBytes?: number
+  /** Maximum files in one prompt. Default: 10. */
+  maxFilesPerMessage?: number
+  /** Maximum aggregate original file bytes in one prompt. Default: 200 MiB. */
+  maxMessageFileBytes?: number
+  /** Lifetime of an unclaimed file upload in milliseconds. Default: one hour. */
+  uploadTtlMs?: number
 }
 
 function abortReason(signal: AbortSignal): Error {
@@ -153,6 +174,10 @@ export class LocalAttachmentStore extends AttachmentStore {
     normalizedImageMaxBytes: z.number().step(1).min(1).default(DEFAULT_NORMALIZED_IMAGE_MAX_BYTES),
     imageCompressionConcurrency: z.number().step(1).min(1).max(MAX_IMAGE_COMPRESSION_CONCURRENCY)
       .default(DEFAULT_IMAGE_COMPRESSION_CONCURRENCY),
+    maxFileBytes: z.number().step(1).min(1).default(DEFAULT_MAX_FILE_BYTES),
+    maxFilesPerMessage: z.number().step(1).min(1).default(DEFAULT_MAX_FILES_PER_MESSAGE),
+    maxMessageFileBytes: z.number().step(1).min(1).default(DEFAULT_MAX_MESSAGE_FILE_BYTES),
+    uploadTtlMs: z.number().step(1).min(1000).default(DEFAULT_UPLOAD_TTL_MS),
   })
 
   /** Absolute versioned storage root. */
@@ -163,6 +188,7 @@ export class LocalAttachmentStore extends AttachmentStore {
   /** Resolved instance-level compression limit. */
   readonly imageCompressionConcurrency: number
   private readonly compression: CompressionLimiter
+  private readonly files: FileAttachmentLimits
   private readonly requestInflight = new Map<string, SharedRequest<RequestImageAttachment>>()
 
   constructor(ctx: Context, config: Config) {
@@ -191,6 +217,32 @@ export class LocalAttachmentStore extends AttachmentStore {
     }
     this.imageCompressionConcurrency = compressionConcurrency
     this.compression = new CompressionLimiter(compressionConcurrency)
+    this.files = Object.freeze({
+      maxFileBytes: config.maxFileBytes ?? DEFAULT_MAX_FILE_BYTES,
+      maxFilesPerMessage: config.maxFilesPerMessage ?? DEFAULT_MAX_FILES_PER_MESSAGE,
+      maxMessageFileBytes: config.maxMessageFileBytes ?? DEFAULT_MAX_MESSAGE_FILE_BYTES,
+      uploadTtlMs: config.uploadTtlMs ?? DEFAULT_UPLOAD_TTL_MS,
+    })
+  }
+
+  override get fileLimits(): FileAttachmentLimits {
+    return this.files
+  }
+
+  override saveFile(input: SaveFileAttachment): Promise<FileAttachmentRef> {
+    return saveFileObjects(this.root, input, this.files)
+  }
+
+  override readFile(ref: FileAttachmentRef, signal?: AbortSignal): Promise<StoredFileAttachment> {
+    return readFileObject(this.root, ref, signal)
+  }
+
+  override readFileText(ref: FileAttachmentRef, signal?: AbortSignal): Promise<string> {
+    return readFileTextObject(this.root, ref, signal)
+  }
+
+  override fileHostPath(ref: FileAttachmentRef): string {
+    return fileObjectPath(this.root, ref)
   }
 
   async validateImage(input: SaveImageAttachment): Promise<void> {

@@ -17,11 +17,12 @@
   transition: color 100ms ease;
 }
 
-.root:disabled {
+.root:disabled,
+.root[data-turn-pending] {
   cursor: default;
 }
 
-.root:not(:disabled):hover {
+.root:not(:disabled):not([data-turn-pending]):hover {
   color: var(--dsw-alias-label-primary);
 }
 

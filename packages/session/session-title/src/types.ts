@@ -58,11 +58,11 @@ export interface SessionTitleSnapshot extends SessionTitleEventData {
 /** Host title projection value. */
 export type TitleProjection = SessionTitleSnapshot
 
-/** One eligible human text message exposed to title providers. */
+/** One eligible human title input exposed to title providers. */
 export interface SessionTitleUserMessage {
   /** Source `user/message` event seq. */
   readonly seq: SessionSeq
-  /** Exact concatenated text-block content. */
+  /** Concatenated text blocks, or `Image` for an image-only prompt. */
   readonly text: string
 }
 

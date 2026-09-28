@@ -32,7 +32,7 @@ import type { LlmCallConfig, LlmCallConfigAdapterDefaults } from './call-config.
 import { HarnessError, INVALID_CREDENTIAL_CODE } from './error.ts'
 import { normalizeLlmFailure } from './adapter-failure.ts'
 import { normalizeApiKey } from './api-key.ts'
-import { contentHasImage, projectImagesForTextModel } from './content.ts'
+import { contentHasFile, contentHasImage, projectFilesForRequest, projectImagesForTextModel } from './content.ts'
 
 export * from './attribution.ts'
 export * from './brand.ts'
@@ -940,6 +940,30 @@ export class LlmRuntime extends TypertRemoteService {
     return registration
   }
 
+  /**
+   * Replace durable file blocks with their stored extracted text, so every
+   * adapter receives only its own content vocabulary. The text is read from
+   * the attachment store and verified against the logged reference.
+   */
+  private async expandFiles(options: GenerateOptions): Promise<GenerateOptions> {
+    if (!options.messages.some(message => contentHasFile(message.content))) return options
+    const attachments = this.ctx.get('attachments')
+    if (attachments === undefined) {
+      throw new LlmError('File attachments require the durable attachment service.', 'UNSUPPORTED_CONTENT')
+    }
+    // Optional execution-world mapping; the filesystem capability is not a dependency of this package.
+    const fs = this.ctx.get('fs') as { processPathFromHostPath?: (hostPath: string) => string | undefined } | undefined
+    const messages = await projectFilesForRequest(options.messages, {
+      readText: (ref, signal) => attachments.readFileText(ref, signal),
+      readonlyPath: (ref) => {
+        const hostPath = attachments.fileHostPath(ref)
+        return hostPath === undefined ? undefined : fs?.processPathFromHostPath?.(hostPath)
+      },
+    }, options.signal)
+    const expanded = { ...options, messages: messages as Message[] }
+    return Object.isFrozen(options) ? deepFreeze(expanded) : expanded
+  }
+
   /** Remove replay state whose historical route is owned by another adapter. */
   private forAdapter(options: GenerateOptions, adapter: LlmAdapter): GenerateOptions {
     const messages: Message[] = options.messages.map((message) => {
@@ -1000,7 +1024,7 @@ export class LlmRuntime extends TypertRemoteService {
           ? deepFreeze({ ...resolvedOptions, messages: projectImagesForTextModel(resolvedOptions.messages) as Message[] })
           : { ...resolvedOptions, messages: projectImagesForTextModel(resolvedOptions.messages) as Message[] }
         : resolvedOptions
-      const stream = dispatch(this.forAdapter(projectedOptions, adapter))
+      const stream = dispatch(this.forAdapter(await this.expandFiles(projectedOptions), adapter))
       iterator = stream[Symbol.asyncIterator]()
     } catch (error: unknown) {
       yield adapterFailureChunk(error, options.signal)

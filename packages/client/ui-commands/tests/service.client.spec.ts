@@ -195,6 +195,27 @@ describe('registration', () => {
   })
 })
 
+describe('button execute without a commands inject', () => {
+  it('runs a bare command from a fiber that does not inject remote.commands', async () => {
+    const { ctx, mint, executeCalls, notices } = await bench({
+      execute: () => Promise.resolve({ matched: true }),
+    })
+    mint('s1')
+    let handled = false
+    const caller = ctx.inject(['commandUi'], (scope) => {
+      const commandUi = scope.get('commandUi') as CommandUiRuntime
+      return commandUi.invokeFromButton(sid('s1'), 'plan', { start: 0, end: 0, draftRev: 1 })
+        .then((value) => { handled = value })
+    })
+    await caller
+    expect(handled).toBe(true)
+    await vi.waitFor(() => {
+      expect(executeCalls).toEqual([{ sessionId: sid('s1'), line: '/plan', images: [] }])
+    })
+    expect(notices).toEqual([])
+  })
+})
+
 describe('candidates', () => {
   it('does not fetch Agent-bound commands for an addressed child', async () => {
     const b = await bench({ addressed: sid('child') })

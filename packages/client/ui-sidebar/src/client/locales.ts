@@ -1,12 +1,10 @@
-/** `sidebar` namespace dictionaries: shell controls (brand row, New chat link, Imagine row, fold toggle). */
+/** `sidebar` namespace dictionaries: shell controls (brand row, New chat link, Imagine row). */
 
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
   'session.new': '对话',
   'session.new.label': '对话',
   'imagine': '想象',
-  'toggle.open': '打开侧边栏',
-  'toggle.collapse': '关闭侧边栏',
 } satisfies Record<string, string>
 
 /** The sidebar namespace key union. */
@@ -17,6 +15,4 @@ export const en = {
   'session.new': 'Chat',
   'session.new.label': 'Chat',
   'imagine': 'Imagine',
-  'toggle.open': 'Open sidebar',
-  'toggle.collapse': 'Close sidebar',
 } satisfies Record<SidebarKey, string>

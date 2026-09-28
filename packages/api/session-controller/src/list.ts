@@ -2,6 +2,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@aeven/agent-presets'
+import type {} from '@aeven/document-extract'
 import type { ImageAttachmentLimits } from '@aeven/attachment'
 import { SessionLogOffset } from '@aeven/session'
 import type { Session, SessionEvent, SessionHeader, SessionId } from '@aeven/session'
@@ -16,7 +17,7 @@ import {
   SESSION_SEARCH_SNIPPET_MAX_CODE_POINTS,
 } from './types.ts'
 import type {
-  SessionListMetadata, SessionProjectionHints, SessionProjectionValues, SessionSearchItem,
+  FileIntake, SessionListMetadata, SessionProjectionHints, SessionProjectionValues, SessionSearchItem,
   SessionSearchValue, SessionSummary,
 } from './types.ts'
 
@@ -59,6 +60,14 @@ const imageLimitsSchema = z.object({
   maxImageDimension: z.number().int().positive(),
   mediaTypes: z.array(z.string()),
 }) as unknown as z.ZodType<ImageAttachmentLimits>
+
+const fileIntakeSchema = z.object({
+  maxFileBytes: z.number().int().positive(),
+  maxFilesPerMessage: z.number().int().positive(),
+  maxMessageFileBytes: z.number().int().positive(),
+  extensions: z.array(z.string()),
+  mediaTypes: z.array(z.string()),
+}) as unknown as z.ZodType<FileIntake>
 
 /**
  * Advance the Session-list metadata projection by one committed event.
@@ -117,6 +126,30 @@ export class ApiSessionList {
         wire: {
           viewSchema: imageLimitsSchema,
           view: () => attachmentCtx.attachments.imageLimits,
+        },
+        stateVersion: 1,
+      })
+    })
+    ctx.inject(['attachments', 'documentExtract'], (intakeCtx) => {
+      const limits = intakeCtx.attachments.fileLimits
+      if (limits === undefined) return
+      intakeCtx.sessionProjections.register<'fileIntake', null>({
+        key: 'fileIntake',
+        stateSchema: z.null(),
+        init: () => null,
+        apply: state => state,
+        wire: {
+          viewSchema: fileIntakeSchema,
+          view: (): FileIntake => {
+            const { accepted } = intakeCtx.documentExtract.snapshot()
+            return {
+              maxFileBytes: limits.maxFileBytes,
+              maxFilesPerMessage: limits.maxFilesPerMessage,
+              maxMessageFileBytes: limits.maxMessageFileBytes,
+              extensions: accepted.extensions,
+              mediaTypes: accepted.mediaTypes,
+            }
+          },
         },
         stateVersion: 1,
       })

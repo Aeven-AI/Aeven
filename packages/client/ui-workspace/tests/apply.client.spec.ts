@@ -6,7 +6,8 @@ import { RemoteError, TestRemote } from '@aeven/client-test-runtime'
 import { LocaleRuntime } from '@aeven/client-locale/client'
 import { apply, inject } from '@aeven/client-ui-workspace/client'
 import type {
-  WorkspaceBrowserInjected, WorkspaceHeaderActionsInjected, WorkspacePickerInjected,
+  WorkspaceBrowserInjected, WorkspaceHeaderActionsInjected, WorkspaceHeaderSearchInjected,
+  WorkspacePickerInjected,
 } from '@aeven/client-ui-workspace/client'
 import { WorkspaceBrowser } from '../src/client/rows/WorkspaceBrowser.tsx'
 import { WorkspacePicker } from '../src/client/WorkspacePicker.tsx'
@@ -79,6 +80,7 @@ async function bench() {
 }
 
 type HoleName =
+  | 'sidebar.header.leading'
   | 'sidebar.header.action'
   | 'sidebar.workspaces'
   | 'conversation.hero.workspace'
@@ -124,7 +126,7 @@ describe('ui-workspace apply', () => {
 
   it('routes browser actions and picker creation to the services', async () => {
     const b = await bench()
-    declare(b.slots, 'sidebar.header.action', 'sidebar.workspaces', 'conversation.hero.workspace')
+    declare(b.slots, 'sidebar.header.leading', 'sidebar.header.action', 'sidebar.workspaces', 'conversation.hero.workspace')
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     const startSession = vi.spyOn(b.ctx.uiWorkspace, 'startSession').mockImplementation(() => undefined)
 
@@ -136,13 +138,14 @@ describe('ui-workspace apply', () => {
     expect(startSession).toHaveBeenLastCalledWith(undefined)
     browser.open('session' as never)
     expect(b.open).toHaveBeenCalledWith('session')
+    const search = (b.slots.entries('sidebar.header.leading')[0]!.inject as () => WorkspaceHeaderSearchInjected)()
     const signal = new AbortController().signal
-    await expect(browser.searchSessions('match', signal)).resolves.toEqual({
+    await expect(search.searchSessions('match', signal)).resolves.toEqual({
       items: [{ sessionId: 'session', snippet: 'match' }],
       hasMore: false,
     })
     expect(b.search).toHaveBeenCalledWith('match', signal)
-    expect(browser.searchResultLimit).toBe(20)
+    expect(search.searchResultLimit).toBe(20)
     await browser.renameSession('session' as never, 'renamed session')
     expect(b.binding).toHaveBeenCalledWith('session')
     expect(b.renameSession).toHaveBeenCalledWith('renamed session')
@@ -187,16 +190,16 @@ describe('ui-workspace apply', () => {
     unsubscribe()
   })
 
-  it('rejects the browser search callback on a Session Controller business error', async () => {
+  it('rejects the header search callback on a Session Controller business error', async () => {
     const b = await bench()
     b.search.mockImplementationOnce(async () => ({
       ok: false,
       error: new RemoteError('gateway/internal', 'index unavailable', {}),
     }) as never)
-    declare(b.slots, 'sidebar.workspaces')
+    declare(b.slots, 'sidebar.header.leading')
     await b.ctx.plugin({ inject: [...inject], apply }).await()
-    const browser = (b.slots.entries('sidebar.workspaces')[0]!.inject as () => WorkspaceBrowserInjected)()
-    await expect(browser.searchSessions('needle', new AbortController().signal))
+    const search = (b.slots.entries('sidebar.header.leading')[0]!.inject as () => WorkspaceHeaderSearchInjected)()
+    await expect(search.searchSessions('needle', new AbortController().signal))
       .rejects.toThrow('index unavailable')
   })
 

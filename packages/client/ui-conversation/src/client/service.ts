@@ -18,7 +18,7 @@ import type {
 } from '@aeven/api-session-controller/client'
 import type { SessionId } from '@aeven/session/types'
 import type { ImageMediaType } from '@aeven/attachment'
-import type { ComposerAttachment } from './contract/slots.ts'
+import type { ComposerAttachment, ComposerFileAttachment, ComposerImageAttachment } from './contract/slots.ts'
 import type { QueueAction, QueueItemId } from './contract/queue.ts'
 import type { ComposerBlocks } from './contract/composer-blocks.ts'
 import type {
@@ -65,7 +65,7 @@ export interface IConversation {
 }
 
 /** Create one browser-only draft descriptor; only its id enters input state. */
-function browserDraftAttachment(file: File): ComposerAttachment {
+function browserDraftAttachment(file: File): ComposerImageAttachment {
   return {
     kind: 'image',
     id: randomUUID() as DraftAttachmentId,
@@ -82,7 +82,7 @@ function browserDraftAttachment(file: File): ComposerAttachment {
  * reads the dimensions into an immutable echo snapshot, so this late write
  * does not require a store notification.
  */
-function probeDimensions(attachment: ComposerAttachment): void {
+function probeDimensions(attachment: ComposerImageAttachment): void {
   if (typeof Image !== 'function') return
   const probe = new Image()
   probe.onload = () => {
@@ -130,6 +130,68 @@ function base64Of(file: File): Promise<string> {
   })
 }
 
+/** Host route that extracts, stores, and stages one file. */
+const FILE_UPLOAD_ROUTE = 'api/attachment-upload'
+
+/** Cancellable upload of one draft file. */
+interface FileUpload {
+  abort(): void
+}
+
+/** Upload callbacks; exactly one of `done` or `fail` runs unless the upload is aborted. */
+interface FileUploadCallbacks {
+  progress(percent: number): void
+  done(uploadId: string): void
+  fail(message: string): void
+}
+
+/**
+ * Upload one file with progress. XMLHttpRequest is used because fetch
+ * reports no upload progress; same-origin credentials authenticate it like
+ * every other `/api` request.
+ */
+function uploadFile(file: File, callbacks: FileUploadCallbacks): FileUpload {
+  const url = new URL(FILE_UPLOAD_ROUTE, document.baseURI)
+  url.searchParams.set('name', file.name)
+  url.searchParams.set('type', file.type)
+  const request = new XMLHttpRequest()
+  request.open('POST', url.href)
+  request.setRequestHeader('Content-Type', file.type === '' ? 'application/octet-stream' : file.type)
+  request.upload.onprogress = (event) => {
+    if (event.lengthComputable && event.total > 0) callbacks.progress(Math.round((event.loaded / event.total) * 100))
+  }
+  request.onload = () => {
+    let body: { readonly uploadId?: unknown; readonly message?: unknown } = {}
+    try {
+      body = JSON.parse(request.responseText) as typeof body
+    } catch {
+      // A non-JSON body is a carrier failure; the status text below reports it.
+    }
+    if (request.status === 201 && typeof body.uploadId === 'string') callbacks.done(body.uploadId)
+    else callbacks.fail(typeof body.message === 'string' ? body.message : `Upload failed (${request.status})`)
+  }
+  request.onerror = () => { callbacks.fail('Upload failed: the connection was interrupted.') }
+  request.send(file)
+  return { abort: () => { request.abort() } }
+}
+
+/** Discard one staged upload the user removed before sending. */
+function discardUpload(uploadId: string): void {
+  const url = new URL(FILE_UPLOAD_ROUTE, document.baseURI)
+  url.searchParams.set('id', uploadId)
+  void fetch(url.href, { method: 'DELETE' }).catch(() => {
+    // An undiscarded upload expires on the Host after its lifetime.
+  })
+}
+
+/** A draft file that cannot be sent yet. */
+export class DraftFileNotReadyError extends Error {
+  constructor() {
+    super('conversation: a draft file is still uploading or failed to upload')
+    this.name = 'DraftFileNotReadyError'
+  }
+}
+
 /** Unsupported browser-declared image type, localized by the UI boundary. */
 export class UnsupportedImageMediaTypeError extends Error {
   /** Browser-declared MIME value, possibly empty. */
@@ -150,6 +212,8 @@ export class ConversationController extends Service implements IConversation {
   /** The per-session composer-block registry. */
   readonly blocks: ComposerBlocks
   private readonly draftAttachments = new Map<DraftAttachmentId, ComposerAttachment>()
+  private readonly uploads = new Map<DraftAttachmentId, FileUpload>()
+  private readonly draftListeners = new Set<() => void>()
 
   /**
    * @param ctx - owning root context (the plugin apply context; the service
@@ -163,10 +227,13 @@ export class ConversationController extends Service implements IConversation {
     this.input = config.input
     this.blocks = config.blocks
     ctx.effect(() => () => {
+      for (const upload of this.uploads.values()) upload.abort()
+      this.uploads.clear()
       for (const attachment of this.draftAttachments.values()) {
-        revokePreview(attachment.previewUrl)
+        if (attachment.kind === 'image') revokePreview(attachment.previewUrl)
       }
       this.draftAttachments.clear()
+      this.draftListeners.clear()
     }, 'conversation draft attachments')
   }
 
@@ -207,44 +274,116 @@ export class ConversationController extends Service implements IConversation {
     if (attachments.length !== imageIds.length) {
       throw new Error('conversation.sendSession: one or more draft images are no longer available')
     }
+    const images = attachments.filter((attachment): attachment is ComposerImageAttachment => attachment.kind === 'image')
+    const files = attachments.filter((attachment): attachment is ComposerFileAttachment => attachment.kind === 'file')
+    const fileParts = files.map((file) => {
+      if (file.status !== 'ready' || file.uploadId === undefined) throw new DraftFileNotReadyError()
+      return { type: 'file' as const, uploadId: file.uploadId }
+    })
     const snapshot = session.getSnapshot()
     if (snapshot.subagent !== null) {
-      const uploaded = await this.serializeImages(attachments.map(attachment => attachment.file))
-      const content = [...uploaded, ...(text === '' ? [] : [{ type: 'text' as const, text }])]
+      const uploaded = await this.serializeImages(images.map(attachment => attachment.file))
+      const content = [...uploaded, ...fileParts, ...(text === '' ? [] : [{ type: 'text' as const, text }])]
       const result = await session.prompt(content, mode, signal)
+      if (result.ok) this.releaseSentFiles(files)
       return result.ok ? { kind: 'success' } : { kind: 'error' }
     }
     let finishRetirement: ((retirement: PendingSubmissionRetirement) => void) | undefined
-    const retirement = attachments.length === 0
+    const retirement = images.length === 0
       ? undefined
       : new Promise<PendingSubmissionRetirement>((resolve) => { finishRetirement = resolve })
     const submission = session.beginSubmission({
       mode,
       text,
-      images: attachments.map(attachment => ({
+      images: images.map(attachment => ({
         previewUrl: attachment.previewUrl,
         ...(attachment.file.name === '' ? {} : { name: attachment.file.name }),
         ...(attachment.width === undefined ? {} : { width: attachment.width }),
         ...(attachment.height === undefined ? {} : { height: attachment.height }),
       })),
       onRetire: (settlement) => {
-        this.settleSubmittedImages(session.sessionId, attachments, settlement)
+        this.settleSubmittedImages(session.sessionId, images, settlement)
         finishRetirement?.(settlement)
       },
     })
     let content: Parameters<SessionFace['prompt']>[0]
     try {
       await nextPaint()
-      const uploaded = await this.serializeImages(attachments.map(attachment => attachment.file))
-      content = [...uploaded, ...(text === '' ? [] : [{ type: 'text' as const, text }])]
+      const uploaded = await this.serializeImages(images.map(attachment => attachment.file))
+      content = [...uploaded, ...fileParts, ...(text === '' ? [] : [{ type: 'text' as const, text }])]
     } catch (error) {
       submission.abandon()
       throw error
     }
     const result = await session.prompt(content, mode, signal, submission.requestId)
     if (!result.ok) return { kind: 'error' }
+    this.releaseSentFiles(files)
     if (retirement !== undefined && (await retirement).reason !== 'observed') return { kind: 'error' }
     return { kind: 'success' }
+  }
+
+  /** Drop admitted draft files from the registry; the Host already consumed their uploads. */
+  private releaseSentFiles(files: readonly ComposerFileAttachment[]): void {
+    if (files.length === 0) return
+    for (const file of files) this.draftAttachments.delete(file.id)
+    this.notifyDrafts()
+  }
+
+  /**
+   * Observe draft attachment changes such as upload progress.
+   * @param listener - called after each change.
+   * @returns an unsubscribe function.
+   */
+  subscribeDrafts(listener: () => void): () => void {
+    this.draftListeners.add(listener)
+    return () => { this.draftListeners.delete(listener) }
+  }
+
+  private notifyDrafts(): void {
+    for (const listener of this.draftListeners) listener()
+  }
+
+  /** Replace one draft file's state; a released draft is left alone. */
+  private patchDraftFile(id: DraftAttachmentId, patch: Partial<ComposerFileAttachment>): void {
+    const current = this.draftAttachments.get(id)
+    if (current?.kind !== 'file') return
+    this.draftAttachments.set(id, { ...current, ...patch })
+    this.notifyDrafts()
+  }
+
+  /**
+   * Register draft files and start uploading each to the Host immediately.
+   * @param files - browser files the caller already checked against the file intake.
+   * @returns ordered draft descriptors in their initial uploading state.
+   */
+  createDraftFiles(files: readonly File[]): readonly ComposerFileAttachment[] {
+    const drafts = files.map((file): ComposerFileAttachment => ({
+      kind: 'file',
+      id: randomUUID() as DraftAttachmentId,
+      file,
+      status: 'uploading',
+      progress: 0,
+    }))
+    for (const draft of drafts) {
+      this.draftAttachments.set(draft.id, draft)
+      this.uploads.set(draft.id, uploadFile(draft.file, {
+        progress: (progress) => { this.patchDraftFile(draft.id, { progress }) },
+        done: (uploadId) => {
+          this.uploads.delete(draft.id)
+          if (!this.draftAttachments.has(draft.id)) {
+            discardUpload(uploadId)
+            return
+          }
+          this.patchDraftFile(draft.id, { status: 'ready', progress: 100, uploadId })
+        },
+        fail: (error) => {
+          this.uploads.delete(draft.id)
+          this.patchDraftFile(draft.id, { status: 'error', error })
+        },
+      }))
+    }
+    this.notifyDrafts()
+    return drafts
   }
 
   /**
@@ -252,7 +391,7 @@ export class ConversationController extends Service implements IConversation {
    * @param files - browser files to register after MIME validation.
    * @returns ordered draft descriptors.
    */
-  createDraftImages(files: readonly File[]): readonly ComposerAttachment[] {
+  createDraftImages(files: readonly File[]): readonly ComposerImageAttachment[] {
     for (const file of files) imageMediaType(file.type)
     return files.map((file) => {
       const attachment = browserDraftAttachment(file)
@@ -288,7 +427,12 @@ export class ConversationController extends Service implements IConversation {
     if (attachments.length !== imageIds.length) {
       throw new Error('conversation.serializeDraftImages: one or more draft images are no longer available')
     }
-    return Promise.all(attachments.map(attachment => this.encodeImage(attachment.file)))
+    return Promise.all(attachments.map((attachment) => {
+      if (attachment.kind === 'file') {
+        throw new Error('conversation.serializeDraftImages: commands accept image attachments only')
+      }
+      return this.encodeImage(attachment.file)
+    }))
   }
 
   /**
@@ -299,7 +443,14 @@ export class ConversationController extends Service implements IConversation {
     const attachment = this.draftAttachments.get(id)
     if (attachment === undefined) return
     this.draftAttachments.delete(id)
-    revokePreview(attachment.previewUrl)
+    if (attachment.kind === 'image') {
+      revokePreview(attachment.previewUrl)
+      return
+    }
+    this.uploads.get(id)?.abort()
+    this.uploads.delete(id)
+    if (attachment.uploadId !== undefined) discardUpload(attachment.uploadId)
+    this.notifyDrafts()
   }
 
   /**
@@ -370,7 +521,7 @@ export class ConversationController extends Service implements IConversation {
    */
   private settleSubmittedImages(
     sessionId: SessionId,
-    attachments: readonly ComposerAttachment[],
+    attachments: readonly ComposerImageAttachment[],
     retirement: PendingSubmissionRetirement,
   ): void {
     if (retirement.reason !== 'observed') return

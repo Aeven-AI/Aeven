@@ -54,9 +54,9 @@ export interface EncodedImageAttachment {
 
 /**
  * Browser-submitted prompt content accepted by Host prompt endpoints; the
- * accepting Host promotes image parts to durable references through
- * `admitPromptContent` before any message is created, so a wire caller can
- * never cite an attachment it did not upload.
+ * accepting Host promotes image parts to durable references and claims file
+ * uploads through `admitPromptContent` before any message is created, so a
+ * wire caller can never cite an attachment it did not upload.
  */
 export type PromptContentPart =
   | { readonly type: 'text'; readonly text: string }
@@ -66,11 +66,84 @@ export type PromptContentPart =
     readonly data: string
     readonly name?: string
   }
+  | {
+    readonly type: 'file'
+    /** Single-use identifier returned by the Host upload route. */
+    readonly uploadId: string
+  }
 
-/** Host-admitted prompt content with each uploaded image replaced by its durable reference. */
+/** Host-admitted prompt content with each upload replaced by its durable reference. */
 export type AdmittedPromptContentPart =
   | { readonly type: 'text'; readonly text: string }
   | { readonly type: 'image'; readonly attachment: ImageAttachmentRef }
+  | { readonly type: 'file'; readonly attachment: FileAttachmentRef }
+
+/** How a file's text was obtained. */
+export type FileTextMethod = 'native' | 'office' | 'ocr'
+
+/** Durable reference to the immutable text extracted from one file. */
+export interface FileTextRef {
+  /** Content address of the UTF-8 text object. */
+  textId: AttachmentId
+  /** Character count of the stored text. */
+  chars: number
+  method: FileTextMethod
+  /** Provider and version that produced the text. */
+  extractor: string
+  /** Whether the text was cut at the deployment's character budget. */
+  truncated: boolean
+  /** Page, slide, or sheet count when the format has one. */
+  pages?: number
+}
+
+/** Durable, serializable reference to one immutable uploaded file. */
+export interface FileAttachmentRef {
+  /** Content address of the original bytes; never a filesystem path or bearer URL. */
+  attachmentId: AttachmentId
+  /** Browser-declared media type, lowercased; `application/octet-stream` when none was declared. */
+  mediaType: string
+  /** Exact original byte length. */
+  bytes: number
+  /** Display name stripped of local path information. */
+  name: string
+  /** Extracted text the model receives in place of the original bytes. */
+  extraction: FileTextRef
+}
+
+/** Deployment-resolved limits used by upload admission and prompt admission. */
+export interface FileAttachmentLimits {
+  /** Maximum original bytes of one uploaded file. */
+  maxFileBytes: number
+  /** Maximum files in one prompt. */
+  maxFilesPerMessage: number
+  /** Maximum aggregate original bytes of the files in one prompt. */
+  maxMessageFileBytes: number
+  /** Lifetime of an unclaimed upload in milliseconds. */
+  uploadTtlMs: number
+}
+
+/** Request to durably commit one file and its extracted text. */
+export interface SaveFileAttachment {
+  data: Uint8Array
+  /** Browser-declared media type, possibly empty. */
+  mediaType: string
+  /** Display name; it is never interpreted as a path. */
+  name: string
+  /** Extraction output recorded beside the original. */
+  text: {
+    readonly text: string
+    readonly method: FileTextMethod
+    readonly extractor: string
+    readonly truncated: boolean
+    readonly pages?: number
+  }
+}
+
+/** Stored original bytes returned after reference and digest verification. */
+export interface StoredFileAttachment {
+  ref: FileAttachmentRef
+  data: Uint8Array
+}
 
 /** Request to validate and durably commit one image. */
 export interface SaveImageAttachment {

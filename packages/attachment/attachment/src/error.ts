@@ -10,9 +10,17 @@ const IMAGE_ADMISSION_ERROR_CODES = [
   'IMAGE_TOO_LARGE',
   'IMAGE_TOO_MANY_PIXELS',
   'IMAGE_DIMENSION_TOO_LARGE',
+  'FILE_UPLOAD_UNKNOWN',
+  'TOO_MANY_FILES',
+  'FILES_TOO_LARGE',
+  'FILE_TOO_LARGE',
+  'FILE_EMPTY',
+  'UNSUPPORTED_FILE_TYPE',
+  'FILE_UNREADABLE',
+  'FILES_UNSUPPORTED',
 ] as const
 
-/** Caller-correctable attachment failure codes raised while admitting image input. */
+/** Caller-correctable attachment failure codes raised while admitting image or file input. */
 export type ImageAdmissionErrorCode = typeof IMAGE_ADMISSION_ERROR_CODES[number]
 
 /** Stable attachment failure codes used for protocol error routing. */

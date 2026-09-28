@@ -210,7 +210,11 @@ export function apply(ctx: Context): void {
         const store = await imageStore(exec)
         if (typeof store !== 'string') {
           const image = await store.saveImage({ data: shot.png, mediaType: 'image/png', name: `${shot.device.name}.png` })
-          return { summary, image } as unknown as JsonValue
+          const path = store.imageHostPath(image)
+          return {
+            summary: path === undefined ? summary : `${summary}. To show this image in your reply, embed its durable path directly: ${path}`,
+            image,
+          } as unknown as JsonValue
         }
         // A model that cannot read images still gets the capture, as a file it can hand to other tools.
         const dir = join(service.stateDir, 'screenshots')

@@ -14,16 +14,25 @@
      (see ui-theme styles/scrollbar.css for the rebinding contract). */
   --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
-  padding: 4px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
   border: 0;
-  border-radius: 20px;
-  background: var(--dsw-specific-menu);
+  /* Same surface as the model and permission popupSelect card: 30px radius
+     over the translucent blurred fill, with the inset highlight. */
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-tint-menu);
+  backdrop-filter: blur(4px);
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
-  box-shadow: var(--dsw-elevation-prominent);
+  box-shadow:
+    inset 1px 1px 0 0 var(--dsw-specific-popup-highlight),
+    inset 0 0 1px 1px var(--dsw-specific-popup-highlight),
+    var(--dsw-elevation-prominent);
+  outline: none;
 }
 
+/* The list scrolls, but the bar and its gutter stay off: the markup adds
+   ui-theme's `no-scrollbar` on this element. */
 .viewport {
   display: flex;
   flex-direction: column;
@@ -32,14 +41,15 @@
 }
 
 .item {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
-  min-height: 40px;
-  padding: 8px 10px;
+  min-height: var(--dsw-aeven-control-size);
+  padding: 8px;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--dsw-aeven-radius-control);
   background: transparent;
   cursor: pointer;
   font-size: 14px;
@@ -57,7 +67,7 @@
 .sectionTitle {
   flex: none;
   min-height: 26px;
-  padding: 6px 10px 2px;
+  padding: 6px 8px 2px;
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
   font-weight: 500;
@@ -153,7 +163,7 @@
 /* Heading row above a source group: non-interactive small grey text,
  * padding aligned with items (mirrors ui-primitives Menu .label). */
 .groupTitle {
-  padding: 8px 10px;
+  padding: 8px;
   font-size: 12px;
   line-height: 16px;
   color: var(--dsw-alias-label-tertiary);
@@ -169,7 +179,7 @@
      box-sizing already counts the same 8px paddings inside their 40px. */
   box-sizing: border-box;
   min-height: 40px;
-  padding: 8px 10px;
+  padding: 8px;
 }
 
 .skeletonBar {
@@ -188,7 +198,7 @@
 /* Breadcrumb header of a drilled source: pinned outside .viewport so the
    descent stays reversible while the candidate list scrolls under it.
    4px sides + the crumb's own 6px = the first crumb's text sits at 10px,
-   flush with .sectionTitle and the item icons. */
+   one step in from the 8px item inset. */
 .crumbs {
   flex: none;
   display: flex;

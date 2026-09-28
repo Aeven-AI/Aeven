@@ -125,9 +125,8 @@
 }
 
 /* The strip's marks carry the column toggle's own metric: an 18px box on the
-   lucide family's 1.75 stroke. The launcher's plus is the one exception — its
-   glyph is drawn at 14 of the canvas's 24 units, so it needs the larger box to
-   reach the same mark as the framed glyphs beside it. */
+   lucide family's 1.75 stroke. The launcher's plus is its own metric, smaller
+   than the pills it adds. */
 .pillGlyph svg,
 .pillX svg {
   width: 18px;
@@ -135,12 +134,18 @@
 }
 
 .add svg {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
 }
 
-.menuGlyph svg,
+/* The launcher's kind rows carry the strip's own 18px mark; the add menu's
+   rows are the compact metric, as its own plus is. */
 .launcherGlyph svg {
+  width: 18px;
+  height: 18px;
+}
+
+.menuGlyph svg {
   width: 16px;
   height: 16px;
 }

@@ -5,7 +5,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { brandString } from '@aeven/brand'
 import type { Agent, ModelSelection as AgentModelSelection } from '@aeven/agent'
 import { AttachmentError, admitPromptContent } from '@aeven/attachment'
-import type { ImageAttachmentRef } from '@aeven/attachment'
+import type { FileAttachmentRef, ImageAttachmentRef, StoredFileAttachment } from '@aeven/attachment'
 import {
   ReasoningEffortId, createUserMessage, freezeMessage,
 } from '@aeven/llm'
@@ -383,7 +383,7 @@ export class SessionCommandController {
         {},
       )
     }
-    const ref = referencedImage(source.events, String(request.attachmentId))
+    const ref = referencedAttachment<ImageAttachmentRef>(source.events, 'image', String(request.attachmentId))
     if (ref === undefined) {
       throw new RemoteError(
         'session/attachment-invalid',
@@ -403,6 +403,18 @@ export class SessionCommandController {
       }
       throw new RemoteError('gateway/internal', 'Unable to read image attachment.', {})
     }
+  }
+
+  /**
+   * Read one stored file original after proving the Session log references it.
+   * @param sessionId - Session whose log must cite the file.
+   * @param attachmentId - opaque file identifier.
+   * @returns the verified original bytes and logged reference, or undefined when the log does not cite it.
+   */
+  async referencedFile(sessionId: SessionId, attachmentId: string): Promise<StoredFileAttachment | undefined> {
+    const source = await this.readSessionState(sessionId)
+    const ref = referencedAttachment<FileAttachmentRef>(source.events, 'file', attachmentId)
+    return ref === undefined ? undefined : this.ctx.attachments.readFile(ref)
   }
 
   /**
@@ -529,55 +541,67 @@ export class SessionCommandController {
   }
 }
 
-function imageBlockIn(
+type AttachmentBlockType = 'image' | 'file'
+
+function attachmentBlockIn<Ref extends { readonly attachmentId: unknown }>(
   content: unknown,
-  match: (ref: ImageAttachmentRef) => boolean,
-): ImageAttachmentRef | undefined {
+  type: AttachmentBlockType,
+  match: (ref: Ref) => boolean,
+): Ref | undefined {
   if (!Array.isArray(content)) return undefined
   for (const value of content) {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) continue
     const block = value as { readonly type?: unknown; readonly attachment?: unknown; readonly content?: unknown }
-    if (block.type === 'image' && typeof block.attachment === 'object' && block.attachment !== null) {
-      const ref = block.attachment as ImageAttachmentRef
+    if (block.type === type && typeof block.attachment === 'object' && block.attachment !== null) {
+      const ref = block.attachment as Ref
       if (match(ref)) return ref
     }
     if (block.type === 'tool-result') {
-      const nested = imageBlockIn(block.content, match)
+      const nested = attachmentBlockIn(block.content, type, match)
       if (nested !== undefined) return nested
     }
   }
   return undefined
 }
 
-function imageInEvent(
+function attachmentInEvent<Ref extends { readonly attachmentId: unknown }>(
   event: SessionEvent,
-  match: (ref: ImageAttachmentRef) => boolean,
-): ImageAttachmentRef | undefined {
+  type: AttachmentBlockType,
+  match: (ref: Ref) => boolean,
+): Ref | undefined {
   const data = event.data as {
     readonly content?: unknown
     readonly message?: { readonly content?: unknown }
     readonly inserted?: readonly { readonly content?: unknown }[]
     readonly chunk?: { readonly type?: unknown; readonly block?: unknown }
   }
-  const direct = imageBlockIn(data.content, match)
+  const direct = attachmentBlockIn(data.content, type, match)
   if (direct !== undefined) return direct
-  const message = imageBlockIn(data.message?.content, match)
+  const message = attachmentBlockIn(data.message?.content, type, match)
   if (message !== undefined) return message
   for (const inserted of data.inserted ?? []) {
-    const found = imageBlockIn(inserted.content, match)
+    const found = attachmentBlockIn(inserted.content, type, match)
     if (found !== undefined) return found
   }
   return event.type === 'assistant/chunk' && data.chunk?.type === 'block-end'
-    ? imageBlockIn([data.chunk.block], match)
+    ? attachmentBlockIn([data.chunk.block], type, match)
     : undefined
 }
 
-function referencedImage(
+/**
+ * Find the logged reference of one attachment cited by a Session log.
+ * @param events - complete Session events.
+ * @param type - content-block type carrying the reference.
+ * @param attachmentId - opaque attachment identifier.
+ * @returns the logged reference, or undefined when the log never cites it.
+ */
+function referencedAttachment<Ref extends { readonly attachmentId: unknown }>(
   events: readonly SessionEvent[],
+  type: AttachmentBlockType,
   attachmentId: string,
-): ImageAttachmentRef | undefined {
+): Ref | undefined {
   for (const event of events) {
-    const found = imageInEvent(event, ref => String(ref.attachmentId) === attachmentId)
+    const found = attachmentInEvent<Ref>(event, type, ref => String(ref.attachmentId) === attachmentId)
     if (found !== undefined) return found
   }
   return undefined

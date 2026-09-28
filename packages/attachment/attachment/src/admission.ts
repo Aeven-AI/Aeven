@@ -6,6 +6,7 @@ import type { AttachmentStore } from './index.ts'
 import type {
   AdmittedPromptContentPart,
   EncodedImageAttachment,
+  FileAttachmentRef,
   ImageAttachmentRef,
   PromptContentPart,
   SaveImageAttachment,
@@ -47,12 +48,38 @@ export async function admitEncodedImages(
 }
 
 /**
- * Admit one browser prompt and replace each uploaded image with its durable reference.
- * Text-only prompts do not access the attachment store.
+ * Resolve one prompt's staged file uploads and enforce the deployment file
+ * limits without consuming them.
+ * @param attachments - the deployment attachment store owning file policy.
+ * @param uploadIds - staged-upload identifiers in prompt order.
+ * @returns durable references in the same order.
+ * @throws AttachmentError when an upload is unknown or the batch exceeds a limit.
+ */
+function resolveUploads(attachments: AttachmentStore, uploadIds: readonly string[]): readonly FileAttachmentRef[] {
+  const limits = attachments.fileLimits
+  if (limits === undefined) throw new AttachmentError('This deployment does not accept file attachments.', 'FILES_UNSUPPORTED')
+  if (uploadIds.length > limits.maxFilesPerMessage) {
+    throw new AttachmentError('File batch exceeds the configured file-count limit.', 'TOO_MANY_FILES')
+  }
+  if (new Set(uploadIds).size !== uploadIds.length) {
+    throw new AttachmentError('A file upload is cited more than once.', 'FILE_UPLOAD_UNKNOWN')
+  }
+  const refs = attachments.peekUploads(uploadIds)
+  if (refs.reduce((sum, ref) => sum + ref.bytes, 0) > limits.maxMessageFileBytes) {
+    throw new AttachmentError('File batch exceeds the configured aggregate file-byte limit.', 'FILES_TOO_LARGE')
+  }
+  return refs
+}
+
+/**
+ * Admit one browser prompt and replace each upload with its durable reference.
+ * File uploads are resolved and checked first, images are admitted next, and
+ * the file uploads are consumed only after every member succeeded. Text-only
+ * prompts do not access the attachment store.
  * @param attachments - the deployment attachment store owning batch policy.
  * @param content - browser prompt parts in message order.
  * @returns admitted prompt parts in the same order as `content`.
- * @throws AttachmentError when the image batch is refused.
+ * @throws AttachmentError when the image batch or a file upload is refused.
  */
 export async function admitPromptContent(
   attachments: AttachmentStore,
@@ -61,10 +88,23 @@ export async function admitPromptContent(
   if (content.every(part => part.type === 'text')) {
     return content.map(part => ({ type: 'text', text: part.text }))
   }
-  const refs = await admitEncodedImages(attachments, content.filter(part => part.type === 'image'))
-  let next = 0
-  return content.map(part => part.type === 'text'
-    ? { type: 'text', text: part.text }
-    // admitEncodedImages returns one reference per image part in order.
-    : { type: 'image', attachment: refs[next++] as ImageAttachmentRef })
+  const uploadIds = content.flatMap(part => part.type === 'file' ? [part.uploadId] : [])
+  const files = uploadIds.length === 0 ? [] : resolveUploads(attachments, uploadIds)
+  const images = content.flatMap(part => part.type === 'image' ? [part] : [])
+  const refs = images.length === 0 ? [] : await admitEncodedImages(attachments, images)
+  attachments.claimUploads(uploadIds)
+  let nextImage = 0
+  let nextFile = 0
+  return content.map((part): AdmittedPromptContentPart => {
+    switch (part.type) {
+      case 'text':
+        return { type: 'text', text: part.text }
+      case 'image':
+        // admitEncodedImages returns one reference per image part in order.
+        return { type: 'image', attachment: refs[nextImage++] as ImageAttachmentRef }
+      case 'file':
+        // resolveUploads returns one reference per file part in order.
+        return { type: 'file', attachment: files[nextFile++] as FileAttachmentRef }
+    }
+  })
 }

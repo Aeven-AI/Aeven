@@ -1,0 +1,51 @@
+{
+  "name": "@aeven/document-extract-js",
+  "description": "Built-in document readers for PDF, Office, OpenDocument, Numbers, RTF, EPUB, HTML, and text, run in worker threads",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/document/document-extract-js"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./worker": {
+      "types": "./lib/types/worker.d.ts",
+      "default": "./lib/worker.cjs"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/worker.cjs",
+    "lib/types/**/*.d.ts",
+    "vendor/xlsx-0.20.3.tgz"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^",
+    "jszip": "^3.10.2",
+    "mammoth": "^1.13.0",
+    "unpdf": "^1.8.1",
+    "xlsx": "file:./vendor/xlsx-0.20.3.tgz"
+  },
+  "peerDependencies": {
+    "@aeven/document-extract": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/document-extract": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "tsx": "^4.19.2"
+  }
+}

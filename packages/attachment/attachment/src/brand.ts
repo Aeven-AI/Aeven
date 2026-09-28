@@ -25,3 +25,15 @@ export type ImageVariantId = Branded<'ImageVariantId'>
 export function ImageVariantId(value: string): ImageVariantId {
   return value as ImageVariantId
 }
+
+/** Single-use identifier of one staged file upload awaiting prompt admission. */
+export type UploadId = Branded<'UploadId'>
+
+/**
+ * Brand a staged-upload identifier.
+ * @param value - store-minted identifier.
+ * @returns the branded identifier.
+ */
+export function UploadId(value: string): UploadId {
+  return value as UploadId
+}

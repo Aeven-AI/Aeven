@@ -29,7 +29,7 @@ Mount the service to give sessions titles that clients can display and that neve
 
 ### Choosing a title source
 
-Titles come from three sources, newest wins. The built-in fallback derives from the first eligible human message's leading words within the configured caps; a registered provider generates a title over eligible messages; an explicit `rename()` accepts a user-supplied title. Only text blocks from human `user/message` events are eligible, and empty or non-text prompts wait for later eligible input. A user-sourced latest title pins the session — later user messages schedule no automatic revision, and an explicit `refresh()` remains the deliberate unpin.
+Titles come from three sources, newest wins. The built-in fallback derives from the first eligible human message's leading words within the configured caps; a registered provider generates a title over eligible messages; an explicit `rename()` accepts a user-supplied title. Human `user/message` text blocks are eligible; an image-only prompt contributes `Image` as its title input. Empty prompts and other non-text prompts wait for later eligible input. Sessions resumed without a title receive the fallback when eligible input exists. A user-sourced latest title pins the session — later user messages schedule no automatic revision, and an explicit `refresh()` remains the deliberate unpin.
 
 ### Minimal configuration
 

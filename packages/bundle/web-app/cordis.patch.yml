@@ -161,6 +161,27 @@
     - id: api-speech-to-text
       name: '@aeven/api-speech-to-text'
 
+    # File attachments: the reader registry and the built-in JavaScript
+    # readers (PDF, Office Open XML, OpenDocument, Numbers, RTF, EPUB, HTML,
+    # text). The office reader adds Pages, Keynote, and legacy Office formats
+    # once the reader prepares LibreOffice in Settings.
+    - id: document-extract
+      name: '@aeven/document-extract'
+
+    - id: document-extract-js
+      name: '@aeven/document-extract-js'
+
+    - id: document-extract-office
+      name: '@aeven/document-extract-office'
+      config:
+        dataRoot: !!js avnHomePath('document-extract', 'office')
+
+    - id: document-extract-ocr
+      name: '@aeven/document-extract-ocr'
+
+    - id: api-document-extract
+      name: '@aeven/api-document-extract'
+
     # Workspace listings, text previews and name search for the right
     # sidebar's file explorer.
     - id: api-workspace-files

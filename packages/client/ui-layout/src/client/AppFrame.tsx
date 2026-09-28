@@ -299,7 +299,7 @@ export function AppFrame({
             is session-maybe; SessionProvider withholds the strict details
             entry while no session is current. */}
         <CenterColumn>
-          {surface === undefined ? renderSlot('conversation', {}) : renderSlot('surface', {}, { entryKey: surface })}
+          {surface === undefined ? renderSlot('conversation', { sidebarCollapsed }) : renderSlot('surface', {}, { entryKey: surface })}
         </CenterColumn>
         <DetailsColumn>
           <SessionProvider>{renderSlot('details', {})}</SessionProvider>

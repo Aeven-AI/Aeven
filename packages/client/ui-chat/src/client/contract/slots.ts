@@ -1,5 +1,6 @@
 /** Chat-owned Slot declarations and composed component props. */
 import type { MessageId } from '@aeven/llm/brand'
+import type { SessionFace } from '@aeven/api-session-controller/client'
 import type { SessionSeq } from '@aeven/session/types'
 import type {
   ConversationEventNavigation, ConversationLocationDataStore, ConversationTurnDataMap,
@@ -171,6 +172,18 @@ export interface ChatViewInjected {
    * its stacking order for as long as the block is up.
    */
   onFullscreenChange: (fullscreen: boolean) => void
+  /**
+   * Edit, remove, or steer one Host-queued message.
+   * @param itemId - the queue row's id.
+   * @param action - the mutation the Host applies.
+   * @returns settlement; rejects when the Host refuses the mutation.
+   */
+  updateQueue: (itemId: MessageId, action: Parameters<SessionFace['updateQueue']>[1]) => Promise<void>
+  /**
+   * Show one failed queue action on the composer's notice line.
+   * @param text - localized failure text.
+   */
+  notifyError: (text: string) => void
 }
 
 /** Full Chat view props. */

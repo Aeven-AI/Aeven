@@ -1,0 +1,267 @@
+/* Upload tray: the Aeven web client's composer tray (clients/client
+   _UploadTray.scss) — five tiles per row, 80px tall, wrapping. */
+
+.tray {
+  --avn-upload-tile-bg: rgb(242, 242, 242);
+  --avn-upload-tile-fg: rgb(180, 180, 180);
+  --avn-upload-accent: rgb(10, 10, 10);
+  --avn-upload-remove-bg: rgba(255, 255, 255, 0.8);
+  --avn-upload-remove-ring: rgba(255, 255, 255, 0.8);
+
+  display: flex;
+  position: relative;
+  width: 100%;
+  padding: 16px 16px 0;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+:global(body[data-ds-dark-theme]) .tray {
+  --avn-upload-tile-bg: rgb(44, 44, 46);
+  --avn-upload-tile-fg: rgb(140, 140, 146);
+  --avn-upload-accent: rgb(242, 242, 242);
+  --avn-upload-remove-bg: rgba(20, 20, 22, 0.8);
+  --avn-upload-remove-ring: rgba(255, 255, 255, 0.12);
+}
+
+.end {
+  justify-content: flex-end;
+}
+
+/* Sent-message tray (clients/client _MessageTray.scss): no inset, rounder
+   corners, and tiles that keep growing to fill their row. */
+.message {
+  padding: 0;
+}
+
+.message .tile {
+  max-width: 100%;
+  border-radius: 10px;
+  /* The transcript sits on the tile grey, so sent tiles take the user bubble's surface. */
+  background-color: var(--dsw-specific-bubble);
+}
+
+.tile {
+  display: flex;
+  position: relative;
+  height: 80px;
+  min-width: calc(20% - 6.4px);
+  max-width: calc(20% - 6.4px);
+  overflow: hidden;
+  border-radius: 15px;
+  flex-grow: 1;
+  flex-shrink: 1;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  background-color: var(--avn-upload-tile-bg);
+}
+
+.tile:nth-child(n + 6) {
+  max-width: 100%;
+}
+
+.open {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+div.open {
+  cursor: default;
+}
+
+.fileIcon {
+  display: flex;
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  left: 11px;
+  top: 14px;
+  align-items: center;
+  justify-content: center;
+  color: var(--avn-upload-tile-fg);
+}
+
+.fileIcon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.label {
+  display: flex;
+  position: absolute;
+  min-width: 0;
+  width: 100%;
+  top: 38px;
+  height: 40px;
+  line-height: 40px;
+  padding-left: 14px;
+  padding-right: 14px;
+  letter-spacing: 0;
+  color: var(--avn-upload-tile-fg);
+  font-size: 0.875rem;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.name {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.spinnerBox {
+  display: flex;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 80px;
+  height: 80px;
+  align-items: center;
+  justify-content: center;
+}
+
+.spinner {
+  display: flex;
+  position: relative;
+  width: 16px;
+  height: 16px;
+  color: var(--avn-upload-accent);
+  animation: avn-upload-spin 900ms linear infinite;
+}
+
+.spinner svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes avn-upload-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.imageBox {
+  display: flex;
+  position: absolute;
+  z-index: 1;
+  width: 100%;
+  height: 80px;
+  top: 0;
+  left: 0;
+  opacity: 0;
+}
+
+.imageLoaded {
+  opacity: 1;
+  transition: opacity 0.3s linear;
+}
+
+.thumb {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove {
+  display: flex;
+  position: absolute;
+  z-index: 2;
+  width: 26px;
+  height: 26px;
+  padding: 2px;
+  top: 0;
+  right: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+
+.removeCircle {
+  display: flex;
+  position: relative;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--avn-upload-remove-bg);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  box-shadow: inset 0 0 0 1px var(--avn-upload-remove-ring);
+}
+
+.removeIcon {
+  display: flex;
+  position: relative;
+  width: 14px;
+  height: 14px;
+  color: var(--avn-upload-accent);
+  justify-content: center;
+}
+
+.removeIcon svg {
+  width: 100%;
+  height: 100%;
+}
+
+@media screen and (max-width: 640px) {
+  .tile {
+    height: 60px;
+    flex-basis: 40px;
+    max-width: calc(50% - 4px);
+  }
+
+  .fileIcon {
+    left: 7px;
+    top: 10px;
+    width: 20px;
+    height: 20px;
+  }
+
+  .label {
+    top: 33px;
+    height: 20px;
+    line-height: 20px;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .spinnerBox {
+    width: 60px;
+    height: 60px;
+  }
+
+  .imageBox {
+    height: 60px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2400ms;
+  }
+
+  .imageLoaded {
+    transition: none;
+  }
+}

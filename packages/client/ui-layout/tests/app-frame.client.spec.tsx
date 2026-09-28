@@ -236,7 +236,7 @@ describe('AppFrame', () => {
     expect(tracks(frame)).toEqual([280, 0])
   })
 
-  it('renders the session pair with empty owner shares (sessionId is framework-standard)', () => {
+  it('renders the session pair with the fold state and no other owner share (sessionId is framework-standard)', () => {
     const { slotCalls, getByTestId } = mountFrame()
     expect(getByTestId('center-content')).toBeTruthy()
     expect(getByTestId('details-content')).toBeTruthy()
@@ -244,7 +244,7 @@ describe('AppFrame', () => {
     expect(keys).toContain('conversation')
     expect(keys).toContain('details')
     expect(keys).not.toContain('conversation.empty')
-    expect(slotCalls.find(c => c.key === 'conversation')!.props).toEqual({})
+    expect(slotCalls.find(c => c.key === 'conversation')!.props).toEqual({ sidebarCollapsed: false })
     expect(slotCalls.find(c => c.key === 'details')!.props).toEqual({})
   })
 
@@ -348,6 +348,7 @@ describe('AppFrame', () => {
     expect(frame.hasAttribute('data-sidebar-collapsed')).toBe(true)
     const lastSidebarCall = slotCalls.filter(c => c.key === 'sidebar').at(-1)!
     expect(lastSidebarCall.props).toEqual({ collapsed: true, width: SIDEBAR_COLLAPSED })
+    expect(slotCalls.filter(c => c.key === 'conversation').at(-1)!.props).toEqual({ sidebarCollapsed: true })
   })
 
   it('keeps the details width across a viewport change above the breakpoint', () => {

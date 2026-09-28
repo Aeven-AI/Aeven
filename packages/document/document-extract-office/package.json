@@ -1,0 +1,43 @@
+{
+  "name": "@aeven/document-extract-office",
+  "description": "LibreOffice document reader for Pages, Keynote, Numbers, and legacy Office files, with an on-demand verified runtime",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/document/document-extract-office"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts",
+    "runtime/assets.json"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^"
+  },
+  "peerDependencies": {
+    "@aeven/document-extract": "workspace:^",
+    "@aeven/subprocess": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/document-extract": "workspace:^",
+    "@aeven/subprocess": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

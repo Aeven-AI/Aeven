@@ -32,79 +32,9 @@
   height: 18px;
 }
 
-/* Search: one 28px button that grows into the field it opens. */
-.search {
-  flex: none;
-  display: flex;
-  align-items: center;
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: 50%;
-  padding: 0;
-  box-sizing: border-box;
-  background: transparent;
-  color: var(--dsw-alias-label-primary);
-  cursor: text;
-  overflow: hidden;
-  transition: width 180ms var(--ds-ease-in-out);
-}
-
-.searchExpanded {
-  flex: 1;
-  width: auto;
-  padding: 0 2px;
-  border: 0.5px solid var(--dsw-alias-border-l4);
-  border-radius: 10px;
-}
-
-.searchExpanded .action {
-  cursor: pointer;
-}
-
-.searchInput {
-  flex: 1;
-  width: 0;
-  min-width: 0;
-  border: none;
-  outline: none;
-  background: transparent;
-  opacity: 0;
-  pointer-events: none;
-  font-size: 14px;
-  line-height: 18px;
-  color: var(--dsw-alias-label-primary);
-  transition: opacity 120ms var(--ds-ease-in-out);
-}
-
-.searchExpanded .searchInput {
-  margin-left: -2px;
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.searchInput::placeholder {
-  color: var(--dsw-alias-label-tertiary);
-}
-
-.clear {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: none;
-  border-radius: 50%;
-  padding: 0;
-  background: transparent;
-  cursor: pointer;
-  color: var(--dsw-alias-label-primary);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .search,
-  .searchInput {
-    transition: none;
-  }
+/* The row's leading control puts its glyph on the box's leading edge, the line
+   the rows below inset their own leading glyphs to; the trailing controls keep
+   theirs on the trailing edge for the same reason. */
+.leading {
+  justify-content: flex-start;
 }

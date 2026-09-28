@@ -418,6 +418,78 @@ export function deriveFlat(
 }
 
 /**
+ * Project Session summaries into flat result rows with their Workspace label,
+ * activity, and optional content excerpt.
+ * @param list - session metadata authority.
+ * @param workspaces - Workspace membership and display labels.
+ * @param pendingInteractions - pending UI interactions by Session.
+ * @param summaries - the Sessions to project, in display order.
+ * @param content - content matches by Session; a matched row carries its event seq and snippet.
+ * @returns one row per summary, in the given order.
+ */
+function resultRows(
+  list: SessionListState,
+  workspaces: readonly WorkspaceView[],
+  pendingInteractions: SessionPendingInteractions,
+  summaries: readonly SessionSummary[],
+  content: ReadonlyMap<SessionId, SessionSearchResultItem>,
+): SearchResultNode[] {
+  const descendants = indexSubagentDescendants(list.byId)
+  const workspaceBySession = new Map<SessionId, string>()
+  for (const workspace of workspaces) {
+    for (const sessionId of workspace.sessionIds) {
+      if (!workspaceBySession.has(sessionId)) workspaceBySession.set(sessionId, workspace.title)
+    }
+  }
+  return summaries.map((summary) => {
+    const match = content.get(summary.id)
+    const pendingInteraction = visiblePendingKind(pendingInteractions.get(summary.id)?.kind)
+    return {
+      id: summary.id,
+      title: sessionTitle(summary),
+      workspace: workspaceBySession.get(summary.id) ?? workspaceLabel(summary.cwd),
+      running: summary.running,
+      runningSubagentCount: descendants.get(summary.id)?.runningCount ?? 0,
+      ...(pendingInteraction === undefined
+        ? {}
+        : { pendingInteraction }),
+      completed: summary.completed === true,
+      hasActiveSchedule: hasActiveSchedule(summary),
+      ...match === undefined ? {} : { matchSeq: match.seq, snippet: match.snippet },
+    }
+  })
+}
+
+/**
+ * The most recently updated Sessions a search starts from before any query is
+ * typed. Blank placeholders and archived Sessions are left out, as they are
+ * from search results.
+ * @param list - session metadata authority.
+ * @param workspaces - Workspace membership and display labels.
+ * @param archivedSessionIds - registry-global archive set.
+ * @param pendingInteractions - pending UI interactions by Session.
+ * @param limit - maximum row count.
+ * @returns up to `limit` rows, newest first.
+ */
+export function deriveRecentResults(
+  list: SessionListState,
+  workspaces: readonly WorkspaceView[],
+  archivedSessionIds: readonly SessionId[],
+  pendingInteractions: SessionPendingInteractions,
+  limit: number,
+): readonly SearchResultNode[] {
+  const archived = new Set(archivedSessionIds)
+  const recent: SessionSummary[] = []
+  for (const id of list.ids) {
+    const summary = list.byId[id]
+    if (summary === undefined || summary.blank || !sessionVisible(summary, list.current, archived)) continue
+    recent.push(summary)
+  }
+  recent.sort(byRecency)
+  return resultRows(list, workspaces, pendingInteractions, recent.slice(0, limit), new Map())
+}
+
+/**
  * Merge immediate title/Workspace substring matches with ranked Host content
  * matches. Local rows lead newest-first, content-only rows retain backend
  * order, and duplicate sessions receive the backend snippet in place.
@@ -442,7 +514,6 @@ export function deriveSearchResults(
   const q = query.trim().toLowerCase()
   if (q === '') return { items: [], hasMore: false }
   const archived = new Set(archivedSessionIds)
-  const descendants = indexSubagentDescendants(list.byId)
 
   const workspaceBySession = new Map<SessionId, string>()
   for (const workspace of workspaces) {
@@ -486,23 +557,7 @@ export function deriveSearchResults(
   }
 
   return {
-    items: ordered.slice(0, limit).map((summary) => {
-      const match = contentBySession.get(summary.id)
-      const pendingInteraction = visiblePendingKind(pendingInteractions.get(summary.id)?.kind)
-      return {
-        id: summary.id,
-        title: sessionTitle(summary),
-        workspace: labelOf(summary),
-        running: summary.running,
-        runningSubagentCount: descendants.get(summary.id)?.runningCount ?? 0,
-        ...(pendingInteraction === undefined
-          ? {}
-          : { pendingInteraction }),
-        completed: summary.completed === true,
-        hasActiveSchedule: hasActiveSchedule(summary),
-        ...match === undefined ? {} : { matchSeq: match.seq, snippet: match.snippet },
-      }
-    }),
+    items: resultRows(list, workspaces, pendingInteractions, ordered.slice(0, limit), contentBySession),
     hasMore: content.hasMore || ordered.length > limit,
   }
 }

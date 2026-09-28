@@ -7,7 +7,8 @@ import type { RenderMessageImages } from '@aeven/client-ui-conversation/client'
 import { Button, IconChevronDownOutline14, Modal, Spinner, TextAnimationContext } from '@aeven/client-ui-primitives'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
 import type { ChatSnapshot } from '../contract/snapshot.ts'
-import { PendingSteeringBubble, PendingSubmissionBubble } from './MessageItem.tsx'
+import { PendingSteeringBubble, PendingSubmissionBubble, QueuedMessageBubble } from './MessageItem.tsx'
+import { TurnPendingRow } from './TurnProcessNodeView.tsx'
 import { ChatNodeSeat } from './ChatNodeSeat.tsx'
 import { TurnRail } from './TurnRail.tsx'
 import { turnRailMarks, type TurnRailMark } from './turn-rail-marks.ts'
@@ -186,7 +187,7 @@ const ChatNodeList = memo(function ChatNodeList({ order, ...seatProps }: ChatNod
 export function ChatView({
   useSession, useChat, useChatNode, useChatNodeProcess, useSessions, useStore, actions, renderSlot,
   sessionId, openFile, loadOlder, loadNewer, returnToLive, loadThrough, navigateToEvent, completeEventNavigation, loadImage, openView,
-  chatScroll, forkAt, fileMentions, onFullscreenChange, useTranscriptView, useTextAnimationPreference,
+  chatScroll, forkAt, fileMentions, onFullscreenChange, updateQueue, notifyError, useTranscriptView, useTextAnimationPreference,
   useEventNavigation, useProjection, t,
 }: ChatViewSlotProps) {
   const order = useChat(s => s.order)
@@ -196,6 +197,7 @@ export function ChatView({
   // Workspace root off the session list row: path summaries display relative to it.
   const cwd = useSessions(s => s.byId[sessionId]?.cwd)
   const running = useSession(s => s.running)
+  const queueMutable = useSession(s => s.subagent === null)
   const openState = useSession(s => s.openState)
   const openError = useSession(s => s.openError)
   const hasMore = useSession(s => s.hasMore)
@@ -254,6 +256,10 @@ export function ChatView({
     () => inbox.filter(item => item.placement === 'steering'),
     [inbox],
   )
+  const queuedRows = useMemo(
+    () => inbox.filter(item => item.placement === 'queued'),
+    [inbox],
+  )
   const pendingSubmissions = useSession(s => s.pendingSubmissions)
   // Submission echoes still awaiting their durable counterpart. `order` is the
   // recompute trigger: durable user material always arrives as an append, and
@@ -261,13 +267,29 @@ export function ChatView({
   const visibleSubmissions = useMemo(() => {
     if (pendingSubmissions.length === 0) return pendingSubmissions
     const observed = observedRpcIds(order, nodeStore, inbox)
-    return pendingSubmissions.filter(submission => (
-      submission.placement !== 'queued' && !observed.has(submission.requestId)
-    ))
+    return pendingSubmissions.filter(submission => !observed.has(submission.requestId))
   }, [pendingSubmissions, order, nodeStore, inbox])
+  // Queued echoes render after the Host's queued rows, which they join once admitted.
+  const transcriptSubmissions = useMemo(
+    () => visibleSubmissions.filter(submission => submission.placement !== 'queued'),
+    [visibleSubmissions],
+  )
+  const queuedSubmissions = useMemo(
+    () => visibleSubmissions.filter(submission => submission.placement === 'queued'),
+    [visibleSubmissions],
+  )
   const renderMessageImages = useCallback<RenderMessageImages>(
-    owner => renderSlot('conversation.message.images', { ...owner, loadImage }),
-    [loadImage, renderSlot],
+    owner => renderSlot('conversation.message.images', {
+      ...owner,
+      loadImage,
+      fileUrl: (file) => {
+        const url = new URL('api/attachment-file', document.baseURI)
+        url.searchParams.set('sessionId', sessionId)
+        url.searchParams.set('id', String(file.attachmentId))
+        return url.href
+      },
+    }),
+    [loadImage, renderSlot, sessionId],
   )
 
   const listRef = useRef<HTMLDivElement | null>(null)
@@ -333,7 +355,8 @@ export function ChatView({
   const lastNode = lastKey === null ? undefined : nodeStore.get(lastKey)
   const lastSteeringId = pendingSteering[pendingSteering.length - 1]?.id ?? null
   const lastSubmissionId = visibleSubmissions[visibleSubmissions.length - 1]?.requestId ?? null
-  const followSig = `${openState}:${firstSeq}:${lastKey}:${order.length}:${running ? 1 : 0}:${lastSteeringId ?? ''}:${lastSubmissionId ?? ''}`
+  const lastQueuedId = queuedRows[queuedRows.length - 1]?.id ?? null
+  const followSig = `${openState}:${firstSeq}:${lastKey}:${order.length}:${running ? 1 : 0}:${lastSteeringId ?? ''}:${lastSubmissionId ?? ''}:${lastQueuedId ?? ''}`
 
   // The host publishes two layers for floating controls; without them (this
   // view owning its own scrolling) the controls stay in place. Each layer is
@@ -1079,7 +1102,32 @@ export function ChatView({
                 t={t}
               />
             ))}
-            {visibleSubmissions.map(submission => (
+            {transcriptSubmissions.map(submission => (
+              <PendingSubmissionBubble
+                key={submission.requestId}
+                submission={submission}
+                renderMessageImages={renderMessageImages}
+                t={t}
+              />
+            ))}
+            {/* A sent message starts a Turn: its header shows from the click
+                until the Host opens the Turn and renders its own, including the
+                moment the durable message has landed but the Turn row has not. */}
+            {(transcriptSubmissions.some(submission => submission.placement === 'transcript')
+              || lastNode?.kind === 'user') && <TurnPendingRow t={t} />}
+            {queuedRows.map(row => (
+              <QueuedMessageBubble
+                key={row.id}
+                row={row}
+                running={running}
+                mutable={queueMutable}
+                updateQueue={updateQueue}
+                notifyError={notifyError}
+                renderMessageImages={renderMessageImages}
+                t={t}
+              />
+            ))}
+            {queuedSubmissions.map(submission => (
               <PendingSubmissionBubble
                 key={submission.requestId}
                 submission={submission}

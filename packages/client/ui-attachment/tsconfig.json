@@ -31,6 +31,30 @@
     },
     {
       "path": "../ui-primitives"
+    },
+    {
+      "path": "../../api/remotes/tsconfig.client.json"
+    },
+    {
+      "path": "../../api/gateway/tsconfig.client.json"
+    },
+    {
+      "path": "../../document/api-document-extract"
+    },
+    {
+      "path": "../../document/document-extract"
+    },
+    {
+      "path": "../../typert/protocol"
+    },
+    {
+      "path": "../locale"
+    },
+    {
+      "path": "../store"
+    },
+    {
+      "path": "../ui-settings"
     }
   ]
 }

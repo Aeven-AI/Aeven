@@ -170,6 +170,10 @@ function mount(
     noSelection?: boolean
     /** Override the selected Session identity. */
     sessionId?: SessionId
+    /** Left navigation column fold state the frame hands the shell. */
+    sidebarCollapsed?: boolean
+    /** The frame's fold action; absent when no layout frame owns the column. */
+    toggleSidebar?: () => void
   } = {},
 ) {
   const root = sid('root')
@@ -302,10 +306,14 @@ function mount(
           inputActions={inputActions}
           keyboard={wiring}
           addImages={() => null}
+          addFiles={undefined}
+          subscribeDrafts={undefined}
           removeImage={() => {}}
           draftImages={() => []}
           resolveSubmitMode={() => 'queue'}
           toggleCommandMenu={vi.fn()}
+          invokeCommand={undefined}
+          exportSession={undefined}
           useNotices={bindSnapshotSelector(wiring.notices)}
           useLexicon={bindSnapshotSelector(wiring.lexicon)}
           useMenuLauncher={bindSnapshotSelector(createSnapshotStore<string | null>(null))}
@@ -352,7 +360,9 @@ function mount(
     renderSlot,
     renderSlotChain,
     selectWorkspace: retargetWorkspace,
+    sidebarCollapsed: options.sidebarCollapsed ?? false,
     t,
+    ...(options.toggleSidebar === undefined ? {} : { toggleSidebar: options.toggleSidebar }),
   }
   const view = render(<ConversationRoot {...props} />)
   flushAnimationFrames(2)

@@ -5,7 +5,7 @@
  */
 
 import type { Branded } from '@aeven/brand'
-import type { ImageAttachmentRef } from '@aeven/attachment'
+import type { FileAttachmentRef, ImageAttachmentRef } from '@aeven/attachment'
 import type { ToolCallId, ProviderRequestId, ReasoningEffortId } from './brand.ts'
 import type { Message } from './message.ts'
 
@@ -74,6 +74,17 @@ export interface ImageBlock {
   attachment: ImageAttachmentRef
 }
 
+/**
+ * A durable uploaded file in user content. The LLM service expands it into a
+ * text block holding the file's stored extracted text before adapter
+ * dispatch, so adapters never receive this block.
+ */
+export interface FileBlock {
+  type: 'file'
+  /** Immutable original and extracted-text references owned by the attachment service. */
+  attachment: FileAttachmentRef
+}
+
 /** A tool invocation requested by the model. */
 export interface ToolCallBlock {
   type: 'tool-call'
@@ -100,6 +111,7 @@ export interface ContentBlockMap {
   'text': TextBlock
   'reasoning': ReasoningBlock
   'image': ImageBlock
+  'file': FileBlock
   'tool-call': ToolCallBlock
   'tool-result': ToolResultBlock
 }

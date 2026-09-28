@@ -6,6 +6,7 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { ClientSessionContext } from '@aeven/client-ui-input-trigger/client'
 import type { SessionId } from '@aeven/session/types'
+import type { TokenSpan } from '@aeven/client-ui-input-trigger/client'
 
 /** Copy for an option that must be acknowledged before onSelect can run. */
 export interface SelectConfirmation {
@@ -81,6 +82,8 @@ export interface CommandDecoration {
 
 /** The `ctx.commandUi` service face visible to business packages. */
 export interface CommandUiContract {
+  /** Invoke a visible command from a composer control, preserving the current draft. */
+  invokeFromButton(sessionId: SessionId, name: string, span: TokenSpan): Promise<boolean>
   /**
    * Register one client command contribution; effect disposer. Duplicate
    * names throw at registration.

@@ -43,6 +43,8 @@ allowBuilds:
   '@google/genai': false
   protobufjs: false
   node-addon-require-builtin: false
+  # OCR for scanned PDF attachments; its postinstall only prints a funding banner.
+  tesseract.js: false
   # JSONL durability calls MoveFileExW with write-through publication on Windows.
   koffi: true
   # The Python runtime deploy includes the reviewed workspace postinstall that

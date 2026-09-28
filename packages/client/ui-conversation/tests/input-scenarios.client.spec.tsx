@@ -154,6 +154,8 @@ async function scopedBench(register?: (inputTriggers: InputTriggerService) => vo
     keyboard: shell,
     addImages: () => null,
     removeImage: () => {},
+    addFiles: undefined,
+    subscribeDrafts: undefined,
     // Every id resolves so the bar's registry prune never drops a test image.
     draftImages: ids => ids.map(id => ({
       kind: 'image' as const, id,
@@ -161,6 +163,8 @@ async function scopedBench(register?: (inputTriggers: InputTriggerService) => vo
       previewUrl: `blob:${id}`,
     })),
     resolveSubmitMode: () => 'queue',
+    invokeCommand: undefined,
+    exportSession: undefined,
     toggleCommandMenu: (selection) => {
       const snapshot = shell.snapshot
       controller.toggleSource('command', {

@@ -62,8 +62,9 @@ declare module '@aeven/client-ui-slots' {
      *
      * Current-session-optional: the occupant owns both states without
      * changing its React identity, so it keeps its own state across a session
-     * switch. It receives no owner props; session facts arrive through the
-     * framework hooks of the `session-maybe` scope.
+     * switch. The frame hands it the left column's live fold state, which the
+     * band's own fold control names its direction from; session facts arrive
+     * through the framework hooks of the `session-maybe` scope.
      */
     'conversation': { kind: 'single'; scope: 'session-maybe'; owner: ConvOwnerProps }
     /**
@@ -142,8 +143,15 @@ export interface SidebarOwnerProps {
   width: number
 }
 
-/** Conversation owner share: business state and actions belong to the registrant. */
-export interface ConvOwnerProps {}
+/**
+ * Conversation owner share: the frame's live left-column fold state, so the
+ * band's fold control can name the direction it moves that column. Business
+ * state and actions belong to the registrant.
+ */
+export interface ConvOwnerProps {
+  /** Whether the left navigation column is closed. */
+  sidebarCollapsed: boolean
+}
 
 /** Surface owner share: empty — a surface page reads its own state. */
 export interface SurfaceOwnerProps {}

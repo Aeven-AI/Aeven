@@ -2,7 +2,7 @@
 
 import type { ContentBlock } from './types.ts'
 import type { Message } from './message.ts'
-import type { AttachmentStore, ImageAttachmentRef, ImageMediaType, RequestImageAttachment } from '@aeven/attachment'
+import type { AttachmentStore, FileAttachmentRef, ImageAttachmentRef, ImageMediaType, RequestImageAttachment } from '@aeven/attachment'
 import { assertNever } from '@aeven/util-values'
 
 /** Execution-world path that model tools can use to read one normalized attachment. */
@@ -286,4 +286,98 @@ export function offloadRequestImagesWithPolicy(
     const content = replaceOldestImages(message.content, remaining, policy.placeholder)
     return content === message.content ? message : { ...message, content }
   })
+}
+
+/**
+ * Whether content contains a file block, including nested tool results.
+ * @param content - message content.
+ * @returns whether any nested block is a file.
+ */
+export function contentHasFile(content: readonly ContentBlock[]): boolean {
+  return content.some(block => block.type === 'file'
+    || (block.type === 'tool-result' && contentHasFile(block.content)))
+}
+
+function attributeValue(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/[\r\n]+/g, ' ')
+}
+
+/**
+ * Render one attached file as the text the model receives.
+ * @param ref - durable file reference.
+ * @param text - stored extracted text, verified against `ref`.
+ * @param readonlyPath - execution-world path of the original, when mapped.
+ * @returns a deterministic `<attached_file>` element.
+ */
+export function attachedFileText(ref: FileAttachmentRef, text: string, readonlyPath?: string): string {
+  const attributes = [
+    `name="${attributeValue(ref.name)}"`,
+    `type="${attributeValue(ref.mediaType)}"`,
+    `bytes="${ref.bytes}"`,
+    ...ref.extraction.pages === undefined ? [] : [`pages="${ref.extraction.pages}"`],
+    ...readonlyPath === undefined ? [] : [`path="${attributeValue(readonlyPath)}"`],
+  ]
+  const notes: string[] = []
+  if (text.trim() === '') notes.push('[No text could be extracted from this file.]')
+  if (ref.extraction.truncated) {
+    notes.push(readonlyPath === undefined
+      ? `[Text truncated after ${ref.extraction.chars} characters.]`
+      : `[Text truncated after ${ref.extraction.chars} characters; the complete file is at the path above.]`)
+  }
+  return [`<attached_file ${attributes.join(' ')}>`, text, ...notes, '</attached_file>'].join('\n')
+}
+
+/** Reader of one file's stored text and its execution-world path. */
+export interface AttachedFileReader {
+  /** Read the verified extracted text. */
+  readText(ref: FileAttachmentRef, signal?: AbortSignal): Promise<string>
+  /** Map the stored original into the tool execution world, when possible. */
+  readonlyPath(ref: FileAttachmentRef): string | undefined
+}
+
+async function expandFiles(
+  blocks: readonly ContentBlock[],
+  reader: AttachedFileReader,
+  signal: AbortSignal | undefined,
+): Promise<ContentBlock[] | undefined> {
+  let next: ContentBlock[] | undefined
+  for (const [index, block] of blocks.entries()) {
+    if (block.type === 'file') {
+      next ??= blocks.slice(0, index)
+      const text = await reader.readText(block.attachment, signal)
+      next.push({ type: 'text', text: attachedFileText(block.attachment, text, reader.readonlyPath(block.attachment)) })
+      continue
+    }
+    if (block.type === 'tool-result') {
+      const content = await expandFiles(block.content, reader, signal)
+      if (content !== undefined) {
+        next ??= blocks.slice(0, index)
+        next.push({ ...block, content })
+        continue
+      }
+    }
+    next?.push(block)
+  }
+  return next
+}
+
+/**
+ * Replace every file block with a text block holding the file's stored text.
+ * @param messages - complete request history.
+ * @param reader - verified text reader and path mapping.
+ * @param signal - request cancellation.
+ * @returns the original list without files, otherwise shallow message copies.
+ */
+export async function projectFilesForRequest(
+  messages: readonly Message[],
+  reader: AttachedFileReader,
+  signal?: AbortSignal,
+): Promise<readonly Message[]> {
+  if (!messages.some(message => contentHasFile(message.content))) return messages
+  const projected: Message[] = []
+  for (const message of messages) {
+    const content = await expandFiles(message.content, reader, signal)
+    projected.push(content === undefined ? message : { ...message, content } as Message)
+  }
+  return projected
 }

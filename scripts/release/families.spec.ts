@@ -49,6 +49,17 @@ describe('release families', () => {
     expect(members.map(member => member.name)).not.toContain('@aeven/experimental-agent-team')
   })
 
+  it('discovers vendored packages under their npm scope and rejects other scopes', () => {
+    const vendor = releaseFamily('vendor')
+    const members = vendor.members(resolve(import.meta.dirname, '../..'))
+    expect(members).toContainEqual(expect.objectContaining({ name: '@deepseek-ai/cordis' }))
+
+    const root = mkdtempSync(join(tmpdir(), 'avn-release-vendor-scope-'))
+    roots.push(root)
+    write(join(root, 'vendor/other/package.json'), '{"name":"@aeven/other","version":"1.0.0"}\n')
+    expect(() => vendor.members(root)).toThrow(/must name an @deepseek-ai package/)
+  })
+
   it('bumps private avn packages without adding release tags', () => {
     const root = mkdtempSync(join(tmpdir(), 'avn-release-version-'))
     roots.push(root)

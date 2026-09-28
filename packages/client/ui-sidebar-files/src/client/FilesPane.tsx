@@ -17,7 +17,7 @@ import type { ClientRemote, SessionId } from '@aeven/api-remotes/client'
 import type {} from '@aeven/api-workspace-files/remote'
 import type { WorkspaceDirectoryEntry, WorkspaceFileText, WorkspaceSearchHit } from '@aeven/api-workspace-files/types'
 import {
-  CodeBlock, IconLucideChevronsDownUp, IconLucideFiles, IconLucideFolder, IconLucideFolderOpen,
+  CodeBlock, IconLucideChevronsDownUp, IconLucideFolder, IconLucideFolderOpen, IconLucideFolderSearch2,
   IconLucideRefreshCw, IconLucideSearch, IconLucideX, MarkdownText, Menu, writeClipboard,
   type MarkdownLabels, type MenuEntry,
 } from '@aeven/client-ui-primitives'
@@ -561,7 +561,7 @@ function FileView({ path, root, canOpenNative, treeVisible, remote, sessionId, t
           title={treeVisible ? t('tree.hide') : t('tree.show')}
           onClick={onToggleTree}
         >
-          <IconLucideFiles />
+          <IconLucideFolderSearch2 />
         </button>
         <button type="button" className={css.iconButton} aria-label={t('file.close')} title={t('file.close')} onClick={onClose}>
           <IconLucideX />

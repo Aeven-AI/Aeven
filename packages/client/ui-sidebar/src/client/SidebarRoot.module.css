@@ -28,12 +28,6 @@
   --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
   --avn-sidebar-inline-padding: var(--dsw-aeven-sidebar-row-inset);
   --avn-sidebar-open-width: 0px;
-  /* The fold toggle's own box: its row inset, the 18px glyph, and a narrower
-     inset after it, so the button ends just past what it draws instead of
-     reaching the column's edge. */
-  --avn-sidebar-toggle-width: calc(
-    var(--avn-sidebar-inline-padding) + 18px + 8px
-  );
   /* The column travels with its own content: Aeven animates `.sidebar` width
      on the same curve as everything inside it, so the conversation edge stays
      attached to the panel for the whole slide. */
@@ -91,56 +85,62 @@
   opacity: 1;
 }
 
-/* Header row: the fold toggle at one end and the browsing controls at the
-   other. The cluster takes whatever room is left, so nothing here measures the
-   column or the toggle; the trailing inset is the row's own, which puts the
-   last glyph's edge on the same line the rows below inset to. */
+/* Header row: the browsing region's search at the leading edge and the rest of
+   its controls at the trailing one, both clipped by the collapsing column
+   exactly as the body below them is. The fold control is not part of this row —
+   it lives in the conversation's navigation band, which is laid out in the
+   centre column (ui-conversation ConversationRoot.module.css), so it stays
+   reachable while this column is collapsed. */
 .header {
   position: relative;
   z-index: 5;
   flex: none;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   width: 100%;
   height: var(--dsw-aeven-control-size);
-  padding-right: var(--avn-sidebar-inline-padding);
+  /* The row's own insets, which put the leading control's glyph on the same
+     line the rows below inset to. */
+  padding: 0 var(--avn-sidebar-inline-padding);
   box-sizing: border-box;
+  /* Tooltips of the row's controls share one line with the conversation band's
+     (the fold control, the right sidebar toggle), which place theirs 10px under
+     the band's 40px control box. The row's occupants are 28px and end 6px above
+     that box's bottom, so the offset pulls in 6px less. Declared on the row so
+     every occupant inherits it. */
+  --dsw-aeven-tooltip-icon-offset: 4px;
+  /* The row itself is inert: only its controls take pointer input. Collapsed it
+     is zero wide, and a padded row still occupies its padding as a hit target —
+     a 48px invisible strip over the conversation's band, where the fold control
+     stands. Re-enabled on the seats' contents below. */
+  pointer-events: none;
 }
 
-/* Aeven `.sidebar-button`: 24px inset + 20px glyph box + 24px inset collapsed,
-   widening to the full column. `overflow: hidden` is what lets the chevron sit
-   past the collapsed edge without spilling. */
-.toggle {
-  position: relative;
-  z-index: 5;
-  flex: none;
+.headerLeading > *,
+.headerActions > * {
+  pointer-events: auto;
+}
+
+/* The leading seat grows into whatever the trailing cluster leaves, which is
+   what lets the search field open across the row. Unoccupied it costs nothing:
+   the cluster keeps the trailing edge either way. */
+.headerLeading {
   display: flex;
+  flex: 1 1 auto;
   align-items: center;
-  justify-content: flex-start;
-  /* Sized to its glyph rather than to the column: the row inset before it, the
-     18px icon, and a narrower inset after, so the button ends just past what
-     it draws instead of reaching the column's edge. */
-  width: var(--avn-sidebar-toggle-width);
-  height: var(--dsw-aeven-control-size);
-  padding: 0 8px 0 var(--avn-sidebar-inline-padding);
-  border: none;
-  background: transparent;
-  color: var(--dsw-alias-label-primary);
-  cursor: pointer;
+  min-width: 0;
+  height: 100%;
   overflow: hidden;
-  white-space: nowrap;
-  box-sizing: border-box;
-  /* Cleared by the desktop rule below; zero in a browser tab. */
-  margin-left: var(--avn-sidebar-window-controls, 0px);
 }
 
-/* The cluster takes the room the toggle leaves and clips its own controls, so
-   the collapsing column carries them out with the body instead of leaving them
-   over the conversation. It fades on the body's own linear curve, and its
-   controls stay on one line while the column narrows. */
+/* The cluster keeps its own width at the row's trailing edge while there is room
+   and shrinks with the collapsing column, so its controls are clipped away with
+   the panel instead of overflowing the zero-wide row — where a stray icon would
+   stand over the conversation's band, answering the hover and the clicks meant
+   for the fold control there. */
 .headerActions {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -155,41 +155,6 @@
 
 .visible .headerActions {
   opacity: 1;
-}
-
-/* The desktop shell hides its title bar and insets the window controls over the
-   page's top-left (desktop main.ts `trafficLightPosition`), so this one control
-   stands to their right rather than under them.
-
-   The shell insets the lights by `--dsw-aeven-page-inset`, and they span three
-   12px buttons with 8px between them. Clearing that span leaves the row's own
-   inset as the gap after them, which matches the gap before them. Only the
-   toggle moves, since nothing else in the column reaches that corner. The
-   desktop carrier marks the document (desktop preload-app.ts), which is what
-   keeps the same client unmoved when it is served over HTTP. */
-:global(html[data-avn-desktop]) .root {
-  --avn-sidebar-window-controls: calc(
-    /* the lights' inset, then three 12px buttons with 8px between them */
-    var(--dsw-aeven-page-inset) + 3 * 12px + 2 * 8px
-      /* the gap after them, matching their own inset, less the glyph's own
-       centring inside the square control */ +
-      var(--dsw-aeven-page-inset) - (var(--dsw-aeven-control-size) - 18px) / 2
-  );
-}
-
-/* Neither glyph shrinks when the button is narrower than its contents. Aeven
-   gets this from the wrappers it puts around each icon, whose auto minimum
-   size floors them at the glyph width; here the icons are direct flex
-   children, so they say it themselves. `overflow: hidden` on the button then
-   clips the glyph past the collapsed edge, which is what Aeven does. */
-.toggle > svg {
-  flex: none;
-}
-
-/* The fold glyph: the sidebar's three-line mark at its own 18px grapheme. */
-.toggleIcon {
-  width: 18px;
-  height: 18px;
 }
 
 /* Aeven `.side-content`: the scrolling body. Its opacity rides a linear curve
@@ -220,7 +185,6 @@
 :global([data-dragging]) .root,
 :global([data-dragging]) .content,
 :global([data-dragging]) .panel,
-:global([data-dragging]) .toggle,
 :global([data-dragging]) .sideContent {
   transition: none;
 }
@@ -398,7 +362,6 @@
   .root,
   .content,
   .panel,
-  .toggle,
   .headerActions,
   .sideContent {
     transition: none;

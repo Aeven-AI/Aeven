@@ -1,11 +1,13 @@
 /**
- * Workspace plugin, browser half. Three registrations: WorkspaceHeaderActions
- * fills the sidebar shell's header cluster (search, view options, add
- * workspace), WorkspaceBrowser fills the shell's `sidebar.workspaces` hole
+ * Workspace plugin, browser half. Four registrations: WorkspaceHeaderSearch
+ * fills the leading seat of the sidebar shell's header row (the control that
+ * opens the Session search popup), WorkspaceHeaderActions fills that row's
+ * trailing cluster (view options, add workspace), WorkspaceBrowser fills the
+ * shell's `sidebar.workspaces` hole
  * (the list body and the workspace dialogs), and WorkspacePicker fills the
  * conversation hero's picker hole (`conversation.hero.workspace` — both hero
- * forms). All three read real Host Workspaces through the global
- * useWorkspaces hook; the two sidebar entries share one viewing store, and
+ * forms). All read real Host Workspaces through the global
+ * useWorkspaces hook; the header actions and the list share one viewing store, and
  * each add surface declares its own `single` directory-flow child hole for
  * the composed picker package's client half (see the contract module doc).
  * Export discipline: packages/client/AGENTS.md.
@@ -25,12 +27,14 @@ import type {} from '@aeven/client-ui-renderer/client'
 // Type-only: pulls the Session root standard-hook merge.
 import type {} from '@aeven/client-ui-session/client'
 import type {
-  WorkspaceBrowserInjected, WorkspaceHeaderActionsInjected, WorkspacePickerInjected,
+  WorkspaceBrowserInjected, WorkspaceHeaderActionsInjected, WorkspaceHeaderSearchInjected,
+  WorkspacePickerInjected,
 } from './contract/slots.ts'
 import { UiWorkspaceService } from './navigation.ts'
 import { BrowserSessionUrlNavigation } from './session-url.ts'
 import { createWorkspaceViewStore } from './stores.ts'
 import { WorkspaceHeaderActions } from './HeaderActions.tsx'
+import { WorkspaceHeaderSearch } from './HeaderSearch.tsx'
 import { WorkspaceBrowser } from './rows/WorkspaceBrowser.tsx'
 import { WorkspacePicker } from './WorkspacePicker.tsx'
 import { en, zh, type WorkspaceKey } from './locales.ts'
@@ -39,7 +43,8 @@ export type { UiWorkspace } from './navigation.ts'
 export type {
   DirectoryFlowOwnerProps, DirectoryFlowSlotName, DirectoryPickingHooks, DirectoryPickingInjected,
   WorkspaceBrowserInjected, WorkspaceBrowserProps, WorkspaceHeaderActionsInjected,
-  WorkspaceHeaderActionsProps, WorkspacePickerInjected, WorkspacePickerProps,
+  WorkspaceHeaderActionsProps, WorkspaceHeaderSearchInjected, WorkspaceHeaderSearchProps,
+  WorkspacePickerInjected, WorkspacePickerProps,
 } from './contract/slots.ts'
 export type { WorkspaceKey } from './locales.ts'
 
@@ -85,7 +90,7 @@ export function apply(ctx: Context): void {
   ctx.slots.provideRoot({ hooks: { workspaces: workspaces.list } })
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-workspace: dictionaries')
 
-  const searchSessions: WorkspaceBrowserInjected['searchSessions'] = async (query, signal) => {
+  const searchSessions: WorkspaceHeaderSearchInjected['searchSessions'] = async (query, signal) => {
     const result = await sessions.search(query, signal)
     if (!result.ok) throw result.error
     return result.value
@@ -108,10 +113,7 @@ export function apply(ctx: Context): void {
     createWorkspace: input => workspaces.create(input),
     hooks: { directoryFlow: headerFlowSource },
   })
-  const browserInjected = (): WorkspaceBrowserInjected => ({
-    // Explicit group actions keep their target; unscoped New Session inherits
-    // the current Session Workspace before the recent-Workspace fallback.
-    startSession: (workspaceId) => { uiWorkspace.startSession(workspaceId) },
+  const searchInjected = (): WorkspaceHeaderSearchInjected => ({
     open: (sessionId, matchSeq) => {
       // `ctx.get`, not a declared injection: ui-conversation injects
       // uiWorkspace, so waiting on uiConversation here would deadlock both —
@@ -123,6 +125,12 @@ export function apply(ctx: Context): void {
     },
     searchSessions,
     searchResultLimit: sessions.searchResultLimit,
+  })
+  const browserInjected = (): WorkspaceBrowserInjected => ({
+    // Explicit group actions keep their target; unscoped New Session inherits
+    // the current Session Workspace before the recent-Workspace fallback.
+    startSession: (workspaceId) => { uiWorkspace.startSession(workspaceId) },
+    open: (sessionId) => { sessions.open(sessionId) },
     renameSession: async (sessionId, title) => {
       // Row → session-face hop: rename is a per-session verb (ISession), not
       // a list-service verb; the binding resolves any listed session.
@@ -153,11 +161,19 @@ export function apply(ctx: Context): void {
     createWorkspace: input => workspaces.create(input),
     hooks: { directoryFlow: pickerFlowSource },
   })
-  // One viewing store for the two sidebar entries: the header's search field
-  // writes the query the list below reads.
+  // One viewing store for the header actions and the list: the view options
+  // write the grouping and ordering the list reads.
   const viewStore = createWorkspaceViewStore()
   // Each registration declares its directory-flow child in the same call;
   // slot injection follows both the owner and declaration HMR lifetimes.
+  ctx.slots.inject('sidebar.header.leading', () => ctx.slots.register(
+    {
+      name: 'sidebar.header.leading',
+      inject: searchInjected,
+      locale: NS,
+    },
+    WorkspaceHeaderSearch,
+  ))
   ctx.slots.inject('sidebar.header.action', () => ctx.slots.register(
     {
       name: 'sidebar.header.action',

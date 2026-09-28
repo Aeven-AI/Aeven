@@ -5,7 +5,7 @@
  * @module @aeven/api-session-controller/media-references
  */
 
-import { isAbsolute } from 'node:path'
+import { extname, isAbsolute } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@aeven/client-connection'
 import type {} from '@aeven/attachment'
@@ -19,6 +19,20 @@ const BASE_HEADERS = {
   'Content-Security-Policy': "sandbox; default-src 'none'",
 }
 
+/** Browser-safe raster type for an extensionless file. */
+function rasterMediaType(bytes: Uint8Array): string | undefined {
+  if (bytes.length >= 12
+    && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46
+    && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return 'image/webp'
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg'
+  if (bytes.length >= 8
+    && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
+    && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a) return 'image/png'
+  if (bytes.length >= 6 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46
+    && bytes[3] === 0x38 && (bytes[4] === 0x37 || bytes[4] === 0x39) && bytes[5] === 0x61) return 'image/gif'
+  return undefined
+}
+
 async function serveFile(request: Request, fs: FileSystem, maxBytes: number): Promise<Response> {
   const fail = (status: number, text: string): Response =>
     new Response(request.method === 'HEAD' ? null : text, { status, headers: BASE_HEADERS })
@@ -27,10 +41,10 @@ async function serveFile(request: Request, fs: FileSystem, maxBytes: number): Pr
   if (path.includes('\0') || !isAbsolute(path)) return fail(400, 'absolute path required')
   try {
     const target = await fs.resolve(path, { signal: request.signal })
-    const mediaType = mime.lookup(target.displayPath) || 'application/octet-stream'
+    const extensionless = extname(target.displayPath) === ''
+    const namedMediaType = extensionless ? false : mime.lookup(target.displayPath)
     const headers: Record<string, string> = {
       ...BASE_HEADERS,
-      'Content-Type': mediaType,
     }
     if (request.method === 'HEAD') {
       const info = await fs.stat(target, request.signal)
@@ -40,9 +54,13 @@ async function serveFile(request: Request, fs: FileSystem, maxBytes: number): Pr
         if (info.size > maxBytes) return fail(413, 'file exceeds byte limit')
         headers['Content-Length'] = String(info.size)
       }
+      headers['Content-Type'] = namedMediaType
+        || (extensionless ? rasterMediaType(await fs.readBytes(target, request.signal, maxBytes)) : undefined)
+        || 'application/octet-stream'
       return new Response(null, { headers })
     }
     const bytes = await fs.readBytes(target, request.signal, maxBytes)
+    headers['Content-Type'] = namedMediaType || (extensionless ? rasterMediaType(bytes) : undefined) || 'application/octet-stream'
     headers['Content-Length'] = String(bytes.byteLength)
     return new Response(bytes.slice(), { headers })
   } catch (error: unknown) {

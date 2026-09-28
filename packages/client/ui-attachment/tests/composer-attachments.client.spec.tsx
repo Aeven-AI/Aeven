@@ -57,8 +57,8 @@ function props(overrides: Partial<ComposerAttachmentsOwnerProps> = {}): Composer
   return {
     attachments: [],
     canAcceptDrop: true,
-    onAddImages: () => {},
-    onRemoveImage: () => {},
+    onAddFiles: () => {},
+    onRemoveAttachment: () => {},
     t,
     ...overrides,
   } as unknown as ComposerAttachmentsProps
@@ -66,9 +66,9 @@ function props(overrides: Partial<ComposerAttachmentsOwnerProps> = {}): Composer
 
 describe('ComposerAttachments', () => {
   it('accepts file drops anywhere on the document and keeps non-file drags native', () => {
-    const onAddImages = vi.fn()
+    const onAddFiles = vi.fn()
     const view = render(<ComposerAttachments {...props({
-      onAddImages,
+      onAddFiles,
       dropLimits: { count: 20, size: '5MB' },
     })} />)
 
@@ -87,7 +87,7 @@ describe('ComposerAttachments', () => {
     expect(fireEvent.dragOver(document.body, { dataTransfer })).toBe(false)
     expect(dataTransfer.dropEffect).toBe('copy')
     expect(fireEvent.drop(document.body, { dataTransfer })).toBe(false)
-    expect(onAddImages).toHaveBeenCalledWith([image])
+    expect(onAddFiles).toHaveBeenCalledWith([image])
     expect(view.queryByRole('status')).toBeNull()
   })
 
@@ -118,8 +118,8 @@ describe('ComposerAttachments', () => {
   })
 
   it('shows a blocked drop without forwarding its files', () => {
-    const onAddImages = vi.fn()
-    const view = render(<ComposerAttachments {...props({ canAcceptDrop: false, onAddImages })} />)
+    const onAddFiles = vi.fn()
+    const view = render(<ComposerAttachments {...props({ canAcceptDrop: false, onAddFiles })} />)
     const image = attachment('blocked').file
     const dataTransfer = { types: ['Files'], files: [image], dropEffect: 'copy' }
     fireEvent.dragEnter(document.body, { dataTransfer })
@@ -127,21 +127,21 @@ describe('ComposerAttachments', () => {
     fireEvent.dragOver(document.body, { dataTransfer })
     expect(dataTransfer.dropEffect).toBe('none')
     fireEvent.drop(document.body, { dataTransfer })
-    expect(onAddImages).not.toHaveBeenCalled()
+    expect(onAddFiles).not.toHaveBeenCalled()
     expect(view.queryByRole('status')).toBeNull()
   })
 
   it('routes rail removal and closes previews on Escape or attachment removal', () => {
-    const onRemoveImage = vi.fn()
+    const onRemoveAttachment = vi.fn()
     const image = attachment('draft-1', 'pixel.png')
-    const initial = props({ attachments: [image], onRemoveImage })
+    const initial = props({ attachments: [image], onRemoveAttachment })
     const view = render(<ComposerAttachments {...initial} />)
 
     fireEvent.click(view.getByRole('button', { name: '移除图片 pixel.png' }))
-    expect(onRemoveImage).toHaveBeenCalledWith(image.id)
+    expect(onRemoveAttachment).toHaveBeenCalledWith(image.id)
     fireEvent.click(view.getByTitle('查看原图'))
     expect(view.getByRole('dialog', { name: '原图预览' })).toBeTruthy()
-    view.rerender(<ComposerAttachments {...props({ attachments: [], onRemoveImage })} />)
+    view.rerender(<ComposerAttachments {...props({ attachments: [], onRemoveAttachment })} />)
     expect(view.queryByRole('dialog', { name: '原图预览' })).toBeNull()
 
     view.rerender(<ComposerAttachments {...initial} />)

@@ -49,8 +49,7 @@ function ensureReference(ref: ImageAttachmentRef): string {
  * @returns provider-local path without reading the object.
  */
 export function normalizedImagePath(root: string, ref: ImageAttachmentRef): string {
-  const sha256 = ensureReference(ref)
-  return join(root, 'objects', sha256.slice(0, 2), sha256)
+  return objectPath(root, ensureReference(ref))
 }
 
 async function inspectMetadata(
@@ -197,6 +196,18 @@ export async function commitPreparedImageFile(
   if (digest(normalized) !== sha256 || normalized.byteLength !== prepared.ref.bytes) {
     throw new AttachmentError('Prepared attachment bytes do not match their reference.', 'ATTACHMENT_CORRUPT')
   }
+  await publishObject(root, sha256, normalized)
+  return prepared.ref
+}
+
+/**
+ * Durably publish one immutable content-addressed object. An existing object
+ * with the same address is verified instead of rewritten.
+ * @param root - absolute `AVN_HOME/attachments/v1` root.
+ * @param sha256 - lowercase hex digest of `data`, verified by the caller.
+ * @param data - object bytes.
+ */
+export async function publishObject(root: string, sha256: string, data: Uint8Array): Promise<void> {
   const bucket = join(root, 'objects', sha256.slice(0, 2))
   const staging = join(root, 'tmp')
   // Establish AVN_HOME itself against the filesystem root once per process.
@@ -206,11 +217,11 @@ export async function commitPreparedImageFile(
   await ensureDurableDirectory(bucket, boundary)
   await ensureDurableDirectory(staging, boundary)
   const temporary = join(staging, randomUUID())
-  const target = normalizedImagePath(root, prepared.ref)
+  const target = objectPath(root, sha256)
   let handle
   try {
     handle = await open(temporary, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY, 0o600)
-    await handle.writeFile(normalized)
+    await handle.writeFile(data)
     await handle.sync()
     await handle.close()
     handle = undefined
@@ -248,9 +259,58 @@ export async function commitPreparedImageFile(
       },
     )
     if (error instanceof AttachmentError) throw error
-    throw new AttachmentError('Unable to persist image attachment.', 'ATTACHMENT_WRITE_FAILED', { cause: error })
+    throw new AttachmentError('Unable to persist attachment.', 'ATTACHMENT_WRITE_FAILED', { cause: error })
   }
-  return prepared.ref
+}
+
+/**
+ * Derive the absolute path of one content-addressed object.
+ * @param root - absolute `AVN_HOME/attachments/v1` root.
+ * @param sha256 - lowercase hex digest.
+ * @returns provider-local path without reading the object.
+ */
+export function objectPath(root: string, sha256: string): string {
+  return join(root, 'objects', sha256.slice(0, 2), sha256)
+}
+
+/**
+ * Read one content-addressed object and verify its digest.
+ * @param root - absolute `AVN_HOME/attachments/v1` root.
+ * @param sha256 - lowercase hex digest recorded in the reference.
+ * @param signal - optional cancellation.
+ * @returns the verified bytes.
+ */
+export async function readObject(root: string, sha256: string, signal?: AbortSignal): Promise<Uint8Array> {
+  signal?.throwIfAborted()
+  let data: Uint8Array
+  try {
+    data = new Uint8Array(await readFile(objectPath(root, sha256), { signal }))
+  } catch (error) {
+    signal?.throwIfAborted()
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') throw new AttachmentError('Attachment object is missing.', 'ATTACHMENT_NOT_FOUND')
+    throw new AttachmentError('Unable to read attachment.', 'ATTACHMENT_READ_FAILED', { cause: error })
+  }
+  signal?.throwIfAborted()
+  if (digest(data) !== sha256) throw new AttachmentError('Stored attachment failed integrity verification.', 'ATTACHMENT_CORRUPT')
+  return data
+}
+
+/**
+ * Compute the content address of one object.
+ * @param data - object bytes.
+ * @returns lowercase hex SHA-256 digest.
+ */
+export function objectDigest(data: Uint8Array): string {
+  return digest(data)
+}
+
+/**
+ * Strip path information and control characters from a display name.
+ * @param value - browser-supplied name.
+ * @returns the cleaned leaf name, or undefined when nothing remains.
+ */
+export function cleanDisplayName(value: string | undefined): string | undefined {
+  return displayName(value)
 }
 
 /**

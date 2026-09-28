@@ -451,6 +451,8 @@ function makeHarness(
     // Absent-service default; mention tests override with a real resolver.
     fileMentions: () => undefined,
     onFullscreenChange: () => {},
+    updateQueue: async () => {},
+    notifyError: () => {},
     t,
   }
   const set = (next: HarnessUpdate): void => {
@@ -1355,7 +1357,7 @@ describe('ChatView', () => {
     const view = render(<h.ChatView {...h.props} />)
 
     expect(view.getByText('interrupt now').closest('[data-pending-steering]')).not.toBeNull()
-    expect(view.queryByText('later')).toBeNull()
+    expect(view.getByText('later').closest('[data-queued]')).not.toBeNull()
     const pendingBubble = view.getByText('interrupt now').closest('[data-pending-steering]')
     expect(pendingBubble).not.toBeNull()
     fireEvent.click(within(pendingBubble as HTMLElement).getByRole('button', { name: '复制' }))
@@ -1493,7 +1495,8 @@ describe('ChatView', () => {
     expect(view.container.querySelector('[data-pending-steering]')).not.toBeNull()
   })
 
-  it('keeps a queued echo out of the Chat flow before and after Host admission', () => {
+  it('renders a queued message in the Chat flow from its echo through Host admission', () => {
+    const updateQueue = vi.fn().mockResolvedValue(undefined)
     const h = makeHarness(
       { nodes: [assistant(1, 'working')] },
       {
@@ -1501,13 +1504,16 @@ describe('ChatView', () => {
         pendingSubmissions: [
           {
             requestId: 'req-q' as never, placement: 'queued',
-            time: 6_000, text: '排队中', images: [],
+            time: 6_000, text: 'after this turn', images: [],
           },
         ],
       },
     )
-    const view = render(<h.ChatView {...h.props} />)
-    expect(view.queryByText('排队中')).toBeNull()
+    const view = render(<h.ChatView {...h.props} updateQueue={updateQueue} />)
+    const echo = view.getByText('after this turn').closest('[data-queued]') as HTMLElement
+    expect(echo.hasAttribute('data-submission-echo')).toBe(true)
+    expect(within(echo).getByText('排队中')).toBeTruthy()
+    expect(within(echo).queryByRole('button', { name: '删除排队消息' })).toBeNull()
     act(() => {
       h.setSession({
         queue: [{
@@ -1515,15 +1521,17 @@ describe('ChatView', () => {
           messageId: 'q-message' as never,
           placement: 'queued' as const,
           rpcId: 'req-q' as never,
-          content: [{ type: 'text' as const, text: '排队中' }],
-          preview: '排队中',
-          text: '排队中',
+          content: [{ type: 'text' as const, text: 'after this turn' }],
+          preview: 'after this turn',
+          text: 'after this turn',
         }],
       })
     })
-    // The queued occurrence and its local predecessor both belong to the
-    // queue dock, never the Chat flow.
-    expect(view.queryByText('排队中')).toBeNull()
+    expect(view.getAllByText('after this turn')).toHaveLength(1)
+    const row = view.getByText('after this turn').closest('[data-queued]') as HTMLElement
+    expect(row.hasAttribute('data-submission-echo')).toBe(false)
+    fireEvent.click(within(row).getByRole('button', { name: '立即发送' }))
+    expect(updateQueue).toHaveBeenCalledWith('q-occurrence', { kind: 'steer' })
   })
 
   it('an image echo renders its previews through the message-image slot', () => {

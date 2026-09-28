@@ -1,5 +1,5 @@
 import type { TranslateNS } from '@aeven/client-ui-slots'
-import type { AttachmentRailLabels } from '../AttachmentRail.tsx'
+import type { UploadTrayLabels } from '../UploadTray.tsx'
 import type { DropOverlayLabels } from '../DropOverlay.tsx'
 import type { ImageLightboxLabels } from '@aeven/client-ui-primitives'
 import type { MessageImageLabels } from '../MessageImage.tsx'
@@ -41,21 +41,23 @@ export function dropOverlayLabels(
   accepting: boolean,
   limits?: { readonly count: number; readonly size: string },
 ): DropOverlayLabels {
-  if (!accepting) return { title: t('image.dropBlocked') }
+  if (!accepting) return { title: t('file.busy') }
   return {
-    title: t('image.dropTitle'),
-    desc: limits === undefined ? undefined : t('image.dropDesc', limits),
+    title: t('file.dropTitle'),
+    desc: limits === undefined ? undefined : t('file.dropDesc', limits),
   }
 }
 
 /**
- * Resolve draft-image rail strings from the conversation namespace.
+ * Resolve upload-tray strings from the conversation namespace.
  * @param t - conversation namespace translator.
- * @returns translated attachment-rail labels.
+ * @param group - which tray the group label names.
+ * @returns translated upload-tray labels.
  */
-export function attachmentRailLabels(t: TranslateNS<'conversation'>): AttachmentRailLabels {
+export function uploadTrayLabels(t: TranslateNS<'conversation'>, group: 'draft' | 'message'): UploadTrayLabels {
   return {
-    group: t('image.pending'),
-    open: t('image.openOriginal'),
+    group: group === 'draft' ? t('file.pending') : t('file.attached'),
+    remove: t('file.remove'),
+    error: t('file.error'),
   }
 }

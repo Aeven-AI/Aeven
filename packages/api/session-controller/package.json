@@ -82,6 +82,7 @@
     "@aeven/api-gateway": "workspace:^",
     "@aeven/attachment": "workspace:^",
     "@aeven/client-connection": "workspace:^",
+    "@aeven/document-extract": "workspace:^",
     "@aeven/file-reference": "workspace:^",
     "@aeven/fs": "workspace:^",
     "@aeven/jobs": "workspace:^",
@@ -114,6 +115,9 @@
     },
     "@aeven/fs": {
       "optional": true
+    },
+    "@aeven/document-extract": {
+      "optional": true
     }
   },
   "devDependencies": {
@@ -126,6 +130,7 @@
     "@aeven/client-connection": "workspace:^",
     "@aeven/client-store": "workspace:^",
     "@aeven/commands": "workspace:^",
+    "@aeven/document-extract": "workspace:^",
     "@aeven/file-reference": "workspace:^",
     "@aeven/fs": "workspace:^",
     "@aeven/jobs": "workspace:^",

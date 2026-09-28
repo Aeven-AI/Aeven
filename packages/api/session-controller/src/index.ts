@@ -21,6 +21,7 @@ import { SessionControlController } from './control.ts'
 import { SessionHistoryController } from './history.ts'
 import { SessionFileReferences } from './file-references.ts'
 import { SessionMediaReferences } from './media-references.ts'
+import { registerFileReadRoute, registerFileUploadRoutes } from './file-uploads.ts'
 import { ApiSessionList } from './list.ts'
 import { buildModelCatalog } from './catalog.ts'
 import { buildImageModelCatalog, type ImageModelCatalog } from './image-catalog.ts'
@@ -62,6 +63,7 @@ export type * from './types.ts'
 export { ApiSessionNotFound } from './agent.ts'
 export { SessionFileReferences } from './file-references.ts'
 export { SessionSkillCatalog } from './skill-catalog.ts'
+export { FILE_READ_PATH, FILE_UPLOAD_PATH } from './file-uploads.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -146,6 +148,10 @@ export class SessionController extends TypertRemoteService {
     ctx.plugin(SessionFileReferences)
     ctx.plugin(SessionSkillCatalog)
     ctx.plugin(SessionMediaReferences)
+    ctx.inject(['connection', 'attachments', 'documentExtract'], (uploadCtx) => { registerFileUploadRoutes(uploadCtx) })
+    ctx.inject(['connection'], (readCtx) => {
+      registerFileReadRoute(readCtx, (sessionId, attachmentId) => this.commands.referencedFile(sessionId, attachmentId))
+    })
 
     ctx.on('session/created', (session) => {
       ctx.emit('api-session/added', this.listState.summaryFor(session))

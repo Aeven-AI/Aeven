@@ -8,6 +8,10 @@
   padding: 0 var(--avn-composer-side-clearance) 24px;
 }
 
+.fileInput {
+  display: none;
+}
+
 .hero {
   /* No bottom pad in the centered hero, but the side clearance must survive:
      the hero wrapper is full-width on narrow viewports, so this padding is

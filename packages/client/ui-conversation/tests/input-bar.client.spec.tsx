@@ -175,6 +175,8 @@ function bench(over?: BenchOptions) {
     inputActions: shell.actions,
     keyboard: shell,
     addImages: over?.addImages ?? (() => null),
+    addFiles: undefined,
+    subscribeDrafts: undefined,
     removeImage,
     draftImages: ids => ids.flatMap((id) => {
       const attachment = over?.attachments?.find(candidate => candidate.id === id)
@@ -186,6 +188,8 @@ function bench(over?: BenchOptions) {
       return gesture === 'enter' ? preferred : preferred === 'queue' ? 'steer' : 'queue'
     },
     toggleCommandMenu: over?.toggleCommandMenu ?? vi.fn(),
+    invokeCommand: undefined,
+    exportSession: undefined,
     useNotices: bindSnapshotSelector(shell.notices),
     useLexicon: bindSnapshotSelector(shell.lexicon),
     useMenuLauncher: bindSnapshotSelector(menuLauncher),
@@ -316,7 +320,7 @@ describe('image draft rail', () => {
     }
     const png = (bytes: number, name: string) => new File([new ArrayBuffer(bytes)], name, { type: 'image/png' })
     const intake = (result: ReturnType<typeof bench>, files: File[]) => {
-      act(() => { attachmentOwner(result.slotCalls).onAddImages(files) })
+      act(() => { attachmentOwner(result.slotCalls).onAddFiles(files) })
     }
     // Count: three at once over a two-image limit → the whole batch refused.
     const overCount = bench({ addImages: vi.fn(() => null), imageLimits: limits })
@@ -364,7 +368,7 @@ describe('image draft rail', () => {
       new File([new ArrayBuffer(64)], 'a.pdf', { type: 'application/pdf' }),
       new File([new ArrayBuffer(64)], 'b.pdf', { type: 'application/pdf' }),
     ]
-    act(() => { attachmentOwner(result.slotCalls).onAddImages(files) })
+    act(() => { attachmentOwner(result.slotCalls).onAddFiles(files) })
     expect(addImages).toHaveBeenCalledWith(files)
     expect(result.view.getByRole('alert').textContent).toContain('仅支持 PNG、JPG、WebP、GIF 格式的图片')
   })
@@ -428,7 +432,7 @@ describe('image draft rail', () => {
     const { view, textarea, sink, removeImage } = result
     expect((view.getByRole('button', { name: '发送消息' }) as HTMLButtonElement).disabled).toBe(false)
     const owner = attachmentOwner(result.slotCalls)
-    act(() => { owner.onRemoveImage('draft-2' as DraftAttachmentId) })
+    act(() => { owner.onRemoveAttachment('draft-2' as DraftAttachmentId) })
     expect(removeImage).toHaveBeenCalledWith('draft-2')
     let settle!: (outcome: SubmitOutcome) => void
     sink.mockImplementationOnce(() => new Promise<SubmitOutcome>((resolve) => { settle = resolve }))
@@ -487,7 +491,7 @@ describe('image draft rail', () => {
     const addImages = vi.fn(() => '图片读取服务不可用')
     const result = bench({ addImages })
     act(() => {
-      attachmentOwner(result.slotCalls).onAddImages([
+      attachmentOwner(result.slotCalls).onAddFiles([
         new File([Uint8Array.of(1)], 'x.png', { type: 'image/png' }),
       ])
     })

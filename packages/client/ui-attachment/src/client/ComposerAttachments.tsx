@@ -1,24 +1,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
-  ComposerAttachment, ComposerAttachmentsProps,
+  ComposerAttachment, ComposerAttachmentsProps, ComposerImageAttachment,
 } from '@aeven/client-ui-conversation/client'
-import { AttachmentRail } from '../AttachmentRail.tsx'
-import type { AttachmentRailItem } from '../AttachmentRail.tsx'
+import { UploadTray } from '../UploadTray.tsx'
+import type { UploadTrayItem } from '../UploadTray.tsx'
 import { DropOverlay } from '../DropOverlay.tsx'
 import { ImageLightbox } from '@aeven/client-ui-primitives'
-import { attachmentRailLabels, dropOverlayLabels, lightboxLabels } from './labels.ts'
-import css from './ComposerAttachments.module.css'
+import { dropOverlayLabels, lightboxLabels, uploadTrayLabels } from './labels.ts'
 
-/** Rail item retaining its browser-owned attachment for callbacks. */
-interface ComposerRailItem extends AttachmentRailItem {
-  attachment: ComposerAttachment
+/** Tray item retaining its browser-owned attachment for callbacks. */
+type ComposerTrayItem = UploadTrayItem & { attachment: ComposerAttachment }
+
+/** Open a draft file's own bytes in a new tab; the object URL outlives the navigation briefly. */
+function openDraftFile(file: File): void {
+  const url = URL.createObjectURL(file)
+  window.open(url, '_blank', 'noopener')
+  setTimeout(() => { URL.revokeObjectURL(url) }, 60_000)
 }
 
-/** Draft-image rail, document drop target, and original-image preview slot entry. */
+/** Draft attachment tray, document drop target, and original-image preview slot entry. */
 export function ComposerAttachments({
-  attachments, canAcceptDrop, onAddImages, onRemoveImage, dropLimits, t,
+  attachments, canAcceptDrop, onAddFiles, onRemoveAttachment, dropLimits, t,
 }: ComposerAttachmentsProps) {
-  const [preview, setPreview] = useState<ComposerAttachment | null>(null)
+  const [preview, setPreview] = useState<ComposerImageAttachment | null>(null)
   const [dragActive, setDragActive] = useState(false)
   const dragDepth = useRef(0)
   const closePreview = useCallback(() => { setPreview(null) }, [])
@@ -62,7 +66,7 @@ export function ComposerAttachments({
       if (dataTransfer === null) return
       event.preventDefault()
       reset()
-      if (canAcceptDrop) onAddImages([...dataTransfer.files])
+      if (canAcceptDrop) onAddFiles([...dataTransfer.files])
     }
     document.addEventListener('dragenter', onDragEnter)
     document.addEventListener('dragover', onDragOver)
@@ -76,15 +80,29 @@ export function ComposerAttachments({
       document.removeEventListener('drop', onDrop)
       window.removeEventListener('dragend', reset)
     }
-  }, [canAcceptDrop, onAddImages])
+  }, [canAcceptDrop, onAddFiles])
 
-  const railItems = useMemo<ComposerRailItem[]>(() => attachments.map(attachment => ({
-    id: attachment.id,
-    previewUrl: attachment.previewUrl,
-    alt: attachment.file.name || t('image.pending'),
-    removeLabel: t('image.remove', { name: attachment.file.name }),
-    attachment,
-  })), [attachments, t])
+  const trayItems = useMemo<ComposerTrayItem[]>(() => attachments.map((attachment): ComposerTrayItem => attachment.kind === 'image'
+    ? {
+      kind: 'image',
+      id: attachment.id,
+      previewUrl: attachment.previewUrl,
+      alt: attachment.file.name || t('image.pending'),
+      removeLabel: t('image.remove', { name: attachment.file.name }),
+      attachment,
+    }
+    : {
+      kind: 'file',
+      id: attachment.id,
+      name: attachment.file.name,
+      mediaType: attachment.file.type,
+      status: attachment.status,
+      openLabel: attachment.status === 'uploading'
+        ? t('file.uploading', { name: attachment.file.name })
+        : t('file.open', { name: attachment.file.name }),
+      removeLabel: t('file.removeLabel', { name: attachment.file.name }),
+      attachment,
+    }), [attachments, t])
 
   return (
     <>
@@ -94,15 +112,16 @@ export function ComposerAttachments({
           labels={dropOverlayLabels(t, canAcceptDrop, dropLimits)}
         />
       )}
-      {railItems.length > 0 && (
-        <div className={css.rail}>
-          <AttachmentRail
-            items={railItems}
-            labels={attachmentRailLabels(t)}
-            onOpen={(item) => { setPreview(item.attachment) }}
-            onRemove={(item) => { onRemoveImage(item.attachment.id) }}
-          />
-        </div>
+      {trayItems.length > 0 && (
+        <UploadTray
+          items={trayItems}
+          labels={uploadTrayLabels(t, 'draft')}
+          onOpen={(item) => {
+            if (item.attachment.kind === 'image') setPreview(item.attachment)
+            else openDraftFile(item.attachment.file)
+          }}
+          onRemove={(item) => { onRemoveAttachment(item.attachment.id) }}
+        />
       )}
       {preview !== null && (
         <ImageLightbox

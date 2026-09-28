@@ -40,12 +40,7 @@
   overflow: hidden;
 }
 
-.frame[data-sidebar-collapsed] .centerCol {
-  --avn-sidebar-overlay-clearance: var(--dsw-aeven-sidebar-toggle-width);
-}
-
-/* The corner dock floats above the frame's right edge rather than taking part
-   in any column's layout, so this column states how much of its own right edge
+/* The corner dock floats above the frame's right edge rather than taking part   in any column's layout, so this column states how much of its own right edge
    the dock covers. The conversation header reserves that much, keeping its
    crumbs, tabs and session controls clear of the dock instead of running under
    it (ui-conversation ConversationRoot.module.css).
@@ -92,7 +87,7 @@
 
    It does not clip: collapsed it reaches zero width, and its occupant's
    reopen control has to stand in the conversation's right margin to stay
-   reachable — the mirror of the left sidebar's hamburger at zero width. */
+   reachable. */
 .rightbarCol {
   flex: none;
   width: var(--avn-frame-rightbar-width, 0px);
@@ -222,10 +217,11 @@
    sees one surface settle rather than a transcript blanking inside a frame
    that stayed put.
 
-   Collapsed, the sidebar's term is its toggle width, so the cover stops clear
-   of the hamburger: the one control that has to stay reachable while the
-   column it opens is hidden. The corner dock outranks this layer for the same
-   reason, keeping the avatar and the panel toggle visible throughout.
+   Collapsed, the column has no width, so the cover spans from the frame's own
+   left edge. The conversation's fold control travels with that column, so it
+   is covered with everything else the Session switch replaces; the corner dock
+   outranks this layer, keeping the avatar and the panel toggles visible
+   throughout.
 
    Occupants come from ui-conversation, which owns when a Session is covered;
    this states only where the cover sits. */
@@ -243,10 +239,10 @@
   transition: left var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
 }
 
-/* Collapsed the column has no width, but its toggle still stands in the
-   margin: the cover stops clear of that one control. */
+/* Collapsed the column has no width: the cover starts where the conversation
+   column itself does. */
 .frame[data-sidebar-collapsed] .coverLayer {
-  left: var(--dsw-aeven-sidebar-toggle-width);
+  left: 0;
 }
 
 .coverLayer > * {
@@ -338,9 +334,9 @@
    drags the window and answers a double-click with zoom.
 
    It covers only the gutter the window controls sit in — from the frame's left
-   edge to where the sidebar's toggle begins — because everything further right
-   is the conversation's own header, whose tabs and controls must keep their
-   clicks. A band across the full width takes those clicks even with
+   edge to where the conversation's leading control begins — because everything
+   further right is the conversation's own header, whose tabs and controls must
+   keep their clicks. A band across the full width takes those clicks even with
    `pointer-events: none`, since a drag rectangle is applied by the window
    rather than by hit testing. */
 :global(html[data-avn-desktop]) .frame::before {
@@ -348,9 +344,9 @@
   position: absolute;
   top: 0;
   left: 0;
-  /* Up to the toggle: the lights' own inset plus their span. */
+  /* Up to that control: the lights' own inset plus their span. */
   width: calc(var(--dsw-aeven-page-inset) + 3 * 12px + 2 * 8px);
-  /* The sidebar's toggle row: its top padding plus one control. */
+  /* The header band's own row: its top padding plus one control. */
   height: calc(8px + var(--dsw-aeven-control-size));
   z-index: 60;
   -webkit-app-region: drag;

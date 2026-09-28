@@ -179,6 +179,15 @@ export function apply(ctx: Context): void {
             },
             read: () => chatScrollPositions.get(sessionId) ?? null,
           },
+          updateQueue: async (itemId, action) => {
+            const conversation = ctx.sessions.scope(sessionId)?.get('conversation')
+            if (conversation === undefined) throw new Error(`ui-chat: session "${sessionId}" has no conversation service`)
+            await conversation.updateQueue(itemId, action)
+          },
+          notifyError: (text) => {
+            const actx = ctx.sessions.scope(sessionId)
+            actx?.get('conversation')?.input.for(actx).notify('error', text)
+          },
           forkAt: (seq) => {
             ctx.sessions.fork({ sessionId, atSeq: seq, increaseTitle: true })
               .then((childId) => { ctx.sessions.open(childId) })

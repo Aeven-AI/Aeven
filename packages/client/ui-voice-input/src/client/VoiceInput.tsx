@@ -114,7 +114,7 @@ export function VoiceInput({ sessionId, inputActions, locked, onActiveChange, cr
   }
 
   if (!expanded) {
-    return <Tooltip label={error === '' ? t('dictate') : error} side="bottom">
+    return <Tooltip label={error === '' ? t('dictate') : error} side="top">
       <button type="button" className={css.mic} data-loading={phase === 'starting' ? '' : undefined} aria-label={t('dictate')}
         disabled={locked} onMouseDown={(event) => { event.preventDefault() }} onClick={() => { void start() }}>
         <span className={css.micIcon}><IconLucideMic /></span>

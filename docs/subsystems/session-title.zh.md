@@ -89,11 +89,11 @@ interface SessionTitleLlmRequestEventData {
 服务会对截至某一修订的合格消息创建快照。提供方返回的 seq 仅可来自该请求；由服务负责的接纳流程会验证顺序、规范化标题、强制执行字节上限，并追加标题及其来源消息 seq 和来源类型。
 
 ```ts type-equiv
-/** One eligible human text message exposed to title providers. */
+/** One eligible human title input exposed to title providers. */
 interface SessionTitleUserMessage {
   /** Source `user/message` event seq. */
   readonly seq: SessionSeq
-  /** Exact concatenated text-block content. */
+  /** Concatenated text blocks, or `Image` for an image-only prompt. */
   readonly text: string
 }
 ```
@@ -185,7 +185,7 @@ rename(session: Session, title: string): SessionTitleSnapshot
  * fallback when no provider is registered.
  * @param session - exact live session to refresh.
  * @param signal - optional caller cancellation.
- * @returns latest accepted title, or `undefined` when no eligible text exists.
+ * @returns latest accepted title, or `undefined` when no eligible input exists.
  */
 async refresh(session: Session, signal?: AbortSignal): Promise<SessionTitleSnapshot | undefined>
 

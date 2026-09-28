@@ -37,6 +37,73 @@
   word-break: break-word;
 }
 
+/* A queued message waits for the running turn: the bubble dims until the Host
+   admits it, and its label and queue controls sit where a sent message's
+   clock and copy row sit. */
+.userRow[data-queued] .bubble {
+  opacity: 0.6;
+}
+
+.queuedActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: calc(28px + var(--avn-content-font-delta, 0px));
+}
+
+.queuedLabel {
+  padding-right: 4px;
+  font-size: var(--avn-content-font-size-secondary, 14px);
+  line-height: calc(24px + var(--avn-content-font-delta, 0px));
+  color: var(--dsw-alias-label-tertiary);
+  white-space: nowrap;
+}
+
+.queuedAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(28px + var(--avn-content-font-delta, 0px));
+  height: calc(28px + var(--avn-content-font-delta, 0px));
+  padding: 6px;
+  border: none;
+  border-radius: 28px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+}
+
+.queuedAction:not(:disabled):hover {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.queuedAction:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.queuedAction svg {
+  width: calc(15px + var(--avn-content-font-delta, 0px));
+  height: calc(15px + var(--avn-content-font-delta, 0px));
+}
+
+.queuedEditor {
+  box-sizing: border-box;
+  width: min(calc(var(--avn-chat-content-width, var(--dsw-aeven-chat-width)) * 0.72), 100%);
+  min-width: 240px;
+  padding: 10px 18px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-specific-bubble);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: var(--avn-content-font-size, 14px);
+  line-height: calc(var(--dsw-aeven-reading-line-height) + var(--avn-content-font-delta, 0px));
+  resize: vertical;
+  outline: none;
+}
+
 .referenceSummary {
   color: var(--dsw-alias-label-tertiary);
   font-size: var(--avn-content-font-size-secondary, 14px);

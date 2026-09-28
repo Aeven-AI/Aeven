@@ -1,9 +1,12 @@
 import { memo, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import type { PendingSubmission } from '@aeven/api-session-controller/client'
+import type { PendingSubmission, SessionSnapshot } from '@aeven/api-session-controller/client'
 import type { MessageImageSource } from '@aeven/client-ui-conversation/client'
-import { JsonBlock, projectUserText, StateDot } from '@aeven/client-ui-primitives'
-import type { ChatNodeOwnerProps, ChatNodeViewProps, ChatViewSlotProps } from '../contract/slots.ts'
+import {
+  IconCheckOutline16, IconCloseOutline16, IconEditOutline16, IconSendOutline14, IconTrashOutline16,
+  JsonBlock, projectUserText, StateDot, Tooltip,
+} from '@aeven/client-ui-primitives'
+import type { ChatNodeOwnerProps, ChatNodeViewProps, ChatViewInjected, ChatViewSlotProps } from '../contract/slots.ts'
 import type { ModelRetryNode, TurnErrorNode, UserMessageNode } from '../contract/snapshot.ts'
 import { CompactionItem } from './CompactionItem.tsx'
 import { ContextInjectionRow } from './ContextInjectionRow.tsx'
@@ -11,14 +14,17 @@ import { MessageIconActions } from './MessageIconActions.tsx'
 import css from './MessageItem.module.css'
 
 type UserImage = Extract<UserMessageNode['content'][number], { type: 'image' }>
+type UserFile = Extract<UserMessageNode['content'][number], { type: 'file' }>
 
 function contentParts(content: readonly unknown[]): {
   text: string
   images: { attachment: UserImage['attachment'] }[]
+  files: UserFile['attachment'][]
   rest: unknown[]
 } {
   const texts: string[] = []
   const images: { attachment: UserImage['attachment'] }[] = []
+  const files: UserFile['attachment'][] = []
   const rest: unknown[] = []
   for (const block of content) {
     const b = block as { type?: string; text?: string; attachment?: unknown }
@@ -26,9 +32,10 @@ function contentParts(content: readonly unknown[]): {
     else if (b.type === 'image' && b.attachment !== undefined) {
       images.push({ attachment: (b as UserImage).attachment })
     }
+    else if (b.type === 'file' && b.attachment !== undefined) files.push((b as UserFile).attachment)
     else rest.push(block)
   }
-  return { text: texts.join(''), images, rest }
+  return { text: texts.join(''), images, files, rest }
 }
 
 function retrySeconds(milliseconds: number): number {
@@ -148,7 +155,8 @@ function TurnMaxTokensItem({ t }: {
 
 /** Right-aligned bubble shared by user and steering rows. */
 function UserStyleBubble({
-  content, renderMessageImages, actions, pending = false, echo = false, referenceLabels = [], skillNames = [], previewImages, t,
+  content, renderMessageImages, actions, pending = false, echo = false, queued = false, body, referenceLabels = [], skillNames = [],
+  previewImages, t,
 }: {
   content: readonly unknown[]
   renderMessageImages: ChatNodeOwnerProps['renderMessageImages']
@@ -158,6 +166,10 @@ function UserStyleBubble({
   pending?: boolean
   /** Whether this is a local submission echo (invisible marker; the echo renders exactly like its durable replacement). */
   echo?: boolean
+  /** Whether the message waits in the Host queue for the running turn to end. */
+  queued?: boolean
+  /** Replaces the text bubble, as the inline editor of a queued message does. */
+  body?: ReactNode
   /** Exact session mention labels associated by the adjacent recall node. */
   referenceLabels?: readonly string[]
   /** Skill names the step's `skill-invocation` injections loaded for this message. */
@@ -166,7 +178,7 @@ function UserStyleBubble({
   previewImages?: readonly MessageImageSource[]
   t: ChatViewSlotProps['t']
 }): ReactNode {
-  const { text, images: contentImages, rest } = contentParts(content)
+  const { text, images: contentImages, files, rest } = contentParts(content)
   const images = previewImages ?? contentImages
   const truncated = (total: number): string => t('json.truncated', { total })
   const showBubble = text !== '' || rest.length > 0
@@ -175,13 +187,14 @@ function UserStyleBubble({
       className={css.userRow}
       data-pending-steering={pending || undefined}
       data-submission-echo={echo || undefined}
+      data-queued={queued || undefined}
     >
       <div className={css.userStack}>
-        {renderMessageImages({ images, align: 'end' })}
-        {showBubble && <div className={css.bubble}>
+        {renderMessageImages({ images, files, align: 'end' })}
+        {body ?? (showBubble && <div className={css.bubble}>
           {projectUserText(text, referenceLabels, skillNames)}
           {rest.map((block, i) => <JsonBlock key={i} label={t('message.extraBlock')} payload={block} truncatedLabel={truncated} />)}
-        </div>}
+        </div>)}
         {referenceLabels.length > 0 && (
           <div className={css.referenceSummary}>
             {t('message.referenceSummary', { labels: referenceLabels.join(t('message.referenceSeparator')) })}
@@ -257,15 +270,136 @@ export function PendingSubmissionBubble({ submission, renderMessageImages, t }: 
       renderMessageImages={renderMessageImages}
       pending={submission.placement === 'steering'}
       echo
+      queued={submission.placement === 'queued'}
       t={t}
-      actions={text => (
-        <MessageIconActions
-          text={text}
-          time={submission.time}
-          clock="start"
-          className={css.actions}
-          t={t}
-        />
+      actions={text => submission.placement === 'queued'
+        ? <div className={css.queuedActions}><span className={css.queuedLabel}>{t('message.queued')}</span></div>
+        : (
+          <MessageIconActions
+            text={text}
+            time={submission.time}
+            clock="start"
+            className={css.actions}
+            t={t}
+          />
+        )}
+    />
+  )
+}
+
+/** One queue action button; the queued row's own tooltip-wrapped icon control. */
+function QueuedAction({ label, disabled, onClick, children }: {
+  label: string
+  disabled: boolean
+  onClick: () => void
+  children: ReactNode
+}): ReactNode {
+  return (
+    <Tooltip label={label} side="bottom">
+      <button type="button" className={css.queuedAction} aria-label={label} disabled={disabled} onClick={onClick}>
+        {children}
+      </button>
+    </Tooltip>
+  )
+}
+
+/**
+ * Render one Host-queued message in the transcript, after the running turn it
+ * waits for: the user bubble marked "Queued", with inline edit, remove, and
+ * send-now (steer into the running turn). The row leaves when the Host admits
+ * the message, removes it, or steers it.
+ * @param props - the Host queue row, whether the queue accepts mutations, and the queue actions.
+ * @returns the queued user bubble.
+ */
+export function QueuedMessageBubble({ row, running, mutable, updateQueue, notifyError, renderMessageImages, t }: {
+  row: SessionSnapshot['queue'][number]
+  /** Steering needs a running turn to join. */
+  running: boolean
+  /** Subagent sessions render their queue read-only. */
+  mutable: boolean
+  updateQueue: ChatViewInjected['updateQueue']
+  notifyError: ChatViewInjected['notifyError']
+  renderMessageImages: ChatNodeOwnerProps['renderMessageImages']
+  t: ChatViewSlotProps['t']
+}): ReactNode {
+  const [editing, setEditing] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const apply = async (action: Parameters<ChatViewInjected['updateQueue']>[1], failure: string): Promise<boolean> => {
+    setBusy(true)
+    try {
+      await updateQueue(row.id, action)
+      return true
+    } catch {
+      notifyError(failure)
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+  const save = async (): Promise<void> => {
+    if (editing === null || editing.trim() === '') return
+    if (await apply({ kind: 'edit', content: [{ type: 'text', text: editing }] }, t('message.queued.editFailed'))) setEditing(null)
+  }
+  const editor = editing === null ? undefined : (
+    <textarea
+      autoFocus
+      className={css.queuedEditor}
+      aria-label={t('message.queued.edit')}
+      value={editing}
+      rows={Math.min(8, editing.split('\n').length)}
+      onChange={(event) => { setEditing(event.currentTarget.value) }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') { setEditing(null); return }
+        if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+          event.preventDefault()
+          void save()
+        }
+      }}
+    />
+  )
+  return (
+    <UserStyleBubble
+      content={row.content}
+      renderMessageImages={renderMessageImages}
+      queued
+      body={editor}
+      t={t}
+      actions={() => (
+        <div className={css.queuedActions}>
+          <span className={css.queuedLabel}>{t('message.queued')}</span>
+          {mutable && (editing !== null
+            ? <>
+              <QueuedAction label={t('message.queued.save')} disabled={busy || editing.trim() === ''} onClick={() => { void save() }}>
+                <IconCheckOutline16 />
+              </QueuedAction>
+              <QueuedAction label={t('message.queued.cancelEdit')} disabled={busy} onClick={() => { setEditing(null) }}>
+                <IconCloseOutline16 />
+              </QueuedAction>
+            </>
+            : <>
+              <QueuedAction
+                label={t(row.text === null ? 'message.queued.editUnsupported' : 'message.queued.edit')}
+                disabled={busy || row.text === null}
+                onClick={() => { if (row.text !== null) setEditing(row.text) }}
+              >
+                <IconEditOutline16 />
+              </QueuedAction>
+              <QueuedAction
+                label={t('message.queued.remove')}
+                disabled={busy}
+                onClick={() => { void apply({ kind: 'remove' }, t('message.queued.removeFailed')) }}
+              >
+                <IconTrashOutline16 />
+              </QueuedAction>
+              {running && <QueuedAction
+                label={t('message.queued.sendNow')}
+                disabled={busy}
+                onClick={() => { void apply({ kind: 'steer' }, t('message.queued.sendNowFailed')) }}
+              >
+                <IconSendOutline14 />
+              </QueuedAction>}
+            </>)}
+        </div>
       )}
     />
   )

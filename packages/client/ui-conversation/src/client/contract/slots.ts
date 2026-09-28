@@ -1,6 +1,6 @@
 /** Target-neutral Conversation slot declarations and composed component props. */
 import type { ReactNode, RefObject } from 'react'
-import type { ImageAttachmentRef } from '@aeven/attachment'
+import type { FileAttachmentRef, ImageAttachmentRef } from '@aeven/attachment'
 import type { SessionSnapshot } from '@aeven/api-session-controller/client'
 import type { WorkspaceSnapshot } from '@aeven/api-workspace-controller/client'
 import type {
@@ -23,7 +23,7 @@ import type { ConversationSnapshot } from './snapshot.ts'
 import type { ViewTab } from './views.ts'
 
 /** Browser-owned image that has not crossed the durable Host boundary. */
-export interface ComposerAttachment {
+export interface ComposerImageAttachment {
   kind: 'image'
   id: DraftAttachmentId
   file: File
@@ -34,16 +34,39 @@ export interface ComposerAttachment {
   height?: number
 }
 
+/** Upload state of one draft file. */
+export type ComposerFileStatus = 'uploading' | 'ready' | 'error'
+
+/**
+ * Browser-owned file uploaded to the Host as soon as it is added; the prompt
+ * cites the staged upload by id once the upload is ready.
+ */
+export interface ComposerFileAttachment {
+  kind: 'file'
+  id: DraftAttachmentId
+  file: File
+  status: ComposerFileStatus
+  /** Upload progress from 0 to 100. */
+  progress: number
+  /** Staged-upload id returned by the Host, present once ready. */
+  uploadId?: string
+  /** Host or transport failure text, present on error. */
+  error?: string
+}
+
+/** One draft attachment in input order. */
+export type ComposerAttachment = ComposerImageAttachment | ComposerFileAttachment
+
 /** Input state handed to the optional attachment presentation plugin. */
 export interface ComposerAttachmentsOwnerProps {
-  /** Browser-owned draft images in input order. */
+  /** Browser-owned draft images and files in input order. */
   attachments: readonly ComposerAttachment[]
-  /** Whether a document-level file drop may add images now. */
+  /** Whether a document-level file drop may add attachments now. */
   canAcceptDrop: boolean
   /** Add one dropped batch through the composer's validation path. */
-  onAddImages: (files: readonly File[]) => void
-  /** Remove one draft image through the Conversation service. */
-  onRemoveImage: (id: DraftAttachmentId) => void
+  onAddFiles: (files: readonly File[]) => void
+  /** Remove one draft attachment through the Conversation service. */
+  onRemoveAttachment: (id: DraftAttachmentId) => void
   /** Display-ready limits for the drop invitation. */
   dropLimits?: { readonly count: number; readonly size: string } | undefined
 }
@@ -71,18 +94,22 @@ export type MessageImageLoader = ((attachment: ImageAttachmentRef) => Promise<st
   peek?: (attachment: ImageAttachmentRef) => string | undefined
 }
 
-/** Message image group handed to the optional attachment presentation plugin. */
+/** Message attachment group handed to the optional attachment presentation plugin. */
 export interface MessageImagesOwnerProps {
   /** Durable references or submission-echo previews in source order. */
   images: readonly MessageImageSource[]
+  /** Durable file references in source order; absent when the record cites none. */
+  files?: readonly FileAttachmentRef[] | undefined
   /** Session-authorized image URL loader for the durable arm. */
   loadImage: MessageImageLoader
+  /** Session-authorized URL of one stored file original. */
+  fileUrl?: ((file: FileAttachmentRef) => string) | undefined
   /** Horizontal placement inside the owning record. */
   align: 'start' | 'end'
 }
 
 /** Slot-backed renderer used by Conversation targets without importing an attachment implementation. */
-export type RenderMessageImages = (owner: Omit<MessageImagesOwnerProps, 'loadImage'>) => ReactNode
+export type RenderMessageImages = (owner: Omit<MessageImagesOwnerProps, 'loadImage' | 'fileUrl'>) => ReactNode
 
 /** Selector hook over the current Session's assembled Conversation. */
 export type UseConversation = SnapshotSelectorHook<ConversationSnapshot>
@@ -140,7 +167,7 @@ declare module '@aeven/client-ui-slots' {
     'conversation.input.right': { kind: 'list'; scope: 'session' }
     /** Resident composer body, including the no-Session inert state. */
     'conversation.composer.bar': { kind: 'single'; scope: 'session-maybe'; owner: ComposerBarOwnerProps }
-    /** Optional draft-image rail and drop target. */
+    /** Optional draft-attachment tray and drop target. */
     'conversation.input.attachments': {
       kind: 'single'
       scope: 'session-maybe'
@@ -223,6 +250,15 @@ export type ConvViewProps = PropsRuntime<'conversation.view'>
 export interface ConversationInjected {
   /** Connect and open a blank Session in the selected Workspace. */
   selectWorkspace: (workspaceId: WorkspaceId) => Promise<void>
+  /**
+   * Fold or unfold the left navigation column, for the band's leading control.
+   *
+   * Optional: the column and its toggle belong to the layout frame, and this
+   * band draws that control only while the frame's layout service is there to
+   * act on. A shell that mounts this assembly without one keeps the band and
+   * loses the control, rather than showing a button that does nothing.
+   */
+  toggleSidebar?: (() => void) | undefined
   /** Session-addressed shell sources, or stable absent sources without a Session. */
   hooks: {
     composerBlock: ObservableSnapshot<ComposerBlock | undefined>
@@ -271,14 +307,20 @@ export interface ComposerBarOwnerProps {
 export interface ComposerBarInjected {
   keyboard: ComposerKeyboard | undefined
   addImages: ((files: readonly File[]) => string | null) | undefined
+  /** Register draft files and start their uploads; returns a refusal text or null. */
+  addFiles: ((files: readonly File[]) => string | null) | undefined
   removeImage: ((id: DraftAttachmentId) => void) | undefined
   draftImages: ((ids: readonly DraftAttachmentId[]) => readonly ComposerAttachment[]) | undefined
+  /** Observe draft attachment state changes such as upload progress. */
+  subscribeDrafts: ((listener: () => void) => () => void) | undefined
   resolveSubmitMode: (
     running: boolean,
     gesture: ComposerSubmitGesture,
     steeringAvailable: boolean,
   ) => InputSubmitMode
   toggleCommandMenu: ((selection: EditSelection) => void) | undefined
+  invokeCommand: ((name: string, selection: EditSelection) => Promise<boolean>) | undefined
+  exportSession: (() => Promise<void>) | undefined
   stop: (() => void) | undefined
   command: ((line: string) => Promise<boolean>) | undefined
   hooks: {
