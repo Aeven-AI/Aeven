@@ -124,6 +124,11 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const memory = new MemosMemory({
     core,
     routes,
+    toolLimits: {
+      skills: configured.algorithm.retrieval.tier1TopK,
+      traces: configured.algorithm.retrieval.tier2TopK,
+      worldModels: configured.algorithm.retrieval.tier3TopK,
+    },
     ...bridge && config.classifyDomains ? { classify: input => classifyTurnDomain(bridge, input, config.classifyTimeoutMs) } : {},
     warn: message => logger.warn(message),
     info: message => logger.debug(message),

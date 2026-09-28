@@ -270,6 +270,9 @@ importers:
       '@aeven/tool-browser':
         specifier: workspace:^
         version: link:../../packages/web/tool-browser
+      '@aeven/tool-capability':
+        specifier: workspace:^
+        version: link:../../packages/capability/tool-capability
       '@aeven/tool-cordis':
         specifier: workspace:^
         version: link:../../packages/extensions/tool-cordis
@@ -898,6 +901,9 @@ importers:
       '@aeven/api-job-controller':
         specifier: workspace:^
         version: link:../job-controller
+      '@aeven/api-memory-manager':
+        specifier: workspace:^
+        version: link:../../memory/api-memory-manager
       '@aeven/api-session-controller':
         specifier: workspace:^
         version: link:../session-controller
@@ -1792,6 +1798,9 @@ importers:
       '@aeven/api-job-controller':
         specifier: workspace:^
         version: link:../../api/job-controller
+      '@aeven/api-memory-manager':
+        specifier: workspace:^
+        version: link:../../memory/api-memory-manager
       '@aeven/api-remotes':
         specifier: workspace:^
         version: link:../../api/remotes
@@ -1816,6 +1825,9 @@ importers:
       '@aeven/app-boot':
         specifier: workspace:^
         version: link:../../boot/app-boot
+      '@aeven/capability':
+        specifier: workspace:^
+        version: link:../../capability/capability
       '@aeven/client-connection':
         specifier: workspace:^
         version: link:../../client/connection
@@ -1909,6 +1921,9 @@ importers:
       '@aeven/client-ui-settings-general':
         specifier: workspace:^
         version: link:../../client/ui-settings-general
+      '@aeven/client-ui-settings-memory':
+        specifier: workspace:^
+        version: link:../../client/ui-settings-memory
       '@aeven/client-ui-settings-models':
         specifier: workspace:^
         version: link:../../client/ui-settings-models
@@ -2105,6 +2120,62 @@ importers:
       '@deepseek-ai/cordis-plugin-loader':
         specifier: workspace:^
         version: link:../../../vendor/loader
+
+  packages/capability/capability:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@aeven/skill':
+        specifier: workspace:^
+        version: link:../../skill/skill
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/capability/tool-capability:
+    dependencies:
+      '@aeven/util-values':
+        specifier: workspace:^
+        version: link:../../util/values
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@aeven/capability':
+        specifier: workspace:^
+        version: link:../capability
+      '@aeven/llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@aeven/llm-retry':
+        specifier: workspace:^
+        version: link:../../llm/llm-retry
+      '@aeven/message-feedback':
+        specifier: workspace:^
+        version: link:../../feedback/message-feedback
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/skill':
+        specifier: workspace:^
+        version: link:../../skill/skill
+      '@aeven/system-prompt':
+        specifier: workspace:^
+        version: link:../../core/system-prompt
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+      '@aeven/user-questions':
+        specifier: workspace:^
+        version: link:../../interaction/user-questions
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
 
   packages/client/connection:
     dependencies:
@@ -3781,6 +3852,39 @@ importers:
       '@types/react-dom':
         specifier: ~18.3.0
         version: 18.3.7(@types/react@18.3.31)
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
+
+  packages/client/ui-settings-memory:
+    devDependencies:
+      '@aeven/api-remotes':
+        specifier: workspace:^
+        version: link:../../api/remotes
+      '@aeven/client-locale':
+        specifier: workspace:^
+        version: link:../locale
+      '@aeven/client-ui-primitives':
+        specifier: workspace:^
+        version: link:../ui-primitives
+      '@aeven/client-ui-renderer':
+        specifier: workspace:^
+        version: link:../ui-renderer
+      '@aeven/client-ui-settings':
+        specifier: workspace:^
+        version: link:../ui-settings
+      '@aeven/client-ui-slots':
+        specifier: workspace:^
+        version: link:../ui-slots
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
       react:
         specifier: ^18.2.0
         version: 18.3.1
@@ -8226,6 +8330,37 @@ importers:
       '@aeven/user-questions':
         specifier: workspace:^
         version: link:../../interaction/user-questions
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/memory/api-memory-manager:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@aeven/capability':
+        specifier: workspace:^
+        version: link:../../capability/capability
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
+      '@aeven/memory':
+        specifier: workspace:^
+        version: link:../memory
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/session-query':
+        specifier: workspace:^
+        version: link:../../session-query/session-query
+      '@aeven/typert-protocol':
+        specifier: workspace:^
+        version: link:../../typert/protocol
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis

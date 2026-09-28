@@ -106,6 +106,9 @@
     },
     {
       "path": "../../document/document-extract"
+    },
+    {
+      "path": "../../memory/api-memory-manager"
     }
   ]
 }

@@ -65,7 +65,7 @@ export interface PromptError {
 export interface SessionSnapshot {
   readonly sessionId: SessionId
   readonly queue: readonly QueuedMessage[]
-  /** Local prompt-submission echoes not yet observed as durable events or queue occurrences. */
+  /** Local prompt-submission echoes still awaiting retirement (see ISession.beginSubmission). */
   readonly pendingSubmissions: readonly PendingSubmission[]
   readonly running: boolean
   readonly subagent: {

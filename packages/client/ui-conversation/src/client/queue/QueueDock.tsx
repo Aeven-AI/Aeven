@@ -63,8 +63,15 @@ export type QueueDockProps = PropsRuntime<'conversation.input.dock'> & QueueDock
  */
 export function QueueDock({ useSession, updateQueue, notify, loadImage, t }: QueueDockProps) {
   const inbox = useSession(s => s.queue)
-  const queue = useMemo(() => inbox.filter(row => row.placement === 'queued'), [inbox])
   const pendingSubmissions = useSession(s => s.pendingSubmissions)
+  // A transcript echo's own queue occurrence is transient (the Host claims it
+  // for the turn it starts); the transcript echo renders that message.
+  const queue = useMemo(() => {
+    const transcriptEchoes = new Set(pendingSubmissions.flatMap(submission => (
+      submission.placement === 'transcript' ? [submission.requestId] : []
+    )))
+    return inbox.filter(row => row.placement === 'queued' && (row.rpcId === undefined || !transcriptEchoes.has(row.rpcId)))
+  }, [inbox, pendingSubmissions])
   const pendingQueue = useMemo(() => {
     const admitted = new Set(queue.flatMap(row => row.rpcId === undefined ? [] : [row.rpcId]))
     return pendingSubmissions.filter(submission => (

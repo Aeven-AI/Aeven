@@ -58,6 +58,13 @@ type RemoteEventReplyOutcome =
 /** Private end-of-chain marker that cannot collide with a JSON listener result. */
 const REMOTE_EVENT_NEXT = Symbol('api-gateway.remote-event.next')
 
+/**
+ * How long a waterfall that arrives before any listener for its event waits for one. The Host redelivers
+ * pending waterfalls, such as an open question, as soon as a reloaded page connects, which is before its
+ * plugins have registered their answerers; replying `next` then would settle the request unanswered.
+ */
+const LISTENER_GRACE_MS = 10_000
+
 /** Own Cordis registrations, generation pumping, waterfall dispatch, and HTTP replies. */
 export class ClientRemoteEvents {
   private readonly eventPrefix = `internal/api-gateway/remote-event/${randomUUID()}/`
@@ -196,6 +203,8 @@ export class ClientRemoteEvents {
     }
     let outcome: RemoteEventReplyOutcome = { kind: 'next' }
     if (target !== undefined) {
+      await this.awaitListener(this.eventKey(frame.event), signal)
+      if (signal.aborted) return
       try {
         outcome = await this.dispatchWaterfall(target, frame, signal)
       } catch (error) {
@@ -249,6 +258,32 @@ export class ClientRemoteEvents {
 
   private eventKey(event: string): string {
     return `${this.eventPrefix}${event}`
+  }
+
+  private hasListener(key: string): boolean {
+    return (this.ownerCtx.events._hooks[key]?.length ?? 0) > 0
+  }
+
+  /** Resolve once a listener for `key` is registered, the grace period ends, or the delivery is aborted. */
+  private awaitListener(key: string, signal: AbortSignal): Promise<void> {
+    if (this.hasListener(key) || signal.aborted) return Promise.resolve()
+    return new Promise((resolve) => {
+      let settled = false
+      const finish = (): void => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        stopWatching()
+        signal.removeEventListener('abort', finish)
+        resolve()
+      }
+      const timer = setTimeout(finish, LISTENER_GRACE_MS)
+      // `internal/listener` runs before the listener is stored; the microtask observes it registered.
+      const stopWatching = this.ownerCtx.on('internal/listener', (name: unknown) => {
+        if (name === key) queueMicrotask(finish)
+      })
+      signal.addEventListener('abort', finish, { once: true })
+    })
   }
 
   private reportError(event: string, error: unknown): void {

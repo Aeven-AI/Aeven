@@ -105,6 +105,11 @@ export type SkillRegistration = Omit<SkillDefinition, 'invocation' | 'provider'>
 export interface SkillLookupOptions {
   /** Workspace selector for the current lookup. */
   readonly cwd?: string | undefined
+  /**
+   * Account id of the signed-in user the viewing session belongs to, for providers that publish
+   * per-user skills; absent for sessions without an owner.
+   */
+  readonly owner?: string | undefined
   /** Abort discovery or loading work for the current caller. */
   readonly signal?: AbortSignal | undefined
 }
@@ -254,7 +259,7 @@ export interface SkillProvider {
    * plugins register synchronously during `apply()`; remote initialization,
    * authentication, and discovery are awaited inside this method. Implementations
    * should settle promptly when `options.signal` aborts.
-   * @param options - lookup options; `cwd` selects workspace-sensitive skills and `signal` cancels work.
+   * @param options - lookup options; `cwd` selects workspace-sensitive skills, `owner` selects per-user skills, and `signal` cancels work.
    * @returns provider candidates as a complete-array shorthand, or an explicit
    *   observation when usable candidates came from incomplete discovery.
    */
@@ -262,7 +267,7 @@ export interface SkillProvider {
   /**
    * Load a complete skill body for a previously listed candidate.
    * @param candidate - the winning candidate originally returned by this provider.
-   * @param options - lookup options; `cwd` selects workspace-sensitive skills and `signal` cancels work.
+   * @param options - lookup options; `cwd` selects workspace-sensitive skills, `owner` selects per-user skills, and `signal` cancels work.
    * @returns the full skill body, or `undefined` if it is no longer loadable.
    */
   readonly get: (candidate: SkillCandidate, options: SkillLookupOptions) => Promise<SkillDefinition | undefined>
@@ -526,7 +531,7 @@ export class SkillRegistry extends Service {
       // The chain is part of the key rather than assumed stable: a blank-session
       // recompose re-parents an existing scope without touching this registry,
       // and only a chain-bearing key makes the next read see the new preset.
-      const key = this.collectCacheKey(options.cwd, scopeChainOf(options.scope), revision)
+      const key = this.collectCacheKey(options.cwd, options.owner, scopeChainOf(options.scope), revision)
       const cached = this.collectCache.get(key)
       if (cached !== undefined) return { entries: cached, cacheable: true }
 
@@ -642,8 +647,8 @@ export class SkillRegistry extends Service {
     return id
   }
 
-  private collectCacheKey(cwd: string | undefined, chain: ScopeKey[], revision: number): string {
-    return JSON.stringify({ cwd, scopes: chain.map(key => this.scopeId(key)), revision })
+  private collectCacheKey(cwd: string | undefined, owner: string | undefined, chain: ScopeKey[], revision: number): string {
+    return JSON.stringify({ cwd, owner, scopes: chain.map(key => this.scopeId(key)), revision })
   }
 
   /** Notify catalog observers without making their refresh work load-bearing. */

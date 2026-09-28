@@ -1,10 +1,10 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import type { PendingSubmission, SessionSnapshot } from '@aeven/api-session-controller/client'
 import type { MessageImageSource } from '@aeven/client-ui-conversation/client'
 import {
   IconCheckOutline16, IconCloseOutline16, IconEditOutline16, IconSendOutline14, IconTrashOutline16,
-  JsonBlock, projectUserText, StateDot, Tooltip,
+  JsonBlock, projectUserText, StateDot, Tooltip, useTextAnimation,
 } from '@aeven/client-ui-primitives'
 import type { ChatNodeOwnerProps, ChatNodeViewProps, ChatViewInjected, ChatViewSlotProps } from '../contract/slots.ts'
 import type { ModelRetryNode, TurnErrorNode, UserMessageNode } from '../contract/snapshot.ts'
@@ -161,21 +161,36 @@ function sourceRpcId(source: unknown): string | undefined {
 }
 
 /**
- * Milliseconds the row's own echo had already been fading when this row mounted,
- * or null when the row replaced no echo (history, or another surface's message).
- * The echo is retired a frame or two after this row appears, so starting the
- * replacement's fade at that elapsed time keeps one submission one fade.
- * @param echo - the still-pending echo carrying this row's `rpcId`.
- * @returns the echo's age in milliseconds, or null without one.
+ * Milliseconds since the local send a row stands for, latched at mount, or
+ * null when the row stands for no pending send (history, or another surface's
+ * message). Every row that renders one submission (its echo, the Host queue or
+ * steering row, the durable message, the pending and real Turn headers) starts
+ * its fade at this elapsed time, so remounts and replacements continue one
+ * fade instead of restarting it. The user's text-animation preference turns
+ * the fade off.
+ * @param sentAt - client time of the still-pending echo's send, or undefined without one.
+ * @returns the elapsed milliseconds, or null without a pending send or with text animation off.
  */
-function replacedEchoAgeMs(echo: PendingSubmission | undefined): number | null {
-  return echo === undefined ? null : Math.max(0, Date.now() - echo.time)
+export function useArrivalAge(sentAt: number | undefined): number | null {
+  const animate = useTextAnimation()
+  const ageRef = useRef<number | null | undefined>(undefined)
+  if (ageRef.current === undefined) ageRef.current = sentAt === undefined ? null : Math.max(0, Date.now() - sentAt)
+  return animate ? ageRef.current : null
+}
+
+/**
+ * Fade-in class and negative animation delay for a row that continues a send's fade.
+ * @param age - {@link useArrivalAge} result.
+ * @returns the class name and inline style; both undefined without a pending send.
+ */
+export function arrivalFade(age: number | null): { className?: string | undefined; style?: CSSProperties | undefined } {
+  return age === null ? {} : { className: css.enter, style: { animationDelay: `-${age}ms` } }
 }
 
 /** Right-aligned bubble shared by user and steering rows. */
 function UserStyleBubble({
-  content, renderMessageImages, actions, pending = false, echo = false, queued = false, enter = false,
-  enterAgeMs, body, referenceLabels = [], skillNames = [],
+  content, renderMessageImages, actions, pending = false, echo = false, queued = false,
+  arrivalAge = null, body, referenceLabels = [], skillNames = [],
   previewImages, t,
 }: {
   content: readonly unknown[]
@@ -188,10 +203,8 @@ function UserStyleBubble({
   echo?: boolean
   /** Whether the message waits in the Host queue for the running turn to end. */
   queued?: boolean
-  /** Whether this row is the message's own arrival and fades in. */
-  enter?: boolean
-  /** Elapsed fade time the row inherits from the echo it replaced; a negative animation delay continues that fade. */
-  enterAgeMs?: number
+  /** Elapsed time of the send this row stands for ({@link useArrivalAge}); null renders without a fade. */
+  arrivalAge?: number | null
   /** Replaces the text bubble, as the inline editor of a queued message does. */
   body?: ReactNode
   /** Exact session mention labels associated by the adjacent recall node. */
@@ -206,10 +219,11 @@ function UserStyleBubble({
   const images = previewImages ?? contentImages
   const truncated = (total: number): string => t('json.truncated', { total })
   const showBubble = text !== '' || rest.length > 0
+  const fade = arrivalFade(arrivalAge)
   return (
     <div
-      className={enter ? `${css.userRow} ${css.enter}` : css.userRow}
-      style={enterAgeMs === undefined ? undefined : { animationDelay: `-${enterAgeMs}ms` }}
+      className={fade.className === undefined ? css.userRow : `${css.userRow} ${fade.className}`}
+      style={fade.style}
       data-pending-steering={pending || undefined}
       data-submission-echo={echo || undefined}
       data-queued={queued || undefined}
@@ -237,15 +251,19 @@ function UserStyleBubble({
  * @param props - Pending message content and conversation translator.
  * @returns the pending steering bubble.
  */
-export function PendingSteeringBubble({ content, renderMessageImages, t }: {
+export function PendingSteeringBubble({ content, sentAt, renderMessageImages, t }: {
   content: readonly unknown[]
+  /** Send time of the local echo this row replaces, when one is still pending. */
+  sentAt?: number | undefined
   renderMessageImages: ChatNodeOwnerProps['renderMessageImages']
   t: ChatViewSlotProps['t']
 }): ReactNode {
+  const arrivalAge = useArrivalAge(sentAt)
   return (
     <UserStyleBubble
       content={content}
       renderMessageImages={renderMessageImages}
+      arrivalAge={arrivalAge}
       pending
       t={t}
       actions={text => (
@@ -288,6 +306,7 @@ export function PendingSubmissionBubble({ submission, renderMessageImages, t }: 
     })),
     [submission.images],
   )
+  const arrivalAge = useArrivalAge(submission.time)
   return (
     <UserStyleBubble
       content={content}
@@ -295,7 +314,7 @@ export function PendingSubmissionBubble({ submission, renderMessageImages, t }: 
       renderMessageImages={renderMessageImages}
       pending={submission.placement === 'steering'}
       echo
-      enter
+      arrivalAge={arrivalAge}
       queued={submission.placement === 'queued'}
       t={t}
       actions={text => submission.placement === 'queued'
@@ -337,8 +356,10 @@ function QueuedAction({ label, disabled, onClick, children }: {
  * @param props - the Host queue row, whether the queue accepts mutations, and the queue actions.
  * @returns the queued user bubble.
  */
-export function QueuedMessageBubble({ row, running, mutable, updateQueue, notifyError, renderMessageImages, t }: {
+export function QueuedMessageBubble({ row, sentAt, running, mutable, updateQueue, notifyError, renderMessageImages, t }: {
   row: SessionSnapshot['queue'][number]
+  /** Send time of the local echo this row replaces, when one is still pending. */
+  sentAt?: number | undefined
   /** Steering needs a running turn to join. */
   running: boolean
   /** Subagent sessions render their queue read-only. */
@@ -350,6 +371,7 @@ export function QueuedMessageBubble({ row, running, mutable, updateQueue, notify
 }): ReactNode {
   const [editing, setEditing] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const arrivalAge = useArrivalAge(sentAt)
   const apply = async (action: Parameters<ChatViewInjected['updateQueue']>[1], failure: string): Promise<boolean> => {
     setBusy(true)
     try {
@@ -387,6 +409,7 @@ export function QueuedMessageBubble({ row, running, mutable, updateQueue, notify
     <UserStyleBubble
       content={row.content}
       renderMessageImages={renderMessageImages}
+      arrivalAge={arrivalAge}
       queued
       body={editor}
       t={t}
@@ -440,16 +463,14 @@ export const UserMessageNodeView = memo(function UserMessageNodeView({
   const echo = useSession(state => rpcId === undefined
     ? undefined
     : state.pendingSubmissions.find(submission => submission.requestId === rpcId))
-  // Latched once: the echo retires a frame or two after this row mounts, and
+  // Latched at mount: the echo retires a frame after this row appears, and
   // the fade must survive its disappearance.
-  const enterAgeRef = useRef<number | null>(null)
-  if (enterAgeRef.current === null) enterAgeRef.current = replacedEchoAgeMs(echo)
-  const enterAgeMs = enterAgeRef.current
+  const arrivalAge = useArrivalAge(echo?.time)
   return (
     <UserStyleBubble
       content={data.content}
       renderMessageImages={renderMessageImages}
-      {...enterAgeMs === null ? {} : { enter: true, enterAgeMs }}
+      arrivalAge={arrivalAge}
       {...data.referenceLabels === undefined ? {} : { referenceLabels: data.referenceLabels }}
       {...data.skillNames === undefined ? {} : { skillNames: data.skillNames }}
       t={t}

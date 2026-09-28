@@ -83,6 +83,7 @@
     "@aeven/tool-jobs": "workspace:^",
     "@aeven/tool-location": "workspace:^",
     "@aeven/tool-memory": "workspace:^",
+    "@aeven/tool-capability": "workspace:^",
     "@aeven/tool-pwsh": "workspace:^",
     "@aeven/tool-pwsh-persistent": "workspace:^",
     "@aeven/tool-ralph": "workspace:^",

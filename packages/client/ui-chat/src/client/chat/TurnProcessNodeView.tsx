@@ -1,7 +1,9 @@
 import { memo, useEffect, useState } from 'react'
 import { IconChevronDownOutline14, TextShimmer } from '@aeven/client-ui-primitives'
+import type { PendingSubmission } from '@aeven/api-session-controller/client'
 import type { ChatNodeViewProps } from '../contract/slots.ts'
 import { formatRunDuration } from './message-chrome.ts'
+import { arrivalFade, useArrivalAge } from './MessageItem.tsx'
 import css from './TurnProcessNodeView.module.css'
 
 /**
@@ -13,13 +15,17 @@ import css from './TurnProcessNodeView.module.css'
  * cancelled or failed turn.
  */
 export const TurnProcessNodeView = memo(function TurnProcessNodeView({
-  node, turnProcess, t,
+  node, turnProcess, useSession, t,
 }: ChatNodeViewProps<'turn-process'>) {
   if (turnProcess === undefined) throw new Error('turn-process node requires Turn process owner state')
   const turn = node.location.kind === 'turn' || node.location.kind === 'step'
     ? node.location.turn
     : undefined
   const running = turn?.status === 'open'
+  // A running Turn's header that mounts while a transcript echo is still up
+  // replaces the pending header row and continues its fade.
+  const sentAt = useSession(state => running ? latestTranscriptSend(state.pendingSubmissions) : undefined)
+  const fade = arrivalFade(useArrivalAge(sentAt))
   const [now, setNow] = useState(Date.now)
   const ticking = turnProcess.foldable && running
   useEffect(() => {
@@ -45,7 +51,8 @@ export const TurnProcessNodeView = memo(function TurnProcessNodeView({
   return (
     <button
       type="button"
-      className={css.root}
+      className={fade.className === undefined ? css.root : `${css.root} ${fade.className}`}
+      style={fade.style}
       data-open={open || undefined}
       data-running={running || undefined}
       data-turn-process={node.data.turn}
@@ -67,14 +74,32 @@ export const TurnProcessNodeView = memo(function TurnProcessNodeView({
 })
 
 /**
+ * Send time of the newest local echo that renders in the transcript.
+ * @param submissions - the session snapshot's pending submissions.
+ * @returns the client send time, or undefined without a transcript echo.
+ */
+export function latestTranscriptSend(submissions: readonly PendingSubmission[]): number | undefined {
+  return submissions.findLast(submission => submission.placement === 'transcript')?.time
+}
+
+/**
  * Local stand-in for the running Turn header, shown under a sent message until
  * the Host opens the Turn and its own header row renders.
- * @param props - the Chat view's translator.
+ * @param props - the Chat view's translator and the send time the row fades in from.
  * @returns the shimmering "Ævening…" row.
  */
-export function TurnPendingRow({ t }: Pick<ChatNodeViewProps<'turn-process'>, 't'>) {
+export function TurnPendingRow({ sentAt, t }: Pick<ChatNodeViewProps<'turn-process'>, 't'> & {
+  /** Send time of the transcript echo above the row; undefined once the durable message replaced it. */
+  sentAt: number | undefined
+}) {
+  const fade = arrivalFade(useArrivalAge(sentAt))
   return (
-    <div className={css.root} data-running="" data-turn-pending="">
+    <div
+      className={fade.className === undefined ? css.root : `${css.root} ${fade.className}`}
+      style={fade.style}
+      data-running=""
+      data-turn-pending=""
+    >
       <TextShimmer className={css.label} active>{t('chat.deepDiving')}</TextShimmer>
       <span className={css.srOnly} role="status" aria-live="polite">{t('chat.deepDiving')}</span>
     </div>

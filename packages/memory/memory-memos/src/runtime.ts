@@ -12,6 +12,7 @@ import type {
   MemoryPage,
   MemoryProvider,
   MemoryRecall,
+  MemoryRecallLimits,
   MemoryRecallRequest,
   MemoryRecord,
   MemoryScope,
@@ -45,6 +46,8 @@ export function ownerProfile(owner: string): string {
 export interface MemosMemoryOptions {
   readonly core: MemoryCore
   readonly routes: LlmRouteContext
+  /** MemOS's configured per-tier result limits for an explicit search. */
+  readonly toolLimits: MemoryRecallLimits
   /** Classifies a captured turn's domain on the owning session's route; absent leaves the capture-location fallback. */
   readonly classify?: (input: ClassifyInput) => Promise<TurnDomain | undefined>
   readonly warn: (message: string) => void
@@ -102,29 +105,29 @@ export class MemosMemory implements MemoryProvider {
     if (scope.route) this.state(scope.sessionId).route = scope.route
     const deadlineAt = Date.now() + request.timeoutMs
     const turnStart = request.purpose === 'turn-start'
+    const limits = turnStart ? request.limits : request.limits ?? this.options.toolLimits
     const search = this.withRoute(scope.route, () => this.core.searchMemory({
       agent: MEMOS_AGENT,
       namespace: this.namespaceOf(scope),
       ...turnStart || request.sessionOnly === true ? { sessionId: scope.sessionId } : {},
       query: request.query,
-      reason: turnStart ? 'turn_start' : 'tool_driven',
-      ...turnStart ? {
-        contextHints: {
-          __memosDeferLlmFilterToCaller: true,
-          ...scope.cwd === undefined ? {} : { cwd: scope.cwd },
-        },
-      } : scope.cwd === undefined ? {} : { contextHints: { cwd: scope.cwd } },
+      // MemOS exposes the defer-filter hint only through its turn-start retrieval path.
+      reason: 'turn_start',
+      contextHints: {
+        __memosDeferLlmFilterToCaller: true,
+        ...scope.cwd === undefined ? {} : { cwd: scope.cwd },
+      },
       deadlineAt,
       llmFilterMalformedRetries: 0,
-      ...request.limits === undefined ? {} : {
-        topK: { tier1: request.limits.skills, tier2: request.limits.traces, tier3: request.limits.worldModels },
+      ...limits === undefined ? {} : {
+        topK: { tier1: limits.skills, tier2: limits.traces, tier3: limits.worldModels },
       },
     }, { signal: request.signal, ...turnStart ? {} : { foreground: true } }))
     try {
       // A provider can be temporarily non-cancellable (for example while a local ONNX model loads),
       // so the deadline is enforced here as well as inside the core.
-      const result = await withDeadline(Promise.resolve(search), deadlineAt, request.signal, `Memory recall exceeded ${request.timeoutMs}ms`)
-      return { hits: await this.visibleHits(scope, result.hits), timedOut: false }
+      const hits = await withDeadline(Promise.resolve(search).then(result => this.visibleHits(scope, result.hits, turnStart)), deadlineAt, request.signal, `Memory recall exceeded ${request.timeoutMs}ms`)
+      return { hits, timedOut: false }
     } catch (error) {
       if (!(error instanceof MemoryDeadlineError)) throw error
       return { hits: [], timedOut: true }
@@ -140,11 +143,11 @@ export class MemosMemory implements MemoryProvider {
    * Classify each hit's domain and drop project memory of other workspaces; MemOS retrieval does not
    * filter by workspace, so this is where project memory stays in its project.
    */
-  private async visibleHits(scope: MemoryScope, hits: readonly RetrievalHitDTO[]): Promise<MemoryHit[]> {
+  private async visibleHits(scope: MemoryScope, hits: readonly RetrievalHitDTO[], turnStart: boolean): Promise<MemoryHit[]> {
     const workspace = this.workspaceOf(scope)
     const namespace = this.namespaceOf(scope)
     const classified = await Promise.all(hits.map(async (hit) => {
-      const { domain, workspaceId, summary } = await this.hitOrigin(hit, namespace)
+      const { domain, workspaceId, summary, correction } = await this.hitOrigin(hit, namespace)
       const memory: MemoryHit = {
         kind: hit.refKind,
         id: brandString<MemoryItemId>(hit.refId),
@@ -154,15 +157,16 @@ export class MemosMemory implements MemoryProvider {
         // A trace's distilled summary states the remembered fact; the raw exchange is the fallback.
         snippet: summary || toAevenToolReferences(hit.snippet),
       }
-      return { memory, workspaceId }
+      return { memory, workspaceId, correction }
     }))
     return classified
-      .filter(({ memory, workspaceId }) => memory.domain !== 'project' || (workspace !== undefined && workspaceId === workspace))
+      .filter(({ memory, workspaceId, correction }) =>
+        (!turnStart || !correction) && (memory.domain !== 'project' || (workspace !== undefined && workspaceId === workspace)))
       .map(({ memory }) => memory)
   }
 
   /** Domain of a hit and the workspace it was captured in; search hits do not always carry the workspace, so traces are read. */
-  private async hitOrigin(hit: RetrievalHitDTO, namespace: RuntimeNamespace): Promise<{ domain: MemoryDomain; workspaceId: string | null | undefined; summary?: string }> {
+  private async hitOrigin(hit: RetrievalHitDTO, namespace: RuntimeNamespace): Promise<{ domain: MemoryDomain; workspaceId: string | null | undefined; summary?: string; correction?: boolean }> {
     switch (hit.refKind) {
       case 'experience':
       case 'skill':
@@ -177,6 +181,7 @@ export class MemosMemory implements MemoryProvider {
         return {
           domain,
           workspaceId,
+          correction: trace?.tags?.includes('outcome:correction') ?? false,
           ...summary ? { summary } : {},
         }
       }
@@ -469,7 +474,7 @@ export class MemosMemory implements MemoryProvider {
   }
 
   async list(request: Parameters<MemoryProvider['list']>[0]): Promise<MemoryPage> {
-    const profile = ownerProfile(request.scope.owner)
+    const profile = ownerProfile(request.owner)
     // Owner memories are private to the owner's namespace, which the core's own default namespace
     // cannot see; listing therefore spans namespaces and the owner filter is the isolation.
     const filter = {
@@ -534,14 +539,15 @@ export class MemosMemory implements MemoryProvider {
    * Read a trace only when it belongs to the scope's owner. MemOS deletes and updates by id alone,
    * so ownership is checked here before either.
    */
-  private async ownedTrace(request: { readonly scope: MemoryScope; readonly id: MemoryItemId; readonly signal: AbortSignal }): Promise<TraceDTO | undefined> {
-    const trace = await this.read(request, () => this.core.getTrace(request.id, this.namespaceOf(request.scope)))
-    return trace?.ownerProfileId === ownerProfile(request.scope.owner) ? trace : undefined
+  private async ownedTrace(request: { readonly owner: string; readonly id: MemoryItemId; readonly signal: AbortSignal }): Promise<TraceDTO | undefined> {
+    const profile = ownerProfile(request.owner)
+    const trace = await this.read(request, () => this.core.getTrace(request.id, { agentKind: MEMOS_AGENT, profileId: profile, profileLabel: request.owner }))
+    return trace?.ownerProfileId === profile ? trace : undefined
   }
 
-  private async read<T>(request: { readonly scope: MemoryScope; readonly signal: AbortSignal }, operation: () => Promise<T>): Promise<T> {
+  private async read<T>(request: { readonly scope?: MemoryScope; readonly signal: AbortSignal }, operation: () => Promise<T>): Promise<T> {
     request.signal.throwIfAborted()
-    const result = await this.withRoute(request.scope.route, operation)
+    const result = await this.withRoute(request.scope?.route, operation)
     request.signal.throwIfAborted()
     return result
   }

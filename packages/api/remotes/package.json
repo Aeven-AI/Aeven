@@ -60,9 +60,13 @@
   },
   "devDependencies": {
     "@aeven/agent-presets": "workspace:^",
+    "@aeven/api-document-extract": "workspace:^",
     "@aeven/api-gateway": "workspace:^",
+    "@aeven/api-job-controller": "workspace:^",
+    "@aeven/api-memory-manager": "workspace:^",
     "@aeven/api-session-controller": "workspace:^",
     "@aeven/api-settings-controller": "workspace:^",
+    "@aeven/api-speech-to-text": "workspace:^",
     "@aeven/api-terminal-controller": "workspace:^",
     "@aeven/api-workspace-controller": "workspace:^",
     "@aeven/api-workspace-files": "workspace:^",
@@ -86,9 +90,6 @@
     "@aeven/typert-protocol": "workspace:^",
     "@aeven/user-approval": "workspace:^",
     "@aeven/user-questions": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^",
-    "@aeven/api-job-controller": "workspace:^",
-    "@aeven/api-speech-to-text": "workspace:^",
-    "@aeven/api-document-extract": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^"
   }
 }

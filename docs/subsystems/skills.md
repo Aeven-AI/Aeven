@@ -36,7 +36,7 @@ interface SkillProvider {
    * plugins register synchronously during `apply()`; remote initialization,
    * authentication, and discovery are awaited inside this method. Implementations
    * should settle promptly when `options.signal` aborts.
-   * @param options - lookup options; `cwd` selects workspace-sensitive skills and `signal` cancels work.
+   * @param options - lookup options; `cwd` selects workspace-sensitive skills, `owner` selects per-user skills, and `signal` cancels work.
    * @returns provider candidates as a complete-array shorthand, or an explicit
    *   observation when usable candidates came from incomplete discovery.
    */
@@ -44,7 +44,7 @@ interface SkillProvider {
   /**
    * Load a complete skill body for a previously listed candidate.
    * @param candidate - the winning candidate originally returned by this provider.
-   * @param options - lookup options; `cwd` selects workspace-sensitive skills and `signal` cancels work.
+   * @param options - lookup options; `cwd` selects workspace-sensitive skills, `owner` selects per-user skills, and `signal` cancels work.
    * @returns the full skill body, or `undefined` if it is no longer loadable.
    */
   readonly get: (candidate: SkillCandidate, options: SkillLookupOptions) => Promise<SkillDefinition | undefined>

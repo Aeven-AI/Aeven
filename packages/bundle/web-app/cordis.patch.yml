@@ -177,6 +177,19 @@
       config:
         home: !!js avnHomePath('memory')
 
+    # Learned capabilities: per-user procedures the agent learned, stored as
+    # agentskills directories and published through the skill catalog once the
+    # user confirms them. Independent of the memory provider.
+    - id: capability
+      name: '@aeven/capability'
+      config:
+        root: !!js avnHomePath('capabilities')
+
+    # Settings → Memory: the signed-in user's memories and learned
+    # capabilities, with View, Correct, and Forget.
+    - id: api-memory-manager
+      name: '@aeven/api-memory-manager'
+
     # File attachments: the reader registry and the built-in JavaScript
     # readers (PDF, Office Open XML, OpenDocument, Numbers, RTF, EPUB, HTML,
     # text). The office reader adds Pages, Keynote, and legacy Office formats
@@ -347,6 +360,10 @@
 
     - id: ui-settings-plugin-inventory
       name: '@aeven/client-ui-settings-plugin-inventory'
+
+    # Settings → Memory, over the memoryManager Remote.
+    - id: ui-settings-memory
+      name: '@aeven/client-ui-settings-memory'
 
     - id: ui-conversation
       name: '@aeven/client-ui-conversation'

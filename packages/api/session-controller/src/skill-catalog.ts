@@ -37,6 +37,7 @@ export class SessionSkillCatalog extends TypertRemoteService {
     void signal
     const { sessionId } = request
     let cwd: string | undefined
+    let owner: string | undefined
     let agentPreset: string | undefined
     try {
       using observation = await this.ctx.sessionQuery.observeSession(sessionId)
@@ -44,6 +45,7 @@ export class SessionSkillCatalog extends TypertRemoteService {
         throw new Error('skill catalog requires a projected Session observation')
       }
       cwd = observation.header.cwd
+      owner = observation.header.owner
       agentPreset = observation.projections.values.agentPreset ?? undefined
     } catch (error: unknown) {
       if (error instanceof SessionQueryError
@@ -75,7 +77,7 @@ export class SessionSkillCatalog extends TypertRemoteService {
 
     const scope = await this.scopeFor(sessionId, agentPreset)
     try {
-      const skills = (await skillRegistry.list({ cwd, scope })).filter(isUserInvocable)
+      const skills = (await skillRegistry.list({ cwd, owner, scope })).filter(isUserInvocable)
       return {
         skills: skills.map(skill => ({
           name: skill.name,

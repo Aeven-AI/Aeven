@@ -1,6 +1,6 @@
 /** Provider-neutral vocabulary for long-term memory recall, capture, and inspection. */
 import type { Branded } from '@aeven/brand'
-import type { SessionId } from '@aeven/session'
+import type { SessionId } from '@aeven/session/types'
 import type { JsonValue } from '@aeven/util-values'
 
 /** Provider-owned identity of one stored memory item: a trace, policy, world model, skill, or episode. */
@@ -251,11 +251,11 @@ export interface MemoryProvider {
    */
   useSkill(request: { readonly scope: MemoryScope; readonly id: MemoryItemId; readonly callId: string; readonly signal: AbortSignal }): Promise<MemorySkill | undefined>
   /**
-   * List the owner's memories, newest first.
-   * @param request - scope, optional text query, and page bounds.
+   * List an owner's memories, newest first. Needs no session: the memory manager lists outside one.
+   * @param request - account id, optional text query, and page bounds.
    * @returns one page and the total match count.
    */
-  list(request: { readonly scope: MemoryScope; readonly query?: string; readonly limit: number; readonly offset: number; readonly signal: AbortSignal }): Promise<MemoryPage>
+  list(request: { readonly owner: string; readonly query?: string; readonly limit: number; readonly offset: number; readonly signal: AbortSignal }): Promise<MemoryPage>
   /**
    * Store one fact the user explicitly asked to be remembered.
    * @param request - scope, the fact in the user's words, and whether it is about the user or the scope's project.
@@ -263,17 +263,17 @@ export interface MemoryProvider {
    */
   remember(request: { readonly scope: MemoryScope; readonly text: string; readonly domain: 'person' | 'project'; readonly signal: AbortSignal }): Promise<MemoryItemId>
   /**
-   * Replace the summary of one of the owner's memories.
-   * @param request - scope, memory id, and the corrected summary.
+   * Replace the summary of one of an owner's memories.
+   * @param request - account id, memory id, and the corrected summary.
    * @returns the updated memory, or undefined when the owner has no such memory.
    */
-  edit(request: { readonly scope: MemoryScope; readonly id: MemoryItemId; readonly summary: string; readonly signal: AbortSignal }): Promise<MemoryRecord | undefined>
+  edit(request: { readonly owner: string; readonly id: MemoryItemId; readonly summary: string; readonly signal: AbortSignal }): Promise<MemoryRecord | undefined>
   /**
-   * Delete one of the owner's memories.
-   * @param request - scope and memory id.
+   * Delete one of an owner's memories.
+   * @param request - account id and memory id.
    * @returns true when a memory of this owner was deleted.
    */
-  forget(request: { readonly scope: MemoryScope; readonly id: MemoryItemId; readonly signal: AbortSignal }): Promise<boolean>
+  forget(request: { readonly owner: string; readonly id: MemoryItemId; readonly signal: AbortSignal }): Promise<boolean>
   /**
    * Record a human judgment about one captured turn of the scope's session.
    * @param request - scope, turn number, polarity, and optional note.

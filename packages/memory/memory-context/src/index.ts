@@ -40,7 +40,7 @@ export const Config: z<Config> = z.object({
   capture: z.boolean().default(true),
   recallTimeoutMs: z.natural().min(100).default(3000),
   contextMaxChars: z.natural().min(256).default(6000),
-  itemMaxChars: z.natural().min(40).default(300),
+  itemMaxChars: z.natural().min(40).default(1000),
   domainMaxItems: z.object({
     person: z.natural().default(2),
     project: z.natural().default(2),
@@ -104,13 +104,18 @@ export function renderMemoryContext(hits: readonly MemoryHit[], maxChars: number
 
 function rankMemoryHits(query: string, hits: readonly MemoryHit[]): MemoryHit[] {
   const terms = new Set(query.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [])
-  const overlap = (hit: MemoryHit): number => {
-    const words = new Set(hit.snippet.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [])
+  const overlap = (text: string): number => {
+    const words = new Set(text.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [])
     return [...terms].filter(term => words.has(term)).length
   }
+  const summary = (hit: MemoryHit): string => hit.snippet.split('\nTool record:')[0] ?? hit.snippet
+  const asksForOutcome = /\b(?:verification|verified|outcome|result|correction|retry|failed|succeeded|worked)\b/iu.test(query)
+  const hasOutcome = (hit: MemoryHit): boolean => /^(?:Assistant reported verification|User correction|Goal marked complete|Model retries):/mu.test(summary(hit))
   const seen = new Set<string>()
   return [...hits]
-    .sort((left, right) => overlap(right) - overlap(left) || right.score - left.score)
+    .sort((left, right) => overlap(summary(right)) - overlap(summary(left)) ||
+      (asksForOutcome ? Number(hasOutcome(right)) - Number(hasOutcome(left)) : 0) ||
+      overlap(right.snippet) - overlap(left.snippet) || right.score - left.score)
     .filter(hit => {
       const key = `${hit.domain}:${hit.snippet.toLocaleLowerCase().replace(/\s+/gu, ' ').trim()}`
       if (seen.has(key)) return false

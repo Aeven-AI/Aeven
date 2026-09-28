@@ -92,8 +92,32 @@
   font-weight: 500;
 }
 
+/* Supporting detail can be a whole document (a procedure, a diff): it aligns
+   with the header text, reads at the chat body size with body-size headings,
+   and scrolls within a capped height so the answer options stay in view. */
 .detail {
-  margin: 0 2px 8px;
+  max-height: min(40vh, 320px);
+  margin: 8px 0 4px;
+  padding: 0 16px 0 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Headings read at the body size and stand out by weight alone. */
+.detail :global(:is(h1, h2, h3, h4, h5, h6)) {
+  margin: 12px 0 4px;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+}
+
+.detail :global(:is(h1, h2, h3, h4, h5, h6)):first-child {
+  margin-top: 0;
+}
+
+.detail :global(:is(p, ul, ol, pre, blockquote, table)) {
+  margin-top: 4px;
+  margin-bottom: 4px;
 }
 
 .footerActions {
@@ -425,6 +449,10 @@
 
   .header {
     padding: 10px 12px 0 18px;
+  }
+
+  .detail {
+    padding: 0 12px 0 18px;
   }
 
   .options {

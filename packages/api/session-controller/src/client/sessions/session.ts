@@ -134,10 +134,13 @@ export class Session implements SessionFace {
   /** Local submission echoes, insertion-ordered (see SessionSnapshot.pendingSubmissions). */
   private pendingSubmissions: readonly PendingSubmission[] = []
   /** Per-echo settlement state; `retiring` latches the first observation so a
-   *  queue frame and its durable event cannot both retire one echo. */
+   *  queue frame and its durable event cannot both retire one echo. `admitted`
+   *  holds a transcript echo's image references once the Host accepted or
+   *  queued its prompt, and stays null before that. */
   private readonly submissionSettlements = new Map<SessionRequestId, {
     readonly onRetire?: ((retirement: PendingSubmissionRetirement) => void) | undefined
     retiring: boolean
+    admitted: readonly ImageAttachmentRef[] | null
   }>()
   /** Owns the addressed page/follow lifecycle while this Session is open. */
   private events: SessionEventStream | undefined
@@ -229,7 +232,7 @@ export class Session implements SessionFace {
       text: input.text,
       images: input.images,
     }]
-    this.submissionSettlements.set(requestId, { onRetire: input.onRetire, retiring: false })
+    this.submissionSettlements.set(requestId, { onRetire: input.onRetire, retiring: false, admitted: null })
     // The blank → engaging edge flips here, ahead of prompt(): the composer
     // docks and the echo renders on the click's own frame.
     this.promptAttempted = true
@@ -290,6 +293,7 @@ export class Session implements SessionFace {
       this.notifier.markDirty()
       return result
     }
+    if (requestId !== undefined) this.admitTranscriptEcho(requestId, [])
     // Blank flips on ACCEPTANCE, not attempt: an accepted prompt starts the
     // conversation's first turn on the host (the host criterion — a logged
     // turn/start — is fact, not optimism; standalone command and projection
@@ -831,9 +835,18 @@ export class Session implements SessionFace {
     return queueChanged || awaitingFirstTurn !== this.firstPromptPendingTurn
   }
 
-  /** Retire the matching echo when a durable browser-prompt `user/message` becomes visible. */
+  /**
+   * Retire the matching echo when a durable browser-prompt `user/message`
+   * becomes visible, and retire admitted transcript echoes whose prompt left
+   * the Host queue when a turn ends without logging it (an aborted pre-step).
+   */
   private observeSubmissionEvent(event: { readonly type: string; readonly data?: unknown }): void {
-    if (this.submissionSettlements.size === 0 || event.type !== 'user/message') return
+    if (this.submissionSettlements.size === 0) return
+    if (event.type === 'turn/end') {
+      this.retireUnloggedTranscriptEchoes()
+      return
+    }
+    if (event.type !== 'user/message') return
     // Structural read: window entries may be compact history records, so the
     // fields are narrowed rather than trusted (same posture as Conversation
     // assembly matchers).
@@ -843,12 +856,40 @@ export class Session implements SessionFace {
     this.scheduleObservedRetirement(source.rpcId as SessionRequestId, imageRefsIn(data?.content))
   }
 
-  /** Retire echoes whose prompts landed in the host inbox instead of the log (running-turn submissions). */
+  /**
+   * Retire echoes whose prompts landed in the host inbox instead of the log
+   * (running-turn submissions). A transcript echo stays up instead: the Host
+   * claims its prompt out of the inbox before the pre-step waterfall runs, and
+   * logs the `user/message` only after it, so the echo is the only rendering
+   * of the message in between.
+   */
   private observeSubmissionQueue(items: readonly SessionQueuedItem[]): void {
     if (this.submissionSettlements.size === 0) return
     for (const item of items) {
-      if (item.rpcId !== undefined) {
-        this.scheduleObservedRetirement(item.rpcId, imageRefsIn(item.message.content))
+      if (item.rpcId === undefined) continue
+      const attachments = imageRefsIn(item.message.content)
+      if (this.isTranscriptEcho(item.rpcId)) this.admitTranscriptEcho(item.rpcId, attachments)
+      else this.scheduleObservedRetirement(item.rpcId, attachments)
+    }
+  }
+
+  private isTranscriptEcho(requestId: SessionRequestId): boolean {
+    return this.pendingSubmissions.some(echo => echo.requestId === requestId && echo.placement === 'transcript')
+  }
+
+  /** Record Host admission of a transcript echo; queue-carried attachment references replace the empty acceptance record. */
+  private admitTranscriptEcho(requestId: SessionRequestId, attachments: readonly ImageAttachmentRef[]): void {
+    const settlement = this.submissionSettlements.get(requestId)
+    if (settlement === undefined || !this.isTranscriptEcho(requestId)) return
+    if (settlement.admitted === null || attachments.length > 0) settlement.admitted = attachments
+  }
+
+  /** Retire admitted transcript echoes that no longer wait in the Host queue. */
+  private retireUnloggedTranscriptEchoes(): void {
+    const queued = new Set(this.queueMirror.snapshot().flatMap(item => item.rpcId === undefined ? [] : [item.rpcId]))
+    for (const [requestId, settlement] of this.submissionSettlements) {
+      if (settlement.admitted !== null && !queued.has(requestId)) {
+        this.scheduleObservedRetirement(requestId, settlement.admitted)
       }
     }
   }

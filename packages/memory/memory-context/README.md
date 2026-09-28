@@ -68,7 +68,7 @@ Use memory_get with an id to read a memory in full.
 </memory_context>
 ```
 
-Sections without memories are omitted, duplicate snippets are dropped, memories that do not fit `contextMaxChars` are left out whole, and literal `</memory_context>` inside recalled text is escaped. Aeven orders hits by query-term overlap, then the provider score, before applying per-domain item limits.
+Sections without memories are omitted, duplicate snippets are dropped, memories that do not fit `contextMaxChars` are left out whole, and literal `</memory_context>` inside recalled text is escaped. Aeven orders hits by query-term overlap in the stored summary before considering the longer tool record and assistant answer; a question about outcomes prefers a matching summary with recorded outcome evidence. Provider score breaks the remaining ties before per-domain item limits apply.
 
 #### Token effect
 

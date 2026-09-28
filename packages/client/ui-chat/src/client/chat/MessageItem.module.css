@@ -7,12 +7,14 @@
   gap: 8px;
 }
 
-/* The reader's own message fades in where the composer emptied: the echo is
-   inserted in the frame the draft clears, so the fade reads as one arrival
-   rather than a jump. The durable row that replaces the echo renders without
-   it, so a submitted message fades exactly once. */
+/* The reader's own message and its pending Turn header fade in where the
+   composer emptied: the echo is inserted in the frame the draft clears. Every
+   row that later stands for the same send carries this class with a negative
+   animation-delay equal to the time since the send (see useArrivalAge), so a
+   replacement or remount continues the one fade and a late one renders at
+   full opacity. */
 .enter {
-  animation: message-enter 180ms ease-out both;
+  animation: message-enter 300ms ease-out both;
 }
 
 @keyframes message-enter {

@@ -8,7 +8,7 @@ import { Button, IconChevronDownOutline14, Modal, Spinner, TextAnimationContext 
 import type { ChatViewSlotProps } from '../contract/slots.ts'
 import type { ChatSnapshot } from '../contract/snapshot.ts'
 import { PendingSteeringBubble, PendingSubmissionBubble, QueuedMessageBubble } from './MessageItem.tsx'
-import { TurnPendingRow } from './TurnProcessNodeView.tsx'
+import { latestTranscriptSend, TurnPendingRow } from './TurnProcessNodeView.tsx'
 import { ChatNodeSeat } from './ChatNodeSeat.tsx'
 import { TurnRail } from './TurnRail.tsx'
 import { turnRailMarks, type TurnRailMark } from './turn-rail-marks.ts'
@@ -145,7 +145,7 @@ function isFolderOpenPath(path: string): boolean {
 
 /**
  * Prompt-RPC identities already rendered by durable material: user/steering
- * node sources plus queue occurrences. A submission echo whose identity
+ * node sources plus the queue occurrences the view draws. A submission echo whose identity
  * appears here is hidden in the same render, so the echo→durable swap is
  * atomic — no duplicate, no gap — regardless of when the echo leaves the
  * session snapshot.
@@ -252,23 +252,37 @@ export function ChatView({
     setFileOpenBusy(false)
   }, [])
 
+  const pendingSubmissions = useSession(s => s.pendingSubmissions)
+  // Host queue rows of a transcript echo are not drawn: the echo renders the
+  // message until its durable node lands, including while the Host has already
+  // claimed the prompt out of its queue but not yet logged it.
+  const hostInbox = useMemo(() => {
+    const transcriptEchoes = new Set(pendingSubmissions.flatMap(submission => (
+      submission.placement === 'transcript' ? [submission.requestId] : []
+    )))
+    if (transcriptEchoes.size === 0) return inbox
+    return inbox.filter(item => item.rpcId === undefined || !transcriptEchoes.has(item.rpcId))
+  }, [inbox, pendingSubmissions])
+  const echoSentAt = useMemo(
+    () => new Map<string, number>(pendingSubmissions.map(submission => [submission.requestId, submission.time])),
+    [pendingSubmissions],
+  )
   const pendingSteering = useMemo(
-    () => inbox.filter(item => item.placement === 'steering'),
-    [inbox],
+    () => hostInbox.filter(item => item.placement === 'steering'),
+    [hostInbox],
   )
   const queuedRows = useMemo(
-    () => inbox.filter(item => item.placement === 'queued'),
-    [inbox],
+    () => hostInbox.filter(item => item.placement === 'queued'),
+    [hostInbox],
   )
-  const pendingSubmissions = useSession(s => s.pendingSubmissions)
   // Submission echoes still awaiting their durable counterpart. `order` is the
   // recompute trigger: durable user material always arrives as an append, and
   // every append replaces the order array.
   const visibleSubmissions = useMemo(() => {
     if (pendingSubmissions.length === 0) return pendingSubmissions
-    const observed = observedRpcIds(order, nodeStore, inbox)
+    const observed = observedRpcIds(order, nodeStore, hostInbox)
     return pendingSubmissions.filter(submission => !observed.has(submission.requestId))
-  }, [pendingSubmissions, order, nodeStore, inbox])
+  }, [pendingSubmissions, order, nodeStore, hostInbox])
   // Queued echoes render after the Host's queued rows, which they join once admitted.
   const transcriptSubmissions = useMemo(
     () => visibleSubmissions.filter(submission => submission.placement !== 'queued'),
@@ -1098,6 +1112,7 @@ export function ChatView({
               <PendingSteeringBubble
                 key={item.id}
                 content={item.content}
+                sentAt={item.rpcId === undefined ? undefined : echoSentAt.get(item.rpcId)}
                 renderMessageImages={renderMessageImages}
                 t={t}
               />
@@ -1114,11 +1129,12 @@ export function ChatView({
                 until the Host opens the Turn and renders its own, including the
                 moment the durable message has landed but the Turn row has not. */}
             {(transcriptSubmissions.some(submission => submission.placement === 'transcript')
-              || lastNode?.kind === 'user') && <TurnPendingRow t={t} />}
+              || lastNode?.kind === 'user') && <TurnPendingRow sentAt={latestTranscriptSend(transcriptSubmissions)} t={t} />}
             {queuedRows.map(row => (
               <QueuedMessageBubble
                 key={row.id}
                 row={row}
+                sentAt={row.rpcId === undefined ? undefined : echoSentAt.get(row.rpcId)}
                 running={running}
                 mutable={queueMutable}
                 updateQueue={updateQueue}

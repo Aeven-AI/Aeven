@@ -17,9 +17,10 @@ import type { PendingSubmissionImage, SessionSnapshot } from './snapshot.ts'
 
 /**
  * Why a local submission echo left the snapshot: `observed` when its durable
- * `user/message` event or host queue occurrence arrived (with the admitted
- * image references in prompt order), `failed` when the prompt was rejected,
- * threw, or was aborted before acceptance.
+ * `user/message` event or host queue occurrence arrived, or when a turn ended
+ * without logging an admitted transcript echo (with the admitted image
+ * references in prompt order), `failed` when the prompt was rejected, threw,
+ * or was aborted before acceptance.
  */
 export type PendingSubmissionRetirement =
   | { readonly reason: 'observed'; readonly attachments: readonly ImageAttachmentRef[] }
@@ -65,9 +66,11 @@ export interface ISession {
   /**
    * Register one local submission echo in `snapshot.pendingSubmissions`,
    * synchronously, before the caller serializes and sends the prompt. The
-   * echo retires when a durable `user/message` event or queue occurrence
-   * carrying the returned identity arrives, or when the identified prompt
-   * call fails.
+   * echo retires when a durable `user/message` event carrying the returned
+   * identity arrives, or when the identified prompt call fails. A queue
+   * occurrence retires a `queued` or `steering` echo; a `transcript` echo
+   * stays until its `user/message`, or until a turn ends after the Host
+   * admitted the prompt and no longer queues it.
    * @param input - echo content and the optional settlement callback.
    * @returns the minted identity for {@link prompt} plus the pre-prompt abandon path.
    */

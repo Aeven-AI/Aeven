@@ -4,15 +4,15 @@ Status: proposed
 
 ## Problem
 
-Agents forget everything between sessions: who the user is, what worked in a repository or application, and which approaches failed. The payload that matters most is technical: the command, path, address, patch, or setting that made a tool work, and the outcome that proves it. The first three steps shipped as the `packages/memory/` family with MemOS as the provider ([implemented note](../../implemented/feature/2026-09-28-long-term-memory-memos.md)).
+Agents forget everything between sessions: who the user is, what worked in a repository or application, and which approaches failed. The payload that matters most is technical: the command, path, address, patch, or setting that made a tool work, and the outcome that proves it. PR1–5 shipped the `packages/memory/` family with MemOS as the provider, per-user scopes, domains, and outcome evidence ([implemented note](../../implemented/feature/2026-09-28-long-term-memory-memos.md)).
 
-Testing the shipped steps exposed three gaps that shape the rest of the plan. Recall silently degrades: MemOS caps its own relevance filter inside the recall budget, and when that call times out the filter falls back to a mechanical cutoff that has kept a single hit in every affected recall. Capture and recall are turn-shaped, so a memory reaches the model as a one-line summary and the artifact a technique consists of stays behind `memory_get`. A session has memory only when a signed-in request created it, which excludes one-shot and headless CLI runs, the SDK, webhook ingress, ACP automation, and every external agent.
+Testing the shipped steps exposed three gaps that shape the rest of the plan. MemOS's relevance filter can silently reduce recall to one hit; PR6 bypasses it for automatic recall and explicit searches. Earlier recall delivered a one-line summary instead of the artifact a technique consists of; PR6 returns the stored artifact and outcome under Aeven's final selection. A session has memory only when a signed-in request created it, which excludes one-shot and headless CLI runs, the SDK, webhook ingress, ACP automation, and every external agent.
 
-The remaining steps must keep Aeven the owner of the memory product while MemOS stays a replaceable engine, and every step after per-user scoping assumes memory belongs to one account.
+The remaining steps must keep Aeven the owner of knowledge and learned procedures while MemOS stays a replaceable memory engine. The existing skill catalog already publishes summaries and loads full instructions on demand, so learned capabilities should join that path rather than create a second model-facing loader.
 
 ## Decision
 
-Build the rest in the order below. Each step is one PR, verified by `pnpm run typecheck` and a browser test against the running app; no unit tests and no Agent Note per step.
+Build the rest in the order below. Each step is one PR, verified by `pnpm run typecheck`, `pnpm run build`, and a browser test against the running app; do not run unit tests for this sequence. Aeven owns the durable knowledge and capability records, the model-facing context, and promotion decisions. MemOS supplies memory candidates and learning signals; `ctx.skills` supplies the existing catalog and loader for executable instructions. Add a package only when a concrete service and consumer need it.
 
 | # | Step | Scope |
 |---|---|---|
@@ -23,19 +23,35 @@ Build the rest in the order below. Each step is one PR, verified by `pnpm run ty
 | 2b | Memory operations | List, read, remember, edit, forget, and feedback on `ctx.memory`; per-message ratings from `message-feedback` feed the provider. Shipped. |
 | 4 | Memory domains | Person, experience, world, and project scopes, with project memory keyed by workspace. Shipped. |
 | 5 | Outcome capture | Retries, verification, corrections, and goal completion derived from logged facts, so a technique can be recalled together with the outcome that proves it. Shipped. |
-| 6 | Recall reliability, then own ranking | Make recall dependable before making it clever, then take ranking and framing from MemOS. Ordered requirements below. |
-| 7 | Skill learning | Crystallized experience proposes skill candidates to `ctx.skills`; promotion requires approval. |
-| 8 | Skill confidence | Success, failure, and version statistics promote and revoke learned skills. |
-| 9 | Aeven Memory Manager | The MemOS Memory Viewer becomes an Aeven-integrated memory manager: browse, search, edit, delete, and review learned knowledge. Where it lives in the app is decided when it is built. |
-| 10 | Cloud sync | Sync logical per-user memory records, not the database file; machine-specific memory stays local. |
-| 11 | Memory outside the GUI | Decide which entry points own a session: one-shot and headless `avn` runs, the SDK, webhook ingress, ACP automation, and work done by external agents such as Codex. Each either gains a configured owner or is documented as memory-free. |
+| 6 | Aeven Context Builder | Make automatic and explicit recall dependable; assemble bounded, source-labelled technical knowledge and personal context from the existing services. Implemented and browser-verified. |
+| 7 | Capability learning | Create Aeven-owned capability candidates from explicit requests and reusable task evidence; publish approved executable instructions through `ctx.skills`. Shipped ([note](../../implemented/feature/2026-09-29-capability-learning.md)); proposals from recorded evidence remain. |
+| 8 | Capability lifecycle | Track versions, executions, validation, evidence-based status, degradation, and retirement. Shipped ([note](../../implemented/feature/2026-09-29-capability-lifecycle.md)). |
+| 9 | What Aeven Has Learned | Shipped: Settings → Memory (`api-memory-manager` + `client-ui-settings-memory`) with About you, Projects, Knowledge, and Capabilities tabs and View, Correct, and Forget actions. |
+| 10 | Aeven Layer portability | Sync owner-scoped logical knowledge and capability records; keep raw execution traces local by default. |
+| 11 | Memory outside the GUI | Decide which entry points own a session: one-shot and headless `avn` runs, the SDK, webhook ingress, ACP automation, and external agents. Each gains a configured owner or is documented as memory-free. |
+| 12 | Capability composition | Let one capability invoke another and propose a composite candidate after a validated execution. |
+| 13 | Organizational scope | Later: team and organization ownership, review, distribution, and sovereign deployment. |
 
-### Step 6 in order
+### PR6: Aeven Context Builder
 
-1. **Stop the silent degradation.** MemOS caps the relevance filter at `min(2000, remaining budget)`, so raising Aeven's recall budget cannot extend it; a timeout falls back to keeping hits scoring at least 70% of the top hit. Measured across 14 recalls, 3 burned the full cap and each kept exactly one hit, and in one case the survivor was a person fact unrelated to the query while the relevant `world` memory was dropped. MemOS lightweight mode forces the filter on even when `retrieval.llmFilterEnabled` is false; turn-start recall must bypass or replace it before any ranking work.
-2. **Recall the artifact, not its summary.** A technique reaches the model as the command, path, address, port, patch, or setting that worked, with its outcome. Today the block carries MemOS's distilled summary line and the artifact is only reachable through `memory_get`.
-3. **Sharpen the `world` rule.** A trace is filed by one model classification per turn, and an explanation given in conversation currently qualifies as knowledge: of the three `world` traces in the live store when this note was written, two are chat about Aeven's own memory design and one is a key binding recorded during testing.
-4. **Then own ranking.** Aeven-owned ranking, deduplication, per-domain budgets, and framing of the recalled block.
+1. **Make recall dependable.** MemOS caps its relevance filter at two seconds and may fall back to one hit; lightweight mode forces the filter on even when `retrieval.llmFilterEnabled` is false. Automatic recall and explicit `memory_search` request unfiltered candidates through MemOS's turn-start path. Both include trace reads within their configured deadlines; explicit search retains its configured per-tier limits.
+2. **Assemble distinct sources without duplicating the session.** Use the existing `memory-context` consumer and durable session events to frame person facts, workspace knowledge, reusable technical knowledge, and experience or policies. Each source has provenance and its own item budget within the total block. Identity comes from the session owner; recent task context already comes from the session log. Neither needs a second memory copy.
+3. **Recall the artifact with its outcome.** Technical traces carry the stored tool input, output, assistant answer, and outcome label. Assistant-reported verification is identified as a report, not independent proof. A new-session browser check recalled the exact Node version command and stdout with the `Assistant reported verification` label without calling a tool.
+4. **Own final selection.** Aeven orders candidates by summary relevance before long tool text, deduplicates exact snippets, limits each domain, and frames the injected block. The `world` classifier requires reusable operations or facts rather than discussion of Aeven's own design. Correction-tagged traces stay searchable as history and do not enter automatic recall without a recorded referent. A browser check retrieved a relevant `world` trace while temporary correction instructions stayed out of the automatic block.
+
+PR6 does not add an empty `aeven-layer/` package or a placeholder capability section. The existing skill catalog already offers progressive disclosure; PR7 can make approved learned capabilities available through it. Every new model-visible item must be reconstructable from the session log.
+
+### PR7–8: learning and evidence
+
+Three rules hold for every capability step. **Complex learning, simple capability:** the executable artifact is an agentskills `SKILL.md` with supporting files, and Aeven metadata stays beside it. **Remember immediately, trust gradually:** anything learned is kept at once as a candidate; confirmation makes it executable, and evidence decides trust, never whether it is remembered. **Execution never depends on memory:** capabilities live in Aeven's registry, and the memory provider only helps find and propose them.
+
+PR7 creates a durable `CapabilityCandidate` owned by Aeven, with intent, description, procedure, required tools and permissions, scope, supporting artifacts, validation and recovery instructions, provenance, and evidence. A direct request such as “learn this workflow” is a strong signal; repeated discovery, retries followed by success, corrections, and modifications to an existing procedure can also propose candidates. Automatic proposals require review before they become invocable. The executable representation is an adapter to the existing skill service, not the source record. Inspect Hermes's explicit capture and supporting-artifact workflow before finalizing this PR, while keeping Aeven's approval and provenance rules.
+
+PR8 associates each capability version with execution records: model, environment, timestamps, tools, retries, corrections, validation result, outcome, and token or monetary cost when measured. Status follows evidence through candidate, learned, trusted, needs-validation, degraded, and retired; an application or environment change can require validation before reuse. A model-generated confidence number alone never promotes a capability. Compare before and after runs only with comparable tasks and measured costs.
+
+### PR9–13: product and reach
+
+PR9 presents “About you,” “Spaces,” and “Learned capabilities” with status, provenance, use history, and View, Correct, and Forget actions. The MemOS Viewer remains a development stopgap. PR10 syncs owner-scoped logical knowledge, capability versions, policies, corrections, spaces, and selected environment metadata; raw local tool traces do not sync by default. PR11 resolves ownership for CLI, SDK, webhook, ACP, and external-agent sessions before claiming memory works outside the signed-in GUI. PR12 adds capability composition after individual capability execution and validation exist. PR13 introduces team and organization scope with separate authority and approval rules; do not implement those scopes in PR6.
 
 ### Technical knowledge is the first-class payload
 

@@ -17,6 +17,7 @@ The memory group gives agents memory that outlives a session. Each direct-user t
 | [`memory-memos/`](memory-memos/README.md) | MemOS provider: local SQLite memory, local embeddings, auxiliary LLM calls through `ctx.llm`, optional Viewer | registers on `ctx.memory` |
 | [`memory-context/`](memory-context/README.md) | Per-turn recall as durable context and turn capture from the session log | — |
 | [`tool-memory/`](tool-memory/README.md) | Model-facing `memory_*` search and inspection tools | registers on `ctx.tools` |
+| [`api-memory-manager/`](api-memory-manager/README.md) | `memoryManager` Remote behind Settings → Memory: the signed-in user's memories and learned capabilities | `ctx.memoryManagerController` |
 
 ## Enabling
 

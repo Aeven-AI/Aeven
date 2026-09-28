@@ -1,0 +1,258 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 760px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.search > svg {
+  position: absolute;
+  left: 12px;
+  pointer-events: none;
+}
+
+.search input,
+.field input {
+  width: 100%;
+  height: 36px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 10px;
+  padding: 0 12px 0 36px;
+  outline: none;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+}
+
+.field input {
+  padding-left: 12px;
+}
+
+.search input:focus-visible,
+.field input:focus-visible,
+.editor:focus-visible {
+  border-color: var(--dsw-alias-state-business-primary);
+  box-shadow: 0 0 0 2px var(--dsw-tint-business-18);
+}
+
+.status,
+.failure,
+.error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.failure,
+.error {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.groupTitle,
+.subTitle {
+  margin: 8px 0 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.list,
+.runs {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.pending {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.meta a,
+.runs a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.meta code {
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-left: -8px;
+}
+
+.confirm {
+  padding: 0 8px;
+  font-size: 14px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.editor {
+  width: 100%;
+  box-sizing: border-box;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 10px;
+  padding: 8px 12px;
+  outline: none;
+  resize: vertical;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.more {
+  align-self: flex-start;
+}
+
+.capabilityHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.name {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.badge,
+.verdict {
+  border-radius: 999px;
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 20px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.badge[data-status='trusted'],
+.verdict[data-verdict='verified'],
+.verdict[data-verdict='succeeded'] {
+  color: var(--dsw-alias-state-success-primary);
+}
+
+.badge[data-status='degraded'],
+.verdict[data-verdict='failed'] {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.badge[data-status='needs-validation'],
+.badge[data-status='candidate'] {
+  color: var(--dsw-alias-state-warn-label);
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.procedure {
+  max-height: 360px;
+  margin: 0;
+  overflow: auto;
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--dsw-alias-bg-layer-2);
+  overflow-wrap: anywhere;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.runs li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 6px 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.note {
+  flex-basis: 100%;
+  color: var(--dsw-alias-label-secondary);
+}

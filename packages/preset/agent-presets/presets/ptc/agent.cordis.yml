@@ -276,6 +276,12 @@
 - id: tool-memory
   name: '@aeven/tool-memory'
 
+# Capability learning: the capability_manage tool, guidance on when to learn a
+# reusable procedure, and recall of unconfirmed drafts. Confirmed capabilities
+# reach this agent through the skill catalog.
+- id: tool-capability
+  name: '@aeven/tool-capability'
+
 # The `web` service and its search provider stay in the host composition; only
 # the model-facing tool is per-session.
 - id: tool-web
