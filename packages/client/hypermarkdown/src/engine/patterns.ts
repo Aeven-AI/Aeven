@@ -7,6 +7,13 @@
 // caches) stays on the renderer itself.
 
 /**
+ * A table row's opening, up to and including its first pipe: three spaces of
+ * indentation at most, then any blockquote markers. Shared by the two row
+ * expressions in {@link patterns} so the row they recognise cannot drift.
+ */
+const tableRowSource = '[ \\t]{0,3}(?:>[ \\t]?)*\\|'
+
+/**
  * The renderer's shared pattern table: the regular expressions and marker
  * lists used to recognise blocks, lists, fences, tables, footnotes and the
  * half-arrived constructs a stream leaves behind. Read as `patterns.<name>` by
@@ -102,6 +109,17 @@ export const patterns = {
 
   // A row made only of pipes, colons and dashes: a delimiter still arriving.
   partialRowRegex: /^[ \t]{0,3}\|[ \t:|-]*$/,
+
+  // A line that opens with a pipe — a table row rather than prose. See
+  // isTableRow(): the leading pipe is what separates a run of rows from the
+  // same characters in a shell pipeline or a regex alternation. The two
+  // expressions below are the same row shape, one anchored to a line and one
+  // searching a whole text for any line that carries it.
+  tableRowRegex: new RegExp('^' + tableRowSource),
+  tableRowScanRegex: new RegExp('(?:^|\\n)' + tableRowSource),
+
+  // The blank line that separates blocks.
+  blankLineRegex: /\n[ \t]*\n/,
   blankCharRegex: /[ \t\r\n]/,
 
   // "[label]:" or "[^note]:" starting a line — a link or footnote definition.

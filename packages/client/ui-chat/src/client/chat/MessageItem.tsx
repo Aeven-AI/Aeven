@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { PendingSubmission, SessionSnapshot } from '@aeven/api-session-controller/client'
 import type { MessageImageSource } from '@aeven/client-ui-conversation/client'
@@ -153,9 +153,29 @@ function TurnMaxTokensItem({ t }: {
   )
 }
 
+/** `rpcId` of a user or steering source; absent for messages no prompt originated. */
+function sourceRpcId(source: unknown): string | undefined {
+  if (typeof source !== 'object' || source === null) return undefined
+  const rpcId = (source as { rpcId?: unknown }).rpcId
+  return typeof rpcId === 'string' ? rpcId : undefined
+}
+
+/**
+ * Milliseconds the row's own echo had already been fading when this row mounted,
+ * or null when the row replaced no echo (history, or another surface's message).
+ * The echo is retired a frame or two after this row appears, so starting the
+ * replacement's fade at that elapsed time keeps one submission one fade.
+ * @param echo - the still-pending echo carrying this row's `rpcId`.
+ * @returns the echo's age in milliseconds, or null without one.
+ */
+function replacedEchoAgeMs(echo: PendingSubmission | undefined): number | null {
+  return echo === undefined ? null : Math.max(0, Date.now() - echo.time)
+}
+
 /** Right-aligned bubble shared by user and steering rows. */
 function UserStyleBubble({
-  content, renderMessageImages, actions, pending = false, echo = false, queued = false, body, referenceLabels = [], skillNames = [],
+  content, renderMessageImages, actions, pending = false, echo = false, queued = false, enter = false,
+  enterAgeMs, body, referenceLabels = [], skillNames = [],
   previewImages, t,
 }: {
   content: readonly unknown[]
@@ -168,6 +188,10 @@ function UserStyleBubble({
   echo?: boolean
   /** Whether the message waits in the Host queue for the running turn to end. */
   queued?: boolean
+  /** Whether this row is the message's own arrival and fades in. */
+  enter?: boolean
+  /** Elapsed fade time the row inherits from the echo it replaced; a negative animation delay continues that fade. */
+  enterAgeMs?: number
   /** Replaces the text bubble, as the inline editor of a queued message does. */
   body?: ReactNode
   /** Exact session mention labels associated by the adjacent recall node. */
@@ -184,7 +208,8 @@ function UserStyleBubble({
   const showBubble = text !== '' || rest.length > 0
   return (
     <div
-      className={css.userRow}
+      className={enter ? `${css.userRow} ${css.enter}` : css.userRow}
+      style={enterAgeMs === undefined ? undefined : { animationDelay: `-${enterAgeMs}ms` }}
       data-pending-steering={pending || undefined}
       data-submission-echo={echo || undefined}
       data-queued={queued || undefined}
@@ -270,6 +295,7 @@ export function PendingSubmissionBubble({ submission, renderMessageImages, t }: 
       renderMessageImages={renderMessageImages}
       pending={submission.placement === 'steering'}
       echo
+      enter
       queued={submission.placement === 'queued'}
       t={t}
       actions={text => submission.placement === 'queued'
@@ -407,13 +433,23 @@ export function QueuedMessageBubble({ row, running, mutable, updateQueue, notify
 
 /** User and admitted-steering keyed Chat renderer. */
 export const UserMessageNodeView = memo(function UserMessageNodeView({
-  node, renderMessageImages, t,
+  node, renderMessageImages, useSession, t,
 }: ChatNodeViewProps<'user' | 'steering'>) {
   const data = node.data
+  const rpcId = sourceRpcId(data.source)
+  const echo = useSession(state => rpcId === undefined
+    ? undefined
+    : state.pendingSubmissions.find(submission => submission.requestId === rpcId))
+  // Latched once: the echo retires a frame or two after this row mounts, and
+  // the fade must survive its disappearance.
+  const enterAgeRef = useRef<number | null>(null)
+  if (enterAgeRef.current === null) enterAgeRef.current = replacedEchoAgeMs(echo)
+  const enterAgeMs = enterAgeRef.current
   return (
     <UserStyleBubble
       content={data.content}
       renderMessageImages={renderMessageImages}
+      {...enterAgeMs === null ? {} : { enter: true, enterAgeMs }}
       {...data.referenceLabels === undefined ? {} : { referenceLabels: data.referenceLabels }}
       {...data.skillNames === undefined ? {} : { skillNames: data.skillNames }}
       t={t}

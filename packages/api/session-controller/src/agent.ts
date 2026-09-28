@@ -8,6 +8,7 @@ import type {
 } from '@aeven/agent'
 import type {} from '@aeven/agent-default-model'
 import type {} from '@aeven/agent-presets'
+import type {} from '@aeven/identity-user'
 import { ReasoningEffortId } from '@aeven/llm'
 import type { Session, SessionId } from '@aeven/session'
 import type { SessionInspection } from '@aeven/session-persistence'
@@ -490,12 +491,15 @@ export class ApiSessionAgentController {
       }
     }
     const composition = await this.composeAgent(presetId)
+    // The signed-in caller of the creating request owns the session and its per-user state.
+    const owner = this.ctx.get('identityUsers')?.actingUser()?.id
     return (await this.ctx.agents.create({
       sessionId,
       agentOptions: this.agentOptions(),
       meta: {
         ...cwd === undefined ? {} : { cwd },
         ...(composition.agentPreset === undefined ? {} : { agentPreset: composition.agentPreset }),
+        ...owner === undefined ? {} : { owner },
       },
       setup: composition.setup,
     })).agent

@@ -1,9 +1,10 @@
 /**
  * Command-directory cache keyed by session: one entry per served catalog —
  * every session is agent-backed, so `command.list({sessionId})` is the only
- * request fields. Each entry keeps the single-flight / soft-hard invalidation
- * / epoch-guard behavior of the original global cache; the session-key axis
- * is the only extra dimension.
+ * request fields. Each entry keeps the soft-hard invalidation behavior of the
+ * original global cache and runs at most one pull at a time: refreshes that
+ * arrive during a pull share it and cause one follow-up pull, so a burst of
+ * invalidations costs at most two requests per session.
  */
 import type { CommandDescriptor } from '@aeven/commands/types'
 import type { SessionId } from '@aeven/session/types'
@@ -24,10 +25,12 @@ export type FetchCommands = (sessionId: SessionId) => Promise<readonly CommandDe
 class Entry {
   state: DirectoryStatus = 'cold'
   commands: readonly CommandDescriptor[] = []
-  /** Bumped at each pull start; only the latest pull may publish its outcome. */
-  epoch = 0
   lastError: unknown
   waiters: Array<() => void> = []
+  /** The pull sequence in flight, shared by every refresh that arrives while it runs. */
+  inflight: Promise<void> | undefined
+  /** A refresh arrived during the current pull; its outcome is discarded and one follow-up pull runs. */
+  stale = false
 }
 
 /** The session-keyed directory cache. Plain class — the owning service wires events and RPC. */
@@ -97,30 +100,49 @@ export class CommandDirectory {
   }
 
   /**
-   * Start one pull for one session. Publishes ready/failed only while it is
-   * still the key's latest pull (epoch guard); a ready snapshot is not
-   * demoted while the pull flies.
+   * Request a pull for one session. With no pull in flight one starts; during
+   * a pull the request joins it and marks it stale, so its outcome is
+   * discarded and exactly one follow-up pull publishes. A ready snapshot is
+   * not demoted while pulls fly.
    * @param sessionId - session key.
-   * @returns settled when this pull's outcome is published or discarded.
+   * @returns settled when the pull sequence covering this request has published.
    */
-  async refresh(sessionId: SessionId): Promise<void> {
+  refresh(sessionId: SessionId): Promise<void> {
     const entry = this.entry(sessionId)
-    const epoch = ++entry.epoch
     if (entry.state !== 'ready') entry.state = 'pending'
+    if (entry.inflight !== undefined) {
+      entry.stale = true
+      return entry.inflight
+    }
+    const run = async (): Promise<void> => {
+      try {
+        do {
+          entry.stale = false
+          await this.pull(sessionId, entry)
+        } while (entry.stale)
+      } finally {
+        entry.inflight = undefined
+      }
+    }
+    entry.inflight = run()
+    return entry.inflight
+  }
+
+  /** One request; publishes its outcome unless a refresh arrived while it flew. */
+  private async pull(sessionId: SessionId, entry: Entry): Promise<void> {
     try {
       const commands = await this.fetchCommands(sessionId)
-      if (epoch !== entry.epoch) return
+      if (entry.stale) return
       entry.commands = commands
       entry.state = 'ready'
       entry.lastError = undefined
     } catch (error) {
-      if (epoch !== entry.epoch) return
+      if (entry.stale) return
       entry.commands = []
       entry.state = 'failed'
       entry.lastError = error
-    } finally {
-      if (epoch === entry.epoch) notifyWaiters(entry)
     }
+    notifyWaiters(entry)
   }
 
   /**

@@ -31,6 +31,7 @@ import {
   verifyMacOSSeedStore,
 } from './macos-seed-store.ts'
 import { resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
+import { pruneSeedStore, type SeedStorePruneTarget } from './seed-store-prune.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const BUILD_PATHS = resolveDesktopTargetBuildPaths()
@@ -63,6 +64,15 @@ function desktopRelease(): DesktopRelease {
     nodeVersion: runtime.node,
     pnpmVersion: runtime.pnpm,
   })
+}
+
+function pruneTarget(): SeedStorePruneTarget {
+  const platform = process.env.AVN_DESKTOP_TARGET_PLATFORM ?? process.platform
+  const arch = process.env.AVN_DESKTOP_TARGET_ARCH ?? process.arch
+  if ((platform !== 'darwin' && platform !== 'win32' && platform !== 'linux') || (arch !== 'arm64' && arch !== 'x64')) {
+    throw new Error(`desktop seed: unsupported target ${platform}-${arch}`)
+  }
+  return { platform, arch }
 }
 
 function runPnpm(args: readonly string[]): Promise<void> {
@@ -159,8 +169,13 @@ async function main(): Promise<void> {
     await runPnpm(['install', '--prod', '--frozen-lockfile', '--trust-lockfile', '--ignore-scripts'])
     rmSync(installedModules, { recursive: true, force: true })
     rmSync(PNPM_BUILD_STATE, { recursive: true, force: true })
+    const target = pruneTarget()
+    const pruning = pruneSeedStore(STORE_ROOT, target)
+    process.stdout.write(
+      `desktop seed: pruned ${pruning.removedFiles} unloaded files (${(pruning.removedBytes / 1e6).toFixed(1)} MB) for ${target.platform}-${target.arch}, deleted ${pruning.deletedObjects} store objects, and updated ${pruning.updatedIndexRows} pnpm index records\n`,
+    )
     await verifyOfflineInstallation(release)
-    const targetPlatform = process.env.AVN_DESKTOP_TARGET_PLATFORM ?? process.platform
+    const targetPlatform = target.platform
     let signedMachOFiles: number | undefined
     let macOSSigning: ReturnType<typeof resolveMacOSSigningEnvironment> | undefined
     if (targetPlatform === 'darwin' && process.env[DESKTOP_UNSIGNED_ENV] !== '1') {

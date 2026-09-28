@@ -132,6 +132,9 @@ function validateSessionHeader(id: SessionId, input: unknown): SessionHeader {
   if (record.agentPreset !== undefined && typeof record.agentPreset !== 'string') {
     throw new Error('session header agentPreset must be a string')
   }
+  if (record.owner !== undefined && (typeof record.owner !== 'string' || record.owner.length === 0)) {
+    throw new Error('session header owner must be a non-empty string')
+  }
   return deepFreeze(record as unknown as SessionHeader)
 }
 
@@ -948,6 +951,7 @@ export class SessionStore extends Service {
       ...meta?.origin === undefined ? {} : { origin: meta.origin },
       ...meta?.delegationDepth === undefined ? {} : { delegationDepth: meta.delegationDepth },
       ...meta?.agentPreset === undefined ? {} : { agentPreset: meta.agentPreset },
+      ...meta?.owner === undefined ? {} : { owner: meta.owner },
     }
     return Session.create(sessionId, seed, header, options?.inheritedEventCount)
   }
@@ -1153,6 +1157,7 @@ export class SessionStore extends Service {
       inheritedEventCount: SessionLogOffset(seed.length),
       meta: {
         ...liveSource.header.cwd !== undefined ? { cwd: liveSource.header.cwd } : {},
+        ...liveSource.header.owner !== undefined ? { owner: liveSource.header.owner } : {},
         parentSession: liveSource.id,
         isSeeded: true,
       },

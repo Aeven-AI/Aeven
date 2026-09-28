@@ -1,4 +1,4 @@
-import { Fragment, memo, useMemo } from 'react'
+import { Fragment, memo, useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { JsonBlock, MarkdownText } from '@aeven/client-ui-primitives'
 import type { MarkdownFileMentions } from '@aeven/client-ui-primitives'
@@ -104,6 +104,12 @@ export const AssistantMarkdown = memo(function AssistantMarkdown({
   // per render would rebuild MarkdownText's component table every chunk.
   const labels = useMemo(() => markdownLabels(t), [t])
   const runs = useMemo(() => runsOf(blocks), [blocks])
+  // Runs that have faded in. Latching keeps the class (and its animation) after
+  // the step settles, which would otherwise abort a fade still in flight.
+  const fadedRuns = useRef(new Set<number>())
+  for (const run of runs) {
+    if (streaming && run.source !== null && run.source !== '') fadedRuns.current.add(run.start)
+  }
   // Tool-call heads render as tool rows in the chat view's grouping pass, so
   // a node that is only those heads (or empty) would paint an empty root
   // between tool groups — skip the shell unless something visible remains.
@@ -121,7 +127,10 @@ export const AssistantMarkdown = memo(function AssistantMarkdown({
       <div className={css.body}>
         {runs.map(run => run.source !== null
           ? (
-            <div key={`run-${run.start}`}>
+            <div
+              key={`run-${run.start}`}
+              className={fadedRuns.current.has(run.start) ? css.enter : undefined}
+            >
               <MarkdownText
                 text={run.source}
                 streaming={streaming}

@@ -12,6 +12,7 @@
  * @module @aeven/identity-user
  */
 
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { Service, type Context } from '@deepseek-ai/cordis'
 import type { CredentialRef } from '@aeven/credentials'
 import type { IdentityRequest, User, UserResolver } from './types.ts'
@@ -30,6 +31,7 @@ declare module '@deepseek-ai/cordis' {
  */
 export class IdentityUsers extends Service {
   private readonly resolvers = new Map<string, UserResolver>()
+  private readonly callers = new AsyncLocalStorage<User>()
 
   /** @param ctx - the providing plugin's context. */
   constructor(ctx: Context) {
@@ -71,6 +73,26 @@ export class IdentityUsers extends Service {
       if (user !== undefined) return user
     }
     return undefined
+  }
+
+  /**
+   * Run one admitted request's work with its caller as the acting user.
+   * @param request - the credential-bearing headers the request fence admitted.
+   * @param work - the request's dispatch; everything it awaits sees the same caller.
+   * @returns the work's result.
+   */
+  runAsCaller<T>(request: IdentityRequest, work: () => T): T {
+    const user = this.resolve(request)
+    return user === undefined ? work() : this.callers.run(user, work)
+  }
+
+  /**
+   * The caller of the request whose dispatch is running, for subsystems that must attribute durable
+   * state to a person, such as the owner of a session it creates.
+   * @returns the acting user, or undefined outside an identified request.
+   */
+  actingUser(): User | undefined {
+    return this.callers.getStore()
   }
 
   /**

@@ -210,8 +210,11 @@ export class Session implements SessionFace {
 
   /**
    * Register one local submission echo (see the ISession declaration).
-   * Synchronous through markDirty: the echo is in the very next snapshot, so
-   * the conversation can paint it before the caller starts serializing.
+   * Notifies synchronously (`notifyNow`): the caller is the submit gesture, its
+   * editor clears the draft on the same task, and a microtask-batched
+   * notification would let a paint land between the clear and the echo's React
+   * commit. Notified in-tick, both ride one commit, so the message is on screen
+   * in the frame the composer empties.
    * @param input - echo content and the optional settlement callback.
    * @returns the minted identity for {@link prompt} plus the pre-prompt abandon path.
    */
@@ -230,7 +233,7 @@ export class Session implements SessionFace {
     // The blank → engaging edge flips here, ahead of prompt(): the composer
     // docks and the echo renders on the click's own frame.
     this.promptAttempted = true
-    this.notifier.markDirty()
+    this.notifier.notifyNow()
     return { requestId, abandon: () => { this.retireFailedSubmission(requestId) } }
   }
 

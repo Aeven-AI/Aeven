@@ -1,5 +1,6 @@
 import { indexLines, terminated, type Line } from '../line-index.ts'
 import { patterns } from '../patterns.ts'
+import { isTableRow, isTableText } from '../table/rows.ts'
 
 import type { BlockType } from '../types.ts'
 
@@ -123,7 +124,7 @@ export function repairTableSyntax(
  * @param mdBuffer - the table block being converted.
  * @param pending - whether the block is still being streamed.
  * @returns the converted table, or the buffer as it stands when it holds no
- *   unescaped pipe.
+ *   unescaped pipe or is not made of table rows.
  */
 export function convertTable(mdBuffer: string, pending: boolean): string {
   let headed
@@ -140,22 +141,29 @@ export function convertTable(mdBuffer: string, pending: boolean): string {
 
   if (!patterns.closeRegex.test(trimmed)) {
     return mdBuffer
+  }
+
+  // A block typed as a table from its first row can still turn out to be
+  // prose: the row that opened it may be followed by an ordinary sentence, and
+  // rebuilding that as rows would invent a table nobody wrote.
+  if (!isTableText(trimmed)) {
+    return mdBuffer
+  }
+
+  lines = trimmed.split('\n')
+  headerLine = lines[0] || ''
+  delimiterLine = lines[1] || ''
+
+  headed = checkHeaded(delimiterLine)
+
+  if (!headed) {
+    mdBuffer = convertTableHeadless(mdBuffer, lines)
+
+    return mdBuffer
   } else {
-    lines = trimmed.split('\n')
-    headerLine = lines[0] || ''
-    delimiterLine = lines[1] || ''
+    mdBuffer = convertTableWithHeader(pending, mdBuffer, headerLine, lines)
 
-    headed = checkHeaded(delimiterLine)
-
-    if (!headed) {
-      mdBuffer = convertTableHeadless(mdBuffer, lines)
-
-      return mdBuffer
-    } else {
-      mdBuffer = convertTableWithHeader(pending, mdBuffer, headerLine, lines)
-
-      return mdBuffer
-    }
+    return mdBuffer
   }
 }
 
@@ -222,9 +230,10 @@ export function checkHeaded(delimiterLine: string): boolean {
  *
  * The outer pipes of each row are normalised first, so a row written as
  * "a | b" counts its columns correctly, and the widest row decides how many
- * synthetic columns the header and delimiter carry. Leading whitespace and a
- * trailing blank line are kept, so the replacement holds its place in the
- * surrounding markdown.
+ * synthetic columns the header and delimiter carry. Leading whitespace goes on
+ * every emitted line and a trailing blank line is kept, so the replacement
+ * holds its place in the surrounding markdown — and stays a table when that
+ * place is inside a list item.
  *
  * @param mdBuffer - the table text being replaced.
  * @param lines - the same text split into lines, already cleaned.
@@ -278,7 +287,11 @@ export function convertTableHeadless(
 
     white = mdBuffer.match(patterns.whiteRegex)?.[0] ?? ''
 
-    tableContent = [dummyHeader, dummyDelimiter, ...bodyRows].join('\n')
+    // Every line carries the run's indentation, not just the first: a run
+    // inside a list item is a table only while its delimiter row sits at the
+    // same indent as its rows, and an indent on the header alone left the
+    // synthetic rows showing as literal text.
+    tableContent = [dummyHeader, dummyDelimiter, ...bodyRows].join('\n' + white)
 
     if (!mdBuffer.endsWith('|\n\n')) {
       return white + tableContent
@@ -289,7 +302,14 @@ export function convertTableHeadless(
 }
 
 /**
- * The run of two or more pipe-carrying lines a table repair starts from.
+ * The run of two or more table rows a table repair starts from.
+ *
+ * A run is table material only when every line in it carries its own leading
+ * pipe — see {@link isTableRow}. Pipe-carrying lines that are not rows are
+ * ordinary text: a shell pipeline in a bullet list, a regex alternation, a
+ * TypeScript union, a `||` in a code snippet. Without the row requirement a
+ * pair of such lines was rebuilt as a table with a synthetic header, which is
+ * how prose turned into a table nobody wrote.
  *
  * This is what `(?:[^\n]*\|[^\n]*\n)+` used to find, minus its cost: every
  * pipe on a line was another way for the engine to split that line, so a
@@ -303,16 +323,18 @@ function findTableRuns(text: string): TextRange[] {
 
   let runStart = -1
   let runLength = 0
+  let wholeRun = true
 
   const close = (end: number) => {
     // The pattern needed one line for the leading `+` and one for the
     // alternation that follows it, whichever branch matched.
-    if (runLength >= 2) {
+    if (runLength >= 2 && wholeRun) {
       runs.push({ start: runStart, end })
     }
 
     runStart = -1
     runLength = 0
+    wholeRun = true
   }
 
   for (const line of lines) {
@@ -328,6 +350,10 @@ function findTableRuns(text: string): TextRange[] {
     }
 
     runLength++
+
+    if (!isTableRow(line.text)) {
+      wholeRun = false
+    }
   }
 
   close(text.length)

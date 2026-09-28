@@ -54,6 +54,8 @@ Callers use three operations to read and change feedback for a session:
 
 Every change must be based on the version the service returned for that rating: a change based on an older version is rejected with `version-conflict`, and the reply carries the current rating so the caller can see what changed without another read. Deleting a rating that is already absent succeeds, and concurrent changes to different messages do not conflict. An omitted note clears an existing note.
 
+After a change is durable the service emits `message-feedback/changed` with the session, message, and stored item (no item after a delete), so Host features such as long-term memory can react; a matching no-op and the delete of absent feedback emit nothing, and an observer failure never fails the write.
+
 ### What you can rate
 
 A rating attaches to one finalized assistant message: the message must exist and be an assistant message that was sent. User messages, empty assistant placeholders, and replaced messages are not valid targets and are rejected with `target-not-found`. Once recorded, the rating and note stay with that message and survive restarts; a fork of the session starts with no feedback.

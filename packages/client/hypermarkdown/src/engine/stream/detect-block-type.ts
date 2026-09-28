@@ -1,4 +1,5 @@
 import { patterns } from '../patterns.ts'
+import { isTableText } from '../table/rows.ts'
 
 import type { BlockType } from '../types.ts'
 
@@ -166,7 +167,17 @@ export function detectBlockType(
   }
 
   function tableBlockPendingCheck(mdBuffer: string): BlockType | undefined {
-    const pipeMatches = mdBuffer.match(patterns.pipeRegex)
+    // Only the block that would be drained decides the type: a table ends at
+    // its first blank line, so everything past that belongs to another block —
+    // prose after a table must not be read as more table rows.
+    const blank = patterns.blankLineRegex.exec(mdBuffer)
+    const head = blank ? mdBuffer.slice(0, blank.index) : mdBuffer
+
+    if (!isTableText(head)) {
+      return undefined
+    }
+
+    const pipeMatches = head.match(patterns.pipeRegex)
     const pipeCount = pipeMatches ? pipeMatches.length : 0
 
     if (pipeCount >= 2) {

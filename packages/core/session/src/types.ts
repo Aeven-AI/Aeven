@@ -127,6 +127,13 @@ export interface SessionHeader {
    * would replay history the model can no longer act on.
    */
   readonly agentPreset?: string
+  /**
+   * Account id of the signed-in user the session belongs to, from the identity authority that
+   * admitted the request that created it. Forks and subagent sessions inherit it. Absent when the
+   * composition authenticates nobody or the session was created outside a signed-in request;
+   * per-user state such as long-term memory is then unavailable to the session.
+   */
+  readonly owner?: string
 }
 
 /**
@@ -154,6 +161,7 @@ export interface CreateSessionOptions {
     readonly origin?: 'subagent'
     readonly delegationDepth?: number
     readonly agentPreset?: string
+    readonly owner?: string
   }
 }
 

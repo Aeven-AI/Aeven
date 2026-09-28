@@ -89,6 +89,8 @@ export interface CreateAgentOptions {
     readonly origin?: 'subagent'
     readonly delegationDepth?: number
     readonly agentPreset?: string
+    /** Account id of the signed-in user the session belongs to; see `SessionHeader.owner`. */
+    readonly owner?: string
   }
   /** Exact fork-inherited prefix length when the session metadata sets `isSeeded`. */
   readonly inheritedEventCount?: SessionLogOffset

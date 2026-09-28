@@ -54,6 +54,9 @@ export function createElectronBuilderConfig(
     artifactName: 'aeven-${version}-${os}-${arch}.${ext}',
     directories: { output: buildPaths.artifacts },
     asar: true,
+    // Chromium's UI strings for the client's locales (`LOCALE_IDS` in @aeven/client-locale): macOS names
+    // its bundles `en.lproj`/`zh_CN.lproj`, Windows and Linux `en-US.pak`/`zh-CN.pak`.
+    electronLanguages: ['en-US', 'zh-CN', 'zh_CN'],
     files: [
       'lib/*.js',
       'lib/*.cjs',

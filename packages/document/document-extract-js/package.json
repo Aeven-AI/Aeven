@@ -28,16 +28,14 @@
   "files": [
     "lib/index.js",
     "lib/worker.cjs",
-    "lib/types/**/*.d.ts",
-    "vendor/xlsx-0.20.3.tgz"
+    "lib/types/**/*.d.ts"
   ],
   "license": "MIT",
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:^",
     "jszip": "^3.10.2",
     "mammoth": "^1.13.0",
-    "unpdf": "^1.8.1",
-    "xlsx": "file:./vendor/xlsx-0.20.3.tgz"
+    "unpdf": "^1.8.1"
   },
   "peerDependencies": {
     "@aeven/document-extract": "workspace:^",
@@ -46,6 +44,7 @@
   "devDependencies": {
     "@aeven/document-extract": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
-    "tsx": "^4.19.2"
+    "tsx": "^4.19.2",
+    "xlsx": "file:./vendor/xlsx-0.20.3.tgz"
   }
 }

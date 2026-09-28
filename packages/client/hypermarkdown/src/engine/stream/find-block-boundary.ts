@@ -212,16 +212,29 @@ export function findBlockBoundary(
 
   if (blockType === 'table') {
     mdBuffer = mapNotes(mdBuffer)
-    doubleLineClose = getDoubleLineClose(mdBuffer, blockType, doubleLine)
-    if (doubleLineClose) {
-      return doubleLineClose
+
+    // A table ends at the first blank line, so that is where the block ends.
+    // Ending it at the last one instead let a delta carrying a table and the
+    // prose after it absorb that prose into the table, which the repair then
+    // rebuilt as extra rows.
+    const closeIndex = mdBuffer.indexOf(doubleLine)
+
+    if (closeIndex === -1) {
+      return {
+        close: false,
+        md: mdBuffer,
+        mdClose: '',
+        mdNext: '',
+      }
     }
 
+    const closeEndIndex = closeIndex + doubleLine.length
+
     return {
-      close: false,
-      md: mdBuffer,
-      mdClose: '',
-      mdNext: '',
+      close: true,
+      md: mdBuffer.substring(0, closeEndIndex),
+      mdNext: mdBuffer.substring(closeEndIndex),
+      mdClose: doubleLine,
     }
   }
 

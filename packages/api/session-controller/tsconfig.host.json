@@ -29,6 +29,7 @@
     { "path": "../../core/agent-default-model" },
     { "path": "../../core/scope" },
     { "path": "../../core/session" },
+    { "path": "../../identity/user" },
     { "path": "../../context/file-reference" },
     { "path": "../../attachment/attachment" },
     { "path": "../../document/document-extract" },

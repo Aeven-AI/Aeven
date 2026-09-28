@@ -632,7 +632,7 @@ describe('HyperMarkdown streaming table cache', () => {
     headed:
       '| A | B |\n|:--|--:|\n| 1 | **b** |\n| 2 | [l](x) |\n| 3 | `c` |\n',
     headless: '| a | b |\n| c | d |\n| e | f |\n',
-    'headless without outer pipes': 'a | b\nc | d\n',
+    'headless with a one-cell row': '| a |\n| b |\n| c |\n',
     'headless widening': '| a | b |\n| c | d | e |\n| f | g |\n',
     'math in a cell': '| A |\n|---|\n| $x^2$ |\n| plain |\n',
   }
@@ -675,10 +675,11 @@ describe('HyperMarkdown streaming table cache', () => {
     })
   })
 
-  it('renders a headless table that has no outer pipes', () => {
-    let cells
+  // Rows are recognised by their own leading pipe. A run of lines that merely
+  // carry a pipe is prose — a shell pipeline, a regex alternation, a `||` —
+  // and rebuilding it as a table put a table where nobody wrote one.
+  it('keeps a run of pipe-carrying prose as prose', () => {
     let markup
-    let cellDom
     let renderer
 
     renderer = createRenderer({ streaming: true, animation: false })
@@ -686,13 +687,8 @@ describe('HyperMarkdown streaming table cache', () => {
 
     markup = renderToStaticMarkup(renderer.render())
 
-    cellDom = new JSDOM('<body>' + markup + '</body>')
-    cells = Array.from(
-      cellDom.window.document.querySelectorAll('tbody td'),
-    ).map(cell => cell.textContent)
-
-    expect(markup).toContain('<table')
-    expect(cells).toEqual(['a', 'b', 'c', 'd'])
+    expect(markup).not.toContain('<table')
+    expect(markup).toContain('a | b\nc | d')
   })
 
   it('keeps every cell when a later row is wider', () => {

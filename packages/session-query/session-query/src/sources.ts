@@ -17,6 +17,7 @@ export function assertSessionHeadersCompatible(a: SessionHeader, b: SessionHeade
     || a.parentSession !== b.parentSession
     || a.isSeeded !== b.isSeeded
     || (a.delegationDepth ?? 0) !== (b.delegationDepth ?? 0)
+    || a.owner !== b.owner
   ) {
     throw new SessionQueryError(
       `session source headers conflict for session "${a.id}"`,

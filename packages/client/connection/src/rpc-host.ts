@@ -200,6 +200,18 @@ export class HostConnectionService extends Service implements HostConnectionHand
   }
 
   /**
+   * Dispatch one admitted request with its caller as the acting user, so work it starts can attribute
+   * durable state, such as a new session's owner, to that person.
+   * @param request - a request {@link requestRejection} already admitted.
+   * @param work - the request's dispatch.
+   * @returns the dispatch result.
+   */
+  runAsCaller<T>(request: ConnectionTrustRequest, work: () => T): T {
+    const identity = this.ctx.get('identityUsers')
+    return identity === undefined ? work() : identity.runAsCaller(request, work)
+  }
+
+  /**
    * Decide whether the application index may be served.
    *
    * With an authority mounted the index is served to anyone: it carries no
@@ -287,7 +299,7 @@ export class HostConnectionService extends Service implements HostConnectionHand
         // one they just presented. Publishing before dispatch means the model
         // route reads the same token the request was authenticated with.
         this.publishCallerCredential(req)
-        await bridge(req, res, fetchHandler)
+        await this.runAsCaller(req, () => bridge(req, res, fetchHandler))
       },
     }
     return owner.effect(

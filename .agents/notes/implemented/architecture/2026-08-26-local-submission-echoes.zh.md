@@ -10,17 +10,17 @@
 
 ## 决定
 
-**Session 对象持有客户端本地的提交回显，用 prompt 现有的 `requestId`/`rpcId` 关联。**`session.beginSubmission` 在调用方序列化任何内容之前，同步把 `{requestId, text, images: previews}` 写入 `SessionSnapshot.pendingSubmissions` 并翻转 `promptAttempted`；同一个 `requestId` 随 prompt RPC 发出。没有新关联 id，没有 wire 类型改动，也没有 session log 改动：host 本就把 prompt 的 `requestId` 写进 durable user source 的 `rpcId`，queue 投影现在把它作为 `SessionQueuedItem.rpcId` 携带，覆盖落进 inbox 而非 log 的 prompt（运行中 turn 的提交）。
+**Session 对象持有客户端本地的提交回显，用 prompt 现有的 `requestId`/`rpcId` 关联。**`session.beginSubmission` 同步把 `{requestId, text, images: previews}` 写入 `SessionSnapshot.pendingSubmissions`、翻转 `promptAttempted`，并通过 `notifyNow()` 发布：这是提交手势自己的回显，在 keydown 任务内通知，因此它的 React 提交与编辑器同步清空草稿处于同一批，消息在 composer 变空的那一帧就渲染出来。同一个 `requestId` 随 prompt RPC 发出。没有新关联 id，没有 wire 类型改动，也没有 session log 改动：host 本就把 prompt 的 `requestId` 写进 durable user source 的 `rpcId`，queue 投影现在把它作为 `SessionQueuedItem.rpcId` 携带，覆盖落进 inbox 而非 log 的 prompt（运行中 turn 的提交）。
 
 **退休由观察驱动并延迟一帧；显示去重是渲染期的声明式规则。**Session 在带其 rpcId 的 durable `user/message` 或 queue occurrence 到达时（append、窗口安装或 control frame）标记回显为已观察，并在一个动画帧之后移除，晚于先注册的会话组装帧。ChatView 独立地隐藏 rpcId 出现在已渲染 user/steering 节点或 queue 行中的回显，因此无论 store 更新顺序如何，每一次渲染中回显与 durable 恰有一个可见。带标识的 prompt 失败、`abandon()` 或销毁使回显立即按 failed 退休；先到的 settlement 生效。
 
-**Composer 乐观提交。**Enter 在一个 machine 事务里清空草稿、occurrence 表和撤销历史，phase 保持 `plain`；发送作为 detached attempt 运行，允许并发发送，唯一的冻结 in-flight 槽只留给命令。多个 detached 发送失败时，只要 composer 为空或仍是上一次自动还原的内容，就按提交顺序合并还原；用户编辑后停止这一轮自动还原。草稿图片由 detached attempt 持有到回显退休，因此图片离开 rail 后销毁 Session scope 仍能释放它们。回显以 observed 退休时，`HistoricalImageCache.seed` 把每个预览 URL 挂到 admitted 引用名下。缓存同步公开预览 URL，同时读取 durable 附件；读取完成后用规范化 URL 替换预览，并按各自生命周期撤销两个 URL。直接 subagent continuation 不注册回显，因为它的 transport 会分配另一个 RPC id，而且不支持图片输入。
+**Composer 乐观提交。**Enter 在一个 machine 事务里清空草稿、occurrence 表和撤销历史，phase 保持 `plain`；发送作为 detached attempt 运行，允许并发发送，唯一的冻结 in-flight 槽只留给命令。回显行出现时淡入，而替换它的 durable 行不带这次淡入，因此一次提交只淡入一次；仍在运行的 step 的正文 run 在首次带上文本的那次提交里同样淡入，而从历史装配出来的 step 已是 settled，永不播放动画。多个 detached 发送失败时，只要 composer 为空或仍是上一次自动还原的内容，就按提交顺序合并还原；用户编辑后停止这一轮自动还原。草稿图片由 detached attempt 持有到回显退休，因此图片离开 rail 后销毁 Session scope 仍能释放它们。回显以 observed 退休时，`HistoricalImageCache.seed` 把每个预览 URL 挂到 admitted 引用名下。缓存同步公开预览 URL，同时读取 durable 附件；读取完成后用规范化 URL 替换预览，并按各自生命周期撤销两个 URL。直接 subagent continuation 不注册回显，因为它的 transport 会分配另一个 RPC id，而且不支持图片输入。
 
 客户端图片编码从同步分块 `btoa` 循环换成 `FileReader.readAsDataURL`（原生编码）。browser→host 传输仍是一个 base64 JSON 整包；#2885 剩余的传输改造不在本决定范围内。
 
 ## 后果
 
-普通文本与图片 prompt 点击提交后会在当帧显示消息并让 composer 落底，admission 时机不变。默认发送不再冻结 composer，发送期间可以继续输入和提交；machine 的 `submitting` 阶段只用于命令提交。RPC 响应丢失但 admission 已成功的 prompt 通过观察确认结果，不会重复发送。图片在 durable 字节返回前显示本地预览，随后显示 host 保存的版本，中间没有加载占位。
+普通文本与图片 prompt 点击提交后会在当帧显示消息并让 composer 落底，admission 时机不变。消息在 composer 变空的位置淡入，这次替换读起来是一次到达而非跳变。默认发送不再冻结 composer，发送期间可以继续输入和提交；machine 的 `submitting` 阶段只用于命令提交。RPC 响应丢失但 admission 已成功的 prompt 通过观察确认结果，不会重复发送。图片在 durable 字节返回前显示本地预览，随后显示 host 保存的版本，中间没有加载占位。
 
 ## 验证
 

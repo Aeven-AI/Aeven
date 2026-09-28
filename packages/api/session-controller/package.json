@@ -101,7 +101,8 @@
     "@aeven/typert-registry": "workspace:^",
     "@aeven/util-time": "workspace:^",
     "@aeven/util-workspace-path": "workspace:^",
-    "@aeven/workspace": "workspace:^"
+    "@aeven/workspace": "workspace:^",
+    "@aeven/identity-user": "workspace:^"
   },
   "peerDependenciesMeta": {
     "@aeven/jobs": {
@@ -157,6 +158,7 @@
     "@aeven/util-time": "workspace:^",
     "@aeven/util-workspace-path": "workspace:^",
     "@aeven/workspace": "workspace:^",
-    "@types/mime-types": "^3.0.1"
+    "@types/mime-types": "^3.0.1",
+    "@aeven/identity-user": "workspace:^"
   }
 }

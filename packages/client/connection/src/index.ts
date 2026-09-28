@@ -134,7 +134,7 @@ export async function apply(ctx: Context, config?: ConnectionConfig): Promise<vo
         // This is the route the web client actually calls, so it is the one that
         // has to hand the caller's credential to whoever else presents it.
         connection.publishCallerCredential(req)
-        await bridge(req, res, fetchHandler, maxRequestBodyBytes)
+        await connection.runAsCaller(req, () => bridge(req, res, fetchHandler, maxRequestBodyBytes))
       },
     }
     webCtx.effect(() => webCtx.webServer.register(route), 'client-connection: /api route')

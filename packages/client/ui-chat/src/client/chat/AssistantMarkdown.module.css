@@ -20,6 +20,30 @@
   gap: var(--dsw-aeven-space-content);
 }
 
+/* A live step's prose run fades in on the commit that first carries its text,
+   so the answer arrives instead of popping in. Only a streaming run takes the
+   class: a step mounted from history is already settled and must not animate
+   while the reader pages through it. */
+.enter {
+  animation: answer-enter 200ms ease-out both;
+}
+
+@keyframes answer-enter {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enter {
+    animation: none;
+  }
+}
+
 /* No rule for the renderer's many-column `md-table-wide` hook, deliberately.
    HyperMarkdown ships the hook as a styling opt-in with no geometry of its
    own, and its `.table-scroll { width: 100%; overflow-x: auto }` already

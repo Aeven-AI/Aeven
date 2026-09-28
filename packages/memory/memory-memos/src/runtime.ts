@@ -1,0 +1,622 @@
+/** MemOS-backed {@link MemoryProvider}: namespaces, per-session capture ordering, and MemOS session lifecycle. */
+import { brandString } from '@aeven/brand'
+import { MEMORY_TOOL } from '@aeven/memory'
+import type {
+  MemoryDetail,
+  MemoryDomain,
+  MemoryEnvironment,
+  MemoryEpisodeId,
+  MemoryHit,
+  MemoryItemId,
+  MemoryLlmRoute,
+  MemoryPage,
+  MemoryProvider,
+  MemoryRecall,
+  MemoryRecallRequest,
+  MemoryRecord,
+  MemoryScope,
+  MemorySkill,
+  MemoryTimelineEntry,
+  MemoryTurn,
+} from '@aeven/memory'
+import type { SessionId } from '@aeven/session'
+import type { JsonValue } from '@aeven/util-values'
+import type { RetrievalHitDTO, RuntimeNamespace, SkillDTO, TraceDTO } from '@memtensor/memos-local-plugin/dist/agent-contract/dto.js'
+import type { MemoryCore } from '@memtensor/memos-local-plugin/dist/agent-contract/memory-core.js'
+import { MemoryDeadlineError, withDeadline } from './deadline.ts'
+import type { LlmRouteContext } from './host-llm.ts'
+import { traceDomain, withDomainTag, type ClassifyInput, type TurnDomain } from './domain.ts'
+import { normalizeNamespace } from '@memtensor/memos-local-plugin/dist/core/runtime/namespace.js'
+
+/** MemOS agent kind. The embedded Viewer server keys its in-process host behavior on this value. */
+export const MEMOS_AGENT = 'deepseek-harness'
+
+/**
+ * MemOS profile id of one account's memory.
+ * @param owner - account id of the signed-in user.
+ * @returns the profile id every scope of that owner maps to.
+ */
+export function ownerProfile(owner: string): string {
+  // MemOS stores profile ids with `:` normalized to `-`; listing filters compare the stored form.
+  return `user-${owner}`
+}
+
+/** Facts the runtime needs beyond the MemOS core. */
+export interface MemosMemoryOptions {
+  readonly core: MemoryCore
+  readonly routes: LlmRouteContext
+  /** Classifies a captured turn's domain on the owning session's route; absent leaves the capture-location fallback. */
+  readonly classify?: (input: ClassifyInput) => Promise<TurnDomain | undefined>
+  readonly warn: (message: string) => void
+  readonly info: (message: string) => void
+}
+
+/** Per-Aeven-session state; one Aeven session may span several MemOS sessions after episode routing. */
+interface SessionState {
+  readonly memorySessions: Set<string>
+  route?: MemoryLlmRoute
+  lastEpisode?: string
+  /** MemOS trace and episode of each captured turn, for feedback on that turn. */
+  readonly turns: Map<number, { readonly traceId: string; readonly episodeId: string }>
+  pending?: Promise<void>
+}
+
+/** MemOS provider behind `ctx.memory`. */
+export class MemosMemory implements MemoryProvider {
+  readonly id = 'memos'
+  private readonly sessions = new Map<SessionId, SessionState>()
+  private disposing: Promise<void> | undefined
+
+  constructor(private readonly options: MemosMemoryOptions) {}
+
+  private get core(): MemoryCore {
+    return this.options.core
+  }
+
+  /** One MemOS profile per owning account, so recall, capture, and reads never cross accounts. */
+  private namespaceOf(scope: MemoryScope): RuntimeNamespace {
+    return {
+      agentKind: MEMOS_AGENT,
+      profileId: ownerProfile(scope.owner),
+      profileLabel: scope.owner,
+      ...scope.cwd === undefined ? {} : { workspacePath: scope.cwd },
+      sessionKey: scope.sessionId,
+    }
+  }
+
+  private state(sessionId: SessionId): SessionState {
+    let state = this.sessions.get(sessionId)
+    if (!state) {
+      state = { memorySessions: new Set(), turns: new Map() }
+      this.sessions.set(sessionId, state)
+    }
+    return state
+  }
+
+  private withRoute<T>(route: MemoryLlmRoute | undefined, operation: () => T): T {
+    return route === undefined ? operation() : this.options.routes.run(route, operation)
+  }
+
+  async recall(request: MemoryRecallRequest): Promise<MemoryRecall> {
+    const { scope } = request
+    if (scope.route) this.state(scope.sessionId).route = scope.route
+    const deadlineAt = Date.now() + request.timeoutMs
+    const turnStart = request.purpose === 'turn-start'
+    const search = this.withRoute(scope.route, () => this.core.searchMemory({
+      agent: MEMOS_AGENT,
+      namespace: this.namespaceOf(scope),
+      ...turnStart || request.sessionOnly === true ? { sessionId: scope.sessionId } : {},
+      query: request.query,
+      reason: turnStart ? 'turn_start' : 'tool_driven',
+      ...turnStart ? {
+        contextHints: {
+          __memosDeferLlmFilterToCaller: true,
+          ...scope.cwd === undefined ? {} : { cwd: scope.cwd },
+        },
+      } : scope.cwd === undefined ? {} : { contextHints: { cwd: scope.cwd } },
+      deadlineAt,
+      llmFilterMalformedRetries: 0,
+      ...request.limits === undefined ? {} : {
+        topK: { tier1: request.limits.skills, tier2: request.limits.traces, tier3: request.limits.worldModels },
+      },
+    }, { signal: request.signal, ...turnStart ? {} : { foreground: true } }))
+    try {
+      // A provider can be temporarily non-cancellable (for example while a local ONNX model loads),
+      // so the deadline is enforced here as well as inside the core.
+      const result = await withDeadline(Promise.resolve(search), deadlineAt, request.signal, `Memory recall exceeded ${request.timeoutMs}ms`)
+      return { hits: await this.visibleHits(scope, result.hits), timedOut: false }
+    } catch (error) {
+      if (!(error instanceof MemoryDeadlineError)) throw error
+      return { hits: [], timedOut: true }
+    }
+  }
+
+  /** MemOS workspace key of the scope's working directory, as MemOS stamps it on captured memory. */
+  private workspaceOf(scope: MemoryScope): string | undefined {
+    return scope.cwd === undefined ? undefined : normalizeNamespace({ workspacePath: scope.cwd }, MEMOS_AGENT).workspaceId
+  }
+
+  /**
+   * Classify each hit's domain and drop project memory of other workspaces; MemOS retrieval does not
+   * filter by workspace, so this is where project memory stays in its project.
+   */
+  private async visibleHits(scope: MemoryScope, hits: readonly RetrievalHitDTO[]): Promise<MemoryHit[]> {
+    const workspace = this.workspaceOf(scope)
+    const namespace = this.namespaceOf(scope)
+    const classified = await Promise.all(hits.map(async (hit) => {
+      const { domain, workspaceId, summary } = await this.hitOrigin(hit, namespace)
+      const memory: MemoryHit = {
+        kind: hit.refKind,
+        id: brandString<MemoryItemId>(hit.refId),
+        domain,
+        tier: hit.tier,
+        score: hit.score,
+        // A trace's distilled summary states the remembered fact; the raw exchange is the fallback.
+        snippet: summary || toAevenToolReferences(hit.snippet),
+      }
+      return { memory, workspaceId }
+    }))
+    return classified
+      .filter(({ memory, workspaceId }) => memory.domain !== 'project' || (workspace !== undefined && workspaceId === workspace))
+      .map(({ memory }) => memory)
+  }
+
+  /** Domain of a hit and the workspace it was captured in; search hits do not always carry the workspace, so traces are read. */
+  private async hitOrigin(hit: RetrievalHitDTO, namespace: RuntimeNamespace): Promise<{ domain: MemoryDomain; workspaceId: string | null | undefined; summary?: string }> {
+    switch (hit.refKind) {
+      case 'experience':
+      case 'skill':
+        return { domain: 'experience', workspaceId: hit.ownerWorkspaceId }
+      case 'world-model':
+        return { domain: 'world', workspaceId: hit.ownerWorkspaceId }
+      case 'trace': {
+        const trace = await this.core.getTrace(hit.refId, namespace)
+        const workspaceId = trace?.ownerWorkspaceId ?? hit.ownerWorkspaceId
+        const domain = traceDomain(trace?.tags, workspaceId)
+        const summary = trace === null ? undefined : domain === 'person' ? trace?.summary : traceSnippet(trace)
+        return {
+          domain,
+          workspaceId,
+          ...summary ? { summary } : {},
+        }
+      }
+      case 'episode':
+        return { domain: traceDomain(undefined, hit.ownerWorkspaceId), workspaceId: hit.ownerWorkspaceId }
+    }
+  }
+
+  capture(turn: MemoryTurn): void {
+    if (this.disposing) return
+    const state = this.state(turn.scope.sessionId)
+    if (turn.scope.route) state.route = turn.scope.route
+    void this.schedule(state, async () => {
+      const captured = await this.captureTurn(state, turn, `${turn.scope.sessionId}:${turn.turn}`)
+      state.turns.set(turn.turn, captured)
+    }).catch((error: unknown) => {
+      this.options.warn(`background write failed for session ${turn.scope.sessionId}: ${describe(error)}`)
+    })
+  }
+
+  /**
+   * Run one write after every write already accepted for the session. The caller sees the task's own
+   * outcome; a failed task never blocks the ones queued after it.
+   */
+  private schedule<T>(state: SessionState, task: () => Promise<T>): Promise<T> {
+    const run = (state.pending ?? Promise.resolve()).then(task)
+    const settled = run.then(() => undefined, () => undefined)
+    state.pending = settled
+    void settled.then(() => {
+      if (state.pending === settled) delete state.pending
+    })
+    return run
+  }
+
+  private async captureTurn(state: SessionState, turn: MemoryTurn, turnKey: string, domain?: TurnDomain): Promise<{ traceId: string; episodeId: string }> {
+    const { scope } = turn
+    const namespace = this.namespaceOf(scope)
+    let memorySessionId: string = scope.sessionId
+    let episodeId: string | undefined
+    try {
+      const prepareTurn = this.core.prepareTurn
+      if (!prepareTurn) throw new Error('MemoryCore does not expose prepareTurn')
+      const prepared = await this.withRoute(scope.route, () => prepareTurn.call(this.core, {
+        agent: MEMOS_AGENT,
+        namespace,
+        sessionId: memorySessionId,
+        turnKey,
+        userText: turn.userText,
+        contextHints: { __memosBackgroundLifecycle: true, turn: turn.turn, ...scope.cwd === undefined ? {} : { cwd: scope.cwd } },
+        ts: turn.startedAt,
+      }))
+      memorySessionId = prepared.sessionId
+      episodeId = prepared.episodeId
+      state.memorySessions.add(memorySessionId)
+    } catch (error) {
+      this.options.warn(`turn routing failed for session ${scope.sessionId}; opening a lazy episode: ${describe(error)}`)
+    }
+    if (!state.memorySessions.has(memorySessionId)) {
+      memorySessionId = await this.core.openSession({ agent: MEMOS_AGENT, sessionId: memorySessionId, namespace, meta: { namespace } })
+      state.memorySessions.add(memorySessionId)
+    }
+    episodeId ??= await this.core.openEpisode({ sessionId: memorySessionId, userMessage: turn.userText })
+    state.lastEpisode = episodeId
+
+    for (const tool of turn.toolCalls) {
+      if (tool.endedAt === undefined) continue
+      const endedAt = tool.endedAt
+      try {
+        this.withRoute(scope.route, () => this.core.recordToolOutcome({
+          sessionId: memorySessionId,
+          episodeId,
+          tool: tool.name,
+          success: tool.errorCode === undefined,
+          ...tool.errorCode === undefined ? {} : { errorCode: tool.errorCode },
+          durationMs: Math.max(0, endedAt - (tool.startedAt ?? endedAt)),
+          ts: endedAt,
+        }))
+      } catch (error) {
+        this.options.warn(`recordToolOutcome failed for ${tool.name}: ${describe(error)}`)
+      }
+    }
+
+    const result = await this.withRoute(scope.route, () => this.core.onTurnEnd({
+      agent: MEMOS_AGENT,
+      namespace,
+      sessionId: memorySessionId,
+      episodeId,
+      agentText: turn.assistantText,
+      ...turn.reasoningText === undefined ? {} : { agentThinking: turn.reasoningText },
+      toolCalls: turn.toolCalls.map(tool => ({
+        name: tool.name,
+        input: tool.input,
+        toolCallId: tool.callId,
+        ...tool.output === undefined ? {} : { output: tool.output },
+        ...tool.errorCode === undefined ? {} : { errorCode: tool.errorCode },
+        ...tool.startedAt === undefined ? {} : { startedAt: tool.startedAt },
+        ...tool.endedAt === undefined ? {} : { endedAt: tool.endedAt },
+      })),
+      contextHints: {
+        turn: turn.turn,
+        turnEndReason: turn.endReason,
+        ...scope.cwd === undefined ? {} : { cwd: scope.cwd },
+        ...turn.outcome === undefined ? {} : { outcomeEvidence: turn.outcome },
+      },
+      ts: turn.endedAt,
+    }))
+    this.options.info(`captured session=${scope.sessionId} turn=${turn.turn} trace=${result.traceId}`)
+    await this.annotateTrace(turn, result.traceId, domain)
+    if (turn.outcome?.completedGoal !== undefined) {
+      try {
+        await this.withRoute(scope.route, () => this.core.submitFeedback({
+          channel: 'implicit',
+          polarity: 'positive',
+          magnitude: 1,
+          traceId: result.traceId,
+          episodeId,
+          rationale: `Goal completed: ${turn.outcome?.completedGoal}`,
+        }))
+      } catch (error) {
+        this.options.warn(`goal outcome feedback failed for ${result.traceId}: ${describe(error)}`)
+      }
+    }
+    return { traceId: result.traceId, episodeId }
+  }
+
+  /**
+   * Record the turn's domain and outcome evidence on its trace. Without a classified domain,
+   * the capture-location fallback applies at read time.
+   */
+  private async annotateTrace(turn: MemoryTurn, traceId: string, explicit: TurnDomain | undefined): Promise<void> {
+    try {
+      const trace = await this.core.getTrace(traceId, this.namespaceOf(turn.scope))
+      if (!trace) return
+      const domain = explicit ?? await this.withRoute(turn.scope.route, () => this.options.classify?.({
+        userText: turn.userText,
+        assistantText: turn.assistantText,
+        summary: trace.summary ?? '',
+        project: turn.scope.cwd,
+      }))
+      const tags = domain === undefined ? [...(trace.tags ?? [])] : withDomainTag(trace.tags, domain)
+      if (turn.outcome?.retryCodes.length) tags.push('outcome:retried')
+      if (turn.outcome?.correction) tags.push('outcome:correction')
+      if (turn.outcome?.verification) tags.push('outcome:verification-reported')
+      if (turn.outcome?.completedGoal) tags.push('outcome:goal-completed')
+      const evidence = [
+        ...turn.outcome?.retryCodes.length ? [`Model retries: ${turn.outcome.retryCodes.join(', ')}`] : [],
+        ...turn.outcome?.correction ? [`User correction: ${turn.outcome.correction.slice(0, 300)}`] : [],
+        ...turn.outcome?.verification ? [`Assistant reported verification: ${turn.outcome.verification.statement}`] : [],
+        ...turn.outcome?.completedGoal ? [`Goal marked complete: ${turn.outcome.completedGoal.slice(0, 300)}`] : [],
+      ]
+      if (domain === undefined && evidence.length === 0) return
+      await this.core.updateTrace(traceId, {
+        tags: [...new Set(tags)],
+        ...evidence.length === 0 ? {} : { summary: [trace.summary || trace.userText, ...evidence].join('\n') },
+      })
+    } catch (error) {
+      this.options.warn(`trace annotation failed for ${traceId}: ${describe(error)}`)
+    }
+  }
+
+  async closeSession(sessionId: SessionId): Promise<void> {
+    const state = this.sessions.get(sessionId)
+    if (!state) return
+    await this.schedule(state, async () => {
+      for (const memorySessionId of state.memorySessions) {
+        try {
+          await this.withRoute(state.route, () => this.core.closeSession(memorySessionId))
+        } catch (error) {
+          this.options.warn(`closeSession failed for ${memorySessionId}: ${describe(error)}`)
+        }
+      }
+      state.memorySessions.clear()
+    })
+    if (this.sessions.get(sessionId) === state && state.pending === undefined) this.sessions.delete(sessionId)
+  }
+
+  /**
+   * Stop accepting captures, drain every session queue, close MemOS sessions, and shut the core down.
+   * @returns after the core shut down.
+   */
+  dispose(): Promise<void> {
+    this.disposing ??= (async () => {
+      await Promise.all([...this.sessions.keys()].map(sessionId => this.closeSession(sessionId)))
+      await this.core.shutdown()
+    })()
+    return this.disposing
+  }
+
+  async detail(request: Parameters<MemoryProvider['detail']>[0]): Promise<MemoryDetail | undefined> {
+    const namespace = this.namespaceOf(request.scope)
+    const id = request.id
+    switch (request.kind) {
+      case 'trace': {
+        const trace = await this.read(request, () => this.core.getTrace(id, namespace))
+        if (!trace) return undefined
+        return {
+          kind: 'trace',
+          id,
+          title: trace.summary || trace.userText,
+          body: trace.agentText || trace.summary || trace.userText,
+          facts: facts({
+            episodeId: trace.episodeId,
+            time: trace.ts,
+            value: trace.value,
+            userText: trace.userText,
+            reflection: trace.reflection,
+            tools: trace.toolCalls.map(tool => tool.errorCode ? `${tool.name} (${tool.errorCode})` : tool.name),
+          }),
+        }
+      }
+      case 'policy': {
+        const policy = await this.read(request, () => this.core.getPolicy(id, namespace))
+        if (!policy) return undefined
+        return {
+          kind: 'policy',
+          id,
+          title: policy.title,
+          body: policy.procedure,
+          facts: facts({
+            trigger: policy.trigger,
+            verification: policy.verification,
+            boundary: policy.boundary,
+            gain: policy.gain,
+            support: policy.support,
+            status: policy.status,
+          }),
+        }
+      }
+      case 'world-model': {
+        const model = await this.read(request, () => this.core.getWorldModel(id, namespace))
+        if (!model) return undefined
+        return {
+          kind: 'world-model',
+          id,
+          title: model.title,
+          body: model.body,
+          facts: facts({ policyIds: model.policyIds, status: model.status, version: model.version }),
+        }
+      }
+    }
+  }
+
+  async timeline(request: Parameters<MemoryProvider['timeline']>[0]): Promise<readonly MemoryTimelineEntry[]> {
+    const traces = await this.read(request, () => this.core.timeline({ episodeId: request.episodeId, namespace: this.namespaceOf(request.scope) }))
+    return traces.slice(0, request.limit).map(trace => ({
+      id: brandString<MemoryItemId>(trace.id),
+      time: trace.ts,
+      userText: trace.userText,
+      agentText: trace.agentText,
+      ...typeof trace.value === 'number' ? { value: trace.value } : {},
+      tools: trace.toolCalls.map(tool => ({ name: tool.name, ...tool.errorCode ? { errorCode: tool.errorCode } : {} })),
+    }))
+  }
+
+  async environments(request: Parameters<MemoryProvider['environments']>[0]): Promise<readonly MemoryEnvironment[]> {
+    const models = await this.read(request, () => this.core.listWorldModels({
+      limit: request.limit,
+      ...request.query ? { q: request.query } : {},
+      namespace: this.namespaceOf(request.scope),
+    }))
+    return models.map(model => ({
+      id: brandString<MemoryItemId>(model.id),
+      title: model.title,
+      body: model.body,
+      status: model.status,
+      version: model.version,
+    }))
+  }
+
+  async skills(request: Parameters<MemoryProvider['skills']>[0]): Promise<readonly MemorySkill[]> {
+    const skills = await this.read(request, () => this.core.listSkills({
+      ...request.status === undefined ? {} : { status: request.status },
+      limit: request.limit,
+      namespace: this.namespaceOf(request.scope),
+    }))
+    return skills.map(toSkill)
+  }
+
+  async useSkill(request: Parameters<MemoryProvider['useSkill']>[0]): Promise<MemorySkill | undefined> {
+    const episodeId = this.sessions.get(request.scope.sessionId)?.lastEpisode
+    const skill = await this.read(request, () => this.core.getSkill(request.id, {
+      recordUse: true,
+      recordTrial: true,
+      sessionId: request.scope.sessionId,
+      ...episodeId === undefined ? {} : { episodeId },
+      toolCallId: request.callId,
+      namespace: this.namespaceOf(request.scope),
+    }))
+    return skill ? toSkill(skill) : undefined
+  }
+
+  async list(request: Parameters<MemoryProvider['list']>[0]): Promise<MemoryPage> {
+    const profile = ownerProfile(request.scope.owner)
+    // Owner memories are private to the owner's namespace, which the core's own default namespace
+    // cannot see; listing therefore spans namespaces and the owner filter is the isolation.
+    const filter = {
+      ownerAgentKind: MEMOS_AGENT,
+      ownerProfileId: profile,
+      includeAllNamespaces: true,
+      ...request.query ? { q: request.query } : {},
+    }
+    const [traces, total] = await this.read(request, () => Promise.all([
+      this.core.listTraces({ ...filter, limit: request.limit, offset: request.offset }),
+      this.core.countTraces(filter),
+    ]))
+    return { records: traces.filter(trace => trace.ownerProfileId === profile).map(toRecord), total }
+  }
+
+  async remember(request: Parameters<MemoryProvider['remember']>[0]): Promise<MemoryItemId> {
+    request.signal.throwIfAborted()
+    const { scope } = request
+    const state = this.state(scope.sessionId)
+    const now = Date.now()
+    const { traceId } = await this.schedule(state, () => this.captureTurn(state, {
+      scope,
+      turn: 0,
+      userText: request.text,
+      assistantText: 'Noted.',
+      toolCalls: [],
+      startedAt: now,
+      endedAt: now,
+      endReason: 'completed',
+    }, `${scope.sessionId}:remember:${now}`, request.domain === 'project' && scope.cwd !== undefined ? 'project' : 'person'))
+    return brandString<MemoryItemId>(traceId)
+  }
+
+  async edit(request: Parameters<MemoryProvider['edit']>[0]): Promise<MemoryRecord | undefined> {
+    if (await this.ownedTrace(request) === undefined) return undefined
+    const updated = await this.read(request, () => this.core.updateTrace(request.id, { summary: request.summary }))
+    return updated ? toRecord(updated) : undefined
+  }
+
+  async forget(request: Parameters<MemoryProvider['forget']>[0]): Promise<boolean> {
+    if (await this.ownedTrace(request) === undefined) return false
+    const { deleted } = await this.read(request, () => this.core.deleteTrace(request.id))
+    return deleted
+  }
+
+  async feedback(request: Parameters<MemoryProvider['feedback']>[0]): Promise<boolean> {
+    const state = this.sessions.get(request.scope.sessionId)
+    const captured = state?.turns.get(request.turn)
+    if (!state || !captured) return false
+    await this.schedule(state, () => this.withRoute(request.scope.route ?? state.route, () => this.core.submitFeedback({
+      channel: 'explicit',
+      polarity: request.polarity,
+      magnitude: 1,
+      traceId: captured.traceId,
+      episodeId: captured.episodeId,
+      ...request.note === undefined ? {} : { rationale: request.note },
+    })))
+    return true
+  }
+
+  /**
+   * Read a trace only when it belongs to the scope's owner. MemOS deletes and updates by id alone,
+   * so ownership is checked here before either.
+   */
+  private async ownedTrace(request: { readonly scope: MemoryScope; readonly id: MemoryItemId; readonly signal: AbortSignal }): Promise<TraceDTO | undefined> {
+    const trace = await this.read(request, () => this.core.getTrace(request.id, this.namespaceOf(request.scope)))
+    return trace?.ownerProfileId === ownerProfile(request.scope.owner) ? trace : undefined
+  }
+
+  private async read<T>(request: { readonly scope: MemoryScope; readonly signal: AbortSignal }, operation: () => Promise<T>): Promise<T> {
+    request.signal.throwIfAborted()
+    const result = await this.withRoute(request.scope.route, operation)
+    request.signal.throwIfAborted()
+    return result
+  }
+}
+
+function traceSnippet(trace: TraceDTO): string {
+  const tools = trace.toolCalls.map(tool => {
+    const input = JSON.stringify(tool.input)
+    const output = tool.output === undefined ? '' : ` => ${JSON.stringify(tool.output)}`
+    return `${tool.name} ${input ?? ''}${output}${tool.errorCode ? ` (${tool.errorCode})` : ''}`
+  })
+  return [
+    trace.summary?.trim(),
+    ...tools.length === 0 ? [] : [`Tool record: ${tools.join('; ')}`],
+    ...trace.agentText.trim() ? [`Assistant answer: ${trace.agentText.trim()}`] : [],
+  ].filter(Boolean).join('\n')
+}
+
+const MEMOS_TOOLS: Readonly<Record<string, string>> = {
+  memos_search: MEMORY_TOOL.search,
+  memos_get: MEMORY_TOOL.get,
+  memos_timeline: MEMORY_TOOL.timeline,
+  memos_environment: MEMORY_TOOL.environments,
+  memos_skill_list: MEMORY_TOOL.skills,
+  memos_skill_get: MEMORY_TOOL.skill,
+}
+
+/**
+ * Rewrite the MemOS tool references in rendered context to the Aeven memory tools.
+ * @param context - MemOS `injectedContext`.
+ * @returns context whose follow-up hints name tools the model can call.
+ */
+export function toAevenToolReferences(context: string): string {
+  return context
+    .replace(/\bmemos_(?:skill_get|skill_list|timeline|environment|search|get)\b/g, tool => MEMOS_TOOLS[tool] ?? tool)
+    .replaceAll('kind="world_model"', 'kind="world-model"')
+}
+
+function toRecord(trace: TraceDTO): MemoryRecord {
+  return {
+    id: brandString<MemoryItemId>(trace.id),
+    domain: traceDomain(trace.tags, trace.ownerWorkspaceId),
+    time: trace.ts,
+    summary: trace.summary ?? '',
+    userText: trace.userText,
+    agentText: trace.agentText,
+    sessionId: brandString<SessionId>(trace.sessionId),
+    episodeId: brandString<MemoryEpisodeId>(trace.episodeId),
+  }
+}
+
+function toSkill(skill: SkillDTO): MemorySkill {
+  return {
+    id: brandString<MemoryItemId>(skill.id),
+    name: skill.name,
+    status: skill.status,
+    guide: skill.invocationGuide,
+    ...typeof skill.eta === 'number' ? { eta: skill.eta } : {},
+    ...typeof skill.support === 'number' ? { support: skill.support } : {},
+    ...typeof skill.gain === 'number' ? { gain: skill.gain } : {},
+  }
+}
+
+type FactValue = string | number | boolean | readonly string[] | null | undefined
+
+/** Drop absent and empty facts so the result is lossless JSON. */
+function facts(input: Record<string, FactValue>): Record<string, JsonValue> {
+  const out: Record<string, JsonValue> = {}
+  for (const [key, value] of Object.entries(input)) {
+    if (value === undefined || value === null || value === '') continue
+    out[key] = Array.isArray(value) ? [...value] : value as JsonValue
+  }
+  return out
+}
+
+function describe(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}

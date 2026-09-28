@@ -31,6 +31,11 @@ const S2_CMDS: CommandDescriptor[] = [
   { name: 'attach', description: 'attach a file', input: { hint: 'path' } },
 ]
 
+/** Let settled pulls run their continuations. */
+function flush(): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, 0))
+}
+
 /** Directory over per-key pull queues: each fetch appends a hand-settled deferred. */
 function bench() {
   const pulls = new Map<SessionId, Array<ReturnType<typeof deferred<readonly CommandDescriptor[]>>>>()
@@ -94,37 +99,53 @@ describe('status and resolve (per key)', () => {
   })
 })
 
-describe('epoch guard (per key)', () => {
-  it('a superseded pull cannot overwrite the newer one (old resolves after new)', async () => {
-    const { dir, pull } = bench()
+describe('single flight (per key)', () => {
+  it('a refresh during a pull runs one follow-up; the stale outcome never publishes', async () => {
+    const { dir, pull, countOf } = bench()
     const first = dir.refresh(S1)
     const second = dir.refresh(S1)
-    pull(S1, 1).resolve(CMDS)
-    await second
-    expect(dir.resolve(S1, 'plan')).toBeDefined()
+    expect(countOf(S1)).toBe(1)
     pull(S1, 0).resolve([{ name: 'stale', description: 'old world' }])
-    await first
+    await flush()
+    expect(dir.resolve(S1, 'stale')).toBeUndefined()
+    expect(countOf(S1)).toBe(2)
+    pull(S1, 1).resolve(CMDS)
+    await Promise.all([first, second])
     expect(dir.resolve(S1, 'stale')).toBeUndefined()
     expect(dir.resolve(S1, 'plan')).toBeDefined()
   })
 
-  it('a superseded failure cannot demote the newer success', async () => {
+  it('a stale failure cannot demote the follow-up success', async () => {
     const { dir, pull } = bench()
     const first = dir.refresh(S1)
     const second = dir.refresh(S1)
-    pull(S1, 1).resolve(CMDS)
-    await second
     pull(S1, 0).reject(new Error('late failure'))
-    await first
+    await flush()
+    pull(S1, 1).resolve(CMDS)
+    await Promise.all([first, second])
     expect(dir.status(S1)).toBe('ready')
     expect(dir.resolve(S1, 'plan')).toBeDefined()
   })
 
-  it('epochs are per key: one session supersede leaves another session epoch alone', async () => {
+  it('a burst of refreshes during one pull costs exactly one follow-up request', async () => {
+    const { dir, pull, countOf } = bench()
+    const burst = [dir.refresh(S1), dir.refresh(S1), dir.refresh(S1), dir.refresh(S1)]
+    dir.invalidateAll()
+    expect(countOf(S1)).toBe(1)
+    pull(S1, 0).resolve(CMDS)
+    await flush()
+    expect(countOf(S1)).toBe(2)
+    pull(S1, 1).resolve(CMDS)
+    await Promise.all(burst)
+    expect(countOf(S1)).toBe(2)
+    expect(dir.status(S1)).toBe('ready')
+  })
+
+  it('pulls are per key: a follow-up queued for one session leaves another session alone', async () => {
     const { dir, pull } = bench()
     const one = dir.refresh(S1)
     void dir.refresh(S2)
-    void dir.refresh(S2) // supersedes the s2 pull only
+    void dir.refresh(S2) // queues a follow-up for s2 only
     pull(S1, 0).resolve(CMDS)
     await one
     expect(dir.status(S1)).toBe('ready')
@@ -306,11 +327,12 @@ describe('ensureReady (per key)', () => {
     await expect(dir.ensureReady(S1, ac.signal)).rejects.toThrow(/aborted/)
   })
 
-  it('keeps waiting across a superseded pull and settles on the winner', async () => {
+  it('keeps waiting across a stale pull and settles on the follow-up', async () => {
     const { dir, pull } = bench()
     const wait = dir.ensureReady(S1, signal())
-    void dir.refresh(S1) // supersedes pull #0 with pull #1
+    void dir.refresh(S1) // marks pull #0 stale and queues pull #1
     pull(S1, 0).resolve([{ name: 'stale', description: 'loser' }])
+    await flush()
     pull(S1, 1).resolve(CMDS)
     await expect(wait).resolves.toEqual(CMDS)
   })

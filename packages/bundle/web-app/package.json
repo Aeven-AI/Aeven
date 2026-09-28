@@ -125,6 +125,8 @@
     "@aeven/media": "workspace:^",
     "@aeven/media-deepinfra": "workspace:^",
     "@aeven/media-openrouter": "workspace:^",
+    "@aeven/memory": "workspace:^",
+    "@aeven/memory-memos": "workspace:^",
     "@aeven/message-feedback": "workspace:^",
     "@aeven/session-reference": "workspace:^",
     "@aeven/session-stats": "workspace:^",

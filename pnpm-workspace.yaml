@@ -56,6 +56,13 @@ allowBuilds:
   electron-winstaller: false
   # Store-index rewriting only needs msgpackr's portable JavaScript codec.
   msgpackr-extract: false
+  # MemOS memory (@aeven/memory-memos): SQLite storage, local ONNX embeddings, and
+  # image decoding pulled in by Transformers.js need their native builds. The
+  # MemOS package's own postinstall only prints an install hint.
+  better-sqlite3: true
+  onnxruntime-node: true
+  sharp: true
+  '@memtensor/memos-local-plugin': false
 
 # Release-age screening is off: a dependency may be installed the moment it is
 # published. This is deliberate, and it gives up the delay that would otherwise

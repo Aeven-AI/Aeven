@@ -18,11 +18,21 @@ const cases: [string, string, boolean, BlockType][] = [
   ['backtick fence with content', '```js\nconst value = 1', false, 'code'],
   ['open tilde fence', '~~~js\n', false, 'code'],
   ['indented code', '    const value = 1', false, 'code'],
-  ['one pipe', 'left | right', false, 'pending'],
+  ['row still arriving', '| left', false, 'pending'],
   ['table row', '| left | right |', false, 'table'],
-  ['table row without outer pipes', 'left | middle | right', false, 'table'],
-  ['table row at newline', 'left | middle | right\n', false, 'table'],
-  ['single trailing table edge', 'value|\n', false, 'pending'],
+  ['table row at newline', '| left | right |\n', false, 'table'],
+  ['indented table row', '  | left | right |', false, 'table'],
+  ['quoted table row', '> | left | right |', false, 'table'],
+  ['table row before prose', '| left | right |\n\nProse.', false, 'table'],
+  // A pipe on its own is not a row: only the leading pipe makes one, so the
+  // prose these lines are stays prose. The trailing newline holds any block
+  // pending until more arrives or the stream ends, which is why these are
+  // read finalized.
+  ['one pipe in prose', 'left | right', false, 'text'],
+  ['prose with pipes at newline', 'left | middle | right\n', true, 'text'],
+  ['list items carrying pipes', '- ls | head\n- grep | head\n', true, 'text'],
+  ['prose before a table', 'Prose.\n\n| left | right |', false, 'text'],
+  ['trailing pipe without a leading one', 'value|\n', false, 'text'],
 ]
 
 describe.each(cases)(

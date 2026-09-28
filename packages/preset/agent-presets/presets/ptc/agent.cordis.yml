@@ -267,6 +267,15 @@
   config:
     allowParallelInProgress: true
 
+# Long-term memory: one bounded recall per direct-user turn, turn capture, and
+# the model-facing memory tools. Both inject the host `memory` slot and add
+# prompt text and tools only while a memory provider is registered.
+- id: memory-context
+  name: '@aeven/memory-context'
+
+- id: tool-memory
+  name: '@aeven/tool-memory'
+
 # The `web` service and its search provider stay in the host composition; only
 # the model-facing tool is per-session.
 - id: tool-web

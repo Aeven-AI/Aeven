@@ -191,6 +191,15 @@ export interface HostConnectionHandle {
   identify(request: ConnectionTrustRequest): User | undefined
 
   /**
+   * Dispatch one admitted request with its caller as the acting user, so work it starts can
+   * attribute durable state, such as a new session's owner, to that person.
+   * @param request - request headers the fence already admitted.
+   * @param work - the request's dispatch.
+   * @returns the dispatch result.
+   */
+  runAsCaller<T>(request: ConnectionTrustRequest, work: () => T): T
+
+  /**
    * Authenticate one frontend index request, owning a token redirect or 401.
    * @param request - root or configured-index HTTP request.
    * @param response - response owned when the result is false.

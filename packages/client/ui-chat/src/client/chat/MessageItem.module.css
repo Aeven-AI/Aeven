@@ -7,6 +7,30 @@
   gap: 8px;
 }
 
+/* The reader's own message fades in where the composer emptied: the echo is
+   inserted in the frame the draft clears, so the fade reads as one arrival
+   rather than a jump. The durable row that replaces the echo renders without
+   it, so a submitted message fades exactly once. */
+.enter {
+  animation: message-enter 180ms ease-out both;
+}
+
+@keyframes message-enter {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enter {
+    animation: none;
+  }
+}
+
 .userStack {
   display: flex;
   flex-direction: column;

@@ -52,9 +52,28 @@ export interface Config {
   readonly maxNoteBytes: number
 }
 
+/** One committed change to a message's feedback. */
+export interface MessageFeedbackChange {
+  readonly sessionId: SessionId
+  readonly messageId: MessageFeedbackItem['messageId']
+  /** The stored item after the change; absent when the feedback was deleted. */
+  readonly item?: MessageFeedbackItem
+}
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     messageFeedback: MessageFeedbackService
+  }
+
+  interface Events {
+    /**
+     * Feedback for one assistant message was stored, replaced, or deleted. Emitted after the write is
+     * durable; a matching no-op put and the delete of absent feedback emit nothing.
+     * @param change - the session, message, and stored item after the change.
+     * @avnScopeScan unsupported
+     * @mode emit
+     */
+    'message-feedback/changed'(change: MessageFeedbackChange): void
   }
 }
 
@@ -259,6 +278,7 @@ export class MessageFeedbackService extends TypertRemoteService {
         request.sessionId,
         rowSnapshot(identityOf(durable.meta), nextItems),
       )
+      this.announce({ sessionId: request.sessionId, messageId: request.messageId, item: snapshotItem(item) })
       return success(snapshotItem(item))
     })
   }
@@ -291,8 +311,19 @@ export class MessageFeedbackService extends TypertRemoteService {
         request.sessionId,
         rowSnapshot(identityOf(known.value.meta), items.filter(item => item !== existing)),
       )
+      this.announce({ sessionId: request.sessionId, messageId: request.messageId })
       return success<MessageFeedbackDeleteValue>(Object.freeze({ absent: true }))
     })
+  }
+
+  /** Notify observers of one committed change; an observer failure never fails the write. */
+  private announce(change: MessageFeedbackChange): void {
+    try {
+      this.ctx.emit('message-feedback/changed', change)
+    } catch (error: unknown) {
+      // The write already committed; observers such as long-term memory are best-effort.
+      this.ctx.logger('message-feedback').warn(`message-feedback/changed listener threw: ${error instanceof Error ? error.message : String(error)}`)
+    }
   }
 
   /**

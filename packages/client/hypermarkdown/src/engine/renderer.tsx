@@ -812,6 +812,14 @@ class Renderer {
       mdBuffer = closeObject.md
       mdBuffer = vm.mdMath(mdBuffer, 'text')
 
+      // A run of rows inside prose is a table the model wrote without its
+      // delimiter row. Rendering the transcript again from the log repairs it,
+      // so a block that closes here is repaired too and the reader gets one
+      // render rather than one while it streams and another afterwards.
+      if (patterns.tableRowScanRegex.test(mdBuffer)) {
+        mdBuffer = repairTableSyntax(mdBuffer, 'renderer', false)
+      }
+
       vm.buffering = false
 
       if (!animation) {
