@@ -1,17 +1,18 @@
 /**
  * The reader's picture, ported from Aeven's `Avatar` component.
  *
- * A reader who has never uploaded one still gets a stable, recognisable mark:
- * three hues folded out of their user id drive a gradient, so the same reader
- * always sees the same colours and two readers rarely share them.
+ * A reader who has never uploaded one gets the first letter of their display
+ * name, or of their email address when they have no name, on a black disc.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 /** What the avatar needs to draw itself. */
 export interface AvatarProps {
-  /** The reader's id, which seeds the gradient. */
-  userId: string | null
+  /** The reader's display name, the preferred source of the initial. */
+  name?: string
+  /** The reader's email address, the initial's source when there is no name. */
+  email?: string
   /** Absolute URL of the uploaded picture, absent until a reader sets one. */
   imageUrl?: string
   /** Draw a pointer cursor, as Aeven does for the menu trigger. */
@@ -26,27 +27,16 @@ const SPINNER_DELAY_MS = 400
 /** Milliseconds the loaded picture takes to cover the spinner. */
 const SETTLE_MS = 400
 
-/** FNV-1a over the id, so the colours are stable across pages and reloads. */
-function hashCode(value: string): number {
-  let hash = 2166136261 >>> 0
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index)
-    hash = Math.imul(hash, 16777619)
-  }
-  return hash >>> 0
-}
-
 /**
- * The three gradient stops for one reader.
- * @param userId - the reader's id, or null before one is known.
- * @returns three CSS colours, from the same folding Aeven uses.
+ * The letter drawn in place of a missing picture.
+ * @param name - the reader's display name, if any.
+ * @param email - the reader's email address, if any.
+ * @returns the upper-cased first character of the first non-blank source, or an empty string when neither has one.
  */
-export function colorsFromId(userId: string | null): [string, string, string] {
-  const hash = hashCode(userId ?? 'aeven')
-  const hue1 = hash % 360
-  const hue2 = (hue1 + 47 + (hash % 53)) % 360
-  const hue3 = (hue2 + 61 + (hash % 37)) % 360
-  return [`hsl(${hue1}, 70%, 82%)`, `hsl(${hue2}, 70%, 76%)`, `hsl(${hue3}, 60%, 72%)`]
+export function initialOf(name: string | undefined, email: string | undefined): string {
+  const source = name?.trim() || email?.trim() || ''
+  const [first = ''] = source
+  return first.toUpperCase()
 }
 
 /** The spinner Aeven shows while a picture loads. */
@@ -56,10 +46,10 @@ const SPINNER_SVG = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.o
 
 /**
  * Render the reader's avatar.
- * @param props - reader identity, optional picture, and cursor.
+ * @param props - reader name and email, optional picture, and cursor.
  * @returns the avatar element.
  */
-export function Avatar({ userId, imageUrl, pointer, alt }: AvatarProps) {
+export function Avatar({ name, email, imageUrl, pointer, alt }: AvatarProps) {
   const [failed, setFailed] = useState(false)
   const [loading, setLoading] = useState(false)
   const [preloaded, setPreloaded] = useState(false)
@@ -85,7 +75,6 @@ export function Avatar({ userId, imageUrl, pointer, alt }: AvatarProps) {
 
   useEffect(() => () => { window.clearTimeout(timer.current) }, [])
 
-  const [c1, c2, c3] = colorsFromId(userId)
   const showImage = imageUrl !== undefined && !failed
 
   return (
@@ -109,10 +98,7 @@ export function Avatar({ userId, imageUrl, pointer, alt }: AvatarProps) {
             />
           )
           : (
-            <span
-              className="gradient"
-              style={{ '--c1': c1, '--c2': c2, '--c3': c3 } as Record<string, string>}
-            />
+            <span className="initial" aria-hidden="true">{initialOf(name, email)}</span>
           )}
       </span>
     </span>

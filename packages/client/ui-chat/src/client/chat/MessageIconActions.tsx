@@ -30,9 +30,10 @@ export interface MessageIconActionsProps {
   extraActions?: ReactNode
   /**
    * Icon-row Turn-usage trigger (the TurnUsagePanel pill), seated after the
-   * branch control at the end of the icon cluster.
+   * branch control at the end of the icon cluster. Omitted by Normal, which
+   * renders no per-Turn timing or usage chrome.
    */
-  usageAction?: ReactNode
+  usageAction?: ReactNode | undefined
   /** The owning view's locale seat, passed down as a plain prop. */
   t: ChatViewSlotProps['t']
 }

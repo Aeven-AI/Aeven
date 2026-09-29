@@ -84,6 +84,12 @@ export interface ChatNodeOwnerProps {
   scrollDown?: (() => void) | undefined
   /** A transcript block took the viewport, or gave it back. */
   onFullscreenChange?: ((fullscreen: boolean) => void) | undefined
+  /**
+   * Whether the reader chose the Extended transcript, which shows every process
+   * row together with each message's clock and each Turn's timing and usage
+   * chrome. The Normal transcript renders none of that chrome.
+   */
+  extendedTranscript: boolean
   /** Turn-process state when this Node belongs to a projected Turn. */
   turnProcess?: TurnProcessOwnerProps | undefined
 }

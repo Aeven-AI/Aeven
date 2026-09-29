@@ -15,7 +15,7 @@ interface ChatNodeSeatProps extends ChatNodeOwnerProps {
   readonly useChatNode: ChatViewSlotProps['useChatNode']
   readonly useChatNodeProcess: ChatViewSlotProps['useChatNodeProcess']
   readonly historyIncomplete: boolean
-  readonly compactTranscript: boolean
+  readonly extendedTranscript: boolean
   readonly useStore: ChatViewSlotProps['useStore']
   readonly actions: ChatViewSlotProps['actions']
   readonly renderSlot: ChatViewSlotProps['renderSlot']
@@ -49,7 +49,7 @@ function turnOf(node: ChatNode | undefined): number | undefined {
 
 /** Subscribe, apply Turn-process visibility, and dispatch one stable Context key. */
 export const ChatNodeSeat = memo(function ChatNodeSeat({
-  nodeKey, highlightedNodeKey, useChatNode, useChatNodeProcess, historyIncomplete, compactTranscript,
+  nodeKey, highlightedNodeKey, useChatNode, useChatNodeProcess, historyIncomplete, extendedTranscript,
   selectedCallId, cwd, openFile, inspectCall, forkAt,
   renderMessageImages, fileMentions, scrollDown, onFullscreenChange, useStore, actions, renderSlot, t,
 }: ChatNodeSeatProps) {
@@ -74,7 +74,7 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
   }, [actions, processSpec])
   const processWindowReady = processSpec !== undefined
     && processPresentation !== undefined
-    && compactTranscript
+    && !extendedTranscript
     && processSpec.answerAnchorSeq !== null
     && processPresentation.turn === processSpec.turn
     && processPresentation.turnClosed
@@ -136,10 +136,11 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
       fileMentions,
       scrollDown,
       onFullscreenChange,
+      extendedTranscript,
       turnProcess,
     }, [
     node, selectedCallId, cwd, openFile, inspectCall, forkAt,
-    renderMessageImages, fileMentions, scrollDown, onFullscreenChange, turnProcess,
+    renderMessageImages, fileMentions, scrollDown, onFullscreenChange, extendedTranscript, turnProcess,
   ])
   if (routedNode === undefined || owner === null) return null
   const turnData = turnDataOf(routedNode)

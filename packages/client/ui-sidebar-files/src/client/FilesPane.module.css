@@ -29,14 +29,18 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+  /* The list starts 5px under the toolbar. The top fade matches that inset,
+     so the first row is clear at rest. The file view keeps the 20px fade. */
+  --files-fade-top: 5px;
 }
 
 .toolbar {
   display: flex;
   flex: none;
   align-items: center;
-  gap: 6px;
-  padding: 4px 24px 12px;
+  gap: 8px;
+  /* 5px matches a 30px control centered in the 40px file bar and dock toolbar. */
+  padding: 5px 24px 0;
 }
 
 .search {
@@ -51,10 +55,8 @@
   padding: 0 3px 0 12px;
   box-sizing: border-box;
   border-radius: 15px;
-  /* Page grey with the primary label's ink: the same flat ground the refresh
-     and collapse buttons take on hover. */
-  background: var(--dsw-alias-bg-base);
-  color: var(--dsw-alias-label-primary);
+  background: #000;
+  color: #fff;
 }
 
 .searchGlyph {
@@ -100,9 +102,8 @@
   display: none;
 }
 
-/* Round 30px buttons, like the search pill and the column's pills. Hover and
-   the pressed state are the flat page grey: a raised glass disc next to the
-   search's own fill would read as a second, lighter control. */
+/* Round 30px buttons. File-bar controls take a flat page-grey hover. The
+   toolbar and file-bar colours are set below. */
 .iconButton {
   display: flex;
   flex: none;
@@ -132,32 +133,37 @@
   color: var(--dsw-alias-label-primary);
 }
 
+/* Toolbar buttons are black with a white icon, including on hover; refresh
+   overrides this with the white disc below. */
+.toolbar > .iconButton,
+.toolbar > .iconButton:hover:not(:disabled),
+.toolbar > .iconButton[aria-pressed='true'] {
+  background: #000;
+  box-shadow: none;
+  color: #fff;
+}
+
 .iconButton:disabled {
   opacity: 0.35;
   cursor: default;
 }
 
-.rootLine {
-  flex: none;
-  overflow: hidden;
-  padding: 0 24px;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
-  line-height: 16px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* Collapse keeps its black disc; only the glyph fades. */
+.toolbar > .iconButton:disabled {
+  opacity: 1;
 }
 
-.rootName {
-  color: var(--dsw-alias-label-secondary);
-  font-weight: 500;
+.toolbar > .iconButton:disabled svg {
+  opacity: 0.35;
 }
 
 .rows {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  padding: 20px 12px 40px 14px;
+  /* The left padding equals the toolbar's, so row glyphs line up with the
+     search field's left edge. */
+  padding: 5px 12px 40px 24px;
   outline: none;
 }
 
@@ -218,19 +224,15 @@
   display: none;
 }
 
-/* The height and radius the search row above states, so a row and the search
-   field share one 30px metric with semicircular ends. The focus ring takes that
-   same radius, so a row that is both highlighted and focused does not change
-   shape. A highlighted row paints no fill: hover and selection read as the
-   row's own opacity, so the highlight follows the row's content. */
+/* A highlighted row paints no fill: hover and selection read as the row's
+   own opacity, so the highlight follows the row's content. */
 .row {
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 30px;
+  height: 40px;
   margin-bottom: 1px;
   padding-right: 10px;
-  border-radius: 15px;
   cursor: pointer;
   user-select: none;
   transition: opacity 120ms ease;
@@ -281,7 +283,7 @@
 }
 
 .note {
-  padding: 6px 10px;
+  padding: 6px 10px 6px 0;
   color: var(--dsw-alias-label-tertiary);
   font-size: 13px;
   line-height: 20px;
@@ -309,38 +311,28 @@
   flex-direction: column;
   width: clamp(240px, 36%, 340px);
   min-height: 0;
-  padding-top: 16px;
   overflow: hidden;
-  /* A solid page-grey pane rounded only at its top-left corner. */
-  border-radius: var(--dsw-aeven-radius-surface) 0 0 0;
-  background: var(--dsw-alias-bg-base);
+  /* White pane. Its toolbar keeps the tree view's 5px top inset, so search and
+     refresh line up with the controls centered in the 40px file bar, and the
+     first row sits at the same height as in the tree view. */
+  background: #fff;
 }
 
 .dock .toolbar {
-  padding: 0 14px 12px;
-}
-
-/* On the dock's grey the search is white with black text. */
-.dock .search {
-  background: var(--dsw-alias-button-elevated-fill);
-  color: var(--dsw-alias-label-primary);
-}
-
-.dock .rootLine {
-  padding: 0 22px;
+  padding: 5px 24px 0 0;
 }
 
 .dock .rows {
-  padding: 20px 10px 40px;
+  padding: 5px 24px 40px 0;
 }
 
 .fileBar {
   display: flex;
   flex: none;
   align-items: center;
-  gap: 4px;
-  height: 44px;
-  padding: 0 8px 0 18px;
+  gap: 8px;
+  height: 40px;
+  padding: 0 24px;
 }
 
 .crumbs {
@@ -350,7 +342,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 13px;
+  font-size: 14px;
   white-space: nowrap;
 }
 
@@ -363,19 +355,18 @@
 .crumb {
   min-width: 0;
   overflow: hidden;
-  padding: 2px 6px;
+  padding: 0;
   border: none;
-  border-radius: 8px;
   background: transparent;
-  color: inherit;
+  color: #000;
   font: inherit;
   text-overflow: ellipsis;
   cursor: pointer;
 }
 
 .crumb:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
+  background: transparent;
+  opacity: 0.5;
 }
 
 .crumbSep {
@@ -388,6 +379,32 @@
   color: var(--dsw-alias-label-primary);
   font-weight: 500;
   text-overflow: ellipsis;
+}
+
+/* File-bar controls stay black discs with a white 18px glyph, including on hover. */
+.fileBar > .iconButton,
+.fileBar > .iconButton:hover,
+.fileBar > .iconButton[aria-pressed='true'] {
+  width: 30px;
+  height: 30px;
+  border-radius: 15px;
+  background: #000;
+  box-shadow: none;
+  color: #fff;
+}
+
+.fileBar > .iconButton svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Refresh and the file bar's tree toggle are white discs with a black glyph,
+   including on hover and while pressed. */
+.iconButton.lightButton,
+.iconButton.lightButton:hover:not(:disabled),
+.iconButton.lightButton[aria-pressed='true'] {
+  background: var(--dsw-static-neutral-00);
+  color: var(--dsw-static-neutral-1000);
 }
 
 .fileBody {
@@ -405,27 +422,34 @@
   margin: 0;
 }
 
-/* The file body already insets 24px from the sidebar. The code block's banner
-   and source add no further left padding, so the language name and the text
-   start on that line. */
-.code > :first-child > :first-child,
+/* The file body already insets 24px from the sidebar, and the code block adds
+   no further left padding, so the source starts on that line. */
 .code :global(pre) {
   padding-left: 0;
 }
 
-/* The copy control keeps its accessible name and draws the copy glyph. */
-.code :global(button) {
-  width: 16px;
-  height: 16px;
-  padding: 0;
+/* The open file's type and copy control. It spans 40px to 80px of the pane,
+   as the docked tree's first row does, so the two share a centre line. The
+   right padding puts the copy glyph's edge 24px in, under the file bar's. */
+.codeBar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 40px;
+  padding: 0 24px;
+}
+
+.codeLang {
+  min-width: 0;
   overflow: hidden;
-  font-size: 0;
-  line-height: 0;
-  background-color: currentColor;
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='14' height='14' x='8' y='8' rx='2' ry='2'/%3E%3Cpath d='M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2'/%3E%3C/svg%3E");
-  mask-repeat: no-repeat;
-  mask-position: center;
-  mask-size: 16px 16px;
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--ds-font-family-code);
+  font-size: 14px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .image {
@@ -437,20 +461,15 @@
   box-shadow: var(--files-glass-edge);
 }
 
-/* The open file's "Open with" split button: default app, then its menu. */
+/* The open file's "Open with" split button stays a black pill, including on hover. */
 .openWith {
   display: flex;
   flex: none;
   align-items: center;
   height: 30px;
-  margin-right: 2px;
   border-radius: 15px;
-  transition: background-color 150ms ease, box-shadow 150ms ease;
-}
-
-.openWith:hover {
-  background: var(--files-glass-fill);
-  box-shadow: var(--files-glass-edge);
+  background: #000;
+  color: #fff;
 }
 
 .openWithMain,
@@ -462,8 +481,15 @@
   padding: 0;
   border: none;
   background: transparent;
-  color: var(--dsw-alias-label-secondary);
+  color: inherit;
   cursor: pointer;
+}
+
+.openWithMain:hover,
+.openWithMore:hover,
+.openWithMore[aria-expanded='true'] {
+  background: transparent;
+  color: inherit;
 }
 
 .openWithMain {
@@ -476,13 +502,6 @@
   width: 20px;
   padding-right: 4px;
   border-radius: 0 15px 15px 0;
-}
-
-.openWithMain:hover,
-.openWithMore:hover,
-.openWithMore[aria-expanded='true'] {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
 }
 
 .openWithMain svg {

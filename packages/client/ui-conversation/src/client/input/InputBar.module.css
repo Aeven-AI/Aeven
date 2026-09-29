@@ -37,11 +37,11 @@
   display: flex;
   flex-direction: column;
   /* Aeven composer spacing between the draft and B's control row. */
-  gap: 12px;
+  gap: 6px;
   width: 100%;
   max-width: var(--avn-composer-card-max-width);
   min-height: 124px;
-  padding-top: 14px;
+  padding-top: 16px;
   /* The Aeven composer is a flat surface; contrast comes from the canvas. */
   border: 0;
   --dsw-elevation-stroke-color: transparent;
@@ -60,10 +60,11 @@
      delta. */
   font-size: var(--avn-content-font-size, 14px);
   line-height: calc(var(--dsw-aeven-reading-line-height) + var(--avn-content-font-delta, 0px));
-  /* Elevated surface in dark, same as the menus: the draft scrollport inside
-     scrolls once the composer hits its height cap, so the thumb takes the l2
-     pair. Declared on the card because the elevation belongs to the surface,
-     and the custom properties inherit down to the box that actually scrolls
+  /* The draft text's side inset, shared by the contenteditable's padding and
+     the placeholder overlay; the card's top padding is the text's only top inset. */
+  --avn-composer-text-side: 16px;
+  /* Elevated surface in dark, same as the menus. The draft scrollport hides
+     its bar, but the pair stays bound for any thumb drawn on this surface
      (see ui-theme styles/scrollbar.css for the rebinding contract). */
   --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
@@ -103,22 +104,13 @@
 
 /* The draft's scrollport, and the ONLY scrolling box in the composer. The
    contenteditable grows with its content inside; the 14-line cap lives here
-   because this is the box the cap describes. */
+   because this is the box the cap describes. The markup adds ui-theme's
+   `no-scrollbar`, so the wheel and keyboard scroll it without a visible bar. */
 .scroll {
   flex: 1 1 auto;
   min-height: 30px;
   max-height: var(--avn-composer-text-max-height);
   overflow-y: auto;
-  /* Keeps the bar off the card's right border; .input's right pad gives the
-     4px back so the text column is unchanged. */
-  margin-right: 4px;
-}
-
-/* The card's corner arc still overlaps the scrollport's top: start the thumb's
-   travel below the arc so it never pokes outside the capsule. WebKit-path
-   only; Firefox's thin bar has no track margin, an accepted remainder. */
-.scroll::-webkit-scrollbar-track {
-  margin-top: 8px;
 }
 
 /* Auto-grow anchor: the contenteditable is in normal flow and sets the
@@ -142,11 +134,10 @@
 }
 
 /* The contenteditable draft surface (grows with its content; .scroll caps
-   and scrolls it). figma .InputText 34:10434: pl 16 / pr 12 / pt 4 — the
-   right pad is 8 here plus .scroll's 4px bar inset. */
+   and scrolls it). */
 .input {
   box-sizing: border-box;
-  padding: 4px 8px 0 16px;
+  padding: 0 var(--avn-composer-text-side);
   font-family: var(--dsw-font-family);
   font-size: inherit;
   line-height: inherit;
@@ -173,11 +164,10 @@
   color: var(--dsw-alias-label-caption);
 }
 
-/* figma 34:10434: #ADB2B8 light / #81858C dark — the caption pair exactly.
-   Right inset mirrors .input's 8px pad (the other 4px sits on .scroll). */
+/* figma 34:10434: #ADB2B8 light / #81858C dark — the caption pair exactly. */
 .placeholder {
   position: absolute;
-  inset: 4px 8px auto 16px;
+  inset: 0 var(--avn-composer-text-side) auto;
   color: var(--dsw-alias-label-caption);
   pointer-events: none;
   user-select: none;

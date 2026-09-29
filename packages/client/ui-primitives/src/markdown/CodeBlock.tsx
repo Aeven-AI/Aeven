@@ -23,6 +23,8 @@ export interface CodeBlockProps {
   streaming?: boolean | undefined
   /** Extra class merged onto the wrapper (callers position; this component draws). */
   className?: string | undefined
+  /** Draw no language and copy banner; the owner draws its own above the block. */
+  bare?: boolean | undefined
   /** Copy-button idle label; the owner passes localized copy (this package is cordis-free, so copy arrives via props). */
   copyLabel: string
   /** Copy-button label during the post-copy confirmation window. */
@@ -49,7 +51,7 @@ function renderLine(line: readonly HighlightSpan[], index: number): ReactNode {
   )
 }
 
-export function CodeBlock({ code, lang, streaming, className, copyLabel, copiedLabel }: CodeBlockProps) {
+export function CodeBlock({ code, lang, streaming, className, bare, copyLabel, copiedLabel }: CodeBlockProps) {
   const trimmed = code.endsWith('\n') ? code.slice(0, -1) : code
   const rootRef = useRef<HTMLDivElement>(null)
   const highlighting = useViewportHighlighting(rootRef, lang)
@@ -159,16 +161,18 @@ export function CodeBlock({ code, lang, streaming, className, copyLabel, copiedL
 
   return (
     <div ref={rootRef} className={clsx(css.block, 'md-code-block', className)}>
-      <div className={css.bannerWrap}>
-        <div className={css.banner}>
-          <div className={css.infostring}>{lang ?? ''}</div>
-          <div className={css.action}>
-            <button type="button" className={css.copyButton} onClick={onCopy}>
-              {copied ? copiedLabel : copyLabel}
-            </button>
+      {bare !== true && (
+        <div className={css.bannerWrap}>
+          <div className={css.banner}>
+            <div className={css.infostring}>{lang ?? ''}</div>
+            <div className={css.action}>
+              <button type="button" className={css.copyButton} onClick={onCopy}>
+                {copied ? copiedLabel : copyLabel}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
       {body}
     </div>
   )

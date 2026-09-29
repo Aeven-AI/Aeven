@@ -1,41 +1,17 @@
+/* A section of the composer stack's dock surface, which owns the fill,
+   width, and corners; 16px sides line up with the InputBar draft. */
 .root {
   box-sizing: border-box;
-  flex: none;
-  overflow: hidden;
-  margin: 0 auto;
-  width: calc(
-    100% -
-    var(--avn-composer-side-clearance) -
-    var(--avn-composer-side-clearance) -
-    var(--avn-composer-dock-inset) -
-    var(--avn-composer-dock-inset) -
-    var(--avn-composer-dock-inset) -
-    var(--avn-composer-dock-inset)
-  );
-  max-width: calc(
-    var(--avn-composer-card-max-width) -
-    var(--avn-composer-dock-inset) -
-    var(--avn-composer-dock-inset) -
-    var(--avn-composer-dock-inset) -
-    var(--avn-composer-dock-inset)
-  );
-  border: 0.5px solid var(--dsw-alias-border-l1);
-  border-radius: 12px;
-  background: var(--dsw-specific-tip);
-  /* Elevated surface: `--dsw-specific-tip` is the same dark rung as the menu
-     surface, and `.list` scrolls inside this card, so the thumb takes the l2
-     elevation tokens. Declared here because the elevation belongs to the
-     surface, and the custom properties inherit down to `.list` (see ui-theme
-     styles/scrollbar.css for the rebinding contract). */
-  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
-  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  padding: 16px;
 }
 
 .body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 6px 12px;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
 }
 
 .header {
@@ -46,6 +22,7 @@
   padding: 0;
   border: none;
   background: transparent;
+  font: inherit;
   text-align: left;
   cursor: pointer;
 }
@@ -59,9 +36,6 @@
 
 .title {
   flex: none;
-  font-size: 14px;
-  line-height: 24px;
-  font-weight: 500;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -69,9 +43,6 @@
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
-  font-size: 14px;
-  line-height: 20px;
-  font-weight: 450;
   color: var(--dsw-alias-label-tertiary);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -100,8 +71,6 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
-  font-size: 14px;
-  line-height: 20px;
   color: var(--dsw-alias-label-secondary);
 }
 

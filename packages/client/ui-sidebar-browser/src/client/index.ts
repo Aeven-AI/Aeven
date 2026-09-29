@@ -2,7 +2,6 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the Remote event merge (ctx.remote, `browser/automation`).
 import type {} from '@aeven/api-remotes/client'
-import type { SessionId } from '@aeven/api-remotes/client'
 import type { ISessions } from '@aeven/api-session-controller/client'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@aeven/client-locale/client'
@@ -50,21 +49,9 @@ export function apply(ctx: ClientContext): void {
   // after this one, so the contribution waits for the service rather than
   // reading it once. A profile without the selection never fires the callback
   // and simply has no column to register into.
-  // A browser tab has no guest to embed, so picking the browser opens the
-  // Host's Chromium window, which the model drives through
-  // chrome-devtools-mcp, and adds no pill.
-  if (!isDesktopShell()) {
-    ctx.inject(['sidebarContent', 'remote', 'remote.browserChromium'], (scoped) => {
-      const remote = scoped.remote
-      const launch = (sessionId: string): void => {
-        void remote.browserChromium.open(sessionId as SessionId, '').then((result) => {
-          if (!result.ok) console.error('ui-sidebar-browser: opening Chromium failed', result.error)
-        }, (error: unknown) => { console.error('ui-sidebar-browser: opening Chromium failed', error) })
-      }
-      scoped.effect(() => scoped.sidebarContent.registerLauncher('browser', launch), 'ui-sidebar-browser: web launcher')
-    })
-    return
-  }
+  // Only the desktop shell can embed a guest, so a browser tab offers no
+  // browser kind at all.
+  if (!isDesktopShell()) return
 
   // A pane receives only its session, so it translates through this plugin's
   // own dictionary.

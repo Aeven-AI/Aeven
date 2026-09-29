@@ -48,9 +48,9 @@ export type SidebarContentLauncher = (sessionId: string) => void
 /**
  * Registry of the content kinds that have a provider behind them.
  *
- * A kind with no entry still lists in the selection, disabled, so the column
- * states what it will hold. Registration is an effect, so unloading a provider
- * returns its kind to unavailable rather than leaving a dead entry.
+ * A kind with no entry is left out of the selection. Registration is an
+ * effect, so unloading a provider removes its kind rather than leaving a dead
+ * entry.
  */
 export class SidebarContentRegistry extends Service {
   private readonly entries = new Map<SidebarContentKind, SidebarContentComponent>()

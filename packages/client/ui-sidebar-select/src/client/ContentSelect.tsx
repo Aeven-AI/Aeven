@@ -15,11 +15,11 @@ import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import clsx from 'clsx'
 import {
-  IconLucideFolderSearch2, IconLucideGlobe, IconLucidePlus, IconLucideTabletSmartphone, IconLucideX,
+  IconLucideFolderSearch, IconLucideGlobe, IconLucidePlus, IconLucideTabletSmartphone, IconLucideX,
   Menu, type MenuEntry,
 } from '@aeven/client-ui-primitives'
 import type { ContentSelectComponentProps } from './contract/slots.ts'
-import type { SidebarSurfaceTab } from './registry.ts'
+import type { SidebarContentRegistry, SidebarSurfaceTab } from './registry.ts'
 import { useFullscreen } from './fullscreen.ts'
 import { SIDEBAR_CONTENT_KINDS, type SidebarContentKind } from './selection.ts'
 import {
@@ -56,7 +56,7 @@ function BashGlyph() {
 const GLYPHS: Record<SidebarContentKind, () => ReactNode> = {
   browser: () => <IconLucideGlobe />,
   terminal: () => <BashGlyph />,
-  files: () => <IconLucideFolderSearch2 />,
+  files: () => <IconLucideFolderSearch />,
   device: () => <IconLucideTabletSmartphone />,
 }
 
@@ -155,11 +155,10 @@ export function ContentSelect(props: ContentSelectComponentProps) {
   const titleOf = useCallback((surface: SidebarSurface): string =>
     tabs.get(surface.id)?.title ?? t(`${surface.kind}.tab`), [t, tabs])
 
-  const addItems = useMemo<MenuEntry[]>(() => SIDEBAR_CONTENT_KINDS.map(kind => ({
+  const addItems = useMemo<MenuEntry[]>(() => availableKinds(registry).map(kind => ({
     id: kind,
     icon: <span className={css.menuGlyph}>{GLYPHS[kind]()}</span>,
     label: t(`${kind}.tab`),
-    disabled: !registry.available().has(kind),
   })), [registry, registry.version, t])
 
   const menuSurfaceIndex = pillMenu === null ? -1 : state.surfaces.findIndex(s => s.id === pillMenu.surfaceId)
@@ -204,7 +203,7 @@ export function ContentSelect(props: ContentSelectComponentProps) {
         <div className={css.tabbar}>
           <div
             ref={strip.ref}
-            className={clsx(css.strip, strip.fadeLeft && css.fadeLeft, strip.fadeRight && css.fadeRight)}
+            className={clsx(css.strip, strip.fadeRight && css.fadeRight)}
             role="tablist"
             aria-orientation="horizontal"
           >
@@ -278,7 +277,7 @@ export function ContentSelect(props: ContentSelectComponentProps) {
 
       <div className={css.body}>
         {state.surfaces.length === 0
-          ? <Launcher t={t} available={kind => registry.available().has(kind)} onOpen={open} />
+          ? <Launcher t={t} kinds={availableKinds(registry)} onOpen={open} />
           : state.surfaces.map((surface) => {
             const Pane = registry.resolve(surface.kind)
             const active = surface.id === state.active
@@ -310,24 +309,30 @@ export function ContentSelect(props: ContentSelectComponentProps) {
 }
 
 /**
- * The empty column: every kind as a row, the unavailable ones listed but
- * inert, so the column states what it can hold.
+ * The kinds a provider currently answers, in the selection's order.
+ * @param registry - the content registry.
+ * @returns the available kinds.
  */
-function Launcher({ t, available, onOpen }: {
+function availableKinds(registry: SidebarContentRegistry): SidebarContentKind[] {
+  const available = registry.available()
+  return SIDEBAR_CONTENT_KINDS.filter(kind => available.has(kind))
+}
+
+/** The empty column: one row per available kind. */
+function Launcher({ t, kinds, onOpen }: {
   t: ContentSelectComponentProps['t']
-  available: (kind: SidebarContentKind) => boolean
+  kinds: readonly SidebarContentKind[]
   onOpen: (kind: SidebarContentKind) => void
 }) {
   return (
     <div className={css.launcher} data-sidebar-right-select="">
-      {SIDEBAR_CONTENT_KINDS.map(kind => (
+      {kinds.map(kind => (
         <button
           key={kind}
           type="button"
           className={css.launcherRow}
           data-sidebar-right-select-entry={kind}
-          disabled={!available(kind)}
-          title={available(kind) ? t(`${kind}.description`) : t('entry.unavailable')}
+          title={t(`${kind}.description`)}
           onClick={() => { onOpen(kind) }}
         >
           <span className={css.launcherGlyph}>{GLYPHS[kind]()}</span>
@@ -340,25 +345,23 @@ function Launcher({ t, available, onOpen }: {
 
 /**
  * Horizontal overflow for the pill strip: vertical wheel scrolls it sideways,
- * each overflowing edge fades, and the shown pill scrolls into view.
+ * the right edge fades while more pills lie past it, and the shown pill
+ * scrolls into view.
  * @param active - the shown surface id, re-revealed when it changes.
- * @returns the strip ref and which edges fade.
+ * @returns the strip's callback ref and whether the right edge fades.
  */
 function useStripScroll(active: string | null) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [edges, setEdges] = useState({ fadeLeft: false, fadeRight: false })
+  // State, not a ref object: the strip mounts with the first open surface,
+  // after this hook's first effects, and the listeners must bind to it then.
+  const [strip, ref] = useState<HTMLDivElement | null>(null)
+  const [fadeRight, setFadeRight] = useState(false)
 
   const measure = useCallback(() => {
-    const strip = ref.current
     if (strip === null) return
-    const overflow = strip.scrollWidth - strip.clientWidth > EDGE_TOLERANCE
-    const fadeLeft = overflow && strip.scrollLeft > EDGE_TOLERANCE
-    const fadeRight = overflow && strip.scrollLeft + strip.clientWidth < strip.scrollWidth - EDGE_TOLERANCE
-    setEdges(current => current.fadeLeft === fadeLeft && current.fadeRight === fadeRight ? current : { fadeLeft, fadeRight })
-  }, [])
+    setFadeRight(strip.scrollLeft + strip.clientWidth < strip.scrollWidth - EDGE_TOLERANCE)
+  }, [strip])
 
   useEffect(() => {
-    const strip = ref.current
     if (strip === null) return undefined
     const observer = new ResizeObserver(measure)
     observer.observe(strip)
@@ -377,12 +380,12 @@ function useStripScroll(active: string | null) {
       strip.removeEventListener('scroll', measure)
       strip.removeEventListener('wheel', onWheel)
     }
-  }, [measure])
+  }, [strip, measure])
 
   useEffect(() => {
-    ref.current?.querySelector('[data-active]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    strip?.querySelector('[data-active]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
     measure()
-  }, [active, measure])
+  }, [active, strip, measure])
 
-  return { ref, ...edges }
+  return { ref, fadeRight }
 }

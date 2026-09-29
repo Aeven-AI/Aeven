@@ -543,7 +543,7 @@ export const InputBar = memo(function InputBar({
             thing that scrolls. Chips are decorator portals inside the same
             surface, so wrapping, caret geometry, and scrolling are the
             browser's own. */}
-        <div ref={scrollRef} className={css.scroll} data-input-scroll>
+        <div ref={scrollRef} className={clsx(css.scroll, 'no-scrollbar')} data-input-scroll>
           <div className={css.grow}>
             <ComposerContentEditable
               editor={workspaceTrigger ? null : editor}

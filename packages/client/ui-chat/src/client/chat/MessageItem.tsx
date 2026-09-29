@@ -286,8 +286,10 @@ export function PendingSteeringBubble({ content, sentAt, renderMessageImages, t 
  * @param props - the session snapshot's pending submission and render seats.
  * @returns the echoed user bubble.
  */
-export function PendingSubmissionBubble({ submission, renderMessageImages, t }: {
+export function PendingSubmissionBubble({ submission, extendedTranscript, renderMessageImages, t }: {
   submission: PendingSubmission
+  /** Whether the reader chose the Extended transcript, which shows the send time. */
+  extendedTranscript: boolean
   renderMessageImages: ChatNodeOwnerProps['renderMessageImages']
   t: ChatViewSlotProps['t']
 }): ReactNode {
@@ -322,7 +324,7 @@ export function PendingSubmissionBubble({ submission, renderMessageImages, t }: 
         : (
           <MessageIconActions
             text={text}
-            time={submission.time}
+            time={extendedTranscript ? submission.time : undefined}
             clock="start"
             className={css.actions}
             t={t}
@@ -456,7 +458,7 @@ export function QueuedMessageBubble({ row, sentAt, running, mutable, updateQueue
 
 /** User and admitted-steering keyed Chat renderer. */
 export const UserMessageNodeView = memo(function UserMessageNodeView({
-  node, renderMessageImages, useSession, t,
+  node, renderMessageImages, useSession, t, extendedTranscript,
 }: ChatNodeViewProps<'user' | 'steering'>) {
   const data = node.data
   const rpcId = sourceRpcId(data.source)
@@ -477,7 +479,7 @@ export const UserMessageNodeView = memo(function UserMessageNodeView({
       actions={text => (
         <MessageIconActions
           text={text}
-          time={data.time}
+          time={extendedTranscript ? data.time : undefined}
           clock="start"
           className={css.actions}
           t={t}

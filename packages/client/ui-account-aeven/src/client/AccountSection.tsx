@@ -18,7 +18,7 @@ import '../vendor/aeven-account.css'
 /** Registration-side face of the Account section. */
 export interface AccountSectionInjected {
   /** The signed-in reader, or undefined when nobody is. */
-  reader: () => (AccountReader & { email?: string }) | undefined
+  reader: () => AccountReader | undefined
   /** The Aeven account page, or undefined when no web client is configured. */
   accountUrl: () => string | undefined
   /** End the Aeven session and return the reader to the sign-in screen. */
@@ -138,6 +138,23 @@ export function AccountSection(props: AccountSectionProps) {
     void usage.refresh()
     return subscription.refresh()
   }, [usage.refresh, subscription.refresh])
+  // Billing changes happen in other windows — Stripe checkout, the billing
+  // portal — so returning to the app is when the plan, balance, or payment
+  // state may have moved. Each return re-reads them quietly.
+  useEffect(() => {
+    const reread = () => {
+      void subscription.refresh()
+      void usage.refresh()
+      void wallet.refresh()
+    }
+    const onVisible = () => { if (document.visibilityState === 'visible') reread() }
+    window.addEventListener('focus', reread)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener('focus', reread)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [subscription.refresh, usage.refresh, wallet.refresh])
   const refreshBalance = useCallback(async () => {
     void wallet.refresh()
     return (await usage.refresh())?.balance.purchasedUsdMicros
@@ -249,7 +266,12 @@ function Identity({ t, reader, accountUrl, signOut }: AccountSectionProps) {
   return (
     <div className={`${css.row} ${css.identity}`}>
       <span className={css.avatar}>
-        <Avatar userId={person.userId} {...person.imageUrl === undefined ? {} : { imageUrl: person.imageUrl }} alt={t('avatar.alt')} />
+        <Avatar
+          {...person.displayName === undefined ? {} : { name: person.displayName }}
+          {...person.email === undefined ? {} : { email: person.email }}
+          {...person.imageUrl === undefined ? {} : { imageUrl: person.imageUrl }}
+          alt={t('avatar.alt')}
+        />
       </span>
       <span className={css.rowText}>
         <span className={css.name}>{person.displayName ?? t('profile.unnamed')}</span>

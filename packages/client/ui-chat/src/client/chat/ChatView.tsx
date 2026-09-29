@@ -211,7 +211,9 @@ export function ChatView({
   const [activeTurn, setActiveTurn] = useState<number | null>(null)
   const turnNavigationRef = useRef<TurnRailMark | null>(null)
   const selectedCallId = useStore(s => s.selection?.callId)
-  const compactTranscript = useTranscriptView(mode => mode === 'compact')
+  // Normal folds a completed Turn's process and omits its timing and usage
+  // chrome; Extended keeps every process row and that chrome visible.
+  const extendedTranscript = useTranscriptView(mode => mode === 'extended')
   const textAnimation = useTextAnimationPreference(enabled => enabled)
   const eventNavigation = useEventNavigation(request => request)
   const inspectCall = useCallback((callId: string) => {
@@ -1088,7 +1090,7 @@ export function ChatView({
               useChatNode={useChatNode}
               useChatNodeProcess={useChatNodeProcess}
               historyIncomplete={hasMore}
-              compactTranscript={compactTranscript}
+              extendedTranscript={extendedTranscript}
               useStore={useStore}
               actions={actions}
               selectedCallId={selectedCallId}
@@ -1121,6 +1123,7 @@ export function ChatView({
               <PendingSubmissionBubble
                 key={submission.requestId}
                 submission={submission}
+                extendedTranscript={extendedTranscript}
                 renderMessageImages={renderMessageImages}
                 t={t}
               />
@@ -1147,6 +1150,7 @@ export function ChatView({
               <PendingSubmissionBubble
                 key={submission.requestId}
                 submission={submission}
+                extendedTranscript={extendedTranscript}
                 renderMessageImages={renderMessageImages}
                 t={t}
               />

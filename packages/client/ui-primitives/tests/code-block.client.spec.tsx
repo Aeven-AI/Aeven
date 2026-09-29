@@ -96,6 +96,13 @@ describe('CodeBlock', () => {
     expect(screen.getByRole('button', { name: '复制' })).toBeTruthy()
   })
 
+  it('draws no banner when its owner draws one', () => {
+    const view = render(<CodeBlock code={'const a = 1\n'} lang="ts" bare />)
+    expect(view.queryByText('ts')).toBeNull()
+    expect(view.queryByRole('button')).toBeNull()
+    expect(view.container.querySelector('pre.hljs')!.textContent).toBe('const a = 1')
+  })
+
   it('does not claim success when clipboard.writeText rejects', async () => {
     const writeText = vi.fn().mockRejectedValue(new Error('denied'))
     Object.defineProperty(navigator, 'clipboard', {

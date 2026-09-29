@@ -9,7 +9,7 @@ import {
 
 /** Live transcript preference consumed by Chat and its Settings row. */
 export class TranscriptViewPolicy {
-  /** Reactive current mode; defaults to Compact before Host settings arrive. */
+  /** Reactive current mode; defaults to Normal before Host settings arrive. */
   readonly mode: SnapshotStore<TranscriptViewMode> = createSnapshotStore(DEFAULT_TRANSCRIPT_VIEW_MODE)
 
   /**
@@ -22,7 +22,7 @@ export class TranscriptViewPolicy {
 
   /**
    * Publish and persist one explicit user choice.
-   * @param mode - Normal or Compact transcript presentation.
+   * @param mode - Normal or Extended transcript presentation.
    */
   setMode(mode: TranscriptViewMode): void {
     if (this.mode.getSnapshot() === mode) return

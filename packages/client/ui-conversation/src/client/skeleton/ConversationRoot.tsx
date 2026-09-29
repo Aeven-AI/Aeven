@@ -100,9 +100,8 @@ function NavFold(props: { label: string; expanded: boolean; onToggle: () => void
 
 /** One transcript width handle: pointer capture + rAF-throttled symmetric
  * resize (both sides write the one centered width, so outward travel widens
- * by 2× the pointer distance). pointermove publishes the pointer's Y as a CSS
- * variable so the glow indicator rides it. Mirrors ui-layout AppFrame's
- * DragHandle capture model. */
+ * by 2× the pointer distance). Mirrors ui-layout AppFrame's DragHandle
+ * capture model. */
 function WidthHandle(props: {
   side: 'left' | 'right'
   onStart: () => number
@@ -135,8 +134,6 @@ function WidthHandle(props: {
     setDragging(true)
   }, [])
   const onPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const box = e.currentTarget.getBoundingClientRect()
-    e.currentTarget.style.setProperty('--avn-width-handle-pointer-y', `${e.clientY - box.top}px`)
     if (!e.currentTarget.hasPointerCapture(e.pointerId)) return
     latest.current = e.clientX
     frame.current ??= requestAnimationFrame(() => {
@@ -174,7 +171,7 @@ function WidthHandle(props: {
     scroller.scrollBy({ top: e.deltaY * unit, left: 0 })
   }, [])
   // Releasing the button outside the window delivers pointercancel (or drops
-  // the capture silently) instead of pointerup; without this the glow's
+  // the capture silently) instead of pointerup; without this the rule's
   // data-dragging state sticks on. The gesture is abandoned uncommitted —
   // onEnd republishes the stored preference. releasePointerCapture inside
   // onPointerUp also fires lostpointercapture, so this runs (idempotently)
@@ -316,7 +313,7 @@ export function ConversationRoot({
   const composerBar = (
     <div className={clsx(css.composerStack, hero && css.composerHero)}>
       {hero && <HeroShell t={t} />}
-      {zone !== undefined && renderSlot('conversation.input.dock', zone)}
+      {zone !== undefined && <div className={css.dockStack}>{renderSlot('conversation.input.dock', zone)}</div>}
       {inputBar}
     </div>
   )
@@ -338,6 +335,7 @@ export function ConversationRoot({
   // end off-screen when the user is not pinned to the floor.
   const composerSeat = (
     <div className={css.composerSeat} data-composer-seat="">
+      <div className={css.viewChromeTop} data-conversation-chrome-top="" />
       {composer}
     </div>
   )
@@ -398,15 +396,13 @@ export function ConversationRoot({
           : renderSlot('conversation.session', {})}
         {composerSeat}
       </div>
-      {/* Both chrome layers sit OUTSIDE the scroller, positioned against the
-          root: a layer among the scrolled children is placed by its own spot in
-          the flow and travels with it, and it would extend the scrollable
-          range. `.viewChrome` spans the band above the composer; `.viewChromeTop`
-          is a zero-height line on the seat's top edge, so a control offsets from
-          the input card without measuring it. The scroller reserves no gutter,
-          so both keep the transcript's axis. */}
+      {/* The view chrome layer sits OUTSIDE the scroller, positioned against
+          the root: a layer among the scrolled children is placed by its own
+          spot in the flow and travels with it, and it would extend the
+          scrollable range. It spans the band above the composer; the
+          seat-level layer lives inside the seat instead (see `.viewChromeTop`).
+          The scroller reserves no gutter, so both keep the transcript's axis. */}
       <div className={css.viewChrome} data-conversation-chrome="" />
-      <div className={css.viewChromeTop} data-conversation-chrome-top="" />
       {/* Width handles whenever a Session is settled, the hero included: a new
           chat sizes the same column its composer and later transcript use.
           Outside the scroller: inside it they would extend the scrollable

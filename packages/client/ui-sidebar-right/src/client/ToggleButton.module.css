@@ -12,14 +12,19 @@
   flex: none;
   place-items: center;
   /* Narrower than the shared control square: only the glyph reads here, and a
-     30px box sets this control's distance from the avatar beside it. The height
-     stays the token's, so the corner row keeps one height. */
+     30px box sets this control's distance from the avatar beside it. The 30px
+     circle, its white fill and its black glyph match the left sidebar's fold
+     control, so the two column toggles read as one pair; the right margin is
+     what separates this toggle from the avatar, since the dock itself has no
+     gap. */
   width: 30px;
-  height: var(--dsw-aeven-control-size);
+  height: 30px;
+  margin-right: 8px;
   padding: 0;
   border: none;
-  background: transparent;
-  color: var(--dsw-alias-label-primary);
+  border-radius: 15px;
+  background: var(--dsw-static-neutral-00);
+  color: var(--dsw-static-neutral-1000);
   cursor: pointer;
 }
 

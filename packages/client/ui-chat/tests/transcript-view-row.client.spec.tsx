@@ -27,9 +27,9 @@ function noPendingInteraction() {
   return bindSnapshotSelector(createSnapshotStore<SessionPendingInteractionSnapshot>(new Map()))
 }
 
-function mount(mode: 'normal' | 'compact' = 'compact') {
+function mount(mode: 'normal' | 'extended' = 'normal') {
   const source = createSnapshotStore(mode)
-  const setTranscriptView = vi.fn((next: 'normal' | 'compact') => { source.set(next) })
+  const setTranscriptView = vi.fn((next: 'normal' | 'extended') => { source.set(next) })
   const props: TranscriptViewRowProps = {
     useSessions: emptySessions(),
     useSessionPendingInteraction: noPendingInteraction(),

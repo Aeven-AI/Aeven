@@ -540,14 +540,16 @@ describe('ConversationRoot resident composer', () => {
     expect(header).not.toBeNull()
     // The column is one scrollport: the header sticks at its top, the transcript
     // is in flow, and the seat sticks at its floor, so all three are laid out in
-    // one content box and a scrollbar shortens them identically. The two chrome
-    // layers stay outside it — a layer among the scrolled children is placed by
-    // its own spot in the flow, travels with it, and extends the scroll range.
+    // one content box and a scrollbar shortens them identically. The view
+    // chrome layer stays outside it — a layer among the scrolled children is
+    // placed by its own spot in the flow, travels with it, and extends the
+    // scroll range. The seat-level layer rides the sticky seat's top edge, so
+    // it follows the seat's height (dock sections, a growing draft).
     expect(host?.contains(header)).toBe(true)
     expect(host?.contains(seat)).toBe(true)
     expect(seat?.contains(textarea)).toBe(true)
     expect(host?.contains(b.view.container.querySelector('[data-conversation-chrome]'))).toBe(false)
-    expect(host?.contains(b.view.container.querySelector('[data-conversation-chrome-top]'))).toBe(false)
+    expect(seat?.contains(b.view.container.querySelector('[data-conversation-chrome-top]'))).toBe(true)
     expect(b.slotCalls).toContain('conversation.session.header.lineage')
     expect(b.slotCalls).toContain('conversation.session.header.actions')
     expect(b.slotCalls).toContain('conversation.navigation.utilities')

@@ -44,7 +44,7 @@ The browser half injects `slots` and `locale`, so a composition that omits eithe
 
 ### What the menu offers
 
-The avatar shows the reader's uploaded picture, or a generated gradient with their initial when they have set none. The menu carries Settings, which closes the menu and emits `settings/open` so the settings shell opens its panel, and sign out. Theme selection lives in the Appearance setting, which also offers following the system. It links to the Aeven account page only when the deployment named a web client through `webUrl`: a harness that cannot name that page does not invent one, so the row is simply absent.
+The avatar shows the reader's uploaded picture, or, when they have set none, the first letter of their display name (or of their email address when they have no name) on a black disc. The menu carries Settings, which closes the menu and emits `settings/open` so the settings shell opens its panel, and sign out. Theme selection lives in the Appearance setting, which also offers following the system. It links to the Aeven account page only when the deployment named a web client through `webUrl`: a harness that cannot name that page does not invent one, so the row is simply absent.
 
 -----
 
@@ -71,7 +71,7 @@ The feature exists only in the browser, but a browser-only row still has to be a
 | [`src/index.ts`](src/index.ts) | Empty host half keeping the browser-only row addressable |
 | [`src/client/index.ts`](src/client/index.ts) | Reads the published reader, registers locales, and claims the navigation-band seat |
 | [`src/client/AccountMenu.tsx`](src/client/AccountMenu.tsx) | The menu: account link, settings, sign out |
-| [`src/client/Avatar.tsx`](src/client/Avatar.tsx) | Uploaded picture, or the generated gradient and initial |
+| [`src/client/Avatar.tsx`](src/client/Avatar.tsx) | Uploaded picture, or the initial on a black disc |
 | [`src/client/locales.ts`](src/client/locales.ts) | The `account.aeven` locale namespace and its keys |
 
 </details>

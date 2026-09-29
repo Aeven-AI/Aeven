@@ -302,7 +302,7 @@ function makeHarness(
   const forkAt = vi.fn()
   // Rows and the harness must observe the same chat-store instance.
   const chat = createChatStore().create()
-  const transcriptView = createSnapshotStore<TranscriptViewMode>('compact')
+  const transcriptView = createSnapshotStore<TranscriptViewMode>('normal')
   const eventNavigation = createSnapshotStore<ConversationEventNavigation | null>(null)
   const t = makeTranslate(zh, commonZh)
   const toolOwners: Array<{
@@ -1891,11 +1891,11 @@ describe('ChatView', () => {
     expect(turnProcessControl(view.container)?.getAttribute('aria-expanded')).toBe('false')
     expect(processRow.getAttribute('hidden')).toBe('until-found')
 
-    act(() => { h.setTranscriptView('normal') })
+    act(() => { h.setTranscriptView('extended') })
     expect(turnProcessControl(view.container)).toBeNull()
     expect(processRow.getAttribute('hidden')).toBeNull()
 
-    act(() => { h.setTranscriptView('compact') })
+    act(() => { h.setTranscriptView('normal') })
     expect(turnProcessControl(view.container)?.getAttribute('aria-expanded')).toBe('false')
     expect(processRow.getAttribute('hidden')).toBe('until-found')
   })

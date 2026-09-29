@@ -30,7 +30,6 @@
   );
   --avn-composer-card-max-width: var(--avn-chat-content-width);
   --avn-composer-side-clearance: var(--dsw-aeven-page-inset);
-  --avn-composer-dock-inset: 8px;
   /* Session header height; slot-owned chrome under it offsets by this. */
   --avn-session-header-height: 56px;
   /* The navigation band's leading control — the 30px fold circle — plus the gap
@@ -40,11 +39,11 @@
   --avn-nav-leading-box: calc(30px + 12px);
   /* The seat's resting height: an empty draft plus the stats line the dock
      renders under it. Two things read it — the transcript hold, so a short
-     transcript still puts the composer at the reader's floor, and the two
-     chrome layers, whose floor is the seat's top edge.
+     transcript still puts the composer at the reader's floor, and
+     `.viewChrome`, whose floor is the seat's top edge.
 
      FIXME: a constant cannot track the seat, which grows with a wrapped draft,
-     a dock card, or an elected takeover; the layers then sit low by the
+     a dock card, or an elected takeover; both then sit low by the
      difference. The old flex-line layer got this for free by living in the
      layout. Publish the seat's measured height (ResizeObserver already watches
      it in ChatView) and read it here before this ships. */
@@ -136,8 +135,8 @@
   padding: 0;
   border: none;
   border-radius: 15px;
-  background: var(--dsw-static-neutral-1000);
-  color: var(--dsw-static-neutral-00);
+  background: var(--dsw-static-neutral-00);
+  color: var(--dsw-static-neutral-1000);
   cursor: pointer;
   transition: background var(--ds-transition-duration-fast) var(--ds-ease-in-out);
   /* The icon offset assumes a 40px control box; this circle is 30px and ends 5px
@@ -422,23 +421,24 @@
    would extend the scrollable range and ride the rubber-band) and inset by the
    page inset, the same box the width's use sites resolve `100%` in, so a strip
    lands exactly at the content edge. At the widest drag the content fills the
-   frame and the strips sit in the 24px padding outside it. They start below
-   the header bar so their glow does not paint through its transparent
-   background. The wheel over a strip is handed to the transcript's scroller
-   (see WidthHandle). */
+   frame and the strips sit in the 24px padding outside it. The frame spans
+   the full column height above the header bar (z-index 30) so the rule runs
+   top to bottom; the strips themselves start below the bar, so its controls
+   keep their pointer. The wheel over a strip is handed to the transcript's
+   scroller (see WidthHandle). */
 .widthHandles {
   position: absolute;
-  top: var(--avn-session-header-height);
+  top: 0;
   right: var(--avn-composer-side-clearance);
   bottom: 0;
   left: var(--avn-composer-side-clearance);
-  z-index: 8;
+  z-index: 31;
   pointer-events: none;
 }
 
 .widthHandle {
   position: absolute;
-  top: 0;
+  top: var(--avn-session-header-height);
   bottom: 0;
   width: var(--dsw-aeven-page-inset);
   cursor: col-resize;
@@ -453,30 +453,17 @@
   left: calc(50% + var(--avn-chat-content-width) / 2);
 }
 
-/* The glow: a short 2px line riding the pointer's Y, centred in the strip,
-   not a full-height rule — a 24px solid core centered on the pointer
-   (published by pointermove as --avn-width-handle-pointer-y), fading to
-   transparent over 40px each side (~104px total). A solid CORE, not a single
-   solid stop: a lone peak washes out over the fade. The primary label colour,
-   black in the light theme and white in the dark one. Before the first move
-   the fallback centers the glow at 50% height. */
+/* The indicator: a 1px rule centred in the strip, black at 10% opacity in
+   both themes, reaching up past the strip's top through the header bar so it
+   spans the full column height. */
 .widthHandle::after {
   content: "";
   position: absolute;
-  top: 0;
+  top: calc(0px - var(--avn-session-header-height));
   bottom: 0;
-  width: 2px;
-  border-radius: 1px;
-  background: linear-gradient(
-    to bottom,
-    transparent calc(var(--avn-width-handle-pointer-y, 50%) - 52px),
-    var(--dsw-alias-label-primary)
-      calc(var(--avn-width-handle-pointer-y, 50%) - 12px),
-    var(--dsw-alias-label-primary)
-      calc(var(--avn-width-handle-pointer-y, 50%) + 12px),
-    transparent calc(var(--avn-width-handle-pointer-y, 50%) + 52px)
-  );
-  left: calc(50% - 1px);
+  left: calc(50% - 0.5px);
+  width: 1px;
+  background: rgb(0 0 0 / 0.1);
   opacity: 0;
   pointer-events: none;
 }
@@ -492,10 +479,9 @@
   display: none;
 }
 
-/* Composer context stack (Figma 9:937): standalone dock cards share one
-   rhythm above the input card. */
+/* Composer context stack (Figma 9:937): the dock surface, then the input card. */
 .composerStack {
-  /* Horizontal geometry (card width, clearance, dock inset) rides the shared
+  /* Horizontal geometry (card width, clearance) rides the shared
      .root variables above so takeover siblings match the stack. */
   --avn-composer-stack-gap: var(--dsw-aeven-space-compact);
 
@@ -504,8 +490,35 @@
   gap: var(--avn-composer-stack-gap);
 }
 
+/* One surface for every `conversation.input.dock` entry (todos, goal, queue):
+   the InputBar card's width, fill, and top radius, running a radius-deep strip
+   on under the card, whose later positioned box and shadow paint over it. Each
+   entry is a section with 16px sides so its content lines up with the draft
+   and the control row. */
+.dockStack {
+  box-sizing: border-box;
+  flex: none;
+  width: calc(100% - var(--avn-composer-side-clearance) - var(--avn-composer-side-clearance));
+  max-width: var(--avn-composer-card-max-width);
+  margin: 0 auto calc(0px - var(--avn-composer-stack-gap) - var(--dsw-aeven-radius-surface));
+  padding-bottom: var(--dsw-aeven-radius-surface);
+  border-radius: var(--dsw-aeven-radius-surface) var(--dsw-aeven-radius-surface) 0 0;
+  background: var(--dsw-specific-input-major);
+  /* Elevated surface in dark, same as the InputBar card; section lists scroll
+     inside it (see ui-theme styles/scrollbar.css for the rebinding contract). */
+  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+/* Entries render nothing while their state is empty; the surface goes with them. */
+.dockStack:not(:has(> [data-slot] > *)) {
+  display: none;
+}
+
 /* Common seat for the composer chain (fallback + elected overlay siblings). */
 .composerSeat {
+  /* Containing block for `.viewChromeTop`; the active phase makes it sticky. */
+  position: relative;
   display: flex;
   flex: none;
   flex-direction: column;
@@ -543,18 +556,20 @@
 }
 
 /* Seat-level chrome: a zero-height line resting on the seat's top edge, so a
-   control here clears the composer by its own offset without measuring it.
+   control here clears the composer, its dock surface, and a growing draft by
+   its own offset without measuring any of them.
 
-   Also absolute against `.root`, for the same reason as `.viewChrome`, and
-   offset from the bottom by the seat's resting height. A control that must
-   paint OVER the seat belongs here; one that belongs under it goes in
-   `.viewChrome`.
+   A child of the seat, absolute against it: the seat is positioned in every
+   phase, so `bottom: 100%` is its top edge wherever the seat's height lands.
+   Zero height above the seat's own box, so it never extends the scrollable
+   range. A control that must paint OVER the seat belongs here; one that
+   belongs under it goes in `.viewChrome`.
 
    Inert; each portaled control opts back into pointer input. */
 .viewChromeTop {
   position: absolute;
   right: 0;
-  bottom: var(--avn-composer-seat-min-height);
+  bottom: 100%;
   left: 0;
   z-index: 8;
   height: 0;

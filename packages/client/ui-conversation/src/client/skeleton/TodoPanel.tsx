@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import clsx from 'clsx'
 import type { Context } from '@deepseek-ai/cordis'
 import type { PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 // The domain's client-namespace pure-type outlet: one import edge delivers
@@ -106,7 +107,7 @@ export function TodoPanel({ todos, t }: TodoPanelProps) {
           </span>
         </button>
         {!collapsed && (
-          <ul className={css.list}>
+          <ul className={clsx(css.list, 'no-scrollbar')}>
             {todos.map(item => (
               <li key={item.content} className={css.item} data-status={item.status}>
                 <span className={css.glyph} aria-hidden><StatusGlyph status={item.status} /></span>

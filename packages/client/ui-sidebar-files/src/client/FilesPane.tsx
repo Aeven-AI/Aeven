@@ -17,7 +17,7 @@ import type { ClientRemote, SessionId } from '@aeven/api-remotes/client'
 import type {} from '@aeven/api-workspace-files/remote'
 import type { WorkspaceDirectoryEntry, WorkspaceFileText, WorkspaceSearchHit } from '@aeven/api-workspace-files/types'
 import {
-  CodeBlock, IconLucideChevronsDownUp, IconLucideFolder, IconLucideFolderOpen, IconLucideFolderSearch2,
+  CodeBlock, CopyIconButton, IconLucideChevronsDownUp, IconLucideFolder, IconLucideFolderOpen, IconLucideFolderSearch,
   IconLucideRefreshCw, IconLucideSearch, IconLucideX, MarkdownText, Menu, writeClipboard,
   type MarkdownLabels, type MenuEntry,
 } from '@aeven/client-ui-primitives'
@@ -293,7 +293,7 @@ export function FilesPane({ sessionId, surfaceId, setTab, t, remote }: FilesPane
             </button>
           )}
         </label>
-        <button type="button" className={css.iconButton} aria-label={t('refresh')} title={t('refresh')} onClick={refresh}>
+        <button type="button" className={clsx(css.iconButton, css.lightButton)} aria-label={t('refresh')} title={t('refresh')} onClick={refresh}>
           <IconLucideRefreshCw />
         </button>
         <button
@@ -307,12 +307,6 @@ export function FilesPane({ sessionId, surfaceId, setTab, t, remote }: FilesPane
           <IconLucideChevronsDownUp />
         </button>
       </div>
-      {root !== null && memory.query.trim() === '' && (
-        <div className={css.rootLine} title={root}>
-          <span className={css.rootParent}>{root.slice(0, root.replace(/\/+$/, '').lastIndexOf('/') + 1)}</span>
-          <span className={css.rootName}>{basename(root.replace(/\/+$/, ''))}</span>
-        </div>
-      )}
       <div className={css.scrollFrame}>
         <div className={css.rows} role="tree" tabIndex={0} onKeyDown={onTreeKey}>
           {memory.query.trim() !== ''
@@ -388,9 +382,9 @@ export function FilesPane({ sessionId, surfaceId, setTab, t, remote }: FilesPane
   )
 }
 
-/** Left padding of a row at `depth`. */
+/** Left padding of a row at `depth`. Depth 0 starts on the toolbar's left edge. */
 function indent(depth: number): string {
-  return `${String(10 + depth * 16)}px`
+  return `${String(depth * 16)}px`
 }
 
 /** Flatten the loaded folders into the rows the tree shows. */
@@ -503,6 +497,7 @@ function FileView({ path, root, canOpenNative, treeVisible, remote, sessionId, t
 }) {
   const name = basename(path)
   const kind = fileKindOf(name)
+  const isCode = kind !== 'image' && kind !== 'markdown'
   const [content, setContent] = useState<{ status: 'loading' } | { status: 'ready'; file: WorkspaceFileText } | { status: 'error'; message: string }>(
     { status: 'loading' },
   )
@@ -555,18 +550,26 @@ function FileView({ path, root, canOpenNative, treeVisible, remote, sessionId, t
         {canOpenNative && root !== null && <OpenWithButton path={absolute} remote={remote} t={t} />}
         <button
           type="button"
-          className={css.iconButton}
+          className={clsx(css.iconButton, css.lightButton)}
           aria-pressed={treeVisible}
           aria-label={treeVisible ? t('tree.hide') : t('tree.show')}
           title={treeVisible ? t('tree.hide') : t('tree.show')}
           onClick={onToggleTree}
         >
-          <IconLucideFolderSearch2 />
+          <IconLucideFolderSearch />
         </button>
         <button type="button" className={css.iconButton} aria-label={t('file.close')} title={t('file.close')} onClick={onClose}>
           <IconLucideX />
         </button>
       </div>
+      {isCode && (
+        <div className={css.codeBar}>
+          <span className={css.codeLang}>{extensionOf(name)}</span>
+          {content.status === 'ready' && (
+            <CopyIconButton text={content.file.text} label={t('code.copy')} copiedLabel={t('code.copied')} />
+          )}
+        </div>
+      )}
       <div className={css.scrollFrame}>
         <div className={clsx(css.fileBody, kind === 'markdown' && css.fileBodyProse)}>
           {kind === 'image'
@@ -579,7 +582,7 @@ function FileView({ path, root, canOpenNative, treeVisible, remote, sessionId, t
                   <>
                     {kind === 'markdown'
                       ? <MarkdownText text={content.file.text} labels={labels} animation={false} />
-                      : <CodeBlock code={content.file.text} lang={extensionOf(name)} copyLabel={t('code.copy')} copiedLabel={t('code.copied')} className={css.code} />}
+                      : <CodeBlock code={content.file.text} lang={extensionOf(name)} bare copyLabel={t('code.copy')} copiedLabel={t('code.copied')} className={css.code} />}
                     {!content.file.eof && <div className={css.note}>{t('file.truncated')}</div>}
                   </>
                 )}

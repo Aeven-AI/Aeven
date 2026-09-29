@@ -11,13 +11,15 @@
      measuring the dock: a width published from JavaScript per layout is what
      the column rules above exist to avoid. */
   --avn-shell-corner-gap: 0px;
-  /* The controls sit edge to edge, so their centres are one control apart;
-     the 30px avatar takes this offset to land at that same spacing. */
-  --avn-shell-corner-avatar-offset: calc(var(--dsw-aeven-control-size) / 2 - 15px);
+  /* Every occupant is a 30px control, so the avatar needs no extra offset; the
+     column toggle's own right margin sets the row's spacing. */
+  --avn-shell-corner-avatar-offset: 0px;
   --avn-shell-corner-seats: calc(
     /* the right sidebar's full screen toggle and its column toggle */
     var(--dsw-aeven-control-size)
     + var(--dsw-aeven-control-size)
+    /* the column toggle's right margin, which sets its distance from the avatar */
+    + 8px
     /* the account avatar */
     + var(--avn-shell-corner-avatar-offset)
     + 30px

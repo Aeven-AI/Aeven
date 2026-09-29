@@ -35,8 +35,8 @@ describe('TranscriptViewPolicy', () => {
     policy.setMode('normal')
     expect(host.set).not.toHaveBeenCalled()
 
-    host.publish({ value: { transcriptView: 'compact', textAnimation: true }, revision: 2 })
-    expect(policy.mode.getSnapshot()).toBe('compact')
+    host.publish({ value: { transcriptView: 'extended', textAnimation: true }, revision: 2 })
+    expect(policy.mode.getSnapshot()).toBe('extended')
   })
 
   it('adopts an accepted section standing at construction', () => {

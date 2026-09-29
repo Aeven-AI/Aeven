@@ -26,7 +26,7 @@ export type TranscriptViewRowProps =
 
 const OPTIONS: readonly { id: TranscriptViewMode; label: ChatKey }[] = [
   { id: 'normal', label: 'settings.transcript.normal' },
-  { id: 'compact', label: 'settings.transcript.compact' },
+  { id: 'extended', label: 'settings.transcript.extended' },
 ]
 
 /**
@@ -39,7 +39,7 @@ export function TranscriptViewRow({ useTranscriptView, setTranscriptView, t }: T
   const [open, setOpen] = useState(false)
   const selectedLabel = mode === 'normal'
     ? 'settings.transcript.normal'
-    : 'settings.transcript.compact'
+    : 'settings.transcript.extended'
   const closeMenu = () => { setOpen(false) }
   const selectMode = (id: string) => {
     closeMenu()

@@ -813,10 +813,10 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
   private _fillMatchCounts(tokens: readonly string[]): void {
     const db = this._requireDb()
     db.prepare('DELETE FROM temp.match_counts').run()
-    if (tokens.length === 1) {
+    const term = tokens.length === 1 ? tokens[0] : undefined
+    if (term !== undefined) {
       // The row vocabulary's `doc` column is a table-wide frequency, not a
       // rowid. Instance rows name the document, and one token is one span.
-      const term = tokens[0]
       db.prepare(`
         INSERT INTO temp.match_counts(source, doc_rowid, match_count)
         SELECT 'persisted', doc, COUNT(*)

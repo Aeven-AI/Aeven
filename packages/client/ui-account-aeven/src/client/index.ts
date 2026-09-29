@@ -53,7 +53,7 @@ function publishedReader(): AevenReader | undefined {
  * The reader as the menu draws them.
  * @returns the reader, or undefined when nobody is signed in.
  */
-function currentReader(): (AccountReader & { email?: string }) | undefined {
+function currentReader(): AccountReader | undefined {
   const reader = publishedReader()
   if (reader === undefined) return undefined
   return {

@@ -19,10 +19,12 @@ import '../vendor/aeven-account.css'
 
 /** The signed-in reader, as the menu needs them. */
 export interface AccountReader {
-  /** Aeven user id, which seeds the avatar gradient. */
+  /** Aeven user id. */
   userId: string
   /** Chosen display name, absent until the reader sets one. */
   displayName?: string
+  /** Account email address, the avatar initial's source when there is no display name. */
+  email?: string
   /** Absolute URL of the uploaded picture, absent until the reader sets one. */
   imageUrl?: string
 }
@@ -86,7 +88,8 @@ export function AccountMenu({
 
   const account = accountUrl()
   const avatar = {
-    userId: person.userId,
+    ...person.displayName === undefined ? {} : { name: person.displayName },
+    ...person.email === undefined ? {} : { email: person.email },
     ...person.imageUrl === undefined ? {} : { imageUrl: person.imageUrl },
     alt: t('avatar.alt'),
   }

@@ -79,45 +79,43 @@ export function GoalBar({ goal, onEdit, onPause, onResume, onClear, t }: GoalBar
 
   if (editing) {
     return (
-      <div className={css.dock} data-goal-bar>
-        <div className={css.bar}>
-          <input
-            className={css.objectiveInput}
-            type="text"
-            aria-label={t('objective.aria')}
-            value={draft}
-            onChange={(e) => { setDraft(e.target.value) }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void handleEdit()
-              if (e.key === 'Escape') setEditing(false)
-            }}
-            autoFocus
-          />
-          {actionError !== null && <span className={css.error} role="alert">{actionError}</span>}
-          <div className={css.actions}>
-            <Tooltip label={t('action.save')} side="bottom">
-              <button
-                type="button"
-                className={css.iconBtn}
-                onClick={() => { void handleEdit() }}
-                disabled={pending || draft.trim() === ''}
-                aria-label={t('action.save')}
-              >
-                <IconCheckOutline16 size={14} />
-              </button>
-            </Tooltip>
-            <Tooltip label={t('action.cancel')} side="bottom">
-              <button
-                type="button"
-                className={css.iconBtn}
-                onClick={() => { setEditing(false) }}
-                disabled={pending}
-                aria-label={t('action.cancel')}
-              >
-                <IconCloseOutline16 size={14} />
-              </button>
-            </Tooltip>
-          </div>
+      <div className={css.bar} data-goal-bar>
+        <input
+          className={css.objectiveInput}
+          type="text"
+          aria-label={t('objective.aria')}
+          value={draft}
+          onChange={(e) => { setDraft(e.target.value) }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') void handleEdit()
+            if (e.key === 'Escape') setEditing(false)
+          }}
+          autoFocus
+        />
+        {actionError !== null && <span className={css.error} role="alert">{actionError}</span>}
+        <div className={css.actions}>
+          <Tooltip label={t('action.save')} side="bottom">
+            <button
+              type="button"
+              className={css.iconBtn}
+              onClick={() => { void handleEdit() }}
+              disabled={pending || draft.trim() === ''}
+              aria-label={t('action.save')}
+            >
+              <IconCheckOutline16 size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip label={t('action.cancel')} side="bottom">
+            <button
+              type="button"
+              className={css.iconBtn}
+              onClick={() => { setEditing(false) }}
+              disabled={pending}
+              aria-label={t('action.cancel')}
+            >
+              <IconCloseOutline16 size={14} />
+            </button>
+          </Tooltip>
         </div>
       </div>
     )
@@ -125,44 +123,42 @@ export function GoalBar({ goal, onEdit, onPause, onResume, onClear, t }: GoalBar
 
   const title = goal.phase === 'blocked' ? goal.blockedReason?.message : undefined
   return (
-    <div className={css.dock} data-goal-bar>
-      <div className={css.bar} title={title}>
-        <span className={css.goalGlyph}><IconGoalOutline16 size={14} /></span>
-        <span className={css.label}>{t(PHASE_LABELS[goal.phase])}</span>
-        <span className={css.objective}>{goal.objective}</span>
-        {actionError !== null && <span className={css.error} role="alert">{actionError}</span>}
-        <div className={css.actions}>
-          {goal.phase === 'active' && (
-            <Tooltip label={t('action.pause')} side="bottom">
-              <button type="button" className={css.iconBtn} disabled={pending} onClick={() => { void runAction(onPause) }} aria-label={t('action.pause')}>
-                <IconPauseOutline16 size={14} />
-              </button>
-            </Tooltip>
-          )}
-          {goal.phase === 'paused' && (
-            <Tooltip label={t('action.resume')} side="bottom">
-              <button type="button" className={css.iconBtn} disabled={pending} onClick={() => { void runAction(onResume) }} aria-label={t('action.resume')}>
-                <IconPlayOutline16 size={14} />
-              </button>
-            </Tooltip>
-          )}
-          <Tooltip label={t('action.edit')} side="bottom">
-            <button
-              type="button"
-              className={css.iconBtn}
-              disabled={pending}
-              onClick={() => { setDraft(goal.objective); setEditing(true) }}
-              aria-label={t('action.edit')}
-            >
-              <IconEditOutline16 size={14} />
+    <div className={css.bar} data-goal-bar title={title}>
+      <span className={css.goalGlyph}><IconGoalOutline16 size={14} /></span>
+      <span className={css.label}>{t(PHASE_LABELS[goal.phase])}</span>
+      <span className={css.objective}>{goal.objective}</span>
+      {actionError !== null && <span className={css.error} role="alert">{actionError}</span>}
+      <div className={css.actions}>
+        {goal.phase === 'active' && (
+          <Tooltip label={t('action.pause')} side="bottom">
+            <button type="button" className={css.iconBtn} disabled={pending} onClick={() => { void runAction(onPause) }} aria-label={t('action.pause')}>
+              <IconPauseOutline16 size={14} />
             </button>
           </Tooltip>
-          <Tooltip label={t('action.clear')} side="bottom">
-            <button type="button" className={css.iconBtn} disabled={pending} onClick={() => { void handleClear(goal.id) }} aria-label={t('action.clear')}>
-              <IconTrashOutline16 size={14} />
+        )}
+        {goal.phase === 'paused' && (
+          <Tooltip label={t('action.resume')} side="bottom">
+            <button type="button" className={css.iconBtn} disabled={pending} onClick={() => { void runAction(onResume) }} aria-label={t('action.resume')}>
+              <IconPlayOutline16 size={14} />
             </button>
           </Tooltip>
-        </div>
+        )}
+        <Tooltip label={t('action.edit')} side="bottom">
+          <button
+            type="button"
+            className={css.iconBtn}
+            disabled={pending}
+            onClick={() => { setDraft(goal.objective); setEditing(true) }}
+            aria-label={t('action.edit')}
+          >
+            <IconEditOutline16 size={14} />
+          </button>
+        </Tooltip>
+        <Tooltip label={t('action.clear')} side="bottom">
+          <button type="button" className={css.iconBtn} disabled={pending} onClick={() => { void handleClear(goal.id) }} aria-label={t('action.clear')}>
+            <IconTrashOutline16 size={14} />
+          </button>
+        </Tooltip>
       </div>
     </div>
   )
