@@ -2,8 +2,8 @@
  * Workspace browser tree row components (figma Cell set 14:3080): pure presentational —
  * all data and callbacks arrive via props. Hover swaps (time->ellipsis, action
  * buttons) are CSS-only. Row ... menus are visual-only except workspace
- * Rename/Delete and session Rename/Fork/Archive; the session and workspace
- * hover cards are suppressed while a menu is open.
+ * Rename/Delete and session Rename/Fork/Archive; the session hover card is
+ * suppressed while its menu is open.
  *
  * A Workspace row's leading glyph has exactly two states — the open folder
  * while the group is expanded, the closed folder while it is folded — and the
@@ -13,13 +13,13 @@ import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 
 import clsx from 'clsx'
 import {
   HoverCard, IconAlarmClockOutline16, IconArchiveOutline20, IconBranchOutline16,
-  IconEditOutline16, IconLucideCircle, IconLucideEllipsis, IconLucideEllipsisVertical,
+  IconEditOutline16, IconLucideEllipsis, IconLucideEllipsisVertical, IconLucideMessageCircleCheck,
+  IconLucideMessageCircleQuestionMark,
   IconLucideFolder, IconLucideFolderOpen,
   IconLucideMessageCirclePlus, IconTrashOutline16, Menu, relativeTime,
-  Spinner, StateDot,
+  Spinner, StateDot, Tooltip,
 } from '@aeven/client-ui-primitives'
 import type { StateDotState } from '@aeven/client-ui-primitives'
-import { abbreviateHomePath } from '@aeven/util-workspace-path'
 import type { WorkspaceBrowserProps } from '../contract/slots.ts'
 import { sessionPathOf } from '../session-url.ts'
 import type { GroupNode, SearchResultNode, SessionNode } from '../tree.ts'
@@ -68,34 +68,6 @@ function hoverTimeLabel(updatedAt: number, now: number, t: RowTranslate): string
 }
 
 /**
- * Absolute creation time through the dictionary's date template (the message
- * clock pattern): `toLocaleString` would follow the browser language, not the
- * app locale, and produce mixed-language text after a switch.
- */
-function createdLabel(createdAt: number, t: RowTranslate): string {
-  const d = new Date(createdAt)
-  const pad2 = (v: number): string => String(v).padStart(2, '0')
-  const date = t('date.ymd', { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() })
-  return t('hover.created', { time: `${date} ${pad2(d.getHours())}:${pad2(d.getMinutes())}` })
-}
-
-/** Hover-card body: workspace title, display directory path, absolute creation time. */
-function WorkspaceHoverContent({ label, cwd, createdAt, t }: {
-  label: string
-  cwd: string | undefined
-  createdAt: number
-  t: RowTranslate
-}) {
-  return (
-    <div className={css.hoverContent}>
-      <div className={css.hoverTitle}>{label}</div>
-      <div className={css.hoverPath}>{cwd}</div>
-      <div className={css.hoverTime}>{createdLabel(createdAt, t)}</div>
-    </div>
-  )
-}
-
-/**
  * Row drag wiring supplied by the tree owner. `drop` reports the half of the
  * row where the pointer released so the owner can resolve an insert anchor.
  */
@@ -134,11 +106,10 @@ function rowHalf(e: { clientY: number; currentTarget: HTMLElement }): 'before' |
  * @param props.onToggle - expand/collapse the group.
  * @param props.onCreate - start a frontend Session inside this Workspace.
  * @param props.drag - optional workspace-row drag wiring.
- * @param props.home - host account home for POSIX hover-path abbreviation.
  * @param props.t - the browser root's locale seat.
  * @returns the row element.
  */
-export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home, t }: {
+export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, t }: {
   group: GroupNode
   onToggle: () => void
   onCreate: () => void
@@ -146,8 +117,6 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
   actions?: { rename: () => void; delete: () => void } | undefined
   /** Present only for real Workspace rows in the grouped view. */
   drag?: WorkspaceRowDragProps | undefined
-  /** Host account home; POSIX home-rooted hover paths display as `~`. */
-  home?: string | undefined
   t: RowTranslate
 }) {
   const row = group
@@ -158,7 +127,7 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
     { id: 'rename', label: t('rename'), icon: <IconEditOutline16 /> },
     { id: 'delete', label: t('delete.workspace'), icon: <IconTrashOutline16 />, danger: true },
   ]
-  const ownRow = (
+  return (
     <div
       className={clsx(css.projectRow, menuOpen && css.menuOpen)}
       role="treeitem"
@@ -209,35 +178,20 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
             )}
           />
         )}
-        <button
-          type="button"
-          className={css.iconButton}
-          aria-label={t('actions.newSession.aria', { name: label })}
-          onClick={(e) => { e.stopPropagation(); onCreate() }}
-        >
-          {/* The New Session mark itself, so the row's add affordance and the
-              Chat row above it read as the same action. */}
-          <IconLucideMessageCirclePlus className={css.actionIcon} />
-        </button>
+        <Tooltip label={t('actions.newSession.tooltip')} side="bottom" anchor="icon">
+          <button
+            type="button"
+            className={clsx(css.iconButton, css.pinnedAction)}
+            aria-label={t('actions.newSession.aria', { name: label })}
+            onClick={(e) => { e.stopPropagation(); onCreate() }}
+          >
+            {/* The New Session mark itself, so the row's add affordance and the
+                Chat row above it read as the same action. */}
+            <IconLucideMessageCirclePlus className={css.actionIcon} />
+          </button>
+        </Tooltip>
       </span>
     </div>
-  )
-  // The ungrouped bucket has no backing Workspace: no card to show.
-  if (row.createdAt === undefined) return ownRow
-  return (
-    <HoverCard
-      anchor={ownRow}
-      content={<WorkspaceHoverContent
-        label={row.label}
-        cwd={row.cwd === undefined ? undefined : abbreviateHomePath(row.cwd, home)}
-        createdAt={row.createdAt}
-        t={t}
-      />}
-      disabled={menuOpen}
-      copyText={row.cwd}
-      copyLabel={t('copy')}
-      copiedLabel={t('hover.copied')}
-    />
   )
 }
 
@@ -246,8 +200,12 @@ function assertNever(value: never): never {
   throw new Error(`unknown pending interaction: ${String(value)}`)
 }
 
+/** A row's status mark: one of the dot states, or the pending-interaction mark
+ * every pending kind shares — one glyph whose label carries the kind. */
+type SessionMarkState = StateDotState | 'pending'
+
 interface SessionStatus {
-  state: StateDotState
+  state: SessionMarkState
   label: string
 }
 
@@ -273,13 +231,13 @@ function sessionStatuses(
   let pending: SessionStatus | undefined
   switch (node.pendingInteraction) {
     case 'approval':
-      pending = { state: 'warning', label: t('status.waitingApproval') }
+      pending = { state: 'pending', label: t('status.waitingApproval') }
       break
     case 'plan-review':
-      pending = { state: 'warning', label: t('status.planReview') }
+      pending = { state: 'pending', label: t('status.planReview') }
       break
     case 'question':
-      pending = { state: 'warning', label: t('status.waitingAnswer') }
+      pending = { state: 'pending', label: t('status.waitingAnswer') }
       break
     case undefined: break
     /* v8 ignore next -- closed PendingInteractionStatus union */
@@ -299,11 +257,13 @@ function sessionStatuses(
  * The status mark itself: work in flight is the shared Aeven loading glyph —
  * one 18px #000000 mark rotating — rather than a state dot, so a running
  * Session reads the same in the list as every other in-flight surface; a
- * Session at rest carries the faint circle that marks a chat.
+ * Session at rest carries the circle that marks a chat, invisible until its
+ * row is hovered, opened, or selected.
  */
-function StatusMark({ state }: { state: StateDotState }) {
+function StatusMark({ state }: { state: SessionMarkState }) {
   if (state === 'ongoing') return <Spinner className={css.runningMark} />
-  if (state === 'done') return <IconLucideCircle className={css.idleMark} />
+  if (state === 'done') return <IconLucideMessageCircleCheck className={css.idleMark} />
+  if (state === 'pending') return <IconLucideMessageCircleQuestionMark className={css.pendingMark} />
   return <StateDot state={state} />
 }
 

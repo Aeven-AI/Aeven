@@ -329,10 +329,9 @@
 - id: tool-cordis
   name: '@aeven/tool-cordis'
 
-# The composition-authoring skill travels with this preset rather than living
-# in the user's skill root: it documents THIS deployment's two planes, and a
-# preset is the unit that gets copied and edited. `baseUrl` is the preset's
-# own directory, so the root resolves wherever the preset is installed.
+# The composition-authoring skills ship in the sibling `aeven` preset, which
+# owns them; `baseUrl` is this preset's own directory, so the root resolves
+# only beside the shipped install, and a copy of this preset loses them.
 # Both rows register into THIS preset's layer of the host skill registry, so
 # they need no realm; the agent's merged catalog also carries whatever the
 # deployment registered globally (repository plugins).
@@ -340,7 +339,7 @@
   name: '@aeven/skill-filesystem'
   config:
     customSkillDirs:
-      - !!js "process.getBuiltinModule('node:url').fileURLToPath(new URL('skills/', baseUrl))"
+      - !!js "process.getBuiltinModule('node:url').fileURLToPath(new URL('../aeven/skills/', baseUrl))"
 
 - id: tool-skill
   name: '@aeven/tool-skill'

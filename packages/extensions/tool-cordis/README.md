@@ -52,7 +52,7 @@ The three inspect tools are read-only; the four lifecycle tools define and manag
 
 ### A typical workflow
 
-Inspect before writing, then define, then run: `cordis_inspect_query` reads the exact contract of the service or slot the package will use, `cordis_define` records the source (and the conversation shows a define card pointing to the panel where the run control lives), and `cordis_run` activates it. When the user types `@pluginId`, this package injects a context message that pins the referenced plugin, its base package, and the update path. After a technical failure, read the diagnostics with `cordis_inspect_self`, append a corrected package to the same plugin, and update to it.
+Inspect before writing, then define, then run: `cordis_inspect_query` reads the exact contract of the service or slot the package will use, `cordis_define` records the source (and the conversation shows a define card), and `cordis_run` activates it. When the user types `@pluginId`, this package injects a context message that pins the referenced plugin, its base package, and the update path. After a technical failure, read the diagnostics with `cordis_inspect_self`, append a corrected package to the same plugin, and update to it.
 
 ### Boundaries to plan around
 
@@ -98,7 +98,7 @@ Read these pages when the package-level contract is not enough. They move from t
 
 - [Host runner](../cordis-host-runner/README.md) — the registry, sandbox, and run round trip these tools delegate to.
 - [Client runner](../cordis-client-runner/README.md) — the browser half that answers run requests and loads browser-half code.
-- [UI package](../ui-cordis/README.md) — the panel and tool cards users operate definitions with.
+- [UI package](../ui-cordis/README.md) — the lifecycle tool cards.
 - [Generated tool catalog](../../../docs/tool-catalog.md#aeventool-cordis) — the exact schemas the model receives.
 - [Extensions subsystem](../../../docs/subsystems/extensions.md) — the generated `ctx.cordisInspect` and `ctx.dynamicCordisRunner` API.
 - [Self-referential Cordis toolset Agent Note](../../../.agents/notes/implemented/feature/2026-07-08-self-referential-cordis-toolset.md) — design home: sandbox semantics, dynamic-package lifecycle, and composition.

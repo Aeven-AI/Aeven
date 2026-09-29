@@ -103,6 +103,10 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   private readonly connecting = new Map<WorkspaceId | SessionId, Promise<SessionId>>()
   /** The archived current Session a new chat is being opened in place of, so the reconciler starts one only. */
   private replacingArchived: SessionId | undefined
+  /** The orphaned current Session a new chat is being opened in place of, so the reconciler starts one only. */
+  private replacingOrphan: SessionId | undefined
+  /** Sessions this client created, until the lists catch up with them; they are arriving, not orphaned. */
+  private readonly created = new Set<SessionId>()
   private initialNav: InitialNavigation = 'waiting'
   private initialDataReady: Promise<void> | undefined
   private initialDataCheck: (() => void) | undefined
@@ -176,6 +180,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     }
 
     const attempt = this.sessions.create({ workspaceId, ...(sessionId === undefined ? {} : { sessionId }) })
+      .then((id) => { this.created.add(id); return id })
       .finally(() => { this.connecting.delete(key) })
     this.connecting.set(key, attempt)
     return attempt
@@ -187,11 +192,23 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     // clearing the selection instead would leave a page with no composer.
     const opening = target === undefined
       ? this.createChat(sessionId)
-      : this.connectWorkspace(target, sessionId)
+      : this.connectWorkspace(target, sessionId).catch((reason: unknown) => {
+        // The target can vanish between choosing it and creating in it: deleting a Workspace archives its
+        // Sessions first, and the archived current Session is replaced in the Workspace being deleted. A New
+        // Session then lands in the built-in Workspace instead of leaving the selection without one.
+        const fallback = this.defaultWorkspaceId()
+        if (fallback === undefined || fallback === target) throw reason
+        return this.connectWorkspace(fallback, sessionId)
+      })
     void opening.then(
       (opened) => { this.sessions.open(opened) },
       (reason: unknown) => { console.warn('new session failed:', reason) },
     )
+  }
+
+  /** The built-in Workspace every reader has, when the Host seeds one. */
+  private defaultWorkspaceId(): WorkspaceId | undefined {
+    return this.workspaces.list.getSnapshot().items.find(item => item.isDefault)?.workspaceId
   }
 
   /**
@@ -204,6 +221,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     const inflight = this.connecting.get(key)
     if (inflight !== undefined) return inflight
     const attempt = this.sessions.create(sessionId === undefined ? {} : { sessionId })
+      .then((id) => { this.created.add(id); return id })
       .finally(() => { this.connecting.delete(key) })
     this.connecting.set(key, attempt)
     return attempt
@@ -319,9 +337,20 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       const workspace = this.workspaces.list.getSnapshot()
       const sessions = this.sessions.list.getSnapshot()
       if (workspace.phase !== 'ready' || sessions.phase !== 'ready') return
+      if (this.replaceOrphanedCurrent()) return
 
       if (!urlInitialized) {
         const requested = this.sessionUrl.read()
+        if (requested !== undefined && workspace.archivedSessionIds.includes(requested)) {
+          // An archived chat is not reopened from its address: the current selection, or the New Session the
+          // archive already started in its place, keeps the page and takes over the address.
+          urlInitialized = true
+          if (sessions.current !== undefined && sessions.current !== requested) {
+            this.markInitialNav('done')
+            this.sessionUrl.replace(sessions.current)
+          }
+          return
+        }
         if (requested !== undefined && sessions.byId[requested] !== undefined) {
           urlInitialized = true
           this.markInitialNav('done')
@@ -441,6 +470,35 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   }
 
   /**
+   * Replace an unused current Session that no Workspace owns, such as the blank chat of a Workspace that was
+   * just deleted, with a blank chat in the built-in Workspace. A New Session always has a Workspace; without
+   * one the composer has nothing to send into. A Session with history keeps its selection.
+   * @returns true while the current selection is such an orphan.
+   */
+  private replaceOrphanedCurrent(): boolean {
+    const workspace = this.workspaces.list.getSnapshot()
+    const sessions = this.sessions.list.getSnapshot()
+    const current = sessions.current
+    if (current === undefined || workspace.items.some(item => item.sessionIds.includes(current))) {
+      if (current !== undefined) this.created.delete(current)
+      this.replacingOrphan = undefined
+      return false
+    }
+    const summary = sessions.byId[current]
+    const snapshot = this.sessions.binding(current)?.session.getSnapshot()
+    if ((summary?.blank ?? snapshot?.blank) !== true || snapshot?.promptAttempted === true) return false
+    // A Session this client just created, or one whose directory a Workspace still registers, is joining
+    // that Workspace; its membership arrives with a later list.
+    if (summary === undefined && this.created.has(current)) return false
+    if (summary !== undefined && workspace.items.some(item => item.path === (summary.cwd ?? null))) return false
+    if (this.replacingOrphan !== current) {
+      this.replacingOrphan = current
+      this.startSession(this.defaultWorkspaceId())
+    }
+    return true
+  }
+
+  /**
    * Replace an archived current selection with a new chat, as the New Session
    * action does: an empty selection has no composer to continue from.
    * @returns true while the current selection is archived.
@@ -448,7 +506,11 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   private clearArchivedCurrent(): boolean {
     const current = this.sessions.list.getSnapshot().current
     if (current === undefined
-      || !this.workspaces.list.getSnapshot().archivedSessionIds.includes(current)) return false
+      || !this.workspaces.list.getSnapshot().archivedSessionIds.includes(current)) {
+      // The selection moved on; an archived Session selected again is replaced again.
+      this.replacingArchived = undefined
+      return false
+    }
     if (this.replacingArchived !== current) {
       this.replacingArchived = current
       this.startSession()

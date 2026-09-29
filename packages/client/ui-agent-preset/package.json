@@ -59,6 +59,7 @@
     "@aeven/client-ui-conversation": "workspace:^",
     "@aeven/client-ui-primitives": "workspace:^",
     "@aeven/client-ui-settings": "workspace:^",
+    "@aeven/client-ui-settings-general": "workspace:^",
     "@aeven/client-ui-slots": "workspace:^",
     "@aeven/session": "workspace:^",
     "@types/react": "~18.3.1",

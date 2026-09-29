@@ -207,7 +207,7 @@ describe('ui-agent-preset apply', () => {
     expect(slots.entries('settings.general.item')).toHaveLength(0)
     const section = slots.entries('settings.section')[0]!
     expect(section.component).toBe(AgentPresetSection)
-    expect(section.options).toMatchObject({ id: 'agent-presets', order: 20 })
+    expect(section.options).toMatchObject({ id: 'agent-presets', order: 80 })
     // The nav label is a locale-following thunk; owners resolve it at read time.
     expect(resolveSlotLabel(section.options.label)).toBe('Agent 预设')
   })

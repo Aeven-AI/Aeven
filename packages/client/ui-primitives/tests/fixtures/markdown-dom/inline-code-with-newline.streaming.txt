@@ -1,15 +1,6 @@
 <div class="hypermarkdown _markdown_404681">
   <p>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "Spans"
+    #text "Spans "
     <code>
-      <span data-animate-key="word-0-0" data-animate-word="true">
-        #text "a"
-      <span data-animate-key="word-0-2" data-animate-word="true">
-        #text "b"
-    <span data-animate-key="word-4-2" data-animate-word="true">
-      #text "across"
-    <span data-animate-key="word-4-4" data-animate-word="true">
-      #text "a"
-    <span data-animate-key="word-4-6" data-animate-word="true">
-      #text "line."
+      #text "a b"
+    #text " across a line."

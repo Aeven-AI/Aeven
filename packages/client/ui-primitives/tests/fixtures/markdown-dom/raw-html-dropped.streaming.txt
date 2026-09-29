@@ -1,51 +1,7 @@
 <div class="hypermarkdown _markdown_404681">
-  <span data-animate-key="word-0-0" data-animate-word="true">
-    #text "<script>globalThis.compromised"
-  <span data-animate-key="word-0-2" data-animate-word="true">
-    #text "="
-  <span data-animate-key="word-0-4" data-animate-word="true">
-    #text "true</script>"
+  #text "<script>globalThis.compromised = true</script>\n"
   <p>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "Paragraph"
-    <span data-animate-key="word-0-2" data-animate-word="true">
-      #text "with"
-    <span data-animate-key="word-0-4" data-animate-word="true">
-      #text "inline"
-    <span data-animate-key="word-7-0" data-animate-word="true">
-      #text "<img"
-    <span data-animate-key="word-7-2" data-animate-word="true">
-      #text "src=\"x\""
-    <span data-animate-key="word-7-4" data-animate-word="true">
-      #text "onerror=\"boom\">"
-    <span data-animate-key="word-12-2" data-animate-word="true">
-      #text "html"
-    <span data-animate-key="word-12-4" data-animate-word="true">
-      #text "and"
-    <span data-animate-key="word-19-0" data-animate-word="true">
-      #text "<b>"
-    <span data-animate-key="word-20-0" data-animate-word="true">
-      #text "bold"
-    <span data-animate-key="word-20-2" data-animate-word="true">
-      #text "tag"
-    <span data-animate-key="word-23-0" data-animate-word="true">
-      #text "</b>"
-    <span data-animate-key="word-24-2" data-animate-word="true">
-      #text "kept"
-    <span data-animate-key="word-24-4" data-animate-word="true">
-      #text "literal?"
-  <span data-animate-key="word-12-0" data-animate-word="true">
-    #text "<div"
-  <span data-animate-key="word-12-2" data-animate-word="true">
-    #text "class=\"x\">"
-  <span data-animate-key="word-12-4" data-animate-word="true">
-    #text "html"
-  <span data-animate-key="word-12-6" data-animate-word="true">
-    #text "block"
-  <span data-animate-key="word-12-8" data-animate-word="true">
-    #text "content"
-  <span data-animate-key="word-12-10" data-animate-word="true">
-    #text "</div>"
+    #text "Paragraph with inline <img src=\"x\" onerror=\"boom\"> html and <b>bold tag</b> kept literal?"
+  #text "\n<div class=\"x\">\nhtml block content\n</div>"
   <p>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "after"
+    #text "after"

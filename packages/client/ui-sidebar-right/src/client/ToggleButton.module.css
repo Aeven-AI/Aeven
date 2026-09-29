@@ -23,7 +23,7 @@
   cursor: pointer;
 }
 
-/* The panel glyph: a CSS-sized lucide panel at its own 18px grapheme. */
+/* The panel glyph: a CSS-sized panel at its own 18px grapheme. */
 .toggleIcon {
   width: 18px;
   height: 18px;

@@ -43,7 +43,7 @@
 .strip {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 16px;
   min-width: 0;
   height: 100%;
   overflow-x: auto;
@@ -67,33 +67,35 @@
   mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
 }
 
-/* One pill: glyph (a close button on hover) and title. A pill states no fill of
-   its own in any state — the strip is flat content, and the title alone
-   distinguishes the shown entry: full strength, against half for the rest. */
+/* One pill: glyph (a close button on hover) and title, on the same box, glyph
+   gap and type the launcher row that opened it takes — box height, 8px glyph
+   gap, and the inherited font — so a kind's pill and its launcher button hold
+   one glyph line and one label line, and switching between them moves nothing.
+   A pill states no fill of its own in any state — the strip is flat content,
+   and the title alone distinguishes the shown entry: full strength, against
+   half for the rest. */
 .pill {
   display: flex;
   flex: none;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   max-width: 180px;
-  height: 30px;
+  height: var(--dsw-aeven-control-size);
   padding: 0;
   box-sizing: border-box;
   background: transparent;
   color: var(--dsw-alias-label-primary);
+  font: inherit;
   font-size: 14px;
-  line-height: 20px;
   cursor: pointer;
 }
 
 /* An unselected pill states its title at half strength and keeps its glyph at
-   full, so every surface's mark reads at one weight along the strip. */
+   full, so every surface's mark reads at one weight along the strip. The shown
+   one takes no weight of its own: strength against half already marks it, and a
+   heavier title would not match the launcher button's own. */
 .pillTitle {
   opacity: 0.5;
-}
-
-.pill[data-active] {
-  font-weight: 500;
 }
 
 .pill[data-active] .pillTitle {
@@ -170,6 +172,9 @@
   background: transparent;
   color: inherit;
   font: inherit;
+  /* The launcher row's own alignment: a title too long for the pill loses its
+     end to the ellipsis, not its start. */
+  text-align: start;
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
@@ -222,32 +227,35 @@
   font-size: 13px;
 }
 
-/* The empty column: one row per kind. */
+/* The empty column: one row per kind, starting at the top of the panel on the
+   corner band's row — the line the account sits on, which the strip shares when
+   there are surfaces — instead of centred in the column. The rows stack with no
+   gap, so they take the same 40px pitch as the left sidebar's own rows: the
+   first three land on the band, the New Session row and the Imagine row. */
 .launcher {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
   align-items: stretch;
-  justify-content: center;
-  gap: 8px;
-  width: min(300px, 100% - 48px);
-  margin: 0 auto;
-  padding-bottom: 48px;
   outline: none;
 }
 
-/* One kind row: the primary button the sign-in screen states — black fill,
-   white label and glyph — and no hover state of its own. */
+/* One kind row: a white button with the black ink of the static extremes, so
+   the row reads the same over the light and dark panel fills rather than
+   following the primary-button pair. Row height, inset and 8px glyph gap are the
+   left sidebar row's own metrics, read from the same theme tokens, so a kind's
+   18px glyph and its label stand on that column's lines — and no state paints
+   the row. */
 .launcherRow {
   display: flex;
   align-items: center;
-  gap: 10px;
-  height: 40px;
-  padding: 0 14px;
+  gap: 8px;
+  height: var(--dsw-aeven-control-size);
+  padding: 0 var(--dsw-aeven-sidebar-row-inset);
   border: none;
   border-radius: 20px;
-  background: var(--dsw-alias-button-primary-fill);
-  color: var(--dsw-alias-label-primary-foreground);
+  background: var(--dsw-static-neutral-00);
+  color: var(--dsw-static-neutral-1000);
   font: inherit;
   font-size: 14px;
   text-align: start;

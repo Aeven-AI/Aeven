@@ -1,63 +1,33 @@
 <div class="hypermarkdown _markdown_404681">
   <h1>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "H1"
-    <span data-animate-key="word-0-2" data-animate-word="true">
-      #text "with"
+    #text "H1 with "
     <code>
-      <span data-animate-key="word-0-0" data-animate-word="true">
-        #text "code"
+      #text "code"
   <h2>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "H2"
+    #text "H2"
   <h3>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "H3"
+    #text "H3"
   <h4>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "H4"
+    #text "H4"
   <h5>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "H5"
+    #text "H5"
   <h6>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "H6"
+    #text "H6"
   <p>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "Paragraph"
-    <span data-animate-key="word-0-2" data-animate-word="true">
-      #text "one"
-    <span data-animate-key="word-0-4" data-animate-word="true">
-      #text "with"
+    #text "Paragraph one with "
     <strong>
-      <span data-animate-key="word-0-0" data-animate-word="true">
-        #text "strong"
-    <span data-animate-key="word-8-0" data-animate-word="true">
-      #text ","
+      #text "strong"
+    #text ", "
     <em>
-      <span data-animate-key="word-0-0" data-animate-word="true">
-        #text "emphasis"
-    <span data-animate-key="word-12-0" data-animate-word="true">
-      #text ","
+      #text "emphasis"
+    #text ", "
     <del>
-      <span data-animate-key="word-0-0" data-animate-word="true">
-        #text "strike"
-    <span data-animate-key="word-16-0" data-animate-word="true">
-      #text ","
-    <span data-animate-key="word-16-2" data-animate-word="true">
-      #text "and"
+      #text "strike"
+    #text ", and "
     <code>
-      <span data-animate-key="word-0-0" data-animate-word="true">
-        #text "inline"
-    <span data-animate-key="word-22-0" data-animate-word="true">
-      #text "."
+      #text "inline"
+    #text "."
   <h1>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "Setext"
-    <span data-animate-key="word-0-2" data-animate-word="true">
-      #text "title"
+    #text "Setext title"
   <p>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "Second"
-    <span data-animate-key="word-0-2" data-animate-word="true">
-      #text "setext"
+    #text "Second setext"

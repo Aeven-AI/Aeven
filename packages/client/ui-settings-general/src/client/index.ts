@@ -26,7 +26,10 @@ import type {
 import { SettingsRoot } from './SettingsRoot.tsx'
 import { CloseLabel, HeaderContent, TriggerContent } from './chrome.tsx'
 import { GeneralSection } from './GeneralSection.tsx'
+import { DeveloperModeRow, type DeveloperModeRowInjected } from './DeveloperModeRow.tsx'
+import { DeveloperModePolicy } from './developer-mode.ts'
 import { en, zh, type SettingsKey } from './locales.ts'
+import { DEVELOPER_SETTINGS_NAMESPACE, type DeveloperSettings } from '../developer-settings.ts'
 
 export type {
   CloseLabelProps, HeaderContentProps, TriggerContentProps,
@@ -35,6 +38,8 @@ export type {
   GeneralSectionComponentProps,
 } from './GeneralSection.tsx'
 export type { SettingsKey } from './locales.ts'
+export type { DeveloperModeRowInjected, DeveloperModeRowProps } from './DeveloperModeRow.tsx'
+export type { DeveloperSettings, DeveloperSettingsNamespace } from '../developer-settings.ts'
 
 declare module '@aeven/client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -151,9 +156,25 @@ export function apply(ctx: ClientContext): void {
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
     id: 'general',
-    order: 0,
+    order: 20,
     label: () => t('general.nav'),
     locale: NS,
     children: { 'settings.general.item': { kind: 'list', scope: 'root' } },
   }, GeneralSection))
+
+  // Last in General: it changes which Settings pages exist, not how a
+  // session behaves.
+  const developerMode = new DeveloperModePolicy(
+    ctx.settingsScope.bind<DeveloperSettings>({ namespace: DEVELOPER_SETTINGS_NAMESPACE }),
+  )
+  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+    name: 'settings.general.item',
+    id: 'developer-mode',
+    order: 100,
+    locale: NS,
+    inject: (): DeveloperModeRowInjected => ({
+      hooks: { developerMode: developerMode.enabled },
+      setDeveloperMode: (enabled) => { developerMode.setEnabled(enabled) },
+    }),
+  }, DeveloperModeRow))
 }

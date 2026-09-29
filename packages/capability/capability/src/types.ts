@@ -1,14 +1,14 @@
 /** Vocabulary for learned capabilities: executable procedures an agent learned for one user. */
 
 /**
- * Lifecycle status of a capability. Only the user makes a capability executable or retires it; evidence
- * from recorded executions moves an executable capability between the remaining statuses.
- * - `candidate`: remembered but not confirmed; recalled as an unconfirmed draft, never loaded as instructions.
- * - `learned`: confirmed by the user; published through the skill catalog.
- * - `trusted`: learned, and the current revision has enough successful, verified executions.
+ * Lifecycle status of a capability. Evidence from recorded executions moves a capability between statuses;
+ * nobody is asked. The user can retire, restore, edit, or delete any capability afterwards.
+ * - `candidate`: learned from completed work and not yet validated; published with a note to check each step.
+ * - `learned`: at least one execution of a candidate succeeded.
+ * - `trusted`: learned, and the current revision has enough successful executions, at least one verified.
  * - `needs-validation`: the procedure changed after it was trusted; the next execution must verify it.
  * - `degraded`: the most recent executions of the current revision failed.
- * - `retired`: withdrawn by the user; kept with its history but not published.
+ * - `retired`: withdrawn by the user or by repeated failure as a candidate; kept with its history but not published.
  */
 export type CapabilityStatus = 'candidate' | 'learned' | 'trusted' | 'needs-validation' | 'degraded' | 'retired'
 
@@ -80,6 +80,26 @@ export interface CapabilityProvenance {
   readonly action: 'save' | 'update' | 'file' | 'status' | 'evidence'
 }
 
+/** Cost of one piece of work, measured from the session log. */
+export interface CapabilityRunMetrics {
+  readonly durationMs: number
+  readonly toolCalls: number
+  readonly failedToolCalls: number
+  readonly tokens?: { readonly input: number; readonly output: number }
+}
+
+/** The completed work a capability was learned from. */
+export interface CapabilityOrigin {
+  readonly sessionId: string
+  readonly turn: number
+  /** The user's request that the work answered. */
+  readonly request: string
+  /** Tools the work called, in order. */
+  readonly tools: readonly string[]
+  /** What the work cost before the capability existed: the baseline later executions are compared with. */
+  readonly baseline: CapabilityRunMetrics
+}
+
 /** Durable metadata of one capability; the executable body lives in its `SKILL.md`. */
 export interface CapabilityRecord {
   /** Kebab-case name, unique per owner; also the skill name it is published under. */
@@ -97,6 +117,8 @@ export interface CapabilityRecord {
   /** Supporting files relative to the capability directory, such as `scripts/build.sh`. */
   readonly files: readonly string[]
   readonly provenance: readonly CapabilityProvenance[]
+  /** The work it was learned from; absent when it was written without a completed turn to learn from. */
+  readonly origin?: CapabilityOrigin
 }
 
 /** A capability with its executable body. */

@@ -34,10 +34,16 @@ export const inject = ['agentDefaultModel', 'agents', 'sessions']
 export interface Config {
   /** The prompt text for the single run. */
   task: string
+  /**
+   * Account id the run's session belongs to; absent leaves the session
+   * without an owner, so per-user memory and capabilities stay off.
+   */
+  owner?: string
 }
 
 export const Config: z<Config> = z.object({
   task: z.string().required(),
+  owner: z.string(),
 })
 
 /** Outcome of one owned run interval. */
@@ -163,9 +169,10 @@ function fail(io: HeadlessIo, error: unknown): void {
  * Run one task through a freshly created Agent and request process exit.
  * @param ctx - plugin context carrying the Agent, default model, Session, and launcher IO services.
  * @param task - one-shot task text.
+ * @param owner - account id of the session, when the run belongs to one.
  * @param io - process-facing effects.
  */
-async function run(ctx: Context, task: string, io: HeadlessIo): Promise<void> {
+async function run(ctx: Context, task: string, owner: string | undefined, io: HeadlessIo): Promise<void> {
   // Loader siblings mount concurrently. Await the complete application before
   // creating an Agent so its scoped tools and adapters are not half-composed.
   await ctx.get('loader')?.await()
@@ -182,7 +189,7 @@ async function run(ctx: Context, task: string, io: HeadlessIo): Promise<void> {
   // (@aeven/agent-presets README, "Composing a child agent").
   const { agent } = await agents.create({
     sessionId: brandString<SessionId>(`session-${randomUUID()}`),
-    meta: { cwd: process.cwd() },
+    meta: { cwd: process.cwd(), ...owner ? { owner } : {} },
     agentOptions: { provider: selection.provider, model: selection.model },
     setup: (agentCtx) => {
       const selected: ModelSelectionRef = { current: selection, assembled: undefined }
@@ -202,6 +209,8 @@ async function run(ctx: Context, task: string, io: HeadlessIo): Promise<void> {
     stopReasoning()
   }
   await sessions.flush(agent.session)
+  // Work derived from the run, such as learning from it, finishes before the process exits.
+  await sessions.settle(agent.session)
   const outcome = summarize(agent.session, firstSeq)
   io.stdout.write(outcome.text + '\n')
   if (outcome.reason?.kind === 'error') {
@@ -223,5 +232,5 @@ export function apply(ctx: Context, config: Config): void {
     throw new Error('headless-runner: the launcher must provide ctx.appExit before the tree mounts')
   }
   const io: HeadlessIo = { stdout: internals.stdout, stderr: internals.stderr, exit }
-  void run(ctx, config.task, io).catch((error: unknown) => { fail(io, error) })
+  void run(ctx, config.task, config.owner, io).catch((error: unknown) => { fail(io, error) })
 }

@@ -38,7 +38,7 @@
   padding: 0;
   border: none;
   background: none;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--dsw-alias-label-caption);
 }
 
 /* Flow-row glyphs render at 14px inside the 16px box; the CSS edge overrides
@@ -80,5 +80,5 @@ button.leading {
   flex: none;
   font-size: var(--avn-content-font-size, 16px);
   line-height: calc(28px + var(--avn-content-font-delta, 0px));
-  color: var(--dsw-alias-label-secondary);
+  color: var(--dsw-alias-label-caption);
 }

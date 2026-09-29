@@ -1,10 +1,9 @@
-/** Cordis dynamic-plugin cards, inventory panel, business-view host, and `@pluginId` source. */
+/** Cordis dynamic-plugin cards, business-view host, and `@pluginId` source. */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { SessionId } from '@aeven/session/types'
 import type {} from '@aeven/client-ui-tool/client'
 import type {} from '@aeven/client-locale/client'
-import type {} from '@aeven/client-ui-sidebar/client'
 import type {} from '@aeven/api-remotes/client'
 import type {} from '@aeven/client-ui-renderer/client'
 import type {} from '@aeven/client-ui-session/client'
@@ -13,11 +12,10 @@ import type {} from './events.ts'
 import { CordisActionRow } from './CordisActionRow.tsx'
 import { CordisDefineRow } from './CordisDefineRow.tsx'
 import { CordisRunRow } from './CordisRunRow.tsx'
-import { CordisPanel } from './CordisPanel.tsx'
 import { createCordisInventory } from './inventory.ts'
 import { CordisRunCardRegistry } from './run-card-index.ts'
 import type { CordisDynamicPort } from './dynamic-port.ts'
-import type { CordisCardFace, CordisPanelFace, CordisRunCardFace } from './slots.ts'
+import type { CordisCardFace, CordisRunCardFace } from './slots.ts'
 import { en, NS, zh } from './locales.ts'
 
 export type { CordisCardFace, CordisPanelFace, CordisRunCardFace, CordisToolViewOwnerProps } from './slots.ts'
@@ -34,7 +32,7 @@ export type {
 } from './events.ts'
 export type { CordisKey } from './locales.ts'
 
-/** Required services for the two Tool cards, panel, Remote lifecycle, and Slash source. */
+/** Required services for the Tool cards, Remote lifecycle, and Slash source. */
 export const inject = [
   'slots', 'locale', 'inputTriggers', 'remote', 'remote.dynamicCordisRunner', 'dynamicCordisRunner',
 ]
@@ -83,36 +81,6 @@ export function apply(ctx: ClientContext): void {
     inventory.reset()
     inventory.refresh()
   })
-
-  ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
-    name: 'sidebar.footer.action',
-    id: 'cordis-panel',
-    locale: NS,
-    inject: (): CordisPanelFace => ({
-      hooks: {
-        inventory,
-        activeRuns: runner.activeRuns,
-        runErrors: runner.lastRunError,
-        loaded,
-        renderFailures: runner.renderFailures,
-      },
-      onApprove: (requestId, approveFutureVersions) => runner.approve(requestId, approveFutureVersions),
-      onDecline: requestId => runner.decline(requestId),
-      onRun: request => runner.startUserRun(request),
-      onStop: async (sessionId, pluginId) => {
-        const result = await port.stop(sessionId, pluginId)
-        inventory.refresh()
-        return result
-      },
-      onRemove: async (sessionId, pluginId) => {
-        const result = await port.remove(sessionId, pluginId)
-        if (result.ok) inventory.retire(pluginId)
-        inventory.refresh()
-        return result
-      },
-      onRefresh: () => { inventory.refresh() },
-    }),
-  }, CordisPanel))
 
   const cardFace = (): CordisCardFace => ({ hooks: { inventory, loaded } })
   ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({

@@ -1,15 +1,15 @@
-/** The Memory settings page: memories grouped by what they are about, and learned capabilities. */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+/** The Memory settings page: quiet cards, with detail and actions behind a reveal. */
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import type {
-  CapabilityStatus, ExecutionVerdict, ManagedCapability, ManagedCapabilityDetail, ManagedCapabilityEdit,
-  ManagedCapabilityStatusChange, ManagedMemory, ManagedMemoryPage, ManagedMemoryQuery, MemoryItemId,
+  CapabilityRunMetrics, CapabilityStatus, ExecutionVerdict, ManagedCapability, ManagedCapabilityDetail, ManagedCapabilityEdit,
+  ManagedCapabilityStatusChange, ManagedMemory, ManagedMemoryPage, ManagedMemoryQuery, MemoryDomain, MemoryItemId,
 } from '@aeven/api-remotes/client'
-import { Button, IconSearchOutline16, MarkdownText, Pill, SectionHeader, Spinner } from '@aeven/client-ui-primitives'
+import { IconChevronDownOutline14, IconSearchOutline16, MarkdownText, SectionHeader, Spinner, relativeTime } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import type { MemoryLocaleKey } from './locales.ts'
 import css from './MemorySection.module.css'
 
-/** Registration-side Remote operations the page calls. */
+/** Registration-side operations the page calls. */
 export interface MemorySectionInjected {
   memories: (request: ManagedMemoryQuery) => Promise<ManagedMemoryPage>
   editMemory: (id: MemoryItemId, summary: string) => Promise<ManagedMemory | undefined>
@@ -19,9 +19,14 @@ export interface MemorySectionInjected {
   editCapability: (name: string, edit: ManagedCapabilityEdit) => Promise<ManagedCapabilityDetail>
   setCapabilityStatus: (name: string, status: ManagedCapabilityStatusChange) => Promise<ManagedCapabilityDetail>
   deleteCapability: (name: string) => Promise<boolean>
+  /**
+   * Switch the app to a conversation and leave Settings.
+   * @param sessionId - conversation to show.
+   */
+  openConversation: (sessionId: string) => void
 }
 
-/** Full component props assembled by the Settings slot renderer. */
+/** Full component props assembled by the slot renderer. */
 export type MemorySectionProps =
   PropsRuntime<'settings.section'>
   & PropsLocale<'settings.memory'>
@@ -29,6 +34,8 @@ export type MemorySectionProps =
 
 type Translate = MemorySectionProps['t']
 type Tab = 'person' | 'project' | 'knowledge' | 'capabilities'
+type Load<T> = { readonly status: 'loading' } | { readonly status: 'error' } | { readonly status: 'ready'; readonly value: T }
+type Fold = 'procedure' | 'runs' | 'origin'
 
 const PAGE_SIZE = 200
 
@@ -55,17 +62,10 @@ const VERDICT_LABEL = {
   unknown: 'verdictUnknown',
 } satisfies Record<ExecutionVerdict, MemoryLocaleKey>
 
-function when(time: number): string {
-  return new Date(time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-}
-
-function inTab(memory: ManagedMemory, tab: Tab): boolean {
-  switch (tab) {
-    case 'person': return memory.domain === 'person'
-    case 'project': return memory.domain === 'project'
-    case 'knowledge': return memory.domain === 'world' || memory.domain === 'experience'
-    case 'capabilities': return false
-  }
+const EMPTY: Record<Exclude<Tab, 'capabilities'>, MemoryLocaleKey> = {
+  person: 'emptyPerson',
+  project: 'emptyProject',
+  knowledge: 'emptyKnowledge',
 }
 
 /**
@@ -75,37 +75,130 @@ function inTab(memory: ManagedMemory, tab: Tab): boolean {
  */
 export function MemorySection(props: MemorySectionProps) {
   const { t } = props
+  const tabsId = useId()
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const [tab, setTab] = useState<Tab>('person')
   return (
     <div className={css.section}>
       <SectionHeader title={t('nav')} description={t('intro')} />
-      <div className={css.tabs} role="tablist">
-        {TABS.map(item => (
-          <Pill key={item.id} role="tab" aria-selected={tab === item.id} active={tab === item.id} onClick={() => { setTab(item.id) }}>
-            {t(item.label)}
-          </Pill>
-        ))}
+      <div className={css.tabs} role="tablist" aria-label={t('tabs')}>
+        {TABS.map((item, index) => {
+          const selected = tab === item.id
+          return (
+            <button
+              key={item.id}
+              ref={(element) => { tabRefs.current[index] = element }}
+              id={`${tabsId}-tab-${item.id}`}
+              type="button"
+              role="tab"
+              className={css.tab}
+              aria-selected={selected}
+              aria-controls={`${tabsId}-panel-${item.id}`}
+              data-active={selected ? 'true' : undefined}
+              tabIndex={selected ? 0 : -1}
+              onClick={() => { setTab(item.id) }}
+              onKeyDown={(event) => {
+                let nextIndex: number
+                switch (event.key) {
+                  case 'ArrowRight': nextIndex = (index + 1) % TABS.length; break
+                  case 'ArrowLeft': nextIndex = (index - 1 + TABS.length) % TABS.length; break
+                  case 'Home': nextIndex = 0; break
+                  case 'End': nextIndex = TABS.length - 1; break
+                  default: return
+                }
+                event.preventDefault()
+                const next = TABS[nextIndex]
+                const button = tabRefs.current[nextIndex]
+                if (next === undefined || button === null || button === undefined) return
+                setTab(next.id)
+                button.focus()
+              }}
+            >
+              {t(item.label)}
+            </button>
+          )
+        })}
       </div>
-      {tab === 'capabilities'
-        ? <Capabilities {...props} />
-        : <Memories {...props} tab={tab} />}
+      <div id={`${tabsId}-panel-${tab}`} className={css.panel} role="tabpanel" aria-labelledby={`${tabsId}-tab-${tab}`}>
+        {tab === 'capabilities'
+          ? <Capabilities {...props} />
+          : <Memories {...props} tab={tab} />}
+      </div>
     </div>
   )
 }
 
-type Load<T> = { readonly status: 'loading' } | { readonly status: 'error' } | { readonly status: 'ready'; readonly value: T }
+function formatWhen(time: number): string {
+  return new Date(time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+}
 
-function Memories({ t, tab, memories, editMemory, forgetMemory }: MemorySectionProps & { readonly tab: Tab }) {
+function ago(time: number, now: number, t: Translate): string {
+  const { unit, n } = relativeTime(time, now)
+  switch (unit) {
+    case 'now': return t('timeNow')
+    case 'minutes': return t('timeMinutes', { n: String(n) })
+    case 'hours': return t('timeHours', { n: String(n) })
+    case 'days': return t('timeDays', { n: String(n) })
+    case 'months': return t('timeMonths', { n: String(n) })
+    case 'years': return t('timeYears', { n: String(n) })
+  }
+}
+
+function domainLabel(domain: MemoryDomain, t: Translate): string {
+  switch (domain) {
+    case 'person': return t('tabPerson')
+    case 'project': return t('tabProject')
+    case 'world': return t('domainWorld')
+    case 'experience': return t('domainExperience')
+  }
+}
+
+function folderName(path: string): string {
+  const parts = path.split(/[\\/]/).filter(part => part.length > 0)
+  return parts[parts.length - 1] ?? path
+}
+
+function duration(ms: number): string {
+  const seconds = Math.max(1, Math.round(ms / 1000))
+  return seconds < 90
+    ? new Intl.NumberFormat(undefined, { style: 'unit', unit: 'second', unitDisplay: 'narrow' }).format(seconds)
+    : new Intl.NumberFormat(undefined, { style: 'unit', unit: 'minute', unitDisplay: 'narrow', maximumFractionDigits: 1 }).format(seconds / 60)
+}
+
+function metrics(t: Translate, value: CapabilityRunMetrics): string {
+  const steps = String(value.toolCalls)
+  const time = duration(value.durationMs)
+  if (value.tokens === undefined) return t('metrics', { steps, time })
+  const tokens = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(value.tokens.input + value.tokens.output)
+  return t('metricsTokens', { steps, time, tokens })
+}
+
+function inTab(memory: ManagedMemory, tab: Exclude<Tab, 'capabilities'>): boolean {
+  switch (tab) {
+    case 'person': return memory.domain === 'person'
+    case 'project': return memory.domain === 'project'
+    case 'knowledge': return memory.domain === 'world' || memory.domain === 'experience'
+  }
+}
+
+function Memories({ t, tab, close, memories, editMemory, forgetMemory, openConversation }: MemorySectionProps & { readonly tab: Exclude<Tab, 'capabilities'> }) {
   const [query, setQuery] = useState('')
   const [state, setState] = useState<Load<{ available: boolean; items: ManagedMemory[]; total: number }>>({ status: 'loading' })
   const [limit, setLimit] = useState(PAGE_SIZE)
+  const [openId, setOpenId] = useState<MemoryItemId | undefined>()
+  const now = Date.now()
 
   const load = useCallback(async (signal: { cancelled: boolean }) => {
     setState({ status: 'loading' })
     try {
       const page = await memories({ ...query.trim() ? { query: query.trim() } : {}, limit, offset: 0 })
       if (signal.cancelled) return
-      setState({ status: 'ready', value: page.available ? { available: true, items: [...page.memories], total: page.total } : { available: false, items: [], total: 0 } })
+      setState({
+        status: 'ready',
+        value: page.available
+          ? { available: true, items: [...page.memories], total: page.total }
+          : { available: false, items: [], total: 0 },
+      })
     } catch {
       // The failure is shown as the page's error state with a retry.
       if (!signal.cancelled) setState({ status: 'error' })
@@ -121,113 +214,241 @@ function Memories({ t, tab, memories, editMemory, forgetMemory }: MemorySectionP
     }
   }, [load, query])
 
+  useEffect(() => { setOpenId(undefined) }, [tab])
+
+  const visible = useMemo(
+    () => state.status === 'ready' ? state.value.items.filter(memory => inTab(memory, tab)) : [],
+    [state, tab],
+  )
+  const grouped = useMemo(() => groupProjects(visible, tab, t), [visible, tab, t])
+
   const update = (id: MemoryItemId, next: ManagedMemory | undefined) => {
-    setState(current => current.status !== 'ready' ? current : {
-      status: 'ready',
-      value: {
-        ...current.value,
-        items: next === undefined ? current.value.items.filter(item => item.id !== id) : current.value.items.map(item => item.id === id ? next : item),
-        total: next === undefined ? current.value.total - 1 : current.value.total,
-      },
+    setState(current => {
+      if (current.status !== 'ready') return current
+      const items = next === undefined
+        ? current.value.items.filter(memory => memory.id !== id)
+        : current.value.items.map(memory => memory.id === id ? next : memory)
+      return { status: 'ready', value: { ...current.value, items, total: next === undefined ? Math.max(0, current.value.total - 1) : current.value.total } }
     })
   }
 
-  const visible = state.status === 'ready' ? state.value.items.filter(item => inTab(item, tab)) : []
-  const groups = useMemo(() => {
-    if (tab !== 'project') return [{ key: '', title: undefined, items: visible }]
-    const byWorkspace = new Map<string, ManagedMemory[]>()
-    for (const item of visible) byWorkspace.set(item.workspace ?? '', [...byWorkspace.get(item.workspace ?? '') ?? [], item])
-    return [...byWorkspace].map(([key, items]) => ({ key, title: key || t('unknownWorkspace'), items }))
-  }, [tab, visible, t])
-
   return (
-    <div className={css.panel}>
+    <>
       <label className={css.search}>
         <IconSearchOutline16 />
-        <input value={query} placeholder={t('search')} aria-label={t('search')} onChange={(event) => { setQuery(event.target.value) }} />
+        <input
+          value={query}
+          placeholder={t('search')}
+          aria-label={t('search')}
+          onChange={(event) => { setLimit(PAGE_SIZE); setQuery(event.target.value) }}
+        />
       </label>
       {state.status === 'loading' && <p className={css.status}><Spinner /> {t('loading')}</p>}
-      {state.status === 'error' && <Failure t={t} onRetry={() => { void load({ cancelled: false }) }} />}
+      {state.status === 'error' && <Failure t={t} onRetry={() => { setState({ status: 'loading' }); void load({ cancelled: false }) }} />}
       {state.status === 'ready' && !state.value.available && <p className={css.status}>{t('unavailable')}</p>}
       {state.status === 'ready' && state.value.available && visible.length === 0 && (
-        <p className={css.status}>{query ? t('emptySearch') : t(tab === 'person' ? 'emptyPerson' : tab === 'project' ? 'emptyProject' : 'emptyKnowledge')}</p>
+        <p className={css.status}>{t(query.trim() ? 'emptySearch' : EMPTY[tab])}</p>
       )}
-      {groups.filter(group => group.items.length > 0).map(group => (
+      {state.status === 'ready' && state.value.available && visible.length > 0 && grouped.map(group => (
         <section key={group.key} className={css.group}>
-          {group.title !== undefined && <h3 className={css.groupTitle} title={group.key}>{group.title}</h3>}
-          <ul className={css.list}>
-            {group.items.map(item => (
-              <MemoryRow key={item.id} t={t} memory={item} editMemory={editMemory} forgetMemory={forgetMemory} onChange={update} />
+          {group.label !== '' && <h3 className={css.groupLabel} title={group.title}>{group.label}</h3>}
+          <ul className={css.cards}>
+            {group.items.map(memory => (
+              <MemoryCard
+                key={memory.id}
+                t={t}
+                memory={memory}
+                now={now}
+                open={openId === memory.id}
+                onToggle={() => { setOpenId(openId === memory.id ? undefined : memory.id) }}
+                editMemory={editMemory}
+                forgetMemory={forgetMemory}
+                openConversation={openConversation}
+                close={close}
+                onChange={update}
+              />
             ))}
           </ul>
         </section>
       ))}
-      {state.status === 'ready' && state.value.items.length < state.value.total && (
-        <Button variant="outline" size="sm" className={css.more} onClick={() => { setLimit(limit + PAGE_SIZE) }}>{t('loadMore')}</Button>
+      {state.status === 'ready' && state.value.available && state.value.items.length < state.value.total && (
+        <button type="button" className={`${css.textButton} ${css.more}`} onClick={() => { setLimit(limit + PAGE_SIZE) }}>{t('loadMore')}</button>
       )}
-    </div>
+    </>
   )
 }
 
-function MemoryRow({ t, memory, editMemory, forgetMemory, onChange }: {
+function groupProjects(items: readonly ManagedMemory[], tab: Exclude<Tab, 'capabilities'>, t: Translate): { key: string; label: string; title: string; items: ManagedMemory[] }[] {
+  if (tab !== 'project') return [{ key: 'all', label: '', title: '', items: [...items] }]
+  const map = new Map<string, ManagedMemory[]>()
+  for (const memory of items) {
+    const key = memory.workspace ?? ''
+    const list = map.get(key)
+    if (list !== undefined) list.push(memory)
+    else map.set(key, [memory])
+  }
+  return [...map.entries()].map(([key, group]) => ({
+    key: key === '' ? 'unknown' : key,
+    label: key === '' ? t('unknownWorkspace') : folderName(key),
+    title: key,
+    items: group,
+  }))
+}
+
+function MemoryCard({ t, memory, now, open, onToggle, editMemory, forgetMemory, openConversation, close, onChange }: {
   readonly t: Translate
   readonly memory: ManagedMemory
+  readonly now: number
+  readonly open: boolean
+  readonly onToggle: () => void
   readonly editMemory: MemorySectionInjected['editMemory']
   readonly forgetMemory: MemorySectionInjected['forgetMemory']
+  readonly openConversation: MemorySectionInjected['openConversation']
+  readonly close: () => void
   readonly onChange: (id: MemoryItemId, next: ManagedMemory | undefined) => void
 }) {
+  const fact = memory.summary || memory.userText
+  const said = memory.summary.trim() !== '' && memory.userText.trim() !== memory.summary.trim() ? memory.userText : undefined
   const [mode, setMode] = useState<'view' | 'edit' | 'forget'>('view')
-  const [draft, setDraft] = useState('')
+  const [draft, setDraft] = useState(fact)
+  const [details, setDetails] = useState(false)
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
-  const text = memory.summary || memory.userText
+  const [gone, setGone] = useState(false)
 
-  const run = async (operation: () => Promise<void>) => {
+  useEffect(() => {
+    if (open) return
+    setMode('view')
+    setDetails(false)
+    setFailed(false)
+    setGone(false)
+    setDraft(fact)
+  }, [open, fact])
+
+  const run = (work: () => Promise<void>) => {
     setBusy(true)
     setFailed(false)
+    void work().then(() => { setBusy(false) }, () => { setBusy(false); setFailed(true) })
+  }
+
+  const showConversation = () => {
     try {
-      await operation()
-      setMode('view')
+      openConversation(memory.sessionId)
     } catch {
-      // The failure is shown inline on the row.
-      setFailed(true)
-    } finally {
-      setBusy(false)
+      // sessions.open throws when that conversation is no longer listed.
+      setGone(true)
+      return
     }
+    close()
   }
 
   return (
-    <li className={css.row}>
-      {mode === 'edit'
-        ? <textarea className={css.editor} value={draft} rows={3} autoFocus onChange={(event) => { setDraft(event.target.value) }} />
-        : <p className={css.text}>{text}{!memory.summary && <span className={css.pending}> · {t('pending')}</span>}</p>}
-      <div className={css.meta}>
-        <span>{when(memory.time)}</span>
-        <a href={`/c/${memory.sessionId}`}>{t('openSession')}</a>
-      </div>
-      {failed && <p className={css.error}>{t('failed')}</p>}
-      <div className={css.actions}>
-        {mode === 'view' && (
-          <>
-            <Button size="sm" onClick={() => { setDraft(text); setMode('edit') }}>{t('edit')}</Button>
-            <Button size="sm" onClick={() => { setMode('forget') }}>{t('forget')}</Button>
-          </>
-        )}
-        {mode === 'edit' && (
-          <>
-            <Button size="sm" variant="primary" disabled={busy || !draft.trim()} onClick={() => { void run(async () => { onChange(memory.id, await editMemory(memory.id, draft)) }) }}>{t('save')}</Button>
-            <Button size="sm" disabled={busy} onClick={() => { setMode('view') }}>{t('cancel')}</Button>
-          </>
-        )}
-        {mode === 'forget' && (
-          <>
-            <span className={css.confirm}>{t('forgetConfirm')}</span>
-            <Button size="sm" variant="primary" disabled={busy} onClick={() => { void run(async () => { await forgetMemory(memory.id); onChange(memory.id, undefined) }) }}>{t('forget')}</Button>
-            <Button size="sm" disabled={busy} onClick={() => { setMode('view') }}>{t('cancel')}</Button>
-          </>
-        )}
-      </div>
+    <li className={open ? `${css.card} ${css.cardOpen}` : css.card}>
+      <button
+        type="button"
+        className={css.header}
+        aria-expanded={open}
+        aria-label={`${t(open ? 'collapse' : 'expand')}: ${fact}`}
+        onClick={onToggle}
+      >
+        <span className={css.headText}>
+          <span className={css.title}>{fact}</span>
+          <span className={css.subtitle}>{memory.summary.trim() === '' ? t('pending') : ago(memory.time, now, t)}</span>
+        </span>
+        <IconChevronDownOutline14 className={open ? `${css.chevron} ${css.chevronOpen}` : css.chevron} />
+      </button>
+      {open && (
+        <div className={css.body}>
+          {mode === 'view' && said !== undefined && (
+            <p className={css.said}>
+              <span>{t('youSaid')}</span>
+              {said}
+            </p>
+          )}
+          {mode === 'view' && (
+            <Fold label={t('details')} open={details} onToggle={() => { setDetails(!details) }}>
+              <dl className={css.facts}>
+                <div className={css.fact}>
+                  <dt>{t('kind')}</dt>
+                  <dd>{domainLabel(memory.domain, t)}</dd>
+                </div>
+                <div className={css.fact}>
+                  <dt>{t('when')}</dt>
+                  <dd>{formatWhen(memory.time)}</dd>
+                </div>
+                {memory.workspace !== undefined && (
+                  <div className={css.fact}>
+                    <dt>{t('workspace')}</dt>
+                    <dd>{memory.workspace}</dd>
+                  </div>
+                )}
+              </dl>
+            </Fold>
+          )}
+          {mode === 'edit' && (
+            <label className={css.field}>
+              {t('edit')}
+              <textarea rows={4} value={draft} onChange={(event) => { setDraft(event.target.value) }} />
+            </label>
+          )}
+          {mode === 'forget' && <p className={css.confirm}>{t('forgetConfirm')}</p>}
+          {failed && <p className={css.failure}>{t('failed')}</p>}
+          {gone && <p className={css.failure}>{t('conversationGone')}</p>}
+          <div className={css.footer}>
+            {mode === 'view' && (
+              <>
+                <button type="button" className={`${css.textButton} ${css.footerStart}`} onClick={showConversation}>{t('openSession')}</button>
+                <button type="button" className={css.textButton} onClick={() => { setDraft(fact); setMode('edit') }}>{t('edit')}</button>
+                <button type="button" className={css.textButton} onClick={() => { setMode('forget') }}>{t('forget')}</button>
+              </>
+            )}
+            {mode === 'edit' && (
+              <>
+                <button type="button" className={css.textButton} disabled={busy} onClick={() => { setMode('view') }}>{t('cancel')}</button>
+                <button
+                  type="button"
+                  className={css.primary}
+                  disabled={busy || draft.trim() === ''}
+                  onClick={() => { run(async () => { onChange(memory.id, await editMemory(memory.id, draft)); setMode('view') }) }}
+                >
+                  {t('save')}
+                </button>
+              </>
+            )}
+            {mode === 'forget' && (
+              <>
+                <button type="button" className={css.textButton} disabled={busy} onClick={() => { setMode('view') }}>{t('cancel')}</button>
+                <button
+                  type="button"
+                  className={css.primary}
+                  disabled={busy}
+                  onClick={() => { run(async () => { await forgetMemory(memory.id); onChange(memory.id, undefined) }) }}
+                >
+                  {t('forget')}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </li>
+  )
+}
+
+function Fold({ label, open, onToggle, children }: {
+  readonly label: string
+  readonly open: boolean
+  readonly onToggle: () => void
+  readonly children: ReactNode
+}) {
+  return (
+    <div className={css.fold}>
+      <button type="button" className={css.foldButton} aria-expanded={open} onClick={onToggle}>
+        <span>{label}</span>
+        <IconChevronDownOutline14 className={open ? `${css.chevron} ${css.chevronOpen}` : css.chevron} />
+      </button>
+      {open ? <div className={css.foldBody}>{children}</div> : null}
+    </div>
   )
 }
 
@@ -235,7 +456,7 @@ function Failure({ t, onRetry }: { readonly t: Translate; readonly onRetry: () =
   return (
     <p className={css.failure}>
       {t('error')}
-      <Button size="sm" variant="outline" onClick={onRetry}>{t('retry')}</Button>
+      <button type="button" className={css.textButton} onClick={onRetry}>{t('retry')}</button>
     </p>
   )
 }
@@ -260,142 +481,239 @@ function Capabilities(props: MemorySectionProps) {
   if (state.status === 'error') return <Failure t={t} onRetry={() => { setState({ status: 'loading' }); void load() }} />
   if (state.value.length === 0) return <p className={css.status}>{t('emptyCapabilities')}</p>
   return (
-    <ul className={css.list}>
+    <ul className={css.cards}>
       {state.value.map(capability => (
-        <li key={capability.name} className={css.row}>
-          <div className={css.capabilityHead}>
-            <span className={css.name}>{capability.name}</span>
-            <span className={css.badge} data-status={capability.status}>{t(STATUS_LABEL[capability.status])}</span>
-          </div>
-          <p className={css.text}>{capability.description}</p>
-          <div className={css.meta}>
-            <span>{t('runs', { total: String(capability.runs.total), succeeded: String(capability.runs.succeeded), failed: String(capability.runs.failed) })}</span>
-            {capability.runs.lastRunAt !== undefined && <span>{t('lastUsed', { time: when(capability.runs.lastRunAt) })}</span>}
-          </div>
-          {open === capability.name
-            ? <CapabilityDetail {...props} name={capability.name} onClose={() => { setOpen(undefined) }} onChanged={() => { void load() }} />
-            : <div className={css.actions}><Button size="sm" onClick={() => { setOpen(capability.name) }}>{t('view')}</Button></div>}
-        </li>
+        <CapabilityCard
+          key={capability.name}
+          {...props}
+          item={capability}
+          open={open === capability.name}
+          onToggle={() => { setOpen(open === capability.name ? undefined : capability.name) }}
+          onChanged={() => { void load() }}
+        />
       ))}
     </ul>
   )
 }
 
-function CapabilityDetail({ t, name, capability, editCapability, setCapabilityStatus, deleteCapability, onClose, onChanged }: MemorySectionProps & {
-  readonly name: string
-  readonly onClose: () => void
+function CapabilityCard({ t, item, open, onToggle, capability: loadCapability, editCapability, setCapabilityStatus, deleteCapability, openConversation, close, onChanged }: MemorySectionProps & {
+  readonly item: ManagedCapability
+  readonly open: boolean
+  readonly onToggle: () => void
   readonly onChanged: () => void
 }) {
-  const [detail, setDetail] = useState<Load<ManagedCapabilityDetail | undefined>>({ status: 'loading' })
+  const [fold, setFold] = useState<Fold | undefined>()
   const [mode, setMode] = useState<'view' | 'edit' | 'delete'>('view')
-  const [draft, setDraft] = useState<ManagedCapabilityEdit>({ description: '', content: '' })
+  const [detail, setDetail] = useState<Load<ManagedCapabilityDetail | undefined> | undefined>()
+  const [draft, setDraft] = useState({ description: item.description, content: '' })
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
-  const markdownLabels = useMemo(() => ({
-    code: { copyLabel: t('copy'), copiedLabel: t('copied') },
-    footnotes: t('footnotes'),
-  }), [t])
+  const [gone, setGone] = useState(false)
+  const retired = item.status === 'retired'
+  const origin = item.origin
+  const needsDetail = open && (mode === 'edit' || fold === 'procedure' || fold === 'runs')
 
   useEffect(() => {
+    if (!open) {
+      setMode('view')
+      setFold(undefined)
+      setFailed(false)
+      setGone(false)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!needsDetail || detail !== undefined) return
     let cancelled = false
-    capability(name).then(
+    setDetail({ status: 'loading' })
+    loadCapability(item.name).then(
       (value) => { if (!cancelled) setDetail({ status: 'ready', value }) },
       () => { if (!cancelled) setDetail({ status: 'error' }) },
     )
     return () => { cancelled = true }
-  }, [capability, name])
+  }, [needsDetail, detail, loadCapability, item.name])
 
-  const run = async (operation: () => Promise<ManagedCapabilityDetail | undefined>) => {
+  useEffect(() => {
+    if (detail?.status !== 'ready' || detail.value === undefined) return
+    setDraft({ description: detail.value.description, content: detail.value.content })
+  }, [detail])
+
+  const run = (work: () => Promise<ManagedCapabilityDetail | undefined>) => {
     setBusy(true)
     setFailed(false)
-    try {
-      const value = await operation()
-      setDetail({ status: 'ready', value })
-      setMode('view')
-      onChanged()
-    } catch {
-      // The failure is shown inline under the capability.
-      setFailed(true)
-    } finally {
+    void work().then((next) => {
       setBusy(false)
-    }
+      if (next === undefined) onChanged()
+      else {
+        setDetail({ status: 'ready', value: next })
+        setMode('view')
+        onChanged()
+      }
+    }, () => { setBusy(false); setFailed(true) })
   }
 
-  if (detail.status === 'loading') return <p className={css.status}><Spinner /> {t('loading')}</p>
-  if (detail.status === 'error') return <p className={css.error}>{t('error')}</p>
-  const current = detail.value
-  if (current === undefined) return null
-  const retired = current.status === 'retired'
-  const unconfirmed = current.status === 'candidate'
+  const showConversation = (sessionId: string) => {
+    try {
+      openConversation(sessionId)
+    } catch {
+      // sessions.open throws when that conversation is no longer listed.
+      setGone(true)
+      return
+    }
+    close()
+  }
+
+  const toggle = (next: Fold) => { setFold(fold === next ? undefined : next) }
+  const ready = detail?.status === 'ready' ? detail.value : undefined
 
   return (
-    <div className={css.detail}>
-      {mode === 'edit'
-        ? (
+    <li className={open ? `${css.card} ${css.cardOpen}` : css.card}>
+      <button
+        type="button"
+        className={css.header}
+        aria-expanded={open}
+        aria-label={`${t(open ? 'collapse' : 'expand')}: ${item.name}`}
+        onClick={onToggle}
+      >
+        <span className={css.headText}>
+          <span className={css.title}>{item.name}</span>
+          <span className={css.subtitle}>{item.description}</span>
+        </span>
+        <IconChevronDownOutline14 className={open ? `${css.chevron} ${css.chevronOpen}` : css.chevron} />
+      </button>
+      {open && (
+        <div className={css.body}>
+          {mode === 'view' && (
             <>
-              <label className={css.field}>
-                <span>{t('description')}</span>
-                <input value={draft.description} onChange={(event) => { setDraft({ ...draft, description: event.target.value }) }} />
-              </label>
-              <label className={css.field}>
-                <span>{t('procedure')}</span>
-                <textarea className={css.editor} rows={14} value={draft.content} onChange={(event) => { setDraft({ ...draft, content: event.target.value }) }} />
-              </label>
-            </>
-          )
-        : (
-            <>
-              <div className={css.meta}>
-                <span>{t('revision', { revision: String(current.revision) })}</span>
-                <span>{t('learnedAt', { time: when(current.createdAt) })}</span>
-              </div>
-              <div className={css.procedure}><MarkdownText text={current.content} labels={markdownLabels} variant="compact" /></div>
-              {current.files.length > 0 && (
-                <div className={css.meta}><span>{t('files')}:</span>{current.files.map(file => <code key={file}>{file}</code>)}</div>
+              <p className={css.note}>
+                {t(STATUS_LABEL[item.status])}
+                {' · '}
+                {t('revision', { revision: String(item.revision) })}
+                {item.runs.lastRunAt !== undefined && ` · ${t('lastUsed', { time: formatWhen(item.runs.lastRunAt) })}`}
+              </p>
+              {item.impact !== undefined && (
+                <p className={css.note}>
+                  {t('impactBefore', { metrics: metrics(t, item.impact.before) })}
+                  {' · '}
+                  {item.impact.after === undefined
+                    ? t('impactPending')
+                    : t('impactNow', { metrics: metrics(t, item.impact.after), runs: String(item.impact.runs) })}
+                </p>
               )}
-              <h4 className={css.subTitle}>{t('history')}</h4>
-              {current.executions.length === 0
-                ? <p className={css.status}>{t('noRuns')}</p>
-                : (
+              <Fold label={t('procedure')} open={fold === 'procedure'} onToggle={() => { toggle('procedure') }}>
+                <DetailBody detail={detail} t={t}>
+                  {ready !== undefined && (
+                    <>
+                      <div className={css.prose}>
+                        <MarkdownText text={ready.content} variant="compact" labels={{ code: { copyLabel: t('copy'), copiedLabel: t('copied') }, footnotes: t('footnotes') }} />
+                      </div>
+                      {ready.files.length > 0 && (
+                        <p className={css.note}>{t('files')}: {ready.files.join(', ')}</p>
+                      )}
+                    </>
+                  )}
+                </DetailBody>
+              </Fold>
+              <Fold label={t('history')} open={fold === 'runs'} onToggle={() => { toggle('runs') }}>
+                <DetailBody detail={detail} t={t}>
+                  {ready !== undefined && ready.executions.length === 0 && <p className={css.note}>{t('noRuns')}</p>}
+                  {ready !== undefined && ready.executions.length > 0 && (
                     <ul className={css.runs}>
-                      {current.executions.slice(0, 20).map(run => (
-                        <li key={run.id}>
-                          <span className={css.verdict} data-verdict={run.verdict}>{t(VERDICT_LABEL[run.verdict])}</span>
-                          <span>{when(run.endedAt)}</span>
-                          <span>{t('revision', { revision: String(run.revision) })}</span>
-                          <a href={`/c/${run.sessionId}`}>{t('openSession')}</a>
-                          {(run.correction ?? run.notes) !== undefined && <span className={css.note}>{run.correction ?? run.notes}</span>}
+                      {ready.executions.map(run => (
+                        <li key={run.id} className={css.run}>
+                          <span>{t(VERDICT_LABEL[run.verdict])} · {formatWhen(run.endedAt)}</span>
+                          <button type="button" className={css.textButton} onClick={() => { showConversation(run.sessionId) }}>{t('openSession')}</button>
+                          {(run.correction ?? run.notes) !== undefined && <span className={css.subtitle}>{run.correction ?? run.notes}</span>}
                         </li>
                       ))}
                     </ul>
                   )}
+                </DetailBody>
+              </Fold>
+              {origin !== undefined && (
+                <Fold label={t('origin')} open={fold === 'origin'} onToggle={() => { toggle('origin') }}>
+                  <p className={css.said}>{origin.request}</p>
+                  {origin.tools.length > 0 && (
+                    <p className={css.note}>{t('tools')}: {origin.tools.join(', ')}</p>
+                  )}
+                  <button type="button" className={css.textButton} onClick={() => { showConversation(origin.sessionId) }}>{t('openSession')}</button>
+                </Fold>
+              )}
             </>
           )}
-      {failed && <p className={css.error}>{t('failed')}</p>}
-      <div className={css.actions}>
-        {mode === 'view' && (
-          <>
-            <Button size="sm" onClick={() => { setDraft({ description: current.description, content: current.content }); setMode('edit') }}>{t('edit')}</Button>
-            {unconfirmed && <Button size="sm" disabled={busy} onClick={() => { void run(() => setCapabilityStatus(name, 'learned')) }}>{t('confirmUse')}</Button>}
-            {!unconfirmed && <Button size="sm" disabled={busy} onClick={() => { void run(() => setCapabilityStatus(name, retired ? 'learned' : 'retired')) }}>{t(retired ? 'restore' : 'retire')}</Button>}
-            <Button size="sm" onClick={() => { setMode('delete') }}>{t('delete')}</Button>
-            <Button size="sm" onClick={onClose}>{t('hide')}</Button>
-          </>
-        )}
-        {mode === 'edit' && (
-          <>
-            <Button size="sm" variant="primary" disabled={busy || !draft.description.trim() || !draft.content.trim()} onClick={() => { void run(() => editCapability(name, draft)) }}>{t('save')}</Button>
-            <Button size="sm" disabled={busy} onClick={() => { setMode('view') }}>{t('cancel')}</Button>
-          </>
-        )}
-        {mode === 'delete' && (
-          <>
-            <span className={css.confirm}>{t('deleteConfirm')}</span>
-            <Button size="sm" variant="primary" disabled={busy} onClick={() => { void run(async () => { await deleteCapability(name); return undefined }) }}>{t('delete')}</Button>
-            <Button size="sm" disabled={busy} onClick={() => { setMode('view') }}>{t('cancel')}</Button>
-          </>
-        )}
-      </div>
-    </div>
+          {mode === 'edit' && (
+            <DetailBody detail={detail} t={t}>
+              {ready !== undefined && (
+                <>
+                  <label className={css.field}>
+                    {t('description')}
+                    <input value={draft.description} onChange={(event) => { setDraft({ ...draft, description: event.target.value }) }} />
+                  </label>
+                  <label className={css.field}>
+                    {t('procedure')}
+                    <textarea rows={8} value={draft.content} onChange={(event) => { setDraft({ ...draft, content: event.target.value }) }} />
+                  </label>
+                </>
+              )}
+            </DetailBody>
+          )}
+          {mode === 'delete' && <p className={css.confirm}>{t('deleteConfirm')}</p>}
+          {failed && <p className={css.failure}>{t('failed')}</p>}
+          {gone && <p className={css.failure}>{t('conversationGone')}</p>}
+          <div className={css.footer}>
+            {mode === 'view' && (
+              <>
+                <button type="button" className={css.textButton} onClick={() => { setMode('edit') }}>{t('edit')}</button>
+                <button
+                  type="button"
+                  className={css.textButton}
+                  disabled={busy}
+                  onClick={() => { run(() => setCapabilityStatus(item.name, retired ? 'learned' : 'retired')) }}
+                >
+                  {t(retired ? 'restore' : 'retire')}
+                </button>
+                <button type="button" className={css.textButton} onClick={() => { setMode('delete') }}>{t('delete')}</button>
+              </>
+            )}
+            {mode === 'edit' && (
+              <>
+                <button type="button" className={css.textButton} disabled={busy} onClick={() => { setMode('view') }}>{t('cancel')}</button>
+                <button
+                  type="button"
+                  className={css.primary}
+                  disabled={busy || draft.description.trim() === '' || draft.content.trim() === ''}
+                  onClick={() => { run(() => editCapability(item.name, draft)) }}
+                >
+                  {t('save')}
+                </button>
+              </>
+            )}
+            {mode === 'delete' && (
+              <>
+                <button type="button" className={css.textButton} disabled={busy} onClick={() => { setMode('view') }}>{t('cancel')}</button>
+                <button
+                  type="button"
+                  className={css.primary}
+                  disabled={busy}
+                  onClick={() => { run(async () => { await deleteCapability(item.name); return undefined }) }}
+                >
+                  {t('delete')}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </li>
   )
+}
+
+function DetailBody({ detail, t, children }: {
+  readonly detail: Load<ManagedCapabilityDetail | undefined> | undefined
+  readonly t: Translate
+  readonly children: ReactNode
+}) {
+  if (detail === undefined || detail.status === 'loading') return <p className={css.note}><Spinner /> {t('loading')}</p>
+  if (detail.status === 'error' || detail.value === undefined) return <p className={css.failure}>{t('error')}</p>
+  return children
 }

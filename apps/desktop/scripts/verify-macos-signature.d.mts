@@ -19,12 +19,14 @@ export function assertMacOSSeedSignatureDetails(details: string, expected: MacOS
  * @param path - Writable standalone Mach-O file.
  * @param identifier - Stable code-signing identifier derived from the release app ID and CAS digest.
  * @param expected - Public release identity.
+ * @param entitlements - Entitlements plist for code that needs one, such as JIT.
  * @returns Resolves after codesign exits successfully.
  */
 export function signMacOSSeedCode(
   path: string,
   identifier: string,
   expected: MacOSSigningEnvironment,
+  entitlements: string | undefined,
 ): Promise<void>
 
 /**

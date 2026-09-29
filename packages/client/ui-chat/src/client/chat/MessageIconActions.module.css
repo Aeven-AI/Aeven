@@ -1,31 +1,33 @@
 /* Shared message IconActions row (user + assistant). Parent modules own
    layout offsets via the composed className. */
 
+/* The row owns the line's ink: clocks, action glyphs, and slot-injected
+   actions (turn-usage pills, feedback buttons) all inherit it, so the whole
+   meta line under a message reads as one colour. */
 .actions {
   display: flex;
   align-items: center;
   gap: 8px;
   height: calc(28px + var(--avn-content-font-delta, 0px));
+  color: var(--dsw-alias-label-primary);
 }
 
 /* Clock before icons (user figma 388:20051) / after (assistant 43:32997).
-   Both read the secondary tier so the user row's clock matches the assistant
-   tail's meta line. */
+   Both read the body tier, so a clock reads at the same size as the message
+   text it stamps and the user row's clock matches the assistant tail's. */
 .timeStart {
   padding-right: 12px;
-  font-size: var(--avn-content-font-size-secondary, 14px);
+  font-size: var(--avn-content-font-size, 16px);
   line-height: calc(24px + var(--avn-content-font-delta, 0px));
-  color: var(--dsw-alias-label-tertiary);
   white-space: nowrap;
 }
 
 /* The assistant tail's clock sits at the row end after the stat pills; the
-   row's 8px flex gap spaces it, and it reads the secondary tier so it matches
-   the pill labels beside it. */
+   row's 8px flex gap spaces it, and it reads the body tier so it matches the
+   pill labels beside it. */
 .timeEnd {
-  font-size: var(--avn-content-font-size-secondary, 14px);
+  font-size: var(--avn-content-font-size, 16px);
   line-height: calc(24px + var(--avn-content-font-delta, 0px));
-  color: var(--dsw-alias-label-tertiary);
   white-space: nowrap;
 }
 
@@ -39,7 +41,6 @@
   border: none;
   border-radius: 28px;
   background: transparent;
-  color: var(--dsw-alias-label-tertiary);
   cursor: pointer;
 }
 

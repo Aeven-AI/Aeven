@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package provides the agent-preset surfaces of the Web GUI: a chip on the new-session screen choosing the next session's preset, a read-only label in the session header, and a settings section that manages the roster — copy, delete, default, and the way into a preset's own files. A session's preset is fixed at creation, so the choice applies to sessions started afterwards while running sessions keep the composition they began with; the default preset is edited in the settings section, where the roster is visible, so General settings carries no duplicate control for the same field. When a deployment composes no presets, all three surfaces render nothing and every session shares the host composition.
+This package provides the agent-preset surfaces of the Web GUI: a chip on the new-session screen choosing the next session's preset, a read-only label in the session header, and a settings section that manages the roster — copy, delete, default, and the way into a preset's own files. A session's preset is fixed at creation, so the choice applies to sessions started afterwards while running sessions keep the composition they began with; the default preset is edited in the settings section, where the roster is visible, so General settings carries no duplicate control for the same field. All three are developer surfaces: they mount only while General → Developer mode is on, and otherwise every new session runs the deployment default composition with no picker. When a deployment composes no presets, all three surfaces render nothing and every session shares the host composition.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ This package provides the agent-preset surfaces of the Web GUI: a chip on the ne
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin alongside the settings and conversation packages; the preset surfaces then appear where their slots render. The new-session chip opens on the deployment default and stages a pick that lands on the next blank session; the stage is spent on first use, so the following new session opens on the default again.
+Mount this plugin alongside the settings and conversation packages; while Developer mode is on, the preset surfaces appear where their slots render, and turning it off removes them. The new-session chip opens on the deployment default and stages a pick that lands on the next blank session; the stage is spent on first use, so the following new session opens on the default again.
 
 ### Managing the roster
 
@@ -33,7 +33,7 @@ The settings section shows the roster as cards: a copy dialog is the only way a 
 
 ### The conversational entry
 
-When the roster carries the self-referential `cordis` preset, a dashed add-card stages it and starts a new session — the section closes the settings panel and the new-session chip's own applier composes the blank session the workspace flow produces.
+When the roster carries the self-extending `aeven` preset, a dashed add-card stages it and starts a new session — the section closes the settings panel and the new-session chip's own applier composes the blank session the workspace flow produces.
 
 -----
 

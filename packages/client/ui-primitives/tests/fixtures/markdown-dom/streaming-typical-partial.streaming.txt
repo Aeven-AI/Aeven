@@ -1,12 +1,9 @@
 <div class="hypermarkdown _markdown_404681">
   <h2>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "Streaming"
+    #text "Streaming"
   <ul>
-    <li data-animate-marker="true">
-      <span data-animate-key="word-0-0" data-animate-word="true">
-        #text "first"
-    <li data-animate-marker="true">
+    <li>
+      #text "first"
+    <li>
       <strong>
-        <span data-animate-key="word-0-0" data-animate-word="true">
-          #text "unfinished"
+        #text "unfinished"

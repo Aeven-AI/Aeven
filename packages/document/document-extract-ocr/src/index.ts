@@ -168,7 +168,6 @@ export function apply(ctx: Context, config: Config): void {
   ctx.effect(() => ctx.documentExtract.register({
     info: {
       id: PROVIDER_ID,
-      label: 'Text recognition (OCR)',
       version: EXTRACTOR_VERSION,
       formats: { extensions: ['pdf'], mediaTypes: ['application/pdf'] },
       priority: 20,

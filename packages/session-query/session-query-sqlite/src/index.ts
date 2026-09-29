@@ -56,6 +56,7 @@ import {
   buildEventWhere,
   buildSessionWhere,
   makeSnippet,
+  mergedSpanCount,
   normalizeEventRequest,
   normalizeSessionRequest,
   quoteFtsData,
@@ -444,7 +445,7 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
     ).all() as unknown as IndexedLiveRow[]
     const persistedById = new Map(persistedRows.map(row => [row.id as SessionId, row]))
     const liveById = new Map(liveRows.map(row => [row.id as SessionId, row]))
-    const observation = await this._observeStable(persistedById, signal)
+    const observation = await this._observeStable(persistedById, liveById, signal)
     assertNotAborted(signal)
     const persistentChanges = observation.persistenceBinding.service === undefined
       ? []
@@ -523,6 +524,7 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
 
   private async _observeStable(
     indexed: ReadonlyMap<SessionId, IndexedPersistedRow>,
+    liveIndexed: ReadonlyMap<SessionId, IndexedLiveRow>,
     signal: AbortSignal | undefined,
   ): Promise<Observation> {
     for (let attempt = 0; attempt < STABLE_OBSERVATION_ATTEMPTS; attempt += 1) {
@@ -578,7 +580,22 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
       }
       const live = new Map<SessionId, ObservedSession>()
       for (const session of this.ctx.sessions.list()) {
-        const observed = observeLive(session)
+        const stamp = liveStamp(session)
+        const indexedLive = liveIndexed.get(session.id)
+        const persistedFlag = persisted.has(session.id) ? 1 : 0
+        // Events are frozen and append-only, so the header, inherited cut, and
+        // log length identify the indexed body. A match skips the event read.
+        const unchanged = indexedLive !== undefined
+          && indexedLive.fingerprint === stamp
+          && indexedLive.persisted === persistedFlag
+        const observed = unchanged
+          ? {
+            header: structuredClone(session.header),
+            inheritedEventCount: session.inheritedEventCount,
+            documents: [],
+            fingerprint: stamp,
+          }
+          : observeLive(session)
         const durable = persisted.get(session.id)
         if (durable !== undefined) assertSessionHeadersCompatible(observed.header, durable.header)
         live.set(session.id, observed)
@@ -602,9 +619,11 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
   private _deleteSession(source: 'persisted' | 'live', id: SessionId): void {
     const db = this._requireDb()
     if (source === 'persisted') {
+      db.prepare('DELETE FROM persisted_doc_meta WHERE session_id = ?').run(id)
       db.prepare('DELETE FROM persisted_docs WHERE session_id = ?').run(id)
       db.prepare('DELETE FROM persisted_sessions WHERE id = ?').run(id)
     } else {
+      db.prepare('DELETE FROM temp.live_doc_meta WHERE session_id = ?').run(id)
       db.prepare('DELETE FROM temp.live_docs WHERE session_id = ?').run(id)
       db.prepare('DELETE FROM temp.live_sessions WHERE id = ?').run(id)
     }
@@ -630,16 +649,31 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
       INSERT INTO persisted_docs (text, session_id, seq, type, time, surface, codepoint_length)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `)
+    const meta = db.prepare(`
+      INSERT INTO persisted_doc_meta
+        (doc_rowid, session_id, seq, type, time, surface, codepoint_length)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `)
     for (const document of entry.documents) {
       const text = sanitizeFtsText(document.text)
-      insert.run(
+      const length = Array.from(text).length
+      const inserted = insert.run(
         text,
         document.sessionId,
         document.seq,
         document.type,
         document.time,
         document.surface,
-        Array.from(text).length,
+        length,
+      )
+      meta.run(
+        Number(inserted.lastInsertRowid),
+        document.sessionId,
+        document.seq,
+        document.type,
+        document.time,
+        document.surface,
+        length,
       )
     }
   }
@@ -661,16 +695,31 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
       INSERT INTO temp.live_docs (text, session_id, seq, type, time, surface, codepoint_length)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `)
+    const meta = db.prepare(`
+      INSERT INTO temp.live_doc_meta
+        (doc_rowid, session_id, seq, type, time, surface, codepoint_length)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `)
     for (const document of entry.documents) {
       const text = sanitizeFtsText(document.text)
-      insert.run(
+      const length = Array.from(text).length
+      const inserted = insert.run(
         text,
         document.sessionId,
         document.seq,
         document.type,
         document.time,
         document.surface,
-        Array.from(text).length,
+        length,
+      )
+      meta.run(
+        Number(inserted.lastInsertRowid),
+        document.sessionId,
+        document.seq,
+        document.type,
+        document.time,
+        document.surface,
+        length,
       )
     }
   }
@@ -680,38 +729,19 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
     offset: number,
     persistenceBinding: PersistenceBinding,
   ): SearchRow[] {
-    const selected = selectedDocumentsSql()
     const sessionWhere = buildSessionWhere(request.sessionFilters)
     const eventWhere = buildEventWhere(request.eventFilters)
     assertFts5OuterPredicateCount(sessionWhere.predicateCount + eventWhere.predicateCount)
     const where = [sessionWhere.sql, eventWhere.sql].filter(Boolean).join(' AND ')
-    const bindings = [
-      ...selectedDocumentsParams(request.query, persistenceBinding.service !== undefined),
-      ...sessionWhere.params,
-      ...eventWhere.params,
-      request.limit + 1,
+    return this._queryDocuments({
+      query: request.query,
+      persistenceVisible: persistenceBinding.service !== undefined,
+      where,
+      whereParams: [...sessionWhere.params, ...eventWhere.params],
+      partitionBySession: true,
+      limit: request.limit,
       offset,
-    ]
-    assertPortableBindingCount(bindings.length)
-    // The browser fixture mirrors these rank keys in
-    // `packages/client/connection/src/client/fixture.ts`; update both together.
-    return this._requireDb().prepare(`
-      ${selected.sql},
-      filtered AS (
-        SELECT * FROM matched ${where.length === 0 ? '' : `WHERE ${where}`}
-      ),
-      ranked AS (
-        SELECT *, ROW_NUMBER() OVER (
-          PARTITION BY session_id
-          ORDER BY match_count DESC, document_length ASC, time DESC, seq DESC
-        ) AS event_rank
-        FROM filtered
-      )
-      SELECT * FROM ranked
-      WHERE event_rank = 1
-      ORDER BY match_count DESC, document_length ASC, time DESC, session_id ASC, seq DESC
-      LIMIT ? OFFSET ?
-    `).all(...bindings) as unknown as SearchRow[]
+    })
   }
 
   private _queryEvents(
@@ -719,25 +749,188 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
     offset: number,
     persistenceBinding: PersistenceBinding,
   ): SearchRow[] {
-    const selected = selectedDocumentsSql()
     const eventWhere = buildEventWhere(request.filters)
     assertFts5OuterPredicateCount(1 + eventWhere.predicateCount)
     const where = ['session_id = ?', eventWhere.sql].filter(Boolean).join(' AND ')
-    const bindings = [
-      ...selectedDocumentsParams(request.query, persistenceBinding.service !== undefined),
-      request.sessionId,
-      ...eventWhere.params,
-      request.limit + 1,
+    return this._queryDocuments({
+      query: request.query,
+      persistenceVisible: persistenceBinding.service !== undefined,
+      where,
+      whereParams: [request.sessionId, ...eventWhere.params],
+      partitionBySession: false,
+      limit: request.limit,
       offset,
+    })
+  }
+
+  /**
+   * Rank indexed documents, then highlight only the page.
+   *
+   * Match counts come from the token index. Reading `highlight()` for every
+   * hit would copy each matching document, including tool results the caller
+   * is about to filter out.
+   */
+  private _queryDocuments(request: {
+    query: string
+    persistenceVisible: boolean
+    where: string
+    whereParams: readonly (string | number)[]
+    partitionBySession: boolean
+    limit: number
+    offset: number
+  }): SearchRow[] {
+    const tokens = this._queryTokens(request.query)
+    if (tokens.length === 0) return []
+    this._fillMatchCounts(tokens)
+    const visible = request.persistenceVisible ? 1 : 0
+    const bindings = [
+      visible,
+      visible,
+      ...request.whereParams,
+      request.limit + 1,
+      request.offset,
     ]
     assertPortableBindingCount(bindings.length)
-    return this._requireDb().prepare(`
-      ${selected.sql}
-      SELECT * FROM matched
-      WHERE ${where}
-      ORDER BY match_count DESC, document_length ASC, time DESC, seq DESC
-      LIMIT ? OFFSET ?
-    `).all(...bindings) as unknown as SearchRow[]
+    // The browser fixture mirrors these rank keys in
+    // `packages/client/connection/src/client/fixture.ts`; update both together.
+    const ranked = this._requireDb().prepare(documentRankSql(request.partitionBySession, request.where))
+      .all(...bindings) as unknown as RankedDocument[]
+    return this._attachSnippets(ranked, request.query)
+  }
+
+  /** Tokenize a normalized query with the same unicode61 rules as the index. */
+  private _queryTokens(query: string): string[] {
+    const db = this._requireDb()
+    db.prepare('DELETE FROM temp.query_probe').run()
+    db.prepare('INSERT INTO temp.query_probe(text) VALUES (?)').run(query)
+    const rows = db.prepare(
+      'SELECT term FROM temp.query_probe_inst ORDER BY offset',
+    ).all() as unknown as Array<{ term: string }>
+    return rows.map(row => row.term)
+  }
+
+  /** Fill `temp.match_counts` for one tokenized phrase. */
+  private _fillMatchCounts(tokens: readonly string[]): void {
+    const db = this._requireDb()
+    db.prepare('DELETE FROM temp.match_counts').run()
+    if (tokens.length === 1) {
+      // The row vocabulary's `doc` column is a table-wide frequency, not a
+      // rowid. Instance rows name the document, and one token is one span.
+      const term = tokens[0]
+      db.prepare(`
+        INSERT INTO temp.match_counts(source, doc_rowid, match_count)
+        SELECT 'persisted', doc, COUNT(*)
+        FROM persisted_docs_inst
+        WHERE term = ? AND col = 'text'
+        GROUP BY doc
+      `).run(term)
+      db.prepare(`
+        INSERT INTO temp.match_counts(source, doc_rowid, match_count)
+        SELECT 'live', doc, COUNT(*)
+        FROM temp.live_docs_inst
+        WHERE term = ? AND col = 'text'
+        GROUP BY doc
+      `).run(term)
+      return
+    }
+    const insert = db.prepare(
+      'INSERT INTO temp.match_counts(source, doc_rowid, match_count) VALUES (?, ?, ?)',
+    )
+    const write = (source: 'persisted' | 'live', starts: readonly PhraseStart[]): void => {
+      let doc = -1
+      let offsets: number[] = []
+      const flush = (): void => {
+        if (doc === -1) return
+        insert.run(source, doc, mergedSpanCount(offsets, tokens.length))
+      }
+      for (const start of starts) {
+        if (start.doc !== doc) {
+          flush()
+          doc = start.doc
+          offsets = []
+        }
+        offsets.push(start.offset)
+      }
+      flush()
+    }
+    write('persisted', this._phraseStarts('persisted_docs_inst', tokens))
+    write('live', this._phraseStarts('temp.live_docs_inst', tokens))
+  }
+
+  /** Phrase start positions, ordered by document then token offset. */
+  private _phraseStarts(vocab: string, tokens: readonly string[]): PhraseStart[] {
+    const joins: string[] = []
+    for (let index = 1; index < tokens.length; index += 1) {
+      const alias = `i${index}`
+      joins.push(
+        `JOIN ${vocab} ${alias} ON ${alias}.doc = i0.doc AND ${alias}.col = 'text' AND ${alias}.offset = i0.offset + ${index}`,
+      )
+    }
+    const terms = tokens.map((_, index) => `i${index}.term = ?`).join(' AND ')
+    const rows = this._requireDb().prepare(`
+      SELECT i0.doc AS doc, i0.offset AS token_offset
+      FROM ${vocab} i0
+      ${joins.join('\n')}
+      WHERE i0.col = 'text' AND ${terms}
+      ORDER BY i0.doc, i0.offset
+    `).all(...tokens) as unknown as Array<{ doc: number; token_offset: number }>
+    return rows.map(row => ({ doc: Number(row.doc), offset: Number(row.token_offset) }))
+  }
+
+  /** Highlight one page of already-ranked documents. */
+  private _attachSnippets(rows: readonly RankedDocument[], query: string): SearchRow[] {
+    const marked = new Map<string, string>()
+    const remember = (source: 'persisted' | 'live', texts: ReadonlyMap<number, string>): void => {
+      for (const [rowid, text] of texts) marked.set(`${source}:${rowid}`, text)
+    }
+    remember('persisted', this._highlight(
+      'persisted_docs',
+      rows.filter(row => row.source === 'persisted').map(row => Number(row.doc_rowid)),
+      query,
+    ))
+    remember('live', this._highlight(
+      'live_docs',
+      rows.filter(row => row.source === 'live').map(row => Number(row.doc_rowid)),
+      query,
+    ))
+    return rows.map(row => {
+      const markedText = marked.get(`${row.source}:${Number(row.doc_rowid)}`)
+      // Rank and highlight read the same rows in one serialized query.
+      /* v8 ignore next -- a token hit is still present when its page is highlighted */
+      if (markedText === undefined) return { ...row, marked_text: '' }
+      return { ...row, marked_text: markedText }
+    })
+  }
+
+  /**
+   * Highlight specific FTS rows for the quoted query.
+   * @param table - `persisted_docs` or the TEMP name `live_docs`.
+   * @param rowids - ranked document ids from that table.
+   * @param query - normalized caller query.
+   * @returns highlighted text keyed by rowid.
+   */
+  private _highlight(table: 'persisted_docs' | 'live_docs', rowids: readonly number[], query: string): Map<number, string> {
+    const marked = new Map<number, string>()
+    if (rowids.length === 0) return marked
+    const db = this._requireDb()
+    const expression = quoteFtsData(query)
+    const from = table === 'live_docs' ? 'temp.live_docs' : 'persisted_docs'
+    // Three bindings plus the rowid list stay under SQLite's variable limit.
+    const batchSize = 500
+    for (let start = 0; start < rowids.length; start += batchSize) {
+      const batch = rowids.slice(start, start + batchSize)
+      const placeholders = batch.map(() => '?').join(', ')
+      const hits = db.prepare(`
+        SELECT rowid AS doc_rowid, highlight(${table}, 0, ?, ?) AS marked_text
+        FROM ${from}
+        WHERE ${table} MATCH ? AND rowid IN (${placeholders})
+      `).all(FTS_HIGHLIGHT_START, FTS_HIGHLIGHT_END, expression, ...batch) as unknown as Array<{
+        doc_rowid: number
+        marked_text: string
+      }>
+      for (const hit of hits) marked.set(Number(hit.doc_rowid), hit.marked_text)
+    }
+    return marked
   }
 
   private _targetObservation(
@@ -828,11 +1021,53 @@ function headerBindings(
   ]
 }
 
-function selectedDocumentsSql(): { sql: string } {
-  return {
-    sql: `WITH candidates AS (
+interface RankedDocument extends SessionHeaderRow {
+  doc_rowid: number
+  source: 'persisted' | 'live'
+  live: number
+  persisted: number
+  seq: number
+  type: string
+  time: number
+  surface: string
+  match_count: number
+  document_length: number
+}
+
+interface PhraseStart {
+  doc: number
+  offset: number
+}
+
+/**
+ * Rank `temp.match_counts` without reading document text.
+ * @param partitionBySession - keep each session's strongest event, or every event.
+ * @param where - parameterized filter over the combined document columns, without `WHERE`.
+ * @returns the SQL statement. Bindings are the persisted-visibility flag twice, the
+ * filter parameters, `limit + 1`, and the offset.
+ */
+function documentRankSql(partitionBySession: boolean, where: string): string {
+  const filter = where.length === 0 ? '' : `WHERE ${where}`
+  const projection = partitionBySession
+    ? `,
+      ranked AS (
+        SELECT *, ROW_NUMBER() OVER (
+          PARTITION BY session_id
+          ORDER BY match_count DESC, document_length ASC, time DESC, seq DESC
+        ) AS event_rank
+        FROM filtered
+      )
+      SELECT * FROM ranked
+      WHERE event_rank = 1
+      ORDER BY match_count DESC, document_length ASC, time DESC, session_id ASC, seq DESC`
+    : `
+      SELECT * FROM filtered
+      ORDER BY match_count DESC, document_length ASC, time DESC, seq DESC`
+  return `WITH persisted_hits AS (
       SELECT
-        pd.session_id AS session_id,
+        m.doc_rowid AS doc_rowid,
+        'persisted' AS source,
+        c.match_count AS match_count,
         ps.version AS version,
         ps.created_at AS created_at,
         ps.cwd AS cwd,
@@ -843,20 +1078,24 @@ function selectedDocumentsSql(): { sql: string } {
         ps.owner AS owner,
         0 AS live,
         1 AS persisted,
-        CAST(pd.seq AS INTEGER) AS seq,
-        pd.type AS type,
-        CAST(pd.time AS INTEGER) AS time,
-        pd.surface AS surface,
-        highlight(persisted_docs, 0, ?, ?) AS marked_text,
-        CAST(pd.codepoint_length AS INTEGER) AS document_length
-      FROM persisted_docs AS pd
-      JOIN persisted_sessions AS ps ON ps.id = pd.session_id
-      WHERE persisted_docs MATCH ?
+        m.session_id AS session_id,
+        m.seq AS seq,
+        m.type AS type,
+        m.time AS time,
+        m.surface AS surface,
+        m.codepoint_length AS document_length
+      FROM temp.match_counts AS c
+      JOIN persisted_doc_meta AS m ON m.doc_rowid = c.doc_rowid
+      JOIN persisted_sessions AS ps ON ps.id = m.session_id
+      WHERE c.source = 'persisted'
         AND ? = 1
-        AND NOT EXISTS (SELECT 1 FROM temp.live_sessions AS ls WHERE ls.id = pd.session_id)
-      UNION ALL
+        AND NOT EXISTS (SELECT 1 FROM temp.live_sessions AS ls WHERE ls.id = m.session_id)
+    ),
+    live_hits AS (
       SELECT
-        ld.session_id AS session_id,
+        m.doc_rowid AS doc_rowid,
+        'live' AS source,
+        c.match_count AS match_count,
         ls.version AS version,
         ls.created_at AS created_at,
         ls.cwd AS cwd,
@@ -867,45 +1106,55 @@ function selectedDocumentsSql(): { sql: string } {
         ls.owner AS owner,
         1 AS live,
         CASE WHEN ? = 1 THEN ls.persisted ELSE 0 END AS persisted,
-        CAST(ld.seq AS INTEGER) AS seq,
-        ld.type AS type,
-        CAST(ld.time AS INTEGER) AS time,
-        ld.surface AS surface,
-        highlight(live_docs, 0, ?, ?) AS marked_text,
-        CAST(ld.codepoint_length AS INTEGER) AS document_length
-      FROM temp.live_docs AS ld
-      JOIN temp.live_sessions AS ls ON ls.id = ld.session_id
-      WHERE live_docs MATCH ?
-    ), matched AS (
-      SELECT *,
-        (
-          length(CAST(marked_text AS BLOB))
-          - length(CAST(replace(marked_text, ?, '') AS BLOB))
-        ) / ? AS match_count
-      FROM candidates
-    )`,
-  }
-}
-
-function selectedDocumentsParams(query: string, persistenceVisible: boolean): Array<string | number> {
-  const expression = quoteFtsData(query)
-  const visible = persistenceVisible ? 1 : 0
-  return [
-    FTS_HIGHLIGHT_START,
-    FTS_HIGHLIGHT_END,
-    expression,
-    visible,
-    visible,
-    FTS_HIGHLIGHT_START,
-    FTS_HIGHLIGHT_END,
-    expression,
-    FTS_HIGHLIGHT_START,
-    Buffer.byteLength(FTS_HIGHLIGHT_START, 'utf8'),
-  ]
+        m.session_id AS session_id,
+        m.seq AS seq,
+        m.type AS type,
+        m.time AS time,
+        m.surface AS surface,
+        m.codepoint_length AS document_length
+      FROM temp.match_counts AS c
+      JOIN temp.live_doc_meta AS m ON m.doc_rowid = c.doc_rowid
+      JOIN temp.live_sessions AS ls ON ls.id = m.session_id
+      WHERE c.source = 'live'
+    ),
+    combined AS (
+      SELECT * FROM persisted_hits
+      UNION ALL
+      SELECT * FROM live_hits
+    ),
+    filtered AS (
+      SELECT * FROM combined
+      ${filter}
+    )${projection}
+    LIMIT ? OFFSET ?`
 }
 
 function observeLive(session: Session): ObservedSession {
-  return observeSession(session.header, session.inheritedEventCount, session.snapshotEvents())
+  const events = session.snapshotEvents()
+  return {
+    header: structuredClone(session.header),
+    inheritedEventCount: session.inheritedEventCount,
+    documents: buildSessionEventSearchDocuments(session.id, events),
+    fingerprint: liveStamp(session),
+  }
+}
+
+/**
+ * Identity of one live log.
+ *
+ * Session events are frozen at append time and the log only grows, so a later
+ * search with the same header, inherited cut, and length still has the same body.
+ * @param session - live session being observed.
+ * @returns a stamp stored as the live row's fingerprint.
+ */
+function liveStamp(session: Session): string {
+  return createHash('sha256')
+    .update(JSON.stringify(session.header))
+    .update('\0')
+    .update(String(session.inheritedEventCount))
+    .update('\0')
+    .update(String(session.seq))
+    .digest('base64url')
 }
 
 function observeSession(

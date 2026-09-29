@@ -168,6 +168,40 @@ describe('desktop macOS seed store signing', () => {
     expect({ started, active, maximumActive }).toEqual({ started: 6, active: 0, maximumActive: 4 })
   })
 
+  it('grants the JIT entitlement only to the LibreOffice kit engine executable', async () => {
+    const store = temporaryRoot()
+    const engine = Buffer.concat([Buffer.from('cffaedfe', 'hex'), Buffer.from('engine')])
+    const engineCas = casPath(store, engine, true)
+    createStoreFile(engineCas.path, engine)
+    const addon = Buffer.concat([Buffer.from('cffaedfe', 'hex'), Buffer.from('addon')])
+    const addonCas = casPath(store, addon)
+    createStoreFile(addonCas.path, addon)
+
+    const database = new DatabaseSync(join(store, 'v11', 'index.db'))
+    database.exec('CREATE TABLE package_index (key TEXT PRIMARY KEY, data BLOB NOT NULL) WITHOUT ROWID')
+    const insert = database.prepare('INSERT INTO package_index (key, data) VALUES (?, ?)')
+    insert.run('sha512-engine\t@deepseek-ai/libreoffice-kit-darwin-arm64@0.1.1', packr.pack({
+      algo: 'sha512',
+      files: new Map([['bin/libreoffice-kit', { checkedAt: 1, digest: engineCas.digest, mode: 0o755, size: engine.length }]]),
+    }))
+    insert.run('sha512-addon\tnative-addon@1.0.0', packr.pack({
+      algo: 'sha512',
+      files: new Map([['bin/libreoffice-kit', { checkedAt: 1, digest: addonCas.digest, mode: 0o644, size: addon.length }]]),
+    }))
+    database.close()
+
+    const entitlements = new Map<string, string | undefined>()
+    await signMacOSSeedStore(store, 'com.example.desktop', SIGNING_ENVIRONMENT, {
+      signer: async (path, _identifier, plist) => {
+        entitlements.set(readFileSync(path).subarray(4).toString(), plist)
+        appendFileSync(path, 'signed')
+      },
+    })
+
+    expect(entitlements.get('addon')).toBeUndefined()
+    expect(readFileSync(entitlements.get('engine') ?? '', 'utf8')).toContain('<key>com.apple.security.cs.allow-jit</key><true/>')
+  })
+
   it('awaits active signers and preserves the store when one signer fails', async () => {
     const store = temporaryRoot()
     const originals: { digest: string; path: string }[] = []

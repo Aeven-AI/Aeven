@@ -1,24 +1,12 @@
 <div class="hypermarkdown _markdown_404681">
   <blockquote>
     <p>
-      <span data-animate-key="word-0-0" data-animate-word="true">
-        #text "level"
-      <span data-animate-key="word-0-2" data-animate-word="true">
-        #text "one"
-      <span data-animate-key="word-0-4" data-animate-word="true">
-        #text "still"
-      <span data-animate-key="word-0-6" data-animate-word="true">
-        #text "one"
+      #text "level one\nstill one"
     <blockquote>
       <p>
-        <span data-animate-key="word-0-0" data-animate-word="true">
-          #text "nested"
+        #text "nested"
     <ul>
-      <li data-animate-marker="true">
-        <span data-animate-key="word-0-0" data-animate-word="true">
-          #text "quoted"
-        <span data-animate-key="word-0-2" data-animate-word="true">
-          #text "list"
+      <li>
+        #text "quoted list"
   <p>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "after"
+    #text "after"

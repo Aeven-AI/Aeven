@@ -29,6 +29,7 @@
     "client": {
       "inject": [
         "@aeven/api-remotes",
+        "@aeven/api-session-controller",
         "@aeven/client-ui-settings",
         "@aeven/client-locale"
       ],
@@ -45,6 +46,7 @@
   },
   "devDependencies": {
     "@aeven/api-remotes": "workspace:^",
+    "@aeven/api-session-controller": "workspace:^",
     "@aeven/client-locale": "workspace:^",
     "@aeven/client-ui-primitives": "workspace:^",
     "@aeven/client-ui-renderer": "workspace:^",

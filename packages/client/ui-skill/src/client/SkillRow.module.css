@@ -10,7 +10,7 @@
   overflow: hidden;
   display: flex;
   align-items: center;
-  height: 24px;
+  height: calc(24px + var(--avn-content-font-delta, 0px));
   min-width: 0;
 }
 
@@ -47,11 +47,11 @@
   align-items: center;
   justify-content: center;
   margin-right: 6px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--dsw-alias-label-caption);
 }
 
 .chevron {
-  color: var(--dsw-alias-label-secondary);
+  color: var(--dsw-alias-label-caption);
 }
 
 .iconIdle {
@@ -78,9 +78,9 @@
 
 .title {
   flex: none;
-  font-size: 14px;
-  line-height: 24px;
-  color: var(--dsw-alias-label-secondary);
+  font-size: var(--avn-content-font-size, 16px);
+  line-height: calc(28px + var(--avn-content-font-delta, 0px));
+  color: var(--dsw-alias-label-caption);
 }
 
 .separator {
@@ -98,9 +98,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
-  line-height: 24px;
-  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--avn-content-font-size, 16px);
+  line-height: calc(28px + var(--avn-content-font-delta, 0px));
+  color: var(--dsw-alias-label-caption);
 }
 
 .errorSummary {

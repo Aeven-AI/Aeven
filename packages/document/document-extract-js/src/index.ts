@@ -145,7 +145,6 @@ export function apply(ctx: Context, config: Config): void {
   ctx.effect(() => ctx.documentExtract.register({
     info: {
       id: PROVIDER_ID,
-      label: 'Built-in readers',
       version: EXTRACTOR_VERSION,
       formats: JS_FORMATS,
       priority: 0,

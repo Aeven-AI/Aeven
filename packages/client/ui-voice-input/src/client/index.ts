@@ -69,6 +69,6 @@ export function apply(ctx: Context): void {
     name: 'conversation.input.activity', locale: NS, inject: () => composer,
   }, VoiceInput))
   ctx.slots.inject('settings.section', () => ctx.slots.register({
-    name: 'settings.section', id: VOICE_SECTION, order: 40, label: () => t('nav'), locale: NS, inject: () => settings,
+    name: 'settings.section', id: VOICE_SECTION, order: 60, label: () => t('nav'), locale: NS, inject: () => settings,
   }, VoiceSection))
 }

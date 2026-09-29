@@ -1,11 +1,12 @@
 /**
- * Settings shell root: the sidebar-foot trigger row plus the centered modal
+ * Settings shell root: the sidebar-foot status row plus the centered modal
  * panel (figma 501:29947, 1080x700) with the section nav rail, which becomes
  * a horizontal tab strip under the title row on narrow viewports. The shell is
- * a pure composition face — every piece of text (trigger label, panel title,
- * close label, sections) arrives from registrants through slots; accessible
- * names resolve to that content (trigger: its own text; dialog:
- * aria-labelledby the title node; close: visually-hidden slot text). Modal
+ * a pure composition face — every piece of text (panel title, close label,
+ * sections) arrives from registrants through slots; accessible names resolve to
+ * that content (dialog: aria-labelledby the title node; close: visually-hidden
+ * slot text). No trigger sits in the sidebar: the panel opens on a
+ * `settings/open` request from another surface. Modal
  * open state and the active section id are component-local viewing state;
  * the onboarding coordinator mounts exactly one ordered registrant while the
  * sessions-derived empty-Hero fact is active. Visible dialog chrome belongs
@@ -17,7 +18,7 @@ import clsx from 'clsx'
 import {
   ConnectionIndicator,
   IconAgentPresetOutline16, IconCloseOutline16, IconCreditCardOutline16, IconDataOutline16,
-  IconPersonalizationOutline16, IconSettingsOutline16,
+  IconLightOutline16, IconPersonalizationOutline16, IconSettingsOutline16, IconThinkOutline16, IconUserOutline16,
 } from '@aeven/client-ui-primitives'
 import type { ConnectionIndicatorState } from '@aeven/client-ui-primitives'
 import type { SettingsRootComponentProps, SettingsSectionRow } from './shell-contract.ts'
@@ -27,10 +28,13 @@ const RECOVERY_CONFIRMATION_MS = 2_000
 
 /** Nav glyph by section id; unknown ids fall back to the settings gear. */
 function navIcon(id: string) {
+  if (id === 'account') return <IconUserOutline16 className={css.navIcon} size={16} />
+  if (id === 'appearance') return <IconLightOutline16 className={css.navIcon} size={16} />
   if (id === 'models') return <IconDataOutline16 className={css.navIcon} size={16} />
   if (id === 'agent-presets') return <IconAgentPresetOutline16 className={css.navIcon} size={16} />
   if (id === 'plugins') return <IconPersonalizationOutline16 className={css.navIcon} size={16} />
   if (id === 'grok-build') return <IconCreditCardOutline16 className={css.navIcon} size={16} />
+  if (id === 'memory') return <IconThinkOutline16 className={css.navIcon} size={16} />
   return <IconSettingsOutline16 className={css.navIcon} size={16} />
 }
 
@@ -74,11 +78,11 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelP
     navList.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   }, [active])
 
-  // A classic scrollbar takes its width out of the section's right inset; the
-  // padding gives that width back, so the section's controls stay flush with
-  // the close glyph whether or not the section scrolls. The body's width is
-  // the same either way, so the adjustment cannot toggle overflow. Overlay
-  // scrollbars measure 0.
+  // The section scrolls under `no-scrollbar`, so no bar draws and no engine
+  // takes width out of the section's right inset; what the padding gives back
+  // is therefore already 0. The measurement stays the one place that decides
+  // it, so the inset remains one page inset from the panel edge without
+  // asserting a bar width the sheet no longer reserves.
   const options = useRef<HTMLDivElement | null>(null)
   const optionsBody = useRef<HTMLDivElement | null>(null)
   useLayoutEffect(() => {
@@ -121,9 +125,11 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelP
               <span className={css.hiddenLabel}>{renderSlot('settings.close', {})}</span>
             </button>
           </div>
-          <div ref={options} className={css.options}>
-            <div ref={optionsBody}>
-              {active !== undefined && renderSlot('settings.section', { close: onClose }, { only: active })}
+          <div className={css.optionsFrame}>
+            <div ref={options} className={clsx(css.options, 'no-scrollbar')}>
+              <div ref={optionsBody}>
+                {active !== undefined && renderSlot('settings.section', { close: onClose }, { only: active })}
+              </div>
             </div>
           </div>
         </div>
@@ -133,7 +139,7 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelP
 }
 
 /**
- * Render the settings trigger and panel.
+ * Render the sidebar-foot status row and the settings panel.
  * @param props - composed slot props (contract/slots.ts).
  * @returns the settings shell element tree.
  */
@@ -146,17 +152,10 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
   const [activeId, setActiveId] = useState<string | undefined>(undefined)
   const [completedOnboarding, setCompletedOnboarding] = useState<ReadonlySet<string>>(() => new Set())
   const [showRecovery, setShowRecovery] = useState(false)
-  const triggerButton = useRef<HTMLButtonElement | null>(null)
-  const wasOpen = useRef(open)
   const close = useCallback(() => {
     setOpen(false)
     setActiveId(undefined)
   }, [])
-  // Restore after the close commit, when the dialog can no longer own focus.
-  useEffect(() => {
-    if (wasOpen.current && !open) triggerButton.current?.focus()
-    wasOpen.current = open
-  }, [open])
   const openSection = useCallback((id: string) => {
     setActiveId(id)
     setOpen(true)
@@ -217,16 +216,6 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
   return (
     <>
       <div className={clsx(css.triggerRow, !wide && css.railRow)}>
-        <button
-          ref={triggerButton}
-          type="button"
-          className={clsx(css.trigger, !wide && css.rail)}
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          onClick={() => { setOpen(true) }}
-        >
-          {renderSlot('settings.trigger', { wide })}
-        </button>
         <ConnectionIndicator
           state={wide ? connectionIndicator : undefined}
           disconnectedLabel={t('connection.error')}

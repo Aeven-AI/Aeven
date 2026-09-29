@@ -4,7 +4,8 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-settings/client'
 import type {} from '@aeven/client-ui-renderer/client'
-import type { RemoteResult } from '@aeven/api-remotes/client'
+import type {} from '@aeven/api-session-controller/client'
+import type { ManagedMemory, RemoteResult } from '@aeven/api-remotes/client'
 import { MemorySection, type MemorySectionInjected } from './MemorySection.tsx'
 import { en, zh, type MemoryLocaleKey } from './locales.ts'
 
@@ -22,7 +23,7 @@ declare module '@aeven/client-ui-slots' {
 export const NS = 'settings.memory'
 
 /** Services required by the Settings registration and the generated Remote face. */
-export const inject = ['slots', 'locale', 'remote', 'remote.memoryManager']
+export const inject = ['slots', 'locale', 'remote', 'remote.memoryManager', 'sessions']
 
 /**
  * Unwrap one Remote result.
@@ -54,12 +55,13 @@ export function apply(ctx: ClientContext): void {
     editCapability: (name, edit) => value(remote.editCapability(name, edit)),
     setCapabilityStatus: (name, status) => value(remote.setCapabilityStatus(name, status)),
     deleteCapability: name => value(remote.deleteCapability(name)),
+    openConversation: (sessionId) => { ctx.sessions.open(sessionId as ManagedMemory['sessionId']) },
   }
 
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
     id: 'memory',
-    order: 25,
+    order: 40,
     label: () => t('nav'),
     locale: NS,
     inject: () => operations,

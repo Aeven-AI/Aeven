@@ -1,23 +1,15 @@
 <div class="hypermarkdown _markdown_404681">
   <h4>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "Small"
-    <span data-animate-key="word-0-2" data-animate-word="true">
-      #text "heading"
+    #text "Small heading"
   <ul>
-    <li data-animate-marker="true">
-      <span data-animate-key="word-0-0" data-animate-word="true">
-        #text "one"
-    <li data-animate-marker="true">
-      <span data-animate-key="word-0-0" data-animate-word="true">
-        #text "two"
+    <li>
+      #text "one"
+    <li>
+      #text "two"
   <h5>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "Next"
+    #text "Next"
   <ol>
-    <li data-animate-marker="true">
-      <span data-animate-key="word-0-0" data-animate-word="true">
-        #text "a"
-    <li data-animate-marker="true">
-      <span data-animate-key="word-0-0" data-animate-word="true">
-        #text "b"
+    <li>
+      #text "a"
+    <li>
+      #text "b"

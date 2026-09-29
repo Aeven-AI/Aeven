@@ -484,8 +484,6 @@
       "@aeven/document-extract-js": ["./packages/document/document-extract-js/src/index.ts"],
       "@aeven/document-extract-office": ["./packages/document/document-extract-office/src/index.ts"],
       "@aeven/document-extract-ocr": ["./packages/document/document-extract-ocr/src/index.ts"],
-      "@aeven/api-document-extract": ["./packages/document/api-document-extract/src/index.ts"],
-      "@aeven/api-document-extract/types": ["./packages/document/api-document-extract/src/types.ts"],
       "@aeven/api-memory-manager": ["./packages/memory/api-memory-manager/src/index.ts"],
       "@aeven/api-memory-manager/types": ["./packages/memory/api-memory-manager/src/types.ts"],
       "@aeven/tool-str-replace-editor": ["./packages/fs/tool-str-replace-editor/src"],

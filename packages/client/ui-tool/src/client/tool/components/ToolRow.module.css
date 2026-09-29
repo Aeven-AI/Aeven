@@ -88,7 +88,7 @@
   white-space: nowrap;
   font-size: var(--avn-content-font-size, 16px);
   line-height: calc(28px + var(--avn-content-font-delta, 0px));
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--dsw-alias-label-caption);
   transition: color 100ms ease;
 }
 
@@ -103,7 +103,7 @@
   white-space: nowrap;
   font-size: var(--avn-content-font-size, 16px);
   line-height: calc(28px + var(--avn-content-font-delta, 0px));
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--dsw-alias-label-caption);
   transition: color 100ms ease;
 }
 
@@ -132,11 +132,10 @@
   transform: translateY(0.5px);
 }
 
-/* File-tool path: same type as .summary, with a persistent link affordance.
-   Dotted dimmed underline: visible enough to say "clickable", light enough
-   that a long path doesn't read as one heavy rule under the row. Shrink-to-fit
-   (flex 0): the click target ends where the path text ends — the row's empty
-   remainder stays the expand/collapse toggle. */
+/* File-tool path: same type as .summary, carrying the step's own caption ink
+   with no underline. Shrink-to-fit (flex 0): the click target ends where the
+   path text ends — the row's empty remainder stays the expand/collapse
+   toggle. */
 .fileLink {
   flex: 0 1 auto;
   min-width: 0;
@@ -151,18 +150,13 @@
   text-align: left;
   font-size: var(--avn-content-font-size, 16px);
   line-height: calc(28px + var(--avn-content-font-delta, 0px));
-  color: var(--dsw-alias-label-secondary);
-  text-decoration: underline dotted;
-  text-decoration-color: var(--dsw-alias-label-tertiary);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
+  color: var(--dsw-alias-label-caption);
   cursor: pointer;
   transition: color 100ms ease;
 }
 
 .fileLink:hover {
   color: var(--dsw-alias-label-primary);
-  text-decoration-color: currentColor;
 }
 
 /* Notice row's collapsed summary: the same failure line in secondary label

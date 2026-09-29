@@ -138,31 +138,54 @@
   bottom: -8px;
 }
 
+/* The group's overflow control: a Session row's own line — the 40px control
+   height, the sidebar's leading inset, an 18px glyph cell and the 8px gap that
+   lands its label on the Session titles' x — carrying an icon in place of the
+   status dot. */
 .sessionOverflowButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
   width: 100%;
-  height: 28px;
+  height: var(--dsw-aeven-control-size);
   border: none;
-  border-radius: 8px;
-  padding: 0 12px 0 28px;
+  border-radius: 0;
+  padding: 0 var(--avn-sidebar-inline-padding);
   background: transparent;
   cursor: pointer;
   text-align: left;
-  font-size: 12px;
-  color: var(--dsw-alias-label-tertiary);
-  /* Aeven `.side-content-button`. Its label is the one string in the body long
-     enough to reflow while the sidebar narrows, and the fixed 28px box does not
-     grow with it — the wrapped lines spilled out and pushed the group taller. */
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-primary);
+  /* The sidebar body animates its width to zero and the label reflows while it
+     does. Nowrap floors the row at its min-content width instead, and the
+     narrowing body clips the overhang. */
   white-space: nowrap;
   overflow: hidden;
+}
+
+/* The glyph draws at full strength in both states, so the row always reads as
+   the control it is. */
+.sessionOverflowIcon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.sessionOverflowLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .groupSection > .sessionOverflowButton {
   margin-top: 0;
 }
 
+/* Hover holds the row's own ink, as the Session rows do. */
 .sessionOverflowButton:hover {
   background: transparent;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--dsw-alias-label-primary);
 }
 
 .empty {

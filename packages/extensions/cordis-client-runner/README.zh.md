@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在组合里同时挂载了 host runner 的 web 客户端中挂载本插件——host 半跑在进程里，浏览器半跑在页面里。当某个带浏览器半的动态包被运行时，打开的页面会收到一次运行请求；本包在本页执行装载，UI 包（`ui-cordis`）则渲染人用来应答它的面板与卡片。纯 host 包不需要浏览器半，也就不需要页面：host 自己运行它们。
+在组合里同时挂载了 host runner 的 web 客户端中挂载本插件——host 半跑在进程里，浏览器半跑在页面里。当某个带浏览器半的动态包被运行时，打开的页面会收到一次运行请求；本包在本页执行装载，UI 包（`ui-cordis`）渲染生命周期卡片。纯 host 包不需要浏览器半，也就不需要页面：host 自己运行它们。
 
 ### 页面会做什么
 
@@ -51,7 +51,7 @@ kind: "package-reference"
 
 ### 设计理念
 
-浏览器半建立在一个原则之上：动态包必须与静态包共享同一套激活门控、fiber effect 清理与状态投影。求值后的插件被塞进模块表，并经 `loader.create` 挂载；卸载 = 移除 entry + 失效 factory + 撤下样式。guard 是一份白名单——生命周期动词加已声明服务——与 host 侧沙箱门面对称，因此包作者在两侧面对同一个约定。一个观察者供两个出口：只有这里监视槽位注册表的 entry 错误接缝，凡属于本 runner 落座过的包的崩溃，一路上行给 host（给模型），一路发布到本包自己的 `renderFailures`（给面板）。
+浏览器半建立在一个原则之上：动态包必须与静态包共享同一套激活门控、fiber effect 清理与状态投影。求值后的插件被塞进模块表，并经 `loader.create` 挂载；卸载 = 移除 entry + 失效 factory + 撤下样式。guard 是一份白名单——生命周期动词加已声明服务——与 host 侧沙箱门面对称，因此包作者在两侧面对同一个约定。一个观察者供两个出口：只有这里监视槽位注册表的 entry 错误接缝，凡属于本 runner 落座过的包的崩溃，一路上行给 host（给模型），一路发布到本包自己的 `renderFailures`（供浏览器观察）。
 
 ### 源码地图
 
@@ -81,7 +81,7 @@ kind: "package-reference"
 
 - [Host runner](../cordis-host-runner/README.zh.md)——本包应答的注册表与运行往返。
 - [工具包](../tool-cordis/README.zh.md)——运行请求到达本页的模型侧工具。
-- [UI 包](../ui-cordis/README.zh.md)——操作这个面的面板与卡片。
+- [UI 包](../ui-cordis/README.zh.md)——读取这个面的生命周期卡片。
 - [extensions 子系统](../../../docs/subsystems/extensions.zh.md)——生成的 `ctx.dynamicCordisRunner` API 与 `cordis/*` 事件。
 - [动态客户端渲染与附件归属 Agent Note](../../../.agents/notes/implemented/architecture/2026-08-17-dynamic-client-render-and-attachment-ownership.zh.md)——浏览器插件如何拥有自己的渲染与 CSS。
 - [客户端外壳与动态包 Agent Note](../../../.agents/notes/implemented/architecture/2026-08-15-client-shells-and-dynamic-packages.zh.md)——浏览器半的包归属与构建面。

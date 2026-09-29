@@ -1,4 +1,4 @@
-/** General Settings row for completed-Turn transcript presentation. */
+/** Appearance Settings row for completed-Turn transcript presentation. */
 
 import { useState } from 'react'
 import type { SnapshotStore } from '@aeven/client-store'
@@ -20,7 +20,7 @@ export interface TranscriptViewRowInjected {
 
 /** Full Settings-row props. */
 export type TranscriptViewRowProps =
-  PropsRuntime<'settings.general.item'>
+  PropsRuntime<'settings.appearance.item'>
   & PropsLocale<'chat'>
   & InjectFace<TranscriptViewRowInjected>
 

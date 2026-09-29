@@ -5,7 +5,7 @@ import { mkdir, open } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 
 /** Current derived-index schema version. Incompatible versions reset in place. */
-export const SESSION_QUERY_SQLITE_SCHEMA_VERSION = 9
+export const SESSION_QUERY_SQLITE_SCHEMA_VERSION = 10
 
 /** SQLite application id protecting unrelated databases from derived resets. */
 export const SESSION_QUERY_SQLITE_APPLICATION_ID = 0x44534851
@@ -22,6 +22,8 @@ const DERIVED_USER_TABLES = new Set([
   'persisted_docs_content',
   'persisted_docs_docsize',
   'persisted_docs_config',
+  'persisted_doc_meta',
+  'persisted_docs_inst',
 ])
 
 /**
@@ -136,6 +138,22 @@ function ensurePersistentSchema(db: DatabaseSync): void {
       tokenize = 'unicode61'
     )
   `)
+  // Filters and match counts read these side tables. The FTS content row holds
+  // the document text, and a query that selected it would read that text for
+  // every hit before it knew which rows to return.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS persisted_doc_meta (
+      doc_rowid        INTEGER PRIMARY KEY,
+      session_id       TEXT NOT NULL,
+      seq              INTEGER NOT NULL,
+      type             TEXT NOT NULL,
+      time             INTEGER NOT NULL,
+      surface          TEXT NOT NULL,
+      codepoint_length INTEGER NOT NULL
+    ) STRICT
+  `)
+  db.exec('CREATE INDEX IF NOT EXISTS persisted_doc_meta_session ON persisted_doc_meta(session_id)')
+  db.exec('CREATE VIRTUAL TABLE IF NOT EXISTS persisted_docs_inst USING fts5vocab(persisted_docs, instance)')
   db.exec(`PRAGMA user_version = ${SESSION_QUERY_SQLITE_SCHEMA_VERSION}`)
 }
 
@@ -166,6 +184,28 @@ function ensureTemporarySchema(db: DatabaseSync): void {
       surface UNINDEXED,
       codepoint_length UNINDEXED,
       tokenize = 'unicode61'
+    )
+  `)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS temp.live_doc_meta (
+      doc_rowid        INTEGER PRIMARY KEY,
+      session_id       TEXT NOT NULL,
+      seq              INTEGER NOT NULL,
+      type             TEXT NOT NULL,
+      time             INTEGER NOT NULL,
+      surface          TEXT NOT NULL,
+      codepoint_length INTEGER NOT NULL
+    ) STRICT
+  `)
+  db.exec('CREATE INDEX IF NOT EXISTS temp.live_doc_meta_session ON live_doc_meta(session_id)')
+  db.exec('CREATE VIRTUAL TABLE IF NOT EXISTS temp.live_docs_inst USING fts5vocab(live_docs, instance)')
+  db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS temp.query_probe USING fts5(text, tokenize = 'unicode61')`)
+  db.exec('CREATE VIRTUAL TABLE IF NOT EXISTS temp.query_probe_inst USING fts5vocab(query_probe, instance)')
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS temp.match_counts (
+      source      TEXT NOT NULL,
+      doc_rowid   INTEGER NOT NULL,
+      match_count INTEGER NOT NULL
     )
   `)
 }

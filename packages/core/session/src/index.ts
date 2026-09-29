@@ -81,6 +81,17 @@ declare module '@deepseek-ai/cordis' {
      * @mode parallel
      */
     'session/flush'(this: Scoped<Session>, session: Session): Promise<void> | void
+    /**
+     * Awaited parallel settlement before a process ends its ownership of a
+     * session, such as a one-shot run about to exit: listeners finish
+     * background work derived from the session before their promise settles.
+     * Long-running hosts need not dispatch it. Scope-filtered dispatch
+     * (`@aeven/scope`) reuses the session's owner scope.
+     * @param session - the session whose owner is about to end it.
+     * @avnScopeScan unsupported
+     * @mode parallel
+     */
+    'session/settle'(this: Scoped<Session>, session: Session): Promise<void> | void
   }
 }
 
@@ -1104,6 +1115,23 @@ export class SessionStore extends Service {
     const failure = results.find((result): result is PromiseRejectedResult => result.status === 'rejected')
     if (failure !== undefined) throw failure.reason
     return callbacks.length > 0
+  }
+
+  /**
+   * Dispatch the awaited `session/settle` checkpoint for `session`, with the
+   * carrier captured at {@link enter}: listeners finish background work
+   * derived from the session. A one-shot driver awaits it before it exits.
+   * @param session - the session whose owner is about to end it.
+   * @returns after every listener has settled; a listener failure is logged
+   *   and contained, since settlement only finishes optional derived work.
+   */
+  async settle(session: Session): Promise<void> {
+    const { carrier } = this.liveEntryFor(session)
+    const callbacks = collectSessionCallbacks(this.ctx, [carrier, 'session/settle', session])
+    const results = await Promise.allSettled(callbacks.map(async callback => await callback(session)))
+    for (const result of results) {
+      if (result.status === 'rejected') this.ctx.logger('sessions').warn(`session/settle listener failed: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`)
+    }
   }
 
   /** Return the exact live entry; detached/prepared objects reject. */

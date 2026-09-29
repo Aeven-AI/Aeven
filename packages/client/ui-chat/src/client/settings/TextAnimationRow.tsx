@@ -1,4 +1,4 @@
-/** General Settings row for the streamed-text word fade-in. */
+/** Appearance Settings row for the streamed-text word fade-in. */
 
 import { useState } from 'react'
 import type { SnapshotStore } from '@aeven/client-store'
@@ -18,7 +18,7 @@ export interface TextAnimationRowInjected {
 
 /** Full Settings-row props. */
 export type TextAnimationRowProps =
-  PropsRuntime<'settings.general.item'>
+  PropsRuntime<'settings.appearance.item'>
   & PropsLocale<'chat'>
   & InjectFace<TextAnimationRowInjected>
 

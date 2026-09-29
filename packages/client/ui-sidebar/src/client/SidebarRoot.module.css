@@ -290,22 +290,6 @@
   height: 18px;
 }
 
-/* The row's trailing glyph, on the same 18px grapheme and the same ink as the
-   row's leading mark. It is taken out of the row's flow: the body's contents
-   keep the fixed open width (`.sideContentInner`), so a flow-positioned glyph
-   would hold one x while the column narrows and be clipped by it. Positioned
-   against `.sideContent` — the box that actually animates — it keeps the
-   column's 24px trailing inset the whole way, exactly as the header's own
-   trailing icons do. Top centres it on the row, which is the inner's first. */
-.newSessionChevron {
-  position: absolute;
-  top: calc((var(--dsw-aeven-control-size) - 18px) / 2);
-  right: var(--avn-sidebar-inline-padding);
-  flex: none;
-  width: 18px;
-  height: 18px;
-}
-
 /* The Imagine row: the New Session row's geometry without its affordances —
    nothing to activate until the destination exists. */
 .imagine {

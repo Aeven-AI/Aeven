@@ -8,7 +8,6 @@ import type {
   DocumentExtractProviderId,
   DocumentExtractProviderInfo,
   DocumentExtractResult,
-  DocumentExtractSnapshot,
   DocumentFormats,
   ExtractedDocument,
 } from './types.ts'
@@ -49,29 +48,16 @@ export interface Config {
   maxTextChars: number
 }
 
-interface Registration {
-  readonly provider: DocumentExtractProvider
-  readonly unsubscribe: () => void
-}
-
 /** Registry shared by every document consumer in one Host composition. */
 export default class DocumentExtract extends Service {
   static Config: z<Partial<Config>, Config> = z.object({
     maxTextChars: z.natural().min(1).default(400_000),
   })
 
-  private readonly providers = new Map<DocumentExtractProviderId, Registration>()
-  private readonly listeners = new Set<() => void>()
-  private readonly lifetime = new AbortController()
+  private readonly providers = new Map<DocumentExtractProviderId, DocumentExtractProvider>()
 
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx, 'documentExtract')
-    ctx.effect(() => () => {
-      this.lifetime.abort(new Error('Document extraction service disposed'))
-      for (const registration of this.providers.values()) registration.unsubscribe()
-      this.providers.clear()
-      this.listeners.clear()
-    }, 'document-extract.lifetime')
   }
 
   /**
@@ -80,130 +66,57 @@ export default class DocumentExtract extends Service {
    * @returns idempotent disposer removing the provider.
    */
   register(provider: DocumentExtractProvider): () => void {
-    this.lifetime.signal.throwIfAborted()
     if (this.providers.has(provider.info.id)) {
       throw new Error(`Document extraction provider already registered: ${provider.info.id}`)
     }
-    const registration: Registration = {
-      provider,
-      unsubscribe: provider.preparation?.subscribe(() => { this.changed() }) ?? (() => {}),
-    }
-    this.providers.set(provider.info.id, registration)
-    this.changed()
+    this.providers.set(provider.info.id, provider)
     return () => {
-      if (this.providers.get(provider.info.id) !== registration) return
-      this.providers.delete(provider.info.id)
-      registration.unsubscribe()
-      this.changed()
+      if (this.providers.get(provider.info.id) === provider) this.providers.delete(provider.info.id)
     }
   }
 
-  private changed(): void {
-    for (const listener of this.listeners) listener()
-  }
-
-  private ready(): DocumentExtractProvider[] {
-    return [...this.providers.values()]
-      .map(({ provider }) => provider)
-      .filter(provider => (provider.preparation?.snapshot().phase ?? 'ready') === 'ready')
-      .sort((a, b) => a.info.priority - b.info.priority)
+  private ordered(): DocumentExtractProvider[] {
+    return [...this.providers.values()].sort((a, b) => a.info.priority - b.info.priority)
   }
 
   /**
-   * Read provider readiness and the accepted formats together.
-   * @returns one detached complete observation.
+   * Union of the formats every registered provider reads.
+   * @returns one detached value.
    */
-  snapshot(): DocumentExtractSnapshot {
+  accepted(): DocumentFormats {
     const extensions = new Set<string>()
     const mediaTypes = new Set<string>()
-    for (const provider of this.ready()) {
+    for (const provider of this.providers.values()) {
       for (const extension of provider.info.formats.extensions) extensions.add(extension)
       for (const mediaType of provider.info.formats.mediaTypes) mediaTypes.add(mediaType)
     }
-    const accepted: DocumentFormats = { extensions: [...extensions].sort(), mediaTypes: [...mediaTypes].sort() }
-    return {
-      providers: [...this.providers.values()].map(({ provider }) => ({
-        ...provider.info,
-        preparation: provider.preparation?.snapshot() ?? { phase: 'ready' },
-      })),
-      accepted,
-    }
+    return { extensions: [...extensions].sort(), mediaTypes: [...mediaTypes].sort() }
   }
 
   /**
-   * Observe complete readiness snapshots; a slow reader coalesces intermediate progress.
-   * @param caller - observer lifetime.
-   * @returns an initial snapshot followed by the latest states.
-   */
-  async *follow(caller: AbortSignal): AsyncIterable<DocumentExtractSnapshot> {
-    const signal = AbortSignal.any([caller, this.lifetime.signal])
-    signal.throwIfAborted()
-    let wake = Promise.withResolvers<undefined>()
-    let changed = true
-    const notify = (): void => { changed = true; wake.resolve(undefined) }
-    this.listeners.add(notify)
-    signal.addEventListener('abort', notify, { once: true })
-    try {
-      while (!signal.aborted) {
-        if (!changed) await wake.promise
-        if (signal.aborted) break
-        wake = Promise.withResolvers<undefined>()
-        changed = false
-        yield this.snapshot()
-      }
-    } finally {
-      this.listeners.delete(notify)
-      signal.removeEventListener('abort', notify)
-    }
-  }
-
-  /**
-   * Start or join provider-owned preparation.
-   * @param id - exact registered provider identity.
-   */
-  prepare(id: DocumentExtractProviderId): void {
-    this.provider(id).preparation?.prepare()
-  }
-
-  /**
-   * Cancel provider preparation.
-   * @param id - exact registered provider identity.
-   * @returns after the preparation task settles.
-   */
-  async cancelPreparation(id: DocumentExtractProviderId): Promise<void> {
-    await this.provider(id).preparation?.cancel()
-  }
-
-  private provider(id: DocumentExtractProviderId): DocumentExtractProvider {
-    const registration = this.providers.get(id)
-    if (registration === undefined) throw new Error(`Document extraction provider is unavailable: ${id}`)
-    return registration.provider
-  }
-
-  /**
-   * Report whether a ready provider reads this document's format.
+   * Report whether a provider reads this document's format.
    * @param name - display name.
    * @param mediaType - browser-declared media type, possibly empty.
    * @returns whether {@link extract} can be attempted.
    */
   accepts(name: string, mediaType: string): boolean {
     const extension = documentExtension(name, mediaType)
-    return this.ready().some(provider => claims(provider.info, extension, mediaType))
+    return this.ordered().some(provider => claims(provider.info, extension, mediaType))
   }
 
   /**
-   * Extract text through ready providers in priority order until one returns text.
+   * Extract text through providers in priority order until one returns text.
    * @param input - document bytes, display name, and declared media type.
    * @param signal - caller cancellation.
    * @returns text cut to the configured budget, with the producing provider.
-   * @throws DocumentExtractError when no ready provider claims the format or every claimant fails.
+   * @throws DocumentExtractError when no provider claims the format or every claimant fails.
    */
   async extract(
     input: { readonly data: Uint8Array; readonly name: string; readonly mediaType: string },
     signal: AbortSignal,
   ): Promise<DocumentExtractResult> {
     const extension = documentExtension(input.name, input.mediaType)
-    const candidates = this.ready().filter(provider => claims(provider.info, extension, input.mediaType))
+    const candidates = this.ordered().filter(provider => claims(provider.info, extension, input.mediaType))
     if (candidates.length === 0) {
       throw new DocumentExtractError(`No document reader accepts "${extension || input.mediaType || 'unknown'}" files.`, 'UNSUPPORTED_FORMAT')
     }

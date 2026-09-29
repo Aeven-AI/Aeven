@@ -11,12 +11,13 @@ import { Remote, TypertRemoteService } from '@aeven/typert-protocol'
 import type {} from '@aeven/identity-user'
 import type {} from '@aeven/session-query'
 import type {} from '@aeven/memory'
-import type { Capability, CapabilityRecord, JudgedExecution } from '@aeven/capability'
+import type { Capability, CapabilityRecord, CapabilityRunMetrics, JudgedExecution } from '@aeven/capability'
 import type { MemoryItemId, MemoryRecord } from '@aeven/memory/types'
 import type {
   ManagedCapability,
   ManagedCapabilityDetail,
   ManagedCapabilityEdit,
+  ManagedCapabilityImpact,
   ManagedCapabilityStatusChange,
   ManagedMemory,
   ManagedMemoryPage,
@@ -214,6 +215,31 @@ function managedMemory(record: MemoryRecord, workspaces: ReadonlyMap<string, str
   }
 }
 
+/** Successful runs the "after" median covers. */
+const IMPACT_RUNS = 5
+
+function median(values: readonly number[]): number {
+  const sorted = [...values].sort((a, b) => a - b)
+  const middle = Math.floor(sorted.length / 2)
+  return sorted.length % 2 === 1 ? sorted[middle] ?? 0 : Math.round(((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2)
+}
+
+function impact(before: CapabilityRunMetrics, judged: readonly JudgedExecution[]): ManagedCapabilityImpact {
+  const recent = judged.filter(item => item.verdict === 'verified' || item.verdict === 'succeeded').slice(-IMPACT_RUNS).map(item => item.execution)
+  if (recent.length === 0) return { before, runs: 0 }
+  const withTokens = recent.flatMap(run => run.tokens === undefined ? [] : [run.tokens])
+  return {
+    before,
+    runs: recent.length,
+    after: {
+      durationMs: median(recent.map(run => run.endedAt - run.startedAt)),
+      toolCalls: median(recent.map(run => run.tools.length)),
+      failedToolCalls: median(recent.map(run => run.tools.filter(tool => tool.failed).length)),
+      ...withTokens.length === 0 ? {} : { tokens: { input: median(withTokens.map(tokens => tokens.input)), output: median(withTokens.map(tokens => tokens.output)) } },
+    },
+  }
+}
+
 function managedCapability(record: CapabilityRecord, judged: readonly JudgedExecution[]): ManagedCapability {
   const current = judged.filter(item => item.execution.revision === record.revision)
   const lastRunAt = judged.at(-1)?.execution.endedAt
@@ -227,6 +253,7 @@ function managedCapability(record: CapabilityRecord, judged: readonly JudgedExec
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     files: record.files,
+    ...record.origin === undefined ? {} : { origin: record.origin, impact: impact(record.origin.baseline, judged) },
     runs: {
       total: current.length,
       succeeded: current.filter(item => item.verdict === 'verified' || item.verdict === 'succeeded').length,

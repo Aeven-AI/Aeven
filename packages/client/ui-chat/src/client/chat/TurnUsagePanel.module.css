@@ -15,8 +15,8 @@
 }
 
 /* Same pill rules as the sibling `.action` icon buttons (28px hit height,
-   15px glyph, tertiary → secondary on hover with the interactive hover
-   background), widened to carry the turn-total label. */
+   15px glyph, the host row's ink under the interactive hover background),
+   widened to carry the turn-total label. */
 .trigger {
   display: inline-flex;
   align-items: center;
@@ -27,7 +27,6 @@
   border: none;
   border-radius: 28px;
   background: transparent;
-  color: var(--dsw-alias-label-tertiary);
   font-size: var(--avn-content-font-size, 16px);
   font-variant-numeric: tabular-nums;
   line-height: calc(28px + var(--avn-content-font-delta, 0px));
@@ -49,10 +48,11 @@
   flex: none;
 }
 
+/* Hover and the open dialog's anchor keep the pill's own ink; the interactive
+   background carries the affordance (a secondary step here would lighten it). */
 .trigger:hover,
 .trigger[aria-expanded='true'] {
   background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-secondary);
 }
 
 /* Narrow viewport: the pills collapse to bare icons with the sibling

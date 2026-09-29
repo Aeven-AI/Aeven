@@ -76,8 +76,8 @@ declare module '@aeven/client-ui-slots' {
      * One preference row inside the General section — the additive seat for a
      * single setting that needs no page of its own (a whole page is
      * `settings.section`), contributed by the feature plugin that owns the
-     * preference (locale → Language, ui-theme → Appearance, ui-conversation →
-     * Composer Enter). Options: `id` (row key), `order` (row position). The
+     * preference (locale → Language, ui-conversation → Composer Enter).
+     * Options: `id` (row key), `order` (row position). The
      * section column only stacks rows, so a row draws its own internals,
      * including its label: nothing projects a `label` here and the owner passes
      * no props at all — copy, current value, and the write path are all yours,
@@ -87,10 +87,23 @@ declare module '@aeven/client-ui-slots' {
      * layer and every registrant already depends on it for `ctx.settingsScope`.
      */
     'settings.general.item': { kind: 'list'; scope: 'root'; owner: SettingsGeneralItemOwnerProps }
+    /**
+     * One preference row inside the Appearance section (theme, text size,
+     * conversation display, text animation). Same empty owner share as a
+     * General row: the section column only stacks rows. Declared at runtime
+     * by ui-theme's Appearance entry.
+     */
+    'settings.appearance.item': { kind: 'list'; scope: 'root'; owner: SettingsAppearanceItemOwnerProps }
   }
 }
 /** Owner share of a General preference row (the section supplies nothing). */
 export interface SettingsGeneralItemOwnerProps {
+  /** Marker field: item owner props are intentionally empty. */
+  children?: never
+}
+
+/** Owner share of an Appearance preference row (the section supplies nothing). */
+export interface SettingsAppearanceItemOwnerProps {
   /** Marker field: item owner props are intentionally empty. */
   children?: never
 }

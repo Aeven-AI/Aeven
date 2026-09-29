@@ -13,7 +13,7 @@
  * The seat is root-scoped, so the session the panel belongs to is read here
  * from the global session list rather than injected.
  */
-import { IconLucidePanelRight, Tooltip } from '@aeven/client-ui-primitives'
+import { IconPanelRightOutline, Tooltip } from '@aeven/client-ui-primitives'
 import type { ToggleButtonComponentProps } from './contract/slots.ts'
 import css from './ToggleButton.module.css'
 
@@ -32,7 +32,7 @@ export function ToggleButton({ useSessions, rightbarCollapsed, toggleRightbar, t
         aria-expanded={!rightbarCollapsed}
         onClick={() => { toggleRightbar(sessionId) }}
       >
-        <IconLucidePanelRight className={css.toggleIcon} />
+        <IconPanelRightOutline className={css.toggleIcon} />
       </button>
     </Tooltip>
   )

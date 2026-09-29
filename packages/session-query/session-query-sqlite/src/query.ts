@@ -261,6 +261,29 @@ export function requestFingerprint(request: NormalizedSessionRequest | Normalize
 }
 
 /**
+ * Count the highlight spans FTS5 draws for one document.
+ *
+ * `highlight()` merges overlapping phrase ranges into one span and leaves
+ * abutting ranges separate. `offsets` are the phrase start positions in token
+ * order; `phraseLength` is the number of tokens in the phrase.
+ * @param offsets - phrase start positions in one document.
+ * @param phraseLength - token count of the phrase, at least 1.
+ * @returns the number of spans `highlight()` would insert.
+ */
+export function mergedSpanCount(offsets: readonly number[], phraseLength: number): number {
+  if (phraseLength < 1 || offsets.length === 0) return 0
+  const ordered = [...offsets].sort((left, right) => left - right)
+  let count = 0
+  let end = Number.NEGATIVE_INFINITY
+  for (const offset of ordered) {
+    if (offset < end) continue
+    count += 1
+    end = offset + phraseLength
+  }
+  return count
+}
+
+/**
  * Build a whitespace-normalized excerpt no longer than `maxChars`.
  * @param markedText - complete document with FTS5 `highlight()` markers.
  * @param maxChars - maximum result length in Unicode code points.

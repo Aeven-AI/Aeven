@@ -17,6 +17,7 @@ import {
 } from 'node:fs'
 import { availableParallelism, tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { DatabaseSync } from 'node:sqlite'
 import {
   type DecodedIndexRow,
@@ -45,9 +46,16 @@ const MACH_O_MAGICS = new Set([
   'bfbafeca',
 ])
 const MAX_CONCURRENT_CODE_SIGNERS = 4
+/** Grants `com.apple.security.cs.allow-jit` under the hardened runtime. */
+const JIT_ENTITLEMENTS = fileURLToPath(new URL('./jit-entitlements.plist', import.meta.url))
+/** The LibreOffice kit engine executable, which maps JIT memory under the hardened runtime. */
+const JIT_PACKAGE_PATTERN = /^@deepseek-ai\/libreoffice-kit-darwin-(?:arm64|x64)@/u
+const JIT_FILE = 'bin/libreoffice-kit'
 
 interface FileReference {
   readonly row: DecodedIndexRow
+  /** Package-relative path of this reference. */
+  readonly path: string
   readonly record: PnpmStoreFileRecord
 }
 
@@ -55,6 +63,7 @@ interface SigningWork {
   readonly file: PnpmCasObject
   readonly references: readonly FileReference[]
   readonly temporaryPath: string
+  readonly entitlements: string | undefined
 }
 
 /** Summary of native code rewritten in one pnpm store. */
@@ -64,8 +73,8 @@ export interface MacOSSeedStoreSigningResult {
   readonly updatedIndexRows: number
 }
 
-/** A signer used to make one writable Mach-O copy release-valid. */
-export type MacOSSeedCodeSigner = (path: string, identifier: string) => Promise<void>
+/** A signer used to make one writable Mach-O copy release-valid, with an entitlements plist when the code needs one. */
+export type MacOSSeedCodeSigner = (path: string, identifier: string, entitlements: string | undefined) => Promise<void>
 
 /** A verifier used to check one Mach-O file after packaging transport. */
 export type MacOSSeedCodeVerifier = (path: string) => void
@@ -95,15 +104,20 @@ function fileReferences(rows: readonly DecodedIndexRow[]): ReadonlyMap<string, r
   const references = new Map<string, FileReference[]>()
   for (const row of rows) {
     for (const files of pnpmPackageFileMaps(row.value, row.key)) {
-      for (const record of files.values()) {
+      for (const [path, record] of files) {
         const key = pnpmCasReferenceKey(record.digest, isExecutableMode(record.mode))
         const values = references.get(key) ?? []
-        values.push({ row, record })
+        values.push({ row, path, record })
         references.set(key, values)
       }
     }
   }
   return references
+}
+
+/** pnpm index keys are `<integrity>\t<name>@<version>`; the package identity follows the tab. */
+function needsJit(references: readonly FileReference[]): boolean {
+  return references.some(({ row, path }) => path === JIT_FILE && JIT_PACKAGE_PATTERN.test(row.key.slice(row.key.indexOf('\t') + 1)))
 }
 
 function writeCasFile(path: string, body: Buffer, mode: number): void {
@@ -180,10 +194,15 @@ async function rewriteVersionStore(
       const temporary = join(workRoot, `${signingWork.length.toString().padStart(4, '0')}-${basename(file.path)}`)
       copyFileSync(file.path, temporary)
       chmodSync(temporary, 0o755)
-      signingWork.push({ file, references: fileReferences, temporaryPath: temporary })
+      signingWork.push({
+        file,
+        references: fileReferences,
+        temporaryPath: temporary,
+        entitlements: needsJit(fileReferences) ? JIT_ENTITLEMENTS : undefined,
+      })
     }
     await runConcurrent(signingWork, concurrency, async (work) => {
-      await signer(work.temporaryPath, `${appId}.seed.${work.file.digest.slice(0, 32)}`)
+      await signer(work.temporaryPath, `${appId}.seed.${work.file.digest.slice(0, 32)}`, work.entitlements)
     })
     for (const work of signingWork) {
       const signedBody = readFileSync(work.temporaryPath)
@@ -235,8 +254,8 @@ export async function signMacOSSeedStore(
   if (!Number.isSafeInteger(concurrency) || concurrency < 1) {
     throw new Error(`desktop seed signing: concurrency must be a positive integer; received ${String(concurrency)}`)
   }
-  const signer = options.signer ?? (async (path, identifier) => {
-    await signMacOSSeedCode(path, identifier, expected)
+  const signer = options.signer ?? (async (path, identifier, entitlements) => {
+    await signMacOSSeedCode(path, identifier, expected, entitlements)
   })
   const results: MacOSSeedStoreSigningResult[] = []
   for (const root of roots) results.push(await rewriteVersionStore(root, appId, signer, concurrency))

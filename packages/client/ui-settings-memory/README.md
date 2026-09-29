@@ -11,10 +11,11 @@ kind: "package-reference"
 
 ## Use this package
 
-The page has four tabs:
+The page uses the same underline tabs as Plugins:
 
-- **About you** lists `person` memories; **Projects** lists `project` memories grouped by the workspace of the session they came from; **Knowledge** lists `world` and `experience` memories. A search box filters all three. Each memory can be edited or forgotten and links to its conversation.
-- **Capabilities** lists learned capabilities with status and run counts. **View** shows the procedure, its version, and recent runs with verdicts and corrections; from there a capability can be edited, retired or put back in use, confirmed when unconfirmed, or deleted.
+- **About you**, **Projects**, and **Knowledge** list memories as quiet cards. A card shows the fact and when it was remembered. Opening it reveals what was said, and a Details fold for the kind, time, and project. Edit, Forget, and Show conversation sit in that open card. Show conversation selects the session inside the app and closes Settings.
+- **Projects** groups cards by the workspace folder of the session they came from.
+- **Capabilities** lists learned capabilities the same way: name and description on the card, and Procedure, Runs, and Learned from behind folds. Edit, retire, restore, and delete stay in the open card.
 
 Copy lives in the `settings.memory` dictionaries (English and Simplified Chinese).
 

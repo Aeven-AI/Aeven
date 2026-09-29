@@ -1,5 +1,5 @@
 /**
- * Font-size preference row registered into the General section item slot:
+ * Font-size preference row registered into the Appearance section item slot:
  * title + body-text-only description + stepper pill (centered value; hover
  * reveals the up/down arrow column anchored to the pill's right edge) + a px
  * unit label after the pill. Registered by this package — the theme feature
@@ -24,7 +24,7 @@ export interface FontSizeRowInjected {
 
 /** Full component props: runtime share + store share + locale seat + injected face. */
 export type FontSizeRowComponentProps =
-  PropsRuntime<'settings.general.item'> & PropsStore<ReturnType<typeof createFontSizeRowStore>>
+  PropsRuntime<'settings.appearance.item'> & PropsStore<ReturnType<typeof createFontSizeRowStore>>
   & PropsLocale<'settings.theme'> & FontSizeRowInjected
 
 /**

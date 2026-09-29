@@ -28,3 +28,6 @@
       inject: [headlessStartup]
       config:
         task: !!js ctx.headlessStartup.task
+        # A run belongs to an account only when the operator names one; per-user
+        # memory and learned capabilities need an owner.
+        owner: !!js process.env.AVN_OWNER

@@ -7,6 +7,7 @@ import {
   FTS_HIGHLIGHT_END,
   FTS_HIGHLIGHT_START,
   makeSnippet,
+  mergedSpanCount,
   normalizeEventRequest,
   normalizeSessionRequest,
   quoteFtsData,
@@ -258,5 +259,15 @@ describe('SQLite query identity and presentation', () => {
     expect(makeSnippet(`abcde${FTS_HIGHLIGHT_START}f${FTS_HIGHLIGHT_END}`, 5)).toBe('…cdef')
     expect(makeSnippet(`  x—${FTS_HIGHLIGHT_START}café${FTS_HIGHLIGHT_END}\n y  `, 20))
       .toBe('x—café y')
+  })
+
+  it('counts highlight spans the way FTS5 merges overlapping phrase ranges', () => {
+    expect(mergedSpanCount([], 2)).toBe(0)
+    expect(mergedSpanCount([0], 0)).toBe(0)
+    expect(mergedSpanCount([0, 1, 2], 1)).toBe(3)
+    expect(mergedSpanCount([0, 1], 2)).toBe(1)
+    expect(mergedSpanCount([2, 0, 1], 2)).toBe(2)
+    expect(mergedSpanCount([0, 2], 2)).toBe(2)
+    expect(mergedSpanCount([0, 3], 2)).toBe(2)
   })
 })

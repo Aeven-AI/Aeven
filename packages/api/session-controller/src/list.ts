@@ -141,7 +141,7 @@ export class ApiSessionList {
         wire: {
           viewSchema: fileIntakeSchema,
           view: (): FileIntake => {
-            const { accepted } = intakeCtx.documentExtract.snapshot()
+            const accepted = intakeCtx.documentExtract.accepted()
             return {
               maxFileBytes: limits.maxFileBytes,
               maxFilesPerMessage: limits.maxFilesPerMessage,

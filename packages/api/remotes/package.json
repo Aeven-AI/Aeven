@@ -60,7 +60,6 @@
   },
   "devDependencies": {
     "@aeven/agent-presets": "workspace:^",
-    "@aeven/api-document-extract": "workspace:^",
     "@aeven/api-gateway": "workspace:^",
     "@aeven/api-job-controller": "workspace:^",
     "@aeven/api-memory-manager": "workspace:^",

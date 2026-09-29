@@ -1,33 +1,19 @@
 <div class="hypermarkdown _markdown_404681">
   <ul class="contains-task-list">
-    <li class="task-list-item" data-animate-marker="true">
+    <li class="task-list-item">
       <input checked="" disabled="" type="checkbox">
-      <span data-animate-key="word-4-0" data-animate-word="true">
-        #text "done"
-      <span data-animate-key="word-4-2" data-animate-word="true">
-        #text "with"
+      #text " done with "
       <strong>
-        <span data-animate-key="word-0-0" data-animate-word="true">
-          #text "strong"
-    <li class="task-list-item" data-animate-marker="true">
+        #text "strong"
+    <li class="task-list-item">
       <input disabled="" type="checkbox">
-      <span data-animate-key="word-4-0" data-animate-word="true">
-        #text "pending"
-    <li data-animate-marker="true">
-      <span data-animate-key="word-0-0" data-animate-word="true">
-        #text "plain"
-      <span data-animate-key="word-0-2" data-animate-word="true">
-        #text "sibling"
+      #text " pending"
+    <li>
+      #text "plain sibling"
   <ol class="contains-task-list">
-    <li class="task-list-item" data-animate-marker="true">
+    <li class="task-list-item">
       <input checked="" disabled="" type="checkbox">
-      <span data-animate-key="word-4-0" data-animate-word="true">
-        #text "ordered"
-      <span data-animate-key="word-4-2" data-animate-word="true">
-        #text "done"
-    <li class="task-list-item" data-animate-marker="true">
+      #text " ordered done"
+    <li class="task-list-item">
       <input disabled="" type="checkbox">
-      <span data-animate-key="word-4-0" data-animate-word="true">
-        #text "ordered"
-      <span data-animate-key="word-4-2" data-animate-word="true">
-        #text "pending"
+      #text " ordered pending"

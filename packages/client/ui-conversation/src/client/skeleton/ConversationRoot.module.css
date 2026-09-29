@@ -118,6 +118,10 @@
    transparent behind it: the transcript scrolls under the bar, and the glyph
    has to stay legible over whatever is passing beneath.
 
+   Fill and glyph are the two static extremes, so the control reads the same
+   over the light and dark canvases rather than following the layer and label
+   aliases the rest of the bar uses.
+
    Above the fade and blur scrims, which are absolutely positioned in this
    header and would otherwise paint over a control that takes part in the static
    flow. */
@@ -132,8 +136,8 @@
   padding: 0;
   border: none;
   border-radius: 15px;
-  background: var(--dsw-alias-bg-layer-1);
-  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-static-neutral-1000);
+  color: var(--dsw-static-neutral-00);
   cursor: pointer;
   transition: background var(--ds-transition-duration-fast) var(--ds-ease-in-out);
   /* The icon offset assumes a 40px control box; this circle is 30px and ends 5px
@@ -144,11 +148,12 @@
 }
 
 /* No hover tint: the pointer cursor and the tooltip are the hover affordance.
-   Keyboard focus keeps a visible mark, in the accent tint because the page
-   canvas is nearly this button's own fill and the ordinary 5% tint would read
-   as no change. */
+   Keyboard focus keeps a visible mark as a ring in the label tone, which
+   contrasts with this button's black fill in either theme; repainting the fill
+   in the accent tint would take the white glyph down with it. */
 .foldButton:focus-visible {
-  background: var(--dsw-alias-interactive-bg-hover-accent);
+  outline: 2px solid var(--dsw-alias-label-primary);
+  outline-offset: 2px;
 }
 
 /* The fold glyph: the sidebar's three-line mark at its own 18px grapheme. */

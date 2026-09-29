@@ -1,21 +1,12 @@
 <div class="hypermarkdown _markdown_404681">
   <p>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "Mixed"
+    #text "Mixed "
     <del>
-      <span data-animate-key="word-0-0" data-animate-word="true">
-        #text "gone"
-    <span data-animate-key="word-4-2" data-animate-word="true">
-      #text "text"
-    <span data-animate-key="word-4-4" data-animate-word="true">
-      #text "with"
-    <a data-animate-key="link-0" data-animate-word="true" href="http://www.example.com" rel="noreferrer" target="_blank">
+      #text "gone"
+    #text " text with "
+    <a href="http://www.example.com" rel="noreferrer" target="_blank">
       #text "www.example.com"
-    <span data-animate-key="word-12-2" data-animate-word="true">
-      #text "literal"
-    <span data-animate-key="word-12-4" data-animate-word="true">
-      #text "and"
-    <a data-animate-key="link-0" data-animate-word="true" href="mailto:user@example.com" rel="noreferrer" target="_blank">
+    #text " literal and "
+    <a href="mailto:user@example.com" rel="noreferrer" target="_blank">
       #text "user@example.com"
-    <span data-animate-key="word-20-2" data-animate-word="true">
-      #text "email."
+    #text " email."

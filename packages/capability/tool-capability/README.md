@@ -1,5 +1,5 @@
 ---
-description: "Capability learning for the model: the capability_manage tool, learning guidance, confirmation, and draft recall."
+description: "Automatic capability learning: the background learner, recall of learned procedures, execution evidence, and the capability_manage tool."
 kind: "package-reference"
 ---
 
@@ -7,7 +7,12 @@ kind: "package-reference"
 
 ## Summary
 
-`avn-tool-capability` lets the agent learn and maintain capabilities for the session's owner. `capability_manage` offers `learn`, `view`, `list`, `update`, `write_file`, `delete`, `report`, `retire`, and `restore`. `learn` stores the procedure as an unconfirmed draft first, then asks the user through `ctx.userQuestions` whether to learn it: confirming makes it `learned`, declining deletes it, and a session with no reachable user (such as a subagent) keeps it as a draft. Changing, deleting, retiring, or restoring a confirmed capability also asks the user. The plugin records one execution per turn that loaded a confirmed capability (through the `skill` tool or a `/name` invocation), with the tools, retries, tokens, and the model's `report` from that turn; a direct-user correction in the next turn and a rating on the turn's reply are attached to it afterwards. At the start of a direct-user turn, unconfirmed drafts whose name and description share at least two words with the request are recalled once per session.
+`avn-tool-capability` makes Aeven learn reusable procedures for the session's owner without asking anyone.
+
+- **Learner.** A turn that completed with at least `minSteps` tool calls (skill, capability, memory, and todo bookkeeping excluded), whose last call succeeded, is held until the user's next message. A correction discards it; any other message, `settleMs`, or the session's end releases it. A background model call on the session's route (or the configured `provider`/`model`) then decides to skip it, create a candidate capability, or merge it into an existing one, and writes the procedure with "When to use", "Requirements", "Steps", "Verification", and "Recovery". A new capability records its origin: the request, the tools used, and the turn's duration, tool calls, failures, and tokens as the baseline. Work that followed a learned capability without failures teaches nothing new; its execution is evidence instead. A retired capability is never recreated.
+- **Reuse.** At the start of a direct-user turn, executable capabilities whose name, description, or originating request share at least two words with the request are pointed out once per session.
+- **Evidence.** Every turn that loaded an executable capability records one execution with its tools, retries, tokens, and the model's `report`; a correction in the next turn and a rating on the reply are attached afterwards. The registry's rules turn that evidence into status changes.
+- **Tool.** `capability_manage` offers `learn` (when the user asks), `view`, `list`, `update`, `write_file`, `report`, `retire`, and `restore`. None of them asks the user; deletion is left to Settings → Memory.
 
 ## Use this package
 
@@ -15,17 +20,22 @@ Mount it per agent beside a host `capability` registry (the `standard`, `cordis`
 
 | Field | Default | Meaning |
 |---|---|---|
-| `promptOrder` | `116` | Order of the learning guidance section |
-| `maxDrafts` | `3` | Maximum drafts recalled for one turn |
-| `previewMaxChars` | `4000` | Maximum procedure characters shown in a confirmation question |
+| `promptOrder` | `116` | Order of the capability guidance section |
+| `maxRecalled` | `3` | Maximum learned procedures pointed out for one request |
+| `learn` | `true` | Whether completed work is learned from automatically |
+| `minSteps` | `3` | Tool calls a turn needs before its work is learned from |
+| `settleMs` | `300000` | Wait for a correction before learning without one |
+| `timeoutMs` | `120000` | Budget of one learning model call |
+| `maxOutputTokens` | `4000` | Output limit of one learning model call |
+| `provider`, `model` | — | Explicit learning route; absent uses each session's route |
 
 ## Model Experience
 
-### Learning guidance
+### Capability guidance
 
 #### What the model sees
 
-In sessions with an owner, one system-prompt section telling the model to learn a capability when the user asks it to, or after working out a recurring multi-step procedure through errors, dead ends, or a correction; how to write it (when to use it, requirements, exact steps, verification, recovery); that saving asks the user; and what not to save.
+In sessions with an owner, one system-prompt section: learned capabilities appear in the skill catalog; load a fitting one and follow it; report the outcome and fix wrong steps with `update`; save with `learn` when the user asks; never ask the user whether to save, keep, or update a procedure, and do not announce it.
 
 #### Token effect
 
@@ -35,30 +45,34 @@ About 170 tokens per request in owned sessions; none elsewhere.
 
 Static per session.
 
-### Draft recall
+### Procedure recall
 
 #### What the model sees
 
 ```text
-<capability_drafts>
-Unconfirmed procedures saved earlier that may apply. The user has not confirmed them: read one with capability_manage (action "view") and verify each step before relying on it.
+<learned_procedures>
+Procedures learned from earlier work that may fit this request. Load a fitting one with the skill tool and follow it.
 - <name>: <description>
-</capability_drafts>
+</learned_procedures>
 ```
 
 #### Token effect
 
-Only when a draft matches; at most `maxDrafts` lines, each draft once per session.
+Only when a capability matches; at most `maxRecalled` lines, each capability once per session.
 
 #### KV Cache effect
 
 Append-only after the user's message.
 
+### Learning call
+
+The learner's model call is a separate request outside the session; the session model never sees it. What it writes reaches a session only when the skill tool loads the capability, as a logged tool result.
+
 ## Known Limitations and Deferred Work
 
-- **Keyword matching for drafts** — draft recall matches words, not meaning.
-- **Proposals come from the model** — automatic proposals from recorded evidence (retries followed by success, corrections) are not generated yet.
-- **Corrections are recognized by phrasing** — a correction must open with a phrase such as "that's wrong" or "it didn't work" to count against the previous turn's executions.
+- **Keyword matching** — recall and related-capability lookup match words, not meaning.
+- **Corrections are recognized by phrasing** — a correction must open with a phrase such as "that's wrong" or "it didn't work" to count against the previous turn.
+- **One sample baseline** — the "first time" metrics come from the single turn a capability was learned from.
 
 ## Dev Note
 

@@ -110,15 +110,17 @@ function runCodeSign(args) {
  * @param {string} path - Writable standalone Mach-O file.
  * @param {string} identifier - Stable code-signing identifier derived from the release app ID and CAS digest.
  * @param {{ signingIdentity: string, teamId: string }} expected - Public release identity.
+ * @param {string | undefined} entitlements - Entitlements plist for code that needs one, such as JIT.
  * @returns {Promise<void>} Resolves after codesign exits successfully.
  */
-export async function signMacOSSeedCode(path, identifier, expected) {
+export async function signMacOSSeedCode(path, identifier, expected, entitlements) {
   await runAppleCommandAsync('/usr/bin/codesign', [
     '--force',
     '--sign', expected.signingIdentity,
     '--identifier', identifier,
     '--timestamp',
     '--options', 'runtime',
+    ...entitlements === undefined ? [] : ['--entitlements', entitlements],
     path,
   ], 'codesign')
 }

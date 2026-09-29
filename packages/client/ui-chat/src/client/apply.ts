@@ -96,8 +96,8 @@ export function apply(ctx: Context): void {
   const transcriptView = new TranscriptViewPolicy(chatSettings)
   const textAnimation = new TextAnimationPolicy(chatSettings)
 
-  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
-    name: 'settings.general.item',
+  ctx.slots.inject('settings.appearance.item', () => ctx.slots.register({
+    name: 'settings.appearance.item',
     id: 'transcript-view',
     order: 12,
     locale: NS,
@@ -107,8 +107,8 @@ export function apply(ctx: Context): void {
     }),
   }, TranscriptViewRow))
 
-  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
-    name: 'settings.general.item',
+  ctx.slots.inject('settings.appearance.item', () => ctx.slots.register({
+    name: 'settings.appearance.item',
     id: 'text-animation',
     order: 13,
     locale: NS,

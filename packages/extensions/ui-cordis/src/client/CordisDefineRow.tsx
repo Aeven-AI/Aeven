@@ -157,7 +157,6 @@ export function CordisDefineRow({
               <pre className={css.output} data-error={card.state === 'error' || undefined}>{card.output}</pre>
             </section>
           )}
-          {card.pluginId !== null && <div className={css.panelHint}>{t('panel.hint')}</div>}
           {inspect !== undefined && (
             <button type="button" className={css.inspectButton} onClick={inspect}>
               <IconInspectOutline12 />

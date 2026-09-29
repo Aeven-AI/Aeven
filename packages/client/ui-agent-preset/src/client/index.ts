@@ -4,6 +4,11 @@
  * section that manages the roster (copy, delete, default, and the way into a
  * preset's own files).
  *
+ * Both are developer surfaces: every session runs the deployment's default
+ * composition, and the roster is shown only while Developer mode is on. They
+ * mount as one child plugin, so turning Developer mode off disposes every
+ * registration and subscription they made.
+ *
  * A running session keeps the composition it began with (the host refuses to
  * adopt an existing session under a different preset), so the choice belongs to
  * the screen that starts one. The default preset is edited where the roster is
@@ -23,7 +28,10 @@ import type {} from '@aeven/client-ui-settings/client'
 import type {} from '@aeven/client-ui-renderer/client'
 // Type-only: pulls the Workspace UI navigation service merge (ctx.uiWorkspace).
 import type {} from '@aeven/client-ui-workspace/client'
-import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import type { Context as ClientContext, Fiber } from '@deepseek-ai/cordis'
+import type {
+  DeveloperSettings, DeveloperSettingsNamespace,
+} from '@aeven/client-ui-settings-general/client'
 import { AgentPresetSeat } from './AgentPresetSeat.tsx'
 import type { AgentPresetSeatInjected } from './AgentPresetSeat.tsx'
 import { AgentPresetSection } from './AgentPresetSection.tsx'
@@ -51,16 +59,52 @@ export {
 export type { AgentPresetOption, AgentPresetSettingsState } from './settings-store.ts'
 export { AGENT_PRESET_SETTINGS_NS, writeDefaultPreset } from './settings-store.ts'
 
+/** Services the developer surfaces use. */
+const SURFACE_INJECT = ['slots', 'locale', 'remote', 'remote.agentPresets', 'remote.settings']
+
 /** Required services (cordis fiber inject). */
-export const inject = [
-  'slots', 'locale', 'remote', 'remote.agentPresets', 'remote.settings',
-]
+export const inject = [...SURFACE_INJECT, 'settingsScope']
 
 /**
- * Mount the roster surfaces: hero chip, session-header label, settings section.
+ * The Developer mode namespace, owned by `ui-settings-general`; typed from its
+ * declaration because plugins share types, never values.
+ */
+const DEVELOPER_SETTINGS_NAMESPACE: DeveloperSettingsNamespace = 'ui-developer'
+
+/**
+ * Register the dictionaries, and mount the roster surfaces while Developer mode is on.
  * @param ctx - the browser plugin context.
  */
 export function apply(ctx: ClientContext): void {
+  ctx.effect(() => ctx.locale.register('settings.agentPreset', { zh, en }), 'ui-agent-preset: settings row dictionaries')
+
+  const developer = ctx.settingsScope.bind<DeveloperSettings>({ namespace: DEVELOPER_SETTINGS_NAMESPACE })
+  ctx.effect(() => {
+    let surfaces: Fiber | undefined
+    const sync = (): void => {
+      const enabled = developer.getSnapshot().value?.enabled === true
+      if (enabled === (surfaces !== undefined)) return
+      if (enabled) {
+        surfaces = ctx.plugin({ name: 'ui-agent-preset: developer surfaces', inject: SURFACE_INJECT, apply: mountSurfaces })
+        return
+      }
+      void surfaces?.dispose()
+      surfaces = undefined
+    }
+    sync()
+    const stop = developer.subscribe(sync)
+    return () => {
+      stop()
+      void surfaces?.dispose()
+    }
+  }, 'ui-agent-preset: developer mode gate')
+}
+
+/**
+ * Mount the roster surfaces: hero chip, session-header label, settings section.
+ * @param ctx - the developer-surfaces child plugin context.
+ */
+function mountSurfaces(ctx: ClientContext): void {
   // One roster for every surface: created here, passed to each, never looked
   // up from the context.
   const roster = new AgentPresetRosterHolder(ctx)
@@ -73,8 +117,6 @@ export function apply(ctx: ClientContext): void {
     void controller.load()
     for (const read of rosterReaders) read()
   })
-
-  ctx.effect(() => ctx.locale.register('settings.agentPreset', { zh, en }), 'ui-agent-preset: settings row dictionaries')
 
   ctx.effect(() => {
     // The roster is a live directory and the default is a settings field, so
@@ -145,7 +187,7 @@ export function apply(ctx: ClientContext): void {
       creatorDraft = () => {
         // The introduce cue makes the chip announce the pick the user never
         // made on this screen — the stage happened back in settings.
-        seat.stage('cordis', true)
+        seat.stage('aeven', true)
         scope.uiWorkspace.startSession()
       }
       const chip = scope.slots.register({
@@ -185,7 +227,7 @@ export function apply(ctx: ClientContext): void {
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
     id: 'agent-presets',
-    order: 20,
+    order: 80,
     label: () => ctx.locale.bind('settings.agentPreset')('nav'),
     locale: 'settings.agentPreset',
     inject: sectionInjected,

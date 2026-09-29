@@ -1,6 +1,6 @@
 {
   "name": "@aeven/document-extract-office",
-  "description": "LibreOffice document reader for Pages, Keynote, Numbers, and legacy Office files, with an on-demand verified runtime",
+  "description": "Office document reader backed by the bundled LibreOffice engine",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"
@@ -23,21 +23,19 @@
   },
   "files": [
     "lib/index.js",
-    "lib/types/**/*.d.ts",
-    "runtime/assets.json"
+    "lib/types/**/*.d.ts"
   ],
   "license": "MIT",
   "dependencies": {
+    "@deepseek-ai/libreoffice-kit": "0.1.1",
     "@deepseek-ai/schemastery": "workspace:^"
   },
   "peerDependencies": {
     "@aeven/document-extract": "workspace:^",
-    "@aeven/subprocess": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
     "@aeven/document-extract": "workspace:^",
-    "@aeven/subprocess": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   }
 }

@@ -75,7 +75,7 @@ describe('ui-settings-models apply', () => {
     await before.ctx.plugin({ inject: [...inject], apply }).await()
     const entry = before.slots.entries('settings.section')[0]!
     expect(entry.component).toBe(ModelsSection)
-    expect(entry.options).toMatchObject({ id: 'models', order: 10 })
+    expect(entry.options).toMatchObject({ id: 'models', order: 50 })
     // The section claims its two extension seats in the same registration.
     expect(before.slots.spec('settings.models.provider-card')).toMatchObject({ kind: 'keyed', scope: 'root' })
     expect(before.slots.spec('settings.models.footer')).toMatchObject({ kind: 'list', scope: 'root' })

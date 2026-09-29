@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
-  Button, Modal,
+  Button, IconLucideListChevronsDownUp, IconLucideListChevronsUpDown, Modal,
 } from '@aeven/client-ui-primitives'
 import type { SessionListState } from '@aeven/api-session-controller/client'
 import type { WorkspaceId, WorkspaceView } from '@aeven/api-workspace-controller/client'
@@ -160,8 +160,6 @@ type SessionTreeProps = Pick<
   'useSessions' | 'useSessionPendingInteraction' | 'startSession' | 'open' | 'forkSession'
   | 'insertWorkspaceBefore' | 'insertSessionBefore' | 't'
 > & {
-  /** Host account home for POSIX hover-path abbreviation. */
-  home?: string | undefined
   workspaces: readonly WorkspaceView[]
   /** Whether the current Workspace stream has a complete Host baseline. */
   workspaceReady: boolean
@@ -202,7 +200,7 @@ function SessionTree({
   onRenameRequest, onDeleteRequest, onSessionRename, onSessionArchive,
   insertWorkspaceBefore, insertSessionBefore, orderBy,
   groupExpansion, setGroupExpanded,
-  sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder, home, t,
+  sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder, t,
   revealSessionId, onSessionRevealed,
 }: SessionTreeProps) {
   const list = useSessions(s => s)
@@ -450,7 +448,6 @@ function SessionTree({
             >
               <ProjectRowItem
                 group={group}
-                home={home}
                 t={t}
                 onToggle={() => {
                   if (group.expanded) {
@@ -536,8 +533,11 @@ function SessionTree({
                   onClick={() => { setExpandedSessionGroups(keys => toggled(keys, group.key)) }}
                 >
                   {sessionsExpanded
-                    ? t('sessions.collapse')
-                    : t('sessions.expand', { n: collapsed.hiddenCount })}
+                    ? <IconLucideListChevronsDownUp className={css.sessionOverflowIcon} />
+                    : <IconLucideListChevronsUpDown className={css.sessionOverflowIcon} />}
+                  <span className={css.sessionOverflowLabel}>
+                    {sessionsExpanded ? t('sessions.collapse') : t('sessions.expand')}
+                  </span>
                 </button>
               )}
             </div>
@@ -698,10 +698,8 @@ export function WorkspaceBrowser({
   insertWorkspaceBefore,
   archiveSession,
   insertSessionBefore,
-  useHostInfo,
   t,
 }: WorkspaceBrowserProps) {
-  const home = useHostInfo(info => info.home)
   const workspaces = useWorkspaces(state => state.items)
   const workspacePhase = useWorkspaces(state => state.phase)
   const workspaceStreamState = useWorkspaces(state => state.state)
@@ -913,7 +911,6 @@ export function WorkspaceBrowser({
                 orderBy={orderBy}
                 revealSessionId={revealSessionId}
                 onSessionRevealed={acknowledgeSessionReveal}
-                home={home}
                 t={t}
                 onRenameRequest={(workspaceId, currentTitle) => {
                   setRenameTarget({ workspaceId, currentTitle })

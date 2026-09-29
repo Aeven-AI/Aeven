@@ -94,7 +94,7 @@ runner 建立在两个分离之上。**注册表与沙箱是同一个服务。**
 
 - [工具包](../tool-cordis/README.zh.md)——调用本服务的模型侧工具。
 - [Client runner](../cordis-client-runner/README.zh.md)——应答运行请求并装载浏览器半代码的浏览器半。
-- [UI 包](../ui-cordis/README.zh.md)——用户批准并操作运行的面板。
+- [UI 包](../ui-cordis/README.zh.md)——生命周期工具卡片。
 - [生成的配置目录](../../../docs/config-catalog.zh.md#aevencordis-host-runner)——每个受支持配置字段。
 - [extensions 子系统](../../../docs/subsystems/extensions.zh.md)——生成的 `ctx.cordisInspect` 与 `ctx.dynamicCordisRunner` API 及 `cordis/*` 事件。
 - [自引用 Cordis 工具集 Agent Note](../../../.agents/notes/implemented/feature/2026-07-08-self-referential-cordis-toolset.zh.md)——沙箱语义、生命周期与组合的理由。
@@ -108,7 +108,7 @@ runner 建立在两个分离之上。**注册表与沙箱是同一个服务。**
 
 #### 模型看到的内容
 
-没有直接可见的内容：本包不注册任何工具，也不注入提示词。当一次 run 结算时，它会 steer 所属会话——成功时点名当前包并指示继续，用户拒绝时指示不要再次请求同一激活，技术性失败则给出原因、版本指针与「检查—修正—更新」路径。它还会在结算后 steer 渲染失败（槽位、条目是否已被移除）、host guard 拒绝与 host handler 失败。面板上的停止与移除手势会注入一条 user 角色消息，说明用户做了什么。`run` 或 `stop` 的拒绝还会经调用它的工具结果到达模型。
+没有直接可见的内容：本包不注册任何工具，也不注入提示词。当一次 run 结算时，它会 steer 所属会话——成功时点名当前包并指示继续，用户拒绝时指示不要再次请求同一激活，技术性失败则给出原因、版本指针与「检查—修正—更新」路径。它还会在结算后 steer 渲染失败（槽位、条目是否已被移除）、host guard 拒绝与 host handler 失败。`run` 或 `stop` 的拒绝还会经调用它的工具结果到达模型。
 
 #### Token 影响
 

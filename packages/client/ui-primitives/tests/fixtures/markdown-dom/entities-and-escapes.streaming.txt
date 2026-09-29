@@ -1,24 +1,3 @@
 <div class="hypermarkdown _markdown_404681">
   <p>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "AT&T,"
-    <span data-animate-key="word-0-2" data-animate-word="true">
-      #text "3"
-    <span data-animate-key="word-0-4" data-animate-word="true">
-      #text "<"
-    <span data-animate-key="word-0-6" data-animate-word="true">
-      #text "4,"
-    <span data-animate-key="word-0-8" data-animate-word="true">
-      #text "*not"
-    <span data-animate-key="word-0-10" data-animate-word="true">
-      #text "em*,"
-    <span data-animate-key="word-0-12" data-animate-word="true">
-      #text "backslash"
-    <span data-animate-key="word-0-14" data-animate-word="true">
-      #text "\\"
-    <span data-animate-key="word-0-16" data-animate-word="true">
-      #text "literal,"
-    <span data-animate-key="word-0-18" data-animate-word="true">
-      #text "©"
-    <span data-animate-key="word-0-20" data-animate-word="true">
-      #text "entity."
+    #text "AT&T, 3 < 4, *not em*, backslash \\ literal, © entity."

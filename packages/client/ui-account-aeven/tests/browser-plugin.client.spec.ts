@@ -90,6 +90,7 @@ describe('ui-account-aeven browser half', () => {
       imageUrl: 'https://media.test/u-1.png',
       accountUrl: 'https://aeven.test/account/',
       signOut: () => Promise.resolve(),
+      cloud: () => Promise.reject(new Error('unused')),
     }
     expect(face.reader()).toEqual({
       userId: 'u-1',
@@ -103,7 +104,7 @@ describe('ui-account-aeven browser half', () => {
     const ctx = await baseContext()
     await ctx.plugin({ inject: [...inject], apply }).await()
     declareNavigationUtilities(ctx)
-    scope.__AVN_AEVEN_READER__ = { userId: 'u-2', signOut: () => Promise.resolve() }
+    scope.__AVN_AEVEN_READER__ = { userId: 'u-2', signOut: () => Promise.resolve(), cloud: () => Promise.reject(new Error('unused')) }
     expect(injectedFace(ctx).reader()).toEqual({ userId: 'u-2' })
   })
 
@@ -128,7 +129,7 @@ describe('ui-account-aeven browser half', () => {
     injectedFace(ctx).signOut()
     expect(signOut).not.toHaveBeenCalled()
 
-    scope.__AVN_AEVEN_READER__ = { userId: 'u-3', signOut }
+    scope.__AVN_AEVEN_READER__ = { userId: 'u-3', signOut, cloud: () => Promise.reject(new Error('unused')) }
     injectedFace(ctx).signOut()
     await Promise.resolve()
     await Promise.resolve()

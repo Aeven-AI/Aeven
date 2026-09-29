@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-client-ui-settings-general` is the settings shell of the avn web client: the Settings panel opens from the sidebar's bottom control, a connection-failure indicator beside that control offers immediate recovery, the navigation is built from the sections features contribute, and first-run users are walked through one onboarding step at a time. It also registers everything on the Settings pages that belongs to no single feature: the trigger/header/close chrome content, the local configuration-file action, the General section and its `settings.general.item` slot, and the `settings` dictionaries. Feature-owned rows (Permission, Language, Appearance), sections (Models), and conditional onboarding steps stay with their feature packages; the shell itself ships no onboarding copy of its own.
+`avn-client-ui-settings-general` is the settings shell of the avn web client: the Settings panel opens from the sidebar's bottom control, a connection-failure indicator beside that control offers immediate recovery, the navigation is built from the sections features contribute, and first-run users are walked through one onboarding step at a time. It also registers everything on the Settings pages that belongs to no single feature: the trigger/header/close chrome content, the local configuration-file action, the General section and its `settings.general.item` slot, and the `settings` dictionaries. Feature-owned rows (Permission, Language), sections (Appearance, Models), and conditional onboarding steps stay with their feature packages; the shell itself ships no onboarding copy of its own.
 
 The panel and navigation consume the Aeven 30px surface radius, 20px control radius, neutral surfaces, and Google Sans Flex typography while retaining the settings information architecture. At viewport widths of 768px and below, the navigation moves from the side rail to a horizontally scrolling tab strip under the title row so the section keeps the full panel width; at 640px and below, the panel fills the viewport.
 
@@ -31,7 +31,7 @@ Users reach the shell through the sidebar's bottom Settings control; feature plu
 
 ### The General section
 
-The General section holds rows registered into `settings.general.item` by feature packages — it has no built-in rows. Feature plugins own the row copy and behavior; the shell only provides the section and its slot. The Appearance row, for example, lives in ui-theme.
+The General section holds rows registered into `settings.general.item` by feature packages, plus one row of its own: Developer mode, stored as `enabled` in the `ui-developer` settings namespace this package registers. Developer surfaces such as the agent-preset roster mount only while it is on; consumers import the namespace's type from `./client` and bind it through `ctx.settingsScope`. Feature plugins own their row copy and behavior. Language, for example, lives in client-locale. The Appearance section lives in ui-theme.
 
 ### Opening the configuration file
 
@@ -100,7 +100,7 @@ None; this package neither assembles nor sends a provider request.
 
 These limits define what the shell itself provides versus what features must supply; they are current package constraints.
 
-- **The General section has no built-in rows** — each row appears only when its owning feature plugin is mounted; the shell cannot fill the section alone.
+- **The General section owns only the Developer mode row** — every other row appears only when its owning feature plugin is mounted.
 
 <a id="dev-note"></a>
 ### Dev Note

@@ -94,7 +94,7 @@ Read these pages when the package-level contract is not enough. They move from t
 
 - [Tool package](../tool-cordis/README.md) — the model-facing tools that call this service.
 - [Client runner](../cordis-client-runner/README.md) — the browser half that answers run requests and loads browser-half code.
-- [UI package](../ui-cordis/README.md) — the panel users approve and operate runs with.
+- [UI package](../ui-cordis/README.md) — the lifecycle tool cards.
 - [Generated configuration catalog](../../../docs/config-catalog.md#aevencordis-host-runner) — every accepted config field.
 - [Extensions subsystem](../../../docs/subsystems/extensions.md) — the generated `ctx.cordisInspect` and `ctx.dynamicCordisRunner` API and `cordis/*` events.
 - [Self-referential Cordis toolset Agent Note](../../../.agents/notes/implemented/feature/2026-07-08-self-referential-cordis-toolset.md) — sandbox semantics, lifecycle, and composition rationale.
@@ -108,7 +108,7 @@ Read these pages when the package-level contract is not enough. They move from t
 
 #### What the model sees
 
-Nothing directly: this package registers no tool and injects no prompt. It steers the owning session when a run settles — a success names the current package and says to continue, a user rejection says not to request the same activation again, and a technical failure names the reason, the version pointers, and the inspect-then-correct-and-update path. It also steers post-settle render failures (slot, whether the entry was removed), host guard rejections, and host handler failures. Panel stop and remove gestures inject a user-role message naming what the user did. Refusals from `run` or `stop` also reach the model through the calling tool's result.
+Nothing directly: this package registers no tool and injects no prompt. It steers the owning session when a run settles — a success names the current package and says to continue, a user rejection says not to request the same activation again, and a technical failure names the reason, the version pointers, and the inspect-then-correct-and-update path. It also steers post-settle render failures (slot, whether the entry was removed), host guard rejections, and host handler failures. Refusals from `run` or `stop` also reach the model through the calling tool's result.
 
 #### Token effect
 

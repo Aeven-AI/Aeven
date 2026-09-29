@@ -1,40 +1,22 @@
 <div class="hypermarkdown _markdown_404681">
   <p>
     <strong>
-      <span data-animate-key="word-0-0" data-animate-word="true">
-        #text "注意："
-    <span data-animate-key="word-1-0" data-animate-word="true">
-      #text "内容在标点后直接闭合。"
+      #text "注意："
+    #text "内容在标点后直接闭合。"
   <p>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "**Notice:**text"
-    <span data-animate-key="word-0-2" data-animate-word="true">
-      #text "keeps"
-    <span data-animate-key="word-0-4" data-animate-word="true">
-      #text "upstream"
-    <span data-animate-key="word-0-6" data-animate-word="true">
-      #text "parsing."
+    #text "**Notice:**text keeps upstream parsing."
   <p>
     <em>
-      <span data-animate-key="word-0-0" data-animate-word="true">
-        #text "提醒！"
-    <span data-animate-key="word-1-0" data-animate-word="true">
-      #text "单星号也保持上游行为。"
+      #text "提醒！"
+    #text "单星号也保持上游行为。"
   <p>
     <code>
-      <span data-animate-key="word-0-0" data-animate-word="true">
+      <a href="https://example.com/preview?q=one%20two#result" rel="noopener noreferrer" target="_blank">
         #text "https://example.com/preview?q=one%20two#result"
-    <span data-animate-key="word-1-2" data-animate-word="true">
-      #text "与"
+    #text " 与 "
     <code>
-      <span data-animate-key="word-0-0" data-animate-word="true">
-        #text "curl"
-      <span data-animate-key="word-0-2" data-animate-word="true">
-        #text "http://127.0.0.1:3199/"
-    <span data-animate-key="word-7-2" data-animate-word="true">
-      #text "以及"
+      #text "curl http://127.0.0.1:3199/"
+    #text " 以及 "
     <code>
-      <span data-animate-key="word-0-0" data-animate-word="true">
-        #text "javascript:alert(1)"
-    <span data-animate-key="word-13-0" data-animate-word="true">
-      #text "。"
+      #text "javascript:alert(1)"
+    #text "。"

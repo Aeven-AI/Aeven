@@ -192,8 +192,8 @@
 
     # File attachments: the reader registry and the built-in JavaScript
     # readers (PDF, Office Open XML, OpenDocument, Numbers, RTF, EPUB, HTML,
-    # text). The office reader adds Pages, Keynote, and legacy Office formats
-    # once the reader prepares LibreOffice in Settings.
+    # text). The office reader runs the bundled LibreOffice engine for legacy
+    # Word, Excel, and PowerPoint files and as the fallback for Office files.
     - id: document-extract
       name: '@aeven/document-extract'
 
@@ -202,14 +202,9 @@
 
     - id: document-extract-office
       name: '@aeven/document-extract-office'
-      config:
-        dataRoot: !!js avnHomePath('document-extract', 'office')
 
     - id: document-extract-ocr
       name: '@aeven/document-extract-ocr'
-
-    - id: api-document-extract
-      name: '@aeven/api-document-extract'
 
     # Workspace listings, text previews and name search for the right
     # sidebar's file explorer.
@@ -631,10 +626,12 @@
 # composition. This row only names the default and any deployment-added
 # `roots`; no launcher patching is involved.
 #
-# The default is the shipped `cordis` composition, Creator mode. A user's own
-# `agent-presets.default` still outranks this value, as does the picker.
+# The default is the shipped `aeven` composition, the one every session runs;
+# the other presets are chosen only from Developer mode. A user's own
+# `agent-presets.default` still outranks this value, as does the Developer-mode
+# picker.
 - insert:
     - id: agent-presets
       name: '@aeven/agent-presets'
       config:
-        default: cordis
+        default: aeven

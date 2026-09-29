@@ -1,53 +1,67 @@
 /**
- * Model-facing capability learning: the `capability_manage` tool, guidance on when to learn, and recall of
- * unconfirmed drafts. Anything that becomes or changes executable instructions is confirmed by the user.
+ * Capability learning Consumer: the automatic learner, recall of learned procedures that match a request,
+ * execution evidence from the session log, and the model-facing `capability_manage` tool. Nothing asks the user;
+ * evidence validates what was learned, and the user reviews it in Settings.
  *
  * @module @aeven/tool-capability
  */
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent, PreStepDecision } from '@aeven/agent'
-import { currentEnvironment, type Capability, type CapabilityRecord, type JudgedExecution } from '@aeven/capability'
+import { currentEnvironment, EXECUTABLE_STATUSES, type CapabilityRecord, type JudgedExecution } from '@aeven/capability'
 import type {} from '@aeven/message-feedback'
 import type { Session } from '@aeven/session'
 import { correctionOf, ExecutionTracker } from './executions.ts'
+import { CapabilityLearner, capabilityWords, words } from './learner.ts'
 import { createUserMessage } from '@aeven/llm'
 import { defineTool } from '@aeven/tools'
 import type {} from '@aeven/system-prompt'
-import type {} from '@aeven/user-questions'
 import type { JsonValue } from '@aeven/util-values'
 
 export const name = 'tool-capability'
-export const inject = ['capabilities', 'tools', 'systemPrompt']
+export const inject = ['capabilities', 'tools', 'systemPrompt', 'llm']
 
 /** Consumer configuration. */
 export interface Config {
-  /** System-prompt section order of the learning guidance. */
+  /** System-prompt section order of the capability guidance. */
   promptOrder: number
-  /** Maximum unconfirmed drafts recalled for one turn. */
-  maxDrafts: number
-  /** Maximum characters of a procedure shown in a confirmation question. */
-  previewMaxChars: number
+  /** Maximum learned procedures pointed out for one request. */
+  maxRecalled: number
+  /** Whether completed work is learned from automatically. */
+  learn: boolean
+  /** Tool calls a turn needs, excluding bookkeeping, before its work is learned from. */
+  minSteps: number
+  /** Milliseconds a finished turn waits for a correction before it is learned from without one. */
+  settleMs: number
+  /** Budget of one learning model call, in milliseconds. */
+  timeoutMs: number
+  /** Output token limit of one learning model call. */
+  maxOutputTokens: number
+  /** Explicit learning route, set together with `model`; absent uses each session's own route. */
+  provider?: string
+  model?: string
 }
 
 export const Config: z<Config> = z.object({
   promptOrder: z.number().default(116),
-  maxDrafts: z.natural().min(1).default(3),
-  previewMaxChars: z.natural().min(200).default(4000),
+  maxRecalled: z.natural().min(1).default(3),
+  learn: z.boolean().default(true),
+  minSteps: z.natural().min(1).default(3),
+  settleMs: z.natural().min(1).default(300_000),
+  timeoutMs: z.natural().min(1).default(120_000),
+  maxOutputTokens: z.natural().min(256).default(4_000),
+  provider: z.string(),
+  model: z.string(),
 })
 
 const TOOL = 'capability_manage'
-const CONFIRM = 'Learn it'
-const DECLINE = 'Discard'
-const APPLY = 'Apply change'
-const KEEP = 'Keep as is'
 
-/** Model-facing guidance on when and how to learn a capability. */
-export const LEARNING_GUIDANCE = `You can learn capabilities: reusable procedures saved for this user and offered in the skill catalog in later sessions. ` +
-  `Save one with ${TOOL} (action "learn") when the user asks you to learn or remember how to do something, or after you worked out a multi-step procedure that is likely to recur, especially after errors, dead ends, or a correction from the user. ` +
-  `Write it so another session can follow it without this conversation: when to use it, requirements, numbered steps with the exact commands, paths, and settings, how to verify success, and how to recover from known failures. Put scripts or reference material in supporting files. ` +
-  `Saving asks the user to confirm; until they do, the procedure is kept as an unconfirmed draft. Do not save one-off answers, facts about the user, or procedures that did not work. ` +
-  `After following a learned capability, report the outcome with ${TOOL} (action "report"), including whether its verification step passed; if a step was wrong, fix the procedure with action "update".`
+/** Model-facing guidance on learned capabilities. */
+export const LEARNING_GUIDANCE = `Aeven learns capabilities, reusable procedures for this user, from completed work and offers them in the skill catalog. ` +
+  `When a learned capability fits the task, load it with the skill tool and follow it instead of working the task out again. ` +
+  `After following one, report the outcome with ${TOOL} (action "report"), including whether its verification step passed; if a step was wrong or could be faster, fix it with action "update". ` +
+  `When the user asks you to learn or remember how to do something, save it with action "learn": when to use it, requirements, numbered steps with the exact commands, paths, and settings, how to verify success, and how to recover from known failures. ` +
+  `Learning is automatic and silent: never ask the user whether to save, keep, or update a procedure, and do not announce it.`
 
 const TEXT_OUTPUT = {
   schema: {
@@ -86,12 +100,8 @@ function required(value: string | undefined, field: string, action: string): str
   return trimmed
 }
 
-function clip(text: string, max: number): string {
-  return text.length <= max ? text : `${text.slice(0, max - 1)}…`
-}
-
 function statusLabel(status: CapabilityRecord['status']): string {
-  return status === 'candidate' ? 'unconfirmed draft' : status
+  return status === 'candidate' ? 'new, not yet validated' : status
 }
 
 function describeRecord(record: CapabilityRecord): string {
@@ -106,51 +116,20 @@ function evidenceSummary(record: CapabilityRecord, judged: readonly JudgedExecut
   return `Runs of revision ${record.revision}: ${current.length} (verified ${count('verified')}, succeeded ${count('succeeded')}, failed ${count('failed')}, unknown ${count('unknown')}). Recent: ${recent.join('; ')}.`
 }
 
-const STOP_WORDS = new Set(['that', 'this', 'with', 'from', 'have', 'what', 'when', 'where', 'which', 'your', 'about', 'there', 'their', 'would', 'could', 'should', 'into', 'then', 'them', 'they', 'will', 'just', 'want', 'make', 'like', 'does', 'please'])
-
-function words(text: string): Set<string> {
-  return new Set(text.toLowerCase().split(/[^a-z0-9]+/).filter(word => word.length >= 4 && !STOP_WORDS.has(word)))
-}
-
 /**
- * Register the capability tool, the learning guidance, and draft recall.
- * @param ctx - agent context with the capability registry, tool registry, and system prompt.
+ * Register the learner, procedure recall, execution recording, the capability tool, and its guidance.
+ * @param ctx - agent context with the capability registry, tool registry, system prompt, and LLM service.
  * @param config - validated consumer configuration.
  */
 export function apply(ctx: Context, config: Config): void {
   const logger = ctx.logger(name)
-  const recalledDrafts = new Map<string, Set<string>>()
+  const recalled = new Map<string, Set<string>>()
   const tracker = new ExecutionTracker()
+  const learner = config.learn ? new CapabilityLearner(ctx, config) : undefined
+  ctx.effect(() => () => learner?.dispose(), 'tool-capability.learner')
   /** Recorded executions of each session by turn, for corrections and ratings that arrive later. */
   const recorded = new Map<string, Map<number, { readonly name: string; readonly id: string }[]>>()
   const sessions = new Map<string, Session>()
-
-  /** Ask the user one yes/no question; `unavailable` when nobody can answer in this session. */
-  async function confirm(agent: Agent, question: string, detail: string, yes: string, no: string, signal: AbortSignal): Promise<'yes' | 'no' | 'unavailable'> {
-    const questions = ctx.get('userQuestions')
-    if (questions === undefined) return 'unavailable'
-    try {
-      const answer = await questions.ask({
-        questions: [{ id: 'capability', header: 'Capability', question, detail, options: [{ label: yes }, { label: no }] }],
-        agent,
-        signal,
-      })
-      const selected = answer.answers.find(item => item.id === 'capability')?.selected ?? []
-      return selected.includes(yes) ? 'yes' : 'no'
-    } catch (error) {
-      signal.throwIfAborted()
-      // No answerer can reach a human here, for example in a subagent: the draft stays unconfirmed.
-      logger.debug(`capability confirmation unavailable: ${error instanceof Error ? error.message : String(error)}`)
-      return 'unavailable'
-    }
-  }
-
-  /** The procedure as the user reviews it: its leading title is the question's, and the description is not repeated. */
-  function preview(capability: Pick<Capability, 'description' | 'content'>): string {
-    const body = capability.content.trim().replace(/^#\s+[^\n]*\n+/, '')
-    const lead = body.includes(capability.description.trim()) ? '' : `${capability.description.trim()}\n\n`
-    return clip(`${lead}${body}`, config.previewMaxChars)
-  }
 
   ctx.effect(() => ctx.systemPrompt.section({
     name,
@@ -161,13 +140,12 @@ export function apply(ctx: Context, config: Config): void {
   ctx.effect(() => ctx.tools.register(defineTool({
     name: TOOL,
     description: 'Learn and maintain reusable procedures (capabilities) for this user. ' +
-      'Actions: "learn" saves a new procedure (name, description, content) and asks the user to confirm it; ' +
+      'Actions: "learn" saves a new procedure (name, description, content); ' +
       '"view" reads one; "list" shows all; "update" edits one (old_string and new_string, or content); ' +
       '"write_file" adds a supporting file (file_path under references/, scripts/, templates/, assets/, or examples/, and file_content); ' +
-      '"delete" removes one; "report" records how following one went this turn (outcome, validation, notes); "retire" withdraws one and "restore" brings it back. ' +
-      'Changes to a confirmed capability are confirmed by the user.',
+      '"report" records how following one went this turn (outcome, validation, notes); "retire" withdraws one that no longer applies and "restore" brings it back.',
     parameters: {
-      action: { type: 'string', required: true, enum: ['learn', 'view', 'list', 'update', 'write_file', 'delete', 'report', 'retire', 'restore'] },
+      action: { type: 'string', required: true, enum: ['learn', 'view', 'list', 'update', 'write_file', 'report', 'retire', 'restore'] },
       name: { type: 'string', description: 'Kebab-case capability name, such as release-aeven-desktop.' },
       description: { type: 'string', description: 'One line: what the capability does and when to use it.' },
       content: { type: 'string', description: 'The full procedure in Markdown: when to use it, requirements, steps, verification, recovery.' },
@@ -195,7 +173,7 @@ export function apply(ctx: Context, config: Config): void {
         case 'view': {
           const capability = await ctx.capabilities.get(owner, required(args.name, 'name', action))
           if (!capability) return json({ text: `No capability named ${args.name}.`, found: false })
-          const status = capability.status === 'candidate' ? 'Unconfirmed draft: verify each step before relying on it.' : `Status: ${capability.status}. ${evidenceSummary(capability, await ctx.capabilities.evidence(owner, capability.name))}`
+          const status = `Status: ${statusLabel(capability.status)}. ${evidenceSummary(capability, await ctx.capabilities.evidence(owner, capability.name))}`
           return json({
             text: `${status}\n${capability.description}\n\n${capability.content}${capability.files.length > 0 ? `\n\nSupporting files in ${capability.directory}: ${capability.files.join(', ')}` : ''}`,
             found: true,
@@ -212,21 +190,11 @@ export function apply(ctx: Context, config: Config): void {
             content: required(args.content, 'content', action),
           }
           const existing = await ctx.capabilities.get(owner, draft.name)
-          if (existing !== undefined && existing.status !== 'candidate') {
-            return json({ text: `A capability named ${draft.name} already exists (${existing.status}); change it with action "update".`, status: 'exists' })
+          if (existing !== undefined) {
+            return json({ text: `A capability named ${draft.name} already exists (${statusLabel(existing.status)}); change it with action "update".`, status: 'exists' })
           }
-          // Remember immediately: the draft is durable before anyone is asked.
-          await ctx.capabilities.save(owner, draft, { status: 'candidate', source: 'agent', sessionId })
-          const decision = await confirm(agent, `Learn the capability "${draft.name}"?`, preview(draft), CONFIRM, DECLINE, exec.signal)
-          if (decision === 'yes') {
-            await ctx.capabilities.setStatus(owner, draft.name, 'learned', sessionId)
-            return json({ text: `Learned ${draft.name}. It is available in the skill catalog from the next session on.`, status: 'learned' })
-          }
-          if (decision === 'no') {
-            await ctx.capabilities.remove(owner, draft.name)
-            return json({ text: `The user declined; ${draft.name} was not saved.`, status: 'declined' })
-          }
-          return json({ text: `Saved ${draft.name} as an unconfirmed draft; the user has not confirmed it.`, status: 'candidate' })
+          const saved = await ctx.capabilities.save(owner, draft, { status: 'candidate', source: 'agent', sessionId })
+          return json({ text: `Saved ${saved.name}. It is offered in the skill catalog and becomes established once a run of it succeeds.`, status: saved.status })
         }
         case 'update': {
           const capabilityName = required(args.name, 'name', action)
@@ -234,12 +202,6 @@ export function apply(ctx: Context, config: Config): void {
           if (!current) return json({ text: `No capability named ${capabilityName}.`, found: false })
           const content = args.content?.trim()
           const edit = content ? undefined : { oldString: required(args.old_string, 'old_string or content', action), newString: args.new_string ?? '' }
-          if (current.status !== 'candidate') {
-            const detail = edit ? `Replace:\n${edit.oldString}\n\nWith:\n${edit.newString}` : preview({ description: args.description?.trim() || current.description, content: content ?? '' })
-            if (await confirm(agent, `Change the learned capability "${capabilityName}"?`, clip(detail, config.previewMaxChars), APPLY, KEEP, exec.signal) !== 'yes') {
-              return json({ text: `The change to ${capabilityName} was not confirmed; it is unchanged.`, status: 'unchanged' })
-            }
-          }
           const updated = edit
             ? await ctx.capabilities.patch(owner, capabilityName, edit, sessionId)
             : await ctx.capabilities.save(owner, { name: capabilityName, description: args.description?.trim() || current.description, content: content ?? '' }, { status: current.status, source: current.source, sessionId })
@@ -251,23 +213,8 @@ export function apply(ctx: Context, config: Config): void {
           const fileContent = args.file_content ?? ''
           const current = await ctx.capabilities.get(owner, capabilityName)
           if (!current) return json({ text: `No capability named ${capabilityName}.`, found: false })
-          if (current.status !== 'candidate'
-            && await confirm(agent, `Add ${path} to the learned capability "${capabilityName}"?`, clip(fileContent, config.previewMaxChars), APPLY, KEEP, exec.signal) !== 'yes') {
-            return json({ text: `The file was not confirmed; ${capabilityName} is unchanged.`, status: 'unchanged' })
-          }
           const updated = await ctx.capabilities.writeFile(owner, capabilityName, path, fileContent, sessionId)
           return json({ text: `Wrote ${path} to ${capabilityName} (revision ${updated.revision}).`, revision: updated.revision })
-        }
-        case 'delete': {
-          const capabilityName = required(args.name, 'name', action)
-          const current = await ctx.capabilities.get(owner, capabilityName)
-          if (!current) return json({ text: `No capability named ${capabilityName}.`, found: false })
-          if (current.status !== 'candidate'
-            && await confirm(agent, `Delete the learned capability "${capabilityName}"?`, current.description, 'Delete', KEEP, exec.signal) !== 'yes') {
-            return json({ text: `Deletion was not confirmed; ${capabilityName} is kept.`, status: 'kept' })
-          }
-          await ctx.capabilities.remove(owner, capabilityName)
-          return json({ text: `Deleted ${capabilityName}.`, status: 'deleted' })
         }
         case 'report': {
           const capabilityName = required(args.name, 'name', action)
@@ -290,11 +237,8 @@ export function apply(ctx: Context, config: Config): void {
         case 'restore': {
           const capabilityName = required(args.name, 'name', action)
           const current = await ctx.capabilities.get(owner, capabilityName)
-          if (!current || current.status === 'candidate') return json({ text: `No confirmed capability named ${capabilityName}.`, found: false })
+          if (!current) return json({ text: `No capability named ${capabilityName}.`, found: false })
           const retire = action === 'retire'
-          if (await confirm(agent, `${retire ? 'Retire' : 'Restore'} the capability "${capabilityName}"?`, current.description, retire ? 'Retire' : 'Restore', KEEP, exec.signal) !== 'yes') {
-            return json({ text: `Not confirmed; ${capabilityName} is unchanged.`, status: current.status })
-          }
           const updated = await ctx.capabilities.setStatus(owner, capabilityName, retire ? 'retired' : 'learned', sessionId)
           return json({ text: `${capabilityName} is now ${updated.status}.`, status: updated.status })
         }
@@ -304,35 +248,38 @@ export function apply(ctx: Context, config: Config): void {
     },
   })), 'tool-capability.tool')
 
-  // Remember immediately: unconfirmed drafts that match the request are recalled once per session.
+  // Reuse: learned procedures that match a new request are pointed out once per session.
   ctx.on('agent/pre-step', async (payload, next): Promise<PreStepDecision> => {
     const decision = await next()
     if (payload.step !== 1 || decision.kind !== 'enter') return decision
     const owner = payload.agent.session.header.owner
     if (owner === undefined) return decision
-    sessions.set(payload.agent.session.id, payload.agent.session)
+    const sessionId = payload.agent.session.id
+    sessions.set(sessionId, payload.agent.session)
     const query = decision.messages.filter(message => message.source.kind === 'user')
       .flatMap(message => message.content.map(block => block.type === 'text' ? block.text : '')).join(' ')
+    if (!query.trim()) return decision
     const correction = correctionOf(query)
-    if (correction !== undefined) amendPreviousTurn(owner, payload.agent.session.id, payload.turn, correction)
+    if (correction !== undefined) amendPreviousTurn(owner, sessionId, payload.turn, correction)
+    learner?.next(sessionId, correction !== undefined)
     const queryWords = words(query)
     if (queryWords.size === 0) return decision
     try {
-      const seen = recalledDrafts.get(payload.agent.session.id) ?? new Set<string>()
-      const drafts = (await ctx.capabilities.list(owner))
-        .filter(record => record.status === 'candidate' && !seen.has(record.name))
-        .map(record => ({ record, overlap: [...words(`${record.name.replaceAll('-', ' ')} ${record.description}`)].filter(word => queryWords.has(word)).length }))
+      const seen = recalled.get(sessionId) ?? new Set<string>()
+      const matches = (await ctx.capabilities.list(owner))
+        .filter(record => EXECUTABLE_STATUSES.includes(record.status) && !seen.has(record.name))
+        .map(record => ({ record, overlap: [...capabilityWords(record)].filter(word => queryWords.has(word)).length }))
         .filter(item => item.overlap >= 2)
         .sort((a, b) => b.overlap - a.overlap)
-        .slice(0, config.maxDrafts)
-      if (drafts.length === 0) return decision
-      for (const { record } of drafts) seen.add(record.name)
-      recalledDrafts.set(payload.agent.session.id, seen)
-      const text = `<capability_drafts>\nUnconfirmed procedures saved earlier that may apply. The user has not confirmed them: read one with ${TOOL} (action "view") and verify each step before relying on it.\n${drafts.map(({ record }) => `- ${record.name}: ${record.description}`).join('\n')}\n</capability_drafts>`
+        .slice(0, config.maxRecalled)
+      if (matches.length === 0) return decision
+      for (const { record } of matches) seen.add(record.name)
+      recalled.set(sessionId, seen)
+      const text = `<learned_procedures>\nProcedures learned from earlier work that may fit this request. Load a fitting one with the skill tool and follow it.\n${matches.map(({ record }) => `- ${record.name}: ${record.description}`).join('\n')}\n</learned_procedures>`
       const message = createUserMessage({ content: [{ type: 'text', text }], source: { kind: 'plugin', plugin: name, form: 'recall' } })
       return { ...decision, messages: [...decision.messages, message] }
     } catch (error) {
-      logger.warn(`draft recall failed: ${error instanceof Error ? error.message : String(error)}`)
+      logger.warn(`procedure recall failed: ${error instanceof Error ? error.message : String(error)}`)
       return decision
     }
   })
@@ -349,14 +296,19 @@ export function apply(ctx: Context, config: Config): void {
   }
 
   ctx.on('session/event', (session, event) => {
-    const used = tracker.observe(session, event)
+    const outcome = tracker.observe(session, event)
     const owner = session.header.owner
-    if (used === undefined || owner === undefined) return
+    if (outcome === undefined || owner === undefined) return
+    if (outcome.work !== undefined && learner !== undefined) {
+      const route = session.requestHeader()?.config
+      learner.offer(owner, route === undefined ? undefined : { provider: route.provider, model: route.model }, outcome.work)
+    }
+    if (outcome.used.length === 0) return
     void (async () => {
-      for (const { name: capabilityName, execution } of used) {
+      for (const { name: capabilityName, execution } of outcome.used) {
         const capability = await ctx.capabilities.get(owner, capabilityName).catch(() => undefined)
-        // A loaded skill that is not one of the owner's confirmed capabilities has no lifecycle here.
-        if (capability === undefined || capability.status === 'candidate' || capability.status === 'retired') continue
+        // A loaded skill that is not one of the owner's executable capabilities has no lifecycle here.
+        if (capability === undefined || !EXECUTABLE_STATUSES.includes(capability.status)) continue
         const id = await ctx.capabilities.recordExecution(owner, capabilityName, { ...execution, environment: currentEnvironment() })
         const byTurn = recorded.get(session.id) ?? new Map<number, { name: string; id: string }[]>()
         byTurn.set(execution.turn, [...byTurn.get(execution.turn) ?? [], { name: capabilityName, id }])
@@ -385,8 +337,12 @@ export function apply(ctx: Context, config: Config): void {
     }
   })
 
+  // A run that is about to end its session learns from it first.
+  ctx.on('session/settle', session => learner?.settle(session.id))
+
   ctx.on('session/disposed', (session) => {
-    recalledDrafts.delete(session.id)
+    learner?.close(session.id)
+    recalled.delete(session.id)
     recorded.delete(session.id)
     sessions.delete(session.id)
     tracker.forget(session.id)

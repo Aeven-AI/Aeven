@@ -7,6 +7,7 @@ import type {
   CapabilityAmendment,
   CapabilityEnvironment,
   CapabilityEvidenceEntry,
+  CapabilityExecution,
   CapabilityRecord,
   CapabilityStatus,
   ExecutionVerdict,
@@ -14,7 +15,7 @@ import type {
 } from './types.ts'
 
 /** Statuses published through the skill catalog. */
-export const EXECUTABLE_STATUSES: readonly CapabilityStatus[] = ['learned', 'trusted', 'needs-validation', 'degraded']
+export const EXECUTABLE_STATUSES: readonly CapabilityStatus[] = ['candidate', 'learned', 'trusted', 'needs-validation', 'degraded']
 
 /** Evidence thresholds of the lifecycle. */
 export interface LifecyclePolicy {
@@ -32,6 +33,10 @@ export function currentEnvironment(): CapabilityEnvironment {
   return { platform: process.platform, arch: process.arch, release: release().split('.')[0] ?? '' }
 }
 
+function observedSuccess(execution: CapabilityExecution): boolean {
+  return execution.endReason === 'completed' && execution.tools.length > 0 && execution.tools.at(-1)?.failed === false
+}
+
 function sameEnvironment(a: CapabilityEnvironment, b: CapabilityEnvironment): boolean {
   return a.platform === b.platform && a.arch === b.arch && a.release === b.release
 }
@@ -40,7 +45,9 @@ function sameEnvironment(a: CapabilityEnvironment, b: CapabilityEnvironment): bo
  * Judge every execution from its record and later amendments. A correction, a negative rating, a failed
  * report or verification, or a failed turn fails an execution. It is verified when the user rated it
  * positively, or when the model reported a passed verification and at least one tool call it made
- * succeeded; a report alone never verifies. A success report without verification is `succeeded`.
+ * succeeded; a report alone never verifies. A success report without verification is `succeeded`, and so is
+ * an unreported execution observed to succeed: its turn completed, it called tools, and its last tool call
+ * did not fail.
  * @param entries - execution log in append order.
  * @returns executions in append order with their verdicts.
  */
@@ -62,7 +69,7 @@ export function judge(entries: readonly CapabilityEvidenceEntry[]): JudgedExecut
       verdict = 'failed'
     } else if (rating === 'positive' || (report?.outcome === 'succeeded' && report.validation === 'passed' && entry.tools.some(tool => !tool.failed))) {
       verdict = 'verified'
-    } else if (report?.outcome === 'succeeded') {
+    } else if (report?.outcome === 'succeeded' || (report === undefined && observedSuccess(entry))) {
       verdict = 'succeeded'
     }
     return [{
@@ -75,18 +82,24 @@ export function judge(entries: readonly CapabilityEvidenceEntry[]): JudgedExecut
 }
 
 /**
- * The status a capability's evidence supports. Candidates and retired capabilities only change by the
- * user's hand; for the rest only executions of the current revision count.
+ * The status a capability's evidence supports; only executions of the current revision count. A candidate
+ * becomes learned on its first successful execution and is retired when its first executions all fail.
+ * A retired capability only changes by the user's hand.
  * @param record - the capability.
  * @param judged - its judged executions.
  * @param policy - lifecycle thresholds.
  * @returns the supported status and, when it is trusted, the revision it was trusted at.
  */
 export function supportedStatus(record: CapabilityRecord, judged: readonly JudgedExecution[], policy: LifecyclePolicy): { status: CapabilityStatus; trustedRevision?: number } {
-  if (record.status === 'candidate' || record.status === 'retired') return { status: record.status }
+  if (record.status === 'retired') return { status: record.status }
   const known = judged.filter(item => item.execution.revision === record.revision && item.verdict !== 'unknown')
   const recent = known.slice(-policy.degradeAfter)
-  if (recent.length === policy.degradeAfter && recent.every(item => item.verdict === 'failed')) return { status: 'degraded' }
+  const failing = recent.length === policy.degradeAfter && recent.every(item => item.verdict === 'failed')
+  if (record.status === 'candidate') {
+    if (failing) return { status: 'retired' }
+    return { status: known.some(item => item.verdict === 'verified' || item.verdict === 'succeeded') ? 'learned' : 'candidate' }
+  }
+  if (failing) return { status: 'degraded' }
   const successes = known.filter(item => item.verdict === 'verified' || item.verdict === 'succeeded')
   if (successes.length >= policy.trustAfter && successes.some(item => item.verdict === 'verified') && known.at(-1)?.verdict !== 'failed') {
     return { status: 'trusted', trustedRevision: record.revision }
@@ -106,6 +119,9 @@ export function supportedStatus(record: CapabilityRecord, judged: readonly Judge
  */
 export function evidenceNote(record: CapabilityRecord, judged: readonly JudgedExecution[], environment: CapabilityEnvironment): string {
   const report = 'Report the outcome with capability_manage (action "report") when you are done.'
+  if (record.status === 'candidate') {
+    return `> Learned from earlier work and not yet validated. Follow it, check each step, fix the procedure with capability_manage (action "update") if a step is wrong, and ${report.charAt(0).toLowerCase()}${report.slice(1)}`
+  }
   if (record.status === 'degraded') {
     const failures = judged.filter(item => item.execution.revision === record.revision && item.verdict === 'failed').slice(-3)
     const reasons = failures.map(item => item.correction ?? item.execution.report?.notes).filter((reason): reason is string => Boolean(reason))

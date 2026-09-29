@@ -150,7 +150,7 @@ export function apply(ctx: ClientContext): void {
           {
             name: 'settings.section',
             id: 'grok-build',
-            order: 17,
+            order: 75,
             label: () => t('nav'),
             inject: (): GrokBuildSettingsInjected => ({ t }),
           },

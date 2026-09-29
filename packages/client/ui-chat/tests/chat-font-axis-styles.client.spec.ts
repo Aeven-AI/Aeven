@@ -65,14 +65,14 @@ describe('chat flow font-size axis', () => {
 
   it('the message clock and action glyphs scale with the text they serve', () => {
     const actions = read('MessageIconActions.module.css')
-    // Both clocks read the secondary tier: the assistant tail's clock and the
-    // user row's clock stay one step under the body size so the two rows
-    // match. The usage trigger beside them reads the body size instead.
+    // Both clocks read the body tier, so each clock stamps its message at the
+    // size of the text it belongs to; the usage trigger beside them reads the
+    // same tier and stays in step.
     expect(declarationsFrom(actions, '.timeStart')).toEqual(expect.arrayContaining([
-      'font-size: var(--avn-content-font-size-secondary, 14px)',
+      'font-size: var(--avn-content-font-size, 16px)',
     ]))
     expect(declarationsFrom(actions, '.timeEnd')).toEqual(expect.arrayContaining([
-      'font-size: var(--avn-content-font-size-secondary, 14px)',
+      'font-size: var(--avn-content-font-size, 16px)',
     ]))
     expect(declarationsFrom(actions, '.action svg')).toEqual(expect.arrayContaining([
       'width: calc(15px + var(--avn-content-font-delta, 0px))',

@@ -160,15 +160,24 @@
   color: var(--dsw-alias-label-primary);
 }
 
-/* Idle mark: a bare circle at the group folder's own size, held well back so a
-   resting Session reads as a list entry; hovering its row, or the row being the
-   selected Session, brings it up to the row's own ink. */
+/* Pending mark: the bubble every pending interaction draws, in the warning ink
+   its dot used, at the leading cell's 18px and the row's full strength. */
+.pendingMark {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--dsw-alias-state-warn-primary);
+}
+
+/* Idle mark: the chat bubble at the group folder's own size, held back while the
+   Session rests so a resting row reads as a list entry; hovering its row, or
+   the row being the selected Session, brings it up to the row's own ink. */
 .idleMark {
   flex: none;
   width: 18px;
   height: 18px;
   color: var(--dsw-alias-label-primary);
-  opacity: 0.1;
+  opacity: 0.3;
   transition: opacity 150ms var(--ds-ease-in-out);
 }
 
@@ -265,31 +274,48 @@
 }
 
 /* Trailing action buttons (figma 27:4668 / 27:4656): bare 16px glyphs, gap 12,
-   tertiary grey. The cell holds its room in every state and only fades, so a
+   tertiary grey. Each action holds its room in every state and only fades, so a
    reveal never re-measures the title beside it. */
 .rowActions {
   flex: none;
   display: inline-flex;
   align-items: center;
   gap: 12px;
+}
+
+.rowActions > * {
   opacity: 0;
   pointer-events: none;
   transition: opacity 150ms var(--ds-ease-in-out);
 }
 
-/* One reveal for both row kinds: a folder's New Session button and a Session's
-   menu stay hidden until the pointer is on the row, and a selected Session row
-   reveals nothing on its own — its inked circle already names it. An open row
+/* One reveal for both row kinds: a folder's menu and a Session's menu stay
+   hidden until the pointer is on the row. A selected Session row is the
+   exception — its cell takes the pointer while its menu is invisible, and the
+   button's own hover is what reveals it, so selection alone paints no mark. A
+   folder's New Session button (`.pinnedAction`) is always shown. An open row
    menu keeps its own anchor up, and the focused action reveals its own cell so a
    keyboard reader never lands on an invisible button. A blank New Session row
    renders no actions cell, so no reveal applies there. */
-.projectRow:hover .rowActions,
-.projectRow.menuOpen .rowActions,
-.sessionRow:hover .rowActions,
-.sessionRow.menuOpen .rowActions,
-.rowActions:focus-within {
+.projectRow:hover .rowActions > *,
+.projectRow.menuOpen .rowActions > *,
+.sessionRow:hover:not(.selected) .rowActions > *,
+.sessionRow.menuOpen .rowActions > *,
+.rowActions:focus-within > *,
+.rowActions > .pinnedAction {
   opacity: 1;
   pointer-events: auto;
+}
+
+/* A selected Session row's menu cell. It takes the pointer while hidden, which
+   is what makes an invisible button hoverable at all; the hover then reveals the
+   mark on the cell the pointer is actually over. */
+.sessionRow.selected .rowActions > * {
+  pointer-events: auto;
+}
+
+.sessionRow.selected .rowActions > *:hover {
+  opacity: 1;
 }
 
 /* An open row menu pins the hover affordances (figma: the row keeps its
@@ -355,13 +381,6 @@
   overflow-wrap: break-word;
 }
 
-.hoverPath {
-  font-size: 12px;
-  line-height: 16px;
-  color: #CFD3D6;
-  word-break: break-all;
-}
-
 .hoverTime {
   font-size: 12px;
   line-height: 16px;
@@ -392,6 +411,17 @@
   background: transparent;
   cursor: pointer;
   color: var(--dsw-alias-label-primary);
+}
+
+/* The workspace row's own New Session button: the row's full height and a wider
+   cell than the menu beside it, so the action reads as the row's primary one.
+   The glyph stays where the 18px cell had it — flush to the cell's trailing
+   edge, which the row's padding holds 24px inside the sidebar — so the wider
+   cell grows into the title's room instead of moving the mark. */
+.pinnedAction {
+  width: 28px;
+  height: var(--dsw-aeven-control-size);
+  justify-content: flex-end;
 }
 
 /* A row action's lucide glyph: the sidebar's own 18px grapheme, drawn at the

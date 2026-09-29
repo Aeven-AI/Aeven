@@ -18,7 +18,7 @@ import type { createAppearanceRowStore, createFontSizeRowStore } from '../src/cl
 // so browser-language detection never runs and a fresh LocaleRuntime opens on
 // FALLBACK_LOCALE (en); bench stages zh explicitly on the locale instead.
 
-const SLOT = 'settings.general.item'
+const SLOT = 'settings.appearance.item'
 
 function deferred<T>() {
   let resolve!: (value: T) => void

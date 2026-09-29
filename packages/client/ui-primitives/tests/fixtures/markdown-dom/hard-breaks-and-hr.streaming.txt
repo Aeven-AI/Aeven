@@ -1,25 +1,12 @@
 <div class="hypermarkdown _markdown_404681">
   <p>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "two-space"
-    <span data-animate-key="word-0-2" data-animate-word="true">
-      #text "break"
+    #text "two-space break"
     <br>
-    <span data-animate-key="word-7-0" data-animate-word="true">
-      #text "after"
-    <span data-animate-key="word-7-2" data-animate-word="true">
-      #text "break"
+    #text "\nafter break"
   <p>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "backslash"
-    <span data-animate-key="word-0-2" data-animate-word="true">
-      #text "break"
+    #text "backslash break"
     <br>
-    <span data-animate-key="word-7-0" data-animate-word="true">
-      #text "after"
-    <span data-animate-key="word-7-2" data-animate-word="true">
-      #text "backslash"
+    #text "\nafter backslash"
   <hr>
   <p>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "tail"
+    #text "tail"

@@ -11,7 +11,9 @@
   border: none;
   border-radius: 28px;
   background: transparent;
-  color: var(--dsw-alias-label-tertiary);
+  /* The row's own ink, matching the host row's other actions rather than the
+     dimmer tier its slot wrapper inherits. */
+  color: var(--dsw-alias-label-primary);
   cursor: pointer;
 }
 
@@ -22,9 +24,10 @@
   height: calc(15px + var(--avn-content-font-delta, 0px));
 }
 
+/* Hover keeps the button's own ink (the host row's); the interactive
+   background carries the affordance. */
 .action:hover {
   background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-secondary);
 }
 
 .action:disabled {
@@ -32,12 +35,8 @@
   opacity: 0.4;
 }
 
-/* A recorded rating stays legible without hover, so the signal survives a
-   pointer leaving the row. */
-.action[data-active] {
-  color: var(--dsw-alias-label-primary);
-}
-
+/* The note chip sits in the same row as the thumb buttons, so it carries the
+   line's own ink rather than a dimmer tier. */
 .noteOpen {
   max-width: 220px;
   overflow: hidden;
@@ -45,7 +44,7 @@
   border: none;
   border-radius: 14px;
   background: transparent;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--dsw-alias-label-primary);
   font-size: var(--avn-content-font-size-secondary, 14px);
   line-height: calc(28px + var(--avn-content-font-delta, 0px));
   white-space: nowrap;
@@ -56,7 +55,6 @@
 .noteOpen:hover,
 .noteOpen[aria-expanded='true'] {
   background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-secondary);
 }
 
 /* Portal surface: fixed in the viewport, left/top supplied inline from the

@@ -38,6 +38,7 @@ The agent works through the task, streams each non-empty provider reasoning delt
 | Field | Default | Meaning |
 |---|---|---|
 | `task` | required | The task text for the single run |
+| `owner` | `$AVN_OWNER` | Account id the run's session belongs to; without one, per-user memory and learned capabilities stay off |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aevenheadless) is the exhaustive source for every accepted field and its JSDoc.
 
@@ -61,7 +62,7 @@ The runner is a direct driver over the core API carrier: it creates one fresh Ag
 
 ### Run flow
 
-The runner awaits the complete application (`ctx.get('loader')?.await()`) so the composed tools and adapters are not half-mounted, reads the shared [`agentDefaultModel`](../../core/agent-default-model/README.md) selection, creates one fresh persisted Agent with that provider and model, and submits the task as an ordinary user message. It streams that Agent's non-empty reasoning deltas to stderr, waits for quiescence, then flushes the Session and folds the owned interval (`firstSeq` onward) into the last non-empty `assistant/message` text and final `turn/end` reason. It writes the final text to stdout and requests exit.
+The runner awaits the complete application (`ctx.get('loader')?.await()`) so the composed tools and adapters are not half-mounted, reads the shared [`agentDefaultModel`](../../core/agent-default-model/README.md) selection, creates one fresh persisted Agent with that provider and model (owned by the configured account, when one is set), and submits the task as an ordinary user message. It streams that Agent's non-empty reasoning deltas to stderr, waits for quiescence, then flushes the Session, awaits `session/settle` so plugins finish work derived from the run (such as learning from it), and folds the owned interval (`firstSeq` onward) into the last non-empty `assistant/message` text and final `turn/end` reason. It writes the final text to stdout and requests exit.
 
 ### Patch surface over base
 

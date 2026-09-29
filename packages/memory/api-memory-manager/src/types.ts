@@ -1,9 +1,9 @@
 /** JSON-safe results of the `memoryManager` Remote namespace. */
 import type { MemoryDomain, MemoryItemId } from '@aeven/memory/types'
-import type { CapabilityProvenance, CapabilityRecord, CapabilityStatus, ExecutionVerdict } from '@aeven/capability/types'
+import type { CapabilityProvenance, CapabilityRecord, CapabilityRunMetrics, CapabilityStatus, ExecutionVerdict } from '@aeven/capability/types'
 import type { SessionId } from '@aeven/session/types'
 
-export type { CapabilityStatus, ExecutionVerdict } from '@aeven/capability/types'
+export type { CapabilityRunMetrics, CapabilityStatus, ExecutionVerdict } from '@aeven/capability/types'
 export type { MemoryDomain, MemoryItemId } from '@aeven/memory/types'
 
 /** One memory of the signed-in user. */
@@ -40,9 +40,21 @@ export interface ManagedCapabilityRuns {
   readonly lastRunAt?: number
 }
 
+/** What a capability changed: the work it was learned from against its recent successful runs. */
+export interface ManagedCapabilityImpact {
+  /** Cost of the work the capability was learned from. */
+  readonly before: CapabilityRunMetrics
+  /** Median cost of its most recent successful runs; absent until one succeeded. */
+  readonly after?: CapabilityRunMetrics
+  /** Successful runs the median covers. */
+  readonly runs: number
+}
+
 /** One learned capability of the signed-in user, as listed. */
 export interface ManagedCapability extends Omit<CapabilityRecord, 'provenance'> {
   readonly runs: ManagedCapabilityRuns
+  /** Absent for a capability that was not learned from measured work. */
+  readonly impact?: ManagedCapabilityImpact
 }
 
 /** One recorded execution, judged from its evidence. */

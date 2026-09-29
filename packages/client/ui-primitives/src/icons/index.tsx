@@ -9,7 +9,8 @@
  * the CSS rule at their use site, exactly as lucide ships them: the stock
  * 24-unit canvas (whose padding is part of the artwork's optical size) drawn at
  * a lighter 1.75 stroke, the weight the Aeven product client uses for its own
- * 18px icons.
+ * 18px icons. A glyph transcribed from the drawn set onto that same canvas
+ * takes the same props rather than a third family of its own.
  */
 import type { IconProps, LucideGlyphProps } from './props.ts'
 
@@ -80,14 +81,6 @@ export const IconPanelLeftFrameOutline16 = ({ size = 16, className }: IconProps)
   <svg aria-hidden="true" width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect width="18" height="18" x="3" y="3" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     <path d="M9 3v18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-)
-
-/** Panel-right glyph: the frame with its right column, used to open the right sidebar. */
-export const IconPanelRightOutline16 = ({ size = 16, className }: IconProps) => (
-  <svg aria-hidden="true" width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="18" height="18" x="3" y="3" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M15 3v18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 )
 
@@ -1017,7 +1010,8 @@ export const IconArchiveOutline20 = ({ size = 20, className }: IconProps) => (
 )
 
 /* ---------------------------------------------------------------------------
- * IconLucide* family (lucide.dev transcriptions, CSS-sized: no width/height).
+ * CSS-sized 24-unit glyphs (lucide.dev transcriptions plus the drawn set's
+ * panel outline, no width/height).
  * ------------------------------------------------------------------------- */
 
 /** lucide `images`: stacked pictures (Imagine row). */
@@ -1040,8 +1034,9 @@ export const IconLucideImages = ({ className }: LucideGlyphProps) => (
   </svg>
 )
 
-/** lucide `circle`: plain outline (Session row's resting mark). */
-export const IconLucideCircle = ({ className }: LucideGlyphProps) => (
+/** lucide `message-circle-question-mark`: bubble with a question mark inside
+ * (a Session waiting for an answer). */
+export const IconLucideMessageCircleQuestionMark = ({ className }: LucideGlyphProps) => (
   <svg
     aria-hidden="true"
     className={className}
@@ -1053,7 +1048,27 @@ export const IconLucideCircle = ({ className }: LucideGlyphProps) => (
     strokeLinejoin="round"
     xmlns="http://www.w3.org/2000/svg"
   >
-    <circle cx="12" cy="12" r="10" />
+    <path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" />
+    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+    <path d="M12 17h.01" />
+  </svg>
+)
+
+/** lucide `message-circle-check`: bubble with a check inside (a Session at rest). */
+export const IconLucideMessageCircleCheck = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" />
+    <path d="m16 9-5.5 5.5L8 12" />
   </svg>
 )
 
@@ -1092,21 +1107,27 @@ export const IconLucidePanelLeft = ({ className }: LucideGlyphProps) => (
   </svg>
 )
 
-/** lucide `panel-right`: frame with a right rail (right sidebar toggle). */
-export const IconLucidePanelRight = ({ className }: LucideGlyphProps) => (
+/** Panel-right glyph for the right sidebar toggle: the `ic_ds` panel outline —
+ * a frame with a rail on its right — taken as drawn, mirrored so the rail sits
+ * on the right and scaled so its border is the 1.75 drawn weight the rest of
+ * the client uses. The scale is 1.75 / the artwork's own 1.36023-unit border,
+ * and the translate centres the result on the 24-unit canvas. */
+export const IconPanelRightOutline = ({ className }: LucideGlyphProps) => (
   <svg
     aria-hidden="true"
     className={className}
     viewBox="0 0 24 24"
     fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
     xmlns="http://www.w3.org/2000/svg"
   >
-    <rect width="18" height="18" x="3" y="3" rx="2" />
-    <path d="M15 3v18" />
+    <g transform="matrix(-1.28655 0 0 1.28655 22.29238 1.70762)">
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M9.67272 0.522841C10.8339 0.522841 11.76 0.522714 12.4963 0.602493C13.2453 0.683657 13.8789 0.854248 14.4264 1.25197C14.7504 1.48739 15.0355 1.77247 15.2709 2.0965C15.6686 2.64394 15.8392 3.27758 15.9204 4.02655C16.0002 4.7629 16 5.68895 16 6.85014V9.14986C16 10.3111 16.0002 11.2371 15.9204 11.9735C15.8392 12.7224 15.6686 13.3561 15.2709 13.9035C15.0355 14.2275 14.7504 14.5126 14.4264 14.748C13.8789 15.1458 13.2453 15.3163 12.4963 15.3975C11.76 15.4773 10.8339 15.4772 9.67272 15.4772H6.3273C5.16611 15.4772 4.24006 15.4773 3.50371 15.3975C2.75474 15.3163 2.1211 15.1458 1.57366 14.748C1.24963 14.5126 0.964549 14.2275 0.729131 13.9035C0.331407 13.3561 0.160817 12.7224 0.0796529 11.9735C-0.000126137 11.2371 1.25338e-09 10.3111 1.25338e-09 9.14986V6.85014C1.25329e-09 5.68895 -0.000126137 4.7629 0.0796529 4.02655C0.160817 3.27758 0.331407 2.64394 0.729131 2.0965C0.964549 1.77247 1.24963 1.48739 1.57366 1.25197C2.1211 0.854248 2.75474 0.683657 3.50371 0.602493C4.24006 0.522714 5.16611 0.522841 6.3273 0.522841H9.67272ZM5.54303 1.88715V14.1118C5.78636 14.1128 6.04709 14.1169 6.3273 14.1169H9.67272C10.8639 14.1169 11.7032 14.1164 12.3493 14.0465C12.9824 13.9779 13.3497 13.8494 13.6268 13.6482C13.8354 13.4966 14.0195 13.3125 14.1711 13.1039C14.3723 12.8268 14.5007 12.4595 14.5693 11.8264C14.6393 11.1803 14.6398 10.341 14.6398 9.14986V6.85014C14.6398 5.65896 14.6393 4.81967 14.5693 4.1736C14.5007 3.54048 14.3723 3.17318 14.1711 2.89609C14.0195 2.68747 13.8354 2.50337 13.6268 2.35179C13.3497 2.1506 12.9824 2.02212 12.3493 1.95353C11.7032 1.88358 10.8639 1.88307 9.67272 1.88307H6.3273C6.04709 1.88307 5.78636 1.8862 5.54303 1.88715ZM4.1828 1.91166C3.99125 1.9216 3.8148 1.93577 3.65076 1.95353C3.01764 2.02212 2.65034 2.1506 2.37325 2.35179C2.16463 2.50337 1.98052 2.68747 1.82895 2.89609C1.62776 3.17318 1.49928 3.54048 1.43069 4.1736C1.36074 4.81967 1.36023 5.65896 1.36023 6.85014V9.14986C1.36023 10.341 1.36074 11.1803 1.43069 11.8264C1.49928 12.4595 1.62776 12.8268 1.82895 13.1039C1.98052 13.3125 2.16463 13.4966 2.37325 13.6482C2.65034 13.8494 3.01764 13.9779 3.65076 14.0465C3.81478 14.0642 3.99127 14.0774 4.1828 14.0873V1.91166Z"
+        fill="currentColor"
+      />
+    </g>
   </svg>
 )
 
@@ -1769,5 +1790,49 @@ export const IconLucideTabletSmartphone = ({ className }: LucideGlyphProps) => (
     <rect width="10" height="14" x="3" y="8" rx="2" />
     <path d="M5 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2h-2.4" />
     <path d="M8 18h.01" />
+  </svg>
+)
+
+/** lucide `list-chevrons-up-down`: a list whose trailing chevrons open away
+ * from each other (Show all). */
+export const IconLucideListChevronsUpDown = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M3 5h8" />
+    <path d="M3 12h8" />
+    <path d="M3 19h8" />
+    <path d="m15 8 3-3 3 3" />
+    <path d="m15 16 3 3 3-3" />
+  </svg>
+)
+
+/** lucide `list-chevrons-down-up`: a list whose trailing chevrons close toward
+ * each other (Show less). */
+export const IconLucideListChevronsDownUp = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M3 5h8" />
+    <path d="M3 12h8" />
+    <path d="M3 19h8" />
+    <path d="m15 5 3 3 3-3" />
+    <path d="m15 19 3-3 3 3" />
   </svg>
 )

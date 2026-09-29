@@ -72,7 +72,7 @@ describe('web e2e: blank New Session folding quota', () => {
     await expect.poll(() => sidebar.getByRole('treeitem').count(), { timeout: 15_000 }).toBe(7)
     expect(await sidebar.getByText('New Session', { exact: true }).count()).toBe(1)
     expect(await sidebar.getByText(basename(scaffold.workspaceCwd), { exact: true }).count()).toBe(6)
-    const showMore = sidebar.getByRole('button', { name: 'Show 1 more sessions' })
+    const showMore = sidebar.getByRole('button', { name: 'Show all' })
     await showMore.waitFor({ timeout: 15_000 })
     await compareOrRefreshGolden(
       SIDEBAR_EXPECTED,

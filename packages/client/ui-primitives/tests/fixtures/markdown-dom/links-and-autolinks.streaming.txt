@@ -1,45 +1,30 @@
 <div class="hypermarkdown _markdown_404681">
   <p>
-    <a data-animate-key="link-0" data-animate-word="true" href="https://example.com" rel="noreferrer" target="_blank" title="with title">
+    <a href="https://example.com" rel="noreferrer" target="_blank" title="with title">
       #text "https ok"
-    <span data-animate-key="word-1-2" data-animate-word="true">
-      #text "and"
-    <a data-animate-key="link-0" data-animate-word="true" href="mailto:dev@example.com" rel="noreferrer" target="_blank">
+    #text " and "
+    <a href="mailto:dev@example.com" rel="noreferrer" target="_blank">
       #text "mailto ok"
-    <span data-animate-key="word-7-0" data-animate-word="true">
-      #text "."
+    #text "."
   <p>
-    <a data-animate-key="link-0" data-animate-word="true" href="/settings" rel="noreferrer" target="_blank">
+    <a href="/settings" rel="noreferrer" target="_blank">
       #text "relative dropped"
-    <span data-animate-key="word-1-2" data-animate-word="true">
-      #text "and"
-    <a data-animate-key="link-0" data-animate-word="true" rel="noreferrer" target="_blank">
+    #text " and "
+    <a rel="noreferrer" target="_blank">
       #text "js dropped"
-    <span data-animate-key="word-7-2" data-animate-word="true">
-      #text "and"
-    <a data-animate-key="link-0" data-animate-word="true" rel="noreferrer" target="_blank">
+    #text " and "
+    <a rel="noreferrer" target="_blank">
       #text "upper kept"
-    <span data-animate-key="word-13-0" data-animate-word="true">
-      #text "."
+    #text "."
   <p>
-    <a data-animate-key="link-0" data-animate-word="true" href="https://deepseek.com" rel="noreferrer" target="_blank">
+    <a href="https://deepseek.com" rel="noreferrer" target="_blank">
       #text "https://deepseek.com"
-    <span data-animate-key="word-1-2" data-animate-word="true">
-      #text "and"
-    <span data-animate-key="word-1-4" data-animate-word="true">
-      #text "bare"
-    <span data-animate-key="word-1-6" data-animate-word="true">
-      #text "autolink"
-    <a data-animate-key="link-0" data-animate-word="true" href="https://autolink.example.com" rel="noreferrer" target="_blank">
+    #text " and bare autolink "
+    <a href="https://autolink.example.com" rel="noreferrer" target="_blank">
       #text "https://autolink.example.com"
-    <span data-animate-key="word-11-2" data-animate-word="true">
-      #text "literal."
+    #text " literal."
   <p>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "[spaces"
-    <span data-animate-key="word-0-2" data-animate-word="true">
-      #text "encoded]("
-    <a data-animate-key="link-0" data-animate-word="true" href="https://example.com/a" rel="noreferrer" target="_blank">
+    #text "[spaces encoded]("
+    <a href="https://example.com/a" rel="noreferrer" target="_blank">
       #text "https://example.com/a"
-    <span data-animate-key="word-4-2" data-animate-word="true">
-      #text "b)"
+    #text " b)"

@@ -9,7 +9,6 @@ import { HeroShell, Tooltip } from '@aeven/client-ui-primitives'
 import type { ConversationSlotProps, InputZone } from '../contract/slots.ts'
 import { useContentCover } from './content-cover.ts'
 import { ContentLoader } from './ContentLoader.tsx'
-import { workspaceLabel } from './EmptyHero.tsx'
 import css from './ConversationRoot.module.css'
 
 /** Full props composed from the slot contract. */
@@ -204,7 +203,7 @@ function WidthHandle(props: {
 
 export function ConversationRoot({
   sessionId, useSession, useSessions, useSessionPendingInteraction,
-  useWorkspaces, useInput, useComposerBlock, useSelectedView,
+  useInput, useComposerBlock, useSelectedView,
   renderSlot, renderSlotChain, t, sidebarCollapsed, toggleSidebar,
 }: ConversationRootProps) {
   const session = useSession(s => s)
@@ -212,10 +211,8 @@ export function ConversationRoot({
     sessionId === undefined ? undefined : snapshot.get(sessionId))
   const openState = session?.openState
   const inputState = useInput(s => s)
-  const cwd = useSessions(s => sessionId === undefined ? undefined : s.byId[sessionId]?.cwd)
   const summaryBlank = useSessions(s => sessionId === undefined ? undefined : s.byId[sessionId]?.blank)
   const sessionsPending = useSessions(s => s.phase) === 'pending'
-  const workspaces = useWorkspaces(s => s)
   // A plugin this package cannot import (ui-model-selection) says this session cannot
   // send; its reason is already localized by whoever raised it.
   const composerBlock = useComposerBlock(block => block)
@@ -271,10 +268,6 @@ export function ConversationRoot({
     if (root !== null && stored === null) root.style.removeProperty('--avn-chat-user-width')
   }, [])
 
-  const sessionWorkspace = sessionId === undefined
-    ? undefined
-    : workspaces.items.find(workspace => workspace.sessionIds.includes(sessionId))
-
   // A restored continuable subagent stays settled until its eagerly loaded
   // parent catalog establishes availability, so the composer does not flash
   // the parent-offline takeover.
@@ -294,27 +287,14 @@ export function ConversationRoot({
   const zone: InputZone | undefined =
     session === undefined || inputState === undefined ? undefined : { session, input: inputState }
 
-  // Whether this Session has an owning Workspace, and what it would be called.
-  // Nothing in the Hero names a workspace any more — the row that did was
-  // removed — so this survives only to answer the settling question below:
-  //   1. cold start, no session yet → undefined;
-  //   2. the blank session's workspace is in the list → its title;
-  //   3. list still loading → cwd folder name bridges so the answer does not
-  //      flip on refresh (empty cwd → undefined);
-  //   4. list ready but no owning workspace → undefined, never the cwd's name.
-  const chipTitle = sessionId === undefined
-    ? undefined
-    : sessionWorkspace?.title
-      ?? (workspaces.phase === 'ready' || cwd === undefined || cwd === ''
-        ? undefined
-        : workspaceLabel(cwd))
-
   // Inert is the settling posture, not a prompt to choose anything: the Hero no
   // longer carries a workspace row, so the only way to be inert is to have no
   // Session yet, which the boot-time Workspace connect resolves on its own. The
   // bar is ONE session-maybe slot rendered unconditionally — inert is a prop,
   // not a different tree, so the textarea DOM survives the transition.
-  const inert = sessionId === undefined || (hero && chipTitle === undefined)
+  // A selected Session always accepts input: one whose Workspace is unknown, such as a blank chat of a
+  // Workspace just deleted, is replaced by a Chats session through navigation rather than frozen here.
+  const inert = sessionId === undefined
   // A raised block is the same inert posture with the blocker's own reason:
   // one disabled textarea, never a second tree.
   const blocked = !inert && composerBlock !== undefined

@@ -62,6 +62,7 @@ async function bench() {
     'details': { kind: 'single', scope: 'session' },
     'conversation.approval.detail': { kind: 'single', scope: 'session' },
     'settings.general.item': { kind: 'list', scope: 'root' },
+    'settings.appearance.item': { kind: 'list', scope: 'root' },
   }, (_props: { renderSlot?: unknown }) => null)
   const conversation = await runtime.mount({
     inject: [...injectConversation],
@@ -104,14 +105,16 @@ describe('Chat apply wiring', () => {
     expect(b.runtime.slots.entries('conversation.composer.dock').map(row => row.options.id))
       .toEqual(['stats'])
     expect(b.runtime.slots.entries('settings.general.item').map(row => row.options.id))
-      .toEqual(['transcript-view', 'composer-enter'])
+      .toEqual(['composer-enter'])
+    expect(b.runtime.slots.entries('settings.appearance.item').map(row => row.options.id))
+      .toEqual(['transcript-view', 'text-animation'])
     expect(b.runtime.slots.entries('details')).toHaveLength(1)
     await b.runtime.dispose()
   })
 
   it('mirrors the Host transcript preference into its Settings row', async () => {
     const b = await bench()
-    const row = b.runtime.slots.entries('settings.general.item')
+    const row = b.runtime.slots.entries('settings.appearance.item')
       .find(entry => entry.options.id === 'transcript-view')!
     const face = (row.inject as unknown as () => TranscriptViewRowInjected)()
 

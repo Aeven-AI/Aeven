@@ -4,6 +4,7 @@
 export type AgentPresetSettingsKey =
   | 'error' | 'userTrust' | 'seatHint' | 'headerHint'
   | 'nav' | 'sectionIntro' | 'builtIn' | 'setDefault' | 'view'
+  | 'presetAevenName' | 'presetAevenDescription'
   | 'presetStandardName' | 'presetStandardDescription'
   | 'presetPtcName' | 'presetPtcDescription'
   | 'presetMinimalName' | 'presetMinimalDescription'
@@ -27,10 +28,13 @@ export const en: Record<AgentPresetSettingsKey, string> = {
   nav: 'Agent presets',
   sectionIntro:
     'A preset is the plugin composition one session\'s agent runs — its tools, prompt, and capabilities. '
-    + 'Duplicate an existing one and make it yours, or let the agent draft one for you in Creator mode.',
+    + 'Duplicate an existing one and make it yours, or ask Æven to draft one for you.',
   builtIn: 'Built-in',
   setDefault: 'Set as default',
   view: 'View',
+  presetAevenName: 'Æven',
+  presetAevenDescription:
+    'The composition every session runs: the full everyday agent, able to extend itself when a task needs a capability it lacks.',
   presetStandardName: 'Standard mode',
   presetStandardDescription:
     'Full coding agent with file editing, shell, file and web search, skills, planning, goals, subagents, and workflows.',
@@ -68,7 +72,7 @@ export const en: Record<AgentPresetSettingsKey, string> = {
     + 'be changed later; everything else is edited in the preset\'s own files.',
   create: 'Create',
   creating: 'Creating…',
-  creatorDraft: 'Draft a custom preset with Creator mode',
+  creatorDraft: 'Draft a custom preset with Æven',
   openLocation: 'Open folder',
   showLocation: 'Show location',
   revealedPathLabel: 'Preset files:',
@@ -89,10 +93,12 @@ export const zh: Record<AgentPresetSettingsKey, string> = {
   seatHint: '即将开始的这个会话所用的 Agent 预设',
   headerHint: '本会话运行的 Agent 预设，开始时即固定',
   nav: 'Agent 预设',
-  sectionIntro: '预设即一个会话的 Agent 所运行的插件组装 —— 它的工具、提示词与能力。复制一份既有预设改成自己的，或用「创造模式」让 Agent 帮你创建。',
+  sectionIntro: '预设即一个会话的 Agent 所运行的插件组装 —— 它的工具、提示词与能力。复制一份既有预设改成自己的，或让 Æven 帮你创建。',
   builtIn: '内置',
   setDefault: '设为默认',
   view: '查看',
+  presetAevenName: 'Æven',
+  presetAevenDescription: '每个会话运行的组装：完整的日常能力，并能在缺少能力时自行扩展。',
   presetStandardName: '标准模式',
   presetStandardDescription: '功能完整的编码 Agent，支持文件编辑、Shell、文件与网页检索、Skills、计划、目标、子代理和工作流。',
   presetPtcName: 'PTC 模式',
@@ -124,7 +130,7 @@ export const zh: Record<AgentPresetSettingsKey, string> = {
   copyIntro: '整个预设会在本机复制一份。标识符将成为目录名，事后无法更改；其余内容之后直接在预设自己的文件里编辑。',
   create: '创建',
   creating: '正在创建…',
-  creatorDraft: '用「创造模式」创作自定义预设',
+  creatorDraft: '让 Æven 创作自定义预设',
   openLocation: '打开目录',
   showLocation: '查看路径',
   revealedPathLabel: '预设文件：',

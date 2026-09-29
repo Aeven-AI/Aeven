@@ -401,7 +401,7 @@ describe('SQLite session search', () => {
       // agentPreset rides along: the index rebuilds the header a caller reads,
       // and a session listed under the wrong composition is a lie about what it
       // ran. The full-header comparison below is what pins every column.
-      meta: { cwd: '/work', createdAt: 10, isSeeded: true, delegationDepth: 2, agentPreset: 'minimal' },
+      meta: { cwd: '/work', createdAt: 10, isSeeded: true, delegationDepth: 2, agentPreset: 'minimal', owner: 'ada' },
     })
     session.append(
       'user/message',
@@ -585,6 +585,23 @@ describe('SQLite session search', () => {
       query: 'needle',
       filters: eventFilters.slice(0, 14),
     })).rejects.toThrow(expectCode('SESSION_QUERY_INVALID_FILTER'))
+  })
+
+  it('ranks merged highlight spans and sees a later append on the same live session', async () => {
+    const ctx = await liveContext()
+    const overlap = ctx.sessions.create(SessionId('overlap'), { seed: messageEvents('foo foo foo', 10) })
+    ctx.sessions.create(SessionId('split'), { seed: messageEvents('foo foo x foo foo', 10) })
+
+    const first = await ctx.sessionQuery.searchSessions({ query: 'foo foo' })
+    expect(first.items.map(item => item.header.id)).toEqual([SessionId('split'), SessionId('overlap')])
+    const again = await ctx.sessionQuery.searchSessions({ query: 'foo foo' })
+    expect(again.items.map(item => item.header.id)).toEqual([SessionId('split'), SessionId('overlap')])
+
+    overlap.append('user/message', createUserMessage({
+      content: [{ type: 'text', text: 'unique appended token' }], source: { kind: 'user' },
+    }), { surfaceOp: 'append' })
+    await expect(ctx.sessionQuery.searchSessions({ query: 'unique appended token' }))
+      .resolves.toMatchObject({ items: [{ header: { id: overlap.id } }] })
   })
 
   it('uses literal phrase tokens, stable ties, and bounded Unicode snippets', async () => {

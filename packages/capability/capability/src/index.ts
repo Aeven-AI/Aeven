@@ -17,6 +17,7 @@ import type {
   CapabilityChange,
   CapabilityDraft,
   CapabilityExecution,
+  CapabilityOrigin,
   CapabilityRecord,
   CapabilitySource,
   CapabilityStatus,
@@ -52,8 +53,10 @@ export interface Config {
   skillRank: number
   /** Successful executions of the current revision needed to become trusted; at least one must be verified. */
   trustAfter: number
-  /** Consecutive failed executions of the current revision that degrade a capability. */
+  /** Consecutive failed executions of the current revision that degrade a capability, or retire a candidate. */
   degradeAfter: number
+  /** Days an unused candidate stays in the skill catalog; a candidate never executed in that time decays out of it. */
+  candidateTtlDays: number
 }
 
 /** Provider name learned capabilities are published under in `ctx.skills`. */
@@ -71,6 +74,7 @@ export default class Capabilities extends Service {
     skillRank: z.natural().default(550),
     trustAfter: z.natural().min(1).default(3),
     degradeAfter: z.natural().min(1).default(2),
+    candidateTtlDays: z.natural().min(1).default(30),
   })
 
   private readonly store: CapabilityStore
@@ -112,10 +116,11 @@ export default class Capabilities extends Service {
    * Create a capability or replace its body and description, keeping its supporting files.
    * @param owner - account id.
    * @param draft - name, description, and procedure.
-   * @param options - resulting status, who originated it, and the writing session (undefined outside a session).
+   * @param options - resulting status, who originated it, the writing session (undefined outside a session), and
+   * the work it was learned from; a later save keeps the first origin.
    * @returns the stored capability.
    */
-  save(owner: string, draft: CapabilityDraft, options: { readonly status: CapabilityStatus; readonly source: CapabilitySource; readonly sessionId: string | undefined }): Promise<Capability> {
+  save(owner: string, draft: CapabilityDraft, options: { readonly status: CapabilityStatus; readonly source: CapabilitySource; readonly sessionId: string | undefined; readonly origin?: CapabilityOrigin }): Promise<Capability> {
     const name = capabilityName(draft.name)
     return this.serialize(owner, name, async () => {
       const existing = await this.store.record(owner, name)
@@ -131,6 +136,7 @@ export default class Capabilities extends Service {
         updatedAt: now,
         files: existing?.files ?? [],
         provenance: [...existing?.provenance ?? [], { ...origin(options.sessionId), at: now, action: existing ? 'update' : 'save' }],
+        ...(existing?.origin ?? options.origin) === undefined ? {} : { origin: existing?.origin ?? options.origin },
         content: draft.content,
       })
       return await this.settle(owner, name)
@@ -312,7 +318,7 @@ export default class Capabilities extends Service {
     })
   }
 
-  /** Publish the viewing owner's learned capabilities; candidates never reach the catalog. */
+  /** Publish the viewing owner's executable capabilities; a candidate unused for `candidateTtlDays` decays out. */
   private skillProvider(): SkillProvider {
     return {
       name: SKILL_PROVIDER,
@@ -320,7 +326,11 @@ export default class Capabilities extends Service {
         if (options.owner === undefined) return []
         const owner = options.owner
         const records = await this.store.list(owner)
-        return records.filter(record => EXECUTABLE_STATUSES.includes(record.status)).map((record): SkillCandidate => {
+        const expired = Date.now() - this.config.candidateTtlDays * 86_400_000
+        const stale = new Set(await Promise.all(records
+          .filter(record => record.status === 'candidate' && record.updatedAt < expired)
+          .map(async record => (await this.store.evidence(owner, record.name)).length === 0 ? record.name : '')))
+        return records.filter(record => EXECUTABLE_STATUSES.includes(record.status) && !stale.has(record.name)).map((record): SkillCandidate => {
           const directory = this.store.directory(owner, record.name)
           return {
             name: record.name,

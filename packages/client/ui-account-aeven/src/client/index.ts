@@ -14,9 +14,11 @@ import type {} from '@aeven/client-ui-renderer/client'
 import type {} from '@aeven/client-ui-session/client'
 import type {} from '@aeven/client-ui-settings/client'
 import { AccountMenu, type AccountMenuInjected, type AccountReader } from './AccountMenu.tsx'
+import { AccountSection, type AccountSectionInjected } from './AccountSection.tsx'
 import { en, NS, zh, type AccountAevenKey } from './locales.ts'
 
 export type { AccountMenuInjected, AccountMenuProps, AccountReader } from './AccountMenu.tsx'
+export type { AccountSectionInjected, AccountSectionProps } from './AccountSection.tsx'
 
 declare module '@aeven/client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -25,7 +27,10 @@ declare module '@aeven/client-ui-slots' {
   }
 }
 
-/** Required services for locale registration and the header seat. */
+/** Settings section id of the Account page. */
+const ACCOUNT_SECTION = 'account'
+
+/** Required services for locale registration, the header seat, and the Account page. */
 export const inject = ['slots', 'locale']
 
 /** Page global the authentication gate states the reader on. */
@@ -48,12 +53,13 @@ function publishedReader(): AevenReader | undefined {
  * The reader as the menu draws them.
  * @returns the reader, or undefined when nobody is signed in.
  */
-function currentReader(): AccountReader | undefined {
+function currentReader(): (AccountReader & { email?: string }) | undefined {
   const reader = publishedReader()
   if (reader === undefined) return undefined
   return {
     userId: reader.userId,
     ...reader.displayName === undefined ? {} : { displayName: reader.displayName },
+    ...reader.email === undefined ? {} : { email: reader.email },
     ...reader.imageUrl === undefined ? {} : { imageUrl: reader.imageUrl },
   }
 }
@@ -74,6 +80,7 @@ export function apply(ctx: ClientContext): void {
     reader: currentReader,
     accountUrl,
     openSettings: () => { ctx.emit('settings/open') },
+    openAccount: () => { ctx.emit('settings/open', ACCOUNT_SECTION) },
     // A full load, not a route change: signing out invalidates the credential
     // every plugin was booted with, so the page starts again at the gate.
     signOut: () => {
@@ -99,4 +106,24 @@ export function apply(ctx: ClientContext): void {
       inject: injected,
     }, AccountMenu),
   )
+
+  // Nobody signed in has no account to show; the page is registered only
+  // when the gate stated a reader, so a deployment without Aeven has no tab.
+  const reader = publishedReader()
+  if (reader === undefined) return
+  const t = ctx.locale.bind(NS)
+  const section: AccountSectionInjected = {
+    reader: currentReader,
+    accountUrl,
+    signOut: injected().signOut,
+    cloud: (path, init) => reader.cloud(path, init),
+  }
+  ctx.slots.inject('settings.section', () => ctx.slots.register({
+    name: 'settings.section',
+    id: ACCOUNT_SECTION,
+    order: 10,
+    label: () => t('section.nav'),
+    locale: NS,
+    inject: () => section,
+  }, AccountSection))
 }

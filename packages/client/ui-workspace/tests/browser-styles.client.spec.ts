@@ -89,7 +89,7 @@ describe('WorkspaceBrowser.module.css list', () => {
 
   it('keeps the compact fade, overflow control, search field, and row heights', () => {
     expect(declarations('.fade')?.get('height')).toBe('24px')
-    expect(declarations('.sessionOverflowButton')?.get('height')).toBe('28px')
+    expect(declarations('.sessionOverflowButton')?.get('height')).toBe('var(--dsw-aeven-control-size)')
     expect(declarations('.searchExpanded')?.get('height')).toBe('30px')
     expect(rowDeclarations('.projectRow')?.get('height')).toBe('var(--dsw-aeven-control-size)')
     expect(rowDeclarations('.sessionRow')?.get('height')).toBe('var(--dsw-aeven-control-size)')
@@ -107,8 +107,8 @@ describe('WorkspaceBrowser.module.css list', () => {
 
   it('inks the resting mark of the selected Session row', () => {
     // Selection paints no row fill, so the leading circle is what says which
-    // Session the pane is showing; it must not stay at its resting 0.1.
-    expect(rowDeclarations('.idleMark')?.get('opacity')).toBe('0.1')
+    // Session the pane is showing; it must not stay at its resting 0.
+    expect(rowDeclarations('.idleMark')?.get('opacity')).toBe('0')
     expect(rowDeclarations('.sessionRow.selected .idleMark')?.get('opacity')).toBe('1')
   })
 

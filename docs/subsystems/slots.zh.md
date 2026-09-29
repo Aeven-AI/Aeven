@@ -123,6 +123,7 @@ root
 │     ├─ settings.onboarding
 │     └─ settings.section
 │        ├─ settings.general.item
+│        ├─ settings.appearance.item
 │        ├─ settings.models.provider-card
 │        ├─ settings.models.footer
 │        └─ settings.plugins.tab

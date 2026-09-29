@@ -176,3 +176,36 @@ export async function setDisplayName(displayName: string): Promise<string> {
   session.adoptDisplayName(stored)
   return stored
 }
+
+/**
+ * One call to Aeven's own account routes under `/api/cloud`, as the signed-in reader.
+ *
+ * The bearer is the credential; a 401 renews it once and repeats the call, the
+ * same recovery the Host transport applies. These routes answer failures as
+ * `{ error, code }`, so the thrown error carries `code` rather than the message.
+ * @param path - the route below `/api/cloud`, starting with `/`.
+ * @param init - method and body; the bearer and content type are supplied.
+ * @returns the decoded response body.
+ * @throws {AevenApiError} when the API refuses the call or the renewal.
+ */
+export async function cloud<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const send = (bearer: string): Promise<Response> => fetch(`${apiUrl()}/api/cloud${path}`, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${bearer}` },
+  })
+  const bearer = await currentBearer()
+  let response = await send(bearer)
+  if (response.status === 401) response = await send(await currentBearer(bearer))
+  let body: unknown
+  try {
+    body = await response.json()
+  } catch {
+    // A body that is not JSON carries no error code; the status still does.
+    body = {}
+  }
+  if (!response.ok) {
+    const code = (body as { code?: unknown }).code
+    throw new AevenApiError(typeof code === 'string' ? code : 'request-failed', response.status)
+  }
+  return body as T
+}

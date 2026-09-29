@@ -218,26 +218,27 @@
   display: none;
 }
 
+/* The height and radius the search row above states, so a row and the search
+   field share one 30px metric with semicircular ends. The focus ring takes that
+   same radius, so a row that is both highlighted and focused does not change
+   shape. A highlighted row paints no fill: hover and selection read as the
+   row's own opacity, so the highlight follows the row's content. */
 .row {
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 32px;
+  height: 30px;
   margin-bottom: 1px;
   padding-right: 10px;
-  border-radius: 12px;
+  border-radius: 15px;
   cursor: pointer;
   user-select: none;
-  transition: background-color 120ms ease, box-shadow 120ms ease;
+  transition: opacity 120ms ease;
 }
 
-.row:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-}
-
+.row:hover,
 .row[data-selected] {
-  background: var(--dsw-alias-interactive-bg-active);
-  box-shadow: var(--files-glass-edge);
+  opacity: 0.3;
 }
 
 .rows:focus-visible .row[data-focused] {

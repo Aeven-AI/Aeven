@@ -1,69 +1,58 @@
 /**
- * LibreOffice document reader for Pages, Keynote, Numbers, and legacy Office
- * formats, and the fallback when the built-in readers find no text. It uses an
- * installed LibreOffice when one is present; otherwise the reader prepares a
- * pinned, hash-verified build into the provider's data root from Settings.
+ * Office document reader backed by the LibreOffice engine that
+ * `@deepseek-ai/libreoffice-kit` installs for the host platform. It runs after
+ * the built-in readers: it reads legacy Word, Excel, and PowerPoint files and
+ * retries Office files the built-in readers return no text for. The engine is
+ * an ordinary npm dependency; nothing is downloaded at runtime.
  * @module @aeven/document-extract-office
  */
 
-import { mkdir, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+import { ENGINE_VERSION, createConverterFactory } from '@deepseek-ai/libreoffice-kit'
+import type { ConverterFactory } from '@deepseek-ai/libreoffice-kit'
 import type {} from '@aeven/document-extract'
-import type {
-  DocumentExtractInput, DocumentExtractProviderId, DocumentPreparation, DocumentPreparationState, ExtractedDocument,
-} from '@aeven/document-extract'
-import type {} from '@aeven/subprocess'
-import { PDF_FORMATS, SHEET_FORMATS, TEXT_FORMATS, convertDocument } from './convert.ts'
-import type { RunProcess } from './runtime.ts'
-import { ASSET_LOCK, downloadInstaller, hostAsset, installRuntime, locateOffice } from './runtime.ts'
+import type { DocumentExtractInput, DocumentExtractProviderId, ExtractedDocument } from '@aeven/document-extract'
 
 /** Stable plugin name. */
 export const name = 'document-extract-office'
 /** Services this provider needs. */
-export const inject = ['documentExtract', 'subprocess']
+export const inject = ['documentExtract']
 
 /** Office reader policy. */
 export interface Config {
-  /** Directory holding the downloaded installer and the private runtime. */
-  dataRoot: string
-  /** Explicit LibreOffice executable; omission searches the managed runtime and, when allowed, system installs. */
-  sofficePath?: string
-  /** Whether an existing system LibreOffice installation may be used. */
-  useSystemInstall: boolean
-  /** Wall-clock limit of one conversion. */
+  /** Wall-clock limit of one conversion, measured from when it leaves the queue. */
   timeoutMs: number
-  /** Simultaneous conversions. */
+  /** Simultaneous conversions; each runs its own engine process. */
   concurrency: number
-  /** Grace period between terminate and kill of a conversion's process tree. */
-  graceMs: number
-  /** Retained bytes of each conversion's stdout and stderr. */
-  maxLogBytes: number
 }
 
 export const Config: z<Partial<Config>, Config> = z.object({
-  dataRoot: z.string().required(),
-  sofficePath: z.string(),
-  useSystemInstall: z.boolean().default(true),
   timeoutMs: z.natural().min(1).default(120_000),
   concurrency: z.natural().min(1).max(4).default(1),
-  graceMs: z.natural().min(1).default(2000),
-  maxLogBytes: z.natural().min(1024).default(64 * 1024),
 })
 
 /** Provider id registered on `ctx.documentExtract`. */
 export const PROVIDER_ID = 'office' as DocumentExtractProviderId
 
+/** Word-processing formats the engine exports as UTF-8 text. */
+const TEXT_FORMATS: readonly string[] = ['doc', 'docx', 'odt']
+/** Spreadsheet and presentation formats exported as PDF and read by the registry's PDF readers. */
+const PDF_FORMATS: readonly string[] = ['xls', 'xlsx', 'ods', 'ppt', 'pptx', 'odp']
+
 const MEDIA_TYPES: readonly string[] = [
   'application/msword',
   'application/vnd.ms-excel',
   'application/vnd.ms-powerpoint',
-  'application/x-iwork-pages-sffpages',
-  'application/x-iwork-numbers-sffnumbers',
-  'application/x-iwork-keynote-sffkey',
-  'application/vnd.oasis.opendocument.graphics',
-  'application/vnd.visio',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.oasis.opendocument.text',
+  'application/vnd.oasis.opendocument.spreadsheet',
+  'application/vnd.oasis.opendocument.presentation',
 ]
 
 /** Counting semaphore bounding simultaneous conversions. */
@@ -85,128 +74,59 @@ class Limiter {
   }
 }
 
-/** Readiness and preparation of the LibreOffice runtime. */
-class OfficePreparation implements DocumentPreparation {
-  private state: DocumentPreparationState = { phase: 'unavailable', reason: 'Checking for LibreOffice' }
-  private readonly listeners = new Set<() => void>()
-  private task: { readonly controller: AbortController; readonly done: Promise<void> } | undefined
-  /** Located executable once ready. */
-  soffice: string | undefined
-
-  constructor(private readonly config: Config, private readonly run: RunProcess) {}
-
-  snapshot(): DocumentPreparationState {
-    return this.state
-  }
-
-  subscribe(listener: () => void): () => void {
-    this.listeners.add(listener)
-    return () => { this.listeners.delete(listener) }
-  }
-
-  private publish(state: DocumentPreparationState): void {
-    this.state = state
-    for (const listener of this.listeners) listener()
-  }
-
-  /** Inspect installed runtimes without downloading. */
-  async inspect(): Promise<void> {
-    const soffice = await locateOffice(this.config)
-    if (soffice !== undefined) {
-      this.soffice = soffice
-      this.publish({ phase: 'ready' })
-      return
-    }
-    const asset = hostAsset()
-    this.publish(asset === undefined || this.config.sofficePath !== undefined
-      ? { phase: 'unavailable', reason: this.config.sofficePath !== undefined
-        ? `LibreOffice was not found at ${this.config.sofficePath}`
-        : 'Install LibreOffice with your system package manager to read Pages, Keynote, and legacy Office files' }
-      : { phase: 'unprepared', downloadBytes: asset.bytes })
-  }
-
-  prepare(): void {
-    if (this.task !== undefined || this.state.phase === 'ready') return
-    const asset = hostAsset()
-    if (asset === undefined) return
-    const controller = new AbortController()
-    const done = (async () => {
-      this.publish({ phase: 'preparing', receivedBytes: 0, totalBytes: asset.bytes })
-      const downloads = join(this.config.dataRoot, 'downloads')
-      try {
-        await mkdir(this.config.dataRoot, { recursive: true })
-        const installer = await downloadInstaller(asset, downloads, controller.signal, (receivedBytes) => {
-          this.publish({ phase: 'preparing', receivedBytes, totalBytes: asset.bytes })
-        })
-        await installRuntime(installer, this.config.dataRoot, this.run, controller.signal)
-        await rm(downloads, { recursive: true, force: true })
-        const soffice = await locateOffice(this.config)
-        if (soffice === undefined) throw new Error(`LibreOffice ${ASSET_LOCK.version} installed without a usable executable`)
-        this.soffice = soffice
-        this.publish({ phase: 'ready' })
-      } catch (error) {
-        this.publish(controller.signal.aborted
-          ? { phase: 'unprepared', downloadBytes: asset.bytes }
-          : { phase: 'failed', reason: error instanceof Error ? error.message : String(error) })
-      } finally {
-        this.task = undefined
-      }
-    })()
-    this.task = { controller, done }
-  }
-
-  async cancel(): Promise<void> {
-    const task = this.task
-    if (task === undefined) return
-    task.controller.abort(new Error('LibreOffice preparation cancelled'))
-    await task.done
+/**
+ * Convert one document in a private directory the engine alone writes to.
+ * @param factory - engine shared by this plugin's conversions.
+ * @param input - document bytes and lowercase extension.
+ * @param signal - caller cancellation.
+ * @returns text for word-processing formats, PDF bytes otherwise.
+ */
+async function convert(
+  factory: ConverterFactory,
+  input: DocumentExtractInput,
+  signal: AbortSignal,
+): Promise<{ readonly kind: 'text'; readonly text: string } | { readonly kind: 'pdf'; readonly data: Uint8Array }> {
+  const work = await mkdtemp(join(tmpdir(), 'avn-office-'))
+  const converter = await factory.create()
+  try {
+    const inputPath = join(work, `document.${input.extension}`)
+    await writeFile(inputPath, input.data)
+    const text = TEXT_FORMATS.includes(input.extension)
+    const outputPath = join(work, text ? 'document.txt' : 'document.pdf')
+    await converter.convert({ inputPath, outputPath }, signal)
+    if (!text) return { kind: 'pdf', data: new Uint8Array(await readFile(outputPath)) }
+    const decoded = (await readFile(outputPath, 'utf8')).replace(/^﻿/, '').replace(/\r\n?/g, '\n')
+    return { kind: 'text', text: decoded.replace(/\n{3,}/g, '\n\n').trim() }
+  } finally {
+    await converter.dispose()
+    await rm(work, { recursive: true, force: true })
   }
 }
 
 /**
- * Register the LibreOffice reader.
- * @param ctx - plugin context carrying `documentExtract` and `subprocess`.
- * @param config - runtime location and conversion policy.
+ * Register the Office reader. Startup rejects when the kit's engine for this
+ * platform is missing from the installation.
+ * @param ctx - plugin context carrying `documentExtract`.
+ * @param config - conversion policy.
  */
-export function apply(ctx: Context, config: Config): void {
-  const run: RunProcess = async (spec) => {
-    const handle = ctx.subprocess.spawn({
-      argv: spec.argv,
-      cwd: spec.cwd,
-      graceMs: config.graceMs,
-      signal: spec.signal,
-      stdio: { stdin: 'ignore', stdout: { maxBytes: config.maxLogBytes }, stderr: { maxBytes: config.maxLogBytes } },
-    })
-    const outcome = await handle.done
-    return { exitCode: outcome.exitCode, stderr: handle.collected.stderr?.readFrom(0).text ?? '' }
-  }
-  const preparation = new OfficePreparation(config, run)
+export async function apply(ctx: Context, config: Config): Promise<void> {
+  const factory = await createConverterFactory({ timeoutMs: config.timeoutMs })
+  ctx.effect(() => () => factory.dispose(), 'document-extract-office: engine')
   const limiter = new Limiter(config.concurrency)
   const extract = async (input: DocumentExtractInput, signal: AbortSignal): Promise<ExtractedDocument> => {
-    const soffice = preparation.soffice
-    if (soffice === undefined) throw new Error('LibreOffice is not prepared')
-    const deadline = AbortSignal.any([signal, AbortSignal.timeout(config.timeoutMs)])
-    const converted = await limiter.run(() => convertDocument(soffice, input, run, deadline))
-    if (converted.kind === 'text') {
-      return { text: converted.text, method: 'office', ...converted.pages === undefined ? {} : { pages: converted.pages } }
-    }
-    // Presentations and drawings come back as PDF; the registry's PDF reader extracts their text.
+    const converted = await limiter.run(() => convert(factory, input, signal))
+    if (converted.kind === 'text') return { text: converted.text, method: 'office' }
+    // The office provider claims no PDF extension, so this cannot re-enter it.
     const read = await ctx.documentExtract.extract({ data: converted.data, name: 'converted.pdf', mediaType: 'application/pdf' }, signal)
     return { text: read.text, method: 'office', ...read.pages === undefined ? {} : { pages: read.pages } }
   }
   ctx.effect(() => ctx.documentExtract.register({
     info: {
       id: PROVIDER_ID,
-      label: 'LibreOffice',
-      version: ASSET_LOCK.version,
-      formats: { extensions: [...TEXT_FORMATS, ...SHEET_FORMATS, ...PDF_FORMATS], mediaTypes: MEDIA_TYPES },
+      version: ENGINE_VERSION,
+      formats: { extensions: [...TEXT_FORMATS, ...PDF_FORMATS], mediaTypes: MEDIA_TYPES },
       priority: 10,
     },
-    preparation,
     extract,
   }), 'document-extract-office: provider')
-  void preparation.inspect().catch((error: unknown) => {
-    ctx.logger.warn(`document-extract-office: LibreOffice inspection failed: ${String(error)}`)
-  })
-  ctx.effect(() => () => { void preparation.cancel() }, 'document-extract-office: preparation')
 }

@@ -35,6 +35,8 @@ export interface AccountMenuInjected {
   accountUrl: () => string | undefined
   /** Open the app's settings panel. */
   openSettings: () => void
+  /** Open the settings panel on the Account page. */
+  openAccount: () => void
   /** End the Aeven session and return the reader to the sign-in screen. */
   signOut: () => void
 }
@@ -51,7 +53,7 @@ export type AccountMenuProps =
  * @returns the menu, or null when nobody is signed in.
  */
 export function AccountMenu({
-  reader, accountUrl, openSettings, signOut, t,
+  reader, accountUrl, openSettings, openAccount, signOut, t,
 }: AccountMenuProps) {
   const person = reader()
   const [open, setOpen] = useState(false)
@@ -72,6 +74,11 @@ export function AccountMenu({
     setOpen(false)
     openSettings()
   }, [openSettings])
+
+  const accountPage = useCallback(() => {
+    setOpen(false)
+    openAccount()
+  }, [openAccount])
 
   // Nobody signed in means no Aeven authority on this page at all; the shell
   // keeps the shape it has without this plugin.
@@ -121,12 +128,10 @@ export function AccountMenu({
                   ? <span className="profile-overview">{profile}</span>
                   : <a className="profile-overview" href={account}>{profile}</a>}
 
-                {account !== undefined && (
-                  <a href={account} className="menu-button" role="menuitem">
-                    <span className="icon" dangerouslySetInnerHTML={{ __html: ACCOUNT_ICON }} />
-                    <span className="txt">{t('account')}</span>
-                  </a>
-                )}
+                <button type="button" className="menu-button" role="menuitem" onClick={accountPage}>
+                  <span className="icon" dangerouslySetInnerHTML={{ __html: ACCOUNT_ICON }} />
+                  <span className="txt">{t('account')}</span>
+                </button>
 
                 <button type="button" className="menu-button" role="menuitem" onClick={settings}>
                   <span className="icon" dangerouslySetInnerHTML={{ __html: SETTINGS_ICON }} />

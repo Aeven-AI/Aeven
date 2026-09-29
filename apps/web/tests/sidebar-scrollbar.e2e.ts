@@ -154,7 +154,7 @@ async function expandSeededSessions(page: Page): Promise<void> {
     if (await bucket.getAttribute('aria-expanded') !== 'true') {
       await page.getByText('Ungrouped', { exact: true }).click()
     }
-    const showMore = page.getByRole('button', { name: /Show \d+ more sessions/ })
+    const showMore = page.getByRole('button', { name: 'Show all' })
     if (await bucket.getAttribute('aria-expanded') === 'true'
       && await rows.count() <= SEED_COUNT / 2
       && await showMore.count() > 0) {

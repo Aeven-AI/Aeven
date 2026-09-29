@@ -3,6 +3,7 @@
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
   'appearance.title': '外观',
+  'appearance.intro': '主题、字号，以及对话的显示方式。',
   'appearance.light': '浅色',
   'appearance.dark': '深色',
   'appearance.system': '跟随系统',
@@ -19,6 +20,7 @@ export type ThemeKey = keyof typeof zh
 /** English dictionary, checked complete against the zh key set. */
 export const en = {
   'appearance.title': 'Appearance',
+  'appearance.intro': 'Theme, text size, and how conversations look.',
   'appearance.light': 'Light',
   'appearance.dark': 'Dark',
   'appearance.system': 'System',

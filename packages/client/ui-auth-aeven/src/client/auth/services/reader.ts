@@ -9,7 +9,7 @@
  */
 
 import { mediaUrl, webUrl } from './config.ts'
-import { signOut } from './api.ts'
+import { cloud, signOut } from './api.ts'
 import { session } from './session.ts'
 
 /** What a plugin may know about the signed-in reader. */
@@ -18,12 +18,21 @@ export interface AevenReader {
   readonly userId: string
   /** Chosen display name, absent until the reader sets one. */
   readonly displayName?: string
+  /** Sign-in email address, absent for an account that has none. */
+  readonly email?: string
   /** Absolute URL of the uploaded picture, absent until the reader sets one. */
   readonly imageUrl?: string
   /** The Aeven account page, absent when this deployment names no web client. */
   readonly accountUrl?: string
   /** End the Aeven session; the caller decides where the reader goes next. */
   readonly signOut: () => Promise<void>
+  /**
+   * Call one of Aeven's `/api/cloud` account routes as this reader.
+   * @param path - the route below `/api/cloud`, starting with `/`.
+   * @param init - method and body; the credential is supplied.
+   * @returns the decoded response body.
+   */
+  readonly cloud: <T>(path: string, init?: RequestInit) => Promise<T>
 }
 
 /** Page global carrying the reader. */
@@ -50,9 +59,11 @@ export function publishReader(): void {
   scope.__AVN_AEVEN_READER__ = {
     userId: session.userId,
     ...session.displayName === undefined ? {} : { displayName: session.displayName },
+    ...session.email === undefined ? {} : { email: session.email },
     ...path === undefined || media === undefined ? {} : { imageUrl: `${media}${path}` },
     ...web === undefined ? {} : { accountUrl: `${web}/account/` },
     signOut,
+    cloud,
   }
 }
 

@@ -27,17 +27,10 @@
   },
   "avn": {
     "client": {
-      "external": [
-        "@aeven/api-gateway/client"
-      ],
       "inject": [
-        "@aeven/api-gateway",
-        "@aeven/api-remotes",
-        "@aeven/client-locale",
         "@aeven/client-ui-chat",
         "@aeven/client-ui-conversation",
         "@aeven/client-ui-renderer",
-        "@aeven/client-ui-settings",
         "@aeven/client-ui-trajectory"
       ],
       "platform": "web"
@@ -63,14 +56,7 @@
     "@aeven/client-ui-slots": "workspace:^",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "@aeven/attachment": "workspace:^",
-    "@aeven/api-remotes": "workspace:^",
-    "@aeven/api-gateway": "workspace:^",
-    "@aeven/api-document-extract": "workspace:^",
-    "@aeven/document-extract": "workspace:^",
-    "@aeven/client-store": "workspace:^",
-    "@aeven/client-locale": "workspace:^",
-    "@aeven/client-ui-settings": "workspace:^"
+    "@aeven/attachment": "workspace:^"
   },
   "files": [
     "lib/index.js",

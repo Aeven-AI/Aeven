@@ -292,10 +292,6 @@
   cursor: pointer;
 }
 
-.add:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-hover-solid);
-}
-
 .add:disabled {
   opacity: 0.5;
   cursor: default;

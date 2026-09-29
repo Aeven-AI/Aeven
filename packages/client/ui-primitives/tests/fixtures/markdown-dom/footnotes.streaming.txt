@@ -1,28 +1,18 @@
 <div class="hypermarkdown _markdown_404681">
   <p>
-    <span data-animate-key="word-0-0" data-animate-word="true">
-      #text "First"
-    <span data-animate-key="word-0-2" data-animate-word="true">
-      #text "use"
+    #text "First use"
     <sup>
-      <a aria-describedby="footnote-label" data-animate-key="link-0" data-animate-word="true" data-footnote-ref="true" href="#user-content-fn-a" id="user-content-fnref-a" rel="noreferrer" target="_blank">
+      <a aria-describedby="footnote-label" data-footnote-ref="true" href="#user-content-fn-a" id="user-content-fnref-a" rel="noreferrer" target="_blank">
         #text "1"
-    <span data-animate-key="word-4-2" data-animate-word="true">
-      #text "and"
-    <span data-animate-key="word-4-4" data-animate-word="true">
-      #text "reuse"
+    #text " and reuse"
     <sup>
-      <a aria-describedby="footnote-label" data-animate-key="link-0" data-animate-word="true" data-footnote-ref="true" href="#user-content-fn-a" id="user-content-fnref-a-2" rel="noreferrer" target="_blank">
+      <a aria-describedby="footnote-label" data-footnote-ref="true" href="#user-content-fn-a" id="user-content-fnref-a-2" rel="noreferrer" target="_blank">
         #text "1"
-    <span data-animate-key="word-10-2" data-animate-word="true">
-      #text "and"
-    <span data-animate-key="word-10-4" data-animate-word="true">
-      #text "another"
+    #text " and another"
     <sup>
-      <a aria-describedby="footnote-label" data-animate-key="link-0" data-animate-word="true" data-footnote-ref="true" href="#user-content-fn-b" id="user-content-fnref-b" rel="noreferrer" target="_blank">
+      <a aria-describedby="footnote-label" data-footnote-ref="true" href="#user-content-fn-b" id="user-content-fnref-b" rel="noreferrer" target="_blank">
         #text "2"
-    <span data-animate-key="word-16-0" data-animate-word="true">
-      #text "."
+    #text "."
   <section class="footnotes" data-footnotes="true">
     <h2 class="sr-only" id="footnote-label">
       <span data-animate-key="word-0-0" data-animate-word="true">

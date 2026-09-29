@@ -1,5 +1,5 @@
-/* Appearance row (figma 'Frame 2117131228': title + cube row, column gap 8,
- * pad 16/0, hairline separator; the section column strips it when last). */
+/* Theme cubes (figma 'Frame 2117131228': column gap 8, pad 16/0, hairline
+ * separator; the section column strips it when last). */
 
 .group {
   display: flex;
@@ -7,13 +7,6 @@
   gap: 8px;
   padding: 16px 0;
   border-bottom: 0.5px solid var(--dsw-alias-border-l2);
-}
-
-.title {
-  font-size: 14px;
-  font-weight: 450;
-  line-height: 22px;
-  color: var(--dsw-alias-label-primary);
 }
 
 .cubeRow {
