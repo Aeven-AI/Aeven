@@ -655,7 +655,7 @@ export class Session implements SessionFace {
    * @param frame - queue replacement addressed to this Session.
    */
   handleControlFrame(frame: Extract<SessionControlFrame, { type: 'queue' }>): void {
-    this.queueMirror.replace(frame.items)
+    this.queueMirror.applyFrame(frame.items, frame.claimed ?? [])
     this.observeSubmissionQueue(frame.items)
     this.notifier.markDirty()
   }
@@ -901,7 +901,7 @@ export class Session implements SessionFace {
 
   /**
    * Retire echoes whose prompts landed in the host inbox instead of the log
-   * (running-turn submissions). A transcript echo stays up instead: the Host
+   * (running-turn submissions). Transcript and steering echoes stay up instead: the Host
    * claims its prompt out of the inbox before the pre-step waterfall runs, and
    * logs the `user/message` only after it, so the echo is the only rendering
    * of the message in between.
@@ -911,19 +911,20 @@ export class Session implements SessionFace {
     for (const item of items) {
       if (item.rpcId === undefined) continue
       const attachments = imageRefsIn(item.message.content)
-      if (this.isTranscriptEcho(item.rpcId)) this.admitTranscriptEcho(item.rpcId, attachments)
+      if (this.isVisibleEcho(item.rpcId)) this.admitTranscriptEcho(item.rpcId, attachments)
       else this.scheduleObservedRetirement(item.rpcId, attachments)
     }
   }
 
-  private isTranscriptEcho(requestId: SessionRequestId): boolean {
-    return this.pendingSubmissions.some(echo => echo.requestId === requestId && echo.placement === 'transcript')
+  private isVisibleEcho(requestId: SessionRequestId): boolean {
+    return this.pendingSubmissions.some(echo => echo.requestId === requestId
+      && (echo.placement === 'transcript' || echo.placement === 'steering'))
   }
 
   /** Record Host admission of a transcript echo; queue-carried attachment references replace the empty acceptance record. */
   private admitTranscriptEcho(requestId: SessionRequestId, attachments: readonly ImageAttachmentRef[]): void {
     const settlement = this.submissionSettlements.get(requestId)
-    if (settlement === undefined || !this.isTranscriptEcho(requestId)) return
+    if (settlement === undefined || !this.isVisibleEcho(requestId)) return
     if (settlement.admitted === null || attachments.length > 0) settlement.admitted = attachments
   }
 

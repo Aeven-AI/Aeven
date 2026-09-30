@@ -64,6 +64,8 @@ The package imports its own stylesheet, so a consumer that renders the component
 
 Source is applied to a mutable per-instance store; `md` is a pure function of the accumulated text. The two are reconciled by tracking what the store has already been told, so a transcript may mount partway through a reply: the component writes only the append while the new text extends what it applied last, and reseeds when it does not.
 
+When accumulated text is replaced during a stream, `replaceStream` clears the old parser state and seeds the replacement before notifying subscribers, so the renderer does not publish an empty document between the two.
+
 A block boundary is scanned rather than guessed, and everything before the last complete boundary is settled: code lines re-render through a line-level cache, table rows and list items through their own. `engine/repair/**` normalizes the syntax models actually emit — unterminated emphasis, math delimiters split across chunks, task-list markers, setext headings, table shapes — before the unified pipeline sees it, which is what keeps a half-written reply from painting markup it will drop a frame later. A table row is one that opens with its own pipe, so a shell pipeline, a regex alternation or a `||` inside a bullet stays prose whatever it carries ([why](../../../.agents/notes/implemented/bug-fix/2026-09-28-table-repair-leading-pipe.md)).
 
 ### What the engine owns

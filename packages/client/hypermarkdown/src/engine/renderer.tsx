@@ -267,7 +267,7 @@ class Renderer {
       return
     }
 
-    this.reset()
+    this.clear()
     this.state = { ...this.state, md }
     this.cachedData = this.initializeCache(this.state)
     this.applyState({})
@@ -275,6 +275,17 @@ class Renderer {
 
   /** Drop everything and start again, keeping the configured options. */
   reset(): void {
+    this.clear()
+    this.applyState({})
+  }
+
+  /** Replace a streaming document without publishing an empty intermediate render. */
+  replaceStream(md: string, finalize: boolean): void {
+    this.clear()
+    this.streamMd(md, true, false, finalize)
+  }
+
+  private clear(): void {
     this.pending = []
 
     this.mdBuffer = ''
@@ -303,7 +314,6 @@ class Renderer {
 
     this.settleTimers.clear()
 
-    this.applyState({})
   }
 
   /** The tags this renderer replaces with components of its own. */

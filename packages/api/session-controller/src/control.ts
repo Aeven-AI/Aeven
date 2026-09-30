@@ -5,6 +5,7 @@ import type { Agent } from '@aeven/agent'
 import { Deque } from '@aeven/deque'
 import type { User } from '@aeven/identity-user'
 import type { JobView, JobEvent } from '@aeven/jobs'
+import type { MessageId } from '@aeven/llm/brand'
 import type {
   Session, SessionEvent, SessionEventMap, SessionId, UserMessage,
 } from '@aeven/session'
@@ -102,10 +103,12 @@ export class SessionControlController {
     if (event.type !== 'agent/inbox/spliced') return
     const agent = this.ctx.agents.get(session.id)
     if (agent?.session !== session) return
+    const claimed = claimedMessageIds(agent, event.data)
     this.broadcast({
       type: 'queue',
       sessionId: session.id,
       items: queueItems(agent, event.data),
+      ...claimed.length === 0 ? {} : { claimed },
     })
   }
 
@@ -207,6 +210,20 @@ function queueItems(
       message: { id: message.id, content: message.content as unknown as JsonValue[] },
     })),
   ]
+}
+
+/**
+ * User-authored messages removed by a claim splice. Runs before the Inbox applies the splice, so the removed range is still readable.
+ * @param agent - agent whose inbox the splice mutates.
+ * @param splice - durable splice; a removal without `outcome` is a claim.
+ * @returns claimed user message ids, empty for inserts and cancellations.
+ */
+function claimedMessageIds(agent: Agent, splice: SessionEventMap['agent/inbox/spliced']): MessageId[] {
+  if (splice.outcome !== undefined || splice.removedCount === undefined) return []
+  const messages = splice.target === 'next-turn' ? agent.inbox.nextTurn : agent.inbox.nextStep
+  return messages
+    .slice(splice.start, splice.start + splice.removedCount)
+    .flatMap(message => message.source.kind === 'user' ? [message.id] : [])
 }
 
 /** Prompt-RPC identity carried by a browser-submitted message's user source. */

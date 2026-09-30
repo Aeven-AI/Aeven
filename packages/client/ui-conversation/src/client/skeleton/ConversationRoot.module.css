@@ -37,17 +37,18 @@
      clearance is applied, the way the frame states the corner dock's seats; the
      control's own box is the 30px circle above. */
   --avn-nav-leading-box: calc(30px + 12px);
-  /* The seat's resting height: an empty draft plus the stats line the dock
-     renders under it. Two things read it — the transcript hold, so a short
-     transcript still puts the composer at the reader's floor, and
-     `.viewChrome`, whose floor is the seat's top edge.
-
-     FIXME: a constant cannot track the seat, which grows with a wrapped draft,
-     a dock card, or an elected takeover; both then sit low by the
-     difference. The old flex-line layer got this for free by living in the
-     layout. Publish the seat's measured height (ResizeObserver already watches
-     it in ChatView) and read it here before this ships. */
+  /* The seat's resting height before it has been measured: an empty draft plus
+     the stats line the dock renders under it. The transcript's hold no longer
+     needs a seat height — the scroller is a flex column and the transcript grows
+     into what is left — but `.viewChrome` does: that layer sits OUTSIDE the
+     scroller and must stop at the seat's top edge, which the column cannot tell
+     it. It prefers `--avn-composer-seat-height`, the measured value
+     ConversationRoot publishes from a ResizeObserver on the seat, and falls back
+     to this constant on the first paint. */
   --avn-composer-seat-min-height: 174px;
+  /* One hand-over of the composer from the hero's middle to the settled floor. */
+  --avn-composer-settle-duration: 320ms;
+  --avn-composer-settle-easing: cubic-bezier(0.2, 0, 0, 1);
 }
 
 /* A dragged preference replaces the baseline term, clamped in CSS against the
@@ -99,6 +100,8 @@
   transition:
     padding-right var(--dsw-aeven-rightbar-transition-duration)
       var(--dsw-aeven-rightbar-transition-timing);
+  /* Fixed band: it takes no share of the column and never shrinks. */
+  flex: none;
 }
 
 /* The band's leading seat, holding the left column's fold control at the bar's
@@ -411,7 +414,9 @@
 
 .viewArea {
   display: flex;
-  flex: 1;
+  /* Grow into the space the header and the seat leave, and never shrink: a
+     shrunk area would squash the transcript instead of scrolling it. */
+  flex: 1 0 auto;
   flex-direction: column;
   min-height: 0;
 }
@@ -557,7 +562,7 @@
   position: absolute;
   top: 0;
   right: 0;
-  bottom: var(--avn-composer-seat-min-height);
+  bottom: var(--avn-composer-seat-height, var(--avn-composer-seat-min-height));
   left: 0;
   z-index: 8;
   /* Carries the transcript's own side inset on both edges. The scroller
@@ -654,22 +659,21 @@
 .scrollBody {
   height: 100%;
   overflow-y: auto;
+  /* A column, so the composer's seat lands on the scroller's floor by layout
+     instead of by a subtracted height budget: the transcript grows into what the
+     header and the seat leave, at any seat height. A seat-tall constant cannot
+     track that — the empty hero's seat carries a workspace chip the first message
+     removes, and the difference left the card floating above its 24px inset. */
+  display: flex;
+  flex-direction: column;
 }
 
-/* Holds the column open so the sticky composer rests at the reader's floor
-   rather than directly under a short transcript. `.viewArea` is the Session
-   body; `.transcriptHold` is the empty replacement while that slot is dropped
-   so the overlay can present.
-
-   The height subtracts the seat's own band, since both share the scroller: a
-   full `100%` here would push the seat one composer-height below the fold and
-   leave every fresh session scrolled. */
-.root[data-phase="active"] .viewArea,
-.root[data-phase="active"] .transcriptHold {
-  min-height: calc(100% - var(--avn-composer-seat-min-height));
-}
-
+/* The empty replacement for the Session body, while that slot is dropped so the
+   overlay can present: it takes the same growth as the transcript, so the sticky
+   composer still rests at the reader's floor and a fresh session does not start
+   out scrolled. */
 .transcriptHold {
+  flex: 1 0 auto;
   pointer-events: none;
 }
 
@@ -688,6 +692,17 @@
      transcript's hand-off rides the 50px band ABOVE the seat instead, so a
      growing draft never stretches the fade. */
   background: var(--dsw-alias-bg-base);
+  /* The hero-to-settled move: ConversationRoot plays the difference between the
+     seat's two positions back as a transform, and this carries it back to zero.
+     The property list is the transform alone — transitioning the seat's own
+     offset would fight the sticky placement. */
+  transition: transform var(--avn-composer-settle-duration) var(--avn-composer-settle-easing);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root[data-phase="active"] .composerSeat {
+    transition: none;
+  }
 }
 
 /* Aeven `.chat-fade-content` / `.chat-blur-content`: two 55px bands starting

@@ -399,8 +399,7 @@ export const MarkdownText = memo(function MarkdownText({
           // The terminal projection replaced the last streaming snapshot.
           // Rebuild and finalize it without the fade: the reader already saw
           // these words, and fading them again would flash the whole reply.
-          handle.reset()
-          handle.store.streamMd(text, true, false, true)
+          handle.store.replaceStream(text, true)
         }
         applied.current = { text, streaming }
         return
@@ -423,8 +422,7 @@ export const MarkdownText = memo(function MarkdownText({
       // The seed is text the reader already saw (or is opening onto), so it
       // lands without the fade; the engine keeps the block it leaves open
       // quiet too, and only words in later blocks fade in.
-      handle.reset()
-      if (text !== '') handle.store.streamMd(text, true, false, false)
+      handle.store.replaceStream(text, false)
     } else {
       handle.write(text.slice(last.text.length))
     }

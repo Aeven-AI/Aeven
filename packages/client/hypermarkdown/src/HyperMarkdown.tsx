@@ -148,6 +148,8 @@ export interface HyperMarkdownStore {
     animation: boolean,
     finalize: boolean,
   ): void
+  /** Rebuild streamed content and publish only after the replacement is rendered. */
+  replaceStream(md: string, finalize: boolean): void
   reset(): void
   subscribe(listener: () => void): () => void
 }

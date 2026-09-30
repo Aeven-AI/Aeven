@@ -595,7 +595,16 @@ export interface SessionProjectionUpdate {
 /** Host-wide live state stream. Each generation starts with exactly one baseline. */
 export type SessionControlFrame =
   | { readonly type: 'baseline'; readonly value: SessionControlBaseline }
-  | { readonly type: 'queue'; readonly sessionId: SessionId; readonly items: readonly SessionQueuedItem[] }
+  | {
+    readonly type: 'queue'
+    readonly sessionId: SessionId
+    readonly items: readonly SessionQueuedItem[]
+    /**
+     * User-authored messages this splice claimed into a turn (removed without a cancel
+     * outcome); each is logged as `user/message` unless its turn ends first.
+     */
+    readonly claimed?: readonly MessageId[]
+  }
   | { readonly type: 'jobs'; readonly sessionId: SessionId; readonly jobs: readonly SessionJob[] }
   | ({ readonly type: 'projection' } & SessionProjectionUpdate)
 

@@ -16,6 +16,8 @@ export interface QueuedMessage {
   readonly content: readonly ContentBlock[]
   readonly preview: string
   readonly text: string | null
+  /** Set once the Host claimed the message into a turn; the row stays until its durable message lands and no longer accepts queue edits. */
+  readonly claimed?: true
 }
 
 /** One image displayed by a local submission echo before durable admission. */

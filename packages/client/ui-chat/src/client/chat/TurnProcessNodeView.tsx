@@ -97,6 +97,7 @@ export function TurnPendingRow({ sentAt, t }: Pick<ChatNodeViewProps<'turn-proce
     <div
       className={fade.className === undefined ? css.root : `${css.root} ${fade.className}`}
       style={fade.style}
+      data-open=""
       data-running=""
       data-turn-pending=""
     >

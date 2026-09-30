@@ -2,7 +2,7 @@
 // chain, AND the composer bar stay mounted across no-session/session
 // transitions and Session switches — the bar renders inert via owner props.
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import clsx from 'clsx'
 import { HeroShell, Tooltip } from '@aeven/client-ui-primitives'
@@ -225,6 +225,10 @@ export function ConversationRoot({
   // element ref remains for the drag handles, which read geometry once per
   // gesture rather than once per frame.
   const rootEl = useRef<HTMLDivElement | null>(null)
+  const seatRef = useRef<HTMLDivElement | null>(null)
+  /* The seat's own top, kept from the last measured layout: the frame the hero
+     hands over to the settled phase reads it to slide the card down. */
+  const heroTop = useRef<number | null>(null)
   // The stored preference, mirrored into the DOM so CSS can clamp it against
   // the live column. Written on mount and on a committed drag only.
   const [userWidth, setUserWidth] = useState<number | null>(() => readWidthPreference())
@@ -338,13 +342,58 @@ export function ConversationRoot({
   // on the fallback alone would leave a business-owned takeover at the content
   // end off-screen when the user is not pinned to the floor.
   const composerSeat = (
-    <div className={css.composerSeat} data-composer-seat="">
+    <div ref={seatRef} className={css.composerSeat} data-composer-seat="">
       <div className={css.viewChromeTop} data-conversation-chrome-top="" />
       {composer}
     </div>
   )
 
   const { loaderActive, mountedSessionId } = useContentCover({ sessionId, hero, openState })
+
+  // The seat's own height, published for the two rules that hold the composer on
+  // the scroller's floor (`.viewArea`'s hold and `.viewChrome`'s floor). A
+  // constant cannot track it: the seat is shorter once the hero's chip row is
+  // gone, and the difference showed as the card floating above its 24px inset.
+  // Written only when the measured height moves, so a draft that re-wraps does
+  // not invalidate the transcript's style on every frame.
+  useEffect(() => {
+    const root = rootEl.current
+    const seat = seatRef.current
+    if (root === null || seat === null || typeof ResizeObserver === 'undefined') return
+    let published = -1
+    const publish = (): void => {
+      const box = seat.getBoundingClientRect()
+      heroTop.current = box.top
+      if (Math.abs(box.height - published) < 0.5) return
+      published = box.height
+      root.style.setProperty('--avn-composer-seat-height', `${String(box.height)}px`)
+    }
+    publish()
+    const observer = new ResizeObserver(publish)
+    observer.observe(seat)
+    return () => { observer.disconnect() }
+  }, [])
+
+  // The hero centres the seat and the settled phase puts it on the scroller's
+  // floor: a layout jump between two phases, which the `settling` phase used to
+  // hide outright. Record where the seat sat, then play the difference back as a
+  // transform that returns to zero, so the card slides into place instead.
+  useLayoutEffect(() => {
+    const seat = seatRef.current
+    if (seat === null) return
+    const top = seat.getBoundingClientRect().top
+    const from = heroTop.current
+    heroTop.current = top
+    if (phase !== 'active' || from === null) return
+    const delta = from - top
+    if (Math.abs(delta) < 1) return
+    seat.style.transition = 'none'
+    seat.style.transform = `translateY(${String(delta)}px)`
+    requestAnimationFrame(() => {
+      seat.style.transition = ''
+      seat.style.transform = ''
+    })
+  }, [phase])
 
   return (
     <div

@@ -187,8 +187,8 @@ const ChatNodeList = memo(function ChatNodeList({ order, ...seatProps }: ChatNod
 export function ChatView({
   useSession, useChat, useChatNode, useChatNodeProcess, useSessions, useStore, actions, renderSlot,
   sessionId, openFile, loadOlder, loadNewer, returnToLive, loadThrough, navigateToEvent, completeEventNavigation, loadImage, openView,
-  chatScroll, forkAt, editMessage, fileMentions, onFullscreenChange, updateQueue, notifyError, useTranscriptView, useTextAnimationPreference,
-  useEventNavigation, useProjection, t,
+  chatScroll, forkAt, editMessage, fileMentions, onFullscreenChange, updateQueue, notifyError, useTranscriptView,
+  useTextAnimationPreference, useEventNavigation, useProjection, t,
 }: ChatViewSlotProps) {
   const order = useChat(s => s.order)
   const nodeStore = useChat(s => s.nodes)
@@ -255,12 +255,13 @@ export function ChatView({
   }, [])
 
   const pendingSubmissions = useSession(s => s.pendingSubmissions)
-  // Host queue rows of a transcript echo are not drawn: the echo renders the
+  // Host queue rows of a transcript or steering echo are not drawn: the echo renders the
   // message until its durable node lands, including while the Host has already
   // claimed the prompt out of its queue but not yet logged it.
   const hostInbox = useMemo(() => {
     const transcriptEchoes = new Set(pendingSubmissions.flatMap(submission => (
-      submission.placement === 'transcript' ? [submission.requestId] : []
+      submission.placement === 'transcript' || submission.placement === 'steering'
+        ? [submission.requestId] : []
     )))
     if (transcriptEchoes.size === 0) return inbox
     return inbox.filter(item => item.rpcId === undefined || !transcriptEchoes.has(item.rpcId))
@@ -1161,7 +1162,7 @@ export function ChatView({
                 row={row}
                 sentAt={row.rpcId === undefined ? undefined : echoSentAt.get(row.rpcId)}
                 running={running}
-                mutable={queueMutable}
+                mutable={queueMutable && row.claimed !== true}
                 updateQueue={updateQueue}
                 notifyError={notifyError}
                 renderMessageImages={renderMessageImages}
