@@ -41,6 +41,8 @@ import { EMPTY_RESPONSE_CODE, LlmError, resolveImageAttachmentAccess, resolveRet
 import type { GenerateOptions, LlmProviderInfo, PreparedAdapterCall, RetryPolicyConfig, StreamChunk } from '@aeven/llm'
 import type {} from '@aeven/attachment'
 import type {} from '@aeven/fs'
+import type {} from '@aeven/agent'
+import type {} from '@aeven/identity-user'
 import { credentialRef } from '@aeven/credentials'
 import { MAX_TIMER_DELAY_MS } from '@aeven/timeout'
 import { getOrCreateAnonymousUserId, type AnonymousUserId } from '@aeven/anonymous-user-id'
@@ -279,7 +281,7 @@ class AevenAdapter extends DeepSeekAdapter {
    */
   constructor(
     options: DeepSeekAdapterOptions,
-    private readonly currentCredential: () => Promise<string>,
+    private readonly currentCredential: (request: GenerateOptions) => Promise<string>,
   ) {
     super(options)
   }
@@ -290,11 +292,11 @@ class AevenAdapter extends DeepSeekAdapter {
 
   override async prepareCall(provider: string, model: string, signal?: AbortSignal): Promise<PreparedAdapterCall> {
     const call = await super.prepareCall(provider, model, signal)
-    return { ...call, stream: options => this.renewing(() => call.stream(options)) }
+    return { ...call, stream: options => this.renewing(options, () => call.stream(options)) }
   }
 
   override stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
-    return this.renewing(() => super.stream(options))
+    return this.renewing(options, () => super.stream(options))
   }
 
   /**
@@ -304,11 +306,12 @@ class AevenAdapter extends DeepSeekAdapter {
    * while a long turn ran is refused before anything streams, and the page's
    * renewal may already have handed the Host its successor. A refusal of the
    * credential that is still current is the caller's to see.
+   * @param request - the request, whose session decides whose credential is presented.
    * @param start - opens the request.
    * @returns the request's chunks.
    */
-  private async * renewing(start: () => AsyncIterable<StreamChunk>): AsyncIterable<StreamChunk> {
-    const presented = await this.currentCredential().catch(() => undefined)
+  private async * renewing(request: GenerateOptions, start: () => AsyncIterable<StreamChunk>): AsyncIterable<StreamChunk> {
+    const presented = await this.currentCredential(request).catch(() => undefined)
     let streamed = false
     try {
       for await (const chunk of start()) {
@@ -317,7 +320,7 @@ class AevenAdapter extends DeepSeekAdapter {
       }
     } catch (error: unknown) {
       if (streamed || !(error instanceof LlmError) || error.code !== 'AUTH') throw error
-      const current = await this.currentCredential().catch(() => undefined)
+      const current = await this.currentCredential(request).catch(() => undefined)
       if (current === undefined || current === presented) throw error
       yield * start()
     }
@@ -379,17 +382,21 @@ export function apply(ctx: Context, config: Config): void {
   /**
    * The bearer for one request.
    *
-   * The credential is the signed-in session, resolved through the same seam
-   * every other adapter uses. Its value is written by whichever component holds
-   * it — the credentials service, or the launching environment for a headless
-   * run — so this route neither invents a token store nor tries to mint one.
+   * The credential is the signed-in session of the user the request is made
+   * for, resolved through the same seam every other adapter uses: the owner of
+   * the request's session, or the caller whose request is running when the
+   * request names no session. Several clients signed in to different accounts
+   * share one Host, so the request never presents another user's session. Its
+   * value is written by whichever component holds it — the credentials
+   * service, or the launching environment for a headless run — so this route
+   * neither invents a token store nor tries to mint one.
    */
-  const resolveApiKey = async (connection: DeepSeekConnectionOptions): Promise<string> => {
+  const resolveApiKey = async (connection: DeepSeekConnectionOptions, request: GenerateOptions): Promise<string> => {
     const ref = connection.apiKeyEnv
     const credentials = ctx.get('credentials')
 
     if (credentials !== undefined) {
-      const hit = await credentials.resolve(ref)
+      const hit = await credentials.resolve(ref, requestUser(request))
       if (hit !== undefined && hit.value.length > 0) return hit.value
     }
 
@@ -404,6 +411,20 @@ export function apply(ctx: Context, config: Config): void {
       + ' through the credentials service when running headless',
       'MISSING_CREDENTIAL',
     )
+  }
+
+  /**
+   * The signed-in user a request is made for.
+   * @param request - the model request.
+   * @returns the owner of the request's session, else of the Session whose work is running (a
+   * helper call such as memory capture names no session), else the acting caller, else undefined.
+   */
+  const requestUser = (request: GenerateOptions): string | undefined => {
+    const agents = ctx.get('agents')
+    const owner = request.sessionId === undefined ? undefined : agents?.get(request.sessionId)?.session.header.owner
+    return owner
+      ?? agents?.currentInitiator()?.session.header.owner
+      ?? ctx.get('identityUsers')?.actingUser()?.id
   }
 
   const resolveUserId = (): AnonymousUserId => userId ??= getOrCreateAnonymousUserId()
@@ -424,7 +445,7 @@ export function apply(ctx: Context, config: Config): void {
     // Aeven's gateway carries no plugin-contributed top-level fields, so every
     // request contributes none and acceptance is a no-op.
     prepareExtensions: () => Promise.resolve({ fields: {}, accept: () => Promise.resolve() }),
-  }, () => resolveApiKey(options()))
+  }, request => resolveApiKey(options(), request))
 
   registerProviderRoute(ctx, {
     provider: PROVIDER,

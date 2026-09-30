@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package renders everything the conversation UI shows about attachments: pending draft images under the composer, a full-viewport drop invitation, durable images in Chat and Trajectory, and a lightbox for the original image. It is a pure presentation layer — attachment data, image loading, and callbacks come from the conversation package through declared slots. Choose it for the DeepSeek Chat-style image experience; non-image files have no surface here.
+This package renders everything the conversation UI shows about attachments: the draft tray in the composer, a full-viewport drop invitation, sent attachments in Chat and Trajectory, and the image gallery. It is a pure presentation layer — attachment data, image loading, and callbacks come from the conversation package through declared slots. Choose it for the Aeven web client's attachment experience: images and files share one tile grid in the composer and in the sent message.
 
 ## Table of Contents
 
@@ -25,15 +25,15 @@ This package renders everything the conversation UI shows about attachments: pen
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin alongside [`ui-conversation`](../ui-conversation/README.md); it waits for the conversation package's slot declarations and registers its surfaces into them. Users then see the draft-image rail with per-image remove and click-to-open, the drop overlay with its limits line, message images sized by count, and the Escape/mask/close lightbox.
+Mount this plugin alongside [`ui-conversation`](../ui-conversation/README.md); it waits for the conversation package's slot declarations and registers its surfaces into them. Users then see the draft tray with per-tile remove and click-to-open, the drop overlay with its limits line, sent attachments as a tile grid inside the user message, and the image gallery.
 
-### Draft images
+### Draft tray
 
-A draft image shows as a fixed 64px thumbnail in one natively scrolling horizontal row. A newly added item is revealed at the rail's end, removal keeps the scroll position, and a single click opens the original through the owner's `onOpen`.
+Draft attachments show as 80px tiles, five per row, wrapping: images first as cover thumbnails, then files with their type icon and name. An uploading file shows a spinner and a failed one shows an error tile. Clicking an image opens the gallery over all draft images; clicking a file opens its bytes in a new tab.
 
-### Message images and the lightbox
+### Sent attachments and the gallery
 
-A message's lone image renders at 240px on its longer edge (aspect clamped to [0.25, 4], never upscaled); images among several render as fixed 64px squares. A loaded image opens the document-level lightbox on click; a failed load shows a retry control instead. The lightbox closes on Escape, a mask press, or its close control, and restores focus to its opener.
+A user message with attachments (`layout: 'tray'`) renders one card: the tile grid on top and the text below, with a minimum width of one fifth of the column per tile up to five. A submission echo shows the same tiles from its local previews. Assistant, tool, and Trajectory images (`layout: 'gallery'`) keep the count-sized gallery: a lone image at 240px on its longer edge, several as 64px squares. The gallery fills the viewport with the selected image, offers an info popover (type, size, name), download, and close, and previous/next when there is more than one image; Escape closes it and the arrow keys wrap through the images.
 
 ### Drop overlay
 
@@ -47,15 +47,15 @@ While a file drag is over the page, the full-viewport overlay announces the drop
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The plugin waits for `conversation.input.attachments`, `conversation.message.images`, and `conversation.trajectory.images` through `ctx.slots.inject`. It then registers the composer rail, document drop target, shared history gallery for Chat and Trajectory, and original-image lightbox. The presentation components are pure props: the conversation slot owner supplies attachment data, image loading, callbacks, and the locale translator; the package entry exports no components.
+The plugin waits for `conversation.input.attachments`, `conversation.message.images`, and `conversation.trajectory.images` through `ctx.slots.inject`. It then registers the composer tray, document drop target, and the sent-attachment renderer for Chat and Trajectory; every image opens the ui-primitives gallery. The presentation components are pure props: the conversation slot owner supplies attachment data, image loading, callbacks, and the locale translator; the package entry exports no components.
 
 | File | Role |
 |---|---|
 | [`src/client/ComposerAttachments.tsx`](src/client/ComposerAttachments.tsx) | Draft-image rail + drop overlay assembly |
-| [`src/AttachmentRail.tsx`](src/AttachmentRail.tsx) | Native thumbnail rail with vertical-wheel translation |
-| [`src/client/MessageImages.tsx`](src/client/MessageImages.tsx) | Per-message gallery + lightbox assembly |
+| [`src/UploadTray.tsx`](src/UploadTray.tsx) | Wrapping image and file tile grid for the composer and the sent message |
+| [`src/client/MessageImages.tsx`](src/client/MessageImages.tsx) | Sent-message tray or count-sized gallery, by the owner's `layout` |
 | [`src/MessageImage.tsx`](src/MessageImage.tsx) | Single image sizing, load/retry, click-to-open; local submission-echo previews render their object URL directly |
-| [`src/ImageLightbox.tsx`](src/ImageLightbox.tsx) | Document-level modal preview over the shared mask |
+| [`ImageLightbox`](../ui-primitives/src/ImageLightbox.tsx) (ui-primitives) | Document-level image gallery with info, download, and previous/next |
 | [`src/DropOverlay.tsx`](src/DropOverlay.tsx) | Pointer-inert drag invitation portal |
 
 </details>
@@ -89,9 +89,9 @@ None; this package neither assembles nor sends a provider request.
 
 These limits define the current attachment surface. They are package constraints, not a general image-viewer comparison or a task backlog.
 
-- **Images only** — non-image files have no rail card or history renderer yet; DeepSeek Chat-style file cards and upload progress wait until the composer accepts non-image attachments.
-- **No zoom or download in the lightbox** — the preview renders the original at fit-to-viewport size only.
-- **The lightbox does not trap focus** — it sets `aria-modal` and restores focus on close, but Tab can reach the page behind it.
+- **Echo files do not open** — a submission echo's file tile has no stored original until the Host admits the message, so clicking it does nothing.
+- **No zoom in the gallery** — the image renders at fit-to-viewport size only.
+- **The gallery does not trap focus** — it sets `aria-modal` and restores focus on close, but Tab can reach the page behind it.
 
 <a id="dev-note"></a>
 ### Dev Note

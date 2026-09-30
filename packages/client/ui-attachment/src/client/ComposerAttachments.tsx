@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
-  ComposerAttachment, ComposerAttachmentsProps, ComposerImageAttachment,
+  ComposerAttachment, ComposerAttachmentsProps, ComposerImageAttachment, DraftAttachmentId,
 } from '@aeven/client-ui-conversation/client'
 import { UploadTray } from '../UploadTray.tsx'
 import type { UploadTrayItem } from '../UploadTray.tsx'
@@ -22,14 +22,19 @@ function openDraftFile(file: File): void {
 export function ComposerAttachments({
   attachments, canAcceptDrop, onAddFiles, onRemoveAttachment, dropLimits, t,
 }: ComposerAttachmentsProps) {
-  const [preview, setPreview] = useState<ComposerImageAttachment | null>(null)
+  const [preview, setPreview] = useState<DraftAttachmentId | null>(null)
   const [dragActive, setDragActive] = useState(false)
   const dragDepth = useRef(0)
   const closePreview = useCallback(() => { setPreview(null) }, [])
 
   useEffect(() => {
-    if (preview !== null && !attachments.some(attachment => attachment.id === preview.id)) setPreview(null)
+    if (preview !== null && !attachments.some(attachment => attachment.id === preview)) setPreview(null)
   }, [attachments, preview])
+  const images = useMemo(
+    () => attachments.filter((attachment): attachment is ComposerImageAttachment => attachment.kind === 'image'),
+    [attachments],
+  )
+  const previewIndex = images.findIndex(image => image.id === preview)
 
   useEffect(() => {
     const fileTransfer = (event: globalThis.DragEvent): DataTransfer | null => {
@@ -117,16 +122,22 @@ export function ComposerAttachments({
           items={trayItems}
           labels={uploadTrayLabels(t, 'draft')}
           onOpen={(item) => {
-            if (item.attachment.kind === 'image') setPreview(item.attachment)
+            if (item.attachment.kind === 'image') setPreview(item.attachment.id)
             else openDraftFile(item.attachment.file)
           }}
           onRemove={(item) => { onRemoveAttachment(item.attachment.id) }}
         />
       )}
-      {preview !== null && (
+      {previewIndex >= 0 && (
         <ImageLightbox
-          src={preview.previewUrl}
-          alt={preview.file.name || t('image.original')}
+          images={images.map(image => ({
+            src: image.previewUrl,
+            alt: image.file.name || t('image.original'),
+            name: image.file.name,
+            mediaType: image.file.type,
+            bytes: image.file.size,
+          }))}
+          index={previewIndex}
           labels={lightboxLabels(t)}
           onClose={closePreview}
         />

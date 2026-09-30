@@ -20,6 +20,7 @@ import type { Workspace } from '@aeven/workspace'
 import {
   ApiSessionAgentController,
   ApiSessionCwdConflict,
+  ApiSessionForeign,
   ApiSessionNotFound,
   ApiSessionPresetConflict,
   ApiSessionSubagentOwnership,
@@ -34,6 +35,8 @@ import type {
   SessionCancelValue,
   SessionCreateRequest,
   SessionCreateValue,
+  SessionEditRequest,
+  SessionEditValue,
   SessionForkRequest,
   SessionForkValue,
   SessionPromptRequest,
@@ -58,6 +61,70 @@ type PromptContentCandidate =
 
 function hasPromptContent(content: readonly PromptContentCandidate[]): boolean {
   return content.some(part => part.type !== 'text' || part.text.trim().length > 0)
+}
+
+/** Build the user-message source of a prompt or edit, validating its client time zone. */
+function userSource(request: SessionPromptRequest | SessionEditRequest): MessageSource {
+  if (request.clientTimeZone === undefined) return { kind: 'user', rpcId: request.requestId }
+  const clientTimeZone = canonicalClientTimeZone(request.clientTimeZone)
+  if (clientTimeZone === undefined) {
+    throw new RemoteError(
+      'session/invalid-time-zone',
+      'clientTimeZone must be UTC or a valid IANA Area/Location name',
+      { value: request.clientTimeZone },
+    )
+  }
+  return { kind: 'user', rpcId: request.requestId, clientTimeZone }
+}
+
+/**
+ * Resolve an edit target: a user-authored `user/message` that no later rewind
+ * discarded, and the seq the rewind cuts at — the `turn/start` of a turn the
+ * message opened, or the message itself when it joined a turn another
+ * user-authored message opened (steering).
+ * @throws RemoteError `session/edit-unavailable` for any other seq.
+ */
+function editTarget(
+  session: Agent['session'],
+  request: SessionEditRequest,
+): { message: UserMessage; cut: SessionSeq } {
+  const unavailable = (): RemoteError => new RemoteError(
+    'session/edit-unavailable',
+    `seq ${String(request.messageSeq)} is not a current user prompt of session "${request.sessionId}"`,
+    { sessionId: request.sessionId, messageSeq: request.messageSeq },
+  )
+  if (!Number.isSafeInteger(request.messageSeq) || request.messageSeq < 0 || request.messageSeq >= session.seq) {
+    throw unavailable()
+  }
+  const seq = SessionSeq(request.messageSeq)
+  const event = session.eventAt(seq)
+  if (event?.type !== 'user/message' || event.data.source.kind !== 'user') throw unavailable()
+  for (let index = session.seq - 1; index > seq; index--) {
+    const later = session.eventAt(SessionSeq(index))
+    if (later?.type === 'session/rewind' && later.data.seq <= seq) throw unavailable()
+  }
+  for (let index = seq - 1; index >= 0; index--) {
+    const earlier = session.eventAt(SessionSeq(index))
+    if (earlier?.type === 'turn/start') return { message: event.data, cut: earlier.seq }
+    if (earlier?.type === 'turn/end') break
+    if (earlier?.type === 'user/message' && earlier.data.source.kind === 'user') return { message: event.data, cut: seq }
+  }
+  throw unavailable()
+}
+
+/** Replace the text blocks of a prompt with `text` at the first text position, keeping attachments. */
+function editedContent(content: UserMessage['content'], text: string): UserMessage['content'] {
+  const edited: UserMessage['content'][number][] = []
+  let placed = false
+  for (const block of content) {
+    if (block.type !== 'text') edited.push(block)
+    else if (!placed) {
+      edited.push({ type: 'text', text })
+      placed = true
+    }
+  }
+  if (!placed) edited.push({ type: 'text', text })
+  return edited
 }
 
 /** Implements Session business commands delegated by the Session Controller Remote service. */
@@ -226,6 +293,11 @@ export class SessionCommandController {
       )
     }
     using source = observed
+    if (!this.agents.callerMayAccess(source.header)) {
+      throw new RemoteError('session/not-found', `session "${request.sessionId}" not found`, {
+        sessionId: request.sessionId,
+      })
+    }
     const lastSeq = source.events.at(-1)?.seq ?? -1
     const anchoredBoundary = atSeq === undefined
       ? undefined
@@ -311,30 +383,9 @@ export class SessionCommandController {
         {},
       )
     }
-    const clientTimeZone = request.clientTimeZone === undefined
-      ? undefined
-      : canonicalClientTimeZone(request.clientTimeZone)
-    if (request.clientTimeZone !== undefined && clientTimeZone === undefined) {
-      throw new RemoteError(
-        'session/invalid-time-zone',
-        'clientTimeZone must be UTC or a valid IANA Area/Location name',
-        { value: request.clientTimeZone },
-      )
-    }
+    const source = userSource(request)
     const agent = await this.resolveAgent(request.sessionId)
-    const selection = this.agents.selectionFor(agent).current
-    if (!routeServed(this.ctx, selection.provider)) {
-      throw new RemoteError(
-        'session/model-unavailable',
-        `no adapter serves provider "${selection.provider}"; select a model for this session`,
-        { provider: selection.provider, model: selection.model },
-      )
-    }
-    const source: MessageSource = {
-      kind: 'user',
-      rpcId: request.requestId,
-      ...(clientTimeZone === undefined ? {} : { clientTimeZone }),
-    }
+    this.assertRouteServed(agent)
     const hasImage = request.content.some(part => part.type === 'image')
     const admit = async (): Promise<SessionPromptValue> => {
       try {
@@ -363,6 +414,44 @@ export class SessionCommandController {
       return { accepted: true }
     }
     return hasImage ? this.agents.serializeImageAdmission(agent, admit) : admit()
+  }
+
+  /**
+   * Replace one user prompt's text: stop the running turn, drop queued input,
+   * rewind the Session to before the prompt (before its turn when it opened
+   * one), and admit the edited prompt as the next turn. Attachments of the
+   * original prompt are kept.
+   * @param request - Session identity, edited message seq, replacement text, and source metadata.
+   * @returns the committed rewind position.
+   */
+  async edit(request: SessionEditRequest): Promise<SessionEditValue> {
+    if (request.text.trim().length === 0) {
+      throw new RemoteError('gateway/bad-request', 'edited text must include non-whitespace text', {})
+    }
+    const source = userSource(request)
+    const agent = await this.resolveAgent(request.sessionId)
+    if (hasApiSessionSubagentOwner(this.ctx, agent.session, agent)) {
+      throw apiSessionSubagentOwnershipError(request.sessionId)
+    }
+    this.assertRouteServed(agent)
+    editTarget(agent.session, request)
+    agent.cancel({ kind: 'user' })
+    await agent.whenIdle()
+    let rewindSeq: number | undefined
+    try {
+      await agent.runMaintenance(() => {
+        // Re-resolved inside the idle phase: a concurrent edit may have rewound past the target.
+        const target = editTarget(agent.session, request)
+        rewindSeq = agent.session.append('session/rewind', { seq: target.cut }).seq
+        agent.followup(createUserMessage({ content: editedContent(target.message.content, request.text), source }))
+        return Promise.resolve()
+      })
+    } catch (error) {
+      if (remoteErrorOf(error) !== undefined) throw error
+      throw new RemoteError('session/agent-busy', 'edit rejected', { reason: String(error) })
+    }
+    // oxlint-disable-next-line typescript/no-non-null-assertion -- the resolved maintenance task assigned it
+    return { accepted: true, rewindSeq: rewindSeq! }
   }
 
   /**
@@ -444,7 +533,8 @@ export class SessionCommandController {
     if (agent !== undefined && hasApiSessionSubagentOwner(this.ctx, agent.session, agent)) {
       throw apiSessionSubagentOwnershipError(request.sessionId)
     }
-    if (agent === undefined) {
+    // Another account's queue reads as one with nothing pending.
+    if (agent === undefined || !this.agents.callerMayAccess(agent.session.header)) {
       throw new RemoteError('session/queue-item-not-found', 'queued item is no longer pending', { itemId: request.itemId })
     }
     const nextTurn = agent.inbox.nextTurn.find(message => message.id === request.itemId)
@@ -478,7 +568,7 @@ export class SessionCommandController {
    */
   cancel(request: SessionCancelRequest): SessionCancelValue {
     const agent = this.ctx.agents.get(request.sessionId)
-    if (agent === undefined) {
+    if (agent === undefined || !this.agents.callerMayAccess(agent.session.header)) {
       throw new RemoteError(
         'session/not-found',
         `session "${request.sessionId}" not found (not attached)`,
@@ -490,6 +580,17 @@ export class SessionCommandController {
     }
     agent.cancel({ kind: 'user' }, { keepInbox: true })
     return { accepted: true }
+  }
+
+  private assertRouteServed(agent: Agent): void {
+    const selection = this.agents.selectionFor(agent).current
+    if (!routeServed(this.ctx, selection.provider)) {
+      throw new RemoteError(
+        'session/model-unavailable',
+        `no adapter serves provider "${selection.provider}"; select a model for this session`,
+        { provider: selection.provider, model: selection.model },
+      )
+    }
   }
 
   private async resolveAgent(sessionId: SessionId): Promise<Agent> {
@@ -517,16 +618,21 @@ export class SessionCommandController {
     if (error instanceof ApiSessionSubagentOwnership) {
       throw apiSessionSubagentOwnershipError(error.sessionId)
     }
+    if (error instanceof ApiSessionForeign) {
+      throw new RemoteError('session/not-found', error.message, { sessionId: error.sessionId })
+    }
     throw new RemoteError('gateway/internal', `failed to create session "${sessionId}": ${String(error)}`, {})
   }
 
+  /** Read one Session's log for the acting caller; another account's Session reads as absent. */
   private async readSessionState(sessionId: SessionId): Promise<SessionReadState> {
     const attached = this.ctx.sessions.get(sessionId)
-    if (attached !== undefined) {
-      return { id: attached.id, header: attached.header, events: attached.snapshotEvents() }
-    }
-    const inspected = await inspectApiSession(this.ctx, sessionId)
-    return { id: inspected.meta.id, header: inspected.meta, events: inspected.events }
+    const state: SessionReadState = attached !== undefined
+      ? { id: attached.id, header: attached.header, events: attached.snapshotEvents() }
+      : await inspectApiSession(this.ctx, sessionId)
+        .then(inspected => ({ id: inspected.meta.id, header: inspected.meta, events: inspected.events }))
+    if (!this.agents.callerMayAccess(state.header)) throw new ApiSessionNotFound(`session "${sessionId}" not found`)
+    return state
   }
 
   private async forkWorkspace(source: SessionHeader): Promise<Workspace | undefined> {

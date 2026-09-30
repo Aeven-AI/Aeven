@@ -30,6 +30,14 @@ export interface PendingSubmissionImage {
   readonly height?: number
 }
 
+/** One file displayed by a local submission echo before durable admission. */
+export interface PendingSubmissionFile {
+  /** Browser file name. */
+  readonly name: string
+  /** Browser-declared media type; empty when the browser declared none. */
+  readonly mediaType: string
+}
+
 /** Client surface selected when a local submission begins. */
 export type PendingSubmissionPlacement = 'transcript' | 'queued' | 'steering'
 
@@ -50,6 +58,8 @@ export interface PendingSubmission {
   readonly text: string
   /** Ordered image previews matching the prompt's image parts. */
   readonly images: readonly PendingSubmissionImage[]
+  /** Ordered files matching the prompt's file parts. */
+  readonly files: readonly PendingSubmissionFile[]
 }
 
 /** History-open lifecycle of a Session event window. */

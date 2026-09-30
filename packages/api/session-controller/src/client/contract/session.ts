@@ -13,7 +13,7 @@ import type { SessionId, SessionSeq } from '@aeven/session/types'
 import type { RemoteResult } from '@aeven/typert-protocol'
 import type { ObservableSnapshot } from '@aeven/client-store'
 import type { PromptContentPart, QueueAction, SessionRequestId } from '../../types.ts'
-import type { PendingSubmissionImage, SessionSnapshot } from './snapshot.ts'
+import type { PendingSubmissionFile, PendingSubmissionImage, SessionSnapshot } from './snapshot.ts'
 
 /**
  * Why a local submission echo left the snapshot: `observed` when its durable
@@ -34,6 +34,8 @@ export interface BeginSubmissionInput {
   readonly text: string
   /** Ordered image previews matching the upcoming prompt's image parts. */
   readonly images: readonly PendingSubmissionImage[]
+  /** Ordered files matching the upcoming prompt's file parts. */
+  readonly files: readonly PendingSubmissionFile[]
   /** Settlement callback fired exactly once when the echo retires. */
   readonly onRetire?: (retirement: PendingSubmissionRetirement) => void
 }
@@ -104,6 +106,16 @@ export interface ISession {
    * @returns acceptance, or a business/transport error.
    */
   updateQueue(itemId: MessageId, action: QueueAction): Promise<RemoteResult<{ accepted: true }>>
+  /**
+   * Replace one user prompt's text: the Host stops the running turn, drops
+   * queued work, discards the prompt (with its turn when it opened one) and
+   * everything after from the transcript and model history, and runs the
+   * edited prompt as the next turn.
+   * @param messageSeq - event seq of the user-authored `user/message`.
+   * @param text - replacement text; the prompt's attachments are kept.
+   * @returns acceptance, or the business error (also mirrored into snapshot.promptError).
+   */
+  edit(messageSeq: SessionSeq, text: string): Promise<RemoteResult<{ accepted: true }>>
   /**
    * Cancel the running turn. Pending queued work remains and resumes in FIFO
    * order after the Host reaches cancellation quiescence.

@@ -4,6 +4,7 @@ import z from '@deepseek-ai/schemastery'
 import type { Agent } from '@aeven/agent'
 import type { SessionId } from '@aeven/session'
 import type {} from '@aeven/sandbox-policy'
+import type {} from '@aeven/identity-user'
 import { Remote, RemoteError, TypertRemoteService } from '@aeven/typert-protocol'
 import { discoverShells, resolveShell } from './shells.ts'
 import { BrowserTerminal } from './terminal.ts'
@@ -63,6 +64,8 @@ interface TerminalAllocation {
 }
 
 interface OwnedSession {
+  /** Account the Session belongs to; only that account reaches its terminals. */
+  readonly account: string | undefined
   readonly lifetime: AbortController
   readonly closedIds: Set<WebTerminalId>
   cleanup?: Promise<void>
@@ -143,7 +146,7 @@ export class TerminalController extends TypertRemoteService {
   @Remote
   list(sessionId: SessionId): WebTerminalInfo[] {
     const owner = this.owners.get(sessionId)
-    if (owner === undefined) return []
+    if (owner === undefined || !this.callerMayAccess(owner)) return []
     return [...owner.terminals.values(), ...owner.allocations.values()].map(terminal => terminal.info)
   }
 
@@ -197,7 +200,7 @@ export class TerminalController extends TypertRemoteService {
   @Remote({ mode: 'stream' })
   retain(sessionId: SessionId, id: WebTerminalId, signal: AbortSignal): AsyncIterable<TerminalRetentionFrame> {
     const owner = this.owners.get(sessionId)
-    const terminal = owner?.terminals.get(id)
+    const terminal = owner !== undefined && this.callerMayAccess(owner) ? owner.terminals.get(id) : undefined
     if (terminal === undefined || owner?.closedIds.has(id) === true || owner?.lifetime.signal.aborted === true) {
       throw new RemoteError('terminal/unavailable', 'Terminal is closing or unavailable', {})
     }
@@ -283,10 +286,14 @@ export class TerminalController extends TypertRemoteService {
     }
   }
 
+  private callerMayAccess(owner: OwnedSession): boolean {
+    return this.ctx.get('identityUsers')?.mayAccess(owner.account) ?? true
+  }
+
   private owner(agent: Agent): OwnedSession {
     let owner = this.owners.get(agent.id)
     if (owner === undefined) {
-      owner = { terminals: new Map(), pending: new Map(), allocations: new Map(), closedIds: new Set(), lifetime: new AbortController() }
+      owner = { account: agent.session.header.owner, terminals: new Map(), pending: new Map(), allocations: new Map(), closedIds: new Set(), lifetime: new AbortController() }
       this.owners.set(agent.id, owner)
       const owned = owner
       agent.ctx.effect(() => async () => { await this.disposeOwner(agent.id, owned) }, 'terminal-controller.owner')

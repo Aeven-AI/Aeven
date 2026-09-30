@@ -126,6 +126,7 @@ describe('QueueDock', () => {
         time: 1,
         text: '等待上传',
         images: [{ previewUrl: 'blob:queue-preview', name: 'queue.png' }],
+        files: [],
       }],
     }
     const source = liveSession(pending)

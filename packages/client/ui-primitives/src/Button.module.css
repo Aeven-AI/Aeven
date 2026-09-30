@@ -14,7 +14,7 @@
   color: var(--dsw-alias-label-primary);
   background: transparent;
   padding: 0 14px;
-  font-weight: 450;
+  font-weight: 400;
 }
 
 .button:disabled {

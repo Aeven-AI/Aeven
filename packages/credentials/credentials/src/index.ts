@@ -177,18 +177,23 @@ export abstract class CredentialProvider extends Service {
    * consumers re-resolve at each operation and must not cache across
    * operations — that per-operation read is what makes a changed credential
    * reach the next operation without a restart.
+   *
+   * A session credential ({@link setSession}) belongs to one signed-in user and
+   * resolves only for that user; a call that names no user never sees one.
    * @param ref - the reference to resolve.
+   * @param user - the signed-in user the value is presented for, when there is one.
    * @returns the value and its source, or `undefined` while unconfigured.
    */
-  abstract resolve(ref: CredentialRef): Promise<ResolvedCredential | undefined>
+  abstract resolve(ref: CredentialRef, user?: string): Promise<ResolvedCredential | undefined>
 
   /**
    * Describe one reference for configuration surfaces without exposing the
    * value.
    * @param ref - the reference to describe.
+   * @param user - the signed-in user asking, whose session credential counts; absent counts none.
    * @returns configured state, supplying source, and writability.
    */
-  abstract describe(ref: CredentialRef): Promise<CredentialInfo>
+  abstract describe(ref: CredentialRef, user?: string): Promise<CredentialInfo>
 
   /**
    * Durably store one value in the provider-managed writable source. Rejects
@@ -209,8 +214,12 @@ export abstract class CredentialProvider extends Service {
   abstract unset(ref: CredentialRef): Promise<void>
 
   /**
-   * Publish a credential that belongs to a live session rather than to this
-   * machine, for as long as the process runs.
+   * Publish a credential that belongs to one signed-in user's live session
+   * rather than to this machine, for as long as the process runs.
+   *
+   * Keyed by user: one Host serves several signed-in clients at once, and a
+   * value published for one user never resolves for another or for a call
+   * that names no user.
    *
    * Optional, because it is a capability only a provider with an in-memory
    * layer can offer; a provider that implements it makes the value resolve
@@ -218,9 +227,10 @@ export abstract class CredentialProvider extends Service {
    * A caller that needs it must handle absence, which is what makes the
    * capability additive rather than a widening of every provider's contract.
    * @param ref - the reference the value answers.
+   * @param user - the signed-in user whose session the value belongs to.
    * @param value - the credential, or `undefined` to withdraw it.
    */
-  setSession?(ref: CredentialRef, value: string | undefined): void
+  setSession?(ref: CredentialRef, user: string, value: string | undefined): void
 
   /**
    * Read one stored record. The value is returned as its owner wrote it; a

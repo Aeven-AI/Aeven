@@ -3,12 +3,14 @@
 import { homedir } from 'node:os'
 import type { Context } from '@deepseek-ai/cordis'
 import type {
+  RemoteEventAudience,
   TypertRemoteEventDispatch,
   TypertRemoteEventInvocation,
   TypertRemoteEventOutcome,
   TypertRemoteEventSource,
 } from '@aeven/api-gateway'
 import { Deque } from '@aeven/deque'
+import type { SessionId } from '@aeven/session'
 import { carrierKeyOf } from '@aeven/scope'
 import { isJsonValue, type JsonValue } from '@aeven/util-values'
 import { API_REMOTE_FORWARDED_EVENTS } from './remote-events.ts'
@@ -43,14 +45,46 @@ export function apply(ctx: Context): void {
   )
 }
 
+/**
+ * The Session a forwarded notification belongs to, read from its arguments.
+ * A notification without an entry is Host-wide and reaches every Client.
+ */
+const NOTIFICATION_SESSION: Readonly<Partial<Record<string, (args: readonly unknown[]) => unknown>>> = {
+  'agent-preset/selected': args => args[0],
+  'api-session/activity': args => args[0],
+  'api-session/added': args => fieldOf(args[0], 'sessionId'),
+  'api-session/error': args => args[0],
+  'api-session/removed': args => args[0],
+  'api-session/status': args => args[0],
+  'cordis/dynamic-package': args => fieldOf(args[0], 'agentId'),
+  'cordis/dynamic-retract': args => fieldOf(args[0], 'agentId'),
+  'cordis/inspect-query': args => fieldOf(args[0], 'agentId'),
+  'cordis/request-run': args => fieldOf(args[0], 'agentId'),
+}
+
+function fieldOf(value: unknown, key: string): unknown {
+  return typeof value === 'object' && value !== null ? Reflect.get(value, key) : undefined
+}
+
 /** Create the sole queue and listener set consumed by the registered Gateway. */
 function remoteEventSource(ctx: Context): TypertRemoteEventSource {
   return (signal) => {
     const queue = new RemoteEventQueue()
+    // Owners of the Sessions seen while this source lives, so a notification
+    // about a Session that has already left memory still reaches its owner.
+    const owners = new Map<string, string | undefined>()
+    const audienceOf = (event: string, args: readonly unknown[]): RemoteEventAudience | undefined => {
+      const sessionId = NOTIFICATION_SESSION[event]?.(args)
+      if (typeof sessionId !== 'string') return undefined
+      const live = ctx.get('sessions')?.get(sessionId as SessionId)
+      if (live !== undefined) owners.set(sessionId, live.header.owner)
+      return { owner: owners.get(sessionId) }
+    }
     const disposers = API_REMOTE_FORWARDED_EVENTS.map(({ event, mode }) => {
       if (mode === 'emit') {
         return ctx.on(event as never, ((...args: unknown[]) => {
-          queue.push({ event, args: assertJsonArgs(event, args) })
+          const audience = audienceOf(event, args)
+          queue.push({ event, args: assertJsonArgs(event, args), ...audience === undefined ? {} : { audience } })
         }) as never)
       }
       return ctx.on(event as never, (function (

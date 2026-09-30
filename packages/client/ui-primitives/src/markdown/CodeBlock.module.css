@@ -5,7 +5,7 @@
   --dsl-code-block-border-radius: var(--dsw-aeven-radius-surface);
   /* Local 11/18 instead of the shared --dsw-font-xs-14: the banner scales
      with the markdown 0.875 ladder without shrinking every other xs-13 use. */
-  --dsl-code-block-banner-font: 450 11px/18px var(--dsw-font-family);
+  --dsl-code-block-banner-font: 400 11px/18px var(--dsw-font-family);
   --dsl-code-block-content-font: var(--dsw-font-markdown-code-block);
 
   position: relative;

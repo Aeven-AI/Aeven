@@ -62,19 +62,21 @@
     "zod": "^4.4.3"
   },
   "peerDependencies": {
+    "@aeven/identity-user": "workspace:^",
     "@aeven/subprocess": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:^",
     "@aeven/agent": "workspace:^",
     "@aeven/api-gateway": "workspace:^",
     "@aeven/brand": "workspace:^",
     "@aeven/client-store": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
     "@aeven/sandbox-policy": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/subprocess": "workspace:^",
-    "@aeven/util-crypto": "workspace:^"
+    "@aeven/util-crypto": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
   },
   "files": [
     "lib/index.js",

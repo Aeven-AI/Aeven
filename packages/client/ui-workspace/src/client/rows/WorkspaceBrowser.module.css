@@ -1,6 +1,8 @@
 .root {
   flex: 1;
+  min-width: 0;
   min-height: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -14,7 +16,9 @@
 /* List seat: always mounted so the shell foot never moves. */
 .listArea {
   flex: 1;
+  min-width: 0;
   min-height: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
   margin: 0;
@@ -33,7 +37,9 @@
 /* Relative for the bottom fade overlay. */
 .treeBody {
   flex: 1;
+  min-width: 0;
   min-height: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -60,14 +66,18 @@
   from { opacity: 0; }
 }
 
-/* List: the only scrolling region. Rows own Aeven's 24px/16px insets; without
-   overflow they retain the reference panel's full width. Its bar never renders:
-   the markup carries ui-theme's `no-scrollbar` opt-out (styles/scrollbar.css),
-   so the region scrolls without a bar and without the band one would reserve. */
+/* List: the only scrolling region, and the column's width, so a row's trailing
+   icons sit on the moving edge. Horizontal overflow stays hidden so a nowrap
+   label cannot widen it. Its bar never renders: the markup carries ui-theme's
+   `no-scrollbar` opt-out (styles/scrollbar.css), so the region scrolls without
+   a bar and without the band one would reserve. */
 .list {
   flex: 1;
+  min-width: 0;
   min-height: 0;
+  width: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
   margin: 0;
   padding-left: 0;
   padding-right: 0;
@@ -158,19 +168,22 @@
   font-size: 14px;
   line-height: 20px;
   color: var(--dsw-alias-label-primary);
-  /* The sidebar body animates its width to zero and the label reflows while it
-     does. Nowrap floors the row at its min-content width instead, and the
-     narrowing body clips the overhang. */
+  /* One line. The label ellipsizes as the column narrows. */
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
 }
 
-/* The glyph draws at full strength in both states, so the row always reads as
-   the control it is. */
+/* Held back until the pointer is on the control. */
 .sessionOverflowIcon {
   flex: none;
   width: 18px;
   height: 18px;
+  opacity: 0.1;
+}
+
+.sessionOverflowButton:hover .sessionOverflowIcon {
+  opacity: 1;
 }
 
 .sessionOverflowLabel {
@@ -205,7 +218,7 @@
   outline: none;
   background: transparent;
   font-size: 14px;
-  font-weight: 450;
+  font-weight: 400;
   line-height: 22px;
   color: var(--dsw-alias-label-primary);
 }

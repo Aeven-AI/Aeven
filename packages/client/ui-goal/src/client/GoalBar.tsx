@@ -1,7 +1,7 @@
 /**
  * GoalBar: the goal indicator docked above the message composer (input dock
- * strip). A present goal shows a goal glyph, a phase label, the truncated
- * objective, and icon actions — resume when paused, edit (inline form in the
+ * strip). A present goal shows a goal glyph, the truncated objective, and
+ * icon actions — resume when paused, edit (inline form in the
  * same strip), and clear. Goal creation lives on the `/goal` command, not
  * here: loading (undefined), no goal (null), and complete goals render
  * nothing. Live state arrives as the projected whole snapshot; the verbs are
@@ -16,20 +16,12 @@ import {
 } from '@aeven/client-ui-primitives'
 import type { PropsLocale } from '@aeven/client-ui-slots'
 import type { GoalActionResult, GoalBarActions } from './slots.ts'
-import type { GoalKey } from './locales.ts'
 import css from './GoalBar.module.css'
 
 export interface GoalBarProps extends GoalBarActions {
   /** Current goal snapshot; undefined = capability absent or loading, null = no goal set. */
   goal: GoalSnapshot | null | undefined
 }
-
-/** Strip label keys per visible phase; complete goals render nothing. */
-const PHASE_LABELS = {
-  active: 'phase.active',
-  paused: 'phase.paused',
-  blocked: 'phase.blocked',
-} as const satisfies Record<string, GoalKey>
 
 export function GoalBar({ goal, onEdit, onPause, onResume, onClear, t }: GoalBarProps & PropsLocale<'goal'>) {
   const [editing, setEditing] = useState(false)
@@ -125,7 +117,6 @@ export function GoalBar({ goal, onEdit, onPause, onResume, onClear, t }: GoalBar
   return (
     <div className={css.bar} data-goal-bar title={title}>
       <span className={css.goalGlyph}><IconGoalOutline16 size={14} /></span>
-      <span className={css.label}>{t(PHASE_LABELS[goal.phase])}</span>
       <span className={css.objective}>{goal.objective}</span>
       {actionError !== null && <span className={css.error} role="alert">{actionError}</span>}
       <div className={css.actions}>

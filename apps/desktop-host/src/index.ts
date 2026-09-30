@@ -342,6 +342,13 @@ export async function runDesktopHost(
     throw new Error('avn desktop: composition did not provide connection, typertGateway, and clientModules')
   }
   const api = connection.createSharedFetchHandler('/api')
+  // The Electron shell is the only client of this pipe, so no fence applies,
+  // but the web route's other duties do: the model route presents the Aeven
+  // session the page sends, and work the request starts belongs to its caller.
+  const dispatchApi = (request: Request): Promise<Response> => {
+    connection.publishCallerCredential(request)
+    return connection.runAsCaller(request, () => api.fetch(request))
+  }
   const assets = assetHandler(ctx, absoluteProject)
   const streams = remoteStreamHandler(ctx)
   const requests = new Map<number, AbortController>()
@@ -379,7 +386,7 @@ export async function runDesktopHost(
         const response = url.pathname === DESKTOP_STREAM_PATH
           ? await streams.fetch(request)
           : url.pathname.startsWith('/api/')
-            ? await api.fetch(request)
+            ? await dispatchApi(request)
             : await assets.fetch(request)
         await writeResponse(encodeDesktopResponseStart(command.streamId, {
           status: response.status,

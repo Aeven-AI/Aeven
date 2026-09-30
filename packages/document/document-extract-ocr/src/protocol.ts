@@ -17,6 +17,8 @@ export interface OcrWorkerInit {
   readonly maxPages: number
   /** Render scale relative to 72 DPI. */
   readonly scale: number
+  /** Tesseract recognizers the pages are spread across. */
+  readonly recognizers: number
 }
 
 /** The worker's single reply. */

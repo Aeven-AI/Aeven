@@ -22,7 +22,8 @@
  */
 
 import { spawn } from 'node:child_process'
-import { join } from 'node:path'
+import { existsSync } from 'node:fs'
+import { delimiter, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent } from '@aeven/agent'
@@ -50,8 +51,11 @@ declare module '@deepseek-ai/cordis' {
 
 /** Where the browser runs and what it stores. */
 export interface Config {
-  /** Chromium or Chrome executable to launch. */
-  executablePath: string
+  /**
+   * Chromium or Chrome executable. A blank or omitted value uses
+   * `AVN_CHROME_PATH`, then a platform install. None found leaves the host up.
+   */
+  executablePath?: string
   /** Remote debugging port; chrome-devtools-mcp's `--browserUrl` names the same one. */
   port: number
   /** Profile directory. Omit for `<AVN_HOME>/runtime/chrome-profile`. */
@@ -62,18 +66,21 @@ export interface Config {
    * when it is not answering. Empty disables the launch-on-call.
    */
   mcpServerName: string
+  /** Launch during plugin start when an executable is found. A missing browser does not fail the host. */
+  launchOnStart: boolean
 }
 
 /** Launches and addresses the Host's Chromium. */
 export class BrowserChromium extends TypertRemoteService {
   static Config: z<Config> = z.object({
-    executablePath: z.string().required(),
+    executablePath: z.string(),
     port: z.number().step(1).min(1).max(65_535).required(),
     userDataDir: z.string(),
     mcpServerName: z.string().default('chrome_devtools'),
+    launchOnStart: z.boolean().default(false),
   })
 
-  private readonly executablePath: string
+  private readonly executablePath: string | undefined
   private readonly port: number
   private readonly userDataDir: string
   /** The launch in progress, which concurrent tool calls wait on instead of starting their own. */
@@ -85,9 +92,18 @@ export class BrowserChromium extends TypertRemoteService {
    */
   constructor(ctx: Context, config: Config) {
     super(ctx, 'browserChromium')
-    this.executablePath = config.executablePath
+    this.executablePath = resolveExecutable(config.executablePath)
     this.port = config.port
     this.userDataDir = config.userDataDir ?? join(resolveAvnHome(), 'runtime', 'chrome-profile')
+    if (this.executablePath === undefined) {
+      ctx.logger.warn('browser-chromium: no Chrome or Chromium executable found; set executablePath or AVN_CHROME_PATH')
+    } else if (config.launchOnStart) {
+      this.launching = this.ensureRunning('', AbortSignal.timeout(READY_TIMEOUT_MS))
+        .finally(() => { this.launching = undefined })
+      void this.launching.catch((error: unknown) => {
+        ctx.logger.warn(`browser-chromium: ${error instanceof Error ? error.message : String(error)}`)
+      })
+    }
     const toolPrefix = config.mcpServerName === '' ? undefined : `mcp__${config.mcpServerName}__`
     if (toolPrefix !== undefined) {
       ctx.on('tools/execute', async (exec, next) => {
@@ -145,6 +161,9 @@ export class BrowserChromium extends TypertRemoteService {
     const browserUrl = `http://127.0.0.1:${String(this.port)}`
     const answering = await fetch(`${browserUrl}/json/version`, { signal }).then(response => response.ok, () => false)
     if (answering) return { browserUrl }
+    if (this.executablePath === undefined) {
+      throw new Error('browser-chromium: no Chrome or Chromium executable found')
+    }
     const child = spawn(this.executablePath, [
       `--remote-debugging-port=${String(this.port)}`,
       `--user-data-dir=${this.userDataDir}`,
@@ -162,6 +181,45 @@ export class BrowserChromium extends TypertRemoteService {
     }
     throw new Error(`browser-chromium: ${this.executablePath} did not answer on port ${String(this.port)}`)
   }
+}
+
+/**
+ * Configured path, then `AVN_CHROME_PATH`, then a platform install.
+ * @param configured - `executablePath` from config; blank counts as omitted.
+ * @returns a path to spawn, or undefined when nothing is installed.
+ */
+function resolveExecutable(configured: string | undefined): string | undefined {
+  const explicit = configured?.trim()
+  if (explicit !== undefined && explicit !== '') return explicit
+  const fromEnv = process.env.AVN_CHROME_PATH?.trim()
+  if (fromEnv !== undefined && fromEnv !== '' && existsSync(fromEnv)) return fromEnv
+  return chromeCandidates().find(candidate => existsSync(candidate))
+}
+
+/** Absolute candidates for the installed browser, including `PATH` lookups. */
+function chromeCandidates(): readonly string[] {
+  const fixed = process.platform === 'darwin'
+    ? [
+      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+      '/Applications/Chromium.app/Contents/MacOS/Chromium',
+      '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary',
+      '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+    ]
+    : process.platform === 'win32'
+      ? [process.env.PROGRAMFILES, process.env['PROGRAMFILES(X86)'], process.env.LOCALAPPDATA]
+        .filter((root): root is string => root !== undefined && root !== '')
+        .flatMap(root => [
+          join(root, 'Google', 'Chrome', 'Application', 'chrome.exe'),
+          join(root, 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+        ])
+      : []
+  const names = process.platform === 'win32'
+    ? ['chrome.exe', 'msedge.exe']
+    : ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'microsoft-edge']
+  const onPath = (process.env.PATH ?? '').split(delimiter)
+    .filter(dir => dir !== '')
+    .flatMap(dir => names.map(name => join(dir, name)))
+  return [...fixed, ...onPath]
 }
 
 export default BrowserChromium

@@ -37,6 +37,7 @@ import { assertObjectJsonSchema } from '@aeven/tools'
 import type { ContentBlock, MessageId, MessageSource } from '@aeven/llm'
 import type { Agent } from '@aeven/agent'
 import type { SessionId } from '@aeven/session'
+import type {} from '@aeven/identity-user'
 import { canonicalClientTimeZone } from '@aeven/util-time'
 import { Remote, RemoteError, TypertRemoteService } from '@aeven/typert-protocol'
 import {
@@ -384,7 +385,16 @@ export class SubagentRuntime extends TypertRemoteService {
   async remoteExportList(parentSessionId: SessionId, signal: AbortSignal): Promise<SubagentCatalog> {
     validateControlRequest('subagent.list', { parentSessionId })
     try {
-      return catalogView(this.ctx, parentSessionId, await this.listChildren(parentSessionId, signal))
+      // Children inherit their parent's owner; a reader sees only their own.
+      const identity = this.ctx.get('identityUsers')
+      const caller = identity?.actingUser()
+      const children = await listSubagentChildren(
+        this.ctx,
+        parentSessionId,
+        signal,
+        header => identity?.mayAccess(header.owner, caller) ?? true,
+      )
+      return catalogView(this.ctx, parentSessionId, children)
     } catch (error: unknown) {
       return rejectCatalogRead(error, signal)
     }
@@ -421,7 +431,8 @@ export class SubagentRuntime extends TypertRemoteService {
       )
     }
     const parent = this.ctx.get('agents')?.get(parentSessionId)
-    if (parent === undefined) {
+    // Another account's parent reads as one that is not live.
+    if (parent === undefined || this.ctx.get('identityUsers')?.mayAccess(parent.session.header.owner) === false) {
       throw new RemoteError(
         'subagent/parent-unavailable',
         `parent session "${parentSessionId}" is not live`,
@@ -479,6 +490,9 @@ export class SubagentRuntime extends TypertRemoteService {
     mode: 'continuable',
   ): SubagentInterruptReceipt {
     validateControlRequest('subagent.interrupt', { childSessionId, parentSessionId, mode })
+    if (this.ctx.get('identityUsers')?.mayAccess(this.ctx.get('sessions')?.get(parentSessionId)?.header.owner) === false) {
+      throw new RemoteError('subagent/unauthorized', 'subagent does not belong to this parent', { childSessionId })
+    }
     try {
       this.interrupt(childSessionId, { kind: 'user', parentSessionId })
     } catch (error: unknown) {

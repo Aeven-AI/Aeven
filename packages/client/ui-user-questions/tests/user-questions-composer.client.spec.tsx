@@ -440,6 +440,24 @@ describe('PendingQuestion domain face', () => {
   })
 })
 
+describe('recommended option order', () => {
+  it('lists a recommended option first and still answers with its original label', () => {
+    const { carrier, answer } = wait([{
+      id: 'plan', question: 'Which plan?',
+      options: [{ label: 'Slow' }, { label: 'Fast (Recommended)' }, { label: 'Other' }],
+    }])
+    render(<QuestionComposer matched={carrier} {...kit} />)
+
+    const radios = screen.getAllByRole('radio')
+    expect(radios.map(radio => radio.getAttribute('aria-label'))).toEqual(['Fast', 'Slow', 'Other'])
+    expect(radios[0]?.textContent).toMatch(/^1Fast/)
+    fireEvent.click(screen.getByRole('radio', { name: 'Fast' }))
+    fireEvent.click(screen.getByText('提交'))
+
+    expect(answer).toHaveBeenCalledWith(answerBatch([{ id: 'plan', selected: ['Fast (Recommended)'] }]))
+  })
+})
+
 describe('parseRecommendedLabel', () => {
   it('recognizes English and Chinese suffixes without changing ordinary labels', () => {
     expect(parseRecommendedLabel('Fast (Recommended)')).toEqual({ label: 'Fast', recommended: true })

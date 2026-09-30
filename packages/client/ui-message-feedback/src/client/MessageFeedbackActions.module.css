@@ -17,17 +17,13 @@
   cursor: pointer;
 }
 
-/* The 15px glyphs follow the same px delta as the text they serve; the CSS
-   edge overrides each svg's own width/height attributes. */
+/* The host row's own fixed 16px glyph metric, so the slot-injected thumbs
+   match the copy and branch buttons beside them, which carry no hover
+   background either; the CSS edge overrides each svg's own width/height
+   attributes. */
 .action svg {
-  width: calc(15px + var(--avn-content-font-delta, 0px));
-  height: calc(15px + var(--avn-content-font-delta, 0px));
-}
-
-/* Hover keeps the button's own ink (the host row's); the interactive
-   background carries the affordance. */
-.action:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+  width: 16px;
+  height: 16px;
 }
 
 .action:disabled {

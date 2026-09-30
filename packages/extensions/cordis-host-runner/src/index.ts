@@ -8,6 +8,8 @@ import { Context } from '@deepseek-ai/cordis'
 import type { Fiber } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent } from '@aeven/agent'
+import type {} from '@aeven/identity-user'
+import type {} from '@aeven/session'
 import { createUserMessage } from '@aeven/llm'
 import { TypertRemoteService, Remote } from '@aeven/typert-protocol'
 import type { JsonValue } from '@aeven/util-values'
@@ -417,6 +419,8 @@ export class DynamicCordisRunnerService extends TypertRemoteService {
     const pending = this.registry.peekRequest(requestId)
     if (pending === undefined) return { accepted: false }
     const plugin = this.registry.get(pending.pluginId)
+    // Only the account whose Session owns the plugin may settle its request.
+    if (plugin !== undefined && !this.callerMayReach(plugin)) return { accepted: false }
     if (resolution.ok && plugin?.run?.pluginRunId !== resolution.pluginRunId) return { accepted: false }
     if (!resolution.ok && resolution.pluginRunId !== undefined
       && plugin?.run?.pluginRunId !== resolution.pluginRunId) return { accepted: false }
@@ -523,7 +527,7 @@ export class DynamicCordisRunnerService extends TypertRemoteService {
   /* jscpd:ignore-start */
   @Remote('inventory')
   inventory(): DynamicCordisInventoryRow[] {
-    return this.registry.all().map(plugin => ({
+    return this.registry.all().filter(plugin => this.callerMayReach(plugin)).map(plugin => ({
       pluginId: plugin.pluginId,
       agentId: plugin.sessionId,
       packages: [...plugin.packages.values()].map(definition => ({
@@ -745,7 +749,8 @@ export class DynamicCordisRunnerService extends TypertRemoteService {
     args: JsonValue,
   ): Promise<DynamicCordisInvokeResult> {
     const plugin = this.registry.get(pluginId)
-    if (plugin === undefined || plugin.run === undefined) {
+    // Another account's plugin reads as one that is not running.
+    if (plugin === undefined || plugin.run === undefined || !this.callerMayReach(plugin)) {
       return { ok: false, code: 'plugin-not-running', message: `dynamic plugin "${pluginId}" is not running` }
     }
     const run = plugin.run
@@ -855,6 +860,7 @@ export class DynamicCordisRunnerService extends TypertRemoteService {
     }
     plugin.run = run
     this.ctx.emit('cordis/dynamic-package', {
+      agentId: plugin.sessionId,
       pluginId: plugin.pluginId,
       packageId: definition.packageId,
       pluginRunId: run.pluginRunId,
@@ -1223,10 +1229,20 @@ export class DynamicCordisRunnerService extends TypertRemoteService {
     for (const dispose of run.handlerDisposers.splice(0)) dispose()
     if (run.fiber !== undefined) await run.fiber.dispose()
     this.ctx.emit('cordis/dynamic-retract', {
+      agentId: plugin.sessionId,
       pluginId: plugin.pluginId,
       packageId: run.packageId,
       pluginRunId: run.pluginRunId,
     })
+  }
+
+  /**
+   * Whether the acting caller owns the Session a plugin belongs to.
+   * @param plugin - the dynamic plugin.
+   * @returns true when the caller may see or drive the plugin, or nothing is authenticated.
+   */
+  private callerMayReach(plugin: DynamicCordisPlugin): boolean {
+    return this.ctx.get('identityUsers')?.mayAccess(this.ctx.get('sessions')?.get(plugin.sessionId)?.header.owner) ?? true
   }
 
   private owned(agent: Agent, pluginId: CordisDynamicPluginId): DynamicCordisPlugin | undefined {

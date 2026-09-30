@@ -13,12 +13,29 @@
     "src/feed.ts"
   ],
   "references": [
-    { "path": "../../../vendor/cordis" },
-    { "path": "../../core/session" },
-    { "path": "../../host/directory-picker" },
-    { "path": "../../storage/storage-domain" },
-    { "path": "../../typert/protocol" },
-    { "path": "../../util/deque" },
-    { "path": "../../workspace/workspace" }
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../../host/directory-picker"
+    },
+    {
+      "path": "../../storage/storage-domain"
+    },
+    {
+      "path": "../../typert/protocol"
+    },
+    {
+      "path": "../../util/deque"
+    },
+    {
+      "path": "../../workspace/workspace"
+    },
+    {
+      "path": "../../identity/user"
+    }
   ]
 }

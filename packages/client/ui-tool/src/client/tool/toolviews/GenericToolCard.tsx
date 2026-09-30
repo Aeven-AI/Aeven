@@ -37,7 +37,7 @@ export function GenericToolCard({
   // rather than rendering an empty gallery frame.
   const images = renderImages === undefined || resultImages.length === 0
     ? null
-    : renderImages({ images: resultImages.map(attachment => ({ attachment })), align: 'start' })
+    : renderImages({ images: resultImages.map(attachment => ({ attachment })), align: 'start', layout: 'gallery' })
   const terminal = terminalCardModel(block, cwd)
   const read = readCardModel(block, cwd, home)
   const diff = diffCardModel(block)

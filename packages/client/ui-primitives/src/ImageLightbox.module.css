@@ -1,44 +1,215 @@
-.backdrop {
+/* Image gallery: the Aeven web client's Gallery (clients/client _Gallery.scss
+   and the tippy "info" theme) — the image fills the viewport over the page
+   surface, with round controls pinned to the corners and sides. */
+
+.gallery {
+  --avn-lightbox-bg: rgb(242, 242, 242);
+  --avn-lightbox-button-bg: rgb(255, 255, 255);
+  --avn-lightbox-button-fg: rgb(10, 10, 10);
+  --avn-lightbox-info-bg: rgba(255, 255, 255, 0.7);
+  --avn-lightbox-info-ring: rgba(255, 255, 255, 0.8);
+  --avn-lightbox-info-fg: rgb(0, 0, 0);
+
   position: fixed;
   inset: 0;
   z-index: 1000;
-  display: grid;
-  place-items: center;
-  padding: 40px;
+  overflow: hidden;
+  background-color: var(--avn-lightbox-bg);
+  animation: avn-lightbox-in 200ms linear both;
 }
 
-/* Same mask recipe as the Modal primitive and the settings dialog. A separate
-   layer, not a background on .backdrop: backdrop-filter there would blur the
-   previewed image and the close control along with the page. */
-.mask {
+:global(body[data-ds-dark-theme]) .gallery {
+  --avn-lightbox-bg: rgb(24, 24, 26);
+  --avn-lightbox-button-bg: rgb(44, 44, 46);
+  --avn-lightbox-button-fg: rgb(242, 242, 242);
+  --avn-lightbox-info-bg: rgba(44, 44, 46, 0.7);
+  --avn-lightbox-info-ring: rgba(255, 255, 255, 0.12);
+  --avn-lightbox-info-fg: rgb(242, 242, 242);
+}
+
+.gallery[data-closing] {
+  animation: avn-lightbox-out 200ms linear both;
+}
+
+@keyframes avn-lightbox-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes avn-lightbox-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+.stack {
   position: absolute;
   inset: 0;
-  background: var(--dsw-alias-bg-mask-1);
-  backdrop-filter: var(--dsw-mask-blur);
+  overflow: hidden;
+}
+
+.imageBox {
+  display: flex;
+  position: absolute;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s linear;
+}
+
+.imageBox[data-selected] {
+  z-index: 1;
+  opacity: 1;
 }
 
 .image {
-  position: relative;
-  max-width: min(100%, 1600px);
-  max-height: calc(100vh - 80px);
+  position: absolute;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
-  border-radius: 12px;
-  background: var(--dsw-specific-input-major);
-  box-shadow: var(--dsw-shadow-lv3);
+  object-position: center;
+  opacity: 0;
+  transition: opacity 0.4s linear;
 }
 
-.close {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border: 0.5px solid var(--dsw-alias-border-l2-darkmode-thin);
-  border-radius: 999px;
-  background: var(--dsw-specific-input-major);
-  color: var(--dsw-alias-label-primary);
+.image[data-loaded] {
+  opacity: 1;
+}
+
+.button {
+  display: flex;
+  position: relative;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  outline: none;
+  appearance: none;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--avn-lightbox-button-bg);
+  color: var(--avn-lightbox-button-fg);
   cursor: pointer;
+}
+
+.button:focus-visible {
+  box-shadow: 0 0 0 2px var(--avn-lightbox-button-fg);
+}
+
+.button svg {
+  display: flex;
+  width: 15px;
+  height: 15px;
+}
+
+.side {
+  position: absolute;
+  z-index: 20;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.prev {
+  left: 24px;
+}
+
+.next {
+  right: 24px;
+}
+
+.infoCorner {
+  display: flex;
+  position: absolute;
+  z-index: 20;
+  top: 13px;
+  left: 24px;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.actions {
+  display: flex;
+  position: absolute;
+  z-index: 20;
+  top: 13px;
+  right: 24px;
+  gap: 8px;
+}
+
+/* The info popover: frosted card under the info button (tippy "info" theme). */
+.info {
+  display: flex;
+  box-sizing: border-box;
+  min-width: 250px;
+  max-width: 350px;
+  margin-top: 5px;
+  padding: 10px 16px;
+  flex-direction: column;
+  border-radius: 20px;
+  background-color: var(--avn-lightbox-info-bg);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  box-shadow:
+    inset 1px 1px 0 0 var(--avn-lightbox-info-ring),
+    inset 0 0 1px 1px var(--avn-lightbox-info-ring),
+    0 2px 20px rgba(0, 0, 0, 0.1);
+  color: var(--avn-lightbox-info-fg);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: normal;
+}
+
+.infoItem {
+  display: flex;
+  width: 100%;
+  padding: 6px 0;
+  flex-direction: column;
+}
+
+.infoCaption {
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.infoValue {
+  font-size: 0.875rem;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+@media screen and (max-width: 640px) {
+  .prev,
+  .infoCorner {
+    left: 16px;
+  }
+
+  .next,
+  .actions {
+    right: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gallery,
+  .gallery[data-closing] {
+    animation-duration: 1ms;
+  }
+
+  .imageBox,
+  .image {
+    transition: none;
+  }
 }

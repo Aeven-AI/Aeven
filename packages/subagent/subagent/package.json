@@ -58,10 +58,10 @@
     "zod": "^4.4.3"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:^",
     "@aeven/agent": "workspace:^",
     "@aeven/agent-presets": "workspace:^",
     "@aeven/attachment": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
     "@aeven/invariants": "workspace:^",
     "@aeven/jobs": "workspace:^",
     "@aeven/llm": "workspace:^",
@@ -77,7 +77,8 @@
     "@aeven/tools": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
     "@aeven/user-approval": "workspace:^",
-    "@aeven/util-time": "workspace:^"
+    "@aeven/util-time": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
   },
   "peerDependenciesMeta": {
     "@aeven/agent-presets": {
@@ -109,10 +110,10 @@
     }
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:^",
     "@aeven/agent": "workspace:^",
     "@aeven/agent-presets": "workspace:^",
     "@aeven/attachment": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
     "@aeven/invariants": "workspace:^",
     "@aeven/jobs": "workspace:^",
     "@aeven/llm": "workspace:^",
@@ -131,6 +132,7 @@
     "@aeven/tools": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
     "@aeven/user-approval": "workspace:^",
-    "@aeven/util-time": "workspace:^"
+    "@aeven/util-time": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
   }
 }

@@ -77,7 +77,7 @@ const figureStyle: React.CSSProperties = {
 const figureUnitStyle: React.CSSProperties = {
   marginLeft: 6,
   fontSize: 14,
-  fontWeight: 450,
+  fontWeight: 400,
   color: 'var(--dsw-alias-label-secondary)',
 }
 

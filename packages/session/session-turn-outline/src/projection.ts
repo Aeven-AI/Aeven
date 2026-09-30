@@ -2,7 +2,7 @@
  * The `turnOutline` projection unit: a fold of `turn/start` boundaries, first
  * human prompts, and final assistant responses into the whole-log turn
  * outline the chat turn rail renders for turns outside a client's paged event
- * window.
+ * window. Turns a `session/rewind` discarded leave the outline.
  *
  * `turn/start` — not the prompt `user/message` — anchors each entry because
  * its seq is the jump target: the loop logs `turn/start` before the turn's
@@ -167,6 +167,13 @@ export const turnOutlineProjectionDefinition = {
         const open = state.open
         if (open === null) return state
         return { settled: [...state.settled, open], open: null }
+      }
+      case 'session/rewind': {
+        // Discarded turns leave the outline; a rewind is appended between turns.
+        const target = event.data.seq
+        const settled = state.settled.filter(entry => entry.seq < target)
+        if (settled.length === state.settled.length && state.open === null) return state
+        return { settled, open: null }
       }
       default:
         return state

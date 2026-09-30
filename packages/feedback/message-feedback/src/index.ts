@@ -3,6 +3,7 @@
  * @module @aeven/message-feedback
  */
 
+import type {} from '@aeven/identity-user'
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import { Context, Service } from '@deepseek-ai/cordis'
@@ -340,7 +341,12 @@ export class MessageFeedbackService extends TypertRemoteService {
         return rejected({ code: 'session-not-found', sessionId })
       }
     }
-    return success(await this.ctx.sessionPersistence.inspect(sessionId))
+    const inspection = await this.ctx.sessionPersistence.inspect(sessionId)
+    // Another account's Session reads as absent.
+    if (this.ctx.get('identityUsers')?.mayAccess(inspection.meta.owner) === false) {
+      return rejected({ code: 'session-not-found', sessionId })
+    }
+    return success(inspection)
   }
 
   /** Require the exact finalized append-origin assistant message projection. */

@@ -10,7 +10,7 @@
  */
 
 /** One weight per variable family, in the shorthand `document.fonts.load` parses. */
-const FACES: readonly string[] = ['450 1em "Google Sans Flex"', '450 1em "Google Sans Code"']
+const FACES: readonly string[] = ['400 1em "Google Sans Flex"', '400 1em "Google Sans Code"']
 
 /**
  * How long the shell waits before painting in whatever it has.

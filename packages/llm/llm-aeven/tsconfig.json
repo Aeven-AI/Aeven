@@ -31,6 +31,12 @@
     },
     {
       "path": "../../identity/anonymous-user-id"
+    },
+    {
+      "path": "../../core/agent"
+    },
+    {
+      "path": "../../identity/user"
     }
   ]
 }

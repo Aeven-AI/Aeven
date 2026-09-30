@@ -1,6 +1,6 @@
 /* responsive sizes */
 /* main vars */
-/* Book: the variable cut renders 450 as a real instance, not a synthesised one. */
+/* Book: the variable cut renders 400 as a real instance, not a synthesised one. */
 /* Type scale. The ~2.7:1 top-to-bottom margin ratio ties a heading to the
    section it introduces instead of letting it float between two blocks. */
 /* Cells wrap now, so this is real leading inside a cell, not just row height:
@@ -53,7 +53,7 @@
   color: #ffffff;
   font-family: "Google Sans Flex", sans-serif;
   font-size: 45cqh;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1;
   user-select: none;
 }
@@ -129,7 +129,7 @@
   position: relative;
   padding: 10px 14px;
   z-index: 1;
-  font-weight: 500;
+  font-weight: 400;
 }
 .tippy-box .tippy-arrow {
   width: 16px;
@@ -216,7 +216,7 @@
   color: #000;
   white-space: normal;
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 400;
   font-family: "Google Sans Flex", sans-serif;
   background-color: transparent;
 }
@@ -267,7 +267,7 @@
   color: #000;
   white-space: normal;
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 400;
   font-family: "Google Sans Flex", sans-serif;
   background-color: transparent;
 }
@@ -318,7 +318,7 @@
   color: #000;
   white-space: normal;
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 400;
   font-family: "Google Sans Flex", sans-serif;
   background-color: transparent;
 }
@@ -426,7 +426,7 @@
   text-align: left;
   color: rgba(0, 0, 0, 0.5);
   font-size: 18px;
-  font-weight: 500;
+  font-weight: 400;
   font-family: "Google Sans Flex", sans-serif;
 }
 @media screen and (max-width: 768px) {
@@ -492,7 +492,7 @@
   color: #000;
   white-space: normal;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 400;
   font-family: "Google Sans Flex", sans-serif;
   background-color: transparent;
 }
@@ -537,7 +537,7 @@
   text-align: left;
   color: #fff;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 400;
   font-family: "Google Sans Flex", sans-serif;
 }
 .tippy-box[data-theme~="dropdowndark"]

@@ -3,6 +3,8 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { Deque } from '@aeven/deque'
 import type { DomainChanged } from '@aeven/storage-domain'
+import type { User } from '@aeven/identity-user'
+import type { SessionId } from '@aeven/session'
 import type { Workspace, WorkspaceRecord } from '@aeven/workspace'
 import {
   workspaceDomainState,
@@ -66,6 +68,50 @@ function changedWorkspaceView(
   }
 }
 
+/**
+ * Whether a caller may see a workspace: the built-in one belongs to the
+ * product and every account sees it, every other one only its owner.
+ * @param ctx - Host context carrying the identity seam.
+ * @param isDefault - whether the workspace is the built-in one.
+ * @param owner - account id the workspace records.
+ * @param caller - the caller captured at admission; defaults to the acting user.
+ * @returns true when the caller may see and change the workspace.
+ */
+export function workspaceVisible(
+  ctx: Context,
+  isDefault: boolean,
+  owner: string | undefined,
+  caller: User | undefined = ctx.get('identityUsers')?.actingUser(),
+): boolean {
+  return isDefault || (ctx.get('identityUsers')?.mayAccess(owner, caller) ?? true)
+}
+
+/**
+ * Whether a caller may see a session listed in a workspace.
+ * @param ctx - Host context carrying the workspace registry and identity seam.
+ * @param sessionId - the listed session.
+ * @param caller - the caller captured at admission; defaults to the acting user.
+ * @returns true when the caller owns the session, or nothing is authenticated.
+ */
+export function workspaceSessionVisible(
+  ctx: Context,
+  sessionId: SessionId,
+  caller: User | undefined = ctx.get('identityUsers')?.actingUser(),
+): boolean {
+  return ctx.get('identityUsers')?.mayAccess(ctx.workspaceRegistry.sessionOwner(sessionId), caller) ?? true
+}
+
+/**
+ * A workspace projection reduced to the sessions one caller owns.
+ * @param ctx - Host context carrying the workspace registry and identity seam.
+ * @param view - the full projection.
+ * @param caller - the caller the projection is for.
+ * @returns the projection listing only the caller's sessions.
+ */
+export function callerWorkspaceView(ctx: Context, view: WorkspaceView, caller: User | undefined): WorkspaceView {
+  return { ...view, sessionIds: view.sessionIds.filter(id => workspaceSessionVisible(ctx, id, caller)) }
+}
+
 /** Owns Workspace domain observation and all active follow generations. */
 export class WorkspaceFeed {
   private readonly followers = new Set<WorkspaceFollower>()
@@ -87,13 +133,17 @@ export class WorkspaceFeed {
   }
 
   /**
-   * Read the complete current projection synchronously.
-   * @returns all active Workspaces and archived Session identities.
+   * Read the complete current projection for one caller synchronously.
+   * @param caller - the user the projection is for; defaults to the acting user.
+   * @returns the caller's active Workspaces and archived Session identities.
    */
-  baseline(): WorkspaceBaseline {
+  baseline(caller: User | undefined = this.ctx.get('identityUsers')?.actingUser()): WorkspaceBaseline {
     return {
-      items: this.ctx.workspaceRegistry.list().map(workspaceView),
-      archivedSessionIds: [...this.ctx.workspaceRegistry.archivedSessionIds],
+      items: this.ctx.workspaceRegistry.list()
+        .filter(workspace => workspaceVisible(this.ctx, workspace.isDefault, workspace.owner, caller))
+        .map(workspace => callerWorkspaceView(this.ctx, workspaceView(workspace), caller)),
+      archivedSessionIds: this.ctx.workspaceRegistry.archivedSessionIds
+        .filter(id => workspaceSessionVisible(this.ctx, id, caller)),
     }
   }
 
@@ -104,10 +154,11 @@ export class WorkspaceFeed {
    */
   async *follow(signal: AbortSignal): AsyncIterable<WorkspaceFollowFrame> {
     signal.throwIfAborted()
-    const follower = new WorkspaceFollower()
+    // Each follower sees only the workspaces and sessions its caller owns.
+    const follower = new WorkspaceFollower(this.ctx.get('identityUsers')?.actingUser())
     this.followers.add(follower)
     try {
-      yield { type: 'baseline', value: this.baseline() }
+      yield { type: 'baseline', value: this.baseline(follower.caller) }
       yield* follower.read(signal)
     } finally {
       this.followers.delete(follower)
@@ -129,14 +180,31 @@ export class WorkspaceFeed {
           throw new Error(`committed Workspace registry references missing Workspace "${id}"`)
         }
         this.knownIds.add(id)
-        this.publish({ type: 'upsert', workspace: workspaceView(workspace) })
+        this.publishUpsert(workspaceView(workspace), workspace.owner)
       }
       this.order = nextOrder
-      if (orderChanged) this.publish({ type: 'order', workspaceIds: [...state.workspaceIds] })
+      if (orderChanged) {
+        for (const follower of this.followers) {
+          follower.push({
+            type: 'order',
+            workspaceIds: state.workspaceIds.filter((id) => {
+              const workspace = this.ctx.workspaceRegistry.get(id)
+              return workspace !== undefined
+                && workspaceVisible(this.ctx, workspace.isDefault, workspace.owner, follower.caller)
+            }),
+          })
+        }
+      }
       const nextArchived = state.archivedSessionIds.map(String)
       if (!sameStrings(this.archived, nextArchived)) {
         this.archived = nextArchived
-        this.publish({ type: 'archived', archivedSessionIds: [...state.archivedSessionIds] })
+        for (const follower of this.followers) {
+          follower.push({
+            type: 'archived',
+            archivedSessionIds: state.archivedSessionIds
+              .filter(id => workspaceSessionVisible(this.ctx, id, follower.caller)),
+          })
+        }
       }
       return
     }
@@ -147,14 +215,19 @@ export class WorkspaceFeed {
       return
     }
     if (!this.knownIds.has(change.key)) return
-    this.publish({
-      type: 'upsert',
-      workspace: changedWorkspaceView(
-        change.key,
-        change.value,
-        this.ctx.workspaceRegistry.defaultWorkspaceId,
-      ),
-    })
+    // The registry's owner, not the stored field: a record written before
+    // workspaces carried an owner takes the owner of its Sessions there.
+    this.publishUpsert(
+      changedWorkspaceView(change.key, change.value, this.ctx.workspaceRegistry.defaultWorkspaceId),
+      this.ctx.workspaceRegistry.get(WorkspaceId(change.key))?.owner,
+    )
+  }
+
+  private publishUpsert(view: WorkspaceView, owner: string | undefined): void {
+    for (const follower of this.followers) {
+      if (!workspaceVisible(this.ctx, view.isDefault, owner, follower.caller)) continue
+      follower.push({ type: 'upsert', workspace: callerWorkspaceView(this.ctx, view, follower.caller) })
+    }
   }
 
   private publish(frame: Exclude<WorkspaceFollowFrame, { readonly type: 'baseline' }>): void {
@@ -167,6 +240,9 @@ function sameStrings(left: readonly string[], right: readonly string[]): boolean
 }
 
 class WorkspaceFollower {
+  /** @param caller - the user the stream was opened for. */
+  constructor(readonly caller: User | undefined) {}
+
   private readonly frames = new Deque<WorkspaceFollowFrame>()
   private waiting: (() => void) | undefined
   private closed = false

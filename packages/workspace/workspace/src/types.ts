@@ -84,6 +84,16 @@ export interface Workspace {
   /** Display title. Defaults to the final path segment, or a filesystem root's own spelling; duplicates are allowed. */
   readonly title: string
 
+  /**
+   * Account id of the signed-in user who created this workspace, absent when
+   * nobody was signed in. A record written before workspaces carried an owner
+   * answers with the one account all its sessions belong to, and with none when
+   * they belong to several. One Host serves several accounts, and a workspace is
+   * reachable only by its owner; the built-in workspace is the product's own
+   * and is reachable by every account.
+   */
+  readonly owner: string | undefined
+
   /** ISO-8601 creation instant, stamped at create and never rewritten. */
   readonly createdAt: string
 

@@ -35,6 +35,8 @@ export interface Config {
   maxWorkerHeapMb: number
   /** Simultaneous OCR workers. */
   concurrency: number
+  /** Tesseract recognizers one document's pages are spread across. */
+  recognizers: number
 }
 
 export const Config: z<Partial<Config>, Config> = z.object({
@@ -43,6 +45,9 @@ export const Config: z<Partial<Config>, Config> = z.object({
   timeoutMs: z.natural().min(1).default(300_000),
   maxWorkerHeapMb: z.natural().min(64).default(1024),
   concurrency: z.natural().min(1).max(4).default(1),
+  // A deck of scanned slides takes over ten seconds a page on one recognizer,
+  // which puts a 27-page file past the time limit; four keep it well inside.
+  recognizers: z.natural().min(1).max(8).default(4),
 })
 
 /** Provider id registered on `ctx.documentExtract`. */
@@ -124,6 +129,7 @@ function runWorker(
     languages: 'eng',
     maxPages: config.maxPages,
     scale: config.scale,
+    recognizers: config.recognizers,
   }
   const { entry, options } = workerSpawn(init, config.maxWorkerHeapMb)
   return new Promise<ExtractedDocument>((resolve, reject) => {

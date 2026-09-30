@@ -203,6 +203,22 @@ export function basename(path: string): string {
 }
 
 /**
+ * The folder a path sits in, relative to the workspace root when it lies inside it.
+ * @param path - A produced path, absolute or workspace-relative.
+ * @param cwd - The session workspace root, when known.
+ * @returns The folder below `cwd`, the folder as written otherwise, or `''` at the root.
+ */
+export function parentFolder(path: string, cwd: string | undefined): string {
+  const at = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'))
+  const folder = at === -1 ? '' : path.slice(0, at)
+  if (cwd === undefined) return folder
+  const root = cwd.replace(/[\\/]+$/, '')
+  if (folder === root) return ''
+  const inside = folder.startsWith(`${root}/`) || folder.startsWith(`${root}\\`)
+  return inside ? folder.slice(root.length + 1) : folder
+}
+
+/**
  * File-mention vocabulary over one turn's produced paths, for the closing
  * message's prose: an inline-code token opens the file it names. A token
  * resolves by exact path, or by being exactly the basename of exactly one

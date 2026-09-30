@@ -18,6 +18,7 @@ import type {
 import { SessionQueryError, type SessionObservation } from '@aeven/session-query'
 import type {} from '@aeven/subagent'
 import { RemoteError } from '@aeven/typert-protocol'
+import { callerMayAccessSession } from './agent.ts'
 import type {
   SessionAddress,
   SessionChunkRun,
@@ -214,6 +215,8 @@ export class SessionHistoryController {
       // title and turn count still rendered from the list. What the address
       // must actually satisfy is checked next.
       try {
+        // Another account's Session, or its subagent, reads as absent.
+        if (!callerMayAccessSession(this.ctx, observation.header)) rejectNotFound(address)
         validateAddress(
           address,
           observation.header,

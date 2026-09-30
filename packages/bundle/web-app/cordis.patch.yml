@@ -166,16 +166,18 @@
     # the owning session's `llm` route. The slot always mounts because the
     # presets' `memory-context` and `tool-memory` rows inject it; they add
     # prompt text and tools only while a provider is registered. The provider is
-    # off by default; when enabled, the MemOS Viewer serves the stored memory
-    # on 127.0.0.1:18801.
+    # on by default, so a fresh install remembers from its first session. Its
+    # Viewer stays off: it serves every account's stored memory with no sign-in,
+    # while this Host serves several accounts, each reaching only its own memory
+    # through the memory manager.
     - id: memory
       name: '@aeven/memory'
 
     - id: memory-memos
       name: '@aeven/memory-memos'
-      disabled: true
       config:
         home: !!js avnHomePath('memory')
+        viewer: false
 
     # Learned capabilities: per-user procedures the agent learned, stored as
     # agentskills directories and published through the skill catalog once the
@@ -191,9 +193,10 @@
       name: '@aeven/api-memory-manager'
 
     # File attachments: the reader registry and the built-in JavaScript
-    # readers (PDF, Office Open XML, OpenDocument, Numbers, RTF, EPUB, HTML,
-    # text). The office reader runs the bundled LibreOffice engine for legacy
-    # Word, Excel, and PowerPoint files and as the fallback for Office files.
+    # readers (PDF, Office Open XML, OpenDocument, Pages, Keynote, Numbers,
+    # RTF, EPUB, HTML, text). The office reader runs the bundled LibreOffice
+    # engine for legacy Word, Excel, and PowerPoint files and as the fallback
+    # for Office files.
     - id: document-extract
       name: '@aeven/document-extract'
 
@@ -224,6 +227,40 @@
     # This machine as a device host: expo-device-hub and agent-device.
     - id: device-local
       name: '@aeven/device-local'
+
+    # One visible Chrome on 9333 (not the desktop renderer's 9222), shared by
+    # the sidebar and chrome-devtools-mcp. Playwright starts its own browser
+    # on first use, so boot does not wait on that CDP attach. A missing Chrome
+    # logs and leaves the host up. Both servers' tools stay behind tool_search.
+    - id: browser-chromium
+      name: '@aeven/browser-chromium'
+      config:
+        port: 9333
+        launchOnStart: true
+        mcpServerName: chrome_devtools
+    - id: mcp-chrome-devtools
+      name: '@aeven/mcp-client'
+      config:
+        transport: stdio
+        serverName: chrome_devtools
+        command: !!js "process.platform === 'win32' ? 'npx.cmd' : 'npx'"
+        args:
+          - '-y'
+          - chrome-devtools-mcp@latest
+          - '--browser-url=http://127.0.0.1:9333'
+          - '--no-usage-statistics'
+        failOnStartupError: false
+    - id: mcp-playwright
+      name: '@aeven/mcp-client'
+      config:
+        transport: stdio
+        serverName: playwright
+        command: !!js "process.platform === 'win32' ? 'npx.cmd' : 'npx'"
+        args:
+          - '-y'
+          - '@playwright/mcp@latest'
+          - '--caps=devtools'
+        failOnStartupError: false
 
     # Configuration-surface reads and writes over Typert Remote. Each method
     # reports an actionable error when its settings-domain provider is absent.

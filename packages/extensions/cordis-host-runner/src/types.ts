@@ -164,6 +164,8 @@ export interface DynamicCordisRunAttempt {
 
 /** One running package announced to browser pages. */
 export interface DynamicCordisPackage {
+  /** Session whose plugin is running; only that Session's account receives the announcement. */
+  agentId: SessionId
   /** Stable plugin instance. */
   pluginId: CordisDynamicPluginId
   /** Immutable package version currently active. */
@@ -204,6 +206,8 @@ export interface DynamicCordisRequestResolved {
 
 /** One activation withdrawn from every page. */
 export interface DynamicCordisRetracted {
+  /** Session whose plugin was running; only that Session's account receives the withdrawal. */
+  agentId: SessionId
   /** Stable plugin instance. */
   pluginId: CordisDynamicPluginId
   /** Package version that was active. */

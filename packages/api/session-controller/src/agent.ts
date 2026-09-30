@@ -8,9 +8,9 @@ import type {
 } from '@aeven/agent'
 import type {} from '@aeven/agent-default-model'
 import type {} from '@aeven/agent-presets'
-import type {} from '@aeven/identity-user'
+import type { User } from '@aeven/identity-user'
 import { ReasoningEffortId } from '@aeven/llm'
-import type { Session, SessionId } from '@aeven/session'
+import type { Session, SessionHeader, SessionId } from '@aeven/session'
 import type { SessionInspection } from '@aeven/session-persistence'
 import { SessionQueryError, type SessionObservation } from '@aeven/session-query'
 import { RemoteError } from '@aeven/typert-protocol'
@@ -25,6 +25,14 @@ export class ApiSessionSubagentOwnership extends Error {
   /** @param sessionId - identity reserved to subagent routing. */
   constructor(readonly sessionId: SessionId) {
     super(`session "${sessionId}" is a subagent session; use subagent delivery`)
+  }
+}
+
+/** Explicit-id creation attempted to adopt a Session another account owns. */
+export class ApiSessionForeign extends Error {
+  /** @param sessionId - identity another account owns. */
+  constructor(readonly sessionId: SessionId) {
+    super(`session "${sessionId}" not found`)
   }
 }
 
@@ -69,6 +77,22 @@ export type ApiSessionAgentResult =
 type InstalledSelection = ModelSelectionRef & {
   current: AgentModelSelection
   consume(provider: string, model: string, reasoningEffort: string | undefined): boolean
+}
+
+/**
+ * Whether a caller may reach a Session: its owner may, and with no identity
+ * authority mounted every caller may.
+ * @param ctx - Host context carrying the identity seam.
+ * @param header - the Session's durable header.
+ * @param caller - the caller captured at admission; defaults to the acting user.
+ * @returns true when the caller may list, read, or drive the Session.
+ */
+export function callerMayAccessSession(
+  ctx: Context,
+  header: { readonly owner?: string | undefined },
+  caller: User | undefined = ctx.get('identityUsers')?.actingUser(),
+): boolean {
+  return ctx.get('identityUsers')?.mayAccess(header.owner, caller) ?? true
 }
 
 /**
@@ -180,7 +204,31 @@ export class ApiSessionAgentController {
     return this.resolve(observation.header.id, observation)
   }
 
+  /**
+   * Resolve one Session for the acting caller. A Session another account owns
+   * answers exactly as an absent one does, so a caller cannot learn which
+   * identities exist.
+   */
   private async resolve(
+    sessionId: SessionId,
+    observation?: SessionObservation,
+  ): Promise<ApiSessionAgentResult> {
+    const caller = this.ctx.get('identityUsers')?.actingUser()
+    const found = await this.resolveAny(sessionId, observation)
+    if ('error' in found || callerMayAccessSession(this.ctx, found.agent.session.header, caller)) return found
+    return { error: new RemoteError('session/not-found', `session "${sessionId}" not found`, { sessionId }) }
+  }
+
+  /**
+   * Whether the acting caller may reach a Session.
+   * @param header - the Session's durable header.
+   * @returns true when the caller owns the Session, or nothing is authenticated.
+   */
+  callerMayAccess(header: Pick<SessionHeader, 'owner'>): boolean {
+    return callerMayAccessSession(this.ctx, header)
+  }
+
+  private async resolveAny(
     sessionId: SessionId,
     observation?: SessionObservation,
   ): Promise<ApiSessionAgentResult> {
@@ -239,6 +287,7 @@ export class ApiSessionAgentController {
     if (creation === undefined) {
       creation = this.createOrAdopt(sessionId, cwd, checkPersistedIdentity, presetId)
         .catch((error: unknown) => {
+          if (error instanceof ApiSessionForeign) throw error
           const live = this.ctx.agents.get(sessionId)
           if (live !== undefined) {
             if (hasApiSessionSubagentOwner(this.ctx, live.session, live)) {
@@ -256,6 +305,7 @@ export class ApiSessionAgentController {
       this.creations.set(sessionId, creation)
     }
     const agent = await creation
+    if (!this.callerMayAccess(agent.session.header)) throw new ApiSessionForeign(sessionId)
     if (hasApiSessionSubagentOwner(this.ctx, agent.session, agent)) {
       throw new ApiSessionSubagentOwnership(sessionId)
     }
@@ -417,7 +467,8 @@ export class ApiSessionAgentController {
     // directory, which is an ordinary Session now: the id is the identity, and
     // the absent cwd is a fact about where it lives rather than a reason to
     // treat it as missing.
-    if (observation.header.id !== sessionId) {
+    // Another account's Session is never resumed on this caller's behalf.
+    if (observation.header.id !== sessionId || !this.callerMayAccess(observation.header)) {
       throw new ApiSessionNotFound(`session "${sessionId}" not found`)
     }
     if (hasApiSessionSubagentOwner(this.ctx, { header: observation.header }, undefined)) {
@@ -455,11 +506,14 @@ export class ApiSessionAgentController {
     if (attached !== undefined && hasApiSessionSubagentOwner(this.ctx, attached, live)) {
       throw new ApiSessionSubagentOwnership(sessionId)
     }
+    // Adopting an identity another account owns would hand that caller its Session.
+    if (attached !== undefined && !this.callerMayAccess(attached.header)) throw new ApiSessionForeign(sessionId)
     if (live !== undefined) return live
 
     if (checkPersistedIdentity) {
       try {
         using observation = await this.ctx.sessionQuery.observeSession(sessionId)
+        if (!this.callerMayAccess(observation.header)) throw new ApiSessionForeign(sessionId)
         if (hasApiSessionSubagentOwner(this.ctx, { header: observation.header }, undefined)) {
           throw new ApiSessionSubagentOwnership(sessionId)
         }

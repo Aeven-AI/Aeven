@@ -200,6 +200,15 @@ export interface HostConnectionHandle {
   runAsCaller<T>(request: ConnectionTrustRequest, work: () => T): T
 
   /**
+   * Hand an admitted caller's re-presentable credential, such as the Aeven
+   * access token, to the credentials service for the model route. Every
+   * transport that dispatches into {@link createSharedFetchHandler} calls it
+   * before dispatch; a caller whose authority declares no credential publishes nothing.
+   * @param request - request headers the fence already admitted.
+   */
+  publishCallerCredential(request: ConnectionTrustRequest): void
+
+  /**
    * Authenticate one frontend index request, owning a token redirect or 401.
    * @param request - root or configured-index HTTP request.
    * @param response - response owned when the result is false.

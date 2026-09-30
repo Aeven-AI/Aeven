@@ -89,6 +89,8 @@ abstract onJobsChanged(listener: JobsChangedListener): () => void
 
 [`@aeven/client-ui-jobs`](../../../../packages/client/ui-jobs/README.zh.md) 在 `conversation.session.header.actions` 注册一个条目，排在 subagent 目录之后。呈现契约归它自己的 README；值得记在这里的决策是：会话没有任务时控件根本不渲染；活跃角标为零时省略，让只剩历史的会话保留一个安静的入口；终态行保持可见，因为失败任务的 `detail` 是其失败唯一可读之处。
 
+哪些行可以展开由[展开笔记](../bug-fix/2026-09-30-background-job-list-folds-out-every-row.zh.md)拥有：每一行都会展开出它的事实、命令与输出，无论该任务是否留下输出。
+
 因此一个运行中的一次性后台 subagent 会同时出现在那里和 subagent 目录里。两者回答不同的问题——目录负责进入子会话的 transcript，而这个列表是中断能力唯一可能附着的句柄——在这里屏蔽 `kind: 'subagent'` 会让中断那一期恰好对这批任务没有入口。
 
 ### 刻意不做的事

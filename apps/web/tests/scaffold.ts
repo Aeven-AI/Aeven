@@ -514,6 +514,11 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     // the in-app browse dialog), so pin -browse deterministically on every
     // host: patch `name` is an assertion, not an override, hence the
     // disable+insert pair.
+    // The shipped profile starts Chrome and two MCP servers. The scaffold owns
+    // its own browser and must not launch those.
+    { id: 'browser-chromium', disabled: true },
+    { id: 'mcp-chrome-devtools', disabled: true },
+    { id: 'mcp-playwright', disabled: true },
     { id: 'directory-picker', disabled: true },
     { insert: [
       { id: 'directory-picker-browse', name: '@aeven/host-directory-picker-browse' },

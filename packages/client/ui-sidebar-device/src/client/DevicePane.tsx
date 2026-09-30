@@ -10,7 +10,7 @@
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import {
-  IconLucideListTree, IconLucideRefreshCw, IconLucideSmartphone, IconLucideX, Modal,
+  IconLucideChevronRight, IconLucideListTree, IconLucideRefreshCw, IconLucideSmartphone, IconLucideX, Modal, Spinner,
 } from '@aeven/client-ui-primitives'
 import type { SidebarContentPaneProps } from '@aeven/client-ui-sidebar-select/client'
 import type { DeviceHostId, DevicePlatform, DeviceServiceState, DeviceSummary } from '@aeven/device/types'
@@ -20,7 +20,7 @@ import { DeviceLoading, DeviceStream, type DeviceStreamHandle } from './DeviceSt
 import { DeviceSetup } from './DeviceSetup.tsx'
 import { DeviceTools } from './DeviceTools.tsx'
 import { deviceHubAccess } from './hub-access.ts'
-import { ChevronLeft, Home, Power, RotateCcw, SlidersHorizontal, Square } from './icons.tsx'
+import { ChevronLeft, CirclePlay, Home, Power, RotateCcw, SlidersHorizontal, Square } from './icons.tsx'
 import type { DeviceClient } from './state.ts'
 import css from './DevicePane.module.css'
 
@@ -84,6 +84,8 @@ export function DevicePane({ sessionId, surfaceId, active, setTab, closeSurface,
   const [handle, setHandle] = useState<DeviceStreamHandle | null>(null)
   const [toolsOpen, setToolsOpen] = useState(false)
   const [axOverlay, setAxOverlay] = useState(false)
+  // Until this pane's first listing settles, an empty device list means "not yet discovered", not "none".
+  const [listed, setListed] = useState(false)
   const disabled = state.status === 'disabled'
 
   const sessions = useMemo(() => state.sessions.filter(session => session.sessionId === sessionId), [state.sessions, sessionId])
@@ -103,7 +105,7 @@ export function DevicePane({ sessionId, surfaceId, active, setTab, closeSurface,
   // Opening the pane never grants permission to install or start helpers.
   useEffect(() => {
     if (!active || !loaded || disabled || !state.onboardingCompleted) return
-    void client.list()
+    void client.list().then(() => { setListed(true) })
   }, [active, client, disabled, loaded, state.onboardingCompleted])
 
   useEffect(() => {
@@ -112,6 +114,9 @@ export function DevicePane({ sessionId, surfaceId, active, setTab, closeSurface,
   useEffect(() => () => { setTab(undefined) }, [setTab])
 
   const hostLabel = (hostId: string): string => state.hosts.find(host => host.id === hostId)?.label ?? hostId
+  // The host names a device only when more than one host could run it.
+  const deviceMeta = (device: DeviceSummary): string =>
+    state.hosts.length > 1 ? t('hostVersion', { host: hostLabel(device.hostId), version: device.version }) : device.version
   const access = useMemo(
     () => activeDevice === undefined ? undefined : deviceHubAccess(state.hubBasePath, activeDevice.hostId),
     [activeDevice?.hostId, state.hubBasePath],
@@ -148,18 +153,19 @@ export function DevicePane({ sessionId, surfaceId, active, setTab, closeSurface,
     )
   }
 
-  const booting = state.booting.filter(device => device.sessionId === sessionId)
+  const booting = new Set(state.booting.filter(device => device.sessionId === sessionId)
+    .map(device => `${device.hostId}\u0000${device.id}`))
   const hostReady = Object.values(state.hostStates).some(host => host.status === 'ready')
   const hostBusy = !hostReady && Object.values(state.hostStates).some(host => host.status === 'installing' || host.status === 'starting')
   const groups = groupDevices(state)
+  const captioned = activeDevice ?? pending
 
   return (
     <section className={css.root} data-sidebar-device="">
       <div className={css.toolbar}>
         <span className={css.caption}>
-          {activeDevice !== undefined
-            ? <><span className={css.captionName}>{activeDevice.name}</span>{` · ${t('hostVersion', { host: hostLabel(activeDevice.hostId), version: activeDevice.version })}`}</>
-            : pending?.name ?? t('choose')}
+          <span className={css.captionName}>{captioned?.name ?? t('choose')}</span>
+          {captioned !== undefined && <span className={css.captionMeta}>{deviceMeta(captioned)}</span>}
         </span>
         {activeDevice !== undefined
           ? (
@@ -183,15 +189,6 @@ export function DevicePane({ sessionId, surfaceId, active, setTab, closeSurface,
           )}
       </div>
 
-      {hostReady && state.statusDetail !== undefined && state.statusDetail !== '' && <p className={css.notice} role="status">{state.statusDetail}</p>}
-      {booting.length > 0 && <p className={css.notice} role="status">{t('booting', { names: booting.map(device => device.name).join(', ') })}</p>}
-      {error !== undefined && (
-        <div className={css.alert} role="alert">
-          <p className={css.alertText}>{error}</p>
-          <button type="button" className={css.iconButton} aria-label={t('dismissError')} onClick={() => { setError(undefined) }}><IconLucideX /></button>
-        </div>
-      )}
-
       <div className={css.stage}>
         {activeDevice !== undefined && access !== undefined
           ? (
@@ -203,7 +200,6 @@ export function DevicePane({ sessionId, surfaceId, active, setTab, closeSurface,
                 platform={activeDevice.platform}
                 deviceId={activeDevice.id}
                 deviceName={activeDevice.name}
-                deviceDescription={t('hostVersion', { host: hostLabel(activeDevice.hostId), version: activeDevice.version })}
                 visible={active}
                 axOverlay={axOverlay}
                 onHandle={setHandle}
@@ -224,26 +220,39 @@ export function DevicePane({ sessionId, surfaceId, active, setTab, closeSurface,
           )
           : failure !== undefined && !loaded
             ? (
-              <DeviceLoading t={t} name={t('choose')} stage="opening" message={failure} error>
+              <DeviceLoading message={failure} error>
                 <button type="button" className={css.chip} onClick={() => { client.retry() }}>{t('retry')}</button>
               </DeviceLoading>
             )
-          : pending !== undefined || hostBusy || !loaded
-            ? (
-              <DeviceLoading
-                t={t}
-                name={pending?.name ?? t('choose')}
-                description={pending === undefined ? undefined : t('hostVersion', { host: hostLabel(pending.hostId), version: pending.version })}
-                stage="opening"
-                message={pending !== undefined
-                  ? t(pending.booted ? 'opening' : 'startingDevice')
-                  : state.status === 'installing' ? state.statusDetail ?? t('installing') : t('finding')}
-              />
-            )
-            : <DeviceList t={t} state={state} groups={groups} hostReady={hostReady} hostLabel={hostLabel}
-              onSelect={(device) => { void select(device) }}
-              onRetry={(hostId) => { void client.retryHost(hostId) }} />}
+            : pending !== undefined || hostBusy || !loaded || (!listed && groups.length === 0)
+              ? (
+                <DeviceLoading
+                  name={pending?.name}
+                  message={pending !== undefined
+                    ? t(pending.booted ? 'opening' : 'startingDevice')
+                    : state.status === 'installing' ? state.statusDetail ?? t('installing') : t('finding')}
+                />
+              )
+              : <DeviceList t={t} state={state} groups={groups} hostReady={hostReady} booting={booting} deviceMeta={deviceMeta}
+                onSelect={(device) => { void select(device) }}
+                onRetry={(hostId) => { void client.retryHost(hostId) }} />}
       </div>
+
+      {/* Status and errors float over the stage's foot, so their arrival never
+          moves the list or the screen. */}
+      {(error !== undefined || (hostReady && state.statusDetail !== undefined && state.statusDetail !== '')) && (
+        <div className={css.toasts}>
+          {hostReady && state.statusDetail !== undefined && state.statusDetail !== '' && (
+            <p className={css.toast} role="status">{state.statusDetail}</p>
+          )}
+          {error !== undefined && (
+            <div className={css.toast} data-error="" role="alert">
+              <p className={css.toastText}>{error}</p>
+              <button type="button" className={css.toastDismiss} aria-label={t('dismissError')} onClick={() => { setError(undefined) }}><IconLucideX /></button>
+            </div>
+          )}
+        </div>
+      )}
     </section>
   )
 }
@@ -253,7 +262,9 @@ function DeviceList(props: {
   readonly state: DeviceServiceState
   readonly groups: readonly { platform: DevicePlatform; devices: DeviceSummary[] }[]
   readonly hostReady: boolean
-  readonly hostLabel: (hostId: string) => string
+  /** `hostId\u0000deviceId` of each device this session is starting. */
+  readonly booting: ReadonlySet<string>
+  readonly deviceMeta: (device: DeviceSummary) => string
   readonly onSelect: (device: DeviceSummary) => void
   readonly onRetry: (hostId: DeviceHostId) => void
 }): ReactNode {
@@ -274,25 +285,26 @@ function DeviceList(props: {
     <div className={css.list}>
       {groups.map(group => (
         <section key={group.platform} className={css.group}>
-          <h3 className={css.groupTitle}><IconLucideSmartphone />{t(`platform.${group.platform}`)}</h3>
-          {group.devices.map(device => (
-            <button
-              key={`${device.hostId}\u0000${device.id}`}
-              type="button"
-              className={css.row}
-              aria-label={t(device.booted ? 'openNamed' : 'startNamed', { name: device.name })}
-              onClick={() => { props.onSelect(device) }}
-            >
-              <span className={css.rowGlyph} data-booted={device.booted || undefined}><IconLucideSmartphone /></span>
-              <span className={css.rowText}>
-                <span className={css.rowTitle}>{device.name}</span>
-                <span className={css.rowMeta}>
-                  {t('deviceRow', { host: props.hostLabel(device.hostId), version: device.version, state: t(device.booted ? 'running' : 'stopped') })}
+          <h3 className={css.groupTitle}><span className={css.slot}><IconLucideSmartphone /></span>{t(`platform.${group.platform}`)}</h3>
+          {group.devices.map((device) => {
+            const starting = props.booting.has(`${device.hostId}\u0000${device.id}`)
+            return (
+              <button
+                key={`${device.hostId}\u0000${device.id}`}
+                type="button"
+                className={css.row}
+                aria-label={t(device.booted ? 'openNamed' : 'startNamed', { name: device.name })}
+                onClick={() => { props.onSelect(device) }}
+              >
+                <span className={css.slot}>
+                  {starting ? <Spinner /> : <span className={css.stateDot} data-booted={device.booted || undefined} />}
                 </span>
-              </span>
-              <span className={css.rowAction}>{t(device.booted ? 'open' : 'start')}</span>
-            </button>
-          ))}
+                <span className={css.rowTitle}>{device.name}</span>
+                <span className={css.rowMeta}>{props.deviceMeta(device)}</span>
+                <span className={css.rowAction}>{device.booted ? <IconLucideChevronRight /> : <CirclePlay />}</span>
+              </button>
+            )
+          })}
         </section>
       ))}
       {props.hostReady && !androidUnavailable && !state.devices.some(device => device.platform === 'android') && (

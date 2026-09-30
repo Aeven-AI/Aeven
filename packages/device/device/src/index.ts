@@ -15,6 +15,8 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { avnHomePath } from '@aeven/home-paths'
 import type { SessionId } from '@aeven/session/types'
+import type {} from '@aeven/session'
+import type { User } from '@aeven/identity-user'
 import type {} from '@aeven/settings'
 import type { SettingsScope } from '@aeven/settings'
 import { Remote, RemoteError, TypertRemoteService } from '@aeven/typert-protocol'
@@ -203,6 +205,7 @@ export class DeviceService extends TypertRemoteService {
    */
   @Remote({ mode: 'stream' })
   async *watch(signal: AbortSignal): AsyncIterable<DeviceServiceState> {
+    const caller = this.ctx.get('identityUsers')?.actingUser()
     let latest: DeviceServiceState | undefined = this.state
     let wake: (() => void) | undefined
     const listener = (state: DeviceServiceState): void => {
@@ -217,7 +220,7 @@ export class DeviceService extends TypertRemoteService {
         if (latest !== undefined) {
           const next: DeviceServiceState = latest
           latest = undefined
-          yield next
+          yield this.forCaller(next, caller)
           continue
         }
         await new Promise<void>((resolve) => { wake = resolve })
@@ -236,6 +239,30 @@ export class DeviceService extends TypertRemoteService {
    */
   @Remote
   async list(): Promise<DeviceServiceState> {
+    return this.forCaller(await this.listAll(), this.ctx.get('identityUsers')?.actingUser())
+  }
+
+  /**
+   * The state as one caller sees it: devices are the machine's and every
+   * account sees them, while the Sessions a device is opened or booting for
+   * are listed only for their owner.
+   * @param state - the full state.
+   * @param caller - the user the state is for.
+   * @returns the state without other accounts' Sessions.
+   */
+  private forCaller(state: DeviceServiceState, caller: User | undefined): DeviceServiceState {
+    const identity = this.ctx.get('identityUsers')
+    if (identity === undefined) return state
+    const sessions = this.ctx.get('sessions')
+    const visible = (sessionId: SessionId): boolean => identity.mayAccess(sessions?.get(sessionId)?.header.owner, caller)
+    return {
+      ...state,
+      sessions: state.sessions.filter(entry => visible(entry.sessionId)),
+      booting: state.booting.filter(entry => visible(entry.sessionId)),
+    }
+  }
+
+  private async listAll(): Promise<DeviceServiceState> {
     if (!this.consent().enabled) return this.state
     await Promise.all([...this.hosts.values()].map(async (host) => {
       try {
@@ -306,6 +333,17 @@ export class DeviceService extends TypertRemoteService {
   }
 
   /**
+   * Refuse a request that names a Session the caller does not own.
+   * @param sessionId - the Session the device is opened for.
+   */
+  private requireCallerSession(sessionId: SessionId): void {
+    const owner = this.ctx.get('sessions')?.get(sessionId)?.header.owner
+    if (this.ctx.get('identityUsers')?.mayAccess(owner) === false) {
+      throw new RemoteError('session/not-found', `session "${sessionId}" not found`, { sessionId })
+    }
+  }
+
+  /**
    * Open a device for a session, booting it unless the request says not to.
    * @param sessionId - the session looking at the device.
    * @param request - the device and whether to boot it.
@@ -313,6 +351,7 @@ export class DeviceService extends TypertRemoteService {
    */
   @Remote
   async open(sessionId: SessionId, request: DeviceOpenRequest): Promise<DeviceSession> {
+    this.requireCallerSession(sessionId)
     const host = this.resolveHost(request.hostId)
     const availability = await host.platformAvailability(request.platform)
     if (!availability.available) {
@@ -366,6 +405,7 @@ export class DeviceService extends TypertRemoteService {
    */
   @Remote
   async close(sessionId: SessionId, request: DeviceCloseRequest): Promise<void> {
+    this.requireCallerSession(sessionId)
     const closing = this.state.sessions.filter(session => session.sessionId === sessionId
       && (request.hostId === undefined || session.hostId === request.hostId)
       && (request.deviceId === undefined || session.deviceId === request.deviceId))

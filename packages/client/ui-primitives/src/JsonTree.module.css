@@ -12,7 +12,7 @@
   position: relative;
   color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-bg-layer-1);
-  font: 450 12px/16px var(--ds-font-family-code);
+  font: 400 12px/16px var(--ds-font-family-code);
   overscroll-behavior-x: contain;
   overscroll-behavior-y: auto;
 }
@@ -89,7 +89,7 @@
 .label {
   margin-right: 3px;
   color: var(--json-tree-property);
-  font-weight: 450;
+  font-weight: 400;
 }
 
 .clickableLabel {

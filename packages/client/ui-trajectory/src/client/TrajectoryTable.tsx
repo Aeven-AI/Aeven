@@ -1163,7 +1163,7 @@ function SourceBlocks({
           {/* The Raw view keeps model block order and granularity: one
               gallery per image block, unlike the aggregated record gallery. */}
           {block.attachment !== undefined
-            ? renderImages({ images: [{ attachment: block.attachment }], align: 'start' })
+            ? renderImages({ images: [{ attachment: block.attachment }], align: 'start', layout: 'gallery' })
             : <pre className={css.sourceBlockContent}>{block.content}</pre>}
         </section>
       ))}
@@ -1191,7 +1191,7 @@ function MessageImages({
   if (images.length === 0) return null
   return (
     <div className={preview ? `${css.messageImages} ${css.messageImagesPreview}` : css.messageImages}>
-      {renderImages({ images, align: 'start' })}
+      {renderImages({ images, align: 'start', layout: 'gallery' })}
     </div>
   )
 }
@@ -1414,7 +1414,7 @@ function ToolOutputBlocks({
         block.attachment !== undefined
           ? (
             <div className={css.messageImages} key={index}>
-              {renderImages({ images: [{ attachment: block.attachment }], align: 'start' })}
+              {renderImages({ images: [{ attachment: block.attachment }], align: 'start', layout: 'gallery' })}
             </div>
           )
           : block.content !== ''

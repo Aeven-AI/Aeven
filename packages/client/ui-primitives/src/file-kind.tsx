@@ -3,9 +3,9 @@ import type { ReactNode } from 'react'
 import {
   IconLucideFile, IconLucideFileArchive, IconLucideFileBraces, IconLucideFileCode, IconLucideFileImage,
   IconLucideFileText,
-} from '@aeven/client-ui-primitives'
+} from './icons/index.tsx'
 
-/** How the explorer shows a file. */
+/** A file's kind as its name classifies it: the glyph it carries and the viewer that shows it. */
 export type FileKind = 'code' | 'data' | 'markdown' | 'text' | 'image' | 'archive' | 'other'
 
 const CODE = new Set([
@@ -36,7 +36,7 @@ export function extensionOf(name: string): string {
 /**
  * Classify a file by its name.
  * @param name - the file's basename.
- * @returns the kind the explorer shows it as.
+ * @returns the file's kind.
  */
 export function fileKindOf(name: string): FileKind {
   const extension = extensionOf(name)
@@ -50,7 +50,7 @@ export function fileKindOf(name: string): FileKind {
 }
 
 /**
- * The lucide glyph a file's row and pill carry.
+ * The lucide glyph that stands for a file wherever it is listed.
  * @param name - the file's basename.
  * @returns the glyph element.
  */

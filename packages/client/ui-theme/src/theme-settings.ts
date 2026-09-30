@@ -27,7 +27,7 @@ export const FONT_SIZE_MIN = 12
 export const FONT_SIZE_MAX = 17
 
 /** Content font size when the user-settings document has no override (px).
- *  16px matches the Aeven design-system body scale (16px/30px, 450). */
+ *  16px matches the Aeven design-system body scale (16px/30px, 400). */
 export const DEFAULT_FONT_SIZE = 16
 
 /**

@@ -8,12 +8,26 @@
   top: 50%;
   /* Above the composer seat (7) and the fade band it paints above itself: a
      tall draft grows the seat upward, and the rail must stay whole over it.
-     Above the conversation width handles (8) too: at the widest column the
-     right handle fills the same 24px edge band, and inside the rail's own
+     Above the conversation width handles (8) too: a column that reaches into
+     the rail's band puts its right handle there, and inside the rail's own
      band the rail takes the pointer. */
   z-index: 9;
   float: right;
+  /* The gap between the transcript column and the scroller's edge. `100%` is
+     `.scroll`'s content box, the same basis `.column` resolves the shared
+     width against, so this tracks a dragged width and a resize without JS.
+     The slot is a query container over that gap alone: containing only the
+     rail keeps the recalculation off the transcript. */
+  width: calc(
+    var(--avn-composer-side-clearance, 0px)
+    + max(0px, (100% - var(--avn-chat-content-width, 100%)) / 2)
+  );
   height: 0;
+  container: avn-turn-rail / inline-size;
+  /* Right-aligned; a rail wider than the gap overflows into the column, not
+     past the scroller's edge. */
+  display: flex;
+  justify-content: flex-end;
   /* Out through the transcript's side inset to the scroller's own edge, so the
      pointer column reaches the window edge and the ticks' 24px is measured
      from it. */
@@ -28,6 +42,7 @@
 .rail {
   --avn-turn-edge: 24px;
   position: relative;
+  flex: none;
   width: calc(var(--avn-turn-edge) + 12px + 24px);
   height: var(--avn-turn-band);
   transform: translateY(-50%);
@@ -111,7 +126,8 @@
   /* 12px left of the widest line: the column's 24px left slack less 12px. */
   right: calc(100% - 12px);
   box-sizing: border-box;
-  width: min(300px, calc(100cqw - 120px));
+  /* `vw`, not `cqw`: the nearest container is the slot's gap. */
+  width: min(300px, calc(100vw - 120px));
   overflow: hidden;
   padding: 16px;
   border: 0;
@@ -146,19 +162,19 @@
 .previewPrompt {
   font: var(--dsw-font-s-14);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 20px;
   -webkit-line-clamp: 1;
 }
 
-/* Body weight (450), one step under the prompt's 500: the answer is the same
-   size as the prompt and told apart by weight and colour. */
+/* Body weight (400), same as the prompt: the answer is the same size and
+   told apart by colour. */
 .previewResponse {
   margin-top: 4px;
   color: var(--dsw-alias-label-caption, rgb(0 0 0 / 60%));
   font: var(--dsw-font-s-14);
   font-size: 14px;
-  font-weight: 450;
+  font-weight: 400;
   line-height: 20px;
   -webkit-line-clamp: 3;
 }
@@ -168,10 +184,11 @@
   to { opacity: 1; transform: translateY(-50%) translateX(0); }
 }
 
-/* The rail is a pointer affordance over a fixed band; a narrow column has no
-   room for it beside the transcript. */
-@media (width <= 1100px) {
-  .slot {
+/* The ticks need their 24px edge plus 16px clear of the column; a narrower gap
+   would draw them over the transcript. Tracks `--avn-turn-edge`, which a
+   container condition cannot read. */
+@container avn-turn-rail (width < 40px) {
+  .rail {
     display: none;
   }
 }

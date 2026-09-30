@@ -20,7 +20,9 @@ const workspaceId = z.string().transform(value => value as WorkspaceId)
  * record names an existing directory through its `fs.realpath` canon, while
  * `virtual` and `remote` records have no local directory at all and must omit
  * `path`. `sessionIds` is the ordered ownership account (array order is
- * display order); timestamps are ISO-8601 strings.
+ * display order); timestamps are ISO-8601 strings. `owner` is the account id of
+ * the signed-in user who created the workspace; a workspace records none when
+ * created where nobody is signed in.
  *
  * `kind` defaults to `'folder'` so every record written before the field
  * existed parses unchanged — those deployments only ever created directory
@@ -30,6 +32,7 @@ export const workspaceRecord = z.object({
   kind: z.enum(['folder', 'virtual', 'remote']).default('folder'),
   path: z.string().optional(),
   title: z.string(),
+  owner: z.string().optional(),
   sessionIds: z.array(z.string().transform(value => brandString<SessionId>(value))),
   createdAt: z.string(),
   updatedAt: z.string(),

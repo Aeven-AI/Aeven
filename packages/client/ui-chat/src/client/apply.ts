@@ -184,6 +184,12 @@ export function apply(ctx: Context): void {
             if (conversation === undefined) throw new Error(`ui-chat: session "${sessionId}" has no conversation service`)
             await conversation.updateQueue(itemId, action)
           },
+          editMessage: async (seq, text) => {
+            const session = ctx.sessions.binding(sessionId)?.session
+            if (session === undefined) throw new Error(`ui-chat: session "${sessionId}" resolved no binding`)
+            const result = await session.edit(seq, text)
+            if (!result.ok) throw new Error(`ui-chat: edit failed: ${result.error.code}: ${result.error.message}`)
+          },
           notifyError: (text) => {
             const actx = ctx.sessions.scope(sessionId)
             actx?.get('conversation')?.input.for(actx).notify('error', text)

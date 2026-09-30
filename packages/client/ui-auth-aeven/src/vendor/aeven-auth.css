@@ -8,7 +8,7 @@
  */
 /* responsive sizes */
 /* main vars */
-/* Book: the variable cut renders 450 as a real instance, not a synthesised one. */
+/* Book: the variable cut renders 400 as a real instance, not a synthesised one. */
 /* Type scale. The ~2.7:1 top-to-bottom margin ratio ties a heading to the
    section it introduces instead of letting it float between two blocks. */
 /* Cells wrap now, so this is real leading inside a cell, not just row height:
@@ -698,7 +698,7 @@ body {
   font-size: 1rem;
   font-family:
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
-  font-weight: 450;
+  font-weight: 400;
   color: #000000;
   line-height: 30px;
   letter-spacing: normal;
@@ -898,7 +898,7 @@ body .content-block blockquote p {
   font-family:
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   font-size: 16px;
-  font-weight: 450;
+  font-weight: 400;
   letter-spacing: 0px;
 }
 body .content-block blockquote h1 {
@@ -985,7 +985,7 @@ body .content-block img {
 }
 body .content-block code {
   font-size: 14px;
-  font-weight: 450;
+  font-weight: 400;
   letter-spacing: normal;
   padding-left: 6px;
   padding-right: 6px;
@@ -1102,7 +1102,7 @@ body
   align-items: center;
   color: rgb(80, 80, 80);
   font-size: 12px;
-  font-weight: 450;
+  font-weight: 400;
   line-height: 16px;
   text-transform: capitalize;
 }
@@ -1683,7 +1683,7 @@ body
   white-space: nowrap;
   color: rgb(80, 80, 80);
   font-size: 12px;
-  font-weight: 450;
+  font-weight: 400;
   line-height: 16px;
 }
 body
@@ -2643,7 +2643,7 @@ body
   align-items: center;
   color: rgb(80, 80, 80);
   font-size: 12px;
-  font-weight: 450;
+  font-weight: 400;
   line-height: 16px;
   text-transform: capitalize;
 }
@@ -2889,7 +2889,7 @@ body
   padding-top: 8px;
   padding-right: 16px;
   font-size: 14px;
-  font-weight: 450;
+  font-weight: 400;
   letter-spacing: normal;
   color: rgb(205, 205, 205);
   line-height: 24px;
@@ -2955,7 +2955,7 @@ body
   padding-bottom: 0px;
   border-radius: 0px;
   font-size: 14px;
-  font-weight: 450;
+  font-weight: 400;
   letter-spacing: normal;
   color: rgb(105, 105, 105);
   line-height: 24px;
@@ -3286,7 +3286,7 @@ body .mermaid-render-sandbox {
   line-height: 40px;
   padding-left: 12px;
   padding-right: 12px;
-  font-weight: 450;
+  font-weight: 400;
   white-space: nowrap;
   letter-spacing: normal;
   text-overflow: ellipsis;
@@ -3300,7 +3300,7 @@ body .mermaid-render-sandbox {
   color: #000000;
   outline: none;
   appearance: none;
-  font-weight: 450;
+  font-weight: 400;
   font-size: 0.875rem;
   letter-spacing: normal;
 }
@@ -3445,7 +3445,7 @@ body .mermaid-render-sandbox {
   user-select: none;
   color: #000;
   font-size: 18px;
-  font-weight: 450;
+  font-weight: 400;
   letter-spacing: normal;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -3582,7 +3582,7 @@ body .mermaid-render-sandbox {
   height: 40px;
   line-height: 40px;
   border-radius: 8px !important;
-  font-weight: 450;
+  font-weight: 400;
   white-space: nowrap;
   letter-spacing: normal;
   text-overflow: ellipsis;
@@ -3596,7 +3596,7 @@ body .mermaid-render-sandbox {
   color: #000000;
   outline: none;
   appearance: none;
-  font-weight: 450;
+  font-weight: 400;
   font-size: 0.875rem;
   letter-spacing: normal;
   background-color: #fff;
@@ -3656,7 +3656,7 @@ body .mermaid-render-sandbox {
   height: 50px;
   line-height: 50px;
   font-size: 18px;
-  font-weight: 450;
+  font-weight: 400;
   white-space: nowrap;
   letter-spacing: normal;
   text-overflow: ellipsis;
@@ -3812,7 +3812,7 @@ body .mermaid-render-sandbox {
   height: 50px;
   line-height: 50px;
   font-size: 18px;
-  font-weight: 450;
+  font-weight: 400;
   white-space: nowrap;
   letter-spacing: normal;
   text-overflow: ellipsis;
@@ -3925,7 +3925,7 @@ body .mermaid-render-sandbox {
   user-select: none;
   color: #000;
   font-size: 18px;
-  font-weight: 450;
+  font-weight: 400;
   letter-spacing: normal;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -4031,7 +4031,7 @@ body .mermaid-render-sandbox {
   user-select: none;
   color: #000000;
   font-size: 0.875rem;
-  font-weight: 450;
+  font-weight: 400;
   letter-spacing: normal;
   white-space: nowrap;
   font-family: "Google Sans Flex", sans-serif;
@@ -4154,7 +4154,7 @@ body .mermaid-render-sandbox {
   line-height: 50px;
   color: #fff;
   font-size: 18px;
-  font-weight: 450;
+  font-weight: 400;
   letter-spacing: normal;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -4181,7 +4181,7 @@ body .mermaid-render-sandbox {
   color: #fff;
   opacity: 0.3;
   font-size: 18px;
-  font-weight: 450;
+  font-weight: 400;
   letter-spacing: normal;
   white-space: nowrap;
   flex-shrink: 0;
@@ -4330,7 +4330,7 @@ body .mermaid-render-sandbox {
   padding-right: 16px;
   line-height: 28px;
   color: #000000;
-  font-weight: 450;
+  font-weight: 400;
   font-size: 16px;
 }
 @media screen and (max-width: 640px) {
@@ -4458,7 +4458,7 @@ body .mermaid-render-sandbox {
   flex-grow: 1;
   color: #000;
   font-size: 0.875rem;
-  font-weight: 450;
+  font-weight: 400;
   letter-spacing: normal;
   white-space: nowrap;
   font-family:
@@ -4543,7 +4543,7 @@ body .mermaid-render-sandbox {
   line-height: 40px;
   color: #fff;
   font-size: 0.875rem;
-  font-weight: 450;
+  font-weight: 400;
   letter-spacing: normal;
   white-space: nowrap;
   font-family: "Google Sans Flex", sans-serif;
@@ -4680,7 +4680,7 @@ body .mermaid-render-sandbox {
   color: #fff;
   font-size: 0.875rem;
   padding-left: 6px;
-  font-weight: 450;
+  font-weight: 400;
   letter-spacing: normal;
   white-space: nowrap;
   font-family: "Google Sans Flex", sans-serif;
@@ -4853,7 +4853,7 @@ body .mermaid-render-sandbox {
   height: 40px;
   line-height: 40px;
   text-align: left;
-  font-weight: 450;
+  font-weight: 400;
   letter-spacing: normal;
   letter-spacing: 0px;
   white-space: nowrap;
@@ -4924,7 +4924,7 @@ body .mermaid-render-sandbox {
   text-align: left;
   color: #fff;
   background-color: #000000;
-  font-weight: 450;
+  font-weight: 400;
   letter-spacing: normal;
   letter-spacing: 0px;
   white-space: nowrap;
@@ -5240,6 +5240,148 @@ body .mermaid-render-sandbox {
   width: 100%;
   height: 100%;
   flex-direction: row;
+}
+/* The band every authentication screen carries. It is the application header's
+   own row — 56px at the page inset — pinned over the view, so the seat holds
+   either the way back to the list or the brand mark without shifting the form. */
+#app-root .view-container .authenticate.view .main-content .auth-header {
+  display: flex;
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 56px;
+  align-items: center;
+  box-sizing: border-box;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+/* The scrim the form scrolls under on a viewport too short to hold it, so a
+   label on its way past meets the canvas again instead of the control. It is
+   the canvas's own colour at the top edge, so it is invisible wherever the
+   form has not scrolled.
+
+   It stops at the form's own column, as the form does: over the graphics
+   panel's black field the canvas tone would read as a haze rather than a
+   fade. */
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .auth-header::before {
+  content: "";
+  display: block;
+  position: absolute;
+  top: 0px;
+  right: 50%;
+  left: 0px;
+  height: 56px;
+  background: linear-gradient(
+    180deg,
+    rgb(242, 242, 242) 0px,
+    rgba(242, 242, 242, 0) 56px
+  );
+  pointer-events: none;
+}
+@media screen and (max-width: 1024px) {
+  #app-root
+    .view-container
+    .authenticate.view
+    .main-content
+    .auth-header::before {
+    right: 0px;
+  }
+}
+/* The back control: the application header's 30px circle, filled so its glyph
+   reads over the canvas this screen paints whatever the reader's theme is. */
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .auth-header
+  .auth-back {
+  display: grid;
+  position: relative;
+  z-index: 1;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0px;
+  border: none;
+  border-radius: 15px;
+  background: #000000;
+  color: #ffffff;
+  cursor: pointer;
+}
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .auth-header
+  .auth-back:focus-visible {
+  outline: 2px solid #000000;
+  outline-offset: 2px;
+}
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .auth-header
+  .auth-back
+  .auth-back-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+/* The brand seat on a screen with no way back: the back control's own circle,
+   holding the monogram where that control holds its arrow. */
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .auth-header
+  .auth-mark {
+  display: grid;
+  position: relative;
+  z-index: 1;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 15px;
+  background: #000000;
+  color: #ffffff;
+}
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .auth-header
+  .auth-mark
+  .auth-mark-icon {
+  display: block;
+  width: 18px;
+  height: auto;
+}
+@media screen and (max-width: 640px) {
+  #app-root .view-container .authenticate.view .main-content .auth-header {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+/* The desktop shell insets its window controls over the page's top-left, on this
+   band's own row (desktop main.ts `trafficLightPosition`): the seat stands one
+   page inset past their gutter, which is the line the shell's own headers put
+   their leading control on. 108px is `--dsw-aeven-window-controls-gutter` plus
+   `--dsw-aeven-page-inset`, restated because these screens render before the
+   token sheet loads; ui-theme's aeven-language-styles spec holds the two equal. */
+html[data-avn-desktop]
+  #app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .auth-header {
+  padding-left: 108px;
 }
 #app-root
   .view-container

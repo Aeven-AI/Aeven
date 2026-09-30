@@ -52,17 +52,19 @@ export function apply(ctx: ClientContext): void {
   const fullscreen = new SurfaceFullscreen()
 
   // The body is a single-occupant slot, so the selection waits for the shell to
-  // declare it rather than racing the panel's own registration.
-  ctx.slots.inject('sidebar.right.body', () =>
-    ctx.slots.register({
-      name: 'sidebar.right.body',
-      locale: NS,
-      // Resolved per render rather than captured: `ctx.plugin` publishes the
-      // registry, and the same published instance is what a provider reaches
-      // through `ctx.get`. A copy held here would leave the two sides
-      // registering into different maps.
-      inject: (): ContentSelectInjected => ({ registry: ctx.get('sidebarContent')!, fullscreen, openRightbar: (sessionId) => { ctx.layout.openRightbar(sessionId) } }),
-    }, ContentSelect))
+  // declare it rather than racing the panel's own registration. It also waits
+  // for `ctx.plugin` to publish the registry, which lands after this apply
+  // returns; the body renders only while that published instance, the one
+  // providers register into, exists.
+  ctx.inject(['sidebarContent'], (scoped) => {
+    const registry = scoped.sidebarContent
+    scoped.slots.inject('sidebar.right.body', () =>
+      scoped.slots.register({
+        name: 'sidebar.right.body',
+        locale: NS,
+        inject: (): ContentSelectInjected => ({ registry, fullscreen, openRightbar: (sessionId) => { scoped.layout.openRightbar(sessionId) } }),
+      }, ContentSelect))
+  })
 
   // Ahead of the right sidebar's own toggle (order 90) in the frame's corner.
   ctx.slots.inject('shell.corner', () =>

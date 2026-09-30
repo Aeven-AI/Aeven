@@ -105,6 +105,23 @@ export const SEED_STORE_PACKAGE_RULES: readonly SeedStorePackageRule[] = [
     reason: 'Only the Windows postinstall copies ConPTY from `third_party/conpty`.',
     remove: target => target.platform === 'win32' ? [] : ['third_party/'],
   },
+  {
+    name: 'onnxruntime-node',
+    version: '1.24.3',
+    reason: 'The binding loads `bin/napi-v6/<platform>/<arch>/` for the running Host only; the package ships every platform\'s runtime.',
+    remove: (target) => {
+      const all = { darwin: ['arm64'], linux: ['arm64', 'x64'], win32: ['arm64', 'x64'] } as const
+      return Object.entries(all).flatMap(([platform, archs]) => archs
+        .filter(arch => platform !== target.platform || arch !== target.arch)
+        .map(arch => `bin/napi-v6/${platform}/${arch}/`))
+    },
+  },
+  {
+    name: 'onnxruntime-web',
+    version: '1.26.0-dev.20260416-b7804b056c',
+    reason: '@huggingface/transformers 4.2.0 inlines its WebAssembly runtime into `transformers.node.mjs` and runs inference through onnxruntime-node in the Host; no Desktop code path imports this package\'s `dist/`.',
+    remove: () => ['dist/'],
+  },
 ]
 
 function parsePackageId(key: string): { name: string; version: string } | undefined {

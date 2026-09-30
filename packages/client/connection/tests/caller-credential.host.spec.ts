@@ -9,21 +9,28 @@ import type { ConnectionTrustRequest } from '../src/rpc.ts'
 
 const SESSION = credentialRef('AEVEN_TOKEN')
 
-/** One publication: the reference named and the bearer that request presented. */
-type Publication = readonly [CredentialRef, string | undefined]
+/** One publication: the reference named, the caller it belongs to, and the bearer that request presented. */
+type Publication = readonly [CredentialRef, string, string | undefined]
 
-/** Authority double that names one reference, as an authority recognizing the request does. */
+/** Authority double that names one reference and reads the caller from the bearer, as an authority recognizing the request does. */
 const recognizing = (ref: CredentialRef): IdentityUsers =>
-  ({ credentialRefFor: () => ref }) as unknown as IdentityUsers
+  ({
+    credentialRefFor: () => ref,
+    resolve: (request: ConnectionTrustRequest) => {
+      const headers = request.headers
+      const authorization = headers instanceof Headers ? headers.get('authorization') : headers.authorization
+      return { id: `user-of:${String(authorization).trim().split(/\s+/u)[1]}` }
+    },
+  }) as unknown as IdentityUsers
 
 /** Authority double that recognizes nobody, as a launch-token composition does. */
 const unrecognizing = (): IdentityUsers =>
-  ({ credentialRefFor: () => undefined }) as unknown as IdentityUsers
+  ({ credentialRefFor: () => undefined, resolve: () => undefined }) as unknown as IdentityUsers
 
 /** Credential provider double recording every session publication it is handed. */
 function recording(published: Publication[]): CredentialProvider {
   return {
-    setSession: (ref: CredentialRef, value: string | undefined) => { published.push([ref, value]) },
+    setSession: (ref: CredentialRef, user: string, value: string | undefined) => { published.push([ref, user, value]) },
   } as unknown as CredentialProvider
 }
 
@@ -63,7 +70,7 @@ describe('connection caller-credential publication', () => {
 
     connection.publishCallerCredential(nodeRequest('Bearer token-a'))
 
-    expect(published).toEqual([[SESSION, 'token-a']])
+    expect(published).toEqual([[SESSION, 'user-of:token-a', 'token-a']])
     await dispose()
   })
 
@@ -79,7 +86,7 @@ describe('connection caller-credential publication', () => {
     connection.publishCallerCredential(nodeRequest('Bearer first'))
     connection.publishCallerCredential(nodeRequest('Bearer rotated'))
 
-    expect(published).toEqual([[SESSION, 'first'], [SESSION, 'rotated']])
+    expect(published).toEqual([[SESSION, 'user-of:first', 'first'], [SESSION, 'user-of:rotated', 'rotated']])
     await dispose()
   })
 
@@ -95,7 +102,7 @@ describe('connection caller-credential publication', () => {
     connection.publishCallerCredential(fetchRequest('BEARER token-b'))
     connection.publishCallerCredential(fetchRequest('bearer   padded  '))
 
-    expect(published).toEqual([[SESSION, 'token-b'], [SESSION, 'padded']])
+    expect(published).toEqual([[SESSION, 'user-of:token-b', 'token-b'], [SESSION, 'user-of:padded', 'padded']])
     await dispose()
   })
 

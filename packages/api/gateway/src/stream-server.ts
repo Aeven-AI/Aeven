@@ -17,6 +17,9 @@ export type RemoteStreamOpener = (
   signal: AbortSignal,
 ) => Promise<AsyncIterable<unknown>>
 
+/** Run one stream's dispatch with a connection's user as the acting user. */
+export type RemoteStreamCallerScope = <T>(user: User | undefined, work: () => T) => T
+
 /** Convert an invocation or carrier failure to a stable wire value. */
 export type RemoteStreamFailureMapper = (error: unknown) => RemoteStreamFailure
 
@@ -48,11 +51,13 @@ export class RemoteStreamMuxServer {
    * @param open - Gateway stream dispatcher.
    * @param failure - Gateway error-to-wire mapper.
    * @param heartbeatIntervalMs - interval between WebSocket Ping control frames.
+   * @param runAs - runs each stream's dispatch as the user its connection authenticated.
    */
   constructor(
     private readonly open: RemoteStreamOpener,
     private readonly failure: RemoteStreamFailureMapper,
     private readonly heartbeatIntervalMs: number,
+    private readonly runAs: RemoteStreamCallerScope = (_user, work) => work(),
   ) {}
 
   /**
@@ -71,7 +76,7 @@ export class RemoteStreamMuxServer {
       this.missedHeartbeats.set(websocket, 0)
       websocket.on('pong', () => { this.missedHeartbeats.set(websocket, 0) })
       this.startHeartbeat()
-      const connection = new RemoteStreamMuxConnection(websocket, this.open, this.failure)
+      const connection = new RemoteStreamMuxConnection(websocket, this.open, this.failure, user, this.runAs)
       const done = connection.run()
       this.connections.add(done)
       void done.then(() => { this.connections.delete(done) })
@@ -128,6 +133,8 @@ class RemoteStreamMuxConnection {
     private readonly socket: WebSocket,
     private readonly open: RemoteStreamOpener,
     private readonly failure: RemoteStreamFailureMapper,
+    private readonly user: User | undefined,
+    private readonly runAs: RemoteStreamCallerScope,
   ) {}
 
   async run(): Promise<void> {
@@ -167,7 +174,9 @@ class RemoteStreamMuxConnection {
       done: Promise.resolve(),
     }
     this.streams.set(message.streamId, active)
-    const done = this.pump(message.streamId, message.endpoint, message.payload, active)
+    // Frames arrive outside any request, so each stream runs as the user its
+    // connection authenticated; per-user checks inside the dispatch see that caller.
+    const done = this.runAs(this.user, () => this.pump(message.streamId, message.endpoint, message.payload, active))
     active.done = done
     const remove = (): void => { this.streams.delete(message.streamId) }
     void done.then(remove, remove)

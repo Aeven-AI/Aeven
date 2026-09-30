@@ -38,7 +38,7 @@
   display: grid;
   flex: none;
   place-items: center;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--dsw-alias-label-primary);
 }
 
 .count {
@@ -89,7 +89,7 @@
 
 .preview {
   overflow: hidden;
-  color: var(--dsw-alias-label-primary-dimmed);
+  color: #000;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -124,7 +124,7 @@
   border: none;
   border-radius: 999px;
   background: transparent;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--dsw-alias-label-primary);
   cursor: pointer;
 }
 

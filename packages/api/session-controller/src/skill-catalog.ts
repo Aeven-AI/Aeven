@@ -8,6 +8,7 @@ import { isUserInvocable } from '@aeven/skill'
 import type { ScopeKey } from '@aeven/scope'
 import { Remote, RemoteError, TypertRemoteService } from '@aeven/typert-protocol'
 import type { SkillListRequest, SkillListValue } from './types.ts'
+import { callerMayAccessSession } from './agent.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -57,6 +58,9 @@ export class SessionSkillCatalog extends TypertRemoteService {
         `session "${sessionId}" could not be inspected: ${String(error)}`,
         {},
       )
+    }
+    if (!callerMayAccessSession(this.ctx, { owner })) {
+      throw new RemoteError('session/not-found', `session "${sessionId}" not found`, { sessionId })
     }
     // No cwd guard: a Session in a workspace with no directory has no project
     // to scan, which is a smaller catalog rather than an error. The registry

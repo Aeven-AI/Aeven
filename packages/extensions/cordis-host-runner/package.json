@@ -49,24 +49,26 @@
     "zod": "^4.4.3"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:^",
     "@aeven/agent": "workspace:^",
     "@aeven/brand": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/scope": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/tools": "workspace:^",
-    "@aeven/typert-protocol": "workspace:^"
+    "@aeven/typert-protocol": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/cordis-plugin-timer": "workspace:^",
     "@aeven/agent": "workspace:^",
     "@aeven/brand": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/scope": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/tools": "workspace:^",
-    "@aeven/typert-protocol": "workspace:^"
+    "@aeven/typert-protocol": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/cordis-plugin-timer": "workspace:^"
   }
 }

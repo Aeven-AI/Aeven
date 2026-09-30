@@ -63,10 +63,82 @@
   word-break: break-word;
 }
 
+/* A message with attachments (the Aeven web client's _Message.scss
+   .message-container): the tile tray and the text share one card that spans
+   the column, with a minimum width of one fifth per tile up to five. */
+.userStack[data-attachments] {
+  max-width: 100%;
+}
+
+.userStack[data-attachments='1'] {
+  min-width: 20%;
+}
+
+.userStack[data-attachments='2'] {
+  min-width: 40%;
+}
+
+.userStack[data-attachments='3'] {
+  min-width: 60%;
+}
+
+.userStack[data-attachments='4'] {
+  min-width: 80%;
+}
+
+.userStack[data-attachments='5'] {
+  min-width: 100%;
+}
+
+@media screen and (max-width: 1024px) {
+  .userStack[data-attachments='1'] {
+    min-width: 33%;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .userStack[data-attachments='1'] {
+    min-width: 50%;
+  }
+
+  .userStack[data-attachments]:not([data-attachments='1']) {
+    min-width: 100%;
+  }
+}
+
+.attachmentCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  align-self: stretch;
+  box-sizing: border-box;
+  max-width: 100%;
+  min-height: 50px;
+  padding: 0 16px;
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-specific-bubble);
+}
+
+.cardText {
+  max-width: 100%;
+  padding: 16px 0;
+  font-size: var(--avn-content-font-size, 14px);
+  line-height: calc(var(--dsw-aeven-reading-line-height) + var(--avn-content-font-delta, 0px));
+  color: var(--dsw-alias-label-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* An attachment-only card keeps the tray's top inset below the tiles. */
+.cardFoot {
+  height: 16px;
+}
+
 /* A queued message waits for the running turn: the bubble dims until the Host
    admits it, and its label and queue controls sit where a sent message's
    clock and copy row sit. */
-.userRow[data-queued] .bubble {
+.userRow[data-queued] .bubble,
+.userRow[data-queued] .attachmentCard {
   opacity: 0.6;
 }
 
@@ -99,19 +171,16 @@
   cursor: pointer;
 }
 
-.queuedAction:not(:disabled):hover {
-  color: var(--dsw-alias-label-primary);
-  background: var(--dsw-alias-interactive-bg-hover);
-}
-
 .queuedAction:disabled {
   cursor: default;
   opacity: 0.4;
 }
 
+/* The queued row carries the same fixed 16px glyph metric as the sent row's
+   own actions, and like them no hover state. */
 .queuedAction svg {
-  width: calc(15px + var(--avn-content-font-delta, 0px));
-  height: calc(15px + var(--avn-content-font-delta, 0px));
+  width: 16px;
+  height: 16px;
 }
 
 .queuedEditor {
@@ -127,6 +196,26 @@
   font-size: var(--avn-content-font-size, 14px);
   line-height: calc(var(--dsw-aeven-reading-line-height) + var(--avn-content-font-delta, 0px));
   resize: vertical;
+  outline: none;
+}
+
+/* A sent prompt under edit: the bubble becomes a text field as wide as the
+   conversation column, starting at the bubble's height (inline min-height)
+   and growing with its lines up to a cap, past which it scrolls. */
+.userStack:has(> .messageEditorInput) {
+  width: 100%;
+  max-width: 100%;
+}
+
+.messageEditorInput {
+  display: block;
+  width: 100%;
+  max-height: 40vh;
+  overflow-y: auto;
+  border: none;
+  font: inherit;
+  font-size: var(--avn-content-font-size, 14px);
+  resize: none;
   outline: none;
 }
 
@@ -212,7 +301,7 @@
   flex: none;
   font-size: var(--avn-content-font-size-secondary, 14px);
   line-height: calc(24px + var(--avn-content-font-delta, 0px));
-  color: var(--dsw-alias-label-primary-dimmed);
+  color: #000;
 }
 
 .compactionSep {

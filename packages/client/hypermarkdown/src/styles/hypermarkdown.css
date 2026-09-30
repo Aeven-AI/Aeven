@@ -23,7 +23,7 @@
 .tippy-box {
   border-radius: 8px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 400;
   font-family: inherit;
   line-height: 1.4;
   color: #fff;
@@ -35,7 +35,7 @@
     position: relative;
     padding: 10px 14px;
     z-index: 1;
-    font-weight: 500;
+    font-weight: 400;
   }
 
   .tippy-arrow {
@@ -416,6 +416,11 @@
     margin-bottom: 56px;
   }
 
+  /* Footnote references and definitions are hash targets; a jump stops below the host's sticky header. */
+  [id^='user-content-fn'] {
+    scroll-margin-top: var(--hm-header-offset);
+  }
+
   sup {
     a[data-footnote-ref] {
       display: inline-flex;
@@ -521,7 +526,7 @@
     p {
       font-family: var(--hm-font);
       font-size: 16px;
-      font-weight: 450;
+      font-weight: 400;
       letter-spacing: 0px;
     }
 
@@ -599,27 +604,20 @@
     height: auto;
   }
 
-  code {
-    font-size: var(--hm-code-size);
-    font-weight: 450;
+  code:not(pre code) {
+    font-size: var(--hm-size-small);
+    font-weight: 400;
 
     letter-spacing: -0.1px;
 
-    padding-left: 6px;
-    padding-right: 6px;
-    padding-top: 2px;
-    padding-bottom: 2px;
+    padding: 1px 6px;
 
-    border-radius: 8px;
+    border-radius: 16px;
 
     font-family: var(--hm-font-mono);
 
     color: rgb(100, 100, 100);
-    background-color: rgb(235, 235, 235);
-
-    @media screen and (max-width: 640px) {
-      font-size: var(--hm-code-size-mobile);
-    }
+    background-color: #f2f2f2;
   }
 
   a[data-animate-word="true"],
@@ -727,7 +725,7 @@
 
               color: var(--hm-toolbar-color);
               font-size: var(--hm-size-small);
-              font-weight: 450;
+              font-weight: 400;
 
               line-height: 16px;
 
@@ -946,6 +944,8 @@
         }
 
         table {
+          flex-shrink: 0;
+          width: max-content;
           min-width: 100%;
           color: var(--hm-table-color);
           font-size: var(--hm-code-size);
@@ -962,31 +962,20 @@
             font-weight: 600;
           }
 
-          code {
-            font-size: var(--hm-size-small);
-
-            padding-left: 5px;
-            padding-right: 5px;
-
-            padding-top: 1px;
-            padding-bottom: 1px;
-
-            border-radius: 6px;
+          th,
+          td {
+            box-sizing: content-box;
+            max-width: 32ch;
+            vertical-align: top;
+            white-space: normal;
+            overflow-wrap: break-word;
           }
 
           th {
             font-weight: 600;
-            vertical-align: baseline;
-            white-space: nowrap;
 
             border-top: 1px solid var(--hm-table-header-color);
             border-bottom: 1px solid var(--hm-table-header-color);
-          }
-
-          td {
-            vertical-align: baseline;
-            /* min-width: 400px; */
-            white-space: nowrap;
           }
 
           td + td {
@@ -1227,7 +1216,7 @@
 
               color: var(--hm-toolbar-color);
               font-size: var(--hm-size-small);
-              font-weight: 450;
+              font-weight: 400;
 
               line-height: 16px;
             }
@@ -1616,6 +1605,8 @@
         }
 
         table {
+          flex-shrink: 0;
+          width: max-content;
           min-width: 100%;
           color: var(--hm-table-color);
           font-size: var(--hm-code-size);
@@ -1632,31 +1623,20 @@
             font-weight: 600;
           }
 
-          code {
-            font-size: var(--hm-size-small);
-
-            padding-left: 5px;
-            padding-right: 5px;
-
-            padding-top: 1px;
-            padding-bottom: 1px;
-
-            border-radius: 6px;
+          th,
+          td {
+            box-sizing: content-box;
+            max-width: 32ch;
+            vertical-align: top;
+            white-space: normal;
+            overflow-wrap: break-word;
           }
 
           th {
             font-weight: 600;
-            vertical-align: baseline;
-            white-space: nowrap;
 
             border-top: 1px solid var(--hm-table-header-color);
             border-bottom: 1px solid var(--hm-table-header-color);
-          }
-
-          td {
-            vertical-align: baseline;
-            /* min-width: 400px; */
-            white-space: nowrap;
           }
 
           td + td {
@@ -2061,7 +2041,7 @@
 
               color: var(--hm-toolbar-color);
               font-size: var(--hm-size-small);
-              font-weight: 450;
+              font-weight: 400;
 
               line-height: 16px;
 
@@ -2257,7 +2237,7 @@
             padding-right: 16px;
 
             font-size: var(--hm-code-size);
-            font-weight: 450;
+            font-weight: 400;
             letter-spacing: var(--hm-code-tracking);
 
             color: var(--hm-line-number-color);
@@ -2300,7 +2280,7 @@
               border-radius: 0px;
 
               font-size: var(--hm-code-size);
-              font-weight: 450;
+              font-weight: 400;
               letter-spacing: var(--hm-code-tracking);
 
               color: var(--hm-code-color);
@@ -2543,7 +2523,7 @@
   .hljs-section,
   .hljs-title {
     color: rgb(170, 100, 130);
-    font-weight: 450;
+    font-weight: 400;
   }
 
   .hljs-string,
@@ -2568,13 +2548,13 @@
   }
 
   .hljs-doctag {
-    font-weight: 450;
+    font-weight: 400;
   }
 
   .hljs-type,
   .hljs-class .hljs-title {
     color: rgb(170, 100, 130);
-    font-weight: 450;
+    font-weight: 400;
   }
 
   .hljs-tag,
@@ -2582,7 +2562,7 @@
   .hljs-selector-id,
   .hljs-selector-class {
     color: rgb(130, 130, 130);
-    font-weight: 450;
+    font-weight: 400;
   }
 
   .hljs-subst {
@@ -2608,7 +2588,7 @@
   }
 
   .hljs-strong {
-    font-weight: 450;
+    font-weight: 400;
   }
 }
 

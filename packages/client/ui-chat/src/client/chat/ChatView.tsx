@@ -187,7 +187,7 @@ const ChatNodeList = memo(function ChatNodeList({ order, ...seatProps }: ChatNod
 export function ChatView({
   useSession, useChat, useChatNode, useChatNodeProcess, useSessions, useStore, actions, renderSlot,
   sessionId, openFile, loadOlder, loadNewer, returnToLive, loadThrough, navigateToEvent, completeEventNavigation, loadImage, openView,
-  chatScroll, forkAt, fileMentions, onFullscreenChange, updateQueue, notifyError, useTranscriptView, useTextAnimationPreference,
+  chatScroll, forkAt, editMessage, fileMentions, onFullscreenChange, updateQueue, notifyError, useTranscriptView, useTextAnimationPreference,
   useEventNavigation, useProjection, t,
 }: ChatViewSlotProps) {
   const order = useChat(s => s.order)
@@ -620,23 +620,44 @@ export function ChatView({
   }
   const scrollDown = useCallback(() => { followRef.current?.() }, [])
 
-  // Back-to-bottom visibility. `rootMargin` extends the scrollport's floor by
-  // the follow threshold, so the control disappears on exactly the margin that
-  // re-arms following. Browsers without IntersectionObserver keep the control
-  // hidden: the transcript follows its tail there as it always has, and a
-  // missing affordance beats one that never clears.
+  // Back-to-bottom visibility. At the scroll floor the sentinel sits above the
+  // scrollport's bottom edge by the list's bottom padding plus the sticky
+  // composer seat. `rootMargin` raises the root's floor to that line and then
+  // extends it by the follow threshold, so the control disappears on exactly
+  // the margin that re-arms following. The inset is re-measured when the seat
+  // or the list's padded box resizes, and the observer is rebuilt only when it
+  // moves. Browsers without IntersectionObserver keep the control hidden: the
+  // transcript follows its tail there as it always has, and a missing
+  // affordance beats one that never clears.
   useEffect(() => {
     const sentinel = floorSentinelRef.current
     const local = listRef.current
     if (sentinel === null || local === null || typeof IntersectionObserver === 'undefined') return
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry !== undefined) setShowToBottom(!entry.isIntersecting)
-      },
-      { root: scrollerOf(local), rootMargin: `0px 0px ${String(FOLLOW_THRESHOLD)}px 0px` },
-    )
-    observer.observe(sentinel)
-    return () => { observer.disconnect() }
+    const scrollport = scrollerOf(local)
+    let observer: IntersectionObserver | null = null
+    let floorInset: number | null = null
+    const observeFloor = () => {
+      const inset = scrollport.scrollHeight - (flowTop(sentinel, scrollport) + scrollport.scrollTop)
+      if (floorInset !== null && Math.abs(floorInset - inset) <= 0.5) return
+      floorInset = inset
+      observer?.disconnect()
+      observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry !== undefined) setShowToBottom(!entry.isIntersecting)
+        },
+        { root: scrollport, rootMargin: `0px 0px ${String(FOLLOW_THRESHOLD - inset)}px 0px` },
+      )
+      observer.observe(sentinel)
+    }
+    observeFloor()
+    const seat = scrollport.querySelector<HTMLElement>('[data-composer-seat]')
+    const resize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(observeFloor)
+    resize?.observe(local, { box: 'border-box' })
+    if (seat !== null) resize?.observe(seat)
+    return () => {
+      resize?.disconnect()
+      observer?.disconnect()
+    }
   }, [])
   // Streaming, tool disclosures, and other flow changes resize the column;
   // the composer resizes beside it. This observer owns ChatView's
@@ -1098,6 +1119,7 @@ export function ChatView({
               openFile={requestOpenFile}
               inspectCall={inspectCall}
               forkAt={forkAt}
+              editMessage={queueMutable ? editMessage : undefined}
               renderMessageImages={renderMessageImages}
               fileMentions={fileMentions}
               scrollDown={scrollDown}

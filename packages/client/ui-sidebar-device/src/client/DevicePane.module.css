@@ -1,6 +1,7 @@
 /* The device pane: a control row over either the device list or the live
-   screen, with the tools drawer docked beside the screen. Raised controls use
-   the explorer's glass recipe (ui-sidebar-files FilesPane.module.css). */
+   screen, with the tools drawer docked beside the screen. Rows follow the left
+   menu's geometry; raised surfaces use the explorer's glass recipe
+   (ui-sidebar-files FilesPane.module.css). */
 
 .root {
   --device-glass-edge:
@@ -12,6 +13,7 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+  position: relative;
   color: var(--dsw-alias-label-primary);
   font-size: 14px;
   line-height: 20px;
@@ -20,29 +22,41 @@
 
 /* ── control row ─────────────────────────────────────────────────────────── */
 
+/* 40px, the left menu's row height; its 30px controls centre in it. */
 .toolbar {
   display: flex;
   flex: none;
   align-items: center;
   gap: 4px;
-  min-height: 30px;
-  padding: 4px 24px 10px;
+  height: 40px;
+  padding: 0 24px;
 }
 
 .caption {
+  display: flex;
   flex: 1 1 auto;
+  align-items: baseline;
+  gap: 8px;
   min-width: 0;
   overflow: hidden;
-  color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
-  line-height: 16px;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .captionName {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
   color: var(--dsw-alias-label-primary);
-  font-weight: 500;
+  text-overflow: ellipsis;
+}
+
+.captionMeta {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  text-overflow: ellipsis;
 }
 
 .iconButton {
@@ -81,57 +95,89 @@
   color: var(--dsw-alias-state-error-primary);
 }
 
-/* ── notices ─────────────────────────────────────────────────────────────── */
+/* ── toasts ──────────────────────────────────────────────────────────────── */
 
-.notice,
-.alert {
+/* Status and errors float over the pane's foot, out of the layout flow. */
+.toasts {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  left: 24px;
+  z-index: 3;
   display: flex;
-  flex: none;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: center;
   gap: 8px;
-  margin: 0 24px 10px;
-  padding: 8px 12px;
-  border-radius: 12px;
-  background: var(--dsw-alias-bg-base);
-  color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
-  line-height: 16px;
-  white-space: pre-line;
-  overflow-wrap: anywhere;
+  pointer-events: none;
 }
 
-.alert {
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 100%;
+  margin: 0;
+  padding: 8px 14px;
+  box-sizing: border-box;
+  border-radius: 18px;
+  background: var(--dsw-alias-bg-layer-1);
+  box-shadow: var(--device-glass-edge), 0 8px 24px rgba(0, 0, 0, 0.1);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  pointer-events: auto;
+  animation: device-fade-in 150ms var(--ds-ease-in-out);
+}
+
+.toast[data-error] {
   color: var(--dsw-alias-state-error-primary);
 }
 
-.alertText {
+.toastText {
   flex: 1 1 auto;
   min-width: 0;
   margin: 0;
 }
 
-.alert .iconButton {
+.toastDismiss {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
   width: 20px;
   height: 20px;
-  margin: -2px -6px -2px 0;
+  margin-right: -6px;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
   color: inherit;
+  cursor: pointer;
 }
 
-.alert .iconButton svg {
-  width: 12px;
-  height: 12px;
+.toastDismiss svg {
+  width: 14px;
+  height: 14px;
+}
+
+@keyframes device-fade-in {
+  from { opacity: 0; }
 }
 
 /* ── device list ─────────────────────────────────────────────────────────── */
 
+/* The left menu's geometry (ui-workspace Rows.module.css): full-width 40px
+   rows with a 24px inset, an 18px leading cell, and an 8px gap, so device
+   names line up under their group's label. */
 .list {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  gap: 20px;
   min-height: 0;
   overflow: auto;
-  padding: 8px 12px 40px;
+  padding: 0 0 40px;
   scrollbar-width: none;
 }
 
@@ -142,44 +188,55 @@
 .group {
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 
-.groupTitle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 6px;
-  padding: 0 12px;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 16px;
-}
-
-.groupTitle svg {
-  width: 14px;
-  height: 14px;
-}
-
+.groupTitle,
 .row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 48px;
-  padding: 6px 12px;
+  gap: 8px;
+  height: var(--dsw-aeven-control-size, 40px);
+  padding: 0 24px;
+  box-sizing: border-box;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  font-weight: inherit;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.groupTitle {
+  margin: 0;
+}
+
+.slot {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+}
+
+.slot svg {
+  width: 18px;
+  height: 18px;
+}
+
+.row {
+  width: 100%;
   border: none;
-  border-radius: 12px;
+  border-radius: 0;
   background: transparent;
-  color: inherit;
-  font: inherit;
+  font-family: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background-color 120ms ease, box-shadow 120ms ease;
+  user-select: none;
+  animation: device-fade-in 150ms var(--ds-ease-in-out);
 }
 
 .row:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-hover);
+  background: transparent;
 }
 
 .row:focus-visible {
@@ -187,63 +244,63 @@
   box-shadow: inset 0 0 0 1.5px var(--dsw-alias-state-business-primary);
 }
 
-.row:disabled {
-  cursor: default;
-  opacity: 0.6;
+/* A running device carries the state dot's success ink; a stopped one a
+   hollow ring in the row's tertiary grey. */
+.stateDot {
+  width: 8px;
+  height: 8px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--dsw-alias-label-tertiary);
+  border-radius: 50%;
 }
 
-.rowGlyph {
-  display: grid;
+.stateDot[data-booted] {
+  border: none;
+  background: var(--dsw-alias-state-success-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dsw-alias-state-success-primary) 16%, transparent);
+}
+
+.rowTitle {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rowMeta {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  text-align: right;
+  text-overflow: ellipsis;
+}
+
+/* The row's action cell has the control row's 30px button box and 16px glyph,
+   so with the same 24px inset each action glyph sits in the refresh button's
+   column. The glyph rests at the left menu's idle strength and comes up to full
+   ink under the pointer or focus. */
+.rowAction {
+  display: inline-flex;
   flex: none;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: var(--dsw-alias-bg-base);
-  color: var(--dsw-alias-label-secondary);
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: var(--dsw-alias-label-primary);
+  opacity: 0.3;
+  transition: opacity 150ms var(--ds-ease-in-out);
 }
 
-.rowGlyph svg {
+.rowAction svg {
   width: 16px;
   height: 16px;
 }
 
-.rowGlyph[data-booted] {
-  color: var(--dsw-alias-state-success-primary);
-}
-
-.rowText {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.rowTitle,
-.rowMeta {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.rowTitle {
-  font-weight: 500;
-}
-
-.rowMeta {
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
-  line-height: 16px;
-}
-
-.rowAction {
-  flex: none;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
-}
-
-.row:hover:not(:disabled) .rowAction {
-  color: var(--dsw-alias-label-primary);
+.row:hover .rowAction,
+.row:focus-visible .rowAction {
+  opacity: 1;
 }
 
 .empty {
@@ -252,106 +309,79 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 14px;
+  gap: 12px;
   padding: 24px;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--dsw-alias-label-tertiary);
   text-align: center;
 }
 
 .empty > svg {
-  width: 24px;
-  height: 24px;
-  opacity: 0.6;
+  width: 18px;
+  height: 18px;
 }
 
 .emptyText {
   max-width: 32ch;
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .hint {
-  margin: 0;
-  padding: 0 12px;
+  margin: 8px 0 0;
+  padding: 0 24px;
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
-  line-height: 16px;
+  line-height: 18px;
 }
 
 /* ── loading ─────────────────────────────────────────────────────────────── */
 
+/* One centred column for every phase: listing, opening, and streaming render
+   it in the same box, so a phase change swaps text without moving anything. */
 .loading {
   display: flex;
   flex: 1 1 auto;
-  align-items: center;
-  justify-content: center;
-  padding: 32px 24px;
-}
-
-.loadingCard {
-  display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 12px;
-  max-width: 280px;
+  min-width: 0;
+  padding: 24px;
   text-align: center;
 }
 
-.loadingGlyph {
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
-  background: var(--dsw-alias-bg-base);
-  box-shadow: var(--device-glass-edge);
-  color: var(--dsw-alias-label-secondary);
+.loadingAlert {
+  width: 18px;
+  height: 18px;
+  color: var(--dsw-alias-state-error-primary);
 }
 
-.loadingGlyph svg {
-  width: 22px;
-  height: 22px;
+.loadingText {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  max-width: 280px;
 }
 
 .loadingName {
   margin: 0;
-  font-weight: 500;
-}
-
-.loadingDescription {
-  margin: -8px 0 0;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .loadingMessage {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   margin: 0;
-  color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
 }
 
 .loadingMessage[data-error] {
   color: var(--dsw-alias-state-error-primary);
-}
-
-.steps {
-  display: flex;
-  gap: 4px;
-  width: 96px;
-}
-
-.step {
-  flex: 1;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--dsw-alias-border-l3);
-}
-
-.step[data-done] {
-  background: var(--dsw-alias-label-secondary);
 }
 
 /* ── stage: the screen and the tools drawer ─────────────────────────────── */
@@ -492,8 +522,9 @@
   flex: none;
   align-items: center;
   gap: 8px;
-  padding: 10px 8px 6px 16px;
-  font-weight: 500;
+  height: 40px;
+  padding: 0 5px 0 16px;
+  font-size: 14px;
 }
 
 .drawerHead .iconButton {
@@ -519,10 +550,9 @@
 .sectionTitle {
   margin: 0;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: inherit;
+  line-height: 18px;
 }
 
 .sectionToggle {
@@ -624,9 +654,9 @@
   align-items: center;
   gap: 4px;
   height: 28px;
-  padding: 0 10px;
+  padding: 0 12px;
   border: none;
-  border-radius: 10px;
+  border-radius: 14px;
   background: var(--dsw-alias-bg-base);
   color: var(--dsw-alias-label-primary);
   font: inherit;
@@ -849,7 +879,7 @@
 .setupSectionTitle {
   margin: 0;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: inherit;
 }
 
 .setupSwitchRow {
@@ -905,7 +935,6 @@
 
 .platformName {
   margin: 0;
-  font-weight: 500;
 }
 
 .platformMessage {

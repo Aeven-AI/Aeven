@@ -73,6 +73,7 @@ describe('beginSubmission', () => {
       mode: 'queue',
       text: '你好',
       images: [{ previewUrl: 'blob:p1', name: 'a.png', width: 4, height: 3 }],
+      files: [],
     })
     expect(session.getSnapshot().promptAttempted).toBe(true)
     expect(session.getSnapshot().pendingSubmissions).toMatchObject([{
@@ -85,10 +86,10 @@ describe('beginSubmission', () => {
 
   it('derives and captures the echo placement from running state and delivery mode', () => {
     const { session } = makeSession()
-    session.beginSubmission({ mode: 'queue', text: '空闲', images: [] })
+    session.beginSubmission({ mode: 'queue', text: '空闲', images: [], files: [] })
     session.handleRunning(true)
-    session.beginSubmission({ mode: 'queue', text: '排队', images: [] })
-    session.beginSubmission({ mode: 'steer', text: '纠偏', images: [] })
+    session.beginSubmission({ mode: 'queue', text: '排队', images: [], files: [] })
+    session.beginSubmission({ mode: 'steer', text: '纠偏', images: [], files: [] })
     session.handleRunning(false)
     expect(session.getSnapshot().pendingSubmissions.map(({ text, placement }) => ({ text, placement }))).toEqual([
       { text: '空闲', placement: 'transcript' },
@@ -104,6 +105,7 @@ describe('beginSubmission', () => {
       mode: 'queue',
       text: '放弃',
       images: [],
+      files: [],
       onRetire: retirement => retirements.push(retirement),
     })
     handle.abandon()
@@ -122,6 +124,7 @@ describe('prompt-coupled retirement', () => {
       mode: 'queue',
       text: '失败的',
       images: [],
+      files: [],
       onRetire: retirement => retirements.push(retirement),
     })
     const result = await session.prompt([{ type: 'text', text: '失败的' }], 'queue', undefined, handle.requestId)
@@ -133,7 +136,7 @@ describe('prompt-coupled retirement', () => {
 
   it('sends the echo identity as the prompt requestId', async () => {
     const { api, session } = makeSession()
-    const handle = session.beginSubmission({ mode: 'queue', text: '带 id', images: [] })
+    const handle = session.beginSubmission({ mode: 'queue', text: '带 id', images: [], files: [] })
     await session.prompt([{ type: 'text', text: '带 id' }], 'queue', undefined, handle.requestId)
     expect(api.callsOf('session.prompt')).toMatchObject([{ requestId: handle.requestId }])
   })
@@ -141,7 +144,7 @@ describe('prompt-coupled retirement', () => {
   it('an unidentified prompt failure leaves registered echoes alone', async () => {
     const { api, session } = makeSession()
     api.onPrompt = () => Promise.resolve(err(new RemoteError('session/agent-busy', '忙', { reason: 'busy' })))
-    session.beginSubmission({ mode: 'queue', text: '还在', images: [] })
+    session.beginSubmission({ mode: 'queue', text: '还在', images: [], files: [] })
     await session.prompt([{ type: 'text', text: '另一个' }], 'queue')
     expect(session.getSnapshot().pendingSubmissions).toHaveLength(1)
   })
@@ -157,6 +160,7 @@ describe('observed retirement', () => {
       mode: 'queue',
       text: '发送',
       images: [{ previewUrl: 'blob:p1' }],
+      files: [],
       onRetire: retirement => retirements.push(retirement),
     })
     const refs = [imageRef('att-1')]
@@ -177,6 +181,7 @@ describe('observed retirement', () => {
       mode: 'queue',
       text: '排队',
       images: [{ previewUrl: 'blob:p1' }],
+      files: [],
       onRetire: retirement => retirements.push(retirement),
     })
     const refs = [imageRef('att-q')]
@@ -190,7 +195,7 @@ describe('observed retirement', () => {
 
   it('a full-window install (reconnect resync) retires echoes observed in the window', async () => {
     const { api, session } = makeSession()
-    const handle = session.beginSubmission({ mode: 'queue', text: '重连', images: [] })
+    const handle = session.beginSubmission({ mode: 'queue', text: '重连', images: [], files: [] })
     api.onHistory = () => Promise.resolve(ok(historyValue([promptEvent(SessionSeq(12), handle.requestId)])))
     await session.open()
     await settleFrames()
@@ -206,6 +211,7 @@ describe('observed retirement', () => {
       mode: 'queue',
       text: '先观察',
       images: [],
+      files: [],
       onRetire: retirement => retirements.push(retirement),
     })
     await api.pushFollow(SID, { type: 'event', event: promptEvent(SessionSeq(0), handle.requestId) as never })
@@ -223,6 +229,7 @@ describe('observed retirement', () => {
       mode: 'queue',
       text: '同一请求',
       images: [],
+      files: [],
       onRetire: retirement => retirements.push(retirement),
     })
     session.handleControlFrame({
@@ -245,7 +252,7 @@ describe('observed retirement', () => {
     const { api, session } = makeSession()
     api.onHistory = () => Promise.resolve(ok(historyValue([])))
     await session.open()
-    const handle = session.beginSubmission({ mode: 'queue', text: '帧', images: [] })
+    const handle = session.beginSubmission({ mode: 'queue', text: '帧', images: [], files: [] })
     await api.pushFollow(SID, { type: 'event', event: promptEvent(SessionSeq(0), handle.requestId) as never })
     expect(session.getSnapshot().pendingSubmissions).toHaveLength(1)
     expect(frames).toHaveLength(1)
@@ -264,12 +271,14 @@ describe('disposal', () => {
       mode: 'queue',
       text: '已观察',
       images: [],
+      files: [],
       onRetire: retirement => retirements.push({ text: '已观察', retirement }),
     })
     session.beginSubmission({
       mode: 'queue',
       text: '未settle',
       images: [],
+      files: [],
       onRetire: retirement => retirements.push({ text: '未settle', retirement }),
     })
     await api.pushFollow(SID, { type: 'event', event: promptEvent(SessionSeq(0), observed.requestId) as never })

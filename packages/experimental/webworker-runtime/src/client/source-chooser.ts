@@ -46,7 +46,7 @@ const CHOOSER_STYLE = `
     margin: 0;
     font-size: 20px;
     line-height: 28px;
-    font-weight: 500;
+    font-weight: 400;
   }
   [data-preview-source-card] > p {
     margin: 8px 0 0;
@@ -66,7 +66,7 @@ const CHOOSER_STYLE = `
     color: #61666b;
     font-size: 14px;
     line-height: 20px;
-    font-weight: 500;
+    font-weight: 400;
   }
   [data-preview-source-option] {
     position: relative;
@@ -105,7 +105,7 @@ const CHOOSER_STYLE = `
     display: block;
     font-size: 14px;
     line-height: 24px;
-    font-weight: 500;
+    font-weight: 400;
   }
   [data-preview-source-option] strong + span {
     display: block;

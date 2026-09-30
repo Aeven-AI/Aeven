@@ -29,12 +29,9 @@ body {
     Arial,
     sans-serif
   );
-  /* Brand base weight. The shipped variable cut renders 450 as a real
-     instance, so text that states no weight reads at 450 instead of the 400 a
-     UA sheet applies. Declarations that do state one still win, and a `font`
-     shorthand that omits it resets to 400 — which is why the theme's composite
-     font tokens carry 450 explicitly. */
-  font-weight: 450;
+  /* Normal weight. A `font` shorthand that omits a weight also resolves to
+     400, so the theme's composite font tokens state it explicitly. */
+  font-weight: 400;
   /* Grayscale antialiasing over subpixel rendering: the unprefixed macOS
      property plus the WebKit/Blink and Firefox equivalents; engines that do
      not implement a line ignore it. */
@@ -60,14 +57,14 @@ pre,
 /* Form controls don't inherit the body font (UA sheets pin their families —
    Chrome buttons fall back to Arial, textareas to monospace), so the app
    stack is re-applied to them explicitly, as upstream's global reset does.
-   The same UA shorthand also resets the weight, so the base 450 is restated
-   here rather than inherited. */
+   The same UA shorthand also resets the weight, so 400 is restated here
+   rather than inherited. */
 button,
 input,
 select,
 textarea {
   font-family: inherit;
-  font-weight: 450;
+  font-weight: 400;
 }
 
 /* iOS Safari zooms the page whenever a focused field computes under 16px, and

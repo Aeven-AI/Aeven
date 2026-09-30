@@ -12,7 +12,8 @@
  * is the `sidebar.workspaces` registrant's, while the foot holds
  * `sidebar.settings` plus `sidebar.footer.action`; the shell hands them the
  * wide flag (plus an expand request callback for the browser). That flag stays
- * true for the whole collapse so occupants never re-lay-out mid-slide.
+ * true for the whole collapse, so the wide arrangement stays mounted while the
+ * column width is what moves.
  *
  * The fold control is not here: it sits in the conversation's navigation band
  * (ui-conversation's ConversationRoot), where it travels with the column it
@@ -118,7 +119,7 @@ export function SidebarRoot({
         {/* Aeven `.side-content`: everything below the menu button narrows and
             fades as one body. */}
         <div className={css.sideContent}>
-          {/* Fixed at the open width so nothing inside re-lays-out mid-slide. */}
+          {/* Tracks the column so trailing row icons stay on the moving edge. */}
           <div className={css.sideContentInner}>
             <Tooltip label={t('session.new.label')} disabled>
               {/* A real anchor, not a button with a click handler: the browser

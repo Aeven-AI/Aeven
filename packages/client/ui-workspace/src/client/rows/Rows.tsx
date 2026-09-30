@@ -99,7 +99,7 @@ function rowHalf(e: { clientY: number; currentTarget: HTMLElement }): 'before' |
 /**
  * Project (workspace) header row: folder + title, where the folder itself is
  * the fold state (open while the group is expanded, closed while it is
- * folded); row hover reveals the create button, and dwelling on a real
+ * folded); row hover reveals the options and create buttons, and dwelling on a real
  * Workspace shows its hover card (the ungrouped bucket has none).
  * `containsCurrent` arrives on the node (derivation fact, no renderer scan).
  * @param props.group - derived group node.
@@ -169,7 +169,7 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, t }: 
             anchor={(
               <button
                 type="button"
-                className={css.iconButton}
+                className={clsx(css.iconButton, css.fullHeightAction)}
                 aria-label={t('actions.workspace.aria', { name: label })}
                 onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v) }}
               >
@@ -178,10 +178,10 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, t }: 
             )}
           />
         )}
-        <Tooltip label={t('actions.newSession.tooltip')} side="bottom" anchor="icon">
+        <Tooltip label={t('actions.newSession.tooltip')} side="top" anchor="icon">
           <button
             type="button"
-            className={clsx(css.iconButton, css.pinnedAction)}
+            className={clsx(css.iconButton, css.trailingAction)}
             aria-label={t('actions.newSession.aria', { name: label })}
             onClick={(e) => { e.stopPropagation(); onCreate() }}
           >
@@ -257,8 +257,8 @@ function sessionStatuses(
  * The status mark itself: work in flight is the shared Aeven loading glyph —
  * one 18px #000000 mark rotating — rather than a state dot, so a running
  * Session reads the same in the list as every other in-flight surface; a
- * Session at rest carries the circle that marks a chat, invisible until its
- * row is hovered, opened, or selected.
+ * Session at rest carries the circle that marks a chat at low opacity until
+ * the row is the selected Session or its menu is open.
  */
 function StatusMark({ state }: { state: SessionMarkState }) {
   if (state === 'ongoing') return <Spinner className={css.runningMark} />
@@ -494,7 +494,7 @@ export function SessionNodeItem({
             anchor={(
               <button
                 type="button"
-                className={css.iconButton}
+                className={clsx(css.iconButton, css.trailingAction)}
                 aria-label={t('actions.session.aria', { name: title })}
                 onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v) }}
               >

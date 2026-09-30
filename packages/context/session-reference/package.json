@@ -50,9 +50,9 @@
     "zod": "^4.4.3"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:^",
     "@aeven/agent": "workspace:^",
     "@aeven/compaction": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/output-retention": "workspace:^",
     "@aeven/session": "workspace:^",
@@ -60,7 +60,8 @@
     "@aeven/session-projection-cache": "workspace:^",
     "@aeven/session-query": "workspace:^",
     "@aeven/session-title": "workspace:^",
-    "@aeven/typert-protocol": "workspace:^"
+    "@aeven/typert-protocol": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
   },
   "peerDependenciesMeta": {
     "@aeven/session-projection-cache": {
@@ -68,9 +69,9 @@
     }
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:^",
     "@aeven/agent": "workspace:^",
     "@aeven/compaction": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/output-retention": "workspace:^",
     "@aeven/session": "workspace:^",
@@ -78,6 +79,7 @@
     "@aeven/session-projection-cache": "workspace:^",
     "@aeven/session-query": "workspace:^",
     "@aeven/session-title": "workspace:^",
-    "@aeven/typert-protocol": "workspace:^"
+    "@aeven/typert-protocol": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
   }
 }

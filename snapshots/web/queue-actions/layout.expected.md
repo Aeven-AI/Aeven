@@ -31,7 +31,7 @@
 - region "To-dos":
   - button "To-dos 1 completed · 1 in progress"
 - img
-- text: Ongoing Goal Keep the composer context panels aligned
+- text: Keep the composer context panels aligned
 - button "Pause goal":
   - img
 - button "Edit goal":

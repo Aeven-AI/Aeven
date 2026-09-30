@@ -1,19 +1,20 @@
 /**
  * Aeven sign-in for the desktop renderer. The renderer addresses the Aeven API
  * at a same-origin `avn-app://` path; this module forwards only the sign-in
- * routes through Electron's persistent session, which keeps the API's refresh
- * cookie that a cross-site `avn-app://` page cannot.
+ * routes and the account routes under `/api/cloud/` through Electron's
+ * persistent session, which keeps the API's refresh cookie that a cross-site
+ * `avn-app://` page cannot.
  *
- * Provider sign-in runs in a separate window whose landing this module
- * exchanges: the pair is spent here, where the cookie lives, so the page that
- * opened the window finds the session by reading its profile rather than by
- * loading the landing document into the application window.
+ * Provider sign-in runs in the default browser (`oauth-browser.ts`), whose
+ * landing this module exchanges: the pair is spent here, where the cookie
+ * lives, so the page that started the sign-in finds the session by reading its
+ * profile rather than by loading the landing document into the application window.
  */
 
-import { app, BrowserWindow, session } from 'electron'
+import { session } from 'electron'
 import { DESKTOP_AEVEN_API_PATH, type DesktopAevenSignIn } from './host-protocol.ts'
 
-/** Aeven API routes the sign-in screens call; no other route is forwarded. */
+/** Aeven API routes the sign-in screens call. */
 const SIGN_IN_ROUTES: ReadonlySet<string> = new Set([
   '/login',
   '/register',
@@ -23,6 +24,9 @@ const SIGN_IN_ROUTES: ReadonlySet<string> = new Set([
   '/get-profile',
   '/logout',
 ])
+
+/** Prefix of the account routes (plans, usage, wallet, billing) the settings account section calls with the reader's bearer. */
+const CLOUD_ROUTE_PREFIX = '/api/cloud/'
 
 const FORWARDED_REQUEST_HEADERS = ['accept', 'authorization', 'content-type'] as const
 const NULL_BODY_STATUSES: ReadonlySet<number> = new Set([101, 204, 205, 304])
@@ -35,13 +39,13 @@ export type AevenApiFetch = (url: string, init: RequestInit) => Promise<Response
  * Resolve a renderer request to the Aeven API URL it may reach.
  * @param requestUrl - `avn-app://app` URL below {@link DESKTOP_AEVEN_API_PATH}.
  * @param apiUrl - Aeven API URL reported by the Host.
- * @returns the target URL, or undefined when the route is not a sign-in route.
+ * @returns the target URL, or undefined when the route is neither a sign-in nor an account route.
  */
 export function aevenApiTarget(requestUrl: string, apiUrl: string): URL | undefined {
   const { pathname, search } = new URL(requestUrl)
   if (!pathname.startsWith(`${DESKTOP_AEVEN_API_PATH}/`)) return undefined
   const route = pathname.slice(DESKTOP_AEVEN_API_PATH.length)
-  if (!SIGN_IN_ROUTES.has(route)) return undefined
+  if (!SIGN_IN_ROUTES.has(route) && !route.startsWith(CLOUD_ROUTE_PREFIX)) return undefined
   return signInRouteUrl(apiUrl, route, search)
 }
 
@@ -107,35 +111,36 @@ export function oauthResultPath(url: string): string | undefined {
 }
 
 /**
- * Run one provider sign-in in a separate window sharing the default session.
- * The window has no preload; its landing path is handed to `land` and the
- * window closes.
- * @param parent - application window that started the sign-in.
- * @param url - provider sign-in URL reported by the Host.
- * @param land - receives the `/oauth-result/...` path for the application window.
+ * The `__AVN_AEVEN__` row as `identity-user-aeven` states it and the Host's
+ * index renderer writes it: `<script>globalThis["__AVN_AEVEN__"] = <json></script>`.
+ * The renderer escapes every `<` in the JSON, so the first `</script>` ends it.
  */
-export function openAevenOAuthWindow(parent: BrowserWindow, url: string, land: (path: string) => void): void {
-  const window = new BrowserWindow({
-    parent,
-    width: 520,
-    height: 720,
-    webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true },
-  })
-  // Providers refuse sign-in from user agents that name an embedded runtime.
-  window.webContents.setUserAgent(window.webContents.getUserAgent()
-    .replace(/ Electron\/\S+/u, '')
-    .replace(` ${app.getName()}/${app.getVersion()}`, ''))
-  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
-  const intercept = (event: Electron.Event, target: string): void => {
-    const path = oauthResultPath(target)
-    if (path === undefined) return
-    event.preventDefault()
-    window.close()
-    land(path)
-  }
-  window.webContents.on('will-redirect', intercept)
-  window.webContents.on('will-navigate', intercept)
-  void window.loadURL(url)
+const AEVEN_CONFIG_ROW = /<script>globalThis\["__AVN_AEVEN__"\] = ([\s\S]*?)<\/script>/u
+
+/**
+ * Read the sign-in endpoints an adopted Host states in its served page.
+ *
+ * An adopted Host is a web deployment that does not report to this shell, so
+ * its page is the one record of which provider URLs it offers. The Host writes
+ * those URLs for the origin the page is fetched from, so fetching the page at
+ * the address the window renders yields the URLs the page will navigate to.
+ * @param pageUrl - the adopted Host's advertised URL.
+ * @param fetcher - request sender for the page.
+ * @returns the endpoints, or undefined when the page states no Aeven API.
+ */
+export async function adoptedHostSignIn(
+  pageUrl: string,
+  fetcher: AevenApiFetch = (url, init) => fetch(url, init),
+): Promise<DesktopAevenSignIn | undefined> {
+  const response = await fetcher(pageUrl, { headers: { accept: 'text/html' } })
+  if (!response.ok) throw new Error(`avn desktop: adopted Host page answered ${String(response.status)}`)
+  const row = AEVEN_CONFIG_ROW.exec(await response.text())?.[1]
+  if (row === undefined) return undefined
+  const config = JSON.parse(row) as Record<string, unknown>
+  if (typeof config.apiUrl !== 'string') return undefined
+  const oauthUrls = [config.xOAuthUrl, config.appleOAuthUrl, config.googleOAuthUrl]
+    .filter((url): url is string => typeof url === 'string')
+  return { apiUrl: config.apiUrl, oauthUrls }
 }
 
 /** The pair a provider landing carries in its path. */

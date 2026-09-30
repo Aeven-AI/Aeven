@@ -24,6 +24,18 @@ export interface TypertRemoteEventFrame {
   readonly event: string
   /** Original event argument list after the owner validates it for JSON transport. */
   readonly args: readonly unknown[]
+  /**
+   * Present when the notification belongs to one Session: only Clients whose
+   * signed-in user may reach a Session of that owner receive it. Absent for a
+   * Host-wide notification, which every Client receives.
+   */
+  readonly audience?: RemoteEventAudience
+}
+
+/** The account a Session-owned Remote event belongs to. */
+export interface RemoteEventAudience {
+  /** Owner recorded by the Session; absent when it records none. */
+  readonly owner: string | undefined
 }
 
 /** Live Host values used to project one scoped Remote Event. */

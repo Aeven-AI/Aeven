@@ -86,9 +86,9 @@ body {
   --dsw-font-markdown-h4-font-size: var(--avn-content-font-size, 14px);
   --dsw-font-markdown-h4-font-style: normal;
 
-  --dsw-font-markdown-base: 450 var(--avn-content-font-size, 14px) / calc(24px + var(--avn-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-base: 400 var(--avn-content-font-size, 14px) / calc(24px + var(--avn-content-font-delta)) var(--dsw-font-family);
   --dsw-font-markdown-base-font-family: var(--dsw-font-family);
-  --dsw-font-markdown-base-font-weight: 450;
+  --dsw-font-markdown-base-font-weight: 400;
   --dsw-font-markdown-base-line-height: calc(24px + var(--avn-content-font-delta));
   --dsw-font-markdown-base-font-size: var(--avn-content-font-size, 14px);
   --dsw-font-markdown-base-font-style: normal;
@@ -100,9 +100,9 @@ body {
   --dsw-font-markdown-base-strong-font-size: var(--avn-content-font-size, 14px);
   --dsw-font-markdown-base-strong-font-style: normal;
 
-  --dsw-font-markdown-base-italic: italic 450 var(--avn-content-font-size, 14px) / calc(24px + var(--avn-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-base-italic: italic 400 var(--avn-content-font-size, 14px) / calc(24px + var(--avn-content-font-delta)) var(--dsw-font-family);
   --dsw-font-markdown-base-italic-font-family: var(--dsw-font-family);
-  --dsw-font-markdown-base-italic-font-weight: 450;
+  --dsw-font-markdown-base-italic-font-weight: 400;
   --dsw-font-markdown-base-italic-line-height: calc(24px + var(--avn-content-font-delta));
   --dsw-font-markdown-base-italic-font-size: var(--avn-content-font-size, 14px);
   --dsw-font-markdown-base-italic-font-style: italic;
@@ -114,23 +114,23 @@ body {
   --dsw-font-markdown-base-strong-italic-font-size: var(--avn-content-font-size, 14px);
   --dsw-font-markdown-base-strong-italic-font-style: italic;
 
-  --dsw-font-markdown-table: 450 var(--avn-content-font-size-secondary, 14px)/calc(22px + var(--avn-content-font-delta-secondary, 0px)) var(--dsw-font-family);
+  --dsw-font-markdown-table: 400 var(--avn-content-font-size-secondary, 14px)/calc(22px + var(--avn-content-font-delta-secondary, 0px)) var(--dsw-font-family);
   --dsw-font-markdown-table-font-family: var(--dsw-font-family);
-  --dsw-font-markdown-table-font-weight: 450;
+  --dsw-font-markdown-table-font-weight: 400;
   --dsw-font-markdown-table-line-height: calc(22px + var(--avn-content-font-delta-secondary, 0px));
   --dsw-font-markdown-table-font-size: var(--avn-content-font-size-secondary, 14px);
   --dsw-font-markdown-table-font-style: normal;
 
-  --dsw-font-markdown-table-head: 500 var(--avn-content-font-size-secondary, 14px)/calc(22px + var(--avn-content-font-delta-secondary, 0px)) var(--dsw-font-family);
+  --dsw-font-markdown-table-head: 400 var(--avn-content-font-size-secondary, 14px)/calc(22px + var(--avn-content-font-delta-secondary, 0px)) var(--dsw-font-family);
   --dsw-font-markdown-table-head-font-family: var(--dsw-font-family);
-  --dsw-font-markdown-table-head-font-weight: 500;
+  --dsw-font-markdown-table-head-font-weight: 400;
   --dsw-font-markdown-table-head-line-height: calc(22px + var(--avn-content-font-delta-secondary, 0px));
   --dsw-font-markdown-table-head-font-size: var(--avn-content-font-size-secondary, 14px);
   --dsw-font-markdown-table-head-font-style: normal;
 
-  --dsw-font-markdown-small: 450 12px/20px var(--dsw-font-family);
+  --dsw-font-markdown-small: 400 12px/20px var(--dsw-font-family);
   --dsw-font-markdown-small-font-family: var(--dsw-font-family);
-  --dsw-font-markdown-small-font-weight: 450;
+  --dsw-font-markdown-small-font-weight: 400;
   --dsw-font-markdown-small-line-height: 20px;
   --dsw-font-markdown-small-font-size: 12px;
   --dsw-font-markdown-small-font-style: normal;
@@ -142,9 +142,9 @@ body {
   --dsw-font-markdown-small-strong-font-size: 12px;
   --dsw-font-markdown-small-strong-font-style: normal;
 
-  --dsw-font-markdown-small-italic: italic 450 12px/20px var(--dsw-font-family);
+  --dsw-font-markdown-small-italic: italic 400 12px/20px var(--dsw-font-family);
   --dsw-font-markdown-small-italic-font-family: var(--dsw-font-family);
-  --dsw-font-markdown-small-italic-font-weight: 450;
+  --dsw-font-markdown-small-italic-font-weight: 400;
   --dsw-font-markdown-small-italic-line-height: 20px;
   --dsw-font-markdown-small-italic-font-size: 12px;
   --dsw-font-markdown-small-italic-font-style: italic;
@@ -156,24 +156,24 @@ body {
   --dsw-font-markdown-small-strong-italic-font-size: 12px;
   --dsw-font-markdown-small-strong-italic-font-style: italic;
 
-  --dsw-font-markdown-code: 450 12px/19px var(--ds-font-family-code);
+  --dsw-font-markdown-code: 400 12px/19px var(--ds-font-family-code);
   --dsw-font-markdown-code-font-family: var(--ds-font-family-code);
-  --dsw-font-markdown-code-font-weight: 450;
+  --dsw-font-markdown-code-font-weight: 400;
   --dsw-font-markdown-code-line-height: 19px;
   --dsw-font-markdown-code-font-size: 12px;
   --dsw-font-markdown-code-font-style: normal;
 
-  --dsw-font-markdown-code-block: 450 11px/19px var(--ds-font-family-code);
+  --dsw-font-markdown-code-block: 400 11px/19px var(--ds-font-family-code);
   --dsw-font-markdown-code-block-font-family: var(--ds-font-family-code);
-  --dsw-font-markdown-code-block-font-weight: 450;
+  --dsw-font-markdown-code-block-font-weight: 400;
   --dsw-font-markdown-code-block-line-height: 19px;
   --dsw-font-markdown-code-block-font-size: 11px;
   --dsw-font-markdown-code-block-font-style: normal;
 
   /* 手工补充（非插件导出）：tool row 展开卡片内的小号 code 字体。 */
-  --dsw-font-markdown-code-block-small: 450 11px/16px var(--ds-font-family-code);
+  --dsw-font-markdown-code-block-small: 400 11px/16px var(--ds-font-family-code);
   --dsw-font-markdown-code-block-small-font-family: var(--ds-font-family-code);
-  --dsw-font-markdown-code-block-small-font-weight: 450;
+  --dsw-font-markdown-code-block-small-font-weight: 400;
   --dsw-font-markdown-code-block-small-line-height: 16px;
   --dsw-font-markdown-code-block-small-font-size: 11px;
   --dsw-font-markdown-code-block-small-font-style: normal;
@@ -185,86 +185,86 @@ body {
   --dsw-font-xl-24-font-size: 24px;
   --dsw-font-xl-24-font-style: normal;
 
-  --dsw-font-l-20: 500 20px/28px var(--dsw-font-family);
+  --dsw-font-l-20: 400 20px/28px var(--dsw-font-family);
   --dsw-font-l-20-font-family: var(--dsw-font-family);
-  --dsw-font-l-20-font-weight: 500;
+  --dsw-font-l-20-font-weight: 400;
   --dsw-font-l-20-line-height: 28px;
   --dsw-font-l-20-font-size: 20px;
   --dsw-font-l-20-font-style: normal;
 
-  --dsw-font-m-18: 500 16px/28px var(--dsw-font-family);
+  --dsw-font-m-18: 400 16px/28px var(--dsw-font-family);
   --dsw-font-m-18-font-family: var(--dsw-font-family);
-  --dsw-font-m-18-font-weight: 500;
+  --dsw-font-m-18-font-weight: 400;
   --dsw-font-m-18-line-height: 28px;
   --dsw-font-m-18-font-size: 16px;
   --dsw-font-m-18-font-style: normal;
 
-  --dsw-font-base-16: 450 16px/24px var(--dsw-font-family);
+  --dsw-font-base-16: 400 16px/24px var(--dsw-font-family);
   --dsw-font-base-16-font-family: var(--dsw-font-family);
-  --dsw-font-base-16-font-weight: 450;
+  --dsw-font-base-16-font-weight: 400;
   --dsw-font-base-16-line-height: 24px;
   --dsw-font-base-16-font-size: 16px;
   --dsw-font-base-16-font-style: normal;
 
-  --dsw-font-base-strong-16: 500 16px/24px var(--dsw-font-family);
+  --dsw-font-base-strong-16: 400 16px/24px var(--dsw-font-family);
   --dsw-font-base-strong-16-font-family: var(--dsw-font-family);
-  --dsw-font-base-strong-16-font-weight: 500;
+  --dsw-font-base-strong-16-font-weight: 400;
   --dsw-font-base-strong-16-line-height: 24px;
   --dsw-font-base-strong-16-font-size: 16px;
   --dsw-font-base-strong-16-font-style: normal;
 
-  --dsw-font-s-14: 450 14px/22px var(--dsw-font-family);
+  --dsw-font-s-14: 400 14px/22px var(--dsw-font-family);
   --dsw-font-s-14-font-family: var(--dsw-font-family);
-  --dsw-font-s-14-font-weight: 450;
+  --dsw-font-s-14-font-weight: 400;
   --dsw-font-s-14-line-height: 22px;
   --dsw-font-s-14-font-size: 14px;
   --dsw-font-s-14-font-style: normal;
 
-  --dsw-font-s-strong-14: 500 14px/22px var(--dsw-font-family);
+  --dsw-font-s-strong-14: 400 14px/22px var(--dsw-font-family);
   --dsw-font-s-strong-14-font-family: var(--dsw-font-family);
-  --dsw-font-s-strong-14-font-weight: 500;
+  --dsw-font-s-strong-14-font-weight: 400;
   --dsw-font-s-strong-14-line-height: 22px;
   --dsw-font-s-strong-14-font-size: 14px;
   --dsw-font-s-strong-14-font-style: normal;
 
-  --dsw-font-xs-14: 450 14px/20px var(--dsw-font-family);
+  --dsw-font-xs-14: 400 14px/20px var(--dsw-font-family);
   --dsw-font-xs-14-font-family: var(--dsw-font-family);
-  --dsw-font-xs-14-font-weight: 450;
+  --dsw-font-xs-14-font-weight: 400;
   --dsw-font-xs-14-line-height: 20px;
   --dsw-font-xs-14-font-size: 14px;
   --dsw-font-xs-14-font-style: normal;
 
-  --dsw-font-xs-strong-14: 500 14px/20px var(--dsw-font-family);
+  --dsw-font-xs-strong-14: 400 14px/20px var(--dsw-font-family);
   --dsw-font-xs-strong-14-font-family: var(--dsw-font-family);
-  --dsw-font-xs-strong-14-font-weight: 500;
+  --dsw-font-xs-strong-14-font-weight: 400;
   --dsw-font-xs-strong-14-line-height: 20px;
   --dsw-font-xs-strong-14-font-size: 14px;
   --dsw-font-xs-strong-14-font-style: normal;
 
-  --dsw-font-xxs-12: 450 12px/18px var(--dsw-font-family);
+  --dsw-font-xxs-12: 400 12px/18px var(--dsw-font-family);
   --dsw-font-xxs-12-font-family: var(--dsw-font-family);
-  --dsw-font-xxs-12-font-weight: 450;
+  --dsw-font-xxs-12-font-weight: 400;
   --dsw-font-xxs-12-line-height: 18px;
   --dsw-font-xxs-12-font-size: 12px;
   --dsw-font-xxs-12-font-style: normal;
 
-  --dsw-font-xxs-strong-12: 500 12px/18px var(--dsw-font-family);
+  --dsw-font-xxs-strong-12: 400 12px/18px var(--dsw-font-family);
   --dsw-font-xxs-strong-12-font-family: var(--dsw-font-family);
-  --dsw-font-xxs-strong-12-font-weight: 500;
+  --dsw-font-xxs-strong-12-font-weight: 400;
   --dsw-font-xxs-strong-12-line-height: 18px;
   --dsw-font-xxs-strong-12-font-size: 12px;
   --dsw-font-xxs-strong-12-font-style: normal;
 
-  --dsw-font-xxxs-11: 450 11px/14px var(--dsw-font-family);
+  --dsw-font-xxxs-11: 400 11px/14px var(--dsw-font-family);
   --dsw-font-xxxs-11-font-family: var(--dsw-font-family);
-  --dsw-font-xxxs-11-font-weight: 450;
+  --dsw-font-xxxs-11-font-weight: 400;
   --dsw-font-xxxs-11-line-height: 14px;
   --dsw-font-xxxs-11-font-size: 11px;
   --dsw-font-xxxs-11-font-style: normal;
 
-  --dsw-font-xxxs-strong-11: 500 11px/14px var(--dsw-font-family);
+  --dsw-font-xxxs-strong-11: 400 11px/14px var(--dsw-font-family);
   --dsw-font-xxxs-strong-11-font-family: var(--dsw-font-family);
-  --dsw-font-xxxs-strong-11-font-weight: 500;
+  --dsw-font-xxxs-strong-11-font-weight: 400;
   --dsw-font-xxxs-strong-11-line-height: 14px;
   --dsw-font-xxxs-strong-11-font-size: 11px;
   --dsw-font-xxxs-strong-11-font-style: normal;

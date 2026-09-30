@@ -89,6 +89,8 @@ Two replacement points keep it honest. Each control-stream generation clears the
 
 [`@aeven/client-ui-jobs`](../../../../packages/client/ui-jobs/README.md) registers one entry in `conversation.session.header.actions`, ordered after the subagent catalog. Its own README owns the presentation contract; the decisions worth recording here are that the control does not render at all until the session has a task, that the live badge is omitted at zero so a history-only session keeps a quiet entry point, and that settled rows stay visible because a failed task's `detail` is the only place its failure is legible.
 
+Which rows fold out is owned by the [fold-out note](../bug-fix/2026-09-30-background-job-list-folds-out-every-row.md): every row opens its facts, command, and output, whether or not the job left output behind.
+
 A running one-shot background subagent therefore appears both there and in the subagent catalog. The two answer different questions — the catalog navigates into the child's transcript, this list is the only handle a cancellation can ever attach to — and suppressing `kind: 'subagent'` here would leave the cancellation phase with no entry point for exactly those tasks.
 
 ### What this deliberately does not do

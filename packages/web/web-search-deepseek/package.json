@@ -29,11 +29,12 @@
   "peerDependencies": {
     "@aeven/agent": "workspace:^",
     "@aeven/credentials": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
     "@aeven/launch-environment": "workspace:^",
     "@aeven/session": "workspace:^",
+    "@aeven/settings": "workspace:^",
     "@aeven/web": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^",
-    "@aeven/settings": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:^"
@@ -42,11 +43,12 @@
     "@aeven/agent": "workspace:^",
     "@aeven/credentials": "workspace:^",
     "@aeven/credentials-local": "workspace:^",
+    "@aeven/http-proxy": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
     "@aeven/launch-environment": "workspace:^",
     "@aeven/session": "workspace:^",
-    "@aeven/web": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^",
     "@aeven/settings": "workspace:^",
-    "@aeven/http-proxy": "workspace:^"
+    "@aeven/web": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
   }
 }

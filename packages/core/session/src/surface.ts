@@ -144,7 +144,7 @@ export interface SurfaceFoldResult {
 export interface SessionSurface {
   /** Current surface event sequences in model-visible order. */
   readonly nodes: readonly SessionSeq[]
-  /** Monotonic count of committed positional replacements. */
+  /** Monotonic count of committed positional replacements and `session/rewind` events. */
   readonly replaceGeneration: number
 }
 
@@ -161,10 +161,17 @@ interface SurfaceReplacePlan extends SurfaceFoldReplacement {
   endIdx: number
 }
 
+/** A validated `session/rewind` transition: the surface nodes folded before its target seq. */
+interface SurfaceRewindPlan {
+  kind: 'rewind'
+  nodes: SessionSeq[]
+}
+
 /** One validated surface transition that has not mutated fold state yet. */
 type SurfacePlan =
   | { kind: 'append'; seq: SessionSeq }
   | SurfaceReplacePlan
+  | SurfaceRewindPlan
 
 /** Create an empty surface fold state. */
 function createFoldState(): SurfaceFoldState {
@@ -327,6 +334,34 @@ function assertToolResultRewrite(
   }
 }
 
+/**
+ * Validate a rewind target and fold the surface as it stood before that seq.
+ * Re-folding the prefix restores nodes that a later replacement shadowed.
+ */
+function planRewind(
+  event: SessionEvent<'session/rewind'>,
+  events: readonly SessionEvent[],
+  baseSeq: SessionLogOffset,
+): SurfaceRewindPlan {
+  const target: unknown = event.data.seq
+  if (!isEventSeq(target) || target >= event.seq) {
+    throw new Error(`session/rewind at seq ${event.seq} must target an earlier seq, got ${String(target)}`)
+  }
+  if (target < baseSeq) {
+    throw new Error(`session/rewind target seq ${target} precedes the loaded window at ${baseSeq}`)
+  }
+  const targetType = events[target - baseSeq]?.type
+  if (targetType !== 'turn/start' && targetType !== 'user/message') {
+    throw new Error(`session/rewind target seq ${target} is neither a turn/start nor a user/message`)
+  }
+  const state = createFoldState()
+  for (let seq = baseSeq; seq < target; seq++) {
+    // oxlint-disable-next-line typescript/no-non-null-assertion -- bounded by the target check above
+    applySurfaceEvent(state, events[seq - baseSeq]!, SessionSeq(seq), events, baseSeq)
+  }
+  return { kind: 'rewind', nodes: state.nodes }
+}
+
 /** Validate one event at its replay boundary and prepare its atomic fold transition. */
 function planSurfaceEvent(
   state: SurfaceFoldState,
@@ -339,7 +374,9 @@ function planSurfaceEvent(
     throw new Error(`session event seq ${event.seq} is not contiguous; expected ${expectedSeq}`)
   }
   const surfaceOp = surfaceOpOf(event)
-  if (surfaceOp === undefined) return
+  if (surfaceOp === undefined) {
+    return event.type === 'session/rewind' ? planRewind(event, events, baseSeq) : undefined
+  }
   if (surfaceOp === 'append') {
     assertProvenance(event, [])
     return { kind: 'append', seq: event.seq }
@@ -377,6 +414,9 @@ function applySurfacePlan(
     state.nodes.push(plan.seq)
   } else if (plan?.kind === 'replace') {
     state.nodes.splice(plan.startIdx, plan.endIdx - plan.startIdx + 1, plan.seq)
+    state.replaceGeneration += 1
+  } else if (plan?.kind === 'rewind') {
+    state.nodes = [...plan.nodes]
     state.replaceGeneration += 1
   }
   if (plan?.kind !== 'replace') return
@@ -444,7 +484,7 @@ export class SurfaceManager implements SessionSurface {
     }
   }
 
-  /** Monotonic count of folded positional replacements. */
+  /** Monotonic count of folded positional replacements and rewinds. */
   get replaceGeneration(): number {
     if (this._lastProcessedSeq < this.baseSeq + this.log.length - 1) this._processDelta()
     return this._state.replaceGeneration

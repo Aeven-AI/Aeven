@@ -136,7 +136,7 @@ export const statusStyle: CSSProperties = {
   alignItems: 'center',
   gap: 8,
   fontSize: 14,
-  fontWeight: 500,
+  fontWeight: 400,
   color: 'var(--dsw-alias-label-primary)',
 }
 /** Button style. */
@@ -272,7 +272,7 @@ export const stepRowStyle: CSSProperties = {
 export const stepActiveStyle: CSSProperties = {
   ...stepRowStyle,
   color: 'var(--dsw-alias-label-primary)',
-  fontWeight: 500,
+  fontWeight: 400,
 }
 /** Step number style. */
 export const stepNumberStyle: CSSProperties = {

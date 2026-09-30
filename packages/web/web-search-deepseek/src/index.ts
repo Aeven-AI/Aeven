@@ -8,6 +8,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@aeven/agent'
+import type {} from '@aeven/identity-user'
 import { credentialRef } from '@aeven/credentials'
 import type {} from '@aeven/settings'
 import { launchEnvironmentOf } from '@aeven/launch-environment'
@@ -101,7 +102,10 @@ function resolveOptions(ctx: Context, config: Config): DeepSeekSearchProviderOpt
     ...literalApiKey === undefined ? {} : { apiKey: literalApiKey },
     resolveApiKey: async () => {
       const credentials = ctx.get('credentials')
-      if (credentials !== undefined) return (await credentials.resolve(apiKeyEnv))?.value
+      // A signed-in session credential belongs to the account of the Session the search runs for.
+      const user = ctx.get('agents')?.currentInitiator()?.session.header.owner
+        ?? ctx.get('identityUsers')?.actingUser()?.id
+      if (credentials !== undefined) return (await credentials.resolve(apiKeyEnv, user))?.value
       // Without the seam the environment is the whole credential plane.
       const ambient = launchEnvironmentOf(ctx).get(apiKeyEnv)
       return ambient !== undefined && ambient.value.length > 0 ? ambient.value : undefined

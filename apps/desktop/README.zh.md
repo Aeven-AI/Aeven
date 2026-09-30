@@ -59,7 +59,7 @@ GUI 插件修改会在把注册表包安装到共享 Desktop pnpm 存储后，�
 pnpm run dev:desktop
 ```
 
-开发 Harness 状态默认写入 `apps/desktop/.desktop-build/development/home`，一次性 npm 项目位于 `apps/desktop/.desktop-build/development/project`，Electron 浏览器数据则位于 `apps/desktop/.desktop-build/development/electron-user-data`。因此，会话、设置、凭据、包链接和浏览器数据都不会进入用户正常使用的 Aeven home；显式 `AVN_HOME` 只会替换开发 Aeven home。Renderer DevTools 默认自动打开，Main、Renderer 和 avn Host 调试端口依次为 9229、9222 和 9230。`AVN_DESKTOP_MAIN_INSPECT_PORT`、`AVN_DESKTOP_RENDERER_DEBUG_PORT` 与 `AVN_DESKTOP_HOST_INSPECT_PORT` 可以替换这些端口，`AVN_DESKTOP_OPEN_DEVTOOLS=0` 则保持 Renderer 调试窗口关闭。
+开发时使用读者自己的 Aeven home，因此开发应用显示与 CLI 和 Web 相同的会话和工作区；若已有 `avn web` Host 服务该 home，外壳会接管它，而不会在其上启动第二个 Host。一次性 npm 项目位于 `apps/desktop/.desktop-build/development/project`，Electron 浏览器数据则位于 `apps/desktop/.desktop-build/development/electron-user-data`。显式 `AVN_HOME` 可选择另一个 Aeven home。Renderer DevTools 默认自动打开，Main、Renderer 和 avn Host 调试端口依次为 9229、9222 和 9230。`AVN_DESKTOP_MAIN_INSPECT_PORT`、`AVN_DESKTOP_RENDERER_DEBUG_PORT` 与 `AVN_DESKTOP_HOST_INSPECT_PORT` 可以替换这些端口，`AVN_DESKTOP_OPEN_DEVTOOLS=0` 则保持 Renderer 调试窗口关闭。
 
 显式构建完成后，`start:desktop` 会重新生成一次性项目，并跳过构建直接启动已有产物：
 

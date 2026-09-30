@@ -17,13 +17,13 @@ import type { ClientRemote, SessionId } from '@aeven/api-remotes/client'
 import type {} from '@aeven/api-workspace-files/remote'
 import type { WorkspaceDirectoryEntry, WorkspaceFileText, WorkspaceSearchHit } from '@aeven/api-workspace-files/types'
 import {
-  CodeBlock, CopyIconButton, IconLucideChevronsDownUp, IconLucideFolder, IconLucideFolderOpen, IconLucideFolderSearch,
-  IconLucideRefreshCw, IconLucideSearch, IconLucideX, MarkdownText, Menu, writeClipboard,
+  CodeBlock, CopyIconButton, extensionOf, fileGlyph, fileKindOf, IconLucideChevronsDownUp, IconLucideFolder,
+  IconLucideFolderOpen, IconLucideFolderSearch, IconLucideRefreshCw, IconLucideSearch, IconLucideX, MarkdownText, Menu,
+  writeClipboard,
   type MarkdownLabels, type MenuEntry,
 } from '@aeven/client-ui-primitives'
 import type { SidebarContentPaneProps } from '@aeven/client-ui-sidebar-select/client'
 import type { TranslateNS } from '@aeven/client-ui-slots'
-import { extensionOf, fileGlyph, fileKindOf } from './file-kind.tsx'
 import { ancestorsOf, recall, remember, type ExplorerMemory } from './memory.ts'
 import { applicationItems, openOnDesktop, operationOf, OpenWithButton, revealLabel, useApplications } from './open-with.tsx'
 import css from './FilesPane.module.css'
@@ -558,7 +558,7 @@ function FileView({ path, root, canOpenNative, treeVisible, remote, sessionId, t
         >
           <IconLucideFolderSearch />
         </button>
-        <button type="button" className={css.iconButton} aria-label={t('file.close')} title={t('file.close')} onClick={onClose}>
+        <button type="button" className={clsx(css.iconButton, css.lightButton)} aria-label={t('file.close')} title={t('file.close')} onClick={onClose}>
           <IconLucideX />
         </button>
       </div>

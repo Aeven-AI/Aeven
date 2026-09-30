@@ -1,5 +1,6 @@
 /**
- * The lucide glyphs t3code's device panel uses (lucide v0.564.0, ISC).
+ * The lucide glyphs the device pane uses (lucide v0.564.0, ISC), drawn at the
+ * 1.75 stroke of the ui-primitives lucide set.
  *
  * Inlined rather than imported: `lucide-react` publishes a single CommonJS
  * entry, so the client bundle would carry every icon for these few.
@@ -10,7 +11,7 @@ import type { ReactNode } from 'react'
 export interface GlyphProps {
   /** Rendered width and height in pixels; defaults to the surrounding CSS. */
   size?: number
-  className?: string
+  className?: string | undefined
 }
 
 /**
@@ -27,7 +28,7 @@ function glyph(body: ReactNode): (props: GlyphProps) => ReactNode {
       height={size}
       fill="none"
       stroke="currentColor"
-      strokeWidth={2}
+      strokeWidth={1.75}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
@@ -54,4 +55,8 @@ export const Power = glyph(<><path d="M12 2v10" /><path d="M18.4 6.6a9 9 0 1 1-1
 export const Check = glyph(<path d="M20 6 9 17l-5-5" />)
 export const CircleAlert = glyph(<>
   <circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line x1="12" x2="12.01" y1="16" y2="16" />
+</>)
+export const CirclePlay = glyph(<>
+  <circle cx="12" cy="12" r="10" />
+  <path d="M9 9.003a1 1 0 0 1 1.517-.859l4.997 2.997a1 1 0 0 1 0 1.718l-4.997 2.997A1 1 0 0 1 9 14.996z" />
 </>)

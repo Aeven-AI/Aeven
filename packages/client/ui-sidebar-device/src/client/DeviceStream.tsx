@@ -7,11 +7,12 @@
  */
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { IconLucideSmartphone, Spinner } from '@aeven/client-ui-primitives'
+import { Spinner } from '@aeven/client-ui-primitives'
 import type { DevicePlatform } from '@aeven/device/types'
 import type { DeviceTranslate } from './controls.tsx'
 import type { DeviceHubAccess } from './hub-access.ts'
 import { type DeviceAxElement, fetchDeviceAxTree } from './hub-api.ts'
+import { CircleAlert } from './icons.tsx'
 import {
   createDeviceStreamClient,
   type DeviceHardwareButton, type DeviceScreenSize, type DeviceStreamClient, type DeviceStreamStatus,
@@ -30,37 +31,28 @@ export interface DeviceStreamHandle {
 }
 
 /**
- * The loading and failure card shared by opening and streaming.
- * @param props - the device, the stage reached, and the message.
- * @returns the card.
+ * The loading and failure state shared by listing, opening, and streaming: a
+ * centred spinner (or alert glyph) over the device name and the message. Every
+ * phase renders the same box in the same place, so moving from opening to
+ * streaming changes only the text.
+ * @param props - the device name, if one is being opened, and the message.
+ * @returns the loading state.
  */
 export function DeviceLoading(props: {
-  readonly t: DeviceTranslate
-  readonly name: string
-  readonly description?: string | undefined
-  readonly stage: 'opening' | 'stream'
+  readonly name?: string | undefined
   readonly message: string
   readonly error?: boolean
   readonly children?: ReactNode
 }): ReactNode {
+  const error = props.error === true
   return (
-    <div className={css.loading} role={props.error === true ? 'alert' : 'status'}>
-      <div className={css.loadingCard}>
-        <span className={css.loadingGlyph}><IconLucideSmartphone /></span>
-        <p className={css.loadingName}>{props.name}</p>
-        {props.description !== undefined && props.description !== '' && <p className={css.loadingDescription}>{props.description}</p>}
-        <p className={css.loadingMessage} data-error={props.error === true || undefined}>
-          {props.error !== true && <Spinner />}
-          <span>{props.message}</span>
-        </p>
-        {props.children}
-        {props.error !== true && (
-          <div className={css.steps} aria-label={props.stage === 'opening' ? props.t('stepOpen') : props.t('stepStream')}>
-            <span className={css.step} data-done="" />
-            <span className={css.step} data-done={props.stage === 'stream' || undefined} />
-          </div>
-        )}
+    <div className={css.loading} role={error ? 'alert' : 'status'}>
+      {error ? <CircleAlert className={css.loadingAlert} /> : <Spinner />}
+      <div className={css.loadingText}>
+        {props.name !== undefined && <p className={css.loadingName}>{props.name}</p>}
+        <p className={css.loadingMessage} data-error={error || undefined}>{props.message}</p>
       </div>
+      {props.children}
     </div>
   )
 }
@@ -76,7 +68,6 @@ export function DeviceStream(props: {
   readonly platform: DevicePlatform
   readonly deviceId: string
   readonly deviceName: string
-  readonly deviceDescription: string
   readonly visible: boolean
   readonly axOverlay: boolean
   readonly onHandle: (handle: DeviceStreamHandle | null) => void
@@ -295,10 +286,7 @@ export function DeviceStream(props: {
       {status !== 'streaming' && (
         <div className={css.overlay}>
           <DeviceLoading
-            t={t}
             name={props.deviceName}
-            description={props.deviceDescription}
-            stage="stream"
             message={unauthorized ? t('signedOut') : status === 'error' ? detail ?? t('streamFailed') : t('connectingVideo')}
             error={unauthorized || status === 'error'}
           >

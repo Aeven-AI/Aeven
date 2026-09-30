@@ -36,6 +36,8 @@ export type UseChatNodeProcess = KeyedSnapshotSelectorHook<ChatTurnProcessPresen
 export interface TurnTailOwnerProps {
   turn: TurnLocation
   seq: number
+  /** Session workspace root, when the session list row carries one; tails display paths relative to it. */
+  cwd?: string | undefined
   openFile: (path: string) => void
 }
 
@@ -78,6 +80,12 @@ export interface ChatNodeOwnerProps {
   openFile: (path: string) => void
   inspectCall: (callId: ToolCallId) => void
   forkAt: (seq: number) => void
+  /**
+   * Replace a user prompt's text; the Host discards the prompt (with its turn
+   * when it opened one) and everything after, then runs the edit. Omitted
+   * where the transcript is read-only.
+   */
+  editMessage?: ChatViewInjected['editMessage'] | undefined
   renderMessageImages: RenderMessageImages
   fileMentions: (owner: TurnTailOwnerProps) => MarkdownFileMentions | undefined
   /** Keep the transcript on its live tail after streamed Markdown renders. */
@@ -185,6 +193,14 @@ export interface ChatViewInjected {
    * @returns settlement; rejects when the Host refuses the mutation.
    */
   updateQueue: (itemId: MessageId, action: Parameters<SessionFace['updateQueue']>[1]) => Promise<void>
+  /**
+   * Replace one user prompt's text and run it in place of the prompt (with
+   * its turn when it opened one) and everything after.
+   * @param seq - event seq of the user-authored `user/message`.
+   * @param text - replacement text; the prompt's attachments are kept.
+   * @returns settlement; rejects when the Host refuses the edit.
+   */
+  editMessage: (seq: SessionSeq, text: string) => Promise<void>
   /**
    * Show one failed queue action on the composer's notice line.
    * @param text - localized failure text.

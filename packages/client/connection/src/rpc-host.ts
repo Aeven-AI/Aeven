@@ -176,13 +176,17 @@ export class HostConnectionService extends Service implements HostConnectionHand
     // published anywhere. One resolution per request decides both questions.
     const ref = identity.credentialRefFor(request)
     if (ref === undefined) return
+    const user = identity.resolve(request)
+    if (user === undefined) return
     const credentials = this.ctx.get('credentials')
     if (credentials === undefined) return
     const bearer = bearerOf(request)
     if (bearer === undefined) return
     // Optional capability: a provider without an in-memory layer simply cannot
-    // hold a session credential, and says so by not implementing this.
-    credentials.setSession?.(ref, bearer)
+    // hold a session credential, and says so by not implementing this. Keyed
+    // by the caller, so clients signed in to different accounts never present
+    // each other's session.
+    credentials.setSession?.(ref, user.id, bearer)
   }
 
   /**

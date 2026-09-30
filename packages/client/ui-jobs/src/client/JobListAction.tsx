@@ -64,10 +64,13 @@ function isLive(job: JobView): boolean {
 }
 
 /**
- * Whether the row offers an output panel: every live job (its output may
- * still arrive) and a settled one that left retained output behind.
+ * Whether opening the row starts an output observation stream: a live job's
+ * output may still arrive, and a settled one may still hold retained output.
+ * This gates the stream only — every row folds out, because the facts, the
+ * command, and how the job ended are the whole story of one that printed
+ * nothing (a background subagent owns no output of its own).
  */
-function isObservable(job: JobView): boolean {
+function hasOutputStream(job: JobView): boolean {
   return isLive(job) || job.output.total > 0
 }
 
@@ -83,12 +86,13 @@ function assertNever(value: never): never {
 }
 
 /**
- * Status marker semantics. `stopping` and `killed` share the attention color:
- * both mean the work ended (or is ending) on request rather than on its own.
+ * Status marker semantics for a row that shows a still dot: `stopping` and
+ * `killed` share the attention color, both meaning the work ended (or is
+ * ending) on request rather than on its own. A running row turns the loading
+ * mark instead, so it never reaches this map.
  */
-function dotState(status: JobView['status']): StateDotState {
+function dotState(status: Exclude<JobView['status'], 'running'>): StateDotState {
   switch (status) {
-    case 'running': return 'ongoing'
     case 'stopping': return 'warning'
     case 'completed': return 'done'
     case 'killed': return 'warning'
@@ -310,7 +314,7 @@ function JobDetails({ job, view, live, facts, t }: {
   )
 }
 
-/** One job row plus, when observable and expanded, its details. */
+/** One job row plus, while expanded, its details. */
 function JobItem({ job, view, expanded, now, onToggle, kill, t }: {
   job: JobView
   view: ObservedJob | undefined
@@ -325,7 +329,6 @@ function JobItem({ job, view, expanded, now, onToggle, kill, t }: {
   const live = isLive(job)
   const status = statusLabel(job.status, t)
   const detail = jobDetail(job)
-  const observable = isObservable(job)
   const finishedAt = job.finishedAt ?? job.startedAt
   const duration = formatDuration((live ? now : finishedAt) - job.startedAt, t)
   // A live row counts up its run time; a settled one says when it ended, and
@@ -365,8 +368,8 @@ function JobItem({ job, view, expanded, now, onToggle, kill, t }: {
   const name = jobName(job, t)
   // One Menu cell in plain words: what the job does, and for how long (a
   // settled one says how and when it ended). The command, output, and
-  // technical detail wait in the foldout. A live row is always observable:
-  // its output may still arrive.
+  // technical detail wait in the foldout, which every row has: a job that
+  // printed nothing still has its command, its run time, and its result.
   // Opened, the row becomes the details' title: the full name alone, since
   // the state and the time are listed in the facts below it.
   const body = expanded
@@ -384,31 +387,21 @@ function JobItem({ job, view, expanded, now, onToggle, kill, t }: {
         {live ? null : <span className={css.status}>{status}</span>}
         <span className={css.spacer} />
         {timeCell}
-        {observable
-          ? <span className={chevron} aria-hidden><IconChevronDownOutline14 /></span>
-          : null}
+        <span className={chevron} aria-hidden><IconChevronDownOutline14 /></span>
       </>
     )
   return (
-    <li className={expanded && observable ? `${css.item} ${css.itemOpen}` : css.item}>
+    <li className={expanded ? `${css.item} ${css.itemOpen}` : css.item}>
       <div className={css.rowLine}>
-        {observable
-          ? (
-            <button
-              type="button"
-              className={kill === undefined ? css.row : `${css.row} ${css.rowWithStop}`}
-              aria-expanded={expanded}
-              aria-label={t(expanded ? 'row.collapseAria' : 'row.expandAria', { label: name })}
-              onClick={onToggle}
-            >
-              {body}
-            </button>
-          )
-          : (
-            <span className={`${css.row} ${css.rowStatic}`}>
-              {body}
-            </span>
-          )}
+        <button
+          type="button"
+          className={kill === undefined ? css.row : `${css.row} ${css.rowWithStop}`}
+          aria-expanded={expanded}
+          aria-label={t(expanded ? 'row.collapseAria' : 'row.expandAria', { label: name })}
+          onClick={onToggle}
+        >
+          {body}
+        </button>
         {kill !== undefined
           ? (
             // Icon only; the press asks for confirmation in a dialog.
@@ -430,7 +423,7 @@ function JobItem({ job, view, expanded, now, onToggle, kill, t }: {
       </div>
       {/* The foldout opens at once; output fills in when the observation
           stream delivers it. */}
-      {expanded && observable
+      {expanded
         ? <JobDetails job={job} view={view} live={live} facts={facts} t={t} />
         : null}
     </li>
@@ -440,9 +433,10 @@ function JobItem({ job, view, expanded, now, onToggle, kill, t }: {
 /**
  * Session-header entry point for this session's background jobs. Mounting it
  * keeps the session's roster stream open; it renders nothing at all until the
- * session can see at least one job. Expanding an observable row (a live job,
- * or a settled one with retained output) starts its observation stream, and
- * collapsing (or closing the popover) stops it — output only flows while
+ * session can see at least one job. Every row folds out into its facts, its
+ * command, and its output; expanding a row that still has output (a live job,
+ * or a settled one with retained output) also starts its observation stream,
+ * and collapsing (or closing the popover) stops it — output only flows while
  * someone is watching. A running row carries a two-press stop button that
  * requests a human kill through the job controller.
  * @param props - runtime slot currency, the jobs snapshot hook, the roster,
@@ -517,12 +511,14 @@ export function JobListAction({ sessionId, useJobs, watchRows, observe, killJob,
     return () => { window.removeEventListener('resize', fit) }
   }, [open])
 
-  // Observation follows visibility: the stream opens when an observable panel
-  // expands and closes when it collapses, unmounts, or the popover closes.
+  // Observation follows visibility: the stream opens when a row that still has
+  // output expands and closes when it collapses, unmounts, or the popover
+  // closes. A row with nothing to stream still folds out; only its output card
+  // stays quiet.
   const expandedRow = open && expandedKey !== undefined
     ? rows.find(job => String(job.id) === expandedKey)
     : undefined
-  const activeJob = expandedRow !== undefined && isObservable(expandedRow) ? expandedRow.id : undefined
+  const activeJob = expandedRow !== undefined && hasOutputStream(expandedRow) ? expandedRow.id : undefined
   useEffect(() => {
     if (activeJob === undefined) return
     return observe(sessionId, activeJob)
@@ -560,9 +556,8 @@ export function JobListAction({ sessionId, useJobs, watchRows, observe, killJob,
     }
   }, [rows, killPhase])
 
-  const confirmKill = (): void => {
-    if (confirmJob === undefined) return
-    const job = confirmJob
+  /** Confirm one row's stop: the job the dialog is confirming, closed over by its own button. */
+  const confirmKill = (job: JobView): void => {
     setConfirmJob(undefined)
     // The row may have settled while the dialog was open.
     if (rows.some(row => row.id === job.id && row.status === 'running')) pressKill(job)
@@ -616,7 +611,7 @@ export function JobListAction({ sessionId, useJobs, watchRows, observe, killJob,
     <JobItem
       key={String(job.id)}
       job={job}
-      view={isObservable(job) ? observedViews[String(job.id)] : undefined}
+      view={observedViews[String(job.id)]}
       expanded={expandedKey === String(job.id)}
       now={now}
       onToggle={() => {
@@ -689,17 +684,19 @@ export function JobListAction({ sessionId, useJobs, watchRows, observe, killJob,
         title={t('confirm.title', { name: confirmJob !== undefined ? jobName(confirmJob, t) : '' })}
         description={t('confirm.description')}
         closeLabel={t('confirm.close')}
-        className={css.confirm ?? ''}
-        footer={(
-          <>
-            <Button variant="outline" className={css.confirmAction} onClick={() => { setConfirmJob(undefined) }}>
-              {t('confirm.cancel')}
-            </Button>
-            <Button variant="primary" className={css.confirmAction} autoFocus onClick={confirmKill}>
-              {t('confirm.stop')}
-            </Button>
-          </>
-        )}
+        className={css.confirm as string}
+        footer={confirmJob === undefined
+          ? null
+          : (
+            <>
+              <Button variant="outline" className={css.confirmAction} onClick={() => { setConfirmJob(undefined) }}>
+                {t('confirm.cancel')}
+              </Button>
+              <Button variant="primary" className={css.confirmAction} autoFocus onClick={() => { confirmKill(confirmJob) }}>
+                {t('confirm.stop')}
+              </Button>
+            </>
+          )}
       />
     </div>
   )

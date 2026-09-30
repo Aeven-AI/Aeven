@@ -12,7 +12,8 @@ import { Remote, TypertRemoteService } from '@aeven/typert-protocol'
 import { createUserMessage, freezeMessage } from '@aeven/llm'
 import type { ContentBlock, UserMessage } from '@aeven/llm'
 import { SessionLogOffset } from '@aeven/session'
-import type { SessionId } from '@aeven/session'
+import type { SessionHeader, SessionId } from '@aeven/session'
+import type {} from '@aeven/identity-user'
 // Type-only: the `title` projection key plus the live registry and durable
 // cache Context merges — the two projection faces discovery labels from.
 import type { ProjectionSnapshot } from '@aeven/session-projection'
@@ -178,7 +179,7 @@ export class SessionReferenceResolver extends TypertRemoteService {
     const targetCwd = agent.session.header.cwd
     assertNotCancelled(signal)
     const records = (await settleWithCancellation(this.ctx.sessionQuery.listSessions(signal), signal))
-      .filter(record => record.header.id !== agent.id)
+      .filter(record => record.header.id !== agent.id && this.sameAccount(agent, record.header))
       .map((record, index) => ({ record, index }))
     const labelled = records.map(({ record, index }) => ({
       record,
@@ -296,6 +297,10 @@ export class SessionReferenceResolver extends TypertRemoteService {
       )
     }
     assertNotCancelled(signal)
+    // A reference reads only Sessions of the account the target Session belongs to.
+    if (prepared.some(source => !this.sameAccount(agent, source.snapshot.session))) {
+      throw new SessionReferenceError('failed to read referenced session: session not found', 'SESSION_REFERENCE_READ_FAILED')
+    }
 
     const rendered = this.renderSources(prepared)
     const prompt = renderPrompt(rendered.map(source => source.data))
@@ -316,6 +321,17 @@ export class SessionReferenceResolver extends TypertRemoteService {
       content: [{ type: 'text', text: prompt }],
     })
     return { content: acceptedContent, additionalContext }
+  }
+
+  /**
+   * Whether a Session belongs to the same account as the target Session.
+   * @param agent - the target Session's Agent.
+   * @param header - the candidate or referenced Session's header.
+   * @returns true when both share an owner, or nothing is authenticated.
+   */
+  private sameAccount(agent: Agent, header: Pick<SessionHeader, 'owner'>): boolean {
+    const owner = agent.session.header.owner
+    return this.ctx.get('identityUsers')?.mayAccess(header.owner, owner === undefined ? undefined : { id: owner }) ?? true
   }
 
   private renderSources(sources: readonly PreparedSource[]): RenderedSource[] {

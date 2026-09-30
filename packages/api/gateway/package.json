@@ -58,16 +58,18 @@
     "@aeven/typert-protocol": "workspace:^"
   },
   "peerDependencies": {
+    "@aeven/session": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:^",
     "@aeven/brand": "workspace:^",
     "@aeven/client-connection": "workspace:^",
     "@aeven/host-webserver": "workspace:^",
     "@aeven/identity-user": "workspace:^",
+    "@aeven/session": "workspace:^",
     "@aeven/typert-registry": "workspace:^",
     "@aeven/util-crypto": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
     "@types/ws": "^8.18.1",
     "zod": "^4.4.3"
   }

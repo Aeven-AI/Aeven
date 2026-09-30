@@ -248,6 +248,8 @@ declare module '@aeven/typert-protocol' {
     'session/title-invalid': { readonly sessionId: SessionId }
     'session/search-disabled': Record<string, never>
     'session/fork-unavailable': { readonly sessionId: SessionId }
+    /** The edit target is not a current user-authored prompt of the Session. */
+    'session/edit-unavailable': { readonly sessionId: SessionId; readonly messageSeq: number }
     'subagent/not-found': {
       readonly parentSessionId: SessionId
       readonly childSessionId: SessionId
@@ -364,6 +366,25 @@ export interface SessionPromptRequest {
 /** Receipt after one prompt enters the target Agent inbox. */
 export interface SessionPromptValue {
   readonly accepted: true
+}
+
+/** Request to replace one user prompt's text and discard it, with its turn when it opened one, and everything after. */
+export interface SessionEditRequest {
+  /** Client-minted identity persisted on the replacement user message. */
+  readonly requestId: SessionRequestId
+  readonly sessionId: SessionId
+  /** Event seq of the user-authored `user/message` being edited. */
+  readonly messageSeq: number
+  /** Replacement text with at least one non-whitespace character; the prompt's attachments are kept. */
+  readonly text: string
+  readonly clientTimeZone?: string
+}
+
+/** Receipt after the rewind commits and the replacement prompt enters the Agent inbox. */
+export interface SessionEditValue {
+  readonly accepted: true
+  /** Seq of the committed `session/rewind` event. */
+  readonly rewindSeq: number
 }
 
 /** Durable image read request. */

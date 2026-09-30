@@ -452,6 +452,7 @@ function makeHarness(
     fileMentions: () => undefined,
     onFullscreenChange: () => {},
     updateQueue: async () => {},
+    editMessage: async () => {},
     notifyError: () => {},
     t,
   }
@@ -542,6 +543,7 @@ function turnOutline(
 /** One IntersectionObserver the view constructed while the stub was installed. */
 interface ObserverHandle {
   readonly callback: IntersectionObserverCallback
+  readonly options: IntersectionObserverInit | undefined
   /** Elements this observer was asked to watch, in observation order. */
   readonly observed: Element[]
 }
@@ -558,8 +560,8 @@ function installIntersectionObserver(): ObserverHandle[] {
   class IntersectionObserverStub {
     private readonly handle: ObserverHandle
 
-    constructor(callback: IntersectionObserverCallback) {
-      this.handle = { callback, observed: [] }
+    constructor(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+      this.handle = { callback, options, observed: [] }
       handles.push(this.handle)
     }
 
@@ -1429,7 +1431,7 @@ describe('ChatView', () => {
         pendingSubmissions: [
           {
             requestId: 'req-1' as never, placement: 'transcript',
-            time: 5_000, text: '即发即显', images: [],
+            time: 5_000, text: '即发即显', images: [], files: [],
           },
         ],
       },
@@ -1470,6 +1472,7 @@ describe('ChatView', () => {
           time: 5_500,
           text: '带图纠偏',
           images: [{ previewUrl: 'blob:steer-preview', name: 'steer.png' }],
+          files: [],
         }],
       },
     )
@@ -1504,7 +1507,7 @@ describe('ChatView', () => {
         pendingSubmissions: [
           {
             requestId: 'req-q' as never, placement: 'queued',
-            time: 6_000, text: 'after this turn', images: [],
+            time: 6_000, text: 'after this turn', images: [], files: [],
           },
         ],
       },
@@ -1547,6 +1550,7 @@ describe('ChatView', () => {
             { previewUrl: 'blob:echo-a', name: 'a.png', width: 4, height: 3 },
             { previewUrl: 'blob:echo-b' },
           ],
+          files: [],
         }],
       },
     )
@@ -2780,6 +2784,63 @@ describe('ChatView', () => {
     fireEvent.scroll(scroller)
     fireEvent(scroller, new Event('scrollend'))
     expect(view.getByLabelText('回到底部')).toBeTruthy()
+  })
+
+  it('raises the back-to-bottom floor above a composer seat inside the scrollport', () => {
+    const resizers: Array<{ readonly notify: () => void; readonly observed: Element[] }> = []
+    class ResizeObserverStub {
+      private readonly observed: Element[] = []
+
+      constructor(callback: ResizeObserverCallback) {
+        resizers.push({
+          notify: () => { callback([resizeEntry()], this as unknown as ResizeObserver) },
+          observed: this.observed,
+        })
+      }
+
+      observe = (target: Element): void => { this.observed.push(target) }
+      disconnect = vi.fn()
+    }
+    vi.stubGlobal('ResizeObserver', ResizeObserverStub)
+    const handles = installIntersectionObserver()
+    const host = document.createElement('div')
+    host.setAttribute('data-conversation-scroll', '')
+    Object.defineProperty(host, 'scrollHeight', { value: 1_000, configurable: true })
+    // The view pins itself to the floor on open; the geometry below is read at scrollTop 0.
+    Object.defineProperty(host, 'scrollTop', { get: () => 0, set: () => {}, configurable: true })
+    const mount = document.createElement('div')
+    const seat = document.createElement('div')
+    seat.setAttribute('data-composer-seat', '')
+    host.append(mount, seat)
+    document.body.appendChild(host)
+    // At the floor the sentinel sits 200px above the content end: the list's
+    // bottom padding plus the seat pinned over the scrollport's floor.
+    let sentinelTop = 800
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      return (this.className.includes('floorSentinel') ? { top: sentinelTop, bottom: sentinelTop } : { top: 0, bottom: 1_000 }) as DOMRect
+    })
+    try {
+      const h = makeHarness({ nodes: [user(1, 'q'), assistant(2, 'a')] })
+      const view = render(<h.ChatView {...h.props} />, { container: mount })
+      const sentinel = view.container.querySelector('[class*="floorSentinel"]') as HTMLElement
+      const floorObservers = () => handles.filter(handle => handle.observed.includes(sentinel))
+      expect(floorObservers()).toHaveLength(1)
+      expect(floorObservers()[0]?.options).toEqual({ root: host, rootMargin: '0px 0px -176px 0px' })
+
+      // A growing draft raises the seat; the floor follows it.
+      const seatResizer = resizers.find(resizer => resizer.observed.includes(seat))
+      expect(seatResizer).toBeDefined()
+      sentinelTop = 700
+      act(() => { seatResizer?.notify() })
+      expect(floorObservers()).toHaveLength(2)
+      expect(floorObservers()[1]?.options?.rootMargin).toBe('0px 0px -276px 0px')
+
+      // Content growth that leaves the floor inset alone keeps the observer.
+      act(() => { seatResizer?.notify() })
+      expect(floorObservers()).toHaveLength(2)
+    } finally {
+      host.remove()
+    }
   })
 
   it('one ResizeObserver owns pinned dynamic-height follow and ignores growth while away', () => {

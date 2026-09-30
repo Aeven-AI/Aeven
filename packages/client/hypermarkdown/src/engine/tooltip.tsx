@@ -34,6 +34,12 @@ export interface TooltipProps {
    * tippy's own gutter in place.
    */
   overflowPadding?: (() => number | undefined) | undefined
+  /**
+   * Element the bubble is clamped inside, flush with its edges, instead of the
+   * viewport less `overflowPadding`; resolved once when the tooltip is created.
+   * Returning null keeps the viewport clamp.
+   */
+  overflowBoundary?: ((reference: Element) => Element | null) | undefined
   children?: ReactElement<{ ref?: Ref<Element> }> | undefined
 }
 
@@ -124,15 +130,21 @@ function loadTippy(): Promise<TippyFactory | null> {
  */
 const Tooltip = forwardRef<TooltipHandle, TooltipProps>(
   function Tooltip(props, ref) {
-    const { content, placement, trigger, touch, arrow, placementRect, overflowPadding, children } = props
+    const {
+      content, placement, trigger, touch, arrow, placementRect, overflowPadding, overflowBoundary, children,
+    } = props
 
     const manual = trigger === 'manual'
     const instanceRef = useRef<Instance | null>(null)
     const referenceRef = useRef<Element | null>(null)
     // tippy arrives a microtask late, so creation reads the current props
     // rather than the ones captured when the effect was scheduled.
-    const latest = useRef({ content, placement, touch, arrow, manual, trigger, placementRect, overflowPadding })
-    latest.current = { content, placement, touch, arrow, manual, trigger, placementRect, overflowPadding }
+    const latest = useRef({
+      content, placement, touch, arrow, manual, trigger, placementRect, overflowPadding, overflowBoundary,
+    })
+    latest.current = {
+      content, placement, touch, arrow, manual, trigger, placementRect, overflowPadding, overflowBoundary,
+    }
 
     // The anchor may carry a ref of its own; it keeps receiving the element.
     const childRef = (children as { ref?: Ref<Element> } | undefined)?.ref
@@ -171,7 +183,8 @@ const Tooltip = forwardRef<TooltipHandle, TooltipProps>(
         }
 
         const current = latest.current
-        const overflowPadding = current.overflowPadding?.()
+        const boundary = current.overflowBoundary?.(reference) ?? null
+        const overflowPadding = boundary === null ? current.overflowPadding?.() : 0
 
         instanceRef.current = create(reference, {
           content: current.content ?? '',
@@ -186,10 +199,14 @@ const Tooltip = forwardRef<TooltipHandle, TooltipProps>(
           getReferenceClientRect: () => latest.current.placementRect?.(reference)
             ?? reference.getBoundingClientRect(),
           // Popper appends these to tippy's own modifiers, so the host's gutter
-          // replaces tippy's 5px one on the axis the bubble is clamped against.
-          // A host without a gutter keeps tippy's.
+          // replaces tippy's 5px one on the axis the bubble is clamped against,
+          // and a host boundary replaces the viewport clamp flush with its
+          // edges. A host with neither keeps tippy's.
           popperOptions: overflowPadding === undefined ? {} : {
-            modifiers: [{ name: 'preventOverflow', options: { padding: overflowPadding } }],
+            modifiers: [{
+              name: 'preventOverflow',
+              options: boundary === null ? { padding: overflowPadding } : { padding: overflowPadding, boundary },
+            }],
           },
           // An edge-aligned bubble (`-start`/`-end`) keeps its arrow at least
           // ARROW_REACH from its own edge; slide the bubble outward just enough

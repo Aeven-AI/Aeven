@@ -10,10 +10,13 @@ import {
   ipcMain,
   Menu,
   protocol,
+  shell,
   type IpcMainInvokeEvent,
   type MenuItemConstructorOptions,
 } from 'electron'
-import { completeOAuthLanding, forwardAevenApiRequest, openAevenOAuthWindow } from './aeven-sign-in.ts'
+import { adoptedHostSignIn, completeOAuthLanding, forwardAevenApiRequest } from './aeven-sign-in.ts'
+import { startBrowserSignIn } from './oauth-browser.ts'
+import { installContextMenu } from './context-menu.ts'
 import { hardenBrowserGuests, registerBrowserIpc } from './browser-guests.ts'
 import { planDesktopBackend } from './attached-host.ts'
 import { resolveDesktopPaths } from './paths.ts'
@@ -216,6 +219,8 @@ async function main(): Promise<void> {
   let updateState: DesktopUpdateState = { phase: 'idle' }
   const locale = resolveDesktopLocale(app.getLocale())
   const messages = locale.messages
+  // Every page gets the right-click menu, including the sidebar browser's guests.
+  app.on('web-contents-created', (_event, contents) => { installContextMenu(contents, messages) })
   const appPreload = fileURLToPath(new URL('./preload-app.cjs', import.meta.url))
   const managementPreload = fileURLToPath(new URL('./preload.cjs', import.meta.url))
 
@@ -288,6 +293,12 @@ async function main(): Promise<void> {
   if (plan.kind === 'attach') {
     attachedBackend = { url: plan.url, origin: new URL(plan.url).origin }
     console.log(`desktop: adopting the Host already serving this home at ${attachedBackend.origin}`)
+    // No Host of ours reports the provider URLs, and without them the window's
+    // navigation guard drops every provider sign-in the page starts.
+    aevenSignIn = await adoptedHostSignIn(plan.url).catch((error: unknown) => {
+      console.error('avn desktop: could not read sign-in endpoints from the adopted Host; provider sign-in is unavailable', error)
+      return undefined
+    })
   } else {
     host = await startHost()
   }
@@ -436,24 +447,42 @@ async function main(): Promise<void> {
     ],
   }, ...platformMenus]))
 
+  /**
+   * Sign in with a provider in the default browser, then bring the app back.
+   * Providers refuse embedded windows, so none is opened here.
+   */
+  const beginProviderSignIn = (window: BrowserWindow, url: string, land: (path: string) => void): void => {
+    void startBrowserSignIn({
+      providerUrl: url,
+      labels: { continuing: messages.signInContinuing, signedIn: messages.signInDone, failed: messages.signInFailed },
+      openExternal: target => shell.openExternal(target),
+      land: (path) => {
+        land(path)
+        if (window.isDestroyed()) return
+        if (window.isMinimized()) window.restore()
+        window.focus()
+        app.focus({ steal: true })
+      },
+    }).catch((error: unknown) => { console.error('avn desktop: provider sign-in could not start', error) })
+  }
+
   const createMainWindow = (): BrowserWindow => {
     const window = createWindow(appPreload)
     mainWindow = window
-    // Either way the page reaches a provider, it gets this shell's own hardened
-    // window rather than one it made itself, and every other window stays denied.
-    // A page whose flow is a window opens the provider here; a page whose flow is
-    // a redirect navigates to it, and the landing it expects is loaded back into
-    // the window it came from.
+    // Either way the page reaches a provider, the provider opens in the default
+    // browser and every other window stays denied. A page whose flow is a window
+    // waits for the session this shell exchanges; a page whose flow is a redirect
+    // gets the landing it expects loaded back into the window it came from.
     window.webContents.setWindowOpenHandler(({ url }) => {
       if (aevenSignIn?.oauthUrls.includes(url) === true) {
-        openAevenOAuthWindow(window, url, (path) => { void completeOAuthLanding(path, aevenSignIn) })
+        beginProviderSignIn(window, url, (path) => { void completeOAuthLanding(path, aevenSignIn) })
       }
       return { action: 'deny' }
     })
     window.webContents.on('will-navigate', (event, url) => {
       if (aevenSignIn?.oauthUrls.includes(url) !== true) return
       event.preventDefault()
-      openAevenOAuthWindow(window, url, (path) => { void window.loadURL(appPathUrl(path)) })
+      beginProviderSignIn(window, url, (path) => { void window.loadURL(appPathUrl(path)) })
     })
     window.once('ready-to-show', () => { if (!window.isDestroyed()) window.show() })
     window.on('closed', () => { if (mainWindow === window) mainWindow = undefined })

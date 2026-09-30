@@ -31,19 +31,19 @@
   display: grid;
   flex: none;
   place-items: center;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--dsw-alias-label-primary);
 }
 
 .title {
   flex: none;
-  color: var(--dsw-alias-label-primary);
+  color: #000;
 }
 
 .progress {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
-  color: var(--dsw-alias-label-tertiary);
+  color: #000;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -52,7 +52,7 @@
   display: grid;
   flex: none;
   place-items: center;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--dsw-alias-label-primary);
 }
 
 .list {
@@ -71,7 +71,7 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
-  color: var(--dsw-alias-label-secondary);
+  color: #000;
 }
 
 .glyph {

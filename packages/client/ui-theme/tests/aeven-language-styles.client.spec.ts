@@ -37,6 +37,20 @@ const buttonCss = readFileSync(
   'utf8',
 )
 
+/** Sheets laying a control on the line of macOS's window controls. */
+const WINDOW_CONTROLS_CONSUMERS = [
+  '../../ui-conversation/src/client/skeleton/ConversationRoot.module.css',
+  '../../ui-sidebar/src/client/SidebarRoot.module.css',
+  '../../ui-layout/src/client/AppFrame.module.css',
+]
+
+const authCss = readFileSync(
+  fileURLToPath(
+    new URL('../../ui-auth-aeven/src/vendor/aeven-auth.css', import.meta.url),
+  ),
+  'utf8',
+)
+
 describe('Aeven visual language', () => {
   it('owns the shared geometry and neutral light palette', () => {
     expect(css).toContain('--dsw-aeven-chat-width: 1024px')
@@ -71,6 +85,25 @@ describe('Aeven visual language', () => {
     expect(inputBarCss).toContain('var(--dsw-aeven-radius-surface)')
     expect(inputBarCss).toContain('var(--dsw-aeven-control-size)')
     expect(buttonCss).toContain('var(--dsw-aeven-radius-control)')
+  })
+
+  it('gives the desktop window controls one gutter, one page inset past it', () => {
+    expect(css).toContain('--dsw-aeven-window-controls-gutter: 84px')
+    for (const consumer of WINDOW_CONTROLS_CONSUMERS) {
+      const sheet = readFileSync(fileURLToPath(new URL(consumer, import.meta.url)), 'utf8')
+      expect(sheet).toContain('var(--dsw-aeven-window-controls-gutter)')
+    }
+  })
+
+  it('draws the auth band on the line the shell headers use', () => {
+    // The auth screens render before the token sheet, so their band restates
+    // this one value rather than reading it; the two must not drift.
+    const token = (name: string): number => Number(new RegExp(`${name}: (\\d+)px`).exec(css)?.[1])
+    const leading = token('--dsw-aeven-window-controls-gutter') + token('--dsw-aeven-page-inset')
+    expect(Number.isFinite(leading)).toBe(true)
+    expect(authCss).toMatch(
+      new RegExp(`html\\[data-avn-desktop\\][^{]*\\.auth-header \\{\\s*padding-left: ${leading}px`),
+    )
   })
 })
 

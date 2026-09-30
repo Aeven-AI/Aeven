@@ -10,6 +10,8 @@ import { Context, Service, symbols } from '@deepseek-ai/cordis'
 import type { ConnectionRpcHandler } from '@aeven/client-connection'
 import { Deque } from '@aeven/deque'
 import type { WebUpgradeRoute } from '@aeven/host-webserver'
+import type { User } from '@aeven/identity-user'
+import type { SessionId } from '@aeven/session'
 import { MAX_TIMER_DELAY_MS } from '@aeven/timeout'
 import z from '@deepseek-ai/schemastery'
 export type { TypertGatewayFaultDetails } from './remote-error-codes.ts'
@@ -27,6 +29,7 @@ import type {
   TypertGateway,
   TypertGatewayErrorCode,
   TypertGatewayWireStream,
+  RemoteEventAudience,
   TypertRemoteEventDispatch,
   TypertRemoteEventFrame,
   TypertRemoteEventInvocation,
@@ -59,6 +62,7 @@ import {
 
 export type {
   InvokeRemoteRequest,
+  RemoteEventAudience,
   TypertGateway,
   TypertGatewayErrorCode,
   TypertGatewayWireStream,
@@ -97,12 +101,16 @@ interface RegisteredRemoteEventSource {
 
 interface RemoteEventClient {
   readonly id: RemoteEventClientId
+  /** Signed-in user of the stream; Session-owned events reach only their owner's Clients. */
+  readonly user: User | undefined
   readonly queue: RemoteEventQueue
   readonly deliveries: Map<RemoteEventId, PendingRemoteEvent>
 }
 
 interface PendingRemoteEvent {
   readonly id: RemoteEventId
+  /** Owner of the Session the scoped event runs in. */
+  readonly audience: RemoteEventAudience
   readonly source: TypertRemoteEventInvocation
   readonly frame: RemoteEventInvocationFrame
   readonly deliveries: Set<RemoteEventClient>
@@ -207,6 +215,10 @@ export class TypertGatewayService extends Service implements TypertGateway {
         (endpoint, payload, signal) => this.openWireStream(endpoint, payload, signal),
         this.wireStream.failure,
         resolved.websocketHeartbeatIntervalMs,
+        (user, work) => {
+          const identity = webCtx.get('identityUsers')
+          return identity === undefined ? work() : identity.runAs(user, work)
+        },
       )
       webCtx.effect(() => {
         const route: WebUpgradeRoute = {
@@ -416,11 +428,14 @@ export class TypertGatewayService extends Service implements TypertGateway {
     while (this.remoteEventClients.has(clientId)) clientId = randomUUID() as RemoteEventClientId
     const client: RemoteEventClient = {
       id: clientId,
+      user: this.ctx.get('identityUsers')?.actingUser(),
       queue: new RemoteEventQueue(),
       deliveries: new Map(),
     }
     this.remoteEventClients.set(clientId, client)
-    for (const pending of this.pendingRemoteEvents.values()) this.deliverRemoteEvent(pending, client)
+    for (const pending of this.pendingRemoteEvents.values()) {
+      if (this.receives(client, pending.audience)) this.deliverRemoteEvent(pending, client)
+    }
     try {
       yield { ...REMOTE_EVENT_STREAM_READY, clientId, host: registration.host }
       yield* client.queue.iterate(lifetime)
@@ -453,7 +468,21 @@ export class TypertGatewayService extends Service implements TypertGateway {
       event: frame.event,
       args: frame.args,
     }
-    for (const client of this.remoteEventClients.values()) client.queue.push(wire)
+    for (const client of this.remoteEventClients.values()) {
+      if (this.receives(client, frame.audience)) client.queue.push(wire)
+    }
+  }
+
+  /**
+   * Whether a Client receives an event: a Host-wide one reaches every Client,
+   * a Session-owned one only Clients whose user may reach that Session.
+   * @param client - the event stream Client.
+   * @param audience - the Session owner, or undefined for a Host-wide event.
+   * @returns true when the event is delivered to the Client.
+   */
+  private receives(client: RemoteEventClient, audience: RemoteEventAudience | undefined): boolean {
+    if (audience === undefined) return true
+    return this.ctx.get('identityUsers')?.mayAccess(audience.owner, client.user) ?? true
   }
 
   private startRemoteEvent(source: TypertRemoteEventInvocation): void {
@@ -497,6 +526,8 @@ export class TypertGatewayService extends Service implements TypertGateway {
       }
       const pending: PendingRemoteEvent = {
         id,
+        // A scoped event runs in one Agent's Session; only its owner's Clients may answer it.
+        audience: { owner: this.ctx.get('sessions')?.get(String(context.identity) as SessionId)?.header.owner },
         source,
         frame: {
           type: 'waterfall',
@@ -514,7 +545,11 @@ export class TypertGatewayService extends Service implements TypertGateway {
       this.pendingRemoteEvents.set(id, pending)
       for (const signal of signals) signal.addEventListener('abort', abort, { once: true })
       if ([...signals].some(signal => signal.aborted)) abort()
-      else for (const client of this.remoteEventClients.values()) this.deliverRemoteEvent(pending, client)
+      else {
+        for (const client of this.remoteEventClients.values()) {
+          if (this.receives(client, pending.audience)) this.deliverRemoteEvent(pending, client)
+        }
+      }
     } catch (error) {
       source.reject(error)
     }

@@ -89,6 +89,14 @@ export type MessageImageSource =
     }
   }
 
+/**
+ * One file inside a message record: a durable admitted reference, or the name
+ * and type a submission echo shows while its admission is in flight.
+ */
+export type MessageFileSource =
+  | { readonly attachment: FileAttachmentRef }
+  | { readonly preview: { readonly name: string; readonly mediaType: string } }
+
 /** Durable image loader with an optional synchronous cache read. */
 export type MessageImageLoader = ((attachment: ImageAttachmentRef) => Promise<string>) & {
   peek?: (attachment: ImageAttachmentRef) => string | undefined
@@ -98,14 +106,20 @@ export type MessageImageLoader = ((attachment: ImageAttachmentRef) => Promise<st
 export interface MessageImagesOwnerProps {
   /** Durable references or submission-echo previews in source order. */
   images: readonly MessageImageSource[]
-  /** Durable file references in source order; absent when the record cites none. */
-  files?: readonly FileAttachmentRef[] | undefined
+  /** Durable references or submission-echo files in source order; absent when the record cites none. Only the `tray` layout renders them. */
+  files?: readonly MessageFileSource[] | undefined
   /** Session-authorized image URL loader for the durable arm. */
   loadImage: MessageImageLoader
   /** Session-authorized URL of one stored file original. */
   fileUrl?: ((file: FileAttachmentRef) => string) | undefined
   /** Horizontal placement inside the owning record. */
   align: 'start' | 'end'
+  /**
+   * `gallery` sizes images by count (assistant, tool, and trajectory records);
+   * `tray` renders images and files as one tile grid, the sent-message
+   * counterpart of the composer tray.
+   */
+  layout: 'gallery' | 'tray'
 }
 
 /** Slot-backed renderer used by Conversation targets without importing an attachment implementation. */

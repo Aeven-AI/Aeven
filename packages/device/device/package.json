@@ -49,6 +49,7 @@
     "zod": "^4.4.3"
   },
   "peerDependencies": {
+    "@aeven/identity-user": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
@@ -56,6 +57,7 @@
     "@aeven/brand": "workspace:^",
     "@aeven/client-connection": "workspace:^",
     "@aeven/host-webserver": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/settings": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",

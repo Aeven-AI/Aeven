@@ -313,7 +313,11 @@ export function ConversationRoot({
   const composerBar = (
     <div className={clsx(css.composerStack, hero && css.composerHero)}>
       {hero && <HeroShell t={t} />}
-      {zone !== undefined && <div className={css.dockStack}>{renderSlot('conversation.input.dock', zone)}</div>}
+      {zone !== undefined && (
+        <div className={css.dockFrame}>
+          <div className={css.dockStack}>{renderSlot('conversation.input.dock', zone)}</div>
+        </div>
+      )}
       {inputBar}
     </div>
   )

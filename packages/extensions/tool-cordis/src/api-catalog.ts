@@ -743,15 +743,15 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Abstract credential service over two key spaces that answer two questions.\n\nA CredentialRef answers "what is behind this environment-variable name", layered over the process environment, the provider-managed store, and `.env` files. One seam-wide rule binds that half: an empty stored value is absent everywhere — `resolve` skips it, `describe` reports it unconfigured — so a blank never masquerades as a configured secret.\n\nA CredentialKey answers "what credential does this plugin hold for this id". Nothing can layer here — an authorization grant has no environment to be read from — so presence of the record is the whole fact, and modifyRecord is the only write path because a correct write depends on the current value (a token refresh is read-decide-replace under one lock).',
     methods: [
       {
-        signature: 'abstract resolve(ref: CredentialRef): Promise<ResolvedCredential | undefined>',
-        description: 'Resolve one reference to its current value. Resolution is per call: consumers re-resolve at each operation and must not cache across operations — that per-operation read is what makes a changed credential reach the next operation without a restart.',
-        parameters: [{ name: 'ref', description: 'the reference to resolve.' }],
+        signature: 'abstract resolve(ref: CredentialRef, user?: string): Promise<ResolvedCredential | undefined>',
+        description: 'Resolve one reference to its current value. Resolution is per call: consumers re-resolve at each operation and must not cache across operations — that per-operation read is what makes a changed credential reach the next operation without a restart.\n\nA session credential (setSession) belongs to one signed-in user and resolves only for that user; a call that names no user never sees one.',
+        parameters: [{ name: 'ref', description: 'the reference to resolve.' }, { name: 'user', description: 'the signed-in user the value is presented for, when there is one.' }],
         returns: 'the value and its source, or `undefined` while unconfigured.',
       },
       {
-        signature: 'abstract describe(ref: CredentialRef): Promise<CredentialInfo>',
+        signature: 'abstract describe(ref: CredentialRef, user?: string): Promise<CredentialInfo>',
         description: 'Describe one reference for configuration surfaces without exposing the value.',
-        parameters: [{ name: 'ref', description: 'the reference to describe.' }],
+        parameters: [{ name: 'ref', description: 'the reference to describe.' }, { name: 'user', description: 'the signed-in user asking, whose session credential counts; absent counts none.' }],
         returns: 'configured state, supplying source, and writability.',
       },
       {
@@ -765,9 +765,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'ref', description: 'the reference to remove.' }],
       },
       {
-        signature: 'setSession?(ref: CredentialRef, value: string | undefined): void',
-        description: 'Publish a credential that belongs to a live session rather than to this machine, for as long as the process runs.\n\nOptional, because it is a capability only a provider with an in-memory layer can offer; a provider that implements it makes the value resolve above its durable sources so a stored entry cannot shadow a live session. A caller that needs it must handle absence, which is what makes the capability additive rather than a widening of every provider\'s contract.',
-        parameters: [{ name: 'ref', description: 'the reference the value answers.' }, { name: 'value', description: 'the credential, or `undefined` to withdraw it.' }],
+        signature: 'setSession?(ref: CredentialRef, user: string, value: string | undefined): void',
+        description: 'Publish a credential that belongs to one signed-in user\'s live session rather than to this machine, for as long as the process runs.\n\nKeyed by user: one Host serves several signed-in clients at once, and a value published for one user never resolves for another or for a call that names no user.\n\nOptional, because it is a capability only a provider with an in-memory layer can offer; a provider that implements it makes the value resolve above its durable sources so a stored entry cannot shadow a live session. A caller that needs it must handle absence, which is what makes the capability additive rather than a widening of every provider\'s contract.',
+        parameters: [{ name: 'ref', description: 'the reference the value answers.' }, { name: 'user', description: 'the signed-in user whose session the value belongs to.' }, { name: 'value', description: 'the credential, or `undefined` to withdraw it.' }],
       },
       {
         signature: 'abstract readRecord(key: CredentialKey): Promise<CredentialRecord | undefined>',

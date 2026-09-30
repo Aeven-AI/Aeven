@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { MACOS_USAGE_DESCRIPTIONS } from './macos-usage-descriptions.mjs'
 
 /**
  * Workspace and runtime settings captured for Launch Services cold starts.
@@ -54,17 +55,18 @@ export function prepareDevelopmentApp(options: DevelopmentAppOptions): string {
   const executable = join(bundle, 'Contents', 'MacOS', 'AevenDev')
   const stamp = join(bundle, 'Contents', 'Resources', 'avn-development.json')
   const launcher = developmentLauncher(options, bundle)
-  const identity = JSON.stringify({ ...options, launcher, plist: readFileSync(join(source, 'Contents', 'Info.plist'), 'utf8') })
+  const values = {
+    CFBundleIdentifier: `ai.aeven.dev.${createHash('sha256').update(options.appRoot).digest('hex').slice(0, 12)}`,
+    CFBundleName: 'Aeven Dev',
+    CFBundleDisplayName: 'Aeven Dev',
+    CFBundleExecutable: 'AevenDev',
+    ...MACOS_USAGE_DESCRIPTIONS,
+  }
+  const identity = JSON.stringify({ ...options, launcher, values, plist: readFileSync(join(source, 'Contents', 'Info.plist'), 'utf8') })
   if (!existsSync(stamp) || readFileSync(stamp, 'utf8') !== identity) {
     rmSync(bundle, { recursive: true, force: true })
     execFileSync('/usr/bin/ditto', [source, bundle])
     const plist = join(bundle, 'Contents', 'Info.plist')
-    const values = {
-      CFBundleIdentifier: `ai.aeven.dev.${createHash('sha256').update(options.appRoot).digest('hex').slice(0, 12)}`,
-      CFBundleName: 'Aeven Dev',
-      CFBundleDisplayName: 'Aeven Dev',
-      CFBundleExecutable: 'AevenDev',
-    }
     for (const [key, value] of Object.entries(values)) {
       execFileSync('/usr/bin/plutil', ['-replace', key, '-json', JSON.stringify(value), plist])
     }

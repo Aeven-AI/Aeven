@@ -1,6 +1,6 @@
 {
   "name": "@aeven/document-extract-js",
-  "description": "Built-in document readers for PDF, Office, OpenDocument, Numbers, RTF, EPUB, HTML, and text, run in worker threads",
+  "description": "Built-in document readers for PDF, Office, OpenDocument, Pages, Keynote, Numbers, RTF, EPUB, HTML, and text, run in worker threads",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

@@ -69,25 +69,27 @@
     "zod": "^4.4.3"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:^",
     "@aeven/api-gateway": "workspace:^",
     "@aeven/client-connection": "workspace:^",
     "@aeven/host-directory-picker": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/storage-domain": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
-    "@aeven/workspace": "workspace:^"
+    "@aeven/workspace": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:^",
     "@aeven/api-gateway": "workspace:^",
     "@aeven/client-connection": "workspace:^",
     "@aeven/client-store": "workspace:^",
     "@aeven/host-directory-picker": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/storage": "workspace:^",
     "@aeven/storage-domain": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
-    "@aeven/workspace": "workspace:^"
+    "@aeven/workspace": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
   }
 }

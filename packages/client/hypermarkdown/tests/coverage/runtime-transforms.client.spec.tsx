@@ -258,6 +258,24 @@ describe('component adapters and footnote links', () => {
     expect(renderToStaticMarkup(changed)).toContain('>7</span>')
   })
 
+  it('keeps a boolean-marked footnote reference in the page', () => {
+    const renderLink = (MarkdownLink as any).type
+    const reference = renderToStaticMarkup(renderLink({
+      'data-footnote-ref': true,
+      id: 'user-content-fnref-8',
+      href: '#user-content-fn-8',
+      children: '8',
+    }))
+    const unmarked = renderToStaticMarkup(renderLink({
+      'data-footnote-ref': false,
+      href: 'https://example.com',
+      children: 'link',
+    }))
+    expect(reference).not.toContain('target="_blank"')
+    expect(reference).toContain('/#user-content-fn-8"')
+    expect(unmarked).toContain('target="_blank"')
+  })
+
   it('passes element keys through both JSX runtime helpers', () => {
     const components = cellComponents(renderer)
     const processor = createProcessor('regular', components as any)

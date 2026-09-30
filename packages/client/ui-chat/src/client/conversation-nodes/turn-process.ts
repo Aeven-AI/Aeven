@@ -313,8 +313,15 @@ export const turnProcessDefinition: ConversationNodeDefinition<TurnProcessState>
   buildViewNode: (context) => {
     const turn = turnLocation(context)
     const data = turn?.data.get('turn-process')
-    if (turn === undefined || data === undefined) return null
     const current = context.current.get('chat') as ChatNode | null | undefined
+    if (turn === undefined || data === undefined) {
+      // A Turn that closes before any process evidence (a model request
+      // refused on its first Step) loses the input anchor its open header sat
+      // on. Withdrawing the materialized Node aborts the publish; carry the
+      // same key hidden instead, which every Chat consumer drops.
+      if (current == null) return null
+      return current.visibility === 'hidden' ? current : { ...current, visibility: 'hidden' }
+    }
     const state = context.state
     if (current?.kind === 'turn-process'
       && state !== undefined

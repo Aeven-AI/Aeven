@@ -301,6 +301,7 @@ export class ConversationController extends Service implements IConversation {
         ...(attachment.width === undefined ? {} : { width: attachment.width }),
         ...(attachment.height === undefined ? {} : { height: attachment.height }),
       })),
+      files: files.map(attachment => ({ name: attachment.file.name, mediaType: attachment.file.type })),
       onRetire: (settlement) => {
         this.settleSubmittedImages(session.sessionId, images, settlement)
         finishRetirement?.(settlement)

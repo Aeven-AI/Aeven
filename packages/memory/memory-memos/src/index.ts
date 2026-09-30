@@ -39,7 +39,7 @@ export interface Config {
   classifyTimeoutMs: number
   /** Number of trace candidates MemOS ranks for turn-start recall before Aeven orders them. */
   candidateTraces: number
-  /** Serve the MemOS Viewer and its read/write memory API. */
+  /** Serve the MemOS Viewer and its read/write memory API over every owner's memory, without sign-in. */
   viewer: boolean
   /** Viewer listener port. */
   viewerPort: number

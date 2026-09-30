@@ -81,6 +81,7 @@ A block boundary is scanned rather than guessed, and everything before the last 
 ### Styling
 
 The engine draws its own chrome from `--hm-*` custom properties declared on `.hypermarkdown`. The stylesheet is plain CSS with native nesting and travels with the bundle: the build's static-linked preset emits it beside the JavaScript and keeps the relative import, so the shell's CSS pipeline owns class hashing and delivery.
+Table cells wrap at a maximum width of 32ch; tables wider than their container scroll horizontally. Inline code uses `--hm-size-small`, 1px by 6px padding, a 16px radius, and a `#f2f2f2` background.
 
 </details>
 

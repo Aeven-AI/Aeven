@@ -10,7 +10,9 @@
 
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+import type {} from '@aeven/identity-user'
 import type {} from '@aeven/jobs'
+import type { SessionId } from '@aeven/session'
 import { Remote, RemoteError, TypertRemoteService } from '@aeven/typert-protocol'
 import { observeJobOutput } from './observe.ts'
 import { streamJobRows } from './rows.ts'
@@ -77,6 +79,7 @@ export class JobController extends TypertRemoteService {
    */
   @Remote({ mode: 'stream' })
   list(request: JobListRequest, signal: AbortSignal): AsyncIterable<JobListFrame> {
+    this.requireCallerSession(request.sessionId)
     return streamJobRows(this.ctx.jobs, request, { flushMs: this.observeFlushMs }, signal)
   }
 
@@ -92,6 +95,7 @@ export class JobController extends TypertRemoteService {
    */
   @Remote({ mode: 'stream' })
   follow(request: JobFollowRequest, signal: AbortSignal): AsyncIterable<JobFollowFrame> {
+    if (request.sessionId !== undefined) this.requireCallerSession(request.sessionId)
     return observeJobOutput(this.ctx.jobs, request, {
       flushMs: this.observeFlushMs,
       maxFrameBytes: this.observeMaxFrameBytes,
@@ -111,6 +115,7 @@ export class JobController extends TypertRemoteService {
    */
   @Remote('kill')
   kill(request: JobKillRequest): JobKillValue {
+    this.requireCallerSession(request.sessionId)
     const jobs = this.ctx.jobs
     try {
       jobs.get(request.jobId, request.sessionId)
@@ -140,6 +145,7 @@ export class JobController extends TypertRemoteService {
    */
   @Remote('dismiss')
   dismiss(request: JobDismissRequest): JobDismissValue {
+    this.requireCallerSession(request.sessionId)
     const jobs = this.ctx.jobs
     try {
       jobs.get(request.jobId, request.sessionId)
@@ -151,6 +157,17 @@ export class JobController extends TypertRemoteService {
     }
     jobs.remove(request.jobId, request.sessionId)
     return { outcome: 'dismissed' }
+  }
+
+  /**
+   * Refuse a request that names a Session the caller does not own; it reads as absent.
+   * @param sessionId - the Session the request acts as.
+   */
+  private requireCallerSession(sessionId: SessionId): void {
+    const owner = this.ctx.get('sessions')?.get(sessionId)?.header.owner
+    if (this.ctx.get('identityUsers')?.mayAccess(owner) === false) {
+      throw new RemoteError('session/not-found', `session "${sessionId}" not found`, { sessionId })
+    }
   }
 }
 

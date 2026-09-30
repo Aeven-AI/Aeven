@@ -92,6 +92,11 @@ async function bootWeb(
     // The shipped `-auto` chooser resolves its interaction from a running
     // host and so waits for the webserver disabled above; the browse variant
     // supplies `directoryPicker` without one.
+    // The shipped profile starts Chrome and two MCP servers. This boot only
+    // asserts agent composition, so those processes stay down.
+    { id: 'browser-chromium', disabled: true },
+    { id: 'mcp-chrome-devtools', disabled: true },
+    { id: 'mcp-playwright', disabled: true },
     { id: 'directory-picker', disabled: true },
     { insert: [
       { id: 'directory-picker-browse', name: '@aeven/host-directory-picker-browse' },

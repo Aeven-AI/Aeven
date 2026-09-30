@@ -109,7 +109,7 @@
   white-space: nowrap;
   font-size: 14px;
   line-height: 20px;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--dsw-alias-label-tertiary);
   cursor: pointer;
 }
@@ -260,7 +260,7 @@
   white-space: nowrap;
   font-size: 14px;
   line-height: 20px;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -332,7 +332,7 @@
   padding: 0;
   font-size: 14px;
   line-height: 20px;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--dsw-alias-label-secondary);
   cursor: pointer;
   white-space: nowrap;

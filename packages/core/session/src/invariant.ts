@@ -147,6 +147,9 @@ function validateEvent(
     case 'session/end-seed':
       // Unconstrained: an unbalanced seed legally puts it inside an open turn.
       break
+    case 'session/rewind':
+      if (trace.openTurn !== null) fail(`session/rewind appended inside open turn ${trace.openTurn}`)
+      break
     case 'request/header':
     case 'request/context': {
       if (trace.openTurn === null) {

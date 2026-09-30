@@ -231,6 +231,7 @@ export class Session implements SessionFace {
       time: Date.now(),
       text: input.text,
       images: input.images,
+      files: input.files,
     }]
     this.submissionSettlements.set(requestId, { onRetire: input.onRetire, retiring: false, admitted: null })
     // The blank → engaging edge flips here, ahead of prompt(): the composer
@@ -331,6 +332,48 @@ export class Session implements SessionFace {
   /** Apply one operation to a still-pending queue occurrence. */
   async updateQueue(itemId: MessageId, action: QueueAction): Promise<RemoteResult<{ accepted: true }>> {
     return this.remote.session.updateQueue({ sessionId: this.sessionId, itemId, action })
+  }
+
+  /**
+   * Replace one user prompt's text and discard it and everything after;
+   * failures land in promptError. Like a send, it moves the window to the live end.
+   * @param messageSeq - event seq of the user-authored `user/message`.
+   * @param text - replacement text; the prompt's attachments are kept.
+   * @returns the edit result.
+   */
+  async edit(messageSeq: SessionSeq, text: string): Promise<RemoteResult<{ accepted: true }>> {
+    this.promptError = null
+    this.lastAgentError = null
+    if (this.hasNewer) void this.returnToLive()
+    this.notifier.markDirty()
+    const requestId = randomUUID() as SessionRequestId
+    const result = await this.remote.session.edit({
+      requestId,
+      sessionId: this.sessionId,
+      messageSeq,
+      text,
+      clientTimeZone: resolvedClientTimeZone(),
+    })
+    if (!result.ok) {
+      this.promptError = { op: 'send', error: result.error }
+      this.notifier.markDirty()
+      return result
+    }
+    // The rewind already hid the original prompt; a transcript echo shows the
+    // edited text until the new turn logs it. Registered only after acceptance,
+    // so the echo never renders beside the prompt it replaces.
+    this.pendingSubmissions = [...this.pendingSubmissions, {
+      requestId,
+      placement: 'transcript',
+      time: Date.now(),
+      text,
+      images: [],
+      files: [],
+    }]
+    this.submissionSettlements.set(requestId, { retiring: false, admitted: null })
+    this.admitTranscriptEcho(requestId, [])
+    this.notifier.notifyNow()
+    return { ok: true, value: { accepted: true } }
   }
 
   /**

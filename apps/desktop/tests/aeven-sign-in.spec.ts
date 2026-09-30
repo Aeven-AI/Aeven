@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  aevenApiTarget, completeOAuthLanding, forwardAevenApiRequest, oauthCallbackPair, oauthResultPath,
+  adoptedHostSignIn, aevenApiTarget, completeOAuthLanding, forwardAevenApiRequest, oauthCallbackPair, oauthResultPath,
   type AevenApiFetch,
 } from '../src/aeven-sign-in.ts'
 
@@ -14,6 +14,8 @@ describe('Aeven desktop sign-in', () => {
       .toBe('https://api.aeven.test/v1/refresh-token')
     expect(aevenApiTarget('avn-app://app/.aeven/api/login?next=1', 'http://localhost:9000')?.href)
       .toBe('http://localhost:9000/login?next=1')
+    expect(aevenApiTarget('avn-app://app/.aeven/api/api/cloud/plans', 'http://localhost:9000')?.href)
+      .toBe('http://localhost:9000/api/cloud/plans')
     expect(aevenApiTarget('avn-app://app/.aeven/api/chat', signIn.apiUrl)).toBeUndefined()
     expect(aevenApiTarget('avn-app://app/.aeven/api/login/extra', signIn.apiUrl)).toBeUndefined()
     expect(aevenApiTarget('avn-app://app/api/login', signIn.apiUrl)).toBeUndefined()
@@ -98,5 +100,31 @@ describe('Aeven desktop sign-in', () => {
     expect(await completeOAuthLanding('/oauth-result/error', signIn, fetcher)).toBe(false)
     expect(await completeOAuthLanding('/oauth-result/sess-1/chal-2', undefined, fetcher)).toBe(false)
     expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('reads the provider URLs an adopted Host states in its page', async () => {
+    const config = {
+      apiUrl: 'http://127.0.0.1:9000',
+      xOAuthUrl: 'http://127.0.0.1:9020/oauth/x',
+      googleOAuthUrl: 'http://127.0.0.1:9020/oauth/google',
+      webUrl: 'https://aeven.test/</script>',
+    }
+    const page = '<html><head><script>globalThis["__AVN_OTHER__"] = {"apiUrl":"no"}</script>'
+      + `<script>globalThis["__AVN_AEVEN__"] = ${JSON.stringify(config).replaceAll('<', '\\u003c')}</script></head></html>`
+    const fetcher = vi.fn<AevenApiFetch>(async () => new Response(page, { status: 200 }))
+
+    await expect(adoptedHostSignIn('http://127.0.0.1:3080/', fetcher)).resolves.toEqual({
+      apiUrl: 'http://127.0.0.1:9000',
+      oauthUrls: ['http://127.0.0.1:9020/oauth/x', 'http://127.0.0.1:9020/oauth/google'],
+    })
+    expect(fetcher.mock.calls[0]![0]).toBe('http://127.0.0.1:3080/')
+  })
+
+  it('reports no endpoints for a page without an Aeven API, and fails on a refused page', async () => {
+    const answer = (body: string, status = 200): AevenApiFetch => async () => new Response(body, { status })
+    await expect(adoptedHostSignIn('http://127.0.0.1:3080/', answer('<html></html>'))).resolves.toBeUndefined()
+    await expect(adoptedHostSignIn('http://127.0.0.1:3080/', answer('<script>globalThis["__AVN_AEVEN__"] = {}</script>')))
+      .resolves.toBeUndefined()
+    await expect(adoptedHostSignIn('http://127.0.0.1:3080/', answer('', 503))).rejects.toThrow('503')
   })
 })

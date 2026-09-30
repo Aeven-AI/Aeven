@@ -15,6 +15,7 @@ import type {
   CordisDynamicPluginId,
   CordisDynamicPluginRunId,
   DynamicCordisPackage,
+  SessionId,
 } from '@aeven/api-remotes/client'
 import { SlotRegistry } from '@aeven/client-ui-renderer/client'
 import { dynamicCordisContext } from '../src/client/guard.ts'
@@ -25,6 +26,7 @@ const C: FC<object> = () => null
 /** The exact running package carried by a Client dispatch. */
 function pkg(): DynamicCordisPackage {
   return {
+    agentId: 's-1' as SessionId,
     pluginId: 'dyn-1' as CordisDynamicPluginId,
     packageId: 'pkg-1' as CordisDynamicPackageId,
     pluginRunId: 'run-1' as CordisDynamicPluginRunId,

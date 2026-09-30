@@ -32,20 +32,13 @@ export class RuntimeContextProjection {
    * @param session - session receiving projected messages.
    */
   constructor(ctx: Context, session: Session) {
-    const surface = new Set(session.surface.nodes)
-    for (let index = session.seq - 1; index >= 0; index -= 1) {
-      const event = session.eventAt(SessionSeq(index))
-      if (event?.type !== 'user/message' || !isOwned(event.data)) continue
-      this.retained ??= null
-      if (surface.has(event.seq)) {
-        this.retained = { seq: event.seq, text: textOf(event.data) }
-        break
-      }
-    }
+    this.restore(session)
 
     ctx.on('session/event', (subject, event) => {
       if (subject !== session) return
-      if (event.type === 'user/message' && isOwned(event.data)) {
+      if (event.type === 'session/rewind') {
+        this.restore(session)
+      } else if (event.type === 'user/message' && isOwned(event.data)) {
         this.retained = { seq: event.seq, text: textOf(event.data) }
       } else if (this.retained
         && isReplacementSurfaceEvent(event)
@@ -53,6 +46,28 @@ export class RuntimeContextProjection {
         this.retained = null
       }
     })
+  }
+
+  /**
+   * Retain the latest owned snapshot still on the surface. A snapshot only a
+   * replacement shadowed leaves `null`; one a rewind discarded never counts.
+   */
+  private restore(session: Session): void {
+    this.retained = undefined
+    const surface = new Set(session.surface.nodes)
+    for (let index = session.seq - 1; index >= 0; index -= 1) {
+      const event = session.eventAt(SessionSeq(index))
+      if (event?.type === 'session/rewind') {
+        index = event.data.seq
+        continue
+      }
+      if (event?.type !== 'user/message' || !isOwned(event.data)) continue
+      this.retained ??= null
+      if (surface.has(event.seq)) {
+        this.retained = { seq: event.seq, text: textOf(event.data) }
+        break
+      }
+    }
   }
 
   /**

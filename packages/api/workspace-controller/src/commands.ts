@@ -10,7 +10,9 @@ import {
   WorkspaceUnknownSessionError,
 } from '@aeven/workspace'
 import { RemoteError, remoteErrorOf } from '@aeven/typert-protocol'
-import { workspaceView } from './feed.ts'
+import type {} from '@aeven/identity-user'
+import type { SessionId } from '@aeven/session'
+import { callerWorkspaceView, workspaceSessionVisible, workspaceView, workspaceVisible } from './feed.ts'
 import type {
   WorkspaceArchiveSessionRequest,
   WorkspaceArchiveValue,
@@ -40,12 +42,15 @@ export class WorkspaceCommands {
   create(request: WorkspaceCreateRequest): Promise<WorkspaceCreateValue> {
     return this.enqueue(async () => {
       try {
-        const existing = await this.ctx.workspaceRegistry.resolveByPath(request.path)
+        // The caller owns what they register; another account adding the same
+        // directory gets a workspace of its own.
+        const owner = this.ctx.get('identityUsers')?.actingUser()?.id
+        const existing = await this.ctx.workspaceRegistry.resolveByPath(request.path, owner)
         if (existing !== undefined) {
-          return { workspace: workspaceView(existing), created: false }
+          return { workspace: this.view(existing), created: false }
         }
-        const workspace = await this.ctx.workspaceRegistry.create(request.path)
-        return { workspace: workspaceView(workspace), created: true }
+        const workspace = await this.ctx.workspaceRegistry.create(request.path, undefined, owner)
+        return { workspace: this.view(workspace), created: true }
       } catch (error) {
         if (remoteErrorOf(error) !== undefined) throw error
         throw new RemoteError(
@@ -72,7 +77,8 @@ export class WorkspaceCommands {
       const workspace = this.requireWorkspace(request.workspaceId)
       if (title !== workspace.title) {
         if (this.ctx.workspaceRegistry.list().some(candidate =>
-          candidate.id !== workspace.id && candidate.title === title)) {
+          candidate.id !== workspace.id && candidate.title === title
+          && workspaceVisible(this.ctx, candidate.isDefault, candidate.owner))) {
           throw new RemoteError(
             'workspace/name-conflict',
             `Workspace name '${title}' is already in use`,
@@ -81,7 +87,7 @@ export class WorkspaceCommands {
         }
         await workspace.setTitle(title)
       }
-      return { workspace: workspaceView(workspace) }
+      return { workspace: this.view(workspace) }
     })
   }
 
@@ -92,6 +98,7 @@ export class WorkspaceCommands {
    */
   delete(request: WorkspaceDeleteRequest): Promise<WorkspaceDeleteValue> {
     return this.enqueue(async () => {
+      this.requireWorkspace(request.workspaceId)
       if (!await this.ctx.workspaceRegistry.delete(WorkspaceId(request.workspaceId))) {
         throw workspaceNotFound(request.workspaceId)
       }
@@ -105,6 +112,8 @@ export class WorkspaceCommands {
    * @returns the complete resulting Workspace order.
    */
   async insertBefore(request: WorkspaceInsertBeforeRequest): Promise<WorkspaceOrderValue> {
+    this.requireWorkspace(request.workspaceId)
+    if (request.beforeWorkspaceId !== undefined) this.requireWorkspace(request.beforeWorkspaceId)
     try {
       const workspaceIds = await this.ctx.workspaceRegistry.insertBefore(
         WorkspaceId(request.workspaceId),
@@ -112,7 +121,12 @@ export class WorkspaceCommands {
           ? undefined
           : WorkspaceId(request.beforeWorkspaceId),
       )
-      return { workspaceIds: [...workspaceIds] }
+      return {
+        workspaceIds: workspaceIds.filter((id) => {
+          const workspace = this.ctx.workspaceRegistry.get(id)
+          return workspace !== undefined && workspaceVisible(this.ctx, workspace.isDefault, workspace.owner)
+        }),
+      }
     } catch (error) {
       // `insertBefore` is the one mutating verb that does not ride `enqueue`.
       const pinned = pinnedWorkspaceError(error)
@@ -129,6 +143,8 @@ export class WorkspaceCommands {
    */
   async insertSessionBefore(request: WorkspaceInsertSessionBeforeRequest): Promise<WorkspaceValue> {
     const workspace = this.requireWorkspace(request.workspaceId)
+    this.requireSession(request.sessionId)
+    if (request.beforeSessionId !== undefined) this.requireSession(request.beforeSessionId)
     try {
       await workspace.insertSessionBefore(request.sessionId, request.beforeSessionId)
     } catch (error) {
@@ -146,7 +162,7 @@ export class WorkspaceCommands {
         { cause: error },
       )
     }
-    return { workspace: workspaceView(workspace) }
+    return { workspace: this.view(workspace) }
   }
 
   /**
@@ -155,19 +171,38 @@ export class WorkspaceCommands {
    * @returns the complete resulting archive set.
    */
   async archiveSession(request: WorkspaceArchiveSessionRequest): Promise<WorkspaceArchiveValue> {
+    this.requireSession(request.sessionId)
     try {
       await this.ctx.workspaceRegistry.archiveSession(request.sessionId)
     } catch (error) {
       if (!(error instanceof WorkspaceUnknownSessionError)) throw error
       throw new RemoteError('session/not-found', error.message, { sessionId: request.sessionId }, { cause: error })
     }
-    return { archivedSessionIds: [...this.ctx.workspaceRegistry.archivedSessionIds] }
+    return {
+      archivedSessionIds: this.ctx.workspaceRegistry.archivedSessionIds
+        .filter(id => workspaceSessionVisible(this.ctx, id)),
+    }
   }
 
+  /** Another account's workspace reads as absent. */
   private requireWorkspace(workspaceId: WorkspaceId): Workspace {
     const workspace = this.ctx.workspaceRegistry.get(WorkspaceId(workspaceId))
-    if (workspace === undefined) throw workspaceNotFound(workspaceId)
+    if (workspace === undefined || !workspaceVisible(this.ctx, workspace.isDefault, workspace.owner)) {
+      throw workspaceNotFound(workspaceId)
+    }
     return workspace
+  }
+
+  /** Another account's session reads as absent. */
+  private requireSession(sessionId: SessionId): void {
+    if (!workspaceSessionVisible(this.ctx, sessionId)) {
+      throw new RemoteError('session/not-found', `session "${sessionId}" not found`, { sessionId })
+    }
+  }
+
+  /** The workspace as the acting caller sees it: only their own sessions. */
+  private view(workspace: Workspace): ReturnType<typeof workspaceView> {
+    return callerWorkspaceView(this.ctx, workspaceView(workspace), this.ctx.get('identityUsers')?.actingUser())
   }
 
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {

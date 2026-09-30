@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package renders the background-job surface of the Web GUI: a session-header action that opens a popover listing the jobs this session can see. It reads host-computed registry state through the runtime's `jobsBySession` mirror and issues no RPC of its own. The trigger appears only when the session has at least one job, with a badge counting running and stopping jobs; settled rows stay visible and de-emphasized until the registry drops them. The model's own view of the same jobs belongs to `avn-tool-jobs`; this package is a read-only projection for the human.
+This package renders the background-job surface of the Web GUI: a session-header action that opens a popover listing the jobs this session can see. Rows, live output, the human stop, and Clear arrive through the client jobs service (`ctx.jobs`) — the roster stream the host's job controller mirrors, one observation stream per open row, and the kill and dismissal calls — and the component holds no transport state of its own. The trigger appears only when the session has at least one job, with a badge counting running and stopping jobs; settled rows stay visible until the registry drops them. The model's own view of the same jobs belongs to `avn-tool-jobs`; this package is the human's projection of it.
 
 ## Table of Contents
 
@@ -25,7 +25,9 @@ This package renders the background-job surface of the Web GUI: a session-header
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin alongside the runtime; the job action then appears in the session header whenever the session has at least one job. A click opens the popover: live rows first by start time, then settled rows by finish time, each showing the producer kind, label, status, and an elapsed duration that ticks once per second while live and freezes at completion.
+Mount this plugin alongside the runtime; the job action then appears in the session header whenever the session has at least one job. A click opens the popover: live rows first (newest start first), then settled rows (newest finish first), each showing the producer kind or title, its status, and an elapsed duration that ticks once per second while live and freezes at completion.
+
+Every row folds out into its facts, its command, and its output. A settled row is as openable as a running one, because a job that printed nothing — a background subagent, a command that redirected its output to a file — is recorded nowhere else: what is left of it is when it ran, how it ended, and the command that started it. Opening a row that still has output (a live job, or a settled one with retained bytes) also follows its output stream; the output card stays quiet for a job with nothing to read. A running row offers a stop, and the settled section offers Clear.
 
 ### Dismissal and limits
 
@@ -39,7 +41,7 @@ Escape closes the list and returns focus to the trigger, as does a pointer press
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The package contributes one entry to `conversation.session.header.actions` (`JobListAction`), and the data arrives entirely through the `jobsBySession` list mirror that the Session Controller binding folds from `session/jobs` frames — no RPC, and no state beyond popover visibility. The badge counts `running` plus `stopping` and is omitted at zero. Rows order live first by `startedAt` ascending, then settled by `finishedAt` descending, with a same-millisecond tie broken on start order; a settled row missing `finishedAt` reads as zero rather than as a negative figure, and a duration past an hour stays in hours. Settled rows stay visible because a failed job's `detail` is the only place its failure is legible. The behavior is specified by the [Web background-job display note](../../../.agents/notes/implemented/feature/2026-08-08-web-background-job-display.md).
+The package contributes one entry to `conversation.session.header.actions` (`JobListAction`). Rows come from `ctx.jobs`, the client half of [job controller](../../api/job-controller/README.md): one reference-counted roster stream per watched session, one observation stream while a row with output is open, and the kill and dismissal calls behind the stop and Clear. Expanding a row starts its observation stream only when there is output to read; collapsing, closing the popover, or unmounting releases it, so output flows only while someone is watching. The badge counts `running` plus `stopping` and is omitted at zero. Rows order live first by newest start, then settled by newest finish, with a same-millisecond tie broken on the newer start; a settled row missing `finishedAt` reads as its start rather than as a negative figure, and a duration past an hour stays in hours. Settled rows stay visible because a failed job's `detail` is the only place its failure is legible, and every row folds out because a job that printed nothing has no other record. The display decisions are specified by the [Web background-job display note](../../../.agents/notes/implemented/feature/2026-08-08-web-background-job-display.md) and the [fold-out note](../../../.agents/notes/implemented/bug-fix/2026-09-30-background-job-list-folds-out-every-row.md).
 
 </details>
 
@@ -73,7 +75,7 @@ None; the package never assembles or sends provider requests.
 
 These limits define the current job list. They are current package constraints, not a general job-management comparison or a task backlog.
 
-- **Rows are read-only** — a job's streamed output and a human-initiated cancellation are separate phases. Cancellation additionally owes a model-facing decision the seam does not answer: `kill()` marks terminal delivery reported, so an interrupt written against the current contract would leave the model believing its job is still running.
+- **A row shows only what the job's own streams carried** — a background subagent keeps no output of its own (its child session owns that detail), and a command that redirects everything to a file leaves the ring empty. Such a row folds out into its facts and command with an empty output card; nothing mirrors the child's transcript or the redirected file into it.
 - **The list is not the registry's own set** — it shows what one session can see through the wire view, so a job owned by another session never appears here, and a process restart empties the list while the transcript keeps the `run_in_background` cards that started those jobs. An unowned job (one started without a live `Agent`) reaches every session's list, matching what `list(caller)` reports to every caller.
 
 <a id="dev-note"></a>
@@ -86,4 +88,4 @@ None.
 
 </details>
 
-**Runtime invariant:** No companion is published. This package is a read-only projection of the `jobsBySession` mirror onto one header slot entry. It emits no cordis events, owns no cross-plugin mutable state, and its single slot registration proves disposal through the HMR-safety spec.
+**Runtime invariant:** No companion is published. This package is a read-only projection of the client jobs service's rosters and observations onto one header slot entry. It emits no cordis events, owns no cross-plugin mutable state, and its single slot registration proves disposal through the HMR-safety spec.

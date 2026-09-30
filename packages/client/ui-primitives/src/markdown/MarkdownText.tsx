@@ -238,11 +238,12 @@ function codeComponents(
         <code>
           <button
             type="button"
-            className={css.mention}
+            className={css.fileMention}
             title={target.title}
+            aria-label={target.label}
             onClick={target.open}
           >
-            {target.label}
+            {value}
           </button>
         </code>
       )
@@ -449,7 +450,7 @@ export const MarkdownText = memo(function MarkdownText({
         {...labels.image === undefined ? {} : { onImageOpen: openImage }}
       />
       {enlarged !== null && labels.image !== undefined && (
-        <ImageLightbox src={enlarged.src} alt={enlarged.alt} labels={labels.image} onClose={closeImage} />
+        <ImageLightbox images={[enlarged]} index={0} labels={labels.image} onClose={closeImage} />
       )}
     </>
   )

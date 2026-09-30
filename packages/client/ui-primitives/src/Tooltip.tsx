@@ -83,15 +83,18 @@ function iconAnchorRect(reference: Element, side: TooltipSide): DOMRect {
  * bubble flips or shifts where the viewport refuses it.
  * @param props.anchor - `'icon'` points the arrow at the control's icon and pulls the bubble
  * in by the icon offset token; `'box'` (default) places it against the whole anchor.
+ * @param props.boundary - resolves the element the bubble stays inside, flush with its
+ * edges (e.g. a chat column); omitted or null keeps the viewport clamp at the page inset.
  * @param props.disabled - suppress the bubble while true, hiding one already open; the
  * anchor renders identically so toggling never remounts it.
  * @param props.children - a single anchor element; its own ref (callback or object) keeps receiving the element.
  * @returns the anchor; the bubble renders into `document.body` while open.
  */
-export function Tooltip({ label, side = 'right', anchor = 'box', disabled = false, children }: {
+export function Tooltip({ label, side = 'right', anchor = 'box', boundary, disabled = false, children }: {
   label: TooltipLabel
   side?: TooltipSide
   anchor?: 'box' | 'icon'
+  boundary?: ((reference: Element) => Element | null) | undefined
   disabled?: boolean
   children: ReactElement<{ ref?: Ref<HTMLElement> }>
 }) {
@@ -112,6 +115,7 @@ export function Tooltip({ label, side = 'right', anchor = 'box', disabled = fals
       touch={false}
       placementRect={anchor === 'icon' ? reference => iconAnchorRect(reference, side) : undefined}
       overflowPadding={anchor === 'icon' ? iconGutter : pageInset}
+      overflowBoundary={boundary}
     >
       {children}
     </TippyTooltip>

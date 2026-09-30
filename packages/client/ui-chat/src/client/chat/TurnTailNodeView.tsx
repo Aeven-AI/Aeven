@@ -11,7 +11,7 @@ type TurnTailNodeViewProps = ChatNodeViewProps<'turn-tail'>
 
 /** Turn-local actions and feature tail over the Location index, independent of Assistant placement. */
 export const TurnTailNodeView = memo(function TurnTailNodeView({
-  node, openFile, forkAt, renderSlot, renderSlotChain, t, useChat, extendedTranscript,
+  node, cwd, openFile, forkAt, renderSlot, renderSlotChain, t, useChat, extendedTranscript,
 }: TurnTailNodeViewProps) {
   const data = node.data
   const hasLaterChatNode = useChat(snapshot =>
@@ -22,7 +22,7 @@ export const TurnTailNodeView = memo(function TurnTailNodeView({
     : undefined
   if (turn === undefined) return null
   const closing = data.closing
-  const owner: TurnTailOwnerProps = { turn, seq: closing?.finalNode.seq ?? data.seq, openFile }
+  const owner: TurnTailOwnerProps = { turn, seq: closing?.finalNode.seq ?? data.seq, cwd, openFile }
   const tail = renderSlotChain('conversation.chat.turnTail', owner)
   if (closing === null) return tail === null ? null : <div className={css.root}>{tail}</div>
   const runMs = turn.start === undefined || turn.end === undefined

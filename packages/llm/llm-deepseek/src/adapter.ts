@@ -118,10 +118,12 @@ export interface DeepSeekAdapterOptions {
   /**
    * Resolve the bearer token for the connection facts of one request. The
    * snapshot is passed in — never re-read — so the key can only ever come
-   * from the same resolution as the endpoint it is sent to. Throws `LlmError`
-   * `MISSING_CREDENTIAL` when no key is available anywhere.
+   * from the same resolution as the endpoint it is sent to. The request is
+   * passed so a route whose credential belongs to a signed-in user can present
+   * the credential of the user the request's session belongs to. Throws
+   * `LlmError` `MISSING_CREDENTIAL` when no key is available anywhere.
    */
-  resolveApiKey: (connection: DeepSeekConnectionOptions) => Promise<string>
+  resolveApiKey: (connection: DeepSeekConnectionOptions, request: GenerateOptions) => Promise<string>
   /** Resolve the harness-home anonymous id shared with telemetry and feedback. */
   resolveUserId: () => AnonymousUserId
   /** Resolve the current durable attachment service; absence rejects image input. */
@@ -473,7 +475,7 @@ export class DeepSeekAdapter extends LlmAdapter {
         )
       }
     }
-    const apiKey = await this.config.resolveApiKey(connection)
+    const apiKey = await this.config.resolveApiKey(connection, options)
     const userId = this.config.resolveUserId()
     const consumer = new AbortController()
     const upstream = options.signal === undefined

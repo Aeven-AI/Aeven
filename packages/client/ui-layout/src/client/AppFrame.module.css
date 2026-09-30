@@ -346,8 +346,9 @@
   position: absolute;
   top: 0;
   left: 0;
-  /* Up to that control: the lights' own inset plus their span. */
-  width: calc(var(--dsw-aeven-page-inset) + 3 * 12px + 2 * 8px);
+  /* The controls' own gutter, and no further: the leading control of whichever
+     header row is drawn here begins past it. */
+  width: var(--dsw-aeven-window-controls-gutter);
   /* The header band's own row: its top padding plus one control. */
   height: calc(8px + var(--dsw-aeven-control-size));
   z-index: 60;

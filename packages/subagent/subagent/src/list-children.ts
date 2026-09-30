@@ -76,6 +76,7 @@ interface PositionedCandidate {
  *   optional persistence, and the optional projection cache.
  * @param parentSessionId - parent session whose direct children are listed.
  * @param signal - caller-owned cancellation observed around every persistence read.
+ * @param visible - keeps only children whose header the reader may see; every child by default.
  * @returns children and per-child diagnostics ordered by `createdAt`, then id.
  * @throws {@link SubagentError} when the projection registry or the session
  *   store is not mounted, or the caller cancels the listing.
@@ -84,11 +85,13 @@ export async function listChildren(
   ctx: Context,
   parentSessionId: SessionId,
   signal?: AbortSignal,
+  visible: (header: SessionHeader) => boolean = () => true,
 ): Promise<SubagentListEntry[]> {
   const listing = await prepareListing(ctx, signal)
   const candidates = [...listing.corpus.values()]
     .filter(record => record.header.parentSession === parentSessionId
-      && record.header.origin === 'subagent')
+      && record.header.origin === 'subagent'
+      && visible(record.header))
     .sort(compareCorpusRecords)
   const rows = await resolveCandidateRows(candidates, listing, signal)
   return rows.filter((row): row is SubagentListEntry => row !== undefined)

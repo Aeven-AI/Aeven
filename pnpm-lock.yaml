@@ -821,6 +821,9 @@ importers:
       '@aeven/identity-user':
         specifier: workspace:^
         version: link:../../identity/user
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
       '@aeven/typert-registry':
         specifier: workspace:^
         version: link:../../typert/registry
@@ -861,6 +864,9 @@ importers:
       '@aeven/client-store':
         specifier: workspace:^
         version: link:../../client/store
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
       '@aeven/jobs':
         specifier: workspace:^
         version: link:../../jobs/jobs
@@ -1131,6 +1137,9 @@ importers:
       '@aeven/credentials':
         specifier: workspace:^
         version: link:../../credentials/credentials
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
       '@aeven/native-command':
         specifier: workspace:^
         version: link:../../util/native-command
@@ -1180,6 +1189,9 @@ importers:
       '@aeven/client-store':
         specifier: workspace:^
         version: link:../../client/store
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
       '@aeven/sandbox-policy':
         specifier: workspace:^
         version: link:../../sandbox/sandbox-policy
@@ -1217,6 +1229,9 @@ importers:
       '@aeven/host-directory-picker':
         specifier: workspace:^
         version: link:../../host/directory-picker
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
@@ -1819,6 +1834,9 @@ importers:
       '@aeven/app-boot':
         specifier: workspace:^
         version: link:../../boot/app-boot
+      '@aeven/browser-chromium':
+        specifier: workspace:^
+        version: link:../../web/browser-chromium
       '@aeven/capability':
         specifier: workspace:^
         version: link:../../capability/capability
@@ -2041,6 +2059,9 @@ importers:
       '@aeven/launch-environment':
         specifier: workspace:^
         version: link:../../util/launch-environment
+      '@aeven/mcp-client':
+        specifier: workspace:^
+        version: link:../../mcp/mcp-client
       '@aeven/media':
         specifier: workspace:^
         version: link:../../media/media
@@ -5350,6 +5371,9 @@ importers:
       '@aeven/compaction':
         specifier: workspace:^
         version: link:../../compaction/compaction
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
       '@aeven/llm':
         specifier: workspace:^
         version: link:../../llm/llm
@@ -5797,6 +5821,9 @@ importers:
       '@aeven/host-webserver':
         specifier: workspace:^
         version: link:../../host/webserver
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
@@ -6539,6 +6566,9 @@ importers:
       '@aeven/brand':
         specifier: workspace:^
         version: link:../../util/brand
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
       '@aeven/llm':
         specifier: workspace:^
         version: link:../../llm/llm
@@ -6681,6 +6711,9 @@ importers:
       '@aeven/brand':
         specifier: workspace:^
         version: link:../../util/brand
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
       '@aeven/llm':
         specifier: workspace:^
         version: link:../../llm/llm
@@ -7767,12 +7800,18 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
     devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
       '@aeven/anonymous-user-id':
         specifier: workspace:^
         version: link:../../identity/anonymous-user-id
       '@aeven/credentials':
         specifier: workspace:^
         version: link:../../credentials/credentials
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
       '@aeven/llm':
         specifier: workspace:^
         version: link:../llm
@@ -10088,6 +10127,9 @@ importers:
       '@aeven/attachment':
         specifier: workspace:^
         version: link:../../attachment/attachment
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
       '@aeven/invariants':
         specifier: workspace:^
         version: link:../../runtime-diagnostics/invariants
@@ -11420,6 +11462,9 @@ importers:
       '@aeven/http-proxy':
         specifier: workspace:^
         version: link:../../util/http-proxy
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
       '@aeven/launch-environment':
         specifier: workspace:^
         version: link:../../util/launch-environment

@@ -159,6 +159,7 @@ export class WorkspaceRegistry extends Service {
   private readonly host: WorkspaceEntityHost = {
     table: () => this.requireTable(),
     sessionPath: id => this.sessionPaths.get(id),
+    sessionOwner: id => this.headers.get(id)?.owner,
     readSessionHeader: id => this.readSessionHeader(id),
     rememberSessionPath: (id, path) => {
       this.sessionPaths.set(id, path)
@@ -239,14 +240,16 @@ export class WorkspaceRegistry extends Service {
   /**
    * Create or reuse a workspace for an existing directory. The fully qualified
    * path is canonicalized through `fs.realpath`; a relative, nonexistent, or
-   * non-directory path rejects. Repeated calls for the same canonical path
-   * return the existing entity without changing its title.
+   * non-directory path rejects. Repeated calls for the same canonical path and
+   * owner return the existing entity without changing its title; another
+   * account registering the same directory gets a workspace of its own.
    * A newly created workspace lands directly below the built-in one, which
    * keeps the head of the order — and so the first screen — where the reader
    * left it instead of handing it to whichever registration was created last.
    * Different canonical paths may share a display title.
    * @param path - Existing directory to own, in a fully qualified path spelling.
    * @param title - Display title used only when a new record is created.
+   * @param owner - Account id of the signed-in user registering the directory; absent when nobody is signed in.
    * @returns the existing or newly durable workspace.
    */
   // TODO: `title` lost its last production caller when the gateway's
@@ -254,12 +257,12 @@ export class WorkspaceRegistry extends Service {
   // (.agents/notes/implemented/simplification/2026-07-31-one-route-to-add-a-workspace.md);
   // drop the parameter with its @param clause and the `create(path, title?)`
   // lines in this package's README pair.
-  async create(path: string, title?: string): Promise<Workspace> {
+  async create(path: string, title?: string, owner?: string): Promise<Workspace> {
     const canonical = await realpathNormalize(path)
     if (!(await stat(canonical)).isDirectory()) {
       throw new Error(`cannot create a workspace at '${canonical}': path is not a directory`)
     }
-    return await this.enqueueOperation(() => this.createCanonical(canonical, title))
+    return await this.enqueueOperation(() => this.createCanonical(canonical, title, owner))
   }
 
   /**
@@ -400,19 +403,29 @@ export class WorkspaceRegistry extends Service {
    * workspace. A missing path rejects during `realpath`; an existing unowned
    * directory returns `undefined`.
    * @param path - Existing directory path in a fully qualified spelling.
-   * @returns the workspace owning the canonical path, when one exists.
+   * @param owner - Account whose workspace to find; absent finds the one no account owns.
+   * @returns that account's workspace for the canonical path, when one exists.
    */
-  async resolveByPath(path: string): Promise<Workspace | undefined> {
+  async resolveByPath(path: string, owner?: string): Promise<Workspace | undefined> {
     const canonical = await realpathNormalize(path)
     for (const entity of this.entities.values()) {
-      if (entity.path === canonical) return entity
+      if (entity.path === canonical && entity.owner === owner) return entity
     }
     return undefined
   }
 
-  private async createCanonical(canonical: string, title?: string): Promise<WorkspaceEntity> {
+  /**
+   * Owner recorded in an indexed session header.
+   * @param sessionId - the session to read.
+   * @returns the account id, or `undefined` when the session records none or is not indexed.
+   */
+  sessionOwner(sessionId: SessionId): string | undefined {
+    return this.headers.get(sessionId)?.owner
+  }
+
+  private async createCanonical(canonical: string, title?: string, owner?: string): Promise<WorkspaceEntity> {
     for (const entity of this.entities.values()) {
-      if (entity.path === canonical) return entity
+      if (entity.path === canonical && entity.owner === owner) return entity
     }
 
     const workspaceName = title ?? defaultWorkspaceTitle(canonical)
@@ -424,6 +437,7 @@ export class WorkspaceRegistry extends Service {
       kind: 'folder',
       path: canonical,
       title: workspaceName,
+      ...owner === undefined ? {} : { owner },
       sessionIds: [],
       createdAt: now,
       updatedAt: now,
@@ -915,11 +929,12 @@ export class WorkspaceRegistry extends Service {
       // membership the durable record lost, keyed on a cwd match. A pathless
       // workspace has no cwd to match and its record is the sole authority, so
       // there is nothing to adopt from a header.
-      const owner = this.list().find(
-        workspace => isFolderWorkspace(workspace) && workspace.path === path,
+      // Only a workspace of the account the session belongs to adopts it.
+      const target = this.list().find(
+        workspace => isFolderWorkspace(workspace) && workspace.path === path && workspace.owner === header.owner,
       )
-      if (owner === undefined || owner.sessionIds.includes(header.id)) return
-      await owner.attachSession(header.id)
+      if (target === undefined || target.sessionIds.includes(header.id)) return
+      await target.attachSession(header.id)
     } catch (error) {
       this.ctx.logger.warn(
         `workspace could not admit session '${header.id}' by its cwd: ${String(error)}`,

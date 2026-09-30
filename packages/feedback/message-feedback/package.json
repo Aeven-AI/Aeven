@@ -45,6 +45,7 @@
   "license": "MIT",
   "peerDependencies": {
     "@aeven/brand": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/session-persistence": "workspace:^",
@@ -57,9 +58,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis-plugin-include": "workspace:^",
-    "@deepseek-ai/cordis-plugin-loader": "workspace:^",
     "@aeven/brand": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/session-persistence": "workspace:^",
@@ -68,6 +68,8 @@
     "@aeven/storage-domain": "workspace:^",
     "@aeven/storage-json": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/cordis-plugin-include": "workspace:^",
+    "@deepseek-ai/cordis-plugin-loader": "workspace:^"
   }
 }

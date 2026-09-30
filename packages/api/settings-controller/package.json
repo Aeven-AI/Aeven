@@ -48,21 +48,23 @@
     "zod": "^4.4.3"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:^",
     "@aeven/agent-presets": "workspace:^",
     "@aeven/credentials": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
     "@aeven/native-command": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/settings": "workspace:^",
-    "@aeven/typert-protocol": "workspace:^"
+    "@aeven/typert-protocol": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:^",
     "@aeven/agent-presets": "workspace:^",
     "@aeven/credentials": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
     "@aeven/native-command": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/settings": "workspace:^",
-    "@aeven/typert-protocol": "workspace:^"
+    "@aeven/typert-protocol": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
   }
 }

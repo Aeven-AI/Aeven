@@ -29,7 +29,7 @@ Mount it on the host plane beside `@aeven/memory`. The web bundle ships the row 
 | `classifyDomains` | `true` | Classify each captured turn as person, project, or world memory with one short call on the session's route; needs `hostLlm` |
 | `classifyTimeoutMs` | `15000` | Bound on one classification call |
 | `candidateTraces` | `20` | Trace candidates MemOS ranks for recall before Aeven orders them |
-| `viewer` | `true` | Serve the MemOS Viewer and its read/write API |
+| `viewer` | `true` | Serve the MemOS Viewer and its read/write API over every owner's memory, without sign-in; a composition serving several accounts turns it off |
 | `viewerPort` | `18801` | Viewer port |
 | `viewerHost` | `127.0.0.1` | Viewer bind address; only loopback is accepted |
 

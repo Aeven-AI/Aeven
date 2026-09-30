@@ -11,6 +11,8 @@ import type {} from '@aeven/session-projection-cache'
 import type {} from '@aeven/session-persistence'
 import { SessionQueryError, type SessionSearchCursor } from '@aeven/session-query'
 import { RemoteError } from '@aeven/typert-protocol'
+import type {} from '@aeven/identity-user'
+import { callerMayAccessSession } from './agent.ts'
 import { z } from 'zod'
 import {
   SESSION_SEARCH_RESULT_LIMIT,
@@ -181,11 +183,14 @@ export class ApiSessionList {
    */
   async list(signal?: AbortSignal): Promise<SessionSummary[]> {
     signal?.throwIfAborted()
+    const caller = this.ctx.get('identityUsers')?.actingUser()
     const records = await this.ctx.sessionQuery.listSessions(signal)
     signal?.throwIfAborted()
     const items: SessionSummary[] = []
     const cold: ColdListEntry[] = []
     for (const record of records) {
+      // Only the caller's own Sessions are visible to them.
+      if (!callerMayAccessSession(this.ctx, record.header, caller)) continue
       const live = this.ctx.sessions.get(record.header.id)
       if (live !== undefined) {
         items.push(this.summaryFor(live))
@@ -309,8 +314,9 @@ export class ApiSessionList {
         {},
       )
     }
+    const caller = this.ctx.get('identityUsers')?.actingUser()
     try {
-      const visible = await provider.listSessions(signal)
+      const visible = (await provider.listSessions(signal)).filter(record => callerMayAccessSession(this.ctx, record.header, caller))
       signal.throwIfAborted()
       const visibleIds = new Set(visible.map(record => record.header.id))
       if (visibleIds.size === 0) return { items: [], hasMore: false }

@@ -43,6 +43,9 @@
     },
     {
       "path": "../../session/session-title"
+    },
+    {
+      "path": "../../identity/user"
     }
   ]
 }

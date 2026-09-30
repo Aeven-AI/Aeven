@@ -12,6 +12,7 @@ import {
 } from './scripts/windows-sign.mjs'
 import { resolveDesktopAutoUpdateConfig } from './scripts/desktop-auto-update-environment.mjs'
 import { desktopTargetBuildPaths } from './scripts/desktop-build-paths.mjs'
+import { MACOS_USAGE_DESCRIPTIONS } from './scripts/macos-usage-descriptions.mjs'
 
 /**
  * Create electron-builder configuration from one release environment.
@@ -74,8 +75,13 @@ export function createElectronBuilderConfig(
       identity: unsigned ? '-' : macOSSigning?.signingIdentity,
       forceCodeSigning: !unsigned,
       hardenedRuntime: !unsigned,
+      // Replaces electron-builder's default template for the app executable only;
+      // without the resource entitlements a signed build silently loses location,
+      // the microphone, and the camera.
+      entitlements: 'scripts/app-entitlements.plist',
       notarize: !unsigned,
       target: ['dmg', 'zip'],
+      extendInfo: { ...MACOS_USAGE_DESCRIPTIONS },
     },
     dmg: {
       sign: !unsigned,

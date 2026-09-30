@@ -43,9 +43,10 @@
 
 /* Flow-row glyphs render at 14px inside the 16px box; the CSS edge overrides
    each svg's own width/height attributes so every registered icon scales
-   without a per-callsite size prop. StateDot (its svg carries data-state)
-   stays at its fixed figma size — it is a status mark, not text furniture. */
-.leading svg:not([data-state]) {
+   without a per-callsite size prop. A nested StateDot spinner keeps its
+   status-mark size. */
+.leading > svg:not([data-state]),
+.leading > .iconIdle svg:not([data-state]) {
   width: calc(14px + var(--avn-content-font-delta, 0px));
   height: calc(14px + var(--avn-content-font-delta, 0px));
 }

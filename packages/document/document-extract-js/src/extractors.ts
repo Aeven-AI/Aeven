@@ -5,6 +5,8 @@
 
 import type { ExtractedDocument } from '@aeven/document-extract'
 import { STRUCTURED_EXTENSIONS, TEXT_EXTENSIONS } from './formats.ts'
+import { extractIwork } from './iwork.ts'
+import type { IworkKind } from './iwork.ts'
 
 const TEXT = new Set(TEXT_EXTENSIONS)
 const STRUCTURED = new Set(STRUCTURED_EXTENSIONS)
@@ -32,8 +34,13 @@ export async function extractDocument(data: Uint8Array, extension: string): Prom
     case 'xlsb':
     case 'xls':
     case 'ods':
-    case 'numbers':
       return extractSpreadsheet(data)
+    case 'numbers': {
+      requireZip(data, 'Numbers')
+      // SheetJS lays sheets out as CSV; the iWork reader recovers the text of files it rejects.
+      const sheets = await extractSpreadsheet(data).catch(() => undefined)
+      return sheets !== undefined && sheets.text !== '' ? sheets : extractIworkDocument(data, 'numbers')
+    }
     case 'pptx':
     case 'pptm':
     case 'potx':
@@ -43,6 +50,12 @@ export async function extractDocument(data: Uint8Array, extension: string): Prom
     case 'odt':
     case 'ott':
       return extractOpenDocument(data)
+    case 'pages':
+      requireZip(data, 'Pages')
+      return extractIworkDocument(data, 'pages')
+    case 'key':
+      requireZip(data, 'Keynote')
+      return extractIworkDocument(data, 'key')
     case 'rtf':
       return { text: rtfToText(decodeLatin1(data)), method: 'native' }
     case 'epub':
@@ -54,6 +67,16 @@ export async function extractDocument(data: Uint8Array, extension: string): Prom
     default:
       throw new Error(`unsupported extension: ${extension}`)
   }
+}
+
+/** Reject bytes that are not a zip package before a zip-based reader guesses at them. */
+function requireZip(data: Uint8Array, app: string): void {
+  if (data[0] !== 0x50 || data[1] !== 0x4b) throw new Error(`not a ${app} document: the file is not a zip package`)
+}
+
+async function extractIworkDocument(data: Uint8Array, kind: IworkKind): Promise<ExtractedDocument> {
+  const read = await extractIwork(data, kind, { loadZip, decodeXml, readPdf: extractPdf })
+  return { text: read.text, method: 'native', ...read.pages === undefined ? {} : { pages: read.pages } }
 }
 
 /** Decode UTF-8 or BOM-marked UTF-16 text and normalize line endings. */

@@ -27,7 +27,7 @@ English | [中文](README.zh.md)
 
 Use it when you assemble the browser application: `apps/web`'s Vite entry runs `new AppWebEntry(container).run()` against the mount point, and the boot page carries the user through activation. Ordinary browser callers pass no options. A pre-injected page transport is the default ahead of the `seams` override: when `globalThis.__AVN_TRANSPORT__` carries `loadBundle`, the module stage adopts it as the bundle transport and skips the immediate-tier HTTP prefetch, while explicit `seams` still win (for example jsdom tests, where external `<script>` execution cannot reach the page context).
 
-The shell base styles apply automatic CJK/Latin spacing to ordinary content in supporting browsers. Semantic code and terminal, diff, read, and search output containers retain literal source spacing and column alignment; browsers without `text-autospace` support ignore both declarations. The same sheet sets the document base weight to 450 — the shipped variable cut renders 450 as a real instance — and restates it on form controls, whose user-agent shorthand resets the family and the weight together.
+The shell base styles apply automatic CJK/Latin spacing to ordinary content in supporting browsers. Semantic code and terminal, diff, read, and search output containers retain literal source spacing and column alignment; browsers without `text-autospace` support ignore both declarations. The same sheet sets the document base weight to 400 and restates it on form controls, whose user-agent shorthand resets the family and the weight together.
 
 ### What boot looks like
 

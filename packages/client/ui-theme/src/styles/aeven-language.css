@@ -17,6 +17,14 @@
 body {
   --dsw-aeven-chat-width: 1024px;
   --dsw-aeven-page-inset: 24px;
+  /* The macOS window controls' gutter: their own leading inset (24px, which
+     `trafficLightPosition` sets in apps/desktop main.ts) plus the 60px the
+     three buttons paint over. Measured on the rendered window, where their
+     leading edges read 23px apart. It is a page constant, not a function of
+     `--dsw-aeven-page-inset`: the lights do not move when the page narrows.
+     A desktop band laying a control on that line starts one page inset past
+     this. */
+  --dsw-aeven-window-controls-gutter: 84px;
   --dsw-aeven-sidebar-width: 300px;
   --dsw-aeven-sidebar-row-inset: 24px;
   --dsw-aeven-sidebar-bottom-inset: 40px;
@@ -88,7 +96,7 @@ body {
   --dsw-alias-label-tertiary: rgb(90, 90, 90);
   --dsw-alias-markdown-code-block-banner: rgb(255, 255, 255);
   --dsw-alias-markdown-code-block: rgb(255, 255, 255);
-  --dsw-alias-markdown-inline-code: rgb(235, 235, 235);
+  --dsw-alias-markdown-inline-code: #e6e6e6;
   --dsw-alias-markdown-placeholder: rgb(242, 242, 242);
   --dsw-alias-markdown-tag: rgb(235, 235, 235);
   --dsw-alias-state-business-primary: #000000;
@@ -154,27 +162,27 @@ body {
     calc(20px + var(--avn-content-font-delta)) var(--dsw-font-family);
   --dsw-font-markdown-h6: 600 calc(11px + var(--avn-content-font-delta)) /
     calc(18px + var(--avn-content-font-delta)) var(--dsw-font-family);
-  --dsw-font-markdown-base: 450 var(--avn-content-font-size, 16px) /
+  --dsw-font-markdown-base: 400 var(--avn-content-font-size, 16px) /
     calc(28px + var(--avn-content-font-delta)) var(--dsw-font-family);
   --dsw-font-markdown-base-strong: 600 var(--avn-content-font-size, 16px) /
     calc(28px + var(--avn-content-font-delta)) var(--dsw-font-family);
-  --dsw-font-markdown-base-italic: italic 450
+  --dsw-font-markdown-base-italic: italic 400
     var(--avn-content-font-size, 16px) /
     calc(28px + var(--avn-content-font-delta)) var(--dsw-font-family);
   --dsw-font-markdown-base-strong-italic: italic 600
     var(--avn-content-font-size, 16px) /
     calc(28px + var(--avn-content-font-delta)) var(--dsw-font-family);
-  --dsw-font-base-16: 450 16px/30px var(--dsw-font-family);
+  --dsw-font-base-16: 400 16px/30px var(--dsw-font-family);
   --dsw-font-base-strong-16: 600 16px/30px var(--dsw-font-family);
-  --dsw-font-s-14: 450 14px/22px var(--dsw-font-family);
+  --dsw-font-s-14: 400 14px/22px var(--dsw-font-family);
   --dsw-font-s-strong-14: 600 14px/22px var(--dsw-font-family);
   /* Code/tool output reads at the secondary content size (14px at the default
      16px setting), one step below conversation prose — mono, not 11px. */
-  --dsw-font-markdown-code-block: 450
+  --dsw-font-markdown-code-block: 400
     var(--avn-content-font-size-secondary, 14px) /
     calc(22px + var(--avn-content-font-delta-secondary, 0px))
     var(--ds-font-family-code);
-  --dsw-font-markdown-code-block-small: 450
+  --dsw-font-markdown-code-block-small: 400
     var(--avn-content-font-size-secondary, 14px) /
     calc(22px + var(--avn-content-font-delta-secondary, 0px))
     var(--ds-font-family-code);

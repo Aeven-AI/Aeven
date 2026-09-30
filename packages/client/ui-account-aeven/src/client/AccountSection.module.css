@@ -1,5 +1,5 @@
 /* Account settings in the General/Appearance cell rhythm: hairline rows
-   (pad 16/0, 14/450 title over a 12/18 tertiary description, control on the
+   (pad 16/0, 14/400 title over a 12/18 tertiary description, control on the
    right), grouped under quiet titles. The plan grid reuses the Appearance
    cube geometry; the recommended plan is the one filled call to action. */
 
@@ -25,13 +25,13 @@
   gap: 12px;
   margin: 0 0 4px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
 }
 
 .groupAside {
-  font-weight: 450;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
 
@@ -73,14 +73,14 @@
 .title,
 .name {
   font-size: 14px;
-  font-weight: 450;
+  font-weight: 400;
   line-height: 22px;
 }
 
 .desc {
   margin: 0;
   font-size: 12px;
-  font-weight: 450;
+  font-weight: 400;
   line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
 }
@@ -242,7 +242,7 @@
 
 .planName {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 22px;
   white-space: nowrap;
 }
@@ -254,7 +254,7 @@
   background: var(--dsw-alias-button-primary-fill);
   color: var(--dsw-alias-label-primary-foreground);
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 18px;
 }
 
@@ -431,14 +431,14 @@
 
 .addButton {
   min-width: 96px;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 /* Usage. */
 .figure {
   flex: none;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 22px;
   font-variant-numeric: tabular-nums;
 }

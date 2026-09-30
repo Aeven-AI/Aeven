@@ -17,7 +17,19 @@ const labels: MessageImageLabels = {
   openNamed: label => `${label}，点击查看原图`,
   loading: '图片加载中…',
   loadFailed: '图片加载失败，点击重试',
-  lightbox: { dialog: '原图预览', close: '关闭原图预览' },
+  lightbox: {
+    dialog: '原图预览',
+    close: '关闭原图预览',
+    previous: '上一张图片',
+    next: '下一张图片',
+    download: '下载图片',
+    info: '图片信息',
+    infoType: '图片类型：',
+    infoSize: '文件大小：',
+    infoName: '文件名：',
+    unknown: '未知',
+    megabytes: value => `${value} MB`,
+  },
 }
 
 const attachment = {
@@ -69,6 +81,7 @@ describe('MessageImage', () => {
     fireEvent.click(frame)
     expect(view.getByRole('dialog', { name: '原图预览' })).toBeTruthy()
     fireEvent.click(view.getByRole('button', { name: '关闭原图预览' }))
+    fireEvent.animationEnd(view.getByRole('dialog', { name: '原图预览' }))
     expect(view.queryByRole('dialog', { name: '原图预览' })).toBeNull()
   })
 
@@ -281,6 +294,7 @@ describe('ImageGallery', () => {
       images: [{ attachment }],
       loadImage,
       align: 'end',
+      layout: 'gallery',
       t,
     }
     const view = render(<MessageImages {...props} />)

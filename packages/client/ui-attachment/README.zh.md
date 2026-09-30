@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包渲染对话 UI 中与附件相关的一切：composer 下的待发送草稿图片、全视口拖放邀请层、Chat 与 Trajectory 中的持久图片，以及查看原图的灯箱。它是纯呈现层——附件数据、图片加载与回调都经声明槽位来自 conversation 包。需要 DeepSeek Chat 风格的图片体验时选择它；非图片文件在此没有任何表面。
+本包渲染对话 UI 中与附件相关的一切：composer 中的草稿托盘、全视口拖放邀请层、Chat 与 Trajectory 中已发送的附件，以及图片画廊。它是纯呈现层——附件数据、图片加载与回调都经声明槽位来自 conversation 包。需要 Aeven Web 客户端的附件体验时选择它：图片与文件在 composer 和已发送消息中共用同一个图块网格。
 
 ## 目录
 
@@ -25,15 +25,15 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-与 [`ui-conversation`](../ui-conversation/README.zh.md) 一起挂载本插件；它等待 conversation 包的槽位声明，并把自身表面注册进这些槽位。用户随即看到：带逐图删除与点击打开的草稿图片栏、带上限说明的拖放遮罩、按数量定尺寸的消息图片，以及支持 Escape／遮罩／关闭按钮的灯箱。
+与 [`ui-conversation`](../ui-conversation/README.zh.md) 一起挂载本插件；它等待 conversation 包的槽位声明，并把自身表面注册进这些槽位。用户随即看到：带逐块删除与点击打开的草稿托盘、带上限说明的拖放遮罩、位于用户消息内的已发送附件图块网格，以及图片画廊。
 
-### 草稿图片
+### 草稿托盘
 
-草稿图片以固定 64px 缩略图呈现在一行使用原生滚动的横向图片栏中。新增条目滚动到栏尾展示，删除保持原位，单击经持有方的 `onOpen` 打开原图。
+草稿附件以 80px 图块呈现，每行五个并换行：先是裁切填充的图片缩略图，再是带类型图标与名称的文件。上传中的文件显示加载图标，失败的显示错误图块。单击图片在全部草稿图片上打开画廊；单击文件在新标签页打开其字节。
 
-### 消息图片与灯箱
+### 已发送附件与画廊
 
-一条消息仅有的一张图按长边 240px 渲染（宽高比钳制在 [0.25, 4]，从不放大）；多图中的一张渲染为固定 64px 方块。加载完成的图片单击打开文档级灯箱；加载失败则显示重试控件。灯箱按 Escape、按下遮罩或点关闭按钮关闭，并把焦点还给打开者。
+带附件的用户消息（`layout: 'tray'`）渲染为一张卡片：上方是图块网格，下方是文本，每个图块使卡片最小宽度增加栏宽的五分之一，最多五个。提交回显用本地预览显示同样的图块。助手、工具与 Trajectory 图片（`layout: 'gallery'`）保留按数量定尺寸的画廊：单图按长边 240px，多图为 64px 方块。画廊以选中图片铺满视口，提供信息浮层（类型、大小、名称）、下载与关闭，多于一张时提供上一张／下一张；Escape 关闭，方向键循环切换。
 
 ### 拖放遮罩
 
@@ -47,15 +47,15 @@ kind: "package-reference"
 <details>
 <summary>实现细节——点击展开</summary>
 
-插件通过 `ctx.slots.inject` 等待 `conversation.input.attachments`、`conversation.message.images` 与 `conversation.trajectory.images`。随后它注册 composer rail、文档拖放目标、供 Chat 和 Trajectory 共用的历史图片 gallery，以及原图灯箱。呈现组件保持纯 props：conversation 槽位持有方提供附件数据、图片加载、回调与语言包翻译器；包入口不导出任何组件。
+插件通过 `ctx.slots.inject` 等待 `conversation.input.attachments`、`conversation.message.images` 与 `conversation.trajectory.images`。随后它注册 composer 托盘、文档拖放目标，以及供 Chat 和 Trajectory 使用的已发送附件渲染器；所有图片都打开 ui-primitives 画廊。呈现组件保持纯 props：conversation 槽位持有方提供附件数据、图片加载、回调与语言包翻译器；包入口不导出任何组件。
 
 | 文件 | 职责 |
 |---|---|
 | [`src/client/ComposerAttachments.tsx`](src/client/ComposerAttachments.tsx) | 草稿图片栏＋拖放遮罩的组装 |
-| [`src/AttachmentRail.tsx`](src/AttachmentRail.tsx) | 使用原生滚动并转换纵向滚轮输入的缩略图栏 |
-| [`src/client/MessageImages.tsx`](src/client/MessageImages.tsx) | 每消息画廊＋灯箱的组装 |
+| [`src/UploadTray.tsx`](src/UploadTray.tsx) | composer 与已发送消息共用的可换行图片与文件图块网格 |
+| [`src/client/MessageImages.tsx`](src/client/MessageImages.tsx) | 按持有方的 `layout` 渲染已发送消息托盘或按数量定尺寸的画廊 |
 | [`src/MessageImage.tsx`](src/MessageImage.tsx) | 单图尺寸、加载／重试、点击打开；本地提交回显预览直接显示其 object URL |
-| [`src/ImageLightbox.tsx`](src/ImageLightbox.tsx) | 铺在共享遮罩上的文档级模态预览 |
+| [`ImageLightbox`](../ui-primitives/src/ImageLightbox.tsx)（ui-primitives） | 带信息、下载与上一张／下一张的文档级图片画廊 |
 | [`src/DropOverlay.tsx`](src/DropOverlay.tsx) | 不接收指针事件的拖拽邀请 portal |
 
 </details>
@@ -89,9 +89,9 @@ kind: "package-reference"
 
 这些限制界定了当前附件表面。它们是包约束，不是通用图片查看器对比或任务积压。
 
-- **仅支持图片**——非图片文件尚无附件栏卡片与历史渲染；DeepSeek Chat 风格的文件卡片和上传进度等输入框接受非图片附件后再做。
-- **灯箱无缩放与下载**——预览仅以适配视口的尺寸渲染原图。
-- **灯箱不锁定焦点**——它设置 `aria-modal` 并在关闭时归还焦点，但 Tab 仍可移动到背后的页面。
+- **回显文件无法打开**——提交回显中的文件图块在 Host 接纳消息前没有已存储的原件，单击不做任何事。
+- **画廊无缩放**——图片仅以适配视口的尺寸渲染。
+- **画廊不锁定焦点**——它设置 `aria-modal` 并在关闭时归还焦点，但 Tab 仍可移动到背后的页面。
 
 <a id="dev-note"></a>
 ### 开发备注

@@ -11,8 +11,10 @@ export interface UploadTrayImageItem {
   kind: 'image'
   /** Stable identity for the React key. */
   id: string
-  /** Object, data, or cached URL rendered as the thumbnail. */
-  previewUrl: string
+  /** Object, data, or cached URL rendered as the thumbnail; null while a durable image resolves. */
+  previewUrl: string | null
+  /** Whether resolving the thumbnail URL failed; the tile then shows the error state and opening it retries. */
+  failed?: boolean
   alt: string
   /** Accessible label of the tile's remove control. */
   removeLabel: string
@@ -87,7 +89,7 @@ export function UploadTray<T extends UploadTrayItem>({ items, labels, onOpen, on
           className={clsx(css.tile, item.kind === 'image' ? css.image : css[item.status])}
         >
           {item.kind === 'image'
-            ? <ImageTile item={item} onOpen={() => { onOpen(item) }} />
+            ? <ImageTile item={item} labels={labels} onOpen={() => { onOpen(item) }} />
             : <FileTile item={item} labels={labels} onOpen={() => { onOpen(item) }} />}
           {onRemove !== undefined && (
             <Tooltip label={labels.remove} side="top-end">
@@ -112,18 +114,33 @@ export function UploadTray<T extends UploadTrayItem>({ items, labels, onOpen, on
   )
 }
 
-function ImageTile({ item, onOpen }: { item: UploadTrayImageItem; onOpen: () => void }) {
-  const [loaded, setLoaded] = useState(false)
+function ImageTile({ item, labels, onOpen }: {
+  item: UploadTrayImageItem
+  labels: UploadTrayLabels
+  onOpen: () => void
+}) {
+  const [loaded, setLoaded] = useState<string | null>(null)
+  if (item.failed === true) {
+    return (
+      <button type="button" className={css.open} aria-label={`${item.alt}: ${labels.error}`} onClick={onOpen}>
+        <span className={css.fileIcon}><UploadErrorIcon /></span>
+        <span className={clsx(css.label, css.labelError)}>{labels.error}</span>
+      </button>
+    )
+  }
+  const shown = item.previewUrl !== null && loaded === item.previewUrl
   return (
     <button type="button" className={css.open} aria-label={item.alt} onClick={onOpen}>
-      {!loaded && (
+      {!shown && (
         <span className={css.spinnerBox}>
           <span className={css.spinner}><UploadSpinnerIcon /></span>
         </span>
       )}
-      <span className={clsx(css.imageBox, loaded && css.imageLoaded)}>
-        <img className={css.thumb} src={item.previewUrl} alt="" onLoad={() => { setLoaded(true) }} />
-      </span>
+      {item.previewUrl !== null && (
+        <span className={clsx(css.imageBox, shown && css.imageLoaded)}>
+          <img className={css.thumb} src={item.previewUrl} alt="" onLoad={() => { setLoaded(item.previewUrl) }} />
+        </span>
+      )}
     </button>
   )
 }

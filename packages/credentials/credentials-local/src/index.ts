@@ -538,11 +538,12 @@ export class LocalCredentialProvider extends CredentialProvider {
   /** Parsed reference snapshot; replaced wholesale on every reload. */
   private values = new Map<string, string>()
   /**
-   * Session-published references; never read from or written to the document.
-   * See {@link LocalCredentialProvider.setSession} for why this layer exists and
+   * Session-published references per signed-in user, then per reference;
+   * never read from or written to the document. See
+   * {@link LocalCredentialProvider.setSession} for why this layer exists and
    * where it ranks.
    */
-  private readonly sessionValues = new Map<string, string>()
+  private readonly sessionValues = new Map<string, Map<string, string>>()
   /** Parsed record snapshot; replaced wholesale on every reload. */
   private records = new Map<string, CredentialRecord>()
   /**
@@ -627,10 +628,10 @@ export class LocalCredentialProvider extends CredentialProvider {
     /* jscpd:ignore-end */
   }
 
-  override resolve(ref: CredentialRef): Promise<ResolvedCredential | undefined> {
+  override resolve(ref: CredentialRef, user?: string): Promise<ResolvedCredential | undefined> {
     const inherited = this.inherited(ref)
     if (inherited !== undefined) return Promise.resolve({ value: inherited, source: 'env' })
-    const session = this.sessionValues.get(ref)
+    const session = user === undefined ? undefined : this.sessionValues.get(user)?.get(ref)
     if (session !== undefined) return Promise.resolve({ value: session, source: 'session' })
     const stored = this.values.get(ref)
     if (stored !== undefined) return Promise.resolve({ value: stored, source: 'file' })
@@ -639,7 +640,7 @@ export class LocalCredentialProvider extends CredentialProvider {
     return Promise.resolve(undefined)
   }
 
-  override describe(ref: CredentialRef): Promise<CredentialInfo> {
+  override describe(ref: CredentialRef, user?: string): Promise<CredentialInfo> {
     // Only the inherited environment is unwritable: it is the one layer this
     // process cannot edit. A user `.env` value is writable in the sense that
     // matters — storing a key replaces it as the effective one.
@@ -648,7 +649,7 @@ export class LocalCredentialProvider extends CredentialProvider {
     }
     // A session value outranks the document without being stored in it, so it is
     // configured and unwritable: `unset` cannot remove something no write created.
-    if (this.sessionValues.get(ref) !== undefined) {
+    if (user !== undefined && this.sessionValues.get(user)?.get(ref) !== undefined) {
       return Promise.resolve({ configured: true, source: 'session', writable: false })
     }
     const stored = this.values.get(ref)
@@ -664,10 +665,10 @@ export class LocalCredentialProvider extends CredentialProvider {
    * This exists for a credential that belongs to a *session* rather than to the
    * machine: the Aeven access token an authenticated browser presents is the
    * caller's own, it rotates every two hours, and it is already held by whoever
-   * issued it. Writing it to the managed document — which is what an earlier
-   * design did — made one shared file the meeting point for two clients that
-   * each own a different session, so they displaced each other, and left a
-   * two-hour credential on disk for a route that never needed one there.
+   * issued it. Values are kept per signed-in user: one Host serves several
+   * clients signed in to different accounts at once, and a single slot per
+   * reference would let each displace the other, so one account's model
+   * requests would run on another account's session.
    *
    * Deliberately not persisted and deliberately not in the launch environment:
    * the document is read-only for this value by construction, the environment is
@@ -676,15 +677,19 @@ export class LocalCredentialProvider extends CredentialProvider {
    * operator's explicit `AEVEN_TOKEN` still wins, and above the document so a
    * stale entry from an earlier design cannot shadow a live session.
    * @param ref - the reference the value answers.
+   * @param user - the signed-in user whose session the value belongs to.
    * @param value - the credential, or `undefined` to withdraw it.
    */
-  override setSession(ref: CredentialRef, value: string | undefined): void {
+  override setSession(ref: CredentialRef, user: string, value: string | undefined): void {
     if (this.isClosed()) return
+    const values = this.sessionValues.get(user)
     if (value === undefined || value.length === 0) {
-      this.sessionValues.delete(ref)
+      values?.delete(ref)
+      if (values?.size === 0) this.sessionValues.delete(user)
       return
     }
-    this.sessionValues.set(ref, value)
+    if (values === undefined) this.sessionValues.set(user, new Map([[ref, value]]))
+    else values.set(ref, value)
   }
 
   override async set(ref: CredentialRef, value: string): Promise<void> {

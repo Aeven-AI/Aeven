@@ -64,13 +64,13 @@
 
 .figures {
   margin-left: auto;
-  font-weight: 500;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
   color: var(--dsw-alias-label-primary);
 }
 
 .percent {
-  font-weight: 500;
+  font-weight: 400;
   color: var(--dsw-alias-label-primary);
 }
 

@@ -17,11 +17,6 @@
   display: grid;
   flex: none;
   place-items: center;
-  color: var(--dsw-alias-label-tertiary);
-}
-
-.label {
-  flex: none;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -35,7 +30,7 @@
 }
 
 .objective {
-  color: var(--dsw-alias-label-primary-dimmed);
+  color: #000;
 }
 
 .error {
@@ -79,7 +74,7 @@
   border: none;
   border-radius: 999px;
   background: transparent;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--dsw-alias-label-primary);
   cursor: pointer;
 }
 

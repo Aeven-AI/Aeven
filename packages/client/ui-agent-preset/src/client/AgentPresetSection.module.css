@@ -77,7 +77,7 @@
   font-size: 11px;
   line-height: 17px;
   white-space: nowrap;
-  font-weight: 500;
+  font-weight: 400;
   background: var(--dsw-alias-state-error-primary);
   color: var(--dsw-alias-bg-layer-3);
 }
@@ -99,7 +99,7 @@
   background: var(--dsw-alias-label-primary);
   color: var(--dsw-alias-bg-layer-3);
   font-size: 11px;
-  font-weight: 450;
+  font-weight: 400;
   line-height: 1.5;
   text-align: left;
   white-space: pre-line;
@@ -190,7 +190,7 @@
   font-size: 11px;
   line-height: 17px;
   white-space: nowrap;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .badge {
@@ -349,7 +349,7 @@
 
 .fieldLabel {
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--dsw-alias-label-secondary);
 }
 

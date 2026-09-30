@@ -59,6 +59,7 @@ export type {
 export type {
   OpenState,
   PendingSubmission,
+  PendingSubmissionFile,
   PendingSubmissionImage,
   PendingSubmissionPlacement,
   PromptError,

@@ -19,6 +19,7 @@ export const STRUCTURED_EXTENSIONS: readonly string[] = [
   'pdf',
   'docx', 'docm', 'dotx',
   'xlsx', 'xlsm', 'xlsb', 'xls', 'ods', 'numbers',
+  'pages', 'key',
   'pptx', 'pptm', 'potx', 'odp', 'otp',
   'odt', 'ott',
   'rtf', 'epub', 'html', 'htm', 'xhtml',
@@ -35,6 +36,8 @@ const MEDIA_TYPES: readonly string[] = [
   'application/vnd.oasis.opendocument.spreadsheet',
   'application/vnd.oasis.opendocument.presentation',
   'application/rtf', 'text/rtf', 'application/epub+zip',
+  'application/vnd.apple.pages', 'application/vnd.apple.keynote', 'application/vnd.apple.numbers',
+  'application/x-iwork-pages-sffpages', 'application/x-iwork-keynote-sffkey', 'application/x-iwork-numbers-sffnumbers',
   'text/plain', 'text/markdown', 'text/csv', 'text/tab-separated-values', 'text/html', 'text/css', 'text/xml',
   'text/javascript', 'application/javascript', 'application/json', 'application/xml', 'application/x-yaml',
 ]

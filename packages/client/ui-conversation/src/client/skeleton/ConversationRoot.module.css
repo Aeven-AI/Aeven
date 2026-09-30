@@ -171,7 +171,7 @@
 }
 
 :global(html[data-avn-desktop]) :global([data-sidebar-collapsed]) .header {
-  --avn-nav-window-controls: calc(3 * 12px + 2 * 8px + var(--dsw-aeven-page-inset));
+  --avn-nav-window-controls: var(--dsw-aeven-window-controls-gutter);
 }
 
 .navFold {
@@ -293,7 +293,7 @@
 }
 
 .crumbCurrent {
-  font-weight: 500;
+  font-weight: 400;
   color: var(--dsw-alias-label-primary);
   cursor: default;
 }
@@ -382,7 +382,7 @@
   background: transparent;
   font-size: 14px;
   line-height: 16px;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--dsw-alias-label-tertiary);
   cursor: pointer;
 }
@@ -490,6 +490,24 @@
   gap: var(--avn-composer-stack-gap);
 }
 
+/* Same horizontal box as InputBar's root: the stack's full width, with the
+   page inset as padding. `--avn-composer-card-max-width` carries a percentage
+   that resolves against the box it is used on, and the composer card's
+   containing block is this padded content box. */
+.dockFrame {
+  box-sizing: border-box;
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  padding-inline: var(--avn-composer-side-clearance);
+}
+
+/* Entries render nothing while their state is empty; the frame goes with
+   them, so an empty dock does not keep the stack gap. */
+.dockFrame:not(:has(> .dockStack > [data-slot] > *)) {
+  display: none;
+}
+
 /* One surface for every `conversation.input.dock` entry (todos, goal, queue):
    the InputBar card's width, fill, and top radius, running a radius-deep strip
    on under the card, whose later positioned box and shadow paint over it. Each
@@ -497,8 +515,7 @@
    and the control row. */
 .dockStack {
   box-sizing: border-box;
-  flex: none;
-  width: calc(100% - var(--avn-composer-side-clearance) - var(--avn-composer-side-clearance));
+  width: 100%;
   max-width: var(--avn-composer-card-max-width);
   margin: 0 auto calc(0px - var(--avn-composer-stack-gap) - var(--dsw-aeven-radius-surface));
   padding-bottom: var(--dsw-aeven-radius-surface);
@@ -508,11 +525,6 @@
      inside it (see ui-theme styles/scrollbar.css for the rebinding contract). */
   --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
-}
-
-/* Entries render nothing while their state is empty; the surface goes with them. */
-.dockStack:not(:has(> [data-slot] > *)) {
-  display: none;
 }
 
 /* Common seat for the composer chain (fallback + elected overlay siblings). */

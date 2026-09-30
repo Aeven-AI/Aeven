@@ -19,6 +19,7 @@ export const NS = 'auth.aeven'
 export const zh = {
   'action.ok': '好的',
   'action.continue': '继续',
+  'action.back': '返回',
   'action.signIn': '登录',
   'action.signUp': '注册',
   'action.verify': '验证',
@@ -82,6 +83,7 @@ export const zh = {
 export const en: Record<AuthAevenKey, string> = {
   'action.ok': 'Ok',
   'action.continue': 'Continue',
+  'action.back': 'Back',
   'action.signIn': 'Sign in',
   'action.signUp': 'Sign up',
   'action.verify': 'Verify',

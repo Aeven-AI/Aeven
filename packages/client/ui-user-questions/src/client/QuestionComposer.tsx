@@ -34,6 +34,23 @@ export function parseRecommendedLabel(label: string): { label: string; recommend
     : { label, recommended: false }
 }
 
+/**
+ * Order options for display with recommended ones first, keeping the model's
+ * order within each group. Answers carry the original labels, so the display
+ * order never changes what is submitted.
+ * @param options - Options in the order the model sent them.
+ * @returns Each option with its parsed display label, recommended first.
+ */
+export function recommendedFirst<Option extends { label: string }>(
+  options: readonly Option[],
+): Array<{ option: Option; display: { label: string; recommended: boolean } }> {
+  const entries = options.map(option => ({ option, display: parseRecommendedLabel(option.label) }))
+  return [
+    ...entries.filter(entry => entry.display.recommended),
+    ...entries.filter(entry => !entry.display.recommended),
+  ]
+}
+
 /** Return whether a text-field key event belongs to an active IME composition. */
 function isComposing(event: KeyboardEvent<HTMLTextAreaElement>): boolean {
   // keyCode 229 is the legacy IME-composition signal engines emit without isComposing.
@@ -83,7 +100,7 @@ function AnswerField(props: AnswerFieldProps) {
       <div aria-hidden className={css.fieldMirror}>{`${props.value}\n`}</div>
       <textarea
         autoFocus={props.autoFocus}
-        className={css.fieldInput}
+        className={clsx(css.fieldInput, 'no-scrollbar')}
         value={props.value}
         disabled={props.disabled}
         rows={1}
@@ -311,14 +328,13 @@ function QuestionFlow({ pending, t, useStore, actions }: QuestionFlowProps) {
 
         {!minimized && (
           <>
-            <div className={css.body} data-question-scroll>
+            <div className={clsx(css.body, 'no-scrollbar')} data-question-scroll>
               {question.detail !== undefined && (
-                <div className={css.detail}><MarkdownText text={question.detail} labels={markdownLabels} /></div>
+                <div className={clsx(css.detail, 'no-scrollbar')}><MarkdownText text={question.detail} labels={markdownLabels} /></div>
               )}
               <div className={css.options} role={question.multiSelect === true ? 'group' : 'radiogroup'}>
-                {(question.options ?? []).map((option, optionIndex) => {
+                {recommendedFirst(question.options ?? []).map(({ option, display }, optionIndex) => {
                   const selected = draft.selected.includes(option.label)
-                  const display = parseRecommendedLabel(option.label)
                   return (
                     <button
                       type="button" key={`${option.label}-${String(optionIndex)}`}
@@ -337,7 +353,7 @@ function QuestionFlow({ pending, t, useStore, actions }: QuestionFlowProps) {
                       {question.multiSelect === true
                         ? (
                           <span className={clsx(css.checkbox, selected && css.checkboxChecked)} aria-hidden="true">
-                            {selected && <IconCheckOutline14 size={12} />}
+                            {selected && <IconCheckOutline14 />}
                           </span>
                         )
                         : <span className={css.number}>{optionIndex + 1}</span>}
@@ -365,12 +381,12 @@ function QuestionFlow({ pending, t, useStore, actions }: QuestionFlowProps) {
                             className={clsx(css.checkbox, draft.custom !== '' && css.checkboxChecked)}
                             aria-hidden="true"
                           >
-                            {draft.custom !== '' && <IconCheckOutline14 size={12} />}
+                            {draft.custom !== '' && <IconCheckOutline14 />}
                           </span>
                         )
                         : (
                           <span className={css.number} aria-hidden="true">
-                            <IconEditOutline16 size={12} />
+                            <IconEditOutline16 size={14} />
                           </span>
                         )}
                       <AnswerField
@@ -420,11 +436,11 @@ function QuestionFlow({ pending, t, useStore, actions }: QuestionFlowProps) {
                 {error === null ? null : 'key' in error ? t(error.key) : error.text}
               </div>
               <div className={css.footerActions}>
-                <Button variant="outline" disabled={busy !== null} onClick={skipQuestion}>
+                <Button variant="ghost" className={css.action} disabled={busy !== null} onClick={skipQuestion}>
                   {t('action.skip')}
                 </Button>
                 <Button
-                  variant="primary"
+                  variant="primary" className={css.action}
                   disabled={busy !== null || !answered(draft)} onClick={continueFlow}
                 >
                   {busy === 'answer'

@@ -158,9 +158,10 @@
   font: var(--dsw-font-markdown-code);
   font-family: var(--ds-font-family-code);
   font-size: 0.875em !important;
+  color: #737373;
   background-color: var(--dsw-alias-markdown-inline-code);
-  border-radius: 8px;
-  padding: 2px 6px;
+  border-radius: 16px;
+  padding: 2px 8px;
 }
 
 .markdown :where(h1, h2, h3, h4, h5, h6) code {

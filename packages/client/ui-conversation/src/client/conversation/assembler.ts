@@ -169,6 +169,8 @@ export class ConversationNodeAssembler implements ConversationViewSnapshotStore 
   private readonly views = new Map<string, ViewState>()
   private readonly activeTargets = new Set<string>()
   private hasMore = false
+  /** Half-open seq ranges discarded by the loaded `session/rewind` events. */
+  private rewinds: readonly { readonly start: number; readonly end: number }[] = []
   private replacePending = true
   private timelineDirty = true
 
@@ -202,9 +204,11 @@ export class ConversationNodeAssembler implements ConversationViewSnapshotStore 
     this.hasMore = hasMore
     const sorted = [...entries].sort((left, right) => left.event.seq - right.event.seq)
     for (const entry of sorted) this.inputs.set(entry.event.seq, entry)
-    this.locationIndex.rebuild(sorted)
+    this.rewinds = rewoundRanges(sorted)
+    const visible = this.visibleInputs(sorted)
+    this.locationIndex.rebuild(visible)
     this.timelineDirty = true
-    for (const entry of sorted) this.matchInput(entry)
+    for (const entry of visible) this.matchInput(entry)
     this.replayDependencies()
     this.revised.clear()
     for (const context of this.contexts.values()) this.markDirty(context)
@@ -220,6 +224,8 @@ export class ConversationNodeAssembler implements ConversationViewSnapshotStore 
   append(record: SessionLiveEventEntry): ConversationPublication {
     const event = record.event
     if (this.inputs.has(event.seq)) return 'none'
+    // A rewind hides already assembled events, so the window is rebuilt without them.
+    if (event.type === 'session/rewind') return this.replaceWindow([...this.sortedInputs(), record], this.hasMore)
     this.revised.clear()
     this.inputs.set(event.seq, record)
     let publication: ConversationPublication = 'none'
@@ -251,13 +257,17 @@ export class ConversationNodeAssembler implements ConversationViewSnapshotStore 
     this.revised.clear()
     let publication: ConversationPublication = 'none'
     const previousHasMore = this.hasMore
-    const fresh = entries
+    const loaded = entries
       .filter(entry => !this.inputs.has(entry.event.seq))
       .sort((left, right) => left.event.seq - right.event.seq)
-    for (const entry of fresh) this.inputs.set(entry.event.seq, entry)
+    if (loaded.some(entry => entry.event.type === 'session/rewind')) {
+      return this.replaceWindow([...this.sortedInputs(), ...loaded], hasMore)
+    }
+    for (const entry of loaded) this.inputs.set(entry.event.seq, entry)
+    const fresh = this.visibleInputs(loaded)
     this.hasMore = hasMore
     const previousTimeline = this.locationIndex.snapshot()
-    const changedLocations = this.locationIndex.rebuild(this.sortedInputs())
+    const changedLocations = this.locationIndex.rebuild(this.visibleInputs(this.sortedInputs()))
     if (this.locationIndex.snapshot() !== previousTimeline) this.timelineDirty = true
     const affected = this.refreshMatchLocations(changedLocations)
     const pending = new Map<string, PendingMatch[]>()
@@ -381,6 +391,33 @@ export class ConversationNodeAssembler implements ConversationViewSnapshotStore 
 
   private sortedInputs(): SessionEventLikeEntry[] {
     return [...this.inputs.values()].sort((left, right) => left.event.seq - right.event.seq)
+  }
+
+  /**
+   * Drop rewind events and every event a loaded rewind discarded, except the
+   * `step/end` and `turn/end` that close a step or turn the rewind cut
+   * mid-way: their opening boundary precedes the discarded range, and the
+   * kept prefix renders as a closed turn.
+   */
+  private visibleInputs(entries: readonly SessionEventLikeEntry[]): SessionEventLikeEntry[] {
+    if (this.rewinds.length === 0) return [...entries]
+    const starts = new Map<string, number>()
+    for (const { event } of this.inputs.values()) {
+      if (event.type === 'turn/start') starts.set(`${event.data.turn}`, event.seq)
+      else if (event.type === 'step/start') starts.set(`${event.data.turn}:${event.data.step}`, event.seq)
+    }
+    const opening = (event: SessionEventLikeEntry['event']): number | undefined => {
+      if (event.type === 'turn/end') return starts.get(`${event.data.turn}`)
+      if (event.type === 'step/end') return starts.get(`${event.data.turn}:${event.data.step}`)
+      return undefined
+    }
+    return entries.filter(({ event }) => {
+      if (event.type === 'session/rewind') return false
+      const containing = this.rewinds.filter(range => event.seq >= range.start && event.seq < range.end)
+      if (containing.length === 0) return true
+      const start = opening(event)
+      return start !== undefined && containing.every(range => start < range.start)
+    })
   }
 
   private matchInput(input: SessionEventLikeEntry): ConversationPublication {
@@ -899,6 +936,15 @@ export class ConversationNodeAssembler implements ConversationViewSnapshotStore 
     }
     this.replacePending = true
   }
+}
+
+/** Discarded `[target, rewind)` seq ranges of the rewind events among `entries`. */
+function rewoundRanges(entries: readonly SessionEventLikeEntry[]): { start: number; end: number }[] {
+  const ranges: { start: number; end: number }[] = []
+  for (const { event } of entries) {
+    if (event.type === 'session/rewind') ranges.push({ start: event.data.seq, end: event.seq })
+  }
+  return ranges
 }
 
 function isLocationBoundary(type: string): boolean {

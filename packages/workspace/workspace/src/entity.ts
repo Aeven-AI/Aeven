@@ -64,6 +64,13 @@ export interface WorkspaceEntityHost {
   sessionPath(id: SessionId): string | undefined
 
   /**
+   * Read a session's owner from the registry's header index.
+   * @param id - Session whose indexed owner is requested.
+   * @returns the account id, or `undefined` when the header is missing or records none.
+   */
+  sessionOwner(id: SessionId): string | undefined
+
+  /**
    * Read one stored session header for attach validation.
    * @param id - The session whose header to read.
    * @returns the header; rejects when session persistence is absent or holds
@@ -139,6 +146,17 @@ export class WorkspaceEntity implements Workspace {
 
   get title(): string {
     return this.record.title
+  }
+
+  /**
+   * A record written before workspaces carried an owner takes the owner of its
+   * sessions when they all belong to one account; otherwise it has none.
+   */
+  get owner(): string | undefined {
+    if (this.record.owner !== undefined) return this.record.owner
+    const owners = new Set(this.sessionIds.map(id => this.host.sessionOwner(id)))
+    const [only] = owners
+    return owners.size === 1 ? only : undefined
   }
 
   get createdAt(): string {

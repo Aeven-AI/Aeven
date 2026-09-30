@@ -7,7 +7,7 @@
 .actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   height: calc(28px + var(--avn-content-font-delta, 0px));
   color: var(--dsw-alias-label-primary);
 }
@@ -23,7 +23,7 @@
 }
 
 /* The assistant tail's clock sits at the row end after the stat pills; the
-   row's 8px flex gap spaces it, and it reads the body tier so it matches the
+   row's 4px flex gap spaces it, and it reads the body tier so it matches the
    pill labels beside it. */
 .timeEnd {
   font-size: var(--avn-content-font-size, 16px);
@@ -44,11 +44,12 @@
   cursor: pointer;
 }
 
-/* The 15px action glyphs follow the same px delta as the text they serve;
-   the CSS edge overrides each svg's own width/height attributes. */
+/* Every action glyph is one fixed 16px metric, so the row reads the same at
+   every Settings font size; the CSS edge overrides each svg's own
+   width/height attributes. */
 .action svg {
-  width: calc(15px + var(--avn-content-font-delta, 0px));
-  height: calc(15px + var(--avn-content-font-delta, 0px));
+  width: 16px;
+  height: 16px;
 }
 
 /* Unavailable stays focusable and hoverable so Tooltip can explain why. */

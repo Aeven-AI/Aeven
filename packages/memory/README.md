@@ -7,7 +7,7 @@ kind: "package-group"
 
 ## Summary
 
-The memory group gives agents memory that outlives a session. Each direct-user turn receives one bounded recall of relevant earlier work as a durable, source-labelled message; each completed turn is handed to the provider to learn from; and the model can search and inspect memory with tools. Aeven owns the `ctx.memory` interface and the model-visible text, and the MemOS provider runs the MemOS local core in the Host process behind it. The family is off by default.
+The memory group gives agents memory that outlives a session. Each direct-user turn receives one bounded recall of relevant earlier work as a durable, source-labelled message; each completed turn is handed to the provider to learn from; and the model can search and inspect memory with tools. Aeven owns the `ctx.memory` interface and the model-visible text, and the MemOS provider runs the MemOS local core in the Host process behind it. The family is on in every composition, including a fresh install.
 
 ## Packages
 

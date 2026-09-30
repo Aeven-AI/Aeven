@@ -10,7 +10,7 @@ export const DESKTOP_AEVEN_API_PATH = '/.aeven/api'
 export interface DesktopAevenSignIn {
   /** Aeven API URL the forwarded sign-in routes are resolved against. */
   readonly apiUrl: string
-  /** Provider sign-in URLs Electron opens in the sign-in window. */
+  /** Provider sign-in URLs Electron opens in the default browser. */
   readonly oauthUrls: readonly string[]
 }
 

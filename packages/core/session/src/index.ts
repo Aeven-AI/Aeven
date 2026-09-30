@@ -788,12 +788,13 @@ export class Session {
    * message-producing events maintained by `surfaceOp` markers. The
    * surface is the single source of derived history: every message-producing
    * append records its `surfaceOp`, so a raw event with no marker (a chunk, a
-   * turn boundary) is correctly absent, and a compaction `replace` deletes the
-   * shadowed nodes from the derivation. The projection rules are
+   * turn boundary) is correctly absent, a compaction `replace` deletes the
+   * shadowed nodes from the derivation, and a `session/rewind` restores the
+   * surface that preceded its target turn. The projection rules are
    * {@link deriveEventMessage}, folded per node.
    *
    * CACHED: each surface node is projected exactly once, when first seen — a
-   * call costs O(new nodes), and a surface rewrite (a `replace`;
+   * call costs O(new nodes), and a surface rewrite (a `replace` or rewind;
    * {@link SessionSurface.replaceGeneration}) rebuilds. The returned array is
    * a fresh snapshot per call (later appends never grow an array a caller
    * already holds); the `Message` objects in it are SHARED and **deep-frozen**.

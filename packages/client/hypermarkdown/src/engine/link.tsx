@@ -5,8 +5,9 @@ import * as runtime from './runtime.ts'
 interface AnchorProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
   renderer?: unknown
   scrollDown?: unknown
-  'data-footnote-ref'?: string
-  'data-footnote-backref'?: string
+  // remark-rehype marks references with `true` and back-references with `''`.
+  'data-footnote-ref'?: string | boolean
+  'data-footnote-backref'?: string | boolean
 }
 
 interface FootnoteChildProps {
@@ -21,10 +22,10 @@ function MarkdownLink(props: AnchorProps) {
   const { renderer: _renderer, scrollDown: _scrollDown, ...rest } = props
   const comProps: React.AnchorHTMLAttributes<HTMLAnchorElement> = { ...rest }
 
-  const footnoteRef = props['data-footnote-ref']
-  const footnoteBackref = props['data-footnote-backref']
+  const footnoteRef = isMarked(props['data-footnote-ref'])
+  const footnoteBackref = isMarked(props['data-footnote-backref'])
 
-  if (footnoteRef !== '' && footnoteBackref !== '') {
+  if (!footnoteRef && !footnoteBackref) {
     return (
       <a target="_blank" rel="noreferrer" {...comProps}>
         {comProps.children}
@@ -36,7 +37,7 @@ function MarkdownLink(props: AnchorProps) {
 
   comProps.href = runtime.currentPath() + '/' + comProps.href
 
-  if (footnoteRef === '') {
+  if (footnoteRef) {
     children = footnoteLabel(comProps.id, children)
   }
 
@@ -52,6 +53,11 @@ function MarkdownLink(props: AnchorProps) {
       {children}
     </a>
   )
+}
+
+/** A footnote marker attribute is present whether it carries `''` or `true`. */
+function isMarked(value: string | boolean | undefined): boolean {
+  return value !== undefined && value !== false
 }
 
 /**

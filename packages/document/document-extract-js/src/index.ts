@@ -1,9 +1,9 @@
 /**
- * In-process document reader: PDF, Office Open XML, OpenDocument, Numbers,
- * RTF, EPUB, HTML, and text formats read by JavaScript and WebAssembly
- * libraries, each document in its own worker thread with heap and time
- * limits. Nothing here needs a native binary, so the provider ships inside
- * the Desktop seed unchanged.
+ * In-process document reader: PDF, Office Open XML, OpenDocument, Pages,
+ * Keynote, Numbers, RTF, EPUB, HTML, and text formats read by JavaScript
+ * and WebAssembly libraries, each document in its own worker thread with
+ * heap and time limits. Nothing here needs a native binary, so the provider
+ * ships inside the Desktop seed unchanged.
  * @module @aeven/document-extract-js
  */
 

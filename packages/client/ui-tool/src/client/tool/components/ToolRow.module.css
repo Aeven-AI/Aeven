@@ -55,7 +55,7 @@
 }
 
 .root[data-tool^='cordis_'] .title {
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .root[data-tool^='cordis_'] .sep {
@@ -67,7 +67,7 @@
 }
 
 .title {
-  font-weight: 450;
+  font-weight: 400;
   transition: color 100ms ease;
 }
 

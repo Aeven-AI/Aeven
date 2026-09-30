@@ -9,6 +9,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@aeven/credentials'
 import type { CredentialProvider } from '@aeven/credentials'
 import type { CredentialInfo } from '@aeven/credentials/types'
+import type {} from '@aeven/identity-user'
 import { Remote, RemoteError, TypertRemoteService } from '@aeven/typert-protocol'
 import { z } from 'zod'
 
@@ -84,8 +85,10 @@ export class CredentialsController extends TypertRemoteService {
     const request = parseRequest('credentials.describe', describeRequestSchema, { refs })
     const branded = request.refs.map(ref => [ref, credentialRef(ref)] as const)
     const credentials = this.provider()
+    // The caller's own session credential counts; another signed-in user's never does.
+    const user = this.ctx.get('identityUsers')?.actingUser()?.id
     const entries = await Promise.all(branded.map(async ([ref, key]) =>
-      [ref, projectCredentialInfo(await credentials.describe(key))] as const))
+      [ref, projectCredentialInfo(await credentials.describe(key, user))] as const))
     return Object.fromEntries(entries)
   }
 

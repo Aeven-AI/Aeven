@@ -1,7 +1,8 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, ReactNode } from 'react'
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties, ReactNode, Ref } from 'react'
 import type { PendingSubmission, SessionSnapshot } from '@aeven/api-session-controller/client'
-import type { MessageImageSource } from '@aeven/client-ui-conversation/client'
+import type { MessageFileSource, MessageImageSource } from '@aeven/client-ui-conversation/client'
+import { SessionSeq } from '@aeven/session/types'
 import {
   IconCheckOutline16, IconCloseOutline16, IconEditOutline16, IconSendOutline14, IconTrashOutline16,
   JsonBlock, projectUserText, StateDot, Tooltip, useTextAnimation,
@@ -10,7 +11,7 @@ import type { ChatNodeOwnerProps, ChatNodeViewProps, ChatViewInjected, ChatViewS
 import type { ModelRetryNode, TurnErrorNode, UserMessageNode } from '../contract/snapshot.ts'
 import { CompactionItem } from './CompactionItem.tsx'
 import { ContextInjectionRow } from './ContextInjectionRow.tsx'
-import { MessageIconActions } from './MessageIconActions.tsx'
+import { EditIconActions, MessageIconActions } from './MessageIconActions.tsx'
 import css from './MessageItem.module.css'
 
 type UserImage = Extract<UserMessageNode['content'][number], { type: 'image' }>
@@ -19,12 +20,12 @@ type UserFile = Extract<UserMessageNode['content'][number], { type: 'file' }>
 function contentParts(content: readonly unknown[]): {
   text: string
   images: { attachment: UserImage['attachment'] }[]
-  files: UserFile['attachment'][]
+  files: { attachment: UserFile['attachment'] }[]
   rest: unknown[]
 } {
   const texts: string[] = []
   const images: { attachment: UserImage['attachment'] }[] = []
-  const files: UserFile['attachment'][] = []
+  const files: { attachment: UserFile['attachment'] }[] = []
   const rest: unknown[] = []
   for (const block of content) {
     const b = block as { type?: string; text?: string; attachment?: unknown }
@@ -32,7 +33,7 @@ function contentParts(content: readonly unknown[]): {
     else if (b.type === 'image' && b.attachment !== undefined) {
       images.push({ attachment: (b as UserImage).attachment })
     }
-    else if (b.type === 'file' && b.attachment !== undefined) files.push((b as UserFile).attachment)
+    else if (b.type === 'file' && b.attachment !== undefined) files.push({ attachment: (b as UserFile).attachment })
     else rest.push(block)
   }
   return { text: texts.join(''), images, files, rest }
@@ -190,10 +191,13 @@ export function arrivalFade(age: number | null): { className?: string | undefine
 /** Right-aligned bubble shared by user and steering rows. */
 function UserStyleBubble({
   content, renderMessageImages, actions, pending = false, echo = false, queued = false,
-  arrivalAge = null, body, referenceLabels = [], skillNames = [],
-  previewImages, t,
+  arrivalAge = null, body, bubbleRef, referenceLabels = [], skillNames = [],
+  previewImages, previewFiles, t,
 }: {
   content: readonly unknown[]
+  /** Receives the text bubble element, as the inline editor reads its height. */
+  bubbleRef?: Ref<HTMLDivElement>
+
   renderMessageImages: ChatNodeOwnerProps['renderMessageImages']
   /** Optional IconActions (or similar) below the bubble; receives the joined text. */
   actions?: (text: string) => ReactNode
@@ -213,13 +217,21 @@ function UserStyleBubble({
   skillNames?: readonly string[]
   /** Local submission-echo previews replacing the content-derived image group. */
   previewImages?: readonly MessageImageSource[]
+  /** Local submission-echo files replacing the content-derived file group. */
+  previewFiles?: readonly MessageFileSource[]
   t: ChatViewSlotProps['t']
 }): ReactNode {
-  const { text, images: contentImages, files, rest } = contentParts(content)
+  const { text, images: contentImages, files: contentFiles, rest } = contentParts(content)
   const images = previewImages ?? contentImages
+  const files = previewFiles ?? contentFiles
   const truncated = (total: number): string => t('json.truncated', { total })
   const showBubble = text !== '' || rest.length > 0
+  const attachmentCount = images.length + files.length
   const fade = arrivalFade(arrivalAge)
+  const bubbleContent = <>
+    {projectUserText(text, referenceLabels, skillNames)}
+    {rest.map((block, i) => <JsonBlock key={i} label={t('message.extraBlock')} payload={block} truncatedLabel={truncated} />)}
+  </>
   return (
     <div
       className={fade.className === undefined ? css.userRow : `${css.userRow} ${fade.className}`}
@@ -228,12 +240,19 @@ function UserStyleBubble({
       data-submission-echo={echo || undefined}
       data-queued={queued || undefined}
     >
-      <div className={css.userStack}>
-        {renderMessageImages({ images, files, align: 'end' })}
-        {body ?? (showBubble && <div className={css.bubble}>
-          {projectUserText(text, referenceLabels, skillNames)}
-          {rest.map((block, i) => <JsonBlock key={i} label={t('message.extraBlock')} payload={block} truncatedLabel={truncated} />)}
-        </div>)}
+      <div className={css.userStack} data-attachments={attachmentCount > 0 ? Math.min(attachmentCount, 5) : undefined}>
+        {attachmentCount > 0
+          ? <>
+            {/* The attachment tray and the text share one card; an open editor sits below it. */}
+            <div className={css.attachmentCard}>
+              {renderMessageImages({ images, files, align: 'end', layout: 'tray' })}
+              {body === undefined && (showBubble
+                ? <div ref={bubbleRef} className={css.cardText}>{bubbleContent}</div>
+                : <div className={css.cardFoot} />)}
+            </div>
+            {body}
+          </>
+          : body ?? (showBubble && <div ref={bubbleRef} className={css.bubble}>{bubbleContent}</div>)}
         {referenceLabels.length > 0 && (
           <div className={css.referenceSummary}>
             {t('message.referenceSummary', { labels: referenceLabels.join(t('message.referenceSeparator')) })}
@@ -308,11 +327,16 @@ export function PendingSubmissionBubble({ submission, extendedTranscript, render
     })),
     [submission.images],
   )
+  const previewFiles = useMemo<readonly MessageFileSource[]>(
+    () => submission.files.map(file => ({ preview: file })),
+    [submission.files],
+  )
   const arrivalAge = useArrivalAge(submission.time)
   return (
     <UserStyleBubble
       content={content}
       previewImages={previewImages}
+      previewFiles={previewFiles}
       renderMessageImages={renderMessageImages}
       pending={submission.placement === 'steering'}
       echo
@@ -456,9 +480,63 @@ export function QueuedMessageBubble({ row, sentAt, running, mutable, updateQueue
   )
 }
 
-/** User and admitted-steering keyed Chat renderer. */
+/**
+ * Conversation-wide text field that takes a sent prompt's bubble place while
+ * its inline editor is open: it opens at the bubble's height and grows with
+ * its lines up to the CSS max-height, then scrolls. Enter sends, Shift+Enter
+ * breaks the line, and Escape cancels.
+ */
+function MessageEditorInput({ value, minHeight, busy, onChange, onCancel, onSend, t }: {
+  value: string
+  /** Rendered height of the bubble it replaces; undefined for a prompt without text. */
+  minHeight: number | undefined
+  busy: boolean
+  onChange: (value: string) => void
+  onCancel: () => void
+  onSend: () => void
+  t: ChatViewSlotProps['t']
+}): ReactNode {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  useLayoutEffect(() => {
+    const input = ref.current
+    if (input === null) return
+    input.focus()
+    input.setSelectionRange(input.value.length, input.value.length)
+  }, [])
+  useLayoutEffect(() => {
+    const input = ref.current
+    if (input === null) return
+    input.style.height = 'auto'
+    input.style.height = `${input.scrollHeight}px`
+  }, [value])
+  return (
+    <textarea
+      ref={ref}
+      className={`${css.bubble} ${css.messageEditorInput} no-scrollbar`}
+      style={minHeight === undefined ? undefined : { minHeight }}
+      aria-label={t('message.edit')}
+      value={value}
+      disabled={busy}
+      rows={1}
+      onChange={(event) => { onChange(event.currentTarget.value) }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') { onCancel(); return }
+        if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+          event.preventDefault()
+          onSend()
+        }
+      }}
+    />
+  )
+}
+
+/**
+ * User and admitted-steering keyed Chat renderer. Both offer inline editing: the bubble becomes a text field and its icon row becomes
+ * cancel / confirm, where confirm stays unavailable until the text differs
+ * from the prompt and holds non-whitespace text.
+ */
 export const UserMessageNodeView = memo(function UserMessageNodeView({
-  node, renderMessageImages, useSession, t, extendedTranscript,
+  node, renderMessageImages, useSession, t, extendedTranscript, editMessage,
 }: ChatNodeViewProps<'user' | 'steering'>) {
   const data = node.data
   const rpcId = sourceRpcId(data.source)
@@ -468,23 +546,67 @@ export const UserMessageNodeView = memo(function UserMessageNodeView({
   // Latched at mount: the echo retires a frame after this row appears, and
   // the fade must survive its disappearance.
   const arrivalAge = useArrivalAge(echo?.time)
+  const bubbleRef = useRef<HTMLDivElement>(null)
+  const [editing, setEditing] = useState<{ draft: string; minHeight: number | undefined } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const original = useMemo(() => contentParts(data.content).text, [data.content])
+  const edit = editMessage
+  const unchanged = editing === null || editing.draft.trim() === '' || editing.draft === original
+  const cancel = (): void => { setEditing(null) }
+  const send = async (): Promise<void> => {
+    if (edit === undefined || editing === null || busy || unchanged) return
+    setBusy(true)
+    try {
+      // An accepted edit rewinds this prompt out of the transcript, which unmounts the row.
+      await edit(SessionSeq(data.seq), editing.draft)
+    } catch {
+      // The session face mirrors the refusal into the composer's error line; the editor stays open for another try.
+      setBusy(false)
+    }
+  }
   return (
     <UserStyleBubble
       content={data.content}
       renderMessageImages={renderMessageImages}
       arrivalAge={arrivalAge}
+      bubbleRef={bubbleRef}
       {...data.referenceLabels === undefined ? {} : { referenceLabels: data.referenceLabels }}
       {...data.skillNames === undefined ? {} : { skillNames: data.skillNames }}
-      t={t}
-      actions={text => (
-        <MessageIconActions
-          text={text}
-          time={extendedTranscript ? data.time : undefined}
-          clock="start"
-          className={css.actions}
+      body={editing === null ? undefined : (
+        <MessageEditorInput
+          value={editing.draft}
+          minHeight={editing.minHeight}
+          busy={busy}
+          onChange={(draft) => { setEditing({ ...editing, draft }) }}
+          onCancel={cancel}
+          onSend={() => { void send() }}
           t={t}
         />
       )}
+      t={t}
+      actions={text => editing !== null
+        ? (
+          <EditIconActions
+            onCancel={cancel}
+            onConfirm={() => { void send() }}
+            confirmUnavailable={unchanged}
+            busy={busy}
+            className={css.actions}
+            t={t}
+          />
+        )
+        : (
+          <MessageIconActions
+            text={text}
+            time={extendedTranscript ? data.time : undefined}
+            clock="start"
+            onEdit={edit === undefined ? undefined : () => {
+              setEditing({ draft: original, minHeight: bubbleRef.current?.getBoundingClientRect().height })
+            }}
+            className={css.actions}
+            t={t}
+          />
+        )}
     />
   )
 })

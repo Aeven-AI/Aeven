@@ -13,6 +13,8 @@ import type { SessionObservation } from '@aeven/session-query'
 import { Remote, RemoteError, TypertRemoteService } from '@aeven/typert-protocol'
 import {
   ApiSessionAgentController,
+  ApiSessionNotFound,
+  callerMayAccessSession,
   inspectApiSession,
   type ApiSessionAgentResult,
 } from './agent.ts'
@@ -36,6 +38,8 @@ import type {
   SessionControlFrame,
   SessionCreateRequest,
   SessionCreateValue,
+  SessionEditRequest,
+  SessionEditValue,
   SessionFollowFrame,
   SessionFollowRequest,
   SessionForkRequest,
@@ -208,19 +212,17 @@ export class SessionController extends TypertRemoteService {
    * @param signal - optional caller cancellation for persistence reads.
    * @returns the current attached state or persisted header and event prefix.
    */
-  inspect(
+  async inspect(
     sessionId: SessionId,
     signal?: AbortSignal,
   ): Promise<SessionInspection> {
     const attached = this.ctx.sessions.get(sessionId)
-    if (attached !== undefined) {
-      return Promise.resolve({
-        meta: attached.header,
-        inheritedEventCount: attached.inheritedEventCount,
-        events: attached.snapshotEvents(),
-      })
-    }
-    return inspectApiSession(this.ctx, sessionId, signal)
+    const inspection: SessionInspection = attached !== undefined
+      ? { meta: attached.header, inheritedEventCount: attached.inheritedEventCount, events: attached.snapshotEvents() }
+      : await inspectApiSession(this.ctx, sessionId, signal)
+    // Another account's Session reads as absent.
+    if (!callerMayAccessSession(this.ctx, inspection.meta)) throw new ApiSessionNotFound(`session "${sessionId}" not found`)
+    return inspection
   }
 
   /**
@@ -386,6 +388,19 @@ export class SessionController extends TypertRemoteService {
   prompt(request: SessionPromptRequest, signal: AbortSignal): Promise<SessionPromptValue> {
     signal.throwIfAborted()
     return this.commands.prompt(request)
+  }
+
+  /**
+   * Replace one user prompt's text, discard it (with its turn when it opened
+   * one) and everything after, and run the edited prompt as the next turn.
+   * @param request - Session identity, edited message seq, replacement text, and source metadata.
+   * @param signal - caller cancellation before the edit begins.
+   * @returns the committed rewind position.
+   */
+  @Remote('edit')
+  edit(request: SessionEditRequest, signal: AbortSignal): Promise<SessionEditValue> {
+    signal.throwIfAborted()
+    return this.commands.edit(request)
   }
 
   /**

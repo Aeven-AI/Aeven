@@ -3,6 +3,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@aeven/agent'
 import { Deque } from '@aeven/deque'
+import type { User } from '@aeven/identity-user'
 import type { JobView, JobEvent } from '@aeven/jobs'
 import type {
   Session, SessionEvent, SessionEventMap, SessionId, UserMessage,
@@ -16,6 +17,7 @@ import type {
   SessionProjectionValues,
   SessionQueuedItem,
 } from './types.ts'
+import { callerMayAccessSession } from './agent.ts'
 
 /** Owns the Host-wide Session control stream. */
 export class SessionControlController {
@@ -53,10 +55,11 @@ export class SessionControlController {
    */
   async *control(signal: AbortSignal): AsyncIterable<SessionControlFrame> {
     signal.throwIfAborted()
-    const queue = new ControlQueue()
+    // Each stream carries only the Sessions its caller owns.
+    const queue = new ControlQueue(this.ctx.get('identityUsers')?.actingUser())
     this.streams.add(queue)
     try {
-      yield { type: 'baseline', value: this.baseline() }
+      yield { type: 'baseline', value: this.baseline(queue.caller) }
       yield* queue.iterate(signal)
     } finally {
       this.streams.delete(queue)
@@ -64,8 +67,8 @@ export class SessionControlController {
     }
   }
 
-  private baseline(): SessionControlBaseline {
-    const sessions = this.ctx.sessions.list()
+  private baseline(caller: User | undefined): SessionControlBaseline {
+    const sessions = this.ctx.sessions.list().filter(session => callerMayAccessSession(this.ctx, session.header, caller))
     const queues = Object.create(null) as Record<SessionId, readonly SessionQueuedItem[]>
     const jobs = Object.create(null) as Record<SessionId, readonly SessionJob[]>
     for (const session of sessions) {
@@ -127,12 +130,19 @@ export class SessionControlController {
     return jobs === undefined ? [] : jobs.list(agent?.id).map(jobView)
   }
 
-  private broadcast(frame: SessionControlFrame): void {
-    for (const stream of this.streams) stream.push(frame)
+  private broadcast(frame: SessionControlFrame & { readonly sessionId: SessionId }): void {
+    const header = this.ctx.sessions.get(frame.sessionId)?.header
+    if (header === undefined) return
+    for (const stream of this.streams) {
+      if (callerMayAccessSession(this.ctx, header, stream.caller)) stream.push(frame)
+    }
   }
 }
 
 class ControlQueue {
+  /** @param caller - the user the stream was opened for; only their Sessions reach it. */
+  constructor(readonly caller: User | undefined) {}
+
   private readonly buffer = new Deque<SessionControlFrame>()
   private wake: (() => void) | undefined
   private done = false

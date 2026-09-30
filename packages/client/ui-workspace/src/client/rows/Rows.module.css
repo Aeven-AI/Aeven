@@ -6,14 +6,17 @@
      the Session rows' titles below it start on the same line. */
   gap: 8px;
   border-radius: 0;
-  padding: 0 var(--avn-sidebar-inline-padding);
+  /* The trailing 24px lives on the row's own action, not on the row, so the
+     new-chat mark and a Session's options mark share one inset. */
+  padding: 0 0 0 var(--avn-sidebar-inline-padding);
   cursor: pointer;
   user-select: none;
   color: var(--dsw-alias-label-primary);
-  /* Aeven `.side-content-button` / `.foldout-button`. The sidebar body animates
-     its width to zero, and without this the rows reflow and their contents wrap
-     on the way. Nowrap floors each row at its min-content width instead, and
-     the narrowing body clips the overhang. */
+  /* The row is the column's width, so its trailing icons stay on the moving
+     edge. Nowrap keeps the label on one line; the title ellipsizes. */
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   white-space: nowrap;
 }
 
@@ -115,7 +118,7 @@
 /* The title's own insets are padding, not margin: the row's text keeps its
    room inside the cell it fills, so nothing else in the row can move it. */
 .sessionRow .title {
-  padding: 0 16px 0 8px;
+  padding: 0 32px 0 8px;
 }
 
 /* The Session row's own address: everything but the trailing actions cell,
@@ -135,7 +138,9 @@
 }
 
 @keyframes row-in {
-  from { opacity: 0; }
+  from {
+    opacity: 0;
+  }
 }
 
 /* The row's leading cell: one 18px square, the grapheme size every icon in
@@ -169,19 +174,19 @@
   color: var(--dsw-alias-state-warn-primary);
 }
 
-/* Idle mark: the chat bubble at the group folder's own size, held back while the
-   Session rests so a resting row reads as a list entry; hovering its row, or
-   the row being the selected Session, brings it up to the row's own ink. */
+/* Idle mark: the chat bubble at the group folder's own size. A Session that is
+   not selected keeps it faint, including while the pointer is on the row. The
+   selected Session, an open row menu, or a hovered search result draws it at
+   the row's own ink. */
 .idleMark {
   flex: none;
   width: 18px;
   height: 18px;
   color: var(--dsw-alias-label-primary);
-  opacity: 0.3;
+  opacity: 0.1;
   transition: opacity 150ms var(--ds-ease-in-out);
 }
 
-.sessionRow:hover .idleMark,
 .sessionRow.menuOpen .idleMark,
 .sessionRow.selected .idleMark,
 .searchResultRow:hover .idleMark {
@@ -209,7 +214,6 @@
   width: 18px;
   height: 18px;
 }
-
 
 .projectText {
   flex: 1;
@@ -289,33 +293,18 @@
   transition: opacity 150ms var(--ds-ease-in-out);
 }
 
-/* One reveal for both row kinds: a folder's menu and a Session's menu stay
-   hidden until the pointer is on the row. A selected Session row is the
-   exception — its cell takes the pointer while its menu is invisible, and the
-   button's own hover is what reveals it, so selection alone paints no mark. A
-   folder's New Session button (`.pinnedAction`) is always shown. An open row
-   menu keeps its own anchor up, and the focused action reveals its own cell so a
-   keyboard reader never lands on an invisible button. A blank New Session row
-   renders no actions cell, so no reveal applies there. */
+/* One reveal for both row kinds: a folder's menu and New Session button and a
+   Session's menu stay hidden until the pointer is on the row, selected or not.
+   An open row menu keeps its own anchor up, and the focused action reveals its
+   own cell so a keyboard reader never lands on an invisible button. A blank New
+   Session row renders no actions cell, so no reveal applies there. */
 .projectRow:hover .rowActions > *,
 .projectRow.menuOpen .rowActions > *,
-.sessionRow:hover:not(.selected) .rowActions > *,
+.sessionRow:hover .rowActions > *,
 .sessionRow.menuOpen .rowActions > *,
-.rowActions:focus-within > *,
-.rowActions > .pinnedAction {
+.rowActions:focus-within > * {
   opacity: 1;
   pointer-events: auto;
-}
-
-/* A selected Session row's menu cell. It takes the pointer while hidden, which
-   is what makes an invisible button hoverable at all; the hover then reveals the
-   mark on the cell the pointer is actually over. */
-.sessionRow.selected .rowActions > * {
-  pointer-events: auto;
-}
-
-.sessionRow.selected .rowActions > *:hover {
-  opacity: 1;
 }
 
 /* An open row menu pins the hover affordances (figma: the row keeps its
@@ -334,7 +323,7 @@
 
 .sessionRow.dropBefore::before,
 .sessionRow.dropAfter::after {
-  content: '';
+  content: "";
   position: absolute;
   z-index: 1;
   left: 0;
@@ -342,20 +331,21 @@
   height: 12px;
   background:
     linear-gradient(
-      55deg,
-      transparent calc(50% - 1px),
-      var(--dsw-alias-state-business-primary) calc(50% - 1px) calc(50% + 1px),
-      transparent calc(50% + 1px)
-    ) 0 0 / 5px 7px no-repeat,
+        55deg,
+        transparent calc(50% - 1px),
+        var(--dsw-alias-state-business-primary) calc(50% - 1px) calc(50% + 1px),
+        transparent calc(50% + 1px)
+      )
+      0 0 / 5px 7px no-repeat,
     linear-gradient(
-      125deg,
-      transparent calc(50% - 1px),
-      var(--dsw-alias-state-business-primary) calc(50% - 1px) calc(50% + 1px),
-      transparent calc(50% + 1px)
-    ) 0 5px / 5px 7px no-repeat,
-    linear-gradient(
-      var(--dsw-alias-state-business-primary) 0 0
-    ) 4px 5px / calc(100% - 4px) 2px no-repeat;
+        125deg,
+        transparent calc(50% - 1px),
+        var(--dsw-alias-state-business-primary) calc(50% - 1px) calc(50% + 1px),
+        transparent calc(50% + 1px)
+      )
+      0 5px / 5px 7px no-repeat,
+    linear-gradient(var(--dsw-alias-state-business-primary) 0 0) 4px 5px /
+      calc(100% - 4px) 2px no-repeat;
   pointer-events: none;
 }
 
@@ -377,14 +367,14 @@
 .hoverTitle {
   font-size: 14px;
   line-height: 20px;
-  color: #FFFFFF;
+  color: #ffffff;
   overflow-wrap: break-word;
 }
 
 .hoverTime {
   font-size: 12px;
   line-height: 16px;
-  color: #CFD3D6;
+  color: #cfd3d6;
 }
 
 .hoverStatus {
@@ -393,7 +383,7 @@
   gap: 8px;
   font-size: 12px;
   line-height: 20px;
-  color: #ADB2B8;
+  color: #adb2b8;
 }
 
 /* A row action button: an 18px cell on the sidebar's own grapheme size, in the
@@ -413,15 +403,21 @@
   color: var(--dsw-alias-label-primary);
 }
 
-/* The workspace row's own New Session button: the row's full height and a wider
-   cell than the menu beside it, so the action reads as the row's primary one.
-   The glyph stays where the 18px cell had it — flush to the cell's trailing
-   edge, which the row's padding holds 24px inside the sidebar — so the wider
-   cell grows into the title's room instead of moving the mark. */
-.pinnedAction {
-  width: 28px;
+/* A row action on the row's full height, so its hit area is the whole row
+   band: the workspace row's options button beside its New Session button. */
+.fullHeightAction {
   height: var(--dsw-aeven-control-size);
-  justify-content: flex-end;
+}
+
+/* The row's last action (the workspace row's New Session button, a Session
+   row's options button): full height, with the 24px trailing inset on the
+   button itself. The button sizes to its 18px glyph plus that inset, so the
+   glyph sits 24px inside the sidebar and never spills over the action before
+   it. */
+.trailingAction {
+  width: auto;
+  height: var(--dsw-aeven-control-size);
+  padding-right: 24px;
 }
 
 /* A row action's lucide glyph: the sidebar's own 18px grapheme, drawn at the

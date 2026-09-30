@@ -368,6 +368,16 @@ export interface SessionEventMap {
    * so tolerating concurrent writers needs a signal beyond the log.
    */
   'session/end-seed': Record<string, never>
+  /**
+   * Discards every event from `seq` up to this one: the model-visible surface
+   * returns to its state before `seq`, so no discarded message reaches a later
+   * request, and transcripts hide the discarded range. `seq` names an earlier
+   * `turn/start` (the whole turn goes) or a `user/message` (the turn keeps the
+   * events before it, and transcripts keep the discarded `step/end` and
+   * `turn/end` that close it). The event is appended between turns. Discarded
+   * events stay in the log; an edited user message is the next turn's input.
+   */
+  'session/rewind': { seq: SessionSeq }
 }
 
 /** The appendable event-type keys of {@link SessionEventMap}, plugin-merged extensions included. */

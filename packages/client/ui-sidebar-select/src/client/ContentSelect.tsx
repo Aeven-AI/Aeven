@@ -117,7 +117,7 @@ export function ContentSelect(props: ContentSelectComponentProps) {
   useEffect(() => {
     const kind = registry.takeOpenRequest(sessionId)
     if (kind === undefined) return
-    update(current => {
+    update((current) => {
       const existing = current.surfaces.find(surface => surface.kind === kind)
       return existing === undefined ? openSurface(current, kind).state : { ...current, active: existing.id }
     })
@@ -155,11 +155,14 @@ export function ContentSelect(props: ContentSelectComponentProps) {
   const titleOf = useCallback((surface: SidebarSurface): string =>
     tabs.get(surface.id)?.title ?? t(`${surface.kind}.tab`), [t, tabs])
 
-  const addItems = useMemo<MenuEntry[]>(() => availableKinds(registry).map(kind => ({
-    id: kind,
-    icon: <span className={css.menuGlyph}>{GLYPHS[kind]()}</span>,
-    label: t(`${kind}.tab`),
-  })), [registry, registry.version, t])
+  // Browser stays off the plus menu. The empty launcher still offers it.
+  const addItems = useMemo<MenuEntry[]>(() => availableKinds(registry)
+    .filter(kind => kind !== 'browser')
+    .map(kind => ({
+      id: kind,
+      icon: <span className={css.menuGlyph}>{GLYPHS[kind]()}</span>,
+      label: t(`${kind}.tab`),
+    })), [registry, registry.version, t])
 
   const menuSurfaceIndex = pillMenu === null ? -1 : state.surfaces.findIndex(s => s.id === pillMenu.surfaceId)
   const pillMenuItems = useMemo<MenuEntry[]>(() => [

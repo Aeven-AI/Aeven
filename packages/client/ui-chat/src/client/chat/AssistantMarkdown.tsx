@@ -222,6 +222,7 @@ function renderStandalone(
   return context.renderMessageImages({
     images: images.map(({ attachment }) => ({ attachment })),
     align: 'start',
+    layout: 'gallery',
   })
 }
 
