@@ -1,5 +1,4 @@
 /** React-free browser terminal state and reconnecting Remote-stream ownership. */
-import { preferredShell, rememberShell } from './shell-preference.ts'
 import { randomUUID } from '@aeven/util-crypto'
 import { createSnapshotStore, type SnapshotStore } from '@aeven/client-store'
 import { RemoteStreamCarrierError, type ClientRemote, type RemoteStream } from '@aeven/api-gateway/client'
@@ -8,7 +7,7 @@ import type {} from '@aeven/api-terminal-controller/remote'
 import type { SessionId } from '@aeven/session/types'
 import type {
   TerminalAttachmentId, TerminalEnvironment, TerminalFrame,
-  WebTerminalId, WebTerminalInfo,
+  TerminalShell, WebTerminalId, WebTerminalInfo,
 } from '../types.ts'
 
 /** The generated terminal namespace's browser-facing operations. */
@@ -38,6 +37,10 @@ export interface TerminalRenderFrame {
 export interface TerminalViewState {
   readonly phase: 'idle' | 'loading' | 'creating' | 'connecting' | 'connected' | 'disconnected' | 'closing' | 'closed' | 'failed'
   readonly environment?: TerminalEnvironment | undefined
+  /** Verified shells of this Session's execution environment, offered when this occurrence starts one. */
+  readonly shells?: readonly TerminalShell[] | undefined
+  /** Whether this occurrence has no shell yet and waits for one of {@link shells} to be picked. */
+  readonly choosingShell?: boolean | undefined
   readonly title?: string | undefined
   readonly info?: WebTerminalInfo | undefined
   readonly writable: boolean
@@ -99,41 +102,64 @@ export class TerminalView {
   /**
    * Start or recover this tab, deduplicating mounts and retries during allocation.
    * Only a new tab may allocate a shell; listed terminals cannot be silently replaced.
-   * @returns after environment lookup and creation or recovery settle.
+   * Every started shell passes the launch guide: a tab that must allocate stops at
+   * `choosingShell` for the reader's pick, which {@link TerminalView.chooseShell} starts.
+   * @returns after environment lookup and creation, recovery, or the shell choice settle.
    */
   refresh(): Promise<void> {
     if (this.creation !== undefined) return this.creation
     if (this.loading !== undefined) return this.loading
     if (this.closing !== undefined || this.lifetime.signal.aborted) return Promise.resolve()
-    this.patch({ phase: 'loading', error: undefined, issue: undefined })
+    // A reattached view already holds its terminal, and a new one asks before
+    // starting a shell; a listed terminal keeps its own process either way.
+    const choosing = this.createWhenMissing && this.shellPath === undefined && this.state.getSnapshot().info === undefined
+    this.patch({ phase: 'loading', error: undefined, issue: undefined, choosingShell: choosing })
     this.loading = (async () => {
-      const [environment, available] = await Promise.all([
-        this.remote.environment(this.sessionId, this.lifetime.signal), this.remote.list(this.sessionId),
+      const [environment, available, shells] = await Promise.all([
+        this.remote.environment(this.sessionId, this.lifetime.signal), this.remote.list(this.sessionId), this.launchShells(),
       ])
       if (this.stopped()) return
-      this.patch({ environment: valueOf(environment) })
+      this.patch({ environment: valueOf(environment), shells })
       const info = valueOf(available).find(item => item.id === this.id)
       if (info !== undefined) this.adopt(info)
       else if (this.createWhenMissing) {
-        let path = this.shellPath
-        if (path === undefined) {
-          const shells = valueOf(await this.remote.shells(this.sessionId, this.lifetime.signal))
-          const previous = preferredShell()
-          path = shells.find(shell => shell.path === previous)?.path ?? shells[0]?.path
-        }
-        if (this.stopped()) return
-        if (path !== undefined) rememberShell(path)
-        await this.create(valueOf(environment), path)
+        // A Host that lists no shell keeps its own default, and states the failure itself.
+        if (this.shellPath === undefined && shells.length > 0) { this.patch({ phase: 'idle' }); return }
+        await this.create(valueOf(environment), this.shellPath)
       }
       else throw new TerminalViewError('missingTerminal')
     })().catch((error: unknown) => { this.fail(error) }).finally(() => { this.loading = undefined })
     return this.loading
   }
 
+  /**
+   * Start this occurrence with the shell the reader picked at the launch guide.
+   * @param path - one of the shells published in {@link TerminalViewState.shells}.
+   */
+  chooseShell(path: string): void {
+    const state = this.state.getSnapshot()
+    if (state.choosingShell !== true || state.environment === undefined || this.lifetime.signal.aborted) return
+    void this.create(state.environment, path)
+  }
+
+  /**
+   * Read the shells this Session may launch, tolerating a host that cannot list them.
+   * @returns verified shells, or an empty list, which leaves the Host's own default in charge.
+   */
+  private async launchShells(): Promise<TerminalShell[]> {
+    let result: RemoteResult<TerminalShell[]>
+    try { result = await this.remote.shells(this.sessionId, this.lifetime.signal) }
+    catch (_transportFailure) {
+      // Listing shells only feeds the choice; reattach and creation must outlive its failure.
+      return []
+    }
+    return result.ok ? result.value : []
+  }
+
   private stopped(): boolean { return this.lifetime.signal.aborted || this.closing !== undefined }
 
   private async create(environment: TerminalEnvironment, shellPath?: string): Promise<void> {
-    this.patch({ phase: 'creating', error: undefined, issue: undefined })
+    this.patch({ phase: 'creating', error: undefined, issue: undefined, choosingShell: false })
     this.creation = (async () => {
       const info = valueOf(await this.remote.create(this.sessionId, {
         id: this.id, ...shellPath === undefined ? {} : { shellPath },
@@ -147,7 +173,7 @@ export class TerminalView {
   }
 
   private adopt(info: WebTerminalInfo): void {
-    this.patch({ info, title: info.title })
+    this.patch({ info, title: info.title, choosingShell: false })
     if (this.retain === undefined) { if (this.mounted && this.closing === undefined) this.connect(); return }
     void this.retain(this.lifetime.signal).then(() => {
       if (this.mounted && this.closing === undefined) this.connect()
@@ -329,7 +355,7 @@ export class TerminalView {
       return
     }
     const issue = failure?.code === 'terminal/view' ? failure.details.issue : failure?.code === 'terminal/limit-reached' ? 'terminalLimit' : failure?.code === 'terminal/unavailable' ? 'missingTerminal' : undefined
-    this.patch({ phase: error instanceof RemoteStreamCarrierError ? 'disconnected' : 'failed', writable: false, issue, error: error instanceof Error ? error.message : String(error) })
+    this.patch({ phase: error instanceof RemoteStreamCarrierError ? 'disconnected' : 'failed', writable: false, issue, choosingShell: false, error: error instanceof Error ? error.message : String(error) })
   }
 }
 

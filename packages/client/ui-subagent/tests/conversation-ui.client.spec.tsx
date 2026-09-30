@@ -53,6 +53,7 @@ function props(
     byId: summaries ?? {
       [CHILD]: {
         id: CHILD,
+        createdAt: 0,
         title: '正在扫描项目文件',
         displayTitle: 'worker',
         running: true,
@@ -83,6 +84,7 @@ function props(
 function summary(id: SessionId, updatedAt: number): SessionSummary {
   return {
     id,
+    createdAt: 0,
     displayTitle: id,
     running: false,
     blank: false,

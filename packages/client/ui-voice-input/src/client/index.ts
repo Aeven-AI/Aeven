@@ -3,6 +3,7 @@
  * over one shared readiness mirror of the Host `speech` Remote.
  */
 import type { Context } from '@deepseek-ai/cordis'
+import type { HostObservable } from '@aeven/client-ui-slots'
 import type {} from '@aeven/api-remotes/client'
 import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-renderer/client'
@@ -27,8 +28,44 @@ export type { VoiceSectionInjected, VoiceSectionProps } from './VoiceSection.tsx
 /** Settings section id; the composer opens it when the local model still needs preparing. */
 export const VOICE_SECTION = 'voice'
 
+/**
+ * The Electron shell's preload carrier, as this plugin needs it. Optional: the
+ * browser build has no `window.avnDesktop`, and no menu exists to command it.
+ */
+interface DesktopShellCarrier {
+  /** @param listener - called with each application-menu command. @returns disposer removing the listener. */
+  onCommand?(listener: (command: string) => void): () => void
+}
+
+/** Command the shell sends when the Edit menu's dictation item is chosen. */
+const START_DICTATION_COMMAND = 'start-dictation'
+
 /** Required services: the speech Remote, the slot registry, and dictionaries. */
 export const inject = ['remote', 'remote.speech', 'slots', 'locale']
+
+/**
+ * Count dictation requests made from outside the composer. The composer's mic is
+ * the only code that can start or finish a recording, so a request crosses to it
+ * as a counter that the renderer binds to the component's `useDictationRequest`.
+ * @returns the observable source and the function that advances it.
+ */
+function createDictationRequests(): { source: HostObservable<number>; request: () => void } {
+  let sequence = 0
+  const listeners = new Set<() => void>()
+  return {
+    source: {
+      getSnapshot: () => sequence,
+      subscribe: (listener) => {
+        listeners.add(listener)
+        return () => { listeners.delete(listener) }
+      },
+    },
+    request: () => {
+      sequence += 1
+      for (const listener of listeners) listener()
+    },
+  }
+}
 
 /**
  * Register the dictionaries, the composer activity, and the voice settings section.
@@ -41,10 +78,20 @@ export function apply(ctx: Context): void {
   const captures = new Set<Capture>()
   ctx.effect(() => async () => { await Promise.all([...captures].map(capture => capture.release())) }, 'ui-voice-input: captures')
   const t = ctx.locale.bind(NS)
+  const dictation = createDictationRequests()
+  const carrier = (window as { avnDesktop?: DesktopShellCarrier }).avnDesktop
+  const onCommand = carrier?.onCommand?.bind(carrier)
+  if (onCommand !== undefined) {
+    ctx.effect(
+      () => onCommand((command) => { if (command === START_DICTATION_COMMAND) dictation.request() }),
+      'ui-voice-input: desktop dictation command',
+    )
+  }
 
   const composer: VoiceInputInjected = {
-    hooks: { speechReadiness: readiness.state },
+    hooks: { speechReadiness: readiness.state, dictationRequest: dictation.source },
     openSettings: () => { ctx.emit('settings/open', VOICE_SECTION) },
+    prepareModel: (providerId) => { void ctx.remote.speech.prepare(providerId) },
     createCapture: (maxSamples, onLimit) => {
       const capture = new Capture(DEFAULT_VOICE_DETECTION, maxSamples, onLimit)
       captures.add(capture)
@@ -56,12 +103,8 @@ export function apply(ctx: Context): void {
   }
   const settings: VoiceSectionInjected = {
     hooks: { speechReadiness: readiness.state },
-    prepare: async (providerId, options) => {
-      const result = await ctx.remote.speech.prepare(providerId, options)
-      if (!result.ok) throw result.error
-    },
-    cancelPreparation: async (providerId) => {
-      const result = await ctx.remote.speech.cancelPreparation(providerId)
+    prepare: async (providerId) => {
+      const result = await ctx.remote.speech.prepare(providerId)
       if (!result.ok) throw result.error
     },
   }

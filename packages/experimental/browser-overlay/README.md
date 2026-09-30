@@ -41,12 +41,14 @@ await session.send('Runtime.evaluate', { expression: 'window.__aevenOverlay.clic
 
 | Call | What it draws |
 |---|---|
-| `moveTo(point, { mode, label })` | Glides the pointer to a point and names the action |
+| `moveTo(point, { mode, label })` | Glides the pointer to a point and names the action; a first appearance fades in 120px short of the point and glides onto it |
+| `arrived()` | Resolves once the pointer rests on its target, so a host can land the input it announced there |
 | `click(point, { label })` | Arrives, expands a ring, flashes, and dwells briefly |
 | `type(point, { label })` | Blinks a caret at a point — visually distinct from a click |
 | `scroll(point, { deltaY, label })` | Nudges a chevron in the scroll direction |
 | `hover(elementOrRect, { kind })` | Rings a target element: `hover`, `region`, or `text` |
-| `hide()` | Hides the pointer without detaching |
+| `hide({ immediate })` | Fades the pointer out without detaching, or removes it in one frame with `immediate`; the next action enters afresh |
+| `clipTo(rect)` | Confines everything drawn to a viewport rectangle; `undefined` releases it |
 | `setThinkEnabled(bool)` | Turns the idle wobble off, for screenshotting or measuring |
 | `destroy()` | Removes the overlay, its stylesheet, and every listener |
 

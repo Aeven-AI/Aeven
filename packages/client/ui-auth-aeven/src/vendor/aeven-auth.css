@@ -5782,7 +5782,7 @@ html[data-avn-desktop]
   display: flex;
   position: relative;
   width: 100%;
-  min-height: 330px;
+  min-height: 328px;
   padding-top: 16px;
   align-items: center;
   flex-direction: column;
@@ -5881,7 +5881,7 @@ html[data-avn-desktop]
   .verification-container
   .info-txt
   .txt {
-  font-size: 15px;
+  font-size: 12px;
   text-align: center;
   line-height: 20px;
   letter-spacing: normal;
@@ -6097,4 +6097,35 @@ html[data-avn-desktop]
   justify-content: center;
   padding-top: 64px;
   padding-bottom: 24px;
+}
+
+/*
+ * AVN: short screens. The form box centres its content and also scrolls it, so
+ * a form taller than the screen overflowed past the top edge, where no scroll
+ * reaches, and ran under the back control; the legal footer, pinned to the
+ * bottom, covered the form's last line. Auto margins centre the form the same
+ * way while it fits and stop at the top edge when it does not, and a short
+ * screen puts the footer after the form instead of over it.
+ */
+#app-root .view-container .authenticate.view .main-content .content-container .form-container {
+  justify-content: flex-start;
+}
+/* A title that wraps on a narrow screen stays centred like a one-line title. */
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .form-title {
+  text-align: center;
+}
+#app-root .view-container .authenticate.view .main-content .content-container .form-container .form {
+  flex-shrink: 0;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+@media screen and (max-height: 700px) {
+  #app-root .view-container .authenticate.view .main-content .content-container .form-container {
+    padding-bottom: 0;
+  }
+  #app-root .view-container .authenticate.view .main-content .content-container .form-container .form-footer {
+    position: relative;
+    flex-shrink: 0;
+    bottom: auto;
+  }
 }

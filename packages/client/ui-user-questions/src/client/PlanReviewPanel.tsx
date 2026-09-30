@@ -49,10 +49,7 @@ export function PlanReviewPanel({ pending, review, t }: PlanReviewPanelProps) {
   return (
     <div className={css.frame} data-plan-review-key={pending.key}>
       <section className={css.card} aria-label={review.question}>
-        <div className={css.strip}>
-          <span className={css.dot} />
-          {t('plan.header')}
-        </div>
+        <div className={css.header}>{t('plan.header')}</div>
         <div className={css.body} data-plan-review-scroll>
           <MarkdownText text={review.plan} labels={markdownLabels} />
         </div>

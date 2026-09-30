@@ -60,6 +60,10 @@ const appService = {
   signIn: api.signIn,
   signUp: api.signUp,
   verifyEmail: api.verifyEmail,
+  resendCode: api.resendCode,
+  forgotPassword: api.forgotPassword,
+  checkResetCode: api.checkResetCode,
+  resetPassword: api.resetPassword,
   getInitData: api.getProfile,
 }
 const eventService = events
@@ -79,6 +83,13 @@ const oauthService = {
 const utilityService = utility
 const storageService = storage
 
+
+/**
+ * The reset code the reader confirmed on the code screen, held for the password
+ * screen that follows. It lives only as long as the page, so a reload returns
+ * the reader to the code screen.
+ */
+let pendingResetCode: string | undefined
 
 /** What the router matched out of the path. */
 export interface AuthenticateProps {
@@ -123,6 +134,11 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
   const signUpEmailButton = useRef<ButtonHandle>(null)
   const signUpVerifyButton = useRef<ButtonHandle>(null)
   const signUpResendCodeButton = useRef<ButtonHandle>(null)
+
+  const forgotSendButton = useRef<ButtonHandle>(null)
+  const resetButton = useRef<ButtonHandle>(null)
+  const resetResendButton = useRef<ButtonHandle>(null)
+  const setPasswordButton = useRef<ButtonHandle>(null)
 
   const loginX = useRef<ButtonHandle>(null)
   const loginApple = useRef<ButtonHandle>(null)
@@ -191,6 +207,13 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
     }
   }, [guid])
 
+
+  const showModal = (header: string, content: string): void => {
+    eventService.dispatchObjectEvent('show:modal', { header, content, buttonText: t('action.ok') })
+  }
+
+  const errorCode = (responseError: unknown): string | undefined =>
+    responseError instanceof api.AevenApiError ? responseError.message : undefined
 
   const signUp = () => {
     const email = emailInput.current?.value.trim()
@@ -349,7 +372,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
       .catch((responseError: unknown) => {
         signInButton.current?.loadingStatus(false)
 
-        const code = responseError instanceof api.AevenApiError ? responseError.message : undefined
+        const code = errorCode(responseError)
 
         if (code === 'too-many-attempts') {
           eventService.dispatchObjectEvent('show:modal', {
@@ -358,6 +381,17 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
             content: t('modal.tooManyAttempts'),
             buttonText: t('action.ok'),
           })
+        } else if (code === 'email-not-verified') {
+          // The account exists and was never verified: a fresh code goes out
+          // and the reader continues at the verification step.
+          storageService.setItem('email', email)
+          appService.resendCode(email).catch(() => {
+            // The step's own Resend button asks again.
+          })
+          routeService.navigateRoute(utilityService.href('/sign-up/verify', false))
+          showModal(t('modal.emailNotVerified'), t('modal.emailNotVerifiedBody'))
+        } else if (code === undefined || ((responseError as api.AevenApiError).status ?? 500) >= 500) {
+          showModal(t('modal.oops'), t('modal.genericFailure'))
         } else {
           eventService.dispatchObjectEvent('show:modal', {
             type: 'alertModal',
@@ -445,13 +479,155 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
     }
   }
 
-  const forgotPassword = (): void => {}
+  const forgotPassword = (): void => {
+    const email = emailInput.current?.value.trim()
+    if (email) storageService.setItem('email', email)
+    routeService.navigateRoute(utilityService.href('/sign-in/forgot', false))
+  }
+
+  /** Popup for a refused verification or reset code. */
+  const showCodeError = (code: string | undefined): void => {
+    if (code === 'invalid-code') showModal(t('field.verificationCode'), t('modal.codeInvalid'))
+    else if (code === 'expired-code') showModal(t('field.verificationCode'), t('modal.codeExpired'))
+    else if (code === 'too-many-attempts') showModal(t('modal.blocked'), t('modal.tooManyCodeAttempts'))
+    else showModal(t('modal.oops'), t('modal.genericFailure'))
+  }
+
+  const requestReset = (): void => {
+    const email = emailInput.current?.value.trim()
+
+    if (!email) {
+      showModal(t('field.email'), t('modal.emailMissing'))
+      return
+    }
+
+    if (!utilityService.isEmail(email)) {
+      showModal(t('field.email'), t('modal.emailInvalid'))
+      return
+    }
+
+    forgotSendButton.current?.loadingStatus(true)
+
+    appService
+      .forgotPassword(email)
+      .then(() => {
+        forgotSendButton.current?.loadingStatus(false)
+        storageService.setItem('email', email)
+        routeService.navigateRoute(utilityService.href('/sign-in/reset', false))
+        showModal(t('modal.resetCodeSent'), t('modal.resetCodeSentBody'))
+      })
+      .catch(() => {
+        forgotSendButton.current?.loadingStatus(false)
+        showModal(t('modal.oops'), t('modal.genericFailure'))
+      })
+  }
+
+  const continueReset = (): void => {
+    const email = storageService.getItem('email')
+    const code = verifyInput.current?.value ?? ''
+
+    if (!email) {
+      routeService.navigateRoute(utilityService.href('/sign-in/forgot', false))
+      return
+    }
+
+    if (code.length !== 6) {
+      showModal(t('field.verificationCode'), t('modal.codeMissing'))
+      return
+    }
+
+    resetButton.current?.loadingStatus(true)
+
+    appService
+      .checkResetCode(email, code)
+      .then(() => {
+        resetButton.current?.loadingStatus(false)
+        pendingResetCode = code
+        routeService.navigateRoute(utilityService.href('/sign-in/new-password', false))
+      })
+      .catch((responseError: unknown) => {
+        resetButton.current?.loadingStatus(false)
+        verifyInput.current?.clear()
+        showCodeError(errorCode(responseError))
+      })
+  }
+
+  const setPassword = (): void => {
+    const email = storageService.getItem('email')
+    const code = pendingResetCode
+    const password = passwordInput.current?.value.trim()
+    const passwordConfirm = passwordConfirmInput.current?.value.trim()
+
+    if (!email || code === undefined) {
+      routeService.navigateRoute(utilityService.href('/sign-in/reset', false))
+      return
+    }
+
+    if (!password || !utilityService.isValidPassword(password)) {
+      showModal(t('field.newPassword'), t('modal.passwordRules'))
+      return
+    }
+
+    if (password !== passwordConfirm) {
+      showModal(t('field.newPassword'), t('modal.passwordMismatch'))
+      return
+    }
+
+    setPasswordButton.current?.loadingStatus(true)
+
+    appService
+      .resetPassword(email, code, password)
+      .then(() => {
+        setPasswordButton.current?.loadingStatus(false)
+        pendingResetCode = undefined
+        routeService.navigateRoute(utilityService.href('/sign-in/email', false))
+        showModal(t('modal.passwordChanged'), t('modal.passwordChangedBody'))
+      })
+      .catch((responseError: unknown) => {
+        setPasswordButton.current?.loadingStatus(false)
+        const errorName = errorCode(responseError)
+        if (errorName === 'invalid-password') {
+          showModal(t('field.newPassword'), t('modal.passwordRules'))
+          return
+        }
+        // The code stopped being valid after it was checked: the reader needs a new one.
+        pendingResetCode = undefined
+        routeService.navigateRoute(utilityService.href('/sign-in/reset', false))
+        showCodeError(errorName)
+      })
+  }
+
+  const resendResetCode = (): void => {
+    const email = storageService.getItem('email')
+    if (!email) {
+      routeService.navigateRoute(utilityService.href('/sign-in/forgot', false))
+      return
+    }
+
+    resetResendButton.current?.loadingStatus(true)
+
+    appService
+      .forgotPassword(email)
+      .then(() => {
+        resetResendButton.current?.loadingStatus(false)
+        showModal(t('modal.codeSent'), t('modal.codeSentBody'))
+      })
+      .catch(() => {
+        resetResendButton.current?.loadingStatus(false)
+        showModal(t('modal.oops'), t('modal.genericFailure'))
+      })
+  }
 
   const verifyCode = () => {
     let codeValue
 
     const email = storageService.getItem('email')
     const codeArray = verifyInput.current?.value
+
+    if (!email) {
+      routeService.navigateRoute(utilityService.href('/sign-up/email', false))
+      return
+    }
 
     if (!codeArray) {
       codeValue = ''
@@ -473,7 +649,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
     signUpVerifyButton.current?.loadingStatus(true)
 
     appService
-      .verifyEmail(email ?? '', codeValue)
+      .verifyEmail(email, codeValue)
       .then(() => {
         {
           routeService.navigateRoute(
@@ -492,12 +668,38 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
 
         signUpVerifyButton.current?.loadingStatus(false)
       })
-      .catch(() => {
+      .catch((responseError: unknown) => {
         signUpVerifyButton.current?.loadingStatus(false)
+        verifyInput.current?.clear()
+        showCodeError(errorCode(responseError))
       })
   }
 
-  const resendCode = (): void => {}
+  const resendCode = (): void => {
+    const email = storageService.getItem('email')
+    if (!email) {
+      routeService.navigateRoute(utilityService.href('/sign-up/email', false))
+      return
+    }
+
+    signUpResendCodeButton.current?.loadingStatus(true)
+
+    appService
+      .resendCode(email)
+      .then(() => {
+        signUpResendCodeButton.current?.loadingStatus(false)
+        showModal(t('modal.codeSent'), t('modal.codeSentBody'))
+      })
+      .catch((responseError: unknown) => {
+        signUpResendCodeButton.current?.loadingStatus(false)
+        if (errorCode(responseError) === 'email-already-verified') {
+          routeService.navigateRoute(utilityService.href('/sign-in/email', false))
+          showModal(t('modal.accountExists'), t('modal.alreadyVerified'))
+        } else {
+          showModal(t('modal.oops'), t('modal.genericFailure'))
+        }
+      })
+  }
 
   const getAuthPath = () => {
     const path = props.match?.path ?? ''
@@ -516,11 +718,22 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
    * @returns the path of the screen the reader came from.
    */
   const getBackTarget = (): string | undefined => {
-    if (getAuthType() !== 'email') return undefined
-
-    return getAuthPath() === 'sign-up'
-      ? routeService.routeConfig.signUp.path
-      : routeService.routeConfig.signIn.path
+    switch (getAuthType()) {
+      case 'email':
+        return getAuthPath() === 'sign-up'
+          ? routeService.routeConfig.signUp.path
+          : routeService.routeConfig.signIn.path
+      case 'verify':
+        return '/sign-up/email'
+      case 'forgot':
+        return '/sign-in/email'
+      case 'reset':
+        return '/sign-in/forgot'
+      case 'new-password':
+        return '/sign-in/reset'
+      default:
+        return undefined
+    }
   }
 
 
@@ -676,10 +889,10 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
   }
 
   const authSignInComponent = () => {
-    const headerTxt = 'Sign in to your account'
+    const headerTxt = t('signIn.title')
 
-    const subContentTxt = "Don't have an account?"
-    const subContentButtonTxt = 'Sign up'
+    const subContentTxt = t('signIn.altPrompt')
+    const subContentButtonTxt = t('action.signUp')
     const subContentButtonHref = '/sign-up'
 
     return (
@@ -804,10 +1017,10 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
 
 
 
-    const headerTxt = 'Create your account'
+    const headerTxt = t('signUp.title')
 
-    const subContentTxt = 'Already have an account?'
-    const subContentButtonTxt = 'Sign in'
+    const subContentTxt = t('signUp.altPrompt')
+    const subContentButtonTxt = t('action.signIn')
     const subContentButtonHref = '/sign-in'
 
     return (
@@ -933,7 +1146,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
 
   const authVerifyComponent = () => {
 
-    const headerTxt = 'Verify your account'
+    const headerTxt = t('verify.title')
 
     return (
       <div className="form-container">
@@ -964,13 +1177,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
               </div>
             </div>
             <div className="info-txt">
-              <span
-                className="txt"
-                dangerouslySetInnerHTML={{
-                  __html:
-                    'Please enter the verification code from the email you have just received<br />Make sure to check your spam folder',
-                }}
-              ></span>
+              <span className="txt">{t('verify.info')}</span>
             </div>
             <div className="form-spacer" />
             <div className="button-container">
@@ -1025,11 +1232,203 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
     )
   }
 
+  const legalFooter = () => (
+    <div className="form-footer">
+      <span>{t('legal.prefix')} </span>
+      <a target="_blank" href="#">
+        {t('legal.terms')}
+      </a>{' '}
+      <span>{t('legal.and')}</span>{' '}
+      <a target="_blank" href="#">
+        {t('legal.privacy')}
+      </a>
+    </div>
+  )
+
+  const passwordField = (
+    ref: React.RefObject<InputHandle>,
+    title: string,
+  ) => (
+    <div className="input-item">
+      <span className="title-container">
+        <span className="title">{title}</span>
+      </span>
+      <div className="input-container">
+        <Input
+          ref={ref}
+          inputType={'inputText'}
+          type={'password'}
+          cssClass={'input-text large square'}
+          placeholder={''}
+          defaultValue={''}
+          autoCapitalize={'none'}
+          autoCorrect={'off'}
+          spellCheck={false}
+          autoComplete={'new-password'}
+          onChange={() => {}}
+        />
+      </div>
+    </div>
+  )
+
+  const authForgotComponent = () => (
+    <div className="form-container">
+      <form className="form">
+        <span className="form-title">{t('forgot.title')}</span>
+        <div className="verification-container">
+          <div className="input-items">
+            <div className="input-item">
+              <span className="title-container">
+                <span className="title">{t('field.email')}</span>
+              </span>
+              <div className="input-container">
+                <Input
+                  ref={emailInput}
+                  inputType={'inputText'}
+                  type={'text'}
+                  cssClass={'input-text large square'}
+                  placeholder={''}
+                  defaultValue={storageService.getItem('email') ?? ''}
+                  autoCapitalize={'none'}
+                  autoCorrect={'off'}
+                  spellCheck={false}
+                  inputMode={'email'}
+                  autoComplete={'email'}
+                  onChange={() => {}}
+                />
+              </div>
+            </div>
+          </div>
+          <div className="info-txt">
+            <span className="txt">{t('forgot.info')}</span>
+          </div>
+          <div className="form-spacer" />
+          <div className="button-container">
+            <Button
+              ref={forgotSendButton}
+              type={'loaderButton'}
+              cssClass={'loader-button large center'}
+              label={t('action.sendCode')}
+              loading={false}
+              onClick={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+
+                requestReset()
+              }}
+            />
+          </div>
+        </div>
+        <div className="subtext"></div>
+      </form>
+      {legalFooter()}
+    </div>
+  )
+
+  // Laid out as the verification step: the same boxes, note, and buttons.
+  const authResetComponent = () => (
+    <div className="form-container">
+      <form className="form">
+        <span className="form-title">{t('reset.title')}</span>
+        <div className="verification-container">
+          <div className="input-items">
+            <div className="input-item">
+              <span className="title-container">
+                <span className="title">{t('field.verificationCode')}</span>
+              </span>
+              <div className="input-container">
+                <Input
+                  ref={verifyInput}
+                  inputType={'inputNumbers'}
+                  cssClass={'input-numbers large'}
+                  placeholder={'•'}
+                  autoComplete={'one-time-code'}
+                />
+              </div>
+            </div>
+          </div>
+          <div className="info-txt">
+            <span className="txt">{t('verify.info')}</span>
+          </div>
+          <div className="form-spacer" />
+          <div className="button-container">
+            <Button
+              ref={resetButton}
+              type={'loaderButton'}
+              cssClass={'loader-button large center'}
+              label={t('action.continue')}
+              loading={false}
+              onClick={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+
+                continueReset()
+              }}
+            />
+
+            <Button
+              ref={resetResendButton}
+              type={'loaderButton'}
+              cssClass={'loader-button large center light'}
+              label={t('action.resendCode')}
+              loading={false}
+              onClick={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+
+                resendResetCode()
+              }}
+            />
+          </div>
+        </div>
+        <div className="subtext"></div>
+      </form>
+      {legalFooter()}
+    </div>
+  )
+
+  // Laid out as the email sign-in step: two fields over the buttons.
+  const authNewPasswordComponent = () => (
+    <div className="form-container">
+      <form className="form">
+        <span className="form-title">{t('newPassword.title')}</span>
+        <div className="signin-container">
+          <div className="input-items">
+            {passwordField(passwordInput, t('field.newPassword'))}
+            {passwordField(passwordConfirmInput, t('field.confirmNewPassword'))}
+          </div>
+          <div className="form-spacer" />
+          <div className="button-container">
+            <Button
+              ref={setPasswordButton}
+              type={'loaderButton'}
+              cssClass={'loader-button large center'}
+              label={t('action.setPassword')}
+              loading={false}
+              onClick={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+
+                setPassword()
+              }}
+            />
+          </div>
+        </div>
+        <div className="subtext"></div>
+      </form>
+      {legalFooter()}
+    </div>
+  )
+
   const renderAuthComponent = () => {
 
     const authPath = getAuthPath()
     const authType = getAuthType()
 
+
+    if (authPath === 'sign-in' && authType === 'forgot') return authForgotComponent()
+    if (authPath === 'sign-in' && authType === 'reset') return authResetComponent()
+    if (authPath === 'sign-in' && authType === 'new-password') return authNewPasswordComponent()
 
     if (authType !== 'email' && authType !== 'verify') {
       return authComponent()

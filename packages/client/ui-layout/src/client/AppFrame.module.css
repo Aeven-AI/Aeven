@@ -346,9 +346,13 @@
   position: absolute;
   top: 0;
   left: 0;
-  /* The controls' own gutter, and no further: the leading control of whichever
-     header row is drawn here begins past it. */
-  width: var(--dsw-aeven-window-controls-gutter);
+  /* The controls' gutter plus the empty band beside the lights, and no
+     further: the header row's leading control begins at 108px in both sidebar
+     states (measured in the app), so the strip stops 4px short of it. It is
+     painted above the content, so reaching any further would take that
+     control's clicks — the header is the only other place a double click can
+     land, and its own box is covered by its children. */
+  width: calc(var(--dsw-aeven-window-controls-gutter) + 20px);
   /* The header band's own row: its top padding plus one control. */
   height: calc(8px + var(--dsw-aeven-control-size));
   z-index: 60;

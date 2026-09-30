@@ -266,13 +266,14 @@ describe('web e2e: lifecycle & chrome (workspace flow / reload / dark mode)', ()
     // user gesture above it (Settings -> Appearance cubes) is owned by
     // settings-chrome.e2e.ts. Driving the attribute here keeps the cascade
     // pinned independently of the settings surface's own lifecycle.
-    const sample = async (): Promise<{ token: string; sidebarBg: string; bodyBg: string }> =>
+    const sample = async (): Promise<{ token: string; sidebarBg: string; bodyBg: string; canvasBg: string }> =>
       await page.evaluate(() => {
         const sidebar = document.querySelector('[class*="sidebar"], [class*="rail"]') ?? document.body
         return {
           token: getComputedStyle(document.body).getPropertyValue('--dsw-alias-bg-base').trim(),
           sidebarBg: getComputedStyle(sidebar).backgroundColor,
           bodyBg: getComputedStyle(document.body).backgroundColor,
+          canvasBg: getComputedStyle(document.documentElement).backgroundColor,
         }
       })
     const light = await sample()
@@ -283,6 +284,12 @@ describe('web e2e: lifecycle & chrome (workspace flow / reload / dark mode)', ()
     // And a real painted surface must consume it (not just variables in a
     // void): at least one of the sampled backgrounds repaints.
     expect(dark.sidebarBg !== light.sidebarBg || dark.bodyBg !== light.bodyBg).toBe(true)
+    // The document canvas stays transparent so it takes body's color: a
+    // background on html would own the canvas, and a light one would remain
+    // the color of the strip a live window resize exposes under the dark
+    // palette. `restored` pins the light value too.
+    expect(light.canvasBg).toBe('rgba(0, 0, 0, 0)')
+    expect(dark.canvasBg).toBe('rgba(0, 0, 0, 0)')
     // Removing the attribute restores the light values exactly (the palettes
     // live in one stylesheet; activation is attribute-only by design).
     await page.evaluate(() => { document.body.removeAttribute('data-ds-dark-theme') })

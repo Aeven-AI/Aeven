@@ -19,6 +19,11 @@ export interface SidebarContentPaneProps {
   readonly surfaceId: string
   /** Whether this pane's pill is the one shown; hidden panes stay mounted. */
   readonly active: boolean
+  /**
+   * Whether the pane is on screen: its pill is shown and the column is open.
+   * Turns false as soon as the reader closes the column, before its slide ends.
+   */
+  readonly visible: boolean
   /** Rename the pill, or return it to its kind's name with `undefined`. */
   readonly setTab: (tab: SidebarSurfaceTab | undefined) => void
   /** Close this pill when its own flow is dismissed. */

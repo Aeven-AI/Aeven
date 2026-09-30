@@ -14,7 +14,7 @@ Status: implemented
 
 ## Decision
 
-该插件落位为 `packages/experimental/subscription-auth`，npm 名为 `@aeven/experimental-subscription-auth`，`private: true`。目前它是单个包，预期在从 `experimental/` 提升之前按产品角色拆分 —— OAuth 会话、LLM adapter、媒体 provider、工具、客户端 UI。
+该插件落位为 `packages/llm/subscription-auth`，npm 名为 `@aeven/subscription-auth`，`private: true`。目前它是单个包，预期在从 `experimental/` 提升之前按产品角色拆分 —— OAuth 会话、LLM adapter、媒体 provider、工具、客户端 UI。
 
 它保留 `avn.bundle` 与 `avn.client` 两处 manifest 声明，因为 profile 正是靠它们发现一个 bundle 及其浏览器半边。它保留 `dsh-coding-oauth-core` 作为精确版本的外部依赖：那个包拥有本包所实现的路由与路径标识符，而固定它正是 ABI 门禁所检查的内容。
 

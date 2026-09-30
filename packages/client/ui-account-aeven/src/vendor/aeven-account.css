@@ -84,7 +84,7 @@
   height: 100%;
   color: #fff;
 }
-.avatar .image-container .image-loader .spinner {
+.avatar .image-container .image-loader.loading .spinner {
   animation: 900ms linear 0s infinite normal none running loader-spin;
 }
 .avatar .image-container .image-loader.loading {

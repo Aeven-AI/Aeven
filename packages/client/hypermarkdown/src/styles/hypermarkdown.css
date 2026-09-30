@@ -21,7 +21,7 @@
 }
 
 .tippy-box {
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 14px;
   font-weight: 400;
   font-family: inherit;
@@ -43,6 +43,15 @@
     height: 16px;
     color: #000000;
   }
+}
+
+/* The vendored Aeven account sheet (ui-account-aeven/src/vendor/aeven-account.css)
+   reaches the page as an inline sheet after this one, where it states its own
+   `.tippy-box` radius — which then wins on order alone. Doubling the class keeps
+   this skin authoritative without editing a vendored copy that the upstream
+   sync would overwrite. */
+.tippy-box.tippy-box {
+  border-radius: 10px;
 }
 
 .tippy-box[data-placement^="top"] > .tippy-arrow:before {

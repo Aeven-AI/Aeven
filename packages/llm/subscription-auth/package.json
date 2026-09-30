@@ -1,0 +1,132 @@
+{
+  "name": "@aeven/subscription-auth",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "avn": {
+    "compatibility": {
+      "coreAbi": "dsh-coding-oauth-core/v1",
+      "verifiedBom": "./compatibility/avn-bom.json",
+      "participant": "coding-subscription-oauth",
+      "diagnostics": "standalone",
+      "bom": {
+        "@deepseek-ai/cordis": "4.0.2",
+        "@aeven/atomic-write": "0.1.2-alpha.5",
+        "@aeven/attachment": "0.1.2-alpha.5",
+        "@aeven/client-locale": "0.1.2-alpha.5",
+        "@aeven/client-ui-renderer": "0.1.2-alpha.5",
+        "@aeven/client-ui-settings": "0.1.2-alpha.5",
+        "@aeven/client-ui-slots": "0.1.2-alpha.5",
+        "@aeven/client-web": "0.1.2-alpha.5",
+        "@aeven/credentials": "0.1.2-alpha.5",
+        "@aeven/home-paths": "0.1.2-alpha.5",
+        "@aeven/host-webserver": "0.1.2-alpha.5",
+        "@aeven/invariants": "0.1.2-alpha.5",
+        "@aeven/llm": "0.1.2-alpha.5",
+        "@aeven/llm-pi-ai": "0.1.2-alpha.5",
+        "@aeven/tools": "0.1.2-alpha.5",
+        "@deepseek-ai/schemastery": "3.18.2",
+        "@earendil-works/pi-ai": "0.84.2",
+        "react": "18.3.1",
+        "react-dom": "18.3.1",
+        "@aeven/client-ui-primitives": "0.1.2-alpha.5",
+        "@aeven/client-ui-settings-models": "0.1.2-alpha.5"
+      }
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@aeven/client-ui-settings",
+        "@aeven/client-locale",
+        "@aeven/client-ui-settings-models"
+      ],
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "bundle": "tsdown",
+    "watch": "tsdown --watch"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "dsh-coding-oauth-core": "0.1.2",
+    "undici": "7.29.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/atomic-write": "workspace:^",
+    "@aeven/attachment": "workspace:^",
+    "@aeven/client-locale": "workspace:^",
+    "@aeven/client-ui-renderer": "workspace:^",
+    "@aeven/client-ui-settings": "workspace:^",
+    "@aeven/client-ui-slots": "workspace:^",
+    "@aeven/credentials": "workspace:^",
+    "@aeven/home-paths": "workspace:^",
+    "@aeven/host-webserver": "workspace:^",
+    "@aeven/invariants": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/llm-pi-ai": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^",
+    "@earendil-works/pi-ai": "0.84.2",
+    "react": "^18.2.0",
+    "@aeven/client-ui-primitives": "workspace:^",
+    "@aeven/client-ui-settings-models": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/atomic-write": "workspace:^",
+    "@aeven/attachment": "workspace:^",
+    "@aeven/client-locale": "workspace:^",
+    "@aeven/client-ui-renderer": "workspace:^",
+    "@aeven/client-ui-settings": "workspace:^",
+    "@aeven/client-ui-slots": "workspace:^",
+    "@aeven/credentials": "workspace:^",
+    "@aeven/home-paths": "workspace:^",
+    "@aeven/host-webserver": "workspace:^",
+    "@aeven/invariants": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/llm-pi-ai": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@aeven/util-crypto": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^",
+    "@earendil-works/pi-ai": "0.84.2",
+    "@types/react": "~18.3.1",
+    "@types/react-dom": "18.3.7",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "undici": "7.29.0",
+    "@aeven/client-ui-primitives": "workspace:^",
+    "@aeven/client-ui-settings-models": "workspace:^"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "cordis.patch.yml",
+    "lib/types/**/*.d.ts"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/llm/subscription-auth"
+  }
+}

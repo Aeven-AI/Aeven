@@ -8,7 +8,7 @@ import type { SessionId, SessionSummary } from '@aeven/api-remotes/client'
 import { flattenLineage } from '../src/client/sessions/lineage.ts'
 
 const s = (id: string, updatedAt: number, parent?: string): SessionSummary => ({
-  sessionId: id as SessionId, updatedAt, running: false, blank: false,
+  sessionId: id as SessionId, createdAt: 0, updatedAt, running: false, blank: false,
   ...(parent !== undefined ? { parentSessionId: parent as SessionId } : {}),
 })
 

@@ -116,7 +116,6 @@ describe('ModelsSettingsStore', () => {
     const state = store.store.getSnapshot()
     expect(state.status).toBe('ready')
     expect(state.writable).toBe(true)
-    expect(state.credentialError).toBeNull()
     // Named references first (rows order), then the derived <ROUTE>_API_KEY
     // of every row whose profile names none — one batched describe.
     expect(seenRefs).toEqual([['DEEPSEEK_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GHOST_API_KEY']])
@@ -145,7 +144,6 @@ describe('ModelsSettingsStore', () => {
     await store.load()
     const state = store.store.getSnapshot()
     expect(state.status).toBe('ready')
-    expect(state.credentialError).toBe('no provider')
     expect(state.rows.every(row => row.credential === undefined)).toBe(true)
   })
 

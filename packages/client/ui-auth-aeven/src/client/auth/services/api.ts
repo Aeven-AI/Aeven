@@ -98,6 +98,59 @@ export async function verifyEmail(email: string, code: string): Promise<void> {
 }
 
 /**
+ * Mail a fresh verification code to an address that registered and has not verified.
+ * @param email - the address being verified.
+ * @throws {AevenApiError} `email-already-verified` when there is nothing left to verify.
+ */
+export async function resendCode(email: string): Promise<void> {
+  await request<unknown>('/resend-code', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+}
+
+/**
+ * Mail a password reset code. The API answers the same whether or not the
+ * address holds an account.
+ * @param email - the address to reset.
+ */
+export async function forgotPassword(email: string): Promise<void> {
+  await request<unknown>('/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+}
+
+/**
+ * Check an emailed reset code without using it up, so the new password can be
+ * asked for on a screen of its own.
+ * @param email - the address being reset.
+ * @param code - the code from the email.
+ * @throws {AevenApiError} `invalid-code`, `expired-code`, or `too-many-attempts` when the code is refused.
+ */
+export async function checkResetCode(email: string, code: string): Promise<void> {
+  await request<unknown>('/check-reset-code', {
+    method: 'POST',
+    body: JSON.stringify({ email, code }),
+  })
+}
+
+/**
+ * Replace the password with the emailed reset code. The API ends every session
+ * the account holds and signs nobody in, so the reader signs in afterwards.
+ * @param email - the address being reset.
+ * @param code - the code from the email.
+ * @param password - the new password.
+ * @throws {AevenApiError} `invalid-code`, `expired-code`, or `too-many-attempts` when the code is refused.
+ */
+export async function resetPassword(email: string, code: string, password: string): Promise<void> {
+  await request<unknown>('/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ email, code, password }),
+  })
+}
+
+/**
  * Complete a social sign-in from the values the provider redirected back with.
  * @param oAuthSession - the session identifier in the redirect.
  * @param oAuthChallenge - the challenge in the redirect.

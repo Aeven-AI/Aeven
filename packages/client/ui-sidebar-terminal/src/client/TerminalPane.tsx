@@ -3,13 +3,14 @@
  *
  * The shell lives on the Host (api-terminal-controller) and outlives this
  * pane: switching sessions only detaches the view, closing the pill closes the
- * shell (index.ts). The pill carries the shell's title.
+ * shell (index.ts). The pill carries the shell's title. A pill that must start
+ * a shell with none remembered stops at the launch guide and asks.
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import type { ClientTerminals, TerminalView, TerminalViewState } from '@aeven/api-terminal-controller/client'
-import { Button, IconLucidePlus } from '@aeven/client-ui-primitives'
+import { Button, IconLucidePlus, IconTerminalMark } from '@aeven/client-ui-primitives'
 import type { SidebarContentPaneProps } from '@aeven/client-ui-sidebar-select/client'
 import type { TranslateNS } from '@aeven/client-ui-slots'
 import type { ThemeSnapshot } from '@aeven/client-ui-theme/client'
@@ -63,6 +64,7 @@ export function TerminalPane({ sessionId, surfaceId, active, setTab, t, terminal
   }, [setTab, state.title])
   useEffect(() => () => { setTab(undefined) }, [setTab])
 
+  const shells = state.shells ?? []
   const renew = (): void => {
     terminals.close(session, surfaceId, surfaceId)
     setGeneration(value => value + 1)
@@ -70,6 +72,32 @@ export function TerminalPane({ sessionId, surfaceId, active, setTab, t, terminal
   const newTerminal = (
     <Button variant="primary" size="sm" icon={<IconLucidePlus />} onClick={renew}>{t('new')}</Button>
   )
+
+  // Every shell this pane starts passes the guide: the shells are the pane's own
+  // launcher rows, so starting a terminal reads like opening a Browser or Files
+  // surface, and the pick decides this shell only.
+  if (state.choosingShell === true) {
+    return (
+      <section className={css.root} data-sidebar-terminal="" data-choosing="">
+        <div className={css.shells} role="group" aria-label={t('shell')}>
+          {shells.length === 0
+            ? <p className={css.shellNote} role="status">{t('shellLoading')}</p>
+            : shells.map(shell => (
+              <button
+                key={shell.path}
+                type="button"
+                className={css.shell}
+                title={shell.path}
+                onClick={() => { model.chooseShell(shell.path) }}
+              >
+                <span className={css.shellGlyph}><IconTerminalMark /></span>
+                <span className={css.shellLabel}>{shell.name}</span>
+              </button>
+            ))}
+        </div>
+      </section>
+    )
+  }
 
   if (state.issue === 'missingTerminal') {
     return (

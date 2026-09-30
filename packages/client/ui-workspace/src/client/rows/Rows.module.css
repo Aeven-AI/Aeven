@@ -357,35 +357,6 @@
   bottom: -7px;
 }
 
-/* Hover-card body (figma 169:16903): dark surface, fixed colors both themes. */
-.hoverContent {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.hoverTitle {
-  font-size: 14px;
-  line-height: 20px;
-  color: #ffffff;
-  overflow-wrap: break-word;
-}
-
-.hoverTime {
-  font-size: 12px;
-  line-height: 16px;
-  color: #cfd3d6;
-}
-
-.hoverStatus {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  line-height: 20px;
-  color: #adb2b8;
-}
-
 /* A row action button: an 18px cell on the sidebar's own grapheme size, in the
    row's ink, with no hover tint of its own. */
 .iconButton {

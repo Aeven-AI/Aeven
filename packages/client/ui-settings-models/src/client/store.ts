@@ -1,5 +1,5 @@
 /**
- * Models settings page store: one snapshot joining the configurable-provider
+ * Model providers settings page store: one snapshot joining the configurable-provider
  * directory (`llm/listProviders` joined with `llm/listConfigurableProviders`),
  * the settings namespaces (shared settings mirror),
  * and the referenced credentials (`credentials/describe`). The host stays the
@@ -21,6 +21,12 @@ import type { SettingsSchemaOperations } from './schema-operations.ts'
  * names one that cannot collide with a configured route.
  */
 const PROBE_ROUTE = '\u0000probe'
+
+/**
+ * The field a whole-section provider's schema declares when the section can
+ * switch its route on and off; such a route registers only while it is true.
+ */
+export const ENABLED_FIELD = 'enabled'
 
 /** One provider row after joining the configurable directory with live routes. */
 export interface ProviderDirectoryEntry {
@@ -69,10 +75,19 @@ export function joinProviderDirectory(
 export interface ProviderRow {
   /** The directory entry (route id, display name, settings address, live state). */
   entry: ProviderDirectoryEntry
-  /** Whether any layer configures this provider (its profile resolves). */
+  /**
+   * Whether the provider is set up: a keyed profile resolves in some layer,
+   * or a whole-section provider's route is registered.
+   */
   configured: boolean
-  /** Whether the user layer alone carries the profile (removal restores the base). */
+  /**
+   * Whether this page can take the provider away: the user layer alone
+   * carries a keyed profile (removal restores the base), or a whole-section
+   * provider's schema declares {@link ENABLED_FIELD}.
+   */
   removable: boolean
+  /** Whether a whole-section provider's schema declares {@link ENABLED_FIELD}; false for keyed profiles. */
+  switchable: boolean
   /** The credential reference the resolved profile names, when one does. */
   apiKeyEnv: string | undefined
   /** Credential state for {@link apiKeyEnv}, once described. */
@@ -91,8 +106,6 @@ export interface ModelsSettingsState {
   status: 'idle' | 'loading' | 'ready' | 'error'
   /** Whole-load failure text; row-level write failures stay in the editor. */
   error: string | null
-  /** Credential enrichment failure; provider/settings rows remain usable. */
-  credentialError: string | null
   /** Whether the settings provider accepts writes. */
   writable: boolean
   /** Every configurable provider joined with its configured/credential state. */
@@ -149,7 +162,7 @@ function apiKeyEnvOf(
 export class ModelsSettingsStore {
   /** The snapshot the section renders from (uSES-safe store). */
   readonly store: SnapshotStore<ModelsSettingsState> = createSnapshotStore<ModelsSettingsState>({
-    status: 'idle', error: null, credentialError: null, writable: false, rows: [], namespaces: new Map(),
+    status: 'idle', error: null, writable: false, rows: [], namespaces: new Map(),
   })
 
   /** Latest load wins; an older response never overwrites a newer one. */
@@ -196,36 +209,37 @@ export class ModelsSettingsStore {
     const namespaces = new Map(views.map(view => [view.ns, view]))
     const rows: ProviderRow[] = providers.map((entry) => {
       const namespace = namespaces.get(entry.settingsNs)
-      const configured = namespace !== undefined
-        && (entry.settingsPath.length === 0 || this.schema.getPath(namespace.value, entry.settingsPath) !== undefined)
-      const removable = namespace !== undefined
-        && entry.settingsPath.length > 0
+      const wholeSection = entry.settingsPath.length === 0
+      const switchable = namespace !== undefined && wholeSection
+        && this.schema.nodeAtPath(this.schema.rehydrate(namespace.schema), [ENABLED_FIELD]) !== undefined
+      const configured = namespace !== undefined && (wholeSection
+        ? entry.active
+        : this.schema.getPath(namespace.value, entry.settingsPath) !== undefined)
+      const removable = switchable || (namespace !== undefined
+        && !wholeSection
         && this.schema.hasPath(namespace.user, entry.settingsPath)
-        && !this.schema.hasPath(namespace.base, entry.settingsPath)
+        && !this.schema.hasPath(namespace.base, entry.settingsPath))
       return {
         entry,
         configured,
         removable,
+        switchable,
         apiKeyEnv: apiKeyEnvOf(namespace, entry.settingsPath, this.schema),
         credential: undefined,
       }
     })
     const refs = [...new Set(rows.map(row => row.apiKeyEnv ?? deriveKeyRef(row.entry.provider)))]
     let credentials: Record<string, CredentialInfo> = {}
-    let credentialError: string | null = null
     if (refs.length > 0) {
       const response = await this.ctx.remote.credentials.describe(refs)
-      // Credential state is an enrichment for the Models page: a failure
-      // degrades the badge instead of failing the load. The onboarding
-      // projection below retains the failure distinction.
+      // Credential state is an enrichment for this page: a failure degrades
+      // the badge instead of failing the load.
       if (response.ok) credentials = response.value
-      else credentialError = response.error.message
     }
     if (generation !== this.generation) return
     this.store.update((s) => {
       s.status = 'ready'
       s.error = null
-      s.credentialError = credentialError
       s.writable = writable
       s.rows = rows.map((row) => {
         const named = row.apiKeyEnv === undefined ? undefined : credentials[row.apiKeyEnv]
@@ -248,91 +262,4 @@ export class ModelsSettingsStore {
       s.error = message
     })
   }
-}
-
-/**
- * Whether a joined row can serve model requests as it stands: the route is
- * registered with the adapter registry, and whatever credential its resolved
- * profile names is stored. A profile naming no reference authenticates through
- * the provider's own path (the Bedrock chain, Vertex ADC, a gateway that needs
- * nothing), as does a live route with no settings address at all, so neither
- * owes this page a key.
- * @param row - one joined provider row.
- * @returns whether the user already has this provider to talk to.
- */
-export function providerUsable(row: ProviderRow): boolean {
-  if (!row.entry.active) return false
-  if (row.apiKeyEnv === undefined) return true
-  return row.credential?.configured === true
-}
-
-/** First-run onboarding readiness derived only from the shared Models join. */
-export type OnboardingReadiness =
-  | { kind: 'loading' }
-  | { kind: 'adapter-absent' }
-  | { kind: 'provider-ready' }
-  | { kind: 'credential-missing' }
-  | {
-    kind: 'unavailable'
-    reason:
-      | 'load-failed'
-      | 'provider-inactive'
-      | 'credentials-unavailable'
-      | 'settings-read-only'
-      | 'credential-read-only'
-  }
-
-/**
- * Project first-run readiness from the provider/settings/credential join used
- * by the Models page. The step exists to leave the user with a model to talk
- * to, so ANY usable provider ends it; only when none exists does the official
- * DeepSeek route — the one route the prompt can offer a key field for — decide
- * whether prompting can help. A missing official configurable-provider
- * declaration means the adapter is not repairable by navigating to Models.
- * @param state - current shared Models join snapshot.
- * @returns the onboarding state without reading a parallel fact source.
- */
-export function onboardingReadiness(state: ModelsSettingsState): OnboardingReadiness {
-  if ((state.status === 'idle' || state.status === 'loading') && state.rows.length === 0) {
-    return { kind: 'loading' }
-  }
-  if (state.status === 'error') {
-    return {
-      kind: 'unavailable',
-      reason: 'load-failed',
-    }
-  }
-  if (state.rows.some(providerUsable)) return { kind: 'provider-ready' }
-  const row = state.rows.find(candidate =>
-    candidate.entry.provider === 'deepseek-official'
-    && candidate.entry.settingsNs === 'llm-deepseek'
-    && candidate.entry.settingsPath.length === 0)
-  if (row === undefined) return { kind: 'adapter-absent' }
-  if (!row.entry.active) {
-    return {
-      kind: 'unavailable',
-      reason: 'provider-inactive',
-    }
-  }
-  // Past the usable gate an active route names a reference it has no stored
-  // credential for, so the remaining questions are all about that credential.
-  if (state.credentialError !== null || row.credential === undefined) {
-    return {
-      kind: 'unavailable',
-      reason: 'credentials-unavailable',
-    }
-  }
-  if (!state.writable) {
-    return {
-      kind: 'unavailable',
-      reason: 'settings-read-only',
-    }
-  }
-  if (!row.credential.writable) {
-    return {
-      kind: 'unavailable',
-      reason: 'credential-read-only',
-    }
-  }
-  return { kind: 'credential-missing' }
 }

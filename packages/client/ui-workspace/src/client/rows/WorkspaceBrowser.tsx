@@ -298,7 +298,6 @@ function SessionTree({
     if (collapsedSessionRows(group.sessions).rows.some(row => row.id === revealSessionId)) return
     setExpandedSessionGroups(keys => keys.includes(revealGroup) ? keys : [...keys, revealGroup])
   }, [groups, revealGroup, revealSessionId])
-  const now = Date.now()
   const commitSessionDrag = (activeDrag: DragState, over: NonNullable<DragState['over']>): void => {
     if (sessionDropCommitted.current) return
     sessionDropCommitted.current = true
@@ -512,7 +511,6 @@ function SessionTree({
                     key={node.id}
                     node={node}
                     currentId={current}
-                    now={now}
                     onOpen={open}
                     onRename={onSessionRename}
                     onFork={forkSession}
@@ -626,7 +624,6 @@ function FlatList({
     nextOrder.splice(insertAt === -1 ? nextOrder.length : insertAt, 0, activeDrag.sessionId)
     setSessionOrder(FLAT_SESSION_ORDER_KEY, nextOrder.map(id => id as string))
   }
-  const now = Date.now()
   return (
     <div className={clsx(css.treeBody, css.wide)}>
       <div className={clsx(css.list, 'no-scrollbar', css.flatList)} role="tree" aria-label={t('section.sessions')}>
@@ -640,7 +637,6 @@ function FlatList({
               key={node.id}
               node={node}
               currentId={list.current}
-              now={now}
               onOpen={open}
               onRename={onSessionRename}
               onFork={forkSession}
@@ -872,57 +868,57 @@ export function WorkspaceBrowser({
           itself is wide-only. */}
       <div className={css.listArea}>
         {wide && (groupBy === 'flat'
-            ? (
-              <FlatList
-                useSessions={useSessions} useSessionPendingInteraction={useSessionPendingInteraction}
-                open={open} forkSession={forkSession}
-                onSessionRename={onSessionRename} onSessionArchive={onSessionArchive}
-                archivedSessionIds={archivedSessionIds}
-                orderBy={orderBy}
-                sessionOrderByAccount={sessionOrderByAccount}
-                sessionUpdatedAtByAccount={sessionUpdatedAtByAccount}
-                syncSessionOrderAccount={actions.syncSessionOrderAccount}
-                setSessionOrder={actions.setSessionOrder}
-                revealSessionId={revealSessionId}
-                onSessionRevealed={acknowledgeSessionReveal}
-                t={t}
-              />
-            )
-            : (
-              <SessionTree
-                useSessions={useSessions}
-                useSessionPendingInteraction={useSessionPendingInteraction}
-                onSessionRename={onSessionRename}
-                onSessionArchive={onSessionArchive}
-                forkSession={forkSession}
-                workspaces={workspaces}
-                workspaceReady={workspacePhase === 'ready' && workspaceStreamState !== 'loading'}
-                groupExpansion={groupExpansion}
-                setGroupExpanded={actions.setGroupExpanded}
-                sessionOrderByAccount={sessionOrderByAccount}
-                sessionUpdatedAtByAccount={sessionUpdatedAtByAccount}
-                syncSessionOrderAccount={actions.syncSessionOrderAccount}
-                setSessionOrder={actions.setSessionOrder}
-                archivedSessionIds={archivedSessionIds}
-                startSession={startSession}
-                open={open}
-                insertWorkspaceBefore={insertWorkspaceBefore}
-                insertSessionBefore={insertSessionBefore}
-                orderBy={orderBy}
-                revealSessionId={revealSessionId}
-                onSessionRevealed={acknowledgeSessionReveal}
-                t={t}
-                onRenameRequest={(workspaceId, currentTitle) => {
-                  setRenameTarget({ workspaceId, currentTitle })
-                  setRenameDraft(currentTitle)
-                  setRenameError(null)
-                }}
-                onDeleteRequest={(workspaceId, title) => {
-                  setDeleteTarget({ workspaceId, title })
-                  setDeleteError(null)
-                }}
-              />
-            ))}
+          ? (
+            <FlatList
+              useSessions={useSessions} useSessionPendingInteraction={useSessionPendingInteraction}
+              open={open} forkSession={forkSession}
+              onSessionRename={onSessionRename} onSessionArchive={onSessionArchive}
+              archivedSessionIds={archivedSessionIds}
+              orderBy={orderBy}
+              sessionOrderByAccount={sessionOrderByAccount}
+              sessionUpdatedAtByAccount={sessionUpdatedAtByAccount}
+              syncSessionOrderAccount={actions.syncSessionOrderAccount}
+              setSessionOrder={actions.setSessionOrder}
+              revealSessionId={revealSessionId}
+              onSessionRevealed={acknowledgeSessionReveal}
+              t={t}
+            />
+          )
+          : (
+            <SessionTree
+              useSessions={useSessions}
+              useSessionPendingInteraction={useSessionPendingInteraction}
+              onSessionRename={onSessionRename}
+              onSessionArchive={onSessionArchive}
+              forkSession={forkSession}
+              workspaces={workspaces}
+              workspaceReady={workspacePhase === 'ready' && workspaceStreamState !== 'loading'}
+              groupExpansion={groupExpansion}
+              setGroupExpanded={actions.setGroupExpanded}
+              sessionOrderByAccount={sessionOrderByAccount}
+              sessionUpdatedAtByAccount={sessionUpdatedAtByAccount}
+              syncSessionOrderAccount={actions.syncSessionOrderAccount}
+              setSessionOrder={actions.setSessionOrder}
+              archivedSessionIds={archivedSessionIds}
+              startSession={startSession}
+              open={open}
+              insertWorkspaceBefore={insertWorkspaceBefore}
+              insertSessionBefore={insertSessionBefore}
+              orderBy={orderBy}
+              revealSessionId={revealSessionId}
+              onSessionRevealed={acknowledgeSessionReveal}
+              t={t}
+              onRenameRequest={(workspaceId, currentTitle) => {
+                setRenameTarget({ workspaceId, currentTitle })
+                setRenameDraft(currentTitle)
+                setRenameError(null)
+              }}
+              onDeleteRequest={(workspaceId, title) => {
+                setDeleteTarget({ workspaceId, title })
+                setDeleteError(null)
+              }}
+            />
+          ))}
       </div>
 
       <Modal

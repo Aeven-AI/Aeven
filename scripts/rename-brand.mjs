@@ -188,7 +188,7 @@ const RUN_PATTERN = /[A-Za-z0-9_@./\\-]*[Dd][Ss][Hh][A-Za-z0-9_@./\\-]*/g
  * Runs left untouched because the name belongs to someone else.
  *
  * `dsh-coding-oauth-core` is a *published external npm dependency* (v0.1.2) of
- * `packages/experimental/subscription-auth`, not a workspace package, so its
+ * `packages/llm/subscription-auth`, not a workspace package, so its
  * name is not ours to change. Renaming it and its subpaths
  * (`dsh-coding-oauth-core/contracts`, `/grok-errors`, ...) broke module
  * resolution — caught by typecheck, not by inspection.

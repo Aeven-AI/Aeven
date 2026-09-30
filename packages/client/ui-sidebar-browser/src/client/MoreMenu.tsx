@@ -1,13 +1,15 @@
 /**
  * The chrome row's three-dot menu, ported from t3code's `PreviewMoreMenu`:
- * hard reload, DevTools, appearance, zoom, and clearing the session's
- * browser storage.
+ * hard reload, appearance, zoom, clearing the session's browser storage, and
+ * DevTools.
  */
 import type { MouseEvent, ReactNode } from 'react'
 import { useState } from 'react'
-import { Menu, Tooltip, type MenuEntry } from '@aeven/client-ui-primitives'
+import {
+  IconLucideCheck, IconLucideEllipsisVertical, IconLucideMinus, IconLucidePlus, IconLucideRotateCcw, Menu, Tooltip,
+  type MenuEntry,
+} from '@aeven/client-ui-primitives'
 import type { BrowserColorScheme } from './guest.ts'
-import { Check, Minus, MoreVertical, Plus, RotateCcw } from './icons.tsx'
 import type { SidebarBrowserKey } from './locales.ts'
 import css from './BrowserPane.module.css'
 
@@ -57,7 +59,6 @@ export function MoreMenu(props: MoreMenuProps): ReactNode {
 
   const items: MenuEntry[] = [
     { id: 'hard-reload', label: t('menu.hardReload'), disabled },
-    { id: 'devtools', label: t('menu.devtools'), disabled },
     {
       id: 'appearance',
       label: t('menu.appearance'),
@@ -65,7 +66,7 @@ export function MoreMenu(props: MoreMenuProps): ReactNode {
       submenu: COLOR_SCHEMES.map(scheme => ({
         id: `scheme:${scheme}`,
         label: t(`scheme.${scheme}`),
-        icon: scheme === props.colorScheme ? <Check size={14} /> : <span className={css.checkSpacer} />,
+        icon: <span className={css.menuGlyph}>{scheme === props.colorScheme && <IconLucideCheck />}</span>,
       })),
     },
     { type: 'separator', id: 'sep-zoom' },
@@ -76,17 +77,19 @@ export function MoreMenu(props: MoreMenuProps): ReactNode {
         <span className={css.zoomRow}>
           <span>{t('menu.zoom')}</span>
           <span className={css.zoomControls}>
-            {zoomControl(t('zoom.out'), -1, <Minus size={14} />)}
+            {zoomControl(t('zoom.out'), -1, <IconLucideMinus />)}
             <span className={css.zoomValue}>{`${String(Math.round(props.zoomFactor * 100))}%`}</span>
-            {zoomControl(t('zoom.in'), 1, <Plus size={14} />)}
-            {zoomControl(t('zoom.reset'), 0, <RotateCcw size={14} />)}
+            {zoomControl(t('zoom.in'), 1, <IconLucidePlus />)}
+            {zoomControl(t('zoom.reset'), 0, <IconLucideRotateCcw />)}
           </span>
         </span>
       ),
     },
     { type: 'separator', id: 'sep-data' },
-    { id: 'clear-cookies', label: t('menu.clearCookies') },
     { id: 'clear-cache', label: t('menu.clearCache') },
+    { id: 'clear-cookies', label: t('menu.clearCookies') },
+    { type: 'separator', id: 'sep-devtools' },
+    { id: 'devtools', label: t('menu.devtools'), disabled },
   ]
 
   const select = (id: string): void => {
@@ -123,7 +126,7 @@ export function MoreMenu(props: MoreMenuProps): ReactNode {
             aria-expanded={open}
             onClick={() => { setOpen(value => !value) }}
           >
-            <MoreVertical />
+            <IconLucideEllipsisVertical />
           </button>
         </Tooltip>
       )}

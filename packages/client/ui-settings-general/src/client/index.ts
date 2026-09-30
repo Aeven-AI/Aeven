@@ -59,12 +59,32 @@ const NS = 'settings'
 export const inject = ['slots', 'locale', 'connection', 'remote', 'remote.settings', 'settingsScope']
 
 /**
+ * The Electron shell's preload carrier, as this client needs it. Structural and
+ * optional: the browser build has no `window.avnDesktop` and never calls it.
+ */
+interface DesktopShellCarrier {
+  /** @param listener - called with each application-menu command. @returns disposer removing the listener. */
+  onCommand?(listener: (command: string) => void): () => void
+}
+
+/**
  * Register the `settings` dictionaries, the chrome content, and the General
  * section, each once its slot declaration is on the ledger.
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-settings-general: dictionaries')
+  // The Desktop shell's menu has no other route into this surface, so it asks
+  // through the carrier its preload exposes. The same client served over HTTP
+  // has no carrier, and nothing here runs.
+  const carrier = (window as { avnDesktop?: DesktopShellCarrier }).avnDesktop
+  const onCommand = carrier?.onCommand?.bind(carrier)
+  if (onCommand !== undefined) {
+    ctx.effect(
+      () => onCommand((command) => { if (command === 'open-settings') ctx.emit('settings/open') }),
+      'ui-settings-general: desktop settings command',
+    )
+  }
   const connection = ctx.get('connection') as ConnectionHandle
 
   // Copy freshness is framework-owned: components read the standard `t`

@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useState } from 'react'
 import clsx from 'clsx'
 import type { Context } from '@deepseek-ai/cordis'
 import type { PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
@@ -7,7 +7,7 @@ import type { PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 // declare) and the payload type. Type-only by construction — the outlet is
 // free of host value imports, so no host Context merge enters this program.
 import type { TodoItem } from '@aeven/tool-todo/client'
-import { IconChecklistOutline14, IconChevronDownOutline14, IconChevronUpOutline14 } from '@aeven/client-ui-primitives'
+import { IconChecklistOutline14, IconChevronDownOutline14, IconChevronUpOutline14, Spinner } from '@aeven/client-ui-primitives'
 import { NS } from '../locales.ts'
 import css from './TodoPanel.module.css'
 
@@ -37,20 +37,9 @@ function CompletedGlyph() {
   )
 }
 
-/** In-progress: business-blue ring fading out; CSS spins the svg. */
+/** In-progress: the product's own loading mark, sized to the sibling rings. */
 function ProgressGlyph() {
-  const gradientId = useId()
-  return (
-    <svg width={14} height={14} viewBox="0 0 14 14" fill="none" aria-hidden="true" className={css.glyphProgress}>
-      <defs>
-        <linearGradient id={gradientId} x1="2.5" y1="12" x2="10.5" y2="3.5" gradientUnits="userSpaceOnUse">
-          <stop stopColor="currentColor" />
-          <stop offset="1" stopColor="currentColor" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <circle cx="7" cy="7" r="6.4" stroke={`url(#${gradientId})`} strokeWidth="1.2" />
-    </svg>
-  )
+  return <Spinner className={css.glyphProgress} />
 }
 
 /** Pending: dashed unstarted ring (figma dash 2.4 2.4). */

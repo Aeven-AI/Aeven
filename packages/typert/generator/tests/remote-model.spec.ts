@@ -24,6 +24,7 @@ interface RuntimeDescriptor {
   readonly cancellation?: { readonly parameter: 'signal' }
   readonly parameters: readonly {
     readonly wire: string
+    readonly optional?: true
     readonly acceptsUndefined?: true
     readonly codec: { readonly schema: RuntimeSchema }
   }[]
@@ -217,6 +218,10 @@ export type {`,
     expect(labelled?.parameters[1]?.acceptsUndefined).toBe(true)
     expect(labelled?.parameters[1]?.codec.schema.safeParse(undefined).success).toBe(true)
     expect(labelled?.parameters[1]?.codec.schema.safeParse(7).success).toBe(false)
+    // Only authored optionality lets a consumer omit the argument; the required
+    // `string | undefined` parameter above stays required.
+    expect(labelled?.parameters[1]?.optional).toBe(true)
+    expect(maybe?.parameters[0]?.optional).toBeUndefined()
   })
 
   it('evaluates declaration-merged mapped and conditional boundaries for codecs without widening consumer types', async () => {

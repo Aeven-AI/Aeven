@@ -38,7 +38,7 @@ export const DETAILS_MAX = 520
 /** Details width before any user drag. */
 export const DETAILS_DEFAULT = 360
 /** Right sidebar drag clamp floor. */
-export const RIGHTBAR_MIN = 300
+export const RIGHTBAR_MIN = 360
 /**
  * Right sidebar ceiling as a fraction of the frame. A fraction rather than a
  * fixed px ceiling: the panel is a reading column whose useful width scales

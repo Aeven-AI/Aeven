@@ -1,6 +1,6 @@
 {
   "name": "@aeven/client-ui-settings-models",
-  "description": "Models settings and shared product-onboarding dialogs over existing settings and credential joins",
+  "description": "Model providers settings page over existing settings and credential joins",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"

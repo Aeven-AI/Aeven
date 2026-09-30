@@ -61,6 +61,8 @@ export interface SessionNode {
   completed: boolean
   /** The current list projection contains at least one active Schedule record. */
   hasActiveSchedule: boolean
+  /** Session header creation time, epoch ms (the row tooltip's created distance). */
+  createdAt: number
   updatedAt: number
 }
 
@@ -336,6 +338,7 @@ function sessionNode(
     runningSubagentCount: descendants.get(s.id)?.runningCount ?? 0,
     completed: s.completed === true,
     hasActiveSchedule: hasActiveSchedule(s),
+    createdAt: s.createdAt,
     updatedAt: s.updatedAt,
     ...(pendingInteraction === undefined ? {} : { pendingInteraction }),
   }

@@ -566,7 +566,7 @@ export class SessionManager {
     const result = await this.remote.session.create(payload)
     if (result.ok) {
       this.recordMutation({ kind: 'upsert', summary: {
-        sessionId: result.value.sessionId, updatedAt: Date.now(), running: false, blank: true,
+        sessionId: result.value.sessionId, createdAt: Date.now(), updatedAt: Date.now(), running: false, blank: true,
         ...(opts.cwd !== undefined ? { cwd: opts.cwd } : {}),
       } })
     } else {
@@ -577,6 +577,7 @@ export class SessionManager {
       if (publishedSessionId !== undefined) {
         this.recordMutation({ kind: 'upsert', summary: {
           sessionId: publishedSessionId,
+          createdAt: Date.now(),
           updatedAt: Date.now(),
           running: false,
           blank: true,
@@ -608,7 +609,7 @@ export class SessionManager {
       : workspaceAttachSessionId(result.error)
     if (childId !== undefined) {
       this.recordMutation({ kind: 'upsert', summary: {
-        sessionId: childId, updatedAt: Date.now(), running: false, blank: false,
+        sessionId: childId, createdAt: Date.now(), updatedAt: Date.now(), running: false, blank: false,
         parentSessionId: opts.sessionId,
         ...(source?.cwd !== undefined ? { cwd: source.cwd } : {}),
       } })

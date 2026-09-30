@@ -16,10 +16,13 @@
      hidden): cap the card against the viewport and scroll the plan, so the
      strip and the decision row stay reachable on a long plan. */
   max-height: min(60vh, 520px);
-  border: 1px solid var(--dsw-alias-state-warn-secondary);
-  border-radius: 20px;
+  /* Wears the composer card's surface, as the question takeover does: flat
+     fill, surface radius, the same box-shadow and no stroke. */
+  border: 0;
+  --dsw-elevation-stroke-color: transparent;
+  border-radius: var(--dsw-aeven-radius-surface);
   background: var(--dsw-specific-input-major);
-  box-shadow: var(--dsw-shadow-lv2);
+  box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
   color: var(--dsw-alias-label-primary);
   /* Elevated surface in dark: the plan body inside scrolls once the card hits
      the cap above, so the thumb takes the l2 pair (see ui-theme
@@ -33,24 +36,11 @@
   box-sizing: border-box;
 }
 
-/* Tinted full-width header band, as on the approval takeover. */
-.strip {
-  display: flex;
-  align-items: center;
+/* Header line at the question takeover's own insets and eyebrow tone. */
+.header {
   flex-shrink: 0;
-  gap: 8px;
-  padding: 10px 16px;
-  background: var(--dsw-alias-state-warn-tertiary);
-  color: var(--dsw-alias-state-warn-primary);
-  font-size: 14px;
-  line-height: 18px;
-}
-
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--dsw-alias-state-warn-primary);
+  padding: 20px 20px 0 24px;
+  color: var(--dsw-alias-label-tertiary);
 }
 
 /* The plan is the panel's message: it takes the whole body and the scroll. */

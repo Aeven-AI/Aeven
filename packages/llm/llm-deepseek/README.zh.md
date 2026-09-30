@@ -50,6 +50,7 @@ kind: "package-reference"
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
+| `enabled` | `true` | `deepseek-official` 路由是否提供服务；`false` 时仍向配置界面声明该路由，但不注册路由、不公布模型 |
 | `apiKeyEnv` | `DEEPSEEK_API_KEY` | 按请求解析的凭据引用：先经凭据 seam，再到环境变量 |
 | `baseURL` | `https://api.deepseek.com` | 端点基址；设置了 `$DEEPSEEK_BASE_URL` 时优先 |
 | `thinking` | `enabled` | 部署策略；`disabled` 把所有请求锁定为 `off` |

@@ -37,6 +37,8 @@ import type { Session } from './session.ts'
 /** Session list row projected from the host list RPC plus live stream increments. */
 export interface SessionSummary {
   id: SessionId
+  /** Session header creation time, epoch ms (the sidebar row's created distance). */
+  createdAt: number
   /** Latest durable log-backed title, absent until the host projects one. */
   title?: string
   /** Human-facing label: durable title, project basename, then session id. */
@@ -588,6 +590,7 @@ export class ClientSessions implements ISessions {
       ids.push(entry.sessionId)
       byId[entry.sessionId] = {
         id: entry.sessionId,
+        createdAt: entry.createdAt,
         displayTitle: displayTitleOf(entry.title, entry.sessionId),
         running: entry.running,
         ...(entry.completed ? { completed: true } : {}),
@@ -616,6 +619,7 @@ export class ClientSessions implements ISessions {
         if (summary === undefined) {
           byId[childId] = {
             id: childId,
+            createdAt: 0,
             displayTitle,
             parentId: address.parentSessionId,
             origin: 'subagent',

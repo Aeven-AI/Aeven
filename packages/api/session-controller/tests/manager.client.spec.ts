@@ -26,7 +26,7 @@ type SummaryOver = Partial<{
 }>
 
 function summary(sessionId: SessionId, over: SummaryOver = {}) {
-  return { sessionId, updatedAt: 100, running: false, blank: false, ...over }
+  return { sessionId, createdAt: 0, updatedAt: 100, running: false, blank: false, ...over }
 }
 
 function makeManager(): SessionManager {

@@ -1,5 +1,5 @@
 /** The Account settings page: who is signed in, the plans, their credits, and this period's usage. */
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import {
   Button, IconCheckOutline14, IconChevronDownOutline14, IconRightUpOutline16, SectionHeader, Spinner,
 } from '@aeven/client-ui-primitives'
@@ -58,6 +58,9 @@ const FREE_PLAN = 'free'
 
 /** Allowance use at which the page suggests upgrading. */
 const NUDGE_PERCENT = 80
+
+/** The allowance bar reads the percentage it fills from a row-local property. */
+type MeterStyle = CSSProperties & { readonly '--avn-usage-percent': string }
 
 /** Statement lines that are payments rather than per-request charges. */
 const PAYMENT_LABEL: Partial<Record<WalletTransaction['type'], AccountAevenKey>> = {
@@ -397,25 +400,29 @@ function Plans({ t, cloud, subscription, plans, usage, refresh }: {
 
   return (
     <>
-      <div className={css.row}>
+      <div className={css.meterRow}>
         <span className={css.rowText}>
           <span className={css.title}>{t('plan.status', { plan: subscription.planName })}</span>
-          <span className={css.desc}>{statusLine}</span>
+          {/* The read-out shares the line that names the period end, so the
+              number sits against the date it belongs to. */}
+          <span className={css.meterLine}>
+            <span className={css.desc}>{statusLine}</span>
+            {used !== undefined && (
+              <span className={css.meterLabel}>{t('plan.used', { percent: String(used) })}</span>
+            )}
+          </span>
         </span>
         {used !== undefined && (
-          <span className={css.meterGroup}>
-            <span
-              className={css.meter}
-              role="meter"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={used}
-              aria-label={t('plan.used', { percent: String(used) })}
-              data-warn={warn ? 'true' : undefined}
-            >
-              <span style={{ width: `${Math.max(used, 2)}%` }} />
-            </span>
-            <span className={css.meterLabel}>{t('plan.used', { percent: String(used) })}</span>
+          <span
+            className={css.meter}
+            role="meter"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={used}
+            aria-label={t('plan.used', { percent: String(used) })}
+            style={{ '--avn-usage-percent': `${used}%` } as MeterStyle}
+          >
+            <span style={{ width: `${Math.max(used, 2)}%` }} />
           </span>
         )}
       </div>
@@ -711,6 +718,7 @@ function Credits({ t, cloud, usage, options, refresh }: {
                       value={custom}
                       aria-label={t('credits.otherAria')}
                       aria-invalid={custom.trim() !== '' && !customValid}
+                      style={{ width: `${Math.max(custom.length, 2)}ch` }}
                       onChange={(event) => { setCustom(event.target.value) }}
                       onKeyDown={(event) => { if (event.key === 'Enter') topUp() }}
                     />

@@ -16,6 +16,8 @@ export interface TitledSessionSummary extends SessionSummary {
 /** One flattened session-list row with lineage depth. */
 export interface SessionListEntry {
   sessionId: SessionId
+  /** Session header creation time, epoch ms. */
+  createdAt: number
   title?: string
   updatedAt: number
   running: boolean

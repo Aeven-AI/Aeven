@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import './avatar-initial.css'
 
 /** What the avatar needs to draw itself. */
 export interface AvatarProps {

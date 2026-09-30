@@ -45,18 +45,12 @@ function isLabel(entry: MenuEntry): entry is MenuLabel {
   return 'type' in entry && entry.type === 'label'
 }
 
-/**
- * Open a submenu card to the parent's left when the right would overflow the
- * viewport. Runs in the commit phase, so the first painted frame is placed.
- * @param card - the mounted submenu card, or null on unmount.
- */
-function flipSubmenu(card: HTMLDivElement | null): void {
-  if (card === null) return
-  if (card.getBoundingClientRect().right > window.innerWidth - 8) card.dataset.flip = ''
-}
-
-/** Unplaced portal list: hidden but laid out at a fixed origin so offsetWidth/offsetHeight are real. */
+/** Unplaced portal card: hidden but laid out at a fixed origin so offsetWidth/offsetHeight are real. */
 const MEASURE_STYLE: CSSProperties = { visibility: 'hidden', left: 0, top: 0 }
+
+/* Gap between a submenu card and its row: the parent card's own 8px pad plus
+   2px, so the two outer edges read as one step rather than touching. */
+const SUBMENU_GAP = 10
 
 /**
  * Render an anchored dropdown menu.
@@ -109,9 +103,17 @@ export function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, o
 }) {
   const rootRef = useRef<HTMLSpanElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  const submenuRef = useRef<HTMLDivElement>(null)
+  /* The row a submenu hangs off. It is read at placement time rather than kept
+     in state: the row moves with the list, and the card follows it. */
+  const submenuRowRef = useRef<HTMLElement | null>(null)
   const [openSubmenuId, setOpenSubmenuId] = useState<string | null>(null)
+  const [submenuPos, setSubmenuPos] = useState<CSSProperties | null>(null)
   const [fixedPos, setFixedPos] = useState<CSSProperties | null>(null)
   const { arm: armClose, cancel: cancelClose } = usePointerGrace(onClose)
+  // The submenu card is portaled away from its row, so crossing the 10px gap
+  // leaves the row: the same grace keeps it open across that gap.
+  const { arm: armSubmenuClose, cancel: cancelSubmenuClose } = usePointerGrace(() => { setOpenSubmenuId(null) })
 
   // Portal mode: fixed-position the list from the anchor rect before paint;
   // track the anchor while open (capture-phase scroll catches nested panes).
@@ -166,6 +168,38 @@ export function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, o
     }
   }, [open, portal, align, side, getAnchorRect])
 
+  // The submenu card is portaled to the page rather than nested in its row: an
+  // element with `backdrop-filter` is a backdrop root, so a card inside the
+  // parent's would sample the parent instead of the page and show whatever
+  // hangs past the parent unblurred. Placement is therefore fixed, from the
+  // row's rect — the card's foot 4px past the row's, to the row's right, or to
+  // its left when the right would leave the viewport.
+  useLayoutEffect(() => {
+    if (openSubmenuId === null) { setSubmenuPos(null); return }
+    const place = () => {
+      const row = submenuRowRef.current
+      const card = submenuRef.current
+      if (row === null || card === null) return
+      const r = row.getBoundingClientRect()
+      const MARGIN = 8
+      const cw = card.offsetWidth
+      const ch = card.offsetHeight
+      let x = r.right + SUBMENU_GAP
+      if (x + cw > window.innerWidth - MARGIN) x = r.left - SUBMENU_GAP - cw
+      let y = r.bottom + 4 - ch
+      if (cw > 0) x = Math.min(Math.max(x, MARGIN), window.innerWidth - cw - MARGIN)
+      if (ch > 0) y = Math.min(Math.max(y, MARGIN), window.innerHeight - ch - MARGIN)
+      setSubmenuPos({ left: x, top: y })
+    }
+    place()
+    window.addEventListener('scroll', place, true)
+    window.addEventListener('resize', place)
+    return () => {
+      window.removeEventListener('scroll', place, true)
+      window.removeEventListener('resize', place)
+    }
+  }, [openSubmenuId])
+
   useEffect(() => {
     if (!open) {
       setOpenSubmenuId(null)
@@ -173,9 +207,12 @@ export function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, o
     }
     const onPointerDown = (e: PointerEvent) => {
       if (!(e.target instanceof Node)) return
-      // The portaled list is outside the anchor subtree; check both.
+      // The portaled list and submenu are outside the anchor subtree; check all
+      // three, or a press on a submenu row would close the menu before the row's
+      // own click lands and the row would never fire.
       if (rootRef.current?.contains(e.target) === true) return
       if (listRef.current?.contains(e.target) === true) return
+      if (submenuRef.current?.contains(e.target) === true) return
       onClose()
     }
     const onKeyDown = (e: KeyboardEvent) => {
@@ -215,8 +252,17 @@ export function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, o
       <div
         key={entry.id}
         className={css.itemWrap}
-        onMouseEnter={() => { setOpenSubmenuId(hasSub ? entry.id : null) }}
-        onMouseLeave={() => { setOpenSubmenuId(null) }}
+        onMouseEnter={(event) => {
+          submenuRowRef.current = event.currentTarget
+          cancelSubmenuClose()
+          setOpenSubmenuId(hasSub ? entry.id : null)
+        }}
+        onMouseLeave={() => {
+          // The card is portaled, so leaving the row is leaving the card's
+          // subtree: the grace is what lets the pointer cross to it.
+          if (hasSub) armSubmenuClose()
+          else setOpenSubmenuId(null)
+        }}
       >
         <button
           type="button"
@@ -225,7 +271,10 @@ export function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, o
           disabled={entry.disabled}
           aria-haspopup={hasSub ? 'menu' : undefined}
           aria-expanded={hasSub ? subOpen : undefined}
-          onFocus={() => { setOpenSubmenuId(hasSub ? entry.id : null) }}
+          onFocus={(event) => {
+            submenuRowRef.current = event.currentTarget
+            setOpenSubmenuId(hasSub ? entry.id : null)
+          }}
           onClick={() => {
             if (hasSub) {
               setOpenSubmenuId(entry.id)
@@ -240,8 +289,15 @@ export function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, o
           {/* Selection marker is a trailing check (figma .Menu_cell), not a fill. */}
           {selected && <IconCheckOutline16 className={css.check} />}
         </button>
-        {subOpen && entry.submenu !== undefined && (
-          <div className={clsx(css.submenu, compact && css.compactList)} role="menu" ref={flipSubmenu}>
+        {subOpen && entry.submenu !== undefined && createPortal(
+          <div
+            ref={submenuRef}
+            className={clsx(css.submenu, compact && css.compactList)}
+            style={submenuPos ?? MEASURE_STYLE}
+            role="menu"
+            onMouseEnter={cancelSubmenuClose}
+            onMouseLeave={armSubmenuClose}
+          >
             {entry.submenu.map(sub => (
               <button
                 key={sub.id}
@@ -256,7 +312,8 @@ export function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, o
                 {sub.description !== undefined && <span className={css.itemDescription}>{sub.description}</span>}
               </button>
             ))}
-          </div>
+          </div>,
+          document.body,
         )}
       </div>
     )

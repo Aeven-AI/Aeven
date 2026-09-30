@@ -36,6 +36,13 @@
     baseURL: !!js (process.env.AEVEN_API_URL ?? 'http://localhost:9000') + '/v1'
     model: Aeven-1.0-Flash
 
+# DeepSeek is one provider among many here, not a default: the route stays
+# declared so the Model providers page can add it, and serves only once the
+# user's `llm-deepseek:` settings section sets `enabled: true`.
+- id: llm-deepseek
+  config:
+    enabled: false
+
 - id: tools
   config:
     # TEMPORARY workaround: AVN_TOOLS_MODE (native|ptc|both) opts a whole avn
@@ -191,6 +198,12 @@
     # capabilities, with View, Correct, and Forget.
     - id: api-memory-manager
       name: '@aeven/api-memory-manager'
+
+    # Coding subscriptions (Grok, ChatGPT Codex, Claude): signed in from the
+    # Subscriptions group on the Model providers page. A route serves only
+    # once its subscription is signed in.
+    - id: llm-grok-build-oauth
+      name: '@aeven/subscription-auth'
 
     # File attachments: the reader registry and the built-in JavaScript
     # readers (PDF, Office Open XML, OpenDocument, Pages, Keynote, Numbers,

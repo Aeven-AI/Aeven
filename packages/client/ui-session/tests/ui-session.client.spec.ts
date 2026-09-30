@@ -118,6 +118,7 @@ function createSessionsBench(_ctx: Context): SessionsBench {
         if (!draft.ids.includes(id)) draft.ids.push(id)
         draft.byId[id] = {
           id,
+          createdAt: 0,
           displayTitle: id,
           running: false,
           blank: false,

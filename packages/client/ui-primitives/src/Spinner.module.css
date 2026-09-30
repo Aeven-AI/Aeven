@@ -9,6 +9,13 @@
 }
 
 .spinner {
+  /* The wrapper is the rotating box, so the mark must sit on the wrapper's
+     centre: a surface that resizes the glyph from outside (`… svg {width:14px}`)
+     otherwise pulls it off the rotation axis and the mark orbits instead of
+     spinning. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
   /* The loading mark is chrome, not content: it reads as primary ink, which
      inverts with the theme. */
   color: var(--avn-spinner-color, var(--dsw-alias-label-primary, #000000));

@@ -33,7 +33,7 @@ Mount this plugin when a composition should offer Aeven's own models to a reader
 
 Choose this route when inference and identity should be one origin. Choose `avn-llm-deepseek` when the deployment holds its own DeepSeek API key and talks to DeepSeek's platform directly. The two can be mounted together: their route names do not collide, and a reader may legitimately have both a signed-in session and a personal key.
 
-Two facts let it fit the existing first-run flow without modifying it. The Models page treats a route whose credential is configured as usable and ends the step as soon as *any* route is, so a signed-in reader completes setup without touching a key field. And the catalog is announced through `registerModelDiscovery`, so the model picker offers these entries the same way it offers any other provider's.
+The catalog is announced through `registerModelDiscovery`, so the model picker offers these entries the same way it offers any other provider's, and a signed-in reader can talk to a model without touching a key field.
 
 ### Minimal configuration
 

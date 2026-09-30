@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useState, type ReactNode } from 'react'
 import type { PluginInventorySnapshot } from '@aeven/api-remotes/client'
 import {
   IconChevronDownOutline14,
+  IconLucideCircleDot,
   IconSearchOutline16,
   Menu,
 } from '@aeven/client-ui-primitives'
@@ -157,7 +158,9 @@ function PhaseDot({ phase, t }: { readonly phase: NonNullable<PluginFiberPhase>;
       role="img"
       aria-label={status}
       title={status}
-    />
+    >
+      {phase === 'active' && <IconLucideCircleDot />}
+    </span>
   )
 }
 

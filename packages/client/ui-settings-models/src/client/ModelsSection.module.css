@@ -24,83 +24,20 @@
   color: var(--dsw-alias-state-success-primary);
 }
 
-.rows {
-  list-style: none;
-  /* Extra air between the title/intro block and the first provider card. */
-  margin: 12px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* A configured provider: outlined on the panel fill, so the filled editor
-   card it expands into reads as the nested object. */
-.rowCard {
-  border: 0.5px solid var(--dsw-alias-border-l4);
+.empty {
+  margin: 0;
+  padding: 18px 14px;
+  border: 0.5px dashed var(--dsw-alias-border-l3);
   border-radius: 16px;
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.rowHead {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.rowIdentity {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.rowName {
-  font-size: 14px;
-  line-height: 22px;
-  font-weight: 400;
-  color: var(--dsw-alias-label-primary);
-}
-
-/* Reads as an annotation on the name, not as a second name: caption size and
-   the secondary label tone, so it never competes with the row's own title. It
-   sits inside `rowIdentity` with the credential dot, which is what keeps it
-   beside the name rather than drifting toward the actions. */
-.rowTag {
-  flex: none;
-  padding: 1px 6px;
-  border: 0.5px solid var(--dsw-alias-border-l3);
-  border-radius: 4px;
-  font-size: 11px;
-  line-height: 16px;
+  font-size: 13px;
+  line-height: 20px;
+  text-align: center;
   color: var(--dsw-alias-label-secondary);
 }
 
-.credentialDot {
-  box-sizing: border-box;
-  display: inline-block;
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.credentialDotConfigured {
-  background: var(--dsw-alias-state-success-primary);
-}
-
-.credentialDotMissing {
-  background: var(--dsw-alias-state-error-primary);
-}
-
-.rowActions {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: auto;
+.rows {
+  /* Extra air between the title/intro block and the first provider card. */
+  margin: 12px 0 0;
 }
 
 /* `box-sizing` on every control here: the app has no global border-box reset,
@@ -114,10 +51,10 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
-  height: 36px;
+  height: var(--dsw-aeven-control-size);
   padding: 0 14px;
   border: none;
-  border-radius: 18px;
+  border-radius: var(--dsw-aeven-radius-control);
   font: inherit;
   font-size: 14px;
   line-height: 22px;
@@ -149,40 +86,8 @@
   background: var(--dsw-alias-interactive-bg-hover-solid);
 }
 
-.dangerButton {
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 36px;
-  padding: 0 14px;
-  border: none;
-  border-radius: 18px;
-  background: transparent;
-  color: var(--dsw-alias-state-error-primary);
-  font: inherit;
-  font-size: 14px;
-  line-height: 22px;
-  cursor: pointer;
-}
-
-.dangerButton:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-hover-danger);
-}
-
-/* Provider-row controls take the dense capsule (Button `.sm`). */
-.rowActions .secondaryButton,
-.rowActions .dangerButton {
-  height: 28px;
-  padding: 0 10px;
-  border-radius: 14px;
-  font-size: 12px;
-  line-height: 18px;
-}
-
 .primaryButton:disabled,
 .secondaryButton:disabled,
-.dangerButton:disabled,
 .addButton:disabled,
 .linkButton:disabled,
 .addModelButton:disabled {
@@ -192,7 +97,6 @@
 
 .primaryButton:focus-visible,
 .secondaryButton:focus-visible,
-.dangerButton:focus-visible,
 .addButton:focus-visible,
 .linkButton:focus-visible,
 .addModelButton:focus-visible,
@@ -310,8 +214,7 @@
   border-radius: 16px;
 }
 
-.addCard,
-.setupCard {
+.addCard {
   border-radius: 12px;
   background: var(--dsw-alias-bg-module-platform);
   padding: 14px 16px;
@@ -322,8 +225,7 @@
 }
 
 /* Nested in a card that already carries the module chrome. */
-.addCard .editor,
-.setupCard .editor {
+.addCard .editor {
   background: none;
   padding: 0;
 }

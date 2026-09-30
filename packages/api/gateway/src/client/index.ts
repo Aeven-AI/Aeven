@@ -482,11 +482,13 @@ class ClientRemoteService extends Service implements ClientRemote {
   ): PreparedClientInvocation {
     const endpoint = endpointOf(descriptor)
     const expected = descriptor.parameters.length - (projection?.parameterIndex === undefined ? 0 : 1)
+    const required = requiredArgumentCount(descriptor, projection)
     const hasCallerSignal = descriptor.cancellation !== undefined && values.length === expected + 1
-    if (values.length !== expected && !hasCallerSignal) {
+    if (!hasCallerSignal && (values.length > expected || values.length < required)) {
+      const accepted = required === expected ? String(expected) : `${String(required)}-${String(expected)}`
       const contract = descriptor.cancellation === undefined
-        ? `${String(expected)} argument(s)`
-        : `${String(expected)} business argument(s) plus an optional AbortSignal`
+        ? `${accepted} argument(s)`
+        : `${accepted} business argument(s) plus an optional AbortSignal`
       throw new Error(
         `client api: ${endpoint} expected ${contract}, got ${String(values.length)}`,
       )
@@ -666,6 +668,21 @@ function endpointOf(descriptor: Pick<InvocationDescriptor, 'namespace' | 'method
 
 function mountActive(token: MountToken): boolean {
   return token.active
+}
+
+/**
+ * Count the arguments an invocation requires. Authored optional parameters are trailing, so
+ * only a trailing run of them shortens the count a caller must supply.
+ * @param descriptor - resolved invocation descriptor.
+ * @param projection - Context receiver or scope projection excluded from caller arguments.
+ * @returns the smallest accepted argument count.
+ */
+function requiredArgumentCount(descriptor: InvocationDescriptor, projection: ScopedProjection | undefined): number {
+  const supplied = descriptor.parameters
+    .filter((_parameter, index) => index !== projection?.parameterIndex)
+  let required = supplied.length
+  while (required > 0 && supplied[required - 1]?.optional === true) required -= 1
+  return required
 }
 
 function scopedProjection(descriptor: InvocationDescriptor): ScopedProjection | undefined {

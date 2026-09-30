@@ -26,11 +26,8 @@
  * difference between this route and `deepseek-official`, and it is why signing
  * in is enough.
  *
- * Two facts make it fit the existing first-run flow without touching it:
- * `providerUsable` in the Models page treats a route whose credential is
- * configured as usable, and the step ends as soon as *any* route is; and the
- * catalog is announced through `registerModelDiscovery`, so the picker offers
- * these models the same way it offers any other provider's.
+ * The catalog is announced through `registerModelDiscovery`, so the picker
+ * offers these models the same way it offers any other provider's.
  *
  * @module @aeven/llm-aeven
  */

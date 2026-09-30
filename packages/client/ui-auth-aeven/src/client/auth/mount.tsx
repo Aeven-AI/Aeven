@@ -12,6 +12,7 @@
 import { createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 
+import { Popup } from './com/Popup.tsx'
 import { Authenticate } from './views/Authenticate.tsx'
 import { NameCheck } from './views/NameCheck.tsx'
 import { OauthResult } from './views/OauthResult.tsx'
@@ -70,9 +71,11 @@ export function mountAuthScreen(container: Element, pathname: string): MountedAu
     // The stylesheet is rooted at `#app-root > .view-container > .view`, so the
     // screen is given the ancestors its rules select on. Without them the
     // components still style themselves and the layout does not, which reads
-    // as a page that almost works.
+    // as a page that almost works. The popup portals itself to the body, so
+    // where it sits here only ties its lifetime to the screen's.
     root.render(
       createElement('div', { id: 'app-root', style: { height: '100%', width: '100%' } },
+        createElement(Popup),
         createElement('div', { className: 'view-container' }, screen)),
     )
   }
@@ -134,6 +137,7 @@ export function mountNameScreen(container: Element, pathname: string): MountedAu
     // step is given the ancestors its rules select on, exactly as the sign-in
     // screens are.
     createElement('div', { id: 'app-root', style: { height: '100%', width: '100%' } },
+      createElement(Popup),
       createElement('div', { className: 'view-container' },
         createElement(NameCheck, {
           onNamed: () => {

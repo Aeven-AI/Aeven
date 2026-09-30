@@ -2,7 +2,7 @@
 /** Dynamic ui-theme entry owns the global styles in dependency order. */
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
-import { installThemeStyles } from '../src/client/styles.ts'
+import { installThemeStyles, mountThemeStyles } from '../src/client/styles.ts'
 
 const PLUGIN_ID = '@aeven/client-ui-theme'
 
@@ -28,6 +28,14 @@ describe('ui-theme client styles', () => {
       `${PLUGIN_ID}/highlight.css`,
     ])
     await fiber.dispose()
+    expect(document.head.querySelectorAll(`style[data-plugin="${PLUGIN_ID}"]`)).toHaveLength(0)
+  })
+
+  it('mounts the same sheets without a plugin and removes them on request', () => {
+    const remove = mountThemeStyles()
+    const styles = [...document.head.querySelectorAll<HTMLStyleElement>(`style[data-plugin="${PLUGIN_ID}"]`)]
+    expect(styles.map(style => style.dataset.pluginCss)).toHaveLength(6)
+    remove()
     expect(document.head.querySelectorAll(`style[data-plugin="${PLUGIN_ID}"]`)).toHaveLength(0)
   })
 })

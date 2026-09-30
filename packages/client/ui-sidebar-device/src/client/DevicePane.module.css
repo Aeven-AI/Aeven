@@ -55,7 +55,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
+  font-size: 14px;
   text-overflow: ellipsis;
 }
 
@@ -70,7 +70,7 @@
   border: none;
   border-radius: 15px;
   background: transparent;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--dsw-alias-label-primary);
   cursor: pointer;
   transition: background-color 150ms ease, color 150ms ease;
 }
@@ -83,7 +83,6 @@
 .iconButton:hover:not(:disabled),
 .iconButton[aria-pressed='true'] {
   background: var(--dsw-alias-bg-base);
-  color: var(--dsw-alias-label-primary);
 }
 
 .iconButton:disabled {
@@ -254,12 +253,6 @@
   border-radius: 50%;
 }
 
-.stateDot[data-booted] {
-  border: none;
-  background: var(--dsw-alias-state-success-primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dsw-alias-state-success-primary) 16%, transparent);
-}
-
 .rowTitle {
   flex: 0 1 auto;
   min-width: 0;
@@ -272,7 +265,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
+  font-size: 14px;
   text-align: right;
   text-overflow: ellipsis;
 }
@@ -488,7 +481,8 @@
 }
 
 /* The drawer floats over the screen in a narrow column and docks beside it
-   once the column is wide enough for both. */
+   once the column is wide enough for both. A plain white surface with a drop
+   shadow, carrying no edge stroke or inner highlight. */
 .drawer {
   position: absolute;
   top: 0;
@@ -501,7 +495,7 @@
   overflow: hidden;
   border-radius: 20px;
   background: var(--dsw-alias-bg-layer-1);
-  box-shadow: var(--device-glass-edge), 0 12px 40px rgba(0, 0, 0, 0.14);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.16);
   font-size: 13px;
 }
 
@@ -531,12 +525,13 @@
   margin-left: auto;
 }
 
+/* Scrolling without a visible bar: the drawer carries the global
+   `.no-scrollbar` opt-out (ui-theme scrollbar.css). */
 .drawerBody {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
   padding: 0 0 12px;
-  scrollbar-width: thin;
 }
 
 .section {
@@ -896,6 +891,9 @@
 }
 
 .status {
+  /* The row's leading mark reads at the status icon's size, set on the wrapper
+     the primitive exposes rather than on the glyph inside it. */
+  --avn-spinner-size: 14px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -904,7 +902,7 @@
   font-size: 12px;
 }
 
-.status svg {
+.status > svg {
   width: 14px;
   height: 14px;
 }

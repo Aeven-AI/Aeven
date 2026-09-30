@@ -1,14 +1,13 @@
 import { createHash } from 'node:crypto'
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join, relative, sep } from 'node:path'
+import { join, relative, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { resolveDesktopPaths } from '../src/paths.ts'
 import {
   createSeedMetadata,
   DesktopProjectManager,
-  packageNameFromSpec,
   verifySeedIntegrity,
   type DesktopProjectHooks,
 } from '../src/project-manager.ts'
@@ -173,14 +172,6 @@ afterEach(async () => {
 })
 
 describe('desktop package policy', () => {
-  it('accepts registry package specs but rejects alternate sources and flags', () => {
-    expect(packageNameFromSpec('@scope/plugin@1.2.3')).toBe('@scope/plugin')
-    expect(packageNameFromSpec('plugin@next')).toBe('plugin')
-    expect(() => packageNameFromSpec('file:../plugin')).toThrow(/unsupported npm package spec/u)
-    expect(() => packageNameFromSpec('--registry=evil')).toThrow(/unsupported npm package spec/u)
-    expect(() => packageNameFromSpec('https://example.test/plugin.tgz')).toThrow(/unsupported npm package spec/u)
-  })
-
   it('rejects any seed content changed after release inventory generation', () => {
     const seed = join(temporaryRoot(), 'seed')
     createTestSeedMetadata(seed, release())
@@ -246,59 +237,6 @@ describe('desktop project transactions', () => {
     expect(invocation.env.npm_config_registry).toBeUndefined()
   })
 
-  it('restores the active project when the replacement backend cannot start', async () => {
-    const root = temporaryRoot()
-    const seed = join(root, 'seed')
-    createTestSeedMetadata(seed, release())
-    writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
-    archiveStore(seed)
-    writeIntegrity(seed)
-    const paths = resolveDesktopPaths(join(root, '.aeven'))
-    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
-    await manager.applyRelease(seed, '1.0.0', hooks())
-    let starts = 0
-    await expect(manager.mutate({ type: 'plugin-add', spec: '@scope/plugin@2.0.0' }, hooks({
-      afterActivate: async () => {
-        starts += 1
-        if (starts === 1) throw new Error('backend rejected staged graph')
-      },
-    }))).rejects.toThrow(/backend rejected staged graph/u)
-    expect(manager.listPlugins()).toEqual([])
-    expect(manager.avnVersion()).toBe('1.0.0')
-    expect(starts).toBe(2)
-  })
-
-  it('restores rollback when the active move completed before its journal update', async () => {
-    const root = temporaryRoot()
-    const seed = join(root, 'seed')
-    createTestSeedMetadata(seed, release())
-    writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
-    archiveStore(seed)
-    writeIntegrity(seed)
-    const paths = resolveDesktopPaths(join(root, '.aeven'))
-    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
-    await manager.applyRelease(seed, '1.0.0', hooks())
-    await manager.mutate({ type: 'plugin-add', spec: '@scope/plugin@2.0.0' }, hooks())
-    const stagingProfile = join(paths.staging, 'interrupted', 'profile')
-    mkdirSync(stagingProfile, { recursive: true })
-    writeFileSync(join(stagingProfile, 'marker'), 'staging')
-    rmSync(paths.rollback, { recursive: true, force: true })
-    mkdirSync(dirname(paths.rollback), { recursive: true })
-    renameSync(paths.profile, paths.rollback)
-    writeFileSync(paths.pending, `${JSON.stringify({
-      schemaVersion: 1,
-      id: 'interrupted',
-      stagingProfile,
-      step: 'prepared',
-    })}\n`)
-
-    manager.recover()
-
-    expect(manager.listPlugins()).toEqual([{ name: '@scope/plugin', version: '2.0.0' }])
-    expect(existsSync(stagingProfile)).toBe(false)
-    expect(existsSync(paths.pending)).toBe(false)
-  })
-
   it('records the live pnpm worker as transaction owner until it exits', async ({ task, signal }) => {
     const root = temporaryRoot()
     const seed = join(root, 'seed')
@@ -334,41 +272,6 @@ describe('desktop project transactions', () => {
     expect(existsSync(paths.lock)).toBe(false)
   })
 
-  it('keeps core packages local while installing plugins from the desktop registry', async () => {
-    const root = temporaryRoot()
-    const seed = join(root, 'seed')
-    const log = join(root, 'pnpm-log.json')
-    createTestSeedMetadata(seed, release())
-    writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
-    archiveStore(seed)
-    writeIntegrity(seed)
-    const paths = resolveDesktopPaths(join(root, '.aeven'))
-    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
-    await manager.applyRelease(seed, '1.0.0', hooks())
-    const previousLog = process.env.TEST_PNPM_LOG
-    process.env.TEST_PNPM_LOG = log
-    try {
-      await manager.mutate({ type: 'plugin-add', spec: '@scope/plugin@2.0.0' }, hooks())
-    } finally {
-      if (previousLog === undefined) delete process.env.TEST_PNPM_LOG
-      else process.env.TEST_PNPM_LOG = previousLog
-    }
-
-    const manifest = JSON.parse(readFileSync(join(paths.profile, 'package.json'), 'utf8')) as {
-      dependencies: Record<string, string>
-    }
-    const coreSpec = manifest.dependencies['@aeven/cli']
-    expect(coreSpec).toMatch(/^file:\.\/desktop-packages\//u)
-    expect(readFileSync(join(paths.profile, 'pnpm-workspace.yaml'), 'utf8'))
-      .toContain(`${JSON.stringify('@aeven/cli')}: ${JSON.stringify(coreSpec)}`)
-    expect(manifest.dependencies['@scope/plugin']).toBe('2.0.0')
-    const invocation = JSON.parse(readFileSync(log, 'utf8')) as { args: string[]; env: Record<string, string> }
-    expect(invocation.args).toContain('add')
-    expect(invocation.args).toContain('@scope/plugin@2.0.0')
-    expect(invocation.args).toContain('--config.registry=https://registry.npmjs.org/')
-    expect(invocation.env.NPM_CONFIG_REGISTRY).toBe('https://registry.npmjs.org/')
-  })
-
   it('reconciles avn to the packaged release without removing desktop plugins', async () => {
     const root = temporaryRoot()
     const paths = resolveDesktopPaths(join(root, '.aeven'))
@@ -381,7 +284,21 @@ describe('desktop project transactions', () => {
     archiveStore(firstSeed)
     writeIntegrity(firstSeed)
     await manager.applyRelease(firstSeed, '1.0.0', hooks())
-    await manager.mutate({ type: 'plugin-add', spec: '@scope/plugin@2.0.0' }, hooks())
+    // An installed plugin is the profile manifest entry, the installed package,
+    // and the profile bundle list; seeding all three stands in for the install
+    // itself, which no Desktop surface performs.
+    const installed = JSON.parse(readFileSync(join(paths.profile, 'package.json'), 'utf8')) as {
+      dependencies: Record<string, string>
+      avn: { profile: { bundles: string[] } }
+    }
+    installed.dependencies['@scope/plugin'] = '2.0.0'
+    installed.avn.profile.bundles = [...installed.avn.profile.bundles, '@scope/plugin']
+    writeFileSync(join(paths.profile, 'package.json'), `${JSON.stringify(installed, undefined, 2)}\n`)
+    mkdirSync(join(paths.profile, 'node_modules', '@scope', 'plugin'), { recursive: true })
+    writeFileSync(
+      join(paths.profile, 'node_modules', '@scope', 'plugin', 'package.json'),
+      '{"name":"@scope/plugin","version":"2.0.0"}\n',
+    )
 
     const nextSeed = join(root, 'seed-2')
     createTestSeedMetadata(nextSeed, release('1.1.0'))
@@ -394,7 +311,6 @@ describe('desktop project transactions', () => {
     await expect(manager.applyRelease(nextSeed, '1.1.0', hooks())).resolves.toBe(true)
     expect(manager.releaseVersion()).toBe('1.1.0')
     expect(manager.avnVersion()).toBe('1.1.0')
-    expect(manager.listPlugins()).toEqual([{ name: '@scope/plugin', version: '2.0.0' }])
     const profile = JSON.parse(readFileSync(join(paths.profile, 'package.json'), 'utf8')) as {
       avn: { profile: { bundles: string[] } }
     }

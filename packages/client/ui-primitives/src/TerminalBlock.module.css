@@ -5,9 +5,9 @@
      pattern): a surface wanting the smaller code size rebinds this together
      with --dsl-terminal-line-height on its own container. */
   --dsl-terminal-font: var(--dsw-font-markdown-code-block);
-  /* The card's own left inset, holding the run-state dot in a column of its own
-     so it never competes with the commands for horizontal space. */
-  --dsl-terminal-gutter: 30px;
+  /* The card's own left inset, the table card's 16px: the run-state dot sits
+     inline in the first command line rather than in a gutter of its own. */
+  --dsl-terminal-gutter: 16px;
 
   position: relative;
   margin: 16px 0;
@@ -49,11 +49,6 @@
   overflow-y: auto;
 }
 
-/* A card whose host row already shows the run state draws no dot, so its
-   gutter narrows to the header's own 16px inset. */
-.block[data-dotless] {
-  --dsl-terminal-gutter: 16px;
-}
 
 /* Full-width l2 hairline between the command banner and the body — the same
    divider the IN/OUT card draws between its sections. A card with no body yet
@@ -80,15 +75,17 @@
   line-height: var(--dsl-terminal-line-height);
 }
 
-/* Out of flow inside the card's own gutter padding, so the reservation and the
-   dot move together and no consumer margin can pull them apart; the dot neither
-   indents its command nor depends on the command's text metrics to line up.
-   Centered against the row's line box, not the code font's baseline. */
+/* The first command line's leading slot: 16px wide, one line tall, the dot
+   centred in it, so the dot lines up with the command text instead of
+   depending on the code font's baseline. */
 .runState {
-  position: absolute;
-  left: calc(-1 * var(--dsl-terminal-gutter) + 8px);
-  top: 50%;
-  transform: translateY(-50%);
+  flex: none;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: var(--dsl-terminal-line-height);
 }
 
 /* The dot is aria-hidden; this is its text label for assistive technology. */

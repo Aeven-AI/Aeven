@@ -1,25 +1,28 @@
 /**
- * Models settings section: the provider rows joined from the configurable
- * directory, settings namespaces, and credential states, with one editor
- * card at a time. Rows expose only confirmed API-key state through accessible
- * solid configured or missing dots. A whole-section provider without a
- * configured key renders as its open setup card instead of a row, but only in
- * the first-run posture — no provider on the page can serve requests yet — and
- * only until the user closes that card; the add flow is a card carrying the
- * dormant-provider select. Each card kind owns its own open state, so closing
- * one never discards a draft in another. Every mutation writes through the
- * wire, while a provider removal first requires confirmation; the page
- * re-renders from pushed invalidations or the post-apply reload.
+ * Model providers settings section: the configured provider rows joined from
+ * the configurable directory, settings namespaces, and credential states,
+ * with one editor card at a time. No provider is configured by default; the
+ * add flow is a card carrying the select of every dormant provider, and a
+ * switchable whole-section provider (one whose section declares `enabled`)
+ * is added by switching it on and removed by switching it off. Rows expose
+ * only confirmed API-key state through accessible solid configured or missing
+ * dots. Each card kind owns its own open state, so closing one never discards
+ * a draft in another. Every mutation writes through the wire, while a
+ * provider removal first requires confirmation; the page re-renders from
+ * pushed invalidations or the post-apply reload.
  */
 
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { Button, IconPlusOutline16, Modal, SectionHeader } from '@aeven/client-ui-primitives'
+import type { SettingsNamespaceView, SettingsPathOpView } from '@aeven/api-remotes/client'
+import {
+  Button, IconPlusOutline16, Modal, ProviderRow as ProviderRowCard, ProviderRowButton, ProviderRowList, SectionHeader,
+} from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsRenderSlots } from '@aeven/client-ui-slots'
 // Type-only: pulls this package's SlotMap merge (the two Models child slots).
 import type {} from './slot-contract.ts'
 import { CustomProviderCard } from './CustomProviderCard.tsx'
-import { deriveKeyRef, protocolChoices, providerUsable } from './store.ts'
+import { deriveKeyRef, ENABLED_FIELD, protocolChoices } from './store.ts'
 import type { ModelsSettingsStore, ProviderRow } from './store.ts'
 import type { ModelsOperations } from './operations.ts'
 import type { SettingsSchemaOperations } from './schema-operations.ts'
@@ -76,72 +79,58 @@ interface EditorTarget extends ProviderIdentity {
   credentialRef?: string
   /** The adapter reports this route as one it does not ship (see {@link ProviderEditorProps.declared}). */
   declared?: boolean
-}
-
-/** Values that vary around the shared provider-editor rendering. */
-interface ProviderEditorRenderProps extends Pick<
-  ProviderEditorProps,
-  'namespace' | 'schema' | 'operations' | 't' | 'readOnly' | 'onClose'
-> {
-  target: EditorTarget
-}
-
-/** Render an editor for either the setup posture or an expanded provider row. */
-function renderProviderEditor({ target, ...props }: ProviderEditorRenderProps): ReactNode {
-  return (
-    <ProviderEditor
-      provider={target.provider}
-      displayName={target.displayName}
-      settingsPath={target.settingsPath}
-      {...target.declared === true ? { declared: true } : {}}
-      {...props}
-    />
-  )
+  /** The whole-section provider is added and removed through its `enabled` field. */
+  switchable?: boolean
 }
 
 /**
- * Remove one user-added provider and its page-managed credential. Credential
- * removal comes first so a second-step failure leaves the provider row visible
- * and the whole operation safely retryable; both unsets are idempotent.
- * The settings removal names the profile rather than rebuilding its whole
- * namespace from a partial view.
+ * The settings ops that take one provider off the page. A keyed profile is
+ * unset by name rather than rebuilding its namespace from a partial view. A
+ * switchable whole-section provider drops every user-layer field and ends
+ * switched off, so adding it again starts from the composition's values.
+ * @param target - the provider's settings address.
+ * @param namespace - the owning namespace view.
+ * @param schema - settings schema and immutable path callbacks.
+ * @returns the ordered path ops.
+ */
+export function removalOps(
+  target: Pick<EditorTarget, 'settingsPath' | 'switchable'>,
+  namespace: SettingsNamespaceView,
+  schema: SettingsSchemaOperations,
+): SettingsPathOpView[] {
+  if (target.switchable !== true) return [{ op: 'unset', path: [...target.settingsPath] }]
+  const user = namespace.user
+  const keys = typeof user === 'object' && user !== null && !Array.isArray(user) ? Object.keys(user) : []
+  const baseOff = schema.getPath(namespace.base, [ENABLED_FIELD]) === false
+  const ops: SettingsPathOpView[] = keys
+    .filter(key => baseOff || key !== ENABLED_FIELD)
+    .map(key => ({ op: 'unset', path: [key] }))
+  if (!baseOff) ops.push({ op: 'set', path: [ENABLED_FIELD], value: false })
+  return ops
+}
+
+/**
+ * Remove one provider and its page-managed credential. Credential removal
+ * comes first so a second-step failure leaves the provider row visible and
+ * the whole operation safely retryable; every op is idempotent.
  * @param operations - the page's Host operations.
  * @param controller - the page store to refresh.
- * @param target - the provider's settings address and optional managed credential.
+ * @param target - the owning namespace, its removal ops, and optional managed credential.
  * @returns the failure message, or undefined once the write and reload landed.
  */
 export async function removeProviderProfile(
   operations: ModelsOperations,
   controller: ModelsSettingsStore,
-  target: { settingsNs: string; settingsPath: readonly string[]; credentialRef?: string },
+  target: { settingsNs: string; ops: readonly SettingsPathOpView[]; credentialRef?: string },
 ): Promise<string | undefined> {
   if (target.credentialRef !== undefined) {
     const credential = await operations.removeCredential(target.credentialRef)
     if (credential !== undefined) return credential
   }
-  const written = await operations.writeSettings(
-    target.settingsNs,
-    [{ op: 'unset', path: [...target.settingsPath] }],
-    undefined,
-  )
+  const written = await operations.writeSettings(target.settingsNs, [...target.ops], undefined)
   if (written.kind !== 'written') return written.message
   await controller.load()
   return undefined
-}
-
-/**
- * Whether a whole-section provider still needs its first key: an unconfigured
- * credential opens the setup card instead of showing a row. This is the
- * first-run posture alone — a user who can already reach some provider gets an
- * ordinary row with the missing-key dot, since nothing here is blocking them.
- * @param row - the joined provider row.
- * @param anyUsable - whether any joined row can already serve requests.
- * @returns whether to render the setup card.
- */
-export function needsSetup(row: ProviderRow, anyUsable: boolean): boolean {
-  if (anyUsable) return false
-  if (row.entry.settingsPath.length > 0) return false
-  return row.credential?.configured !== true
 }
 
 /**
@@ -158,8 +147,11 @@ function keyConfiguredOf(row: ProviderRow): boolean {
 }
 
 function targetOf(row: ProviderRow): EditorTarget {
-  const managedRef = deriveKeyRef(row.entry.provider)
-  const credentialRef = row.apiKeyEnv === managedRef
+  // A switchable section's own reference is the one its card writes keys
+  // through; a keyed profile's is the page's derived `<ROUTE>_API_KEY`.
+  const managedRef = row.switchable ? row.apiKeyEnv : deriveKeyRef(row.entry.provider)
+  const credentialRef = managedRef !== undefined
+    && row.apiKeyEnv === managedRef
     && row.credential?.configured === true
     && row.credential.writable
     ? managedRef
@@ -172,7 +164,17 @@ function targetOf(row: ProviderRow): EditorTarget {
     ...credentialRef === undefined ? {} : { credentialRef },
     // Only declared routes may expose route-owned fields.
     ...row.entry.declared === true ? { declared: true } : {},
+    ...row.switchable ? { switchable: true } : {},
   }
+}
+
+/**
+ * Order add-select candidates by the name a person scans for, so no adapter
+ * family is listed first by registration order alone.
+ */
+function byDisplayName(left: ProviderRow, right: ProviderRow): number {
+  return left.entry.displayName.localeCompare(right.entry.displayName, undefined, { numeric: true, sensitivity: 'base' })
+    || left.entry.provider.localeCompare(right.entry.provider)
 }
 
 /** Stable visible and accessible identity for one provider target. */
@@ -211,7 +213,6 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
   const [deleteFailure, setDeleteFailure] = useState<string | undefined>(undefined)
   const [savedTarget, setSavedTarget] = useState<ProviderIdentity | undefined>(undefined)
   const [declaring, setDeclaring] = useState(false)
-  const [dismissedSetup, setDismissedSetup] = useState<ReadonlySet<string>>(() => new Set())
 
   const announceSaved = (target: ProviderIdentity): void => {
     // Announced only once the refreshed directory is in the snapshot the
@@ -227,18 +228,6 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
     if (changed) announceSaved(target)
   }
 
-  /**
-   * Close a setup card, which owns none of the state above: the row-editor,
-   * add, and declare cards each own one of those, so clearing them here would
-   * discard a draft the user opened beside this card. Dismissal is this card's
-   * own — the provider falls back to an ordinary row for the rest of the
-   * session, and reopens through Edit.
-   */
-  const closeSetup = (changed: boolean, target: ProviderIdentity): void => {
-    setDismissedSetup(previous => new Set([...previous, target.provider]))
-    if (changed) announceSaved(target)
-  }
-
   const closeDelete = (): void => {
     if (deleting) return
     setDeleteTarget(undefined)
@@ -248,9 +237,16 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
   const confirmDelete = (): void => {
     /* v8 ignore next -- the action only renders with a target and is disabled while a deletion is pending */
     if (deleteTarget === undefined || deleting) return
+    const namespace = state.namespaces.get(deleteTarget.settingsNs)
+    /* v8 ignore next -- a removable row always resolved its namespace */
+    if (namespace === undefined) return
     setDeleting(true)
     setDeleteFailure(undefined)
-    void removeProviderProfile(operations, controller, deleteTarget)
+    void removeProviderProfile(operations, controller, {
+      settingsNs: deleteTarget.settingsNs,
+      ops: removalOps(deleteTarget, namespace, schema),
+      ...deleteTarget.credentialRef === undefined ? {} : { credentialRef: deleteTarget.credentialRef },
+    })
       .then((failure) => {
         if (failure !== undefined) {
           setDeleteFailure(failure)
@@ -287,11 +283,19 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
     ? savedTarget
     : { provider: savedRow.entry.provider, displayName: savedRow.entry.displayName }
 
-  // One fact decides both first-run postures on this page and the onboarding
-  // step: whether the user already has a provider to talk to.
-  const anyUsable = state.rows.some(providerUsable)
   const configured = state.rows.filter(row => row.configured)
-  const addable = state.rows.filter(row => !row.configured && row.entry.settingsNs !== '')
+  // A dormant keyed profile is added by writing it; a dormant whole-section
+  // provider only when its section can switch it on.
+  const addable = state.rows
+    .filter(row => !row.configured && row.entry.settingsNs !== ''
+      && (row.entry.settingsPath.length > 0 || row.switchable))
+    .sort(byDisplayName)
+  // Two adapter families may ship a route under the same name; the route id
+  // tells their options apart.
+  const addLabel = (row: ProviderRow): string =>
+    addable.some(other => other !== row && other.entry.displayName === row.entry.displayName)
+      ? providerTargetLabel(row.entry)
+      : row.entry.displayName
   const addTarget = adding ? editing : undefined
   const addNamespace = addTarget === undefined ? undefined : state.namespaces.get(addTarget.settingsNs)
   // The draft's directory row, for the card extension seat. A refresh can drop
@@ -316,126 +320,95 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
             {providerCopy(t('savedProvider'), savedIdentity)}
           </p>
         )}
-      <ul className={styles['rows']}>
-        {configured.map((row) => {
-          const target = targetOf(row)
-          const namespace = state.namespaces.get(target.settingsNs)
-          /* v8 ignore next -- the join marks a row configured only when its namespace resolved */
-          if (namespace === undefined) return null
-          if (needsSetup(row, anyUsable) && !dismissedSetup.has(row.entry.provider)) {
-            // First-run posture: the provider exists but has no key — the
-            // setup card IS its presence on the page, until the user closes it.
+      {configured.length === 0 && state.status === 'ready'
+        ? <p className={styles['empty']}>{t('empty')}</p>
+        : null}
+      <div className={styles['rows']}>
+        <ProviderRowList>
+          {configured.map((row) => {
+            const target = targetOf(row)
+            const namespace = state.namespaces.get(target.settingsNs)
+            /* v8 ignore next -- the join marks a row configured only when its namespace resolved */
+            if (namespace === undefined) return null
+            const open = !adding && editing?.provider === row.entry.provider
+            const credentialConfigured = row.credential?.configured === true
+            const credentialMissing = !credentialConfigured
+              && row.apiKeyEnv !== undefined
+              && row.credential?.configured === false
             return (
-              <li key={row.entry.provider} className={styles['setupCard']}>
-                {renderProviderEditor({
-                  target,
-                  namespace,
-                  schema,
-                  operations,
-                  t,
-                  readOnly: !state.writable,
-                  onClose: (changed) => { closeSetup(changed, target) },
-                })}
+              <ProviderRowCard
+                key={row.entry.provider}
+                name={row.entry.displayName}
+                // Only the adapter can tell a hand-declared route from a
+                // shipped one it also has a stored profile for, so the tag
+                // follows its answer and stays off when it gives none.
+                tag={row.entry.declared === true ? t('customTag') : undefined}
+                status={credentialConfigured
+                  ? { tone: 'ok', label: t('credentialConfigured') }
+                  : credentialMissing
+                    ? { tone: 'missing', label: t('credentialMissing') }
+                    : undefined}
+                actions={(
+                  <>
+                    <ProviderRowButton
+                      aria-label={providerCopy(t('editProvider'), target)}
+                      onClick={() => {
+                        setSavedTarget(undefined)
+                        // One card at a time: leaving `declaring` set would show
+                        // the create card beside this editor, and closing either
+                        // one discards the other's draft.
+                        setDeclaring(false)
+                        setAdding(false)
+                        setEditing(open ? undefined : target)
+                      }}
+                    >
+                      {t('edit')}
+                    </ProviderRowButton>
+                    {row.removable
+                      ? (
+                        <ProviderRowButton
+                          tone="danger"
+                          aria-label={providerCopy(t('removeProvider'), target)}
+                          disabled={!state.writable}
+                          onClick={() => {
+                            setSavedTarget(undefined)
+                            setDeleteFailure(undefined)
+                            setDeleteTarget(target)
+                          }}
+                        >
+                          {t('remove')}
+                        </ProviderRowButton>
+                      )
+                      : null}
+                  </>
+                )}
+              >
                 {renderSlot(
                   'settings.models.provider-card',
                   { provider: row.entry, configured: row.configured, keyConfigured: keyConfiguredOf(row) },
                   { entryKey: row.entry.settingsNs },
                 )}
-              </li>
+                {open
+                  ? (
+                    <ProviderEditor
+                      provider={target.provider}
+                      displayName={target.displayName}
+                      settingsPath={target.settingsPath}
+                      {...target.declared === true ? { declared: true } : {}}
+                      namespace={namespace}
+                      schema={schema}
+                      operations={operations}
+                      t={t}
+                      readOnly={!state.writable}
+                      onClose={(changed) => { closeEditor(changed, target) }}
+                    />
+                  )
+                  : null}
+              </ProviderRowCard>
             )
-          }
-          const open = !adding && editing?.provider === row.entry.provider
-          const credentialConfigured = row.credential?.configured === true
-          const credentialMissing = !credentialConfigured
-            && row.apiKeyEnv !== undefined
-            && row.credential?.configured === false
-          return (
-            <li key={row.entry.provider} className={styles['rowCard']}>
-              <div className={styles['rowHead']}>
-                <span className={styles['rowIdentity']}>
-                  <span className={styles['rowName']}>{row.entry.displayName}</span>
-                  {/* Only the adapter can tell a hand-declared route from a
-                      shipped one it also has a stored profile for, so the tag
-                      follows its answer and stays off when it gives none. */}
-                  {row.entry.declared === true
-                    ? <span className={styles['rowTag']}>{t('customTag')}</span>
-                    : null}
-                  {credentialConfigured
-                    ? (
-                      <span
-                        className={`${styles['credentialDot']} ${styles['credentialDotConfigured']}`}
-                        role="img"
-                        aria-label={t('credentialConfigured')}
-                        title={t('credentialConfigured')}
-                      />
-                    )
-                    : credentialMissing
-                      ? (
-                        <span
-                          className={`${styles['credentialDot']} ${styles['credentialDotMissing']}`}
-                          role="img"
-                          aria-label={t('credentialMissing')}
-                          title={t('credentialMissing')}
-                        />
-                      )
-                      : null}
-                </span>
-                <span className={styles['rowActions']}>
-                  <button
-                    type="button"
-                    className={styles['secondaryButton']}
-                    aria-label={providerCopy(t('editProvider'), target)}
-                    onClick={() => {
-                      setSavedTarget(undefined)
-                      // One card at a time: leaving `declaring` set would show
-                      // the create card beside this editor, and closing either
-                      // one discards the other's draft.
-                      setDeclaring(false)
-                      setAdding(false)
-                      setEditing(open ? undefined : target)
-                    }}
-                  >
-                    {t('edit')}
-                  </button>
-                  {row.removable
-                    ? (
-                      <button
-                        type="button"
-                        className={styles['dangerButton']}
-                        aria-label={providerCopy(t('removeProvider'), target)}
-                        disabled={!state.writable}
-                        onClick={() => {
-                          setSavedTarget(undefined)
-                          setDeleteFailure(undefined)
-                          setDeleteTarget(target)
-                        }}
-                      >
-                        {t('remove')}
-                      </button>
-                    )
-                    : null}
-                </span>
-              </div>
-              {renderSlot(
-                'settings.models.provider-card',
-                { provider: row.entry, configured: row.configured, keyConfigured: keyConfiguredOf(row) },
-                { entryKey: row.entry.settingsNs },
-              )}
-              {open
-                ? renderProviderEditor({
-                  target,
-                  namespace,
-                  schema,
-                  operations,
-                  t,
-                  readOnly: !state.writable,
-                  onClose: (changed) => { closeEditor(changed, target) },
-                })
-                : null}
-            </li>
-          )
-        })}
-      </ul>
+          })}
+        </ProviderRowList>
+      </div>
       <div className={styles['addBlock']}>
         {addTarget !== undefined && addNamespace !== undefined
           ? (
@@ -454,7 +427,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                   }}
                 >
                   {addable.map(row => (
-                    <option key={row.entry.provider} value={row.entry.provider}>{row.entry.displayName}</option>
+                    <option key={row.entry.provider} value={row.entry.provider}>{addLabel(row)}</option>
                   ))}
                 </select>
               </div>
@@ -469,6 +442,12 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                 operations={operations}
                 t={t}
                 readOnly={!state.writable}
+                {...addTarget.switchable === true ? { activate: true } : {}}
+                // Switching a keyed route on without a key would only add
+                // models that fail on first use.
+                {...addTarget.switchable === true && addRow?.credential?.configured !== true
+                  ? { credentialRequired: true }
+                  : {}}
                 onClose={(changed) => { closeEditor(changed, addTarget) }}
               />
               {addRow === undefined

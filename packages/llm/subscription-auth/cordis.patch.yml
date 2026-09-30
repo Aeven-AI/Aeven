@@ -1,0 +1,8 @@
+# Optional coding-subscription routes over the base composition. A route
+# serves only once its subscription is signed in on the Model providers page;
+# the bundle leaves the deployment's default model alone.
+
+- insert:
+    # `id` is the stable Cordis plugin identifier; `name` is the bundle/package display name.
+    - id: llm-grok-build-oauth
+      name: "@aeven/subscription-auth"

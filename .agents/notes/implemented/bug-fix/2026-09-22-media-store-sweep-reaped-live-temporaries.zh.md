@@ -6,7 +6,7 @@ Status: implemented
 
 ## Problem
 
-`packages/experimental/subscription-auth/tests/media-store.spec.ts` 的 `never publishes two artifacts under one id when two stores share a root` 在一次完整覆盖率运行中失败，报出 `expected Error: ENOENT … to match object { code: 'INVALID_ID' }`。它单独运行时通过，只在整套测试的争用下失败。
+`packages/llm/subscription-auth/tests/media-store.spec.ts` 的 `never publishes two artifacts under one id when two stores share a root` 在一次完整覆盖率运行中失败，报出 `expected Error: ENOENT … to match object { code: 'INVALID_ID' }`。它单独运行时通过，只在整套测试的争用下失败。
 
 该断言的含义是：失败的那次 `save()` 必须因为无法分配未被占用的 artifact id 而被拒绝。`ENOENT` 说明发生的是另一回事，而复现给出了确切的名字：`link '…/objects/89/.tmp-849d1129bc23bbaa' -> '…/objects/89/89221da…'`。
 

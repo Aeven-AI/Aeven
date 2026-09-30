@@ -14,7 +14,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { assertUsableApiKey, LlmError, resolveImageAttachmentAccess, resolveRetryPolicy, RetryPolicySchema } from '@aeven/llm'
-import type { ModelModality, RetryPolicyConfig } from '@aeven/llm'
+import type { AdapterRegistrationHandle, ModelModality, RetryPolicyConfig } from '@aeven/llm'
 import type {} from '@aeven/fs'
 import { credentialRef } from '@aeven/credentials'
 import { launchEnvironmentOf, type LaunchEnvironmentSnapshot } from '@aeven/launch-environment'
@@ -37,7 +37,6 @@ import {
   DeepSeekAdapter,
 } from './adapter.ts'
 import type { DeepSeekCatalogModel, DeepSeekConnectionOptions } from './adapter.ts'
-import { DEFAULT_MODEL_SYNC_TIMEOUT_MS, fetchModelIds, withSyncedModels } from './model-sync.ts'
 import {
   DEFAULT_LOW_DETAIL_IMAGE_PIXEL_BUDGET,
   DEFAULT_MAX_IMAGES_PER_REQUEST,
@@ -123,6 +122,12 @@ const MODEL_MODALITIES = ['text', 'image'] as const satisfies readonly ModelModa
  * reasoning effort resolves to `high`.
  */
 export interface Config {
+  /**
+   * Whether the `deepseek-official` route serves requests (default true).
+   * `false` keeps the route declared to configuration surfaces, which may
+   * enable it, while registering no route and advertising no model.
+   */
+  enabled?: boolean
   /** Credential reference (environment-variable name) resolved per request; defaults to `DEEPSEEK_API_KEY`. */
   apiKeyEnv?: string
   /** Endpoint base; falls back to $DEEPSEEK_BASE_URL from a trusted environment layer, then the public API. */
@@ -216,6 +221,7 @@ export function registerProviderRoute(
 
 /* jscpd:ignore-start -- mirrors @aeven/llm-aeven's connection fields; each route owns its own defaults */
 export const Config: z<Config> = z.object({
+  enabled: z.boolean().default(true),
   apiKeyEnv: z.string().role('credential-ref').default(DEFAULT_API_KEY_ENV),
   baseURL: z.string(),
   thinking: z.union(['enabled', 'disabled']),
@@ -448,17 +454,15 @@ export function apply(ctx: Context, config: Config): void {
   let current: () => Config = () => config
   let lastRaw: Config | undefined
   let lastGood: ResolvedDeepSeekOptions | undefined
-  // Published model ids the platform answered with, or `undefined` while its
-  // list is unanswered. Held outside the options memo so a sync that lands
-  // after mount widens the catalog without re-registering the route.
-  let syncedIds: readonly string[] | undefined
   const options = (): ResolvedDeepSeekOptions => {
     const raw = current()
     if (raw === lastRaw && lastGood !== undefined) return lastGood
     try {
       const next = resolveAdapterOptions(raw, launchEnvironmentOf(ctx))
       lastRaw = raw
-      lastGood = { ...next, models: withSyncedModels(next.models, syncedIds) }
+      // The catalog is exactly what the configuration states: nothing asks
+      // the platform for its model list.
+      lastGood = next
       return lastGood
     } catch (error) {
       // Static composition resolves before anything registers, so this branch
@@ -520,62 +524,30 @@ export function apply(ctx: Context, config: Config): void {
     settingsNs: NS,
     models: () => options().models,
   })
+  const enabled = (): boolean => current().enabled !== false
   // Route effects bind to this apply fiber via the stable `ctx` reference,
-  // even when a swap runs inside the scoped settings callback below.
-  const registration = ctx.llm.registerAdapter([PROVIDER], adapter)
-  let registeredPolicy = options().retryPolicy
+  // even when a swap runs inside the scoped settings callback below. A
+  // disabled mount registers nothing until a settings section enables it.
+  let registration: AdapterRegistrationHandle | undefined
+  let registeredFacts: unknown
   const ensureRegistrationFacts = (): void => {
-    const policy = options().retryPolicy
-    if (deepEqualJson(policy, registeredPolicy)) return
-    // The registry captures the retry policy at registration, so it is the one
-    // fact per-request resolution cannot refresh. `replace` re-reads it in one
-    // synchronous registry section: disposing and re-registering instead would
-    // publish an empty route set between the two, and an observer that reacted
-    // to it would see this provider disappear and come back.
-    registration.replace([PROVIDER])
-    registeredPolicy = policy
-  }
-
-  // One controller for every attempt: the cancellation covers an in-flight
-  // listing request when the plugin unloads.
-  const syncs = new AbortController()
-
-  /**
-   * Read the platform's model list once and widen the catalog with what it
-   * publishes. Best-effort by contract: an unreachable, slow, or malformed
-   * document keeps the shipped catalog, because a listing being briefly
-   * unavailable must not take the provider's own models away. A route whose
-   * credential is not configured yet is skipped for the same reason, and the
-   * next settings change retries.
-   */
-  const syncModels = async (signal: AbortSignal): Promise<void> => {
-    const connection = options()
-    let ids: readonly string[] | undefined
-    try {
-      ids = await fetchModelIds(
-        `${connection.baseURL.replace(/\/+$/, '')}/models`,
-        DEFAULT_MODEL_SYNC_TIMEOUT_MS,
-        await resolveApiKey(connection),
-        signal,
-      )
-    } catch (error) {
-      if (signal.aborted) return
-      ctx.logger.warn('llm-deepseek: keeping the shipped model catalog; the platform model list was unavailable')
-      ctx.logger.warn(error)
-      return
+    const routes = enabled() ? [PROVIDER] : []
+    const facts = { routes, retryPolicy: options().retryPolicy }
+    if (deepEqualJson(facts, registeredFacts)) return
+    // The registry captures the route set and the retry policy at
+    // registration, so they are the facts per-request resolution cannot
+    // refresh. `replace` re-reads them in one synchronous registry section:
+    // disposing and re-registering instead would publish an empty route set
+    // between the two, and an observer that reacted to it would see this
+    // provider disappear and come back.
+    if (registration === undefined) {
+      if (routes.length > 0) registration = ctx.llm.registerAdapter(routes, adapter)
+    } else {
+      registration.replace(routes)
     }
-    // An answer that adds nothing changes nothing: the catalog, the memo, and
-    // the registry all stay where they are.
-    if (ids === undefined || ids.every(id => connection.models.some(model => model.id === id))) return
-    syncedIds = ids
-    // The memo keys on the raw snapshot, which a sync does not change, so it is
-    // invalidated explicitly; `replace` then republishes the routes so the
-    // widened catalog reaches selectors and the Models page.
-    lastRaw = undefined
-    ensureRegistrationFacts()
-    registration.replace([PROVIDER])
-    ctx.logger.info(`llm-deepseek: platform model list synced; ${String(options().models.length)} model(s) advertised`)
+    registeredFacts = facts
   }
+  ensureRegistrationFacts()
 
   ctx.inject(['settings'], (settingsCtx) => {
     settingsCtx.settings.installSection(ctx, NS, Config, config, {
@@ -584,13 +556,7 @@ export function apply(ctx: Context, config: Config): void {
       },
       onChange: () => {
         ensureRegistrationFacts()
-        void syncModels(syncs.signal)
       },
     })
   })
-
-  ctx.effect(() => {
-    void syncModels(syncs.signal)
-    return () => { syncs.abort() }
-  }, 'llm-deepseek: platform model list sync')
 }

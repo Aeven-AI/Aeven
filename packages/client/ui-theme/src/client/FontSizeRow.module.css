@@ -48,8 +48,8 @@
   align-items: center;
   justify-content: center;
   min-width: 72px;
-  height: 36px;
-  border-radius: 18px;
+  height: var(--dsw-aeven-control-size);
+  border-radius: var(--dsw-aeven-radius-control);
   background: var(--dsw-alias-bg-module-platform);
 }
 

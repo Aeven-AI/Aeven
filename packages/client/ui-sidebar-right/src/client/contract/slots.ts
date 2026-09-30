@@ -17,8 +17,14 @@ declare module '@aeven/client-ui-slots' {
   }
 }
 
-/** Body owner share: empty — sessionId arrives as a framework-standard prop. */
-export interface SidebarRightBodyOwnerProps {}
+/** Body owner share; sessionId arrives as a framework-standard prop. */
+export interface SidebarRightBodyOwnerProps {
+  /**
+   * Whether the column is closed. It flips when the reader closes the panel,
+   * ahead of the slide that narrows the body out of view.
+   */
+  readonly collapsed: boolean
+}
 
 /**
  * Full composed props of the right sidebar root. `collapsed` and `width`

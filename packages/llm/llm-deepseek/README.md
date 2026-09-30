@@ -50,6 +50,7 @@ A request selects the route with `provider: deepseek-official`; the model id pas
 
 | Field | Default | Meaning |
 |---|---|---|
+| `enabled` | `true` | Whether the `deepseek-official` route serves; `false` keeps it declared for configuration surfaces with no route and no models |
 | `apiKeyEnv` | `DEEPSEEK_API_KEY` | Credential reference resolved per request through the credentials seam, then the environment |
 | `baseURL` | `https://api.deepseek.com` | Endpoint base; `$DEEPSEEK_BASE_URL` wins when set |
 | `thinking` | `enabled` | Deployment policy; `disabled` locks every request to `off` |

@@ -101,7 +101,7 @@ export function DeviceTools(props: {
         {pending && <Spinner />}
         <IconButton label={t('tools.close')} onClick={props.onClose}><IconLucideX /></IconButton>
       </div>
-      <div className={css.drawerBody}>
+      <div className={`${css.drawerBody} no-scrollbar`}>
         {error !== null && <p className={css.error} role="alert">{error}</p>}
         {detail === null && error === null && (
           <p className={css.status} data-drawer-reading=""><Spinner />{t('tools.reading')}</p>

@@ -1,15 +1,11 @@
 /** Typed preload operations exposed only by the Electron shell. */
 
-import type { DesktopPluginRecord } from './project-manager.ts'
-import type { DesktopLocale } from './locale.ts'
+/** One application-menu command the shell sends to the page it renders. */
+export type DesktopMenuCommand = 'open-settings' | 'start-dictation'
 
 /** IPC channel names kept private to the desktop application bundle. */
 export const DESKTOP_IPC = {
-  localeGet: 'avn-desktop:locale-get',
-  pluginsList: 'avn-desktop:plugins-list',
-  pluginsAdd: 'avn-desktop:plugins-add',
-  pluginsRemove: 'avn-desktop:plugins-remove',
-  pluginsUpdate: 'avn-desktop:plugins-update',
+  menuCommand: 'avn-desktop:menu-command',
   updatesCheck: 'avn-desktop:updates-check',
   updatesInstall: 'avn-desktop:updates-install',
   updatesState: 'avn-desktop:updates-state',
@@ -18,18 +14,27 @@ export const DESKTOP_IPC = {
   browserClearData: 'avn-desktop:browser-clear-data',
   browserCapture: 'avn-desktop:browser-capture',
   browserAutomate: 'avn-desktop:browser-automate',
+  browserSuggest: 'avn-desktop:browser-suggest',
   browserCursor: 'avn-desktop:browser-cursor',
+  browserCursorArrived: 'avn-desktop:browser-cursor-arrived',
 } as const
 
 /** `prefers-color-scheme` a browser guest is shown with; `system` clears the override. */
 export type DesktopBrowserColorScheme = 'system' | 'light' | 'dark'
 
-/** One agent pointer action the app window draws over a guest, in the guest's viewport CSS pixels. */
+/**
+ * One agent pointer step the app window draws over a guest, in the guest's
+ * viewport CSS pixels. A `move` glides the pointer to a point and is answered
+ * with {@link AvnDesktopBrowserApi.cursorArrived} once it is there; the other
+ * actions draw their effect at the point as the input lands.
+ */
 export interface DesktopBrowserCursor {
   /** The guest the action happens in. */
   readonly webContentsId: number
   /** What the pointer shows. */
-  readonly action: 'click' | 'type' | 'scroll'
+  readonly action: 'move' | 'click' | 'type' | 'scroll'
+  /** Per-shell step number; a `move`'s arrival report names it. */
+  readonly sequence: number
   readonly x: number
   readonly y: number
   /** Scroll direction for the scroll nudge. */
@@ -76,17 +81,37 @@ export interface AvnDesktopBrowserApi {
    */
   automate(webContentsId: number, operation: string, input: Record<string, unknown>): Promise<unknown>
   /**
+   * Ask a search engine to complete a query: the endpoint's response body.
+   * @param url - the engine's completion endpoint.
+   * @returns the response body, for the renderer to parse.
+   */
+  suggest(url: string): Promise<string>
+  /**
    * Observe the agent pointer actions the shell performs on guests.
    * @param listener - called with each action, before its input lands.
    * @returns disposer removing the listener.
    */
   onCursor(listener: (cursor: DesktopBrowserCursor) => void): () => void
+  /**
+   * Report that the pointer finished a `move`, or that it cannot be shown, so
+   * the input it announced may land. The shell stops waiting after a timeout
+   * either way.
+   * @param webContentsId - the guest the move was drawn over.
+   * @param sequence - the `move`'s {@link DesktopBrowserCursor.sequence}.
+   */
+  cursorArrived(webContentsId: number, sequence: number): void
 }
 
-/** Bridge the app renderer receives: the carrier marker and the browser operations. */
+/** Bridge the app renderer receives: the carrier marker, the browser operations, and menu commands. */
 export interface AvnDesktopAppApi {
   readonly protocolVersion: 1
   readonly browser: AvnDesktopBrowserApi
+  /**
+   * Observe the application menu's commands, which the shell issues on the page's behalf.
+   * @param listener - called with each command the menu sends.
+   * @returns disposer removing the listener.
+   */
+  onCommand(listener: (command: DesktopMenuCommand) => void): () => void
 }
 
 /** Desktop release update state rendered by desktop-owned UI. */
@@ -94,21 +119,4 @@ export interface DesktopUpdateState {
   readonly phase: 'idle' | 'checking' | 'available' | 'installing' | 'ready' | 'error'
   readonly version?: string
   readonly message?: string
-}
-
-/** Narrow bridge exposed through context isolation. */
-export interface AvnDesktopApi {
-  readonly protocolVersion: 1
-  locale(): Promise<DesktopLocale>
-  readonly plugins: {
-    list(): Promise<readonly DesktopPluginRecord[]>
-    add(spec: string): Promise<void>
-    remove(name: string): Promise<void>
-    update(name: string, version: string): Promise<void>
-  }
-  readonly updates: {
-    check(): Promise<DesktopUpdateState>
-    install(): Promise<void>
-    subscribe(listener: (state: DesktopUpdateState) => void): () => void
-  }
 }

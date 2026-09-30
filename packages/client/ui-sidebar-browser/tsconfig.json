@@ -49,6 +49,18 @@
     },
     {
       "path": "../../web/browser-chromium"
+    },
+    {
+      "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../store"
+    },
+    {
+      "path": "../ui-settings"
+    },
+    {
+      "path": "../../settings/settings"
     }
   ]
 }

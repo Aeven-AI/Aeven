@@ -4,11 +4,11 @@ English | [中文](providers.zh.md)
 
 This guide assumes you started the Web UI through the [root README](../../../README.md#run). Model changes take effect on the next request without restarting the server.
 
-## Configure DeepSeek
+## Add DeepSeek
 
-Open **Settings → Models**. The DeepSeek card exposes one API-key field; enter the key and save it.
+Open **Settings → Model providers**. No provider is configured by default. Choose **Add provider**, select DeepSeek, enter its API key, and apply; its models then appear in the composer's model selector, and deleting the provider removes them.
 
-![The Models page: the DeepSeek card, with Add provider and Add a custom provider below it](providers-models-page.png)
+![The Model providers page, with Add provider and Add a custom provider](providers-models-page.png)
 
 Keys are write-only. The page receives a redacted descriptor after saving, never the literal secret. The key is stored in `$AVN_HOME/.credentials.yaml`, while settings retain only its credential reference.
 
@@ -123,7 +123,7 @@ If a saved default names a provider that was deleted, the composer displays **Se
 
 ## Troubleshooting
 
-- **`MISSING_CREDENTIAL`** — Store the provider key through the Models page or supply the referenced environment variable.
+- **`MISSING_CREDENTIAL`** — Store the provider key through the Model providers page or supply the referenced environment variable.
 - **`UNKNOWN_MODEL`** — Select a configured model or add the missing model to the custom provider.
 - **Fetching available models returns 401** — Check the key. Model discovery calls the OpenAI-compatible `GET /models` endpoint; enter models manually for endpoints that do not provide it.
 - **The gateway refuses every request although the key and URL are right** — Its request shape differs from OpenAI's. Start with `compat.supportsDeveloperRole: false` and `compat.maxTokensField: max_tokens` on the route.

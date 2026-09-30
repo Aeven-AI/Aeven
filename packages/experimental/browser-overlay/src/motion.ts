@@ -190,6 +190,12 @@ export class CursorMotion {
     return { x: this.positionX.value, y: this.positionY.value }
   }
 
+  /** Whether the cursor is still on its way to the last target it was sent to. */
+  get isTravelling(): boolean {
+    return this.#path !== undefined || this.#scootFrom !== undefined
+      || !isAtRest(this.positionX) || !isAtRest(this.positionY)
+  }
+
   /** Whether anything is still moving; used to stop the animation frame loop. */
   get isResting(): boolean {
     if (this.#path !== undefined) return false

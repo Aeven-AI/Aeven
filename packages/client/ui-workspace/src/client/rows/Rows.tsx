@@ -12,11 +12,11 @@
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import clsx from 'clsx'
 import {
-  HoverCard, IconAlarmClockOutline16, IconArchiveOutline20, IconBranchOutline16,
+  IconAlarmClockOutline16, IconArchiveOutline20, IconBranchOutline16,
   IconEditOutline16, IconLucideEllipsis, IconLucideEllipsisVertical, IconLucideMessageCircleCheck,
   IconLucideMessageCircleQuestionMark,
   IconLucideFolder, IconLucideFolderOpen,
-  IconLucideMessageCirclePlus, IconTrashOutline16, Menu, relativeTime,
+  IconLucideMessageCirclePlus, IconTrashOutline16, Menu,
   Spinner, StateDot, Tooltip,
 } from '@aeven/client-ui-primitives'
 import type { StateDotState } from '@aeven/client-ui-primitives'
@@ -59,12 +59,6 @@ function isPlainActivation(event: ReactMouseEvent): boolean {
 function displayTitle(node: SessionNode, t: RowTranslate): string {
   if (node.blank) return t('session.new')
   return node.untitled ? t('session.untitled') : node.title
-}
-
-/** Hover-card variant: distances wrap in the ago template; the now bucket stays bare (no "now ago"). */
-function hoverTimeLabel(updatedAt: number, now: number, t: RowTranslate): string {
-  const { unit, n } = relativeTime(updatedAt, now)
-  return unit === 'now' ? t('time.now') : t('time.ago', { t: t(`time.${unit}`, { n }) })
 }
 
 /**
@@ -167,14 +161,16 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, t }: 
             portal
             closeOnPointerLeave
             anchor={(
-              <button
-                type="button"
-                className={clsx(css.iconButton, css.fullHeightAction)}
-                aria-label={t('actions.workspace.aria', { name: label })}
-                onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v) }}
-              >
-                <IconLucideEllipsis className={css.actionIcon} />
-              </button>
+              <Tooltip label={t('actions.workspace.tooltip')} side="top" anchor="icon">
+                <button
+                  type="button"
+                  className={clsx(css.iconButton, css.fullHeightAction)}
+                  aria-label={t('actions.workspace.aria', { name: label })}
+                  onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v) }}
+                >
+                  <IconLucideEllipsis className={css.actionIcon} />
+                </button>
+              </Tooltip>
             )}
           />
         )}
@@ -294,25 +290,6 @@ function ActiveScheduleIndicator({ t, search = false }: { t: RowTranslate; searc
   )
 }
 
-/** Hover-card body: full title, relative time, and every relevant live status. */
-function SessionHoverContent({ node, now, t }: { node: SessionNode; now: number; t: RowTranslate }) {
-  const statuses = sessionStatuses(node, t)
-  return (
-    <div className={css.hoverContent}>
-      <div className={css.hoverTitle}>{displayTitle(node, t)}</div>
-      {/* Same placeholder rule as the row's trailing cell: no timestamp
-          before the first prompt. */}
-      {!node.blank && <div className={css.hoverTime}>{hoverTimeLabel(node.updatedAt, now, t)}</div>}
-      {statuses.map(status => (
-        <div className={css.hoverStatus} key={status.label}>
-          <StatusMark state={status.state} />
-          <span>{status.label}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 /**
  * One flat search result: title, Workspace context, and optional content
  * excerpt. Content matches retain their exact durable event destination.
@@ -363,7 +340,6 @@ export function SearchResultItem({ result, currentId, onOpen, t }: {
  * actions cell around it.
  * @param props.node - derived session node.
  * @param props.currentId - selected session id (row highlight).
- * @param props.now - epoch ms for relative-time formatting.
  * @param props.onOpen - open a session by id (a plain click on the row).
  * @param props.onRename - open the session rename dialog (id + current title).
  * @param props.onFork - fork a session at its last completed turn.
@@ -374,11 +350,10 @@ export function SearchResultItem({ result, currentId, onOpen, t }: {
  * @returns the session row.
  */
 export function SessionNodeItem({
-  node, currentId, now, onOpen, onRename, onFork, onArchive, onReveal, drag, t,
+  node, currentId, onOpen, onRename, onFork, onArchive, onReveal, drag, t,
 }: {
   node: SessionNode
   currentId: string | undefined
-  now: number
   onOpen: (id: SessionNode['id']) => void
   /** Open the browser-owned session rename dialog (row menu action). */
   onRename: (id: SessionNode['id'], currentTitle: string) => void
@@ -492,28 +467,21 @@ export function SessionNodeItem({
             portal
             closeOnPointerLeave
             anchor={(
-              <button
-                type="button"
-                className={clsx(css.iconButton, css.trailingAction)}
-                aria-label={t('actions.session.aria', { name: title })}
-                onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v) }}
-              >
-                <IconLucideEllipsisVertical className={css.actionIcon} />
-              </button>
+              <Tooltip label={t('actions.session.tooltip')} side="top" anchor="icon">
+                <button
+                  type="button"
+                  className={clsx(css.iconButton, css.trailingAction)}
+                  aria-label={t('actions.session.aria', { name: title })}
+                  onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v) }}
+                >
+                  <IconLucideEllipsisVertical className={css.actionIcon} />
+                </button>
+              </Tooltip>
             )}
           />
         </span>
       )}
     </div>
   )
-  return (
-    <HoverCard
-      anchor={ownRow}
-      content={<SessionHoverContent node={node} now={now} t={t} />}
-      disabled={menuOpen || drag?.active === true}
-      copyText={row.blank ? undefined : row.title}
-      copyLabel={t('copy')}
-      copiedLabel={t('hover.copied')}
-    />
-  )
+  return ownRow
 }

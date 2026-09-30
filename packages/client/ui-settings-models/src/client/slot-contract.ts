@@ -1,7 +1,6 @@
 /**
- * Models-page extension slots — the two seats through which a plugin
- * distributed outside this repository adds UI to the Models settings section
- * without editing it.
+ * Model providers page extension slots — the two seats through which another
+ * plugin adds UI to the section without editing it.
  *
  * `settings.models.provider-card` is keyed by the row's owning settings
  * namespace (`ProviderDirectoryEntry.settingsNs`): an adapter family's
@@ -25,15 +24,15 @@ declare module '@aeven/client-ui-slots' {
     /**
      * One provider card's adapter extension area, dispatched with
      * `entryKey = settingsNs` on every card that renders a directory row: a
-     * saved row's card (its first-run setup posture included) and the
-     * add-provider draft card. The hand-declared draft card has no directory
+     * saved row's card and the add-provider draft card. The hand-declared draft card has no directory
      * row yet, so it dispatches nothing until saved. Without a registrant the
      * area renders nothing.
      */
     'settings.models.provider-card': { kind: 'keyed'; scope: 'root'; owner: ProviderCardExtrasOwnerProps }
     /**
-     * Ordered extension area after the provider rows and the add controls.
-     * Without a registrant the area renders nothing.
+     * Ordered extension area after the provider rows and the add controls,
+     * where provider groups without an API key (such as coding subscriptions)
+     * render. Without a registrant the area renders nothing.
      */
     'settings.models.footer': { kind: 'list'; scope: 'root'; owner: ModelsFooterOwnerProps }
   }

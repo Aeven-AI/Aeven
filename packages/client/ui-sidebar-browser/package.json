@@ -44,29 +44,33 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^",
     "clsx": "^2.0.0"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
+    "@aeven/api-remotes": "workspace:^",
+    "@aeven/api-session-controller": "workspace:^",
+    "@aeven/browser-chromium": "workspace:^",
     "@aeven/client-locale": "workspace:^",
+    "@aeven/client-store": "workspace:^",
     "@aeven/client-test-runtime": "workspace:^",
     "@aeven/client-ui-primitives": "workspace:^",
     "@aeven/client-ui-renderer": "workspace:^",
     "@aeven/client-ui-session": "workspace:^",
+    "@aeven/client-ui-settings": "workspace:^",
     "@aeven/client-ui-sidebar-right": "workspace:^",
     "@aeven/client-ui-sidebar-select": "workspace:^",
     "@aeven/client-ui-slots": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^",
-    "@types/react": "~18.3.1",
-    "react": "^18.2.0",
-    "@aeven/api-remotes": "workspace:^",
-    "@aeven/api-session-controller": "workspace:^",
+    "@aeven/experimental-browser-overlay": "workspace:^",
+    "@aeven/settings": "workspace:^",
     "@aeven/tool-browser": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
-    "@aeven/experimental-browser-overlay": "workspace:^",
-    "@aeven/browser-chromium": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@types/react": "~18.3.1",
+    "react": "^18.2.0"
   },
   "files": [
     "lib/index.js",

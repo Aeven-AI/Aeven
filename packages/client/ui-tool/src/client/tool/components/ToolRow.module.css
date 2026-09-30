@@ -216,18 +216,18 @@
   overflow-y: auto;
 }
 
-/* Expanded input/output card (figma 1249:35657): the code-block surface and
-   radius from the TerminalBlock/CodeBlock family. The card itself is a plain
+/* Expanded input/output card (figma 1249:35657): the chat table card's white
+   surface and the TerminalBlock/CodeBlock radius. The card itself is a plain
    column — the padding and the IN/OUT gutter-label grid live on each section
    so the divider spans the full card width and each section scrolls alone. */
 .ioCard {
   display: flex;
   flex-direction: column;
   margin: 4px 0;
-  border: 0.5px solid var(--dsw-alias-border-l1);
   border-radius: var(--dsw-aeven-radius-surface);
   overflow: hidden;
-  background: var(--dsw-alias-markdown-code-block);
+  /* The chat table card's surface: plain white, no border. */
+  background: var(--dsw-specific-input-major);
   font: var(--dsw-font-markdown-code-block-small);
 }
 
@@ -304,14 +304,14 @@
   --dsl-code-block-content-font: var(--dsw-font-markdown-code-block-small);
 }
 
-/* The terminal card scrolls its OUTPUT inside its own surface (same l1
-   hairline as the IN/OUT card): the banner stays pinned and the scrollbar
-   never rides over it. 224px = the 260px card cap minus the ~36px banner. */
+/* The terminal card scrolls its OUTPUT inside its own surface: the banner
+   stays pinned and the scrollbar never rides over it. 224px = the 260px card cap minus the ~36px banner. */
 .terminalBody {
   --dsl-terminal-font: var(--dsw-font-markdown-code-block-small);
   --dsl-terminal-line-height: 18px;
   --dsl-terminal-output-max-height: 224px;
-  border: 0.5px solid var(--dsw-alias-border-l1);
+  /* The chat table card's surface: plain white, no border. */
+  background: var(--dsw-specific-input-major);
 }
 
 /* Visually hidden run-state label for assistive technology: the StateDot and

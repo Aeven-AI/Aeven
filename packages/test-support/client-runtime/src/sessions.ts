@@ -255,6 +255,7 @@ export class TestSessions implements ISessions {
     if (this.records.has(id)) throw new Error(`test session "${id}" already added`)
     const summary: SessionSummary = {
       id,
+      createdAt: this.records.size + 1,
       displayTitle: fixture.id,
       running: false,
       blank: false,

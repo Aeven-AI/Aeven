@@ -359,12 +359,13 @@ export class DynamicCordisPackageRunner {
     }
 
     const pkg: DynamicCordisPackage = {
+      agentId: half.agentId,
       pluginId: half.pluginId,
       packageId: half.packageId,
       pluginRunId: half.pluginRunId,
       name: half.name,
     }
-    const surface = this.guardedSurface(pkg, half.agentId, plugin, ledger)
+    const surface = this.guardedSurface(pkg, plugin, ledger)
     const moduleId = moduleIdOf(half.pluginId)
     // Invalidate-then-register keeps re-loading legal: the module table throws
     // loudly on a duplicate factory registration.
@@ -408,13 +409,12 @@ export class DynamicCordisPackageRunner {
    */
   private guardedSurface(
     pkg: DynamicCordisPackage,
-    agentId: SessionId,
     plugin: DynamicCordisEvaluatedPlugin | ((ctx: unknown) => unknown),
     ledger: DynamicCordisSlotLedgerRow[],
   ): DynamicCordisEvaluatedPlugin {
     const claim = (component: unknown): void => {
       if (indexable(component)) {
-        this.owners.set(component, { pluginId: pkg.pluginId, pluginRunId: pkg.pluginRunId, agentId })
+        this.owners.set(component, { pluginId: pkg.pluginId, pluginRunId: pkg.pluginRunId, agentId: pkg.agentId })
       }
     }
     const guarded = (ctx: unknown): Context => dynamicCordisContext(ctx as Context, {
@@ -423,7 +423,7 @@ export class DynamicCordisPackageRunner {
       claim,
       allocatePriority: () => --this.nextPriority,
       reportFailure: (error) => {
-        this.env.reportGuardFailure(agentId, pkg.pluginId, pkg.pluginRunId, errorDetails(error))
+        this.env.reportGuardFailure(pkg.agentId, pkg.pluginId, pkg.pluginRunId, errorDetails(error))
       },
     })
     if (typeof plugin === 'function') {

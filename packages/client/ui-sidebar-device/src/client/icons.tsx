@@ -47,9 +47,9 @@ export const ChevronLeft = glyph(<path d="m15 18-6-6 6-6" />)
 export const ChevronDown = glyph(<path d="m6 9 6 6 6-6" />)
 export const Square = glyph(<rect width="18" height="18" x="3" y="3" rx="2" />)
 export const RotateCcw = glyph(<><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></>)
-export const SlidersHorizontal = glyph(<>
-  <path d="M10 5H3" /><path d="M12 19H3" /><path d="M14 3v4" /><path d="M16 17v4" />
-  <path d="M21 12h-9" /><path d="M21 19h-5" /><path d="M21 5h-7" /><path d="M8 10v4" /><path d="M8 12H3" />
+export const List = glyph(<>
+  <path d="M3 5h.01" /><path d="M3 12h.01" /><path d="M3 19h.01" />
+  <path d="M8 5h13" /><path d="M8 12h13" /><path d="M8 19h13" />
 </>)
 export const Power = glyph(<><path d="M12 2v10" /><path d="M18.4 6.6a9 9 0 1 1-12.77.04" /></>)
 export const Check = glyph(<path d="M20 6 9 17l-5-5" />)

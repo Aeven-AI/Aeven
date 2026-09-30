@@ -40,6 +40,7 @@ function workspace(
 function summary(id: string, overrides: Partial<SessionSummary> = {}): SessionSummary {
   return {
     id: sid(id),
+    createdAt: 0,
     displayTitle: id, title: id,
     running: false,
     blank: false,

@@ -33,7 +33,7 @@ import {
 import { apiKeyFailure } from './apiKey.ts'
 import { EditorFooter } from './EditorFooter.tsx'
 import { ModelListEditor } from './ModelListEditor.tsx'
-import { deriveKeyRef, protocolChoices } from './store.ts'
+import { deriveKeyRef, ENABLED_FIELD, protocolChoices } from './store.ts'
 import type { ModelsOperations } from './operations.ts'
 import type { SettingsSchemaOperations } from './schema-operations.ts'
 import type { en } from './locales.ts'
@@ -73,18 +73,13 @@ export interface ProviderEditorProps {
   t: (key: keyof typeof en) => string
   /** Disable writes (read-only settings provider). */
   readOnly: boolean
-  /** Render only the credential field and actions, without provider settings. */
-  credentialOnly?: boolean
   /** Require a newly entered credential before this editor can submit. */
   credentialRequired?: boolean
-  /** Give the credential field initial focus when this editor mounts. */
-  autoFocusCredential?: boolean
-  /** Override the dismiss action copy. */
-  cancelLabelKey?: keyof typeof en
-  /** Override the idle commit action copy. */
-  submitLabelKey?: keyof typeof en
-  /** Override the in-flight commit action copy. */
-  submitBusyLabelKey?: keyof typeof en
+  /**
+   * Switch a dormant whole-section provider on with this card's Apply: the
+   * write also sets the section's `enabled` field, so the route registers.
+   */
+  activate?: boolean
   /** Close the editor; `changed` reports whether an Apply committed. */
   onClose: (changed: boolean) => void
 }
@@ -248,35 +243,38 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
     const ns = namespace.ns
     // A pi-ai profile names the conventional reference only when this page is
     // about to store a key. Otherwise the provider keeps its native auth path.
-    const next = layout === 'pi-ai' && stringAt(draft, 'apiKeyEnv') === undefined
+    const referenced = layout === 'pi-ai' && stringAt(draft, 'apiKeyEnv') === undefined
       && stringAt(fallback, 'apiKeyEnv') === undefined && keyValue.length > 0
       ? schema.setPath(draft, ['apiKeyEnv'], keyRef)
       : draft
-    if (props.credentialOnly !== true) {
-      // The same checker gates the submit button, so a card cannot reach this
-      // with a bad row; it stays because the schema check below would refuse
-      // the write with a message naming a path instead of the row, and because
-      // nothing but this function decides what is written.
-      const failure = validateDeepSeekModels(schema.getPath(next, ['models']))
-      /* v8 ignore next 3 -- unreachable from the card: the same failure disables submit */
-      if (failure !== undefined) {
-        return `${t('model')} ${String(failure.index + 1)}: ${t(failure.key)}`
-      }
+    const next = props.activate === true ? schema.setPath(referenced, [ENABLED_FIELD], true) : referenced
+    // The same checker gates the submit button, so a card cannot reach this
+    // with a bad row; it stays because the schema check below would refuse
+    // the write with a message naming a path instead of the row, and because
+    // nothing but this function decides what is written.
+    const modelsFailure = validateDeepSeekModels(schema.getPath(next, ['models']))
+    /* v8 ignore next 3 -- unreachable from the card: the same failure disables submit */
+    if (modelsFailure !== undefined) {
+      return `${t('model')} ${String(modelsFailure.index + 1)}: ${t(modelsFailure.key)}`
     }
     /* v8 ignore next -- apply is only reachable from the rendered card, which required a resolved node */
-    if (props.credentialOnly !== true && node !== undefined && settingsPath.length === 0) {
+    if (node !== undefined && settingsPath.length === 0) {
       const sectionError = schema.validate(node, next)
       if (sectionError !== undefined) return sectionError
+    }
+    // An activating card stores its key before the settings write: the route
+    // registers the moment `enabled` lands, so its key must already resolve.
+    if (keyValue.length > 0 && props.activate === true) {
+      const stored = await operations.storeCredential(keyRef, keyValue)
+      if (stored !== undefined) return stored
     }
     const materializesNativeProfile = layout === 'pi-ai'
       && fallback === undefined
       && committedOriginal === undefined
       && Object.keys(next).length === 0
-    const ops: SettingsPathOpView[] = props.credentialOnly === true
-      ? []
-      : materializesNativeProfile
-        ? [{ op: 'set', path: [...settingsPath], value: {} }]
-        : pathOps(settingsPath, committedOriginal, next)
+    const ops: SettingsPathOpView[] = materializesNativeProfile
+      ? [{ op: 'set', path: [...settingsPath], value: {} }]
+      : pathOps(settingsPath, committedOriginal, next)
     if (ops.length > 0) {
       const written = await operations.writeSettings(ns, ops, expectedRevision)
       if (written.kind !== 'written') return written.kind === 'conflict' ? t('conflict') : written.message
@@ -284,7 +282,7 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
       setExpectedRevision(written.view.revision)
       setDraft(next)
     }
-    if (keyValue.length > 0) {
+    if (keyValue.length > 0 && props.activate !== true) {
       const stored = await operations.storeCredential(keyRef, keyValue)
       if (stored !== undefined) return stored
     }
@@ -371,13 +369,12 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
             aria-label={t('keyInput')}
             aria-invalid={shownKeyFailure !== undefined}
             required={props.credentialRequired === true}
-            autoFocus={props.autoFocusCredential === true}
             disabled={disabled || keyLocked}
             onChange={(event) => { setKeyDraft(event.target.value) }}
           />
           {shownKeyFailure === undefined ? null : <p className={styles['error']}>{t(shownKeyFailure)}</p>}
         </div>
-        {props.credentialOnly === true ? null : <details className={styles['customized']}>
+        <details className={styles['customized']}>
           <summary className={styles['customizedSummary']}>{t('customized')}</summary>
           <div className={styles['customizedBody']}>
             {/* The name and the protocol are the create card's two remaining
@@ -470,13 +467,13 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
                 />
               )}
           </div>
-        </details>}
+        </details>
       </>
     )
   }
 
   return (
-    <div className={props.credentialOnly === true ? styles['addBlock'] : styles['editor']}>
+    <div className={styles['editor']}>
       {props.hideTitle === true
         ? null
         : (
@@ -491,7 +488,7 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
         ? <p className={styles['advancedHint']}>{`${t('advancedHint')} (${namespace.ns})`}</p>
         : curatedFields(layout)}
       {failure !== undefined ? <p className={styles['error']}>{failure}</p> : null}
-      {props.credentialOnly === true || modelFailure === undefined
+      {modelFailure === undefined
         ? null
         : (
           <p className={styles['advancedHint']}>
@@ -502,12 +499,11 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
         t={t}
         busy={busy}
         submitDisabled={disabled || layout === 'unknown'
-          || (props.credentialOnly !== true && modelFailure !== undefined)
+          || modelFailure !== undefined
           || shownKeyFailure !== undefined
           || (props.credentialRequired === true && keyValue.length === 0)}
-        submitLabelKey={props.submitLabelKey ?? 'apply'}
-        submitBusyLabelKey={props.submitBusyLabelKey ?? 'applying'}
-        {...props.cancelLabelKey === undefined ? {} : { cancelLabelKey: props.cancelLabelKey }}
+        submitLabelKey="apply"
+        submitBusyLabelKey="applying"
         onCancel={() => { props.onClose(false) }}
         onSubmit={() => { void apply() }}
       />

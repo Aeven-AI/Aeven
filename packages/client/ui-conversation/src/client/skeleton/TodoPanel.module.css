@@ -91,14 +91,8 @@
 }
 
 .glyphProgress {
-  color: var(--dsw-alias-state-business-primary);
-  animation: todo-progress-spin 1s linear infinite;
-}
-
-@keyframes todo-progress-spin {
-  to {
-    transform: rotate(360deg);
-  }
+  --avn-spinner-size: 14px;
+  --avn-spinner-color: var(--dsw-alias-state-business-primary);
 }
 
 /* Figma strip is single-line; long items ellipsize with no inline expand. */

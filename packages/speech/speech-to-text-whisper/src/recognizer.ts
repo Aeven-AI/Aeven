@@ -196,8 +196,10 @@ export class WhisperWorker {
   }
 
   private runPreparation(run: (signal: AbortSignal) => Promise<void>, downloadSource?: string): void {
-    if (this.preparing && this.preparing.downloadSource !== downloadSource) throw new Error('Cancel preparation before changing its download source')
-    if (this.preparing || this.worker) return
+    // A terminal state reaches clients before the previous task releases this slot.
+    const active = this.preparing?.completed === true ? undefined : this.preparing
+    if (active && active.downloadSource !== downloadSource) throw new Error('Cancel preparation before changing its download source')
+    if (active || this.worker) return
     this.lifetime.signal.throwIfAborted()
     const abort = new AbortController()
     const task = { abort, settled: Promise.resolve(), completed: false, downloadSource }
@@ -208,7 +210,7 @@ export class WhisperWorker {
         this.publish(abort.signal.aborted ? { phase: 'cancelled' }
           : { phase: 'failed', message: error instanceof Error ? error.message : String(error),
             ...error instanceof SpeechDownloadError ? { download: error.download } : {} })
-      }).finally(() => { this.preparing = undefined })
+      }).finally(() => { if (this.preparing === task) this.preparing = undefined })
   }
 
   /** Cancel unfinished preparation; completed readiness is retained. @returns after its queued or active work settles. */

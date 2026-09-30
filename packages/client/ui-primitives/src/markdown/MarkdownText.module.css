@@ -164,6 +164,15 @@
   padding: 2px 8px;
 }
 
+/* The engine draws inline code itself — `.hypermarkdown code:not(pre code)`
+   carries its own `#f2f2f2` and outranks the rule above by one class — so the
+   app's fill reaches prose through a doubled class. A table cell is excluded:
+   its code sits on the surface the cell's own borders are drawn against and
+   keeps the engine's fill. */
+.markdown.markdown :not(pre) > code:not(:global(.table-wrapper) code) {
+  background-color: var(--dsw-alias-markdown-inline-code);
+}
+
 .markdown :where(h1, h2, h3, h4, h5, h6) code {
   font: inherit;
   font-family: var(--ds-font-family-code);

@@ -6,6 +6,14 @@ body,
   height: 100%;
   margin: 0;
   overflow: hidden;
+}
+
+/* Only body and #root carry a background, so the document canvas takes body's
+   color. An `html` background would own the canvas instead and keep the light
+   base under the dark palette, which is the strip a live window resize exposes
+   while the renderer commits the new size. */
+body,
+#root {
   background-color: rgb(242, 242, 242);
 }
 

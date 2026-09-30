@@ -14,7 +14,7 @@ Two defects followed directly from the split. The plugin's committed `lib/` is t
 
 ## Decision
 
-The plugin lands as `packages/experimental/subscription-auth`, npm name `@aeven/experimental-subscription-auth`, `private: true`. It is a single package for now, and is expected to split along its product roles — OAuth sessions, LLM adapter, media providers, tools, client UI — before promotion out of `experimental/`.
+The plugin lands as `packages/llm/subscription-auth`, npm name `@aeven/subscription-auth`, `private: true`. It is a single package for now, and is expected to split along its product roles — OAuth sessions, LLM adapter, media providers, tools, client UI — before promotion out of `experimental/`.
 
 It keeps its `avn.bundle` and `avn.client` manifest declarations, because those are how a profile discovers a bundle and its browser half. It keeps `dsh-coding-oauth-core` as an exact external dependency: that package owns the route and path identifiers this one implements, and pinning it is what the ABI gate checks.
 

@@ -41,7 +41,7 @@
   font-size: 80px;
   line-height: 98px;
   font-weight: 600;
-  letter-spacing: 0;
+  letter-spacing: -1px;
 }
 
 .greeting {

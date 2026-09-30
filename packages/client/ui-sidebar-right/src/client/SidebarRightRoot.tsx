@@ -34,7 +34,7 @@ export function SidebarRightRoot({
             one place that holds still whether or not this column has width. */}
         <div className={css.sideContent}>
           <div className={css.sideContentInner}>
-            {renderSlot('sidebar.right.body', {})}
+            {renderSlot('sidebar.right.body', { collapsed })}
           </div>
         </div>
 

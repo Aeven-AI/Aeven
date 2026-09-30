@@ -309,6 +309,7 @@ export class FaceModelEmitter {
       lines.push(`      wire: ${quote(parameter.wire)},`)
       lines.push(`      source: ${quote(parameter.source)},`)
       if (parameter.lookup !== undefined) lines.push(`      lookup: ${quote(parameter.lookup)},`)
+      if (parameter.optional === true) lines.push('      optional: true,')
       if (parameter.boundary.acceptsUndefined) lines.push('      acceptsUndefined: true,')
       lines.push(`      codec: ${indent(strictCodec(
         parameter.boundary,

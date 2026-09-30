@@ -30,7 +30,7 @@ function ApprovalFlow({ pending, detail, t }: {
   return (
     <div className={css.root} data-approval-key={pending.key}>
       <div className={css.card}>
-        <div className={css.strip}><span className={css.dot} />{t('waiting')}</div>
+        <div className={css.header}>{t('waiting')}</div>
         <div
           className={css.body}
           data-approval-scroll=""

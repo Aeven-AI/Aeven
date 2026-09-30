@@ -11,6 +11,12 @@
   ],
   "references": [
     {
+      "path": "../ui-primitives"
+    },
+    {
+      "path": "../ui-theme"
+    },
+    {
       "path": "../../../vendor/cordis"
     }
   ]

@@ -1,8 +1,7 @@
 /**
- * Models settings and product-onboarding plugin, browser half. It registers
- * the Models page plus the conditional official-DeepSeek onboarding dialog,
- * whose UI shares this package's modal wrapper. The Host settings and
- * credential contracts stay behind their existing wire APIs.
+ * Model providers settings plugin, browser half. It registers the Model
+ * providers page; the Host settings and credential contracts stay behind
+ * their existing wire APIs.
  * Export discipline:
  * packages/client/AGENTS.md.
  */
@@ -17,8 +16,6 @@ import type {} from '@aeven/client-ui-renderer/client'
 import type {} from '@aeven/api-remotes/client'
 import { ModelsSection } from './ModelsSection.tsx'
 import type { ModelsSectionInjected } from './ModelsSection.tsx'
-import { DeepSeekOnboardingDialog } from './DeepSeekOnboardingDialog.tsx'
-import type { DeepSeekOnboardingInjected } from './DeepSeekOnboardingDialog.tsx'
 import { ModelsSettingsStore } from './store.ts'
 import { createModelsOperations } from './operations.ts'
 import { createSettingsSchemaOperations } from './schema-operations.ts'
@@ -30,7 +27,7 @@ export type { ModelsKey } from './locales.ts'
 
 declare module '@aeven/client-ui-slots' {
   interface LocaleNamespaceMap {
-    /** The Models page + product-onboarding copy. */
+    /** The Model providers page copy. */
     'settings.models': ModelsKey
   }
 }
@@ -86,13 +83,6 @@ export function apply(ctx: ClientContext): void {
     schema,
     t,
   })
-  const deepSeekOnboardingInjected = (): DeepSeekOnboardingInjected => ({
-    controller,
-    hooks: { models: controller.store },
-    operations,
-    schema,
-    t,
-  })
   // Pushed invalidations converge every open surface without polling. The
   // settingsScope injection makes ui-settings activate first, and remote
   // dispatch preserves listener order; its listener therefore starts the
@@ -121,10 +111,4 @@ export function apply(ctx: ClientContext): void {
       'settings.models.footer': { kind: 'list', scope: 'root' },
     },
   }, ModelsSection))
-  ctx.slots.inject('settings.onboarding', () => ctx.slots.register({
-    name: 'settings.onboarding',
-    id: 'deepseek-official',
-    order: 0,
-    inject: deepSeekOnboardingInjected,
-  }, DeepSeekOnboardingDialog))
 }

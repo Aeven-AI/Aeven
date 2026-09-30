@@ -13,10 +13,12 @@ import {
   session,
   shell,
   webContents,
+  type IpcMainEvent,
   type IpcMainInvokeEvent,
   type WebContents,
 } from 'electron'
-import { automate } from './browser-automation.ts'
+import { automate, notifyCursorArrived } from './browser-automation.ts'
+import { fetchSuggestions } from './browser-search.ts'
 import { DESKTOP_IPC, type DesktopBrowserColorScheme, type DesktopBrowserDataKind } from './ipc.ts'
 
 /** Storage partition prefix for the right sidebar's browser guests. */
@@ -118,9 +120,9 @@ function attachDebugger(guest: WebContents): void {
 
 /**
  * Register the browser operations the app renderer invokes.
- * @param isAppSender - whether an invocation comes from the application window's own page.
+ * @param isAppSender - whether a message comes from the application window's own page.
  */
-export function registerBrowserIpc(isAppSender: (event: IpcMainInvokeEvent) => boolean): void {
+export function registerBrowserIpc(isAppSender: (event: IpcMainEvent | IpcMainInvokeEvent) => boolean): void {
   const assertApp = (event: IpcMainInvokeEvent): void => {
     if (!isAppSender(event)) throw new Error('avn desktop: rejected browser IPC from an unowned renderer')
   }
@@ -142,6 +144,10 @@ export function registerBrowserIpc(isAppSender: (event: IpcMainInvokeEvent) => b
     await guest.debugger.sendCommand('Emulation.setEmulatedMedia', {
       features: [{ name: 'prefers-color-scheme', value }],
     })
+    // A page that never asks the media query would ignore the call above, so
+    // `dark` also turns Chromium's auto-dark on and paints that page dark.
+    // `light` and `system` drive it off, which is the renderer's own default.
+    await guest.debugger.sendCommand('Emulation.setAutoDarkModeOverride', { enabled: scheme === 'dark' })
   })
   ipcMain.handle(DESKTOP_IPC.browserClearData, async (event, partition: unknown, kind: unknown) => {
     assertApp(event)
@@ -172,5 +178,15 @@ export function registerBrowserIpc(isAppSender: (event: IpcMainInvokeEvent) => b
     if (typeof operation !== 'string') throw new Error('avn desktop: browser operation must be a string')
     if (typeof input !== 'object' || input === null) throw new Error('avn desktop: browser input must be an object')
     return automate(hostedGuest(event, webContentsId), operation, input as Record<string, unknown>)
+  })
+  ipcMain.handle(DESKTOP_IPC.browserSuggest, async (event, url: unknown) => {
+    assertApp(event)
+    return await fetchSuggestions(url)
+  })
+  // Fire-and-forget: a report from anywhere else, or naming no waiting move, is
+  // dropped, and the waiting action proceeds on its own timeout.
+  ipcMain.on(DESKTOP_IPC.browserCursorArrived, (event, webContentsId: unknown, sequence: unknown) => {
+    if (!isAppSender(event) || typeof webContentsId !== 'number' || typeof sequence !== 'number') return
+    notifyCursorArrived(webContentsId, sequence)
   })
 }

@@ -233,7 +233,7 @@
       "@aeven/experimental-agent-team-profile": ["./packages/experimental/agent-team-profile/src"],
       "@aeven/experimental-agent-team-web-profile": ["./packages/experimental/agent-team-web-profile/src"],
       "@aeven/experimental-tool-agent-team": ["./packages/experimental/tool-agent-team/src"],
-      "@aeven/experimental-subscription-auth": ["./packages/experimental/subscription-auth/src"],
+      "@aeven/subscription-auth": ["./packages/llm/subscription-auth/src"],
       "@aeven/experimental-webworker-runtime": ["./packages/experimental/webworker-runtime/src"],
       "@aeven/experimental-webworker-packer": ["./packages/experimental/webworker-packer/src"],
       "@aeven/experimental-inspector": ["./packages/experimental/inspector/src"],

@@ -13,9 +13,8 @@ export default defineConfig([
     deps: { neverBundle: ['electron'] },
   },
   // Sandboxed Electron preloads run as CommonJS even though the application
-  // package is ESM, and can require only `electron`: each builds alone so a
-  // module both import (`ipc.ts`) is inlined rather than split into a chunk.
-  ...['preload', 'preload-app'].map(name => ({
+  // package is ESM, and can require only `electron`.
+  ...['preload-app'].map(name => ({
     entry: { [name]: `lib/types/${name}.js` },
     outDir: 'lib',
     format: ['cjs' as const],

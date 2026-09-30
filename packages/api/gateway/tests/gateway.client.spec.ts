@@ -90,6 +90,7 @@ declare module '@aeven/typert-protocol' {
       signal?: AbortSignal,
     ) => Promise<RemoteResult<{ readonly ref: string }>>
     'probe/maybe': (value: string | null | undefined) => Promise<RemoteResult<string | null | undefined>>
+    'probe/labelled': (id: string, label?: string) => Promise<RemoteResult<string>>
     'probe/watch': (topic: string, signal?: AbortSignal) => AsyncIterable<string>
   }
 
@@ -200,6 +201,31 @@ function maybeDescriptor(): InvocationDescriptor {
       codec: { mode: 'strict', typeSymbol: '@fixture#MaybeValue', schema },
     }],
     result: { mode: 'strict', typeSymbol: '@fixture#MaybeValue', schema },
+  }
+}
+
+function labelledDescriptor(): InvocationDescriptor {
+  const labelSchema = z.union([z.string().min(1), z.undefined()])
+  return {
+    id: '@fixture/probe#probe/labelled',
+    service: 'probe',
+    namespace: 'probe',
+    method: 'labelled',
+    invocation: { kind: 'direct' },
+    parameters: [{
+      name: 'id',
+      wire: 'id',
+      source: 'json',
+      codec: { mode: 'strict', typeSymbol: '@fixture#ProbeId', schema: idSchema },
+    }, {
+      name: 'label',
+      wire: 'label',
+      source: 'json',
+      optional: true,
+      acceptsUndefined: true,
+      codec: { mode: 'strict', typeSymbol: '@fixture#ProbeLabel', schema: labelSchema },
+    }],
+    result: { mode: 'strict', typeSymbol: '@fixture#ProbeId', schema: idSchema },
   }
 }
 
@@ -753,6 +779,40 @@ describe('Client Typert API', () => {
       { args: { value: null } },
       expect.any(AbortSignal),
     )
+
+    await dispose()
+  })
+
+  it('omits a trailing optional argument while still rejecting other counts', async () => {
+    const call = vi.fn<ConnectionHandle['rpc']['call']>()
+      .mockResolvedValue({ ok: true, value: 'probe-1' })
+    const ctx = await bench(call)
+    const dispose = await ctx.remote.$mount({
+      package: '@fixture/labelled',
+      descriptors: [labelledDescriptor()],
+    })
+    const labelled = ctx.remote.probe.labelled as unknown as (...args: unknown[]) => Promise<unknown>
+    const probe = (ctx as FixtureContext).remote.probe
+
+    await expect(ctx.remote.probe.labelled('probe-1')).resolves.toStrictEqual({ ok: true, value: 'probe-1' })
+    expect(call).toHaveBeenNthCalledWith(
+      1,
+      '/api',
+      'probe/labelled',
+      { args: { id: 'probe-1' } },
+      expect.any(AbortSignal),
+    )
+    await expect(ctx.remote.probe.labelled('probe-1', 'first')).resolves.toStrictEqual({ ok: true, value: 'probe-1' })
+    expect(call).toHaveBeenNthCalledWith(
+      2,
+      '/api',
+      'probe/labelled',
+      { args: { id: 'probe-1', label: 'first' } },
+      expect.any(AbortSignal),
+    )
+    await expect(labelled.call(probe)).rejects.toThrow('expected 1-2 argument(s), got 0')
+    await expect(labelled.call(probe, 'probe-1', 'first', 'extra'))
+      .rejects.toThrow('expected 1-2 argument(s), got 3')
 
     await dispose()
   })

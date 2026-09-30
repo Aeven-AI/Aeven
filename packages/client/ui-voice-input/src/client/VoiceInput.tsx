@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import type { HostObservable } from '@aeven/client-ui-slots'
 import type { TranscriptionRequest } from '@aeven/api-speech-to-text/types'
-import type { Transcript } from '@aeven/speech-to-text/types'
+import type { SpeechProviderId, Transcript } from '@aeven/speech-to-text/types'
 import type { RemoteResult } from '@aeven/typert-protocol'
 import type {} from '@aeven/client-ui-conversation/client'
 import { IconLucideCheck, IconLucideMic, IconLucideX, Tooltip } from '@aeven/client-ui-primitives'
@@ -18,6 +18,11 @@ export interface VoiceInputActions {
   /** Open Settings on the voice section, where the local model is prepared. */
   openSettings: () => void
   /**
+   * Start preparing the local model the mic needs; outcome and retry stay in Settings.
+   * @param providerId - recognizer to prepare.
+   */
+  prepareModel: (providerId: SpeechProviderId) => void
+  /**
    * @param maxSamples - speech samples after which `onLimit` fires once.
    * @param onLimit - called when the kept speech reaches the Host's duration limit.
    * @returns one microphone capture owned by the plugin lifecycle.
@@ -26,9 +31,13 @@ export interface VoiceInputActions {
   transcribe: (request: TranscriptionRequest, signal: AbortSignal) => Promise<RemoteResult<Transcript>>
 }
 
-/** Entry-injected Host readiness and microphone operations. */
+/** Entry-injected Host readiness, microphone operations, and outside dictation requests. */
 export interface VoiceInputInjected extends VoiceInputActions {
-  hooks: { speechReadiness: HostObservable<SpeechReadiness> }
+  hooks: {
+    speechReadiness: HostObservable<SpeechReadiness>
+    /** Advances once per dictation request made outside the composer, such as from a menu. */
+    dictationRequest: HostObservable<number>
+  }
 }
 
 /** Composer-owned row claim and draft actions. */
@@ -46,7 +55,7 @@ const LOADER = <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="
  * @returns the dictation control.
  */
 export function VoiceInput({ sessionId, inputActions, locked, onActiveChange, createCapture, transcribe, openSettings,
-  useSpeechReadiness, t }: VoiceInputProps) {
+  prepareModel, useSpeechReadiness, useDictationRequest, t }: VoiceInputProps) {
   const readiness = useSpeechReadiness(value => value), catalog = readiness.catalog
   const provider = catalog?.providers.find(item => item.id === catalog.selection.providerId)
   const preparation = provider?.preparation.phase
@@ -94,7 +103,13 @@ export function VoiceInput({ sessionId, inputActions, locked, onActiveChange, cr
   }
 
   const start = async (): Promise<void> => {
-    if (!usable) { openSettings(); return }
+    if (!usable) {
+      // The mic is where dictation is asked for, so it starts a missing model itself;
+      // Settings keeps its explicit Download for starting one without recording.
+      if (readiness.connected && catalog && preparation === 'unprepared') prepareModel(catalog.selection.providerId)
+      openSettings()
+      return
+    }
     if (!catalog || locked || phase !== 'idle') return
     const run = ++generation.current
     setError('')
@@ -112,6 +127,20 @@ export function VoiceInput({ sessionId, inputActions, locked, onActiveChange, cr
       setError(failure instanceof CaptureError ? t(failure.kind) : t('failed', { message: String(failure) }))
     }
   }
+
+  // A request from outside the composer (the shell's dictation menu item) does
+  // what the mic button does: start when idle, finish when already recording.
+  // The first snapshot only marks where this component mounted.
+  const dictationRequest = useDictationRequest(value => value)
+  const seenRequest = useRef(dictationRequest)
+  const phaseRef = useRef<Phase>(phase)
+  phaseRef.current = phase
+  useEffect(() => {
+    if (dictationRequest === seenRequest.current) return
+    seenRequest.current = dictationRequest
+    if (phaseRef.current === 'idle') void start()
+    else if (phaseRef.current === 'recording') void finish()
+  }, [dictationRequest])
 
   if (!expanded) {
     return <Tooltip label={error === '' ? t('dictate') : error} side="top">

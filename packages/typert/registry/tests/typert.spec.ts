@@ -559,6 +559,17 @@ describe('TypertRegistry', () => {
       [{
         ...invocation(),
         parameters: [{
+          name: 'agent',
+          wire: 'agentId',
+          source: 'lookup',
+          lookup: 'fixture',
+          optional: true,
+          codec: { mode: 'src-json' },
+        }],
+      }, 'cannot be optional'],
+      [{
+        ...invocation(),
+        parameters: [{
           name: 'request', wire: 'request', source: 'json', lookup: 'fixture', codec: { mode: 'src-json' },
         }],
       }, 'JSON parameter'],

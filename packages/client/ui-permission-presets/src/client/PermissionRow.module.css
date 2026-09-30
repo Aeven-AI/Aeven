@@ -35,10 +35,10 @@
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  height: 36px;
+  height: var(--dsw-aeven-control-size);
   padding: 0 14px;
   border: none;
-  border-radius: 18px;
+  border-radius: var(--dsw-aeven-radius-control);
   background: var(--dsw-alias-bg-module-platform);
   font: inherit;
   font-size: 14px;

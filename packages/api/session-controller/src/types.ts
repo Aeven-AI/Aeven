@@ -198,6 +198,8 @@ export type QueueAction =
 /** One Session list entry. */
 export interface SessionSummary {
   readonly sessionId: SessionId
+  /** Session header creation time, epoch ms. */
+  readonly createdAt: number
   readonly updatedAt: number
   readonly running: boolean
   readonly blank: boolean

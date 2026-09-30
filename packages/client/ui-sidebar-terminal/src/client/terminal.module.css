@@ -13,6 +13,23 @@
 .emptyMessage { max-width: 28ch; margin: 0; line-height: 1.6; overflow-wrap: anywhere; }
 .actionIcon { display: flex; }
 
+/* The launch guide is the pane's own launcher: one row per shell, stacked with
+   no gap and starting at the top of the column on the row the content-kind
+   launcher's rows occupy, so starting a terminal reads like opening a Browser
+   or Files surface. Row metrics are that launcher's own — 40px capsule, the
+   sidebar row inset, an 8px glyph gap and the static-extreme ink over the
+   panel fill — and the guide drops the pane's 8px top inset to keep the rows on
+   those lines. */
+.root[data-choosing] { padding-top: 0; }
+.shells { display: flex; flex: 1 1 auto; flex-direction: column; align-items: stretch; min-height: 0; overflow: auto; outline: none; }
+.shell { display: flex; align-items: center; gap: 8px; height: var(--dsw-aeven-control-size); padding: 0 var(--dsw-aeven-sidebar-row-inset); border: none; border-radius: 20px; background: var(--dsw-static-neutral-00); color: var(--dsw-static-neutral-1000); font: inherit; font-size: 14px; text-align: start; cursor: pointer; }
+.shellGlyph { display: flex; flex: none; align-items: center; }
+.shellGlyph svg { width: 18px; height: 18px; }
+.shellLabel { flex: 1 1 auto; }
+
+/* Shell discovery is a few file lookups; the first row's place holds the wait. */
+.shellNote { display: flex; align-items: center; height: var(--dsw-aeven-control-size); margin: 0; padding: 0 var(--dsw-aeven-sidebar-row-inset); color: var(--dsw-alias-label-tertiary); font-size: 14px; }
+
 /* Cursor colors depend on its cell, so they must not update xterm's shared ANSI theme. */
 .screen :global(.xterm-cursor) { opacity: 1; }
 .screen :global(.xterm .xterm-rows .xterm-cursor.xterm-cursor-block) { background-color: var(--terminal-cursor); color: var(--terminal-cursor-accent); }

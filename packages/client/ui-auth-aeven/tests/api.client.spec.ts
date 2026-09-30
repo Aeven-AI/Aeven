@@ -1,7 +1,8 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  AevenApiError, checkOauthToken, getProfile, setDisplayName, signIn, signOut, signUp, verifyEmail,
+  AevenApiError, checkOauthToken, forgotPassword, getProfile, resendCode, resetPassword, setDisplayName,
+  signIn, signOut, signUp, verifyEmail,
 } from '../src/client/auth/services/api.ts'
 import { session } from '../src/client/auth/services/session.ts'
 
@@ -147,6 +148,32 @@ describe('the Aeven API calls', () => {
     // Some flows acknowledge and leave the reader at the sign-in screen.
     await verifyEmail('a@b.c', '123456')
     expect(session.userSignedIn).toBe(false)
+  })
+
+  it('asks for a fresh verification code for the address being verified', async () => {
+    const api = scriptedApi({ '/resend-code': { status: 200, body: { result: 'verification-code-sent' } } })
+    await resendCode('a@b.c')
+    expect(api.calls[0]).toMatchObject({ url: '/resend-code', method: 'POST', body: '{"email":"a@b.c"}' })
+
+    scriptedApi({ '/resend-code': { status: 409, body: { error: 'email-already-verified' } } })
+    await expect(resendCode('a@b.c')).rejects.toThrow('email-already-verified')
+  })
+
+  it('requests a reset code, then replaces the password with it, signing nobody in', async () => {
+    const api = scriptedApi({
+      '/forgot-password': { status: 200, body: { result: 'reset-code-sent' } },
+      '/reset-password': { status: 200, body: { result: 'password-reset' } },
+    })
+    await forgotPassword('a@b.c')
+    await resetPassword('a@b.c', '123456', 'New1!pass')
+    expect(api.calls).toMatchObject([
+      { url: '/forgot-password', method: 'POST', body: '{"email":"a@b.c"}' },
+      { url: '/reset-password', method: 'POST', body: '{"email":"a@b.c","code":"123456","password":"New1!pass"}' },
+    ])
+    expect(session.userSignedIn).toBe(false)
+
+    scriptedApi({ '/reset-password': { status: 400, body: { error: 'expired-code' } } })
+    await expect(resetPassword('a@b.c', '123456', 'New1!pass')).rejects.toThrow('expired-code')
   })
 
   it('completes a social sign-in from the values the provider redirected back with', async () => {

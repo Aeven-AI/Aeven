@@ -254,40 +254,60 @@ describe('Menu', () => {
     expect(rowClick).not.toHaveBeenCalled()
   })
 
-  it('opens a submenu on hover and selects a nested item', () => {
-    const onSelect = vi.fn()
-    render(
-      <Menu
-        open
-        compact
-        anchor={<span>trigger</span>}
-        items={[
-          { id: 'plain', label: 'Plain' },
-          {
-            id: 'new',
-            label: 'New Workspace',
-            submenu: [
-              { id: 'ok', label: 'Create ok', icon: <svg data-testid="sub-ic" /> },
-            ],
-          },
-        ]}
-        onSelect={onSelect}
-        onClose={() => {}}
-      />)
-    const plain = screen.getByRole('menuitem', { name: 'Plain' })
-    fireEvent.mouseEnter(plain.parentElement as HTMLElement)
-    fireEvent.focus(plain)
-    const parent = screen.getByRole('menuitem', { name: 'New Workspace' })
-    const wrap = parent.parentElement as HTMLElement
-    fireEvent.click(parent)
-    expect(onSelect).not.toHaveBeenCalled()
-    fireEvent.focus(parent)
-    fireEvent.mouseEnter(wrap)
-    expect(screen.getByTestId('sub-ic')).toBeDefined()
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Create ok' }))
-    expect(onSelect).toHaveBeenCalledWith('ok')
-    fireEvent.mouseLeave(wrap)
-    expect(screen.queryByRole('menuitem', { name: 'Create ok' })).toBeNull()
+  it('opens a portaled submenu on hover and selects a nested item', () => {
+    vi.useFakeTimers()
+    try {
+      const onSelect = vi.fn()
+      render(
+        <Menu
+          open
+          compact
+          anchor={<span>trigger</span>}
+          items={[
+            { id: 'plain', label: 'Plain' },
+            {
+              id: 'new',
+              label: 'New Workspace',
+              submenu: [
+                { id: 'ok', label: 'Create ok', icon: <svg data-testid="sub-ic" /> },
+              ],
+            },
+          ]}
+          onSelect={onSelect}
+          onClose={() => {}}
+        />)
+      const plain = screen.getByRole('menuitem', { name: 'Plain' })
+      fireEvent.mouseEnter(plain.parentElement as HTMLElement)
+      fireEvent.focus(plain)
+      const parent = screen.getByRole('menuitem', { name: 'New Workspace' })
+      const wrap = parent.parentElement as HTMLElement
+      fireEvent.click(parent)
+      expect(onSelect).not.toHaveBeenCalled()
+      fireEvent.focus(parent)
+      fireEvent.mouseEnter(wrap)
+      const nested = screen.getByRole('menuitem', { name: 'Create ok' })
+      // Portaled to the page, not nested in the row: an element with a
+      // backdrop-filter is a backdrop root, so a nested card would sample the
+      // parent card instead of the page behind it.
+      expect(nested.closest('[role="menu"]')?.parentElement).toBe(document.body)
+      fireEvent.click(nested)
+      expect(onSelect).toHaveBeenCalledWith('ok')
+      // Leaving the row no longer closes the card on the spot: the grace lets
+      // the pointer cross the gap, and entering the card cancels the close.
+      fireEvent.mouseLeave(wrap)
+      act(() => { vi.advanceTimersByTime(POINTER_GRACE_MS - 1) })
+      expect(screen.queryByRole('menuitem', { name: 'Create ok' })).not.toBeNull()
+      const card = nested.closest('[role="menu"]') as HTMLElement
+      fireEvent.mouseEnter(card)
+      act(() => { vi.advanceTimersByTime(POINTER_GRACE_MS * 10) })
+      expect(screen.queryByRole('menuitem', { name: 'Create ok' })).not.toBeNull()
+      // Leaving the card arms the grace again, which then closes it.
+      fireEvent.mouseLeave(card)
+      act(() => { vi.advanceTimersByTime(POINTER_GRACE_MS * 10) })
+      expect(screen.queryByRole('menuitem', { name: 'Create ok' })).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('portal mode prefers getAnchorRect over measuring its own wrapper', () => {

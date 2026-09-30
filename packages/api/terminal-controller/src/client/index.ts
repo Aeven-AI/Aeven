@@ -6,8 +6,7 @@ import type {} from '@aeven/api-gateway/client'
 import { TerminalView, type TerminalRemote } from './model.ts'
 import { createSnapshotStore, type SnapshotStore } from '@aeven/client-store'
 import { randomUUID } from '@aeven/util-crypto'
-import type { TerminalShell, WebTerminalId, WebTerminalInfo } from '../types.ts'
-import { preferredShell, rememberShell } from './shell-preference.ts'
+import type { WebTerminalId, WebTerminalInfo } from '../types.ts'
 import { TerminalCloseRequests, type TerminalCloseRequest } from './close-requests.ts'
 import { TerminalWindowHold } from './retention.ts'
 import { TerminalBindings } from './bindings.ts'
@@ -19,12 +18,6 @@ declare module '@deepseek-ai/cordis' {
     /** React-free browser terminal views and explicit process cleanup. */
     webTerminals: ClientTerminals
   }
-}
-
-/** Host-discovered shell menu with the browser's remembered available choice. */
-export interface TerminalLaunchShells {
-  readonly shells: readonly TerminalShell[]
-  readonly selectedShell: string | undefined
 }
 
 /** A failed background close that can be retried without restoring its tab. */
@@ -91,25 +84,6 @@ export class ClientTerminals extends Service {
     }
     return view
   }
-
-  /**
-   * Discover available launch choices on demand without allocating a PTY.
-   * @param sessionId - target Session.
-   * @param signal - the menu request lifetime.
-   * @returns installed shells and the currently usable browser preference.
-   */
-  async launchShells(sessionId: SessionId, signal: AbortSignal): Promise<TerminalLaunchShells> {
-    const result = await this.remote.shells(sessionId, signal)
-    if (!result.ok) throw new Error(result.error.message)
-    const previous = preferredShell()
-    return { shells: result.value, selectedShell: result.value.find(shell => shell.path === previous)?.path ?? result.value[0]?.path }
-  }
-
-  /**
-   * Remember the guide selection before allocating its terminal tab.
-   * @param path - shell selected from Host discovery.
-   */
-  selectShell(path: string): void { rememberShell(path) }
 
   /**
    * Save a close intent and release the tab immediately; cleanup outlives DOM unmount and reload.

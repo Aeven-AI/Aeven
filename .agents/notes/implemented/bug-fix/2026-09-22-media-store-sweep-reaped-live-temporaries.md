@@ -6,7 +6,7 @@ English | [中文](2026-09-22-media-store-sweep-reaped-live-temporaries.zh.md)
 
 ## Problem
 
-`packages/experimental/subscription-auth/tests/media-store.spec.ts`'s `never publishes two artifacts under one id when two stores share a root` failed a full coverage run with `expected Error: ENOENT … to match object { code: 'INVALID_ID' }`. It passed alone and failed only under full-suite contention.
+`packages/llm/subscription-auth/tests/media-store.spec.ts`'s `never publishes two artifacts under one id when two stores share a root` failed a full coverage run with `expected Error: ENOENT … to match object { code: 'INVALID_ID' }`. It passed alone and failed only under full-suite contention.
 
 The assertion says the losing `save()` must reject because it cannot allocate an unused artifact id. `ENOENT` says something else happened, and the reproduction names it exactly: `link '…/objects/89/.tmp-849d1129bc23bbaa' -> '…/objects/89/89221da…'`.
 

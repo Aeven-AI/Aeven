@@ -27,6 +27,10 @@
     "lib/types/**/*.d.ts"
   ],
   "license": "MIT",
+  "dependencies": {
+    "@aeven/client-ui-primitives": "workspace:^",
+    "@aeven/client-ui-theme": "workspace:^"
+  },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^"
   },

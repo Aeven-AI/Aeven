@@ -12,8 +12,8 @@ import {
   protocol,
   shell,
   type IpcMainInvokeEvent,
-  type MenuItemConstructorOptions,
 } from 'electron'
+import { DESKTOP_MENU_ZOOM_STEP, FULL_SCREEN_ITEM_ID, applicationMenuTemplate, type DesktopMenuZoom } from './application-menu.ts'
 import { adoptedHostSignIn, completeOAuthLanding, forwardAevenApiRequest } from './aeven-sign-in.ts'
 import { startBrowserSignIn } from './oauth-browser.ts'
 import { installContextMenu } from './context-menu.ts'
@@ -23,13 +23,19 @@ import { resolveDesktopPaths } from './paths.ts'
 import { DesktopProjectManager, type DesktopProjectHooks } from './project-manager.ts'
 import { DesktopHostProcess } from './host-process.ts'
 import { DESKTOP_AEVEN_API_PATH, type DesktopAevenSignIn } from './host-protocol.ts'
-import { DESKTOP_IPC, type DesktopUpdateState } from './ipc.ts'
+import { DESKTOP_IPC, type DesktopMenuCommand, type DesktopUpdateState } from './ipc.ts'
 import { formatDesktopMessage, resolveDesktopLocale } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
 
 const SCHEME = 'avn-app'
 let focusPrimaryWindow = (): void => {}
+
+/** The menu command the shell sends when Settings… is chosen. */
+const OPEN_SETTINGS_COMMAND: DesktopMenuCommand = 'open-settings'
+
+/** The menu command the shell sends when the dictation item is chosen. */
+const START_DICTATION_COMMAND: DesktopMenuCommand = 'start-dictation'
 
 /**
  * Set when a live Host already serves this home, in which case the shell
@@ -214,7 +220,6 @@ async function main(): Promise<void> {
   let host: DesktopHostProcess | undefined
   let aevenSignIn: DesktopAevenSignIn | undefined
   let mainWindow: BrowserWindow | undefined
-  let pluginWindow: BrowserWindow | undefined
   let shellInstallerOwnsQuit = false
   let updateState: DesktopUpdateState = { phase: 'idle' }
   const locale = resolveDesktopLocale(app.getLocale())
@@ -222,7 +227,6 @@ async function main(): Promise<void> {
   // Every page gets the right-click menu, including the sidebar browser's guests.
   app.on('web-contents-created', (_event, contents) => { installContextMenu(contents, messages) })
   const appPreload = fileURLToPath(new URL('./preload-app.cjs', import.meta.url))
-  const managementPreload = fileURLToPath(new URL('./preload.cjs', import.meta.url))
 
   const publishUpdate = (state: DesktopUpdateState): DesktopUpdateState => {
     updateState = state
@@ -323,37 +327,6 @@ async function main(): Promise<void> {
     return active.fetch(request)
   })
 
-  const mutate = async (event: IpcMainInvokeEvent, mutation: Parameters<DesktopProjectManager['mutate']>[0]): Promise<void> => {
-    assertDesktopSender(event, ['shell'])
-    if (development !== undefined) {
-      throw new Error('avn desktop: plugin package changes require a packaged application')
-    }
-    await manager.mutate(mutation, hooks)
-    if (mainWindow !== undefined && !mainWindow.isDestroyed()) mainWindow.webContents.reload()
-  }
-  ipcMain.handle(DESKTOP_IPC.localeGet, (event) => {
-    assertDesktopSender(event, ['shell'])
-    return locale
-  })
-  ipcMain.handle(DESKTOP_IPC.pluginsList, (event) => {
-    assertDesktopSender(event, ['shell'])
-    if (development !== undefined) return []
-    return manager.listPlugins()
-  })
-  ipcMain.handle(DESKTOP_IPC.pluginsAdd, (event, spec: unknown) => {
-    if (typeof spec !== 'string') throw new Error('avn desktop: plugin spec must be a string')
-    return mutate(event, { type: 'plugin-add', spec })
-  })
-  ipcMain.handle(DESKTOP_IPC.pluginsRemove, (event, name: unknown) => {
-    if (typeof name !== 'string') throw new Error('avn desktop: plugin name must be a string')
-    return mutate(event, { type: 'plugin-remove', name })
-  })
-  ipcMain.handle(DESKTOP_IPC.pluginsUpdate, (event, name: unknown, version: unknown) => {
-    if (typeof name !== 'string' || typeof version !== 'string') {
-      throw new Error('avn desktop: plugin name and version must be strings')
-    }
-    return mutate(event, { type: 'plugin-update', name, version })
-  })
   ipcMain.handle(DESKTOP_IPC.updatesCheck, async (event) => {
     assertDesktopSender(event, ['shell'])
     return updates.check()
@@ -411,41 +384,67 @@ async function main(): Promise<void> {
     }
   }
 
-  const openPluginWindow = (): void => {
-    if (pluginWindow !== undefined && !pluginWindow.isDestroyed()) {
-      pluginWindow.focus()
-      return
-    }
-    pluginWindow = createWindow(managementPreload)
-    pluginWindow.setSize(900, 620)
-    pluginWindow.setTitle(messages.pluginWindowTitle)
-    pluginWindow.once('ready-to-show', () => { pluginWindow?.show() })
-    pluginWindow.once('closed', () => { pluginWindow = undefined })
-    void pluginWindow.loadURL(`${SCHEME}://shell/plugin-manager.html`)
+  /**
+   * Hand one menu command to the page and bring its window forward: the page
+   * owns both the Settings surface and the composer dictation acts on.
+   * @param command - the command the page listens for.
+   */
+  const sendMenuCommand = (command: DesktopMenuCommand): void => {
+    const window = mainWindow
+    if (window === undefined || window.isDestroyed()) return
+    window.webContents.send(DESKTOP_IPC.menuCommand, command)
+    if (window.isMinimized()) window.restore()
+    window.focus()
   }
+  const openSettings = (): void => { sendMenuCommand(OPEN_SETTINGS_COMMAND) }
+  const startDictation = (): void => { sendMenuCommand(START_DICTATION_COMMAND) }
 
   // The edit menu carries the clipboard and selection accelerators: macOS binds
   // Cmd+C, Cmd+V and Cmd+A through these roles, so a window without it cannot
   // copy or paste however the page is focused. The window menu is listed for
-  // the same reason, and both sit after the application menu the shell owns.
-  const platformMenus: MenuItemConstructorOptions[] = process.platform === 'darwin'
-    ? [{ role: 'editMenu' }, { role: 'windowMenu' }]
-    : [{ role: 'editMenu' }]
+  // the same reason.
+  const zoomApplicationWindow = (direction: DesktopMenuZoom): void => {
+    const window = mainWindow
+    if (window === undefined || window.isDestroyed()) return
+    const contents = window.webContents
+    const step = direction === 'in' ? DESKTOP_MENU_ZOOM_STEP : -DESKTOP_MENU_ZOOM_STEP
+    contents.setZoomLevel(direction === 'reset' ? 0 : contents.getZoomLevel() + step)
+  }
 
-  Menu.setApplicationMenu(Menu.buildFromTemplate([{
-    label: process.platform === 'darwin' ? app.name : messages.application,
-    submenu: [
-      {
-        label: development === undefined ? messages.pluginsMenu : messages.pluginsMenuPackagedOnly,
-        accelerator: 'CmdOrCtrl+,',
-        enabled: development === undefined,
-        click: openPluginWindow,
+  // Every action reads `mainWindow` when it runs: the menu is installed before
+  // the first window exists, so a captured window would be undefined here.
+  const fullScreenLabel = (): string => mainWindow?.isFullScreen() === true
+    ? messages.exitFullScreenMenu
+    : messages.enterFullScreenMenu
+
+  const toggleFullScreen = (): void => {
+    const window = mainWindow
+    if (window === undefined || window.isDestroyed()) return
+    window.setFullScreen(!window.isFullScreen())
+  }
+
+  /** Retitle the full-screen item in place; rebuilding the menu mid-transition breaks full screen. */
+  const syncFullScreenLabel = (): void => {
+    const item = Menu.getApplicationMenu()?.getMenuItemById(FULL_SCREEN_ITEM_ID)
+    if (item === undefined || item === null) return
+    item.label = fullScreenLabel()
+  }
+
+  const installApplicationMenu = (): void => {
+    Menu.setApplicationMenu(Menu.buildFromTemplate(applicationMenuTemplate({
+      platform: process.platform,
+      applicationName: app.name,
+      messages,
+      actions: {
+        checkForUpdates: () => { void checkAndPrompt(true) },
+        openSettings,
+        startDictation,
+        fullScreen: { label: fullScreenLabel(), click: toggleFullScreen },
+        zoom: zoomApplicationWindow,
       },
-      { label: messages.checkUpdatesMenu, click: () => { void checkAndPrompt(true) } },
-      { type: 'separator' },
-      { role: 'quit' },
-    ],
-  }, ...platformMenus]))
+    })))
+  }
+  installApplicationMenu()
 
   /**
    * Sign in with a provider in the default browser, then bring the app back.
@@ -485,6 +484,9 @@ async function main(): Promise<void> {
       beginProviderSignIn(window, url, (path) => { void window.loadURL(appPathUrl(path)) })
     })
     window.once('ready-to-show', () => { if (!window.isDestroyed()) window.show() })
+    // The View menu's full-screen item names the state the window is in.
+    window.on('enter-full-screen', syncFullScreenLabel)
+    window.on('leave-full-screen', syncFullScreenLabel)
     window.on('closed', () => { if (mainWindow === window) mainWindow = undefined })
     return window
   }

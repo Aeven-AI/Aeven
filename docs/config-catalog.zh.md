@@ -754,8 +754,8 @@ export interface InspectorOptions {
 
 来源：[`packages/experimental/inspector/src/index.ts:66`](../packages/experimental/inspector/src/index.ts)
 
-<a id="aevenexperimental-subscription-auth"></a>
-## `@aeven/experimental-subscription-auth`
+<a id="aevensubscription-auth"></a>
+## `@aeven/subscription-auth`
 
 需要：`webServer`
 
@@ -838,7 +838,7 @@ export interface CapabilitySettings {
 
 Depends on: [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
 
-Source: [`packages/experimental/subscription-auth/src/index.ts:252`](../packages/experimental/subscription-auth/src/index.ts)
+Source: [`packages/llm/subscription-auth/src/index.ts:252`](../packages/llm/subscription-auth/src/index.ts)
 
 <a id="aevenexperimental-tool-agent-team"></a>
 ## `@aeven/experimental-tool-agent-team`

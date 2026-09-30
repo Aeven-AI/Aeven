@@ -241,6 +241,8 @@ export interface InvocationParameterDescriptor {
   readonly lookup?: string
   /** Boundary codec for the wire representation. */
   readonly codec: TypertCodec
+  /** Authored `?` parameter: a caller may omit it, which omits the wire field. */
+  readonly optional?: true
   /** Missing wire fields decode to `undefined` only for an explicitly declared `T | undefined`. */
   readonly acceptsUndefined?: true
 }

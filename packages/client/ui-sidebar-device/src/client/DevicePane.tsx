@@ -10,7 +10,7 @@
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import {
-  IconLucideChevronRight, IconLucideListTree, IconLucideRefreshCw, IconLucideSmartphone, IconLucideX, Modal, Spinner,
+  IconLucideChevronRight, IconLucideRefreshCw, IconLucideSettings2, IconLucideSmartphone, IconLucideX, Modal, Spinner, StateDot,
 } from '@aeven/client-ui-primitives'
 import type { SidebarContentPaneProps } from '@aeven/client-ui-sidebar-select/client'
 import type { DeviceHostId, DevicePlatform, DeviceServiceState, DeviceSummary } from '@aeven/device/types'
@@ -20,7 +20,7 @@ import { DeviceLoading, DeviceStream, type DeviceStreamHandle } from './DeviceSt
 import { DeviceSetup } from './DeviceSetup.tsx'
 import { DeviceTools } from './DeviceTools.tsx'
 import { deviceHubAccess } from './hub-access.ts'
-import { ChevronLeft, CirclePlay, Home, Power, RotateCcw, SlidersHorizontal, Square } from './icons.tsx'
+import { ChevronLeft, CirclePlay, Home, List, Power, RotateCcw, Square } from './icons.tsx'
 import type { DeviceClient } from './state.ts'
 import css from './DevicePane.module.css'
 
@@ -179,8 +179,8 @@ export function DevicePane({ sessionId, surfaceId, active, setTab, closeSurface,
                   </>
                 )
                 : <IconButton label={t('rotate')} disabled={handle?.inputConnected !== true} onClick={() => { handle?.rotate() }}><RotateCcw /></IconButton>}
-              <IconButton label={t('tools')} pressed={toolsOpen} onClick={() => { setToolsOpen(open => !open) }}><SlidersHorizontal /></IconButton>
-              <IconButton label={t('devices')} onClick={() => { void closeActive(false) }}><IconLucideListTree /></IconButton>
+              <IconButton label={t('tools')} pressed={toolsOpen} onClick={() => { setToolsOpen(open => !open) }}><IconLucideSettings2 /></IconButton>
+              <IconButton label={t('devices')} onClick={() => { void closeActive(false) }}><List /></IconButton>
               <IconButton label={t('powerOff')} danger onClick={() => { void closeActive(true) }}><Power /></IconButton>
             </>
           )
@@ -297,7 +297,7 @@ function DeviceList(props: {
                 onClick={() => { props.onSelect(device) }}
               >
                 <span className={css.slot}>
-                  {starting ? <Spinner /> : <span className={css.stateDot} data-booted={device.booted || undefined} />}
+                  {starting ? <Spinner /> : device.booted ? <StateDot state="done" size={8} /> : <span className={css.stateDot} />}
                 </span>
                 <span className={css.rowTitle}>{device.name}</span>
                 <span className={css.rowMeta}>{props.deviceMeta(device)}</span>

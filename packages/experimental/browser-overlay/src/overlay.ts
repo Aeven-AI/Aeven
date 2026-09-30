@@ -55,6 +55,13 @@ export const IDLE_HIDE_MS = 20_000
 /** How long one click's ripple stays on screen, in milliseconds. */
 const RIPPLE_MS = 620
 
+/**
+ * Offset of a first appearance from its target, in CSS pixels: 120px, short of
+ * the motion model's long-move threshold, so the entry is a quick straight
+ * glide that lands before the host's action does.
+ */
+const ENTRY_OFFSET = { x: 72, y: 96 } as const
+
 /** How long a typing caret stays visible at a point, in milliseconds. */
 const CARET_MS = 900
 
@@ -94,6 +101,7 @@ export class BrowserOverlay {
   #motion: CursorMotion | undefined
   #frame: number | undefined
   #lastFrameAt = 0
+  #arrivals: Array<() => void> = []
 
   constructor(options: AttachOptions = {}) {
     this.#options = {
@@ -212,6 +220,7 @@ export class BrowserOverlay {
    * rather than hidden, so a page's own selector queries cannot observe it.
    */
   destroy(): void {
+    this.#settleArrivals()
     if (this.#frame !== undefined) cancelAnimationFrame(this.#frame)
     this.#frame = undefined
     this.#motion = undefined
@@ -243,6 +252,17 @@ export class BrowserOverlay {
     this.#glideTo(point)
     this.#setLabel(options.label)
     this.#armIdleTimer()
+  }
+
+  /**
+   * Wait for the pointer to finish its current glide, so a host can let the
+   * action it announced land where the pointer visibly is.
+   * @returns a promise that resolves once the pointer rests on its target, at
+   * once when it is not travelling, and when the overlay is hidden or destroyed.
+   */
+  arrived(): Promise<void> {
+    if (this.#motion === undefined || this.#frame === undefined || !this.#motion.isTravelling) return Promise.resolve()
+    return new Promise((resolve) => { this.#arrivals.push(resolve) })
   }
 
   /**
@@ -331,11 +351,49 @@ export class BrowserOverlay {
     this.#motion?.setThinkEnabled(enabled)
   }
 
-  /** Hide the pointer without detaching the overlay. */
-  hide(): void {
+  /**
+   * Fade the pointer out without detaching the overlay.
+   *
+   * The fade runs on the visibility spring, whose opacity the frame loop writes
+   * inline. The next action enters afresh rather than resuming from where the
+   * pointer faded.
+   * @param options - `immediate` removes the pointer in this frame instead of
+   * fading it, for when what it points at has itself left the screen.
+   */
+  hide(options: { immediate?: boolean } = {}): void {
+    this.#settleArrivals()
+    if (this.#idleTimer !== undefined) clearTimeout(this.#idleTimer)
+    this.#idleTimer = undefined
+    this.#setLabel(undefined)
+    this.hover(undefined)
+    this.#point = undefined
     if (this.#cursor !== undefined) this.#cursor.dataset.visible = 'false'
     if (this.#root !== undefined) this.#root.dataset.visible = 'false'
-    this.#setLabel(undefined)
+    const motion = this.#motion
+    if (motion === undefined) return
+    if (options.immediate === true) {
+      motion.setVisible(false)
+      motion.visibility.value = 0
+      motion.visibility.velocity = 0
+      if (this.#cursor !== undefined) this.#cursor.style.opacity = '0'
+      return
+    }
+    if (motion.visibility.target === 0) return
+    motion.setVisible(false)
+    this.#startFrameLoop()
+  }
+
+  /**
+   * Confine everything the overlay draws to one viewport rectangle, such as the
+   * frame of the page the pointer acts on, so a pointer mid-flight never paints
+   * over the host's own surfaces.
+   * @param rect - the region to draw in, or `undefined` to draw anywhere.
+   */
+  clipTo(rect: Rect | undefined): void {
+    if (this.#root === undefined) return
+    this.#root.style.clipPath = rect === undefined
+      ? ''
+      : `inset(${rect.y}px ${innerWidth - rect.x - rect.width}px ${innerHeight - rect.y - rect.height}px ${rect.x}px)`
   }
 
   /**
@@ -367,7 +425,12 @@ export class BrowserOverlay {
     cursor.dataset.visible = 'true'
     root.dataset.visible = 'true'
 
-    if (first) motion.jumpTo(point.x, point.y)
+    // A first appearance fades in short of the target and glides onto it, so the
+    // pointer reads as arriving rather than popping into place.
+    if (first) {
+      const entry = entryPoint(point)
+      motion.jumpTo(entry.x, entry.y)
+    }
     motion.setVisible(true)
     motion.travelTo(point.x, point.y)
     this.#startFrameLoop()
@@ -404,6 +467,7 @@ export class BrowserOverlay {
         boxSize: CURSOR_BOX,
       })
       cursor.style.opacity = `${visibility.opacity}`
+      if (!motion.isTravelling) this.#settleArrivals()
       if (moving || motion.visibility.value !== motion.visibility.target) {
         this.#frame = requestAnimationFrame(tick)
       } else {
@@ -411,6 +475,13 @@ export class BrowserOverlay {
       }
     }
     this.#frame = requestAnimationFrame(tick)
+  }
+
+  /** Resolve everything waiting on {@link arrived}. */
+  #settleArrivals(): void {
+    const arrivals = this.#arrivals
+    this.#arrivals = []
+    for (const resolve of arrivals) resolve()
   }
 
   #setLabel(text: string | undefined): void {
@@ -507,6 +578,18 @@ export class BrowserOverlay {
       // Audio is a nicety; a blocked AudioContext must not break an action.
     }
   }
+}
+
+/**
+ * Where a first appearance starts: {@link ENTRY_OFFSET} below-right of the
+ * target, mirrored on an axis that would leave the viewport.
+ * @param point - the target the pointer glides onto.
+ * @returns the entry point, in viewport coordinates.
+ */
+function entryPoint(point: Point): Point {
+  const x = point.x + ENTRY_OFFSET.x > innerWidth ? point.x - ENTRY_OFFSET.x : point.x + ENTRY_OFFSET.x
+  const y = point.y + ENTRY_OFFSET.y > innerHeight ? point.y - ENTRY_OFFSET.y : point.y + ENTRY_OFFSET.y
+  return { x, y }
 }
 
 /** Accent color, re-exported so a host can theme its own chrome to match. */

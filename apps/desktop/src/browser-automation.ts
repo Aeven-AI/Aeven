@@ -10,7 +10,10 @@
  * Each pointer action is shown by the agent pointer, which the app window draws
  * over the guest as ChatGPT's in-app browser does
  * (`browser-sidebar-browser-use-cursor-state`): it survives the guest's
- * navigations, and the input lands once the pointer has had time to arrive.
+ * navigations. As there, a pointer action is a move the window acknowledges
+ * (`browser-use-cursor-arrived`) followed by the input, so the input lands where
+ * the pointer visibly is. While the pointer glides, the page receives mouse
+ * moves along its path, and typed text arrives a character at a time.
  */
 
 import type { WebContents } from 'electron'
@@ -24,8 +27,48 @@ const MAX_INTERACTIVE_ELEMENT_NAME_LENGTH = 120
 const MAX_VISIBLE_TEXT_LENGTH = 40_000
 /** Bytes an evaluated value may serialize to (t3code `MAX_EVALUATION_BYTES`). */
 const MAX_EVALUATION_BYTES = 64_000
-/** How long the pointer glides to a target before the click lands, in ms. */
-const AGENT_CURSOR_MOVE_MS = 350
+/** Longest an action waits for the window to report the pointer arrived, in ms. */
+const CURSOR_ARRIVAL_TIMEOUT_MS = 1500
+/**
+ * How long the page's mouse moves take on a short and a long glide, in ms: the
+ * overlay's own travel estimates (browser-overlay `CursorMotion.travelTo`).
+ */
+const HOVER_SHORT_MS = 420
+const HOVER_LONG_MS = 700
+/** Glide length from which the overlay arcs, in CSS pixels (browser-overlay `LONG_MOVE_PX`). */
+const HOVER_LONG_PX = 196
+/** Mouse moves dispatched along one glide. */
+const HOVER_STEPS = 12
+/** Pause between typed characters, in ms. */
+const TYPE_CHARACTER_MS = 45
+/** Longest one typed string takes; longer text types in larger pieces, in ms. */
+const TYPE_MAX_MS = 3000
+/** Most insertions one typed string is split into. */
+const TYPE_MAX_STEPS = 200
+
+/** Where the pointer last arrived in each guest, in its viewport CSS pixels. */
+const pointerAt = new WeakMap<WebContents, { x: number; y: number }>()
+/** Number of the next pointer step; `move` arrivals are matched by it. */
+let nextCursorSequence = 1
+/** Pending `move` arrivals, keyed by guest id and step number. */
+const arrivalWaiters = new Map<string, () => void>()
+
+/**
+ * Resolve a pointer move the window reports as finished.
+ * @param webContentsId - the guest the move was drawn over.
+ * @param sequence - the move's step number.
+ */
+export function notifyCursorArrived(webContentsId: number, sequence: number): void {
+  arrivalWaiters.get(`${String(webContentsId)}:${String(sequence)}`)?.()
+}
+
+/**
+ * Wait without blocking the main process.
+ * @param ms - how long, in milliseconds.
+ */
+async function sleep(ms: number): Promise<void> {
+  await new Promise(resolve => setTimeout(resolve, ms))
+}
 
 /** An action's arguments, as the tool validated them. */
 export type BrowserAutomationInput = { readonly [key: string]: unknown }
@@ -130,8 +173,12 @@ async function centreOf(guest: WebContents, target: string): Promise<{ x: number
   })()`) as { x: number; y: number }
 }
 
-/** t3code `typeIntoAutomationTarget`'s page expression. */
-function typeExpression(input: BrowserAutomationInput): string {
+/**
+ * t3code `typeIntoAutomationTarget`'s page expression, up to the insertion:
+ * focus the target and select what `clear` replaces. Clearing with no text
+ * deletes the selection here, as there is nothing to type over it.
+ */
+function focusExpression(input: BrowserAutomationInput): string {
   const target = typeof input.selector === 'string'
     ? `document.querySelector(${JSON.stringify(input.selector)})`
     : 'document.activeElement'
@@ -157,12 +204,24 @@ function typeExpression(input: BrowserAutomationInput): string {
         selection?.addRange(range);
       }
     }
-    const text = ${JSON.stringify(String(input.text ?? ''))};
-    const inserted = text.length > 0 ? document.execCommand("insertText", false, text) : document.execCommand("delete", false);
-    if (!inserted) return { notEditable: true };
-    element.dispatchEvent(new Event("change", { bubbles: true }));
+    if (${String(String(input.text ?? '') === '')} && !document.execCommand("delete", false)) return { notEditable: true };
     return { ok: true };
   })()`
+}
+
+/**
+ * Split text into the pieces typed one after another: single characters, or
+ * larger pieces when the text would otherwise take more than
+ * {@link TYPE_MAX_STEPS} insertions.
+ * @param text - the text to type.
+ * @returns the pieces, in order, never splitting a code point.
+ */
+function typingPieces(text: string): string[] {
+  const characters = Array.from(text)
+  const size = Math.max(1, Math.ceil(characters.length / TYPE_MAX_STEPS))
+  const pieces: string[] = []
+  for (let at = 0; at < characters.length; at += size) pieces.push(characters.slice(at, at + size).join(''))
+  return pieces
 }
 
 /** t3code `NAMED_KEYS`, reduced to the key names the native event needs. */
@@ -206,10 +265,41 @@ function press(guest: WebContents, input: BrowserAutomationInput): void {
 export async function automate(guest: WebContents, operation: string, input: BrowserAutomationInput): Promise<unknown> {
   if (!guest.debugger.isAttached()) guest.debugger.attach('1.3')
   const send = (method: string, params?: object) => guest.debugger.sendCommand(method, params)
-  /** Show the pointer acting at a guest viewport point, then let it arrive. */
-  const pointer = async (cursor: Omit<DesktopBrowserCursor, 'webContentsId'>): Promise<void> => {
-    guest.hostWebContents?.send(DESKTOP_IPC.browserCursor, { webContentsId: guest.id, ...cursor } satisfies DesktopBrowserCursor)
-    await new Promise(resolve => setTimeout(resolve, AGENT_CURSOR_MOVE_MS))
+  /** Draw one pointer step over the guest; returns its step number. */
+  const show = (cursor: Omit<DesktopBrowserCursor, 'webContentsId' | 'sequence'>): number => {
+    const sequence = nextCursorSequence++
+    guest.hostWebContents?.send(DESKTOP_IPC.browserCursor, { webContentsId: guest.id, sequence, ...cursor } satisfies DesktopBrowserCursor)
+    return sequence
+  }
+  /**
+   * Glide the pointer to a point and wait until the window reports it there.
+   * The page receives mouse moves along the way, so hover states follow it.
+   */
+  const moveTo = async (point: { x: number; y: number }): Promise<void> => {
+    const from = pointerAt.get(guest) ?? point
+    const sequence = show({ action: 'move', ...point })
+    const key = `${String(guest.id)}:${String(sequence)}`
+    const arrived = new Promise<void>((resolve) => {
+      const done = (): void => {
+        clearTimeout(timer)
+        arrivalWaiters.delete(key)
+        resolve()
+      }
+      const timer = setTimeout(done, CURSOR_ARRIVAL_TIMEOUT_MS)
+      arrivalWaiters.set(key, done)
+    })
+    const duration = Math.hypot(point.x - from.x, point.y - from.y) >= HOVER_LONG_PX ? HOVER_LONG_MS : HOVER_SHORT_MS
+    for (let step = 1; step <= HOVER_STEPS; step++) {
+      // Ease out, as the pointer's spring decelerates into its target.
+      const progress = 1 - (1 - step / HOVER_STEPS) ** 3
+      await send('Input.dispatchMouseEvent', {
+        type: 'mouseMoved', button: 'none',
+        x: from.x + (point.x - from.x) * progress, y: from.y + (point.y - from.y) * progress,
+      })
+      await sleep(duration / HOVER_STEPS)
+    }
+    await arrived
+    pointerAt.set(guest, point)
   }
   switch (operation) {
     case 'snapshot':
@@ -219,17 +309,28 @@ export async function automate(guest: WebContents, operation: string, input: Bro
       // command, so input reaches a guest the window has not focused.
       await send('Emulation.setFocusEmulationEnabled', { enabled: true })
       const point = await resolveClickPoint(guest, input)
-      await pointer({ action: 'click', ...point })
+      await moveTo(point)
+      show({ action: 'click', ...point })
       await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...point, button: 'left', clickCount: 1 })
       await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point, button: 'left', clickCount: 1 })
       return { ok: true }
     }
     case 'type': {
       const target = typeof input.selector === 'string' ? `document.querySelector(${JSON.stringify(input.selector)})` : 'document.activeElement'
-      await pointer({ action: 'type', ...await centreOf(guest, target) })
-      const result = await evaluate(guest, typeExpression(input)) as { ok?: true; notFound?: true; notEditable?: true }
+      const point = await centreOf(guest, target)
+      await moveTo(point)
+      show({ action: 'type', ...point })
+      const result = await evaluate(guest, focusExpression(input)) as { ok?: true; notFound?: true; notEditable?: true }
       if (result.notFound === true) throw new Error('no element matches the target; call preview_snapshot for current selectors')
       if (result.notEditable === true) throw new Error('the target is not an editable element')
+      const pieces = typingPieces(String(input.text ?? ''))
+      const pause = Math.min(TYPE_CHARACTER_MS, TYPE_MAX_MS / Math.max(1, pieces.length))
+      for (const piece of pieces) {
+        const inserted = await evaluate(guest, `document.execCommand("insertText", false, ${JSON.stringify(piece)})`)
+        if (inserted !== true) throw new Error('the target is not an editable element')
+        await sleep(pause)
+      }
+      await evaluate(guest, 'document.activeElement?.dispatchEvent(new Event("change", { bubbles: true })), true')
       return { ok: true }
     }
     case 'press':
@@ -240,7 +341,9 @@ export async function automate(guest: WebContents, operation: string, input: Bro
       const target = typeof input.selector === 'string' ? `document.querySelector(${JSON.stringify(input.selector)})` : 'window'
       const deltaX = Number(input.deltaX ?? 0)
       const deltaY = Number(input.deltaY ?? 0)
-      await pointer({ action: 'scroll', ...await centreOf(guest, target), deltaY })
+      const point = await centreOf(guest, target)
+      await moveTo(point)
+      show({ action: 'scroll', ...point, deltaY })
       const result = await evaluate(guest, `(() => {
         const target = ${target};
         if (!target) return { notFound: true };

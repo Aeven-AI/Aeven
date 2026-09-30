@@ -46,6 +46,7 @@
 }
 
 .group > .row:last-child,
+.group > .meterRow:last-child,
 .group > .payments:last-child {
   border-bottom: none;
 }
@@ -131,6 +132,7 @@
   border-radius: 20px;
 }
 
+
 .name,
 .identity .desc {
   overflow: hidden;
@@ -138,37 +140,54 @@
   text-overflow: ellipsis;
 }
 
-/* Allowance meter beside the plan status. */
-.meterGroup {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
+/* Allowance read-out: the status copy carries the period's end date, the
+   percentage sits on that same line, and the bar spans the row underneath. */
+.meterRow {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 0;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+/* The copy keeps its own height here: `.rowText`'s 220px flex basis is the
+   text column's WIDTH in a row, and as a column item it would set the height
+   instead — leaving the bar stranded at the bottom of a 220px block. */
+.meterRow > .rowText {
   flex: none;
+}
+
+.meterLine {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .meter {
   display: block;
-  overflow: hidden;
-  width: 120px;
-  height: 6px;
-  border-radius: 3px;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
   background: var(--dsw-alias-bg-module-platform);
 }
 
 .meter > span {
   display: block;
   height: 100%;
-  border-radius: 3px;
-  background: var(--dsw-alias-label-primary);
+  border-radius: 4px;
+  /* Green while the allowance holds out, yellow as it is used up: the fill
+     mixes the two by the percentage the row published. */
+  background: color-mix(
+    in oklab,
+    var(--dsw-alias-state-warn-primary) var(--avn-usage-percent, 0%),
+    var(--dsw-alias-state-success-primary)
+  );
   transition: width 0.3s;
 }
 
-.meter[data-warn='true'] > span {
-  background: var(--dsw-alias-state-warn-primary);
-}
-
 .meterLabel {
-  min-width: 64px;
+  flex: none;
   font-size: 12px;
   line-height: 18px;
   text-align: right;
@@ -394,16 +413,18 @@
   color: var(--dsw-alias-label-primary);
 }
 
+/* The chosen amount is a fill and nothing else: the raised edge it used to
+   carry read as a second control inside the track. */
 .segment[aria-checked='true'],
 .customSegment {
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-primary);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0 0 0.5px var(--dsw-alias-border-l2);
 }
 
+/* The amount the reader types is a preset's pill too, so it keeps the preset
+   geometry and lets its digits set the width. */
 .customSegment {
   gap: 2px;
-  width: 84px;
   cursor: text;
 }
 
@@ -412,13 +433,14 @@
 }
 
 .customSegment input {
-  width: 100%;
+  flex: none;
   min-width: 0;
   padding: 0;
   border: none;
   background: transparent;
   color: inherit;
   font: inherit;
+  text-align: center;
   outline: none;
   -moz-appearance: textfield;
 }
@@ -443,18 +465,19 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Selector pill (the Language row's control). */
+/* The payment-history control is the group's one action, not a form control:
+   it wears the black capsule while every dropdown around it stays light. */
 .selector {
   display: inline-flex;
   flex: none;
   align-items: center;
   gap: 12px;
-  height: 36px;
+  height: var(--dsw-aeven-control-size);
   padding: 0 14px;
   border: none;
-  border-radius: 18px;
-  background: var(--dsw-alias-bg-module-platform);
-  color: var(--dsw-alias-label-primary);
+  border-radius: var(--dsw-aeven-radius-control);
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
   font: inherit;
   font-size: 14px;
   line-height: 22px;
@@ -462,7 +485,7 @@
 }
 
 .selector:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+  background: var(--dsw-alias-button-primary-hover);
 }
 
 .chevron {
@@ -508,9 +531,5 @@
 @media (max-width: 480px) {
   .plans {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .meter {
-    width: 72px;
   }
 }

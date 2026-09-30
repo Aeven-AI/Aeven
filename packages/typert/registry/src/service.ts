@@ -673,6 +673,9 @@ function validateInvocation(descriptor: InvocationDescriptor): void {
       if (parameter.acceptsUndefined !== undefined) {
         throw new Error(`typert: invocation "${descriptor.id}" lookup parameter "${parameter.name}" cannot accept undefined`)
       }
+      if (parameter.optional !== undefined) {
+        throw new Error(`typert: invocation "${descriptor.id}" lookup parameter "${parameter.name}" cannot be optional`)
+      }
       if (parameter.lookup === undefined) {
         throw new Error(`typert: invocation "${descriptor.id}" lookup parameter "${parameter.name}" has no lookup key`)
       }

@@ -109,7 +109,10 @@
 .attachmentCard {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  /* Both children take the card's full width: the tray aligns its own tiles
+     (data-align='end'), so end-aligning them here only shrink-wrapped the text
+     beside them into a narrow column at the card's right edge. */
+  align-items: stretch;
   align-self: stretch;
   box-sizing: border-box;
   max-width: 100%;

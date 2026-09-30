@@ -87,12 +87,6 @@ export interface DesktopProjectHooks {
   afterActivate(): Promise<void>
 }
 
-/** Supported dependency mutation. */
-export type DesktopProjectMutation =
-  | { readonly type: 'plugin-add'; readonly spec: string }
-  | { readonly type: 'plugin-remove'; readonly name: string }
-  | { readonly type: 'plugin-update'; readonly name: string; readonly version: string }
-
 interface DesktopSeedIntegrityRecord {
   readonly path: string
   readonly bytes: number
@@ -152,31 +146,6 @@ function assertPackageName(name: string): void {
 
 function assertVersion(version: string): void {
   if (!VERSION_PATTERN.test(version)) throw new Error(`desktop project: invalid exact version ${JSON.stringify(version)}`)
-}
-
-/**
- * Validate one registry package spec and return its requested package name when explicit.
- * @param spec - npm registry name with an optional version or tag.
- * @returns package name, or undefined when the spec's final name is registry-resolved.
- */
-export function packageNameFromSpec(spec: string): string | undefined {
-  if (spec === '' || spec.startsWith('-') || /[\s\\]/u.test(spec) || spec.includes('://') || spec.startsWith('file:')) {
-    throw new Error(`desktop project: unsupported npm package spec ${JSON.stringify(spec)}`)
-  }
-  if (spec.startsWith('@')) {
-    const slash = spec.indexOf('/')
-    if (slash === -1) throw new Error(`desktop project: invalid scoped package spec ${JSON.stringify(spec)}`)
-    const versionAt = spec.indexOf('@', slash)
-    const name = versionAt === -1 ? spec : spec.slice(0, versionAt)
-    assertPackageName(name)
-    if (versionAt !== -1) assertVersion(spec.slice(versionAt + 1))
-    return name
-  }
-  const versionAt = spec.indexOf('@')
-  const name = versionAt === -1 ? spec : spec.slice(0, versionAt)
-  assertPackageName(name)
-  if (versionAt !== -1) assertVersion(spec.slice(versionAt + 1))
-  return name
 }
 
 function removeOwnedDirectory(path: string): void {
@@ -362,12 +331,6 @@ export class DesktopProjectManager {
     unlinkSync(this.paths.pending)
   }
 
-  /** Read the active desktop plugin inventory. */
-  listPlugins(): readonly DesktopPluginRecord[] {
-    if (!existsSync(this.paths.profile)) return []
-    return pluginRecords(this.paths.profile)
-  }
-
   /** Read the exact avn version installed in the active desktop project. */
   avnVersion(): string {
     if (!existsSync(this.paths.profile)) throw new Error('desktop project: active profile is not installed')
@@ -436,73 +399,10 @@ export class DesktopProjectManager {
     })
   }
 
-  /** Apply one exact dependency mutation through a staging project. */
-  async mutate(mutation: DesktopProjectMutation, hooks: DesktopProjectHooks): Promise<void> {
-    await this.withLock(async () => {
-      this.recover()
-      if (!existsSync(this.paths.profile)) throw new Error('desktop project: active profile is not installed')
-      verifyDesktopCorePackageSet(this.paths.profile, this.releaseVersion())
-      const stagingProfile = this.newStagingProfile()
-      try {
-        copyMetadata(this.paths.profile, stagingProfile)
-        await this.applyMutation(stagingProfile, mutation)
-        await hooks.healthCheck(stagingProfile)
-        await this.activate(stagingProfile, hooks)
-      } catch (error) {
-        removeOwnedDirectory(stagingProfile)
-        throw error
-      }
-    })
-  }
-
   private newStagingProfile(): string {
     const path = join(this.paths.staging, randomUUID(), 'profile')
     mkdirSync(path, { recursive: true, mode: 0o700 })
     return path
-  }
-
-  private async applyMutation(projectDir: string, mutation: DesktopProjectMutation): Promise<void> {
-    switch (mutation.type) {
-      case 'plugin-add': {
-        const requestedName = packageNameFromSpec(mutation.spec)
-        if (requestedName === undefined) throw new Error('desktop project: plugin package name is required')
-        await this.runPnpm(projectDir, ['add', mutation.spec, '--save-exact'])
-        const installed = inspectPlugin(projectDir, requestedName)
-        const current = pluginRecords(projectDir).filter(plugin => plugin.name !== installed.name)
-        writeProfilePlugins(
-          projectDir,
-          [...current, installed].sort((left, right) => left.name.localeCompare(right.name)),
-        )
-        return
-      }
-      case 'plugin-remove': {
-        assertPackageName(mutation.name)
-        if (!profilePluginNames(projectDir).includes(mutation.name)) {
-          throw new Error(`desktop project: plugin ${JSON.stringify(mutation.name)} is not installed`)
-        }
-        const remaining = pluginRecords(projectDir).filter(plugin => plugin.name !== mutation.name)
-        await this.runPnpm(projectDir, ['remove', mutation.name])
-        writeProfilePlugins(projectDir, remaining)
-        return
-      }
-      case 'plugin-update':
-        assertPackageName(mutation.name)
-        assertVersion(mutation.version)
-        if (!profilePluginNames(projectDir).includes(mutation.name)) {
-          throw new Error(`desktop project: plugin ${JSON.stringify(mutation.name)} is not installed`)
-        }
-        await this.runPnpm(projectDir, ['add', `${mutation.name}@${mutation.version}`, '--save-exact'])
-        {
-          const installed = inspectPlugin(projectDir, mutation.name)
-          writeProfilePlugins(
-            projectDir,
-            pluginRecords(projectDir).map(plugin => plugin.name === installed.name ? installed : plugin),
-          )
-        }
-        return
-      default:
-        mutation satisfies never
-    }
   }
 
   private mergeSeedPnpmState(seedDir: string): void {

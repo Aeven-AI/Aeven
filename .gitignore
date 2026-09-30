@@ -54,3 +54,6 @@ packages/typert/generator/tests/.generated-model-*/
 packages/*/*/src/**/*.js.map
 packages/*/*/src/**/*.d.ts.map
 /.avn-transient-probes.lock
+
+# Local computer-use scratch scripts; never committed.
+.scratch-cua/
