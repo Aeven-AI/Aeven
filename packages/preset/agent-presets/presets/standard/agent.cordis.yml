@@ -80,8 +80,15 @@
 # `skill-filesystem` contributes local-root discovery for agents on this preset, and
 # `tool-skill` gives them the catalog and loader; the merged catalog also
 # carries whatever the deployment registered globally (repository plugins).
+#
+# The skills that ship with this package live once, under the `aeven` preset,
+# which owns them; `baseUrl` is this preset's own directory, so the root resolves
+# only beside the shipped install and a copy of this preset loses it.
 - id: skill-filesystem
   name: '@aeven/skill-filesystem'
+  config:
+    customSkillDirs:
+      - !!js "process.getBuiltinModule('node:url').fileURLToPath(new URL('../aeven/skills/', baseUrl))"
 
 - id: tool-skill
   name: '@aeven/tool-skill'

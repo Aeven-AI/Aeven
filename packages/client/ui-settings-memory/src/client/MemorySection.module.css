@@ -49,10 +49,13 @@
   content: '';
 }
 
+/* The ring is the quiet one the sibling settings section draws
+   (ui-settings-models' ModelsSection): the brand inks are near-black here, so an
+   outline in either one reads as a black box around the control. */
 .tab:focus-visible {
-  outline: 2px solid var(--dsw-alias-state-business-primary);
-  outline-offset: 2px;
-  border-radius: 2px;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--dsw-alias-border-l3);
+  border-radius: 6px;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -180,12 +183,11 @@
 }
 
 .card:hover {
-  border-color: var(--dsw-alias-label-dimmed);
+  background: var(--dsw-alias-bg-layer-2);
 }
 
 .cardOpen {
   background: var(--dsw-alias-bg-layer-2);
-  border-color: var(--dsw-alias-label-dimmed);
 }
 
 .header,
@@ -210,11 +212,15 @@
 }
 
 .header:focus-visible,
-.foldButton:focus-visible,
+.foldButton:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--dsw-alias-border-l3);
+}
+
 .textButton:focus-visible,
 .primary:focus-visible {
-  outline: 2px solid var(--dsw-alias-brand-primary);
-  outline-offset: -2px;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--dsw-alias-border-l3);
 }
 
 .headText {
@@ -360,8 +366,9 @@
 }
 
 .primary {
-  border-radius: 8px;
-  padding: 5px 14px;
+  border-radius: 9px;
+  padding: 7px 16px;
+  line-height: 20px;
   background: var(--dsw-alias-label-primary);
   color: var(--dsw-alias-bg-layer-3);
 }
@@ -379,4 +386,150 @@
 
 .confirm {
   margin: 12px 0 4px;
+}
+
+/* Standing facts: one lead sentence, a meter for the budget the block spends on every request,
+   then one row per statement. The statement is primary text; its confirmed time and its actions
+   sit on the quiet line beneath it, so a screen reader and a hover both reach them. */
+
+.factsLead {
+  margin: 0;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.budget {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 2px 0 4px;
+}
+
+/* The allowance bar is the Account page's meter (ui-account-aeven
+   AccountSection.module.css:167): same 8px track, same green-to-yellow fill. */
+.budgetTrack {
+  display: block;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--dsw-alias-bg-module-platform);
+}
+
+.budgetFill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: color-mix(
+    in oklab,
+    var(--dsw-alias-state-warn-primary) var(--avn-usage-percent, 0%),
+    var(--dsw-alias-state-success-primary)
+  );
+  transition: width 0.3s;
+}
+
+.budgetText {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--dsw-alias-label-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A statement row is a foldout card in its collapsed form: the same card chrome
+   and the same 14px 16px header inset as `.card`, so a statement and a memory
+   read as one family. Its text and its confirmed line sit at the header's own 2px
+   step, the way a card's title sits over its subtitle. */
+.factRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 16px;
+  background: var(--dsw-alias-bg-layer-3);
+  padding: 14px 16px;
+  transition: background 0.16s;
+}
+
+.factRow:hover {
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.factText {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+}
+
+.factMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.factActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* The composer is the foldout's edit body standing on its own: the card chrome,
+   the label over the textarea, and the actions on a right-aligned line — the same
+   field and footer a memory's edit mode draws inside its card. */
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 16px;
+  background: var(--dsw-alias-bg-layer-3);
+  padding: 14px 16px;
+  transition: border-color 0.16s;
+}
+
+/* The `.field textarea` the foldout's edit mode renders, off the section's one
+   type scale. */
+.composerArea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  padding: 8px 10px;
+  outline: none;
+  resize: vertical;
+}
+
+.composerArea:focus-visible {
+  border-color: var(--dsw-alias-state-business-primary);
+  box-shadow: 0 0 0 2px var(--dsw-tint-business-18);
+}
+
+.composerLabel {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.composerFooter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+}
+
+.composerHint {
+  margin-right: auto;
+  color: var(--dsw-alias-label-dimmed);
+  font-variant-numeric: tabular-nums;
+}
+
+.factsEmpty {
+  margin: 2px 0;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.emptyExample {
+  display: block;
+  margin-top: 2px;
+  color: var(--dsw-alias-label-dimmed);
 }

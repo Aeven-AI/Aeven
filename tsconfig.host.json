@@ -222,6 +222,7 @@
     { "path": "./packages/memory/memory" },
     { "path": "./packages/memory/memory-memos" },
     { "path": "./packages/memory/memory-context" },
+    { "path": "./packages/memory/memory-invariants" },
     { "path": "./packages/memory/tool-memory" },
     { "path": "./packages/capability/capability" },
     { "path": "./packages/capability/tool-capability" },

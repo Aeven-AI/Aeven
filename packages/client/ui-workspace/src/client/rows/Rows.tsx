@@ -207,10 +207,13 @@ interface SessionStatus {
 
 /**
  * Session status presentation; pending interaction is primary and live activity
- * outranks completion reminders.
+ * outranks completion reminders. A Session's own Agent, its running subagents,
+ * and its live background jobs are all work in flight, so each one that applies
+ * contributes a status beside the primary.
  */
 function sessionStatuses(
-  node: Pick<SessionNode, 'pendingInteraction' | 'running' | 'runningSubagentCount' | 'completed'>,
+  node: Pick<SessionNode,
+    'pendingInteraction' | 'running' | 'runningSubagentCount' | 'runningJobCount' | 'completed'>,
   t: RowTranslate,
 ): readonly [SessionStatus, ...SessionStatus[]] {
   const subagents: SessionStatus | undefined = node.runningSubagentCount === 0
@@ -222,6 +225,19 @@ function sessionStatuses(
           ? 'status.subagentsRunning.one'
           : 'status.subagentsRunning.other',
         { n: node.runningSubagentCount },
+      ),
+    }
+  // A job keeps working between turns, so its status is what tells a reader
+  // that an idle-looking Session is not finished.
+  const jobs: SessionStatus | undefined = node.runningJobCount === 0
+    ? undefined
+    : {
+      state: 'ongoing',
+      label: t(
+        node.runningJobCount === 1
+          ? 'status.jobsRunning.one'
+          : 'status.jobsRunning.other',
+        { n: node.runningJobCount },
       ),
     }
   let pending: SessionStatus | undefined
@@ -239,14 +255,20 @@ function sessionStatuses(
     /* v8 ignore next -- closed PendingInteractionStatus union */
     default: return assertNever(node.pendingInteraction)
   }
-  if (pending !== undefined) return subagents === undefined ? [pending] : [pending, subagents]
-  if (node.running) {
-    const primary: SessionStatus = { state: 'ongoing', label: t('status.running') }
-    return subagents === undefined ? [primary] : [primary, subagents]
-  }
-  if (subagents !== undefined) return [subagents]
+  if (pending !== undefined) return withLiveWork(pending, subagents, jobs)
+  if (node.running) return withLiveWork({ state: 'ongoing', label: t('status.running') }, subagents, jobs)
+  if (subagents !== undefined) return withLiveWork(subagents, jobs)
+  if (jobs !== undefined) return [jobs]
   if (node.completed) return [{ state: 'done', label: t('status.completed') }]
   return [{ state: 'done', label: t('status.idle') }]
+}
+
+/** One primary status followed by every live-work status that also applies. */
+function withLiveWork(
+  primary: SessionStatus,
+  ...extras: readonly (SessionStatus | undefined)[]
+): readonly [SessionStatus, ...SessionStatus[]] {
+  return [primary, ...extras.filter((extra): extra is SessionStatus => extra !== undefined)]
 }
 
 /**

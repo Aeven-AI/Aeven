@@ -89,6 +89,8 @@
     "@aeven/session-projection": "workspace:^",
     "@aeven/settings": "workspace:^",
     "@aeven/settings-file": "workspace:^",
+    "@aeven/skill": "workspace:^",
+    "@aeven/skill-filesystem": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
     "@aeven/tools": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",

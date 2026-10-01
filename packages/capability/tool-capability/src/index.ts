@@ -12,7 +12,7 @@ import { currentEnvironment, EXECUTABLE_STATUSES, type CapabilityRecord, type Ju
 import type {} from '@aeven/message-feedback'
 import type { Session } from '@aeven/session'
 import { correctionOf, ExecutionTracker } from './executions.ts'
-import { CapabilityLearner, capabilityWords, words } from './learner.ts'
+import { CapabilityLearner, capabilityWords, MIN_INPUT_TOKENS, words } from './learner.ts'
 import { createUserMessage } from '@aeven/llm'
 import { defineTool } from '@aeven/tools'
 import type {} from '@aeven/system-prompt'
@@ -37,6 +37,8 @@ export interface Config {
   timeoutMs: number
   /** Output token limit of one learning model call. */
   maxOutputTokens: number
+  /** Input token budget of one learning model call; a longer transcript is cut down to its newest evidence. */
+  maxInputTokens: number
   /** Explicit learning route, set together with `model`; absent uses each session's own route. */
   provider?: string
   model?: string
@@ -50,6 +52,7 @@ export const Config: z<Config> = z.object({
   settleMs: z.natural().min(1).default(300_000),
   timeoutMs: z.natural().min(1).default(120_000),
   maxOutputTokens: z.natural().min(256).default(4_000),
+  maxInputTokens: z.natural().min(MIN_INPUT_TOKENS).default(16_000),
   provider: z.string(),
   model: z.string(),
 })

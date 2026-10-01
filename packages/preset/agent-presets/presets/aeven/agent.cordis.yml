@@ -2,16 +2,12 @@
 #
 # It carries the full everyday agent — shell, files, search, jobs, skills,
 # goals, plan mode, compaction, delegation, workflows, browser, devices, media,
-# web, memory, and capability learning — plus the self-referential Cordis
-# toolset, so Æven extends itself when a task needs a capability it lacks
-# instead of asking the user to switch modes. The other shipped presets remain
-# for sessions created on them and for Developer mode.
-#
-# TRUST: `cordis_run` evaluates model-written plugins against the live runtime,
-# and a composition this agent writes becomes a preset other sessions mount.
-# Treat a session on this preset as shell access — the toolset's own
-# documentation makes the same statement. Running an unauthorized browser
-# package still waits for the user's approval.
+# web, memory, and capability learning. The Cordis runtime toolset and its
+# manual are deliberately absent: a session that answers a request by reading
+# and extending its own harness spends its prompt on plugin machinery instead of
+# on the work, and pays the manual's tokens on every request. The `cordis`
+# preset mounts that toolset for the sessions that extend the runtime. The other
+# shipped presets remain for sessions created on them and for Developer mode.
 
 
 # The deployment persona for every session. `{{model}}` and `{{cwd}}` resolve
@@ -24,18 +20,22 @@
 
       You act on the user's behalf with the tools you have: files, shell, the web, the browser beside the conversation, and more. When a task needs a capability you lack, extend yourself rather than stopping: look for a learned capability or skill first, and build what is missing when nothing fits.
 
-      You run on a harness you can read and modify. Its composition is Cordis: every capability is a plugin row in a `cordis.yml`, and an agent preset is one such file mounted for a single session.
-
-      Two planes decide where an edit belongs. The HOST composition holds the registries and anything shared across sessions — persistence, the sandbox and approval stack, the model route, the subagent registry and its backends. An AGENT PRESET holds what one session contributes to those registries: its tools, its persona, its prompt sections. A row that publishes a service belongs in the host composition, or inside an `isolate` realm if the preset genuinely owns that service and nothing outside one agent reads it.
-
-      Presets you author live one directory per preset under `${AVN_HOME:-$HOME/.aeven}/.agent-presets/<id>/`; the roster reports each preset's real path, so take the one you edit from there. NEVER edit or delete the shipped preset install (the `agent-presets` directory beside the deployment's own config): it belongs to the deployment, an upgrade overwrites it, and corrupting the `aeven` preset would break every new session. To change what a shipped preset does, copy its composition into a new preset directory and edit the copy.
-
-      Load the `editing-cordis-compositions` skill before writing or changing a composition.
+      Visual work — anything a person looks at, such as a page, a screen, a deck, a document, or a poster — follows one loop, and the loop is the work. Recon first: verify the renderer, the browser and the network before building anything, and treat a capability as unproven until you have seen it work in the renderer you will ship to. Then choose real type: self-host two or three variable fonts, because the system font stack is the clearest sign that nobody decided. Build it as separate files — markup, styles and scripts split by concern — rather than one oversized document. Then capture it, look at the render, fix what is wrong, and repeat. Ten looks is the floor and twenty is ordinary; a visual artifact you have looked at twice is unfinished. Report once the render is right, and put the image in the reply.
 
 - id: agent-instructions
   name: '@aeven/agent-instructions'
   config:
     maxBytes: 65536
+
+# The clock. Without a reading, a session cannot tell whether what it remembers
+# still holds, and the `tool:web_search` policy asks it to search exactly
+# then. One durable user message per refresh interval: no injection is a
+# per-step cost, and a five-minute floor keeps a fast tool loop from paying for
+# a timestamp it already has.
+- id: time-context
+  name: '@aeven/time-context'
+  config:
+    refreshIntervalMs: 300000
 
 # ── shell ───────────────────────────────────────────────────────────────────
 
@@ -326,25 +326,22 @@
     fetch: true
     searchTimeoutMs: 60000
 
-# ── self-modification ───────────────────────────────────────────────────────
-
-# Read the live runtime, mount a temporary plugin, unmount it. The toolset is a
-# trust boundary, not a sandbox — see this file's header.
-- id: tool-cordis
-  name: '@aeven/tool-cordis'
-
-# The composition-authoring skill travels with this preset rather than living
-# in the user's skill root: it documents THIS deployment's two planes, and a
-# preset is the unit that gets copied and edited. `baseUrl` is the preset's
-# own directory, so the root resolves wherever the preset is installed.
-# Both rows register into THIS preset's layer of the host skill registry, so
-# they need no realm; the agent's merged catalog also carries whatever the
-# deployment registered globally (repository plugins).
+# Local skill discovery for a Web session. The web profile disables the host
+# `skill-filesystem` row so presets own it: this row is what discovers the
+# workspace's `.agents/skills` and `.aeven/skills` for the agent, and it
+# registers into THIS preset's layer of the host skill registry, so it needs no
+# realm. The agent's merged catalog also carries whatever the deployment
+# registered globally (repository plugins).
+#
+# `skills/` beside this composition ships in the package, so those skills reach a
+# session that has no local copy; `baseUrl` is this preset's own directory, which
+# resolves in a checkout and in an installed package alike, and a copy of this
+# preset loses them. The other shipped presets mount the same directory.
 - id: skill-filesystem
   name: '@aeven/skill-filesystem'
   config:
     customSkillDirs:
-      - !!js "process.getBuiltinModule('node:url').fileURLToPath(new URL('skills/', baseUrl))"
+      - !!js "process.getBuiltinModule('node:url').fileURLToPath(new URL('./skills/', baseUrl))"
 
 - id: tool-skill
   name: '@aeven/tool-skill'

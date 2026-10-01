@@ -474,6 +474,8 @@
       "@aeven/memory/types": ["./packages/memory/memory/src/types.ts"],
       "@aeven/memory-memos": ["./packages/memory/memory-memos/src/index.ts"],
       "@aeven/memory-context": ["./packages/memory/memory-context/src/index.ts"],
+      "@aeven/memory-invariants": ["./packages/memory/memory-invariants/src/index.ts"],
+      "@aeven/memory-invariants/types": ["./packages/memory/memory-invariants/src/types.ts"],
       "@aeven/tool-memory": ["./packages/memory/tool-memory/src/index.ts"],
       "@aeven/capability": ["./packages/capability/capability/src/index.ts"],
       "@aeven/capability/types": ["./packages/capability/capability/src/types.ts"],

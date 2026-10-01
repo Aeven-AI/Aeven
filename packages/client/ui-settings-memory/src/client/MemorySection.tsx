@@ -1,8 +1,9 @@
 /** The Memory settings page: quiet cards, with detail and actions behind a reveal. */
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import type {
-  CapabilityRunMetrics, CapabilityStatus, ExecutionVerdict, ManagedCapability, ManagedCapabilityDetail, ManagedCapabilityEdit,
-  ManagedCapabilityStatusChange, ManagedMemory, ManagedMemoryPage, ManagedMemoryQuery, MemoryDomain, MemoryItemId,
+  CapabilityRunMetrics, CapabilityStatus, ExecutionVerdict, InvariantId, ManagedCapability, ManagedCapabilityDetail, ManagedCapabilityEdit,
+  ManagedCapabilityStatusChange, ManagedInvariantChange, ManagedInvariantsPage, ManagedMemory, ManagedMemoryPage, ManagedMemoryQuery, MemoryDomain,
+  MemoryItemId,
 } from '@aeven/api-remotes/client'
 import { IconChevronDownOutline14, IconSearchOutline16, MarkdownText, SectionHeader, Spinner, relativeTime } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
@@ -14,6 +15,10 @@ export interface MemorySectionInjected {
   memories: (request: ManagedMemoryQuery) => Promise<ManagedMemoryPage>
   editMemory: (id: MemoryItemId, summary: string) => Promise<ManagedMemory | undefined>
   forgetMemory: (id: MemoryItemId) => Promise<boolean>
+  invariants: () => Promise<ManagedInvariantsPage>
+  addInvariant: (text: string) => Promise<ManagedInvariantChange>
+  editInvariant: (id: InvariantId, text: string) => Promise<ManagedInvariantChange>
+  removeInvariant: (id: InvariantId) => Promise<ManagedInvariantChange>
   capabilities: () => Promise<ManagedCapability[]>
   capability: (name: string) => Promise<ManagedCapabilityDetail | undefined>
   editCapability: (name: string, edit: ManagedCapabilityEdit) => Promise<ManagedCapabilityDetail>
@@ -33,17 +38,21 @@ export type MemorySectionProps =
   & InjectFace<MemorySectionInjected>
 
 type Translate = MemorySectionProps['t']
-type Tab = 'person' | 'project' | 'knowledge' | 'capabilities'
+type MemoriesTab = 'person' | 'project' | 'knowledge'
+type Tab = MemoriesTab | 'facts' | 'capabilities'
 type Load<T> = { readonly status: 'loading' } | { readonly status: 'error' } | { readonly status: 'ready'; readonly value: T }
 type Fold = 'procedure' | 'runs' | 'origin'
+/** The allowance fill reads both its width and its color step from one row-local property. */
+type BudgetStyle = CSSProperties & { readonly '--avn-usage-percent': string }
 
 const PAGE_SIZE = 200
 
 const TABS: readonly { readonly id: Tab; readonly label: MemoryLocaleKey }[] = [
-  { id: 'person', label: 'tabPerson' },
-  { id: 'project', label: 'tabProject' },
-  { id: 'knowledge', label: 'tabKnowledge' },
-  { id: 'capabilities', label: 'tabCapabilities' },
+  { id: 'person', label: 'tabs.person' },
+  { id: 'project', label: 'tabs.project' },
+  { id: 'knowledge', label: 'tabs.knowledge' },
+  { id: 'facts', label: 'tabs.facts' },
+  { id: 'capabilities', label: 'tabs.capabilities' },
 ]
 
 const STATUS_LABEL = {
@@ -62,7 +71,7 @@ const VERDICT_LABEL = {
   unknown: 'verdictUnknown',
 } satisfies Record<ExecutionVerdict, MemoryLocaleKey>
 
-const EMPTY: Record<Exclude<Tab, 'capabilities'>, MemoryLocaleKey> = {
+const EMPTY: Record<MemoriesTab, MemoryLocaleKey> = {
   person: 'emptyPerson',
   project: 'emptyProject',
   knowledge: 'emptyKnowledge',
@@ -122,7 +131,9 @@ export function MemorySection(props: MemorySectionProps) {
       <div id={`${tabsId}-panel-${tab}`} className={css.panel} role="tabpanel" aria-labelledby={`${tabsId}-tab-${tab}`}>
         {tab === 'capabilities'
           ? <Capabilities {...props} />
-          : <Memories {...props} tab={tab} />}
+          : tab === 'facts'
+            ? <Facts {...props} />
+            : <Memories {...props} tab={tab} />}
       </div>
     </div>
   )
@@ -146,8 +157,8 @@ function ago(time: number, now: number, t: Translate): string {
 
 function domainLabel(domain: MemoryDomain, t: Translate): string {
   switch (domain) {
-    case 'person': return t('tabPerson')
-    case 'project': return t('tabProject')
+    case 'person': return t('tabs.person')
+    case 'project': return t('tabs.project')
     case 'world': return t('domainWorld')
     case 'experience': return t('domainExperience')
   }
@@ -173,7 +184,20 @@ function metrics(t: Translate, value: CapabilityRunMetrics): string {
   return t('metricsTokens', { steps, time, tokens })
 }
 
-function inTab(memory: ManagedMemory, tab: Exclude<Tab, 'capabilities'>): boolean {
+/** What a promote, replace, or remove attempt means for the user. An unknown reason is a failure, not a guess. */
+function standingMessage(change: ManagedInvariantChange, t: Translate): string {
+  if (!change.available) return t('factsUnavailable')
+  if (change.changed) return t('promoted')
+  switch (change.reason) {
+    case 'too-long': return t('reasonTooLong', { limit: String(change.view.maxEntryChars) })
+    case 'full': return t('reasonFull', { chars: String(change.view.chars), max: String(change.view.maxChars) })
+    case 'empty': return t('reasonEmpty')
+    case 'missing': return t('reasonMissing')
+    default: return t('failed')
+  }
+}
+
+function inTab(memory: ManagedMemory, tab: MemoriesTab): boolean {
   switch (tab) {
     case 'person': return memory.domain === 'person'
     case 'project': return memory.domain === 'project'
@@ -181,7 +205,7 @@ function inTab(memory: ManagedMemory, tab: Exclude<Tab, 'capabilities'>): boolea
   }
 }
 
-function Memories({ t, tab, close, memories, editMemory, forgetMemory, openConversation }: MemorySectionProps & { readonly tab: Exclude<Tab, 'capabilities'> }) {
+function Memories({ t, tab, close, memories, editMemory, forgetMemory, openConversation, addInvariant }: MemorySectionProps & { readonly tab: MemoriesTab }) {
   const [query, setQuery] = useState('')
   const [state, setState] = useState<Load<{ available: boolean; items: ManagedMemory[]; total: number }>>({ status: 'loading' })
   const [limit, setLimit] = useState(PAGE_SIZE)
@@ -263,6 +287,7 @@ function Memories({ t, tab, close, memories, editMemory, forgetMemory, openConve
                 onToggle={() => { setOpenId(openId === memory.id ? undefined : memory.id) }}
                 editMemory={editMemory}
                 forgetMemory={forgetMemory}
+                addInvariant={addInvariant}
                 openConversation={openConversation}
                 close={close}
                 onChange={update}
@@ -278,7 +303,7 @@ function Memories({ t, tab, close, memories, editMemory, forgetMemory, openConve
   )
 }
 
-function groupProjects(items: readonly ManagedMemory[], tab: Exclude<Tab, 'capabilities'>, t: Translate): { key: string; label: string; title: string; items: ManagedMemory[] }[] {
+function groupProjects(items: readonly ManagedMemory[], tab: MemoriesTab, t: Translate): { key: string; label: string; title: string; items: ManagedMemory[] }[] {
   if (tab !== 'project') return [{ key: 'all', label: '', title: '', items: [...items] }]
   const map = new Map<string, ManagedMemory[]>()
   for (const memory of items) {
@@ -295,7 +320,7 @@ function groupProjects(items: readonly ManagedMemory[], tab: Exclude<Tab, 'capab
   }))
 }
 
-function MemoryCard({ t, memory, now, open, onToggle, editMemory, forgetMemory, openConversation, close, onChange }: {
+function MemoryCard({ t, memory, now, open, onToggle, editMemory, forgetMemory, addInvariant, openConversation, close, onChange }: {
   readonly t: Translate
   readonly memory: ManagedMemory
   readonly now: number
@@ -303,6 +328,7 @@ function MemoryCard({ t, memory, now, open, onToggle, editMemory, forgetMemory, 
   readonly onToggle: () => void
   readonly editMemory: MemorySectionInjected['editMemory']
   readonly forgetMemory: MemorySectionInjected['forgetMemory']
+  readonly addInvariant: MemorySectionInjected['addInvariant']
   readonly openConversation: MemorySectionInjected['openConversation']
   readonly close: () => void
   readonly onChange: (id: MemoryItemId, next: ManagedMemory | undefined) => void
@@ -315,6 +341,7 @@ function MemoryCard({ t, memory, now, open, onToggle, editMemory, forgetMemory, 
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
   const [gone, setGone] = useState(false)
+  const [standing, setStanding] = useState<ManagedInvariantChange | undefined>()
 
   useEffect(() => {
     if (open) return
@@ -322,6 +349,7 @@ function MemoryCard({ t, memory, now, open, onToggle, editMemory, forgetMemory, 
     setDetails(false)
     setFailed(false)
     setGone(false)
+    setStanding(undefined)
     setDraft(fact)
   }, [open, fact])
 
@@ -394,10 +422,21 @@ function MemoryCard({ t, memory, now, open, onToggle, editMemory, forgetMemory, 
           {mode === 'forget' && <p className={css.confirm}>{t('forgetConfirm')}</p>}
           {failed && <p className={css.failure}>{t('failed')}</p>}
           {gone && <p className={css.failure}>{t('conversationGone')}</p>}
+          {standing !== undefined && (
+            <p className={standing.available && standing.changed ? css.note : css.failure}>{standingMessage(standing, t)}</p>
+          )}
           <div className={css.footer}>
             {mode === 'view' && (
               <>
                 <button type="button" className={`${css.textButton} ${css.footerStart}`} onClick={showConversation}>{t('openSession')}</button>
+                <button
+                  type="button"
+                  className={css.textButton}
+                  disabled={busy || fact.trim() === ''}
+                  onClick={() => { setStanding(undefined); run(async () => { setStanding(await addInvariant(fact)) }) }}
+                >
+                  {t('rememberAlways')}
+                </button>
                 <button type="button" className={css.textButton} onClick={() => { setDraft(fact); setMode('edit') }}>{t('edit')}</button>
                 <button type="button" className={css.textButton} onClick={() => { setMode('forget') }}>{t('forget')}</button>
               </>
@@ -432,6 +471,139 @@ function MemoryCard({ t, memory, now, open, onToggle, editMemory, forgetMemory, 
         </div>
       )}
     </li>
+  )
+}
+
+function Facts({ t, invariants, addInvariant, editInvariant, removeInvariant }: MemorySectionProps) {
+  const composerId = useId()
+  const [state, setState] = useState<Load<ManagedInvariantsPage>>({ status: 'loading' })
+  const [draft, setDraft] = useState('')
+  const [editing, setEditing] = useState<{ readonly id: InvariantId; readonly text: string } | undefined>()
+  const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const [outcome, setOutcome] = useState<ManagedInvariantChange | undefined>()
+  const now = Date.now()
+
+  const load = useCallback(async () => {
+    try {
+      setState({ status: 'ready', value: await invariants() })
+    } catch {
+      // The failure is shown as the page's error state with a retry.
+      setState({ status: 'error' })
+    }
+  }, [invariants])
+
+  useEffect(() => { void load() }, [load])
+
+  // A refused statement leaves the list standing and reports why, so the user decides what to drop instead of
+  // finding a statement silently absent from what every request carries.
+  const run = (work: () => Promise<ManagedInvariantChange>, then?: () => void) => {
+    setBusy(true)
+    setFailed(false)
+    void work().then((change) => {
+      setBusy(false)
+      setOutcome(change)
+      if (change.available && change.changed) {
+        setState({ status: 'ready', value: { available: true, ...change.view } })
+        then?.()
+      }
+    }, () => { setBusy(false); setFailed(true) })
+  }
+
+  if (state.status === 'loading') return <p className={css.status}><Spinner /> {t('loading')}</p>
+  if (state.status === 'error') return <Failure t={t} onRetry={() => { setState({ status: 'loading' }); void load() }} />
+  const view = state.value
+  if (!view.available) return <p className={css.status}>{t('factsUnavailable')}</p>
+  const used = `${String(view.maxChars === 0 ? 0 : Math.min(100, Math.round((view.chars / view.maxChars) * 100)))}%`
+
+  return (
+    <>
+      <p className={css.factsLead}>{t('factsIntro')}</p>
+      <div className={css.budget}>
+        <div className={css.budgetTrack}>
+          <div className={css.budgetFill} style={{ '--avn-usage-percent': used, width: used } as BudgetStyle} />
+        </div>
+        <div className={css.budgetText}>
+          <span>{t('factsBudget', { chars: String(view.chars), max: String(view.maxChars) })}</span>
+          <span>{t('factsMaxChars', { limit: String(view.maxEntryChars) })}</span>
+        </div>
+      </div>
+      {view.entries.length === 0
+        ? <p className={css.factsEmpty}>{t('factsEmpty')}</p>
+        : (
+          <ul className={css.cards}>
+            {view.entries.map((entry) => {
+              const row = editing?.id === entry.id ? editing : undefined
+              return (
+                <li key={entry.id} className={css.factRow}>
+                  {row === undefined
+                    ? (
+                      <>
+                        <p className={css.factText}>{entry.text}</p>
+                        <div className={css.factMeta}>
+                          <span>{t('confirmed', { time: ago(entry.confirmedAt, now, t) })}</span>
+                          <span className={css.factActions}>
+                            <button type="button" className={css.textButton} onClick={() => { setEditing({ id: entry.id, text: entry.text }) }}>{t('edit')}</button>
+                            <button type="button" className={css.textButton} disabled={busy} onClick={() => { run(() => removeInvariant(entry.id)) }}>{t('remove')}</button>
+                          </span>
+                        </div>
+                      </>
+                    )
+                    : (
+                      <>
+                        <textarea
+                          className={css.composerArea}
+                          rows={3}
+                          aria-label={t('edit')}
+                          value={row.text}
+                          onChange={(event) => { setEditing({ id: entry.id, text: event.target.value }) }}
+                        />
+                        <div className={css.factMeta}>
+                          <span className={css.composerHint}>{`${String(row.text.trim().length)} / ${String(view.maxEntryChars)}`}</span>
+                          <span className={css.factActions}>
+                            <button type="button" className={css.textButton} disabled={busy} onClick={() => { setEditing(undefined) }}>{t('cancel')}</button>
+                            <button
+                              type="button"
+                              className={css.primary}
+                              disabled={busy || row.text.trim() === ''}
+                              onClick={() => { run(() => editInvariant(entry.id, row.text), () => { setEditing(undefined) }) }}
+                            >
+                              {t('save')}
+                            </button>
+                          </span>
+                        </div>
+                      </>
+                    )}
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      <div className={css.composer}>
+        <label className={css.composerLabel} htmlFor={composerId}>{t('factsAdd')}</label>
+        <textarea
+          id={composerId}
+          className={css.composerArea}
+          rows={2}
+          value={draft}
+          placeholder={t('factsPlaceholder')}
+          onChange={(event) => { setDraft(event.target.value) }}
+        />
+        <div className={css.composerFooter}>
+          <span className={css.composerHint}>{draft.trim() === '' ? '' : `${String(draft.trim().length)} / ${String(view.maxEntryChars)}`}</span>
+          <button
+            type="button"
+            className={css.primary}
+            disabled={busy || draft.trim() === ''}
+            onClick={() => { run(() => addInvariant(draft), () => { setDraft('') }) }}
+          >
+            {t('factsSubmit')}
+          </button>
+        </div>
+      </div>
+      {failed && <p className={css.failure}>{t('failed')}</p>}
+      {outcome !== undefined && <p className={outcome.available && outcome.changed ? css.note : css.failure}>{standingMessage(outcome, t)}</p>}
+    </>
   )
 }
 

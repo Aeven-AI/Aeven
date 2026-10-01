@@ -33,6 +33,12 @@ kind: "package-reference"
 
 可选的 preset 来自两处：本包 `presets/` 下随包交付的 preset，以及你自己放在 `<avnHome>/.agent-presets` 下的 preset。选择器会展示每个 preset 的显示名与描述；组装无法加载的 preset 会连同原因一起列出而不是被隐藏，因此你能看到该修什么或删什么。
 
+### 随包交付的 skill
+
+会做本地 skill 发现的 preset 同时挂载本包随包交付的 skill，因此会话无需本地副本即可获得它们。它们只有一份，位于 `presets/aeven/skills/`，每个组装都从自身 URL 解析该目录：`aeven` 挂载 `./skills/`，`standard`、`ptc` 与 `cordis` 挂载 `../aeven/skills/`。`minimal` 不挂载文件系统发现，因此也拿不到它们。
+
+随包交付 skill 的 `SKILL.md` 是唯一正本，仓库路径 `.agents/skills/<name>/SKILL.md` 是指向它的相对符号链接，因此在本 checkout 中工作的 agent 发现的是同一个文件。该根目录在组装旁解析，所以复制到用户根目录的 preset 不携带任何随包交付的 skill，而同名的本地 skill 会让位于随包交付的那一份。
+
 ### 最小配置
 
 插件需要一个 `default` preset id，并在 `roots` 中扫描 preset：
@@ -66,7 +72,7 @@ agent-presets:
   default: minimal
 ```
 
-该值在会话创建时读取，因此更改默认值只影响此后创建的会话；运行中的会话仍停留在它们当初据以组装的 preset 上。清空用户字段即重新继承组装默认值。随附的 Web 组装默认使用 `aeven`：带 Cordis 自我扩展工具集的完整 Agent；其余随附 preset 仍保持安装，以便据其创建的会话继续恢复，Web GUI 只在开发者模式中提供它们。
+该值在会话创建时读取，因此更改默认值只影响此后创建的会话；运行中的会话仍停留在它们当初据以组装的 preset 上。清空用户字段即重新继承组装默认值。随附的 Web 组装默认使用 `aeven`：不带 Cordis 运行时工具集的完整 Agent（该工具集由 `cordis` preset 挂载）；其余随附 preset 仍保持安装，以便据其创建的会话继续恢复，Web GUI 只在开发者模式中提供它们。
 
 ### 创作 preset
 
@@ -156,7 +162,7 @@ agent-presets:
 <a id="model-experience"></a>
 ## 模型体验
 
-间接地，经由 preset 常驻组装安装的插件：这些插件拥有该 preset 向加入它的 agent 呈现的每个工具 schema、提示词段落与 skill。
+间接地，经由 preset 常驻组装安装的插件：这些插件拥有该 preset 向加入它的 agent 呈现的每个工具 schema、提示词段落与 skill。本包随包交付的 skill 会把它们的目录描述加入挂载它们的 preset 上的每个会话；正文只在会话请求时才加载。
 
 #### KV Cache 影响
 

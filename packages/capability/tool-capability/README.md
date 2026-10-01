@@ -27,6 +27,7 @@ Mount it per agent beside a host `capability` registry (the `standard`, `cordis`
 | `settleMs` | `300000` | Wait for a correction before learning without one |
 | `timeoutMs` | `120000` | Budget of one learning model call |
 | `maxOutputTokens` | `4000` | Output limit of one learning model call |
+| `maxInputTokens` | `16000` | Input budget of one learning model call, estimated at four characters per token; a longer transcript is cut |
 | `provider`, `model` | — | Explicit learning route; absent uses each session's route |
 
 ## Model Experience
@@ -66,7 +67,7 @@ Append-only after the user's message.
 
 ### Learning call
 
-The learner's model call is a separate request outside the session; the session model never sees it. What it writes reaches a session only when the skill tool loads the capability, as a logged tool result.
+The learner's model call is a separate request outside the session; the session model never sees it. Its request holds the turn's request, its tool calls with their results, the answer, the existing capability list, and the full procedures of up to two related capabilities. The learner bounds that request with `maxInputTokens`, estimated at four characters per token rather than the provider's own tokenizer: past the budget it drops the oldest tool calls and names how many it left out, and text still above the budget keeps its beginning and ends with a cut marker, so the newest evidence survives and no request is ever unbounded. What the call writes reaches a session only when the skill tool loads the capability, as a logged tool result.
 
 ## Known Limitations and Deferred Work
 

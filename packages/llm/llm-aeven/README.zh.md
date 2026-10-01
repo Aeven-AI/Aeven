@@ -42,7 +42,7 @@ kind: "package-reference"
   config:
     apiUrl: http://localhost:9000   # Aeven API origin; /v1 is appended
     apiKeyEnv: AEVEN_TOKEN          # credential holding the signed-in session
-    reasoningEffort: max            # off | low | high | max
+    reasoningEffort: high           # off | low | high | max
     maxTokens: 384000               # optional per-request output cap
 ```
 
@@ -54,7 +54,7 @@ kind: "package-reference"
 | `apiKeyEnv` | `AEVEN_TOKEN` | 持有已登录会话的凭据引用，先经凭据 seam 解析，再回退到环境变量 |
 | `models` | Aeven Flash + Aeven Pro | 供发现类消费者读取的建议性目录；设置中的一节会整体替换它 |
 | `thinking` | `enabled` | 部署策略；`disabled` 会把每个请求锁定为 `off` |
-| `reasoningEffort` | `max` | 默认强度：`off`、`low`、`high` 或 `max` |
+| `reasoningEffort` | `high` | 默认强度：`off`、`low`、`high` 或 `max` |
 | `maxTokens` | `384,000` | 单请求输出上限；模型自身上限与请求显式取值优先 |
 | `defaultContextWindow` | `1,000,000` | 模型没有精确值时的容量回退 |
 | `streamIdleTimeoutMs` | `300,000` | 单次未结束流读取允许的最大提供方空闲时间 |

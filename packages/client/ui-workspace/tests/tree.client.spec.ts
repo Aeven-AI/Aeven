@@ -34,6 +34,11 @@ const view = (expandedGroups: readonly string[] = [], ungroupedOrder?: readonly 
   expandedGroups,
   ...(ungroupedOrder === undefined ? {} : { ungroupedOrder }),
 })
+/** Browser-safe job row the list carries; `status` is its whole live/settled fact. */
+type SessionJobRow = SessionListState['jobsBySession'][SessionId][number]
+const job = (id: string, status: SessionJobRow['status']): SessionJobRow => ({
+  id: id as SessionJobRow['id'], kind: 'bash', label: id, status, startedAt: 1,
+})
 const noArchive: readonly SessionId[] = []
 const noAttention: ReadonlyMap<SessionId, SessionPendingInteractionBase> = new Map()
 const archived = (...ids: string[]): readonly SessionId[] => ids.map(sid)
@@ -233,6 +238,30 @@ describe('deriveGroups', () => {
     ).items[0]).toMatchObject({ id: parent.id, runningSubagentCount: 2 })
   })
 
+  it('reports a Session’s live background jobs while it is between turns', () => {
+    // A background job outlives the turn that started it: the Session's Agent
+    // is idle, its job still works, and a row that reads "Completed" there
+    // tells the reader the Session is finished when it is not.
+    const live = summary('live', 20)
+    const done = summary('done', 10)
+    const sessions: SessionListState = {
+      ...list(live, done),
+      jobsBySession: {
+        [live.id as string]: [job('bash-1', 'running'), job('bash-2', 'stopping')],
+        [done.id as string]: [job('bash-3', 'completed'), job('bash-4', 'killed')],
+      },
+    }
+    const rows = deriveFlat(sessions, noArchive, noAttention)
+
+    expect(rows.map(node => [node.id, node.runningJobCount]))
+      .toEqual([[live.id, 2], [done.id, 0]])
+    expect(deriveSearchResults(
+      sessions, [workspace('first', ['live', 'done'])], 'e', noArchive,
+      noAttention, { items: [], hasMore: false }, 10,
+    ).items.map(node => [node.id, node.runningJobCount]))
+      .toEqual([[live.id, 2], [done.id, 0]])
+  })
+
   it('ignores fork lineage and sorts every ungrouped session as a top-level row', () => {
     const parent = summary('parent', 1)
     const oldChild = { ...summary('old-child', 10), parentId: parent.id }
@@ -412,7 +441,7 @@ describe('deriveSearchResults', () => {
           title: 'Needle title',
           workspace: 'Alpha',
           running: false,
-          runningSubagentCount: 0,
+          runningSubagentCount: 0, runningJobCount: 0,
           pendingInteraction: 'plan-review',
           completed: false,
           hasActiveSchedule: false,
@@ -424,7 +453,7 @@ describe('deriveSearchResults', () => {
           title: 'Ordinary title',
           workspace: 'Needle Workspace',
           running: false,
-          runningSubagentCount: 0,
+          runningSubagentCount: 0, runningJobCount: 0,
           completed: false,
           hasActiveSchedule: false,
         },
@@ -433,7 +462,7 @@ describe('deriveSearchResults', () => {
           title: 'content-hit',
           workspace: 'c',
           running: false,
-          runningSubagentCount: 0,
+          runningSubagentCount: 0, runningJobCount: 0,
           completed: false,
           hasActiveSchedule: false,
           matchSeq: 5,

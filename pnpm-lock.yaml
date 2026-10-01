@@ -309,6 +309,9 @@ importers:
       '@aeven/tool-search':
         specifier: workspace:^
         version: link:../../packages/core/tool-search
+      '@aeven/tool-session-query':
+        specifier: workspace:^
+        version: link:../../packages/session-query/tool-session-query
       '@aeven/tool-skill':
         specifier: workspace:^
         version: link:../../packages/skill/tool-skill
@@ -1461,6 +1464,9 @@ importers:
       '@aeven/llm-retry':
         specifier: workspace:^
         version: link:../../llm/llm-retry
+      '@aeven/memory-invariants':
+        specifier: workspace:^
+        version: link:../../memory/memory-invariants
       '@aeven/permission-presets':
         specifier: workspace:^
         version: link:../../interaction/permission-presets
@@ -1563,6 +1569,9 @@ importers:
       '@aeven/tool-bash':
         specifier: workspace:^
         version: link:../../shell/tool-bash
+      '@aeven/tool-call-access-policy':
+        specifier: workspace:^
+        version: link:../../guard/access-policy
       '@aeven/tool-call-timeout-policy':
         specifier: workspace:^
         version: link:../../guard/timeout-policy
@@ -4135,9 +4144,15 @@ importers:
       '@types/react':
         specifier: ~18.3.1
         version: 18.3.31
+      '@types/react-dom':
+        specifier: ~18.3.0
+        version: 18.3.7(@types/react@18.3.31)
       react:
         specifier: ^18.2.0
         version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
 
   packages/client/ui-sidebar-device:
     devDependencies:
@@ -7078,6 +7093,31 @@ importers:
         specifier: workspace:^
         version: link:../../../vendor/loader
 
+  packages/guard/access-policy:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@aeven/llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@aeven/sandbox':
+        specifier: workspace:^
+        version: link:../../sandbox/sandbox
+      '@aeven/sandbox-policy':
+        specifier: workspace:^
+        version: link:../../sandbox/sandbox-policy
+      '@aeven/system-prompt':
+        specifier: workspace:^
+        version: link:../../core/system-prompt
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
   packages/guard/repeat-tool-reminder:
     dependencies:
       '@deepseek-ai/schemastery':
@@ -8379,6 +8419,9 @@ importers:
       '@aeven/memory':
         specifier: workspace:^
         version: link:../memory
+      '@aeven/memory-invariants':
+        specifier: workspace:^
+        version: link:../memory-invariants
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
@@ -8444,6 +8487,19 @@ importers:
       '@aeven/tools':
         specifier: workspace:^
         version: link:../../core/tools
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/memory/memory-invariants:
+    dependencies:
+      '@aeven/brand':
+        specifier: workspace:^
+        version: link:../../util/brand
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -8592,6 +8648,12 @@ importers:
       '@aeven/settings-file':
         specifier: workspace:^
         version: link:../../settings/settings-file
+      '@aeven/skill':
+        specifier: workspace:^
+        version: link:../../skill/skill
+      '@aeven/skill-filesystem':
+        specifier: workspace:^
+        version: link:../../skill/skill-filesystem
       '@aeven/system-prompt':
         specifier: workspace:^
         version: link:../../core/system-prompt

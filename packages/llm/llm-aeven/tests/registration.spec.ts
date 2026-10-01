@@ -58,7 +58,7 @@ describe('aeven-cloud route registration', () => {
       inputModalities: ['text', 'image'],
       context: { contextWindow: 1_000_000 },
       defaultMaxTokens: 384_000,
-      reasoning: { defaultEffort: ReasoningEffortId('max') },
+      reasoning: { defaultEffort: ReasoningEffortId('high') },
     })
 
     // The two entries differ in exactly one capability: only Flash reads images.
@@ -95,7 +95,7 @@ describe('aeven-cloud route registration', () => {
       apiUrl: DEFAULT_API_URL,
       apiKeyEnv: DEFAULT_API_KEY_ENV,
       thinking: 'enabled',
-      reasoningEffort: 'max',
+      reasoningEffort: 'high',
       maxTokens: DEFAULT_MAX_TOKENS,
       models: LlmAeven.DEFAULT_MODELS.map(model => ({
         id: model.id,

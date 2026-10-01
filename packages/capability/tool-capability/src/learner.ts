@@ -19,6 +19,8 @@ export interface LearnerConfig {
   readonly timeoutMs: number
   /** Output token limit of one distillation. */
   readonly maxOutputTokens: number
+  /** Input token budget of one distillation; a transcript beyond it is cut down to its newest evidence. */
+  readonly maxInputTokens: number
   /** Explicit distillation route; absent uses the session's own route. Set together with `model`. */
   readonly provider?: string
   readonly model?: string
@@ -47,6 +49,21 @@ const BOOKKEEPING = /^(?:skill|capability_manage|todo_write|memory_[a-z_]+|ask_u
 const MAX_EXISTING = 40
 const MAX_RELATED = 2
 
+/**
+ * Characters per token in the fixed text-density estimate of the input budget. The provider's own
+ * tokenizer is not run, so the budget bounds this estimate rather than billed tokens.
+ */
+const CHARS_PER_TOKEN = 4
+
+/** Marks where a transcript longer than the input budget was cut. */
+const CUT_MARKER = '…[transcript cut to the learning input budget]'
+
+/**
+ * Smallest input budget a learning call accepts. It stays above the fixed system prompt of about 423
+ * estimated tokens, so a transcript bounded to any accepted budget still leaves that prompt room.
+ */
+export const MIN_INPUT_TOKENS = 1_000
+
 const SYSTEM = `You maintain the reusable procedures (capabilities) an assistant learned for one user. You receive one completed piece of work: the user's request, the tool calls that did it with their results, and the final answer. Decide whether it contains a procedure worth reusing, and write it.
 
 Learn a procedure from the first successful multi-step operational task: setup, build, release, deployment, data or file processing, reporting, diagnosis, and similar work that took several tool calls. Learn it even when the work went smoothly, because the next time the exploration is skipped; work that needed retries, dead ends, or a correction is the most valuable. Skip one-off questions, explanations, conversation, facts about the user, and work that failed.
@@ -59,6 +76,71 @@ Reply with one JSON object and nothing else:
 {"decision":"skip"}
 or
 {"decision":"create" or "update","name":"kebab-case-name","description":"One line: what it does and when to use it.","content":"The Markdown procedure."}`
+
+/** One distillation request: the fixed system prompt and the transcript of the work. */
+interface Transcript {
+  /** The turn's request, verbatim. */
+  readonly request: string
+  /** One rendered line per tool call, oldest first. */
+  readonly steps: readonly string[]
+  /** The turn's final answer, clipped. */
+  readonly answer: string
+  /** One line per existing capability, or `(none)`. */
+  readonly existing: string
+  /** Full procedures of the capabilities this work may merge into. */
+  readonly related: readonly string[]
+}
+
+/**
+ * Estimated input tokens of one distillation request, the system prompt and the transcript together, at
+ * `CHARS_PER_TOKEN` characters per token. The estimate ignores the provider's tokenizer and message
+ * framing, so `maxInputTokens` bounds this estimate rather than the tokens the provider bills.
+ * @param transcript - assembled transcript of one turn's work.
+ * @returns estimated input tokens of the request.
+ */
+export function estimateDistillationTokens(transcript: string): number {
+  return Math.ceil((SYSTEM.length + transcript.length) / CHARS_PER_TOKEN)
+}
+
+function renderTranscript(transcript: Transcript): string {
+  return [
+    `<request>\n${transcript.request}\n</request>`,
+    `<tool_calls>\n${transcript.steps.join('\n')}\n</tool_calls>`,
+    `<answer>\n${transcript.answer}\n</answer>`,
+    `<existing_capabilities>\n${transcript.existing}\n</existing_capabilities>`,
+    ...transcript.related,
+  ].join('\n\n')
+}
+
+/**
+ * Bound one distillation transcript to an input budget.
+ *
+ * The oldest tool calls go first, and the model is told how many were left out, because a procedure is
+ * written from the request, the newest calls, and the answer. Text still above the budget keeps its
+ * beginning and ends with the cut marker, so the fixed system prompt and the newest evidence survive and
+ * the transcript sent is never above the budget.
+ * @param transcript - assembled sections of one turn's work.
+ * @param maxInputTokens - input budget of one distillation, system prompt included.
+ * @returns the transcript within the budget, and the number of oldest tool calls dropped from it.
+ */
+function boundTranscript(transcript: Transcript, maxInputTokens: number): { readonly text: string; readonly dropped: number } {
+  let steps = transcript.steps
+  let dropped = 0
+  const assembled = (): string => renderTranscript({
+    ...transcript,
+    steps: dropped === 0 ? steps : [`(${dropped} older tool calls omitted to fit the learning input budget)`, ...steps],
+  })
+  while (steps.length > 0 && estimateDistillationTokens(assembled()) > maxInputTokens) {
+    steps = steps.slice(1)
+    dropped += 1
+  }
+  const text = assembled()
+  // Transcript characters left once the fixed system prompt is paid for.
+  const room = Math.max(0, maxInputTokens * CHARS_PER_TOKEN - SYSTEM.length)
+  if (text.length <= room) return { text, dropped }
+  const cut = room >= CUT_MARKER.length ? `${text.slice(0, room - CUT_MARKER.length)}${CUT_MARKER}` : text.slice(0, room)
+  return { text: cut, dropped }
+}
 
 const STOP_WORDS = new Set(['that', 'this', 'with', 'from', 'have', 'what', 'when', 'where', 'which', 'your', 'about', 'there', 'their', 'would', 'could', 'should', 'into', 'then', 'them', 'they', 'will', 'just', 'want', 'make', 'like', 'does', 'please'])
 
@@ -249,13 +331,14 @@ export class CapabilityLearner {
   private async distill(route: LearnerRoute, work: CompletedWork, records: readonly CapabilityRecord[], related: readonly { name: string; description: string; content: string }[]): Promise<Decision | undefined> {
     const steps = work.steps.filter(step => !BOOKKEEPING.test(step.name)).map((step, index) =>
       `${index + 1}. ${step.name} ${step.input}\n   ${step.failed ? 'FAILED' : 'ok'}: ${step.output ?? '(no result)'}`)
-    const text = [
-      `<request>\n${work.request}\n</request>`,
-      `<tool_calls>\n${steps.join('\n')}\n</tool_calls>`,
-      `<answer>\n${work.answer.slice(0, 4_000)}\n</answer>`,
-      `<existing_capabilities>\n${records.slice(0, MAX_EXISTING).map(record => `- ${record.name}: ${record.description}`).join('\n') || '(none)'}\n</existing_capabilities>`,
-      ...related.map(capability => `<capability name="${capability.name}">\n${capability.description}\n\n${capability.content}\n</capability>`),
-    ].join('\n\n')
+    const { text, dropped } = boundTranscript({
+      request: work.request,
+      steps,
+      answer: work.answer.slice(0, 4_000),
+      existing: records.slice(0, MAX_EXISTING).map(record => `- ${record.name}: ${record.description}`).join('\n') || '(none)',
+      related: related.map(capability => `<capability name="${capability.name}">\n${capability.description}\n\n${capability.content}\n</capability>`),
+    }, this.config.maxInputTokens)
+    if (dropped > 0) this.logger.info(`learning from ${work.sessionId} turn ${work.turn} omitted ${dropped} older tool calls to stay within ${this.config.maxInputTokens} input tokens`)
     const assembler = new BlockAssembler()
     for await (const chunk of this.ctx.llm.stream({
       provider: route.provider,

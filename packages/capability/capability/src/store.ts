@@ -4,7 +4,7 @@
  */
 import { appendFile, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, join, normalize, sep } from 'node:path'
-import type { Capability, CapabilityEvidenceEntry, CapabilityRecord } from './types.ts'
+import type { Capability, CapabilityEvidenceEntry, CapabilityRecord, CapabilityVersion } from './types.ts'
 
 const NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const MAX_NAME_LENGTH = 64
@@ -128,6 +128,68 @@ export class CapabilityStore {
    */
   async appendEvidence(owner: string, name: string, entry: CapabilityEvidenceEntry): Promise<void> {
     await appendFile(join(this.directory(owner, name), 'executions.jsonl'), `${JSON.stringify(entry)}\n`, 'utf8')
+  }
+
+  /**
+   * Read the body and description kept for one revision.
+   *
+   * Every write keeps its revision's `SKILL.md` under `versions/`, so a revision the user wants back is on disk
+   * even though `capability.json` describes only the current one. The kept file is what a restore reads, because
+   * the description it carried may have changed since.
+   * @param owner - account id.
+   * @param name - capability name.
+   * @param revision - revision number to read.
+   * @returns the kept revision, or undefined when no body was kept for that number.
+   */
+  async version(owner: string, name: string, revision: number): Promise<CapabilityVersion | undefined> {
+    const file = join(this.directory(owner, name), 'versions', `${revision}.md`)
+    let markdown: string
+    try {
+      markdown = await readFile(file, 'utf8')
+    } catch (error: unknown) {
+      // A revision whose body was never kept is indistinguishable to a caller from one that never existed, and
+      // the only other failure this read reports is a permission or handle error on that same path.
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
+      throw error
+    }
+    const match = /^---\nname: [^\n]*\ndescription: (.*)\n/u.exec(markdown)
+    const description = match?.[1]
+    return {
+      revision,
+      ...description === undefined ? {} : { description: JSON.parse(description) as string },
+      content: skillBody(markdown),
+    }
+  }
+
+  /**
+   * List the revisions whose body is still kept, oldest first.
+   * @param owner - account id.
+   * @param name - capability name.
+   * @returns one entry per kept revision, or none before the first write.
+   */
+  async versions(owner: string, name: string): Promise<CapabilityVersion[]> {
+    const directory = join(this.directory(owner, name), 'versions')
+    let names: string[]
+    try {
+      names = await readdir(directory)
+    } catch (error: unknown) {
+      // No directory means nothing was written yet, so a caller asking for the versions of a fresh capability
+      // gets none; the only other failure this read reports is a permission or handle error on that path.
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
+      throw error
+    }
+    const revisions = names
+      .flatMap((file) => {
+        const match = /^([0-9]+)\.md$/u.exec(file)
+        return match === null ? [] : [Number(match[1])]
+      })
+      .sort((left, right) => left - right)
+    const versions: CapabilityVersion[] = []
+    for (const revision of revisions) {
+      const kept = await this.version(owner, name, revision)
+      if (kept !== undefined) versions.push(kept)
+    }
+    return versions
   }
 
   /**

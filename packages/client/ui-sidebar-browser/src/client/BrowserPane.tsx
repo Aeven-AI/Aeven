@@ -289,13 +289,11 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
       },
       async announceNavigation(url) {
         // The address field is the exception to centring: the pointer goes to the start of the
-        // text it is about to type, then the typed address loads the page.
+        // text it is about to type. The load belongs to whoever owns the navigation — the
+        // agent's own navigate, or the shell's request below — because this presentation
+        // cannot know whether the page is still the one the caller asked for.
         const point = aimedTextStart(addressRef.current, ADDRESS_TEXT_INSET_PX)
-        if (point === null || !visibleRef.current) {
-          const target = resolveTarget(url)
-          if (target !== undefined) void guestRef.current?.loadURL(target.kind === 'url' ? target.url : search.search(target.query))
-          return
-        }
+        if (point === null || !visibleRef.current) return
         overlay.type(point)
         await overlay.arrived()
         for (let index = 1; index <= url.length; index += 1) {
@@ -304,8 +302,6 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
         }
         await wait(ADDRESS_SETTLE_MS)
         setTypingUrl(undefined)
-        const target = resolveTarget(url)
-        if (target !== undefined) void guestRef.current?.loadURL(target.kind === 'url' ? target.url : search.search(target.query))
       },
     }
     livePaneCursors.set(guest, presentation)
@@ -434,9 +430,15 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
         case 'control': {
           // A chrome control is not part of the page, so its position is the pane's
           // own to give: the pointer travels to the target and acts on it. A
-          // navigation types into the address field rather than pressing a button.
+          // navigation types into the address field rather than pressing a button,
+          // and this request carries no load of its own, so the typed address is
+          // what loads — once, after the typing has been drawn.
           if (cursor.control === 'navigate') {
-            void presentation.announceNavigation(cursor.url ?? '')
+            const address = cursor.url ?? ''
+            const target = resolveTarget(address)
+            void presentation.announceNavigation(address).then(() => {
+              if (target !== undefined) void guest.loadURL(target.kind === 'url' ? target.url : search.search(target.query))
+            })
             return
           }
           const control = findControl(cursor.control ?? 'refresh')

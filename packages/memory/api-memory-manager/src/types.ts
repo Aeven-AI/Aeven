@@ -1,10 +1,12 @@
 /** JSON-safe results of the `memoryManager` Remote namespace. */
 import type { MemoryDomain, MemoryItemId } from '@aeven/memory/types'
+import type { InvariantsView, InvariantChange } from '@aeven/memory-invariants/types'
 import type { CapabilityProvenance, CapabilityRecord, CapabilityRunMetrics, CapabilityStatus, ExecutionVerdict } from '@aeven/capability/types'
 import type { SessionId } from '@aeven/session/types'
 
 export type { CapabilityRunMetrics, CapabilityStatus, ExecutionVerdict } from '@aeven/capability/types'
 export type { MemoryDomain, MemoryItemId } from '@aeven/memory/types'
+export type { Invariant, InvariantChange, InvariantId, InvariantReason, InvariantsView } from '@aeven/memory-invariants/types'
 
 /** One memory of the signed-in user. */
 export interface ManagedMemory {
@@ -31,6 +33,19 @@ export interface ManagedMemoryQuery {
   readonly limit: number
   readonly offset: number
 }
+
+/**
+ * The caller's standing facts with the budget they render under, or the fact that this Host serves none.
+ * A statement here enters every request of its owner, which is why the management surface states the cost.
+ */
+export type ManagedInvariantsPage =
+  | { readonly available: false }
+  | ({ readonly available: true } & InvariantsView)
+
+/** Outcome of promoting, replacing, or removing one statement, with the caller's state after the attempt. */
+export type ManagedInvariantChange =
+  | { readonly available: false }
+  | ({ readonly available: true } & InvariantChange)
 
 /** Execution counts of a capability's current revision. */
 export interface ManagedCapabilityRuns {

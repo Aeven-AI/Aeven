@@ -57,6 +57,12 @@ export interface SessionNode {
   running: boolean
   /** Running descendants connected through uninterrupted subagent-origin lineage. */
   runningSubagentCount: number
+  /**
+   * Background jobs this Session owns that are still live. A Session whose
+   * Agent is idle between turns but whose job keeps working is still working,
+   * so its row keeps the in-flight mark instead of reading as finished.
+   */
+  runningJobCount: number
   /** Finished running while not selected and not yet opened (the green "done" reminder dot). */
   completed: boolean
   /** The current list projection contains at least one active Schedule record. */
@@ -107,6 +113,8 @@ export interface SearchResultNode {
   running: boolean
   /** Running descendants connected through uninterrupted subagent-origin lineage. */
   runningSubagentCount: number
+  /** Live background jobs of this Session; see {@link SessionNode.runningJobCount}. */
+  runningJobCount: number
   /** Finished running while not selected and not yet opened (the green "done" reminder dot). */
   completed: boolean
   /** The current list projection contains at least one active Schedule record. */
@@ -224,6 +232,24 @@ function hasActiveSchedule(session: SessionSummary): boolean {
   return (session.projectionValues?.schedule?.length ?? 0) > 0
 }
 
+/**
+ * Count each Session's live background jobs. A job outlives the turn that
+ * started it, so a Session whose Agent is idle between turns is still working
+ * while one runs, and its row must not read as finished.
+ * @param jobsBySession - the list's per-Session job rows.
+ * @returns live-job counts by owning Session; an absent key means none.
+ */
+function indexRunningJobs(
+  jobsBySession: SessionListState['jobsBySession'],
+): ReadonlyMap<SessionId, number> {
+  const counts = new Map<SessionId, number>()
+  for (const [sessionId, jobs] of Object.entries(jobsBySession)) {
+    const live = jobs.filter(job => job.status === 'running' || job.status === 'stopping').length
+    if (live > 0) counts.set(sessionId as SessionId, live)
+  }
+  return counts
+}
+
 /** Build one group without projecting session lineage into presentation. */
 function buildGroup(
   key: string,
@@ -326,6 +352,7 @@ function visiblePendingKind(kind: string | undefined): SessionPendingInteraction
 function sessionNode(
   s: SessionSummary,
   descendants: ReadonlyMap<SessionId, SubagentDescendantSummary>,
+  runningJobs: ReadonlyMap<SessionId, number>,
   pendingInteractions: SessionPendingInteractions,
 ): SessionNode {
   const pendingInteraction = visiblePendingKind(pendingInteractions.get(s.id)?.kind)
@@ -336,6 +363,7 @@ function sessionNode(
     untitled: !s.blank && s.title === undefined,
     running: s.running,
     runningSubagentCount: descendants.get(s.id)?.runningCount ?? 0,
+    runningJobCount: runningJobs.get(s.id) ?? 0,
     completed: s.completed === true,
     hasActiveSchedule: hasActiveSchedule(s),
     createdAt: s.createdAt,
@@ -369,6 +397,7 @@ export function deriveGroups(
   const archived = new Set(archivedSessionIds)
   const expandedGroups = new Set(view.expandedGroups)
   const descendants = indexSubagentDescendants(list.byId)
+  const runningJobs = indexRunningJobs(list.jobsBySession)
   const currentGroup = list.current === undefined
     ? undefined
     : owningGroupKey(workspaces, list.current)
@@ -386,7 +415,7 @@ export function deriveGroups(
       expanded,
       containsCurrent: g.key === currentGroup,
       sessions: expanded
-        ? g.sessions.map(session => sessionNode(session, descendants, pendingInteractions))
+        ? g.sessions.map(session => sessionNode(session, descendants, runningJobs, pendingInteractions))
         : [],
     })
   }
@@ -410,6 +439,7 @@ export function deriveFlat(
 ): SessionNode[] {
   const archived = new Set(archivedSessionIds)
   const descendants = indexSubagentDescendants(list.byId)
+  const runningJobs = indexRunningJobs(list.jobsBySession)
   const rows: SessionSummary[] = []
   for (const id of list.ids) {
     const s = list.byId[id]
@@ -417,7 +447,7 @@ export function deriveFlat(
     rows.push(s)
   }
   rows.sort(byRecency)
-  return rows.map(session => sessionNode(session, descendants, pendingInteractions))
+  return rows.map(session => sessionNode(session, descendants, runningJobs, pendingInteractions))
 }
 
 /**
@@ -438,6 +468,7 @@ function resultRows(
   content: ReadonlyMap<SessionId, SessionSearchResultItem>,
 ): SearchResultNode[] {
   const descendants = indexSubagentDescendants(list.byId)
+  const runningJobs = indexRunningJobs(list.jobsBySession)
   const workspaceBySession = new Map<SessionId, string>()
   for (const workspace of workspaces) {
     for (const sessionId of workspace.sessionIds) {
@@ -453,6 +484,7 @@ function resultRows(
       workspace: workspaceBySession.get(summary.id) ?? workspaceLabel(summary.cwd),
       running: summary.running,
       runningSubagentCount: descendants.get(summary.id)?.runningCount ?? 0,
+      runningJobCount: runningJobs.get(summary.id) ?? 0,
       ...(pendingInteraction === undefined
         ? {}
         : { pendingInteraction }),

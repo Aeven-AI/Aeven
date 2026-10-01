@@ -76,8 +76,18 @@ export interface CapabilityProvenance {
   /** Session the change came from; absent for evidence settlement and for changes the user made outside a session. */
   readonly sessionId?: string
   readonly at: number
-  /** What happened: first save, content update, supporting file, or status change. */
-  readonly action: 'save' | 'update' | 'file' | 'status' | 'evidence'
+  /** What happened: first save, content update, supporting file, status change, or a restore of a kept revision. */
+  readonly action: 'save' | 'update' | 'file' | 'status' | 'evidence' | 'rollback'
+  /** For a rollback, the revision whose body the new revision restored. */
+  readonly restored?: number
+}
+
+/** One revision whose body is still kept on disk. */
+export interface CapabilityVersion {
+  readonly revision: number
+  /** The description that revision carried; absent only when its kept frontmatter could not be read. */
+  readonly description?: string
+  readonly content: string
 }
 
 /** Cost of one piece of work, measured from the session log. */

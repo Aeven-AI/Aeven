@@ -185,7 +185,7 @@ export const Config: z<Config> = z.object({
   models: z.array(catalogModel).default([...DEFAULT_MODELS] as DeepSeekCatalogModel[]),
   /** Both are forwarded and both are accepted by the gateway. */
   thinking: z.union(['enabled', 'disabled']).default('enabled'),
-  reasoningEffort: z.union(['off', 'low', 'high', 'max']).default('max'),
+  reasoningEffort: z.union(['off', 'low', 'high', 'max']).default('high'),
   maxTokens: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_MAX_TOKENS),
   defaultContextWindow: z.number().step(1).min(1).default(DEFAULT_CONTEXT_WINDOW),
   streamIdleTimeoutMs: z.number().min(Number.MIN_VALUE).max(MAX_TIMER_DELAY_MS).default(DEFAULT_STREAM_IDLE_TIMEOUT_MS),
@@ -348,7 +348,7 @@ export function apply(ctx: Context, config: Config): void {
     apiKeyEnv: credentialRef(config.apiKeyEnv ?? DEFAULT_API_KEY_ENV),
     defaults: {
       thinking: config.thinking ?? 'enabled',
-      reasoningEffort: config.reasoningEffort ?? 'max',
+      reasoningEffort: config.reasoningEffort ?? 'high',
     },
     maxTokens: config.maxTokens ?? DEFAULT_MAX_TOKENS,
     defaultContextWindow: config.defaultContextWindow ?? DEFAULT_CONTEXT_WINDOW,

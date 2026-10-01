@@ -805,13 +805,21 @@
 /* The stack centres in whatever the header leaves. Auto margins share the free
    space equally, which centres it against the band below the bar rather than
    against the whole column — `justify-content` would centre the header with it
-   and put the title row mid-column. */
+   and put the title row mid-column.
+
+   The seat then carries the hero's optical lift as a relative offset: the
+   name-over-composer group reads as centred 66px above that middle, and a
+   relative offset leaves both facts the settled phase depends on intact — the
+   seat's measured box (published as `--avn-composer-seat-height`) keeps its real
+   height, and `getBoundingClientRect` reports the lifted edge, so the hand-over
+   to the settled floor starts from where the card was seen. */
 .root[data-phase="hero"] .composerSeat {
   position: relative;
   z-index: 7;
   flex: none;
   margin-top: auto;
   margin-bottom: auto;
+  top: -66px;
 }
 
 .composerHero {
@@ -821,8 +829,6 @@
      rather than dropped, because `.composerStack`'s own gap would otherwise
      take over. */
   gap: 0;
-  /* Foot inside the centered box floats the stack a bit above true center. */
-  padding-bottom: 32px;
   /* Card cap + both clearances: the hero input card lands at exactly the same
      width as the docked composer at every viewport. */
   width: min(

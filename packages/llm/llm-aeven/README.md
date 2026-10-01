@@ -42,7 +42,7 @@ The catalog is announced through `registerModelDiscovery`, so the model picker o
   config:
     apiUrl: http://localhost:9000   # Aeven API origin; /v1 is appended
     apiKeyEnv: AEVEN_TOKEN          # credential holding the signed-in session
-    reasoningEffort: max            # off | low | high | max
+    reasoningEffort: high           # off | low | high | max
     maxTokens: 384000               # optional per-request output cap
 ```
 
@@ -54,7 +54,7 @@ Only `apiUrl` and `apiKeyEnv` describe where requests go and what authenticates 
 | `apiKeyEnv` | `AEVEN_TOKEN` | Credential reference holding the signed-in session, resolved through the credentials seam then the environment |
 | `models` | Aeven Flash + Aeven Pro | Advisory catalog shown by discovery consumers; a settings section replaces it whole |
 | `thinking` | `enabled` | Deployment policy; `disabled` locks every request to `off` |
-| `reasoningEffort` | `max` | Default effort: `off`, `low`, `high`, or `max` |
+| `reasoningEffort` | `high` | Default effort: `off`, `low`, `high`, or `max` |
 | `maxTokens` | `384,000` | Per-request output cap; a model's own cap and explicit request values win |
 | `defaultContextWindow` | `1,000,000` | Capacity fallback for models without an exact value |
 | `streamIdleTimeoutMs` | `300,000` | Maximum provider idle time per outstanding stream read |

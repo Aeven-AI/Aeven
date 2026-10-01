@@ -39,7 +39,10 @@ export interface Config {
   classifyTimeoutMs: number
   /** Number of trace candidates MemOS ranks for turn-start recall before Aeven orders them. */
   candidateTraces: number
-  /** Serve the MemOS Viewer and its read/write memory API over every owner's memory, without sign-in. */
+  /**
+   * Serve the MemOS Viewer and its read/write memory API over every owner's memory, without sign-in. Off by
+   * default: the surface answers anyone who reaches it, so a composition opts in rather than inheriting it.
+   */
   viewer: boolean
   /** Viewer listener port. */
   viewerPort: number
@@ -55,7 +58,7 @@ export const Config: z<Config> = z.object({
   classifyDomains: z.boolean().default(true),
   classifyTimeoutMs: z.natural().min(1000).default(15_000),
   candidateTraces: z.natural().min(1).default(20),
-  viewer: z.boolean().default(true),
+  viewer: z.boolean().default(false),
   viewerPort: z.natural().min(1).max(65_535).default(18_801),
   viewerHost: z.string().default('127.0.0.1'),
 })
@@ -141,7 +144,8 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         { core, home, logTail: () => memoryBuffer().tail({ limit: 200 }) },
         { port: config.viewerPort, host: config.viewerHost, staticRoot: viewerAssets(), agent: MEMOS_AGENT, closeActiveSseOnShutdown: true },
       )
-      logger.info(`viewer live at ${viewer.url}`)
+      // Warn, not info: an operator reading the log sees that a surface with no sign-in is answering.
+      logger.warn(`viewer live at ${viewer.url} — it serves every owner's memory without sign-in`)
     } catch (error) {
       // Memory stays usable without its Viewer; a busy port is the common cause.
       logger.warn(`viewer unavailable on ${config.viewerHost}:${config.viewerPort}: ${error instanceof Error ? error.message : String(error)}`)

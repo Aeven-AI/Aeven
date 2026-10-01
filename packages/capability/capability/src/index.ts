@@ -21,6 +21,7 @@ import type {
   CapabilityRecord,
   CapabilitySource,
   CapabilityStatus,
+  CapabilityVersion,
   JudgedExecution,
 } from './types.ts'
 
@@ -230,6 +231,50 @@ export default class Capabilities extends Service {
       if (await this.store.record(owner, name) === undefined) return false
       await this.store.remove(owner, name)
       return true
+    })
+  }
+
+  /**
+   * List the revisions whose body is still kept, oldest first.
+   *
+   * Every write keeps its revision's procedure, so a capability whose current revision turned out worse than an
+   * earlier one can be restored instead of rewritten from memory.
+   * @param owner - account id.
+   * @param name - capability name.
+   * @returns one entry per kept revision.
+   */
+  versions(owner: string, name: string): Promise<CapabilityVersion[]> {
+    return this.store.versions(owner, capabilityName(name))
+  }
+
+  /**
+   * Restore one kept revision as a new revision.
+   *
+   * The earlier procedure and the description it carried become the current revision, so the history stays
+   * append-only and a later execution is attributable to the text it actually followed. The restored revision
+   * then answers to its evidence like any other: a revision whose runs fail is degraded rather than trusted.
+   * @param owner - account id.
+   * @param name - capability name.
+   * @param revision - revision whose body to restore.
+   * @param sessionId - the session the restore was made from; undefined when the user restored it outside a session.
+   * @returns the capability at its new revision.
+   * @throws when the capability does not exist, or no body was kept for that revision.
+   */
+  rollback(owner: string, name: string, revision: number, sessionId: string | undefined): Promise<Capability> {
+    return this.serialize(owner, capabilityName(name), async () => {
+      const current = await this.require(owner, name)
+      const kept = await this.store.version(owner, name, revision)
+      if (kept === undefined) throw new Error(`no kept revision ${revision} of ${name}`)
+      const now = Date.now()
+      await this.store.write(owner, {
+        ...record(current),
+        revision: current.revision + 1,
+        ...kept.description === undefined ? {} : { description: kept.description },
+        updatedAt: now,
+        provenance: [...current.provenance, { ...origin(sessionId), at: now, action: 'rollback', restored: revision }],
+        content: kept.content,
+      })
+      return await this.settle(owner, name)
     })
   }
 

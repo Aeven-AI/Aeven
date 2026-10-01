@@ -49,7 +49,7 @@ describe('connection resolution', () => {
       stream: true,
       stream_options: { include_usage: true },
       thinking: { type: 'enabled' },
-      reasoning_effort: 'max',
+      reasoning_effort: 'high',
       max_tokens: DEFAULT_MAX_TOKENS,
     })
     expect(result.message.content).toEqual([{ type: 'text', text: 'hello' }])

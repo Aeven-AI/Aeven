@@ -33,6 +33,12 @@ A session composed from a preset runs the plugins that preset's `agent.cordis.ym
 
 The presets you can choose from come from two places: the presets shipped inside this package under `presets/`, and your own presets under `<avnHome>/.agent-presets`. The picker shows each preset's display name and description; a preset whose composition cannot load is listed with the reason rather than hidden, so you can see what to fix or delete.
 
+### Shipped skills
+
+The presets that discover local skills also mount the skills shipped inside this package, so a session gets them without a local copy. They live once, under `presets/aeven/skills/`, and each composition resolves that directory from its own URL: `aeven` mounts `./skills/`, and `standard`, `ptc`, and `cordis` mount `../aeven/skills/`. `minimal` mounts no filesystem discovery and therefore none of them.
+
+A shipped skill's `SKILL.md` is the canonical file, and the repository path `.agents/skills/<name>/SKILL.md` is a relative symbolic link to it, so an agent working in this checkout discovers the same file. The root resolves beside the composition, so a preset copied into a user root carries none of the shipped skills, and a locally authored skill of the same name loses to the shipped one.
+
 ### Minimal configuration
 
 The plugin needs a `default` preset id and scans `roots` for presets:
@@ -66,7 +72,7 @@ agent-presets:
   default: minimal
 ```
 
-The value is read when a session is created, so a changed default affects only sessions created afterwards; running sessions stay on the preset they were composed from. Clearing the user field re-inherits the composition default. The shipped Web composition defaults to `aeven`, the full agent with the Cordis self-extension toolset; the other shipped presets stay installed so sessions created on them still resume, and the Web GUI offers them only in Developer mode.
+The value is read when a session is created, so a changed default affects only sessions created afterwards; running sessions stay on the preset they were composed from. Clearing the user field re-inherits the composition default. The shipped Web composition defaults to `aeven`, the full agent without the Cordis runtime toolset that the `cordis` preset mounts; the other shipped presets stay installed so sessions created on them still resume, and the Web GUI offers them only in Developer mode.
 
 ### Authoring presets
 
@@ -156,7 +162,7 @@ Read these pages when the package-level contract is not enough; they move from t
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through the plugins a preset's standing composition installs, which own every tool schema, prompt section, and skill the preset makes visible to the agents joined to it.
+Indirectly, through the plugins a preset's standing composition installs, which own every tool schema, prompt section, and skill the preset makes visible to the agents joined to it. The skills this package ships add their catalog descriptions to every session on a preset that mounts them; the bodies themselves load only when a session asks for one.
 
 #### KV Cache effect
 

@@ -11,7 +11,9 @@ import { Remote, TypertRemoteService } from '@aeven/typert-protocol'
 import type {} from '@aeven/identity-user'
 import type {} from '@aeven/session-query'
 import type {} from '@aeven/memory'
-import type { Capability, CapabilityRecord, CapabilityRunMetrics, JudgedExecution } from '@aeven/capability'
+import type {} from '@aeven/memory-invariants'
+import type { Capability, CapabilityRecord, CapabilityRunMetrics, CapabilityVersion, JudgedExecution } from '@aeven/capability'
+import type { InvariantId } from '@aeven/memory-invariants/types'
 import type { MemoryItemId, MemoryRecord } from '@aeven/memory/types'
 import type {
   ManagedCapability,
@@ -19,6 +21,8 @@ import type {
   ManagedCapabilityEdit,
   ManagedCapabilityImpact,
   ManagedCapabilityStatusChange,
+  ManagedInvariantChange,
+  ManagedInvariantsPage,
   ManagedMemory,
   ManagedMemoryPage,
   ManagedMemoryQuery,
@@ -104,6 +108,55 @@ export default class MemoryManagerController extends TypertRemoteService {
   }
 
   /**
+   * List the statements the caller confirmed as always true, with the budget they render under.
+   * @returns the document, or `available: false` when this Host serves none.
+   */
+  @Remote
+  invariants(): ManagedInvariantsPage {
+    const owner = this.owner()
+    const service = this.ctx.get('memoryInvariants')
+    return service === undefined ? { available: false } : { available: true, ...service.read(owner) }
+  }
+
+  /**
+   * Promote one statement into every request of the caller. Promoting a statement that already stands refreshes
+   * how current it is instead of spending the block twice.
+   * @param text - the statement the caller confirmed.
+   * @returns what changed, with the reason when the block has no room for the statement.
+   */
+  @Remote
+  addInvariant(text: string): ManagedInvariantChange {
+    const owner = this.owner()
+    const service = this.ctx.get('memoryInvariants')
+    return service === undefined ? { available: false } : { available: true, ...service.add(owner, text) }
+  }
+
+  /**
+   * Replace the text of one of the caller's standing facts, keeping its place in the block.
+   * @param id - identifier of the statement to replace.
+   * @param text - the replacement statement.
+   * @returns what changed, with the reason when the id or the text was refused.
+   */
+  @Remote
+  editInvariant(id: InvariantId, text: string): ManagedInvariantChange {
+    const owner = this.owner()
+    const service = this.ctx.get('memoryInvariants')
+    return service === undefined ? { available: false } : { available: true, ...service.edit(owner, id, text) }
+  }
+
+  /**
+   * Drop one of the caller's standing facts, which frees its share of the block.
+   * @param id - identifier of the statement to drop.
+   * @returns what changed, with the reason when the caller has no such statement.
+   */
+  @Remote
+  removeInvariant(id: InvariantId): ManagedInvariantChange {
+    const owner = this.owner()
+    const service = this.ctx.get('memoryInvariants')
+    return service === undefined ? { available: false } : { available: true, ...service.remove(owner, id) }
+  }
+
+  /**
    * List the caller's learned capabilities with the run counts of their current revisions.
    * @returns capabilities sorted by name.
    */
@@ -168,6 +221,28 @@ export default class MemoryManagerController extends TypertRemoteService {
   @Remote
   deleteCapability(name: string): Promise<boolean> {
     return this.ctx.capabilities.remove(this.owner(), name)
+  }
+
+  /**
+   * List the revisions of one of the caller's capabilities that are still kept, oldest first.
+   * @param name - capability name.
+   * @returns one entry per kept revision, each with the procedure it held.
+   */
+  @Remote
+  capabilityVersions(name: string): Promise<CapabilityVersion[]> {
+    return this.ctx.capabilities.versions(this.owner(), name)
+  }
+
+  /**
+   * Restore one kept revision of a capability as its new revision.
+   * @param name - capability name.
+   * @param revision - revision whose procedure to restore.
+   * @returns the capability at its restored revision.
+   */
+  @Remote
+  async rollbackCapability(name: string, revision: number): Promise<ManagedCapabilityDetail> {
+    const owner = this.owner()
+    return this.detail(owner, await this.ctx.capabilities.rollback(owner, name, revision, undefined))
   }
 
   private owner(): string {

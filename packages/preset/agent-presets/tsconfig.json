@@ -46,6 +46,12 @@
       "path": "../../settings/settings"
     },
     {
+      "path": "../../skill/skill"
+    },
+    {
+      "path": "../../skill/skill-filesystem"
+    },
+    {
       "path": "../../util/atomic-write"
     },
     {

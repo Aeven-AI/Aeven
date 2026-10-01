@@ -25,8 +25,9 @@ import type { JsonValue } from '@aeven/util-values'
 import type { RetrievalHitDTO, RuntimeNamespace, SkillDTO, TraceDTO } from '@memtensor/memos-local-plugin/dist/agent-contract/dto.js'
 import type { MemoryCore } from '@memtensor/memos-local-plugin/dist/agent-contract/memory-core.js'
 import { MemoryDeadlineError, withDeadline } from './deadline.ts'
+import { withoutExactIdentifiers } from './query.ts'
 import type { LlmRouteContext } from './host-llm.ts'
-import { traceDomain, withDomainTag, type ClassifyInput, type TurnDomain } from './domain.ts'
+import { SUPERSEDED_TAG, traceDomain, withDomainTag, withSupersededTag, type ClassifyInput, type TurnDomain } from './domain.ts'
 import { normalizeNamespace } from '@memtensor/memos-local-plugin/dist/core/runtime/namespace.js'
 
 /** MemOS agent kind. The embedded Viewer server keys its in-process host behavior on this value. */
@@ -105,6 +106,30 @@ export class MemosMemory implements MemoryProvider {
     if (scope.route) this.state(scope.sessionId).route = scope.route
     const deadlineAt = Date.now() + request.timeoutMs
     const turnStart = request.purpose === 'turn-start'
+    try {
+      const hits = await this.search(request, deadlineAt, turnStart)
+      if (!turnStart || hits.length > 0) return { hits, timedOut: false }
+      // MemOS turns every long identifier in a query into a hard eligibility filter, so a pasted
+      // session id or commit hash drops all candidates. A turn-start query is a topic query; retry it
+      // without those tokens rather than delivering no memory for the turn.
+      const topic = withoutExactIdentifiers(request.query)
+      if (topic === request.query || topic.length === 0) return { hits, timedOut: false }
+      return { hits: await this.search({ ...request, query: topic }, deadlineAt, turnStart), timedOut: false }
+    } catch (error) {
+      if (!(error instanceof MemoryDeadlineError)) throw error
+      return { hits: [], timedOut: true }
+    }
+  }
+
+  /**
+   * One MemOS retrieval, hydrated and filtered for its caller.
+   * @param request - the caller's recall request; `query` is sent verbatim.
+   * @param deadlineAt - epoch milliseconds the whole recall must finish within.
+   * @param turnStart - true for automatic turn-start recall, which differs in limits, filtering, and session scoping.
+   * @returns the visible hits, or throws {@link MemoryDeadlineError} at the deadline.
+   */
+  private async search(request: MemoryRecallRequest, deadlineAt: number, turnStart: boolean): Promise<MemoryHit[]> {
+    const { scope } = request
     const limits = turnStart ? request.limits : request.limits ?? this.options.toolLimits
     const search = this.withRoute(scope.route, () => this.core.searchMemory({
       agent: MEMOS_AGENT,
@@ -123,15 +148,9 @@ export class MemosMemory implements MemoryProvider {
         topK: { tier1: limits.skills, tier2: limits.traces, tier3: limits.worldModels },
       },
     }, { signal: request.signal, ...turnStart ? {} : { foreground: true } }))
-    try {
-      // A provider can be temporarily non-cancellable (for example while a local ONNX model loads),
-      // so the deadline is enforced here as well as inside the core.
-      const hits = await withDeadline(Promise.resolve(search).then(result => this.visibleHits(scope, result.hits, turnStart)), deadlineAt, request.signal, `Memory recall exceeded ${request.timeoutMs}ms`)
-      return { hits, timedOut: false }
-    } catch (error) {
-      if (!(error instanceof MemoryDeadlineError)) throw error
-      return { hits: [], timedOut: true }
-    }
+    // A provider can be temporarily non-cancellable (for example while a local ONNX model loads),
+    // so the deadline is enforced here as well as inside the core.
+    return withDeadline(Promise.resolve(search).then(result => this.visibleHits(scope, result.hits, turnStart)), deadlineAt, request.signal, `Memory recall exceeded ${request.timeoutMs}ms`)
   }
 
   /** MemOS workspace key of the scope's working directory, as MemOS stamps it on captured memory. */
@@ -147,7 +166,7 @@ export class MemosMemory implements MemoryProvider {
     const workspace = this.workspaceOf(scope)
     const namespace = this.namespaceOf(scope)
     const classified = await Promise.all(hits.map(async (hit) => {
-      const { domain, workspaceId, summary, correction } = await this.hitOrigin(hit, namespace)
+      const { domain, workspaceId, summary, correction, superseded, recordedAt } = await this.hitOrigin(hit, namespace, turnStart)
       const memory: MemoryHit = {
         kind: hit.refKind,
         id: brandString<MemoryItemId>(hit.refId),
@@ -156,17 +175,21 @@ export class MemosMemory implements MemoryProvider {
         score: hit.score,
         // A trace's distilled summary states the remembered fact; the raw exchange is the fallback.
         snippet: summary || toAevenToolReferences(hit.snippet),
+        ...recordedAt === undefined ? {} : { recordedAt },
       }
-      return { memory, workspaceId, correction }
+      return { memory, workspaceId, correction, superseded }
     }))
     return classified
-      .filter(({ memory, workspaceId, correction }) =>
-        (!turnStart || !correction) && (memory.domain !== 'project' || (workspace !== undefined && workspaceId === workspace)))
+      .filter(({ memory, workspaceId, correction, superseded }) =>
+        (!turnStart || (!correction && !superseded)) && (memory.domain !== 'project' || (workspace !== undefined && workspaceId === workspace)))
       .map(({ memory }) => memory)
   }
 
-  /** Domain of a hit and the workspace it was captured in; search hits do not always carry the workspace, so traces are read. */
-  private async hitOrigin(hit: RetrievalHitDTO, namespace: RuntimeNamespace): Promise<{ domain: MemoryDomain; workspaceId: string | null | undefined; summary?: string; correction?: boolean }> {
+  /**
+   * Automatic recall states the distilled summary, because it is injected on every turn; an explicit search
+   * returns the whole trace, so a fact the distillation dropped is still reachable.
+   */
+  private async hitOrigin(hit: RetrievalHitDTO, namespace: RuntimeNamespace, turnStart: boolean): Promise<{ domain: MemoryDomain; workspaceId: string | null | undefined; summary?: string; correction?: boolean; superseded?: boolean; recordedAt?: number }> {
     switch (hit.refKind) {
       case 'experience':
       case 'skill':
@@ -177,12 +200,14 @@ export class MemosMemory implements MemoryProvider {
         const trace = await this.core.getTrace(hit.refId, namespace)
         const workspaceId = trace?.ownerWorkspaceId ?? hit.ownerWorkspaceId
         const domain = traceDomain(trace?.tags, workspaceId)
-        const summary = trace === null ? undefined : domain === 'person' ? trace?.summary : traceSnippet(trace)
+        const summary = trace === null ? undefined : turnStart ? trace.summary : traceSnippet(trace)
         return {
           domain,
           workspaceId,
           correction: trace?.tags?.includes('outcome:correction') ?? false,
+          superseded: trace?.tags?.some(tag => tag.startsWith(SUPERSEDED_TAG)) ?? false,
           ...summary ? { summary } : {},
+          ...trace === null ? {} : { recordedAt: trace.ts },
         }
       }
       case 'episode':
@@ -197,9 +222,35 @@ export class MemosMemory implements MemoryProvider {
     void this.schedule(state, async () => {
       const captured = await this.captureTurn(state, turn, `${turn.scope.sessionId}:${turn.turn}`)
       state.turns.set(turn.turn, captured)
+      if (turn.outcome?.correction !== undefined) await this.supersedePrevious(state, turn, captured.traceId)
     }).catch((error: unknown) => {
       this.options.warn(`background write failed for session ${turn.scope.sessionId}: ${describe(error)}`)
     })
+  }
+
+  /**
+   * Record that a correction replaced what the turn before it stated. A correction answers the exchange it
+   * follows, so that trace is the one that stops being current; the tag names its replacement, and automatic
+   * recall then leaves the earlier statement out while explicit search still returns it as history.
+   *
+   * This runs at capture, after the turn ended, so it costs the request path nothing. A correction whose
+   * preceding turn was never captured, or which replaced the same trace twice, writes nothing.
+   * @param state - the session's capture state, holding the trace each earlier turn produced.
+   * @param turn - the turn that carried the correction.
+   * @param replacementTraceId - the trace the correction itself produced.
+   */
+  private async supersedePrevious(state: SessionState, turn: MemoryTurn, replacementTraceId: string): Promise<void> {
+    const previous = state.turns.get(turn.turn - 1)
+    if (previous === undefined || previous.traceId === replacementTraceId) return
+    try {
+      const trace = await this.core.getTrace(previous.traceId, this.namespaceOf(turn.scope))
+      if (trace === null) return
+      await this.core.updateTrace(previous.traceId, {
+        tags: withSupersededTag(trace.tags, replacementTraceId),
+      })
+    } catch (error) {
+      this.options.warn(`supersede failed for ${previous.traceId}: ${describe(error)}`)
+    }
   }
 
   /**
@@ -553,6 +604,13 @@ export class MemosMemory implements MemoryProvider {
   }
 }
 
+/**
+ * What an explicit search returns for one trace: the distilled summary, the captured message it was distilled
+ * from, then the session's own record of what it did and answered. The message is what a summary can drop, and a
+ * search is where an agent goes when the summary it was given does not hold what it needs.
+ * @param trace - the trace the search matched.
+ * @returns the trace's readable text, in the order a reader needs it.
+ */
 function traceSnippet(trace: TraceDTO): string {
   const tools = trace.toolCalls.map(tool => {
     const input = JSON.stringify(tool.input)
@@ -561,6 +619,7 @@ function traceSnippet(trace: TraceDTO): string {
   })
   return [
     trace.summary?.trim(),
+    ...trace.userText.trim() ? [`User message: ${trace.userText.trim()}`] : [],
     ...tools.length === 0 ? [] : [`Tool record: ${tools.join('; ')}`],
     ...trace.agentText.trim() ? [`Assistant answer: ${trace.agentText.trim()}`] : [],
   ].filter(Boolean).join('\n')

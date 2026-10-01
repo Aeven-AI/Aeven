@@ -39,6 +39,9 @@
       "path": "../memory"
     },
     {
+      "path": "../memory-invariants"
+    },
+    {
       "path": "../../feedback/message-feedback"
     }
   ]

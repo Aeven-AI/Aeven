@@ -35,6 +35,8 @@ An execution records revision, session, turn, timing, model route, environment (
 
 Writes to one capability run one at a time; each committed write invalidates the skill catalog and emits `capabilities/changed`. `patch` replaces a passage that must occur exactly once. Names are kebab-case, at most 64 characters, and supporting-file paths cannot leave their folder.
 
+Every write keeps its revision's `SKILL.md` under `versions/<revision>.md`, so a revision stays attributable to the executions that followed it and an earlier procedure is recoverable. `versions(owner, name)` reads them back oldest first, with the description each revision carried, and `rollback(owner, name, revision, sessionId)` writes one as a new revision whose provenance records `action: 'rollback'` with `restored: <revision>`; the restored revision then answers to its own evidence like any other, so a restore does not inherit trust. Both reads answer with nothing rather than throwing when no body was kept.
+
 ## Model Experience
 
 The registry adds no prompt text or tools. A learned capability appears in the skill catalog under its name and description, and loading it renders its `SKILL.md` body with its directory as the resource base.

@@ -2282,7 +2282,7 @@ Source: [`packages/web/tool-web/src/index.ts`](../packages/web/tool-web/src/inde
 
 ### `web_search`
 
-Search the web for current information. Provide 1–4 queries in the required queries array. Returns an optional summary answer and a list of source URLs.
+Search the web for current information. Use it before answering anything that may have changed since your training data, and whenever you would otherwise guess. Provide 1–4 queries in the required queries array. Returns an optional summary answer and a list of source URLs.
 
 ```json
 {

@@ -112,6 +112,17 @@
       config:
         root: !!js avnHomePath('sessions')
 
+    # The user's confirmed invariants: the small document, one file per account,
+    # that leads every request of its owner. It belongs to the shared base
+    # rather than to the memory provider, because it is the floor beneath
+    # recall — a lookup can return nothing, and these are the statements the
+    # user promoted so that they are present without being retrieved. Presets'
+    # `memory-context` row renders the block and the memory manager writes it.
+    - id: memory-invariants
+      name: '@aeven/memory-invariants'
+      config:
+        root: !!js avnHomePath('memory', 'invariants')
+
     # Durable image bytes live outside the append-only session log. Messages
     # keep content-addressed references that this shared backend resolves for
     # provider requests and authorized history reads.
@@ -379,6 +390,11 @@
 
     - id: timeout-policy
       name: '@aeven/tool-call-timeout-policy'
+
+    # Denies effect-capable tools that bypass the filesystem sandbox while the
+    # session's access mode forbids them.
+    - id: access-policy
+      name: '@aeven/tool-call-access-policy'
 
     - id: spill-local
       name: '@aeven/spill-local'

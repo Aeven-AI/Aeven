@@ -29,4 +29,4 @@ None.
 
 ## Dev Note
 
-None.
+**Runtime invariant:** No companion is published. The section renders what the `memoryManager` Remote returns and holds no runtime state of its own beyond the loaded page and the open row.

@@ -49,6 +49,12 @@ export interface MemoryHit {
   readonly tier: number
   readonly score: number
   readonly snippet: string
+  /**
+   * Epoch milliseconds the memory was recorded, when the provider knows it. Recall uses it to order
+   * equally relevant memories and to retire a superseded statement in favour of the one that replaced it.
+   * Absent for a memory with no recorded time, which then competes on score alone.
+   */
+  readonly recordedAt?: number
 }
 
 /** Per-tier result limits for one recall. */

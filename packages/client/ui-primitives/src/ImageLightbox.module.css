@@ -51,10 +51,14 @@
   }
 }
 
+/* The stage claims touch gestures: without it the browser treats a two-finger
+   pinch here as page zoom and scales the whole layout, which is what the
+   gallery's own image zoom replaces. */
 .stack {
   position: absolute;
   inset: 0;
   overflow: hidden;
+  touch-action: none;
 }
 
 .imageBox {
@@ -91,6 +95,23 @@
 
 .image[data-loaded] {
   opacity: 1;
+}
+
+/* A magnified image is dragged, so the pointer says so; the grab turns solid
+   while the drag is in hand. */
+.image[data-zoomed] {
+  cursor: grab;
+}
+
+.image[data-zoomed]:active {
+  cursor: grabbing;
+}
+
+/* Magnification is written straight onto the element, so it tracks the fingers
+   with no transition. Only the discrete moves — a double-click and a return to
+   fit — carry this attribute and ease into place. */
+.image[data-settling] {
+  transition: opacity 0.4s linear, transform 180ms ease-out;
 }
 
 .button {
@@ -225,7 +246,8 @@
   }
 
   .imageBox,
-  .image {
+  .image,
+  .image[data-settling] {
     transition: none;
   }
 }

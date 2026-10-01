@@ -135,7 +135,10 @@ export interface PaneCursorPresentation {
   announceControl(control: PaneCursorControl): Promise<void>
   /**
    * Glide the pointer to the address bar and type the address into it.
-   * @param url - the address about to load.
+   *
+   * The presentation draws the gesture only: the caller that owns the request
+   * loads the page, exactly once, after this resolves.
+   * @param url - the address being typed.
    * @returns once the address has been typed and the gesture has settled.
    */
   announceNavigation(url: string): Promise<void>

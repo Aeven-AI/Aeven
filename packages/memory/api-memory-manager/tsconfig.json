@@ -21,6 +21,9 @@
       "path": "../memory"
     },
     {
+      "path": "../memory-invariants"
+    },
+    {
       "path": "../../core/session"
     },
     {

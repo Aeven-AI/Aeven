@@ -5,6 +5,13 @@ import type { HostLlmBridge } from '@memtensor/memos-local-plugin/dist/core/llm/
 /** Prefix of the trace tag that records a memory's domain. */
 export const DOMAIN_TAG = 'domain:'
 
+/**
+ * Prefix of the trace tag that records a memory a correction replaced, followed by the trace that replaced it.
+ * A correction answers the exchange before it, so the tag is written onto that earlier trace when the correction
+ * is captured; automatic recall leaves a superseded trace out, while explicit search still returns it as history.
+ */
+export const SUPERSEDED_TAG = 'superseded:'
+
 /** Domains a captured conversation turn is filed under. */
 export type TurnDomain = MemoryDomain
 
@@ -36,6 +43,18 @@ export function traceDomain(tags: readonly string[] | undefined, workspaceId: st
  */
 export function withDomainTag(tags: readonly string[] | undefined, domain: TurnDomain): string[] {
   return [...(tags ?? []).filter(tag => !tag.startsWith(DOMAIN_TAG)), `${DOMAIN_TAG}${domain}`]
+}
+
+/**
+ * Tags recording that `replacementTraceId` replaced this memory, keeping every tag it already carried.
+ * A memory can be superseded more than once, so the newest replacement is the one recall compares against;
+ * earlier replacements stay listed because the history of what replaced what is the audit trail.
+ * @param tags - current trace tags.
+ * @param replacementTraceId - the trace that replaced this memory.
+ * @returns tags carrying the replacement, without duplicates.
+ */
+export function withSupersededTag(tags: readonly string[] | undefined, replacementTraceId: string): string[] {
+  return [...new Set([...(tags ?? []), `${SUPERSEDED_TAG}${replacementTraceId}`])]
 }
 
 const CLASSIFY_PROMPT = `You label one memory taken from a conversation between a user and an AI assistant.
