@@ -47,6 +47,7 @@ export function MoreMenu(props: MoreMenuProps): ReactNode {
     <span
       role="button"
       aria-label={label}
+      data-control={direction === 1 ? 'zoom-in' : direction === -1 ? 'zoom-out' : 'zoom-reset'}
       className={direction === 0 ? css.zoomReset : css.zoomStep}
       onClick={(event: MouseEvent) => {
         event.stopPropagation()
@@ -121,6 +122,7 @@ export function MoreMenu(props: MoreMenuProps): ReactNode {
           <button
             type="button"
             className={css.control}
+            data-control="more"
             aria-label={t('menu.label')}
             aria-haspopup="menu"
             aria-expanded={open}

@@ -189,7 +189,7 @@ export function ChromeRow(props: ChromeRowProps): ReactNode {
         </div>
 
         <Tooltip label={props.captured ? t('capture.done') : t('capture')} side="bottom">
-          <button type="button" className={css.control} aria-label={t('capture')} disabled={url === ''} onClick={props.onCapture}>
+          <button type="button" className={css.control} data-control="capture" aria-label={t('capture')} disabled={url === ''} onClick={props.onCapture}>
             {props.captured ? <IconLucideCheck /> : <IconLucideCamera />}
           </button>
         </Tooltip>
