@@ -25,6 +25,8 @@ export interface TurnState {
   userText: string
   promptResolved: boolean
   recallAttempted: boolean
+  /** Bounded turn-start recall reused before later requests, without another provider lookup. */
+  recallReminder: string
   readonly userMessageIds: Set<string>
   readonly userTexts: string[]
   readonly assistantText: string[]
@@ -126,6 +128,7 @@ export class TurnTracker {
         userText: '',
         promptResolved: false,
         recallAttempted: false,
+        recallReminder: '',
         userMessageIds: new Set(),
         userTexts: [],
         assistantText: [],
