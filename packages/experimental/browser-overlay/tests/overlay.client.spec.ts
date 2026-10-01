@@ -455,6 +455,40 @@ describe('BrowserOverlay pointer actions', () => {
   })
 })
 
+describe('BrowserOverlay decorations', () => {
+  it('creates nothing that marks a target or a moment when they are off', () => {
+    const overlay = makeOverlay({ decorations: false }).attach()
+
+    // The pointer is still drawn: it is what the host asked for.
+    expect(part('cursor')).not.toBeNull()
+    expect(part('cursor-sprite')).not.toBeNull()
+    expect(part('box')).toBeNull()
+    expect(part('label')).toBeNull()
+    overlay.hover({ x: 1, y: 2, width: 3, height: 4 })
+    expect(part('box')).toBeNull()
+  })
+
+  it('draws no click ring, flash, or caret when they are off', () => {
+    const overlay = makeOverlay({ decorations: false }).attach()
+
+    overlay.click({ x: 20, y: 30 })
+    overlay.type({ x: 20, y: 30 })
+    expect(parts('ripple')).toHaveLength(0)
+    expect(parts('flash')).toHaveLength(0)
+    expect(parts('caret')).toHaveLength(0)
+  })
+
+  it('draws them by default', () => {
+    const overlay = makeOverlay().attach()
+
+    overlay.click({ x: 20, y: 30 })
+    overlay.type({ x: 20, y: 30 })
+    expect(parts('ripple')).toHaveLength(1)
+    expect(parts('flash')).toHaveLength(1)
+    expect(parts('caret')).toHaveLength(1)
+  })
+})
+
 describe('BrowserOverlay hover box', () => {
   it('tracks an element and re-measures it as the page moves', () => {
     const overlay = makeOverlay({ idleHideMs: 0 }).attach()

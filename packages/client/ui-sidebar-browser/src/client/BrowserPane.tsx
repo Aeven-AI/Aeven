@@ -15,6 +15,7 @@
  */
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { createPortal } from 'react-dom'
 import { BrowserOverlay } from '@aeven/experimental-browser-overlay/src/overlay.ts'
 import { IconWarningOutline16, Toast } from '@aeven/client-ui-primitives'
 import type { TranslateNS } from '@aeven/client-locale/client'
@@ -26,6 +27,7 @@ import {
 import { SEARCH_PLACEHOLDER_KEYS } from './locales.ts'
 import type { SearchEnginePreference } from './search-engine.ts'
 import { MoreMenu } from './MoreMenu.tsx'
+import { centreOf, leftOf, type AimBox } from './aim.ts'
 import { parseSuggestions } from '../search-engines.ts'
 import { resolveTarget } from './url.ts'
 import css from './BrowserPane.module.css'
@@ -59,15 +61,27 @@ const SUGGEST_DEBOUNCE_MS = 120
 const CURSOR_IDLE_HIDE_MS = 30_000
 
 /**
- * How long a column resize waits for the layout to settle before the pointer is
- * re-projected onto its target, in ms. A drag reports a resize per frame, and
- * re-placing the pointer per frame would read layout and restart its glide for
+ * How long the layout is left to settle before the pointer is re-projected onto
+ * its element, in ms. A drag and a page scroll both report per frame, and
+ * re-placing the pointer per report would read layout and restart its glide for
  * every one of them.
  */
-const RESIZE_SETTLE_MS = 120
+const PROJECT_SETTLE_MS = 120
+/**
+ * How often a moving layout projects the pointer back onto its element, in ms.
+ * The throttled pass keeps the pointer on the element while the layout moves, and
+ * the settle pass after it stops lands it exactly.
+ */
+const PROJECT_THROTTLE_MS = 50
 
 /** Where in the address field the typed address begins, from its left edge, in CSS pixels. */
 const ADDRESS_TEXT_INSET_PX = 14
+/**
+ * The half-box the overlay subtracts from a point, so the pointer's box is centred on it. The
+ * drawn arrow's tip is the box's top-left corner, so a target is placed half a box further along
+ * both axes: the tip then sits on the control's centre instead of up and to its left.
+ */
+const CURSOR_TIP_OFFSET_PX = 12
 /** How fast the agent's address types into the address bar, per character, in ms. */
 const ADDRESS_TYPE_MS = 24
 /** How long a typed address holds before the load replaces it, in ms. */
@@ -191,10 +205,27 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
     const guest = guestRef.current
     const layer = cursorLayerRef.current
     if (bridge === undefined || guest === null || layer === null) return
+    // The layer is drawn from the page's own top layer, so its box is placed from the pane's
+    // rect: a fixed layer does not inherit the pane's position, and a resize or a scroll of
+    // the surrounding layout has to move it with the pane.
+    const place = (): void => {
+      const root = rootRef.current
+      if (root === null) return
+      const box = root.getBoundingClientRect()
+      layer.style.left = `${String(box.left)}px`
+      layer.style.top = `${String(box.top)}px`
+      layer.style.width = `${String(box.width)}px`
+      layer.style.height = `${String(box.height)}px`
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
     // The overlay draws inside the pane, not over the window: the panel is the
     // region the agent acts in, its own address bar included, and filling the
     // layer is what keeps the pointer inside it.
-    const overlay = new BrowserOverlay().attach({ container: layer, idleHideMs: CURSOR_IDLE_HIDE_MS })
+    // The pointer is the only thing drawn over the page: the reader is reading it,
+    // and a box, ring, or caret the agent put there is a mark on someone else's page.
+    const overlay = new BrowserOverlay().attach({ container: layer, idleHideMs: CURSOR_IDLE_HIDE_MS, decorations: false })
     overlayRef.current = overlay
     // The agent working is what keeps the pointer on screen: the idle fade
     // applies once it has stopped, so a long action never loses its pointer.
@@ -206,25 +237,65 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
     // the pane, so resizing the pane moves it with the layout instead of leaving
     // it at the pixel it was put on. A pointer at the centre stays at the centre.
     const wait = (ms: number): Promise<void> => new Promise((resolve) => { setTimeout(resolve, ms) })
-    const pointOf = (element: Element | null, inset = 0): { x: number; y: number } | null => {
-      if (!(element instanceof HTMLElement)) return null
+    /** One measurement as a plain box: the aiming rule takes numbers, not elements. */
+    const measured = (element: Element): AimBox => {
       const rect = element.getBoundingClientRect()
-      const panel = layer.getBoundingClientRect()
-      return { x: rect.left - panel.left + inset, y: rect.top - panel.top + rect.height / 2 }
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+    }
+    /** The box the pointer and its tip offset are expressed in. */
+    const panelBox = (): AimBox => {
+      const rect = layer.getBoundingClientRect()
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+    }
+    /**
+     * Where the pointer's tip goes for a control or link: the centre of its box, so the arrow lands
+     * on the middle of what it presses. The address field's text is the one target that takes
+     * {@link aimedTextStart} instead.
+     */
+    const aimedCentre = (element: Element | null): { x: number; y: number } | null =>
+      element instanceof HTMLElement ? centreOf(measured(element), panelBox(), CURSOR_TIP_OFFSET_PX) : null
+    /**
+     * Where the pointer's tip goes for the address field: the start of the text it holds.
+     */
+    const aimedTextStart = (element: Element | null, inset: number): { x: number; y: number } | null =>
+      element instanceof HTMLElement ? leftOf(measured(element), panelBox(), inset, CURSOR_TIP_OFFSET_PX) : null
+    /**
+     * A chrome control by its `data-control` name. The pane's own chrome row is the first place
+     * to look, but the three-dot menu's rows are portaled to the page, so a visible control
+     * anywhere in the document is a legitimate target.
+     */
+    const findControl = (name: string): HTMLElement | null => {
+      const own = rootRef.current?.querySelector(`[data-control="${name}"]`)
+      if (own instanceof HTMLElement) return own
+      const anywhere = document.querySelector(`[data-control="${name}"]`)
+      return anywhere instanceof HTMLElement && anywhere.getClientRects().length > 0 ? anywhere : null
+    }
+    /**
+     * Wait for the pointer to arrive, but never longer than the press itself should take: a
+     * window the reader has behind another one throttles animation frames, and a press that
+     * depended on the arrival would then never happen.
+     */
+    const settled = async (): Promise<void> => {
+      await Promise.race([overlay.arrived(), wait(CONTROL_PRESS_MS)])
     }
     const presentation: PaneCursorPresentation = {
       async announceControl(controlName) {
-        const control = rootRef.current?.querySelector(`[data-control="${controlName}"]`) ?? null
-        const point = pointOf(control, 0)
+        const control = findControl(controlName)
+        const point = aimedCentre(control)
         if (point === null || !visibleRef.current) return
         overlay.click(point)
-        await overlay.arrived()
+        await settled()
         await wait(CONTROL_PRESS_MS)
       },
       async announceNavigation(url) {
-        // Typing begins at the start of the field, so that is where the pointer goes.
-        const point = pointOf(addressRef.current, ADDRESS_TEXT_INSET_PX)
-        if (point === null || !visibleRef.current) return
+        // The address field is the exception to centring: the pointer goes to the start of the
+        // text it is about to type, then the typed address loads the page.
+        const point = aimedTextStart(addressRef.current, ADDRESS_TEXT_INSET_PX)
+        if (point === null || !visibleRef.current) {
+          const target = resolveTarget(url)
+          if (target !== undefined) void guestRef.current?.loadURL(target.kind === 'url' ? target.url : search.search(target.query))
+          return
+        }
         overlay.type(point)
         await overlay.arrived()
         for (let index = 1; index <= url.length; index += 1) {
@@ -233,6 +304,8 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
         }
         await wait(ADDRESS_SETTLE_MS)
         setTypingUrl(undefined)
+        const target = resolveTarget(url)
+        if (target !== undefined) void guestRef.current?.loadURL(target.kind === 'url' ? target.url : search.search(target.query))
       },
     }
     livePaneCursors.set(guest, presentation)
@@ -242,24 +315,40 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
       if (!onScreen) overlay.hide()
     })
     visibility.observe(guest)
-    // A resize scales the pointer with the pane: its position is a fraction of the
-    // box it draws in, so the layout change carries it along rather than leaving it
-    // at a pixel that no longer means the same place.
+    // A resize reflows the page, so the pointer goes back to the element it is on
+    // rather than staying at a pixel whose meaning the layout just changed. The
+    // guest is asked, because only the page knows where that element moved to.
+    // A drag reports a resize per frame: projecting on a small throttle keeps the
+    // pointer on its element while the layout moves, and the settle pass lands it
+    // exactly once the drag stops.
     let settle: ReturnType<typeof setTimeout> | undefined
-    const resizes = new ResizeObserver(() => {
+    let projectedAt = 0
+    /** Put the pointer back on the element it names, throttled, then once the layout stops. */
+    const project = (): void => {
+      const now = performance.now()
+      if (now - projectedAt >= PROJECT_THROTTLE_MS) {
+        projectedAt = now
+        void followAnchor()
+      }
       if (settle !== undefined) clearTimeout(settle)
       settle = setTimeout(() => {
         settle = undefined
         void followAnchor()
-      }, RESIZE_SETTLE_MS)
-    })
-    // A resize reflows the page, so the pointer goes back to the element it is on
-    // rather than staying at a pixel whose meaning the layout just changed. The
-    // guest is asked, because only the page knows where that element moved to.
-    const followAnchor = async (): Promise<void> => {
-      const selector = anchorRef.current
+      }, PROJECT_SETTLE_MS)
+    }
+    const resizes = new ResizeObserver(project)
+    /**
+     * The box of the element a selector names, in the pane's own coordinates.
+     *
+     * The page is drawn by another process: its element measures against the
+     * guest's own viewport, so the stage's origin and the guest's zoom are what
+     * move that measurement into the frame the pointer and the ring are drawn in.
+     * @param selector - selector of the element to measure.
+     * @returns the rectangle in pane coordinates, or null when the page no longer has it.
+     */
+    const boxOf = async (selector: string): Promise<{ x: number; y: number; width: number; height: number } | null> => {
       const id = webContentsIdOf(guest)
-      if (selector === undefined || id === undefined || !overlay.showing) return
+      if (id === undefined) return null
       // An evaluate answers with the value it produced, wrapped: read through the
       // wrapper, or every measurement arrives as undefined and nothing moves.
       const reply = await bridge.automate(id, 'evaluate', {
@@ -267,24 +356,56 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
           const element = document.querySelector(${JSON.stringify(selector)});
           if (!element) return null;
           const rect = element.getBoundingClientRect();
-          return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+          return { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
         })()`,
-      }).catch(() => null) as { value?: { x: number; y: number } | null } | null
+      }).catch(() => null) as { value?: { x: number; y: number; width: number; height: number } | null } | null
       const measured = reply?.value ?? null
-      if (measured === null || !Number.isFinite(measured.x) || !Number.isFinite(measured.y)) return
+      if (measured === null || !Number.isFinite(measured.x) || !Number.isFinite(measured.y)) return null
       const stage = guest.getBoundingClientRect()
       const panel = layer.getBoundingClientRect()
+      const scale = zoomRef.current
+      return {
+        x: stage.left - panel.left + measured.x * scale,
+        y: stage.top - panel.top + measured.y * scale,
+        width: measured.width * scale,
+        height: measured.height * scale,
+      }
+    }
+    /**
+     * Put the pointer back on the element it names after the layout moved. The page reports only
+     * where its element is, so that one measurement decides the point the tip takes.
+     */
+    const followAnchor = async (): Promise<void> => {
+      const selector = anchorRef.current
+      if (selector === undefined || !overlay.showing) return
+      const box = await boxOf(selector)
+      if (box === null) return
       overlay.reposition({
-        x: stage.left - panel.left + measured.x * zoomRef.current,
-        y: stage.top - panel.top + measured.y * zoomRef.current,
+        // The shell reports the element's centre; the tip takes that point, not the box.
+        x: box.x + box.width / 2 + CURSOR_TIP_OFFSET_PX,
+        y: box.y + box.height / 2 + CURSOR_TIP_OFFSET_PX,
       })
     }
     resizes.observe(layer)
+    // Whether the pointer is mid scroll gesture. The shell announces each step of
+    // one as a scroll, and the page moves under the pointer while it happens: that
+    // movement is the gesture, not the layout leaving a resting pointer behind, so
+    // re-aiming the pointer through it would fight the gesture's own placement.
+    let scrolling = false
+    // A page that scrolls moves the element under a pointer that is resting, and
+    // only the page knows where it went.
+    const stopPageScroll = bridge.onPageScroll((id) => {
+      if (id !== webContentsIdOf(guest) || scrolling) return
+      project()
+    })
     const stop = bridge.onCursor((cursor) => {
       const id = webContentsIdOf(guest)
       if (id !== undefined && cursor.webContentsId !== id) return
-      if (cursor.selector !== undefined) anchorRef.current = cursor.selector
-      // A pointer that cannot be drawn is not waited for: the shell's input lands
+      // The anchor is the element the pointer is on. An action that names one sets it; one that names
+      // none leaves the pointer on no element, so the anchor goes with it rather than surviving as an
+      // element the pointer has since left, such as the page it moved off to press a control.
+      anchorRef.current = cursor.selector
+      scrolling = cursor.action === 'scroll'      // A pointer that cannot be drawn is not waited for: the shell's input lands
       // at once rather than after its arrival timeout. A guest that has not
       // reported its webContents id cannot be drawn in either, and it is the
       // pane that owes the shell an answer, not the shell that owes it patience.
@@ -297,8 +418,10 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
       const stage = guest.getBoundingClientRect()
       const panel = layer.getBoundingClientRect()
       const point = {
-        x: stage.left - panel.left + cursor.x * zoomRef.current,
-        y: stage.top - panel.top + cursor.y * zoomRef.current,
+        // The shell reports the target's centre, and the pointer's tip takes that point: the
+        // overlay centres the box on it otherwise, which leaves the tip half a box up-left.
+        x: stage.left - panel.left + cursor.x * zoomRef.current + CURSOR_TIP_OFFSET_PX,
+        y: stage.top - panel.top + cursor.y * zoomRef.current + CURSOR_TIP_OFFSET_PX,
       }
       switch (cursor.action) {
         case 'move':
@@ -308,11 +431,32 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
         case 'click': overlay.click(point); return
         case 'type': overlay.type(point); return
         case 'scroll': overlay.scroll(point); return
+        case 'control': {
+          // A chrome control is not part of the page, so its position is the pane's
+          // own to give: the pointer travels to the target and acts on it. A
+          // navigation types into the address field rather than pressing a button.
+          if (cursor.control === 'navigate') {
+            void presentation.announceNavigation(cursor.url ?? '')
+            return
+          }
+          const control = findControl(cursor.control ?? 'refresh')
+          const spot = aimedCentre(control)
+          if (spot === null || !visibleRef.current) return
+          overlay.click(spot)
+          void settled().then(() => {
+            // Zoom controls are spans with a role, not buttons, so anything clickable counts.
+            if (control instanceof HTMLElement && !(control instanceof HTMLButtonElement && control.disabled)) control.click()
+          })
+          return
+        }
       }
     })
     return () => {
       stop()
       stopHold()
+      stopPageScroll()
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
       livePaneCursors.delete(guest)
       visibility.disconnect()
       resizes.disconnect()
@@ -379,7 +523,10 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
 
   return (
     <div ref={rootRef} className={css.root} data-sidebar-right-browser="">
-      <div ref={cursorLayerRef} className={css.cursorLayer} aria-hidden="true" />
+      {createPortal(
+        <div ref={cursorLayerRef} className={css.cursorLayer} aria-hidden="true" />,
+        document.body,
+      )}
       <ChromeRow
         addressRef={addressRef}
         typing={typingUrl}

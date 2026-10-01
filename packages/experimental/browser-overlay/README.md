@@ -45,7 +45,7 @@ await session.send('Runtime.evaluate', { expression: 'window.__aevenOverlay.clic
 | `arrived()` | Resolves once the pointer rests on its target, so a host can land the input it announced there |
 | `click(point, { label })` | Arrives, expands a ring, flashes, and dwells briefly |
 | `type(point, { label })` | Blinks a caret at a point — visually distinct from a click |
-| `scroll(point, { deltaY, label })` | Nudges a chevron in the scroll direction |
+| `scroll(point, { deltaY, label })` | Moves the pointer with the gesture, in the direction the content is going |
 | `hover(elementOrRect, { kind })` | Rings a target element: `hover`, `region`, or `text` |
 | `hide({ immediate })` | Fades the pointer out without detaching, or removes it in one frame with `immediate`; the next action enters afresh |
 | `clipTo(rect)` | Confines everything drawn to a viewport rectangle; `undefined` releases it |
@@ -53,6 +53,10 @@ await session.send('Runtime.evaluate', { expression: 'window.__aevenOverlay.clic
 | `destroy()` | Removes the overlay, its stylesheet, and every listener |
 
 Prefer passing an `Element` to `hover`. A rectangle is a snapshot, so a scroll leaves the box behind; an element reference is re-measured on scroll and resize.
+
+`attach({ container, sound, idleHideMs, decorations })` takes the overlay's own settings. `container` is the element it draws in, which is what makes points coordinates inside a host's pane rather than the window. `sound` emits a short click sound per action, off by default. `idleHideMs` is the idle fade, `0` keeping the pointer visible.
+
+`decorations` draws what marks a target or a moment rather than the pointer — the box around a named target, the ring and flash of a click, and a typing action's caret. It is on by default. Passing `false` leaves the pointer alone on screen, for a host whose page belongs to a reader: with it off the overlay creates no box and no label, `hover` draws nothing, and `click` and `type` place the pointer without either mark.
 
 Points are viewport coordinates in CSS pixels, and the anchor is the arrow's **tip**: the cursor box origin is placed exactly on the coordinate you pass, and the arrow's body extends down and to the right from there, as a conventional pointer does. `demo/measure-tip.mjs` asserts this to within two pixels.
 

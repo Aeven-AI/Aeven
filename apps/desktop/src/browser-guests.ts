@@ -82,6 +82,7 @@ export function hardenBrowserGuests(host: WebContents): void {
     webPreferences.webviewTag = false
   })
   host.on('did-attach-webview', (_event, guest) => {
+    void reportPageScroll(guest)
     guest.setWindowOpenHandler(({ url }) => {
       if (url !== 'about:blank' && isGuestAddress(url)) void guest.loadURL(url)
       return { action: 'deny' }
@@ -116,6 +117,77 @@ function hostedGuest(event: IpcMainInvokeEvent, webContentsId: unknown): WebCont
  */
 function attachDebugger(guest: WebContents): void {
   if (!guest.debugger.isAttached()) guest.debugger.attach(CDP_VERSION)
+}
+
+/**
+ * Binding a guest's page calls to report that its content moved.
+ *
+ * The pane draws the pointer in its own coordinates, from where the page last
+ * said an element was, so a page that scrolls moves the element without the pane
+ * acting. Only the page knows that happened.
+ */
+const PAGE_SCROLL_BINDING = '__avnBrowserPageScroll'
+
+/**
+ * Source installed in every guest document. Scroll events do not bubble but they
+ * do capture, so a listener on the window sees a scroll of any scroller in the
+ * page, in any frame the document has. A binding call takes one string argument,
+ * which carries where the page now is; the pane asks the page for the element
+ * itself, because an offset cannot say where that element ended up.
+ *
+ * The marker makes the install idempotent: a document that gets the source both
+ * from the injector and from a direct evaluation reports each scroll once.
+ */
+const PAGE_SCROLL_REPORTER = `if (!window.__avnPageScrolled) {
+  window.__avnPageScrolled = true;
+  addEventListener('scroll', () => { ${PAGE_SCROLL_BINDING}(String(window.scrollX) + ',' + String(window.scrollY)) }, { capture: true, passive: true });
+}`
+
+/** Guests already reporting their scrolls, so a repeated attach does not double them. */
+const reportingGuests = new WeakSet<WebContents>()
+
+/**
+ * Report one guest's page scrolls to the window that hosts it.
+ *
+ * The binding is added once per guest, and the reporter is installed into every
+ * document: `Page.addScriptToEvaluateOnNewDocument` covers the documents created
+ * after it, and each navigation installs the reporter again into the document
+ * that navigation opened, because an install that ran between two documents
+ * would otherwise leave a binding nothing calls.
+ * @param guest - the guest whose page scrolls are reported.
+ */
+async function reportPageScroll(guest: WebContents): Promise<void> {
+  if (reportingGuests.has(guest)) return
+  reportingGuests.add(guest)
+  guest.debugger.on('message', (_event, method, params: unknown) => {
+    if (method !== 'Runtime.bindingCalled') return
+    if ((params as { name?: unknown }).name !== PAGE_SCROLL_BINDING) return
+    guest.hostWebContents?.send(DESKTOP_IPC.browserPageScroll, guest.id)
+  })
+  /** Put the reporter into the document now open. */
+  const installReporter = (): void => {
+    // A guest between documents has no context to evaluate in, and the navigation
+    // it is starting installs the reporter when it opens its own document.
+    void guest.debugger.sendCommand('Runtime.evaluate', { expression: PAGE_SCROLL_REPORTER }).catch(() => undefined)
+  }
+  try {
+    attachDebugger(guest)
+    // The binding is delivered as an event of the runtime domain, so that domain
+    // has to be the one this debugger session is listening to.
+    await guest.debugger.sendCommand('Runtime.enable')
+    // The binding must exist before the reporter calls it.
+    await guest.debugger.sendCommand('Runtime.addBinding', { name: PAGE_SCROLL_BINDING })
+    await guest.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: PAGE_SCROLL_REPORTER })
+  } catch (error) {
+    // A guest that closed mid-attach takes its debugger with it; a later attach
+    // of the same guest installs the reporter then.
+    console.error('avn desktop: guest scroll reporter failed', error)
+    reportingGuests.delete(guest)
+    return
+  }
+  guest.on('did-navigate', installReporter)
+  guest.on('did-finish-load', installReporter)
+  installReporter()
 }
 
 /**

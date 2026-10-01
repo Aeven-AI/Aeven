@@ -17,6 +17,7 @@ export const DESKTOP_IPC = {
   browserSuggest: 'avn-desktop:browser-suggest',
   browserCursor: 'avn-desktop:browser-cursor',
   browserCursorArrived: 'avn-desktop:browser-cursor-arrived',
+  browserPageScroll: 'avn-desktop:browser-page-scroll',
 } as const
 
 /** `prefers-color-scheme` a browser guest is shown with; `system` clears the override. */
@@ -32,11 +33,21 @@ export interface DesktopBrowserCursor {
   /** The guest the action happens in. */
   readonly webContentsId: number
   /** What the pointer shows. */
-  readonly action: 'move' | 'click' | 'type' | 'scroll'
+  readonly action: 'move' | 'click' | 'type' | 'scroll' | 'control'
   /** Per-shell step number; a `move`'s arrival report names it. */
   readonly sequence: number
   readonly x: number
   readonly y: number
+  /**
+   * The pane's own chrome control this action presses, by its `data-control` name
+   * (`back`, `forward`, `refresh`, `capture`, `more`, `zoom-in`, `zoom-out`,
+   * `zoom-reset`). A control lives in the app's chrome row rather than in the
+   * page, so its position is the pane's to know: the shell names the control, and
+   * the pane animates to it and clicks it.
+   */
+  readonly control?: string
+  /** Address a `navigate` control types into the pane's address field. */
+  readonly url?: string
   /** Scroll direction and distance for the scroll nudge. */
   readonly deltaY?: number
   /**
@@ -98,6 +109,16 @@ export interface AvnDesktopBrowserApi {
    * @returns disposer removing the listener.
    */
   onCursor(listener: (cursor: DesktopBrowserCursor) => void): () => void
+  /**
+   * Observe the guests' pages scrolling.
+   *
+   * The pane draws the pointer in its own coordinates, from where the page last
+   * said an element was: a page that scrolls moves that element without the pane
+   * acting, so the pane is told that the page moved and asks again.
+   * @param listener - called with the web contents id of the guest whose page scrolled.
+   * @returns disposer removing the listener.
+   */
+  onPageScroll(listener: (webContentsId: number) => void): () => void
   /**
    * Report that the pointer finished a `move`, or that it cannot be shown, so
    * the input it announced may land. The shell stops waiting after a timeout

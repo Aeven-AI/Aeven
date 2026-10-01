@@ -52,6 +52,8 @@ const SCROLL_DURATION_MS = 420
 const SCROLL_DRIFT_RATIO = 0.25
 const SCROLL_DRIFT_MIN_PX = 24
 const SCROLL_DRIFT_MAX_PX = 120
+/** How far inside the page's top edge a scroll's pointer enters when it was outside the page, in CSS pixels. */
+const SCROLL_ENTRY_INSET_PX = 24
 /** Pointer updates sent during one scroll gesture, so the travel is drawn rather than announced. */
 const SCROLL_POINTER_STEPS = 6
 /** Mouse moves dispatched along one glide. */
@@ -65,6 +67,12 @@ const TYPE_MAX_STEPS = 200
 
 /** Where the pointer last arrived in each guest, in its viewport CSS pixels. */
 const pointerAt = new WeakMap<WebContents, { x: number; y: number }>()
+/**
+ * Guests whose pointer is currently drawn inside the page. A chrome action leaves the pointer on
+ * the pane's own controls, where its page coordinates mean nothing: without this, a later scroll
+ * would start from a stale in-page point and the pointer would jump out of the chrome row.
+ */
+const pointerInPage = new WeakSet<WebContents>()
 /** Number of the next pointer step; `move` arrivals are matched by it. */
 let nextCursorSequence = 1
 /** Pending `move` arrivals, keyed by guest id and step number. */
@@ -199,6 +207,22 @@ async function centreOf(guest: WebContents, target: string): Promise<{ x: number
 }
 
 /**
+ * Where a scroll with no named target starts its gesture: the pointer's own last position when it
+ * is already inside the page, otherwise a deliberate entry just inside the page's top edge, at the
+ * same horizontal position. A bare scroll never moves the pointer to the viewport's centre: that
+ * leaves it parked in the middle of the page, unrelated to what the agent was doing.
+ * @param guest - the guest to act on.
+ * @returns viewport CSS coordinates, inside the viewport.
+ */
+async function scrollOrigin(guest: WebContents): Promise<{ x: number; y: number }> {
+  const viewport = await evaluate(guest, '({ w: innerWidth, h: innerHeight })') as { w: number; h: number }
+  const previous = pointerAt.get(guest)
+  const x = previous === undefined ? viewport.w / 2 : Math.min(Math.max(previous.x, 0), viewport.w)
+  if (pointerInPage.has(guest) && previous !== undefined) return previous
+  return { x, y: SCROLL_ENTRY_INSET_PX }
+}
+
+/**
  * t3code `typeIntoAutomationTarget`'s page expression, up to the insertion:
  * focus the target and select what `clear` replaces. Clearing with no text
  * deletes the selection here, as there is nothing to type over it.
@@ -328,7 +352,15 @@ export async function automate(guest: WebContents, operation: string, input: Bro
     }
     await arrived
     pointerAt.set(guest, point)
+    pointerInPage.add(guest)
   }
+  /**
+   * The pointer has left the page for the pane's own chrome row.
+   *
+   * Its page position stops applying, so a later scroll enters the page deliberately at that
+   * horizontal position instead of starting from a place the pointer is no longer at.
+   */
+  const leavePage = (): void => { pointerInPage.delete(guest) }
   switch (operation) {
     case 'snapshot':
       return evaluate(guest, SNAPSHOT)
@@ -374,11 +406,14 @@ export async function automate(guest: WebContents, operation: string, input: Bro
       const target = typeof input.selector === 'string' ? `document.querySelector(${JSON.stringify(input.selector)})` : 'window'
       const deltaX = Number(input.deltaX ?? 0)
       const deltaY = Number(input.deltaY ?? 0)
-      const point = await centreOf(guest, target)
+      const point = typeof input.selector === 'string' ? await centreOf(guest, target) : await scrollOrigin(guest)
       // A scroll does not wait for the pointer to arrive: the pointer travels
       // with the gesture anyway, so waiting bought nothing and cost a
       // pointer-arrival timeout that stalled consecutive scrolls.
-      show({ action: 'move', ...point, ...named(input) })
+      // Every step of the gesture is announced as a scroll, so the pane knows the
+      // pointer is placing itself rather than being left behind by a page that
+      // moved: it re-aims a resting pointer, not one that is scrolling.
+      show({ action: 'scroll', ...point, ...named(input) })
       const drift = Math.sign(deltaY) * Math.min(
         Math.max(Math.abs(deltaY) * SCROLL_DRIFT_RATIO, SCROLL_DRIFT_MIN_PX),
         SCROLL_DRIFT_MAX_PX,
@@ -405,9 +440,42 @@ export async function automate(guest: WebContents, operation: string, input: Bro
       // going, so a scroll reads as the pointer performing it.
       for (let step = 1; step <= SCROLL_POINTER_STEPS; step++) {
         const progress = 1 - (1 - step / SCROLL_POINTER_STEPS) ** 3
-        show({ action: 'move', x: point.x, y: point.y + drift * progress })
+        show({ action: 'scroll', x: point.x, y: point.y + drift * progress, ...named(input) })
         await sleep(SCROLL_DURATION_MS / SCROLL_POINTER_STEPS)
       }
+      // The gesture ends with the pointer where it stopped: a resting pointer's
+      // next page scroll is re-aimed at its element, which a gesture in progress
+      // would suppress. That resting point is also where the pointer is, so a
+      // later target-less scroll starts its own gesture from there rather than
+      // from the viewport's middle.
+      show({ action: 'move', x: point.x, y: point.y + drift, ...named(input) })
+      pointerAt.set(guest, { x: point.x, y: point.y + drift })
+      pointerInPage.add(guest)
+      return { ok: true }
+    }
+    case 'back':
+    case 'forward':
+    case 'reload':
+    case 'capture': {
+      // A chrome control sits in the pane's own chrome row, not in the page: the
+      // pane knows where it is, animates the pointer onto it, and clicks it. No
+      // guest input is dispatched here and there is no arrival to wait for, so
+      // the coordinates carry no meaning for this action.
+      leavePage()
+      show({ action: 'control', control: operation === 'reload' ? 'refresh' : operation, x: 0, y: 0 })
+      return { ok: true }
+    }
+    case 'navigate': {
+      // The address field belongs to the pane's chrome row: the pane types the
+      // address there, then loads it, exactly as the reader doing it by hand.
+      leavePage()
+      show({ action: 'control', control: 'navigate', url: String(input.url ?? ''), x: 0, y: 0 })
+      return { ok: true }
+    }
+    case 'control': {
+      // Any pane chrome control by name, so a new button needs no new operation.
+      leavePage()
+      show({ action: 'control', control: String(input.control ?? ''), x: 0, y: 0 })
       return { ok: true }
     }
     case 'evaluate': {

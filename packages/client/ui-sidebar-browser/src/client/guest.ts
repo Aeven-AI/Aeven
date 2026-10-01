@@ -71,6 +71,14 @@ export interface DesktopBrowserBridge {
   automate: (webContentsId: number, operation: string, input: Record<string, unknown>) => Promise<unknown>
   /** Observe the agent pointer actions the shell performs on guests; returns a disposer. */
   onCursor: (listener: (cursor: BrowserCursor) => void) => () => void
+  /**
+   * Observe the guests' pages scrolling; returns a disposer.
+   *
+   * The pointer is drawn in the pane's own coordinates, from where the page said
+   * an element was, so a page that scrolls moves that element without the pane
+   * acting: a resting pointer is put back on the element it names.
+   */
+  onPageScroll: (listener: (webContentsId: number) => void) => () => void
   /** Report that the pointer finished a `move`, or cannot be shown, so its input may land. */
   cursorArrived: (webContentsId: number, sequence: number) => void
 }
@@ -82,13 +90,21 @@ export interface DesktopBrowserBridge {
  */
 export interface BrowserCursor {
   readonly webContentsId: number
-  readonly action: 'move' | 'click' | 'type' | 'scroll'
+  readonly action: 'move' | 'click' | 'type' | 'scroll' | 'control'
   readonly sequence: number
   readonly x: number
   readonly y: number
   readonly deltaY?: number
   /** Selector of the element this action named, when it named one. */
   readonly selector?: string
+  /**
+   * The pane chrome control this action presses, by its `data-control` name, or
+   * `navigate` for the address field. The pane places the pointer and clicks the
+   * element, because a control is not part of the page.
+   */
+  readonly control?: string
+  /** Address a `navigate` control types into the pane's address field. */
+  readonly url?: string
 }
 
 /**

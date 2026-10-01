@@ -41,16 +41,22 @@ await session.send('Runtime.evaluate', { expression: 'window.__aevenOverlay.clic
 
 | 调用 | 绘制内容 |
 |---|---|
-| `moveTo(point, { mode, label })` | 将指针滑向某点，并标注动作 |
+| `moveTo(point, { mode, label })` | 将指针滑向某点，并标注动作；首次出现时在距该点 120px 处淡入并滑到其上 |
+| `arrived()` | 在指针停在目标上后解析，使宿主能把先前宣告的输入落到那里 |
 | `click(point, { label })` | 抵达后展开圆环、闪一下，并短暂停留 |
 | `type(point, { label })` | 在某点闪烁插入符——与点击在视觉上可区分 |
-| `scroll(point, { deltaY, label })` | 沿滚动方向推动一个箭头提示 |
+| `scroll(point, { deltaY, label })` | 让指针随手势移动，方向与内容滚动的方向一致 |
 | `hover(elementOrRect, { kind })` | 为目标元素描边：`hover`、`region` 或 `text` |
-| `hide()` | 隐藏指针但不卸载 |
+| `hide({ immediate })` | 淡出指针但不卸载；传 `immediate` 则在一帧内移除；下一次动作重新进入 |
+| `clipTo(rect)` | 把绘制内容限制在某个视口矩形内；传 `undefined` 解除限制 |
 | `setThinkEnabled(bool)` | 关闭空闲摆动，供截图或测量使用 |
 | `destroy()` | 移除覆盖层及其样式表和全部监听器 |
 
 `hover` 优先传入 `Element`。矩形是快照，页面滚动后框会留在原处；元素引用会在滚动和尺寸变化时重新测量。
+
+`attach({ container, sound, idleHideMs, decorations })` 接收覆盖层自身的设置。`container` 是它绘制所在的元素，正是它让坐标成为宿主面板内的坐标而非窗口坐标。`sound` 为每个动作发出短促的点击音，默认关闭。`idleHideMs` 是空闲淡出时间，`0` 使指针保持可见。
+
+`decorations` 绘制标记目标或标记瞬间、而非标记指针本身的内容 —— 命名目标周围的框、点击的圆环与闪光、输入动作的插入符。它默认开启。传入 `false` 让屏幕上只剩指针，适用于页面属于读者的宿主：关闭后覆盖层不创建框与标签，`hover` 不绘制任何内容，而 `click` 与 `type` 只放置指针，不留下这两种标记。
 
 坐标是视口 CSS 像素，锚点为箭头的**尖端**：光标盒的原点恰好落在你传入的坐标上，箭头主体由此向右下方延伸，与常规指针一致。`demo/measure-tip.mjs` 会在 2 像素以内断言这一点。
 

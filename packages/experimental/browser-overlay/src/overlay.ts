@@ -74,6 +74,13 @@ export interface AttachOptions {
   /** Idle-hide timeout; defaults to {@link IDLE_HIDE_MS}. `0` keeps it visible. */
   idleHideMs?: number
   /**
+   * Draw the marks that mark something other than the pointer: the box around a
+   * named target, the ring and flash of a click, and the caret of a typing action.
+   * On by default. Off, the overlay draws the pointer alone, for a product that
+   * must not put a mark on a page the reader is reading.
+   */
+  decorations?: boolean
+  /**
    * Element the overlay draws in, such as a pane's own layer. Points are then
    * coordinates inside that element rather than the window, so an action on the
    * pane's controls — its address bar — is drawable too. Absent, the overlay
@@ -118,6 +125,7 @@ export class BrowserOverlay {
     this.#options = {
       sound: options.sound ?? false,
       idleHideMs: options.idleHideMs ?? IDLE_HIDE_MS,
+      decorations: options.decorations ?? true,
     }
   }
 
@@ -194,12 +202,15 @@ export class BrowserOverlay {
     cursor.append(wrapper)
 
     layer.append(cursor)
-    root.append(box, label, layer)
+    // Without decorations the box and the label have nothing to draw, so the root
+    // holds the pointer alone rather than two elements that stay hidden.
+    if (this.#options.decorations) root.append(box, label)
+    root.append(layer)
 
     this.#root = root
     this.#cursor = cursor
-    this.#label = label
-    this.#box = box
+    this.#label = this.#options.decorations ? label : undefined
+    this.#box = this.#options.decorations ? box : undefined
     this.#motion = new CursorMotion()
 
     // A document-start injection has no `documentElement` yet; the elements are
@@ -337,7 +348,7 @@ export class BrowserOverlay {
    * @param options - `kind` picks the box treatment for the action in flight.
    */
   hover(target: Element | Rect | undefined, options: { kind?: 'hover' | 'region' | 'text' } = {}): void {
-    if (this.#box === undefined) return
+    if (this.#box === undefined || !this.#options.decorations) return
     if (target === undefined) {
       this.#hoverTarget = undefined
       this.#box.style.display = 'none'
@@ -364,6 +375,10 @@ export class BrowserOverlay {
   click(point: Point, options: { mode?: CursorMode; label?: string } = {}): void {
     if (this.#root === undefined) return
     this.moveTo(point, { mode: options.mode ?? 'comment', ...options.label === undefined ? {} : { label: options.label } })
+    if (!this.#options.decorations) {
+      this.#playClick()
+      return
+    }
     // The ring goes on the arrow's tip, which is the box origin. Anchoring it to
     // the arrow's visual centre instead would draw a ring beside the point the
     // arrow is pointing at, which reads as two different targets.
@@ -380,6 +395,7 @@ export class BrowserOverlay {
   type(point: Point, options: { label?: string } = {}): void {
     if (this.#root === undefined) return
     this.moveTo(point, { mode: 'comment', ...options.label === undefined ? {} : { label: options.label } })
+    if (!this.#options.decorations) return
     const caret = this.#spawnAt(point, cls('caret'), CARET_MS)
     if (this.#caretTimer !== undefined) clearTimeout(this.#caretTimer)
     this.#caretTimer = setTimeout(() => { caret.remove() }, CARET_MS)

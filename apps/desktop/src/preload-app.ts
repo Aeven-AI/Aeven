@@ -25,6 +25,11 @@ const api: AvnDesktopAppApi = {
       return () => { ipcRenderer.off(DESKTOP_IPC.browserCursor, handle) }
     },
     cursorArrived: (webContentsId, sequence) => { ipcRenderer.send(DESKTOP_IPC.browserCursorArrived, webContentsId, sequence) },
+    onPageScroll(listener) {
+      const handle = (_event: Electron.IpcRendererEvent, webContentsId: number): void => { listener(webContentsId) }
+      ipcRenderer.on(DESKTOP_IPC.browserPageScroll, handle)
+      return () => { ipcRenderer.off(DESKTOP_IPC.browserPageScroll, handle) }
+    },
   },
 }
 
