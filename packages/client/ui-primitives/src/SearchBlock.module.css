@@ -29,8 +29,11 @@
   color: var(--dsw-alias-label-secondary);
 }
 
+/* The right inset is a margin: a scroll container renders its overflow across
+   its own padding box, so padding let a long match line run into the card's edge. */
 .body {
-  padding: 8px 14px 12px 0;
+  margin-right: 14px;
+  padding: 8px 0 12px 0;
   font: var(--dsw-font-markdown-code-block);
   overflow-x: auto;
   overflow-y: hidden;

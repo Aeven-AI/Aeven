@@ -1,7 +1,7 @@
 /** The header of a tool card, drawn like the Markdown engine's table and code toolbars. */
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
-import { IconLucideCopy } from './icons/index.tsx'
+import { IconCopyOutline16 } from './icons/index.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { useCopyFeedback } from './use-copy-feedback.ts'
 import css from './BlockHeader.module.css'
@@ -39,7 +39,7 @@ export function CopyIconButton({ text, label, copiedLabel }: BlockHeaderCopy) {
   return (
     <Tooltip label={name} side="top">
       <button type="button" className={css.iconButton} aria-label={name} onClick={onCopy}>
-        <IconLucideCopy className={css.icon} />
+        <IconCopyOutline16 className={css.icon} />
       </button>
     </Tooltip>
   )

@@ -305,11 +305,12 @@
 }
 
 /* The terminal card scrolls its OUTPUT inside its own surface: the banner
-   stays pinned and the scrollbar never rides over it. 224px = the 260px card cap minus the ~36px banner. */
+   stays pinned and the scrollbar never rides over it. 208px = the 260px card cap
+   minus the ~36px banner and the primitive's 16px bottom inset below the scroll box. */
 .terminalBody {
   --dsl-terminal-font: var(--dsw-font-markdown-code-block-small);
   --dsl-terminal-line-height: 18px;
-  --dsl-terminal-output-max-height: 224px;
+  --dsl-terminal-output-max-height: 208px;
   /* The chat table card's surface: plain white, no border. */
   background: var(--dsw-specific-input-major);
 }
