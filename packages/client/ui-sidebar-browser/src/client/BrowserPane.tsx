@@ -20,8 +20,8 @@ import { IconWarningOutline16, Toast } from '@aeven/client-ui-primitives'
 import type { TranslateNS } from '@aeven/client-locale/client'
 import { ChromeRow } from './ChromeRow.tsx'
 import {
-  browserPartition, desktopBrowser, liveGuests, onTurnEnd, readColorScheme, readLastUrl, writeColorScheme, writeLastUrl,
-  type BrowserColorScheme, type BrowserGuest,
+  browserPartition, desktopBrowser, liveGuests, livePaneCursors, onPointerHold, readColorScheme, readLastUrl, webContentsIdOf,
+  writeColorScheme, writeLastUrl, type BrowserColorScheme, type BrowserGuest, type PaneCursorPresentation,
 } from './guest.ts'
 import { SEARCH_PLACEHOLDER_KEYS } from './locales.ts'
 import type { SearchEnginePreference } from './search-engine.ts'
@@ -52,11 +52,28 @@ const SUGGEST_DEBOUNCE_MS = 120
 
 /**
  * How long the agent pointer stays after its last action before it fades, in
- * ms. The pointer leaves when the session's turn ends, as ChatGPT's leaves when
- * the agent releases its browser; this bounds its stay should that report not
- * arrive.
+ * ms. The pointer outlives the turn that moved it — the reader who just watched
+ * it work is still looking at the page — so no activity for this long is what
+ * ends its stay; closing the column ends it at once.
  */
 const CURSOR_IDLE_HIDE_MS = 30_000
+
+/**
+ * How long a column resize waits for the layout to settle before the pointer is
+ * re-projected onto its target, in ms. A drag reports a resize per frame, and
+ * re-placing the pointer per frame would read layout and restart its glide for
+ * every one of them.
+ */
+const RESIZE_SETTLE_MS = 120
+
+/** Where in the address field the typed address begins, from its left edge, in CSS pixels. */
+const ADDRESS_TEXT_INSET_PX = 14
+/** How fast the agent's address types into the address bar, per character, in ms. */
+const ADDRESS_TYPE_MS = 24
+/** How long a typed address holds before the load replaces it, in ms. */
+const ADDRESS_SETTLE_MS = 140
+/** How long the pointer rests on a chrome control it pressed, in ms. */
+const CONTROL_PRESS_MS = 220
 
 /** How long the capture banner holds before it fades, in ms. */
 const CAPTURE_TOAST_HOLD_MS = 1500
@@ -91,6 +108,16 @@ export interface BrowserPaneProps {
 export function BrowserPane({ sessionId, t, openInChrome, visible, search }: BrowserPaneProps): ReactNode {
   const guestRef = useRef<BrowserGuest | null>(null)
   const rootRef = useRef<HTMLDivElement | null>(null)
+  /** The pane's own layer the agent pointer draws in. */
+  const cursorLayerRef = useRef<HTMLDivElement | null>(null)
+  /** Whether the agent is working, which holds the pointer on screen. */
+  const holdRef = useRef(false)
+  /** Selector of the element the pointer is on, when the last action named one. */
+  const anchorRef = useRef<string | undefined>(undefined)
+  /** The address field, so the pointer can be shown typing into it. */
+  const addressRef = useRef<HTMLInputElement | null>(null)
+  /** An address the agent is typing, shown in place of the committed one. */
+  const [typingUrl, setTypingUrl] = useState<string | undefined>(undefined)
   const [state, setState] = useState<GuestState>({ url: '', loading: false, canGoBack: false, canGoForward: false })
   const [suggestions, setSuggestions] = useState<readonly string[]>([])
   const engine = useSyncExternalStore(search.engine.subscribe, search.engine.getSnapshot)
@@ -113,8 +140,9 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
   const applyScheme = useCallback((scheme: BrowserColorScheme) => {
     const guest = guestRef.current
     const bridge = desktopBrowser()
-    if (guest === null || bridge === undefined) return
-    bridge.setColorScheme(guest.getWebContentsId(), scheme).catch((error: unknown) => {
+    const id = guest === null ? undefined : webContentsIdOf(guest)
+    if (id === undefined || bridge === undefined) return
+    bridge.setColorScheme(id, scheme).catch((error: unknown) => {
       console.error('ui-sidebar-browser: appearance failed', error)
     })
   }, [])
@@ -161,27 +189,117 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
   useEffect(() => {
     const bridge = desktopBrowser()
     const guest = guestRef.current
-    if (bridge === undefined || guest === null) return
-    const overlay = new BrowserOverlay().attach({ idleHideMs: CURSOR_IDLE_HIDE_MS })
+    const layer = cursorLayerRef.current
+    if (bridge === undefined || guest === null || layer === null) return
+    // The overlay draws inside the pane, not over the window: the panel is the
+    // region the agent acts in, its own address bar included, and filling the
+    // layer is what keeps the pointer inside it.
+    const overlay = new BrowserOverlay().attach({ container: layer, idleHideMs: CURSOR_IDLE_HIDE_MS })
     overlayRef.current = overlay
+    // The agent working is what keeps the pointer on screen: the idle fade
+    // applies once it has stopped, so a long action never loses its pointer.
+    const stopHold = onPointerHold(sessionId, (hold) => {
+      holdRef.current = hold
+      overlay.setHold(hold)
+    })
+    // The pointer belongs to the pane's own canvas: its position is a fraction of
+    // the pane, so resizing the pane moves it with the layout instead of leaving
+    // it at the pixel it was put on. A pointer at the centre stays at the centre.
+    const wait = (ms: number): Promise<void> => new Promise((resolve) => { setTimeout(resolve, ms) })
+    const pointOf = (element: Element | null, inset = 0): { x: number; y: number } | null => {
+      if (!(element instanceof HTMLElement)) return null
+      const rect = element.getBoundingClientRect()
+      const panel = layer.getBoundingClientRect()
+      return { x: rect.left - panel.left + inset, y: rect.top - panel.top + rect.height / 2 }
+    }
+    const presentation: PaneCursorPresentation = {
+      async announceControl(controlName) {
+        const control = rootRef.current?.querySelector(`[data-control="${controlName}"]`) ?? null
+        const point = pointOf(control, 0)
+        if (point === null || !visibleRef.current) return
+        overlay.click(point)
+        await overlay.arrived()
+        await wait(CONTROL_PRESS_MS)
+      },
+      async announceNavigation(url) {
+        // Typing begins at the start of the field, so that is where the pointer goes.
+        const point = pointOf(addressRef.current, ADDRESS_TEXT_INSET_PX)
+        if (point === null || !visibleRef.current) return
+        overlay.type(point)
+        await overlay.arrived()
+        for (let index = 1; index <= url.length; index += 1) {
+          setTypingUrl(url.slice(0, index))
+          await wait(ADDRESS_TYPE_MS)
+        }
+        await wait(ADDRESS_SETTLE_MS)
+        setTypingUrl(undefined)
+      },
+    }
+    livePaneCursors.set(guest, presentation)
     let onScreen = false
     const visibility = new IntersectionObserver((entries) => {
       onScreen = entries.at(-1)?.isIntersecting ?? false
-      if (!onScreen) overlay.hide({ immediate: true })
+      if (!onScreen) overlay.hide()
     })
     visibility.observe(guest)
-    const stopTurn = onTurnEnd(sessionId, () => { overlay.hide() })
+    // A resize scales the pointer with the pane: its position is a fraction of the
+    // box it draws in, so the layout change carries it along rather than leaving it
+    // at a pixel that no longer means the same place.
+    let settle: ReturnType<typeof setTimeout> | undefined
+    const resizes = new ResizeObserver(() => {
+      if (settle !== undefined) clearTimeout(settle)
+      settle = setTimeout(() => {
+        settle = undefined
+        void followAnchor()
+      }, RESIZE_SETTLE_MS)
+    })
+    // A resize reflows the page, so the pointer goes back to the element it is on
+    // rather than staying at a pixel whose meaning the layout just changed. The
+    // guest is asked, because only the page knows where that element moved to.
+    const followAnchor = async (): Promise<void> => {
+      const selector = anchorRef.current
+      const id = webContentsIdOf(guest)
+      if (selector === undefined || id === undefined || !overlay.showing) return
+      // An evaluate answers with the value it produced, wrapped: read through the
+      // wrapper, or every measurement arrives as undefined and nothing moves.
+      const reply = await bridge.automate(id, 'evaluate', {
+        expression: `(() => {
+          const element = document.querySelector(${JSON.stringify(selector)});
+          if (!element) return null;
+          const rect = element.getBoundingClientRect();
+          return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+        })()`,
+      }).catch(() => null) as { value?: { x: number; y: number } | null } | null
+      const measured = reply?.value ?? null
+      if (measured === null || !Number.isFinite(measured.x) || !Number.isFinite(measured.y)) return
+      const stage = guest.getBoundingClientRect()
+      const panel = layer.getBoundingClientRect()
+      overlay.reposition({
+        x: stage.left - panel.left + measured.x * zoomRef.current,
+        y: stage.top - panel.top + measured.y * zoomRef.current,
+      })
+    }
+    resizes.observe(layer)
     const stop = bridge.onCursor((cursor) => {
-      if (cursor.webContentsId !== guest.getWebContentsId()) return
-      // A pointer that cannot be drawn is not waited for: the shell's input
-      // lands at once rather than after its arrival timeout.
-      if (!visibleRef.current || !onScreen) {
+      const id = webContentsIdOf(guest)
+      if (id !== undefined && cursor.webContentsId !== id) return
+      if (cursor.selector !== undefined) anchorRef.current = cursor.selector
+      // A pointer that cannot be drawn is not waited for: the shell's input lands
+      // at once rather than after its arrival timeout. A guest that has not
+      // reported its webContents id cannot be drawn in either, and it is the
+      // pane that owes the shell an answer, not the shell that owes it patience.
+      if (id === undefined || !visibleRef.current || !onScreen) {
         if (cursor.action === 'move') bridge.cursorArrived(cursor.webContentsId, cursor.sequence)
         return
       }
+      // The shell reports guest CSS pixels; the overlay draws in the pane's own
+      // coordinates, so the guest's frame is what maps one to the other.
       const stage = guest.getBoundingClientRect()
-      overlay.clipTo(stage)
-      const point = { x: stage.left + cursor.x * zoomRef.current, y: stage.top + cursor.y * zoomRef.current }
+      const panel = layer.getBoundingClientRect()
+      const point = {
+        x: stage.left - panel.left + cursor.x * zoomRef.current,
+        y: stage.top - panel.top + cursor.y * zoomRef.current,
+      }
       switch (cursor.action) {
         case 'move':
           overlay.moveTo(point)
@@ -189,20 +307,35 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
           return
         case 'click': overlay.click(point); return
         case 'type': overlay.type(point); return
-        case 'scroll': overlay.scroll(point, { deltaY: cursor.deltaY ?? 0 }); return
+        case 'scroll': overlay.scroll(point); return
       }
     })
     return () => {
       stop()
-      stopTurn()
+      stopHold()
+      livePaneCursors.delete(guest)
       visibility.disconnect()
+      resizes.disconnect()
+      if (settle !== undefined) clearTimeout(settle)
       overlayRef.current = null
       overlay.destroy()
     }
   }, [sessionId])
 
+  // Closing the column fades the pointer out on the same spring as its idle
+  // fade, so the reader sees it leave rather than blink away with the pane. A
+  // re-show while the agent is still working brings it back where it was, since
+  // the reader who closed the column to make room has not ended the work.
   useEffect(() => {
-    if (!visible) overlayRef.current?.hide({ immediate: true })
+    const overlay = overlayRef.current
+    if (overlay === null) return
+    if (!visible) {
+      overlay.hide()
+      return
+    }
+    const spot = overlay.point
+    if (spot === undefined || !holdRef.current) return
+    overlay.moveTo(spot)
   }, [visible])
 
   const zoom = useCallback((direction: -1 | 0 | 1) => {
@@ -246,7 +379,10 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
 
   return (
     <div ref={rootRef} className={css.root} data-sidebar-right-browser="">
+      <div ref={cursorLayerRef} className={css.cursorLayer} aria-hidden="true" />
       <ChromeRow
+        addressRef={addressRef}
+        typing={typingUrl}
         url={state.url}
         loading={state.loading}
         canGoBack={state.canGoBack}
@@ -271,9 +407,10 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
         onOpenInChrome={() => { openInChrome(sessionId, state.url) }}
         onCapture={() => {
           const guest = guestRef.current
-          if (guest === null || bridge === undefined) return
+          const id = guest === null ? undefined : webContentsIdOf(guest)
+          if (id === undefined || bridge === undefined) return
           const seq = ++captureSeq.current
-          bridge.capture(guest.getWebContentsId()).then(() => {
+          bridge.capture(id).then(() => {
             setCaptured(true)
             setCaptureToast({ seq, ok: true })
             window.setTimeout(() => { setCaptured(false) }, CAPTURED_FEEDBACK_MS)

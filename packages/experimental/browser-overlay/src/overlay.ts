@@ -60,8 +60,6 @@ const RIPPLE_MS = 620
  * the motion model's long-move threshold, so the entry is a quick straight
  * glide that lands before the host's action does.
  */
-const ENTRY_OFFSET = { x: 72, y: 96 } as const
-
 /** How long a typing caret stays visible at a point, in milliseconds. */
 const CARET_MS = 900
 
@@ -75,6 +73,13 @@ export interface AttachOptions {
   sound?: boolean
   /** Idle-hide timeout; defaults to {@link IDLE_HIDE_MS}. `0` keeps it visible. */
   idleHideMs?: number
+  /**
+   * Element the overlay draws in, such as a pane's own layer. Points are then
+   * coordinates inside that element rather than the window, so an action on the
+   * pane's controls — its address bar — is drawable too. Absent, the overlay
+   * spans the window and a caller clips it to the region it may draw in.
+   */
+  container?: HTMLElement
 }
 
 /**
@@ -85,9 +90,11 @@ export interface AttachOptions {
  * release every listener it registered.
  */
 export class BrowserOverlay {
-  readonly #options: Required<AttachOptions>
+  readonly #options: Required<Omit<AttachOptions, 'container'>>
 
   #root: HTMLDivElement | undefined
+  /** Element the overlay was attached into, absent when it spans the window. */
+  #container: HTMLElement | undefined
   #cursor: HTMLDivElement | undefined
   #label: HTMLDivElement | undefined
   #box: HTMLDivElement | undefined
@@ -95,6 +102,10 @@ export class BrowserOverlay {
   #sounds: AudioContext | undefined
 
   #point: Point | undefined
+  /** Region nothing is drawn outside; also the bound a target point is clamped into. */
+  #clip: Rect | undefined
+  /** Whether the host is holding the pointer, which suspends the idle fade. */
+  #hold = false
   #idleTimer: ReturnType<typeof setTimeout> | undefined
   #caretTimer: ReturnType<typeof setTimeout> | undefined
   #listeners: AbortController | undefined
@@ -129,20 +140,24 @@ export class BrowserOverlay {
    * Put the overlay on screen, idempotently.
    *
    * The stylesheet and every element are created once and reused, so a repeated
-   * call is a no-op rather than a second layer. Appends to `documentElement`,
-   * not `body`, so a page that replaces its body mid-session does not orphan it.
+   * call is a no-op rather than a second layer. It appends to the caller's
+   * `container` when one is named, and otherwise to `documentElement`, not
+   * `body`, so a page that replaces its body mid-session does not orphan it.
    * @param options - per-attach overrides; identical to the constructor's.
    * @returns this instance, for chaining.
    */
   attach(options: AttachOptions = {}): this {
-    Object.assign(this.#options, options)
+    const { container, ...rest } = options
+    Object.assign(this.#options, rest)
     if (this.#root !== undefined) return this
+    this.#container = container
 
     const doc = document
     const root = doc.createElement('div')
     root.className = CLASS_PREFIX
     root.setAttribute('aria-hidden', 'true')
     root.dataset.visible = 'false'
+    if (container !== undefined) root.dataset.mount = 'container'
 
     const style = doc.createElement('style')
     style.textContent = overlayStyles()
@@ -194,12 +209,13 @@ export class BrowserOverlay {
     // the parser has not created a root element to append to, so readiness — not
     // the element's type — is what decides. Deferring the append keeps attach()
     // safe at any point in the document lifecycle.
+    const parent = this.#container ?? doc.documentElement
     if (doc.readyState === 'loading') {
       doc.addEventListener('DOMContentLoaded', () => {
-        if (this.#root !== undefined) doc.documentElement.append(this.#root)
+        if (this.#root !== undefined) parent.append(this.#root)
       }, { once: true })
     } else {
-      doc.documentElement.append(root)
+      parent.append(root)
     }
 
     // Scroll and resize move page content under a viewport-anchored box, so a
@@ -251,6 +267,49 @@ export class BrowserOverlay {
     if (options.mode !== undefined) this.#setMode(options.mode)
     this.#glideTo(point)
     this.#setLabel(options.label)
+    this.#armIdleTimer()
+  }
+
+  /**
+   * Whether the pointer is drawn now, as opposed to faded out. A host reads
+   * this to decide whether a layout change has something to re-place.
+   * @returns true while the cursor element is shown.
+   */
+  get showing(): boolean {
+    return this.#cursor?.dataset.visible === 'true'
+  }
+
+  /**
+   * Move the pointer to a point a layout change put its target at.
+   *
+   * It travels there like any other move: a pointer that blinks from one place
+   * to another reads as two different pointers, and the reader who watched it
+   * land on an element needs to see it follow that element when the layout
+   * moves. A host reporting a resize repeatedly still coalesces its own calls;
+   * this one is a single glide, not a restart per frame.
+   * @param point - the new point, in the same coordinates {@link moveTo} takes.
+   */
+  reposition(point: Point): void {
+    this.moveTo(point)
+  }
+
+  /**
+   * Hold the pointer on screen, or release it to the idle fade.
+   *
+   * A host holds the pointer while the agent is working: the gaps between an
+   * agent's actions are not the reader's cue that it has finished. Releasing the
+   * hold restarts the idle countdown, so a pointer that is no longer held still
+   * fades on its own rather than staying on a page forever.
+   * @param hold - whether the pointer is held.
+   */
+  setHold(hold: boolean): void {
+    if (this.#hold === hold) return
+    this.#hold = hold
+    if (hold) {
+      if (this.#idleTimer !== undefined) clearTimeout(this.#idleTimer)
+      this.#idleTimer = undefined
+      return
+    }
     this.#armIdleTimer()
   }
 
@@ -327,16 +386,16 @@ export class BrowserOverlay {
   }
 
   /**
-   * Show a directional scroll nudge at a point.
+   * Show a scroll at a point: the pointer travels with the gesture.
+   *
+   * The travel is the whole affordance. A chevron drawn alongside it said the
+   * same thing twice, in a hue the page around it need not share, and read as
+   * an artifact on a page that had not asked for it.
    * @param point - the point the wheel event targeted, in viewport coordinates.
-   * @param options - `deltaY` decides the chevron's direction and distance.
    */
-  scroll(point: Point, options: { deltaY?: number; label?: string } = {}): void {
+  scroll(point: Point, options: { label?: string } = {}): void {
     if (this.#root === undefined) return
     this.moveTo(point, { mode: 'comment', ...options.label === undefined ? {} : { label: options.label } })
-    const shift = Math.sign(options.deltaY ?? 1) * 18
-    const node = this.#spawnAt(point, cls('scroll'), 520)
-    node.style.setProperty(`--${CLASS_PREFIX}-scroll-shift`, `${shift}px`)
   }
 
   /**
@@ -355,8 +414,8 @@ export class BrowserOverlay {
    * Fade the pointer out without detaching the overlay.
    *
    * The fade runs on the visibility spring, whose opacity the frame loop writes
-   * inline. The next action enters afresh rather than resuming from where the
-   * pointer faded.
+   * inline. The last point survives the fade, so the next action travels from
+   * where the pointer faded instead of re-entering near its new target.
    * @param options - `immediate` removes the pointer in this frame instead of
    * fading it, for when what it points at has itself left the screen.
    */
@@ -366,7 +425,6 @@ export class BrowserOverlay {
     this.#idleTimer = undefined
     this.#setLabel(undefined)
     this.hover(undefined)
-    this.#point = undefined
     if (this.#cursor !== undefined) this.#cursor.dataset.visible = 'false'
     if (this.#root !== undefined) this.#root.dataset.visible = 'false'
     const motion = this.#motion
@@ -390,6 +448,7 @@ export class BrowserOverlay {
    * @param rect - the region to draw in, or `undefined` to draw anywhere.
    */
   clipTo(rect: Rect | undefined): void {
+    this.#clip = rect
     if (this.#root === undefined) return
     this.#root.style.clipPath = rect === undefined
       ? ''
@@ -415,24 +474,62 @@ export class BrowserOverlay {
    * a rapid sequence of actions read as one continuous pointer instead of a
    * series of jumps.
    */
+  /**
+   * Bring a point inside the region the overlay draws in.
+   *
+   * A point outside that region would put the pointer over content it does not
+   * name, so a target off the region is brought to its edge instead. The region
+   * is the caller's clip, or the layer the overlay fills once that layer has a
+   * box: a layer still unlaid-out has no edge to clamp against.
+   */
+  #clampPoint(point: Point): Point {
+    const container = this.#container
+    const region = this.#clip ?? (container === undefined || container.clientWidth === 0 || container.clientHeight === 0
+      ? undefined
+      : { x: 0, y: 0, width: container.clientWidth, height: container.clientHeight })
+    if (region === undefined) return point
+    return {
+      x: Math.min(Math.max(point.x, region.x), region.x + region.width),
+      y: Math.min(Math.max(point.y, region.y), region.y + region.height),
+    }
+  }
+
+  /**
+   * Where a pointer with no history starts travelling from.
+   *
+   * The middle of the region the overlay draws in, so a first move crosses the
+   * reader's view; with no region to measure, the target itself, which leaves no
+   * distance to skip because there is nothing to cross.
+   */
+  #originOf(target: Point): Point {
+    const container = this.#container
+    const region = this.#clip ?? (container === undefined || container.clientWidth === 0 || container.clientHeight === 0
+      ? undefined
+      : { x: 0, y: 0, width: container.clientWidth, height: container.clientHeight })
+    if (region === undefined) return target
+    return { x: region.x + region.width / 2, y: region.y + region.height / 2 }
+  }
+
   #glideTo(point: Point): void {
     const cursor = this.#cursor
     const root = this.#root
     const motion = this.#motion
     if (cursor === undefined || root === undefined || motion === undefined) return
+    const target = this.#clampPoint(point)
     const first = this.#point === undefined
-    this.#point = { ...point }
+    this.#point = { ...target }
     cursor.dataset.visible = 'true'
     root.dataset.visible = 'true'
 
-    // A first appearance fades in short of the target and glides onto it, so the
-    // pointer reads as arriving rather than popping into place.
+    // A first appearance starts at the middle of the region it draws in and
+    // travels the whole way. Appearing already near its target reads as a
+    // different pointer: the reader saw nothing move, so nothing arrived.
     if (first) {
-      const entry = entryPoint(point)
-      motion.jumpTo(entry.x, entry.y)
+      const origin = this.#originOf(target)
+      motion.jumpTo(origin.x, origin.y)
     }
     motion.setVisible(true)
-    motion.travelTo(point.x, point.y)
+    motion.travelTo(target.x, target.y)
     this.#startFrameLoop()
   }
 
@@ -464,11 +561,16 @@ export class BrowserOverlay {
         scootRotation: motion.scootRotation.value,
         scootStretch: motion.scootStretch.value,
         stretch: motion.stretch.value,
+        appearance: visibility.scale,
         boxSize: CURSOR_BOX,
       })
       cursor.style.opacity = `${visibility.opacity}`
+      // A held pointer keeps breathing. The idle wobble is otherwise a fixed
+      // moment of life after arriving, and its end leaves a pointer that looks
+      // switched off while the agent is still working.
+      if (this.#hold && !motion.isTravelling) motion.keepThinking()
       if (!motion.isTravelling) this.#settleArrivals()
-      if (moving || motion.visibility.value !== motion.visibility.target) {
+      if (moving || motion.isThinking || motion.visibility.value !== motion.visibility.target) {
         this.#frame = requestAnimationFrame(tick)
       } else {
         this.#frame = undefined
@@ -546,7 +648,9 @@ export class BrowserOverlay {
 
   #armIdleTimer(): void {
     if (this.#idleTimer !== undefined) clearTimeout(this.#idleTimer)
-    if (this.#options.idleHideMs <= 0) return
+    // Held by its host, the pointer outlives the gaps between actions: the
+    // agent is still working, and its pointer leaving mid-turn reads as done.
+    if (this.#hold || this.#options.idleHideMs <= 0) return
     this.#idleTimer = setTimeout(() => { this.hide() }, this.#options.idleHideMs)
   }
 
@@ -578,18 +682,6 @@ export class BrowserOverlay {
       // Audio is a nicety; a blocked AudioContext must not break an action.
     }
   }
-}
-
-/**
- * Where a first appearance starts: {@link ENTRY_OFFSET} below-right of the
- * target, mirrored on an axis that would leave the viewport.
- * @param point - the target the pointer glides onto.
- * @returns the entry point, in viewport coordinates.
- */
-function entryPoint(point: Point): Point {
-  const x = point.x + ENTRY_OFFSET.x > innerWidth ? point.x - ENTRY_OFFSET.x : point.x + ENTRY_OFFSET.x
-  const y = point.y + ENTRY_OFFSET.y > innerHeight ? point.y - ENTRY_OFFSET.y : point.y + ENTRY_OFFSET.y
-  return { x, y }
 }
 
 /** Accent color, re-exported so a host can theme its own chrome to match. */

@@ -21,7 +21,6 @@ const ELEMENT_CLASSES = [
   'ripple',
   'flash',
   'caret',
-  'scroll',
 ] as const
 
 /** Quotes a selector so a class name cannot be matched as a prefix of a longer one. */
@@ -112,14 +111,14 @@ describe('stylesheet', () => {
   it('stops every animation when the page asks for reduced motion', () => {
     const reduced = styles.slice(styles.indexOf('@media (prefers-reduced-motion: reduce)'))
     expect(reduced).not.toBe('')
-    for (const name of ['ripple', 'flash', 'caret', 'scroll']) {
+    for (const name of ['ripple', 'flash', 'caret']) {
       expect(reduced).toContain(`.${cls(name)}`)
     }
     expect(reduced).toContain('animation: none;')
   })
 
-  it('reads the scroll shift from a custom property the overlay sets per nudge', () => {
-    expect(styles).toContain(`var(--${CLASS_PREFIX}-scroll-shift, 0)`)
-    expect(styles).toContain(`var(--${CLASS_PREFIX}-scroll-rotate, 0deg)`)
+  it('draws no scroll glyph: the pointer travelling is the whole affordance', () => {
+    expect(styles).not.toContain(cls('scroll'))
+    expect(styles).not.toContain(`${CLASS_PREFIX}-scroll-`)
   })
 })

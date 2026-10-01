@@ -41,6 +41,10 @@ export interface ChromeRowProps {
   placeholder: string
   /** Open the page in the Host's Chrome, the profile the agent's DevTools tools drive; revealed on hover over the address. */
   onOpenInChrome: () => void
+  /** The address field itself, so the pane can point its agent cursor at it. */
+  addressRef?: { current: HTMLInputElement | null }
+  /** An address the agent is typing, shown instead of the committed one while it arrives. */
+  typing?: string | undefined
   /** Copy a screenshot of the page to the clipboard. */
   onCapture: () => void
   /** True briefly after a capture reached the clipboard; the control shows a check meanwhile. */
@@ -86,17 +90,17 @@ export function ChromeRow(props: ChromeRowProps): ReactNode {
       <form className={css.row} onSubmit={submitForm}>
         <div className={css.group} role="group" aria-label={t('navigation')}>
           <Tooltip label={t('back')} side="bottom">
-            <button type="button" className={css.control} aria-label={t('back')} disabled={!props.canGoBack} onClick={props.onBack}>
+            <button type="button" className={css.control} data-control="back" aria-label={t('back')} disabled={!props.canGoBack} onClick={props.onBack}>
               <IconLucideArrowLeft />
             </button>
           </Tooltip>
           <Tooltip label={t('forward')} side="bottom">
-            <button type="button" className={css.control} aria-label={t('forward')} disabled={!props.canGoForward} onClick={props.onForward}>
+            <button type="button" className={css.control} data-control="forward" aria-label={t('forward')} disabled={!props.canGoForward} onClick={props.onForward}>
               <IconLucideArrowRight />
             </button>
           </Tooltip>
           <Tooltip label={loading ? t('loading') : t('refresh')} side="bottom">
-            <button type="button" className={css.control} aria-label={loading ? t('stop') : t('refresh')} onClick={props.onRefresh}>
+            <button type="button" className={css.control} data-control="refresh" aria-label={loading ? t('stop') : t('refresh')} onClick={props.onRefresh}>
               <IconLucideRefreshCw className={clsx(loading && css.spin)} />
             </button>
           </Tooltip>
@@ -104,7 +108,10 @@ export function ChromeRow(props: ChromeRowProps): ReactNode {
 
         <div className={css.address}>
           <input
-            ref={inputRef}
+            ref={(node) => {
+              inputRef.current = node
+              if (props.addressRef !== undefined) props.addressRef.current = node
+            }}
             className={css.addressInput}
             type="text"
             role="combobox"
@@ -115,7 +122,7 @@ export function ChromeRow(props: ChromeRowProps): ReactNode {
             aria-activedescendant={open && highlight >= 0 ? `${listId}-${String(highlight)}` : undefined}
             placeholder={props.placeholder}
             spellCheck={false}
-            value={focused ? draft : url}
+            value={props.typing ?? (focused ? draft : url)}
             onChange={(event) => {
               setDraft(event.target.value)
               setSelected(-1)

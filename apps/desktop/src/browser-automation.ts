@@ -35,8 +35,25 @@ const CURSOR_ARRIVAL_TIMEOUT_MS = 1500
  */
 const HOVER_SHORT_MS = 420
 const HOVER_LONG_MS = 700
+/**
+ * The element an action named, as payload fields, or nothing when it named none.
+ * @param input - the tool's arguments.
+ * @returns the fields to spread into a cursor payload.
+ */
+function named(input: BrowserAutomationInput): { selector?: string } {
+  return typeof input.selector === 'string' ? { selector: input.selector } : {}
+}
+
 /** Glide length from which the overlay arcs, in CSS pixels (browser-overlay `LONG_MOVE_PX`). */
 const HOVER_LONG_PX = 196
+/** How long one scroll gesture takes on the page, in ms. */
+const SCROLL_DURATION_MS = 420
+/** How far the pointer travels in the scroll's direction over a gesture, in CSS pixels. */
+const SCROLL_DRIFT_RATIO = 0.25
+const SCROLL_DRIFT_MIN_PX = 24
+const SCROLL_DRIFT_MAX_PX = 120
+/** Pointer updates sent during one scroll gesture, so the travel is drawn rather than announced. */
+const SCROLL_POINTER_STEPS = 6
 /** Mouse moves dispatched along one glide. */
 const HOVER_STEPS = 12
 /** Pause between typed characters, in ms. */
@@ -151,7 +168,8 @@ async function resolveClickPoint(guest: WebContents, input: BrowserAutomationInp
     if (!element) return null;
     element.scrollIntoView({ block: "center", inline: "center" });
     const rect = element.getBoundingClientRect();
-    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    const clamp = (value, limit) => Math.min(Math.max(value, 0), limit);
+    return { x: clamp(rect.left + rect.width / 2, innerWidth), y: clamp(rect.top + rect.height / 2, innerHeight) };
   })()`) as { x: number; y: number } | null
   if (point === null) throw new Error(`no element matches ${input.selector}; call preview_snapshot for current selectors`)
   return point
@@ -160,16 +178,23 @@ async function resolveClickPoint(guest: WebContents, input: BrowserAutomationInp
 /**
  * Where the pointer shows an action on a target: its centre, or the viewport's
  * centre when the action has no target element.
+ *
+ * The target is scrolled into view and the point clamped to the viewport before
+ * it is reported. A point measured from an element that is off screen is a page
+ * coordinate wearing viewport clothes: reported as it stands, the pointer is
+ * drawn outside the pane the reader is looking at.
  * @param guest - the guest to act on.
  * @param target - page expression for the element, or `window`.
- * @returns viewport CSS coordinates.
+ * @returns viewport CSS coordinates, inside the viewport.
  */
 async function centreOf(guest: WebContents, target: string): Promise<{ x: number; y: number }> {
   return await evaluate(guest, `(() => {
     const element = ${target};
+    const clamp = (value, limit) => Math.min(Math.max(value, 0), limit);
     if (!element || element === window) return { x: innerWidth / 2, y: innerHeight / 2 };
+    element.scrollIntoView({ block: "center", inline: "center" });
     const rect = element.getBoundingClientRect();
-    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    return { x: clamp(rect.left + rect.width / 2, innerWidth), y: clamp(rect.top + rect.height / 2, innerHeight) };
   })()`) as { x: number; y: number }
 }
 
@@ -279,7 +304,10 @@ export async function automate(guest: WebContents, operation: string, input: Bro
     const from = pointerAt.get(guest) ?? point
     const sequence = show({ action: 'move', ...point })
     const key = `${String(guest.id)}:${String(sequence)}`
-    const arrived = new Promise<void>((resolve) => {
+    // Only a guest with a host renderer has a window to draw the pointer, and so
+    // a report to wait for. Waiting anyway would be waiting for a report that
+    // cannot arrive.
+    const arrived = guest.hostWebContents === null ? Promise.resolve() : new Promise<void>((resolve) => {
       const done = (): void => {
         clearTimeout(timer)
         arrivalWaiters.delete(key)
@@ -310,7 +338,7 @@ export async function automate(guest: WebContents, operation: string, input: Bro
       await send('Emulation.setFocusEmulationEnabled', { enabled: true })
       const point = await resolveClickPoint(guest, input)
       await moveTo(point)
-      show({ action: 'click', ...point })
+      show({ action: 'click', ...point, ...named(input) })
       await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...point, button: 'left', clickCount: 1 })
       await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point, button: 'left', clickCount: 1 })
       return { ok: true }
@@ -319,7 +347,7 @@ export async function automate(guest: WebContents, operation: string, input: Bro
       const target = typeof input.selector === 'string' ? `document.querySelector(${JSON.stringify(input.selector)})` : 'document.activeElement'
       const point = await centreOf(guest, target)
       await moveTo(point)
-      show({ action: 'type', ...point })
+      show({ action: 'type', ...point, ...named(input) })
       const result = await evaluate(guest, focusExpression(input)) as { ok?: true; notFound?: true; notEditable?: true }
       if (result.notFound === true) throw new Error('no element matches the target; call preview_snapshot for current selectors')
       if (result.notEditable === true) throw new Error('the target is not an editable element')
@@ -333,24 +361,53 @@ export async function automate(guest: WebContents, operation: string, input: Bro
       await evaluate(guest, 'document.activeElement?.dispatchEvent(new Event("change", { bubbles: true })), true')
       return { ok: true }
     }
-    case 'press':
+    case 'press': {
       await send('Emulation.setFocusEmulationEnabled', { enabled: true })
+      // A key lands in whatever holds focus, so the pointer shows that element
+      // rather than staying where the last action left it.
+      const point = await centreOf(guest, 'document.activeElement')
+      show({ action: 'type', ...point })
       press(guest, input)
       return { ok: true }
+    }
     case 'scroll': {
       const target = typeof input.selector === 'string' ? `document.querySelector(${JSON.stringify(input.selector)})` : 'window'
       const deltaX = Number(input.deltaX ?? 0)
       const deltaY = Number(input.deltaY ?? 0)
       const point = await centreOf(guest, target)
-      await moveTo(point)
-      show({ action: 'scroll', ...point, deltaY })
+      // A scroll does not wait for the pointer to arrive: the pointer travels
+      // with the gesture anyway, so waiting bought nothing and cost a
+      // pointer-arrival timeout that stalled consecutive scrolls.
+      show({ action: 'move', ...point, ...named(input) })
+      const drift = Math.sign(deltaY) * Math.min(
+        Math.max(Math.abs(deltaY) * SCROLL_DRIFT_RATIO, SCROLL_DRIFT_MIN_PX),
+        SCROLL_DRIFT_MAX_PX,
+      )
+      // The page scrolls itself, eased over the gesture, so the movement is the
+      // page's own rather than the shell stepping it from outside.
       const result = await evaluate(guest, `(() => {
         const target = ${target};
         if (!target) return { notFound: true };
-        target.scrollBy({ left: ${String(deltaX)}, top: ${String(deltaY)}, behavior: "instant" });
+        const scrolls = target === window ? document.scrollingElement ?? document.documentElement : target;
+        const from = { left: scrolls.scrollLeft, top: scrolls.scrollTop };
+        const started = performance.now();
+        const step = () => {
+          const progress = Math.min(1, (performance.now() - started) / ${String(SCROLL_DURATION_MS)});
+          const eased = 1 - (1 - progress) ** 3;
+          scrolls.scrollTo({ left: from.left + ${String(deltaX)} * eased, top: from.top + ${String(deltaY)} * eased, behavior: "instant" });
+          if (progress < 1) requestAnimationFrame(step);
+        };
+        step();
         return { ok: true };
       })()`) as { ok?: true; notFound?: true }
       if (result.notFound === true) throw new Error('no element matches the target; call preview_snapshot for current selectors')
+      // The pointer travels with the gesture, in the direction the content is
+      // going, so a scroll reads as the pointer performing it.
+      for (let step = 1; step <= SCROLL_POINTER_STEPS; step++) {
+        const progress = 1 - (1 - step / SCROLL_POINTER_STEPS) ** 3
+        show({ action: 'move', x: point.x, y: point.y + drift * progress })
+        await sleep(SCROLL_DURATION_MS / SCROLL_POINTER_STEPS)
+      }
       return { ok: true }
     }
     case 'evaluate': {

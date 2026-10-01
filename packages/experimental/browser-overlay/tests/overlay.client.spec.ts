@@ -654,24 +654,15 @@ describe('BrowserOverlay action feedback', () => {
     expect(parts('caret')).toHaveLength(0)
   })
 
-  it('points the scroll nudge along the wheel direction', () => {
+  it('shows a scroll by moving the pointer, and draws no separate glyph', () => {
     const overlay = makeOverlay({ idleHideMs: 0 }).attach()
-    const shift = `--${CLASS_PREFIX}-scroll-shift`
 
-    overlay.scroll({ x: 50, y: 60 }, { deltaY: -120, label: 'Scrolling up' })
-    const up = parts('scroll')
-    expect(up).toHaveLength(1)
-    expect(up[0]?.style.getPropertyValue(shift)).toBe('-18px')
-    expect(up[0]?.style.top).toBe('60px')
+    overlay.scroll({ x: 50, y: 60 }, { label: 'Scrolling up' })
+
+    expect(overlay.point).toEqual({ x: 50, y: 60 })
     expect(part('label')?.textContent).toBe('Scrolling up')
-
-    overlay.scroll({ x: 50, y: 60 }, { deltaY: 120 })
-    expect(parts('scroll')[1]?.style.getPropertyValue(shift)).toBe('18px')
-
-    overlay.scroll({ x: 50, y: 60 })
-    expect(parts('scroll')[2]?.style.getPropertyValue(shift)).toBe('18px')
-
-    vi.advanceTimersByTime(520)
+    // The travel is the affordance: a chevron alongside it said the same thing
+    // twice, in a hue the page around it need not share.
     expect(parts('scroll')).toHaveLength(0)
   })
 })

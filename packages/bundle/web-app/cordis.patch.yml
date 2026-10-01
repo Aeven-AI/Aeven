@@ -243,8 +243,11 @@
 
     # One visible Chrome on 9333 (not the desktop renderer's 9222), shared by
     # the sidebar and chrome-devtools-mcp. Playwright starts its own browser
-    # on first use, so boot does not wait on that CDP attach. A missing Chrome
-    # logs and leaves the host up. Both servers' tools stay behind tool_search.
+    # on first use, so boot does not wait on that CDP attach; it runs headless
+    # so bulk reading opens no window, and keeps its own profile, which is what
+    # lets the headed Chrome hold the profile a signed-in page needs. A missing
+    # Chrome logs and leaves the host up. Both servers' tools stay behind
+    # tool_search.
     - id: browser-chromium
       name: '@aeven/browser-chromium'
       config:
@@ -272,6 +275,7 @@
         args:
           - '-y'
           - '@playwright/mcp@latest'
+          - '--headless'
           - '--caps=devtools'
         failOnStartupError: false
 

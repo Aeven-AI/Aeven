@@ -109,6 +109,16 @@ ${root} {
   color: rgb(15, 23, 42);
 }
 
+/*
+ * Attached inside a caller's layer, the overlay fills that layer rather than the
+ * window, and its own overflow is what keeps the pointer inside the panel. The
+ * layer is the drawing region, so nothing has to clip it from outside.
+ */
+${root}[data-mount="container"] {
+  position: absolute;
+  overflow: hidden;
+}
+
 /* The cursor layer is the only element that ever animates position. */
 ${root} .${cls('cursor-layer')} {
   position: absolute;
@@ -273,33 +283,14 @@ ${root} .${cls('caret')} {
   50%, 100% { opacity: 0.15; }
 }
 
-/* Scroll shows a directional chevron nudge. */
-${root} .${cls('scroll')} {
-  position: absolute;
-  width: 18px;
-  height: 18px;
-  margin: -9px 0 0 -9px;
-  border-left: 2px solid ${ACCENT};
-  border-bottom: 2px solid ${ACCENT};
-  pointer-events: none;
-  animation: ${cls('scroll')} 520ms ease-out forwards;
-}
-
-@keyframes ${cls('scroll')} {
-  0% { opacity: 0; transform: translateY(0) rotate(var(--${CLASS_PREFIX}-scroll-rotate, 0deg)); }
-  35% { opacity: 0.95; }
-  100% { opacity: 0; transform: translateY(var(--${CLASS_PREFIX}-scroll-shift, 0)) rotate(var(--${CLASS_PREFIX}-scroll-rotate, 0deg)); }
-}
-
 /* Respect a page or OS that asks for less motion: state stays visible, motion stops. */
 @media (prefers-reduced-motion: reduce) {
-${root} .${cls('ripple')}, ${root} .${cls('flash')}, ${root} .${cls('caret')}, ${root} .${cls('scroll')} {
+${root} .${cls('ripple')}, ${root} .${cls('flash')}, ${root} .${cls('caret')} {
   animation: none;
 }
 ${root} .${cls('ripple')} { opacity: 0.5; transform: scale(1.6); }
 ${root} .${cls('flash')} { opacity: 0.35; }
 ${root} .${cls('caret')} { opacity: 0.9; }
-${root} .${cls('scroll')} { opacity: 0.75; }
 }
 `
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createSpring, isAtRest, stepSpring, CURSOR_SPRINGS } from '../src/springs.ts'
 import { BASE_ROTATION_DEG } from '../src/styles.ts'
 import {
+  APPEAR_SCALE,
   ARRIVAL_EPSILON_PX,
   createArcPath,
   CursorMotion,
@@ -320,6 +321,7 @@ describe('transform composition', () => {
     scootRotation: 0,
     scootStretch: 1,
     stretch: 1,
+    appearance: 1,
     boxSize: 24,
   }
 
@@ -335,19 +337,26 @@ describe('transform composition', () => {
     expect(cursorTransform(base)).not.toContain('rotate(0deg) scale(1, 1) rotate(-0deg)')
   })
 
-  it('includes the axis-aligned pair while scooting', () => {
-    const value = cursorTransform({ ...base, scootAxisRotation: 30, scootStretch: 0.9 })
-    expect(value).toContain('rotate(30deg) scale(1, 0.9) rotate(-30deg)')
+  it('draws one size, whatever the travel or the scoot', () => {
+    // A pointer that stretches along its travel reads as a different pointer
+    // mid-flight, so the composition carries exactly one scale: the appearance.
+    const scooting = cursorTransform({ ...base, scootAxisRotation: 30, scootStretch: 0.9, stretch: 5 })
+    expect(scooting.match(/scale\(/g)).toHaveLength(1)
+    expect(scooting).toContain('scale(1, 1)')
   })
 
-  it('clamps scale inputs into a drawable range', () => {
-    const value = cursorTransform({ ...base, stretch: 5, scootStretch: -1 })
-    expect(value).toContain('scale(5, 1)')
-    expect(value).toContain('scale(1, 0)')
+  it('scales the whole cursor by its appearance, so a faded pointer is small too', () => {
+    // Appearing grows the pointer into place instead of blinking a full-size
+    // sprite in, so the appearance scale multiplies both stretch axes.
+    expect(cursorTransform({ ...base, appearance: APPEAR_SCALE })).toContain('scale(0.4, 0.4)')
+    const arriving = cursorTransform({ ...base, stretch: 0.5, appearance: APPEAR_SCALE })
+    expect(arriving).toContain('scale(0.4, 0.4)')
   })
 
-  it('emits a soft blur as the cursor fades in', () => {
-    expect(visibilityStyles(1)).toEqual({ opacity: 1, blurPx: 0 })
-    expect(visibilityStyles(0)).toEqual({ opacity: 0, blurPx: 5 })
+  it('emits a soft blur and a small scale as the cursor fades in', () => {
+    expect(visibilityStyles(1)).toEqual({ opacity: 1, blurPx: 0, scale: 1 })
+    expect(visibilityStyles(0)).toEqual({ opacity: 0, blurPx: 5, scale: APPEAR_SCALE })
+    expect(visibilityStyles(0.5).scale).toBeGreaterThan(APPEAR_SCALE)
+    expect(visibilityStyles(0.5).scale).toBeLessThan(1)
   })
 })

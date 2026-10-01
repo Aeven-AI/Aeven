@@ -1,6 +1,6 @@
 /** Answers the agent's `browser_*` tools with the session's own browser guest. */
 import type { BrowserAutomationRequestEvent } from '@aeven/tool-browser/types'
-import { desktopBrowser, type BrowserGuest } from './guest.ts'
+import { desktopBrowser, livePaneCursors, webContentsIdOf, type BrowserGuest } from './guest.ts'
 import { resolveAddress } from './url.ts'
 
 /**
@@ -35,10 +35,22 @@ export async function automate(guest: BrowserGuest, request: Pick<BrowserAutomat
     case 'navigate': {
       const url = resolveAddress(String(request.input.url ?? ''))
       if (url === undefined) throw new Error(`not a navigable http(s) address: ${String(request.input.url)}`)
+      // A navigation is the agent using the browser, so the address bar shows it.
+      await livePaneCursors.get(guest)?.announceNavigation(url)
       const loaded = stopped(guest)
       await guest.loadURL(url)
       await loaded
       return status(guest)
+    }
+    case 'back':
+    case 'forward':
+    case 'reload': {
+      const pane = livePaneCursors.get(guest)
+      await pane?.announceControl(request.operation === 'reload' ? 'refresh' : request.operation)
+      if (request.operation === 'back') guest.goBack()
+      else if (request.operation === 'forward') guest.goForward()
+      else guest.reload()
+      return { ok: true }
     }
     case 'snapshot':
     case 'click':
@@ -48,7 +60,9 @@ export async function automate(guest: BrowserGuest, request: Pick<BrowserAutomat
     case 'evaluate': {
       const bridge = desktopBrowser()
       if (bridge === undefined) throw new Error('the browser runs only in the desktop app')
-      return bridge.automate(guest.getWebContentsId(), request.operation, request.input)
+      const id = webContentsIdOf(guest)
+      if (id === undefined) throw new Error('the browser has not finished opening; try again in a moment')
+      return bridge.automate(id, request.operation, request.input)
     }
   }
 }

@@ -87,6 +87,8 @@ export interface BrowserCursor {
   readonly x: number
   readonly y: number
   readonly deltaY?: number
+  /** Selector of the element this action named, when it named one. */
+  readonly selector?: string
 }
 
 /**
@@ -95,32 +97,95 @@ export interface BrowserCursor {
  */
 export const liveGuests = new Map<string, BrowserGuest>()
 
-/** Listeners for the end of each session's agent turn. */
-const turnEndListeners = new Map<string, Set<() => void>>()
+/**
+ * Controls in the pane's own chrome the agent can drive, each of which the pane
+ * shows the pointer pressing.
+ */
+export type PaneCursorControl = 'back' | 'forward' | 'refresh' | 'stop'
 
 /**
- * Observe the end of a session's agent turn, when the agent releases the
- * browser and its pointer leaves.
- * @param sessionId - the session to watch.
- * @param listener - called at each turn end.
- * @returns disposer removing the listener.
+ * What a pane can draw for the agent outside its guest.
+ *
+ * A pane's chrome is part of the browser the agent is using, so driving it is
+ * something the reader should see the pointer do rather than something that
+ * happens to the window around the page.
  */
-export function onTurnEnd(sessionId: string, listener: () => void): () => void {
-  const listeners = turnEndListeners.get(sessionId) ?? new Set()
-  listeners.add(listener)
-  turnEndListeners.set(sessionId, listeners)
-  return () => {
-    listeners.delete(listener)
-    if (listeners.size === 0 && turnEndListeners.get(sessionId) === listeners) turnEndListeners.delete(sessionId)
+export interface PaneCursorPresentation {
+  /**
+   * Glide the pointer onto one of the pane's controls and show it pressed.
+   * @param control - the control being driven.
+   * @returns once the pointer has arrived and the press is drawn.
+   */
+  announceControl(control: PaneCursorControl): Promise<void>
+  /**
+   * Glide the pointer to the address bar and type the address into it.
+   * @param url - the address about to load.
+   * @returns once the address has been typed and the gesture has settled.
+   */
+  announceNavigation(url: string): Promise<void>
+}
+
+/**
+ * A guest's web contents id, or undefined until the element is ready for one.
+ *
+ * Electron's `<webview>` throws from `getWebContentsId()` until the element is
+ * in the DOM and has emitted `dom-ready`. Reading it a moment early used to
+ * throw inside a mount effect and take the whole pane down, so every caller
+ * goes through here and treats `undefined` as "not ready yet".
+ * @param guest - the guest whose id is wanted.
+ * @returns the id, or undefined while the guest has not attached.
+ */
+export function webContentsIdOf(guest: BrowserGuest): number | undefined {
+  try {
+    return guest.getWebContentsId()
+  } catch {
+    // The only failure here is the not-yet-attached throw above; the id has no
+    // other way to fail.
+    return undefined
   }
 }
 
 /**
- * Report that a session's agent turn ended.
- * @param sessionId - the session whose turn ended.
+ * The pane's own cursor surface, per mounted guest.
+ *
+ * Keyed by the guest element, not its web contents id: that id can only be read
+ * once the element is attached and dom-ready, and a pane that asked for it while
+ * mounting crashed instead of showing its browser at all.
  */
-export function endTurn(sessionId: string): void {
-  for (const listener of turnEndListeners.get(sessionId) ?? []) listener()
+export const livePaneCursors = new Map<BrowserGuest, PaneCursorPresentation>()
+
+/** Sessions whose agent is still working, and the listeners each change reports to. */
+const pointerHolds = new Map<string, true>()
+const holdListeners = new Map<string, Set<(hold: boolean) => void>>()
+
+/**
+ * Observe whether a session's agent is still working, which holds its pointer
+ * on screen through the gaps between its actions.
+ * @param sessionId - the session to watch.
+ * @param listener - called with the current hold, then again at each change.
+ * @returns disposer removing the listener.
+ */
+export function onPointerHold(sessionId: string, listener: (hold: boolean) => void): () => void {
+  const listeners = holdListeners.get(sessionId) ?? new Set<(hold: boolean) => void>()
+  listeners.add(listener)
+  holdListeners.set(sessionId, listeners)
+  listener(pointerHolds.get(sessionId) === true)
+  return () => {
+    listeners.delete(listener)
+    if (listeners.size === 0 && holdListeners.get(sessionId) === listeners) holdListeners.delete(sessionId)
+  }
+}
+
+/**
+ * Report whether a session's agent is working.
+ * @param sessionId - the session that started or finished work.
+ * @param hold - whether its pointer is held on screen.
+ */
+export function setPointerHold(sessionId: string, hold: boolean): void {
+  if ((pointerHolds.get(sessionId) === true) === hold) return
+  if (hold) pointerHolds.set(sessionId, true)
+  else pointerHolds.delete(sessionId)
+  for (const listener of holdListeners.get(sessionId) ?? []) listener(hold)
 }
 
 /**

@@ -8,6 +8,20 @@
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
+  /* Anchors the pointer layer to the pane, so the agent pointer draws over the
+     pane's own chrome and the guest alike rather than over the window. */
+  position: relative;
+}
+
+/* The agent pointer's drawing region: the whole pane, nothing outside it. It
+   sits above the guest so a pointer over the page is visible, and takes no
+   input so it can never intercept a click meant for the page. */
+.cursorLayer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 20;
 }
 
 .chrome {

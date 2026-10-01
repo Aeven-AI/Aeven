@@ -25,6 +25,12 @@
 - id: workspace-files
   disabled: true
 
+# Coding subscriptions sign in and report usage over same-origin routes on the
+# disabled webserver, and the row injects `webServer` at plugin level, so it
+# holds the whole tree pending here rather than degrading.
+- id: llm-grok-build-oauth
+  disabled: true
+
 - id: connection
   inject:
     - credentials

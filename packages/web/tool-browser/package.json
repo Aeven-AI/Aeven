@@ -41,6 +41,7 @@
   },
   "devDependencies": {
     "@aeven/agent": "workspace:^",
+    "@aeven/browser-chromium": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/scope": "workspace:^",
     "@aeven/session": "workspace:^",

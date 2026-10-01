@@ -37,8 +37,14 @@ export interface DesktopBrowserCursor {
   readonly sequence: number
   readonly x: number
   readonly y: number
-  /** Scroll direction for the scroll nudge. */
+  /** Scroll direction and distance for the scroll nudge. */
   readonly deltaY?: number
+  /**
+   * Selector of the element the action named, so the pane can ask where that
+   * element is after a layout change instead of leaving the pointer at a pixel
+   * whose meaning moved.
+   */
+  readonly selector?: string
 }
 
 /** Storage a browser guest's partition can be cleared of. */

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry, { agentEvents, Inbox, type Agent } from '@aeven/agent'
+import BrowserChromium from '@aeven/browser-chromium'
 import { ToolCallId } from '@aeven/llm'
 import { Session, SessionId } from '@aeven/session'
 import SystemPrompt from '@aeven/system-prompt'
@@ -10,6 +11,9 @@ import type { BrowserAutomationRequestEvent, Config } from '@aeven/tool-browser'
 
 const PAGE = { open: true, url: 'http://127.0.0.1:5173/', title: 'Dev server', loading: false }
 
+/** A debugging port nothing can be listening on, so a status sample is deterministic. */
+const CLOSED_PORT = 1
+
 async function mount(config: Config = {}): Promise<Context> {
   const ctx = new Context()
   await ctx.plugin(AgentRegistry)
@@ -17,6 +21,31 @@ async function mount(config: Config = {}): Promise<Context> {
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(ToolBrowser, config)
   return ctx
+}
+
+/**
+ * Mount the Host's Chromium as the Web profile does, against a port nothing
+ * answers on. Its executable path deliberately names no file: a status sample
+ * that launched a browser would raise an unhandled spawn error in this worker.
+ */
+async function mountHostBrowser(ctx: Context): Promise<void> {
+  await ctx.plugin(BrowserChromium, {
+    port: CLOSED_PORT,
+    executablePath: '/nonexistent/aeven-chrome',
+    mcpServerName: 'chrome_devtools',
+    launchOnStart: false,
+  })
+}
+
+/** Run one registered tool as `agent`, or without a calling agent when it is omitted. */
+function call(ctx: Context, name: string, args: unknown, agent?: Agent) {
+  return ctx.tools.execute({
+    signal: new AbortController().signal,
+    callId: ToolCallId(`call-${name}`),
+    name,
+    arguments: args,
+    ...agent === undefined ? {} : { agent },
+  })
 }
 
 function sessionAgent(id = 'agent'): Agent {
@@ -166,7 +195,6 @@ describe('tool-browser first-step context', () => {
   ])('logs and proceeds when the browser fails with %s', async (_label, failure, message) => {
     const ctx = await mount()
     const warn = vi.spyOn(ctx.logger, 'warn')
-    // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- a remote client may reject with any value
     answer(ctx, () => Promise.reject(failure))
 
     expect(await preStep(ctx, sessionAgent())).toEqual({ kind: 'enter', messages: [] })
@@ -189,14 +217,6 @@ describe('tool-browser first-step context', () => {
 })
 
 describe('tool-browser tools', () => {
-  const call = (ctx: Context, name: string, args: unknown, agent?: Agent) => ctx.tools.execute({
-    signal: new AbortController().signal,
-    callId: ToolCallId(`call-${name}`),
-    name,
-    arguments: args,
-    ...agent === undefined ? {} : { agent },
-  })
-
   it('declares the configured wait as every tool timeout', async () => {
     const ctx = await mount({ actionTimeoutMs: 1_234 })
     const names = ['preview_status', 'preview_navigate', 'preview_snapshot', 'preview_click', 'preview_type', 'preview_press', 'preview_scroll', 'preview_evaluate']
@@ -215,10 +235,10 @@ describe('tool-browser tools', () => {
     expect(seen[0]?.operation).toBe('navigate')
   })
 
-  it('fails with an instruction when no browser answers', async () => {
+  it('fails with an instruction when a call that needs a page has no browser', async () => {
     const ctx = await mount()
 
-    const result = await call(ctx, 'preview_status', {}, sessionAgent())
+    const result = await call(ctx, 'preview_navigate', { url: 'https://example.com' }, sessionAgent())
 
     expect(result.isError).toBe(true)
     expect(result.error?.info?.code).toBe('BROWSER_UNAVAILABLE')
@@ -231,6 +251,72 @@ describe('tool-browser tools', () => {
 
     expect(result.isError).toBe(true)
     expect(result.error?.info?.code).toBe('BROWSER_NO_AGENT')
+  })
+})
+
+describe('tool-browser status report', () => {
+  /** The fields `preview_status` answers with. */
+  interface Report {
+    /** The page in the browser beside the session, or null. */
+    sessionTab: unknown
+    /** The Host's Chromium, or null when the composition mounts none. */
+    hostBrowser: unknown
+    /** What the model should drive, or what to ask the user for. */
+    nextStep: string
+  }
+
+  function reportOf(result: Awaited<ReturnType<typeof call>>): Report {
+    const block = result.content[0]
+    return JSON.parse(block !== undefined && 'text' in block ? String(block.text) : '') as Report
+  }
+
+  it('reports no surface when the composition mounts none and no page is open', async () => {
+    const ctx = await mount()
+
+    const report = reportOf(await call(ctx, 'preview_status', {}, sessionAgent()))
+
+    expect(report.sessionTab).toBeNull()
+    expect(report.hostBrowser).toBeNull()
+    expect(report.nextStep).toContain('right sidebar (Browser)')
+  })
+
+  it('reports the Host browser when no page is open beside the session', async () => {
+    const ctx = await mount()
+    await mountHostBrowser(ctx)
+
+    const report = reportOf(await call(ctx, 'preview_status', {}, sessionAgent()))
+
+    expect(report.sessionTab).toBeNull()
+    expect(report.hostBrowser).toEqual({
+      browserUrl: `http://127.0.0.1:${String(CLOSED_PORT)}`,
+      running: false,
+      launchable: true,
+      toolPrefix: 'mcp__chrome_devtools__',
+    })
+    expect(report.nextStep).toContain('mcp__chrome_devtools__')
+  })
+
+  it('reports the Host browser when the page lookup never answers', async () => {
+    const ctx = await mount({ statusTimeoutMs: 20 })
+    await mountHostBrowser(ctx)
+    answer(ctx, () => new Promise(() => {}))
+
+    const report = reportOf(await call(ctx, 'preview_status', {}, sessionAgent()))
+
+    expect(report.sessionTab).toBeNull()
+    expect(report.hostBrowser).not.toBeNull()
+  })
+
+  it('prefers the page beside the session when both surfaces exist', async () => {
+    const ctx = await mount()
+    await mountHostBrowser(ctx)
+    answer(ctx, () => Promise.resolve(PAGE))
+
+    const report = reportOf(await call(ctx, 'preview_status', {}, sessionAgent()))
+
+    expect(report.sessionTab).toEqual({ url: PAGE.url, title: PAGE.title })
+    expect(report.hostBrowser).not.toBeNull()
+    expect(report.nextStep).toBe('Drive the page beside this session with the preview_* tools.')
   })
 })
 

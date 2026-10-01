@@ -61,6 +61,13 @@ export const THINK_AMPLITUDE_DEG = 12.5
 /** Below this distance a move is treated as already arrived, in CSS pixels. */
 export const ARRIVAL_EPSILON_PX = 0.5
 
+/**
+ * Scale the pointer starts from as it appears, 1 being full size. The pointer
+ * grows into place as activity resumes and shrinks back as it fades, which is
+ * what the reference's `lerp(0.4, 1, visibility)` does.
+ */
+export const APPEAR_SCALE = 0.4
+
 /** Snap a value into [min, max]. */
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
@@ -194,6 +201,22 @@ export class CursorMotion {
   get isTravelling(): boolean {
     return this.#path !== undefined || this.#scootFrom !== undefined
       || !isAtRest(this.positionX) || !isAtRest(this.positionY)
+  }
+
+  /** Whether the idle wobble is running now. */
+  get isThinking(): boolean {
+    return this.#thinkEnabled && this.#thinkStartedAt !== undefined
+  }
+
+  /**
+   * Start the idle wobble again, for a pointer its host wants visibly alive.
+   *
+   * The wobble is otherwise a fixed moment of life after arriving; a host that
+   * holds the pointer while the agent works can keep it breathing, so a long
+   * action shows a pointer that is present rather than one that froze.
+   */
+  keepThinking(): void {
+    if (this.#thinkEnabled) this.#thinkStartedAt = performance.now()
   }
 
   /** Whether anything is still moving; used to stop the animation frame loop. */
@@ -448,7 +471,8 @@ export function displayRotationFor(motion: CursorMotion, now: number): number {
  * the point, then the axis-aligned scoot is applied as rotate/scale/unrotate, and
  * last the sprite's own rotation and lengthwise stretch. The nested rotate pair
  * is what keeps a stretched cursor pointing along its axis rather than shearing.
- * @param input - the point to place, the rotations to compose, and the box and stretch scales.
+ * @param input - the point to place, the rotations to compose, and the
+ *   appearance scale the visibility spring drives.
  * @returns the transform value, with every angle and offset rounded to three decimals.
  */
 export function cursorTransform(input: {
@@ -458,20 +482,16 @@ export function cursorTransform(input: {
   scootRotation: number
   scootStretch: number
   stretch: number
+  appearance: number
   boxSize: number
 }): string {
   const half = input.boxSize / 2
   const parts = [`translate3d(${round(input.point.x - half)}px, ${round(input.point.y - half)}px, 0)`]
-  const scootStretch = clamp(input.scootStretch, 0, 1)
-  if (Math.abs(normalizeDegrees(input.scootAxisRotation)) > 0.001 || Math.abs(scootStretch - 1) > 0.001) {
-    parts.push(
-      `rotate(${round(input.scootAxisRotation)}deg)`,
-      `scale(1, ${round(scootStretch)})`,
-      `rotate(${round(-input.scootAxisRotation)}deg)`,
-    )
-  }
   const total = normalizeDegrees(input.rotation + input.scootRotation)
-  parts.push(`rotate(${round(total)}deg)`, `scale(${round(input.stretch)}, ${round(clamp(input.stretch, 0, 1))})`)
+  // One size, always: a pointer that stretches along its travel reads as a
+  // different pointer mid-flight. The appearance scale is how it arrives.
+  const scale = input.appearance
+  parts.push(`rotate(${round(total)}deg)`, `scale(${round(scale)}, ${round(scale)})`)
   return parts.join(' ')
 }
 
@@ -481,11 +501,18 @@ function round(value: number): number {
 }
 
 /**
- * Blur and opacity driven by the visibility spring: appear soft, fade in.
+ * Blur, opacity, and scale driven by the visibility spring: the pointer zooms
+ * in as it appears and shrinks as it fades, so resuming activity reads as the
+ * pointer growing back into place instead of a sprite blinking on.
  * @param visibility - the spring's value, from 0 hidden to 1 shown.
- * @returns the opacity to apply and a blur radius in CSS pixels, 0 when the cursor is fully shown.
+ * @returns the opacity, the blur radius in CSS pixels, and the scale to apply;
+ *   all three settle at full size and zero blur once the pointer is shown.
  */
-export function visibilityStyles(visibility: number): { opacity: number; blurPx: number } {
+export function visibilityStyles(visibility: number): { opacity: number; blurPx: number; scale: number } {
   const clamped = clamp(visibility, 0, 1)
-  return { opacity: clamped, blurPx: (1 - clamped) * 5 }
+  return {
+    opacity: clamped,
+    blurPx: (1 - clamped) * 5,
+    scale: APPEAR_SCALE + (1 - APPEAR_SCALE) * clamped,
+  }
 }

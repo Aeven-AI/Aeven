@@ -18,6 +18,12 @@
  * the model's shell: a sandboxed shell cannot write the profile a browser
  * needs, which left the tools failing under every mode short of full access.
  *
+ * `status` samples the same facts without launching anything, so a consumer
+ * that reports which browsers a session can drive never starts one to find out.
+ * `running` distinguishes a browser already answering on the port from a
+ * launchable one: both are surfaces the model can drive, and only the second
+ * costs a launch.
+ *
  * @module @aeven/browser-chromium
  */
 
@@ -30,9 +36,9 @@ import type { Agent } from '@aeven/agent'
 import type {} from '@aeven/tools'
 import { resolveAvnHome } from '@aeven/home-paths'
 import { Remote, TypertRemoteService } from '@aeven/typert-protocol'
-import type { BrowserChromiumOpened } from './types.ts'
+import type { BrowserChromiumOpened, BrowserChromiumStatus } from './types.ts'
 
-export type { BrowserChromiumOpened } from './types.ts'
+export type { BrowserChromiumOpened, BrowserChromiumStatus } from './types.ts'
 
 /** Schemes the browser may be opened at. */
 const OPENABLE_PROTOCOLS = new Set(['http:', 'https:'])
@@ -81,8 +87,11 @@ export class BrowserChromium extends TypertRemoteService {
   })
 
   private readonly executablePath: string | undefined
+  private readonly browserUrl: string
   private readonly port: number
   private readonly userDataDir: string
+  /** Tool-name prefix a driving MCP server registers; undefined when config names none. */
+  private readonly toolPrefix: string | undefined
   /** The launch in progress, which concurrent tool calls wait on instead of starting their own. */
   private launching: Promise<BrowserChromiumOpened> | undefined
 
@@ -94,7 +103,9 @@ export class BrowserChromium extends TypertRemoteService {
     super(ctx, 'browserChromium')
     this.executablePath = resolveExecutable(config.executablePath)
     this.port = config.port
+    this.browserUrl = `http://127.0.0.1:${String(config.port)}`
     this.userDataDir = config.userDataDir ?? join(resolveAvnHome(), 'runtime', 'chrome-profile')
+    this.toolPrefix = config.mcpServerName === '' ? undefined : `mcp__${config.mcpServerName}__`
     if (this.executablePath === undefined) {
       ctx.logger.warn('browser-chromium: no Chrome or Chromium executable found; set executablePath or AVN_CHROME_PATH')
     } else if (config.launchOnStart) {
@@ -104,7 +115,7 @@ export class BrowserChromium extends TypertRemoteService {
         ctx.logger.warn(`browser-chromium: ${error instanceof Error ? error.message : String(error)}`)
       })
     }
-    const toolPrefix = config.mcpServerName === '' ? undefined : `mcp__${config.mcpServerName}__`
+    const toolPrefix = this.toolPrefix
     if (toolPrefix !== undefined) {
       ctx.on('tools/execute', async (exec, next) => {
         if (exec.name.startsWith(toolPrefix)) {
@@ -117,6 +128,30 @@ export class BrowserChromium extends TypertRemoteService {
         return next()
       })
     }
+  }
+
+  /**
+   * Sample what this browser is without launching it.
+   * @param signal - caller cancellation.
+   * @returns the debugging endpoint, whether a browser answers on it now,
+   *   whether a launch can succeed, and the tool prefix that drives it.
+   */
+  async status(signal: AbortSignal): Promise<BrowserChromiumStatus> {
+    return {
+      browserUrl: this.browserUrl,
+      running: await this.answering(signal),
+      launchable: this.executablePath !== undefined,
+      ...this.toolPrefix === undefined ? {} : { toolPrefix: this.toolPrefix },
+    }
+  }
+
+  /**
+   * Whether a browser answers on the debugging endpoint now.
+   * @param signal - caller cancellation.
+   * @returns true when the endpoint answers.
+   */
+  private async answering(signal: AbortSignal): Promise<boolean> {
+    return await fetch(`${this.browserUrl}/json/version`, { signal }).then(response => response.ok, () => false)
   }
 
   /**
@@ -133,7 +168,7 @@ export class BrowserChromium extends TypertRemoteService {
     if (url !== '' && !OPENABLE_PROTOCOLS.has(new URL(url).protocol)) {
       throw new Error(`browser-chromium: only an http(s) address opens, got ${url}`)
     }
-    const browserUrl = `http://127.0.0.1:${String(this.port)}`
+    const browserUrl = this.browserUrl
     const targets = await fetch(`${browserUrl}/json/list`, { signal })
       .then(async response => response.ok ? await response.json() as Array<{ id: string; type: string }> : undefined, () => undefined)
     if (targets !== undefined) {
@@ -158,9 +193,8 @@ export class BrowserChromium extends TypertRemoteService {
    * @throws {Error} when the browser does not come up in time.
    */
   private async ensureRunning(url: string, signal: AbortSignal): Promise<BrowserChromiumOpened> {
-    const browserUrl = `http://127.0.0.1:${String(this.port)}`
-    const answering = await fetch(`${browserUrl}/json/version`, { signal }).then(response => response.ok, () => false)
-    if (answering) return { browserUrl }
+    const browserUrl = this.browserUrl
+    if (await this.answering(signal)) return { browserUrl }
     if (this.executablePath === undefined) {
       throw new Error('browser-chromium: no Chrome or Chromium executable found')
     }
@@ -175,8 +209,7 @@ export class BrowserChromium extends TypertRemoteService {
     const deadline = Date.now() + READY_TIMEOUT_MS
     while (Date.now() < deadline) {
       signal.throwIfAborted()
-      const ready = await fetch(`${browserUrl}/json/version`, { signal }).then(response => response.ok, () => false)
-      if (ready) return { browserUrl }
+      if (await this.answering(signal)) return { browserUrl }
       await new Promise(resolve => setTimeout(resolve, READY_POLL_MS))
     }
     throw new Error(`browser-chromium: ${this.executablePath} did not answer on port ${String(this.port)}`)

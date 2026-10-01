@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概要
 
-`@aeven/tool-browser` 让模型读取并操作用户在会话旁看到的浏览器。它注册八个 `preview_*` 工具，并在每轮的第一步把当前打开的页面作为一条记录在日志中的插件消息加入请求。插件本身不执行任何浏览器操作：每次调用都是一个 `browser/automation` waterfall，由持有该会话浏览器的 Client 应答。对该 waterfall 的每次等待都有上限，因此轮次永远不会等待一个没有任何已连接 Client 持有的浏览器。
+`@aeven/tool-browser` 让模型读取并操作用户在会话旁看到的浏览器。它注册八个 `preview_*` 工具，并在每轮的第一步把当前打开的页面作为一条记录在日志中的插件消息加入请求。插件本身不执行任何浏览器操作：每次调用都是一个 `browser/automation` waterfall，由持有该会话浏览器的 Client 应答；`preview_status` 例外，它同时报告 Host 运行的 Chromium。对该 waterfall 的每次等待都有上限，因此轮次永远不会等待一个没有任何已连接 Client 持有的浏览器。
 
 ## 目录
 
@@ -31,7 +31,7 @@ kind: "package-reference"
 
 | 字段 | 默认值 | 作用 |
 | --- | --- | --- |
-| `statusTimeoutMs` | `2000` | 每轮第一步等待当前页面的毫秒数。超时后，本步不带浏览器上下文继续。 |
+| `statusTimeoutMs` | `2000` | 每轮第一步等待当前页面的毫秒数，也是 `preview_status` 等待 Client 的毫秒数。超时后，本步不带浏览器上下文继续，状态报告中不含页面。 |
 | `actionTimeoutMs` | `60000` | 每个 `preview_*` 调用等待的毫秒数，声明为该工具的 `timeoutMs`。由 `@aeven/tool-call-timeout-policy` 执行，模型收到 `TOOL_TIMEOUT`。 |
 
 ```yaml
@@ -45,9 +45,9 @@ kind: "package-reference"
 <a id="understand-the-implementation"></a>
 ## 理解实现
 
-在 Web 组合中，`@aeven/api-remotes` 把 `browser/automation` 转发给 Typert 网关，网关把它投递给每个已连接的 Client，并且只有在每个投递都得到应答后才结算。挂起的转发 waterfall 没有截止时间，因为审批和用户提问必须送达稍后连接的 Client。因此插件自行限定等待：第一步查询在与本轮 signal 合并的 `deadline` 下运行，把有界 signal 放入请求以便网关取消挂起的事件，并让 waterfall 与该 signal 竞速，因为监听器没有义务遵守它。未获应答的查询以 debug 级别记录；监听器失败以 warning 记录。[有界的浏览器状态查询](../../../.agents/notes/implemented/bug-fix/2026-09-24-bounded-browser-status-lookup.zh.md) Agent Note 记录了这一决定。
+在 Web 组合中，`@aeven/api-remotes` 把 `browser/automation` 转发给 Typert 网关，网关把它投递给每个已连接的 Client，并且只有在每个投递都得到应答后才结算。挂起的转发 waterfall 没有截止时间，因为审批和用户提问必须送达稍后连接的 Client。因此插件自行限定等待：每次查询都在与轮次或调用 signal 合并的 `deadline` 下运行，把有界 signal 放入请求以便网关取消挂起的事件，并让 waterfall 与该 signal 竞速，因为监听器没有义务遵守它。第一步中未获应答的查询以 debug 级别记录；监听器失败以 warning 记录。[有界的浏览器状态查询](../../../.agents/notes/implemented/bug-fix/2026-09-24-bounded-browser-status-lookup.zh.md) Agent Note 记录了这一决定。
 
-没有 `browser/automation` 监听器时，`preview_*` 调用以 `BROWSER_UNAVAILABLE` 失败，并附带打开浏览器的指示；没有调用方代理的调用以 `BROWSER_NO_AGENT` 失败。
+`preview_status` 无需页面即可应答。它把 Client 的应答与 `@aeven/browser-chromium` 的 `browserChromium` 服务状态组合起来 —— 通过 `ctx.get` 读取，因此未挂载 Host 浏览器的组合依然能够应答 —— 并报告该会话可以驱动的每个界面。需要页面的调用以 `BROWSER_UNAVAILABLE` 失败，并附带打开浏览器、或询问 `preview_status` 该会话有哪些界面的指示；没有调用方代理的调用以 `BROWSER_NO_AGENT` 失败。
 
 ## Model Experience
 
@@ -64,16 +64,30 @@ The user has the in-app browser open beside this chat, showing: <title> — <url
 
 This browser is the collaborative browser shared with the user. Prefer the preview_* tools for browser navigation, inspection, and interaction on it.
 For browser work, first call preview_status. Then use preview_navigate, preview_snapshot, and the focused interaction tools. Prefer snapshot-provided selectors over coordinates.
-Do not switch to Chrome, computer use, or standalone browser automation merely because a first call fails. A failed preview tool call should be inspected and retried with corrected arguments when the error is actionable.
+A failed preview call is retried with corrected arguments when the error is actionable. When the page itself refuses it — it needs a signed-in session, or it answers automated reads with a block page — stop retrying: call preview_status and drive the browser surface it reports. Ask the user to sign in; never type credentials.
 ```
 
 #### Token effect
 
-页面打开时每轮一次，约 110 个 token 加上标题和地址；没有打开页面或查询超时时为零。
+页面打开时每轮一次，约 130 个 token 加上标题和地址；没有打开页面或查询超时时为零。
 
 #### KV Cache effect
 
 仅追加：该消息在轮次开始时作为 `user/message` 记录，因此之前的请求 token 保持不变。
+
+### 状态报告
+
+#### What the model sees
+
+`preview_status` 以一个 JSON 对象应答，并且不会因浏览器缺失而失败。`sessionTab` 是会话旁的浏览器当前显示的页面，或为 null。`hostBrowser` 是本 Host 运行的 Chromium —— 其调试端点、是否已有浏览器在该端点应答、是否找到了可执行文件，以及驱动它的工具名前缀 —— 当组合未挂载任何 Host 浏览器时为 null。`nextStep` 指明应当驱动什么：优先会话旁的页面，其次是 Host 的 Chromium，两者皆无时说明需要向用户请求什么。被 `web_fetch` 拒绝的页面正是这份报告存在的理由：会话旁的浏览器此时不可用，而 Host 的 Chromium 仍然可达。
+
+#### Token effect
+
+约 110 个 token，每次调用一次，而非每个请求一次。
+
+#### KV Cache effect
+
+无：工具结果追加在工具调用结束上一请求的位置。
 
 ### 工具 schema
 
@@ -93,6 +107,7 @@ Do not switch to Chrome, computer use, or standalone browser automation merely b
 
 - **在 `statusTimeoutMs` 之后才应答的 Client 在该轮被忽略** —— 模型直到下一轮第一步才得知当前打开的页面。
 - **没有已连接的 Client 时，每个新轮次都要等待 `statusTimeoutMs`** —— 网关无法告知插件没有 Client 连接，因此查询会在第一步之前等满其截止时间。
+- **没有任何插件报告过的浏览器界面仍然不可见** —— 该报告只列出会话旁的页面与 Host 的 Chromium，因此组合挂载的其他自动化后端，只有在某个插件报告它之后才会被告知模型。
 
 <a id="dev-note"></a>
 ### Dev Note

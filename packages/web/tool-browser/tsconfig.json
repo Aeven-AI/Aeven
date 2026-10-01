@@ -34,6 +34,9 @@
     },
     {
       "path": "../../util/values"
+    },
+    {
+      "path": "../browser-chromium"
     }
   ]
 }

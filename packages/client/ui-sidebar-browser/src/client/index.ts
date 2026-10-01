@@ -19,7 +19,7 @@ import { createElement } from 'react'
 import { BrowserPane } from './BrowserPane.tsx'
 import { SearchEngineRow, type SearchEngineRowInjected } from './SearchEngineRow.tsx'
 import { automate } from './automation.ts'
-import { endTurn, isDesktopShell, liveGuests } from './guest.ts'
+import { isDesktopShell, liveGuests, setPointerHold } from './guest.ts'
 import { en, zh, type SidebarBrowserKey } from './locales.ts'
 import { SearchEnginePreference } from './search-engine.ts'
 import { BROWSER_SETTINGS_NAMESPACE, type BrowserSettings } from '../browser-settings.ts'
@@ -122,9 +122,11 @@ export function apply(ctx: ClientContext): void {
   // pane is not mounted has no page here, so the request passes on and the
   // tool reports the browser closed.
   ctx.inject(['remote', 'sessions'], (scoped) => {
-    // The pointer stays while the agent works and leaves when its turn ends.
+    // While the agent works its pointer is held, so the gaps between its
+    // actions do not read as finishing; when the work stops, the hold is
+    // released and the pointer fades on its own idle timeout.
     scoped.remote.$on('api-session/status', (sessionId, running) => {
-      if (!running) endTurn(sessionId)
+      setPointerHold(sessionId, running)
     })
     scoped.remote.$on('browser/automation', function (request, next) {
       const sessionId = (scoped.sessions as ISessions).scopeOf(this)

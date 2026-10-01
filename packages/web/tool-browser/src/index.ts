@@ -18,12 +18,13 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import type { PreStepDecision } from '@aeven/agent'
+import type { Agent, PreStepDecision } from '@aeven/agent'
+import type { BrowserChromiumStatus } from '@aeven/browser-chromium'
 import { createUserMessage, HarnessError } from '@aeven/llm'
 import { scopeTarget } from '@aeven/scope'
 import { deadline, MAX_TIMER_DELAY_MS, timeoutOf } from '@aeven/timeout'
 import { defineTool, type ParameterSchemaSpec, type ToolRunContext } from '@aeven/tools'
-import type { JsonValue } from '@aeven/util-values'
+import { assertNever, type JsonValue } from '@aeven/util-values'
 import type { BrowserAutomationOperation } from './types.ts'
 
 export type { BrowserAutomationOperation, BrowserAutomationRequestEvent } from './types.ts'
@@ -74,7 +75,7 @@ function unlessAborted<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
 const BROWSER_INSTRUCTIONS = [
   'This browser is the collaborative browser shared with the user. Prefer the preview_* tools for browser navigation, inspection, and interaction on it.',
   'For browser work, first call preview_status. Then use preview_navigate, preview_snapshot, and the focused interaction tools. Prefer snapshot-provided selectors over coordinates.',
-  'Do not switch to Chrome, computer use, or standalone browser automation merely because a first call fails. A failed preview tool call should be inspected and retried with corrected arguments when the error is actionable.',
+  'A failed preview call is retried with corrected arguments when the error is actionable. When the page itself refuses it — it needs a signed-in session, or it answers automated reads with a block page — stop retrying and escalate in order: the headless browser tools open no window, and a page that refuses those too is read in the browser the user can see, which does open one. Ask the user to sign in; never type credentials.',
 ].join('\n')
 
 /**
@@ -85,6 +86,64 @@ const BROWSER_INSTRUCTIONS = [
  */
 function renderBrowserContext(page: { readonly url?: unknown; readonly title?: unknown }): string {
   return `The user has the in-app browser open beside this chat, showing: ${String(page.title)} — ${String(page.url)}\n\n${BROWSER_INSTRUCTIONS}`
+}
+
+/**
+ * Read a status answer as the page the first-step context renders.
+ * @param value - the Client's answer.
+ * @returns the page title and address, or null when the answer carries no ordinary address.
+ */
+function asSessionTabPage(value: JsonValue): { readonly url: string; readonly title: JsonValue } | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
+  const url = value.url
+  return typeof url === 'string' && url !== '' && url !== 'about:blank' ? { url, title: value.title ?? null } : null
+}
+
+/**
+ * How the browser beside the session answered a status lookup. The three
+ * absent outcomes are different facts: `absent` is a session whose pane is not
+ * mounted, `unanswered` is a connected Client that has not answered yet, and
+ * `failed` is a pane that broke.
+ */
+type SessionTabLookup =
+  | { readonly kind: 'page'; readonly page: JsonValue }
+  | { readonly kind: 'absent' }
+  | { readonly kind: 'unanswered' }
+  | { readonly kind: 'failed'; readonly error: unknown }
+
+/** What the Host's Chromium reports, narrowed to the fields the model acts on. */
+type HostBrowserReport = {
+  /** The debugging endpoint the tools that drive this browser attach to. */
+  readonly browserUrl: string
+  /** Whether a browser answers there now. */
+  readonly running: boolean
+  /** Whether an executable was found, so a launch can succeed. */
+  readonly launchable: boolean
+  /** Prefix of the tool names that drive this browser; absent when no MCP server drives it. */
+  readonly toolPrefix?: string
+}
+
+/**
+ * What to drive, in the terms the decision needs: the open page first, the
+ * Host's Chromium when nothing is open, and the user when there is neither. A
+ * report that named only a closed pane is what leaves a model believing no
+ * browser exists on the machine at all.
+ * @param pageOpen - whether the browser beside the session shows a page.
+ * @param host - the Host's Chromium as sampled, or null when the composition mounts none.
+ * @returns the sentence the model acts on.
+ */
+function nextStepFor(pageOpen: boolean, host: HostBrowserReport | null): string {
+  if (pageOpen) return 'Drive the page beside this session with the preview_* tools.'
+  if (host === null) {
+    return 'No browser is open beside this session, and this deployment mounts none on the Host. Ask the user to open one from the right sidebar (Browser).'
+  }
+  if (host.toolPrefix === undefined) {
+    return `Nothing answers on ${host.browserUrl} and this deployment configures no tool server to drive a browser there. Ask the user to open the browser from the right sidebar (Browser).`
+  }
+  if (!host.running && !host.launchable) {
+    return `No Chrome or Chromium executable was found on this Host, so the browser behind ${host.browserUrl} cannot start. Ask the user to install one, or to open the browser from the right sidebar (Browser).`
+  }
+  return `No page is open beside this session. The Chromium on this Host is the browser the user can see and sign in to, and the ${host.toolPrefix}* tools drive it, starting it when it is not running. It opens a visible window, so reach for it after a headless read was refused, or when the page needs a signed-in session.`
 }
 
 const selector = { type: 'string', description: "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements." } as const
@@ -99,15 +158,68 @@ export function apply(ctx: Context, config: Config): void {
   // schemastery's .default() guarantees both fields are set after validation.
   const statusTimeoutMs = config.statusTimeoutMs as number
   const actionTimeoutMs = config.actionTimeoutMs as number
+  /**
+   * The agent a tool call belongs to.
+   * @param exec - the running tool call.
+   * @returns the calling agent.
+   * @throws {HarnessError} when no agent made the call.
+   */
+  const callingAgent = (exec: ToolRunContext): Agent => {
+    const agent = exec.agent
+    if (agent === undefined) throw new HarnessError('browser tools need a calling agent', 'BROWSER_NO_AGENT')
+    return agent
+  }
+
+  /**
+   * Ask the browser beside the session for its page. A forwarded waterfall
+   * stays pending until a Client answers it, so the wait is bounded by
+   * `statusTimeoutMs`, and the bounded signal cancels the pending request.
+   * @param agent - the session whose browser answers.
+   * @param signal - the turn's cancellation.
+   * @returns the page, or which way the lookup found none.
+   */
+  const readSessionTab = async (agent: Agent, signal: AbortSignal): Promise<SessionTabLookup> => {
+    using bounded = deadline(signal, statusTimeoutMs, BROWSER_STATUS_TIMEOUT)
+    try {
+      const page = await unlessAborted(ctx.waterfall(
+        scopeTarget(agent, agent),
+        'browser/automation',
+        { operation: 'status', input: {}, agent, signal: bounded.signal },
+        () => Promise.resolve(null),
+      ), bounded.signal)
+      return page === null ? { kind: 'absent' } : { kind: 'page', page }
+    } catch (error) {
+      return timeoutOf(bounded.signal, BROWSER_STATUS_TIMEOUT) === undefined
+        ? { kind: 'failed', error }
+        : { kind: 'unanswered' }
+    }
+  }
+
+  /**
+   * Sample the Chromium this deployment mounts, when it mounts one.
+   * @param signal - the tool call's cancellation.
+   * @returns the fields the model acts on, or null when no `browserChromium` service is mounted.
+   */
+  const readHostBrowser = async (signal: AbortSignal): Promise<HostBrowserReport | null> => {
+    const chromium = ctx.get('browserChromium')
+    if (chromium === undefined) return null
+    const status: BrowserChromiumStatus = await chromium.status(signal)
+    return {
+      browserUrl: status.browserUrl,
+      running: status.running,
+      launchable: status.launchable,
+      ...status.toolPrefix === undefined ? {} : { toolPrefix: status.toolPrefix },
+    }
+  }
+
   const run = async (
     operation: BrowserAutomationOperation,
     input: { [key: string]: JsonValue },
     exec: ToolRunContext,
   ): Promise<JsonValue> => {
-    const agent = exec.agent
-    if (agent === undefined) throw new HarnessError('browser tools need a calling agent', 'BROWSER_NO_AGENT')
+    const agent = callingAgent(exec)
     const unavailable = () => Promise.reject(new HarnessError(
-      'No automation-capable browser is open beside this session. Ask the user to open it from the right sidebar (Browser).',
+      'No browser is open beside this session, and preview_* drives only that browser. Call preview_status to see the browser surfaces this session has, or ask the user to open one from the right sidebar (Browser).',
       'BROWSER_UNAVAILABLE',
     ))
     return ctx.waterfall(
@@ -122,35 +234,42 @@ export function apply(ctx: Context, config: Config): void {
   // the user is looking at before it decides whether a request is about it.
   // The context is an ordinary plugin user message, so it is logged. The page
   // is optional, so an unanswered lookup costs the step at most
-  // `statusTimeoutMs`; the bounded signal also cancels the pending request.
+  // `statusTimeoutMs`.
   ctx.on('agent/pre-step', async ({ agent, step, signal }, next): Promise<PreStepDecision> => {
     const decision = await next()
     if (decision.kind === 'reject' || step !== 1 || signal.aborted) return decision
-    using bounded = deadline(signal, statusTimeoutMs, BROWSER_STATUS_TIMEOUT)
-    const page = await unlessAborted(ctx.waterfall(
-      scopeTarget(agent, agent),
-      'browser/automation',
-      { operation: 'status', input: {}, agent, signal: bounded.signal },
-      () => Promise.resolve(null),
-    ), bounded.signal).catch((error: unknown) => {
-      if (timeoutOf(bounded.signal, BROWSER_STATUS_TIMEOUT) !== undefined) {
-        ctx.logger.debug(`browser status unanswered after ${statusTimeoutMs}ms; step ${step} proceeds without the browser context`)
-      } else if (!signal.aborted) {
-        ctx.logger.warn(`browser status failed: ${error instanceof Error ? error.message : String(error)}; step ${step} proceeds without the browser context`)
+    const lookup = await readSessionTab(agent, signal)
+    switch (lookup.kind) {
+      case 'page': {
+        const page = asSessionTabPage(lookup.page)
+        if (page === null) return decision
+        const text = renderBrowserContext(page)
+        return {
+          ...decision,
+          messages: [
+            ...decision.messages,
+            createUserMessage({
+              content: [{ type: 'text', text }],
+              source: { kind: 'plugin', plugin: name, form: 'snapshot', sections: [{ name, text }] },
+            }),
+          ],
+        }
       }
-      return null
-    }) as { url?: unknown; title?: unknown } | null
-    if (page === null || typeof page.url !== 'string' || page.url === '' || page.url === 'about:blank') return decision
-    const text = renderBrowserContext(page)
-    return {
-      ...decision,
-      messages: [
-        ...decision.messages,
-        createUserMessage({
-          content: [{ type: 'text', text }],
-          source: { kind: 'plugin', plugin: name, form: 'snapshot', sections: [{ name, text }] },
-        }),
-      ],
+      case 'unanswered':
+        ctx.logger.debug(`browser status unanswered after ${statusTimeoutMs}ms; step ${step} proceeds without the browser context`)
+        return decision
+      case 'failed': {
+        // A turn that cancelled its own lookup is not a pane failure.
+        if (!signal.aborted) {
+          const reason = lookup.error instanceof Error ? lookup.error.message : String(lookup.error)
+          ctx.logger.warn(`browser status failed: ${reason}; step ${step} proceeds without the browser context`)
+        }
+        return decision
+      }
+      case 'absent':
+        return decision
+      default:
+        return assertNever(lookup)
     }
   }, { prepend: true })
 
@@ -170,16 +289,46 @@ export function apply(ctx: Context, config: Config): void {
     },
   })
 
+  // `preview_status` answers without a page, because the page beside the
+  // session and the Chromium this deployment mounts are different browsers. A
+  // report that named only the first is what leaves a model believing no
+  // browser exists on the machine at all.
+  const status = defineTool({
+    name: 'preview_status',
+    description: 'Report every browser surface this session can drive: the page in the collaborative browser beside it, including its URL, title, and loading state, and the Chromium on this Host when the deployment mounts one. Call this first for browser work, including when a page refused a plain fetch.',
+    parameters: {},
+    timeoutMs: actionTimeoutMs,
+    output: { schema: { type: 'string' }, ...text },
+    async execute(_args, exec) {
+      const lookup = await readSessionTab(callingAgent(exec), exec.signal)
+      const page = lookup.kind === 'page' ? asSessionTabPage(lookup.page) : null
+      const host = await readHostBrowser(exec.signal)
+      const report: { [key: string]: JsonValue } = {
+        sessionTab: page,
+        hostBrowser: host === null ? null : { ...host },
+        nextStep: nextStepFor(page !== null, host),
+      }
+      return JSON.stringify(report)
+    },
+  })
+
   // Names and descriptions are t3code's `preview_*` toolkit
   // (`apps/server/src/mcp/toolkits/preview/tools.ts`), narrowed to the
   // parameters this browser implements.
   for (const tool of [
-    action('preview_status', 'status',
-      'Report whether the collaborative browser tab beside this session is automation-capable, including its URL, title, and loading state.',
-      {}),
+    status,
     action('preview_navigate', 'navigate',
       "Navigate the collaborative browser tab. Pass {url:'https://t3.chat'} for a website or a local dev server URL.",
       { url: { type: 'string', required: true, description: 'Website URL. Use this for public pages and directly reachable URLs.' } }),
+    action('preview_back', 'back',
+      'Go back one page in the collaborative browser tab, showing the pointer pressing the control.',
+      {}),
+    action('preview_forward', 'forward',
+      'Go forward one page in the collaborative browser tab, showing the pointer pressing the control.',
+      {}),
+    action('preview_reload', 'reload',
+      'Reload the page in the collaborative browser tab, showing the pointer pressing the control.',
+      {}),
     action('preview_snapshot', 'snapshot',
       'Inspect a page before interacting. Returns page state: URL, title, visible text, and interactive elements with CSS selectors.',
       {}),

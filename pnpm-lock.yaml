@@ -11351,6 +11351,9 @@ importers:
       '@aeven/agent':
         specifier: workspace:^
         version: link:../../core/agent
+      '@aeven/browser-chromium':
+        specifier: workspace:^
+        version: link:../browser-chromium
       '@aeven/llm':
         specifier: workspace:^
         version: link:../../llm/llm
