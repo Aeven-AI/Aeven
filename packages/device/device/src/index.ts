@@ -192,7 +192,10 @@ export class DeviceService extends TypertRemoteService {
     }
   }
 
-  /** The current state snapshot. */
+  /**
+   * The current state snapshot.
+   * @returns the state last published: hosts, devices, sessions, and the service status.
+   */
   snapshot(): DeviceServiceState {
     return this.state
   }
@@ -734,7 +737,10 @@ export class DeviceService extends TypertRemoteService {
     })
   }
 
-  private async resolveDevice(hostId: DeviceHostId | undefined, deviceId: DeviceId): Promise<{ ready: DeviceReadiness; device: DeviceSummary }> {
+  private async resolveDevice(
+    hostId: DeviceHostId | undefined,
+    deviceId: DeviceId,
+  ): Promise<{ ready: DeviceReadiness; device: DeviceSummary }> {
     const host = this.resolveHost(hostId)
     const ready = await this.readiness(host.id)
     const device = this.findDevice(this.state, host.id, deviceId) ?? this.findDevice(await this.refresh(ready), host.id, deviceId)
