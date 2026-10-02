@@ -71,7 +71,7 @@
 
 .filePath {
   min-width: 0;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--dsw-alias-label-primary);
   white-space: pre;
 }

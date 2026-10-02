@@ -46,7 +46,10 @@ export const CURSOR_SPRITE = { width: 23, height: 24 } as const
  * the offset that centres it is the half-difference of the two sizes, and the
  * sprite's centre lands on the box centre exactly.
  */
-export const CURSOR_NUDGE = { x: (CURSOR_BOX - CURSOR_SPRITE.width) / 2, y: (CURSOR_BOX - CURSOR_SPRITE.height) / 2 } as const
+export const CURSOR_NUDGE = {
+  x: (CURSOR_BOX - CURSOR_SPRITE.width) / 2,
+  y: (CURSOR_BOX - CURSOR_SPRITE.height) / 2,
+} as const
 
 /**
  * The cursor's glow, matching the reference's two-stop drop shadow.
@@ -56,8 +59,8 @@ export const CURSOR_NUDGE = { x: (CURSOR_BOX - CURSOR_SPRITE.width) / 2, y: (CUR
  * overlay root to re-tint it.
  */
 export const CURSOR_GLOW_FILTER =
-  'drop-shadow(0 0 6px color-mix(in srgb, var(--aeven-browser-overlay-glow, #0069FB) 90%, transparent)) '
-  + 'drop-shadow(0 0 15px color-mix(in srgb, var(--aeven-browser-overlay-glow, #0069FB) 48%, transparent))'
+  'drop-shadow(0 0 6px color-mix(in srgb, var(--aeven-browser-overlay-glow, #0069FB) 90%, transparent)) ' +
+  'drop-shadow(0 0 15px color-mix(in srgb, var(--aeven-browser-overlay-glow, #0069FB) 48%, transparent))'
 
 /**
  * Distance at or above which a move uses the long-range path, in CSS pixels.
@@ -220,7 +223,7 @@ ${root} .${cls('label')} {
   background: rgba(15, 23, 42, 0.92);
   color: rgb(248, 250, 252);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.01em;
   pointer-events: none;
   opacity: 0;

@@ -50,7 +50,10 @@
   height: var(--dsw-aeven-loading-mark-size, 18px);
   box-sizing: border-box;
   border: 2px solid var(--dsw-alias-border-l2);
-  border-top-color: var(--dsw-aeven-loading-mark-color, var(--dsw-alias-label-primary));
+  border-top-color: var(
+    --dsw-aeven-loading-mark-color,
+    var(--dsw-alias-label-primary)
+  );
   border-radius: 50%;
   animation: history-loading-spin 700ms linear infinite;
 }
@@ -61,7 +64,7 @@
 }
 
 /* The pagination control does not create a trajectory turn boundary. */
-.table tbody .historyLoadRow + tr[data-turn-start='true'] td::before {
+.table tbody .historyLoadRow + tr[data-turn-start="true"] td::before {
   content: none;
 }
 
@@ -102,12 +105,14 @@
   white-space: nowrap;
 }
 
-.table:not([data-scroll-ready='true']) {
+.table:not([data-scroll-ready="true"]) {
   visibility: hidden;
 }
 
 @keyframes history-loading-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -180,7 +185,11 @@
   border: 0;
 }
 
-.table tbody tr:not([data-collapsed-summary]):not([data-virtual-spacer]):not([data-history-load]) {
+.table
+  tbody
+  tr:not([data-collapsed-summary]):not([data-virtual-spacer]):not(
+    [data-history-load]
+  ) {
   cursor: default;
   outline: none;
   transition:
@@ -188,31 +197,35 @@
     opacity 120ms var(--ds-ease-in-out);
 }
 
-.table tbody tr[data-timeline-focus='outside'] {
+.table tbody tr[data-timeline-focus="outside"] {
   opacity: 0.24;
 }
 
-.table tbody tr:not([data-collapsed-summary]):not([data-virtual-spacer]):not([data-history-load]):not([data-selected='true']):hover {
+.table
+  tbody
+  tr:not([data-collapsed-summary]):not([data-virtual-spacer]):not(
+    [data-history-load]
+  ):not([data-selected="true"]):hover {
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
-.table tbody tr[data-request-only='true']:hover {
+.table tbody tr[data-request-only="true"]:hover {
   background: transparent;
 }
 
-.table tbody tr[data-request-only='true'] td {
+.table tbody tr[data-request-only="true"] td {
   height: 0;
   padding-top: 0;
   padding-bottom: 0;
   border-bottom: 0;
 }
 
-.table tbody tr[data-terminal-request-boundary='true'] td {
+.table tbody tr[data-terminal-request-boundary="true"] td {
   /* Retain the lower half of the 16px boundary marker at the table's end. */
   height: 9px;
 }
 
-.table tbody tr[data-request-only='true'] .turnRail {
+.table tbody tr[data-request-only="true"] .turnRail {
   top: -15px;
   bottom: 0;
 }
@@ -221,7 +234,7 @@
   box-shadow: inset 0 0 0 1px var(--dsw-alias-state-business-primary);
 }
 
-.table tbody tr[data-selected='true'] {
+.table tbody tr[data-selected="true"] {
   background: var(--dsw-alias-interactive-bg-active);
 }
 
@@ -231,7 +244,9 @@
   position: absolute;
   z-index: 6;
   top: -8px;
-  left: calc(var(--request-boundary-base-left) + var(--request-boundary-offset, 0px));
+  left: calc(
+    var(--request-boundary-base-left) + var(--request-boundary-offset, 0px)
+  );
   width: 16px;
   height: 16px;
   padding: 0;
@@ -251,7 +266,7 @@
   box-shadow:
     0 0 0 2px var(--dsw-alias-bg-layer-1),
     0 0 0 3px transparent;
-  content: '';
+  content: "";
   transition:
     background 120ms var(--ds-ease-in-out),
     box-shadow 120ms var(--ds-ease-in-out);
@@ -289,12 +304,13 @@
 .requestBoundaryControlActive:hover::before,
 .requestBoundaryControlActive:focus-visible::before {
   background: var(--dsw-blend-brand-surface);
-  box-shadow: 0 0 0 1.5px var(--dsw-alias-brand-primary-new-colorprimary-new-color);
+  box-shadow: 0 0 0 1.5px
+    var(--dsw-alias-brand-primary-new-colorprimary-new-color);
 }
 
-.requestBoundaryControl[data-request-status='error']::before,
-.requestBoundaryControl[data-request-status='error']:hover::before,
-.requestBoundaryControl[data-request-status='error']:focus-visible::before {
+.requestBoundaryControl[data-request-status="error"]::before,
+.requestBoundaryControl[data-request-status="error"]:hover::before,
+.requestBoundaryControl[data-request-status="error"]:focus-visible::before {
   background: var(--dsw-alias-state-error-primary);
 }
 
@@ -328,7 +344,7 @@
   background: var(--trajectory-turn-accent);
 }
 
-.table tbody tr[data-turn-end='true'] .turnRail {
+.table tbody tr[data-turn-end="true"] .turnRail {
   bottom: 0;
 }
 
@@ -339,20 +355,20 @@
   width: 3px;
 }
 
-.table tbody tr[data-error='true'] .turnRail {
+.table tbody tr[data-error="true"] .turnRail {
   background: var(--dsw-blend-error-surface);
 }
 
-.table tbody tr[data-error='true'] .selectionRail {
+.table tbody tr[data-error="true"] .selectionRail {
   background: var(--dsw-alias-state-error-primary);
 }
 
-.table tbody tr[data-turn-start='true'] td {
+.table tbody tr[data-turn-start="true"] td {
   position: relative;
   overflow: visible;
 }
 
-.table tbody tr[data-turn-start='true']:not(:first-child) td::before {
+.table tbody tr[data-turn-start="true"]:not(:first-child) td::before {
   position: absolute;
   z-index: 1;
   top: 0;
@@ -360,7 +376,7 @@
   left: 0;
   height: 2px;
   background: var(--dsw-alias-border-l1);
-  content: '';
+  content: "";
   pointer-events: none;
   transform: translateY(-50%);
 }
@@ -426,7 +442,7 @@
   width: 76px;
 }
 
-.kindSlot :global([role='tooltip']) {
+.kindSlot :global([role="tooltip"]) {
   border: 0;
   background: var(--dsw-alias-bg-layer-2);
   box-shadow: var(--dsw-elevation-panel);
@@ -677,8 +693,8 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
-.table tbody tr[data-collapsed-summary='turn'] td,
-.table tbody tr[data-collapsed-summary='assistant'] td {
+.table tbody tr[data-collapsed-summary="turn"] td,
+.table tbody tr[data-collapsed-summary="assistant"] td {
   height: 20px;
 }
 
@@ -709,7 +725,7 @@
   flex: none;
   margin-right: 6px;
   color: var(--dsw-alias-label-tertiary);
-  font-weight: 600;
+  font-weight: 500;
   user-select: none;
 }
 
@@ -744,8 +760,12 @@
 
 .toolCallNameTypeface {
   color: var(--dsw-alias-label-primary);
-  font: 400 12px/18px Menlo, Consolas, 'Liberation Mono', 'PingFang SC',
-    'Microsoft YaHei';
+  font:
+    400 12px/18px Menlo,
+    Consolas,
+    "Liberation Mono",
+    "PingFang SC",
+    "Microsoft YaHei";
 }
 
 .toolCallPayload {
@@ -754,15 +774,15 @@
   font: 400 12px/18px var(--ds-font-family-code);
 }
 
-.table tbody tr[data-kind='tool'] .contentText,
-.table tbody tr[data-kind='subtool'] .contentText,
-.table tbody tr[data-kind='tool'] .resultPreview,
-.table tbody tr[data-kind='subtool'] .resultPreview {
+.table tbody tr[data-kind="tool"] .contentText,
+.table tbody tr[data-kind="subtool"] .contentText,
+.table tbody tr[data-kind="tool"] .resultPreview,
+.table tbody tr[data-kind="subtool"] .resultPreview {
   font-family: var(--ds-font-family-code);
   font-size: 12px;
 }
 
-.table tbody tr[data-kind='subtool'] .content {
+.table tbody tr[data-kind="subtool"] .content {
   padding-left: 26px;
 }
 
@@ -954,7 +974,7 @@
   height: 2px;
   border-radius: 1px 1px 0 0;
   background: var(--dsw-alias-state-business-primary);
-  content: '';
+  content: "";
 }
 
 .close:focus-visible,
@@ -1322,7 +1342,7 @@
   transition: transform 120ms var(--ds-ease-in-out);
 }
 
-.thinkingToggle[aria-expanded='true'] .thinkingChevron {
+.thinkingToggle[aria-expanded="true"] .thinkingChevron {
   transform: rotate(90deg);
 }
 

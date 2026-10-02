@@ -89,7 +89,7 @@
 .catalogHeading h3 {
   font-size: 14px;
   line-height: 20px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .catalogHeading span {
@@ -118,7 +118,7 @@
   background: var(--dsw-alias-bg-layer-3);
 }
 
-.card[data-open='true'] {
+.card[data-open="true"] {
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
   box-shadow: var(--dsw-elevation-panel);
 }
@@ -141,7 +141,7 @@
 }
 
 .cardContent:hover,
-.card[data-open='true'] > .cardContent {
+.card[data-open="true"] > .cardContent {
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
@@ -155,7 +155,7 @@
   overflow: hidden;
   font-size: 14px;
   line-height: 20px;
-  font-weight: 600;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -179,21 +179,21 @@
 
 /* A live fiber carries the ready glyph rather than a green fill: the mark is
    the same one every settled state draws. */
-.statusDot[data-phase='active'] {
+.statusDot[data-phase="active"] {
   background: none;
   color: var(--dsw-alias-state-success-primary);
 }
 
-.statusDot[data-phase='active'] > svg {
+.statusDot[data-phase="active"] > svg {
   width: 100%;
   height: 100%;
 }
 
-.statusDot[data-phase='failed'] {
+.statusDot[data-phase="failed"] {
   background: var(--dsw-alias-state-error-primary);
 }
 
-.statusDot[data-phase='loading'] {
+.statusDot[data-phase="loading"] {
   background: var(--dsw-alias-state-business-primary);
 }
 
@@ -210,22 +210,22 @@
   white-space: nowrap;
 }
 
-.configTag[data-kind='enabled'] {
+.configTag[data-kind="enabled"] {
   background: var(--dsw-tint-success-10);
   color: var(--dsw-alias-state-success-primary);
 }
 
-.configTag[data-kind='preset'] {
+.configTag[data-kind="preset"] {
   background: var(--dsw-tint-business-10);
   color: var(--dsw-alias-state-business-primary);
 }
 
-.configTag[data-kind='conditional'] {
+.configTag[data-kind="conditional"] {
   background: var(--dsw-tint-warning-12);
   color: var(--dsw-alias-state-warning-primary, #b45309);
 }
 
-.configTag[data-kind='failed'] {
+.configTag[data-kind="failed"] {
   background: var(--dsw-tint-error-10);
   color: var(--dsw-alias-state-error-primary);
 }
@@ -275,7 +275,7 @@
   transform: rotate(-90deg);
 }
 
-.groupToggle[aria-expanded='true'] > .chevron {
+.groupToggle[aria-expanded="true"] > .chevron {
   transform: none;
 }
 
@@ -339,13 +339,11 @@
   text-overflow: ellipsis;
 }
 
-
 .groupBody {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-
 
 .brokenNote {
   margin: 0;
@@ -380,7 +378,6 @@
   cursor: pointer;
 }
 
-
 .enabledIn {
   display: flex;
   flex-wrap: wrap;
@@ -388,7 +385,7 @@
   gap: 4px 10px;
 }
 
-.card[data-failed='true'] {
+.card[data-failed="true"] {
   border-color: var(--dsw-tint-error-45);
 }
 
@@ -397,7 +394,7 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
-.card[data-open='true'] .chevron {
+.card[data-open="true"] .chevron {
   transform: rotate(180deg);
 }
 

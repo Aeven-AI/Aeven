@@ -70,7 +70,7 @@
 .table th {
   border-top: 1px solid var(--dsw-alias-bg-base);
   border-bottom: 1px solid var(--dsw-alias-bg-base);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .table th:first-child {

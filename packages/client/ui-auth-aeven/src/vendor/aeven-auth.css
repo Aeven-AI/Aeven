@@ -812,7 +812,7 @@ body .content-block a:hover {
 }
 body .content-block b,
 body .content-block strong {
-  font-weight: 600;
+  font-weight: 500;
 }
 body .content-block hr {
   border: none;
@@ -1408,7 +1408,7 @@ body
   .table-content
   table
   strong {
-  font-weight: 600;
+  font-weight: 500;
 }
 body .content-block .table-wrapper .table-container .table-content table code {
   font-size: 12px;
@@ -1429,7 +1429,7 @@ body .content-block .table-wrapper .table-container .table-content table td {
   vertical-align: top;
 }
 body .content-block .table-wrapper .table-container .table-content table th {
-  font-weight: 600;
+  font-weight: 500;
   border-top: 1px solid rgb(242, 242, 242);
   border-bottom: 1px solid rgb(242, 242, 242);
 }
@@ -2266,7 +2266,7 @@ body
   .mermaid-content
   table
   strong {
-  font-weight: 600;
+  font-weight: 500;
 }
 body
   .content-block
@@ -2311,7 +2311,7 @@ body
   .mermaid-content
   table
   th {
-  font-weight: 600;
+  font-weight: 500;
   border-top: 1px solid rgb(242, 242, 242);
   border-bottom: 1px solid rgb(242, 242, 242);
 }
@@ -5450,7 +5450,7 @@ html[data-avn-desktop]
   z-index: 10;
   padding-bottom: 24px;
   font-size: 30px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 30px;
   letter-spacing: normal;
   color: #000000;
@@ -5522,7 +5522,7 @@ html[data-avn-desktop]
   font-size: 0.875rem;
   font-family:
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
-  font-weight: 600;
+  font-weight: 500;
   color: #000000;
 }
 #app-root
@@ -6044,7 +6044,7 @@ html[data-avn-desktop]
   font-family:
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   font-size: 68px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 68px;
   letter-spacing: 0px;
 }
@@ -6107,23 +6107,52 @@ html[data-avn-desktop]
  * way while it fits and stop at the top edge when it does not, and a short
  * screen puts the footer after the form instead of over it.
  */
-#app-root .view-container .authenticate.view .main-content .content-container .form-container {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container {
   justify-content: flex-start;
 }
 /* A title that wraps on a narrow screen stays centred like a one-line title. */
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form .form-title {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form
+  .form-title {
   text-align: center;
 }
-#app-root .view-container .authenticate.view .main-content .content-container .form-container .form {
+#app-root
+  .view-container
+  .authenticate.view
+  .main-content
+  .content-container
+  .form-container
+  .form {
   flex-shrink: 0;
   margin-top: auto;
   margin-bottom: auto;
 }
 @media screen and (max-height: 700px) {
-  #app-root .view-container .authenticate.view .main-content .content-container .form-container {
+  #app-root
+    .view-container
+    .authenticate.view
+    .main-content
+    .content-container
+    .form-container {
     padding-bottom: 0;
   }
-  #app-root .view-container .authenticate.view .main-content .content-container .form-container .form-footer {
+  #app-root
+    .view-container
+    .authenticate.view
+    .main-content
+    .content-container
+    .form-container
+    .form-footer {
     position: relative;
     flex-shrink: 0;
     bottom: auto;

@@ -35,7 +35,9 @@
   box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
   color: var(--dsw-alias-label-primary);
   font-size: var(--avn-content-font-size, 16px);
-  line-height: calc(var(--dsw-aeven-reading-line-height) + var(--avn-content-font-delta, 0px));
+  line-height: calc(
+    var(--dsw-aeven-reading-line-height) + var(--avn-content-font-delta, 0px)
+  );
   overflow: hidden;
 }
 
@@ -114,7 +116,7 @@
   margin: 12px 0 4px;
   font-size: inherit;
   line-height: inherit;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .detail :global(:is(h1, h2, h3, h4, h5, h6)):first-child {
@@ -262,13 +264,15 @@
 }
 
 .checkbox::before {
-  content: '';
+  content: "";
   grid-area: 1 / 1;
   width: 18px;
   height: 18px;
   border: 1.5px solid var(--dsw-alias-border-l4);
   border-radius: 5px;
-  transition: background-color 120ms ease, border-color 120ms ease;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
 }
 
 .checkbox > svg {

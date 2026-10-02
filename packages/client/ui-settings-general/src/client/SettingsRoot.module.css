@@ -125,7 +125,7 @@
   padding: 0 12px;
   font-size: 16px;
   line-height: 24px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -266,12 +266,20 @@
 
 .optionsFrame::before {
   top: 0;
-  mask-image: linear-gradient(to bottom, #000 0, transparent var(--avn-settings-fade));
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    transparent var(--avn-settings-fade)
+  );
 }
 
 .optionsFrame::after {
   bottom: 0;
-  mask-image: linear-gradient(to top, #000 0, transparent var(--avn-settings-fade));
+  mask-image: linear-gradient(
+    to top,
+    #000 0,
+    transparent var(--avn-settings-fade)
+  );
 }
 
 /* Options area (figma Options 501:29983): page-inset sides and bottom, scrolls
@@ -285,7 +293,12 @@
 .options {
   flex: 1;
   min-height: 0;
-  padding: var(--avn-settings-fade) max(0px, calc(var(--dsw-aeven-page-inset) - var(--avn-settings-scrollbar, 0px))) var(--avn-settings-fade) var(--dsw-aeven-page-inset);
+  padding: var(--avn-settings-fade)
+    max(
+      0px,
+      calc(var(--dsw-aeven-page-inset) - var(--avn-settings-scrollbar, 0px))
+    )
+    var(--avn-settings-fade) var(--dsw-aeven-page-inset);
   overflow-y: auto;
   mask-image: linear-gradient(
     to bottom,

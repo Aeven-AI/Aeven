@@ -408,7 +408,7 @@
 
   b,
   strong {
-    font-weight: 600;
+    font-weight: 500;
   }
 
   hr {
@@ -426,7 +426,7 @@
   }
 
   /* Footnote references and definitions are hash targets; a jump stops below the host's sticky header. */
-  [id^='user-content-fn'] {
+  [id^="user-content-fn"] {
     scroll-margin-top: var(--hm-header-offset);
   }
 
@@ -968,7 +968,7 @@
 
           b,
           strong {
-            font-weight: 600;
+            font-weight: 500;
           }
 
           th,
@@ -981,7 +981,7 @@
           }
 
           th {
-            font-weight: 600;
+            font-weight: 500;
 
             border-top: 1px solid var(--hm-table-header-color);
             border-bottom: 1px solid var(--hm-table-header-color);
@@ -1629,7 +1629,7 @@
 
           b,
           strong {
-            font-weight: 600;
+            font-weight: 500;
           }
 
           th,
@@ -1642,7 +1642,7 @@
           }
 
           th {
-            font-weight: 600;
+            font-weight: 500;
 
             border-top: 1px solid var(--hm-table-header-color);
             border-bottom: 1px solid var(--hm-table-header-color);
@@ -1733,7 +1733,9 @@
       opacity: 0;
       visibility: hidden;
 
-      transition: opacity 240ms ease-out, visibility 0s linear 240ms;
+      transition:
+        opacity 240ms ease-out,
+        visibility 0s linear 240ms;
     }
   }
 
@@ -1743,12 +1745,21 @@
 
     /* A diagram placeholder is a wait like any other, so it draws the shared
        product loading mark instead of a diagram-local size and tint. */
-    width: var(--hm-diagram-loader-size, var(--dsw-aeven-loading-mark-size, 18px));
-    height: var(--hm-diagram-loader-size, var(--dsw-aeven-loading-mark-size, 18px));
+    width: var(
+      --hm-diagram-loader-size,
+      var(--dsw-aeven-loading-mark-size, 18px)
+    );
+    height: var(
+      --hm-diagram-loader-size,
+      var(--dsw-aeven-loading-mark-size, 18px)
+    );
   }
 
   .mermaid-loader-mark {
-    color: var(--hm-diagram-loader-color, var(--dsw-aeven-loading-mark-color, var(--dsw-alias-label-primary)));
+    color: var(
+      --hm-diagram-loader-color,
+      var(--dsw-aeven-loading-mark-color, var(--dsw-alias-label-primary))
+    );
 
     animation: none;
   }

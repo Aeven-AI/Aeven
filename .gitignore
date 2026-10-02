@@ -57,3 +57,6 @@ packages/*/*/src/**/*.d.ts.map
 
 # Local computer-use scratch scripts; never committed.
 .scratch-cua/
+
+# A probe's throwaway AVN_HOME: per-run credentials, sessions, memory, and logs.
+/.probe-home/

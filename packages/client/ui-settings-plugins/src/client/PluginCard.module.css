@@ -5,7 +5,9 @@
   border: 0.5px solid var(--dsw-alias-border-l4);
   border-radius: 16px;
   background: var(--dsw-alias-bg-layer-3);
-  transition: border-color .16s, background .16s;
+  transition:
+    border-color 0.16s,
+    background 0.16s;
 }
 
 .card:hover {
@@ -51,7 +53,7 @@
 
 .name {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.4;
   color: var(--dsw-alias-label-primary);
 }
@@ -65,7 +67,7 @@
 .chevron {
   flex: none;
   color: var(--dsw-alias-label-tertiary);
-  transition: transform .16s;
+  transition: transform 0.16s;
 }
 
 .chevronOpen {

@@ -9,7 +9,7 @@
 }
 
 .markdown strong {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .markdown h1 {
@@ -232,7 +232,7 @@
   font-family: var(--dsw-font-family) !important;
 }
 
-.markdown input[type='checkbox'] {
+.markdown input[type="checkbox"] {
   margin: 0 8px 0 0;
 }
 
@@ -324,7 +324,7 @@
 .markdown.compact :is(h1, h2, h3, h4, h5, h6) {
   margin: 8px 0 4px;
   font: inherit;
-  font-weight: 600;
+  font-weight: 500;
   color: inherit;
 }
 

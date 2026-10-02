@@ -132,7 +132,6 @@
   border-radius: 20px;
 }
 
-
 .name,
 .identity .desc {
   overflow: hidden;
@@ -217,7 +216,7 @@
   background: var(--dsw-alias-bg-module-platform);
 }
 
-.nudge[data-tone='error'] .title {
+.nudge[data-tone="error"] .title {
   color: var(--dsw-alias-state-error-primary);
 }
 
@@ -241,12 +240,12 @@
   background: transparent;
 }
 
-.plan[data-current='true'] {
+.plan[data-current="true"] {
   background: var(--dsw-alias-bg-module-platform);
   border-color: var(--dsw-static-neutral-bluish-400);
 }
 
-.plan[data-recommended='true'] {
+.plan[data-recommended="true"] {
   border: 1px solid var(--dsw-alias-label-primary);
   padding: 17.5px 19.5px 19.5px;
 }
@@ -285,7 +284,7 @@
 
 .priceAmount {
   font-size: 26px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 32px;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
@@ -326,7 +325,7 @@
   width: 100%;
 }
 
-.plan[data-current='true'] .planAction:disabled {
+.plan[data-current="true"] .planAction:disabled {
   opacity: 1;
   color: var(--dsw-alias-label-tertiary);
   cursor: default;
@@ -369,7 +368,7 @@
 .balance {
   flex: none;
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 28px;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
@@ -406,7 +405,9 @@
   line-height: 22px;
   font-variant-numeric: tabular-nums;
   cursor: pointer;
-  transition: background 0.16s, color 0.16s;
+  transition:
+    background 0.16s,
+    color 0.16s;
 }
 
 .segment:hover {
@@ -415,7 +416,7 @@
 
 /* The chosen amount is a fill and nothing else: the raised edge it used to
    carry read as a second control inside the track. */
-.segment[aria-checked='true'],
+.segment[aria-checked="true"],
 .customSegment {
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-primary);
@@ -428,7 +429,7 @@
   cursor: text;
 }
 
-.customSegment[data-invalid='true'] {
+.customSegment[data-invalid="true"] {
   box-shadow: 0 0 0 1px var(--dsw-alias-state-error-primary);
 }
 
