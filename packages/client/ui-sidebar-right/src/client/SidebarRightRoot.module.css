@@ -58,7 +58,7 @@
 }
 
 /* The panel is its own layer so its width can animate independently of the
-   body above it, and it paints the same opaque fill and drop shadow the left
+   body above it, and it paints the same opaque, shadowless fill the left
    sidebar's does. Last in the DOM and below the z-indexed content, as the left
    sidebar has it. The 2px bottom overhang hides the panel's edge against the
    viewport floor. */
@@ -72,7 +72,7 @@
   /* Mirrored corner: the left sidebar rounds its top-right. */
   border-top-left-radius: var(--dsw-aeven-sidebar-panel-radius);
   background: var(--dsw-specific-sidebar-fill);
-  filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.05));
+  filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0));
   pointer-events: none;
   transition:
     width var(--dsw-aeven-rightbar-transition-duration)

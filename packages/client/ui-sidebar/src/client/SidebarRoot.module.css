@@ -58,8 +58,8 @@
 
 /* Aeven `.side-content-background`: the panel is its own layer so its width
    can animate while the button above it stays opaque. It paints an opaque fill
-   — the working surface behind the column never shows through — and carries the
-   column's own drop shadow.
+   — the working surface behind the column never shows through — and casts no
+   shadow: that fill alone separates the panel from the conversation.
    Last in the DOM and below the z-indexed button and content, as Aeven has it.
    The 2px bottom overhang hides the panel's edge against the viewport floor. */
 .panel {
@@ -71,7 +71,7 @@
   opacity: 0;
   border-top-right-radius: var(--dsw-aeven-sidebar-panel-radius);
   background: var(--dsw-specific-sidebar-fill);
-  filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.05));
+  filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0));
   pointer-events: none;
   transition:
     width var(--dsw-aeven-sidebar-transition-duration)

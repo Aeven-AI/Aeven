@@ -22,7 +22,7 @@
   --dsw-elevation-stroke-color: transparent;
   border-radius: var(--dsw-aeven-radius-surface);
   background: var(--dsw-specific-input-major);
-  box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
+  box-shadow: 0px 5px 15px rgba(0, 0, 0, 0);
   color: var(--dsw-alias-label-primary);
   /* Elevated surface in dark: the plan body inside scrolls once the card hits
      the cap above, so the thumb takes the l2 pair (see ui-theme
