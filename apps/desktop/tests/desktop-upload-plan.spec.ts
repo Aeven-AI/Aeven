@@ -167,13 +167,13 @@ describe('desktop upload plan', () => {
   })
 
   it('rejects a completed build from another avn version or deployment', async () => {
-    const paths = await fixture('mac-x64')
+    const paths = await fixture('mac-arm64')
     await writeFile(join(paths.repositoryRoot, 'package.json'), '{"version":"1.2.4"}\n')
     await writeFile(join(paths.appRoot, 'package.json'), '{"version":"1.2.4"}\n')
-    await expect(createDesktopUploadPlan('mac-x64', paths)).rejects.toThrow(/completion record.*1\.2\.4/u)
+    await expect(createDesktopUploadPlan('mac-arm64', paths)).rejects.toThrow(/completion record.*1\.2\.4/u)
 
-    const productionPaths = await fixture('mac-x64', '1.2.3', 'production')
-    await expect(createDesktopUploadPlan('mac-x64', {
+    const productionPaths = await fixture('mac-arm64', '1.2.3', 'production')
+    await expect(createDesktopUploadPlan('mac-arm64', {
       ...productionPaths,
       environment: {
         AVN_DESKTOP_AUTO_UPDATE_ENV: 'test',
