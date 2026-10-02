@@ -298,6 +298,7 @@
     { "path": "./packages/spill/spill" },
     { "path": "./packages/spill/spill-local" },
     { "path": "./packages/spill/spill-policy" },
+    { "path": "./packages/guard/access-policy" },
     { "path": "./packages/guard/timeout-policy" },
     { "path": "./packages/runtime-diagnostics/invariants" },
     { "path": "./packages/test-support/agent-loop-testkit" },
