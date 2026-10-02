@@ -29,7 +29,6 @@ import type { CatalogSource } from '../src/catalog.ts'
 import type { AvnCompatibility } from '../src/compatibility.ts'
 import type { PkceLoginCallbacks } from '../src/oauth.ts'
 import {
-  CLAUDE_CODE_OAUTH_PROVIDER,
   CODEX_OAUTH_PROVIDER,
   type OAuthProviderDefinition,
 } from '../src/oauth-providers.ts'
@@ -439,17 +438,13 @@ describe('GrokBuildWebAuth status', () => {
     })
   })
 
-  it('mirrors every available model and surfaces the listing error when nothing is selected', async () => {
-    const { session } = fakeGrokSession({
-      credential,
-      modelIds: ['grok-4'],
-      catalogError: 'live listing failed',
-    })
-    const status = await new GrokBuildWebAuth(session).status()
+  it('reports the model list with its selection once signed in', async () => {
+    const { session } = fakeGrokSession({ credential, modelIds: ['grok-4'] })
+    const models = [{ id: 'grok-4', name: 'Grok 4', imageInput: true, imageOutput: false, selected: false }]
+    const status = await new GrokBuildWebAuth(session, () => models).status()
     expect(status.status).toBe('signed-in')
     if (status.status !== 'signed-in') throw new Error('expected a signed-in status')
-    expect(status.selected).toEqual(['grok-4'])
-    expect(status.catalogError).toBe('live listing failed')
+    expect(status.models).toEqual(models)
   })
 
   it('re-reads import availability for a failed sign-in instead of the stored credential', async () => {
@@ -809,7 +804,6 @@ interface CodingRouteHarness {
   cleanups: Array<() => void | Promise<void>>
   grok: GrokSessionFake
   codex: SubscriptionSessionFake
-  claude: SubscriptionSessionFake
 }
 
 function codingRouteHarness(options: {
@@ -818,20 +812,18 @@ function codingRouteHarness(options: {
   grokOptions?: GrokSessionOptions
   subscriptions?: readonly OAuthProviderSession[]
   codexLogin?: (interaction: AuthInteraction) => Promise<Credential>
-  claudeLogin?: (interaction: AuthInteraction) => Promise<Credential>
 } = {}): CodingRouteHarness {
   const { routes, cleanups, context } = createAuthRouteContext()
   const grok = fakeGrokSession(options.grokOptions)
   const codex = fakeSubscriptionSession(CODEX_OAUTH_PROVIDER, options.codexLogin)
-  const claude = fakeSubscriptionSession(CLAUDE_CODE_OAUTH_PROVIDER, options.claudeLogin)
   registerCodingOAuthRoutes(
     context,
     grok.session,
-    options.subscriptions ?? [codex.session, claude.session],
+    options.subscriptions ?? [codex.session],
     options.policy,
     options.compatibility,
   )
-  return { routes, cleanups, grok, codex, claude }
+  return { routes, cleanups, grok, codex }
 }
 
 const GROK_MUTATION_PATHS = [
@@ -1161,7 +1153,6 @@ describe('coding OAuth status route', () => {
     })
     expect(body.providers.grok).toMatchObject({ status: 'signed-in', activeAccountId: 'acct-1' })
     expect(body.providers.codex).toMatchObject({ provider: 'codex', status: 'signed-out' })
-    expect(body.providers.claude).toMatchObject({ provider: 'claude', status: 'signed-out' })
   })
 
   it('prefers an injected compatibility document over the degraded fallback', async () => {
@@ -1238,11 +1229,7 @@ describe('coding OAuth login route', () => {
       status: 200,
       body: { method: 'device', url: SUBSCRIPTION_AUTHORIZE_URL },
     })
-    await expect(answer('{"provider":"claude"}')).resolves.toEqual({
-      status: 200,
-      body: { method: 'browser', url: SUBSCRIPTION_AUTHORIZE_URL },
-    })
-    // The third request joins the pending device login instead of restarting it.
+    // The second request joins the pending device login instead of restarting it.
     expect(codex.calls.login).toBe(2)
   })
 
@@ -1250,8 +1237,8 @@ describe('coding OAuth login route', () => {
     const { routes } = codingRouteHarness()
     const handler = handlerFor(routes, CODING_OAUTH_LOGIN_PATH)
     const cases: Array<[string, string]> = [
-      ['{"provider":"kimi"}', 'OAuth provider "kimi" is not configured'],
-      ['{"provider":"bogus"}', 'provider must be one of grok, codex, kimi, or claude'],
+      ['{"provider":"kimi"}', 'provider must be one of grok or codex'],
+      ['{"provider":"bogus"}', 'provider must be one of grok or codex'],
       ['5', 'request body must be an object'],
       ['null', 'request body must be an object'],
       ['[1]', 'request body must be an object'],
@@ -1325,7 +1312,7 @@ describe('coding OAuth login-code route', () => {
     const cases: Array<[string, string]> = [
       ['{"provider":"grok","code":"stale"}', 'grok-build: no authorization-code login is waiting for a code'],
       ['{"provider":"codex","code":"stale"}', 'codex-oauth: no authorization-code login is waiting for a code'],
-      ['{"provider":"kimi","code":"stale"}', 'OAuth provider "kimi" is not configured'],
+      ['{"provider":"kimi","code":"stale"}', 'provider must be one of grok or codex'],
     ]
     for (const [body, error] of cases) {
       const answer = await callRoute(handler, body)
@@ -1346,14 +1333,13 @@ describe('coding OAuth login-cancel route', () => {
     const body = codexAnswer.body as CodingOAuthWebStatus
     expect(body.accessMode).toBe('loopback')
     expect(body.providers.codex).toMatchObject({ provider: 'codex', status: 'signed-out' })
-    expect(body.providers.claude).toMatchObject({ provider: 'claude', status: 'signed-out' })
   })
 
   it('maps an unconfigured provider to 500', async () => {
     const { routes } = codingRouteHarness()
     await expect(callRoute(handlerFor(routes, CODING_OAUTH_LOGIN_CANCEL_PATH), '{"provider":"kimi"}')).resolves.toEqual({
       status: 500,
-      body: { error: 'OAuth provider "kimi" is not configured' },
+      body: { error: 'provider must be one of grok or codex' },
     })
   })
 })
@@ -1376,7 +1362,7 @@ describe('coding OAuth logout route', () => {
     const { routes } = codingRouteHarness()
     await expect(callRoute(handlerFor(routes, CODING_OAUTH_LOGOUT_PATH), '{"provider":"kimi"}')).resolves.toEqual({
       status: 500,
-      body: { error: 'OAuth provider "kimi" is not configured' },
+      body: { error: 'provider must be one of grok or codex' },
     })
   })
 })

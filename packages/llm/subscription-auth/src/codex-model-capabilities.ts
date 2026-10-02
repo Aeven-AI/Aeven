@@ -42,6 +42,12 @@ const DEFAULT_TTL_MS = 15 * 60 * 1000
 export interface CodexModelCapability {
   readonly id: string
   readonly serviceTiers: readonly string[]
+  /** Display name, when the listing states one. */
+  readonly name?: string
+  /** Codex lists this model for its own picker; a hidden model is not offered. */
+  readonly listed: boolean
+  /** Whether the model reads images, when the listing states its input modalities. */
+  readonly imageInput?: boolean
 }
 
 /** Options for codex model capabilities. */
@@ -150,7 +156,15 @@ export function parseCodexModelCapabilities(value: unknown): CodexModelCapabilit
     const id = optionalNonEmptyString(item['slug']) ?? optionalNonEmptyString(item['id'])
     if (id === undefined || seen.has(id)) continue
     seen.add(id)
-    models.push({ id, serviceTiers: parseServiceTiers(item['service_tiers']) })
+    const name = optionalNonEmptyString(item['display_name'])
+    const modalities = Array.isArray(item['input_modalities']) ? item['input_modalities'] : undefined
+    models.push({
+      id,
+      serviceTiers: parseServiceTiers(item['service_tiers']),
+      listed: item['visibility'] !== 'hide' && item['visibility'] !== 'hidden',
+      ...(name === undefined ? {} : { name }),
+      ...(modalities === undefined ? {} : { imageInput: modalities.includes('image') }),
+    })
   }
   return models
 }

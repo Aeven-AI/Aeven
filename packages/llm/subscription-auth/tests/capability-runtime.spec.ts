@@ -30,8 +30,8 @@ import { CODEX_OAUTH_FAST_ROUTE, CODING_OAUTH_ROUTES } from '../src/ids.ts'
 
 const DEFAULT_ROUTES = [...CODING_OAUTH_ROUTES]
 const FAST_ROUTES = [...CODING_OAUTH_ROUTES, CODEX_OAUTH_FAST_ROUTE]
-const ELIGIBLE_MODEL: CodexModelCapability = { id: 'gpt-5.4', serviceTiers: ['priority'] }
-const INELIGIBLE_MODEL: CodexModelCapability = { id: 'gpt-5.3-codex', serviceTiers: [] }
+const ELIGIBLE_MODEL: CodexModelCapability = { id: 'gpt-5.4', serviceTiers: ['priority'], listed: true }
+const INELIGIBLE_MODEL: CodexModelCapability = { id: 'gpt-5.3-codex', serviceTiers: [], listed: true }
 
 function settings(overrides: Partial<CapabilitySettings> = {}): CapabilitySettings {
   return { ...DEFAULT_CAPABILITY_SETTINGS, ...overrides }

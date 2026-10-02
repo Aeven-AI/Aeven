@@ -47,6 +47,9 @@
     },
     {
       "path": "../../host/webserver"
+    },
+    {
+      "path": "../../media/media"
     }
   ]
 }

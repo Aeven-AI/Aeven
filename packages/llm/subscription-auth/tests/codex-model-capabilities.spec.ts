@@ -53,8 +53,8 @@ describe('parseCodexModelCapabilities', () => {
         ],
       }),
     ).toEqual([
-      { id: 'gpt-5.4', serviceTiers: ['standard', 'priority'] },
-      { id: 'gpt-5.3-codex', serviceTiers: ['flex'] },
+      { id: 'gpt-5.4', serviceTiers: ['standard', 'priority'], listed: true },
+      { id: 'gpt-5.3-codex', serviceTiers: ['flex'], listed: true },
     ])
   })
 
@@ -72,8 +72,8 @@ describe('parseCodexModelCapabilities', () => {
         ],
       }),
     ).toEqual([
-      { id: 'no-tiers', serviceTiers: [] },
-      { id: 'mixed', serviceTiers: ['priority'] },
+      { id: 'no-tiers', serviceTiers: [], listed: true },
+      { id: 'mixed', serviceTiers: ['priority'], listed: true },
     ])
   })
 })
@@ -197,7 +197,7 @@ describe('createCodexModelCapabilities', () => {
     const second = caps.refresh()
     resolveFirst?.(jsonResponse(200, { models: [{ slug: 'gpt-5.4', service_tiers: [{ id: 'priority' }] }] }))
     const [a, b] = await Promise.all([first, second])
-    expect(a).toEqual([{ id: 'gpt-5.4', serviceTiers: ['priority'] }])
+    expect(a).toEqual([{ id: 'gpt-5.4', serviceTiers: ['priority'], listed: true }])
     expect(b).toEqual(a)
     expect(fetchImpl).toHaveBeenCalledOnce()
   })
@@ -235,11 +235,11 @@ describe('createCodexModelCapabilities', () => {
       expect(resolveSecond).toBeDefined()
     })
     resolveFirst?.(jsonResponse(200, { models: [{ slug: 'stale', service_tiers: [{ id: 'priority' }] }] }))
-    await expect(first).resolves.toEqual([{ id: 'stale', serviceTiers: ['priority'] }])
+    await expect(first).resolves.toEqual([{ id: 'stale', serviceTiers: ['priority'], listed: true }])
     expect(caps.getCached()).toBeUndefined()
     expect(caps.isPriorityEligible('stale')).toBe(false)
     resolveSecond?.(jsonResponse(200, { models: [{ slug: 'fresh', service_tiers: [{ id: 'priority' }] }] }))
-    await expect(second).resolves.toEqual([{ id: 'fresh', serviceTiers: ['priority'] }])
+    await expect(second).resolves.toEqual([{ id: 'fresh', serviceTiers: ['priority'], listed: true }])
     expect(caps.isPriorityEligible('fresh')).toBe(true)
     expect(fetchImpl).toHaveBeenCalledTimes(2)
   })
@@ -258,7 +258,7 @@ describe('createCodexModelCapabilities', () => {
       now: () => 1,
       ttlMs: 60_000,
     })
-    await expect(caps.refresh()).resolves.toEqual([{ id: 'gpt-5.4', serviceTiers: ['priority'] }])
+    await expect(caps.refresh()).resolves.toEqual([{ id: 'gpt-5.4', serviceTiers: ['priority'], listed: true }])
     expect(fetchImpl).toHaveBeenCalledOnce()
     expect(fetchImpl.mock.calls[0]?.[0]).toBe(codexModelsUrl('9.9.9'))
     expect(caps.isPriorityEligible('gpt-5.4')).toBe(true)

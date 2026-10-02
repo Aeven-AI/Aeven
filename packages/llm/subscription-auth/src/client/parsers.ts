@@ -45,7 +45,6 @@ export function formatEpoch(value: number | undefined): string | undefined {
 const USAGE_WINDOW_LABELS = new Set<UsageWindowLabelView>([
   'fiveHour',
   'weekly',
-  'weeklyOpus',
   'monthly',
   'session',
   'codeReview',

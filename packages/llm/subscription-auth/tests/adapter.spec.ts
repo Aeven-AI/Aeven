@@ -18,7 +18,6 @@ import {
   codexRoutingHint,
 } from '../src/codex-model-capabilities.ts'
 import {
-  CLAUDE_CODE_OAUTH_ROUTE,
   CODEX_OAUTH_FAST_ROUTE,
   CODEX_OAUTH_ROUTE,
   CODEX_PI_PROVIDER,
@@ -66,8 +65,8 @@ function modelsCacheFile(): string {
   return join(sessionHome, GROK_BUILD_MODELS_CACHE_FILENAME)
 }
 
-function cachedSession(notify?: () => void): GrokBuildSession {
-  return new GrokBuildSession(new GrokBuildCredentialStore(join(sessionHome, 'auth.json')), notify)
+function cachedSession(notify?: () => void, isSelected?: (modelId: string) => boolean): GrokBuildSession {
+  return new GrokBuildSession(new GrokBuildCredentialStore(join(sessionHome, 'auth.json')), notify, isSelected)
 }
 
 async function signIn(session: GrokBuildSession, access = 'grok-access'): Promise<void> {
@@ -208,33 +207,25 @@ describe('GrokBuildSession.provider', () => {
 })
 
 describe('GrokBuildSession cached catalog', () => {
-  it('restores the cached live ids and the selected models', async () => {
+  it('restores the cached live listing and serves only the selected models', async () => {
     await writeFile(
       modelsCacheFile(),
-      `${JSON.stringify({ version: 2, ids: ['grok-4.6'], selected: ['grok-custom', 'grok-4.6'], fetchedAt: 1 })}\n`,
+      `${JSON.stringify({
+        version: 3,
+        ids: ['grok-4.6', 'grok-4.7'],
+        models: [{ id: 'grok-4.7', name: 'Grok 4.7', contextWindow: 500_000, reasoning: true }],
+        fetchedAt: 1,
+      })}\n`,
       { mode: 0o600 },
     )
-    const session = cachedSession()
+    const session = cachedSession(undefined, modelId => modelId !== 'grok-4.6')
     await session.loadCachedCatalog()
     expect(session.catalogSource).toBe('cache')
     expect(session.catalogError).toBeUndefined()
-    expect(session.selectedModelIds()).toEqual(['grok-custom', 'grok-4.6'])
-    expect(session.availableModels().map(model => model.id)).toEqual(['grok-4.6'])
-    // A selected id the live list no longer offers is still materialized.
-    expect(session.visibleModels().map(model => model.id)).toEqual(['grok-custom', 'grok-4.6'])
-  })
-
-  it('accepts a legacy v1 cache and normalises its id list', async () => {
-    await writeFile(
-      modelsCacheFile(),
-      `${JSON.stringify({ version: 1, ids: ['grok-4.6', 'grok-4.6', 7, '', 'grok-4.5'], selected: [] })}\n`,
-      { mode: 0o600 },
-    )
-    const session = cachedSession()
-    await session.loadCachedCatalog()
-    expect(session.catalogSource).toBe('cache')
-    expect(session.selectedModelIds()).toBeUndefined()
-    expect(session.availableModels().map(model => model.id)).toEqual(['grok-4.6', 'grok-4.5'])
+    expect(session.availableModels().map(model => model.id)).toEqual(['grok-4.6', 'grok-4.7'])
+    expect(session.availableModels()[1]).toMatchObject({ name: 'Grok 4.7', contextWindow: 500_000 })
+    expect(session.visibleModels().map(model => model.id)).toEqual(['grok-4.7'])
+    expect(session.provider().getModels().map(model => model.id)).toEqual(['grok-4.7'])
   })
 
   it('ignores a cache document it cannot understand', async () => {
@@ -244,15 +235,15 @@ describe('GrokBuildSession cached catalog', () => {
       'null',
       '[]',
       '{"version":9}',
-      '{"version":2,"ids":[],"selected":[]}',
-      '{"version":2,"ids":"nope"}',
+      '{"version":2,"ids":["grok-4.6"]}',
+      '{"version":3,"ids":[]}',
+      '{"version":3,"ids":"nope"}',
     ]
     for (const body of bodies) {
       await writeFile(modelsCacheFile(), body, { mode: 0o600 })
       const session = cachedSession()
       await session.loadCachedCatalog()
       expect(session.catalogSource).toBe('fallback')
-      expect(session.selectedModelIds()).toBeUndefined()
       expect(session.availableModels().length).toBeGreaterThan(0)
     }
   })
@@ -278,10 +269,8 @@ describe('GrokBuildSession cached catalog', () => {
     expect(session.catalogError).toBeUndefined()
     expect(session.availableModels().map(model => model.id)).toEqual(['grok-4.7'])
 
-    await session.setSelectedModels(['grok-4.7', 'grok-4.7', ''])
-    expect(session.selectedModelIds()).toEqual(['grok-4.7'])
     const onDisk = JSON.parse(await readFile(modelsCacheFile(), 'utf8')) as Record<string, unknown>
-    expect(onDisk).toMatchObject({ version: 2, ids: ['grok-4.7'], selected: ['grok-4.7'] })
+    expect(onDisk).toMatchObject({ version: 3, ids: ['grok-4.7'], models: [{ id: 'grok-4.7' }] })
   })
 
   it('skips the live listing when the stored credential yields no token', async () => {
@@ -301,7 +290,7 @@ describe('GrokBuildSession cached catalog', () => {
   it('keeps the cached catalog when a later live listing fails', async () => {
     await writeFile(
       modelsCacheFile(),
-      `${JSON.stringify({ version: 2, ids: ['grok-4.6'], fetchedAt: 1 })}\n`,
+      `${JSON.stringify({ version: 3, ids: ['grok-4.6'], fetchedAt: 1 })}\n`,
       { mode: 0o600 },
     )
     const session = cachedSession()
@@ -319,13 +308,10 @@ describe('GrokBuildSession cached catalog', () => {
     expect(session.availableModels().map(model => model.id)).toEqual(['grok-4.6'])
   })
 
-  it('writes an empty id list when no live catalog was ever listed', async () => {
-    const session = cachedSession()
-    await session.setSelectedModels([])
-    expect(session.selectedModelIds()).toBeUndefined()
-    const onDisk = JSON.parse(await readFile(modelsCacheFile(), 'utf8')) as Record<string, unknown>
-    expect(onDisk).toMatchObject({ version: 2, ids: [] })
-    expect(onDisk).not.toHaveProperty('selected')
+  it('notifies discovery when the selection changes', () => {
+    const notify = vi.fn()
+    cachedSession(notify).notifySelectionChange()
+    expect(notify).toHaveBeenCalledOnce()
   })
 
   it('resolves and invalidates the stored access token', async () => {
@@ -350,29 +336,16 @@ describe('GrokBuildSession cached catalog', () => {
     await expect(session.resolveAccessToken()).resolves.toBeUndefined()
   })
 
-  it('restores a selection even when the cache carries no live list', async () => {
-    await writeFile(
-      modelsCacheFile(),
-      `${JSON.stringify({ version: 2, ids: [], selected: ['grok-4.6'], fetchedAt: 1 })}\n`,
-      { mode: 0o600 },
-    )
-    const session = cachedSession()
-    await session.loadCachedCatalog()
-    expect(session.catalogSource).toBe('fallback')
-    expect(session.selectedModelIds()).toEqual(['grok-4.6'])
-    expect(session.visibleModels().map(model => model.id)).toEqual(['grok-4.6'])
-  })
-
   it('notifies discovery on a credential change without a logout', () => {
     const notify = vi.fn()
     cachedSession(notify).notifyCredentialChange()
     expect(notify).toHaveBeenCalledOnce()
   })
 
-  it('logout clears the credential, the cache, the selection and notifies discovery', async () => {
+  it('logout clears the credential and the cache and notifies discovery', async () => {
     await writeFile(
       modelsCacheFile(),
-      `${JSON.stringify({ version: 2, ids: ['grok-4.6'], selected: ['grok-4.6'], fetchedAt: 1 })}\n`,
+      `${JSON.stringify({ version: 3, ids: ['grok-4.6'], fetchedAt: 1 })}\n`,
       { mode: 0o600 },
     )
     const notify = vi.fn()
@@ -385,7 +358,6 @@ describe('GrokBuildSession cached catalog', () => {
     expect(notify).toHaveBeenCalledOnce()
     await expect(session.store.read(XAI_PI_PROVIDER)).resolves.toBeUndefined()
     expect(session.catalogSource).toBe('fallback')
-    expect(session.selectedModelIds()).toBeUndefined()
     expect(session.availableModels().map(model => model.id)).toContain(DEFAULT_GROK_BUILD_MODEL)
     await expect(readFile(modelsCacheFile(), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
   })
@@ -397,16 +369,11 @@ describe('createCodingOAuthAdapter model discovery', () => {
     const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
     const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
       definition =>
-        new OAuthProviderSession(
-          definition,
-          undefined,
-          new OAuthCredentialFileStore(
-            definition.nativeProviderId,
-            join(dir, `${definition.slug}.json`),
-            definition.route,
-          ),
-          join(dir, `${definition.slug}-models.json`),
-        ),
+        new OAuthProviderSession(definition, { store: new OAuthCredentialFileStore(
+          definition.nativeProviderId,
+          join(dir, `${definition.slug}.json`),
+          definition.route,
+        ), cacheFile: join(dir, `${definition.slug}-models.json`) }),
     )
     const adapter = createCodingOAuthAdapter(grok, subscriptions, () => undefined)
     const inner = (
@@ -457,20 +424,15 @@ describe('createCodingOAuthAdapter model discovery', () => {
     const grok = new GrokBuildSession(grokStore)
     const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
       definition =>
-        new OAuthProviderSession(
-          definition,
-          undefined,
-          new OAuthCredentialFileStore(
-            definition.nativeProviderId,
-            join(dir, `${definition.slug}.json`),
-            definition.route,
-          ),
-          join(dir, `${definition.slug}-models.json`),
-        ),
+        new OAuthProviderSession(definition, { store: new OAuthCredentialFileStore(
+          definition.nativeProviderId,
+          join(dir, `${definition.slug}.json`),
+          definition.route,
+        ), cacheFile: join(dir, `${definition.slug}-models.json`) }),
     )
     const adapter = createCodingOAuthAdapter(grok, subscriptions, () => undefined)
 
-    for (const route of [GROK_BUILD_ROUTE, CODEX_OAUTH_ROUTE, CLAUDE_CODE_OAUTH_ROUTE]) {
+    for (const route of [GROK_BUILD_ROUTE, CODEX_OAUTH_ROUTE]) {
       expect(await adapter.listModels(route)).toEqual([])
       expect(adapter.providerInfo(route).name).toMatch(/\(OAuth\)$/u)
     }
@@ -503,19 +465,14 @@ describe('createCodingOAuthAdapter model discovery', () => {
     const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
     const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
       definition =>
-        new OAuthProviderSession(
-          definition,
-          undefined,
-          new OAuthCredentialFileStore(
-            definition.nativeProviderId,
-            join(dir, `${definition.slug}.json`),
-            definition.route,
-          ),
-          join(dir, `${definition.slug}-models.json`),
-        ),
+        new OAuthProviderSession(definition, { store: new OAuthCredentialFileStore(
+          definition.nativeProviderId,
+          join(dir, `${definition.slug}.json`),
+          definition.route,
+        ), cacheFile: join(dir, `${definition.slug}-models.json`) }),
     )
     const adapter = createCodingOAuthAdapter(grok, subscriptions, () => undefined)
-    for (const route of [GROK_BUILD_ROUTE, CODEX_OAUTH_ROUTE, CLAUDE_CODE_OAUTH_ROUTE]) {
+    for (const route of [GROK_BUILD_ROUTE, CODEX_OAUTH_ROUTE]) {
       const policy = adapter.providerRetryPolicy(route)
       expect(policy?.mode).toBe('normal')
       expect(policy).toMatchObject({
@@ -539,16 +496,11 @@ describe('createCodingOAuthAdapter model discovery', () => {
     const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
     const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
       definition =>
-        new OAuthProviderSession(
-          definition,
-          undefined,
-          new OAuthCredentialFileStore(
-            definition.nativeProviderId,
-            join(dir, `${definition.slug}.json`),
-            definition.route,
-          ),
-          join(dir, `${definition.slug}-models.json`),
-        ),
+        new OAuthProviderSession(definition, { store: new OAuthCredentialFileStore(
+          definition.nativeProviderId,
+          join(dir, `${definition.slug}.json`),
+          definition.route,
+        ), cacheFile: join(dir, `${definition.slug}-models.json`) }),
     )
     const adapter = createCodingOAuthAdapter(grok, subscriptions, () => undefined, {
       mode: 'normal',
@@ -556,7 +508,7 @@ describe('createCodingOAuthAdapter model discovery', () => {
       retryableCodes: ['RATE_LIMIT', 'SERVER', 'TIMEOUT', 'TRANSPORT'],
       backoff: { initialDelayMs: 250, maxDelayMs: 5_000, jitterRatio: 0 },
     })
-    const policy = adapter.providerRetryPolicy(CLAUDE_CODE_OAUTH_ROUTE)
+    const policy = adapter.providerRetryPolicy(CODEX_OAUTH_ROUTE)
     expect(policy).toMatchObject({ mode: 'normal', maxRetries: 5, initialDelayMs: 250, maxDelayMs: 5_000 })
     expect(policy?.mode === 'normal' && policy.retryableCodes).not.toContain('AUTH')
   })
@@ -566,16 +518,11 @@ describe('createCodingOAuthAdapter model discovery', () => {
     const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
     const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
       definition =>
-        new OAuthProviderSession(
-          definition,
-          undefined,
-          new OAuthCredentialFileStore(
-            definition.nativeProviderId,
-            join(dir, `${definition.slug}.json`),
-            definition.route,
-          ),
-          join(dir, `${definition.slug}-models.json`),
-        ),
+        new OAuthProviderSession(definition, { store: new OAuthCredentialFileStore(
+          definition.nativeProviderId,
+          join(dir, `${definition.slug}.json`),
+          definition.route,
+        ), cacheFile: join(dir, `${definition.slug}-models.json`) }),
     )
     const adapter = createCodingOAuthAdapter(grok, subscriptions, () => undefined)
     expect(CODING_OAUTH_ROUTES).not.toContain(CODEX_OAUTH_FAST_ROUTE)
@@ -588,16 +535,11 @@ describe('createCodingOAuthAdapter model discovery', () => {
     const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
     const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
       definition =>
-        new OAuthProviderSession(
-          definition,
-          undefined,
-          new OAuthCredentialFileStore(
-            definition.nativeProviderId,
-            join(dir, `${definition.slug}.json`),
-            definition.route,
-          ),
-          join(dir, `${definition.slug}-models.json`),
-        ),
+        new OAuthProviderSession(definition, { store: new OAuthCredentialFileStore(
+          definition.nativeProviderId,
+          join(dir, `${definition.slug}.json`),
+          definition.route,
+        ), cacheFile: join(dir, `${definition.slug}-models.json`) }),
     )
     const codex = subscriptions.find(session => session.definition.route === CODEX_OAUTH_ROUTE)!
     const catalog = codex.availableModels()
@@ -635,16 +577,11 @@ describe('createCodingOAuthAdapter model discovery', () => {
     const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
     const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
       definition =>
-        new OAuthProviderSession(
-          definition,
-          undefined,
-          new OAuthCredentialFileStore(
-            definition.nativeProviderId,
-            join(dir, `${definition.slug}.json`),
-            definition.route,
-          ),
-          join(dir, `${definition.slug}-models.json`),
-        ),
+        new OAuthProviderSession(definition, { store: new OAuthCredentialFileStore(
+          definition.nativeProviderId,
+          join(dir, `${definition.slug}.json`),
+          definition.route,
+        ), cacheFile: join(dir, `${definition.slug}-models.json`) }),
     )
     const codex = subscriptions.find(session => session.definition.route === CODEX_OAUTH_ROUTE)!
     const template = codex.availableModels()[0]!
@@ -821,16 +758,11 @@ describe('createCodingOAuthAdapter model discovery', () => {
     const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
     const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
       definition =>
-        new OAuthProviderSession(
-          definition,
-          undefined,
-          new OAuthCredentialFileStore(
-            definition.nativeProviderId,
-            join(dir, `${definition.slug}.json`),
-            definition.route,
-          ),
-          join(dir, `${definition.slug}-models.json`),
-        ),
+        new OAuthProviderSession(definition, { store: new OAuthCredentialFileStore(
+          definition.nativeProviderId,
+          join(dir, `${definition.slug}.json`),
+          definition.route,
+        ), cacheFile: join(dir, `${definition.slug}-models.json`) }),
     )
     const codex = subscriptions.find(session => session.definition.route === CODEX_OAUTH_ROUTE)!
     vi.spyOn(codex.models, 'getAuth').mockRejectedValue(
@@ -906,16 +838,11 @@ describe('createCodingOAuthAdapter credential routing', () => {
     const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
     const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
       definition =>
-        new OAuthProviderSession(
-          definition,
-          undefined,
-          new OAuthCredentialFileStore(
-            definition.nativeProviderId,
-            join(dir, `${definition.slug}.json`),
-            definition.route,
-          ),
-          join(dir, `${definition.slug}-models.json`),
-        ),
+        new OAuthProviderSession(definition, { store: new OAuthCredentialFileStore(
+          definition.nativeProviderId,
+          join(dir, `${definition.slug}.json`),
+          definition.route,
+        ), cacheFile: join(dir, `${definition.slug}-models.json`) }),
     )
     const resolveAttachments = (): undefined => undefined
     const { retryPolicy, adapterOptions } = args
@@ -1031,7 +958,7 @@ describe('createCodingOAuthAdapter credential routing', () => {
         },
       },
     })
-    expect(retryOnly.adapter.providerRetryPolicy(CLAUDE_CODE_OAUTH_ROUTE)).toMatchObject({ maxRetries: 2 })
+    expect(retryOnly.adapter.providerRetryPolicy(CODEX_OAUTH_ROUTE)).toMatchObject({ maxRetries: 2 })
 
     const fastOnly = await build({ adapterOptions: { codexFast: { isEligible: () => true } } })
     expect(fastOnly.adapter.providerInfo(CODEX_OAUTH_FAST_ROUTE).name).toBe('OpenAI Codex Fast requested (OAuth)')
