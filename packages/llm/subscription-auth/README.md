@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-subscription-auth` lets a deployment drive models from coding subscriptions the operator already pays for, instead of an API key. It signs in to Grok Build, ChatGPT Codex, and Claude Code over OAuth, publishes each as an LLM route, reports what quota is left, and contributes image and video generation to the media seam. A Subscriptions group on the Model providers settings page owns sign-in and quota in the browser, in the same rows as the API-key providers. It is experimental: excluded from official releases, and it talks to private endpoints the vendors do not document, so a provider change can break a route without warning.
+`avn-subscription-auth` lets a deployment drive models from coding subscriptions the operator already pays for, instead of an API key. It signs in to Grok Build, ChatGPT Codex, and Claude Code over OAuth, publishes each as an LLM route, reports what quota is left, and offers image and video generation through its own tools. A Subscriptions group on the Model providers settings page owns sign-in and quota in the browser, in the same rows as the API-key providers. It is experimental: excluded from official releases, and it talks to private endpoints the vendors do not document, so a provider change can break a route without warning.
 
 ## Table of Contents
 
@@ -55,7 +55,7 @@ Each provider is one `OAuthProviderSession` over a per-provider credential file,
 
 Usage reporting normalizes three unrelated vendor payloads into one projection (`src/usage-view.ts`): remaining percent per window and epoch-second resets, whatever the vendor reports. Codex answers `wham/usage` with used-percent windows and a credit balance, Claude answers `/api/oauth/usage` with three utilization buckets and a monthly extra-usage allowance, and Grok answers `/billing?format=credits` with one billing period, a per-product split, and a prepaid cent balance. Money balances carry their ISO 4217 currency and are shown in its minor unit. Each reader caches a successful read briefly and a refusal for much longer, because only a sign-in change can alter a refusal.
 
-Media generation reaches the model two ways: the harness media seam, which the `image.generate` tool drives with a provider picker, and this package's own Imagine and Codex image tools. Tool advertisement is gated on credential readiness rather than on a setting — a tool whose backend holds no usable credential is withdrawn rather than offered and failed.
+Media generation reaches the model only through this package's own Imagine and Codex tools; it registers no provider into the harness media seam, whose image models are the deployment's own. Tool advertisement is gated on credential readiness rather than on a setting — a tool whose backend holds no usable credential is withdrawn rather than offered and failed.
 
 **Runtime invariant:** No companion is published. OAuth sessions and credential files have no independent package-owned observation to compare, while capability, route, and tool contributions are owned by their registries and covered by lifecycle tests.
 
@@ -95,7 +95,7 @@ Tool advertisement changes the tool catalogue, and the catalogue is part of the 
 - **The Grok Imagine image model has two names.** The direct xAI API calls it `grok-imagine-image-2.0` and the Grok Build proxy calls it `grok-imagine-image-quality`. Both spellings are accepted and normalized to the transport in play, so a model picker offering either id works whichever credential resolves.
 - **Grok's billing redirect is not observed.** The official client hides quota for accounts whose remote settings carry `usage_billing_redirect_url`. This package does not fetch remote settings, so such an account sees numbers its own vendor client would decline to show.
 - **The compatibility BOM is now redundant.** `compatibility/avn-bom.json` and `AVN_EXACT_BOM` detect cross-repository version drift, which workspace resolution makes impossible. They are kept until the package settles in the harness, then removed.
-- **The package spans several product roles.** OAuth sessions, an LLM adapter, media providers, tools, and a client UI live in one package. It is expected to split along those roles before promotion out of `experimental/`.
+- **The package spans several product roles.** OAuth sessions, an LLM adapter, media tools, and a client UI live in one package. It is expected to split along those roles before promotion out of `experimental/`.
 - **Credential files are the only durable state.** They hold refresh tokens, and removing a provider's last account deletes its document — a full sign-out that also discards the refresh token, recoverable only by a fresh browser sign-in.
 
 <a id="dev-note"></a>

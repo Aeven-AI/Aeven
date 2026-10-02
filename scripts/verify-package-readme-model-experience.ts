@@ -204,6 +204,7 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/util/output-retention': { kind: 'indirect', reason: 'Only retention consumers render retained content and omission metadata.' },
   'packages/util/native-command': { kind: 'none', reason: 'The host-side subprocess runner registers nothing model-facing.' },
   'packages/media/media': { kind: 'indirect', reason: 'The provider registry registers no tool and names no model; a consumer owns whatever the model sees.' },
+  'packages/media/media-aeven': { kind: 'indirect', reason: 'The media backend registers no tool; a consumer owns whatever the model sees.' },
   'packages/media/media-deepinfra': { kind: 'indirect', reason: 'The media backend registers no tool; a consumer owns whatever the model sees.' },
   'packages/media/media-openrouter': { kind: 'indirect', reason: 'The media backend registers no tool; a consumer owns whatever the model sees.' },
   'packages/media/media-pi-ai': { kind: 'indirect', reason: 'The media backend registers no tool; a consumer owns whatever the model sees.' },

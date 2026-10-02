@@ -54,6 +54,9 @@ export interface MediaImageReference {
   readonly data: Uint8Array
 }
 
+/** A background an image model can generate, where its catalog offers the option. */
+export type MediaImageBackground = 'transparent' | 'opaque'
+
 /**
  * What one image generation asks for. `model` is the provider's own model id;
  * the seam never rewrites it, so a provider's catalog is the authority on what
@@ -77,8 +80,10 @@ export interface MediaImageRequest {
   readonly size?: string
   /** Deterministic generation seed. */
   readonly seed?: number
-  /** Reference images for image-to-image work. */
+  /** Reference images for image-to-image work, in the order the prompt refers to them. */
   readonly references?: readonly MediaImageReference[]
+  /** Background to generate. Omitted = the model's own choice. */
+  readonly background?: MediaImageBackground
 }
 
 /**

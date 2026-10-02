@@ -1,5 +1,5 @@
 ---
-description: "The media package group: the ctx.media generated-image and generated-video seam, and the DeepInfra, OpenRouter, and pi-ai providers that serve it."
+description: "The media package group: the ctx.media generated-image and generated-video seam, and the Aeven, DeepInfra, OpenRouter, and pi-ai providers that serve it."
 kind: "package-group"
 ---
 
@@ -25,6 +25,7 @@ The seam package owns the service and the provider registries; each provider pac
 | Package | Role |
 |---|---|
 | [`media`](media/README.md) | Owns `ctx.media` and the image and video provider registries every provider registers into |
+| [`media-aeven`](media-aeven/README.md) | Serves Aeven's two image models from the Aeven gateway over the signed-in session |
 | [`media-deepinfra`](media-deepinfra/README.md) | Serves images and video from DeepInfra's OpenAI-compatible endpoints |
 | [`media-openrouter`](media-openrouter/README.md) | Serves video from OpenRouter through submit, poll, and content retrieval |
 | [`media-pi-ai`](media-pi-ai/README.md) | Serves images by registering pi-ai's own images registry as providers |

@@ -32,7 +32,6 @@ import {
   XAI_PI_PROVIDER,
 } from '../src/ids.ts'
 import { apply, inject, name, type Config as PluginConfig } from '../src/index.ts'
-import type { SeamImageProvider } from '../src/media-provider.ts'
 import { MediaStore } from '../src/media-store.ts'
 import { grokBuildAuthPath, OAuthCredentialFileStore } from '../src/store.ts'
 import { OAuthProviderSession } from '../src/oauth-session.ts'
@@ -627,6 +626,11 @@ function capturedRegistration<T>(entries: T[], entry: T): () => void {
   }
 }
 
+/** The part of a generated-media image provider these tests observe. */
+interface SeamImageProvider {
+  readonly id: string
+}
+
 class OwnerMedia extends Service {
   readonly providers: SeamImageProvider[] = []
 
@@ -903,20 +907,16 @@ describe('owner composition over a real Cordis context', () => {
     await app.dispose()
   })
 
-  it('mounts the Imagine and Codex generated-media providers into the seam', async () => {
+  it('registers no image model into the generated-media seam beside a mounted one', async () => {
     const app = await bootOwner({
       media: true,
       sandbox: true,
       ready: (harness) => { expect(harness.tools.registered.size).toBeGreaterThan(0) },
     })
 
-    expect(app.media!.providers.map(provider => provider.id)).toEqual(['grok-imagine', 'codex'])
-    for (const provider of app.media!.providers) {
-      await expect(provider.listImageModels?.()).resolves.toBeInstanceOf(Array)
-    }
+    expect(app.media!.providers).toEqual([])
 
     await app.dispose()
-    expect(app.media!.providers).toEqual([])
   })
 
   it('registers the Codex search provider only while the capability is enabled', async () => {
@@ -1108,23 +1108,6 @@ describe('Imagine tool execution over the owner composition', () => {
     // which streams the stored bytes rather than the upstream URL.
     const served = await app.webServer.request(completed.path!)
     expect(served.status).toBe(200)
-
-    await app.fiber.dispose()
-  })
-
-  it('reports a missing Grok Build sign-in through the generated-media seam', async () => {
-    imagineTransport.fetch.mockResolvedValue(imagineJsonResponse({ data: [] }))
-    const app = await bootImagine({ imagineTransport: 'grok-build' }, undefined)
-    await vi.waitFor(() => {
-      expect(app.media.providers).toHaveLength(2)
-    })
-
-    const imagineProvider = app.media.providers.find(provider => provider.id === 'grok-imagine')!
-    await expect(imagineProvider.generateImage({ model: '', prompt: 'a cat' })).rejects.toMatchObject({
-      code: 'MISSING_CREDENTIAL',
-      message: expect.stringContaining('no signed-in Grok Build session') as string,
-    })
-    expect(imagineTransport.fetch).not.toHaveBeenCalled()
 
     await app.fiber.dispose()
   })
@@ -1344,7 +1327,7 @@ describe('owner composition fault containment', () => {
     await writeFile(join(stateDir, LEGACY_IMAGINE_MEDIA_STORE_DIRNAME, 'kept.bin'), 'kept')
     const app = await bootFaulty({ media: true, sandbox: true })
     await vi.waitFor(() => {
-      expect(app.media!.providers).toHaveLength(2)
+      expect(app.tools.registered.has('grok_imagine_image')).toBe(true)
     })
 
     await expect(
@@ -1731,7 +1714,7 @@ describe('owner composition runtime seams', () => {
     vi.spyOn(MediaStore.prototype, 'cleanup').mockRejectedValue(new Error('media store is unavailable'))
     const app = await bootSeams({})
     await vi.waitFor(() => {
-      expect(app.media!.providers).toHaveLength(2)
+      expect(app.tools.registered.has('grok_imagine_image')).toBe(true)
     })
 
     await expect(app.fiber.dispose()).resolves.toBeUndefined()
@@ -1747,7 +1730,7 @@ describe('owner composition runtime seams', () => {
     try {
       const app = await bootSeams({})
       await vi.waitFor(() => {
-        expect(app.media!.providers).toHaveLength(2)
+        expect(app.tools.registered.has('grok_imagine_image')).toBe(true)
       })
 
       await expect(readFile(join(legacy, 'kept.bin'), 'utf8')).resolves.toBe('kept')
@@ -1756,18 +1739,6 @@ describe('owner composition runtime seams', () => {
     } finally {
       await chmod(stateDir, 0o700)
     }
-  })
-
-  it('describes the Codex generated-media provider it registered', async () => {
-    const app = await bootSeams({})
-    await vi.waitFor(() => {
-      expect(app.media!.providers).toHaveLength(2)
-    })
-
-    const codexProvider = app.media!.providers.find(provider => provider.id === 'codex')!
-    await expect(codexProvider.generateImage({ model: '', prompt: 'a cube' })).rejects.toThrow()
-
-    await app.fiber.dispose()
   })
 
   it('withholds a late catalog refresh failure that lands after disposal', async () => {

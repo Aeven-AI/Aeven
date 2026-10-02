@@ -654,23 +654,21 @@
 - id: tool-web
   disabled: true
 
-# Image generation. The seam and its providers stay in the host composition;
+# Image generation. The seam and its provider stay in the host composition;
 # only the model-facing tool is per-session, and it lives in the agent preset
-# beside the other tools. Each provider package contributes one provider and
-# resolves its own credential, so adding a second is one more row here and no
-# consumer change.
+# beside the other tools. Aeven's own gateway is the one image provider: it
+# serves Aeven-1.0-Image-Flash and Aeven-1.0-Image-Pro over the signed-in
+# session, the same credential `llm-aeven` presents, so no vendor key is held
+# here.
 - insert:
     - id: media
       name: '@aeven/media'
       config:
-        # Two registered image providers make selection ambiguous, which the
-        # seam reports rather than guessing; this names the default. A call
-        # naming its own `provider` still outranks it.
-        imageProvider: deepinfra
-    - id: media-deepinfra
-      name: '@aeven/media-deepinfra'
-    - id: media-openrouter
-      name: '@aeven/media-openrouter'
+        imageProvider: aeven
+    - id: media-aeven
+      name: '@aeven/media-aeven'
+      config:
+        apiUrl: !!js process.env.AEVEN_API_URL ?? 'http://localhost:9000'
 
 # The preset roster. The shipped presets are bundled inside
 # `avn-agent-presets` itself and prepended as a read-only `system` root

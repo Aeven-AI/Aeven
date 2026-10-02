@@ -56,6 +56,7 @@
     "@aeven/llm-retry": "workspace:^",
     "@aeven/mcp-client": "workspace:^",
     "@aeven/media": "workspace:^",
+    "@aeven/media-aeven": "workspace:^",
     "@aeven/media-deepinfra": "workspace:^",
     "@aeven/media-openrouter": "workspace:^",
     "@aeven/output-retention": "workspace:^",

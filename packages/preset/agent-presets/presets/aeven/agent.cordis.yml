@@ -273,52 +273,28 @@
 # The `web` service and its search provider stay in the host composition; only
 # the model-facing tool is per-session.
 # The `media` seam and its providers stay in the host composition; only the
-# model-facing tool is per-session. `model` is the provider's own id, verbatim:
-# the OpenRouter spelling of the same family differs
-# (`black-forest-labs/flux.2-pro`), so a call switching provider names its
-# model too. Where no media provider is mounted, this entry stays pending and
-# contributes no tool.
+# model-facing tool is per-session. Where no media provider is mounted, this
+# entry stays pending and contributes no tool.
 - id: tool-media
   name: '@aeven/tool-media'
   config:
-    # Offered before every generation. `provider` is the seam registry key and
-    # `model` the provider's own id, verbatim: the same FLUX family is spelled
-    # differently on each route, so a row names both.
+    # The only selectable image models: the picker, `/image-models`, and a model
+    # a call names are limited to these. Both are served by `media-aeven` over
+    # the signed-in Aeven session.
     choices:
-      # Contributed by the subscription plugin rather than an API key: the
-      # Imagine client downloads and stores the image itself, so the seam
-      # carries its reference instead of bytes.
-      - provider: grok-imagine
-        model: grok-imagine-image-2.0
-        label: Grok Imagine
-        description: Your Grok subscription — no API key
-      - provider: deepinfra
-        model: black-forest-labs/FLUX-1.1-pro
-        label: FLUX 1.1 Pro
-        description: DeepInfra — highest quality, slowest
-      - provider: deepinfra
-        model: black-forest-labs/FLUX-1-schnell
-        label: FLUX Schnell
-        description: DeepInfra — fastest, lower detail
-      - provider: deepinfra
-        model: black-forest-labs/FLUX-1-dev
-        label: FLUX Dev
-        description: DeepInfra — balanced
-      - provider: openrouter
-        model: black-forest-labs/flux.2-pro
-        label: FLUX.2 Pro
-        description: OpenRouter — newest FLUX
-      - provider: openrouter
-        model: google/gemini-3-pro-image
-        label: Gemini 3 Pro Image
-        description: OpenRouter — strong at text in images
-      - provider: openrouter
-        model: bytedance-seed/seedream-4.5
-        label: Seedream 4.5
-        description: OpenRouter — photographic
-    # The fallback where no UI can answer the picker.
-    model: black-forest-labs/FLUX-1.1-pro
-    provider: deepinfra
+      - provider: aeven
+        model: Aeven-1.0-Image-Flash
+        label: Aeven Image Flash
+        description: Fast, low-cost generation and editing; size WIDTHxHEIGHT, 128–1920 px per side (default 1024x1024); up to 4 reference images; no background option
+      - provider: aeven
+        model: Aeven-1.0-Image-Pro
+        label: Aeven Image Pro
+        description: Accurate text rendering and detailed scenes; size 1K, 1.5K, 2K (default) or WIDTHxHEIGHT; up to 4 reference images; transparent or opaque background
+    # Generates with Flash until a person picks another model through
+    # `/image-models`, rather than asking before the first generation.
+    model: Aeven-1.0-Image-Flash
+    provider: aeven
+    confirmModel: false
 
 - id: tool-web
   name: '@aeven/tool-web'
