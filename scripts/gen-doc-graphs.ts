@@ -112,7 +112,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     pkg: 'media',
     title: 'Generated image and video',
     mode: 'seam',
-    implementations: ['media-deepinfra', 'media-openrouter', 'media-pi-ai'],
+    implementations: ['media-aeven', 'media-deepinfra', 'media-openrouter', 'media-pi-ai'],
     note: 'One service spans both media: images return bytes directly, while video is a job a caller starts, polls, and fetches. Consumers own every model-facing name and schema.',
   },
   {

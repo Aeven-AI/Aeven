@@ -26,18 +26,22 @@ English | [中文](README.zh.md)
 
 Mount the tool alongside `avn-media` and one or more image providers. `model` names the model a call gets when it asks for none, verbatim in the provider's own spelling; `provider` pins which registered provider serves those calls. Both default to absent, which defers to the seam's own selection and requires every call to name its model.
 
+`choices` is the whole set of selectable models, each naming its provider. When it is non-empty, the picker, the `/image-models` command, and a model a call names are all limited to it, so a model outside the list is refused before any generation. The shipped presets list `Aeven-1.0-Image-Flash` and `Aeven-1.0-Image-Pro`, default to Flash, and set `confirmModel: false`, so the first generation runs on Flash without asking and `/image-models` changes the stored choice.
+
 A deployment mounting two image providers pins one, either here or as the seam's `imageProvider`: the seam reports ambiguous selection rather than guessing.
 
 ### Requests
 
-`prompt` is the only required argument. `model` and `provider` override this deployment's defaults for one call, which is how a single mounted tool reaches two providers whose model spellings differ. `n`, `aspect_ratio`, `resolution`, `size` and `seed` forward to the seam under its own names; only the fields a call set are sent, so each provider's own defaults apply to the rest.
+`prompt` is the only required argument. `model` overrides the selected model for one call and is served by the provider its choice names. `n`, `size`, and `background` forward to the seam under its own names; only the fields a call set are sent, so the provider's own defaults apply to the rest, and a provider refuses an option the chosen model lacks. `reference_images` names image files in the order the prompt refers to them; each is read through `ctx.fs` under the session's working directory, bounded by `maxReferenceImageBytes` (4 MiB by default), labelled by its bytes, and sent to the provider as a reference. A conversation image is passed by the normalized-copy path its handle text shows.
 
 -----
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
-`resolveRequest` performs defaulting as one explicit step, so a call naming no model and reaching no configured default fails by name instead of arriving at a provider as an empty id.
+`resolveRequest` performs defaulting as one explicit step, so a call naming no model and reaching no configured default fails by name instead of arriving at a provider as an empty id. It is also where the `choices` restriction is enforced, because every generation passes through it whatever the picker did.
+
+`readReferences` reads reference images through the mounted filesystem backend, so a workspace file and a conversation image's normalized copy are read the same way. A call naming references where no filesystem is mounted fails by name.
 
 `storable` narrows a generated media type to the four raster formats the version-one attachment path stores. A provider may return something else — OpenRouter serves SVG on request, and bytes whose signature is unrecognized are labelled `application/octet-stream` — and that is refused here with the type named, rather than at the storage layer as a bare rejection.
 
@@ -52,11 +56,11 @@ A deployment mounting two image providers pins one, either here or as the seam's
 
 #### What the model sees
 
-The model sees the generated [`generate_image` schema](../../../docs/tool-catalog.md#aeventool-media) with one required `prompt` and seven optional controls: `model` and `provider` for one-call overrides, and `n`, `aspect_ratio`, `resolution`, `size`, `seed` forwarded to the seam. The description names what a good prompt covers and tells the model not to call other tools to locate or verify the image, because the attachment is already the result.
+The model sees the generated [`generate_image` schema](../../../docs/tool-catalog.md#aeventool-media) with one required `prompt` and five optional controls: `model` for a one-call override, `n`, `size`, and `background` forwarded to the seam, and `reference_images` for editing or drawing from existing images. The description names what a good prompt covers, how to pass reference images, and each configured choice with its description and the default, so the model knows which model has which option; it tells the model not to call other tools to locate or verify the image, because the attachment is already the result.
 
 #### Token effect
 
-Fixed schema cost on every request where the tool is visible. The description and schema are stable for a given configuration; the configured default model does not appear in either.
+Fixed schema cost on every request where the tool is visible. The description and schema are stable for a given composition configuration; the description names the composition's choices and default, not a choice a person stored later.
 
 #### KV Cache effect
 
@@ -66,7 +70,7 @@ Prefix-stable while the definition and visibility are unchanged. Plugin lifecycl
 
 #### What the model sees
 
-A success returns one line — `Generated <n> image(s) with <model> via <provider>.` — followed by one image block per stored image. A failure surfaces the seam's own message, which names the failing condition: an unnamed model, an ambiguous provider selection, an upstream HTTP status, or a media type that cannot be stored.
+A success returns one line — `Generated <n> image(s) with <model>.` — followed by one image block per stored image. A failure surfaces the seam's own message, which names the failing condition: an unnamed or unavailable model, an option the model lacks, an unreadable reference image, an upstream refusal, or a media type that cannot be stored.
 
 #### Token effect
 
@@ -83,9 +87,7 @@ Append-only; newly visible content follows the reusable request prefix and does 
 These limits define when the package is a poor fit. They are current package constraints.
 
 - **No invariant companion** — No companion is published. The tool owns no durable state and no independently observable relationship: the seam owns provider selection, `ctx.attachments` owns storage and verifies its own digests, and a stored reference is read back only through the store that wrote it.
-- **No reference images** — the seam carries `references` for image-to-image work and both mounted providers accept them, but the tool takes no image argument, so editing an existing image is not reachable through it.
 - **No video** — the seam models video as a job with its own polling and retrieval calls, which needs a tool surface of its own rather than an argument on this one.
-- **One default model across providers** — the configured default is a single string, so a deployment pinning no provider and mounting two whose model spellings differ needs each call to name both.
 - **No cost reporting** — providers report per-generation cost that the seam has nowhere to hold, so it does not reach the result.
 
 <a id="dev-note"></a>
@@ -96,8 +98,8 @@ These limits define when the package is a poor fit. They are current package con
 
 This Dev Note is working context for maintainers: open questions and undecided directions. It is explicitly non-authoritative — shipped behavior, limits, and rationale live in the sections above.
 
-#### Exposing reference images
+#### Reference images by attachment id
 
-Adding an image argument would make editing reachable, but the tool would then need to read attachments back out of the store to hand a provider its reference bytes, which is the first time this package would read rather than write. Undecided.
+References are read by path, which needs a mounted filesystem. Accepting a conversation image's attachment id would need the full durable reference, which only the session log holds. Undecided.
 
 </details>

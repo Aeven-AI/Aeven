@@ -43,7 +43,6 @@ import {
 } from './capability-tools.ts'
 import { createClaudeUsageReader } from './claude-usage.ts'
 import { codexAuthFromSession } from './codex-http.ts'
-import { createCodexImageController } from './codex-images.ts'
 import { createCodexModelCapabilities } from './codex-model-capabilities.ts'
 import { createCodexSearchProvider } from './codex-search.ts'
 import { createCodexUsageReader } from './codex-usage.ts'
@@ -68,7 +67,6 @@ import {
   XAI_PI_PROVIDER,
 } from './ids.ts'
 import { registerImagineRoutes } from './imagine-routes.ts'
-import { createCodexImageProvider, createImagineImageProvider, type SeamImageRegistry } from './media-provider.ts'
 import { createTrustedImagineAuthz, MediaStore, migrateLegacyMediaStoreDir } from './media-store.ts'
 import { OAUTH_PROVIDER_DEFINITIONS } from './oauth-providers.ts'
 import { OAuthProviderSession } from './oauth-session.ts'
@@ -793,44 +791,6 @@ function applyOwned(ctx: Context, config: Config): void {
         return result
       },
     }
-    // Offer this subscription's image model through the generated-media seam
-    // as well, so one model-facing tool can list it beside every API-key
-    // provider. Optional: a composition without `ctx.media` keeps only the
-    // standalone tools below.
-    toolCtx.inject(['media'], (mediaCtx) => {
-      // `ctx.media` is untyped here because the seam package is not a
-      // dependency of this plugin; the structural registry is what this
-      // provider needs and all it is used for.
-      const registry = mediaCtx.get('media') as unknown as SeamImageRegistry | undefined
-      if (registry === undefined) return
-      mediaCtx.effect(
-        () => registry.registerImageProvider(createImagineImageProvider({ imagine: routedImagine })),
-        'avn-subscription-auth: Imagine image provider',
-      )
-      mediaCtx.effect(
-        () =>
-          registry.registerImageProvider(
-            createCodexImageProvider({
-              // The seam carries a prompt and no conversation, so this
-              // controller derives no messages; `codex_image_generate`
-              // remains the surface that does.
-              createController: () =>
-                createCodexImageController({
-                  auth: codexAuth,
-                  attachments,
-                  session: {
-                    /* v8 ignore next -- the generated-media seam carries no conversation */
-                    deriveMessages: () => [],
-                  },
-                  routePolicy: 'any',
-                }),
-              imageCount: () => runtime.current().imageCount,
-            }),
-          ),
-        'avn-subscription-auth: Codex image provider',
-      )
-    })
-
     const saveToWorkspace = createWorkspaceArtifactWriter(toolCtx, attachments, media)
     const definitions = (
       await createCapabilityTools({

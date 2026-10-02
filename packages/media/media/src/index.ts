@@ -30,6 +30,7 @@ export { MediaError } from './types.ts'
 export type {
   GeneratedImage,
   GeneratedMedia,
+  MediaImageBackground,
   MediaImageModel,
   MediaErrorCode,
   MediaImageProvider,

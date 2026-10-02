@@ -7,18 +7,22 @@ import { MEDIA_SETTINGS_NAMESPACE } from '../src/index.ts'
 import { MediaRuntime } from '@aeven/media'
 import type { GeneratedImage, MediaImageProvider, MediaImageRequest } from '@aeven/media'
 import * as ToolMedia from '@aeven/tool-media'
-import { askRequest, catalogChoices, choiceFor, choiceLabel, imageBlockRef, OTHER_MODEL_LABEL, resolveRequest, storable, storeImage } from '../src/index.ts'
+import { askRequest, choiceFor, choiceLabel, imageBlockRef, modelsText, readReferences, resolveRequest, storable, storeImage } from '../src/index.ts'
 
 const signal = new AbortController().signal
+
+// Both name the registered stub provider: these cases assert the picker, not
+// seam selection, which has its own tests.
+const CHOICES = [
+  { provider: 'stub', model: 'flux-pro', label: 'FLUX Pro', description: 'best' },
+  { provider: 'stub', model: 'flux.2-pro' },
+]
 const PNG = Uint8Array.of(137, 80, 78, 71)
+const JPEG = Uint8Array.of(0xff, 0xd8, 0xff, 0xe0)
 
 /** Record what the seam was asked for, and answer with fixed bytes. */
 function imageProvider(
   images: readonly GeneratedImage[] = [{ kind: 'bytes', mediaType: 'image/png', data: PNG }],
-  catalog: readonly { provider: string; id: string; label?: string }[] = [
-    { provider: 'stub', id: 'catalog-a', label: 'Catalog A' },
-    { provider: 'stub', id: 'catalog-b' },
-  ],
 ): {
   provider: MediaImageProvider
   seen: MediaImageRequest[]
@@ -33,7 +37,6 @@ function imageProvider(
         seen.push(request)
         return { provider: 'stub', model: request.model, images }
       },
-      listImageModels: async () => catalog,
     },
   }
 }
@@ -57,7 +60,7 @@ async function mount(opts: {
   images?: readonly GeneratedImage[]
   answer?: string | null
   answers?: readonly (string | null)[]
-  emptyCatalog?: boolean
+  files?: Record<string, Uint8Array>
   settings?: boolean
 } = {}): Promise<{
   commands: { name: string; handler: (invocation: unknown) => Promise<{ kind: string; text?: string }> }[]
@@ -115,7 +118,8 @@ async function mount(opts: {
   await ctx.plugin(MediaRuntime)
   const store = attachments()
   ctx.provide('attachments', store)
-  const { provider, seen } = imageProvider(opts.images, opts.emptyCatalog === true ? [] : undefined)
+  if (opts.files !== undefined) ctx.provide('fs', fileSystem(opts.files).fs)
+  const { provider, seen } = imageProvider(opts.images)
   ctx.media.registerImageProvider(provider)
   await ctx.plugin(ToolMedia, opts.config ?? {})
   let counter = 0
@@ -130,13 +134,14 @@ async function mount(opts: {
 }
 
 describe('resolveRequest', () => {
+  const references = [{ mediaType: 'image/png', data: PNG }]
+
   it('maps every model-facing argument onto the seam request under the seam names', () => {
     expect(resolveRequest({
-      prompt: 'a red panda', model: 'm', provider: 'openrouter',
-      n: 2, aspect_ratio: '16:9', resolution: '2K', size: '1024x1024', seed: 4,
-    }, {})).toEqual({
-      prompt: 'a red panda', model: 'm', provider: 'openrouter',
-      n: 2, aspectRatio: '16:9', resolution: '2K', size: '1024x1024', seed: 4,
+      prompt: 'a red panda', model: 'm', n: 2, size: '1024x1024', background: 'transparent',
+    }, { provider: 'aeven' }, references)).toEqual({
+      prompt: 'a red panda', model: 'm', provider: 'aeven',
+      n: 2, size: '1024x1024', background: 'transparent', references,
     })
   })
 
@@ -145,9 +150,14 @@ describe('resolveRequest', () => {
       .toEqual({ prompt: 'x', model: 'cfg-model', provider: 'cfg-provider' })
   })
 
-  it('prefers the call over the configuration', () => {
-    expect(resolveRequest({ prompt: 'x', model: 'arg', provider: 'arg-p' }, { model: 'cfg', provider: 'cfg-p' }))
-      .toMatchObject({ model: 'arg', provider: 'arg-p' })
+  it('prefers the called model and serves it from the provider its choice names', () => {
+    expect(resolveRequest({ prompt: 'x', model: 'flux.2-pro' }, { model: 'flux-pro', provider: 'cfg-p', choices: CHOICES }))
+      .toMatchObject({ model: 'flux.2-pro', provider: 'stub' })
+  })
+
+  it('refuses a model outside the configured choices', () => {
+    expect(() => resolveRequest({ prompt: 'x', model: 'dall-e' }, { model: 'flux-pro', choices: CHOICES }))
+      .toThrow('"dall-e" is not an available image model; use one of flux-pro, flux.2-pro')
   })
 
   it('omits provider entirely when neither names one, deferring to seam selection', () => {
@@ -156,6 +166,75 @@ describe('resolveRequest', () => {
 
   it.each([undefined, ''])('refuses to build a request with no model named (%o)', (model) => {
     expect(() => resolveRequest({ prompt: 'x', ...model === undefined ? {} : { model } }, {})).toThrow(/no image model named/)
+  })
+})
+
+/** A filesystem double that resolves every path under `/ws` and serves fixed files. */
+function fileSystem(files: Record<string, Uint8Array>): { fs: Context['fs']; resolved: unknown[]; limits: number[] } {
+  const resolved: unknown[] = []
+  const limits: number[] = []
+  return {
+    resolved,
+    limits,
+    fs: {
+      resolve: async (path: string, options: unknown) => {
+        resolved.push({ path, options })
+        return { displayPath: `/ws/${path}` }
+      },
+      readBytes: async (target: { displayPath: string }, _signal: AbortSignal | undefined, maxBytes: number) => {
+        limits.push(maxBytes)
+        const data = files[target.displayPath]
+        if (data === undefined) throw new Error(`cannot read "${target.displayPath}": not found`)
+        return data
+      },
+    } as unknown as Context['fs'],
+  }
+}
+
+describe('readReferences', () => {
+  it('reads each path through the filesystem in order, under the call cwd, labelling it by its bytes', async () => {
+    const { fs, resolved, limits } = fileSystem({ '/ws/a.png': PNG, '/ws/b.jpg': JPEG })
+    expect(await readReferences(fs, ['a.png', 'b.jpg'], { cwd: '/ws', signal }, 100)).toEqual([
+      { mediaType: 'image/png', data: PNG },
+      { mediaType: 'image/jpeg', data: JPEG },
+    ])
+    expect(resolved).toEqual([
+      { path: 'a.png', options: { cwd: '/ws', signal } },
+      { path: 'b.jpg', options: { cwd: '/ws', signal } },
+    ])
+    expect(limits).toEqual([100, 100])
+  })
+
+  it('resolves without a cwd or signal when the call has none', async () => {
+    const { fs, resolved } = fileSystem({ '/ws/a.png': PNG })
+    await readReferences(fs, ['a.png'], { cwd: undefined, signal: undefined }, 100)
+    expect(resolved).toEqual([{ path: 'a.png', options: {} }])
+  })
+
+  it('reads nothing, and needs no filesystem, when the call names no reference', async () => {
+    expect(await readReferences(undefined, [], { cwd: undefined, signal: undefined }, 100)).toEqual([])
+  })
+
+  it('refuses references where no filesystem is mounted', async () => {
+    await expect(readReferences(undefined, ['a.png'], { cwd: undefined, signal: undefined }, 100))
+      .rejects.toThrow('reference_images needs a filesystem, and none is mounted')
+  })
+
+  it('refuses a file that is not a supported image, naming it', async () => {
+    const { fs } = fileSystem({ '/ws/notes.txt': new TextEncoder().encode('hello') })
+    await expect(readReferences(fs, ['notes.txt'], { cwd: undefined, signal: undefined }, 100))
+      .rejects.toThrow('reference image "/ws/notes.txt" is not a PNG, JPEG, WebP, or GIF image')
+  })
+})
+
+describe('modelsText', () => {
+  it('names every choice, marks the default, and carries each description', () => {
+    expect(modelsText({ model: 'flux-pro', choices: CHOICES }))
+      .toBe(' Available models: flux-pro (default) — best; flux.2-pro.')
+  })
+
+  it('adds nothing where no choices are configured', () => {
+    expect(modelsText({ model: 'm' })).toBe('')
   })
 })
 
@@ -206,13 +285,6 @@ describe('imageBlockRef', () => {
 })
 
 
-// Both name the registered stub provider: these cases assert the picker, not
-// seam selection, which has its own tests.
-const CHOICES = [
-  { provider: 'stub', model: 'flux-pro', label: 'FLUX Pro', description: 'best' },
-  { provider: 'stub', model: 'flux.2-pro' },
-]
-
 describe('choice labels', () => {
   it('labels a choice by its own label, falling back to provider/model', () => {
     expect(choiceLabel(CHOICES[0]!)).toBe('FLUX Pro')
@@ -262,7 +334,6 @@ describe('the model picker', () => {
         options: [
           { label: 'FLUX Pro', description: 'best' },
           { label: 'stub/flux.2-pro' },
-          { label: OTHER_MODEL_LABEL },
         ],
       }],
     })
@@ -334,13 +405,13 @@ describe('asking exactly once', () => {
 
   it('never asks again once a choice is stored', async () => {
     const { call, asked, seen } = await mount({
-      config: { model: 'chosen', provider: 'stub', choices: CHOICES, confirmModel: true, modelChosen: true },
+      config: { model: 'flux.2-pro', provider: 'stub', choices: CHOICES, confirmModel: true, modelChosen: true },
       answer: 'FLUX Pro',
       settings: true,
     })
     await call({ prompt: 'x' })
     expect(asked).toHaveLength(0)
-    expect(seen[0]).toMatchObject({ model: 'chosen' })
+    expect(seen[0]).toMatchObject({ model: 'flux.2-pro' })
   })
 
   it('stores nothing when the answer names no offered option, so the next call asks again', async () => {
@@ -352,78 +423,14 @@ describe('asking exactly once', () => {
     await call({ prompt: 'x' })
     expect(installed[0]!.patches).toEqual([])
   })
-
-  it('persists a model picked from the full catalog too', async () => {
-    const { call, installed } = await mount({
-      config: { model: 'flux-pro', provider: 'stub', choices: CHOICES, confirmModel: true },
-      answers: [OTHER_MODEL_LABEL, 'Catalog A (stub)'],
-      settings: true,
-    })
-    await call({ prompt: 'x' })
-    expect(installed[0]!.patches).toEqual([{ provider: 'stub', model: 'catalog-a', modelChosen: true }])
-  })
 })
 
-describe('catalogChoices', () => {
-  it('labels a catalog entry by its name and provider, or by provider/id when unnamed', () => {
-    expect(catalogChoices([
-      { provider: 'openrouter', id: 'x/y', label: 'Nice Model', description: 'd' },
-      { provider: 'deepinfra', id: 'a/b' },
-    ])).toEqual([
-      { provider: 'openrouter', model: 'x/y', label: 'Nice Model (openrouter)', description: 'd' },
-      { provider: 'deepinfra', model: 'a/b', label: 'deepinfra/a/b' },
-    ])
-  })
-})
-
-describe('the every-model escape hatch', () => {
-  it('asks again over the published catalog and generates with the pick', async () => {
-    const { call, seen, asked } = await mount({
-      config: { model: 'flux-pro', provider: 'stub', choices: CHOICES, confirmModel: true },
-      answers: [OTHER_MODEL_LABEL, 'Catalog A (stub)'],
-    })
-    await call({ prompt: 'x' })
-    expect(asked).toHaveLength(2)
-    expect(seen[0]).toMatchObject({ model: 'catalog-a', provider: 'stub' })
-  })
-
-  it('offers no further escape hatch in the catalog menu itself', async () => {
-    const { call, asked } = await mount({
-      config: { model: 'flux-pro', provider: 'stub', choices: CHOICES, confirmModel: true },
-      answers: [OTHER_MODEL_LABEL, 'Catalog A (stub)'],
-    })
-    await call({ prompt: 'x' })
-    const second = asked[1] as { questions: { options: { label: string }[] }[] }
-    expect(second.questions[0]!.options.map(o => o.label)).toEqual(['Catalog A (stub)', 'stub/catalog-b'])
-  })
-
-  it('keeps the configured model when no provider publishes a catalog', async () => {
-    const { call, seen, asked } = await mount({
-      config: { model: 'flux-pro', provider: 'stub', choices: CHOICES, confirmModel: true },
-      answers: [OTHER_MODEL_LABEL],
-      emptyCatalog: true,
-    })
-    await call({ prompt: 'x' })
-    expect(asked).toHaveLength(1)
-    expect(seen[0]).toMatchObject({ model: 'flux-pro' })
-  })
-
-  it('keeps the configured model when the catalog answer names no option', async () => {
-    const { call, seen } = await mount({
-      config: { model: 'flux-pro', provider: 'stub', choices: CHOICES, confirmModel: true },
-      answers: [OTHER_MODEL_LABEL, null],
-    })
-    await call({ prompt: 'x' })
-    expect(seen[0]).toMatchObject({ model: 'flux-pro' })
-  })
-})
-
-describe('the /image-model command', () => {
+describe('the /image-models command', () => {
   const invocation = { agent: undefined, signal } as never
 
   it('is registered so a stored choice stays changeable', async () => {
     const { commands } = await mount({ config: { model: 'm', provider: 'stub', choices: CHOICES } })
-    expect(commands.map(c => c.name)).toEqual(['image-model'])
+    expect(commands.map(c => c.name)).toEqual(['image-models'])
   })
 
   it('re-opens the picker even though a choice is already stored, and persists the new one', async () => {
@@ -465,7 +472,7 @@ describe('generate_image', () => {
       model: 'flux',
       images: [{ attachmentId: 'att-1', mediaType: 'image/png', bytes: 4, width: 8, height: 8 }],
     })
-    expect(out.content[0]).toEqual({ type: 'text', text: 'Generated 1 image(s) with flux via stub.' })
+    expect(out.content[0]).toEqual({ type: 'text', text: 'Generated 1 image(s) with flux.' })
     expect(out.content[1]).toMatchObject({ type: 'image', attachment: { attachmentId: 'att-1' } })
   })
 
@@ -477,7 +484,7 @@ describe('generate_image', () => {
     const out = await call({ prompt: 'two of them', n: 2 })
     expect(store.saved).toEqual([{ mediaType: 'image/png' }, { mediaType: 'image/jpeg' }])
     expect(out.content).toHaveLength(3)
-    expect(out.content[0]).toEqual({ type: 'text', text: 'Generated 2 image(s) with flux via stub.' })
+    expect(out.content[0]).toEqual({ type: 'text', text: 'Generated 2 image(s) with flux.' })
   })
 
   it('carries a provider-stored image straight into the result without re-storing it', async () => {
@@ -494,6 +501,36 @@ describe('generate_image', () => {
     const { call } = await mount({ config: { model: 'flux' }, images: [{ kind: 'bytes', mediaType: 'image/svg+xml', data: PNG }] })
     const out = await call({ prompt: 'vector art' })
     expect(out.isError).toBe(true)
+  })
+
+  it('reads the named reference images and passes them, with the background, to the seam', async () => {
+    const { call, seen } = await mount({ config: { model: 'flux' }, files: { '/ws/logo.png': PNG } })
+    const out = await call({ prompt: 'put the logo on a mug', reference_images: ['logo.png'], background: 'opaque' })
+    expect(out.isError).not.toBe(true)
+    expect(seen[0]).toEqual({
+      prompt: 'put the logo on a mug',
+      model: 'flux',
+      background: 'opaque',
+      references: [{ mediaType: 'image/png', data: PNG }],
+    })
+  })
+
+  it('refuses a model outside the choices before any generation', async () => {
+    const { call, seen } = await mount({ config: { model: 'flux-pro', choices: CHOICES, confirmModel: false } })
+    const out = await call({ prompt: 'x', model: 'dall-e' })
+    expect(out.isError).toBe(true)
+    expect(seen).toEqual([])
+  })
+
+  it('names the selectable models and the default in its description', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(ToolRuntime)
+    await ctx.plugin(MediaRuntime)
+    ctx.provide('attachments', attachments())
+    await ctx.plugin(ToolMedia, { model: 'flux-pro', choices: CHOICES })
+    expect(ctx.tools.get('generate_image')?.description)
+      .toMatch(/Available models: flux-pro \(default\) — best; flux\.2-pro\.$/)
   })
 
   it('reports a call that names no model and has no configured default', async () => {

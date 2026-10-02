@@ -348,6 +348,7 @@
       "@aeven/lsp-stdio": ["./packages/lsp/lsp-stdio/src"],
       "@aeven/mcp-client": ["./packages/mcp/mcp-client/src"],
       "@aeven/media": ["./packages/media/media/src"],
+      "@aeven/media-aeven": ["./packages/media/media-aeven/src"],
       "@aeven/media-deepinfra": ["./packages/media/media-deepinfra/src"],
       "@aeven/media-openrouter": ["./packages/media/media-openrouter/src"],
       "@aeven/media-pi-ai": ["./packages/media/media-pi-ai/src"],

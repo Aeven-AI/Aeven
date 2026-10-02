@@ -1,5 +1,5 @@
 ---
-description: "media 包组：ctx.media 生成图像与生成视频 seam，以及为其服务的 DeepInfra、OpenRouter 与 pi-ai 提供方。"
+description: "media 包组：ctx.media 生成图像与生成视频 seam，以及为其服务的 Aeven、DeepInfra、OpenRouter 与 pi-ai 提供方。"
 kind: "package-group"
 ---
 
@@ -25,6 +25,7 @@ seam 包持有服务与提供方注册表；每个提供方包把某一个厂商
 | 包 | 职责 |
 |---|---|
 | [`media`](media/README.zh.md) | 持有 `ctx.media` 以及所有提供方注册进入的图像与视频提供方注册表 |
+| [`media-aeven`](media-aeven/README.zh.md) | 通过已登录会话从 Aeven 网关提供 Aeven 的两个图片模型 |
 | [`media-deepinfra`](media-deepinfra/README.zh.md) | 通过 DeepInfra 的 OpenAI 兼容端点提供图像与视频 |
 | [`media-openrouter`](media-openrouter/README.zh.md) | 通过提交、轮询与内容取回从 OpenRouter 提供视频 |
 | [`media-pi-ai`](media-pi-ai/README.zh.md) | 通过把 pi-ai 自己的 images 注册表注册为提供方来提供图像 |

@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-`avn-subscription-auth` 让部署用操作者已经付费的编码订阅来驱动模型，而不是使用 API key。它通过 OAuth 登录 Grok Build、ChatGPT Codex 与 Claude Code，把每个订阅发布为一条 LLM 路由，上报剩余额度，并向 media seam 贡献图像与视频生成。模型提供方设置页中的「订阅」分组在浏览器中承载登录与额度，与 API 密钥提供方使用相同的行。它属于 experimental：不进入正式发布，并且调用的是供应商未公开文档的私有端点，因此供应商的一次改动就可能在没有预告的情况下让某条路由失效。
+`avn-subscription-auth` 让部署用操作者已经付费的编码订阅来驱动模型，而不是使用 API key。它通过 OAuth 登录 Grok Build、ChatGPT Codex 与 Claude Code，把每个订阅发布为一条 LLM 路由，上报剩余额度，并通过它自己的工具提供图像与视频生成。模型提供方设置页中的「订阅」分组在浏览器中承载登录与额度，与 API 密钥提供方使用相同的行。它属于 experimental：不进入正式发布，并且调用的是供应商未公开文档的私有端点，因此供应商的一次改动就可能在没有预告的情况下让某条路由失效。
 
 ## 目录
 
@@ -55,7 +55,7 @@ kind: "package-bundle"
 
 额度上报把三份互不相同的供应商载荷归一到一个投影（`src/usage-view.ts`）：无论供应商怎么报，都化为每个窗口的剩余百分比与以秒为单位的重置时刻。Codex 在 `wham/usage` 返回已用百分比窗口与积分余额，Claude 在 `/api/oauth/usage` 返回三个使用率桶与一份每月额外用量额度，Grok 在 `/billing?format=credits` 返回一个计费周期、按产品的拆分与预付分值余额。金额余额带有其 ISO 4217 币种，并以该币种的最小单位表示。每个 reader 对成功结果只做短暂缓存，对拒绝结果缓存得久得多，因为只有登录状态变化才能改变一次拒绝。
 
-媒体生成通过两条路到达模型：harness 的 media seam，由 `image.generate` 工具带供应商选择器驱动；以及这个包自己的 Imagine 与 Codex 图像工具。工具的对外暴露以凭据就绪状态为准，而不是以某个设置为准——后端没有可用凭据的工具会被撤下，而不是先提供再失败。
+媒体生成只通过这个包自己的 Imagine 与 Codex 工具到达模型；它不向 harness 的 media seam 注册任何 provider，该 seam 的图像模型属于部署自己。工具的对外暴露以凭据就绪状态为准，而不是以某个设置为准——后端没有可用凭据的工具会被撤下，而不是先提供再失败。
 
 **运行时不变量：** 不发布 companion。OAuth 会话与凭据文件没有可供比较的、由本包独立持有的观察值；能力、路由和工具贡献则由各自的 registry 持有，并由生命周期测试覆盖。
 
@@ -95,7 +95,7 @@ kind: "package-bundle"
 - **Grok Imagine 的图像模型有两个名字。** 直连 xAI API 称其为 `grok-imagine-image-2.0`，Grok Build proxy 称其为 `grok-imagine-image-quality`。两种写法都被接受并归一到当前 transport，因此模型选择器提供任一 id 都能在任一凭据下工作。
 - **未观察 Grok 的账单跳转设置。** 官方客户端会对 remote settings 带有 `usage_billing_redirect_url` 的账户隐藏额度。这个包不拉取 remote settings，因此这类账户会看到其供应商客户端本会拒绝展示的数字。
 - **兼容性 BOM 现已冗余。** `compatibility/avn-bom.json` 与 `AVN_EXACT_BOM` 用于检测跨仓库版本漂移，而 workspace 解析已使之不可能发生。它们保留到这个包在 harness 中稳定下来，然后移除。
-- **这个包横跨多个产品角色。** OAuth 会话、一个 LLM adapter、媒体 provider、工具与一个客户端 UI 都在同一个包里。预期它会在从 `experimental/` 提升之前按这些角色拆分。
+- **这个包横跨多个产品角色。** OAuth 会话、一个 LLM adapter、媒体工具与一个客户端 UI 都在同一个包里。预期它会在从 `experimental/` 提升之前按这些角色拆分。
 - **凭据文件是唯一的持久状态。** 它们保存着 refresh token；移除某个供应商的最后一个账户会删除它的文档——这是一次完整登出，同时丢弃 refresh token，只能通过重新在浏览器中登录来恢复。
 
 <a id="dev-note"></a>

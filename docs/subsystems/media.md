@@ -14,7 +14,7 @@ Providers register **capabilities** (a `MediaImageProvider` or `MediaVideoProvid
 
 ## Images
 
-`generateImage()` takes a prompt, the provider's own model id verbatim, and optional generation controls — count, aspect ratio, resolution, exact size, seed, and reference images for image-to-image work. It returns `GeneratedMedia`: an IANA media type and the complete bytes. The seam never rewrites a model id, so a provider's catalog remains the authority on what is valid.
+`generateImage()` takes a prompt, the provider's own model id verbatim, and optional generation controls — count, aspect ratio, resolution, exact size, seed, background, and reference images for image-to-image work. It returns `GeneratedMedia`: an IANA media type and the complete bytes. The seam never rewrites a model id, so a provider's catalog remains the authority on what is valid.
 
 ## Video is a job
 

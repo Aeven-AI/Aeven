@@ -286,6 +286,7 @@
     { "path": "./packages/media/media" },
     { "path": "./packages/media/media-pi-ai" },
     { "path": "./packages/media/media-openrouter" },
+    { "path": "./packages/media/media-aeven" },
     { "path": "./packages/media/media-deepinfra" },
     { "path": "./packages/media/tool-media" },
     { "path": "./packages/web/web" },

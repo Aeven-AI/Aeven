@@ -322,6 +322,7 @@ flowchart TD
   end
   subgraph group_media["packages/media"]
     pkg_media["media"]
+    pkg_media_aeven["media-aeven"]
     pkg_media_deepinfra["media-deepinfra"]
     pkg_media_openrouter["media-openrouter"]
     pkg_media_pi_ai["media-pi-ai"]
@@ -696,6 +697,11 @@ flowchart TD
   pkg_lsp_stdio --> pkg_lsp
   pkg_lsp_stdio --> pkg_subprocess
   pkg_lsp_stdio --> pkg_timeout
+  pkg_media_aeven --> pkg_agent
+  pkg_media_aeven --> pkg_credentials
+  pkg_media_aeven --> pkg_identity_user
+  pkg_media_aeven --> pkg_media
+  pkg_media_aeven --> pkg_session
   pkg_memory --> pkg_agent
   pkg_memory --> pkg_session
   pkg_sandbox_policy --> pkg_agent
@@ -994,6 +1000,7 @@ flowchart TD
   pkg_mcp_client --> pkg_tools
   pkg_tool_media --> pkg_attachment
   pkg_tool_media --> pkg_commands
+  pkg_tool_media --> pkg_fs
   pkg_tool_media --> pkg_media
   pkg_tool_media --> pkg_settings
   pkg_tool_media --> pkg_tools
@@ -1568,6 +1575,7 @@ flowchart TD
 | [`user-questions`](../packages/interaction/user-questions) | `interaction` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`scope`](../packages/core/scope) |
 | [`jobs`](../packages/jobs/jobs) | `jobs` | [`agent`](../packages/core/agent), [`brand`](../packages/util/brand), [`invariants`](../packages/runtime-diagnostics/invariants), [`session`](../packages/core/session) |
 | [`lsp-stdio`](../packages/lsp/lsp-stdio) | `lsp` | [`brand`](../packages/util/brand), [`fs`](../packages/fs/fs), [`llm`](../packages/llm/llm), [`lsp`](../packages/lsp/lsp), [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout) |
+| [`media-aeven`](../packages/media/media-aeven) | `media` | [`agent`](../packages/core/agent), [`credentials`](../packages/credentials/credentials), [`identity-user`](../packages/identity/user), [`media`](../packages/media/media), [`session`](../packages/core/session) |
 | [`memory`](../packages/memory/memory) | `memory` | [`agent`](../packages/core/agent), [`session`](../packages/core/session) |
 | [`sandbox-policy`](../packages/sandbox/sandbox-policy) | `sandbox` | [`agent`](../packages/core/agent), [`invariants`](../packages/runtime-diagnostics/invariants), [`sandbox`](../packages/sandbox/sandbox), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`system-prompt`](../packages/core/system-prompt) |
 | [`session-telemetry`](../packages/session/session-telemetry) | `session` | [`agent`](../packages/core/agent), [`session`](../packages/core/session) |
@@ -1626,7 +1634,7 @@ flowchart TD
 | [`tool-jobs`](../packages/jobs/tool-jobs) | `jobs` | [`agent`](../packages/core/agent), [`jobs`](../packages/jobs/jobs), [`llm`](../packages/llm/llm), [`output-retention`](../packages/util/output-retention), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools) |
 | [`tool-lsp`](../packages/lsp/tool-lsp) | `lsp` | [`llm`](../packages/llm/llm), [`lsp`](../packages/lsp/lsp), [`system-prompt`](../packages/core/system-prompt), [`timeout`](../packages/util/timeout), [`tools`](../packages/core/tools) |
 | [`mcp-client`](../packages/mcp/mcp-client) | `mcp` | [`attachment`](../packages/attachment/attachment), [`llm`](../packages/llm/llm), [`scope`](../packages/core/scope), [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout), [`tools`](../packages/core/tools) |
-| [`tool-media`](../packages/media/tool-media) | `media` | [`attachment`](../packages/attachment/attachment), [`commands`](../packages/interaction/commands), [`media`](../packages/media/media), [`settings`](../packages/settings/settings), [`tools`](../packages/core/tools), [`user-questions`](../packages/interaction/user-questions) |
+| [`tool-media`](../packages/media/tool-media) | `media` | [`attachment`](../packages/attachment/attachment), [`commands`](../packages/interaction/commands), [`fs`](../packages/fs/fs), [`media`](../packages/media/media), [`settings`](../packages/settings/settings), [`tools`](../packages/core/tools), [`user-questions`](../packages/interaction/user-questions) |
 | [`memory-context`](../packages/memory/memory-context) | `memory` | [`agent`](../packages/core/agent), [`goal`](../packages/goal/goal), [`llm`](../packages/llm/llm), [`llm-retry`](../packages/llm/llm-retry), [`memory`](../packages/memory/memory), [`message-feedback`](../packages/feedback/message-feedback), [`session`](../packages/core/session), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools) |
 | [`tool-memory`](../packages/memory/tool-memory) | `memory` | [`agent`](../packages/core/agent), [`memory`](../packages/memory/memory), [`tools`](../packages/core/tools) |
 | [`agent-presets`](../packages/preset/agent-presets) | `preset` | [`agent`](../packages/core/agent), [`atomic-write`](../packages/util/atomic-write), [`home-paths`](../packages/util/home-paths), [`invariants`](../packages/runtime-diagnostics/invariants), [`scope`](../packages/core/scope), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`settings`](../packages/settings/settings), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`typert-protocol`](../packages/typert/protocol) |

@@ -14,7 +14,7 @@ provider 注册的是**能力**（`MediaImageProvider` 或 `MediaVideoProvider`�
 
 ## 图片
 
-`generateImage()` 接受提示词、provider 自己的模型 id（原样传递），以及可选的生成控制项——数量、宽高比、分辨率、精确尺寸、种子，以及用于图生图的参考图。它返回 `GeneratedMedia`：一个 IANA 媒体类型与完整字节。seam 从不改写模型 id，因此 provider 的目录始终是"什么有效"的权威。
+`generateImage()` 接受提示词、provider 自己的模型 id（原样传递），以及可选的生成控制项——数量、宽高比、分辨率、精确尺寸、种子、背景，以及用于图生图的参考图。它返回 `GeneratedMedia`：一个 IANA 媒体类型与完整字节。seam 从不改写模型 id，因此 provider 的目录始终是"什么有效"的权威。
 
 ## 视频是任务
 

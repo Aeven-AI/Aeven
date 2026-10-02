@@ -2074,12 +2074,9 @@ importers:
       '@aeven/media':
         specifier: workspace:^
         version: link:../../media/media
-      '@aeven/media-deepinfra':
+      '@aeven/media-aeven':
         specifier: workspace:^
-        version: link:../../media/media-deepinfra
-      '@aeven/media-openrouter':
-        specifier: workspace:^
-        version: link:../../media/media-openrouter
+        version: link:../../media/media-aeven
       '@aeven/memory':
         specifier: workspace:^
         version: link:../../memory/memory
@@ -8307,6 +8304,31 @@ importers:
         specifier: workspace:^
         version: link:../../../vendor/cordis
 
+  packages/media/media-aeven:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@aeven/credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
+      '@aeven/media':
+        specifier: workspace:^
+        version: link:../media
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
   packages/media/media-deepinfra:
     dependencies:
       '@deepseek-ai/schemastery':
@@ -8379,6 +8401,9 @@ importers:
       '@aeven/commands':
         specifier: workspace:^
         version: link:../../interaction/commands
+      '@aeven/fs':
+        specifier: workspace:^
+        version: link:../../fs/fs
       '@aeven/llm':
         specifier: workspace:^
         version: link:../../llm/llm
@@ -12031,6 +12056,9 @@ importers:
       '@aeven/media':
         specifier: workspace:^
         version: link:../../packages/media/media
+      '@aeven/media-aeven':
+        specifier: workspace:^
+        version: link:../../packages/media/media-aeven
       '@aeven/media-deepinfra':
         specifier: workspace:^
         version: link:../../packages/media/media-deepinfra
