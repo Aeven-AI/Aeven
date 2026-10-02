@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { resolveDesktopPaths } from '../src/paths.ts'
 import {
   createSeedMetadata,
+  DESKTOP_DEPENDENCY_OVERRIDES,
   DesktopProjectManager,
   verifySeedIntegrity,
   type DesktopProjectHooks,
@@ -180,6 +181,30 @@ describe('desktop package policy', () => {
     expect(() => { verifySeedIntegrity(seed) }).not.toThrow()
     writeFileSync(join(seed, 'package.json'), '{}\n')
     expect(() => { verifySeedIntegrity(seed) }).toThrow(/integrity verification failed/u)
+  })
+
+  it('rewrites only dependency edges the workspace manifests declare', () => {
+    const packagesRoot = join(import.meta.dirname, '..', '..', '..', 'packages')
+    const manifest = (path: string): { dependencies?: Record<string, string> } =>
+      JSON.parse(readFileSync(join(packagesRoot, path, 'package.json'), 'utf8')) as { dependencies?: Record<string, string> }
+    const workspaceParents: Record<string, string> = {
+      '@aeven/client-ui-primitives': 'client/ui-primitives',
+      '@aeven/client-ui-conversation': 'client/ui-conversation',
+      '@aeven/client-ui-sidebar-terminal': 'client/ui-sidebar-terminal',
+    }
+    const removed = new Map<string, string[]>()
+    for (const [selector, spec] of Object.entries(DESKTOP_DEPENDENCY_OVERRIDES)) {
+      const [parent = '', child = ''] = selector.split('>')
+      const path = workspaceParents[parent]
+      if (path === undefined) continue
+      expect(spec).toBe('-')
+      expect(manifest(path).dependencies, selector).toHaveProperty([child])
+      removed.set(parent, [...removed.get(parent) ?? [], child])
+    }
+    expect(removed.get('@aeven/client-ui-primitives')?.sort())
+      .toEqual(Object.keys(manifest('client/ui-primitives').dependencies ?? {}).sort())
+    expect(DESKTOP_DEPENDENCY_OVERRIDES['@huggingface/transformers>sharp'])
+      .toBe(manifest('attachment/attachment-local').dependencies?.sharp)
   })
 })
 
