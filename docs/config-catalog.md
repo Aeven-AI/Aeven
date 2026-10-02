@@ -3418,6 +3418,12 @@ export interface Config {
    * so the ceiling is deployment-varying rather than fixed.
    */
   imagineApiTimeoutMs?: number
+  /**
+   * Interval between automatic model-list syncs of the signed-in
+   * subscriptions, in milliseconds. A sync also runs at startup and after each
+   * sign-in; `0` limits it to those two moments.
+   */
+  modelSyncIntervalMs?: number
   /** Owner-only request authorization for loopback, SSH tunnels, and trusted HTTPS proxies. */
   ownerRequest?: {
     /** Whether a loopback caller is the operator directly, or arrives over an SSH tunnel. */
@@ -3466,7 +3472,7 @@ export interface CapabilitySettings {
 
 Depends on: [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
 
-Source: [`packages/llm/subscription-auth/src/index.ts:250`](../packages/llm/subscription-auth/src/index.ts)
+Source: [`packages/llm/subscription-auth/src/index.ts:254`](../packages/llm/subscription-auth/src/index.ts)
 
 <a id="aevensystem-prompt"></a>
 
@@ -3876,6 +3882,13 @@ export interface Config {
    */
   choices?: ImageModelChoice[]
   /**
+   * Media providers whose own image-model listing is offered after `choices`.
+   * The listing is read on every call, so a provider whose models change at
+   * runtime — such as a subscription whose image model the user switches on or
+   * off in Settings → Providers — is selectable exactly while it lists them.
+   */
+  listedProviders?: string[]
+  /**
    * Ask which model to use until one has been chosen. The picker is skipped
    * regardless where no `userQuestions` UI can answer, or `choices` is empty.
    */
@@ -3903,7 +3916,7 @@ export interface ImageModelChoice {
 }
 ```
 
-Source: [`packages/media/tool-media/src/index.ts:68`](../packages/media/tool-media/src/index.ts)
+Source: [`packages/media/tool-media/src/index.ts:69`](../packages/media/tool-media/src/index.ts)
 
 <a id="aeventool-memory"></a>
 
